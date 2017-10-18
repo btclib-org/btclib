@@ -22,23 +22,23 @@ print("04", P)
 
 import hashlib
 
-print("\n*** The message/transaction to be signed")
+print("\n*** The message to be signed")
 msg1 = "Paolo is afraid of ephemeral random numbers"
 print(msg1)
 
-print("*** The hash of the message/transaction")
-hstring1 = hashlib.sha256(msg1.encode()).hexdigest()
+print("*** The hash of the message")
+hstring1 = sha256(msg1.encode()).hexdigest()
 #Hash(msg) must be converted to an integer
 h1 = int(hstring1, 16)
 assert (h1 % order) != 0
 print(" h1:", hex(h1))
 
 print("\n*** Signature")
-# k must be kept secret and it must never be reused !!!!!
-# good choice: k = sha256(msg, privKey)
-# different for each msg, private because of privKey
+# the ephemeral key k must be kept secret and never reused !!!!!
+# good choice: k = sha256(msg, p)
+# different for each msg, private because of p
 temp = msg1+hex(p)
-k1 = int(hashlib.sha256(temp.encode()).hexdigest(), 16) % order
+k1 = int(sha256(temp.encode()).hexdigest(), 16) % order
 # 0 < k1 < order
 assert 0 < k1
 assert     k1 < order
@@ -46,11 +46,11 @@ assert     k1 < order
 K1 = pointMultiply(k1, G)
 
 xk = K1[0]
-# if xk == 0 (extremely unlikely) go back to a different random number
+# if xk == 0 (extremely unlikely) go back to a different ephemeral key
 assert xk != 0
 
 s1 = ((h1 + xk*p) * modInv(k1, order)) %order
-# if s == 0 (extremely unlikely) go back to a different random number
+# if s == 0 (extremely unlikely) go back to a different ephemeral key
 assert s1 != 0
 
 print(" xk:", hex(xk))
@@ -87,8 +87,8 @@ print("\n*** Another message")
 msg2 = "and Paolo is right to be afraid"
 print(msg2)
 
-print("*** The hash of the message/transaction")
-hstring2 = hashlib.sha256(msg2.encode()).hexdigest()
+print("*** The hash of the message")
+hstring2 = sha256(msg2.encode()).hexdigest()
 #Hash(msg) must be converted to an integer
 h2 = int(hstring2, 16)
 assert (h2 % order) != 0
@@ -103,11 +103,11 @@ assert     k2 < order
 K2 = pointMultiply(k2, G)
 
 xk = K2[0]
-# if xk == 0 (extremely unlikely) go back to a different random number
+# if xk == 0 (extremely unlikely) go back to a different ephemeral key
 assert xk != 0
 
 s2 = ((h2 + xk*p) * modInv(k2, order)) %order
-# if s == 0 (extremely unlikely) go back to a different random number
+# if s == 0 (extremely unlikely) go back to a different ephemeral key
 assert s2 != 0
 
 print(" xk:", hex(xk))

@@ -20,12 +20,12 @@ print("\n*** [0] Private ECDSA Key:")
 print(hex(p))
 
 P = pointMultiply(p, G)
-pubKey = b'\x04' + P[0].to_bytes(32, byteorder='big') + P[1].to_bytes(32, byteorder='big')
+PubKey = b'\x04' + P[0].to_bytes(32, byteorder='big') + P[1].to_bytes(32, byteorder='big')
 print("\n*** [1] Public Key (uncompressed):")
-print(pubKey.hex())
+print(PubKey.hex())
 
 print("\n*** [2] SHA-256 hashing of the public key:")
-h1 = hashlib.sha256(pubKey).digest()
+h1 = hashlib.sha256(PubKey).digest()
 print(h1.hex())
 
 print("\n*** [3] RIPEMD-160 hashing on the result of SHA-256:")
@@ -73,8 +73,8 @@ def public_key_to_bc_address(inp, version=b'\x00'):
 
 print("\n*** [1] Public Key compressed:")
 prefix = b'\x02' if (P[0] % 2 == 0) else b'\x03'
-pubKey = prefix + P[0].to_bytes(32, byteorder='big')
-print(pubKey.hex())
+PubKey = prefix + P[0].to_bytes(32, byteorder='big')
+print(PubKey.hex())
 
 print("\n*** [9] base58 encoded address from compressed PubKey")
-print(public_key_to_bc_address(pubKey))
+print(public_key_to_bc_address(PubKey))

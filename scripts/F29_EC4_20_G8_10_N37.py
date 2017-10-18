@@ -3,6 +3,8 @@
 # elliptic curve y^2 = x^3 + a * x + b
 prime = 29; a = 4; b = 20
 G = (8, 10)
+# must be a prime for modInv to always return a result
+# this is crucial for signature to work
 order = 37
 
 assert 4*a*a*a+27*b*b !=0, "zero discriminant"

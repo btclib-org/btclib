@@ -15,11 +15,11 @@ assert     p < order, "Invalid Private Key"
 print(hex(p).upper())
 
 print("\n*** [2] 0x80 Extended Key (Compressed):")
-extKey = b'\x80' + p.to_bytes(32, byteorder='big') + b'\x01'
-print(extKey.hex().upper())
+ExtKey = b'\x80' + p.to_bytes(32, byteorder='big') + b'\x01'
+print(ExtKey.hex().upper())
 
 print("\n*** [3] SHA-256 hashing of the Extended Key:")
-h1 = sha256(extKey).digest()
+h1 = sha256(ExtKey).digest()
 print(h1.hex().upper())
 
 print("\n*** [4] SHA-256 hashing of the SHA-256:")
@@ -30,13 +30,13 @@ print("\n*** [5] First 4 bytes of the second SHA-256 hash used as address checks
 print(h2[:4].hex().upper())
 
 print("\n*** [6] checksum added at the end of extended key:")
-addr = extKey + h2[:4]
+addr = ExtKey + h2[:4]
 print(addr.hex().upper())
 
 print("\n*** [7] Base58 encoding")
 wif = b58encode(addr)
 print(wif)
-print(b58encode_check(extKey))
+print(b58encode_check(ExtKey))
 
 print("\n****** WIF to private key ******")
 
@@ -50,10 +50,10 @@ addr = b58decode(wif)
 print(addr.hex().upper())
 
 print("\n*** [3] Extended key (checksum verified)")
-extKey, checksum = addr[:-4], addr[-4:]
-verified = sha256(sha256(extKey).digest()).digest()[:4]==checksum
-print(extKey.hex().upper() + " (" + ("true" if verified else "false") + ")")
+ExtKey, checksum = addr[:-4], addr[-4:]
+verified = sha256(sha256(ExtKey).digest()).digest()[:4]==checksum
+print(ExtKey.hex().upper() + " (" + ("true" if verified else "false") + ")")
 print(b58decode_check(wif).hex().upper())
 
 print("\n*** [4] Private key")
-print(extKey[1:-4-compressed].hex().upper())
+print(ExtKey[1:-4-compressed].hex().upper())
