@@ -2,7 +2,7 @@
 """
 Created on Thu Oct 12 11:18:33 2017
 
-@author: dfornaro
+@author: dfornaro, fametrano
 """
 
 #### Deterministic Wallet (Type-2) ####
@@ -12,30 +12,31 @@ from hashlib import sha256
 import random
 
 
-# secret random number
+# secret master private key
 mp = random.randint(0, order-1)
-print('secret master private key:', hex(mp),'\n')
+print('\nsecret master private key:\n', hex(mp),'\n')
 
 # public random number
 r = random.randint(0, order-1)
-print('public ephemeral key:', hex(r))
+print('public ephemeral key:\n', hex(r))
 
 # Master PublicKey:
 MP = pointMultiply(mp, G)
-print('Master PublicKey:\n', hex(MP[0]), '\n', hex(MP[1]), '\n')
+print('Master Public Key:\n', hex(MP[0]), '\n', hex(MP[1]), '\n')
 
-n_address = 3
-p = [0] * n_address
-P = [(0,0)] * n_address
+# number of key pairs to generate
+nKeys = 3
+p = [0] * nKeys
+P = [(0,0)] * nKeys
 
 # PubKeys can be calculated without using privKeys
-for i in range(0, n_address):
+for i in range(0, nKeys):
   # H(i|r)
   H_i_r = int(sha256((hex(i)+hex(r)).encode()).hexdigest(), 16) %order
   P[i] = pointAdd(MP, pointMultiply(H_i_r, G))                 
 
 # check that PubKeys match with privKeys
-for i in range(0, n_address):
+for i in range(0, nKeys):
   # H(i|r)
   H_i_r = int(sha256((hex(i)+hex(r)).encode()).hexdigest(), 16) %order
   p[i] = (mp + H_i_r) %order

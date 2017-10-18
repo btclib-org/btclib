@@ -2,7 +2,7 @@
 """
 Created on Thu Oct 12 09:27:42 2017
 
-@author: dfornaro
+@author: dfornaro, fametrano
 """
 #### Deterministic Wallet (Type-1) ####
 
@@ -13,15 +13,14 @@ import random
 
 # secret random number
 r = random.randint(0, order-1)
-
 print('\nr =', hex(r), '\n')
 
-# number of address to generate
-n_address = 3
-p = [0] * n_address
-P = [(0,0)] * n_address
+# number of key pairs to generate
+nKeys = 3
+p = [0] * nKeys
+P = [(0,0)] * nKeys
 
-for i in range(0, n_address):
+for i in range(0, nKeys):
   # H(i|r)
   H_i_r = int(sha256((hex(i)+hex(r)).encode()).hexdigest(), 16) %order
   p[i] = H_i_r
