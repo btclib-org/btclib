@@ -10,15 +10,15 @@ print("    b:", b)
 print("    G:", G)
 print("order:", order)
 
-privKey = 1
-assert 0 < privKey
-assert     privKey < order
+p = 1
+assert 0 < p
+assert     p < order
 print("\n*** EC Private Key:")
-print(hex(privKey))
+print(hex(p))
 
-PubKey = pointMultiply(privKey, G)
+P = pointMultiply(p, G)
 print("*** EC Public Key (uncompressed):")
-print("04", PubKey)
+print("04", P)
 
 import hashlib
 
@@ -37,9 +37,9 @@ print("\n*** Signature")
 # k must be kept secret and it must never be reused !!!!!
 # good choice: k = sha256(msg, privKey)
 # different for each msg, private because of privKey
-temp = msg1+hex(privKey)
+temp = msg1+hex(p)
 k1 = int(hashlib.sha256(temp.encode()).hexdigest(), 16) % order
-# 0 < k < order
+# 0 < k1 < order
 assert 0 < k1
 assert     k1 < order
 
@@ -49,7 +49,7 @@ xk = K1[0]
 # if xk == 0 (extremely unlikely) go back to a different random number
 assert xk != 0
 
-s1 = ((h1 + xk*privKey)*modInv(k1, order)) %order
+s1 = ((h1 + xk*p) * modInv(k1, order)) %order
 # if s == 0 (extremely unlikely) go back to a different random number
 assert s1 != 0
 
@@ -63,7 +63,7 @@ v = (xk*w) %order
 assert u != 0
 assert v != 0
 U = pointMultiply(u, G)
-V = pointMultiply(v, PubKey)
+V = pointMultiply(v, P)
 x, y = pointAdd(U, V)
 print(x == xk %order)
 
@@ -79,7 +79,7 @@ v = (xk*w) %order
 assert u != 0
 assert v != 0
 U = pointMultiply(u, G)
-V = pointMultiply(v, PubKey)
+V = pointMultiply(v, P)
 x, y = pointAdd(U, V)
 print(x == xk %order)
 
@@ -96,7 +96,7 @@ print(" h2:", hex(h2))
 
 print("\n*** Signature")
 k2 = k1 #very bad! Never reuse the same ephemeral key!!!
-# 0 < k < order
+# 0 < k2 < order
 assert 0 < k2
 assert     k2 < order
 
@@ -106,7 +106,7 @@ xk = K2[0]
 # if xk == 0 (extremely unlikely) go back to a different random number
 assert xk != 0
 
-s2 = ((h2 + xk*privKey)*modInv(k2, order)) %order
+s2 = ((h2 + xk*p) * modInv(k2, order)) %order
 # if s == 0 (extremely unlikely) go back to a different random number
 assert s2 != 0
 
@@ -120,6 +120,6 @@ v = (xk*w) %order
 assert u != 0
 assert v != 0
 U = pointMultiply(u, G)
-V = pointMultiply(v, PubKey)
+V = pointMultiply(v, P)
 x, y = pointAdd(U, V)
 print(x == xk %order)

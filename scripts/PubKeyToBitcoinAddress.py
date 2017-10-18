@@ -11,16 +11,16 @@ def private_key_to_public_key(private_key, version=0x04):
   return public_key
 
 # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
-privKey = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 # 0 < k < order
-assert 0 < privKey        , "Invalid Private Key"
-assert     privKey < order, "Invalid Private Key"
+assert 0 < p        , "Invalid Private Key"
+assert     p < order, "Invalid Private Key"
 
 print("\n*** [0] Private ECDSA Key:")
-print(hex(privKey))
+print(hex(p))
 
-pubKeyPoint = pointMultiply(privKey, G)
-pubKey = b'\x04' + pubKeyPoint[0].to_bytes(32, byteorder='big') + pubKeyPoint[1].to_bytes(32, byteorder='big')
+P = pointMultiply(p, G)
+pubKey = b'\x04' + P[0].to_bytes(32, byteorder='big') + P[1].to_bytes(32, byteorder='big')
 print("\n*** [1] Public Key (uncompressed):")
 print(pubKey.hex())
 
@@ -72,8 +72,8 @@ def public_key_to_bc_address(inp, version=b'\x00'):
   return b58encode_check(vh160)
 
 print("\n*** [1] Public Key compressed:")
-prefix = b'\x02' if (pubKeyPoint[0] % 2 == 0) else b'\x03'
-pubKey = prefix + pubKeyPoint[0].to_bytes(32, byteorder='big')
+prefix = b'\x02' if (P[0] % 2 == 0) else b'\x03'
+pubKey = prefix + P[0].to_bytes(32, byteorder='big')
 print(pubKey.hex())
 
 print("\n*** [9] base58 encoded address from compressed PubKey")

@@ -3,18 +3,18 @@
 from secp256k1 import order, G, modInv, pointAdd, pointMultiply
 from hashlib import sha256
 
-privKey = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-# 0 < privKey < order
-assert 0 < privKey        , "Invalid Private Key"
-assert     privKey < order, "Invalid Private Key"
+p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+# 0 < p < order
+assert 0 < p        , "Invalid Private Key"
+assert     p < order, "Invalid Private Key"
 print("\n*** EC Private Key:")
-print(hex(privKey))
+print(hex(p))
 
-PubKey = pointMultiply(privKey, G)
+P = pointMultiply(p, G)
 print("*** EC Public Key (uncompressed):")
 print("04")
-print(hex(PubKey[0]))
-print(hex(PubKey[1]))
+print(hex(P[0]))
+print(hex(P[1]))
 
 print("\n*** The message/transaction to be signed")
 msg1 = "Paolo is afraid of ephemeral random numbers"
@@ -29,9 +29,9 @@ print(" h1:", hex(h1))
 
 print("\n*** Signature")
 # ephemeral k must be kept secret and it must never be reused !!!!!
-# good choice: k = sha256(msg, privKey)
-# different for each msg, private because of privKey
-temp = msg1+hex(privKey)
+# good choice: k = sha256(msg, p)
+# different for each msg, private because of p
+temp = msg1+hex(p)
 k1 = int(sha256(temp.encode()).hexdigest(), 16) % order
 # 0 < k < order
 assert 0 < k1
@@ -43,7 +43,7 @@ xk = K1[0]
 # if xk == 0 (extremely unlikely) go back to a different ephemeral key
 assert xk != 0
 
-s1 = ((h1 + xk*privKey)*modInv(k1, order)) %order
+s1 = ((h1 + xk*p)*modInv(k1, order)) %order
 # if s == 0 (extremely unlikely) go back to a different ephemeral key
 assert s1 != 0
 
@@ -57,7 +57,7 @@ v = (xk*w) %order
 assert u != 0
 assert v != 0
 U = pointMultiply(u, G)
-V = pointMultiply(v, PubKey)
+V = pointMultiply(v, P)
 x, y = pointAdd(U, V)
 print(x == xk %order)
 
@@ -73,7 +73,7 @@ v = (xk*w) %order
 assert u != 0
 assert v != 0
 U = pointMultiply(u, G)
-V = pointMultiply(v, PubKey)
+V = pointMultiply(v, P)
 x, y = pointAdd(U, V)
 print(x == xk %order)
 
@@ -100,7 +100,7 @@ xk = K2[0]
 # if xk == 0 (extremely unlikely) go back to a different ephemeral key
 assert xk != 0
 
-s2 = ((h2 + xk*privKey)*modInv(k2, order)) %order
+s2 = ((h2 + xk*p)*modInv(k2, order)) %order
 # if s == 0 (extremely unlikely) go back to a different ephemeral key
 assert s2 != 0
 
@@ -114,6 +114,6 @@ v = (xk*w) %order
 assert u != 0
 assert v != 0
 U = pointMultiply(u, G)
-V = pointMultiply(v, PubKey)
+V = pointMultiply(v, P)
 x, y = pointAdd(U, V)
 print(x == xk %order)

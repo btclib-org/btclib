@@ -8,14 +8,14 @@ from base58 import b58encode, b58encode_check, b58decode, b58decode_check
 print("\n****** Private ECDSA Key to WIF ******")
 
 print("\n*** [1] Private ECDSA Key:")
-privKey = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+p = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 # 0 < k < order
-assert 0 < privKey        , "Invalid Private Key"
-assert     privKey < order, "Invalid Private Key"
-print(hex(privKey).upper())
+assert 0 < p        , "Invalid Private Key"
+assert     p < order, "Invalid Private Key"
+print(hex(p).upper())
 
 print("\n*** [2] 0x80 Extended Key (Compressed):")
-extKey = b'\x80' + privKey.to_bytes(32, byteorder='big') + b'\x01'
+extKey = b'\x80' + p.to_bytes(32, byteorder='big') + b'\x01'
 print(extKey.hex().upper())
 
 print("\n*** [3] SHA-256 hashing of the Extended Key:")

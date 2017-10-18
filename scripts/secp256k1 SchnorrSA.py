@@ -3,18 +3,18 @@
 from secp256k1 import order, G, modInv, pointAdd, pointMultiply
 from hashlib import sha256
 
-privKey = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-# 0 < privKey < order
-assert 0 < privKey        , "Invalid Private Key"
-assert     privKey < order, "Invalid Private Key"
+p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+# 0 < p < order
+assert 0 < p        , "Invalid Private Key"
+assert     p < order, "Invalid Private Key"
 print("\n*** EC Private Key: ")
-print(hex(privKey))
+print(hex(p))
 
-PubKey = pointMultiply(privKey, G)
+P = pointMultiply(p, G)
 print("*** EC Public Key (uncompressed): ")
 print("04")
-print(hex(PubKey[0]))
-print(hex(PubKey[1]))
+print(hex(P[0]))
+print(hex(P[1]))
 
 import hashlib
 
@@ -31,9 +31,9 @@ print("    H1:", hex(h1))
 
 print("\n*** Signature")
 # ephemeral k must be kept secret and it must never be reused !!!!!
-# good choice: k = sha256(msg, privKey)
-# different for each msg, private because of privKey
-temp = msg1+hex(privKey)
+# good choice: k = sha256(msg, p)
+# different for each msg, private because of p
+temp = msg1+hex(p)
 k1 = int(hashlib.sha256(temp.encode()).hexdigest(), 16) % order
 # 0 < k < order
 assert 0 < k1
@@ -41,7 +41,7 @@ assert     k1 < order
 
 K1 = pointMultiply(k1, G)
 
-s1 = (k1-h1*privKey) %order;
+s1 = (k1-h1*p) %order;
 # if s == 0 (extremely unlikely) go back to a different ephemeral key
 assert s1 != 0
 
@@ -51,7 +51,7 @@ print("    s1:", hex(s1))
 
 print("*** Signature Verification")
 minush1 = -h1 %order
-V = pointMultiply(minush1, PubKey)
+V = pointMultiply(minush1, P)
 V = pointAdd(K1, V)
 print(V == pointMultiply(s1, G))
 
@@ -63,7 +63,7 @@ print("   *s1:", hex(s1m))        #malleated
 
 print("*** Malleated Signature (K, *s) Verification")
 minush1 = -h1 %order
-V = pointMultiply(minush1, PubKey)
+V = pointMultiply(minush1, P)
 V = pointAdd(K1, V)
 print(V == pointMultiply(s1m, G)) #malleated
 
@@ -75,7 +75,7 @@ print("    s1:", hex(s1))
 
 print("*** Malleated Signature (*K, s) Verification")
 minush1 = -h1 %order
-V = pointMultiply(minush1, PubKey)
+V = pointMultiply(minush1, P)
 V = pointAdd(K1m, V)              #malleated
 print(V == pointMultiply(s1, G))
 
@@ -88,7 +88,7 @@ print("   *s1:", hex(s1m))        #malleated
 
 print("*** Malleated Signature Verification")
 minush1 = -h1 %order
-V = pointMultiply(minush1, PubKey)
+V = pointMultiply(minush1, P)
 V = pointAdd(K1m, V)              #malleated
 print(V == pointMultiply(s1m, G)) #malleated
 
@@ -111,7 +111,7 @@ assert     k2 < order
 
 K2 = pointMultiply(k2, G)
 
-s2 = (k2-h2*privKey) %order;
+s2 = (k2-h2*p) %order;
 # if s == 0 (extremely unlikely) go back to a different ephemeral key
 assert s2 != 0
 
@@ -121,6 +121,6 @@ print("    s2:", hex(s2))
 
 print("*** Signature Verification")
 minush2 = -h2 %order
-V = pointMultiply(minush2, PubKey)
+V = pointMultiply(minush2, P)
 V = pointAdd(K2, V)
 print(V == pointMultiply(s2, G))

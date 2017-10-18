@@ -10,15 +10,15 @@ print("    b:", b)
 print("    G:", G)
 print("order:", order)
 
-privKey = 18
-assert 0 < privKey
-assert     privKey < order
+p = 18
+assert 0 < p
+assert     p < order
 print("\n*** EC Private Key:")
-print(hex(privKey))
+print(hex(p))
 
-PubKey = pointMultiply(privKey, G)
+P = pointMultiply(p, G)
 print("*** EC Public Key (uncompressed):")
-print("04", PubKey)
+print("04", P)
 
 import hashlib
 
@@ -35,18 +35,18 @@ assert (h1 % order) != 0
 
 print("\n*** Signature")
 # k must be kept secret and it must never be reused !!!!!
-# good choice: k = sha256(msg, privKey)
-# different for each msg, private because of privKey
-temp = msg1+hex(privKey)
+# good choice: k = sha256(msg, p)
+# different for each msg, private because of p
+temp = msg1+hex(p)
 k1 = int(sha256(temp.encode()).hexdigest(), 16) % order
 print("     k:", hex(k1).upper())
-# 0 < k < order
+# 0 < k1 < order
 assert 0 < k1
 assert     k1 < order
 
 K1 = pointMultiply(k1, G)
 
-s1 = (k1-h1*privKey) %order;
+s1 = (k1-h1*p) %order;
 # if s == 0 (extremely unlikely) go back to a different random number
 assert s1 != 0
 
@@ -55,7 +55,7 @@ print(" s1:", hex(s1))
 
 print("*** Signature Verification")
 minush = -h1 %order
-U = pointMultiply(minush, PubKey)
+U = pointMultiply(minush, P)
 V = pointAdd(K1, U)
 print(V == pointMultiply(s1, G))
 
@@ -98,13 +98,13 @@ assert (h2 % order) != 0
 
 print("\n*** Signature")
 k2 = k1 #very bad! Never reuse the same ephemeral key!!!
-# 0 < k < order
+# 0 < k2 < order
 assert 0 < k2
 assert     k2 < order
 
 K2 = pointMultiply(k2, G)
 
-s2 = (k2-h2*privKey) %order;
+s2 = (k2-h2*p) %order;
 # if s == 0 (extremely unlikely) go back to a different random number
 assert s2 != 0
 
@@ -113,6 +113,6 @@ print(" s2:", hex(s2))
 
 print("*** Signature Verification")
 minush = -h2 %order
-U = pointMultiply(minush, PubKey)
+U = pointMultiply(minush, P)
 V = pointAdd(K2, U)
 print(V == pointMultiply(s2, G))
