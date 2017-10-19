@@ -9,7 +9,7 @@ print("\n****** Private ECDSA Key to WIF ******")
 
 print("\n*** [1] Private ECDSA Key:")
 p = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-# 0 < k < order
+# 0 < p < order
 assert 0 < p        , "Invalid Private Key"
 assert     p < order, "Invalid Private Key"
 print(hex(p).upper())
