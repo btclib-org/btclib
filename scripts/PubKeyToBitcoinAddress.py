@@ -59,15 +59,16 @@ print(base58EncodedAddress)
 
 print("\n*** steps [5]-[9] are also known as Base58Check encode")
 
-
 def bc_address_to_hash_160(addr):
   bytes = b58decode(addr, 25)
   return bytes[1:21]
 
-def public_key_to_bc_address(inp, version=b'\x00'):
+def h160(inp):
   h1 = hashlib.sha256(inp).digest()
-  h2 = hashlib.new('ripemd160', h1).digest()
-  vh160 = version + h2
+  return hashlib.new('ripemd160', h1).digest()
+
+def public_key_to_bc_address(inp, version=b'\x00'):
+  vh160 = version + h160(inp)
   return b58encode_check(vh160)
 
 print("\n*** [1] Public Key compressed:")
