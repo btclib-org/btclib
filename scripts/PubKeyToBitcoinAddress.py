@@ -54,27 +54,29 @@ print(addr.hex())
 
 print("\n*** [9] Base58 encoded address from uncompressed PubKey")
 base58EncodedAddress = b58encode(addr)
+assert (base58EncodedAddress == '16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
 print(base58EncodedAddress)
 
 print("\n*** steps [5]-[9] are also known as Base58Check encode")
-
 
 def bc_address_to_hash_160(addr):
   bytes = b58decode(addr, 25)
   return bytes[1:21]
 
-#print(b58decode(base58EncodedAddress, 25).hex())
+def h160(inp):
+  h1 = hashlib.sha256(inp).digest()
+  return hashlib.new('ripemd160', h1).digest()
 
 def public_key_to_bc_address(inp, version=b'\x00'):
-  h1 = hashlib.sha256(inp).digest()
-  h2 = hashlib.new('ripemd160', h1).digest()
-  vh160 = version + h2
+  vh160 = version + h160(inp)
   return b58encode_check(vh160)
 
 print("\n*** [1] Public Key compressed:")
-prefix = b'\x02' if (P[0] % 2 == 0) else b'\x03'
+prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
 PubKey = prefix + P[0].to_bytes(32, byteorder='big')
 print(PubKey.hex())
 
 print("\n*** [9] base58 encoded address from compressed PubKey")
-print(public_key_to_bc_address(PubKey))
+base58EncodedAddress = public_key_to_bc_address(PubKey)
+assert (base58EncodedAddress == '1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
+print(base58EncodedAddress)

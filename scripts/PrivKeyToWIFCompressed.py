@@ -35,8 +35,9 @@ print(addr.hex().upper())
 
 print("\n*** [7] Base58 encoding")
 wif = b58encode(addr)
+assert wif == 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', "failure"
 print(wif)
-print(b58encode_check(ExtKey))
+assert b58encode_check(ExtKey) == 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', "failure"
 
 print("\n****** WIF to private key ******")
 
@@ -56,4 +57,6 @@ print(ExtKey.hex().upper() + " (" + ("true" if verified else "false") + ")")
 print(b58decode_check(wif).hex().upper())
 
 print("\n*** [4] Private key")
-print(ExtKey[1:-4-compressed].hex().upper())
+p2 = ExtKey[1:-1].hex() if compressed else ExtKey[1:].hex()
+assert int(p2, 16) == p, "failure"
+print(p2.upper())
