@@ -25,7 +25,8 @@ xpub = 0x0488B21E
 xpub = xpub.to_bytes(4, byteorder='big')
 
 seed = 0x000102030405060708090a0b0c0d0e0f
-print("Seed:", hex(seed))
+seed_bytes = 16
+print("Seed:", hex(seed), "\nbytes:", seed_bytes)
 
 # ==master ext private key==
 # depth: 0x00 for master nodes, 0x01 for level-1 derived keys, ...
@@ -37,7 +38,7 @@ fingerprint  = b'\x00\x00\x00\x00'
 idf = depth + fingerprint + child_number
 
 # master private key, master public key, chain code
-hashValue = HMAC(b"Bitcoin seed", seed.to_bytes(16, byteorder='big'), sha512).digest()
+hashValue = HMAC(b"Bitcoin seed", seed.to_bytes(seed_bytes, byteorder='big'), sha512).digest()
 p_bytes = hashValue[:32]
 p = int(p_bytes.hex(), 16) % order
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
