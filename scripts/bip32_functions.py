@@ -75,8 +75,8 @@ def bip32_xprvtoxpub(xprv):
   p = int.from_bytes(decoded[46:], 'big')
   P = pointMultiply(p, G)
   P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, 'big')
-  i = PRIVATE.index(decoded[:4])
-  xpub = PUBLIC[i] + decoded[4:45] + P_bytes
+  network = PRIVATE.index(decoded[:4])
+  xpub = PUBLIC[network] + decoded[4:45] + P_bytes
   return b58encode_check(xpub)
 
 
@@ -97,10 +97,12 @@ def bip32_ckd(extKey, child_index):
   depth = (int.from_bytes(parent["depth"], 'big') + 1).to_bytes(1, 'big')
 
   if parent["vbytes"] in PRIVATE:
+    network = PRIVATE.index(parent["vbytes"])
     parent_prvkey = int.from_bytes(parent["key"][1:], 'big')
     P = pointMultiply(parent_prvkey, G)
     parent_pubkey = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, 'big')
   else:
+    network = PUBLIC.index(parent["vbytes"])
     parent_pubkey = parent["key"]
   fingerprint = h160(parent_pubkey)[:4]
   index = child_index.to_bytes(4, 'big')
@@ -117,8 +119,7 @@ def bip32_ckd(extKey, child_index):
   if parent["vbytes"] in PRIVATE:
     p = (p + parent_prvkey) % order
     p_bytes = b'\x00' + p.to_bytes(32, 'big')
-    xprv = bip32_compose_xkey(BITCOIN_PRIVATE, depth, fingerprint, index, chain_code, p_bytes)
-    return xprv
+    return bip32_compose_xkey(PRIVATE[network], depth, fingerprint, index, chain_code, p_bytes)
   else:
     P = pointMultiply(p, G)
     X = int.from_bytes(parent_pubkey[1:], 'big')
@@ -133,8 +134,7 @@ def bip32_ckd(extKey, child_index):
     parentPoint = (X, Y)
     P = pointAdd(P, parentPoint)
     P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, 'big')
-    xpub = bip32_compose_xkey(BITCOIN_PUBLIC, depth, fingerprint, index, chain_code, P_bytes)
-    return xpub
+    return bip32_compose_xkey(PUBLIC[network], depth, fingerprint, index, chain_code, P_bytes)
 
 
 def bip32_test():
