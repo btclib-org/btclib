@@ -115,16 +115,16 @@ def ecdsa_sign(msg, prv, eph_prv = None):
     prv = get_valid_prv(prv)
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
-    h = int.from_bytes(sha256(msg.encode()).digest(), "big") # does the same job as btc core?
     R = pointMultiply(eph_prv, ec_G)
+    h = int.from_bytes(sha256(msg.encode()).digest(), "big") # does the same job as btc core?
     s = modInv(eph_prv, ec_order) * (h + prv * R[0]) % ec_order
     if R[0] == 0 or s == 0: return ecdsa_sign(msg, prv, eph_prv + 1) # is this safe? should I check R?
     else: return R[0], s
     
 def ecdsa_verify(msg, dsasig, pubkey):
     check_msg(msg)
-    h = int.from_bytes(sha256(msg.encode()).digest(), "big") 
     pubkey = get_valid_pub(pubkey)
+    h = int.from_bytes(sha256(msg.encode()).digest(), "big") 
     check_dsasig_format(dsasig)
     s1 = modInv(dsasig[1], ec_order)
     Rrec = pointAdd(pointMultiply(h * s1 % ec_order, ec_G),
@@ -176,8 +176,8 @@ def ec_verify_commit(receipt, commit):
     return receipt[0] == W_recomputed[0]
 
 # ---------------------- ssa
-# mimimal changes w.r.t. ecdsa, but I have some doubts
-# 1. h = hash(msg||pubkey) as on ***
+# mimimal changes w.r.t. ecdsa, but I have still some doubts
+# 1. h = hash(msg||pubkey) as on https://en.wikipedia.org/wiki/Schnorr_signature
 #    or the hash can be computed as in ECDSA (h = hash(msg)) 
 #    motivate the choice
 # 2. the sig should include the parity of the eph pub key? how?
@@ -187,6 +187,9 @@ def ec_verify_commit(receipt, commit):
 #    return y, r, s
 #
 #def ecssa_verify():
+#    return
+#
+#def ecssa_recover():
 #    return
 #
 #def ecssa_sign_and_commit():
