@@ -8,13 +8,13 @@ Created on Sat Oct 28 01:03:03 2017
 # get_valid_*** : return a valid *** and perform some checks
 # check_***     : perform some assert about ***
 
-#ecdsa_sign           : (message, privkey) -> dsasig (verificare cosa sia l'output di Electrum)
+#ecdsa_signn           : (message, privkey) -> dsasig (verificare cosa sia l'output di Electrum)
 #ecdsa_verify         : (message, dsasigpubkey) -> True/False
 #ecdsa_recover        : (message, dsasig-> pubkey
 #ecssa_sign           : (message, privkey) -> ssasig
 #ecssa_verify         : (message, ssasigpubkey) -> True/False
 #ecssa_recover        : (message, ssasig-> pubkey
-#ecdsa_sign_and_commit: (message, privkey, commit) -> dsasig + receipt
+#ecdsa_signn_and_commit: (message, privkey, commit) -> dsasig + receipt
 #ecssa_sign_and_commit: (message, privkey, commit) -> ssasig+ receipt
 #ec_verify_commit     : (commit, receipt) -> True/False
 
@@ -105,7 +105,12 @@ def str_to_ec_point(ec_str):
         y = ec_point_x_to_y(x, 0 if ec_str[:2] == "02" else 1)
         return x, y
     
-def ecdsa_sig(msg, prv, eph_prv = None):
+def ec_point_to_str(ec_point, compressed = True):
+    check_ec_point(ec_point)
+    if compressed: return ("02" if ec_point[1] % 2 == 0 else "03") + hex(ec_point[0])[2:]
+    else: return "04" + hex(ec_point[0])[2:] + hex(ec_point[1])[2:]
+    
+def ecdsa_sign(msg, prv, eph_prv = None):
     check_msg(msg)
     prv = get_valid_prv(prv)
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
@@ -113,7 +118,8 @@ def ecdsa_sig(msg, prv, eph_prv = None):
     h = int.from_bytes(sha256(msg.encode()).digest(), "big") # does the same job as btc core?
     R = pointMultiply(eph_prv, ec_G)
     s = modInv(eph_prv, ec_order) * (h + prv * R[0]) % ec_order
-    return R[0], s
+    if R[0] == 0 or s == 0: return ecdsa_sign(msg, prv, eph_prv + 1) # is this safe? should I check R?
+    else: return R[0], s
     
 def ecdsa_verify(msg, dsasig, pubkey):
     check_msg(msg)
@@ -135,33 +141,48 @@ def ecdsa_recover(msg, dsasig, y_mod_2):
     return pointAdd(pointMultiply(-h * r1 % ec_order, ec_G), \
                     pointMultiply(dsasig[1] * r1 % ec_order, R))
 
-def test_sign():
-    msg = "hello world"
-    prv = 1
-    # signature
-    r, s = ecdsa_sig(msg, prv, eph_prv = None)
-    print("r: ",hex(r))
-    print("s: ",hex(s))
-    pubkey = pointMultiply(prv, ec_G)
-    print("Verification succed!" if ecdsa_verify(msg, (r, s), pubkey) else "Verification Failed")
-    # signature recover
-    assert pubkey in (ecdsa_recover(msg, (r,s), 0), ecdsa_recover(msg, (r,s), 1))
-    # some more tests should be done!
-    
-test_sign()
-
 # ---------------------- sign-to-contract
-#
-#def commit_to_ec_point():
-#    return
-#
-#def ecdsa_sign_and_commit():
-#    return
-#
-#def ec_verify_commit():
-#    return
+
+def check_receipt(receipt):
+    assert type(receipt[0]) == int and \
+           0 < receipt[0] and receipt[0] < ec_prime, \
+           "1st part of the receipt must be an int in (0, ec_prime)"
+    check_ec_point(receipt[1])
+    
+def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
+    check_msg(msg)
+    check_msg(commit)
+    prv = get_valid_prv(prv)
+    if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
+    else: eph_prv = get_valid_prv(eph_prv)
+    R = pointMultiply(eph_prv, ec_G)
+    temp = (commit + ec_point_to_str(R, compressed = True))
+    e = int.from_bytes(sha256(temp.encode()).digest(), "big")
+    eph_prv += e % ec_order
+    W = pointMultiply(eph_prv, ec_G)
+    h = int.from_bytes(sha256(msg.encode()).digest(), "big") # does the same job as btc core?
+    s = modInv(eph_prv, ec_order) * (h + prv * W[0]) % ec_order
+    if W[0] == 0 or s == 0: sig = ecdsa_sign_and_commit(msg, prv, eph_prv + 1) # is this safe?
+    else: sig = (W[0], s)
+    receipt = (W[0], R)
+    return sig, receipt
+    
+def ec_verify_commit(receipt, commit):
+    check_receipt(receipt)
+    check_msg(commit)
+    temp = (commit + ec_point_to_str(receipt[1], compressed = True))
+    e_recomputed = int.from_bytes(sha256(temp.encode()).digest(), "big")
+    W_recomputed = pointAdd(receipt[1], pointMultiply(e_recomputed, ec_G))
+    return receipt[0] == W_recomputed[0]
 
 # ---------------------- ssa
+# mimimal changes w.r.t. ecdsa, but I have some doubts
+# 1. h = hash(msg||pubkey) as on ***
+#    or the hash can be computed as in ECDSA (h = hash(msg)) 
+#    motivate the choice
+# 2. the sig should include the parity of the eph pub key? how?
+# 3. s = eph_prv - h*prv   or    s = eph_prv + h*prv
+
 #def ecssa_sig():
 #    return y, r, s
 #
@@ -170,3 +191,19 @@ test_sign()
 #
 #def ecssa_sign_and_commit():
 #    return
+
+def test_sign():
+    print("\n std sign with ecdsa")
+    msg = "hello world"
+    prv = 1
+    r, s = ecdsa_sign(msg, prv, eph_prv = None)
+    pubkey = pointMultiply(prv, ec_G)
+    assert ecdsa_verify(msg, (r, s), pubkey)
+    assert pubkey in (ecdsa_recover(msg, (r,s), 0), ecdsa_recover(msg, (r,s), 1))
+    # some more tests should be done!
+    commit = "sign to contract"
+    dsasig_commit, receipt = ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None)
+    assert ecdsa_verify(msg, dsasig_commit, pubkey), "invalid sig"
+    assert ec_verify_commit(msg, receipt, commit), "invalid commit"
+    
+test_sign()
