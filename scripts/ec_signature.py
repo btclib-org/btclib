@@ -207,6 +207,6 @@ def test_sign():
     commit = "sign to contract"
     dsasig_commit, receipt = ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None)
     assert ecdsa_verify(msg, dsasig_commit, pubkey), "invalid sig"
-    assert ec_verify_commit(msg, receipt, commit), "invalid commit"
+    assert ec_verify_commit(receipt, commit), "invalid commit"
     
 test_sign()
