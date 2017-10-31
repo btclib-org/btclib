@@ -8,13 +8,13 @@ Created on Sat Oct 28 01:03:03 2017
 # get_valid_*** : return a valid *** and perform some checks
 # check_***     : perform some assert about ***
 
-#ecdsa_signn           : (message, privkey) -> dsasig (verificare cosa sia l'output di Electrum)
+#ecdsa_sign           : (message, privkey) -> dsasig (verificare cosa sia l'output di Electrum)
 #ecdsa_verify         : (message, dsasigpubkey) -> True/False
 #ecdsa_recover        : (message, dsasig-> pubkey
 #ecssa_sign           : (message, privkey) -> ssasig
 #ecssa_verify         : (message, ssasigpubkey) -> True/False
 #ecssa_recover        : (message, ssasig-> pubkey
-#ecdsa_signn_and_commit: (message, privkey, commit) -> dsasig + receipt
+#ecdsa_sign_and_commit: (message, privkey, commit) -> dsasig + receipt
 #ecssa_sign_and_commit: (message, privkey, commit) -> ssasig+ receipt
 #ec_verify_commit     : (commit, receipt) -> True/False
 
