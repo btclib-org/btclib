@@ -23,6 +23,12 @@ from base58 import b58decode_check
 from secp256k1 import pointAdd, pointMultiply, \
                       order as ec_order, prime as ec_prime, G as ec_G, \
                       a as ec_a, b as ec_b
+L_n = ec_order.bit_length()
+# L_n is the bit length of the group order 
+# source: https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm  
+# consider inserting in secp256k1 
+# unuseful for secp256k1, since L_n = 256 = size of sha256 output
+# but useful for some other curves parameters
 from FiniteFields import modInv, modular_sqrt
 #source https://stackoverflow.com/questions/11592261/check-if-a-string-is-hexadecimal/11592279#11592279
 from string import hexdigits
@@ -109,22 +115,24 @@ def ec_point_to_str(ec_point, compressed = True):
     check_ec_point(ec_point)
     if compressed: return ("02" if ec_point[1] % 2 == 0 else "03") + hex(ec_point[0])[2:]
     else: return "04" + hex(ec_point[0])[2:] + hex(ec_point[1])[2:]
+
+def get_hash_from_str(msg):
+    check_msg(msg)
+    return int.from_bytes(sha256(msg.encode()).digest()[:L_n // 8], "big") # does this the same job as btc core?
     
 def ecdsa_sign(msg, prv, eph_prv = None):
-    check_msg(msg)
+    h = get_hash_from_str(msg)
     prv = get_valid_prv(prv)
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
-    h = int.from_bytes(sha256(msg.encode()).digest(), "big") # does the same job as btc core?
     s = modInv(eph_prv, ec_order) * (h + prv * R[0]) % ec_order
     if R[0] == 0 or s == 0: return ecdsa_sign(msg, prv, eph_prv + 1) # is this safe? should I check R?
     else: return R[0], s
     
 def ecdsa_verify(msg, dsasig, pubkey):
-    check_msg(msg)
-    pubkey = get_valid_pub(pubkey)
-    h = int.from_bytes(sha256(msg.encode()).digest(), "big") 
+    h = get_hash_from_str(msg)
+    pubkey = get_valid_pub(pubkey) 
     check_dsasig_format(dsasig)
     s1 = modInv(dsasig[1], ec_order)
     Rrec = pointAdd(pointMultiply(h * s1 % ec_order, ec_G),
@@ -132,10 +140,9 @@ def ecdsa_verify(msg, dsasig, pubkey):
     return dsasig[0] == Rrec[0]
 
 def ecdsa_recover(msg, dsasig, y_mod_2):
-    check_msg(msg)
+    h = get_hash_from_str(msg)
     check_dsasig_format(dsasig)
     assert y_mod_2 in (0, 1)
-    h = int.from_bytes(sha256(msg.encode()).digest(), "big")
     r1 = modInv(dsasig[0], ec_order)
     R = (dsasig[0], ec_point_x_to_y(dsasig[0], y_mod_2))
     return pointAdd(pointMultiply(-h * r1 % ec_order, ec_G), \
@@ -150,17 +157,14 @@ def check_receipt(receipt):
     check_ec_point(receipt[1])
     
 def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
-    check_msg(msg)
-    check_msg(commit)
+    h = get_hash_from_str(msg)
     prv = get_valid_prv(prv)
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
-    temp = (commit + ec_point_to_str(R, compressed = True))
-    e = int.from_bytes(sha256(temp.encode()).digest(), "big")
+    e = get_hash_from_str(commit + ec_point_to_str(R, compressed = True)) # check the commit by itself?
     eph_prv += e % ec_order
     W = pointMultiply(eph_prv, ec_G)
-    h = int.from_bytes(sha256(msg.encode()).digest(), "big") # does the same job as btc core?
     s = modInv(eph_prv, ec_order) * (h + prv * W[0]) % ec_order
     if W[0] == 0 or s == 0: sig = ecdsa_sign_and_commit(msg, prv, eph_prv + 1) # is this safe?
     else: sig = (W[0], s)
@@ -169,9 +173,7 @@ def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
     
 def ec_verify_commit(receipt, commit):
     check_receipt(receipt)
-    check_msg(commit)
-    temp = (commit + ec_point_to_str(receipt[1], compressed = True))
-    e_recomputed = int.from_bytes(sha256(temp.encode()).digest(), "big")
+    e_recomputed = get_hash_from_str(commit + ec_point_to_str(receipt[1], compressed = True))
     W_recomputed = pointAdd(receipt[1], pointMultiply(e_recomputed, ec_G))
     return receipt[0] == W_recomputed[0]
 
