@@ -43,8 +43,8 @@ sighash_none_anyonecanpay = b'\x82'
 sighash_single_anyonecanpay = b'\x83'
 
 def to_bytes_min_length(n, byteorder = "big"):
-    assert type(n) == int and n >= 0, "n must be a positive int"
-    return n.to_bytes(n.bit_length() // 8 + 1 , byteorder) # at least 1 byte, even if n = 0
+    assert type(n) == int and n > 0, "n must be a positive int"
+    return n.to_bytes((n.bit_length() - 1) // 8 + 1 , byteorder)
 
 def to_bytes_add00(n):
     n_bytes = to_bytes_min_length(n, "big")
