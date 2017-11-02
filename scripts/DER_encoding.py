@@ -124,4 +124,4 @@ def test_DER():
     print(DER69.hex(), "  -- len:", len(DER69))
     check_DER_sig(DER69)
     
-test_DER()
+# test_DER()

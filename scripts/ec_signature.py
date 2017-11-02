@@ -216,4 +216,4 @@ def test_sign():
     assert ecdsa_verify(msg, dsasig_commit, pubkey), "invalid sig"
     assert ec_verify_commit(receipt, commit), "invalid commit"
 
-test_sign()
+# test_sign()
