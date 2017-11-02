@@ -34,7 +34,7 @@ DER_follows = b'\x30'
 int_follows = b'\x02'
 double_0 = b'\x00'
 mid = b'\x80'
-
+# put the sighash values here? in this way? maybe as a dictionary?
 sighash_all = b'\x01'
 sighash_none = b'\x02'
 sighash_single = b'\x03'
