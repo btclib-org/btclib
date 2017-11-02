@@ -60,9 +60,9 @@ def check_dsasig_format(dsasig):
            len(dsasig) == 2 and \
            type(dsasig[0]) == int and type(dsasig[0]) == int, \
            "dsasig must be a tuple of 2 int"
-    assert 0 < dsasig[0] and dsasig[0] < ec_prime and \
+    assert 0 < dsasig[0] and dsasig[0] < ec_order and \
            0 < dsasig[1] and dsasig[1] < ec_order, \
-           "dsasig must have 1st coord in (0, ec_prime), 2nd coord in (0, order)"
+           "dsasig must have coordinates in (0, order)"
 
 # many doubts, should accept a format in input? 
 # how i distinguish hex, wif and others?
@@ -122,6 +122,8 @@ def get_hash_from_str(msg):
     
 def ecdsa_sign(msg, prv, eph_prv = None):
     h = get_hash_from_str(msg)
+    # should h = 0 be accepted? and h >= ec_order? 
+    # should this be treated in get_hash or after?
     prv = get_valid_prv(prv)
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
@@ -146,8 +148,9 @@ def ecdsa_recover(msg, dsasig, y_mod_2):
     assert y_mod_2 in (0, 1)
     r1 = modInv(dsasig[0], ec_order)
     R = (dsasig[0], ec_point_x_to_y(dsasig[0], y_mod_2))
-    return pointAdd(pointMultiply(-h * r1 % ec_order, ec_G), \
-                    pointMultiply(dsasig[1] * r1 % ec_order, R))
+    if h != 0: return pointAdd(pointMultiply(-h * r1 % ec_order, ec_G), \
+                               pointMultiply(dsasig[1] * r1 % ec_order, R))
+    else: return pointMultiply(dsasig[1] * r1 % ec_order, R)
 
 # ---------------------- sign-to-contract
 
@@ -212,5 +215,5 @@ def test_sign():
     dsasig_commit, receipt = ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None)
     assert ecdsa_verify(msg, dsasig_commit, pubkey), "invalid sig"
     assert ec_verify_commit(receipt, commit), "invalid commit"
-    
+
 test_sign()
