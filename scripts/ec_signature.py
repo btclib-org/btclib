@@ -126,18 +126,19 @@ def ecdsa_sign(msg, prv, eph_prv = None):
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
-    s = modInv(eph_prv, ec_order) * (h + prv * R[0]) % ec_order
-    if R[0] == 0 or s == 0: return ecdsa_sign(msg, prv, eph_prv + 1) # is this safe? should I check R?
-    else: return R[0], s
+    r = R[0] % ec_order
+    s = modInv(eph_prv, ec_order) * (h + prv * r) % ec_order
+    if r == 0 or s == 0: return ecdsa_sign(msg, prv, eph_prv + 1) # is the + 1 safe? should I check R?
+    else: return r, s
     
 def ecdsa_verify(msg, dsasig, pubkey):
     h = get_hash_from_str(msg)
     pubkey = get_valid_pub(pubkey) 
     check_dsasig_format(dsasig)
     s1 = modInv(dsasig[1], ec_order)
-    Rrec = pointAdd(pointMultiply(h * s1 % ec_order, ec_G),
-                    pointMultiply(dsasig[0] * s1 % ec_order, pubkey))
-    return dsasig[0] == Rrec[0]
+    R_recomputed = pointAdd(pointMultiply(h * s1 % ec_order, ec_G),
+                            pointMultiply(dsasig[0] * s1 % ec_order, pubkey))
+    return dsasig[0] == R_recomputed[0] % ec_order
 
 def ecdsa_recover(msg, dsasig, y_mod_2):
     h = get_hash_from_str(msg)
@@ -165,17 +166,18 @@ def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
     e = get_hash_from_str(commit + ec_point_to_str(R, compressed = True)) # check the commit by itself?
     eph_prv += e % ec_order
     W = pointMultiply(eph_prv, ec_G)
-    s = modInv(eph_prv, ec_order) * (h + prv * W[0]) % ec_order
-    if W[0] == 0 or s == 0: sig = ecdsa_sign_and_commit(msg, prv, eph_prv + 1) # is this safe?
-    else: sig = (W[0], s)
-    receipt = (W[0], R)
+    w = W[0] % ec_order
+    s = modInv(eph_prv, ec_order) * (h + prv * w) % ec_order
+    if w == 0 or s == 0: sig = ecdsa_sign_and_commit(msg, prv, eph_prv + 1) # is this safe?
+    else: sig = (w, s)
+    receipt = (w, R)
     return sig, receipt
     
 def ec_verify_commit(receipt, commit):
     check_receipt(receipt)
     e_recomputed = get_hash_from_str(commit + ec_point_to_str(receipt[1], compressed = True))
     W_recomputed = pointAdd(receipt[1], pointMultiply(e_recomputed, ec_G))
-    return receipt[0] == W_recomputed[0]
+    return receipt[0] == W_recomputed[0] % ec_order
 
 # ---------------------- ssa
 # mimimal changes w.r.t. ecdsa, but I have still some doubts
