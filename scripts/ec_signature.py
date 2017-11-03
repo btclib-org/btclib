@@ -120,14 +120,14 @@ def ec_point_to_str(ec_point, compressed = True):
 def dsha256(inp_bytes):
     return sha256(sha256(inp_bytes).digest()).digest()
 
-def get_hash_from_str(msg, hash_type = None):
+def get_hash(msg, hash_type = "double256"):
     check_msg(msg)
     if type(msg) == str: msg = msg.encode()
     if hash_type == "double256": return int.from_bytes(dsha256(msg)[:L_n_bytes], "big")
     else: return int.from_bytes(sha256(msg).digest()[:L_n_bytes], "big") # does this the same job as btc core?
     
 def ecdsa_sign(msg, prv, eph_prv = None):
-    h = get_hash_from_str(msg)
+    h = get_hash(msg)
     # should h = 0 be accepted? and h >= ec_order? 
     # should this be treated in get_hash or after?
     prv = get_valid_prv(prv)
@@ -140,7 +140,7 @@ def ecdsa_sign(msg, prv, eph_prv = None):
     else: return r, s
     
 def ecdsa_verify(msg, dsasig, pubkey):
-    h = get_hash_from_str(msg)
+    h = get_hash(msg)
     pubkey = get_valid_pub(pubkey) 
     check_dsasig_format(dsasig)
     s1 = modInv(dsasig[1], ec_order)
@@ -149,7 +149,7 @@ def ecdsa_verify(msg, dsasig, pubkey):
     return dsasig[0] == R_recomputed[0] % ec_order
 
 def ecdsa_recover(msg, dsasig, y_mod_2):
-    h = get_hash_from_str(msg)
+    h = get_hash(msg)
     check_dsasig_format(dsasig)
     assert y_mod_2 in (0, 1)
     r1 = modInv(dsasig[0], ec_order)
@@ -167,12 +167,12 @@ def check_receipt(receipt):
     check_ec_point(receipt[1])
     
 def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
-    h = get_hash_from_str(msg)
+    h = get_hash(msg)
     prv = get_valid_prv(prv)
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
-    e = get_hash_from_str(commit + ec_point_to_str(R, compressed = True)) # check the commit by itself?
+    e = get_hash(commit + ec_point_to_str(R, compressed = True)) # check the commit by itself?
     eph_prv += e % ec_order
     W = pointMultiply(eph_prv, ec_G)
     w = W[0] % ec_order
@@ -184,7 +184,7 @@ def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
     
 def ec_verify_commit(receipt, commit):
     check_receipt(receipt)
-    e_recomputed = get_hash_from_str(commit + ec_point_to_str(receipt[1], compressed = True))
+    e_recomputed = get_hash(commit + ec_point_to_str(receipt[1], compressed = True))
     W_recomputed = pointAdd(receipt[1], pointMultiply(e_recomputed, ec_G))
     return receipt[0] == W_recomputed[0] % ec_order
 
@@ -222,4 +222,4 @@ def test_sign():
     assert ecdsa_verify(msg, dsasig_commit, pubkey), "invalid sig"
     assert ec_verify_commit(receipt, commit), "invalid commit"
 
-test_sign()
+# test_sign()
