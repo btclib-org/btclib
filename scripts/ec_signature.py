@@ -112,11 +112,16 @@ def str_to_ec_point(ec_str):
         y = ec_point_x_to_y(x, 0 if ec_str[:2] == "02" else 1)
         return x, y
     
+def ec_point_to_bytes(ec_point, compressed = True):
+    check_ec_point(ec_point)
+    if compressed: return (b'\x02' if ec_point[1] % 2 == 0 else b'\x03') + ec_point[0].to_bytes(32, "big")
+    else: return b'\x04' + ec_point[0].to_bytes(32, "big") + ec_point[1].to_bytes(32, "big")
+# the EC points are forced to be 32 bytes long. Can they be shorter?    
 def ec_point_to_str(ec_point, compressed = True):
     check_ec_point(ec_point)
     if compressed: return ("02" if ec_point[1] % 2 == 0 else "03") + hex(ec_point[0])[2:]
     else: return "04" + hex(ec_point[0])[2:] + hex(ec_point[1])[2:]
-
+# ec_point_to_bytes((3, ec_point_x_to_y(3, 1))) gives opinable results
 def dsha256(inp_bytes):
     return sha256(sha256(inp_bytes).digest()).digest()
 
