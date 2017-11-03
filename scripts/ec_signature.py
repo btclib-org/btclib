@@ -24,6 +24,7 @@ from secp256k1 import pointAdd, pointMultiply, \
                       order as ec_order, prime as ec_prime, G as ec_G, \
                       a as ec_a, b as ec_b
 L_n = ec_order.bit_length()
+L_n_bytes = (L_n - 1) // 8 + 1
 # L_n is the bit length of the group order 
 # source: https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm  
 # consider inserting in secp256k1 
@@ -36,7 +37,7 @@ from base58 import __chars as b58digits
 
 
 def check_msg(msg):
-    assert type(msg) == str, "message must be a string"
+    assert type(msg) in (str, bytes), "message must be a string or bytes"
          
 def check_ec_str(ec_str):
     assert all(c in hexdigits for c in ec_str), "an EC point in string must have only hex digits"
@@ -116,9 +117,14 @@ def ec_point_to_str(ec_point, compressed = True):
     if compressed: return ("02" if ec_point[1] % 2 == 0 else "03") + hex(ec_point[0])[2:]
     else: return "04" + hex(ec_point[0])[2:] + hex(ec_point[1])[2:]
 
-def get_hash_from_str(msg):
+def dsha256(inp_bytes):
+    return sha256(sha256(inp_bytes).digest()).digest()
+
+def get_hash_from_str(msg, hash_type = None):
     check_msg(msg)
-    return int.from_bytes(sha256(msg.encode()).digest()[:L_n // 8], "big") # does this the same job as btc core?
+    if type(msg) == str: msg = msg.encode()
+    if hash_type == "double256": return int.from_bytes(dsha256(msg)[:L_n_bytes], "big")
+    else: return int.from_bytes(sha256(msg).digest()[:L_n_bytes], "big") # does this the same job as btc core?
     
 def ecdsa_sign(msg, prv, eph_prv = None):
     h = get_hash_from_str(msg)
@@ -216,4 +222,4 @@ def test_sign():
     assert ecdsa_verify(msg, dsasig_commit, pubkey), "invalid sig"
     assert ec_verify_commit(receipt, commit), "invalid commit"
 
-# test_sign()
+test_sign()
