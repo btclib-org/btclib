@@ -42,7 +42,7 @@ def check_ec_str(ec_str):
 def check_ec_point(ec_point):
     assert type(ec_point) == tuple and \
            len(ec_point) == 2 and \
-           type(ec_point[0]) == int and type(ec_point[0]) == int, \
+           type(ec_point[0]) == int and type(ec_point[1]) == int, \
            "ec_point must be a tuple of 2 int"
     assert 0 < ec_point[0] and ec_point[0] < ec_prime and \
            0 < ec_point[1] and ec_point[1] < ec_prime, \
@@ -54,7 +54,7 @@ def check_ec_point(ec_point):
 def check_dsasig_format(dsasig):
     assert type(dsasig) == tuple and \
            len(dsasig) == 2 and \
-           type(dsasig[0]) == int and type(dsasig[0]) == int, \
+           type(dsasig[0]) == int and type(dsasig[1]) == int, \
            "dsasig must be a tuple of 2 int"
     assert 0 < dsasig[0] and dsasig[0] < ec_order and \
            0 < dsasig[1] and dsasig[1] < ec_order, \
@@ -204,30 +204,89 @@ def ec_verify_commit(receipt, commit):
 # 2. the sig should include the parity of the eph pub key? how?
 # 3. s = eph_prv - h*prv   or    s = eph_prv + h*prv
 
-#def ecssa_sig():
-#    return y, r, s
-#
-#def ecssa_verify():
-#    return
-#
-#def ecssa_recover():
-#    return
-#
-#def ecssa_sign_and_commit():
-#    return
+# answers (not definitive work on that)
+# 1. h = hash(msg||pubkey)
+# 2. the sig will be something like y, r, s
+#             y in (0, 1), r in [0, ec_prime), s in (0, prime)
+# 3. s = eph_prv - h*prv
+
+def check_ssasig_format(ssasig):
+    assert type(ssasig) == tuple and \
+           len(ssasig) == 3 and \
+           type(ssasig[0]) == int and type(ssasig[1]) == int and type(ssasig[2]) == int, \
+           "ssasig must be a tuple of 3 int"
+    assert ssasig[0] in (0,1), "ssasig 1st element must be 0 or 1"
+    assert 0 < ssasig[1] and ssasig[1] < ec_prime, "ssasig 2nd element must be in (0, prime)" 
+    assert 0 < ssasig[2] and ssasig[2] < ec_order, "ssasig 3rd element must be in (0, order)" 
+
+def ecssa_sign(msg, prv, eph_prv = None):                         ### mod
+    prv = get_valid_prv(prv)
+    pub = ec_point_to_str(pointMultiply(prv, ec_G))               ### mod
+    h = get_hash(msg + pub)                                       ### mod
+    # should h = 0 be accepted? and h >= ec_order? 
+    # should this be treated in get_hash or after?
+    # in ssa h=0 should not be accepted, otherwise every prv can sign! ### mod
+    if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
+    else: eph_prv = get_valid_prv(eph_prv)
+    R = pointMultiply(eph_prv, ec_G)
+    r, y = R[0], R[1] % 2                                         ### mod
+    s = (eph_prv - h * prv) % ec_order                            ### mod
+    if r == 0 or s == 0:
+        step = 1 if (eph_prv + 1) % ec_order != 0 else 2
+        return ecssa_sign(msg, prv, (eph_prv + step) % ec_order)  ### mod
+    else: return y, r, s                                          ### mod
+
+def ecssa_verify(msg, ssasig, pubkey):                            ### mod
+    h = get_hash(msg)
+    pubkey = get_valid_pub(pubkey) 
+    check_ssasig_format(ssasig)                                   ### mod
+    R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))        ### mod
+    print(pointMultiply(ssasig[2], ec_G))
+    print(pointAdd(R, pointMultiply(-h % ec_order, pubkey)))
+    return pointMultiply(ssasig[2], ec_G) == pointAdd(R, pointMultiply(-h % ec_order, pubkey)) ### mod
+
+# in case h = hash(msg||pub) the recover of pub from ssasig is impossible:
+#  s = k - h*prv <=> sG = R - hP <=> hP = R - sG
+#  but the map P -> hash(msg||P)*P is not invertible
+def ecssa_recover():
+    return None
+
+def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None):      ### mod
+    prv = get_valid_prv(prv)                                      ### mod
+    pub = ec_point_to_str(pointMultiply(prv, ec_G))               ### mod
+    h = get_hash(msg + pub)                                       ### mod
+    if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
+    else: eph_prv = get_valid_prv(eph_prv)
+    R = pointMultiply(eph_prv, ec_G)
+    assert type(commit) == str, "Commit should be a string" # or as bytes?
+    e = get_hash(commit + ec_point_to_str(R, compressed = True))
+    eph_prv = get_valid_prv((eph_prv + e) % ec_order) # could be 0
+    W = pointMultiply(eph_prv, ec_G)
+    w, y = W[0], W[1] % 2                                         ### mod
+    z = (eph_prv - h * prv) % ec_order                            ### mod
+    if w == 0 or z == 0: 
+        step = 1 if (eph_prv + 1) % ec_order != 0 else 2
+        sig = ecssa_sign_and_commit(msg, prv, eph_prv + step)     ### mod
+    else: sig = (y, w, z)
+    receipt = (w, R)
+    return sig, receipt
 
 def test_sign():
     print("\n std sign with ecdsa")
     msg = "hello world"
     prv = 1
-    r, s = ecdsa_sign(msg, prv, eph_prv = None)
+    r, s = ecdsa_sign(msg, prv)
     pubkey = pointMultiply(prv, ec_G)
     assert ecdsa_verify(msg, (r, s), pubkey)
     assert pubkey in (ecdsa_recover(msg, (r,s), 0), ecdsa_recover(msg, (r,s), 1))
     # some more tests should be done!
     commit = "sign to contract"
-    dsasig_commit, receipt = ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None)
+    dsasig_commit, receipt = ecdsa_sign_and_commit(msg, prv, commit)
     assert ecdsa_verify(msg, dsasig_commit, pubkey), "invalid sig"
     assert ec_verify_commit(receipt, commit), "invalid commit"
+    print("\n std sign with ecssa")
+    y, r, s = ecssa_sign(msg, prv)
+    print(y, hex(r), hex(s), sep="\n")
+    assert ecssa_verify(msg, (y, r, s), pubkey)
 
-# test_sign()
+test_sign()
