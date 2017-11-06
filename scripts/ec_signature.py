@@ -8,27 +8,22 @@ Created on Sat Oct 28 01:03:03 2017
 # get_valid_*** : return a valid *** and perform some checks
 # check_***     : perform some assert about ***
 
-#ecdsa_sign           : (message, privkey) -> dsasig (verificare cosa sia l'output di Electrum)
-#ecdsa_verify         : (message, dsasigpubkey) -> True/False
-#ecdsa_recover        : (message, dsasig-> pubkey
-#ecssa_sign           : (message, privkey) -> ssasig
-#ecssa_verify         : (message, ssasigpubkey) -> True/False
-#ecssa_recover        : (message, ssasig-> pubkey
-#ecdsa_sign_and_commit: (message, privkey, commit) -> dsasig + receipt
-#ecssa_sign_and_commit: (message, privkey, commit) -> ssasig+ receipt
-#ec_verify_commit     : (commit, receipt) -> True/False
+# DOUBTS:
+# in case of switching from secp256k1 to a smaller curve should priv and pub
+# keys be stored in something less than 32 bytes?
+# if yes how to manage that?
 
 from hashlib import sha256
 from base58 import b58decode_check
-from secp256k1 import checkPoint, pointAdd, pointMultiply, \
+from secp256k1 import pointAdd, pointMultiply, \
                       order as ec_order, prime as ec_prime, G as ec_G, \
                       a as ec_a, b as ec_b
 L_n = ec_order.bit_length()
 L_n_bytes = (L_n - 1) // 8 + 1
 # L_n is the bit length of the group order 
 # source: https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm  
-# consider inserting in secp256k1 
-# unuseful for secp256k1, since L_n = 256 = size of sha256 output
+# consider inserting L_n in secp256k1 
+# however unuseful for secp256k1, since L_n = 256 = size of sha256 output
 # but useful for some other curves parameters
 from FiniteFields import modInv, modular_sqrt
 #source https://stackoverflow.com/questions/11592261/check-if-a-string-is-hexadecimal/11592279#11592279
@@ -67,7 +62,7 @@ def check_dsasig_format(dsasig):
 
 # many doubts, should accept a format in input? 
 # how i distinguish hex, wif and others?
-# for coeherence should I have check_prv(prv) ?
+# for consistency should I have check_prv(prv) ?
 def get_valid_prv(prv):
     assert type(prv) in (str, bytes, int), "private key should be a string, bytes or int"
     if type(prv) == str:
@@ -99,7 +94,7 @@ def ec_point_x_to_y(x,y_mod_2):
     assert type(x) == int, "x must be an int"
     assert 0 < x and x < ec_prime, "ec_point must have integer coordinates in [0, ec_prime)"
     y = modular_sqrt((x**3 + ec_a * x + ec_b) % ec_prime, ec_prime)
-    checkPoint(x, y) # eventually check only y!=0
+    check_ec_point((x, y)) # eventually check only y!=0
     change_parity = ((y % 2) + y_mod_2) == 1
     return (ec_prime - y) if change_parity else y
     
@@ -177,8 +172,9 @@ def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
-    e = get_hash(commit + ec_point_to_str(R, compressed = True)) # check the commit by itself?
-    eph_prv += e % ec_order
+    assert type(commit) == str, "Commit should be a string" # or as bytes?
+    e = get_hash(commit + ec_point_to_str(R, compressed = True))
+    eph_prv = get_valid_prv((eph_prv + e) % ec_order) # could be 0
     W = pointMultiply(eph_prv, ec_G)
     w = W[0] % ec_order
     s = modInv(eph_prv, ec_order) * (h + prv * w) % ec_order
