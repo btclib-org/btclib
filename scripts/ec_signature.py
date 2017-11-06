@@ -136,7 +136,9 @@ def ecdsa_sign(msg, prv, eph_prv = None):
     R = pointMultiply(eph_prv, ec_G)
     r = R[0] % ec_order
     s = modInv(eph_prv, ec_order) * (h + prv * r) % ec_order
-    if r == 0 or s == 0: return ecdsa_sign(msg, prv, eph_prv + 1) # is the + 1 safe? should I check R?
+    if r == 0 or s == 0:
+        step = 1 if (eph_prv + 1) % ec_order != 0 else 2
+        return ecdsa_sign(msg, prv, (eph_prv + step) % ec_order) # is the + 1 safe? should I check R?
     else: return r, s
     
 def ecdsa_verify(msg, dsasig, pubkey):
@@ -178,7 +180,9 @@ def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
     W = pointMultiply(eph_prv, ec_G)
     w = W[0] % ec_order
     s = modInv(eph_prv, ec_order) * (h + prv * w) % ec_order
-    if w == 0 or s == 0: sig = ecdsa_sign_and_commit(msg, prv, eph_prv + 1) # is this safe?
+    if w == 0 or s == 0: 
+        step = 1 if (eph_prv + 1) % ec_order != 0 else 2
+        sig = ecdsa_sign_and_commit(msg, prv, eph_prv + step) # is this safe?
     else: sig = (w, s)
     receipt = (w, R)
     return sig, receipt
