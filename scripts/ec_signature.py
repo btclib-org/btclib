@@ -86,9 +86,9 @@ def get_valid_pub(pub):
 def determinstic_eph_prv_from_prv(prv):
     # attach a salting value? if yes why?
     eph_prv = int.from_bytes(sha256(prv.to_bytes(32, "big")).digest(), "big")
-    if eph_prv == 0 or eph_prv > ec_order: 
+    if eph_prv == 0 or eph_prv > ec_order * (2**256 // ec_order): 
         eph_prv = determinstic_eph_prv_from_prv(prv + 1) # is the +1 legit?
-    return eph_prv
+    return eph_prv % ec_order
 
 def ec_point_x_to_y(x,y_mod_2):
     assert type(x) == int, "x must be an int"
