@@ -20,7 +20,7 @@ Created on Sat Oct 28 01:03:03 2017
 
 from hashlib import sha256
 from base58 import b58decode_check
-from secp256k1 import pointAdd, pointMultiply, \
+from secp256k1 import checkPoint, pointAdd, pointMultiply, \
                       order as ec_order, prime as ec_prime, G as ec_G, \
                       a as ec_a, b as ec_b
 L_n = ec_order.bit_length()
@@ -98,8 +98,8 @@ def determinstic_eph_prv_from_prv(prv):
 def ec_point_x_to_y(x,y_mod_2):
     assert type(x) == int, "x must be an int"
     assert 0 < x and x < ec_prime, "ec_point must have integer coordinates in [0, ec_prime)"
-    # mod_sqrt(x, p) always exists?
     y = modular_sqrt((x**3 + ec_a * x + ec_b) % ec_prime, ec_prime)
+    checkPoint(x, y) # eventually check only y!=0
     change_parity = ((y % 2) + y_mod_2) == 1
     return (ec_prime - y) if change_parity else y
     
