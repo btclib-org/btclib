@@ -8,10 +8,25 @@ Created on Sat Oct 28 01:03:03 2017
 # get_valid_*** : return a valid *** and perform some checks
 # check_***     : perform some assert about ***
 
-# DOUBTS:
-# in case of switching from secp256k1 to a smaller curve should priv and pub
-# keys be stored in something less than 32 bytes?
-# if yes how to manage that?
+# Doubts:
+#  01. how to switch from secp256k1 to smaller curves?
+#      a. change the import line?
+#      b. define a function to change manually the parameters:
+#         change_ec_param (with some problems)
+#  02. manage the L_n (after solving 01.)
+#  03. manage the import format for prv
+#      accept str hex and wif, how to recognize between them?
+#      split get_valid_prv in check_prv? 
+#  04. in case of changing the curve, should 32 bytes be used?
+#      this is linked also with sha256 (32 bytes output)
+#      how to manage?
+#  05. when doing h(msg + pub) how to encode msg + pub?
+#      what if pub has one coordinate very small? e.g. (3,y_coord)
+#  06. should h = 0 be accepted?
+#      if not how to behave
+#  07. when generating a deterministic sequence of eph_prv is the +1 ok?
+#  08. is the receipt format correct?
+#      
 
 from hashlib import sha256
 from base58 import b58decode_check
@@ -30,7 +45,23 @@ from FiniteFields import modInv, modular_sqrt
 from string import hexdigits
 from base58 import __chars as b58digits
 
-
+def check_param(prime, a, b, G, order):
+    assert type(prime) == int and type(a) == int and type(b) == int and \
+           type(G) == tuple and len(G) == 2 and \
+           type(G[0]) == int and type(G[1]) == int and \
+           type(order) == int and \
+           0 < prime and 0 <= a and 0 <= b and \
+           0 <= G[0] and 0 <= G[1] and 0 < order, \
+           "invalid parameters"
+    # other check on parameters
+    # G € ec, otherwise suggest another G
+    # order must be correct, but sometimes it is unfeasibile to try
+          
+def change_ec_param(prime, a, b, G, order):
+    check_param(prime, a, b, G, order)
+    # pointAdd, pointMultiply should be rewritten! 
+    ec_prime, ec_a, ec_b, ec_G, ec_order = prime, a, b, G, order # use a better way
+    
 def check_msg(msg):
     assert type(msg) in (str, bytes), "message must be a string or bytes"
          
