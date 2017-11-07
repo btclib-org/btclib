@@ -26,7 +26,7 @@ Created on Sat Oct 28 01:03:03 2017
 #      if not how to behave
 #  07. when generating a deterministic sequence of eph_prv is the +1 ok?
 #  08. is the receipt format correct?
-#      
+#  09. some "math" doubts on ecssa (see below)   
 
 from hashlib import sha256
 from base58 import b58decode_check
