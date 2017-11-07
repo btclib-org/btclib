@@ -144,13 +144,13 @@ def ecdsa_sign(msg, prv, eph_prv = None):
         return ecdsa_sign(msg, prv, (eph_prv + step) % ec_order) # is the + 1 safe? should I check R?
     else: return r, s
     
-def ecdsa_verify(msg, dsasig, pubkey):
+def ecdsa_verify(msg, dsasig, pub):
     h = get_hash(msg)
-    pubkey = get_valid_pub(pubkey) 
+    pub = get_valid_pub(pub) 
     check_dsasig_format(dsasig)
     s1 = modInv(dsasig[1], ec_order)
     R_recomputed = pointAdd(pointMultiply(h * s1 % ec_order, ec_G),
-                            pointMultiply(dsasig[0] * s1 % ec_order, pubkey))
+                            pointMultiply(dsasig[0] * s1 % ec_order, pub))
     return dsasig[0] == R_recomputed[0] % ec_order
 
 def ecdsa_recover(msg, dsasig, y_mod_2):
@@ -198,17 +198,19 @@ def ec_verify_commit(receipt, commit):
 
 # ---------------------- ssa
 # mimimal changes w.r.t. ecdsa, but I have still some doubts
-# 1. h = hash(msg||pubkey) as on https://en.wikipedia.org/wiki/Schnorr_signature
+# 1. h = hash(msg||pub) as on https://en.wikipedia.org/wiki/Schnorr_signature
 #    or the hash can be computed as in ECDSA (h = hash(msg)) 
 #    motivate the choice
 # 2. the sig should include the parity of the eph pub key? how?
 # 3. s = eph_prv - h*prv   or    s = eph_prv + h*prv
 
 # answers (not definitive work on that)
-# 1. h = hash(msg||pubkey)
+# 1. h = hash(msg||pub)
 # 2. the sig will be something like y, r, s
 #             y in (0, 1), r in [0, ec_prime), s in (0, prime)
 # 3. s = eph_prv - h*prv
+
+# modified lines are marked with   ### mod
 
 def check_ssasig_format(ssasig):
     assert type(ssasig) == tuple and \
@@ -236,14 +238,12 @@ def ecssa_sign(msg, prv, eph_prv = None):                         ### mod
         return ecssa_sign(msg, prv, (eph_prv + step) % ec_order)  ### mod
     else: return y, r, s                                          ### mod
 
-def ecssa_verify(msg, ssasig, pubkey):                            ### mod
-    h = get_hash(msg)
-    pubkey = get_valid_pub(pubkey) 
+def ecssa_verify(msg, ssasig, pub):                               ### mod
+    pub = get_valid_pub(pub) 
+    h = get_hash(msg + ec_point_to_str(pub))                      ### mod
     check_ssasig_format(ssasig)                                   ### mod
     R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))        ### mod
-    print(pointMultiply(ssasig[2], ec_G))
-    print(pointAdd(R, pointMultiply(-h % ec_order, pubkey)))
-    return pointMultiply(ssasig[2], ec_G) == pointAdd(R, pointMultiply(-h % ec_order, pubkey)) ### mod
+    return pointMultiply(ssasig[2], ec_G) == pointAdd(R, pointMultiply(-h % ec_order, pub)) ### mod
 
 # in case h = hash(msg||pub) the recover of pub from ssasig is impossible:
 #  s = k - h*prv <=> sG = R - hP <=> hP = R - sG
@@ -276,17 +276,22 @@ def test_sign():
     msg = "hello world"
     prv = 1
     r, s = ecdsa_sign(msg, prv)
-    pubkey = pointMultiply(prv, ec_G)
-    assert ecdsa_verify(msg, (r, s), pubkey)
-    assert pubkey in (ecdsa_recover(msg, (r,s), 0), ecdsa_recover(msg, (r,s), 1))
-    # some more tests should be done!
+    pub = pointMultiply(prv, ec_G)
+    assert ecdsa_verify(msg, (r, s), pub), "invalid ecdsa sig"
+    # pubkey recover
+    assert pub in (ecdsa_recover(msg, (r,s), 0), ecdsa_recover(msg, (r,s), 1))
+    # sign and commit
     commit = "sign to contract"
     dsasig_commit, receipt = ecdsa_sign_and_commit(msg, prv, commit)
-    assert ecdsa_verify(msg, dsasig_commit, pubkey), "invalid sig"
+    assert ecdsa_verify(msg, dsasig_commit, pub), "invalid sig"
     assert ec_verify_commit(receipt, commit), "invalid commit"
     print("\n std sign with ecssa")
     y, r, s = ecssa_sign(msg, prv)
-    print(y, hex(r), hex(s), sep="\n")
-    assert ecssa_verify(msg, (y, r, s), pubkey)
+    assert ecssa_verify(msg, (y, r, s), pub), "invalid ecssa sig"
+    # sign and commit
+    ssasig_commit, receipt = ecssa_sign_and_commit(msg, prv, commit)
+    assert ecssa_verify(msg, ssasig_commit, pub), "invalid sig"
+    assert ec_verify_commit(receipt, commit), "invalid commit"
+    # some more tests should be done!
 
-test_sign()
+# test_sign()
