@@ -2,7 +2,7 @@
 """
 Created on Mon Oct 16 11:16:55 2017
 
-@author: dfornaro
+@author: dfornaro, fametrano
 """
 from secp256k1 import order, G, pointMultiply
 from hmac import HMAC
