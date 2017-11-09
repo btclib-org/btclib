@@ -179,9 +179,8 @@ def check_receipt(receipt):
            0 < receipt[0] and receipt[0] < ec_prime, \
            "1st part of the receipt must be an int in (0, ec_prime)"
     check_ec_point(receipt[1])
-    
+
 def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
-    h = get_hash(msg)
     prv = get_valid_prv(prv)
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
@@ -189,14 +188,9 @@ def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
     assert type(commit) == str, "Commit should be a string" # or as bytes?
     e = get_hash(commit + ec_point_to_str(R, compressed = True))
     eph_prv = get_valid_prv((eph_prv + e) % ec_order) # could be 0
-    W = pointMultiply(eph_prv, ec_G)
-    w = W[0] % ec_order
-    s = modInv(eph_prv, ec_order) * (h + prv * w) % ec_order
-    if w == 0 or s == 0: 
-        step = 1 if (eph_prv + 1) % ec_order != 0 else 2
-        sig = ecdsa_sign_and_commit(msg, prv, eph_prv + step) # is this safe?
-    else: sig = (w, s)
-    receipt = (w, R)
+    sig = ecdsa_sign(msg, prv, eph_prv) 
+    # what if it resigns? the commitment is no longer valid! how to manage?
+    receipt = (sig[0], R)
     return sig, receipt
     
 def ec_verify_commit(receipt, commit):
@@ -260,24 +254,17 @@ def ecssa_verify(msg, ssasig, pub):                               ### mod
 def ecssa_recover():
     return None
 
-def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None):      ### mod
-    prv = get_valid_prv(prv)                                      ### mod
-    pub = ec_point_to_str(pointMultiply(prv, ec_G))               ### mod
-    h = get_hash(msg + pub)                                       ### mod
+def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None):
+    prv = get_valid_prv(prv)
     if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
     assert type(commit) == str, "Commit should be a string" # or as bytes?
     e = get_hash(commit + ec_point_to_str(R, compressed = True))
     eph_prv = get_valid_prv((eph_prv + e) % ec_order) # could be 0
-    W = pointMultiply(eph_prv, ec_G)
-    w, y = W[0], W[1] % 2                                         ### mod
-    z = (eph_prv - h * prv) % ec_order                            ### mod
-    if w == 0 or z == 0: 
-        step = 1 if (eph_prv + 1) % ec_order != 0 else 2
-        sig = ecssa_sign_and_commit(msg, prv, eph_prv + step)     ### mod
-    else: sig = (y, w, z)
-    receipt = (w, R)
+    sig = ecssa_sign(msg, prv, eph_prv) 
+    # what if it resigns? the commitment is no longer valid! how to manage?
+    receipt = (sig[1], R)
     return sig, receipt
 
 def test_sign():
