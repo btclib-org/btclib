@@ -232,7 +232,7 @@ def ecssa_recover_raw(hashmsg, ssasig):
     h1 = modInv(h, ec_order)    
     R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))
     return pointAdd(pointMultiply(h1, R),
-                    pointMultiply(h1 * ssasig[2] % ec_order, ec_G))    
+                    pointMultiply(-h1 * ssasig[2] % ec_order, ec_G))    
 
 
 ### sign to contract
@@ -298,6 +298,8 @@ def test_sign():
     print("\n std sign with ecssa")
     y, r, s = ecssa_sign(msg, prv)
     assert ecssa_verify(msg, (y, r, s), pub), "invalid ecssa sig"
+    # pubkey recover
+    assert pub == ecssa_recover(msg, (y, r, s)), "pubkey recover failed"
     # sign and commit
     ssasig_commit, receipt = ecssa_sign_and_commit(msg, prv, commit)
     assert ecssa_verify(msg, ssasig_commit, pub), "invalid sig"
