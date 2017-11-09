@@ -42,10 +42,13 @@ def bits2octets(b):
 def deterministic_generate_k(prv, msg, hasher = sha256):
     assert type(prv) == int and 0 < prv and prv < ec_order, "invalid prv"
     assert type(msg) == str
-    h1 = hasher(msg.encode())
-    hash_size = h1.digest_size
-    h1 = h1.digest()
-    prv_and_msg = int2octets(prv) + bits2octets(h1)
+    hashmsg = hasher(msg.encode())
+    return deterministic_generate_k_raw(prv, hashmsg, hasher)
+
+def deterministic_generate_k_raw(prv, hashmsg, hasher = sha256):
+    hash_size = hashmsg.digest_size
+    hashmsg = hashmsg.digest()
+    prv_and_msg = int2octets(prv) + bits2octets(hashmsg)
     v = b'\x01' * hash_size
     k = b'\x00' * hash_size
     k = hmac_new(k, v + b'\x00' + prv_and_msg, hasher).digest()
