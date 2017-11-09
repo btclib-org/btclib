@@ -33,34 +33,10 @@ from base58 import b58decode_check
 from secp256k1 import pointAdd, pointMultiply, \
                       order as ec_order, prime as ec_prime, G as ec_G, \
                       a as ec_a, b as ec_b
-L_n = ec_order.bit_length()
-L_n_bytes = (L_n - 1) // 8 + 1
-# L_n is the bit length of the group order 
-# source: https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm  
-# consider inserting L_n in secp256k1 
-# however unuseful for secp256k1, since L_n = 256 = size of sha256 output
-# but useful for some other curves parameters
 from FiniteFields import modInv, modular_sqrt
 #source https://stackoverflow.com/questions/11592261/check-if-a-string-is-hexadecimal/11592279#11592279
 from string import hexdigits
 from base58 import __chars as b58digits
-
-def check_param(prime, a, b, G, order):
-    assert type(prime) == int and type(a) == int and type(b) == int and \
-           type(G) == tuple and len(G) == 2 and \
-           type(G[0]) == int and type(G[1]) == int and \
-           type(order) == int and \
-           0 < prime and 0 <= a and 0 <= b and \
-           0 <= G[0] and 0 <= G[1] and 0 < order, \
-           "invalid parameters"
-    # other check on parameters
-    # G € ec, otherwise suggest another G
-    # order must be correct, but sometimes it is unfeasibile to try
-          
-def change_ec_param(prime, a, b, G, order):
-    check_param(prime, a, b, G, order)
-    # pointAdd, pointMultiply should be rewritten! 
-    ec_prime, ec_a, ec_b, ec_G, ec_order = prime, a, b, G, order # use a better way
     
 def check_msg(msg):
     assert type(msg) in (str, bytes), "message must be a string or bytes"
