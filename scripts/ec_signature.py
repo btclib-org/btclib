@@ -37,6 +37,7 @@ from FiniteFields import modInv, modular_sqrt
 #source https://stackoverflow.com/questions/11592261/check-if-a-string-is-hexadecimal/11592279#11592279
 from string import hexdigits
 from base58 import __chars as b58digits
+from rfc6979 import deterministic_generate_k
     
 def check_msg(msg):
     assert type(msg) in (str, bytes), "message must be a string or bytes"
@@ -143,15 +144,13 @@ def ecdsa_sign(msg, prv, eph_prv = None):
     # should h = 0 be accepted? and h >= ec_order? 
     # should this be treated in get_hash or after?
     prv = get_valid_prv(prv)
-    if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
+    if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
     r = R[0] % ec_order
     s = modInv(eph_prv, ec_order) * (h + prv * r) % ec_order
-    if r == 0 or s == 0:
-        step = 1 if (eph_prv + 1) % ec_order != 0 else 2
-        return ecdsa_sign(msg, prv, (eph_prv + step) % ec_order) # is the + 1 safe? should I check R?
-    else: return r, s
+    assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_generate_k
+    return r, s
     
 def ecdsa_verify(msg, dsasig, pub):
     h = get_hash(msg)
@@ -182,7 +181,7 @@ def check_receipt(receipt):
 
 def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
     prv = get_valid_prv(prv)
-    if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
+    if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
     assert type(commit) == str, "Commit should be a string" # or as bytes?
@@ -231,15 +230,13 @@ def ecssa_sign(msg, prv, eph_prv = None):                         ### mod
     # should h = 0 be accepted? and h >= ec_order? 
     # should this be treated in get_hash or after?
     # in ssa h=0 should not be accepted, otherwise every prv can sign! ### mod
-    if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
+    if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
     r, y = R[0], R[1] % 2                                         ### mod
     s = (eph_prv - h * prv) % ec_order                            ### mod
-    if r == 0 or s == 0:
-        step = 1 if (eph_prv + 1) % ec_order != 0 else 2
-        return ecssa_sign(msg, prv, (eph_prv + step) % ec_order)  ### mod
-    else: return y, r, s                                          ### mod
+    assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_generate_k
+    return y, r, s                                          ### mod
 
 def ecssa_verify(msg, ssasig, pub):                               ### mod
     pub = get_valid_pub(pub) 
@@ -256,7 +253,7 @@ def ecssa_recover():
 
 def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None):
     prv = get_valid_prv(prv)
-    if eph_prv == None: eph_prv = determinstic_eph_prv_from_prv(prv)
+    if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
     else: eph_prv = get_valid_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
     assert type(commit) == str, "Commit should be a string" # or as bytes?
