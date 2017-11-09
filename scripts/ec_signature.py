@@ -125,9 +125,9 @@ def get_hash(msg, hasher = dsha256):
     check_msg(msg)
     if type(msg) == str: msg = msg.encode()
     # check_hasher(hasher)
-    hash_output_length = 256 # make this general!
+    hashmsg_len = hasher(msg).digest_size * 8
     L_n = ec_order.bit_length() # use the L_n leftmost bits of the hash
-    return int.from_bytes(hasher(msg).digest(), "big") >> (hash_output_length - L_n)
+    return int.from_bytes(hasher(msg).digest(), "big") >> (hashmsg_len - L_n)
     
 def ecdsa_sign(msg, prv, eph_prv = None):
     h = get_hash(msg)
