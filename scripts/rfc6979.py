@@ -5,9 +5,9 @@ Created on Thu Nov  9 11:00:55 2017
 @author: Leonardo
 """
 
-# deterministic generation of k
-
-# addapted from:
+# deterministic generation of k following rfc6979
+# https://tools.ietf.org/html/rfc6979#section-3.2
+# code addapted from:
 # https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 
 from hashlib import sha256
@@ -59,6 +59,8 @@ def deterministic_generate_k(prv, msg, hasher = sha256):
             t = t + v
         nonce = bits2int(t)
         if nonce >= 1 and nonce < ec_order:
+            # here it should be checked that nonce do not yields a invalid signature
+            # but then I should put the signature generation here
             return nonce
         k = hmac_new(k, v + b'\x00', hasher).digest()
         v = hmac_new(k, v, hasher).digest()
