@@ -5,42 +5,19 @@ Created on Sat Oct 28 01:03:03 2017
 @author: Leonardo
 """
 
-# get_valid_*** : return a valid *** and perform some checks
-# check_***     : perform some assert about ***
-
-# Doubts:
-#  01. how to switch from secp256k1 to smaller curves?
-#      a. change the import line?
-#      b. define a function to change manually the parameters:
-#         change_ec_param (with some problems)
-#  02. manage the L_n (after solving 01.)
-#  03. manage the import format for prv
-#      accept str hex and wif, how to recognize between them?
-#      split get_valid_prv in check_prv? 
-#  04. in case of changing the curve, should 32 bytes be used?
-#      this is linked also with sha256 (32 bytes output)
-#      how to manage?
-#  05. when doing h(msg + pub) how to encode msg + pub?
-#      what if pub has one coordinate very small? e.g. (3,y_coord)
-#  06. should h = 0 be accepted?
-#      if not how to behave
-#  07. when generating a deterministic sequence of eph_prv is the +1 ok?
-#  08. is the receipt format correct?
-#  09. some "math" doubts on ecssa (see below)   
+### imports
 
 from hashlib import sha256
-from base58 import b58decode_check
+from base58 import b58decode_check, __chars as b58digits
 from secp256k1 import pointAdd, pointMultiply, \
                       order as ec_order, prime as ec_prime, G as ec_G, \
                       a as ec_a, b as ec_b
 from FiniteFields import modInv, modular_sqrt
-#source https://stackoverflow.com/questions/11592261/check-if-a-string-is-hexadecimal/11592279#11592279
 from string import hexdigits
-from base58 import __chars as b58digits
-from rfc6979 import deterministic_generate_k
-    
-def check_msg(msg):
-    assert type(msg) in (str, bytes), "message must be a string or bytes"
+from rfc6979 import deterministic_generate_k, deterministic_generate_k_raw
+
+
+### checks
          
 def check_ec_str(ec_str):
     assert all(c in hexdigits for c in ec_str), "an EC point in string must have only hex digits"
@@ -67,11 +44,20 @@ def check_dsasig_format(dsasig):
     assert 0 < dsasig[0] and dsasig[0] < ec_order and \
            0 < dsasig[1] and dsasig[1] < ec_order, \
            "dsasig must have coordinates in (0, order)"
+           
+def check_ssasig_format(ssasig):
+    assert type(ssasig) == tuple and \
+           len(ssasig) == 3 and \
+           type(ssasig[0]) == int and type(ssasig[1]) == int and type(ssasig[2]) == int, \
+           "ssasig must be a tuple of 3 int"
+    assert ssasig[0] in (0,1), "ssasig 1st element must be 0 or 1"
+    assert 0 < ssasig[1] and ssasig[1] < ec_prime, "ssasig 2nd element must be in (0, prime)" 
+    assert 0 < ssasig[2] and ssasig[2] < ec_order, "ssasig 3rd element must be in (0, order)" 
 
-# many doubts, should accept a format in input? 
-# how i distinguish hex, wif and others?
-# for consistency should I have check_prv(prv) ?
-def get_valid_prv(prv):
+
+### decodes
+
+def decode_prv(prv):
     assert type(prv) in (str, bytes, int), "private key should be a string, bytes or int"
     if type(prv) == str:
         if prv[:2] == "0x": prv = prv[2:]
@@ -81,17 +67,19 @@ def get_valid_prv(prv):
         # should check in a better way, e.g. wif starts with a key
         else: assert 0, "if private key is a string, it must be hex or Wif"
     if type(prv) == bytes: prv = int.from_bytes(prv, "big")
-    assert 0 < prv and prv < ec_order, "private key must be between 0 and ec_order"
-    # or prv %= ec_order ??
+    assert 0 < prv and prv < ec_order, "private key must be between 1 and "+ str(ec_order - 1)
     return prv
     
-def get_valid_pub(pub):
+def decode_pub(pub):
     if type(pub) == str: pub = str_to_ec_point(pub)
     # if type(pub) == bytes: (what I accept as valid ?? )
     check_ec_point(pub)
     return pub
 
-def ec_point_x_to_y(x,y_mod_2):
+
+# ec manipulations
+
+def ec_point_x_to_y(x, y_mod_2):
     assert type(x) == int, "x must be an int"
     assert 0 < x and x < ec_prime, "ec_point must have integer coordinates in [0, ec_prime)"
     y = modular_sqrt((x**3 + ec_a * x + ec_b) % ec_prime, ec_prime)
@@ -118,50 +106,136 @@ def ec_point_to_str(ec_point, compressed = True):
     if compressed: return ("02" if ec_point[1] % 2 == 0 else "03") + hex(ec_point[0])[2:]
     else: return "04" + hex(ec_point[0])[2:] + hex(ec_point[1])[2:]
 # ec_point_to_bytes((3, ec_point_x_to_y(3, 1))) gives opinable results
+
+
+### hash manipulations
+
 def dsha256(inp_bytes):
     return sha256(sha256(inp_bytes).digest())
 
-def get_hash(msg, hasher = dsha256):
-    check_msg(msg)
-    if type(msg) == str: msg = msg.encode()
-    # check_hasher(hasher)
-    hashmsg_len = hasher(msg).digest_size * 8
+def hash_to_int(h):
+    h_len = h.digest_size * 8
     L_n = ec_order.bit_length() # use the L_n leftmost bits of the hash
-    return int.from_bytes(hasher(msg).digest(), "big") >> (hashmsg_len - L_n)
+    n = (h_len - L_n) if h_len >= L_n else 0
+    return int.from_bytes(h.digest(), "big") >> n
+
+def str_to_hash(string, hasher):
+    assert type(string) == str
+    return hasher(string.encode())
+
+
+### ecdsa sign
+
+def ecdsa_sign(msg, prv, eph_prv = None, hasher = dsha256):
+    hashmsg = str_to_hash(msg, hasher)
+    prv = decode_prv(prv)
+    if eph_prv != None: eph_prv = decode_prv(eph_prv)
+    return ecdsa_sign_raw(hashmsg, prv, eph_prv)
+    # return the sign in a different way? (like vbuterin)
     
-def ecdsa_sign(msg, prv, eph_prv = None):
-    h = get_hash(msg)
-    # should h = 0 be accepted? and h >= ec_order? 
-    # should this be treated in get_hash or after?
-    prv = get_valid_prv(prv)
-    if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
-    else: eph_prv = get_valid_prv(eph_prv)
+def ecdsa_sign_raw(hashmsg, prv, eph_prv = None):
+    h = hash_to_int(hashmsg)
+    if eph_prv == None: 
+        eph_prv = deterministic_generate_k_raw(prv, hashmsg, hasher = sha256)
     R = pointMultiply(eph_prv, ec_G)
     r = R[0] % ec_order
     s = modInv(eph_prv, ec_order) * (h + prv * r) % ec_order
     assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_generate_k
     return r, s
     
-def ecdsa_verify(msg, dsasig, pub):
-    h = get_hash(msg)
-    pub = get_valid_pub(pub) 
+def ecdsa_verify(msg, dsasig, pub, hasher = dsha256):
+    hashmsg = str_to_hash(msg, hasher)
+    pub = decode_pub(pub) 
     check_dsasig_format(dsasig)
+    return ecdsa_verify_raw(hashmsg, dsasig, pub)
+
+def ecdsa_verify_raw(hashmsg, dsasig, pub):
+    h = hash_to_int(hashmsg)
     s1 = modInv(dsasig[1], ec_order)
-    R_recomputed = pointAdd(pointMultiply(h * s1 % ec_order, ec_G),
-                            pointMultiply(dsasig[0] * s1 % ec_order, pub))
+    if h != 0:
+        R_recomputed = pointAdd(pointMultiply(h * s1 % ec_order, ec_G),
+                                pointMultiply(dsasig[0] * s1 % ec_order, pub))
+    else:
+        R_recomputed = pointMultiply(dsasig[0] * s1 % ec_order, pub)
     return dsasig[0] == R_recomputed[0] % ec_order
 
-def ecdsa_recover(msg, dsasig, y_mod_2):
-    h = get_hash(msg)
+def ecdsa_recover(msg, dsasig, y_mod_2, hasher = dsha256):
+    hashmsg = str_to_hash(msg, hasher)
     check_dsasig_format(dsasig)
     assert y_mod_2 in (0, 1)
+    return ecdsa_recover_raw(hashmsg, dsasig, y_mod_2)
+    
+def ecdsa_recover_raw(hashmsg, dsasig, y_mod_2):
+    h = hash_to_int(hashmsg)
     r1 = modInv(dsasig[0], ec_order)
     R = (dsasig[0], ec_point_x_to_y(dsasig[0], y_mod_2))
-    if h != 0: return pointAdd(pointMultiply(-h * r1 % ec_order, ec_G), \
-                               pointMultiply(dsasig[1] * r1 % ec_order, R))
+    if h != 0: 
+        return pointAdd(pointMultiply(-h * r1 % ec_order, ec_G), \
+                        pointMultiply(dsasig[1] * r1 % ec_order, R))
     else: return pointMultiply(dsasig[1] * r1 % ec_order, R)
 
-# ---------------------- sign-to-contract
+
+### ecssa sign
+
+# REMARK:
+# ecssa_sign use h=(msg||R) so the hashmsg cannot be generated 
+# if the eph_prv or R are not known!
+
+# k = h_rfc6979(msg||prv)
+# ! msg is not the hashmsg that is signed!
+
+def ecssa_sign(msg, prv, eph_prv = None, hasher = dsha256):
+    assert type(msg) == str
+    prv = decode_prv(prv)
+    if eph_prv == None: 
+        eph_prv = deterministic_generate_k(prv, msg)
+    else:
+        eph_prv = decode_prv(eph_prv)
+    R = pointMultiply(eph_prv, ec_G)
+    hashmsg = str_to_hash(msg + ec_point_to_str(R), hasher)
+    return ecssa_sign_raw(hashmsg, prv, eph_prv)
+
+def ecssa_sign_raw(hashmsg, prv, eph_prv):
+    h = hash_to_int(hashmsg)
+    assert h != 0, "invalid message, hash of msg cannot be 0"
+    R = pointMultiply(eph_prv, ec_G)
+    r, y = R[0], R[1] % 2
+    s = (eph_prv - h * prv) % ec_order                            
+    assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_generate_k
+    return y, r, s
+
+def ecssa_verify(msg, ssasig, pub, hasher = dsha256):
+    check_ssasig_format(ssasig)
+    R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))
+    hashmsg = str_to_hash(msg + ec_point_to_str(R), hasher)
+    pub = decode_pub(pub)
+    return ecssa_verify_raw(hashmsg, ssasig, pub)
+
+def ecssa_verify_raw(hashmsg, ssasig, pub):
+    h = hash_to_int(hashmsg)
+    assert h != 0, "hash of msg must be != 0"
+    R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))
+    return R == pointAdd(pointMultiply(ssasig[2], ec_G),
+                         pointMultiply(h % ec_order, pub))
+
+# R = kG; h = hash(msg||R)
+# s = k - h*prv <=> sG = R - hP <=> hP = R - sG <=> P = (R - sG)*h^-1
+def ecssa_recover(msg, ssasig, hasher = dsha256):
+    R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))
+    hashmsg = str_to_hash(msg + ec_point_to_str(R), hasher)
+    check_ssasig_format(ssasig)
+    return ecssa_recover_raw(hashmsg, ssasig)
+
+def ecssa_recover_raw(hashmsg, ssasig):
+    h = hash_to_int(hashmsg)
+    assert h != 0, "invalid message, hash of msg cannot be 0"
+    h1 = modInv(h, ec_order)    
+    R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))
+    return pointAdd(pointMultiply(h1, R),
+                    pointMultiply(h1 * ssasig[2] % ec_order, ec_G))    
+
+
+### sign to contract
 
 def check_receipt(receipt):
     assert type(receipt[0]) == int and \
@@ -169,90 +243,43 @@ def check_receipt(receipt):
            "1st part of the receipt must be an int in (0, ec_prime)"
     check_ec_point(receipt[1])
 
-def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None):
-    prv = get_valid_prv(prv)
-    if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
-    else: eph_prv = get_valid_prv(eph_prv)
+def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = dsha256):
+    hashmsg = str_to_hash(msg, hasher)
+    prv = decode_prv(prv)
+    if eph_prv == None: 
+        eph_prv = deterministic_generate_k_raw(prv, hashmsg, sha256)
+    else: 
+        eph_prv = decode_prv(eph_prv)
     R = pointMultiply(eph_prv, ec_G)
-    assert type(commit) == str, "Commit should be a string" # or as bytes?
-    e = get_hash(commit + ec_point_to_str(R, compressed = True))
-    eph_prv = get_valid_prv((eph_prv + e) % ec_order) # could be 0
-    sig = ecdsa_sign(msg, prv, eph_prv) 
-    # what if it resigns? the commitment is no longer valid! how to manage?
+    e = hash_to_int(str_to_hash(commit + ec_point_to_str(R), hasher))
+    eph_prv = (eph_prv + e) % ec_order
+    sig = ecdsa_sign_raw(hashmsg, prv, eph_prv)
     receipt = (sig[0], R)
     return sig, receipt
+
+def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = dsha256):
+    prv = decode_prv(prv)
+    if eph_prv == None: 
+        eph_prv = deterministic_generate_k(prv, msg, sha256)
+    else: 
+        eph_prv = decode_prv(eph_prv)
+    R = pointMultiply(eph_prv, ec_G)
+    e = hash_to_int(str_to_hash(commit + ec_point_to_str(R), hasher))
+    eph_prv = (eph_prv + e) % ec_order
+    W = pointMultiply(eph_prv, ec_G)
+    hashmsg = str_to_hash(msg + ec_point_to_str(W), hasher)
+    sig = ecssa_sign_raw(hashmsg, prv, eph_prv)
+    receipt = (sig[1], R)
+    return sig, receipt
     
-def ec_verify_commit(receipt, commit):
+def ec_verify_commit(receipt, commit, hasher = dsha256):
     check_receipt(receipt)
-    e_recomputed = get_hash(commit + ec_point_to_str(receipt[1], compressed = True))
+    e_recomputed = hash_to_int(str_to_hash(commit + ec_point_to_str(receipt[1]), hasher))
     W_recomputed = pointAdd(receipt[1], pointMultiply(e_recomputed, ec_G))
     return receipt[0] == W_recomputed[0] % ec_order
 
-# ---------------------- ssa
-# mimimal changes w.r.t. ecdsa, but I have still some doubts
-# 1. h = hash(msg||pub) as on https://en.wikipedia.org/wiki/Schnorr_signature
-#    or the hash can be computed as in ECDSA (h = hash(msg)) 
-#    motivate the choice
-# 2. the sig should include the parity of the eph pub key? how?
-# 3. s = eph_prv - h*prv   or    s = eph_prv + h*prv
 
-# answers (not definitive work on that)
-# 1. h = hash(msg||pub)
-# 2. the sig will be something like y, r, s
-#             y in (0, 1), r in [0, ec_prime), s in (0, prime)
-# 3. s = eph_prv - h*prv
-
-# modified lines are marked with   ### mod
-
-def check_ssasig_format(ssasig):
-    assert type(ssasig) == tuple and \
-           len(ssasig) == 3 and \
-           type(ssasig[0]) == int and type(ssasig[1]) == int and type(ssasig[2]) == int, \
-           "ssasig must be a tuple of 3 int"
-    assert ssasig[0] in (0,1), "ssasig 1st element must be 0 or 1"
-    assert 0 < ssasig[1] and ssasig[1] < ec_prime, "ssasig 2nd element must be in (0, prime)" 
-    assert 0 < ssasig[2] and ssasig[2] < ec_order, "ssasig 3rd element must be in (0, order)" 
-
-def ecssa_sign(msg, prv, eph_prv = None):                         ### mod
-    prv = get_valid_prv(prv)
-    pub = ec_point_to_str(pointMultiply(prv, ec_G))               ### mod
-    h = get_hash(msg + pub)                                       ### mod
-    # should h = 0 be accepted? and h >= ec_order? 
-    # should this be treated in get_hash or after?
-    # in ssa h=0 should not be accepted, otherwise every prv can sign! ### mod
-    if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
-    else: eph_prv = get_valid_prv(eph_prv)
-    R = pointMultiply(eph_prv, ec_G)
-    r, y = R[0], R[1] % 2                                         ### mod
-    s = (eph_prv - h * prv) % ec_order                            ### mod
-    assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_generate_k
-    return y, r, s                                          ### mod
-
-def ecssa_verify(msg, ssasig, pub):                               ### mod
-    pub = get_valid_pub(pub) 
-    h = get_hash(msg + ec_point_to_str(pub))                      ### mod
-    check_ssasig_format(ssasig)                                   ### mod
-    R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))        ### mod
-    return pointMultiply(ssasig[2], ec_G) == pointAdd(R, pointMultiply(-h % ec_order, pub)) ### mod
-
-# in case h = hash(msg||pub) the recover of pub from ssasig is impossible:
-#  s = k - h*prv <=> sG = R - hP <=> hP = R - sG
-#  but the map P -> hash(msg||P)*P is not invertible
-def ecssa_recover():
-    return None
-
-def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None):
-    prv = get_valid_prv(prv)
-    if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
-    else: eph_prv = get_valid_prv(eph_prv)
-    R = pointMultiply(eph_prv, ec_G)
-    assert type(commit) == str, "Commit should be a string" # or as bytes?
-    e = get_hash(commit + ec_point_to_str(R, compressed = True))
-    eph_prv = get_valid_prv((eph_prv + e) % ec_order) # could be 0
-    sig = ecssa_sign(msg, prv, eph_prv) 
-    # what if it resigns? the commitment is no longer valid! how to manage?
-    receipt = (sig[1], R)
-    return sig, receipt
+### tests
 
 def test_sign():
     print("\n std sign with ecdsa")
