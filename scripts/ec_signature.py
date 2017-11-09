@@ -152,13 +152,15 @@ def ec_point_to_str(ec_point, compressed = True):
     else: return "04" + hex(ec_point[0])[2:] + hex(ec_point[1])[2:]
 # ec_point_to_bytes((3, ec_point_x_to_y(3, 1))) gives opinable results
 def dsha256(inp_bytes):
-    return sha256(sha256(inp_bytes).digest()).digest()
+    return sha256(sha256(inp_bytes).digest())
 
-def get_hash(msg, hash_type = "double256"):
+def get_hash(msg, hasher = dsha256):
     check_msg(msg)
     if type(msg) == str: msg = msg.encode()
-    if hash_type == "double256": return int.from_bytes(dsha256(msg)[:L_n_bytes], "big")
-    else: return int.from_bytes(sha256(msg).digest()[:L_n_bytes], "big") # does this the same job as btc core?
+    # check_hasher(hasher)
+    hash_output_length = 256 # make this general!
+    L_n = ec_order.bit_length() # use the L_n leftmost bits of the hash
+    return int.from_bytes(hasher(msg).digest(), "big") >> (hash_output_length - L_n)
     
 def ecdsa_sign(msg, prv, eph_prv = None):
     h = get_hash(msg)
