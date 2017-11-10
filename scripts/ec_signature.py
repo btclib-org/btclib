@@ -258,6 +258,21 @@ def ecssa_recover_raw(hashmsg, ssasig, hasher):
     return pointAdd(add1, add2)
 
 # %% sign to contract
+# IDEA: 
+#    insert a commitment in a signature (singing something else!)
+#    using this valid commitment operation:
+#    R -> hash(R||c)G + R  (R ec point, G generator, c commit)
+# HOW: 
+#    when you sign you generate a nonce (k) and compute a ec point (R = kG)
+#    instead of proceeding using (k,R) you compute a value (e) that embed the 
+#    commitment: e = hash(R.x||commit)
+#    you substitute the nonce with k+e and R with R+eG, and proceed signing
+#    in the standard way using instead (k+e,R+eG)
+# VERIFICATION: 
+#    the verifier can see W.x (W = R+eG) on the signature
+#    the signer (and committer) provides R and commit
+#    the verifier checks that:   W.x = (R+eG).x  
+#                               (with e = hash(R.x||commit))
 
 def check_receipt(receipt):
     assert type(receipt[0]) == int and \
@@ -350,5 +365,3 @@ def test_ecssa(param, verify = True, recover = True, verify_commit = True):
         assert ecssa_verify(msg, sig_commit, pub), "sig verification failed"
         assert ec_verify_commit(receipt, commit), "commit verification failed"
     print("ecssa tests passed")
-
-# test_sign()
