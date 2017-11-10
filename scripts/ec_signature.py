@@ -44,7 +44,7 @@ def check_dsasig_format(dsasig):
     assert 0 < dsasig[0] and dsasig[0] < ec_order and \
            0 < dsasig[1] and dsasig[1] < ec_order, \
            "dsasig must have coordinates in (0, order)"
-           
+
 def check_ssasig_format(ssasig):
     assert type(ssasig) == tuple and \
            len(ssasig) == 3 and \
@@ -126,7 +126,7 @@ def str_to_hash(string, hasher):
 
 ### ecdsa sign
 
-def ecdsa_sign(msg, prv, eph_prv = None, hasher = dsha256):
+def ecdsa_sign(msg, prv, eph_prv = None, hasher = sha256):
     hashmsg = str_to_hash(msg, hasher)
     prv = decode_prv(prv)
     if eph_prv != None: eph_prv = decode_prv(eph_prv)
@@ -143,7 +143,7 @@ def ecdsa_sign_raw(hashmsg, prv, eph_prv = None):
     assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_generate_k
     return r, s
     
-def ecdsa_verify(msg, dsasig, pub, hasher = dsha256):
+def ecdsa_verify(msg, dsasig, pub, hasher = sha256):
     hashmsg = str_to_hash(msg, hasher)
     pub = decode_pub(pub) 
     check_dsasig_format(dsasig)
@@ -159,7 +159,7 @@ def ecdsa_verify_raw(hashmsg, dsasig, pub):
         R_recomputed = pointMultiply(dsasig[0] * s1 % ec_order, pub)
     return dsasig[0] == R_recomputed[0] % ec_order
 
-def ecdsa_recover(msg, dsasig, y_mod_2, hasher = dsha256):
+def ecdsa_recover(msg, dsasig, y_mod_2, hasher = sha256):
     hashmsg = str_to_hash(msg, hasher)
     check_dsasig_format(dsasig)
     assert y_mod_2 in (0, 1)
@@ -184,7 +184,7 @@ def ecdsa_recover_raw(hashmsg, dsasig, y_mod_2):
 # k = h_rfc6979(msg||prv)
 # ! msg is not the hashmsg that is signed!
 
-def ecssa_sign(msg, prv, eph_prv = None, hasher = dsha256):
+def ecssa_sign(msg, prv, eph_prv = None, hasher = sha256):
     assert type(msg) == str
     prv = decode_prv(prv)
     if eph_prv == None: 
@@ -204,7 +204,7 @@ def ecssa_sign_raw(hashmsg, prv, eph_prv):
     assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_generate_k
     return y, r, s
 
-def ecssa_verify(msg, ssasig, pub, hasher = dsha256):
+def ecssa_verify(msg, ssasig, pub, hasher = sha256):
     check_ssasig_format(ssasig)
     R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))
     hashmsg = str_to_hash(msg + ec_point_to_str(R), hasher)
@@ -220,7 +220,7 @@ def ecssa_verify_raw(hashmsg, ssasig, pub):
 
 # R = kG; h = hash(msg||R)
 # s = k - h*prv <=> sG = R - hP <=> hP = R - sG <=> P = (R - sG)*h^-1
-def ecssa_recover(msg, ssasig, hasher = dsha256):
+def ecssa_recover(msg, ssasig, hasher = sha256):
     R = (ssasig[1], ec_point_x_to_y(ssasig[1], ssasig[0]))
     hashmsg = str_to_hash(msg + ec_point_to_str(R), hasher)
     check_ssasig_format(ssasig)
@@ -243,7 +243,7 @@ def check_receipt(receipt):
            "1st part of the receipt must be an int in (0, ec_prime)"
     check_ec_point(receipt[1])
 
-def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = dsha256):
+def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = sha256):
     hashmsg = str_to_hash(msg, hasher)
     prv = decode_prv(prv)
     if eph_prv == None: 
@@ -257,7 +257,7 @@ def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = dsha256):
     receipt = (sig[0], R)
     return sig, receipt
 
-def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = dsha256):
+def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = sha256):
     prv = decode_prv(prv)
     if eph_prv == None: 
         eph_prv = deterministic_generate_k(prv, msg, sha256)
@@ -272,7 +272,7 @@ def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = dsha256):
     receipt = (sig[1], R)
     return sig, receipt
     
-def ec_verify_commit(receipt, commit, hasher = dsha256):
+def ec_verify_commit(receipt, commit, hasher = sha256):
     check_receipt(receipt)
     e_recomputed = hash_to_int(str_to_hash(commit + ec_point_to_str(receipt[1]), hasher))
     W_recomputed = pointAdd(receipt[1], pointMultiply(e_recomputed, ec_G))
