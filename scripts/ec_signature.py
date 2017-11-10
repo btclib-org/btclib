@@ -6,7 +6,7 @@ Created on Sat Oct 28 01:03:03 2017
 """
 
 # import - check - decode - from/to ec_point - from/to int
-# ecdsa - ecssa - sign-to-contract 
+# ecdsa - ecssa - sign-to-contract - test
 
 # %% import
 
@@ -301,37 +301,54 @@ def ec_verify_commit(receipt, commit, hasher = sha256):
     check_receipt(receipt)
     commit = decode_msg(commit)
     R_x = int_to_bytes(receipt[1][0], 32)
-    e_recomputed = hash_to_int(hasher(R_x + commit))
-    W_recomputed = pointAdd(receipt[1], pointMultiply(e_recomputed, ec_G))
-    return receipt[0] == W_recomputed[0] % ec_order
+    e_rec = hash_to_int(hasher(R_x + commit))
+    W_rec = pointAdd(receipt[1], pointMultiply(e_rec, ec_G))
+    return receipt[0] == W_rec[0] % ec_order
 
 
 # %% tests
 
-def test_sign():
-    print("\n std sign with ecdsa")
+def test_all(ecdsa = True, ecssa = True, \
+             verify = True, recover = True, verify_commit = True):
     msg = "hello world"
     prv = 1
-    r, s = ecdsa_sign(msg, prv)
-    pub = pointMultiply(prv, ec_G)
-    assert ecdsa_verify(msg, (r, s), pub), "invalid ecdsa sig"
-    # pubkey recover
-    assert pub in (ecdsa_recover(msg, (r,s), 0), ecdsa_recover(msg, (r,s), 1))
-    # sign and commit
     commit = "sign to contract"
-    dsasig_commit, receipt = ecdsa_sign_and_commit(msg, prv, commit)
-    assert ecdsa_verify(msg, dsasig_commit, pub), "invalid sig"
-    assert ec_verify_commit(receipt, commit), "invalid commit"
-    
-    print("\n std sign with ecssa")
-    R_x, s = ecssa_sign(msg, prv)
-    assert ecssa_verify(msg, (R_x, s), pub), "invalid ecssa sig"
-    # pubkey recover
-    assert pub == ecssa_recover(msg, (R_x, s)), "pubkey recover failed"
-    # sign and commit
-    ssasig_commit, receipt = ecssa_sign_and_commit(msg, prv, commit)
-    assert ecssa_verify(msg, ssasig_commit, pub), "invalid sig"
-    assert ec_verify_commit(receipt, commit), "invalid commit"
-    # some more tests should be done!
+    param = msg, prv, commit
+    if ecdsa:
+        test_ecdsa(param, verify, recover, verify_commit)
+    if ecssa:
+        test_ecssa(param, verify, recover, verify_commit)
+
+def test_ecdsa(param, verify = True, recover = True, verify_commit = True):
+    print("*** testing ecdsa")
+    msg, prv, commit = param
+    sig = ecdsa_sign(msg, prv)
+    pub = pointMultiply(prv, ec_G)
+    if verify: 
+        assert ecdsa_verify(msg, sig, pub), "invalid sig"
+    if recover: 
+        assert pub in (ecdsa_recover(msg, sig, 0), ecdsa_recover(msg, sig, 1)),\
+        "the recovered pubkey is not correct"
+    if verify_commit:
+        sig_commit, receipt = ecdsa_sign_and_commit(msg, prv, commit)
+        assert ecdsa_verify(msg, sig_commit, pub), "sig verification failed"
+        assert ec_verify_commit(receipt, commit), "commit verification failed"
+    print("ecdsa tests passed")
+
+def test_ecssa(param, verify = True, recover = True, verify_commit = True):
+    print("*** testing ecssa")
+    msg, prv, commit = param
+    sig = ecssa_sign(msg, prv)
+    pub = pointMultiply(prv, ec_G)
+    if verify: 
+        assert ecssa_verify(msg, sig, pub), "invalid sig"
+    if recover: 
+        assert pub == ecssa_recover(msg, sig), \
+        "the recovered pubkey is not correct"
+    if verify_commit:
+        sig_commit, receipt = ecssa_sign_and_commit(msg, prv, commit)
+        assert ecssa_verify(msg, sig_commit, pub), "sig verification failed"
+        assert ec_verify_commit(receipt, commit), "commit verification failed"
+    print("ecssa tests passed")
 
 # test_sign()
