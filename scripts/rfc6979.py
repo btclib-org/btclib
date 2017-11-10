@@ -41,8 +41,9 @@ def bits2octets(b):
 
 def deterministic_generate_k(prv, msg, hasher = sha256):
     assert type(prv) == int and 0 < prv and prv < ec_order, "invalid prv"
-    assert type(msg) == str
-    hashmsg = hasher(msg.encode())
+    if type(msg) == str: msg = msg.encode()
+    assert type(msg) == bytes
+    hashmsg = hasher(msg)
     return deterministic_generate_k_raw(prv, hashmsg, hasher)
 
 def deterministic_generate_k_raw(prv, hashmsg, hasher = sha256):
