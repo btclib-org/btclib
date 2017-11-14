@@ -17,27 +17,28 @@ from secp256k1 import pointAdd, pointMultiply, \
                       a as ec_a, b as ec_b
 from FiniteFields import modInv, modular_sqrt
 from string import hexdigits
-from rfc6979 import deterministic_generate_k, deterministic_generate_k_raw
+from rfc6979 import deterministic_k, deterministic_k_raw
 
 
 # %% check
 
 def check_ec_str(ec_str):
-  assert all(c in hexdigits for c in ec_str), \
-         "an EC point in string must have only hex digits"
-  assert (0 < len(ec_str) and len(ec_str) % 2 == 0 and len(ec_str) <= 66) \
-         or len(ec_str) == 130, \
-         "an EC point in string must have 2, 4, 6, ..., 66, or 130 hex digits"
+  assert len(ec_str)>4, "pubkey string must be at least 4 characters"
   assert ec_str[:2] in ("02","03","04"), \
          "an EC point in string must start with 02, 03 or 04"
+  assert all(c in hexdigits for c in ec_str), \
+         "an EC point in string must have only hex digits"
+  assert (len(ec_str) % 2 == 0 and len(ec_str) <= 66) \
+         or len(ec_str) == 130, \
+         "an EC point in string must have 2, 4, 6, ..., 66, or 130 hex digits"
 
 def check_ec_point(ec_point):
   assert type(ec_point) == tuple and \
          len(ec_point) == 2 and \
          type(ec_point[0]) == int and type(ec_point[1]) == int, \
          "ec_point must be a tuple of 2 int"
-  assert 0 < ec_point[0] and ec_point[0] < ec_prime and \
-         0 < ec_point[1] and ec_point[1] < ec_prime, \
+  assert 0 <= ec_point[0] and ec_point[0] < ec_prime and \
+         0 <= ec_point[1] and ec_point[1] < ec_prime, \
          "ec_point must have integer coordinates in [0, ec_prime)"
   assert (ec_point[1]**2 % ec_prime) == \
          (ec_point[0]**3 + ec_a * ec_point[0] + ec_b) % ec_prime, \
@@ -63,7 +64,7 @@ def check_ssasig(ssasig):
 # %% decode
 
 def decode_prv(prv):
-  assert type(prv) in (str, bytes, int), "private key should be a string, bytes or int"
+  assert type(prv) in (str, bytes, int), "private key should be a hex string, bytes or int"
   if type(prv) == str:
     if prv[:2] == "0x": prv = prv[2:]
     if all(c in hexdigits for c in prv) and len(prv) == 64: prv = int(prv, 16) # hex
@@ -145,51 +146,48 @@ def int_to_bytes(n, byte_len = None):
 def ecdsa_sign(msg, prv, eph_prv = None, hasher = sha256):
   msg = decode_msg(msg)
   prv = decode_prv(prv)
-  if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
+  if eph_prv == None: eph_prv = deterministic_k(prv, msg, hasher)
   else: eph_prv = decode_prv(eph_prv)
-  hashmsg = hasher(msg).digest()
-  return ecdsa_sign_raw(hashmsg, prv, eph_prv, hasher)
+  h = hash_to_int(hasher(msg).digest())
+  r, s = ecdsa_sign_raw(h, prv, eph_prv)
+  assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_k
+  return r, s
   # return the sign in a different way? (like vbuterin)
 
-def ecdsa_sign_raw(hashmsg, prv, eph_prv, hasher):
-  h = hash_to_int(hasher(hashmsg))
-  if eph_prv == None: eph_prv = deterministic_generate_k_raw(prv, hashmsg, hasher)
+def ecdsa_sign_raw(h, prv, eph_prv):
   R = pointMultiply(eph_prv, ec_G)
   r = R[0] % ec_order
   s = modInv(eph_prv, ec_order) * (h + prv * r) % ec_order
-  assert r != 0 and s != 0, "failed to sign" # this should be checked inside deterministic_generate_k
   return r, s
 
 def ecdsa_verify(msg, dsasig, pub, hasher = sha256):
   msg = decode_msg(msg)
   check_dsasig(dsasig)
   pub = decode_pub(pub)
-  hashmsg = hasher(msg).digest()
-  return ecdsa_verify_raw(hashmsg, dsasig, pub, hasher)
+  h = hash_to_int(hasher(msg).digest())
+  return ecdsa_verify_raw(h, dsasig, pub)
 
-def ecdsa_verify_raw(hashmsg, dsasig, pub, hasher):
-  h = hash_to_int(hasher(hashmsg))
+def ecdsa_verify_raw(h, dsasig, pub):
   r, s = dsasig
   s1 = modInv(s, ec_order)
   add1 = pointMultiply(r * s1 % ec_order, pub)
   if h != 0:
       add2 = pointMultiply(h * s1 % ec_order, ec_G)
       assert add1[0] != add2[0]
-      R_rec = pointAdd(add1, add2)
+      R = pointAdd(add1, add2)
   else:
-      R_rec = add1
-  return R_rec[0] == r
+      R = add1
+  return R[0] % ec_order == r
 
 def ecdsa_recover(msg, dsasig, y_mod_2, hasher = sha256):
   msg = decode_msg(msg)
   check_ssasig(dsasig)
   assert y_mod_2 in (0, 1)
-  hashmsg = hasher(msg).digest()
-  return ecdsa_recover_raw(hashmsg, dsasig, y_mod_2, hasher)
+  h = hash_to_int(hasher(msg).digest())
+  return ecdsa_recover_raw(h, dsasig, y_mod_2)
 
-def ecdsa_recover_raw(hashmsg, dsasig, y_mod_2, hasher):
+def ecdsa_recover_raw(h, dsasig, y_mod_2):
   r, s = dsasig
-  h = hash_to_int(hasher(hashmsg))
   r1 = modInv(r, ec_order)
   R = (r, ec_x_to_y(r, y_mod_2))
   add1 = pointMultiply(dsasig[1] * r1 % ec_order, R)
@@ -208,7 +206,7 @@ def ecdsa_recover_raw(hashmsg, dsasig, y_mod_2, hasher):
 def ecssa_sign(msg, prv, eph_prv = None, hasher = sha256):
   msg = decode_msg(msg)
   prv = decode_prv(prv)
-  if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
+  if eph_prv == None: eph_prv = deterministic_k(prv, msg)
   else: eph_prv = decode_prv(eph_prv)
   hashmsg = hasher(msg).digest()
   return ecssa_sign_raw(hashmsg, prv, eph_prv, hasher)
@@ -283,7 +281,7 @@ def check_receipt(receipt):
 def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = sha256):
   msg = decode_msg(msg)
   prv = decode_prv(prv)
-  if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
+  if eph_prv == None: eph_prv = deterministic_k(prv, msg)
   else: eph_prv = decode_prv(eph_prv)
   hashmsg = hasher(msg).digest()
   # insert the commit in the ec_point
@@ -299,7 +297,7 @@ def ecdsa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = sha256):
 def ecssa_sign_and_commit(msg, prv, commit, eph_prv = None, hasher = sha256):
   msg = decode_msg(msg)
   prv = decode_prv(prv)
-  if eph_prv == None: eph_prv = deterministic_generate_k(prv, msg)
+  if eph_prv == None: eph_prv = deterministic_k(prv, msg)
   else: eph_prv = decode_prv(eph_prv)
   hashmsg = hasher(msg).digest()
   # insert the commit in the ec_point
@@ -365,3 +363,7 @@ def test_ecssa(param, verify = True, recover = True, verify_commit = True):
     assert ecssa_verify(msg, sig_commit, pub), "sig verification failed"
     assert ec_verify_commit(receipt, commit), "commit verification failed"
   print("ecssa tests passed")
+
+
+test_all()
+print("been here")
