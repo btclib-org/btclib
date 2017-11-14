@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-from secp256k1 import order, G, modInv, pointAdd, pointMultiply
 from hashlib import sha256
+from secp256k1 import order, G, pointAdd, pointMultiply
 
 p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 # 0 < p < order
@@ -22,9 +22,9 @@ print(msg1)
 
 print("*** The hash of the message")
 hstring1 = sha256(msg1.encode()).hexdigest()
-#Hash(msg) must be converted to an integer
-h1 = int(hstring1, 16)
-assert (h1 % order) != 0
+# Hash(msg) must be transformed into an integer modulo order:
+h1 = int(hstring1, 16) % order
+assert h1 != 0
 print("    h1:", hex(h1))
 
 print("\n*** Signature")
@@ -39,8 +39,8 @@ assert     k1 < order
 
 K1 = pointMultiply(k1, G)
 
-s1 = (k1-h1*p) % order;
-# if s == 0 (extremely unlikely) go back to a different ephemeral key
+s1 = (k1-h1*p) % order
+# if s1 == 0 (extremely unlikely for large order) go back to a different ephemeral key
 assert s1 != 0
 
 print(" K1[0]:", hex(K1[0]))
@@ -96,9 +96,9 @@ print(msg2)
 
 print("*** The hash of the message")
 hstring2 = sha256(msg2.encode()).hexdigest()
-#Hash(msg) must be converted to an integer
-h2 = int(hstring2, 16)
-assert (h2 % order) != 0
+# Hash(msg) must be transformed into an integer modulo order:
+h2 = int(hstring2, 16) % order
+assert h2 != 0
 print("    h2:", hex(h2))
 
 print("\n*** Signature")
@@ -109,8 +109,8 @@ assert     k2 < order
 
 K2 = pointMultiply(k2, G)
 
-s2 = (k2-h2*p) %order;
-# if s == 0 (extremely unlikely) go back to a different ephemeral key
+s2 = (k2-h2*p) %order
+# if s2 == 0 (extremely unlikely) go back to a different ephemeral key
 assert s2 != 0
 
 print(" K2[0]:", hex(K2[0]))
