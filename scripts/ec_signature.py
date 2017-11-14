@@ -2,7 +2,7 @@
 """
 Created on Sat Oct 28 01:03:03 2017
 
-@author: Leonardo
+@author: Leonardo, fametrano
 """
 
 # import - check - decode - from/to ec_point - from/to int
