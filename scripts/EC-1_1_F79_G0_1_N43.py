@@ -1,19 +1,24 @@
 #!/usr/bin/python3
 
 # elliptic curve y^2 = x^3 + a * x + b
-prime = 11; a = 1; b = 6;
-G = (5, 9)
-# must be a prime for modInv to always return a result
-# this is crucial for signature to work
-order = 13
-
+a = -1; b = 1
 assert 4*a*a*a+27*b*b !=0, "zero discriminant"
 
-from FiniteFields import modInv
+# over prime field
+prime = 79;
 
 def checkPoint(P):
   assert (P[0]*P[0]*P[0]+a*P[0]+b) % prime == (P[1]*P[1]) % prime
   
+# A given generator specifies the group order
+G = (0, 1)
+checkPoint(G)
+
+# must be a prime for the cyclic field not to have subgroups
+order = 43
+
+from FiniteFields import modInv
+
 def pointDouble(P):
   lam = ((3*P[0]*P[0]+a) * modInv(2*P[1], prime)) % prime
   x = (lam*lam-2*P[0]) % prime
