@@ -49,11 +49,11 @@ def pointAdd(P, Q):
 
 # double & add
 def pointMultiply(n, P):
+  n = n % order
   if n == 0 or P[0] is None:
     return (None, None)
   if n == 1:
     return P
-  n = n % order
   if n % 2 == 1: # addition when n is odd
     return pointAdd(P, pointMultiply(n - 1, P))
   else:          # doubling when n is even
