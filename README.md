@@ -1,7 +1,9 @@
 ## Material for the Bitcoin & Blockchain Technology course
 
-The `scripts` folder contains Python3 code used in class.
+The `scripts` folder contains Python3 code used for teaching and homeworks.
+The `excel` folder contains Excel spreadsheets used for teaching and homeworks.
 It is licensed under MIT license.
 It is not intended to be used in production environments.
 
- Slides are `CC BY-SA 4.0` https://creativecommons.org/licenses/by-sa/4.0/
+ Slides are available at:
+ http://bit.ly/2LecIba
