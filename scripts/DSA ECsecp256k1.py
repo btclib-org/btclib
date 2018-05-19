@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 from hashlib import sha256
-from secp256k1 import G, order, modInv, pointAdd, pointMultiply
+from ECsecp256k1 import G, order, modInv, pointAdd, pointMultiply
 
 p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 # 0 < p < order
