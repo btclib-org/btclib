@@ -9,4 +9,4 @@ The `excel` folder contains Excel spreadsheets used for teaching and homeworks.
 Everything is licensed under MIT license. It is not intended to be used in production environments.
 
  Slides are available at:
- http://bit.ly/2LecIba
+ https://bit.ly/2LecIba
