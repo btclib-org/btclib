@@ -71,4 +71,3 @@ for i in range(3, order+2):
   checkPoint(P)
   print(i, P)
   assert P == pointMultiply(i, G), pointMultiply(i, G)
-  
