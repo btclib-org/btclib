@@ -6,20 +6,20 @@
 a = 0; b = 7
 assert 4*a*a*a+27*b*b !=0, "zero discriminant"
 
-# over prime field
+# over prime finite field
 prime = 2**256 - 2**32 - 2**9 - 2**8 - 2**7 - 2**6 - 2**4 -1
 prime = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f
 
 def checkPoint(P):
   assert P[0] is None or (P[0]*P[0]*P[0]+a*P[0]+b) % prime == (P[1]*P[1]) % prime
   
-# A given generator specifies the group order
+# a given generator specifies the group order
 gx = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
 gy = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
 G = (gx, gy)
 checkPoint(G)
 
-# must be a prime for the cyclic field not to have subgroups
+# must be a prime for the cyclic group not to have subgroups
 order = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
 from FiniteFields import modInv
