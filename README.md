@@ -1,7 +1,12 @@
-## Material for the Bitcoin & Blockchain Technology course
+## Bitcoin & Blockchain Technology
 
-The `scripts` folder contains Python3 code used in class.
-It is licensed under MIT license.
-It is not intended to be used in production environments.
+Material for the Bitcoin and Blockchain Technology course of Milano Bicocca and Politecnico di Milano Universities.
 
- Slides are `CC BY-SA 4.0` https://creativecommons.org/licenses/by-sa/4.0/
+The `scripts` folder contains Python3 code used for teaching and homeworks.
+
+The `excel` folder contains Excel spreadsheets used for teaching and homeworks.
+
+Everything is licensed under MIT license. It is not intended to be used in production environments.
+
+ Slides are available at:
+ https://bit.ly/2LecIba

@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 
-from F29_EC4_20_G8_10_N37 import prime, a, b, G, order, modInv, pointAdd, pointMultiply
+# EC4_20_F29_G8_10_N37 is not included in the repo as it is an excercise solution
+from EC4_20_F29_G8_10_N37 import a, b, prime, G, order, modInv, pointAdd, pointMultiply
 from hashlib import sha256
 
 print("\n*** EC:")
-print("prime:", prime)
 print("    a:", a)
 print("    b:", b)
+print("prime:", prime)
 print("    G:", G)
 print("order:", order)
 
@@ -37,7 +38,7 @@ print("\n*** Signature")
 # different for each msg, private because of p
 temp = msg1+hex(p)
 k1 = int(sha256(temp.encode()).hexdigest(), 16) % order
-print("     k:", hex(k1).upper())
+print("eph k:", hex(k1).upper())
 # 0 < k1 < order
 assert 0 < k1
 assert     k1 < order
@@ -48,40 +49,14 @@ s1 = (k1-h1*p) %order;
 # if s == 0 (extremely unlikely) go back to a different ephemeral key
 assert s1 != 0
 
-print(" K1:", K1)
-print(" s1:", hex(s1))
+print("   K1:", K1)
+print("   s1:", hex(s1))
 
 print("*** Signature Verification")
 minush = -h1 %order
 U = pointMultiply(minush, P)
 V = pointAdd(K1, U)
 print(V == pointMultiply(s1, G))
-
-print("\n*** Malleated Signature (K, *s)")
-print(" K1:", K1)
-s1m = order - s1
-print("*s1:", s1m)                #malleated
-
-print("*** Malleated Signature (K, *s) Verification")
-V = pointAdd(K1, U)
-print(V == pointMultiply(s1m, G)) #malleated
-
-print("\n*** Malleated Signature (*K, s)")
-K1m = (K1[0], -K1[1] %order)
-print("*K1:", K1m)                #malleated
-print(" s1:", s1)
-
-print("*** Malleated Signature (*K, s) Verification")
-V = pointAdd(K1m, U)              #malleated
-print(V == pointMultiply(s1, G))
-
-print("\n*** Malleated Signature (*K, *s)")
-print("*K1:", K1m)                #malleated
-print("*s1:", s1m)                #malleated
-
-print("*** Malleated Signature Verification")
-V = pointAdd(K1m, U)              #malleated
-print(V == pointMultiply(s1m, G)) #malleated
 
 print("\n*** Another message")
 msg2 = "and Paolo is right to be afraid"
@@ -106,8 +81,8 @@ s2 = (k2-h2*p) %order;
 # if s == 0 (extremely unlikely) go back to a different ephemeral key
 assert s2 != 0
 
-print(" K2:", K2)
-print(" s2:", hex(s2))
+print("   K2:", K2)
+print("   s2:", hex(s2))
 
 print("*** Signature Verification")
 minush = -h2 %order
