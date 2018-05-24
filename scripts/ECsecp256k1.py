@@ -61,12 +61,12 @@ def pointMultiplyRecursive(n, P):
 
 # double & add
 def pointMultiply(n, P):
-  n = n % order
-  result = (None, None) # initializing result to (None,None)
-  temp = P              # temp variable to store doubled values
-  while n>0 :
-    if n & 1:
-      result = pointAdd(result,temp) # adding when lsb of n is 1
-    temp = pointDouble(temp) # doubling
-    n = n>>1            # shift bits of factor
+  n = n % order         # the group is cyclic
+  result = (None, None) # initialized to infinity point
+  powerOfP = P          # initialized as 2^0 P
+  while n>0 :           # use binary representation of n
+    if n&1:             # if least significant bit is 1 add current power of P
+      result = pointAdd(result, powerOfP)
+    n = n>>1            # right shift to remove the bit just accounted for
+    powerOfP = pointDouble(temp) # update power of P for next step
   return result
