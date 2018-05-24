@@ -68,5 +68,5 @@ def pointMultiply(n, P):
     if n & 1:           # if least significant bit is 1 add current power of P
       result = pointAdd(result, powerOfP)
     n = n>>1            # right shift to remove the bit just accounted for
-    powerOfP = pointDouble(temp) # update power of P for next step
+    powerOfP = pointDouble(powerOfP) # update power of P for next step
   return result
