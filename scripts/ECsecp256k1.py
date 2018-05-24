@@ -47,7 +47,7 @@ def pointAdd(P, Q):
   y = (lam*(P[0]-x)-P[1]) % prime
   return (x, y)
 
-# double & add recursive
+# recursive double & add
 def pointMultiplyRecursive(n, P):
   n = n % order
   if n == 0 or P[0] is None:
@@ -59,13 +59,13 @@ def pointMultiplyRecursive(n, P):
   else:          # doubling when n is even
     return pointMultiplyRecursive(n//2, pointDouble(P))
 
-# double & add
+# efficient double & add, using binary decomposition
 def pointMultiply(n, P):
   n = n % order         # the group is cyclic
   result = (None, None) # initialized to infinity point
   powerOfP = P          # initialized as 2^0 P
-  while n>0 :           # use binary representation of n
-    if n&1:             # if least significant bit is 1 add current power of P
+  while n > 0:          # use binary representation of n
+    if n & 1:           # if least significant bit is 1 add current power of P
       result = pointAdd(result, powerOfP)
     n = n>>1            # right shift to remove the bit just accounted for
     powerOfP = pointDouble(temp) # update power of P for next step
