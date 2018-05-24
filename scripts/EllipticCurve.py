@@ -26,6 +26,7 @@ class EllipticCurve:
 from FiniteFields import modInv
 
 def pointDouble(P, ec):
+  ec.checkPoint(P)
   if P[1] == 0 or P[0] is None:
     return (None, None)
   lam = ((3*P[0]*P[0]+ec.a) * modInv(2*P[1], ec.prime)) % ec.prime
@@ -34,6 +35,8 @@ def pointDouble(P, ec):
   return (x, y)
 
 def pointAdd(P, Q, ec):
+  ec.checkPoint(P)
+  ec.checkPoint(Q)
   if Q[0] is None:
     return P
   if P[0] is None:
