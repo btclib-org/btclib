@@ -1,16 +1,16 @@
 #!/usr/bin/python3
 
 # elliptic curve y^2 = x^3 + a * x + b
-a = 6; b = 9
+a = -7; b = 10
 
 # over prime finite field
 prime = 263;
 
 # a given generator specifies the group order
-G = (0, 3)
+G = (3, 4)
 
 # must be a prime for the cyclic group not to have subgroups
-order = 269
+order = 280
 
 from EllipticCurve import EllipticCurve, pointAdd, pointDouble, pointMultiply, modInv
 ec = EllipticCurve(a, b, prime, G, order)
