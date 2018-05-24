@@ -42,17 +42,17 @@ def pointAdd(P, Q):
   y = (lam*(P[0]-x)-P[1]) % prime
   return (x, y)
 
-# double & add
+# double & add, using binary decomposition
 def pointMultiply(n, P):
-  n = n % order
-  if n == 0 or P[0] is None:
-    return (None, None)
-  if n == 1:
-    return P
-  if n % 2 == 1: # addition when n is odd
-    return pointAdd(P, pointMultiply(n - 1, P))
-  else:          # doubling when n is even
-    return pointMultiply(n//2, pointDouble(P))
+  n = n % order         # the group is cyclic
+  result = (None, None) # initialized to infinity point
+  powerOfP = P          # initialized as 2^0 P
+  while n > 0:          # use binary representation of n
+    if n & 1:           # if least significant bit is 1 add current power of P
+      result = pointAdd(result, powerOfP)
+    n = n>>1            # right shift to remove the bit just accounted for
+    powerOfP = pointDouble(powerOfP) # update power of P for next step
+  return result
 
 i = 1
 P = G
