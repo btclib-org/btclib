@@ -21,7 +21,7 @@ checkPoint(G)
 
 # must be a prime for the cyclic group not to have subgroups
 order = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-          
+
 from FiniteFields import modInv
 
 def pointDouble(P):
