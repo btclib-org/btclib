@@ -51,14 +51,14 @@ def pointAdd(P, Q, ec):
   y = (lam*(P[0]-x)-P[1]) % ec.prime
   return (x, y)
 
-# efficient double & add, using binary decomposition
+# efficient double & add, using binary decomposition of n
 def pointMultiply(n, P, ec):
   n = n % ec.order      # the group is cyclic
   result = (None, None) # initialized to infinity point
-  powerOfP = P          # initialized as 2^0 P
+  addendum = P          # initialized as 2^0 P
   while n > 0:          # use binary representation of n
-    if n & 1:           # if least significant bit is 1 add current power of P
-      result = pointAdd(result, powerOfP, ec)
+    if n & 1:           # if least significant bit is 1 add current addendum
+      result = pointAdd(result, addendum, ec)
     n = n>>1            # right shift to remove the bit just accounted for
-    powerOfP = pointDouble(powerOfP, ec) # update power of P for next step
+    addendum = pointDouble(addendum, ec) # update addendum for next step
   return result
