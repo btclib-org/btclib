@@ -1,20 +1,11 @@
 #! python3
 
-from secp256k1 import G, order, pointMultiply
+from ECsecp256k1 import G, pointMultiply
 import hashlib
 from base58 import b58encode, b58encode_check
 
-# to be fixed for other version value
-def private_key_to_public_key(private_key, version=0x04):
-  p = pointMultiply(private_key)
-  public_key = version+p[0]+p[1]
-  return public_key
-
 # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
 p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-# 0 < k < order
-assert 0 < p        , "Invalid Private Key"
-assert     p < order, "Invalid Private Key"
 
 print("\n*** [0] Private ECDSA Key:")
 print(hex(p))
@@ -54,7 +45,7 @@ print(addr.hex())
 
 print("\n*** [9] Base58 encoded address from uncompressed PubKey")
 base58EncodedAddress = b58encode(addr)
-assert (base58EncodedAddress == '16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
+assert (base58EncodedAddress == b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
 print(base58EncodedAddress)
 
 print("\n*** steps [5]-[9] are also known as Base58Check encode")
@@ -63,12 +54,12 @@ def bc_address_to_hash_160(addr):
   bytes = b58decode(addr, 25)
   return bytes[1:21]
 
-def h160(inp):
+def hash160(inp):
   h1 = hashlib.sha256(inp).digest()
   return hashlib.new('ripemd160', h1).digest()
 
 def public_key_to_bc_address(inp, version=b'\x00'):
-  vh160 = version + h160(inp)
+  vh160 = version + hash160(inp)
   return b58encode_check(vh160)
 
 print("\n*** [1] Public Key compressed:")
@@ -78,5 +69,5 @@ print(PubKey.hex())
 
 print("\n*** [9] base58 encoded address from compressed PubKey")
 base58EncodedAddress = public_key_to_bc_address(PubKey)
-assert (base58EncodedAddress == '1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
+assert (base58EncodedAddress == b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
 print(base58EncodedAddress)
