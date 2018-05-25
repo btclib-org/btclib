@@ -51,10 +51,10 @@ def pointAdd(P, Q):
 def pointMultiply(n, P):
   n = n % order         # the group is cyclic
   result = (None, None) # initialized to infinity point
-  powerOfP = P          # initialized as 2^0 P
+  addendum = P          # initialized as 2^0 P
   while n > 0:          # use binary representation of n
-    if n & 1:           # if least significant bit is 1 add current power of P
-      result = pointAdd(result, powerOfP)
+    if n & 1:           # if least significant bit is 1 add current addendum
+      result = pointAdd(result, addendum)
     n = n>>1            # right shift to remove the bit just accounted for
-    powerOfP = pointDouble(powerOfP) # update power of P for next step
+    addendum = pointDouble(addendum) # update addendum for next step
   return result
