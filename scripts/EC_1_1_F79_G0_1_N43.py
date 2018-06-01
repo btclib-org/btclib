@@ -1,16 +1,16 @@
 #!/usr/bin/python3
 
 # elliptic curve y^2 = x^3 + a * x + b
-__a = 2; __b = 3
+__a = -1; __b = 1
 
 # over prime finite field
-__prime = 263;
+__prime = 79;
 
 # a given generator specifies the group order
-__G = (200, 39)
+__G = (0, 1)
 
 # must be a prime for the cyclic group not to have subgroups
-__order = 270
+__order = 43
 
 from EllipticCurve import EllipticCurve
 ec = EllipticCurve(__a, __b, __prime, __G, __order)
@@ -39,7 +39,7 @@ def main():
   for i in range(3, __order+1):
     P = ec.pointAdd(P, __G)
     ec.checkPoint(P)
-    print(i, P)
+    print(i % __order, P)
     assert P == ec.pointMultiply(i)
 
 if __name__ == "__main__":
