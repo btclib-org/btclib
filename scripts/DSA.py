@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
-
-#from EC_1_1_F79_G0_1_N43 import ec, modInv, pointAdd, pointMultiply
-#from EC_7_10_F263_G3_4_N280 import ec, modInv, pointAdd, pointMultiply
-#from EC1_6_F11_G5_9_N13 import ec, modInv, pointAdd, pointMultiply
-#from EC2_3_F263_G200_39_N270 import ec, modInv, pointAdd, pointMultiply
-#from EC6_9_F263_G0_3_N269 import ec, modInv, pointAdd, pointMultiply
-from ECsecp256k1 import ec, modInv, pointAdd, pointMultiply
+#from EC_1_1_F79_G0_1_N43 import ec
+#from EC_7_10_F263_G3_4_N280 import ec
+#from EC1_6_F11_G5_9_N13 import ec
+#from EC2_3_F263_G200_39_N270 import ec
+#from EC6_9_F263_G0_3_N269 import ec
+from ECsecp256k1 import ec
+from FiniteFields import modInv
 from hashlib import sha256
 
 print("\n*** EC:")
@@ -16,10 +16,8 @@ p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 p = p % ec.order
 print("\n*** EC Private Key:")
 print(hex(p))
-assert 0 < p           , "Invalid Private Key"
-assert     p < ec.order, "Invalid Private Key"
 
-P = pointMultiply(p, ec.G, ec)
+P = ec.pointMultiply(p)
 print("*** EC Public Key:")
 print("02" if (P[1] % 2 == 0) else "03")
 print(hex(P[0]))
@@ -42,10 +40,8 @@ print("\n*** Signature")
 temp = msg1+hex(p)
 k1 = int(sha256(temp.encode()).hexdigest(), 16) % ec.order
 print("eph k1:", hex(k1))
-assert 0 < k1           , "Invalid Ephemeral Key"
-assert     k1 < ec.order, "Invalid Ephemeral Key"
 
-K1 = pointMultiply(k1, ec.G, ec)
+K1 = ec.pointMultiply(k1)
 
 r = K1[0] % ec.order
 # if r == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
@@ -64,9 +60,9 @@ u = (h1*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
 assert v != 0
-U = pointMultiply(u, ec.G, ec)
-V = pointMultiply(v, P, ec)
-x, y = pointAdd(U, V, ec)
+U = ec.pointMultiply(u)
+V = ec.pointMultiply(v, P)
+x, y = ec.pointAdd(U, V)
 print(r == x %ec.order)
 
 print("\n*** Malleated Signature")
@@ -80,9 +76,9 @@ u = (h1*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
 assert v != 0
-U = pointMultiply(u, ec.G, ec)
-V = pointMultiply(v, P, ec)
-x, y = pointAdd(U, V, ec)
+U = ec.pointMultiply(u)
+V = ec.pointMultiply(v, P)
+x, y = ec.pointAdd(U, V)
 print(r == x %ec.order)
 
 print("\n*** Another message")
@@ -99,10 +95,8 @@ print("    h2:", hex(h2))
 print("\n*** Signature")
 k2 = k1 #very bad! Never reuse the same ephemeral key!!!
 print("eph k2:", hex(k1))
-assert 0 < k2           , "Invalid Ephemeral Key"
-assert     k2 < ec.order, "Invalid Ephemeral Key"
 
-K2 = pointMultiply(k2, ec.G, ec)
+K2 = ec.pointMultiply(k2)
 
 r = K2[0] % ec.order
 # if r == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
@@ -121,7 +115,7 @@ u = (h2*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
 assert v != 0
-U = pointMultiply(u, ec.G, ec)
-V = pointMultiply(v, P, ec)
-x, y = pointAdd(U, V, ec)
+U = ec.pointMultiply(u)
+V = ec.pointMultiply(v, P)
+x, y = ec.pointAdd(U, V)
 print(r == x %ec.order)
