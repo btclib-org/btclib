@@ -11,10 +11,10 @@ Created on Mon Dec 11 09:17:49 2017
 # English_dictionary: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
 # Italian_dictionary: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
 
-from bip39 import from_entropy_to_mnemonic_int, from_mnemonic_int_to_mnemonic, from_mnemonic_to_seed
-from bip32_functions import bip32_master_key, bip32_xprvtoxpub, path
+from bip39_functions import bip39_ints_from_entropy, bip39_mnemonic_from_ints, bip39_seed_from_mnemonic
+from bip32_functions import bip32_master_key_from_seed, bip32_xpub_from_xprv, bip32_path
 
-def generate_wallet_bip39(entropy, number_words = 24, passphrase='', dictionary = 'English_dictionary.txt'):
+def bip39_wallet(entropy, number_words = 24, passphrase='', dictionary = 'dict_eng.txt'):
   # Function that generate a valid BIP39 mnemonic and the related master extended public key, from a given entropy
   # INPUT:
   #   entropy: number large enough to guarantee randomness
@@ -25,16 +25,14 @@ def generate_wallet_bip39(entropy, number_words = 24, passphrase='', dictionary 
   #   mnemonic: mnemonic phrase with BIP39
   #   xpub: master extended public key derived from the mnemonic phrase + passphrase
   ENT = int(number_words*32/3)
-  mnemonic_int = from_entropy_to_mnemonic_int(entropy, ENT)
-  mnemonic = from_mnemonic_int_to_mnemonic(mnemonic_int, dictionary)
-  seed = from_mnemonic_to_seed(mnemonic, passphrase)
-  seed = int(seed, 16)
-  seed_bytes = 64
-  xprv = bip32_master_key(seed, seed_bytes)
-  xpub = bip32_xprvtoxpub(xprv)
-  return mnemonic, xpub
+  ints = bip39_ints_from_entropy(entropy, ENT)
+  mnemonic = bip39_mnemonic_from_ints(ints, dictionary)
+  seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
+  xprv = bip32_master_key_from_seed(seed)
+  xpub = bip32_xpub_from_xprv(xprv)
+  return mnemonic, seed, xprv, xpub
 
-def generate_receive(xpub, number):
+def bip39_receive_address_from_xpub(xpub, number):
   # Function that generate a valid P2PKH receive address from an extended public key.
   # INPUT:
   #   xpub: extended public key
@@ -42,9 +40,9 @@ def generate_receive(xpub, number):
   # OUTPUT:
   #   P2PKH receive address 
   index_child = [0, number]
-  return path(xpub, index_child)
+  return bip32_path(xpub, index_child)
 
-def generate_change(xpub, number):
+def bip39_change_address_from_xpub(xpub, number):
   # Function that generate a valid P2PKH change address from an extended public key.
   # INPUT:
   #   xpub: extended public key
@@ -52,44 +50,54 @@ def generate_change(xpub, number):
   # OUTPUT:
   #   P2PKH change address 
   index_child = [1, number]
-  return path(xpub, index_child)
+  return bip32_path(xpub, index_child)
 
-# entropy is entered by the user:
-entropy = 0xf012003974d093eda670121023cd03bb
 
-# number of words chosen by the user:
-number_words = 12
-entropy_lenght = int(number_words*32/3/4)
+def test_wallet():
 
-# dictionary chosen by the user:
-dictionary = 'Italian_dictionary.txt'
-dictionary = 'English_dictionary.txt'
+  # number of words chosen by the user:
+  number_words = 12
+  entropy_lenght = int(number_words*32/3/4)
+  print('Your entropy should have', entropy_lenght, 'hexadecimal digits')
 
-# passphrase chosen by the user:
-passphrase = ''
+  # entropy is entered by the user:
+  entropy = 0xf012003974d093eda670121023cd03bb
+  print(hex(entropy))
 
-print('Your entropy should have', entropy_lenght, 'hexadecimal digits')
-mnemonic, xpub = generate_wallet_bip39(entropy, number_words, passphrase, dictionary)
+  # dictionary chosen by the user:
+  dictionary = 'dict_ita.txt'
+  dictionary = 'dict_eng.txt'
 
-print('\nmnemonic: ', mnemonic)
-print('\nxpub: ', xpub)
+  # passphrase chosen by the user:
+  passphrase = ''
 
-receive0 = generate_receive(xpub, 0)
-receive1 = generate_receive(xpub, 1)
-receive2 = generate_receive(xpub, 2)
-receive3 = generate_receive(xpub, 3)
+  mnemonic, seed, xprv, xpub = bip39_wallet(entropy, number_words, passphrase, dictionary)
 
-change0 = generate_change(xpub, 0)
-change1 = generate_change(xpub, 1)
-change2 = generate_change(xpub, 2)
-change3 = generate_change(xpub, 3)
+  print('\nmnemonic:', mnemonic)
+  print('\nseed:', seed.hex())
+  print('\nxprv:', xprv)
+  print('\nxpub:', xpub)
 
-print('\nfirst receive address: ', receive0)
-print('second receive address: ', receive1)
-print('third receive address: ', receive2)
-print('fourth receive address: ', receive3)
+  receive0 = bip39_receive_address_from_xpub(xpub, 0)
+  receive1 = bip39_receive_address_from_xpub(xpub, 1)
+  receive2 = bip39_receive_address_from_xpub(xpub, 2)
+  receive3 = bip39_receive_address_from_xpub(xpub, 3)
 
-print('\nfirst change address: ', change0)
-print('second change address: ', change1)
-print('third change address: ', change2)
-print('fourth change address: ', change3)
+  change0 = bip39_change_address_from_xpub(xpub, 0)
+  change1 = bip39_change_address_from_xpub(xpub, 1)
+  change2 = bip39_change_address_from_xpub(xpub, 2)
+  change3 = bip39_change_address_from_xpub(xpub, 3)
+
+  print()
+  print('1st receive address: ', receive0)
+  print('2nd receive address: ', receive1)
+  print('3rd receive address: ', receive2)
+  print('4th receive address: ', receive3)
+  print()
+  print('1st change address: ', change0)
+  print('2nd change address: ', change1)
+  print('3rd change address: ', change2)
+  print('4th change address: ', change3)
+
+if __name__ == "__main__":
+  test_wallet()
