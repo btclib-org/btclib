@@ -14,31 +14,31 @@ print(ec)
 
 p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 p = p % ec.order
-print("\n*** EC Private Key:")
-print(hex(p))
+print("\n*** Keys:")
+print("prvkey:   ", hex(p))
 
 P = ec.pointMultiply(p)
-print("*** EC Public Key:")
-print("02" if (P[1] % 2 == 0) else "03")
-print(hex(P[0]))
+print("PubKey:", "02" if (P[1] % 2 == 0) else "03", hex(P[0]))
 
-print("\n*** The message to be signed")
+print("\n*** Message to be signed")
 msg1 = "Paolo is afraid of ephemeral random numbers"
 print(msg1)
 
-print("*** The hash of the message")
-hstring1 = sha256(msg1.encode()).hexdigest()
-# Hash(msg) must be transformed into an integer modulo ec.order:
-h1 = int(hstring1, 16) % ec.order
+print("*** Hash of the message")
+h_bytes = sha256(msg1.encode()).digest()
+# hash(msg) must be transformed into an integer modulo ec.order:
+h1 = int.from_bytes(h_bytes, 'big') % ec.order
 assert h1 != 0
 print("    h1:", hex(h1))
 
 print("\n*** Signature")
 # ephemeral key k must be kept secret and never reused !!!!!
-# good choice: k = sha256(msg, p)
+# good choice: k = sha256(msg|p)
 # different for each msg, private because of p
 temp = msg1+hex(p)
-k1 = int(sha256(temp.encode()).hexdigest(), 16) % ec.order
+k_bytes = sha256(temp.encode()).digest()
+k1 = int.from_bytes(k_bytes, 'big') % ec.order
+assert k1 != 0
 print("eph k1:", hex(k1))
 
 K1 = ec.pointMultiply(k1)
@@ -85,16 +85,16 @@ print("\n*** Another message")
 msg2 = "and Paolo is right to be afraid"
 print(msg2)
 
-print("*** The hash of the message")
-hstring2 = sha256(msg2.encode()).hexdigest()
-# Hash(msg) must be transformed into an integer modulo ec.order:
-h2 = int(hstring2, 16) % ec.order
+print("*** Hash of the message")
+h_bytes = sha256(msg2.encode()).digest()
+# hash(msg) must be transformed into an integer modulo ec.order:
+h2 = int.from_bytes(h_bytes, 'big') % ec.order
 assert h2 != 0
 print("    h2:", hex(h2))
 
 print("\n*** Signature")
 k2 = k1 #very bad! Never reuse the same ephemeral key!!!
-print("eph k2:", hex(k1))
+print("eph k2:", hex(k2))
 
 K2 = ec.pointMultiply(k2)
 
