@@ -12,7 +12,7 @@ print()
 xint = 15
 print("x is " + ("" if isinstance(xint, bytes) else "not ") + "bytes; as bytes:", xint.to_bytes(2, 'big'))
 print("x is " + ("" if isinstance(xint, int) else "not ") + "int; as int:", xint)
-# fixed length (4) with trailing 0s, and lower capitalization for letters (x)
+# fixed length (4) with trailing 0s, and lower capitalization for letters (x); '#06x' for 4 digits with 0x prefix
 print("x is " + ("" if isinstance(xint, str) else "not ") + "str; as 4 character hex string:", format(xint, '04x'))
 # shortest possible string with 0x prefix
 #print("x is " + ("" if isinstance(xint, str) else "not ") + "str; as hex string:", hex(xint))
