@@ -6,7 +6,7 @@
 #from EC2_3_F263_G200_39_N270 import ec
 #from EC6_9_F263_G0_3_N269 import ec
 from ECsecp256k1 import ec
-from FiniteFields import modInv
+from FiniteFields import mod_inv
 from hashlib import sha256
 
 print("\n*** EC:")
@@ -47,7 +47,7 @@ r = K1[0] % ec.order
 # if r == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
 assert r != 0
 
-s1 = ((h1 + r*p)*modInv(k1, ec.order)) % ec.order
+s1 = ((h1 + r*p)*mod_inv(k1, ec.order)) % ec.order
 # if s1 == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
 assert s1 != 0
 
@@ -55,7 +55,7 @@ print("     r:", hex(r))
 print("    s1:", hex(s1))
 
 print("*** Signature Verification")
-w = modInv(s1, ec.order)
+w = mod_inv(s1, ec.order)
 u = (h1*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
@@ -71,7 +71,7 @@ print("     r:", hex(r))
 print("   *s1:", hex(s1m))
 
 print("*** Malleated Signature Verification")
-w = modInv(s1m, ec.order)
+w = mod_inv(s1m, ec.order)
 u = (h1*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
@@ -102,7 +102,7 @@ r = K2[0] % ec.order
 # if r == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
 assert r != 0
 
-s2 = ((h2 + r*p)*modInv(k2, ec.order)) %ec.order
+s2 = ((h2 + r*p)*mod_inv(k2, ec.order)) %ec.order
 # if s2 == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
 assert s2 != 0
 
@@ -110,7 +110,7 @@ print("     r:", hex(r))
 print("    s2:", hex(s2))
 
 print("*** Signature Verification")
-w = modInv(s2, ec.order)
+w = mod_inv(s2, ec.order)
 u = (h2*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
