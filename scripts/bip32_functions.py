@@ -64,9 +64,9 @@ def bip32_compose_xkey(version, depth, fingerprint, child_index, chain_code, key
   xkey = version + depth + fingerprint + child_index + chain_code + key
   return b58encode_check(xkey)
 
-def bip32_master_key(bip32_seed, seed_bytes, version = PRIVATE[0]):
+def bip32_master_key_from_seed(bip32_seed, version = PRIVATE[0]):
   """derive the master extended private key from the seed"""
-  hashValue = HMAC(b"Bitcoin seed", bip32_seed.to_bytes(seed_bytes, 'big'), sha512).digest()
+  hashValue = HMAC(b"Bitcoin seed", bip32_seed, sha512).digest()
   p_bytes = hashValue[:32]
   p = int(p_bytes.hex(), 16) % ec.order
   p_bytes = b'\x00' + p.to_bytes(32, 'big')
@@ -124,9 +124,9 @@ def bip32_ckd(xparentkey, child_index):
     return bip32_compose_xkey(PRIVATE[network], depth, fingerprint, child_index, chain_code, p_bytes)
   else:
     P = ec.pointMultiply(p)
-    parentPoint = ec.scrubPoint(parent_pubkey)
-    P = pointAdd(P, parentPoint)
-    P_bytes = bytes_from_point(P, True)
+    parentPoint = ec.scrub_point(parent_pubkey)
+    P = ec.pointAdd(P, parentPoint)
+    P_bytes = ec.bytes_from_point(P, True)
     return bip32_compose_xkey(PUBLIC[network], depth, fingerprint, child_index, chain_code, P_bytes)
 
 # hdkeypath
@@ -156,8 +156,8 @@ def bip32_test():
   # == Test vector 1 ==
   
   seed = 0x000102030405060708090a0b0c0d0e0f
-  seed_bytes = 16
-  xprv = bip32_master_key(seed, seed_bytes)
+  seed = seed.to_bytes(16, 'big')
+  xprv = bip32_master_key_from_seed(seed)
   assert xprv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
   xpub = bip32_xpub_from_xprv(xprv)
   assert xpub == b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
@@ -176,8 +176,8 @@ def bip32_test():
   # == Test vector 3 ==
 
   seed = 0x4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be
-  seed_bytes = 64
-  xprv = bip32_master_key(seed, seed_bytes)
+  seed = seed.to_bytes(64, 'big')
+  xprv = bip32_master_key_from_seed(seed)
   assert xprv == b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6"
   xpub = bip32_xpub_from_xprv(xprv)
   assert xpub == b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
