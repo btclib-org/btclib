@@ -13,7 +13,7 @@ from hashlib import sha256, new as hnew
 def scrub_privkey(p):
   """Return private key as 32 bytes"""
   
-  if isinstance(p, str) and not isinstance(p, bytes):
+  if isinstance(p, str):
     p = int(p, 16)
 
   if isinstance(p, int):
