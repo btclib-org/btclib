@@ -1,45 +1,47 @@
 # -*- coding: utf-8 -*-
 """
+Deterministic Wallet (Type-2)
+
 Created on Thu Oct 12 11:18:33 2017
 
 @author: dfornaro, fametrano
 """
 
-#### Deterministic Wallet (Type-2) ####
-
-from secp256k1 import order, G, modInv, pointAdd, pointMultiply
+from ECsecp256k1 import ec
 from hashlib import sha256
-import random
+from random import randint
 
+# master keys
+print('\nmaster keys')
+# private key
+mp = 0xcb1ee7a0baf6520d09c67a06dcf1f8cf0c2123475a1c1fcf6ff5989de84ca
+print('prvkey:', format(mp, '#066x'))
+MP = ec.pointMultiply(mp)
+print('PubKey:', format(MP[0], '#066x'))
+print('       ', format(MP[1], '#066x'))
 
-# secret master private key
-mp = random.randint(0, order-1)
-print('\nsecret master private key:\n', hex(mp),'\n')
 
 # public random number
-r = random.randint(0, order-1)
-print('public ephemeral key:\n', hex(r))
-
-# Master PublicKey:
-MP = pointMultiply(mp, G)
-print('Master Public Key:\n', hex(MP[0]), '\n', hex(MP[1]), '\n')
+r = randint(0, 2**256-1)
+print('\nephkey:', format(r, '#066x'))
 
 # number of key pairs to generate
 nKeys = 3
 p = [0] * nKeys
 P = [(0,0)] * nKeys
 
-# PubKeys can be calculated without using privKeys
+# PubKeys can be calculated without using prvkeys
 for i in range(0, nKeys):
-  # H(i|r)
-  H_i_r = int(sha256((hex(i)+hex(r)).encode()).hexdigest(), 16) %order
-  P[i] = pointAdd(MP, pointMultiply(H_i_r, G))                 
+  # h(i|r)
+  h_i_r = sha256((hex(i)+hex(r)).encode()).digest()
+  P[i] = ec.pointAdd(MP, ec.pointMultiply(h_i_r))                 
 
-# check that PubKeys match with privKeys
+# check that PubKeys match with prvkeys
 for i in range(0, nKeys):
-  # H(i|r)
-  H_i_r = int(sha256((hex(i)+hex(r)).encode()).hexdigest(), 16) %order
-  p[i] = (mp + H_i_r) %order
-  assert P[i] == pointMultiply(p[i], G)
-  print('prKey#', i, ':\n', hex(p[i]), sep='')
-  print('PubKey#', i, ':\n', hex(P[i][0]), '\n', hex(P[i][1]), '\n', sep='')
+  # h(i|r)
+  h_i_r = sha256((hex(i)+hex(r)).encode()).digest()
+  p[i] = (mp + int.from_bytes(h_i_r, 'big'))
+  assert P[i] == ec.pointMultiply(p[i])
+  print('\nprvkey#', i, ': ', format(p[i], '#064x'), sep='')
+  print(  'PubKey#', i, ': ', format(P[i][0], '#064x'), sep='')
+  print(  '          ', format(P[i][1], '#064x'), sep='')
