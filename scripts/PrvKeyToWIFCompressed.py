@@ -11,7 +11,7 @@ p = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 print(hex(p))
 
 print("\n*** [2] 0x80 Extended Key (Compressed):")
-ExtKey = b'\x80' + p.to_bytes(32, byteorder='big') + b'\x01'
+ExtKey = b'\x80' + p.to_bytes(32, 'big') + b'\x01'
 print(ExtKey.hex())
 
 print("\n*** [3] SHA-256 hashing of the Extended Key:")
