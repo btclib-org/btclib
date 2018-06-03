@@ -6,7 +6,6 @@
 #from EC2_3_F263_G200_39_N270 import ec
 #from EC6_9_F263_G0_3_N269 import ec
 from ECsecp256k1 import ec
-from FiniteFields import mod_inv
 from hashlib import sha256
 
 print("\n*** EC:")
