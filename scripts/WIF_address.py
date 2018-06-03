@@ -9,8 +9,9 @@ from ECsecp256k1 import ec
 from base58 import b58encode_check, b58decode_check
 from hashlib import sha256, new as hnew
 
+
 def scrub_privkey(p):
-  """check private key while allowing for different input formats"""
+  """Return private key as 32 bytes"""
   
   if isinstance(p, str) and not isinstance(p, bytes):
     p = int(p, 16)
@@ -26,6 +27,7 @@ def scrub_privkey(p):
        type(p).__name__)
 
   assert len(p) == 32, "wrong lenght"
+  assert int.from_bytes(p, 'big') < ec.order
   return p
 
 
@@ -36,42 +38,31 @@ def wif_from_privkey(p, compressed=True):
   if compressed: payload += b'\x01'
   return b58encode_check(payload)
 
+
 def privkey_from_wif(wif):
   """Wallet Import Format to private key"""
 
   payload = b58decode_check(wif)
-  assert payload[0] == 0x80, "not a private key"
+  assert payload[0] == 0x80, "not a wif"
 
-  compressed = False
-  if len(payload) == 34: #compressed
-    assert payload[-1:] == b'\x01', "not a private key"
-    compressed = True
-  p = scrub_privkey(payload[1:-1] if compressed else payload[1:])
-  return p, compressed
+  if len(payload) == 34: # compressed
+    assert payload[33] == 0x01, "not a wif"
+    return scrub_privkey(payload[1:-1]), True
+  else:                  # uncompressed
+    assert len(payload) == 33, "not a wif"
+    return scrub_privkey(payload[1:]), False
+
 
 def pubkey_from_privkey(privkey, compressed = True):
-
   P = ec.pointMultiply(privkey)
+  return ec.bytes_from_point(P, compressed)
   
-  if compressed:
-    prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
-    return prefix + P[0].to_bytes(32, byteorder='big')
-
-  pubkey = b'\x04' + P[0].to_bytes(32, byteorder='big')
-  pubkey += P[1].to_bytes(32, byteorder='big')
-  return pubkey
-
-def hash160(s):
-  return hnew('ripemd160', sha256(s).digest()).digest()
-
-def scrub_pubkey(P):
-  """check pubkey while allowing for different input formats"""
-  return P
 
 def address_from_pubkey(pubkey):
-    scrub_pubkey(pubkey)
-    vh160 = b'\x00' + hash160(pubkey)
+    pubkey = ec.bytes_from_point(pubkey)
+    vh160 = b'\x00' + hnew('ripemd160', sha256(pubkey).digest()).digest()
     return b58encode_check(vh160)
+
 
 def hash160_from_address(addr):
     payload = b58decode_check(addr)
@@ -79,43 +70,48 @@ def hash160_from_address(addr):
     assert payload[0] == 0x00, "not an address"
     return payload[1:]
 
+
+################# tests
+
 def test_wif():
-  p = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-  wif = wif_from_privkey(p)
+  p_num = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+  p_bytes = scrub_privkey(p_num)
+  p_hex = "C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
+
+  # private key as number
+  wif = wif_from_privkey(p_num)
   assert wif == b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', "failure"
   p2 = privkey_from_wif(wif)
-  assert int.from_bytes(p2[0], 'big') == p
+  assert p2[0] == p_bytes
   assert p2[1] == True
-  wif = wif_from_privkey(p, False)
+  wif = wif_from_privkey(p_num, False)
   assert wif == b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
   p3 = privkey_from_wif(wif)
-  assert int.from_bytes(p3[0], 'big') == p
+  assert p3[0] == p_bytes
   assert p3[1] == False
 
-  # byte stream, the preferred format
-  p = p3[0]
-  wif = wif_from_privkey(p)
+  # private key as bytes, i.e. the preferred format
+  wif = wif_from_privkey(p_bytes)
   assert wif == b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', "failure"
   p4 = privkey_from_wif(wif)
-  assert p4[0] == p
+  assert p4[0] == p_bytes
   assert p4[1] == True
-  wif = wif_from_privkey(p, False)
+  wif = wif_from_privkey(p_bytes, False)
   assert wif == b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
   p5 = privkey_from_wif(wif)
-  assert p5[0] == p
+  assert p5[0] == p_bytes
   assert p5[1] == False
 
-  # string
-  p = "C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
-  wif = wif_from_privkey(p)
+  # private key as hex string
+  wif = wif_from_privkey(p_hex)
   assert wif == b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', "failure"
   p6 = privkey_from_wif(wif)
-  assert int.from_bytes(p6[0], 'big') == int(p, 16)
+  assert p6[0] == p_bytes
   assert p6[1] == True
-  wif = wif_from_privkey(p, False)
+  wif = wif_from_privkey(p_hex, False)
   assert wif == b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
   p7 = privkey_from_wif(wif)
-  assert int.from_bytes(p7[0], 'big') == int(p, 16)
+  assert p7[0] == p_bytes
   assert p7[1] == False
 
 def test_address_from_pubkey():
