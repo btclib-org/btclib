@@ -31,15 +31,16 @@ class EllipticCurve:
       
   def scrub_point(self, P):
     if isinstance(P, bytes):
-      if len(n) == 33: #compressed point
+      if len(P) == 33: #compressed point
         Px = int.from_bytes(P[1:33], 'big')
+        assert Px < self.__prime
         Py = mod_sqrt(Px*Px*Px + self.__a*Px + self.__b, self.__prime)
         if (P[0] == 0x02 and Py % 2 == 0) or (P[0] == 0x03 and Py % 2 == 1):
           return (Px, Py)
         else:
           return (Px, self.prime - Py)
 
-      assert len(n) == 65, "not a point"
+      assert len(P) == 65, "not a point"
       assert P[0] == 0x04, "not an uncompressed point"
       Px = int.from_bytes(P[1:33], 'big')
       Py = int.from_bytes(P[34:], 'big')
