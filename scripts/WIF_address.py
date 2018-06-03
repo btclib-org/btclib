@@ -58,9 +58,14 @@ def pubkey_from_privkey(privkey, compressed = True):
   return ec.bytes_from_point(P, compressed)
   
 
-def address_from_pubkey(pubkey):
-    pubkey = ec.bytes_from_point(pubkey)
-    vh160 = b'\x00' + hnew('ripemd160', sha256(pubkey).digest()).digest()
+def h160(pubkey):
+  pubkey = ec.bytes_from_point(pubkey)
+  t = sha256(pubkey).digest()
+  return hnew('ripemd160', t).digest()
+
+
+def address_from_pubkey(pubkey, version=b'\x00'):
+    vh160 = version + h160(pubkey)
     return b58encode_check(vh160)
 
 
