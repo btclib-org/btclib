@@ -112,7 +112,7 @@ class EllipticCurve:
   def pointMultiply(self, n, P = None):
     if P is None: P = self.__G
 
-    if isinstance(n, bytes):
+    if isinstance(n, bytes) or isinstance(n, bytearray):
       assert len(n) == 32
       n = int.from_bytes(n, 'big')
     n = n % self.order    # the group is cyclic

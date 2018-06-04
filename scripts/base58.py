@@ -35,7 +35,7 @@ def scrub_input(v):
     if isinstance(v, str) and not isinstance(v, bytes):
         v = v.encode('ascii')
 
-    if not isinstance(v, bytes):
+    if not (isinstance(v, bytes) or isinstance(v, bytearray)):
         raise TypeError(
             "a bytes-like object is required (also str), not '%s'" %
             type(v).__name__)
