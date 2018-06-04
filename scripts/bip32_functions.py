@@ -13,10 +13,11 @@ from hmac import HMAC
 from hashlib import sha512
 from base58 import b58encode_check, b58decode_check
 
-MAINNET_PRIVATE = b'\x04\x88\xAD\xE4'
-MAINNET_PUBLIC  = b'\x04\x88\xB2\x1E'
-TESTNET_PRIVATE = b'\x04\x35\x83\x94'
-TESTNET_PUBLIC  = b'\x04\x35\x87\xCF'
+# VERSION BYTES =      4 bytes        Base58 encode starts with
+MAINNET_PRIVATE = b'\x04\x88\xAD\xE4' #xprv
+MAINNET_PUBLIC  = b'\x04\x88\xB2\x1E' #xpub
+TESTNET_PRIVATE = b'\x04\x35\x83\x94' #tprv
+TESTNET_PUBLIC  = b'\x04\x35\x87\xCF' #tpub
 SEGWIT_PRIVATE  = b'\x04\xb2\x43\x0c'
 SEGWIT_PUBLIC   = b'\x04\xb2\x47\x46'
 PRIVATE = [MAINNET_PRIVATE, TESTNET_PRIVATE, SEGWIT_PRIVATE]
@@ -29,163 +30,179 @@ PUBLIC  = [MAINNET_PUBLIC,  TESTNET_PUBLIC,  SEGWIT_PUBLIC]
 # chain_code : [13:45] 32 bytes
 # key        : [45:78] 33 bytes (private/public)
 
-def bip32_isvalid_xkey(version, key):
-  """check validity of the xkey components"""
-  if (version in PUBLIC):
-    assert key[0] in (2, 3)
-  elif (version in PRIVATE):
-    assert key[0] == 0
-  else:
-    raise Exception("invalix key[0] prefix '%s'" % type(key[0]).__name__)
-  assert int.from_bytes(key[1:33], 'big') < ec.order, "invalid key"
-
-def bip32_parse_xkey(xkey):
-  """parse an extended key"""
-  decoded = b58decode_check(xkey)
-  assert len(decoded) == 78, "wrong length for decoded xkey"
-  info = {"version"     : decoded[  : 4],
-          "depth"       : decoded[ 4: 5],
-          "fingerprint" : decoded[ 5: 9],
-          "child_index" : decoded[ 9:13],
-          "chain_code"  : decoded[13:45],
-          "key"         : decoded[45:]
-         }
-  bip32_isvalid_xkey(info["version"], info["key"])
-  return info
-
-def bip32_compose_xkey(version, depth, fingerprint, child_index, chain_code, key):
-  assert len(version)     ==  4, "wrong length (%s) for version" % len(version)
-  assert len(depth)       ==  1, "wrong length (%s) for depth" % len(depth)
-  assert len(fingerprint) ==  4, "wrong length (%s) for fingerprint" % len(fingerprint)
-  assert len(child_index) ==  4, "wrong length (%s) for child_index" % len(child_index)
-  assert len(chain_code)  == 32, "wrong length (%s) for chain_code" % len(chain_code)
-  assert len(key)         == 33, "wrong length (%s) for key" % len(key)
-  bip32_isvalid_xkey(version, key)
-  xkey = version + depth + fingerprint + child_index + chain_code + key
-  return b58encode_check(xkey)
-
-def bip32_master_key_from_seed(bip32_seed, version = PRIVATE[0]):
+def bip32_master_prvkey_from_seed(bip32_seed, version = PRIVATE[0]):
   """derive the master extended private key from the seed"""
+  assert version in PRIVATE, "wrong version, master key must be private"
+  xprv = version
+  xprv += b'\x00'                         # depth
+  xprv += b'\x00\x00\x00\x00'             # fingerprint
+  xprv += b'\x00\x00\x00\x00'             # child_index
   hashValue = HMAC(b"Bitcoin seed", bip32_seed, sha512).digest()
-  p_bytes = hashValue[:32]
-  p = int(p_bytes.hex(), 16) % ec.order
-  p_bytes = b'\x00' + p.to_bytes(32, 'big')
-  chain_code = hashValue[32:]
-  xprv = bip32_compose_xkey(version, b'\x00', b'\x00\x00\x00\x00', b'\x00\x00\x00\x00', chain_code, p_bytes)
-  return xprv
+  xprv += hashValue[32:]                  # chain_code
+  p = int.from_bytes(hashValue[:32], 'big') % ec.order
+  xprv += b'\x00' + p.to_bytes(32, 'big') # key
+  return b58encode_check(xprv)
+
 
 def bip32_xpub_from_xprv(xprv):
   """derive the extended public key from the extended private key"""
-  info = bip32_parse_xkey(xprv)
-  assert info["key"][0] == 0, "not an extended private key"
-  p = int.from_bytes(info["key"][1:], 'big')
-  P = ec.pointMultiply(p)
-  info["key"] = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, 'big')
-  info["version"] = PUBLIC[PRIVATE.index(info["version"])]
-  return bip32_compose_xkey(info["version"], info["depth"], info["fingerprint"], \
-                            info["child_index"], info["chain_code"], info["key"])
+  xprv = bytearray(b58decode_check(xprv))
+  assert len(xprv) == 78, "wrong length for decoded extended private key"
+  assert xprv[45] == 0, "the extended key is not a private one"
+  # version
+  i = PRIVATE.index(xprv[:4])
+  xpub = PUBLIC[i]
+  # depth, fingerprint, child_index, and chain_code are left unchanged
+  xpub += xprv[4:45]
+  # public key derivation
+  P = ec.pointMultiply(xprv[46:])
+  xpub += ec.bytes_from_point(P, True)
+  return b58encode_check(xpub)
+
 
 def bip32_ckd(xparentkey, child_index):
   """Child Key Derivation"""
-  # public key normal derivation if the extended parent key is a public key
+  # key derivation is normal if the extended parent key is public or
+  # child_index is less than 0x80000000
   #
-  # private key derivation if the extended parent key is a private key
-  # normal or hardened derivation according to child_index:
-  # normal if less than 0x80000000, else hardened
+  # key derivation is hardened if the extended parent key is private and
+  # child_index is not less than 0x80000000
 
-  parent = bip32_parse_xkey(xparentkey)
-  # increase depth
-  depth = (int.from_bytes(parent["depth"], 'big') + 1).to_bytes(1, 'big')
-  child_index = child_index.to_bytes(4, 'big')
+  if isinstance(child_index, int):
+    child_index = child_index.to_bytes(4, 'big')
 
-  if parent["version"] in PRIVATE:
-    network = PRIVATE.index(parent["version"])
-    parent_prvkey = int.from_bytes(parent["key"][1:], 'big')
-    P = ec.pointMultiply(parent_prvkey)
-    parent_pubkey = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, 'big')
-    if (child_index[0] >= 0x80): #hardened derivation
-      parent_key = parent["key"]
-    else:
-      parent_key = parent_pubkey
-  else:
-    network = PUBLIC.index(parent["version"])
-    parent_pubkey = parent["key"]
-    assert child_index[0] < 0x80, "Cannot do private (hardened) derivation from Pubkey"
-    parent_key = parent_pubkey
+  xparent = b58decode_check(xparentkey)
+  assert len(xparent) == 78, "wrong length for extended parent key"
 
-  fingerprint = h160(parent_pubkey)[:4]
-  hashValue = HMAC(parent["chain_code"], parent_key + child_index, sha512).digest()
-  chain_code = hashValue[32:]
-  p = int(hashValue[:32].hex(), 16)
+  version = xparent[:4]
 
-  if parent["version"] in PRIVATE:
-    p = (p + parent_prvkey) % ec.order
-    p_bytes = b'\x00' + p.to_bytes(32, 'big')
-    return bip32_compose_xkey(PRIVATE[network], depth, fingerprint, child_index, chain_code, p_bytes)
-  else:
-    P = ec.pointMultiply(p)
-    parentPoint = ec.scrub_point(parent_pubkey)
+  xkey = version                                # version
+  xkey += (xparent[4] + 1).to_bytes(1, 'big')   # (increased) depth
+
+  if (version in PRIVATE):
+    assert xparent[45] == 0, "version/key mismatch in extended parent key"
+    parent_prvkey = xparent[46:]
+    parent_pubkey = ec.bytes_from_point(ec.pointMultiply(parent_prvkey), True)
+    xkey += h160(parent_pubkey)[:4]             # fingerprint of parent pubkey
+    xkey += child_index                         # child_index
+    if (child_index[0] < 0x80): # normal derivation
+      h = HMAC(xparent[13:45], parent_pubkey + child_index, sha512).digest()
+    else:                       # hardened derivation
+      h = HMAC(xparent[13:45], xparent[45:] + child_index, sha512).digest()
+    xkey += h[32:]                              # chain_code
+    p = int.from_bytes(h[:32], 'big')
+    p = (p + int.from_bytes(parent_prvkey, 'big')) % ec.order
+    xkey += b'\x00' + p.to_bytes(32, 'big')     # key
+  elif (version in PUBLIC):
+    assert xparent[45] in (2, 3), "version/key mismatch in extended parent key"
+    xkey += h160(xparent[45:])[:4]              # fingerprint of parent pubkey
+    assert child_index[0] < 0x80, "No private/hardened derivation from pubkey"
+    xkey += child_index                         # child_index
+    # normal derivation
+    h = HMAC(xparent[13:45], xparent[45:] + child_index, sha512).digest()
+    xkey += h[32:]                              # chain_code
+    P = ec.pointMultiply(h[:32])
+    parentPoint = ec.scrub_point(xparent[45:])
     P = ec.pointAdd(P, parentPoint)
-    P_bytes = ec.bytes_from_point(P, True)
-    return bip32_compose_xkey(PUBLIC[network], depth, fingerprint, child_index, chain_code, P_bytes)
+    xkey += ec.bytes_from_point(P, True)        # key
+  else:
+    raise ValueError("invalid extended key version")
+
+  return b58encode_check(xkey)
+
 
 # hdkeypath
-def bip32_path(extKey, index_child, version=b'\x00'):
-  # Recursive function that calculates the child key, following a "path". 
-  # INPUT:
-  #   extKey: extended key from which you want to start the path, it could be public or private
-  #   index_child: vector of indexes of the path,
-  #                e.g. [0,1,2] means be third child of the second child of the first child.
-  # OUTPUT:
-  #   extKey: extended child key, it could be public or private
-  extKey = bip32_ckd(extKey, index_child[0])
-  info_xprv = bip32_parse_xkey(extKey)
-  if index_child[1:] == []:
-    if (info_xprv["version"] in PRIVATE):
-      xpub = bip32_xpub_from_xprv(extKey)
-    elif (info_xprv["version"] in PUBLIC):
-      xpub = extKey
-    else:
-      assert False
-    info_xpub = bip32_parse_xkey(xpub)
-    return address_from_pubkey(info_xpub['key'], version)
-  else:
-    return bip32_path(extKey, index_child[1:], version)
+def bip32_derive(xkey, path, version=b'\x00'):
+  """derive an extended key according to path like "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative) """
+
+  steps = path.split('/')
+  if steps[0] not in {'m', '.'}:
+    raise ValueError('Invalid derivation path: {}'.format(path))  
+  if steps[0] == 'm':
+    decoded = b58decode_check(xkey)
+    t = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+    assert decoded[4:13] == t, "Trying to derive absolute path from non-master key"
+
+  for step in steps[1:]:
+    hardened = False
+    if step[-1] == "'" or step[-1] == "H":
+      hardened = True
+      step = step[:-1]
+    index = int(step)
+    index += 0x80000000 if hardened else 0
+    xkey = bip32_ckd(xkey, index)
+
+  return xkey
+
 
 def bip32_test():
   # == Test vector 1 ==
   
   seed = 0x000102030405060708090a0b0c0d0e0f
   seed = seed.to_bytes(16, 'big')
-  xprv = bip32_master_key_from_seed(seed)
-  assert xprv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-  xpub = bip32_xpub_from_xprv(xprv)
-  assert xpub == b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+  
+  mprv = bip32_master_prvkey_from_seed(seed)
+  assert mprv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+  mpub = bip32_xpub_from_xprv(mprv)
+  assert mpub == b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
 
+  mprv = bip32_derive(mprv, "m")
+  assert mprv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+  mpub = bip32_derive(mpub, "m")
+  assert mpub == b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
 
-  xprv = bip32_ckd(xprv, 0x80000000+0)
-  assert xprv == b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7", "failure"
+  xprv = bip32_derive(mprv, "m/0'")
+  assert xprv == b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7"
   xpub = bip32_xpub_from_xprv(xprv)
-  assert xpub == b"xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw", "failure"
+  assert xpub == b"xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
 
-  xprv = bip32_ckd(xprv, 1)
-  assert xprv == b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs", "failure"
+  xprv = bip32_derive(mprv, "m/0'/1")
+  assert xprv == b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs"
+  xpub = bip32_derive(xpub, "./1")
+  assert xpub == b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ"
   xpub = bip32_xpub_from_xprv(xprv)
-  assert xpub == b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ", "failure"
+  assert xpub == b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ"
+
+  xprv = bip32_derive(xprv, "./2H")
+  assert xprv == b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM"
+  xpub = bip32_xpub_from_xprv(xprv)
+  assert xpub == b"xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5"
+
+  xprv = bip32_derive(xprv, "./2")
+  assert xprv == b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334"
+  xpub = bip32_derive(xpub, "./2")
+  assert xpub == b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV"
+  xpub = bip32_xpub_from_xprv(xprv)
+  assert xpub == b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV"
+
+  xprv = bip32_derive(mprv, "m/0'/1/2'/2/1000000000")
+  assert xprv == b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76"
+  xpub = bip32_derive(xpub, "./1000000000")
+  assert xpub == b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+  xpub = bip32_xpub_from_xprv(xprv)
+  assert xpub == b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+
 
   # == Test vector 3 ==
 
   seed = 0x4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be
   seed = seed.to_bytes(64, 'big')
-  xprv = bip32_master_key_from_seed(seed)
-  assert xprv == b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6"
-  xpub = bip32_xpub_from_xprv(xprv)
-  assert xpub == b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
 
-  xprv = bip32_ckd(xprv, 0x80000000+0)
-  assert xprv == b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L", "failure"
+  mprv = bip32_master_prvkey_from_seed(seed)
+  assert mprv == b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6"
+  mpub = bip32_xpub_from_xprv(mprv)
+  assert mpub == b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
+
+  mprv = bip32_derive(mprv, "m")
+  assert mprv == b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6"
+  mpub = bip32_derive(mpub, "m")
+  assert mpub == b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13"
+
+  xprv = bip32_derive(mprv, "m/0'")
+  assert xprv == b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L"
   xpub = bip32_xpub_from_xprv(xprv)
-  assert xpub == b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y", "failure"
+  assert xpub == b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+
 
 if __name__ == "__main__":
   bip32_test()
