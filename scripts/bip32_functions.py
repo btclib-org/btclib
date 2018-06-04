@@ -14,14 +14,19 @@ from hashlib import sha512
 from base58 import b58encode_check, b58decode_check
 
 # VERSION BYTES =      4 bytes        Base58 encode starts with
-MAINNET_PRIVATE = b'\x04\x88\xAD\xE4' #xprv
-MAINNET_PUBLIC  = b'\x04\x88\xB2\x1E' #xpub
-TESTNET_PRIVATE = b'\x04\x35\x83\x94' #tprv
-TESTNET_PUBLIC  = b'\x04\x35\x87\xCF' #tpub
+MAINNET_PRIVATE = b'\x04\x88\xAD\xE4' # xprv
+TESTNET_PRIVATE = b'\x04\x35\x83\x94' # tprv
 SEGWIT_PRIVATE  = b'\x04\xb2\x43\x0c'
-SEGWIT_PUBLIC   = b'\x04\xb2\x47\x46'
 PRIVATE = [MAINNET_PRIVATE, TESTNET_PRIVATE, SEGWIT_PRIVATE]
+
+MAINNET_PUBLIC  = b'\x04\x88\xB2\x1E' # xpub
+TESTNET_PUBLIC  = b'\x04\x35\x87\xCF' # tpub
+SEGWIT_PUBLIC   = b'\x04\xb2\x47\x46'
 PUBLIC  = [MAINNET_PUBLIC,  TESTNET_PUBLIC,  SEGWIT_PUBLIC]
+
+MAINNET_ADDRESS  = b'\x00'             # 1
+TESTNET_ADDRESS  = b'\x6F'             # m or n
+ADDRESS  = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
 
 # version    : [  : 4]  4 bytes
 # depth      : [ 4: 5]  1 byte
@@ -46,7 +51,7 @@ def bip32_master_prvkey_from_seed(bip32_seed, version = PRIVATE[0]):
 
 def bip32_xpub_from_xprv(xprv):
   """derive the extended public key from the extended private key"""
-  xprv = bytearray(b58decode_check(xprv))
+  xprv = b58decode_check(xprv)
   assert len(xprv) == 78, "wrong length for decoded extended private key"
   assert xprv[45] == 0, "the extended key is not a private one"
   # version
@@ -135,6 +140,16 @@ def bip32_derive(xkey, path, version=b'\x00'):
   return xkey
 
 
+def address_from_extpubkey(xpub):
+  xpub = b58decode_check(xpub)
+  assert len(xpub) == 78, "wrong length for decoded extended public key"
+  assert xpub[45] in (2, 3), "the extended key is not a public one"
+  version = xpub[:4]
+  i = PUBLIC.index(version)
+  return address_from_pubkey(xpub[45:], ADDRESS[i])
+
+
+
 def bip32_test():
   # == Test vector 1 ==
   
@@ -145,6 +160,7 @@ def bip32_test():
   assert mprv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
   mpub = bip32_xpub_from_xprv(mprv)
   assert mpub == b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+  address_from_extpubkey(mpub)
 
   mprv = bip32_derive(mprv, "m")
   assert mprv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
@@ -181,6 +197,7 @@ def bip32_test():
   assert xpub == b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
   xpub = bip32_xpub_from_xprv(xprv)
   assert xpub == b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+  address_from_extpubkey(xpub)
 
 
   # == Test vector 3 ==

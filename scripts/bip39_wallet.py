@@ -12,7 +12,7 @@ Created on Mon Dec 11 09:17:49 2017
 # Italian_dictionary: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
 
 from bip39_functions import bip39_ints_from_entropy, bip39_mnemonic_from_ints, bip39_seed_from_mnemonic
-from bip32_functions import bip32_master_key_from_seed, bip32_xpub_from_xprv, bip32_path
+from bip32_functions import bip32_master_prvkey_from_seed, bip32_xpub_from_xprv, bip32_derive, address_from_extpubkey
 
 def bip39_wallet(entropy, number_words = 24, passphrase='', dictionary = 'dict_eng.txt'):
   # Function that generate a valid BIP39 mnemonic and the related master extended public key, from a given entropy
@@ -28,29 +28,9 @@ def bip39_wallet(entropy, number_words = 24, passphrase='', dictionary = 'dict_e
   ints = bip39_ints_from_entropy(entropy, ENT)
   mnemonic = bip39_mnemonic_from_ints(ints, dictionary)
   seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
-  xprv = bip32_master_key_from_seed(seed)
+  xprv = bip32_master_prvkey_from_seed(seed)
   xpub = bip32_xpub_from_xprv(xprv)
   return mnemonic, seed, xprv, xpub
-
-def bip39_receive_address_from_xpub(xpub, number):
-  # Function that generate a valid P2PKH receive address from an extended public key.
-  # INPUT:
-  #   xpub: extended public key
-  #   number: child index
-  # OUTPUT:
-  #   P2PKH receive address 
-  index_child = [0, number]
-  return bip32_path(xpub, index_child)
-
-def bip39_change_address_from_xpub(xpub, number):
-  # Function that generate a valid P2PKH change address from an extended public key.
-  # INPUT:
-  #   xpub: extended public key
-  #   number: child index
-  # OUTPUT:
-  #   P2PKH change address 
-  index_child = [1, number]
-  return bip32_path(xpub, index_child)
 
 
 def test_wallet():
@@ -78,26 +58,26 @@ def test_wallet():
   print('\nxprv:', xprv)
   print('\nxpub:', xpub)
 
-  receive0 = bip39_receive_address_from_xpub(xpub, 0)
-  receive1 = bip39_receive_address_from_xpub(xpub, 1)
-  receive2 = bip39_receive_address_from_xpub(xpub, 2)
-  receive3 = bip39_receive_address_from_xpub(xpub, 3)
+  receive0 = bip32_derive(xpub, "./0/0")
+  receive1 = bip32_derive(xpub, "./0/1")
+  receive2 = bip32_derive(xpub, "./0/2")
+  receive3 = bip32_derive(xpub, "./0/3")
 
-  change0 = bip39_change_address_from_xpub(xpub, 0)
-  change1 = bip39_change_address_from_xpub(xpub, 1)
-  change2 = bip39_change_address_from_xpub(xpub, 2)
-  change3 = bip39_change_address_from_xpub(xpub, 3)
+  change0 = bip32_derive(xpub, "./1/0")
+  change1 = bip32_derive(xpub, "./1/1")
+  change2 = bip32_derive(xpub, "./1/2")
+  change3 = bip32_derive(xpub, "./1/3")
 
   print()
-  print('1st receive address: ', receive0)
-  print('2nd receive address: ', receive1)
-  print('3rd receive address: ', receive2)
-  print('4th receive address: ', receive3)
+  print('1st receive address: ', address_from_extpubkey(receive0))
+  print('2nd receive address: ', address_from_extpubkey(receive1))
+  print('3rd receive address: ', address_from_extpubkey(receive2))
+  print('4th receive address: ', address_from_extpubkey(receive3))
   print()
-  print('1st change address: ', change0)
-  print('2nd change address: ', change1)
-  print('3rd change address: ', change2)
-  print('4th change address: ', change3)
+  print('1st change address: ', address_from_extpubkey(change0))
+  print('2nd change address: ', address_from_extpubkey(change1))
+  print('3rd change address: ', address_from_extpubkey(change2))
+  print('4th change address: ', address_from_extpubkey(change3))
 
 if __name__ == "__main__":
   test_wallet()
