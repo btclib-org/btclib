@@ -140,7 +140,7 @@ def bip32_derive(xkey, path, version=b'\x00'):
   return xkey
 
 
-def address_from_extpubkey(xpub):
+def address_from_xpub(xpub):
   xpub = b58decode_check(xpub)
   assert len(xpub) == 78, "wrong length for decoded extended public key"
   assert xpub[45] in (2, 3), "the extended key is not a public one"
@@ -160,7 +160,7 @@ def bip32_test():
   assert mprv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
   mpub = bip32_xpub_from_xprv(mprv)
   assert mpub == b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
-  address_from_extpubkey(mpub)
+  address_from_xpub(mpub)
 
   mprv = bip32_derive(mprv, "m")
   assert mprv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
@@ -197,7 +197,7 @@ def bip32_test():
   assert xpub == b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
   xpub = bip32_xpub_from_xprv(xprv)
   assert xpub == b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
-  address_from_extpubkey(xpub)
+  address_from_xpub(xpub)
 
 
   # == Test vector 3 ==
