@@ -49,7 +49,7 @@ print(addr.hex())
 print("\n*** [3] Extended key (checksum verified)")
 ExtKey, checksum = addr[:-4], addr[-4:]
 verified = sha256(sha256(ExtKey).digest()).digest()[:4]==checksum
-print(ExtKey.hex().upper() + " (" + ("true" if verified else "false") + ")")
+print(ExtKey.hex() + " (" + ("true" if verified else "false") + ")")
 print(b58decode_check(wif).hex())
 
 print("\n*** [4] Private key")

@@ -4,7 +4,7 @@ Created on Mon Oct 16 11:16:55 2017
 
 @author: dfornaro, fametrano
 """
-from secp256k1 import order, G, pointMultiply
+from ECsecp256k1 import order, G, pointMultiply
 from hmac import HMAC
 from hashlib import sha512, sha256
 from hashlib import new as hnew
