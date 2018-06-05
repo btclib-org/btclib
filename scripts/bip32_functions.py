@@ -117,36 +117,50 @@ def bip32_ckd(xparentkey, child_index):
 
 
 # hdkeypath
-def bip32_derive(xkey, path, version=b'\x00'):
+def bip32_derive(xkey, path):
   """derive an extended key according to path like "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative) """
 
-  steps = path.split('/')
-  if steps[0] not in {'m', '.'}:
-    raise ValueError('Invalid derivation path: {}'.format(path))  
-  if steps[0] == 'm':
-    decoded = b58decode_check(xkey)
-    t = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-    assert decoded[4:13] == t, "Trying to derive absolute path from non-master key"
+  indexes = []
+  if isinstance(path, list):
+    indexes = path
+  elif isinstance(path, str):
+    steps = path.split('/')
+    if steps[0] not in {'m', '.'}:
+      raise ValueError('Invalid derivation path: {}'.format(path))  
+    if steps[0] == 'm':
+      decoded = b58decode_check(xkey)
+      t = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+      assert decoded[4:13] == t, "Trying to derive absolute path from non-master key"
 
-  for step in steps[1:]:
-    hardened = False
-    if step[-1] == "'" or step[-1] == "H":
-      hardened = True
-      step = step[:-1]
-    index = int(step)
-    index += 0x80000000 if hardened else 0
+    for step in steps[1:]:
+      hardened = False
+      if step[-1] == "'" or step[-1] == "H":
+        hardened = True
+        step = step[:-1]
+      index = int(step)
+      index += 0x80000000 if hardened else 0
+      indexes.append(index)
+  else:
+    raise TypeError("list of indexes or string like 'm/44'/0'/1'/0/10' expected")
+
+  for index in indexes:
     xkey = bip32_ckd(xkey, index)
 
   return xkey
 
 
-def address_from_xpub(xpub):
+def address_from_xpub(xpub, version=None):
   xpub = b58decode_check(xpub)
   assert len(xpub) == 78, "wrong length for decoded extended public key"
   assert xpub[45] in (2, 3), "the extended key is not a public one"
-  version = xpub[:4]
-  i = PUBLIC.index(version)
-  return address_from_pubkey(xpub[45:], ADDRESS[i])
+  # bitcoin: address version can be derived from xkey version
+  # shitcoin: address version cannot be derived from xkey version
+  #           if xkey version bytes have not been specialized
+  if version is None:
+    xversion = xpub[:4]
+    i = PUBLIC.index(xversion)
+    version = ADDRESS[i]
+  return address_from_pubkey(xpub[45:], version)
 
 
 
