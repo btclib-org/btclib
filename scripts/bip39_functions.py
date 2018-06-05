@@ -55,9 +55,9 @@ def bip39_seed_from_mnemonic(mnemonic, passphrase, style='bip39'):
   #   passphrase: passphrase used for the seed derivation ('TREZOR' as default for the BIP39 test vector)
   # OUTPUT:
   #   seed: seed for the BIP32 HD wallet
-  prefix = 'mnemonic'
   if style == 'electrum': prefix = 'electrum'
-  else: assert style=='bip39'
+  elif style == 'bip39':  prefix = 'mnemonic'
+  else: raise ValueError("invalid prefix style")
   return PBKDF2(mnemonic, prefix + passphrase, 2048, sha512).read(64) # 512 bits
 
 
