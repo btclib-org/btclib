@@ -69,7 +69,7 @@ class EllipticCurve:
   def bytes_from_point(self, P, compressed = True):
     """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed (0x04) point ensuring it belongs to the curve """
 
-    # if it already byte, just check it belongs to the curve
+    # if it is already byte, just check that it belongs to the curve
     if isinstance(P, bytes):
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
