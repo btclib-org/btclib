@@ -15,15 +15,18 @@ class EllipticCurve:
     self.__G = self.scrub_point(G)
     self.order = order
 
-  def checkPoint(self, P):
-    assert P[0] is None or (P[0]*P[0]*P[0]+self.__a*P[0]+self.__b) % self.__prime == (P[1]*P[1]) % self.__prime
-
-  def y(self, x, even=True):
+  def y2(self, x):
     assert 0 <= x
     assert x < self.__prime
-    temp = (x*x*x+self.__a*x+self.__b) % self.__prime
-    root = modular_sqrt(temp, self.__prime)
-    return root if (root % 2 == 0 and even) else self.__prime - root
+    return (x*x*x + self.__a*x + self.__b) % self.__prime
+
+  def y(self, x, even=True):
+    y2 = self.y2(x)
+    root = mod_sqrt(y2, self.__prime)
+    if (root % 2 == 0 and even) or (root % 2 == 1 and not even):
+      return root
+    else:
+      return self.__prime - root
 
   def __str__(self):
     result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
@@ -46,8 +49,8 @@ class EllipticCurve:
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
         Px = int.from_bytes(P[1:33], 'big')
         assert Px < self.__prime
-        Py = mod_sqrt(Px*Px*Px + self.__a*Px + self.__b, self.__prime)
-        if (P[0] == 0x02 and Py % 2 == 0) or (P[0] == 0x03 and Py % 2 == 1):
+        Py = self.y(Px, True)
+        if (P[0] == 0x02):
           return (Px, Py)
         else:
           return (Px, self.__prime - Py)
@@ -60,11 +63,13 @@ class EllipticCurve:
         assert Py < self.__prime
         P = (Px, Py)
 
-    assert P[0] is None or (P[0]*P[0]*P[0] + self.__a*P[0] + self.__b) % self.__prime == (P[1]*P[1]) % self.__prime
+    assert (P[0] is None) or (self.y2(P[0]) == P[1]*P[1] % self.__prime)
     return P
 
   def bytes_from_point(self, P, compressed = True):
     """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed (0x04) point ensuring it belongs to the curve """
+
+    # if it already byte, just check it belongs to the curve
     if isinstance(P, bytes):
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
@@ -78,11 +83,11 @@ class EllipticCurve:
         assert Px < self.__prime
         Py = int.from_bytes(P[33:], 'big')
         assert Py < self.__prime
-        assert (Px*Px*Px + self.__a*Px + self.__b) % self.__prime == (Py*Py) % self.__prime
+        assert self.y2(Px) == Py*Py % self.__prime
         return P
 
     assert P[0] is not None, "infinity point cannot be expressed as bytes"
-    assert (P[0]*P[0]*P[0] + self.__a*P[0] + self.__b) % self.__prime == (P[1]*P[1]) % self.__prime
+    assert self.y2(P[0]) == P[1]*P[1] % self.__prime
     if compressed:
       prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
       return prefix + P[0].to_bytes(32, byteorder='big')
@@ -140,6 +145,8 @@ class EllipticCurve:
 def main():
   G = (0, 3)
   ec = EllipticCurve(6, 9, 263, G, 269)
+  assert ec.y(G[0], True)  != G[1]
+  assert ec.y(G[0], False) == G[1]
   print(ec)
   ec.scrub_point(G)
   print(G)
