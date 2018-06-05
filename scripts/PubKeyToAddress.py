@@ -1,25 +1,23 @@
 #! python3
 
-from secp256k1 import G, order, pointMultiply
+from ECsecp256k1 import ec
 import hashlib
 from base58 import b58encode, b58encode_check
 
 # to be fixed for other version value
 def private_key_to_public_key(private_key, version=0x04):
-  p = pointMultiply(private_key)
+  p = ec.pointMultiply(private_key)
   public_key = version+p[0]+p[1]
   return public_key
 
 # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
 p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-# 0 < k < order
-assert 0 < p        , "Invalid Private Key"
-assert     p < order, "Invalid Private Key"
+p = p % ec.order
 
 print("\n*** [0] Private ECDSA Key:")
 print(hex(p))
 
-P = pointMultiply(p, G)
+P = ec.pointMultiply(p)
 PubKey = b'\x04' + P[0].to_bytes(32, byteorder='big') + P[1].to_bytes(32, byteorder='big')
 print("\n*** [1] Public Key (uncompressed):")
 print(PubKey.hex())

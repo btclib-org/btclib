@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 
-from FiniteFields import modular_sqrt, modInv
+from FiniteFields import modInv
 
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
-  """ Elliptic curve over Fp group """
+  """ Elliptic curve over Fp group"""
 
   def __init__(self, a, b, prime, G, order):
     assert 4*a*a*a+27*b*b !=0, "zero discriminant"
@@ -13,7 +13,7 @@ class EllipticCurve:
     self.__prime = prime
 
     self.checkPoint(G)
-    self.G = G
+    self.__G = G
     self.order = order
 
   def checkPoint(self, P):
@@ -27,16 +27,28 @@ class EllipticCurve:
     return root if (root % 2 == 0 and even) else self.__prime - root
 
   def __str__(self):
-   return "Elliptic Curve Group(a=%s, b=%s) \nover F __prime=0x%032x \nGenerator: %s \norder: %s" % (self.__a, self.__b, self.__prime, self.G, self.order)
+    result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
+    result += "\n prime = 0x%032x" % (self.__prime)
+    result += "\n     G =(0x%032x,\n         0x%032x)" % (self.__G)
+    result += "\n order = 0x%032x" % (self.order)
+    return result
 
   def __repr__(self):
-    return 'EllipticCurve(%s, %s, 0x%032x, %s, %s)' % (self.__a, self.__b, self.__prime, self.G, self.order)
+    result  = "EllipticCurve(%s, %s" % (self.__a, self.__b)
+    result += ", 0x%032x" % (self.__prime)
+    result += ", (0x%032x,0x%032x)" % (self.__G)
+    result += ", 0x%032x)" % (self.order)
+    return result
       
+  def checkPoint(self, P):
+    assert P[0] is None or (P[0]*P[0]*P[0]+self.__a*P[0]+self.__b) % self.__prime == (P[1]*P[1]) % self.__prime
+
+
   def pointDouble(self, P):
     self.checkPoint(P)
     if P[1] == 0 or P[0] is None:
       return (None, None)
-    lam = ((3*P[0]*P[0]+ self.__a) * modInv(2*P[1], self.__prime)) % self.__prime
+    lam = ((3*P[0]*P[0]+self.__a) * modInv(2*P[1], self.__prime)) % self.__prime
     x = (lam*lam-2*P[0]) % self.__prime
     y = (lam*(P[0]-x)-P[1]) % self.__prime
     return (x, y)
@@ -59,7 +71,8 @@ class EllipticCurve:
     return (x, y)
 
   # efficient double & add, using binary decomposition of n
-  def pointMultiply(self, n, P):
+  def pointMultiply(self, n, P = None):
+    if P is None: P = self.__G
     n = n % self.order    # the group is cyclic
     result = (None, None) # initialized to infinity point
     addendum = P          # initialized as 2^0 P
@@ -70,19 +83,19 @@ class EllipticCurve:
       addendum = self.pointDouble(addendum) # update addendum for next step
     return result
 
+
 def main():
   G = (0, 3)
-  order = 269
-  ecg = EllipticCurve(6, 9, 263, G, order)
-  print(ecg.y(0, False))
-  print(ecg)
-  print(ecg.checkPoint(G))
-  print(ecg.pointDouble(G))
-  print(ecg.pointAdd(G, G))
-  print(ecg.pointMultiply(2, G))
-  print(ecg.pointMultiply(order, G))
-  print(ecg.pointMultiply(order+1, G))
-  print(ecg.pointMultiply(order+2, G))
+  ec = EllipticCurve(6, 9, 263, G, 269)
+  print(ec)
+  ec.checkPoint(G)
+  print(G)
+  print(ec.pointAdd(G, G))
+  print(ec.pointDouble(G))
+  print(ec.pointMultiply(2))
+  print(ec.pointMultiply(ec.order))
+  print(ec.pointMultiply(ec.order+1))
+  print(ec.pointMultiply(ec.order+2))
 
 if __name__ == "__main__":
   # execute only if run as a script
