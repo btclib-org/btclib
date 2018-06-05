@@ -11,7 +11,7 @@ from hashlib import sha512
 from pbkdf2 import PBKDF2
 import hmac
 from bip32_functions import bip32_master_prvkey_from_seed, bip32_xpub_from_xprv, bip32_ckd
-from bip39_functions import bip39_seed_from_mnemonic
+from bip39_functions import bip39_seed_from_mnemonic, bip39_mnemonic_from_ints
 
 def electrum_ints_from_entropy(entropy, number_words):
   # Function that transforms the entropy number in a vector of numbers with 11 bits each 
@@ -25,10 +25,59 @@ def electrum_ints_from_entropy(entropy, number_words):
   while len(entropy_bin)< number_words*11+2:
     entropy_bin = '0b0' + entropy_bin[2:]
   entropy_checked = entropy_bin[2:]
-  mnemonic_int = [0]*number_words
+  ints = [0]*number_words
   for i in range(0,number_words):
-    mnemonic_int[i] = int(entropy_checked[i*11:(i+1)*11],2)
-  return mnemonic_int
+    ints[i] = int(entropy_checked[i*11:(i+1)*11],2)
+  return ints
+
+def electrum_wallet(entropy, number_words = 24, passphrase='', version = "standard", dictionary = 'dict_eng.txt'):
+  # Function that generates a valid electrum mnemonic and the related master extended public key, from a given entropy and with a specific version
+  # INPUT:
+  #   entropy: number large enough to guarantee randomness
+  #   number_words: number of words requested
+  #   passphrase: string used as passphrase
+  #   version: version required for the Electrum wallet
+  #   dictionary: string with the name of the dictionary file (.txt)
+  # OUTPUT:
+  #   mnemonic: Electrum mnemonic phrase
+  #   entropy: final entropy really used
+  #   xpub: master extended public key derived from the mnemonic phrase + passphrase
+  is_verify = False
+  while not is_verify:
+    mnemonic_int = electrum_ints_from_entropy(entropy, number_words)
+    mnemonic = bip39_mnemonic_from_ints(mnemonic_int, dictionary)
+    is_verify = verify_mnemonic_electrum(mnemonic, version)
+    if not is_verify:
+      entropy = entropy + 1
+  seed = bip39_seed_from_mnemonic(mnemonic, passphrase, "electrum")
+  xprv = bip32_master_prvkey_from_seed(seed)
+  return  entropy, mnemonic, seed, xprv
+
+def test_electrum_wallet():
+
+  # number of words chosen by the user:
+  number_words = 24
+  entropy_lenght = int(11*number_words/4)
+  print('\nYour entropy should have', entropy_lenght, 'hexadecimal digits')
+
+  # entropy is entered by the user
+  entropy = 0x545454545454545453335454545454545454545454545454545454545454666666
+
+  # dictionary chosen by the user:
+  dictionary = 'dict_ita.txt'
+  dictionary = 'dict_eng.txt'
+
+  # passphrase chosen by the user:
+  passphrase = ''
+
+  # version chosen by the user:
+  version = 'standard'
+
+  entropy, mnemonic, seed, xprv = electrum_wallet(entropy, number_words, passphrase, version, dictionary)
+  print('entropy:', hex(entropy))
+  print('mnemonic:', mnemonic)
+  print('seed:', seed.hex())
+  print('xprv:', xprv)
 
 def verify_mnemonic_and_xpub_electrum(mnemonic, xpub_electrum, version = "standard", passphrase = ''):
   # Function used to verify the correctness of an Electrum mnemonic and its xpub wrt its version
@@ -130,3 +179,4 @@ def test_vector():
   
 if __name__ == "__main__":
   test_vector()
+  test_electrum_wallet()

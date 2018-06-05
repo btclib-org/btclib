@@ -1,14 +1,7 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Oct 16 09:29:43 2017
-
-@author: dfornaro, fametrano
-"""
-
-# This script gives you the basic functions used in BIP39.
-
 from hashlib import sha256, sha512
 from pbkdf2 import PBKDF2
+# needed because BIP39 test vectors have been "polluted" with derived mprvkey
+from bip32_functions import bip32_master_prvkey_from_seed
 
 def bip39_ints_from_entropy(entropy, ENT):  
   # Function that transforms the entropy number in a vector of numbers with 11 bits each 
@@ -17,6 +10,10 @@ def bip39_ints_from_entropy(entropy, ENT):
   #   ENT: number of bits of entropy
   # OUTPUT:
   #   ints: vector of numbers, each of this number with 11 bits each
+  number_words = (ENT/32 + ENT)/11
+  assert number_words %1 == 0
+  number_words = int(number_words)
+
   entropy_bytes = entropy.to_bytes(int(ENT/8), 'big')
   checksum = sha256(entropy_bytes).digest()
   checksum_int = int.from_bytes(checksum, 'big')
@@ -27,14 +24,13 @@ def bip39_ints_from_entropy(entropy, ENT):
   while len(entropy_bin)<ENT+2:
     entropy_bin = '0b0' + entropy_bin[2:]
   entropy_checked = entropy_bin[2:] + checksum_bin[2:2+int(ENT/32)]
-  number_mnemonic = (ENT/32 + ENT)/11
-  assert number_mnemonic %1 == 0
-  number_mnemonic = int(number_mnemonic)
-  ints = [0]*number_mnemonic
-  for i in range(0,number_mnemonic):
+  ints = [0]*number_words
+  for i in range(0,number_words):
     ints[i] = int(entropy_checked[i*11:(i+1)*11],2)
   return ints
 
+# dict_eng.txt: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
+# dict_ita.txt: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
 def bip39_mnemonic_from_ints(ints, dict_txt = 'dict_eng.txt'):
   # Function that transforms the vector ints computed in the previous function in a valid mnemonic phrase 
   # INPUT:
@@ -60,230 +56,220 @@ def bip39_seed_from_mnemonic(mnemonic, passphrase, style='bip39'):
   else: raise ValueError("invalid prefix style")
   return PBKDF2(mnemonic, prefix + passphrase, 2048, sha512).read(64) # 512 bits
 
-
-# Test vectors: 
-# https://github.com/trezor/python-mnemonic/blob/master/vectors.json
-#
-# dict_eng.txt: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
-# dict_ita.txt: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
-
-def test_vector_1():
-  entropy = 0x0
-  ENT = 128
+def bip39_wallet(entropy, number_words = 24, passphrase='', dictionary = 'dict_eng.txt'):
+  # Function that generate a valid BIP39 mnemonic and the related master extended public key, from a given entropy
+  # INPUT:
+  #   entropy: number large enough to guarantee randomness
+  #   number_words: number of words requested
+  #   passphrase: string used as passphrase
+  #   dictionary: string with the name of the dictionary file (.txt)
+  # OUTPUT:
+  #   mnemonic: mnemonic phrase with BIP39
+  #   xpub: master extended public key derived from the mnemonic phrase + passphrase
+  ENT = int(number_words*32/3)
   ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04"
+  mnemonic = bip39_mnemonic_from_ints(ints, dictionary)
+  seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
+  xprv = bip32_master_prvkey_from_seed(seed)
+  return entropy, mnemonic, seed, xprv
 
-def test_vector_2():
-  entropy = 0x7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
-  ENT = 128
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "2e8905819b8723fe2c1d161860e5ee1830318dbf49a83bd451cfb8440c28bd6fa457fe1296106559a3c80937a1c1069be3a3a5bd381ee6260e8d9739fce1f607"
 
-def test_vector_3():
-  entropy = 0x80808080808080808080808080808080
-  ENT = 128
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "d71de856f81a8acc65e6fc851a38d4d7ec216fd0796d0a6827a3ad6ed5511a30fa280f12eb2e47ed2ac03b5c462a0358d18d69fe4f985ec81778c1b370b652a8"
+def test_bip39_wallet():
 
-def test_vector_4():
-  entropy = 0xffffffffffffffffffffffffffffffff
-  ENT = 128
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "ac27495480225222079d7be181583751e86f571027b0497b5b5d11218e0a8a13332572917f0f8e5a589620c6f15b11c61dee327651a14c34e18231052e48c069"
+  # number of words chosen by the user:
+  number_words = 12
+  entropy_lenght = int(number_words*32/3/4)
+  print('\nYour entropy should have', entropy_lenght, 'hexadecimal digits')
 
-def test_vector_5():
-  entropy = 0x0
-  ENT = 192
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "035895f2f481b1b0f01fcf8c289c794660b289981a78f8106447707fdd9666ca06da5a9a565181599b79f53b844d8a71dd9f439c52a3d7b3e8a79c906ac845fa"
+  # entropy is entered by the user:
+  entropy = 0xf012003974d093eda670121023cd03bb
 
-def test_vector_6():
-  entropy = 0x7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
-  ENT = 192
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "f2b94508732bcbacbcc020faefecfc89feafa6649a5491b8c952cede496c214a0c7b3c392d168748f2d4a612bada0753b52a1c7ac53c1e93abd5c6320b9e95dd"
+  # dictionary chosen by the user:
+  dictionary = 'dict_ita.txt'
+  dictionary = 'dict_eng.txt'
 
-def test_vector_7():
-  entropy = 0x808080808080808080808080808080808080808080808080
-  ENT = 192
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "107d7c02a5aa6f38c58083ff74f04c607c2d2c0ecc55501dadd72d025b751bc27fe913ffb796f841c49b1d33b610cf0e91d3aa239027f5e99fe4ce9e5088cd65"
+  # passphrase chosen by the user:
+  passphrase = ''
 
-def test_vector_8():
-  entropy = 0xffffffffffffffffffffffffffffffffffffffffffffffff
-  ENT = 192
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "0cd6e5d827bb62eb8fc1e262254223817fd068a74b5b449cc2f667c3f1f985a76379b43348d952e2265b4cd129090758b3e3c2c49103b5051aac2eaeb890a528"
+  entropy, mnemonic, seed, xprv = bip39_wallet(entropy, number_words, passphrase, dictionary)
+  print('entropy:', hex(entropy))
+  print('mnemonic:', mnemonic)
+  print('seed:', seed.hex())
+  print('xprv:', xprv)
 
-def test_vector_9():
-  entropy = 0x0
-  ENT = 256
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "bda85446c68413707090a52022edd26a1c9462295029f2e60cd7c4f2bbd3097170af7a4d73245cafa9c3cca8d561a7c3de6f5d4a10be8ed2a5e608d68f92fcc8"
+def test():
+  #### bip39
+  mnemonic = b'army van defense carry jealous true garbage claim echo media make crunch'
+  passphrase = ''
+  seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
+  assert seed.hex() == "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
 
-def test_vector_10():
-  entropy = 0x7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f
-  ENT = 256
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "bc09fca1804f7e69da93c2f2028eb238c227f2e9dda30cd63699232578480a4021b146ad717fbb7e451ce9eb835f43620bf5c514db0f8add49f5d121449d3e87"
+  #### electrum mnemonic
+  mnemonic = b'clay abstract easily position index taxi arrange ecology hobby digital turtle feel'
+  passphrase = ''
+  seed = bip39_seed_from_mnemonic(mnemonic, passphrase, 'electrum')
+  assert seed.hex() == "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
 
-def test_vector_11():
-  entropy = 0x8080808080808080808080808080808080808080808080808080808080808080
-  ENT = 256
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "c0c519bd0e91a2ed54357d9d1ebef6f5af218a153624cf4f2da911a0ed8f7a09e2ef61af0aca007096df430022f7a2b6fb91661a9589097069720d015e4e982f"
-
-def test_vector_12():
-  entropy = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-  ENT = 256
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "dd48c104698c30cfe2b6142103248622fb7bb0ff692eebb00089b32d22484e1613912f0a5b694407be899ffd31ed3992c456cdf60f5d4564b8ba3f05a69890ad"
-
-def test_vector_13():
-  entropy = 0x9e885d952ad362caeb4efe34a8e91bd2
-  ENT = 128
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "274ddc525802f7c828d8ef7ddbcdc5304e87ac3535913611fbbfa986d0c9e5476c91689f9c8a54fd55bd38606aa6a8595ad213d4c9c9f9aca3fb217069a41028"
-
-def test_vector_14():
-  entropy = 0x6610b25967cdcca9d59875f5cb50b0ea75433311869e930b
-  ENT = 192
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "628c3827a8823298ee685db84f55caa34b5cc195a778e52d45f59bcf75aba68e4d7590e101dc414bc1bbd5737666fbbef35d1f1903953b66624f910feef245ac"
-
-def test_vector_15():
-  entropy = 0x68a79eaca2324873eacc50cb9c6eca8cc68ea5d936f98787c60c7ebc74e6ce7c
-  ENT = 256
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "64c87cde7e12ecf6704ab95bb1408bef047c22db4cc7491c4271d170a1b213d20b385bc1588d9c7b38f1b39d415665b8a9030c9ec653d75e65f847d8fc1fc440"
-
-def test_vector_16():
-  entropy = 0xc0ba5a8e914111210f2bd131f3d5e08d
-  ENT = 128
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "ea725895aaae8d4c1cf682c1bfd2d358d52ed9f0f0591131b559e2724bb234fca05aa9c02c57407e04ee9dc3b454aa63fbff483a8b11de949624b9f1831a9612"
-
-def test_vector_17():
-  entropy = 0x6d9be1ee6ebd27a258115aad99b7317b9c8d28b6d76431c3
-  ENT = 192
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "fd579828af3da1d32544ce4db5c73d53fc8acc4ddb1e3b251a31179cdb71e853c56d2fcb11aed39898ce6c34b10b5382772db8796e52837b54468aeb312cfc3d"
-
-def test_vector_18():
-  entropy = 0x9f6a2878b2520799a44ef18bc7df394e7061a224d2c33cd015b157d746869863
-  ENT = 256
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "72be8e052fc4919d2adf28d5306b5474b0069df35b02303de8c1729c9538dbb6fc2d731d5f832193cd9fb6aeecbc469594a70e3dd50811b5067f3b88b28c3e8d"
-
-def test_vector_19():
-  entropy = 0x23db8160a31d3e0dca3688ed941adbf3
-  ENT = 128
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "deb5f45449e615feff5640f2e49f933ff51895de3b4381832b3139941c57b59205a42480c52175b6efcffaa58a2503887c1e8b363a707256bdd2b587b46541f5"
-
-def test_vector_20():
-  entropy = 0x8197a4a47f0425faeaa69deebc05ca29c0a5b5cc76ceacc0
-  ENT = 192
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "4cbdff1ca2db800fd61cae72a57475fdc6bab03e441fd63f96dabd1f183ef5b782925f00105f318309a7e9c3ea6967c7801e46c8a58082674c860a37b93eda02"
-
-def test_vector_21():
-  entropy = 0x066dca1a2bb7e8a1db2832148ce9933eea0f3ac9548d793112d9a95c9407efad
-  ENT = 256
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "26e975ec644423f4a4c4f4215ef09b4bd7ef924e85d1d17c4cf3f136c2863cf6df0a475045652c57eb5fb41513ca2a2d67722b77e954b4b3fc11f7590449191d"
-
-def test_vector_22():
-  entropy = 0xf30f8c1da665478f49b001d94c5fc452
-  ENT = 128
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "2aaa9242daafcee6aa9d7269f17d4efe271e1b9a529178d7dc139cd18747090bf9d60295d0ce74309a78852a9caadf0af48aae1c6253839624076224374bc63f"
-
-def test_vector_23():
-  entropy = 0xc10ec20dc3cd9f652c7fac2f1230f7a3c828389a14392f05
-  ENT = 192
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "7b4a10be9d98e6cba265566db7f136718e1398c71cb581e1b2f464cac1ceedf4f3e274dc270003c670ad8d02c4558b2f8e39edea2775c9e232c7cb798b069e88"
-
-def test_vector_24():
-  entropy = 0xf585c11aec520db57dd353c69554b21a89b20fb0650966fa0a9d6f74fd989d8f
-  ENT = 256
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints)
-  seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-  assert seed.hex() == "01f5bced59dec48e362f2c45b5de68b9fd6c92c6634f44d6d40aab69056506f0e35524a518034ddc1192e1dacd32c1ed3eaa3c3b131c88ed8e7e54c49a5d0998"
-
-def test_vector():
-  test_vector_1()
-  test_vector_2()
-  test_vector_3()
-  test_vector_4()
-  test_vector_5()
-  test_vector_6()
-  test_vector_7()
-  test_vector_8()
-  test_vector_9()
-  test_vector_10()
-  test_vector_11()
-  test_vector_12()
-  test_vector_13()
-  test_vector_14()
-  test_vector_15()
-  test_vector_16()
-  test_vector_17()
-  test_vector_18()
-  test_vector_19()
-  test_vector_20()
-  test_vector_21()
-  test_vector_22()
-  test_vector_23()
-  test_vector_24()
+# Test vectors: https://github.com/trezor/python-mnemonic/blob/master/vectors.json
+def bip39_test_vectors():
+  test_vectors = [
+    [
+        "00000000000000000000000000000000",
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04",
+        "xprv9s21ZrQH143K3h3fDYiay8mocZ3afhfULfb5GX8kCBdno77K4HiA15Tg23wpbeF1pLfs1c5SPmYHrEpTuuRhxMwvKDwqdKiGJS9XFKzUsAF"
+    ],
+    [
+        "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
+        "legal winner thank year wave sausage worth useful legal winner thank yellow",
+        "2e8905819b8723fe2c1d161860e5ee1830318dbf49a83bd451cfb8440c28bd6fa457fe1296106559a3c80937a1c1069be3a3a5bd381ee6260e8d9739fce1f607",
+        "xprv9s21ZrQH143K2gA81bYFHqU68xz1cX2APaSq5tt6MFSLeXnCKV1RVUJt9FWNTbrrryem4ZckN8k4Ls1H6nwdvDTvnV7zEXs2HgPezuVccsq"
+    ],
+    [
+        "80808080808080808080808080808080",
+        "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
+        "d71de856f81a8acc65e6fc851a38d4d7ec216fd0796d0a6827a3ad6ed5511a30fa280f12eb2e47ed2ac03b5c462a0358d18d69fe4f985ec81778c1b370b652a8",
+        "xprv9s21ZrQH143K2shfP28KM3nr5Ap1SXjz8gc2rAqqMEynmjt6o1qboCDpxckqXavCwdnYds6yBHZGKHv7ef2eTXy461PXUjBFQg6PrwY4Gzq"
+    ],
+    [
+        "ffffffffffffffffffffffffffffffff",
+        "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
+        "ac27495480225222079d7be181583751e86f571027b0497b5b5d11218e0a8a13332572917f0f8e5a589620c6f15b11c61dee327651a14c34e18231052e48c069",
+        "xprv9s21ZrQH143K2V4oox4M8Zmhi2Fjx5XK4Lf7GKRvPSgydU3mjZuKGCTg7UPiBUD7ydVPvSLtg9hjp7MQTYsW67rZHAXeccqYqrsx8LcXnyd"
+    ],
+    [
+        "000000000000000000000000000000000000000000000000",
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon agent",
+        "035895f2f481b1b0f01fcf8c289c794660b289981a78f8106447707fdd9666ca06da5a9a565181599b79f53b844d8a71dd9f439c52a3d7b3e8a79c906ac845fa",
+        "xprv9s21ZrQH143K3mEDrypcZ2usWqFgzKB6jBBx9B6GfC7fu26X6hPRzVjzkqkPvDqp6g5eypdk6cyhGnBngbjeHTe4LsuLG1cCmKJka5SMkmU"
+    ],
+    [
+        "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
+        "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal will",
+        "f2b94508732bcbacbcc020faefecfc89feafa6649a5491b8c952cede496c214a0c7b3c392d168748f2d4a612bada0753b52a1c7ac53c1e93abd5c6320b9e95dd",
+        "xprv9s21ZrQH143K3Lv9MZLj16np5GzLe7tDKQfVusBni7toqJGcnKRtHSxUwbKUyUWiwpK55g1DUSsw76TF1T93VT4gz4wt5RM23pkaQLnvBh7"
+    ],
+    [
+        "808080808080808080808080808080808080808080808080",
+        "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
+        "107d7c02a5aa6f38c58083ff74f04c607c2d2c0ecc55501dadd72d025b751bc27fe913ffb796f841c49b1d33b610cf0e91d3aa239027f5e99fe4ce9e5088cd65",
+        "xprv9s21ZrQH143K3VPCbxbUtpkh9pRG371UCLDz3BjceqP1jz7XZsQ5EnNkYAEkfeZp62cDNj13ZTEVG1TEro9sZ9grfRmcYWLBhCocViKEJae"
+    ],
+    [
+        "ffffffffffffffffffffffffffffffffffffffffffffffff",
+        "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo when",
+        "0cd6e5d827bb62eb8fc1e262254223817fd068a74b5b449cc2f667c3f1f985a76379b43348d952e2265b4cd129090758b3e3c2c49103b5051aac2eaeb890a528",
+        "xprv9s21ZrQH143K36Ao5jHRVhFGDbLP6FCx8BEEmpru77ef3bmA928BxsqvVM27WnvvyfWywiFN8K6yToqMaGYfzS6Db1EHAXT5TuyCLBXUfdm"
+    ],
+    [
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
+        "bda85446c68413707090a52022edd26a1c9462295029f2e60cd7c4f2bbd3097170af7a4d73245cafa9c3cca8d561a7c3de6f5d4a10be8ed2a5e608d68f92fcc8",
+        "xprv9s21ZrQH143K32qBagUJAMU2LsHg3ka7jqMcV98Y7gVeVyNStwYS3U7yVVoDZ4btbRNf4h6ibWpY22iRmXq35qgLs79f312g2kj5539ebPM"
+    ],
+    [
+        "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
+        "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title",
+        "bc09fca1804f7e69da93c2f2028eb238c227f2e9dda30cd63699232578480a4021b146ad717fbb7e451ce9eb835f43620bf5c514db0f8add49f5d121449d3e87",
+        "xprv9s21ZrQH143K3Y1sd2XVu9wtqxJRvybCfAetjUrMMco6r3v9qZTBeXiBZkS8JxWbcGJZyio8TrZtm6pkbzG8SYt1sxwNLh3Wx7to5pgiVFU"
+    ],
+    [
+        "8080808080808080808080808080808080808080808080808080808080808080",
+        "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic bless",
+        "c0c519bd0e91a2ed54357d9d1ebef6f5af218a153624cf4f2da911a0ed8f7a09e2ef61af0aca007096df430022f7a2b6fb91661a9589097069720d015e4e982f",
+        "xprv9s21ZrQH143K3CSnQNYC3MqAAqHwxeTLhDbhF43A4ss4ciWNmCY9zQGvAKUSqVUf2vPHBTSE1rB2pg4avopqSiLVzXEU8KziNnVPauTqLRo"
+    ],
+    [
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
+        "dd48c104698c30cfe2b6142103248622fb7bb0ff692eebb00089b32d22484e1613912f0a5b694407be899ffd31ed3992c456cdf60f5d4564b8ba3f05a69890ad",
+        "xprv9s21ZrQH143K2WFF16X85T2QCpndrGwx6GueB72Zf3AHwHJaknRXNF37ZmDrtHrrLSHvbuRejXcnYxoZKvRquTPyp2JiNG3XcjQyzSEgqCB"
+    ],
+    [
+        "9e885d952ad362caeb4efe34a8e91bd2",
+        "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
+        "274ddc525802f7c828d8ef7ddbcdc5304e87ac3535913611fbbfa986d0c9e5476c91689f9c8a54fd55bd38606aa6a8595ad213d4c9c9f9aca3fb217069a41028",
+        "xprv9s21ZrQH143K2oZ9stBYpoaZ2ktHj7jLz7iMqpgg1En8kKFTXJHsjxry1JbKH19YrDTicVwKPehFKTbmaxgVEc5TpHdS1aYhB2s9aFJBeJH"
+    ],
+    [
+        "6610b25967cdcca9d59875f5cb50b0ea75433311869e930b",
+        "gravity machine north sort system female filter attitude volume fold club stay feature office ecology stable narrow fog",
+        "628c3827a8823298ee685db84f55caa34b5cc195a778e52d45f59bcf75aba68e4d7590e101dc414bc1bbd5737666fbbef35d1f1903953b66624f910feef245ac",
+        "xprv9s21ZrQH143K3uT8eQowUjsxrmsA9YUuQQK1RLqFufzybxD6DH6gPY7NjJ5G3EPHjsWDrs9iivSbmvjc9DQJbJGatfa9pv4MZ3wjr8qWPAK"
+    ],
+    [
+        "68a79eaca2324873eacc50cb9c6eca8cc68ea5d936f98787c60c7ebc74e6ce7c",
+        "hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel tennis maple dilemma loan word shrug inflict delay length",
+        "64c87cde7e12ecf6704ab95bb1408bef047c22db4cc7491c4271d170a1b213d20b385bc1588d9c7b38f1b39d415665b8a9030c9ec653d75e65f847d8fc1fc440",
+        "xprv9s21ZrQH143K2XTAhys3pMNcGn261Fi5Ta2Pw8PwaVPhg3D8DWkzWQwjTJfskj8ofb81i9NP2cUNKxwjueJHHMQAnxtivTA75uUFqPFeWzk"
+    ],
+    [
+        "c0ba5a8e914111210f2bd131f3d5e08d",
+        "scheme spot photo card baby mountain device kick cradle pact join borrow",
+        "ea725895aaae8d4c1cf682c1bfd2d358d52ed9f0f0591131b559e2724bb234fca05aa9c02c57407e04ee9dc3b454aa63fbff483a8b11de949624b9f1831a9612",
+        "xprv9s21ZrQH143K3FperxDp8vFsFycKCRcJGAFmcV7umQmcnMZaLtZRt13QJDsoS5F6oYT6BB4sS6zmTmyQAEkJKxJ7yByDNtRe5asP2jFGhT6"
+    ],
+    [
+        "6d9be1ee6ebd27a258115aad99b7317b9c8d28b6d76431c3",
+        "horn tenant knee talent sponsor spell gate clip pulse soap slush warm silver nephew swap uncle crack brave",
+        "fd579828af3da1d32544ce4db5c73d53fc8acc4ddb1e3b251a31179cdb71e853c56d2fcb11aed39898ce6c34b10b5382772db8796e52837b54468aeb312cfc3d",
+        "xprv9s21ZrQH143K3R1SfVZZLtVbXEB9ryVxmVtVMsMwmEyEvgXN6Q84LKkLRmf4ST6QrLeBm3jQsb9gx1uo23TS7vo3vAkZGZz71uuLCcywUkt"
+    ],
+    [
+        "9f6a2878b2520799a44ef18bc7df394e7061a224d2c33cd015b157d746869863",
+        "panda eyebrow bullet gorilla call smoke muffin taste mesh discover soft ostrich alcohol speed nation flash devote level hobby quick inner drive ghost inside",
+        "72be8e052fc4919d2adf28d5306b5474b0069df35b02303de8c1729c9538dbb6fc2d731d5f832193cd9fb6aeecbc469594a70e3dd50811b5067f3b88b28c3e8d",
+        "xprv9s21ZrQH143K2WNnKmssvZYM96VAr47iHUQUTUyUXH3sAGNjhJANddnhw3i3y3pBbRAVk5M5qUGFr4rHbEWwXgX4qrvrceifCYQJbbFDems"
+    ],
+    [
+        "23db8160a31d3e0dca3688ed941adbf3",
+        "cat swing flag economy stadium alone churn speed unique patch report train",
+        "deb5f45449e615feff5640f2e49f933ff51895de3b4381832b3139941c57b59205a42480c52175b6efcffaa58a2503887c1e8b363a707256bdd2b587b46541f5",
+        "xprv9s21ZrQH143K4G28omGMogEoYgDQuigBo8AFHAGDaJdqQ99QKMQ5J6fYTMfANTJy6xBmhvsNZ1CJzRZ64PWbnTFUn6CDV2FxoMDLXdk95DQ"
+    ],
+    [
+        "8197a4a47f0425faeaa69deebc05ca29c0a5b5cc76ceacc0",
+        "light rule cinnamon wrap drastic word pride squirrel upgrade then income fatal apart sustain crack supply proud access",
+        "4cbdff1ca2db800fd61cae72a57475fdc6bab03e441fd63f96dabd1f183ef5b782925f00105f318309a7e9c3ea6967c7801e46c8a58082674c860a37b93eda02",
+        "xprv9s21ZrQH143K3wtsvY8L2aZyxkiWULZH4vyQE5XkHTXkmx8gHo6RUEfH3Jyr6NwkJhvano7Xb2o6UqFKWHVo5scE31SGDCAUsgVhiUuUDyh"
+    ],
+    [
+        "066dca1a2bb7e8a1db2832148ce9933eea0f3ac9548d793112d9a95c9407efad",
+        "all hour make first leader extend hole alien behind guard gospel lava path output census museum junior mass reopen famous sing advance salt reform",
+        "26e975ec644423f4a4c4f4215ef09b4bd7ef924e85d1d17c4cf3f136c2863cf6df0a475045652c57eb5fb41513ca2a2d67722b77e954b4b3fc11f7590449191d",
+        "xprv9s21ZrQH143K3rEfqSM4QZRVmiMuSWY9wugscmaCjYja3SbUD3KPEB1a7QXJoajyR2T1SiXU7rFVRXMV9XdYVSZe7JoUXdP4SRHTxsT1nzm"
+    ],
+    [
+        "f30f8c1da665478f49b001d94c5fc452",
+        "vessel ladder alter error federal sibling chat ability sun glass valve picture",
+        "2aaa9242daafcee6aa9d7269f17d4efe271e1b9a529178d7dc139cd18747090bf9d60295d0ce74309a78852a9caadf0af48aae1c6253839624076224374bc63f",
+        "xprv9s21ZrQH143K2QWV9Wn8Vvs6jbqfF1YbTCdURQW9dLFKDovpKaKrqS3SEWsXCu6ZNky9PSAENg6c9AQYHcg4PjopRGGKmdD313ZHszymnps"
+    ],
+    [
+        "c10ec20dc3cd9f652c7fac2f1230f7a3c828389a14392f05",
+        "scissors invite lock maple supreme raw rapid void congress muscle digital elegant little brisk hair mango congress clump",
+        "7b4a10be9d98e6cba265566db7f136718e1398c71cb581e1b2f464cac1ceedf4f3e274dc270003c670ad8d02c4558b2f8e39edea2775c9e232c7cb798b069e88",
+        "xprv9s21ZrQH143K4aERa2bq7559eMCCEs2QmmqVjUuzfy5eAeDX4mqZffkYwpzGQRE2YEEeLVRoH4CSHxianrFaVnMN2RYaPUZJhJx8S5j6puX"
+    ],
+    [
+        "f585c11aec520db57dd353c69554b21a89b20fb0650966fa0a9d6f74fd989d8f",
+        "void come effort suffer camp survey warrior heavy shoot primary clutch crush open amazing screen patrol group space point ten exist slush involve unfold",
+        "01f5bced59dec48e362f2c45b5de68b9fd6c92c6634f44d6d40aab69056506f0e35524a518034ddc1192e1dacd32c1ed3eaa3c3b131c88ed8e7e54c49a5d0998",
+        "xprv9s21ZrQH143K39rnQJknpH1WEPFJrzmAqqasiDcVrNuk926oizzJDDQkdiTvNPr2FYDYzWgiMiC63YmfPAa2oPyNB23r2g7d1yiK6WpqaQS"
+    ]
+  ]
+  for test_vector in test_vectors[:4]: #fixme
+    ENT = 128 #fixme
+    entropy = int(test_vector[0], 16)
+    ints = bip39_ints_from_entropy(entropy, ENT)
+    mnemonic = bip39_mnemonic_from_ints(ints)
+    assert mnemonic == test_vector[1]
+    seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
+    assert seed.hex() == test_vector[2]
+    mprv = bip32_master_prvkey_from_seed(seed)
+    assert mprv.decode() == test_vector[3]
 
 if __name__ == "__main__":
-  test_vector()
+  test()
+  bip39_test_vectors()
+  test_bip39_wallet()

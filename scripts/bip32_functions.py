@@ -116,7 +116,6 @@ def bip32_ckd(xparentkey, child_index):
   return b58encode_check(xkey)
 
 
-# hdkeypath
 def bip32_derive(xkey, path):
   """derive an extended key according to path like "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative) """
 
@@ -164,9 +163,7 @@ def address_from_xpub(xpub, version=None):
 
 
 
-def bip32_test():
-  # == Test vector 1 ==
-  
+def bip32_test_vector1():
   seed = 0x000102030405060708090a0b0c0d0e0f
   seed = seed.to_bytes(16, 'big')
   
@@ -214,8 +211,7 @@ def bip32_test():
   address_from_xpub(xpub)
 
 
-  # == Test vector 3 ==
-
+def bip32_test_vector3():
   seed = 0x4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be
   seed = seed.to_bytes(64, 'big')
 
@@ -234,6 +230,123 @@ def bip32_test():
   xpub = bip32_xpub_from_xprv(xprv)
   assert xpub == b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
 
+def test_mainnet():
+  # bitcoin core derivation style
+  mprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
+
+  # m/0'/0'/463'
+  addr1 = b'1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5' 
+  indexes = [0x80000000, 0x80000000, 0x80000000 + 463]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)))
+  assert addr == addr1
+  path = "m/0'/0'/463'"
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)))
+  assert addr == addr1
+
+  # m/0'/0'/267'
+  addr2 = b'11x2mn59Qy43DjisZWQGRResjyQmgthki'
+  indexes = [0x80000000, 0x80000000, 0x80000000 + 267]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)))
+  assert addr == addr2
+  path = "m/0'/0'/267'"
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)))
+  assert addr == addr2
+
+  seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
+  seed = bytes.fromhex(seed)
+  xprv = bip32_master_prvkey_from_seed(seed)
+  xpub = b'xpub661MyMwAqRbcFMYjmw8C6dJV97a4oLss6hb3v9wTQn2X48msQB61RCaLGtNhzgPCWPaJu7SvuB9EBSFCL43kTaFJC3owdaMka85uS154cEh'
+  assert xpub == bip32_xpub_from_xprv(xprv)
+
+  indexes = [0, 0]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+  assert addr == b'1FcfDbWwGs1PmyhMVpCAhoTfMnmSuptH6g'
+
+  indexes = [0, 1]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+  assert addr == b'1K5GjYkZnPFvMDTGaQHTrVnd8wjmrtfR5x'
+
+  indexes = [0, 2]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+  assert addr == b'1PQYX2uN7NYFd7Hq22ECMzfDcKhtrHmkfi'
+
+  indexes = [1, 0]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+  assert addr == b'1BvSYpojWoWUeaMLnzbkK55v42DbizCoyq'
+
+  indexes = [1, 1]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+  assert addr == b'1NXB59hF4QzYpFrB7o6usLBjbk2D3ZqxAL'
+
+  indexes = [1, 2]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+  assert addr == b'16NLYkKtvYhW1Jp86tbocku3gxWcvitY1w'
+
+
+def test_testnet():
+  # bitcoin core derivation style
+  mprv = b'tprv8ZgxMBicQKsPe3g3HwF9xxTLiyc5tNyEtjhBBAk29YA3MTQUqULrmg7aj9qTKNfieuu2HryQ6tGVHse9x7ANFGs3f4HgypMc5nSSoxwf7TK'
+
+  # m/0'/0'/51'
+  addr1 = b'mfXYCCsvWPgeCv8ZYGqcubpNLYy5nYHbbj'
+  indexes = [0x80000000, 0x80000000, 0x80000000 + 51]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)))
+  assert addr == addr1
+  path = "m/0'/0'/51'"
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)))
+  assert addr == addr1
+
+  # m/0'/1'/150'
+  addr2 = b'mfaUnRFxVvf55uD1P3zWXpprN1EJcKcGrb'
+  indexes = [0x80000000, 0x80000000 + 1, 0x80000000 + 150]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)))
+  assert addr == addr2
+  path = "m/0'/1'/150'"
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)))
+  assert addr == addr2
+
+
+def test_scamnet():
+  # non-bitcoin address version
+  version = 0x46.to_bytes(1, 'big')
+
+  mprv = b'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
+
+  # m/0'/0'/5'
+  receive = b'VUqyLGVdUADWEqDqL2DeUBAcbPQwZfWDDY'
+  indexes = [0x80000000, 0x80000000, 0x80000005]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), version)
+  assert addr == receive
+  path = "m/0'/0'/5'"
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)), version)
+  assert addr == receive
+
+  # m/0'/1'/1'
+  change = b'VMg6DpX7SQUsoECdpXJ8Bv6R7p11PfwHwy'
+  indexes = [0x80000000, 0x80000001, 0x80000001]
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), version)
+  assert addr == change
+  path = "m/0'/1'/1'"
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)), version)
+  assert addr == change
+
+  seed = "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
+  seed = bytes.fromhex(seed)
+  mprv = bip32_master_prvkey_from_seed(seed)
+  assert mprv == b'xprv9s21ZrQH143K3t4UZrNgeA3w861fwjYLaGwmPtQyPMmzshV2owVpfBSd2Q7YsHZ9j6i6ddYjb5PLtUdMZn8LhvuCVhGcQntq5rn7JVMqnie'
+
+  indexes = [0x80000000, 0, 0] # receive
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), version)
+  assert addr == b'VTpEhLjvGYE16pLcNrMY53gQB9bbhn581W'
+
+  indexes = [0x80000000, 1, 0] # change
+  addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), version)
+  assert addr == b'VRtaZvAe4s29aB3vuXyq7GYEpahsQet2B1'
+
 
 if __name__ == "__main__":
-  bip32_test()
+  bip32_test_vector1()
+  bip32_test_vector3()
+  test_mainnet()
+  test_testnet()
+  test_scamnet()
