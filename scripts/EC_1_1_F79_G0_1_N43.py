@@ -20,25 +20,25 @@ def main():
   
   i = 0
   P = (None, None)
-  ec.checkPoint(P)
+  ec.scrub_point(P)
   print(i, P)
   assert P == ec.pointMultiply(i)
 
   i = 1
   P = __G
-  ec.checkPoint(P)
+  ec.scrub_point(P)
   print(i, P)
   assert P == ec.pointMultiply(i)
 
   i = 2
   P = ec.pointDouble(P)
-  ec.checkPoint(P)
+  ec.scrub_point(P)
   print(i, P)
   assert P == ec.pointMultiply(i)
 
   for i in range(3, __order+1):
     P = ec.pointAdd(P, __G)
-    ec.checkPoint(P)
+    ec.scrub_point(P)
     print(i % __order, P)
     assert P == ec.pointMultiply(i)
 

@@ -11,7 +11,7 @@ p = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 print(hex(p))
 
 print("\n*** [2] 0x80 Extended Key:")
-ExtKey = b'\x80' + p.to_bytes(32, byteorder='big')
+ExtKey = b'\x80' + p.to_bytes(32, 'big')
 print(ExtKey.hex())
 
 print("\n*** [3] SHA-256 hashing of the Extended Key:")
@@ -31,9 +31,9 @@ print(addr.hex())
 
 print("\n*** [7] Base58 encoding")
 wif = b58encode(addr)
-assert wif == '5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
 print(wif)
-assert b58encode_check(ExtKey) == '5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
+assert wif == b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
+assert b58encode_check(ExtKey) == b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
 
 print("\n****** WIF to private key ******")
 

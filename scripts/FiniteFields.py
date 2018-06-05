@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #from pycoin
-def modInv(a, m):
+def mod_inv(a, m):
   if a < 0 or m <= a: a = a % m
   # From Ferguson and Schneier, roughly:
   c, d = a, m
@@ -17,7 +17,7 @@ def modInv(a, m):
   if ud > 0: return ud
   else: return ud + m
 
-def modular_sqrt(a, p):
+def mod_sqrt(a, p):
     """ Find a quadratic residue (mod p) of 'a'. p
         must be an odd prime.
         Solve the congruence of the form:

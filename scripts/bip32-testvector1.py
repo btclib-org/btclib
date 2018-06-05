@@ -4,15 +4,11 @@ Created on Mon Oct 16 11:16:55 2017
 
 @author: dfornaro, fametrano
 """
-from ECsecp256k1 import order, G, pointMultiply
+from ECsecp256k1 import ec
+from WIF_address import h160, address_from_pubkey
 from hmac import HMAC
-from hashlib import sha512, sha256
-from hashlib import new as hnew
-from base58 import b58encode_check
-
-def h160(inp):
-  h1 = sha256(inp).digest()
-  return hnew('ripemd160', h1).digest()
+from hashlib import sha512
+from base58 import b58encode_check, b58decode_check
 
 ## https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
@@ -20,9 +16,9 @@ def h160(inp):
 # mainnet: 0x0488B21E public  -> xpub; 0x0488ADE4 private -> xprv
 # testnet: 0x043587CF public         ; 0x04358394 private
 xprv = 0x0488ADE4
-xprv = xprv.to_bytes(4, byteorder='big')
+xprv = xprv.to_bytes(4, 'big')
 xpub = 0x0488B21E
-xpub = xpub.to_bytes(4, byteorder='big')
+xpub = xpub.to_bytes(4, 'big')
 
 seed = 0x000102030405060708090a0b0c0d0e0f
 seed_bytes = 16
@@ -40,9 +36,9 @@ idf = depth + fingerprint + child_number
 # master private key, master public key, chain code
 hashValue = HMAC(b"Bitcoin seed", seed.to_bytes(seed_bytes, byteorder='big'), sha512).digest()
 p_bytes = hashValue[:32]
-p = int(p_bytes.hex(), 16) % order
+p = int(p_bytes.hex(), 16) % ec.order
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = pointMultiply(p, G)
+P = ec.pointMultiply(p)
 P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, byteorder='big')
 chain_code = hashValue[32:]
 
@@ -53,8 +49,8 @@ print(ext_prv)
 ext_pub = b58encode_check(xpub + idf + chain_code + P_bytes)
 print("M")
 print(ext_pub)
-assert ext_prv == "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi", "failure"
-assert ext_pub == "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8", "failure"
+assert ext_prv == b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi", "failure"
+assert ext_pub == b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8", "failure"
 
 # ==first (0) hardened child==
 depth = b'\x01'
@@ -65,9 +61,9 @@ idf = depth + fingerprint + child_number
 
 key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
-p = (p + int(hashValue[:32].hex(), 16)) % order
+p = (p + int(hashValue[:32].hex(), 16)) % ec.order
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = pointMultiply(p, G)
+P = ec.pointMultiply(p)
 P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, byteorder='big')
 chain_code = hashValue[32:]
 
@@ -77,8 +73,8 @@ print(ext_prv)
 ext_pub = b58encode_check(xpub + idf + chain_code + P_bytes)
 print("M/0'")
 print(ext_pub)
-assert ext_prv == "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7", "failure"
-assert ext_pub == "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw", "failure"
+assert ext_prv == b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7", "failure"
+assert ext_pub == b"xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw", "failure"
 
 # ==second (1) normal grandchild==
 depth = b'\x02'
@@ -89,9 +85,9 @@ idf = depth + fingerprint + child_number
 
 key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
-p = (p + int(hashValue[:32].hex(), 16)) % order
+p = (p + int(hashValue[:32].hex(), 16)) % ec.order
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = pointMultiply(p, G)
+P = ec.pointMultiply(p)
 P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, byteorder='big')
 chain_code = hashValue[32:]
 
@@ -101,8 +97,8 @@ print(ext_prv)
 ext_pub = b58encode_check(xpub + idf + chain_code + P_bytes)
 print("M/0'/1")
 print(ext_pub)
-assert ext_prv == "xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs", "failure"
-assert ext_pub == "xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ", "failure"
+assert ext_prv == b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs", "failure"
+assert ext_pub == b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ", "failure"
 
 # ==third (2) hardened grand-grandchild==
 depth = b'\x03'
@@ -113,9 +109,9 @@ idf = depth + fingerprint + child_number
 
 key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
-p = (p + int(hashValue[:32].hex(), 16)) % order
+p = (p + int(hashValue[:32].hex(), 16)) % ec.order
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = pointMultiply(p, G)
+P = ec.pointMultiply(p)
 P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, byteorder='big')
 chain_code = hashValue[32:]
 
@@ -125,8 +121,8 @@ print(ext_prv)
 ext_pub = b58encode_check(xpub + idf + chain_code + P_bytes)
 print("M/0'/1/2'")
 print(ext_pub)
-assert ext_prv == "xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM", "failure"
-assert ext_pub == "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5", "failure"
+assert ext_prv == b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM", "failure"
+assert ext_pub == b"xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5", "failure"
 
 # ==third (2) normal grand-grand-grandchild==
 depth = b'\x04'
@@ -137,9 +133,9 @@ idf = depth + fingerprint + child_number
 
 key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
-p = (p + int(hashValue[:32].hex(), 16)) % order
+p = (p + int(hashValue[:32].hex(), 16)) % ec.order
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = pointMultiply(p, G)
+P = ec.pointMultiply(p)
 P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, byteorder='big')
 chain_code = hashValue[32:]
 
@@ -149,8 +145,8 @@ print(ext_prv)
 ext_pub = b58encode_check(xpub + idf + chain_code + P_bytes)
 print("M/0'/1/2'/2")
 print(ext_pub)
-assert ext_prv == "xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334", "failure"
-assert ext_pub == "xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV", "failure"
+assert ext_prv == b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334", "failure"
+assert ext_pub == b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV", "failure"
 
 # ==1000000001th (1000000000) normal grand-grand-grand-grandchild==
 depth = b'\x05'
@@ -161,9 +157,9 @@ idf = depth + fingerprint + child_number
 
 key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
-p = (p + int(hashValue[:32].hex(), 16)) % order
+p = (p + int(hashValue[:32].hex(), 16)) % ec.order
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = pointMultiply(p, G)
+P = ec.pointMultiply(p)
 P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, byteorder='big')
 chain_code = hashValue[32:]
 
@@ -173,5 +169,5 @@ print(ext_prv)
 ext_pub = b58encode_check(xpub + idf + chain_code + P_bytes)
 print("M/0'/1/2'/2/1000000000")
 print(ext_pub)
-assert ext_prv == "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76", "failure"
-assert ext_pub == "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy", "failure"
+assert ext_prv == b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76", "failure"
+assert ext_pub == b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy", "failure"
