@@ -5,46 +5,41 @@ Created on Sat Oct 28 01:03:03 2017
 @author: Leonardo, fametrano
 """
 
-# import - check - decode - from/to ec_point - from/to int
-# ecdsa - ecssa - sign-to-contract - test
-
-
 # %% import
 
 from hashlib import sha256
-from base58 import b58decode_check, __alphabet as b58digits
 from ECsecp256k1 import ec
-from FiniteFields import mod_inv, mod_sqrt
-from string import hexdigits
+from FiniteFields import mod_inv
 from rfc6979 import rfc6979
-from ecutils import default_hasher, check_hash_digest, decode_prv, hash_to_int, decode_pub
+from ecutils import decode_prv, int_from_hash
 
 # %% ecdsa sign
 # Design choice: what is signed is `m`, a 32 bytes message.
 
-def ecdsa_sign(m, prv, eph_prv=None, hasher=default_hasher):
-  check_hash_digest(m)
+
+
+def ecdsa_sign(m, prv, eph_prv=None, hasher=sha256):
   prv = decode_prv(prv)
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
-  h = hash_to_int(m)
-  r, s = ecdsa_sign_raw(h, prv, eph_prv)
-  assert r != 0 and s != 0, "failed to sign"  # this should be checked inside deterministic_k
-  return r, s
+  return ecdsa_sign_raw(m, prv, eph_prv)
 
-def ecdsa_sign_raw(h, prv, eph_prv):
+def ecdsa_sign_raw(m, prv, eph_prv):
+  h = int_from_hash(m)
   R = ec.pointMultiply(eph_prv)
   r = R[0] % ec.order
   s = mod_inv(eph_prv, ec.order) * (h + prv * r) % ec.order
+  assert r != 0 and s != 0, "failed to sign"
   return r, s
 
-def ecdsa_verify(m, dsasig, pub):
-  check_hash_digest(m)
-  check_dsasig(dsasig)
-  pub = decode_pub(pub)
-  h = hash_to_int(m)
-  return ecdsa_verify_raw(h, dsasig, pub)
 
-def ecdsa_verify_raw(h, dsasig, pub):
+
+def ecdsa_verify(m, dsasig, pub):
+  check_dsasig(dsasig)
+  pub =  ec.tuple_from_point(pub)
+  return ecdsa_verify_raw(m, dsasig, pub)
+
+def ecdsa_verify_raw(m, dsasig, pub):
+  h = int_from_hash(m)
   r, s = dsasig
   s1 = mod_inv(s, ec.order)
   # by choice at this level do not manage point at infinity (h = 0, R = 0G)
@@ -52,20 +47,22 @@ def ecdsa_verify_raw(h, dsasig, pub):
                   ec.pointMultiply(h * s1 % ec.order))
   return R[0] % ec.order == r
 
+
+
 def ecdsa_recover(m, dsasig, y_mod_2):
-  check_hash_digest(m)
   check_dsasig(dsasig)
   assert y_mod_2 in (0, 1)
-  h = hash_to_int(m)
-  return ecdsa_recover_raw(h, dsasig, y_mod_2)
+  return ecdsa_recover_raw(m, dsasig, y_mod_2)
 
-def ecdsa_recover_raw(h, dsasig, y_mod_2):
-  r, s = dsasig
+def ecdsa_recover_raw(m, dsasig, y_mod_2):
+  h = int_from_hash(m)
+  r, s = dsasig #fixme: why is s not used?
   r1 = mod_inv(r, ec.order)
   R = (r, ec.y(r, y_mod_2))
   # by choice at this level do not manage point at infinity (h = 0, R = 0G)
   return ec.pointAdd(ec.pointMultiply(dsasig[1] * r1 % ec.order, R),
-                    ec.pointMultiply(-h * r1 % ec.order))
+                     ec.pointMultiply(-h * r1 % ec.order))
+
 
 def check_dsasig(dsasig):
   """check sig has correct dsa format

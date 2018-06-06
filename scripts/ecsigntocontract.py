@@ -17,7 +17,7 @@ from ECsecp256k1 import ec
 from FiniteFields import mod_inv, mod_sqrt
 from string import hexdigits
 from rfc6979 import rfc6979
-from ecutils import default_hasher, str_to_hash, check_hash_digest, decode_prv, hash_to_int, int_to_bytes
+from ecutils import str_to_hash, decode_prv, int_from_hash
 from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_recover, ecdsa_sign_raw
 from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_sign_raw
 
@@ -47,39 +47,34 @@ def check_receipt(receipt):
   #       "1st part of the receipt must be an int in (0, ec_prime)"
   ec.tuple_from_point(receipt[1])
 
-def insert_commit(k, c, hasher=default_hasher):
+def insert_commit(k, c, hasher=sha256):
   """insert a commit in a ec point
   """
   R = ec.pointMultiply(k)
-  e = hash_to_int(hasher(int_to_bytes(R[0], 32) + c).digest())
+  e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + c).digest())
   return R, (e + k) % ec.order
 
-def ecdsa_sign_and_commit(m, prv, c, eph_prv=None, hasher=default_hasher):
-  check_hash_digest(m)
+def ecdsa_sign_and_commit(m, prv, c, eph_prv=None, hasher=sha256):
+  h = int_from_hash(m)
   prv = decode_prv(prv)
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
-  h = hash_to_int(m)
-  check_hash_digest(c)
   R, eph_prv = insert_commit(eph_prv, c, hasher)
   sig = ecdsa_sign_raw(h, prv, eph_prv)
   receipt = (sig[0], R)
   return sig, receipt
 
-def ecssa_sign_and_commit(m, prv, c, eph_prv=None, hasher=default_hasher):
-  check_hash_digest(m)
+def ecssa_sign_and_commit(m, prv, c, eph_prv=None, hasher=sha256):
   prv = decode_prv(prv)
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
-  check_hash_digest(c)
   R, eph_prv = insert_commit(eph_prv, c, hasher)
   sig = ecssa_sign_raw(m, prv, eph_prv, hasher)
   receipt = (sig[0], R)
   return sig, receipt
 
-def ec_verify_commit(receipt, c, hasher=default_hasher):
+def ec_verify_commit(receipt, c, hasher=sha256):
   check_receipt(receipt)
-  check_hash_digest(c)
   w, R = receipt
-  e = hash_to_int(hasher(int_to_bytes(R[0], 32) + c).digest())
+  e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + c).digest())
   W = ec.pointAdd(R, ec.pointMultiply(e))
   return w % ec.order == W[0] % ec.order
   # weaker verfication! w in [1..ec.order-1] dsa
