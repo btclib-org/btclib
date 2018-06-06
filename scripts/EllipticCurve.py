@@ -12,7 +12,7 @@ class EllipticCurve:
     self.__b = b
     self.__prime = prime
 
-    self.__G = self.scrub_point(G)
+    self.__G = self.tuple_from_point(G)
     self.order = order
 
   def y2(self, x):
@@ -23,10 +23,9 @@ class EllipticCurve:
   def y(self, x, even=True):
     y2 = self.y2(x)
     root = mod_sqrt(y2, self.__prime)
-    if (root % 2 == 0 and even) or (root % 2 == 1 and not even):
-      return root
-    else:
-      return self.__prime - root
+    assert type(even) == bool or even in (0, 1), "must be bool or 0/1"
+    # change sign (even/odd) if needed
+    return root if (root % 2 + even) == 1 else self.__prime - root
 
   def __str__(self):
     result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
@@ -42,7 +41,7 @@ class EllipticCurve:
     result += ", 0x%032x)" % (self.order)
     return result
       
-  def scrub_point(self, P):
+  def tuple_from_point(self, P):
     """ Return a tuple (Px, Py) having ensured it belongs to the curve """
     if isinstance(P, bytes):
       if len(P) == 33: # compressed point
@@ -61,10 +60,17 @@ class EllipticCurve:
         assert Px < self.__prime
         Py = int.from_bytes(P[34:], 'big')
         assert Py < self.__prime
-        P = (Px, Py)
+        assert self.y2(Px) == Py*Py % self.__prime, "point is not on the ec"
+        return (Px, Py)
+    elif isinstance(P, tuple):
+      assert len(P) == 2, "invalid tuple point length"
+      assert (type(P[0]) == int and type(P[1]) == int) or \
+             (P[0] == None and P[1] == None), "invalid non-int tuple point"
+      assert (P[0] is None) or (self.y2(P[0]) == P[1]*P[1] % self.__prime), "point is not on the ec"
+      return P
+    else:
+      raise ValueError("not an elliptic curve point")
 
-    assert (P[0] is None) or (self.y2(P[0]) == P[1]*P[1] % self.__prime)
-    return P
 
   def bytes_from_point(self, P, compressed = True):
     """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed
@@ -103,7 +109,7 @@ class EllipticCurve:
       raise ValueError("not an elliptic curve point")
 
   def pointDouble(self, P):
-    P = self.scrub_point(P)
+    P = self.tuple_from_point(P)
     if P[1] == 0 or P[0] is None:
       return (None, None)
     lam = ((3*P[0]*P[0]+self.__a) * mod_inv(2*P[1], self.__prime)) % self.__prime
@@ -112,8 +118,8 @@ class EllipticCurve:
     return (x, y)
 
   def pointAdd(self, P, Q):
-    P = self.scrub_point(P)
-    Q = self.scrub_point(Q)
+    P = self.tuple_from_point(P)
+    Q = self.tuple_from_point(Q)
     if Q[0] is None:
       return P
     if P[0] is None:
@@ -153,7 +159,7 @@ def main():
   assert ec.y(G[0], True)  != G[1]
   assert ec.y(G[0], False) == G[1]
   print(ec)
-  ec.scrub_point(G)
+  ec.tuple_from_point(G)
   print(G)
   print(ec.pointAdd(G, G))
   print(ec.pointDouble(G))
