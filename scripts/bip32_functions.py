@@ -107,7 +107,7 @@ def bip32_ckd(xparentkey, child_index):
     h = HMAC(xparent[13:45], xparent[45:] + child_index, sha512).digest()
     xkey += h[32:]                              # chain_code
     P = ec.pointMultiply(h[:32])
-    parentPoint = ec.scrub_point(xparent[45:])
+    parentPoint = ec.tuple_from_point(xparent[45:])
     P = ec.pointAdd(P, parentPoint)
     xkey += ec.bytes_from_point(P, True)        # key
   else:

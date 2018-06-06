@@ -17,26 +17,26 @@ def main():
   
   i = 0
   P = (None, None)
-  ec.scrub_point(P)
+  ec.tuple_from_point(P)
   print(i, P)
   assert P == ec.pointMultiply(i)
 
   i = 1
   P = G
-  ec.scrub_point(P)
+  ec.tuple_from_point(P)
   print(i, P)
   assert P == ec.pointMultiply(i)
 
   i = 2
   P = ec.pointDouble(P)
-  ec.scrub_point(P)
+  ec.tuple_from_point(P)
   print(i, P)
   assert P == ec.pointMultiply(i)
 
   P = ec.pointMultiply(ec.order-1)
   for i in range(ec.order, ec.order+1):
     P = ec.pointAdd(P, G)
-    ec.scrub_point(P)
+    ec.tuple_from_point(P)
     print(i % ec.order, P)
     assert P == ec.pointMultiply(i)
 

@@ -67,8 +67,9 @@ class EllipticCurve:
     return P
 
   def bytes_from_point(self, P, compressed = True):
-    """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed (0x04) point ensuring it belongs to the curve """
-
+    """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed
+        (0x04) point ensuring it belongs to the curve
+    """
     # if it is already byte, just check that it belongs to the curve
     if isinstance(P, bytes):
       if len(P) == 33: # compressed point
@@ -85,17 +86,21 @@ class EllipticCurve:
         assert Py < self.__prime
         assert self.y2(Px) == Py*Py % self.__prime
         return P
+    elif isinstance(P, tuple):
+      assert len(P) == 2, "invalid tuple point length"
+      assert P[0] is not None, "infinity point cannot be expressed as bytes"
+      assert P[1] is not None, "infinity point cannot be expressed as bytes"
+      assert type(P[0]) == int and type(P[1]) == int, "invalid non-int tuple point"
+      assert self.y2(P[0]) == P[1]*P[1] % self.__prime
+      if compressed:
+        prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
+        return prefix + P[0].to_bytes(32, byteorder='big')
 
-    assert P[0] is not None, "infinity point cannot be expressed as bytes"
-    assert self.y2(P[0]) == P[1]*P[1] % self.__prime
-    if compressed:
-      prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
-      return prefix + P[0].to_bytes(32, byteorder='big')
-
-    Pbytes = b'\x04' + P[0].to_bytes(32, byteorder='big')
-    Pbytes += P[1].to_bytes(32, byteorder='big')
-    return Pbytes
-
+      Pbytes = b'\x04' + P[0].to_bytes(32, byteorder='big')
+      Pbytes += P[1].to_bytes(32, byteorder='big')
+      return Pbytes
+    else:
+      raise ValueError("not an elliptic curve point")
 
   def pointDouble(self, P):
     P = self.scrub_point(P)
