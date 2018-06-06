@@ -49,7 +49,7 @@ class EllipticCurve:
         Px = int.from_bytes(P[1:33], 'big')
         assert Px < self.__prime
         Py = self.y(Px, True)
-        if (P[0] == 0x02):
+        if (P[0] == 0x03):
           return (Px, Py)
         else:
           return (Px, self.__prime - Py)
