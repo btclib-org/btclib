@@ -75,14 +75,14 @@ def rfc6979_raw(prv, m, hasher=default_hasher):
     v = hmac_new(k, v, hasher).digest()
 
 """
-def deterministic_k(prv, msg, hasher = sha256):
+def rfc6979(prv, msg, hasher = sha256):
   assert type(prv) == int and 0 < prv and prv < ec.order, "invalid prv"
   if type(msg) == str: msg = msg.encode()
   assert type(msg) == bytes
   hashmsg = hasher(msg)
   return deterministic_k_raw(prv, hashmsg, hasher)
 
-def deterministic_k_raw(prv, m, hasher=default_hasher):
+def rfc6979_raw(prv, m, hasher=default_hasher):
   hash_size = m.digest_size
   m = m.digest()
   prv_and_m = int2octets(prv) + bits2octets(m)
