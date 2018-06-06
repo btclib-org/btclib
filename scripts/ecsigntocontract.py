@@ -12,14 +12,12 @@ Created on Sat Oct 28 01:03:03 2017
 # %% import
 
 from hashlib import sha256
-from base58 import b58decode_check, __chars as b58digits
-from ECsecp256k1 import pointAdd, pointMultiply, \
-                        order as ec_order, prime as ec_prime, G as ec_G, \
-                        a as ec_a, b as ec_b
-from FiniteFields import modInv, modular_sqrt
+from base58 import b58decode_check, __alphabet as b58digits
+from ECsecp256k1 import ec
+from FiniteFields import mod_inv, mod_sqrt
 from string import hexdigits
 from rfc6979 import rfc6979
-from ecutils import default_hasher, str_to_hash, check_hash_digest, decode_prv, hash_to_int, int_to_bytes, check_ec_point
+from ecutils import default_hasher, str_to_hash, check_hash_digest, decode_prv, hash_to_int, int_to_bytes
 from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_recover, ecdsa_sign_raw
 from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_sign_raw
 
@@ -43,17 +41,18 @@ from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_s
 def check_receipt(receipt):
   """check receipt format
   """
-  assert type(receipt[0]) == int and \
-         0 < receipt[0] and receipt[0] < ec_prime, \
-         "1st part of the receipt must be an int in (0, ec_prime)"
-  check_ec_point(receipt[1])
+  # fixme
+  # assert type(receipt[0]) == int and \
+  #       0 < receipt[0] and receipt[0] < ec_prime, \
+  #       "1st part of the receipt must be an int in (0, ec_prime)"
+  ec.tuple_from_point(receipt[1])
 
 def insert_commit(k, c, hasher=default_hasher):
   """insert a commit in a ec point
   """
-  R = pointMultiply(k, ec_G)
+  R = ec.pointMultiply(k)
   e = hash_to_int(hasher(int_to_bytes(R[0], 32) + c).digest())
-  return R, (e + k) % ec_order
+  return R, (e + k) % ec.order
 
 def ecdsa_sign_and_commit(m, prv, c, eph_prv=None, hasher=default_hasher):
   check_hash_digest(m)
@@ -81,9 +80,9 @@ def ec_verify_commit(receipt, c, hasher=default_hasher):
   check_hash_digest(c)
   w, R = receipt
   e = hash_to_int(hasher(int_to_bytes(R[0], 32) + c).digest())
-  W = pointAdd(R, pointMultiply(e, ec_G))
-  return w % ec_order == W[0] % ec_order
-  # weaker verfication! w in [1..ec_order-1] dsa
+  W = ec.pointAdd(R, ec.pointMultiply(e))
+  return w % ec.order == W[0] % ec.order
+  # weaker verfication! w in [1..ec.order-1] dsa
   #                     w in [1..ec_prime-1] ssa
   # choice to manage with the same function
 
@@ -94,7 +93,7 @@ def test_ecdsa(param, verify=True, recover=True, verify_commit=True):
   print("*** testing ecdsa2")
   m, prv, c = param
   sig = ecdsa_sign(m, prv)
-  pub = pointMultiply(prv, ec_G)
+  pub = ec.pointMultiply(prv)
   if verify:
     assert ecdsa_verify(m, sig, pub), "invalid sig"
   if recover:
@@ -110,7 +109,7 @@ def test_ecssa(param, verify=True, recover=True, verify_commit=True):
   print("*** testing ecssa2")
   m, prv, c = param
   sig = ecssa_sign(m, prv)
-  pub = pointMultiply(prv, ec_G)
+  pub = ec.pointMultiply(prv)
   if verify:
     assert ecssa_verify(m, sig, pub), "invalid sig"
   if recover:
