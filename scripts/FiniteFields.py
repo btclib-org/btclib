@@ -34,7 +34,7 @@ def modular_sqrt(a, p):
     # Simple cases
     #
     if legendre_symbol(a, p) != 1:
-        return 0
+        return -1
     elif a == 0:
         return 0
     elif p == 2:
