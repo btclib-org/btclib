@@ -20,12 +20,12 @@ class EllipticCurve:
     assert x < self.__prime
     return (x*x*x + self.__a*x + self.__b) % self.__prime
 
-  def y(self, x, even=True):
+  def y(self, x, odd):
     y2 = self.y2(x)
     root = mod_sqrt(y2, self.__prime)
-    assert type(even) == bool or even in (0, 1), "must be bool or 0/1"
-    # change sign (even/odd) if needed
-    return root if (root % 2 + even) == 1 else self.__prime - root
+    assert type(odd) == bool or odd in (0, 1), "must be bool or 0/1"
+    # switch even/odd root when needed
+    return root if (root % 2 + odd) != 1 else self.__prime - root
 
   def __str__(self):
     result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
@@ -64,9 +64,12 @@ class EllipticCurve:
         return (Px, Py)
     elif isinstance(P, tuple):
       assert len(P) == 2, "invalid tuple point length"
-      assert (type(P[0]) == int and type(P[1]) == int) or \
-             (P[0] == None and P[1] == None), "invalid non-int tuple point"
-      assert (P[0] is None) or (self.y2(P[0]) == P[1]*P[1] % self.__prime), "point is not on the ec"
+      if (P[0] == None and P[1] == None):
+        return P
+      assert (type(P[0]) == int and type(P[1]) == int) , "invalid non-int tuple point"
+      assert P[0] < self.__prime
+      assert P[1] < self.__prime
+      assert self.y2(P[0]) == P[1]*P[1] % self.__prime, "point is not on the ec"
       return P
     else:
       raise ValueError("not an elliptic curve point")
@@ -156,8 +159,8 @@ class EllipticCurve:
 def main():
   G = (0, 3)
   ec = EllipticCurve(6, 9, 263, G, 269)
-  assert ec.y(G[0], True)  != G[1]
-  assert ec.y(G[0], False) == G[1]
+  assert ec.y(G[0], False) != G[1]
+  assert ec.y(G[0], True) == G[1]
   print(ec)
   ec.tuple_from_point(G)
   print(G)
