@@ -11,7 +11,7 @@ Created on Thu Nov  9 11:00:55 2017
 # https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 
 from hashlib import sha256
-from secp256k1 import order as ec_order
+from ECsecp256k1 import order as ec_order
 from struct import pack
 from binascii import hexlify
 from hmac import new as hmac_new
@@ -47,12 +47,12 @@ def check_hash_digest(m, hash_digest_size=default_hash_digest_size):
   """
   assert type(m) == bytes and len(m) == hash_digest_size, "m must be bytes with correct bytes length"
 
-def deterministic_k(prv, m, hasher=default_hasher):
+def rfc6979(prv, m, hasher=default_hasher):
   assert type(prv) == int and 0 < prv and prv < ec_order, "invalid prv"
   check_hash_digest(m)
-  return deterministic_k_raw(prv, m, hasher)
+  return rfc6979_raw(prv, m, hasher)
 
-def deterministic_k_raw(prv, m, hasher=default_hasher):
+def rfc6979_raw(prv, m, hasher=default_hasher):
   hash_size = len(m)
   prv_and_m = int2octets(prv) + bits2octets(m)
   v = b'\x01' * hash_size
