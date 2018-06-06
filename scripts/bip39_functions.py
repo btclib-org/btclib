@@ -258,8 +258,8 @@ def bip39_test_vectors():
         "xprv9s21ZrQH143K39rnQJknpH1WEPFJrzmAqqasiDcVrNuk926oizzJDDQkdiTvNPr2FYDYzWgiMiC63YmfPAa2oPyNB23r2g7d1yiK6WpqaQS"
     ]
   ]
-  for test_vector in test_vectors[:4]: #fixme
-    ENT = 128 #fixme
+  for test_vector in test_vectors:
+    ENT = len(test_vector[0])//2*8
     entropy = int(test_vector[0], 16)
     ints = bip39_ints_from_entropy(entropy, ENT)
     mnemonic = bip39_mnemonic_from_ints(ints)
