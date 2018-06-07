@@ -12,7 +12,7 @@ def bip39_word_indexes_from_entropy(raw_entropy):
 
   # raw_entropy length in bits
   entropy_bits = len(raw_entropy) * 8
-  assert ENT in (128, 160, 192, 224, 256)
+  assert entropy_bits in (128, 160, 192, 224, 256)
   checksum_bits = entropy_bits // 32 # checksum bits
   words = (entropy_bits + checksum_bits)//11
 
