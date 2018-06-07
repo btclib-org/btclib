@@ -15,21 +15,17 @@ class EllipticCurve:
     self.__G = self.tuple_from_point(G)
     self.order = order
 
-  def check_x(self, x):
+  def __y2(self, x):
     assert 0 <= x
     assert x < self.__prime
-    y2 = (x*x*x + self.__a*x + self.__b) % self.__prime
-    # if root does not exist, mod_sqrt will raise a ValueError
-    root = mod_sqrt(y2, self.__prime)
-    return y2, root
-
-  def y2(self, x):
-    y2, root = self.check_x(x)
-    return y2
+    # skipping key check: x is not valid if sqrt(y*y) does not exists
+    return (x*x*x + self.__a*x + self.__b) % self.__prime
 
   def y(self, x, odd):
     assert type(odd) == bool or odd in (0, 1), "must be bool or 0/1"
-    y2, root = self.check_x(x)
+    y2 = self.__y2(x)
+    # if root does not exist, mod_sqrt will raise a ValueError
+    root = mod_sqrt(y2, self.__prime)
     # switch even/odd root when needed
     return root if (root % 2 + odd) != 1 else self.__prime - root
 
@@ -66,7 +62,7 @@ class EllipticCurve:
         assert Px < self.__prime
         Py = int.from_bytes(P[34:], 'big')
         assert Py < self.__prime
-        assert self.y2(Px) == Py*Py % self.__prime, "point is not on the ec"
+        assert self.__y2(Px) == Py*Py % self.__prime, "point is not on the ec"
         return (Px, Py)
     elif isinstance(P, tuple):
       assert len(P) == 2, "invalid tuple point length"
@@ -75,7 +71,7 @@ class EllipticCurve:
       assert (type(P[0]) == int and type(P[1]) == int) , "invalid non-int tuple point"
       assert P[0] < self.__prime
       assert P[1] < self.__prime
-      assert self.y2(P[0]) == P[1]*P[1] % self.__prime, "point is not on the ec"
+      assert self.__y2(P[0]) == P[1]*P[1] % self.__prime, "point is not on the ec"
       return P
     else:
       raise ValueError("not an elliptic curve point")
@@ -99,14 +95,14 @@ class EllipticCurve:
         assert Px < self.__prime
         Py = int.from_bytes(P[33:], 'big')
         assert Py < self.__prime
-        assert self.y2(Px) == Py*Py % self.__prime
+        assert self.__y2(Px) == Py*Py % self.__prime
         return P
     elif isinstance(P, tuple):
       assert len(P) == 2, "invalid tuple point length"
       assert P[0] is not None, "infinity point cannot be expressed as bytes"
       assert P[1] is not None, "infinity point cannot be expressed as bytes"
       assert type(P[0]) == int and type(P[1]) == int, "invalid non-int tuple point"
-      assert self.y2(P[0]) == P[1]*P[1] % self.__prime
+      assert self.__y2(P[0]) == P[1]*P[1] % self.__prime
       if compressed:
         prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
         return prefix + P[0].to_bytes(32, byteorder='big')
