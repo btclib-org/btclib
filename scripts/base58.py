@@ -14,8 +14,8 @@ from hashlib import sha256
 __version__ = '0.2.5'
 
 # 58 character alphabet used
-__alphabet = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-__base = len(__alphabet)
+base58digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+__base = len(base58digits)
 
 if bytes == str:  # python2
     iseq, bseq, buffer = (
@@ -46,12 +46,12 @@ def scrub_input(v):
 def b58encode_int(i, default_one=True):
     '''Encode an integer using Base58'''
     if not i and default_one:
-        return __alphabet[0:1]
+        return base58digits[0:1]
     string = b""
     while i >= __base:
         i, idx = divmod(i, __base)
-        string = __alphabet[idx:idx+1] + string
-    string = __alphabet[i:i+1] + string
+        string = base58digits[idx:idx+1] + string
+    string = base58digits[i:i+1] + string
     return string
 
 
@@ -73,7 +73,7 @@ def b58encode(v):
     result = b58encode_int(acc, default_one=False)
 
     # adding leading-1s
-    return (__alphabet[0:1] * nPad + result)
+    return (base58digits[0:1] * nPad + result)
 
 
 def b58decode_int(v):
@@ -83,7 +83,7 @@ def b58decode_int(v):
 
     decimal = 0
     for char in v:
-        decimal = decimal * __base + __alphabet.index(char)
+        decimal = decimal * __base + base58digits.index(char)
     return decimal
 
 
@@ -94,7 +94,7 @@ def b58decode(v):
 
     # leading-1s will become leading-0s
     nPad = len(v)
-    v = v.lstrip(__alphabet[0:1])
+    v = v.lstrip(base58digits[0:1])
     nPad -= len(v)
 
     acc = b58decode_int(v)
