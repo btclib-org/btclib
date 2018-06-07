@@ -23,20 +23,20 @@ from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_s
 
 # %% sign to contract
 # IDEA:
-#    insert a commitment in a signature (singing something else!)
+#    insert a commitment in a signature (signing something else!)
 #    using this valid commitment operation:
 #    R -> hash(R||c)G + R  (R ec point, G generator, c commit)
 # HOW:
 #    when you sign you generate a nonce (k) and compute a ec point (R = kG)
 #    instead of proceeding using (k,R) you compute a value (e) that embed the
-#    commitment: e = hash(R.x||commit)
+#    commitment: e = hash(R.x||c)
 #    you substitute the nonce with k+e and R with R+eG, and proceed signing
 #    in the standard way using instead (k+e,R+eG)
 # VERIFICATION:
 #    the verifier can see W.x (W = R+eG) on the signature
-#    the signer (and committer) provides R and commit
+#    the signer (and committer) provides R and c
 #    the verifier checks that:   W.x = (R+eG).x
-#                               (with e = hash(R.x||commit))
+#                               (with e = hash(R.x||c))
 
 def check_receipt(receipt):
   """check receipt format
@@ -47,7 +47,7 @@ def check_receipt(receipt):
   #       "1st part of the receipt must be an int in (0, ec_prime)"
   ec.tuple_from_point(receipt[1])
 
-def insert_commit(k, c, hasher=sha256):
+def ec_insert_commit(k, c, hasher=sha256):
   """insert a commit in a ec point
   """
   R = ec.pointMultiply(k)
@@ -55,18 +55,17 @@ def insert_commit(k, c, hasher=sha256):
   return R, (e + k) % ec.order
 
 def ecdsa_sign_and_commit(m, prv, c, eph_prv=None, hasher=sha256):
-  h = int_from_hash(m)
   prv = decode_prv(prv)
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
-  R, eph_prv = insert_commit(eph_prv, c, hasher)
-  sig = ecdsa_sign_raw(h, prv, eph_prv)
+  R, eph_prv = ec_insert_commit(eph_prv, c, hasher)
+  sig = ecdsa_sign_raw(m, prv, eph_prv)
   receipt = (sig[0], R)
   return sig, receipt
 
 def ecssa_sign_and_commit(m, prv, c, eph_prv=None, hasher=sha256):
   prv = decode_prv(prv)
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
-  R, eph_prv = insert_commit(eph_prv, c, hasher)
+  R, eph_prv = ec_insert_commit(eph_prv, c, hasher)
   sig = ecssa_sign_raw(m, prv, eph_prv, hasher)
   receipt = (sig[0], R)
   return sig, receipt
@@ -84,12 +83,12 @@ def ec_verify_commit(receipt, c, hasher=sha256):
 
 # %% tests
 
-def test_ecdsa(param, verify=True, recover=True, verify_commit=True):
+def test_ecdsa(param, verify_sig=True, recover=True, verify_commit=True):
   print("*** testing ecdsa2")
   m, prv, c = param
   sig = ecdsa_sign(m, prv)
   pub = ec.pointMultiply(prv)
-  if verify:
+  if verify_sig:
     assert ecdsa_verify(m, sig, pub), "invalid sig"
   if recover:
     assert pub in (ecdsa_recover(m, sig, 0), ecdsa_recover(m, sig, 1)),\
@@ -100,12 +99,12 @@ def test_ecdsa(param, verify=True, recover=True, verify_commit=True):
     assert ec_verify_commit(receipt, c), "commit verification failed"
   print("ecdsa tests passed")
 
-def test_ecssa(param, verify=True, recover=True, verify_commit=True):
+def test_ecssa(param, verify_sig=True, recover=True, verify_commit=True):
   print("*** testing ecssa2")
   m, prv, c = param
   sig = ecssa_sign(m, prv)
   pub = ec.pointMultiply(prv)
-  if verify:
+  if verify_sig:
     assert ecssa_verify(m, sig, pub), "invalid sig"
   if recover:
     assert pub == ecssa_recover(m, sig), \
@@ -117,15 +116,15 @@ def test_ecssa(param, verify=True, recover=True, verify_commit=True):
   print("ecssa tests passed")
 
 def main(ecdsa=True, ecssa=True, \
-         verify=True, recover=True, verify_commit=True):
+         verify_sig=True, recover=True, verify_commit=True):
   m = str_to_hash("hello world")
   prv = 1
   c = str_to_hash("sign to contract")
   param = m, prv, c
   if ecdsa:
-    test_ecdsa(param, verify, recover, verify_commit)
+    test_ecdsa(param, verify_sig, recover, verify_commit)
   if ecssa:
-    test_ecssa(param, verify, recover, verify_commit)
+    test_ecssa(param, verify_sig, recover, verify_commit)
 
 if __name__ == "__main__":
   # execute only if run as a script
