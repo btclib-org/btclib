@@ -4,11 +4,12 @@ import hmac
 from bip32_functions import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
 from bip39_functions import bip39_seed_from_mnemonic, bip39_mnemonic_from_word_indexes
 
+# source ?
 def electrum_mnemonic_from_entropy(entropy_int, words, version, dict_txt = 'dict_eng.txt'):
   valid = False
   while not valid:
     # fixme ??
-    assert entropy_int < 2**(11*words)
+    #assert entropy_int < 2**(11*words)
     entropy_bin = bin(entropy_int)[2:]
     entropy = entropy_bin.zfill(words*11)
 

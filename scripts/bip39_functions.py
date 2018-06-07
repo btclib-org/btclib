@@ -3,7 +3,7 @@ from pbkdf2 import PBKDF2
 # needed because BIP39 test vectors have been "polluted" with derived mprvkey
 from bip32_functions import bip32_master_prvkey_from_seed
 
-
+# https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 def bip39_word_indexes_from_entropy(raw_entropy):
   if type(raw_entropy) == str:
       raw_entropy = bytes.fromhex(raw_entropy)
@@ -11,14 +11,14 @@ def bip39_word_indexes_from_entropy(raw_entropy):
       raise ValueError("entropy must be bytes or hexstring")
 
   # raw_entropy length in bits
-  ENT = len(raw_entropy) * 8
+  entropy_bits = len(raw_entropy) * 8
   assert ENT in (128, 160, 192, 224, 256)
-  CS = ENT // 32 # checksum bits
-  words = (ENT + CS)//11
+  checksum_bits = entropy_bits // 32 # checksum bits
+  words = (entropy_bits + checksum_bits)//11
 
   entropy_int = int.from_bytes(raw_entropy, 'big')
   entropy_bin = bin(entropy_int)[2:]
-  entropy = entropy_bin.zfill(ENT)
+  entropy = entropy_bin.zfill(entropy_bits)
 
   # raw_entropy checksum
   raw_entropy_hash = sha256(raw_entropy).digest()
@@ -26,7 +26,7 @@ def bip39_word_indexes_from_entropy(raw_entropy):
   raw_entropy_hash_bin = bin(raw_entropy_hash_int)[2:]
   checksum = raw_entropy_hash_bin.zfill(256)
 
-  entropy += checksum[:CS]
+  entropy += checksum[:checksum_bits]
 
   indexes = [0] * words
   for i in range(0, words):
@@ -69,6 +69,8 @@ def bip39_master_prvkey_from_entropy(entropy, passphrase, dict_txt = 'dict_eng.t
 def test_bip39_wallet():
   # number of words chosen by the user:
   words = 12
+  # ENT = entropy bits
+  # CS  = checksum bits
   # ENT + CS     = words*11
   # ENT + ENT/32 = words*11
   # ENT * 33/32  = words*11
