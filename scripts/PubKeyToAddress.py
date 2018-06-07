@@ -2,7 +2,7 @@
 
 from ECsecp256k1 import ec
 import hashlib
-from base58 import b58encode, b58encode_check
+from base58 import b58encode_check, b58encode, b58decode_check
 
 # to be fixed for other version value
 def private_key_to_public_key(private_key, version=0x04):
@@ -58,8 +58,7 @@ print(base58EncodedAddress)
 print("\n*** steps [5]-[9] are also known as Base58Check encode")
 
 def bc_address_to_hash_160(addr):
-  bytes = b58decode(addr, 25)
-  return bytes[1:21]
+  return b58decode_check(addr)[1:21]
 
 def hash160(inp):
   h1 = hashlib.sha256(inp).digest()
@@ -78,3 +77,6 @@ print("\n*** [9] base58 encoded address from compressed PubKey")
 base58EncodedAddress = public_key_to_bc_address(PubKey)
 assert (base58EncodedAddress == b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
 print(base58EncodedAddress)
+
+print("\n*** h160 from address")
+print(bc_address_to_hash_160(base58EncodedAddress).hex())
