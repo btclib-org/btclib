@@ -15,15 +15,21 @@ class EllipticCurve:
     self.__G = self.tuple_from_point(G)
     self.order = order
 
-  def y2(self, x):
+  def check_x(self, x):
     assert 0 <= x
     assert x < self.__prime
-    return (x*x*x + self.__a*x + self.__b) % self.__prime
+    y2 = (x*x*x + self.__a*x + self.__b) % self.__prime
+    # if root does not exist, mod_sqrt will raise a ValueError
+    root = mod_sqrt(y2, self.__prime)
+    return y2, root
+
+  def y2(self, x):
+    y2, root = self.check_x(x)
+    return y2
 
   def y(self, x, odd):
-    y2 = self.y2(x)
-    root = mod_sqrt(y2, self.__prime)
     assert type(odd) == bool or odd in (0, 1), "must be bool or 0/1"
+    y2, root = self.check_x(x)
     # switch even/odd root when needed
     return root if (root % 2 + odd) != 1 else self.__prime - root
 
