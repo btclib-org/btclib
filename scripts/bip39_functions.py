@@ -3,112 +3,97 @@ from pbkdf2 import PBKDF2
 # needed because BIP39 test vectors have been "polluted" with derived mprvkey
 from bip32_functions import bip32_master_prvkey_from_seed
 
-def bip39_ints_from_entropy(entropy, ENT):  
-  # Function that transforms the entropy number in a vector of numbers with 11 bits each 
-  # INPUT:
-  #   entropy: number large enough to guarantee randomness
-  #   ENT: number of bits of entropy
-  # OUTPUT:
-  #   ints: vector of numbers, each of this number with 11 bits each
-  number_words = (ENT/32 + ENT)/11
-  assert number_words %1 == 0
-  number_words = int(number_words)
 
-  entropy_bytes = entropy.to_bytes(int(ENT/8), 'big')
-  checksum = sha256(entropy_bytes).digest()
-  checksum_int = int.from_bytes(checksum, 'big')
-  checksum_bin = bin(checksum_int)
-  while len(checksum_bin)<258:
-    checksum_bin = '0b0' + checksum_bin[2:]
-  entropy_bin = bin(entropy)
-  while len(entropy_bin)<ENT+2:
-    entropy_bin = '0b0' + entropy_bin[2:]
-  entropy_checked = entropy_bin[2:] + checksum_bin[2:2+int(ENT/32)]
-  ints = [0]*number_words
-  for i in range(0,number_words):
-    ints[i] = int(entropy_checked[i*11:(i+1)*11],2)
-  return ints
+def bip39_word_indexes_from_entropy(raw_entropy):
+  if type(raw_entropy) == str:
+      raw_entropy = bytes.fromhex(raw_entropy)
+  elif type(raw_entropy) != bytes:
+      raise ValueError("entropy must be bytes or hexstring")
+
+  # raw_entropy length in bits
+  ENT = len(raw_entropy) * 8
+  assert ENT in (128, 160, 192, 224, 256)
+  CS = ENT // 32 # checksum bits
+  words = (ENT + CS)//11
+
+  entropy_int = int.from_bytes(raw_entropy, 'big')
+  entropy_bin = bin(entropy_int)[2:]
+  entropy = entropy_bin.zfill(ENT)
+
+  # raw_entropy checksum
+  raw_entropy_hash = sha256(raw_entropy).digest()
+  raw_entropy_hash_int = int.from_bytes(raw_entropy_hash, 'big')
+  raw_entropy_hash_bin = bin(raw_entropy_hash_int)[2:]
+  checksum = raw_entropy_hash_bin.zfill(256)
+
+  entropy += checksum[:CS]
+
+  indexes = [0] * words
+  for i in range(0, words):
+    indexes[i] = int(entropy[i*11:(i+1)*11], 2)
+  return indexes
+
 
 # dict_eng.txt: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
 # dict_ita.txt: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
-def bip39_mnemonic_from_ints(ints, dict_txt = 'dict_eng.txt'):
-  # Function that transforms the vector ints computed in the previous function in a valid mnemonic phrase 
-  # INPUT:
-  #   ints: vector of numbers, each of this number with 11 bits each
-  #   dictionary_txt: txt with the dictionary chosen
-  # OUTPUT:
-  #   mnemonic: valid BIP39 mnemonic phrase 
+def bip39_mnemonic_from_word_indexes(word_indexes, dict_txt = 'dict_eng.txt'):
   dictionary = open(dict_txt, 'r').readlines()
-  mnemonic = ''
-  for j in ints:
-    mnemonic += ' ' + dictionary[j][:-1]
-  return mnemonic[1:]
+  mnemonic = dictionary[word_indexes[0]][:-1]
+  for index in word_indexes[1:]:
+    mnemonic += ' ' + dictionary[index][:-1]
+  return mnemonic
+
+
+def bip39_mnemonic_from_entropy(raw_entropy, dict_txt = 'dict_eng.txt'):
+  word_indexes = bip39_word_indexes_from_entropy(raw_entropy)
+  return bip39_mnemonic_from_word_indexes(word_indexes, dict_txt)
+
 
 def bip39_seed_from_mnemonic(mnemonic, passphrase, style='bip39'):
-  # Function that derives the seed from the mnemonic phrase + the passphrase
-  # INPUT:
-  #   mnemonic: valid BIP39 mnemonic phrase
-  #   passphrase: passphrase used for the seed derivation ('TREZOR' as default for the BIP39 test vector)
-  # OUTPUT:
-  #   seed: seed for the BIP32 HD wallet
   if style == 'electrum': prefix = 'electrum'
   elif style == 'bip39':  prefix = 'mnemonic'
   else: raise ValueError("invalid prefix style")
   return PBKDF2(mnemonic, prefix + passphrase, 2048, sha512).read(64) # 512 bits
 
-def bip39_wallet(entropy, number_words = 24, passphrase='', dictionary = 'dict_eng.txt'):
-  # Function that generate a valid BIP39 mnemonic and the related master extended public key, from a given entropy
-  # INPUT:
-  #   entropy: number large enough to guarantee randomness
-  #   number_words: number of words requested
-  #   passphrase: string used as passphrase
-  #   dictionary: string with the name of the dictionary file (.txt)
-  # OUTPUT:
-  #   mnemonic: mnemonic phrase with BIP39
-  #   xpub: master extended public key derived from the mnemonic phrase + passphrase
-  ENT = int(number_words*32/3)
-  ints = bip39_ints_from_entropy(entropy, ENT)
-  mnemonic = bip39_mnemonic_from_ints(ints, dictionary)
+
+def bip39_master_prvkey_from_mnemonic(mnemonic, passphrase):
   seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
-  xprv = bip32_master_prvkey_from_seed(seed)
-  return entropy, mnemonic, seed, xprv
+  return bip32_master_prvkey_from_seed(seed)
+
+
+def bip39_master_prvkey_from_entropy(entropy, passphrase, dict_txt = 'dict_eng.txt'):
+  mnemonic = bip39_mnemonic_from_entropy(entropy, dict_txt)
+  return bip39_master_prvkey_from_mnemonic(mnemonic, passphrase)
 
 
 def test_bip39_wallet():
-
   # number of words chosen by the user:
-  number_words = 12
-  entropy_lenght = int(number_words*32/3/4)
-  print('\nYour entropy should have', entropy_lenght, 'hexadecimal digits')
+  words = 12
+  # ENT + CS     = words*11
+  # ENT + ENT/32 = words*11
+  # ENT * 33/32  = words*11
+  # ENT          = words*11*32/33
+  # hexdigits    = words*11*32/33/4
+  bits = (words*11*32)//33
+  print("\nFor a", words, "words target:", bits, 'bits of entropy are needed. i.e.', bits//4, 'hexadecimal digits')
 
   # entropy is entered by the user:
-  entropy = 0xf012003974d093eda670121023cd03bb
+  entropy = "f012003974d093eda670121023cd03bb"
+  print(entropy)
 
   # dictionary chosen by the user:
-  dictionary = 'dict_ita.txt'
-  dictionary = 'dict_eng.txt'
+  dict_txt = 'dict_ita.txt'
+  dict_txt = 'dict_eng.txt'
+
+  mnemonic = bip39_mnemonic_from_entropy(entropy, dict_txt)
+  print('mnemonic:', mnemonic)
 
   # passphrase chosen by the user:
   passphrase = ''
 
-  entropy, mnemonic, seed, xprv = bip39_wallet(entropy, number_words, passphrase, dictionary)
-  print('entropy:', hex(entropy))
-  print('mnemonic:', mnemonic)
-  print('seed:', seed.hex())
-  print('xprv:', xprv)
+  mpr = bip39_master_prvkey_from_mnemonic(mnemonic, passphrase)
+  print('mprv:', mpr)
 
-def test():
-  #### bip39
-  mnemonic = b'army van defense carry jealous true garbage claim echo media make crunch'
-  passphrase = ''
-  seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
-  assert seed.hex() == "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
-
-  #### electrum mnemonic
-  mnemonic = b'clay abstract easily position index taxi arrange ecology hobby digital turtle feel'
-  passphrase = ''
-  seed = bip39_seed_from_mnemonic(mnemonic, passphrase, 'electrum')
-  assert seed.hex() == "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
 
 # Test vectors: https://github.com/trezor/python-mnemonic/blob/master/vectors.json
 def bip39_test_vectors():
@@ -259,17 +244,14 @@ def bip39_test_vectors():
     ]
   ]
   for test_vector in test_vectors:
-    ENT = len(test_vector[0])//2*8
-    entropy = int(test_vector[0], 16)
-    ints = bip39_ints_from_entropy(entropy, ENT)
-    mnemonic = bip39_mnemonic_from_ints(ints)
+    mnemonic = bip39_mnemonic_from_entropy(test_vector[0])
     assert mnemonic == test_vector[1]
     seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
     assert seed.hex() == test_vector[2]
-    mprv = bip32_master_prvkey_from_seed(seed)
+    # no need to test here bip32_master_prvkey_from_seed
+    mprv = bip39_master_prvkey_from_mnemonic(mnemonic, "TREZOR")
     assert mprv.decode() == test_vector[3]
 
 if __name__ == "__main__":
-  test()
   bip39_test_vectors()
   test_bip39_wallet()
