@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 from FiniteFields import mod_inv, mod_sqrt
+from math import sqrt
 
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
@@ -13,6 +14,12 @@ class EllipticCurve:
     self.__prime = prime
 
     self.__G = self.tuple_from_point(G)
+    # Hasse Theorem
+    t = 2 * sqrt(prime)
+    print(prime + 1 + t)
+    print(prime + 1 - t)
+    assert order <= prime + 1 + t, "order too high"
+    assert prime + 1 - t <= order, "order too low"
     self.order = order
 
   def __y2(self, x):
@@ -45,7 +52,7 @@ class EllipticCurve:
       
   def tuple_from_point(self, P):
     """ Return a tuple (Px, Py) having ensured it belongs to the curve """
-    if isinstance(P, bytes):
+    if isinstance(P, bytes) or isinstance(P, bytearray):
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
         Px = int.from_bytes(P[1:33], 'big')
@@ -82,7 +89,7 @@ class EllipticCurve:
         (0x04) point ensuring it belongs to the curve
     """
     # if it is already byte, just check that it belongs to the curve
-    if isinstance(P, bytes):
+    if isinstance(P, bytes) or isinstance(P, bytearray):
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
         Px = int.from_bytes(P[1:33], 'big')
