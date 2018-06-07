@@ -70,6 +70,6 @@ def check_ssasig(ssasig):
   assert type(ssasig) == tuple and len(ssasig) == 2 and \
          type(ssasig[0]) == int and type(ssasig[1]) == int, \
          "ssasig must be a tuple of 2 int"
-  # fix me
-  #assert 0 < ssasig[0] and ssasig[0] < ec_prime, "R.x must be in [1..prime]"
+  # R.x is valid iif R.y does exist
+  ec.y(ssasig[0])
   assert 0 < ssasig[1] and ssasig[1] < ec.order, "s must be in [1..order]"
