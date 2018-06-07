@@ -15,9 +15,7 @@ class EllipticCurve:
 
     self.__G = self.tuple_from_point(G)
     # Hasse Theorem
-    t = 2 * sqrt(prime)
-    print(prime + 1 + t)
-    print(prime + 1 - t)
+    t = int(2 * sqrt(prime))
     assert order <= prime + 1 + t, "order too high"
     assert prime + 1 - t <= order, "order too low"
     self.order = order
@@ -52,6 +50,9 @@ class EllipticCurve:
       
   def tuple_from_point(self, P):
     """ Return a tuple (Px, Py) having ensured it belongs to the curve """
+    if isinstance(P, str):
+      P = bytes.fromhex(P)
+
     if isinstance(P, bytes) or isinstance(P, bytearray):
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
@@ -88,7 +89,9 @@ class EllipticCurve:
     """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed
         (0x04) point ensuring it belongs to the curve
     """
-    # if it is already byte, just check that it belongs to the curve
+    if isinstance(P, str):
+      P = bytes.fromhex(P)
+
     if isinstance(P, bytes) or isinstance(P, bytearray):
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
@@ -122,6 +125,9 @@ class EllipticCurve:
 
   def pointDouble(self, P):
     P = self.tuple_from_point(P)
+    return self.pointDouble_raw(P)
+
+  def pointDouble_raw(self, P):
     if P[1] == 0 or P[0] is None:
       return (None, None)
     lam = ((3*P[0]*P[0]+self.__a) * mod_inv(2*P[1], self.__prime)) % self.__prime
@@ -132,13 +138,16 @@ class EllipticCurve:
   def pointAdd(self, P, Q):
     P = self.tuple_from_point(P)
     Q = self.tuple_from_point(Q)
+    return self.pointAdd_raw(P, Q)
+
+  def pointAdd_raw(self, P, Q):
     if Q[0] is None:
       return P
     if P[0] is None:
       return Q
     if Q[0] == P[0]:
       if Q[1] == P[1]:
-        return self.pointDouble(P)
+        return self.pointDouble_raw(P)
       else:
         return (None, None)
     lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
@@ -148,20 +157,26 @@ class EllipticCurve:
 
   # efficient double & add, using binary decomposition of n
   def pointMultiply(self, n, P = None):
-    if P is None: P = self.__G
-
     if isinstance(n, bytes) or isinstance(n, bytearray):
       assert len(n) == 32
       n = int.from_bytes(n, 'big')
     n = n % self.order    # the group is cyclic
 
+    if P is None: P = self.__G
+    else: P = self.tuple_from_point(P)
+
+    return self.pointMultiply_raw(n, P)
+
+  def pointMultiply_raw(self, n, P = None):
+    if P is None: P = self.__G
+
     result = (None, None) # initialized to infinity point
     addendum = P          # initialized as 2^0 P
     while n > 0:          # use binary representation of n
       if n & 1:           # if least significant bit is 1 add current addendum
-        result = self.pointAdd(result, addendum)
+        result = self.pointAdd_raw(result, addendum)
       n = n>>1            # right shift to remove the bit just accounted for
-      addendum = self.pointDouble(addendum) # update addendum for next step
+      addendum = self.pointDouble_raw(addendum) # update addendum for next step
     return result
 
 
