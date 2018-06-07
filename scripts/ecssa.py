@@ -11,7 +11,8 @@ from hashlib import sha256
 from ECsecp256k1 import ec
 from FiniteFields import mod_inv
 from rfc6979 import rfc6979
-from ecutils import decode_prv, int_from_hash
+from ecutils import int_from_hash
+from WIF_address import int_from_prvkey
 
 # %% ecssa sign
 # https://github.com/sipa/secp256k1/blob/968e2f415a5e764d159ee03e95815ea11460854e/src/modules/schnorr/schnorr.md
@@ -19,8 +20,8 @@ from ecutils import decode_prv, int_from_hash
 # different structure, cannot compute e (int) before ecssa_sign_raw
 
 def ecssa_sign(m, prv, eph_prv=None, hasher=sha256):
-  prv = decode_prv(prv)
-  eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
+  prv = int_from_prvkey(prv)
+  eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
   return ecssa_sign_raw(m, prv, eph_prv, hasher)
 
 def ecssa_sign_raw(m, prv, eph_prv, hasher=sha256):
@@ -71,5 +72,5 @@ def check_ssasig(ssasig):
          type(ssasig[0]) == int and type(ssasig[1]) == int, \
          "ssasig must be a tuple of 2 int"
   # R.x is valid iif R.y does exist
-  ec.y(ssasig[0])
+  ec.y(ssasig[0], False)
   assert 0 < ssasig[1] and ssasig[1] < ec.order, "s must be in [1..order]"

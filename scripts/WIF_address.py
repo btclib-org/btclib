@@ -6,55 +6,85 @@ and public keys (addresses)
 '''
 
 from ECsecp256k1 import ec
-from base58 import b58encode_check, b58decode_check
+from base58 import b58encode_check, b58decode_check, base58digits
 from hashlib import sha256, new as hnew
 
 
-def scrub_privkey(p):
+def bytes_from_prvkey(prv):
   """Return private key as 32 bytes"""
   
-  if isinstance(p, str):
-    p = int(p, 16)
+  if isinstance(prv, int):
+    assert 0 < prv           , "Invalid Private Key"
+    assert     prv < ec.order, "Invalid Private Key"
+    return prv.to_bytes(32, 'big')
 
-  if isinstance(p, int):
-    assert 0 < p           , "Invalid Private Key"
-    assert     p < ec.order, "Invalid Private Key"
-    return p.to_bytes(32, byteorder='big')
+  if isinstance(prv, str):
+    # wif
+    if len(prv) in (51, 52) and all(c in base58digits for c in prv):
+      return prvkey_from_wif(prv)
+    # hex string
+    if prv[:2] == "0x":
+      prv = prv[2:]
+    assert len(prv) & 2 == 0, "odd-length hex string"
+    prv = bytes.fromhex(prv)
 
-  if not isinstance(p, bytes):
-    raise TypeError(
-      "a bytes-like object is required (also str or int), not '%s'" %
-       type(p).__name__)
-
-  assert len(p) == 32, "wrong lenght"
-  assert int.from_bytes(p, 'big') < ec.order
-  return p
+  if isinstance(prv, bytes) or isinstance(prv, bytearray):
+    assert len(prv) == 32, "wrong lenght"
+    assert int.from_bytes(prv, 'big') < ec.order, "prvkey >= order"
+    return prv
+  else: 
+    raise TypeError("a bytes-like object is required (also str or int)")
 
 
-def wif_from_privkey(p, compressed=True):
+def int_from_prvkey(prv):
+  """Return private key as int"""
+  
+  if isinstance(prv, str):
+    # wif
+    if len(prv) in (51, 52) and all(c in base58digits for c in prv):
+      prv = prvkey_from_wif(prv)
+    # hex string
+    if prv[:2] == "0x":
+      prv = prv[2:]
+    assert len(prv) & 2 == 0, "odd-length hex string"
+    prv = bytes.fromhex(prv)
+
+  if isinstance(prv, bytes) or isinstance(prv, bytearray):
+    assert len(prv) == 32, "wrong lenght"
+    prv = int.from_bytes(prv, 'big')
+
+  if isinstance(prv, int):
+    assert 0 < prv           , "Invalid Private Key"
+    assert     prv < ec.order, "Invalid Private Key"
+    return prv
+  else:
+    raise TypeError("a bytes-like object is required (also str or int)")
+
+
+def wif_from_prvkey(p, compressed=True):
   """private key to Wallet Import Format"""
 
-  payload = b'\x80' + scrub_privkey(p)
+  payload = b'\x80' + bytes_from_prvkey(p)
   if compressed: payload += b'\x01'
   return b58encode_check(payload)
 
 
-def privkey_from_wif(wif):
-  """Wallet Import Format to private key"""
+def prvkey_from_wif(wif):
+  """Wallet Import Format to (bytes) private key"""
 
   payload = b58decode_check(wif)
   assert payload[0] == 0x80, "not a wif"
 
   if len(payload) == 34: # compressed
     assert payload[33] == 0x01, "not a wif"
-    return scrub_privkey(payload[1:-1]), True
+    return bytes_from_prvkey(payload[1:-1]), True
   else:                  # uncompressed
     assert len(payload) == 33, "not a wif"
-    return scrub_privkey(payload[1:]), False
+    return bytes_from_prvkey(payload[1:]), False
 
 
-def pubkey_from_privkey(privkey, compressed = True):
-  P = ec.pointMultiply(privkey)
+def pubkey_from_prvkey(prvkey, compressed = True):
+  P = ec.pointMultiply(prvkey)
   return ec.bytes_from_point(P, compressed)
   
 
@@ -80,42 +110,42 @@ def hash160_from_address(addr):
 
 def test_wif():
   p_num = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-  p_bytes = scrub_privkey(p_num)
-  p_hex = "C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
+  p_bytes = bytes_from_prvkey(p_num)
+  p_hex = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
 
   # private key as number
-  wif = wif_from_privkey(p_num)
+  wif = wif_from_prvkey(p_num)
   assert wif == b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', "failure"
-  p2 = privkey_from_wif(wif)
+  p2 = prvkey_from_wif(wif)
   assert p2[0] == p_bytes
   assert p2[1] == True
-  wif = wif_from_privkey(p_num, False)
+  wif = wif_from_prvkey(p_num, False)
   assert wif == b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
-  p3 = privkey_from_wif(wif)
+  p3 = prvkey_from_wif(wif)
   assert p3[0] == p_bytes
   assert p3[1] == False
 
   # private key as bytes, i.e. the preferred format
-  wif = wif_from_privkey(p_bytes)
+  wif = wif_from_prvkey(p_bytes)
   assert wif == b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', "failure"
-  p4 = privkey_from_wif(wif)
+  p4 = prvkey_from_wif(wif)
   assert p4[0] == p_bytes
   assert p4[1] == True
-  wif = wif_from_privkey(p_bytes, False)
+  wif = wif_from_prvkey(p_bytes, False)
   assert wif == b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
-  p5 = privkey_from_wif(wif)
+  p5 = prvkey_from_wif(wif)
   assert p5[0] == p_bytes
   assert p5[1] == False
 
   # private key as hex string
-  wif = wif_from_privkey(p_hex)
+  wif = wif_from_prvkey(p_hex)
   assert wif == b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', "failure"
-  p6 = privkey_from_wif(wif)
+  p6 = prvkey_from_wif(wif)
   assert p6[0] == p_bytes
   assert p6[1] == True
-  wif = wif_from_privkey(p_hex, False)
+  wif = wif_from_prvkey(p_hex, False)
   assert wif == b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', "failure"
-  p7 = privkey_from_wif(wif)
+  p7 = prvkey_from_wif(wif)
   assert p7[0] == p_bytes
   assert p7[1] == False
 
@@ -123,23 +153,23 @@ def test_address_from_pubkey():
   # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
   p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
   p = p % ec.order
-  a = address_from_pubkey(pubkey_from_privkey(p, False))
+  a = address_from_pubkey(pubkey_from_prvkey(p, False))
   assert a == b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM'
   hash160_from_address(a)
-  a = address_from_pubkey(pubkey_from_privkey(p, True))
+  a = address_from_pubkey(pubkey_from_prvkey(p, True))
   assert a == b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs'
   hash160_from_address(a)
   
 def test_address_from_wif():
   wif1 = "5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-  a = address_from_pubkey(pubkey_from_privkey(*privkey_from_wif(wif1)))
+  a = address_from_pubkey(pubkey_from_prvkey(*prvkey_from_wif(wif1)))
   assert a == b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig'
   
   wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162"
-  a = address_from_pubkey(pubkey_from_privkey(*privkey_from_wif(wif2)))
+  a = address_from_pubkey(pubkey_from_prvkey(*prvkey_from_wif(wif2)))
   assert a == b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB'
 
-  assert privkey_from_wif(wif1)[0] == privkey_from_wif(wif2)[0]
+  assert prvkey_from_wif(wif1)[0] == prvkey_from_wif(wif2)[0]
   
 def main():
   test_wif()

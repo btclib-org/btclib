@@ -11,7 +11,8 @@ from hashlib import sha256
 from ECsecp256k1 import ec
 from FiniteFields import mod_inv
 from rfc6979 import rfc6979
-from ecutils import decode_prv, int_from_hash
+from ecutils import int_from_hash
+from WIF_address import int_from_prvkey
 
 # %% ecdsa sign
 # Design choice: what is signed is `m`, a 32 bytes message.
@@ -19,8 +20,8 @@ from ecutils import decode_prv, int_from_hash
 
 
 def ecdsa_sign(m, prv, eph_prv=None, hasher=sha256):
-  prv = decode_prv(prv)
-  eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
+  prv = int_from_prvkey(prv)
+  eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
   return ecdsa_sign_raw(m, prv, eph_prv)
 
 def ecdsa_sign_raw(m, prv, eph_prv):

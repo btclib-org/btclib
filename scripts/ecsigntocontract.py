@@ -12,12 +12,13 @@ Created on Sat Oct 28 01:03:03 2017
 # %% import
 
 from hashlib import sha256
-from base58 import b58decode_check, __alphabet as b58digits
+from base58 import b58decode_check, base58digits as b58digits
 from ECsecp256k1 import ec
 from FiniteFields import mod_inv, mod_sqrt
 from string import hexdigits
 from rfc6979 import rfc6979
-from ecutils import str_to_hash, decode_prv, int_from_hash
+from ecutils import str_to_hash, int_from_hash
+from WIF_address import int_from_prvkey
 from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_recover, ecdsa_sign_raw
 from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_sign_raw
 
@@ -55,16 +56,16 @@ def ec_insert_commit(k, c, hasher=sha256):
   return R, (e + k) % ec.order
 
 def ecdsa_sign_and_commit(m, prv, c, eph_prv=None, hasher=sha256):
-  prv = decode_prv(prv)
-  eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
+  prv = int_from_prvkey(prv)
+  eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
   R, eph_prv = ec_insert_commit(eph_prv, c, hasher)
   sig = ecdsa_sign_raw(m, prv, eph_prv)
   receipt = (sig[0], R)
   return sig, receipt
 
 def ecssa_sign_and_commit(m, prv, c, eph_prv=None, hasher=sha256):
-  prv = decode_prv(prv)
-  eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else decode_prv(eph_prv)
+  prv = int_from_prvkey(prv)
+  eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
   R, eph_prv = ec_insert_commit(eph_prv, c, hasher)
   sig = ecssa_sign_raw(m, prv, eph_prv, hasher)
   receipt = (sig[0], R)
