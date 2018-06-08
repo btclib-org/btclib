@@ -5,7 +5,7 @@ from math import sqrt
 
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
-  """ Elliptic curve over Fp group"""
+  """Elliptic curve over Fp group"""
 
   def __init__(self, a, b, prime, G, order):
     assert 4*a*a*a+27*b*b !=0, "zero discriminant"
