@@ -47,6 +47,18 @@ def bip39_entropy_from_raw_entropy(raw_entropy):
 
   return raw_entropy + checksum
 
+def bip39_raw_entropy_from_mnemonic(mnemonic, lang = "en"):
+    indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
+    entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
+    # bit size
+    entropy_size = int(len(entropy)*32/33)
+    entropy = entropy[:entropy_size]
+    # return an hexstring
+    entropy = int(entropy, 2)
+    format_string = '0' + str(entropy_size//4) + 'x'
+    entropy = format(entropy, format_string)
+    return entropy
+
 
 def bip39_mnemonic_from_raw_entropy(raw_entropy, lang = "en"):
   entropy = bip39_entropy_from_raw_entropy(raw_entropy)
@@ -248,6 +260,7 @@ def bip39_test_vectors():
     # no need to test here bip32_master_prvkey_from_seed
     mprv = bip39_master_prvkey_from_mnemonic(mnemonic, "TREZOR")
     assert mprv.decode() == test_vector[3]
+    assert bip39_raw_entropy_from_mnemonic(mnemonic) == test_vector[0]
 
 
 if __name__ == "__main__":
