@@ -26,7 +26,7 @@ def electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang = "en")
   invalid = True
   while invalid:
     entropy = bin(raw_entropy)[2:]
-    entropy = entropy.zfill(required_bits*11)
+    entropy = entropy.zfill(required_bits)
     entropy = entropy[-required_bits:]
     indexes = mnemonic_dict.indexes_from_entropy(entropy)
     mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
