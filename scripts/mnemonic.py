@@ -29,7 +29,7 @@ class MnemonicDictionaries:
       # clean up and normalization are missing, but removal of \n
       self.dictionaries[lang] = [line[:-1] for line in lines]
 
-  def indexes_from_entropy(self, entropy, lang = "en"):
+  def indexes_from_entropy(self, entropy, lang):
     self.load_language_if_not_available(lang)
     assert int(entropy, 2) >= 0, "entropy must be a binary string"
 
@@ -38,7 +38,7 @@ class MnemonicDictionaries:
     indexes = [int(entropy[i*bpw:(i+1)*bpw], 2) for i in range(0, words)]
     return indexes
 
-  def mnemonic_from_indexes(self, indexes, lang = "en"):
+  def mnemonic_from_indexes(self, indexes, lang):
     self.load_language_if_not_available(lang)
 
     words = []
@@ -47,14 +47,14 @@ class MnemonicDictionaries:
       words.append(word)
     return ' '.join(words)
 
-  def indexes_from_mnemonic(self, mnemonic, lang = "en"):
+  def indexes_from_mnemonic(self, mnemonic, lang):
     self.load_language_if_not_available(lang)
 
     words = mnemonic.split()
     indexes = [self.dictionaries[lang].index(word) for word in words]
     return indexes
 
-  def entropy_from_indexes(self, indexes, lang = "en"):
+  def entropy_from_indexes(self, indexes, lang):
     self.load_language_if_not_available(lang)
 
     bpw = int(math.log(len(self.dictionaries[lang]), 2))
@@ -76,14 +76,14 @@ def main():
   assert mnemonic == mnemonic_dict.mnemonic_from_indexes(test_vector, lang)
 
   entropy = mnemonic_dict.entropy_from_indexes(test_vector, lang)
-  assert mnemonic_dict.indexes_from_entropy(entropy) == test_vector
+  assert mnemonic_dict.indexes_from_entropy(entropy, lang) == test_vector
 
   test_vector = [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0, 0]
   entropy = mnemonic_dict.entropy_from_indexes(test_vector, lang)
   assert entropy[:22] =="0"*22
   assert entropy[22:-22] =="1"*88
   assert entropy[-22:]=="0"*22
-  assert mnemonic_dict.indexes_from_entropy(entropy) == test_vector
+  assert mnemonic_dict.indexes_from_entropy(entropy, lang) == test_vector
 
 
 if __name__ == "__main__":
