@@ -2,75 +2,79 @@ from hashlib import sha512
 from pbkdf2 import PBKDF2
 import hmac
 from bip32_functions import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
-from bip39_functions import bip39_seed_from_mnemonic, bip39_mnemonic_from_word_indexes
+from mnemonic import mnemonic_dictionaries
 
-# source ?
-def electrum_mnemonic_from_entropy(entropy_int, words, version, dict_txt = 'dict_eng.txt'):
-  valid = False
+
+MNEMONIC_VERSIONS = {'standard' : '01',
+                     'segwit'   : '100',
+                     '2fa'      : '101'}
+
+
+def electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang = "en"):
+  if type(raw_entropy) == str:
+      raw_entropy = bytes.fromhex(raw_entropy)
+
+  if type(raw_entropy) == bytes:
+      raw_entropy = int.from_bytes(raw_entropy, 'big')
+  elif type(raw_entropy) != int:
+      raise ValueError("entropy must be bytes, hexstring, or int")
+
   required_bits = words*11
-  while not valid:
-    entropy_bin = bin(entropy_int)[2:]
-    entropy_bin = entropy_bin.zfill(required_bits*11)
-    entropy = entropy_bin[-required_bits:]
 
-    indexes = [0] * words
-    for i in range(0, words):
-      indexes[i] = int(entropy[i*11:(i+1)*11], 2)
-
-    mnemonic = bip39_mnemonic_from_word_indexes(indexes, dict_txt)
-
+  assert version in MNEMONIC_VERSIONS, "unknown electrum mnemonic version"
+  prefix = MNEMONIC_VERSIONS[version]
+  invalid = True
+  while invalid:
+    entropy = bin(raw_entropy)[2:]
+    entropy = entropy.zfill(required_bits*11)
+    entropy = entropy[-required_bits:]
+    mnemonic = mnemonic_dictionaries.encode(entropy, lang)
+    # validity check
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
-    if s[0:2] == '01'  and version == "standard" or \
-       s[0:3] == '100' and version == "segwit"   or \
-       s[0:3] == '101' and version == "2FA":
-       valid = True
-
-    entropy_int += 1
+    if s.startswith(prefix): invalid = False
+    raw_entropy += 1
   
   return mnemonic
 
 
+def electrum_seed_from_mnemonic(mnemonic, passphrase):
+  prefix = 'electrum'
+  return PBKDF2(mnemonic, prefix + passphrase, 2048, sha512).read(64) # 512 bits
+
+
 def electrum_master_prvkey_from_mnemonic(mnemonic, passphrase):
-  seed = bip39_seed_from_mnemonic(mnemonic, passphrase, "electrum")
+  seed = electrum_seed_from_mnemonic(mnemonic, passphrase)
 
   s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
-  if s[0:2] == '01':    # standard
+  if s.startswith(MNEMONIC_VERSIONS['standard']):
     mprv = bip32_master_prvkey_from_seed(seed)
-  elif s[0:3] == '100': # segwit
+  elif s.startswith(MNEMONIC_VERSIONS['segwit']):
     mprv = bip32_master_prvkey_from_seed(seed, b'\x04\xb2\x43\x0c')
     mprv = bip32_ckd(mprv, 0x80000000)
   else:
-    raise ValueError("unknown " + s[0:3] + " version")
+    raise ValueError("unmanaged electrum mnemonic version")
   return mprv
 
 
-def electrum_master_prvkey_from_entropy(entropy_int, words, version, passphrase, dict_txt = 'dict_eng.txt'):
-  mnemonic = electrum_mnemonic_from_entropy(entropy_int, words, version, dict_txt)
+def electrum_master_prvkey_from_raw_entropy(raw_entropy, words, version, passphrase, lang = "en"):
+  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang)
   return electrum_master_prvkey_from_mnemonic(mnemonic, passphrase)
 
-def test_electrum_wallet():
 
-  # number of words chosen by the user:
+def test_electrum_wallet():
   words = 12
   bits = words*11
   print("\nFor a", words, "words target:", bits, 'bits of entropy are needed. i.e.', bits//4, 'hexadecimal digits')
 
-  # entropy is entered by the user
-  entropy = 0xf012003974d093eda670121023cd03bb
+  raw_entropy = "f012003974d093eda670121023cd03bb"
+  print(raw_entropy)
 
-  # dictionary chosen by the user:
-  dict_txt = 'dict_ita.txt'
-  dict_txt = 'dict_eng.txt'
-
-  # version chosen by the user:
   version = 'standard'
-
-  mnemonic = electrum_mnemonic_from_entropy(entropy, words, version, dict_txt)
+  lang = "en"
+  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang)
   print('mnemonic:', mnemonic)
 
-  # passphrase chosen by the user:
   passphrase = ''
-
   mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase)
   print('mprv:', mprv)
 
