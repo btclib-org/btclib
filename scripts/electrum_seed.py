@@ -7,11 +7,11 @@ from bip39_functions import bip39_seed_from_mnemonic, bip39_mnemonic_from_word_i
 # source ?
 def electrum_mnemonic_from_entropy(entropy_int, words, version, dict_txt = 'dict_eng.txt'):
   valid = False
+  required_bits = words*11
   while not valid:
-    # fixme ??
-    #assert entropy_int < 2**(11*words)
     entropy_bin = bin(entropy_int)[2:]
-    entropy = entropy_bin.zfill(words*11)
+    entropy_bin = entropy_bin.zfill(required_bits*11)
+    entropy = entropy_bin[-required_bits:]
 
     indexes = [0] * words
     for i in range(0, words):
@@ -25,7 +25,7 @@ def electrum_mnemonic_from_entropy(entropy_int, words, version, dict_txt = 'dict
        s[0:3] == '101' and version == "2FA":
        valid = True
 
-    entropy_int = entropy_int + 1
+    entropy_int += 1
   
   return mnemonic
 
@@ -57,8 +57,6 @@ def test_electrum_wallet():
 
   # entropy is entered by the user
   entropy = 0xf012003974d093eda670121023cd03bb
-  entropy = 0xf012003974d093eda670121023cd03bb121023cd03bb
-  print(hex(entropy))
 
   # dictionary chosen by the user:
   dict_txt = 'dict_ita.txt'
