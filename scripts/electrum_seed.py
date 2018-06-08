@@ -2,14 +2,14 @@ from hashlib import sha512
 from pbkdf2 import PBKDF2
 import hmac
 from bip32_functions import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
-from mnemonic import mnemonic_dictionaries
+from mnemonic import mnemonic_dict
 
 
 MNEMONIC_VERSIONS = {'standard' : '01',
                      'segwit'   : '100',
                      '2fa'      : '101'}
 
-
+# https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
 def electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang = "en"):
   if type(raw_entropy) == str:
       raw_entropy = bytes.fromhex(raw_entropy)
@@ -28,7 +28,8 @@ def electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang = "en")
     entropy = bin(raw_entropy)[2:]
     entropy = entropy.zfill(required_bits*11)
     entropy = entropy[-required_bits:]
-    mnemonic = mnemonic_dictionaries.encode(entropy, lang)
+    indexes = mnemonic_dict.indexes_from_entropy(entropy)
+    mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
     # validity check
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
     if s.startswith(prefix): invalid = False

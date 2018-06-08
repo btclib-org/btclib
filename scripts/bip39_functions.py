@@ -2,20 +2,30 @@ from hashlib import sha256, sha512
 from pbkdf2 import PBKDF2
 # needed because BIP39 test vectors have been "polluted" with derived mprvkey
 from bip32_functions import bip32_master_prvkey_from_seed
-from mnemonic import mnemonic_dictionaries
+from mnemonic import mnemonic_dict
 
 # https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 def bip39_entropy_from_raw_entropy(raw_entropy):
   if type(raw_entropy) == str:
-      raw_entropy = bytes.fromhex(raw_entropy)
+    raw_entropy = bytes.fromhex(raw_entropy)
 
-  allowed_bit_sizes = (128, 160, 192, 224, 256)
+  allowed_raw_entropy_bit_sizes = (128, 160, 192, 224, 256)
+  # CheckSum = raw ENTropy / 32
+  # MnemonicSentence (in words) = (ENT + CS) / 11
+  #
+  #|  ENT  | CS | ENT+CS |  MS  |
+  #+-------+----+--------+------+
+  #|  128  |  4 |   132  |  12  |
+  #|  160  |  5 |   165  |  15  |
+  #|  192  |  6 |   198  |  18  |
+  #|  224  |  7 |   231  |  21  |
+  #|  256  |  8 |   264  |  24  |
   if type(raw_entropy) == bytes:
     raw_entropy_bits = len(raw_entropy) * 8
-    assert raw_entropy_bits in allowed_bit_sizes
+    assert raw_entropy_bits in allowed_raw_entropy_bit_sizes
   elif type(raw_entropy) == int:
     raw_entropy_bits = raw_entropy.bit_length()
-    for i in allowed_bit_sizes:
+    for i in allowed_raw_entropy_bit_sizes:
       if raw_entropy_bits < i:
         raw_entropy_bits = i
         break
@@ -40,7 +50,8 @@ def bip39_entropy_from_raw_entropy(raw_entropy):
 
 def bip39_mnemonic_from_raw_entropy(raw_entropy, lang = "en"):
   entropy = bip39_entropy_from_raw_entropy(raw_entropy)
-  return mnemonic_dictionaries.encode(entropy, lang)
+  indexes = mnemonic_dict.indexes_from_entropy(entropy)
+  return mnemonic_dict.mnemonic_from_indexes(indexes, lang)
 
 
 def bip39_seed_from_mnemonic(mnemonic, passphrase):
