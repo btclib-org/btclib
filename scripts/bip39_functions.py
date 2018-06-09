@@ -91,8 +91,8 @@ def bip39_raw_entropy_from_mnemonic(mnemonic, lang):
 
 # TODO: re-evaluate style
 def bip39_seed_from_mnemonic(mnemonic, passphrase):
-    seed = PBKDF2(mnemonic,
-                  'mnemonic' + passphrase, 2048, sha512).read(64) # 512 bits
+    seed = PBKDF2(mnemonic, 'mnemonic' + passphrase,
+                  2048, sha512).read(64) # 512 bits
     return seed
 
 # TODO: re-evaluate style
