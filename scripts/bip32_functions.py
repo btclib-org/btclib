@@ -230,6 +230,21 @@ def bip32_test_vector3():
   xpub = bip32_xpub_from_xprv(xprv)
   assert xpub == b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
 
+
+def bip32_bip39_test_vectors():
+    filename = "bip39_test_vectors.json"
+    path_to_filename = os.path.join(os.path.dirname(__file__),
+                                    # folder,
+                                    filename)
+    with open(path_to_filename, 'r') as f:
+        test_vectors = json.load(f)["english"]
+    f.closed
+    for test_vector in test_vectors:
+        bip32_seed = test_vector[2]
+        mprv = bip32_master_prvkey_from_seed(bip32_seed)
+        assert mprv == test_vector[3]
+
+
 def test_mainnet():
   # bitcoin core derivation style
   mprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
@@ -347,6 +362,7 @@ def test_scamnet():
 if __name__ == "__main__":
   bip32_test_vector1()
   bip32_test_vector3()
+  bip32_bip39_test_vectors
   test_mainnet()
   test_testnet()
   test_scamnet()
