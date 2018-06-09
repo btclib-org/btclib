@@ -28,10 +28,12 @@ class MnemonicDictionaries:
 
         if self.dictionaries[lang] == None:
             filename = self.language_files[lang]
-            path = os.path.join(os.path.dirname(__file__),
-                                # folder,
-                                filename)
-            lines = open(path, 'r').readlines()
+            path_to_filename = os.path.join(os.path.dirname(__file__),
+                                            # folder,
+                                            filename)
+            with open(path_to_filename, 'r') as f:
+                lines = f.readlines()
+            f.closed
             # no enforcing of 2048 lines...
             words = len(lines)
             assert words % 2 == 0, "dictionary with an odd number of words"
