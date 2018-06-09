@@ -45,11 +45,13 @@ def electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang):
 def electrum_entropy_from_mnemonic(mnemonic, lang):
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
     entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
-    # entropy bit size
-    entropy_bits = len(entropy)
+
     # FIXME: entropy padding, entropy usage
+    # package result as bytes
+    entropy_bits = len(entropy)
     entropy_bytes = math.ceil(entropy_bits/8)
-    return int(entropy, 2).to_bytes(entropy_bytes, 'big')
+    entropy = int(entropy, 2)
+    return entropy.to_bytes(entropy_bytes, 'big')
 
 
 def electrum_seed_from_mnemonic(mnemonic, passphrase):
