@@ -16,7 +16,7 @@ def bip39_raw_entropy_checksum(raw_entr):
     checksum = bin(checksum)[2:]               # remove '0b'
     checksum = checksum.zfill(256)             # pad with lost zeros
     # rightmost bits
-    checksum_bits = len(raw_entr) // 8
+    checksum_bits = len(raw_entr) // 4
     return checksum[:checksum_bits]
 
 #  bits per word = bpw = 11
@@ -75,19 +75,21 @@ def bip39_mnemonic_from_raw_entropy(raw_entr, lang):
 def bip39_raw_entropy_from_mnemonic(mnemonic, lang):
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
     entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
+
     # raw entropy bit size
     raw_entr_bits = int(len(entropy)*32/33)
     assert raw_entr_bits in _allowed_raw_entropy_bit_sizes
     raw_entr = entropy[:raw_entr_bits]
+    
     # verify checksum
     bytes_raw_entr = int(raw_entr, 2).to_bytes(raw_entr_bits//8, 'big')
     checksum = bip39_raw_entropy_checksum(bytes_raw_entr)
     assert entropy[raw_entr_bits:] == checksum
-    # return an hexstring (could have return bytes instead)
+    
+    # package result as bytes
+    raw_entr_bytes = raw_entr_bits//8
     raw_entr = int(raw_entr, 2)
-    format_string = '0' + str(raw_entr_bits//4) + 'x'
-    raw_entr = format(raw_entr, format_string)
-    return raw_entr
+    return raw_entr.to_bytes(raw_entr_bytes, 'big')
 
 # TODO: re-evaluate style
 def bip39_seed_from_mnemonic(mnemonic, passphrase):
@@ -125,7 +127,7 @@ def test_bip39_wallet():
     print(int(len(raw_entr)/2), "bytes raw entropy:", raw_entr)
 
     mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
-    assert raw_entr == bip39_raw_entropy_from_mnemonic(mnemonic, lang)
+    assert raw_entr == bip39_raw_entropy_from_mnemonic(mnemonic, lang).hex()
     print('mnemonic:', mnemonic)
 
     passphrase = ''
@@ -286,7 +288,8 @@ def bip39_test_vectors():
         lang = "en"
         mnemonic = bip39_mnemonic_from_raw_entropy(test_vector[0], lang)
         assert mnemonic == test_vector[1]
-        assert bip39_raw_entropy_from_mnemonic(mnemonic, lang) == test_vector[0]
+        raw_entr = bip39_raw_entropy_from_mnemonic(mnemonic, lang).hex()
+        assert raw_entr == test_vector[0]
         seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
         assert seed.hex() == test_vector[2]
         # move the rest to bip32 file
