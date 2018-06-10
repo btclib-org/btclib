@@ -1,3 +1,7 @@
+#!/usr/bin/python3
+
+"""electrum entropy / mnemonic / seed functions"""
+
 from hashlib import sha512
 from pbkdf2 import PBKDF2
 import hmac
@@ -55,7 +59,7 @@ def electrum_master_prvkey_from_mnemonic(mnemonic, passphrase):
   if s.startswith(MNEMONIC_VERSIONS['standard']):
     return bip32_master_prvkey_from_seed(seed)
   elif s.startswith(MNEMONIC_VERSIONS['segwit']):
-    # fixme parametrizazion of the prefix is needed
+    # FIXME: parametrizazion of the prefix is needed
     mprv = bip32_master_prvkey_from_seed(seed, b'\x04\xb2\x43\x0c')
     # why this hardned derivation?
     return bip32_ckd(mprv, 0x80000000)

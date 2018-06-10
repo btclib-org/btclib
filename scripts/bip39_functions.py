@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-"""BIP39 functions"""
+"""BIP39 entropy / mnemonic / seed functions"""
 
 from hashlib import sha256, sha512
 from pbkdf2 import PBKDF2
@@ -42,7 +42,7 @@ _allowed_raw_entr_bits = (128, 160, 192, 224, 256)
 #
 # output entropy is returned as binary string
 def bip39_entropy_from_raw_entropy(raw_entropy):
-    if type(raw_entropy) == str: # binary string
+    if type(raw_entropy) == str:
         bits = len(raw_entropy)
         assert bits in _allowed_raw_entr_bits, "invalid raw entropy size"
         raw_entropy = int(raw_entropy, 2).to_bytes(bits//8, 'big')

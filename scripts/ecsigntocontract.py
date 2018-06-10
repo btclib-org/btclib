@@ -42,7 +42,7 @@ from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_s
 def check_receipt(receipt):
   """check receipt format
   """
-  # fixme
+  # FIXME
   # assert type(receipt[0]) == int and \
   #       0 < receipt[0] and receipt[0] < ec_prime, \
   #       "1st part of the receipt must be an int in (0, ec_prime)"

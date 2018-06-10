@@ -4,7 +4,7 @@ from ECsecp256k1 import ec
 import hashlib
 from base58 import b58encode_check, b58encode, b58decode_check
 
-# to be fixed for other version value
+# FIXME: other versions
 def private_key_to_public_key(private_key, version=0x04):
   p = ec.pointMultiply(private_key)
   public_key = version+p[0]+p[1]

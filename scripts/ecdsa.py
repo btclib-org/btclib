@@ -57,7 +57,7 @@ def ecdsa_recover(m, dsasig, y_mod_2):
 
 def ecdsa_recover_raw(m, dsasig, y_mod_2):
   h = int_from_hash(m)
-  r, s = dsasig #fixme: why is s not used?
+  r, s = dsasig # FIXME: why is s not used?
   r1 = mod_inv(r, ec.order)
   R = (r, ec.y(r, y_mod_2))
   # by choice at this level do not manage point at infinity (h = 0, R = 0G)
