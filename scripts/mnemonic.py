@@ -6,9 +6,13 @@
 import math
 import os
 
+
 class MnemonicDictionaries:
     """Manage dictionary based conversions between entropy, 
-    word indexes, and mnemonic phrase
+       word indexes, and mnemonic phrase.
+
+       Entropy is treated bitwise, as (leading) zeros are not
+       considered redundant padding. 
     """
 
     def __init__(self):
@@ -18,15 +22,18 @@ class MnemonicDictionaries:
             'en':'english.txt',
             'it':'italian.txt'
         }
-        languages = self.language_files.keys()
-        # empy dictionaries
-        self.dictionaries = dict(zip(languages, [None]*len(languages)))
-        self.bpw = dict(zip(languages, [None]*len(languages)))
+        self.languages = self.language_files.keys()
 
-    def load_language_if_not_available(self, lang):
-        assert lang in self.dictionaries.keys(), "unknown language" + lang
+        # create empty dictionaries
+        values = len(self.languages)*[None]
+        self._dictionary = dict(zip(self.languages, values))
+        self._bits_per_word = dict(zip(self.languages, values))
+        self._language_length = dict(zip(self.languages, values))
 
-        if self.dictionaries[lang] == None:
+    def _load_language_if_not_available(self, lang):
+        assert lang in self.languages, "unknown language" + lang
+
+        if self._dictionary[lang] == None:
             filename = self.language_files[lang]
             path_to_filename = os.path.join(os.path.dirname(__file__),
                                             # folder,
@@ -34,73 +41,130 @@ class MnemonicDictionaries:
             with open(path_to_filename, 'r') as f:
                 lines = f.readlines()
             f.closed
-            # no enforcing of 2048 lines...
-            words = len(lines)
-            assert words % 2 == 0, "dictionary with an odd number of words"
-            self.bpw[lang] = int(math.log(words, 2))
-            # clean up and normalization are missing, but removal of \n
-            self.dictionaries[lang] = [line[:-1] for line in lines]
 
-    def bit_per_word(self, lang):
-        self.load_language_if_not_available(lang)
-        return self.bpw[lang]
+            nwords = len(lines)
+            # http://www.graphics.stanford.edu/~seander/bithacks.html
+            # Determining if an integer is a power of 2
+            assert nwords & (nwords - 1) == 0, "dictionary length must be a power of two"
+            self._bits_per_word[lang] = int(math.log(nwords, 2))
+            self._language_length[lang] = nwords
+            # clean up and normalization are missing, but removal of \n
+            self._dictionary[lang] = [line[:-1] for line in lines]
+
+    def bits_per_word(self, lang):
+        self._load_language_if_not_available(lang)
+        return self._bits_per_word[lang]
+
+    def dictionary(self, lang):
+        self._load_language_if_not_available(lang)
+        return self._dictionary[lang]
+
+    def language_length(self, lang):
+        self._load_language_if_not_available(lang)
+        return self._language_length[lang]
 
     def indexes_from_entropy(self, entropy, lang):
-        self.load_language_if_not_available(lang)
-        assert int(entropy, 2) >= 0, "entropy must be a binary string"
+        self._load_language_if_not_available(lang)
 
-        words = len(entropy)//self.bpw[lang]
-        # to be revised:
-        # left-most bits are used, any traling extra are unused
-        indexes = [int(entropy[i*self.bpw[lang]:(i+1)*self.bpw[lang]], 2) for i in range(0, words)]
-        return indexes
+        if type(entropy) == str: # binary string
+            bits = len(entropy)
+            entropy = int(entropy, 2)
+        elif isinstance(entropy, (bytes, bytearray)):
+            bits = len(entropy)*8
+            entropy = int.from_bytes(entropy, 'big')
+        elif type(entropy) == int:
+            assert entropy >= 0, "negative entropy"
+            bits = entropy.bit_length()
+        else:
+            raise TypeError("entropy must be bynary string,",
+                            "bytes-like object, or int;",
+                            "not '%s'" % type(entropy).__name__)
+
+        n = self._language_length[lang]
+        indexes = []
+        while entropy:
+            indexes.append(entropy % n)
+            entropy = entropy // n
+
+        # do not lose leading zeros entropy
+        bpw = self._bits_per_word[lang]
+        nwords = math.ceil(bits/bpw)
+        while len(indexes) < nwords:
+            indexes.append(0)
+
+        return list(reversed(indexes))
 
     def mnemonic_from_indexes(self, indexes, lang):
-        self.load_language_if_not_available(lang)
+        self._load_language_if_not_available(lang)
 
         words = []
+        dictionary = self._dictionary[lang]
         for i in indexes:
-            word = self.dictionaries[lang][i]
+            word = dictionary[i]
             words.append(word)
         return ' '.join(words)
 
     def indexes_from_mnemonic(self, mnemonic, lang):
-        self.load_language_if_not_available(lang)
+        self._load_language_if_not_available(lang)
 
         words = mnemonic.split()
-        indexes = [self.dictionaries[lang].index(word) for word in words]
+        dictionary = self._dictionary[lang]
+        indexes = [dictionary.index(w) for w in words]
         return indexes
 
     def entropy_from_indexes(self, indexes, lang):
-        self.load_language_if_not_available(lang)
+        self._load_language_if_not_available(lang)
 
-        entropy = ''
+        n = self._language_length[lang]
+        entropy = 0
         for i in indexes:
-            word_bits = bin(i)
-            word_bits = word_bits[2:]
-            word_bits = word_bits.zfill(self.bpw[lang])
-            entropy += word_bits
-        return entropy
+            entropy = entropy*n + i
+
+        binentropy = bin(entropy)[2:]
+
+        # do not lose leading zeros entropy
+        bpw = self._bits_per_word[lang]
+        bits = len(indexes)*bpw
+        binentropy = binentropy.zfill(bits)
+
+        return binentropy
+
 
 mnemonic_dict = MnemonicDictionaries()
 
+
 def main():
     lang = "en"
-    assert mnemonic_dict.bit_per_word(lang) == 11
-    mnemonic = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
-    test_vector = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
-    assert test_vector == [1268, 535, 810, 685, 433, 811, 1385, 1790, 421, 570, 567, 1313]
-    assert mnemonic == mnemonic_dict.mnemonic_from_indexes(test_vector, lang)
+    length = mnemonic_dict.language_length(lang)
+    if length != 2048:
+        raise ValueError("\n" + length + "\n" + 2048)
+    bpw = mnemonic_dict.bits_per_word(lang)
+    if bpw != 11:
+        raise ValueError("\n" + bpw + "\n" + 11)
 
-    entropy = mnemonic_dict.entropy_from_indexes(test_vector, lang)
-    assert mnemonic_dict.indexes_from_entropy(entropy, lang) == test_vector
+    test_mnemonic = "ozone drill grab fiber curtain grace " \
+                    "pudding thank cruise elder eight picnic"
+    test_indexes = [1268,  535,  810,  685,  433,  811,
+                    1385, 1790,  421,  570,  567, 1313]
+    indexes = mnemonic_dict.indexes_from_mnemonic(test_mnemonic, lang)
+    if indexes != test_indexes:
+        raise ValueError("\n" + str(indexes) + "\n" + str(test_indexes))
+    mnemonic = mnemonic_dict.mnemonic_from_indexes(test_indexes, lang)
+    if mnemonic != test_mnemonic:
+        raise ValueError("\n" + mnemonic + "\n" + test_mnemonic)
 
-    test_vector = [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0, 0]
-    entropy = mnemonic_dict.entropy_from_indexes(test_vector, lang)
-    assert entropy[:22] =="0"*22
-    assert entropy[22:-22] =="1"*88
-    assert entropy[-22:]=="0"*22
-    assert mnemonic_dict.indexes_from_entropy(entropy, lang) == test_vector
+
+    entropy = mnemonic_dict.entropy_from_indexes(test_indexes, lang)
+    indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
+    if indexes != test_indexes:
+        raise ValueError("\n" + str(indexes) + "\n" + str(test_indexes))
+
+    test_indexes = [   0,    0, 2047, 2047, 2047, 2047,
+                    2047, 2047, 2047, 2047, 2047,    0]
+    entropy = mnemonic_dict.entropy_from_indexes(test_indexes, lang)
+    indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
+    if indexes != test_indexes:
+        raise ValueError("\n" + str(indexes) + "\n" + str(test_indexes))
 
 
 if __name__ == "__main__":

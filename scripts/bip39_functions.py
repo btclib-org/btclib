@@ -31,7 +31,7 @@ def bip39_raw_entropy_checksum(raw_entr):
 # |  192  |  6 |   198  |  18  |
 # |  224  |  7 |   231  |  21  |
 # |  256  |  8 |   264  |  24  |
-_allowed_raw_entropy_bit_sizes = (128, 160, 192, 224, 256)
+_allowed_raw_entr_bit_sizes = (128, 160, 192, 224, 256)
 
 # raw entropy can be expresse in bytes, hex string or int
 # hex string and bytes must be 128, 160, 192, 224, or 256 bits
@@ -45,14 +45,14 @@ def bip39_entropy_from_raw_entropy(raw_entr):
 
     if type(raw_entr) == bytes:
         raw_entr_bits = len(raw_entr) * 8
-        assert raw_entr_bits in _allowed_raw_entropy_bit_sizes
+        assert raw_entr_bits in _allowed_raw_entr_bit_sizes
     elif type(raw_entr) == int:
         raw_entr_bits = raw_entr.bit_length()
-        for i in _allowed_raw_entropy_bit_sizes:
+        for i in _allowed_raw_entr_bit_sizes:
             if raw_entr_bits < i:
                 raw_entr_bits = i
                 break
-        assert raw_entr_bits in _allowed_raw_entropy_bit_sizes
+        assert raw_entr_bits in _allowed_raw_entr_bit_sizes
         raw_entr = raw_entr.to_bytes(raw_entr_bits//8, 'big')
     else:
         raise ValueError("entropy must be bytes, hexstring, or int")
@@ -77,12 +77,12 @@ def bip39_raw_entropy_from_mnemonic(mnemonic, lang):
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
     entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
 
-    # raw entropy bit size
+    # raw entropy is only the first part of entropy
     raw_entr_bits = int(len(entropy)*32/33)
-    assert raw_entr_bits in _allowed_raw_entropy_bit_sizes
+    assert raw_entr_bits in _allowed_raw_entr_bit_sizes, "invalid entropy size"
     raw_entr = entropy[:raw_entr_bits]
     
-    # verify checksum
+    # the second one being the checksum, to be verified
     bytes_raw_entr = int(raw_entr, 2).to_bytes(raw_entr_bits//8, 'big')
     checksum = bip39_raw_entropy_checksum(bytes_raw_entr)
     assert entropy[raw_entr_bits:] == checksum
@@ -111,7 +111,7 @@ def bip39_master_prvkey_from_raw_entropy(raw_entr, passphrase, lang):
 
 def test_bip39_wallet():
     lang = "en"
-    bpw = mnemonic_dict.bit_per_word(lang) # 11
+    bpw = mnemonic_dict.bits_per_word(lang) # 11
     words = 12
     # ENT = entropy bits
     # CS  = checksum bits
@@ -149,13 +149,18 @@ def bip39_test_vectors():
     for test_vector in test_vectors:
         lang = "en"
         mnemonic = bip39_mnemonic_from_raw_entropy(test_vector[0], lang)
-        assert mnemonic == test_vector[1]
+        if mnemonic != test_vector[1]:
+            raise ValueError("\n" + mnemonic + "\n" + test_vector[1])
+
         raw_entr = bip39_raw_entropy_from_mnemonic(mnemonic, lang).hex()
-        assert raw_entr == test_vector[0]
-        seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR")
-        assert seed.hex() == test_vector[2]
+        if raw_entr != test_vector[0]:
+            raise ValueError("\n" + raw_entr + "\n" + test_vector[0])
+
+        seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR").hex()
+        if seed != test_vector[2]:
+            raise ValueError("\n" + seed + "\n" + test_vector[2])
         # test_vector[3], i.e. the bip32 master private key from seed,
-        # has been tested in bip32
+        # has been tested in bip32, as it does not belong here
 
 
 if __name__ == "__main__":

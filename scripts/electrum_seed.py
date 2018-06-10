@@ -11,48 +11,36 @@ MNEMONIC_VERSIONS = {'standard' : '01',
 
 # raw entropy can be expresse in bytes, hex string or int
 # entropy is expressed as binary string
-# https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
-def electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang):
-  if type(raw_entropy) == str:
-      raw_entropy = bytes.fromhex(raw_entropy)
+def electrum_mnemonic_from_raw_entropy(raw_entropy, version, lang):
+    # electrum consider entropy as integer, losing any leading zero
+    # https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
 
-  if type(raw_entropy) == bytes:
-      raw_entropy = int.from_bytes(raw_entropy, 'big')
-  elif type(raw_entropy) != int:
-      raise ValueError("entropy must be bytes, hexstring, or int")
+    if type(raw_entropy) == str:
+        # very dangerous as a binary string could be decoded as hexsting
+        raw_entropy = int(raw_entropy, 16)
+    elif type(raw_entropy) == bytes:
+        raw_entropy = int.from_bytes(raw_entropy, 'big')
+    elif type(raw_entropy) != int:
+        raise ValueError("entropy must be bytes, hexstring, or int")
 
-  bpw = mnemonic_dict.bit_per_word(lang)
-  required_bits = words*bpw
-
-  assert version in MNEMONIC_VERSIONS, "unknown electrum mnemonic version"
-  invalid = True
-  while invalid:
-    entropy = bin(raw_entropy)[2:]         # remove '0b'
-    entropy = entropy.zfill(required_bits) # pad if shorter
-    # FIXME: entropy padding, entropy usage
-    entropy = entropy[-required_bits:]     # cut if longer
-    indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
-    mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
-    # version validity check
-    s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
-    if s.startswith(MNEMONIC_VERSIONS[version]): invalid = False
-    # next trial
-    raw_entropy += 1
-  
-  return mnemonic
+    assert version in MNEMONIC_VERSIONS, "unknown electrum mnemonic version"
+    invalid = True
+    while invalid:
+        indexes = mnemonic_dict.indexes_from_entropy(raw_entropy, lang)
+        mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
+        # version validity check
+        s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
+        if s.startswith(MNEMONIC_VERSIONS[version]): invalid = False
+        # next trial
+        raw_entropy += 1
+    
+    return mnemonic
 
 
 def electrum_entropy_from_mnemonic(mnemonic, lang):
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
-    entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
-
-    # FIXME: entropy padding, entropy usage
-    # package result as bytes
-    entropy_bits = len(entropy)
-    entropy_bytes = math.ceil(entropy_bits/8)
-    entropy = int(entropy, 2)
-    return entropy.to_bytes(entropy_bytes, 'big')
-
+    mnemonic = mnemonic_dict.entropy_from_indexes(indexes, lang)
+    return mnemonic
 
 def electrum_seed_from_mnemonic(mnemonic, passphrase):
   seed = PBKDF2(mnemonic, 'electrum' + passphrase,
@@ -77,38 +65,41 @@ def electrum_master_prvkey_from_mnemonic(mnemonic, passphrase):
 
 
 def electrum_master_prvkey_from_raw_entropy(raw_entropy, words, version, passphrase, lang):
-  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang)
-  return electrum_master_prvkey_from_mnemonic(mnemonic, passphrase)
+  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, version, lang)
+  mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase)
+  return mprv
 
 
 def test_electrum_wallet():
   lang = "en"
-  bpw = mnemonic_dict.bit_per_word(lang)
+  bpw = mnemonic_dict.bits_per_word(lang)
   words = 12
   bits = words*bpw
-  print("\nFor a", words, "words target", bits, 'bits of entropy are needed, i.e.', bits//4, 'hexadecimal digits')
+  print("\nFor a", words, "words target", bits,
+        "bits of entropy are needed, i.e.", bits//4,
+        "hexadecimal digits")
 
-  raw_entropy = "110000003974d093eda670121023cd0772"
-  print(int(len(raw_entropy)/2), "bytes raw entropy:", raw_entropy)
+  raw_entropy = int("110aaaa03974d093eda670121023cd0772", 16)
+  hex_raw_entropy = hex(raw_entropy)
+  print(int(len(hex_raw_entropy)/2), "bytes raw entropy:", hex_raw_entropy)
 
   version = 'standard'
-  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, words, version, lang)
+  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, version, lang)
   print('mnemonic:', mnemonic)
 
   passphrase = ''
   mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase)
   print('mprv:', mprv)
 
-  entropy = electrum_entropy_from_mnemonic(mnemonic, lang)
-  entropy = entropy.hex()
-  print(int(len(entropy)/2), "bytes     entropy:", entropy)
+  entropy = int(electrum_entropy_from_mnemonic(mnemonic, lang), 2)
+  hex_entropy = hex(entropy)
+  print(int(len(hex_entropy)/2), "bytes     entropy:", hex_entropy)
 
   # relevant entropy part
-  raw_entropy = bin(int(raw_entropy, 16))[2:].zfill(bits)[-bits:]
-  entropy     = bin(int(entropy    , 16))[2:].zfill(bits)[-bits:]
-  #print(raw_entropy)
-  #print(    entropy)
-  #print(int(entropy, 2) - int(raw_entropy, 2))
+  hex_raw_entropy = bin(int(hex_raw_entropy, 16))[2:].zfill(bits)[-bits:]
+  hex_entropy     = bin(int(    hex_entropy, 16))[2:].zfill(bits)[-bits:]
+  #print(hex_raw_entropy)
+  #print(hex_entropy)
 
 def electrum_test_vectors():
   test_vectors = [
@@ -150,17 +141,20 @@ def electrum_test_vectors():
     ]
   ]
   for test_vector in test_vectors:
-    lang = "en"
-    version = test_vector[0]
-    mnemonic = test_vector[1]
+    test_mnemonic = test_vector[1]
     passphrase = test_vector[2]
-    mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase)
-    mpub = bip32_xpub_from_xprv(mprv)
-    assert mpub.decode() == test_vector[3]
-    entropy = electrum_entropy_from_mnemonic(mnemonic, lang)
-    words = len(mnemonic.split())
-    temp = electrum_mnemonic_from_raw_entropy(entropy, words, version, lang)
-    assert mnemonic == temp
+    test_mpub = test_vector[3]
+    mprv = electrum_master_prvkey_from_mnemonic(test_mnemonic, passphrase)
+    mpub = bip32_xpub_from_xprv(mprv).decode()
+    if mpub != test_mpub:
+        raise ValueError("\n" + mpub + "\n" + test_vector[3])
+    
+    lang = "en"
+    entropy = int(electrum_entropy_from_mnemonic(test_mnemonic, lang), 2)
+    version = test_vector[0]
+    mnemonic = electrum_mnemonic_from_raw_entropy(entropy, version, lang)
+    if mnemonic != test_mnemonic:
+        raise ValueError("\n" + mnemonic + "\n" + test_mnemonic)
 
  
 if __name__ == "__main__":
