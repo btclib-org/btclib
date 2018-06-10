@@ -9,15 +9,13 @@ MNEMONIC_VERSIONS = {'standard' : '01',
                      'segwit'   : '100',
                      '2fa'      : '101'}
 
-# raw entropy can be expresse in bytes, hex string or int
-# entropy is expressed as binary string
+# entropy can be expresses as binary string, bytes-like, or int
 def electrum_mnemonic_from_raw_entropy(raw_entropy, version, lang):
     # electrum consider entropy as integer, losing any leading zero
     # https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
 
     if type(raw_entropy) == str:
-        # very dangerous as a binary string could be decoded as hexsting
-        raw_entropy = int(raw_entropy, 16)
+        raw_entropy = int(raw_entropy, 2)
     elif type(raw_entropy) == bytes:
         raw_entropy = int.from_bytes(raw_entropy, 'big')
     elif type(raw_entropy) != int:
@@ -36,11 +34,12 @@ def electrum_mnemonic_from_raw_entropy(raw_entropy, version, lang):
     
     return mnemonic
 
-
+# entropy is returned as binary string
 def electrum_entropy_from_mnemonic(mnemonic, lang):
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
-    mnemonic = mnemonic_dict.entropy_from_indexes(indexes, lang)
-    return mnemonic
+    entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
+    return entropy
+
 
 def electrum_seed_from_mnemonic(mnemonic, passphrase):
   seed = PBKDF2(mnemonic, 'electrum' + passphrase,
@@ -76,8 +75,7 @@ def test_electrum_wallet():
   words = 12
   bits = words*bpw
   print("\nFor a", words, "words target", bits,
-        "bits of entropy are needed, i.e.", bits//4,
-        "hexadecimal digits")
+        "bits of entropy are needed, i.e.", bits//8, "bytes")
 
   raw_entropy = int("110aaaa03974d093eda670121023cd0772", 16)
   hex_raw_entropy = hex(raw_entropy)
@@ -100,6 +98,7 @@ def test_electrum_wallet():
   hex_entropy     = bin(int(    hex_entropy, 16))[2:].zfill(bits)[-bits:]
   #print(hex_raw_entropy)
   #print(hex_entropy)
+
 
 def electrum_test_vectors():
   test_vectors = [

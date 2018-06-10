@@ -8,6 +8,7 @@ from mnemonic import mnemonic_dict
 from bip32_functions import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
 import os
 import json
+import math
 
 def bip39_raw_entropy_checksum(raw_entr):
     # raw_entr 256-bit checksum
@@ -31,40 +32,42 @@ def bip39_raw_entropy_checksum(raw_entr):
 # |  192  |  6 |   198  |  18  |
 # |  224  |  7 |   231  |  21  |
 # |  256  |  8 |   264  |  24  |
-_allowed_raw_entr_bit_sizes = (128, 160, 192, 224, 256)
+_allowed_raw_entr_bits = (128, 160, 192, 224, 256)
 
-# raw entropy can be expresse in bytes, hex string or int
-# hex string and bytes must be 128, 160, 192, 224, or 256 bits
-# int is padded with leading zeros up to 128, 160, 192, 224, or 256 bits
-# entropy is instead expressed as binary string
-# other specifications as per
 # https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
-def bip39_entropy_from_raw_entropy(raw_entr):
-    if type(raw_entr) == str:
-        raw_entr = bytes.fromhex(raw_entr)
-
-    if type(raw_entr) == bytes:
-        raw_entr_bits = len(raw_entr) * 8
-        assert raw_entr_bits in _allowed_raw_entr_bit_sizes
-    elif type(raw_entr) == int:
-        raw_entr_bits = raw_entr.bit_length()
-        for i in _allowed_raw_entr_bit_sizes:
-            if raw_entr_bits < i:
-                raw_entr_bits = i
+#
+# input raw entropy can be expresses as binary string, bytes-like, or int
+# it must be 128, 160, 192, 224, or 256 bits
+# int is pre zero padded up to 128, 160, 192, 224, or 256 bits
+#
+# output entropy is returned as binary string
+def bip39_entropy_from_raw_entropy(raw_entropy):
+    if type(raw_entropy) == str: # binary string
+        bits = len(raw_entropy)
+        assert bits in _allowed_raw_entr_bits, "invalid raw entropy size"
+        raw_entropy = int(raw_entropy, 2).to_bytes(bits//8, 'big')
+    elif isinstance(raw_entropy, (bytes, bytearray)):
+        bits = len(raw_entropy) * 8
+        assert bits in _allowed_raw_entr_bits, "invalid raw entropy size"
+    elif type(raw_entropy) == int:
+        bits = raw_entropy.bit_length()
+        for i in _allowed_raw_entr_bits:
+            if bits < i:
+                bits = i
                 break
-        assert raw_entr_bits in _allowed_raw_entr_bit_sizes
-        raw_entr = raw_entr.to_bytes(raw_entr_bits//8, 'big')
+        assert bits in _allowed_raw_entr_bits, "invalid raw entropy size"
+        raw_entropy = raw_entropy.to_bytes(bits//8, 'big')
     else:
-        raise ValueError("entropy must be bytes, hexstring, or int")
+        raise ValueError("entropy must be binary string, bytes-like, or int")
 
-    checksum = bip39_raw_entropy_checksum(raw_entr)
+    checksum = bip39_raw_entropy_checksum(raw_entropy)
 
-    # convert raw_entr to binary '01' string
-    raw_entr = int.from_bytes(raw_entr, 'big') # leading zeros are lost
-    raw_entr = bin(raw_entr)[2:]               # remove '0b'
-    raw_entr = raw_entr.zfill(raw_entr_bits)   # pad with lost zeros
+    # convert raw_entropy to binary string
+    raw_entropy = int.from_bytes(raw_entropy, 'big') # leading zeros are lost
+    raw_entropy = bin(raw_entropy)[2:]               # remove '0b'
+    raw_entropy = raw_entropy.zfill(bits)            # pad with lost zeros
 
-    return raw_entr + checksum
+    return raw_entropy + checksum
 
 
 def bip39_mnemonic_from_raw_entropy(raw_entr, lang):
@@ -72,14 +75,14 @@ def bip39_mnemonic_from_raw_entropy(raw_entr, lang):
     indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
     return mnemonic_dict.mnemonic_from_indexes(indexes, lang)
 
-
+# output raw entropy is returned as binary string
 def bip39_raw_entropy_from_mnemonic(mnemonic, lang):
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
     entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
 
     # raw entropy is only the first part of entropy
     raw_entr_bits = int(len(entropy)*32/33)
-    assert raw_entr_bits in _allowed_raw_entr_bit_sizes, "invalid entropy size"
+    assert raw_entr_bits in _allowed_raw_entr_bits, "invalid raw entropy size"
     raw_entr = entropy[:raw_entr_bits]
     
     # the second one being the checksum, to be verified
@@ -87,10 +90,7 @@ def bip39_raw_entropy_from_mnemonic(mnemonic, lang):
     checksum = bip39_raw_entropy_checksum(bytes_raw_entr)
     assert entropy[raw_entr_bits:] == checksum
     
-    # package result as bytes
-    raw_entr_bytes = raw_entr_bits//8
-    raw_entr = int(raw_entr, 2)
-    return raw_entr.to_bytes(raw_entr_bytes, 'big')
+    return raw_entr
 
 # TODO: re-evaluate style
 def bip39_seed_from_mnemonic(mnemonic, passphrase):
@@ -103,7 +103,7 @@ def bip39_master_prvkey_from_mnemonic(mnemonic, passphrase):
     seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
     return bip32_master_prvkey_from_seed(seed)
 
-# TODO move to wallet file
+# TODO: move to wallet file
 def bip39_master_prvkey_from_raw_entropy(raw_entr, passphrase, lang):
     mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
     return bip39_master_prvkey_from_mnemonic(mnemonic, passphrase)
@@ -122,13 +122,17 @@ def test_bip39_wallet():
     # hexdigits    = words*bpw*32/33/4
     bits = (words*bpw*32)//33
     print("\nFor a", words, "words target", bits,
-          'bits of entropy are needed, i.e.', bits//4, 'hexadecimal digits')
+          'bits of entropy are needed, i.e.', bits//8, 'bytes')
 
-    raw_entr = "0000003974d093eda670121023cd0000"
-    print(int(len(raw_entr)/2), "bytes raw entropy:", raw_entr)
+    raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
+    print(len(raw_entr), "bytes raw entropy:", raw_entr.hex())
 
     mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
-    assert raw_entr == bip39_raw_entropy_from_mnemonic(mnemonic, lang).hex()
+    r = bip39_raw_entropy_from_mnemonic(mnemonic, lang)
+    nbytes = math.ceil(len(r)/8)
+    r = int(r, 2).to_bytes(nbytes, 'big')
+    if r != raw_entr:
+        raise ValueError("\n" + r.hex() + "\n" + raw_entr.hex())
     print('mnemonic:', mnemonic)
 
     passphrase = ''
@@ -148,13 +152,16 @@ def bip39_test_vectors():
     f.closed
     for test_vector in test_vectors:
         lang = "en"
+        test_vector[0] = bytes.fromhex(test_vector[0])
         mnemonic = bip39_mnemonic_from_raw_entropy(test_vector[0], lang)
         if mnemonic != test_vector[1]:
             raise ValueError("\n" + mnemonic + "\n" + test_vector[1])
 
-        raw_entr = bip39_raw_entropy_from_mnemonic(mnemonic, lang).hex()
+        raw_entr = bip39_raw_entropy_from_mnemonic(mnemonic, lang)
+        nbytes = math.ceil(len(raw_entr)/8)
+        raw_entr = int(raw_entr, 2).to_bytes(nbytes, 'big')
         if raw_entr != test_vector[0]:
-            raise ValueError("\n" + raw_entr + "\n" + test_vector[0])
+            raise ValueError("\n" + raw_entr.hex() + "\n" + test_vector[0].hex())
 
         seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR").hex()
         if seed != test_vector[2]:

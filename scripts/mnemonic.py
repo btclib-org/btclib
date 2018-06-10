@@ -63,6 +63,7 @@ class MnemonicDictionaries:
         self._load_language_if_not_available(lang)
         return self._language_length[lang]
 
+    # input entropy can be expresses as binary string, bytes-like, or int
     def indexes_from_entropy(self, entropy, lang):
         self._load_language_if_not_available(lang)
 
@@ -112,6 +113,7 @@ class MnemonicDictionaries:
         indexes = [dictionary.index(w) for w in words]
         return indexes
 
+    # output entropy is returned as binary string
     def entropy_from_indexes(self, indexes, lang):
         self._load_language_if_not_available(lang)
 
