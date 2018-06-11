@@ -35,7 +35,7 @@ class MnemonicDictionaries:
         if self._dictionary[lang] == None:
             filename = self.language_files[lang]
             path_to_filename = os.path.join(os.path.dirname(__file__),
-                                            # folder,
+                                            "../data/",
                                             filename)
             with open(path_to_filename, 'r') as f:
                 lines = f.readlines()
