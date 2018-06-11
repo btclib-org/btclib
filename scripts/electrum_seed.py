@@ -101,15 +101,13 @@ class TestMnemonicDictionaries(unittest.TestCase):
             test_mpub = test_vector[3]
             mprv = electrum_master_prvkey_from_mnemonic(test_mnemonic, passphrase)
             mpub = bip32_xpub_from_xprv(mprv).decode()
-            if mpub != test_mpub:
-                raise ValueError("\n" + mpub + "\n" + test_vector[3])
+            self.assertEqual(mpub, test_mpub)
             
             lang = "en"
             entropy = int(electrum_entropy_from_mnemonic(test_mnemonic, lang), 2)
             version = test_vector[0]
             mnemonic = electrum_mnemonic_from_raw_entropy(entropy, version, lang)
-            if mnemonic != test_mnemonic:
-                raise ValueError("\n" + mnemonic + "\n" + test_mnemonic)
+            self.assertEqual(mnemonic, test_mnemonic)
 
  
 if __name__ == "__main__":
