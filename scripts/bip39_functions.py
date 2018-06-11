@@ -5,10 +5,7 @@
 from hashlib import sha256, sha512
 from pbkdf2 import PBKDF2
 from mnemonic import mnemonic_dict
-from bip32_functions import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
-import os
-import json
-import math
+from bip32_functions import bip32_master_prvkey_from_seed
 
 def bip39_raw_entropy_checksum(raw_entr):
     # raw_entr 256-bit checksum
@@ -108,68 +105,53 @@ def bip39_master_prvkey_from_raw_entropy(raw_entr, passphrase, lang):
     mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
     return bip39_master_prvkey_from_mnemonic(mnemonic, passphrase)
 
+import unittest
+import os
+import json
+import math
 
-def test_bip39_wallet():
-    lang = "en"
-    bpw = mnemonic_dict.bits_per_word(lang) # 11
-    words = 12
-    # ENT = entropy bits
-    # CS  = checksum bits
-    # ENT + CS     = words*bpw
-    # ENT + ENT/32 = words*bpw
-    # ENT * 33/32  = words*bpw
-    # ENT          = words*bpw*32/33
-    # hexdigits    = words*bpw*32/33/4
-    bits = (words*bpw*32)//33
-    print("\nFor a", words, "words target", bits,
-          'bits of entropy are needed, i.e.', bits//8, 'bytes')
-
-    raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
-    print(len(raw_entr), "bytes raw entropy:", raw_entr.hex())
-
-    mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
-    r = bip39_raw_entropy_from_mnemonic(mnemonic, lang)
-    nbytes = math.ceil(len(r)/8)
-    r = int(r, 2).to_bytes(nbytes, 'big')
-    if r != raw_entr:
-        raise ValueError("\n" + r.hex() + "\n" + raw_entr.hex())
-    print('mnemonic:', mnemonic)
-
-    passphrase = ''
-    mpr = bip39_master_prvkey_from_mnemonic(mnemonic, passphrase)
-    print('mprv:', mpr)
-
-
-# Test vectors:
-# https://github.com/trezor/python-mnemonic/blob/master/vectors.json
-def bip39_test_vectors():
-    filename = "bip39_test_vectors.json"
-    path_to_filename = os.path.join(os.path.dirname(__file__),
-                                    # folder,
-                                    filename)
-    with open(path_to_filename, 'r') as f:
-        test_vectors = json.load(f)["english"]
-    f.closed
-    for test_vector in test_vectors:
+class TestBIP39Wallet(unittest.TestCase):
+    def test_bip39_wallet(self):
         lang = "en"
-        test_vector[0] = bytes.fromhex(test_vector[0])
-        mnemonic = bip39_mnemonic_from_raw_entropy(test_vector[0], lang)
-        if mnemonic != test_vector[1]:
-            raise ValueError("\n" + mnemonic + "\n" + test_vector[1])
+        raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
+        mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
+        r = bip39_raw_entropy_from_mnemonic(mnemonic, lang)
+        nbytes = math.ceil(len(r)/8)
+        r = int(r, 2).to_bytes(nbytes, 'big')
+        self.assertEqual(r, raw_entr)
 
-        raw_entr = bip39_raw_entropy_from_mnemonic(mnemonic, lang)
-        nbytes = math.ceil(len(raw_entr)/8)
-        raw_entr = int(raw_entr, 2).to_bytes(nbytes, 'big')
-        if raw_entr != test_vector[0]:
-            raise ValueError("\n" + raw_entr.hex() + "\n" + test_vector[0].hex())
+        passphrase = ''
+        
+        mpr = bip39_master_prvkey_from_mnemonic(mnemonic, passphrase)
+        self.assertEqual(mpr, b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1')
 
-        seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR").hex()
-        if seed != test_vector[2]:
-            raise ValueError("\n" + seed + "\n" + test_vector[2])
-        # test_vector[3], i.e. the bip32 master private key from seed,
-        # has been tested in bip32, as it does not belong here
+    # Test vectors:
+    # https://github.com/trezor/python-mnemonic/blob/master/vectors.json
+    def test_bip39_vectors(self):
+        filename = "test_bip39_vectors.json"
+        path_to_filename = os.path.join(os.path.dirname(__file__),
+                                        # folder,
+                                        filename)
+        with open(path_to_filename, 'r') as f:
+            test_vectors = json.load(f)["english"]
+        f.closed
+        for test_vector in test_vectors:
+            lang = "en"
+            test_vector[0] = bytes.fromhex(test_vector[0])
+            mnemonic = bip39_mnemonic_from_raw_entropy(test_vector[0], lang)
+            self.assertEqual(mnemonic, test_vector[1])
+
+            raw_entr = bip39_raw_entropy_from_mnemonic(mnemonic, lang)
+            nbytes = math.ceil(len(raw_entr)/8)
+            raw_entr = int(raw_entr, 2).to_bytes(nbytes, 'big')
+            self.assertEqual(raw_entr, test_vector[0])
+
+            seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR").hex()
+            self.assertEqual(seed, test_vector[2])
+
+            # test_vector[3], i.e. the bip32 master private key from seed,
+            # has been tested in bip32, as it does not belong here
 
 
 if __name__ == "__main__":
-    bip39_test_vectors()
-    test_bip39_wallet()
+    unittest.main()

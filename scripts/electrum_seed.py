@@ -7,7 +7,6 @@ from pbkdf2 import PBKDF2
 import hmac
 from bip32_functions import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
 from mnemonic import mnemonic_dict
-import math
 
 MNEMONIC_VERSIONS = {'standard' : '01',
                      'segwit'   : '100',
@@ -73,93 +72,47 @@ def electrum_master_prvkey_from_raw_entropy(raw_entropy, words, version, passphr
   return mprv
 
 
-def test_electrum_wallet():
-  lang = "en"
-  bpw = mnemonic_dict.bits_per_word(lang)
-  words = 12
-  bits = words*bpw
-  print("\nFor a", words, "words target", bits,
-        "bits of entropy are needed, i.e.", bits//8, "bytes")
+import unittest
+import os
+import json
 
-  raw_entropy = int("110aaaa03974d093eda670121023cd0772", 16)
-  hex_raw_entropy = hex(raw_entropy)
-  print(int(len(hex_raw_entropy)/2), "bytes raw entropy:", hex_raw_entropy)
+class TestMnemonicDictionaries(unittest.TestCase):
+    def test_electrum_wallet(self):
+        lang = "en"
 
-  version = 'standard'
-  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, version, lang)
-  print('mnemonic:', mnemonic)
+        raw_entropy = 0x110aaaa03974d093eda670121023cd0772
+        version = 'standard'
+        mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, version, lang)
+        entropy = int(electrum_entropy_from_mnemonic(mnemonic, lang), 2)
+        self.assertLess(entropy-raw_entropy, 0xfff)
 
-  passphrase = ''
-  mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase)
-  print('mprv:', mprv)
+    def test_electrum_vectors(self):
+        filename = "test_electrum_vectors.json"
+        path_to_filename = os.path.join(os.path.dirname(__file__),
+                                        # folder,
+                                        filename)
+        with open(path_to_filename, 'r') as f:
+            test_vectors = json.load(f)
+            #json.dump(test_vectors, f)
+        f.closed
 
-  entropy = int(electrum_entropy_from_mnemonic(mnemonic, lang), 2)
-  hex_entropy = hex(entropy)
-  print(int(len(hex_entropy)/2), "bytes     entropy:", hex_entropy)
-
-  # relevant entropy part
-  hex_raw_entropy = bin(int(hex_raw_entropy, 16))[2:].zfill(bits)[-bits:]
-  hex_entropy     = bin(int(    hex_entropy, 16))[2:].zfill(bits)[-bits:]
-  #print(hex_raw_entropy)
-  #print(hex_entropy)
-
-
-def electrum_test_vectors():
-  test_vectors = [
-    [
-        "standard",
-        "term gain fish all ivory talent gold either trap today balance kingdom",
-        "",
-        "xpub661MyMwAqRbcGJg6qHFEYXMkbKuREsjWXQJetGTYQuz8GLBPfUtKs53bAW1MP4JPUSEKK6m9dVzJhDbw5xf3NPbH7PHwXrkPY89cVLLTAk8"
-    ],
-    [
-        "standard",
-        "guard chat liar swallow zebra retire practice expand hood spider alert evolve",
-        "",
-        "xpub661MyMwAqRbcGi3axFUKX8iu4QFqP37XpXnXJPqY37wqyBaX64mERS3cXkoM8PRECUNUPP6foH9HdxHGriV2fFyPmDvjZ9eg2HTiPdM49rs"
-    ],
-    [
-        "standard",
-        "kind hazard heavy super novel book horn price bone misery moon depend",
-        "danielefornaro",
-        "xpub661MyMwAqRbcFv1yFk3WaqMFpHUKNvn1qGDyJhdp7yL18V9pwibKWVUebSCzwPSMEioVWKzcyktvyMaYN3Lips4zyu5idw7keWi7pmZSfwq"
-    ],
-    [
-        "segwit",
-        "glad shoulder possible elder route remind suit unable hedgehog pistol era define",
-        "",
-        "zpub6nnNomZvczQDUvRZh1xThQTcSaV54NJiQBhvswqC5jG32fWm2LnURBDSM1Argj2B2fR6xAKEAMj1PuZ2wEZzjGZcbAPhbGa2RtDoMKaTE7L"
-    ],
-    [
-        "segwit",
-        "slogan detect embark famous flip middle impact normal price artwork program power",
-        "danielefornaro",
-        "zpub6nC6GjnipUB41rp3yS2TozLkyoHiR4jCHJiZ69GhsJRNEeXJR63fV5sCoHTkhc999fevr5S78b6XPydetbe5w2b5HHpUoWCLHCfe55VknvX"
-    ],
-    [
-        "segwit",
-        "miss mixed vibrant cheap riot comfort pulse forum pet injury slogan fame",
-        "fatti non foste a viver come bruti",
-        "zpub6nfRLg2gunSr2LyRpGxzW5pdrvtHxLS5JzNtGWdef5M7wKs3m4CiyzPDe3zXGFLqABKK1gA41mXgKq3jyfgcH4nsCzWfBVsPSpJvFEDCUzT"
-    ]
-  ]
-  for test_vector in test_vectors:
-    test_mnemonic = test_vector[1]
-    passphrase = test_vector[2]
-    test_mpub = test_vector[3]
-    mprv = electrum_master_prvkey_from_mnemonic(test_mnemonic, passphrase)
-    mpub = bip32_xpub_from_xprv(mprv).decode()
-    if mpub != test_mpub:
-        raise ValueError("\n" + mpub + "\n" + test_vector[3])
-    
-    lang = "en"
-    entropy = int(electrum_entropy_from_mnemonic(test_mnemonic, lang), 2)
-    version = test_vector[0]
-    mnemonic = electrum_mnemonic_from_raw_entropy(entropy, version, lang)
-    if mnemonic != test_mnemonic:
-        raise ValueError("\n" + mnemonic + "\n" + test_mnemonic)
+        for test_vector in test_vectors:
+            test_mnemonic = test_vector[1]
+            passphrase = test_vector[2]
+            test_mpub = test_vector[3]
+            mprv = electrum_master_prvkey_from_mnemonic(test_mnemonic, passphrase)
+            mpub = bip32_xpub_from_xprv(mprv).decode()
+            if mpub != test_mpub:
+                raise ValueError("\n" + mpub + "\n" + test_vector[3])
+            
+            lang = "en"
+            entropy = int(electrum_entropy_from_mnemonic(test_mnemonic, lang), 2)
+            version = test_vector[0]
+            mnemonic = electrum_mnemonic_from_raw_entropy(entropy, version, lang)
+            if mnemonic != test_mnemonic:
+                raise ValueError("\n" + mnemonic + "\n" + test_mnemonic)
 
  
 if __name__ == "__main__":
-  electrum_test_vectors()
-  test_electrum_wallet()
+    # execute only if run as a script
+    unittest.main()
