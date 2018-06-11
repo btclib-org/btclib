@@ -28,5 +28,11 @@ assert xint == int.from_bytes(xbytes, 'big')
 xint = int.from_bytes(xbytes, 'big')
 print("int", xint)
 
-t = 0
-print(type(t == str))
+print("\nfrom string to bytes, then back:")
+xstr = "hello world"
+print("string", xstr)
+xbytes = xstr.encode()
+print("bytes", xbytes)
+assert xstr == xbytes.decode()
+xstr = xbytes.decode()
+print("string", xstr)
