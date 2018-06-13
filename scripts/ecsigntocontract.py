@@ -30,8 +30,8 @@ from string import hexdigits
 from rfc6979 import rfc6979
 from ecutils import int_from_hash
 from WIF_address import int_from_prvkey
-from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_recover, ecdsa_sign_raw
-from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_sign_raw
+from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_pubkey_recovery, ecdsa_sign_raw
+from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_pubkey_recovery, ecssa_sign_raw
 
 
 def tweak(k, c, hasher=sha256):
@@ -81,10 +81,10 @@ if __name__ == "__main__":
 
     sig_ecdsa, receipt_ecdsa = ecdsa_commit_and_sign(m, prv, c)
     assert ecdsa_verify(m, sig_ecdsa, pub)
-    assert pub in (ecdsa_recover(m, sig_ecdsa, 0), ecdsa_recover(m, sig_ecdsa, 1))
+    assert pub in (ecdsa_pubkey_recovery(m, sig_ecdsa, 0), ecdsa_pubkey_recovery(m, sig_ecdsa, 1))
     assert verify_commit(receipt_ecdsa, c)
 
     sig_ecssa, receipt_ecssa = ecssa_commit_and_sign(m, prv, c)
     assert ecssa_verify(m, sig_ecssa, pub)
-    assert pub in (ecssa_recover(m, sig_ecssa), ecssa_recover(m, sig_ecssa))
+    assert pub in (ecssa_pubkey_recovery(m, sig_ecssa), ecssa_pubkey_recovery(m, sig_ecssa))
     assert verify_commit(receipt_ecssa, c)

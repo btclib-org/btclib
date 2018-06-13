@@ -7,7 +7,7 @@ from hashlib import sha256
 from ECsecp256k1 import ec
 from FiniteFields import mod_inv
 from rfc6979 import rfc6979
-from ecutils import int_from_hash
+from ecsignutils import int_from_hash
 from WIF_address import int_from_prvkey
 
 # %% ecssa sign
@@ -16,6 +16,7 @@ from WIF_address import int_from_prvkey
 # different structure, cannot compute e (int) before ecssa_sign_raw
 
 def ecssa_sign(m, prv, eph_prv=None, hasher=sha256):
+    if type(m) == str: m = hasher(m.encode()).digest()
     prv = int_from_prvkey(prv)
     eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
     return ecssa_sign_raw(m, prv, eph_prv, hasher)
@@ -25,14 +26,15 @@ def ecssa_sign_raw(m, prv, eph_prv, hasher=sha256):
     R = ec.pointMultiply(eph_prv)
     if R[1] % 2 == 1:
         eph_prv = ec.order - eph_prv  # <=> R_y = ec_prime - R_y
-    R_x = R[0].to_bytes(32, 'big')
-    e = int_from_hash(hasher(R_x + m).digest())
+    r = R[0] % ec.order # % ec.order ?
+    e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + m).digest())
     assert e != 0 and e < ec.order, "sign fail"
     s = (eph_prv - e * prv) % ec.order
-    return R[0], s
+    return r, s
 
 
 def ecssa_verify(m, ssasig, pub, hasher=sha256):
+    if type(m) == str: m = hasher(m.encode()).digest()
     check_ssasig(ssasig)
     pub =  ec.tuple_from_point(pub)
     return ecssa_verify_raw(m, ssasig, pub, hasher)
@@ -50,12 +52,13 @@ def ecssa_verify_raw(m, ssasig, pub, hasher):
     return R[0] == ssasig[0]
 
 
-def ecssa_recover(m, ssasig, hasher=sha256):
+def ecssa_pubkey_recovery(m, ssasig, hasher=sha256):
+    if type(m) == str: m = hasher(m.encode()).digest()
     check_ssasig(ssasig)
-    return ecssa_recover_raw(m, ssasig, hasher)
+    return ecssa_pubkey_recovery_raw(m, ssasig, hasher)
 
 
-def ecssa_recover_raw(m, ssasig, hasher=sha256):
+def ecssa_pubkey_recovery_raw(m, ssasig, hasher=sha256):
     R_x, s = ssasig
     R = (R_x, ec.y(R_x, 0))
     R_x = R_x.to_bytes(32, 'big')
@@ -80,15 +83,16 @@ def check_ssasig(ssasig):
 if __name__ == "__main__":
     prv = 0x1
     pub = ec.pointMultiply(prv)
-    msg = sha256(b'Satoshi Nakamoto').digest()
+    msg = 'Satoshi Nakamoto'
     expected_signature = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
-                            0x5c0eed7fda3782b5e439e100834390459828ef7089dbd375e48949224b6f82c0)
-    # FIXME: the above sig was generated with this code, it is better to use a sig
+                          0x5c0eed7fda3782b5e439e100834390459828ef7089dbd375e48949224b6f82c0)
+    # FIXME: the above sig was generated with this code,
+    #        it would be better to use a sig
     #        genearated by other code to test against
     r, s = ecssa_sign(msg, prv)
     assert r == expected_signature[0] and \
-            s in (expected_signature[1], ec.order - expected_signature[1])
+           s in (expected_signature[1], ec.order - expected_signature[1])
 
     assert ecssa_verify(msg, (r, s), pub)
 
-    assert pub in (ecssa_recover(msg, (r, s)), ecssa_recover(msg, (r, s)))
+    assert pub in (ecssa_pubkey_recovery(msg, (r, s)), ecssa_pubkey_recovery(msg, (r, s)))
