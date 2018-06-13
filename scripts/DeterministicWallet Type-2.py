@@ -39,4 +39,3 @@ for i in range(0, nKeys):
 for i in range(0, nKeys):
   P = pointAdd(MP, pointMultiply(h_int[i], G))                 
   assert P == pointMultiply(p[i], G)
-

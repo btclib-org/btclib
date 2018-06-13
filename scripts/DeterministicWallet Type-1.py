@@ -12,16 +12,6 @@ import random
 mprvkey = random.randint(0, order-1)
 print('\nmaster private key =', hex(mprvkey))
 
-
-
-
-
-
-
-
-
-
-
 nKeys = 3
 mprvkey_bytes = mprvkey.to_bytes(32, 'big')
 for i in range(0, nKeys):
