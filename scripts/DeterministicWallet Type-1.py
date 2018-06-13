@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 
+"""
+Deterministic Wallet (Type-1)
+"""
+
 from ECsecp256k1 import ec
 from hashlib import sha256
+from random import randint
 
-# secret random number
-r = 0x826402c114dd11f50447cc87c77c8deffedb1f8706dc08195da4363a67b57
-print('\nsecret r:', format(r, '#066x'))
+# master prvkey
+mprvkey = randint(0, ec.order-1)
+print('\nmaster private key =', hex(mprvkey))
 
-# number of key pairs to generate
 nKeys = 3
-p = [0] * nKeys
-P = [(0,0)] * nKeys
-
+mprvkey_bytes = mprvkey.to_bytes(32, 'big')
 for i in range(0, nKeys):
-    # p = h(i|r)
-    p[i] = sha256((hex(i)+hex(r)).encode()).digest()
-    P[i] = ec.pointMultiply(p[i])
-    print('\nprvkey#', i, ': 0x', p[i].hex(), sep='')
-    print(  'PubKey#', i, ': ', format(P[i][0], '#064x'), sep='')
-    print(  '          ', format(P[i][1], '#064x'), sep='')
+  i_bytes = i.to_bytes(32, 'big')
+  h_hex = sha256(i_bytes+mprvkey_bytes).hexdigest()
+  p = int(h_hex, 16) % ec.order
+  P = ec.pointMultiply(p)
+  print('prvkey#', i, ':', format(p, '#064x'))
+  print('Pubkey#', i, ':', format(P[0], '#064x'))
+  print('           ',     format(P[1], '#064x'))
