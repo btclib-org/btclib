@@ -78,17 +78,17 @@ def check_ssasig(ssasig):
 
 
 if __name__ == "__main__":
-  prv = 0x1
-  pub = ec.pointMultiply(prv)
-  msg = sha256(b'Satoshi Nakamoto').digest()
-  expected_signature = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
-                        0x5c0eed7fda3782b5e439e100834390459828ef7089dbd375e48949224b6f82c0)
-  # FIXME: the above sig was generated with this code, it is better to use a sig
-  #        genearated by other code to test against
-  r, s = ecssa_sign(msg, prv)
-  assert r == expected_signature[0] and \
-         s in (expected_signature[1], ec.order - expected_signature[1])
+    prv = 0x1
+    pub = ec.pointMultiply(prv)
+    msg = sha256(b'Satoshi Nakamoto').digest()
+    expected_signature = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
+                            0x5c0eed7fda3782b5e439e100834390459828ef7089dbd375e48949224b6f82c0)
+    # FIXME: the above sig was generated with this code, it is better to use a sig
+    #        genearated by other code to test against
+    r, s = ecssa_sign(msg, prv)
+    assert r == expected_signature[0] and \
+            s in (expected_signature[1], ec.order - expected_signature[1])
 
-  assert ecssa_verify(msg, (r, s), pub)
+    assert ecssa_verify(msg, (r, s), pub)
 
-  assert pub in (ecssa_recover(msg, (r, s)), ecssa_recover(msg, (r, s)))
+    assert pub in (ecssa_recover(msg, (r, s)), ecssa_recover(msg, (r, s)))

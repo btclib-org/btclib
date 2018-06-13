@@ -6,9 +6,9 @@ from base58 import b58encode_check, b58encode, b58decode_check
 
 # FIXME: other versions
 def private_key_to_public_key(private_key, version=0x04):
-  p = ec.pointMultiply(private_key)
-  public_key = version+p[0]+p[1]
-  return public_key
+    p = ec.pointMultiply(private_key)
+    public_key = version+p[0]+p[1]
+    return public_key
 
 # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
 p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
@@ -58,15 +58,15 @@ print(base58EncodedAddress)
 print("\n*** steps [5]-[9] are also known as Base58Check encode")
 
 def bc_address_to_hash_160(addr):
-  return b58decode_check(addr)[1:21]
+    return b58decode_check(addr)[1:21]
 
 def hash160(inp):
-  h1 = hashlib.sha256(inp).digest()
-  return hashlib.new('ripemd160', h1).digest()
+    h1 = hashlib.sha256(inp).digest()
+    return hashlib.new('ripemd160', h1).digest()
 
 def public_key_to_bc_address(inp, version=b'\x00'):
-  vh160 = version + hash160(inp)
-  return b58encode_check(vh160)
+    vh160 = version + hash160(inp)
+    return b58encode_check(vh160)
 
 print("\n*** [1] Public Key compressed:")
 prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'

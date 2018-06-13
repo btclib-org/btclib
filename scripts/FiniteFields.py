@@ -2,13 +2,13 @@
 
 #from pycoin
 def mod_inv(a, m):
-  if a < 0 or m <= a: a = a % m
-  # From Ferguson and Schneier, roughly:
-  c, d = a, m
-  uc, vc, ud, vd = 1, 0, 0, 1
-  while c != 0:
-    q, c, d = divmod( d, c ) + ( c, )
-    uc, vc, ud, vd = ud - q*uc, vd - q*vc, uc, vc
+    if a < 0 or m <= a: a = a % m
+    # From Ferguson and Schneier, roughly:
+    c, d = a, m
+    uc, vc, ud, vd = 1, 0, 0, 1
+    while c != 0:
+        q, c, d = divmod( d, c ) + ( c, )
+        uc, vc, ud, vd = ud - q*uc, vd - q*vc, uc, vc
 
   # At this point, d is the GCD, and ud*a+vd*m = d.
   # If d == 1, this means that ud is a inverse.

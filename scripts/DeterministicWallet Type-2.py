@@ -1,11 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Deterministic Wallet (Type-2)
-
-Created on Thu Oct 12 11:18:33 2017
-
-@author: dfornaro, fametrano
-"""
+#!/usr/bin/env python3
 
 from ECsecp256k1 import ec
 from hashlib import sha256
@@ -32,16 +25,16 @@ P = [(0,0)] * nKeys
 
 # PubKeys can be calculated without using prvkeys
 for i in range(0, nKeys):
-  # h(i|r)
-  h_i_r = sha256((hex(i)+hex(r)).encode()).digest()
-  P[i] = ec.pointAdd(MP, ec.pointMultiply(h_i_r))                 
+    # h(i|r)
+    h_i_r = sha256((hex(i)+hex(r)).encode()).digest()
+    P[i] = ec.pointAdd(MP, ec.pointMultiply(h_i_r))                 
 
 # check that PubKeys match with prvkeys
 for i in range(0, nKeys):
-  # h(i|r)
-  h_i_r = sha256((hex(i)+hex(r)).encode()).digest()
-  p[i] = (mp + int.from_bytes(h_i_r, 'big'))
-  assert P[i] == ec.pointMultiply(p[i])
-  print('\nprvkey#', i, ': ', format(p[i], '#064x'), sep='')
-  print(  'PubKey#', i, ': ', format(P[i][0], '#064x'), sep='')
-  print(  '          ', format(P[i][1], '#064x'), sep='')
+    # h(i|r)
+    h_i_r = sha256((hex(i)+hex(r)).encode()).digest()
+    p[i] = (mp + int.from_bytes(h_i_r, 'big'))
+    assert P[i] == ec.pointMultiply(p[i])
+    print('\nprvkey#', i, ': ', format(p[i], '#064x'), sep='')
+    print(  'PubKey#', i, ': ', format(P[i][0], '#064x'), sep='')
+    print(  '          ', format(P[i][1], '#064x'), sep='')
