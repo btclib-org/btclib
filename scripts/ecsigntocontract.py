@@ -28,7 +28,7 @@ from ECsecp256k1 import ec
 from FiniteFields import mod_inv, mod_sqrt
 from string import hexdigits
 from rfc6979 import rfc6979
-from ecutils import int_from_hash
+from ecsignutils import int_from_hash
 from WIF_address import int_from_prvkey
 from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_pubkey_recovery, ecdsa_sign_raw
 from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_pubkey_recovery, ecssa_sign_raw
