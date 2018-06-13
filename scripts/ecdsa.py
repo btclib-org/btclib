@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Oct 28 01:03:03 2017
+#!/usr/bin/env python3
 
-@author: Leonardo, fametrano
+""" Elliptic Curve Digital Signature Algorithm
 """
-
-# %% import
 
 from hashlib import sha256
 from ECsecp256k1 import ec
@@ -73,5 +69,19 @@ def check_dsasig(dsasig):
          type(dsasig[0]) == int and type(dsasig[1]) == int, \
          "dsasig must be a tuple of 2 int"
   assert 0 < dsasig[0] and dsasig[0] < ec.order and \
-         0 < dsasig[1] and dsasig[1] < ec.order, \
-         "r and s must be in [1..order]"
+         0 < dsasig[1] and dsasig[1] < ec.order, "r and s must be in [1..order]"
+
+
+if __name__ == "__main__":
+  prv = 0x1
+  pub = ec.pointMultiply(prv)
+  msg = sha256(b'Satoshi Nakamoto').digest()
+  expected_signature = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
+                        0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
+  r, s = ecdsa_sign(msg, prv)
+  assert r == expected_signature[0] and \
+         s in (expected_signature[1], ec.order - expected_signature[1])
+
+  assert ecdsa_verify(msg, (r, s), pub)
+
+  assert pub in (ecdsa_recover(msg, (r, s), 0), ecdsa_recover(msg, (r, s), 1))

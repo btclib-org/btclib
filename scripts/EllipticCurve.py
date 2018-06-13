@@ -68,7 +68,7 @@ class EllipticCurve:
         assert P[0] == 0x04, "not an uncompressed point"
         Px = int.from_bytes(P[1:33], 'big')
         assert Px < self.__prime
-        Py = int.from_bytes(P[34:], 'big')
+        Py = int.from_bytes(P[33:], 'big')
         assert Py < self.__prime
         assert self.__y2(Px) == Py*Py % self.__prime, "point is not on the ec"
         return (Px, Py)

@@ -1,15 +1,26 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
+"""sign-to-contract
+
+IDEA:
+  Let c be a value (bytes) and P an EC point, then
+    c, P -> h(P||c)G + P
+  is a commitment operation. (G generator, || concatenation)
+  The signature contains an EC point, thus it can become a
+  commitment to c.
+HOW:
+  when signing, generate a nonce (k) and compute a EC point (R = kG)
+  instead of proceeding using (k,R), compute a value (e) that is a
+  commitment to c:
+    e = hash(R.x||c)
+  substitute the nonce k with k+e and R with R+eG, and proceed signing
+  in the standard way, using (k+e,R+eG).
+COMMITMENT VERIFICATION:
+  the verifier can see W.x (W = R+eG) on the signature
+  the signer (and committer) provides R and c
+  the verifier checks that:   W.x = (R+eG).x
+                              (with e = hash(R.x||c))
 """
-Created on Sat Oct 28 01:03:03 2017
-
-@author: Leonardo, fametrano
-"""
-
-# import - check - decode - from/to ec_point - from/to int
-# ecdsa - ecssa - sign-to-contract - test
-
-
-# %% import
 
 from hashlib import sha256
 from base58 import b58decode_check, base58digits as b58digits
@@ -17,27 +28,15 @@ from ECsecp256k1 import ec
 from FiniteFields import mod_inv, mod_sqrt
 from string import hexdigits
 from rfc6979 import rfc6979
-from ecutils import str_to_hash, int_from_hash
+from ecutils import int_from_hash
 from WIF_address import int_from_prvkey
 from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_recover, ecdsa_sign_raw
 from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_sign_raw
 
-# %% sign to contract
-# IDEA:
-#    insert a commitment in a signature (signing something else!)
-#    using this valid commitment operation:
-#    R -> hash(R||c)G + R  (R ec point, G generator, c commit)
-# HOW:
-#    when you sign you generate a nonce (k) and compute a ec point (R = kG)
-#    instead of proceeding using (k,R) you compute a value (e) that embed the
-#    commitment: e = hash(R.x||c)
-#    you substitute the nonce with k+e and R with R+eG, and proceed signing
-#    in the standard way using instead (k+e,R+eG)
-# VERIFICATION:
-#    the verifier can see W.x (W = R+eG) on the signature
-#    the signer (and committer) provides R and c
-#    the verifier checks that:   W.x = (R+eG).x
-#                               (with e = hash(R.x||c))
+def str_to_hash(msg, hasher=sha256):
+  """from a message in string to its hash digest"""
+  assert type(msg) == str, "message must be a string"
+  return hasher(msg.encode()).digest()
 
 def check_receipt(receipt):
   """check receipt format
@@ -48,30 +47,34 @@ def check_receipt(receipt):
   #       "1st part of the receipt must be an int in (0, ec_prime)"
   ec.tuple_from_point(receipt[1])
 
-def ec_insert_commit(k, c, hasher=sha256):
-  """insert a commit in a ec point
+def tweak(k, c, hasher=sha256):
+  """tweak kG
+
+  returns:
+  - point kG to tweak
+  - tweaked private key k + h(kG||c), the corresponding pubkey is a commitment to kG, c
   """
   R = ec.pointMultiply(k)
   e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + c).digest())
   return R, (e + k) % ec.order
 
-def ecdsa_sign_and_commit(m, prv, c, eph_prv=None, hasher=sha256):
+def ecdsa_commit_and_sign(m, prv, c, eph_prv=None, hasher=sha256):
   prv = int_from_prvkey(prv)
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
-  R, eph_prv = ec_insert_commit(eph_prv, c, hasher)
+  R, eph_prv = tweak(eph_prv, c, hasher)
   sig = ecdsa_sign_raw(m, prv, eph_prv)
   receipt = (sig[0], R)
   return sig, receipt
 
-def ecssa_sign_and_commit(m, prv, c, eph_prv=None, hasher=sha256):
+def ecssa_commit_and_sign(m, prv, c, eph_prv=None, hasher=sha256):
   prv = int_from_prvkey(prv)
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
-  R, eph_prv = ec_insert_commit(eph_prv, c, hasher)
+  R, eph_prv = tweak(eph_prv, c, hasher)
   sig = ecssa_sign_raw(m, prv, eph_prv, hasher)
   receipt = (sig[0], R)
   return sig, receipt
 
-def ec_verify_commit(receipt, c, hasher=sha256):
+def verify_commit(receipt, c, hasher=sha256):
   check_receipt(receipt)
   w, R = receipt
   e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + c).digest())
@@ -82,51 +85,18 @@ def ec_verify_commit(receipt, c, hasher=sha256):
   # choice to manage with the same function
 
 
-# %% tests
-
-def test_ecdsa(param, verify_sig=True, recover=True, verify_commit=True):
-  print("*** testing ecdsa2")
-  m, prv, c = param
-  sig = ecdsa_sign(m, prv)
-  pub = ec.pointMultiply(prv)
-  if verify_sig:
-    assert ecdsa_verify(m, sig, pub), "invalid sig"
-  if recover:
-    assert pub in (ecdsa_recover(m, sig, 0), ecdsa_recover(m, sig, 1)),\
-    "the recovered pubkey is not correct"
-  if verify_commit:
-    sig_commit, receipt = ecdsa_sign_and_commit(m, prv, c)
-    assert ecdsa_verify(m, sig_commit, pub), "sig verification failed"
-    assert ec_verify_commit(receipt, c), "commit verification failed"
-  print("ecdsa tests passed")
-
-def test_ecssa(param, verify_sig=True, recover=True, verify_commit=True):
-  print("*** testing ecssa2")
-  m, prv, c = param
-  sig = ecssa_sign(m, prv)
-  pub = ec.pointMultiply(prv)
-  if verify_sig:
-    assert ecssa_verify(m, sig, pub), "invalid sig"
-  if recover:
-    assert pub == ecssa_recover(m, sig), \
-    "the recovered pubkey is not correct"
-  if verify_commit:
-    sig_commit, receipt = ecssa_sign_and_commit(m, prv, c)
-    assert ecssa_verify(m, sig_commit, pub), "sig verification failed"
-    assert ec_verify_commit(receipt, c), "commit verification failed"
-  print("ecssa tests passed")
-
-def main(ecdsa=True, ecssa=True, \
-         verify_sig=True, recover=True, verify_commit=True):
-  m = str_to_hash("hello world")
-  prv = 1
-  c = str_to_hash("sign to contract")
-  param = m, prv, c
-  if ecdsa:
-    test_ecdsa(param, verify_sig, recover, verify_commit)
-  if ecssa:
-    test_ecssa(param, verify_sig, recover, verify_commit)
-
 if __name__ == "__main__":
-  # execute only if run as a script
-  main()
+  prv = 0x1
+  pub = ec.pointMultiply(prv)
+  m = sha256("hello world".encode()).digest()
+  c = sha256("sign to contract".encode()).digest()
+
+  sig_ecdsa, receipt_ecdsa = ecdsa_commit_and_sign(m, prv, c)
+  assert ecdsa_verify(m, sig_ecdsa, pub)
+  assert pub in (ecdsa_recover(m, sig_ecdsa, 0), ecdsa_recover(m, sig_ecdsa, 1))
+  assert verify_commit(receipt_ecdsa, c)
+
+  sig_ecssa, receipt_ecssa = ecssa_commit_and_sign(m, prv, c)
+  assert ecssa_verify(m, sig_ecssa, pub)
+  assert pub in (ecssa_recover(m, sig_ecssa), ecssa_recover(m, sig_ecssa))
+  assert verify_commit(receipt_ecssa, c)

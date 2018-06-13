@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Oct 28 01:03:03 2017
+#!/usr/bin/env python3
 
-@author: Leonardo, fametrano
+""" Elliptic Curve Schnorr Signature Algorithm
 """
-
-# %% import
 
 from hashlib import sha256
 from ECsecp256k1 import ec
@@ -74,3 +70,20 @@ def check_ssasig(ssasig):
   # R.x is valid iif R.y does exist
   ec.y(ssasig[0], False)
   assert 0 < ssasig[1] and ssasig[1] < ec.order, "s must be in [1..order]"
+
+
+if __name__ == "__main__":
+  prv = 0x1
+  pub = ec.pointMultiply(prv)
+  msg = sha256(b'Satoshi Nakamoto').digest()
+  expected_signature = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
+                        0x5c0eed7fda3782b5e439e100834390459828ef7089dbd375e48949224b6f82c0)
+  # FIXME: the above sig was generated with this code, it is better to use a sig
+  #        genearated by other code to test against
+  r, s = ecssa_sign(msg, prv)
+  assert r == expected_signature[0] and \
+         s in (expected_signature[1], ec.order - expected_signature[1])
+
+  assert ecssa_verify(msg, (r, s), pub)
+
+  assert pub in (ecssa_recover(msg, (r, s)), ecssa_recover(msg, (r, s)))

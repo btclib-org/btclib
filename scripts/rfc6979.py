@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov  9 11:00:55 2017
+#!/usr/bin/env python3
 
-@author: Leonardo
-"""
+""" Deterministic generation of the nonce following rfc6979
 
-# deterministic generation of k following rfc6979
-# https://tools.ietf.org/html/rfc6979#section-3.2
-# code adapted from:
-# https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
+rfc6979 specification:
+https://tools.ietf.org/html/rfc6979#section-3.2
+code adapted from:
+https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
+"""
 
 from hashlib import sha256
 from ECsecp256k1 import ec
@@ -48,7 +46,7 @@ def check_hash_digest(m, hash_digest_size=default_hash_digest_size):
   assert type(m) == bytes and len(m) == hash_digest_size, "m must be bytes with correct bytes length"
 
 def rfc6979(prv, m, hasher=default_hasher):
-  assert type(prv) == int and 0 < prv and prv < ec.order, "invalid prv"
+  assert type(prv) == int and 0 < prv and prv < ec.order, "invalid prv: " + str(prv)
   check_hash_digest(m)
   return rfc6979_raw(prv, m, hasher)
 
@@ -74,34 +72,9 @@ def rfc6979_raw(prv, m, hasher=default_hasher):
     k = hmac_new(k, v + b'\x00', hasher).digest()
     v = hmac_new(k, v, hasher).digest()
 
-"""
-def rfc6979(prv, msg, hasher = sha256):
-  assert type(prv) == int and 0 < prv and prv < ec.order, "invalid prv"
-  if type(msg) == str: msg = msg.encode()
-  assert type(msg) == bytes
-  hashmsg = hasher(msg)
-  return deterministic_k_raw(prv, hashmsg, hasher)
-
-def rfc6979_raw(prv, m, hasher=default_hasher):
-  hash_size = m.digest_size
-  m = m.digest()
-  prv_and_m = int2octets(prv) + bits2octets(m)
-  v = b'\x01' * hash_size
-  k = b'\x00' * hash_size
-  k = hmac_new(k, v + b'\x00' + prv_and_m, hasher).digest()
-  v = hmac_new(k, v, hasher).digest()
-  k = hmac_new(k, v + b'\x01' + prv_and_m, hasher).digest()
-  v = hmac_new(k, v, hasher).digest()
-  while True:
-    t = b''
-    while len(t) * 8 < qlen:
-      v = hmac_new(k, v, hasher).digest()
-      t = t + v
-    nonce = bits2int(t)
-    if nonce >= 1 and nonce < ec.order:
-      # here it should be checked that nonce do not yields a invalid signature
-      # but then I should put the signature generation here
-      return nonce
-    k = hmac_new(k, v + b'\x00', hasher).digest()
-    v = hmac_new(k, v, hasher).digest()
-"""
+if __name__ == "__main__":
+  msg = sha256(b'Satoshi Nakamoto').digest()
+  x = 0x1
+  nonce = rfc6979(x, msg)
+  expected = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
+  assert nonce == expected
