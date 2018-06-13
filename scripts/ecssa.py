@@ -20,6 +20,7 @@ def ecssa_sign(m, prv, eph_prv=None, hasher=sha256):
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
   return ecssa_sign_raw(m, prv, eph_prv, hasher)
 
+# https://eprint.iacr.org/2018/068
 def ecssa_sign_raw(m, prv, eph_prv, hasher=sha256):
   R = ec.pointMultiply(eph_prv)
   if R[1] % 2 == 1:
@@ -30,10 +31,12 @@ def ecssa_sign_raw(m, prv, eph_prv, hasher=sha256):
   s = (eph_prv - e * prv) % ec.order
   return R[0], s
 
+
 def ecssa_verify(m, ssasig, pub, hasher=sha256):
   check_ssasig(ssasig)
   pub =  ec.tuple_from_point(pub)
   return ecssa_verify_raw(m, ssasig, pub, hasher)
+
 
 def ecssa_verify_raw(m, ssasig, pub, hasher):
   R_x, s = ssasig[0].to_bytes(32, 'big'), ssasig[1]
@@ -45,6 +48,7 @@ def ecssa_verify_raw(m, ssasig, pub, hasher):
   if R[1] % 2 == 1:  # R.y odd
     return False
   return R[0] == ssasig[0]
+
 
 def ecssa_recover(m, ssasig, hasher=sha256):
   check_ssasig(ssasig)
@@ -61,14 +65,15 @@ def ecssa_recover_raw(m, ssasig, hasher=sha256):
   # by choice at this level do not manage point at infinity (h = 0, R = 0G)
   return ec.pointAdd(ec.pointMultiply(e1, R), ec.pointMultiply(-e1 * s % ec.order))
 
+
 def check_ssasig(ssasig):
   """check sig has correct ssa format
   """
   assert type(ssasig) == tuple and len(ssasig) == 2 and \
          type(ssasig[0]) == int and type(ssasig[1]) == int, \
          "ssasig must be a tuple of 2 int"
-  # R.x is valid iif R.y does exist
-  ec.y(ssasig[0], False)
+  # TODO: maybe new ec.is_x_valid(x) method
+  ec.y(ssasig[0], False) # R.x is valid iif R.y does exist
   assert 0 < ssasig[1] and ssasig[1] < ec.order, "s must be in [1..order]"
 
 

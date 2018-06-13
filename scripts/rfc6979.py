@@ -21,7 +21,7 @@ qlen = len(bin(ec.order)) - 2  # -2 for the leading '0b'
 rlen = ((qlen + 7) // 8) * 8
 
 def bits2int(b):
-  i = int(hexlify(b), 16)
+  i = int(hexlify(b), 16) # TODO: compare with BIP39
   blen = len(b) * 8
   if blen > qlen:
     i >>= (blen - qlen)

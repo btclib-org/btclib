@@ -10,15 +10,13 @@ from rfc6979 import rfc6979
 from ecutils import int_from_hash
 from WIF_address import int_from_prvkey
 
-# %% ecdsa sign
-# Design choice: what is signed is `m`, a 32 bytes message.
-
-
 
 def ecdsa_sign(m, prv, eph_prv=None, hasher=sha256):
+  # TODO: check for string
   prv = int_from_prvkey(prv)
   eph_prv = rfc6979(prv, m, hasher) if eph_prv is None else int_from_prvkey(eph_prv)
   return ecdsa_sign_raw(m, prv, eph_prv)
+
 
 def ecdsa_sign_raw(m, prv, eph_prv):
   h = int_from_hash(m)
@@ -29,11 +27,11 @@ def ecdsa_sign_raw(m, prv, eph_prv):
   return r, s
 
 
-
 def ecdsa_verify(m, dsasig, pub):
   check_dsasig(dsasig)
   pub =  ec.tuple_from_point(pub)
   return ecdsa_verify_raw(m, dsasig, pub)
+
 
 def ecdsa_verify_raw(m, dsasig, pub):
   h = int_from_hash(m)
@@ -45,11 +43,11 @@ def ecdsa_verify_raw(m, dsasig, pub):
   return R[0] % ec.order == r
 
 
-
 def ecdsa_recover(m, dsasig, y_mod_2):
   check_dsasig(dsasig)
   assert y_mod_2 in (0, 1)
   return ecdsa_recover_raw(m, dsasig, y_mod_2)
+
 
 def ecdsa_recover_raw(m, dsasig, y_mod_2):
   h = int_from_hash(m)

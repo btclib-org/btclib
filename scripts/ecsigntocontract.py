@@ -33,19 +33,6 @@ from WIF_address import int_from_prvkey
 from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_recover, ecdsa_sign_raw
 from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_recover, ecssa_sign_raw
 
-def str_to_hash(msg, hasher=sha256):
-  """from a message in string to its hash digest"""
-  assert type(msg) == str, "message must be a string"
-  return hasher(msg.encode()).digest()
-
-def check_receipt(receipt):
-  """check receipt format
-  """
-  # FIXME
-  # assert type(receipt[0]) == int and \
-  #       0 < receipt[0] and receipt[0] < ec_prime, \
-  #       "1st part of the receipt must be an int in (0, ec_prime)"
-  ec.tuple_from_point(receipt[1])
 
 def tweak(k, c, hasher=sha256):
   """tweak kG
@@ -75,7 +62,8 @@ def ecssa_commit_and_sign(m, prv, c, eph_prv=None, hasher=sha256):
   return sig, receipt
 
 def verify_commit(receipt, c, hasher=sha256):
-  check_receipt(receipt)
+  ec.y(receipt[0], False) # receipt[0] is valid iif its y does exist
+  ec.tuple_from_point(receipt[1]) # verify it is a good point
   w, R = receipt
   e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + c).digest())
   W = ec.pointAdd(R, ec.pointMultiply(e))
