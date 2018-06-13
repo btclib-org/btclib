@@ -10,12 +10,12 @@ def mod_inv(a, m):
         q, c, d = divmod( d, c ) + ( c, )
         uc, vc, ud, vd = ud - q*uc, vd - q*vc, uc, vc
 
-  # At this point, d is the GCD, and ud*a+vd*m = d.
-  # If d == 1, this means that ud is a inverse.
+    # At this point, d is the GCD, and ud*a+vd*m = d.
+    # If d == 1, this means that ud is a inverse.
 
-  assert d == 1
-  if ud > 0: return ud
-  else: return ud + m
+    assert d == 1
+    if ud > 0: return ud
+    else: return ud + m
 
 def mod_sqrt(a, p):
     """ Find a quadratic residue (mod p) of 'a'. p
