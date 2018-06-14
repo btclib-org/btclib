@@ -59,7 +59,7 @@ def ecdsa_pubkey_recovery_raw(m, dsasig, y_mod_2):
     R = (r, ec.y(r, y_mod_2))
     # by choice at this level do not manage point at infinity (h = 0, R = 0G)
     return ec.pointAdd(ec.pointMultiply(dsasig[1] * r1 % ec.order, R),
-                      ec.pointMultiply(-h * r1 % ec.order))
+                       ec.pointMultiply(-h * r1 % ec.order))
 
 
 def check_dsasig(dsasig):

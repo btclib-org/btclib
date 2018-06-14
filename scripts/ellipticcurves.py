@@ -1,5 +1,9 @@
 #!/usr/bin/python3
 
+"""
+Elliptic curve class and instances
+"""
+
 from FiniteFields import mod_inv, mod_sqrt
 from math import sqrt
 
@@ -22,8 +26,8 @@ class EllipticCurve:
     assert self.pointMultiply_raw(order) == (None, None)
 
   def __y2(self, x):
-    assert 0 <= x
-    assert x < self.__prime
+    assert 0 <= x, "x < 0"
+    assert x < self.__prime, "x >= prima"
     # skipping a crucial check here:
     # x is not valid if sqrt(y*y) does not exists.
     # This is a good reason to heve this method as private
@@ -64,7 +68,7 @@ class EllipticCurve:
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
         Px = int.from_bytes(P[1:33], 'big')
-        assert Px < self.__prime
+        assert Px < self.__prime, "Px >= prime"
         Py = self.y(Px, True)
         if (P[0] == 0x03):
           return (Px, Py)
@@ -74,9 +78,9 @@ class EllipticCurve:
         assert len(P) == 65, "not a point"
         assert P[0] == 0x04, "not an uncompressed point"
         Px = int.from_bytes(P[1:33], 'big')
-        assert Px < self.__prime
+        assert Px < self.__prime, "Px >= prime"
         Py = int.from_bytes(P[33:], 'big')
-        assert Py < self.__prime
+        assert Py < self.__prime, "Py >= prime"
         assert self.__y2(Px) == Py*Py % self.__prime, "point is not on the ec"
         return (Px, Py)
     elif isinstance(P, tuple):
@@ -84,8 +88,8 @@ class EllipticCurve:
       if (P[0] == None and P[1] == None):
         return P
       assert (type(P[0]) == int and type(P[1]) == int) , "invalid non-int tuple point"
-      assert P[0] < self.__prime
-      assert P[1] < self.__prime
+      assert P[0] < self.__prime, "Px >= prime"
+      assert P[1] < self.__prime, "Py >= prime"
       assert self.__y2(P[0]) == P[1]*P[1] % self.__prime, "point is not on the ec"
       return P
     else:
@@ -103,23 +107,23 @@ class EllipticCurve:
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
         Px = int.from_bytes(P[1:33], 'big')
-        assert Px < self.__prime
+        assert Px < self.__prime, "Px >= prime"
         return P
       else:            # uncompressed point
         assert len(P) == 65, "not a point"
         assert P[0] == 0x04, "not an uncompressed point"
         Px = int.from_bytes(P[1:33], 'big')
-        assert Px < self.__prime
+        assert Px < self.__prime, "Px >= prime"
         Py = int.from_bytes(P[33:], 'big')
-        assert Py < self.__prime
-        assert self.__y2(Px) == Py*Py % self.__prime
+        assert Py < self.__prime, "Py >= prime"
+        assert self.__y2(Px) == Py*Py % self.__prime, "point is not on the ec"
         return P
     elif isinstance(P, tuple):
       assert len(P) == 2, "invalid tuple point length"
       assert P[0] is not None, "infinity point cannot be expressed as bytes"
       assert P[1] is not None, "infinity point cannot be expressed as bytes"
       assert type(P[0]) == int and type(P[1]) == int, "invalid non-int tuple point"
-      assert self.__y2(P[0]) == P[1]*P[1] % self.__prime
+      assert self.__y2(P[0]) == P[1]*P[1] % self.__prime, "point is not on the ec"
       if compressed:
         prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
         return prefix + P[0].to_bytes(32, byteorder='big')
@@ -165,7 +169,6 @@ class EllipticCurve:
   # efficient double & add, using binary decomposition of n
   def pointMultiply(self, n, P = None):
     if isinstance(n, bytes) or isinstance(n, bytearray):
-      assert len(n) == 32
       n = int.from_bytes(n, 'big')
     n = n % self.order    # the group is cyclic
 
