@@ -1,45 +1,41 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+
 """
-Created on Thu Oct 12 11:18:33 2017
-
-@author: dfornaro, fametrano
+Deterministic Wallet (Type-2)
 """
 
-#### Deterministic Wallet (Type-2) ####
-
-from secp256k1 import order, G, modInv, pointAdd, pointMultiply
+from ellipticcurves import secp256k1 as ec
 from hashlib import sha256
-import random
+from random import randint
 
+# master prvkey
+mprvkey = randint(0, ec.order-1)
+print('\nmaster private key:', format(mprvkey, '#064x'))
 
-# secret master private key
-mp = random.randint(0, order-1)
-print('\nsecret master private key:\n', hex(mp),'\n')
+# Master Pubkey:
+MP = ec.pointMultiply(mprvkey)
+print('Master Public Key:', format(MP[0], '#064x'))
+print('                  ', format(MP[1], '#064x'))
 
 # public random number
-r = random.randint(0, order-1)
-print('public ephemeral key:\n', hex(r))
+r = randint(0, 2**256-1)
+print('public ephemeral key:', format(r, '#064x'))
 
-# Master PublicKey:
-MP = pointMultiply(mp, G)
-print('Master Public Key:\n', hex(MP[0]), '\n', hex(MP[1]), '\n')
-
-# number of key pairs to generate
+p = []
+h_int = []
 nKeys = 3
-p = [0] * nKeys
-P = [(0,0)] * nKeys
-
-# PubKeys can be calculated without using privKeys
+r_bytes = r.to_bytes(32, 'big')
 for i in range(0, nKeys):
-  # H(i|r)
-  H_i_r = int(sha256((hex(i)+hex(r)).encode()).hexdigest(), 16) %order
-  P[i] = pointAdd(MP, pointMultiply(H_i_r, G))                 
+  i_bytes = i.to_bytes(32, 'big')
+  h_hex = sha256(i_bytes+r_bytes).hexdigest()
+  h_int.append(int(h_hex, 16))
+  p.append((mprvkey + h_int[i]) % ec.order)
+  P = ec.pointMultiply(p[i])
+  print('prvkey#', i, ':', format(p[i], '#064x'))
+  print('Pubkey#', i, ':', format(P[0], '#064x'))
+  print('           ',     format(P[1], '#064x'))
 
-# check that PubKeys match with privKeys
+# Pubkeys could be calculated without using prvkeys
 for i in range(0, nKeys):
-  # H(i|r)
-  H_i_r = int(sha256((hex(i)+hex(r)).encode()).hexdigest(), 16) %order
-  p[i] = (mp + H_i_r) %order
-  assert P[i] == pointMultiply(p[i], G)
-  print('prKey#', i, ':\n', hex(p[i]), sep='')
-  print('PubKey#', i, ':\n', hex(P[i][0]), '\n', hex(P[i][1]), '\n', sep='')
+  P = ec.pointAdd(MP, ec.pointMultiply(h_int[i]))                 
+  assert P == ec.pointMultiply(p[i])

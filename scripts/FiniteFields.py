@@ -1,23 +1,23 @@
 #!/usr/bin/python3
 
 #from pycoin
-def modInv(a, m):
-  if a < 0 or m <= a: a = a % m
-  # From Ferguson and Schneier, roughly:
-  c, d = a, m
-  uc, vc, ud, vd = 1, 0, 0, 1
-  while c != 0:
-    q, c, d = divmod( d, c ) + ( c, )
-    uc, vc, ud, vd = ud - q*uc, vd - q*vc, uc, vc
+def mod_inv(a, m):
+    if a < 0 or m <= a: a = a % m
+    # From Ferguson and Schneier, roughly:
+    c, d = a, m
+    uc, vc, ud, vd = 1, 0, 0, 1
+    while c != 0:
+        q, c, d = divmod( d, c ) + ( c, )
+        uc, vc, ud, vd = ud - q*uc, vd - q*vc, uc, vc
 
-  # At this point, d is the GCD, and ud*a+vd*m = d.
-  # If d == 1, this means that ud is a inverse.
+    # At this point, d is the GCD, and ud*a+vd*m = d.
+    # If d == 1, this means that ud is a inverse.
 
-  assert d == 1
-  if ud > 0: return ud
-  else: return ud + m
+    assert d == 1
+    if ud > 0: return ud
+    else: return ud + m
 
-def modular_sqrt(a, p):
+def mod_sqrt(a, p):
     """ Find a quadratic residue (mod p) of 'a'. p
         must be an odd prime.
         Solve the congruence of the form:
@@ -34,7 +34,7 @@ def modular_sqrt(a, p):
     # Simple cases
     #
     if legendre_symbol(a, p) != 1:
-        return -1
+        raise ValueError("no root exists")
     elif a == 0:
         return 0
     elif p == 2:

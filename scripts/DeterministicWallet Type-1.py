@@ -1,29 +1,24 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 12 09:27:42 2017
+#!/usr/bin/env python3
 
-@author: dfornaro, fametrano
 """
-#### Deterministic Wallet (Type-1) ####
+Deterministic Wallet (Type-1)
+"""
 
-from secp256k1 import order, G, modInv, pointAdd, pointMultiply
+from ellipticcurves import secp256k1 as ec
 from hashlib import sha256
-import random
+from random import randint
 
+# master prvkey
+mprvkey = randint(0, ec.order-1)
+print('\nmaster private key =', hex(mprvkey))
 
-# secret random number
-r = random.randint(0, order-1)
-print('\nr =', hex(r), '\n')
-
-# number of key pairs to generate
 nKeys = 3
-p = [0] * nKeys
-P = [(0,0)] * nKeys
-
+mprvkey_bytes = mprvkey.to_bytes(32, 'big')
 for i in range(0, nKeys):
-  # H(i|r)
-  H_i_r = int(sha256((hex(i)+hex(r)).encode()).hexdigest(), 16) %order
-  p[i] = H_i_r
-  P[i] = pointMultiply(p[i], G)
-  print('prKey#', i, ':\n', hex(p[i]), sep='')
-  print('PubKey#', i, ':\n', hex(P[i][0]), '\n', hex(P[i][1]), '\n', sep='')
+  i_bytes = i.to_bytes(32, 'big')
+  h_hex = sha256(i_bytes+mprvkey_bytes).hexdigest()
+  p = int(h_hex, 16) % ec.order
+  P = ec.pointMultiply(p)
+  print('prvkey#', i, ':', format(p, '#064x'))
+  print('Pubkey#', i, ':', format(P[0], '#064x'))
+  print('           ',     format(P[1], '#064x'))
