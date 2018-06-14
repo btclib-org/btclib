@@ -21,7 +21,8 @@ class EllipticCurve:
     # Hasse Theorem
     t = int(2 * sqrt(prime))
     assert order <= prime + 1 + t, "order too high"
-    assert prime + 1 - t <= order, "order too low"
+    # false for subgroups
+    # assert prime + 1 - t <= order, "order too low"
     self.order = order
     assert self.pointMultiply_raw(order) == (None, None)
 
@@ -198,7 +199,7 @@ secp256k1 = EllipticCurve(0, 7, 2**256 - 2**32 - 977, (__Gx, __Gy), __prime)
 # toy curves
 ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
 # FIXME: Hasse condition fails
-#ec79_43   = EllipticCurve(-1,  1,  79, (  0,  1),  43)
+ec79_43   = EllipticCurve(-1,  1,  79, (  0,  1),  43)
 ec263_269 = EllipticCurve( 6,  9, 263, (  0,  3), 269)
 ec263_270 = EllipticCurve( 2,  3, 263, (200, 39), 270)
 ec263_280 = EllipticCurve(-7, 10, 263, (  3,  4), 280)
@@ -207,7 +208,7 @@ import unittest
 
 class Testsecp256k1(unittest.TestCase):
     def test_all_curves(self):
-        for ec in (secp256k1, ec11_13, ec263_269, ec263_270, ec263_280):
+        for ec in (secp256k1, ec11_13, ec79_43, ec263_269, ec263_270, ec263_280):
             infinity = (None, None)
             inf_tuple = ec.tuple_from_point(infinity)
             self.assertEqual(inf_tuple, infinity)
