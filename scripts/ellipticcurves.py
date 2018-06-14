@@ -24,7 +24,9 @@ class EllipticCurve:
   def __y2(self, x):
     assert 0 <= x
     assert x < self.__prime
-    # skipping key check: x is not valid if sqrt(y*y) does not exists
+    # skipping a crucial check here:
+    # x is not valid if sqrt(y*y) does not exists.
+    # This is a good reason to heve this method as private
     return (x*x*x + self.__a*x + self.__b) % self.__prime
 
   def y(self, x, odd):
@@ -52,9 +54,13 @@ class EllipticCurve:
   def tuple_from_point(self, P):
     """ Return a tuple (Px, Py) having ensured it belongs to the curve """
     if isinstance(P, str):
+      # FIXME: xpub is not considered here
+      # which is right as it is a bitcoin convention,
+      # not an elliptic curve one 
       P = bytes.fromhex(P)
 
     if isinstance(P, bytes) or isinstance(P, bytearray):
+      # FIXME: xpub should be dealt with here
       if len(P) == 33: # compressed point
         assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
         Px = int.from_bytes(P[1:33], 'big')
@@ -180,7 +186,7 @@ class EllipticCurve:
       addendum = self.pointDouble_raw(addendum) # update addendum for next step
     return result
 
-# secp256k1
+# bitcoin curve
 __Gx = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
 __Gy = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
 __prime = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
