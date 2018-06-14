@@ -74,6 +74,7 @@ import unittest
 
 class TestEcdsa(unittest.TestCase):
     def test_ecdsa(self):
+        # source: https://bitcointalk.org/index.php?topic=285142.40
         prv = 0x1
         pub = ec.pointMultiply(prv)
         msg = 'Satoshi Nakamoto'

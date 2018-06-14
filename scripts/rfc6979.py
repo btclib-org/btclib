@@ -78,6 +78,7 @@ import unittest
 
 class Testrfc6979(unittest.TestCase):
     def test_rfc6979(self):
+        # source: https://bitcointalk.org/index.php?topic=285142.40
         msg = sha256(b'Satoshi Nakamoto').digest()
         x = 0x1
         nonce = rfc6979(x, msg)
