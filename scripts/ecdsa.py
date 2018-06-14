@@ -72,17 +72,27 @@ def check_dsasig(dsasig):
     assert 0 < dsasig[0] and dsasig[0] < ec.order and \
            0 < dsasig[1] and dsasig[1] < ec.order, "r and s must be in [1..order]"
 
+import unittest
+
+class Testecdsa(unittest.TestCase):
+    def test_ecdsa(self):
+        prv = 0x1
+        pub = ec.pointMultiply(prv)
+        msg = 'Satoshi Nakamoto'
+        exp_sig = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
+                   0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
+        r, s = ecdsa_sign(msg, prv)
+        self.assertEqual(r, exp_sig[0])
+        sigs = (exp_sig[1], ec.order - exp_sig[1])
+        self.assertIn(s, sigs)
+
+        self.assertTrue(ecdsa_verify(msg, (r, s), pub))
+
+        keys = (ecdsa_pubkey_recovery(msg, (r, s), 0),
+                ecdsa_pubkey_recovery(msg, (r, s), 1))
+        self.assertIn(pub, keys)
+
 
 if __name__ == "__main__":
-    prv = 0x1
-    pub = ec.pointMultiply(prv)
-    msg = 'Satoshi Nakamoto'
-    expected_signature = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
-                          0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
-    r, s = ecdsa_sign(msg, prv)
-    assert r == expected_signature[0] and \
-           s in (expected_signature[1], ec.order - expected_signature[1])
-
-    assert ecdsa_verify(msg, (r, s), pub)
-
-    assert pub in (ecdsa_pubkey_recovery(msg, (r, s), 0), ecdsa_pubkey_recovery(msg, (r, s), 1))
+    # execute only if run as a script
+    unittest.main()

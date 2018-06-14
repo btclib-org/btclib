@@ -83,19 +83,28 @@ def check_ssasig(ssasig):
     assert 0 < ssasig[1] and ssasig[1] < ec.order, "s must be in [1..order]"
 
 
+import unittest
+
+class Testecssa(unittest.TestCase):
+    def test_ecssa(self):
+        prv = 0x1
+        pub = ec.pointMultiply(prv)
+        msg = 'Satoshi Nakamoto'
+        exp_sig = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
+                   0x5c0eed7fda3782b5e439e100834390459828ef7089dbd375e48949224b6f82c0)
+        # FIXME: the above sig was generated with this code,
+        #        it would be better to use a sig
+        #        genearated by other code to test against
+        r, s = ecssa_sign(msg, prv)
+        self.assertEqual(r, exp_sig[0])
+        # ?????
+        sigs = (exp_sig[1], ec.order - exp_sig[1])
+        self.assertIn(s, sigs)
+
+        self.assertTrue(ecssa_verify(msg, (r, s), pub))
+
+        self.assertEqual(ecssa_pubkey_recovery(msg, (r, s)), pub)
+
 if __name__ == "__main__":
-    prv = 0x1
-    pub = ec.pointMultiply(prv)
-    msg = 'Satoshi Nakamoto'
-    expected_signature = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
-                          0x5c0eed7fda3782b5e439e100834390459828ef7089dbd375e48949224b6f82c0)
-    # FIXME: the above sig was generated with this code,
-    #        it would be better to use a sig
-    #        genearated by other code to test against
-    r, s = ecssa_sign(msg, prv)
-    assert r == expected_signature[0] and \
-           s in (expected_signature[1], ec.order - expected_signature[1])
-
-    assert ecssa_verify(msg, (r, s), pub)
-
-    assert pub in (ecssa_pubkey_recovery(msg, (r, s)), ecssa_pubkey_recovery(msg, (r, s)))
+    # execute only if run as a script
+    unittest.main()
