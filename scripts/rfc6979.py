@@ -43,10 +43,12 @@ def bits2octets(b):
 def check_hash_digest(m, hash_digest_size=default_hash_digest_size):
     """check that m is a bytes message with correct length
     """
-    assert type(m) == bytes and len(m) == hash_digest_size, "m must be bytes with correct bytes length"
+    assert type(m) == bytes
+    assert len(m) == hash_digest_size, "m must be bytes with correct bytes length"
 
 def rfc6979(prv, m, hasher=default_hasher):
-    assert type(prv) == int and 0 < prv and prv < ec.order, "invalid prv: " + str(prv)
+    assert type(prv) == int
+    assert 0 < prv and prv < ec.order, "invalid prv: " + str(prv)
     check_hash_digest(m)
     return rfc6979_raw(prv, m, hasher)
 
@@ -72,9 +74,17 @@ def rfc6979_raw(prv, m, hasher=default_hasher):
         k = hmac_new(k, v + b'\x00', hasher).digest()
         v = hmac_new(k, v, hasher).digest()
 
+import unittest
+
+class Testrfc6979(unittest.TestCase):
+    def test_rfc6979(self):
+        msg = sha256(b'Satoshi Nakamoto').digest()
+        x = 0x1
+        nonce = rfc6979(x, msg)
+        expected = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
+        self.assertEqual(nonce, expected)
+
+
 if __name__ == "__main__":
-    msg = sha256(b'Satoshi Nakamoto').digest()
-    x = 0x1
-    nonce = rfc6979(x, msg)
-    expected = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
-    assert nonce == expected
+    # execute only if run as a script
+    unittest.main()

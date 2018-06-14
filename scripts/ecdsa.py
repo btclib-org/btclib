@@ -74,7 +74,7 @@ def check_dsasig(dsasig):
 
 import unittest
 
-class Testecdsa(unittest.TestCase):
+class TestEcdsa(unittest.TestCase):
     def test_ecdsa(self):
         prv = 0x1
         pub = ec.pointMultiply(prv)

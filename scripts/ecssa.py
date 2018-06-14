@@ -85,7 +85,7 @@ def check_ssasig(ssasig):
 
 import unittest
 
-class Testecssa(unittest.TestCase):
+class TestEcssa(unittest.TestCase):
     def test_ecssa(self):
         prv = 0x1
         pub = ec.pointMultiply(prv)

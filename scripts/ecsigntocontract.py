@@ -30,8 +30,8 @@ from string import hexdigits
 from rfc6979 import rfc6979
 from ecsignutils import int_from_hash
 from WIF_address import int_from_prvkey
-from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_pubkey_recovery, ecdsa_sign_raw
-from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_pubkey_recovery, ecssa_sign_raw
+from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_sign_raw
+from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_sign_raw
 
 
 def tweak(k, c, hasher=sha256):
@@ -75,18 +75,24 @@ def verify_commit(receipt, c, hasher=sha256):
     # choice to manage with the same function
 
 
+import unittest
+
+class TestSignToContract(unittest.TestCase):
+    def test_digntocontract(self):
+      prv = 0x1
+      pub = ec.pointMultiply(prv)
+      m = sha256("hello world".encode()).digest()
+      c = sha256("sign to contract".encode()).digest()
+
+      sig_ecdsa, receipt_ecdsa = ecdsa_commit_and_sign(m, prv, c)
+      self.assertTrue(ecdsa_verify(m, sig_ecdsa, pub))
+      self.assertTrue(verify_commit(receipt_ecdsa, c))
+
+      sig_ecssa, receipt_ecssa = ecssa_commit_and_sign(m, prv, c)
+      self.assertTrue(ecssa_verify(m, sig_ecssa, pub))
+      self.assertTrue(verify_commit(receipt_ecssa, c))
+
+
 if __name__ == "__main__":
-    prv = 0x1
-    pub = ec.pointMultiply(prv)
-    m = sha256("hello world".encode()).digest()
-    c = sha256("sign to contract".encode()).digest()
-
-    sig_ecdsa, receipt_ecdsa = ecdsa_commit_and_sign(m, prv, c)
-    assert ecdsa_verify(m, sig_ecdsa, pub)
-    assert pub in (ecdsa_pubkey_recovery(m, sig_ecdsa, 0), ecdsa_pubkey_recovery(m, sig_ecdsa, 1))
-    assert verify_commit(receipt_ecdsa, c)
-
-    sig_ecssa, receipt_ecssa = ecssa_commit_and_sign(m, prv, c)
-    assert ecssa_verify(m, sig_ecssa, pub)
-    assert pub in (ecssa_pubkey_recovery(m, sig_ecssa), ecssa_pubkey_recovery(m, sig_ecssa))
-    assert verify_commit(receipt_ecssa, c)
+    # execute only if run as a script
+    unittest.main()
