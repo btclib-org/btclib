@@ -4,7 +4,7 @@
 Elliptic curve class and instances
 """
 
-from FiniteFields import mod_inv, mod_sqrt
+from numbertheory import mod_inv, mod_sqrt
 from math import sqrt
 
 # elliptic curve y^2 = x^3 + a * x + b

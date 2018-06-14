@@ -5,7 +5,7 @@
 
 from hashlib import sha256
 from ellipticcurves import secp256k1 as ec
-from FiniteFields import mod_inv
+from numbertheory import mod_inv
 from rfc6979 import rfc6979
 from ecsignutils import int_from_hash
 from WIF_address import int_from_prvkey

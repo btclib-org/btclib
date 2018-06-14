@@ -25,7 +25,7 @@ COMMITMENT VERIFICATION:
 from hashlib import sha256
 from base58 import b58decode_check, base58digits as b58digits
 from ellipticcurves import secp256k1 as ec
-from FiniteFields import mod_inv, mod_sqrt
+from numbertheory import mod_inv, mod_sqrt
 from string import hexdigits
 from rfc6979 import rfc6979
 from ecsignutils import int_from_hash

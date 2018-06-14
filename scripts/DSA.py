@@ -2,7 +2,7 @@
 
 from ellipticcurves import secp256k1 as ec
 from hashlib import sha256
-from FiniteFields import mod_inv
+from numbertheory import mod_inv
 
 print("\n*** EC:")
 print(ec)
