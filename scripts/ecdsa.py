@@ -39,7 +39,6 @@ def ecdsa_verify_raw(m, dsasig, pub):
     h = int_from_hash(m, ec.order)
     r, s = dsasig
     s1 = mod_inv(s, ec.order)
-    # by choice at this level do not manage point at infinity (h = 0, R = 0G)
     R = ec.pointAdd(ec.pointMultiply(r * s1 % ec.order, pub),
                     ec.pointMultiply(h * s1 % ec.order))
     return R[0] % ec.order == r
@@ -57,7 +56,6 @@ def ecdsa_pubkey_recovery_raw(m, dsasig, y_mod_2):
     r, s = dsasig
     r1 = mod_inv(r, ec.order)
     R = (r, ec.y(r, y_mod_2))
-    # by choice at this level do not manage point at infinity (h = 0, R = 0G)
     return ec.pointAdd(ec.pointMultiply(s * r1 % ec.order, R),
                        ec.pointMultiply(-h * r1 % ec.order))
 
