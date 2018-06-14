@@ -54,11 +54,11 @@ def ecdsa_pubkey_recovery(m, dsasig, y_mod_2, hasher=sha256):
 
 def ecdsa_pubkey_recovery_raw(m, dsasig, y_mod_2):
     h = int_from_hash(m, ec.order)
-    r, s = dsasig # FIXME: why is s not used?
+    r, s = dsasig
     r1 = mod_inv(r, ec.order)
     R = (r, ec.y(r, y_mod_2))
     # by choice at this level do not manage point at infinity (h = 0, R = 0G)
-    return ec.pointAdd(ec.pointMultiply(dsasig[1] * r1 % ec.order, R),
+    return ec.pointAdd(ec.pointMultiply(s * r1 % ec.order, R),
                        ec.pointMultiply(-h * r1 % ec.order))
 
 
