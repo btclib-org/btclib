@@ -48,7 +48,6 @@ def ecssa_verify_raw(m: bytes, ssasig: Tuple[int, int], pub: Tuple[int, int], ha
     e = int_from_hash(e, ec.order)
     if e == 0 or e >= ec.order:  # invalid e value
         return False
-    # by choice at this level do not manage point at infinity (h = 0, R = 0G)
     R = ec.pointAdd(ec.pointMultiply(e, pub), ec.pointMultiply(s))
     if R[1] % 2 == 1:  # R.y odd
         return False
@@ -69,9 +68,8 @@ def ecssa_pubkey_recovery_raw(m: bytes, ssasig: Tuple[int, int], hasher = sha256
     e = int_from_hash(e, ec.order)
     assert e != 0 and e < ec.order, "invalid e value"
     e1 = mod_inv(e, ec.order)
-    # by choice at this level do not manage point at infinity (h = 0, R = 0G)
     return ec.pointAdd(ec.pointMultiply(e1, R),
-                       ec.pointMultiply(-e1 * s % ec.order))
+           ec.pointMultiply(-e1 * s % ec.order))
 
 
 def check_ssasig(ssasig: Tuple[int, int]) -> bool:
