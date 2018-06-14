@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from WIF_address import h160, address_from_pubkey
 from hmac import HMAC
 from hashlib import sha512

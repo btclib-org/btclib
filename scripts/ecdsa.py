@@ -4,7 +4,7 @@
 """
 
 from hashlib import sha256
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from FiniteFields import mod_inv
 from rfc6979 import rfc6979
 from ecsignutils import int_from_hash
@@ -21,7 +21,7 @@ def ecdsa_sign(m, prv, eph_prv=None, hasher=sha256):
 def ecdsa_sign_raw(m, prv, eph_prv):
     R = ec.pointMultiply(eph_prv)
     r = R[0] % ec.order
-    h = int_from_hash(m)
+    h = int_from_hash(m, ec.order)
     # assert h
     s = mod_inv(eph_prv, ec.order) * (h + prv * r) % ec.order
     assert r != 0 and s != 0, "failed to sign"
@@ -36,7 +36,7 @@ def ecdsa_verify(m, dsasig, pub, hasher=sha256):
 
 
 def ecdsa_verify_raw(m, dsasig, pub):
-    h = int_from_hash(m)
+    h = int_from_hash(m, ec.order)
     r, s = dsasig
     s1 = mod_inv(s, ec.order)
     # by choice at this level do not manage point at infinity (h = 0, R = 0G)
@@ -53,7 +53,7 @@ def ecdsa_pubkey_recovery(m, dsasig, y_mod_2, hasher=sha256):
 
 
 def ecdsa_pubkey_recovery_raw(m, dsasig, y_mod_2):
-    h = int_from_hash(m)
+    h = int_from_hash(m, ec.order)
     r, s = dsasig # FIXME: why is s not used?
     r1 = mod_inv(r, ec.order)
     R = (r, ec.y(r, y_mod_2))

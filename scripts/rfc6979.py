@@ -9,7 +9,7 @@ https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 """
 
 from hashlib import sha256
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from struct import pack
 from binascii import hexlify
 from hmac import new as hmac_new

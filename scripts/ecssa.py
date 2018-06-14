@@ -4,7 +4,7 @@
 """
 
 from hashlib import sha256
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from FiniteFields import mod_inv
 from rfc6979 import rfc6979
 from ecsignutils import int_from_hash
@@ -27,7 +27,8 @@ def ecssa_sign_raw(m, prv, eph_prv, hasher=sha256):
     if R[1] % 2 == 1:
         eph_prv = ec.order - eph_prv  # <=> R_y = ec_prime - R_y
     r = R[0] % ec.order # % ec.order ?
-    e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + m).digest())
+    e = hasher(R[0].to_bytes(32, 'big') + m).digest()
+    e = int_from_hash(e, ec.order)
     assert e != 0 and e < ec.order, "sign fail"
     s = (eph_prv - e * prv) % ec.order
     return r, s
@@ -42,7 +43,8 @@ def ecssa_verify(m, ssasig, pub, hasher=sha256):
 
 def ecssa_verify_raw(m, ssasig, pub, hasher):
     R_x, s = ssasig[0].to_bytes(32, 'big'), ssasig[1]
-    e = int_from_hash(hasher(R_x + m).digest())
+    e = hasher(R_x + m).digest()
+    e = int_from_hash(e, ec.order)
     if e == 0 or e >= ec.order:  # invalid e value
         return False
     # by choice at this level do not manage point at infinity (h = 0, R = 0G)
@@ -62,7 +64,8 @@ def ecssa_pubkey_recovery_raw(m, ssasig, hasher=sha256):
     R_x, s = ssasig
     R = (R_x, ec.y(R_x, 0))
     R_x = R_x.to_bytes(32, 'big')
-    e = int_from_hash(hasher(R_x + m).digest())
+    e = hasher(R_x + m).digest()
+    e = int_from_hash(e, ec.order)
     assert e != 0 and e < ec.order, "invalid e value"
     e1 = mod_inv(e, ec.order)
     # by choice at this level do not manage point at infinity (h = 0, R = 0G)

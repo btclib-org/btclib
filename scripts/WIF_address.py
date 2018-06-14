@@ -1,11 +1,12 @@
 #!/usr/bin/python3
+
 '''wifs and addresses
 
 Implementation of Base58 encoding of private keys (wifs)
 and public keys (addresses)
 '''
 
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from base58 import b58encode_check, b58decode_check, base58digits
 from hashlib import sha256, new as hnew
 

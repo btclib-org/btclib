@@ -1,6 +1,6 @@
-#! python3
+#!/usr/bin/python3
 
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 import hashlib
 from base58 import b58encode_check, b58encode, b58decode_check
 

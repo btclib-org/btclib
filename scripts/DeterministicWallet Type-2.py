@@ -4,7 +4,7 @@
 Deterministic Wallet (Type-2)
 """
 
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from hashlib import sha256
 from random import randint
 

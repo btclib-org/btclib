@@ -1,10 +1,6 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Oct 16 11:16:55 2017
+#!/usr/bin/env python3
 
-@author: dfornaro, fametrano
-"""
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from WIF_address import h160, address_from_pubkey
 from hmac import HMAC
 from hashlib import sha512

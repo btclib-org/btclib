@@ -19,6 +19,7 @@ class EllipticCurve:
     assert order <= prime + 1 + t, "order too high"
     assert prime + 1 - t <= order, "order too low"
     self.order = order
+    assert self.pointMultiply_raw(order) == (None, None)
 
   def __y2(self, x):
     assert 0 <= x
@@ -179,22 +180,78 @@ class EllipticCurve:
       addendum = self.pointDouble_raw(addendum) # update addendum for next step
     return result
 
+# secp256k1
+__Gx = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
+__Gy = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
+__prime = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+secp256k1 = EllipticCurve(0, 7, 2**256 - 2**32 - 977, (__Gx, __Gy), __prime)
 
-def main():
-  G = (0, 3)
-  ec = EllipticCurve(6, 9, 263, G, 269)
-  assert ec.y(G[0], False) != G[1]
-  assert ec.y(G[0], True) == G[1]
-  print(ec)
-  ec.tuple_from_point(G)
-  print(G)
-  print(ec.pointAdd(G, G))
-  print(ec.pointDouble(G))
-  print(ec.pointMultiply(2))
-  print(ec.pointMultiply(ec.order))
-  print(ec.pointMultiply(ec.order+1))
-  print(ec.pointMultiply(ec.order+2))
+# toy curves
+ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
+# FIXME: Hasse condition fails
+#ec79_43   = EllipticCurve(-1,  1,  79, (  0,  1),  43)
+ec263_269 = EllipticCurve( 6,  9, 263, (  0,  3), 269)
+ec263_270 = EllipticCurve( 2,  3, 263, (200, 39), 270)
+ec263_280 = EllipticCurve(-7, 10, 263, (  3,  4), 280)
+
+import unittest
+
+class Testsecp256k1(unittest.TestCase):
+    def test_all_curves(self):
+        for ec in (secp256k1, ec11_13, ec263_269, ec263_270, ec263_280):
+            infinity = (None, None)
+            inf_tuple = ec.tuple_from_point(infinity)
+            self.assertEqual(inf_tuple, infinity)
+
+            self.assertEqual(ec.pointMultiply(0), infinity)
+
+            G = ec.pointMultiply(1)
+            Gy = ec.y(G[0], True)
+            self.assertEqual(Gy % 2, 1)
+            Gy = ec.y(G[0], False)
+            self.assertEqual(Gy % 2, 0)
+
+            P = ec.pointAdd(infinity, G)
+            self.assertEqual(P, G)
+            P = ec.pointAdd(G, infinity)
+            self.assertEqual(P, G)
+
+            P = ec.pointDouble(G)
+            self.assertEqual(P, ec.pointMultiply(2))
+
+            P = ec.pointAdd(G, G)
+            self.assertEqual(P, ec.pointMultiply(2))
+
+            P = ec.pointMultiply(ec.order-1)
+            self.assertEqual(ec.pointAdd(P, G), infinity)
+            self.assertEqual(ec.pointMultiply(ec.order), infinity)
+
+            if (ec.order % 2 == 0):
+                P = ec.pointMultiply(ec.order//2)
+                self.assertEqual(P[1], 0)
+                self.assertEqual(ec.pointDouble(P), infinity)
+
+    def test_tuple_from_point(self):
+        prv = 0xc28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d
+        Pub = secp256k1.pointMultiply(prv)
+        
+        Pub_bytes = b'\x02' + Pub[0].to_bytes(32, "big")
+        p2 = secp256k1.tuple_from_point(Pub_bytes)
+        self.assertEqual(p2, Pub)
+
+        Pub_hex_str = Pub_bytes.hex()
+        p2 = secp256k1.tuple_from_point(Pub_hex_str)
+        self.assertEqual(p2, Pub)
+
+        Pub_bytes = b'\x04' + Pub[0].to_bytes(32, "big") + Pub[1].to_bytes(32, "big")
+        p2 = secp256k1.tuple_from_point(Pub_bytes)
+        self.assertEqual(p2, Pub)
+
+        Pub_hex_str = Pub_bytes.hex()
+        p2 = secp256k1.tuple_from_point(Pub_hex_str)
+        self.assertEqual(p2, Pub)
+
 
 if __name__ == "__main__":
-  # execute only if run as a script
-  main()
+    # execute only if run as a script
+    unittest.main()

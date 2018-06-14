@@ -24,7 +24,7 @@ COMMITMENT VERIFICATION:
 
 from hashlib import sha256
 from base58 import b58decode_check, base58digits as b58digits
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from FiniteFields import mod_inv, mod_sqrt
 from string import hexdigits
 from rfc6979 import rfc6979
@@ -42,7 +42,8 @@ def tweak(k, c, hasher=sha256):
     - tweaked private key k + h(kG||c), the corresponding pubkey is a commitment to kG, c
     """
     R = ec.pointMultiply(k)
-    e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + c).digest())
+    e = hasher(R[0].to_bytes(32, 'big') + c).digest()
+    e = int_from_hash(e, ec.order)
     return R, (e + k) % ec.order
 
 def ecdsa_commit_and_sign(m, prv, c, eph_prv=None, hasher=sha256):
@@ -65,7 +66,8 @@ def verify_commit(receipt, c, hasher=sha256):
     ec.y(receipt[0], False) # receipt[0] is valid iif its y does exist
     ec.tuple_from_point(receipt[1]) # verify it is a good point
     w, R = receipt
-    e = int_from_hash(hasher(R[0].to_bytes(32, 'big') + c).digest())
+    e = hasher(R[0].to_bytes(32, 'big') + c).digest()
+    e = int_from_hash(e, ec.order)
     W = ec.pointAdd(R, ec.pointMultiply(e))
     return w % ec.order == W[0] % ec.order
     # weaker verfication! w in [1..ec.order-1] dsa

@@ -1,11 +1,6 @@
 #!/usr/bin/python3
 
-#from EC_1_1_F79_G0_1_N43 import ec
-#from EC_7_10_F263_G3_4_N280 import ec
-#from EC1_6_F11_G5_9_N13 import ec
-#from EC2_3_F263_G200_39_N270 import ec
-#from EC6_9_F263_G0_3_N269 import ec
-from ECsecp256k1 import ec
+from ellipticcurves import secp256k1 as ec
 from hashlib import sha256
 
 print("\n*** EC:")
