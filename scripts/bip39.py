@@ -5,7 +5,7 @@
 from hashlib import sha256, sha512
 from pbkdf2 import PBKDF2
 from mnemonic import mnemonic_dict
-from bip32_functions import bip32_master_prvkey_from_seed
+from bip32 import bip32_master_prvkey_from_seed
 
 def bip39_raw_entropy_checksum(raw_entr):
     # raw_entr 256-bit checksum

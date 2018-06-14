@@ -5,7 +5,7 @@
 from hashlib import sha512
 from pbkdf2 import PBKDF2
 import hmac
-from bip32_functions import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
+from bip32 import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
 from mnemonic import mnemonic_dict
 
 MNEMONIC_VERSIONS = {'standard' : '01',
