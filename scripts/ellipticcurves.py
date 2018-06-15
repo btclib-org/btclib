@@ -204,7 +204,6 @@ secp256k1 = EllipticCurve(0, 7, 2**256 - 2**32 - 977, (__Gx, __Gy), __prime)
 
 # toy curves
 ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
-# FIXME: Hasse condition fails
 ec79_43   = EllipticCurve(-1,  1,  79, (  0,  1),  43)
 ec263_269 = EllipticCurve( 6,  9, 263, (  0,  3), 269)
 ec263_270 = EllipticCurve( 2,  3, 263, (200, 39), 270)
