@@ -61,12 +61,14 @@ def bip32_xpub_from_xprv(xprv):
 
 
 def bip32_ckd(xparentkey, child_index):
-    """Child Key Derivation"""
-    # key derivation is normal if the extended parent key is public or
-    # child_index is less than 0x80000000
-    #
-    # key derivation is hardened if the extended parent key is private and
-    # child_index is not less than 0x80000000
+    """Child Key Derivation
+
+    Key derivation is normal if the extended parent key is public or
+    child_index is less than 0x80000000.
+    
+    Key derivation is hardened if the extended parent key is private and
+    child_index is not less than 0x80000000.
+    """
 
     if isinstance(child_index, int):
         child_index = child_index.to_bytes(4, 'big')
