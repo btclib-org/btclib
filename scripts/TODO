@@ -4,3 +4,10 @@ how to export mprv from Electrum?
 better mimic of electrum entropy search, they probably have the words inverted
 
 document bitcoin core derivation path vs Electrum
+
+rename WIF
+
+BIP44 in address from...
+
+check and document electrum standard as structure on BIP32
+document bitcoin code structure on BIP32
