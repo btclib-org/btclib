@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 from ellipticcurves import secp256k1 as ec
-from WIF_address import h160, address_from_pubkey
+from wifaddress import h160, address_from_pubkey
 from hmac import HMAC
 from hashlib import sha512
 from base58 import b58encode_check, b58decode_check

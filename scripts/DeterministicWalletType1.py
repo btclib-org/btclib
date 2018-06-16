@@ -7,7 +7,7 @@ Deterministic Wallet (Type-1)
 from hashlib import sha256
 from random import randint
 from ellipticcurves import secp256k1 as ec
-from WIF_address import bytes_from_prvkey
+from wifaddress import bytes_from_prvkey
 
 # master prvkey
 mprvkey = randint(0, ec.order-1)

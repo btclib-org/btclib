@@ -9,7 +9,7 @@ from ellipticcurves import secp256k1 as ec
 from numbertheory import mod_inv
 from rfc6979 import rfc6979
 from ecsignutils import int_from_hash
-from WIF_address import int_from_prvkey
+from wifaddress import int_from_prvkey
 
 
 def ecdsa_sign(m, prv, eph_prv = None, hasher = sha256) -> Tuple[int, int]:
