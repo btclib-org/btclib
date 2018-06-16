@@ -62,6 +62,8 @@ def ecssa_commit_and_sign(m, prv, c, eph_prv=None, hasher=sha256):
     receipt = (sig[0], R)
     return sig, receipt
 
+# FIXME: have create_commit instead of ecdsa_commit_and_sign
+#                                  and ecssa_commit_and_sign
 def verify_commit(receipt, c, hasher=sha256):
     ec.y(receipt[0], False) # receipt[0] is valid iif its y does exist
     ec.tuple_from_point(receipt[1]) # verify it is a good point
@@ -73,26 +75,3 @@ def verify_commit(receipt, c, hasher=sha256):
     # weaker verfication! w in [1..ec.order-1] dsa
     #                     w in [1..ec_prime-1] ssa
     # choice to manage with the same function
-
-
-import unittest
-
-class TestSignToContract(unittest.TestCase):
-    def test_digntocontract(self):
-      prv = 0x1
-      pub = ec.pointMultiply(prv)
-      m = sha256("hello world".encode()).digest()
-      c = sha256("sign to contract".encode()).digest()
-
-      sig_ecdsa, receipt_ecdsa = ecdsa_commit_and_sign(m, prv, c)
-      self.assertTrue(ecdsa_verify(m, sig_ecdsa, pub))
-      self.assertTrue(verify_commit(receipt_ecdsa, c))
-
-      sig_ecssa, receipt_ecssa = ecssa_commit_and_sign(m, prv, c)
-      self.assertTrue(ecssa_verify(m, sig_ecssa, pub))
-      self.assertTrue(verify_commit(receipt_ecssa, c))
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()
