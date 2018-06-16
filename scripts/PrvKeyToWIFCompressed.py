@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 from hashlib import sha256
 from base58 import b58encode, b58encode_check, b58decode, b58decode_check

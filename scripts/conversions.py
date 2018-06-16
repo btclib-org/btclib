@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 print("\nfrom hexstring to bytes, then back:")
 xhexstr = "000f"

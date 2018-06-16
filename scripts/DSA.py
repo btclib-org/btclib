@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 from ellipticcurves import secp256k1 as ec
 from hashlib import sha256
