@@ -5,7 +5,7 @@
 from hashlib import sha512
 from pbkdf2 import PBKDF2
 import hmac
-from bip32 import bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
+from bip32 import PRIVATE, bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
 from mnemonic import mnemonic_dict
 
 MNEMONIC_VERSIONS = {'standard' : '01',
@@ -50,13 +50,13 @@ def electrum_seed_from_mnemonic(mnemonic, passphrase):
   return seed
 
 
-def electrum_master_prvkey_from_mnemonic(mnemonic, passphrase):
+def electrum_master_prvkey_from_mnemonic(mnemonic, passphrase, version):
   seed = electrum_seed_from_mnemonic(mnemonic, passphrase)
 
   # verify that the mnemonic is versioned
   s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
   if s.startswith(MNEMONIC_VERSIONS['standard']):
-    return bip32_master_prvkey_from_seed(seed)
+    return bip32_master_prvkey_from_seed(seed, version)
   elif s.startswith(MNEMONIC_VERSIONS['segwit']):
     # FIXME: parametrizazion of the prefix is needed
     mprv = bip32_master_prvkey_from_seed(seed, b'\x04\xb2\x43\x0c')

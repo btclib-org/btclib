@@ -4,7 +4,8 @@ import unittest
 import os
 import json
 
-from bip32 import bip32_master_prvkey_from_seed, \
+from bip32 import PRIVATE, \
+                  bip32_master_prvkey_from_seed, \
                   bip32_xpub_from_xprv, \
                   bip32_derive, \
                   address_from_xpub
@@ -12,8 +13,9 @@ from bip32 import bip32_master_prvkey_from_seed, \
 class TestBIP32(unittest.TestCase):
     def test_bip32_vector1(self):
         seed = "000102030405060708090a0b0c0d0e0f"
-        
-        mprv = bip32_master_prvkey_from_seed(seed)
+
+        xkey_version = PRIVATE[0]
+        mprv = bip32_master_prvkey_from_seed(seed, xkey_version)
         self.assertEqual(mprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         mpub = bip32_xpub_from_xprv(mprv)
         self.assertEqual(mpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
@@ -58,7 +60,8 @@ class TestBIP32(unittest.TestCase):
     def test_bip32_vector3(self):
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
 
-        mprv = bip32_master_prvkey_from_seed(seed)
+        xkey_version = PRIVATE[0]
+        mprv = bip32_master_prvkey_from_seed(seed, xkey_version)
         self.assertEqual(mprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         mpub = bip32_xpub_from_xprv(mprv)
         self.assertEqual(mpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
@@ -82,9 +85,10 @@ class TestBIP32(unittest.TestCase):
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed
+        xkey_version = PRIVATE[0]
         for test_vector in test_vectors:
             bip32_seed = test_vector[2]
-            mprv = bip32_master_prvkey_from_seed(bip32_seed)
+            mprv = bip32_master_prvkey_from_seed(bip32_seed, xkey_version)
             self.assertEqual(mprv.decode(), test_vector[3])
 
 
@@ -110,9 +114,10 @@ class TestBIP32(unittest.TestCase):
         addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)))
         self.assertEqual(addr, addr2)
 
+        xkey_version = PRIVATE[0]
         seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
         seed = bytes.fromhex(seed)
-        xprv = bip32_master_prvkey_from_seed(seed)
+        xprv = bip32_master_prvkey_from_seed(seed, xkey_version)
         xpub = b'xpub661MyMwAqRbcFMYjmw8C6dJV97a4oLss6hb3v9wTQn2X48msQB61RCaLGtNhzgPCWPaJu7SvuB9EBSFCL43kTaFJC3owdaMka85uS154cEh'
         self.assertEqual(bip32_xpub_from_xprv(xprv), xpub)
 
@@ -166,39 +171,40 @@ class TestBIP32(unittest.TestCase):
 
     def test_altnet(self):
         # non-bitcoin address version
-        version = 0x46.to_bytes(1, 'big')
+        addr_version = 0x46.to_bytes(1, 'big')
 
         mprv = b'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
 
         # m/0'/0'/5'
         receive = b'VUqyLGVdUADWEqDqL2DeUBAcbPQwZfWDDY'
         indexes = [0x80000000, 0x80000000, 0x80000005]
-        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), version)
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), addr_version)
         self.assertEqual(addr, receive)
         path = "m/0'/0'/5'"
-        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)), version)
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)), addr_version)
         self.assertEqual(addr, receive)
 
         # m/0'/1'/1'
         change = b'VMg6DpX7SQUsoECdpXJ8Bv6R7p11PfwHwy'
         indexes = [0x80000000, 0x80000001, 0x80000001]
-        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), version)
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), addr_version)
         self.assertEqual(addr, change)
         path = "m/0'/1'/1'"
-        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)), version)
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)), addr_version)
         self.assertEqual(addr, change)
 
+        xkey_version = PRIVATE[0]
         seed = "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
         seed = bytes.fromhex(seed)
-        mprv = bip32_master_prvkey_from_seed(seed)
+        mprv = bip32_master_prvkey_from_seed(seed, xkey_version)
         self.assertEqual(mprv, b'xprv9s21ZrQH143K3t4UZrNgeA3w861fwjYLaGwmPtQyPMmzshV2owVpfBSd2Q7YsHZ9j6i6ddYjb5PLtUdMZn8LhvuCVhGcQntq5rn7JVMqnie')
 
         indexes = [0x80000000, 0, 0] # receive
-        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), version)
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), addr_version)
         self.assertEqual(addr, b'VTpEhLjvGYE16pLcNrMY53gQB9bbhn581W')
 
         indexes = [0x80000000, 1, 0] # change
-        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), version)
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), addr_version)
         self.assertEqual(addr, b'VRtaZvAe4s29aB3vuXyq7GYEpahsQet2B1')
 
 
