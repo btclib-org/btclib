@@ -4,3 +4,13 @@ how to export mprv from Electrum?
 better mimic of electrum entropy search, they probably have the words inverted
 
 BIP44 in address_from...
+
+clean up PRIVATE[0] mess
+
+move to typing
+pydoc
+coverage
+package
+jupyter for scripts
+
+
