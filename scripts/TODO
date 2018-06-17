@@ -1,4 +1,7 @@
-crack BIP32 exercise 
+ec.pointAdd with projective coordinates
+
+crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
+
 document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
 
 how to export mprv from Electrum?
