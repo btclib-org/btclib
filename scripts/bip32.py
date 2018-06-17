@@ -52,21 +52,24 @@ def bip32_xpub_from_xprv(xprv):
     """
     xprv = b58decode_check(xprv)
     assert len(xprv) == 78, "wrong length for decoded extended private key"
-    assert xprv[45] == 0, "the extended key is not a private one"
+    assert xprv[45] == 0, "extended key is not a private one"
 
     i = PRIVATE.index(xprv[:4])
-    xpub = PUBLIC[i]                            # version
+    xpub = PUBLIC[i]                     # version
 
-    # depth, fingerprint, child index, and chain code are left unchanged
-    xpub += xprv[4:45]
+    # unchanged
+    xpub += xprv[ 4: 5]                  # depth
+    xpub += xprv[ 5: 9]                  # parent pubkey fingerprint
+    xpub += xprv[ 9:13]                  # child index
+    xpub += xprv[13:45]                  # chain code
 
     p = xprv[46:]
     P = ec.pointMultiply(p)
-    xpub += ec.bytes_from_point(P, True)        # public key
+    xpub += ec.bytes_from_point(P, True) # public key
     return b58encode_check(xpub)
 
 
-def bip32_ckd(xparentkey, child_index):
+def bip32_ckd(xparentkey, index):
     """Child Key Derivation (CDK)
 
     Key derivation is normal if the extended parent key is public or
@@ -76,8 +79,12 @@ def bip32_ckd(xparentkey, child_index):
     child_index is not less than 0x80000000.
     """
 
-    if isinstance(child_index, int):
-        child_index = child_index.to_bytes(4, 'big')
+    if isinstance(index, int):
+        index = index.to_bytes(4, 'big')
+    elif isinstance(index, bytes) or isinstance(index, bytearray):
+        assert len(index) == 4
+    else:
+        raise TypeError("a 4 bytes int is required")
 
     xparent = b58decode_check(xparentkey)
     assert len(xparent) == 78, "wrong length for extended parent key"
@@ -87,35 +94,40 @@ def bip32_ckd(xparentkey, child_index):
     xkey = version                              # version
     xkey += (xparent[4] + 1).to_bytes(1, 'big') # (increased) depth
 
-    if (version in PRIVATE):
+    if (version in PUBLIC):
+        assert xparent[45] in (2, 3), \
+               "version/key mismatch in extended parent key"
+        Parent_bytes = xparent[45:]
+        Parent = ec.tuple_from_point(Parent_bytes)
+        xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
+        assert index[0] < 0x80, \
+               "no private/hardened derivation from pubkey"
+        xkey += index                           # child index
+        parent_chain_code = xparent[13:45]      ## normal derivation
+        h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
+        xkey += h[32:]                          # chain code
+        offset = int.from_bytes(h[:32], 'big')
+        Offset = ec.pointMultiply(offset)
+        Child = ec.pointAdd(Parent, Offset)
+        Child_bytes = ec.bytes_from_point(Child, True)
+        xkey += Child_bytes                     # public key
+    elif (version in PRIVATE):
         assert xparent[45] == 0, "version/key mismatch in extended parent key"
-        parent_prvkey = xparent[46:]
-        parent_pubkey = ec.bytes_from_point(ec.pointMultiply(parent_prvkey), True)
-        xkey += h160(parent_pubkey)[:4]         # parent pubkey fingerprint
-        xkey += child_index                     # child index
+        parent = int.from_bytes(xparent[46:], 'big')
+        Parent = ec.pointMultiply(parent)
+        Parent_bytes = ec.bytes_from_point(Parent, True)
+        xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
+        xkey += index                           # child index
         parent_chain_code = xparent[13:45]
-        if (child_index[0] < 0x80): # normal derivation
-            h = HMAC(parent_chain_code, parent_pubkey + child_index, sha512).digest()
-        else:                       # hardened derivation
-            h = HMAC(parent_chain_code, xparent[45:] + child_index, sha512).digest()
+        if (index[0] < 0x80):                   ## normal derivation
+            h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
+        else:                                   ## hardened derivation
+            h = HMAC(parent_chain_code, xparent[45:] + index, sha512).digest()
         xkey += h[32:]                          # chain code
-        p = int.from_bytes(h[:32], 'big')
-        p = (p + int.from_bytes(parent_prvkey, 'big')) % ec.order
-        xkey += b'\x00' + p.to_bytes(32, 'big') # private key
-    elif (version in PUBLIC):
-        assert xparent[45] in (2, 3), "version/key mismatch in extended parent key"
-        parent_pubkey = xparent[45:]
-        xkey += h160(parent_pubkey)[:4]         # parent pubkey fingerprint
-        assert child_index[0] < 0x80, "no private/hardened derivation from pubkey"
-        xkey += child_index                     # child index
-        # normal derivation
-        parent_chain_code = xparent[13:45]
-        h = HMAC(parent_chain_code, parent_pubkey + child_index, sha512).digest()
-        xkey += h[32:]                          # chain code
-        P = ec.pointMultiply(h[:32])
-        parentPoint = ec.tuple_from_point(parent_pubkey)
-        P = ec.pointAdd(P, parentPoint)
-        xkey += ec.bytes_from_point(P, True )   # public key
+        offset = int.from_bytes(h[:32], 'big')
+        child = (parent + offset) % ec.order
+        child_bytes = b'\x00' + child.to_bytes(32, 'big')
+        xkey += child_bytes                     # private key
     else:
         raise ValueError("invalid extended key version")
 
@@ -157,7 +169,7 @@ def bip32_derive(xkey, path):
 def address_from_xpub(xpub, version=None):
     xpub = b58decode_check(xpub)
     assert len(xpub) == 78, "wrong length for decoded extended public key"
-    assert xpub[45] in (2, 3), "the extended key is not a public one"
+    assert xpub[45] in (2, 3), "extended key is not a public one"
     # bitcoin: address version can be derived from xkey version
     # altcoin: address version cannot be derived from xkey version
     #          if xkey version bytes have not been specialized
@@ -167,3 +179,47 @@ def address_from_xpub(xpub, version=None):
         i = PUBLIC.index(xversion)
         version = ADDRESS[i]
     return address_from_pubkey(xpub[45:], version)
+
+def bip32_crack(parent_xpub, child_xprv):
+    parent_xpub = b58decode_check(parent_xpub)
+    assert len(parent_xpub) == 78, "wrong length for decoded extended parent public key"
+    assert parent_xpub[45] in (2, 3), "extended parent key is not a public one"
+
+    child_xprv = b58decode_check(child_xprv)
+    assert len(child_xprv) == 78, "wrong length for decoded extended child private key"
+    assert child_xprv[45] == 0, "extended child key is not a private one"
+
+    # check depth
+    assert child_xprv[4] == parent_xpub[4]+1, "wrong child/parent depth relation"
+
+    # check fingerprint
+    Parent_bytes = parent_xpub[45:  ]
+    assert child_xprv[ 5: 9] == h160(Parent_bytes)[:4], "not a child for the provided parent"
+
+    # check normal derivation
+    child_index  =  child_xprv[ 9:13]
+    assert child_index[0] < 0x80, "hardened derivation"
+
+    parent_xprv =   child_xprv[  : 4] # version
+    parent_xprv += parent_xpub[ 4: 5] # depth
+    parent_xprv += parent_xpub[ 5: 9] # parent pubkey fingerprint
+    parent_xprv += parent_xpub[ 9:13] # child index
+
+    parent_chain_code = parent_xpub[13:45]
+    parent_xprv += parent_chain_code  # chain code
+
+    h = HMAC(parent_chain_code, Parent_bytes + child_index, sha512).digest()
+    offset = int.from_bytes(h[:32], 'big')
+    child = int.from_bytes(child_xprv[46:], 'big')
+    parent = (child - offset) % ec.order
+    parent_bytes = b'\x00' + parent.to_bytes(32, 'big')
+    parent_xprv += parent_bytes        # private key
+
+    return b58encode_check(parent_xprv)
+
+def bip32_child_index(xkey):
+    xkey = b58decode_check(xkey)
+    if xkey[4]==0:
+        raise ValueError("master key provided")
+    child_index = xkey[ 9:13]
+    return int.from_bytes(child_index, 'big')

@@ -1,9 +1,14 @@
+crack BIP32 exercise 
+document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
+
 how to export mprv from Electrum?
     verify if first wif is that
 
 better mimic of electrum entropy search, they probably have the words inverted
 
 BIP44 in address_from...
+
+test number theory (e.g. fermat's theorem)
 
 clean up PRIVATE[0] mess
 
@@ -12,5 +17,7 @@ pydoc
 coverage
 package
 jupyter for scripts
+
+
 
 

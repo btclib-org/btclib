@@ -7,7 +7,10 @@ import json
 from bip32 import PRIVATE, \
                   bip32_master_prvkey_from_seed, \
                   bip32_xpub_from_xprv, \
+                  bip32_ckd, \
                   bip32_derive, \
+                  bip32_crack, \
+                  bip32_child_index, \
                   address_from_xpub
 
 class TestBIP32(unittest.TestCase):
@@ -206,6 +209,16 @@ class TestBIP32(unittest.TestCase):
         indexes = [0x80000000, 1, 0] # change
         addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), addr_version)
         self.assertEqual(addr, b'VRtaZvAe4s29aB3vuXyq7GYEpahsQet2B1')
+
+    def test_bip32_crack(self):
+        parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
+        child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
+        parent_xprv = bip32_crack(parent_xpub, child_xprv)
+        self.assertEqual(bip32_xpub_from_xprv(parent_xprv), parent_xpub)
+        index = bip32_child_index(child_xprv)
+        self.assertEqual(bip32_ckd(parent_xprv, index), child_xprv)
+        path = [index]
+        self.assertEqual(bip32_derive(parent_xprv, path), child_xprv)
 
 
 if __name__ == "__main__":
