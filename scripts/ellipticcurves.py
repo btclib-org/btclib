@@ -40,13 +40,14 @@ class EllipticCurve:
     # This is a good reason to heve this method as private
     return (x*x*x + self.__a*x + self.__b) % self.__prime
 
-  def y(self, x: int, odd: bool) -> int:
-    assert type(odd) == bool or odd in (0, 1), "must be bool or 0/1"
+  def y(self, x: int, odd1even0: bool) -> int:
+    assert type(odd1even0) == bool or odd1even0 in (0, 1), \
+           "must be bool or 0/1"
     y2 = self.__y2(x)
     # if root does not exist, mod_sqrt will raise a ValueError
     root = mod_sqrt(y2, self.__prime)
-    # switch even/odd root when needed
-    return root if (root % 2 + odd) != 1 else self.__prime - root
+    # switch even/odd1even0 root when needed
+    return root if (root % 2 + odd1even0) != 1 else self.__prime - root
 
   def __str__(self) -> str:
     result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
