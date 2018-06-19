@@ -25,7 +25,6 @@ COMMITMENT VERIFICATION:
 from hashlib import sha256
 from btclib.ellipticcurves import secp256k1 as ec
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import int_from_hash
 from btclib.wifaddress import int_from_prvkey
 from btclib.ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_sign_raw
 from btclib.ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_sign_raw
