@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import unittest
-from ellipticcurves import  secp256k1, \
-                            ec11_13, ec79_43, ec263_269, ec263_270, ec263_280
+from ellipticcurves import secp256k1, \
+                           ec11_13, ec79_43, ec263_269, ec263_270, ec263_280
 
 class Testsecp256k1(unittest.TestCase):
     def test_all_curves(self):

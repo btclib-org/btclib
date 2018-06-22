@@ -5,8 +5,15 @@ Elliptic curve class and instances
 """
 
 from math import sqrt
-from typing import Tuple
+from typing import Tuple, NewType, Union, Optional
 from numbertheory import mod_inv, mod_sqrt
+
+# (x, y) Point tuple with (None, None) being the infinity point
+PointTuple = NewType('PointTuple', Tuple[Optional[int], Optional[int]])
+
+# Point can be a hex-string, bytes or bytearray as (un)compressed SEC;
+# alternatively a PointTuple
+Point = NewType('Point', Union[str, bytes, bytearray, PointTuple])
 
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
@@ -16,7 +23,7 @@ class EllipticCurve:
                a: int,
                b: int,
                prime: int,
-               G,
+               G: Point,
                order: int):
     assert 4*a*a*a+27*b*b !=0, "zero discriminant"
     self.__a = a
@@ -24,13 +31,16 @@ class EllipticCurve:
     self.__prime = prime
 
     self.__G = self.tuple_from_point(G)
+    assert self.__G != (None, None)
     # Hasse Theorem
     t = int(2 * sqrt(prime))
     assert order <= prime + 1 + t, "order too high"
     # false for subgroups
     # assert prime + 1 - t <= order, "order too low"
     self.order = order
-    assert self.pointMultiply_raw(order, G) == (None, None), "wrong order"
+    T = self.pointMultiply_raw(order-1, G)
+    Inf = self.pointAdd_raw(T, G)
+    assert Inf == (None, None), "wrong order"
 
   def __y2(self, x: int) -> int:
     assert 0 <= x, "x < 0"
@@ -63,7 +73,7 @@ class EllipticCurve:
     result += ", 0x%032x)" % (self.order)
     return result
       
-  def tuple_from_point(self, P) -> Tuple[int, int]:
+  def tuple_from_point(self, P: Point) -> PointTuple:
     """ Return a tuple (Px, Py) having ensured it belongs to the curve """
 
     if isinstance(P, str):
@@ -105,7 +115,7 @@ class EllipticCurve:
       raise ValueError("not an elliptic curve point")
 
 
-  def bytes_from_point(self, P, compressed: bool) -> bytes:
+  def bytes_from_point(self, P: Point, compressed: bool) -> bytes:
     """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed
         (0x04) point ensuring it belongs to the curve
     """
@@ -143,11 +153,11 @@ class EllipticCurve:
     else:
       raise ValueError("not an elliptic curve point")
 
-  def pointDouble(self, P) -> Tuple[int, int]:
+  def pointDouble(self, P: Point) -> PointTuple:
     P = self.tuple_from_point(P)
     return self.pointDouble_raw(P)
 
-  def pointDouble_raw(self, P: Tuple[int, int]) -> Tuple[int, int]:
+  def pointDouble_raw(self, P: PointTuple) -> PointTuple:
     if P[1] == 0 or P[0] is None:
       return (None, None)
     f = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
@@ -155,13 +165,12 @@ class EllipticCurve:
     y = (f*(P[0]-x)-P[1]) % self.__prime
     return (x, y)
 
-  def pointAdd(self, P, Q) -> Tuple[int, int]:
+  def pointAdd(self, P: Point, Q: Point) -> PointTuple:
     P = self.tuple_from_point(P)
     Q = self.tuple_from_point(Q)
     return self.pointAdd_raw(P, Q)
 
-  def pointAdd_raw(self,
-                   P: Tuple[int, int], Q: Tuple[int, int]) -> Tuple[int, int]:
+  def pointAdd_raw(self, P: PointTuple, Q: PointTuple) -> PointTuple:
     if Q[0] is None:
       return P
     if P[0] is None:
@@ -177,7 +186,7 @@ class EllipticCurve:
     return (x, y)
 
   # efficient double & add, using binary decomposition of n
-  def pointMultiply(self, n: int, P = None) -> Tuple[int, int]:
+  def pointMultiply(self, n: int, P: Point = None) -> PointTuple:
     if isinstance(n, bytes) or isinstance(n, bytearray):
       n = int.from_bytes(n, 'big')
     n = n % self.order    # the group is cyclic
@@ -187,7 +196,7 @@ class EllipticCurve:
 
     return self.pointMultiply_raw(n, P)
 
-  def pointMultiply_raw(self, n: int, P: Tuple[int, int]) -> Tuple[int, int]:
+  def pointMultiply_raw(self, n: int, P: PointTuple) -> PointTuple:
     result = (None, None) # initialized to infinity point
     addendum = P          # initialized as 2^0 P
     while n > 0:          # use binary representation of n
