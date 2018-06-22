@@ -90,7 +90,7 @@ def pubkey_from_prvkey(prvkey, compressed = True):
   
 
 def h160(pubkey):
-    pubkey = ec.bytes_from_point(pubkey)
+    pubkey = ec.bytes_from_point(pubkey, True)
     t = sha256(pubkey).digest()
     return hnew('ripemd160', t).digest()
 

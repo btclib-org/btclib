@@ -105,7 +105,7 @@ class EllipticCurve:
       raise ValueError("not an elliptic curve point")
 
 
-  def bytes_from_point(self, P, compressed: bool = True) -> bytes:
+  def bytes_from_point(self, P, compressed: bool) -> bytes:
     """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed
         (0x04) point ensuring it belongs to the curve
     """
