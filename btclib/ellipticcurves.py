@@ -8,203 +8,198 @@ from math import sqrt
 from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
-# (x, y) Point tuple with (None, None) being the infinity point
-PointTuple = NewType('PointTuple', Tuple[Optional[int], Optional[int]])
-
-# Point can be a hex-string, bytes or bytearray as (un)compressed SEC;
-# alternatively a PointTuple
-Point = NewType('Point', Union[str, bytes, bytearray, PointTuple])
-
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
-  """Elliptic curve over Fp group"""
+    """Elliptic curve over Fp group"""
 
-  def __init__(self,
-               a: int,
-               b: int,
-               prime: int,
-               G: Point,
-               order: int):
-    assert 4*a*a*a+27*b*b !=0, "zero discriminant"
-    self.__a = a
-    self.__b = b
-    self.__prime = prime
+    def __init__(self,
+                 a: int,
+                 b: int,
+                 prime: int,
+                 G: Union[str, bytes, bytearray, Tuple[int, int]],
+                 order: int) -> None:
+        assert 4*a*a*a+27*b*b !=0, "zero discriminant"
+        self.__a = a
+        self.__b = b
+        self.__prime = prime
 
-    self.__G = self.tuple_from_point(G)
-    assert self.__G != (None, None)
-    # Hasse Theorem
-    t = int(2 * sqrt(prime))
-    assert order <= prime + 1 + t, "order too high"
-    # false for subgroups
-    # assert prime + 1 - t <= order, "order too low"
-    self.order = order
-    T = self.pointMultiply_raw(order-1, G)
-    Inf = self.pointAdd_raw(T, G)
-    assert Inf == (None, None), "wrong order"
+        self.__G = self.tuple_from_point(G)
+        assert self.__G is not None
+        # Hasse Theorem
+        t = int(2 * sqrt(prime))
+        assert order <= prime + 1 + t, "order too high"
+        # the following assertion would fail for subgroups
+        # assert prime + 1 - t <= order, "order too low"
+        self.order = order
+        T = self.pointMultiply_raw(order-1, self.__G)
+        Inf = self.pointAdd_raw(T, self.__G)
+        assert Inf is None, "wrong order"
 
-  def __y2(self, x: int) -> int:
-    assert 0 <= x, "x < 0"
-    assert x < self.__prime, "x >= prima"
-    # skipping a crucial check here:
-    # x is not valid if sqrt(y*y) does not exists.
-    # This is a good reason to heve this method as private
-    return (x*x*x + self.__a*x + self.__b) % self.__prime
+    def __y2(self, x: int) -> int:
+        assert 0 <= x, "x < 0"
+        assert x < self.__prime, "x >= prima"
+        # skipping a crucial check here:
+        # x is not valid if sqrt(y*y) does not exists.
+        # This is a good reason to heve this method as private
+        return (x*x*x + self.__a*x + self.__b) % self.__prime
 
-  def y(self, x: int, odd1even0: bool) -> int:
-    assert type(odd1even0) == bool or odd1even0 in (0, 1), \
-           "must be bool or 0/1"
-    y2 = self.__y2(x)
-    # if root does not exist, mod_sqrt will raise a ValueError
-    root = mod_sqrt(y2, self.__prime)
-    # switch even/odd1even0 root when needed
-    return root if (root % 2 + odd1even0) != 1 else self.__prime - root
+    def y(self, x: int, odd1even0: bool) -> int:
+        assert type(odd1even0) == bool or odd1even0 in (0, 1), \
+              "must be bool or 0/1"
+        y2 = self.__y2(x)
+        # if root does not exist, mod_sqrt will raise a ValueError
+        root = mod_sqrt(y2, self.__prime)
+        # switch even/odd1even0 root when needed
+        return root if (root % 2 + odd1even0) != 1 else self.__prime - root
 
-  def __str__(self) -> str:
-    result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
-    result += "\n prime = 0x%032x" % (self.__prime)
-    result += "\n     G =(0x%032x,\n         0x%032x)" % (self.__G)
-    result += "\n order = 0x%032x" % (self.order)
-    return result
+    def checkPoint(self, Px: int, Py: int) -> None:
+        assert self.__y2(Px) == Py*Py % self.__prime, "point is not on the ec"
+  
+    def __str__(self) -> str:
+        result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
+        result += "\n prime = 0x%032x" % (self.__prime)
+        result += "\n     G =(0x%032x,\n         0x%032x)" % (self.__G)
+        result += "\n order = 0x%032x" % (self.order)
+        return result
 
-  def __repr__(self) -> str:
-    result  = "EllipticCurve(%s, %s" % (self.__a, self.__b)
-    result += ", 0x%032x" % (self.__prime)
-    result += ", (0x%032x,0x%032x)" % (self.__G)
-    result += ", 0x%032x)" % (self.order)
-    return result
-      
-  def tuple_from_point(self, P: Point) -> PointTuple:
-    """ Return a tuple (Px, Py) having ensured it belongs to the curve """
+    def __repr__(self) -> str:
+        result  = "EllipticCurve(%s, %s" % (self.__a, self.__b)
+        result += ", 0x%032x" % (self.__prime)
+        result += ", (0x%032x,0x%032x)" % (self.__G)
+        result += ", 0x%032x)" % (self.order)
+        return result
+        
+    def tuple_from_point(self, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
+        """ Return a tuple (Px, Py) having ensured it belongs to the curve """
 
-    if isinstance(P, str):
-      # FIXME: xpub is not considered here
-      # which is right as it is a bitcoin convention,
-      # not an elliptic curve one 
-      P = bytes.fromhex(P)
+        if P is None: return None
 
-    if isinstance(P, bytes) or isinstance(P, bytearray):
-      # FIXME: xpub should be dealt with here
-      if len(P) == 33: # compressed point
-        assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
-        Px = int.from_bytes(P[1:33], 'big')
-        assert Px < self.__prime, "Px >= prime"
-        Py = self.y(Px, True)
-        if (P[0] == 0x03):
-          return (Px, Py)
+        if isinstance(P, str):
+            # FIXME: xpub is not considered here
+            # which is right as it is a bitcoin convention,
+            # not an elliptic curve one 
+            P = bytes.fromhex(P)
+
+        if isinstance(P, bytes) or isinstance(P, bytearray):
+            # FIXME: xpub should be dealt with here
+            if len(P) == 33: # compressed point
+                assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
+                Px = int.from_bytes(P[1:33], 'big')
+                assert Px < self.__prime, "Px >= prime"
+                Py = self.y(Px, True)
+                if (P[0] == 0x03):
+                    return (Px, Py)
+                else:
+                    return (Px, self.__prime - Py)
+            else:            # uncompressed point
+                assert len(P) == 65, "not a point"
+                assert P[0] == 0x04, "not an uncompressed point"
+                Px = int.from_bytes(P[1:33], 'big')
+                assert Px < self.__prime, "Px >= prime"
+                Py = int.from_bytes(P[33:], 'big')
+                assert Py < self.__prime, "Py >= prime"
+                self.checkPoint(Px, Py)
+                return (Px, Py)
+        elif isinstance(P, tuple):
+            assert len(P) == 2, "invalid tuple point length"
+            assert (type(P[0]) == int and type(P[1]) == int) , "invalid non-int tuple point"
+            assert P[0] < self.__prime, "Px >= prime"
+            assert P[1] < self.__prime, "Py >= prime"
+            self.checkPoint(P[0], P[1])
+            return P
         else:
-          return (Px, self.__prime - Py)
-      else:            # uncompressed point
-        assert len(P) == 65, "not a point"
-        assert P[0] == 0x04, "not an uncompressed point"
-        Px = int.from_bytes(P[1:33], 'big')
-        assert Px < self.__prime, "Px >= prime"
-        Py = int.from_bytes(P[33:], 'big')
-        assert Py < self.__prime, "Py >= prime"
-        assert self.__y2(Px) == Py*Py % self.__prime, "point is not on the ec"
-        return (Px, Py)
-    elif isinstance(P, tuple):
-      assert len(P) == 2, "invalid tuple point length"
-      if (P[0] == None and P[1] == None):
-        return P
-      assert (type(P[0]) == int and type(P[1]) == int) , "invalid non-int tuple point"
-      assert P[0] < self.__prime, "Px >= prime"
-      assert P[1] < self.__prime, "Py >= prime"
-      assert self.__y2(P[0]) == P[1]*P[1] % self.__prime, "point is not on the ec"
-      return P
-    else:
-      raise ValueError("not an elliptic curve point")
+            raise ValueError("not an elliptic curve point")
 
 
-  def bytes_from_point(self, P: Point, compressed: bool) -> bytes:
-    """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed
-        (0x04) point ensuring it belongs to the curve
-    """
-    if isinstance(P, str):
-      P = bytes.fromhex(P)
+    def bytes_from_point(self, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]], compressed: bool) -> bytes:
+        """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed
+            (0x04) point ensuring it belongs to the curve
+        """
+        if isinstance(P, str):
+            P = bytes.fromhex(P)
 
-    if isinstance(P, bytes) or isinstance(P, bytearray):
-      if len(P) == 33: # compressed point
-        assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
-        Px = int.from_bytes(P[1:33], 'big')
-        assert Px < self.__prime, "Px >= prime"
-        return P
-      else:            # uncompressed point
-        assert len(P) == 65, "not a point"
-        assert P[0] == 0x04, "not an uncompressed point"
-        Px = int.from_bytes(P[1:33], 'big')
-        assert Px < self.__prime, "Px >= prime"
-        Py = int.from_bytes(P[33:], 'big')
-        assert Py < self.__prime, "Py >= prime"
-        assert self.__y2(Px) == Py*Py % self.__prime, "point is not on the ec"
-        return P
-    elif isinstance(P, tuple):
-      assert len(P) == 2, "invalid tuple point length"
-      assert P[0] is not None, "infinity point cannot be expressed as bytes"
-      assert P[1] is not None, "infinity point cannot be expressed as bytes"
-      assert type(P[0]) == int and type(P[1]) == int, "invalid non-int tuple point"
-      assert self.__y2(P[0]) == P[1]*P[1] % self.__prime, "point is not on the ec"
-      if compressed:
-        prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
-        return prefix + P[0].to_bytes(32, byteorder='big')
+        if isinstance(P, bytes) or isinstance(P, bytearray):
+            if len(P) == 33: # compressed point
+                assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
+                Px = int.from_bytes(P[1:33], 'big')
+                assert Px < self.__prime, "Px >= prime"
+                return P
+            else:            # uncompressed point
+                assert len(P) == 65, "not a point"
+                assert P[0] == 0x04, "not an uncompressed point"
+                Px = int.from_bytes(P[1:33], 'big')
+                assert Px < self.__prime, "Px >= prime"
+                Py = int.from_bytes(P[33:], 'big')
+                assert Py < self.__prime, "Py >= prime"
+                self.checkPoint(Px, Py)
+                return P
+        elif isinstance(P, tuple):
+            assert len(P) == 2, "invalid tuple point length"
+            assert type(P[0]) == int and type(P[1]) == int, "invalid non-int tuple point"
+            self.checkPoint(P[0], P[1])
+            if compressed:
+                prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
+                return prefix + P[0].to_bytes(32, byteorder='big')
 
-      Pbytes = b'\x04' + P[0].to_bytes(32, byteorder='big')
-      Pbytes += P[1].to_bytes(32, byteorder='big')
-      return Pbytes
-    else:
-      raise ValueError("not an elliptic curve point")
+            Pbytes = b'\x04' + P[0].to_bytes(32, byteorder='big')
+            Pbytes += P[1].to_bytes(32, byteorder='big')
+            return Pbytes
+        elif P is None:
+            raise ValueError("infinity point cannot be expressed as bytes")
+        else:
+            raise ValueError("not an elliptic curve point")
 
-  def pointDouble(self, P: Point) -> PointTuple:
-    P = self.tuple_from_point(P)
-    return self.pointDouble_raw(P)
-
-  def pointDouble_raw(self, P: PointTuple) -> PointTuple:
-    if P[1] == 0 or P[0] is None:
-      return (None, None)
-    f = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
-    x = (f*f-2*P[0]) % self.__prime
-    y = (f*(P[0]-x)-P[1]) % self.__prime
-    return (x, y)
-
-  def pointAdd(self, P: Point, Q: Point) -> PointTuple:
-    P = self.tuple_from_point(P)
-    Q = self.tuple_from_point(Q)
-    return self.pointAdd_raw(P, Q)
-
-  def pointAdd_raw(self, P: PointTuple, Q: PointTuple) -> PointTuple:
-    if Q[0] is None:
-      return P
-    if P[0] is None:
-      return Q
-    if Q[0] == P[0]:
-      if Q[1] == P[1]:
+    def pointDouble(self, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
+        P = self.tuple_from_point(P)
         return self.pointDouble_raw(P)
-      else:
-        return (None, None)
-    lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
-    x = (lam*lam-P[0]-Q[0]) % self.__prime
-    y = (lam*(P[0]-x)-P[1]) % self.__prime
-    return (x, y)
 
-  # efficient double & add, using binary decomposition of n
-  def pointMultiply(self, n: int, P: Point = None) -> PointTuple:
-    if isinstance(n, bytes) or isinstance(n, bytearray):
-      n = int.from_bytes(n, 'big')
-    n = n % self.order    # the group is cyclic
+    def pointDouble_raw(self, P: Optional[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
+        if P is None or P[1] == 0: return None
 
-    if P is None: P = self.__G
-    else: P = self.tuple_from_point(P)
+        f = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
+        x = (f*f-2*P[0]) % self.__prime
+        y = (f*(P[0]-x)-P[1]) % self.__prime
+        return (x, y)
 
-    return self.pointMultiply_raw(n, P)
+    def pointAdd(self, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]], Q: Union[str, bytes, bytearray, Optional[Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
+        P = self.tuple_from_point(P)
+        Q = self.tuple_from_point(Q)
+        return self.pointAdd_raw(P, Q)
 
-  def pointMultiply_raw(self, n: int, P: PointTuple) -> PointTuple:
-    result = (None, None) # initialized to infinity point
-    addendum = P          # initialized as 2^0 P
-    while n > 0:          # use binary representation of n
-      if n & 1:           # if least significant bit is 1 add current addendum
-        result = self.pointAdd_raw(result, addendum)
-      n = n>>1            # right shift to remove the bit just accounted for
-      addendum = self.pointDouble_raw(addendum) # update addendum for next step
-    return result
+    def pointAdd_raw(self, P: Optional[Tuple[int, int]], Q: Optional[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
+        if Q is None: return P
+        if P is None: return Q
+
+        if Q[0] == P[0]:
+            if Q[1] == P[1]: return self.pointDouble_raw(P)
+            else:            return None
+
+        lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
+        x = (lam*lam-P[0]-Q[0]) % self.__prime
+        y = (lam*(P[0]-x)-P[1]) % self.__prime
+        return (x, y)
+
+    # efficient double & add, using binary decomposition of n
+    def pointMultiply(self, n: int, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]] = None) -> Optional[Tuple[int, int]]:
+        if isinstance(n, bytes) or isinstance(n, bytearray):
+            n = int.from_bytes(n, 'big')
+        n = n % self.order    # the group is cyclic
+
+        if P is None: P = self.__G
+        else:         P = self.tuple_from_point(P)
+
+        return self.pointMultiply_raw(n, P)
+
+    def pointMultiply_raw(self, n: int, P: Optional[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
+        result = None # initialized to infinity point
+        addendum = P  # initialized as 2^0 P
+        while n > 0:  # use binary representation of n
+            if n & 1: # if least significant bit is 1 add current addendum
+                result = self.pointAdd_raw(result, addendum)
+            n = n>>1  # right shift to remove the bit just accounted for
+                      # then update addendum for next step:
+            addendum = self.pointDouble_raw(addendum)
+        return result
 
 # bitcoin curve
 __Gx = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798

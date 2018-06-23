@@ -8,7 +8,7 @@ from btclib.ellipticcurves import secp256k1, \
 class Testsecp256k1(unittest.TestCase):
     def test_all_curves(self):
         for ec in (secp256k1, ec11_13, ec79_43, ec263_269, ec263_270, ec263_280):
-            infinity = (None, None)
+            infinity = None
             inf_tuple = ec.tuple_from_point(infinity)
             self.assertEqual(inf_tuple, infinity)
 
