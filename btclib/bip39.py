@@ -3,9 +3,9 @@
 """BIP39 entropy / mnemonic / seed functions"""
 
 from hashlib import sha256, sha512
-from pbkdf2 import PBKDF2
-from mnemonic import mnemonic_dict
-from bip32 import PRIVATE, bip32_master_prvkey_from_seed
+from btclib.pbkdf2 import PBKDF2
+from btclib.mnemonic import mnemonic_dict
+from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed
 
 def bip39_raw_entropy_checksum(raw_entr):
     # raw_entr 256-bit checksum

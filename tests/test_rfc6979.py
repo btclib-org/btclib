@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from rfc6979 import sha256, rfc6979
+from btclib.rfc6979 import sha256, rfc6979
 
 class Testrfc6979(unittest.TestCase):
     def test_rfc6979(self):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from ecdsa import ec, ecdsa_sign, ecdsa_verify, ecdsa_pubkey_recovery
+from btclib.ecdsa import ec, ecdsa_sign, ecdsa_verify, ecdsa_pubkey_recovery
 
 class TestEcdsa(unittest.TestCase):
     def test_ecdsa(self):

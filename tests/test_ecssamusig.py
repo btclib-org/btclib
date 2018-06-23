@@ -10,12 +10,12 @@ https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-9
 """
 
 import unittest
-from ecssa import sha256, int_from_prvkey, ec, int_from_hash, ecssa_verify
+from btclib.ecssa import sha256, int_from_prvkey, ec, int_from_hash, \
+                         ecssa_verify
 
 class TestEcssaMuSig(unittest.TestCase):
     def test_ecssamusig(self):
         msg = 'message to sign'
-        print(msg)
         m = sha256(msg.encode()).digest()
 
         # first signer (is the message needed here? maybe for rfc6979?)

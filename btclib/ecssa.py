@@ -5,11 +5,10 @@
 
 from typing import Tuple
 from hashlib import sha256
-from ellipticcurves import secp256k1 as ec
-from numbertheory import mod_inv
-from rfc6979 import rfc6979
-from ecsignutils import int_from_hash
-from wifaddress import int_from_prvkey
+from btclib.ellipticcurves import mod_inv, secp256k1 as ec
+from btclib.rfc6979 import rfc6979
+from btclib.ecsignutils import int_from_hash
+from btclib.wifaddress import int_from_prvkey
 
 # %% ecssa sign
 # https://github.com/sipa/secp256k1/blob/968e2f415a5e764d159ee03e95815ea11460854e/src/modules/schnorr/schnorr.md

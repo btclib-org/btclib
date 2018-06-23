@@ -5,11 +5,11 @@
 
 from typing import Tuple
 from hashlib import sha256
-from ellipticcurves import secp256k1 as ec
-from numbertheory import mod_inv
-from rfc6979 import rfc6979
-from ecsignutils import int_from_hash
-from wifaddress import int_from_prvkey
+from btclib.ellipticcurves import secp256k1 as ec
+from btclib.numbertheory import mod_inv
+from btclib.rfc6979 import rfc6979
+from btclib.ecsignutils import int_from_hash
+from btclib.wifaddress import int_from_prvkey
 
 
 def ecdsa_sign(m, prv, eph_prv = None, hasher = sha256) -> Tuple[int, int]:

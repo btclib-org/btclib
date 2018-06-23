@@ -6,7 +6,7 @@ Elliptic curve class and instances
 
 from math import sqrt
 from typing import Tuple, NewType, Union, Optional
-from numbertheory import mod_inv, mod_sqrt
+from btclib.numbertheory import mod_inv, mod_sqrt
 
 # (x, y) Point tuple with (None, None) being the infinity point
 PointTuple = NewType('PointTuple', Tuple[Optional[int], Optional[int]])

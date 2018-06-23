@@ -2,9 +2,9 @@
 
 from hmac import HMAC
 from hashlib import sha512
-from base58 import b58encode_check, b58decode_check
-from ellipticcurves import secp256k1 as ec
-from wifaddress import h160, address_from_pubkey
+from btclib.base58 import b58encode_check, b58decode_check
+from btclib.ellipticcurves import secp256k1 as ec
+from btclib.wifaddress import h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes        Base58 encode starts with
 MAINNET_PRIVATE = b'\x04\x88\xAD\xE4' # xprv

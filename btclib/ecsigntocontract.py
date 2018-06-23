@@ -23,15 +23,12 @@ COMMITMENT VERIFICATION:
 """
 
 from hashlib import sha256
-from base58 import b58decode_check, base58digits as b58digits
-from ellipticcurves import secp256k1 as ec
-from numbertheory import mod_inv, mod_sqrt
-from string import hexdigits
-from rfc6979 import rfc6979
-from ecsignutils import int_from_hash
-from wifaddress import int_from_prvkey
-from ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_sign_raw
-from ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_sign_raw
+from btclib.ellipticcurves import secp256k1 as ec
+from btclib.rfc6979 import rfc6979
+from btclib.ecsignutils import int_from_hash
+from btclib.wifaddress import int_from_prvkey
+from btclib.ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_sign_raw
+from btclib.ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_sign_raw
 
 
 def tweak(k, c, hasher=sha256):

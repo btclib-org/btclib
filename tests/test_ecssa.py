@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from ecssa import ec, ecssa_sign, ecssa_verify, ecssa_pubkey_recovery
+from btclib.ecssa import ec, ecssa_sign, ecssa_verify, ecssa_pubkey_recovery
 
 class TestEcssa(unittest.TestCase):
     def test_ecssa(self):

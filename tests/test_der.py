@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from der import encode_DER_sig, check_DER_sig
+from btclib.der import encode_DER_sig, check_DER_sig
 
 class TestDER(unittest.TestCase):
     def test_der(self):

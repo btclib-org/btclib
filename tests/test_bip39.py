@@ -4,11 +4,11 @@ import unittest
 import os
 import json
 import math
-from bip39 import PRIVATE, \
-                  bip39_mnemonic_from_raw_entropy, \
-                  bip39_raw_entropy_from_mnemonic, \
-                  bip39_master_prvkey_from_mnemonic, \
-                  bip39_seed_from_mnemonic
+from btclib.bip39 import PRIVATE, \
+                         bip39_mnemonic_from_raw_entropy, \
+                         bip39_raw_entropy_from_mnemonic, \
+                         bip39_master_prvkey_from_mnemonic, \
+                         bip39_seed_from_mnemonic
 
 class TestBIP39Wallet(unittest.TestCase):
     def test_bip39_wallet(self):
