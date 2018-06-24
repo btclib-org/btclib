@@ -188,7 +188,7 @@ allcurves = [
     ec283_281, #ec283_283,
     ec293_281, ec293_311]
 
-class Testsecp256k1(unittest.TestCase):
+class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
         for ec in allcurves:
             infinity = None
