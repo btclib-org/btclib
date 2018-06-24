@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
 import unittest
-from btclib.ellipticcurves import EllipticCurve, secp256k1
-
+from btclib.ellipticcurves import EllipticCurve, \
+                                  secp192k1, secp192r1, \
+                                  secp224k1, secp224r1, \
+                                  secp256k1, secp256r1, \
+                                  secp384r1, secp521r1
 
 # toy curves
 ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
-ec79_43   = EllipticCurve(-1,  1,  79, (  0,  1),  43)
 ec263_269 = EllipticCurve( 6,  9, 263, (  0,  3), 269)
 ec263_270 = EllipticCurve( 2,  3, 263, (200, 39), 270)
 ec263_280 = EllipticCurve(-7, 10, 263, (  3,  4), 280)
-
 
 ec11_7    = EllipticCurve(2, 7,  11, (6,   9),   7)
 ec11_17   = EllipticCurve(2, 4,  11, (0,   9),  17)
@@ -125,8 +126,10 @@ ec283_281 = EllipticCurve(2, 7, 283, (0,  63), 281)
 ec293_281 = EllipticCurve(8, 6, 293, (0,  42), 281)
 ec293_311 = EllipticCurve(1, 4, 293, (0, 291), 311)
 
-allcurves = [secp256k1,
-    ec11_13, ec79_43, ec263_269, ec263_270, ec263_280,
+allcurves = [
+    secp192k1, secp192r1, secp224k1, secp224r1,
+    secp256k1, secp256r1, secp384r1, secp521r1,
+    ec11_13, ec263_269, ec263_270, ec263_280,
     ec11_7, ec11_17,
     ec13_11, ec13_19,
     ec17_13, ec17_23,
@@ -194,10 +197,23 @@ class Testsecp256k1(unittest.TestCase):
             G = ec.pointMultiply(1, ec.G)
             self.assertEqual(G, ec.G)
 
-            Gy = ec.y(G[0], True)
-            self.assertEqual(Gy % 2, 1)
-            Gy = ec.y(G[0], False)
-            self.assertEqual(Gy % 2, 0)
+            Gy_odd = ec.y(G[0], True)
+            self.assertEqual(Gy_odd % 2, 1)
+            Gy_even = ec.y(G[0], False)
+            self.assertEqual(Gy_even % 2, 0)
+            self.assertTrue(G[1] in (Gy_odd, Gy_even))
+
+            Gbytes = ec.bytes_from_point(G, True)
+            Gbytes = ec.bytes_from_point(Gbytes, True)
+            G2 = ec.tuple_from_point(Gbytes)
+            G2 = ec.tuple_from_point(G2)
+            self.assertEqual(G, G2)
+
+            Gbytes = ec.bytes_from_point(G, False)
+            Gbytes = ec.bytes_from_point(Gbytes, False)
+            G2 = ec.tuple_from_point(Gbytes)
+            G2 = ec.tuple_from_point(G2)
+            self.assertEqual(G, G2)
 
             P = ec.pointAdd(infinity, G)
             self.assertEqual(P, G)
