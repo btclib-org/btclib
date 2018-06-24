@@ -35,10 +35,10 @@ def mod_sqrt(a, p):
         return pow(a, (p + 1) // 4, p)
     elif a == 0:
         return 0
-    elif legendre_symbol(a, p) != 1:
-        raise ValueError("no root exists for %s" % a)
     elif p == 2:
         return p
+    elif legendre_symbol(a, p) != 1:
+        raise ValueError("no root exists for %s" % a)
 
     # Partition p-1 to s * 2^e for an odd s (i.e.
     # reduce all the powers of 2 from p-1)
