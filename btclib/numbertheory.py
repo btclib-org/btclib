@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#from pycoin
+# from pycoin
 def mod_inv(a, m):
     if a < 0 or m <= a: a = a % m
     # From Ferguson and Schneier, roughly:
