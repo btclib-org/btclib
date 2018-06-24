@@ -12,7 +12,7 @@ p = p % ec.order
 print("\n*** Keys:")
 print("prvkey:   ", hex(p))
 
-P = ec.pointMultiply(p)
+P = ec.pointMultiply(p, ec.G)
 print("PubKey:", "02" if (P[1] % 2 == 0) else "03", hex(P[0]))
 
 print("\n*** Message to be signed")
@@ -36,7 +36,7 @@ k1 = int.from_bytes(k_bytes, 'big') % ec.order
 assert k1 != 0
 print("eph k1:", hex(k1))
 
-K1 = ec.pointMultiply(k1)
+K1 = ec.pointMultiply(k1, ec.G)
 
 r = K1[0] % ec.order
 # if r == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
@@ -55,7 +55,7 @@ u = (h1*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
 assert v != 0
-U = ec.pointMultiply(u)
+U = ec.pointMultiply(u, ec.G)
 V = ec.pointMultiply(v, P)
 x, y = ec.pointAdd(U, V)
 print(r == x %ec.order)
@@ -71,7 +71,7 @@ u = (h1*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
 assert v != 0
-U = ec.pointMultiply(u)
+U = ec.pointMultiply(u, ec.G)
 V = ec.pointMultiply(v, P)
 x, y = ec.pointAdd(U, V)
 print(r == x %ec.order)
@@ -91,7 +91,7 @@ print("\n*** Signature")
 k2 = k1 #very bad! Never reuse the same ephemeral key!!!
 print("eph k2:", hex(k2))
 
-K2 = ec.pointMultiply(k2)
+K2 = ec.pointMultiply(k2, ec.G)
 
 r = K2[0] % ec.order
 # if r == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
@@ -110,7 +110,7 @@ u = (h2*w) %ec.order
 v = (r*w) %ec.order
 assert u != 0
 assert v != 0
-U = ec.pointMultiply(u)
+U = ec.pointMultiply(u, ec.G)
 V = ec.pointMultiply(v, P)
 x, y = ec.pointAdd(U, V)
 print(r == x %ec.order)

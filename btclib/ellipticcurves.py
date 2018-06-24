@@ -8,6 +8,11 @@ from math import sqrt
 from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
+Point = Tuple[int, int]
+GenericPoint = Union[str, bytes, bytearray, Point]
+# infinity point being represented by None,
+# Optional[Point] and Optional[GenericPoint] do include the infinity point
+
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
     """Elliptic curve over Fp group"""
@@ -16,102 +21,102 @@ class EllipticCurve:
                  a: int,
                  b: int,
                  prime: int,
-                 G: Union[str, bytes, bytearray, Tuple[int, int]],
+                 G: GenericPoint,
                  order: int) -> None:
         assert 4*a*a*a+27*b*b !=0, "zero discriminant"
         self.__a = a
         self.__b = b
         self.__prime = prime
 
-        self.__G = self.tuple_from_point(G)
-        assert self.__G is not None
-        # Hasse Theorem
+        self.G = self.tuple_from_point(G)
+
+        # check order with Hasse Theorem
         t = int(2 * sqrt(prime))
         assert order <= prime + 1 + t, "order too high"
         # the following assertion would fail for subgroups
         # assert prime + 1 - t <= order, "order too low"
         self.order = order
-        T = self.pointMultiply_raw(order-1, self.__G)
-        Inf = self.pointAdd_raw(T, self.__G)
+
+        # check (order-1)*G + G = Inf
+        T = self.pointMultiply_raw(order-1, self.G)
+        Inf = self.pointAdd_raw(T, self.G)
         assert Inf is None, "wrong order"
 
     def __y2(self, x: int) -> int:
-        assert 0 <= x, "x < 0"
-        assert x < self.__prime, "x >= prima"
+        assert type(x) == int,  "non-int x-coordinate"
+        assert 0 <= x, "x-coordinate < 0"
+        assert x < self.__prime, "x-coordinate >= prime"
         # skipping a crucial check here:
-        # x is not valid if sqrt(y*y) does not exists.
-        # This is a good reason to heve this method as private
-        return (x*x*x + self.__a*x + self.__b) % self.__prime
+        # if sqrt(y*y) does not exist, then x is not valid.
+        # This is a good reason to have this method as private
+        return ((x*x + self.__a)*x + self.__b) % self.__prime
 
-    def y(self, x: int, odd1even0: bool) -> int:
-        assert type(odd1even0) == bool or odd1even0 in (0, 1), \
-              "must be bool or 0/1"
+    # use this method also to check x-coordinate validity
+    def y(self, x: int, odd1even0: int) -> int:
+        assert odd1even0 in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)
         # if root does not exist, mod_sqrt will raise a ValueError
         root = mod_sqrt(y2, self.__prime)
-        # switch even/odd1even0 root when needed
+        # switch even/odd root when needed
         return root if (root % 2 + odd1even0) != 1 else self.__prime - root
 
-    def checkPoint(self, Px: int, Py: int) -> None:
-        assert self.__y2(Px) == Py*Py % self.__prime, "point is not on the ec"
+    def checkSecondCoordinate(self, y: int) -> None:
+        assert type(y) == int,  "non-int y-coordinate"
+        assert 0 <= y, "y-coordinate < 0"
+        assert y < self.__prime, "y-coordinate >= prime"
+
+    def checkCoordinates(self, Px: int, Py: int) -> None:
+        self.checkSecondCoordinate(Py)
+        y = self.y(Px, Py % 2)
+        assert Py == y, "point is not on the ec"
   
     def __str__(self) -> str:
         result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
         result += "\n prime = 0x%032x" % (self.__prime)
-        result += "\n     G =(0x%032x,\n         0x%032x)" % (self.__G)
+        result += "\n     G =(0x%032x,\n         0x%032x)" % (self.G)
         result += "\n order = 0x%032x" % (self.order)
         return result
 
     def __repr__(self) -> str:
         result  = "EllipticCurve(%s, %s" % (self.__a, self.__b)
         result += ", 0x%032x" % (self.__prime)
-        result += ", (0x%032x,0x%032x)" % (self.__G)
+        result += ", (0x%032x,0x%032x)" % (self.G)
         result += ", 0x%032x)" % (self.order)
         return result
         
-    def tuple_from_point(self, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
+    def tuple_from_point(self, P: Optional[GenericPoint]) -> Point:
         """ Return a tuple (Px, Py) having ensured it belongs to the curve """
-
-        if P is None: return None
 
         if isinstance(P, str):
             # FIXME: xpub is not considered here
-            # which is right as it is a bitcoin convention,
+            # which is right as it is a bitcoin convention only,
             # not an elliptic curve one 
             P = bytes.fromhex(P)
 
         if isinstance(P, bytes) or isinstance(P, bytearray):
-            # FIXME: xpub should be dealt with here
+            # FIXME: xpub might be dealt with here?
             if len(P) == 33: # compressed point
                 assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
                 Px = int.from_bytes(P[1:33], 'big')
-                assert Px < self.__prime, "Px >= prime"
-                Py = self.y(Px, True)
-                if (P[0] == 0x03):
-                    return (Px, Py)
-                else:
-                    return (Px, self.__prime - Py)
+                Py = self.y(Px, P[0] % 2) # also check Px validity
             else:            # uncompressed point
                 assert len(P) == 65, "not a point"
                 assert P[0] == 0x04, "not an uncompressed point"
-                Px = int.from_bytes(P[1:33], 'big')
-                assert Px < self.__prime, "Px >= prime"
-                Py = int.from_bytes(P[33:], 'big')
-                assert Py < self.__prime, "Py >= prime"
-                self.checkPoint(Px, Py)
-                return (Px, Py)
+                Px = int.from_bytes(P[ 1:33], 'big')
+                Py = int.from_bytes(P[33:  ], 'big')
+                self.checkCoordinates(Px, Py)
+            return Px, Py
         elif isinstance(P, tuple):
             assert len(P) == 2, "invalid tuple point length"
-            assert (type(P[0]) == int and type(P[1]) == int) , "invalid non-int tuple point"
-            assert P[0] < self.__prime, "Px >= prime"
-            assert P[1] < self.__prime, "Py >= prime"
-            self.checkPoint(P[0], P[1])
+            self.checkCoordinates(P[0], P[1])
             return P
+        elif P is None:
+            raise ValueError("infinity point cannot be expressed as tuple")
         else:
             raise ValueError("not an elliptic curve point")
 
 
-    def bytes_from_point(self, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]], compressed: bool) -> bytes:
+    def bytes_from_point(self, P: Optional[GenericPoint], compressed: bool) -> bytes:
         """ Return a 33 bytes compressed (0x02, 0x03) or 65 bytes uncompressed
             (0x04) point ensuring it belongs to the curve
         """
@@ -122,25 +127,21 @@ class EllipticCurve:
             if len(P) == 33: # compressed point
                 assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
                 Px = int.from_bytes(P[1:33], 'big')
-                assert Px < self.__prime, "Px >= prime"
+                self.y(Px, True) # check Px validity
                 return P
             else:            # uncompressed point
                 assert len(P) == 65, "not a point"
                 assert P[0] == 0x04, "not an uncompressed point"
-                Px = int.from_bytes(P[1:33], 'big')
-                assert Px < self.__prime, "Px >= prime"
-                Py = int.from_bytes(P[33:], 'big')
-                assert Py < self.__prime, "Py >= prime"
-                self.checkPoint(Px, Py)
+                Px = int.from_bytes(P[ 1:33], 'big')
+                Py = int.from_bytes(P[33:  ], 'big')
+                self.checkCoordinates(Px, Py)
                 return P
         elif isinstance(P, tuple):
             assert len(P) == 2, "invalid tuple point length"
-            assert type(P[0]) == int and type(P[1]) == int, "invalid non-int tuple point"
-            self.checkPoint(P[0], P[1])
+            self.checkCoordinates(P[0], P[1])
             if compressed:
                 prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
                 return prefix + P[0].to_bytes(32, byteorder='big')
-
             Pbytes = b'\x04' + P[0].to_bytes(32, byteorder='big')
             Pbytes += P[1].to_bytes(32, byteorder='big')
             return Pbytes
@@ -149,24 +150,24 @@ class EllipticCurve:
         else:
             raise ValueError("not an elliptic curve point")
 
-    def pointDouble(self, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
-        P = self.tuple_from_point(P)
+    def pointDouble(self, P: Optional[GenericPoint]) -> Optional[Point]:
+        if P is not None: P = self.tuple_from_point(P)
         return self.pointDouble_raw(P)
 
-    def pointDouble_raw(self, P: Optional[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
+    def pointDouble_raw(self, P: Optional[Point]) -> Optional[Point]:
         if P is None or P[1] == 0: return None
 
         f = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
         x = (f*f-2*P[0]) % self.__prime
         y = (f*(P[0]-x)-P[1]) % self.__prime
-        return (x, y)
+        return x, y
 
-    def pointAdd(self, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]], Q: Union[str, bytes, bytearray, Optional[Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
-        P = self.tuple_from_point(P)
-        Q = self.tuple_from_point(Q)
+    def pointAdd(self, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
+        if P is not None: P = self.tuple_from_point(P)
+        if Q is not None: Q = self.tuple_from_point(Q)
         return self.pointAdd_raw(P, Q)
 
-    def pointAdd_raw(self, P: Optional[Tuple[int, int]], Q: Optional[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
+    def pointAdd_raw(self, P: Optional[Point], Q: Optional[Point]) -> Optional[Point]:
         if Q is None: return P
         if P is None: return Q
 
@@ -177,27 +178,24 @@ class EllipticCurve:
         lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
         x = (lam*lam-P[0]-Q[0]) % self.__prime
         y = (lam*(P[0]-x)-P[1]) % self.__prime
-        return (x, y)
+        return x, y
 
-    # efficient double & add, using binary decomposition of n
-    def pointMultiply(self, n: int, P: Union[str, bytes, bytearray, Optional[Tuple[int, int]]] = None) -> Optional[Tuple[int, int]]:
+    def pointMultiply(self, n: int, P: Optional[GenericPoint]) -> Optional[Point]:
         if isinstance(n, bytes) or isinstance(n, bytearray):
             n = int.from_bytes(n, 'big')
-        n = n % self.order    # the group is cyclic
-
-        if P is None: P = self.__G
-        else:         P = self.tuple_from_point(P)
-
+        if P is not None: P = self.tuple_from_point(P)
         return self.pointMultiply_raw(n, P)
 
-    def pointMultiply_raw(self, n: int, P: Optional[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
-        result = None # initialized to infinity point
-        addendum = P  # initialized as 2^0 P
-        while n > 0:  # use binary representation of n
-            if n & 1: # if least significant bit is 1 add current addendum
+    # efficient double & add, using binary decomposition of n
+    def pointMultiply_raw(self, n: int, P: Optional[Point]) -> Optional[Point]:
+        n = n % self.order # the group is cyclic
+        result = None      # initialized to infinity point
+        addendum = P       # initialized as 2^0 P
+        while n > 0:       # use binary representation of n
+            if n & 1:      # if least significant bit is 1 add current addendum
                 result = self.pointAdd_raw(result, addendum)
-            n = n>>1  # right shift to remove the bit just accounted for
-                      # then update addendum for next step:
+            n = n>>1       # right shift to remove the bit just accounted for
+                           # then update addendum for next step:
             addendum = self.pointDouble_raw(addendum)
         return result
 

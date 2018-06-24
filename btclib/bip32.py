@@ -64,7 +64,7 @@ def bip32_xpub_from_xprv(xprv):
     xpub += xprv[13:45]                  # chain code
 
     p = xprv[46:]
-    P = ec.pointMultiply(p)
+    P = ec.pointMultiply(p, ec.G)
     xpub += ec.bytes_from_point(P, True) # public key
     return b58encode_check(xpub)
 
@@ -107,14 +107,14 @@ def bip32_ckd(xparentkey, index):
         h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
         xkey += h[32:]                          # chain code
         offset = int.from_bytes(h[:32], 'big')
-        Offset = ec.pointMultiply(offset)
+        Offset = ec.pointMultiply(offset, ec.G)
         Child = ec.pointAdd(Parent, Offset)
         Child_bytes = ec.bytes_from_point(Child, True)
         xkey += Child_bytes                     # public key
     elif (version in PRIVATE):
         assert xparent[45] == 0, "version/key mismatch in extended parent key"
         parent = int.from_bytes(xparent[46:], 'big')
-        Parent = ec.pointMultiply(parent)
+        Parent = ec.pointMultiply(parent, ec.G)
         Parent_bytes = ec.bytes_from_point(Parent, True)
         xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
         xkey += index                           # child index

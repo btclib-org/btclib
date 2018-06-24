@@ -38,7 +38,7 @@ def tweak(k, c, hasher=sha256):
     - point kG to tweak
     - tweaked private key k + h(kG||c), the corresponding pubkey is a commitment to kG, c
     """
-    R = ec.pointMultiply(k)
+    R = ec.pointMultiply(k, ec.G)
     e = hasher(R[0].to_bytes(32, 'big') + c).digest()
     e = int_from_hash(e, ec.order)
     return R, (e + k) % ec.order
@@ -67,7 +67,7 @@ def verify_commit(receipt, c, hasher=sha256):
     w, R = receipt
     e = hasher(R[0].to_bytes(32, 'big') + c).digest()
     e = int_from_hash(e, ec.order)
-    W = ec.pointAdd(R, ec.pointMultiply(e))
+    W = ec.pointAdd(R, ec.pointMultiply(e, ec.G))
     return w % ec.order == W[0] % ec.order
     # weaker verfication! w in [1..ec.order-1] dsa
     #                     w in [1..ec_prime-1] ssa

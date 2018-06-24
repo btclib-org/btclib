@@ -85,7 +85,7 @@ def prvkey_from_wif(wif):
 
 
 def pubkey_from_prvkey(prvkey, compressed = True):
-    P = ec.pointMultiply(prvkey)
+    P = ec.pointMultiply(prvkey, ec.G)
     return ec.bytes_from_point(P, compressed)
   
 

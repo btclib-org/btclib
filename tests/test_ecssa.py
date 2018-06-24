@@ -6,7 +6,7 @@ from btclib.ecssa import ec, ecssa_sign, ecssa_verify, ecssa_pubkey_recovery
 class TestEcssa(unittest.TestCase):
     def test_ecssa(self):
         prv = 0x1
-        pub = ec.pointMultiply(prv)
+        pub = ec.pointMultiply(prv, ec.G)
         msg = 'Satoshi Nakamoto'
         exp_sig = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
                    0x5c0eed7fda3782b5e439e100834390459828ef7089dbd375e48949224b6f82c0)

@@ -32,15 +32,14 @@ def mod_sqrt(a, p):
         generalized Riemann hypothesis is false).
     """
     # Simple cases
-    #
-    if legendre_symbol(a, p) != 1:
-        raise ValueError("no root exists")
-    elif a == 0:
+    if a == 0:
         return 0
     elif p == 2:
         return p
     elif p % 4 == 3:
         return pow(a, (p + 1) // 4, p)
+    elif legendre_symbol(a, p) != 1:
+        raise ValueError("no root exists for %s" % a)
 
     # Partition p-1 to s * 2^e for an odd s (i.e.
     # reduce all the powers of 2 from p-1)

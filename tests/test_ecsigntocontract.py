@@ -9,7 +9,7 @@ from btclib.ecsigntocontract import ec, sha256, \
 class TestSignToContract(unittest.TestCase):
     def test_digntocontract(self):
         prv = 0x1
-        pub = ec.pointMultiply(prv)
+        pub = ec.pointMultiply(prv, ec.G)
         m = sha256("hello world".encode()).digest()
         c = sha256("sign to contract".encode()).digest()
 
