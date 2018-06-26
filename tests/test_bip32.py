@@ -4,14 +4,14 @@ import unittest
 import os
 import json
 
-from bip32 import PRIVATE, \
-                  bip32_master_prvkey_from_seed, \
-                  bip32_xpub_from_xprv, \
-                  bip32_ckd, \
-                  bip32_derive, \
-                  bip32_crack, \
-                  bip32_child_index, \
-                  address_from_xpub
+from btclib.bip32 import PRIVATE, \
+                         bip32_master_prvkey_from_seed, \
+                         bip32_xpub_from_xprv, \
+                         bip32_ckd, \
+                         bip32_derive, \
+                         bip32_crack, \
+                         bip32_child_index, \
+                         address_from_xpub
 
 class TestBIP32(unittest.TestCase):
     def test_bip32_vector1(self):

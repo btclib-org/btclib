@@ -9,10 +9,10 @@ https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 """
 
 from hashlib import sha256
-from ellipticcurves import secp256k1 as ec
 from struct import pack
 from binascii import hexlify
-from hmac import new as hmac_new
+import hmac
+from btclib.ellipticcurves import secp256k1 as ec
 
 default_hasher = sha256
 default_hash_digest_size = 32
@@ -57,19 +57,19 @@ def rfc6979_raw(prv, m, hasher=default_hasher):
     prv_and_m = int2octets(prv) + bits2octets(m)
     v = b'\x01' * hash_size
     k = b'\x00' * hash_size
-    k = hmac_new(k, v + b'\x00' + prv_and_m, hasher).digest()
-    v = hmac_new(k, v, hasher).digest()
-    k = hmac_new(k, v + b'\x01' + prv_and_m, hasher).digest()
-    v = hmac_new(k, v, hasher).digest()
+    k = hmac.new(k, v + b'\x00' + prv_and_m, hasher).digest()
+    v = hmac.new(k, v, hasher).digest()
+    k = hmac.new(k, v + b'\x01' + prv_and_m, hasher).digest()
+    v = hmac.new(k, v, hasher).digest()
     while True:
         t = b''
         while len(t) * 8 < qlen:
-            v = hmac_new(k, v, hasher).digest()
+            v = hmac.new(k, v, hasher).digest()
             t = t + v
         nonce = bits2int(t)
         if nonce >= 1 and nonce < ec.order:
             # here it should be checked that nonce do not yields a invalid signature
             # but then I should put the signature generation here
             return nonce
-        k = hmac_new(k, v + b'\x00', hasher).digest()
-        v = hmac_new(k, v, hasher).digest()
+        k = hmac.new(k, v + b'\x00', hasher).digest()
+        v = hmac.new(k, v, hasher).digest()

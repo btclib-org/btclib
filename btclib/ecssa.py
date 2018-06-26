@@ -5,11 +5,10 @@
 
 from typing import Tuple
 from hashlib import sha256
-from ellipticcurves import secp256k1 as ec
-from numbertheory import mod_inv
-from rfc6979 import rfc6979
-from ecsignutils import int_from_hash
-from wifaddress import int_from_prvkey
+from btclib.ellipticcurves import mod_inv, secp256k1 as ec
+from btclib.rfc6979 import rfc6979
+from btclib.ecsignutils import int_from_hash
+from btclib.wifaddress import int_from_prvkey
 
 # %% ecssa sign
 # https://github.com/sipa/secp256k1/blob/968e2f415a5e764d159ee03e95815ea11460854e/src/modules/schnorr/schnorr.md
@@ -24,7 +23,7 @@ def ecssa_sign(m, prv, eph_prv = None, hasher = sha256) -> Tuple[int, int]:
 
 # https://eprint.iacr.org/2018/068
 def ecssa_sign_raw(m: bytes, prv: int, eph_prv: int, hasher = sha256) -> Tuple[int, int]:
-    R = ec.pointMultiply(eph_prv)
+    R = ec.pointMultiply(eph_prv, ec.G)
     if R[1] % 2 == 1:
         eph_prv = ec.order - eph_prv  # <=> R_y = ec_prime - R_y
     r = R[0] % ec.order # % ec.order ?
@@ -48,7 +47,7 @@ def ecssa_verify_raw(m: bytes, ssasig: Tuple[int, int], pub: Tuple[int, int], ha
     e = int_from_hash(e, ec.order)
     if e == 0 or e >= ec.order:  # invalid e value
         return False
-    R = ec.pointAdd(ec.pointMultiply(e, pub), ec.pointMultiply(s))
+    R = ec.pointAdd(ec.pointMultiply(e, pub), ec.pointMultiply(s, ec.G))
     if R[1] % 2 == 1:  # R.y odd
         return False
     return R[0] == ssasig[0]
@@ -69,7 +68,7 @@ def ecssa_pubkey_recovery_raw(m: bytes, ssasig: Tuple[int, int], hasher = sha256
     assert e != 0 and e < ec.order, "invalid e value"
     e1 = mod_inv(e, ec.order)
     return ec.pointAdd(ec.pointMultiply(e1, R),
-           ec.pointMultiply(-e1 * s % ec.order))
+                       ec.pointMultiply(-e1 * s % ec.order, ec.G))
 
 
 def check_ssasig(ssasig: Tuple[int, int]) -> bool:

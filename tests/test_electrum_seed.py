@@ -3,11 +3,11 @@
 import unittest
 import os
 import json
-from electrum_seed import PRIVATE, \
-                          bip32_xpub_from_xprv, \
-                          electrum_entropy_from_mnemonic, \
-                          electrum_mnemonic_from_raw_entropy, \
-                          electrum_master_prvkey_from_mnemonic
+from btclib.electrum_seed import PRIVATE, \
+                                 bip32_xpub_from_xprv, \
+                                 electrum_entropy_from_mnemonic, \
+                                 electrum_mnemonic_from_raw_entropy, \
+                                 electrum_master_prvkey_from_mnemonic
 
 class TestMnemonicDictionaries(unittest.TestCase):
     def test_electrum_wallet(self):

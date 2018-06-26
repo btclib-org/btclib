@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import unittest
-from wifaddress import ec, \
-                       wif_from_prvkey, prvkey_from_wif, \
-                       address_from_pubkey, hash160_from_address, \
-                       pubkey_from_prvkey
+from btclib.wifaddress import ec, \
+                              wif_from_prvkey, prvkey_from_wif, \
+                              address_from_pubkey, hash160_from_address, \
+                              pubkey_from_prvkey, bytes_from_prvkey
 
 class TestKeys(unittest.TestCase):
 

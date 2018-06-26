@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from mnemonic import mnemonic_dict
+from btclib.mnemonic import mnemonic_dict
 
 class TestMnemonicDictionaries(unittest.TestCase):
     def test_1(self):

@@ -3,10 +3,11 @@
 """electrum entropy / mnemonic / seed functions"""
 
 from hashlib import sha512
-from pbkdf2 import PBKDF2
 import hmac
-from bip32 import PRIVATE, bip32_master_prvkey_from_seed, bip32_ckd, bip32_xpub_from_xprv
-from mnemonic import mnemonic_dict
+from btclib.pbkdf2 import PBKDF2
+from btclib.mnemonic import mnemonic_dict
+from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed, \
+                         bip32_ckd, bip32_xpub_from_xprv
 
 MNEMONIC_VERSIONS = {'standard' : '01',
                      'segwit'   : '100',

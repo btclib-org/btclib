@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 import unittest
-from ecsigntocontract import ec, sha256, \
-                             ecdsa_verify, ecssa_verify, \
-                             ecdsa_commit_and_sign, ecssa_commit_and_sign, \
-                             verify_commit
+from btclib.ecsigntocontract import ec, sha256, \
+                                    ecdsa_verify, ecssa_verify, \
+                                    ecdsa_commit_and_sign, ecssa_commit_and_sign, \
+                                    verify_commit
 
 class TestSignToContract(unittest.TestCase):
     def test_digntocontract(self):
         prv = 0x1
-        pub = ec.pointMultiply(prv)
+        pub = ec.pointMultiply(prv, ec.G)
         m = sha256("hello world".encode()).digest()
         c = sha256("sign to contract".encode()).digest()
 

@@ -14,7 +14,7 @@ mprvkey = randint(0, ec.order-1)
 print('\nmaster private key:', format(mprvkey, '#064x'))
 
 # Master Pubkey:
-mpubkey = ec.pointMultiply(mprvkey)
+mpubkey = ec.pointMultiply(mprvkey, ec.G)
 print('Master Public Key:', format(mpubkey[0], '#064x'))
 print('                  ', format(mpubkey[1], '#064x'))
 
@@ -38,8 +38,8 @@ for i in range(0, nKeys):
 
 # Pubkeys could be calculated without using prvkeys
 for i in range(0, nKeys):
-  P = ec.pointAdd(mpubkey, ec.pointMultiply(h_int[i]))
-  assert P == ec.pointMultiply(p[i])
+  P = ec.pointAdd(mpubkey, ec.pointMultiply(h_int[i], ec.G))
+  assert P == ec.pointMultiply(p[i], ec.G)
 
 def det_wallet2(key, r, i):
   r_bytes = r.to_bytes(32, 'big')
@@ -52,7 +52,7 @@ def det_wallet2(key, r, i):
     return (prvkey + h_int) % ec.order
   except:
     pubkey = ec.tuple_from_point(key)
-    return ec.pointAdd(pubkey, ec.pointMultiply(h_int))
+    return ec.pointAdd(pubkey, ec.pointMultiply(h_int, ec.G))
   raise ValueError("Invalid key")
 
 print()

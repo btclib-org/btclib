@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from base58 import b58encode, b58encode_check, b58decode, b58decode_check
+from btclib.base58 import b58encode, b58encode_check, b58decode, b58decode_check
 
 class TestBase58CheckEncoding(unittest.TestCase):
     def test_b58_encode_decode(self):

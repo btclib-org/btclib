@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#from pycoin
+# from pycoin
 def mod_inv(a, m):
     if a < 0 or m <= a: a = a % m
     # From Ferguson and Schneier, roughly:
@@ -23,8 +23,6 @@ def mod_sqrt(a, p):
         Solve the congruence of the form:
             x^2 = a (mod p)
         And returns x. Note that p - x is also a root.
-        0 is returned is no square root exists for
-        these a and p.
         The Tonelli-Shanks algorithm is used (except
         for some simple cases in which the solution
         is known from an identity). This algorithm
@@ -33,14 +31,14 @@ def mod_sqrt(a, p):
     """
     # Simple cases
     #
-    if legendre_symbol(a, p) != 1:
-        raise ValueError("no root exists")
+    if p % 4 == 3: # secp256k1 case
+        return pow(a, (p + 1) // 4, p)
     elif a == 0:
         return 0
     elif p == 2:
         return p
-    elif p % 4 == 3:
-        return pow(a, (p + 1) // 4, p)
+    elif legendre_symbol(a, p) != 1:
+        raise ValueError("no root exists for %s" % a)
 
     # Partition p-1 to s * 2^e for an odd s (i.e.
     # reduce all the powers of 2 from p-1)

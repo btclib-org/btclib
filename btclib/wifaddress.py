@@ -6,9 +6,9 @@ Implementation of Base58 encoding of private keys (wifs)
 and public keys (addresses)
 '''
 
-from ellipticcurves import secp256k1 as ec
-from base58 import b58encode_check, b58decode_check, base58digits
 from hashlib import sha256, new as hnew
+from btclib.ellipticcurves import secp256k1 as ec
+from btclib.base58 import b58encode_check, b58decode_check, base58digits
 
 
 def bytes_from_prvkey(prv):
@@ -85,12 +85,12 @@ def prvkey_from_wif(wif):
 
 
 def pubkey_from_prvkey(prvkey, compressed = True):
-    P = ec.pointMultiply(prvkey)
+    P = ec.pointMultiply(prvkey, ec.G)
     return ec.bytes_from_point(P, compressed)
   
 
 def h160(pubkey):
-    pubkey = ec.bytes_from_point(pubkey)
+    pubkey = ec.bytes_from_point(pubkey, True)
     t = sha256(pubkey).digest()
     return hnew('ripemd160', t).digest()
 

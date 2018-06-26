@@ -17,7 +17,7 @@ p = p % ec.order
 print("\n*** [0] Private ECDSA Key:")
 print(hex(p))
 
-P = ec.pointMultiply(p)
+P = ec.pointMultiply(p, ec.G)
 PubKey = b'\x04' + P[0].to_bytes(32, byteorder='big') + P[1].to_bytes(32, byteorder='big')
 print("\n*** [1] Public Key (uncompressed):")
 print(PubKey.hex())
