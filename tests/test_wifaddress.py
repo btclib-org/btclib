@@ -4,13 +4,13 @@ import unittest
 from btclib.wifaddress import ec, \
                               wif_from_prvkey, prvkey_from_wif, \
                               address_from_pubkey, hash160_from_address, \
-                              pubkey_from_prvkey, bytes_from_prvkey
+                              pubkey_from_prvkey
 
 class TestKeys(unittest.TestCase):
 
     def test_wif_from_prvkey(self):
         p_num = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-        p_bytes = bytes_from_prvkey(p_num)
+        p_bytes = ec.bytes_from_Scalar(p_num)
         p_hex = p_bytes.hex()
 
         # private key as number

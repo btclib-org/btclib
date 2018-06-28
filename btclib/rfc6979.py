@@ -46,13 +46,13 @@ def check_hash_digest(m, hash_digest_size=default_hash_digest_size):
     assert type(m) == bytes
     assert len(m) == hash_digest_size, "m must be bytes with correct bytes length"
 
-def rfc6979(prv, m, hasher=default_hasher):
+def rfc6979(prv, m, hasher=default_hasher) -> int:
     assert type(prv) == int
     assert 0 < prv and prv < ec.order, "invalid prv: " + str(prv)
     check_hash_digest(m)
     return rfc6979_raw(prv, m, hasher)
 
-def rfc6979_raw(prv, m, hasher=default_hasher):
+def rfc6979_raw(prv, m, hasher=default_hasher) -> int:
     hash_size = len(m)
     prv_and_m = int2octets(prv) + bits2octets(m)
     v = b'\x01' * hash_size
