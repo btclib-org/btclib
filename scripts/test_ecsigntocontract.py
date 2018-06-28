@@ -10,8 +10,8 @@ class TestSignToContract(unittest.TestCase):
     def test_digntocontract(self):
         prv = 0x1
         pub = ec.pointMultiply(prv)
-        m = sha256("hello world".encode()).digest()
-        c = sha256("sign to contract".encode()).digest()
+        m = sha256("message to be signed".encode()).digest()
+        c = sha256("committed message".encode()).digest()
 
         sig_ecdsa, receipt_ecdsa = ecdsa_commit_and_sign(m, prv, c)
         self.assertTrue(ecdsa_verify(m, sig_ecdsa, pub))
