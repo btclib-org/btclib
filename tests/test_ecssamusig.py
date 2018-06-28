@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""First attempt at multisig using hSchnorr Signature Algoritm
+"""First attempt at multisig using Schnorr Signature Algoritm
 
 To be improved and refactored
 
@@ -22,25 +22,27 @@ class TestEcssaMuSig(unittest.TestCase):
         prv1 = int_from_prvkey('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
         Q1 = ec.pointMultiply(prv1, ec.G)
         HQ1 = int_from_hash(sha256(ec.bytes_from_point(Q1, False)).digest(), ec.order)
+        prv1 = HQ1* prv1
+
         eph_prv1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb
         R1 = ec.pointMultiply(eph_prv1, ec.G)
         if R1[1] % 2 == 1: #must be even
             eph_prv1 = ec.order - eph_prv1 
             R1 = ec.pointMultiply(eph_prv1, ec.G)
         R1_x = R1[0]
-        prv1 = HQ1* prv1
 
         # second signer (is the message needed here? maybe for rfc6979?)
         prv2 = int_from_prvkey('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q2 = ec.pointMultiply(prv2, ec.G)
         HQ2 = int_from_hash(sha256(ec.bytes_from_point(Q2, False)).digest(), ec.order)
+        prv2 = HQ2* prv2
+
         eph_prv2 = 0x01a2a0d3eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbdb
         R2 = ec.pointMultiply(eph_prv2, ec.G)
         if R2[1] % 2 == 1: #must be even
             eph_prv2 = ec.order - eph_prv2
             R2 = ec.pointMultiply(eph_prv2, ec.G)
         R2_x = R2[0]
-        prv2 = HQ2* prv2
 
         ######################
         # exchange Rx, compute s
