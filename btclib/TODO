@@ -1,4 +1,7 @@
 ec.pointAdd with projective coordinates
+http://pydoc.net/ecc/0.0.1/ecc.elliptic/
+https://hyperelliptic.org/EFD/oldefd/projective.html
+
 
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 
@@ -20,7 +23,3 @@ pydoc
 coverage
 package
 jupyter for scripts
-
-
-
-
