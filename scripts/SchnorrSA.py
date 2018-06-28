@@ -11,7 +11,7 @@ p = p % ec.order
 print("\n*** Keys:")
 print("prvkey:   ", hex(p))
 
-P = ec.pointMultiply(p)
+P = ec.pointMultiply(p, ec.G)
 print("PubKey:", "02" if (P[1] % 2 == 0) else "03", hex(P[0]))
 
 print("\n*** Message to be signed")
@@ -34,7 +34,7 @@ k_bytes = sha256(temp.encode()).digest()
 k1 = int.from_bytes(k_bytes, 'big') % ec.order
 assert k1 != 0
 
-K1 = ec.pointMultiply(k1)
+K1 = ec.pointMultiply(k1, ec.G)
 
 s1 = (k1-h1*p) % ec.order
 # if s1 == 0 (extremely unlikely for large ec.order) go back to a different ephemeral key
@@ -48,7 +48,7 @@ print("*** Signature Verification")
 minush1 = -h1 %ec.order
 V = ec.pointMultiply(minush1, P)
 V = ec.pointAdd(K1, V)
-print(V == ec.pointMultiply(s1))
+print(V == ec.pointMultiply(s1, ec.G))
 
 print("\n*** Another message")
 msg2 = "and Paolo is right to be afraid"
@@ -64,7 +64,7 @@ print("    h2:", hex(h2))
 print("\n*** Signature")
 k2 = k1 #very bad! Never reuse the same ephemeral key!!!
 
-K2 = ec.pointMultiply(k2)
+K2 = ec.pointMultiply(k2, ec.G)
 
 s2 = (k2-h2*p) %ec.order
 # if s2 == 0 (extremely unlikely) go back to a different ephemeral key
@@ -78,4 +78,4 @@ print("*** Signature Verification")
 minush2 = -h2 %ec.order
 V = ec.pointMultiply(minush2, P)
 V = ec.pointAdd(K2, V)
-print(V == ec.pointMultiply(s2))
+print(V == ec.pointMultiply(s2, ec.G))

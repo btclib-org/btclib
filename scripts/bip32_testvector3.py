@@ -34,7 +34,7 @@ hashValue = HMAC(b"Bitcoin seed", seed.to_bytes(seed_bytes, 'big'), sha512).dige
 p_bytes = hashValue[:32]
 p = int(p_bytes.hex(), 16) % ec.order
 p_bytes = b'\x00' + p.to_bytes(32, 'big')
-P = ec.pointMultiply(p)
+P = ec.pointMultiply(p, ec.G)
 P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, 'big')
 chain_code = hashValue[32:]
 
@@ -59,7 +59,7 @@ key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.order
 p_bytes = b'\x00' + p.to_bytes(32, 'big')
-P = ec.pointMultiply(p)
+P = ec.pointMultiply(p, ec.G)
 P_bytes = (b'\x02' if (P[1] % 2 == 0) else b'\x03') + P[0].to_bytes(32, 'big')
 chain_code = hashValue[32:]
 
