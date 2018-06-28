@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 
-"""MnemonicDictionaries class definition and associated tests"""
+"""
+MnemonicDictionaries class for converting entropy into a mnemonic sentence
+"""
 
 import math
 import os
+from typing import Union, List
 
+Entropy = str # binary 0/1 string
+GenericEntropy = Union[Entropy, bytes, bytearray, int]
+WordList = List[str]
 
 class MnemonicDictionaries:
     """Dictionary based conversions between entropy, word indexes, and mnemonic phrase.
 
-       Entropy is treated bitwise, as (leading) zeros are not
+       Entropy is treated bitwise: (leading) zeros are not
        considered redundant padding. 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
         # https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
         self.language_files = {
@@ -28,7 +34,7 @@ class MnemonicDictionaries:
         self._bits_per_word = dict(zip(self.languages, values))
         self._language_length = dict(zip(self.languages, values))
 
-    def _load_language_if_not_available(self, lang):
+    def _load_language_if_not_available(self, lang: str) -> None:
         assert lang in self.languages, "unknown language" + lang
 
         if self._dictionary[lang] == None:
@@ -49,20 +55,20 @@ class MnemonicDictionaries:
             # clean up and normalization are missing, but removal of \n
             self._dictionary[lang] = [line[:-1] for line in lines]
 
-    def bits_per_word(self, lang):
+    def bits_per_word(self, lang: str) -> int:
         self._load_language_if_not_available(lang)
         return self._bits_per_word[lang]
 
-    def dictionary(self, lang):
+    def dictionary(self, lang: str) -> WordList:
         self._load_language_if_not_available(lang)
         return self._dictionary[lang]
 
-    def language_length(self, lang):
+    def language_length(self, lang: str) -> int:
         self._load_language_if_not_available(lang)
         return self._language_length[lang]
 
     # input entropy can be expresses as binary string, bytes-like, or int
-    def indexes_from_entropy(self, entropy, lang):
+    def indexes_from_entropy(self, entropy: GenericEntropy, lang: str) -> List[int]:
         self._load_language_if_not_available(lang)
 
         if type(entropy) == str: # binary string
@@ -93,7 +99,7 @@ class MnemonicDictionaries:
 
         return list(reversed(indexes))
 
-    def mnemonic_from_indexes(self, indexes, lang):
+    def mnemonic_from_indexes(self, indexes: List[int], lang: str) -> str:
         self._load_language_if_not_available(lang)
 
         words = []
@@ -103,7 +109,7 @@ class MnemonicDictionaries:
             words.append(word)
         return ' '.join(words)
 
-    def indexes_from_mnemonic(self, mnemonic, lang):
+    def indexes_from_mnemonic(self, mnemonic: str, lang: str) -> List[int]:
         self._load_language_if_not_available(lang)
 
         words = mnemonic.split()
@@ -112,7 +118,7 @@ class MnemonicDictionaries:
         return indexes
 
     # output entropy is returned as binary string
-    def entropy_from_indexes(self, indexes, lang):
+    def entropy_from_indexes(self, indexes: List[int], lang: str) -> Entropy:
         self._load_language_if_not_available(lang)
 
         n = self._language_length[lang]
@@ -128,6 +134,5 @@ class MnemonicDictionaries:
         binentropy = binentropy.zfill(bits)
 
         return binentropy
-
 
 mnemonic_dict = MnemonicDictionaries()
