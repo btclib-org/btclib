@@ -8,6 +8,8 @@ from math import sqrt, ceil
 from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
+Scalar = Union[str, bytes, bytearray, int]
+
 Point = Tuple[int, int]
 GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
@@ -188,9 +190,31 @@ class EllipticCurve:
         y = (lam*(P[0]-x)-P[1]) % self.__prime
         return x, y
 
-    def pointMultiply(self, n: int, P: Optional[GenericPoint]) -> Optional[Point]:
+    def int_from_Scalar(self, n: Scalar) -> int:
+        if isinstance(n, str): # hex string
+            if n[:2] == "0x":
+                n = n[2:]
+            assert len(n) & 2 == 0, "odd-length hex string"
+            n = bytes.fromhex(n)
+
         if isinstance(n, bytes) or isinstance(n, bytearray):
+            assert len(n) == self.bytesize, "wrong lenght"
             n = int.from_bytes(n, 'big')
+
+        if not isinstance(n, int):
+            raise TypeError("a bytes-like object is required (also str or int)")
+        return n % self.order
+            
+
+    def bytes_from_Scalar(self, n: Scalar) -> bytes:
+        # enforce self-consistency with whatever
+        # policy is implemented by int_from_prvkey
+        n = self.int_from_Scalar(n)
+        return n.to_bytes(self.bytesize, 'big')
+
+
+    def pointMultiply(self, n: Scalar, P: Optional[GenericPoint]) -> Optional[Point]:
+        n = self.int_from_Scalar(n)
         if P is not None: P = self.tuple_from_point(P)
         return self.pointMultiply_raw(n, P)
 

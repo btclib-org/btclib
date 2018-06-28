@@ -15,7 +15,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
         raw_entropy = 0x110aaaa03974d093eda670121023cd0772
         version = 'standard'
-        mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, version, lang)
+        mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, lang, version)
         entropy = int(electrum_entropy_from_mnemonic(mnemonic, lang), 2)
         self.assertLess(entropy-raw_entropy, 0xfff)
 
@@ -40,7 +40,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
             lang = "en"
             entropy = int(electrum_entropy_from_mnemonic(test_mnemonic, lang), 2)
             version = test_vector[0]
-            mnemonic = electrum_mnemonic_from_raw_entropy(entropy, version, lang)
+            mnemonic = electrum_mnemonic_from_raw_entropy(entropy, lang, version)
             self.assertEqual(mnemonic, test_mnemonic)
 
  

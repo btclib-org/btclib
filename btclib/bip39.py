@@ -4,10 +4,10 @@
 
 from hashlib import sha256, sha512
 from btclib.pbkdf2 import PBKDF2
-from btclib.mnemonic import mnemonic_dict
+from btclib.mnemonic import mnemonic_dict, Entropy, GenericEntropy
 from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed
 
-def bip39_raw_entropy_checksum(raw_entr):
+def bip39_raw_entropy_checksum(raw_entr: bytes) -> bytes:
     # raw_entr 256-bit checksum
     checksum = sha256(raw_entr).digest()       # 256 bits
     # convert checksum to binary '01' string
@@ -22,13 +22,13 @@ def bip39_raw_entropy_checksum(raw_entr):
 #  CheckSum = raw ENTropy / 32
 #  MnemonicSentence (in words) = (ENT + CS) / bpw
 #
-# |  ENT  | CS | ENT+CS |  MS  |
-# +-------+----+--------+------+
-# |  128  |  4 |   132  |  12  |
-# |  160  |  5 |   165  |  15  |
-# |  192  |  6 |   198  |  18  |
-# |  224  |  7 |   231  |  21  |
-# |  256  |  8 |   264  |  24  |
+# | ENT | CS | ENT+CS | MS |
+# +-----+----+--------+----+
+# | 128 |  4 |    132 | 12 |
+# | 160 |  5 |    165 | 15 |
+# | 192 |  6 |    198 | 18 |
+# | 224 |  7 |    231 | 21 |
+# | 256 |  8 |    264 | 24 |
 _allowed_raw_entr_bits = (128, 160, 192, 224, 256)
 
 # https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
@@ -38,7 +38,7 @@ _allowed_raw_entr_bits = (128, 160, 192, 224, 256)
 # int is pre zero padded up to 128, 160, 192, 224, or 256 bits
 #
 # output entropy is returned as binary string
-def bip39_entropy_from_raw_entropy(raw_entropy):
+def bip39_entropy_from_raw_entropy(raw_entropy: GenericEntropy) -> Entropy:
     if type(raw_entropy) == str:
         bits = len(raw_entropy)
         assert bits in _allowed_raw_entr_bits, "invalid raw entropy size"
@@ -67,13 +67,13 @@ def bip39_entropy_from_raw_entropy(raw_entropy):
     return raw_entropy + checksum
 
 
-def bip39_mnemonic_from_raw_entropy(raw_entr, lang):
+def bip39_mnemonic_from_raw_entropy(raw_entr: GenericEntropy, lang: str) -> str:
     entropy = bip39_entropy_from_raw_entropy(raw_entr)
     indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
     return mnemonic_dict.mnemonic_from_indexes(indexes, lang)
 
 # output raw entropy is returned as binary string
-def bip39_raw_entropy_from_mnemonic(mnemonic, lang):
+def bip39_raw_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
     entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
 
@@ -90,17 +90,18 @@ def bip39_raw_entropy_from_mnemonic(mnemonic, lang):
     return raw_entr
 
 # TODO: re-evaluate style
-def bip39_seed_from_mnemonic(mnemonic, passphrase):
+def bip39_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
     seed = PBKDF2(mnemonic, 'mnemonic' + passphrase,
                   2048, sha512).read(64) # 512 bits
     return seed
 
 # TODO: re-evaluate style
-def bip39_master_prvkey_from_mnemonic(mnemonic, passphrase, xversion):
+def bip39_master_prvkey_from_mnemonic(mnemonic: str, passphrase: str, xversion: bytes) -> bytes:
     seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
     return bip32_master_prvkey_from_seed(seed, xversion)
 
 # TODO: move to wallet file
-def bip39_master_prvkey_from_raw_entropy(raw_entr, passphrase, lang, xversion):
+def bip39_master_prvkey_from_raw_entropy(raw_entr: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
     mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
-    return bip39_master_prvkey_from_mnemonic(mnemonic, passphrase, xversion)
+    mprv = bip39_master_prvkey_from_mnemonic(mnemonic, passphrase, xversion)
+    return mprv

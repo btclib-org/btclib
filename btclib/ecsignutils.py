@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+from typing import Tuple, Union
+
+Message = Union[str, bytes]
+Signature = Tuple[int, int]
+
 def int_from_hash(hash_digest, order, size=32):
     """from hash digest to int"""
     assert type(hash_digest) == bytes, "hash_digest must be bytes"

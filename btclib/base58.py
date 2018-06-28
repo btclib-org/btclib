@@ -43,7 +43,7 @@ def scrub_input(v):
     return v
 
 
-def b58encode_int(i, default_one=True):
+def b58encode_int(i, default_one = True):
     '''Encode an integer using Base58'''
     if not i and default_one:
         return base58digits[0:1]
@@ -55,7 +55,7 @@ def b58encode_int(i, default_one=True):
     return string
 
 
-def b58encode(v):
+def b58encode(v) -> bytes:
     '''Encode a string using Base58'''
 
     v = scrub_input(v)
@@ -70,7 +70,7 @@ def b58encode(v):
         acc += p * c
         p = p << 8
 
-    result = b58encode_int(acc, default_one=False)
+    result = b58encode_int(acc, default_one = False)
 
     # adding leading-1s
     return (base58digits[0:1] * nPad + result)
@@ -87,7 +87,7 @@ def b58decode_int(v):
     return decimal
 
 
-def b58decode(v):
+def b58decode(v) -> bytes:
     '''Decode a Base58 encoded string'''
 
     v = scrub_input(v)
@@ -109,14 +109,14 @@ def b58decode(v):
     return (b'\0' * nPad + bseq(reversed(result)))
 
 
-def b58encode_check(v):
+def b58encode_check(v) -> bytes:
     '''Encode a string using Base58 with a 4 character checksum'''
 
     digest = sha256(sha256(v).digest()).digest()
     return b58encode(v + digest[:4])
 
 
-def b58decode_check(v):
+def b58decode_check(v) -> bytes:
     '''Decode and verify the checksum of a Base58 encoded string'''
 
     result = b58decode(v)
