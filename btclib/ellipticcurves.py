@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Elliptic curve class and instances
+Elliptic curve class and SEC2 curve instances
 """
 
 from math import sqrt, ceil
