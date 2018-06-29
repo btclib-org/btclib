@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Elliptic curve class and SEC2 curve instances
+Elliptic curve class, associated functions, and instances of SEC2 curves
 """
 
 from math import sqrt, ceil
@@ -46,8 +46,8 @@ class EllipticCurve:
 
     def checkPointCoordinate(self, c: int) -> None:
         assert type(c) == int,  "non-int point coordinate"
-        assert 0 <= c, "point coordinate < 0"
-        assert c < self.__prime, "point coordinate >= prime"
+        assert 0 <= c, "point coordinate %s < 0" % c
+        assert c < self.__prime, "point coordinate %s >= prime" % c
 
     def __y2(self, x: int) -> int:
         self.checkPointCoordinate(x)
@@ -116,12 +116,12 @@ class EllipticCurve:
 
 ### Functions using EllipticCurve ####
 
-def checkPointCoordinates(ec, Px: int, Py: int) -> None:
+def checkPointCoordinates(ec: EllipticCurve, Px: int, Py: int) -> None:
     ec.checkPointCoordinate(Py)
-    y = ec.y(Px, Py % 2) # also check x-coordinate validity
+    y = ec.y(Px, Py % 2) # also check Px validity
     assert Py == y, "point is not on the ec"
   
-def checkPoint(ec, P: Point) -> None:
+def checkPoint(ec: EllipticCurve, P: Point) -> None:
     assert isinstance(P, tuple), "not a tuple point"
     assert len(P) == 2, "invalid tuple point length %s" % len(P)
     checkPointCoordinates(ec, P[0], P[1])
@@ -130,8 +130,8 @@ GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
 # Optional[GenericPoint] do include the infinity point
 
-def tuple_from_Point(ec, P: Optional[GenericPoint]) -> Point:
-    """ Return a tuple (Px, Py) having ensured it belongs to the curve """
+def tuple_from_Point(ec: EllipticCurve, P: Optional[GenericPoint]) -> Point:
+    """Return a tuple (Px, Py) having ensured it belongs to the curve"""
 
     if P is None:
         raise ValueError("infinity point cannot be expressed as tuple")
@@ -156,20 +156,22 @@ def tuple_from_Point(ec, P: Optional[GenericPoint]) -> Point:
             checkPointCoordinates(ec, Px, Py)
         return Px, Py
 
+    # must be a tuple
     checkPoint(ec, P)
     return P
 
 
-def bytes_from_Point(ec, P: Optional[GenericPoint], compressed: bool) -> bytes:
-    """ Return a compressed (0x02, 0x03) or uncompressed (0x04)
-        point ensuring it belongs to the curve
+def bytes_from_Point(ec: EllipticCurve, P: Optional[GenericPoint], compressed: bool) -> bytes:
+    """
+    Return a compressed (0x02, 0x03) or uncompressed (0x04)
+    point ensuring it belongs to the curve
     """
     # enforce self-consistency with whatever
     # policy is implemented by tuple_from_Point
     P = tuple_from_Point(ec, P)
 
     if compressed:
-        prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
+        prefix = b'\x03' if (P[1] % 2) else b'\x02'
         return prefix + P[0].to_bytes(ec.bytesize, byteorder='big')
 
     Pbytes = b'\x04' + P[0].to_bytes(ec.bytesize, byteorder='big')
@@ -177,25 +179,22 @@ def bytes_from_Point(ec, P: Optional[GenericPoint], compressed: bool) -> bytes:
     return Pbytes
 
 
-def pointAdd(ec, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
+def pointAdd(ec: EllipticCurve, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
     if P is not None: P = tuple_from_Point(ec, P)
     if Q is not None: Q = tuple_from_Point(ec, Q)
-    return ec.pointAdd_raw(P, Q)
+    return ec.pointAdd(P, Q)
 
 
-def pointDouble(ec, P: Optional[GenericPoint]) -> Optional[Point]:
+def pointDouble(ec: EllipticCurve, P: Optional[GenericPoint]) -> Optional[Point]:
     if P is not None: P = tuple_from_Point(ec, P)
-    return ec.pointDouble_raw(P)
+    return ec.pointDouble(P)
 
 
 Scalar = Union[str, bytes, bytearray, int]
 
 
-def int_from_Scalar(ec, n: Scalar) -> int:
+def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
     if isinstance(n, str): # hex string
-        if n[:2] == "0x":
-            n = n[2:]
-        assert len(n) & 2 == 0, "odd-length hex string"
         n = bytes.fromhex(n)
 
     if isinstance(n, bytes) or isinstance(n, bytearray):
@@ -207,14 +206,14 @@ def int_from_Scalar(ec, n: Scalar) -> int:
     return n % ec.order
         
 
-def bytes_from_Scalar(ec, n: Scalar) -> bytes:
+def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     # enforce self-consistency with whatever
     # policy is implemented by int_from_Scalar
     n = int_from_Scalar(ec, n)
     return n.to_bytes(ec.bytesize, 'big')
 
 
-def pointMultiply(ec, n: Scalar, P: Optional[GenericPoint]) -> Optional[Point]:
+def pointMultiply(ec: EllipticCurve, n: Scalar, P: Optional[GenericPoint]) -> Optional[Point]:
     n = int_from_Scalar(ec, n)
     if P is not None: P = tuple_from_Point(ec, P)
     return ec.pointMultiply(n, P)

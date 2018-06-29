@@ -33,7 +33,7 @@ ADDRESS  = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
 
 def bip32_master_prvkey_from_seed(bip32_seed: Union[str, bytes], version: bytes) -> bytes:
     """derive the master extended private key from the seed"""
-    if type(bip32_seed) == str:
+    if type(bip32_seed) == str: # hex string
         bip32_seed = bytes.fromhex(bip32_seed)
     assert version in PRIVATE, "wrong version, master key must be private"
     xmprv = version                             # version
