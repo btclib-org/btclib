@@ -4,7 +4,9 @@ Python library (and assorted material) originated from the Bitcoin and Blockchai
 
 The `btclib` folder contains Python code, namely Python3 with type annotation. It is not intended to be used in production environments, as it will probably have major refactorings with no care at all for backward compatibility.
 
-[![Build Status](https://travis-ci.org/dginst/BitcoinBlockchainTechnology.svg?branch=develop)](https://travis-ci.org/dginst/BitcoinBlockchainTechnology)
+develop branch [![Build Status](https://travis-ci.org/dginst/BitcoinBlockchainTechnology.svg?branch=develop)](https://travis-ci.org/dginst/BitcoinBlockchainTechnology)
+
+master branch [![Build Status](https://travis-ci.org/dginst/BitcoinBlockchainTechnology.svg?branch=master)](https://travis-ci.org/dginst/BitcoinBlockchainTechnology)
 
 On GitHub Excel spreadsheets are available in the `excel` folder:
 https://github.com/dginst/BitcoinBlockchainTechnology/excel
