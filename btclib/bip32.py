@@ -4,7 +4,9 @@ from hmac import HMAC
 from hashlib import sha512
 from typing import Union, Optional
 from btclib.base58 import b58encode_check, b58decode_check
-from btclib.ellipticcurves import secp256k1 as ec
+from btclib.ellipticcurves import secp256k1 as ec, pointMultiply, \
+                                  bytes_from_Point, int_from_Scalar, \
+                                  tuple_from_point
 from btclib.wifaddress import h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes        Base58 encode starts with
@@ -65,8 +67,8 @@ def bip32_xpub_from_xprv(xprv: bytes) -> bytes:
     xpub += xprv[13:45]                  # chain code
 
     p = xprv[46:]
-    P = ec.pointMultiply(p, ec.G)
-    xpub += ec.bytes_from_point(P, True) # public key
+    P = pointMultiply(ec, p, ec.G)
+    xpub += bytes_from_Point(ec, P, True) # public key
     return b58encode_check(xpub)
 
 
@@ -99,7 +101,7 @@ def bip32_ckd(xparentkey: bytes, index: int) -> bytes:
         assert xparent[45] in (2, 3), \
                "version/key mismatch in extended parent key"
         Parent_bytes = xparent[45:]
-        Parent = ec.tuple_from_point(Parent_bytes)
+        Parent = tuple_from_point(ec, Parent_bytes)
         xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
         assert index[0] < 0x80, \
                "no private/hardened derivation from pubkey"
@@ -110,13 +112,13 @@ def bip32_ckd(xparentkey: bytes, index: int) -> bytes:
         offset = int.from_bytes(h[:32], 'big')
         Offset = ec.pointMultiply(offset, ec.G)
         Child = ec.pointAdd(Parent, Offset)
-        Child_bytes = ec.bytes_from_point(Child, True)
+        Child_bytes = bytes_from_Point(ec, Child, True)
         xkey += Child_bytes                     # public key
     elif (version in PRIVATE):
         assert xparent[45] == 0, "version/key mismatch in extended parent key"
         parent = int.from_bytes(xparent[46:], 'big')
         Parent = ec.pointMultiply(parent, ec.G)
-        Parent_bytes = ec.bytes_from_point(Parent, True)
+        Parent_bytes = bytes_from_Point(ec, Parent, True)
         xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
         xkey += index                           # child index
         parent_chain_code = xparent[13:45]

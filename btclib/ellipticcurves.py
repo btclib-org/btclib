@@ -8,12 +8,9 @@ from math import sqrt, ceil
 from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
-Scalar = Union[str, bytes, bytearray, int]
-
 Point = Tuple[int, int]
-GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
-# Optional[Point] and Optional[GenericPoint] do include the infinity point
+# Optional[Point] do include the infinity point
 
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
@@ -23,7 +20,7 @@ class EllipticCurve:
                  a: int,
                  b: int,
                  prime: int,
-                 G: GenericPoint,
+                 G: Point,
                  order: int) -> None:
         assert 4*a*a*a+27*b*b !=0, "zero discriminant"
         self.__a = a
@@ -31,10 +28,9 @@ class EllipticCurve:
 
         self.__prime = prime
         self.bytesize = ceil(prime.bit_length()/8)
-        self.lencompressed = self.bytesize + 1
-        self.lenuncompressed = 2* self.bytesize + 1
 
-        self.G = self.tuple_from_point(G)
+        checkPoint(self, G)
+        self.G = G
 
         # check order with Hasse Theorem
         t = int(2 * sqrt(prime))
@@ -44,14 +40,17 @@ class EllipticCurve:
         self.order = order
 
         # check (order-1)*G + G = Inf
-        T = self.pointMultiply_raw(order-1, self.G)
-        Inf = self.pointAdd_raw(T, self.G)
+        T = self.pointMultiply(order-1, self.G)
+        Inf = self.pointAdd(T, self.G)
         assert Inf is None, "wrong order"
 
+    def checkPointCoordinate(self, c: int) -> None:
+        assert type(c) == int,  "non-int point coordinate"
+        assert 0 <= c, "point coordinate < 0"
+        assert c < self.__prime, "point coordinate >= prime"
+
     def __y2(self, x: int) -> int:
-        assert type(x) == int,  "non-int x-coordinate"
-        assert 0 <= x, "x-coordinate < 0"
-        assert x < self.__prime, "x-coordinate >= prime"
+        self.checkPointCoordinate(x)
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to have this method as private
@@ -66,16 +65,6 @@ class EllipticCurve:
         # switch even/odd root when needed
         return root if (root % 2 + odd1even0) != 1 else self.__prime - root
 
-    def checkSecondCoordinate(self, y: int) -> None:
-        assert type(y) == int,  "non-int y-coordinate"
-        assert 0 <= y, "y-coordinate < 0"
-        assert y < self.__prime, "y-coordinate >= prime"
-
-    def checkCoordinates(self, Px: int, Py: int) -> None:
-        self.checkSecondCoordinate(Py)
-        y = self.y(Px, Py % 2)
-        assert Py == y, "point is not on the ec"
-  
     def __str__(self) -> str:
         result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
         result += "\n prime = 0x%032x" % (self.__prime)
@@ -90,81 +79,7 @@ class EllipticCurve:
         result += ", 0x%032x)" % (self.order)
         return result
         
-    def tuple_from_point(self, P: Optional[GenericPoint]) -> Point:
-        """ Return a tuple (Px, Py) having ensured it belongs to the curve """
-
-        if isinstance(P, str):
-            # FIXME: xpub is not considered here
-            # which is right as it is a bitcoin convention only,
-            # not an elliptic curve one 
-            P = bytes.fromhex(P)
-
-        if isinstance(P, bytes) or isinstance(P, bytearray):
-            # FIXME: xpub might be dealt with here?
-            if len(P) == self.lencompressed: # compressed point
-                assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
-                Px = int.from_bytes(P[1:self.lencompressed], 'big')
-                Py = self.y(Px, P[0] % 2) # also check Px validity
-            else:            # uncompressed point
-                assert len(P) == self.lenuncompressed, \
-                    "wrong byte-size (%s) for a point: it should be %s" % \
-                                                (len(P), self.lenuncompressed)
-                assert P[0] == 0x04, "not an uncompressed point"
-                Px = int.from_bytes(P[1:self.lencompressed], 'big')
-                Py = int.from_bytes(P[self.lencompressed:], 'big')
-                self.checkCoordinates(Px, Py)
-            return Px, Py
-        elif isinstance(P, tuple):
-            assert len(P) == 2, "invalid tuple point length"
-            self.checkCoordinates(P[0], P[1])
-            return P
-        elif P is None:
-            raise ValueError("infinity point cannot be expressed as tuple")
-        else:
-            raise ValueError("not an elliptic curve point")
-
-
-    def bytes_from_point(self, P: Optional[GenericPoint], compressed: bool) -> bytes:
-        """ Return a compressed (0x02, 0x03) or uncompressed (0x04)
-            point ensuring it belongs to the curve
-        """
-        if isinstance(P, str):
-            P = bytes.fromhex(P)
-
-        if isinstance(P, bytes) or isinstance(P, bytearray):
-            if len(P) == self.lencompressed: # compressed point
-                assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
-                Px = int.from_bytes(P[1:self.lencompressed], 'big')
-                self.y(Px, True) # check Px validity
-                return P
-            else:            # uncompressed point
-                assert len(P) == self.lenuncompressed, \
-                    "wrong byte-size (%s) for a point: it should be %s" % \
-                                                (len(P), self.lenuncompressed)
-                assert P[0] == 0x04, "not an uncompressed point"
-                Px = int.from_bytes(P[1:self.lencompressed], 'big')
-                Py = int.from_bytes(P[self.lencompressed:], 'big')
-                self.checkCoordinates(Px, Py)
-                return P
-        elif isinstance(P, tuple):
-            assert len(P) == 2, "invalid tuple point length"
-            self.checkCoordinates(P[0], P[1])
-            if compressed:
-                prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
-                return prefix + P[0].to_bytes(self.bytesize, byteorder='big')
-            Pbytes = b'\x04' + P[0].to_bytes(self.bytesize, byteorder='big')
-            Pbytes += P[1].to_bytes(self.bytesize, byteorder='big')
-            return Pbytes
-        elif P is None:
-            raise ValueError("infinity point cannot be expressed as bytes")
-        else:
-            raise ValueError("not an elliptic curve point")
-
-    def pointDouble(self, P: Optional[GenericPoint]) -> Optional[Point]:
-        if P is not None: P = self.tuple_from_point(P)
-        return self.pointDouble_raw(P)
-
-    def pointDouble_raw(self, P: Optional[Point]) -> Optional[Point]:
+    def pointDouble(self, P: Optional[Point]) -> Optional[Point]:
         if P is None or P[1] == 0: return None
 
         f = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
@@ -172,17 +87,12 @@ class EllipticCurve:
         y = (f*(P[0]-x)-P[1]) % self.__prime
         return x, y
 
-    def pointAdd(self, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
-        if P is not None: P = self.tuple_from_point(P)
-        if Q is not None: Q = self.tuple_from_point(Q)
-        return self.pointAdd_raw(P, Q)
-
-    def pointAdd_raw(self, P: Optional[Point], Q: Optional[Point]) -> Optional[Point]:
+    def pointAdd(self, P: Optional[Point], Q: Optional[Point]) -> Optional[Point]:
         if Q is None: return P
         if P is None: return Q
 
         if Q[0] == P[0]:
-            if Q[1] == P[1]: return self.pointDouble_raw(P)
+            if Q[1] == P[1]: return self.pointDouble(P)
             else:            return None
 
         lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
@@ -190,46 +100,126 @@ class EllipticCurve:
         y = (lam*(P[0]-x)-P[1]) % self.__prime
         return x, y
 
-    def int_from_Scalar(self, n: Scalar) -> int:
-        if isinstance(n, str): # hex string
-            if n[:2] == "0x":
-                n = n[2:]
-            assert len(n) & 2 == 0, "odd-length hex string"
-            n = bytes.fromhex(n)
-
-        if isinstance(n, bytes) or isinstance(n, bytearray):
-            assert len(n) == self.bytesize, "wrong lenght"
-            n = int.from_bytes(n, 'big')
-
-        if not isinstance(n, int):
-            raise TypeError("a bytes-like object is required (also str or int)")
-        return n % self.order
-            
-
-    def bytes_from_Scalar(self, n: Scalar) -> bytes:
-        # enforce self-consistency with whatever
-        # policy is implemented by int_from_prvkey
-        n = self.int_from_Scalar(n)
-        return n.to_bytes(self.bytesize, 'big')
-
-
-    def pointMultiply(self, n: Scalar, P: Optional[GenericPoint]) -> Optional[Point]:
-        n = self.int_from_Scalar(n)
-        if P is not None: P = self.tuple_from_point(P)
-        return self.pointMultiply_raw(n, P)
-
     # efficient double & add, using binary decomposition of n
-    def pointMultiply_raw(self, n: int, P: Optional[Point]) -> Optional[Point]:
+    def pointMultiply(self, n: int, P: Optional[Point]) -> Optional[Point]:
         n = n % self.order # the group is cyclic
         result = None      # initialized to infinity point
         addendum = P       # initialized as 2^0 P
         while n > 0:       # use binary representation of n
             if n & 1:      # if least significant bit is 1 add current addendum
-                result = self.pointAdd_raw(result, addendum)
+                result = self.pointAdd(result, addendum)
             n = n>>1       # right shift to remove the bit just accounted for
                            # then update addendum for next step:
-            addendum = self.pointDouble_raw(addendum)
+            addendum = self.pointDouble(addendum)
         return result
+
+
+### Functions using EllipticCurve ####
+
+def checkPointCoordinates(ec, Px: int, Py: int) -> None:
+    ec.checkPointCoordinate(Py)
+    y = ec.y(Px, Py % 2) # also check x-coordinate validity
+    assert Py == y, "point is not on the ec"
+  
+def checkPoint(ec, P: Point) -> None:
+    assert isinstance(P, tuple), "not a tuple point"
+    assert len(P) == 2, "invalid tuple point length %s" % len(P)
+    checkPointCoordinates(ec, P[0], P[1])
+
+GenericPoint = Union[str, bytes, bytearray, Point]
+# infinity point being represented by None,
+# Optional[GenericPoint] do include the infinity point
+
+def tuple_from_point(ec, P: Optional[GenericPoint]) -> Point:
+    """ Return a tuple (Px, Py) having ensured it belongs to the curve """
+
+    if P is None:
+        raise ValueError("infinity point cannot be expressed as tuple")
+
+    if isinstance(P, str):
+        # BIP32 xpub is not considered here,
+        # as it is a bitcoin convention only
+        P = bytes.fromhex(P)
+
+    if isinstance(P, bytes) or isinstance(P, bytearray):
+        if len(P) == ec.bytesize+1: # compressed point
+            assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
+            Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
+            Py = ec.y(Px, P[0] % 2) # also check Px validity
+        else:                       # uncompressed point
+            assert len(P) == 2*ec.bytesize+1, \
+                "wrong byte-size (%s) for a point: it should be %s or %s" % \
+                                    (len(P), ec.bytesize+1, 2*ec.bytesize+1)
+            assert P[0] == 0x04, "not an uncompressed point"
+            Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
+            Py = int.from_bytes(P[ec.bytesize+1:], 'big')
+            checkPointCoordinates(ec, Px, Py)
+        return Px, Py
+
+    checkPoint(ec, P)
+    return P
+
+
+def bytes_from_Point(ec, P: Optional[GenericPoint], compressed: bool) -> bytes:
+    """ Return a compressed (0x02, 0x03) or uncompressed (0x04)
+        point ensuring it belongs to the curve
+    """
+    # enforce self-consistency with whatever
+    # policy is implemented by tuple_from_point
+    P = tuple_from_point(ec, P)
+
+    if compressed:
+        prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
+        return prefix + P[0].to_bytes(ec.bytesize, byteorder='big')
+
+    Pbytes = b'\x04' + P[0].to_bytes(ec.bytesize, byteorder='big')
+    Pbytes += P[1].to_bytes(ec.bytesize, byteorder='big')
+    return Pbytes
+
+
+def pointAdd(ec, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
+    if P is not None: P = tuple_from_point(ec, P)
+    if Q is not None: Q = tuple_from_point(ec, Q)
+    return ec.pointAdd_raw(P, Q)
+
+
+def pointDouble(ec, P: Optional[GenericPoint]) -> Optional[Point]:
+    if P is not None: P = tuple_from_point(ec, P)
+    return ec.pointDouble_raw(P)
+
+
+Scalar = Union[str, bytes, bytearray, int]
+
+
+def int_from_Scalar(ec, n: Scalar) -> int:
+    if isinstance(n, str): # hex string
+        if n[:2] == "0x":
+            n = n[2:]
+        assert len(n) & 2 == 0, "odd-length hex string"
+        n = bytes.fromhex(n)
+
+    if isinstance(n, bytes) or isinstance(n, bytearray):
+        assert len(n) == ec.bytesize, "wrong lenght"
+        n = int.from_bytes(n, 'big')
+
+    if not isinstance(n, int):
+        raise TypeError("a bytes-like object is required (also str or int)")
+    return n % ec.order
+        
+
+def bytes_from_Scalar(ec, n: Scalar) -> bytes:
+    # enforce self-consistency with whatever
+    # policy is implemented by int_from_Scalar
+    n = int_from_Scalar(ec, n)
+    return n.to_bytes(ec.bytesize, 'big')
+
+
+def pointMultiply(ec, n: Scalar, P: Optional[GenericPoint]) -> Optional[Point]:
+    n = int_from_Scalar(ec, n)
+    if P is not None: P = tuple_from_point(ec, P)
+    return ec.pointMultiply(n, P)
+
+
 
 
 # http://www.secg.org/sec2-v2.pdf

@@ -2,6 +2,7 @@
 
 import unittest
 from btclib.ellipticcurves import EllipticCurve, \
+                                  bytes_from_Point, tuple_from_point, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
@@ -203,16 +204,16 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(Gy_even % 2, 0)
             self.assertTrue(G[1] in (Gy_odd, Gy_even))
 
-            Gbytes = ec.bytes_from_point(G, True)
-            Gbytes = ec.bytes_from_point(Gbytes, True)
-            G2 = ec.tuple_from_point(Gbytes)
-            G2 = ec.tuple_from_point(G2)
+            Gbytes = bytes_from_Point(ec, G, True)
+            Gbytes = bytes_from_Point(ec, Gbytes, True)
+            G2 = tuple_from_point(ec, Gbytes)
+            G2 = tuple_from_point(ec, G2)
             self.assertEqual(G, G2)
 
-            Gbytes = ec.bytes_from_point(G, False)
-            Gbytes = ec.bytes_from_point(Gbytes, False)
-            G2 = ec.tuple_from_point(Gbytes)
-            G2 = ec.tuple_from_point(G2)
+            Gbytes = bytes_from_Point(ec, G, False)
+            Gbytes = bytes_from_Point(ec, Gbytes, False)
+            G2 = tuple_from_point(ec, Gbytes)
+            G2 = tuple_from_point(ec, G2)
             self.assertEqual(G, G2)
 
             P = ec.pointAdd(infinity, G)
@@ -244,19 +245,19 @@ class TestEllipticCurve(unittest.TestCase):
         Pub = secp256k1.pointMultiply(prv, secp256k1.G)
         
         Pub_bytes = b'\x02' + Pub[0].to_bytes(32, "big")
-        p2 = secp256k1.tuple_from_point(Pub_bytes)
+        p2 = tuple_from_point(secp256k1, Pub_bytes)
         self.assertEqual(p2, Pub)
 
         Pub_hex_str = Pub_bytes.hex()
-        p2 = secp256k1.tuple_from_point(Pub_hex_str)
+        p2 = tuple_from_point(secp256k1, Pub_hex_str)
         self.assertEqual(p2, Pub)
 
         Pub_bytes = b'\x04' + Pub[0].to_bytes(32, "big") + Pub[1].to_bytes(32, "big")
-        p2 = secp256k1.tuple_from_point(Pub_bytes)
+        p2 = tuple_from_point(secp256k1, Pub_bytes)
         self.assertEqual(p2, Pub)
 
         Pub_hex_str = Pub_bytes.hex()
-        p2 = secp256k1.tuple_from_point(Pub_hex_str)
+        p2 = tuple_from_point(secp256k1, Pub_hex_str)
         self.assertEqual(p2, Pub)
 
 

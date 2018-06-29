@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from btclib.wifaddress import ec, \
+from btclib.wifaddress import ec, bytes_from_Scalar, \
                               wif_from_prvkey, prvkey_from_wif, \
                               address_from_pubkey, hash160_from_address, \
                               pubkey_from_prvkey
@@ -10,7 +10,7 @@ class TestKeys(unittest.TestCase):
 
     def test_wif_from_prvkey(self):
         p_num = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-        p_bytes = ec.bytes_from_Scalar(p_num)
+        p_bytes = bytes_from_Scalar(ec, p_num)
         p_hex = p_bytes.hex()
 
         # private key as number
@@ -51,18 +51,26 @@ class TestKeys(unittest.TestCase):
 
     def test_address_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
-        p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-        p = p % ec.order
-        a = address_from_pubkey(pubkey_from_prvkey(p, False))
-        self.assertEqual(a, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-        hash160_from_address(a)
-        a = address_from_pubkey(pubkey_from_prvkey(p, True))
-        self.assertEqual(a, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        hash160_from_address(a)
+        prv = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+        prv = prv % ec.order
+
+        pub = pubkey_from_prvkey(prv, True)
+        self.assertEqual(pub.hex(), '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352')
+        addr = address_from_pubkey(pub)
+        self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
+        hash160_from_address(addr)
+
+        pub = pubkey_from_prvkey(prv, False)
+        addr = address_from_pubkey(pub)
+        self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
+        hash160_from_address(addr)
+
   
     def test_address_from_wif(self):
         wif1 = "5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-        a = address_from_pubkey(pubkey_from_prvkey(*prvkey_from_wif(wif1)))
+        prvkey, compressed = prvkey_from_wif(wif1)
+        pubkey = pubkey_from_prvkey(prvkey, compressed)
+        a = address_from_pubkey(pubkey)
         self.assertEqual(a, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
 
         wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162"

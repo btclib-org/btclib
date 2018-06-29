@@ -10,6 +10,7 @@ https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-9
 """
 
 import unittest
+from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point
 from btclib.ecssa import sha256, ec, int_from_hash, ecssa_verify
 
 class TestEcssaMuSig(unittest.TestCase):
@@ -18,9 +19,9 @@ class TestEcssaMuSig(unittest.TestCase):
         m = sha256(msg.encode()).digest()
 
         # first signer (is the message needed here? maybe for rfc6979?)
-        prv1 = ec.int_from_Scalar('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
+        prv1 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
         Q1 = ec.pointMultiply(prv1, ec.G)
-        HQ1 = int_from_hash(sha256(ec.bytes_from_point(Q1, False)).digest(), ec.order)
+        HQ1 = int_from_hash(sha256(bytes_from_Point(ec, Q1, False)).digest(), ec.order)
         prv1 = HQ1* prv1
 
         eph_prv1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb
@@ -31,9 +32,9 @@ class TestEcssaMuSig(unittest.TestCase):
         R1_x = R1[0]
 
         # second signer (is the message needed here? maybe for rfc6979?)
-        prv2 = ec.int_from_Scalar('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        prv2 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q2 = ec.pointMultiply(prv2, ec.G)
-        HQ2 = int_from_hash(sha256(ec.bytes_from_point(Q2, False)).digest(), ec.order)
+        HQ2 = int_from_hash(sha256(bytes_from_Point(ec, Q2, False)).digest(), ec.order)
         prv2 = HQ2* prv2
 
         eph_prv2 = 0x01a2a0d3eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbdb
