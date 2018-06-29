@@ -2,7 +2,7 @@
 
 import unittest
 from btclib.ellipticcurves import EllipticCurve, \
-                                  bytes_from_Point, tuple_from_point, \
+                                  bytes_from_Point, tuple_from_Point, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
@@ -206,14 +206,14 @@ class TestEllipticCurve(unittest.TestCase):
 
             Gbytes = bytes_from_Point(ec, G, True)
             Gbytes = bytes_from_Point(ec, Gbytes, True)
-            G2 = tuple_from_point(ec, Gbytes)
-            G2 = tuple_from_point(ec, G2)
+            G2 = tuple_from_Point(ec, Gbytes)
+            G2 = tuple_from_Point(ec, G2)
             self.assertEqual(G, G2)
 
             Gbytes = bytes_from_Point(ec, G, False)
             Gbytes = bytes_from_Point(ec, Gbytes, False)
-            G2 = tuple_from_point(ec, Gbytes)
-            G2 = tuple_from_point(ec, G2)
+            G2 = tuple_from_Point(ec, Gbytes)
+            G2 = tuple_from_Point(ec, G2)
             self.assertEqual(G, G2)
 
             P = ec.pointAdd(infinity, G)
@@ -245,19 +245,19 @@ class TestEllipticCurve(unittest.TestCase):
         Pub = secp256k1.pointMultiply(prv, secp256k1.G)
         
         Pub_bytes = b'\x02' + Pub[0].to_bytes(32, "big")
-        p2 = tuple_from_point(secp256k1, Pub_bytes)
+        p2 = tuple_from_Point(secp256k1, Pub_bytes)
         self.assertEqual(p2, Pub)
 
         Pub_hex_str = Pub_bytes.hex()
-        p2 = tuple_from_point(secp256k1, Pub_hex_str)
+        p2 = tuple_from_Point(secp256k1, Pub_hex_str)
         self.assertEqual(p2, Pub)
 
         Pub_bytes = b'\x04' + Pub[0].to_bytes(32, "big") + Pub[1].to_bytes(32, "big")
-        p2 = tuple_from_point(secp256k1, Pub_bytes)
+        p2 = tuple_from_Point(secp256k1, Pub_bytes)
         self.assertEqual(p2, Pub)
 
         Pub_hex_str = Pub_bytes.hex()
-        p2 = tuple_from_point(secp256k1, Pub_hex_str)
+        p2 = tuple_from_Point(secp256k1, Pub_hex_str)
         self.assertEqual(p2, Pub)
 
 

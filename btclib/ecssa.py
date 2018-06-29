@@ -9,7 +9,7 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   Point as PubKey, GenericPoint as GenericPubKey, \
                                   mod_inv, \
                                   secp256k1 as ec, \
-                                  int_from_Scalar, tuple_from_point
+                                  int_from_Scalar, tuple_from_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature, int_from_hash
 
@@ -40,7 +40,7 @@ def ecssa_sign_raw(m: bytes, prvkey: int, eph_prv: int, hasher = sha256) -> Sign
 def ecssa_verify(m: Message, ssasig: Signature, pubkey: GenericPubKey, hasher = sha256) -> bool:
     if type(m) == str: m = hasher(m.encode()).digest()
     check_ssasig(ssasig)
-    pubkey =  tuple_from_point(ec, pubkey)
+    pubkey =  tuple_from_Point(ec, pubkey)
     return ecssa_verify_raw(m, ssasig, pubkey, hasher) # FIXME: this is just the message hasher
 
 

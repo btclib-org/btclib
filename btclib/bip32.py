@@ -6,7 +6,7 @@ from typing import Union, Optional
 from btclib.base58 import b58encode_check, b58decode_check
 from btclib.ellipticcurves import secp256k1 as ec, pointMultiply, \
                                   bytes_from_Point, int_from_Scalar, \
-                                  tuple_from_point
+                                  tuple_from_Point
 from btclib.wifaddress import h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes        Base58 encode starts with
@@ -101,7 +101,7 @@ def bip32_ckd(xparentkey: bytes, index: int) -> bytes:
         assert xparent[45] in (2, 3), \
                "version/key mismatch in extended parent key"
         Parent_bytes = xparent[45:]
-        Parent = tuple_from_point(ec, Parent_bytes)
+        Parent = tuple_from_Point(ec, Parent_bytes)
         xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
         assert index[0] < 0x80, \
                "no private/hardened derivation from pubkey"

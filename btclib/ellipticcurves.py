@@ -130,7 +130,7 @@ GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
 # Optional[GenericPoint] do include the infinity point
 
-def tuple_from_point(ec, P: Optional[GenericPoint]) -> Point:
+def tuple_from_Point(ec, P: Optional[GenericPoint]) -> Point:
     """ Return a tuple (Px, Py) having ensured it belongs to the curve """
 
     if P is None:
@@ -165,8 +165,8 @@ def bytes_from_Point(ec, P: Optional[GenericPoint], compressed: bool) -> bytes:
         point ensuring it belongs to the curve
     """
     # enforce self-consistency with whatever
-    # policy is implemented by tuple_from_point
-    P = tuple_from_point(ec, P)
+    # policy is implemented by tuple_from_Point
+    P = tuple_from_Point(ec, P)
 
     if compressed:
         prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
@@ -178,13 +178,13 @@ def bytes_from_Point(ec, P: Optional[GenericPoint], compressed: bool) -> bytes:
 
 
 def pointAdd(ec, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
-    if P is not None: P = tuple_from_point(ec, P)
-    if Q is not None: Q = tuple_from_point(ec, Q)
+    if P is not None: P = tuple_from_Point(ec, P)
+    if Q is not None: Q = tuple_from_Point(ec, Q)
     return ec.pointAdd_raw(P, Q)
 
 
 def pointDouble(ec, P: Optional[GenericPoint]) -> Optional[Point]:
-    if P is not None: P = tuple_from_point(ec, P)
+    if P is not None: P = tuple_from_Point(ec, P)
     return ec.pointDouble_raw(P)
 
 
@@ -216,7 +216,7 @@ def bytes_from_Scalar(ec, n: Scalar) -> bytes:
 
 def pointMultiply(ec, n: Scalar, P: Optional[GenericPoint]) -> Optional[Point]:
     n = int_from_Scalar(ec, n)
-    if P is not None: P = tuple_from_point(ec, P)
+    if P is not None: P = tuple_from_Point(ec, P)
     return ec.pointMultiply(n, P)
 
 

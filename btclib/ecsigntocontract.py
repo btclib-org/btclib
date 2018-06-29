@@ -27,7 +27,7 @@ from btclib.ellipticcurves import Optional, Tuple, \
                                   Scalar, Point, \
                                   secp256k1 as ec, \
                                   bytes_from_Point, int_from_Scalar, \
-                                  tuple_from_point
+                                  tuple_from_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_sign_raw
 from btclib.ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_sign_raw
@@ -80,7 +80,7 @@ def ecssa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optio
 def verify_commit(receipt: Receipt, c: Message, hasher = sha256) -> bool:
     w, R = receipt
     ec.y(w, False)  # receipt[0] is valid iif its y does exist
-    tuple_from_point(ec, R)  # verify it is a good point
+    tuple_from_Point(ec, R)  # verify it is a good point
     if type(c) == str: c = hasher(c.encode()).digest()
     e = hasher(bytes_from_Point(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
