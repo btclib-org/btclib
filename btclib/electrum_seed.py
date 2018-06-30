@@ -62,6 +62,7 @@ def electrum_master_prvkey_from_mnemonic(mnemonic: str, passphrase: str, xversio
   elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
     # FIXME: parametrizazion of the prefix is needed (mainnet/testnet?)
     mprv = bip32_master_prvkey_from_seed(seed, b'\x04\xb2\x43\x0c')
+    # BIP32 default first account: m/0'
     return bip32_ckd(mprv, 0x80000000)
   else:
     raise ValueError("unmanaged electrum mnemonic version")
