@@ -58,8 +58,7 @@ def bip32_xpub_from_xprv(xprv: bytes) -> bytes:
     Computation of the extended public key corresponding to an extended
     private key (“neutered” as it removes the ability to sign transactions)
     """
-    xprv = b58decode_check(xprv)
-    assert len(xprv) == 78, "wrong length for decoded extended private key"
+    xprv = b58decode_check(xprv, 78)
     assert xprv[45] == 0, "extended key is not a private one"
 
     i = PRIVATE.index(xprv[:4])
@@ -95,8 +94,7 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
     else:
         raise TypeError("a 4 bytes int is required")
 
-    xparent = b58decode_check(xparentkey)
-    assert len(xparent) == 78, "wrong length for extended parent key"
+    xparent = b58decode_check(xparentkey, 78)
 
     version = xparent[:4]
 
@@ -157,7 +155,7 @@ def bip32_derive(xkey: bytes, path: str) -> bytes:
         if steps[0] not in {'m', '.'}:
             raise ValueError('Invalid derivation path: {}'.format(path))  
         if steps[0] == 'm':
-            decoded = b58decode_check(xkey)
+            decoded = b58decode_check(xkey, 78)
             t = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
             assert decoded[4:13] == t, "Trying to derive absolute path from non-master key"
 
@@ -179,8 +177,7 @@ def bip32_derive(xkey: bytes, path: str) -> bytes:
 
 # FIXME: revise address_from_xpub / address_from_pubkey relation
 def address_from_xpub(xpub: bytes, version: Optional[bytes] = None):
-    xpub = b58decode_check(xpub)
-    assert len(xpub) == 78, "wrong length for decoded extended public key"
+    xpub = b58decode_check(xpub, 78)
     assert xpub[45] in (2, 3), "extended key is not a public one"
     # bitcoin: address version can be derived from xkey version
     # altcoin: address version cannot be derived from xkey version
@@ -193,12 +190,10 @@ def address_from_xpub(xpub: bytes, version: Optional[bytes] = None):
     return address_from_pubkey(xpub[45:], version)
 
 def bip32_crack(parent_xpub: bytes, child_xprv: bytes) -> bytes:
-    parent_xpub = b58decode_check(parent_xpub)
-    assert len(parent_xpub) == 78, "wrong length for decoded extended parent public key"
+    parent_xpub = b58decode_check(parent_xpub, 78)
     assert parent_xpub[45] in (2, 3), "extended parent key is not a public one"
 
-    child_xprv = b58decode_check(child_xprv)
-    assert len(child_xprv) == 78, "wrong length for decoded extended child private key"
+    child_xprv = b58decode_check(child_xprv, 78)
     assert child_xprv[45] == 0, "extended child key is not a private one"
 
     # check depth
@@ -230,8 +225,7 @@ def bip32_crack(parent_xpub: bytes, child_xprv: bytes) -> bytes:
     return b58encode_check(parent_xprv)
 
 def bip32_child_index(xkey: bytes) -> bytes:
-    xkey = b58decode_check(xkey)
-    assert len(xkey) == 78, "wrong length for extended key"
+    xkey = b58decode_check(xkey, 78)
     if xkey[4]==0:
         raise ValueError("master key provided")
     return xkey[ 9:13]
