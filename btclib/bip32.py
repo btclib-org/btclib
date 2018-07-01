@@ -231,6 +231,7 @@ def bip32_crack(parent_xpub: bytes, child_xprv: bytes) -> bytes:
 
 def bip32_child_index(xkey: bytes) -> bytes:
     xkey = b58decode_check(xkey)
+    assert len(xkey) == 78, "wrong length for extended key"
     if xkey[4]==0:
         raise ValueError("master key provided")
     return xkey[ 9:13]
