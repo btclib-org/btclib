@@ -87,7 +87,7 @@ def b58decode(v: Union[str, bytes], length: Optional[int] = None) -> bytes:
     result = b'\0' * nPad + result
 
     if length is not None and len(result) != length:
-        raise ValueError("Invalid length for decoded")
+        raise ValueError("Invalid length for decoded bytes")
     return result
 
 def b58encode_check(v: bytes) -> bytes:
@@ -100,8 +100,7 @@ def b58encode_check(v: bytes) -> bytes:
 def b58decode_check(v: bytes, length: Optional[int] = None) -> bytes:
     '''Decode Base58 encoded bytes and verify checksum and length'''
 
-    if length is not None:
-        length += 4
+    if length is not None: length += 4
     result = b58decode(v, length)
     result, check = result[:-4], result[-4:]
 
