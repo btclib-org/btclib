@@ -59,8 +59,7 @@ def address_from_pubkey(pubkey: bytes, version: bytes = b'\x00') -> bytes:
 
 
 def hash160_from_address(addr: Address) -> bytes:
-    payload = b58decode_check(addr)
-    assert len(payload) == 21, "not an address"
+    payload = b58decode_check(addr, 21)
     # FIXME: this is mainnet only
     assert payload[0] == 0x00, "not an address"
     return payload[1:]

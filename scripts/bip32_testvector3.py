@@ -4,7 +4,7 @@ from ellipticcurves import secp256k1 as ec
 from wifaddress import h160, address_from_pubkey
 from hmac import HMAC
 from hashlib import sha512
-from base58 import b58encode_check, b58decode_check
+from base58 import b58encode_check
 
 ## https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
