@@ -4,7 +4,7 @@ from hmac import HMAC
 from hashlib import sha512
 from btclib.ellipticcurves import secp256k1 as ec, bytes_from_Point
 from btclib.wifaddress import h160, address_from_pubkey
-from btclib.base58 import b58encode_check, b58decode_check
+from btclib.base58 import b58encode_check
 
 ## https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
