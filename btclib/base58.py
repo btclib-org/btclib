@@ -2,10 +2,11 @@
 
 '''Base58 encoding
 
-Implementations of Base58 and Base58Check.
+Implementation of Base58 and Base58Check,
+originally from https://github.com/keis/base58,
+revised for type annotated python3, with minor improvements
+and added check functionalities
 '''
-
-# credit to...
 
 from hashlib import sha256
 from typing import Union, Optional
