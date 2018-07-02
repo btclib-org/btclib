@@ -4,7 +4,7 @@
 Elliptic curve class, associated functions, and instances of SEC2 curves
 """
 
-from math import sqrt, ceil
+from math import sqrt
 from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
@@ -27,7 +27,7 @@ class EllipticCurve:
         self.__b = b
 
         self.__prime = prime
-        self.bytesize = ceil(prime.bit_length()/8)
+        self.bytesize = (prime.bit_length() + 7) // 8
 
         checkPoint(self, G)
         self.G = G
