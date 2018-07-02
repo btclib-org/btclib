@@ -11,7 +11,7 @@ from btclib.ellipticcurves import Union, \
                                   Scalar as PrivateKey, Point as PublicKey, \
                                   secp256k1 as ec, pointMultiply, \
                                   bytes_from_Scalar, bytes_from_Point
-from btclib.base58 import b58encode_check, b58decode_check, base58digits
+from btclib.base58 import b58encode_check, b58decode_check
 
 WIF = Union[str, bytes]
 Address = Union[str, bytes]

@@ -11,10 +11,13 @@ from hashlib import sha256
 from typing import Union, Optional
 
 # 58 character alphabet used
-base58digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-__base = len(base58digits)
+__digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+__base = len(__digits)
 
-def to_bytes(v: Union[str, bytes]):
+def double_sha256(s: bytes) -> bytes:
+    return sha256(sha256(s).digest()).digest()
+
+def to_bytes(v: Union[str, bytes]) -> bytes:
     '''Return bytes from bytes or string'''
     if isinstance(v, str): v = v.encode('ascii')
     if not isinstance(v, bytes):
@@ -23,89 +26,84 @@ def to_bytes(v: Union[str, bytes]):
             type(v).__name__)
     return v
 
-def b58encode_int(i: int, default_one: bool = True) -> bytes:
-    '''Encode an integer using Base58'''
-    if not i and default_one:
-        return base58digits[0:1]
-    string = b""
-    while i >= __base:
-        i, idx = divmod(i, __base)
-        string = base58digits[idx:idx+1] + string
-    string = base58digits[i:i+1] + string
-    return string
-
-def b58decode_int(v: Union[str, bytes]) -> int:
-    '''Decode Base58 encoded bytes (or string) as integer'''
+def b58encode_check(v: Union[str, bytes]) -> bytes:
+    '''Encode bytes (or string) using Base58 with a 4 character checksum'''
 
     v = to_bytes(v)
 
-    decimal = 0
-    for char in v:
-        decimal = decimal * __base + base58digits.index(char)
-    return decimal
+    digest = double_sha256(v)
+    result = b58encode(v + digest[:4])
+    return result
 
 def b58encode(v: Union[str, bytes]) -> bytes:
     '''Encode bytes (or string) using Base58'''
 
     v = to_bytes(v)
 
-    # leading-0s will become leading-1s
+    # preserve leading-0s
+    # leading-0s will become base58 leading-1s
     nPad = len(v)
     v = v.lstrip(b'\0')
     nPad -= len(v)
+    prefix = __digits[0:1] * nPad
 
-    p, acc = 1, 0
-    for c in reversed(v):
-        acc += p * c
-        p = p << 8
+    i = int.from_bytes(v, 'big')
+    result = b58encode_int(i, False)
 
-    result = b58encode_int(acc, False)
+    return prefix + result
 
-    # adding leading-1s
-    return (base58digits[0:1] * nPad + result)
+def b58encode_int(i: int, default_one: bool = True) -> bytes:
+    '''Encode an integer using Base58'''
+    if not i and default_one:
+        return __digits[0:1]
+    result = b""
+    while i >= __base:
+        i, idx = divmod(i, __base)
+        result = __digits[idx:idx+1] + result
+    result = __digits[i:i+1] + result
+    return result
 
-def b58decode(v: Union[str, bytes], length: Optional[int] = None) -> bytes:
-    '''Decode Base58 encoded bytes (or string) and verify required length'''
+def b58decode_check(v: Union[str, bytes], output_size: Optional[int] = None) -> bytes:
+    '''Decode Base58 encoded bytes (or string); also verify checksum and required output length'''
 
     v = to_bytes(v)
 
-    # leading-1s will become leading-0s
+    if output_size is not None: output_size += 4
+    result = b58decode(v, output_size)
+    result, checksum = result[:-4], result[-4:]
+
+    digest = double_sha256(result)
+    if checksum != digest[:4]:
+        raise ValueError('Invalid checksum: {} {}'.format(checksum,digest[:4]))
+    return result
+
+def b58decode(v: Union[str, bytes], output_size: Optional[int] = None) -> bytes:
+    '''Decode Base58 encoded bytes (or string) and verify required output length'''
+
+    v = to_bytes(v)
+
+    # preserve leading-0s
+    # base58 leading-1s will become leading-0s
     nPad = len(v)
-    v = v.lstrip(base58digits[0:1])
+    v = v.lstrip(__digits[0:1])
     nPad -= len(v)
+    prefix = b'\0' * nPad
 
-    acc = b58decode_int(v)
+    i = b58decode_int(v)
+    nbytes = (i.bit_length() + 7) // 8
+    result = prefix + i.to_bytes(nbytes, 'big')
 
-    result = []
-    while acc >= 256:
-        acc, mod = divmod(acc, 256)
-        result.append(mod)
-    result.append(acc)
-    result = bytes(reversed(result))
-
-    # adding leading-0s
-    result = b'\0' * nPad + result
-
-    if length is not None and len(result) != length:
-        raise ValueError("Invalid length for decoded bytes")
+    if output_size is not None and len(result) != output_size:
+        raise ValueError(
+            "Invalid decoded byte length: %s (%s was required instead)" %
+            (len(result), output_size))
     return result
 
-def b58encode_check(v: bytes) -> bytes:
-    '''Encode bytes using Base58 with a 4 character checksum'''
+def b58decode_int(v: bytes) -> int:
+    '''Decode Base58 encoded bytes as integer'''
 
-    digest = sha256(sha256(v).digest()).digest()
-    result = b58encode(v + digest[:4])
-    return result
-
-def b58decode_check(v: bytes, length: Optional[int] = None) -> bytes:
-    '''Decode Base58 encoded bytes and verify checksum and length'''
-
-    if length is not None: length += 4
-    result = b58decode(v, length)
-    result, check = result[:-4], result[-4:]
-
-    digest = sha256(sha256(result).digest()).digest()
-    if check != digest[:4]:
-        raise ValueError("Invalid checksum")
-
-    return result
+    i = 0
+    for char in v:
+        i *= __base
+        i += __digits.index(char)
+    return i
