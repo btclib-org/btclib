@@ -42,26 +42,26 @@ def b58encode(v: Union[str, bytes]) -> bytes:
     v = to_bytes(v)
 
     # preserve leading-0s
-    # leading-0s will become base58 leading-1s
+    # leading-0s become base58 leading-1s
     nPad = len(v)
     v = v.lstrip(b'\0')
-    nPad -= len(v)
-    prefix = __digits[0:1] * nPad
+    vlen = len(v)
+    nPad -= vlen
+    result = __digits[0:1] * nPad
 
-    i = int.from_bytes(v, 'big')
-    result = b58encode_int(i, False)
+    if vlen:
+        i = int.from_bytes(v, 'big')
+        result = result + b58encode_int(i)
 
-    return prefix + result
+    return result
 
-def b58encode_int(i: int, default_one: bool = True) -> bytes:
+def b58encode_int(i: int) -> bytes:
     '''Encode an integer using Base58'''
-    if not i and default_one:
-        return __digits[0:1]
+    if i == 0: return __digits[0:1]
     result = b""
-    while i >= __base:
+    while i > 0:
         i, idx = divmod(i, __base)
         result = __digits[idx:idx+1] + result
-    result = __digits[i:i+1] + result
     return result
 
 def b58decode_check(v: Union[str, bytes], output_size: Optional[int] = None) -> bytes:
@@ -84,15 +84,17 @@ def b58decode(v: Union[str, bytes], output_size: Optional[int] = None) -> bytes:
     v = to_bytes(v)
 
     # preserve leading-0s
-    # base58 leading-1s will become leading-0s
+    # base58 leading-1s become leading-0s
     nPad = len(v)
     v = v.lstrip(__digits[0:1])
-    nPad -= len(v)
-    prefix = b'\0' * nPad
+    vlen = len(v)
+    nPad -= vlen
+    result = b'\0' * nPad
 
-    i = b58decode_int(v)
-    nbytes = (i.bit_length() + 7) // 8
-    result = prefix + i.to_bytes(nbytes, 'big')
+    if vlen:
+        i = b58decode_int(v)
+        nbytes = (i.bit_length() + 7) // 8
+        result = result + i.to_bytes(nbytes, 'big')
 
     if output_size is not None and len(result) != output_size:
         raise ValueError(
