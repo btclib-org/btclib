@@ -11,7 +11,7 @@ and added check functionalities
 from hashlib import sha256
 from typing import Union, Optional
 
-# 58 character alphabet used
+# used digits
 __digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __base = len(__digits)
 

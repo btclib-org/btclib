@@ -3,8 +3,7 @@
 import unittest
 from btclib.base58 import b58encode, b58encode_check, \
                           b58decode, b58decode_check, \
-                          b58encode_int, b58decode_int, \
-                          __digits
+                          b58encode_int, b58decode_int
 
 class TestBase58CheckEncoding(unittest.TestCase):
     def test_b58_empty(self):
