@@ -8,7 +8,7 @@ setup(
     name = btclib.name,
     version = btclib.__version__,
     url = 'https://github.com/dginst/BitcoinBlockchainTechnology',
-    license='MIT License',
+    license = 'MIT License',
     author = 'Ferdinando M. Ametrano',
     author_email = 'ferdinando@ametrano.net',
     description = 'A bitcoin python library for students',
