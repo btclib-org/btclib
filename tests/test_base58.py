@@ -49,7 +49,6 @@ class TestBase58CheckEncoding(unittest.TestCase):
             self.assertEqual(b58encode_int(i), char)
         number = 0x111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5  # noqa
         self.assertEqual(b58decode_int(digits), number)
-        t = b58encode_int(number)
         self.assertEqual(b58encode_int(number), digits[1:])            
 
     def test_wif(self):
