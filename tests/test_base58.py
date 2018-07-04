@@ -55,8 +55,9 @@ class TestBase58CheckEncoding(unittest.TestCase):
 
         encoded = b58encode_check("test")
 
-        # decoded length must be 4, not 3
-        self.assertRaises(ValueError, b58decode_check, encoded, 3)
+        # unexpected decoded length
+        wrong_length = len(encoded)-1
+        self.assertRaises(ValueError, b58decode_check, encoded, wrong_length)
 
         # checksum is invalid
         invalidChecksum = encoded[:-4] + bytes(3) + encoded[-3:]
