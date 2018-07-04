@@ -1,9 +1,15 @@
 language: python
 python:
-  - "3.6"
-# command to install dependencies
+    - "3.4"
+    - "3.5"
+    - "3.6"
 install:
-  - pip install -r requirements.txt
-# command to run tests
+    # coverage is not a btclib package requirement
+    - pip install coveralls
+    - pip install -r requirements.txt
 script:
-  - python setup.py test
+    # run tests with coverage
+    - coverage run --source=btclib setup.py test
+after_success:
+    # upload reports to coveralls.io
+    - coveralls
