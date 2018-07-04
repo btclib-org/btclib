@@ -7,7 +7,6 @@ from btclib.base58 import b58encode, b58encode_check, \
 
 class TestBase58CheckEncoding(unittest.TestCase):
     def test_b58_empty(self):
-     
         self.assertEqual(b58encode(b''), b'')
         self.assertEqual(b58decode(b''), b'')
         self.assertEqual(b58decode(b58encode(b'')), b'')
@@ -49,6 +48,19 @@ class TestBase58CheckEncoding(unittest.TestCase):
         number = 0x111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5  # noqa
         self.assertEqual(b58decode_int(digits), number)
         self.assertEqual(b58encode_int(number), digits[1:])            
+
+    def test_b58_exceptions(self):
+        # int is not str ot bytes
+        self.assertRaises(TypeError, b58encode_check, 3)
+
+        encoded = b58encode_check("test")
+
+        # decoded length must be 4, not 3
+        self.assertRaises(ValueError, b58decode_check, encoded, 3)
+
+        # checksum is invalid
+        invalidChecksum = encoded[:-4] + bytes(3) + encoded[-3:]
+        self.assertRaises(ValueError, b58decode_check, invalidChecksum, 4)
 
     def test_wif(self):
         # https://en.bitcoin.it/wiki/Wallet_import_format
