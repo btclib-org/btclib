@@ -60,7 +60,7 @@ class TestBase58CheckEncoding(unittest.TestCase):
         self.assertRaises(ValueError, b58decode_check, encoded, wrong_length)
 
         # checksum is invalid
-        invalidChecksum = encoded[:-4] + b'1' + encoded[-3:]
+        invalidChecksum = encoded[:-4] + b'1111'
         self.assertRaises(ValueError, b58decode_check, invalidChecksum, 4)
 
     def test_wif(self):

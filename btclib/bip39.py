@@ -70,7 +70,8 @@ def bip39_entropy_from_raw_entropy(raw_entropy: GenericEntropy) -> Entropy:
 def bip39_mnemonic_from_raw_entropy(raw_entr: GenericEntropy, lang: str) -> str:
     entropy = bip39_entropy_from_raw_entropy(raw_entr)
     indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
-    return mnemonic_dict.mnemonic_from_indexes(indexes, lang)
+    mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
+    return mnemonic
 
 # output raw entropy is returned as binary string
 def bip39_raw_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:

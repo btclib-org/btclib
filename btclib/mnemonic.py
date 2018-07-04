@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-MnemonicDictionaries class for converting entropy into a mnemonic sentence
+Mnemonic class for converting entropy into a mnemonic sentence
 """
 
 import math
@@ -9,11 +9,11 @@ import os
 from typing import Union, List
 
 Entropy = str # binary 0/1 string
-GenericEntropy = Union[Entropy, bytes, bytearray, int]
+GenericEntropy = Union[Entropy, int]
 WordList = List[str]
 
-class MnemonicDictionaries:
-    """Dictionary based conversions between entropy, word indexes, and mnemonic phrase.
+class Mnemonic:
+    """Word-list based conversions between entropy, word indexes, and mnemonic phrase.
 
        Entropy is treated bitwise: (leading) zeros are not
        considered redundant padding. 
@@ -59,7 +59,7 @@ class MnemonicDictionaries:
         self._load_language_if_not_available(lang)
         return self._bits_per_word[lang]
 
-    def dictionary(self, lang: str) -> WordList:
+    def word_list(self, lang: str) -> WordList:
         self._load_language_if_not_available(lang)
         return self._dictionary[lang]
 
@@ -67,22 +67,18 @@ class MnemonicDictionaries:
         self._load_language_if_not_available(lang)
         return self._language_length[lang]
 
-    # input entropy can be expresses as binary string, bytes-like, or int
+    # input entropy can be expresses as binary string or int
     def indexes_from_entropy(self, entropy: GenericEntropy, lang: str) -> List[int]:
         self._load_language_if_not_available(lang)
 
         if type(entropy) == str: # binary string
             bits = len(entropy)
             entropy = int(entropy, 2)
-        elif isinstance(entropy, (bytes, bytearray)):
-            bits = len(entropy)*8
-            entropy = int.from_bytes(entropy, 'big')
         elif type(entropy) == int:
             assert entropy >= 0, "negative entropy"
             bits = entropy.bit_length()
         else:
-            raise TypeError("entropy must be bynary string,",
-                            "bytes-like object, or int;",
+            raise TypeError("entropy must be binary string or int;",
                             "not '%s'" % type(entropy).__name__)
 
         n = self._language_length[lang]
@@ -135,4 +131,4 @@ class MnemonicDictionaries:
 
         return binentropy
 
-mnemonic_dict = MnemonicDictionaries()
+mnemonic_dict = Mnemonic()
