@@ -17,7 +17,7 @@ setup(
     packages = find_packages(),
     keywords = 'bitcoin cryptography cryptocurrency elliptic-curves ecdsa schnorr',
     python_requires = '>=3.6',
-    classifiers = (
+    classifiers = [
         'Programming Language :: Python :: 3 :: Only',
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Education',
@@ -26,5 +26,5 @@ setup(
         'Topic :: Security :: Cryptography',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
-    ),
+    ],
 )
