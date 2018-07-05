@@ -7,9 +7,8 @@ Mnemonic class for converting entropy into a mnemonic sentence
 import math
 import os
 from typing import Union, List
+from btclib.entropy import Entropy
 
-Entropy = str # binary 0/1 string
-GenericEntropy = Union[Entropy, int]
 WordList = List[str]
 
 class Mnemonic:
@@ -28,13 +27,14 @@ class Mnemonic:
         }
         self.languages = self.language_files.keys()
 
-        # create empty dictionaries
+        # create dictionaries where each languaga has None wordlist
         values = len(self.languages)*[None]
         self._dictionary = dict(zip(self.languages, values))
         self._bits_per_word = dict(zip(self.languages, values))
         self._language_length = dict(zip(self.languages, values))
 
     def _load_language_if_not_available(self, lang: str) -> None:
+        """ Load the language worlidst if it has not been loaded yet """
         assert lang in self.languages, "unknown language" + lang
 
         if self._dictionary[lang] == None:
@@ -68,19 +68,15 @@ class Mnemonic:
         return self._language_length[lang]
 
     # input entropy can be expresses as binary string or int
-    def indexes_from_entropy(self, entropy: GenericEntropy, lang: str) -> List[int]:
+    def indexes_from_entropy(self, entropy: Entropy, lang: str) -> List[int]:
         self._load_language_if_not_available(lang)
 
-        if type(entropy) == str: # binary string
-            bits = len(entropy)
-            entropy = int(entropy, 2)
-        elif type(entropy) == int:
-            assert entropy >= 0, "negative entropy"
-            bits = entropy.bit_length()
-        else:
-            raise TypeError("entropy must be binary string or int;",
+        if type(entropy) != str:
+            raise TypeError("entropy must be binary string, ",
                             "not '%s'" % type(entropy).__name__)
 
+        bits = len(entropy)
+        entropy = int(entropy, 2)
         n = self._language_length[lang]
         indexes = []
         while entropy:
@@ -113,7 +109,6 @@ class Mnemonic:
         indexes = [dictionary.index(w) for w in words]
         return indexes
 
-    # output entropy is returned as binary string
     def entropy_from_indexes(self, indexes: List[int], lang: str) -> Entropy:
         self._load_language_if_not_available(lang)
 
@@ -122,7 +117,7 @@ class Mnemonic:
         for i in indexes:
             entropy = entropy*n + i
 
-        binentropy = bin(entropy)[2:]
+        binentropy = bin(entropy)[2:]    # remove '0b'
 
         # do not lose leading zeros entropy
         bpw = self._bits_per_word[lang]
