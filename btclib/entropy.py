@@ -4,21 +4,25 @@
 Entropy convertions from/to binary string, int, and bytes
 """
 
-from typing import Union
+from typing import Union, Optional
 
 Entropy = str # binary 0/1 string
 GenericEntropy = Union[Entropy, int, bytes]
 
-def str_from_entropy(entr: GenericEntropy, required_bits = None) -> Entropy:
+def str_from_entropy(entr: GenericEntropy, required_bits:Optional[Union[int, tuple]] = None) -> Entropy:
+    if type(required_bits)==int:
+        required_bits = (required_bits, )
     if type(entr) == str:
         int(entr, 2)            # check that entr is a valid binary string
         if required_bits is not None:
-            assert len(entr) in required_bits, "wrong number of bits"
+            if len(entr) not in required_bits:
+                raise ValueError("%s bits provided; expected: %s" % (len(entr), required_bits))
         return entr
     elif type(entr) == bytes:
         bits = len(entr) * 8
         if required_bits is not None:
-            assert bits in required_bits, "wrong number of bits"
+            if bits not in required_bits:
+                raise ValueError("%s bits provided; expected: %s" % (bits, required_bits))
         entr = int.from_bytes(entr, 'big')
         entr = bin(entr)[2:]    # remove '0b'
         return entr.zfill(bits) # pad with lost leading zeros
@@ -27,7 +31,8 @@ def str_from_entropy(entr: GenericEntropy, required_bits = None) -> Entropy:
             raise ValueError("negative entropy %s" % entr)
         entr = bin(entr)[2:]    # remove '0b'
         if required_bits is not None:
-            assert len(entr) in required_bits, "wrong number of bits"
+            if len(entr) not in required_bits:
+                raise ValueError("%s bits provided; expected: %s" % (len(entr), required_bits))
         return entr
     else:
         raise TypeError("entropy must be binary string, int, or bytes;",
@@ -47,14 +52,18 @@ def int_from_entropy(entr: GenericEntropy) -> int:
                         "not '%s'" % type(entr).__name__)
 
 def bytes_from_entropy(entr: GenericEntropy, required_bits = None) -> bytes:
+    if type(required_bits)==int:
+        required_bits = (required_bits, )
     if type(entr) == bytes:
         if required_bits is not None:
-            assert len(entr)*8 in required_bits, "wrong number of bits"
+            if len(entr)*8 not in required_bits:
+                raise ValueError("%s bits provided; expected: %s" % (len(entr)*8, required_bits))
         return entr
     elif type(entr) == str:
         bits = len(entr)
         if required_bits is not None:
-            assert bits in required_bits, "wrong number of bits"
+            if bits not in required_bits:
+                raise ValueError("%s bits provided; expected: %s" % (bits, required_bits))
         entr = int(entr, 2)
         return entr.to_bytes(bits//8, 'big')
     elif type(entr) == int:
