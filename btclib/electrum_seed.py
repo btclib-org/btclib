@@ -54,9 +54,9 @@ def electrum_master_prvkey_from_mnemonic(mnemonic: str, passphrase: str, xversio
   s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
   if s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']):
     # FIXME: mainnet / testnet
-    return bip32_master_prvkey_from_seed(seed, b'\x04\x88\xAD\xE4')
+    return bip32_master_prvkey_from_seed(seed, xversion)
   elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
-    # FIXME: parametrizazion of the prefix is needed
+    # FIXME: parametrizazion of the xversion prefix is needed
     mprv = bip32_master_prvkey_from_seed(seed, b'\x04\xb2\x43\x0c')
     # BIP32 default first account: m/0'
     return bip32_ckd(mprv, 0x80000000)
@@ -65,6 +65,6 @@ def electrum_master_prvkey_from_mnemonic(mnemonic: str, passphrase: str, xversio
 
 
 def electrum_master_prvkey_from_raw_entropy(raw_entropy: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
-  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, lang, xversion)
+  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, lang, 'standard')
   mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase, xversion)
   return mprv

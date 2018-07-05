@@ -11,7 +11,8 @@ from btclib.bip32 import PRIVATE, \
                          bip32_derive, \
                          bip32_crack, \
                          bip32_child_index, \
-                         address_from_xpub
+                         address_from_xpub, \
+                         b58encode_check
 
 class TestBIP32(unittest.TestCase):
     def test_bip32_vector1(self):
@@ -310,6 +311,11 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(TypeError, bip32_derive, mprv, 1)
         mprv = b'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
         self.assertRaises(ValueError, bip32_child_index, mprv)
+
+        xkey = b'\x04\x88\xAD\xE5' # invalid version
+        xkey += b'\x00'*74
+        xkey = b58encode_check(xkey) 
+        self.assertRaises(ValueError, bip32_ckd, xkey, 0x80000000)
 
     def test_bip32_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'

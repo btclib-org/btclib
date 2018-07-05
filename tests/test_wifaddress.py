@@ -4,7 +4,8 @@ import unittest
 from btclib.wifaddress import ec, bytes_from_Scalar, \
                               wif_from_prvkey, prvkey_from_wif, \
                               address_from_pubkey, hash160_from_address, \
-                              pubkey_from_prvkey
+                              pubkey_from_prvkey, \
+                              b58encode_check
 
 class TestKeys(unittest.TestCase):
 
@@ -49,7 +50,9 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(p7[0], p_bytes)
         self.assertEqual(p7[1], False)
 
-        self.assertRaises(ValueError, prvkey_from_wif, wif + b'1')
+        payload = b'\x80' + p_bytes + b'\x01\x01' 
+        wif = b58encode_check(payload) 
+        self.assertRaises(ValueError, prvkey_from_wif, wif)
 
     def test_address_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses

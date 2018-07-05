@@ -70,16 +70,16 @@ class TestEntropy(unittest.TestCase):
 
         self.assertRaises(ValueError, str_from_entropy, str_entropy, 256)
         self.assertRaises(ValueError, str_from_entropy, bytes_entropy, 256)
-        self.assertRaises(ValueError, str_from_entropy, -int_entropy, 256)
+        self.assertRaises(ValueError, str_from_entropy, -1*int_entropy, 256)
         self.assertRaises(ValueError, str_from_entropy, int_entropy, 256)
         self.assertRaises(TypeError, str_from_entropy, invalid_entropy, 256)
 
-        self.assertRaises(ValueError, int_from_entropy, -int_entropy)
+        self.assertRaises(ValueError, int_from_entropy, -1*int_entropy)
         self.assertRaises(TypeError, int_from_entropy, invalid_entropy)
 
         self.assertRaises(ValueError, bytes_from_entropy, str_entropy, 256)
         self.assertRaises(ValueError, bytes_from_entropy, bytes_entropy, 256)
-        self.assertRaises(ValueError, bytes_from_entropy, -int_entropy, 256)
+        self.assertRaises(ValueError, bytes_from_entropy, -1*int_entropy, 256)
         self.assertRaises(ValueError, bytes_from_entropy, int_entropy, 256)
         self.assertRaises(TypeError, bytes_from_entropy, invalid_entropy, 256)
 
