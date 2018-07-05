@@ -3,6 +3,7 @@
 import unittest
 from btclib.ellipticcurves import EllipticCurve, \
                                   bytes_from_Point, tuple_from_Point, \
+                                  pointAdd, pointDouble, pointMultiply, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
@@ -192,53 +193,79 @@ allcurves = [
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
         for ec in allcurves:
-            infinity = None
-            self.assertEqual(ec.pointMultiply(0, ec.G), infinity)
+            # the infinity point is represented by None
+            self.assertEqual(ec.pointMultiply(0, ec.G), None)
+            self.assertEqual(pointMultiply(ec, 0, ec.G), None)
 
-            G = ec.pointMultiply(1, ec.G)
-            self.assertEqual(G, ec.G)
+            self.assertEqual(ec.pointMultiply(1, ec.G), ec.G)
+            self.assertEqual(pointMultiply(ec, 1, ec.G), ec.G)
 
-            Gy_odd = ec.y(G[0], True)
+            Gy_odd = ec.y(ec.G[0], True)
             self.assertEqual(Gy_odd % 2, 1)
-            Gy_even = ec.y(G[0], False)
+            Gy_even = ec.y(ec.G[0], False)
             self.assertEqual(Gy_even % 2, 0)
-            self.assertTrue(G[1] in (Gy_odd, Gy_even))
+            self.assertTrue(ec.G[1] in (Gy_odd, Gy_even))
 
-            Gbytes = bytes_from_Point(ec, G, True)
+            Gbytes = bytes_from_Point(ec, ec.G, True)
             Gbytes = bytes_from_Point(ec, Gbytes, True)
             G2 = tuple_from_Point(ec, Gbytes)
             G2 = tuple_from_Point(ec, G2)
-            self.assertEqual(G, G2)
+            self.assertEqual(ec.G, G2)
 
-            Gbytes = bytes_from_Point(ec, G, False)
+            Gbytes = bytes_from_Point(ec, ec.G, False)
             Gbytes = bytes_from_Point(ec, Gbytes, False)
             G2 = tuple_from_Point(ec, Gbytes)
             G2 = tuple_from_Point(ec, G2)
-            self.assertEqual(G, G2)
+            self.assertEqual(ec.G, G2)
 
-            P = ec.pointAdd(infinity, G)
-            self.assertEqual(P, G)
-            P = ec.pointAdd(G, infinity)
-            self.assertEqual(P, G)
+            P = ec.pointAdd(None, ec.G)
+            self.assertEqual(P, ec.G)
+            P = ec.pointAdd(ec.G, None)
+            self.assertEqual(P, ec.G)
+            P = ec.pointAdd(None, None)
+            self.assertEqual(P, None)
 
-            P = ec.pointDouble(G)
+            P = pointAdd(ec, None, ec.G)
+            self.assertEqual(P, ec.G)
+            P = pointAdd(ec, ec.G, None)
+            self.assertEqual(P, ec.G)
+            P = pointAdd(ec, None, None)
+            self.assertEqual(P, None)
+
+            P = ec.pointDouble(ec.G)
             self.assertEqual(P, ec.pointMultiply(2, ec.G))
+            P = pointDouble(ec, ec.G)
+            self.assertEqual(P, pointMultiply(ec, 2, ec.G))
 
-            P = ec.pointAdd(G, G)
+            P = ec.pointAdd(ec.G, ec.G)
             self.assertEqual(P, ec.pointMultiply(2, ec.G))
+            P = pointAdd(ec, ec.G, ec.G)
+            self.assertEqual(P, pointMultiply(ec, 2, ec.G))
 
             P = ec.pointMultiply(ec.order-1, ec.G)
-            self.assertEqual(ec.pointAdd(P, G), infinity)
-            self.assertEqual(ec.pointMultiply(ec.order, ec.G), infinity)
+            self.assertEqual(ec.pointAdd(P, ec.G), None)
+            self.assertEqual(ec.pointMultiply(ec.order, ec.G), None)
+            P = pointMultiply(ec, ec.order-1, ec.G)
+            self.assertEqual(pointAdd(ec, P, ec.G), None)
+            self.assertEqual(pointMultiply(ec, ec.order, ec.G), None)
 
-            self.assertEqual(ec.pointMultiply(0, infinity), infinity)
-            self.assertEqual(ec.pointMultiply(1, infinity), infinity)
-            self.assertEqual(ec.pointMultiply(25, infinity), infinity)
+            self.assertEqual(ec.pointMultiply(0, None), None)
+            self.assertEqual(ec.pointMultiply(1, None), None)
+            self.assertEqual(ec.pointMultiply(25, None), None)
+            self.assertEqual(pointMultiply(ec, 0, None), None)
+            self.assertEqual(pointMultiply(ec, 1, None), None)
+            self.assertEqual(pointMultiply(ec, 25, None), None)
+
+            ec2 = eval(repr(ec))
+            self.assertEqual(str(ec2), str(ec2))
 
             if (ec.order % 2 == 0):
                 P = ec.pointMultiply(ec.order//2, ec.G)
                 self.assertEqual(P[1], 0)
-                self.assertEqual(ec.pointDouble(P), infinity)
+                self.assertEqual(ec.pointDouble(P), None)
+                P = pointMultiply(ec, ec.order//2, ec.G)
+                self.assertEqual(P[1], 0)
+                self.assertEqual(pointDouble(ec, P), None)
 
     def test_tuple_from_point(self):
         prv = 0xc28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d
@@ -260,6 +287,12 @@ class TestEllipticCurve(unittest.TestCase):
         p2 = tuple_from_Point(secp256k1, Pub_hex_str)
         self.assertEqual(p2, Pub)
 
+        # infinity point cannot be represented as tuple
+        self.assertRaises(ValueError, tuple_from_Point, secp256k1, None)
+
+        # scalar in point multiplication can be int, str, or bytes-like
+        t = tuple()
+        self.assertRaises(TypeError, pointMultiply, secp256k1, t, secp256k1.G)
 
 if __name__ == "__main__":
     # execute only if run as a script

@@ -8,6 +8,7 @@ from btclib.bip39 import PRIVATE, \
                          bip39_mnemonic_from_raw_entropy, \
                          bip39_raw_entropy_from_mnemonic, \
                          bip39_master_prvkey_from_mnemonic, \
+                         bip39_master_prvkey_from_raw_entropy, \
                          bip39_seed_from_mnemonic
 
 class TestBIP39Wallet(unittest.TestCase):
@@ -22,8 +23,11 @@ class TestBIP39Wallet(unittest.TestCase):
 
         passphrase = ''
         
-        mpr = bip39_master_prvkey_from_mnemonic(mnemonic, passphrase, PRIVATE[0])
-        self.assertEqual(mpr, b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1')
+        mprv = bip39_master_prvkey_from_mnemonic(mnemonic, passphrase, PRIVATE[0])
+        self.assertEqual(mprv, b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1')
+
+        mprv2 = bip39_master_prvkey_from_raw_entropy(raw_entr, passphrase, lang, PRIVATE[0])
+        self.assertEqual(mprv2, mprv)
 
     # Test vectors:
     # https://github.com/trezor/python-mnemonic/blob/master/vectors.json

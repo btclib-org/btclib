@@ -5,7 +5,8 @@
 from hashlib import sha512
 import hmac
 from btclib.pbkdf2 import PBKDF2
-from btclib.mnemonic import mnemonic_dict, Entropy, GenericEntropy
+from btclib.entropy import Entropy, GenericEntropy, int_from_entropy, str_from_entropy
+from btclib.mnemonic import mnemonic_dict
 from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed, \
                          bip32_ckd, bip32_xpub_from_xprv
 
@@ -15,26 +16,21 @@ ELECTRUM_MNEMONIC_VERSIONS = {'standard' : '01',
 
 # entropy can be expresses as binary string, bytes-like, or int
 def electrum_mnemonic_from_raw_entropy(raw_entropy: GenericEntropy, lang: str, eversion: str) -> str:
-    # electrum consider entropy as integer, losing any leading zero
+    # electrum considers entropy as integer, losing any leading zero
     # https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
-
-    if type(raw_entropy) == str:
-        raw_entropy = int(raw_entropy, 2)
-    elif type(raw_entropy) == bytes:
-        raw_entropy = int.from_bytes(raw_entropy, 'big')
-    elif type(raw_entropy) != int:
-        raise ValueError("entropy must be bytes, hexstring, or int")
+    int_entropy = int_from_entropy(raw_entropy)
 
     assert eversion in ELECTRUM_MNEMONIC_VERSIONS, "unknown electrum mnemonic version"
     invalid = True
     while invalid:
-        indexes = mnemonic_dict.indexes_from_entropy(raw_entropy, lang)
+        str_entropy = str_from_entropy(int_entropy)
+        indexes = mnemonic_dict.indexes_from_entropy(str_entropy, lang)
         mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
         # version validity check
         s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
         if s.startswith(ELECTRUM_MNEMONIC_VERSIONS[eversion]): invalid = False
         # next trial
-        raw_entropy += 1
+        int_entropy += 1
     
     return mnemonic
 
@@ -57,10 +53,10 @@ def electrum_master_prvkey_from_mnemonic(mnemonic: str, passphrase: str, xversio
   # verify that the mnemonic is versioned
   s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
   if s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']):
-    # FIXME: mainnet / testnet?
+    # FIXME: mainnet / testnet
     return bip32_master_prvkey_from_seed(seed, xversion)
   elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
-    # FIXME: parametrizazion of the prefix is needed (mainnet/testnet?)
+    # FIXME: parametrizazion of the xversion prefix is needed
     mprv = bip32_master_prvkey_from_seed(seed, b'\x04\xb2\x43\x0c')
     # BIP32 default first account: m/0'
     return bip32_ckd(mprv, 0x80000000)
@@ -69,6 +65,6 @@ def electrum_master_prvkey_from_mnemonic(mnemonic: str, passphrase: str, xversio
 
 
 def electrum_master_prvkey_from_raw_entropy(raw_entropy: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
-  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, lang, xversion)
+  mnemonic = electrum_mnemonic_from_raw_entropy(raw_entropy, lang, 'standard')
   mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase, xversion)
   return mprv

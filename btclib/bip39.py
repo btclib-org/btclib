@@ -4,10 +4,12 @@
 
 from hashlib import sha256, sha512
 from btclib.pbkdf2 import PBKDF2
-from btclib.mnemonic import mnemonic_dict, Entropy, GenericEntropy
+from btclib.entropy import Entropy, GenericEntropy, bytes_from_entropy, str_from_entropy
+from btclib.mnemonic import mnemonic_dict
 from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed
 
-def bip39_raw_entropy_checksum(raw_entr: bytes) -> bytes:
+def bip39_raw_entropy_checksum(raw_entr: GenericEntropy) -> Entropy:
+    raw_entr = bytes_from_entropy(raw_entr, _allowed_raw_entr_bits)
     # raw_entr 256-bit checksum
     checksum = sha256(raw_entr).digest()       # 256 bits
     # convert checksum to binary '01' string
@@ -39,38 +41,16 @@ _allowed_raw_entr_bits = (128, 160, 192, 224, 256)
 #
 # output entropy is returned as binary string
 def bip39_entropy_from_raw_entropy(raw_entropy: GenericEntropy) -> Entropy:
-    if type(raw_entropy) == str:
-        bits = len(raw_entropy)
-        assert bits in _allowed_raw_entr_bits, "invalid raw entropy size"
-        raw_entropy = int(raw_entropy, 2).to_bytes(bits//8, 'big')
-    elif isinstance(raw_entropy, (bytes, bytearray)):
-        bits = len(raw_entropy) * 8
-        assert bits in _allowed_raw_entr_bits, "invalid raw entropy size"
-    elif type(raw_entropy) == int:
-        bits = raw_entropy.bit_length()
-        for i in _allowed_raw_entr_bits:
-            if bits < i:
-                bits = i
-                break
-        assert bits in _allowed_raw_entr_bits, "invalid raw entropy size"
-        raw_entropy = raw_entropy.to_bytes(bits//8, 'big')
-    else:
-        raise ValueError("entropy must be binary string, bytes-like, or int")
-
+    raw_entropy = str_from_entropy(raw_entropy, _allowed_raw_entr_bits)
     checksum = bip39_raw_entropy_checksum(raw_entropy)
-
-    # convert raw_entropy to binary string
-    raw_entropy = int.from_bytes(raw_entropy, 'big') # leading zeros are lost
-    raw_entropy = bin(raw_entropy)[2:]               # remove '0b'
-    raw_entropy = raw_entropy.zfill(bits)            # pad with lost zeros
-
     return raw_entropy + checksum
 
 
 def bip39_mnemonic_from_raw_entropy(raw_entr: GenericEntropy, lang: str) -> str:
     entropy = bip39_entropy_from_raw_entropy(raw_entr)
     indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
-    return mnemonic_dict.mnemonic_from_indexes(indexes, lang)
+    mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
+    return mnemonic
 
 # output raw entropy is returned as binary string
 def bip39_raw_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:

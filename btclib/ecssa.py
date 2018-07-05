@@ -48,8 +48,7 @@ def ecssa_verify_raw(m: bytes, ssasig: Signature, pub: PubKey, hasher = sha256) 
     R_x, s = ssasig[0].to_bytes(32, 'big'), ssasig[1]
     e = hasher(R_x + m).digest()
     e = int_from_hash(e, ec.order)
-    if e == 0 or e >= ec.order:  # invalid e value
-        return False
+    if e == 0 or e >= ec.order: return False
     R = ec.pointAdd(ec.pointMultiply(e, pub), ec.pointMultiply(s, ec.G))
     if R[1] % 2 == 1:  # R.y odd
         return False
