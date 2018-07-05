@@ -302,6 +302,15 @@ class TestBIP32(unittest.TestCase):
         addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)), addr_version)
         self.assertEqual(addr, b'VRtaZvAe4s29aB3vuXyq7GYEpahsQet2B1')
 
+    def test_bip32_exceptions(self):
+        mprv = b'xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
+        self.assertRaises(TypeError, bip32_ckd, mprv, 'invalid index')
+        self.assertRaises(ValueError, bip32_ckd, mprv, 0x80000000)
+        self.assertRaises(ValueError, bip32_derive, mprv, '/1')
+        self.assertRaises(TypeError, bip32_derive, mprv, 1)
+        mprv = b'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
+        self.assertRaises(ValueError, bip32_child_index, mprv)
+
     def test_bip32_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
         child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'

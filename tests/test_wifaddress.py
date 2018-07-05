@@ -49,6 +49,8 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(p7[0], p_bytes)
         self.assertEqual(p7[1], False)
 
+        self.assertRaises(ValueError, prvkey_from_wif, wif + b'1')
+
     def test_address_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
         prv = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
