@@ -87,6 +87,5 @@ def check_ssasig(ssasig: Signature) -> bool:
            "ssasig must be a tuple of 2 int"
     # TODO: maybe new ec.is_x_valid(x) method
     ec.y(ssasig[0], False) # R.x is valid iif R.y does exist
-    assert 0 < ssasig[0] and ssasig[0] < ec._EllipticCurve__prime, "r must be in [1..prime]"
     assert 0 < ssasig[1] and ssasig[1] < ec.order, "s must be in [1..order]"
     return True
