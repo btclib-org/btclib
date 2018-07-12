@@ -6,6 +6,11 @@ Python library (and assorted material) originated from the Bitcoin and Blockchai
 
 The `btclib` folder contains Python code, namely Python 3.6 or later with type annotation. Most of the material is instrumental in teaching; algorithms are intended for demonstration and not to be used in production environments: they could be broken using side-channel attacks! Moreover, they will probably have major refactorings without care for backward compatibility.
 
+To install `btclib`:
+```
+pip3 install git+https://github.com/dginst/BitcoinBlockchainTechnology.git
+```
+
 Excel spreadsheets are available in the GitHub `excel` folder:
 https://github.com/dginst/BitcoinBlockchainTechnology/excel
 
