@@ -17,11 +17,11 @@ class TestPedersenCommitment(unittest.TestCase):
         G = ec.G
         H = second_generator_secp256k1(G)
         r1 = 0x1
-        r2 = 0x0
-        r_sum = 0x1
-        v1 = 0x5
-        v2 = -0x5
-        v_sum = 0x0
+        r2 = 0x2
+        r_sum = 0x3
+        v1 = 0x4
+        v2 = 0x5
+        v_sum = 0x9
         C_sum = pedersen_commit(r_sum, G, v_sum, H)
         self.assertTrue(pedersen_open(r1 + r2 , G, v1 + v2, H, C_sum))
 
@@ -32,8 +32,8 @@ class TestPedersenCommitment(unittest.TestCase):
         v = 0x5
         C_1 = pedersen_commit(r, G, v, H)
         C_2 = pedersen_commit(r, G, -v, H)
-        self.assertEqual(C_1[0], C_2[0])
-        self.assertEqual(C_1[1], ec.y(C_2[0], True))
+        self.assertTrue(C_1[0] == C_2[0])
+        self.assertTrue(C_1[1] == ec.y(C_2[0], True) or C_1[1] == ec.y(C_2[0], False))
 
 if __name__ == "__main__":
     # execute only if run as a script
