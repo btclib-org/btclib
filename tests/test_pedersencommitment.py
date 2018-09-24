@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
 
 import unittest
-from btclib.ellipticcurves import Point, secp256k1 as ec
+from btclib.ellipticcurves import Point, secp256k1 as ec, bytes_from_Point
 from btclib.pedersen_commitment import second_generator_secp256k1, pedersen_commit, pedersen_open
 
 class TestPedersenCommitment(unittest.TestCase):
+    def test_second_generator_secp256k1_hardcoded(self):
+        """
+        source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
+        important remark on secp256-zkp prefix for compressed encoding of points:
+        https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
+        """
+        G = ec.G
+        H_hardcoded = '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0'
+        H = second_generator_secp256k1(G)
+        H_bytes = bytes_from_Point(ec, H, True)
+        self.assertTrue(H_bytes == bytes.fromhex(H_hardcoded))
+
     def test_pedersen_commitment(self):
         G = ec.G
         H = second_generator_secp256k1(G)
