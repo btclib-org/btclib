@@ -33,5 +33,5 @@ def pedersen_commit(r: int, G: Point, v: int, H: Point) -> Point:
     C = ec.pointAdd(rG, vH)
     return C
 
-def pedersen_open(r: int, G: Point, v: int, H: Point, C: Point) -> Point:
+def pedersen_open(r: int, G: Point, v: int, H: Point, C: Point) -> bool:
     return C == pedersen_commit(r, G, v, H)
