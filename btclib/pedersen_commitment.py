@@ -2,7 +2,7 @@
 
 from hashlib import sha256
 from btclib.ellipticcurves import Point, secp256k1 as ec, \
-                                  bytes_from_Point, int_from_Scalar
+                                  bytes_from_Point, int_from_Scalar, checkPoint
 
 def second_generator_secp256k1(G: Point) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
@@ -19,13 +19,9 @@ def second_generator_secp256k1(G: Point) -> Point:
     G_bytes = bytes_from_Point(ec, G, False)
     hx_temp = sha256(G_bytes).digest()
     hx = int_from_Scalar(ec, hx_temp)
-    while True:
-        try:
-            hy = ec.y(hx, False) 
-            break
-        except ValueError: 
-            hx += 1
-    return hx, hy
+    while checkPoint(ec, (hx, ec.y(hx, False))):
+        hx += 1
+    return hx, ec.y(hx, False)
 
 def pedersen_commit(r: int, G: Point, v: int, H: Point) -> Point:
     rG = ec.pointMultiply(r, G)
