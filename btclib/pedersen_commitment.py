@@ -23,11 +23,11 @@ def second_generator_secp256k1(G: Point) -> Point:
         hx += 1
     return hx, ec.y(hx, False)
 
-def pedersen_commit(r: int, G: Point, v: int, H: Point) -> Point:
+def pedersen_commit_raw(r: int, G: Point, v: int, H: Point) -> Point:
     rG = ec.pointMultiply(r, G)
     vH = ec.pointMultiply(v, H)
     C = ec.pointAdd(rG, vH)
     return C
 
-def pedersen_open(r: int, G: Point, v: int, H: Point, C: Point) -> bool:
-    return C == pedersen_commit(r, G, v, H)
+def pedersen_open_raw(r: int, G: Point, v: int, H: Point, C: Point) -> bool:
+    return C == pedersen_commit_raw(r, G, v, H)
