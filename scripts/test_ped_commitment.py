@@ -18,7 +18,7 @@ class TestPedersenCommitment(unittest.TestCase):
         # Retrieving these blinding factors from a previous output.
         r1 = rand.randint(1,ec.order-1)
         r2 = rand.randint(1,ec.order-1)
-        # Picking random blinding factors - Alice will pick these up.
+        # Picking random blinding factors - Alice will pick this up.
         r3 = rand.randint(1,ec.order-1)
         # Tx amounts
         v1 = 533
