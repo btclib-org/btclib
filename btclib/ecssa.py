@@ -17,9 +17,6 @@ from btclib.ecsignutils import Message, Signature, int_from_hash
 # https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 
 
-def jacobi(x):
-    return pow(x, (ec._EllipticCurve__prime - 1) // 2, ec._EllipticCurve__prime)
-
 # different structure, cannot compute e (int) before ecssa_sign_raw
 
 def ecssa_sign(m: Message, prvkey: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
@@ -31,8 +28,11 @@ def ecssa_sign(m: Message, prvkey: PrvKey, eph_prv: Optional[PrvKey] = None, has
 # https://eprint.iacr.org/2018/068
 def ecssa_sign_raw(m: bytes, prvkey: int, eph_prv: int, hasher = sha256) -> Signature:
     R = ec.pointMultiply(eph_prv, ec.G)
-    if jacobi(R[1]) != 1:
-        eph_prv = ec.order - eph_prv  # iff R[1] = ec.p - R[1]
+    # break the simmetry: any criteria could be used, jacobi is standard
+    if ec.jacobi(R[1]) != 1:
+        # no need to actually change R[1], as it is not used anymore
+        # let's fix eph_prv instead, as it is used later
+        eph_prv = ec.order - eph_prv
     e = hasher(R[0].to_bytes(32, byteorder="big") +
                bytes_from_Point(ec, ec.pointMultiply(prvkey, ec.G), True) +
                m).digest()
@@ -56,7 +56,7 @@ def ecssa_verify_raw(m: bytes, ssasig: Signature, pub: PubKey, hasher = sha256) 
     if e == 0 or e >= ec.order:
         return False
     R = ec.pointAdd(ec.pointMultiply(ec.order - e, pub), ec.pointMultiply(s, ec.G))
-    if jacobi(R[1]) != 1:
+    if ec.jacobi(R[1]) != 1:
         return False
     return R[0] == ssasig[0]
 
@@ -70,8 +70,8 @@ def ecssa_pubkey_recovery(e: bytes, ssasig: Signature, hasher = sha256) -> PubKe
 def ecssa_pubkey_recovery_raw(e: bytes, ssasig: Signature) -> PubKey:
     r, s = ssasig
     R = (r, ec.y(r, 0))
-    if jacobi(R[1]) != 1:
-        R = (R[0], ec._EllipticCurve__prime - R[1])
+    if ec.jacobi(R[1]) != 1:
+        R = (r, ec.y(r, 1))
     e = int_from_hash(e, ec.order)
     assert e != 0 and e < ec.order, "invalid challenge e"
     e1 = mod_inv(e, ec.order)
