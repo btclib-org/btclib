@@ -11,11 +11,13 @@ The `btclib` folder (https://github.com/dginst/BitcoinBlockchainTechnology/tree/
 Excel spreadsheets are available in the `excel` folder:
 https://github.com/dginst/BitcoinBlockchainTechnology/tree/master/excel
 
-Course slides are available:
-Introduction: https://bit.ly/2jQjYxt
-Blockchain, Mining, and Distributed Consensus: https://bit.ly/2KgS20R
-Elliptic Curve Asymmetric Cryptography: https://bit.ly/2LecIba
-Transactions and Blocks:
-Monetary Engineering: http://bit.ly/2JV31xx
-Wallets and deterministic private keys sequences:
-Distributed Ledger Technology and non-monetary applications:
+Course `slides` are available:
+
+1. Introduction: https://bit.ly/2jQjYxt
+2. Blockchain, Mining, and Distributed Consensus: https://bit.ly/2KgS20R
+3. Elliptic Curve Asymmetric Cryptography: https://bit.ly/2LecIba
+4. Transactions and Blocks:
+5. Monetary Engineering: http://bit.ly/2JV31xx
+6. Wallets and deterministic private keys sequences:
+7. Distributed Ledger Technology and non-monetary applications:
+
