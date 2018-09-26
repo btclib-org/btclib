@@ -56,7 +56,6 @@ class TestEcssaMuSig(unittest.TestCase):
         y = ec.y(R2_x, 0)
         # break the simmetry: any criteria could be used, jacobi is standard
         if ec.jacobi(y) != 1:
-            #TODO: it would work even with the wrong symmetry break. why?
             y = ec.y(R2_x, 1)
         R2_recovered = (R2_x, y)
         R1_All = ec.pointAdd(R1, R2_recovered)
@@ -73,7 +72,6 @@ class TestEcssaMuSig(unittest.TestCase):
         y = ec.y(R1_x, 0)
         # break the simmetry: any criteria could be used, jacobi is standard
         if ec.jacobi(y) != 1:
-            #TODO: it would work even with the wrong symmetry break. why?
             y = ec.y(R1_x, 1)
         R1_recovered = (R1_x, y)
         R2_All = ec.pointAdd(R2, R1_recovered)
