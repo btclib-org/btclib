@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from ellipticcurves import secp256k1 as ec
 from hashlib import sha256
-from numbertheory import mod_inv
+from btclib.ellipticcurves import secp256k1 as ec
+from btclib.numbertheory import mod_inv
 
 print("\n*** EC:")
 print(ec)
