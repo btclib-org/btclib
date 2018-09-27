@@ -31,14 +31,13 @@ def mod_sqrt(a: int, p: int) -> int:
     """
     # Simple cases
     #
-    if a == 0:
-        return 0
-    elif p == 2:
+    if a == 0 or p == 2:
         return a
 
     if legendre_symbol(a, p) != 1:
         raise ValueError("no root exists for %s" % a)
-    elif p % 4 == 3: # secp256k1 case
+        
+    if p % 4 == 3: # secp256k1 case
         return pow(a, (p + 1) // 4, p)
 
     # Partition p-1 to s * 2^e for an odd s (i.e.
