@@ -30,19 +30,18 @@ def mod_sqrt(a: int, p: int) -> int:
         generalized Riemann hypothesis is false).
     """
     # Simple cases
-    #
+    if a == 0 or p == 2:
+        return a
+
+    # check for root existence
+    if legendre_symbol(a, p) != 1:
+        raise ValueError("no root exists for %s" % a)
+        
     if p % 4 == 3: # secp256k1 case
         return pow(a, (p + 1) // 4, p)
-    elif a == 0:
-        return 0
-    elif p == 2:
-        return p
-    elif legendre_symbol(a, p) != 1:
-        raise ValueError("no root exists for %s" % a)
 
     # Partition p-1 to s * 2^e for an odd s (i.e.
     # reduce all the powers of 2 from p-1)
-    #
     s = p - 1
     e = 0
     while s % 2 == 0:
@@ -51,8 +50,7 @@ def mod_sqrt(a: int, p: int) -> int:
 
     # Find some 'n' with a legendre symbol n|p = -1.
     # Shouldn't take long.
-    #
-    n = 2
+    n = 1
     while legendre_symbol(n, p) != -1:
         n += 1
 
@@ -60,7 +58,6 @@ def mod_sqrt(a: int, p: int) -> int:
     # Read the paper "Square roots from 1; 24, 51,
     # 10 to Dan Shanks" by Ezra Brown for more
     # information
-    #
 
     # x is a guess of the square root that gets better
     # with each iteration.
@@ -70,7 +67,6 @@ def mod_sqrt(a: int, p: int) -> int:
     # g is used for successive powers of n to update
     # both a and b
     # r is the exponent - decreases with each update
-    #
     x = pow(a, (s + 1) // 2, p)
     b = pow(a, s, p)
     g = pow(n, s, p)

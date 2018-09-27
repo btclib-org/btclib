@@ -50,6 +50,10 @@ class EllipticCurve:
         assert 0 <= c, "point coordinate %s < 0" % c
         assert c < self.__prime, "point coordinate %s >= prime" % c
 
+    def jacobi(self, y: int) -> int:
+        self.checkPointCoordinate(y)
+        return pow(y, (self.__prime-1)//2, self.__prime)
+
     def __y2(self, x: int) -> int:
         self.assertPointCoordinate(x)
         # skipping a crucial check here:
@@ -57,7 +61,6 @@ class EllipticCurve:
         # This is a good reason to have this method as private
         return ((x*x + self.__a)*x + self.__b) % self.__prime
 
-    # use this method also to check x-coordinate validity
     def y(self, x: int, odd1even0: int) -> int:
         assert odd1even0 in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)

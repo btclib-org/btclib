@@ -7,7 +7,7 @@ msg = input('insert string: ')
 if msg == "": msg = "Hello, world!"
 
 zeros = input('n of zeros: ')
-if zeros == "": zeros = 5
+if zeros == "": zeros = 4
 else          : zeros = int(zeros)
 assert (zeros > 0), "the number of zeros to look for must be greater than zero"
 
