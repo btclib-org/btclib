@@ -9,9 +9,9 @@ class TestNumberTheory(unittest.TestCase):
             for i in range(1, p):
                 try:
                     root = mod_sqrt(i, p)
-                    #self.assertEqual(i, (root*root) % p)
+                    self.assertEqual(i, (root*root) % p)
                     root = p - root
-                    #self.assertEqual(i, (root*root) % p)
+                    self.assertEqual(i, (root*root) % p)
                 except ValueError:
                     inv = mod_inv(i, p)
                     self.assertEqual((i* inv) % p, 1)
