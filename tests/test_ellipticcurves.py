@@ -200,9 +200,9 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(ec.pointMultiply(1, ec.G), ec.G)
             self.assertEqual(pointMultiply(ec, 1, ec.G), ec.G)
 
-            Gy_odd = ec.y(ec.G[0], True)
+            Gy_odd = ec.yOdd(ec.G[0], True)
             self.assertEqual(Gy_odd % 2, 1)
-            Gy_even = ec.y(ec.G[0], False)
+            Gy_even = ec.yOdd(ec.G[0], False)
             self.assertEqual(Gy_even % 2, 0)
             self.assertTrue(ec.G[1] in (Gy_odd, Gy_even))
 

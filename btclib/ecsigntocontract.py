@@ -79,7 +79,7 @@ def ecssa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optio
 #                                  and ecssa_commit_and_sign
 def verify_commit(receipt: Receipt, c: Message, hasher = sha256) -> bool:
     w, R = receipt
-    ec.y(w, False)  # receipt[0] is valid iif its y does exist
+    ec.yOdd(w, False)  # receipt[0] is valid iif its y does exist
     tuple_from_Point(ec, R)  # verify it is a good point
     if type(c) == str: c = hasher(c.encode()).digest()
     e = hasher(bytes_from_Point(ec, R, True) + c).digest()

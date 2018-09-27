@@ -34,7 +34,7 @@ class EllipticCurve:
 
         # check order with Hasse Theorem
         t = int(2 * sqrt(prime))
-        assert order <= prime + 1 + t, "order too high"
+        assert order <= prime + 1 + t, "order %s too high for prime %s" % (order, prime)
         # the following assertion would fail for subgroups
         assert prime + 1 - t <= order, "order %s too low for prime %s" % (order, prime)
         self.order = order
@@ -60,13 +60,37 @@ class EllipticCurve:
         # This is a good reason to have this method as private
         return ((x*x + self.__a)*x + self.__b) % self.__prime
 
-    def y(self, x: int, odd1even0: int) -> int:
+    # break the y simmetry: even/odd, low/high, or quadratic residue criteria
+
+    def yOdd(self, x: int, odd1even0: int) -> int:
         assert odd1even0 in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)
+        if y2 == 0: return 0
         # if root does not exist, mod_sqrt will raise a ValueError
         root = mod_sqrt(y2, self.__prime)
         # switch even/odd root when needed
         return root if (root % 2 + odd1even0) != 1 else self.__prime - root
+
+    def yLow(self, x: int, low1high0: int) -> int:
+        assert low1high0 in (0, 1), "must be bool or 0/1"
+        y2 = self.__y2(x)
+        if y2 == 0: return 0
+        # if root does not exist, mod_sqrt will raise a ValueError
+        root = mod_sqrt(y2, self.__prime)
+        # switch low/high root when needed
+        return root if (root < self.__prime/2) else self.__prime - root
+
+    def yQuadraticResidue(self, x: int, quadres: int) -> int:
+        assert quadres in (0, 1), "must be bool or 0/1"
+        y2 = self.__y2(x)
+        if y2 == 0: return 0
+        # if root does not exist, mod_sqrt will raise a ValueError
+        root = mod_sqrt(y2, self.__prime)
+        # switch to the quadratic residue root when needed
+        if quadres:
+            return self.__prime - root if (self.jacobi(root) != 1) else root
+        else:
+            return root if (self.jacobi(root) != 1) else self.__prime - root
 
     def __str__(self) -> str:
         result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
@@ -121,7 +145,7 @@ class EllipticCurve:
 
 def checkPointCoordinates(ec: EllipticCurve, Px: int, Py: int) -> None:
     ec.checkPointCoordinate(Py)
-    y = ec.y(Px, Py % 2) # also check Px validity
+    y = ec.yOdd(Px, Py % 2) # also check Px validity
     assert Py == y, "point is not on the ec"
   
 def checkPoint(ec: EllipticCurve, P: Point) -> None:
@@ -148,8 +172,8 @@ def tuple_from_Point(ec: EllipticCurve, P: Optional[GenericPoint]) -> Point:
         if len(P) == ec.bytesize+1: # compressed point
             assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
             Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
-            Py = ec.y(Px, P[0] % 2) # also check Px validity
-        else:                       # uncompressed point
+            Py = ec.yOdd(Px, P[0] % 2) # also check Px validity
+        else:                          # uncompressed point
             assert len(P) == 2*ec.bytesize+1, \
                 "wrong byte-size (%s) for a point: it should be %s or %s" % \
                                     (len(P), ec.bytesize+1, 2*ec.bytesize+1)

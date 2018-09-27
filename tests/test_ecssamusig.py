@@ -27,11 +27,12 @@ class TestEcssaMuSig(unittest.TestCase):
 
         eph_prv1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb
         R1 = ec.pointMultiply(eph_prv1, ec.G)
+        R1_x = R1[0]
         # break the simmetry: any criteria could be used, jacobi is standard
         if ec.jacobi(R1[1]) != 1:
             eph_prv1 = ec.order - eph_prv1
-            R1 = ec.pointMultiply(eph_prv1, ec.G)
-        R1_x = R1[0]
+            R1 = R1_x, ec.yQuadraticResidue(R1_x, True)
+            #R1 = ec.pointMultiply(eph_prv1, ec.G)
 
         # second signer (is the message needed here? maybe for rfc6979?)
         prv2 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
@@ -41,11 +42,12 @@ class TestEcssaMuSig(unittest.TestCase):
 
         eph_prv2 = 0x01a2a0d3eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbdb
         R2 = ec.pointMultiply(eph_prv2, ec.G)
+        R2_x = R2[0]
         # break the simmetry: any criteria could be used, jacobi is standard
         if ec.jacobi(R2[1]) != 1:
             eph_prv2 = ec.order - eph_prv2
-            R2 = ec.pointMultiply(eph_prv2, ec.G)
-        R2_x = R2[0]
+            R2 = R2_x, ec.yQuadraticResidue(R2_x, True)
+            #R2 = ec.pointMultiply(eph_prv2, ec.G)
 
         Q_All = ec.pointAdd(ec.pointMultiply(HQ1, Q1), ec.pointMultiply(HQ2, Q2))  # joint public key
 
@@ -53,10 +55,8 @@ class TestEcssaMuSig(unittest.TestCase):
         # exchange Rx, compute s
 
         # first signer use R2_x
-        y = ec.y(R2_x, 0)
         # break the simmetry: any criteria could be used, jacobi is standard
-        if ec.jacobi(y) != 1:
-            y = ec.y(R2_x, 1)
+        y = ec.yQuadraticResidue(R2_x, True)
         R2_recovered = (R2_x, y)
         R1_All = ec.pointAdd(R1, R2_recovered)
         # break the simmetry: any criteria could be used, jacobi is standard
@@ -69,10 +69,8 @@ class TestEcssaMuSig(unittest.TestCase):
         s1 = (eph_prv1 + e1 * prv1) % ec.order
 
         # second signer use R1_x
-        y = ec.y(R1_x, 0)
         # break the simmetry: any criteria could be used, jacobi is standard
-        if ec.jacobi(y) != 1:
-            y = ec.y(R1_x, 1)
+        y = ec.yQuadraticResidue(R1_x, True)
         R1_recovered = (R1_x, y)
         R2_All = ec.pointAdd(R2, R1_recovered)
         # break the simmetry: any criteria could be used, jacobi is standard
