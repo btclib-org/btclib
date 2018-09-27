@@ -4,6 +4,7 @@ import unittest
 from btclib.ellipticcurves import EllipticCurve, \
                                   bytes_from_Point, tuple_from_Point, \
                                   pointAdd, pointDouble, pointMultiply, \
+                                  secondGenerator, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
@@ -293,6 +294,16 @@ class TestEllipticCurve(unittest.TestCase):
         # scalar in point multiplication can be int, str, or bytes-like
         t = tuple()
         self.assertRaises(TypeError, pointMultiply, secp256k1, t, secp256k1.G)
+
+    def test_second_generator_secp256k1(self):
+        """
+        source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
+        important remark on secp256-zkp prefix for compressed encoding of points:
+        https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
+        """
+        H = secondGenerator(secp256k1)
+        H = bytes_from_Point(secp256k1, H, True)
+        self.assertEqual(H.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
 
 if __name__ == "__main__":
     # execute only if run as a script

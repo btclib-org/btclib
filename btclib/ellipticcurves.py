@@ -5,6 +5,7 @@ Elliptic curve class, associated functions, and instances of SEC2 curves
 """
 
 from math import sqrt
+from hashlib import sha256
 from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
@@ -29,7 +30,7 @@ class EllipticCurve:
         self.__prime = prime
         self.bytesize = (prime.bit_length() + 7) // 8
 
-        checkPoint(self, G)
+        assertPoint(self, G)
         self.G = G
 
         # check order with Hasse Theorem
@@ -44,13 +45,13 @@ class EllipticCurve:
         Inf = self.pointAdd(T, self.G)
         assert Inf is None, "wrong order"
 
-    def checkPointCoordinate(self, c: int) -> None:
+    def assertPointCoordinate(self, c: int) -> None:
         assert type(c) == int,  "non-int point coordinate"
         assert 0 <= c, "point coordinate %s < 0" % c
         assert c < self.__prime, "point coordinate %s >= prime" % c
 
     def __y2(self, x: int) -> int:
-        self.checkPointCoordinate(x)
+        self.assertPointCoordinate(x)
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to have this method as private
@@ -116,15 +117,15 @@ class EllipticCurve:
 
 ### Functions using EllipticCurve ####
 
-def checkPointCoordinates(ec: EllipticCurve, Px: int, Py: int) -> None:
-    ec.checkPointCoordinate(Py)
+def assertPointCoordinates(ec: EllipticCurve, Px: int, Py: int) -> None:
+    ec.assertPointCoordinate(Py)
     y = ec.y(Px, Py % 2) # also check Px validity
     assert Py == y, "point is not on the ec"
   
-def checkPoint(ec: EllipticCurve, P: Point) -> None:
+def assertPoint(ec: EllipticCurve, P: Point) -> None:
     assert isinstance(P, tuple), "not a tuple point"
     assert len(P) == 2, "invalid tuple point length %s" % len(P)
-    checkPointCoordinates(ec, P[0], P[1])
+    assertPointCoordinates(ec, P[0], P[1])
 
 GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
@@ -153,11 +154,11 @@ def tuple_from_Point(ec: EllipticCurve, P: Optional[GenericPoint]) -> Point:
             assert P[0] == 0x04, "not an uncompressed point"
             Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
             Py = int.from_bytes(P[ec.bytesize+1:], 'big')
-            checkPointCoordinates(ec, Px, Py)
+            assertPointCoordinates(ec, Px, Py)
         return Px, Py
 
     # must be a tuple
-    checkPoint(ec, P)
+    assertPoint(ec, P)
     return P
 
 
@@ -218,6 +219,29 @@ def pointMultiply(ec: EllipticCurve, n: Scalar, P: Optional[GenericPoint]) -> Op
     if P is not None: P = tuple_from_Point(ec, P)
     return ec.pointMultiply(n, P)
 
+def secondGenerator(ec: EllipticCurve) -> Point:
+    """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
+    generator H wrt G. Possible to accomplish it by using the cryptographic
+    hash of G to pick H.
+
+    source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
+    IDEA: (https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve)
+    - Coerce the hash to a point:
+    as just hashing the point could possibly result not in obtaining 
+    a curvepoint, keep on incrementing the hash of the x-coordinate 
+    until you get a valid curve point H = (hx,hy).
+    """
+    G_bytes = bytes_from_Point(ec, ec.G, False)
+    hx = sha256(G_bytes).digest()
+    hx = int_from_Scalar(ec, hx)
+    isCurvePoint = False
+    while not isCurvePoint:
+        try:
+            hy = ec.y(hx, False)
+            isCurvePoint = True
+        except:
+            hx += 1
+    return hx, hy
 
 
 
