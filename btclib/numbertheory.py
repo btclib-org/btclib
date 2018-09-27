@@ -31,14 +31,15 @@ def mod_sqrt(a: int, p: int) -> int:
     """
     # Simple cases
     #
-    if p % 4 == 3: # secp256k1 case
-        return pow(a, (p + 1) // 4, p)
-    elif a == 0:
+    if a == 0:
         return 0
     elif p == 2:
-        return p
-    elif legendre_symbol(a, p) != 1:
+        return a
+
+    if legendre_symbol(a, p) != 1:
         raise ValueError("no root exists for %s" % a)
+    elif p % 4 == 3: # secp256k1 case
+        return pow(a, (p + 1) // 4, p)
 
     # Partition p-1 to s * 2^e for an odd s (i.e.
     # reduce all the powers of 2 from p-1)
@@ -52,7 +53,7 @@ def mod_sqrt(a: int, p: int) -> int:
     # Find some 'n' with a legendre symbol n|p = -1.
     # Shouldn't take long.
     #
-    n = 2
+    n = 1
     while legendre_symbol(n, p) != -1:
         n += 1
 
