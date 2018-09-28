@@ -8,5 +8,5 @@ def pedersen_commit(ec: EllipticCurve, r: Scalar, v: Scalar) -> Point:
     vH = pointMultiply(ec, v, secondGenerator(ec))
     return pointAdd(ec, rG, vH)
 
-def pedersen_open(ec: EllipticCurve, r: Scalar, v: Scalar, Commit: Point) -> bool:
-    return Commit == pedersen_commit(ec, r, v)
+def pedersen_open(ec: EllipticCurve, r: Scalar, v: Scalar, C: Point) -> bool:
+    return C == pedersen_commit(ec, r, v)
