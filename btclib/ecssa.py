@@ -85,5 +85,6 @@ def check_ssasig(ssasig: Signature) -> bool:
            "ssasig must be a tuple of 2 int"
     # TODO: maybe new ec.is_x_valid(x) method
     ec.yOdd(ssasig[0], False) # R.x is valid iif R.y does exist
+    # FIXME: it might be 0 <= ssasig[1]
     assert 0 < ssasig[1] and ssasig[1] < ec.order, "s must be in [1..order]"
     return True
