@@ -127,10 +127,10 @@ class EllipticCurve:
         n = n % self.order # the group is cyclic
         r = None           # initialized to infinity point
         while n > 0:       # use binary representation of n
-            if n & 1:      # if least significant bit is 1 add current P
+            if n & 1:      # if least significant bit is 1 then add current P
                 r = self.pointAdd(r, P)
-            n = n>>1       # right shift to remove the bit just accounted for
-                           # then update P for next step:
+            n = n>>1       # right shift removes the bit just accounted for
+                           # double P for next step:
             P = self.pointAdd(P, P)
         return r
 
