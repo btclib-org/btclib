@@ -51,13 +51,13 @@ class EllipticCurve:
 
     def jacobi(self, y: int) -> int:
         self.checkPointCoordinate(y)
-        return pow(y, (self.__prime-1)//2, self.__prime)
+        return pow(y, (self.__prime - 1) // 2, self.__prime)
 
     def __y2(self, x: int) -> int:
         self.checkPointCoordinate(x)
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
-        # This is a good reason to have this method as private
+        # This is a good reason to keep this method private
         return ((x*x + self.__a)*x + self.__b) % self.__prime
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
@@ -106,39 +106,33 @@ class EllipticCurve:
         result += ", 0x%032x)" % (self.order)
         return result
         
-    def pointDouble(self, P: Optional[Point]) -> Optional[Point]:
-        if P is None or P[1] == 0: return None
-
-        f = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
-        x = (f*f-2*P[0]) % self.__prime
-        y = (f*(P[0]-x)-P[1]) % self.__prime
-        return x, y
-
     def pointAdd(self, P: Optional[Point], Q: Optional[Point]) -> Optional[Point]:
-        if Q is None: return P
-        if P is None: return Q
-
+        if Q is None:
+            return P
+        if P is None:
+            return Q
         if Q[0] == P[0]:
-            if Q[1] == P[1]: return self.pointDouble(P)
-            else:            return None
-
-        lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
+            if Q[1] != P[1] or P[1] == 0: # opposite points
+                return None
+            else: # point doubling
+                lam = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
+        else:
+            lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
         x = (lam*lam-P[0]-Q[0]) % self.__prime
         y = (lam*(P[0]-x)-P[1]) % self.__prime
         return x, y
 
-    # efficient double & add, using binary decomposition of n
+    # double & add, using binary decomposition of n
     def pointMultiply(self, n: int, P: Optional[Point]) -> Optional[Point]:
         n = n % self.order # the group is cyclic
-        result = None      # initialized to infinity point
-        addendum = P       # initialized as 2^0 P
+        r = None           # initialized to infinity point
         while n > 0:       # use binary representation of n
-            if n & 1:      # if least significant bit is 1 add current addendum
-                result = self.pointAdd(result, addendum)
+            if n & 1:      # if least significant bit is 1 add current P
+                r = self.pointAdd(r, P)
             n = n>>1       # right shift to remove the bit just accounted for
-                           # then update addendum for next step:
-            addendum = self.pointDouble(addendum)
-        return result
+                           # then update P for next step:
+            P = self.pointAdd(P, P)
+        return r
 
 
 ### Functions using EllipticCurve ####
@@ -197,24 +191,17 @@ def bytes_from_Point(ec: EllipticCurve, P: Optional[GenericPoint], compressed: b
     # policy is implemented by tuple_from_Point
     P = tuple_from_Point(ec, P)
 
+    bPx = P[0].to_bytes(ec.bytesize, byteorder='big')
     if compressed:
-        prefix = b'\x03' if (P[1] % 2) else b'\x02'
-        return prefix + P[0].to_bytes(ec.bytesize, byteorder='big')
+        return (b'\x03' if (P[1] & 1) else b'\x02') + bPx
 
-    Pbytes = b'\x04' + P[0].to_bytes(ec.bytesize, byteorder='big')
-    Pbytes += P[1].to_bytes(ec.bytesize, byteorder='big')
-    return Pbytes
+    return b'\x04' + bPx + P[1].to_bytes(ec.bytesize, byteorder='big')
 
 
 def pointAdd(ec: EllipticCurve, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
     if P is not None: P = tuple_from_Point(ec, P)
     if Q is not None: Q = tuple_from_Point(ec, Q)
     return ec.pointAdd(P, Q)
-
-
-def pointDouble(ec: EllipticCurve, P: Optional[GenericPoint]) -> Optional[Point]:
-    if P is not None: P = tuple_from_Point(ec, P)
-    return ec.pointDouble(P)
 
 
 Scalar = Union[str, bytes, bytearray, int]
