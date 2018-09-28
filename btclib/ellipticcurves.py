@@ -202,7 +202,7 @@ def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
         n = bytes.fromhex(n)
 
     if isinstance(n, bytes) or isinstance(n, bytearray):
-        assert len(n) == ec.bytesize, "wrong lenght"
+        assert len(n) <= ec.bytesize, "wrong lenght"
         n = int.from_bytes(n, 'big')
 
     if not isinstance(n, int):
@@ -224,18 +224,18 @@ def pointMultiply(ec: EllipticCurve, n: Scalar, P: Optional[GenericPoint]) -> Op
 
 def secondGenerator(ec: EllipticCurve) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
-    generator H wrt G. Possible to accomplish it by using the cryptographic
-    hash of G to pick H.
+    generator H wrt G. 
 
     source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
-    IDEA: (https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve)
-    - Coerce the hash to a point:
+    idea: (https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve)
+    Possible to accomplish it by using the cryptographic hash of G 
+    to pick H. Then coerce the hash to a point:
     as just hashing the point could possibly result not in obtaining 
     a curvepoint, keep on incrementing the hash of the x-coordinate 
     until you get a valid curve point H = (hx,hy).
     """
     G_bytes = bytes_from_Point(ec, ec.G, False)
-    hx = sha256(G_bytes).digest()
+    hx = sha256(G_bytes).digest() 
     hx = int_from_Scalar(ec, hx)
     isCurvePoint = False
     while not isCurvePoint:
