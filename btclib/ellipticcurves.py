@@ -51,7 +51,7 @@ class EllipticCurve:
         assert c < self.__prime, "point coordinate %s >= prime" % c
 
     def jacobi(self, y: int) -> int:
-        self.checkPointCoordinate(y)
+        self.assertPointCoordinate(y)
         return pow(y, (self.__prime - 1) // 2, self.__prime)
 
     def __y2(self, x: int) -> int:

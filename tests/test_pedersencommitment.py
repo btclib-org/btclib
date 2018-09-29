@@ -27,7 +27,7 @@ class TestPedersenCommitment(unittest.TestCase):
         C_1 = pedersen_commit(ec, r, v)
         C_2 = pedersen_commit(ec, r, -v)
         self.assertTrue(C_1[0] == C_2[0])
-        self.assertTrue(C_1[1] == ec.y(C_2[0], True) or C_1[1] == ec.y(C_2[0], False))
+        self.assertTrue(C_1[1] == ec.yOdd(C_2[0], True) or C_1[1] == ec.yOdd(C_2[0], False))
 
 if __name__ == "__main__":
     # execute only if run as a script
