@@ -2,6 +2,9 @@ ec.pointAdd with projective coordinates
 http://pydoc.net/ecc/0.0.1/ecc.elliptic/
 https://hyperelliptic.org/EFD/oldefd/projective.html
 
+revise check functions, to remove asserts and return bools
+
+add onCurve method ?
 
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 

@@ -3,8 +3,9 @@
 import unittest
 from btclib.ellipticcurves import EllipticCurve, \
                                   bytes_from_Point, tuple_from_Point, \
-                                  pointAdd, pointDouble, pointMultiply, \
+                                  pointAdd, pointMultiply, \
                                   secondGenerator, \
+                                  pointAdd, pointMultiply, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
@@ -201,9 +202,9 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(ec.pointMultiply(1, ec.G), ec.G)
             self.assertEqual(pointMultiply(ec, 1, ec.G), ec.G)
 
-            Gy_odd = ec.y(ec.G[0], True)
+            Gy_odd = ec.yOdd(ec.G[0], True)
             self.assertEqual(Gy_odd % 2, 1)
-            Gy_even = ec.y(ec.G[0], False)
+            Gy_even = ec.yOdd(ec.G[0], False)
             self.assertEqual(Gy_even % 2, 0)
             self.assertTrue(ec.G[1] in (Gy_odd, Gy_even))
 
@@ -233,11 +234,6 @@ class TestEllipticCurve(unittest.TestCase):
             P = pointAdd(ec, None, None)
             self.assertEqual(P, None)
 
-            P = ec.pointDouble(ec.G)
-            self.assertEqual(P, ec.pointMultiply(2, ec.G))
-            P = pointDouble(ec, ec.G)
-            self.assertEqual(P, pointMultiply(ec, 2, ec.G))
-
             P = ec.pointAdd(ec.G, ec.G)
             self.assertEqual(P, ec.pointMultiply(2, ec.G))
             P = pointAdd(ec, ec.G, ec.G)
@@ -263,10 +259,10 @@ class TestEllipticCurve(unittest.TestCase):
             if (ec.order % 2 == 0):
                 P = ec.pointMultiply(ec.order//2, ec.G)
                 self.assertEqual(P[1], 0)
-                self.assertEqual(ec.pointDouble(P), None)
+                self.assertEqual(ec.pointAdd(P, P), None)
                 P = pointMultiply(ec, ec.order//2, ec.G)
                 self.assertEqual(P[1], 0)
-                self.assertEqual(pointDouble(ec, P), None)
+                self.assertEqual(pointAdd(ec, P, P), None)
 
     def test_tuple_from_point(self):
         prv = 0xc28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d

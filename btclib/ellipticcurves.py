@@ -35,7 +35,7 @@ class EllipticCurve:
 
         # check order with Hasse Theorem
         t = int(2 * sqrt(prime))
-        assert order <= prime + 1 + t, "order too high"
+        assert order <= prime + 1 + t, "order %s too high for prime %s" % (order, prime)
         # the following assertion would fail for subgroups
         assert prime + 1 - t <= order, "order %s too low for prime %s" % (order, prime)
         self.order = order
@@ -51,23 +51,47 @@ class EllipticCurve:
         assert c < self.__prime, "point coordinate %s >= prime" % c
 
     def jacobi(self, y: int) -> int:
-        self.assertPointCoordinate(y)
-        return pow(y, (self.__prime-1)//2, self.__prime)
+        self.checkPointCoordinate(y)
+        return pow(y, (self.__prime - 1) // 2, self.__prime)
 
     def __y2(self, x: int) -> int:
         self.assertPointCoordinate(x)
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
-        # This is a good reason to have this method as private
+        # This is a good reason to keep this method private
         return ((x*x + self.__a)*x + self.__b) % self.__prime
 
-    def y(self, x: int, odd1even0: int) -> int:
+    # break the y simmetry: even/odd, low/high, or quadratic residue criteria
+
+    def yOdd(self, x: int, odd1even0: int) -> int:
         assert odd1even0 in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)
+        if y2 == 0: return 0
         # if root does not exist, mod_sqrt will raise a ValueError
         root = mod_sqrt(y2, self.__prime)
         # switch even/odd root when needed
         return root if (root % 2 + odd1even0) != 1 else self.__prime - root
+
+    def yLow(self, x: int, low1high0: int) -> int:
+        assert low1high0 in (0, 1), "must be bool or 0/1"
+        y2 = self.__y2(x)
+        if y2 == 0: return 0
+        # if root does not exist, mod_sqrt will raise a ValueError
+        root = mod_sqrt(y2, self.__prime)
+        # switch low/high root when needed
+        return root if (root < self.__prime/2) else self.__prime - root
+
+    def yQuadraticResidue(self, x: int, quadres: int) -> int:
+        assert quadres in (0, 1), "must be bool or 0/1"
+        y2 = self.__y2(x)
+        if y2 == 0: return 0
+        # if root does not exist, mod_sqrt will raise a ValueError
+        root = mod_sqrt(y2, self.__prime)
+        # switch to the quadratic residue root when needed
+        if quadres:
+            return self.__prime - root if (self.jacobi(root) != 1) else root
+        else:
+            return root if (self.jacobi(root) != 1) else self.__prime - root
 
     def __str__(self) -> str:
         result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
@@ -83,46 +107,40 @@ class EllipticCurve:
         result += ", 0x%032x)" % (self.order)
         return result
         
-    def pointDouble(self, P: Optional[Point]) -> Optional[Point]:
-        if P is None or P[1] == 0: return None
-
-        f = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
-        x = (f*f-2*P[0]) % self.__prime
-        y = (f*(P[0]-x)-P[1]) % self.__prime
-        return x, y
-
     def pointAdd(self, P: Optional[Point], Q: Optional[Point]) -> Optional[Point]:
-        if Q is None: return P
-        if P is None: return Q
-
+        if Q is None:
+            return P
+        if P is None:
+            return Q
         if Q[0] == P[0]:
-            if Q[1] == P[1]: return self.pointDouble(P)
-            else:            return None
-
-        lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
+            if Q[1] != P[1] or P[1] == 0: # opposite points
+                return None
+            else: # point doubling
+                lam = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__prime)) % self.__prime
+        else:
+            lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__prime)) % self.__prime
         x = (lam*lam-P[0]-Q[0]) % self.__prime
         y = (lam*(P[0]-x)-P[1]) % self.__prime
         return x, y
 
-    # efficient double & add, using binary decomposition of n
+    # double & add, using binary decomposition of n
     def pointMultiply(self, n: int, P: Optional[Point]) -> Optional[Point]:
         n = n % self.order # the group is cyclic
-        result = None      # initialized to infinity point
-        addendum = P       # initialized as 2^0 P
+        r = None           # initialized to infinity point
         while n > 0:       # use binary representation of n
-            if n & 1:      # if least significant bit is 1 add current addendum
-                result = self.pointAdd(result, addendum)
-            n = n>>1       # right shift to remove the bit just accounted for
-                           # then update addendum for next step:
-            addendum = self.pointDouble(addendum)
-        return result
+            if n & 1:      # if least significant bit is 1 then add current P
+                r = self.pointAdd(r, P)
+            n = n>>1       # right shift removes the bit just accounted for
+                           # double P for next step:
+            P = self.pointAdd(P, P)
+        return r
 
 
 ### Functions using EllipticCurve ####
 
 def assertPointCoordinates(ec: EllipticCurve, Px: int, Py: int) -> None:
     ec.assertPointCoordinate(Py)
-    y = ec.y(Px, Py % 2) # also check Px validity
+    y = ec.yOdd(Px, Py % 2) # also check Px validity
     assert Py == y, "point is not on the ec"
   
 def assertPoint(ec: EllipticCurve, P: Point) -> None:
@@ -149,8 +167,8 @@ def tuple_from_Point(ec: EllipticCurve, P: Optional[GenericPoint]) -> Point:
         if len(P) == ec.bytesize+1: # compressed point
             assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
             Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
-            Py = ec.y(Px, P[0] % 2) # also check Px validity
-        else:                       # uncompressed point
+            Py = ec.yOdd(Px, P[0] % 2) # also check Px validity
+        else:                          # uncompressed point
             assert len(P) == 2*ec.bytesize+1, \
                 "wrong byte-size (%s) for a point: it should be %s or %s" % \
                                     (len(P), ec.bytesize+1, 2*ec.bytesize+1)
@@ -174,24 +192,17 @@ def bytes_from_Point(ec: EllipticCurve, P: Optional[GenericPoint], compressed: b
     # policy is implemented by tuple_from_Point
     P = tuple_from_Point(ec, P)
 
+    bPx = P[0].to_bytes(ec.bytesize, byteorder='big')
     if compressed:
-        prefix = b'\x03' if (P[1] % 2) else b'\x02'
-        return prefix + P[0].to_bytes(ec.bytesize, byteorder='big')
+        return (b'\x03' if (P[1] & 1) else b'\x02') + bPx
 
-    Pbytes = b'\x04' + P[0].to_bytes(ec.bytesize, byteorder='big')
-    Pbytes += P[1].to_bytes(ec.bytesize, byteorder='big')
-    return Pbytes
+    return b'\x04' + bPx + P[1].to_bytes(ec.bytesize, byteorder='big')
 
 
 def pointAdd(ec: EllipticCurve, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
     if P is not None: P = tuple_from_Point(ec, P)
     if Q is not None: Q = tuple_from_Point(ec, Q)
     return ec.pointAdd(P, Q)
-
-
-def pointDouble(ec: EllipticCurve, P: Optional[GenericPoint]) -> Optional[Point]:
-    if P is not None: P = tuple_from_Point(ec, P)
-    return ec.pointDouble(P)
 
 
 Scalar = Union[str, bytes, bytearray, int]
@@ -240,7 +251,7 @@ def secondGenerator(ec: EllipticCurve) -> Point:
     isCurvePoint = False
     while not isCurvePoint:
         try:
-            hy = ec.y(hx, False)
+            hy = ec.yOdd(hx, False)
             isCurvePoint = True
         except:
             hx += 1
