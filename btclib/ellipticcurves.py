@@ -10,7 +10,7 @@ from btclib.numbertheory import mod_inv, mod_sqrt
 
 Point = Tuple[int, int]
 # infinity point being represented by None,
-# Optional[Point] do include the infinity point
+# Optional[Point] does include the infinity point
 
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
@@ -29,15 +29,15 @@ class EllipticCurve:
         self.__prime = prime
         self.bytesize = (prime.bit_length() + 7) // 8
 
-        checkPoint(self, G)
-        self.G = G
-
         # check order with Hasse Theorem
         t = int(2 * sqrt(prime))
         assert order <= prime + 1 + t, "order %s too high for prime %s" % (order, prime)
         # the following assertion would fail for subgroups
         assert prime + 1 - t <= order, "order %s too low for prime %s" % (order, prime)
         self.order = order
+
+        assert isOnCurve(self, G), "G is not on curve"
+        self.G = G
 
         # check (order-1)*G + G = Inf
         T = self.pointMultiply(order-1, self.G)
@@ -49,16 +49,20 @@ class EllipticCurve:
         assert 0 <= c, "point coordinate %s < 0" % c
         assert c < self.__prime, "point coordinate %s >= prime" % c
 
-    def jacobi(self, y: int) -> int:
-        self.checkPointCoordinate(y)
-        return pow(y, (self.__prime - 1) // 2, self.__prime)
-
     def __y2(self, x: int) -> int:
         self.checkPointCoordinate(x)
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to keep this method private
         return ((x*x + self.__a)*x + self.__b) % self.__prime
+
+    def areOnCurve(self, x: int, y: int) -> bool:
+        self.checkPointCoordinate(y)
+        return self.__y2(x) == (y*y % self.__prime)
+
+    def jacobi(self, y: int) -> int:
+        self.checkPointCoordinate(y)
+        return pow(y, (self.__prime - 1) // 2, self.__prime)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 
@@ -137,15 +141,10 @@ class EllipticCurve:
 
 ### Functions using EllipticCurve ####
 
-def checkPointCoordinates(ec: EllipticCurve, Px: int, Py: int) -> None:
-    ec.checkPointCoordinate(Py)
-    y = ec.yOdd(Px, Py % 2) # also check Px validity
-    assert Py == y, "point is not on the ec"
-  
-def checkPoint(ec: EllipticCurve, P: Point) -> None:
+def isOnCurve(ec: EllipticCurve, P: Point) -> bool:
     assert isinstance(P, tuple), "not a tuple point"
     assert len(P) == 2, "invalid tuple point length %s" % len(P)
-    checkPointCoordinates(ec, P[0], P[1])
+    return ec.areOnCurve(P[0], P[1])
 
 GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
@@ -174,11 +173,11 @@ def tuple_from_Point(ec: EllipticCurve, P: Optional[GenericPoint]) -> Point:
             assert P[0] == 0x04, "not an uncompressed point"
             Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
             Py = int.from_bytes(P[ec.bytesize+1:], 'big')
-            checkPointCoordinates(ec, Px, Py)
+            assert ec.areOnCurve(Px, Py), "not on curve"
         return Px, Py
 
     # must be a tuple
-    checkPoint(ec, P)
+    assert isOnCurve(ec, P), "not on curve"
     return P
 
 
