@@ -58,11 +58,11 @@ class EllipticCurve:
         return ((x*x + self.__a)*x + self.__b) % self.__prime
 
     def areOnCurve(self, x: int, y: int) -> bool:
-        self.checkPointCoordinate(y)
+        self.assertPointCoordinate(y)
         return self.__y2(x) == (y*y % self.__prime)
 
     def jacobi(self, y: int) -> int:
-        self.checkPointCoordinate(y)
+        self.assertPointCoordinate(y)
         return pow(y, (self.__prime - 1) // 2, self.__prime)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
