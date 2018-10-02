@@ -5,6 +5,7 @@ from hashlib import sha256
 from btclib.ellipticcurves import bytes_from_Point, tuple_from_Point
 from btclib.ecssa import ec, ecssa_sign, ecssa_verify, ecssa_pubkey_recovery
 
+# https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 
 class TestEcssa(unittest.TestCase):
     def test_ecssa_1(self):

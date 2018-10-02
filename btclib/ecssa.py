@@ -70,9 +70,7 @@ def ecssa_pubkey_recovery(e: bytes, ssasig: Signature, hasher = sha256) -> PubKe
 
 def ecssa_pubkey_recovery_raw(e: bytes, ssasig: Signature) -> PubKey:
     r, s = ssasig
-    R = (r, ec.y(r, 0))
-    if ec.jacobi(R[1]) != 1:
-        R = (r, ec.y(r, 1))
+    R = (r, ec.yQuadraticResidue(r, True))
     e = int_from_hash(e, ec.order)
     assert e != 0 and e < ec.order, "invalid challenge e"
     e1 = mod_inv(e, ec.order)
@@ -86,7 +84,7 @@ def check_ssasig(ssasig: Signature) -> bool:
     assert type(ssasig) == tuple and len(ssasig) == 2 and \
            type(ssasig[0]) == int and type(ssasig[1]) == int, \
            "ssasig must be a tuple of 2 int"
-    # TODO: maybe new ec.is_x_valid(x) method
-    ec.y(ssasig[0], False) # R.x is valid iif R.y does exist
+    ec.yOdd(ssasig[0], False) # R.x is valid iif R.y does exist
+    # FIXME: it might be 0 <= ssasig[1]
     assert 0 < ssasig[1] and ssasig[1] < ec.order, "s must be in [1..order]"
     return True

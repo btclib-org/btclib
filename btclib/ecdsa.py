@@ -56,7 +56,7 @@ def ecdsa_pubkey_recovery_raw(m: bytes, dsasig: Signature, odd1even0: int) -> Pu
     h = int_from_hash(m, ec.order)
     r, s = dsasig
     r1 = mod_inv(r, ec.order)
-    R = (r, ec.y(r, odd1even0))
+    R = (r, ec.yOdd(r, odd1even0))
     return ec.pointAdd(ec.pointMultiply( s * r1 % ec.order, R),
                        ec.pointMultiply(-h * r1 % ec.order, ec.G))
 
