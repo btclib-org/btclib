@@ -1,29 +1,23 @@
 #!/usr/bin/env python3
 
-from ellipticcurves import secp256k1 as ec
 import hashlib
-from base58 import b58encode_check, b58encode, b58decode_check
-
-# FIXME: other versions
-def private_key_to_public_key(private_key, version=0x04):
-    prv = ec.pointMultiply(private_key)
-    public_key = version+prv[0]+prv[1]
-    return public_key
+from btclib.ellipticcurves import secp256k1 as ec
+from btclib.base58 import b58encode_check, b58encode, b58decode_check
 
 # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
-prv = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-prv = prv % ec.n
+prvkey = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+prvkey = prvkey % ec.n
 
 print("\n*** [0] Private ECDSA Key:")
-print(hex(prv))
+print(hex(prvkey))
 
-Pub = ec.pointMultiply(prv, ec.G)
-PubKey = b'\x04' + Pub[0].to_bytes(32, byteorder='big') + Pub[1].to_bytes(32, byteorder='big')
+PubKey = ec.pointMultiply(prvkey, ec.G)
+PubKey_bytes = b'\x04' + PubKey[0].to_bytes(32, byteorder='big') + PubKey[1].to_bytes(32, byteorder='big')
 print("\n*** [1] Public Key (uncompressed):")
-print(PubKey.hex())
+print(PubKey_bytes.hex())
 
 print("\n*** [2] SHA-256 hashing of the public key:")
-h1 = hashlib.sha256(PubKey).digest()
+h1 = hashlib.sha256(PubKey_bytes).digest()
 print(h1.hex())
 
 print("\n*** [3] RIPEMD-160 hashing on the result of SHA-256:")
@@ -50,33 +44,44 @@ print("\n*** [8] checksum added at the end of extended RIPEMD-160 hash:")
 addr = vh160 + h4[:4]
 print(addr.hex())
 
-print("\n*** [9] Base58 encoded address from uncompressed PubKey")
-base58EncodedAddress = b58encode(addr)
-assert (base58EncodedAddress == b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-print(base58EncodedAddress)
+print("\n*** [9] Base58 encoded address from uncompressed PubKey_bytes")
+address = b58encode(addr)
+assert (address == b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
+print(address)
 
 print("\n*** steps [5]-[9] are also known as Base58Check encode")
 
-def bc_address_to_hash_160(addr):
-    return b58decode_check(addr)[1:21]
+
+def pubkey_bytes_from_prvkey(prvkey, compressed=True):
+    PubKey = ec.pointMultiply(prvkey, ec.G)
+    if compressed:
+        prefix = b'\x02' if (PubKey[1] % 2 == 0) else b'\x03'
+        return prefix + PubKey[0].to_bytes(32, byteorder='big')
+    else:
+        prefix = b'\x04'
+        return prefix + PubKey[0].to_bytes(32, byteorder='big') + PubKey[1].to_bytes(32, byteorder='big')
+
+print("\n*** [1] Public Key compressed:")
+PubKey_bytes = pubkey_bytes_from_prvkey(prvkey, True)
+print(PubKey_bytes.hex())
 
 def hash160(inp):
     h1 = hashlib.sha256(inp).digest()
-    return hashlib.new('ripemd160', h1).digest()
+    result = hashlib.new('ripemd160', h1).digest()
+    return result
 
-def public_key_to_bc_address(inp, version=b'\x00'):
+def address_from_pubkey_bytes(inp, version=b'\x00'):
     vh160 = version + hash160(inp)
     return b58encode_check(vh160)
 
-print("\n*** [1] Public Key compressed:")
-prefix = b'\x02' if (Pub[1] % 2 == 0) else b'\x03'
-PubKey = prefix + Pub[0].to_bytes(32, byteorder='big')
-print(PubKey.hex())
+print("\n*** [9] base58 encoded address from compressed PubKey_bytes")
+address = address_from_pubkey_bytes(PubKey_bytes)
+assert (address == b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
+print(address)
 
-print("\n*** [9] base58 encoded address from compressed PubKey")
-base58EncodedAddress = public_key_to_bc_address(PubKey)
-assert (base58EncodedAddress == b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-print(base58EncodedAddress)
+def hash_160_from_address(addr):
+    return b58decode_check(addr)[1:21]
 
 print("\n*** h160 from address")
-print(bc_address_to_hash_160(base58EncodedAddress).hex())
+print(hash_160_from_address(address).hex())
+
