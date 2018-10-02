@@ -259,6 +259,14 @@ def secondGenerator(ec: EllipticCurve) -> Point:
 
 
 # http://www.secg.org/sec2-v2.pdf
+__a = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFC
+__b = 0x1C97BEFC54BD7A8B65ACF89F81D4D4ADC565FA45
+__prime = 2**160 - 2**31 - 1
+__Gx = 0x4A96B5688EF573284664698968C38BB913CBFC82
+__Gy = 0x23A628553168947D59DCC912042351377AC5FB32
+__order = 0x0100000000000000000001F4C8F927AED3CA752257
+secp160r1 = EllipticCurve(__a, __b, __prime, (__Gx, __Gy), __order)
+
 __a = 0
 __b = 3
 __p = 2**192 - 2**32 - 2**12 - 2**8 - 2**7 - 2**6 - 2**3 - 1

@@ -5,6 +5,7 @@ from btclib.ellipticcurves import EllipticCurve, \
                                   bytes_from_Point, tuple_from_Point, \
                                   secondGenerator, \
                                   pointAdd, pointMultiply, \
+                                  secp160r1, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
@@ -130,7 +131,7 @@ ec293_281 = EllipticCurve(8, 6, 293, (0,  42), 281)
 ec293_311 = EllipticCurve(1, 4, 293, (0, 291), 311)
 
 allcurves = [
-    secp192k1, secp192r1, secp224k1, secp224r1,
+    secp160r1, secp192k1, secp192r1, secp224k1, secp224r1,
     secp256k1, secp256r1, secp384r1, secp521r1,
     ec11_13, ec263_269, ec263_270, ec263_280,
     ec11_7, ec11_17,
