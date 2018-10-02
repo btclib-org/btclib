@@ -238,12 +238,12 @@ class TestEllipticCurve(unittest.TestCase):
             P = pointAdd(ec, ec.G, ec.G)
             self.assertEqual(P, pointMultiply(ec, 2, ec.G))
 
-            P = ec.pointMultiply(ec.order-1, ec.G)
+            P = ec.pointMultiply(ec.n-1, ec.G)
             self.assertEqual(ec.pointAdd(P, ec.G), None)
-            self.assertEqual(ec.pointMultiply(ec.order, ec.G), None)
-            P = pointMultiply(ec, ec.order-1, ec.G)
+            self.assertEqual(ec.pointMultiply(ec.n, ec.G), None)
+            P = pointMultiply(ec, ec.n-1, ec.G)
             self.assertEqual(pointAdd(ec, P, ec.G), None)
-            self.assertEqual(pointMultiply(ec, ec.order, ec.G), None)
+            self.assertEqual(pointMultiply(ec, ec.n, ec.G), None)
 
             self.assertEqual(ec.pointMultiply(0, None), None)
             self.assertEqual(ec.pointMultiply(1, None), None)
@@ -255,11 +255,11 @@ class TestEllipticCurve(unittest.TestCase):
             ec2 = eval(repr(ec))
             self.assertEqual(str(ec2), str(ec2))
 
-            if (ec.order % 2 == 0):
-                P = ec.pointMultiply(ec.order//2, ec.G)
+            if (ec.n % 2 == 0):
+                P = ec.pointMultiply(ec.n//2, ec.G)
                 self.assertEqual(P[1], 0)
                 self.assertEqual(ec.pointAdd(P, P), None)
-                P = pointMultiply(ec, ec.order//2, ec.G)
+                P = pointMultiply(ec, ec.n//2, ec.G)
                 self.assertEqual(P[1], 0)
                 self.assertEqual(pointAdd(ec, P, P), None)
 

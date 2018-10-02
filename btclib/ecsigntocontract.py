@@ -45,7 +45,7 @@ def tweak(k: int, c: bytes, hasher = sha256) -> Tuple[Point, Scalar]:
     R = ec.pointMultiply(k, ec.G)
     e = hasher(bytes_from_Point(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
-    return R, (e + k) % ec.order
+    return R, (e + k) % ec.n
 
 def ecdsa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optional[Scalar] = None, hasher = sha256) -> Tuple[Signature, Receipt]:
     if type(m) == str: m = hasher(m.encode()).digest()
@@ -85,7 +85,7 @@ def verify_commit(receipt: Receipt, c: Message, hasher = sha256) -> bool:
     e = hasher(bytes_from_Point(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
     W = ec.pointAdd(R, ec.pointMultiply(e, ec.G))
-    # w in [1..ec.order-1] dsa
-    # w in [1..ec_prime-1] ssa
+    # w in [1..n-1] dsa
+    # w in [1..p-1] ssa
     # different verify functions?
-    return w % ec.order == W[0] % ec.order
+    return w % ec.n == W[0] % ec.n

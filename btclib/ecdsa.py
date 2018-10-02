@@ -21,10 +21,10 @@ def ecdsa_sign(m: Message, prvkey: PrvKey, eph_prv: Optional[PrvKey] = None, has
 
 def ecdsa_sign_raw(m: bytes, prvkey: int, eph_prv: int) -> Signature:
     R = ec.pointMultiply(eph_prv, ec.G)
-    r = R[0] % ec.order
-    h = int_from_hash(m, ec.order)
+    r = R[0] % ec.n
+    h = int_from_hash(m, ec.n)
     # assert h
-    s = mod_inv(eph_prv, ec.order) * (h + prvkey * r) % ec.order
+    s = mod_inv(eph_prv, ec.n) * (h + prvkey * r) % ec.n
     assert r != 0 and s != 0, "failed to sign"
     return r, s
 
@@ -37,12 +37,12 @@ def ecdsa_verify(m: Message, dsasig: Signature, pubkey: GenericPubKey, hasher = 
 
 
 def ecdsa_verify_raw(m: bytes, dsasig: Signature, pubkey: PubKey) -> bool:
-    h = int_from_hash(m, ec.order)
+    h = int_from_hash(m, ec.n)
     r, s = dsasig
-    s1 = mod_inv(s, ec.order)
-    R = ec.pointAdd(ec.pointMultiply(r * s1 % ec.order, pubkey),
-                    ec.pointMultiply(h * s1 % ec.order, ec.G))
-    return R[0] % ec.order == r
+    s1 = mod_inv(s, ec.n)
+    R = ec.pointAdd(ec.pointMultiply(r * s1 % ec.n, pubkey),
+                    ec.pointMultiply(h * s1 % ec.n, ec.G))
+    return R[0] % ec.n == r
 
 
 def ecdsa_pubkey_recovery(m: Message, dsasig: Signature, odd1even0: int, hasher = sha256) -> PubKey:
@@ -53,12 +53,12 @@ def ecdsa_pubkey_recovery(m: Message, dsasig: Signature, odd1even0: int, hasher 
 
 
 def ecdsa_pubkey_recovery_raw(m: bytes, dsasig: Signature, odd1even0: int) -> PubKey:
-    h = int_from_hash(m, ec.order)
+    h = int_from_hash(m, ec.n)
     r, s = dsasig
-    r1 = mod_inv(r, ec.order)
+    r1 = mod_inv(r, ec.n)
     R = (r, ec.yOdd(r, odd1even0))
-    return ec.pointAdd(ec.pointMultiply( s * r1 % ec.order, R),
-                       ec.pointMultiply(-h * r1 % ec.order, ec.G))
+    return ec.pointAdd(ec.pointMultiply( s * r1 % ec.n, R),
+                       ec.pointMultiply(-h * r1 % ec.n, ec.G))
 
 
 def check_dsasig(dsasig: Signature) -> bool:
@@ -67,6 +67,6 @@ def check_dsasig(dsasig: Signature) -> bool:
     assert type(dsasig) == tuple and len(dsasig) == 2 and \
            type(dsasig[0]) == int and type(dsasig[1]) == int, \
            "dsasig must be a tuple of 2 int"
-    assert 0 < dsasig[0] and dsasig[0] < ec.order and \
-           0 < dsasig[1] and dsasig[1] < ec.order, "r and s must be in [1..order]"
+    assert 0 < dsasig[0] and dsasig[0] < ec.n and \
+           0 < dsasig[1] and dsasig[1] < ec.n, "r and s must be in [1..n]"
     return True

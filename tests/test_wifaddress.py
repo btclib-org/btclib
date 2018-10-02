@@ -57,7 +57,7 @@ class TestKeys(unittest.TestCase):
     def test_address_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
         prv = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-        prv = prv % ec.order
+        prv = prv % ec.n
 
         pub = pubkey_from_prvkey(prv, True)
         self.assertEqual(pub.hex(), '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352')
