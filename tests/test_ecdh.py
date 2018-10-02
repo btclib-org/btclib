@@ -22,6 +22,11 @@ class TestEcdh(unittest.TestCase):
         shared_alternative = ecdh(ec, prv_alternative, G)
         self.assertEqual(shared_sender, shared_recv)
         self.assertEqual(shared_alternative, shared_sender)
+        key_data_len = 20
+        hash_digest_size = 20
+        keying_data_sender = key_agreement_operation(ec, key_data_len, prv_sender, pub_recv, hash_digest_size)
+        keying_data_recv = key_agreement_operation(ec, key_data_len, prv_recv, pub_sender, hash_digest_size)
+        self.assertEqual(keying_data_sender, keying_data_recv)  
 
     def test_key_deployment(self):
         G = ec.G
