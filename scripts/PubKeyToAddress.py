@@ -6,19 +6,19 @@ from base58 import b58encode_check, b58encode, b58decode_check
 
 # FIXME: other versions
 def private_key_to_public_key(private_key, version=0x04):
-    p = ec.pointMultiply(private_key)
-    public_key = version+p[0]+p[1]
+    prv = ec.pointMultiply(private_key)
+    public_key = version+prv[0]+prv[1]
     return public_key
 
 # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
-p = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-p = p % ec.order
+prv = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+prv = prv % ec.n
 
 print("\n*** [0] Private ECDSA Key:")
-print(hex(p))
+print(hex(prv))
 
-P = ec.pointMultiply(p, ec.G)
-PubKey = b'\x04' + P[0].to_bytes(32, byteorder='big') + P[1].to_bytes(32, byteorder='big')
+Pub = ec.pointMultiply(prv, ec.G)
+PubKey = b'\x04' + Pub[0].to_bytes(32, byteorder='big') + Pub[1].to_bytes(32, byteorder='big')
 print("\n*** [1] Public Key (uncompressed):")
 print(PubKey.hex())
 
@@ -69,8 +69,8 @@ def public_key_to_bc_address(inp, version=b'\x00'):
     return b58encode_check(vh160)
 
 print("\n*** [1] Public Key compressed:")
-prefix = b'\x02' if (P[1] % 2 == 0) else b'\x03'
-PubKey = prefix + P[0].to_bytes(32, byteorder='big')
+prefix = b'\x02' if (Pub[1] % 2 == 0) else b'\x03'
+PubKey = prefix + Pub[0].to_bytes(32, byteorder='big')
 print(PubKey.hex())
 
 print("\n*** [9] base58 encoded address from compressed PubKey")

@@ -45,7 +45,7 @@ def bip32_master_prvkey_from_seed(bip32_seed: Union[str, bytes], version: bytes)
 
     # actual extended key (key + chain code) derivation
     hashValue = HMAC(b"Bitcoin seed", bip32_seed, sha512).digest()
-    mprv = int.from_bytes(hashValue[:32], 'big') % ec.order
+    mprv = int.from_bytes(hashValue[:32], 'big') % ec.n
     xmprv += hashValue[32:]                     # chain code
     xmprv += b'\x00' + mprv.to_bytes(32, 'big') # private key
 
@@ -134,7 +134,7 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
         else:                                   ## hardened derivation
             h = HMAC(parent_chain_code, xparent[45:] + index, sha512).digest()
         offset = int.from_bytes(h[:32], 'big')
-        child = (parent + offset) % ec.order
+        child = (parent + offset) % ec.n
         child_bytes = b'\x00' + child.to_bytes(32, 'big')
         xkey += h[32:]                          # chain code
         xkey += child_bytes                     # private key
@@ -218,7 +218,7 @@ def bip32_crack(parent_xpub: bytes, child_xprv: bytes) -> bytes:
     h = HMAC(parent_chain_code, Parent_bytes + child_index, sha512).digest()
     offset = int.from_bytes(h[:32], 'big')
     child = int.from_bytes(child_xprv[46:], 'big')
-    parent = (child - offset) % ec.order
+    parent = (child - offset) % ec.n
     parent_bytes = b'\x00' + parent.to_bytes(32, 'big')
     parent_xprv += parent_bytes        # private key
 

@@ -12,7 +12,7 @@ class TestEcdsa(unittest.TestCase):
         dsasig = ecdsa_sign(msg, prv)
         self.assertTrue(ecdsa_verify(msg, dsasig, pub))
         # malleability
-        malleated_sig = (dsasig[0], ec.order - dsasig[1])
+        malleated_sig = (dsasig[0], ec.n - dsasig[1])
         self.assertTrue(ecdsa_verify(msg, malleated_sig, pub))
 
         keys = (ecdsa_pubkey_recovery(msg, dsasig, 0),
@@ -24,7 +24,7 @@ class TestEcdsa(unittest.TestCase):
                    0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
         r, s = dsasig
         self.assertEqual(r, exp_sig[0])
-        sigs = (exp_sig[1], ec.order - exp_sig[1])
+        sigs = (exp_sig[1], ec.n - exp_sig[1])
         self.assertIn(s, sigs)
 
 

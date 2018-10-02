@@ -10,7 +10,7 @@ from ellipticcurves import secp256k1 as ec
 from wifaddress import int_from_prvkey
 
 # master prvkey
-mprvkey = randint(0, ec.order-1)
+mprvkey = randint(0, ec.n-1)
 print('\nmaster private key:', format(mprvkey, '#064x'))
 
 # Master Pubkey:
@@ -30,7 +30,7 @@ for i in range(0, nKeys):
   i_bytes = i.to_bytes(32, 'big')
   h_hex = sha256(i_bytes+r_bytes).hexdigest()
   h_int.append(int(h_hex, 16))
-  p.append((mprvkey + h_int[i]) % ec.order)
+  p.append((mprvkey + h_int[i]) % ec.n)
   P = ec.pointMultiply(p[i])
   print('prvkey#', i, ':', format(p[i], '#064x'))
   print('Pubkey#', i, ':', format(P[0], '#064x'))
@@ -49,7 +49,7 @@ def det_wallet2(key, r, i):
 
   try:
     prvkey = int_from_prvkey(key)
-    return (prvkey + h_int) % ec.order
+    return (prvkey + h_int) % ec.n
   except:
     pubkey = ec.tuple_from_Point(key)
     return ec.pointAdd(pubkey, ec.pointMultiply(h_int, ec.G))

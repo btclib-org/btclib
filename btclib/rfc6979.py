@@ -17,7 +17,7 @@ from btclib.ellipticcurves import secp256k1 as ec
 default_hasher = sha256
 default_hash_digest_size = 32
 
-qlen = len(bin(ec.order)) - 2  # -2 for the leading '0b'
+qlen = len(bin(ec.n)) - 2  # -2 for the leading '0b'
 rlen = ((qlen + 7) // 8) * 8
 
 def bits2int(b):
@@ -37,7 +37,7 @@ def int2octets(x):
 
 def bits2octets(b):
     z1 = bits2int(b)  # -2 for the leading '0b'
-    z2 = z1 % ec.order
+    z2 = z1 % ec.n
     return int2octets(z2)
 
 def check_hash_digest(m, hash_digest_size=default_hash_digest_size):
@@ -48,7 +48,7 @@ def check_hash_digest(m, hash_digest_size=default_hash_digest_size):
 
 def rfc6979(prv, m, hasher=default_hasher) -> int:
     assert type(prv) == int
-    assert 0 < prv and prv < ec.order, "invalid prv: " + str(prv)
+    assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
     check_hash_digest(m)
     return rfc6979_raw(prv, m, hasher)
 
@@ -67,7 +67,7 @@ def rfc6979_raw(prv, m, hasher=default_hasher) -> int:
             v = hmac.new(k, v, hasher).digest()
             t = t + v
         nonce = bits2int(t)
-        if nonce >= 1 and nonce < ec.order:
+        if nonce >= 1 and nonce < ec.n:
             # here it should be checked that nonce do not yields a invalid signature
             # but then I should put the signature generation here
             return nonce

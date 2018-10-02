@@ -19,7 +19,7 @@ class TestEcssa(unittest.TestCase):
         sig = ecssa_sign(msg, prv, eph_prv)
         self.assertTrue(ecssa_verify(msg, sig, pub))
         # malleability
-        self.assertFalse(ecssa_verify(msg, (sig[0], ec.order - sig[1]), pub))
+        self.assertFalse(ecssa_verify(msg, (sig[0], ec.n - sig[1]), pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(ec, pub, True) +
@@ -37,7 +37,7 @@ class TestEcssa(unittest.TestCase):
         sig = ecssa_sign(msg, prv, eph_prv)
         self.assertTrue(ecssa_verify(msg, sig, pub))
         # malleability
-        self.assertFalse(ecssa_verify(msg, (sig[0], ec.order - sig[1]), pub))
+        self.assertFalse(ecssa_verify(msg, (sig[0], ec.n - sig[1]), pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(ec, pub, True) +
@@ -55,7 +55,7 @@ class TestEcssa(unittest.TestCase):
         sig = ecssa_sign(msg, prv, eph_prv)
         self.assertTrue(ecssa_verify(msg, sig, pub))
         # malleability
-        self.assertFalse(ecssa_verify(msg, (sig[0], ec.order - sig[1]), pub))
+        self.assertFalse(ecssa_verify(msg, (sig[0], ec.n - sig[1]), pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(ec, pub, True) +
@@ -70,7 +70,7 @@ class TestEcssa(unittest.TestCase):
 
         self.assertTrue(ecssa_verify(msg, sig, pub))
         # malleability
-        self.assertFalse(ecssa_verify(msg, (sig[0], ec.order - sig[1]), pub))
+        self.assertFalse(ecssa_verify(msg, (sig[0], ec.n - sig[1]), pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(ec, pub, True) +
                    msg).digest()
