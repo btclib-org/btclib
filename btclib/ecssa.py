@@ -55,7 +55,8 @@ def ecssa_verify_raw(m: bytes, ssasig: Signature, pub: PubKey, hasher = sha256) 
     e = int_from_hash(e, ec.order)
     if e == 0 or e >= ec.order:
         return False
-    R = ec.pointAdd(ec.pointMultiply(ec.order - e, pub), ec.pointMultiply(s, ec.G))
+    # R = sG - eP
+    R = ec.pointAdd(ec.pointMultiply(s, ec.G), ec.pointMultiply(ec.order - e, pub))
     if ec.jacobi(R[1]) != 1:
         return False
     return R[0] == ssasig[0]
