@@ -99,9 +99,9 @@ class EllipticCurve:
 
     def __str__(self) -> str:
         result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
-        result += "\n prime = 0x%032x" % (self.__p)
-        result += "\n     G =(0x%032x,\n         0x%032x)" % (self.G)
-        result += "\n order = 0x%032x" % (self.n)
+        result += "\n p = 0x%032x" % (self.__p)
+        result += "\n G =(0x%032x,\n         0x%032x)" % (self.G)
+        result += "\n n = 0x%032x" % (self.n)
         return result
 
     def __repr__(self) -> str:
