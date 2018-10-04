@@ -111,97 +111,97 @@ class EllipticCurve:
         result += ", 0x%032x)" % (self.n)
         return result
         
-    def pointAdd(self, P: Optional[Point], Q: Optional[Point]) -> Optional[Point]:
-        if Q is None:
-            return P
-        if P is None:
+    def pointAdd(self, Q: Optional[Point], R: Optional[Point]) -> Optional[Point]:
+        if R is None:
             return Q
-        if Q[0] == P[0]:
-            if Q[1] != P[1] or P[1] == 0: # opposite points
+        if Q is None:
+            return R
+        if R[0] == Q[0]:
+            if R[1] != Q[1] or Q[1] == 0: # opposite points
                 return None
             else: # point doubling
-                lam = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__p)) % self.__p
+                lam = ((3*Q[0]*Q[0]+self.__a)*mod_inv(2*Q[1], self.__p)) % self.__p
         else:
-            lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__p)) % self.__p
-        x = (lam*lam-P[0]-Q[0]) % self.__p
-        y = (lam*(P[0]-x)-P[1]) % self.__p
+            lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self.__p)) % self.__p
+        x = (lam*lam-Q[0]-R[0]) % self.__p
+        y = (lam*(Q[0]-x)-Q[1]) % self.__p
         return x, y
 
     # double & add, using binary decomposition of n
-    def pointMultiply(self, n: int, P: Optional[Point]) -> Optional[Point]:
+    def pointMultiply(self, n: int, Q: Optional[Point]) -> Optional[Point]:
         n = n % self.n     # the group is cyclic
         r = None           # initialized to infinity point
         while n > 0:       # use binary representation of n
-            if n & 1:      # if least significant bit is 1 then add current P
-                r = self.pointAdd(r, P)
+            if n & 1:      # if least significant bit is 1 then add current Q
+                r = self.pointAdd(r, Q)
             n = n>>1       # right shift removes the bit just accounted for
-                           # double P for next step:
-            P = self.pointAdd(P, P)
+                           # double Q for next step:
+            Q = self.pointAdd(Q, Q)
         return r
 
 
 ### Functions using EllipticCurve ####
 
-def isOnCurve(ec: EllipticCurve, P: Point) -> bool:
-    assert isinstance(P, tuple), "not a tuple point"
-    assert len(P) == 2, "invalid tuple point length %s" % len(P)
-    return ec.areOnCurve(P[0], P[1])
+def isOnCurve(ec: EllipticCurve, Q: Point) -> bool:
+    assert isinstance(Q, tuple), "not a tuple point"
+    assert len(Q) == 2, "invalid tuple point length %s" % len(Q)
+    return ec.areOnCurve(Q[0], Q[1])
 
 GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
 # Optional[GenericPoint] do include the infinity point
 
-def tuple_from_Point(ec: EllipticCurve, P: Optional[GenericPoint]) -> Point:
+def tuple_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint]) -> Point:
     """Return a tuple (Px, Py) having ensured it belongs to the curve"""
 
-    if P is None:
+    if Q is None:
         raise ValueError("infinity point cannot be expressed as tuple")
 
-    if isinstance(P, str):
+    if isinstance(Q, str):
         # BIP32 xpub is not considered here,
         # as it is a bitcoin convention only
-        P = bytes.fromhex(P)
+        Q = bytes.fromhex(Q)
 
-    if isinstance(P, bytes) or isinstance(P, bytearray):
-        if len(P) == ec.bytesize+1: # compressed point
-            assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
-            Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
-            Py = ec.yOdd(Px, P[0] % 2) # also check Px validity
+    if isinstance(Q, bytes) or isinstance(Q, bytearray):
+        if len(Q) == ec.bytesize+1: # compressed point
+            assert Q[0] == 0x02 or Q[0] == 0x03, "not a compressed point"
+            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
+            Py = ec.yOdd(Px, Q[0] % 2) # also check Px validity
         else:                          # uncompressed point
-            assert len(P) == 2*ec.bytesize+1, \
+            assert len(Q) == 2*ec.bytesize+1, \
                 "wrong byte-size (%s) for a point: it should be %s or %s" % \
-                                    (len(P), ec.bytesize+1, 2*ec.bytesize+1)
-            assert P[0] == 0x04, "not an uncompressed point"
-            Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
-            Py = int.from_bytes(P[ec.bytesize+1:], 'big')
+                                    (len(Q), ec.bytesize+1, 2*ec.bytesize+1)
+            assert Q[0] == 0x04, "not an uncompressed point"
+            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
+            Py = int.from_bytes(Q[ec.bytesize+1:], 'big')
             assert ec.areOnCurve(Px, Py), "not on curve"
         return Px, Py
 
     # must be a tuple
-    assert isOnCurve(ec, P), "not on curve"
-    return P
+    assert isOnCurve(ec, Q), "not on curve"
+    return Q
 
 
-def bytes_from_Point(ec: EllipticCurve, P: Optional[GenericPoint], compressed: bool) -> bytes:
+def bytes_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint], compressed: bool) -> bytes:
     """
     Return a compressed (0x02, 0x03) or uncompressed (0x04)
     point ensuring it belongs to the curve
     """
     # enforce self-consistency with whatever
     # policy is implemented by tuple_from_Point
-    P = tuple_from_Point(ec, P)
+    Q = tuple_from_Point(ec, Q)
 
-    bPx = P[0].to_bytes(ec.bytesize, byteorder='big')
+    bPx = Q[0].to_bytes(ec.bytesize, byteorder='big')
     if compressed:
-        return (b'\x03' if (P[1] & 1) else b'\x02') + bPx
+        return (b'\x03' if (Q[1] & 1) else b'\x02') + bPx
 
-    return b'\x04' + bPx + P[1].to_bytes(ec.bytesize, byteorder='big')
+    return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
 
 
-def pointAdd(ec: EllipticCurve, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
-    if P is not None: P = tuple_from_Point(ec, P)
+def pointAdd(ec: EllipticCurve, Q: Optional[GenericPoint], R: Optional[GenericPoint]) -> Optional[Point]:
     if Q is not None: Q = tuple_from_Point(ec, Q)
-    return ec.pointAdd(P, Q)
+    if R is not None: R = tuple_from_Point(ec, R)
+    return ec.pointAdd(Q, R)
 
 
 Scalar = Union[str, bytes, bytearray, int]
@@ -227,10 +227,10 @@ def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     return n.to_bytes(ec.bytesize, 'big')
 
 
-def pointMultiply(ec: EllipticCurve, n: Scalar, P: Optional[GenericPoint]) -> Optional[Point]:
+def pointMultiply(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Optional[Point]:
     n = int_from_Scalar(ec, n)
-    if P is not None: P = tuple_from_Point(ec, P)
-    return ec.pointMultiply(n, P)
+    if Q is not None: Q = tuple_from_Point(ec, Q)
+    return ec.pointMultiply(n, Q)
 
 def secondGenerator(ec: EllipticCurve) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
