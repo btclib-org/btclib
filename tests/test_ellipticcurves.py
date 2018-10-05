@@ -4,11 +4,14 @@ import unittest
 from btclib.ellipticcurves import EllipticCurve, \
                                   bytes_from_Point, tuple_from_Point, \
                                   secondGenerator, \
-                                  pointAdd, pointMultiply, \
+                                  opposite, pointAdd, pointAddJacobian, \
+                                  pointMultiply, pointMultiplyJacobian, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
                                   secp384r1, secp521r1
+from btclib.numbertheory import mod_inv
+import os
 
 # toy curves
 ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
@@ -301,7 +304,86 @@ class TestEllipticCurve(unittest.TestCase):
         
         H = secondGenerator(secp256r1)
         H = secondGenerator(secp384r1)
+
+    def test_opposite(self): 
+        for curve in allcurves:
+            # random point
+            d = os.urandom(curve.bytesize)
+            P = pointMultiply(curve, d, curve.G)
+            Popp = opposite(curve, P)
+            inf = pointAdd(curve, P, Popp)
+
+            self.assertEqual(inf, None)
+
+    def test_jacobian_add(self):
+        for curve in allcurves:
+            d1 = os.urandom(curve.bytesize)
+            P1 = pointMultiply(curve, d1, curve.G)
+            d2 = os.urandom(curve.bytesize)
+            P2 = pointMultiply(curve, d2, curve.G)
         
+            # distinct points
+            P3 = pointAdd(curve, P1, P2)
+            P3jac = pointAddJacobian(curve, P1, P2) 
+            P3jac = curve.jac_to_affine(P3jac)
+        
+            self.assertEqual(P3, P3jac)
+        
+            # point doubling 
+            P3 = pointAdd(curve, P1, P1)
+            P3jac = pointAddJacobian(curve, P1, P1) 
+            # affine coord
+            P3jac = curve.jac_to_affine(P3jac)
+        
+            self.assertEqual(P3, P3jac)
+
+            # opposite points
+            P1opp = opposite(curve, P1)
+            P3 = pointAdd(curve, P1, P1opp)
+            P3jac = pointAddJacobian(curve, P1, P1opp) 
+            # affine coord
+            P3jac = curve.jac_to_affine(P3jac)
+        
+            self.assertEqual(P3, P3jac)
+
+            # point in bytes format
+            P1 = pointMultiply(curve, d1, curve.G)
+            if P1 is not None: P1 = b'\x02' + P1[0].to_bytes(curve.bytesize, 'big')
+            P2 = pointMultiply(curve, d2, curve.G)
+            if P2 is not None: P2 = b'\x03' + P2[0].to_bytes(curve.bytesize, 'big')
+        
+            # distinct points
+            P3 = pointAdd(curve, P1, P2)
+            P3jac = pointAddJacobian(curve, P1, P2) 
+            P3jac = curve.jac_to_affine(P3jac)
+        
+            self.assertEqual(P3, P3jac)
+        
+            # point doubling 
+            P3 = pointAdd(curve, P1, P1)
+            P3jac = pointAddJacobian(curve, P1, P1) 
+            # affine coord
+            P3jac = curve.jac_to_affine(P3jac)
+        
+            self.assertEqual(P3, P3jac)
+
+            # opposite points
+            P1opp = opposite(curve, P1)
+            P3 = pointAdd(curve, P1, P1opp)
+            P3jac = pointAddJacobian(curve, P1, P1opp) 
+            # affine coord
+            P3jac = curve.jac_to_affine(P3jac)
+        
+            self.assertEqual(P3, P3jac)
+
+    def test_jacobian_mul(self):
+        for curve in allcurves:
+            n = os.urandom(curve.bytesize)
+        
+            nP = pointMultiply(curve, n, curve.G)
+            nPjac = pointMultiplyJacobian(curve, n, curve.G)
+            self.assertEqual(nP, nPjac)
+
 if __name__ == "__main__":
     # execute only if run as a script
     unittest.main()

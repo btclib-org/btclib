@@ -10,6 +10,7 @@ from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
 Point = Tuple[int, int]
+JacPoint = Tuple[int, int]
 # infinity point being represented by None,
 # Optional[Point] does include the infinity point
 
@@ -110,6 +111,12 @@ class EllipticCurve:
         result += ", (0x%032x,0x%032x)" % (self.G)
         result += ", 0x%032x)" % (self.n)
         return result
+
+    def opposite(self, Q: Optional[Point]) -> Optional[Point]:
+        if Q is None: 
+            return None
+        else:
+            return (Q[0], self.__p - Q[1])
         
     def pointAdd(self, Q: Optional[Point], R: Optional[Point]) -> Optional[Point]:
         if R is None:
@@ -127,8 +134,56 @@ class EllipticCurve:
         y = (lam*(Q[0]-x)-Q[1]) % self.__p
         return x, y
 
+    def affine_to_jac(self, Q: Optional[Point]) -> JacPoint:
+        assert (isinstance(Q, tuple) and len(Q) == 2) or Q is None,  "point not in affine coordinates"
+        if Q is None:
+            return (1, 1, 0)
+        else:
+            return (Q[0], Q[1], 1)
+
+    def jac_to_affine(self, Q: JacPoint) -> Optional[Point]:
+        assert isinstance(Q, tuple) and len(Q) == 3, "point not in Jacobian coordinates"
+        if Q[2] == 0:
+            return None
+        else:
+            x = (Q[0]*mod_inv(Q[2]*Q[2], self.__p)) % self.__p
+            y = (Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self.__p)) % self.__p
+            return x, y
+
+    def pointAddJacobian(self, Q: Union[Optional[Point], JacPoint], R: Union[Optional[Point], JacPoint]) -> JacPoint:
+        if Q is None or len(Q) == 2: Q = self.affine_to_jac(Q)
+        if R is None or len(R) == 2: R = self.affine_to_jac(R) 
+        if Q[2] == 0: return R
+        if R[2] == 0: return Q
+        
+        if Q[0]*R[2] == R[0]*Q[2]: # same affine x coordinate
+            if Q[1] != R[1] or Q[1] == 0: # opposite points or degenerate case
+                return 1, 1, 0        
+            else: # point doubling
+                W = (3*Q[0]*Q[0] + self.__a*Q[2]*Q[2]*Q[2]*Q[2]) % self.__p
+                V = (4*Q[0]*Q[1]*Q[1]) % self.__p
+
+                X = (W*W - 2*V) % self.__p
+                Y = (W*(V - X) - 8*Q[1]*Q[1]*Q[1]*Q[1]) % self.__p
+                Z = (2*Q[1]*Q[2]) % self.__p
+                return X, Y, Z
+        else:
+            T = (Q[1]*R[2]*R[2]*R[2]) % self.__p
+            U = (R[1]*Q[2]*Q[2]*Q[2]) % self.__p
+            W = (U - T) % self.__p
+            M = (Q[0]*R[2]*R[2]) % self.__p
+            N = (R[0]*Q[2]*Q[2]) % self.__p
+            V = (N - M) % self.__p
+                
+            X = (W*W - V*V*V - 2*M*V*V) % self.__p
+            Y = (W*(M*V*V - X) - T*V*V*V) % self.__p
+            Z = (V*Q[2]*R[2]) % self.__p
+
+            return X, Y, Z
+
     # double & add, using binary decomposition of n
     def pointMultiply(self, n: int, Q: Optional[Point]) -> Optional[Point]:
+        if Q is None: return None
         n = n % self.n     # the group is cyclic
         r = None           # initialized to infinity point
         while n > 0:       # use binary representation of n
@@ -138,6 +193,18 @@ class EllipticCurve:
                            # double Q for next step:
             Q = self.pointAdd(Q, Q)
         return r
+
+    def pointMultiplyJacobian(self, n: int, Q: Optional[Point]) -> Optional[Point]:
+        if Q is None: return None
+        n = n % self.n     # the group is cyclic
+        r = self.affine_to_jac(None)           # initialized to infinity point
+        while n > 0:       # use binary representation of n
+            if n & 1:      # if least significant bit is 1 then add current Q
+                r = self.pointAddJacobian(r, Q)
+            n = n>>1       # right shift removes the bit just accounted for
+                           # double Q for next step:
+            Q = self.pointAddJacobian(Q, Q)
+        return self.jac_to_affine(r)
 
 
 ### Functions using EllipticCurve ####
@@ -197,11 +264,19 @@ def bytes_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint], compressed: b
 
     return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
 
+def opposite(ec: EllipticCurve, Q: Optional[GenericPoint]) -> Optional[Point]:
+    if Q is not None: Q = tuple_from_Point(ec, Q)
+    return ec.opposite(Q)
 
 def pointAdd(ec: EllipticCurve, Q: Optional[GenericPoint], R: Optional[GenericPoint]) -> Optional[Point]:
     if Q is not None: Q = tuple_from_Point(ec, Q)
     if R is not None: R = tuple_from_Point(ec, R)
     return ec.pointAdd(Q, R)
+
+def pointAddJacobian(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoint], R: Union[Optional[GenericPoint], JacPoint]) -> JacPoint:
+    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
+    if R is not None and not (isinstance(R, tuple) and len(R) == 3): R = tuple_from_Point(ec, R)
+    return ec.pointAddJacobian(Q, R)
 
 
 Scalar = Union[str, bytes, bytearray, int]
@@ -231,6 +306,11 @@ def pointMultiply(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Op
     n = int_from_Scalar(ec, n)
     if Q is not None: Q = tuple_from_Point(ec, Q)
     return ec.pointMultiply(n, Q)
+
+def pointMultiplyJacobian(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Optional[Point]:
+    n = int_from_Scalar(ec, n)
+    if Q is not None: Q = tuple_from_Point(ec, Q)
+    return ec.pointMultiplyJacobian(n, Q)
 
 def secondGenerator(ec: EllipticCurve) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
