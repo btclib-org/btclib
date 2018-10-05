@@ -13,5 +13,5 @@ pip3 install git+https://github.com/dginst/BitcoinBlockchainTechnology.git
 Excel spreadsheets are available in the `excel` folder:
 https://github.com/dginst/BitcoinBlockchainTechnology/tree/master/excel
 
-Slides and other material for the course is available at the course page:
+Reference material and slides for the course are available at the course page:
 https://www.ametrano.net/bbt/
