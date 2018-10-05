@@ -13,12 +13,5 @@ pip3 install git+https://github.com/dginst/BitcoinBlockchainTechnology.git
 Excel spreadsheets are available in the `excel` folder:
 https://github.com/dginst/BitcoinBlockchainTechnology/tree/master/excel
 
-Course `slides` are available:
-
-1. Introduction: https://bit.ly/2jQjYxt
-2. Blockchain, Mining, and Distributed Consensus: https://bit.ly/2KgS20R
-3. Elliptic Curve Asymmetric Cryptography: https://bit.ly/2LecIba
-4. Addresses, Transactions, and Blocks:
-5. Monetary Engineering: http://bit.ly/2JV31xx
-6. Wallets and Deterministic Keys Sequences:
-7. Distributed Ledger Technology and Non-monetary Applications:
+Slides and other material for the course is available at the course page:
+https://www.ametrano.net/bbt/
