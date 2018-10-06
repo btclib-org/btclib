@@ -10,7 +10,7 @@ from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
 Point = Tuple[int, int]
-JacPoint = Tuple[int, int]
+JacPoint = Tuple[int, int, int]
 # infinity point being represented by None,
 # Optional[Point] does include the infinity point
 
