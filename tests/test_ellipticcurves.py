@@ -10,7 +10,7 @@ from btclib.ellipticcurves import EllipticCurve, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
                                   secp384r1, secp521r1
-from btclib.numbertheory import mod_inv
+from btclib.numbertheory import mod_inv, mod_sqrt
 import os
 
 # toy curves
@@ -382,6 +382,7 @@ class TestEllipticCurve(unittest.TestCase):
         
             nP = pointMultiply(curve, n, curve.G)
             nPjac = pointMultiplyJacobian(curve, n, curve.G)
+
             self.assertEqual(nP, nPjac)
 
 if __name__ == "__main__":

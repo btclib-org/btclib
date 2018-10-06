@@ -156,7 +156,7 @@ class EllipticCurve:
         if Q[2] == 0: return R
         if R[2] == 0: return Q
         
-        if Q[0]*R[2] == R[0]*Q[2]: # same affine x coordinate
+        if Q[0]*R[2]*R[2] == R[0]*Q[2]*Q[2]: # same affine x coordinate
             if Q[1] != R[1] or Q[1] == 0: # opposite points or degenerate case
                 return 1, 1, 0        
             else: # point doubling
