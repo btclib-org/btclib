@@ -85,14 +85,14 @@ class EllipticCurve:
         # switch low/high root when needed
         return root if (root < self.__p/2) else self.__p - root
 
-    def yQuadraticResidue(self, x: int, quadres: int) -> int:
-        assert quadres in (0, 1), "must be bool or 0/1"
+    def yQuadraticResidue(self, x: int, quadRes: int) -> int:
+        assert quadRes in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)
         if y2 == 0: return 0
         # if root does not exist, mod_sqrt will raise a ValueError
         root = mod_sqrt(y2, self.__p)
         # switch to the quadratic residue root when needed
-        if quadres:
+        if quadRes:
             return self.__p - root if (self.jacobi(root) != 1) else root
         else:
             return root if (self.jacobi(root) != 1) else self.__p - root
@@ -129,13 +129,15 @@ class EllipticCurve:
 
     # double & add, using binary decomposition of n
     def pointMultiply(self, n: int, Q: Optional[Point]) -> Optional[Point]:
-        n = n % self.n     # the group is cyclic
-        r = None           # initialized to infinity point
-        while n > 0:       # use binary representation of n
-            if n & 1:      # if least significant bit is 1 then add current Q
+        if Q is None:
+            return Q
+        n = n % self.n # the group is cyclic
+        r = None       # initialized to infinity point
+        while n > 0:   # use binary representation of n
+            if n & 1:  # if least significant bit is 1 then add current Q
                 r = self.pointAdd(r, Q)
-            n = n>>1       # right shift removes the bit just accounted for
-                           # double Q for next step:
+            n = n>>1   # right shift removes the bit just accounted for
+                       # double Q for next step
             Q = self.pointAdd(Q, Q)
         return r
 
@@ -212,6 +214,7 @@ def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
         n = bytes.fromhex(n)
 
     if isinstance(n, bytes) or isinstance(n, bytearray):
+        # FIXME: asses if must be <= or ec.bytesize should be rivised
         assert len(n) <= ec.bytesize, "wrong lenght"
         n = int.from_bytes(n, 'big')
 
