@@ -26,3 +26,7 @@ class TestBorromeanRingSignature(unittest.TestCase):
         msg = 'Borromean ring signature'
         sig = borromean_sign(msg, signing_indexes, signing_keys, Pub_keys)
         self.assertTrue(borromean_verify(msg, sig[0], sig[1], Pub_keys))
+        
+if __name__ == "__main__":
+    # execute only if run as a script
+    unittest.main()
