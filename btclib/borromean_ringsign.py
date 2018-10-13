@@ -56,9 +56,11 @@ def borromean_sign(msg: Message, sign_key_idx: List[int], sign_keys: List[Scalar
             last_R += R
         else:
             e[i][j_star] = int_from_hash(borromean_hash(m, R, i, j_star), ec.n)
+            assert e[i][j_star] != 0 and e[i][j_star] < ec.n, "sign fail"
             for j in range(start_idx, len(pubk_rings[i])):
                 s[i][j] = os.urandom(32)
                 e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec.n)
+                assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
                 R = bytes_from_Point(ec, pointAdd(ec, pointMultiply(ec, s[i][j], ec.G),\
                                      pointMultiply(ec, ec.n - e[i][j], tuple_from_Point(ec, pubk_rings[i][j]))),\
                                      True)
@@ -68,12 +70,14 @@ def borromean_sign(msg: Message, sign_key_idx: List[int], sign_keys: List[Scalar
     for i in range(0, ring_number):
         j_star = sign_key_idx[i]
         e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec.n)
+        assert e[i][0] != 0 and e[i][0] < ec.n, "sign fail"
         for j in range(1, j_star+1):
             s[i][j-1] = os.urandom(32)
             R = bytes_from_Point(ec, pointAdd(ec, pointMultiply(ec, s[i][j-1], ec.G),\
                                  pointMultiply(ec, ec.n - e[i][j-1], tuple_from_Point(ec, pubk_rings[i][j-1]))),\
                                  True)
             e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec.n)
+            assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
         s[i][j_star] = bytes_from_Scalar(ec, k[i] + sign_keys[i]*e[i][j_star])
     return (e_0, s)
 
@@ -94,6 +98,7 @@ def borromean_verify(msg: Message, e_0: bytes, s: Dict[int, List[Scalar]],\
     for i in range(0, ring_number):
         e[i] = [0]*len(pubk_rings[i])
         e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec.n)
+        assert e[i][0] != 0 and e[i][0] < ec.n, "sign fail"
         for j in range(0, len(pubk_rings[i])):
             R = bytes_from_Point(ec, pointAdd(ec, pointMultiply(ec, s[i][j], ec.G),\
                                  pointMultiply(ec, ec.n - e[i][j], tuple_from_Point(ec, pubk_rings[i][j]))),\
