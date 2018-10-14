@@ -98,14 +98,16 @@ def borromean_verify(msg: Message, e_0: bytes, s: Dict[int, List[Scalar]],\
     for i in range(0, ring_number):
         e[i] = [0]*len(pubk_rings[i])
         e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec.n)
-        assert e[i][0] != 0 and e[i][0] < ec.n, "sign fail"
+        if e[i][0] == 0 or e[i][0] >= ec.n:
+            return False
         for j in range(0, len(pubk_rings[i])):
             R = bytes_from_Point(ec, pointAdd(ec, pointMultiply(ec, s[i][j], ec.G),\
                                  pointMultiply(ec, ec.n - e[i][j], tuple_from_Point(ec, pubk_rings[i][j]))),\
                                  True)
             if j != len(pubk_rings[i])-1:
                 e[i][j+1] = int_from_hash(borromean_hash(m, R, i, j+1), ec.n)
-                assert e[i][j+1] != 0 and e[i][j+1] < ec.n, "sign fail"
+                if e[i][j+1] == 0 or e[i][j+1] >= ec.n:
+                    return False
             else:
                 last_R += R
     e_0_prime = (sha256(last_R).digest())
