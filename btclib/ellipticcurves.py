@@ -94,7 +94,7 @@ class EllipticCurve:
         # if root does not exist, mod_sqrt will raise a ValueError
         root = mod_sqrt(y2, self.__p)
         # switch to the quadratic residue root when needed
-        if quadres:
+        if quadRes:
             return self.__p - root if (self.jacobi(root) != 1) else root
         else:
             return root if (self.jacobi(root) != 1) else self.__p - root
