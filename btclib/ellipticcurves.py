@@ -182,14 +182,15 @@ class EllipticCurve:
 
     # double & add, using binary decomposition of n
     def pointMultiply(self, n: int, Q: Optional[Point]) -> Optional[Point]:
-        if Q is None: return None
-        n = n % self.n     # the group is cyclic
-        r = None           # initialized to infinity point
-        while n > 0:       # use binary representation of n
-            if n & 1:      # if least significant bit is 1 then add current Q
+        if Q is None:
+            return Q
+        n = n % self.n # the group is cyclic
+        r = None       # initialized to infinity point
+        while n > 0:   # use binary representation of n
+            if n & 1:  # if least significant bit is 1 then add current Q
                 r = self.pointAdd(r, Q)
-            n = n>>1       # right shift removes the bit just accounted for
-                           # double Q for next step:
+            n = n>>1   # right shift removes the bit just accounted for
+                       # double Q for next step
             Q = self.pointAdd(Q, Q)
         return r
 
@@ -293,6 +294,7 @@ def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
         n = bytes.fromhex(n)
 
     if isinstance(n, bytes) or isinstance(n, bytearray):
+        # FIXME: asses if must be <= or ec.bytesize should be rivised
         assert len(n) <= ec.bytesize, "wrong lenght"
         n = int.from_bytes(n, 'big')
 
