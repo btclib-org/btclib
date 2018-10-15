@@ -86,9 +86,9 @@ class EllipticCurve:
         # switch low/high root when needed
         return root if (root < self.__p/2) else self.__p - root
 
-    def yQuadraticResidue(self, x: int, quadres: int) -> int:
+    def yQuadraticResidue(self, x: int, quadRes: int) -> int:
         assert self.__p % 4 == 3, "this method works only when p = 3 (mod 4)"
-        assert quadres in (0, 1), "must be bool or 0/1"
+        assert quadRes in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)
         if y2 == 0: return 0
         # if root does not exist, mod_sqrt will raise a ValueError
