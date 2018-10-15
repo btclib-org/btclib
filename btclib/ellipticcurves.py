@@ -87,6 +87,7 @@ class EllipticCurve:
         return root if (root < self.__p/2) else self.__p - root
 
     def yQuadraticResidue(self, x: int, quadres: int) -> int:
+        assert self.__p % 4 == 3, "this method works only when p = 3 (mod 4)"
         assert quadres in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)
         if y2 == 0: return 0
@@ -134,14 +135,14 @@ class EllipticCurve:
         y = (lam*(Q[0]-x)-Q[1]) % self.__p
         return x, y
 
-    def affine_to_jac(self, Q: Optional[Point]) -> JacPoint:
+    def jac_from_affine(self, Q: Optional[Point]) -> JacPoint:
         assert (isinstance(Q, tuple) and len(Q) == 2) or Q is None,  "point not in affine coordinates"
         if Q is None:
             return (1, 1, 0)
         else:
             return (Q[0], Q[1], 1)
 
-    def jac_to_affine(self, Q: JacPoint) -> Optional[Point]:
+    def affine_from_jac(self, Q: JacPoint) -> Optional[Point]:
         assert isinstance(Q, tuple) and len(Q) == 3, "point not in Jacobian coordinates"
         if Q[2] == 0:
             return None
@@ -150,16 +151,14 @@ class EllipticCurve:
             y = (Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self.__p)) % self.__p
             return x, y
 
-    def pointAddJacobian(self, Q: Union[Optional[Point], JacPoint], R: Union[Optional[Point], JacPoint]) -> JacPoint:
-        if Q is None or len(Q) == 2: Q = self.affine_to_jac(Q)
-        if R is None or len(R) == 2: R = self.affine_to_jac(R) 
+    def pointAddJacobian(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         if Q[2] == 0: return R
         if R[2] == 0: return Q
         
         if Q[0]*R[2]*R[2] == R[0]*Q[2]*Q[2]: # same affine x coordinate
-            if Q[1] != R[1] or Q[1] == 0: # opposite points or degenerate case
+            if Q[1] != R[1] or Q[1] == 0:    # opposite points or degenerate case
                 return 1, 1, 0        
-            else: # point doubling
+            else:                            # point doubling
                 W = (3*Q[0]*Q[0] + self.__a*Q[2]*Q[2]*Q[2]*Q[2]) % self.__p
                 V = (4*Q[0]*Q[1]*Q[1]) % self.__p
 
@@ -194,17 +193,17 @@ class EllipticCurve:
             Q = self.pointAdd(Q, Q)
         return r
 
-    def pointMultiplyJacobian(self, n: int, Q: Optional[Point]) -> Optional[Point]:
-        if Q is None: return None
-        n = n % self.n     # the group is cyclic
-        r = self.affine_to_jac(None)           # initialized to infinity point
-        while n > 0:       # use binary representation of n
-            if n & 1:      # if least significant bit is 1 then add current Q
+    def pointMultiplyJacobian(self, n: int, Q: JacPoint) -> Optional[Point]:
+        if Q[2] == 0: return None
+        n = n % self.n                 # the group is cyclic
+        r = self.jac_from_affine(None) # initialized to infinity point
+        while n > 0:                   # use binary representation of n
+            if n & 1:                  # if least significant bit is 1 then add current Q
                 r = self.pointAddJacobian(r, Q)
-            n = n>>1       # right shift removes the bit just accounted for
-                           # double Q for next step:
+            n = n>>1                   # right shift removes the bit just accounted for
+                                       # double Q for next step:
             Q = self.pointAddJacobian(Q, Q)
-        return self.jac_to_affine(r)
+        return self.affine_from_jac(r)
 
 
 ### Functions using EllipticCurve ####
@@ -264,9 +263,13 @@ def bytes_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint], compressed: b
 
     return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
 
-def opposite(ec: EllipticCurve, Q: Optional[GenericPoint]) -> Optional[Point]:
-    if Q is not None: Q = tuple_from_Point(ec, Q)
-    return ec.opposite(Q)
+def opposite(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoint]) -> Union[Optional[Point], JacPoint]:
+    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
+    if isinstance(Q, tuple) and len(Q) == 3: 
+        Q = ec.affine_from_jac(Q)
+        return ec.jac_from_affine(ec.opposite(Q))
+    else:
+        return ec.opposite(Q)
 
 def pointAdd(ec: EllipticCurve, Q: Optional[GenericPoint], R: Optional[GenericPoint]) -> Optional[Point]:
     if Q is not None: Q = tuple_from_Point(ec, Q)
@@ -276,6 +279,9 @@ def pointAdd(ec: EllipticCurve, Q: Optional[GenericPoint], R: Optional[GenericPo
 def pointAddJacobian(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoint], R: Union[Optional[GenericPoint], JacPoint]) -> JacPoint:
     if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
     if R is not None and not (isinstance(R, tuple) and len(R) == 3): R = tuple_from_Point(ec, R)
+    if Q is None or len(Q) == 2: Q = ec.jac_from_affine(Q)
+    if R is None or len(R) == 2: R = ec.jac_from_affine(R) 
+
     return ec.pointAddJacobian(Q, R)
 
 
@@ -307,9 +313,11 @@ def pointMultiply(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Op
     if Q is not None: Q = tuple_from_Point(ec, Q)
     return ec.pointMultiply(n, Q)
 
-def pointMultiplyJacobian(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Optional[Point]:
+def pointMultiplyJacobian(ec: EllipticCurve, n: Scalar, Q: Union[Optional[GenericPoint], JacPoint]) -> Optional[Point]:
     n = int_from_Scalar(ec, n)
-    if Q is not None: Q = tuple_from_Point(ec, Q)
+    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
+    if Q is None or len(Q) == 2: Q = ec.jac_from_affine(Q)
+
     return ec.pointMultiplyJacobian(n, Q)
 
 def secondGenerator(ec: EllipticCurve) -> Point:
