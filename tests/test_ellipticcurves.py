@@ -9,6 +9,8 @@ from btclib.ellipticcurves import EllipticCurve, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
                                   secp384r1, secp521r1
+from btclib.numbertheory import mod_sqrt
+import os
 
 # toy curves
 ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
@@ -129,10 +131,9 @@ ec283_281 = EllipticCurve(2, 7, 283, (0,  63), 281)
 ec293_281 = EllipticCurve(8, 6, 293, (0,  42), 281)
 ec293_311 = EllipticCurve(1, 4, 293, (0, 291), 311)
 
-allcurves = [
-    secp192k1, secp192r1, secp224k1, secp224r1,
-    secp256k1, secp256r1, secp384r1, secp521r1,
-    ec11_13, ec263_269, ec263_270, ec263_280,
+smallcurves = [
+    ec11_13, ec263_269, 
+    ec263_270, ec263_280,
     ec11_7, ec11_17,
     ec13_11, ec13_19,
     ec17_13, ec17_23,
@@ -190,6 +191,11 @@ allcurves = [
     ec281_311,
     ec283_281, #ec283_283,
     ec293_281, ec293_311]
+
+allcurves = [
+    secp192k1, secp192r1, secp224k1, secp224r1,
+    secp256k1, secp256r1, secp384r1, secp521r1] + smallcurves
+
 
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
@@ -301,6 +307,62 @@ class TestEllipticCurve(unittest.TestCase):
         
         H = secondGenerator(secp256r1)
         H = secondGenerator(secp384r1)
+
+    def test_quad_res(self):
+        for curve in smallcurves:
+            # computing the quadratic residues
+            hasRoot = set()
+            hasRoot.add(1)
+            p = curve._EllipticCurve__p # a class method returning p could be useful
+            for i in range(2, p):
+                hasRoot.add(i*i % p)
+            
+            # random point
+            inf = True
+            while inf:
+                q = os.urandom(curve.bytesize)
+                Q = pointMultiply(curve, q, curve.G)
+                if Q is not None:
+                    inf = False
+        
+            x = Q[0]
+            if p % 4 == 3:
+                quad_res = curve.yQuadraticResidue(x, 1)
+                not_quad_res = curve.yQuadraticResidue(x, 0)
+                # in this case only quad_res is a quadratic residue
+                self.assertIn(quad_res, hasRoot)
+                root = mod_sqrt(quad_res, p)
+                self.assertEqual(quad_res, (root*root) % p)
+                root = p - root
+                self.assertEqual(quad_res, (root*root) % p)
+
+                assert not_quad_res == p - quad_res
+                self.assertNotIn(not_quad_res, hasRoot)
+                self.assertRaises(ValueError, mod_sqrt, not_quad_res, p)
+            else:
+                # cannot use yQuadraticResidue in this case
+                assert p % 4 == 1
+                yOdd = curve.yOdd(x, 1)
+                yEven = curve.yOdd(x, 0)
+
+                # in this case neither or both are quadratic residues
+                self.assertRaises(AssertionError, curve.yQuadraticResidue, x, 1)
+                self.assertRaises(AssertionError, curve.yQuadraticResidue, x, 0)
+                self.assertTrue((yOdd in hasRoot and yEven in hasRoot) or 
+                                (yOdd not in hasRoot and yEven not in hasRoot))
+                if yOdd in hasRoot and yEven in hasRoot:
+                    root = mod_sqrt(yOdd, p)
+                    self.assertEqual(yOdd, (root*root) % p)
+                    root = p - root
+                    self.assertEqual(yOdd, (root*root) % p)
+                    root = mod_sqrt(yEven, p)
+                    self.assertEqual(yEven, (root*root) % p)
+                    root = p - root
+                    self.assertEqual(yEven, (root*root) % p)
+                else:
+                    self.assertTrue(yOdd not in hasRoot and yEven not in hasRoot)
+                    self.assertRaises(ValueError, mod_sqrt, yOdd, p)
+                    self.assertRaises(ValueError, mod_sqrt, yEven, p)
         
 if __name__ == "__main__":
     # execute only if run as a script
