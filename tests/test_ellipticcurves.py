@@ -202,8 +202,9 @@ smallcurves = lowcard + [
 allcurves = [
     secp160r1,
     secp192k1, secp192r1, secp224k1, secp224r1,
-    secp256k1, secp256r1, secp384r1, secp521r1] + smallcurves
-    
+    secp256k1, secp256r1, secp384r1, secp521r1,
+    ec11_13, ec263_269, ec263_270, ec263_280] + smallcurves
+
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
         for ec in allcurves:
@@ -477,7 +478,7 @@ class TestEllipticCurve(unittest.TestCase):
             nQ = pointMultiply(curve, n, curve.G)
             nQjac = pointMultiplyJacobian(curve, n, curve.G)
             self.assertEqual(nQ, nQjac)
-
+        
     def test_shamir(self):
         for curve in smallcurves:
             k1 = int.from_bytes(os.urandom(curve.bytesize), 'big')
