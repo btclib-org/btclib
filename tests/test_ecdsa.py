@@ -3,7 +3,7 @@
 import unittest
 from btclib.ecdsa import ecdsa_sign, ecdsa_verify, ecdsa_pubkey_recovery
 from btclib.ellipticcurves import pointMultiply, secp256k1 as ec
-from tests.test_ellipticcurves import lowcard, smallcurves
+from tests.test_ellipticcurves import lowcard
 from btclib.rfc6979 import rfc6979
 from hashlib import sha256 as hasher
 from btclib.ecsignutils import int_from_hash

@@ -56,7 +56,7 @@ def ecdsa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optio
     # commit
     R, eph_prv = tweak(eph_prv, c, hasher)
     # sign
-    sig = ecdsa_sign_raw(m, prvkey, eph_prv)
+    sig = ecdsa_sign_raw(ec, m, prvkey, eph_prv)
     # commit receipt
     receipt = (sig[0], R)
     return sig, receipt
@@ -70,7 +70,7 @@ def ecssa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optio
     # commit
     R, eph_prv = tweak(eph_prv, c, hasher)
     # sign
-    sig = ecssa_sign_raw(m, prvkey, eph_prv, hasher)
+    sig = ecssa_sign_raw(ec, m, prvkey, eph_prv, hasher)
     # commit receipt
     receipt = (sig[0], R)
     return sig, receipt
