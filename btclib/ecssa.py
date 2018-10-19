@@ -4,11 +4,10 @@
 """
 
 from hashlib import sha256
-from btclib.ellipticcurves import Union, Tuple, Optional, \
+from btclib.ellipticcurves import EllipticCurve, Union, Tuple, Optional, \
                                   Scalar as PrvKey, \
                                   Point as PubKey, GenericPoint as GenericPubKey, \
                                   mod_inv, \
-                                  secp256k1 as ec, \
                                   int_from_Scalar, tuple_from_Point, bytes_from_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature, int_from_hash
@@ -19,14 +18,14 @@ from btclib.ecsignutils import Message, Signature, int_from_hash
 
 # different structure, cannot compute e (int) before ecssa_sign_raw
 
-def ecssa_sign(m: Message, prvkey: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
+def ecssa_sign(ec: EllipticCurve, m: Message, prvkey: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
     if type(m) == str: m = hasher(m.encode()).digest()
     prvkey = int_from_Scalar(ec, prvkey)
     eph_prv = rfc6979(prvkey, m, hasher) if eph_prv is None else int_from_Scalar(ec, eph_prv)
-    return ecssa_sign_raw(m, prvkey, eph_prv, hasher) # FIXME: this is just the message hasher
+    return ecssa_sign_raw(ec, m, prvkey, eph_prv, hasher) # FIXME: this is just the message hasher
 
 # https://eprint.iacr.org/2018/068
-def ecssa_sign_raw(m: bytes, prvkey: int, eph_prv: int, hasher = sha256) -> Signature:
+def ecssa_sign_raw(ec: EllipticCurve, m: bytes, prvkey: int, eph_prv: int, hasher = sha256) -> Signature:
     R = ec.pointMultiply(eph_prv, ec.G)
     # break the simmetry: any criteria could be used, jacobi is standard
     if ec.jacobi(R[1]) != 1:
@@ -42,14 +41,14 @@ def ecssa_sign_raw(m: bytes, prvkey: int, eph_prv: int, hasher = sha256) -> Sign
     return R[0], s
 
 
-def ecssa_verify(m: Message, ssasig: Signature, pubkey: GenericPubKey, hasher = sha256) -> bool:
+def ecssa_verify(ec: EllipticCurve, m: Message, ssasig: Signature, pubkey: GenericPubKey, hasher = sha256) -> bool:
     if type(m) == str: m = hasher(m.encode()).digest()
-    check_ssasig(ssasig)
+    check_ssasig(ec, ssasig)
     pubkey =  tuple_from_Point(ec, pubkey)
-    return ecssa_verify_raw(m, ssasig, pubkey, hasher) # FIXME: this is just the message hasher
+    return ecssa_verify_raw(ec, m, ssasig, pubkey, hasher) # FIXME: this is just the message hasher
 
 
-def ecssa_verify_raw(m: bytes, ssasig: Signature, pub: PubKey, hasher = sha256) -> bool:
+def ecssa_verify_raw(ec: EllipticCurve, m: bytes, ssasig: Signature, pub: PubKey, hasher = sha256) -> bool:
     r, s = ssasig
     e = hasher(r.to_bytes(32, byteorder="big") + bytes_from_Point(ec, pub, True) + m).digest()
     e = int_from_hash(e, ec.n)
@@ -62,13 +61,13 @@ def ecssa_verify_raw(m: bytes, ssasig: Signature, pub: PubKey, hasher = sha256) 
     return R[0] == ssasig[0]
 
 
-def ecssa_pubkey_recovery(e: bytes, ssasig: Signature, hasher = sha256) -> PubKey:
+def ecssa_pubkey_recovery(ec: EllipticCurve, e: bytes, ssasig: Signature, hasher = sha256) -> PubKey:
     assert len(e) == 32
-    check_ssasig(ssasig)
-    return ecssa_pubkey_recovery_raw(e, ssasig) # FIXME: this is just the message hasher
+    check_ssasig(ec, ssasig)
+    return ecssa_pubkey_recovery_raw(ec, e, ssasig) # FIXME: this is just the message hasher
 
 
-def ecssa_pubkey_recovery_raw(e: bytes, ssasig: Signature) -> PubKey:
+def ecssa_pubkey_recovery_raw(ec: EllipticCurve, e: bytes, ssasig: Signature) -> PubKey:
     r, s = ssasig
     R = (r, ec.yQuadraticResidue(r, True))
     e = int_from_hash(e, ec.n)
@@ -78,7 +77,7 @@ def ecssa_pubkey_recovery_raw(e: bytes, ssasig: Signature) -> PubKey:
                        ec.pointMultiply(ec.n - e1, R))
 
 
-def check_ssasig(ssasig: Signature) -> bool:
+def check_ssasig(ec: EllipticCurve, ssasig: Signature) -> bool:
     """check sig has correct ssa format
     """
     assert type(ssasig) == tuple and len(ssasig) == 2 and \
