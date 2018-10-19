@@ -313,7 +313,7 @@ class TestEllipticCurve(unittest.TestCase):
             # computing the quadratic residues
             hasRoot = set()
             hasRoot.add(1)
-            p = curve._EllipticCurve__p # a class method returning p could be useful
+            p = curve.return_prime()
             for i in range(2, p):
                 hasRoot.add(i*i % p)
             
@@ -336,12 +336,12 @@ class TestEllipticCurve(unittest.TestCase):
                 root = p - root
                 self.assertEqual(quad_res, (root*root) % p)
 
-                assert not_quad_res == p - quad_res
+                self.assertTrue(not_quad_res == p - quad_res)
                 self.assertNotIn(not_quad_res, hasRoot)
                 self.assertRaises(ValueError, mod_sqrt, not_quad_res, p)
             else:
                 # cannot use yQuadraticResidue in this case
-                assert p % 4 == 1
+                self.assertTrue(p % 4 == 1)
                 yOdd = curve.yOdd(x, 1)
                 yEven = curve.yOdd(x, 0)
 
