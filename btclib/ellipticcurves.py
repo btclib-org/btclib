@@ -30,6 +30,8 @@ class EllipticCurve:
         self.__p = p
         self.bytesize = (p.bit_length() + 7) // 8
 
+        self.pIsThreeModFour = (self.__p % 4 == 3)
+
         # check n with Hasse Theorem
         t = int(2 * sqrt(p))
         assert n <= p + 1 + t, "order %s too high for prime %s" % (n, p)
@@ -86,6 +88,7 @@ class EllipticCurve:
         return root if (root < self.__p/2) else self.__p - root
 
     def yQuadraticResidue(self, x: int, quadRes: int) -> int:
+        assert self.pIsThreeModFour, "this method works only when p = 3 (mod 4)"
         assert quadRes in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)
         if y2 == 0: return 0
@@ -248,8 +251,8 @@ def secondGenerator(ec: EllipticCurve) -> Point:
     until you get a valid curve point H = (hx,hy).
     """
     G_bytes = bytes_from_Point(ec, ec.G, False)
-    hx = sha256(G_bytes).digest() 
-    hx = int_from_Scalar(ec, hx)
+    h = sha256(G_bytes).digest() 
+    hx = int_from_Scalar(ec, h)
     isCurvePoint = False
     while not isCurvePoint:
         try:
