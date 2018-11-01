@@ -16,7 +16,7 @@ class TestEcssa(unittest.TestCase):
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
         eph_prv = int.from_bytes(sha256(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
 
-        sig = ecssa_sign(msg, prv, eph_prv)
+        sig = ecssa_sign(msg, prv, pub, eph_prv)
         self.assertTrue(ecssa_verify(msg, sig, pub))
         # malleability
         self.assertFalse(ecssa_verify(msg, (sig[0], ec.n - sig[1]), pub))
@@ -34,7 +34,7 @@ class TestEcssa(unittest.TestCase):
                         0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
         eph_prv = int.from_bytes(sha256(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
 
-        sig = ecssa_sign(msg, prv, eph_prv)
+        sig = ecssa_sign(msg, prv, pub, eph_prv)
         self.assertTrue(ecssa_verify(msg, sig, pub))
         # malleability
         self.assertFalse(ecssa_verify(msg, (sig[0], ec.n - sig[1]), pub))
@@ -52,7 +52,7 @@ class TestEcssa(unittest.TestCase):
                         0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
         eph_prv = int.from_bytes(sha256(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
 
-        sig = ecssa_sign(msg, prv, eph_prv)
+        sig = ecssa_sign(msg, prv, pub, eph_prv)
         self.assertTrue(ecssa_verify(msg, sig, pub))
         # malleability
         self.assertFalse(ecssa_verify(msg, (sig[0], ec.n - sig[1]), pub))

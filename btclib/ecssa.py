@@ -19,14 +19,15 @@ from btclib.ecsignutils import Message, Signature, int_from_hash
 
 # different structure, cannot compute e (int) before ecssa_sign_raw
 
-def ecssa_sign(m: Message, prvkey: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
+def ecssa_sign(m: Message, prvkey: PrvKey, pubkey: GenericPubKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
     if type(m) == str: m = hasher(m.encode()).digest()
     prvkey = int_from_Scalar(ec, prvkey)
+    pubkey =  tuple_from_Point(ec, pubkey)
     eph_prv = rfc6979(prvkey, m, hasher) if eph_prv is None else int_from_Scalar(ec, eph_prv)
-    return ecssa_sign_raw(m, prvkey, eph_prv, hasher) # FIXME: this is just the message hasher
+    return ecssa_sign_raw(m, prvkey, pubkey, eph_prv, hasher) # FIXME: this is just the message hasher
 
 # https://eprint.iacr.org/2018/068
-def ecssa_sign_raw(m: bytes, prvkey: int, eph_prv: int, hasher = sha256) -> Signature:
+def ecssa_sign_raw(m: bytes, prvkey: int, pubkey: PubKey, eph_prv: int, hasher = sha256) -> Signature:
     R = ec.pointMultiply(eph_prv, ec.G)
     # break the simmetry: any criteria could be used, jacobi is standard
     if ec.jacobi(R[1]) != 1:
@@ -34,7 +35,7 @@ def ecssa_sign_raw(m: bytes, prvkey: int, eph_prv: int, hasher = sha256) -> Sign
         # let's fix eph_prv instead, as it is used later
         eph_prv = ec.n - eph_prv
     e = hasher(R[0].to_bytes(32, byteorder="big") +
-               bytes_from_Point(ec, ec.pointMultiply(prvkey, ec.G), True) +
+               bytes_from_Point(ec, pubkey, True) +
                m).digest()
     e = int_from_hash(e, ec.n)
     assert e != 0 and e < ec.n, "sign fail"

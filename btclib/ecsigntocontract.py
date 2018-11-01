@@ -64,13 +64,14 @@ def ecdsa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optio
 def ecssa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optional[Scalar] = None, hasher = sha256) -> Tuple[Signature, Receipt]:
     if type(m) == str: m = hasher(m.encode()).digest()
     prvkey = int_from_Scalar(ec, prvkey)
+    pubkey = ec.pointMultiply(prvkey, ec.G)
     if type(c) == str: c = hasher(c.encode()).digest()
     eph_prv = rfc6979(prvkey, m, hasher) if eph_prv is None else int_from_Scalar(ec, eph_prv)
 
     # commit
     R, eph_prv = tweak(eph_prv, c, hasher)
     # sign
-    sig = ecssa_sign_raw(m, prvkey, eph_prv, hasher)
+    sig = ecssa_sign_raw(m, prvkey, pubkey, eph_prv, hasher)
     # commit receipt
     receipt = (sig[0], R)
     return sig, receipt
