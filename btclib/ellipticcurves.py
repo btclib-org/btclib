@@ -318,6 +318,39 @@ def pointMultiplyJacobian(ec: EllipticCurve, n: Scalar, Q: Union[Optional[Generi
     if Q is None or len(Q) == 2: Q = ec.jac_from_affine(Q)
     return ec.pointMultiplyJacobian(n, Q)
 
+# efficient method to compute k1*Q1 + k2*Q2
+def ShamirTrick(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericPoint], Q2: Optional[GenericPoint]) -> Optional[Point]:
+    if Q1 is None and Q2 is not None:
+        return pointMultiplyJacobian(ec, k2, Q2)
+    elif Q1 is not None and Q2 is None:
+        return pointMultiplyJacobian(ec, k1, Q1)
+    else:
+        Q1 = tuple_from_Point(ec, Q1)
+        Q2 = tuple_from_Point(ec, Q2)
+
+        k1 = int_from_Scalar(ec, k1)
+        k2 = int_from_Scalar(ec, k2)
+    
+    Q3 = None
+
+    msb = max(k1.bit_length(), k2.bit_length())
+
+    while msb > 0:
+        if k1 >> (msb - 1): # checking msb
+            Q3 = pointAddJacobian(ec, Q3, Q1)
+            k1 -= pow(2, k1.bit_length() - 1)
+        if k2 >> (msb - 1): # checking msb
+            Q3 = pointAddJacobian(ec, Q3, Q2)
+            k2 -= pow(2, k2.bit_length() - 1)
+
+        if msb > 1:
+            Q3 = pointAddJacobian(ec, Q3, Q3)
+        
+        msb -= 1
+
+
+    return ec.affine_from_jac(Q3)
+
 def secondGenerator(ec: EllipticCurve) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
     generator H wrt G. 
