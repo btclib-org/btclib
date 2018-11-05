@@ -313,7 +313,7 @@ class TestEllipticCurve(unittest.TestCase):
             # computing the quadratic residues
             hasRoot = set()
             hasRoot.add(1)
-            p = curve.return_prime()
+            p = curve._EllipticCurve__p
             for i in range(2, p):
                 hasRoot.add(i*i % p)
             
