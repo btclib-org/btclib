@@ -157,8 +157,8 @@ class EllipticCurve:
         if Q[2] == 0: return R
         if R[2] == 0: return Q
         
-        if Q[0]*mod_inv(Q[2]*Q[2], self.__p) % self.__p == R[0]*mod_inv(R[2]*R[2], self.__p) % self.__p: # same affine x coordinate
-            if Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self.__p) % self.__p != R[1]*mod_inv(R[2]*R[2]*R[2], self.__p) % self.__p or Q[1] % self.__p == 0:    # opposite points or degenerate case
+        if Q[0]*R[2]*R[2] % self.__p == R[0]*Q[2]*Q[2] % self.__p: # same affine x coordinate
+            if Q[1]*R[2]*R[2]*R[2] % self.__p != R[1]*Q[2]*Q[2]*Q[2] % self.__p or Q[1] % self.__p == 0:    # opposite points or degenerate case
                 return 1, 1, 0        
             else:                            # point doubling
                 W = (3*Q[0]*Q[0] + self.__a*Q[2]*Q[2]*Q[2]*Q[2]) % self.__p
