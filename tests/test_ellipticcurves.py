@@ -314,6 +314,9 @@ class TestEllipticCurve(unittest.TestCase):
             # random point
             q = os.urandom(curve.bytesize)
             Q = pointMultiply(curve, q, curve.G)
+            while Q == None:
+                q = os.urandom(curve.bytesize)
+                Q = pointMultiply(curve, q, curve.G)
             minus_Q = opposite(curve, Q)
             inf = pointAdd(curve, Q, minus_Q)
             self.assertEqual(inf, None)
