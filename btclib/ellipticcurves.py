@@ -143,6 +143,7 @@ class EllipticCurve:
             return (1, 1, 0)
         else:
             return (Q[0], Q[1], 1)
+
     def affine_from_jac(self, Q: JacPoint) -> Optional[Point]:
         assert isinstance(Q, tuple) and len(Q) == 3, "point not in Jacobian coordinates"
         if Q[2] == 0:
@@ -151,12 +152,13 @@ class EllipticCurve:
             x = (Q[0]*mod_inv(Q[2]*Q[2], self.__p)) % self.__p
             y = (Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self.__p)) % self.__p
             return x, y
+
     def pointAddJacobian(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         if Q[2] == 0: return R
         if R[2] == 0: return Q
         
-        if Q[0]*R[2]*R[2] == R[0]*Q[2]*Q[2]: # same affine x coordinate
-            if Q[1] != R[1] or Q[1] == 0:    # opposite points or degenerate case
+        if Q[0]*mod_inv(Q[2]*Q[2], self.__p) % self.__p == R[0]*mod_inv(R[2]*R[2], self.__p) % self.__p: # same affine x coordinate
+            if Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self.__p) % self.__p != R[1]*mod_inv(R[2]*R[2]*R[2], self.__p) % self.__p or Q[1] % self.__p == 0:    # opposite points or degenerate case
                 return 1, 1, 0        
             else:                            # point doubling
                 W = (3*Q[0]*Q[0] + self.__a*Q[2]*Q[2]*Q[2]*Q[2]) % self.__p
@@ -194,7 +196,6 @@ class EllipticCurve:
 
     def pointMultiplyJacobian(self, n: int, Q: JacPoint) -> Optional[Point]:
         if Q[2] == 0: return None
-        n = n % self.n                 # the group is cyclic
         r = self.jac_from_affine(None) # initialized to infinity point
         while n > 0:                   # use binary representation of n
             if n & 1:                  # if least significant bit is 1 then add current Q
@@ -330,8 +331,8 @@ def ShamirTrick(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericP
 
         k1 = int_from_Scalar(ec, k1)
         k2 = int_from_Scalar(ec, k2)
-    
-    Q3 = None
+
+    Q3 = ec.jac_from_affine(None)
 
     msb = max(k1.bit_length(), k2.bit_length())
 
@@ -345,9 +346,8 @@ def ShamirTrick(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericP
 
         if msb > 1:
             Q3 = pointAddJacobian(ec, Q3, Q3)
-        
-        msb -= 1
 
+        msb -= 1
 
     return ec.affine_from_jac(Q3)
 

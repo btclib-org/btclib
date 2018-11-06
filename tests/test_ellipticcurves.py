@@ -315,6 +315,9 @@ class TestEllipticCurve(unittest.TestCase):
             # random point
             q = os.urandom(curve.bytesize)
             Q = pointMultiply(curve, q, curve.G)
+            while Q == None:
+                q = os.urandom(curve.bytesize)
+                Q = pointMultiply(curve, q, curve.G)
             minus_Q = opposite(curve, Q)
             inf = pointAdd(curve, Q, minus_Q)
             self.assertEqual(inf, None)
@@ -418,8 +421,9 @@ class TestEllipticCurve(unittest.TestCase):
 
             shamir = ShamirTrick(curve, k1, k2, curve.G, Q)
             std = pointAdd(curve, pointMultiplyJacobian(curve, k1, curve.G), pointMultiplyJacobian(curve, k2, Q))
+
             self.assertEqual(shamir, std)
-        
+
 if __name__ == "__main__":
     # execute only if run as a script
     unittest.main()
