@@ -153,6 +153,7 @@ def ecssa_batch_validation_raw(u: int, Q: PubKeys, m: Messages, sigma: Signature
         points.append(ec.jac_from_affine(Q[i]))
         factors.append(a[i] * e % ec.n)
 
+    # Bos-coster's algorithm, source:
     # https://cr.yp.to/badbatch/boscoster2.py
     boscoster = list(zip([-n for n in factors], points))
     heapq.heapify(boscoster)
@@ -167,8 +168,6 @@ def ecssa_batch_validation_raw(u: int, Q: PubKeys, m: Messages, sigma: Signature
             heapq.heappush(boscoster,(-a1, K1))
         heapq.heappush(boscoster,(-a2, K2))
         
-        
-
     aK = heapq.heappop(boscoster)
     RHS = pointMultiplyJacobian(ec, -aK[0], aK[1])
     
