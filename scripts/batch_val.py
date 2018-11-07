@@ -11,51 +11,40 @@ l = len(n_sig)
 no_batch_time = []
 batch_time = []
 
-q = int.from_bytes(os.urandom(ec.bytesize), 'big')
-start = time.time()
-std = pointMultiply(ec, q, ec.G)
-end = time.time()
-print(end - start)
-start = time.time()
-jac = pointMultiplyJacobian(ec, q, ec.G)
-end = time.time()
-print(end - start)
+for i in range(0, l):
+    q = []
+    Q = []
+    m = []
+    sigma = []
+    a = []
+    for j in range(0, n_sig[i]):
+        q.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
+        Q.append(pointMultiplyJacobian(ec, q[j], ec.G))
+        m.append(os.urandom(ec.bytesize))
+        sigma.append(ecssa_sign(m[j], q[j]))
+        if j != 0:
+            a.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
+        else:
+            a.append(1)
 
+    # no batch
+    no_batch_check = []
+    no_batch_start = time.time()
+    for j in range(0, n_sig[i]):
+        no_batch_check.append(ecssa_verify(m[j], sigma[j], Q[j]))
+    no_batch_end = time.time()
 
-# for i in range(0, l):
-#     q = []
-#     Q = []
-#     m = []
-#     sigma = []
-#     a = []
-#     for j in range(0, n_sig[i]):
-#         q.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
-#         Q.append(pointMultiplyJacobian(ec, q[j], ec.G))
-#         m.append(os.urandom(ec.bytesize))
-#         sigma.append(ecssa_sign(m[j], q[j]))
-#         if j != 0:
-#             a.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
-#         else:
-#             a.append(1)
+    no_batch_time.append(no_batch_end - no_batch_start)
+    for j in range(0, n_sig[i]):
+        assert no_batch_check[j] == True
 
-#     # no batch
-#     no_batch_check = []
-#     no_batch_start = time.time()
-#     for j in range(0, n_sig[i]):
-#         no_batch_check.append(ecssa_verify(m[j], sigma[j], Q[j]))
-#     no_batch_end = time.time()
+    # batch
+    batch_start = time.time()
+    batch_check = ecssa_batch_validation(n_sig[i], Q, m, sigma, a)
+    batch_end = time.time()
 
-#     no_batch_time.append(no_batch_end - no_batch_start)
-#     for j in range(0, n_sig[i]):
-#         assert no_batch_check[j] == True
+    batch_time.append(batch_end - batch_start)
+    assert batch_check == True
 
-#     # batch
-#     batch_start = time.time()
-#     batch_check = ecssa_batch_validation(n_sig[i], Q, m, sigma, a)
-#     batch_end = time.time()
-
-#     batch_time.append(batch_end - batch_start)
-#     assert batch_check == True
-
-# print(no_batch_time)
-# print(batch_time)
+print(no_batch_time)
+print(batch_time)
