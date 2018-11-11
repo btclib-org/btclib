@@ -20,7 +20,7 @@
   ```
   bitcoind -regtest -daemon
   ```
-7. to connect to one node of the network  
+7. to connect to one peculiar node of the network  
    ```
    bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”
    ```

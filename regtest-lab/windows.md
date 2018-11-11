@@ -18,6 +18,7 @@ Bitcoin Coire GUI is nice for a quick and easy start:
    ```
    generate 101
    ```
+7. to stop the GUI just close the process
 
 To really experiment beyond easy commands, a genuine command line experience is better than the GUI. The command line can be used along with the GUI: just skip ponts 3 and 4, start from point 5 below. Else, it can be used as alternative to the GUI, but in this case the Bitcoin Core daemon must be explicitly launched (points 3 e 4 below)
 
@@ -35,7 +36,7 @@ To really experiment beyond easy commands, a genuine command line experience is 
    if not exist "c:\your\bitcoinfolder\bitcoin-data" mkdir "c:\your\bitcoinfolder\bitcoin-data"
    bitcoind -datadir="c:\your\bitcoinfolder\bitcoin-data" -addresstype=bech32 -walletrbf=1 -regtest -server
    ```
-5. to connect to one node of the network  
+5. to connect to one peculiar node of the network  
    ```
    bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”
    ```
@@ -43,6 +44,10 @@ To really experiment beyond easy commands, a genuine command line experience is 
    ```
    bitcoin-cli -regtest generate 101
    ```
+7. to stop the daemon
+  ```
+  bitcoin-cli -regtest stop
+  ```
 
 In general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process. In the GUI environment `bitcoin-cli -regtest` is already assumed and just `[...]` must be typed. For a [full command list](https://bitcoincore.org/en/doc/0.17.0/):
    ```
