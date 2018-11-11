@@ -15,18 +15,24 @@ To really experiment beyond easy commands, the genuine command line _bitcoin-cli
 
 3. create your (blockchain) data folder
    ```
-   if not exist "c:\your\bitcoinfolder\bitcoin-data" mkdir "c:\your\bitcoinfolder\bitcoin-data"
+   > if not exist "c:\your\bitcoinfolder\bitcoin-data" mkdir "c:\your\bitcoinfolder\bitcoin-data"
    ```
 4. start the Bitcoin Core daemon in regtest mode:
    ```
-   c:\your\bitcoinfolder\bin\bitcoind -datadir="c:\your\bitcoinfolder\bitcoin-data" -addresstype=bech32 -walletrbf=1 -regtest -server
+   > c:\your\bitcoinfolder\bin\bitcoind -datadir="c:\your\bitcoinfolder\bitcoin-data" -addresstype=bech32 -walletrbf=1 -regtest -server
    ```
 5. open a command prompt and
     - move into the c:\your\bitcoinfolder\bin folder (where bitcoin-cli.exe is located)
     ```
-    cd c:\your\bitcoinfolder\bin
+    > cd c:\your\bitcoinfolder\bin
     ```
     - alternatively, better add c:\your\bitcoinfolder\bin to your %PATH% environment variable (so that whenever you will call the `bitcoin-cli` executable, Windows will know where to find it even if you are not in the c:\your\bitcoinfolder\bin folder)
     ```
-    SET PATH=%PATH%;c:\your\bitcoinfolder\bin
+    > SET PATH=%PATH%;c:\your\bitcoinfolder\bin
     ```
+
+Whenever you want *to start with a fresh new regtest network, remember to clear the regtest data folder* in the c:\your\bitcoinfolder folder:
+```
+> cd c:\your\bitcoinfolder
+> rmdir regtest /s
+```

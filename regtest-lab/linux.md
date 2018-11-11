@@ -25,12 +25,8 @@
   $ bitcoind -regtest -daemon
   ```
 
-7. to clear the regtest data directory move in the working directory and remove the whole regtest directory
-
+Whenever you want *to start with a fresh new regtest network, remember to clear the regtest data folder* in the bitcoin working folder:
 ```
 $ cd .bitcoin
 $ rm -rf regtest
 ```
-
-
-
