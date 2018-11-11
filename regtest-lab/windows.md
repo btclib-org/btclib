@@ -2,7 +2,7 @@
 
 1. Download the portable version (zip) of Bitcoin Core:  
    <https://bitcoincore.org/bin/bitcoin-core-0.17.0.1/bitcoin-0.17.0.1-win32.zip>
-2. unzip it in your favorite location; in the following c:\your\bitcoinfolder is where the bin, include, lib, and share folders are located
+2. unzip it in your favorite location; in the following c:\your\bitcoinfolder is where the `bin`, `include`, `lib`, and `share` folders are located
 3. add the c:\your\bitcoinfolder\bin folder (the one including the `bitcoinqt`, `bitcoind`, and `bitcoin-cli` executables) to your %PATH% environment variable, so that whenever you will call the bitcoin executables, Windows will know where to find them even if you are not in the c:\your\bitcoinfolder\bin folder. You can do this permanently, or for each command prompt window 
     ```
     > ECHO %PATH%
@@ -28,3 +28,5 @@ Whenever you want *to start with a fresh new regtest network, remember to clear 
 ```
 > rmdir %APPDATA%\Bitcoin\regtest /s /q
 ```
+
+For your convenience the `windows-regtest.bat` and `windows-regtest-reset.bat` batch files are provided to respectively launch and reset the regtest network: just put them in c:\your\bitcoinfolder.
