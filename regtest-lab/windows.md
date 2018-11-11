@@ -29,4 +29,4 @@ Whenever you want *to start with a fresh new regtest network, remember to clear 
 > rmdir %APPDATA%\Bitcoin\regtest /s /q
 ```
 
-For your convenience the `windows-regtest.bat` and `windows-regtest-reset.bat` batch files are provided to respectively launch and reset the regtest network: just put them in c:\your\bitcoinfolder.
+For your convenience the `windows-regtest.bat` and `windows-regtest-reset.bat` batch files are provided to respectively launch and reset the regtest network, without tweaking with the %PATH% environment variable: just put the batch files in c:\your\bitcoinfolder.
