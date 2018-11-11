@@ -18,7 +18,6 @@ Bitcoin Coire GUI is nice for a quick and easy start:
    ```
    generate 101
    ```
-7. in general any command line that would start with `bitcoin-cli -regtest [...]` must be typed in the console as `[...]`, as the leading `bitcoin-cli -regtest` is already assumed in the GUI environment
 
 To really experiment beyond easy commands, a genuine command line experience is better than the GUI. The command line can be used along with the GUI: just skip ponts 3 and 4, start from point 5 below. Else, it can be used as alternative to the GUI, but in this case the Bitcoin Core daemon must be explicitly launched (points 3 e 4 below)
 
@@ -44,9 +43,8 @@ To really experiment beyond easy commands, a genuine command line experience is 
    ```
    bitcoin-cli -regtest generate 101
    ```
-7. in general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process
 
-For a [full command list](https://bitcoincore.org/en/doc/0.17.0/):
+In general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process. In the GUI environment `bitcoin-cli -regtest` is already assumed and just `[...]` must be typed. For a [full command list](https://bitcoincore.org/en/doc/0.17.0/):
    ```
    bitcoin-cli -regtest help
    ```
