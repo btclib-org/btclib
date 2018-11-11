@@ -23,11 +23,11 @@
   ```
   $ bitcoind -regtest -daemon
   ```
-- to connect to one node of the network, type  
+- to connect to one node of the network  
    ```
    bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”
    ```
-- to generate 101 blocks, type  
+- to generate 101 blocks  
    ```
    bitcoin-cli -regtest generate 101
    ```
