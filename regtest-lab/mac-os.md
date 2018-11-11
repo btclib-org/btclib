@@ -1,3 +1,5 @@
+# Bitcoin Core Session (Mac-OS)
+
 1. open terminal
 2. download Bitcoin Core
   ```
@@ -20,25 +22,3 @@
   ```
   bitcoind -regtest -daemon
   ```
-7. to connect to one peculiar node of the network  
-   ```
-   bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”
-   ```
-8. to generate 101 blocks  
-   ```
-   bitcoin-cli -regtest generate 101
-   ```
-9. to stop the daemon:
-  ```
-  bitcoin-cli -regtest stop
-  ```
-
-In general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process. For a [full command list](https://bitcoincore.org/en/doc/0.17.0/):
-   ```
-   bitcoin-cli -regtest help
-   ```
-
-For help about a peculiar command (e.g. [generate](https://bitcoincore.org/en/doc/0.17.0/rpc/generating/generate/)):
-   ```
-   bitcoin-cli -regtest generate
-   ```
