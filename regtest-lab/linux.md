@@ -20,7 +20,17 @@
   ```
   $ /bin/mkdir ~username/.bitcoin
   ```
-6. start the Bitcoin Core daemon in regtest mode:
+6. start the Bitcoin Core daemon in regtest mode
   ```
   $ bitcoind -regtest -daemon
   ```
+
+7. to clear the regtest data directory move in the working directory and remove the whole regtest directory
+
+```
+$ cd .bitcoin
+$ rm -rf regtest
+```
+
+
+

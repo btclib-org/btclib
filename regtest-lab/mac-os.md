@@ -22,3 +22,11 @@
   ```
   bitcoind -regtest -daemon
   ```
+
+7. to clear the regtest data directory move in the working directory and remove the whole regtest directory
+
+```
+cd /Users/your_username/Library/Application Support/Bitcoin
+rm -rf regtest
+```
+
