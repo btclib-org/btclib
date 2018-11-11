@@ -9,7 +9,7 @@
     > SET PATH=%PATH%;c:\your\bitcoinfolder\bin
     > ECHO %PATH%
     ```
-4. open a command prompt window (with the `c:\your\bitcoinfolder\bin` augmented PATH) and start the Bitcoin Core GUI in regtest mode:
+4. open a command prompt window (with the `c:\your\bitcoinfolder\bin` augmented PATH) and start the Bitcoin Core GUI+deamon in regtest mode:
    ```
    > bitcoinqt -regtest -addresstype=bech32 -walletrbf=1 -server -rpcallowip=127.0.0.1
    ```
@@ -35,7 +35,7 @@ and
 [windows-regtest-18444-reset.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-18444-reset.bat)
 batch files are provided to respectively launch and reset the regtest network, without tweaking with the %PATH% environment variable: just put the batch files in `c:\your\bitcoinfolder`.
 
-One can start multiple nodes, as separate instances of the bitcoin deamon, on the same machine: each node must use a different p2p port and data folder to avoid conflicts. For convenience the
+One can start multiple nodes, as separate instances of the bitcoin GUI+deamon, on the same machine: each node must use a different p2p port and data folder to avoid conflicts. For convenience the
 [windows-regtest-18555-start.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-18555-start.bat)
 and
 [windows-regtest-18555-reset.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-18555-reset.bat)
