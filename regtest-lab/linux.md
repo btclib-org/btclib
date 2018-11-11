@@ -1,7 +1,7 @@
-# Bitcoin Core Session (Linux)
+# Bitcoin Core Setup (Linux)
 
 1. open terminal
-2. setup variables (for an easy installation)
+2. export convenience variables (for an easy installation)
   ```
   $ export BITCOIN=bitcoin-core-0.17.0
   $ export BITCOINPLAIN=`echo $BITCOIN | sed 's/bitcoin-core/bitcoin/'`
@@ -20,8 +20,7 @@
   ```
   $ /bin/mkdir ~username/.bitcoin
   ```
-  Now your bitcoin files are in the .bitcoin directory
-6. start the daemon in regtest mode:
+6. start the Bitcoin Core daemon in regtest mode:
   ```
   $ bitcoind -regtest -daemon
   ```

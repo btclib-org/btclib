@@ -1,4 +1,4 @@
-# Bitcoin Core Session (Mac-OS)
+# Bitcoin Core Setup (Mac-OS)
 
 1. open terminal
 2. download Bitcoin Core
@@ -18,7 +18,7 @@
   ```
   rm -rf bitcoin-0.17.0.1*
   ```
-6. run Bitcoin Core in regtest mode
+6. start the Bitcoin Core daemon in regtest mode:
   ```
   bitcoind -regtest -daemon
   ```

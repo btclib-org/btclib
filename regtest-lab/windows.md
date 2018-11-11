@@ -1,4 +1,4 @@
-# Bitcoin Core Session (Windows)
+# Bitcoin Core Setup (Windows)
 
 1. Download the portable version (zip) of Bitcoin Core:  
    <https://bitcoincore.org/bin/bitcoin-core-0.17.0.1/bitcoin-0.17.0.1-win32.zip>
@@ -17,7 +17,7 @@ To really experiment beyond easy commands, the genuine command line _bitcoin-cli
    ```
    if not exist "c:\your\bitcoinfolder\bitcoin-data" mkdir "c:\your\bitcoinfolder\bitcoin-data"
    ```
-4. launch the Bitcoin Core daemon
+4. start the Bitcoin Core daemon in regtest mode:
    ```
    c:\your\bitcoinfolder\bin\bitcoind -datadir="c:\your\bitcoinfolder\bitcoin-data" -addresstype=bech32 -walletrbf=1 -regtest -server
    ```
@@ -30,4 +30,3 @@ To really experiment beyond easy commands, the genuine command line _bitcoin-cli
     ```
     SET PATH=%PATH%;c:\your\bitcoinfolder\bin
     ```
-    
