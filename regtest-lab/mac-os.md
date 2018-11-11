@@ -23,6 +23,8 @@
   bitcoind -regtest -daemon
   ```
 
+You are now ready to start the regtest lab session.
+
 Whenever you want *to start with a fresh new regtest network, remember to clear the regtest data folder* in the bitcoin working folder:
 ```
 cd /Users/your_username/Library/Application Support/Bitcoin

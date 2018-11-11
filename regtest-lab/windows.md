@@ -31,6 +31,8 @@ To really experiment beyond easy commands, the genuine command line _bitcoin-cli
     > SET PATH=%PATH%;c:\your\bitcoinfolder\bin
     ```
 
+You are now ready to start the regtest lab session.
+
 Whenever you want *to start with a fresh new regtest network, remember to clear the regtest data folder* in the c:\your\bitcoinfolder folder:
 ```
 > cd c:\your\bitcoinfolder
