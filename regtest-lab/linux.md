@@ -4,7 +4,7 @@
   $ export BITCOIN=bitcoin-core-0.17.0
   $ export BITCOINPLAIN=`echo $BITCOIN | sed 's/bitcoin-core/bitcoin/'`
   ```
-3. download relevant files (every time you see _user1_ in the code below, please replace it with your personal username)
+3. download relevant files (every time you see _username_ in the code below, please replace it with your personal username)
   ```
   $ wget https://bitcoin.org/bin/$BITCOIN/$BITCOINPLAIN-x86_64-linux-gnu.tar.gz -O ~username/$BITCOINPLAIN-x86_64-linux-gnu.tar.gz
   ```
