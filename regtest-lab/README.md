@@ -22,12 +22,12 @@ In general any command line must starts with `bitcoin-cli -regtest [...]` to use
 
 For a [full command list](https://bitcoincore.org/en/doc/0.17.0/):
    ```
-   bitcoin-cli -regtest help
+   bitcoin-cli help
    ```
 
 For help about a peculiar command (e.g. [generate](https://bitcoincore.org/en/doc/0.17.0/rpc/generating/generate/)):
    ```
-   bitcoin-cli -regtest generate
+   bitcoin-cli generate
    ```
 
 
