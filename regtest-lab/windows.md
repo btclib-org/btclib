@@ -11,7 +11,7 @@ Bitcoin Coire GUI is nice for a quick and easy start:
 4. launch Bitcoin Core daemon+GUI double-clicking the regtest.bat file
 5. open the console: Help | Debug Window | Console
 
-To really experiment beyond easy commands, the genuine command line _bitcoin-cli_ is a better experience than the GUI. _bitcoin-cli_ can be used along with the GUI: just skip to point 5 below; else, it can be used as alternative to the GUI, but in this case the Bitcoin Core daemon must be explicitly launched (points 3 e 4 below)
+To really experiment beyond easy commands, the genuine command line _bitcoin-cli_ is a better experience than the GUI. _bitcoin-cli_ can be used along with the GUI: just jump to point 5 below, skipping points 3 and 4; else, it can be used as alternative to the GUI, but in this case the Bitcoin Core daemon must be explicitly launched (points 3 e 4 below)
 
 3. create your (blockchain) data folder
    ```
