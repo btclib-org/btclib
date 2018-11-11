@@ -2,14 +2,14 @@
 
 1. Download the portable version (zip) of Bitcoin Core:  
    <https://bitcoincore.org/bin/bitcoin-core-0.17.0.1/bitcoin-0.17.0.1-win32.zip>
-2. unzip it in your favorite location; in the following c:\your\bitcoinfolder is where the `bin`, `include`, `lib`, and `share` folders are located
-3. add the c:\your\bitcoinfolder\bin folder (the one including the `bitcoinqt`, `bitcoind`, and `bitcoin-cli` executables) to your %PATH% environment variable, so that whenever you will call the bitcoin executables, Windows will know where to find them even if you are not in the c:\your\bitcoinfolder\bin folder. You can do this permanently, or for each command prompt window 
+2. unzip it in your favorite location; in the following `c:\your\bitcoinfolder` is where the `bin`, `include`, `lib`, and `share` folders are located
+3. add the `c:\your\bitcoinfolder\bin folder` (the one including the `bitcoinqt`, `bitcoind`, and `bitcoin-cli` executables) to your %PATH% environment variable, so that whenever you will call the bitcoin executables, Windows will know where to find them even if you are not in the `c:\your\bitcoinfolder\bin` folder. You can do this permanently, or for each command prompt window 
     ```
     > ECHO %PATH%
     > SET PATH=%PATH%;c:\your\bitcoinfolder\bin
     > ECHO %PATH%
     ```
-4. open a command prompt window (with the c:\your\bitcoinfolder\bin augmented PATH) and start the Bitcoin Core GUI in regtest mode:
+4. open a command prompt window (with the `c:\your\bitcoinfolder\bin` augmented PATH) and start the Bitcoin Core GUI in regtest mode:
    ```
    > bitcoinqt -regtest -addresstype=bech32 -walletrbf=1 -server -rpcallowip=127.0.0.1
    ```
@@ -17,14 +17,14 @@
    ```
    getblockcount
    ```
-6. to really experiment beyond easy commands, the genuine command line `bitcoin-cli` is a better experience than using the GUI console. `bitcoin-cli` can be used along with the GUI just opening another command prompt window (with the c:\your\bitcoinfolder\bin augmented PATH) and using it, e.g.:
+6. to really experiment beyond easy commands, the genuine command line `bitcoin-cli` is a better experience than using the GUI console. `bitcoin-cli` can be used along with the GUI just opening another command prompt window (with the `c:\your\bitcoinfolder\bin` augmented PATH) and using it, e.g.:
     ```
     > bitcoin-cli -regtest getblockcount
     ```
 
 You should now be ready to start the regtest lab session.
 
-Whenever you want *to start with a fresh new regtest network, remember to clear the regtest data folder* that has been created in the %APPDATA%\Bitcoin\regtest folder:
+Whenever you want *to start with a fresh new regtest network, remember to clear the regtest data folder* that has been created in the `%APPDATA%\Bitcoin\regtest` folder:
 ```
 > rmdir %APPDATA%\Bitcoin\regtest /s /q
 ```
