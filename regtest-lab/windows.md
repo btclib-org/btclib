@@ -9,15 +9,15 @@
     > SET PATH=%PATH%;c:\your\bitcoinfolder\bin
     > ECHO %PATH%
     ```
-4. using a command prompt window (with the c:\your\bitcoinfolder\bin augmented PATH) start the Bitcoin Core GUI in regtest mode:
+4. open a command prompt window (with the c:\your\bitcoinfolder\bin augmented PATH) and start the Bitcoin Core GUI in regtest mode:
    ```
    > bitcoinqt -regtest -addresstype=bech32 -walletrbf=1 -server -rpcallowip=127.0.0.1
    ```
-5. in the GUI open the console (Help | Debug Window | Console) and type
+5. in the GUI open the console (Help | Debug Window | Console) type
    ```
    getblockcount
    ```
-6. to really experiment beyond easy commands, the genuine command line `bitcoin-cli` is a better experience than using the GUI console. `bitcoin-cli` can be used along with the GUI just starting another another command prompt window (with the c:\your\bitcoinfolder\bin augmented PATH) and using it
+6. to really experiment beyond easy commands, the genuine command line `bitcoin-cli` is a better experience than using the GUI console. `bitcoin-cli` can be used along with the GUI just opening another command prompt window (with the c:\your\bitcoinfolder\bin augmented PATH) and using it, e.g.:
     ```
     > bitcoin-cli -regtest getblockcount
     ```
@@ -26,5 +26,5 @@ You should now be ready to start the regtest lab session.
 
 Whenever you want *to start with a fresh new regtest network, remember to clear the regtest data folder* that has been created in the %APPDATA%\Bitcoin\regtest folder:
 ```
-> rmdir %APPDATA%\Bitcoin\regtest /s /r
+> rmdir %APPDATA%\Bitcoin\regtest /s /q
 ```
