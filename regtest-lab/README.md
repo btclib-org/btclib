@@ -15,7 +15,7 @@ In general any command line must starts with `bitcoin-cli -regtest [...]` to use
    ```
    bitcoin-cli -regtest generate 101
    ```
-* exit the GUI and/or stop the daemon with the command
+* stop the daemon (and the GUI) with the command
   ```
   bitcoin-cli -regtest stop
   ```
