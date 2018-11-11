@@ -34,12 +34,12 @@
   ```
 - in general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process
 
-For a [full command list](https://bitcoincore.org/en/doc/0.17.0/) type:
+For a [full command list](https://bitcoincore.org/en/doc/0.17.0/):
    ```
    bitcoin-cli -regtest help
    ```
 
-For help about a peculiar command (e.g. [generate](https://bitcoincore.org/en/doc/0.17.0/rpc/generating/generate/)) type:
+For help about a peculiar command (e.g. [generate](https://bitcoincore.org/en/doc/0.17.0/rpc/generating/generate/)):
    ```
    bitcoin-cli -regtest generate
    ```
