@@ -30,7 +30,7 @@ Whenever you want *to start with a fresh new regtest network, remember to clear 
 ```
 
 For your convenience the
-[windows-regtest.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest.bat)
+[windows-regtest-start.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-start.bat)
 and
 [windows-regtest-reset.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-reset.bat)
 batch files are provided to respectively launch and reset the regtest network, without tweaking with the %PATH% environment variable: just put the batch files in c:\your\bitcoinfolder.
