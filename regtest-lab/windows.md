@@ -33,4 +33,4 @@ For your convenience the
 [windows-regtest-start.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-start.bat)
 and
 [windows-regtest-reset.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-reset.bat)
-batch files are provided to respectively launch and reset the regtest network, without tweaking with the %PATH% environment variable: just put the batch files in c:\your\bitcoinfolder.
+batch files are provided to respectively launch and reset the regtest network, without tweaking with the %PATH% environment variable: just put the batch files in `c:\your\bitcoinfolder`.
