@@ -10,10 +10,14 @@ Bitcoin Coire GUI is nice for a quick and easy start:
 
 4. Launch Bitcoin Core GUI double-clicking the bat file; then open the console: Help | Debug Window | Console
 6. to connect to one node of the network, type  
-   `addnode “ipaddress-to-be-comunicated-in-class” “add”`
+   ```
+   addnode “ipaddress-to-be-comunicated-in-class” “add”
+   ```
 7. to generate 101 blocks, type  
-   `generate 101`
-8. in general any command line that starts with `bitcoin-cli -regtest [...]` must be typed in the console as `[...]`, as the leading `bitcoin-cli -regtest` is already assumed in the UX environment
+   ```
+   generate 101
+   ```
+8. in general any command line that would start with `bitcoin-cli -regtest [...]` must be typed in the console as `[...]`, as the leading `bitcoin-cli -regtest` is already assumed in the GUI environment
 
 Anyway, the GUI is limited: to really experiment beyond easy commands, a genuine command line experience is better:
 
@@ -23,3 +27,5 @@ Anyway, the GUI is limited: to really experiment beyond easy commands, a genuine
 7. to generate 101 blocks, type  
    `bitcoin-cli -regtest generate 101`
 8. in general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process
+
+You can find a full bitcoin-cli command list here: [Command List](https://en.bitcoin.it/wiki/Original_Bitcoin_client/API_calls_list)
