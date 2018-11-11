@@ -1,47 +1,48 @@
-- Open Linux terminal
-
-- SETUP variables ( for an easy installation )
-
+* open terminal
+* setup variables (for an easy installation)
   ```
   $ export BITCOIN=bitcoin-core-0.17.0
   $ export BITCOINPLAIN=`echo $BITCOIN | sed 's/bitcoin-core/bitcoin/'`
   ```
-
-- DOWNLOAD relevant files (REMARK: every time you see user1 like in the code below replace it with your personal username !!! )
-
+* download relevant files (every time you see _user1_ in the code below, please replace it with your personal username !!!)
   ```
   $ wget https://bitcoin.org/bin/$BITCOIN/$BITCOINPLAIN-x86_64-linux-gnu.tar.gz -O ~user1/$BITCOINPLAIN-x86_64-linux-gnu.tar.gz
   ```
-
-- Install bitcoin core
-
+* install Bitcoin Core
   ```
   $ /bin/tar xzf ~user1/$BITCOINPLAIN-x86_64-linux-gnu.tar.gz -C ~user1
   $ sudo /usr/bin/install -m 0755 -o root -g root -t /usr/local/bin ~user1/$BITCOINPLAIN/bin/*
   $ /bin/rm -rf ~user1/$BITCOINPLAIN/
   ```
-
-- Create the directory
-
+* create the bitcoin working directory
   ```
   $ /bin/mkdir ~user1/.bitcoin
   ```
-
-  Now your bitcoin files are in .bitcoin directory
-
-- Start the daemon in your terminal easily ( now you are interested in regtest mode ) by typing:
-
+  Now your bitcoin files are in the .bitcoin directory
+- start the daemon in regtest mode:
   ```
   $ bitcoind -regtest -daemon
   ```
-
-- To stop the daemon type:
-
+- to connect to one node of the network, type  
+   ```
+   bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”
+   ```
+- to generate 101 blocks, type  
+   ```
+   bitcoin-cli -regtest generate 101
+   ```
+- to stop the daemon:
   ```
-  $ bitcoin-cli -regtest stop
+  bitcoin-cli -regtest stop
   ```
+- in general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process
 
-- Another types of Linux-based installation are available here [Linux-guide](https://bitcoin.org/en/full-node#linux-instructions)
+For a [full command list](https://bitcoincore.org/en/doc/0.17.0/) type:
+   ```
+   bitcoin-cli -regtest help
+   ```
 
-- You can find a full bitcoin-cli command list here: [Command List](https://en.bitcoin.it/wiki/Original_Bitcoin_client/API_calls_list)
-
+For help about a peculiar command (e.g. [generate](https://bitcoincore.org/en/doc/0.17.0/rpc/generating/generate/)) type:
+   ```
+   bitcoin-cli -regtest generate
+   ```
