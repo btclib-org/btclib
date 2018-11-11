@@ -29,7 +29,7 @@ Whenever you want *to start with a fresh new regtest network, remember to clear 
 > rmdir %APPDATA%\Bitcoin\regtest /s /q
 ```
 
-For your convenience the
+For convenience the
 [windows-regtest-18444-start.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-18444-start.bat)
 and
 [windows-regtest-18444-reset.bat](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows-regtest-18444-reset.bat)
