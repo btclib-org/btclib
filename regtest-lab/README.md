@@ -1,6 +1,6 @@
 # Bitcoin Core - regtest session
 
-Please install Bitcoin Core for your platform, following the instructions provided in windows.md, linux.md, or mac-os.md
+Please install and run Bitcoin Core for your platform, following the instructions provided in windows.md, linux.md, or mac-os.md
 
 In general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest daemon process. In the GUI console environment `bitcoin-cli -regtest` is already assumed and just `[...]` must be typed. 
 
