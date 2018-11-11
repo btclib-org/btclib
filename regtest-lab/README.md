@@ -1,4 +1,4 @@
-# Bitcoin Core - regtest session
+# Bitcoin Core - regtest lab session
 
 Please install and run Bitcoin Core for your platform, following the instructions provided in windows.md, linux.md, or mac-os.md
 
