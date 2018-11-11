@@ -13,19 +13,31 @@ Bitcoin Coire GUI is nice for a quick and easy start:
    ```
    addnode “ipaddress-to-be-comunicated-in-class” “add”
    ```
-7. to generate 101 blocks, type  
+6. to generate 101 blocks, type  
    ```
    generate 101
    ```
-8. in general any command line that would start with `bitcoin-cli -regtest [...]` must be typed in the console as `[...]`, as the leading `bitcoin-cli -regtest` is already assumed in the GUI environment
+7. in general any command line that would start with `bitcoin-cli -regtest [...]` must be typed in the console as `[...]`, as the leading `bitcoin-cli -regtest` is already assumed in the GUI environment
 
 Anyway, the GUI is limited: to really experiment beyond easy commands, a genuine command line experience is better:
 
-5. open a command prompt in the bin folder (where bitcoin-cli.exe is located) or add that folder to your %PATH% environment variable
-6. to connect to one node of the network, type  
-   `bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”`
-7. to generate 101 blocks, type  
-   `bitcoin-cli -regtest generate 101`
-8. in general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process
+4. open a command prompt in the bin folder (where bitcoin-cli.exe is located) or add that folder to your %PATH% environment variable
+5. to connect to one node of the network, type  
+   ```
+   bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”
+   ```
+6. to generate 101 blocks, type  
+   ```
+   bitcoin-cli -regtest generate 101
+   ```
+7. in general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest process
 
-You can find a full bitcoin-cli command list here: [Command List](https://en.bitcoin.it/wiki/Original_Bitcoin_client/API_calls_list)
+For a [full command list](https://bitcoincore.org/en/doc/0.17.0/) type:
+   ```
+   bitcoin-cli -regtest help
+   ```
+
+For help about a peculiar commang (e.g. [generate](https://bitcoincore.org/en/doc/0.17.0/rpc/generating/generate/)) type:
+   ```
+   bitcoin-cli -regtest generate
+   ```
