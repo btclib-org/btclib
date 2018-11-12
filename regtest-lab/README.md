@@ -22,7 +22,7 @@ In general any command line must starts with `bitcoin-cli -regtest [...]` to use
 
 ## Digital Signature Using `bitcoin-cli`
 
-* generate a _legacy_ (non _p2sh-segwit_ or _bech32_) address, optionally labelled with "used to sign", then use it to sign the message _"Hello, World!"_ with the corresponding private key, finally verify the signature
+* generate a _legacy_ (non _p2sh-segwit_ or _bech32_) address, optionally labelled with "used to sign", then use it to sign the message _"Hello, World"_ with the corresponding private key, finally verify the signature
   ```
   $ bitcoin-cli -regtest getnewaddress "used to sign" legacy
   mqmgZrj7SiyhzRAuDyoFZLwgfUxFVTZVKh
