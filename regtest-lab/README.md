@@ -1,9 +1,13 @@
 # Bitcoin Core - regtest lab session
 
+## Install Bitcoin Core
+
 Please install and run Bitcoin Core for your platform, following the instructions provided in
 [windows.md](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/windows.md),
 [linux.md](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/linux.md), or
 [mac-os.md](https://github.com/dginst/BitcoinBlockchainTechnology/blob/master/regtest-lab/mac-os.md).
+
+## The `bitcoin-cli` Command Line Tool
 
 In general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest daemon process. In the GUI console environment `bitcoin-cli -regtest` is already assumed and just `[...]` must be typed. 
 
@@ -15,17 +19,23 @@ In general any command line must starts with `bitcoin-cli -regtest [...]` to use
   ```
   $ bitcoin-cli -regtest generate 101
   ```
+
+## Digital Signature Using `bitcoin-cli`
+
 * generate a _legacy_ (non _p2sh-segwit_ or _bech32_) address with the label "used to sign", then use it to sign the message _"Hello, World!"_ with the corresponding private key, finally verify the signature
   ```
-  $ bitcoin-cli -regtest getnewaddress "used to sign" legacy
+  $ bitcoin-cli -regtest getnewaddress 'used to sign' legacy
   mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy
   
-  $ bitcoin-cli -regtest signmessage "mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy" "Hello, World!"
+  $ bitcoin-cli -regtest signmessage 'mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy' 'Hello, World!'
   H9Keh3kKLKsGYaXL9oaO+4kwyeDbR0rtftquIyzcv3HeHB2sK2dC2DKYdmOmSYJL7CXPUAlBqR6FxOj7qubYXIM=
   
-  $ bitcoin-cli -regtest verifymessage "mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy" "H9Keh3kKLKsGYaXL9oaO+4kwyeDbR0rtftquIyzcv3HeHB2sK2dC2DKYdmOmSYJL7CXPUAlBqR6FxOj7qubYXIM=" "Hello, World!"
+  $ bitcoin-cli -regtest verifymessage 'mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy' 'H9Keh3kKLKsGYaXL9oaO+4kwyeDbR0rtftquIyzcv3HeHB2sK2dC2DKYdmOmSYJL7CXPUAlBqR6FxOj7qubYXIM=' 'Hello, World!'
   true
   ```
+
+## A Simple Bitcoin Transaction
+
 * send 99.0 regtest-bitcoins to bcrt1qry4w50spgegfaemv7kl8q5efkfk3gpc5zvxnrd and inspect the transaction
   ```
   $ bitcoin-cli -regtest sendtoaddress bcrt1qry4w50spgegfaemv7kl8q5efkfk3gpc5zvxnrd 99
@@ -62,6 +72,8 @@ In general any command line must starts with `bitcoin-cli -regtest [...]` to use
   ```
   bitcoin-cli -regtest stop
   ```
+
+## Further Material
 
 For a [full command list](https://bitcoincore.org/en/doc/0.17.0/):
   ```
