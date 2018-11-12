@@ -7,13 +7,24 @@ Please install and run Bitcoin Core for your platform, following the instruction
 
 In general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest daemon process. In the GUI console environment `bitcoin-cli -regtest` is already assumed and just `[...]` must be typed. 
 
-* to connect to one peculiar node of the network  
+* connect to one peculiar node of the network  
    ```
-   bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”
+   $bitcoin-cli -regtest addnode “ipaddress-to-be-comunicated-in-class” “add”
    ```
-* to generate 101 blocks  
+* generate 101 blocks  
    ```
-   bitcoin-cli -regtest generate 101
+   $bitcoin-cli -regtest generate 101
+   ```
+* generate a _legacy_ (non _p2sh-segwit_ or _bech32_) address with the label "used to sign", then use it to sign the message _"Hello, World!"_ with the corresponding private key, finally verify the signature
+   ```
+   $bitcoin-cli -regtest getnewaddress "used to sign" legacy
+   mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy
+   
+   $bitcoin-cli -regtest signmessage "mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy" "Hello, World!"
+   H9Keh3kKLKsGYaXL9oaO+4kwyeDbR0rtftquIyzcv3HeHB2sK2dC2DKYdmOmSYJL7CXPUAlBqR6FxOj7qubYXIM=
+   
+   $bitcoin-cli -regtest verifymessage "mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy" "H9Keh3kKLKsGYaXL9oaO+4kwyeDbR0rtftquIyzcv3HeHB2sK2dC2DKYdmOmSYJL7CXPUAlBqR6FxOj7qubYXIM=" "Hello, World!"
+   true
    ```
 * stop the daemon (and the GUI) with the command
   ```
