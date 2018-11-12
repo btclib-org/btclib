@@ -9,7 +9,7 @@ Please install and run Bitcoin Core for your platform, following the instruction
 
 ## The `bitcoin-cli` Command Line Tool
 
-In general any command line must starts with `bitcoin-cli -regtest [...]` to use the regtest daemon process. In the GUI console environment `bitcoin-cli -regtest` is already assumed and just `[...]` must be typed. 
+In general any command line must starts with `bitcoin-cli -regtest [...]` to use the _regtest_ daemon process. In the GUI console environment `bitcoin-cli -regtest` is already assumed and can be skipped, typing only the `[...]` part.
 
 * connect to one peculiar node of the network  
   ```
@@ -22,15 +22,15 @@ In general any command line must starts with `bitcoin-cli -regtest [...]` to use
 
 ## Digital Signature Using `bitcoin-cli`
 
-* generate a _legacy_ (non _p2sh-segwit_ or _bech32_) address with the label "used to sign", then use it to sign the message _"Hello, World!"_ with the corresponding private key, finally verify the signature
+* generate a _legacy_ (non _p2sh-segwit_ or _bech32_) address, optionally labelled with "used to sign", then use it to sign the message _"Hello, World!"_ with the corresponding private key, finally verify the signature
   ```
-  $ bitcoin-cli -regtest getnewaddress 'used to sign' legacy
-  mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy
-  
-  $ bitcoin-cli -regtest signmessage 'mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy' 'Hello, World!'
-  H9Keh3kKLKsGYaXL9oaO+4kwyeDbR0rtftquIyzcv3HeHB2sK2dC2DKYdmOmSYJL7CXPUAlBqR6FxOj7qubYXIM=
-  
-  $ bitcoin-cli -regtest verifymessage 'mzQv9qxgPEdqdm6efXeBJ1ehB199EKC1xy' 'H9Keh3kKLKsGYaXL9oaO+4kwyeDbR0rtftquIyzcv3HeHB2sK2dC2DKYdmOmSYJL7CXPUAlBqR6FxOj7qubYXIM=' 'Hello, World!'
+  $ bitcoin-cli -regtest getnewaddress "used to sign" legacy
+  mqmgZrj7SiyhzRAuDyoFZLwgfUxFVTZVKh
+
+  $ bitcoin-cli -regtest signmessage "mqmgZrj7SiyhzRAuDyoFZLwgfUxFVTZVKh" "Hello, World"
+  INQtUSJsBFe6NIt499uuugBoBypU+bhoWzgU9hp+ZZ6eJiRFU+Ins5erSXI7YqBpeth8NtJAuu/MOOLrJFoFl2I=
+
+  $ bitcoin-cli -regtest verifymessage "mqmgZrj7SiyhzRAuDyoFZLwgfUxFVTZVKh" "INQtUSJsBFe6NIt499uuugBoBypU+bhoWzgU9hp+ZZ6eJiRFU+Ins5erSXI7YqBpeth8NtJAuu/MOOLrJFoFl2I=" "Hello, World"
   true
   ```
 
