@@ -12,11 +12,11 @@
 4. move executables into your default path to make bitcoin daemon running and stopping easily:
   ```
   sudo mkdir -p /usr/local/bin
-  sudo cp bitcoin-0.17.0.1/bin/bitcoin* /usr/local/bin/.
+  sudo cp bitcoin-0.17.0/bin/bitcoin* /usr/local/bin/.
   ```
 5. clean up the temporary directory
   ```
-  rm -rf bitcoin-0.17.0.1*
+  rm -rf bitcoin-0.17.0*
   ```
 6. start the Bitcoin Core daemon in regtest mode:
   ```
