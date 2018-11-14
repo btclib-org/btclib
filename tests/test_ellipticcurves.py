@@ -6,6 +6,7 @@ from btclib.ellipticcurves import EllipticCurve, \
                                   secondGenerator, \
                                   opposite, pointAdd, pointAddJacobian, \
                                   pointMultiply, pointMultiplyJacobian, \
+                                  ShamirTrick, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
@@ -202,6 +203,11 @@ allcurves = [
     secp256k1, secp256r1, secp384r1, secp521r1] + smallcurves
     
 
+allcurves = [
+    secp192k1, secp192r1, secp224k1, secp224r1,
+    secp256k1, secp256r1, secp384r1, secp521r1,
+    ec11_13, ec263_269, ec263_270, ec263_280] + smallcurves
+
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
         for ec in allcurves:
@@ -318,6 +324,9 @@ class TestEllipticCurve(unittest.TestCase):
             # random point
             q = os.urandom(curve.bytesize)
             Q = pointMultiply(curve, q, curve.G)
+            while Q == None:
+                q = os.urandom(curve.bytesize)
+                Q = pointMultiply(curve, q, curve.G)
             minus_Q = opposite(curve, Q)
             inf = pointAdd(curve, Q, minus_Q)
             self.assertEqual(inf, None)
@@ -458,8 +467,8 @@ class TestEllipticCurve(unittest.TestCase):
             Q3jac = curve.affine_from_jac(Q3jac)
         
             self.assertEqual(Q3, Q3jac)
-          
-    def test_jacobian_mul(self):
+
+  def test_jacobian_mul(self):
         for curve in allcurves:
             n = os.urandom(curve.bytesize)
         
@@ -467,7 +476,19 @@ class TestEllipticCurve(unittest.TestCase):
             nQjac = pointMultiplyJacobian(curve, n, curve.G)
             self.assertEqual(nQ, nQjac)
 
-       
+    def test_shamir(self):
+        for curve in smallcurves:
+            k1 = int.from_bytes(os.urandom(curve.bytesize), 'big')
+            k2 = int.from_bytes(os.urandom(curve.bytesize), 'big')
+
+            q = os.urandom(curve.bytesize)
+            Q = pointMultiplyJacobian(curve, q, curve.G)
+
+            shamir = ShamirTrick(curve, k1, k2, curve.G, Q)
+            std = pointAdd(curve, pointMultiplyJacobian(curve, k1, curve.G), pointMultiplyJacobian(curve, k2, Q))
+
+            self.assertEqual(shamir, std)
+
 if __name__ == "__main__":
     # execute only if run as a script
     unittest.main()
