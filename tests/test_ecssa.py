@@ -164,7 +164,6 @@ class TestEcssa(unittest.TestCase):
                                     key = ecssa_pubkey_recovery(curve, e, sig)
                                     self.assertTrue(Q == key)
 
-
     def test_batch_validation(self):
         n_sig = 50
         q = []
