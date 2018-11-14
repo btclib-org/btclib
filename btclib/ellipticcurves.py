@@ -165,7 +165,11 @@ class EllipticCurve:
         
         if Q[0]*R[2]*R[2] % self.__p == R[0]*Q[2]*Q[2] % self.__p: # same affine x coordinate
             if Q[1]*R[2]*R[2]*R[2] % self.__p != R[1]*Q[2]*Q[2]*Q[2] % self.__p or Q[1] % self.__p == 0:    # opposite points or degenerate case
+<<<<<<< HEAD
                 return 1, 1, 0
+=======
+                return 1, 1, 0        
+>>>>>>> fixed pb with jac coord
             else:                            # point doubling
                 W = (3*Q[0]*Q[0] + self.__a*Q[2]*Q[2]*Q[2]*Q[2]) % self.__p
                 V = (4*Q[0]*Q[1]*Q[1]) % self.__p
