@@ -138,7 +138,7 @@ class TestEcssaMuSig(unittest.TestCase):
 
         # anyone can do the following
         assert K1_All[0] == K2_All[0], "sign fail"
-        assert K2_All[0] == K3_All[0], "signe fail"
+        assert K2_All[0] == K3_All[0], "sign fail"
         s_All = (s1 + s2 + s3) % ec.n
         ssasig = (K1_All[0], s_All)
 
