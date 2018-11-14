@@ -8,14 +8,9 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   Scalar as PrvKey, \
                                   Point as PubKey, GenericPoint as GenericPubKey, \
                                   mod_inv, \
-<<<<<<< HEAD
-                                  EllipticCurve, \
-                                  int_from_Scalar, tuple_from_Point, bytes_from_Point
-=======
-                                  secp256k1 as ec, \
+                                  EllipticCurve, secp256k1 as ec, \
                                   int_from_Scalar, tuple_from_Point, bytes_from_Point, \
                                   pointAdd, pointAddJacobian, pointMultiplyJacobian
->>>>>>> Batch validation
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature, int_from_hash
 import heapq
@@ -39,26 +34,16 @@ def ecssa_sign(ec: EllipticCurve, m: Message, q: PrvKey, eph_prv: Optional[PrvKe
     return ecssa_sign_raw(ec, m, q, eph_prv, hasher) # FIXME: this is just the message hasher
 
 # https://eprint.iacr.org/2018/068
-<<<<<<< HEAD
 def ecssa_sign_raw(ec: EllipticCurve, m: bytes, q: int, eph_prv: int, hasher = sha256) -> Signature:
     K = ec.pointMultiply(eph_prv, ec.G)
     assert K != None, 'sign fail'
-=======
-def ecssa_sign_raw(m: bytes, prvkey: int, eph_prv: int, hasher = sha256) -> Signature:
-    R = pointMultiplyJacobian(ec, eph_prv, ec.G)
->>>>>>> Batch validation
     # break the simmetry: any criteria could be used, jacobi is standard
     if ec.jacobi(K[1]) != 1:
         # no need to actually change R[1], as it is not used anymore
         # let's fix eph_prv instead, as it is used later
         eph_prv = ec.n - eph_prv
-<<<<<<< HEAD
     e = hasher(K[0].to_bytes(ec.bytesize, byteorder="big") +
                bytes_from_Point(ec, ec.pointMultiply(q, ec.G), True) +
-=======
-    e = hasher(R[0].to_bytes(32, byteorder="big") +
-               bytes_from_Point(ec, pointMultiplyJacobian(ec, prvkey, ec.G), True) +
->>>>>>> Batch validation
                m).digest()
     e = int_from_hash(e, ec.n) % ec.n
     assert e != 0, "sign fail"
@@ -81,13 +66,8 @@ def ecssa_verify_raw(ec: EllipticCurve, m: bytes, ssasig: Signature, Q: PubKey, 
     e = hasher(r.to_bytes(ec.bytesize, byteorder="big") + bytes_from_Point(ec, Q, True) + m).digest()
     e = int_from_hash(e, ec.n) % ec.n
     # R = sG - eP
-<<<<<<< HEAD
     K = ec.pointAdd(ec.pointMultiply(s, ec.G), ec.pointMultiply(ec.n - e, Q))
     if K is None or ec.jacobi(K[1]) != 1:
-=======
-    R = pointAdd(ec, pointMultiplyJacobian(ec, s, ec.G), pointMultiplyJacobian(ec, ec.n - e, pub))
-    if ec.jacobi(R[1]) != 1:
->>>>>>> Batch validation
         return False
     return K[0] == ssasig[0]
 
@@ -117,18 +97,15 @@ def check_ssasig(ec: EllipticCurve, ssasig: Signature) -> bool:
     ec.yOdd(ssasig[0], False) # R.x is valid iif R.y does exist
     # FIXME: it might be 0 <= ssasig[1]
     assert 0 < ssasig[1] and ssasig[1] < ec.n, "s must be in [1..n]"
-<<<<<<< HEAD
-    return True
-=======
     return True
 
 def ecssa_batch_validation(u: int, Q: PubKeys, m: Messages, sigma: Signatures, a: Tuple[int, ...], hasher = sha256) -> bool:
     if u == 1:
-        return ecssa_verify(m[0], sigma[0], Q[0], hasher)
+        return ecssa_verify(ec, m[0], sigma[0], Q[0], hasher)
     assert len(Q) == u and len(m) == u and len(sigma) == u and len(a) == u
     for i in range(0, u):
         if type(m[i]) == str: m[i] = hasher(m[i].encode()).digest()
-        check_ssasig(sigma[i])
+        check_ssasig(ec, sigma[i])
         Q[i] =  tuple_from_Point(ec, Q[i])
     return ecssa_batch_validation_raw(u, Q, m, sigma, a, hasher)
 
@@ -172,4 +149,3 @@ def ecssa_batch_validation_raw(u: int, Q: PubKeys, m: Messages, sigma: Signature
     RHS = pointMultiplyJacobian(ec, -aK[0], aK[1])
     
     return pointMultiplyJacobian(ec, mult, ec.G) == RHS
->>>>>>> Batch validation

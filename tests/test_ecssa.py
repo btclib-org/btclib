@@ -2,19 +2,15 @@
 
 import unittest
 from hashlib import sha256
-<<<<<<< HEAD
-from btclib.ellipticcurves import pointMultiplyJacobian, bytes_from_Point, tuple_from_Point, secp256k1 as ec
-from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_pubkey_recovery
+from btclib.ellipticcurves import pointMultiplyJacobian, bytes_from_Point, \
+                                  tuple_from_Point, secp256k1 as ec
+from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_pubkey_recovery, \
+                         ecssa_batch_validation
 from tests.test_ellipticcurves import lowcard
 from btclib.rfc6979 import rfc6979
 from hashlib import sha256 as hasher
 from btclib.ecsignutils import int_from_hash
-
-=======
-from btclib.ellipticcurves import bytes_from_Point, tuple_from_Point, pointMultiplyJacobian
-from btclib.ecssa import ec, ecssa_sign, ecssa_verify, ecssa_pubkey_recovery, ecssa_batch_validation
 import os
->>>>>>> Batch validation
 
 # https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 
@@ -181,7 +177,7 @@ class TestEcssa(unittest.TestCase):
             q.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
             Q.append(pointMultiplyJacobian(ec, q[i], ec.G))
             m.append(os.urandom(ec.bytesize))
-            sigma.append(ecssa_sign(m[i], q[i]))
+            sigma.append(ecssa_sign(ec, m[i], q[i]))
             a.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
 
         self.assertTrue(ecssa_batch_validation(n_sig, Q, m, sigma, a))
