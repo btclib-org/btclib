@@ -149,6 +149,7 @@ class EllipticCurve:
             return (1, 1, 0)
         else:
             return (Q[0], Q[1], 1)
+
     def affine_from_jac(self, Q: JacPoint) -> Optional[Point]:
         assert isinstance(Q, tuple) and len(Q) == 3, "point not in Jacobian coordinates"
         if Q[2] == 0:
@@ -201,7 +202,6 @@ class EllipticCurve:
 
     def pointMultiplyJacobian(self, n: int, Q: JacPoint) -> Optional[Point]:
         if Q[2] == 0: return None
-        n = n % self.n                 # the group is cyclic
         r = self.jac_from_affine(None) # initialized to infinity point
         while n > 0:                   # use binary representation of n
             if n & 1:                  # if least significant bit is 1 then add current Q
