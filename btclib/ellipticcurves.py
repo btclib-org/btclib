@@ -354,7 +354,7 @@ def ShamirTrick(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericP
 
     return ec.affine_from_jac(Q3)
 
-  def secondGenerator(ec: EllipticCurve) -> Point:
+def secondGenerator(ec: EllipticCurve) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
     generator H wrt G. 
 
