@@ -156,14 +156,6 @@ class TestEcssa(unittest.TestCase):
                                 malleated_sig = (sig[0], curve.n - sig[1])
                                 self.assertFalse(ecssa_verify(curve, m, malleated_sig, Q))
 
-                                # key recovery: works only if p is prime and p = 3 (mod 4)
-                                if curve.return_prime() in prime:
-                                    e = hasher(K[0].to_bytes(curve.bytesize, byteorder="big") +
-                                               bytes_from_Point(curve, pointMultiplyJacobian(curve, q, curve.G), True) +
-                                               m).digest()
-                                    key = ecssa_pubkey_recovery(curve, e, sig)
-                                    self.assertTrue(Q == key)
-
     def test_batch_validation(self):
         n_sig = 50
         q = []

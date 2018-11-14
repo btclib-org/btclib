@@ -3,8 +3,7 @@
 import os
 import time
 from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_batch_validation
-from btclib.ellipticcurves import pointMultiply, pointMultiplyJacobian, \
-                                  secp256k1 as ec
+from btclib.ellipticcurves import pointMultiplyJacobian, secp256k1 as ec
 
 
 n_sig = [1, 2, 5, 10, 50, 100, 500]
@@ -22,6 +21,9 @@ for i in range(0, l):
     for j in range(0, n_sig[i]):
         q.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
         Q.append(pointMultiplyJacobian(ec, q[j], ec.G))
+        while Q == None:
+            q.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
+            Q.append(pointMultiplyJacobian(ec, q[j], ec.G))
         m.append(os.urandom(ec.bytesize))
         sigma.append(ecssa_sign(ec, m[j], q[j]))
         if j != 0:

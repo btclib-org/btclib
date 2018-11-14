@@ -35,7 +35,7 @@ def ecssa_sign(ec: EllipticCurve, m: Message, q: PrvKey, eph_prv: Optional[PrvKe
 
 # https://eprint.iacr.org/2018/068
 def ecssa_sign_raw(ec: EllipticCurve, m: bytes, q: int, eph_prv: int, hasher = sha256) -> Signature:
-    K = ec.pointMultiply(eph_prv, ec.G)
+    K = pointMultiplyJacobian(ec, eph_prv, ec.G)
     assert K != None, 'sign fail'
     # break the simmetry: any criteria could be used, jacobi is standard
     if ec.jacobi(K[1]) != 1:
@@ -43,7 +43,7 @@ def ecssa_sign_raw(ec: EllipticCurve, m: bytes, q: int, eph_prv: int, hasher = s
         # let's fix eph_prv instead, as it is used later
         eph_prv = ec.n - eph_prv
     e = hasher(K[0].to_bytes(ec.bytesize, byteorder="big") +
-               bytes_from_Point(ec, ec.pointMultiply(q, ec.G), True) +
+               bytes_from_Point(ec, pointMultiplyJacobian(ec, q, ec.G), True) +
                m).digest()
     e = int_from_hash(e, ec.n) % ec.n
     assert e != 0, "sign fail"
@@ -66,7 +66,7 @@ def ecssa_verify_raw(ec: EllipticCurve, m: bytes, ssasig: Signature, Q: PubKey, 
     e = hasher(r.to_bytes(ec.bytesize, byteorder="big") + bytes_from_Point(ec, Q, True) + m).digest()
     e = int_from_hash(e, ec.n) % ec.n
     # R = sG - eP
-    K = ec.pointAdd(ec.pointMultiply(s, ec.G), ec.pointMultiply(ec.n - e, Q))
+    K = pointAdd(ec, pointMultiplyJacobian(ec, s, ec.G), pointMultiplyJacobian(ec, ec.n - e, Q))
     if K is None or ec.jacobi(K[1]) != 1:
         return False
     return K[0] == ssasig[0]
@@ -84,8 +84,8 @@ def ecssa_pubkey_recovery_raw(ec: EllipticCurve, e: bytes, ssasig: Signature) ->
     e = int_from_hash(e, ec.n) % ec.n
     assert e != 0, "invalid challenge e"
     e1 = mod_inv(e, ec.n)
-    return ec.pointAdd(ec.pointMultiply((e1 * s) % ec.n, ec.G),
-                       ec.pointMultiply(ec.n - e1, K))
+    return pointAdd(ec, pointMultiplyJacobian(ec, (e1 * s) % ec.n, ec.G),
+                       pointMultiplyJacobian(ec, ec.n - e1, K))
 
 
 def check_ssasig(ec: EllipticCurve, ssasig: Signature) -> bool:
