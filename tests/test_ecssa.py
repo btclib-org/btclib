@@ -2,7 +2,7 @@
 
 import unittest
 from hashlib import sha256
-from btclib.ellipticcurves import pointMultiply, bytes_from_Point, tuple_from_Point, secp256k1 as ec
+from btclib.ellipticcurves import pointMultiplyJacobian, bytes_from_Point, tuple_from_Point, secp256k1 as ec
 from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_pubkey_recovery
 from tests.test_ellipticcurves import lowcard
 from btclib.rfc6979 import rfc6979
@@ -123,13 +123,13 @@ class TestEcssa(unittest.TestCase):
                 # message in bytes
                 m = m.to_bytes(curve.bytesize, 'big')
                 for q in range(1, curve.n):
-                    Q = pointMultiply(curve, q, curve.G)
+                    Q = pointMultiplyJacobian(curve, q, curve.G)
                     # can we apply the procedure presented in Schnorr BIP?
                     if not curve.pIsThreeModFour:
                         self.assertRaises(AssertionError, ecssa_sign, curve, m, q)
                     else:
                         k = rfc6979(q, m, hasher)
-                        K = pointMultiply(curve, k, curve.G)
+                        K = pointMultiplyJacobian(curve, k, curve.G)
                         
                         # looking if the signature fails
                         if K == None:
@@ -138,7 +138,7 @@ class TestEcssa(unittest.TestCase):
                             if curve.jacobi(K[1]) != 1:
                                 k = curve.n - k
                             e = hasher(K[0].to_bytes(curve.bytesize, byteorder="big") +
-                                bytes_from_Point(curve, pointMultiply(curve, q, curve.G), True) +
+                                bytes_from_Point(curve, pointMultiplyJacobian(curve, q, curve.G), True) +
                                m).digest()
                             e = int_from_hash(e, curve.n) % curve.n
                             s = (k + e * q) % curve.n
@@ -153,6 +153,14 @@ class TestEcssa(unittest.TestCase):
                                 # not malleable
                                 malleated_sig = (sig[0], curve.n - sig[1])
                                 self.assertFalse(ecssa_verify(curve, m, malleated_sig, Q))
+
+                                # key recovery: works only if p is prime and p = 3 (mod 4)
+                                if curve.return_prime() in prime:
+                                    e = hasher(K[0].to_bytes(curve.bytesize, byteorder="big") +
+                                               bytes_from_Point(curve, pointMultiplyJacobian(curve, q, curve.G), True) +
+                                               m).digest()
+                                    key = ecssa_pubkey_recovery(curve, e, sig)
+                                    self.assertTrue(Q == key)
 
 
 
