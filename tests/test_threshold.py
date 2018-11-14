@@ -439,3 +439,7 @@ class TestEcssaThreshold(unittest.TestCase):
         ecssa = (K[0], sigma)
 
         self.assertTrue(ecssa_verify(msg, ecssa, Q))
+
+    if __name__ == "__main__":
+        # execute only if run as a script
+        unittest.main()
