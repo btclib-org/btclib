@@ -48,6 +48,9 @@ class EllipticCurve:
         Inf = self.pointAdd(T, self.G)
         assert Inf is None, "wrong order"
 
+    def return_prime(self) -> int:
+        return self.__p
+
     def assertPointCoordinate(self, c: int) -> None:
         assert type(c) == int,  "non-int point coordinate"
         assert 0 <= c, "point coordinate %s < 0" % c
@@ -351,7 +354,7 @@ def ShamirTrick(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericP
 
     return ec.affine_from_jac(Q3)
 
-def secondGenerator(ec: EllipticCurve) -> Point:
+  def secondGenerator(ec: EllipticCurve) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
     generator H wrt G. 
 
