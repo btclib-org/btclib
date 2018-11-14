@@ -132,9 +132,8 @@ ec283_281 = EllipticCurve(2, 7, 283, (0,  63), 281)
 ec293_281 = EllipticCurve(8, 6, 293, (0,  42), 281)
 ec293_311 = EllipticCurve(1, 4, 293, (0, 291), 311)
 
-smallcurves = [
-    ec11_13, ec263_269, 
-    ec263_270, ec263_280,
+lowcard = [
+    ec11_13, 
     ec11_7, ec11_17,
     ec13_11, ec13_19,
     ec17_13, ec17_23,
@@ -157,7 +156,11 @@ smallcurves = [
     ec89_83, ec89_101,
     ec97_89, ec97_103,
     ec101_97, #ec101_101,
-    ec103_101, ec103_113,
+    ec103_101, ec103_113
+]
+
+smallcurves = lowcard + [
+    ec263_269, ec263_270, ec263_280,
     ec107_103, ec107_113,
     ec109_107, ec109_127,
     ec113_103, ec113_127,
@@ -191,11 +194,13 @@ smallcurves = [
     ec277_263, ec277_307,
     ec281_311,
     ec283_281, #ec283_283,
-    ec293_281, ec293_311]
+    ec293_281, ec293_311
+    ]
 
 allcurves = [
     secp192k1, secp192r1, secp224k1, secp224r1,
     secp256k1, secp256r1, secp384r1, secp521r1] + smallcurves
+    
 
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
