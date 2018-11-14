@@ -13,5 +13,7 @@ pip3 install git+https://github.com/dginst/BitcoinBlockchainTechnology.git
 Excel spreadsheets are available in the `excel` folder:
 https://github.com/dginst/BitcoinBlockchainTechnology/tree/master/excel
 
-Reference material and slides for the course are available at the course page:
+The `regtest-lab` includes a regtest session using Bitcoin Core
+
+Reference material and slides are available at the course page:
 https://www.ametrano.net/bbt/
