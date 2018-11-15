@@ -468,7 +468,7 @@ class TestEllipticCurve(unittest.TestCase):
         
             self.assertEqual(Q3, Q3jac)
 
-  def test_jacobian_mul(self):
+    def test_jacobian_mul(self):
         for curve in allcurves:
             n = os.urandom(curve.bytesize)
         

@@ -118,14 +118,6 @@ class TestEcssa(unittest.TestCase):
         self.assertFalse(ecssa_verify(ec, msg, sig, pub))
 
     def test_low_cardinality(self):
-        prime = [2,	3, 5, 7, 11, 13, 17, 19, 23, 29,
-                 31, 37, 41, 43, 47, 53, 59, 61, 67, 
-                 71, 73, 79, 83, 89, 97, 101, 103, 107,
-             	 109, 113, 127,	131, 137, 139, 149,	151,
-            	 157, 163, 167,	173, 179, 181, 191, 193,
-                 197, 199, 211,	223, 227, 229, 233, 239,
-                 241, 251, 257, 263, 269, 271, 277,	281,
-                 283, 293, 307,	311, 313, 317, 331, 337]
         for curve in lowcard:
             for m in range(0, curve.n):
                 # message in bytes
@@ -133,10 +125,9 @@ class TestEcssa(unittest.TestCase):
                 for q in range(1, curve.n):
                     Q = pointMultiply(curve, q, curve.G)
                     # can we apply the procedure presented in Schnorr BIP?
-                    if curve.return_prime() % 4 == 1:
+                    if not curve.pIsThreeModFour:
                         self.assertRaises(AssertionError, ecssa_sign, curve, m, q)
                     else:
-                        self.assertTrue(curve.return_prime() % 4 == 3)
                         k = rfc6979(q, m, hasher)
                         K = pointMultiply(curve, k, curve.G)
                         
@@ -162,14 +153,6 @@ class TestEcssa(unittest.TestCase):
                                 # not malleable
                                 malleated_sig = (sig[0], curve.n - sig[1])
                                 self.assertFalse(ecssa_verify(curve, m, malleated_sig, Q))
-
-                                # key recovery: works only if p is prime and p = 3 (mod 4)
-                                if curve.return_prime() in prime:
-                                    e = hasher(K[0].to_bytes(curve.bytesize, byteorder="big") +
-                                               bytes_from_Point(curve, pointMultiply(curve, q, curve.G), True) +
-                                               m).digest()
-                                    key = ecssa_pubkey_recovery(curve, e, sig)
-                                    self.assertTrue(Q == key)
 
 
 

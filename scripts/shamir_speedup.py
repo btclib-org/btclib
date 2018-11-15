@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from btclib.ellipticcurves import ShamirTrick, pointAdd, \
                                   pointMultiply, pointMultiplyJacobian, \
                                   secp256k1 as ec
