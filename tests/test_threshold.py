@@ -27,12 +27,12 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1 = list()
-        q1 = int.from_bytes(os.urandom(ec.bytesize), 'big') # secret value
+        q1 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
         while q1 == 0:
-            q1 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-        q1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            q1 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+        q1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
         while q1_prime == 0:
-            q1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            q1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
 
         commits1.append(pointAdd(ec, pointMultiplyJacobian(ec, q1, ec.G), \
                                      pointMultiplyJacobian(ec, q1_prime, H)))
@@ -43,13 +43,13 @@ class TestEcssaThreshold(unittest.TestCase):
         f1_prime = list()
         f1_prime.append(q1_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
-            f1.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            f1.append(temp) 
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f1_prime.append(temp)
             commits1.append(pointAdd(ec, pointMultiplyJacobian(ec, f1[i], ec.G), \
                                      pointMultiplyJacobian(ec, f1_prime[i], H)))
@@ -60,11 +60,11 @@ class TestEcssaThreshold(unittest.TestCase):
         alpha13 = 0  # share of q1 belonging to P3
         alpha13_prime = 0
         for  i in range(0, t):
-            alpha12 += f1[i] * pow(2, i) % ec.n
-            alpha12_prime += f1_prime[i] * pow(2, i) % ec.n
+            alpha12 += (f1[i] * pow(2, i)) % ec.n
+            alpha12_prime += (f1_prime[i] * pow(2, i)) % ec.n
 
-            alpha13 += f1[i] * pow(3, i) % ec.n
-            alpha13_prime += f1_prime[i] * pow(3, i) % ec.n
+            alpha13 += (f1[i] * pow(3, i)) % ec.n
+            alpha13_prime += (f1_prime[i] * pow(3, i)) % ec.n
 
         # player two verifies consistency of his share
         RHS = None
@@ -84,12 +84,12 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # signer two acting as the dealer
         commits2 = list()
-        q2 = int.from_bytes(os.urandom(ec.bytesize), 'big') # secret value
+        q2 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
         while q2 == 0:
-            q2 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-        q2_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            q2 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+        q2_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
         while q2_prime == 0:
-            q2_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            q2_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
 
         commits2.append(pointAdd(ec, pointMultiplyJacobian(ec, q2, ec.G), \
                                      pointMultiplyJacobian(ec, q2_prime, H)))
@@ -100,13 +100,13 @@ class TestEcssaThreshold(unittest.TestCase):
         f2_prime = list()
         f2_prime.append(q2_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f2.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f2_prime.append(temp)
             commits2.append(pointAdd(ec, pointMultiplyJacobian(ec, f2[i], ec.G), \
                                      pointMultiplyJacobian(ec, f2_prime[i], H)))
@@ -117,11 +117,11 @@ class TestEcssaThreshold(unittest.TestCase):
         alpha23 = 0  # share of q2 belonging to P3
         alpha23_prime = 0
         for  i in range(0, t):
-            alpha21 += f2[i] * pow(1, i) % ec.n
-            alpha21_prime += f2_prime[i] * pow(1, i) % ec.n
+            alpha21 += (f2[i] * pow(1, i)) % ec.n
+            alpha21_prime += (f2_prime[i] * pow(1, i)) % ec.n
 
-            alpha23 += f2[i] * pow(3, i) % ec.n
-            alpha23_prime += f2_prime[i] * pow(3, i) % ec.n
+            alpha23 += (f2[i] * pow(3, i)) % ec.n
+            alpha23_prime += (f2_prime[i] * pow(3, i)) % ec.n
 
         # player one verifies consistency of his share
         RHS = None
@@ -142,12 +142,12 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # signer three acting as the dealer
         commits3 = list()
-        q3 = int.from_bytes(os.urandom(ec.bytesize), 'big') # secret value
+        q3 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
         while q3 == 0:
-            q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-        q3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            q3 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+        q3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
         while q3_prime == 0:
-            q3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            q3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
 
         commits3.append(pointAdd(ec, pointMultiplyJacobian(ec, q3, ec.G), \
                                      pointMultiplyJacobian(ec, q3_prime, H)))
@@ -158,13 +158,13 @@ class TestEcssaThreshold(unittest.TestCase):
         f3_prime = list()
         f3_prime.append(q3_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f3.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f3_prime.append(temp)
             commits3.append(pointAdd(ec, pointMultiplyJacobian(ec, f3[i], ec.G), \
                                      pointMultiplyJacobian(ec, f3_prime[i], H)))
@@ -175,11 +175,11 @@ class TestEcssaThreshold(unittest.TestCase):
         alpha32 = 0  # share of q3 belonging to P2
         alpha32_prime = 0
         for  i in range(0, t):
-            alpha31 += f3[i] * pow(1, i) % ec.n
-            alpha31_prime += f3_prime[i] * pow(1, i) % ec.n
+            alpha31 += (f3[i] * pow(1, i)) % ec.n
+            alpha31_prime += (f3_prime[i] * pow(1, i)) % ec.n
 
-            alpha32 += f3[i] * pow(2, i) % ec.n
-            alpha32_prime += f3_prime[i] * pow(2, i) % ec.n
+            alpha32 += (f3[i] * pow(2, i)) % ec.n
+            alpha32_prime += (f3_prime[i] * pow(2, i)) % ec.n
 
         # player one verifies consistency of his share
         RHS = None
@@ -197,13 +197,13 @@ class TestEcssaThreshold(unittest.TestCase):
          
 
         # shares of the secret key q = q1 + q2 + q3
-        alpha1 = alpha21 + alpha31 % ec.n
-        alpha2 = alpha12 + alpha32 % ec.n
-        alpha3 = alpha13 + alpha23 % ec.n
+        alpha1 = (alpha21 + alpha31) % ec.n
+        alpha2 = (alpha12 + alpha32) % ec.n
+        alpha3 = (alpha13 + alpha23) % ec.n
         for i in range(0, t):
-            alpha1 += f1[i] * pow(1, i) % ec.n
-            alpha2 += f2[i] * pow(2, i) % ec.n
-            alpha3 += f3[i] * pow(3, i) % ec.n
+            alpha1 += (f1[i] * pow(1, i)) % ec.n
+            alpha2 += (f2[i] * pow(2, i)) % ec.n
+            alpha3 += (f3[i] * pow(3, i)) % ec.n
 
         # it's time to recover the public key Q = Q1 + Q2 + Q3 = (q1 + q2 + q3)G
         A1 = list()
@@ -261,12 +261,12 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1 = list()
-        k1 = int.from_bytes(os.urandom(ec.bytesize), 'big') # secret value
+        k1 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
         while k1 == 0:
-            k1 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-        k1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            k1 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+        k1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
         while k1_prime == 0:
-            k1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            k1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
 
         commits1.append(pointAdd(ec, pointMultiplyJacobian(ec, k1, ec.G), \
                                      pointMultiplyJacobian(ec, k1_prime, H)))
@@ -277,13 +277,13 @@ class TestEcssaThreshold(unittest.TestCase):
         f1_prime = list()
         f1_prime.append(k1_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f1.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f1_prime.append(temp)
             commits1.append(pointAdd(ec, pointMultiplyJacobian(ec, f1[i], ec.G), \
                                      pointMultiplyJacobian(ec, f1_prime[i], H)))
@@ -292,8 +292,8 @@ class TestEcssaThreshold(unittest.TestCase):
         beta13 = 0  # share of k1 belonging to P3
         beta13_prime = 0
         for  i in range(0, t):
-            beta13 += f1[i] * pow(3, i) % ec.n
-            beta13_prime += f1_prime[i] * pow(3, i) % ec.n
+            beta13 += (f1[i] * pow(3, i)) % ec.n
+            beta13_prime += (f1_prime[i] * pow(3, i)) % ec.n
 
 
         # player three verifies consistency of his share
@@ -307,12 +307,12 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # signer three acting as the dealer
         commits3 = list()
-        k3 = int.from_bytes(os.urandom(ec.bytesize), 'big') # secret value
+        k3 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
         while k3 == 0:
-            k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-        k3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            k3 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+        k3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
         while k3_prime == 0:
-            k3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            k3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
 
         commits3.append(pointAdd(ec, pointMultiplyJacobian(ec, k3, ec.G), \
                                      pointMultiplyJacobian(ec, k3_prime, H)))
@@ -323,13 +323,13 @@ class TestEcssaThreshold(unittest.TestCase):
         f3_prime = list()
         f3_prime.append(k3_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f3.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big')
+                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
             f3_prime.append(temp)
             commits3.append(pointAdd(ec, pointMultiplyJacobian(ec, f3[i], ec.G), \
                                      pointMultiplyJacobian(ec, f3_prime[i], H)))
@@ -338,8 +338,8 @@ class TestEcssaThreshold(unittest.TestCase):
         beta31 = 0 # share of k3 belonging to P1
         beta31_prime = 0
         for  i in range(0, t):
-            beta31 += f3[i] * pow(1, i) % ec.n
-            beta31_prime += f3_prime[i] * pow(1, i) % ec.n
+            beta31 += (f3[i] * pow(1, i)) % ec.n
+            beta31_prime += (f3_prime[i] * pow(1, i)) % ec.n
 
         # player one verifies consistency of his share
         RHS = None
@@ -352,8 +352,8 @@ class TestEcssaThreshold(unittest.TestCase):
         beta1 =  beta31 % ec.n
         beta3 = beta13 % ec.n
         for i in range(0, t):
-            beta1 += f1[i] * pow(1, i) % ec.n
-            beta3 += f3[i] * pow(3, i) % ec.n
+            beta1 += (f1[i] * pow(1, i)) % ec.n
+            beta3 += (f3[i] * pow(3, i)) % ec.n
 
         # it's time to recover the public nonce
         B1 = list()
@@ -395,8 +395,8 @@ class TestEcssaThreshold(unittest.TestCase):
         
         # partial signatures
         e = int_from_hash(sha256(K[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q, True) + msg).digest(), ec.n)
-        gamma1 = beta1 + e * alpha1 % ec.n
-        gamma3 = beta3 + e * alpha3 % ec.n
+        gamma1 = (beta1 + e * alpha1) % ec.n
+        gamma3 = (beta3 + e * alpha3) % ec.n
 
         # each participant verifies the other partial signatures
 
@@ -433,13 +433,17 @@ class TestEcssaThreshold(unittest.TestCase):
 
 
         ### PHASE FOUR: aggregating the signature ###
-        omega1 = 3 * mod_inv(3 - 1, ec.n)
-        omega3 = 1 * mod_inv(1 - 3, ec.n)
+        omega1 = 3 * mod_inv(3 - 1, ec.n) % ec.n
+        omega3 = 1 * mod_inv(1 - 3, ec.n) % ec.n
         sigma = (gamma1 * omega1 + gamma3 * omega3) % ec.n
 
         ecssa = (K[0], sigma)
 
         self.assertTrue(ecssa_verify(ec, msg, ecssa, Q))
+
+        ### ADDITIONAL PHASE: reconstruction of the private key ###
+        secret = (omega1 * alpha1 + omega3 * alpha3)  % ec.n
+        self.assertEqual((q1 + q2 + q3) % ec.n, secret)
 
     if __name__ == "__main__":
         # execute only if run as a script
