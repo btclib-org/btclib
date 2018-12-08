@@ -55,8 +55,6 @@ def borromean_sign(msg: Message, sign_key_idx: List[int], sign_keys: List[Scalar
         if start_idx == 0:
             last_R += R
         else:
-            e[i][j_star] = int_from_hash(borromean_hash(m, R, i, j_star), ec.n)
-            assert e[i][j_star] != 0 and e[i][j_star] < ec.n, "sign fail"
             for j in range(start_idx, len(pubk_rings[i])):
                 s[i][j] = os.urandom(32)
                 e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec.n)
