@@ -104,4 +104,8 @@ ENV/
 # vscode
 .vscode/
 
+# sphinx
+.idea/
+
+# MACOS
 .DS_Store
