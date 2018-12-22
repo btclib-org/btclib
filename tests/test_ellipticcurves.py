@@ -202,7 +202,9 @@ smallcurves = lowcard + [
 allcurves = [
     secp160r1,
     secp192k1, secp192r1, secp224k1, secp224r1,
-    secp256k1, secp256r1, secp384r1, secp521r1] + smallcurves
+    secp256k1, secp256r1, secp384r1, secp521r1,
+    ec11_13, ec263_269, ec263_270, ec263_280 # ?
+    ] + smallcurves
     
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
@@ -332,8 +334,7 @@ class TestEllipticCurve(unittest.TestCase):
             inf = pointAddJacobian(curve, Qjac, minus_Qjac)
             self.assertEqual(inf, (1,1,0))
 
-# FIXME remove urandom from tests
-           
+    # FIXME remove urandom from tests
     def test_quad_res(self):
         for curve in smallcurves:
 
