@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+import os
 from hashlib import sha256
 from btclib.ellipticcurves import pointMultiplyJacobian, bytes_from_Point, \
                                   tuple_from_Point, secp256k1 as ec
@@ -10,7 +11,6 @@ from tests.test_ellipticcurves import lowcard
 from btclib.rfc6979 import rfc6979
 from hashlib import sha256 as hasher
 from btclib.ecsignutils import int_from_hash
-import os
 
 # https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 
