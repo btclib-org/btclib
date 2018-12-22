@@ -31,6 +31,7 @@ class EllipticCurve:
         self.__p = p
         self.bytesize = (p.bit_length() + 7) // 8
 
+        # to break simmetry using quadratic residue
         self.pIsThreeModFour = (self.__p % 4 == 3)
 
         # check n with Hasse Theorem
@@ -67,6 +68,8 @@ class EllipticCurve:
         self.assertPointCoordinate(y)
         return self.__y2(x) == (y*y % self.__p)
 
+    # jacobi symbol (equal to legendre because p is prime)
+    # if it returs 1, then y is a quadratic residue
     def jacobi(self, y: int) -> int:
         self.assertPointCoordinate(y)
         return pow(y, (self.__p - 1) // 2, self.__p)
@@ -216,6 +219,9 @@ def isOnCurve(ec: EllipticCurve, Q: Point) -> bool:
     assert len(Q) == 2, "invalid tuple point length %s" % len(Q)
     return ec.areOnCurve(Q[0], Q[1])
 
+
+### Functions using GenericPoint and Scalar ####
+
 GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
 # Optional[GenericPoint] do include the infinity point
@@ -249,7 +255,6 @@ def tuple_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint]) -> Point:
     # must be a tuple
     assert isOnCurve(ec, Q), "not on curve"
     return Q
-
 
 def bytes_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint], compressed: bool) -> bytes:
     """
@@ -302,14 +307,12 @@ def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
     if not isinstance(n, int):
         raise TypeError("a bytes-like object is required (also str or int)")
     return n % ec.n
-        
 
 def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     # enforce self-consistency with whatever
     # policy is implemented by int_from_Scalar
     n = int_from_Scalar(ec, n)
     return n.to_bytes(ec.bytesize, 'big')
-
 
 def pointMultiply(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Optional[Point]:
     n = int_from_Scalar(ec, n)
