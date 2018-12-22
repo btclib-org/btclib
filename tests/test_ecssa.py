@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
 import unittest
+import os
 from hashlib import sha256
-from btclib.ellipticcurves import pointMultiply, bytes_from_Point, tuple_from_Point, secp256k1 as ec
-from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_pubkey_recovery
+from btclib.ellipticcurves import pointMultiplyJacobian, bytes_from_Point, \
+                                  tuple_from_Point, secp256k1 as ec
+from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_pubkey_recovery, \
+                         ecssa_batch_validation
 from tests.test_ellipticcurves import lowcard
 from btclib.rfc6979 import rfc6979
 from hashlib import sha256 as hasher
 from btclib.ecsignutils import int_from_hash
-
 
 # https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 
@@ -123,13 +125,13 @@ class TestEcssa(unittest.TestCase):
                 # message in bytes
                 m = m.to_bytes(curve.bytesize, 'big')
                 for q in range(1, curve.n):
-                    Q = pointMultiply(curve, q, curve.G)
+                    Q = pointMultiplyJacobian(curve, q, curve.G)
                     # can we apply the procedure presented in Schnorr BIP?
                     if not curve.pIsThreeModFour:
                         self.assertRaises(AssertionError, ecssa_sign, curve, m, q)
                     else:
                         k = rfc6979(q, m, hasher)
-                        K = pointMultiply(curve, k, curve.G)
+                        K = pointMultiplyJacobian(curve, k, curve.G)
                         
                         # looking if the signature fails
                         if K == None:
@@ -138,7 +140,7 @@ class TestEcssa(unittest.TestCase):
                             if curve.jacobi(K[1]) != 1:
                                 k = curve.n - k
                             e = hasher(K[0].to_bytes(curve.bytesize, byteorder="big") +
-                                bytes_from_Point(curve, pointMultiply(curve, q, curve.G), True) +
+                                bytes_from_Point(curve, pointMultiplyJacobian(curve, q, curve.G), True) +
                                m).digest()
                             e = int_from_hash(e, curve.n) % curve.n
                             s = (k + e * q) % curve.n
@@ -154,7 +156,30 @@ class TestEcssa(unittest.TestCase):
                                 malleated_sig = (sig[0], curve.n - sig[1])
                                 self.assertFalse(ecssa_verify(curve, m, malleated_sig, Q))
 
+    def test_batch_validation(self):
+        n_sig = 50
+        q = []
+        Q = []
+        m = []
+        sigma = []
+        a = []
 
+        for i in range(0, n_sig):
+            q.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
+            Q.append(pointMultiplyJacobian(ec, q[i], ec.G))
+            m.append(os.urandom(ec.bytesize))
+            sigma.append(ecssa_sign(ec, m[i], q[i]))
+            a.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
+
+        self.assertTrue(ecssa_batch_validation(n_sig, Q, m, sigma, a))
+
+        Q.append(tuple_from_Point(ec, "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659"))
+        m.append(bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"))
+        sigma.append((0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
+               0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD))
+        a.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
+
+        self.assertFalse(ecssa_batch_validation(n_sig+1, Q, m, sigma, a))
 
 if __name__ == "__main__":
     # execute only if run as a script
