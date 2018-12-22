@@ -12,7 +12,6 @@ def mod_inv(a: int, m: int) -> int:
 
     # At this point, d is the GCD, and ud*a+vd*m = d.
     # If d == 1, this means that ud is a inverse.
-
     assert d == 1
     if ud > 0: return ud
     else: return ud + m

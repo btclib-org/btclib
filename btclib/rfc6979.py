@@ -44,7 +44,7 @@ def check_hash_digest(m, hash_digest_size=default_hash_digest_size):
     """check that m is a bytes message with correct length
     """
     assert type(m) == bytes
-    assert len(m) == hash_digest_size, "m must be bytes with correct bytes length"
+    assert len(m) <= hash_digest_size, "m must be bytes with correct bytes length"
 
 def rfc6979(prv, m, hasher=default_hasher) -> int:
     assert type(prv) == int

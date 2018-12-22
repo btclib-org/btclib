@@ -45,7 +45,7 @@ def bip32_master_prvkey_from_seed(bip32_seed: Union[str, bytes], version: bytes)
 
     # actual extended key (key + chain code) derivation
     hashValue = HMAC(b"Bitcoin seed", bip32_seed, sha512).digest()
-    mprv = int.from_bytes(hashValue[:32], 'big') % ec.n
+    mprv = int_from_Scalar(ec, hashValue[:32])
     xmprv += hashValue[32:]                     # chain code
     xmprv += b'\x00' + mprv.to_bytes(32, 'big') # private key
 
@@ -145,7 +145,8 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
 
 
 def bip32_derive(xkey: bytes, path: str) -> bytes:
-    """derive an extended key according to path like "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative) """
+    """derive an extended key according to path like
+       "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative) """
 
     indexes = []
     if isinstance(path, list):

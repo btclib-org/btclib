@@ -4,12 +4,16 @@ import unittest
 from btclib.ellipticcurves import EllipticCurve, \
                                   bytes_from_Point, tuple_from_Point, \
                                   secondGenerator, \
-                                  pointAdd, pointMultiply, \
+                                  opposite, pointAdd, pointAddJacobian, \
+                                  pointMultiply, pointMultiplyJacobian, \
+                                  ShamirTrick, \
                                   secp160r1, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
                                   secp384r1, secp521r1
+from btclib.numbertheory import mod_sqrt
+import os
 
 # toy curves
 ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
@@ -130,10 +134,8 @@ ec283_281 = EllipticCurve(2, 7, 283, (0,  63), 281)
 ec293_281 = EllipticCurve(8, 6, 293, (0,  42), 281)
 ec293_311 = EllipticCurve(1, 4, 293, (0, 291), 311)
 
-allcurves = [
-    secp160r1, secp192k1, secp192r1, secp224k1, secp224r1,
-    secp256k1, secp256r1, secp384r1, secp521r1,
-    ec11_13, ec263_269, ec263_270, ec263_280,
+lowcard = [
+    ec11_13, 
     ec11_7, ec11_17,
     ec13_11, ec13_19,
     ec17_13, ec17_23,
@@ -156,7 +158,11 @@ allcurves = [
     ec89_83, ec89_101,
     ec97_89, ec97_103,
     ec101_97, #ec101_101,
-    ec103_101, ec103_113,
+    ec103_101, ec103_113
+]
+
+smallcurves = lowcard + [
+    ec263_269, ec263_270, ec263_280,
     ec107_103, ec107_113,
     ec109_107, ec109_127,
     ec113_103, ec113_127,
@@ -190,8 +196,14 @@ allcurves = [
     ec277_263, ec277_307,
     ec281_311,
     ec283_281, #ec283_283,
-    ec293_281, ec293_311]
+    ec293_281, ec293_311
+    ]
 
+allcurves = [
+    secp160r1,
+    secp192k1, secp192r1, secp224k1, secp224r1,
+    secp256k1, secp256r1, secp384r1, secp521r1] + smallcurves
+    
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
         for ec in allcurves:
@@ -302,7 +314,183 @@ class TestEllipticCurve(unittest.TestCase):
         
         H = secondGenerator(secp256r1)
         H = secondGenerator(secp384r1)
+
+    def test_opposite(self): 
+        for curve in allcurves:
+            # random point
+            q = os.urandom(curve.bytesize)
+            Q = pointMultiply(curve, q, curve.G)
+            while Q == None:
+                q = os.urandom(curve.bytesize)
+                Q = pointMultiply(curve, q, curve.G)
+            minus_Q = opposite(curve, Q)
+            inf = pointAdd(curve, Q, minus_Q)
+            self.assertEqual(inf, None)
+            # jacobian coordinates
+            Qjac = curve.jac_from_affine(Q)
+            minus_Qjac = opposite(curve, Qjac)
+            inf = pointAddJacobian(curve, Qjac, minus_Qjac)
+            self.assertEqual(inf, (1,1,0))
+
+# FIXME remove urandom from tests
+           
+    def test_quad_res(self):
+        for curve in smallcurves:
+
+            ## setup phase
+            # compute quadratic residues
+            hasRoot = set()
+            hasRoot.add(1)
+            p = curve._EllipticCurve__p
+            for i in range(2, p):
+                hasRoot.add(i*i % p)
+
+            ## test phase
+
+            # random point
+            inf = True
+            while inf:
+                q = os.urandom(curve.bytesize)
+                Q = pointMultiply(curve, q, curve.G)
+                if Q is not None:
+                    inf = False
         
+            x = Q[0]
+            if p % 4 == 3:
+                quad_res = curve.yQuadraticResidue(x, 1)
+                not_quad_res = curve.yQuadraticResidue(x, 0)
+                # in this case only quad_res is a quadratic residue
+                self.assertIn(quad_res, hasRoot)
+                root = mod_sqrt(quad_res, p)
+                self.assertEqual(quad_res, (root*root) % p)
+                root = p - root
+                self.assertEqual(quad_res, (root*root) % p)
+
+                self.assertTrue(not_quad_res == p - quad_res)
+                self.assertNotIn(not_quad_res, hasRoot)
+                self.assertRaises(ValueError, mod_sqrt, not_quad_res, p)
+            else:
+                # cannot use yQuadraticResidue in this case
+                self.assertTrue(p % 4 == 1)
+                yOdd = curve.yOdd(x, 1)
+                yEven = curve.yOdd(x, 0)
+
+                # in this case neither or both are quadratic residues
+                self.assertRaises(AssertionError, curve.yQuadraticResidue, x, 1)
+                self.assertRaises(AssertionError, curve.yQuadraticResidue, x, 0)
+                self.assertTrue((yOdd in hasRoot and yEven in hasRoot) or 
+                                (yOdd not in hasRoot and yEven not in hasRoot))
+                if yOdd in hasRoot and yEven in hasRoot:
+                    root = mod_sqrt(yOdd, p)
+                    self.assertEqual(yOdd, (root*root) % p)
+                    root = p - root
+                    self.assertEqual(yOdd, (root*root) % p)
+                    root = mod_sqrt(yEven, p)
+                    self.assertEqual(yEven, (root*root) % p)
+                    root = p - root
+                    self.assertEqual(yEven, (root*root) % p)
+                else:
+                    self.assertTrue(yOdd not in hasRoot and yEven not in hasRoot)
+                    self.assertRaises(ValueError, mod_sqrt, yOdd, p)
+                    self.assertRaises(ValueError, mod_sqrt, yEven, p)
+
+    def test_affine_from_jac_conversion(self):
+        for curve in allcurves:
+            # random point
+            q = os.urandom(curve.bytesize)
+            Q = pointMultiply(curve, q, curve.G)
+            checkQ = curve.affine_from_jac(curve.jac_from_affine(Q))
+            self.assertEqual(Q, checkQ)
+
+    def test_AddJacobian(self):
+        for curve in allcurves:
+            q1 = os.urandom(curve.bytesize)
+            Q1 = pointMultiply(curve, q1, curve.G)
+            q2 = os.urandom(curve.bytesize)
+            Q2 = pointMultiply(curve, q2, curve.G)
+        
+            # distinct points
+            Q3 = pointAdd(curve, Q1, Q2)
+            Q3jac = pointAddJacobian(curve, Q1, Q2) 
+            Q3jac = curve.affine_from_jac(Q3jac)
+        
+            self.assertEqual(Q3, Q3jac)
+            # point at infinity
+            Q3 = pointAdd(curve, Q2, None)
+            Q3jac = pointAddJacobian(curve, Q2, None)
+            Q3jac = curve.affine_from_jac(Q3jac)
+            self.assertEqual(Q3, Q3jac)
+        
+            # point doubling 
+            Q3 = pointAdd(curve, Q1, Q1)
+            Q3jac = pointAddJacobian(curve, Q1, Q1) 
+            # affine coord
+            Q3jac = curve.affine_from_jac(Q3jac)
+        
+            self.assertEqual(Q3, Q3jac)
+            # opposite points
+            Q1opp = opposite(curve, Q1)
+            Q3 = pointAdd(curve, Q1, Q1opp)
+            Q3jac = pointAddJacobian(curve, Q1, Q1opp) 
+            # affine coord
+            Q3jac = curve.affine_from_jac(Q3jac)
+        
+            self.assertEqual(Q3, Q3jac)
+            # point in bytes format
+            Q1 = pointMultiply(curve, q1, curve.G)
+            if Q1 is not None: Q1 = b'\x02' + Q1[0].to_bytes(curve.bytesize, 'big')
+            Q2 = pointMultiply(curve, q2, curve.G)
+            if Q2 is not None: Q2 = b'\x03' + Q2[0].to_bytes(curve.bytesize, 'big')
+        
+            # distinct points
+            Q3 = pointAdd(curve, Q1, Q2)
+            Q3jac = pointAddJacobian(curve, Q1, Q2) 
+            Q3jac = curve.affine_from_jac(Q3jac)
+        
+            self.assertEqual(Q3, Q3jac)
+            # point at infinity
+            Q3 = pointAdd(curve, Q2, None)
+            Q3jac = pointAddJacobian(curve, Q2, None)
+            Q3jac = curve.affine_from_jac(Q3jac)
+            self.assertEqual(Q3, Q3jac)
+        
+            # point doubling 
+            Q3 = pointAdd(curve, Q1, Q1)
+            Q3jac = pointAddJacobian(curve, Q1, Q1) 
+            # affine coord
+            Q3jac = curve.affine_from_jac(Q3jac)
+        
+            self.assertEqual(Q3, Q3jac)
+            # opposite points
+            Q1opp = opposite(curve, Q1)
+            Q3 = pointAdd(curve, Q1, Q1opp)
+            Q3jac = pointAddJacobian(curve, Q1, Q1opp) 
+            # affine coord
+            Q3jac = curve.affine_from_jac(Q3jac)
+        
+            self.assertEqual(Q3, Q3jac)
+
+    def test_MultiplyJacobian(self):
+        for curve in allcurves:
+            n = os.urandom(curve.bytesize)
+        
+            nQ = pointMultiply(curve, n, curve.G)
+            nQjac = pointMultiplyJacobian(curve, n, curve.G)
+            self.assertEqual(nQ, nQjac)
+
+    def test_shamir(self):
+        for curve in smallcurves:
+            k1 = int.from_bytes(os.urandom(curve.bytesize), 'big')
+            k2 = int.from_bytes(os.urandom(curve.bytesize), 'big')
+
+            q = os.urandom(curve.bytesize)
+            Q = pointMultiplyJacobian(curve, q, curve.G)
+
+            shamir = ShamirTrick(curve, k1, k2, curve.G, Q)
+            std = pointAdd(curve, pointMultiplyJacobian(curve, k1, curve.G), pointMultiplyJacobian(curve, k2, Q))
+
+            self.assertEqual(shamir, std)
+
 if __name__ == "__main__":
     # execute only if run as a script
     unittest.main()

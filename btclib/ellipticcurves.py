@@ -10,6 +10,7 @@ from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
 Point = Tuple[int, int]
+JacPoint = Tuple[int, int, int] 
 # infinity point being represented by None,
 # Optional[Point] does include the infinity point
 
@@ -30,6 +31,9 @@ class EllipticCurve:
         self.__p = p
         self.bytesize = (p.bit_length() + 7) // 8
 
+        # to break simmetry using quadratic residue
+        self.pIsThreeModFour = (self.__p % 4 == 3)
+
         # check n with Hasse Theorem
         t = int(2 * sqrt(p))
         assert n <= p + 1 + t, "order %s too high for prime %s" % (n, p)
@@ -44,6 +48,9 @@ class EllipticCurve:
         T = self.pointMultiply(n-1, self.G)
         Inf = self.pointAdd(T, self.G)
         assert Inf is None, "wrong order"
+
+    def return_prime(self) -> int:
+        return self.__p
 
     def assertPointCoordinate(self, c: int) -> None:
         assert type(c) == int,  "non-int point coordinate"
@@ -61,6 +68,8 @@ class EllipticCurve:
         self.assertPointCoordinate(y)
         return self.__y2(x) == (y*y % self.__p)
 
+    # jacobi symbol (equal to legendre because p is prime)
+    # if it returs 1, then y is a quadratic residue
     def jacobi(self, y: int) -> int:
         self.assertPointCoordinate(y)
         return pow(y, (self.__p - 1) // 2, self.__p)
@@ -85,23 +94,30 @@ class EllipticCurve:
         # switch low/high root when needed
         return root if (root < self.__p/2) else self.__p - root
 
-    def yQuadraticResidue(self, x: int, quadres: int) -> int:
-        assert quadres in (0, 1), "must be bool or 0/1"
+    def yQuadraticResidue(self, x: int, quadRes: int) -> int:
+        assert self.pIsThreeModFour, "this method works only when p = 3 (mod 4)"
+        assert quadRes in (0, 1), "must be bool or 0/1"
         y2 = self.__y2(x)
         if y2 == 0: return 0
         # if root does not exist, mod_sqrt will raise a ValueError
         root = mod_sqrt(y2, self.__p)
         # switch to the quadratic residue root when needed
-        if quadres:
+        if quadRes:
             return self.__p - root if (self.jacobi(root) != 1) else root
         else:
             return root if (self.jacobi(root) != 1) else self.__p - root
 
+    def opposite(self, Q: Optional[Point]) -> Optional[Point]:
+        if Q is None: 
+            return None
+        else:
+            return (Q[0], self.__p - Q[1])
+
     def __str__(self) -> str:
         result  = "EllipticCurve(a=%s, b=%s)" % (self.__a, self.__b)
-        result += "\n prime = 0x%032x" % (self.__p)
-        result += "\n     G =(0x%032x,\n         0x%032x)" % (self.G)
-        result += "\n order = 0x%032x" % (self.n)
+        result += "\n p = 0x%032x" % (self.__p)
+        result += "\n G =(0x%032x,\n         0x%032x)" % (self.G)
+        result += "\n n = 0x%032x" % (self.n)
         return result
 
     def __repr__(self) -> str:
@@ -111,97 +127,169 @@ class EllipticCurve:
         result += ", 0x%032x)" % (self.n)
         return result
         
-    def pointAdd(self, P: Optional[Point], Q: Optional[Point]) -> Optional[Point]:
-        if Q is None:
-            return P
-        if P is None:
+    def pointAdd(self, Q: Optional[Point], R: Optional[Point]) -> Optional[Point]:
+        if R is None:
             return Q
-        if Q[0] == P[0]:
-            if Q[1] != P[1] or P[1] == 0: # opposite points
+        if Q is None:
+            return R
+        if R[0] == Q[0]:
+            if R[1] != Q[1] or Q[1] == 0: # opposite points
                 return None
             else: # point doubling
-                lam = ((3*P[0]*P[0]+self.__a)*mod_inv(2*P[1], self.__p)) % self.__p
+                lam = ((3*Q[0]*Q[0]+self.__a)*mod_inv(2*Q[1], self.__p)) % self.__p
         else:
-            lam = ((Q[1]-P[1]) * mod_inv(Q[0]-P[0], self.__p)) % self.__p
-        x = (lam*lam-P[0]-Q[0]) % self.__p
-        y = (lam*(P[0]-x)-P[1]) % self.__p
+            lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self.__p)) % self.__p
+        x = (lam*lam-Q[0]-R[0]) % self.__p
+        y = (lam*(Q[0]-x)-Q[1]) % self.__p
         return x, y
 
+    def jac_from_affine(self, Q: Optional[Point]) -> JacPoint:
+        assert (isinstance(Q, tuple) and len(Q) == 2) or Q is None,  "point not in affine coordinates"
+        if Q is None:
+            return (1, 1, 0)
+        else:
+            return (Q[0], Q[1], 1)
+
+    def affine_from_jac(self, Q: JacPoint) -> Optional[Point]:
+        assert isinstance(Q, tuple) and len(Q) == 3, "point not in Jacobian coordinates"
+        if Q[2] == 0:
+            return None
+        else:
+            x = (Q[0]*mod_inv(Q[2]*Q[2], self.__p)) % self.__p
+            y = (Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self.__p)) % self.__p
+            return x, y
+
+    def pointAddJacobian(self, Q: JacPoint, R: JacPoint) -> JacPoint:
+        if Q[2] == 0: return R
+        if R[2] == 0: return Q
+        
+        if Q[0]*R[2]*R[2] % self.__p == R[0]*Q[2]*Q[2] % self.__p: # same affine x coordinate
+            if Q[1]*R[2]*R[2]*R[2] % self.__p != R[1]*Q[2]*Q[2]*Q[2] % self.__p or Q[1] % self.__p == 0:    # opposite points or degenerate case
+                return 1, 1, 0
+            else:                            # point doubling
+                W = (3*Q[0]*Q[0] + self.__a*Q[2]*Q[2]*Q[2]*Q[2]) % self.__p
+                V = (4*Q[0]*Q[1]*Q[1]) % self.__p
+                X = (W*W - 2*V) % self.__p
+                Y = (W*(V - X) - 8*Q[1]*Q[1]*Q[1]*Q[1]) % self.__p
+                Z = (2*Q[1]*Q[2]) % self.__p
+                return X, Y, Z
+        else:
+            T = (Q[1]*R[2]*R[2]*R[2]) % self.__p
+            U = (R[1]*Q[2]*Q[2]*Q[2]) % self.__p
+            W = (U - T) % self.__p
+            M = (Q[0]*R[2]*R[2]) % self.__p
+            N = (R[0]*Q[2]*Q[2]) % self.__p
+            V = (N - M) % self.__p
+                
+            X = (W*W - V*V*V - 2*M*V*V) % self.__p
+            Y = (W*(M*V*V - X) - T*V*V*V) % self.__p
+            Z = (V*Q[2]*R[2]) % self.__p
+            return X, Y, Z
+
     # double & add, using binary decomposition of n
-    def pointMultiply(self, n: int, P: Optional[Point]) -> Optional[Point]:
-        n = n % self.n     # the group is cyclic
-        r = None           # initialized to infinity point
-        while n > 0:       # use binary representation of n
-            if n & 1:      # if least significant bit is 1 then add current P
-                r = self.pointAdd(r, P)
-            n = n>>1       # right shift removes the bit just accounted for
-                           # double P for next step:
-            P = self.pointAdd(P, P)
+    def pointMultiply(self, n: int, Q: Optional[Point]) -> Optional[Point]:
+        if Q is None:
+            return Q
+        n = n % self.n # the group is cyclic
+        r = None       # initialized to infinity point
+        while n > 0:   # use binary representation of n
+            if n & 1:  # if least significant bit is 1 then add current Q
+                r = self.pointAdd(r, Q)
+            n = n>>1   # right shift removes the bit just accounted for
+                       # double Q for next step
+            Q = self.pointAdd(Q, Q)
         return r
+
+    def pointMultiplyJacobian(self, n: int, Q: JacPoint) -> Optional[Point]:
+        if Q[2] == 0: return None
+        r = self.jac_from_affine(None) # initialized to infinity point
+        while n > 0:                   # use binary representation of n
+            if n & 1:                  # if least significant bit is 1 then add current Q
+                r = self.pointAddJacobian(r, Q)
+            n = n>>1                   # right shift removes the bit just accounted for
+                                       # double Q for next step:
+            Q = self.pointAddJacobian(Q, Q)
+        return self.affine_from_jac(r)
 
 
 ### Functions using EllipticCurve ####
 
-def isOnCurve(ec: EllipticCurve, P: Point) -> bool:
-    assert isinstance(P, tuple), "not a tuple point"
-    assert len(P) == 2, "invalid tuple point length %s" % len(P)
-    return ec.areOnCurve(P[0], P[1])
+def isOnCurve(ec: EllipticCurve, Q: Point) -> bool:
+    assert isinstance(Q, tuple), "not a tuple point"
+    assert len(Q) == 2, "invalid tuple point length %s" % len(Q)
+    return ec.areOnCurve(Q[0], Q[1])
+
+
+### Functions using GenericPoint and Scalar ####
 
 GenericPoint = Union[str, bytes, bytearray, Point]
 # infinity point being represented by None,
 # Optional[GenericPoint] do include the infinity point
 
-def tuple_from_Point(ec: EllipticCurve, P: Optional[GenericPoint]) -> Point:
+def tuple_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint]) -> Point:
     """Return a tuple (Px, Py) having ensured it belongs to the curve"""
 
-    if P is None:
+    if Q is None:
         raise ValueError("infinity point cannot be expressed as tuple")
 
-    if isinstance(P, str):
+    if isinstance(Q, str):
         # BIP32 xpub is not considered here,
         # as it is a bitcoin convention only
-        P = bytes.fromhex(P)
+        Q = bytes.fromhex(Q)
 
-    if isinstance(P, bytes) or isinstance(P, bytearray):
-        if len(P) == ec.bytesize+1: # compressed point
-            assert P[0] == 0x02 or P[0] == 0x03, "not a compressed point"
-            Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
-            Py = ec.yOdd(Px, P[0] % 2) # also check Px validity
+    if isinstance(Q, bytes) or isinstance(Q, bytearray):
+        if len(Q) == ec.bytesize+1: # compressed point
+            assert Q[0] == 0x02 or Q[0] == 0x03, "not a compressed point"
+            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
+            Py = ec.yOdd(Px, Q[0] % 2) # also check Px validity
         else:                          # uncompressed point
-            assert len(P) == 2*ec.bytesize+1, \
+            assert len(Q) == 2*ec.bytesize+1, \
                 "wrong byte-size (%s) for a point: it should be %s or %s" % \
-                                    (len(P), ec.bytesize+1, 2*ec.bytesize+1)
-            assert P[0] == 0x04, "not an uncompressed point"
-            Px = int.from_bytes(P[1:ec.bytesize+1], 'big')
-            Py = int.from_bytes(P[ec.bytesize+1:], 'big')
+                                    (len(Q), ec.bytesize+1, 2*ec.bytesize+1)
+            assert Q[0] == 0x04, "not an uncompressed point"
+            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
+            Py = int.from_bytes(Q[ec.bytesize+1:], 'big')
             assert ec.areOnCurve(Px, Py), "not on curve"
         return Px, Py
 
     # must be a tuple
-    assert isOnCurve(ec, P), "not on curve"
-    return P
+    assert isOnCurve(ec, Q), "not on curve"
+    return Q
 
-
-def bytes_from_Point(ec: EllipticCurve, P: Optional[GenericPoint], compressed: bool) -> bytes:
+def bytes_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint], compressed: bool) -> bytes:
     """
     Return a compressed (0x02, 0x03) or uncompressed (0x04)
     point ensuring it belongs to the curve
     """
     # enforce self-consistency with whatever
     # policy is implemented by tuple_from_Point
-    P = tuple_from_Point(ec, P)
+    Q = tuple_from_Point(ec, Q)
 
-    bPx = P[0].to_bytes(ec.bytesize, byteorder='big')
+    bPx = Q[0].to_bytes(ec.bytesize, byteorder='big')
     if compressed:
-        return (b'\x03' if (P[1] & 1) else b'\x02') + bPx
+        return (b'\x03' if (Q[1] & 1) else b'\x02') + bPx
 
-    return b'\x04' + bPx + P[1].to_bytes(ec.bytesize, byteorder='big')
+    return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
 
+def opposite(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoint]) -> Union[Optional[Point], JacPoint]:
+    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
+    if isinstance(Q, tuple) and len(Q) == 3: 
+        Q = ec.affine_from_jac(Q)
+        return ec.jac_from_affine(ec.opposite(Q))
+    else:
+        return ec.opposite(Q)
 
-def pointAdd(ec: EllipticCurve, P: Optional[GenericPoint], Q: Optional[GenericPoint]) -> Optional[Point]:
-    if P is not None: P = tuple_from_Point(ec, P)
+def pointAdd(ec: EllipticCurve, Q: Optional[GenericPoint], R: Optional[GenericPoint]) -> Optional[Point]:
     if Q is not None: Q = tuple_from_Point(ec, Q)
-    return ec.pointAdd(P, Q)
+    if R is not None: R = tuple_from_Point(ec, R)
+    return ec.pointAdd(Q, R)
+
+def pointAddJacobian(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoint], R: Union[Optional[GenericPoint], JacPoint]) -> JacPoint:
+    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
+    if R is not None and not (isinstance(R, tuple) and len(R) == 3): R = tuple_from_Point(ec, R)
+    if Q is None or len(Q) == 2: Q = ec.jac_from_affine(Q)
+    if R is None or len(R) == 2: R = ec.jac_from_affine(R) 
+    return ec.pointAddJacobian(Q, R)
 
 
 Scalar = Union[str, bytes, bytearray, int]
@@ -212,13 +300,13 @@ def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
         n = bytes.fromhex(n)
 
     if isinstance(n, bytes) or isinstance(n, bytearray):
+        # FIXME: asses if must be <= or ec.bytesize should be rivised
         assert len(n) <= ec.bytesize, "wrong lenght"
         n = int.from_bytes(n, 'big')
 
     if not isinstance(n, int):
         raise TypeError("a bytes-like object is required (also str or int)")
     return n % ec.n
-        
 
 def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     # enforce self-consistency with whatever
@@ -226,11 +314,48 @@ def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     n = int_from_Scalar(ec, n)
     return n.to_bytes(ec.bytesize, 'big')
 
-
-def pointMultiply(ec: EllipticCurve, n: Scalar, P: Optional[GenericPoint]) -> Optional[Point]:
+def pointMultiply(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Optional[Point]:
     n = int_from_Scalar(ec, n)
-    if P is not None: P = tuple_from_Point(ec, P)
-    return ec.pointMultiply(n, P)
+    if Q is not None: Q = tuple_from_Point(ec, Q)
+    return ec.pointMultiply(n, Q)
+
+def pointMultiplyJacobian(ec: EllipticCurve, n: Scalar, Q: Union[Optional[GenericPoint], JacPoint]) -> Optional[Point]:
+    n = int_from_Scalar(ec, n)
+    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
+    if Q is None or len(Q) == 2: Q = ec.jac_from_affine(Q)
+    return ec.pointMultiplyJacobian(n, Q)
+
+# efficient method to compute k1*Q1 + k2*Q2
+def ShamirTrick(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericPoint], Q2: Optional[GenericPoint]) -> Optional[Point]:
+    if Q1 is None and Q2 is not None:
+        return pointMultiplyJacobian(ec, k2, Q2)
+    elif Q1 is not None and Q2 is None:
+        return pointMultiplyJacobian(ec, k1, Q1)
+    else:
+        Q1 = tuple_from_Point(ec, Q1)
+        Q2 = tuple_from_Point(ec, Q2)
+
+        k1 = int_from_Scalar(ec, k1)
+        k2 = int_from_Scalar(ec, k2)
+
+    Q3 = ec.jac_from_affine(None)
+
+    msb = max(k1.bit_length(), k2.bit_length())
+
+    while msb > 0:
+        if k1 >> (msb - 1): # checking msb
+            Q3 = pointAddJacobian(ec, Q3, Q1)
+            k1 -= pow(2, k1.bit_length() - 1)
+        if k2 >> (msb - 1): # checking msb
+            Q3 = pointAddJacobian(ec, Q3, Q2)
+            k2 -= pow(2, k2.bit_length() - 1)
+
+        if msb > 1:
+            Q3 = pointAddJacobian(ec, Q3, Q3)
+
+        msb -= 1
+
+    return ec.affine_from_jac(Q3)
 
 def secondGenerator(ec: EllipticCurve) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
@@ -245,8 +370,8 @@ def secondGenerator(ec: EllipticCurve) -> Point:
     until you get a valid curve point H = (hx,hy).
     """
     G_bytes = bytes_from_Point(ec, ec.G, False)
-    hx = sha256(G_bytes).digest() 
-    hx = int_from_Scalar(ec, hx)
+    h = sha256(G_bytes).digest() 
+    hx = int_from_Scalar(ec, h)
     isCurvePoint = False
     while not isCurvePoint:
         try:

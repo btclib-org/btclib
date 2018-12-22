@@ -11,7 +11,8 @@ https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-9
 
 import unittest
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point
-from btclib.ecssa import sha256, ec, int_from_hash, ecssa_verify
+from btclib.ecssa import sha256, int_from_hash, ecssa_verify
+from btclib.ellipticcurves import secp256k1 as ec
 
 class TestEcssaMuSig(unittest.TestCase):
 
@@ -90,7 +91,7 @@ class TestEcssaMuSig(unittest.TestCase):
         s_All = (s1 + s2) % ec.n
         ssasig = (R1_All[0], s_All)
 
-        self.assertTrue(ecssa_verify(msg, ssasig, Q_All, sha256))
+        self.assertTrue(ecssa_verify(ec, msg, ssasig, Q_All, sha256))
 
 
 if __name__ == "__main__":

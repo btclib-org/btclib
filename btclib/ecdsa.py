@@ -4,64 +4,77 @@
 """
 
 from hashlib import sha256
-from btclib.ellipticcurves import Union, Tuple, Optional, \
+from btclib.ellipticcurves import EllipticCurve, Union, Tuple, Optional, \
                                   Scalar as PrvKey, \
                                   Point as PubKey, GenericPoint as GenericPubKey, \
-                                  mod_inv, int_from_Scalar, tuple_from_Point, \
-                                  secp256k1 as ec
+                                  mod_inv, int_from_Scalar, tuple_from_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature, int_from_hash
+from typing import List
 
-def ecdsa_sign(m: Message, prvkey: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
+def ecdsa_sign(ec: EllipticCurve, m: Message, q: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
     if type(m) == str: m = hasher(m.encode()).digest()
-    prvkey = int_from_Scalar(ec, prvkey)
-    eph_prv = rfc6979(prvkey, m, hasher) if eph_prv is None else int_from_Scalar(ec, eph_prv)
-    return ecdsa_sign_raw(m, prvkey, eph_prv)
+    q = int_from_Scalar(ec, q)
+    eph_prv = rfc6979(q, m, hasher) if eph_prv is None else int_from_Scalar(ec, eph_prv)
+    return ecdsa_sign_raw(ec, m, q, eph_prv)
 
 
-def ecdsa_sign_raw(m: bytes, prvkey: int, eph_prv: int) -> Signature:
-    R = ec.pointMultiply(eph_prv, ec.G)
-    r = R[0] % ec.n
-    h = int_from_hash(m, ec.n)
-    # assert h
-    s = mod_inv(eph_prv, ec.n) * (h + prvkey * r) % ec.n
+def ecdsa_sign_raw(ec: EllipticCurve, m: bytes, q: int, eph_prv: int) -> Signature:
+    K = ec.pointMultiply(eph_prv, ec.G)
+    assert K != None, 'failed to sign'
+    r = K[0] % ec.n
+    e = int_from_hash(m, ec.n)
+    # assert e
+    s = mod_inv(eph_prv, ec.n) * (e + q * r) % ec.n
     assert r != 0 and s != 0, "failed to sign"
     return r, s
 
 
-def ecdsa_verify(m: Message, dsasig: Signature, pubkey: GenericPubKey, hasher = sha256) -> bool:
+def ecdsa_verify(ec: EllipticCurve, m: Message, dsasig: Signature, Q: GenericPubKey, hasher = sha256) -> bool:
     if type(m) == str: m = hasher(m.encode()).digest()
-    check_dsasig(dsasig)
-    pubkey = tuple_from_Point(ec, pubkey)
-    return ecdsa_verify_raw(m, dsasig, pubkey)
+    check_dsasig(ec, dsasig)
+    Q = tuple_from_Point(ec, Q)
+    return ecdsa_verify_raw(ec, m, dsasig, Q)
 
 
-def ecdsa_verify_raw(m: bytes, dsasig: Signature, pubkey: PubKey) -> bool:
-    h = int_from_hash(m, ec.n)
+def ecdsa_verify_raw(ec: EllipticCurve, m: bytes, dsasig: Signature, Q: PubKey) -> bool:
+    e = int_from_hash(m, ec.n)
     r, s = dsasig
     s1 = mod_inv(s, ec.n)
-    R = ec.pointAdd(ec.pointMultiply(r * s1 % ec.n, pubkey),
-                    ec.pointMultiply(h * s1 % ec.n, ec.G))
-    return R[0] % ec.n == r
+    K = ec.pointAdd(ec.pointMultiply(r * s1 % ec.n, Q),
+                    ec.pointMultiply(e * s1 % ec.n, ec.G))
+    return K[0] % ec.n == r
 
 
-def ecdsa_pubkey_recovery(m: Message, dsasig: Signature, odd1even0: int, hasher = sha256) -> PubKey:
+def ecdsa_pubkey_recovery(ec: EllipticCurve, m: Message, dsasig: Signature, hasher = sha256) -> List[PubKey]:
     if type(m) == str: m = hasher(m.encode()).digest()
-    check_dsasig(dsasig)
-    assert odd1even0 in (0, 1)
-    return ecdsa_pubkey_recovery_raw(m, dsasig, odd1even0)
+    check_dsasig(ec, dsasig)
+    return ecdsa_pubkey_recovery_raw(ec,m, dsasig)
 
 
-def ecdsa_pubkey_recovery_raw(m: bytes, dsasig: Signature, odd1even0: int) -> PubKey:
-    h = int_from_hash(m, ec.n)
+def ecdsa_pubkey_recovery_raw(ec: EllipticCurve, m: bytes, dsasig: Signature) -> List[PubKey]:
+    keys = []
+    e = int_from_hash(m, ec.n)
     r, s = dsasig
-    r1 = mod_inv(r, ec.n)
-    R = (r, ec.yOdd(r, odd1even0))
-    return ec.pointAdd(ec.pointMultiply( s * r1 % ec.n, R),
-                       ec.pointMultiply(-h * r1 % ec.n, ec.G))
+    x = r
+    # other good reason to have a class method returning p
+    # (otherwise add the cofactor to the class structure)
+    while x < ec._EllipticCurve__p: 
+        try:
+            Keven = (x, ec.yOdd(x, 0))
+            Kodd = (x, ec.yOdd(x, 1))
+            x1 = mod_inv(x, ec.n)
+            keys = keys + [ec.pointAdd(ec.pointMultiply( s * x1 % ec.n, Keven),
+                           ec.pointMultiply(-e * x1 % ec.n, ec.G)),
+                           ec.pointAdd(ec.pointMultiply( s * x1 % ec.n, Kodd),
+                           ec.pointMultiply(-e * x1 % ec.n, ec.G))]
+        except ValueError: # can't get a curve's point
+            pass
+        x = x + ec.n
+    return keys
 
 
-def check_dsasig(dsasig: Signature) -> bool:
+def check_dsasig(ec: EllipticCurve, dsasig: Signature) -> bool:
     """check sig has correct dsa format
     """
     assert type(dsasig) == tuple and len(dsasig) == 2 and \
