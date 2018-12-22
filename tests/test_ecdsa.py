@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 import unittest
+from hashlib import sha256
+
 from btclib.ecdsa import ecdsa_sign, ecdsa_verify, ecdsa_pubkey_recovery
 from btclib.ellipticcurves import pointMultiply, secp256k1 as ec
-from tests.test_ellipticcurves import lowcard
 from btclib.rfc6979 import rfc6979
-from hashlib import sha256 as hasher
 from btclib.ecsignutils import int_from_hash
 from btclib.ellipticcurves import mod_inv
+
+from tests.test_ellipticcurves import lowcard
 
 class TestEcdsa(unittest.TestCase):
     def test_ecdsa(self):
@@ -32,8 +34,8 @@ class TestEcdsa(unittest.TestCase):
         sigs = (exp_sig[1], ec.n - exp_sig[1])
         self.assertIn(s, sigs)
 
-    # test all msg/key pairs on low cardinality curves
     def test_low_cardinality(self):
+        """test all msg/key pairs of low cardinality elliptic curves"""
         # curve.n has to be prime to sign
         prime = [2,	3, 5, 7, 11, 13, 17, 19, 23, 29,
                  31, 37, 41, 43, 47, 53, 59, 61, 67, 
@@ -51,7 +53,7 @@ class TestEcdsa(unittest.TestCase):
                     for q in range(1, curve.n):
                         Q = pointMultiply(curve, q, curve.G)
                         # looking if the signature fails
-                        k = rfc6979(q, m, hasher)
+                        k = rfc6979(q, m, sha256)
                         K = pointMultiply(curve, k, curve.G)
 
                         if K == None:
