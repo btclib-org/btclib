@@ -50,7 +50,7 @@ def ecdsa_verify_raw(ec: EllipticCurve, m: bytes, dsasig: Signature, Q: PubKey) 
 def ecdsa_pubkey_recovery(ec: EllipticCurve, m: Message, dsasig: Signature, hasher = sha256) -> List[PubKey]:
     if type(m) == str: m = hasher(m.encode()).digest()
     check_dsasig(ec, dsasig)
-    return ecdsa_pubkey_recovery_raw(ec,m, dsasig)
+    return ecdsa_pubkey_recovery_raw(ec, m, dsasig)
 
 
 def ecdsa_pubkey_recovery_raw(ec: EllipticCurve, m: bytes, dsasig: Signature) -> List[PubKey]:

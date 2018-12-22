@@ -25,10 +25,8 @@ class TestNumberTheory(unittest.TestCase):
                 inv = mod_inv(i, p)
                 self.assertEqual((i* inv) % p, 1)
 
-# Test that checks whether p - 1 (i.e. - 1 (mod p))
-    # is a quadratic residue (should be so in case p = 1 (mod 4)) or not
-    # (this should be the case if p = 3 (mod 4))
     def test_minus_one_quadr_res(self):
+    """Endure that if p = 3 (mod 4) then p - 1 is a quadratic residue"""
         for p in [3, 5, 7, 11, 13, 17, 19, 23, 29]:
             hasRoot = set()
             hasRoot.add(1)

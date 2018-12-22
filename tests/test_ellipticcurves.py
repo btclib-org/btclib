@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+import os
 from btclib.ellipticcurves import EllipticCurve, \
                                   bytes_from_Point, tuple_from_Point, \
                                   secondGenerator, \
@@ -14,7 +15,6 @@ from btclib.ellipticcurves import EllipticCurve, \
                                   secp256k1, secp256r1, \
                                   secp384r1, secp521r1
 from btclib.numbertheory import mod_sqrt
-import os
 
 # toy curves
 ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
