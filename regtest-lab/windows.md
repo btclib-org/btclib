@@ -13,6 +13,7 @@
    ```
    > bitcoinqt -regtest -addresstype=bech32 -walletrbf=1 -server -rpcallowip=127.0.0.1
    ```
+   Do not be scared by the alert about >160GB being required. This would be true only if you launch Bitcoin Core for mainnet, as it would try to download the whole blockchain. Be sure you are launching regtest: that one will require almost no space.
 5. in the GUI open the console (Help | Debug Window | Console) type
    ```
    getblockcount

@@ -7,6 +7,7 @@ from btclib.ellipticcurves import EllipticCurve, \
                                   opposite, pointAdd, pointAddJacobian, \
                                   pointMultiply, pointMultiplyJacobian, \
                                   ShamirTrick, \
+                                  secp160r1, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
                                   secp256k1, secp256r1, \
@@ -199,15 +200,10 @@ smallcurves = lowcard + [
     ]
 
 allcurves = [
+    secp160r1,
     secp192k1, secp192r1, secp224k1, secp224r1,
     secp256k1, secp256r1, secp384r1, secp521r1] + smallcurves
     
-
-allcurves = [
-    secp192k1, secp192r1, secp224k1, secp224r1,
-    secp256k1, secp256r1, secp384r1, secp521r1,
-    ec11_13, ec263_269, ec263_270, ec263_280] + smallcurves
-
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
         for ec in allcurves:
@@ -335,16 +331,22 @@ class TestEllipticCurve(unittest.TestCase):
             minus_Qjac = opposite(curve, Qjac)
             inf = pointAddJacobian(curve, Qjac, minus_Qjac)
             self.assertEqual(inf, (1,1,0))
-            
+
+# FIXME remove urandom from tests
+           
     def test_quad_res(self):
         for curve in smallcurves:
-            # computing the quadratic residues
+
+            ## setup phase
+            # compute quadratic residues
             hasRoot = set()
             hasRoot.add(1)
             p = curve._EllipticCurve__p
             for i in range(2, p):
                 hasRoot.add(i*i % p)
-            
+
+            ## test phase
+
             # random point
             inf = True
             while inf:
@@ -392,7 +394,7 @@ class TestEllipticCurve(unittest.TestCase):
                     self.assertRaises(ValueError, mod_sqrt, yOdd, p)
                     self.assertRaises(ValueError, mod_sqrt, yEven, p)
 
-    def test_jac_aff_conversion(self):
+    def test_affine_from_jac_conversion(self):
         for curve in allcurves:
             # random point
             q = os.urandom(curve.bytesize)
@@ -400,7 +402,7 @@ class TestEllipticCurve(unittest.TestCase):
             checkQ = curve.affine_from_jac(curve.jac_from_affine(Q))
             self.assertEqual(Q, checkQ)
 
-    def test_jacobian_add(self):
+    def test_AddJacobian(self):
         for curve in allcurves:
             q1 = os.urandom(curve.bytesize)
             Q1 = pointMultiply(curve, q1, curve.G)
@@ -468,7 +470,7 @@ class TestEllipticCurve(unittest.TestCase):
         
             self.assertEqual(Q3, Q3jac)
 
-    def test_jacobian_mul(self):
+    def test_MultiplyJacobian(self):
         for curve in allcurves:
             n = os.urandom(curve.bytesize)
         
