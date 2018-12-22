@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from btclib.ellipticcurves import ShamirTrick, pointAdd, \
+from btclib.ellipticcurves import DoubleScalarMultiplication, pointAdd, \
                                   pointMultiply, pointMultiplyJacobian, \
                                   secp256k1 as ec
 import os
@@ -24,7 +24,7 @@ end = time.time()
 t2 = end - start
 
 start = time.time()
-res3 = ShamirTrick(ec, k1, k2, ec.G, Q)
+res3 = DoubleScalarMultiplication(ec, k1, k2, ec.G, Q)
 end = time.time()
 
 t3 = end - start

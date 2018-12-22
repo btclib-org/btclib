@@ -14,6 +14,12 @@ JacPoint = Tuple[int, int, int]
 # infinity point being represented by None,
 # Optional[Point] does include the infinity point
 
+def jac_from_affine(Q: Optional[Point]) -> JacPoint:
+    if Q is None:
+        return (1, 1, 0)
+    assert (isinstance(Q, tuple) and len(Q) == 2),  "point not in affine coordinates"
+    return (Q[0], Q[1], 1)
+
 # elliptic curve y^2 = x^3 + a * x + b
 class EllipticCurve:
     """Elliptic curve over Fp group"""
@@ -48,9 +54,6 @@ class EllipticCurve:
         T = self.pointMultiply(n-1, self.G)
         Inf = self.pointAdd(T, self.G)
         assert Inf is None, "wrong order"
-
-    def return_prime(self) -> int:
-        return self.__p
 
     def assertPointCoordinate(self, c: int) -> None:
         assert type(c) == int,  "non-int point coordinate"
@@ -143,13 +146,6 @@ class EllipticCurve:
         y = (lam*(Q[0]-x)-Q[1]) % self.__p
         return x, y
 
-    def jac_from_affine(self, Q: Optional[Point]) -> JacPoint:
-        assert (isinstance(Q, tuple) and len(Q) == 2) or Q is None,  "point not in affine coordinates"
-        if Q is None:
-            return (1, 1, 0)
-        else:
-            return (Q[0], Q[1], 1)
-
     def affine_from_jac(self, Q: JacPoint) -> Optional[Point]:
         assert isinstance(Q, tuple) and len(Q) == 3, "point not in Jacobian coordinates"
         if Q[2] == 0:
@@ -188,8 +184,7 @@ class EllipticCurve:
 
     # double & add, using binary decomposition of n
     def pointMultiply(self, n: int, Q: Optional[Point]) -> Optional[Point]:
-        if Q is None:
-            return Q
+        if Q is None: return Q
         n = n % self.n # the group is cyclic
         r = None       # initialized to infinity point
         while n > 0:   # use binary representation of n
@@ -202,12 +197,13 @@ class EllipticCurve:
 
     def pointMultiplyJacobian(self, n: int, Q: JacPoint) -> Optional[Point]:
         if Q[2] == 0: return None
-        r = self.jac_from_affine(None) # initialized to infinity point
-        while n > 0:                   # use binary representation of n
-            if n & 1:                  # if least significant bit is 1 then add current Q
+        n = n % self.n # the group is cyclic
+        r = (1, 1, 0)  # initialized to infinity point
+        while n > 0:   # use binary representation of n
+            if n & 1:  # if least significant bit is 1 then add current Q
                 r = self.pointAddJacobian(r, Q)
-            n = n>>1                   # right shift removes the bit just accounted for
-                                       # double Q for next step:
+            n = n>>1   # right shift removes the bit just accounted for
+                       # double Q for next step:
             Q = self.pointAddJacobian(Q, Q)
         return self.affine_from_jac(r)
 
@@ -275,7 +271,7 @@ def opposite(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoint]) -> U
     if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
     if isinstance(Q, tuple) and len(Q) == 3: 
         Q = ec.affine_from_jac(Q)
-        return ec.jac_from_affine(ec.opposite(Q))
+        return jac_from_affine(ec.opposite(Q))
     else:
         return ec.opposite(Q)
 
@@ -287,8 +283,8 @@ def pointAdd(ec: EllipticCurve, Q: Optional[GenericPoint], R: Optional[GenericPo
 def pointAddJacobian(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoint], R: Union[Optional[GenericPoint], JacPoint]) -> JacPoint:
     if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
     if R is not None and not (isinstance(R, tuple) and len(R) == 3): R = tuple_from_Point(ec, R)
-    if Q is None or len(Q) == 2: Q = ec.jac_from_affine(Q)
-    if R is None or len(R) == 2: R = ec.jac_from_affine(R) 
+    if Q is None or len(Q) == 2: Q = jac_from_affine(Q)
+    if R is None or len(R) == 2: R = jac_from_affine(R) 
     return ec.pointAddJacobian(Q, R)
 
 
@@ -322,11 +318,11 @@ def pointMultiply(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Op
 def pointMultiplyJacobian(ec: EllipticCurve, n: Scalar, Q: Union[Optional[GenericPoint], JacPoint]) -> Optional[Point]:
     n = int_from_Scalar(ec, n)
     if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
-    if Q is None or len(Q) == 2: Q = ec.jac_from_affine(Q)
+    if Q is None or len(Q) == 2: Q = jac_from_affine(Q)
     return ec.pointMultiplyJacobian(n, Q)
 
 # efficient method to compute k1*Q1 + k2*Q2
-def ShamirTrick(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericPoint], Q2: Optional[GenericPoint]) -> Optional[Point]:
+def DoubleScalarMultiplication(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericPoint], Q2: Optional[GenericPoint]) -> Optional[Point]:
     if Q1 is None and Q2 is not None:
         return pointMultiplyJacobian(ec, k2, Q2)
     elif Q1 is not None and Q2 is None:
@@ -338,7 +334,7 @@ def ShamirTrick(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericP
         k1 = int_from_Scalar(ec, k1)
         k2 = int_from_Scalar(ec, k2)
 
-    Q3 = ec.jac_from_affine(None)
+    Q3 = jac_from_affine(None)
 
     msb = max(k1.bit_length(), k2.bit_length())
 

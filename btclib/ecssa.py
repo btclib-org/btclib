@@ -10,7 +10,8 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   mod_inv, \
                                   EllipticCurve, secp256k1 as ec, \
                                   int_from_Scalar, tuple_from_Point, bytes_from_Point, \
-                                  pointAdd, pointAddJacobian, pointMultiplyJacobian
+                                  pointAdd, \
+                                  jac_from_affine, pointAddJacobian, pointMultiplyJacobian
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature, int_from_hash
 import heapq
@@ -27,7 +28,7 @@ Signatures = Tuple[Signature, ...]
 # different structure, cannot compute e (int) before ecssa_sign_raw
 
 def ecssa_sign(ec: EllipticCurve, m: Message, q: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
-    assert ec.return_prime() % 4 == 3, 'not a proper curve, the relation p = 3 (mod 4) must hold'
+    assert ec.pIsThreeModFour, 'not a proper curve, the relation p = 3 (mod 4) must hold'
     if type(m) == str: m = hasher(m.encode()).digest()
     q = int_from_Scalar(ec, q)
     eph_prv = rfc6979(q, m, hasher) if eph_prv is None else int_from_Scalar(ec, eph_prv)
@@ -61,8 +62,8 @@ def ecssa_verify(ec: EllipticCurve, m: Message, ssasig: Signature, Q: GenericPub
 
 def ecssa_verify_raw(ec: EllipticCurve, m: bytes, ssasig: Signature, Q: PubKey, hasher = sha256) -> bool:
     r, s = ssasig
-    if r >= ec.return_prime():
-        return False
+    # FIXME
+    # if r >= ec.return_prime(): return False
     e = hasher(r.to_bytes(ec.bytesize, byteorder="big") + bytes_from_Point(ec, Q, True) + m).digest()
     e = int_from_hash(e, ec.n) % ec.n
     # R = sG - eP
@@ -125,9 +126,9 @@ def ecssa_batch_validation_raw(u: int, Q: PubKeys, m: Messages, sigma: Signature
         assert pow(y, 2, ec._EllipticCurve__p) == c
 
         mult += a[i] * s % ec.n
-        points.append(ec.jac_from_affine((r, y)))
+        points.append(jac_from_affine((r, y)))
         factors.append(a[i])
-        points.append(ec.jac_from_affine(Q[i]))
+        points.append(jac_from_affine(Q[i]))
         factors.append(a[i] * e % ec.n)
 
     # Bos-coster's algorithm, source:

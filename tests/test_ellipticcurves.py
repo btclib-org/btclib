@@ -4,9 +4,10 @@ import unittest
 from btclib.ellipticcurves import EllipticCurve, \
                                   bytes_from_Point, tuple_from_Point, \
                                   secondGenerator, \
-                                  opposite, pointAdd, pointAddJacobian, \
-                                  pointMultiply, pointMultiplyJacobian, \
-                                  ShamirTrick, \
+                                  opposite, pointAdd, pointMultiply, \
+                                  jac_from_affine, \
+                                  pointAddJacobian, pointMultiplyJacobian, \
+                                  DoubleScalarMultiplication, \
                                   secp160r1, \
                                   secp192k1, secp192r1, \
                                   secp224k1, secp224r1, \
@@ -329,7 +330,7 @@ class TestEllipticCurve(unittest.TestCase):
             inf = pointAdd(curve, Q, minus_Q)
             self.assertEqual(inf, None)
             # jacobian coordinates
-            Qjac = curve.jac_from_affine(Q)
+            Qjac = jac_from_affine(Q)
             minus_Qjac = opposite(curve, Qjac)
             inf = pointAddJacobian(curve, Qjac, minus_Qjac)
             self.assertEqual(inf, (1,1,0))
@@ -400,7 +401,7 @@ class TestEllipticCurve(unittest.TestCase):
             # random point
             q = os.urandom(curve.bytesize)
             Q = pointMultiply(curve, q, curve.G)
-            checkQ = curve.affine_from_jac(curve.jac_from_affine(Q))
+            checkQ = curve.affine_from_jac(jac_from_affine(Q))
             self.assertEqual(Q, checkQ)
 
     def test_AddJacobian(self):
@@ -487,7 +488,7 @@ class TestEllipticCurve(unittest.TestCase):
             q = os.urandom(curve.bytesize)
             Q = pointMultiplyJacobian(curve, q, curve.G)
 
-            shamir = ShamirTrick(curve, k1, k2, curve.G, Q)
+            shamir = DoubleScalarMultiplication(curve, k1, k2, curve.G, Q)
             std = pointAdd(curve, pointMultiplyJacobian(curve, k1, curve.G), pointMultiplyJacobian(curve, k2, Q))
 
             self.assertEqual(shamir, std)
