@@ -60,6 +60,7 @@ def ecdsa_pubkey_recovery_raw(ec: EllipticCurve, m: bytes, dsasig: Signature) ->
     x = r
     # another good reason to have a class method returning p
     # (otherwise add the cofactor to the class structure)
+    # FIXME: curve prime
     while x < ec._EllipticCurve__p: 
         try:
             Keven = (x, ec.yOdd(x, 0))

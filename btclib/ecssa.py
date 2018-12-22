@@ -62,7 +62,7 @@ def ecssa_verify(ec: EllipticCurve, m: Message, ssasig: Signature, Q: GenericPub
 
 def ecssa_verify_raw(ec: EllipticCurve, m: bytes, ssasig: Signature, Q: PubKey, hasher = sha256) -> bool:
     r, s = ssasig
-    # FIXME
+    # FIXME: curve prime
     # if r >= ec.return_prime(): return False
     e = hasher(r.to_bytes(ec.bytesize, byteorder="big") + bytes_from_Point(ec, Q, True) + m).digest()
     e = int_from_hash(e, ec.n) % ec.n
@@ -121,9 +121,11 @@ def ecssa_batch_validation_raw(u: int, Q: PubKeys, m: Messages, sigma: Signature
         e = hasher(r.to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q[i], True) + m[i]).digest()
         e = int_from_hash(e, ec.n)
 
-        c = (pow(r, 3) + 7) % ec._EllipticCurve__p
-        y = pow(c, (ec._EllipticCurve__p + 1) // 4, ec._EllipticCurve__p)
-        assert pow(y, 2, ec._EllipticCurve__p) == c
+        # FIXME: curve prime
+        p = ec._EllipticCurve__p
+        c = (pow(r, 3) + 7) % p
+        y = pow(c, (p + 1) // 4, p)
+        assert pow(y, 2, p) == c
 
         mult += a[i] * s % ec.n
         points.append(jac_from_affine((r, y)))
