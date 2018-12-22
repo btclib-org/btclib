@@ -7,8 +7,7 @@ from hashlib import sha256
 from btclib.ellipticcurves import EllipticCurve, Union, Tuple, Optional, \
                                   Scalar as PrvKey, \
                                   Point as PubKey, GenericPoint as GenericPubKey, \
-                                  mod_inv, int_from_Scalar, tuple_from_Point, \
-                                  pointAdd, pointMultiplyJacobian
+                                  mod_inv, int_from_Scalar, tuple_from_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature, int_from_hash
 from typing import List
@@ -21,7 +20,7 @@ def ecdsa_sign(ec: EllipticCurve, m: Message, q: PrvKey, eph_prv: Optional[PrvKe
 
 
 def ecdsa_sign_raw(ec: EllipticCurve, m: bytes, q: int, eph_prv: int) -> Signature:
-    K = pointMultiplyJacobian(ec, eph_prv, ec.G)
+    K = ec.pointMultiply(eph_prv, ec.G)
     assert K != None, 'failed to sign'
     r = K[0] % ec.n
     e = int_from_hash(m, ec.n)
@@ -42,8 +41,8 @@ def ecdsa_verify_raw(ec: EllipticCurve, m: bytes, dsasig: Signature, Q: PubKey) 
     e = int_from_hash(m, ec.n)
     r, s = dsasig
     s1 = mod_inv(s, ec.n)
-    K = ec.pointAdd(pointMultiplyJacobian(ec, r * s1 % ec.n, Q),
-                    pointMultiplyJacobian(ec, e * s1 % ec.n, ec.G))
+    K = ec.pointAdd(ec.pointMultiply(r * s1 % ec.n, Q),
+                    ec.pointMultiply(e * s1 % ec.n, ec.G))
     return K[0] % ec.n == r
 
 
@@ -65,10 +64,10 @@ def ecdsa_pubkey_recovery_raw(ec: EllipticCurve, m: bytes, dsasig: Signature) ->
             Keven = (x, ec.yOdd(x, 0))
             Kodd = (x, ec.yOdd(x, 1))
             x1 = mod_inv(x, ec.n)
-            keys = keys + [pointAdd(ec, ec.pointMultiply( s * x1 % ec.n, Keven),
-                           pointMultiplyJacobian(ec, -e * x1 % ec.n, ec.G)),
-                           pointAdd(ec, pointMultiplyJacobian(ec,  s * x1 % ec.n, Kodd),
-                           pointMultiplyJacobian(ec, -e * x1 % ec.n, ec.G))]
+            keys = keys + [ec.pointAdd(ec.pointMultiply( s * x1 % ec.n, Keven),
+                           ec.pointMultiply(-e * x1 % ec.n, ec.G)),
+                           ec.pointAdd(ec.pointMultiply( s * x1 % ec.n, Kodd),
+                           ec.pointMultiply(-e * x1 % ec.n, ec.G))]
         except ValueError: # can't get a curve's point
             pass
         x = x + ec.n

@@ -2,7 +2,7 @@
 
 import unittest
 from btclib.ecdsa import ecdsa_sign, ecdsa_verify, ecdsa_pubkey_recovery
-from btclib.ellipticcurves import pointMultiplyJacobian, secp256k1 as ec
+from btclib.ellipticcurves import pointMultiply, secp256k1 as ec
 from tests.test_ellipticcurves import lowcard
 from btclib.rfc6979 import rfc6979
 from hashlib import sha256 as hasher
@@ -49,10 +49,10 @@ class TestEcdsa(unittest.TestCase):
                     # message in bytes
                     m = m.to_bytes(curve.bytesize, 'big')
                     for q in range(1, curve.n):
-                        Q = pointMultiplyJacobian(curve, q, curve.G)
+                        Q = pointMultiply(curve, q, curve.G)
                         # looking if the signature fails
                         k = rfc6979(q, m, hasher)
-                        K = pointMultiplyJacobian(curve, k, curve.G)
+                        K = pointMultiply(curve, k, curve.G)
 
                         if K == None:
                             self.assertRaises(AssertionError, ecdsa_sign, curve, m, q)
