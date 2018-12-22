@@ -30,6 +30,10 @@
 from btclib.curves import secp256k1
 from btclib.dsa import Tuple, ECDS
 
+DER_follows = b'\x30'
+int_follows = b'\x02'
+double_0 = b'\x00'
+mid = b'\x80'
 sighash_all = b'\x01'
 sighash_none = b'\x02'
 sighash_single = b'\x03'
