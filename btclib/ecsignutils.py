@@ -18,6 +18,9 @@ def check_hash(hash: bytes, size: int = default_size) -> None:
         m = "hash lenght %s must be <= size %s" % (len(hash), size)
         raise ValueError(m)
 
+def bytes_from_msg(msg: Message) -> bytes:
+    if isinstance(msg, str): return msg.encode()
+    else: return msg
 
 def int_from_hash(hash: bytes, order: int, size: int = default_size) -> int:
     """from hash digest to int"""
