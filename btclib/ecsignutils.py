@@ -5,7 +5,7 @@ from typing import Tuple, Union
 Message = Union[str, bytes]
 Signature = Tuple[int, int]
 
-def int_from_hash(hash_digest, order, size=32):
+def int_from_hash(hash_digest: bytes, order: int, size: int = 32) -> int:
     """from hash digest to int"""
     assert type(hash_digest) == bytes, "hash_digest must be bytes"
     assert len(hash_digest) <= size, "hash_digest must have correct bytes length"
