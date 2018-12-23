@@ -69,7 +69,9 @@ def ecssa_verify_raw(ec: EllipticCurve, m: bytes, ssasig: Signature, Q: PubKey, 
     e = int_from_hash(e, ec.n)
     # K = sG - eQ
     K = DoubleScalarMultiplication(ec, s, -e, ec.G, Q)
-    if K is None or ec.jacobi(K[1]) != 1:
+    if K is None:
+        return False
+    if ec.jacobi(K[1]) != 1:
         return False
     return K[0] == ssasig[0]
 
