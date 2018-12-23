@@ -33,8 +33,9 @@ ADDRESS  = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
 
 def bip32_master_prvkey_from_seed(bip32_seed: Union[str, bytes], version: bytes) -> bytes:
     """derive the master extended private key from the seed"""
-    if type(bip32_seed) == str: # hex string
-        bip32_seed = bytes.fromhex(bip32_seed)
+    if isinstance(bip32_seed, str): # hex string
+        seed = bytes.fromhex(bip32_seed)
+    else: seed = bip32_seed
     assert version in PRIVATE, "wrong version, master key must be private"
 
     # serialization data
@@ -44,7 +45,7 @@ def bip32_master_prvkey_from_seed(bip32_seed: Union[str, bytes], version: bytes)
     xmprv += b'\x00\x00\x00\x00'                # child index
 
     # actual extended key (key + chain code) derivation
-    hashValue = HMAC(b"Bitcoin seed", bip32_seed, sha512).digest()
+    hashValue = HMAC(b"Bitcoin seed", seed, sha512).digest()
     mprv = int_from_Scalar(ec, hashValue[:32])
     xmprv += hashValue[32:]                     # chain code
     xmprv += b'\x00' + mprv.to_bytes(32, 'big') # private key

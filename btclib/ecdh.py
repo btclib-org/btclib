@@ -13,7 +13,7 @@ def ecdh(ec: EllipticCurve, prv_sender: PrvKey, pub_recv: GenericPubKey) -> int:
     shared_pubkey = tuple_from_Point(ec, shared_point)
     return shared_pubkey[0]
 
-def key_setup(hash_digest_size: int) -> None:
+def key_setup(hash_digest_size: int):
     if hash_digest_size == 20:
         return sha1
     return sha256

@@ -11,11 +11,11 @@ from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed
 def bip39_raw_entropy_checksum(raw_entr: GenericEntropy) -> Entropy:
     raw_entr = bytes_from_entropy(raw_entr, _allowed_raw_entr_bits)
     # raw_entr 256-bit checksum
-    checksum = sha256(raw_entr).digest()       # 256 bits
+    byteschecksum = sha256(raw_entr).digest()          # 256 bits
     # convert checksum to binary '01' string
-    checksum = int.from_bytes(checksum, 'big') # leading zeros are lost
-    checksum = bin(checksum)[2:]               # remove '0b'
-    checksum = checksum.zfill(256)             # pad with lost zeros
+    intchecksum = int.from_bytes(byteschecksum, 'big') # leading zeros are lost
+    checksum = bin(intchecksum)[2:]                    # remove '0b'
+    checksum = checksum.zfill(256)                     # pad with lost zeros
     # rightmost bits
     checksum_bits = len(raw_entr) // 4
     return checksum[:checksum_bits]
