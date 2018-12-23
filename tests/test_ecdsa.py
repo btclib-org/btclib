@@ -6,9 +6,9 @@ from hashlib import sha256
 from btclib.ellipticcurves import jac_from_affine, secp256k1, \
                                   mod_inv
 from btclib.ecdsa import rfc6979, int_from_hash, \
-                         ecdsa_sign_raw, ecdsa_sign, \
-                         ecdsa_verify_raw, ecdsa_verify, \
-                         ecdsa_pubkey_recovery_raw, ecdsa_pubkey_recovery
+                         _ecdsa_sign_raw, ecdsa_sign, \
+                         _ecdsa_verify_raw, ecdsa_verify, \
+                         _ecdsa_pubkey_recovery_raw, ecdsa_pubkey_recovery
 
 from tests.test_ellipticcurves import lowcard
 
@@ -18,13 +18,13 @@ class TestEcdsa(unittest.TestCase):
         Q = secp256k1.pointMultiply(q, secp256k1.G)
         msg = 'Satoshi Nakamoto'
 
-        dsasig = ecdsa_sign(secp256k1, msg, q)
-        self.assertTrue(ecdsa_verify(secp256k1, msg, dsasig, Q))
+        dsasig = ecdsa_sign(msg, q)
+        self.assertTrue(ecdsa_verify(msg, dsasig, Q))
         # malleability
         malleated_sig = (dsasig[0], secp256k1.n - dsasig[1])
-        self.assertTrue(ecdsa_verify(secp256k1, msg, malleated_sig, Q))
+        self.assertTrue(ecdsa_verify(msg, malleated_sig, Q))
 
-        keys = ecdsa_pubkey_recovery(secp256k1, msg, dsasig)
+        keys = ecdsa_pubkey_recovery(msg, dsasig)
         self.assertIn(Q, keys)
 
         # source: https://bitcointalk.org/index.php?topic=285142.40
@@ -41,52 +41,52 @@ class TestEcdsa(unittest.TestCase):
         # ec.n has to be prime to sign
         prime = [
               3,   5,   7,  11,  13,  17,  19,  23,  29,  31,
-             37,  41,  43,  47,  53,  59,  61,  67,  71,  73,
-             79,  83,  89,  97, 101, 103, 107, 109, 113, 127#,
+             37,  41,  43,  47,  53,  59,  61,  67,  71,  73#,
+            # 79,  83,  89,  97, 101, 103, 107, 109, 113, 127,
             #131, 137, 139, 149, 151, 157, 163, 167, 173, 179,
             #181, 191, 193, 197, 199, 211, 223, 227, 229, 233,
             #239, 241, 251, 257, 263, 269, 271, 277, 281, 283
             ]
 
-        # all possible message hash values in bytes
-        ec_bytesize = 32
-        msg = [i.to_bytes(ec_bytesize, 'big') for i in range(0, max(prime))]
+        # all possible hashed messages
+        hlen = 32
+        H = [i.to_bytes(hlen, 'big') for i in range(0, max(prime))]
 
         for ec in lowcard:
             if ec.n in prime:
                 for q in range(1, ec.n): # all possible private keys
-                    G = jac_from_affine(ec.G) # Generator in jacobian coordinates
-                    Q = ec.pointMultiplyJacobian(q, G) 
-                    for m in range(0, ec.n): # all possible message hashes
+                    G = jac_from_affine(ec.G) # G in jacobian coordinates
+                    Q = ec.pointMultiplyJacobian(q, G) # public key
+                    for m in range(0, ec.n): # all possible hashed messages
 
-                        k = rfc6979(q, msg[m], sha256) # ephemeral key
+                        k = rfc6979(q, H[m], sha256) # ephemeral key
                         K = ec.pointMultiplyJacobian(k, G)
                         if K == None:
-                            self.assertRaises(AssertionError, ecdsa_sign_raw, ec, msg[m], q, k)
+                            self.assertRaises(ValueError, _ecdsa_sign_raw, H[m], q, k, ec)
                             continue
 
                         r = K[0] % ec.n
                         if r == 0:
-                            self.assertRaises(AssertionError, ecdsa_sign_raw, ec, msg[m], q, k)
+                            self.assertRaises(ValueError, _ecdsa_sign_raw, H[m], q, k, ec)
                             continue
 
-                        e = int_from_hash(msg[m], ec.n)
+                        e = int_from_hash(H[m], ec.n)
                         s = mod_inv(k, ec.n) * (e + q * r) % ec.n
                         if s == 0:
                             print("it does not enter here")
-                            self.assertRaises(AssertionError, ecdsa_sign_raw, ec, msg[m], q, k)
+                            self.assertRaises(ValueError, _ecdsa_sign_raw, H[m], q, k, ec)
                             continue
 
                         # valid signature
-                        sig = ecdsa_sign_raw(ec, msg[m], q, k)
+                        sig = _ecdsa_sign_raw(H[m], q, k, ec)
                         self.assertEqual((r, s), sig)
                         # valid signature must validate
-                        self.assertTrue(ecdsa_verify_raw(ec, msg[m], sig, Q))
+                        self.assertTrue(_ecdsa_verify_raw(H[m], sig, Q, ec))
                         # malleated signature must validate
                         malleated_sig = (sig[0], ec.n - sig[1])
-                        self.assertTrue(ecdsa_verify_raw(ec, msg[m], malleated_sig, Q))
+                        self.assertTrue(_ecdsa_verify_raw(H[m], malleated_sig, Q, ec))
                         # key recovery
-                        keys = ecdsa_pubkey_recovery_raw(ec, msg[m], sig)
+                        keys = _ecdsa_pubkey_recovery_raw(H[m], sig, ec)
                         self.assertIn(Q, keys)
 
 if __name__ == "__main__":

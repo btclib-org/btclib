@@ -23,14 +23,13 @@ COMMITMENT VERIFICATION:
 """
 
 from hashlib import sha256
-from btclib.ellipticcurves import Optional, Tuple, \
-                                  Scalar, Point, \
-                                  secp256k1 as ec, \
+from btclib.ellipticcurves import secp256k1 as ec, \
+                                  Optional, Tuple, Scalar, Point, \
                                   bytes_from_Point, int_from_Scalar, \
                                   tuple_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecdsa import ecdsa_sign, ecdsa_verify, check_dsasig, ecdsa_sign_raw
-from btclib.ecssa import ecssa_sign, ecssa_verify, check_ssasig, ecssa_sign_raw
+from btclib.ecdsa import _ecdsa_sign_raw
+from btclib.ecssa import ecssa_sign_raw
 from btclib.ecsignutils import Message, Signature
 
 Receipt = Tuple[Scalar, Point]
@@ -56,7 +55,7 @@ def ecdsa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optio
     # commit
     R, eph_prv = tweak(eph_prv, c, hasher)
     # sign
-    sig = ecdsa_sign_raw(ec, m, prvkey, eph_prv)
+    sig = _ecdsa_sign_raw(m, prvkey, eph_prv, ec)
     # commit receipt
     receipt = (sig[0], R)
     return sig, receipt

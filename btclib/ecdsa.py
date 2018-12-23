@@ -10,82 +10,184 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   Scalar as PrvKey, Point as PubKey, \
                                   GenericPoint as GenericPubKey, \
                                   mod_inv, \
-                                  EllipticCurve, jac_from_affine, \
+                                  EllipticCurve, secp256k1, jac_from_affine, \
                                   DoubleScalarMultiplication, \
                                   int_from_Scalar, tuple_from_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature, int_from_hash
 
-def ecdsa_sign(ec: EllipticCurve, msg: Message, q: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
-    if isinstance(msg, str): m = hasher(msg.encode()).digest()
-    else: m = msg
-    q = int_from_Scalar(ec, q)
-    eph_prv = None if eph_prv is None else int_from_Scalar(ec, eph_prv)
-    return ecdsa_sign_raw(ec, m, q, eph_prv)
+def ecdsa_sign(msg: Message,
+               q: PrvKey,
+               eph: Optional[PrvKey] = None,
+               ec: EllipticCurve = secp256k1,
+               Hash = sha256) -> Signature:
+    """ECDSA signing operation according to SEC 2
 
-def ecdsa_sign_raw(ec: EllipticCurve, m: bytes, q: int, eph_prv: Optional[int] = None, hasher = sha256) -> Signature:
-    k = rfc6979(q, m, hasher) if eph_prv is None else eph_prv
-    K = ec.pointMultiplyJacobian(k, jac_from_affine(ec.G))
-    assert K is not None, 'K is None, failed to sign'
-    r = K[0] % ec.n
-    assert r != 0, "r=0, failed to sign"
-    e = int_from_hash(m, ec.n)
-    s = mod_inv(k, ec.n) * (e + q * r) % ec.n
-    assert s != 0, "s=0, failed to sign"
+    Here input parameters are converted,
+    the actual signing operation is delegated to ecdsa_sign_raw
+    """
+    if isinstance(msg, str): M = msg.encode()
+    else: M = msg
+    q = int_from_Scalar(ec, q)
+    eph = None if eph is None else int_from_Scalar(ec, eph)
+    return ecdsa_sign_raw(M, q, eph, ec, Hash)
+
+def ecdsa_sign_raw(M: bytes,
+                   d: int,
+                   k: Optional[int] = None,
+                   ec: EllipticCurve = secp256k1,
+                   Hash = sha256) -> Signature:
+    """ECDSA signing operation according to SEC 2
+
+    See section 4.1.3
+    """
+    H = Hash(M).digest()
+    return _ecdsa_sign_raw(H, d, k, ec, Hash)
+
+# Private function provided for testing purposes only.
+# To avoid forgeable signature, sign and verify should
+# always use the message, not its hash digest.
+def _ecdsa_sign_raw(H: bytes,
+                    d: int,
+                    k: Optional[int] = None,
+                    ec: EllipticCurve = secp256k1,
+                    Hash = sha256) -> Signature:
+    # ECDSA signing operation according to SEC 2
+    # See section 4.1.3
+
+    if k is None:
+        k = rfc6979(d, H, Hash)                            # 1
+    R = ec.pointMultiplyJacobian(k, jac_from_affine(ec.G)) # 1
+    if R is None:
+        m = "ephemeral key %s is equal to group order" % k
+        raise ValueError(m)
+    xR = R[0]                                              # 2
+    r = xR % ec.n                                          # 3
+    if r==0:
+        raise ValueError("r = 0, failed to sign")
+    # already got H as input                               # 4
+    e = int_from_hash(H, ec.n)                             # 5
+    s = mod_inv(k, ec.n) * (e + r*d) % ec.n                # 6
+    if s==0:
+        raise ValueError("s = 0, failed to sign")
     return r, s
 
-def ecdsa_verify(ec: EllipticCurve, msg: Message, dsasig: Signature, Q: GenericPubKey, hasher = sha256) -> bool:
-    if isinstance(msg, str): m = hasher(msg.encode()).digest()
-    else: m = msg
-    check_dsasig(ec, dsasig)
+def ecdsa_verify(msg: Message,
+                 dsasig: Signature,
+                 Q: GenericPubKey,
+                 ec: EllipticCurve = secp256k1,
+                 Hash = sha256) -> bool:
+    """ECDSA veryfying operation to SEC 2
+
+    Here input parameters are converted,
+    the actual veryfying operation is delegated to ecdsa_verify_raw
+    """
+    if isinstance(msg, str): M = msg.encode()
+    else: M = msg
     Q = tuple_from_Point(ec, Q)
-    return ecdsa_verify_raw(ec, m, dsasig, Q)
+    return ecdsa_verify_raw(M, dsasig, Q, ec, Hash)
 
-def ecdsa_verify_raw(ec: EllipticCurve, m: bytes, dsasig: Signature, Q: PubKey) -> bool:
-    r, s = dsasig
-    # FIXME: add r, s validation
-    e = int_from_hash(m, ec.n)
-    s1 = mod_inv(s, ec.n)
-    # K = (r1*s)Q + (e*s1)G
-    K = DoubleScalarMultiplication(ec, r*s1, e*s1, Q, ec.G)
-    if K is None:
+def ecdsa_verify_raw(M: bytes,
+                     dsasig: Signature,
+                     Q: PubKey,
+                     ec: EllipticCurve = secp256k1,
+                     Hash = sha256) -> bool:
+    """ECDSA veryfying operation to SEC 2
+
+    See section 4.1.4
+    """
+    H = Hash(M).digest()
+    return _ecdsa_verify_raw(H, dsasig, Q, ec, Hash)
+
+# Private function provided for testing purposes only.
+# To avoid forgeable signature, sign and verify should
+# always use the message, not its hash digest.
+def _ecdsa_verify_raw(H: bytes,
+                      dsasig: Signature,
+                      Q: PubKey,
+                      ec: EllipticCurve = secp256k1,
+                      Hash = sha256) -> bool:
+    # ECDSA veryfying operation to SEC 2
+    # See section 4.1.4
+    try:
+        r, s = check_dsasig(dsasig, ec)                     # 1
+        # H already provided as input                       # 2
+        e = int_from_hash(H, ec.n)                          # 3
+        s1 = mod_inv(s, ec.n); u1 = e*s1 ; u2 = r*s1         # 4
+        R = DoubleScalarMultiplication(ec, u1, u2, ec.G, Q) # 5
+        if R is None:
+            return False
+        xR = R[0]                                           # 6
+        v = xR % ec.n                                       # 7
+        return v == r                                       # 8
+    except Exception:
         return False
-    return K[0] % ec.n == r
 
-def ecdsa_pubkey_recovery(ec: EllipticCurve, msg: Message, dsasig: Signature, hasher = sha256) -> List[PubKey]:
-    if isinstance(msg, str): m = hasher(msg.encode()).digest()
-    else: m = msg
-    check_dsasig(ec, dsasig)
-    return ecdsa_pubkey_recovery_raw(ec, m, dsasig)
+def ecdsa_pubkey_recovery(msg: Message,
+                          dsasig: Signature,
+                          ec: EllipticCurve = secp256k1,
+                          Hash = sha256) -> List[PubKey]:
+    """ECDSA public key recovery operation according to SEC 2
 
-def ecdsa_pubkey_recovery_raw(ec: EllipticCurve, m: bytes, dsasig: Signature) -> List[PubKey]:
-    keys = [PubKey]
-    e = int_from_hash(m, ec.n)
-    r, s = dsasig
-    x = r
-    # another good reason to have a class method returning p
-    # (otherwise add the cofactor to the class structure)
-    # FIXME: curve prime
-    while x < ec._EllipticCurve__p: 
+    Here input parameters are converted,
+    the actual public key recovery operation is delegated to ecdsa_pubkey_recovery_raw
+    """
+    if isinstance(msg, str): M = msg.encode()
+    else: M = msg
+    return ecdsa_pubkey_recovery_raw(M, dsasig, ec, Hash)
+
+def ecdsa_pubkey_recovery_raw(M: bytes,
+                              dsasig: Signature,
+                              ec: EllipticCurve = secp256k1,
+                              Hash = sha256) -> List[PubKey]:
+    """ECDSA public key recovery operation according to SEC 2
+
+    See section 4.1.6
+    """
+    H = Hash(M).digest()
+    return _ecdsa_pubkey_recovery_raw(H, dsasig, ec)
+
+# Private function provided for testing purposes only.
+# To avoid forgeable signature, sign and verify should
+# always use the message, not its hash digest.
+def _ecdsa_pubkey_recovery_raw(H: bytes,
+                               dsasig: Signature,
+                               ec: EllipticCurve = secp256k1) -> List[PubKey]:
+    # ECDSA public key recovery operation according to SEC 2
+    # See section 4.1.6
+ 
+    r, s = check_dsasig(dsasig, ec)
+
+    # precomputations
+    e = int_from_hash(H, ec.n)      # ECDSA verification step 3
+    r1 = mod_inv(r, ec.n)
+    r1s = r1*s
+    r1e =-r1*e
+    keys = []
+    for j in range(0, 2): # FIXME: use ec.cofactor+1 instead of 2
+        x = r + j*ec.n # 1.1
         try:
-            Keven = (x, ec.yOdd(x, 0))
-            Kodd  = (x, ec.yOdd(x, 1))
-            x1 = mod_inv(x, ec.n)
-            sx1 = s*x1
-            ex1 =-e*x1
-            keys += [DoubleScalarMultiplication(ec, sx1, ex1, Keven, ec.G),
-                     DoubleScalarMultiplication(ec, sx1, ex1,  Kodd, ec.G)]
-        except ValueError: # can't get a curve's point
+            R = (x, ec.yOdd(x, 1)) # 1.2, 1.3, and 1.4
+            # 1.5 already taken care outside this for loop
+            Q = DoubleScalarMultiplication(ec, r1s, r1e, R, ec.G) # 1.6.1
+            # 1.6.2 is always satisfied for us, and we do not stop here
+            keys.append(Q)
+            R = ec.opposite(R)                                    # 1.6.3
+            Q = DoubleScalarMultiplication(ec, r1s, r1e, R, ec.G)
+            keys.append(Q)
+        except Exception: # can't get a curve's point
             pass
-        x = x + ec.n
     return keys
 
-def check_dsasig(ec: EllipticCurve, dsasig: Signature) -> bool:
-    """check sig has correct dsa format
-    """
-    assert type(dsasig) == tuple and len(dsasig) == 2 and \
-           type(dsasig[0]) == int and type(dsasig[1]) == int, \
-           "dsasig must be a tuple of 2 int"
-    assert 0 < dsasig[0] and dsasig[0] < ec.n and \
-           0 < dsasig[1] and dsasig[1] < ec.n, "r and s must be in [1..n]"
-    return True
+def check_dsasig(dsasig: Signature, ec: EllipticCurve) -> Signature:
+    """check that signature is valid"""
+
+    assert len(dsasig) == 2, "invalid length %s for ECDSA signature" % len(dsasig)
+
+    r = int(dsasig[0])
+    assert 0 < r and r < ec.n, "r %s not in [1, %s]" % (r, ec.n)
+
+    s = int(dsasig[1])
+    assert 0 < s and s < ec.n, "r %s not in [1, %s]" % (s, ec.n)
+
+    return r, s
