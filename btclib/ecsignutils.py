@@ -10,8 +10,13 @@ default_size = 32
 def check_hash(hash: bytes, size: int = default_size) -> None:
     """check that hash is a bytes message of correct length
     """
-    assert type(hash) == bytes, "hash must be bytes"
-    assert len(hash) <= size, "hash must have correct bytes length"
+    if not isinstance(hash, bytes):
+        m = "hash must be a bytes-like object, not '%s'" % type(hash).__name__
+        raise TypeError(m)
+
+    if len(hash) > size:
+        m = "hash lenght %s must be <= size %s" % (len(hash), size)
+        raise ValueError(m)
 
 
 def int_from_hash(hash: bytes, order: int, size: int = default_size) -> int:
