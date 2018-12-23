@@ -14,7 +14,8 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   DoubleScalarMultiplication, \
                                   int_from_Scalar, tuple_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, Signature, int_from_hash
+from btclib.ecsignutils import Message, Signature, \
+                               bytes_from_msg, int_from_hash
 
 def ecdsa_sign(msg: Message,
                q: PrvKey,
@@ -26,8 +27,7 @@ def ecdsa_sign(msg: Message,
     Here input parameters are converted,
     the actual signing operation is delegated to ecdsa_sign_raw
     """
-    if isinstance(msg, str): M = msg.encode()
-    else: M = msg
+    M = bytes_from_msg(msg)
     q = int_from_Scalar(ec, q)
     eph = None if eph is None else int_from_Scalar(ec, eph)
     return ecdsa_sign_raw(M, q, eph, ec, Hash)
@@ -55,6 +55,8 @@ def _ecdsa_sign_raw(H: bytes,
     # ECDSA signing operation according to SEC 2
     # See section 4.1.3
 
+    if 0 == d % ec.n:
+        raise ValueError("invalid (zero) private key")
     if k is None:
         k = rfc6979(d, H, Hash)                            # 1
     R = ec.pointMultiplyJacobian(k, jac_from_affine(ec.G)) # 1
@@ -82,8 +84,7 @@ def ecdsa_verify(msg: Message,
     Here input parameters are converted,
     the actual veryfying operation is delegated to ecdsa_verify_raw
     """
-    if isinstance(msg, str): M = msg.encode()
-    else: M = msg
+    M = bytes_from_msg(msg)
     Q = tuple_from_Point(ec, Q)
     return ecdsa_verify_raw(M, dsasig, Q, ec, Hash)
 
@@ -113,7 +114,7 @@ def _ecdsa_verify_raw(H: bytes,
         r, s = check_dsasig(dsasig, ec)                     # 1
         # H already provided as input                       # 2
         e = int_from_hash(H, ec.n)                          # 3
-        s1 = mod_inv(s, ec.n); u1 = e*s1 ; u2 = r*s1         # 4
+        s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
         R = DoubleScalarMultiplication(ec, u1, u2, ec.G, Q) # 5
         if R is None:
             return False
@@ -132,8 +133,7 @@ def ecdsa_pubkey_recovery(msg: Message,
     Here input parameters are converted,
     the actual public key recovery operation is delegated to ecdsa_pubkey_recovery_raw
     """
-    if isinstance(msg, str): M = msg.encode()
-    else: M = msg
+    M = bytes_from_msg(msg)
     return ecdsa_pubkey_recovery_raw(M, dsasig, ec, Hash)
 
 def ecdsa_pubkey_recovery_raw(M: bytes,
@@ -180,14 +180,18 @@ def _ecdsa_pubkey_recovery_raw(H: bytes,
     return keys
 
 def check_dsasig(dsasig: Signature, ec: EllipticCurve) -> Signature:
-    """check that signature is valid"""
+    """check signature format is correct and return the signature itself"""
 
-    assert len(dsasig) == 2, "invalid length %s for ECDSA signature" % len(dsasig)
+    if len(dsasig) != 2:
+        m = "invalid length %s for ECDSA signature" % len(dsasig)
+        raise TypeError(m)
 
     r = int(dsasig[0])
-    assert 0 < r and r < ec.n, "r %s not in [1, %s]" % (r, ec.n)
+    if r<0 or r>=ec.n:
+        raise ValueError("r not in [1, n-1]")
 
     s = int(dsasig[1])
-    assert 0 < s and s < ec.n, "r %s not in [1, %s]" % (s, ec.n)
+    if s<0 or s>=ec.n:
+        raise ValueError("s not in [1, n-1]")
 
     return r, s

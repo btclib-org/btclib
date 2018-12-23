@@ -19,21 +19,20 @@ class TestEcdsa(unittest.TestCase):
         msg = 'Satoshi Nakamoto'
 
         dsasig = ecdsa_sign(msg, q)
-        self.assertTrue(ecdsa_verify(msg, dsasig, Q))
-        # malleability
-        malleated_sig = (dsasig[0], secp256k1.n - dsasig[1])
-        self.assertTrue(ecdsa_verify(msg, malleated_sig, Q))
-
-        keys = ecdsa_pubkey_recovery(msg, dsasig)
-        self.assertIn(Q, keys)
-
         # source: https://bitcointalk.org/index.php?topic=285142.40
         exp_sig = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
                    0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
         r, s = dsasig
         self.assertEqual(r, exp_sig[0])
-        sigs = (exp_sig[1], secp256k1.n - exp_sig[1])
-        self.assertIn(s, sigs)
+        self.assertIn(s, (exp_sig[1], secp256k1.n - exp_sig[1]))
+
+        # malleability
+        self.assertTrue(ecdsa_verify(msg, dsasig, Q))
+        malleated_sig = (r, secp256k1.n - s)
+        self.assertTrue(ecdsa_verify(msg, malleated_sig, Q))
+
+        keys = ecdsa_pubkey_recovery(msg, dsasig)
+        self.assertIn(Q, keys)
 
     def test_low_cardinality(self):
         """test all msg/key pairs of low cardinality elliptic curves"""
@@ -52,9 +51,13 @@ class TestEcdsa(unittest.TestCase):
         hlen = 32
         H = [i.to_bytes(hlen, 'big') for i in range(0, max(prime))]
 
-        for ec in lowcard:
-            if ec.n in prime:
-                for q in range(1, ec.n): # all possible private keys
+        for ec in lowcard: # only low card curves or it would take forever
+            if ec.n in prime: # only few curves or it would take too long
+                # all possible private keys (invalid 0 included)
+                for q in range(0, ec.n):
+                    if q == 0:
+                        self.assertRaises(ValueError, _ecdsa_sign_raw, H[0], q, None, ec)
+                        continue
                     G = jac_from_affine(ec.G) # G in jacobian coordinates
                     Q = ec.pointMultiplyJacobian(q, G) # public key
                     for m in range(0, ec.n): # all possible hashed messages
