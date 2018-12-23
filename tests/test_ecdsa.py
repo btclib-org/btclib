@@ -3,13 +3,12 @@
 import unittest
 from hashlib import sha256
 
-from btclib.ecdsa import ecdsa_sign_raw, ecdsa_sign, \
+from btclib.ellipticcurves import jac_from_affine, secp256k1, \
+                                  mod_inv
+from btclib.ecdsa import rfc6979, int_from_hash, \
+                         ecdsa_sign_raw, ecdsa_sign, \
                          ecdsa_verify_raw, ecdsa_verify, \
                          ecdsa_pubkey_recovery_raw, ecdsa_pubkey_recovery
-from btclib.ellipticcurves import jac_from_affine, pointMultiply, secp256k1
-from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import int_from_hash
-from btclib.ellipticcurves import mod_inv
 
 from tests.test_ellipticcurves import lowcard
 
@@ -59,6 +58,7 @@ class TestEcdsa(unittest.TestCase):
                     G = jac_from_affine(ec.G) # Generator in jacobian coordinates
                     Q = ec.pointMultiplyJacobian(q, G) 
                     for m in range(0, ec.n): # all possible message hashes
+
                         k = rfc6979(q, msg[m], sha256) # ephemeral key
                         K = ec.pointMultiplyJacobian(k, G)
                         if K == None:
@@ -78,15 +78,15 @@ class TestEcdsa(unittest.TestCase):
                             continue
 
                         # valid signature
-                        dsasig = ecdsa_sign_raw(ec, msg[m], q, k)
-                        self.assertEqual((r,s), dsasig)
+                        sig = ecdsa_sign_raw(ec, msg[m], q, k)
+                        self.assertEqual((r, s), sig)
                         # valid signature must validate
-                        self.assertTrue(ecdsa_verify_raw(ec, msg[m], dsasig, Q))
+                        self.assertTrue(ecdsa_verify_raw(ec, msg[m], sig, Q))
                         # malleated signature must validate
-                        malleated_sig = (dsasig[0], ec.n - dsasig[1])
+                        malleated_sig = (sig[0], ec.n - sig[1])
                         self.assertTrue(ecdsa_verify_raw(ec, msg[m], malleated_sig, Q))
                         # key recovery
-                        keys = ecdsa_pubkey_recovery_raw(ec, msg[m], dsasig)
+                        keys = ecdsa_pubkey_recovery_raw(ec, msg[m], sig)
                         self.assertIn(Q, keys)
 
 if __name__ == "__main__":
