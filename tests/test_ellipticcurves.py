@@ -344,7 +344,7 @@ class TestEllipticCurve(unittest.TestCase):
             hasRoot = set()
             hasRoot.add(1)
             # FIXME: curve prime
-            p = curve._EllipticCurve__p
+            p = curve._p
             for i in range(2, p):
                 hasRoot.add(i*i % p)
 
