@@ -13,9 +13,9 @@ from struct import pack
 from binascii import hexlify
 import hmac
 from btclib.ellipticcurves import secp256k1 as ec
+from btclib.ecsignutils import check_hash
 
 default_hasher = sha256
-default_hash_digest_size = 32
 
 qlen = len(bin(ec.n)) - 2  # -2 for the leading '0b'
 rlen = ((qlen + 7) // 8) * 8
@@ -40,19 +40,13 @@ def bits2octets(b):
     z2 = z1 % ec.n
     return int2octets(z2)
 
-def check_hash_digest(m, hash_digest_size=default_hash_digest_size):
-    """check that m is a bytes message with correct length
-    """
-    assert type(m) == bytes
-    assert len(m) <= hash_digest_size, "m must be bytes with correct bytes length"
-
-def rfc6979(prv, m, hasher=default_hasher) -> int:
+def rfc6979(prv: int, m: bytes, hasher = default_hasher) -> int:
     assert type(prv) == int
     assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
-    check_hash_digest(m)
+    check_hash(m)
     return rfc6979_raw(prv, m, hasher)
 
-def rfc6979_raw(prv, m, hasher=default_hasher) -> int:
+def rfc6979_raw(prv, m, hasher = default_hasher) -> int:
     hash_size = len(m)
     prv_and_m = int2octets(prv) + bits2octets(m)
     v = b'\x01' * hash_size
