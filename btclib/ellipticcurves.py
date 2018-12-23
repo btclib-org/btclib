@@ -55,26 +55,30 @@ class EllipticCurve:
         Inf = self.pointAdd(T, self.G)
         assert Inf is None, "wrong order"
 
-    def assertPointCoordinate(self, c: int) -> None:
-        assert isinstance(c, int),  "non-int point coordinate"
-        assert 0 <= c, "point coordinate %s < 0" % c
-        assert c < self._p, "point coordinate %s >= prime %s" % (c, self._p)
+    def checkPointCoordinate(self, c: int) -> None:
+        """check the coordinate is an int-like object in [0, p-1]"""
+        if not isinstance(c, int):
+            raise TypeError("int-like object required")
+        if c<0:
+            raise ValueError("coordinate %s < 0" % c)
+        if c>=self._p:
+            raise ValueError("coordinate %s >= prime %s" % (c, self._p))
 
     def _y2(self, x: int) -> int:
-        self.assertPointCoordinate(x)
+        self.checkPointCoordinate(x)
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to keep this method private
         return ((x*x + self._a)*x + self._b) % self._p
 
     def areOnCurve(self, x: int, y: int) -> bool:
-        self.assertPointCoordinate(y)
+        self.checkPointCoordinate(y)
         return self._y2(x) == (y*y % self._p)
 
     # jacobi symbol (equal to legendre because p is prime)
-    # if it returs 1, then y is a quadratic residue
+    # it returs 1 if y is a quadratic residue
     def jacobi(self, y: int) -> int:
-        self.assertPointCoordinate(y)
+        self.checkPointCoordinate(y)
         return pow(y, (self._p - 1) // 2, self._p)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
