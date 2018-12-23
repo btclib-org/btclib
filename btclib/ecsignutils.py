@@ -8,7 +8,7 @@ Signature = Tuple[int, int]
 default_size = 32
 
 def check_hash(hash: bytes, size: int = default_size) -> None:
-    """check that hash is a bytes message of correct length
+    """check that hash is a bytes-like object of correct length
     """
     if not isinstance(hash, bytes):
         m = "hash must be a bytes-like object, not '%s'" % type(hash).__name__
