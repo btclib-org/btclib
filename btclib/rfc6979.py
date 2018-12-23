@@ -41,7 +41,9 @@ def bits2octets(b):
     return int2octets(z2)
 
 def rfc6979(prv: int, m: bytes, hasher = default_hasher) -> int:
-    assert type(prv) == int
+    if not isinstance(prv, int):
+        m = "private key must be a int-like object, not '%s'" % type(prv).__name__
+        raise TypeError(m)
     assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
     check_hash(m)
     return rfc6979_raw(prv, m, hasher)
