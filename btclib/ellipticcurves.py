@@ -56,9 +56,9 @@ class EllipticCurve:
         assert Inf is None, "wrong order"
 
     def assertPointCoordinate(self, c: int) -> None:
-        assert type(c) == int,  "non-int point coordinate"
+        assert isinstance(c, int),  "non-int point coordinate"
         assert 0 <= c, "point coordinate %s < 0" % c
-        assert c < self.__p, "point coordinate %s >= prime %s" % (c, p)
+        assert c < self.__p, "point coordinate %s >= prime %s" % (c, self.__p)
 
     def __y2(self, x: int) -> int:
         self.assertPointCoordinate(x)
