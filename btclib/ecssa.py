@@ -117,7 +117,7 @@ def ecssa_batch_validation(ec: EllipticCurve, ms: List[bytes], sig: List[Signatu
         e = int_from_hash(ebytes, ec.n)
 
         # FIXME: curve prime
-        p = ec._EllipticCurve__p
+        p = ec._p
         c = (pow(r, 3) + 7) % p
         y = pow(c, (p + 1) // 4, p)
         assert pow(y, 2, p) == c
