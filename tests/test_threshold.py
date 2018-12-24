@@ -1,27 +1,22 @@
 #!/usr/bin/env python3
 
+import os
 import unittest
+from btclib.numbertheory import mod_inv
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
                                   pointAdd, pointMultiplyJacobian, \
                                   secondGenerator, opposite, \
                                   secp256k1 as ec
-from btclib.ecssa import sha256, int_from_hash, ecssa_verify
-from btclib.numbertheory import mod_inv
-import os
-
-# testing a 2-of-3 threshold signature based on Pedersen secret sharing
+from btclib.ecssa import sha256, int_from_hash, _ecssa_verify_raw
 
 class TestEcssaThreshold(unittest.TestCase):
+    """ testing a 2-of-3 threshold signature based on Pedersen secret sharing"""
     
     def test_threshold(self):
         # parameters
         t = 2
-        m = 3
-
         H = secondGenerator(ec)
-
-        msg = 'message to sign'
-        msg = sha256(msg.encode()).digest()
+        msg = sha256('message to sign'.encode()).digest()
 
         ### FIRST PHASE: key pair generation ###
 
@@ -439,7 +434,7 @@ class TestEcssaThreshold(unittest.TestCase):
 
         ecssa = (K[0], sigma)
 
-        self.assertTrue(ecssa_verify(ec, msg, ecssa, Q))
+        self.assertTrue(_ecssa_verify_raw(msg, ecssa, Q, ec))
 
         ### ADDITIONAL PHASE: reconstruction of the private key ###
         secret = (omega1 * alpha1 + omega3 * alpha3)  % ec.n

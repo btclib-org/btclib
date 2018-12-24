@@ -9,21 +9,21 @@ https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
 https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
 """
 
+import os
 import unittest
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
                                   pointAdd, pointMultiplyJacobian, \
                                   secp256k1 as ec
 from btclib.ecssa import sha256, int_from_hash, ecssa_verify
-import os
 
 class TestEcssaMuSig(unittest.TestCase):
 
     def test_ecssamusig(self):
         L = list() # multiset of public keys
         msg = 'message to sign'
-        m = sha256(msg.encode()).digest()
+        H = sha256(msg.encode()).digest()
 
-        # first signer (is the message needed here? maybe for rfc6979?)
+        # first signer
         q1 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
         Q1 = pointMultiplyJacobian(ec, q1, ec.G)
         L.append(bytes_from_Point(ec, Q1, False))
@@ -37,7 +37,7 @@ class TestEcssaMuSig(unittest.TestCase):
             K1 = K1_x, ec.yQuadraticResidue(K1_x, True)
             #K1 = pointMultiplyJacobian(ec, k1, ec.G)
 
-        # second signer (is the message needed here? maybe for rfc6979?)
+        # second signer
         q2 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q2 = pointMultiplyJacobian(ec, q2, ec.G)
         L.append(bytes_from_Point(ec, Q2, False))
@@ -54,14 +54,14 @@ class TestEcssaMuSig(unittest.TestCase):
         # third signer
         q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
         Q3 = pointMultiplyJacobian(ec, q3, ec.G)
-        while Q3 == None:
+        while Q3 == None: # plausible only for small (test) cardinality groups
             q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
             Q3 = pointMultiplyJacobian(ec, q3, ec.G)
         L.append(bytes_from_Point(ec, Q3, False))
 
         k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
         K3 = pointMultiplyJacobian(ec, k3, ec.G)
-        while K3 == None:
+        while K3 == None: # plausible only for small (test) cardinality groups
             k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
             K3 = pointMultiplyJacobian(ec, k3, ec.G)
         K3_x = K3[0]
@@ -79,8 +79,10 @@ class TestEcssaMuSig(unittest.TestCase):
         a2 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q2, False)).digest(), ec.n)
         a3 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q3, False)).digest(), ec.n)
         # aggregated public key
-        Q_All = pointAdd(ec, pointAdd(ec, pointMultiplyJacobian(ec, a1, Q1), pointMultiplyJacobian(ec, \
-                                                            a2, Q2)), pointMultiplyJacobian(ec, a3, Q3))
+        Q_All = pointAdd(ec, pointMultiplyJacobian(ec, a1, Q1),
+                             pointMultiplyJacobian(ec, a2, Q2))
+        Q_All = pointAdd(ec, Q_All,
+                             pointMultiplyJacobian(ec, a3, Q3))
 
         ########################
         # exchange K_x, compute s
@@ -99,8 +101,8 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K1_All[1], as it is not used anymore
             # let's fix k1 instead, as it is used later
             k1 = ec.n - k1
-        c1 = int_from_hash(sha256(K1_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + m).digest(), ec.n)
-        assert c1 != 0 and c1 < ec.n, "sign fail"
+        c1 = int_from_hash(sha256(K1_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec.n)
+        assert 0<c1 and c1<ec.n, "sign fail"
         s1 = (k1 + c1*a1*q1) % ec.n
 
         # second signer use K1_x and K3_x
@@ -115,8 +117,8 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K2_All[1], as it is not used anymore
             # let's fix k2 instead, as it is used later
             k2 = ec.n - k2
-        c2 = int_from_hash(sha256(K2_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + m).digest(), ec.n)
-        assert c2 != 0 and c2 < ec.n, "sign fail"
+        c2 = int_from_hash(sha256(K2_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec.n)
+        assert 0<c2 and c2<ec.n, "sign fail"
         s2 = (k2 + c2*a2*q2) % ec.n
 
         # third signer use K1_x and K2_x
@@ -131,8 +133,8 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K3_All[1], as it is not used anymore
             # let's fix k3 instead, as it is used later
             k3 = ec.n - k3
-        c3 = int_from_hash(sha256(K3_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + m).digest(), ec.n)
-        assert c3 != 0 and c3 < ec.n, "sign fail"
+        c3 = int_from_hash(sha256(K3_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec.n)
+        assert 0<c3 and c3<ec.n, "sign fail"
         s3 = (k3 + c3*a3*q3) % ec.n
 
         ############################################
@@ -144,7 +146,7 @@ class TestEcssaMuSig(unittest.TestCase):
         s_All = (s1 + s2 + s3) % ec.n
         ssasig = (K1_All[0], s_All)
 
-        self.assertTrue(ecssa_verify(ec, msg, ssasig, Q_All, sha256))
+        self.assertTrue(ecssa_verify(msg, ssasig, Q_All, ec, sha256))
 
 
 if __name__ == "__main__":

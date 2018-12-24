@@ -11,74 +11,150 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   Scalar as PrvKey, Point as PubKey, \
                                   GenericPoint as GenericPubKey, \
                                   mod_inv, \
-                                  EllipticCurve, jac_from_affine, \
+                                  EllipticCurve, secp256k1, jac_from_affine, \
                                   DoubleScalarMultiplication, \
                                   int_from_Scalar, tuple_from_Point, \
                                   bytes_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, Signature, int_from_hash
+from btclib.ecsignutils import Message, Signature, \
+                               bytes_from_msg, int_from_hash
 
 # https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 
 
 # different structure, cannot compute e (int) before ecssa_sign_raw
-def ecssa_sign(ec: EllipticCurve, msg: Message, q: PrvKey, eph_prv: Optional[PrvKey] = None, hasher = sha256) -> Signature:
-    if isinstance(msg, str): m = hasher(msg.encode()).digest()
-    else: m = msg
+def ecssa_sign(msg: Message,
+               q: PrvKey,
+               k: Optional[PrvKey] = None,
+               ec: EllipticCurve = secp256k1,
+               Hash = sha256) -> Signature:
+    """ECSSA signing operation according to bip-schnorr
+
+    Here input parameters are converted,
+    the actual signing operation is delegated to ecssa_sign_raw
+    """
+    M = bytes_from_msg(msg)
     q = int_from_Scalar(ec, q)
-    eph_prv = None if eph_prv is None else int_from_Scalar(ec, eph_prv)
-    return ecssa_sign_raw(ec, m, q, eph_prv, hasher) # FIXME: this is just the message hasher
+    k = None if k is None else int_from_Scalar(ec, k)
+    return ecssa_sign_raw(M, q, k, ec, Hash)
 
 # https://eprint.iacr.org/2018/068
-def ecssa_sign_raw(ec: EllipticCurve, m: bytes, q: int, eph_prv: Optional[int] = None, hasher = sha256) -> Signature:
+def ecssa_sign_raw(M: bytes,
+                   q: int,
+                   k: Optional[int] = None,
+                   ec: EllipticCurve = secp256k1,
+                   Hash = sha256) -> Signature:
+    """ECSSA signing operation according to bip-schnorr"""
+    H = Hash(M).digest()
+    return _ecssa_sign_raw(H, q, k, ec, Hash)
+
+# Private function provided for testing purposes only.
+# To avoid forgeable signature, sign and verify should
+# always use the message, not its hash digest.
+def _ecssa_sign_raw(H: bytes,
+                    q: int,
+                    k: Optional[int] = None,
+                    ec: EllipticCurve = secp256k1,
+                    Hash = sha256) -> Signature:
+    #ECSSA signing operation according to bip-schnorr
+
+    # the bitcoin proposed standard is only valid for curves
+    # whose prime p = 3 %4
+    if not ec.pIsThreeModFour:
+        m = 'curve prime p must be equal to 3 (mod 4)'
+        raise ValueError(m)
+
     G = jac_from_affine(ec.G) 
     Q = ec.pointMultiplyJacobian(q, G)
-    k = rfc6979(q, m, hasher) if eph_prv is None else eph_prv
-    K = ec.pointMultiplyJacobian(k, G)
-    assert K is not None, 'sign fail'
-    # break the simmetry:
-    # any criteria might have been used, jacobi is bitcoin standard
-    assert ec.pIsThreeModFour, 'not a proper curve, the relation p = 3 (mod 4) must hold'
-    if ec.jacobi(K[1]) != 1:
+    if Q is None:
+        raise ValueError("invalid (zero) private key")
+    if k is None:
+        k = rfc6979(q, H, Hash)
+    R = ec.pointMultiplyJacobian(k, G)
+    if R is None:
+        m = "ephemeral key %s is equal to group order" % k
+        raise ValueError(m)
+    # break the simmetry: any criteria might have been used,
+    # jacobi is the proposed bitcoin standard
+    if ec.jacobi(R[1]) != 1:
         # no need to actually change K[1], as it is not used anymore
         # let just fix k instead, as it is used later
         k = ec.n - k
-    ebytes = K[0].to_bytes(ec.bytesize, byteorder="big")
+    ebytes  = R[0].to_bytes(ec.bytesize, byteorder="big")
     ebytes += bytes_from_Point(ec, Q, True)
-    ebytes += m
-    ebytes = hasher(ebytes).digest()
+    ebytes += H
+    ebytes = Hash(ebytes).digest()
     e = int_from_hash(ebytes, ec.n)
     s = (k + e * q) % ec.n
-    assert s != 0, "sign fail"
-    return K[0], s
+    if s==0:
+        raise ValueError("s = 0, failed to sign")
+    return R[0], s
 
+def ecssa_verify(msg: Message,
+                 ssasig: Signature,
+                 Q: GenericPubKey,
+                 ec: EllipticCurve = secp256k1,
+                 Hash = sha256) -> bool:
+    """ECSSA veryfying operation according to bip-schnorr
 
-def ecssa_verify(ec: EllipticCurve, msg: Message, ssasig: Signature, Q: GenericPubKey, hasher = sha256) -> bool:
-    if isinstance(msg, str): m = hasher(msg.encode()).digest()
-    else: m = msg
-    check_ssasig(ec, ssasig)
-    Q =  tuple_from_Point(ec, Q)
-    return ecssa_verify_raw(ec, m, ssasig, Q, hasher) # FIXME: this is just the message hasher
-
-
-def ecssa_verify_raw(ec: EllipticCurve, m: bytes, ssasig: Signature, Q: PubKey, hasher = sha256) -> bool:
-    r, s = ssasig
-    # FIXME: curve prime
-    # if r >= ec.return_prime(): return False
-    e = hasher(r.to_bytes(ec.bytesize, byteorder="big") + bytes_from_Point(ec, Q, True) + m).digest()
-    e = int_from_hash(e, ec.n)
-    # K = sG - eQ
-    K = DoubleScalarMultiplication(ec, s, -e, ec.G, Q)
-    if K is None:
+    Here input parameters are converted,
+    the actual veryfying operation is delegated to ecssa_verify_raw
+    """
+    try:
+        M = bytes_from_msg(msg)
+        Q =  tuple_from_Point(ec, Q)
+        return ecssa_verify_raw(M, ssasig, Q, ec, Hash)
+    except Exception:
         return False
-    if ec.jacobi(K[1]) != 1:
+
+def ecssa_verify_raw(M: bytes,
+                     ssasig: Signature,
+                     Q: PubKey,
+                     ec: EllipticCurve = secp256k1,
+                     Hash = sha256) -> bool:
+    """ECSSA veryfying operation according to bip-schnorr"""
+    try:
+        H = Hash(M).digest()
+        return _ecssa_verify_raw(H, ssasig, Q, ec, Hash)
+    except Exception:
         return False
-    return K[0] == ssasig[0]
+
+def _ecssa_verify_raw(H: bytes,
+                      ssasig: Signature,
+                      P: PubKey,
+                      ec: EllipticCurve = secp256k1,
+                      Hash = sha256) -> bool:
+    # ECSSA veryfying operation according to bip-schnorr
+
+    # Let P = point(pk); fail if point(pk) fails.
+    # already satisfied
+
+    try:
+        # Let r = int(sig[0:32]); fail if r ≥ p.
+        # Let s = int(sig[32:64]); fail if s ≥ n.
+        r, s = check_ssasig(ssasig, ec)
+
+        # Let e = int(hash(bytes(r) || bytes(P) || m)) mod n.
+        ebytes  = r.to_bytes(ec.bytesize, byteorder="big")
+        ebytes += bytes_from_Point(ec, P, True)
+        ebytes += H
+        ebytes  = Hash(ebytes).digest()
+        e = int_from_hash(ebytes, ec.n)
+        # Let R = sG - eP.
+        R = DoubleScalarMultiplication(ec, s, -e, ec.G, P)
+        # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
+        if R is None:
+            return False
+        if ec.jacobi(R[1]) != 1:
+            return False
+        return R[0] == r
+    except Exception:
+        return False
 
 def ecssa_pubkey_recovery(ec: EllipticCurve, e: bytes, ssasig: Signature, hasher = sha256) -> PubKey:
     assert len(e) == 32
-    check_ssasig(ec, ssasig)
-    return ecssa_pubkey_recovery_raw(ec, e, ssasig) # FIXME: this is just the message hasher
+    check_ssasig(ssasig, ec)
+    return ecssa_pubkey_recovery_raw(ec, e, ssasig)
 
 def ecssa_pubkey_recovery_raw(ec: EllipticCurve, ebytes: bytes, ssasig: Signature) -> PubKey:
     r, s = ssasig
@@ -90,18 +166,31 @@ def ecssa_pubkey_recovery_raw(ec: EllipticCurve, ebytes: bytes, ssasig: Signatur
     assert Q is not None, "failed"
     return Q
 
-def check_ssasig(ec: EllipticCurve, ssasig: Signature) -> bool:
-    """check sig has correct ssa format
-    """
-    assert type(ssasig) == tuple and len(ssasig) == 2 and \
-           type(ssasig[0]) == int and type(ssasig[1]) == int, \
-           "ssasig must be a tuple of 2 int"
-    ec.yOdd(ssasig[0], False) # R.x is valid iif R.y does exist
-    # FIXME: it might be 0 <= ssasig[1]
-    assert 0 < ssasig[1] and ssasig[1] < ec.n, "s must be in [1..n]"
-    return True
+def check_ssasig(ssasig: Signature, ec: EllipticCurve) -> Signature:
+    """check signature format is correct and return the signature itself"""
 
-def ecssa_batch_validation(ec: EllipticCurve, ms: List[bytes], sig: List[Signature], Q: List[PubKey], a: List[int], hasher = sha256) -> bool:
+    if len(ssasig) != 2:
+        m = "invalid length %s for ECSSA signature" % len(ssasig)
+        raise TypeError(m)
+
+    r = int(ssasig[0])
+    if r<0 or r>=ec._p:
+        raise ValueError("r not in [1, p-1]")
+    # R.x is valid iif R.y does exist and it is a quadratic residue
+    ec.yQuadraticResidue(r, False)
+
+    s = int(ssasig[1])
+    if s<0 or s>=ec.n:
+        raise ValueError("s not in [1, n-1]")
+
+    return r, s
+
+def ecssa_batch_validation(ec: EllipticCurve,
+                           ms: List[bytes],
+                           sig: List[Signature],
+                           Q: List[PubKey],
+                           a: List[int],
+                           hasher = sha256) -> bool:
     u = len(Q)
     # initialization
     mult = 0

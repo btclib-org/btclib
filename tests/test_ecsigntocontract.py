@@ -20,7 +20,7 @@ class TestSignToContract(unittest.TestCase):
         self.assertTrue(verify_commit(receipt_ecdsa, c))
 
         sig_ecssa, receipt_ecssa = ecssa_commit_and_sign(m, prv, c)
-        self.assertTrue(ecssa_verify(ec, m, sig_ecssa, pub))
+        self.assertTrue(ecssa_verify(m, sig_ecssa, pub, ec))
         self.assertTrue(verify_commit(receipt_ecssa, c))
 
 
