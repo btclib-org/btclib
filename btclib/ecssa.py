@@ -170,14 +170,17 @@ def _ecssa_verify_raw(m: bytes,
     except Exception:
         return False
 
-def ecssa_pubkey_recovery(ec: EllipticCurve,
-                          e: bytes, ssasig: Signature,
+def ecssa_pubkey_recovery(e: bytes,
+                          ssasig: Signature,
+                          ec: EllipticCurve = secp256k1,
                           Hash = sha256) -> PubKey:
     assert len(e) == 32
-    return ecssa_pubkey_recovery_raw(ec, e, ssasig, Hash)
+    # check that e is bytes
+    return ecssa_pubkey_recovery_raw(e, ssasig, ec, Hash)
 
-def ecssa_pubkey_recovery_raw(ec: EllipticCurve,
-                              ebytes: bytes, ssasig: Signature,
+def ecssa_pubkey_recovery_raw(ebytes: bytes,
+                              ssasig: Signature,
+                              ec: EllipticCurve = secp256k1,
                               Hash = sha256) -> PubKey:
     r, s = check_ssasig(ssasig, ec)
     K = (r, ec.yQuadraticResidue(r, True))
@@ -188,8 +191,9 @@ def ecssa_pubkey_recovery_raw(ec: EllipticCurve,
     assert Q is not None, "failed"
     return Q
 
-def check_ssasig(ssasig: Signature, ec: EllipticCurve) -> Signature:
-    """check signature format is correct and return the signature itself"""
+def check_ssasig(ssasig: Signature,
+                 ec: EllipticCurve = secp256k1) -> Signature:
+    """check SSA signature format is correct and return the signature itself"""
 
     # A signature sig: a 64-byte array.
     if len(ssasig) != 2:
@@ -212,11 +216,11 @@ def check_ssasig(ssasig: Signature, ec: EllipticCurve) -> Signature:
 
     return r, s
 
-def ecssa_batch_validation(ec: EllipticCurve,
-                           ms: List[bytes],
+def ecssa_batch_validation(ms: List[bytes],
                            sig: List[Signature],
                            Q: List[PubKey],
                            a: List[int],
+                           ec: EllipticCurve = secp256k1,
                            Hash = sha256) -> bool:
     u = len(Q)
     # initialization

@@ -32,7 +32,7 @@ class TestEcssa(unittest.TestCase):
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(secp256k1, pub, True) +
                    msg).digest()
-        self.assertEqual(ecssa_pubkey_recovery(secp256k1, e, sig), pub)
+        self.assertEqual(ecssa_pubkey_recovery(e, sig, secp256k1), pub)
 
     def test_ecssa_bip_tv2(self):
         prv = 0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
@@ -48,7 +48,7 @@ class TestEcssa(unittest.TestCase):
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(secp256k1, pub, True) +
                    msg).digest()
-        self.assertEqual(ecssa_pubkey_recovery(secp256k1, e, sig), pub)
+        self.assertEqual(ecssa_pubkey_recovery(e, sig, secp256k1), pub)
 
     def test_ecssa_bip_tv3(self):
         prv = 0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B14E5C7
@@ -64,7 +64,7 @@ class TestEcssa(unittest.TestCase):
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(secp256k1, pub, True) +
                    msg).digest()
-        self.assertEqual(ecssa_pubkey_recovery(secp256k1, e, sig), pub)
+        self.assertEqual(ecssa_pubkey_recovery(e, sig, secp256k1), pub)
 
     def test_ecssa_bip_tv4(self):
         pub = tuple_from_Point(secp256k1, "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
@@ -76,7 +76,7 @@ class TestEcssa(unittest.TestCase):
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(secp256k1, pub, True) +
                    msg).digest()
-        self.assertEqual(ecssa_pubkey_recovery(secp256k1, e, sig), pub)
+        self.assertEqual(ecssa_pubkey_recovery(e, sig, secp256k1), pub)
 
     def test_ecssa_bip_tv5(self):
         """test fails if jacobi symbol of x(R) instead of y(R) is used"""
@@ -89,7 +89,7 @@ class TestEcssa(unittest.TestCase):
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(secp256k1, pub, True) +
                    msg).digest()
-        self.assertEqual(ecssa_pubkey_recovery(secp256k1, e, sig), pub)
+        self.assertEqual(ecssa_pubkey_recovery(e, sig, secp256k1), pub)
 
     def test_ecssa_bip_tv6(self):
         """test fails if msg is reduced"""
@@ -102,7 +102,7 @@ class TestEcssa(unittest.TestCase):
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(secp256k1, pub, True) +
                    msg).digest()
-        self.assertEqual(ecssa_pubkey_recovery(secp256k1, e, sig), pub)
+        self.assertEqual(ecssa_pubkey_recovery(e, sig, secp256k1), pub)
 
     def test_ecssa_bip_tv7(self):
         """public key not on the curve"""
