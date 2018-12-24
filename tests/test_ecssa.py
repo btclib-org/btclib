@@ -203,7 +203,7 @@ class TestEcssa(unittest.TestCase):
                         ebytes += bytes_from_Point(ec, Q, True)
                         ebytes += H[m]
                         ebytes = sha256(ebytes).digest()
-                        e = int_from_hash(ebytes, ec.n)
+                        e = int_from_hash(ebytes, ec.n, sha256().digest_size)
                         s = (k + e * q) % ec.n
 
                         # valid signature

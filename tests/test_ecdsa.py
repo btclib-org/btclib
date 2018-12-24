@@ -73,7 +73,7 @@ class TestEcdsa(unittest.TestCase):
                             self.assertRaises(ValueError, _ecdsa_sign_raw, H[m], q, k, ec)
                             continue
 
-                        e = int_from_hash(H[m], ec.n)
+                        e = int_from_hash(H[m], ec.n, sha256().digest_size)
                         s = mod_inv(k, ec.n) * (e + q * r) % ec.n
                         if s == 0:
                             print("it does not enter here")

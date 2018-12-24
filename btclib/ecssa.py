@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 """ Elliptic Curve Schnorr Signature Algorithm
+
+https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 """
 
 import heapq
@@ -18,9 +20,6 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature, \
                                bytes_from_msg, int_from_hash
-
-# https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
-
 
 def ecssa_sign(msg: Message,
                q: PrvKey,
@@ -96,7 +95,7 @@ def _ecssa_sign_raw(m: bytes,
     ebytes += bytes_from_Point(ec, Q, True)
     ebytes += m
     ebytes = Hash(ebytes).digest()
-    e = int_from_hash(ebytes, ec.n)
+    e = int_from_hash(ebytes, ec.n, Hash().digest_size)
 
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
     s = (k + e*d) % ec.n
@@ -132,6 +131,9 @@ def ecssa_verify_raw(M: bytes,
     except Exception:
         return False
 
+# Private function provided for testing purposes only.
+# To avoid forgeable signature, sign and verify should
+# always use the message, not its hash digest.
 def _ecssa_verify_raw(m: bytes,
                       ssasig: Signature,
                       P: PubKey,
@@ -141,6 +143,12 @@ def _ecssa_verify_raw(m: bytes,
 
     # Let P = point(pk); fail if point(pk) fails.
     # already satisfied!
+
+    # The message digest m: a 32-byte array
+    if len(m) != Hash().digest_size:
+        errmsg = 'message digest of wrong size %s' % len(m)
+        raise ValueError(errmsg)
+
     try:
         # Let r = int(sig[0:32]); fail if r ≥ p.
         # Let s = int(sig[32:64]); fail if s ≥ n.
@@ -150,7 +158,7 @@ def _ecssa_verify_raw(m: bytes,
         ebytes += bytes_from_Point(ec, P, True)
         ebytes += m
         ebytes  = Hash(ebytes).digest()
-        e = int_from_hash(ebytes, ec.n)
+        e = int_from_hash(ebytes, ec.n, Hash().digest_size)
         # Let R = sG - eP.
         R = DoubleScalarMultiplication(ec, s, -e, ec.G, P)
         # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
@@ -162,14 +170,18 @@ def _ecssa_verify_raw(m: bytes,
     except Exception:
         return False
 
-def ecssa_pubkey_recovery(ec: EllipticCurve, e: bytes, ssasig: Signature, hasher = sha256) -> PubKey:
+def ecssa_pubkey_recovery(ec: EllipticCurve,
+                          e: bytes, ssasig: Signature,
+                          Hash = sha256) -> PubKey:
     assert len(e) == 32
-    return ecssa_pubkey_recovery_raw(ec, e, ssasig)
+    return ecssa_pubkey_recovery_raw(ec, e, ssasig, Hash)
 
-def ecssa_pubkey_recovery_raw(ec: EllipticCurve, ebytes: bytes, ssasig: Signature) -> PubKey:
+def ecssa_pubkey_recovery_raw(ec: EllipticCurve,
+                              ebytes: bytes, ssasig: Signature,
+                              Hash = sha256) -> PubKey:
     r, s = check_ssasig(ssasig, ec)
     K = (r, ec.yQuadraticResidue(r, True))
-    e = int_from_hash(ebytes, ec.n)
+    e = int_from_hash(ebytes, ec.n, Hash().digest_size)
     assert e != 0, "invalid challenge e"
     e1 = mod_inv(e, ec.n)
     Q = DoubleScalarMultiplication(ec, e1*s, -e1, ec.G, K)
@@ -186,7 +198,7 @@ def check_ssasig(ssasig: Signature, ec: EllipticCurve) -> Signature:
 
     # Let r = int(sig[0:32]); fail if r ≥ p.
     r = int(ssasig[0])
-    ec.checkPointCoordinate(r)
+    ec.checkPointCoordinate(r) # r is in [0, p-1]
 
     # R.x is valid iif R.y does exist and it is a quadratic residue;
     # this might be too much,
@@ -205,7 +217,7 @@ def ecssa_batch_validation(ec: EllipticCurve,
                            sig: List[Signature],
                            Q: List[PubKey],
                            a: List[int],
-                           hasher = sha256) -> bool:
+                           Hash = sha256) -> bool:
     u = len(Q)
     # initialization
     mult = 0
@@ -217,8 +229,8 @@ def ecssa_batch_validation(ec: EllipticCurve,
         ebytes = r.to_bytes(32, byteorder="big")
         ebytes += bytes_from_Point(ec, Q[i], True)
         ebytes += ms[i]
-        ebytes = hasher(ebytes).digest()
-        e = int_from_hash(ebytes, ec.n)
+        ebytes = Hash(ebytes).digest()
+        e = int_from_hash(ebytes, ec.n, Hash().digest_size)
 
         # FIXME: curve prime
         p = ec._p
