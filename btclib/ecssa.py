@@ -22,7 +22,6 @@ from btclib.ecsignutils import Message, Signature, \
 # https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 
 
-# different structure, cannot compute e (int) before ecssa_sign_raw
 def ecssa_sign(msg: Message,
                q: PrvKey,
                k: Optional[PrvKey] = None,
@@ -38,7 +37,6 @@ def ecssa_sign(msg: Message,
     k = None if k is None else int_from_Scalar(ec, k)
     return ecssa_sign_raw(M, q, k, ec, Hash)
 
-# https://eprint.iacr.org/2018/068
 def ecssa_sign_raw(M: bytes,
                    q: int,
                    k: Optional[int] = None,
@@ -102,6 +100,7 @@ def _ecssa_sign_raw(m: bytes,
 
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
     s = (k + e*d) % ec.n
+    # no need for s!=0, as in verification there will be no inverse of s
     return R[0], s
 
 def ecssa_verify(msg: Message,
