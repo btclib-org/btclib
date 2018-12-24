@@ -211,7 +211,7 @@ def _ecdsa_pubkey_recovery_raw(H: bytes,
     return keys
 
 def check_dsasig(dsasig: Signature,
-                 ec: EllipticCurve) -> Signature:
+                 ec: EllipticCurve = secp256k1) -> Signature:
     """check DSA signature format is correct and return the signature itself"""
 
     if len(dsasig) != 2:
