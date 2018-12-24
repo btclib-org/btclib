@@ -224,13 +224,13 @@ class TestEcssa(unittest.TestCase):
             sig.append(_ecssa_sign_raw(m[i], q))
             Q.append(secp256k1.pointMultiplyJacobian(q, G))
             a.append(int.from_bytes(os.urandom(secp256k1.bytesize), 'big'))
-        self.assertTrue(ecssa_batch_validation(secp256k1, m, sig, Q, a))
+        self.assertTrue(ecssa_batch_validation(m, sig, Q, a, secp256k1))
 
         m.append(m[0])
         sig.append(sig[1]) # invalid
         Q.append(Q[0])
         a.append(a[0])
-        self.assertFalse(ecssa_batch_validation(secp256k1, m, sig, Q, a))
+        self.assertFalse(ecssa_batch_validation(m, sig, Q, a, secp256k1))
 
 if __name__ == "__main__":
     # execute only if run as a script
