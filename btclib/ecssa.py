@@ -211,7 +211,7 @@ def check_ssasig(ssasig: Signature,
 
     # Let s = int(sig[32:64]); fail if s ≥ n.
     s = int(ssasig[1])
-    if s<0 or s>=ec.n:
+    if not (0 <= s < ec.n):
         raise ValueError("s not in [0, n-1]")
 
     return r, s

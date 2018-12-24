@@ -219,11 +219,11 @@ def check_dsasig(dsasig: Signature,
         raise TypeError(m)
 
     r = int(dsasig[0])
-    if r<=0 or r>=ec.n:
+    if not (0 < r < ec.n):
         raise ValueError("r not in [1, n-1]")
 
     s = int(dsasig[1])
-    if s<=0 or s>=ec.n:
+    if not (0 < s < ec.n):
         raise ValueError("s not in [1, n-1]")
 
     return r, s
