@@ -20,8 +20,8 @@ class TestEcssaMuSig(unittest.TestCase):
 
     def test_ecssamusig(self):
         L = list() # multiset of public keys
-        msg = 'message to sign'
-        H = sha256(msg.encode()).digest()
+        msg = 'message to sign'.encode()
+        H = sha256(msg).digest()
 
         # first signer
         q1 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')

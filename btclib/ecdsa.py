@@ -16,49 +16,36 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   DoubleScalarMultiplication, \
                                   int_from_Scalar, tuple_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, Signature, \
-                               bytes_from_msg, int_from_hash
+from btclib.ecsignutils import Message, HashDigest, Signature, int_from_hash
 
-def ecdsa_sign(msg: Message,
+def ecdsa_sign(M: Message,
                q: PrvKey,
                eph: Optional[PrvKey] = None,
                ec: EllipticCurve = secp256k1,
                Hash = sha256) -> Signature:
     """ECDSA signing operation according to SEC 2
 
-    Here input parameters are converted,
-    the actual signing operation is delegated to ecdsa_sign_raw
-    """
-    M = bytes_from_msg(msg)
-    q = int_from_Scalar(ec, q)
-    eph = None if eph is None else int_from_Scalar(ec, eph)
-    return ecdsa_sign_raw(M, q, eph, ec, Hash)
-
-def ecdsa_sign_raw(M: bytes,
-                   d: int,
-                   k: Optional[int] = None,
-                   ec: EllipticCurve = secp256k1,
-                   Hash = sha256) -> Signature:
-    """ECDSA signing operation according to SEC 2
-
     See section 4.1.3
     """
     H = Hash(M).digest()
-    return _ecdsa_sign_raw(H, d, k, ec, Hash)
+    q = int_from_Scalar(ec, q)
+    eph = None if eph is None else int_from_Scalar(ec, eph)
+    return _ecdsa_sign(H, q, eph, ec, Hash)
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecdsa_sign_raw(H: bytes,
-                    d: int,
-                    k: Optional[int] = None,
-                    ec: EllipticCurve = secp256k1,
-                    Hash = sha256) -> Signature:
+def _ecdsa_sign(H: HashDigest,
+                d: int,
+                k: Optional[int] = None,
+                ec: EllipticCurve = secp256k1,
+                Hash = sha256) -> Signature:
     # ECDSA signing operation according to SEC 2
     # See section 4.1.3
 
     if len(H) != Hash().digest_size:
-        errmsg = 'message digest of wrong size %s' % len(H)
+        errmsg = 'message digest of wrong size: %s instead of %s' % \
+                                                (len(H), Hash().digest_size)
         raise ValueError(errmsg)
 
     # The secret key d: an integer in the range 1..n-1.
@@ -86,46 +73,30 @@ def _ecdsa_sign_raw(H: bytes,
         raise ValueError("s = 0, failed to sign")
     return r, s
 
-def ecdsa_verify(msg: Message,
+def ecdsa_verify(M: Message,
                  dsasig: Signature,
                  Q: GenericPubKey,
                  ec: EllipticCurve = secp256k1,
                  Hash = sha256) -> bool:
     """ECDSA veryfying operation to SEC 2
 
-    Here input parameters are converted,
-    the actual veryfying operation is delegated to ecdsa_verify_raw
-    """
-    try:
-        M = bytes_from_msg(msg)
-        Q = tuple_from_Point(ec, Q)
-        return ecdsa_verify_raw(M, dsasig, Q, ec, Hash)
-    except Exception:
-        return False
-
-def ecdsa_verify_raw(M: bytes,
-                     dsasig: Signature,
-                     Q: PubKey,
-                     ec: EllipticCurve = secp256k1,
-                     Hash = sha256) -> bool:
-    """ECDSA veryfying operation to SEC 2
-
     See section 4.1.4
     """
     try:
         H = Hash(M).digest()
-        return _ecdsa_verify_raw(H, dsasig, Q, ec, Hash)
+        Q = tuple_from_Point(ec, Q)
+        return _ecdsa_verify(H, dsasig, Q, ec, Hash)
     except Exception:
         return False
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecdsa_verify_raw(H: bytes,
-                      dsasig: Signature,
-                      Q: PubKey,
-                      ec: EllipticCurve = secp256k1,
-                      Hash = sha256) -> bool:
+def _ecdsa_verify(H: bytes,
+                  dsasig: Signature,
+                  Q: PubKey,
+                  ec: EllipticCurve = secp256k1,
+                  Hash = sha256) -> bool:
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
@@ -154,36 +125,24 @@ def _ecdsa_verify_raw(H: bytes,
     except Exception:
         return False
 
-def ecdsa_pubkey_recovery(msg: Message,
+def ecdsa_pubkey_recovery(M: Message,
                           dsasig: Signature,
                           ec: EllipticCurve = secp256k1,
                           Hash = sha256) -> List[PubKey]:
     """ECDSA public key recovery operation according to SEC 2
 
-    Here input parameters are converted,
-    the actual public key recovery operation is delegated to ecdsa_pubkey_recovery_raw
-    """
-    M = bytes_from_msg(msg)
-    return ecdsa_pubkey_recovery_raw(M, dsasig, ec, Hash)
-
-def ecdsa_pubkey_recovery_raw(M: bytes,
-                              dsasig: Signature,
-                              ec: EllipticCurve = secp256k1,
-                              Hash = sha256) -> List[PubKey]:
-    """ECDSA public key recovery operation according to SEC 2
-
     See section 4.1.6
     """
     H = Hash(M).digest()
-    return _ecdsa_pubkey_recovery_raw(H, dsasig, ec, Hash)
+    return _ecdsa_pubkey_recovery(H, dsasig, ec, Hash)
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecdsa_pubkey_recovery_raw(H: bytes,
-                               dsasig: Signature,
-                               ec: EllipticCurve = secp256k1,
-                               Hash = sha256) -> List[PubKey]:
+def _ecdsa_pubkey_recovery(H: bytes,
+                           dsasig: Signature,
+                           ec: EllipticCurve = secp256k1,
+                           Hash = sha256) -> List[PubKey]:
     # ECDSA public key recovery operation according to SEC 2
     # See section 4.1.6
  

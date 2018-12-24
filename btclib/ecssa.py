@@ -18,41 +18,27 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   int_from_Scalar, tuple_from_Point, \
                                   bytes_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, Signature, \
-                               bytes_from_msg, int_from_hash
+from btclib.ecsignutils import Message, Signature, int_from_hash
 
-def ecssa_sign(msg: Message,
+def ecssa_sign(M: Message,
                q: PrvKey,
                k: Optional[PrvKey] = None,
                ec: EllipticCurve = secp256k1,
                Hash = sha256) -> Signature:
-    """ECSSA signing operation according to bip-schnorr
-
-    Here input parameters are converted,
-    the actual signing operation is delegated to ecssa_sign_raw
-    """
-    M = bytes_from_msg(msg)
-    q = int_from_Scalar(ec, q)
-    k = None if k is None else int_from_Scalar(ec, k)
-    return ecssa_sign_raw(M, q, k, ec, Hash)
-
-def ecssa_sign_raw(M: bytes,
-                   q: int,
-                   k: Optional[int] = None,
-                   ec: EllipticCurve = secp256k1,
-                   Hash = sha256) -> Signature:
     """ECSSA signing operation according to bip-schnorr"""
     m = Hash(M).digest()
-    return _ecssa_sign_raw(m, q, k, ec, Hash)
+    q = int_from_Scalar(ec, q)
+    k = None if k is None else int_from_Scalar(ec, k)
+    return _ecssa_sign(m, q, k, ec, Hash)
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecssa_sign_raw(m: bytes,
-                    d: int,
-                    k: Optional[int] = None,
-                    ec: EllipticCurve = secp256k1,
-                    Hash = sha256) -> Signature:
+def _ecssa_sign(m: bytes,
+                d: int,
+                k: Optional[int] = None,
+                ec: EllipticCurve = secp256k1,
+                Hash = sha256) -> Signature:
     #ECSSA signing operation according to bip-schnorr
 
     # the bitcoin proposed standard is only valid for curves
@@ -102,43 +88,27 @@ def _ecssa_sign_raw(m: bytes,
     # no need for s!=0, as in verification there will be no inverse of s
     return R[0], s
 
-def ecssa_verify(msg: Message,
+def ecssa_verify(M: Message,
                  ssasig: Signature,
                  Q: GenericPubKey,
                  ec: EllipticCurve = secp256k1,
                  Hash = sha256) -> bool:
-    """ECSSA veryfying operation according to bip-schnorr
-
-    Here input parameters are converted,
-    the actual veryfying operation is delegated to ecssa_verify_raw
-    """
-    try:
-        M = bytes_from_msg(msg)
-        Q =  tuple_from_Point(ec, Q)
-        return ecssa_verify_raw(M, ssasig, Q, ec, Hash)
-    except Exception:
-        return False
-
-def ecssa_verify_raw(M: bytes,
-                     ssasig: Signature,
-                     Q: PubKey,
-                     ec: EllipticCurve = secp256k1,
-                     Hash = sha256) -> bool:
     """ECSSA veryfying operation according to bip-schnorr"""
     try:
         m = Hash(M).digest()
-        return _ecssa_verify_raw(m, ssasig, Q, ec, Hash)
+        Q =  tuple_from_Point(ec, Q)
+        return _ecssa_verify(m, ssasig, Q, ec, Hash)
     except Exception:
         return False
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecssa_verify_raw(m: bytes,
-                      ssasig: Signature,
-                      P: PubKey,
-                      ec: EllipticCurve = secp256k1,
-                      Hash = sha256) -> bool:
+def _ecssa_verify(m: bytes,
+                  ssasig: Signature,
+                  P: PubKey,
+                  ec: EllipticCurve = secp256k1,
+                  Hash = sha256) -> bool:
     # ECSSA veryfying operation according to bip-schnorr
 
     # Let P = point(pk); fail if point(pk) fails.
@@ -176,12 +146,12 @@ def ecssa_pubkey_recovery(e: bytes,
                           Hash = sha256) -> PubKey:
     assert len(e) == 32
     # check that e is bytes
-    return ecssa_pubkey_recovery_raw(e, ssasig, ec, Hash)
+    return ecssa_pubkey_recovery(e, ssasig, ec, Hash)
 
-def ecssa_pubkey_recovery_raw(ebytes: bytes,
-                              ssasig: Signature,
-                              ec: EllipticCurve = secp256k1,
-                              Hash = sha256) -> PubKey:
+def _ecssa_pubkey_recovery(ebytes: bytes,
+                           ssasig: Signature,
+                           ec: EllipticCurve = secp256k1,
+                           Hash = sha256) -> PubKey:
     r, s = check_ssasig(ssasig, ec)
     K = (r, ec.yQuadraticResidue(r, True))
     e = int_from_hash(ebytes, ec.n, Hash().digest_size)

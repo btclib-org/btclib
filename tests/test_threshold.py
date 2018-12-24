@@ -7,7 +7,7 @@ from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
                                   pointAdd, pointMultiplyJacobian, \
                                   secondGenerator, opposite, \
                                   secp256k1 as ec
-from btclib.ecssa import sha256, int_from_hash, _ecssa_verify_raw
+from btclib.ecssa import sha256, int_from_hash, _ecssa_verify
 
 class TestEcssaThreshold(unittest.TestCase):
     """ testing a 2-of-3 threshold signature based on Pedersen secret sharing"""
@@ -434,7 +434,7 @@ class TestEcssaThreshold(unittest.TestCase):
 
         ecssa = (K[0], sigma)
 
-        self.assertTrue(_ecssa_verify_raw(msg, ecssa, Q, ec))
+        self.assertTrue(_ecssa_verify(msg, ecssa, Q, ec))
 
         ### ADDITIONAL PHASE: reconstruction of the private key ###
         secret = (omega1 * alpha1 + omega3 * alpha3)  % ec.n

@@ -40,32 +40,32 @@ def bits2octets(b):
     z2 = z1 % ec.n
     return int2octets(z2)
 
-def rfc6979(prv: int, m: bytes, hasher = default_hasher) -> int:
+def rfc6979(prv: int, m: bytes, Hash = default_hasher) -> int:
     if not isinstance(prv, int):
         m = "private key must be a int-like object, not '%s'" % type(prv).__name__
         raise TypeError(m)
     assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
     check_hash(m)
-    return rfc6979_raw(prv, m, hasher)
+    return rfc6979_raw(prv, m, Hash)
 
-def rfc6979_raw(prv, m, hasher = default_hasher) -> int:
+def rfc6979_raw(prv, m, Hash = default_hasher) -> int:
     hash_size = len(m)
     prv_and_m = int2octets(prv) + bits2octets(m)
     v = b'\x01' * hash_size
     k = b'\x00' * hash_size
-    k = hmac.new(k, v + b'\x00' + prv_and_m, hasher).digest()
-    v = hmac.new(k, v, hasher).digest()
-    k = hmac.new(k, v + b'\x01' + prv_and_m, hasher).digest()
-    v = hmac.new(k, v, hasher).digest()
+    k = hmac.new(k, v + b'\x00' + prv_and_m, Hash).digest()
+    v = hmac.new(k, v, Hash).digest()
+    k = hmac.new(k, v + b'\x01' + prv_and_m, Hash).digest()
+    v = hmac.new(k, v, Hash).digest()
     while True:
         t = b''
         while len(t) * 8 < qlen:
-            v = hmac.new(k, v, hasher).digest()
+            v = hmac.new(k, v, Hash).digest()
             t = t + v
         nonce = bits2int(t)
         if nonce >= 1 and nonce < ec.n:
             # here it should be checked that nonce do not yields a invalid signature
             # but then I should put the signature generation here
             return nonce
-        k = hmac.new(k, v + b'\x00', hasher).digest()
-        v = hmac.new(k, v, hasher).digest()
+        k = hmac.new(k, v + b'\x00', Hash).digest()
+        v = hmac.new(k, v, Hash).digest()

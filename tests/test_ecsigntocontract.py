@@ -12,8 +12,8 @@ class TestSignToContract(unittest.TestCase):
     def test_signtocontract(self):
         prv = 0x1
         pub = ec.pointMultiply(prv, ec.G)
-        m = "to be signed"
-        c = "to be committed"
+        m = "to be signed".encode()
+        c = "to be committed".encode()
 
         sig_ecdsa, receipt_ecdsa = ecdsa_commit_and_sign(m, prv, c)
         self.assertTrue(ecdsa_verify(m, sig_ecdsa, pub, ec))

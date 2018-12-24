@@ -2,10 +2,15 @@
 
 from typing import Tuple, Union
 
-Message = Union[str, bytes]
+Message = bytes
+HashDigest = bytes
 Signature = Tuple[int, int]
 
 default_size = 32
+
+
+def testf(m: Message, h: HashDigest) -> None:
+    m = h
 
 def check_hash(hash: bytes, size: int = default_size) -> None:
     """check that hash is a bytes-like object of correct length
@@ -17,10 +22,6 @@ def check_hash(hash: bytes, size: int = default_size) -> None:
     if len(hash) > size:
         m = "hash lenght %s must be <= size %s" % (len(hash), size)
         raise ValueError(m)
-
-def bytes_from_msg(msg: Message) -> bytes:
-    if isinstance(msg, str): return msg.encode()
-    else: return msg
 
 def int_from_hash(hash: bytes, order: int, size: int = default_size) -> int:
     """from hash digest to int"""

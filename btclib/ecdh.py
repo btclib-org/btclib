@@ -24,14 +24,14 @@ def key_derivation_function(ec: EllipticCurve, shared_secret_octet: bytes, key_d
 
     source: http://www.secg.org/sec1-v2.pdf, section 6.1
     """
-    hasher = key_setup(hash_digest_size)
+    Hash = key_setup(hash_digest_size)
     assert len(shared_secret_octet) + 4 < hash_max_len, "invalid"
     assert key_data_len < hash_digest_size * (2**32 - 1), "invalid"
     counter = 1
     counter_bytes = counter.to_bytes(4, 'big')
     K_temp = []
     for i in range(key_data_len // hash_digest_size):
-        K_temp.append(hasher(shared_secret_octet + counter_bytes).digest())
+        K_temp.append(Hash(shared_secret_octet + counter_bytes).digest())
         counter += 1
         counter_bytes = counter.to_bytes(4, 'big') 
         i += 1
