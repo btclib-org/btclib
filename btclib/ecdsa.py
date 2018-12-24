@@ -84,9 +84,12 @@ def ecdsa_verify(msg: Message,
     Here input parameters are converted,
     the actual veryfying operation is delegated to ecdsa_verify_raw
     """
-    M = bytes_from_msg(msg)
-    Q = tuple_from_Point(ec, Q)
-    return ecdsa_verify_raw(M, dsasig, Q, ec, Hash)
+    try:
+        M = bytes_from_msg(msg)
+        Q = tuple_from_Point(ec, Q)
+        return ecdsa_verify_raw(M, dsasig, Q, ec, Hash)
+    except Exception:
+        return False
 
 def ecdsa_verify_raw(M: bytes,
                      dsasig: Signature,
@@ -97,8 +100,11 @@ def ecdsa_verify_raw(M: bytes,
 
     See section 4.1.4
     """
-    H = Hash(M).digest()
-    return _ecdsa_verify_raw(H, dsasig, Q, ec, Hash)
+    try:
+        H = Hash(M).digest()
+        return _ecdsa_verify_raw(H, dsasig, Q, ec, Hash)
+    except Exception:
+        return False
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
