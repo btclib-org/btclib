@@ -2,10 +2,12 @@
 
 '''Base58 encoding
 
-Implementation of Base58 and Base58Check,
-originally from https://github.com/keis/base58,
-revised for type annotated python3, with minor improvements
-and added check functionalities
+Implementation of Base58 and Base58Check, originally from
+https://github.com/keis/base58, with the following modifications:
+- type annotated python3,
+- removal of string support (binary and hex-string only)
+- minor improvements
+- added check functionalities
 '''
 
 from hashlib import sha256
@@ -19,16 +21,16 @@ def double_sha256(s: bytes) -> bytes:
     return sha256(sha256(s).digest()).digest()
 
 def to_bytes(v: Union[str, bytes]) -> bytes:
-    '''Return bytes from bytes or string'''
-    if isinstance(v, str): v = v.encode('ascii')
+    '''Return bytes from bytes or hex-string'''
+    if isinstance(v, str): v = bytes.fromhex(v)
     if not isinstance(v, bytes):
         raise TypeError(
-            "a bytes-like object is required (also str), not '%s'" %
+            "a bytes-like object is required (also hex-string), not '%s'" %
             type(v).__name__)
     return v
 
 def b58encode_check(v: Union[str, bytes]) -> bytes:
-    '''Encode bytes (or string) using Base58 with a 4 character checksum'''
+    '''Encode bytes using Base58 with a 4 character checksum'''
 
     v = to_bytes(v)
 
@@ -37,7 +39,7 @@ def b58encode_check(v: Union[str, bytes]) -> bytes:
     return result
 
 def b58encode(v: Union[str, bytes]) -> bytes:
-    '''Encode bytes (or string) using Base58'''
+    '''Encode bytes using Base58'''
 
     v = to_bytes(v)
 
@@ -65,7 +67,7 @@ def b58encode_int(i: int) -> bytes:
     return result
 
 def b58decode_check(v: Union[str, bytes], output_size: Optional[int] = None) -> bytes:
-    '''Decode Base58 encoded bytes (or string); also verify checksum and required output length'''
+    '''Decode Base58 encoded bytes (or hex-string); also verify checksum and required output length'''
 
     v = to_bytes(v)
 
@@ -79,7 +81,7 @@ def b58decode_check(v: Union[str, bytes], output_size: Optional[int] = None) -> 
     return result
 
 def b58decode(v: Union[str, bytes], output_size: Optional[int] = None) -> bytes:
-    '''Decode Base58 encoded bytes (or string) and verify required output length'''
+    '''Decode Base58 encoded bytes (or hex-string) and verify required output length'''
 
     v = to_bytes(v)
 

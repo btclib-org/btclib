@@ -72,13 +72,13 @@ class TestKeys(unittest.TestCase):
 
   
     def test_address_from_wif(self):
-        wif1 = "5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
+        wif1 = b"5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
         prvkey, compressed = prvkey_from_wif(wif1)
         pubkey = pubkey_from_prvkey(prvkey, compressed)
         a = address_from_pubkey(pubkey)
         self.assertEqual(a, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
 
-        wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162"
+        wif2 = b"Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162"
         a = address_from_pubkey(pubkey_from_prvkey(*prvkey_from_wif(wif2)))
         self.assertEqual(a, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
 

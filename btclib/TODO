@@ -1,14 +1,15 @@
-rfc6979 test
-infinity point as tuple
-manage asset
-resolve confusion between hlen and qlen
-generalize sign to contract to multiple EC
-only accept hex-string, no other str as input
-run scripts as part of test-suite
-rfc6979 does not do % ec.n ?
+only accept bytes string, no other input str
+allow hexstrin for Message, Signature
 allow binary Signature
+infinity point as tuple
+resolve confusion between hlen and qlen
 remove default_size = 32 from ecsignutiles
-shamir trick in jacobian coordinates
+rfc6979 test
+rfc6979 does not do % ec.n ?
+shamir trick in jacobian coordinates ?
+generalize sign to contract to multiple EC
+run scripts as part of test-suite
+manage assert
 revise ecssa_pubkey_recovery
 
 ec.pointAdd with projective coordinates

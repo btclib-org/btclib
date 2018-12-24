@@ -12,32 +12,17 @@ class TestBase58CheckEncoding(unittest.TestCase):
         self.assertEqual(b58decode(b58encode(b'')), b'')
         self.assertEqual(b58encode(b58decode(b'')), b'')
 
-        self.assertEqual(b58encode(''), b'')
-        self.assertEqual(b58decode(''), b'')
-        self.assertEqual(b58decode(b58encode('')), b'')
-        self.assertEqual(b58encode(b58decode('')), b'')
-
     def test_b58_hello_world(self):
         self.assertEqual(b58encode(b'hello world'), b'StV1DL6CwTryKyV')
         self.assertEqual(b58decode(b'StV1DL6CwTryKyV'), b'hello world')
         self.assertEqual(b58decode(b58encode(b'hello world')), b'hello world')
         self.assertEqual(b58encode(b58decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
 
-        self.assertEqual(b58encode("hello world"), b'StV1DL6CwTryKyV')
-        self.assertEqual(b58decode("StV1DL6CwTryKyV"), b'hello world')
-        self.assertEqual(b58decode(b58encode("hello world")), b'hello world')
-        self.assertEqual(b58encode(b58decode("StV1DL6CwTryKyV")), b'StV1DL6CwTryKyV')
-
     def test_b58_trailing_zeros(self):
         self.assertEqual(b58encode(b'\x00\x00hello world'), b'11StV1DL6CwTryKyV')
         self.assertEqual(b58decode(b'11StV1DL6CwTryKyV'), b'\x00\x00hello world')
         self.assertEqual(b58decode(b58encode(b'\0\0hello world')), b'\x00\x00hello world')
         self.assertEqual(b58encode(b58decode(b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
-
-        self.assertEqual(b58encode("\x00\x00hello world"), b'11StV1DL6CwTryKyV')
-        self.assertEqual(b58decode("11StV1DL6CwTryKyV"), b'\x00\x00hello world')
-        self.assertEqual(b58decode(b58encode("\x00\x00hello world")), b'\x00\x00hello world')
-        self.assertEqual(b58encode(b58decode("11StV1DL6CwTryKyV")), b'11StV1DL6CwTryKyV')
 
     def test_b58_integers(self):
         digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -50,10 +35,10 @@ class TestBase58CheckEncoding(unittest.TestCase):
         self.assertEqual(b58encode_int(number), digits[1:])            
 
     def test_b58_exceptions(self):
-        # int is not str ot bytes
+        # int is not hex-string or bytes
         self.assertRaises(TypeError, b58encode_check, 3)
 
-        encoded = b58encode_check("test")
+        encoded = b58encode_check(b"test")
 
         # unexpected decoded length
         wrong_length = len(encoded)-1
