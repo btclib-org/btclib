@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 """ Elliptic Curve Digital Signature Algorithm
+
+http://www.secg.org/sec1-v2.pdf
 """
 
 from hashlib import sha256
@@ -74,10 +76,10 @@ def _ecdsa_sign_raw(H: bytes,
 
     xR = R[0]                                              # 2
     r = xR % ec.n                                          # 3
-    if r==0:
+    if r==0: # required as in verification it will multiply the public key
         raise ValueError("r = 0, failed to sign")
     # already got H as input                               # 4
-    e = int_from_hash(H, ec.n)                             # 5
+    e = int_from_hash(H, ec.n, Hash().digest_size)         # 5
     s = mod_inv(k, ec.n) * (e + r*d) % ec.n                # 6
     if s==0: # required as in verification the inverse of s is needed
         raise ValueError("s = 0, failed to sign")
@@ -125,10 +127,19 @@ def _ecdsa_verify_raw(H: bytes,
                       Hash = sha256) -> bool:
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
+
+    # Let P = point(pk); fail if point(pk) fails.
+    # already satisfied!
+
+    # The message digest m: a 32-byte array
+    if len(H) != Hash().digest_size:
+        errmsg = 'message digest of wrong size %s' % len(H)
+        raise ValueError(errmsg)
+
     try:
         r, s = check_dsasig(dsasig, ec)                     # 1
         # H already provided as input                       # 2
-        e = int_from_hash(H, ec.n)                          # 3
+        e = int_from_hash(H, ec.n, Hash().digest_size)      # 3
         s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
         R = DoubleScalarMultiplication(ec, u1, u2, ec.G, Q) # 5
         if R is None:
@@ -160,21 +171,22 @@ def ecdsa_pubkey_recovery_raw(M: bytes,
     See section 4.1.6
     """
     H = Hash(M).digest()
-    return _ecdsa_pubkey_recovery_raw(H, dsasig, ec)
+    return _ecdsa_pubkey_recovery_raw(H, dsasig, ec, Hash)
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
 def _ecdsa_pubkey_recovery_raw(H: bytes,
                                dsasig: Signature,
-                               ec: EllipticCurve = secp256k1) -> List[PubKey]:
+                               ec: EllipticCurve = secp256k1,
+                               Hash = sha256) -> List[PubKey]:
     # ECDSA public key recovery operation according to SEC 2
     # See section 4.1.6
  
     r, s = check_dsasig(dsasig, ec)
 
     # precomputations
-    e = int_from_hash(H, ec.n)      # ECDSA verification step 3
+    e = int_from_hash(H, ec.n, Hash().digest_size) # ECDSA verification step 3
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
     r1e =-r1*e
@@ -202,11 +214,11 @@ def check_dsasig(dsasig: Signature, ec: EllipticCurve) -> Signature:
         raise TypeError(m)
 
     r = int(dsasig[0])
-    if r<0 or r>=ec.n:
+    if r<=0 or r>=ec.n:
         raise ValueError("r not in [1, n-1]")
 
     s = int(dsasig[1])
-    if s<0 or s>=ec.n:
+    if s<=0 or s>=ec.n:
         raise ValueError("s not in [1, n-1]")
 
     return r, s
