@@ -9,7 +9,7 @@ rfc6979 does not do % ec.n ?
 allow binary Signature
 remove default_size = 32 from ecsignutiles
 shamir trick in jacobian coordinates
-
+revise ecssa_pubkey_recovery
 
 ec.pointAdd with projective coordinates
 http://pydoc.net/ecc/0.0.1/ecc.elliptic/
