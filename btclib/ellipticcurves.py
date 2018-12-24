@@ -252,7 +252,7 @@ def tuple_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint]) -> Point:
             assert ec.areOnCurve(Px, Py), "not on curve"
         return Px, Py
 
-    # must be a tuple
+    # input is already a tuple
     assert isOnCurve(ec, Q), "not on curve"
     return Q
 
