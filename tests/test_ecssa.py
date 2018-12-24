@@ -205,9 +205,6 @@ class TestEcssa(unittest.TestCase):
                         ebytes = sha256(ebytes).digest()
                         e = int_from_hash(ebytes, ec.n)
                         s = (k + e * q) % ec.n
-                        if s == 0:
-                            self.assertRaises(ValueError, _ecssa_sign_raw, H[m], q, k, ec)
-                            continue
 
                         # valid signature
                         sig = _ecssa_sign_raw(H[m], q, k, ec)
