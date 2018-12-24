@@ -55,14 +55,23 @@ def _ecdsa_sign_raw(H: bytes,
     # ECDSA signing operation according to SEC 2
     # See section 4.1.3
 
+    if len(H) != Hash().digest_size:
+        errmsg = 'message digest of wrong size %s' % len(H)
+        raise ValueError(errmsg)
+
+    # The secret key d: an integer in the range 1..n-1.
     if 0 == d % ec.n:
         raise ValueError("invalid (zero) private key")
+
+    # Fail if k' = 0.
     if k is None:
         k = rfc6979(d, H, Hash)                            # 1
+    k = k % ec.n
+
     R = ec.pointMultiplyJacobian(k, jac_from_affine(ec.G)) # 1
-    if R is None:
-        m = "ephemeral key %s is equal to group order" % k
-        raise ValueError(m)
+    if R is None: # this makes mypy happy in R[0]
+        raise ValueError("ephemeral key k=0 in ecdsa sign operation")
+
     xR = R[0]                                              # 2
     r = xR % ec.n                                          # 3
     if r==0:
@@ -70,7 +79,7 @@ def _ecdsa_sign_raw(H: bytes,
     # already got H as input                               # 4
     e = int_from_hash(H, ec.n)                             # 5
     s = mod_inv(k, ec.n) * (e + r*d) % ec.n                # 6
-    if s==0:
+    if s==0: # required as in verification the inverse of s is needed
         raise ValueError("s = 0, failed to sign")
     return r, s
 
