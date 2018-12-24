@@ -56,9 +56,7 @@ class EllipticCurve:
         assert Inf is None, "wrong order"
 
     def checkPointCoordinate(self, c: int) -> None:
-        """check the coordinate is an int-like object in [0, p-1]"""
-        if not isinstance(c, int):
-            raise TypeError("int-like object required")
+        """check the coordinate is in [0, p-1]"""
         if c<0:
             raise ValueError("coordinate %s < 0" % c)
         if c>=self._p:
