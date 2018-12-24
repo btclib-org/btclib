@@ -58,7 +58,7 @@ class EllipticCurve:
     def checkPointCoordinate(self, c: int) -> None:
         """check the coordinate is in [0, p-1]"""
         if not (0 <= c < self._p):
-            raise ValueError("coordinate %s not in [0, p-1]" % c
+            raise ValueError("coordinate %s not in [0, p-1]" % c)
 
     def _y2(self, x: int) -> int:
         self.checkPointCoordinate(x)
