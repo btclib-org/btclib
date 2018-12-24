@@ -70,6 +70,7 @@ def _ecdsa_sign_raw(H: bytes,
         k = rfc6979(d, H, Hash)                            # 1
     k = k % ec.n
 
+    # Let R = k'G.
     R = ec.pointMultiplyJacobian(k, jac_from_affine(ec.G)) # 1
     if R is None: # this makes mypy happy in R[0]
         raise ValueError("ephemeral key k=0 in ecdsa sign operation")
@@ -137,11 +138,14 @@ def _ecdsa_verify_raw(H: bytes,
         raise ValueError(errmsg)
 
     try:
+        # Fail if r is not [1, n-1]
+        # Fail if s is not [1, n-1]
         r, s = check_dsasig(dsasig, ec)                     # 1
         # H already provided as input                       # 2
         e = int_from_hash(H, ec.n, Hash().digest_size)      # 3
         s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
         R = DoubleScalarMultiplication(ec, u1, u2, ec.G, Q) # 5
+        # Fail if infinite(R) or r ≠ x(R) %n.
         if R is None:
             return False
         xR = R[0]                                           # 6
@@ -206,8 +210,9 @@ def _ecdsa_pubkey_recovery_raw(H: bytes,
             pass
     return keys
 
-def check_dsasig(dsasig: Signature, ec: EllipticCurve) -> Signature:
-    """check signature format is correct and return the signature itself"""
+def check_dsasig(dsasig: Signature,
+                 ec: EllipticCurve) -> Signature:
+    """check DSA signature format is correct and return the signature itself"""
 
     if len(dsasig) != 2:
         m = "invalid length %s for ECDSA signature" % len(dsasig)
