@@ -146,7 +146,7 @@ def ecssa_pubkey_recovery(e: bytes,
                           Hash = sha256) -> PubKey:
     assert len(e) == 32
     # check that e is bytes
-    return ecssa_pubkey_recovery(e, ssasig, ec, Hash)
+    return _ecssa_pubkey_recovery(e, ssasig, ec, Hash)
 
 def _ecssa_pubkey_recovery(ebytes: bytes,
                            ssasig: Signature,
