@@ -14,13 +14,10 @@ Signature = Tuple[bytes, ...]
 # source: https://github.com/ElementsProject/borromean-signatures-writeup
 
 def borromean_hash(msg: Message, R: bytes, i: int, j: int) -> bytes:
-    if type(msg) == str: msg = msg.encode()
-    i = i.to_bytes(4, 'big')
-    j = j.to_bytes(4, 'big')
-    return sha256(msg + R + i + j).digest()
+    temp = msg + R + i.to_bytes(4, 'big') + j.to_bytes(4, 'big')
+    return sha256(temp).digest()
 
 def get_msg_format(msg: Message, pubk_rings: Dict[int, List[bytes]]) -> bytes:
-    if type(msg) == str: msg = msg.encode()
     hash_argument = msg
     for i in range(len(pubk_rings)):
         for j in range(len(pubk_rings[i])):
@@ -33,7 +30,7 @@ def borromean_sign(msg: Message, sign_key_idx: List[int], sign_keys: List[Scalar
     """ Borromean ring signature - signing algorithm
 
     inputs:
-    - msg: msg to be signed 
+    - msg: msg to be signed (bytes)
     - sign_key_idx: list of indexes representing each signing key per ring
     - sign_keys: list containing the whole set of signing keys (one per ring)
     - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys
@@ -84,7 +81,7 @@ def borromean_verify(msg: Message, e_0: bytes, s: Dict[int, List[Scalar]],\
     """ Borromean ring signature - verification algorithm
 
     inputs: 
-    - msg: msg to be signed 
+    - msg: msg to be signed (bytes)
     - e_0: pinned e-value needed to start the verification algorithm
     - s: s-values, both real (one per ring) and forged
     - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys

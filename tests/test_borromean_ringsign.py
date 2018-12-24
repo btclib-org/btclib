@@ -23,7 +23,7 @@ class TestBorromeanRingSignature(unittest.TestCase):
                 priv_keys[i][j] = os.urandom(32)
                 Pub_keys[i][j] = pointMultiply(ec, priv_keys[i][j], ec.G)
             signing_keys.append(priv_keys[i][signing_indexes[i]])
-        msg = 'Borromean ring signature'
+        msg = 'Borromean ring signature'.encode()
         sig = borromean_sign(msg, signing_indexes, signing_keys, Pub_keys)
         self.assertTrue(borromean_verify(msg, sig[0], sig[1], Pub_keys))
         

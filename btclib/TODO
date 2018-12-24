@@ -3,7 +3,7 @@ infinity point as tuple
 manage asset
 resolve confusion between hlen and qlen
 generalize sign to contract to multiple EC
-only accept bytes string, no other input str
+only accept hex-string, no other str as input
 run scripts as part of test-suite
 rfc6979 does not do % ec.n ?
 allow binary Signature
