@@ -8,25 +8,24 @@ Signature = Tuple[int, int]
 
 default_size = 32
 
-
-def testf(m: Message, h: HashDigest) -> None:
-    m = h
-
-def check_hash(hash: bytes, size: int = default_size) -> None:
+def check_hash(hash_digest: bytes,
+               digest_size: int = default_size) -> None:
     """check that hash is a bytes-like object of correct length
     """
-    if not isinstance(hash, bytes):
-        m = "hash must be a bytes-like object, not '%s'" % type(hash).__name__
+    if not isinstance(hash_digest, bytes):
+        m = "hash must be a bytes-like object, not '%s'" % type(hash_digest).__name__
         raise TypeError(m)
 
-    if len(hash) > size:
-        m = "hash lenght %s must be <= size %s" % (len(hash), size)
+    if len(hash_digest) > digest_size:
+        m = "hash digest lenght %s must be <= digest size %s" % (len(hash_digest), digest_size)
         raise ValueError(m)
 
-def int_from_hash(hash: bytes, order: int, size: int = default_size) -> int:
+def int_from_hash(hash_digest: bytes,
+                  group_order: int,
+                  digest_size: int = default_size) -> int:
     """from hash digest to int"""
-    check_hash(hash, size)
-    h_len = len(hash) * 8
-    L_n = order.bit_length() # use the L_n leftmost bits of the hash
+    check_hash(hash_digest, digest_size)
+    h_len = len(hash_digest) * 8
+    L_n = group_order.bit_length() # use the L_n leftmost bits of the hash
     n = (h_len - L_n) if h_len >= L_n else 0
-    return int.from_bytes(hash, "big") >> n
+    return int.from_bytes(hash_digest, "big") >> n
