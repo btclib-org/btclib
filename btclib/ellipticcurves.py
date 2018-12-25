@@ -290,7 +290,6 @@ def pointAddJacobian(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoin
 
 Scalar = Union[str, bytes, bytearray, int]
 
-
 def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
     if isinstance(n, str): # hex string
         n = bytes.fromhex(n)
@@ -301,7 +300,7 @@ def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
         n = int.from_bytes(n, 'big')
 
     if not isinstance(n, int):
-        raise TypeError("a bytes-like object is required (also str or int)")
+        raise TypeError("a bytes-like object, hex-str,  or int is required")
     return n % ec.n
 
 def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
@@ -363,7 +362,7 @@ def secondGenerator(ec: EllipticCurve) -> Point:
     to pick H. Then coerce the hash to a point:
     as just hashing the point could possibly result not in obtaining 
     a curvepoint, keep on incrementing the hash of the x-coordinate 
-    until you get a valid curve point H = (hx,hy).
+    until you get a valid curve point H = (hx, hy).
     """
     G_bytes = bytes_from_Point(ec, ec.G, False)
     h = sha256(G_bytes).digest() 
