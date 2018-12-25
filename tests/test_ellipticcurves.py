@@ -314,7 +314,76 @@ class TestEllipticCurve(unittest.TestCase):
         H = secondGenerator(secp256k1)
         H = bytes_from_Point(secp256k1, H, True)
         self.assertEqual(H.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
+
+        # 0*G + 1*H
+        T = DoubleScalarMultiplication(secp256k1, 0, 1, secp256k1.G, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
+
+        # 0*G + 2*H
+        T = DoubleScalarMultiplication(secp256k1, 0, 2, secp256k1.G, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
+        T = pointMultiply(secp256k1, 2, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
         
+        # 0*G + 3*H
+        T = DoubleScalarMultiplication(secp256k1, 0, 3, secp256k1.G, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
+        T = pointMultiply(secp256k1, 3, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
+
+        # 1*G+0*H
+        T = DoubleScalarMultiplication(secp256k1, 1, 0, secp256k1.G, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
+        T = pointMultiply(secp256k1, 1, secp256k1.G)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
+
+       # 2*G+0*H
+        T = DoubleScalarMultiplication(secp256k1, 2, 0, secp256k1.G, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
+        T = pointMultiply(secp256k1, 2, secp256k1.G)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
+
+        # 3*G+0*H
+        T = DoubleScalarMultiplication(secp256k1, 3, 0, secp256k1.G, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
+        T = pointMultiply(secp256k1, 3, secp256k1.G)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
+
+        # 0*G+5*H
+        T = DoubleScalarMultiplication(secp256k1, 0, 5, secp256k1.G, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+        T = pointMultiply(secp256k1, 5, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+
+        # 0*G-5*H
+        T = DoubleScalarMultiplication(secp256k1, 0, -5, secp256k1.G, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+        T = pointMultiply(secp256k1, -5, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+
+        # 1*G-5*H
+        U = DoubleScalarMultiplication(secp256k1, 1, -5, secp256k1.G, H)
+        U = bytes_from_Point(secp256k1, U, True)
+        self.assertEqual(U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
+        U = pointAdd(secp256k1, secp256k1.G, T) # reusing previous T value
+        U = bytes_from_Point(secp256k1, U, True)
+        self.assertEqual(U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
+
         H = secondGenerator(secp256r1)
         H = secondGenerator(secp384r1)
 
