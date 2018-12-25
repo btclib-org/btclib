@@ -6,7 +6,7 @@ from btclib.numbertheory import mod_inv
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
                                   pointAdd, pointMultiplyJacobian, \
                                   secondGenerator, opposite, \
-                                  secp256k1 as ec
+                                  secp256k1 as ec, sha256
 from btclib.ecssa import sha256, int_from_hash, _ecssa_verify
 
 class TestEcssaThreshold(unittest.TestCase):
@@ -15,7 +15,7 @@ class TestEcssaThreshold(unittest.TestCase):
     def test_threshold(self):
         # parameters
         t = 2
-        H = secondGenerator(ec)
+        H = secondGenerator(ec, sha256)
         msg = sha256('message to sign'.encode()).digest()
 
         ### FIRST PHASE: key pair generation ###

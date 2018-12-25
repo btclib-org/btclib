@@ -2,7 +2,7 @@
 
 import unittest
 import os
-from btclib.ellipticcurves import EllipticCurve, \
+from btclib.ellipticcurves import EllipticCurve, sha256, \
                                   bytes_from_Point, tuple_from_Point, \
                                   secondGenerator, \
                                   opposite, pointAdd, pointMultiply, \
@@ -311,7 +311,7 @@ class TestEllipticCurve(unittest.TestCase):
         important remark on secp256-zkp prefix for compressed encoding of the second generator:
         https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
         """
-        H = secondGenerator(secp256k1)
+        H = secondGenerator(secp256k1, sha256)
         H = bytes_from_Point(secp256k1, H, True)
         self.assertEqual(H.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
 
@@ -344,7 +344,7 @@ class TestEllipticCurve(unittest.TestCase):
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
 
-       # 2*G+0*H
+        # 2*G+0*H
         T = DoubleScalarMultiplication(secp256k1, 2, 0, secp256k1.G, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
@@ -384,8 +384,8 @@ class TestEllipticCurve(unittest.TestCase):
         U = bytes_from_Point(secp256k1, U, True)
         self.assertEqual(U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
 
-        H = secondGenerator(secp256r1)
-        H = secondGenerator(secp384r1)
+        H = secondGenerator(secp256r1, sha256)
+        H = secondGenerator(secp384r1, sha256)
 
     def test_opposite(self): 
         for curve in allcurves:

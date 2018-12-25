@@ -4,8 +4,8 @@
 Elliptic curve class, associated functions, and instances of SEC2 curves
 """
 
-from math import sqrt
 from hashlib import sha256
+from math import sqrt
 from typing import Tuple, NewType, Union, Optional
 from btclib.numbertheory import mod_inv, mod_sqrt
 
@@ -352,7 +352,8 @@ def DoubleScalarMultiplication(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Op
 
     return ec.affine_from_jac(Q3)
 
-def secondGenerator(ec: EllipticCurve) -> Point:
+def secondGenerator(ec: EllipticCurve,
+                    Hash = sha256) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
     generator H wrt G. 
 
@@ -365,7 +366,7 @@ def secondGenerator(ec: EllipticCurve) -> Point:
     until you get a valid curve point H = (hx, hy).
     """
     G_bytes = bytes_from_Point(ec, ec.G, False)
-    h = sha256(G_bytes).digest() 
+    h = Hash(G_bytes).digest() 
     hx = int_from_Scalar(ec, h)
     isCurvePoint = False
     while not isCurvePoint:
