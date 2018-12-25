@@ -9,7 +9,7 @@ rfc6979 does not do % ec.n ?
 shamir trick in jacobian coordinates ?
 generalize sign to contract to multiple EC
 run scripts as part of test-suite
-manage assert
+remove all assert for if + raise
 revise ecssa_pubkey_recovery
 functions returning bool should be a question
 
