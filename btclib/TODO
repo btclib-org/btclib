@@ -11,6 +11,7 @@ generalize sign to contract to multiple EC
 run scripts as part of test-suite
 manage assert
 revise ecssa_pubkey_recovery
+functions returning bool should be a question
 
 ec.pointAdd with projective coordinates
 http://pydoc.net/ecc/0.0.1/ecc.elliptic/
