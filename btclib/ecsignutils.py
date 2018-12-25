@@ -13,11 +13,13 @@ def check_hash(hash_digest: bytes,
     """check that hash is a bytes-like object of correct length
     """
     if not isinstance(hash_digest, bytes):
-        m = "hash must be a bytes-like object, not '%s'" % type(hash_digest).__name__
+        m = "hash digest must be a bytes-like object, not "
+        m += "'%s'" % type(hash_digest).__name__
         raise TypeError(m)
 
     if len(hash_digest) > digest_size:
-        m = "hash digest lenght %s must be <= digest size %s" % (len(hash_digest), digest_size)
+        m = "hash digest lenght %s must be <= digest size" % len(hash_digest)
+        m += " %s" % digest_size
         raise ValueError(m)
 
 def int_from_hash(hash_digest: bytes,
