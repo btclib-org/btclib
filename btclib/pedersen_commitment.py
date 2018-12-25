@@ -10,7 +10,7 @@ def pedersen_commit(r: Scalar,
                     Hash = sha256) -> Point:
     # rG + vH
     H = secondGenerator(ec, Hash)
-    Q = DoubleScalarMultiplication(ec, r, v, ec.G, H)
+    Q = DoubleScalarMultiplication(ec, r, ec.G, v, H)
     assert Q is not None, "failed"
     return Q
 

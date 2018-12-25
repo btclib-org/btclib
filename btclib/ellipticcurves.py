@@ -321,7 +321,11 @@ def pointMultiplyJacobian(ec: EllipticCurve, n: Scalar, Q: Union[Optional[Generi
     return ec.pointMultiplyJacobian(n, Q)
 
 # efficient method to compute k1*Q1 + k2*Q2
-def DoubleScalarMultiplication(ec: EllipticCurve, k1: Scalar, k2: Scalar, Q1: Optional[GenericPoint], Q2: Optional[GenericPoint]) -> Optional[Point]:
+def DoubleScalarMultiplication(ec: EllipticCurve,
+                               k1: Scalar,
+                               Q1: Optional[GenericPoint],
+                               k2: Scalar,
+                               Q2: Optional[GenericPoint]) -> Optional[Point]:
     if Q1 is None and Q2 is not None:
         return pointMultiplyJacobian(ec, k2, Q2)
     elif Q1 is not None and Q2 is None:

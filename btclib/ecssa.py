@@ -130,7 +130,7 @@ def _ecssa_verify(m: bytes,
         ebytes  = Hash(ebytes).digest()
         e = int_from_hash(ebytes, ec.n, Hash().digest_size)
         # Let R = sG - eP.
-        R = DoubleScalarMultiplication(ec, s, -e, ec.G, P)
+        R = DoubleScalarMultiplication(ec, s, ec.G, -e, P)
         # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
         if R is None:
             return False
@@ -157,7 +157,7 @@ def _ecssa_pubkey_recovery(ebytes: bytes,
     e = int_from_hash(ebytes, ec.n, Hash().digest_size)
     assert e != 0, "invalid challenge e"
     e1 = mod_inv(e, ec.n)
-    Q = DoubleScalarMultiplication(ec, e1*s, -e1, ec.G, K)
+    Q = DoubleScalarMultiplication(ec, e1*s, ec.G, -e1, K)
     assert Q is not None, "failed"
     return Q
 

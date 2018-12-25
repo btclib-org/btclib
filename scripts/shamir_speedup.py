@@ -24,7 +24,7 @@ end = time.time()
 t2 = end - start
 
 start = time.time()
-res3 = DoubleScalarMultiplication(ec, k1, k2, ec.G, Q)
+res3 = DoubleScalarMultiplication(ec, k1, ec.G, k2, Q)
 end = time.time()
 
 t3 = end - start

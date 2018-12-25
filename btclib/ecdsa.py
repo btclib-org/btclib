@@ -115,7 +115,7 @@ def _ecdsa_verify(H: bytes,
         # H already provided as input                       # 2
         e = int_from_hash(H, ec.n, Hash().digest_size)      # 3
         s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
-        R = DoubleScalarMultiplication(ec, u1, u2, ec.G, Q) # 5
+        R = DoubleScalarMultiplication(ec, u1, ec.G, u2, Q) # 5
         # Fail if infinite(R) or r ≠ x(R) %n.
         if R is None:
             return False
@@ -159,11 +159,11 @@ def _ecdsa_pubkey_recovery(H: bytes,
         try:
             R = (x, ec.yOdd(x, 1)) # 1.2, 1.3, and 1.4
             # 1.5 already taken care outside this for loop
-            Q = DoubleScalarMultiplication(ec, r1s, r1e, R, ec.G) # 1.6.1
+            Q = DoubleScalarMultiplication(ec, r1s, R, r1e, ec.G) # 1.6.1
             # 1.6.2 is always satisfied for us, and we do not stop here
             keys.append(Q)
             R = ec.opposite(R)                                    # 1.6.3
-            Q = DoubleScalarMultiplication(ec, r1s, r1e, R, ec.G)
+            Q = DoubleScalarMultiplication(ec, r1s, R, r1e, ec.G)
             keys.append(Q)
         except Exception: # can't get a curve's point
             pass
