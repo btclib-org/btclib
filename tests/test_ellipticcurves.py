@@ -448,8 +448,8 @@ class TestEllipticCurve(unittest.TestCase):
                 yEven = ec.yOdd(x, 0)
 
                 # in this case neither or both are quadratic residues
-                self.assertRaises(AssertionError, ec.yQuadraticResidue, x, 1)
-                self.assertRaises(AssertionError, ec.yQuadraticResidue, x, 0)
+                self.assertRaises(ValueError, ec.yQuadraticResidue, x, 1)
+                self.assertRaises(ValueError, ec.yQuadraticResidue, x, 0)
                 self.assertTrue((yOdd in hasRoot and yEven in hasRoot) or 
                                 (yOdd not in hasRoot and yEven not in hasRoot))
                 if yOdd in hasRoot and yEven in hasRoot:
