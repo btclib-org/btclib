@@ -286,7 +286,6 @@ def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
         raise ValueError("point not on curve")
     return Q
 
-
 # this function is used by the EllipticCurve class; it might be a method...
 def _jac_from_affine(Q: Point) -> JacPoint:
     if len(Q) != 2:

@@ -1,3 +1,4 @@
+test low1high0
 allow hexstrin for Message, Signature
 allow binary Signature
 resolve confusion between hlen and qlen
@@ -16,10 +17,6 @@ ec.add with projective coordinates
 http://pydoc.net/ecc/0.0.1/ecc.elliptic/
 https://hyperelliptic.org/EFD/oldefd/projective.html
 
-revise check functions, to remove asserts and return bools
-
-add onCurve method ?
-
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 
 document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
@@ -35,8 +32,6 @@ test number theory (e.g. fermat's theorem)
 
 clean up PRIVATE[0] mess
 
-move to typing
 pydoc
-coverage
 package
 jupyter for scripts
