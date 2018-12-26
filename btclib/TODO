@@ -1,18 +1,16 @@
-only accept bytes string, no other input str
 allow hexstrin for Message, Signature
 allow binary Signature
-infinity point as tuple
 resolve confusion between hlen and qlen
 remove default_size = 32 from ecsignutiles
 rfc6979 test
 rfc6979 does not do % ec.n ?
-shamir trick in jacobian coordinates ?
 generalize sign to contract to multiple EC
 run scripts as part of test-suite
 remove all assert for if + raise
 revise ecssa_pubkey_recovery
 functions returning bool should be a question
 remove multiplyJacobian from batch validation
+BUG in batch validation with just one sig (plus wahy a[0]=1 ?)
 
 ec.add with projective coordinates
 http://pydoc.net/ecc/0.0.1/ecc.elliptic/
