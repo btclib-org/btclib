@@ -80,8 +80,7 @@ class TestEcssaMuSig(unittest.TestCase):
         a3 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q3, False)).digest(), ec.n)
         # aggregated public key
         Q_All = DoubleScalarMultiplication(ec, a1, Q1, a2, Q2)
-        Q_All = ec.pointAdd(Q_All,
-                            pointMultiply(ec, a3, Q3))
+        Q_All = ec.add(Q_All, pointMultiply(ec, a3, Q3))
 
         ########################
         # exchange K_x, compute s
@@ -93,7 +92,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K2_recovered = (K2_x, y)
         y = ec.yQuadraticResidue(K3_x, True)
         K3_recovered = (K3_x, y)
-        K1_All = ec.pointAdd(ec.pointAdd(K1, K2_recovered), K3_recovered)
+        K1_All = ec.add(ec.add(K1, K2_recovered), K3_recovered)
         if legendre_symbol(K1_All[1], ec._p) != 1:
             # no need to actually change K1_All[1], as it is not used anymore
             # let's fix k1 instead, as it is used later
@@ -107,7 +106,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K1_recovered = (K1_x, y)
         y = ec.yQuadraticResidue(K3_x, True)
         K3_recovered = (K3_x, y)
-        K2_All = ec.pointAdd(ec.pointAdd(K2, K1_recovered), K3_recovered)
+        K2_All = ec.add(ec.add(K2, K1_recovered), K3_recovered)
         if legendre_symbol(K2_All[1], ec._p) != 1:
             # no need to actually change K2_All[1], as it is not used anymore
             # let's fix k2 instead, as it is used later
@@ -121,7 +120,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K1_recovered = (K1_x, y)
         y = ec.yQuadraticResidue(K2_x, True)
         K2_recovered = (K2_x, y)
-        K3_All = ec.pointAdd(ec.pointAdd(K1_recovered, K2_recovered), K3)
+        K3_All = ec.add(ec.add(K1_recovered, K2_recovered), K3)
         if legendre_symbol(K3_All[1], ec._p) != 1:
             # no need to actually change K3_All[1], as it is not used anymore
             # let's fix k3 instead, as it is used later

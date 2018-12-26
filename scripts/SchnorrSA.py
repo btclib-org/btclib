@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 from hashlib import sha256
-from btclib.ellipticcurves import secp256k1 as ec
+from btclib.ellipticcurves import secp256k1 as ec, \
+                                  pointMultiply
 
 print("\n*** EC:")
 print(ec)
@@ -47,7 +48,7 @@ print("    s1:", hex(s1))
 print("*** Signature Verification")
 minush1 = -h1 %ec.n
 V = pointMultiply(ec, minush1, Q)
-V = ec.pointAdd(K1, V)
+V = ec.add(K1, V)
 print(V == pointMultiply(ec, s1, ec.G))
 
 print("\n*** Another message")
@@ -77,5 +78,5 @@ print("    s2:", hex(s2))
 print("*** Signature Verification")
 minush2 = -h2 %ec.n
 V = pointMultiply(ec, minush2, Q)
-V = ec.pointAdd(K2, V)
+V = ec.add(K2, V)
 print(V == pointMultiply(ec, s2, ec.G))

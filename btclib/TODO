@@ -12,8 +12,9 @@ run scripts as part of test-suite
 remove all assert for if + raise
 revise ecssa_pubkey_recovery
 functions returning bool should be a question
+remove multiplyJacobian from batch validation
 
-ec.pointAdd with projective coordinates
+ec.add with projective coordinates
 http://pydoc.net/ecc/0.0.1/ecc.elliptic/
 https://hyperelliptic.org/EFD/oldefd/projective.html
 

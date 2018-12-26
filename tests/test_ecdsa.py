@@ -4,8 +4,8 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import jac_from_affine, secp256k1 as ec, \
-                                  pointMultiply, pointMultiplyJacobian
+from btclib.ellipticcurves import _jac_from_affine, secp256k1 as ec, \
+                                  pointMultiply
 from btclib.ecdsa import rfc6979, int_from_hash, \
                          _ecdsa_sign, ecdsa_sign, \
                          _ecdsa_verify, ecdsa_verify, \
@@ -59,14 +59,11 @@ class TestEcdsa(unittest.TestCase):
                     if q == 0:
                         self.assertRaises(ValueError, _ecdsa_sign, H[0], q, None, ec)
                         continue
-                    G = jac_from_affine(ec.G) # G in jacobian coordinates
-                    Qjac = pointMultiplyJacobian(ec, q, G) # public key
-                    Q = ec.affine_from_jac(Qjac)
+                    Q = pointMultiply(ec, q, ec.G) # public key
                     for m in range(0, ec.n): # all possible hashed messages
 
                         k = rfc6979(q, H[m], sha256) % ec.n # ephemeral key
-                        Kjac = pointMultiplyJacobian(ec, k, G)
-                        K = ec.affine_from_jac(Kjac)
+                        K = pointMultiply(ec, k, ec.G)
                         if K[1] == 0:
                             self.assertRaises(ValueError, _ecdsa_sign, H[m], q, k, ec)
                             continue

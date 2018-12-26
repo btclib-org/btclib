@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 from hashlib import sha256
-from btclib.ellipticcurves import secp256k1 as ec
 from btclib.numbertheory import mod_inv
+from btclib.ellipticcurves import secp256k1 as ec, \
+                                  pointMultiply
 
 print("\n*** EC:")
 print(ec)
@@ -57,7 +58,7 @@ assert u != 0
 assert v != 0
 U = pointMultiply(ec, u, ec.G)
 V = pointMultiply(ec, v, Q)
-x, y = ec.pointAdd(U, V)
+x, y = ec.add(U, V)
 print(r == x %ec.n)
 
 print("\n*** Malleated Signature")
@@ -73,7 +74,7 @@ assert u != 0
 assert v != 0
 U = pointMultiply(ec, u, ec.G)
 V = pointMultiply(ec, v, Q)
-x, y = ec.pointAdd(U, V)
+x, y = ec.add(U, V)
 print(r == x %ec.n)
 
 print("\n*** Another message")
@@ -112,5 +113,5 @@ assert u != 0
 assert v != 0
 U = pointMultiply(ec, u, ec.G)
 V = pointMultiply(ec, v, Q)
-x, y = ec.pointAdd(U, V)
+x, y = ec.add(U, V)
 print(r == x %ec.n)

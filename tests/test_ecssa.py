@@ -7,8 +7,7 @@ from hashlib import sha256
 from btclib.numbertheory import legendre_symbol
 from btclib.ellipticcurves import secp256k1 as ec, int_from_Scalar, \
                                   bytes_from_Point, to_Point, \
-                                  jac_from_affine, \
-                                  pointMultiply, pointMultiplyJacobian
+                                  pointMultiply
 from btclib.ecssa import rfc6979, int_from_hash, \
                          _ecssa_sign, \
                          _ecssa_verify, \
@@ -218,14 +217,11 @@ class TestEcssa(unittest.TestCase):
                     if q == 0:
                         self.assertRaises(ValueError, _ecssa_sign, H[0], q, None, ec)
                         continue
-                    G = jac_from_affine(ec.G) # Generator in jacobian coordinates
-                    Qjac = pointMultiplyJacobian(ec, q, G) # public key
-                    Q = ec.affine_from_jac(Qjac)
+                    Q = pointMultiply(ec, q, ec.G) # public key
                     for m in range(0, ec.n): # all possible hashed messages
 
                         k = rfc6979(q, H[m], sha256) % ec.n # ephemeral key
-                        Kjac = pointMultiplyJacobian(ec, k, G)
-                        K = ec.affine_from_jac(Kjac)
+                        K = pointMultiply(ec, k, ec.G)
                         if K[1] == 0:
                             self.assertRaises(ValueError, _ecssa_sign, H[m], q, k, ec)
                             continue
@@ -246,17 +242,15 @@ class TestEcssa(unittest.TestCase):
                         self.assertTrue(_ecssa_verify(H[m], sig, Q, ec))
 
     def test_batch_validation(self):
-        Q = []
         m = []
         sig = []
+        Q = []
         a = []
-        G = jac_from_affine(ec.G)
         for i in range(0, 50):
-            q = int_from_Scalar(ec, os.urandom(ec.bytesize))
             m.append(os.urandom(ec.bytesize))
+            q = int_from_Scalar(ec, os.urandom(ec.bytesize))
             sig.append(_ecssa_sign(m[i], q))
-            Qjac = pointMultiplyJacobian(ec, q, G)
-            Q.append(ec.affine_from_jac(Qjac))
+            Q.append(pointMultiply(ec, q, ec.G))
             a.append(int.from_bytes(os.urandom(ec.bytesize), 'big')) #FIXME:%?
         self.assertTrue(ecssa_batch_validation(m, sig, Q, a, ec))
 

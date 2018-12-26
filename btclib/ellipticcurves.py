@@ -1,16 +1,293 @@
 #!/usr/bin/env python3
 
 """
-EllipticCurve functions and instances of SEC2 elliptic curves
+EllipticCurve class, functions, and instances of SEC2 elliptic curves
+
+TODO: document duck-typing and static typing design choices
 """
 
 from hashlib import sha256
+from math import sqrt
 from typing import Tuple, NewType, Union
 
-from btclib.ellipticcurve import Point, GenericPoint, \
-                                 JacPoint, jac_from_affine, \
-                                 EllipticCurve, to_Point
+from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
+Point = Tuple[int, int]
+# infinity point is (int, 0), checked with 'Inf[1] == 0'
+GenericPoint = Union[str, bytes, Point]
+# str must be a hex-string
+
+JacPoint = Tuple[int, int, int] 
+# infinity point is (int, int, 0), checked with 'Inf[2] == 0'
+
+# elliptic curve y^2 = x^3 + a*x + b
+class EllipticCurve:
+    """Elliptic curve over Fp group"""
+
+    def __init__(self,
+                 p: int,
+                 a: int,
+                 b: int,
+                 G: Point,
+                 n: int,
+                 checkWeakness = True) -> None:
+        """EllipticCurve instantiation
+
+        Parameters are checked according to SEC2 3.1.1.2.1
+        """
+
+        # 1) check that p is an odd prime
+        if p % 2 == 0:
+            raise ValueError("p %s is not odd" % p)
+        # Fermat test will do as _probabilistic_ primality test...
+        if not pow(2, p-1, p) == 1:
+            raise ValueError("p %s is not prime" % p)
+        self._p = p
+        self.bytesize = (p.bit_length() + 7) // 8
+
+        # 1. check that security level is as required
+        # missing for the time being
+
+        # must be true to break simmetry using quadratic residue
+        self.pIsThreeModFour = (self._p % 4 == 3)
+
+        # 2. check that a and b are integers in the interval [0, p−1]
+        self.checkCoordinate(a)
+        self.checkCoordinate(b)
+
+        # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p).
+        if 4*a*a*a+27*b*b % p == 0:
+            raise ValueError("zero discriminant")
+        self._a = a
+        self._b = b
+
+        # 2. check that xG and yG are integers in the interval [0, p−1]
+        if len(G) != 2:
+            raise ValueError("Generator must a be a Tuple[int, int]")
+        if not self.areValidCoordinates(G[0], G[1]):
+            raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
+        self.G = int(G[0]), int(G[1])
+
+        # 4. Check that n is prime.
+        if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
+            raise ValueError("n %s is not prime" % n)
+        # also check n with Hasse Theorem
+        t = int(2 * sqrt(p))
+        if not (p+1 - t <= n <= p+1 + t):
+            raise ValueError("n %s not in [p+1 - t, p+1 + t]" % n)
+        
+        # 7. Check that nG = Inf.
+        self.n = n
+        Inf = pointMultiply(self, n, self.G)
+        if Inf[1] != 0:
+            raise ValueError("n is not the group order")
+
+        # 6. Check cofactor
+        # missing for the time being
+
+        #8. Check that n ≠ p
+        if n == p:
+            raise UserWarning("n=p -> weak curve")
+        # 8. Check that p^i % n ≠ 1 for all 1≤i<100
+        if checkWeakness:
+            for i in (1, 100):
+                if pow(p, i, n) == 1:
+                    raise UserWarning("weak curve")
+        
+    def __str__(self) -> str:
+        result  = "EllipticCurve"
+        result += "\n p = 0x%032x" % (self._p)
+        result += "\n a = %s, b = %s" % (self._a, self._b)
+        result += "\n G = (0x%032x,\n          0x%032x)" % (self.G)
+        result += "\n n = 0x%032x" % (self.n)
+        return result
+
+    def __repr__(self) -> str:
+        result  = "EllipticCurve("
+        result += "0x%032x" % (self._p)
+        result += ", %s, %s" % (self._a, self._b)
+        result += ", (0x%032x,0x%032x)" % (self.G)
+        result += ", 0x%032x)" % (self.n)
+        return result
+
+    # methods using _p: they would become functions if _p goes public
+
+    def checkCoordinate(self, c: int) -> None: # FIXME: jac / affine ?
+        """check that coordinate is in [0, p-1]"""
+        if not (0 <= c < self._p):
+            raise ValueError("coordinate %s not in [0, p-1]" % c)
+
+    def opposite(self, Q: GenericPoint) -> Point:
+        Q = to_Point(self, Q)
+        if Q[1] == 0: # Infinity point in affine coordinates
+            return Q
+        else:
+            return Q[0], self._p - Q[1]
+
+    def _affine_from_jac(self, Q: JacPoint) -> Point:
+        if len(Q) != 3:
+            raise ValueError("input point not in Jacobian coordinates")
+        if Q[2] == 0: # Infinity point in Jacobian coordinates
+            return 1, 0
+        else:
+            x = (Q[0]*mod_inv(Q[2]*Q[2], self._p)) % self._p
+            y = (Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self._p)) % self._p
+            return x, y
+
+    # methods using _a, _b, _p
+
+    def _addJacobian(self, Q: JacPoint, R: JacPoint) -> JacPoint:
+        if Q[2] == 0: # Infinity point in Jacobian coordinates
+            return R
+        if R[2] == 0: # Infinity point in Jacobian coordinates
+            return Q
+
+        # same affine x coordinate        
+        if Q[0]*R[2]*R[2] % self._p == R[0]*Q[2]*Q[2] % self._p:
+            # opposite points or degenerate case
+            if Q[1]*R[2]*R[2]*R[2] % self._p != R[1]*Q[2]*Q[2]*Q[2] % self._p or Q[1] % self._p == 0:
+                return 1, 1, 0
+            else:                            # point doubling
+                W = (3*Q[0]*Q[0] + self._a*Q[2]*Q[2]*Q[2]*Q[2]) % self._p
+                V = (4*Q[0]*Q[1]*Q[1]) % self._p
+                X = (W*W - 2*V) % self._p
+                Y = (W*(V - X) - 8*Q[1]*Q[1]*Q[1]*Q[1]) % self._p
+                Z = (2*Q[1]*Q[2]) % self._p
+                return X, Y, Z
+        else:
+            T = (Q[1]*R[2]*R[2]*R[2]) % self._p
+            U = (R[1]*Q[2]*Q[2]*Q[2]) % self._p
+            W = (U - T) % self._p
+            M = (Q[0]*R[2]*R[2]) % self._p
+            N = (R[0]*Q[2]*Q[2]) % self._p
+            V = (N - M) % self._p
+                
+            X = (W*W - V*V*V - 2*M*V*V) % self._p
+            Y = (W*(M*V*V - X) - T*V*V*V) % self._p
+            Z = (V*Q[2]*R[2]) % self._p
+            return X, Y, Z
+
+    def _addAffine(self, Q: GenericPoint, R: GenericPoint) -> Point:
+        Q = to_Point(self, Q)
+        R = to_Point(self, R)
+        if R[1] == 0: # Infinity point in affine coordinates
+            return Q
+        if Q[1] == 0: # Infinity point in affine coordinates
+            return R
+        if R[0] == Q[0]:
+            if R[1] == Q[1]: # point doubling
+                lam = ((3*Q[0]*Q[0]+self._a)*mod_inv(2*Q[1], self._p)) % self._p
+            elif R[1] == self._p - Q[1]: # opposite points
+                return 1, 0
+            else:
+                raise ValueError("points are not on the same curve")
+        else:
+            lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
+        x = (lam*lam-Q[0]-R[0]) % self._p
+        y = (lam*(Q[0]-x)-Q[1]) % self._p
+        return x, y
+
+    def add(self, Q1: GenericPoint, Q2: GenericPoint) -> Point:
+        Q1 = to_Point(self, Q1)
+        Q2 = to_Point(self, Q2)
+        QJ1 = _jac_from_affine(Q1)
+        QJ2 = _jac_from_affine(Q2)
+        R = self._addJacobian(QJ1, QJ2)
+        return self._affine_from_jac(R)
+
+    def _y2(self, x: int) -> int:
+        self.checkCoordinate(x)
+        # skipping a crucial check here:
+        # if sqrt(y*y) does not exist, then x is not valid.
+        # This is a good reason to keep this method private
+        return ((x*x + self._a)*x + self._b) % self._p
+
+    def y(self, x: int) -> int:
+        y2 = self._y2(x)
+        # mod_sqrt will raise a ValueError if root does not exist
+        return mod_sqrt(y2, self._p)
+
+    def areValidCoordinates(self, x: int, y: int) -> bool:
+        if y == 0: # Infinity point in affine coordinates
+            return True
+        self.checkCoordinate(y)
+        return self._y2(x) == (y*y % self._p)
+
+    # break the y simmetry: even/odd, low/high, or quadratic residue criteria
+
+    def yOdd(self, x: int, odd1even0: int) -> int:
+        """return the odd (even) y coordinate associated to x"""
+        if odd1even0 not in (0, 1):
+            raise ValueError("odd1even0 must be bool or 0/1")
+        root = self.y(x)
+        # switch even/odd root when needed
+        return root if (root % 2 + odd1even0) != 1 else self._p - root
+
+    def yLow(self, x: int, low1high0: int) -> int:
+        """return the low (high) y coordinate associated to x"""
+        if low1high0 not in (0, 1):
+            raise ValueError("low1high0 must be bool or 0/1")
+        root = self.y(x)
+        # switch low/high root when needed
+        return root if (root < self._p/2) else self._p - root
+
+    def yQuadraticResidue(self, x: int, quadRes: int) -> int:
+        """return the quadratic residue y coordinate associated to x"""
+        if not self.pIsThreeModFour:
+            raise ValueError("this method works only when p = 3 (mod 4)")
+        if quadRes not in (0, 1):
+            raise ValueError("quadRes must be bool or 0/1")
+        root = self.y(x)
+        # switch to the quadratic residue root when needed
+        if quadRes:
+            return self._p - root if (legendre_symbol(root, self._p) != 1) else root
+        else:
+            return root if (legendre_symbol(root, self._p) != 1) else self._p - root
+
+
+def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
+    """Return a tuple (Px, Py) according to SEC2 2.3.4
+    
+    It ensures the point belongs to the curve
+    """
+
+    if isinstance(Q, str):
+        # BIP32 xpub is not considered here,
+        # as it is a bitcoin convention only
+        Q = bytes.fromhex(Q)
+
+    if isinstance(Q, bytes):
+        if len(Q) == 1 and Q[0] == 0x00: # infinity point
+            return 1, 0
+        if len(Q) == ec.bytesize+1: # compressed point
+            assert Q[0] == 0x02 or Q[0] == 0x03, "not a compressed point"
+            Px = int.from_bytes(Q[1:], 'big')
+            Py = ec.yOdd(Px, Q[0] % 2) # also check Px validity
+        else:                          # uncompressed point
+            assert len(Q) == 2*ec.bytesize+1, \
+                "wrong byte-size (%s) for a point: it should be %s or %s" % \
+                                    (len(Q), ec.bytesize+1, 2*ec.bytesize+1)
+            assert Q[0] == 0x04, "not an uncompressed point"
+            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
+            Py = int.from_bytes(Q[ec.bytesize+1:], 'big')
+            assert ec.areValidCoordinates(Px, Py), "not on curve"
+        return Px, Py
+
+    # input is already a Point
+    if not ec.areValidCoordinates(Q[0], Q[1]):
+        raise ValueError("point not on curve")
+    return Q
+
+
+# this function is used by the EllipticCurve class; it might be a method...
+def _jac_from_affine(Q: Point) -> JacPoint:
+    if len(Q) != 2:
+        raise ValueError("input point not in affine coordinates")
+    if Q[1] == 0: # Infinity point in affine coordinates
+        return 1, 1, 0
+    return Q[0], Q[1], 1
+
+# this function is used by the EllipticCurve class; it might be a method...
 def bytes_from_Point(ec: EllipticCurve,
                      Q: GenericPoint,
                      compressed: bool) -> bytes:
@@ -33,16 +310,16 @@ def bytes_from_Point(ec: EllipticCurve,
 
 Scalar = Union[str, bytes, int]
 
-def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
-    if isinstance(n, str): # hex string
-        n = bytes.fromhex(n)
+def int_from_Scalar(ec: EllipticCurve, q: Scalar) -> int:
+    if isinstance(q, str): # hex string
+        q = bytes.fromhex(q)
 
-    if isinstance(n, bytes):
+    if isinstance(q, bytes):
         # FIXME: asses if must be <= or ec.bytesize should be revised
-        assert len(n) <= ec.bytesize, "wrong lenght"
-        n = int.from_bytes(n, 'big')
+        assert len(q) <= ec.bytesize, "wrong lenght"
+        q = int.from_bytes(q, 'big')
 
-    return n % ec.n
+    return q % ec.n
 
 def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     # enforce self-consistency with whatever
@@ -50,9 +327,18 @@ def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     n = int_from_Scalar(ec, n)
     return n.to_bytes(ec.bytesize, 'big')
 
+# this function is used by the EllipticCurve class; it might be a method...
 def pointMultiply(ec: EllipticCurve,
                   n: Scalar,
                   Q: GenericPoint) -> Point:
+    Q = to_Point(ec, Q)
+    QJ = _jac_from_affine(Q)
+    R = _pointMultiplyJacobian(ec, n, QJ)
+    return ec._affine_from_jac(R)
+
+def _pointMultiplyAffine(ec: EllipticCurve,
+                        n: Scalar,
+                        Q: GenericPoint) -> Point:
     """double & add in affine coordinates, using binary decomposition of n"""
     n = int_from_Scalar(ec, n)
     Q = to_Point(ec, Q)
@@ -62,13 +348,13 @@ def pointMultiply(ec: EllipticCurve,
     R = 1, 0      # initialize as infinity point
     while n > 0:  # use binary representation of n
         if n & 1: # if least significant bit is 1 then add current Q
-            R = ec.pointAdd(R, Q)
+            R = ec.add(R, Q)
         n = n>>1  # right shift removes the bit just accounted for
                   # double Q for next step
-        Q = ec.pointAdd(Q, Q)
+        Q = ec.add(Q, Q)
     return R
 
-def pointMultiplyJacobian(ec: EllipticCurve,
+def _pointMultiplyJacobian(ec: EllipticCurve,
                           n: Scalar,
                           Q: JacPoint) -> JacPoint:
     """double & add in jacobian coordinates, using binary decomposition of n"""
@@ -81,10 +367,10 @@ def pointMultiplyJacobian(ec: EllipticCurve,
     R = 1, 1, 0   # initialize as infinity point
     while n > 0:  # use binary representation of n
         if n & 1: # if least significant bit is 1 then add current Q
-            R = ec.pointAddJacobian(R, Q)
+            R = ec._addJacobian(R, Q)
         n = n>>1  # right shift removes the bit just accounted for
                   # double Q for next step:
-        Q = ec.pointAddJacobian(Q, Q)
+        Q = ec._addJacobian(Q, Q)
     return R
 
 def DoubleScalarMultiplication(ec: EllipticCurve,
@@ -96,31 +382,31 @@ def DoubleScalarMultiplication(ec: EllipticCurve,
 
     r1 = int_from_Scalar(ec, k1)
     Q1 = to_Point(ec, Q1)
-    R1 = jac_from_affine(Q1)
+    R1 = _jac_from_affine(Q1)
 
     r2 = int_from_Scalar(ec, k2)
     Q2 = to_Point(ec, Q2)
-    R2 = jac_from_affine(Q2)
+    R2 = _jac_from_affine(Q2)
 
     if R1[2] == 0:
-        R = pointMultiplyJacobian(ec, r2, R2)
+        R = _pointMultiplyJacobian(ec, r2, R2)
     elif R2[2] == 0:
-        R = pointMultiplyJacobian(ec, r1, R1)
+        R = _pointMultiplyJacobian(ec, r1, R1)
     else:
         R = 1, 1, 0 # initialize as infinity point
         msb = max(r1.bit_length(), r2.bit_length())
         while msb > 0:
             if r1 >> (msb - 1): # checking msb
-                R = ec.pointAddJacobian(R, R1)
+                R = ec._addJacobian(R, R1)
                 r1 -= pow(2, r1.bit_length() - 1)
             if r2 >> (msb - 1): # checking msb
-                R = ec.pointAddJacobian(R, R2)
+                R = ec._addJacobian(R, R2)
                 r2 -= pow(2, r2.bit_length() - 1)
             if msb > 1:
-                R = ec.pointAddJacobian(R, R)
+                R = ec._addJacobian(R, R)
             msb -= 1
 
-    return ec.affine_from_jac(R)
+    return ec._affine_from_jac(R)
 
 def secondGenerator(ec: EllipticCurve,
                     Hash = sha256) -> Point:

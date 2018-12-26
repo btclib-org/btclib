@@ -7,9 +7,10 @@ from btclib.numbertheory import mod_sqrt
 from btclib.ellipticcurves import EllipticCurve, sha256, \
                                   bytes_from_Point, to_Point, \
                                   int_from_Scalar, \
-                                  jac_from_affine, \
-                                  pointMultiply, pointMultiplyJacobian, \
-                                  DoubleScalarMultiplication, \
+                                  pointMultiply, DoubleScalarMultiplication, \
+                                  _jac_from_affine, \
+                                  _pointMultiplyJacobian, \
+                                  _pointMultiplyAffine, \
                                   secondGenerator, \
                                   secp256k1, secp256r1, secp384r1, SEC_curves
 
@@ -224,18 +225,18 @@ class TestEllipticCurve(unittest.TestCase):
             G2 = to_Point(ec, G2)
             self.assertEqual(ec.G, G2)
 
-            P = ec.pointAdd(Inf, ec.G)
+            P = ec.add(Inf, ec.G)
             self.assertEqual(P, ec.G)
-            P = ec.pointAdd(ec.G, Inf)
+            P = ec.add(ec.G, Inf)
             self.assertEqual(P, ec.G)
-            P = ec.pointAdd(Inf, Inf)
+            P = ec.add(Inf, Inf)
             self.assertEqual(P, Inf)
 
-            P = ec.pointAdd(ec.G, ec.G)
+            P = ec.add(ec.G, ec.G)
             self.assertEqual(P, pointMultiply(ec, 2, ec.G))
 
             P = pointMultiply(ec, ec.n-1, ec.G)
-            self.assertEqual(ec.pointAdd(P, ec.G), Inf)
+            self.assertEqual(ec.add(P, ec.G), Inf)
             self.assertEqual(pointMultiply(ec, ec.n, ec.G), Inf)
 
             self.assertEqual(pointMultiply(ec, 0, Inf), Inf)
@@ -349,7 +350,7 @@ class TestEllipticCurve(unittest.TestCase):
         U = DoubleScalarMultiplication(secp256k1, 1, secp256k1.G, -5, H)
         U = bytes_from_Point(secp256k1, U, True)
         self.assertEqual(U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
-        U = secp256k1.pointAdd(secp256k1.G, T) # reusing previous T value
+        U = secp256k1.add(secp256k1.G, T) # reusing previous T value
         U = bytes_from_Point(secp256k1, U, True)
         self.assertEqual(U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
 
@@ -364,11 +365,11 @@ class TestEllipticCurve(unittest.TestCase):
                 q = os.urandom(ec.bytesize)
                 Q = pointMultiply(ec, q, ec.G)
             minus_Q = ec.opposite(Q)
-            self.assertEqual(ec.pointAdd(Q, minus_Q), Inf)
+            self.assertEqual(ec.add(Q, minus_Q), Inf)
             # jacobian coordinates
-            Qjac = jac_from_affine(Q)
-            minus_Qjac = jac_from_affine(minus_Q)
-            self.assertEqual(ec.pointAddJacobian(Qjac, minus_Qjac), (1, 1, 0))
+            Qjac = _jac_from_affine(Q)
+            minus_Qjac = _jac_from_affine(minus_Q)
+            self.assertEqual(ec._addJacobian(Qjac, minus_Qjac), (1, 1, 0))
 
     # FIXME remove urandom from tests
     def test_quad_res(self):
@@ -434,10 +435,10 @@ class TestEllipticCurve(unittest.TestCase):
             # random point
             q = os.urandom(ec.bytesize)
             Q = pointMultiply(ec, q, ec.G)
-            checkQ = ec.affine_from_jac(jac_from_affine(Q))
+            checkQ = ec._affine_from_jac(_jac_from_affine(Q))
             self.assertEqual(Q, checkQ)
 
-    def test_AddJacobian(self):
+    def test_Add(self):
         for ec in all_curves:
             q1 = os.urandom(ec.bytesize)
             Q1 = pointMultiply(ec, q1, ec.G)
@@ -445,37 +446,37 @@ class TestEllipticCurve(unittest.TestCase):
             Q2 = pointMultiply(ec, q2, ec.G)
         
             # distinct points
-            Q3 = ec.pointAdd(Q1, Q2)
-            Q3jac = ec.pointAddJacobian(jac_from_affine(Q1),
-                                        jac_from_affine(Q2))
-            self.assertEqual(Q3, ec.affine_from_jac(Q3jac))
+            Q3 = ec._addAffine(Q1, Q2)
+            Q3jac = ec._addJacobian(_jac_from_affine(Q1),
+                                    _jac_from_affine(Q2))
+            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
             # point at infinity
-            Q3 = ec.pointAdd(Q2, Inf)
-            Q3jac = ec.pointAddJacobian(jac_from_affine(Q2),
-                                        jac_from_affine(Inf))
-            self.assertEqual(Q3, ec.affine_from_jac(Q3jac))
+            Q3 = ec._addAffine(Q2, Inf)
+            Q3jac = ec._addJacobian(_jac_from_affine(Q2),
+                                    _jac_from_affine(Inf))
+            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
         
             # point doubling 
-            Q3 = ec.pointAdd(Q1, Q1)
-            Q3jac = ec.pointAddJacobian(jac_from_affine(Q1),
-                                        jac_from_affine(Q1))
-            self.assertEqual(Q3, ec.affine_from_jac(Q3jac))
+            Q3 = ec._addAffine(Q1, Q1)
+            Q3jac = ec._addJacobian(_jac_from_affine(Q1),
+                                    _jac_from_affine(Q1))
+            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
             # opposite points
             Q1opp = ec.opposite(Q1)
-            Q3 = ec.pointAdd(Q1, Q1opp)
-            Q3jac = ec.pointAddJacobian(jac_from_affine(Q1),
-                                        jac_from_affine(Q1opp))
-            self.assertEqual(Q3, ec.affine_from_jac(Q3jac))
+            Q3 = ec._addAffine(Q1, Q1opp)
+            Q3jac = ec._addJacobian(_jac_from_affine(Q1),
+                                    _jac_from_affine(Q1opp))
+            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
-    def test_MultiplyJacobian(self):
+    def test_Multiply(self):
         for ec in low_card_curves_1:
-            Gjac = jac_from_affine(ec.G)
+            Gjac = _jac_from_affine(ec.G)
             for q in range(2, ec.n):
-                Q = pointMultiply(ec, q, ec.G)
-                Qjac = pointMultiplyJacobian(ec, q, Gjac)
-                Q2 = ec.affine_from_jac(Qjac)
+                Q = _pointMultiplyAffine(ec, q, ec.G)
+                Qjac = _pointMultiplyJacobian(ec, q, Gjac)
+                Q2 = ec._affine_from_jac(Qjac)
                 self.assertEqual(Q, Q2)
 
     def test_shamir(self):
@@ -487,10 +488,10 @@ class TestEllipticCurve(unittest.TestCase):
             Q = pointMultiply(ec, q, ec.G)
 
             shamir = DoubleScalarMultiplication(ec, k1, ec.G, k2, Q)
-            std = ec.pointAdd(pointMultiply(ec, k1, ec.G),
-                              pointMultiply(ec, k2, Q))
-
+            std = ec.add(pointMultiply(ec, k1, ec.G),
+                         pointMultiply(ec, k2, Q))
             self.assertEqual(shamir, std)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

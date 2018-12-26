@@ -12,9 +12,9 @@ from typing import List, Optional
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ellipticcurves import Union, Tuple, \
                                   Scalar, Point, GenericPoint, \
-                                  EllipticCurve, secp256k1, jac_from_affine, \
-                                  pointMultiplyJacobian, \
-                                  DoubleScalarMultiplication, \
+                                  EllipticCurve, secp256k1, \
+                                  _jac_from_affine, _pointMultiplyJacobian, \
+                                  pointMultiply, DoubleScalarMultiplication, \
                                   int_from_Scalar, to_Point, \
                                   bytes_from_Point
 from btclib.rfc6979 import rfc6979
@@ -55,9 +55,7 @@ def _ecssa_sign(m: bytes,
     d = int_from_Scalar(ec, d)
     if d == 0:
         raise ValueError("invalid (zero) private key")
-    G = jac_from_affine(ec.G)
-    Qjac = pointMultiplyJacobian(ec, d, G)
-    Q = ec.affine_from_jac(Qjac)
+    Q = pointMultiply(ec, d, ec.G)
 
     # Fail if k' = 0.
     if k is None:
@@ -66,8 +64,7 @@ def _ecssa_sign(m: bytes,
         k = int_from_Scalar(ec, k)
 
     # Let R = k'G.
-    Rjac = pointMultiplyJacobian(ec, k, G)
-    R = ec.affine_from_jac(Rjac)
+    R = pointMultiply(ec, k, ec.G)
     if R[1] == 0:
         raise ValueError("ephemeral key k=0 in ecssa sign operation")
 
@@ -198,6 +195,9 @@ def ecssa_batch_validation(ms: List[bytes],
                            ec: EllipticCurve = secp256k1,
                            Hash = sha256) -> bool:
     u = len(Q)
+    if u==0:
+        return False
+
     # initialization
     mult = 0
     points = list()
@@ -214,9 +214,9 @@ def ecssa_batch_validation(ms: List[bytes],
         y = ec.y(r) # raises an error if y does not exist
 
         mult += a[i] * s % ec.n
-        points.append(jac_from_affine((r, y)))
+        points.append(_jac_from_affine((r, y)))
         factors.append(a[i])
-        points.append(jac_from_affine(Q[i]))
+        points.append(_jac_from_affine(Q[i]))
         factors.append(a[i] * e % ec.n)
 
     # Bos-coster's algorithm, source:
@@ -228,14 +228,14 @@ def ecssa_batch_validation(ms: List[bytes],
         aK2 = heapq.heappop(boscoster)
         a1, K1 = -aK1[0], aK1[1]
         a2, K2 = -aK2[0], aK2[1]
-        K2 = ec.pointAddJacobian(K1, K2)
+        K2 = ec._addJacobian(K1, K2)
         a1 -= a2
         if a1 > 0: 
             heapq.heappush(boscoster,(-a1, K1))
         heapq.heappush(boscoster,(-a2, K2))
         
     aK = heapq.heappop(boscoster)
-    RHS = ec.affine_from_jac(pointMultiplyJacobian(ec, -aK[0], aK[1]))
-    t = ec.affine_from_jac(pointMultiplyJacobian(ec, mult, jac_from_affine(ec.G)))
+    RHS = ec._affine_from_jac(_pointMultiplyJacobian(ec, -aK[0], aK[1]))
+    t = ec._affine_from_jac(_pointMultiplyJacobian(ec, mult, _jac_from_affine(ec.G)))
     
     return t == RHS

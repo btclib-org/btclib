@@ -1,23 +1,30 @@
-from btclib.ellipticcurves import pointMultiply, pointMultiplyJacobian, \
-                                  secp192k1, secp192r1, secp224k1, secp224r1, \
-                                  secp256k1, secp256r1, secp384r1, secp521r1
+#!/usr/bin/env python3
+
 import os
 import time
-all_curves = [secp192k1, secp192r1, secp224k1, secp224r1, \
-              secp256k1, secp256r1, secp384r1, secp521r1]
-names = ['secp192k1', 'secp192r1', 'secp224k1', 'secp224r1', \
-         'secp256k1', 'secp256r1', 'secp384r1', 'secp521r1']
-counter = 0
-for curve in all_curves:
-    # random point
-    q = os.urandom(curve.bytesize)
-    start1 = time.time()
-    Q = pointMultiply(curve, q, curve.G)
-    end1 = time.time()
-    start2 = time.time()
-    Qjac = pointMultiplyJacobian(curve, q, curve.G)
-    end2 = time.time()
-    print("On the curve", names[counter], "the jacobian " + \
-          "scalar multiplication is around ", (end1 - start1) // (end2 - start2), 
-          " times faster then the affine case.")
-    counter += 1
+
+from btclib.ellipticcurves import secp256k1 as ec, \
+                                  _pointMultiplyAffine, \
+                                  _pointMultiplyJacobian, \
+                                  _jac_from_affine, \
+                                  int_from_Scalar
+
+# setup
+qs = []
+for _ in range(0, 100):
+    q = int_from_Scalar(ec, os.urandom(ec.bytesize))
+    qs.append(q)
+
+start = time.time()
+for q in qs:
+    Q = _pointMultiplyAffine(ec, q, ec.G)
+elapsed1 = time.time() - start
+
+GJ = _jac_from_affine(ec.G)
+start = time.time()
+for q in qs:
+    QJ = _pointMultiplyJacobian(ec, q, GJ)
+    Q = ec._affine_from_jac(QJ)
+elapsed2 = time.time() - start
+
+print(elapsed2 / elapsed1)

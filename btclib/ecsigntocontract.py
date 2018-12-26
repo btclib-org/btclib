@@ -91,7 +91,7 @@ def verify_commit(receipt: Receipt, c: Message, Hash = sha256) -> bool:
     ch = Hash(c).digest()
     e = Hash(bytes_from_Point(ec, R, True) + ch).digest()
     e = int.from_bytes(e, 'big')
-    W = ec.pointAdd(R, pointMultiply(ec, e, ec.G))
+    W = ec.add(R, pointMultiply(ec, e, ec.G))
     # w in [1..n-1] dsa
     # w in [1..p-1] ssa
     # different verify functions?

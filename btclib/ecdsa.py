@@ -11,9 +11,8 @@ from typing import List, Optional
 from btclib.numbertheory import mod_inv
 from btclib.ellipticcurves import Union, Tuple, \
                                   Scalar, Point, GenericPoint, \
-                                  EllipticCurve, secp256k1, jac_from_affine, \
-                                  pointMultiplyJacobian, \
-                                  DoubleScalarMultiplication, \
+                                  EllipticCurve, secp256k1, \
+                                  pointMultiply, DoubleScalarMultiplication, \
                                   int_from_Scalar, to_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, HashDigest, Signature, int_from_hash
@@ -59,8 +58,7 @@ def _ecdsa_sign(H: HashDigest,
         k = int_from_Scalar(ec, k)
 
     # Let R = k'G.
-    Rjac = pointMultiplyJacobian(ec, k, jac_from_affine(ec.G))
-    R = ec.affine_from_jac(Rjac)                           # 1
+    R = pointMultiply(ec, k, ec.G)                         # 1
     if R[1] == 0:
         raise ValueError("ephemeral key k=0 in ecdsa sign operation")
 

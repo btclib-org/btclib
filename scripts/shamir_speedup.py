@@ -1,37 +1,33 @@
 #!/usr/bin/env python3
-from btclib.ellipticcurves import DoubleScalarMultiplication, pointAdd, \
-                                  pointMultiply, pointMultiplyJacobian, \
-                                  secp256k1 as ec
+
 import os
 import time
 
-k1 = int.from_bytes(os.urandom(32), 'big')
-k2 = int.from_bytes(os.urandom(32), 'big')
+from btclib.ellipticcurves import Point, secp256k1 as ec, \
+                                  pointMultiply, DoubleScalarMultiplication, \
+                                  int_from_Scalar
 
-q = int.from_bytes(os.urandom(32), 'big')
-Q = pointMultiplyJacobian(ec, q, ec.G)
-
-start = time.time()
-res1 = pointAdd(ec, pointMultiply(ec, k1, ec.G), pointMultiply(ec, k2, Q))
-end = time.time()
-
-t1 = end - start
-
-start = time.time()
-res2 = pointAdd(ec, pointMultiplyJacobian(ec, k1, ec.G), pointMultiplyJacobian(ec, k2, Q))
-end = time.time()
-
-t2 = end - start
+# setup
+k1s = []
+k2s = []
+Qs = []
+for _ in range(0, 100):
+    k1 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+    k1s.append(k1)
+    k2 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+    k2s.append(k2)
+    q = int_from_Scalar(ec, os.urandom(ec.bytesize))
+    Qs.append(pointMultiply(ec, q, ec.G))
 
 start = time.time()
-res3 = DoubleScalarMultiplication(ec, k1, ec.G, k2, Q)
-end = time.time()
+for i in range(0, 100):
+    ec.add(pointMultiply(ec, k1s[i], ec.G),
+           pointMultiply(ec, k2s[i], Qs[i]))
+elapsed1 = time.time() - start
 
-t3 = end - start
+start = time.time()
+for i in range(0, 100):
+    DoubleScalarMultiplication(ec, k1s[i], ec.G, k2s[i], Qs[i])
+elapsed2 = time.time() - start
 
-assert res1 == res2
-assert res2 == res3
-
-print(t1)
-print(t2)
-print(t3)
+print(elapsed2 / elapsed1)

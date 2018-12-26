@@ -6,7 +6,8 @@ Deterministic Wallet (Type-2)
 
 from hashlib import sha256
 from random import randint
-from ellipticcurves import secp256k1 as ec
+
+from ellipticcurves import secp256k1 as ec, pointMultiply
 from wifaddress import int_from_prvkey
 
 # master prvkey
@@ -38,7 +39,7 @@ for i in range(0, nKeys):
 
 # Pubkeys could be calculated without using prvkeys
 for i in range(0, nKeys):
-  P = ec.pointAdd(mpubkey, pointMultiply(ec, h_int[i], ec.G))
+  P = ec.add(mpubkey, pointMultiply(ec, h_int[i], ec.G))
   assert P == pointMultiply(ec, p[i], ec.G)
 
 def det_wallet2(key, r, i):
@@ -52,7 +53,7 @@ def det_wallet2(key, r, i):
     return (prvkey + h_int) % ec.n
   except:
     pubkey = ec.to_Point(key)
-    return ec.pointAdd(pubkey, pointMultiply(ec, h_int, ec.G))
+    return ec.add(pubkey, pointMultiply(ec, h_int, ec.G))
   raise ValueError("Invalid key")
 
 print()
