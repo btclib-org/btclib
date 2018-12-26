@@ -20,8 +20,8 @@ from btclib.ellipticcurves import EllipticCurve, sha256, \
 # toy curves
 ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
 ec263_269 = EllipticCurve( 6,  9, 263, (  0,  3), 269)
-ec263_270 = EllipticCurve( 2,  3, 263, (200, 39), 270)
-ec263_280 = EllipticCurve(-7, 10, 263, (  3,  4), 280)
+#ec263_270 = EllipticCurve( 2,  3, 263, (200, 39), 270)
+#ec263_280 = EllipticCurve(-7, 10, 263, (  3,  4), 280)
 
 ec11_7    = EllipticCurve(2, 7,  11, (6,   9),   7)
 ec11_17   = EllipticCurve(2, 4,  11, (0,   9),  17)
@@ -164,7 +164,8 @@ lowcard = [
 ]
 
 smallcurves = lowcard + [
-    ec263_269, ec263_270, ec263_280,
+    ec263_269,
+    #ec263_270, ec263_280,
     ec107_103, ec107_113,
     ec109_107, ec109_127,
     ec113_103, ec113_127,
@@ -205,7 +206,7 @@ allcurves = [
     secp160r1,
     secp192k1, secp192r1, secp224k1, secp224r1,
     secp256k1, secp256r1, secp384r1, secp521r1,
-    ec11_13, ec263_269, ec263_270, ec263_280 # ?
+    ec11_13, ec263_269 # ?
     ] + smallcurves
     
 class TestEllipticCurve(unittest.TestCase):

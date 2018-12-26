@@ -34,34 +34,60 @@ class EllipticCurve:
                  p: int,
                  G: Point,
                  n: int) -> None:
-        if 4*a*a*a+27*b*b == 0:
+        """EllipticCurve instantiation
+
+        Parameters are checked according to SEC2 3.1.1.2.1
+        """
+
+        # 1) check that p is an odd prime
+        if p % 2 == 0:
+            raise ValueError("p %s is not odd" % p)
+        # Fermat test will do as _probabilistic_ primality test...
+        if not pow(2, p-1, p) == 1:
+            raise ValueError("p %s is not prime" % p)
+        self._p = p
+        self.bytesize = (p.bit_length() + 7) // 8
+
+        # 1. check that security level is as required
+        # missing for the time being
+
+        # must be true to break simmetry using quadratic residue
+        self.pIsThreeModFour = (self._p % 4 == 3)
+
+        # 2. check that a and b are integers in the interval [0, p−1]
+        self.checkCoordinate(a)
+        self.checkCoordinate(b)
+
+        # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p).
+        if 4*a*a*a+27*b*b % p == 0:
             raise ValueError("zero discriminant")
         self._a = a
         self._b = b
 
-        self._p = p
-        self.bytesize = (p.bit_length() + 7) // 8
-
-        # to break simmetry using quadratic residue
-        self.pIsThreeModFour = (self._p % 4 == 3)
-
-        # check n with Hasse Theorem
-        t = int(2 * sqrt(p))
-        if not (p+1 - t <= n <= p+1 + t):
-            raise ValueError("order not in [p+1 - t, p+1 + t]")
-        self.n = n
-
+        # 2. check that xG and yG are integers in the interval [0, p−1]
         if len(G) != 2:
             raise ValueError("Generator must a be a Tuple[int, int]")
-        self.G = int(G[0]), int(G[1])
-        if not self.areValidCoordinates(self.G[0], self.G[1]):
+        if not self.areValidCoordinates(G[0], G[1]):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
+        self.G = int(G[0]), int(G[1])
 
-        # check (n-1)*G + G = Inf
-        #T = pointMultiply(self, n-1, self.G)
-        #Inf = self.pointAdd(T, self.G)
-        #assert Inf is None, "wrong order"
+        # 4. Check that n is prime.
+        if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
+            raise ValueError("n %s is not prime" % n)
+        # also check n with Hasse Theorem
+        t = int(2 * sqrt(p))
+        if not (p+1 - t <= n <= p+1 + t):
+            raise ValueError("n %s not in [p+1 - t, p+1 + t]" % n)
+        
+        # 7. Check that nG = Inf.
+        #Inf = pointMultiply(self, n, self.G)
+        #if Inf is not None:
+        #    raise ValueError("n is not the group order")
+        self.n = n
 
+        # 6. Check cofactor
+        # missing for the time being
+        
     def __str__(self) -> str:
         result  = "EllipticCurve(a=%s, b=%s)" % (self._a, self._b)
         result += "\n p = 0x%032x" % (self._p)
