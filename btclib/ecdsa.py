@@ -6,22 +6,21 @@ http://www.secg.org/sec1-v2.pdf
 """
 
 from hashlib import sha256
-from typing import List
+from typing import List, Optional
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import Union, Tuple, Optional, \
-                                  Scalar as PrvKey, Point as PubKey, \
-                                  GenericPoint as GenericPubKey, \
+from btclib.ellipticcurves import Union, Tuple, \
+                                  Scalar, Point, GenericPoint, \
                                   EllipticCurve, secp256k1, jac_from_affine, \
                                   pointMultiplyJacobian, \
                                   DoubleScalarMultiplication, \
-                                  int_from_Scalar, tuple_from_Point
+                                  int_from_Scalar, to_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, HashDigest, Signature, int_from_hash
 
 def ecdsa_sign(M: Message,
-               q: PrvKey,
-               eph: Optional[PrvKey] = None,
+               q: Scalar,
+               k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
                Hash = sha256) -> Signature:
     """ECDSA signing operation according to SEC 2
@@ -29,38 +28,40 @@ def ecdsa_sign(M: Message,
     See section 4.1.3
     """
     H = Hash(M).digest()
-    q = int_from_Scalar(ec, q)
-    eph = None if eph is None else int_from_Scalar(ec, eph)
-    return _ecdsa_sign(H, q, eph, ec, Hash)
+    return _ecdsa_sign(H, q, k, ec, Hash)
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
 def _ecdsa_sign(H: HashDigest,
-                d: int,
-                k: Optional[int] = None,
+                d: Scalar,
+                k: Optional[Scalar] = None,
                 ec: EllipticCurve = secp256k1,
                 Hash = sha256) -> Signature:
     # ECDSA signing operation according to SEC 2
     # See section 4.1.3
 
+    # The message digest m: a 32-byte array
     if len(H) != Hash().digest_size:
         errmsg = 'message digest of wrong size: %s instead of %s' % \
                                                 (len(H), Hash().digest_size)
         raise ValueError(errmsg)
 
     # The secret key d: an integer in the range 1..n-1.
-    if 0 == d % ec.n:
+    d = int_from_Scalar(ec, d)
+    if d == 0:
         raise ValueError("invalid (zero) private key")
 
     # Fail if k' = 0.
     if k is None:
-        k = rfc6979(d, H, Hash)                            # 1
-    k = k % ec.n
+        k = rfc6979(d, H, Hash) % ec.n                     # 1
+    else:
+        k = int_from_Scalar(ec, k)
 
     # Let R = k'G.
-    R = pointMultiplyJacobian(ec, k, jac_from_affine(ec.G)) # 1
-    if R is None: # this makes mypy happy in R[0]
+    Rjac = pointMultiplyJacobian(ec, k, jac_from_affine(ec.G))
+    R = ec.affine_from_jac(Rjac)                           # 1
+    if R[1] == 0:
         raise ValueError("ephemeral key k=0 in ecdsa sign operation")
 
     xR = R[0]                                              # 2
@@ -76,7 +77,7 @@ def _ecdsa_sign(H: HashDigest,
 
 def ecdsa_verify(M: Message,
                  dsasig: Signature,
-                 Q: GenericPubKey,
+                 Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
                  Hash = sha256) -> bool:
     """ECDSA veryfying operation to SEC 2
@@ -85,7 +86,6 @@ def ecdsa_verify(M: Message,
     """
     try:
         H = Hash(M).digest()
-        Q = tuple_from_Point(ec, Q)
         return _ecdsa_verify(H, dsasig, Q, ec, Hash)
     except Exception:
         return False
@@ -95,14 +95,14 @@ def ecdsa_verify(M: Message,
 # always use the message, not its hash digest.
 def _ecdsa_verify(H: bytes,
                   dsasig: Signature,
-                  Q: PubKey,
+                  P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
                   Hash = sha256) -> bool:
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
     # Let P = point(pk); fail if point(pk) fails.
-    # already satisfied!
+    P = to_Point(ec, P)
 
     # The message digest m: a 32-byte array
     if len(H) != Hash().digest_size:
@@ -116,9 +116,9 @@ def _ecdsa_verify(H: bytes,
         # H already provided as input                       # 2
         e = int_from_hash(H, ec.n, Hash().digest_size)      # 3
         s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
-        R = DoubleScalarMultiplication(ec, u1, ec.G, u2, Q) # 5
+        R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
         # Fail if infinite(R) or r ≠ x(R) %n.
-        if R is None:
+        if R[1] == 0:
             return False
         xR = R[0]                                           # 6
         v = xR % ec.n                                       # 7
@@ -129,7 +129,7 @@ def _ecdsa_verify(H: bytes,
 def ecdsa_pubkey_recovery(M: Message,
                           dsasig: Signature,
                           ec: EllipticCurve = secp256k1,
-                          Hash = sha256) -> List[PubKey]:
+                          Hash = sha256) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 2
 
     See section 4.1.6
@@ -143,10 +143,12 @@ def ecdsa_pubkey_recovery(M: Message,
 def _ecdsa_pubkey_recovery(H: bytes,
                            dsasig: Signature,
                            ec: EllipticCurve = secp256k1,
-                           Hash = sha256) -> List[PubKey]:
+                           Hash = sha256) -> List[Point]:
     # ECDSA public key recovery operation according to SEC 2
     # See section 4.1.6
- 
+
+    assert len(H) == Hash().digest_size
+
     r, s = check_dsasig(dsasig, ec)
 
     # precomputations

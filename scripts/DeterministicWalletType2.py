@@ -51,7 +51,7 @@ def det_wallet2(key, r, i):
     prvkey = int_from_prvkey(key)
     return (prvkey + h_int) % ec.n
   except:
-    pubkey = ec.tuple_from_Point(key)
+    pubkey = ec.to_Point(key)
     return ec.pointAdd(pubkey, pointMultiply(ec, h_int, ec.G))
   raise ValueError("Invalid key")
 

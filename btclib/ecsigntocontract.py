@@ -23,10 +23,11 @@ COMMITMENT VERIFICATION:
 """
 
 from hashlib import sha256
+from typing import Optional
 from btclib.ellipticcurves import secp256k1 as ec, pointMultiply, \
-                                  Optional, Tuple, Scalar, Point, \
+                                  Tuple, Scalar, Point, \
                                   bytes_from_Point, int_from_Scalar, \
-                                  tuple_from_Point
+                                  to_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import Message, Signature
 from btclib.ecdsa import _ecdsa_sign
@@ -46,7 +47,11 @@ def tweak(k: int, c: bytes, Hash = sha256) -> Tuple[Point, Scalar]:
     e = int.from_bytes(e, 'big')
     return R, (e + k) % ec.n
 
-def ecdsa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optional[Scalar] = None, Hash = sha256) -> Tuple[Signature, Receipt]:
+def ecdsa_commit_and_sign(m: Message,
+                          prvkey: Scalar,
+                          c: Message,
+                          eph_prv: Optional[Scalar] = None,
+                          Hash = sha256) -> Tuple[Signature, Receipt]:
     mh = Hash(m).digest()
     prvkey = int_from_Scalar(ec, prvkey)
     ch = Hash(c).digest()
@@ -60,7 +65,11 @@ def ecdsa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optio
     receipt = (sig[0], R)
     return sig, receipt
 
-def ecssa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optional[Scalar] = None, Hash = sha256) -> Tuple[Signature, Receipt]:
+def ecssa_commit_and_sign(m: Message,
+                          prvkey: Scalar,
+                          c: Message,
+                          eph_prv: Optional[Scalar] = None,
+                          Hash = sha256) -> Tuple[Signature, Receipt]:
     mh = Hash(m).digest()
     prvkey = int_from_Scalar(ec, prvkey)
     ch = Hash(c).digest()
@@ -78,7 +87,7 @@ def ecssa_commit_and_sign(m: Message, prvkey: Scalar, c: Message, eph_prv: Optio
 def verify_commit(receipt: Receipt, c: Message, Hash = sha256) -> bool:
     w, R = receipt
     ec.yOdd(w, False)  # receipt[0] is valid iif its y does exist
-    tuple_from_Point(ec, R)  # verify R is a good point
+    to_Point(ec, R)  # verify R is a good point
     ch = Hash(c).digest()
     e = Hash(bytes_from_Point(ec, R, True) + ch).digest()
     e = int.from_bytes(e, 'big')

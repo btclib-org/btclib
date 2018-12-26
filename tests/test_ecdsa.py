@@ -60,12 +60,14 @@ class TestEcdsa(unittest.TestCase):
                         self.assertRaises(ValueError, _ecdsa_sign, H[0], q, None, ec)
                         continue
                     G = jac_from_affine(ec.G) # G in jacobian coordinates
-                    Q = pointMultiplyJacobian(ec, q, G) # public key
+                    Qjac = pointMultiplyJacobian(ec, q, G) # public key
+                    Q = ec.affine_from_jac(Qjac)
                     for m in range(0, ec.n): # all possible hashed messages
 
-                        k = rfc6979(q, H[m], sha256) # ephemeral key
-                        K = pointMultiplyJacobian(ec, k, G)
-                        if K == None:
+                        k = rfc6979(q, H[m], sha256) % ec.n # ephemeral key
+                        Kjac = pointMultiplyJacobian(ec, k, G)
+                        K = ec.affine_from_jac(Kjac)
+                        if K[1] == 0:
                             self.assertRaises(ValueError, _ecdsa_sign, H[m], q, k, ec)
                             continue
 

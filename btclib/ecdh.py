@@ -3,14 +3,14 @@
 from hashlib import sha1, sha256
 from btclib.ellipticcurves import EllipticCurve, Scalar as PrvKey, \
                                   GenericPoint as GenericPubKey, \
-                                  int_from_Scalar, tuple_from_Point, \
+                                  int_from_Scalar, to_Point, \
                                   bytes_from_Scalar, pointMultiply
 from btclib.rfc6979 import int2octets
 
  
 def ecdh(ec: EllipticCurve, prv_sender: PrvKey, pub_recv: GenericPubKey) -> int:
     shared_point = pointMultiply(ec, prv_sender, pub_recv)
-    shared_pubkey = tuple_from_Point(ec, shared_point)
+    shared_pubkey = to_Point(ec, shared_point)
     return shared_pubkey[0]
 
 def key_setup(hash_digest_size: int):

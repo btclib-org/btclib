@@ -14,7 +14,7 @@ import unittest
 
 from btclib.numbertheory import legendre_symbol
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
-                                  pointAdd, pointMultiplyJacobian, \
+                                  pointMultiply, DoubleScalarMultiplication, \
                                   secp256k1 as ec
 from btclib.ecssa import sha256, int_from_hash, ecssa_verify
 
@@ -27,48 +27,48 @@ class TestEcssaMuSig(unittest.TestCase):
 
         # first signer
         q1 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
-        Q1 = pointMultiplyJacobian(ec, q1, ec.G)
+        Q1 = pointMultiply(ec, q1, ec.G)
         L.append(bytes_from_Point(ec, Q1, False))
 
         k1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb # ephemeral private nonce
-        K1 = pointMultiplyJacobian(ec, k1, ec.G)
+        K1 = pointMultiply(ec, k1, ec.G)
         K1_x = K1[0]
         if legendre_symbol(K1[1], ec._p) != 1:
             k1 = ec.n - k1
             K1 = K1_x, ec.yQuadraticResidue(K1_x, True)
-            #K1 = pointMultiplyJacobian(ec, k1, ec.G)
+            #K1 = pointMultiply(ec, k1, ec.G)
 
         # second signer
         q2 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
-        Q2 = pointMultiplyJacobian(ec, q2, ec.G)
+        Q2 = pointMultiply(ec, q2, ec.G)
         L.append(bytes_from_Point(ec, Q2, False))
 
         k2 = 0x01a2a0d3eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbdb
-        K2 = pointMultiplyJacobian(ec, k2, ec.G)
+        K2 = pointMultiply(ec, k2, ec.G)
         K2_x = K2[0]
         if legendre_symbol(K2[1], ec._p) != 1:
             k2 = ec.n - k2
             K2 = K2_x, ec.yQuadraticResidue(K2_x, True)
-            #K2 = pointMultiplyJacobian(ec, k2, ec.G)
+            #K2 = pointMultiply(ec, k2, ec.G)
 
         # third signer
         q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-        Q3 = pointMultiplyJacobian(ec, q3, ec.G)
+        Q3 = pointMultiply(ec, q3, ec.G)
         while Q3 == None: # plausible only for small (test) cardinality groups
             q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-            Q3 = pointMultiplyJacobian(ec, q3, ec.G)
+            Q3 = pointMultiply(ec, q3, ec.G)
         L.append(bytes_from_Point(ec, Q3, False))
 
         k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-        K3 = pointMultiplyJacobian(ec, k3, ec.G)
+        K3 = pointMultiply(ec, k3, ec.G)
         while K3 == None: # plausible only for small (test) cardinality groups
             k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
-            K3 = pointMultiplyJacobian(ec, k3, ec.G)
+            K3 = pointMultiply(ec, k3, ec.G)
         K3_x = K3[0]
         if legendre_symbol(K3[1], ec._p) != 1:
             k3 = ec.n - k3
             K3 = K3_x, ec.yQuadraticResidue(K3_x, True)
-            #K3 = pointMultiplyJacobian(ec, k3, ec.G)
+            #K3 = pointMultiply(ec, k3, ec.G)
 
         L.sort() # using lexicographic ordering
         L_brackets = b''
@@ -79,10 +79,9 @@ class TestEcssaMuSig(unittest.TestCase):
         a2 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q2, False)).digest(), ec.n)
         a3 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q3, False)).digest(), ec.n)
         # aggregated public key
-        Q_All = pointAdd(ec, pointMultiplyJacobian(ec, a1, Q1),
-                             pointMultiplyJacobian(ec, a2, Q2))
-        Q_All = pointAdd(ec, Q_All,
-                             pointMultiplyJacobian(ec, a3, Q3))
+        Q_All = DoubleScalarMultiplication(ec, a1, Q1, a2, Q2)
+        Q_All = ec.pointAdd(Q_All,
+                            pointMultiply(ec, a3, Q3))
 
         ########################
         # exchange K_x, compute s
@@ -94,7 +93,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K2_recovered = (K2_x, y)
         y = ec.yQuadraticResidue(K3_x, True)
         K3_recovered = (K3_x, y)
-        K1_All = pointAdd(ec, pointAdd(ec, K1, K2_recovered), K3_recovered)
+        K1_All = ec.pointAdd(ec.pointAdd(K1, K2_recovered), K3_recovered)
         if legendre_symbol(K1_All[1], ec._p) != 1:
             # no need to actually change K1_All[1], as it is not used anymore
             # let's fix k1 instead, as it is used later
@@ -108,7 +107,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K1_recovered = (K1_x, y)
         y = ec.yQuadraticResidue(K3_x, True)
         K3_recovered = (K3_x, y)
-        K2_All = pointAdd(ec, pointAdd(ec, K2, K1_recovered), K3_recovered)
+        K2_All = ec.pointAdd(ec.pointAdd(K2, K1_recovered), K3_recovered)
         if legendre_symbol(K2_All[1], ec._p) != 1:
             # no need to actually change K2_All[1], as it is not used anymore
             # let's fix k2 instead, as it is used later
@@ -122,7 +121,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K1_recovered = (K1_x, y)
         y = ec.yQuadraticResidue(K2_x, True)
         K2_recovered = (K2_x, y)
-        K3_All = pointAdd(ec, pointAdd(ec, K1_recovered, K2_recovered), K3)
+        K3_All = ec.pointAdd(ec.pointAdd(K1_recovered, K2_recovered), K3)
         if legendre_symbol(K3_All[1], ec._p) != 1:
             # no need to actually change K3_All[1], as it is not used anymore
             # let's fix k3 instead, as it is used later

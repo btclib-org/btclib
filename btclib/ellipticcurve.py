@@ -7,22 +7,25 @@ TODO: document duck-typing and static typing design choices
 """
 
 from math import sqrt
-from typing import Tuple, Union, Optional, NewType
+from typing import Tuple, NewType, Union
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 #from btclib.ellipticcurves import pointMultiply
 
 Point = Tuple[int, int]
-JacPoint = Tuple[int, int, int] 
-# infinity point being represented by None,
-# Optional[Point] does include the infinity point
+# infinity point is (int, 0), checked with 'Inf[1] == 0'
+GenericPoint = Union[str, bytes, Point]
+# str must be a hex-string
 
-def jac_from_affine(Q: Optional[Point]) -> JacPoint:
-    if Q is None:
-        return (1, 1, 0)
+JacPoint = Tuple[int, int, int] 
+# infinity point is (int, int, 0), checked with 'Inf[2] == 0'
+
+def jac_from_affine(Q: Point) -> JacPoint:
     if len(Q) != 2:
         raise ValueError("input point not in affine coordinates")
-    return (Q[0], Q[1], 1)
+    if Q[1] == 0: # Infinity point in affine coordinates
+        return 1, 1, 0
+    return Q[0], Q[1], 1
 
 # elliptic curve y^2 = x^3 + a*x + b
 class EllipticCurve:
@@ -82,7 +85,7 @@ class EllipticCurve:
         
         # 7. Check that nG = Inf.
         #Inf = pointMultiply(self, n, self.G)
-        #if Inf is not None:
+        #if Inf[1] != 0:
         #    raise ValueError("n is not the group order")
         self.n = n
 
@@ -116,22 +119,25 @@ class EllipticCurve:
 
     # p
 
+    # FIXME: jac / affine ?
     def checkCoordinate(self, c: int) -> None:
         """check that coordinate is in [0, p-1]"""
         if not (0 <= c < self._p):
             raise ValueError("coordinate %s not in [0, p-1]" % c)
 
-    def opposite(self, Q: Optional[Point]) -> Optional[Point]:
-        if Q is None: 
-            return None
+    def opposite(self, Q: Point) -> Point:
+        if len(Q) != 2:
+            raise ValueError("input point not in affine coordinates")
+        if Q[1] == 0: # Infinity point in affine coordinates
+            return Q
         else:
-            return (Q[0], self._p - Q[1])
+            return Q[0], self._p - Q[1]
 
-    def affine_from_jac(self, Q: JacPoint) -> Optional[Point]:
-        if not (isinstance(Q, tuple) and len(Q)==3):
-            raise ValueError("point is not in Jacobian coordinates")
-        if Q[2] == 0:
-            return None
+    def affine_from_jac(self, Q: JacPoint) -> Point:
+        if len(Q) != 3:
+            raise ValueError("input point not in Jacobian coordinates")
+        if Q[2] == 0: # Infinity point in Jacobian coordinates
+            return 1, 0
         else:
             x = (Q[0]*mod_inv(Q[2]*Q[2], self._p)) % self._p
             y = (Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self._p)) % self._p
@@ -140,9 +146,9 @@ class EllipticCurve:
     # _a, _b, _p
 
     def pointAddJacobian(self, Q: JacPoint, R: JacPoint) -> JacPoint:
-        if Q[2] == 0:
+        if Q[2] == 0: # Infinity point in Jacobian coordinates
             return R
-        if R[2] == 0:
+        if R[2] == 0: # Infinity point in Jacobian coordinates
             return Q
         
         if Q[0]*R[2]*R[2] % self._p == R[0]*Q[2]*Q[2] % self._p: # same affine x coordinate
@@ -168,16 +174,20 @@ class EllipticCurve:
             Z = (V*Q[2]*R[2]) % self._p
             return X, Y, Z
 
-    def pointAdd(self, Q: Optional[Point], R: Optional[Point]) -> Optional[Point]:
-        if R is None:
+    def pointAdd(self, Q: GenericPoint, R: GenericPoint) -> Point:
+        Q = to_Point(self, Q)
+        R = to_Point(self, R)
+        if R[1] == 0: # Infinity point in affine coordinates
             return Q
-        if Q is None:
+        if Q[1] == 0: # Infinity point in affine coordinates
             return R
         if R[0] == Q[0]:
-            if R[1] != Q[1] or Q[1] == 0: # opposite points
-                return None
-            else: # point doubling
+            if R[1] == Q[1]: # point doubling
                 lam = ((3*Q[0]*Q[0]+self._a)*mod_inv(2*Q[1], self._p)) % self._p
+            elif R[1] == self._p - Q[1]: # opposite points
+                return 1, 0
+            else:
+                raise ValueError("points are not on the same curve")
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
         x = (lam*lam-Q[0]-R[0]) % self._p
@@ -193,12 +203,12 @@ class EllipticCurve:
 
     def y(self, x: int) -> int:
         y2 = self._y2(x)
-        if y2 == 0:
-            return 0 # impossible if n is prime
         # mod_sqrt will raise a ValueError if root does not exist
         return mod_sqrt(y2, self._p)
 
     def areValidCoordinates(self, x: int, y: int) -> bool:
+        if y == 0: # Infinity point in affine coordinates
+            return True
         self.checkCoordinate(y)
         return self._y2(x) == (y*y % self._p)
 
@@ -232,3 +242,40 @@ class EllipticCurve:
             return self._p - root if (legendre_symbol(root, self._p) != 1) else root
         else:
             return root if (legendre_symbol(root, self._p) != 1) else self._p - root
+
+
+
+
+
+def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
+    """Return a tuple (Px, Py) according to SEC2 2.3.4
+    
+    It ensures the point belongs to the curve
+    """
+
+    if isinstance(Q, str):
+        # BIP32 xpub is not considered here,
+        # as it is a bitcoin convention only
+        Q = bytes.fromhex(Q)
+
+    if isinstance(Q, bytes):
+        if len(Q) == 1 and Q[0] == 0x00: # infinity point
+            return 1, 0
+        if len(Q) == ec.bytesize+1: # compressed point
+            assert Q[0] == 0x02 or Q[0] == 0x03, "not a compressed point"
+            Px = int.from_bytes(Q[1:], 'big')
+            Py = ec.yOdd(Px, Q[0] % 2) # also check Px validity
+        else:                          # uncompressed point
+            assert len(Q) == 2*ec.bytesize+1, \
+                "wrong byte-size (%s) for a point: it should be %s or %s" % \
+                                    (len(Q), ec.bytesize+1, 2*ec.bytesize+1)
+            assert Q[0] == 0x04, "not an uncompressed point"
+            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
+            Py = int.from_bytes(Q[ec.bytesize+1:], 'big')
+            assert ec.areValidCoordinates(Px, Py), "not on curve"
+        return Px, Py
+
+    # input is already a Point
+    if not ec.areValidCoordinates(Q[0], Q[1]):
+        raise ValueError("point not on curve")
+    return Q

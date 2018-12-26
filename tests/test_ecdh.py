@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from btclib.ellipticcurves import secp160r1 as ec, tuple_from_Point, \
+from btclib.ellipticcurves import secp160r1 as ec, to_Point, \
                                   pointMultiply, bytes_from_Point
 from btclib.ecdh import ecdh, key_setup, key_agreement_operation, key_derivation_function 
 from btclib.rfc6979 import int2octets
@@ -15,8 +15,8 @@ class TestEcdh(unittest.TestCase):
         prv_sender = 0x1
         prv_recv = 0x2
         prv_alternative = prv_sender * prv_recv
-        pub_sender = tuple_from_Point(ec, pointMultiply(ec, prv_sender, G))
-        pub_recv = tuple_from_Point(ec, pointMultiply(ec, prv_recv, G))
+        pub_sender = to_Point(ec, pointMultiply(ec, prv_sender, G))
+        pub_recv = to_Point(ec, pointMultiply(ec, prv_recv, G))
         shared_sender = ecdh(ec, prv_recv, pub_sender)
         shared_recv = ecdh(ec, prv_sender, pub_recv)
         shared_alternative = ecdh(ec, prv_alternative, G)

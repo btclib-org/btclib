@@ -4,8 +4,8 @@ import os
 import unittest
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
-                                  pointAdd, pointMultiplyJacobian, \
-                                  secondGenerator, opposite, \
+                                  pointMultiply, DoubleScalarMultiplication, \
+                                  secondGenerator, \
                                   secp256k1 as ec, sha256
 from btclib.ecssa import sha256, int_from_hash, _ecssa_verify
 
@@ -22,15 +22,14 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1 = list()
-        q1 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
+        q1 = 0 # secret value
         while q1 == 0:
-            q1 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
-        q1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            q1 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+        q1_prime = 0
         while q1_prime == 0:
-            q1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            q1_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
 
-        commits1.append(pointAdd(ec, pointMultiplyJacobian(ec, q1, ec.G), \
-                                     pointMultiplyJacobian(ec, q1_prime, H)))
+        commits1.append(DoubleScalarMultiplication(ec, q1, ec.G, q1_prime, H))
 
         # sharing polynomials
         f1 = list()
@@ -38,16 +37,15 @@ class TestEcssaThreshold(unittest.TestCase):
         f1_prime = list()
         f1_prime.append(q1_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f1.append(temp) 
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f1_prime.append(temp)
-            commits1.append(pointAdd(ec, pointMultiplyJacobian(ec, f1[i], ec.G), \
-                                     pointMultiplyJacobian(ec, f1_prime[i], H)))
+            commits1.append(DoubleScalarMultiplication(ec, f1[i], ec.G, f1_prime[i], H))
 
         # shares of the secret
         alpha12 = 0 # share of q1 belonging to P2
@@ -62,32 +60,29 @@ class TestEcssaThreshold(unittest.TestCase):
             alpha13_prime += (f1_prime[i] * pow(3, i)) % ec.n
 
         # player two verifies consistency of his share
-        RHS = None
+        RHS = 1, 0
         for i in range(0, t):
-            RHS = pointAdd(ec, RHS, pointMultiplyJacobian(ec, pow(2, i), commits1[i])) 
-        assert pointAdd(ec, pointMultiplyJacobian(ec, alpha12, ec.G), \
-                            pointMultiplyJacobian(ec, alpha12_prime, H)) == RHS, 'player one is cheating'
+            RHS = ec.pointAdd(RHS, pointMultiply(ec, pow(2, i), commits1[i])) 
+        assert DoubleScalarMultiplication(ec, alpha12, ec.G, alpha12_prime, H) == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
-        RHS = None
+        RHS = 1, 0
         for i in range(0, t):
-            RHS = pointAdd(ec, RHS, pointMultiplyJacobian(ec, pow(3, i), commits1[i])) 
-        assert pointAdd(ec, pointMultiplyJacobian(ec, alpha13, ec.G), \
-                            pointMultiplyJacobian(ec, alpha13_prime, H)) == RHS, 'player one is cheating'
+            RHS = ec.pointAdd(RHS, pointMultiply(ec, pow(3, i), commits1[i])) 
+        assert DoubleScalarMultiplication(ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
          
         
 
         # signer two acting as the dealer
         commits2 = list()
-        q2 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
+        q2 = 0 # secret value
         while q2 == 0:
-            q2 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
-        q2_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            q2 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+        q2_prime = 0
         while q2_prime == 0:
-            q2_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            q2_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
 
-        commits2.append(pointAdd(ec, pointMultiplyJacobian(ec, q2, ec.G), \
-                                     pointMultiplyJacobian(ec, q2_prime, H)))
+        commits2.append(DoubleScalarMultiplication(ec, q2, ec.G, q2_prime, H))
 
         # sharing polynomials
         f2 = list()
@@ -95,16 +90,15 @@ class TestEcssaThreshold(unittest.TestCase):
         f2_prime = list()
         f2_prime.append(q2_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f2.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f2_prime.append(temp)
-            commits2.append(pointAdd(ec, pointMultiplyJacobian(ec, f2[i], ec.G), \
-                                     pointMultiplyJacobian(ec, f2_prime[i], H)))
+            commits2.append(DoubleScalarMultiplication(ec, f2[i], ec.G, f2_prime[i], H))
 
         # shares of the secret
         alpha21 = 0 # share of q2 belonging to P1
@@ -119,33 +113,28 @@ class TestEcssaThreshold(unittest.TestCase):
             alpha23_prime += (f2_prime[i] * pow(3, i)) % ec.n
 
         # player one verifies consistency of his share
-        RHS = None
+        RHS = 1, 0
         for i in range(0, t):
-            RHS = pointAdd(ec, RHS, pointMultiplyJacobian(ec, pow(1, i), commits2[i])) 
-        assert pointAdd(ec, pointMultiplyJacobian(ec, alpha21, ec.G), \
-                            pointMultiplyJacobian(ec, alpha21_prime, H)) == RHS, 'player two is cheating'
+            RHS = ec.pointAdd(RHS, pointMultiply(ec, pow(1, i), commits2[i])) 
+        assert DoubleScalarMultiplication(ec, alpha21, ec.G, alpha21_prime, H) == RHS, 'player two is cheating'
 
         # player three verifies consistency of his share
-        RHS = None
+        RHS = 1, 0
         for i in range(0, t):
-            RHS = pointAdd(ec, RHS, pointMultiplyJacobian(ec, pow(3, i), commits2[i])) 
-        assert pointAdd(ec, pointMultiplyJacobian(ec, alpha23, ec.G), \
-                            pointMultiplyJacobian(ec, alpha23_prime, H)) == RHS, 'player two is cheating'
-         
-        
+            RHS = ec.pointAdd(RHS, pointMultiply(ec, pow(3, i), commits2[i])) 
+        assert DoubleScalarMultiplication(ec, alpha23, ec.G, alpha23_prime, H) == RHS, 'player two is cheating'
 
 
         # signer three acting as the dealer
         commits3 = list()
-        q3 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
+        q3 = 0 # secret value
         while q3 == 0:
-            q3 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
-        q3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            q3 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+        q3_prime = 0
         while q3_prime == 0:
-            q3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            q3_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
 
-        commits3.append(pointAdd(ec, pointMultiplyJacobian(ec, q3, ec.G), \
-                                     pointMultiplyJacobian(ec, q3_prime, H)))
+        commits3.append(DoubleScalarMultiplication(ec, q3, ec.G, q3_prime, H))
 
         # sharing polynomials
         f3 = list()
@@ -153,16 +142,15 @@ class TestEcssaThreshold(unittest.TestCase):
         f3_prime = list()
         f3_prime.append(q3_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f3.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f3_prime.append(temp)
-            commits3.append(pointAdd(ec, pointMultiplyJacobian(ec, f3[i], ec.G), \
-                                     pointMultiplyJacobian(ec, f3_prime[i], H)))
+            commits3.append(DoubleScalarMultiplication(ec, f3[i], ec.G, f3_prime[i], H))
 
         # shares of the secret
         alpha31 = 0 # share of q3 belonging to P1
@@ -177,18 +165,16 @@ class TestEcssaThreshold(unittest.TestCase):
             alpha32_prime += (f3_prime[i] * pow(2, i)) % ec.n
 
         # player one verifies consistency of his share
-        RHS = None
+        RHS = 1, 0
         for i in range(0, t):
-            RHS = pointAdd(ec, RHS, pointMultiplyJacobian(ec, pow(1, i), commits3[i])) 
-        assert pointAdd(ec, pointMultiplyJacobian(ec, alpha31, ec.G), \
-                            pointMultiplyJacobian(ec, alpha31_prime, H)) == RHS, 'player three is cheating'
+            RHS = ec.pointAdd(RHS, pointMultiply(ec, pow(1, i), commits3[i])) 
+        assert DoubleScalarMultiplication(ec, alpha31, ec.G, alpha31_prime, H) == RHS, 'player three is cheating'
 
         # player two verifies consistency of his share
-        RHS = None
+        RHS = 1, 0
         for i in range(0, t):
-            RHS = pointAdd(ec, RHS, pointMultiplyJacobian(ec, pow(2, i), commits3[i])) 
-        assert pointAdd(ec, pointMultiplyJacobian(ec, alpha32, ec.G), \
-                            pointMultiplyJacobian(ec, alpha32_prime, H)) == RHS, 'player two is cheating'
+            RHS = ec.pointAdd(RHS, pointMultiply(ec, pow(2, i), commits3[i])) 
+        assert DoubleScalarMultiplication(ec, alpha32, ec.G, alpha32_prime, H) == RHS, 'player two is cheating'
          
 
         # shares of the secret key q = q1 + q2 + q3
@@ -209,42 +195,42 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # he broadcasts these values
         for i in range(0, t):
-            A1.append(pointMultiplyJacobian(ec, f1[i], ec.G))
-            A2.append(pointMultiplyJacobian(ec, f2[i], ec.G))
-            A3.append(pointMultiplyJacobian(ec, f3[i], ec.G))
+            A1.append(pointMultiply(ec, f1[i], ec.G))
+            A2.append(pointMultiply(ec, f2[i], ec.G))
+            A3.append(pointMultiply(ec, f3[i], ec.G))
         
         # he checks the others' values
         # player one
-        RHS2 = None
-        RHS3 = None
+        RHS2 = 1, 0
+        RHS3 = 1, 0
         for i in range(0, t):
-            RHS2 = pointAdd(ec, RHS2, pointMultiplyJacobian(ec, pow(1, i), A2[i]))
-            RHS3 = pointAdd(ec, RHS3, pointMultiplyJacobian(ec, pow(1, i), A3[i]))
-        assert pointMultiplyJacobian(ec, alpha21, ec.G) == RHS2, 'player two is cheating'
-        assert pointMultiplyJacobian(ec, alpha31, ec.G) == RHS3, 'player three is cheating'
+            RHS2 = ec.pointAdd(RHS2, pointMultiply(ec, pow(1, i), A2[i]))
+            RHS3 = ec.pointAdd(RHS3, pointMultiply(ec, pow(1, i), A3[i]))
+        assert pointMultiply(ec, alpha21, ec.G) == RHS2, 'player two is cheating'
+        assert pointMultiply(ec, alpha31, ec.G) == RHS3, 'player three is cheating'
 
         # player two
-        RHS1 = None
-        RHS3 = None
+        RHS1 = 1, 0
+        RHS3 = 1, 0
         for i in range(0, t):
-            RHS1 = pointAdd(ec, RHS1, pointMultiplyJacobian(ec, pow(2, i), A1[i]))
-            RHS3 = pointAdd(ec, RHS3, pointMultiplyJacobian(ec, pow(2, i), A3[i]))
-        assert pointMultiplyJacobian(ec, alpha12, ec.G) == RHS1, 'player one is cheating'
-        assert pointMultiplyJacobian(ec, alpha32, ec.G) == RHS3, 'player three is cheating'
+            RHS1 = ec.pointAdd(RHS1, pointMultiply(ec, pow(2, i), A1[i]))
+            RHS3 = ec.pointAdd(RHS3, pointMultiply(ec, pow(2, i), A3[i]))
+        assert pointMultiply(ec, alpha12, ec.G) == RHS1, 'player one is cheating'
+        assert pointMultiply(ec, alpha32, ec.G) == RHS3, 'player three is cheating'
 
         # player three
-        RHS1 = None
-        RHS2 = None
+        RHS1 = 1, 0
+        RHS2 = 1, 0
         for i in range(0, t):
-            RHS1 = pointAdd(ec, RHS1, pointMultiplyJacobian(ec, pow(3, i), A1[i]))
-            RHS2 = pointAdd(ec, RHS2, pointMultiplyJacobian(ec, pow(3, i), A2[i]))
-        assert pointMultiplyJacobian(ec, alpha13, ec.G) == RHS1, 'player one is cheating'
-        assert pointMultiplyJacobian(ec, alpha23, ec.G) == RHS2, 'player two is cheating'
+            RHS1 = ec.pointAdd(RHS1, pointMultiply(ec, pow(3, i), A1[i]))
+            RHS2 = ec.pointAdd(RHS2, pointMultiply(ec, pow(3, i), A2[i]))
+        assert pointMultiply(ec, alpha13, ec.G) == RHS1, 'player one is cheating'
+        assert pointMultiply(ec, alpha23, ec.G) == RHS2, 'player two is cheating'
 
 
         A = list() # commitment at the global sharing polynomial
         for i in range(0, t):
-            A.append(pointAdd(ec, A1[i], pointAdd(ec, A2[i], A3[i])))
+            A.append(ec.pointAdd(A1[i], ec.pointAdd(A2[i], A3[i])))
             
         Q = A[0] # aggregated public key
 
@@ -256,15 +242,14 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1 = list()
-        k1 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
+        k1 = 0 # secret value
         while k1 == 0:
-            k1 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
-        k1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            k1 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+        k1_prime = 0
         while k1_prime == 0:
-            k1_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            k1_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
 
-        commits1.append(pointAdd(ec, pointMultiplyJacobian(ec, k1, ec.G), \
-                                     pointMultiplyJacobian(ec, k1_prime, H)))
+        commits1.append(DoubleScalarMultiplication(ec, k1, ec.G, k1_prime, H))
 
         # sharing polynomials
         f1 = list()
@@ -272,16 +257,15 @@ class TestEcssaThreshold(unittest.TestCase):
         f1_prime = list()
         f1_prime.append(k1_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f1.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f1_prime.append(temp)
-            commits1.append(pointAdd(ec, pointMultiplyJacobian(ec, f1[i], ec.G), \
-                                     pointMultiplyJacobian(ec, f1_prime[i], H)))
+            commits1.append(DoubleScalarMultiplication(ec, f1[i], ec.G, f1_prime[i], H))
 
         # shares of the secret
         beta13 = 0  # share of k1 belonging to P3
@@ -292,25 +276,23 @@ class TestEcssaThreshold(unittest.TestCase):
 
 
         # player three verifies consistency of his share
-        RHS = None
+        RHS = 1, 0
         for i in range(0, t):
-            RHS = pointAdd(ec, RHS, pointMultiplyJacobian(ec, pow(3, i), commits1[i])) 
-        assert pointAdd(ec, pointMultiplyJacobian(ec, beta13, ec.G), \
-                            pointMultiplyJacobian(ec, beta13_prime, H)) == RHS, 'player one is cheating'
+            RHS = ec.pointAdd(RHS, pointMultiply(ec, pow(3, i), commits1[i])) 
+        assert DoubleScalarMultiplication(ec, beta13, ec.G, beta13_prime, H) == RHS, 'player one is cheating'
          
         
 
         # signer three acting as the dealer
         commits3 = list()
-        k3 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n # secret value
+        k3 = 0 # secret value
         while k3 == 0:
-            k3 = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
-        k3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            k3 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+        k3_prime = 0
         while k3_prime == 0:
-            k3_prime = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            k3_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
 
-        commits3.append(pointAdd(ec, pointMultiplyJacobian(ec, k3, ec.G), \
-                                     pointMultiplyJacobian(ec, k3_prime, H)))
+        commits3.append(DoubleScalarMultiplication(ec, k3, ec.G, k3_prime, H))
 
         # sharing polynomials
         f3 = list()
@@ -318,16 +300,15 @@ class TestEcssaThreshold(unittest.TestCase):
         f3_prime = list()
         f3_prime.append(k3_prime)
         for i in range(1, t):
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f3.append(temp)
-            temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+            temp = 0
             while temp == 0:
-                temp = int.from_bytes(os.urandom(ec.bytesize), 'big') % ec.n
+                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
             f3_prime.append(temp)
-            commits3.append(pointAdd(ec, pointMultiplyJacobian(ec, f3[i], ec.G), \
-                                     pointMultiplyJacobian(ec, f3_prime[i], H)))
+            commits3.append(DoubleScalarMultiplication(ec, f3[i], ec.G, f3_prime[i], H))
 
         # shares of the secret
         beta31 = 0 # share of k3 belonging to P1
@@ -337,11 +318,10 @@ class TestEcssaThreshold(unittest.TestCase):
             beta31_prime += (f3_prime[i] * pow(1, i)) % ec.n
 
         # player one verifies consistency of his share
-        RHS = None
+        RHS = 1, 0
         for i in range(0, t):
-            RHS = pointAdd(ec, RHS, pointMultiplyJacobian(ec, pow(1, i), commits3[i])) 
-        assert pointAdd(ec, pointMultiplyJacobian(ec, beta31, ec.G), \
-                            pointMultiplyJacobian(ec, beta31_prime, H)) == RHS, 'player three is cheating'
+            RHS = ec.pointAdd(RHS, pointMultiply(ec, pow(1, i), commits3[i])) 
+        assert DoubleScalarMultiplication(ec, beta31, ec.G, beta31_prime, H) == RHS, 'player three is cheating'
 
         # shares of the secret nonce
         beta1 =  beta31 % ec.n
@@ -358,26 +338,26 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # he broadcasts these values
         for i in range(0, t):
-            B1.append(pointMultiplyJacobian(ec, f1[i], ec.G))
-            B3.append(pointMultiplyJacobian(ec, f3[i], ec.G))
+            B1.append(pointMultiply(ec, f1[i], ec.G))
+            B3.append(pointMultiply(ec, f3[i], ec.G))
 
         
         # he checks the others' values
         # player one
-        RHS3 = None
+        RHS3 = 1, 0
         for i in range(0, t):
-            RHS3 = pointAdd(ec, RHS3, pointMultiplyJacobian(ec, pow(1, i), B3[i]))
-        assert pointMultiplyJacobian(ec, beta31, ec.G) == RHS3, 'player three is cheating'
+            RHS3 = ec.pointAdd(RHS3, pointMultiply(ec, pow(1, i), B3[i]))
+        assert pointMultiply(ec, beta31, ec.G) == RHS3, 'player three is cheating'
 
         # player three
-        RHS1 = None
+        RHS1 = 1, 0
         for i in range(0, t):
-            RHS1 = pointAdd(ec, RHS1, pointMultiplyJacobian(ec, pow(3, i), B1[i]))
-        assert pointMultiplyJacobian(ec, beta13, ec.G) == RHS1, 'player one is cheating'
+            RHS1 = ec.pointAdd(RHS1, pointMultiply(ec, pow(3, i), B1[i]))
+        assert pointMultiply(ec, beta13, ec.G) == RHS1, 'player one is cheating'
 
         B = list() # commitment at the global sharing polynomial
         for i in range(0, t):
-            B.append(pointAdd(ec, B1[i], B3[i]))
+            B.append(ec.pointAdd(B1[i], B3[i]))
 
         K = B[0] # aggregated public nonce
         if legendre_symbol(K[1], ec._p) != 1:
@@ -397,34 +377,34 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # player one
         if legendre_symbol(K[1], ec._p) == 1:
-            RHS3 = pointAdd(ec, K, pointMultiplyJacobian(ec, e, Q))
+            RHS3 = ec.pointAdd(K, pointMultiply(ec, e, Q))
             for i in range(1, t):
-                RHS3 = pointAdd(ec, RHS3, pointAdd(ec, pointMultiplyJacobian(ec, \
-                        pow(3, i), B[i]), pointMultiplyJacobian(ec, e * pow(3, i), A[i])))
+                RHS3 = ec.pointAdd(RHS3,
+                    DoubleScalarMultiplication(ec, pow(3, i), B[i], e * pow(3, i), A[i]))
         else:
             assert legendre_symbol(K[1], ec._p) != 1
-            RHS3 = pointAdd(ec, opposite(ec, K), pointMultiplyJacobian(ec, e, Q))
+            RHS3 = ec.pointAdd(ec.opposite(K), pointMultiply(ec, e, Q))
             for i in range(1, t):
-                RHS3 = pointAdd(ec, RHS3, pointAdd(ec, pointMultiplyJacobian(ec, \
-                        pow(3, i), opposite(ec, B[i])), pointMultiplyJacobian(ec, e * pow(3, i), A[i])))
+                RHS3 = ec.pointAdd(RHS3,
+                    DoubleScalarMultiplication(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i]))
 
-        assert pointMultiplyJacobian(ec, gamma3, ec.G) == RHS3, 'player three is cheating'
+        assert pointMultiply(ec, gamma3, ec.G) == RHS3, 'player three is cheating'
 
 
         # player three
         if legendre_symbol(K[1], ec._p) == 1:
-            RHS1 = pointAdd(ec, K, pointMultiplyJacobian(ec, e, Q))
+            RHS1 = ec.pointAdd(K, pointMultiply(ec, e, Q))
             for i in range(1, t):
-                RHS1 = pointAdd(ec, RHS1, pointAdd(ec, pointMultiplyJacobian(ec, \
-                        pow(1, i), B[i]), pointMultiplyJacobian(ec, e * pow(1, i), A[i])))
+                RHS1 = ec.pointAdd(RHS1,
+                    DoubleScalarMultiplication(ec, pow(1, i), B[i], e * pow(1, i), A[i]))
         else:
             assert legendre_symbol(K[1], ec._p) != 1
-            RHS1 = pointAdd(ec, opposite(ec, K), pointMultiplyJacobian(ec, e, Q))
+            RHS1 = ec.pointAdd(ec.opposite(K), pointMultiply(ec, e, Q))
             for i in range(1, t):
-                RHS1 = pointAdd(ec, RHS1, pointAdd(ec, pointMultiplyJacobian(ec, \
-                        pow(1, i), opposite(ec, B[i])), pointMultiplyJacobian(ec, e * pow(1, i), A[i])))
+                RHS1 = ec.pointAdd(RHS1,
+                    DoubleScalarMultiplication(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i]))
 
-        assert pointMultiplyJacobian(ec, gamma1, ec.G) == RHS1, 'player two is cheating'
+        assert pointMultiply(ec, gamma1, ec.G) == RHS1, 'player two is cheating'
 
 
         ### PHASE FOUR: aggregating the signature ###
