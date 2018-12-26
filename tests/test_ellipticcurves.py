@@ -11,133 +11,62 @@ from btclib.ellipticcurves import EllipticCurve, sha256, \
                                   jac_from_affine, \
                                   pointAddJacobian, pointMultiplyJacobian, \
                                   DoubleScalarMultiplication, \
-                                  secp160r1, \
-                                  secp192k1, secp192r1, \
-                                  secp224k1, secp224r1, \
-                                  secp256k1, secp256r1, \
-                                  secp384r1, secp521r1
+                                  secp256k1, secp256r1, secp384r1, SEC_curves
 
-# toy curves
-ec11_13   = EllipticCurve( 1,  6,  11, (  5,  9),  13)
-ec263_269 = EllipticCurve( 6,  9, 263, (  0,  3), 269)
-#ec263_270 = EllipticCurve( 2,  3, 263, (200, 39), 270)
-#ec263_280 = EllipticCurve(-7, 10, 263, (  3,  4), 280)
 
-ec11_7    = EllipticCurve(2, 7,  11, (6,   9),   7)
-ec11_17   = EllipticCurve(2, 4,  11, (0,   9),  17)
-ec13_11   = EllipticCurve(7, 6,  13, (1,   1),  11)
-ec13_19   = EllipticCurve(0, 2,  13, (1,   9),  19)
-ec17_13   = EllipticCurve(6, 8,  17, (0,  12),  13)
-ec17_23   = EllipticCurve(3, 5,  17, (1,  14),  23)
-ec19_13   = EllipticCurve(0, 2,  19, (4,  16),  13)
-ec19_23   = EllipticCurve(2, 9,  19, (0,  16),  23)
-ec23_19   = EllipticCurve(9, 7,  23, (5,   4),  19)
-ec23_31   = EllipticCurve(5, 1,  23, (0,   1),  31)
-ec29_37   = EllipticCurve(4, 9,  29, (0,  26),  37)
-ec31_23   = EllipticCurve(4, 7,  31, (0,  10),  23)
-ec31_43   = EllipticCurve(0, 3,  31, (1,   2),  43)
-ec37_31   = EllipticCurve(2, 8,  37, (1,  23),  31)
-ec37_43   = EllipticCurve(2, 9,  37, (0,  34),  43)
-ec41_37   = EllipticCurve(2, 6,  41, (1,  38),  37)
-ec41_53   = EllipticCurve(4, 4,  41, (0,   2),  53)
-ec43_37   = EllipticCurve(1, 5,  43, (2,  31),  37)
-ec43_47   = EllipticCurve(1, 3,  43, (2,  23),  47)
-ec47_41   = EllipticCurve(3, 9,  47, (0,   3),  41)
-ec47_61   = EllipticCurve(3, 5,  47, (1,   3),  61)
-ec53_47   = EllipticCurve(9, 4,  53, (0,  51),  47)
-ec53_61   = EllipticCurve(1, 8,  53, (1,  13),  61)
-ec59_53   = EllipticCurve(9, 3,  59, (0,  48),  53)
-ec59_73   = EllipticCurve(3, 3,  59, (0,  48),  73)
-ec61_59   = EllipticCurve(2, 5,  61, (0,  35),  59)
-ec61_73   = EllipticCurve(1, 9,  61, (0,  58),  73)
-ec67_61   = EllipticCurve(3, 8,  67, (2,  25),  61)
-ec67_83   = EllipticCurve(5, 9,  67, (0,  64),  83)
-ec71_67   = EllipticCurve(7, 7,  71, (1,  50),  67)
-ec71_79   = EllipticCurve(1, 8,  71, (0,  24),  79)
-ec73_61   = EllipticCurve(6, 5,  73, (1,  42),  61)
-ec73_83   = EllipticCurve(3, 9,  73, (0,   3),  83)
-ec79_71   = EllipticCurve(2, 5,  79, (0,  20),  71)
-ec79_97   = EllipticCurve(0, 3,  79, (1,   2),  97)
-ec83_79   = EllipticCurve(1, 7,  83, (0,  16),  79)
-ec83_101  = EllipticCurve(5, 7,  83, (0,  16), 101)
-ec89_83   = EllipticCurve(6, 4,  89, (0,   2),  83)
-ec89_101  = EllipticCurve(1, 9,  89, (0,  86), 101)
-ec97_89   = EllipticCurve(1, 4,  97, (0,  95),  89)
-ec97_103  = EllipticCurve(3, 2,  97, (0,  83), 103)
-ec101_97  = EllipticCurve(7, 4, 101, (0,  99),  97)
-#ec101_101 = EllipticCurve(2, 5, 101, (0,  56), 101)
-ec103_101 = EllipticCurve(6, 2, 103, (0,  38), 101)
-ec103_113 = EllipticCurve(4, 4, 103, (0,   2), 113)
-ec107_103 = EllipticCurve(5, 2, 107, (3,  30), 103)
-ec107_113 = EllipticCurve(7, 9, 107, (0,   3), 113)
-ec109_107 = EllipticCurve(8, 1, 109, (0,   1), 107)
-ec109_127 = EllipticCurve(2, 4, 109, (0, 107), 127)
-ec113_103 = EllipticCurve(4, 6, 113, (1,  89), 103)
-ec113_127 = EllipticCurve(5, 7, 113, (0,  32), 127)
-ec127_113 = EllipticCurve(5, 9, 127, (0, 124), 113)
-ec127_139 = EllipticCurve(3, 2, 127, (0,  16), 139)
-ec131_127 = EllipticCurve(8, 5, 131, (0, 108), 127)
-ec131_137 = EllipticCurve(1, 9, 131, (0,   3), 137)
-ec137_127 = EllipticCurve(3, 9, 137, (0, 134), 127)
-ec137_157 = EllipticCurve(4, 1, 137, (0,   1), 157)
-ec139_131 = EllipticCurve(1, 3, 139, (1, 127), 131)
-ec139_163 = EllipticCurve(0, 2, 139, (3,  86), 163)
-ec149_139 = EllipticCurve(2, 8, 149, (2, 136), 139)
-ec149_173 = EllipticCurve(6, 5, 149, (0,  81), 173)
-ec151_149 = EllipticCurve(1, 7, 151, (1, 148), 149)
-ec151_167 = EllipticCurve(1, 3, 151, (1,  55), 167)
-ec157_151 = EllipticCurve(1, 4, 157, (0, 155), 151)
-ec157_181 = EllipticCurve(1, 7, 157, (1, 154), 181)
-ec163_157 = EllipticCurve(5, 9, 163, (0, 160), 157)
-ec163_181 = EllipticCurve(0, 3, 163, (1, 161), 181)
-ec167_163 = EllipticCurve(4, 2, 167, (0, 154), 163)
-ec167_181 = EllipticCurve(1, 3, 167, (0,  62), 181)
-ec173_167 = EllipticCurve(5, 5, 173, (2,  14), 167)
-ec173_197 = EllipticCurve(3, 7, 173, (2,  59), 197)
-ec179_173 = EllipticCurve(7, 5, 179, (0, 149), 173)
-ec179_181 = EllipticCurve(8, 2, 179, (6,  83), 181)
-ec181_163 = EllipticCurve(6, 2, 181, (1,   3), 163)
-ec181_199 = EllipticCurve(1, 5, 181, (0,  27), 199)
-ec191_179 = EllipticCurve(6, 9, 191, (0,   3), 179)
-ec191_197 = EllipticCurve(1, 6, 191, (0, 160), 197)
-ec193_191 = EllipticCurve(2, 7, 193, (0, 134), 191)
-ec193_211 = EllipticCurve(7, 1, 193, (0,   1), 211)
-ec197_191 = EllipticCurve(5, 4, 197, (0, 195), 191)
-ec197_199 = EllipticCurve(2, 6, 197, (0,  20), 199)
-ec199_197 = EllipticCurve(1, 3, 199, (1, 123), 197)
-ec199_211 = EllipticCurve(0, 3, 199, (1,   2), 211)
-ec211_199 = EllipticCurve(0, 2, 211, (4,  53), 199)
-ec211_229 = EllipticCurve(7, 2, 211, (2, 119), 229)
-ec223_241 = EllipticCurve(8, 7, 223, (0, 197), 241)
-ec227_241 = EllipticCurve(1, 9, 227, (0,   3), 241)
-ec229_227 = EllipticCurve(6, 6, 229, (2,  22), 227)
-ec229_239 = EllipticCurve(7, 7, 229, (1, 123), 239)
-ec233_229 = EllipticCurve(8, 6, 233, (1,  99), 229)
-ec233_257 = EllipticCurve(1, 4, 233, (0,   2), 257)
-ec239_233 = EllipticCurve(6, 5, 239, (0,  31), 233)
-ec239_257 = EllipticCurve(2, 1, 239, (0,   1), 257)
-ec241_229 = EllipticCurve(6, 2, 241, (0, 219), 229)
-ec241_257 = EllipticCurve(2, 4, 241, (0,   2), 257)
-ec251_233 = EllipticCurve(4, 3, 251, (0, 175), 233)
-ec251_271 = EllipticCurve(1, 4, 251, (0, 249), 271)
-ec257_241 = EllipticCurve(8, 5, 257, (2,  85), 241)
-ec257_281 = EllipticCurve(1, 7, 257, (1, 254), 281)
-ec263_257 = EllipticCurve(7, 6, 263, (0, 100), 257)
-ec263_283 = EllipticCurve(5, 3, 263, (0,  23), 283)
-ec269_241 = EllipticCurve(9, 4, 269, (0, 267), 241)
-ec269_293 = EllipticCurve(7, 9, 269, (0, 266), 293)
-ec271_269 = EllipticCurve(5, 2, 271, (0, 175), 269)
-ec271_277 = EllipticCurve(5, 8, 271, (0,  79), 277)
-ec277_263 = EllipticCurve(6, 9, 277, (0,   3), 263)
-ec277_307 = EllipticCurve(9, 9, 277, (0,   3), 307)
-ec281_311 = EllipticCurve(1, 4, 281, (0, 279), 311)
-ec283_281 = EllipticCurve(2, 7, 283, (0,  63), 281)
-#ec283_283 = EllipticCurve(4, 1, 283, (0,   1), 283)
-ec293_281 = EllipticCurve(8, 6, 293, (0,  42), 281)
-ec293_311 = EllipticCurve(1, 4, 293, (0, 291), 311)
+# Excel curves
+ec11_13   = EllipticCurve( 11,   1,  6, (  5,  9),  13, False)
+ec263_269 = EllipticCurve(263,   6,  9, (  0,  3), 269, False)
+#ec263_270 = EllipticCurve(263,  2,  3, (200, 39), 270, False)
+#ec263_280 = EllipticCurve(263, -7, 10, (  3,  4), 280, False)
+excel_curves = [
+    ec11_13, ec263_269#, ec263_270, ec263_280
+]
 
-lowcard = [
-    ec11_13, 
+# low cardinality curves p<100
+ec11_7    = EllipticCurve(11, 2, 7, (6,   9),   7, False)
+ec11_17   = EllipticCurve(11, 2, 4, (0,   9),  17, False)
+ec13_11   = EllipticCurve(13, 7, 6, (1,   1),  11, False)
+ec13_19   = EllipticCurve(13, 0, 2, (1,   9),  19, False)
+ec17_13   = EllipticCurve(17, 6, 8, (0,  12),  13, False)
+ec17_23   = EllipticCurve(17, 3, 5, (1,  14),  23, False)
+ec19_13   = EllipticCurve(19, 0, 2, (4,  16),  13, False)
+ec19_23   = EllipticCurve(19, 2, 9, (0,  16),  23, False)
+ec23_19   = EllipticCurve(23, 9, 7, (5,   4),  19, False)
+ec23_31   = EllipticCurve(23, 5, 1, (0,   1),  31, False)
+ec29_37   = EllipticCurve(29, 4, 9, (0,  26),  37, False)
+ec31_23   = EllipticCurve(31, 4, 7, (0,  10),  23, False)
+ec31_43   = EllipticCurve(31, 0, 3, (1,   2),  43, False)
+ec37_31   = EllipticCurve(37, 2, 8, (1,  23),  31, False)
+ec37_43   = EllipticCurve(37, 2, 9, (0,  34),  43, False)
+ec41_37   = EllipticCurve(41, 2, 6, (1,  38),  37, False)
+ec41_53   = EllipticCurve(41, 4, 4, (0,   2),  53, False)
+ec43_37   = EllipticCurve(43, 1, 5, (2,  31),  37, False)
+ec43_47   = EllipticCurve(43, 1, 3, (2,  23),  47, False)
+ec47_41   = EllipticCurve(47, 3, 9, (0,   3),  41, False)
+ec47_61   = EllipticCurve(47, 3, 5, (1,   3),  61, False)
+ec53_47   = EllipticCurve(53, 9, 4, (0,  51),  47, False)
+ec53_61   = EllipticCurve(53, 1, 8, (1,  13),  61, False)
+ec59_53   = EllipticCurve(59, 9, 3, (0,  48),  53, False)
+ec59_73   = EllipticCurve(59, 3, 3, (0,  48),  73, False)
+ec61_59   = EllipticCurve(61, 2, 5, (0,  35),  59, False)
+ec61_73   = EllipticCurve(61, 1, 9, (0,  58),  73, False)
+ec67_61   = EllipticCurve(67, 3, 8, (2,  25),  61, False)
+ec67_83   = EllipticCurve(67, 5, 9, (0,  64),  83, False)
+ec71_67   = EllipticCurve(71, 7, 7, (1,  50),  67, False)
+ec71_79   = EllipticCurve(71, 1, 8, (0,  24),  79, False)
+ec73_61   = EllipticCurve(73, 6, 5, (1,  42),  61, False)
+ec73_83   = EllipticCurve(73, 3, 9, (0,   3),  83, False)
+ec79_71   = EllipticCurve(79, 2, 5, (0,  20),  71, False)
+ec79_97   = EllipticCurve(79, 0, 3, (1,   2),  97, False)
+ec83_79   = EllipticCurve(83, 1, 7, (0,  16),  79, False)
+ec83_101  = EllipticCurve(83, 5, 7, (0,  16), 101, False)
+ec89_83   = EllipticCurve(89, 6, 4, (0,   2),  83, False)
+ec89_101  = EllipticCurve(89, 1, 9, (0,  86), 101, False)
+ec97_89   = EllipticCurve(97, 1, 4, (0,  95),  89, False)
+ec97_103  = EllipticCurve(97, 3, 2, (0,  83), 103, False)
+
+low_card_curves_1 = [
     ec11_7, ec11_17,
     ec13_11, ec13_19,
     ec17_13, ec17_23,
@@ -158,14 +87,85 @@ lowcard = [
     ec79_71, ec79_97,
     ec83_79, ec83_101,
     ec89_83, ec89_101,
-    ec97_89, ec97_103,
-    ec101_97, #ec101_101,
-    ec103_101, ec103_113
+    ec97_89, ec97_103
 ]
 
-smallcurves = lowcard + [
-    ec263_269,
-    #ec263_270, ec263_280,
+# low cardinality curves 100<p<300
+ec101_97  = EllipticCurve(101, 7, 4, (0,  99),  97, False)
+#ec101_101 = EllipticCurve(101, 2, 5, (0,  56), 101, False)
+ec103_101 = EllipticCurve(103, 6, 2, (0,  38), 101, False)
+ec103_113 = EllipticCurve(103, 4, 4, (0,   2), 113, False)
+ec107_103 = EllipticCurve(107, 5, 2, (3,  30), 103, False)
+ec107_113 = EllipticCurve(107, 7, 9, (0,   3), 113, False)
+ec109_107 = EllipticCurve(109, 8, 1, (0,   1), 107, False)
+ec109_127 = EllipticCurve(109, 2, 4, (0, 107), 127, False)
+ec113_103 = EllipticCurve(113, 4, 6, (1,  89), 103, False)
+ec113_127 = EllipticCurve(113, 5, 7, (0,  32), 127, False)
+ec127_113 = EllipticCurve(127, 5, 9, (0, 124), 113, False)
+ec127_139 = EllipticCurve(127, 3, 2, (0,  16), 139, False)
+ec131_127 = EllipticCurve(131, 8, 5, (0, 108), 127, False)
+ec131_137 = EllipticCurve(131, 1, 9, (0,   3), 137, False)
+ec137_127 = EllipticCurve(137, 3, 9, (0, 134), 127, False)
+ec137_157 = EllipticCurve(137, 4, 1, (0,   1), 157, False)
+ec139_131 = EllipticCurve(139, 1, 3, (1, 127), 131, False)
+ec139_163 = EllipticCurve(139, 0, 2, (3,  86), 163, False)
+ec149_139 = EllipticCurve(149, 2, 8, (2, 136), 139, False)
+ec149_173 = EllipticCurve(149, 6, 5, (0,  81), 173, False)
+ec151_149 = EllipticCurve(151, 1, 7, (1, 148), 149, False)
+ec151_167 = EllipticCurve(151, 1, 3, (1,  55), 167, False)
+ec157_151 = EllipticCurve(157, 1, 4, (0, 155), 151, False)
+ec157_181 = EllipticCurve(157, 1, 7, (1, 154), 181, False)
+ec163_157 = EllipticCurve(163, 5, 9, (0, 160), 157, False)
+ec163_181 = EllipticCurve(163, 0, 3, (1, 161), 181, False)
+ec167_163 = EllipticCurve(167, 4, 2, (0, 154), 163, False)
+ec167_181 = EllipticCurve(167, 1, 3, (0,  62), 181, False)
+ec173_167 = EllipticCurve(173, 5, 5, (2,  14), 167, False)
+ec173_197 = EllipticCurve(173, 3, 7, (2,  59), 197, False)
+ec179_173 = EllipticCurve(179, 7, 5, (0, 149), 173, False)
+ec179_181 = EllipticCurve(179, 8, 2, (6,  83), 181, False)
+ec181_163 = EllipticCurve(181, 6, 2, (1,   3), 163, False)
+ec181_199 = EllipticCurve(181, 1, 5, (0,  27), 199, False)
+ec191_179 = EllipticCurve(191, 6, 9, (0,   3), 179, False)
+ec191_197 = EllipticCurve(191, 1, 6, (0, 160), 197, False)
+ec193_191 = EllipticCurve(193, 2, 7, (0, 134), 191, False)
+ec193_211 = EllipticCurve(193, 7, 1, (0,   1), 211, False)
+ec197_191 = EllipticCurve(197, 5, 4, (0, 195), 191, False)
+ec197_199 = EllipticCurve(197, 2, 6, (0,  20), 199, False)
+ec199_197 = EllipticCurve(199, 1, 3, (1, 123), 197, False)
+ec199_211 = EllipticCurve(199, 0, 3, (1,   2), 211, False)
+ec211_199 = EllipticCurve(211, 0, 2, (4,  53), 199, False)
+ec211_229 = EllipticCurve(211, 7, 2, (2, 119), 229, False)
+ec223_241 = EllipticCurve(223, 8, 7, (0, 197), 241, False)
+ec227_241 = EllipticCurve(227, 1, 9, (0,   3), 241, False)
+ec229_227 = EllipticCurve(229, 6, 6, (2,  22), 227, False)
+ec229_239 = EllipticCurve(229, 7, 7, (1, 123), 239, False)
+ec233_229 = EllipticCurve(233, 8, 6, (1,  99), 229, False)
+ec233_257 = EllipticCurve(233, 1, 4, (0,   2), 257, False)
+ec239_233 = EllipticCurve(239, 6, 5, (0,  31), 233, False)
+ec239_257 = EllipticCurve(239, 2, 1, (0,   1), 257, False)
+ec241_229 = EllipticCurve(241, 6, 2, (0, 219), 229, False)
+ec241_257 = EllipticCurve(241, 2, 4, (0,   2), 257, False)
+ec251_233 = EllipticCurve(251, 4, 3, (0, 175), 233, False)
+ec251_271 = EllipticCurve(251, 1, 4, (0, 249), 271, False)
+ec257_241 = EllipticCurve(257, 8, 5, (2,  85), 241, False)
+ec257_281 = EllipticCurve(257, 1, 7, (1, 254), 281, False)
+ec263_257 = EllipticCurve(263, 7, 6, (0, 100), 257, False)
+ec263_283 = EllipticCurve(263, 5, 3, (0,  23), 283, False)
+ec269_241 = EllipticCurve(269, 9, 4, (0, 267), 241, False)
+ec269_293 = EllipticCurve(269, 7, 9, (0, 266), 293, False)
+ec271_269 = EllipticCurve(271, 5, 2, (0, 175), 269, False)
+ec271_277 = EllipticCurve(271, 5, 8, (0,  79), 277, False)
+ec277_263 = EllipticCurve(277, 6, 9, (0,   3), 263, False)
+ec277_307 = EllipticCurve(277, 9, 9, (0,   3), 307, False)
+ec281_311 = EllipticCurve(281, 1, 4, (0, 279), 311, False)
+ec283_281 = EllipticCurve(283, 2, 7, (0,  63), 281, False)
+#ec283_283 = EllipticCurve(283, 4, 1, (0,   1), 283, False)
+ec293_281 = EllipticCurve(293, 8, 6, (0,  42), 281, False)
+ec293_311 = EllipticCurve(293, 1, 4, (0, 291), 311, False)
+
+low_card_curves_2 = [
+    ec101_97, #ec101_101,
+    ec103_101, ec103_113,
     ec107_103, ec107_113,
     ec109_107, ec109_127,
     ec113_103, ec113_127,
@@ -202,16 +202,12 @@ smallcurves = lowcard + [
     ec293_281, ec293_311
     ]
 
-allcurves = [
-    secp160r1,
-    secp192k1, secp192r1, secp224k1, secp224r1,
-    secp256k1, secp256r1, secp384r1, secp521r1,
-    ec11_13, ec263_269 # ?
-    ] + smallcurves
+low_card_curves = low_card_curves_1 + low_card_curves_2
+all_curves = SEC_curves + excel_curves + low_card_curves
     
 class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
-        for ec in allcurves:
+        for ec in all_curves:
             # the infinity point is represented by None
             self.assertEqual(pointMultiply(ec, 0, ec.G), None)
             self.assertEqual(pointMultiply(ec, 0, ec.G), None)
@@ -270,8 +266,11 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(pointMultiply(ec, 1, None), None)
             self.assertEqual(pointMultiply(ec, 25, None), None)
 
-            ec2 = eval(repr(ec))
-            self.assertEqual(str(ec2), str(ec2))
+            ec_repr = repr(ec)
+            if ec in excel_curves+low_card_curves:
+                ec_repr = ec_repr[:-1] + ", False)"
+            ec2 = eval(ec_repr)
+            self.assertEqual(str(ec), str(ec2))
 
             if (ec.n % 2 == 0):
                 P = pointMultiply(ec, ec.n//2, ec.G)
@@ -390,7 +389,7 @@ class TestEllipticCurve(unittest.TestCase):
         H = secondGenerator(secp384r1, sha256)
 
     def test_opposite(self): 
-        for ec in allcurves:
+        for ec in all_curves:
             # random point
             q = os.urandom(ec.bytesize)
             Q = pointMultiply(ec, q, ec.G)
@@ -408,7 +407,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     # FIXME remove urandom from tests
     def test_quad_res(self):
-        for ec in smallcurves:
+        for ec in low_card_curves:
 
             ## setup phase
             # compute quadratic residues
@@ -468,7 +467,7 @@ class TestEllipticCurve(unittest.TestCase):
                     self.assertRaises(ValueError, mod_sqrt, yEven, ec._p)
 
     def test_affine_from_jac_conversion(self):
-        for ec in allcurves:
+        for ec in all_curves:
             # random point
             q = os.urandom(ec.bytesize)
             Q = pointMultiply(ec, q, ec.G)
@@ -476,7 +475,7 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(Q, checkQ)
 
     def test_AddJacobian(self):
-        for ec in allcurves:
+        for ec in all_curves:
             q1 = os.urandom(ec.bytesize)
             Q1 = pointMultiply(ec, q1, ec.G)
             q2 = os.urandom(ec.bytesize)
@@ -544,7 +543,7 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(Q3, Q3jac)
 
     def test_MultiplyJacobian(self):
-        for ec in allcurves:
+        for ec in all_curves:
             n = os.urandom(ec.bytesize)
         
             nQ = pointMultiply(ec, n, ec.G)
@@ -552,7 +551,7 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(nQ, nQjac)
 
     def test_shamir(self):
-        for ec in smallcurves:
+        for ec in all_curves:
             k1 = int.from_bytes(os.urandom(ec.bytesize), 'big')
             k2 = int.from_bytes(os.urandom(ec.bytesize), 'big')
 

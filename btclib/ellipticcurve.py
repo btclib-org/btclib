@@ -29,11 +29,12 @@ class EllipticCurve:
     """Elliptic curve over Fp group"""
 
     def __init__(self,
+                 p: int,
                  a: int,
                  b: int,
-                 p: int,
                  G: Point,
-                 n: int) -> None:
+                 n: int,
+                 checkWeakness = True) -> None:
         """EllipticCurve instantiation
 
         Parameters are checked according to SEC2 3.1.1.2.1
@@ -87,17 +88,28 @@ class EllipticCurve:
 
         # 6. Check cofactor
         # missing for the time being
+
+        #8. Check that n ≠ p
+        if n == p:
+            raise UserWarning("n=p -> weak curve")
+        # 8. Check that p^i % n ≠ 1 for all 1≤i<100
+        if checkWeakness:
+            for i in (1, 100):
+                if pow(p, i, n) == 1:
+                    raise UserWarning("weak curve")
         
     def __str__(self) -> str:
-        result  = "EllipticCurve(a=%s, b=%s)" % (self._a, self._b)
+        result  = "EllipticCurve"
         result += "\n p = 0x%032x" % (self._p)
-        result += "\n G =(0x%032x,\n         0x%032x)" % (self.G)
+        result += "\n a = %s, b = %s" % (self._a, self._b)
+        result += "\n G = (0x%032x,\n          0x%032x)" % (self.G)
         result += "\n n = 0x%032x" % (self.n)
         return result
 
     def __repr__(self) -> str:
-        result  = "EllipticCurve(%s, %s" % (self._a, self._b)
-        result += ", 0x%032x" % (self._p)
+        result  = "EllipticCurve("
+        result += "0x%032x" % (self._p)
+        result += ", %s, %s" % (self._a, self._b)
         result += ", (0x%032x,0x%032x)" % (self.G)
         result += ", 0x%032x)" % (self.n)
         return result

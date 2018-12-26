@@ -15,7 +15,7 @@ from btclib.ecssa import rfc6979, int_from_hash, \
                          ecssa_pubkey_recovery, \
                          ecssa_batch_validation
 
-from tests.test_ellipticcurves import lowcard
+from tests.test_ellipticcurves import low_card_curves
 
 # Test vectors from
 # https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
@@ -207,7 +207,7 @@ class TestEcssa(unittest.TestCase):
         hlen = 32
         H = [i.to_bytes(hlen, 'big') for i in range(0, max(prime))]
 
-        for ec in lowcard: # only low card curves or it would take forever
+        for ec in low_card_curves: # only low card curves or it would take forever
             if ec.n in prime: # only few curves or it would take too long
                 # Schnorr-bip only applies to curve whose prime p = 3 %4
                 if not ec.pIsThreeModFour:

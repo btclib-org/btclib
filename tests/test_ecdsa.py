@@ -11,7 +11,7 @@ from btclib.ecdsa import rfc6979, int_from_hash, \
                          _ecdsa_verify, ecdsa_verify, \
                          _ecdsa_pubkey_recovery, ecdsa_pubkey_recovery
 
-from tests.test_ellipticcurves import lowcard
+from tests.test_ellipticcurves import low_card_curves
 
 class TestEcdsa(unittest.TestCase):
     def test_ecdsa(self):
@@ -52,7 +52,7 @@ class TestEcdsa(unittest.TestCase):
         hlen = 32
         H = [i.to_bytes(hlen, 'big') for i in range(0, max(prime))]
 
-        for ec in lowcard: # only low card curves or it would take forever
+        for ec in low_card_curves: # only low card curves or it would take forever
             if ec.n in prime: # only few curves or it would take too long
                 # all possible private keys (invalid 0 included)
                 for q in range(0, ec.n):
