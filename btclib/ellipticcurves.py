@@ -130,8 +130,9 @@ class EllipticCurve:
         if Q[2] == 0: # Infinity point in Jacobian coordinates
             return 1, 0
         else:
-            x = (Q[0]*mod_inv(Q[2]*Q[2], self._p)) % self._p
-            y = (Q[1]*mod_inv(Q[2]*Q[2]*Q[2], self._p)) % self._p
+            Z2 = Q[2]*Q[2]
+            x = (Q[0]*mod_inv(Z2, self._p)) % self._p
+            y = (Q[1]*mod_inv(Z2*Q[2], self._p)) % self._p
             return x, y
 
     # methods using _a, _b, _p
@@ -142,28 +143,35 @@ class EllipticCurve:
         if R[2] == 0: # Infinity point in Jacobian coordinates
             return Q
 
-        # same affine x coordinate        
-        if Q[0]*R[2]*R[2] % self._p == R[0]*Q[2]*Q[2] % self._p:
-            # opposite points or degenerate case
-            if Q[1]*R[2]*R[2]*R[2] % self._p != R[1]*Q[2]*Q[2]*Q[2] % self._p or Q[1] % self._p == 0:
-                return 1, 1, 0
-            else:                            # point doubling
-                W = (3*Q[0]*Q[0] + self._a*Q[2]*Q[2]*Q[2]*Q[2]) % self._p
-                V = (4*Q[0]*Q[1]*Q[1]) % self._p
+        RZ2 = R[2] * R[2]
+        RZ3 =  RZ2 * R[2]
+        QZ2 = Q[2] * Q[2]
+        QZ3 =  QZ2 * Q[2]
+        if Q[0]*RZ2 % self._p == R[0]*QZ2 % self._p:     # same affine x
+            if Q[1]*RZ3 % self._p == R[1]*QZ3 % self._p: # point doubling
+                QY2 = Q[1]*Q[1]
+                W = (3*Q[0]*Q[0] + self._a*QZ2*QZ2) % self._p
+                V = (4*Q[0]*QY2) % self._p
                 X = (W*W - 2*V) % self._p
-                Y = (W*(V - X) - 8*Q[1]*Q[1]*Q[1]*Q[1]) % self._p
+                Y = (W*(V - X) - 8*QY2*QY2) % self._p
                 Z = (2*Q[1]*Q[2]) % self._p
                 return X, Y, Z
+            else:                                        # opposite points
+                return 1, 1, 0
         else:
-            T = (Q[1]*R[2]*R[2]*R[2]) % self._p
-            U = (R[1]*Q[2]*Q[2]*Q[2]) % self._p
+            T = (Q[1]*RZ3) % self._p
+            U = (R[1]*QZ3) % self._p
             W = (U - T) % self._p
-            M = (Q[0]*R[2]*R[2]) % self._p
-            N = (R[0]*Q[2]*Q[2]) % self._p
+
+            M = (Q[0]*RZ2) % self._p
+            N = (R[0]*QZ2) % self._p
             V = (N - M) % self._p
-                
-            X = (W*W - V*V*V - 2*M*V*V) % self._p
-            Y = (W*(M*V*V - X) - T*V*V*V) % self._p
+
+            V2 = V * V
+            V3 = V2 * V
+            MV2 = M * V2
+            X = (W*W - V3 - 2*MV2) % self._p
+            Y = (W*(MV2 - X) - T*V3) % self._p
             Z = (V*Q[2]*R[2]) % self._p
             return X, Y, Z
 
