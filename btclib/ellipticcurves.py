@@ -19,7 +19,7 @@ def isOnCurve(ec: EllipticCurve, Q: Point) -> bool:
 
 ### Functions using GenericPoint and Scalar ####
 
-GenericPoint = Union[str, bytes, bytearray, Point]
+GenericPoint = Union[str, bytes, Point]
 # infinity point being represented by None,
 # Optional[GenericPoint] do include the infinity point
 
@@ -34,7 +34,7 @@ def tuple_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint]) -> Point:
         # as it is a bitcoin convention only
         Q = bytes.fromhex(Q)
 
-    if isinstance(Q, bytes) or isinstance(Q, bytearray):
+    if isinstance(Q, bytes):
         if len(Q) == ec.bytesize+1: # compressed point
             assert Q[0] == 0x02 or Q[0] == 0x03, "not a compressed point"
             Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
@@ -68,8 +68,10 @@ def bytes_from_Point(ec: EllipticCurve, Q: Optional[GenericPoint], compressed: b
 
     return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
 
-def opposite(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoint]) -> Union[Optional[Point], JacPoint]:
-    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
+def opposite(ec: EllipticCurve,
+             Q: Union[Optional[GenericPoint], JacPoint]) -> Union[Optional[Point], JacPoint]:
+    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3):
+        Q = tuple_from_Point(ec, Q)
     if isinstance(Q, tuple) and len(Q) == 3: 
         Q = ec.affine_from_jac(Q)
         return jac_from_affine(ec.opposite(Q))
@@ -89,13 +91,13 @@ def pointAddJacobian(ec: EllipticCurve, Q: Union[Optional[GenericPoint], JacPoin
     return ec.pointAddJacobian(Q, R)
 
 
-Scalar = Union[str, bytes, bytearray, int]
+Scalar = Union[str, bytes, int]
 
 def int_from_Scalar(ec: EllipticCurve, n: Scalar) -> int:
     if isinstance(n, str): # hex string
         n = bytes.fromhex(n)
 
-    if isinstance(n, bytes) or isinstance(n, bytearray):
+    if isinstance(n, bytes):
         # FIXME: asses if must be <= or ec.bytesize should be rivised
         assert len(n) <= ec.bytesize, "wrong lenght"
         n = int.from_bytes(n, 'big')
@@ -110,16 +112,46 @@ def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     n = int_from_Scalar(ec, n)
     return n.to_bytes(ec.bytesize, 'big')
 
-def pointMultiply(ec: EllipticCurve, n: Scalar, Q: Optional[GenericPoint]) -> Optional[Point]:
+def pointMultiply(ec: EllipticCurve,
+                  n: Scalar,
+                  Q: Optional[GenericPoint]) -> Optional[Point]:
+    """double & add in affine coordinates, using binary decomposition of n"""
     n = int_from_Scalar(ec, n)
-    if Q is not None: Q = tuple_from_Point(ec, Q)
-    return ec.pointMultiply(n, Q)
+    if Q is None:
+        return None
+    Q = tuple_from_Point(ec, Q)
+    R = None       # initialize as infinity point
+    while n > 0:   # use binary representation of n
+        if n & 1:  # if least significant bit is 1 then add current Q
+            R = pointAdd(ec, R, Q)
+        n = n>>1   # right shift removes the bit just accounted for
+                   # double Q for next step
+        Q = pointAdd(ec, Q, Q)
+    return R
 
-def pointMultiplyJacobian(ec: EllipticCurve, n: Scalar, Q: Union[Optional[GenericPoint], JacPoint]) -> Optional[Point]:
+def pointMultiplyJacobian(ec: EllipticCurve,
+                          n: Scalar,
+                          Q: Union[Optional[GenericPoint], JacPoint]) -> Optional[Point]:
+    """double & add in jacobian coordinates, using binary decomposition of n"""
     n = int_from_Scalar(ec, n)
-    if Q is not None and not (isinstance(Q, tuple) and len(Q) == 3): Q = tuple_from_Point(ec, Q)
-    if Q is None or len(Q) == 2: Q = jac_from_affine(Q)
-    return ec.pointMultiplyJacobian(n, Q)
+
+    if Q is None:
+        return None
+    if (isinstance(Q, tuple) and len(Q) == 3):
+        if Q[2] == 0:
+            return None
+    else:
+        Q = tuple_from_Point(ec, Q)
+        Q = jac_from_affine(Q)
+
+    R = (1, 1, 0)  # initialize as infinity point
+    while n > 0:   # use binary representation of n
+        if n & 1:  # if least significant bit is 1 then add current Q
+            R = pointAddJacobian(ec, R, Q)
+        n = n>>1   # right shift removes the bit just accounted for
+                   # double Q for next step:
+        Q = pointAddJacobian(ec, Q, Q)
+    return ec.affine_from_jac(R)
 
 # efficient method to compute k1*Q1 + k2*Q2
 def DoubleScalarMultiplication(ec: EllipticCurve,
@@ -135,8 +167,8 @@ def DoubleScalarMultiplication(ec: EllipticCurve,
         Q1 = tuple_from_Point(ec, Q1)
         Q2 = tuple_from_Point(ec, Q2)
 
-        k1 = int_from_Scalar(ec, k1)
-        k2 = int_from_Scalar(ec, k2)
+    k1 = int_from_Scalar(ec, k1)
+    k2 = int_from_Scalar(ec, k2)
 
     Q3 = jac_from_affine(None)
 

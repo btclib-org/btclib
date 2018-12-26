@@ -13,6 +13,7 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   Scalar as PrvKey, Point as PubKey, \
                                   GenericPoint as GenericPubKey, \
                                   EllipticCurve, secp256k1, jac_from_affine, \
+                                  pointMultiplyJacobian, \
                                   DoubleScalarMultiplication, \
                                   int_from_Scalar, tuple_from_Point
 from btclib.rfc6979 import rfc6979
@@ -58,7 +59,7 @@ def _ecdsa_sign(H: HashDigest,
     k = k % ec.n
 
     # Let R = k'G.
-    R = ec.pointMultiplyJacobian(k, jac_from_affine(ec.G)) # 1
+    R = pointMultiplyJacobian(ec, k, jac_from_affine(ec.G)) # 1
     if R is None: # this makes mypy happy in R[0]
         raise ValueError("ephemeral key k=0 in ecdsa sign operation")
 

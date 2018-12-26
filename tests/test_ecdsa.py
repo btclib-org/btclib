@@ -4,7 +4,8 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import jac_from_affine, secp256k1
+from btclib.ellipticcurves import jac_from_affine, secp256k1 as ec, \
+                                  pointMultiply, pointMultiplyJacobian
 from btclib.ecdsa import rfc6979, int_from_hash, \
                          _ecdsa_sign, ecdsa_sign, \
                          _ecdsa_verify, ecdsa_verify, \
@@ -15,7 +16,7 @@ from tests.test_ellipticcurves import lowcard
 class TestEcdsa(unittest.TestCase):
     def test_ecdsa(self):
         q = 0x1
-        Q = secp256k1.pointMultiply(q, secp256k1.G)
+        Q = pointMultiply(ec, q, ec.G)
         msg = 'Satoshi Nakamoto'.encode()
 
         dsasig = ecdsa_sign(msg, q)
@@ -24,11 +25,11 @@ class TestEcdsa(unittest.TestCase):
                    0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
         r, s = dsasig
         self.assertEqual(r, exp_sig[0])
-        self.assertIn(s, (exp_sig[1], secp256k1.n - exp_sig[1]))
+        self.assertIn(s, (exp_sig[1], ec.n - exp_sig[1]))
 
         # malleability
         self.assertTrue(ecdsa_verify(msg, dsasig, Q))
-        malleated_sig = (r, secp256k1.n - s)
+        malleated_sig = (r, ec.n - s)
         self.assertTrue(ecdsa_verify(msg, malleated_sig, Q))
 
         keys = ecdsa_pubkey_recovery(msg, dsasig)
@@ -59,11 +60,11 @@ class TestEcdsa(unittest.TestCase):
                         self.assertRaises(ValueError, _ecdsa_sign, H[0], q, None, ec)
                         continue
                     G = jac_from_affine(ec.G) # G in jacobian coordinates
-                    Q = ec.pointMultiplyJacobian(q, G) # public key
+                    Q = pointMultiplyJacobian(ec, q, G) # public key
                     for m in range(0, ec.n): # all possible hashed messages
 
                         k = rfc6979(q, H[m], sha256) # ephemeral key
-                        K = ec.pointMultiplyJacobian(k, G)
+                        K = pointMultiplyJacobian(ec, k, G)
                         if K == None:
                             self.assertRaises(ValueError, _ecdsa_sign, H[m], q, k, ec)
                             continue

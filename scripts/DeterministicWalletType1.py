@@ -19,7 +19,7 @@ for i in range(0, nKeys):
   i_bytes = i.to_bytes(32, 'big')
   h_hex = sha256(i_bytes+mprvkey_bytes).hexdigest()
   p = int(h_hex, 16) % ec.n
-  P = ec.pointMultiply(p, ec.G)
+  P = pointMultiply(ec, p, ec.G)
   print('prvkey#', i, ':', format(p, '#064x'))
   print('Pubkey#', i, ':', format(P[0], '#064x'))
   print('           ',     format(P[1], '#064x'))

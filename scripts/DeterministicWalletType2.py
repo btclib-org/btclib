@@ -14,7 +14,7 @@ mprvkey = randint(0, ec.n-1)
 print('\nmaster private key:', format(mprvkey, '#064x'))
 
 # Master Pubkey:
-mpubkey = ec.pointMultiply(mprvkey, ec.G)
+mpubkey = pointMultiply(ec, mprvkey, ec.G)
 print('Master Public Key:', format(mpubkey[0], '#064x'))
 print('                  ', format(mpubkey[1], '#064x'))
 
@@ -31,15 +31,15 @@ for i in range(0, nKeys):
   h_hex = sha256(i_bytes+r_bytes).hexdigest()
   h_int.append(int(h_hex, 16))
   p.append((mprvkey + h_int[i]) % ec.n)
-  P = ec.pointMultiply(p[i])
+  P = pointMultiply(ec, p[i])
   print('prvkey#', i, ':', format(p[i], '#064x'))
   print('Pubkey#', i, ':', format(P[0], '#064x'))
   print('           ',     format(P[1], '#064x'))
 
 # Pubkeys could be calculated without using prvkeys
 for i in range(0, nKeys):
-  P = ec.pointAdd(mpubkey, ec.pointMultiply(h_int[i], ec.G))
-  assert P == ec.pointMultiply(p[i], ec.G)
+  P = ec.pointAdd(mpubkey, pointMultiply(ec, h_int[i], ec.G))
+  assert P == pointMultiply(ec, p[i], ec.G)
 
 def det_wallet2(key, r, i):
   r_bytes = r.to_bytes(32, 'big')
@@ -52,7 +52,7 @@ def det_wallet2(key, r, i):
     return (prvkey + h_int) % ec.n
   except:
     pubkey = ec.tuple_from_Point(key)
-    return ec.pointAdd(pubkey, ec.pointMultiply(h_int, ec.G))
+    return ec.pointAdd(pubkey, pointMultiply(ec, h_int, ec.G))
   raise ValueError("Invalid key")
 
 print()

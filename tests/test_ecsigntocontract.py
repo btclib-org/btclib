@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import unittest
+
 from btclib.ecdsa import ecdsa_verify
 from btclib.ecssa import ecssa_verify
-from btclib.ecsigntocontract import ec, sha256, \
+from btclib.ecsigntocontract import ec, pointMultiply, \
                                     ecdsa_commit_and_sign, \
                                     ecssa_commit_and_sign, \
                                     verify_commit
@@ -11,7 +12,7 @@ from btclib.ecsigntocontract import ec, sha256, \
 class TestSignToContract(unittest.TestCase):
     def test_signtocontract(self):
         prv = 0x1
-        pub = ec.pointMultiply(prv, ec.G)
+        pub = pointMultiply(ec, prv, ec.G)
         m = "to be signed".encode()
         c = "to be committed".encode()
 

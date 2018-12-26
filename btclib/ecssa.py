@@ -14,6 +14,7 @@ from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   Scalar as PrvKey, Point as PubKey, \
                                   GenericPoint as GenericPubKey, \
                                   EllipticCurve, secp256k1, jac_from_affine, \
+                                  pointMultiplyJacobian, \
                                   DoubleScalarMultiplication, \
                                   int_from_Scalar, tuple_from_Point, \
                                   bytes_from_Point
@@ -54,7 +55,7 @@ def _ecssa_sign(m: bytes,
 
     # The secret key d: an integer in the range 1..n-1.
     G = jac_from_affine(ec.G) 
-    Q = ec.pointMultiplyJacobian(d, G)
+    Q = pointMultiplyJacobian(ec, d, G)
     if Q is None:
         raise ValueError("invalid (zero) private key")
 
@@ -64,7 +65,7 @@ def _ecssa_sign(m: bytes,
     k = k % ec.n
 
     # Let R = k'G.
-    R = ec.pointMultiplyJacobian(k, G)
+    R = pointMultiplyJacobian(ec, k, G)
     if R is None: # this makes mypy happy in R[0]
         raise ValueError("ephemeral key k=0 in ecssa sign operation")
 
@@ -234,6 +235,6 @@ def ecssa_batch_validation(ms: List[bytes],
         heapq.heappush(boscoster,(-a2, K2))
         
     aK = heapq.heappop(boscoster)
-    RHS = ec.pointMultiplyJacobian(-aK[0], aK[1])
+    RHS = pointMultiplyJacobian(ec, -aK[0], aK[1])
     
-    return ec.pointMultiplyJacobian(mult, jac_from_affine(ec.G)) == RHS
+    return pointMultiplyJacobian(ec, mult, jac_from_affine(ec.G)) == RHS

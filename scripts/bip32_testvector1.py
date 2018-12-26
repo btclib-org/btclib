@@ -34,7 +34,7 @@ hashValue = HMAC(b"Bitcoin seed", seed.to_bytes(seed_bytes, byteorder='big'), sh
 p_bytes = hashValue[:32]
 p = int(p_bytes.hex(), 16) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = ec.pointMultiply(p, ec.G)
+P = pointMultiply(ec, p, ec.G)
 P_bytes = bytes_from_Point(ec, P, True)
 chain_code = hashValue[32:]
 
@@ -59,7 +59,7 @@ key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = ec.pointMultiply(p, ec.G)
+P = pointMultiply(ec, p, ec.G)
 P_bytes = bytes_from_Point(ec, P, True)
 chain_code = hashValue[32:]
 
@@ -83,7 +83,7 @@ key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = ec.pointMultiply(p, ec.G)
+P = pointMultiply(ec, p, ec.G)
 P_bytes = bytes_from_Point(ec, P, True)
 chain_code = hashValue[32:]
 
@@ -107,7 +107,7 @@ key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = ec.pointMultiply(p, ec.G)
+P = pointMultiply(ec, p, ec.G)
 P_bytes = bytes_from_Point(ec, P, True)
 chain_code = hashValue[32:]
 
@@ -131,7 +131,7 @@ key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = ec.pointMultiply(p, ec.G)
+P = pointMultiply(ec, p, ec.G)
 P_bytes = bytes_from_Point(ec, P, True)
 chain_code = hashValue[32:]
 
@@ -155,7 +155,7 @@ key = p_bytes if child_number[0]>127 else P_bytes
 hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
-P = ec.pointMultiply(p, ec.G)
+P = pointMultiply(ec, p, ec.G)
 P_bytes = bytes_from_Point(ec, P, True)
 chain_code = hashValue[32:]
 

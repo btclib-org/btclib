@@ -10,6 +10,7 @@ from math import sqrt
 from typing import Tuple, Union, Optional, NewType
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
+#from btclib.ellipticcurves import pointMultiply
 
 Point = Tuple[int, int]
 JacPoint = Tuple[int, int, int] 
@@ -57,9 +58,9 @@ class EllipticCurve:
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
 
         # check (n-1)*G + G = Inf
-        T = self.pointMultiply(n-1, self.G)
-        Inf = self.pointAdd(T, self.G)
-        assert Inf is None, "wrong order"
+        #T = pointMultiply(self, n-1, self.G)
+        #Inf = self.pointAdd(T, self.G)
+        #assert Inf is None, "wrong order"
 
     # methods using self.a and self.b
 
@@ -184,29 +185,3 @@ class EllipticCurve:
             Y = (W*(M*V*V - X) - T*V*V*V) % self._p
             Z = (V*Q[2]*R[2]) % self._p
             return X, Y, Z
-
-    # double & add, using binary decomposition of n
-    def pointMultiply(self, n: int, Q: Optional[Point]) -> Optional[Point]:
-        if Q is None: return Q
-        n = n % self.n # the group is cyclic
-        r = None       # initialized to infinity point
-        while n > 0:   # use binary representation of n
-            if n & 1:  # if least significant bit is 1 then add current Q
-                r = self.pointAdd(r, Q)
-            n = n>>1   # right shift removes the bit just accounted for
-                       # double Q for next step
-            Q = self.pointAdd(Q, Q)
-        return r
-
-    def pointMultiplyJacobian(self, n: int, Q: JacPoint) -> Optional[Point]:
-        if Q[2] == 0: return None
-        n = n % self.n # the group is cyclic
-        r = (1, 1, 0)  # initialized to infinity point
-        while n > 0:   # use binary representation of n
-            if n & 1:  # if least significant bit is 1 then add current Q
-                r = self.pointAddJacobian(r, Q)
-            n = n>>1   # right shift removes the bit just accounted for
-                       # double Q for next step:
-            Q = self.pointAddJacobian(Q, Q)
-        return self.affine_from_jac(r)
-

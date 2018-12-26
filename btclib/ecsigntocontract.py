@@ -23,7 +23,7 @@ COMMITMENT VERIFICATION:
 """
 
 from hashlib import sha256
-from btclib.ellipticcurves import secp256k1 as ec, \
+from btclib.ellipticcurves import secp256k1 as ec, pointMultiply, \
                                   Optional, Tuple, Scalar, Point, \
                                   bytes_from_Point, int_from_Scalar, \
                                   tuple_from_Point
@@ -41,7 +41,7 @@ def tweak(k: int, c: bytes, Hash = sha256) -> Tuple[Point, Scalar]:
     - point kG to tweak
     - tweaked private key k + h(kG||c), the corresponding pubkey is a commitment to kG, c
     """
-    R = ec.pointMultiply(k, ec.G)
+    R = pointMultiply(ec, k, ec.G)
     e = Hash(bytes_from_Point(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
     return R, (e + k) % ec.n
@@ -82,7 +82,7 @@ def verify_commit(receipt: Receipt, c: Message, Hash = sha256) -> bool:
     ch = Hash(c).digest()
     e = Hash(bytes_from_Point(ec, R, True) + ch).digest()
     e = int.from_bytes(e, 'big')
-    W = ec.pointAdd(R, ec.pointMultiply(e, ec.G))
+    W = ec.pointAdd(R, pointMultiply(ec, e, ec.G))
     # w in [1..n-1] dsa
     # w in [1..p-1] ssa
     # different verify functions?

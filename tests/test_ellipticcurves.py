@@ -212,10 +212,10 @@ class TestEllipticCurve(unittest.TestCase):
     def test_all_curves(self):
         for ec in allcurves:
             # the infinity point is represented by None
-            self.assertEqual(ec.pointMultiply(0, ec.G), None)
+            self.assertEqual(pointMultiply(ec, 0, ec.G), None)
             self.assertEqual(pointMultiply(ec, 0, ec.G), None)
 
-            self.assertEqual(ec.pointMultiply(1, ec.G), ec.G)
+            self.assertEqual(pointMultiply(ec, 1, ec.G), ec.G)
             self.assertEqual(pointMultiply(ec, 1, ec.G), ec.G)
 
             Gy_odd = ec.yOdd(ec.G[0], True)
@@ -251,20 +251,20 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(P, None)
 
             P = ec.pointAdd(ec.G, ec.G)
-            self.assertEqual(P, ec.pointMultiply(2, ec.G))
+            self.assertEqual(P, pointMultiply(ec, 2, ec.G))
             P = pointAdd(ec, ec.G, ec.G)
             self.assertEqual(P, pointMultiply(ec, 2, ec.G))
 
-            P = ec.pointMultiply(ec.n-1, ec.G)
+            P = pointMultiply(ec, ec.n-1, ec.G)
             self.assertEqual(ec.pointAdd(P, ec.G), None)
-            self.assertEqual(ec.pointMultiply(ec.n, ec.G), None)
+            self.assertEqual(pointMultiply(ec, ec.n, ec.G), None)
             P = pointMultiply(ec, ec.n-1, ec.G)
             self.assertEqual(pointAdd(ec, P, ec.G), None)
             self.assertEqual(pointMultiply(ec, ec.n, ec.G), None)
 
-            self.assertEqual(ec.pointMultiply(0, None), None)
-            self.assertEqual(ec.pointMultiply(1, None), None)
-            self.assertEqual(ec.pointMultiply(25, None), None)
+            self.assertEqual(pointMultiply(ec, 0, None), None)
+            self.assertEqual(pointMultiply(ec, 1, None), None)
+            self.assertEqual(pointMultiply(ec, 25, None), None)
             self.assertEqual(pointMultiply(ec, 0, None), None)
             self.assertEqual(pointMultiply(ec, 1, None), None)
             self.assertEqual(pointMultiply(ec, 25, None), None)
@@ -273,16 +273,16 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(str(ec2), str(ec2))
 
             if (ec.n % 2 == 0):
-                P = ec.pointMultiply(ec.n//2, ec.G)
+                P = pointMultiply(ec, ec.n//2, ec.G)
                 self.assertEqual(P[1], 0)
                 self.assertEqual(ec.pointAdd(P, P), None)
                 P = pointMultiply(ec, ec.n//2, ec.G)
                 self.assertEqual(P[1], 0)
                 self.assertEqual(pointAdd(ec, P, P), None)
-
+                
     def test_tuple_from_point(self):
         prv = 0xc28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d
-        Pub = secp256k1.pointMultiply(prv, secp256k1.G)
+        Pub = pointMultiply(secp256k1, prv, secp256k1.G)
         
         Pub_bytes = b'\x02' + Pub[0].to_bytes(32, "big")
         p2 = tuple_from_Point(secp256k1, Pub_bytes)

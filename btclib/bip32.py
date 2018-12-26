@@ -116,7 +116,7 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
         # actual extended key (key + chain code) derivation
         h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
         offset = int.from_bytes(h[:32], 'big')
-        Offset = ec.pointMultiply(offset, ec.G)
+        Offset = pointMultiply(ec, offset, ec.G)
         Child = ec.pointAdd(Parent, Offset)
         Child_bytes = bytes_from_Point(ec, Child, True)
         xkey += h[32:]                          # chain code
@@ -124,7 +124,7 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
     elif (version in PRIVATE):
         assert xparent[45] == 0, "version/key mismatch in extended parent key"
         parent = int.from_bytes(xparent[46:], 'big')
-        Parent = ec.pointMultiply(parent, ec.G)
+        Parent = pointMultiply(ec, parent, ec.G)
         Parent_bytes = bytes_from_Point(ec, Parent, True)
         xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
         xkey += index                           # child index
