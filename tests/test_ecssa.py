@@ -4,6 +4,7 @@ import os
 import unittest
 from hashlib import sha256
 
+from btclib.numbertheory import legendre_symbol
 from btclib.ellipticcurves import jac_from_affine, secp256k1, \
                                   bytes_from_Point, tuple_from_Point
 from btclib.ecssa import rfc6979, int_from_hash, \
@@ -224,7 +225,7 @@ class TestEcssa(unittest.TestCase):
                         if K == None:
                             self.assertRaises(ValueError, _ecssa_sign, H[m], q, k, ec)
                             continue
-                        if ec.jacobi(K[1]) != 1:
+                        if legendre_symbol(K[1], ec._p) != 1:
                             k = ec.n - k
 
                         ebytes  = K[0].to_bytes(ec.bytesize, byteorder="big")

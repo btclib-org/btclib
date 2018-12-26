@@ -3,8 +3,8 @@
 import unittest
 from hashlib import sha256
 
-from btclib.ellipticcurves import jac_from_affine, secp256k1, \
-                                  mod_inv
+from btclib.numbertheory import mod_inv
+from btclib.ellipticcurves import jac_from_affine, secp256k1
 from btclib.ecdsa import rfc6979, int_from_hash, \
                          _ecdsa_sign, ecdsa_sign, \
                          _ecdsa_verify, ecdsa_verify, \

@@ -9,10 +9,10 @@ import heapq
 from hashlib import sha256
 from typing import List
 
+from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   Scalar as PrvKey, Point as PubKey, \
                                   GenericPoint as GenericPubKey, \
-                                  mod_inv, \
                                   EllipticCurve, secp256k1, jac_from_affine, \
                                   DoubleScalarMultiplication, \
                                   int_from_Scalar, tuple_from_Point, \
@@ -71,7 +71,7 @@ def _ecssa_sign(m: bytes,
     # Let k = k' if jacobi(y(R)) = 1, otherwise let k = n - k' .
     # break the simmetry: any criteria might have been used,
     # jacobi is the proposed bitcoin standard
-    if ec.jacobi(R[1]) != 1:
+    if legendre_symbol(R[1], ec._p) != 1:
         # no need to actually change R[1], as it is not used anymore
         # let just fix k instead, as it is used later
         k = ec.n - k
@@ -119,6 +119,12 @@ def _ecssa_verify(m: bytes,
         errmsg = 'message digest of wrong size %s' % len(m)
         raise ValueError(errmsg)
 
+    # the bitcoin proposed standard is only valid for curves
+    # whose prime p = 3 % 4
+    if not ec.pIsThreeModFour:
+        errmsg = 'curve prime p must be equal to 3 (mod 4)'
+        raise ValueError(errmsg)
+
     try:
         # Let r = int(sig[0:32]); fail if r ≥ p.
         # Let s = int(sig[32:64]); fail if s ≥ n.
@@ -134,7 +140,7 @@ def _ecssa_verify(m: bytes,
         # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
         if R is None:
             return False
-        if ec.jacobi(R[1]) != 1:
+        if legendre_symbol(R[1], ec._p) != 1:
             return False
         return R[0] == r
     except Exception:
@@ -172,12 +178,10 @@ def check_ssasig(ssasig: Signature,
 
     # Let r = int(sig[0:32]); fail if r ≥ p.
     r = int(ssasig[0])
-    ec.checkPointCoordinate(r) # r is in [0, p-1]
-
-    # R.x is valid iif R.y does exist and it is a quadratic residue;
-    # this might be too much,
-    # but it also perform the mandatory check that ec.pIsThreeModFour
-    ec.yQuadraticResidue(r, False)
+    # r is in [0, p-1]
+    # ec.checkCoordinate(r)
+    # it might be too much, but R.x is valid iif R.y does exist
+    ec.y(r)
 
     # Let s = int(sig[32:64]); fail if s ≥ n.
     s = int(ssasig[1])
@@ -206,11 +210,7 @@ def ecssa_batch_validation(ms: List[bytes],
         ebytes = Hash(ebytes).digest()
         e = int_from_hash(ebytes, ec.n, Hash().digest_size)
 
-        # FIXME: curve prime
-        p = ec._p
-        c = (pow(r, 3) + 7) % p
-        y = pow(c, (p + 1) // 4, p)
-        assert pow(y, 2, p) == c
+        y = ec.y(r) # raises an error if y does not exist
 
         mult += a[i] * s % ec.n
         points.append(jac_from_affine((r, y)))

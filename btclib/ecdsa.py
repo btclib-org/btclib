@@ -8,10 +8,10 @@ http://www.secg.org/sec1-v2.pdf
 from hashlib import sha256
 from typing import List
 
+from btclib.numbertheory import mod_inv
 from btclib.ellipticcurves import Union, Tuple, Optional, \
                                   Scalar as PrvKey, Point as PubKey, \
                                   GenericPoint as GenericPubKey, \
-                                  mod_inv, \
                                   EllipticCurve, secp256k1, jac_from_affine, \
                                   DoubleScalarMultiplication, \
                                   int_from_Scalar, tuple_from_Point

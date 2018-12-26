@@ -2,7 +2,7 @@
 
 import os
 import unittest
-from btclib.numbertheory import mod_inv
+from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
                                   pointAdd, pointMultiplyJacobian, \
                                   secondGenerator, opposite, \
@@ -380,7 +380,7 @@ class TestEcssaThreshold(unittest.TestCase):
             B.append(pointAdd(ec, B1[i], B3[i]))
 
         K = B[0] # aggregated public nonce
-        if ec.jacobi(K[1]) != 1:
+        if legendre_symbol(K[1], ec._p) != 1:
             beta1 = ec.n - beta1
             beta3 = ec.n - beta3
 
@@ -396,13 +396,13 @@ class TestEcssaThreshold(unittest.TestCase):
         # each participant verifies the other partial signatures
 
         # player one
-        if ec.jacobi(K[1]) == 1:
+        if legendre_symbol(K[1], ec._p) == 1:
             RHS3 = pointAdd(ec, K, pointMultiplyJacobian(ec, e, Q))
             for i in range(1, t):
                 RHS3 = pointAdd(ec, RHS3, pointAdd(ec, pointMultiplyJacobian(ec, \
                         pow(3, i), B[i]), pointMultiplyJacobian(ec, e * pow(3, i), A[i])))
         else:
-            assert ec.jacobi(K[1]) != 1
+            assert legendre_symbol(K[1], ec._p) != 1
             RHS3 = pointAdd(ec, opposite(ec, K), pointMultiplyJacobian(ec, e, Q))
             for i in range(1, t):
                 RHS3 = pointAdd(ec, RHS3, pointAdd(ec, pointMultiplyJacobian(ec, \
@@ -412,13 +412,13 @@ class TestEcssaThreshold(unittest.TestCase):
 
 
         # player three
-        if ec.jacobi(K[1]) == 1:
+        if legendre_symbol(K[1], ec._p) == 1:
             RHS1 = pointAdd(ec, K, pointMultiplyJacobian(ec, e, Q))
             for i in range(1, t):
                 RHS1 = pointAdd(ec, RHS1, pointAdd(ec, pointMultiplyJacobian(ec, \
                         pow(1, i), B[i]), pointMultiplyJacobian(ec, e * pow(1, i), A[i])))
         else:
-            assert ec.jacobi(K[1]) != 1
+            assert legendre_symbol(K[1], ec._p) != 1
             RHS1 = pointAdd(ec, opposite(ec, K), pointMultiplyJacobian(ec, e, Q))
             for i in range(1, t):
                 RHS1 = pointAdd(ec, RHS1, pointAdd(ec, pointMultiplyJacobian(ec, \
