@@ -228,16 +228,16 @@ class EllipticCurve:
         if odd1even0 not in (0, 1):
             raise ValueError("odd1even0 must be bool or 0/1")
         root = self.y(x)
-        # switch even/odd root when needed
-        return root if (root % 2 + odd1even0) != 1 else self._p - root
+        # switch even/odd root as needed (XORing the conditions)
+        return root if root % 2 == odd1even0 else self._p - root
 
-    def yLow(self, x: int, low1high0: int) -> int:
-        """return the low (high) y coordinate associated to x"""
-        if low1high0 not in (0, 1):
-            raise ValueError("low1high0 must be bool or 0/1")
+    def yHigh(self, x: int, high1low0: int) -> int:
+        """return the high (low) y coordinate associated to x"""
+        if high1low0 not in (0, 1):
+            raise ValueError("high1low0 must be bool or 0/1")
         root = self.y(x)
-        # switch low/high root when needed
-        return root if (root < self._p/2) else self._p - root
+        # switch low/high root as needed (XORing the conditions)
+        return root if (self._p//2 < root) == high1low0 else self._p - root
 
     def yQuadraticResidue(self, x: int, quadRes: int) -> int:
         """return the quadratic residue y coordinate associated to x"""
@@ -246,11 +246,9 @@ class EllipticCurve:
         if quadRes not in (0, 1):
             raise ValueError("quadRes must be bool or 0/1")
         root = self.y(x)
-        # switch to the quadratic residue root when needed
-        if quadRes:
-            return self._p - root if (legendre_symbol(root, self._p) != 1) else root
-        else:
-            return root if (legendre_symbol(root, self._p) != 1) else self._p - root
+        # switch to quadratic residue root as needed (XORing the conditions)
+        legendre1 = legendre_symbol(root, self._p)
+        return root if legendre1 == quadRes else self._p - root
 
 
 def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:

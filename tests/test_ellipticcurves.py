@@ -372,7 +372,8 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(ec._addJacobian(Qjac, minus_Qjac), (1, 1, 0))
 
     # FIXME remove urandom from tests
-    def test_quad_res(self):
+    def test_symmetry(self):
+        """Methods to break simmetry: quadratid residue, odd/even, low/high"""
         for ec in low_card_curves:
 
             ## setup phase
@@ -405,15 +406,30 @@ class TestEllipticCurve(unittest.TestCase):
                 self.assertTrue(not_quad_res == ec._p - quad_res)
                 self.assertNotIn(not_quad_res, hasRoot)
                 self.assertRaises(ValueError, mod_sqrt, not_quad_res, ec._p)
-            else:
-                # cannot use yQuadraticResidue in this case
-                self.assertTrue(ec._p % 4 == 1)
-                yOdd = ec.yOdd(x, 1)
-                yEven = ec.yOdd(x, 0)
 
-                # in this case neither or both are quadratic residues
+                yOdd = ec.yOdd(x, 1)
+                self.assertTrue(yOdd in (quad_res, not_quad_res))                
+                self.assertTrue(yOdd % 2 == 1)                
+                yEven = ec.yOdd(x, 0)
+                self.assertTrue(yEven in (quad_res, not_quad_res))                
+                self.assertTrue(yEven % 2 == 0)                
+
+                yLow = ec.yHigh(x, 0)
+                self.assertTrue(yLow in (yOdd, yEven))                
+                yHigh = ec.yHigh(x, 1)
+                self.assertTrue(yHigh in (yOdd, yEven))                
+                self.assertTrue(yLow < yHigh)                
+            else:
+                self.assertTrue(ec._p % 4 == 1)
+                # cannot use yQuadraticResidue in this case
                 self.assertRaises(ValueError, ec.yQuadraticResidue, x, 1)
                 self.assertRaises(ValueError, ec.yQuadraticResidue, x, 0)
+
+                yOdd = ec.yOdd(x, 1)
+                self.assertTrue(yOdd % 2 == 1)                
+                yEven = ec.yOdd(x, 0)
+                self.assertTrue(yEven % 2 == 0)                
+                # in this case neither or both are quadratic residues
                 self.assertTrue((yOdd in hasRoot and yEven in hasRoot) or 
                                 (yOdd not in hasRoot and yEven not in hasRoot))
                 if yOdd in hasRoot and yEven in hasRoot:
@@ -429,6 +445,12 @@ class TestEllipticCurve(unittest.TestCase):
                     self.assertTrue(yOdd not in hasRoot and yEven not in hasRoot)
                     self.assertRaises(ValueError, mod_sqrt, yOdd, ec._p)
                     self.assertRaises(ValueError, mod_sqrt, yEven, ec._p)
+
+                yLow = ec.yHigh(x, 0)
+                self.assertTrue(yLow in (yOdd, yEven))                
+                yHigh = ec.yHigh(x, 1)
+                self.assertTrue(yHigh in (yOdd, yEven))                
+                self.assertTrue(yLow < yHigh)                
 
     def test_affine_from_jac_conversion(self):
         for ec in all_curves:
