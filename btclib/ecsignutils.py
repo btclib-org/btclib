@@ -1,23 +1,41 @@
 #!/usr/bin/env python3
 
 from typing import Tuple, Union
-from hashlib import sha256
 
-from btclib.ellipticcurves import EllipticCurve, secp256k1
+from btclib.ellipticcurves import EllipticCurve
+
+def int2octets(x: int, maxbytesize: int) -> bytes:
+    return x.to_bytes(maxbytesize, byteorder='big')
+
+def bits2int(b: bytes, maxbytesize: int) -> int:
+    bytesize = len(b)
+
+    """
+    i = int.from_bytes(b, 'big')
+    # retain the leftmost bits only
+    if bytesize > maxbytesize:
+        i >>= (bytesize - maxbytesize) * 8
+    return i
+    """
+    # retain the leftmost bytes only
+    if bytesize > maxbytesize:
+        return int.from_bytes(b[:maxbytesize], 'big')
+    else:
+        return int.from_bytes(b, 'big')
+
+def bits2octets(b: bytes, maxbytesize: int) -> bytes:
+    z1 = bits2int(b, maxbytesize)
+    return int2octets(z1, maxbytesize)
 
 HashDigest = Union[str, bytes]
 Signature = Tuple[int, int]
 
 def bytes_from_hash(hdigest: HashDigest,
-                    hfunction = sha256) -> bytes:
-    """check that hash digest is a bytes-like object of right size"""
+                    hfunction) -> bytes:
+    """check that hash digest is of right size"""
 
     if isinstance(hdigest, str):
         hdigest = bytes.fromhex(hdigest)
-    elif not isinstance(hdigest, bytes):
-        m = "hash digest must be a bytes-like object, not "
-        m += "'%s'" % type(hdigest).__name__
-        raise TypeError(m)
 
     if len(hdigest) != hfunction().digest_size:
         errmsg = 'message digest of wrong size: %s' % len(hdigest)
@@ -27,15 +45,10 @@ def bytes_from_hash(hdigest: HashDigest,
     return hdigest
 
 def int_from_hash(hdigest: HashDigest,
-                  ec: EllipticCurve = secp256k1,
-                  hfunction = sha256) -> int:
+                  ec: EllipticCurve,
+                  hfunction) -> int:
     """return an int from a hash digest"""
 
     h = bytes_from_hash(hdigest, hfunction)
-
-    h_len = 8 * hfunction().digest_size
-    q_len = 8 * ec.bytesize
-    # use the q_len leftmost bits of the hash
-    n = (h_len - q_len) if h_len >= q_len else 0
-
-    return int.from_bytes(h, "big") >> n
+    i = bits2int(h, ec.bytesize)
+    return i

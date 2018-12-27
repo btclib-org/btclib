@@ -5,7 +5,7 @@ from btclib.ellipticcurves import EllipticCurve, Scalar as PrvKey, \
                                   GenericPoint as GenericPubKey, \
                                   int_from_Scalar, to_Point, \
                                   bytes_from_Scalar, pointMultiply
-from btclib.rfc6979 import int2octets
+from btclib.ecsignutils import int2octets
 
  
 def ecdh(ec: EllipticCurve, prv_sender: PrvKey, pub_recv: GenericPubKey) -> int:
@@ -39,9 +39,12 @@ def key_derivation_function(ec: EllipticCurve, shared_secret_octet: bytes, key_d
     K = int_from_Scalar(ec, K_bytes) >> (key_data_len - hash_digest_size)
     return bytes_from_Scalar(ec, K)
     
-def key_agreement_operation(ec: EllipticCurve, key_data_len: int, prv_sender: PrvKey, pub_recv: GenericPubKey, \
-                           hash_digest_size: int) -> bytes:
+def key_agreement_operation(ec: EllipticCurve,
+                            key_data_len: int,
+                            prv_sender: PrvKey,
+                            pub_recv: GenericPubKey,
+                            hash_digest_size: int) -> bytes:
     shared_secret = ecdh(ec, prv_sender, pub_recv)
-    shared_secret_octet = int2octets(shared_secret)
+    shared_secret_octet = int2octets(shared_secret, ec.bytesize) # FIXME
     K = key_derivation_function(ec, shared_secret_octet, key_data_len, hash_digest_size)
     return K
