@@ -22,9 +22,9 @@ COMMITMENT VERIFICATION:
                               (with e = hash(R||c))
 """
 
-from hashlib import sha256
 from typing import Optional
-from btclib.ellipticcurves import secp256k1 as ec, pointMultiply, \
+
+from btclib.ellipticcurves import EllipticCurve, pointMultiply, \
                                   Tuple, Scalar, Point, \
                                   bytes_from_Point, int_from_Scalar, \
                                   to_Point
@@ -35,7 +35,7 @@ from btclib.ecssa import _ecssa_sign
 
 Receipt = Tuple[Scalar, Point]
 
-def tweak(k: int, c: bytes, Hash = sha256) -> Tuple[Point, Scalar]:
+def tweak(k: int, c: bytes, ec: EllipticCurve, Hash) -> Tuple[Point, Scalar]:
     """tweak kG
 
     returns:
@@ -50,15 +50,16 @@ def tweak(k: int, c: bytes, Hash = sha256) -> Tuple[Point, Scalar]:
 def ecdsa_commit_and_sign(m: bytes,
                           prvkey: Scalar,
                           c: bytes,
-                          eph_prv: Optional[Scalar] = None,
-                          Hash = sha256) -> Tuple[Signature, Receipt]:
+                          eph_prv: Optional[Scalar],
+                          ec: EllipticCurve,
+                          Hash) -> Tuple[Signature, Receipt]:
     mh = Hash(m).digest()
     prvkey = int_from_Scalar(ec, prvkey)
     ch = Hash(c).digest()
-    eph_prv = rfc6979(prvkey, mh, Hash) if eph_prv is None else int_from_Scalar(ec, eph_prv)
+    eph_prv = rfc6979(prvkey, mh, ec, Hash) if eph_prv is None else int_from_Scalar(ec, eph_prv)
 
     # commit
-    R, eph_prv = tweak(eph_prv, ch, Hash)
+    R, eph_prv = tweak(eph_prv, ch, ec, Hash)
     # sign
     sig = _ecdsa_sign(mh, prvkey, eph_prv, ec)
     # commit receipt
@@ -68,15 +69,16 @@ def ecdsa_commit_and_sign(m: bytes,
 def ecssa_commit_and_sign(m: bytes,
                           prvkey: Scalar,
                           c: bytes,
-                          eph_prv: Optional[Scalar] = None,
-                          Hash = sha256) -> Tuple[Signature, Receipt]:
+                          eph_prv: Optional[Scalar],
+                          ec: EllipticCurve,
+                          Hash) -> Tuple[Signature, Receipt]:
     mh = Hash(m).digest()
     prvkey = int_from_Scalar(ec, prvkey)
     ch = Hash(c).digest()
-    eph_prv = rfc6979(prvkey, mh, Hash) if eph_prv is None else int_from_Scalar(ec, eph_prv)
+    eph_prv = rfc6979(prvkey, mh, ec, Hash) if eph_prv is None else int_from_Scalar(ec, eph_prv)
 
     # commit
-    R, eph_prv = tweak(eph_prv, ch, Hash)
+    R, eph_prv = tweak(eph_prv, ch, ec, Hash)
     # sign
     sig = _ecssa_sign(mh, prvkey, eph_prv, ec, Hash)
     # commit receipt
@@ -84,7 +86,10 @@ def ecssa_commit_and_sign(m: bytes,
     return sig, receipt
 
 # FIXME: have create_commit instead of commit_and_sign
-def verify_commit(receipt: Receipt, c: bytes, Hash = sha256) -> bool:
+def verify_commit(receipt: Receipt,
+                  c: bytes,
+                  ec: EllipticCurve,
+                  Hash) -> bool:
     w, R = receipt
     ec.yOdd(w, False)  # receipt[0] is valid iif its y does exist
     to_Point(ec, R)  # verify R is a good point

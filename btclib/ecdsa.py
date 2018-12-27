@@ -51,7 +51,7 @@ def _ecdsa_sign(H: HashDigest,
 
     # Fail if k' = 0.
     if k is None:
-        k = rfc6979(d, H, Hash) % ec.n                     # 1
+        k = rfc6979(d, H, ec, Hash)                        # 1
     else:
         k = int_from_Scalar(ec, k)
 

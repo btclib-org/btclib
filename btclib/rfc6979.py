@@ -8,26 +8,27 @@ code adapted from:
 https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 """
 
-from hashlib import sha256
 from struct import pack
 import hmac
 
-from btclib.ellipticcurves import secp256k1 as ec
+from btclib.ellipticcurves import EllipticCurve
 from btclib.ecsignutils import bits2octets, bits2int, int2octets, \
                                HashDigest, bytes_from_hash
 
 def rfc6979(prv: int,
             hdigest: HashDigest,
-            Hash = sha256) -> int:
+            ec: EllipticCurve,
+            Hash) -> int:
     if not isinstance(prv, int):
         m = "private key must be a int-like object, not '%s'" % type(prv).__name__
         raise TypeError(m)
     assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
-    return _rfc6979(prv, hdigest, Hash)
+    return _rfc6979(prv, hdigest, ec, Hash)
 
 def _rfc6979(prv: int,
              hdigest: HashDigest,
-             Hash = sha256) -> int:
+             ec: EllipticCurve,
+             Hash) -> int:
 
     hash_size = Hash().digest_size
     v = b'\x01' * hash_size

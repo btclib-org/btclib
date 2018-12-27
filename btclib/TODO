@@ -4,7 +4,6 @@ allow binary Signature
 resolve confusion between hlen and qlen
 remove default_size = 32 from ecsignutiles
 rfc6979 test
-rfc6979 does not do % ec.n ?
 generalize sign to contract to multiple EC
 run scripts as part of test-suite
 remove all assert for if + raise

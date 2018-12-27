@@ -57,7 +57,7 @@ def _ecssa_sign(m: HashDigest,
 
     # Fail if k' = 0.
     if k is None:
-        k = rfc6979(d, m, Hash) % ec.n
+        k = rfc6979(d, m, ec, Hash)
     else:
         k = int_from_Scalar(ec, k)
 

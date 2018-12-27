@@ -62,7 +62,7 @@ class TestEcdsa(unittest.TestCase):
                     Q = pointMultiply(ec, q, ec.G) # public key
                     for m in range(0, ec.n): # all possible hashed messages
 
-                        k = rfc6979(q, H[m], sha256) % ec.n # ephemeral key
+                        k = rfc6979(q, H[m], ec, sha256) # ephemeral key
                         K = pointMultiply(ec, k, ec.G)
                         if K[1] == 0:
                             self.assertRaises(ValueError, _ecdsa_sign, H[m], q, k, ec)
