@@ -43,7 +43,7 @@ class EllipticCurve:
         if not pow(2, p-1, p) == 1:
             raise ValueError("p %s is not prime" % p)
         self._p = p
-        self.bytesize = (p.bit_length() + 7) // 8
+        self.bytesize = (p.bit_length() + 7) // 8 # FIXME: p or n
 
         # 1. check that security level is as required
         # missing for the time being
@@ -320,17 +320,17 @@ def bytes_from_Point(ec: EllipticCurve,
 Scalar = Union[str, bytes, int]
 
 def int_from_Scalar(ec: EllipticCurve, q: Scalar) -> int:
+    """Integer for Point multiplication (i.e. private key), not coordinate"""
     if isinstance(q, str): # hex string
         q = bytes.fromhex(q)
 
     if isinstance(q, bytes):
-        # FIXME: asses if must be <= or ec.bytesize should be revised
-        if len(q) > ec.bytesize:
+        if len(q) > ec.bytesize: # FIXME: might be unnecessary
             errmsg = 'scalar size %s > %s' % (len(q), ec.bytesize)
             raise ValueError(errmsg)
         q = int.from_bytes(q, 'big')
 
-    return q % ec.n
+    return q % ec.n # fails if q is not int-like
 
 def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     # enforce self-consistency with whatever
