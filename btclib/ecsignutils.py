@@ -28,7 +28,6 @@ def bits2octets(b: bytes, maxbytesize: int) -> bytes:
     return int2octets(z1, maxbytesize)
 
 HashDigest = Union[str, bytes]
-Signature = Tuple[int, int]
 
 def bytes_from_hash(hdigest: HashDigest,
                     hfunction) -> bytes:
@@ -47,7 +46,7 @@ def bytes_from_hash(hdigest: HashDigest,
 def int_from_hash(hdigest: HashDigest,
                   ec: EllipticCurve,
                   hfunction) -> int:
-    """return an int from a hash digest"""
+    """return an int from a hash digest reduced to EC bytesize"""
 
     h = bytes_from_hash(hdigest, hfunction)
     i = bits2int(h, ec.bytesize)

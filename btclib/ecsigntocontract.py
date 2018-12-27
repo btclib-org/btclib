@@ -25,17 +25,17 @@ COMMITMENT VERIFICATION:
 from typing import Optional
 
 from btclib.ellipticcurves import EllipticCurve, pointMultiply, \
-                                  Tuple, Scalar, Point, \
+                                  Tuple, Scalar, Point, GenericPoint, \
                                   bytes_from_Point, int_from_Scalar, \
                                   to_Point
+from btclib.ecsignutils import int_from_hash
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Signature
-from btclib.ecdsa import _ecdsa_sign
-from btclib.ecssa import _ecssa_sign
+from btclib.ecdsa import _ecdsa_sign, ECDS
+from btclib.ecssa import _ecssa_sign, ECSS
 
-Receipt = Tuple[Scalar, Point]
+Receipt = Tuple[Scalar, GenericPoint]
 
-def tweak(k: int, c: bytes, ec: EllipticCurve, Hash) -> Tuple[Point, Scalar]:
+def tweak(k: int, c: bytes, ec: EllipticCurve, Hash) -> Tuple[Point, int]:
     """tweak kG
 
     returns:
@@ -52,7 +52,7 @@ def ecdsa_commit_and_sign(m: bytes,
                           c: bytes,
                           eph_prv: Optional[Scalar],
                           ec: EllipticCurve,
-                          Hash) -> Tuple[Signature, Receipt]:
+                          Hash) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
     mh = Hash(m).digest()
     prvkey = int_from_Scalar(ec, prvkey)
     ch = Hash(c).digest()
@@ -71,7 +71,7 @@ def ecssa_commit_and_sign(m: bytes,
                           c: bytes,
                           eph_prv: Optional[Scalar],
                           ec: EllipticCurve,
-                          Hash) -> Tuple[Signature, Receipt]:
+                          Hash) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
     mh = Hash(m).digest()
     prvkey = int_from_Scalar(ec, prvkey)
     ch = Hash(c).digest()
@@ -82,7 +82,7 @@ def ecssa_commit_and_sign(m: bytes,
     # sign
     sig = _ecssa_sign(mh, prvkey, eph_prv, ec, Hash)
     # commit receipt
-    receipt = (sig[0], R)
+    receipt = sig[0], R
     return sig, receipt
 
 # FIXME: have create_commit instead of commit_and_sign
@@ -91,13 +91,14 @@ def verify_commit(receipt: Receipt,
                   ec: EllipticCurve,
                   Hash) -> bool:
     w, R = receipt
-    ec.yOdd(w, False)  # receipt[0] is valid iif its y does exist
-    to_Point(ec, R)  # verify R is a good point
-    ch = Hash(c).digest()
-    e = Hash(bytes_from_Point(ec, R, True) + ch).digest()
-    e = int.from_bytes(e, 'big')
-    W = ec.add(R, pointMultiply(ec, e, ec.G))
     # w in [1..n-1] dsa
     # w in [1..p-1] ssa
     # different verify functions?
-    return w % ec.n == W[0] % ec.n
+    R = to_Point(ec, R)  # also verify R is a good point
+    ch = Hash(c).digest()
+    e = Hash(bytes_from_Point(ec, R, True) + ch).digest()
+    e = int_from_hash(e, ec, Hash)
+    W = ec.add(R, pointMultiply(ec, e, ec.G))
+    # different verify functions?
+    #return w == W[0] # ECSS
+    return w == W[0] % ec.n # ECDS

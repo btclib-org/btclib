@@ -15,14 +15,15 @@ from btclib.ellipticcurves import Union, Tuple, \
                                   pointMultiply, DoubleScalarMultiplication, \
                                   int_from_Scalar, to_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import HashDigest, Signature, \
-                               bytes_from_hash, int_from_hash
+from btclib.ecsignutils import HashDigest, bytes_from_hash, int_from_hash
+
+ECDS = Tuple[Scalar, Scalar]
 
 def ecdsa_sign(M: bytes,
                q: Scalar,
                k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
-               Hash = sha256) -> Signature:
+               Hash = sha256) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 2
 
     See section 4.1.3
@@ -37,7 +38,7 @@ def _ecdsa_sign(H: HashDigest,
                 d: Scalar,
                 k: Optional[Scalar] = None,
                 ec: EllipticCurve = secp256k1,
-                Hash = sha256) -> Signature:
+                Hash = sha256) -> Tuple[int, int]:
     # ECDSA signing operation according to SEC 2
     # See section 4.1.3
 
@@ -72,7 +73,7 @@ def _ecdsa_sign(H: HashDigest,
     return r, s
 
 def ecdsa_verify(M: bytes,
-                 dsasig: Signature,
+                 dsasig: ECDS,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
                  Hash = sha256) -> bool:
@@ -90,7 +91,7 @@ def ecdsa_verify(M: bytes,
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
 def _ecdsa_verify(H: HashDigest,
-                  dsasig: Signature,
+                  dsasig: ECDS,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
                   Hash = sha256) -> bool:
@@ -118,7 +119,7 @@ def _ecdsa_verify(H: HashDigest,
     return v == r                                       # 8
 
 def ecdsa_pubkey_recovery(M: bytes,
-                          dsasig: Signature,
+                          dsasig: ECDS,
                           ec: EllipticCurve = secp256k1,
                           Hash = sha256) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 2
@@ -132,7 +133,7 @@ def ecdsa_pubkey_recovery(M: bytes,
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
 def _ecdsa_pubkey_recovery(H: HashDigest,
-                           dsasig: Signature,
+                           dsasig: ECDS,
                            ec: EllipticCurve = secp256k1,
                            Hash = sha256) -> List[Point]:
     # ECDSA public key recovery operation according to SEC 2
@@ -164,8 +165,8 @@ def _ecdsa_pubkey_recovery(H: HashDigest,
             pass
     return keys
 
-def check_dsasig(dsasig: Signature,
-                 ec: EllipticCurve = secp256k1) -> Signature:
+def check_dsasig(dsasig: ECDS,
+                 ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
     """check DSA signature format is correct and return the signature itself"""
 
     if len(dsasig) != 2:
