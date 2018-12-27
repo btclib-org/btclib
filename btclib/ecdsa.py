@@ -15,7 +15,8 @@ from btclib.ellipticcurves import Union, Tuple, \
                                   pointMultiply, DoubleScalarMultiplication, \
                                   int_from_Scalar, to_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, HashDigest, Signature, int_from_hash
+from btclib.ecsignutils import Message, HashDigest, Signature, \
+                               bytes_from_hash, int_from_hash
 
 def ecdsa_sign(M: Message,
                q: Scalar,
@@ -41,10 +42,7 @@ def _ecdsa_sign(H: HashDigest,
     # See section 4.1.3
 
     # The message digest m: a 32-byte array
-    if len(H) != Hash().digest_size:
-        errmsg = 'message digest of wrong size: %s instead of %s' % \
-                                                (len(H), Hash().digest_size)
-        raise ValueError(errmsg)
+    H = bytes_from_hash(H, Hash)
 
     # The secret key d: an integer in the range 1..n-1.
     d = int_from_Scalar(ec, d)
@@ -91,7 +89,7 @@ def ecdsa_verify(M: Message,
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecdsa_verify(H: bytes,
+def _ecdsa_verify(H: HashDigest,
                   dsasig: Signature,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
@@ -99,30 +97,25 @@ def _ecdsa_verify(H: bytes,
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
-    try:
     # Let P = point(pk); fail if point(pk) fails.
     P = to_Point(ec, P)
 
     # The message digest m: a 32-byte array
-    if len(H) != Hash().digest_size:
-        errmsg = 'message digest of wrong size %s' % len(H)
-        raise ValueError(errmsg)
+    H = bytes_from_hash(H, Hash)
 
-        # Fail if r is not [1, n-1]
-        # Fail if s is not [1, n-1]
-        r, s = check_dsasig(dsasig, ec)                     # 1
-        # H already provided as input                       # 2
-        e = int_from_hash(H, ec.n, Hash().digest_size)      # 3
-        s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
-        R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
-        # Fail if infinite(R) or r ≠ x(R) %n.
-        if R[1] == 0:
-            return False
-        xR = R[0]                                           # 6
-        v = xR % ec.n                                       # 7
-        return v == r                                       # 8
-    except Exception:
+    # Fail if r is not [1, n-1]
+    # Fail if s is not [1, n-1]
+    r, s = check_dsasig(dsasig, ec)                     # 1
+    # H already provided as input                       # 2
+    e = int_from_hash(H, ec.n, Hash().digest_size)      # 3
+    s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
+    R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
+    # Fail if infinite(R) or r ≠ x(R) %n.
+    if R[1] == 0:
         return False
+    xR = R[0]                                           # 6
+    v = xR % ec.n                                       # 7
+    return v == r                                       # 8
 
 def ecdsa_pubkey_recovery(M: Message,
                           dsasig: Signature,
@@ -138,7 +131,7 @@ def ecdsa_pubkey_recovery(M: Message,
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecdsa_pubkey_recovery(H: bytes,
+def _ecdsa_pubkey_recovery(H: HashDigest,
                            dsasig: Signature,
                            ec: EllipticCurve = secp256k1,
                            Hash = sha256) -> List[Point]:

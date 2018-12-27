@@ -18,7 +18,8 @@ from btclib.ellipticcurves import Union, Tuple, \
                                   int_from_Scalar, to_Point, \
                                   bytes_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, Signature, int_from_hash
+from btclib.ecsignutils import Message, HashDigest, Signature, \
+                               bytes_from_hash, int_from_hash
 
 def ecssa_sign(M: Message,
                q: Scalar,
@@ -32,7 +33,7 @@ def ecssa_sign(M: Message,
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecssa_sign(m: bytes,
+def _ecssa_sign(m: HashDigest,
                 d: Scalar,
                 k: Optional[Scalar] = None,
                 ec: EllipticCurve = secp256k1,
@@ -46,10 +47,7 @@ def _ecssa_sign(m: bytes,
         raise ValueError(errmsg)
 
     # The message digest m: a 32-byte array
-    if len(m) != Hash().digest_size:
-        errmsg = 'message digest of wrong size: %s instead of %s' % \
-                                                (len(m), Hash().digest_size)
-        raise ValueError(errmsg)
+    m = bytes_from_hash(m, Hash)
 
     # The secret key d: an integer in the range 1..n-1.
     d = int_from_Scalar(ec, d)
@@ -103,14 +101,13 @@ def ecssa_verify(M: Message,
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecssa_verify(m: bytes,
+def _ecssa_verify(m: HashDigest,
                   ssasig: Signature,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
                   Hash = sha256) -> bool:
     # ECSSA veryfying operation according to bip-schnorr
 
-    try:
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
     if not ec.pIsThreeModFour:
@@ -121,29 +118,25 @@ def _ecssa_verify(m: bytes,
     P = to_Point(ec, P)
 
     # The message digest m: a 32-byte array
-    if len(m) != Hash().digest_size:
-        errmsg = 'message digest of wrong size %s' % len(m)
-        raise ValueError(errmsg)
+    m = bytes_from_hash(m, Hash)
 
-        # Let r = int(sig[0:32]); fail if r ≥ p.
-        # Let s = int(sig[32:64]); fail if s ≥ n.
-        r, s = check_ssasig(ssasig, ec)
-        # Let e = int(hash(bytes(r) || bytes(P) || m)) mod n.
-        ebytes  = r.to_bytes(ec.bytesize, byteorder="big")
-        ebytes += bytes_from_Point(ec, P, True)
-        ebytes += m
-        ebytes  = Hash(ebytes).digest()
-        e = int_from_hash(ebytes, ec.n, Hash().digest_size)
-        # Let R = sG - eP.
-        R = DoubleScalarMultiplication(ec, s, ec.G, -e, P)
-        # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
-        if R[1] == 0:
-            return False
-        if legendre_symbol(R[1], ec._p) != 1:
-            return False
-        return R[0] == r
-    except Exception:
-        return False
+    # Let r = int(sig[0:32]); fail if r ≥ p.
+    # Let s = int(sig[32:64]); fail if s ≥ n.
+    r, s = check_ssasig(ssasig, ec)
+    # Let e = int(hash(bytes(r) || bytes(P) || m)) mod n.
+    ebytes  = r.to_bytes(ec.bytesize, byteorder="big")
+    ebytes += bytes_from_Point(ec, P, True)
+    ebytes += m
+    ebytes  = Hash(ebytes).digest()
+    e = int_from_hash(ebytes, ec.n, Hash().digest_size)
+    # Let R = sG - eP.
+    R = DoubleScalarMultiplication(ec, s, ec.G, -e, P)
+    # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
+    if R[1] == 0:
+        raise ValueError("sG - eP is infinite")
+    if legendre_symbol(R[1], ec._p) != 1:
+        raise ValueError("y(sG - eP) is not a quadratic residue")
+    return R[0] == r
 
 def _ecssa_pubkey_recovery(ebytes: bytes,
                            ssasig: Signature,

@@ -4,8 +4,8 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import _jac_from_affine, secp256k1 as ec, \
-                                  pointMultiply
+from btclib.ellipticcurves import secp256k1 as ec, \
+                                  pointMultiply, _jac_from_affine
 from btclib.ecdsa import rfc6979, int_from_hash, \
                          _ecdsa_sign, ecdsa_sign, \
                          _ecdsa_verify, ecdsa_verify, \
