@@ -99,6 +99,7 @@ def _ecdsa_verify(H: bytes,
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
+    try:
     # Let P = point(pk); fail if point(pk) fails.
     P = to_Point(ec, P)
 
@@ -107,7 +108,6 @@ def _ecdsa_verify(H: bytes,
         errmsg = 'message digest of wrong size %s' % len(H)
         raise ValueError(errmsg)
 
-    try:
         # Fail if r is not [1, n-1]
         # Fail if s is not [1, n-1]
         r, s = check_dsasig(dsasig, ec)                     # 1

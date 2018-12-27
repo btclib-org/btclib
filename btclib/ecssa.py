@@ -110,6 +110,7 @@ def _ecssa_verify(m: bytes,
                   Hash = sha256) -> bool:
     # ECSSA veryfying operation according to bip-schnorr
 
+    try:
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
     if not ec.pIsThreeModFour:
@@ -124,8 +125,6 @@ def _ecssa_verify(m: bytes,
         errmsg = 'message digest of wrong size %s' % len(m)
         raise ValueError(errmsg)
 
-
-    try:
         # Let r = int(sig[0:32]); fail if r ≥ p.
         # Let s = int(sig[32:64]); fail if s ≥ n.
         r, s = check_ssasig(ssasig, ec)
