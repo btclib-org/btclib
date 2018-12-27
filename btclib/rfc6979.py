@@ -12,10 +12,9 @@ from hashlib import sha256
 from struct import pack
 from binascii import hexlify
 import hmac
-from btclib.ellipticcurves import secp256k1 as ec
-from btclib.ecsignutils import check_hash
 
-default_hasher = sha256
+from btclib.ellipticcurves import secp256k1 as ec
+from btclib.ecsignutils import HashDigest, bytes_from_hash
 
 qlen = len(bin(ec.n)) - 2  # -2 for the leading '0b'
 rlen = ((qlen + 7) // 8) * 8
@@ -40,19 +39,24 @@ def bits2octets(b):
     z2 = z1 % ec.n
     return int2octets(z2)
 
-def rfc6979(prv: int, m: bytes, Hash = default_hasher) -> int:
+def rfc6979(prv: int,
+            hdigest: HashDigest,
+            Hash = sha256) -> int:
     if not isinstance(prv, int):
         m = "private key must be a int-like object, not '%s'" % type(prv).__name__
         raise TypeError(m)
     assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
-    check_hash(m)
-    return rfc6979_raw(prv, m, Hash)
+    return _rfc6979(prv, hdigest, Hash)
 
-def rfc6979_raw(prv, m, Hash = default_hasher) -> int:
-    hash_size = len(m)
-    prv_and_m = int2octets(prv) + bits2octets(m)
+def _rfc6979(prv,
+             hdigest: HashDigest,
+             Hash = sha256) -> int:
+    hash_size = Hash().digest_size
     v = b'\x01' * hash_size
     k = b'\x00' * hash_size
+
+    hdigest = bytes_from_hash(hdigest, Hash)
+    prv_and_m = int2octets(prv) + bits2octets(hdigest)
     k = hmac.new(k, v + b'\x00' + prv_and_m, Hash).digest()
     v = hmac.new(k, v, Hash).digest()
     k = hmac.new(k, v + b'\x01' + prv_and_m, Hash).digest()

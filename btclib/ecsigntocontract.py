@@ -29,7 +29,7 @@ from btclib.ellipticcurves import secp256k1 as ec, pointMultiply, \
                                   bytes_from_Point, int_from_Scalar, \
                                   to_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, Signature
+from btclib.ecsignutils import Signature
 from btclib.ecdsa import _ecdsa_sign
 from btclib.ecssa import _ecssa_sign
 
@@ -47,9 +47,9 @@ def tweak(k: int, c: bytes, Hash = sha256) -> Tuple[Point, Scalar]:
     e = int.from_bytes(e, 'big')
     return R, (e + k) % ec.n
 
-def ecdsa_commit_and_sign(m: Message,
+def ecdsa_commit_and_sign(m: bytes,
                           prvkey: Scalar,
-                          c: Message,
+                          c: bytes,
                           eph_prv: Optional[Scalar] = None,
                           Hash = sha256) -> Tuple[Signature, Receipt]:
     mh = Hash(m).digest()
@@ -65,9 +65,9 @@ def ecdsa_commit_and_sign(m: Message,
     receipt = (sig[0], R)
     return sig, receipt
 
-def ecssa_commit_and_sign(m: Message,
+def ecssa_commit_and_sign(m: bytes,
                           prvkey: Scalar,
-                          c: Message,
+                          c: bytes,
                           eph_prv: Optional[Scalar] = None,
                           Hash = sha256) -> Tuple[Signature, Receipt]:
     mh = Hash(m).digest()
@@ -84,7 +84,7 @@ def ecssa_commit_and_sign(m: Message,
     return sig, receipt
 
 # FIXME: have create_commit instead of commit_and_sign
-def verify_commit(receipt: Receipt, c: Message, Hash = sha256) -> bool:
+def verify_commit(receipt: Receipt, c: bytes, Hash = sha256) -> bool:
     w, R = receipt
     ec.yOdd(w, False)  # receipt[0] is valid iif its y does exist
     to_Point(ec, R)  # verify R is a good point

@@ -1,5 +1,5 @@
 test low1high0
-allow hexstrin for Message, Signature
+allow hexstring for Signature
 allow binary Signature
 resolve confusion between hlen and qlen
 remove default_size = 32 from ecsignutiles

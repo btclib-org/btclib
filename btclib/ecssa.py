@@ -18,10 +18,10 @@ from btclib.ellipticcurves import Union, Tuple, \
                                   int_from_Scalar, to_Point, \
                                   bytes_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, HashDigest, Signature, \
+from btclib.ecsignutils import HashDigest, Signature, \
                                bytes_from_hash, int_from_hash
 
-def ecssa_sign(M: Message,
+def ecssa_sign(M: bytes,
                q: Scalar,
                k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
@@ -79,14 +79,14 @@ def _ecssa_sign(m: HashDigest,
     ebytes += bytes_from_Point(ec, Q, True)
     ebytes += m
     ebytes = Hash(ebytes).digest()
-    e = int_from_hash(ebytes, ec.n, Hash().digest_size)
+    e = int_from_hash(ebytes, ec, Hash)
 
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
     s = (k + e*d) % ec.n
     # no need for s!=0, as in verification there will be no inverse of s
     return R[0], s
 
-def ecssa_verify(M: Message,
+def ecssa_verify(M: bytes,
                  ssasig: Signature,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
@@ -128,7 +128,7 @@ def _ecssa_verify(m: HashDigest,
     ebytes += bytes_from_Point(ec, P, True)
     ebytes += m
     ebytes  = Hash(ebytes).digest()
-    e = int_from_hash(ebytes, ec.n, Hash().digest_size)
+    e = int_from_hash(ebytes, ec, Hash)
     # Let R = sG - eP.
     R = DoubleScalarMultiplication(ec, s, ec.G, -e, P)
     # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
@@ -148,7 +148,7 @@ def _ecssa_pubkey_recovery(ebytes: bytes,
     r, s = check_ssasig(ssasig, ec)
 
     K = (r, ec.yQuadraticResidue(r, True))
-    e = int_from_hash(ebytes, ec.n, Hash().digest_size)
+    e = int_from_hash(ebytes, ec, Hash)
     if e == 0:
         raise ValueError("invalid challenge e")
     e1 = mod_inv(e, ec.n)
@@ -201,7 +201,7 @@ def ecssa_batch_validation(ms: List[bytes],
         ebytes += bytes_from_Point(ec, Q[i], True)
         ebytes += ms[i]
         ebytes = Hash(ebytes).digest()
-        e = int_from_hash(ebytes, ec.n, Hash().digest_size)
+        e = int_from_hash(ebytes, ec, Hash)
 
         y = ec.y(r) # raises an error if y does not exist
 

@@ -8,7 +8,7 @@ from btclib.numbertheory import legendre_symbol
 from btclib.ellipticcurves import secp256k1 as ec, int_from_Scalar, \
                                   bytes_from_Point, to_Point, \
                                   pointMultiply
-from btclib.ecssa import rfc6979, int_from_hash, bytes_from_hash, \
+from btclib.ecssa import rfc6979, int_from_hash, \
                          _ecssa_sign, \
                          _ecssa_verify, \
                          _ecssa_pubkey_recovery, \
@@ -76,7 +76,7 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(_ecssa_verify(msg, sig, pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(ec, pub, True) +
-                   bytes_from_hash(msg)).digest()
+                   bytes.fromhex(msg)).digest()
         self.assertEqual(_ecssa_pubkey_recovery(e, sig, ec), to_Point(ec, pub))
 
         # test vector 5
@@ -88,7 +88,7 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(_ecssa_verify(msg, sig, pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(ec, pub, True) +
-                   bytes_from_hash(msg)).digest()
+                   bytes.fromhex(msg)).digest()
         self.assertEqual(_ecssa_pubkey_recovery(e, sig, ec), to_Point(ec, pub))
 
         # test vector 6
@@ -100,7 +100,7 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(_ecssa_verify(msg, sig, pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(ec, pub, True) +
-                   bytes_from_hash(msg)).digest()
+                   bytes.fromhex(msg)).digest()
         self.assertEqual(_ecssa_pubkey_recovery(e, sig, ec), to_Point(ec, pub))
 
         # new proposed test: test would fail if msg is reduced
@@ -111,7 +111,7 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(_ecssa_verify(msg, sig, pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
                    bytes_from_Point(ec, pub, True) +
-                   bytes_from_hash(msg)).digest()
+                   bytes.fromhex(msg)).digest()
         self.assertEqual(_ecssa_pubkey_recovery(e, sig, ec), to_Point(ec, pub))
 
         # new proposed test: genuine failure
@@ -246,7 +246,7 @@ class TestEcssa(unittest.TestCase):
                         ebytes += bytes_from_Point(ec, Q, True)
                         ebytes += H[m]
                         ebytes = sha256(ebytes).digest()
-                        e = int_from_hash(ebytes, ec.n, sha256().digest_size)
+                        e = int_from_hash(ebytes, ec, sha256)
                         s = (k + e * q) % ec.n
 
                         # valid signature

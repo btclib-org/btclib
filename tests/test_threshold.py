@@ -369,7 +369,7 @@ class TestEcssaThreshold(unittest.TestCase):
         ### PHASE THREE: signature generation ###
         
         # partial signatures
-        e = int_from_hash(sha256(K[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q, True) + msg).digest(), ec.n)
+        e = int_from_hash(sha256(K[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q, True) + msg).digest(), ec, sha256)
         gamma1 = (beta1 + e * alpha1) % ec.n
         gamma3 = (beta3 + e * alpha3) % ec.n
 

@@ -75,9 +75,9 @@ class TestEcssaMuSig(unittest.TestCase):
         for i in range(0, len(L)):
             L_brackets += L[i]
 
-        a1 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q1, False)).digest(), ec.n)
-        a2 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q2, False)).digest(), ec.n)
-        a3 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q3, False)).digest(), ec.n)
+        a1 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q1, False)).digest(), ec, sha256)
+        a2 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q2, False)).digest(), ec, sha256)
+        a3 = int_from_hash(sha256(L_brackets + bytes_from_Point(ec, Q3, False)).digest(), ec, sha256)
         # aggregated public key
         Q_All = DoubleScalarMultiplication(ec, a1, Q1, a2, Q2)
         Q_All = ec.add(Q_All, pointMultiply(ec, a3, Q3))
@@ -97,7 +97,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K1_All[1], as it is not used anymore
             # let's fix k1 instead, as it is used later
             k1 = ec.n - k1
-        c1 = int_from_hash(sha256(K1_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec.n)
+        c1 = int_from_hash(sha256(K1_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec, sha256)
         assert 0<c1 and c1<ec.n, "sign fail"
         s1 = (k1 + c1*a1*q1) % ec.n
 
@@ -111,7 +111,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K2_All[1], as it is not used anymore
             # let's fix k2 instead, as it is used later
             k2 = ec.n - k2
-        c2 = int_from_hash(sha256(K2_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec.n)
+        c2 = int_from_hash(sha256(K2_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec, sha256)
         assert 0<c2 and c2<ec.n, "sign fail"
         s2 = (k2 + c2*a2*q2) % ec.n
 
@@ -125,7 +125,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K3_All[1], as it is not used anymore
             # let's fix k3 instead, as it is used later
             k3 = ec.n - k3
-        c3 = int_from_hash(sha256(K3_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec.n)
+        c3 = int_from_hash(sha256(K3_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec, sha256)
         assert 0<c3 and c3<ec.n, "sign fail"
         s3 = (k3 + c3*a3*q3) % ec.n
 

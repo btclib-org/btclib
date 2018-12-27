@@ -7,17 +7,22 @@ from btclib.ellipticcurves import secp256k1 as ec, Scalar, Tuple, \
                                   pointMultiply, DoubleScalarMultiplication, \
                                   bytes_from_Point, to_Point, \
                                   int_from_Scalar, bytes_from_Scalar
-from btclib.ecsignutils import Message, int_from_hash
+from btclib.ecsignutils import int_from_hash
 
 Signature = Tuple[bytes, ...]
 
 # source: https://github.com/ElementsProject/borromean-signatures-writeup
 
-def borromean_hash(msg: Message, R: bytes, i: int, j: int) -> bytes:
+def borromean_hash(msg: bytes,
+                   R: bytes,
+                   i: int,
+                   j: int) -> bytes:
     temp = msg + R + i.to_bytes(4, 'big') + j.to_bytes(4, 'big')
     return sha256(temp).digest()
 
-def get_msg_format(msg: Message, pubk_rings: Dict[int, List[bytes]]) -> bytes:
+def get_msg_format(msg: bytes,
+                   pubk_rings: Dict[int,
+                   List[bytes]]) -> bytes:
     hash_argument = msg
     for i in range(len(pubk_rings)):
         for j in range(len(pubk_rings[i])):
@@ -25,8 +30,11 @@ def get_msg_format(msg: Message, pubk_rings: Dict[int, List[bytes]]) -> bytes:
             hash_argument += pubk_rings[i][j]
     return sha256(hash_argument).digest()
 
-def borromean_sign(msg: Message, sign_key_idx: List[int], sign_keys: List[Scalar],\
-                   pubk_rings: Dict[int, List[bytes]]) -> Signature:
+def borromean_sign(msg: bytes,
+                   sign_key_idx: List[int],
+                   sign_keys: List[Scalar],
+                   pubk_rings: Dict[int,
+                   List[bytes]]) -> Signature:
     """ Borromean ring signature - signing algorithm
 
     inputs:
@@ -54,7 +62,7 @@ def borromean_sign(msg: Message, sign_key_idx: List[int], sign_keys: List[Scalar
         else:
             for j in range(start_idx, len(pubk_rings[i])):
                 s[i][j] = os.urandom(32)
-                e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec.n)
+                e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec, sha256)
                 assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
                 T = DoubleScalarMultiplication(ec, s[i][j], ec.G, ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
                 R = bytes_from_Point(ec, T, True)
@@ -63,18 +71,18 @@ def borromean_sign(msg: Message, sign_key_idx: List[int], sign_keys: List[Scalar
     # step 2
     for i in range(0, ring_number):
         j_star = sign_key_idx[i]
-        e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec.n)
+        e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec, sha256)
         assert e[i][0] != 0 and e[i][0] < ec.n, "sign fail"
         for j in range(1, j_star+1):
             s[i][j-1] = os.urandom(32)
             T = DoubleScalarMultiplication(ec, s[i][j-1], ec.G, ec.n - e[i][j-1], to_Point(ec, pubk_rings[i][j-1]))
             R = bytes_from_Point(ec, T, True)
-            e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec.n)
+            e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec, sha256)
             assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
         s[i][j_star] = bytes_from_Scalar(ec, k[i] + sign_keys[i]*e[i][j_star])
     return (e_0, s)
 
-def borromean_verify(msg: Message, e_0: bytes, s: Dict[int, List[Scalar]],\
+def borromean_verify(msg: bytes, e_0: bytes, s: Dict[int, List[Scalar]],\
                      pubk_rings: Dict[int, List[bytes]]) -> bool:
     """ Borromean ring signature - verification algorithm
 
@@ -90,14 +98,14 @@ def borromean_verify(msg: Message, e_0: bytes, s: Dict[int, List[Scalar]],\
     last_R = m
     for i in range(0, ring_number):
         e[i] = [0]*len(pubk_rings[i])
-        e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec.n)
+        e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec, sha256)
         if e[i][0] == 0 or e[i][0] >= ec.n:
             return False
         for j in range(0, len(pubk_rings[i])):
             T = DoubleScalarMultiplication(ec, s[i][j], ec.G, ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
             R = bytes_from_Point(ec, T, True)
             if j != len(pubk_rings[i])-1:
-                e[i][j+1] = int_from_hash(borromean_hash(m, R, i, j+1), ec.n)
+                e[i][j+1] = int_from_hash(borromean_hash(m, R, i, j+1), ec, sha256)
                 if e[i][j+1] == 0 or e[i][j+1] >= ec.n:
                     return False
             else:

@@ -15,10 +15,10 @@ from btclib.ellipticcurves import Union, Tuple, \
                                   pointMultiply, DoubleScalarMultiplication, \
                                   int_from_Scalar, to_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import Message, HashDigest, Signature, \
+from btclib.ecsignutils import HashDigest, Signature, \
                                bytes_from_hash, int_from_hash
 
-def ecdsa_sign(M: Message,
+def ecdsa_sign(M: bytes,
                q: Scalar,
                k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
@@ -42,7 +42,7 @@ def _ecdsa_sign(H: HashDigest,
     # See section 4.1.3
 
     # The message digest m: a 32-byte array
-    H = bytes_from_hash(H, Hash)
+    # checked below inside int_from_hash()
 
     # The secret key d: an integer in the range 1..n-1.
     d = int_from_Scalar(ec, d)
@@ -65,13 +65,13 @@ def _ecdsa_sign(H: HashDigest,
     if r==0: # required as in verification it will multiply the public key
         raise ValueError("r = 0, failed to sign")
     # already got H as input                               # 4
-    e = int_from_hash(H, ec.n, Hash().digest_size)         # 5
+    e = int_from_hash(H, ec, Hash)                         # 5
     s = mod_inv(k, ec.n) * (e + r*d) % ec.n                # 6
     if s==0: # required as in verification the inverse of s is needed
         raise ValueError("s = 0, failed to sign")
     return r, s
 
-def ecdsa_verify(M: Message,
+def ecdsa_verify(M: bytes,
                  dsasig: Signature,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
@@ -101,13 +101,13 @@ def _ecdsa_verify(H: HashDigest,
     P = to_Point(ec, P)
 
     # The message digest m: a 32-byte array
-    H = bytes_from_hash(H, Hash)
+    # checked below inside int_from_hash()
 
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
     r, s = check_dsasig(dsasig, ec)                     # 1
     # H already provided as input                       # 2
-    e = int_from_hash(H, ec.n, Hash().digest_size)      # 3
+    e = int_from_hash(H, ec, Hash)                      # 3
     s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
     R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
     # Fail if infinite(R) or r ≠ x(R) %n.
@@ -117,7 +117,7 @@ def _ecdsa_verify(H: HashDigest,
     v = xR % ec.n                                       # 7
     return v == r                                       # 8
 
-def ecdsa_pubkey_recovery(M: Message,
+def ecdsa_pubkey_recovery(M: bytes,
                           dsasig: Signature,
                           ec: EllipticCurve = secp256k1,
                           Hash = sha256) -> List[Point]:
@@ -138,12 +138,13 @@ def _ecdsa_pubkey_recovery(H: HashDigest,
     # ECDSA public key recovery operation according to SEC 2
     # See section 4.1.6
 
-    assert len(H) == Hash().digest_size
+    # The message digest m: a 32-byte array
+    # checked below inside int_from_hash()
 
     r, s = check_dsasig(dsasig, ec)
 
     # precomputations
-    e = int_from_hash(H, ec.n, Hash().digest_size) # ECDSA verification step 3
+    e = int_from_hash(H, ec, Hash) # ECDSA verification step 3
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
     r1e =-r1*e
