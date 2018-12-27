@@ -266,17 +266,21 @@ def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
         if len(Q) == 1 and Q[0] == 0x00: # infinity point
             return 1, 0
         if len(Q) == ec.bytesize+1: # compressed point
-            assert Q[0] == 0x02 or Q[0] == 0x03, "not a compressed point"
+            if Q[0] not in (0x02, 0x03):
+                raise ValueError("not a compressed point")
             Px = int.from_bytes(Q[1:], 'big')
             Py = ec.yOdd(Px, Q[0] % 2) # also check Px validity
         else:                          # uncompressed point
-            assert len(Q) == 2*ec.bytesize+1, \
-                "wrong byte-size (%s) for a point: it should be %s or %s" % \
-                                    (len(Q), ec.bytesize+1, 2*ec.bytesize+1)
-            assert Q[0] == 0x04, "not an uncompressed point"
+            if len(Q) != 2*ec.bytesize+1:
+                m = "wrong byte-size (%s) for a point: it " % len(Q)
+                m += "should be %s or %s" % (ec.bytesize+1, 2*ec.bytesize+1)
+                raise ValueError(m)
+            if Q[0] != 0x04:
+                raise ValueError("not an uncompressed point")
             Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
             Py = int.from_bytes(Q[ec.bytesize+1:], 'big')
-            assert ec.areValidCoordinates(Px, Py), "not on curve"
+            if not ec.areValidCoordinates(Px, Py):
+                raise ValueError("point not on curve")
         return Px, Py
 
     # input is already a Point
@@ -321,7 +325,9 @@ def int_from_Scalar(ec: EllipticCurve, q: Scalar) -> int:
 
     if isinstance(q, bytes):
         # FIXME: asses if must be <= or ec.bytesize should be revised
-        assert len(q) <= ec.bytesize, "wrong lenght"
+        if len(q) > ec.bytesize:
+            errmsg = 'scalar size %s > %s' % (len(q), ec.bytesize)
+            raise ValueError(errmsg)
         q = int.from_bytes(q, 'big')
 
     return q % ec.n

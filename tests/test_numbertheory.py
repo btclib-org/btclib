@@ -36,7 +36,7 @@ class TestNumberTheory(unittest.TestCase):
                 self.assertNotIn(p - 1, hasRoot)
                 self.assertRaises(ValueError, mod_sqrt, p - 1, p)
             else:
-                assert p % 4 == 1
+                assert p % 4 == 1, "something is badly broken"
                 self.assertIn(p - 1, hasRoot)
                 root = mod_sqrt(p - 1, p)
                 self.assertEqual(p - 1, root * root % p)

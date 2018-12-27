@@ -143,7 +143,8 @@ def _ecssa_pubkey_recovery(ebytes: bytes,
                            ec: EllipticCurve = secp256k1,
                            Hash = sha256) -> Point:
 
-    assert len(ebytes) == Hash().digest_size
+    if len(ebytes) != Hash().digest_size:
+        raise ValueError("wrong size for e")
 
     r, s = check_ssasig(ssasig, ec)
 
