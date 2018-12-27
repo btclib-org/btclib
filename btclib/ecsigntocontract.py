@@ -63,7 +63,7 @@ def ecdsa_commit_and_sign(m: bytes,
     # sign
     sig = _ecdsa_sign(mh, prvkey, eph_prv, ec)
     # commit receipt
-    receipt = (sig[0], R)
+    receipt = sig[0], R
     return sig, receipt
 
 def ecssa_commit_and_sign(m: bytes,
