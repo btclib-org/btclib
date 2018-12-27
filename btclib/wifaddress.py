@@ -7,7 +7,7 @@ and public keys (addresses)
 '''
 
 from hashlib import sha256, new as hnew
-from btclib.ellipticcurves import Union, \
+from btclib.ellipticcurves import Union, Tuple, \
                                   Scalar as PrivateKey, Point as PublicKey, \
                                   secp256k1 as ec, pointMultiply, \
                                   bytes_from_Scalar, bytes_from_Point
@@ -24,7 +24,7 @@ def wif_from_prvkey(prvkey: PrivateKey, compressed: bool = True) -> bytes:
     return b58encode_check(payload)
 
 
-def prvkey_from_wif(wif: WIF) -> bytes:
+def prvkey_from_wif(wif: WIF) -> Tuple[bytes, bool]:
     """Wallet Import Format to (bytes) private key"""
 
     payload = b58decode_check(wif)
