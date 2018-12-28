@@ -17,11 +17,11 @@ class TestSignToContract(unittest.TestCase):
         c = "to be committed".encode()
 
         sig_ecdsa, receipt_ecdsa = ecdsa_commit_and_sign(m, prv, c, None, secp256k1, sha256)
-        self.assertTrue(ecdsa_verify(m, sig_ecdsa, pub, secp256k1))
+        self.assertTrue(ecdsa_verify(sig_ecdsa, m, pub, secp256k1))
         self.assertTrue(verify_commit(receipt_ecdsa, c, secp256k1, sha256))
 
         sig_ecssa, receipt_ecssa = ecssa_commit_and_sign(m, prv, c, None, secp256k1, sha256)
-        self.assertTrue(ecssa_verify(m, sig_ecssa, pub, secp256k1))
+        self.assertTrue(ecssa_verify(sig_ecssa, m, pub, secp256k1))
         self.assertTrue(verify_commit(receipt_ecssa, c, secp256k1, sha256))
 
 

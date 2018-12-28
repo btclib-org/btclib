@@ -72,8 +72,8 @@ def _ecdsa_sign(H: HashDigest,
         raise ValueError("s = 0, failed to sign")
     return r, s
 
-def ecdsa_verify(M: bytes,
-                 dsasig: ECDS,
+def ecdsa_verify(dsasig: ECDS,
+                 M: bytes,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
                  Hash = sha256) -> bool:
@@ -83,34 +83,35 @@ def ecdsa_verify(M: bytes,
     """
     try:
         H = Hash(M).digest()
-        return _ecdsa_verify(H, dsasig, Q, ec, Hash)
+        return _ecdsa_verify(dsasig, H, Q, ec, Hash)
     except Exception:
         return False
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecdsa_verify(H: HashDigest,
-                  dsasig: ECDS,
+def _ecdsa_verify(dsasig: ECDS,
+                  H: HashDigest,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
                   Hash = sha256) -> bool:
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
+    # Fail if r is not [1, n-1]
+    # Fail if s is not [1, n-1]
+    r, s = to_dsasig(dsasig, ec)                        # 1
+
+    # H already provided as input                       # 2
+    # The message digest m: a 32-byte array
+    e = int_from_hash(H, ec, Hash)                      # 3
+
     # Let P = point(pk); fail if point(pk) fails.
     P = to_Point(ec, P)
 
-    # The message digest m: a 32-byte array
-    # checked below inside int_from_hash()
-
-    # Fail if r is not [1, n-1]
-    # Fail if s is not [1, n-1]
-    r, s = check_dsasig(dsasig, ec)                     # 1
-    # H already provided as input                       # 2
-    e = int_from_hash(H, ec, Hash)                      # 3
     s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
     R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
+
     # Fail if infinite(R) or r ≠ x(R) %n.
     if R[1] == 0:
         return False
@@ -118,8 +119,8 @@ def _ecdsa_verify(H: HashDigest,
     v = xR % ec.n                                       # 7
     return v == r                                       # 8
 
-def ecdsa_pubkey_recovery(M: bytes,
-                          dsasig: ECDS,
+def ecdsa_pubkey_recovery(dsasig: ECDS,
+                          M: bytes,
                           ec: EllipticCurve = secp256k1,
                           Hash = sha256) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 2
@@ -127,13 +128,13 @@ def ecdsa_pubkey_recovery(M: bytes,
     See section 4.1.6
     """
     H = Hash(M).digest()
-    return _ecdsa_pubkey_recovery(H, dsasig, ec, Hash)
+    return _ecdsa_pubkey_recovery(dsasig, H, ec, Hash)
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecdsa_pubkey_recovery(H: HashDigest,
-                           dsasig: ECDS,
+def _ecdsa_pubkey_recovery(dsasig: ECDS,
+                           H: HashDigest,
                            ec: EllipticCurve = secp256k1,
                            Hash = sha256) -> List[Point]:
     # ECDSA public key recovery operation according to SEC 2
@@ -142,7 +143,7 @@ def _ecdsa_pubkey_recovery(H: HashDigest,
     # The message digest m: a 32-byte array
     # checked below inside int_from_hash()
 
-    r, s = check_dsasig(dsasig, ec)
+    r, s = to_dsasig(dsasig, ec)
 
     # precomputations
     e = int_from_hash(H, ec, Hash) # ECDSA verification step 3
@@ -165,8 +166,8 @@ def _ecdsa_pubkey_recovery(H: HashDigest,
             pass
     return keys
 
-def check_dsasig(dsasig: ECDS,
-                 ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
+def to_dsasig(dsasig: ECDS,
+              ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
     """check DSA signature format is correct and return the signature itself"""
 
     if len(dsasig) != 2:

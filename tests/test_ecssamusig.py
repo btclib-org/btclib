@@ -138,7 +138,7 @@ class TestEcssaMuSig(unittest.TestCase):
         s_All = (s1 + s2 + s3) % ec.n
         ssasig = (K1_All[0], s_All)
 
-        self.assertTrue(ecssa_verify(msg, ssasig, Q_All, ec, sha256))
+        self.assertTrue(ecssa_verify(ssasig, msg, Q_All, ec, sha256))
 
 
 if __name__ == "__main__":

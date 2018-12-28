@@ -88,23 +88,23 @@ def _ecssa_sign(m: HashDigest,
     # no need for s!=0, as in verification there will be no inverse of s
     return R[0], s
 
-def ecssa_verify(M: bytes,
-                 ssasig: ECSS,
+def ecssa_verify(ssasig: ECSS,
+                 M: bytes,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
                  Hash = sha256) -> bool:
     """ECSSA veryfying operation according to bip-schnorr"""
     try:
         m = Hash(M).digest()
-        return _ecssa_verify(m, ssasig, Q, ec, Hash)
+        return _ecssa_verify(ssasig, m, Q, ec, Hash)
     except Exception:
         return False
 
 # Private function provided for testing purposes only.
 # To avoid forgeable signature, sign and verify should
 # always use the message, not its hash digest.
-def _ecssa_verify(m: HashDigest,
-                  ssasig: ECSS,
+def _ecssa_verify(ssasig: ECSS,
+                  m: HashDigest,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
                   Hash = sha256) -> bool:
@@ -116,23 +116,26 @@ def _ecssa_verify(m: HashDigest,
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
 
-    # Let P = point(pk); fail if point(pk) fails.
-    P = to_Point(ec, P)
+    # Let r = int(sig[0:32]); fail if r ≥ p.
+    # Let s = int(sig[32:64]); fail if s ≥ n.
+    r, s = to_ssasig(ssasig, ec)
 
     # The message digest m: a 32-byte array
     m = bytes_from_hash(m, Hash)
 
-    # Let r = int(sig[0:32]); fail if r ≥ p.
-    # Let s = int(sig[32:64]); fail if s ≥ n.
-    r, s = check_ssasig(ssasig, ec)
+    # Let P = point(pk); fail if point(pk) fails.
+    P = to_Point(ec, P)
+
     # Let e = int(hash(bytes(r) || bytes(P) || m)) mod n.
     ebytes  = r.to_bytes(ec.bytesize, byteorder="big")
     ebytes += bytes_from_Point(ec, P, True)
     ebytes += m
     ebytes  = Hash(ebytes).digest()
     e = int_from_hash(ebytes, ec, Hash)
+    
     # Let R = sG - eP.
     R = DoubleScalarMultiplication(ec, s, ec.G, -e, P)
+
     # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
     if R[1] == 0:
         raise ValueError("sG - eP is infinite")
@@ -140,15 +143,15 @@ def _ecssa_verify(m: HashDigest,
         raise ValueError("y(sG - eP) is not a quadratic residue")
     return R[0] == r
 
-def _ecssa_pubkey_recovery(ebytes: bytes,
-                           ssasig: ECSS,
+def _ecssa_pubkey_recovery(ssasig: ECSS,
+                           ebytes: bytes,
                            ec: EllipticCurve = secp256k1,
                            Hash = sha256) -> Point:
 
     if len(ebytes) != Hash().digest_size:
         raise ValueError("wrong size for e")
 
-    r, s = check_ssasig(ssasig, ec)
+    r, s = to_ssasig(ssasig, ec)
 
     K = (r, ec.yQuadraticResidue(r, True))
     e = int_from_hash(ebytes, ec, Hash)
@@ -160,8 +163,8 @@ def _ecssa_pubkey_recovery(ebytes: bytes,
         raise ValueError("failed")
     return Q
 
-def check_ssasig(ssasig: ECSS,
-                 ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
+def to_ssasig(ssasig: ECSS,
+              ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
     """check SSA signature format is correct and return the signature itself"""
 
     # A signature sig: a 64-byte array.
@@ -183,8 +186,8 @@ def check_ssasig(ssasig: ECSS,
 
     return r, s
 
-def ecssa_batch_validation(ms: List[bytes],
-                           sig: List[ECSS],
+def ecssa_batch_validation(sig: List[ECSS],
+                           ms: List[bytes],
                            Q: List[Point],
                            a: List[int],
                            ec: EllipticCurve = secp256k1,
@@ -199,7 +202,7 @@ def ecssa_batch_validation(ms: List[bytes],
     factors = list()
 
     for i in range(0, u):
-        r, s = check_ssasig(sig[i], ec)
+        r, s = to_ssasig(sig[i], ec)
         ebytes = r.to_bytes(32, byteorder="big")
         ebytes += bytes_from_Point(ec, Q[i], True)
         ebytes += ms[i]

@@ -414,7 +414,7 @@ class TestEcssaThreshold(unittest.TestCase):
 
         ecssa = (K[0], sigma)
 
-        self.assertTrue(_ecssa_verify(msg, ecssa, Q, ec))
+        self.assertTrue(_ecssa_verify(ecssa, msg, Q, ec))
 
         ### ADDITIONAL PHASE: reconstruction of the private key ###
         secret = (omega1 * alpha1 + omega3 * alpha3)  % ec.n

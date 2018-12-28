@@ -10,7 +10,7 @@ from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_batch_validation
 n_sig = [1, 2, 5, 10, 50, 100, 500]
 m = []
 sig = []
-q = []0
+q = []
 Q = []
 a = []
 for j in range(0, max(n_sig)):
@@ -28,13 +28,13 @@ for n in n_sig:
     # no batch
     start = time.time()
     for j in range(0, n):
-        assert ecssa_verify(m[j], sig[j], Q[j])
+        assert ecssa_verify(sig[j], m[j], Q[j])
     elapsed = time.time() - start
     print(elapsed, )
 
     # batch
     start = time.time()
-    assert ecssa_batch_validation(m, sig, Q, a)
+    assert ecssa_batch_validation(sig, m, Q, a)
     batch_end = time.time()
     elapsed = time.time() - start
     print(elapsed)
