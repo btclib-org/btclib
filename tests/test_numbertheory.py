@@ -7,10 +7,11 @@ class TestNumberTheory(unittest.TestCase):
     def test_mod_sqrt(self):
         for p in [3, 5, 7, 11, 13, 17, 19, 23, 29]:
             hasRoot = set()
+            hasRoot.add(0)
             hasRoot.add(1)
             for i in range(2, p):
                 hasRoot.add(i*i % p)
-            for i in range(1, p):
+            for i in range(0, p):
                 if i in hasRoot:
                     root = mod_sqrt(i, p)
                     self.assertEqual(i, (root*root) % p)
