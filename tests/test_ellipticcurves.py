@@ -5,7 +5,6 @@ import unittest
 from btclib.numbertheory import mod_sqrt
 from btclib.ellipticcurves import EllipticCurve, sha256, \
                                   bytes_from_Point, to_Point, \
-                                  int_from_Scalar, \
                                   pointMultiply, DoubleScalarMultiplication, \
                                   _jac_from_affine, \
                                   _pointMultiplyJacobian, \
@@ -273,38 +272,55 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(str(ec), str(ec2))
 
     def test_to_point(self):
-        q = 0xc28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d
-        Q = pointMultiply(secp256k1, q, secp256k1.G)
+        ec = secp256k1
+        Q = pointMultiply(ec, ec._p, ec.G)
         
-        Q_bytes = b'\x02' + Q[0].to_bytes(32, "big")
-        R = to_Point(secp256k1, Q_bytes)
+        Q_bytes = b'\x03' + Q[0].to_bytes(32, "big")
+        R = to_Point(ec, Q_bytes)
         self.assertEqual(R, Q)
-        self.assertEqual(bytes_from_Point(secp256k1, R, True), Q_bytes)
+        self.assertEqual(bytes_from_Point(ec, R, True), Q_bytes)
 
         Q_hex_str = Q_bytes.hex()
-        R = to_Point(secp256k1, Q_hex_str)
+        R = to_Point(ec, Q_hex_str)
         self.assertEqual(R, Q)
 
         Q_bytes = b'\x04' + Q[0].to_bytes(32, "big") + Q[1].to_bytes(32, "big")
-        R = to_Point(secp256k1, Q_bytes)
+        R = to_Point(ec, Q_bytes)
         self.assertEqual(R, Q)
-        self.assertEqual(bytes_from_Point(secp256k1, R, False), Q_bytes)
+        self.assertEqual(bytes_from_Point(ec, R, False), Q_bytes)
 
         Q_hex_str = Q_bytes.hex()
-        R = to_Point(secp256k1, Q_hex_str)
+        R = to_Point(ec, Q_hex_str)
         self.assertEqual(R, Q)
 
         # infinity point
-        self.assertEqual(to_Point(secp256k1, b'\x00'), Inf)
-        self.assertEqual(bytes_from_Point(secp256k1, Inf, True),  b'\x00')
-        self.assertEqual(bytes_from_Point(secp256k1, Inf, False), b'\x00')
+        self.assertEqual(to_Point(ec, b'\x00'), Inf)
+        self.assertEqual(bytes_from_Point(ec, Inf, True),  b'\x00')
+        self.assertEqual(bytes_from_Point(ec, Inf, False), b'\x00')
         Inf_hex_str = b'\x00'.hex()
-        self.assertEqual(to_Point(secp256k1, Inf_hex_str), Inf)
+        self.assertEqual(to_Point(ec, Inf_hex_str), Inf)
 
         # scalar in point multiplication can be int, str, or bytes
         t = tuple()
-        self.assertRaises(TypeError, pointMultiply, secp256k1, t, secp256k1.G)
+        self.assertRaises(TypeError, pointMultiply, ec, t, ec.G)
 
+        # not a compressed point
+        Q_bytes = b'\x01' * 33
+        self.assertRaises(ValueError, to_Point, ec, Q_bytes)
+        # not a point
+        Q_bytes += b'\x01'
+        self.assertRaises(ValueError, to_Point, ec, Q_bytes)
+        # not an uncompressed point
+        Q_bytes += b'\x01' * 31
+        self.assertRaises(ValueError, to_Point, ec, Q_bytes)
+        # binary point not on curve
+        OffCurve = Q[0], ec._p - Q[1] - 1
+        Q_bytes = b'\x04' + Q[0].to_bytes(ec.bytesize, byteorder='big')
+        Q_bytes += OffCurve[1].to_bytes(ec.bytesize, byteorder='big')
+        self.assertRaises(ValueError, to_Point, ec, Q_bytes)
+        # tuple point not on curve
+        self.assertRaises(ValueError, to_Point, ec, OffCurve)
+ 
     def test_second_generator(self):
         """
         important remark on secp256-zkp prefix for compressed encoding of the second generator:
@@ -483,13 +499,17 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, ec.yOdd, x, 2)
         self.assertRaises(ValueError, ec.yQuadraticResidue, x, 2)
 
-    def test_affine_from_jac_conversion(self):
+    def test_affine_jac_conversions(self):
         for ec in all_curves:
             Q = pointMultiply(ec, ec._p, ec.G) # random point
             checkQ = ec._affine_from_jac(_jac_from_affine(Q))
             self.assertEqual(Q, checkQ)
-            checkInf = ec._affine_from_jac(_jac_from_affine(Inf))
-            self.assertEqual(Inf, checkInf)
+        # with only the last curve
+        checkInf = ec._affine_from_jac(_jac_from_affine(Inf))
+        self.assertEqual(Inf, checkInf)
+        self.assertRaises(ValueError, ec._affine_from_jac, (1,1,1,0))
+        self.assertRaises(ValueError, _jac_from_affine, (1,1,0))
+
 
     def test_Add(self):
         for ec in all_curves:
@@ -526,11 +546,24 @@ class TestEllipticCurve(unittest.TestCase):
     def test_Multiply(self):
         for ec in low_card_curves_1:
             Gjac = _jac_from_affine(ec.G)
-            for q in range(2, ec.n):
+            for q in range(0, ec.n):
                 Q = _pointMultiplyAffine(ec, q, ec.G)
                 Qjac = _pointMultiplyJacobian(ec, q, Gjac)
                 Q2 = ec._affine_from_jac(Qjac)
                 self.assertEqual(Q, Q2)
+        # with last curve
+        self.assertEqual(Inf, _pointMultiplyAffine(ec, 3, Inf))
+        self.assertEqual(InfJ, _pointMultiplyJacobian(ec, 3, InfJ))
+
+        # invalid scalar
+        q = b'\x00' * (ec.bytesize + 1)
+        self.assertRaises(ValueError, pointMultiply, ec, q, ec.G)
+
+        # invalid coordinates
+        Q = 1, 1, 0
+        self.assertRaises(ValueError, _pointMultiplyAffine, ec, 1, Q)
+        Q = 1, 1, 1, 0
+        self.assertRaises(ValueError, _pointMultiplyJacobian, ec, 1, Q)
 
     def test_shamir(self):
         ec = ec41_53

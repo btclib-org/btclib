@@ -274,7 +274,8 @@ def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
             return 1, 0
         if len(Q) == ec.bytesize+1: # compressed point
             if Q[0] not in (0x02, 0x03):
-                raise ValueError("not a compressed point")
+                m = "%s bytes, but not a compressed point" % (ec.bytesize+1)
+                raise ValueError(m)
             Px = int.from_bytes(Q[1:], 'big')
             Py = ec.yOdd(Px, Q[0] % 2) # also check Px validity
         else:                          # uncompressed point
@@ -355,8 +356,8 @@ def pointMultiply(ec: EllipticCurve,
     return ec._affine_from_jac(R)
 
 def _pointMultiplyAffine(ec: EllipticCurve,
-                        n: Scalar,
-                        Q: GenericPoint) -> Point:
+                         n: Scalar,
+                         Q: GenericPoint) -> Point:
     """double & add in affine coordinates, using binary decomposition of n"""
     n = int_from_Scalar(ec, n)
     Q = to_Point(ec, Q)
@@ -399,30 +400,45 @@ def DoubleScalarMultiplication(ec: EllipticCurve,
     """Shamir trick for efficient computation of k1*Q1 + k2*Q2"""
 
     r1 = int_from_Scalar(ec, k1)
+    if r1 == 0:
+        Q2 = to_Point(ec, Q2)
+        R2 = _jac_from_affine(Q2)
+        R = _pointMultiplyJacobian(ec, k2, R2)
+        return ec._affine_from_jac(R)
+
     Q1 = to_Point(ec, Q1)
+    if Q1[1] == 0:
+        Q2 = to_Point(ec, Q2)
+        R2 = _jac_from_affine(Q2)
+        R = _pointMultiplyJacobian(ec, k2, R2)
+        return ec._affine_from_jac(R)
+
     R1 = _jac_from_affine(Q1)
 
     r2 = int_from_Scalar(ec, k2)
-    Q2 = to_Point(ec, Q2)
-    R2 = _jac_from_affine(Q2)
-
-    if R1[2] == 0:
-        R = _pointMultiplyJacobian(ec, r2, R2)
-    elif R2[2] == 0:
+    if r2 == 0:
         R = _pointMultiplyJacobian(ec, r1, R1)
-    else:
-        R = 1, 1, 0 # initialize as infinity point
-        msb = max(r1.bit_length(), r2.bit_length())
-        while msb > 0:
-            if r1 >> (msb - 1): # checking msb
-                R = ec._addJacobian(R, R1)
-                r1 -= pow(2, r1.bit_length() - 1)
-            if r2 >> (msb - 1): # checking msb
-                R = ec._addJacobian(R, R2)
-                r2 -= pow(2, r2.bit_length() - 1)
-            if msb > 1:
-                R = ec._addJacobian(R, R)
-            msb -= 1
+        return ec._affine_from_jac(R)
+
+    Q2 = to_Point(ec, Q2)
+    if Q2[1] == 0:
+        R = _pointMultiplyJacobian(ec, r1, R1)
+        return ec._affine_from_jac(R)
+
+    R2 = _jac_from_affine(Q2)
+    
+    R = 1, 1, 0 # initialize as infinity point
+    msb = max(r1.bit_length(), r2.bit_length())
+    while msb > 0:
+        if r1 >> (msb - 1): # checking msb
+            R = ec._addJacobian(R, R1)
+            r1 -= pow(2, r1.bit_length() - 1)
+        if r2 >> (msb - 1): # checking msb
+            R = ec._addJacobian(R, R2)
+            r2 -= pow(2, r2.bit_length() - 1)
+        if msb > 1:
+            R = ec._addJacobian(R, R)
+        msb -= 1
 
     return ec._affine_from_jac(R)
 
