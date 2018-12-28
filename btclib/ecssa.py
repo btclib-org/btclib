@@ -18,8 +18,7 @@ from btclib.ellipticcurves import Union, Tuple, \
                                   int_from_Scalar, to_Point, \
                                   bytes_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import HashDigest, \
-                               bytes_from_hash, int_from_hash
+from btclib.ecsignutils import HashDigest, bytes_from_hash, int_from_hash
 
 ECSS = Tuple[int, Scalar] # Tuple[Coordinate, Scalar]
 
@@ -75,9 +74,8 @@ def ecssa_sign(m: bytes,
     ebytes = Hash(ebytes).digest()
     e = int_from_hash(ebytes, ec, Hash)
 
+    s = (k + e*d) % ec.n # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
-    s = (k + e*d) % ec.n
-    # no need for s!=0, as in verification there will be no inverse of s
     return R[0], s
 
 def ecssa_verify(ssasig: ECSS,
