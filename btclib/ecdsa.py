@@ -88,7 +88,7 @@ def ecdsa_verify(dsasig: ECDS,
         return False
 
 # Private function provided for testing purposes only.
-# To avoid forgeable signature, sign and verify should
+# To avoid forgeable signature, DSA sign and verify should
 # always use the message, not its hash digest.
 def _ecdsa_verify(dsasig: ECDS,
                   H: HashDigest,
@@ -102,7 +102,7 @@ def _ecdsa_verify(dsasig: ECDS,
     # Fail if s is not [1, n-1]
     r, s = to_dsasig(dsasig, ec)                        # 1
 
-    # H already provided as input                       # 2
+    # H already provided as input here...               # 2
     # The message digest m: a 32-byte array
     e = int_from_hash(H, ec, Hash)                      # 3
 
