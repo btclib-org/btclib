@@ -9,33 +9,32 @@ from hashlib import sha256
 from typing import List, Optional
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import Union, Tuple, \
-                                  Scalar, Point, GenericPoint, \
-                                  EllipticCurve, secp256k1, \
-                                  pointMultiply, DoubleScalarMultiplication, \
-                                  int_from_Scalar, to_Point
+from btclib.ellipticcurves import Union, Tuple, Scalar, Point, GenericPoint, \
+    EllipticCurve, secp256k1, pointMultiply, DoubleScalarMultiplication, \
+    int_from_Scalar, to_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import bytes_from_hlenbytes, int_from_hlenbytes
 
 ECDS = Tuple[Scalar, Scalar]
 
+
 def ecdsa_sign(M: bytes,
                d: Scalar,
                k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
-               Hash = sha256) -> Tuple[int, int]:
+               Hash=sha256) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 2
 
     Steps numbering follows SEC 2 section 4.1.3
     """
 
-    H = Hash(M).digest()                                   # 4
-    e = int_from_hlenbytes(H, ec, Hash)                    # 5
+    H = Hash(M).digest()                                # 4
+    e = int_from_hlenbytes(H, ec, Hash)                 # 5
 
     d = int_from_Scalar(ec, d)
 
     if k is None:
-        k = rfc6979(d, H, ec, Hash)                        # 1
+        k = rfc6979(d, H, ec, Hash)                     # 1
     else:
         k = int_from_Scalar(ec, k)
 
@@ -43,6 +42,8 @@ def ecdsa_sign(M: bytes,
     return _ecdsa_sign(e, d, k, ec)
 
 # Private function provided for testing purposes only.
+
+
 def _ecdsa_sign(e: int,
                 d: int,
                 k: int,
@@ -56,23 +57,24 @@ def _ecdsa_sign(e: int,
     if k == 0:
         raise ValueError("ephemeral key k=0 in ecdsa sign operation")
     # Let R = k'G.
-    R = pointMultiply(ec, k, ec.G)                         # 1
+    R = pointMultiply(ec, k, ec.G)                      # 1
 
-    r = R[0] % ec.n                                        # 2, 3
-    if r==0: # r≠0 is required as in verification it multiplies the public key
+    r = R[0] % ec.n                                     # 2, 3
+    if r == 0: # r≠0 required as it multiplies the public key
         raise ValueError("r = 0, failed to sign")
 
-    s = mod_inv(k, ec.n) * (e + r*d) % ec.n                # 6
-    if s==0: # required as in verification the inverse of s is needed
+    s = mod_inv(k, ec.n) * (e + r*d) % ec.n             # 6
+    if s == 0: # required as the inverse of s is needed
         raise ValueError("s = 0, failed to sign")
 
     return r, s
+
 
 def ecdsa_verify(dsasig: ECDS,
                  H: bytes,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
-                 Hash = sha256) -> bool:
+                 Hash=sha256) -> bool:
     """ECDSA veryfying operation to SEC 2
 
     See section 4.1.4
@@ -87,17 +89,19 @@ def ecdsa_verify(dsasig: ECDS,
 
 # Private function provided for testing purposes only.
 # It raises Errors, while verify should always return True or False
+
+
 def _ecdsa_verify(dsasig: ECDS,
                   H: bytes,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
-                  Hash = sha256) -> bool:
+                  Hash=sha256) -> bool:
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
     # The message digest m: a 32-byte array
     H = Hash(H).digest()                                # 2
-    e = int_from_hlenbytes(H, ec, Hash)                      # 3
+    e = int_from_hlenbytes(H, ec, Hash)                 # 3
 
     # Let P = point(pk); fail if point(pk) fails.
     P = to_Point(ec, P)
@@ -106,6 +110,8 @@ def _ecdsa_verify(dsasig: ECDS,
     return _ecdsa_verhlp(dsasig, e, P, ec)
 
 # Private function provided for testing purposes only.
+
+
 def _ecdsa_verhlp(dsasig: ECDS,
                   e: int,
                   P: Point,
@@ -115,7 +121,9 @@ def _ecdsa_verhlp(dsasig: ECDS,
     # Fail if s is not [1, n-1]
     r, s = to_dsasig(dsasig, ec)                        # 1
 
-    s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
+    s1 = mod_inv(s, ec.n)
+    u1 = e*s1
+    u2 = r*s1         # 4
     R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
 
     # Fail if infinite(R).
@@ -126,10 +134,11 @@ def _ecdsa_verhlp(dsasig: ECDS,
     # Fail if r ≠ x(R) %n.
     return r == v                                       # 8
 
+
 def ecdsa_pubkey_recovery(dsasig: ECDS,
                           M: bytes,
                           ec: EllipticCurve = secp256k1,
-                          Hash = sha256) -> List[Point]:
+                          Hash=sha256) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 2
 
     See section 4.1.6
@@ -137,11 +146,13 @@ def ecdsa_pubkey_recovery(dsasig: ECDS,
 
     # The message digest m: a 32-byte array
     H = Hash(M).digest()
-    e = int_from_hlenbytes(H, ec, Hash) # ECDSA verification step 3
+    e = int_from_hlenbytes(H, ec, Hash)  # ECDSA verification step 3
 
     return _ecdsa_pubkey_recovery(dsasig, e, ec)
 
 # Private function provided for testing purposes only.
+
+
 def _ecdsa_pubkey_recovery(dsasig: ECDS,
                            e: int,
                            ec: EllipticCurve = secp256k1) -> List[Point]:
@@ -153,12 +164,12 @@ def _ecdsa_pubkey_recovery(dsasig: ECDS,
     # precomputations
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
-    r1e =-r1*e
+    r1e = -r1*e
     keys = []
-    for j in range(0, 2): # FIXME: use ec.cofactor+1 instead of 2
-        x = r + j*ec.n # 1.1
+    for j in range(0, 2):  # FIXME: use ec.cofactor+1 instead of 2
+        x = r + j*ec.n  # 1.1
         try:
-            R = (x, ec.yOdd(x, 1)) # 1.2, 1.3, and 1.4
+            R = (x, ec.yOdd(x, 1))  # 1.2, 1.3, and 1.4
             # 1.5 already taken care outside this for loop
             Q = DoubleScalarMultiplication(ec, r1s, R, r1e, ec.G) # 1.6.1
             # 1.6.2 is always satisfied for us, and we do not stop here
@@ -166,13 +177,14 @@ def _ecdsa_pubkey_recovery(dsasig: ECDS,
             R = ec.opposite(R)                                    # 1.6.3
             Q = DoubleScalarMultiplication(ec, r1s, R, r1e, ec.G)
             keys.append(Q)
-        except Exception: # can't get a curve's point
+        except Exception:  # can't get a curve's point
             pass
     return keys
 
+
 def to_dsasig(dsasig: ECDS,
               ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
-    """check DSA signature format is correct and return the signature itself"""
+    """check DSA signature correct format and return the signature itself"""
 
     if len(dsasig) != 2:
         m = "invalid length %s for ECDSA signature" % len(dsasig)
@@ -180,10 +192,10 @@ def to_dsasig(dsasig: ECDS,
 
     r = int(dsasig[0])
     if not (0 < r < ec.n):
-        raise ValueError("r not in [1, n-1]")
+        raise ValueError("r (%s) not in [1, n-1]" % r)
 
     s = int(dsasig[1])
     if not (0 < s < ec.n):
-        raise ValueError("s not in [1, n-1]")
+        raise ValueError("s (%s) not in [1, n-1]" % s)
 
     return r, s
