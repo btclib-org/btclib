@@ -28,9 +28,9 @@ from btclib.ellipticcurves import EllipticCurve, pointMultiply, \
                                   Tuple, Scalar, Point, GenericPoint, \
                                   bytes_from_Point, int_from_Scalar, \
                                   to_Point
-from btclib.ecsignutils import int_from_hash, bytes_from_hash
+from btclib.ecsignutils import int_from_hlenbytes, bytes_from_hlenbytes
 from btclib.rfc6979 import rfc6979
-from btclib.ecdsa import _ecdsa_sign, ECDS
+from btclib.ecdsa import ecdsa_sign, ECDS
 from btclib.ecssa import ecssa_sign, ECSS
 
 Receipt = Tuple[Scalar, GenericPoint]
@@ -55,13 +55,14 @@ def ecdsa_commit_and_sign(m: bytes,
                           Hash) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
     mh = Hash(m).digest()
     prvkey = int_from_Scalar(ec, prvkey)
-    ch = Hash(c).digest()
     eph_prv = rfc6979(prvkey, mh, ec, Hash) if eph_prv is None else int_from_Scalar(ec, eph_prv)
+
+    ch = Hash(c).digest()
 
     # commit
     R, eph_prv = tweak(eph_prv, ch, ec, Hash)
     # sign
-    sig = _ecdsa_sign(mh, prvkey, eph_prv, ec)
+    sig = ecdsa_sign(m, prvkey, eph_prv, ec, Hash)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
@@ -72,7 +73,7 @@ def ecssa_commit_and_sign(m: bytes,
                           eph_prv: Optional[Scalar],
                           ec: EllipticCurve,
                           Hash) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
-    m = bytes_from_hash(m, Hash)
+    m = bytes_from_hlenbytes(m, Hash)
     prvkey = int_from_Scalar(ec, prvkey)
     ch = Hash(c).digest()
     eph_prv = rfc6979(prvkey, m, ec, Hash) if eph_prv is None else int_from_Scalar(ec, eph_prv)
@@ -97,7 +98,7 @@ def verify_commit(receipt: Receipt,
     R = to_Point(ec, R)  # also verify R is a good point
     ch = Hash(c).digest()
     e = Hash(bytes_from_Point(ec, R, True) + ch).digest()
-    e = int_from_hash(e, ec, Hash)
+    e = int_from_hlenbytes(e, ec, Hash)
     W = ec.add(R, pointMultiply(ec, e, ec.G))
     # different verify functions?
     #return w == W[0] # ECSS

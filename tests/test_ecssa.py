@@ -8,7 +8,7 @@ from btclib.numbertheory import legendre_symbol
 from btclib.ellipticcurves import secp256k1, secp224k1, int_from_Scalar, \
                                   bytes_from_Point, to_Point, \
                                   pointMultiply
-from btclib.ecssa import rfc6979, int_from_hash, \
+from btclib.ecssa import rfc6979, int_from_hlenbytes, \
                          ecssa_sign, ecssa_sign, to_ssasig, \
                          _ecssa_verify, ecssa_verify, \
                          _ecssa_pubkey_recovery, \
@@ -249,53 +249,45 @@ class TestEcssa(unittest.TestCase):
         """test all msg/key pairs of low cardinality elliptic curves"""
 
         # ec.n has to be prime to sign
-        prime = [
-              3,   5,   7,  11,  13,  17,  19,  23,  29,  31,
-             37,  41,  43,  47,  53,  59,  61,  67,  71,  73#,
-            # 79,  83,  89,  97, 101, 103, 107, 109, 113, 127,
-            #131, 137, 139, 149, 151, 157, 163, 167, 173, 179,
-            #181, 191, 193, 197, 199, 211, 223, 227, 229, 233,
-            #239, 241, 251, 257, 263, 269, 271, 277, 281, 283
-            ]
+        prime = [ 11,  13,  17,  19 ]
 
         # all possible hashed messages
         hlen = 32
-        H = [i.to_bytes(hlen, 'big') for i in range(0, max(prime))]
+        H = [i.to_bytes(hlen, 'big') for i in range(0, max(prime)*2)]
 
         for ec in low_card_curves: # only low card curves or it would take forever
-            if ec.n in prime: # only few curves or it would take too long
+            if ec._p in prime: # only few curves or it would take too long
                 # Schnorr-bip only applies to curve whose prime p = 3 %4
                 if not ec.pIsThreeModFour:
                     self.assertRaises(ValueError, ecssa_sign, H[0], 1, None, ec)
                     continue
-                # all possible private keys (invalid 0 included)
-                for q in range(0, ec.n):
-                    if q == 0:
+                for q in range(0, ec.n): # all possible private keys 
+                    if q == 0: # invalid prvkey=0
                         self.assertRaises(ValueError, ecssa_sign, H[0], q, None, ec)
                         continue
                     Q = pointMultiply(ec, q, ec.G) # public key
                     for m in range(0, ec.n): # all possible hashed messages
+                        for k in range(0, ec.n): # all possible ephemeral keys
 
-                        k = rfc6979(q, H[m], ec, sha256) # ephemeral key
-                        K = pointMultiply(ec, k, ec.G)
-                        if K[1] == 0:
-                            self.assertRaises(ValueError, ecssa_sign, H[m], q, k, ec)
-                            continue
-                        if legendre_symbol(K[1], ec._p) != 1:
-                            k = ec.n - k
+                            if k == 0:
+                                self.assertRaises(ValueError, ecssa_sign, H[m], q, k, ec)
+                                continue
+                            K = pointMultiply(ec, k, ec.G)
+                            if legendre_symbol(K[1], ec._p) != 1:
+                                k = ec.n - k
 
-                        ebytes  = K[0].to_bytes(ec.bytesize, byteorder="big")
-                        ebytes += bytes_from_Point(ec, Q, True)
-                        ebytes += H[m]
-                        ebytes = sha256(ebytes).digest()
-                        e = int_from_hash(ebytes, ec, sha256)
-                        s = (k + e * q) % ec.n
+                            ebytes  = K[0].to_bytes(ec.bytesize, byteorder="big")
+                            ebytes += bytes_from_Point(ec, Q, True)
+                            ebytes += H[m]
+                            ebytes = sha256(ebytes).digest()
+                            e = int_from_hlenbytes(ebytes, ec, sha256)
+                            s = (k + e * q) % ec.n
 
-                        # valid signature
-                        sig = ecssa_sign(H[m], q, k, ec)
-                        self.assertEqual((K[0], s), sig)
-                        # valid signature must validate
-                        self.assertTrue(_ecssa_verify(sig, H[m], Q, ec))
+                            # valid signature
+                            sig = ecssa_sign(H[m], q, k, ec)
+                            self.assertEqual((K[0], s), sig)
+                            # valid signature must validate
+                            self.assertTrue(_ecssa_verify(sig, H[m], Q, ec))
 
     def test_batch_validation(self):
         m = []

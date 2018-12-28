@@ -7,7 +7,7 @@ from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
                                   pointMultiply, DoubleScalarMultiplication, \
                                   secondGenerator, \
                                   secp256k1 as ec, sha256
-from btclib.ecssa import sha256, int_from_hash, _ecssa_verify
+from btclib.ecssa import sha256, int_from_hlenbytes, _ecssa_verify
 
 class TestEcssaThreshold(unittest.TestCase):
     """ testing a 2-of-3 threshold signature based on Pedersen secret sharing"""
@@ -369,7 +369,7 @@ class TestEcssaThreshold(unittest.TestCase):
         ### PHASE THREE: signature generation ###
         
         # partial signatures
-        e = int_from_hash(sha256(K[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q, True) + msg).digest(), ec, sha256)
+        e = int_from_hlenbytes(sha256(K[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q, True) + msg).digest(), ec, sha256)
         gamma1 = (beta1 + e * alpha1) % ec.n
         gamma3 = (beta3 + e * alpha3) % ec.n
 

@@ -15,65 +15,61 @@ from btclib.ellipticcurves import Union, Tuple, \
                                   pointMultiply, DoubleScalarMultiplication, \
                                   int_from_Scalar, to_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import HashDigest, bytes_from_hash, int_from_hash
+from btclib.ecsignutils import bytes_from_hlenbytes, int_from_hlenbytes
 
 ECDS = Tuple[Scalar, Scalar]
 
 def ecdsa_sign(M: bytes,
-               q: Scalar,
+               d: Scalar,
                k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
                Hash = sha256) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 2
 
-    See section 4.1.3
+    Steps numbering follows SEC 2 section 4.1.3
     """
-    H = Hash(M).digest()
-    return _ecdsa_sign(H, q, k, ec, Hash)
 
-# Private function provided for testing purposes only.
-# To avoid forgeable signature, sign and verify should
-# always use the message, not its hash digest.
-def _ecdsa_sign(H: HashDigest,
-                d: Scalar,
-                k: Optional[Scalar] = None,
-                ec: EllipticCurve = secp256k1,
-                Hash = sha256) -> Tuple[int, int]:
-    # ECDSA signing operation according to SEC 2
-    # See section 4.1.3
+    H = Hash(M).digest()                                   # 4
+    e = int_from_hlenbytes(H, ec, Hash)                    # 5
 
-    # The message digest m: a 32-byte array
-    # checked below inside int_from_hash()
-
-    # The secret key d: an integer in the range 1..n-1.
     d = int_from_Scalar(ec, d)
-    if d == 0:
-        raise ValueError("invalid (zero) private key")
 
-    # Fail if k' = 0.
     if k is None:
         k = rfc6979(d, H, ec, Hash)                        # 1
     else:
         k = int_from_Scalar(ec, k)
 
+    # second part delegated to helper function used in testing
+    return _ecdsa_sign(e, d, k, ec)
+
+# Private function provided for testing purposes only.
+def _ecdsa_sign(e: int,
+                d: int,
+                k: int,
+                ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
+
+    # The secret key d: an integer in the range 1..n-1.
+    if d == 0:
+        raise ValueError("invalid (zero) private key")
+
+    # Fail if k' = 0.
+    if k == 0:
+        raise ValueError("ephemeral key k=0 in ecdsa sign operation")
     # Let R = k'G.
     R = pointMultiply(ec, k, ec.G)                         # 1
-    if R[1] == 0:
-        raise ValueError("ephemeral key k=0 in ecdsa sign operation")
 
-    xR = R[0]                                              # 2
-    r = xR % ec.n                                          # 3
-    if r==0: # required as in verification it will multiply the public key
+    r = R[0] % ec.n                                        # 2, 3
+    if r==0: # r≠0 is required as in verification it multiplies the public key
         raise ValueError("r = 0, failed to sign")
-    # already got H as input                               # 4
-    e = int_from_hash(H, ec, Hash)                         # 5
+
     s = mod_inv(k, ec.n) * (e + r*d) % ec.n                # 6
     if s==0: # required as in verification the inverse of s is needed
         raise ValueError("s = 0, failed to sign")
+
     return r, s
 
 def ecdsa_verify(dsasig: ECDS,
-                 M: bytes,
+                 H: bytes,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
                  Hash = sha256) -> bool:
@@ -81,33 +77,43 @@ def ecdsa_verify(dsasig: ECDS,
 
     See section 4.1.4
     """
+
+    # this is just a try/except wrapper
+    # _ecssa_verify raises Errors
     try:
-        H = Hash(M).digest()
         return _ecdsa_verify(dsasig, H, Q, ec, Hash)
     except Exception:
         return False
 
 # Private function provided for testing purposes only.
-# To avoid forgeable signature, DSA sign and verify should
-# always use the message, not its hash digest.
+# It raises Errors, while verify should always return True or False
 def _ecdsa_verify(dsasig: ECDS,
-                  H: HashDigest,
+                  H: bytes,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
                   Hash = sha256) -> bool:
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
-    # Fail if r is not [1, n-1]
-    # Fail if s is not [1, n-1]
-    r, s = to_dsasig(dsasig, ec)                        # 1
-
-    # H already provided as input here...               # 2
     # The message digest m: a 32-byte array
-    e = int_from_hash(H, ec, Hash)                      # 3
+    H = Hash(H).digest()                                # 2
+    e = int_from_hlenbytes(H, ec, Hash)                      # 3
 
     # Let P = point(pk); fail if point(pk) fails.
     P = to_Point(ec, P)
+
+    # second part delegated to helper function used in testing
+    return _ecdsa_verhlp(dsasig, e, P, ec)
+
+# Private function provided for testing purposes only.
+def _ecdsa_verhlp(dsasig: ECDS,
+                  e: int,
+                  P: Point,
+                  ec: EllipticCurve = secp256k1) -> bool:
+
+    # Fail if r is not [1, n-1]
+    # Fail if s is not [1, n-1]
+    r, s = to_dsasig(dsasig, ec)                        # 1
 
     s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
     R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
@@ -115,9 +121,10 @@ def _ecdsa_verify(dsasig: ECDS,
     # Fail if infinite(R) or r ≠ x(R) %n.
     if R[1] == 0:
         return False
-    xR = R[0]                                           # 6
-    v = xR % ec.n                                       # 7
-    return v == r                                       # 8
+
+    v = R[0] % ec.n                                     # 6, 7
+    # Fail if r ≠ x(R) %n.
+    return r == v                                       # 8
 
 def ecdsa_pubkey_recovery(dsasig: ECDS,
                           M: bytes,
@@ -127,26 +134,23 @@ def ecdsa_pubkey_recovery(dsasig: ECDS,
 
     See section 4.1.6
     """
-    H = Hash(M).digest()
-    return _ecdsa_pubkey_recovery(dsasig, H, ec, Hash)
-
-# Private function provided for testing purposes only.
-# To avoid forgeable signature, sign and verify should
-# always use the message, not its hash digest.
-def _ecdsa_pubkey_recovery(dsasig: ECDS,
-                           H: HashDigest,
-                           ec: EllipticCurve = secp256k1,
-                           Hash = sha256) -> List[Point]:
-    # ECDSA public key recovery operation according to SEC 2
-    # See section 4.1.6
 
     # The message digest m: a 32-byte array
-    # checked below inside int_from_hash()
+    H = Hash(M).digest()
+    e = int_from_hlenbytes(H, ec, Hash) # ECDSA verification step 3
+
+    return _ecdsa_pubkey_recovery(dsasig, e, ec)
+
+# Private function provided for testing purposes only.
+def _ecdsa_pubkey_recovery(dsasig: ECDS,
+                           e: int,
+                           ec: EllipticCurve = secp256k1) -> List[Point]:
+    # ECDSA public key recovery operation according to SEC 2
+    # See section 4.1.6
 
     r, s = to_dsasig(dsasig, ec)
 
     # precomputations
-    e = int_from_hash(H, ec, Hash) # ECDSA verification step 3
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
     r1e =-r1*e

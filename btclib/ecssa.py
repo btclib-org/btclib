@@ -18,7 +18,7 @@ from btclib.ellipticcurves import Union, Tuple, \
                                   int_from_Scalar, to_Point, \
                                   bytes_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import HashDigest, bytes_from_hash, int_from_hash
+from btclib.ecsignutils import HashLengthBytes, bytes_from_hlenbytes, int_from_hlenbytes
 
 ECSS = Tuple[int, Scalar] # Tuple[Coordinate, Scalar]
 
@@ -40,7 +40,7 @@ def ecssa_sign(m: bytes,
     # a digest of other messages, but it does not need to.
 
     # The message m: a 32-byte array
-    m = bytes_from_hash(m, Hash)
+    m = bytes_from_hlenbytes(m, Hash)
 
     # The secret key d: an integer in the range 1..n-1.
     d = int_from_Scalar(ec, d)
@@ -48,16 +48,16 @@ def ecssa_sign(m: bytes,
         raise ValueError("invalid (zero) private key")
     Q = pointMultiply(ec, d, ec.G)
 
-    # Fail if k' = 0.
     if k is None:
         k = rfc6979(d, m, ec, Hash)
     else:
         k = int_from_Scalar(ec, k)
 
+    # Fail if k' = 0.
+    if k == 0:
+        raise ValueError("ephemeral key k=0 in ecssa sign operation")
     # Let R = k'G.
     R = pointMultiply(ec, k, ec.G)
-    if R[1] == 0:
-        raise ValueError("ephemeral key k=0 in ecssa sign operation")
 
     # Let k = k' if jacobi(y(R)) = 1, otherwise let k = n - k' .
     # break the simmetry: any criteria might have been used,
@@ -72,7 +72,7 @@ def ecssa_sign(m: bytes,
     ebytes += bytes_from_Point(ec, Q, True)
     ebytes += m
     ebytes = Hash(ebytes).digest()
-    e = int_from_hash(ebytes, ec, Hash)
+    e = int_from_hlenbytes(ebytes, ec, Hash)
 
     s = (k + e*d) % ec.n # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
@@ -95,7 +95,7 @@ def ecssa_verify(ssasig: ECSS,
 # Private function provided for testing purposes only.
 # It raises Errors, while verify should always return True or False
 def _ecssa_verify(ssasig: ECSS,
-                  m: HashDigest,
+                  m: HashLengthBytes,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
                   Hash = sha256) -> bool:
@@ -112,7 +112,7 @@ def _ecssa_verify(ssasig: ECSS,
     r, s = to_ssasig(ssasig, ec)
 
     # The message m: a 32-byte array
-    m = bytes_from_hash(m, Hash)
+    m = bytes_from_hlenbytes(m, Hash)
 
     # Let P = point(pk); fail if point(pk) fails.
     P = to_Point(ec, P)
@@ -122,7 +122,7 @@ def _ecssa_verify(ssasig: ECSS,
     ebytes += bytes_from_Point(ec, P, True)
     ebytes += m
     ebytes  = Hash(ebytes).digest()
-    e = int_from_hash(ebytes, ec, Hash)
+    e = int_from_hlenbytes(ebytes, ec, Hash)
     
     # Let R = sG - eP.
     R = DoubleScalarMultiplication(ec, s, ec.G, -e, P)
@@ -145,7 +145,7 @@ def _ecssa_pubkey_recovery(ssasig: ECSS,
     r, s = to_ssasig(ssasig, ec)
 
     K = (r, ec.yQuadraticResidue(r, True))
-    e = int_from_hash(ebytes, ec, Hash)
+    e = int_from_hlenbytes(ebytes, ec, Hash)
     if e == 0:
         raise ValueError("invalid challenge e")
     e1 = mod_inv(e, ec.n)
@@ -198,7 +198,7 @@ def ecssa_batch_validation(sig: List[ECSS],
         ebytes += bytes_from_Point(ec, Q[i], True)
         ebytes += ms[i]
         ebytes = Hash(ebytes).digest()
-        e = int_from_hash(ebytes, ec, Hash)
+        e = int_from_hlenbytes(ebytes, ec, Hash)
 
         y = ec.y(r) # raises an error if y does not exist
 

@@ -8,6 +8,7 @@ def int2octets(x: int, maxbytesize: int) -> bytes:
     return x.to_bytes(maxbytesize, byteorder='big')
 
 def bits2int(b: bytes, maxbytesize: int) -> int:
+
     bytesize = len(b)
 
     """
@@ -27,27 +28,27 @@ def bits2octets(b: bytes, maxbytesize: int) -> bytes:
     z1 = bits2int(b, maxbytesize)
     return int2octets(z1, maxbytesize)
 
-HashDigest = Union[str, bytes]
+HashLengthBytes = Union[str, bytes]
 
-def bytes_from_hash(hdigest: HashDigest,
-                    hfunction) -> bytes:
+def bytes_from_hlenbytes(hlb: HashLengthBytes,
+                         hfunction) -> bytes:
     """check that hash digest is of right size"""
 
-    if isinstance(hdigest, str):
-        hdigest = bytes.fromhex(hdigest)
+    if isinstance(hlb, str):
+        hlb = bytes.fromhex(hlb)
 
-    if len(hdigest) != hfunction().digest_size:
-        errmsg = 'message of wrong size: %s' % len(hdigest)
+    if len(hlb) != hfunction().digest_size:
+        errmsg = 'message of wrong size: %s' % len(hlb)
         errmsg += ' instead of %s' % hfunction().digest_size
         raise ValueError(errmsg)
     
-    return hdigest
+    return hlb
 
-def int_from_hash(hdigest: HashDigest,
-                  ec: EllipticCurve,
-                  hfunction) -> int:
+def int_from_hlenbytes(hlb: HashLengthBytes,
+                       ec: EllipticCurve,
+                       hfunction) -> int:
     """return an int from a hash digest, reducing it to EC bytesize"""
 
-    h = bytes_from_hash(hdigest, hfunction)
-    i = bits2int(h, ec.bytesize)
+    hlb = bytes_from_hlenbytes(hlb, hfunction) # hlen bytes
+    i = bits2int(hlb, ec.bytesize)             # qlen bytes
     return i

@@ -12,7 +12,7 @@ from btclib.ellipticcurves import EllipticCurve, sha256, \
                                   _pointMultiplyAffine, \
                                   secondGenerator, \
                                   secp256k1, secp256r1, secp384r1, SEC_curves
-from btclib.ecsignutils import int_from_hash
+from btclib.ecsignutils import int_from_hlenbytes
 
 # low cardinality curves p<100
 ec11_7    = EllipticCurve(11, 2, 7, (6,   9),   7, False)

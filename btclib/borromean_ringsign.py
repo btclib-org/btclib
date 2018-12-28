@@ -7,7 +7,7 @@ from btclib.ellipticcurves import secp256k1 as ec, Scalar, Tuple, \
                                   pointMultiply, DoubleScalarMultiplication, \
                                   bytes_from_Point, to_Point, \
                                   int_from_Scalar, bytes_from_Scalar
-from btclib.ecsignutils import int_from_hash
+from btclib.ecsignutils import int_from_hlenbytes
 
 Signature = Tuple[bytes, ...]
 
@@ -26,7 +26,8 @@ def get_msg_format(msg: bytes,
     hash_argument = msg
     for i in range(len(pubk_rings)):
         for j in range(len(pubk_rings[i])):
-            if type(pubk_rings[i][j]) != bytes: pubk_rings[i][j] = bytes_from_Point(ec, pubk_rings[i][j], True)
+            if type(pubk_rings[i][j]) != bytes:
+                pubk_rings[i][j] = bytes_from_Point(ec, pubk_rings[i][j], True)
             hash_argument += pubk_rings[i][j]
     return sha256(hash_argument).digest()
 
@@ -62,22 +63,30 @@ def borromean_sign(msg: bytes,
         else:
             for j in range(start_idx, len(pubk_rings[i])):
                 s[i][j] = os.urandom(32)
-                e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec, sha256)
+                e[i][j] = int_from_hlenbytes(borromean_hash(m, R, i, j), ec, sha256)
                 assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
-                T = DoubleScalarMultiplication(ec, s[i][j], ec.G, ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
+                T = DoubleScalarMultiplication(ec,
+                                               s[i][j],
+                                               ec.G,
+                                               ec.n - e[i][j],
+                                               to_Point(ec, pubk_rings[i][j]))
                 R = bytes_from_Point(ec, T, True)
             last_R += R
     e_0 = sha256(last_R).digest()
     # step 2
     for i in range(0, ring_number):
         j_star = sign_key_idx[i]
-        e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec, sha256)
+        e[i][0] = int_from_hlenbytes(borromean_hash(m, e_0, i, 0), ec, sha256)
         assert e[i][0] != 0 and e[i][0] < ec.n, "sign fail"
         for j in range(1, j_star+1):
             s[i][j-1] = os.urandom(32)
-            T = DoubleScalarMultiplication(ec, s[i][j-1], ec.G, ec.n - e[i][j-1], to_Point(ec, pubk_rings[i][j-1]))
+            T = DoubleScalarMultiplication(ec,
+                                           s[i][j-1],
+                                           ec.G,
+                                           ec.n - e[i][j-1],
+                                           to_Point(ec, pubk_rings[i][j-1]))
             R = bytes_from_Point(ec, T, True)
-            e[i][j] = int_from_hash(borromean_hash(m, R, i, j), ec, sha256)
+            e[i][j] = int_from_hlenbytes(borromean_hash(m, R, i, j), ec, sha256)
             assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
         s[i][j_star] = bytes_from_Scalar(ec, k[i] + sign_keys[i]*e[i][j_star])
     return (e_0, s)
@@ -98,14 +107,18 @@ def borromean_verify(msg: bytes, e_0: bytes, s: Dict[int, List[Scalar]],\
     last_R = m
     for i in range(0, ring_number):
         e[i] = [0]*len(pubk_rings[i])
-        e[i][0] = int_from_hash(borromean_hash(m, e_0, i, 0), ec, sha256)
+        e[i][0] = int_from_hlenbytes(borromean_hash(m, e_0, i, 0), ec, sha256)
         if e[i][0] == 0 or e[i][0] >= ec.n:
             return False
         for j in range(0, len(pubk_rings[i])):
-            T = DoubleScalarMultiplication(ec, s[i][j], ec.G, ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
+            T = DoubleScalarMultiplication(ec,
+                                           s[i][j],
+                                           ec.G,
+                                           ec.n - e[i][j],
+                                           to_Point(ec, pubk_rings[i][j]))
             R = bytes_from_Point(ec, T, True)
             if j != len(pubk_rings[i])-1:
-                e[i][j+1] = int_from_hash(borromean_hash(m, R, i, j+1), ec, sha256)
+                e[i][j+1] = int_from_hlenbytes(borromean_hash(m, R, i, j+1), ec, sha256)
                 if e[i][j+1] == 0 or e[i][j+1] >= ec.n:
                     return False
             else:
