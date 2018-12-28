@@ -23,24 +23,12 @@ from btclib.ecsignutils import HashDigest, \
 
 ECSS = Tuple[int, Scalar] # Tuple[Coordinate, Scalar]
 
-def ecssa_sign(M: bytes,
-               q: Scalar,
+def ecssa_sign(m: bytes,
+               d: Scalar,
                k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
                Hash = sha256) -> Tuple[int, int]:
     """ECSSA signing operation according to bip-schnorr"""
-    H = Hash(M).digest()
-    return _ecssa_sign(H, q, k, ec, Hash)
-
-# Private function provided for testing purposes only.
-# To avoid forgeable signature, sign and verify should
-# always use the message, not its hash digest.
-def _ecssa_sign(m: HashDigest,
-                d: Scalar,
-                k: Optional[Scalar] = None,
-                ec: EllipticCurve = secp256k1,
-                Hash = sha256) -> Tuple[int, int]:
-    #ECSSA signing operation according to bip-schnorr
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
@@ -48,7 +36,11 @@ def _ecssa_sign(m: HashDigest,
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
 
-    # The message digest m: a 32-byte array
+    # This signature scheme supports 32-byte messages.
+    # Differently from ECDSA, here the 32-byte message can be digest of
+    # another messages, but it does not need to.
+
+    # The message m: a 32-byte array
     m = bytes_from_hash(m, Hash)
 
     # The secret key d: an integer in the range 1..n-1.
@@ -89,20 +81,20 @@ def _ecssa_sign(m: HashDigest,
     return R[0], s
 
 def ecssa_verify(ssasig: ECSS,
-                 M: bytes,
+                 m: bytes,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
                  Hash = sha256) -> bool:
     """ECSSA veryfying operation according to bip-schnorr"""
+
+    # this is just a try/except wrapper
+    # _ecssa_verify raises Errors
     try:
-        m = Hash(M).digest()
         return _ecssa_verify(ssasig, m, Q, ec, Hash)
     except Exception:
         return False
 
 # Private function provided for testing purposes only.
-# To avoid forgeable signature, sign and verify should
-# always use the message, not its hash digest.
 def _ecssa_verify(ssasig: ECSS,
                   m: HashDigest,
                   P: GenericPoint,
@@ -120,7 +112,7 @@ def _ecssa_verify(ssasig: ECSS,
     # Let s = int(sig[32:64]); fail if s ≥ n.
     r, s = to_ssasig(ssasig, ec)
 
-    # The message digest m: a 32-byte array
+    # The message m: a 32-byte array
     m = bytes_from_hash(m, Hash)
 
     # Let P = point(pk); fail if point(pk) fails.

@@ -20,6 +20,8 @@ class TestSignToContract(unittest.TestCase):
         self.assertTrue(ecdsa_verify(sig_ecdsa, m, pub, secp256k1))
         self.assertTrue(verify_commit(receipt_ecdsa, c, secp256k1, sha256))
 
+        # 32 bytes message for ECSSA
+        m = sha256(m).digest()
         sig_ecssa, receipt_ecssa = ecssa_commit_and_sign(m, prv, c, None, secp256k1, sha256)
         self.assertTrue(ecssa_verify(sig_ecssa, m, pub, secp256k1))
         self.assertTrue(verify_commit(receipt_ecssa, c, secp256k1, sha256))

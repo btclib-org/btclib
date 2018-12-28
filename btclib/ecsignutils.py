@@ -37,7 +37,7 @@ def bytes_from_hash(hdigest: HashDigest,
         hdigest = bytes.fromhex(hdigest)
 
     if len(hdigest) != hfunction().digest_size:
-        errmsg = 'message digest of wrong size: %s' % len(hdigest)
+        errmsg = 'message of wrong size: %s' % len(hdigest)
         errmsg += ' instead of %s' % hfunction().digest_size
         raise ValueError(errmsg)
     
@@ -46,7 +46,7 @@ def bytes_from_hash(hdigest: HashDigest,
 def int_from_hash(hdigest: HashDigest,
                   ec: EllipticCurve,
                   hfunction) -> int:
-    """return an int from a hash digest reduced to EC bytesize"""
+    """return an int from a hash digest, reducing it to EC bytesize"""
 
     h = bytes_from_hash(hdigest, hfunction)
     i = bits2int(h, ec.bytesize)

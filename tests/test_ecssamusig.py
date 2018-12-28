@@ -22,8 +22,7 @@ class TestEcssaMuSig(unittest.TestCase):
 
     def test_ecssamusig(self):
         L = list() # multiset of public keys
-        msg = 'message to sign'.encode()
-        H = sha256(msg).digest()
+        M = sha256('message to sign'.encode()).digest()
 
         # first signer
         q1 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
@@ -97,7 +96,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K1_All[1], as it is not used anymore
             # let's fix k1 instead, as it is used later
             k1 = ec.n - k1
-        c1 = int_from_hash(sha256(K1_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec, sha256)
+        c1 = int_from_hash(sha256(K1_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + M).digest(), ec, sha256)
         assert 0<c1 and c1<ec.n, "sign fail"
         s1 = (k1 + c1*a1*q1) % ec.n
 
@@ -111,7 +110,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K2_All[1], as it is not used anymore
             # let's fix k2 instead, as it is used later
             k2 = ec.n - k2
-        c2 = int_from_hash(sha256(K2_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec, sha256)
+        c2 = int_from_hash(sha256(K2_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + M).digest(), ec, sha256)
         assert 0<c2 and c2<ec.n, "sign fail"
         s2 = (k2 + c2*a2*q2) % ec.n
 
@@ -125,7 +124,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # no need to actually change K3_All[1], as it is not used anymore
             # let's fix k3 instead, as it is used later
             k3 = ec.n - k3
-        c3 = int_from_hash(sha256(K3_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + H).digest(), ec, sha256)
+        c3 = int_from_hash(sha256(K3_All[0].to_bytes(32, byteorder="big") + bytes_from_Point(ec, Q_All, True) + M).digest(), ec, sha256)
         assert 0<c3 and c3<ec.n, "sign fail"
         s3 = (k3 + c3*a3*q3) % ec.n
 
@@ -138,7 +137,7 @@ class TestEcssaMuSig(unittest.TestCase):
         s_All = (s1 + s2 + s3) % ec.n
         ssasig = (K1_All[0], s_All)
 
-        self.assertTrue(ecssa_verify(ssasig, msg, Q_All, ec, sha256))
+        self.assertTrue(ecssa_verify(ssasig, M, Q_All, ec, sha256))
 
 
 if __name__ == "__main__":

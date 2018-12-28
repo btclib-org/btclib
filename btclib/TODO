@@ -1,14 +1,18 @@
-allow hexstring for Signature
-allow binary Signature
+add testcase for forged DSA, proving impossibility for SSA
+
 resolve confusion between hlen and qlen
 rfc6979 test
+
+remove assert for if + raise
+remove os.random
+
+allow hexstring for Signature
+allow binary Signature
 run scripts as part of test-suite
-remove all assert for if + raise
 revise ecssa_pubkey_recovery
 the name of functions returning bool should be a question
 remove multiplyJacobian from batch validation
 BUG in batch validation with just one sig (plus wahy a[0]=1 ?)
-remove os.random
 
 ec.add with projective coordinates
 http://pydoc.net/ecc/0.0.1/ecc.elliptic/

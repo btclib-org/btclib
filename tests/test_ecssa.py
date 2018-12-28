@@ -9,7 +9,7 @@ from btclib.ellipticcurves import secp256k1, int_from_Scalar, \
                                   bytes_from_Point, to_Point, \
                                   pointMultiply
 from btclib.ecssa import rfc6979, int_from_hash, \
-                         _ecssa_sign, ecssa_sign, to_ssasig, \
+                         ecssa_sign, ecssa_sign, to_ssasig, \
                          _ecssa_verify, ecssa_verify, \
                          _ecssa_pubkey_recovery, \
                          ecssa_batch_validation
@@ -22,8 +22,7 @@ class TestEcssa(unittest.TestCase):
         """Basic tests"""
         q = 0x1
         Q = pointMultiply(secp256k1, q, secp256k1.G)
-        msg = 'Satoshi Nakamoto'.encode()
-        H = sha256(msg).digest()
+        msg = sha256('Satoshi Nakamoto'.encode()).digest()
         ssasig = ecssa_sign(msg, q)
         # no source for the following... but
         # https://bitcointalk.org/index.php?topic=285142.40
@@ -35,30 +34,26 @@ class TestEcssa(unittest.TestCase):
         self.assertEqual(s, exp_sig[1])
         
         self.assertTrue(ecssa_verify(ssasig, msg, Q))
-        self.assertTrue(_ecssa_verify(ssasig, H, Q))
+        self.assertTrue(_ecssa_verify(ssasig, msg, Q))
 
-        # message instead of message digest
-        self.assertRaises(ValueError, _ecssa_verify, ssasig, msg, Q)
-
-        fmsg = 'Craig Wright'.encode()
-        fH = sha256(fmsg).digest()
+        fmsg = sha256('Craig Wright'.encode()).digest()
         self.assertFalse(ecssa_verify(ssasig, fmsg, Q))
-        self.assertFalse(_ecssa_verify(ssasig, fH, Q))
+        self.assertFalse(_ecssa_verify(ssasig, fmsg, Q))
 
         fssasig = (ssasig[0], ssasig[1], ssasig[1])
         self.assertFalse(ecssa_verify(fssasig, msg, Q))
-        self.assertRaises(TypeError, _ecssa_verify, fssasig, H, Q)
+        self.assertRaises(TypeError, _ecssa_verify, fssasig, msg, Q)
 
         # y(sG - eP) is not a quadratic residue
         fq = 0x2
         fQ = pointMultiply(secp256k1, fq, secp256k1.G)
         self.assertFalse(ecssa_verify(ssasig, msg, fQ))
-        self.assertRaises(ValueError, _ecssa_verify, ssasig, H, fQ)
+        self.assertRaises(ValueError, _ecssa_verify, ssasig, msg, fQ)
 
         fq = 0x4
         fQ = pointMultiply(secp256k1, fq, secp256k1.G)
         self.assertFalse(ecssa_verify(ssasig, msg, fQ))
-        self.assertFalse(_ecssa_verify(ssasig, H, fQ))
+        self.assertFalse(_ecssa_verify(ssasig, msg, fQ))
 
 
     def test_schnorr_bip_tv(self):
@@ -74,7 +69,7 @@ class TestEcssa(unittest.TestCase):
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
         eph_prv = int.from_bytes(sha256(prv + msg).digest(), byteorder="big")
-        sig = _ecssa_sign(msg, prv, eph_prv)
+        sig = ecssa_sign(msg, prv, eph_prv)
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
@@ -89,7 +84,7 @@ class TestEcssa(unittest.TestCase):
         expected_sig =    (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                            0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
         eph_prv = int.from_bytes(sha256(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
-        sig = _ecssa_sign(msg, prv, eph_prv)
+        sig = ecssa_sign(msg, prv, eph_prv)
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
@@ -104,7 +99,7 @@ class TestEcssa(unittest.TestCase):
         expected_sig =    (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                            0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
         eph_prv = int.from_bytes(sha256(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
-        sig = _ecssa_sign(msg, prv, eph_prv)
+        sig = ecssa_sign(msg, prv, eph_prv)
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
@@ -268,12 +263,12 @@ class TestEcssa(unittest.TestCase):
             if ec.n in prime: # only few curves or it would take too long
                 # Schnorr-bip only applies to curve whose prime p = 3 %4
                 if not ec.pIsThreeModFour:
-                    self.assertRaises(ValueError, _ecssa_sign, H[0], 1, None, ec)
+                    self.assertRaises(ValueError, ecssa_sign, H[0], 1, None, ec)
                     continue
                 # all possible private keys (invalid 0 included)
                 for q in range(0, ec.n):
                     if q == 0:
-                        self.assertRaises(ValueError, _ecssa_sign, H[0], q, None, ec)
+                        self.assertRaises(ValueError, ecssa_sign, H[0], q, None, ec)
                         continue
                     Q = pointMultiply(ec, q, ec.G) # public key
                     for m in range(0, ec.n): # all possible hashed messages
@@ -281,7 +276,7 @@ class TestEcssa(unittest.TestCase):
                         k = rfc6979(q, H[m], ec, sha256) # ephemeral key
                         K = pointMultiply(ec, k, ec.G)
                         if K[1] == 0:
-                            self.assertRaises(ValueError, _ecssa_sign, H[m], q, k, ec)
+                            self.assertRaises(ValueError, ecssa_sign, H[m], q, k, ec)
                             continue
                         if legendre_symbol(K[1], ec._p) != 1:
                             k = ec.n - k
@@ -294,7 +289,7 @@ class TestEcssa(unittest.TestCase):
                         s = (k + e * q) % ec.n
 
                         # valid signature
-                        sig = _ecssa_sign(H[m], q, k, ec)
+                        sig = ecssa_sign(H[m], q, k, ec)
                         self.assertEqual((K[0], s), sig)
                         # valid signature must validate
                         self.assertTrue(_ecssa_verify(sig, H[m], Q, ec))
@@ -307,7 +302,7 @@ class TestEcssa(unittest.TestCase):
         for i in range(0, 50):
             m.append(os.urandom(secp256k1.bytesize))
             q = int_from_Scalar(secp256k1, os.urandom(secp256k1.bytesize))
-            sig.append(_ecssa_sign(m[i], q))
+            sig.append(ecssa_sign(m[i], q))
             Q.append(pointMultiply(secp256k1, q, secp256k1.G))
             a.append(int.from_bytes(os.urandom(secp256k1.bytesize), 'big')) #FIXME:%?
         self.assertTrue(ecssa_batch_validation(sig, m, Q, a, secp256k1))

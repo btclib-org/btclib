@@ -28,10 +28,10 @@ from btclib.ellipticcurves import EllipticCurve, pointMultiply, \
                                   Tuple, Scalar, Point, GenericPoint, \
                                   bytes_from_Point, int_from_Scalar, \
                                   to_Point
-from btclib.ecsignutils import int_from_hash
+from btclib.ecsignutils import int_from_hash, bytes_from_hash
 from btclib.rfc6979 import rfc6979
 from btclib.ecdsa import _ecdsa_sign, ECDS
-from btclib.ecssa import _ecssa_sign, ECSS
+from btclib.ecssa import ecssa_sign, ECSS
 
 Receipt = Tuple[Scalar, GenericPoint]
 
@@ -72,15 +72,15 @@ def ecssa_commit_and_sign(m: bytes,
                           eph_prv: Optional[Scalar],
                           ec: EllipticCurve,
                           Hash) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
-    mh = Hash(m).digest()
+    m = bytes_from_hash(m, Hash)
     prvkey = int_from_Scalar(ec, prvkey)
     ch = Hash(c).digest()
-    eph_prv = rfc6979(prvkey, mh, ec, Hash) if eph_prv is None else int_from_Scalar(ec, eph_prv)
+    eph_prv = rfc6979(prvkey, m, ec, Hash) if eph_prv is None else int_from_Scalar(ec, eph_prv)
 
     # commit
     R, eph_prv = tweak(eph_prv, ch, ec, Hash)
     # sign
-    sig = _ecssa_sign(mh, prvkey, eph_prv, ec, Hash)
+    sig = ecssa_sign(m, prvkey, eph_prv, ec, Hash)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
