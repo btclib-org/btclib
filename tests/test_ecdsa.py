@@ -61,21 +61,28 @@ class TestEcdsa(unittest.TestCase):
 
         ec = secp256k1
         # see https://twitter.com/pwuille/status/1063582706288586752
-        SatoshiKey = to_Point(secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
+        # Satoshi's key
+        P = to_Point(secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
 
-        a = 1; b = 2 # pick them at will
-        R = DoubleScalarMultiplication(ec, a, ec.G, b, SatoshiKey)
-        b1 = mod_inv(b, ec.n)
-        hash_digest = (a * b1 * R[0] % ec.n).to_bytes(32, 'big')
-        dsasig = R[0] % ec.n, R[0] * b1 % ec.n
-        _ecdsa_verify(dsasig, hash_digest, SatoshiKey, ec)
+        u1 = 1; u2 = 2 # pick them at will
+        R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P)
+        r = R[0] % ec.n
+        u2inv = mod_inv(u2, ec.n)
+        s = r * u2inv % ec.n
+        dsasig = r , s
+        e = s * u1 % ec.n
+        hash_digest = e.to_bytes(32, 'big')
+        _ecdsa_verify(dsasig, hash_digest, P, ec)
 
-        a = 1234567890; b = 987654321 # pick them at will
-        R = DoubleScalarMultiplication(ec, a, ec.G, b, SatoshiKey)
-        b1 = mod_inv(b, ec.n)
-        hash_digest = (a * b1 * R[0] % ec.n).to_bytes(32, 'big')
-        dsasig = R[0] % ec.n, R[0] * b1 % ec.n
-        _ecdsa_verify(dsasig, hash_digest, SatoshiKey, ec)
+        u1 = 1234567890; u2 = 987654321 # pick them at will
+        R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P)
+        r = R[0] % ec.n
+        u2inv = mod_inv(u2, ec.n)
+        s = r * u2inv % ec.n
+        dsasig = r , s
+        e = s * u1 % ec.n
+        hash_digest = e.to_bytes(32, 'big')
+        _ecdsa_verify(dsasig, hash_digest, P, ec)
 
 
 
