@@ -19,16 +19,8 @@ def rfc6979(prv: int,
             hdigest: HashDigest,
             ec: EllipticCurve,
             Hash) -> int:
-    if not isinstance(prv, int):
-        m = "private key must be a int-like object, not '%s'" % type(prv).__name__
-        raise TypeError(m)
-    assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
-    return _rfc6979(prv, hdigest, ec, Hash)
 
-def _rfc6979(prv: int,
-             hdigest: HashDigest,
-             ec: EllipticCurve,
-             Hash) -> int:
+    assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
 
     hash_size = Hash().digest_size
     v = b'\x01' * hash_size
