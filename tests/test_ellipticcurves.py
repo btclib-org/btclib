@@ -3,58 +3,54 @@
 import unittest
 
 from btclib.numbertheory import mod_sqrt
-from btclib.ellipticcurves import EllipticCurve, sha256, \
-                                  bytes_from_Point, to_Point, \
-                                  pointMultiply, DoubleScalarMultiplication, \
-                                  _jac_from_affine, \
-                                  _pointMultiplyJacobian, \
-                                  _pointMultiplyAffine, \
-                                  secondGenerator, \
-                                  secp256k1, secp256r1, secp384r1, SEC_curves
+from btclib.ellipticcurves import EllipticCurve, sha256, bytes_from_Point, \
+    to_Point, pointMultiply, DoubleScalarMultiplication, _jac_from_affine, \
+    _pointMultiplyJacobian, _pointMultiplyAffine, secondGenerator, \
+    secp256k1, secp256r1, secp384r1, SEC_curves
 from btclib.ecsignutils import int_from_hlenbytes
 
 # low cardinality curves p<100
-ec11_7    = EllipticCurve(11, 2, 7, (6,   9),   7, False)
-ec11_17   = EllipticCurve(11, 2, 4, (0,   9),  17, False)
-ec13_11   = EllipticCurve(13, 7, 6, (1,   1),  11, False)
-ec13_19   = EllipticCurve(13, 0, 2, (1,   9),  19, False)
-ec17_13   = EllipticCurve(17, 6, 8, (0,  12),  13, False)
-ec17_23   = EllipticCurve(17, 3, 5, (1,  14),  23, False)
-ec19_13   = EllipticCurve(19, 0, 2, (4,  16),  13, False)
-ec19_23   = EllipticCurve(19, 2, 9, (0,  16),  23, False)
-ec23_19   = EllipticCurve(23, 9, 7, (5,   4),  19, False)
-ec23_31   = EllipticCurve(23, 5, 1, (0,   1),  31, False)
-ec29_37   = EllipticCurve(29, 4, 9, (0,  26),  37, False)
-ec31_23   = EllipticCurve(31, 4, 7, (0,  10),  23, False)
-ec31_43   = EllipticCurve(31, 0, 3, (1,   2),  43, False)
-ec37_31   = EllipticCurve(37, 2, 8, (1,  23),  31, False)
-ec37_43   = EllipticCurve(37, 2, 9, (0,  34),  43, False)
-ec41_37   = EllipticCurve(41, 2, 6, (1,  38),  37, False)
-ec41_53   = EllipticCurve(41, 4, 4, (0,   2),  53, False)
-ec43_37   = EllipticCurve(43, 1, 5, (2,  31),  37, False)
-ec43_47   = EllipticCurve(43, 1, 3, (2,  23),  47, False)
-ec47_41   = EllipticCurve(47, 3, 9, (0,   3),  41, False)
-ec47_61   = EllipticCurve(47, 3, 5, (1,   3),  61, False)
-ec53_47   = EllipticCurve(53, 9, 4, (0,  51),  47, False)
-ec53_61   = EllipticCurve(53, 1, 8, (1,  13),  61, False)
-ec59_53   = EllipticCurve(59, 9, 3, (0,  48),  53, False)
-ec59_73   = EllipticCurve(59, 3, 3, (0,  48),  73, False)
-ec61_59   = EllipticCurve(61, 2, 5, (0,  35),  59, False)
-ec61_73   = EllipticCurve(61, 1, 9, (0,  58),  73, False)
-ec67_61   = EllipticCurve(67, 3, 8, (2,  25),  61, False)
-ec67_83   = EllipticCurve(67, 5, 9, (0,  64),  83, False)
-ec71_67   = EllipticCurve(71, 7, 7, (1,  50),  67, False)
-ec71_79   = EllipticCurve(71, 1, 8, (0,  24),  79, False)
-ec73_61   = EllipticCurve(73, 6, 5, (1,  42),  61, False)
-ec73_83   = EllipticCurve(73, 3, 9, (0,   3),  83, False)
-ec79_71   = EllipticCurve(79, 2, 5, (0,  20),  71, False)
-ec79_97   = EllipticCurve(79, 0, 3, (1,   2),  97, False)
-ec83_79   = EllipticCurve(83, 1, 7, (0,  16),  79, False)
-ec83_101  = EllipticCurve(83, 5, 7, (0,  16), 101, False)
-ec89_83   = EllipticCurve(89, 6, 4, (0,   2),  83, False)
-ec89_101  = EllipticCurve(89, 1, 9, (0,  86), 101, False)
-ec97_89   = EllipticCurve(97, 1, 4, (0,  95),  89, False)
-ec97_103  = EllipticCurve(97, 3, 2, (0,  83), 103, False)
+ec11_7 = EllipticCurve(11, 2, 7, (6,   9),   7, False)
+ec11_17 = EllipticCurve(11, 2, 4, (0,   9),  17, False)
+ec13_11 = EllipticCurve(13, 7, 6, (1,   1),  11, False)
+ec13_19 = EllipticCurve(13, 0, 2, (1,   9),  19, False)
+ec17_13 = EllipticCurve(17, 6, 8, (0,  12),  13, False)
+ec17_23 = EllipticCurve(17, 3, 5, (1,  14),  23, False)
+ec19_13 = EllipticCurve(19, 0, 2, (4,  16),  13, False)
+ec19_23 = EllipticCurve(19, 2, 9, (0,  16),  23, False)
+ec23_19 = EllipticCurve(23, 9, 7, (5,   4),  19, False)
+ec23_31 = EllipticCurve(23, 5, 1, (0,   1),  31, False)
+ec29_37 = EllipticCurve(29, 4, 9, (0,  26),  37, False)
+ec31_23 = EllipticCurve(31, 4, 7, (0,  10),  23, False)
+ec31_43 = EllipticCurve(31, 0, 3, (1,   2),  43, False)
+ec37_31 = EllipticCurve(37, 2, 8, (1,  23),  31, False)
+ec37_43 = EllipticCurve(37, 2, 9, (0,  34),  43, False)
+ec41_37 = EllipticCurve(41, 2, 6, (1,  38),  37, False)
+ec41_53 = EllipticCurve(41, 4, 4, (0,   2),  53, False)
+ec43_37 = EllipticCurve(43, 1, 5, (2,  31),  37, False)
+ec43_47 = EllipticCurve(43, 1, 3, (2,  23),  47, False)
+ec47_41 = EllipticCurve(47, 3, 9, (0,   3),  41, False)
+ec47_61 = EllipticCurve(47, 3, 5, (1,   3),  61, False)
+ec53_47 = EllipticCurve(53, 9, 4, (0,  51),  47, False)
+ec53_61 = EllipticCurve(53, 1, 8, (1,  13),  61, False)
+ec59_53 = EllipticCurve(59, 9, 3, (0,  48),  53, False)
+ec59_73 = EllipticCurve(59, 3, 3, (0,  48),  73, False)
+ec61_59 = EllipticCurve(61, 2, 5, (0,  35),  59, False)
+ec61_73 = EllipticCurve(61, 1, 9, (0,  58),  73, False)
+ec67_61 = EllipticCurve(67, 3, 8, (2,  25),  61, False)
+ec67_83 = EllipticCurve(67, 5, 9, (0,  64),  83, False)
+ec71_67 = EllipticCurve(71, 7, 7, (1,  50),  67, False)
+ec71_79 = EllipticCurve(71, 1, 8, (0,  24),  79, False)
+ec73_61 = EllipticCurve(73, 6, 5, (1,  42),  61, False)
+ec73_83 = EllipticCurve(73, 3, 9, (0,   3),  83, False)
+ec79_71 = EllipticCurve(79, 2, 5, (0,  20),  71, False)
+ec79_97 = EllipticCurve(79, 0, 3, (1,   2),  97, False)
+ec83_79 = EllipticCurve(83, 1, 7, (0,  16),  79, False)
+ec83_101 = EllipticCurve(83, 5, 7, (0,  16), 101, False)
+ec89_83 = EllipticCurve(89, 6, 4, (0,   2),  83, False)
+ec89_101 = EllipticCurve(89, 1, 9, (0,  86), 101, False)
+ec97_89 = EllipticCurve(97, 1, 4, (0,  95),  89, False)
+ec97_103 = EllipticCurve(97, 3, 2, (0,  83), 103, False)
 
 low_card_curves_1 = [
     ec11_7, ec11_17,
@@ -81,7 +77,7 @@ low_card_curves_1 = [
 ]
 
 # low cardinality curves 100<p<300
-ec101_97  = EllipticCurve(101, 7, 4, (0,  99),  97, False)
+ec101_97 = EllipticCurve(101, 7, 4, (0,  99),  97, False)
 ec103_101 = EllipticCurve(103, 6, 2, (0,  38), 101, False)
 ec103_113 = EllipticCurve(103, 4, 4, (0,   2), 113, False)
 ec107_103 = EllipticCurve(107, 5, 2, (3,  30), 103, False)
@@ -188,34 +184,43 @@ low_card_curves_2 = [
     ec281_311,
     ec283_281,
     ec293_281, ec293_311
-    ]
+]
 
 low_card_curves = low_card_curves_1 + low_card_curves_2
 all_curves = low_card_curves + SEC_curves
 
-Inf = 1, 0 # Infinity point in affine coordinates
-InfJ = 1, 1, 0 # Infinity point in jacobian coordinates
+Inf = 1, 0  # Infinity point in affine coordinates
+InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
+
 
 class TestEllipticCurve(unittest.TestCase):
     def test_exceptions(self):
         # good
         EllipticCurve(11, 2, 7, (6,   9),   7, False)
         # p not odd
-        self.assertRaises(ValueError, EllipticCurve, 10, 2, 7, (6, 9),   7, False)
+        self.assertRaises(ValueError, EllipticCurve,
+                          10, 2, 7, (6, 9),   7, False)
         # p not prime
-        self.assertRaises(ValueError, EllipticCurve, 15, 2, 7, (6, 9),   7, False)
+        self.assertRaises(ValueError, EllipticCurve,
+                          15, 2, 7, (6, 9),   7, False)
         # zero discriminant
-        self.assertRaises(ValueError, EllipticCurve, 11, 7, 7, (6, 9),   7, False)
+        self.assertRaises(ValueError, EllipticCurve,
+                          11, 7, 7, (6, 9),   7, False)
         # G not Tuple (int, int)
-        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (6, 9,  1),   7, False)
+        self.assertRaises(ValueError, EllipticCurve, 11,
+                          2, 7, (6, 9,  1),   7, False)
         # G not on curve
-        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (7, 9),   7, False)
+        self.assertRaises(ValueError, EllipticCurve,
+                          11, 2, 7, (7, 9),   7, False)
         # n not prime
-        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (6, 9),   8, False)
+        self.assertRaises(ValueError, EllipticCurve,
+                          11, 2, 7, (6, 9),   8, False)
         # n not Hesse
-        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (6, 9),   71, False)
+        self.assertRaises(ValueError, EllipticCurve,
+                          11, 2, 7, (6, 9),   71, False)
         # n not group order
-        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (6, 9),   13, False)
+        self.assertRaises(ValueError, EllipticCurve,
+                          11, 2, 7, (6, 9),   13, False)
         # n=p -> weak curve
         # missing
         # weak curve
@@ -274,7 +279,7 @@ class TestEllipticCurve(unittest.TestCase):
     def test_to_point(self):
         ec = secp256k1
         Q = pointMultiply(ec, ec._p, ec.G)
-        
+
         Q_bytes = b'\x03' + Q[0].to_bytes(32, "big")
         R = to_Point(ec, Q_bytes)
         self.assertEqual(R, Q)
@@ -320,7 +325,7 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, to_Point, ec, Q_bytes)
         # tuple point not on curve
         self.assertRaises(ValueError, to_Point, ec, OffCurve)
- 
+
     def test_second_generator(self):
         """
         important remark on secp256-zkp prefix for compressed encoding of the second generator:
@@ -328,81 +333,99 @@ class TestEllipticCurve(unittest.TestCase):
         """
         H = secondGenerator(secp256k1, sha256)
         H = bytes_from_Point(secp256k1, H, True)
-        self.assertEqual(H.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
+        self.assertEqual(
+            H.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
 
         # 0*G + 1*H
         T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, 1, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
+        self.assertEqual(
+            T.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
 
         # 0*G + 2*H
         T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, 2, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
+        self.assertEqual(
+            T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
         T = pointMultiply(secp256k1, 2, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
-        
+        self.assertEqual(
+            T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
+
         # 0*G + 3*H
         T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, 3, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
+        self.assertEqual(
+            T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
         T = pointMultiply(secp256k1, 3, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
+        self.assertEqual(
+            T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
 
         # 1*G+0*H
         T = DoubleScalarMultiplication(secp256k1, 1, secp256k1.G, 0, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
+        self.assertEqual(
+            T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
         T = pointMultiply(secp256k1, 1, secp256k1.G)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
+        self.assertEqual(
+            T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
 
         # 2*G+0*H
         T = DoubleScalarMultiplication(secp256k1, 2, secp256k1.G, 0, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
+        self.assertEqual(
+            T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
         T = pointMultiply(secp256k1, 2, secp256k1.G)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
+        self.assertEqual(
+            T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
 
         # 3*G+0*H
         T = DoubleScalarMultiplication(secp256k1, 3, secp256k1.G, 0, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
+        self.assertEqual(
+            T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
         T = pointMultiply(secp256k1, 3, secp256k1.G)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
+        self.assertEqual(
+            T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
 
         # 0*G+5*H
         T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, 5, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+        self.assertEqual(
+            T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
         T = pointMultiply(secp256k1, 5, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+        self.assertEqual(
+            T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
 
         # 0*G-5*H
         T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, -5, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+        self.assertEqual(
+            T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
         T = pointMultiply(secp256k1, -5, H)
         T = bytes_from_Point(secp256k1, T, True)
-        self.assertEqual(T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+        self.assertEqual(
+            T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
 
         # 1*G-5*H
         U = DoubleScalarMultiplication(secp256k1, 1, secp256k1.G, -5, H)
         U = bytes_from_Point(secp256k1, U, True)
-        self.assertEqual(U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
-        U = secp256k1.add(secp256k1.G, T) # reusing previous T value
+        self.assertEqual(
+            U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
+        U = secp256k1.add(secp256k1.G, T)  # reusing previous T value
         U = bytes_from_Point(secp256k1, U, True)
-        self.assertEqual(U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
+        self.assertEqual(
+            U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
 
         H = secondGenerator(secp256r1, sha256)
         H = secondGenerator(secp384r1, sha256)
 
-    def test_opposite(self): 
+    def test_opposite(self):
         for ec in all_curves:
             # random point
             Q = pointMultiply(ec, ec._p, ec.G)
@@ -422,7 +445,7 @@ class TestEllipticCurve(unittest.TestCase):
         """Methods to break simmetry: quadratic residue, odd/even, low/high"""
         for ec in low_card_curves[:4]:
 
-            ## setup phase
+            # setup phase
             # compute quadratic residues
             hasRoot = set()
             hasRoot.add(1)
@@ -430,11 +453,11 @@ class TestEllipticCurve(unittest.TestCase):
             for i in range(2, ec._p):
                 hasRoot.add(i*i % ec._p)
 
-            ## test phase
+            # test phase
 
             # random point
-            Q = pointMultiply(ec, ec._p, ec.G) # just a random point
-        
+            Q = pointMultiply(ec, ec._p, ec.G)  # just a random point
+
             x = Q[0]
             if ec._p % 4 == 3:
                 quad_res = ec.yQuadraticResidue(x, 1)
@@ -451,17 +474,17 @@ class TestEllipticCurve(unittest.TestCase):
                 self.assertRaises(ValueError, mod_sqrt, not_quad_res, ec._p)
 
                 yOdd = ec.yOdd(x, 1)
-                self.assertTrue(yOdd in (quad_res, not_quad_res))                
-                self.assertTrue(yOdd % 2 == 1)                
+                self.assertTrue(yOdd in (quad_res, not_quad_res))
+                self.assertTrue(yOdd % 2 == 1)
                 yEven = ec.yOdd(x, 0)
-                self.assertTrue(yEven in (quad_res, not_quad_res))                
-                self.assertTrue(yEven % 2 == 0)                
+                self.assertTrue(yEven in (quad_res, not_quad_res))
+                self.assertTrue(yEven % 2 == 0)
 
                 yLow = ec.yHigh(x, 0)
-                self.assertTrue(yLow in (yOdd, yEven))                
+                self.assertTrue(yLow in (yOdd, yEven))
                 yHigh = ec.yHigh(x, 1)
-                self.assertTrue(yHigh in (yOdd, yEven))                
-                self.assertTrue(yLow < yHigh)                
+                self.assertTrue(yHigh in (yOdd, yEven))
+                self.assertTrue(yLow < yHigh)
             else:
                 self.assertTrue(ec._p % 4 == 1)
                 # cannot use yQuadraticResidue in this case
@@ -469,11 +492,11 @@ class TestEllipticCurve(unittest.TestCase):
                 self.assertRaises(ValueError, ec.yQuadraticResidue, x, 0)
 
                 yOdd = ec.yOdd(x, 1)
-                self.assertTrue(yOdd % 2 == 1)                
+                self.assertTrue(yOdd % 2 == 1)
                 yEven = ec.yOdd(x, 0)
-                self.assertTrue(yEven % 2 == 0)                
+                self.assertTrue(yEven % 2 == 0)
                 # in this case neither or both are quadratic residues
-                self.assertTrue((yOdd in hasRoot and yEven in hasRoot) or 
+                self.assertTrue((yOdd in hasRoot and yEven in hasRoot) or
                                 (yOdd not in hasRoot and yEven not in hasRoot))
                 if yOdd in hasRoot and yEven in hasRoot:
                     root = mod_sqrt(yOdd, ec._p)
@@ -485,12 +508,13 @@ class TestEllipticCurve(unittest.TestCase):
                     root = ec._p - root
                     self.assertEqual(yEven, (root*root) % ec._p)
                 else:
-                    self.assertTrue(yOdd not in hasRoot and yEven not in hasRoot)
+                    self.assertTrue(
+                        yOdd not in hasRoot and yEven not in hasRoot)
                     self.assertRaises(ValueError, mod_sqrt, yOdd, ec._p)
                     self.assertRaises(ValueError, mod_sqrt, yEven, ec._p)
 
                 yLow = ec.yHigh(x, 0)
-                self.assertTrue(yLow in (yOdd, yEven))                
+                self.assertTrue(yLow in (yOdd, yEven))
                 yHigh = ec.yHigh(x, 1)
                 self.assertTrue(yHigh in (yOdd, yEven))
                 self.assertTrue(yLow < yHigh)
@@ -501,45 +525,44 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_affine_jac_conversions(self):
         for ec in all_curves:
-            Q = pointMultiply(ec, ec._p, ec.G) # random point
+            Q = pointMultiply(ec, ec._p, ec.G)  # random point
             checkQ = ec._affine_from_jac(_jac_from_affine(Q))
             self.assertEqual(Q, checkQ)
         # with only the last curve
         checkInf = ec._affine_from_jac(_jac_from_affine(Inf))
         self.assertEqual(Inf, checkInf)
-        self.assertRaises(ValueError, ec._affine_from_jac, (1,1,1,0))
-        self.assertRaises(ValueError, _jac_from_affine, (1,1,0))
-
+        self.assertRaises(ValueError, ec._affine_from_jac, (1, 1, 1, 0))
+        self.assertRaises(ValueError, _jac_from_affine, (1, 1, 0))
 
     def test_Add(self):
         for ec in all_curves:
-            Q1 = pointMultiply(ec, ec._p, ec.G) # just a random point
+            Q1 = pointMultiply(ec, ec._p, ec.G)  # just a random point
             Q1J = _jac_from_affine(Q1)
 
             Q2 = ec.G
             Q2J = _jac_from_affine(Q2)
-        
+
             # distinct points
-            Q3    = ec._addAffine(  Q1,  Q2)
+            Q3 = ec._addAffine(Q1,  Q2)
             Q3jac = ec._addJacobian(Q1J, Q2J)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
             # point at infinity
-            Q3    = ec._addAffine(  Q2,  Inf)
+            Q3 = ec._addAffine(Q2,  Inf)
             Q3jac = ec._addJacobian(Q2J, InfJ)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
-            Q3    = ec._addAffine(  Inf,  Q2)
+            Q3 = ec._addAffine(Inf,  Q2)
             Q3jac = ec._addJacobian(InfJ, Q2J)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
-        
-            # point doubling 
-            Q3    = ec._addAffine(  Q1,  Q1)
+
+            # point doubling
+            Q3 = ec._addAffine(Q1,  Q1)
             Q3jac = ec._addJacobian(Q1J, Q1J)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
             # opposite points
             Q1opp = ec.opposite(Q1)
-            Q3    = ec._addAffine(  Q1,  Q1opp)
+            Q3 = ec._addAffine(Q1,  Q1opp)
             Q3jac = ec._addJacobian(Q1J, _jac_from_affine(Q1opp))
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 

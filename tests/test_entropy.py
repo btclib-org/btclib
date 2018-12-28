@@ -2,8 +2,9 @@
 
 import unittest
 from btclib.entropy import Entropy, GenericEntropy, \
-                           bytes_from_entropy, str_from_entropy, \
-                           int_from_entropy
+    bytes_from_entropy, str_from_entropy, \
+    int_from_entropy
+
 
 class TestEntropy(unittest.TestCase):
     def test_conversions(self):
@@ -62,7 +63,7 @@ class TestEntropy(unittest.TestCase):
 
     def test_exceptionss(self):
         entropy = '00101010' * 31
-        entropy = entropy[2:] # 246 bits
+        entropy = entropy[2:]  # 246 bits
         str_entropy = str_from_entropy(entropy)
         bytes_entropy = bytes_from_entropy(entropy)
         int_entropy = int_from_entropy(bytes_entropy)

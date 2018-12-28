@@ -7,9 +7,11 @@ Mnemonic class for converting entropy into a mnemonic sentence
 import math
 import os
 from typing import Union, List
+
 from btclib.entropy import Entropy
 
 WordList = List[str]
+
 
 class Mnemonic:
     """Word-list based conversions between entropy, word indexes, and mnemonic phrase.
@@ -22,8 +24,8 @@ class Mnemonic:
         # https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
         # https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
         self.language_files = {
-            'en':'english.txt',
-            'it':'italian.txt'
+            'en': 'english.txt',
+            'it': 'italian.txt'
         }
         self.languages = self.language_files.keys()
 
@@ -49,7 +51,8 @@ class Mnemonic:
             nwords = len(lines)
             # http://www.graphics.stanford.edu/~seander/bithacks.html
             # Determining if an integer is a power of 2
-            assert nwords & (nwords - 1) == 0, "dictionary length must be a power of two"
+            assert nwords & (
+                nwords - 1) == 0, "dictionary length must be a power of two"
             self._bits_per_word[lang] = int(math.log(nwords, 2))
             self._language_length[lang] = nwords
             # clean up and normalization are missing, but removal of \n
@@ -125,5 +128,6 @@ class Mnemonic:
         binentropy = binentropy.zfill(bits)
 
         return binentropy
+
 
 mnemonic_dict = Mnemonic()

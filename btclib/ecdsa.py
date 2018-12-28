@@ -60,11 +60,11 @@ def _ecdsa_sign(e: int,
     R = pointMultiply(ec, k, ec.G)                      # 1
 
     r = R[0] % ec.n                                     # 2, 3
-    if r == 0: # r≠0 required as it multiplies the public key
+    if r == 0:  # r≠0 required as it multiplies the public key
         raise ValueError("r = 0, failed to sign")
 
     s = mod_inv(k, ec.n) * (e + r*d) % ec.n             # 6
-    if s == 0: # required as the inverse of s is needed
+    if s == 0:  # required as the inverse of s is needed
         raise ValueError("s = 0, failed to sign")
 
     return r, s
@@ -124,7 +124,7 @@ def _ecdsa_verhlp(dsasig: ECDS,
     s1 = mod_inv(s, ec.n)
     u1 = e*s1
     u2 = r*s1         # 4
-    R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
+    R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P)  # 5
 
     # Fail if infinite(R).
     if R[1] == 0:
@@ -171,7 +171,7 @@ def _ecdsa_pubkey_recovery(dsasig: ECDS,
         try:
             R = (x, ec.yOdd(x, 1))  # 1.2, 1.3, and 1.4
             # 1.5 already taken care outside this for loop
-            Q = DoubleScalarMultiplication(ec, r1s, R, r1e, ec.G) # 1.6.1
+            Q = DoubleScalarMultiplication(ec, r1s, R, r1e, ec.G)  # 1.6.1
             # 1.6.2 is always satisfied for us, and we do not stop here
             keys.append(Q)
             R = ec.opposite(R)                                    # 1.6.3

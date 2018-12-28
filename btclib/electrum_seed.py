@@ -5,10 +5,11 @@
 from hashlib import sha512, pbkdf2_hmac
 import hmac
 
-from btclib.entropy import Entropy, GenericEntropy, int_from_entropy, str_from_entropy
+from btclib.entropy import Entropy, GenericEntropy, int_from_entropy, \
+    str_from_entropy
 from btclib.mnemonic import mnemonic_dict
-from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed, \
-    bip32_ckd, bip32_xpub_from_xprv
+from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed, bip32_ckd, \
+    bip32_xpub_from_xprv
 
 ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
                               'segwit': '100',

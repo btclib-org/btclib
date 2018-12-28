@@ -3,6 +3,7 @@
 import unittest
 from btclib.numbertheory import mod_inv, mod_sqrt
 
+
 class TestNumberTheory(unittest.TestCase):
     def test_mod_sqrt(self):
         for p in [3, 5, 7, 11, 13, 17, 19, 23, 29]:
@@ -24,7 +25,7 @@ class TestNumberTheory(unittest.TestCase):
         for p in [3, 5, 7, 11, 13, 17, 19, 23, 29]:
             for i in range(1, p):
                 inv = mod_inv(i, p)
-                self.assertEqual((i* inv) % p, 1)
+                self.assertEqual((i * inv) % p, 1)
 
     def test_minus_one_quadr_res(self):
         """Ensure that if p = 3 (mod 4) then p - 1 is a quadratic residue"""
@@ -41,6 +42,7 @@ class TestNumberTheory(unittest.TestCase):
                 self.assertIn(p - 1, hasRoot)
                 root = mod_sqrt(p - 1, p)
                 self.assertEqual(p - 1, root * root % p)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

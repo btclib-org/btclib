@@ -3,6 +3,7 @@
 import unittest
 from btclib.der import encode_DER_sig, check_DER_sig
 
+
 class TestDER(unittest.TestCase):
     def test_der(self):
         DER73 = encode_DER_sig(2**256 - 1, 2**256 - 1)

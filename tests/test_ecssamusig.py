@@ -14,22 +14,25 @@ import unittest
 
 from btclib.numbertheory import legendre_symbol
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
-                                  pointMultiply, DoubleScalarMultiplication, \
-                                  secp256k1 as ec
+    pointMultiply, DoubleScalarMultiplication, secp256k1
 from btclib.ecssa import sha256, int_from_hlenbytes, ecssa_verify
+
 
 class TestEcssaMuSig(unittest.TestCase):
 
     def test_ecssamusig(self):
-        L = list() # multiset of public keys
+        ec = secp256k1
+        L = list()  # multiset of public keys
         M = sha256('message to sign'.encode()).digest()
 
         # first signer
-        q1 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
+        q1 = int_from_Scalar(
+            ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
         Q1 = pointMultiply(ec, q1, ec.G)
         L.append(bytes_from_Point(ec, Q1, False))
 
-        k1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb # ephemeral private nonce
+        # ephemeral private nonce
+        k1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb
         K1 = pointMultiply(ec, k1, ec.G)
         K1_x = K1[0]
         if legendre_symbol(K1[1], ec._p) != 1:
@@ -38,7 +41,8 @@ class TestEcssaMuSig(unittest.TestCase):
             #K1 = pointMultiply(ec, k1, ec.G)
 
         # second signer
-        q2 = int_from_Scalar(ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        q2 = int_from_Scalar(
+            ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q2 = pointMultiply(ec, q2, ec.G)
         L.append(bytes_from_Point(ec, Q2, False))
 
@@ -53,14 +57,14 @@ class TestEcssaMuSig(unittest.TestCase):
         # third signer
         q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
         Q3 = pointMultiply(ec, q3, ec.G)
-        while Q3 == None: # plausible only for small (test) cardinality groups
+        while Q3 == None:  # plausible only for small (test) cardinality groups
             q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
             Q3 = pointMultiply(ec, q3, ec.G)
         L.append(bytes_from_Point(ec, Q3, False))
 
         k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
         K3 = pointMultiply(ec, k3, ec.G)
-        while K3 == None: # plausible only for small (test) cardinality groups
+        while K3 == None:  # plausible only for small (test) cardinality groups
             k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
             K3 = pointMultiply(ec, k3, ec.G)
         K3_x = K3[0]
@@ -69,7 +73,7 @@ class TestEcssaMuSig(unittest.TestCase):
             K3 = K3_x, ec.yQuadraticResidue(K3_x, True)
             #K3 = pointMultiply(ec, k3, ec.G)
 
-        L.sort() # using lexicographic ordering
+        L.sort()  # using lexicographic ordering
         L_brackets = b''
         for i in range(0, len(L)):
             L_brackets += L[i]
@@ -103,7 +107,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K1_All0_bytes = K1_All[0].to_bytes(32, byteorder="big")
         h1 = sha256(K1_All0_bytes + Q_All_bytes + M).digest()
         c1 = int_from_hlenbytes(h1, ec, sha256)
-        assert 0<c1 and c1<ec.n, "sign fail"
+        assert 0 < c1 and c1 < ec.n, "sign fail"
         s1 = (k1 + c1*a1*q1) % ec.n
 
         # second signer use K1_x and K3_x
@@ -119,7 +123,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K2_All0_bytes = K2_All[0].to_bytes(32, byteorder="big")
         h2 = sha256(K2_All0_bytes + Q_All_bytes + M).digest()
         c2 = int_from_hlenbytes(h2, ec, sha256)
-        assert 0<c2 and c2<ec.n, "sign fail"
+        assert 0 < c2 and c2 < ec.n, "sign fail"
         s2 = (k2 + c2*a2*q2) % ec.n
 
         # third signer use K1_x and K2_x
@@ -135,7 +139,7 @@ class TestEcssaMuSig(unittest.TestCase):
         K3_All0_bytes = K3_All[0].to_bytes(32, byteorder="big")
         h3 = sha256(K3_All0_bytes + Q_All_bytes + M).digest()
         c3 = int_from_hlenbytes(h3, ec, sha256)
-        assert 0<c3 and c3<ec.n, "sign fail"
+        assert 0 < c3 and c3 < ec.n, "sign fail"
         s3 = (k3 + c3*a3*q3) % ec.n
 
         ############################################

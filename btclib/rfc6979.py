@@ -13,7 +13,8 @@ import hmac
 
 from btclib.ellipticcurves import EllipticCurve
 from btclib.ecsignutils import bits2octets, bits2int, int2octets, \
-                               HashLengthBytes, bytes_from_hlenbytes
+    HashLengthBytes, bytes_from_hlenbytes
+
 
 def rfc6979(prv: int,
             hdigest: HashLengthBytes,
@@ -27,7 +28,7 @@ def rfc6979(prv: int,
     k = b'\x00' * hash_size
 
     hdigest = bytes_from_hlenbytes(hdigest, Hash)
-    # hlen or qlen ? 
+    # hlen or qlen ?
     prv_and_m = int2octets(prv, hash_size) + bits2octets(hdigest, hash_size)
     k = hmac.new(k, v + b'\x00' + prv_and_m, Hash).digest()
     v = hmac.new(k, v, Hash).digest()

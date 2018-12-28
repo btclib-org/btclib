@@ -17,10 +17,12 @@ Point = Tuple[int, int]
 GenericPoint = Union[str, bytes, Point]
 # str must be a hex-string
 
-JacPoint = Tuple[int, int, int] 
+JacPoint = Tuple[int, int, int]
 # infinity point is (int, int, 0), checked with 'Inf[2] == 0'
 
 # elliptic curve y^2 = x^3 + a*x + b
+
+
 class EllipticCurve:
     """Elliptic curve over Fp group"""
 
@@ -30,7 +32,7 @@ class EllipticCurve:
                  b: int,
                  G: Point,
                  n: int,
-                 checkWeakness = True) -> None:
+                 checkWeakness=True) -> None:
         """EllipticCurve instantiation
 
         Parameters are checked according to SEC2 3.1.1.2.1
@@ -43,7 +45,7 @@ class EllipticCurve:
         if not pow(2, p-1, p) == 1:
             raise ValueError("p (%s) is not prime" % p)
         self._p = p
-        self.bytesize = (p.bit_length() + 7) // 8 # FIXME: p or n
+        self.bytesize = (p.bit_length() + 7) // 8  # FIXME: p or n
 
         # 1. check that security level is as required
         # missing for the time being
@@ -76,7 +78,7 @@ class EllipticCurve:
         t = int(2 * sqrt(p))
         if not (p+1 - t <= n <= p+1 + t):
             raise ValueError("n (%s) not in [p+1 - t, p+1 + t]" % n)
-        
+
         # 7. Check that nG = Inf.
         self.n = n
         # the following one would be tautologically true
@@ -89,7 +91,7 @@ class EllipticCurve:
         # 6. Check cofactor
         # missing for the time being
 
-        #8. Check that n ≠ p
+        # 8. Check that n ≠ p
         if n == p:
             raise UserWarning("n=p -> weak curve")
         # 8. Check that p^i % n ≠ 1 for all 1≤i<100
@@ -97,9 +99,9 @@ class EllipticCurve:
             for i in (1, 100):
                 if pow(p, i, n) == 1:
                     raise UserWarning("weak curve")
-        
+
     def __str__(self) -> str:
-        result  = "EllipticCurve"
+        result = "EllipticCurve"
         result += "\n p = 0x%032x" % (self._p)
         result += "\n a = %s, b = %s" % (self._a, self._b)
         result += "\n G = (0x%032x,\n          0x%032x)" % (self.G)
@@ -107,7 +109,7 @@ class EllipticCurve:
         return result
 
     def __repr__(self) -> str:
-        result  = "EllipticCurve("
+        result = "EllipticCurve("
         result += "0x%032x" % (self._p)
         result += ", %s, %s" % (self._a, self._b)
         result += ", (0x%032x,0x%032x)" % (self.G)
@@ -116,14 +118,14 @@ class EllipticCurve:
 
     # methods using _p: they would become functions if _p goes public
 
-    def checkCoordinate(self, c: int) -> None: # FIXME: jac / affine ?
+    def checkCoordinate(self, c: int) -> None:  # FIXME: jac / affine ?
         """check that coordinate is in [0, p-1]"""
         if not (0 <= c < self._p):
             raise ValueError("coordinate %s not in [0, p-1]" % c)
 
     def opposite(self, Q: GenericPoint) -> Point:
         Q = to_Point(self, Q)
-        if Q[1] == 0: # Infinity point in affine coordinates
+        if Q[1] == 0:  # Infinity point in affine coordinates
             return Q
         else:
             return Q[0], self._p - Q[1]
@@ -131,7 +133,7 @@ class EllipticCurve:
     def _affine_from_jac(self, Q: JacPoint) -> Point:
         if len(Q) != 3:
             raise ValueError("input point not in Jacobian coordinates")
-        if Q[2] == 0: # Infinity point in Jacobian coordinates
+        if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return 1, 0
         else:
             Z2 = Q[2]*Q[2]
@@ -144,17 +146,17 @@ class EllipticCurve:
     def _addJacobian(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
 
-        if Q[2] == 0: # Infinity point in Jacobian coordinates
+        if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return R
-        if R[2] == 0: # Infinity point in Jacobian coordinates
+        if R[2] == 0:  # Infinity point in Jacobian coordinates
             return Q
 
         RZ2 = R[2] * R[2]
-        RZ3 =  RZ2 * R[2]
+        RZ3 = RZ2 * R[2]
         QZ2 = Q[2] * Q[2]
-        QZ3 =  QZ2 * Q[2]
+        QZ3 = QZ2 * Q[2]
         if Q[0]*RZ2 % self._p == R[0]*QZ2 % self._p:     # same affine x
-            if Q[1]*RZ3 % self._p == R[1]*QZ3 % self._p: # point doubling
+            if Q[1]*RZ3 % self._p == R[1]*QZ3 % self._p:  # point doubling
                 QY2 = Q[1]*Q[1]
                 W = (3*Q[0]*Q[0] + self._a*QZ2*QZ2) % self._p
                 V = (4*Q[0]*QY2) % self._p
@@ -182,19 +184,20 @@ class EllipticCurve:
             return X, Y, Z
 
     def _addAffine(self, Q: GenericPoint, R: GenericPoint) -> Point:
-        Q = to_Point(self, Q) # also check that is on curve
-        R = to_Point(self, R) # also check that is on curve
-        if R[1] == 0: # Infinity point in affine coordinates
+        Q = to_Point(self, Q)  # also check that is on curve
+        R = to_Point(self, R)  # also check that is on curve
+        if R[1] == 0:  # Infinity point in affine coordinates
             return Q
-        if Q[1] == 0: # Infinity point in affine coordinates
+        if Q[1] == 0:  # Infinity point in affine coordinates
             return R
         if R[0] == Q[0]:
-            if R[1] == Q[1]: # point doubling
-                lam = ((3*Q[0]*Q[0]+self._a)*mod_inv(2*Q[1], self._p)) % self._p
-            else: # must be opposite (points already checked to be on curve)
-            #elif R[1] == self._p - Q[1]: # opposite points
+            if R[1] == Q[1]:  # point doubling
+                lam = ((3*Q[0]*Q[0]+self._a) *
+                       mod_inv(2*Q[1], self._p)) % self._p
+            else:  # must be opposite (points already checked to be on curve)
+                # elif R[1] == self._p - Q[1]: # opposite points
                 return 1, 0
-            #else:
+            # else:
             #    raise ValueError("points are not on the same curve")
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
@@ -223,7 +226,7 @@ class EllipticCurve:
         return mod_sqrt(y2, self._p)
 
     def areValidCoordinates(self, x: int, y: int) -> bool:
-        if y == 0: # Infinity point in affine coordinates
+        if y == 0:  # Infinity point in affine coordinates
             return True
         self.checkCoordinate(y)
         return self._y2(x) == (y*y % self._p)
@@ -260,7 +263,7 @@ class EllipticCurve:
 
 def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
     """Return a tuple (Px, Py) according to SEC2 2.3.4
-    
+
     It ensures the point belongs to the curve
     """
 
@@ -270,14 +273,14 @@ def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
         Q = bytes.fromhex(Q)
 
     if isinstance(Q, bytes):
-        if len(Q) == 1 and Q[0] == 0x00: # infinity point
+        if len(Q) == 1 and Q[0] == 0x00:  # infinity point
             return 1, 0
-        if len(Q) == ec.bytesize+1: # compressed point
+        if len(Q) == ec.bytesize+1:  # compressed point
             if Q[0] not in (0x02, 0x03):
                 m = "%s bytes, but not a compressed point" % (ec.bytesize+1)
                 raise ValueError(m)
             Px = int.from_bytes(Q[1:], 'big')
-            Py = ec.yOdd(Px, Q[0] % 2) # also check Px validity
+            Py = ec.yOdd(Px, Q[0] % 2)  # also check Px validity
         else:                          # uncompressed point
             if len(Q) != 2*ec.bytesize+1:
                 m = "wrong byte-size (%s) for a point: it " % len(Q)
@@ -297,14 +300,18 @@ def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
     return Q
 
 # this function is used by the EllipticCurve class; it might be a method...
+
+
 def _jac_from_affine(Q: Point) -> JacPoint:
     if len(Q) != 2:
         raise ValueError("input point not in affine coordinates")
-    if Q[1] == 0: # Infinity point in affine coordinates
+    if Q[1] == 0:  # Infinity point in affine coordinates
         return 1, 1, 0
     return Q[0], Q[1], 1
 
 # this function is used by the EllipticCurve class; it might be a method...
+
+
 def bytes_from_Point(ec: EllipticCurve,
                      Q: GenericPoint,
                      compressed: bool) -> bytes:
@@ -316,7 +323,7 @@ def bytes_from_Point(ec: EllipticCurve,
     # policy is implemented by to_Point
     Q = to_Point(ec, Q)
 
-    if Q[1] == 0: # infinity point in affine coordinates
+    if Q[1] == 0:  # infinity point in affine coordinates
         return b'\x00'
 
     bPx = Q[0].to_bytes(ec.bytesize, byteorder='big')
@@ -325,20 +332,23 @@ def bytes_from_Point(ec: EllipticCurve,
 
     return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
 
+
 Scalar = Union[str, bytes, int]
+
 
 def int_from_Scalar(ec: EllipticCurve, q: Scalar) -> int:
     """Integer for Point multiplication (i.e. private key), not coordinate"""
-    if isinstance(q, str): # hex string
+    if isinstance(q, str):  # hex string
         q = bytes.fromhex(q)
 
     if isinstance(q, bytes):
-        if len(q) > ec.bytesize: # FIXME: might be unnecessary
+        if len(q) > ec.bytesize:  # FIXME: might be unnecessary
             errmsg = 'scalar size %s > %s' % (len(q), ec.bytesize)
             raise ValueError(errmsg)
         q = int.from_bytes(q, 'big')
 
-    return q % ec.n # fails if q is not int-like
+    return q % ec.n  # fails if q is not int-like
+
 
 def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     # enforce self-consistency with whatever
@@ -347,6 +357,8 @@ def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
     return n.to_bytes(ec.bytesize, 'big')
 
 # this function is used by the EllipticCurve class; it might be a method...
+
+
 def pointMultiply(ec: EllipticCurve,
                   n: Scalar,
                   Q: GenericPoint) -> Point:
@@ -355,23 +367,25 @@ def pointMultiply(ec: EllipticCurve,
     R = _pointMultiplyJacobian(ec, n, QJ)
     return ec._affine_from_jac(R)
 
+
 def _pointMultiplyAffine(ec: EllipticCurve,
                          n: Scalar,
                          Q: GenericPoint) -> Point:
     """double & add in affine coordinates, using binary decomposition of n"""
     n = int_from_Scalar(ec, n)
     Q = to_Point(ec, Q)
-    
-    if Q[1] == 0: # Infinity point in affine coordinates
+
+    if Q[1] == 0:  # Infinity point in affine coordinates
         return Q
     R = 1, 0      # initialize as infinity point
     while n > 0:  # use binary representation of n
-        if n & 1: # if least significant bit is 1 then add current Q
+        if n & 1:  # if least significant bit is 1 then add current Q
             R = ec.add(R, Q)
-        n = n>>1  # right shift removes the bit just accounted for
-                  # double Q for next step
+        n = n >> 1  # right shift removes the bit just accounted for
+        # double Q for next step
         Q = ec.add(Q, Q)
     return R
+
 
 def _pointMultiplyJacobian(ec: EllipticCurve,
                            n: Scalar,
@@ -381,16 +395,17 @@ def _pointMultiplyJacobian(ec: EllipticCurve,
     if len(Q) != 3:
         raise ValueError("input point not in Jacobian coordinates")
 
-    if Q[2] == 0: # Infinity point in Jacobian coordinates
+    if Q[2] == 0:  # Infinity point in Jacobian coordinates
         return 1, 1, 0
     R = 1, 1, 0   # initialize as infinity point
     while n > 0:  # use binary representation of n
-        if n & 1: # if least significant bit is 1 then add current Q
+        if n & 1:  # if least significant bit is 1 then add current Q
             R = ec._addJacobian(R, Q)
-        n = n>>1  # right shift removes the bit just accounted for
-                  # double Q for next step:
+        n = n >> 1  # right shift removes the bit just accounted for
+        # double Q for next step:
         Q = ec._addJacobian(Q, Q)
     return R
+
 
 def DoubleScalarMultiplication(ec: EllipticCurve,
                                k1: Scalar,
@@ -426,14 +441,14 @@ def DoubleScalarMultiplication(ec: EllipticCurve,
         return ec._affine_from_jac(R)
 
     R2 = _jac_from_affine(Q2)
-    
-    R = 1, 1, 0 # initialize as infinity point
+
+    R = 1, 1, 0  # initialize as infinity point
     msb = max(r1.bit_length(), r2.bit_length())
     while msb > 0:
-        if r1 >> (msb - 1): # checking msb
+        if r1 >> (msb - 1):  # checking msb
             R = ec._addJacobian(R, R1)
             r1 -= pow(2, r1.bit_length() - 1)
-        if r2 >> (msb - 1): # checking msb
+        if r2 >> (msb - 1):  # checking msb
             R = ec._addJacobian(R, R2)
             r2 -= pow(2, r2.bit_length() - 1)
         if msb > 1:
@@ -442,8 +457,9 @@ def DoubleScalarMultiplication(ec: EllipticCurve,
 
     return ec._affine_from_jac(R)
 
+
 def secondGenerator(ec: EllipticCurve,
-                    Hash = sha256) -> Point:
+                    Hash=sha256) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
     generator H wrt G. 
 
@@ -456,7 +472,7 @@ def secondGenerator(ec: EllipticCurve,
     until you get a valid curve point H = (hx, hy).
     """
     G_bytes = bytes_from_Point(ec, ec.G, False)
-    h = Hash(G_bytes).digest() 
+    h = Hash(G_bytes).digest()
     hx = int_from_Scalar(ec, h)
     isCurvePoint = False
     while not isCurvePoint:
@@ -466,6 +482,7 @@ def secondGenerator(ec: EllipticCurve,
         except:
             hx += 1
     return hx, hy
+
 
 # http://www.secg.org/sec2-v2.pdf
 __p = 2**160 - 2**31 - 1
@@ -495,16 +512,16 @@ secp192r1 = EllipticCurve(__p, __a, __b, (__Gx, __Gy), __n)
 __p = 2**224 - 2**32 - 2**12 - 2**11 - 2**9 - 2**7 - 2**4 - 2 - 1
 __a = 0
 __b = 5
-__Gx    = 0xA1455B334DF099DF30FC28A169A467E9E47075A90F7E650EB6B7A45C
-__Gy    = 0x7E089FED7FBA344282CAFBD6F7E319F7C0B0BD59E2CA4BDB556D61A5
+__Gx = 0xA1455B334DF099DF30FC28A169A467E9E47075A90F7E650EB6B7A45C
+__Gy = 0x7E089FED7FBA344282CAFBD6F7E319F7C0B0BD59E2CA4BDB556D61A5
 __n = 0x010000000000000000000000000001DCE8D2EC6184CAF0A971769FB1F7
 secp224k1 = EllipticCurve(__p, __a, __b, (__Gx, __Gy), __n)
 
 __p = 2**224 - 2**96 + 1
 __a = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFE
 __b = 0XB4050A850C04B3ABF54132565044B0B7D7BFD8BA270B39432355FFB4
-__Gx    = 0xB70E0CBD6BB4BF7F321390B94A03C1D356C21122343280D6115C1D21
-__Gy    = 0xBD376388B5F723FB4C22DFE6CD4375A05A07476444D5819985007E34
+__Gx = 0xB70E0CBD6BB4BF7F321390B94A03C1D356C21122343280D6115C1D21
+__Gy = 0xBD376388B5F723FB4C22DFE6CD4375A05A07476444D5819985007E34
 __n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFF16A2E0B8F03E13DD29455C5C2A3D
 secp224r1 = EllipticCurve(__p, __a, __b, (__Gx, __Gy), __n)
 
@@ -512,32 +529,32 @@ secp224r1 = EllipticCurve(__p, __a, __b, (__Gx, __Gy), __n)
 __p = 2**256 - 2**32 - 977
 __a = 0
 __b = 7
-__Gx    = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
-__Gy    = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+__Gx = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+__Gy = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
 __n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 secp256k1 = EllipticCurve(__p, __a, __b, (__Gx, __Gy), __n)
 
 __p = 2**256 - 2**224 + 2**192 + 2**96 - 1
 __a = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC
 __b = 0X5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B
-__Gx    = 0x6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296
-__Gy    = 0x4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5
+__Gx = 0x6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296
+__Gy = 0x4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5
 __n = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
 secp256r1 = EllipticCurve(__p, __a, __b, (__Gx, __Gy), __n)
 
 __p = 2**384 - 2**128 - 2**96 + 2**32 - 1
 __a = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFC
 __b = 0XB3312FA7E23EE7E4988E056BE3F82D19181D9C6EFE8141120314088F5013875AC656398D8A2ED19D2A85C8EDD3EC2AEF
-__Gx    = 0xAA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7
-__Gy    = 0x3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F
+__Gx = 0xAA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7
+__Gy = 0x3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F
 __n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973
 secp384r1 = EllipticCurve(__p, __a, __b, (__Gx, __Gy), __n)
 
 __p = 2**521 - 1
 __a = 0x01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC
 __b = 0x0051953EB9618E1C9A1F929A21A0B68540EEA2DA725B99B315F3B8B489918EF109E156193951EC7E937B1652C0BD3BB1BF073573DF883D2C34F1EF451FD46B503F00
-__Gx    = 0x00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66
-__Gy    = 0x011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650
+__Gx = 0x00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66
+__Gy = 0x011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650
 __n = 0x01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409
 secp521r1 = EllipticCurve(__p, __a, __b, (__Gx, __Gy), __n)
 

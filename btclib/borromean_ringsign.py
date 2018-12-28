@@ -3,15 +3,16 @@
 import os
 from hashlib import sha256
 from typing import List, Dict
+
 from btclib.ellipticcurves import secp256k1 as ec, Scalar, Tuple, \
-                                  pointMultiply, DoubleScalarMultiplication, \
-                                  bytes_from_Point, to_Point, \
-                                  int_from_Scalar, bytes_from_Scalar
+    pointMultiply, DoubleScalarMultiplication, bytes_from_Point, to_Point, \
+    int_from_Scalar, bytes_from_Scalar
 from btclib.ecsignutils import int_from_hlenbytes
 
 Signature = Tuple[bytes, ...]
 
 # source: https://github.com/ElementsProject/borromean-signatures-writeup
+
 
 def borromean_hash(msg: bytes,
                    R: bytes,
@@ -20,9 +21,10 @@ def borromean_hash(msg: bytes,
     temp = msg + R + i.to_bytes(4, 'big') + j.to_bytes(4, 'big')
     return sha256(temp).digest()
 
+
 def get_msg_format(msg: bytes,
                    pubk_rings: Dict[int,
-                   List[bytes]]) -> bytes:
+                                    List[bytes]]) -> bytes:
     hash_argument = msg
     for i in range(len(pubk_rings)):
         for j in range(len(pubk_rings[i])):
@@ -31,11 +33,12 @@ def get_msg_format(msg: bytes,
             hash_argument += pubk_rings[i][j]
     return sha256(hash_argument).digest()
 
+
 def borromean_sign(msg: bytes,
                    sign_key_idx: List[int],
                    sign_keys: List[Scalar],
                    pubk_rings: Dict[int,
-                   List[bytes]]) -> Signature:
+                                    List[bytes]]) -> Signature:
     """ Borromean ring signature - signing algorithm
 
     inputs:
@@ -48,7 +51,8 @@ def borromean_sign(msg: bytes,
     # step 1
     m = get_msg_format(msg, pubk_rings)
     k = [int_from_Scalar(ec, os.urandom(32)) for i in range(0, ring_number)]
-    sign_keys = [int_from_Scalar(ec, sign_keys[i]) for i in range(len(sign_keys))]
+    sign_keys = [int_from_Scalar(ec, sign_keys[i])
+                 for i in range(len(sign_keys))]
     s = {}
     e = {}
     last_R = m
@@ -63,7 +67,8 @@ def borromean_sign(msg: bytes,
         else:
             for j in range(start_idx, len(pubk_rings[i])):
                 s[i][j] = os.urandom(32)
-                e[i][j] = int_from_hlenbytes(borromean_hash(m, R, i, j), ec, sha256)
+                e[i][j] = int_from_hlenbytes(
+                    borromean_hash(m, R, i, j), ec, sha256)
                 assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
                 T = DoubleScalarMultiplication(ec,
                                                s[i][j],
@@ -86,12 +91,16 @@ def borromean_sign(msg: bytes,
                                            ec.n - e[i][j-1],
                                            to_Point(ec, pubk_rings[i][j-1]))
             R = bytes_from_Point(ec, T, True)
-            e[i][j] = int_from_hlenbytes(borromean_hash(m, R, i, j), ec, sha256)
+            e[i][j] = int_from_hlenbytes(
+                borromean_hash(m, R, i, j), ec, sha256)
             assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
         s[i][j_star] = bytes_from_Scalar(ec, k[i] + sign_keys[i]*e[i][j_star])
     return (e_0, s)
 
-def borromean_verify(msg: bytes, e_0: bytes, s: Dict[int, List[Scalar]],\
+
+def borromean_verify(msg: bytes,
+                     e_0: bytes,
+                     s: Dict[int, List[Scalar]],
                      pubk_rings: Dict[int, List[bytes]]) -> bool:
     """ Borromean ring signature - verification algorithm
 
@@ -118,11 +127,11 @@ def borromean_verify(msg: bytes, e_0: bytes, s: Dict[int, List[Scalar]],\
                                            to_Point(ec, pubk_rings[i][j]))
             R = bytes_from_Point(ec, T, True)
             if j != len(pubk_rings[i])-1:
-                e[i][j+1] = int_from_hlenbytes(borromean_hash(m, R, i, j+1), ec, sha256)
+                e[i][j +
+                     1] = int_from_hlenbytes(borromean_hash(m, R, i, j+1), ec, sha256)
                 if e[i][j+1] == 0 or e[i][j+1] >= ec.n:
                     return False
             else:
                 last_R += R
     e_0_prime = (sha256(last_R).digest())
     return e_0_prime == e_0
-    

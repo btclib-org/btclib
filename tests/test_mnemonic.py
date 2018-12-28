@@ -3,10 +3,11 @@
 import unittest
 from btclib.mnemonic import mnemonic_dict
 
+
 class TestMnemonicDictionaries(unittest.TestCase):
     def test_1(self):
         lang = "en"
-        
+
         d = mnemonic_dict.word_list(lang)
         self.assertIsInstance(d, list)
         self.assertEqual(len(d), 2048)
@@ -33,12 +34,12 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
         # entropy must be binary string or int
         entropy = b'123456789abcdef0'
-        self.assertRaises(TypeError, mnemonic_dict.indexes_from_entropy, entropy, lang)
-
+        self.assertRaises(
+            TypeError, mnemonic_dict.indexes_from_entropy, entropy, lang)
 
     def test_2(self):
         lang = "en"
-        test_indexes = [   0,    0, 2047, 2047, 2047, 2047,
+        test_indexes = [0,    0, 2047, 2047, 2047, 2047,
                         2047, 2047, 2047, 2047, 2047,    0]
         entropy = mnemonic_dict.entropy_from_indexes(test_indexes, lang)
         indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)

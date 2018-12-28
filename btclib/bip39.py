@@ -4,7 +4,8 @@
 
 from hashlib import sha256, pbkdf2_hmac
 
-from btclib.entropy import Entropy, GenericEntropy, bytes_from_entropy, str_from_entropy
+from btclib.entropy import Entropy, GenericEntropy, bytes_from_entropy, \
+    str_from_entropy
 from btclib.mnemonic import mnemonic_dict
 from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed
 
@@ -51,7 +52,8 @@ def bip39_entropy_from_raw_entropy(raw_entropy: GenericEntropy) -> Entropy:
     return raw_entropy + checksum
 
 
-def bip39_mnemonic_from_raw_entropy(raw_entr: GenericEntropy, lang: str) -> str:
+def bip39_mnemonic_from_raw_entropy(raw_entr: GenericEntropy,
+                                    lang: str) -> str:
     entropy = bip39_entropy_from_raw_entropy(raw_entr)
     indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
     mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
@@ -90,14 +92,19 @@ def bip39_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
 # TODO: re-evaluate style
 
 
-def bip39_master_prvkey_from_mnemonic(mnemonic: str, passphrase: str, xversion: bytes) -> bytes:
+def bip39_master_prvkey_from_mnemonic(mnemonic: str,
+                                      passphrase: str,
+                                      xversion: bytes) -> bytes:
     seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
     return bip32_master_prvkey_from_seed(seed, xversion)
 
 # TODO: move to wallet file
 
 
-def bip39_master_prvkey_from_raw_entropy(raw_entr: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
+def bip39_master_prvkey_from_raw_entropy(raw_entr: GenericEntropy,
+                                         passphrase: str,
+                                         lang: str,
+                                         xversion: bytes) -> bytes:
     mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
     mprv = bip39_master_prvkey_from_mnemonic(mnemonic, passphrase, xversion)
     return mprv

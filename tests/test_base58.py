@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import unittest
-from btclib.base58 import b58encode, b58encode_check, \
-                          b58decode, b58decode_check, \
-                          b58encode_int, b58decode_int
+
+from btclib.base58 import b58encode, b58encode_check, b58decode, \
+    b58decode_check, b58encode_int, b58decode_int
+
 
 class TestBase58CheckEncoding(unittest.TestCase):
     def test_b58_empty(self):
@@ -16,13 +17,18 @@ class TestBase58CheckEncoding(unittest.TestCase):
         self.assertEqual(b58encode(b'hello world'), b'StV1DL6CwTryKyV')
         self.assertEqual(b58decode(b'StV1DL6CwTryKyV'), b'hello world')
         self.assertEqual(b58decode(b58encode(b'hello world')), b'hello world')
-        self.assertEqual(b58encode(b58decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
+        self.assertEqual(
+            b58encode(b58decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
 
     def test_b58_trailing_zeros(self):
-        self.assertEqual(b58encode(b'\x00\x00hello world'), b'11StV1DL6CwTryKyV')
-        self.assertEqual(b58decode(b'11StV1DL6CwTryKyV'), b'\x00\x00hello world')
-        self.assertEqual(b58decode(b58encode(b'\0\0hello world')), b'\x00\x00hello world')
-        self.assertEqual(b58encode(b58decode(b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
+        self.assertEqual(b58encode(b'\x00\x00hello world'),
+                         b'11StV1DL6CwTryKyV')
+        self.assertEqual(b58decode(b'11StV1DL6CwTryKyV'),
+                         b'\x00\x00hello world')
+        self.assertEqual(
+            b58decode(b58encode(b'\0\0hello world')), b'\x00\x00hello world')
+        self.assertEqual(
+            b58encode(b58decode(b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
 
     def test_b58_integers(self):
         digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -32,7 +38,7 @@ class TestBase58CheckEncoding(unittest.TestCase):
             self.assertEqual(b58encode_int(i), char)
         number = 0x111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5  # noqa
         self.assertEqual(b58decode_int(digits), number)
-        self.assertEqual(b58encode_int(number), digits[1:])            
+        self.assertEqual(b58encode_int(number), digits[1:])
 
     def test_b58_exceptions(self):
         # int is not hex-string or bytes
@@ -59,13 +65,15 @@ class TestBase58CheckEncoding(unittest.TestCase):
         key = b58decode_check(uncompressedWIF)
         self.assertEqual(key, uncompressedKey)
 
-        compressedKey = b'\x80' + prvkey.to_bytes(32, byteorder='big') + b'\x01'
+        compressedKey = b'\x80' + \
+            prvkey.to_bytes(32, byteorder='big') + b'\x01'
         compressedWIF = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
         wif = b58encode_check(compressedKey)
         self.assertEqual(wif, compressedWIF)
         key = b58decode_check(compressedWIF)
         self.assertEqual(key, compressedKey)
-    
+
+
 if __name__ == "__main__":
     # execute only if run as a script
     unittest.main()

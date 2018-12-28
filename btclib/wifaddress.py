@@ -7,20 +7,22 @@ and public keys (addresses)
 '''
 
 from hashlib import sha256, new as hnew
-from btclib.ellipticcurves import Union, Tuple, \
-                                  Scalar as PrivateKey, Point as PublicKey, \
-                                  secp256k1 as ec, pointMultiply, \
-                                  bytes_from_Scalar, bytes_from_Point
+
+from btclib.ellipticcurves import Union, Tuple, Scalar as PrivateKey, \
+    Point as PublicKey, secp256k1 as ec, pointMultiply, bytes_from_Scalar, \
+    bytes_from_Point
 from btclib.base58 import b58encode_check, b58decode_check
 
 WIF = Union[str, bytes]
 Address = Union[str, bytes]
 
+
 def wif_from_prvkey(prvkey: PrivateKey, compressed: bool = True) -> bytes:
     """private key to Wallet Import Format"""
 
     payload = b'\x80' + bytes_from_Scalar(ec, prvkey)
-    if compressed: payload += b'\x01'
+    if compressed:
+        payload += b'\x01'
     return b58encode_check(payload)
 
 
@@ -34,7 +36,7 @@ def prvkey_from_wif(wif: WIF) -> Tuple[bytes, bool]:
         # must have a trailing 0x01
         assert payload[ec.bytesize + 1] == 0x01, "not a WIF"
         return bytes_from_Scalar(ec, payload[1:-1]), True
-    elif len(payload) == ec.bytesize + 1: # uncompressed WIF
+    elif len(payload) == ec.bytesize + 1:  # uncompressed WIF
         return bytes_from_Scalar(ec, payload[1:]), False
 
     raise ValueError("not a WIF")

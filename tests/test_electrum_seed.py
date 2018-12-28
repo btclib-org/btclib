@@ -4,10 +4,8 @@ import unittest
 import os
 import json
 
-from btclib.electrum_seed import PRIVATE, \
-    bip32_xpub_from_xprv, \
-    electrum_entropy_from_mnemonic, \
-    electrum_mnemonic_from_raw_entropy, \
+from btclib.electrum_seed import PRIVATE, bip32_xpub_from_xprv, \
+    electrum_entropy_from_mnemonic, electrum_mnemonic_from_raw_entropy, \
     electrum_master_prvkey_from_mnemonic, \
     electrum_master_prvkey_from_raw_entropy
 
