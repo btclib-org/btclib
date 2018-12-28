@@ -1,5 +1,3 @@
-add testcase for forged DSA, proving impossibility for SSA
-
 resolve confusion between hlen and qlen
 rfc6979 test
 
@@ -14,10 +12,6 @@ the name of functions returning bool should be a question
 remove multiplyJacobian from batch validation
 BUG in batch validation with just one sig (plus wahy a[0]=1 ?)
 
-ec.add with projective coordinates
-http://pydoc.net/ecc/0.0.1/ecc.elliptic/
-https://hyperelliptic.org/EFD/oldefd/projective.html
-
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 
 document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
@@ -28,8 +22,6 @@ how to export mprv from Electrum?
 better mimic of electrum entropy search, they probably have the words inverted
 
 BIP44 in address_from...
-
-test number theory (e.g. fermat's theorem)
 
 clean up PRIVATE[0] mess
 
