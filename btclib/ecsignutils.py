@@ -4,8 +4,8 @@ from typing import Tuple, Union
 
 from btclib.ellipticcurves import EllipticCurve
 
-def int2octets(x: int, maxbytesize: int) -> bytes:
-    return x.to_bytes(maxbytesize, byteorder='big')
+def int2octets(x: int, bytesize: int) -> bytes:
+    return x.to_bytes(bytesize, byteorder='big')
 
 def bits2int(b: bytes, maxbytesize: int) -> int:
 

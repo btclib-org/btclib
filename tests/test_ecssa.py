@@ -20,44 +20,61 @@ class TestEcssa(unittest.TestCase):
 
     def test_ecssa(self):
         """Basic tests"""
+        ec = secp256k1
         q = 0x1
-        Q = pointMultiply(secp256k1, q, secp256k1.G)
+        Q = pointMultiply(ec, q, ec.G)
         msg = sha256('Satoshi Nakamoto'.encode()).digest()
-        ssasig = ecssa_sign(msg, q)
+        ssasig = ecssa_sign(msg, q, None, ec, sha256)
         # no source for the following... but
         # https://bitcointalk.org/index.php?topic=285142.40
         # same r because of rfc6979
         exp_sig = (0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8,
                    0x2DF2423F70563E3C4BD0E00BDEF658081613858F110ECF937A2ED9190BF4A01A)
-        r, s = to_ssasig(ssasig, secp256k1)
+        r, s = to_ssasig(ssasig, ec)
         self.assertEqual(r, exp_sig[0])
         self.assertEqual(s, exp_sig[1])
         
-        self.assertTrue(ecssa_verify(ssasig, msg, Q))
-        self.assertTrue(_ecssa_verify(ssasig, msg, Q))
+        self.assertTrue(ecssa_verify(ssasig, msg, Q, ec, sha256))
+        self.assertTrue(_ecssa_verify(ssasig, msg, Q, ec, sha256))
 
         fmsg = sha256('Craig Wright'.encode()).digest()
-        self.assertFalse(ecssa_verify(ssasig, fmsg, Q))
-        self.assertFalse(_ecssa_verify(ssasig, fmsg, Q))
+        self.assertFalse(ecssa_verify(ssasig, fmsg, Q, ec, sha256))
+        self.assertFalse(_ecssa_verify(ssasig, fmsg, Q, ec, sha256))
 
         fssasig = (ssasig[0], ssasig[1], ssasig[1])
-        self.assertFalse(ecssa_verify(fssasig, msg, Q))
-        self.assertRaises(TypeError, _ecssa_verify, fssasig, msg, Q)
+        self.assertFalse(ecssa_verify(fssasig, msg, Q, ec, sha256))
+        self.assertRaises(TypeError, _ecssa_verify, fssasig, msg, Q, ec,
+                                                                     sha256)
 
         # y(sG - eP) is not a quadratic residue
         fq = 0x2
-        fQ = pointMultiply(secp256k1, fq, secp256k1.G)
-        self.assertFalse(ecssa_verify(ssasig, msg, fQ))
-        self.assertRaises(ValueError, _ecssa_verify, ssasig, msg, fQ)
+        fQ = pointMultiply(ec, fq, ec.G)
+        self.assertFalse(ecssa_verify(ssasig, msg, fQ, ec, sha256))
+        self.assertRaises(ValueError, _ecssa_verify, ssasig, msg, fQ, ec,
+                                                                      sha256)
 
         fq = 0x4
-        fQ = pointMultiply(secp256k1, fq, secp256k1.G)
-        self.assertFalse(ecssa_verify(ssasig, msg, fQ))
-        self.assertFalse(_ecssa_verify(ssasig, msg, fQ))
+        fQ = pointMultiply(ec, fq, ec.G)
+        self.assertFalse(ecssa_verify(ssasig, msg, fQ, ec, sha256))
+        self.assertFalse(_ecssa_verify(ssasig, msg, fQ, ec, sha256))
 
         # not ec.pIsThreeModFour
-        self.assertFalse(ecssa_verify(ssasig, msg, Q, secp224k1))
-        self.assertRaises(ValueError, _ecssa_verify, ssasig, msg, Q, secp224k1)
+        self.assertFalse(ecssa_verify(ssasig, msg, Q, secp224k1, sha256))
+        self.assertRaises(ValueError, _ecssa_verify, ssasig, msg, Q,
+                                                     secp224k1, sha256)
+        # wrong size for e
+        e = b'\x00'
+        self.assertRaises(ValueError, _ecssa_pubkey_recovery, ssasig, e, ec,
+                                                                      sha256)
+        # invalid (zero) challenge e
+        e = b'\x00' * sha256().digest_size
+        self.assertRaises(ValueError, _ecssa_pubkey_recovery, ssasig, e, ec,
+                                                                      sha256)
+        # message of wrong size
+        wrongmsg = msg[:-1]
+        self.assertFalse(ecssa_verify(ssasig, wrongmsg, Q, ec, sha256))
+        self.assertRaises(ValueError, _ecssa_verify, ssasig,
+                                                     wrongmsg, Q, ec, sha256)
 
     def test_schnorr_bip_tv(self):
         """Bip-Schnorr Test Vectors

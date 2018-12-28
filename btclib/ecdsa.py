@@ -118,7 +118,7 @@ def _ecdsa_verhlp(dsasig: ECDS,
     s1 = mod_inv(s, ec.n); u1 = e*s1; u2 = r*s1         # 4
     R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P) # 5
 
-    # Fail if infinite(R) or r ≠ x(R) %n.
+    # Fail if infinite(R).
     if R[1] == 0:
         return False
 

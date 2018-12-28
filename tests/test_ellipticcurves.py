@@ -566,12 +566,20 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, _pointMultiplyJacobian, ec, 1, Q)
 
     def test_shamir(self):
-        ec = ec41_53
+        ec = ec29_37
         for k1 in range(0, ec.n):
             for k2 in range(0, ec.n):
                 shamir = DoubleScalarMultiplication(ec, k1, ec.G, k2, ec.G)
                 std = ec.add(pointMultiply(ec, k1, ec.G),
                              pointMultiply(ec, k2, ec.G))
+                self.assertEqual(shamir, std)
+                shamir = DoubleScalarMultiplication(ec, k1, Inf, k2, ec.G)
+                std = ec.add(pointMultiply(ec, k1, Inf),
+                             pointMultiply(ec, k2, ec.G))
+                self.assertEqual(shamir, std)
+                shamir = DoubleScalarMultiplication(ec, k1, ec.G, k2, Inf)
+                std = ec.add(pointMultiply(ec, k1, ec.G),
+                             pointMultiply(ec, k2, Inf))
                 self.assertEqual(shamir, std)
 
 

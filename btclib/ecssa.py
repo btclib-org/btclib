@@ -127,11 +127,13 @@ def _ecssa_verify(ssasig: ECSS,
     # Let R = sG - eP.
     R = DoubleScalarMultiplication(ec, s, ec.G, -e, P)
 
-    # Fail if infinite(R) or jacobi(y(R)) ≠ 1 or x(R) ≠ r.
+    # Fail if infinite(R).
     if R[1] == 0:
         raise ValueError("sG - eP is infinite")
+    # Fail if jacobi(y(R)) ≠ 1.
     if legendre_symbol(R[1], ec._p) != 1:
         raise ValueError("y(sG - eP) is not a quadratic residue")
+    # Fail if x(R) ≠ r.
     return R[0] == r
 
 def _ecssa_pubkey_recovery(ssasig: ECSS,
@@ -147,7 +149,7 @@ def _ecssa_pubkey_recovery(ssasig: ECSS,
     K = (r, ec.yQuadraticResidue(r, True))
     e = int_from_hlenbytes(ebytes, ec, Hash)
     if e == 0:
-        raise ValueError("invalid challenge e")
+        raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
     Q = DoubleScalarMultiplication(ec, e1*s, ec.G, -e1, K)
     if Q[1] == 0:
@@ -183,15 +185,12 @@ def ecssa_batch_validation(sig: List[ECSS],
                            a: List[int],
                            ec: EllipticCurve = secp256k1,
                            Hash = sha256) -> bool:
-    u = len(Q)
-    if u==0:
-        return False
-
     # initialization
     mult = 0
     points = list()
     factors = list()
 
+    u = len(Q)
     for i in range(0, u):
         r, s = to_ssasig(sig[i], ec)
         ebytes = r.to_bytes(32, byteorder="big")
