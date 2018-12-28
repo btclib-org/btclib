@@ -83,7 +83,6 @@ low_card_curves_1 = [
 
 # low cardinality curves 100<p<300
 ec101_97  = EllipticCurve(101, 7, 4, (0,  99),  97, False)
-#ec101_101 = EllipticCurve(101, 2, 5, (0,  56), 101, False)
 ec103_101 = EllipticCurve(103, 6, 2, (0,  38), 101, False)
 ec103_113 = EllipticCurve(103, 4, 4, (0,   2), 113, False)
 ec107_103 = EllipticCurve(107, 5, 2, (3,  30), 103, False)
@@ -150,12 +149,11 @@ ec277_263 = EllipticCurve(277, 6, 9, (0,   3), 263, False)
 ec277_307 = EllipticCurve(277, 9, 9, (0,   3), 307, False)
 ec281_311 = EllipticCurve(281, 1, 4, (0, 279), 311, False)
 ec283_281 = EllipticCurve(283, 2, 7, (0,  63), 281, False)
-#ec283_283 = EllipticCurve(283, 4, 1, (0,   1), 283, False)
 ec293_281 = EllipticCurve(293, 8, 6, (0,  42), 281, False)
 ec293_311 = EllipticCurve(293, 1, 4, (0, 291), 311, False)
 
 low_card_curves_2 = [
-    ec101_97, #ec101_101,
+    ec101_97,
     ec103_101, ec103_113,
     ec107_103, ec107_113,
     ec109_107, ec109_127,
@@ -189,7 +187,7 @@ low_card_curves_2 = [
     ec271_269, ec271_277,
     ec277_263, ec277_307,
     ec281_311,
-    ec283_281, #ec283_283,
+    ec283_281,
     ec293_281, ec293_311
     ]
 
@@ -197,8 +195,33 @@ low_card_curves = low_card_curves_1 + low_card_curves_2
 all_curves = low_card_curves + SEC_curves
 
 Inf = 1, 0 # Infinity point in affine coordinates
+InfJ = 1, 1, 0 # Infinity point in jacobian coordinates
 
 class TestEllipticCurve(unittest.TestCase):
+    def test_exceptions(self):
+        # good
+        EllipticCurve(11, 2, 7, (6,   9),   7, False)
+        # p not odd
+        self.assertRaises(ValueError, EllipticCurve, 10, 2, 7, (6, 9),   7, False)
+        # p not prime
+        self.assertRaises(ValueError, EllipticCurve, 15, 2, 7, (6, 9),   7, False)
+        # zero discriminant
+        self.assertRaises(ValueError, EllipticCurve, 11, 7, 7, (6, 9),   7, False)
+        # G not Tuple (int, int)
+        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (6, 9,  1),   7, False)
+        # G not on curve
+        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (7, 9),   7, False)
+        # n not prime
+        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (6, 9),   8, False)
+        # n not Hesse
+        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (6, 9),   71, False)
+        # n not group order
+        self.assertRaises(ValueError, EllipticCurve, 11, 2, 7, (6, 9),   13, False)
+        # n=p -> weak curve
+        # missing
+        # weak curve
+        self.assertRaises(UserWarning, EllipticCurve, 13, 7, 6, (1, 1),  11)
+
     def test_all_curves(self):
         for ec in all_curves:
             self.assertEqual(pointMultiply(ec, 0, ec.G), Inf)
@@ -374,9 +397,14 @@ class TestEllipticCurve(unittest.TestCase):
             minus_Qjac = _jac_from_affine(minus_Q)
             self.assertEqual(ec._addJacobian(Qjac, minus_Qjac), (1, 1, 0))
 
+            # opposite of Inf is Inf
+            Q = Inf
+            minus_Q = ec.opposite(Q)
+            self.assertEqual(minus_Q, Inf)
+
     def test_symmetry(self):
-        """Methods to break simmetry: quadratid residue, odd/even, low/high"""
-        for ec in low_card_curves:
+        """Methods to break simmetry: quadratic residue, odd/even, low/high"""
+        for ec in low_card_curves[:4]:
 
             ## setup phase
             # compute quadratic residues
@@ -448,45 +476,51 @@ class TestEllipticCurve(unittest.TestCase):
                 yLow = ec.yHigh(x, 0)
                 self.assertTrue(yLow in (yOdd, yEven))                
                 yHigh = ec.yHigh(x, 1)
-                self.assertTrue(yHigh in (yOdd, yEven))                
-                self.assertTrue(yLow < yHigh)                
+                self.assertTrue(yHigh in (yOdd, yEven))
+                self.assertTrue(yLow < yHigh)
+        # with the last curve
+        self.assertRaises(ValueError, ec.yHigh, x, 2)
+        self.assertRaises(ValueError, ec.yOdd, x, 2)
+        self.assertRaises(ValueError, ec.yQuadraticResidue, x, 2)
 
     def test_affine_from_jac_conversion(self):
         for ec in all_curves:
-            # random point
-            q = ec._p
-            Q = pointMultiply(ec, q, ec.G)
+            Q = pointMultiply(ec, ec._p, ec.G) # random point
             checkQ = ec._affine_from_jac(_jac_from_affine(Q))
             self.assertEqual(Q, checkQ)
+            checkInf = ec._affine_from_jac(_jac_from_affine(Inf))
+            self.assertEqual(Inf, checkInf)
 
     def test_Add(self):
         for ec in all_curves:
             Q1 = pointMultiply(ec, ec._p, ec.G) # just a random point
+            Q1J = _jac_from_affine(Q1)
+
             Q2 = ec.G
+            Q2J = _jac_from_affine(Q2)
         
             # distinct points
-            Q3 = ec._addAffine(Q1, Q2)
-            Q3jac = ec._addJacobian(_jac_from_affine(Q1),
-                                    _jac_from_affine(Q2))
+            Q3    = ec._addAffine(  Q1,  Q2)
+            Q3jac = ec._addJacobian(Q1J, Q2J)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
             # point at infinity
-            Q3 = ec._addAffine(Q2, Inf)
-            Q3jac = ec._addJacobian(_jac_from_affine(Q2),
-                                    _jac_from_affine(Inf))
+            Q3    = ec._addAffine(  Q2,  Inf)
+            Q3jac = ec._addJacobian(Q2J, InfJ)
+            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
+            Q3    = ec._addAffine(  Inf,  Q2)
+            Q3jac = ec._addJacobian(InfJ, Q2J)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
         
             # point doubling 
-            Q3 = ec._addAffine(Q1, Q1)
-            Q3jac = ec._addJacobian(_jac_from_affine(Q1),
-                                    _jac_from_affine(Q1))
+            Q3    = ec._addAffine(  Q1,  Q1)
+            Q3jac = ec._addJacobian(Q1J, Q1J)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
             # opposite points
             Q1opp = ec.opposite(Q1)
-            Q3 = ec._addAffine(Q1, Q1opp)
-            Q3jac = ec._addJacobian(_jac_from_affine(Q1),
-                                    _jac_from_affine(Q1opp))
+            Q3    = ec._addAffine(  Q1,  Q1opp)
+            Q3jac = ec._addJacobian(Q1J, _jac_from_affine(Q1opp))
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
     def test_Multiply(self):

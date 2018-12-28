@@ -38,10 +38,10 @@ class EllipticCurve:
 
         # 1) check that p is an odd prime
         if p % 2 == 0:
-            raise ValueError("p %s is not odd" % p)
+            raise ValueError("p (%s) is not odd" % p)
         # Fermat test will do as _probabilistic_ primality test...
         if not pow(2, p-1, p) == 1:
-            raise ValueError("p %s is not prime" % p)
+            raise ValueError("p (%s) is not prime" % p)
         self._p = p
         self.bytesize = (p.bit_length() + 7) // 8 # FIXME: p or n
 
@@ -56,7 +56,8 @@ class EllipticCurve:
         self.checkCoordinate(b)
 
         # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p).
-        if 4*a*a*a+27*b*b % p == 0:
+        d = 4*a*a*a+27*b*b
+        if d % p == 0:
             raise ValueError("zero discriminant")
         self._a = a
         self._b = b
@@ -70,17 +71,20 @@ class EllipticCurve:
 
         # 4. Check that n is prime.
         if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
-            raise ValueError("n %s is not prime" % n)
+            raise ValueError("n (%s) is not prime" % n)
         # also check n with Hasse Theorem
         t = int(2 * sqrt(p))
         if not (p+1 - t <= n <= p+1 + t):
-            raise ValueError("n %s not in [p+1 - t, p+1 + t]" % n)
+            raise ValueError("n (%s) not in [p+1 - t, p+1 + t]" % n)
         
         # 7. Check that nG = Inf.
         self.n = n
-        Inf = pointMultiply(self, n, self.G)
+        # the following one would be tautologically true
+        # Inf = pointMultiply(self, n, self.G)
+        InfMinusG = pointMultiply(self, n-1, self.G)
+        Inf = self.add(InfMinusG, self.G)
         if Inf[1] != 0:
-            raise ValueError("n is not the group order")
+            raise ValueError("n (%s) is not the group order" % n)
 
         # 6. Check cofactor
         # missing for the time being
@@ -138,6 +142,8 @@ class EllipticCurve:
     # methods using _a, _b, _p
 
     def _addJacobian(self, Q: JacPoint, R: JacPoint) -> JacPoint:
+        # points are assumed to be on curve
+
         if Q[2] == 0: # Infinity point in Jacobian coordinates
             return R
         if R[2] == 0: # Infinity point in Jacobian coordinates
@@ -176,8 +182,8 @@ class EllipticCurve:
             return X, Y, Z
 
     def _addAffine(self, Q: GenericPoint, R: GenericPoint) -> Point:
-        Q = to_Point(self, Q)
-        R = to_Point(self, R)
+        Q = to_Point(self, Q) # also check that is on curve
+        R = to_Point(self, R) # also check that is on curve
         if R[1] == 0: # Infinity point in affine coordinates
             return Q
         if Q[1] == 0: # Infinity point in affine coordinates
@@ -185,10 +191,11 @@ class EllipticCurve:
         if R[0] == Q[0]:
             if R[1] == Q[1]: # point doubling
                 lam = ((3*Q[0]*Q[0]+self._a)*mod_inv(2*Q[1], self._p)) % self._p
-            elif R[1] == self._p - Q[1]: # opposite points
+            else: # must be opposite (points already checked to be on curve)
+            #elif R[1] == self._p - Q[1]: # opposite points
                 return 1, 0
-            else:
-                raise ValueError("points are not on the same curve")
+            #else:
+            #    raise ValueError("points are not on the same curve")
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
         x = (lam*lam-Q[0]-R[0]) % self._p
@@ -241,10 +248,10 @@ class EllipticCurve:
 
     def yQuadraticResidue(self, x: int, quadRes: int) -> int:
         """return the quadratic residue y coordinate associated to x"""
-        if not self.pIsThreeModFour:
-            raise ValueError("this method works only when p = 3 (mod 4)")
         if quadRes not in (0, 1):
             raise ValueError("quadRes must be bool or 0/1")
+        if not self.pIsThreeModFour:
+            raise ValueError("this method works only when p = 3 (mod 4)")
         root = self.y(x)
         # switch to quadratic residue root as needed (XORing the conditions)
         legendre1 = legendre_symbol(root, self._p)
@@ -366,8 +373,8 @@ def _pointMultiplyAffine(ec: EllipticCurve,
     return R
 
 def _pointMultiplyJacobian(ec: EllipticCurve,
-                          n: Scalar,
-                          Q: JacPoint) -> JacPoint:
+                           n: Scalar,
+                           Q: JacPoint) -> JacPoint:
     """double & add in jacobian coordinates, using binary decomposition of n"""
     n = int_from_Scalar(ec, n)
     if len(Q) != 3:
