@@ -95,6 +95,7 @@ def ecssa_verify(ssasig: ECSS,
         return False
 
 # Private function provided for testing purposes only.
+# It raises Errors, while verify should always return True or False
 def _ecssa_verify(ssasig: ECSS,
                   m: HashDigest,
                   P: GenericPoint,
