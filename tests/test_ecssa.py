@@ -5,7 +5,7 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import legendre_symbol
-from btclib.ellipticcurves import secp256k1, int_from_Scalar, \
+from btclib.ellipticcurves import secp256k1, secp224k1, int_from_Scalar, \
                                   bytes_from_Point, to_Point, \
                                   pointMultiply
 from btclib.ecssa import rfc6979, int_from_hash, \
@@ -55,6 +55,9 @@ class TestEcssa(unittest.TestCase):
         self.assertFalse(ecssa_verify(ssasig, msg, fQ))
         self.assertFalse(_ecssa_verify(ssasig, msg, fQ))
 
+        # not ec.pIsThreeModFour
+        self.assertFalse(ecssa_verify(ssasig, msg, Q, secp224k1))
+        self.assertRaises(ValueError, _ecssa_verify, ssasig, msg, Q, secp224k1)
 
     def test_schnorr_bip_tv(self):
         """Bip-Schnorr Test Vectors
