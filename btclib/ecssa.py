@@ -37,8 +37,8 @@ def ecssa_sign(m: bytes,
         raise ValueError(errmsg)
 
     # This signature scheme supports 32-byte messages.
-    # Differently from ECDSA, here the 32-byte message can be digest of
-    # another messages, but it does not need to.
+    # Differently from ECDSA, the 32-byte message can be
+    # a digest of other messages, but it does not need to.
 
     # The message m: a 32-byte array
     m = bytes_from_hash(m, Hash)
