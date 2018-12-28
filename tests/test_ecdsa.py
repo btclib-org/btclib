@@ -4,8 +4,8 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import secp256k1, \
-                                  pointMultiply, _jac_from_affine
+from btclib.ellipticcurves import secp256k1, _jac_from_affine, to_Point, \
+                                  pointMultiply, DoubleScalarMultiplication
 from btclib.ecdsa import rfc6979, int_from_hash, \
                          _ecdsa_sign, ecdsa_sign, to_dsasig, \
                          _ecdsa_verify, ecdsa_verify, \
@@ -55,6 +55,30 @@ class TestEcdsa(unittest.TestCase):
         fQ = pointMultiply(secp256k1, fq, secp256k1.G)
         self.assertFalse(ecdsa_verify(dsasig, msg, fQ))
         self.assertFalse(_ecdsa_verify(dsasig, H, fQ))
+
+    def test_forge_hash_sig(self):
+        """forging valid signatures for hash (DSA signs message, not hash)"""
+
+        ec = secp256k1
+        # see https://twitter.com/pwuille/status/1063582706288586752
+        SatoshiKey = to_Point(secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
+
+        a = 1; b = 2 # pick them at will
+        R = DoubleScalarMultiplication(ec, a, ec.G, b, SatoshiKey)
+        b1 = mod_inv(b, ec.n)
+        hash_digest = (a * b1 * R[0] % ec.n).to_bytes(32, 'big')
+        dsasig = R[0] % ec.n, R[0] * b1 % ec.n
+        _ecdsa_verify(dsasig, hash_digest, SatoshiKey, ec)
+
+        a = 1234567890; b = 987654321 # pick them at will
+        R = DoubleScalarMultiplication(ec, a, ec.G, b, SatoshiKey)
+        b1 = mod_inv(b, ec.n)
+        hash_digest = (a * b1 * R[0] % ec.n).to_bytes(32, 'big')
+        dsasig = R[0] % ec.n, R[0] * b1 % ec.n
+        _ecdsa_verify(dsasig, hash_digest, SatoshiKey, ec)
+
+
+
 
     def test_low_cardinality(self):
         """test all msg/key pairs of low cardinality elliptic curves"""
