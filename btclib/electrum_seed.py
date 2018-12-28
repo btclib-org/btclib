@@ -2,9 +2,9 @@
 
 """electrum entropy / mnemonic / seed functions"""
 
-from hashlib import sha512
+from hashlib import sha512, pbkdf2_hmac
 import hmac
-from btclib.pbkdf2 import PBKDF2
+
 from btclib.entropy import Entropy, GenericEntropy, int_from_entropy, str_from_entropy
 from btclib.mnemonic import mnemonic_dict
 from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed, \
@@ -42,8 +42,8 @@ def electrum_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
 
 
 def electrum_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
-  seed = PBKDF2(mnemonic, 'electrum' + passphrase,
-                2048, sha512).read(64) # 512 bits
+  seed = pbkdf2_hmac('sha512', mnemonic.encode(),
+                               ('electrum' + passphrase).encode(), 2048, 64)
   return seed
 
 

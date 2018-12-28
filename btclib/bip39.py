@@ -2,8 +2,7 @@
 
 """BIP39 entropy / mnemonic / seed functions"""
 
-from hashlib import sha256, sha512
-from btclib.pbkdf2 import PBKDF2
+from hashlib import sha256, pbkdf2_hmac
 from btclib.entropy import Entropy, GenericEntropy, bytes_from_entropy, str_from_entropy
 from btclib.mnemonic import mnemonic_dict
 from btclib.bip32 import PRIVATE, bip32_master_prvkey_from_seed
@@ -71,8 +70,8 @@ def bip39_raw_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
 
 # TODO: re-evaluate style
 def bip39_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
-    seed = PBKDF2(mnemonic, 'mnemonic' + passphrase,
-                  2048, sha512).read(64) # 512 bits
+    seed = pbkdf2_hmac('sha512', mnemonic.encode(),
+                               ('mnemonic' + passphrase).encode(), 2048, 64)
     return seed
 
 # TODO: re-evaluate style
