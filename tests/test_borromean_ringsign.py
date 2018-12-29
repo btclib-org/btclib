@@ -9,19 +9,21 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-import os
-from random import SystemRandom
-from btclib.ellipticcurves import secp256k1 as ec, pointMultiply
+import random
+
+from btclib.ellipticcurves import secp256k1, pointMultiply
 from btclib.borromean_ringsign import borromean_sign, borromean_verify
 
-prng = SystemRandom()
+random.seed(42)
 
 
 class TestBorromeanRingSignature(unittest.TestCase):
     def test_borromean(self):
+        ec = secp256k1
+        bits = ec.bytesize*8
         ring_number = 4
-        ring_dim = [prng.randint(1, 4) for ring in range(ring_number)]
-        signing_indexes = [prng.randrange(ring_dim[ring])
+        ring_dim = [random.randint(1, 4) for ring in range(ring_number)]
+        signing_indexes = [random.randrange(ring_dim[ring])
                            for ring in range(ring_number)]
         priv_keys = {}
         Pub_keys = {}
@@ -30,7 +32,7 @@ class TestBorromeanRingSignature(unittest.TestCase):
             priv_keys[i] = [0]*ring_dim[i]
             Pub_keys[i] = [0]*ring_dim[i]
             for j in range(ring_dim[i]):
-                priv_keys[i][j] = os.urandom(32)
+                priv_keys[i][j] = random.getrandbits(bits) % ec.n
                 Pub_keys[i][j] = pointMultiply(ec, priv_keys[i][j], ec.G)
             signing_keys.append(priv_keys[i][signing_indexes[i]])
         msg = 'Borromean ring signature'.encode()

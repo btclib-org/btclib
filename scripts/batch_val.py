@@ -8,28 +8,32 @@
 # No part of bbtlib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import os
+import random
 import time
 
-from btclib.ellipticcurves import secp256k1 as ec, \
-                                  int_from_Scalar, pointMultiply
+from btclib.ellipticcurves import secp256k1, pointMultiply
 from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_batch_validation
 
-n_sig = [1, 2, 5, 10, 50, 100, 500]
+random.seed(42)
+
+ec = secp256k1
+bytesize = ec.bytesize
+bits = bytesize * 8
+
+n_sig = [2, 4, 8, 16, 32, 64, 128]
 m = []
 sig = []
-q = []
 Q = []
 a = []
 for j in range(0, max(n_sig)):
-    m.append(os.urandom(ec.bytesize))
-    q.append(int_from_Scalar(ec, os.urandom(ec.bytesize)))
-    sig.append(ecssa_sign(m[j], q[j]))
-    Q.append(pointMultiply(ec, q[j], ec.G))
+    m.append(random.getrandbits(bits).to_bytes(bytesize, 'big'))
+    q = random.getrandbits(bits) % ec.n
+    sig.append(ecssa_sign(m[j], q))
+    Q.append(pointMultiply(ec, q, ec.G))
     if j != 0:
-        a.append(int.from_bytes(os.urandom(ec.bytesize), 'big'))
+        a.append(random.getrandbits(bits) % ec.n) # FIXME: % ec.n?
     else:
-        a.append(1)
+        a.append(1) # FIXME: ?
 
 for n in n_sig:
 
@@ -37,12 +41,11 @@ for n in n_sig:
     start = time.time()
     for j in range(0, n):
         assert ecssa_verify(sig[j], m[j], Q[j])
-    elapsed = time.time() - start
-    print(elapsed, )
+    elapsed1 = time.time() - start
 
     # batch
     start = time.time()
     assert ecssa_batch_validation(sig, m, Q, a)
-    batch_end = time.time()
-    elapsed = time.time() - start
-    print(elapsed)
+    elapsed2 = time.time() - start
+
+    print(n, elapsed2 / elapsed1)

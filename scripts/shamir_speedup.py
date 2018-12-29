@@ -8,34 +8,35 @@
 # No part of bbtlib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import os
+import random
 import time
 
-from btclib.ellipticcurves import Point, secp256k1 as ec, \
-                                  pointMultiply, DoubleScalarMultiplication, \
-                                  int_from_Scalar
+from btclib.ellipticcurves import secp256k1, pointMultiply, DoubleScalarMultiplication
+
+random.seed(42)
+
+ec = secp256k1
+bits = ec.bytesize * 8
 
 # setup
-k1s = []
-k2s = []
-Qs = []
-for _ in range(0, 100):
-    k1 = int_from_Scalar(ec, os.urandom(ec.bytesize))
-    k1s.append(k1)
-    k2 = int_from_Scalar(ec, os.urandom(ec.bytesize))
-    k2s.append(k2)
-    q = int_from_Scalar(ec, os.urandom(ec.bytesize))
-    Qs.append(pointMultiply(ec, q, ec.G))
+k1 = []
+k2 = []
+Q = []
+for _ in range(0, 50):
+    k1.append(random.getrandbits(bits) % ec.n)
+    k2.append(random.getrandbits(bits) % ec.n)
+    q = random.getrandbits(bits) % ec.n
+    Q.append(pointMultiply(ec, q, ec.G))
 
 start = time.time()
-for i in range(0, 100):
-    ec.add(pointMultiply(ec, k1s[i], ec.G),
-           pointMultiply(ec, k2s[i], Qs[i]))
+for i in range(0, len(Q)):
+    ec.add(pointMultiply(ec, k1[i], ec.G),
+           pointMultiply(ec, k2[i], Q[i]))
 elapsed1 = time.time() - start
 
 start = time.time()
-for i in range(0, 100):
-    DoubleScalarMultiplication(ec, k1s[i], ec.G, k2s[i], Qs[i])
+for i in range(0, len(Q)):
+    DoubleScalarMultiplication(ec, k1[i], ec.G, k2[i], Q[i])
 elapsed2 = time.time() - start
 
 print(elapsed2 / elapsed1)

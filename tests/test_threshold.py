@@ -8,13 +8,15 @@
 # No part of bbtlib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import os
 import unittest
+import random
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
     pointMultiply, DoubleScalarMultiplication, secondGenerator, secp256k1
 from btclib.ecssa import sha256, int_from_hlenbytes, _ecssa_verify
+
+random.seed(42)
 
 
 class TestEcssaThreshold(unittest.TestCase):
@@ -22,6 +24,7 @@ class TestEcssaThreshold(unittest.TestCase):
 
     def test_threshold(self):
         ec = secp256k1
+        bits = ec.bytesize*8
         # parameters
         t = 2
         H = secondGenerator(ec, sha256)
@@ -33,10 +36,10 @@ class TestEcssaThreshold(unittest.TestCase):
         commits1 = list()
         q1 = 0  # secret value
         while q1 == 0:
-            q1 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            q1 = random.getrandbits(bits) % ec.n
         q1_prime = 0
         while q1_prime == 0:
-            q1_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            q1_prime = random.getrandbits(bits) % ec.n
 
         commits1.append(DoubleScalarMultiplication(ec, q1, ec.G, q1_prime, H))
 
@@ -48,11 +51,11 @@ class TestEcssaThreshold(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f1.append(temp)
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f1_prime.append(temp)
             commits1.append(DoubleScalarMultiplication(
                 ec, f1[i], ec.G, f1_prime[i], H))
@@ -87,10 +90,10 @@ class TestEcssaThreshold(unittest.TestCase):
         commits2 = list()
         q2 = 0  # secret value
         while q2 == 0:
-            q2 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            q2 = random.getrandbits(bits) % ec.n
         q2_prime = 0
         while q2_prime == 0:
-            q2_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            q2_prime = random.getrandbits(bits) % ec.n
 
         commits2.append(DoubleScalarMultiplication(ec, q2, ec.G, q2_prime, H))
 
@@ -102,11 +105,11 @@ class TestEcssaThreshold(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f2.append(temp)
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f2_prime.append(temp)
             commits2.append(DoubleScalarMultiplication(
                 ec, f2[i], ec.G, f2_prime[i], H))
@@ -141,10 +144,10 @@ class TestEcssaThreshold(unittest.TestCase):
         commits3 = list()
         q3 = 0  # secret value
         while q3 == 0:
-            q3 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            q3 = random.getrandbits(bits) % ec.n
         q3_prime = 0
         while q3_prime == 0:
-            q3_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            q3_prime = random.getrandbits(bits) % ec.n
 
         commits3.append(DoubleScalarMultiplication(ec, q3, ec.G, q3_prime, H))
 
@@ -156,11 +159,11 @@ class TestEcssaThreshold(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f3.append(temp)
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f3_prime.append(temp)
             commits3.append(DoubleScalarMultiplication(
                 ec, f3[i], ec.G, f3_prime[i], H))
@@ -261,10 +264,10 @@ class TestEcssaThreshold(unittest.TestCase):
         commits1 = list()
         k1 = 0  # secret value
         while k1 == 0:
-            k1 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            k1 = random.getrandbits(bits) % ec.n
         k1_prime = 0
         while k1_prime == 0:
-            k1_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            k1_prime = random.getrandbits(bits) % ec.n
 
         commits1.append(DoubleScalarMultiplication(ec, k1, ec.G, k1_prime, H))
 
@@ -276,11 +279,11 @@ class TestEcssaThreshold(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f1.append(temp)
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f1_prime.append(temp)
             commits1.append(DoubleScalarMultiplication(
                 ec, f1[i], ec.G, f1_prime[i], H))
@@ -303,10 +306,10 @@ class TestEcssaThreshold(unittest.TestCase):
         commits3 = list()
         k3 = 0  # secret value
         while k3 == 0:
-            k3 = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            k3 = random.getrandbits(bits) % ec.n
         k3_prime = 0
         while k3_prime == 0:
-            k3_prime = int_from_Scalar(ec, os.urandom(ec.bytesize))
+            k3_prime = random.getrandbits(bits) % ec.n
 
         commits3.append(DoubleScalarMultiplication(ec, k3, ec.G, k3_prime, H))
 
@@ -318,11 +321,11 @@ class TestEcssaThreshold(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f3.append(temp)
             temp = 0
             while temp == 0:
-                temp = int_from_Scalar(ec, os.urandom(ec.bytesize))
+                temp = random.getrandbits(bits) % ec.n
             f3_prime.append(temp)
             commits3.append(DoubleScalarMultiplication(
                 ec, f3[i], ec.G, f3_prime[i], H))

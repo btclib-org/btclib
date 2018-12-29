@@ -17,7 +17,7 @@ https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
 https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
 """
 
-import os
+import random
 import unittest
 
 from btclib.numbertheory import legendre_symbol
@@ -25,11 +25,13 @@ from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
     pointMultiply, DoubleScalarMultiplication, secp256k1
 from btclib.ecssa import sha256, int_from_hlenbytes, ecssa_verify
 
+random.seed(42)
 
 class TestEcssaMuSig(unittest.TestCase):
 
     def test_ecssamusig(self):
         ec = secp256k1
+        bits = ec.bytesize * 8
         L = list()  # multiset of public keys
         M = sha256('message to sign'.encode()).digest()
 
@@ -63,17 +65,17 @@ class TestEcssaMuSig(unittest.TestCase):
             #K2 = pointMultiply(ec, k2, ec.G)
 
         # third signer
-        q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
+        q3 = random.getrandbits(bits) % ec.n
         Q3 = pointMultiply(ec, q3, ec.G)
         while Q3 == None:  # plausible only for small (test) cardinality groups
-            q3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            q3 = random.getrandbits(bits) % ec.n
             Q3 = pointMultiply(ec, q3, ec.G)
         L.append(bytes_from_Point(ec, Q3, False))
 
-        k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
+        k3 = random.getrandbits(bits) % ec.n
         K3 = pointMultiply(ec, k3, ec.G)
         while K3 == None:  # plausible only for small (test) cardinality groups
-            k3 = int.from_bytes(os.urandom(ec.bytesize), 'big')
+            k3 = random.getrandbits(bits) % ec.n
             K3 = pointMultiply(ec, k3, ec.G)
         K3_x = K3[0]
         if legendre_symbol(K3[1], ec._p) != 1:

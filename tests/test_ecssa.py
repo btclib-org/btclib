@@ -8,7 +8,7 @@
 # No part of bbtlib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import os
+import random
 import unittest
 from hashlib import sha256
 
@@ -21,6 +21,7 @@ from btclib.ecssa import rfc6979, int_from_hlenbytes, ecssa_sign, ecssa_sign, \
 
 from tests.test_ellipticcurves import low_card_curves
 
+random.seed(42)
 
 class TestEcssa(unittest.TestCase):
 
@@ -87,10 +88,10 @@ class TestEcssa(unittest.TestCase):
 
         https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
         """
-
+        ec = secp256k1
         # test vector 1
         prv = b'\x00' * 31 + b'\x01'
-        pub = pointMultiply(secp256k1, prv, secp256k1.G)
+        pub = pointMultiply(ec, prv, ec.G)
         msg = b'\x00' * 32
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
@@ -99,13 +100,13 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
-                   bytes_from_Point(secp256k1, pub, True) +
+                   bytes_from_Point(ec, pub, True) +
                    msg).digest()
-        self.assertEqual(_ecssa_pubkey_recovery(sig, e, secp256k1), pub)
+        self.assertEqual(_ecssa_pubkey_recovery(sig, e, ec), pub)
 
         # test vector 2
         prv = 0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
-        pub = pointMultiply(secp256k1, prv, secp256k1.G)
+        pub = pointMultiply(ec, prv, ec.G)
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         expected_sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
@@ -116,13 +117,13 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
-                   bytes_from_Point(secp256k1, pub, True) +
+                   bytes_from_Point(ec, pub, True) +
                    msg).digest()
-        self.assertEqual(_ecssa_pubkey_recovery(sig, e, secp256k1), pub)
+        self.assertEqual(_ecssa_pubkey_recovery(sig, e, ec), pub)
 
         # test vector 3
         prv = 0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B14E5C7
-        pub = pointMultiply(secp256k1, prv, secp256k1.G)
+        pub = pointMultiply(ec, prv, ec.G)
         msg = bytes.fromhex(
             "5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         expected_sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
@@ -133,9 +134,9 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         self.assertEqual(sig, expected_sig)
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
-                   bytes_from_Point(secp256k1, pub, True) +
+                   bytes_from_Point(ec, pub, True) +
                    msg).digest()
-        self.assertEqual(_ecssa_pubkey_recovery(sig, e, secp256k1), pub)
+        self.assertEqual(_ecssa_pubkey_recovery(sig, e, ec), pub)
 
         # test vector 4
         pub = "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34"
@@ -144,10 +145,10 @@ class TestEcssa(unittest.TestCase):
                0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
-                   bytes_from_Point(secp256k1, pub, True) +
+                   bytes_from_Point(ec, pub, True) +
                    bytes.fromhex(msg)).digest()
         self.assertEqual(_ecssa_pubkey_recovery(
-            sig, e, secp256k1), to_Point(secp256k1, pub))
+            sig, e, ec), to_Point(ec, pub))
 
         # test vector 5
         # test would fail if jacobi symbol of x(R) instead of y(R) is used
@@ -157,10 +158,10 @@ class TestEcssa(unittest.TestCase):
                0x30B1DA849C8E8304ADC0CFE870660334B3CFC18E825EF1DB34CFAE3DFC5D8187)
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
-                   bytes_from_Point(secp256k1, pub, True) +
+                   bytes_from_Point(ec, pub, True) +
                    bytes.fromhex(msg)).digest()
         self.assertEqual(_ecssa_pubkey_recovery(
-            sig, e, secp256k1), to_Point(secp256k1, pub))
+            sig, e, ec), to_Point(ec, pub))
 
         # test vector 6
         # test would fail if msg is reduced
@@ -170,10 +171,10 @@ class TestEcssa(unittest.TestCase):
                0xE9EE5F237CBD108EABAE1E37759AE47F8E4203DA3532EB28DB860F33D62D49BD)
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
-                   bytes_from_Point(secp256k1, pub, True) +
+                   bytes_from_Point(ec, pub, True) +
                    bytes.fromhex(msg)).digest()
         self.assertEqual(_ecssa_pubkey_recovery(
-            sig, e, secp256k1), to_Point(secp256k1, pub))
+            sig, e, ec), to_Point(ec, pub))
 
         # new proposed test: test would fail if msg is reduced
         pub = "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B"
@@ -182,10 +183,10 @@ class TestEcssa(unittest.TestCase):
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
         self.assertTrue(_ecssa_verify(sig, msg, pub))
         e = sha256(sig[0].to_bytes(32, byteorder="big") +
-                   bytes_from_Point(secp256k1, pub, True) +
+                   bytes_from_Point(ec, pub, True) +
                    bytes.fromhex(msg)).digest()
         self.assertEqual(_ecssa_pubkey_recovery(
-            sig, e, secp256k1), to_Point(secp256k1, pub))
+            sig, e, ec), to_Point(ec, pub))
 
         # new proposed test: genuine failure
         pub = "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B"
@@ -251,7 +252,7 @@ class TestEcssa(unittest.TestCase):
         # sG - eP is infinite.
         # Test fails in single verification if jacobi(y(inf)) is defined as 1 and x(inf) as 1"""
         pub = to_Point(
-            secp256k1, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x0000000000000000000000000000000000000000000000000000000000000001,
@@ -261,7 +262,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 14
         # sig[0:32] is not an X coordinate on the curve
         pub = to_Point(
-            secp256k1, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x4A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
@@ -271,7 +272,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 15
         # sig[0:32] is equal to field size
         pub = to_Point(
-            secp256k1, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC2F,
@@ -281,7 +282,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 16
         # sig[32:64] is equal to curve order
         pub = to_Point(
-            secp256k1, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
@@ -337,24 +338,26 @@ class TestEcssa(unittest.TestCase):
                         self.assertTrue(_ecssa_verify(sig, h, Q, ec))
 
     def test_batch_validation(self):
+        ec = secp256k1
         m = []
         sig = []
         Q = []
         a = []
-        for i in range(0, 50):
-            m.append(os.urandom(secp256k1.bytesize))
-            q = int_from_Scalar(secp256k1, os.urandom(secp256k1.bytesize))
+        bytesize = ec.bytesize
+        bits = bytesize * 8
+        for i in range(0, 10):
+            m.append(random.getrandbits(bits).to_bytes(bytesize, 'big'))
+            q = random.getrandbits(bits) % ec.n
             sig.append(ecssa_sign(m[i], q))
-            Q.append(pointMultiply(secp256k1, q, secp256k1.G))
-            a.append(int.from_bytes(os.urandom(
-                secp256k1.bytesize), 'big'))  # FIXME:%?
-        self.assertTrue(ecssa_batch_validation(sig, m, Q, a, secp256k1))
+            Q.append(pointMultiply(ec, q, ec.G))
+            a.append(random.getrandbits(bits))  # FIXME: % ec.n ?
+        self.assertTrue(ecssa_batch_validation(sig, m, Q, a, ec))
 
         m.append(m[0])
         sig.append(sig[1])  # invalid
         Q.append(Q[0])
         a.append(a[0])
-        self.assertFalse(ecssa_batch_validation(sig, m, Q, a, secp256k1))
+        self.assertFalse(ecssa_batch_validation(sig, m, Q, a, ec))
 
 
 if __name__ == "__main__":
