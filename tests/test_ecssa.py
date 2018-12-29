@@ -290,7 +290,8 @@ class TestEcssa(unittest.TestCase):
         hlen = 32
         H = [i.to_bytes(hlen, 'big') for i in range(0, max(prime)*2)]
 
-        for ec in low_card_curves:  # only low card curves or it would take forever
+        # only low card curves or it would take forever
+        for ec in low_card_curves:
             if ec._p in prime:  # only few curves or it would take too long
                 # Schnorr-bip only applies to curve whose prime p = 3 %4
                 if not ec.pIsThreeModFour:
@@ -301,32 +302,31 @@ class TestEcssa(unittest.TestCase):
                     if q == 0:  # invalid prvkey=0
                         self.assertRaises(
                             ValueError, ecssa_sign, H[0], q, None, ec)
+                        self.assertRaises(
+                            ValueError, rfc6979, q, H[0], ec, sha256)
                         continue
                     Q = pointMultiply(ec, q, ec.G)  # public key
-                    for m in range(0, ec.n):  # all possible hashed messages
-                        for k in range(0, ec.n):  # all possible ephemeral keys
+                    for h in H:  # all possible hashed messages
+                        # k = 0
+                        self.assertRaises(ValueError, ecssa_sign, h, q, 0, ec)
+                        k = rfc6979(q, h, ec, sha256)
+                        K = pointMultiply(ec, k, ec.G)
+                        if legendre_symbol(K[1], ec._p) != 1:
+                            k = ec.n - k
 
-                            if k == 0:
-                                self.assertRaises(
-                                    ValueError, ecssa_sign, H[m], q, k, ec)
-                                continue
-                            K = pointMultiply(ec, k, ec.G)
-                            if legendre_symbol(K[1], ec._p) != 1:
-                                k = ec.n - k
+                        ebytes = K[0].to_bytes(
+                            ec.bytesize, byteorder="big")
+                        ebytes += bytes_from_Point(ec, Q, True)
+                        ebytes += h
+                        ebytes = sha256(ebytes).digest()
+                        e = int_from_hlenbytes(ebytes, ec, sha256)
+                        s = (k + e * q) % ec.n
 
-                            ebytes = K[0].to_bytes(
-                                ec.bytesize, byteorder="big")
-                            ebytes += bytes_from_Point(ec, Q, True)
-                            ebytes += H[m]
-                            ebytes = sha256(ebytes).digest()
-                            e = int_from_hlenbytes(ebytes, ec, sha256)
-                            s = (k + e * q) % ec.n
-
-                            # valid signature
-                            sig = ecssa_sign(H[m], q, k, ec)
-                            self.assertEqual((K[0], s), sig)
-                            # valid signature must validate
-                            self.assertTrue(_ecssa_verify(sig, H[m], Q, ec))
+                        # valid signature
+                        sig = ecssa_sign(h, q, k, ec)
+                        self.assertEqual((K[0], s), sig)
+                        # valid signature must validate
+                        self.assertTrue(_ecssa_verify(sig, h, Q, ec))
 
     def test_batch_validation(self):
         m = []

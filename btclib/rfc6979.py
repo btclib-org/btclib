@@ -21,7 +21,8 @@ def rfc6979(prv: int,
             ec: EllipticCurve,
             Hash) -> int:
 
-    assert 0 < prv and prv < ec.n, "invalid prv: " + str(prv)
+    if not (0 < prv < ec.n):
+        raise ValueError("invalid prv: %s" % prv)
 
     hash_size = Hash().digest_size
     v = b'\x01' * hash_size
