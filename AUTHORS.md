@@ -1,6 +1,6 @@
 # Authors
 
-To see the list of bbtlib authors for copyright purposes, see the revision
+To see the list of btclib authors for copyright purposes, see the revision
 history in source control:
 <https://github.com/dginst/BitcoinBlockchainTechnology/graphs/contributors>
 

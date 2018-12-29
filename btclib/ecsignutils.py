@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2019 The bbtlib developers
+# Copyright (C) 2017-2019 The btclib developers
 #
-# This file is part of bbtlib. It is subject to the license terms in the
+# This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
 #
-# No part of bbtlib including this file, may be copied, modified, propagated,
+# No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
 from typing import Tuple, Union
