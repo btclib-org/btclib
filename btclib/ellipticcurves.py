@@ -355,7 +355,7 @@ def int_from_Scalar(ec: EllipticCurve, q: Scalar) -> int:
             raise ValueError(errmsg)
         q = int.from_bytes(q, 'big')
 
-    return q % ec.n  # fails if q is not int-like
+    return q % ec.n  # fails if q is not int-like FIXME no % ec.n
 
 
 def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
