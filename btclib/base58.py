@@ -4,7 +4,7 @@
 
    Implementation of Base58 and Base58Check, originally from
    https://github.com/keis/base58, with the following modifications:
-   - type annotated python3,
+   - type annotated python3
    - removal of string support (binary and hex-string only)
    - minor improvements
    - added check functionalities

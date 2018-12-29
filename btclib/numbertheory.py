@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 
 """Modular algebra functions
+
+   Implementations originally from
+   https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
+   and
+   https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+   with the following modifications:
+   - type annotated python3
+   - minor improvements
+   - added extensive unit test
 """
 
 from typing import Tuple
@@ -22,6 +31,9 @@ def xgcd(a: int, b: int) -> Tuple[int, int, int]:
 
 def mod_inv(a: int, m: int) -> int:
     """ Return the inverse of 'a' (mod m). m does not have to be a prime.
+
+       based on Extended Euclidean Algorithm, see
+       https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
     """
     a %= m
     g, x, _ = xgcd(a, m)
@@ -36,7 +48,7 @@ def legendre_symbol(a, p):
         p is a prime, a is relatively prime to p (if p divides a, then a|p = 0)
         Returns 1 if a has a square root modulo p, -1 otherwise.
 
-        See https://eli.thegreenplace.net/2009/03/07/computing-modular-square-roots-in-python
+       https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
     ls = pow(a, p >> 1, p)
     return -1 if ls == p - 1 else ls
