@@ -25,15 +25,30 @@ primes = [2,    3,   5,   7,  11,  13,   17,  19,  23, 29,
           2**384 - 2**128 - 2**96 + 2**32 - 1,
           2**521 - 1]
 
-
 class TestNumberTheory(unittest.TestCase):
-    def test_mod_inv(self):
+    def test_mod_inv_prime(self):
         for p in primes:
             # zero has no inverse
-            self.assertRaises(AssertionError, mod_inv, 0, p)
-            for i in range(1, min(p, 113)):  # exhausted only for small p
-                inv = mod_inv(i, p)
-                self.assertEqual((i * inv) % p, 1)
+            self.assertRaises(ValueError, mod_inv, 0, p)
+            for a in range(1, min(p, 500)):  # exhausted only for small p
+                inv = mod_inv(a, p)
+                self.assertEqual(a*inv % p, 1)
+                inv = mod_inv(a+p, p)
+                self.assertEqual(a*inv % p, 1)
+
+    def test_mod_inv(self):
+        max_m = 100
+        for m in range(2, max_m):
+            nums = list(range(0, m))
+            for a in nums:
+                mult = [a*i % m for i in nums]
+                if 1 in mult:
+                    inv = mod_inv(a, m)
+                    self.assertEqual(a*inv % m, 1)
+                    inv = mod_inv(a+m, m)
+                    self.assertEqual(a*inv % m, 1)
+                else:
+                    self.assertRaises(ValueError, mod_inv, a, m)
 
     def test_mod_sqrt(self):
         for p in primes[:30]:  # exhaustable only for small p
@@ -47,6 +62,8 @@ class TestNumberTheory(unittest.TestCase):
                     root = mod_sqrt(i, p)
                     self.assertEqual(i, (root*root) % p)
                     root = p - root
+                    self.assertEqual(i, (root*root) % p)
+                    root = mod_sqrt(i+p, p)
                     self.assertEqual(i, (root*root) % p)
                 else:
                     self.assertRaises(ValueError, mod_sqrt, i, p)
