@@ -85,7 +85,7 @@ class TestEcssaMuSig(unittest.TestCase):
 
         L.sort()  # using lexicographic ordering
         L_brackets = b''
-        for i in range(0, len(L)):
+        for i in range(len(L)):
             L_brackets += L[i]
 
         h1 = sha256(L_brackets + bytes_from_Point(ec, Q1, False)).digest()

@@ -35,7 +35,7 @@ p = []
 h_int = []
 nKeys = 3
 r_bytes = r.to_bytes(32, 'big')
-for i in range(0, nKeys):
+for i in range(nKeys):
   i_bytes = i.to_bytes(32, 'big')
   h_hex = sha256(i_bytes+r_bytes).hexdigest()
   h_int.append(int(h_hex, 16))
@@ -46,7 +46,7 @@ for i in range(0, nKeys):
   print('           ',     format(P[1], '#064x'))
 
 # Pubkeys could be calculated without using prvkeys
-for i in range(0, nKeys):
+for i in range(nKeys):
   P = ec.add(mpubkey, pointMultiply(ec, h_int[i], ec.G))
   assert P == pointMultiply(ec, p[i], ec.G)
 

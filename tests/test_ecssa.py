@@ -297,7 +297,7 @@ class TestEcssa(unittest.TestCase):
 
         # all possible hashed messages
         hlen = 32
-        H = [i.to_bytes(hlen, 'big') for i in range(0, max(prime)*2)]
+        H = [i.to_bytes(hlen, 'big') for i in range(max(prime)*2)]
 
         # only low card curves or it would take forever
         for ec in low_card_curves:
@@ -307,7 +307,7 @@ class TestEcssa(unittest.TestCase):
                     self.assertRaises(ValueError, ecssa_sign,
                                       H[0], 1, None, ec)
                     continue
-                for q in range(0, ec.n):  # all possible private keys
+                for q in range(ec.n):  # all possible private keys
                     if q == 0:  # invalid prvkey=0
                         self.assertRaises(
                             ValueError, ecssa_sign, H[0], q, None, ec)
@@ -345,7 +345,7 @@ class TestEcssa(unittest.TestCase):
         a = []
         bytesize = ec.bytesize
         bits = bytesize * 8
-        for i in range(0, 10):
+        for i in range(10):
             m.append(random.getrandbits(bits).to_bytes(bytesize, 'big'))
             q = random.getrandbits(bits) % ec.n
             sig.append(ecssa_sign(m[i], q))

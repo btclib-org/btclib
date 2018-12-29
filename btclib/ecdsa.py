@@ -174,7 +174,7 @@ def _ecdsa_pubkey_recovery(dsasig: ECDS,
     r1s = r1*s
     r1e = -r1*e
     keys = []
-    for j in range(0, 2):  # FIXME: use ec.cofactor+1 instead of 2
+    for j in range(2):  # FIXME: use ec.cofactor+1 instead of 2
         x = r + j*ec.n  # 1.1
         try:
             R = (x, ec.yOdd(x, 1))  # 1.2, 1.3, and 1.4

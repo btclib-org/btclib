@@ -21,7 +21,7 @@ bits = ec.bytesize * 8
 
 # setup
 qs = []
-for _ in range(0, 50):
+for _ in range(50):
     qs.append(random.getrandbits(bits) % ec.n)
 
 start = time.time()

@@ -23,7 +23,7 @@ print('\nmaster private key =', hex(mprvkey))
 
 nKeys = 3
 mprvkey_bytes = mprvkey.to_bytes(32, 'big')
-for i in range(0, nKeys):
+for i in range(nKeys):
   i_bytes = i.to_bytes(32, 'big')
   h_hex = sha256(i_bytes+mprvkey_bytes).hexdigest()
   p = int(h_hex, 16) % ec.n

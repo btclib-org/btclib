@@ -57,13 +57,13 @@ def borromean_sign(msg: bytes,
     ring_number = len(pubk_rings)
     # step 1
     m = get_msg_format(msg, pubk_rings)
-    k = [int_from_Scalar(ec, os.urandom(32)) for i in range(0, ring_number)]
+    k = [int_from_Scalar(ec, os.urandom(32)) for i in range(ring_number)]
     sign_keys = [int_from_Scalar(ec, sign_keys[i])
                  for i in range(len(sign_keys))]
     s = {}
     e = {}
     last_R = m
-    for i in range(0, ring_number):
+    for i in range(ring_number):
         s[i] = [0]*len(pubk_rings[i])
         e[i] = [0]*len(pubk_rings[i])
         j_star = sign_key_idx[i]
@@ -84,7 +84,7 @@ def borromean_sign(msg: bytes,
             last_R += R
     e_0 = sha256(last_R).digest()
     # step 2
-    for i in range(0, ring_number):
+    for i in range(ring_number):
         j_star = sign_key_idx[i]
         e[i][0] = int_from_hlenbytes(borromean_hash(m, e_0, i, 0), ec, sha256)
         assert e[i][0] != 0 and e[i][0] < ec.n, "sign fail"
@@ -117,12 +117,12 @@ def borromean_verify(msg: bytes,
     m = get_msg_format(msg, pubk_rings)
     e = {}
     last_R = m
-    for i in range(0, ring_number):
+    for i in range(ring_number):
         e[i] = [0]*len(pubk_rings[i])
         e[i][0] = int_from_hlenbytes(borromean_hash(m, e_0, i, 0), ec, sha256)
         if e[i][0] == 0 or e[i][0] >= ec.n:
             return False
-        for j in range(0, len(pubk_rings[i])):
+        for j in range(len(pubk_rings[i])):
             T = DoubleScalarMultiplication(ec,
                 s[i][j], ec.G,
                 ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))

@@ -25,7 +25,7 @@ m = []
 sig = []
 Q = []
 a = []
-for j in range(0, max(n_sig)):
+for j in range(max(n_sig)):
     m.append(random.getrandbits(bits).to_bytes(bytesize, 'big'))
     q = random.getrandbits(bits) % ec.n
     sig.append(ecssa_sign(m[j], q))
@@ -39,7 +39,7 @@ for n in n_sig:
 
     # no batch
     start = time.time()
-    for j in range(0, n):
+    for j in range(n):
         assert ecssa_verify(sig[j], m[j], Q[j])
     elapsed1 = time.time() - start
 

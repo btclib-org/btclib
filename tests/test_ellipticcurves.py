@@ -577,7 +577,7 @@ class TestEllipticCurve(unittest.TestCase):
     def test_Multiply(self):
         for ec in low_card_curves_1:
             Gjac = _jac_from_affine(ec.G)
-            for q in range(0, ec.n):
+            for q in range(ec.n):
                 Q = _pointMultiplyAffine(ec, q, ec.G)
                 Qjac = _pointMultiplyJacobian(ec, q, Gjac)
                 Q2 = ec._affine_from_jac(Qjac)
@@ -598,8 +598,8 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_shamir(self):
         ec = ec29_37
-        for k1 in range(0, ec.n):
-            for k2 in range(0, ec.n):
+        for k1 in range(ec.n):
+            for k2 in range(ec.n):
                 shamir = DoubleScalarMultiplication(ec, k1, ec.G, k2, ec.G)
                 std = ec.add(pointMultiply(ec, k1, ec.G),
                              pointMultiply(ec, k2, ec.G))

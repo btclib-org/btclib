@@ -39,7 +39,7 @@ class TestNumberTheory(unittest.TestCase):
     def test_mod_inv(self):
         max_m = 100
         for m in range(2, max_m):
-            nums = list(range(0, m))
+            nums = list(range(m))
             for a in nums:
                 mult = [a*i % m for i in nums]
                 if 1 in mult:
@@ -57,7 +57,7 @@ class TestNumberTheory(unittest.TestCase):
             hasRoot.add(1)
             for i in range(2, p):
                 hasRoot.add(i*i % p)
-            for i in range(0, p):
+            for i in range(p):
                 if i in hasRoot:
                     root = mod_sqrt(i, p)
                     self.assertEqual(i, (root*root) % p)

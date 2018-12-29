@@ -105,13 +105,13 @@ class TestEcdsa(unittest.TestCase):
         for ec in low_card_curves:  # only low card curves or it would take forever
             e_max = ec.n * 2
             if ec._p in prime:  # only few curves or it would take too long
-                for d in range(0, ec.n):  # all possible private keys
+                for d in range(ec.n):  # all possible private keys
                     if d == 0:  # invalid prvkey=0
                         self.assertRaises(ValueError, _ecdsa_sign, 1, d, 1, ec)
                         continue
                     P = pointMultiply(ec, d, ec.G)  # public key
-                    for e in range(0, e_max):  # all possible int from hash
-                        for k in range(0, ec.n):  # all possible ephemeral keys
+                    for e in range(e_max):  # all possible int from hash
+                        for k in range(ec.n):  # all possible ephemeral keys
 
                             if k == 0:
                                 self.assertRaises(

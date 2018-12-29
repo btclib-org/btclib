@@ -65,7 +65,7 @@ class TestEcssaThreshold(unittest.TestCase):
         alpha12_prime = 0
         alpha13 = 0  # share of q1 belonging to P3
         alpha13_prime = 0
-        for i in range(0, t):
+        for i in range(t):
             alpha12 += (f1[i] * pow(2, i)) % ec.n
             alpha12_prime += (f1_prime[i] * pow(2, i)) % ec.n
 
@@ -74,14 +74,14 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # player two verifies consistency of his share
         RHS = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS = ec.add(RHS, pointMultiply(ec, pow(2, i), commits1[i]))
         assert DoubleScalarMultiplication(
             ec, alpha12, ec.G, alpha12_prime, H) == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS = ec.add(RHS, pointMultiply(ec, pow(3, i), commits1[i]))
         assert DoubleScalarMultiplication(
             ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
@@ -119,7 +119,7 @@ class TestEcssaThreshold(unittest.TestCase):
         alpha21_prime = 0
         alpha23 = 0  # share of q2 belonging to P3
         alpha23_prime = 0
-        for i in range(0, t):
+        for i in range(t):
             alpha21 += (f2[i] * pow(1, i)) % ec.n
             alpha21_prime += (f2_prime[i] * pow(1, i)) % ec.n
 
@@ -128,14 +128,14 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # player one verifies consistency of his share
         RHS = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS = ec.add(RHS, pointMultiply(ec, pow(1, i), commits2[i]))
         assert DoubleScalarMultiplication(
             ec, alpha21, ec.G, alpha21_prime, H) == RHS, 'player two is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS = ec.add(RHS, pointMultiply(ec, pow(3, i), commits2[i]))
         assert DoubleScalarMultiplication(
             ec, alpha23, ec.G, alpha23_prime, H) == RHS, 'player two is cheating'
@@ -173,7 +173,7 @@ class TestEcssaThreshold(unittest.TestCase):
         alpha31_prime = 0
         alpha32 = 0  # share of q3 belonging to P2
         alpha32_prime = 0
-        for i in range(0, t):
+        for i in range(t):
             alpha31 += (f3[i] * pow(1, i)) % ec.n
             alpha31_prime += (f3_prime[i] * pow(1, i)) % ec.n
 
@@ -182,14 +182,14 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # player one verifies consistency of his share
         RHS = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS = ec.add(RHS, pointMultiply(ec, pow(1, i), commits3[i]))
         assert DoubleScalarMultiplication(
             ec, alpha31, ec.G, alpha31_prime, H) == RHS, 'player three is cheating'
 
         # player two verifies consistency of his share
         RHS = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS = ec.add(RHS, pointMultiply(ec, pow(2, i), commits3[i]))
         assert DoubleScalarMultiplication(
             ec, alpha32, ec.G, alpha32_prime, H) == RHS, 'player two is cheating'
@@ -198,7 +198,7 @@ class TestEcssaThreshold(unittest.TestCase):
         alpha1 = (alpha21 + alpha31) % ec.n
         alpha2 = (alpha12 + alpha32) % ec.n
         alpha3 = (alpha13 + alpha23) % ec.n
-        for i in range(0, t):
+        for i in range(t):
             alpha1 += (f1[i] * pow(1, i)) % ec.n
             alpha2 += (f2[i] * pow(2, i)) % ec.n
             alpha3 += (f3[i] * pow(3, i)) % ec.n
@@ -211,7 +211,7 @@ class TestEcssaThreshold(unittest.TestCase):
         # each participant i = 1, 2, 3 shares Qi as follows
 
         # he broadcasts these values
-        for i in range(0, t):
+        for i in range(t):
             A1.append(pointMultiply(ec, f1[i], ec.G))
             A2.append(pointMultiply(ec, f2[i], ec.G))
             A3.append(pointMultiply(ec, f3[i], ec.G))
@@ -220,7 +220,7 @@ class TestEcssaThreshold(unittest.TestCase):
         # player one
         RHS2 = 1, 0
         RHS3 = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS2 = ec.add(RHS2, pointMultiply(ec, pow(1, i), A2[i]))
             RHS3 = ec.add(RHS3, pointMultiply(ec, pow(1, i), A3[i]))
         assert pointMultiply(
@@ -231,7 +231,7 @@ class TestEcssaThreshold(unittest.TestCase):
         # player two
         RHS1 = 1, 0
         RHS3 = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS1 = ec.add(RHS1, pointMultiply(ec, pow(2, i), A1[i]))
             RHS3 = ec.add(RHS3, pointMultiply(ec, pow(2, i), A3[i]))
         assert pointMultiply(
@@ -242,7 +242,7 @@ class TestEcssaThreshold(unittest.TestCase):
         # player three
         RHS1 = 1, 0
         RHS2 = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS1 = ec.add(RHS1, pointMultiply(ec, pow(3, i), A1[i]))
             RHS2 = ec.add(RHS2, pointMultiply(ec, pow(3, i), A2[i]))
         assert pointMultiply(
@@ -251,7 +251,7 @@ class TestEcssaThreshold(unittest.TestCase):
             ec, alpha23, ec.G) == RHS2, 'player two is cheating'
 
         A = list()  # commitment at the global sharing polynomial
-        for i in range(0, t):
+        for i in range(t):
             A.append(ec.add(A1[i], ec.add(A2[i], A3[i])))
 
         Q = A[0]  # aggregated public key
@@ -291,13 +291,13 @@ class TestEcssaThreshold(unittest.TestCase):
         # shares of the secret
         beta13 = 0  # share of k1 belonging to P3
         beta13_prime = 0
-        for i in range(0, t):
+        for i in range(t):
             beta13 += (f1[i] * pow(3, i)) % ec.n
             beta13_prime += (f1_prime[i] * pow(3, i)) % ec.n
 
         # player three verifies consistency of his share
         RHS = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS = ec.add(RHS, pointMultiply(ec, pow(3, i), commits1[i]))
         assert DoubleScalarMultiplication(
             ec, beta13, ec.G, beta13_prime, H) == RHS, 'player one is cheating'
@@ -333,13 +333,13 @@ class TestEcssaThreshold(unittest.TestCase):
         # shares of the secret
         beta31 = 0  # share of k3 belonging to P1
         beta31_prime = 0
-        for i in range(0, t):
+        for i in range(t):
             beta31 += (f3[i] * pow(1, i)) % ec.n
             beta31_prime += (f3_prime[i] * pow(1, i)) % ec.n
 
         # player one verifies consistency of his share
         RHS = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS = ec.add(RHS, pointMultiply(ec, pow(1, i), commits3[i]))
         assert DoubleScalarMultiplication(
             ec, beta31, ec.G, beta31_prime, H) == RHS, 'player three is cheating'
@@ -347,7 +347,7 @@ class TestEcssaThreshold(unittest.TestCase):
         # shares of the secret nonce
         beta1 = beta31 % ec.n
         beta3 = beta13 % ec.n
-        for i in range(0, t):
+        for i in range(t):
             beta1 += (f1[i] * pow(1, i)) % ec.n
             beta3 += (f3[i] * pow(3, i)) % ec.n
 
@@ -358,27 +358,27 @@ class TestEcssaThreshold(unittest.TestCase):
         # each participant i = 1, 3 shares Qi as follows
 
         # he broadcasts these values
-        for i in range(0, t):
+        for i in range(t):
             B1.append(pointMultiply(ec, f1[i], ec.G))
             B3.append(pointMultiply(ec, f3[i], ec.G))
 
         # he checks the others' values
         # player one
         RHS3 = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS3 = ec.add(RHS3, pointMultiply(ec, pow(1, i), B3[i]))
         assert pointMultiply(
             ec, beta31, ec.G) == RHS3, 'player three is cheating'
 
         # player three
         RHS1 = 1, 0
-        for i in range(0, t):
+        for i in range(t):
             RHS1 = ec.add(RHS1, pointMultiply(ec, pow(3, i), B1[i]))
         assert pointMultiply(
             ec, beta13, ec.G) == RHS1, 'player one is cheating'
 
         B = list()  # commitment at the global sharing polynomial
-        for i in range(0, t):
+        for i in range(t):
             B.append(ec.add(B1[i], B3[i]))
 
         K = B[0]  # aggregated public nonce

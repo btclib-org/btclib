@@ -204,7 +204,7 @@ def ecssa_batch_validation(sig: List[ECSS],
     factors = list()
 
     u = len(Q)
-    for i in range(0, u):
+    for i in range(u):
         r, s = to_ssasig(sig[i], ec)
         ebytes = r.to_bytes(32, byteorder="big")
         ebytes += bytes_from_Point(ec, Q[i], True)
