@@ -12,7 +12,7 @@ import os
 from hashlib import sha256
 from typing import List, Dict
 
-from btclib.ellipticcurves import secp256k1 as ec, Scalar, Tuple, \
+from btclib.ellipticcurves import secp256k1, Scalar, Tuple, \
     pointMultiply, DoubleScalarMultiplication, bytes_from_Point, to_Point, \
     int_from_Scalar, bytes_from_Scalar
 from btclib.ecsignutils import int_from_hlenbytes
@@ -21,6 +21,7 @@ Signature = Tuple[bytes, ...]
 
 # source: https://github.com/ElementsProject/borromean-signatures-writeup
 
+ec = secp256k1
 
 def borromean_hash(msg: bytes,
                    R: bytes,
@@ -31,8 +32,7 @@ def borromean_hash(msg: bytes,
 
 
 def get_msg_format(msg: bytes,
-                   pubk_rings: Dict[int,
-                                    List[bytes]]) -> bytes:
+                   pubk_rings: Dict[int, List[bytes]]) -> bytes:
     hash_argument = msg
     for i in range(len(pubk_rings)):
         for j in range(len(pubk_rings[i])):
@@ -45,8 +45,7 @@ def get_msg_format(msg: bytes,
 def borromean_sign(msg: bytes,
                    sign_key_idx: List[int],
                    sign_keys: List[Scalar],
-                   pubk_rings: Dict[int,
-                                    List[bytes]]) -> Signature:
+                   pubk_rings: Dict[int, List[bytes]]) -> Signature:
     """ Borromean ring signature - signing algorithm
 
     inputs:
