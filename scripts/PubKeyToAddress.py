@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+# Copyright (C) 2017-2019 The bbtlib developers
+#
+# This file is part of bbtlib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of bbtlib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
 import hashlib
 from btclib.ellipticcurves import secp256k1 as ec
 from btclib.base58 import b58encode_check, b58encode, b58decode_check

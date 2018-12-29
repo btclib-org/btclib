@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+# Copyright (C) 2017-2019 The bbtlib developers
+#
+# This file is part of bbtlib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of bbtlib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
 print("\nfrom hexstring to bytes, then back:")
 xhexstr = "000f"
 print("hexstring", xhexstr)
