@@ -2,13 +2,14 @@
 
 """Modular algebra functions
 
-   Implementations are from the web (pycoin) with minor modifications.
+   Implementations are from the web with minor modifications.
 """
 
 
 def mod_inv(a: int, m: int) -> int:
-    if a < 0 or m <= a:
-        a = a % m
+    """ Return the inverse of 'a' (mod m). m does not have to be a prime.
+    """
+    a = a % m
     # From Ferguson and Schneier, roughly:
     c, d = a, m
     uc, vc, ud, vd = 1, 0, 0, 1
@@ -18,12 +19,18 @@ def mod_inv(a: int, m: int) -> int:
 
     # At this point, d is the GCD, and ud*a+vd*m = d.
     # If d == 1, this means that ud is a inverse.
-    assert d == 1
+    assert d == 1, "failure: [inv(0) does not exists]"
     if ud > 0:
         return ud
     else:
         return ud + m
 
+def mod_inv2(a: int, p: int) -> int:
+    """ Return the inverse of 'a' (mod p). p must be a prime.
+
+        Much more elegant than Ferguson and Schneier, but 50 times slower.
+    """
+    return pow(a, p-2, p)
 
 def mod_sqrt(a: int, p: int) -> int:
     """ Return a quadratic residue (mod p) of 'a'. p must be a prime.
@@ -37,15 +44,17 @@ def mod_sqrt(a: int, p: int) -> int:
         Riemann hypothesis is false).
     """
     # Simple cases
-    if a == 0 or p == 2:
+    if p % 4 == 3:  # secp256k1 case
+        x = pow(a, (p + 1) // 4, p)  # inverse candidate
+        if x*x % p == a:
+            return x
+        raise ValueError("no root (mod %s) exists for %s" % (p, a))
+    elif a == 0 or p == 2:
         return a
 
     # check for root existence
     if legendre_symbol(a, p) != 1:
-        raise ValueError("no root exists for %s" % a)
-
-    if p % 4 == 3:  # secp256k1 case
-        return pow(a, (p + 1) // 4, p)
+        raise ValueError("no root (mod %s) exists for %s" % (p, a))
 
     # Partition p-1 to s * 2^e for an odd s (i.e.
     # reduce all the powers of 2 from p-1)
