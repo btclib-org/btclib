@@ -71,10 +71,8 @@ def borromean_sign(msg: bytes,
                     borromean_hash(m, R, i, j), ec, sha256)
                 assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
                 T = DoubleScalarMultiplication(ec,
-                                               s[i][j],
-                                               ec.G,
-                                               ec.n - e[i][j],
-                                               to_Point(ec, pubk_rings[i][j]))
+                    s[i][j], ec.G,
+                    ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
                 R = bytes_from_Point(ec, T, True)
             last_R += R
     e_0 = sha256(last_R).digest()
