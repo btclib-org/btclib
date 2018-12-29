@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2019 The bbtlib developers
-#
-# This file is part of bbtlib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of bbtlib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
+"""Modular algebra functions
 
-# from pycoin
+   Implementations are from the web (pycoin) with minor modifications.
+"""
 
 
 def mod_inv(a: int, m: int) -> int:
@@ -31,16 +26,15 @@ def mod_inv(a: int, m: int) -> int:
 
 
 def mod_sqrt(a: int, p: int) -> int:
-    """ Find a quadratic residue (mod p) of 'a'. p
-        must be an odd prime.
+    """ Return a quadratic residue (mod p) of 'a'. p must be a prime.
+
         Solve the congruence of the form:
             x^2 = a (mod p)
         And returns x. Note that p - x is also a root.
-        The Tonelli-Shanks algorithm is used (except
-        for some simple cases in which the solution
-        is known from an identity). This algorithm
-        runs in polynomial time (unless the
-        generalized Riemann hypothesis is false).
+        The Tonelli-Shanks algorithm is used (except for some simple
+        cases in which the solution is known from an identity).
+        This algorithm runs in polynomial time (unless the generalized
+        Riemann hypothesis is false).
     """
     # Simple cases
     if a == 0 or p == 2:
@@ -105,6 +99,7 @@ def mod_sqrt(a: int, p: int) -> int:
 
 def legendre_symbol(a, p):
     """ Compute the Legendre symbol a|p using Euler's criterion.
+
         p is a prime, a is relatively prime to p (if p divides a, then a|p = 0)
         Returns 1 if a has a square root modulo p, -1 otherwise.
     """

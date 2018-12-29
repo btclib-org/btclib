@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2019 The bbtlib developers
-#
-# This file is part of bbtlib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of bbtlib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
+"""Base58 encoding
 
-'''Base58 encoding
-
-Implementation of Base58 and Base58Check, originally from
-https://github.com/keis/base58, with the following modifications:
-- type annotated python3,
-- removal of string support (binary and hex-string only)
-- minor improvements
-- added check functionalities
-'''
+   Implementation of Base58 and Base58Check, originally from
+   https://github.com/keis/base58, with the following modifications:
+   - type annotated python3,
+   - removal of string support (binary and hex-string only)
+   - minor improvements
+   - added check functionalities
+"""
 
 from hashlib import sha256
 from typing import Union, Optional
