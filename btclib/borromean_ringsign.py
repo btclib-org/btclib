@@ -84,10 +84,8 @@ def borromean_sign(msg: bytes,
         for j in range(1, j_star+1):
             s[i][j-1] = os.urandom(32)
             T = DoubleScalarMultiplication(ec,
-                                           s[i][j-1],
-                                           ec.G,
-                                           ec.n - e[i][j-1],
-                                           to_Point(ec, pubk_rings[i][j-1]))
+                s[i][j-1], ec.G,
+                ec.n - e[i][j-1], to_Point(ec, pubk_rings[i][j-1]))
             R = bytes_from_Point(ec, T, True)
             e[i][j] = int_from_hlenbytes(
                 borromean_hash(m, R, i, j), ec, sha256)
@@ -119,10 +117,8 @@ def borromean_verify(msg: bytes,
             return False
         for j in range(0, len(pubk_rings[i])):
             T = DoubleScalarMultiplication(ec,
-                                           s[i][j],
-                                           ec.G,
-                                           ec.n - e[i][j],
-                                           to_Point(ec, pubk_rings[i][j]))
+                s[i][j], ec.G,
+                ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
             R = bytes_from_Point(ec, T, True)
             if j != len(pubk_rings[i])-1:
                 e[i][j +
