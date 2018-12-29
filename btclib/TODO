@@ -31,7 +31,6 @@ jupyter for scripts
 
 uncovered code:
  1 base58
- 2 rfc adjustment: to be solved with low carinality curves
  1 ec n=p
  1 ecdsa verify Inf as public key
  1 ecssa_recovery, recover Inf as pub key
