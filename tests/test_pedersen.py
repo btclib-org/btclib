@@ -10,7 +10,7 @@
 
 import unittest
 from btclib.ellipticcurves import secp256k1, sha256
-from btclib.pedersen_commitment import pedersen_commit, pedersen_open
+from btclib.pedersen import pedersen_commit, pedersen_open
 
 
 class TestPedersenCommitment(unittest.TestCase):
