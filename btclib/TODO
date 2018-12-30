@@ -35,5 +35,4 @@ uncovered code:
  1 ec n=p
  1 ecdsa verify Inf as public key
  1 ecssa_recovery, recover Inf as pub key
- 1 ecdh: key setup never use sha256
- 2 borromean 2 return false + for cycle
+ 2 borromean 2 return false + for cycle (urandom)

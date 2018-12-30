@@ -19,7 +19,7 @@ from btclib.ecssa import rfc6979, int_from_hlenbytes, ecssa_sign, ecssa_sign, \
     to_ssasig, _ecssa_verify, ecssa_verify, _ecssa_pubkey_recovery, \
     ecssa_batch_validation
 
-from tests.test_ellipticcurves import low_card_curves
+from tests.test_ec import low_card_curves
 
 random.seed(42)
 

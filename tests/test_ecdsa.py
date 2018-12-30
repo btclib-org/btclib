@@ -18,7 +18,7 @@ from btclib.ecdsa import rfc6979, int_from_hlenbytes, to_dsasig, \
     ecdsa_sign, _ecdsa_sign, ecdsa_verify, _ecdsa_verify, _ecdsa_verhlp, \
     ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery
 
-from tests.test_ellipticcurves import low_card_curves
+from tests.test_ec import low_card_curves
 
 
 class TestEcdsa(unittest.TestCase):
