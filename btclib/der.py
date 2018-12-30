@@ -62,7 +62,7 @@ def DER_decode(sig: bytes) -> Tuple[ECDS, bytes]:
 
     size = len(sig)
     if not 8 < size < 74:
-        raise ValueError("DER signature size (%s) should be in [9, 73]")
+        raise ValueError("DER signature size (%s) should be in [9, 73]" % size)
 
     if sig[0] != 0x30:
         raise ValueError("DER signature must be of type 0x30 (compound)")
