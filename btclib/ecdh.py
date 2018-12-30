@@ -26,20 +26,23 @@ def key_setup(hash_digest_size: int):
     return sha256
 
 
-def key_derivation(ec: EllipticCurve, shared_secret_octet: bytes, key_data_len: int,
-                            hash_digest_size: int, hash_max_len=2**61 - 1) -> bytes:
+def key_derivation(ec: EllipticCurve,
+                   shared_secret_octet: bytes,
+                   key_data_len: int,
+                   hash_digest_size: int,
+                   hash_max_len = 2**61 - 1) -> bytes:
     """ ANS X9.63 kdf - SEC 1 specification
 
     source: http://www.secg.org/sec1-v2.pdf, section 6.1
     """
-    Hash = key_setup(hash_digest_size)
+    hf = key_setup(hash_digest_size)
     assert len(shared_secret_octet) + 4 < hash_max_len, "invalid"
     assert key_data_len < hash_digest_size * (2**32 - 1), "invalid"
     counter = 1
     counter_bytes = counter.to_bytes(4, 'big')
     K_temp = []
     for i in range(key_data_len // hash_digest_size):
-        K_temp.append(Hash(shared_secret_octet + counter_bytes).digest())
+        K_temp.append(hf(shared_secret_octet + counter_bytes).digest())
         counter += 1
         counter_bytes = counter.to_bytes(4, 'big')
         i += 1
@@ -50,10 +53,10 @@ def key_derivation(ec: EllipticCurve, shared_secret_octet: bytes, key_data_len: 
 
 
 def key_agreement(ec: EllipticCurve,
-                            key_data_len: int,
-                            prv_sender: Scalar,
-                            pub_recv: GenericPoint,
-                            hash_digest_size: int) -> bytes:
+                  key_data_len: int,
+                  prv_sender: Scalar,
+                  pub_recv: GenericPoint,
+                  hash_digest_size: int) -> bytes:
     shared_secret = ecdh(ec, prv_sender, pub_recv)
     shared_secret_octet = int2octets(shared_secret, ec.bytesize)  # FIXME
     K = key_derivation(

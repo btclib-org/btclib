@@ -32,7 +32,7 @@ def ecssa_sign(m: bytes,
                d: Scalar,
                k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
-               Hash=sha256) -> Tuple[int, int]:
+               hf = sha256) -> Tuple[int, int]:
     """ECSSA signing operation according to bip-schnorr"""
 
     # the bitcoin proposed standard is only valid for curves
@@ -46,7 +46,7 @@ def ecssa_sign(m: bytes,
     # a digest of other messages, but it does not need to.
 
     # The message m: a 32-byte array
-    m = bytes_from_hlenbytes(m, Hash)
+    m = bytes_from_hlenbytes(m, hf)
 
     # The secret key d: an integer in the range 1..n-1.
     d = int_from_Scalar(ec, d)
@@ -55,7 +55,7 @@ def ecssa_sign(m: bytes,
     Q = pointMult(ec, d, ec.G)
 
     if k is None:
-        k = rfc6979(d, m, ec, Hash)
+        k = rfc6979(d, m, ec, hf)
     else:
         k = int_from_Scalar(ec, k)
 
@@ -73,12 +73,12 @@ def ecssa_sign(m: bytes,
         # let just fix k instead, as it is used later
         k = ec.n - k
 
-    # Let e = int(hash(bytes(x(R)) || bytes(dG) || m)) mod n.
+    # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
     ebytes = R[0].to_bytes(ec.bytesize, byteorder="big")
     ebytes += bytes_from_Point(ec, Q, True)
     ebytes += m
-    ebytes = Hash(ebytes).digest()
-    e = int_from_hlenbytes(ebytes, ec, Hash)
+    ebytes = hf(ebytes).digest()
+    e = int_from_hlenbytes(ebytes, ec, hf)
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
@@ -89,13 +89,13 @@ def ecssa_verify(ssasig: ECSS,
                  m: bytes,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
-                 Hash=sha256) -> bool:
+                 hf = sha256) -> bool:
     """ECSSA veryfying operation according to bip-schnorr"""
 
     # this is just a try/except wrapper
     # _ecssa_verify raises Errors
     try:
-        return _ecssa_verify(ssasig, m, Q, ec, Hash)
+        return _ecssa_verify(ssasig, m, Q, ec, hf)
     except Exception:
         return False
 
@@ -107,7 +107,7 @@ def _ecssa_verify(ssasig: ECSS,
                   m: HashLengthBytes,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
-                  Hash=sha256) -> bool:
+                  hf = sha256) -> bool:
     # ECSSA veryfying operation according to bip-schnorr
 
     # the bitcoin proposed standard is only valid for curves
@@ -121,17 +121,17 @@ def _ecssa_verify(ssasig: ECSS,
     r, s = to_ssasig(ssasig, ec)
 
     # The message m: a 32-byte array
-    m = bytes_from_hlenbytes(m, Hash)
+    m = bytes_from_hlenbytes(m, hf)
 
     # Let P = point(pk); fail if point(pk) fails.
     P = to_Point(ec, P)
 
-    # Let e = int(hash(bytes(r) || bytes(P) || m)) mod n.
+    # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
     ebytes = r.to_bytes(ec.bytesize, byteorder="big")
     ebytes += bytes_from_Point(ec, P, True)
     ebytes += m
-    ebytes = Hash(ebytes).digest()
-    e = int_from_hlenbytes(ebytes, ec, Hash)
+    ebytes = hf(ebytes).digest()
+    e = int_from_hlenbytes(ebytes, ec, hf)
 
     # Let R = sG - eP.
     R = DblScalarMult(ec, s, ec.G, -e, P)
@@ -149,15 +149,15 @@ def _ecssa_verify(ssasig: ECSS,
 def _ecssa_pubkey_recovery(ssasig: ECSS,
                            ebytes: bytes,
                            ec: EllipticCurve = secp256k1,
-                           Hash=sha256) -> Point:
+                           hf = sha256) -> Point:
 
-    if len(ebytes) != Hash().digest_size:
+    if len(ebytes) != hf().digest_size:
         raise ValueError("wrong size for e")
 
     r, s = to_ssasig(ssasig, ec)
 
     K = (r, ec.yQuadraticResidue(r, True))
-    e = int_from_hlenbytes(ebytes, ec, Hash)
+    e = int_from_hlenbytes(ebytes, ec, hf)
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
@@ -196,7 +196,7 @@ def ecssa_batch_validation(sig: List[ECSS],
                            Q: List[Point],
                            a: List[int],
                            ec: EllipticCurve = secp256k1,
-                           Hash = sha256) -> bool:
+                           hf = sha256) -> bool:
     # initialization
     mult = 0
     points = list()
@@ -208,8 +208,8 @@ def ecssa_batch_validation(sig: List[ECSS],
         ebytes = r.to_bytes(32, byteorder="big")
         ebytes += bytes_from_Point(ec, Q[i], True)
         ebytes += ms[i]
-        ebytes = Hash(ebytes).digest()
-        e = int_from_hlenbytes(ebytes, ec, Hash)
+        ebytes = hf(ebytes).digest()
+        e = int_from_hlenbytes(ebytes, ec, hf)
 
         y = ec.y(r)  # raises an error if y does not exist
 

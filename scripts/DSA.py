@@ -28,7 +28,7 @@ print("\n*** Message to be signed")
 msg1 = "Paolo is afraid of ephemeral random numbers"
 print(msg1)
 
-print("*** Hash of the message")
+print("*** Hash digest of the message")
 h_bytes = sha256(msg1.encode()).digest()
 # hash(msg) must be transformed into an integer modulo ec.n:
 h1 = int.from_bytes(h_bytes, 'big') % ec.n
@@ -89,7 +89,7 @@ print("\n*** Another message")
 msg2 = "and Paolo is right to be afraid"
 print(msg2)
 
-print("*** Hash of the message")
+print("*** Hash digest of the message")
 h_bytes = sha256(msg2.encode()).digest()
 # hash(msg) must be transformed into an integer modulo ec.n:
 h2 = int.from_bytes(h_bytes, 'big') % ec.n

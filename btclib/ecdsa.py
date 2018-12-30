@@ -29,19 +29,19 @@ def ecdsa_sign(M: bytes,
                d: Scalar,
                k: Optional[Scalar] = None,
                ec: EllipticCurve = secp256k1,
-               Hash=sha256) -> Tuple[int, int]:
+               hf = sha256) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 2
 
     Steps numbering follows SEC 2 section 4.1.3
     """
 
-    H = Hash(M).digest()                                # 4
-    e = int_from_hlenbytes(H, ec, Hash)                 # 5
+    H = hf(M).digest()                                # 4
+    e = int_from_hlenbytes(H, ec, hf)                 # 5
 
     d = int_from_Scalar(ec, d)
 
     if k is None:
-        k = rfc6979(d, H, ec, Hash)                     # 1
+        k = rfc6979(d, H, ec, hf)                     # 1
     else:
         k = int_from_Scalar(ec, k)
 
@@ -81,7 +81,7 @@ def ecdsa_verify(dsasig: ECDS,
                  H: bytes,
                  Q: GenericPoint,
                  ec: EllipticCurve = secp256k1,
-                 Hash=sha256) -> bool:
+                 hf = sha256) -> bool:
     """ECDSA veryfying operation to SEC 2
 
     See section 4.1.4
@@ -90,7 +90,7 @@ def ecdsa_verify(dsasig: ECDS,
     # this is just a try/except wrapper
     # _ecssa_verify raises Errors
     try:
-        return _ecdsa_verify(dsasig, H, Q, ec, Hash)
+        return _ecdsa_verify(dsasig, H, Q, ec, hf)
     except Exception:
         return False
 
@@ -102,13 +102,13 @@ def _ecdsa_verify(dsasig: ECDS,
                   H: bytes,
                   P: GenericPoint,
                   ec: EllipticCurve = secp256k1,
-                  Hash=sha256) -> bool:
+                  hf = sha256) -> bool:
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
     # The message digest m: a 32-byte array
-    H = Hash(H).digest()                                # 2
-    e = int_from_hlenbytes(H, ec, Hash)                 # 3
+    H = hf(H).digest()                                # 2
+    e = int_from_hlenbytes(H, ec, hf)                 # 3
 
     # Let P = point(pk); fail if point(pk) fails.
     P = to_Point(ec, P)
@@ -145,15 +145,15 @@ def _ecdsa_verhlp(dsasig: ECDS,
 def ecdsa_pubkey_recovery(dsasig: ECDS,
                           M: bytes,
                           ec: EllipticCurve = secp256k1,
-                          Hash=sha256) -> List[Point]:
+                          hf = sha256) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 2
 
     See section 4.1.6
     """
 
     # The message digest m: a 32-byte array
-    H = Hash(M).digest()
-    e = int_from_hlenbytes(H, ec, Hash)  # ECDSA verification step 3
+    H = hf(M).digest()
+    e = int_from_hlenbytes(H, ec, hf)  # ECDSA verification step 3
 
     return _ecdsa_pubkey_recovery(dsasig, e, ec)
 

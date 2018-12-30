@@ -15,9 +15,9 @@ from btclib.ec import sha256, Scalar, Point, EllipticCurve, secp256k1, \
 def pedersen_commit(r: Scalar,
                     v: Scalar,
                     ec: EllipticCurve = secp256k1,
-                    Hash = sha256) -> Point:
+                    hf = sha256) -> Point:
     # rG + vH
-    H = secondGenerator(ec, Hash)
+    H = secondGenerator(ec, hf)
     Q = DblScalarMult(ec, r, ec.G, v, H)
     assert Q is not None, "failed"
     return Q
@@ -27,5 +27,5 @@ def pedersen_open(r: Scalar,
                   v: Scalar,
                   C: Point,
                   ec: EllipticCurve = secp256k1,
-                  Hash = sha256) -> bool:
-    return C == pedersen_commit(r, v, ec, Hash)
+                  hf = sha256) -> bool:
+    return C == pedersen_commit(r, v, ec, hf)

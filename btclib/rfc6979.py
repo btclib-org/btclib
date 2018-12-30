@@ -27,33 +27,33 @@ from btclib.ecsigutils import bits2octets, bits2int, int2octets, \
 def rfc6979(prv: int,
             hdigest: HashLengthBytes,
             ec: EllipticCurve,
-            Hash) -> int:
+            hf) -> int:
 
     if not (0 < prv < ec.n):
         raise ValueError("invalid prv: %s" % prv)
 
-    hash_size = Hash().digest_size
+    hash_size = hf().digest_size
     v = b'\x01' * hash_size
     k = b'\x00' * hash_size
 
-    hdigest = bytes_from_hlenbytes(hdigest, Hash)
+    hdigest = bytes_from_hlenbytes(hdigest, hf)
     # hlen or qlen ?
     prv_and_m = int2octets(prv, hash_size) + bits2octets(hdigest, hash_size)
-    k = hmac.new(k, v + b'\x00' + prv_and_m, Hash).digest()
-    v = hmac.new(k, v, Hash).digest()
-    k = hmac.new(k, v + b'\x01' + prv_and_m, Hash).digest()
-    v = hmac.new(k, v, Hash).digest()
+    k = hmac.new(k, v + b'\x00' + prv_and_m, hf).digest()
+    v = hmac.new(k, v, hf).digest()
+    k = hmac.new(k, v + b'\x01' + prv_and_m, hf).digest()
+    v = hmac.new(k, v, hf).digest()
 
     qlen = ec.bytesize
     while True:
         t = b''
         while len(t) < qlen:
-            v = hmac.new(k, v, Hash).digest()
+            v = hmac.new(k, v, hf).digest()
             t = t + v
         nonce = bits2int(t, qlen)
         if nonce > 0 and nonce < ec.n:
             # here it should be checked that nonce do not yields a invalid signature
             # but then I should put the signature generation here
             return nonce
-        k = hmac.new(k, v + b'\x00', Hash).digest()
-        v = hmac.new(k, v, Hash).digest()
+        k = hmac.new(k, v + b'\x00', hf).digest()
+        v = hmac.new(k, v, hf).digest()

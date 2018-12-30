@@ -368,18 +368,14 @@ def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
 # this function is used by the EllipticCurve class; it might be a method...
 
 
-def pointMult(ec: EllipticCurve,
-                  n: Scalar,
-                  Q: GenericPoint) -> Point:
+def pointMult(ec: EllipticCurve, n: Scalar, Q: GenericPoint) -> Point:
     Q = to_Point(ec, Q)
     QJ = _jac_from_aff(Q)
     R = _pointMultJacobian(ec, n, QJ)
     return ec._affine_from_jac(R)
 
 
-def _pointMultAffine(ec: EllipticCurve,
-                         n: Scalar,
-                         Q: GenericPoint) -> Point:
+def _pointMultAffine(ec: EllipticCurve, n: Scalar, Q: GenericPoint) -> Point:
     """double & add in affine coordinates, using binary decomposition of n"""
     n = int_from_Scalar(ec, n)
     Q = to_Point(ec, Q)
@@ -396,9 +392,7 @@ def _pointMultAffine(ec: EllipticCurve,
     return R
 
 
-def _pointMultJacobian(ec: EllipticCurve,
-                           n: Scalar,
-                           Q: JacPoint) -> JacPoint:
+def _pointMultJacobian(ec: EllipticCurve, n: Scalar, Q: JacPoint) -> JacPoint:
     """double & add in jacobian coordinates, using binary decomposition of n"""
     n = int_from_Scalar(ec, n)
     if len(Q) != 3:
@@ -417,10 +411,10 @@ def _pointMultJacobian(ec: EllipticCurve,
 
 
 def DblScalarMult(ec: EllipticCurve,
-                               k1: Scalar,
-                               Q1: GenericPoint,
-                               k2: Scalar,
-                               Q2: GenericPoint) -> Point:
+                  k1: Scalar,
+                  Q1: GenericPoint,
+                  k2: Scalar,
+                  Q2: GenericPoint) -> Point:
     """Shamir trick for efficient computation of k1*Q1 + k2*Q2"""
 
     r1 = int_from_Scalar(ec, k1)
@@ -468,7 +462,7 @@ def DblScalarMult(ec: EllipticCurve,
 
 
 def secondGenerator(ec: EllipticCurve,
-                    Hash=sha256) -> Point:
+                    hf = sha256) -> Point:
     """ Function needed to construct a suitable Nothing-Up-My-Sleeve (NUMS) 
     generator H wrt G. 
 
@@ -481,8 +475,8 @@ def secondGenerator(ec: EllipticCurve,
     until you get a valid curve point H = (hx, hy).
     """
     G_bytes = bytes_from_Point(ec, ec.G, False)
-    h = Hash(G_bytes).digest()
-    hx = int_from_Scalar(ec, h)
+    hd = hf(G_bytes).digest()
+    hx = int_from_Scalar(ec, hd)
     isCurvePoint = False
     while not isCurvePoint:
         try:
