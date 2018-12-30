@@ -10,7 +10,7 @@
 
 import unittest
 
-from btclib.ellipticcurves import sha256, secp256k1
+from btclib.ec import sha256, secp256k1
 from btclib.rfc6979 import rfc6979
 
 

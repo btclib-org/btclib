@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from hashlib import sha256
-from btclib.ellipticcurves import secp256k1 as ec, \
+from btclib.ec import secp256k1 as ec, \
                                   pointMult
 
 print("\n*** EC:")

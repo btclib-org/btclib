@@ -12,8 +12,8 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import secp256k1, _jac_from_aff, to_Point, \
-    pointMult, DblScalarMult
+from btclib.ec import secp256k1, to_Point, _jac_from_aff, pointMult, \
+    DblScalarMult
 from btclib.ecdsa import rfc6979, int_from_hlenbytes, to_dsasig, \
     ecdsa_sign, _ecdsa_sign, ecdsa_verify, _ecdsa_verify, _ecdsa_verhlp, \
     ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery

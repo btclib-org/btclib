@@ -17,9 +17,8 @@ from hashlib import sha256
 from typing import List, Optional
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import Union, Tuple, Scalar, Point, GenericPoint, \
-    EllipticCurve, secp256k1, pointMult, DblScalarMult, \
-    int_from_Scalar, to_Point
+from btclib.ec import Union, Tuple, Scalar, Point, GenericPoint, to_Point, \
+    EllipticCurve, secp256k1, pointMult, DblScalarMult, int_from_Scalar
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import bytes_from_hlenbytes, int_from_hlenbytes
 

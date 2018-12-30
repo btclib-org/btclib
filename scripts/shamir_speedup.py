@@ -11,7 +11,7 @@
 import random
 import time
 
-from btclib.ellipticcurves import secp256k1, pointMult, DblScalarMult
+from btclib.ec import secp256k1, pointMult, DblScalarMult
 
 random.seed(42)
 

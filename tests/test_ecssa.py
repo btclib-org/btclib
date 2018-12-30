@@ -13,8 +13,8 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import legendre_symbol
-from btclib.ellipticcurves import secp256k1, secp224k1, int_from_Scalar, \
-    bytes_from_Point, to_Point, pointMult
+from btclib.ec import secp256k1, secp224k1, int_from_Scalar, to_Point, \
+    bytes_from_Point, pointMult
 from btclib.ecssa import rfc6979, int_from_hlenbytes, ecssa_sign, ecssa_sign, \
     to_ssasig, _ecssa_verify, ecssa_verify, _ecssa_pubkey_recovery, \
     ecssa_batch_validation

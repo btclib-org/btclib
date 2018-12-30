@@ -16,16 +16,15 @@ and public keys (addresses)
 
 from hashlib import sha256, new as hnew
 
-from btclib.ellipticcurves import Union, Tuple, Scalar as PrivateKey, \
-    Point as PublicKey, secp256k1 as ec, pointMult, bytes_from_Scalar, \
-    bytes_from_Point
 from btclib.base58 import b58encode_check, b58decode_check
+from btclib.ec import Union, Tuple, Scalar, secp256k1 as ec, pointMult, \
+    bytes_from_Scalar, bytes_from_Point
 
 WIF = Union[str, bytes]
 Address = Union[str, bytes]
 
 
-def wif_from_prvkey(prvkey: PrivateKey, compressed: bool = True) -> bytes:
+def wif_from_prvkey(prvkey: Scalar, compressed: bool = True) -> bytes:
     """private key to Wallet Import Format"""
 
     payload = b'\x80' + bytes_from_Scalar(ec, prvkey)
@@ -50,7 +49,7 @@ def prvkey_from_wif(wif: WIF) -> Tuple[bytes, bool]:
     raise ValueError("not a WIF")
 
 
-def pubkey_from_prvkey(prvkey: PrivateKey, compressed: bool = True) -> bytes:
+def pubkey_from_prvkey(prvkey: Scalar, compressed: bool = True) -> bytes:
     """Private key to (bytes) public key"""
     P = pointMult(ec, prvkey, ec.G)
     return bytes_from_Point(ec, P, compressed)

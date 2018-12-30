@@ -10,7 +10,7 @@
 
 from hashlib import sha256
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import secp256k1 as ec, \
+from btclib.ec import secp256k1 as ec, \
                                   pointMult
 
 print("\n*** EC:")

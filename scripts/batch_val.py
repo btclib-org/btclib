@@ -11,7 +11,7 @@
 import random
 import time
 
-from btclib.ellipticcurves import secp256k1, pointMult
+from btclib.ec import secp256k1, pointMult
 from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_batch_validation
 
 random.seed(42)

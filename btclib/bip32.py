@@ -13,8 +13,8 @@ from hashlib import sha512
 from typing import Union, Optional
 
 from btclib.base58 import b58encode_check, b58decode_check
-from btclib.ellipticcurves import secp256k1 as ec, pointMult, \
-    bytes_from_Point, int_from_Scalar, to_Point
+from btclib.ec import secp256k1 as ec, pointMult, bytes_from_Point, \
+    int_from_Scalar, to_Point
 from btclib.wifaddress import h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes        Base58 encode starts with

@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from btclib.ellipticcurves import secp256k1, sha256
+from btclib.ec import secp256k1, sha256
 from btclib.pedersen import pedersen_commit, pedersen_open
 
 

@@ -9,10 +9,8 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from btclib.ellipticcurves import secp160r1, to_Point, pointMult, \
-    bytes_from_Point
-from btclib.ecdh import ecdh, key_setup, key_agreement_operation, \
-    key_derivation_function
+from btclib.ec import secp160r1, to_Point, pointMult, bytes_from_Point
+from btclib.ecdh import ecdh, key_setup, key_agreement, key_derivation
 from btclib.ecsignutils import int2octets
 
 # source: http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
@@ -35,9 +33,9 @@ class TestEcdh(unittest.TestCase):
         self.assertEqual(shared_alternative, shared_sender)
         key_data_len = 20
         hash_digest_size = 20
-        keying_data_sender = key_agreement_operation(
+        keying_data_sender = key_agreement(
             ec, key_data_len, prv_sender, pub_recv, hash_digest_size)
-        keying_data_recv = key_agreement_operation(
+        keying_data_recv = key_agreement(
             ec, key_data_len, prv_recv, pub_sender, hash_digest_size)
         self.assertEqual(keying_data_sender, keying_data_recv)
 
@@ -88,7 +86,7 @@ class TestEcdh(unittest.TestCase):
             octet_shared_sender)-hash_digest_size:]
         self.assertEqual(octet_shared_sender_unpad.hex(),
                          'ca7c0f8c3ffa87a96e1b74ac8e6af594347bb40a')
-        keying_data = key_derivation_function(
+        keying_data = key_derivation(
             ec, octet_shared_sender_unpad, key_data_len, hash_digest_size)
         self.assertEqual(keying_data.hex(),
                          '744ab703f5bc082e59185f6d049d2d367db245c2')
@@ -104,7 +102,7 @@ class TestEcdh(unittest.TestCase):
             octet_shared_recv)-hash_digest_size:]
         self.assertEqual(octet_shared_recv_unpad.hex(),
                          'ca7c0f8c3ffa87a96e1b74ac8e6af594347bb40a')
-        keying_data = key_derivation_function(
+        keying_data = key_derivation(
             ec, octet_shared_recv_unpad, key_data_len, hash_digest_size)
         self.assertEqual(keying_data.hex(),
                          '744ab703f5bc082e59185f6d049d2d367db245c2')

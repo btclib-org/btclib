@@ -19,7 +19,7 @@ https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 from struct import pack
 import hmac
 
-from btclib.ellipticcurves import EllipticCurve
+from btclib.ec import EllipticCurve
 from btclib.ecsignutils import bits2octets, bits2int, int2octets, \
     HashLengthBytes, bytes_from_hlenbytes
 

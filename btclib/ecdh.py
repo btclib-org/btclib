@@ -9,13 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from hashlib import sha1, sha256
-from btclib.ellipticcurves import EllipticCurve, Scalar as PrvKey, \
-    GenericPoint as GenericPubKey, int_from_Scalar, to_Point, \
-    bytes_from_Scalar, pointMult
+from btclib.ec import EllipticCurve, Scalar, GenericPoint, int_from_Scalar, \
+    to_Point, bytes_from_Scalar, pointMult
 from btclib.ecsignutils import int2octets
 
 
-def ecdh(ec: EllipticCurve, prv_sender: PrvKey, pub_recv: GenericPubKey) -> int:
+def ecdh(ec: EllipticCurve, prv_sender: Scalar, pub_recv: GenericPoint) -> int:
     shared_point = pointMult(ec, prv_sender, pub_recv)
     shared_pubkey = to_Point(ec, shared_point)
     return shared_pubkey[0]
@@ -27,7 +26,7 @@ def key_setup(hash_digest_size: int):
     return sha256
 
 
-def key_derivation_function(ec: EllipticCurve, shared_secret_octet: bytes, key_data_len: int,
+def key_derivation(ec: EllipticCurve, shared_secret_octet: bytes, key_data_len: int,
                             hash_digest_size: int, hash_max_len=2**61 - 1) -> bytes:
     """ ANS X9.63 kdf - SEC 1 specification
 
@@ -50,13 +49,13 @@ def key_derivation_function(ec: EllipticCurve, shared_secret_octet: bytes, key_d
     return bytes_from_Scalar(ec, K)
 
 
-def key_agreement_operation(ec: EllipticCurve,
+def key_agreement(ec: EllipticCurve,
                             key_data_len: int,
-                            prv_sender: PrvKey,
-                            pub_recv: GenericPubKey,
+                            prv_sender: Scalar,
+                            pub_recv: GenericPoint,
                             hash_digest_size: int) -> bytes:
     shared_secret = ecdh(ec, prv_sender, pub_recv)
     shared_secret_octet = int2octets(shared_secret, ec.bytesize)  # FIXME
-    K = key_derivation_function(
+    K = key_derivation(
         ec, shared_secret_octet, key_data_len, hash_digest_size)
     return K

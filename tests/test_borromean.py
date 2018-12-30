@@ -11,7 +11,7 @@
 import unittest
 import random
 
-from btclib.ellipticcurves import secp256k1, pointMult
+from btclib.ec import secp256k1, pointMult
 from btclib.borromean import borromean_sign, borromean_verify
 
 random.seed(42)

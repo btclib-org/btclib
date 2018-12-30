@@ -21,8 +21,8 @@ import random
 import unittest
 
 from btclib.numbertheory import legendre_symbol
-from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
-    pointMult, DblScalarMult, secp256k1
+from btclib.ec import int_from_Scalar, bytes_from_Point, secp256k1, \
+    pointMult, DblScalarMult
 from btclib.ecssa import sha256, int_from_hlenbytes, ecssa_verify
 
 random.seed(42)

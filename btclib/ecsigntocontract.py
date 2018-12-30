@@ -33,7 +33,7 @@
 
 from typing import Optional
 
-from btclib.ellipticcurves import EllipticCurve, pointMult, Tuple, \
+from btclib.ec import EllipticCurve, pointMult, Tuple, \
     Scalar, Point, GenericPoint, bytes_from_Point, int_from_Scalar, \
     to_Point
 from btclib.ecsignutils import int_from_hlenbytes, bytes_from_hlenbytes

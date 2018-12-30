@@ -10,7 +10,7 @@
 
 from typing import Tuple, Union
 
-from btclib.ellipticcurves import EllipticCurve
+from btclib.ec import EllipticCurve
 
 
 def int2octets(x: int, bytesize: int) -> bytes:

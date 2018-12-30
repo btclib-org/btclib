@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from btclib.ellipticcurves import secp256k1 as ec
+from btclib.ec import secp256k1 as ec
 from btclib.wifaddress import h160, address_from_pubkey
 from hmac import HMAC
 from hashlib import sha512

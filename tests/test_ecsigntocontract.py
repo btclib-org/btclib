@@ -10,7 +10,7 @@
 
 import unittest
 
-from btclib.ellipticcurves import secp256k1, sha256, pointMult
+from btclib.ec import secp256k1, sha256, pointMult
 from btclib.ecdsa import ecdsa_verify
 from btclib.ecssa import ecssa_verify
 from btclib.ecsigntocontract import ecdsa_commit_and_sign, \
