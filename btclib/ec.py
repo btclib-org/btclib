@@ -48,11 +48,16 @@ class EC:
         # Fermat test will do as _probabilistic_ primality test...
         if not pow(2, p-1, p) == 1:
             raise ValueError("p (%s) is not prime" % p)
+
+        # the security level in bits 't' should be an input
+        # here we just check that bits are standard for
+        #           t = {   80,    112, 128, 192, 256}
+        required_bits = [160, 192, 224, 256, 384, 521]
+        nbits = p.bit_length()
+        if checkWeakness and not (nbits in required_bits):
+            raise ValueError("wrong number of bits")
         self._p = p
         self.bytesize = (p.bit_length() + 7) // 8  # FIXME: p or n
-
-        # 1. check that security level is as required
-        # missing for the time being
 
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = (self._p % 4 == 3)
