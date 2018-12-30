@@ -12,20 +12,14 @@ from btclib.ec import sha256, Scalar, Point, EC, secp256k1, \
     DblScalarMult, secondGenerator
 
 
-def pedersen_commit(r: Scalar,
-                    v: Scalar,
-                    ec: EC = secp256k1,
-                    hf = sha256) -> Point:
+def pedersen_commit(r: Scalar, v: Scalar, ec: EC, hf) -> Point:
     # rG + vH
     H = secondGenerator(ec, hf)
     Q = DblScalarMult(ec, r, ec.G, v, H)
-    assert Q is not None, "failed"
+    if Q[1] == 0:
+        raise ValueError("failed")
     return Q
 
 
-def pedersen_open(r: Scalar,
-                  v: Scalar,
-                  C: Point,
-                  ec: EC = secp256k1,
-                  hf = sha256) -> bool:
+def pedersen_open(r: Scalar, v: Scalar, C: Point, ec: EC, hf) -> bool:
     return C == pedersen_commit(r, v, ec, hf)
