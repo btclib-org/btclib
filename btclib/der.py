@@ -41,7 +41,8 @@ def bytes_from_element(element: int) -> bytes:
     if element<0:
         raise ValueError("negative (%s) signature element" % element)
     bits = element.bit_length()
-    len_bytes = bits // 8 + 1  # padding for highest bit set happens here
+    len_bytes = bits // 8 + 1  # not a bug
+    # padding for 'highest bit set' included above
     n_bytes = element.to_bytes(len_bytes, 'big')
     return n_bytes
 
@@ -49,6 +50,7 @@ def encode_element(element: int) -> bytes:
     x = bytes_from_element(element)
     x_len = len(x).to_bytes(1, "big")
     return b'\x02' + x_len + x
+
 
 def DER_encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
     if len(sighash) > 1:
@@ -90,7 +92,7 @@ def DER_decode(sig: bytes) -> Tuple[ECDS, bytes]:
         raise ValueError("r element must be an integer")
     
     if sig[4] & 0x80:
-        raise ValueError("Negative numbers %s are not allowed for r" % sig[4])
+        raise ValueError("Negative numbers are not allowed for r")
 
     # Null bytes at the start of an element are not allowed, unless the
     # element would otherwise be interpreted as a negative number
@@ -99,12 +101,12 @@ def DER_decode(sig: bytes) -> Tuple[ECDS, bytes]:
 
     r = int.from_bytes(sig[4:4+lenR], 'big')
 
-    # element s
+    # element s (offset=2+lenR with respect to r)
     if sig[lenR + 4] != 0x02:
         raise ValueError("s element must be an integer")
 
     if sig[lenR + 6] & 0x80:
-        raise ValueError("Negative numbers %s are not allowed for s" % sig[4])
+        raise ValueError("Negative numbers are not allowed for s")
 
     if lenS > 1 and sig[lenR + 6] == 0x00 and not (sig[lenR + 7] & 0x80):
         raise ValueError("Invalid null bytes at the start of s")
