@@ -22,7 +22,7 @@ import unittest
 
 from btclib.numbertheory import legendre_symbol
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
-    pointMultiply, DoubleScalarMultiplication, secp256k1
+    pointMult, DblScalarMult, secp256k1
 from btclib.ecssa import sha256, int_from_hlenbytes, ecssa_verify
 
 random.seed(42)
@@ -38,50 +38,50 @@ class TestEcssaMuSig(unittest.TestCase):
         # first signer
         q1 = int_from_Scalar(
             ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
-        Q1 = pointMultiply(ec, q1, ec.G)
+        Q1 = pointMult(ec, q1, ec.G)
         L.append(bytes_from_Point(ec, Q1, False))
 
         # ephemeral private nonce
         k1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb
-        K1 = pointMultiply(ec, k1, ec.G)
+        K1 = pointMult(ec, k1, ec.G)
         K1_x = K1[0]
         if legendre_symbol(K1[1], ec._p) != 1:
             k1 = ec.n - k1
             K1 = K1_x, ec.yQuadraticResidue(K1_x, True)
-            #K1 = pointMultiply(ec, k1, ec.G)
+            #K1 = pointMult(ec, k1, ec.G)
 
         # second signer
         q2 = int_from_Scalar(
             ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
-        Q2 = pointMultiply(ec, q2, ec.G)
+        Q2 = pointMult(ec, q2, ec.G)
         L.append(bytes_from_Point(ec, Q2, False))
 
         k2 = 0x01a2a0d3eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbdb
-        K2 = pointMultiply(ec, k2, ec.G)
+        K2 = pointMult(ec, k2, ec.G)
         K2_x = K2[0]
         if legendre_symbol(K2[1], ec._p) != 1:
             k2 = ec.n - k2
             K2 = K2_x, ec.yQuadraticResidue(K2_x, True)
-            #K2 = pointMultiply(ec, k2, ec.G)
+            #K2 = pointMult(ec, k2, ec.G)
 
         # third signer
         q3 = random.getrandbits(bits) % ec.n
-        Q3 = pointMultiply(ec, q3, ec.G)
+        Q3 = pointMult(ec, q3, ec.G)
         while Q3 == None:  # plausible only for small (test) cardinality groups
             q3 = random.getrandbits(bits) % ec.n
-            Q3 = pointMultiply(ec, q3, ec.G)
+            Q3 = pointMult(ec, q3, ec.G)
         L.append(bytes_from_Point(ec, Q3, False))
 
         k3 = random.getrandbits(bits) % ec.n
-        K3 = pointMultiply(ec, k3, ec.G)
+        K3 = pointMult(ec, k3, ec.G)
         while K3 == None:  # plausible only for small (test) cardinality groups
             k3 = random.getrandbits(bits) % ec.n
-            K3 = pointMultiply(ec, k3, ec.G)
+            K3 = pointMult(ec, k3, ec.G)
         K3_x = K3[0]
         if legendre_symbol(K3[1], ec._p) != 1:
             k3 = ec.n - k3
             K3 = K3_x, ec.yQuadraticResidue(K3_x, True)
-            #K3 = pointMultiply(ec, k3, ec.G)
+            #K3 = pointMult(ec, k3, ec.G)
 
         L.sort()  # using lexicographic ordering
         L_brackets = b''
@@ -95,8 +95,8 @@ class TestEcssaMuSig(unittest.TestCase):
         h3 = sha256(L_brackets + bytes_from_Point(ec, Q3, False)).digest()
         a3 = int_from_hlenbytes(h3, ec, sha256)
         # aggregated public key
-        Q_All = DoubleScalarMultiplication(ec, a1, Q1, a2, Q2)
-        Q_All = ec.add(Q_All, pointMultiply(ec, a3, Q3))
+        Q_All = DblScalarMult(ec, a1, Q1, a2, Q2)
+        Q_All = ec.add(Q_All, pointMult(ec, a3, Q3))
         Q_All_bytes = bytes_from_Point(ec, Q_All, True)
 
         ########################

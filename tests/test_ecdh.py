@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from btclib.ellipticcurves import secp160r1, to_Point, pointMultiply, \
+from btclib.ellipticcurves import secp160r1, to_Point, pointMult, \
     bytes_from_Point
 from btclib.ecdh import ecdh, key_setup, key_agreement_operation, \
     key_derivation_function
@@ -26,8 +26,8 @@ class TestEcdh(unittest.TestCase):
         prv_sender = 0x1
         prv_recv = 0x2
         prv_alternative = prv_sender * prv_recv
-        pub_sender = to_Point(ec, pointMultiply(ec, prv_sender, G))
-        pub_recv = to_Point(ec, pointMultiply(ec, prv_recv, G))
+        pub_sender = to_Point(ec, pointMult(ec, prv_sender, G))
+        pub_recv = to_Point(ec, pointMult(ec, prv_recv, G))
         shared_sender = ecdh(ec, prv_recv, pub_sender)
         shared_recv = ecdh(ec, prv_sender, pub_recv)
         shared_alternative = ecdh(ec, prv_alternative, G)
@@ -51,7 +51,7 @@ class TestEcdh(unittest.TestCase):
             prv_octet_string)-hash_digest_size:]
         self.assertEqual(prv_octet_string_unpad.hex(),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
-        pub_sender = pointMultiply(ec, prv_sender, G)
+        pub_sender = pointMult(ec, prv_sender, G)
         self.assertEqual(
             pub_sender[0], 466448783855397898016055842232266600516272889280)
         self.assertEqual(
@@ -65,7 +65,7 @@ class TestEcdh(unittest.TestCase):
             prv_octet_string)-hash_digest_size:]
         self.assertEqual(prv_octet_string_unpad.hex(),
                          '45fb58a92a17ad4b15101c66e74f277e2b460866')
-        pub_recv = pointMultiply(ec, prv_recv, G)
+        pub_recv = pointMult(ec, prv_recv, G)
         self.assertEqual(
             pub_recv[0], 420773078745784176406965940076771545932416607676)
         self.assertEqual(

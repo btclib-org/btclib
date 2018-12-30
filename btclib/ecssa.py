@@ -19,8 +19,8 @@ from typing import List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ellipticcurves import Union, Tuple, Scalar, Point, GenericPoint, \
-    EllipticCurve, secp256k1, _jac_from_affine, _pointMultiplyJacobian, \
-    pointMultiply, DoubleScalarMultiplication, int_from_Scalar, to_Point, \
+    EllipticCurve, secp256k1, _jac_from_aff, _pointMultJacobian, \
+    pointMult, DblScalarMult, int_from_Scalar, to_Point, \
     bytes_from_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import HashLengthBytes, bytes_from_hlenbytes, \
@@ -53,7 +53,7 @@ def ecssa_sign(m: bytes,
     d = int_from_Scalar(ec, d)
     if d == 0:
         raise ValueError("invalid (zero) private key")
-    Q = pointMultiply(ec, d, ec.G)
+    Q = pointMult(ec, d, ec.G)
 
     if k is None:
         k = rfc6979(d, m, ec, Hash)
@@ -64,7 +64,7 @@ def ecssa_sign(m: bytes,
     if k == 0:
         raise ValueError("ephemeral key k=0 in ecssa sign operation")
     # Let R = k'G.
-    R = pointMultiply(ec, k, ec.G)
+    R = pointMult(ec, k, ec.G)
 
     # Let k = k' if jacobi(y(R)) = 1, otherwise let k = n - k' .
     # break the simmetry: any criteria might have been used,
@@ -135,7 +135,7 @@ def _ecssa_verify(ssasig: ECSS,
     e = int_from_hlenbytes(ebytes, ec, Hash)
 
     # Let R = sG - eP.
-    R = DoubleScalarMultiplication(ec, s, ec.G, -e, P)
+    R = DblScalarMult(ec, s, ec.G, -e, P)
 
     # Fail if infinite(R).
     if R[1] == 0:
@@ -162,7 +162,7 @@ def _ecssa_pubkey_recovery(ssasig: ECSS,
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
-    Q = DoubleScalarMultiplication(ec, e1*s, ec.G, -e1, K)
+    Q = DblScalarMult(ec, e1*s, ec.G, -e1, K)
     if Q[1] == 0:
         raise ValueError("failed")
     return Q
@@ -197,7 +197,7 @@ def ecssa_batch_validation(sig: List[ECSS],
                            Q: List[Point],
                            a: List[int],
                            ec: EllipticCurve = secp256k1,
-                           Hash=sha256) -> bool:
+                           Hash = sha256) -> bool:
     # initialization
     mult = 0
     points = list()
@@ -215,9 +215,9 @@ def ecssa_batch_validation(sig: List[ECSS],
         y = ec.y(r)  # raises an error if y does not exist
 
         mult += a[i] * s % ec.n
-        points.append(_jac_from_affine((r, y)))
+        points.append(_jac_from_aff((r, y)))
         factors.append(a[i])
-        points.append(_jac_from_affine(Q[i]))
+        points.append(_jac_from_aff(Q[i]))
         factors.append(a[i] * e % ec.n)
 
     # Bos-coster's algorithm, source:
@@ -234,10 +234,11 @@ def ecssa_batch_validation(sig: List[ECSS],
         if a1 > 0:
             heapq.heappush(boscoster, (-a1, K1))
         heapq.heappush(boscoster, (-a2, K2))
-
     aK = heapq.heappop(boscoster)
-    RHS = ec._affine_from_jac(_pointMultiplyJacobian(ec, -aK[0], aK[1]))
-    t = ec._affine_from_jac(_pointMultiplyJacobian(
-        ec, mult, _jac_from_affine(ec.G)))
 
-    return t == RHS
+    RHSJ = _pointMultJacobian(ec, -aK[0], aK[1])
+    TJ = _pointMultJacobian(ec, mult, _jac_from_aff(ec.G))
+    RHS = ec._affine_from_jac(RHSJ)
+    T = ec._affine_from_jac(TJ)
+
+    return  T == RHS

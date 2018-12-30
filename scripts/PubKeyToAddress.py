@@ -19,7 +19,7 @@ prvkey = prvkey % ec.n
 print("\n*** [0] Private ECDSA Key:")
 print(hex(prvkey))
 
-PubKey = pointMultiply(ec, prvkey, ec.G)
+PubKey = pointMult(ec, prvkey, ec.G)
 PubKey_bytes = b'\x04' + PubKey[0].to_bytes(32, byteorder='big') + PubKey[1].to_bytes(32, byteorder='big')
 print("\n*** [1] Public Key (uncompressed):")
 print(PubKey_bytes.hex())
@@ -61,7 +61,7 @@ print("\n*** steps [5]-[9] are also known as Base58Check encode")
 
 
 def pubkey_bytes_from_prvkey(prvkey, compressed=True):
-    PubKey = pointMultiply(ec, prvkey, ec.G)
+    PubKey = pointMult(ec, prvkey, ec.G)
     if compressed:
         prefix = b'\x02' if (PubKey[1] % 2 == 0) else b'\x03'
         return prefix + PubKey[0].to_bytes(32, byteorder='big')

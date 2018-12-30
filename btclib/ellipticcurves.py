@@ -20,13 +20,14 @@ from typing import Tuple, NewType, Union
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
-Point = Tuple[int, int]
 # infinity point is (int, 0), checked with 'Inf[1] == 0'
-GenericPoint = Union[str, bytes, Point]
-# str must be a hex-string
+Point = Tuple[int, int]
 
-JacPoint = Tuple[int, int, int]
+# str must be a hex-string
+GenericPoint = Union[str, bytes, Point]
+
 # infinity point is (int, int, 0), checked with 'Inf[2] == 0'
+JacPoint = Tuple[int, int, int]
 
 # elliptic curve y^2 = x^3 + a*x + b
 
@@ -90,8 +91,8 @@ class EllipticCurve:
         # 7. Check that nG = Inf.
         self.n = n
         # the following one would be tautologically true
-        # Inf = pointMultiply(self, n, self.G)
-        InfMinusG = pointMultiply(self, n-1, self.G)
+        # Inf = pointMult(self, n, self.G)
+        InfMinusG = pointMult(self, n-1, self.G)
         Inf = self.add(InfMinusG, self.G)
         if Inf[1] != 0:
             raise ValueError("n (%s) is not the group order" % n)
@@ -216,8 +217,8 @@ class EllipticCurve:
     def add(self, Q1: GenericPoint, Q2: GenericPoint) -> Point:
         Q1 = to_Point(self, Q1)
         Q2 = to_Point(self, Q2)
-        QJ1 = _jac_from_affine(Q1)
-        QJ2 = _jac_from_affine(Q2)
+        QJ1 = _jac_from_aff(Q1)
+        QJ2 = _jac_from_aff(Q2)
         R = self._addJacobian(QJ1, QJ2)
         return self._affine_from_jac(R)
 
@@ -310,7 +311,7 @@ def to_Point(ec: EllipticCurve, Q: GenericPoint) -> Point:
 # this function is used by the EllipticCurve class; it might be a method...
 
 
-def _jac_from_affine(Q: Point) -> JacPoint:
+def _jac_from_aff(Q: Point) -> JacPoint:
     if len(Q) != 2:
         raise ValueError("input point not in affine coordinates")
     if Q[1] == 0:  # Infinity point in affine coordinates
@@ -367,16 +368,16 @@ def bytes_from_Scalar(ec: EllipticCurve, n: Scalar) -> bytes:
 # this function is used by the EllipticCurve class; it might be a method...
 
 
-def pointMultiply(ec: EllipticCurve,
+def pointMult(ec: EllipticCurve,
                   n: Scalar,
                   Q: GenericPoint) -> Point:
     Q = to_Point(ec, Q)
-    QJ = _jac_from_affine(Q)
-    R = _pointMultiplyJacobian(ec, n, QJ)
+    QJ = _jac_from_aff(Q)
+    R = _pointMultJacobian(ec, n, QJ)
     return ec._affine_from_jac(R)
 
 
-def _pointMultiplyAffine(ec: EllipticCurve,
+def _pointMultAffine(ec: EllipticCurve,
                          n: Scalar,
                          Q: GenericPoint) -> Point:
     """double & add in affine coordinates, using binary decomposition of n"""
@@ -395,7 +396,7 @@ def _pointMultiplyAffine(ec: EllipticCurve,
     return R
 
 
-def _pointMultiplyJacobian(ec: EllipticCurve,
+def _pointMultJacobian(ec: EllipticCurve,
                            n: Scalar,
                            Q: JacPoint) -> JacPoint:
     """double & add in jacobian coordinates, using binary decomposition of n"""
@@ -415,7 +416,7 @@ def _pointMultiplyJacobian(ec: EllipticCurve,
     return R
 
 
-def DoubleScalarMultiplication(ec: EllipticCurve,
+def DblScalarMult(ec: EllipticCurve,
                                k1: Scalar,
                                Q1: GenericPoint,
                                k2: Scalar,
@@ -425,30 +426,30 @@ def DoubleScalarMultiplication(ec: EllipticCurve,
     r1 = int_from_Scalar(ec, k1)
     if r1 == 0:
         Q2 = to_Point(ec, Q2)
-        R2 = _jac_from_affine(Q2)
-        R = _pointMultiplyJacobian(ec, k2, R2)
+        R2 = _jac_from_aff(Q2)
+        R = _pointMultJacobian(ec, k2, R2)
         return ec._affine_from_jac(R)
 
     Q1 = to_Point(ec, Q1)
     if Q1[1] == 0:
         Q2 = to_Point(ec, Q2)
-        R2 = _jac_from_affine(Q2)
-        R = _pointMultiplyJacobian(ec, k2, R2)
+        R2 = _jac_from_aff(Q2)
+        R = _pointMultJacobian(ec, k2, R2)
         return ec._affine_from_jac(R)
 
-    R1 = _jac_from_affine(Q1)
+    R1 = _jac_from_aff(Q1)
 
     r2 = int_from_Scalar(ec, k2)
     if r2 == 0:
-        R = _pointMultiplyJacobian(ec, r1, R1)
+        R = _pointMultJacobian(ec, r1, R1)
         return ec._affine_from_jac(R)
 
     Q2 = to_Point(ec, Q2)
     if Q2[1] == 0:
-        R = _pointMultiplyJacobian(ec, r1, R1)
+        R = _pointMultJacobian(ec, r1, R1)
         return ec._affine_from_jac(R)
 
-    R2 = _jac_from_affine(Q2)
+    R2 = _jac_from_aff(Q2)
 
     R = 1, 1, 0  # initialize as infinity point
     msb = max(r1.bit_length(), r2.bit_length())

@@ -13,7 +13,7 @@ from hashlib import sha256
 from typing import List, Dict
 
 from btclib.ellipticcurves import secp256k1, Scalar, Tuple, \
-    pointMultiply, DoubleScalarMultiplication, bytes_from_Point, to_Point, \
+    pointMult, DblScalarMult, bytes_from_Point, to_Point, \
     int_from_Scalar, bytes_from_Scalar
 from btclib.ecsignutils import int_from_hlenbytes
 
@@ -68,7 +68,7 @@ def borromean_sign(msg: bytes,
         e[i] = [0]*len(pubk_rings[i])
         j_star = sign_key_idx[i]
         start_idx = (j_star + 1) % len(pubk_rings[i])
-        R = bytes_from_Point(ec, pointMultiply(ec, k[i], ec.G), True)
+        R = bytes_from_Point(ec, pointMult(ec, k[i], ec.G), True)
         if start_idx == 0:
             last_R += R
         else:
@@ -77,7 +77,7 @@ def borromean_sign(msg: bytes,
                 e[i][j] = int_from_hlenbytes(
                     borromean_hash(m, R, i, j), ec, sha256)
                 assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
-                T = DoubleScalarMultiplication(ec,
+                T = DblScalarMult(ec,
                     s[i][j], ec.G,
                     ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
                 R = bytes_from_Point(ec, T, True)
@@ -90,7 +90,7 @@ def borromean_sign(msg: bytes,
         assert e[i][0] != 0 and e[i][0] < ec.n, "sign fail"
         for j in range(1, j_star+1):
             s[i][j-1] = os.urandom(32)
-            T = DoubleScalarMultiplication(ec,
+            T = DblScalarMult(ec,
                 s[i][j-1], ec.G,
                 ec.n - e[i][j-1], to_Point(ec, pubk_rings[i][j-1]))
             R = bytes_from_Point(ec, T, True)
@@ -123,7 +123,7 @@ def borromean_verify(msg: bytes,
         if e[i][0] == 0 or e[i][0] >= ec.n:
             return False
         for j in range(len(pubk_rings[i])):
-            T = DoubleScalarMultiplication(ec,
+            T = DblScalarMult(ec,
                 s[i][j], ec.G,
                 ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
             R = bytes_from_Point(ec, T, True)

@@ -33,7 +33,7 @@
 
 from typing import Optional
 
-from btclib.ellipticcurves import EllipticCurve, pointMultiply, Tuple, \
+from btclib.ellipticcurves import EllipticCurve, pointMult, Tuple, \
     Scalar, Point, GenericPoint, bytes_from_Point, int_from_Scalar, \
     to_Point
 from btclib.ecsignutils import int_from_hlenbytes, bytes_from_hlenbytes
@@ -51,7 +51,7 @@ def tweak(k: int, c: bytes, ec: EllipticCurve, Hash) -> Tuple[Point, int]:
     - point kG to tweak
     - tweaked private key k + h(kG||c), the corresponding pubkey is a commitment to kG, c
     """
-    R = pointMultiply(ec, k, ec.G)
+    R = pointMult(ec, k, ec.G)
     e = Hash(bytes_from_Point(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
     return R, (e + k) % ec.n
@@ -114,7 +114,7 @@ def verify_commit(receipt: Receipt,
     ch = Hash(c).digest()
     e = Hash(bytes_from_Point(ec, R, True) + ch).digest()
     e = int_from_hlenbytes(e, ec, Hash)
-    W = ec.add(R, pointMultiply(ec, e, ec.G))
+    W = ec.add(R, pointMult(ec, e, ec.G))
     # different verify functions?
     # return w == W[0] # ECSS
     return w == W[0] % ec.n  # ECDS

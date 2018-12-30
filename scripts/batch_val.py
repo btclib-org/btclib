@@ -11,7 +11,7 @@
 import random
 import time
 
-from btclib.ellipticcurves import secp256k1, pointMultiply
+from btclib.ellipticcurves import secp256k1, pointMult
 from btclib.ecssa import ecssa_sign, ecssa_verify, ecssa_batch_validation
 
 random.seed(42)
@@ -29,7 +29,7 @@ for j in range(max(n_sig)):
     m.append(random.getrandbits(bits).to_bytes(bytesize, 'big'))
     q = random.getrandbits(bits) % ec.n
     sig.append(ecssa_sign(m[j], q))
-    Q.append(pointMultiply(ec, q, ec.G))
+    Q.append(pointMult(ec, q, ec.G))
     if j != 0:
         a.append(random.getrandbits(bits) % ec.n) # FIXME: % ec.n?
     else:

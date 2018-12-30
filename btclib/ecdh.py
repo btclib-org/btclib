@@ -11,12 +11,12 @@
 from hashlib import sha1, sha256
 from btclib.ellipticcurves import EllipticCurve, Scalar as PrvKey, \
     GenericPoint as GenericPubKey, int_from_Scalar, to_Point, \
-    bytes_from_Scalar, pointMultiply
+    bytes_from_Scalar, pointMult
 from btclib.ecsignutils import int2octets
 
 
 def ecdh(ec: EllipticCurve, prv_sender: PrvKey, pub_recv: GenericPubKey) -> int:
-    shared_point = pointMultiply(ec, prv_sender, pub_recv)
+    shared_point = pointMult(ec, prv_sender, pub_recv)
     shared_pubkey = to_Point(ec, shared_point)
     return shared_pubkey[0]
 

@@ -11,8 +11,8 @@
 import random
 import time
 
-from btclib.ellipticcurves import secp256k1, _jac_from_affine, \
-    _pointMultiplyAffine, _pointMultiplyJacobian
+from btclib.ellipticcurves import secp256k1, _jac_from_aff, \
+    _pointMultAffine, _pointMultJacobian
 
 random.seed(42)
 
@@ -26,14 +26,14 @@ for _ in range(50):
 
 start = time.time()
 for q in qs:
-    _pointMultiplyAffine(ec, q, ec.G)
+    _pointMultAffine(ec, q, ec.G)
 elapsed1 = time.time() - start
 
 start = time.time()
 for q in qs:
     # starts from affine coordinates, ends with affine coordinates
-    GJ = _jac_from_affine(ec.G)
-    ec._affine_from_jac(_pointMultiplyJacobian(ec, q, GJ))
+    GJ = _jac_from_aff(ec.G)
+    ec._affine_from_jac(_pointMultJacobian(ec, q, GJ))
 elapsed2 = time.time() - start
 
 print(elapsed2 / elapsed1)

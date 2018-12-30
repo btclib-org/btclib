@@ -18,7 +18,7 @@ from typing import List, Optional
 
 from btclib.numbertheory import mod_inv
 from btclib.ellipticcurves import Union, Tuple, Scalar, Point, GenericPoint, \
-    EllipticCurve, secp256k1, pointMultiply, DoubleScalarMultiplication, \
+    EllipticCurve, secp256k1, pointMult, DblScalarMult, \
     int_from_Scalar, to_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsignutils import bytes_from_hlenbytes, int_from_hlenbytes
@@ -65,7 +65,7 @@ def _ecdsa_sign(e: int,
     if k == 0:
         raise ValueError("ephemeral key k=0 in ecdsa sign operation")
     # Let R = k'G.
-    R = pointMultiply(ec, k, ec.G)                      # 1
+    R = pointMult(ec, k, ec.G)                      # 1
 
     r = R[0] % ec.n                                     # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
@@ -132,7 +132,7 @@ def _ecdsa_verhlp(dsasig: ECDS,
     s1 = mod_inv(s, ec.n)
     u1 = e*s1
     u2 = r*s1         # 4
-    R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P)  # 5
+    R = DblScalarMult(ec, u1, ec.G, u2, P)  # 5
 
     # Fail if infinite(R).
     if R[1] == 0:
@@ -179,11 +179,11 @@ def _ecdsa_pubkey_recovery(dsasig: ECDS,
         try:
             R = (x, ec.yOdd(x, 1))  # 1.2, 1.3, and 1.4
             # 1.5 already taken care outside this for loop
-            Q = DoubleScalarMultiplication(ec, r1s, R, r1e, ec.G)  # 1.6.1
+            Q = DblScalarMult(ec, r1s, R, r1e, ec.G)  # 1.6.1
             # 1.6.2 is always satisfied for us, and we do not stop here
             keys.append(Q)
             R = ec.opposite(R)                                    # 1.6.3
-            Q = DoubleScalarMultiplication(ec, r1s, R, r1e, ec.G)
+            Q = DblScalarMult(ec, r1s, R, r1e, ec.G)
             keys.append(Q)
         except Exception:  # can't get a curve's point
             pass

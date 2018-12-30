@@ -13,7 +13,7 @@ import random
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ellipticcurves import int_from_Scalar, bytes_from_Point, \
-    pointMultiply, DoubleScalarMultiplication, secondGenerator, secp256k1
+    pointMult, DblScalarMult, secondGenerator, secp256k1
 from btclib.ecssa import sha256, int_from_hlenbytes, _ecssa_verify
 
 random.seed(42)
@@ -41,7 +41,7 @@ class TestEcssaThreshold(unittest.TestCase):
         while q1_prime == 0:
             q1_prime = random.getrandbits(bits) % ec.n
 
-        commits1.append(DoubleScalarMultiplication(ec, q1, ec.G, q1_prime, H))
+        commits1.append(DblScalarMult(ec, q1, ec.G, q1_prime, H))
 
         # sharing polynomials
         f1 = list()
@@ -57,7 +57,7 @@ class TestEcssaThreshold(unittest.TestCase):
             while temp == 0:
                 temp = random.getrandbits(bits) % ec.n
             f1_prime.append(temp)
-            commits1.append(DoubleScalarMultiplication(
+            commits1.append(DblScalarMult(
                 ec, f1[i], ec.G, f1_prime[i], H))
 
         # shares of the secret
@@ -75,15 +75,15 @@ class TestEcssaThreshold(unittest.TestCase):
         # player two verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMultiply(ec, pow(2, i), commits1[i]))
-        assert DoubleScalarMultiplication(
+            RHS = ec.add(RHS, pointMult(ec, pow(2, i), commits1[i]))
+        assert DblScalarMult(
             ec, alpha12, ec.G, alpha12_prime, H) == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMultiply(ec, pow(3, i), commits1[i]))
-        assert DoubleScalarMultiplication(
+            RHS = ec.add(RHS, pointMult(ec, pow(3, i), commits1[i]))
+        assert DblScalarMult(
             ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
 
         # signer two acting as the dealer
@@ -95,7 +95,7 @@ class TestEcssaThreshold(unittest.TestCase):
         while q2_prime == 0:
             q2_prime = random.getrandbits(bits) % ec.n
 
-        commits2.append(DoubleScalarMultiplication(ec, q2, ec.G, q2_prime, H))
+        commits2.append(DblScalarMult(ec, q2, ec.G, q2_prime, H))
 
         # sharing polynomials
         f2 = list()
@@ -111,7 +111,7 @@ class TestEcssaThreshold(unittest.TestCase):
             while temp == 0:
                 temp = random.getrandbits(bits) % ec.n
             f2_prime.append(temp)
-            commits2.append(DoubleScalarMultiplication(
+            commits2.append(DblScalarMult(
                 ec, f2[i], ec.G, f2_prime[i], H))
 
         # shares of the secret
@@ -129,15 +129,15 @@ class TestEcssaThreshold(unittest.TestCase):
         # player one verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMultiply(ec, pow(1, i), commits2[i]))
-        assert DoubleScalarMultiplication(
+            RHS = ec.add(RHS, pointMult(ec, pow(1, i), commits2[i]))
+        assert DblScalarMult(
             ec, alpha21, ec.G, alpha21_prime, H) == RHS, 'player two is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMultiply(ec, pow(3, i), commits2[i]))
-        assert DoubleScalarMultiplication(
+            RHS = ec.add(RHS, pointMult(ec, pow(3, i), commits2[i]))
+        assert DblScalarMult(
             ec, alpha23, ec.G, alpha23_prime, H) == RHS, 'player two is cheating'
 
         # signer three acting as the dealer
@@ -149,7 +149,7 @@ class TestEcssaThreshold(unittest.TestCase):
         while q3_prime == 0:
             q3_prime = random.getrandbits(bits) % ec.n
 
-        commits3.append(DoubleScalarMultiplication(ec, q3, ec.G, q3_prime, H))
+        commits3.append(DblScalarMult(ec, q3, ec.G, q3_prime, H))
 
         # sharing polynomials
         f3 = list()
@@ -165,7 +165,7 @@ class TestEcssaThreshold(unittest.TestCase):
             while temp == 0:
                 temp = random.getrandbits(bits) % ec.n
             f3_prime.append(temp)
-            commits3.append(DoubleScalarMultiplication(
+            commits3.append(DblScalarMult(
                 ec, f3[i], ec.G, f3_prime[i], H))
 
         # shares of the secret
@@ -183,15 +183,15 @@ class TestEcssaThreshold(unittest.TestCase):
         # player one verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMultiply(ec, pow(1, i), commits3[i]))
-        assert DoubleScalarMultiplication(
+            RHS = ec.add(RHS, pointMult(ec, pow(1, i), commits3[i]))
+        assert DblScalarMult(
             ec, alpha31, ec.G, alpha31_prime, H) == RHS, 'player three is cheating'
 
         # player two verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMultiply(ec, pow(2, i), commits3[i]))
-        assert DoubleScalarMultiplication(
+            RHS = ec.add(RHS, pointMult(ec, pow(2, i), commits3[i]))
+        assert DblScalarMult(
             ec, alpha32, ec.G, alpha32_prime, H) == RHS, 'player two is cheating'
 
         # shares of the secret key q = q1 + q2 + q3
@@ -212,42 +212,42 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # he broadcasts these values
         for i in range(t):
-            A1.append(pointMultiply(ec, f1[i], ec.G))
-            A2.append(pointMultiply(ec, f2[i], ec.G))
-            A3.append(pointMultiply(ec, f3[i], ec.G))
+            A1.append(pointMult(ec, f1[i], ec.G))
+            A2.append(pointMult(ec, f2[i], ec.G))
+            A3.append(pointMult(ec, f3[i], ec.G))
 
         # he checks the others' values
         # player one
         RHS2 = 1, 0
         RHS3 = 1, 0
         for i in range(t):
-            RHS2 = ec.add(RHS2, pointMultiply(ec, pow(1, i), A2[i]))
-            RHS3 = ec.add(RHS3, pointMultiply(ec, pow(1, i), A3[i]))
-        assert pointMultiply(
+            RHS2 = ec.add(RHS2, pointMult(ec, pow(1, i), A2[i]))
+            RHS3 = ec.add(RHS3, pointMult(ec, pow(1, i), A3[i]))
+        assert pointMult(
             ec, alpha21, ec.G) == RHS2, 'player two is cheating'
-        assert pointMultiply(
+        assert pointMult(
             ec, alpha31, ec.G) == RHS3, 'player three is cheating'
 
         # player two
         RHS1 = 1, 0
         RHS3 = 1, 0
         for i in range(t):
-            RHS1 = ec.add(RHS1, pointMultiply(ec, pow(2, i), A1[i]))
-            RHS3 = ec.add(RHS3, pointMultiply(ec, pow(2, i), A3[i]))
-        assert pointMultiply(
+            RHS1 = ec.add(RHS1, pointMult(ec, pow(2, i), A1[i]))
+            RHS3 = ec.add(RHS3, pointMult(ec, pow(2, i), A3[i]))
+        assert pointMult(
             ec, alpha12, ec.G) == RHS1, 'player one is cheating'
-        assert pointMultiply(
+        assert pointMult(
             ec, alpha32, ec.G) == RHS3, 'player three is cheating'
 
         # player three
         RHS1 = 1, 0
         RHS2 = 1, 0
         for i in range(t):
-            RHS1 = ec.add(RHS1, pointMultiply(ec, pow(3, i), A1[i]))
-            RHS2 = ec.add(RHS2, pointMultiply(ec, pow(3, i), A2[i]))
-        assert pointMultiply(
+            RHS1 = ec.add(RHS1, pointMult(ec, pow(3, i), A1[i]))
+            RHS2 = ec.add(RHS2, pointMult(ec, pow(3, i), A2[i]))
+        assert pointMult(
             ec, alpha13, ec.G) == RHS1, 'player one is cheating'
-        assert pointMultiply(
+        assert pointMult(
             ec, alpha23, ec.G) == RHS2, 'player two is cheating'
 
         A = list()  # commitment at the global sharing polynomial
@@ -269,7 +269,7 @@ class TestEcssaThreshold(unittest.TestCase):
         while k1_prime == 0:
             k1_prime = random.getrandbits(bits) % ec.n
 
-        commits1.append(DoubleScalarMultiplication(ec, k1, ec.G, k1_prime, H))
+        commits1.append(DblScalarMult(ec, k1, ec.G, k1_prime, H))
 
         # sharing polynomials
         f1 = list()
@@ -285,7 +285,7 @@ class TestEcssaThreshold(unittest.TestCase):
             while temp == 0:
                 temp = random.getrandbits(bits) % ec.n
             f1_prime.append(temp)
-            commits1.append(DoubleScalarMultiplication(
+            commits1.append(DblScalarMult(
                 ec, f1[i], ec.G, f1_prime[i], H))
 
         # shares of the secret
@@ -298,8 +298,8 @@ class TestEcssaThreshold(unittest.TestCase):
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMultiply(ec, pow(3, i), commits1[i]))
-        assert DoubleScalarMultiplication(
+            RHS = ec.add(RHS, pointMult(ec, pow(3, i), commits1[i]))
+        assert DblScalarMult(
             ec, beta13, ec.G, beta13_prime, H) == RHS, 'player one is cheating'
 
         # signer three acting as the dealer
@@ -311,7 +311,7 @@ class TestEcssaThreshold(unittest.TestCase):
         while k3_prime == 0:
             k3_prime = random.getrandbits(bits) % ec.n
 
-        commits3.append(DoubleScalarMultiplication(ec, k3, ec.G, k3_prime, H))
+        commits3.append(DblScalarMult(ec, k3, ec.G, k3_prime, H))
 
         # sharing polynomials
         f3 = list()
@@ -327,7 +327,7 @@ class TestEcssaThreshold(unittest.TestCase):
             while temp == 0:
                 temp = random.getrandbits(bits) % ec.n
             f3_prime.append(temp)
-            commits3.append(DoubleScalarMultiplication(
+            commits3.append(DblScalarMult(
                 ec, f3[i], ec.G, f3_prime[i], H))
 
         # shares of the secret
@@ -340,8 +340,8 @@ class TestEcssaThreshold(unittest.TestCase):
         # player one verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMultiply(ec, pow(1, i), commits3[i]))
-        assert DoubleScalarMultiplication(
+            RHS = ec.add(RHS, pointMult(ec, pow(1, i), commits3[i]))
+        assert DblScalarMult(
             ec, beta31, ec.G, beta31_prime, H) == RHS, 'player three is cheating'
 
         # shares of the secret nonce
@@ -359,22 +359,22 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # he broadcasts these values
         for i in range(t):
-            B1.append(pointMultiply(ec, f1[i], ec.G))
-            B3.append(pointMultiply(ec, f3[i], ec.G))
+            B1.append(pointMult(ec, f1[i], ec.G))
+            B3.append(pointMult(ec, f3[i], ec.G))
 
         # he checks the others' values
         # player one
         RHS3 = 1, 0
         for i in range(t):
-            RHS3 = ec.add(RHS3, pointMultiply(ec, pow(1, i), B3[i]))
-        assert pointMultiply(
+            RHS3 = ec.add(RHS3, pointMult(ec, pow(1, i), B3[i]))
+        assert pointMult(
             ec, beta31, ec.G) == RHS3, 'player three is cheating'
 
         # player three
         RHS1 = 1, 0
         for i in range(t):
-            RHS1 = ec.add(RHS1, pointMultiply(ec, pow(3, i), B1[i]))
-        assert pointMultiply(
+            RHS1 = ec.add(RHS1, pointMult(ec, pow(3, i), B1[i]))
+        assert pointMult(
             ec, beta13, ec.G) == RHS1, 'player one is cheating'
 
         B = list()  # commitment at the global sharing polynomial
@@ -398,34 +398,34 @@ class TestEcssaThreshold(unittest.TestCase):
 
         # player one
         if legendre_symbol(K[1], ec._p) == 1:
-            RHS3 = ec.add(K, pointMultiply(ec, e, Q))
+            RHS3 = ec.add(K, pointMult(ec, e, Q))
             for i in range(1, t):
                 RHS3 = ec.add(RHS3,
-                              DoubleScalarMultiplication(ec, pow(3, i), B[i], e * pow(3, i), A[i]))
+                              DblScalarMult(ec, pow(3, i), B[i], e * pow(3, i), A[i]))
         else:
             assert legendre_symbol(K[1], ec._p) != 1
-            RHS3 = ec.add(ec.opposite(K), pointMultiply(ec, e, Q))
+            RHS3 = ec.add(ec.opposite(K), pointMult(ec, e, Q))
             for i in range(1, t):
                 RHS3 = ec.add(RHS3,
-                              DoubleScalarMultiplication(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i]))
+                              DblScalarMult(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i]))
 
-        assert pointMultiply(
+        assert pointMult(
             ec, gamma3, ec.G) == RHS3, 'player three is cheating'
 
         # player three
         if legendre_symbol(K[1], ec._p) == 1:
-            RHS1 = ec.add(K, pointMultiply(ec, e, Q))
+            RHS1 = ec.add(K, pointMult(ec, e, Q))
             for i in range(1, t):
                 RHS1 = ec.add(RHS1,
-                              DoubleScalarMultiplication(ec, pow(1, i), B[i], e * pow(1, i), A[i]))
+                              DblScalarMult(ec, pow(1, i), B[i], e * pow(1, i), A[i]))
         else:
             assert legendre_symbol(K[1], ec._p) != 1
-            RHS1 = ec.add(ec.opposite(K), pointMultiply(ec, e, Q))
+            RHS1 = ec.add(ec.opposite(K), pointMult(ec, e, Q))
             for i in range(1, t):
                 RHS1 = ec.add(RHS1,
-                              DoubleScalarMultiplication(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i]))
+                              DblScalarMult(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i]))
 
-        assert pointMultiply(
+        assert pointMult(
             ec, gamma1, ec.G) == RHS1, 'player two is cheating'
 
         ### PHASE FOUR: aggregating the signature ###

@@ -11,7 +11,7 @@
 from hashlib import sha256
 from btclib.numbertheory import mod_inv
 from btclib.ellipticcurves import secp256k1 as ec, \
-                                  pointMultiply
+                                  pointMult
 
 print("\n*** EC:")
 print(ec)
@@ -21,7 +21,7 @@ q = q % ec.n
 print("\n*** Keys:")
 print("prvkey:   ", hex(q))
 
-Q = pointMultiply(ec, q, ec.G)
+Q = pointMult(ec, q, ec.G)
 print("PubKey:", "02" if (Q[1] % 2 == 0) else "03", hex(Q[0]))
 
 print("\n*** Message to be signed")
@@ -45,7 +45,7 @@ k1 = int.from_bytes(k_bytes, 'big') % ec.n
 assert k1 != 0
 print("eph k1:", hex(k1))
 
-K1 = pointMultiply(ec, k1, ec.G)
+K1 = pointMult(ec, k1, ec.G)
 
 r = K1[0] % ec.n
 # if r == 0 (extremely unlikely for large ec.n) go back to a different ephemeral key
@@ -64,8 +64,8 @@ u = (h1*w) %ec.n
 v = (r*w) %ec.n
 assert u != 0
 assert v != 0
-U = pointMultiply(ec, u, ec.G)
-V = pointMultiply(ec, v, Q)
+U = pointMult(ec, u, ec.G)
+V = pointMult(ec, v, Q)
 x, y = ec.add(U, V)
 print(r == x %ec.n)
 
@@ -80,8 +80,8 @@ u = (h1*w) %ec.n
 v = (r*w) %ec.n
 assert u != 0
 assert v != 0
-U = pointMultiply(ec, u, ec.G)
-V = pointMultiply(ec, v, Q)
+U = pointMult(ec, u, ec.G)
+V = pointMult(ec, v, Q)
 x, y = ec.add(U, V)
 print(r == x %ec.n)
 
@@ -100,7 +100,7 @@ print("\n*** Signature")
 k2 = k1 #very bad! Never reuse the same ephemeral key!!!
 print("eph k2:", hex(k2))
 
-K2 = pointMultiply(ec, k2, ec.G)
+K2 = pointMult(ec, k2, ec.G)
 
 r = K2[0] % ec.n
 # if r == 0 (extremely unlikely for large ec.n) go back to a different ephemeral key
@@ -119,7 +119,7 @@ u = (h2*w) %ec.n
 v = (r*w) %ec.n
 assert u != 0
 assert v != 0
-U = pointMultiply(ec, u, ec.G)
-V = pointMultiply(ec, v, Q)
+U = pointMult(ec, u, ec.G)
+V = pointMult(ec, v, Q)
 x, y = ec.add(U, V)
 print(r == x %ec.n)

@@ -14,7 +14,7 @@ from hashlib import sha256
 
 from btclib.numbertheory import legendre_symbol
 from btclib.ellipticcurves import secp256k1, secp224k1, int_from_Scalar, \
-    bytes_from_Point, to_Point, pointMultiply
+    bytes_from_Point, to_Point, pointMult
 from btclib.ecssa import rfc6979, int_from_hlenbytes, ecssa_sign, ecssa_sign, \
     to_ssasig, _ecssa_verify, ecssa_verify, _ecssa_pubkey_recovery, \
     ecssa_batch_validation
@@ -29,7 +29,7 @@ class TestEcssa(unittest.TestCase):
         """Basic tests"""
         ec = secp256k1
         q = 0x1
-        Q = pointMultiply(ec, q, ec.G)
+        Q = pointMult(ec, q, ec.G)
         msg = sha256('Satoshi Nakamoto'.encode()).digest()
         ssasig = ecssa_sign(msg, q, None, ec, sha256)
         # no source for the following... but
@@ -55,13 +55,13 @@ class TestEcssa(unittest.TestCase):
 
         # y(sG - eP) is not a quadratic residue
         fq = 0x2
-        fQ = pointMultiply(ec, fq, ec.G)
+        fQ = pointMult(ec, fq, ec.G)
         self.assertFalse(ecssa_verify(ssasig, msg, fQ, ec, sha256))
         self.assertRaises(ValueError, _ecssa_verify, ssasig, msg, fQ, ec,
                           sha256)
 
         fq = 0x4
-        fQ = pointMultiply(ec, fq, ec.G)
+        fQ = pointMult(ec, fq, ec.G)
         self.assertFalse(ecssa_verify(ssasig, msg, fQ, ec, sha256))
         self.assertFalse(_ecssa_verify(ssasig, msg, fQ, ec, sha256))
 
@@ -91,7 +91,7 @@ class TestEcssa(unittest.TestCase):
         ec = secp256k1
         # test vector 1
         prv = b'\x00' * 31 + b'\x01'
-        pub = pointMultiply(ec, prv, ec.G)
+        pub = pointMult(ec, prv, ec.G)
         msg = b'\x00' * 32
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
@@ -106,7 +106,7 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 2
         prv = 0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
-        pub = pointMultiply(ec, prv, ec.G)
+        pub = pointMult(ec, prv, ec.G)
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         expected_sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
@@ -123,7 +123,7 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 3
         prv = 0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B14E5C7
-        pub = pointMultiply(ec, prv, ec.G)
+        pub = pointMult(ec, prv, ec.G)
         msg = bytes.fromhex(
             "5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         expected_sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
@@ -314,12 +314,12 @@ class TestEcssa(unittest.TestCase):
                         self.assertRaises(
                             ValueError, rfc6979, q, H[0], ec, sha256)
                         continue
-                    Q = pointMultiply(ec, q, ec.G)  # public key
+                    Q = pointMult(ec, q, ec.G)  # public key
                     for h in H:  # all possible hashed messages
                         # k = 0
                         self.assertRaises(ValueError, ecssa_sign, h, q, 0, ec)
                         k = rfc6979(q, h, ec, sha256)
-                        K = pointMultiply(ec, k, ec.G)
+                        K = pointMult(ec, k, ec.G)
                         if legendre_symbol(K[1], ec._p) != 1:
                             k = ec.n - k
 
@@ -349,7 +349,7 @@ class TestEcssa(unittest.TestCase):
             m.append(random.getrandbits(bits).to_bytes(bytesize, 'big'))
             q = random.getrandbits(bits) % ec.n
             sig.append(ecssa_sign(m[i], q))
-            Q.append(pointMultiply(ec, q, ec.G))
+            Q.append(pointMult(ec, q, ec.G))
             a.append(random.getrandbits(bits))  # FIXME: % ec.n ?
         self.assertTrue(ecssa_batch_validation(sig, m, Q, a, ec))
 

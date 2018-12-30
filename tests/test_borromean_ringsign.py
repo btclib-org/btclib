@@ -11,7 +11,7 @@
 import unittest
 import random
 
-from btclib.ellipticcurves import secp256k1, pointMultiply
+from btclib.ellipticcurves import secp256k1, pointMult
 from btclib.borromean_ringsign import borromean_sign, borromean_verify
 
 random.seed(42)
@@ -33,7 +33,7 @@ class TestBorromeanRingSignature(unittest.TestCase):
             Pub_keys[i] = [0]*ring_dim[i]
             for j in range(ring_dim[i]):
                 priv_keys[i][j] = random.getrandbits(bits) % ec.n
-                Pub_keys[i][j] = pointMultiply(ec, priv_keys[i][j], ec.G)
+                Pub_keys[i][j] = pointMult(ec, priv_keys[i][j], ec.G)
             signing_keys.append(priv_keys[i][signing_indexes[i]])
         msg = 'Borromean ring signature'.encode()
         sig = borromean_sign(msg, signing_indexes, signing_keys, Pub_keys)

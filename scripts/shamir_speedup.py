@@ -11,7 +11,7 @@
 import random
 import time
 
-from btclib.ellipticcurves import secp256k1, pointMultiply, DoubleScalarMultiplication
+from btclib.ellipticcurves import secp256k1, pointMult, DblScalarMult
 
 random.seed(42)
 
@@ -26,17 +26,17 @@ for _ in range(50):
     k1.append(random.getrandbits(bits) % ec.n)
     k2.append(random.getrandbits(bits) % ec.n)
     q = random.getrandbits(bits) % ec.n
-    Q.append(pointMultiply(ec, q, ec.G))
+    Q.append(pointMult(ec, q, ec.G))
 
 start = time.time()
 for i in range(len(Q)):
-    ec.add(pointMultiply(ec, k1[i], ec.G),
-           pointMultiply(ec, k2[i], Q[i]))
+    ec.add(pointMult(ec, k1[i], ec.G),
+           pointMult(ec, k2[i], Q[i]))
 elapsed1 = time.time() - start
 
 start = time.time()
 for i in range(len(Q)):
-    DoubleScalarMultiplication(ec, k1[i], ec.G, k2[i], Q[i])
+    DblScalarMult(ec, k1[i], ec.G, k2[i], Q[i])
 elapsed2 = time.time() - start
 
 print(elapsed2 / elapsed1)

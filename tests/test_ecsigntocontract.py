@@ -10,7 +10,7 @@
 
 import unittest
 
-from btclib.ellipticcurves import secp256k1, sha256, pointMultiply
+from btclib.ellipticcurves import secp256k1, sha256, pointMult
 from btclib.ecdsa import ecdsa_verify
 from btclib.ecssa import ecssa_verify
 from btclib.ecsigntocontract import ecdsa_commit_and_sign, \
@@ -20,7 +20,7 @@ from btclib.ecsigntocontract import ecdsa_commit_and_sign, \
 class TestSignToContract(unittest.TestCase):
     def test_signtocontract(self):
         prv = 0x1
-        pub = pointMultiply(secp256k1, prv, secp256k1.G)
+        pub = pointMult(secp256k1, prv, secp256k1.G)
         m = "to be signed".encode()
         c = "to be committed".encode()
 

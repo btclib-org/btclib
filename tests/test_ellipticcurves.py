@@ -12,8 +12,8 @@ import unittest
 
 from btclib.numbertheory import mod_sqrt
 from btclib.ellipticcurves import EllipticCurve, sha256, bytes_from_Point, \
-    to_Point, pointMultiply, DoubleScalarMultiplication, _jac_from_affine, \
-    _pointMultiplyJacobian, _pointMultiplyAffine, secondGenerator, \
+    to_Point, pointMult, DblScalarMult, _jac_from_aff, \
+    _pointMultJacobian, _pointMultAffine, secondGenerator, \
     secp256k1, secp256r1, secp384r1, SEC_curves
 from btclib.ecsignutils import int_from_hlenbytes
 
@@ -236,11 +236,11 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_all_curves(self):
         for ec in all_curves:
-            self.assertEqual(pointMultiply(ec, 0, ec.G), Inf)
-            self.assertEqual(pointMultiply(ec, 0, ec.G), Inf)
+            self.assertEqual(pointMult(ec, 0, ec.G), Inf)
+            self.assertEqual(pointMult(ec, 0, ec.G), Inf)
 
-            self.assertEqual(pointMultiply(ec, 1, ec.G), ec.G)
-            self.assertEqual(pointMultiply(ec, 1, ec.G), ec.G)
+            self.assertEqual(pointMult(ec, 1, ec.G), ec.G)
+            self.assertEqual(pointMult(ec, 1, ec.G), ec.G)
 
             Gy_odd = ec.yOdd(ec.G[0], True)
             self.assertEqual(Gy_odd % 2, 1)
@@ -268,15 +268,15 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(P, Inf)
 
             P = ec.add(ec.G, ec.G)
-            self.assertEqual(P, pointMultiply(ec, 2, ec.G))
+            self.assertEqual(P, pointMult(ec, 2, ec.G))
 
-            P = pointMultiply(ec, ec.n-1, ec.G)
+            P = pointMult(ec, ec.n-1, ec.G)
             self.assertEqual(ec.add(P, ec.G), Inf)
-            self.assertEqual(pointMultiply(ec, ec.n, ec.G), Inf)
+            self.assertEqual(pointMult(ec, ec.n, ec.G), Inf)
 
-            self.assertEqual(pointMultiply(ec, 0, Inf), Inf)
-            self.assertEqual(pointMultiply(ec, 1, Inf), Inf)
-            self.assertEqual(pointMultiply(ec, 25, Inf), Inf)
+            self.assertEqual(pointMult(ec, 0, Inf), Inf)
+            self.assertEqual(pointMult(ec, 1, Inf), Inf)
+            self.assertEqual(pointMult(ec, 25, Inf), Inf)
 
             ec_repr = repr(ec)
             if ec in low_card_curves:
@@ -286,7 +286,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_to_point(self):
         ec = secp256k1
-        Q = pointMultiply(ec, ec._p, ec.G)
+        Q = pointMult(ec, ec._p, ec.G)
 
         Q_bytes = b'\x03' + Q[0].to_bytes(32, "big")
         R = to_Point(ec, Q_bytes)
@@ -315,7 +315,7 @@ class TestEllipticCurve(unittest.TestCase):
 
         # scalar in point multiplication can be int, str, or bytes
         t = tuple()
-        self.assertRaises(TypeError, pointMultiply, ec, t, ec.G)
+        self.assertRaises(TypeError, pointMult, ec, t, ec.G)
 
         # not a compressed point
         Q_bytes = b'\x01' * 33
@@ -345,83 +345,83 @@ class TestEllipticCurve(unittest.TestCase):
             H.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
 
         # 0*G + 1*H
-        T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, 1, H)
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, 1, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
 
         # 0*G + 2*H
-        T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, 2, H)
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, 2, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
-        T = pointMultiply(secp256k1, 2, H)
+        T = pointMult(secp256k1, 2, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
 
         # 0*G + 3*H
-        T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, 3, H)
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, 3, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
-        T = pointMultiply(secp256k1, 3, H)
+        T = pointMult(secp256k1, 3, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
 
         # 1*G+0*H
-        T = DoubleScalarMultiplication(secp256k1, 1, secp256k1.G, 0, H)
+        T = DblScalarMult(secp256k1, 1, secp256k1.G, 0, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
-        T = pointMultiply(secp256k1, 1, secp256k1.G)
+        T = pointMult(secp256k1, 1, secp256k1.G)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
 
         # 2*G+0*H
-        T = DoubleScalarMultiplication(secp256k1, 2, secp256k1.G, 0, H)
+        T = DblScalarMult(secp256k1, 2, secp256k1.G, 0, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
-        T = pointMultiply(secp256k1, 2, secp256k1.G)
+        T = pointMult(secp256k1, 2, secp256k1.G)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
 
         # 3*G+0*H
-        T = DoubleScalarMultiplication(secp256k1, 3, secp256k1.G, 0, H)
+        T = DblScalarMult(secp256k1, 3, secp256k1.G, 0, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
-        T = pointMultiply(secp256k1, 3, secp256k1.G)
+        T = pointMult(secp256k1, 3, secp256k1.G)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
 
         # 0*G+5*H
-        T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, 5, H)
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, 5, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
-        T = pointMultiply(secp256k1, 5, H)
+        T = pointMult(secp256k1, 5, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
 
         # 0*G-5*H
-        T = DoubleScalarMultiplication(secp256k1, 0, secp256k1.G, -5, H)
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, -5, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
-        T = pointMultiply(secp256k1, -5, H)
+        T = pointMult(secp256k1, -5, H)
         T = bytes_from_Point(secp256k1, T, True)
         self.assertEqual(
             T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
 
         # 1*G-5*H
-        U = DoubleScalarMultiplication(secp256k1, 1, secp256k1.G, -5, H)
+        U = DblScalarMult(secp256k1, 1, secp256k1.G, -5, H)
         U = bytes_from_Point(secp256k1, U, True)
         self.assertEqual(
             U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
@@ -436,12 +436,12 @@ class TestEllipticCurve(unittest.TestCase):
     def test_opposite(self):
         for ec in all_curves:
             # random point
-            Q = pointMultiply(ec, ec._p, ec.G)
+            Q = pointMult(ec, ec._p, ec.G)
             minus_Q = ec.opposite(Q)
             self.assertEqual(ec.add(Q, minus_Q), Inf)
             # jacobian coordinates
-            Qjac = _jac_from_affine(Q)
-            minus_Qjac = _jac_from_affine(minus_Q)
+            Qjac = _jac_from_aff(Q)
+            minus_Qjac = _jac_from_aff(minus_Q)
             self.assertEqual(ec._addJacobian(Qjac, minus_Qjac), (1, 1, 0))
 
             # opposite of Inf is Inf
@@ -464,7 +464,7 @@ class TestEllipticCurve(unittest.TestCase):
             # test phase
 
             # random point
-            Q = pointMultiply(ec, ec._p, ec.G)  # just a random point
+            Q = pointMult(ec, ec._p, ec.G)  # just a random point
 
             x = Q[0]
             if ec._p % 4 == 3:
@@ -533,22 +533,22 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_affine_jac_conversions(self):
         for ec in all_curves:
-            Q = pointMultiply(ec, ec._p, ec.G)  # random point
-            checkQ = ec._affine_from_jac(_jac_from_affine(Q))
+            Q = pointMult(ec, ec._p, ec.G)  # random point
+            checkQ = ec._affine_from_jac(_jac_from_aff(Q))
             self.assertEqual(Q, checkQ)
         # with only the last curve
-        checkInf = ec._affine_from_jac(_jac_from_affine(Inf))
+        checkInf = ec._affine_from_jac(_jac_from_aff(Inf))
         self.assertEqual(Inf, checkInf)
         self.assertRaises(ValueError, ec._affine_from_jac, (1, 1, 1, 0))
-        self.assertRaises(ValueError, _jac_from_affine, (1, 1, 0))
+        self.assertRaises(ValueError, _jac_from_aff, (1, 1, 0))
 
     def test_Add(self):
         for ec in all_curves:
-            Q1 = pointMultiply(ec, ec._p, ec.G)  # just a random point
-            Q1J = _jac_from_affine(Q1)
+            Q1 = pointMult(ec, ec._p, ec.G)  # just a random point
+            Q1J = _jac_from_aff(Q1)
 
             Q2 = ec.G
-            Q2J = _jac_from_affine(Q2)
+            Q2J = _jac_from_aff(Q2)
 
             # distinct points
             Q3 = ec._addAffine(Q1,  Q2)
@@ -571,46 +571,46 @@ class TestEllipticCurve(unittest.TestCase):
             # opposite points
             Q1opp = ec.opposite(Q1)
             Q3 = ec._addAffine(Q1,  Q1opp)
-            Q3jac = ec._addJacobian(Q1J, _jac_from_affine(Q1opp))
+            Q3jac = ec._addJacobian(Q1J, _jac_from_aff(Q1opp))
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
     def test_Multiply(self):
         for ec in low_card_curves_1:
-            Gjac = _jac_from_affine(ec.G)
+            Gjac = _jac_from_aff(ec.G)
             for q in range(ec.n):
-                Q = _pointMultiplyAffine(ec, q, ec.G)
-                Qjac = _pointMultiplyJacobian(ec, q, Gjac)
+                Q = _pointMultAffine(ec, q, ec.G)
+                Qjac = _pointMultJacobian(ec, q, Gjac)
                 Q2 = ec._affine_from_jac(Qjac)
                 self.assertEqual(Q, Q2)
         # with last curve
-        self.assertEqual(Inf, _pointMultiplyAffine(ec, 3, Inf))
-        self.assertEqual(InfJ, _pointMultiplyJacobian(ec, 3, InfJ))
+        self.assertEqual(Inf, _pointMultAffine(ec, 3, Inf))
+        self.assertEqual(InfJ, _pointMultJacobian(ec, 3, InfJ))
 
         # invalid scalar
         q = b'\x00' * (ec.bytesize + 1)
-        self.assertRaises(ValueError, pointMultiply, ec, q, ec.G)
+        self.assertRaises(ValueError, pointMult, ec, q, ec.G)
 
         # invalid coordinates
         Q = 1, 1, 0
-        self.assertRaises(ValueError, _pointMultiplyAffine, ec, 1, Q)
+        self.assertRaises(ValueError, _pointMultAffine, ec, 1, Q)
         Q = 1, 1, 1, 0
-        self.assertRaises(ValueError, _pointMultiplyJacobian, ec, 1, Q)
+        self.assertRaises(ValueError, _pointMultJacobian, ec, 1, Q)
 
     def test_shamir(self):
         ec = ec29_37
         for k1 in range(ec.n):
             for k2 in range(ec.n):
-                shamir = DoubleScalarMultiplication(ec, k1, ec.G, k2, ec.G)
-                std = ec.add(pointMultiply(ec, k1, ec.G),
-                             pointMultiply(ec, k2, ec.G))
+                shamir = DblScalarMult(ec, k1, ec.G, k2, ec.G)
+                std = ec.add(pointMult(ec, k1, ec.G),
+                             pointMult(ec, k2, ec.G))
                 self.assertEqual(shamir, std)
-                shamir = DoubleScalarMultiplication(ec, k1, Inf, k2, ec.G)
-                std = ec.add(pointMultiply(ec, k1, Inf),
-                             pointMultiply(ec, k2, ec.G))
+                shamir = DblScalarMult(ec, k1, Inf, k2, ec.G)
+                std = ec.add(pointMult(ec, k1, Inf),
+                             pointMult(ec, k2, ec.G))
                 self.assertEqual(shamir, std)
-                shamir = DoubleScalarMultiplication(ec, k1, ec.G, k2, Inf)
-                std = ec.add(pointMultiply(ec, k1, ec.G),
-                             pointMultiply(ec, k2, Inf))
+                shamir = DblScalarMult(ec, k1, ec.G, k2, Inf)
+                std = ec.add(pointMult(ec, k1, ec.G),
+                             pointMult(ec, k2, Inf))
                 self.assertEqual(shamir, std)
 
 

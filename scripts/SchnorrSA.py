@@ -10,7 +10,7 @@
 
 from hashlib import sha256
 from btclib.ellipticcurves import secp256k1 as ec, \
-                                  pointMultiply
+                                  pointMult
 
 print("\n*** EC:")
 print(ec)
@@ -20,7 +20,7 @@ q = q % ec.n
 print("\n*** Keys:")
 print("prvkey:   ", hex(q))
 
-Q = pointMultiply(ec, q, ec.G)
+Q = pointMult(ec, q, ec.G)
 print("PubKey:", "02" if (Q[1] % 2 == 0) else "03", hex(Q[0]))
 
 print("\n*** Message to be signed")
@@ -43,7 +43,7 @@ k_bytes = sha256(temp.encode()).digest()
 k1 = int.from_bytes(k_bytes, 'big') % ec.n
 assert k1 != 0
 
-K1 = pointMultiply(ec, k1, ec.G)
+K1 = pointMult(ec, k1, ec.G)
 
 s1 = (k1-h1*q) % ec.n
 # if s1 == 0 (extremely unlikely for large ec.n) go back to a different ephemeral key
@@ -55,9 +55,9 @@ print("    s1:", hex(s1))
 
 print("*** Signature Verification")
 minush1 = -h1 %ec.n
-V = pointMultiply(ec, minush1, Q)
+V = pointMult(ec, minush1, Q)
 V = ec.add(K1, V)
-print(V == pointMultiply(ec, s1, ec.G))
+print(V == pointMult(ec, s1, ec.G))
 
 print("\n*** Another message")
 msg2 = "and Paolo is right to be afraid"
@@ -73,7 +73,7 @@ print("    h2:", hex(h2))
 print("\n*** Signature")
 k2 = k1 #very bad! Never reuse the same ephemeral key!!!
 
-K2 = pointMultiply(ec, k2, ec.G)
+K2 = pointMult(ec, k2, ec.G)
 
 s2 = (k2-h2*q) %ec.n
 # if s2 == 0 (extremely unlikely) go back to a different ephemeral key
@@ -85,6 +85,6 @@ print("    s2:", hex(s2))
 
 print("*** Signature Verification")
 minush2 = -h2 %ec.n
-V = pointMultiply(ec, minush2, Q)
+V = pointMult(ec, minush2, Q)
 V = ec.add(K2, V)
-print(V == pointMultiply(ec, s2, ec.G))
+print(V == pointMult(ec, s2, ec.G))

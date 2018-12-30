@@ -13,7 +13,7 @@ from hashlib import sha512
 from typing import Union, Optional
 
 from btclib.base58 import b58encode_check, b58decode_check
-from btclib.ellipticcurves import secp256k1 as ec, pointMultiply, \
+from btclib.ellipticcurves import secp256k1 as ec, pointMult, \
     bytes_from_Point, int_from_Scalar, to_Point
 from btclib.wifaddress import h160, address_from_pubkey
 
@@ -83,7 +83,7 @@ def bip32_xpub_from_xprv(xprv: bytes) -> bytes:
     xpub += xprv[13:45]                        # chain code
 
     p = xprv[46:]
-    P = pointMultiply(ec, p, ec.G)
+    P = pointMult(ec, p, ec.G)
     xpub += bytes_from_Point(ec, P, True)      # public key
     return b58encode_check(xpub)
 
@@ -126,7 +126,7 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
         # actual extended key (key + chain code) derivation
         h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
         offset = int.from_bytes(h[:32], 'big')
-        Offset = pointMultiply(ec, offset, ec.G)
+        Offset = pointMult(ec, offset, ec.G)
         Child = ec.add(Parent, Offset)
         Child_bytes = bytes_from_Point(ec, Child, True)
         xkey += h[32:]                            # chain code
@@ -134,7 +134,7 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
     elif (version in PRIVATE):
         assert xparent[45] == 0, "version/key mismatch in extended parent key"
         parent = int.from_bytes(xparent[46:], 'big')
-        Parent = pointMultiply(ec, parent, ec.G)
+        Parent = pointMult(ec, parent, ec.G)
         Parent_bytes = bytes_from_Point(ec, Parent, True)
         xkey += h160(Parent_bytes)[:4]            # parent pubkey fingerprint
         xkey += index                             # child index

@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from btclib.ellipticcurves import sha256, EllipticCurve, secp256k1, Point, \
-    Scalar, DoubleScalarMultiplication, secondGenerator
+    Scalar, DblScalarMult, secondGenerator
 
 
 def pedersen_commit(r: Scalar,
@@ -18,7 +18,7 @@ def pedersen_commit(r: Scalar,
                     Hash=sha256) -> Point:
     # rG + vH
     H = secondGenerator(ec, Hash)
-    Q = DoubleScalarMultiplication(ec, r, ec.G, v, H)
+    Q = DblScalarMult(ec, r, ec.G, v, H)
     assert Q is not None, "failed"
     return Q
 

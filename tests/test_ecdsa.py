@@ -12,8 +12,8 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ellipticcurves import secp256k1, _jac_from_affine, to_Point, \
-    pointMultiply, DoubleScalarMultiplication
+from btclib.ellipticcurves import secp256k1, _jac_from_aff, to_Point, \
+    pointMult, DblScalarMult
 from btclib.ecdsa import rfc6979, int_from_hlenbytes, to_dsasig, \
     ecdsa_sign, _ecdsa_sign, ecdsa_verify, _ecdsa_verify, _ecdsa_verhlp, \
     ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery
@@ -25,7 +25,7 @@ class TestEcdsa(unittest.TestCase):
     def test_ecdsa(self):
         ec = secp256k1
         q = 0x1
-        Q = pointMultiply(ec, q, ec.G)
+        Q = pointMult(ec, q, ec.G)
         msg = 'Satoshi Nakamoto'.encode()
         dsasig = ecdsa_sign(msg, q)
         # https://bitcointalk.org/index.php?topic=285142.40
@@ -56,7 +56,7 @@ class TestEcdsa(unittest.TestCase):
         self.assertRaises(TypeError, _ecdsa_verify, fdsasig, msg, Q)
 
         fq = 0x4
-        fQ = pointMultiply(ec, fq, ec.G)
+        fQ = pointMult(ec, fq, ec.G)
         self.assertFalse(ecdsa_verify(dsasig, msg, fQ))
         self.assertFalse(_ecdsa_verify(dsasig, msg, fQ))
 
@@ -78,7 +78,7 @@ class TestEcdsa(unittest.TestCase):
 
         u1 = 1
         u2 = 2  # pick them at will
-        R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P)
+        R = DblScalarMult(ec, u1, ec.G, u2, P)
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
@@ -88,7 +88,7 @@ class TestEcdsa(unittest.TestCase):
 
         u1 = 1234567890
         u2 = 987654321  # pick them at will
-        R = DoubleScalarMultiplication(ec, u1, ec.G, u2, P)
+        R = DblScalarMult(ec, u1, ec.G, u2, P)
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
@@ -109,7 +109,7 @@ class TestEcdsa(unittest.TestCase):
                     if d == 0:  # invalid prvkey=0
                         self.assertRaises(ValueError, _ecdsa_sign, 1, d, 1, ec)
                         continue
-                    P = pointMultiply(ec, d, ec.G)  # public key
+                    P = pointMult(ec, d, ec.G)  # public key
                     for e in range(e_max):  # all possible int from hash
                         for k in range(ec.n):  # all possible ephemeral keys
 
@@ -117,7 +117,7 @@ class TestEcdsa(unittest.TestCase):
                                 self.assertRaises(
                                     ValueError, _ecdsa_sign, e, d, k, ec)
                                 continue
-                            R = pointMultiply(ec, k, ec.G)
+                            R = pointMult(ec, k, ec.G)
 
                             r = R[0] % ec.n
                             if r == 0:
