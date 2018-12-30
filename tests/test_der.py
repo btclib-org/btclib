@@ -85,6 +85,13 @@ class TestDER(unittest.TestCase):
         DER2 = DER[:lenR+6] + b'\x00\x00' + DER[lenR+8:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
+        # sighash size > 1
+        self.assertRaises(ValueError, DER_encode, sig, sighash_all + b'\x01')
+
+        # negative signature element
+        sig2 = -1 , sig[1]
+        self.assertRaises(ValueError, DER_encode, sig2, sighash_all)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

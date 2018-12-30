@@ -37,10 +37,12 @@ sighash_all_anyonecanpay = b'\x81'
 sighash_none_anyonecanpay = b'\x82'
 sighash_single_anyonecanpay = b'\x83'
 
-def bytes_from_element(n: int) -> bytes:
-    if n<0:
-        raise ValueError("n must be a positive int")
-    n_bytes = n.to_bytes(n.bit_length() // 8 + 1, 'big')
+def bytes_from_element(element: int) -> bytes:
+    if element<0:
+        raise ValueError("negative (%s) signature element" % element)
+    bits = element.bit_length()
+    len_bytes = bits // 8 + 1
+    n_bytes = element.to_bytes(len_bytes, 'big')
     if n_bytes[0] & 0x80: # highest bit set
         n_bytes = b'\x00' + n_bytes # avoid being interpreted as negative
     return n_bytes
