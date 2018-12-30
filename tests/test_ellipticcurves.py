@@ -14,7 +14,7 @@ from btclib.numbertheory import mod_sqrt
 from btclib.ec import sha256, EllipticCurve, bytes_from_Point, to_Point, \
     secp256k1, secp256r1, secp384r1, SEC_curves, pointMult, DblScalarMult, \
     _jac_from_aff, _pointMultJacobian, _pointMultAffine, secondGenerator
-from btclib.ecsignutils import int_from_hlenbytes
+from btclib.ecsigutils import int_from_hlenbytes
 
 # low cardinality curves p<100
 ec11_7 = EllipticCurve(11, 2, 7, (6,   9),   7, False)

@@ -22,7 +22,7 @@ from btclib.ec import Union, Tuple, Scalar, Point, GenericPoint, to_Point, \
     EllipticCurve, secp256k1, _jac_from_aff, _pointMultJacobian, pointMult, \
     DblScalarMult, int_from_Scalar, bytes_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecsignutils import HashLengthBytes, bytes_from_hlenbytes, \
+from btclib.ecsigutils import HashLengthBytes, bytes_from_hlenbytes, \
     int_from_hlenbytes
 
 ECSS = Tuple[int, Scalar]  # Tuple[Coordinate, Scalar]

@@ -14,7 +14,7 @@ from typing import List, Dict
 
 from btclib.ec import secp256k1, Scalar, Tuple, pointMult, DblScalarMult, \
     bytes_from_Point, to_Point, int_from_Scalar, bytes_from_Scalar
-from btclib.ecsignutils import int_from_hlenbytes
+from btclib.ecsigutils import int_from_hlenbytes
 
 Signature = Tuple[bytes, ...]
 

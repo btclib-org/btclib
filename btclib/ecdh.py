@@ -11,7 +11,7 @@
 from hashlib import sha1, sha256
 from btclib.ec import EllipticCurve, Scalar, GenericPoint, int_from_Scalar, \
     to_Point, bytes_from_Scalar, pointMult
-from btclib.ecsignutils import int2octets
+from btclib.ecsigutils import int2octets
 
 
 def ecdh(ec: EllipticCurve, prv_sender: Scalar, pub_recv: GenericPoint) -> int:

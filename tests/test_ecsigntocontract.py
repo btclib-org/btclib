@@ -13,7 +13,7 @@ import unittest
 from btclib.ec import secp256k1, sha256, pointMult
 from btclib.ecdsa import ecdsa_verify
 from btclib.ecssa import ecssa_verify
-from btclib.ecsigntocontract import ecdsa_commit_and_sign, \
+from btclib.ecsigtocontract import ecdsa_commit_and_sign, \
     ecssa_commit_and_sign, verify_commit
 
 

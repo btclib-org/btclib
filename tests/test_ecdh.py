@@ -11,7 +11,7 @@
 import unittest
 from btclib.ec import secp160r1, to_Point, pointMult, bytes_from_Point
 from btclib.ecdh import ecdh, key_setup, key_agreement, key_derivation
-from btclib.ecsignutils import int2octets
+from btclib.ecsigutils import int2octets
 
 # source: http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
 # test vectors taken from the guidelines for efficient cryptography - GEC 2: test vectors for SEC 1
