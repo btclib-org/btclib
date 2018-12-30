@@ -59,8 +59,8 @@ class Mnemonic:
             nwords = len(lines)
             # http://www.graphics.stanford.edu/~seander/bithacks.html
             # Determining if an integer is a power of 2
-            assert nwords & (
-                nwords - 1) == 0, "dictionary length must be a power of two"
+            assert nwords & (nwords - 1) == 0, \
+                "dictionary length must be a power of two"
             self._bits_per_word[lang] = int(math.log(nwords, 2))
             self._language_length[lang] = nwords
             # clean up and normalization are missing, but removal of \n
