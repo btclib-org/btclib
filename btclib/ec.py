@@ -48,14 +48,6 @@ class EC:
         # Fermat test will do as _probabilistic_ primality test...
         if not pow(2, p-1, p) == 1:
             raise ValueError("p (%s) is not prime" % p)
-
-        # the security level in bits 't' should be an input
-        # here we just check that bits are standard for
-        #           t = {   80,    112, 128, 192, 256}
-        required_bits = [160, 192, 224, 256, 384, 521]
-        nbits = p.bit_length()
-        if checkWeakness and not (nbits in required_bits):
-            raise ValueError("wrong number of bits")
         self._p = p
         self.bytesize = (p.bit_length() + 7) // 8  # FIXME: p or n
 
@@ -103,11 +95,19 @@ class EC:
         # 8. Check that n ≠ p
         if n == p:
             raise UserWarning("n=p -> weak curve")
-        # 8. Check that p^i % n ≠ 1 for all 1≤i<100
         if checkWeakness:
+            # 8. Check that p^i % n ≠ 1 for all 1≤i<100
             for i in (1, 100):
                 if pow(p, i, n) == 1:
                     raise UserWarning("weak curve")
+
+            # the security level in bits 't' should be an input
+            # here we just check that bits are standard for
+            #           t = { 80, 112, 128, 192, 256}
+            required_bits = [192, 224, 256, 384, 521]
+            nbits = p.bit_length()
+            if checkWeakness and not (nbits in required_bits):
+                raise UserWarning("wrong number of bits (%s)" % nbits)
 
     def __str__(self) -> str:
         result = "EC"
@@ -491,7 +491,7 @@ __b = 0x1C97BEFC54BD7A8B65ACF89F81D4D4ADC565FA45
 __Gx = 0x4A96B5688EF573284664698968C38BB913CBFC82
 __Gy = 0x23A628553168947D59DCC912042351377AC5FB32
 __n = 0x0100000000000000000001F4C8F927AED3CA752257
-secp160r1 = EC(__p, __a, __b, (__Gx, __Gy), __n)
+secp160r1 = EC(__p, __a, __b, (__Gx, __Gy), __n, False)
 
 __p = 2**192 - 2**32 - 2**12 - 2**8 - 2**7 - 2**6 - 2**3 - 1
 __a = 0
