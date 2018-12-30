@@ -41,10 +41,8 @@ def bytes_from_element(element: int) -> bytes:
     if element<0:
         raise ValueError("negative (%s) signature element" % element)
     bits = element.bit_length()
-    len_bytes = bits // 8 + 1
+    len_bytes = bits // 8 + 1  # padding for highest bit set happens here
     n_bytes = element.to_bytes(len_bytes, 'big')
-    if n_bytes[0] & 0x80: # highest bit set
-        n_bytes = b'\x00' + n_bytes # avoid being interpreted as negative
     return n_bytes
 
 def encode_element(element: int) -> bytes:
