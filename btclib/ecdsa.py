@@ -17,8 +17,8 @@ from hashlib import sha256
 from typing import List, Optional
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import Union, Tuple, Scalar, Point, GenericPoint, to_Point, \
-    EllipticCurve, secp256k1, pointMult, DblScalarMult, int_from_Scalar
+from btclib.ec import Union, Tuple, Scalar, Point, XPoint, to_Point, \
+    EC, secp256k1, pointMult, DblScalarMult, int_from_Scalar
 from btclib.rfc6979 import rfc6979
 from btclib.ecsigutils import bytes_from_hlenbytes, int_from_hlenbytes
 
@@ -28,7 +28,7 @@ ECDS = Tuple[Scalar, Scalar]
 def ecdsa_sign(M: bytes,
                d: Scalar,
                k: Optional[Scalar] = None,
-               ec: EllipticCurve = secp256k1,
+               ec: EC = secp256k1,
                hf = sha256) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 2
 
@@ -51,10 +51,7 @@ def ecdsa_sign(M: bytes,
 # Private function provided for testing purposes only.
 
 
-def _ecdsa_sign(e: int,
-                d: int,
-                k: int,
-                ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
+def _ecdsa_sign(e: int, d: int, k: int, ec: EC) -> Tuple[int, int]:
 
     # The secret key d: an integer in the range 1..n-1.
     if d == 0:
@@ -79,8 +76,8 @@ def _ecdsa_sign(e: int,
 
 def ecdsa_verify(dsasig: ECDS,
                  H: bytes,
-                 Q: GenericPoint,
-                 ec: EllipticCurve = secp256k1,
+                 Q: XPoint,
+                 ec: EC = secp256k1,
                  hf = sha256) -> bool:
     """ECDSA veryfying operation to SEC 2
 
@@ -98,11 +95,7 @@ def ecdsa_verify(dsasig: ECDS,
 # It raises Errors, while verify should always return True or False
 
 
-def _ecdsa_verify(dsasig: ECDS,
-                  H: bytes,
-                  P: GenericPoint,
-                  ec: EllipticCurve = secp256k1,
-                  hf = sha256) -> bool:
+def _ecdsa_verify(dsasig: ECDS, H: bytes, P: XPoint, ec: EC, hf) -> bool:
     # ECDSA veryfying operation to SEC 2
     # See section 4.1.4
 
@@ -119,10 +112,7 @@ def _ecdsa_verify(dsasig: ECDS,
 # Private function provided for testing purposes only.
 
 
-def _ecdsa_verhlp(dsasig: ECDS,
-                  e: int,
-                  P: Point,
-                  ec: EllipticCurve = secp256k1) -> bool:
+def _ecdsa_verhlp(dsasig: ECDS, e: int, P: Point, ec: EC) -> bool:
 
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
@@ -144,7 +134,7 @@ def _ecdsa_verhlp(dsasig: ECDS,
 
 def ecdsa_pubkey_recovery(dsasig: ECDS,
                           M: bytes,
-                          ec: EllipticCurve = secp256k1,
+                          ec: EC = secp256k1,
                           hf = sha256) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 2
 
@@ -160,9 +150,7 @@ def ecdsa_pubkey_recovery(dsasig: ECDS,
 # Private function provided for testing purposes only.
 
 
-def _ecdsa_pubkey_recovery(dsasig: ECDS,
-                           e: int,
-                           ec: EllipticCurve = secp256k1) -> List[Point]:
+def _ecdsa_pubkey_recovery(dsasig: ECDS, e: int, ec: EC) -> List[Point]:
     # ECDSA public key recovery operation according to SEC 2
     # See section 4.1.6
 
@@ -189,8 +177,7 @@ def _ecdsa_pubkey_recovery(dsasig: ECDS,
     return keys
 
 
-def to_dsasig(dsasig: ECDS,
-              ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
+def to_dsasig(dsasig: ECDS, ec: EC = secp256k1) -> Tuple[int, int]:
     """check DSA signature correct format and return the signature itself"""
 
     if len(dsasig) != 2:

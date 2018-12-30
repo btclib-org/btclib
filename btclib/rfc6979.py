@@ -19,26 +19,23 @@ https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 from struct import pack
 import hmac
 
-from btclib.ec import EllipticCurve
+from btclib.ec import EC
 from btclib.ecsigutils import bits2octets, bits2int, int2octets, \
     HashLengthBytes, bytes_from_hlenbytes
 
 
-def rfc6979(prv: int,
-            hdigest: HashLengthBytes,
-            ec: EllipticCurve,
-            hf) -> int:
+def rfc6979(prv: int, hlb: HashLengthBytes, ec: EC, hf) -> int:
 
     if not (0 < prv < ec.n):
         raise ValueError("invalid prv: %s" % prv)
 
-    hash_size = hf().digest_size
-    v = b'\x01' * hash_size
-    k = b'\x00' * hash_size
+    hlen = hf().digest_size
+    v = b'\x01' * hlen
+    k = b'\x00' * hlen
 
-    hdigest = bytes_from_hlenbytes(hdigest, hf)
+    hlb = bytes_from_hlenbytes(hlb, hf)
     # hlen or qlen ?
-    prv_and_m = int2octets(prv, hash_size) + bits2octets(hdigest, hash_size)
+    prv_and_m = int2octets(prv, hlen) + bits2octets(hlb, hlen)
     k = hmac.new(k, v + b'\x00' + prv_and_m, hf).digest()
     v = hmac.new(k, v, hf).digest()
     k = hmac.new(k, v + b'\x01' + prv_and_m, hf).digest()

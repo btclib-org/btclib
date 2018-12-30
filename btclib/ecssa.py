@@ -18,8 +18,8 @@ from hashlib import sha256
 from typing import List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Union, Tuple, Scalar, Point, GenericPoint, to_Point, \
-    EllipticCurve, secp256k1, _jac_from_aff, _pointMultJacobian, pointMult, \
+from btclib.ec import Union, Tuple, Scalar, Point, XPoint, to_Point, \
+    EC, secp256k1, _jac_from_aff, _pointMultJacobian, pointMult, \
     DblScalarMult, int_from_Scalar, bytes_from_Point
 from btclib.rfc6979 import rfc6979
 from btclib.ecsigutils import HashLengthBytes, bytes_from_hlenbytes, \
@@ -31,7 +31,7 @@ ECSS = Tuple[int, Scalar]  # Tuple[Coordinate, Scalar]
 def ecssa_sign(m: bytes,
                d: Scalar,
                k: Optional[Scalar] = None,
-               ec: EllipticCurve = secp256k1,
+               ec: EC = secp256k1,
                hf = sha256) -> Tuple[int, int]:
     """ECSSA signing operation according to bip-schnorr"""
 
@@ -87,8 +87,8 @@ def ecssa_sign(m: bytes,
 
 def ecssa_verify(ssasig: ECSS,
                  m: bytes,
-                 Q: GenericPoint,
-                 ec: EllipticCurve = secp256k1,
+                 Q: XPoint,
+                 ec: EC = secp256k1,
                  hf = sha256) -> bool:
     """ECSSA veryfying operation according to bip-schnorr"""
 
@@ -105,9 +105,9 @@ def ecssa_verify(ssasig: ECSS,
 
 def _ecssa_verify(ssasig: ECSS,
                   m: HashLengthBytes,
-                  P: GenericPoint,
-                  ec: EllipticCurve = secp256k1,
-                  hf = sha256) -> bool:
+                  P: XPoint,
+                  ec: EC,
+                  hf) -> bool:
     # ECSSA veryfying operation according to bip-schnorr
 
     # the bitcoin proposed standard is only valid for curves
@@ -146,10 +146,7 @@ def _ecssa_verify(ssasig: ECSS,
     return R[0] == r
 
 
-def _ecssa_pubkey_recovery(ssasig: ECSS,
-                           ebytes: bytes,
-                           ec: EllipticCurve = secp256k1,
-                           hf = sha256) -> Point:
+def _ecssa_pubkey_recovery(ssasig: ECSS, ebytes: bytes, ec: EC, hf) -> Point:
 
     if len(ebytes) != hf().digest_size:
         raise ValueError("wrong size for e")
@@ -167,8 +164,7 @@ def _ecssa_pubkey_recovery(ssasig: ECSS,
     return Q
 
 
-def to_ssasig(ssasig: ECSS,
-              ec: EllipticCurve = secp256k1) -> Tuple[int, int]:
+def to_ssasig(ssasig: ECSS, ec: EC = secp256k1) -> Tuple[int, int]:
     """check SSA signature format is correct and return the signature itself"""
 
     # A signature sig: a 64-byte array.
@@ -195,7 +191,7 @@ def ecssa_batch_validation(sig: List[ECSS],
                            ms: List[bytes],
                            Q: List[Point],
                            a: List[int],
-                           ec: EllipticCurve = secp256k1,
+                           ec: EC = secp256k1,
                            hf = sha256) -> bool:
     # initialization
     mult = 0

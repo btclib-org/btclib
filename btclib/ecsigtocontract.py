@@ -33,18 +33,17 @@
 
 from typing import Optional
 
-from btclib.ec import EllipticCurve, pointMult, Tuple, \
-    Scalar, Point, GenericPoint, bytes_from_Point, int_from_Scalar, \
-    to_Point
+from btclib.ec import Tuple, Scalar, EC, pointMult, Point, XPoint, to_Point, \
+    bytes_from_Point, int_from_Scalar
 from btclib.ecsigutils import int_from_hlenbytes, bytes_from_hlenbytes
 from btclib.rfc6979 import rfc6979
 from btclib.ecdsa import ecdsa_sign, ECDS
 from btclib.ecssa import ecssa_sign, ECSS
 
-Receipt = Tuple[Scalar, GenericPoint]
+Receipt = Tuple[Scalar, XPoint]
 
 
-def tweak(k: int, c: bytes, ec: EllipticCurve, hf) -> Tuple[Point, int]:
+def tweak(k: int, c: bytes, ec: EC, hf) -> Tuple[Point, int]:
     """tweak kG
 
     returns:
@@ -57,12 +56,12 @@ def tweak(k: int, c: bytes, ec: EllipticCurve, hf) -> Tuple[Point, int]:
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_and_sign(m: bytes,
-                          prvkey: Scalar,
-                          c: bytes,
-                          eph_prv: Optional[Scalar],
-                          ec: EllipticCurve,
-                          hf) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
+def ecdsa_commit_sign(m: bytes,
+                      prvkey: Scalar,
+                      c: bytes,
+                      eph_prv: Optional[Scalar],
+                      ec: EC,
+                      hf) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
     mh = hf(m).digest()
     prvkey = int_from_Scalar(ec, prvkey)
     eph_prv = rfc6979(
@@ -79,12 +78,12 @@ def ecdsa_commit_and_sign(m: bytes,
     return sig, receipt
 
 
-def ecssa_commit_and_sign(m: bytes,
-                          prvkey: Scalar,
-                          c: bytes,
-                          eph_prv: Optional[Scalar],
-                          ec: EllipticCurve,
-                          hf) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
+def ecssa_commit_sign(m: bytes,
+                      prvkey: Scalar,
+                      c: bytes,
+                      eph_prv: Optional[Scalar],
+                      ec: EC,
+                      hf) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
     m = bytes_from_hlenbytes(m, hf)
     prvkey = int_from_Scalar(ec, prvkey)
     ch = hf(c).digest()
@@ -99,12 +98,12 @@ def ecssa_commit_and_sign(m: bytes,
     receipt = sig[0], R
     return sig, receipt
 
-# FIXME: have create_commit instead of commit_and_sign
+# FIXME: have create_commit instead of commit_sign
 
 
 def verify_commit(receipt: Receipt,
                   c: bytes,
-                  ec: EllipticCurve,
+                  ec: EC,
                   hf) -> bool:
     w, R = receipt
     # w in [1..n-1] dsa

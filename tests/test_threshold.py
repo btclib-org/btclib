@@ -12,7 +12,7 @@ import unittest
 import random
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import int_from_Scalar, bytes_from_Point, secp256k1, \
+from btclib.ec import sha256, int_from_Scalar, bytes_from_Point, secp256k1, \
     pointMult, DblScalarMult, secondGenerator
 from btclib.ecssa import sha256, int_from_hlenbytes, _ecssa_verify
 
@@ -435,7 +435,7 @@ class TestEcssaThreshold(unittest.TestCase):
 
         ecssa = (K[0], sigma)
 
-        self.assertTrue(_ecssa_verify(ecssa, msg, Q, ec))
+        self.assertTrue(_ecssa_verify(ecssa, msg, Q, ec, sha256))
 
         ### ADDITIONAL PHASE: reconstruction of the private key ###
         secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n

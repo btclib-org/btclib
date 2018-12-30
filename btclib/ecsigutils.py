@@ -10,7 +10,7 @@
 
 from typing import Tuple, Union
 
-from btclib.ec import EllipticCurve
+from btclib.ec import EC
 
 
 def int2octets(x: int, bytesize: int) -> bytes:
@@ -58,11 +58,9 @@ def bytes_from_hlenbytes(hlb: HashLengthBytes,
     return hlb
 
 
-def int_from_hlenbytes(hlb: HashLengthBytes,
-                       ec: EllipticCurve,
-                       hfunction) -> int:
+def int_from_hlenbytes(hlb: HashLengthBytes, ec: EC, hf) -> int:
     """return an int from a hash digest, reducing it to EC bytesize"""
 
-    hlb = bytes_from_hlenbytes(hlb, hfunction)  # hlen bytes
-    i = bits2int(hlb, ec.bytesize)             # qlen bytes
+    hlb = bytes_from_hlenbytes(hlb, hf)  # hlen bytes
+    i = bits2int(hlb, ec.bytesize)       # qlen bytes
     return i

@@ -8,13 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.ec import sha256, Scalar, Point, EllipticCurve, secp256k1, \
+from btclib.ec import sha256, Scalar, Point, EC, secp256k1, \
     DblScalarMult, secondGenerator
 
 
 def pedersen_commit(r: Scalar,
                     v: Scalar,
-                    ec: EllipticCurve = secp256k1,
+                    ec: EC = secp256k1,
                     hf = sha256) -> Point:
     # rG + vH
     H = secondGenerator(ec, hf)
@@ -26,6 +26,6 @@ def pedersen_commit(r: Scalar,
 def pedersen_open(r: Scalar,
                   v: Scalar,
                   C: Point,
-                  ec: EllipticCurve = secp256k1,
+                  ec: EC = secp256k1,
                   hf = sha256) -> bool:
     return C == pedersen_commit(r, v, ec, hf)

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from numbertheory import mod_sqrt
+from bctlib.numbertheory import mod_sqrt
 
 def isprime(n):
     """Returns True if n is prime."""
@@ -81,7 +81,10 @@ for prime in primes:
                 gy = y 
             except:
                 gx += 1
-        print("ec", prime, "_", maxorderlessthanprime, " = ", "EllipticCurve(", maxorderlessthanprimea, ", ", maxorderlessthanprimeb, ", ", prime, ", ", "(", gx, ",", gy, ")", ", ", maxorderlessthanprime, ")", sep="")
+        print("ec", prime, "_", maxorderlessthanprime, " = ",
+              "EC(", maxorderlessthanprimea, ", ",
+              maxorderlessthanprimeb, ", ", prime, ", ", "(", gx, ",", gy,
+              ")", ", ", maxorderlessthanprime, ")", sep="")
     if (maxordera != -1):
         gx = 0
         gy = -1
@@ -93,4 +96,7 @@ for prime in primes:
                 gy = y 
             except:
                 gx += 1
-        print("ec", prime, "_", maxorder, " = ", "EllipticCurve(", maxordera, ", ", maxorderb, ", ", prime, ", ", "(", gx, ",", gy, ")", ", ", maxorder, ")", sep="")
+        print("ec", prime, "_", maxorder, " = ",
+              "EC(", maxordera, ", ",
+              maxorderb, ", ", prime, ", ", "(", gx, ",", gy,
+              ")", ", ", maxorder, ")", sep="")

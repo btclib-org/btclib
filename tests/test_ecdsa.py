@@ -37,28 +37,28 @@ class TestEcdsa(unittest.TestCase):
         self.assertIn(s, (exp_sig[1], ec.n - exp_sig[1]))
 
         self.assertTrue(ecdsa_verify(dsasig, msg, Q))
-        self.assertTrue(_ecdsa_verify(dsasig, msg, Q))
+        self.assertTrue(_ecdsa_verify(dsasig, msg, Q, ec, sha256))
 
         # malleability
         malleated_sig = (r, ec.n - s)
         self.assertTrue(ecdsa_verify(malleated_sig, msg, Q))
-        self.assertTrue(_ecdsa_verify(malleated_sig, msg, Q))
+        self.assertTrue(_ecdsa_verify(malleated_sig, msg, Q, ec, sha256))
 
         keys = ecdsa_pubkey_recovery(dsasig, msg)
         self.assertIn(Q, keys)
 
         fmsg = 'Craig Wright'.encode()
         self.assertFalse(ecdsa_verify(dsasig, fmsg, Q))
-        self.assertFalse(_ecdsa_verify(dsasig, fmsg, Q))
+        self.assertFalse(_ecdsa_verify(dsasig, fmsg, Q, ec, sha256))
 
         fdsasig = (dsasig[0], dsasig[1], dsasig[1])
         self.assertFalse(ecdsa_verify(fdsasig, msg, Q))
-        self.assertRaises(TypeError, _ecdsa_verify, fdsasig, msg, Q)
+        self.assertRaises(TypeError, _ecdsa_verify, fdsasig, msg, Q, ec, sha256)
 
         fq = 0x4
         fQ = pointMult(ec, fq, ec.G)
         self.assertFalse(ecdsa_verify(dsasig, msg, fQ))
-        self.assertFalse(_ecdsa_verify(dsasig, msg, fQ))
+        self.assertFalse(_ecdsa_verify(dsasig, msg, fQ, ec, sha256))
 
         # r not in [1, n-1]
         invalid_dassig = 0, dsasig[1]
