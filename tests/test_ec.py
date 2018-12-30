@@ -246,7 +246,6 @@ class TestEllipticCurve(unittest.TestCase):
         n = 0x0100000000000000000001F4C8F927AED3CA752257
         self.assertRaises(UserWarning, EC, p, a, b, (Gx, Gy), n)
 
-
     def test_all_curves(self):
         for ec in all_curves:
             self.assertEqual(pointMult(ec, 0, ec.G), Inf)
@@ -292,7 +291,7 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(pointMult(ec, 25, Inf), Inf)
 
             ec_repr = repr(ec)
-            if ec in low_card_curves:
+            if ec in low_card_curves or ec.bytesize < 24:
                 ec_repr = ec_repr[:-1] + ", False)"
             ec2 = eval(ec_repr)
             self.assertEqual(str(ec), str(ec2))
