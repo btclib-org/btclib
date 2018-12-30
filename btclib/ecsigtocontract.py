@@ -35,7 +35,7 @@ from typing import Optional
 
 from btclib.ec import Tuple, Scalar, EC, pointMult, Point, XPoint, to_Point, \
     bytes_from_Point, int_from_Scalar
-from btclib.ecsigutils import int_from_hlenbytes, bytes_from_hlenbytes
+from btclib.ecutils import int_from_hlenbytes, bytes_from_hlenbytes
 from btclib.rfc6979 import rfc6979
 from btclib.ecdsa import ecdsa_sign, ECDS
 from btclib.ecssa import ecssa_sign, ECSS

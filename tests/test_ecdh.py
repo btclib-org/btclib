@@ -11,7 +11,7 @@
 import unittest
 from hashlib import sha1
 
-from btclib.ecsigutils import int2octets
+from btclib.ecutils import int2octets
 from btclib.ec import secp160r1, to_Point, pointMult, bytes_from_Point
 from btclib.ecdh import key_agreement, kdf
 

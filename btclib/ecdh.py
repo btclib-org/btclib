@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.ecsigutils import int2octets
+from btclib.ecutils import int2octets
 from btclib.ec import EC, Scalar, XPoint, int_from_Scalar, \
     bytes_from_Scalar, pointMult
 

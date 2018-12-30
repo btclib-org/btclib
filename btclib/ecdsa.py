@@ -20,7 +20,7 @@ from btclib.numbertheory import mod_inv
 from btclib.ec import Union, Tuple, Scalar, Point, XPoint, to_Point, \
     EC, secp256k1, pointMult, DblScalarMult, int_from_Scalar
 from btclib.rfc6979 import rfc6979
-from btclib.ecsigutils import bytes_from_hlenbytes, int_from_hlenbytes
+from btclib.ecutils import bytes_from_hlenbytes, int_from_hlenbytes
 
 ECDS = Tuple[Scalar, Scalar]
 

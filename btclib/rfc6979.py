@@ -20,7 +20,7 @@ from struct import pack
 import hmac
 
 from btclib.ec import EC
-from btclib.ecsigutils import bits2octets, bits2int, int2octets, \
+from btclib.ecutils import bits2octets, bits2int, int2octets, \
     HashLengthBytes, bytes_from_hlenbytes
 
 
