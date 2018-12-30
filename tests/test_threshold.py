@@ -13,7 +13,8 @@ import random
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ec import sha256, int_from_Scalar, bytes_from_Point, secp256k1, \
-    pointMult, DblScalarMult, secondGenerator
+    pointMult, DblScalarMult
+from btclib.pedersen import secondGenerator
 from btclib.ecssa import sha256, int_from_hlenbytes, _ecssa_verify
 
 random.seed(42)

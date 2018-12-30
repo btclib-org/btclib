@@ -30,9 +30,10 @@ def ecdsa_sign(M: bytes,
                k: Optional[Scalar] = None,
                ec: EC = secp256k1,
                hf = sha256) -> Tuple[int, int]:
-    """ECDSA signing operation according to SEC 2
+    """ECDSA signing operation according to SEC 1
 
-    Steps numbering follows SEC 2 section 4.1.3
+       http://www.secg.org/sec1-v2.pdf
+       Steps numbering follows SEC 1 section 4.1.3
     """
 
     H = hf(M).digest()                                # 4
@@ -79,9 +80,10 @@ def ecdsa_verify(dsasig: ECDS,
                  Q: XPoint,
                  ec: EC = secp256k1,
                  hf = sha256) -> bool:
-    """ECDSA veryfying operation to SEC 2
+    """ECDSA veryfying operation to SEC 1
 
-    See section 4.1.4
+       See section 4.1.4
+       http://www.secg.org/sec1-v2.pdf
     """
 
     # this is just a try/except wrapper
@@ -96,7 +98,7 @@ def ecdsa_verify(dsasig: ECDS,
 
 
 def _ecdsa_verify(dsasig: ECDS, H: bytes, P: XPoint, ec: EC, hf) -> bool:
-    # ECDSA veryfying operation to SEC 2
+    # ECDSA veryfying operation to SEC 1
     # See section 4.1.4
 
     # The message digest m: a 32-byte array
@@ -136,9 +138,10 @@ def ecdsa_pubkey_recovery(dsasig: ECDS,
                           M: bytes,
                           ec: EC = secp256k1,
                           hf = sha256) -> List[Point]:
-    """ECDSA public key recovery operation according to SEC 2
+    """ECDSA public key recovery operation according to SEC 1
 
-    See section 4.1.6
+       http://www.secg.org/sec1-v2.pdf
+       See section 4.1.6
     """
 
     # The message digest m: a 32-byte array
@@ -151,7 +154,7 @@ def ecdsa_pubkey_recovery(dsasig: ECDS,
 
 
 def _ecdsa_pubkey_recovery(dsasig: ECDS, e: int, ec: EC) -> List[Point]:
-    # ECDSA public key recovery operation according to SEC 2
+    # ECDSA public key recovery operation according to SEC 1
     # See section 4.1.6
 
     r, s = to_dsasig(dsasig, ec)

@@ -9,36 +9,131 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from btclib.ec import secp256k1, sha256
-from btclib.pedersen import pedersen_commit, pedersen_open
+from hashlib import sha256, sha384
 
+from btclib.ec import secp256k1, secp256r1, secp384r1, bytes_from_Point, \
+    pointMult, DblScalarMult
+from btclib.pedersen import pedersen_commit, pedersen_open, secondGenerator
+
+
+class TestSecondGenerator(unittest.TestCase):
+    def test_second_generator(self):
+        """
+        important remark on secp256-zkp prefix for compressed encoding of the second generator:
+        https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
+        """
+        H = secondGenerator(secp256k1, sha256)
+        H = bytes_from_Point(secp256k1, H, True)
+        self.assertEqual(
+            H.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
+
+        # 0*G + 1*H
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, 1, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0')
+
+        # 0*G + 2*H
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, 2, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
+        T = pointMult(secp256k1, 2, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '03fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a')
+
+        # 0*G + 3*H
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, 3, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
+        T = pointMult(secp256k1, 3, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '025ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa')
+
+        # 1*G+0*H
+        T = DblScalarMult(secp256k1, 1, secp256k1.G, 0, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
+        T = pointMult(secp256k1, 1, secp256k1.G)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798')
+
+        # 2*G+0*H
+        T = DblScalarMult(secp256k1, 2, secp256k1.G, 0, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
+        T = pointMult(secp256k1, 2, secp256k1.G)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5')
+
+        # 3*G+0*H
+        T = DblScalarMult(secp256k1, 3, secp256k1.G, 0, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
+        T = pointMult(secp256k1, 3, secp256k1.G)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9')
+
+        # 0*G+5*H
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, 5, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+        T = pointMult(secp256k1, 5, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '039e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+
+        # 0*G-5*H
+        T = DblScalarMult(secp256k1, 0, secp256k1.G, -5, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+        T = pointMult(secp256k1, -5, H)
+        T = bytes_from_Point(secp256k1, T, True)
+        self.assertEqual(
+            T.hex(), '029e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e')
+
+        # 1*G-5*H
+        U = DblScalarMult(secp256k1, 1, secp256k1.G, -5, H)
+        U = bytes_from_Point(secp256k1, U, True)
+        self.assertEqual(
+            U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
+        U = secp256k1.add(secp256k1.G, T)  # reusing previous T value
+        U = bytes_from_Point(secp256k1, U, True)
+        self.assertEqual(
+            U.hex(), '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a')
+
+        H = secondGenerator(secp256r1, sha256)
+        H = secondGenerator(secp384r1, sha384)
 
 class TestPedersenCommitment(unittest.TestCase):
     def test_pedersen_commitment(self):
-        r = 0x1
-        v = 0x2
-        C = pedersen_commit(r, v, secp256k1, sha256)
-        self.assertTrue(pedersen_open(r, v, C, secp256k1, sha256))
-
-    def test_pedersen_commitment_sum(self):
         r1 = 0x1
-        r2 = 0x2
-        r_sum = 0x3
-        v1 = 0x4
-        v2 = 0x5
-        v_sum = 0x9
-        C_sum = pedersen_commit(r_sum, v_sum, secp256k1, sha256)
-        self.assertTrue(pedersen_open(
-            r1 + r2, v1 + v2, C_sum, secp256k1, sha256))
+        v1 = 0x2
+        # r1*G + v1*H
+        C1 = pedersen_commit(r1, v1, secp256k1, sha256)
+        self.assertTrue(pedersen_open(r1, v1, C1, secp256k1, sha256))
 
-    def test_pedersen_commitment_oddeven(self):
-        r = 0x0
-        v = 0x5
-        C_1 = pedersen_commit(r, v, secp256k1, sha256)
-        C_2 = pedersen_commit(r, -v, secp256k1, sha256)
-        self.assertTrue(C_1[0] == C_2[0])
-        self.assertTrue(C_1[1] == secp256k1.yOdd(C_2[0], True)
-                        or C_1[1] == secp256k1.yOdd(C_2[0], False))
+        r2 = 0x3
+        v2 = 0x4
+        # r2*G + v2*H
+        C2 = pedersen_commit(r2, v2, secp256k1, sha256)
+        self.assertTrue(pedersen_open(r2, v2, C2, secp256k1, sha256))
+
+        # Pedersen Commitment is additively homomorphic
+        # Commit(r1, v1) + Commit(r2, v2) = Commit(r1+r2, v1+r2)
+        R = pedersen_commit(r1+r2, v1+v2, secp256k1, sha256)
+        self.assertTrue(secp256k1.add(C1, C2), R)
 
 
 if __name__ == "__main__":
