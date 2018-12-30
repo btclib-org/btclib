@@ -42,7 +42,7 @@ def bytes_from_element(element: int) -> bytes:
         raise ValueError("negative (%s) signature element" % element)
     bits = element.bit_length()
     len_bytes = bits // 8 + 1  # not a bug
-    # padding for 'highest bit set' included above
+    # padding for 'highest bit set' is included above
     n_bytes = element.to_bytes(len_bytes, 'big')
     return n_bytes
 
