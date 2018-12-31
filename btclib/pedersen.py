@@ -15,7 +15,7 @@ def secondGenerator(ec: EC, hf) -> Point:
     """Nothing-Up-My-Sleeve (NUMS) second generator H wrt ec.G 
 
        source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
-       idea: (https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve)
+       idea: https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve
        Get the hash of G, then coerce it to a point (hx, hy).
        The resulting point could not be a curvepoint: in this case keep on
        incrementing hx until a valid curve point (hx, hy) is obtained.
