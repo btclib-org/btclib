@@ -27,7 +27,7 @@
      signature)
 """
 
-from btclib.ec import secp256k1, int_from_Scalar
+from btclib.ec import secp256k1
 from btclib.ecdsa import Tuple, ECDS, to_dsasig
 
 sighash_all = b'\x01'

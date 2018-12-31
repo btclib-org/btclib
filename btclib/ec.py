@@ -29,6 +29,10 @@ XPoint = Union[str, bytes, Point]
 # infinity point is (int, int, 0), checked with 'Inf[2] == 0'
 _JacPoint = Tuple[int, int, int]
 
+BytesLike = Union[str, bytes]
+
+
+
 # elliptic curve y^2 = x^3 + a*x + b
 
 
@@ -48,9 +52,20 @@ class EC:
         # Fermat test will do as _probabilistic_ primality test...
         if not pow(2, p-1, p) == 1:
             raise ValueError("p (%s) is not prime" % p)
+
+        if all_checks:
+            # the security level in bits 't' should be an input
+            # and required_bits should be checked accordingly
+            #
+            # for the time being just check bits are in required standards
+            #           t = { 80, 112, 128, 192, 256}
+            required_bits = [192, 224, 256, 384, 521]
+            nbits = p.bit_length()
+            if all_checks and not (nbits in required_bits):
+                raise UserWarning("wrong number of bits (%s)" % nbits)
+
         self._p = p
         self.bytesize = (p.bit_length() + 7) // 8  # FIXME: p or n
-
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = (self._p % 4 == 3)
 
@@ -66,31 +81,34 @@ class EC:
         self._b = b
 
         # 2. check that xG and yG are integers in the interval [0, p−1]
+        # 4. Check that yG^2 = xG^3 + a*xG + b (mod p).
         if len(G) != 2:
             raise ValueError("Generator must a be a Tuple[int, int]")
         if not self.areValidCoordinates(G[0], G[1]):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = int(G[0]), int(G[1])
 
-        # 4. Check that n is prime.
+        # 5. Check that n is prime.
         if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
             raise ValueError("n (%s) is not prime" % n)
         # also check n with Hasse Theorem
-        #t = int(2 * sqrt(p))
-        #if not (p+1 - t <= n <= p+1 + t):
-            raise ValueError("n (%s) not in [p+1 - t, p+1 + t]" % n)
+        if all_checks:
+            t = int(2 * sqrt(p))
+            if not (p+1 - t <= n <= p+1 + t):
+                raise ValueError("n (%s) not in [p+1 - t, p+1 + t]" % n)
+        self.n = n
+
+        # 6. Check cofactor
+        # missing for the time being
 
         # 7. Check that nG = Inf.
-        self.n = n
-        # the following one would be tautologically true
+        # it cannot be chacked as
         # Inf = pointMult(self, n, self.G)
+        # the above would be tautologically true
         InfMinusG = pointMult(self, n-1, self.G)
         Inf = self.add(InfMinusG, self.G)
         if Inf[1] != 0:
             raise ValueError("n (%s) is not the group order" % n)
-
-        # 6. Check cofactor
-        # missing for the time being
 
         # 8. Check that n ≠ p
         if n == p:
@@ -100,14 +118,6 @@ class EC:
             for i in (1, 100):
                 if pow(p, i, n) == 1:
                     raise UserWarning("weak curve")
-
-            # the security level in bits 't' should be an input
-            # here we just check that bits are standard for
-            #           t = { 80, 112, 128, 192, 256}
-            required_bits = [192, 224, 256, 384, 521]
-            nbits = p.bit_length()
-            if all_checks and not (nbits in required_bits):
-                raise UserWarning("wrong number of bits (%s)" % nbits)
 
     def __str__(self) -> str:
         result = "EC"
@@ -338,6 +348,59 @@ def bytes_from_Point(ec: EC, Q: XPoint, compressed: bool) -> bytes:
         return (b'\x03' if (Q[1] & 1) else b'\x02') + bPx
 
     return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
+
+
+def point2octets(P: Point, compressed: bool, ec: EC) -> bytes:
+    """Return a compressed (0x02, 0x03) or uncompressed (0x04) point
+    
+       SEC 1 v.2, section 2.3.3
+    """
+    # bytesize is rlen * 8
+    if P[1] == 0:  # infinity point in affine coordinates
+        return b'\x00'
+
+    bPx = P[0].to_bytes(ec.bytesize, byteorder='big')
+    if compressed:
+        return (b'\x03' if (P[1] & 1) else b'\x02') + bPx
+
+    return b'\x04' + bPx + P[1].to_bytes(ec.bytesize, byteorder='big')
+
+def octets2point(Q: BytesLike, ec: EC) -> Point:
+    """Return a tuple (Px, Py)
+
+       SEC 1 v.2, section 2.3.4
+    """
+
+    if isinstance(Q, str):
+        Q = bytes.fromhex(Q)
+
+    if isinstance(Q, bytes):
+        if len(Q) == 1 and Q[0] == 0x00:  # infinity point
+            return 1, 0
+        if len(Q) == ec.bytesize+1:  # compressed point
+            if Q[0] not in (0x02, 0x03):
+                m = "%s bytes, but not a compressed point" % (ec.bytesize+1)
+                raise ValueError(m)
+            Px = int.from_bytes(Q[1:], 'big')
+            Py = ec.yOdd(Px, Q[0] % 2)  # also check Px validity
+        else:                          # uncompressed point
+            if len(Q) != 2*ec.bytesize+1:
+                m = "wrong byte-size (%s) for a point: it " % len(Q)
+                m += "should be %s or %s" % (ec.bytesize+1, 2*ec.bytesize+1)
+                raise ValueError(m)
+            if Q[0] != 0x04:
+                raise ValueError("not an uncompressed point")
+            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
+            Py = int.from_bytes(Q[ec.bytesize+1:], 'big')
+            if not ec.areValidCoordinates(Px, Py):
+                raise ValueError("point not on curve")
+        return Px, Py
+
+    # input is already a Point
+    if not ec.areValidCoordinates(Q[0], Q[1]):
+        raise ValueError("point not on curve")
+    return Q
+
 
 
 Scalar = Union[str, bytes, int]

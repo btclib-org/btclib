@@ -22,7 +22,7 @@ from btclib.ec import Union, Tuple, Scalar, Point, XPoint, to_Point, \
     EC, secp256k1, _jac_from_aff, _pointMultJacobian, pointMult, \
     DblScalarMult, int_from_Scalar, bytes_from_Point
 from btclib.rfc6979 import rfc6979
-from btclib.ecutils import HashLengthBytes, bytes_from_hlenbytes, \
+from btclib.ecutils import BytesLike, bytes_from_hlenbytes, \
     int_from_hlenbytes
 
 ECSS = Tuple[int, Scalar]  # Tuple[Coordinate, Scalar]
@@ -104,7 +104,7 @@ def ecssa_verify(ssasig: ECSS,
 
 
 def _ecssa_verify(ssasig: ECSS,
-                  m: HashLengthBytes,
+                  m: BytesLike,
                   P: XPoint,
                   ec: EC,
                   hf) -> bool:

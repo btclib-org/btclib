@@ -10,11 +10,29 @@
 
 from typing import Tuple, Union
 
-from btclib.ec import EC
+from btclib.ec import EC, Point, BytesLike
 
 
-def int2octets(x: int, bytesize: int) -> bytes:
-    return x.to_bytes(bytesize, byteorder='big')
+def int2octets(i: int, bytesize: int) -> bytes:
+    """SEC 1 v.2, section 2.3.7"""
+    # bytesize = rlen * 8
+    # rlen = 8*ceil(qlen/8)
+    # qlen = ec.n.bitlength()
+    # raise an error if i too big
+    # as of now does not raise an error if q <= i
+    return i.to_bytes(bytesize, byteorder='big')
+
+def octets2int(b: BytesLike, cap: int = None) -> int:
+    """SEC 1 v.2, section 2.3.8"""
+    if isinstance(b, str):
+        b = bytes.fromhex(b)
+    i = int.from_bytes(b, 'big')
+    if cap and i>cap:
+        raise ValueError("invalid integer %s, not in [0, cap-1]" % i)
+    return i
+
+
+
 
 
 def bits2int(b: bytes, maxbytesize: int) -> int:
@@ -40,10 +58,9 @@ def bits2octets(b: bytes, maxbytesize: int) -> bytes:
     return int2octets(z1, maxbytesize)
 
 
-HashLengthBytes = Union[str, bytes]
 
 
-def bytes_from_hlenbytes(hlb: HashLengthBytes,
+def bytes_from_hlenbytes(hlb: BytesLike,
                          hfunction) -> bytes:
     """check that hash digest is of right size"""
 
@@ -58,7 +75,7 @@ def bytes_from_hlenbytes(hlb: HashLengthBytes,
     return hlb
 
 
-def int_from_hlenbytes(hlb: HashLengthBytes, ec: EC, hf) -> int:
+def int_from_hlenbytes(hlb: BytesLike, ec: EC, hf) -> int:
     """return an int from a hash digest, reducing it to EC bytesize"""
 
     hlb = bytes_from_hlenbytes(hlb, hf)  # hlen bytes

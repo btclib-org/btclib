@@ -19,12 +19,12 @@ https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 from struct import pack
 import hmac
 
-from btclib.ec import EC
+from btclib.ec import EC, BytesLike
 from btclib.ecutils import bits2octets, bits2int, int2octets, \
-    HashLengthBytes, bytes_from_hlenbytes
+    bytes_from_hlenbytes
 
 
-def rfc6979(prv: int, hlb: HashLengthBytes, ec: EC, hf) -> int:
+def rfc6979(prv: int, hlb: BytesLike, ec: EC, hf) -> int:
 
     if not (0 < prv < ec.n):
         raise ValueError("invalid prv: %s" % prv)
