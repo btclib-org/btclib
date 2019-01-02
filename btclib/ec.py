@@ -40,7 +40,7 @@ class EC:
     """Elliptic curve over Fp group"""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
-                               h: int, t: int, all_checks = True) -> None:
+                       h: int, t: int = 0, all_checks: bool = True) -> None:
         """EC instantiation
 
         Parameters are checked according to SEC2 3.1.1.2.1
