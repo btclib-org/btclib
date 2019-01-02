@@ -16,7 +16,7 @@ setup(
     long_description_content_type = 'text/markdown',
     packages = find_packages(),
     keywords = 'bitcoin cryptography cryptocurrency elliptic-curves ecdsa schnorr',
-    python_requires = '>=3.5',
+    python_requires = '>=3.6',
     classifiers = [
         'Programming Language :: Python :: 3 :: Only',
         'Development Status :: 2 - Pre-Alpha',
