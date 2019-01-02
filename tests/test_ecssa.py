@@ -164,13 +164,6 @@ class TestEcssa(unittest.TestCase):
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
         self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
 
-        # new proposed test: invalid r
-        pub = octets2point(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
-        msg = bytes.fromhex("0000000000000000000000000000000000000000000000000000000000000000")
-        sig = (0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34,
-               0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
-
         # new proposed test: P = infinite
         pub = 1, 0
         msg = bytes.fromhex("5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
@@ -241,7 +234,8 @@ class TestEcssa(unittest.TestCase):
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x4A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        # self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
 
         # test vector 15
         # sig[0:32] is equal to field size
@@ -249,7 +243,8 @@ class TestEcssa(unittest.TestCase):
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC2F,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        # self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
 
         # test vector 16
         # sig[32:64] is equal to curve order

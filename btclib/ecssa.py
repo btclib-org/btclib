@@ -137,7 +137,7 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
     e = _ecssa_e(ec, hf, r, P, m)
     if e == 0:
-        raise ValueError("e = 0, signatur does not depend on private key")
+        raise ValueError("e = 0, signature does not depend on private key")
 
     # Let R = sG - eP.
     R = DblScalarMult(ec, s, ec.G, -e, P)
@@ -181,14 +181,10 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
 
     # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
     r = int(sig[0])
-    # skip the following
+    # skip the following, as it is not really needed
     # assert 0 <= r < ec._p
-    # in favor of a stronger check: R.x is valid iif R.y does exist
-    try:
-        ec.y(r)
-    except:
-        m = "r (%X) not a valid field element given p (%X)" % (r, ec._p)
-        raise ValueError(m)
+    # moreover the real check would be to calculate R.y because
+    # R.x is valid iif R.y does exist
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
     s = int(sig[1])
