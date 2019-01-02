@@ -11,8 +11,7 @@
 import unittest
 from hashlib import sha1
 
-from btclib.ecutils import int2octets
-from btclib.ec import secp160r1, to_Point, pointMult, bytes_from_Point
+from btclib.ec import secp160r1, octets2point, pointMult, point2octets, int2octets
 from btclib.ecdh import key_agreement, kdf
 
 # test vectors taken from the guidelines for efficient cryptography
@@ -48,14 +47,14 @@ class TestEcdh(unittest.TestCase):
         self.assertEqual(format(dU, str(qlen)+'x'), 'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
         QU = pointMult(ec, dU, ec.G)
         self.assertEqual(QU, (466448783855397898016055842232266600516272889280, 1110706324081757720403272427311003102474457754220))
-        self.assertEqual(bytes_from_Point(ec, QU, True).hex(), '0251b4496fecc406ed0e75a24a3c03206251419dc0')
+        self.assertEqual(point2octets(ec, QU, True).hex(), '0251b4496fecc406ed0e75a24a3c03206251419dc0')
 
         # 4.1.3
         dV = 399525573676508631577122671218044116107572676710
         self.assertEqual(format(dV, str(qlen)+'x'), '45fb58a92a17ad4b15101c66e74f277e2b460866')
         QV = pointMult(ec, dV, ec.G)
         self.assertEqual(QV, (420773078745784176406965940076771545932416607676, 221937774842090227911893783570676792435918278531))
-        self.assertEqual(bytes_from_Point(ec, QV, True).hex(), '0349b41e0e9c0369c2328739d90f63d56707c6e5bc')
+        self.assertEqual(point2octets(ec, QV, True).hex(), '0349b41e0e9c0369c2328739d90f63d56707c6e5bc')
 
         # expected results
         z_exp = 1155982782519895915997745984453282631351432623114
@@ -67,14 +66,14 @@ class TestEcdh(unittest.TestCase):
         z = pointMult(ec, dU, QV)[0]
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(qlen)+'x'), zstr)
-        keyingdata = kdf(int2octets(z, qlen), keydatalen, ec, hf)
+        keyingdata = kdf(int2octets(ec, z), keydatalen, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
         # 4.1.5
         z = pointMult(ec, dV, QU)[0]
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(qlen)+'x'), zstr)
-        keyingdata = kdf(int2octets(z, qlen), keydatalen, ec, hf)
+        keyingdata = kdf(int2octets(ec, z), keydatalen, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
 

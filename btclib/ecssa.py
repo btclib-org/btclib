@@ -18,19 +18,17 @@ from hashlib import sha256
 from typing import List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Union, Tuple, Scalar, Point, XPoint, to_Point, \
+from btclib.ec import Tuple, Point, octets2point, \
     EC, secp256k1, _jac_from_aff, _pointMultJacobian, pointMult, \
-    DblScalarMult, int_from_Scalar, bytes_from_Point
-from btclib.rfc6979 import rfc6979
-from btclib.ecutils import BytesLike, bytes_from_hlenbytes, \
-    int_from_hlenbytes
+    DblScalarMult, point2octets
+from btclib.rfc6979 import bits2int, rfc6979
 
-ECSS = Tuple[int, Scalar]  # Tuple[Coordinate, Scalar]
+ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 
 
 def ecssa_sign(m: bytes,
-               d: Scalar,
-               k: Optional[Scalar] = None,
+               d: int,
+               k: Optional[int] = None,
                ec: EC = secp256k1,
                hf = sha256) -> Tuple[int, int]:
     """ECSSA signing operation according to bip-schnorr"""
@@ -46,10 +44,13 @@ def ecssa_sign(m: bytes,
     # a digest of other messages, but it does not need to.
 
     # The message m: a 32-byte array
-    m = bytes_from_hlenbytes(m, hf)
+    if len(m) != hf().digest_size:
+        errmsg = 'message of wrong size: %s' % len(m)
+        errmsg += ' instead of %s' % hf().digest_size
+        raise ValueError(errmsg)
 
     # The secret key d: an integer in the range 1..n-1.
-    d = int_from_Scalar(ec, d)
+    d %= ec.n
     if d == 0:
         raise ValueError("invalid (zero) private key")
     Q = pointMult(ec, d, ec.G)
@@ -57,7 +58,7 @@ def ecssa_sign(m: bytes,
     if k is None:
         k = rfc6979(d, m, ec, hf)
     else:
-        k = int_from_Scalar(ec, k)
+        k %= ec.n
 
     # Fail if k' = 0.
     if k == 0:
@@ -75,10 +76,10 @@ def ecssa_sign(m: bytes,
 
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
     ebytes = R[0].to_bytes(ec.bytesize, byteorder="big")
-    ebytes += bytes_from_Point(ec, Q, True)
+    ebytes += point2octets(ec, Q, True)
     ebytes += m
     ebytes = hf(ebytes).digest()
-    e = int_from_hlenbytes(ebytes, ec, hf)
+    e = bits2int(ec, ebytes)
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
@@ -87,7 +88,7 @@ def ecssa_sign(m: bytes,
 
 def ecssa_verify(ssasig: ECSS,
                  m: bytes,
-                 Q: XPoint,
+                 Q: Point,
                  ec: EC = secp256k1,
                  hf = sha256) -> bool:
     """ECSSA veryfying operation according to bip-schnorr"""
@@ -104,8 +105,8 @@ def ecssa_verify(ssasig: ECSS,
 
 
 def _ecssa_verify(ssasig: ECSS,
-                  m: BytesLike,
-                  P: XPoint,
+                  m: bytes,
+                  P: Point,
                   ec: EC,
                   hf) -> bool:
     # ECSSA veryfying operation according to bip-schnorr
@@ -121,17 +122,20 @@ def _ecssa_verify(ssasig: ECSS,
     r, s = to_ssasig(ssasig, ec)
 
     # The message m: a 32-byte array
-    m = bytes_from_hlenbytes(m, hf)
+    if len(m) != hf().digest_size:
+        errmsg = 'message of wrong size: %s' % len(m)
+        errmsg += ' instead of %s' % hf().digest_size
+        raise ValueError(errmsg)
 
     # Let P = point(pk); fail if point(pk) fails.
-    P = to_Point(ec, P)
+    ec.requireOnCurve(P)
 
     # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
     ebytes = r.to_bytes(ec.bytesize, byteorder="big")
-    ebytes += bytes_from_Point(ec, P, True)
+    ebytes += point2octets(ec, P, True)
     ebytes += m
     ebytes = hf(ebytes).digest()
-    e = int_from_hlenbytes(ebytes, ec, hf)
+    e = bits2int(ec, ebytes)
 
     # Let R = sG - eP.
     R = DblScalarMult(ec, s, ec.G, -e, P)
@@ -154,7 +158,7 @@ def _ecssa_pubkey_recovery(ssasig: ECSS, ebytes: bytes, ec: EC, hf) -> Point:
     r, s = to_ssasig(ssasig, ec)
 
     K = (r, ec.yQuadraticResidue(r, True))
-    e = int_from_hlenbytes(ebytes, ec, hf)
+    e = bits2int(ec, ebytes)
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
@@ -164,7 +168,7 @@ def _ecssa_pubkey_recovery(ssasig: ECSS, ebytes: bytes, ec: EC, hf) -> Point:
     return Q
 
 
-def to_ssasig(ssasig: ECSS, ec: EC = secp256k1) -> Tuple[int, int]:
+def to_ssasig(ssasig: ECSS, ec: EC) -> Tuple[int, int]:
     """check SSA signature format is correct and return the signature itself"""
 
     # A signature sig: a 64-byte array.
@@ -191,8 +195,8 @@ def ecssa_batch_validation(sig: List[ECSS],
                            ms: List[bytes],
                            Q: List[Point],
                            a: List[int],
-                           ec: EC = secp256k1,
-                           hf = sha256) -> bool:
+                           ec: EC,
+                           hf) -> bool:
     # initialization
     mult = 0
     points = list()
@@ -202,10 +206,10 @@ def ecssa_batch_validation(sig: List[ECSS],
     for i in range(u):
         r, s = to_ssasig(sig[i], ec)
         ebytes = r.to_bytes(32, byteorder="big")
-        ebytes += bytes_from_Point(ec, Q[i], True)
+        ebytes += point2octets(ec, Q[i], True)
         ebytes += ms[i]
         ebytes = hf(ebytes).digest()
-        e = int_from_hlenbytes(ebytes, ec, hf)
+        e = bits2int(ec, ebytes)
 
         y = ec.y(r)  # raises an error if y does not exist
 

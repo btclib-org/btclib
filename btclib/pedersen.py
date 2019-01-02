@@ -8,8 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.ec import Scalar, Point, int_from_Scalar, bytes_from_Point, EC, \
-    DblScalarMult
+from btclib.ec import Point, octets2int, point2octets, EC, DblScalarMult
+from btclib.rfc6979 import bits2int
 
 def secondGenerator(ec: EC, hf) -> Point:
     """Nothing-Up-My-Sleeve (NUMS) second generator H wrt ec.G 
@@ -20,9 +20,9 @@ def secondGenerator(ec: EC, hf) -> Point:
        The resulting point could not be a curvepoint: in this case keep on
        incrementing hx until a valid curve point (hx, hy) is obtained.
     """
-    G_bytes = bytes_from_Point(ec, ec.G, False)
+    G_bytes = point2octets(ec, ec.G, False)
     hd = hf(G_bytes).digest()
-    hx = int_from_Scalar(ec, hd)
+    hx = bits2int(ec, hd)
     isCurvePoint = False
     while not isCurvePoint:
         try:
@@ -33,7 +33,7 @@ def secondGenerator(ec: EC, hf) -> Point:
     return hx, hy
 
 
-def pedersen_commit(r: Scalar, v: Scalar, ec: EC, hf) -> Point:
+def pedersen_commit(r: int, v: int, ec: EC, hf) -> Point:
     """Return rG + vH, with H being second (NUMS) generator of the curve"""
     H = secondGenerator(ec, hf)
     Q = DblScalarMult(ec, r, ec.G, v, H)
@@ -42,7 +42,7 @@ def pedersen_commit(r: Scalar, v: Scalar, ec: EC, hf) -> Point:
     return Q
 
 
-def pedersen_open(r: Scalar, v: Scalar, C: Point, ec: EC, hf) -> bool:
+def pedersen_open(r: int, v: int, C: Point, ec: EC, hf) -> bool:
     try:
         P = pedersen_commit(r, v, ec, hf)
     except:

@@ -10,7 +10,7 @@
 
 from hmac import HMAC
 from hashlib import sha512
-from btclib.ec import secp256k1 as ec, bytes_from_Point
+from btclib.ec import secp256k1 as ec, point2octets
 from btclib.wifaddress import h160, address_from_pubkey
 from btclib.base58 import b58encode_check
 
@@ -43,7 +43,7 @@ p_bytes = hashValue[:32]
 p = int(p_bytes.hex(), 16) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
 P = pointMult(ec, p, ec.G)
-P_bytes = bytes_from_Point(ec, P, True)
+P_bytes = point2octets(ec, P, True)
 chain_code = hashValue[32:]
 
 #extended keys
@@ -68,7 +68,7 @@ hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
 P = pointMult(ec, p, ec.G)
-P_bytes = bytes_from_Point(ec, P, True)
+P_bytes = point2octets(ec, P, True)
 chain_code = hashValue[32:]
 
 ext_prv = b58encode_check(xprv + idf + chain_code + p_bytes)
@@ -92,7 +92,7 @@ hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
 P = pointMult(ec, p, ec.G)
-P_bytes = bytes_from_Point(ec, P, True)
+P_bytes = point2octets(ec, P, True)
 chain_code = hashValue[32:]
 
 ext_prv = b58encode_check(xprv + idf + chain_code + p_bytes)
@@ -116,7 +116,7 @@ hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
 P = pointMult(ec, p, ec.G)
-P_bytes = bytes_from_Point(ec, P, True)
+P_bytes = point2octets(ec, P, True)
 chain_code = hashValue[32:]
 
 ext_prv = b58encode_check(xprv + idf + chain_code + p_bytes)
@@ -140,7 +140,7 @@ hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
 P = pointMult(ec, p, ec.G)
-P_bytes = bytes_from_Point(ec, P, True)
+P_bytes = point2octets(ec, P, True)
 chain_code = hashValue[32:]
 
 ext_prv = b58encode_check(xprv + idf + chain_code + p_bytes)
@@ -164,7 +164,7 @@ hashValue = HMAC(chain_code, key + child_number, sha512).digest()
 p = (p + int(hashValue[:32].hex(), 16)) % ec.n
 p_bytes = b'\x00' + p.to_bytes(32, byteorder='big')
 P = pointMult(ec, p, ec.G)
-P_bytes = bytes_from_Point(ec, P, True)
+P_bytes = point2octets(ec, P, True)
 chain_code = hashValue[32:]
 
 ext_prv = b58encode_check(xprv + idf + chain_code + p_bytes)

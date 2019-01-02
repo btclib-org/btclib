@@ -23,13 +23,10 @@ from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 # infinity point is (int, 0), checked with 'Inf[1] == 0'
 Point = Tuple[int, int]
 
-# str must be a hex-string
-XPoint = Union[str, bytes, Point]
-
 # infinity point is (int, int, 0), checked with 'Inf[2] == 0'
 _JacPoint = Tuple[int, int, int]
 
-BytesLike = Union[str, bytes]
+octets = Union[str, bytes]
 
 
 
@@ -84,7 +81,7 @@ class EC:
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p).
         if len(G) != 2:
             raise ValueError("Generator must a be a Tuple[int, int]")
-        if not self.areValidCoordinates(G[0], G[1]):
+        if not self.isOnCurve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = int(G[0]), int(G[1])
 
@@ -142,8 +139,8 @@ class EC:
         if not (0 <= c < self._p):
             raise ValueError("coordinate %s not in [0, p-1]" % c)
 
-    def opposite(self, Q: XPoint) -> Point:
-        Q = to_Point(self, Q)
+    def opposite(self, Q: Point) -> Point:
+        self.requireOnCurve(Q)
         if Q[1] == 0:  # Infinity point in affine coordinates
             return Q
         else:
@@ -202,9 +199,8 @@ class EC:
             Z = (V*Q[2]*R[2]) % self._p
             return X, Y, Z
 
-    def _addAffine(self, Q: XPoint, R: XPoint) -> Point:
-        Q = to_Point(self, Q)  # also check that is on curve
-        R = to_Point(self, R)  # also check that is on curve
+    def _addAffine(self, Q: Point, R: Point) -> Point:
+        # private method does not check for Q, R on curve
         if R[1] == 0:  # Infinity point in affine coordinates
             return Q
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -224,9 +220,9 @@ class EC:
         y = (lam*(Q[0]-x)-Q[1]) % self._p
         return x, y
 
-    def add(self, Q1: XPoint, Q2: XPoint) -> Point:
-        Q1 = to_Point(self, Q1)
-        Q2 = to_Point(self, Q2)
+    def add(self, Q1: Point, Q2: Point) -> Point:
+        self.requireOnCurve(Q1)
+        self.requireOnCurve(Q2)
         QJ1 = _jac_from_aff(Q1)
         QJ2 = _jac_from_aff(Q2)
         R = self._addJacobian(QJ1, QJ2)
@@ -244,11 +240,19 @@ class EC:
         # mod_sqrt will raise a ValueError if root does not exist
         return mod_sqrt(y2, self._p)
 
-    def areValidCoordinates(self, x: int, y: int) -> bool:
-        if y == 0:  # Infinity point in affine coordinates
+    def requireOnCurve(self, Q: Point) -> None:
+        if not self.isOnCurve(Q):
+            raise ValueError("Point not on curve")
+
+    def isOnCurve(self, Q: Point) -> bool:
+        if not isinstance(Q, tuple):
+            raise ValueError("Point must be a tuple[int, int]")
+        if len(Q) != 2:
+            raise ValueError("Point must be a tuple[int, int]")
+        if Q[1] == 0:  # Infinity point in affine coordinates
             return True
-        self.checkCoordinate(y)
-        return self._y2(x) == (y*y % self._p)
+        self.checkCoordinate(Q[1])
+        return self._y2(Q[0]) == (Q[1]*Q[1] % self._p)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 
@@ -280,50 +284,49 @@ class EC:
         return root if legendre1 == quadRes else self._p - root
 
 
-def to_Point(ec: EC, Q: XPoint) -> Point:
-    """Return a tuple (Px, Py) according to SEC2 2.3.4
+def octets2point(ec: EC, o: octets) -> Point:
+    """Return a tuple (Px, Py) that belongs to the curve
 
-    It ensures the point belongs to the curve
+       SEC 1 v.2, section 2.3.4
     """
+ 
+    if isinstance(o, str):
+        o = bytes.fromhex(o)
 
-    if isinstance(Q, str):
-        # BIP32 xpub is not considered here,
-        # as it is a bitcoin convention only
-        Q = bytes.fromhex(Q)
+    if len(o) == 1 and o[0] == 0x00:  # infinity point
+        return 1, 0
 
-    if isinstance(Q, bytes):
-        if len(Q) == 1 and Q[0] == 0x00:  # infinity point
-            return 1, 0
-        if len(Q) == ec.bytesize+1:  # compressed point
-            if Q[0] not in (0x02, 0x03):
-                m = "%s bytes, but not a compressed point" % (ec.bytesize+1)
-                raise ValueError(m)
-            Px = int.from_bytes(Q[1:], 'big')
-            Py = ec.yOdd(Px, Q[0] % 2)  # also check Px validity
-        else:                          # uncompressed point
-            if len(Q) != 2*ec.bytesize+1:
-                m = "wrong byte-size (%s) for a point: it " % len(Q)
-                m += "should be %s or %s" % (ec.bytesize+1, 2*ec.bytesize+1)
-                raise ValueError(m)
-            if Q[0] != 0x04:
-                raise ValueError("not an uncompressed point")
-            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
-            Py = int.from_bytes(Q[ec.bytesize+1:], 'big')
-            if not ec.areValidCoordinates(Px, Py):
-                raise ValueError("point not on curve")
-        return Px, Py
+    if len(o) == ec.bytesize+1:       # compressed point
+        if o[0] not in (0x02, 0x03):
+            m = "%s bytes, but not a compressed point" % (ec.bytesize+1)
+            raise ValueError(m)
+        Px = int.from_bytes(o[1:], 'big')
+        try:
+            Py = ec.yOdd(Px, o[0] % 2)    # also check Px validity
+            return Px, Py
+        except:
+            raise ValueError("point not on curve")
+    else:                             # uncompressed point
+        if len(o) != 2*ec.bytesize+1:
+            m = "wrong byte-size (%s) for a point: it " % len(o)
+            m += "should be %s or %s" % (ec.bytesize+1, 2*ec.bytesize+1)
+            raise ValueError(m)
+        if o[0] != 0x04:
+            raise ValueError("not an uncompressed point")
+        Px = int.from_bytes(o[1:ec.bytesize+1], 'big')
+        P = Px, int.from_bytes(o[ec.bytesize+1:], 'big')
+        if ec.isOnCurve(P):
+            return P
+        else:
+            raise ValueError("point not on curve")
+    
 
-    # input is already a Point
-    if not ec.areValidCoordinates(Q[0], Q[1]):
-        raise ValueError("point not on curve")
-    return Q
 
 # this function is used by the EC class; it might be a method...
 
 
 def _jac_from_aff(Q: Point) -> _JacPoint:
-    if len(Q) != 2:
-        raise ValueError("input point not in affine coordinates")
+    # private method does not check for Q on curve
     if Q[1] == 0:  # Infinity point in affine coordinates
         return 1, 1, 0
     return Q[0], Q[1], 1
@@ -331,14 +334,13 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
 # this function is used by the EC class; it might be a method...
 
 
-def bytes_from_Point(ec: EC, Q: XPoint, compressed: bool) -> bytes:
+def point2octets(ec: EC, Q: Point, compressed: bool) -> bytes:
+    """Return a compressed (0x02, 0x03) or uncompressed (0x04) point as octets
+    
+       SEC 1 v.2, section 2.3.3
     """
-    Return a compressed (0x02, 0x03) or uncompressed (0x04)
-    point ensuring it belongs to the curve
-    """
-    # enforce self-consistency with whatever
-    # policy is implemented by to_Point
-    Q = to_Point(ec, Q)
+    # check that Q is a point and that is on curve
+    ec.requireOnCurve(Q)
 
     if Q[1] == 0:  # infinity point in affine coordinates
         return b'\x00'
@@ -350,97 +352,40 @@ def bytes_from_Point(ec: EC, Q: XPoint, compressed: bool) -> bytes:
     return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
 
 
-def point2octets(P: Point, compressed: bool, ec: EC) -> bytes:
-    """Return a compressed (0x02, 0x03) or uncompressed (0x04) point
-    
-       SEC 1 v.2, section 2.3.3
+def octets2int(o: octets) -> int:
+    """Integer for Point multiplication (i.e. private key), not coordinate
+
+       SEC 1 v.2, section 2.3.8
     """
-    # bytesize is rlen * 8
-    if P[1] == 0:  # infinity point in affine coordinates
-        return b'\x00'
+    if isinstance(o, str):  # hex string
+        o = bytes.fromhex(o)
 
-    bPx = P[0].to_bytes(ec.bytesize, byteorder='big')
-    if compressed:
-        return (b'\x03' if (P[1] & 1) else b'\x02') + bPx
+    return int.from_bytes(o, 'big')
 
-    return b'\x04' + bPx + P[1].to_bytes(ec.bytesize, byteorder='big')
-
-def octets2point(Q: BytesLike, ec: EC) -> Point:
-    """Return a tuple (Px, Py)
-
-       SEC 1 v.2, section 2.3.4
-    """
-
-    if isinstance(Q, str):
-        Q = bytes.fromhex(Q)
-
-    if isinstance(Q, bytes):
-        if len(Q) == 1 and Q[0] == 0x00:  # infinity point
-            return 1, 0
-        if len(Q) == ec.bytesize+1:  # compressed point
-            if Q[0] not in (0x02, 0x03):
-                m = "%s bytes, but not a compressed point" % (ec.bytesize+1)
-                raise ValueError(m)
-            Px = int.from_bytes(Q[1:], 'big')
-            Py = ec.yOdd(Px, Q[0] % 2)  # also check Px validity
-        else:                          # uncompressed point
-            if len(Q) != 2*ec.bytesize+1:
-                m = "wrong byte-size (%s) for a point: it " % len(Q)
-                m += "should be %s or %s" % (ec.bytesize+1, 2*ec.bytesize+1)
-                raise ValueError(m)
-            if Q[0] != 0x04:
-                raise ValueError("not an uncompressed point")
-            Px = int.from_bytes(Q[1:ec.bytesize+1], 'big')
-            Py = int.from_bytes(Q[ec.bytesize+1:], 'big')
-            if not ec.areValidCoordinates(Px, Py):
-                raise ValueError("point not on curve")
-        return Px, Py
-
-    # input is already a Point
-    if not ec.areValidCoordinates(Q[0], Q[1]):
-        raise ValueError("point not on curve")
-    return Q
-
-
-
-Scalar = Union[str, bytes, int]
-
-
-def int_from_Scalar(ec: EC, q: Scalar) -> int:
-    """Integer for Point multiplication (i.e. private key), not coordinate"""
-    if isinstance(q, str):  # hex string
-        q = bytes.fromhex(q)
-
-    if isinstance(q, bytes):
-        if len(q) > ec.bytesize:  # FIXME: might be unnecessary
-            errmsg = 'scalar size %s > %s' % (len(q), ec.bytesize)
-            raise ValueError(errmsg)
-        q = int.from_bytes(q, 'big')
-
-    return q % ec.n  # fails if q is not int-like FIXME no % ec.n
-
-
-def bytes_from_Scalar(ec: EC, n: Scalar) -> bytes:
-    # enforce self-consistency with whatever
-    # policy is implemented by int_from_Scalar
-    n = int_from_Scalar(ec, n)
-    return n.to_bytes(ec.bytesize, 'big')
+def int2octets(ec: EC, q: int) -> bytes:
+    """SEC 1 v.2, section 2.3.7"""
+    # bytesize = rlen * 8
+    # rlen = 8*ceil(qlen/8)
+    # qlen = ec.n.bitlength()
+    # raise an error if i too big
+    # as of now does not raise an error if q <= i
+    q % ec.n
+    return q.to_bytes(ec.bytesize, 'big')
 
 # this function is used by the EC class; it might be a method...
 
 
-def pointMult(ec: EC, n: Scalar, Q: XPoint) -> Point:
-    Q = to_Point(ec, Q)
+def pointMult(ec: EC, n: int, Q: Point) -> Point:
+    ec.requireOnCurve(Q)
     QJ = _jac_from_aff(Q)
     R = _pointMultJacobian(ec, n, QJ)
     return ec._affine_from_jac(R)
 
 
-def _pointMultAffine(ec: EC, n: Scalar, Q: XPoint) -> Point:
+def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
     """double & add in affine coordinates, using binary decomposition of n"""
-    n = int_from_Scalar(ec, n)
-    Q = to_Point(ec, Q)
-
+    # private method does not check input
+    n %= ec.n #FIXME: remove
     if Q[1] == 0:  # Infinity point in affine coordinates
         return Q
     R = 1, 0      # initialize as infinity point
@@ -453,12 +398,10 @@ def _pointMultAffine(ec: EC, n: Scalar, Q: XPoint) -> Point:
     return R
 
 
-def _pointMultJacobian(ec: EC, n: Scalar, Q: _JacPoint) -> _JacPoint:
+def _pointMultJacobian(ec: EC, n: int, Q: _JacPoint) -> _JacPoint:
     """double & add in jacobian coordinates, using binary decomposition of n"""
-    n = int_from_Scalar(ec, n)
-    if len(Q) != 3:
-        raise ValueError("input point not in Jacobian coordinates")
-
+    # private method does not check input
+    n %= ec.n #FIXME: remove
     if Q[2] == 0:  # Infinity point in Jacobian coordinates
         return 1, 1, 0
     R = 1, 1, 0   # initialize as infinity point
@@ -471,46 +414,50 @@ def _pointMultJacobian(ec: EC, n: Scalar, Q: _JacPoint) -> _JacPoint:
     return R
 
 
-def DblScalarMult(ec: EC, u: Scalar, Q: XPoint, v: Scalar, P: XPoint) -> Point:
+def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
     """Shamir trick for efficient computation of u*Q + v*P"""
 
-    r1 = int_from_Scalar(ec, u)
-    if r1 == 0:
-        P = to_Point(ec, P)
-        R2 = _jac_from_aff(P)
-        R = _pointMultJacobian(ec, v, R2)
+    if u == 0:
+        if v == 0:
+            return 1, 0
+        ec.requireOnCurve(P)
+        PJ = _jac_from_aff(P)
+        v %= ec.n
+        R = _pointMultJacobian(ec, v, PJ)
         return ec._affine_from_jac(R)
 
-    Q = to_Point(ec, Q)
+    ec.requireOnCurve(Q)
     if Q[1] == 0:
-        P = to_Point(ec, P)
-        R2 = _jac_from_aff(P)
-        R = _pointMultJacobian(ec, v, R2)
+        ec.requireOnCurve(P)
+        PJ = _jac_from_aff(P)
+        v %= ec.n
+        R = _pointMultJacobian(ec, v, PJ)
         return ec._affine_from_jac(R)
 
-    R1 = _jac_from_aff(Q)
+    u %= ec.n
+    QJ = _jac_from_aff(Q)
 
-    r2 = int_from_Scalar(ec, v)
-    if r2 == 0:
-        R = _pointMultJacobian(ec, r1, R1)
+    if v == 0:
+        R = _pointMultJacobian(ec, u, QJ)
         return ec._affine_from_jac(R)
 
-    P = to_Point(ec, P)
+    ec.requireOnCurve(P)
     if P[1] == 0:
-        R = _pointMultJacobian(ec, r1, R1)
+        R = _pointMultJacobian(ec, u, QJ)
         return ec._affine_from_jac(R)
 
-    R2 = _jac_from_aff(P)
+    v %= ec.n
+    PJ = _jac_from_aff(P)
 
     R = 1, 1, 0  # initialize as infinity point
-    msb = max(r1.bit_length(), r2.bit_length())
+    msb = max(u.bit_length(), v.bit_length())
     while msb > 0:
-        if r1 >> (msb - 1):  # checking msb
-            R = ec._addJacobian(R, R1)
-            r1 -= pow(2, r1.bit_length() - 1)
-        if r2 >> (msb - 1):  # checking msb
-            R = ec._addJacobian(R, R2)
-            r2 -= pow(2, r2.bit_length() - 1)
+        if u >> (msb - 1):  # checking msb
+            R = ec._addJacobian(R, QJ)
+            u -= pow(2, u.bit_length() - 1)
+        if v >> (msb - 1):  # checking msb
+            R = ec._addJacobian(R, PJ)
+            v -= pow(2, v.bit_length() - 1)
         if msb > 1:
             R = ec._addJacobian(R, R)
         msb -= 1

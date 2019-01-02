@@ -33,14 +33,13 @@
 
 from typing import Optional
 
-from btclib.ec import Tuple, Scalar, EC, pointMult, Point, XPoint, to_Point, \
-    bytes_from_Point, int_from_Scalar
-from btclib.ecutils import int_from_hlenbytes, bytes_from_hlenbytes
-from btclib.rfc6979 import rfc6979
+from btclib.ec import Tuple, EC, pointMult, Point, octets2point, \
+    point2octets
+from btclib.rfc6979 import bits2int, rfc6979
 from btclib.ecdsa import ecdsa_sign, ECDS
 from btclib.ecssa import ecssa_sign, ECSS
 
-Receipt = Tuple[Scalar, XPoint]
+Receipt = Tuple[int, Point]
 
 
 def tweak(k: int, c: bytes, ec: EC, hf) -> Tuple[Point, int]:
@@ -51,21 +50,20 @@ def tweak(k: int, c: bytes, ec: EC, hf) -> Tuple[Point, int]:
     - tweaked private key k + h(kG||c), the corresponding pubkey is a commitment to kG, c
     """
     R = pointMult(ec, k, ec.G)
-    e = hf(bytes_from_Point(ec, R, True) + c).digest()
+    e = hf(point2octets(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
     return R, (e + k) % ec.n
 
 
 def ecdsa_commit_sign(m: bytes,
-                      prvkey: Scalar,
+                      prvkey: int,
                       c: bytes,
-                      eph_prv: Optional[Scalar],
+                      eph_prv: Optional[int],
                       ec: EC,
                       hf) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
     mh = hf(m).digest()
-    prvkey = int_from_Scalar(ec, prvkey)
-    eph_prv = rfc6979(
-        prvkey, mh, ec, hf) if eph_prv is None else int_from_Scalar(ec, eph_prv)
+    if eph_prv is None:
+        eph_prv = rfc6979(prvkey, mh, ec, hf)
 
     ch = hf(c).digest()
 
@@ -79,16 +77,14 @@ def ecdsa_commit_sign(m: bytes,
 
 
 def ecssa_commit_sign(m: bytes,
-                      prvkey: Scalar,
+                      prvkey: int,
                       c: bytes,
-                      eph_prv: Optional[Scalar],
+                      eph_prv: Optional[int],
                       ec: EC,
                       hf) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
-    m = bytes_from_hlenbytes(m, hf)
-    prvkey = int_from_Scalar(ec, prvkey)
     ch = hf(c).digest()
-    eph_prv = rfc6979(
-        prvkey, m, ec, hf) if eph_prv is None else int_from_Scalar(ec, eph_prv)
+    if eph_prv is None:
+        eph_prv = rfc6979(prvkey, m, ec, hf)
 
     # commit
     R, eph_prv = tweak(eph_prv, ch, ec, hf)
@@ -109,10 +105,12 @@ def verify_commit(receipt: Receipt,
     # w in [1..n-1] dsa
     # w in [1..p-1] ssa
     # different verify functions?
-    R = to_Point(ec, R)  # also verify R is a good point
+    
+    # verify R is a good point?    
+
     ch = hf(c).digest()
-    e = hf(bytes_from_Point(ec, R, True) + ch).digest()
-    e = int_from_hlenbytes(e, ec, hf)
+    e = hf(point2octets(ec, R, True) + ch).digest()
+    e = bits2int(ec, e)
     W = ec.add(R, pointMult(ec, e, ec.G))
     # different verify functions?
     # return w == W[0] # ECSS

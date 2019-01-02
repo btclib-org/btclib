@@ -17,17 +17,16 @@ from hashlib import sha256
 from typing import List, Optional
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import Union, Tuple, Scalar, Point, XPoint, to_Point, \
-    EC, secp256k1, pointMult, DblScalarMult, int_from_Scalar
-from btclib.rfc6979 import rfc6979
-from btclib.ecutils import bytes_from_hlenbytes, int_from_hlenbytes
+from btclib.ec import Union, Tuple, Point, octets2point, \
+    EC, secp256k1, pointMult, DblScalarMult
+from btclib.rfc6979 import bits2int, rfc6979
 
-ECDS = Tuple[Scalar, Scalar]
+ECDS = Tuple[int, int]
 
 
 def ecdsa_sign(M: bytes,
-               d: Scalar,
-               k: Optional[Scalar] = None,
+               d: int,
+               k: Optional[int] = None,
                ec: EC = secp256k1,
                hf = sha256) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 1
@@ -37,14 +36,13 @@ def ecdsa_sign(M: bytes,
     """
 
     H = hf(M).digest()                                # 4
-    e = int_from_hlenbytes(H, ec, hf)                 # 5
+    e = bits2int(ec, H)                               # 5
 
-    d = int_from_Scalar(ec, d)
+    d %= ec.n  # FIXME ?
 
     if k is None:
         k = rfc6979(d, H, ec, hf)                     # 1
-    else:
-        k = int_from_Scalar(ec, k)
+    k %= ec.n  # FIXME ?
 
     # second part delegated to helper function used in testing
     return _ecdsa_sign(e, d, k, ec)
@@ -62,7 +60,7 @@ def _ecdsa_sign(e: int, d: int, k: int, ec: EC) -> Tuple[int, int]:
     if k == 0:
         raise ValueError("ephemeral key k=0 in ecdsa sign operation")
     # Let R = k'G.
-    R = pointMult(ec, k, ec.G)                      # 1
+    R = pointMult(ec, k, ec.G)                          # 1
 
     r = R[0] % ec.n                                     # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
@@ -77,7 +75,7 @@ def _ecdsa_sign(e: int, d: int, k: int, ec: EC) -> Tuple[int, int]:
 
 def ecdsa_verify(dsasig: ECDS,
                  H: bytes,
-                 Q: XPoint,
+                 Q: Point,
                  ec: EC = secp256k1,
                  hf = sha256) -> bool:
     """ECDSA veryfying operation to SEC 1
@@ -97,16 +95,16 @@ def ecdsa_verify(dsasig: ECDS,
 # It raises Errors, while verify should always return True or False
 
 
-def _ecdsa_verify(dsasig: ECDS, H: bytes, P: XPoint, ec: EC, hf) -> bool:
+def _ecdsa_verify(dsasig: ECDS, H: bytes, P: Point, ec: EC, hf) -> bool:
     # ECDSA veryfying operation to SEC 1
     # See section 4.1.4
 
     # The message digest m: a 32-byte array
     H = hf(H).digest()                                # 2
-    e = int_from_hlenbytes(H, ec, hf)                 # 3
+    e = bits2int(ec, H)                             # 3
 
     # Let P = point(pk); fail if point(pk) fails.
-    P = to_Point(ec, P)
+    # P on point will be checked below by DblScalarMult
 
     # second part delegated to helper function used in testing
     return _ecdsa_verhlp(dsasig, e, P, ec)
@@ -122,7 +120,7 @@ def _ecdsa_verhlp(dsasig: ECDS, e: int, P: Point, ec: EC) -> bool:
 
     s1 = mod_inv(s, ec.n)
     u1 = e*s1
-    u2 = r*s1         # 4
+    u2 = r*s1                                           # 4
     R = DblScalarMult(ec, u1, ec.G, u2, P)  # 5
 
     # Fail if infinite(R).
@@ -146,7 +144,7 @@ def ecdsa_pubkey_recovery(dsasig: ECDS,
 
     # The message digest m: a 32-byte array
     H = hf(M).digest()
-    e = int_from_hlenbytes(H, ec, hf)  # ECDSA verification step 3
+    e = bits2int(ec, H)  # ECDSA verification step 3
 
     return _ecdsa_pubkey_recovery(dsasig, e, ec)
 

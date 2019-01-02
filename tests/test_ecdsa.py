@@ -12,9 +12,9 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import secp256k1, to_Point, _jac_from_aff, pointMult, \
+from btclib.ec import secp256k1, octets2point, _jac_from_aff, pointMult, \
     DblScalarMult
-from btclib.ecdsa import rfc6979, int_from_hlenbytes, to_dsasig, \
+from btclib.ecdsa import rfc6979, bits2int, to_dsasig, \
     ecdsa_sign, _ecdsa_sign, ecdsa_verify, _ecdsa_verify, _ecdsa_verhlp, \
     ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery
 
@@ -73,8 +73,7 @@ class TestEcdsa(unittest.TestCase):
         ec = secp256k1
         # see https://twitter.com/pwuille/status/1063582706288586752
         # Satoshi's key
-        P = to_Point(
-            secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
+        P = octets2point(secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
 
         u1 = 1
         u2 = 2  # pick them at will

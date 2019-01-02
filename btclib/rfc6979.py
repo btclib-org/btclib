@@ -19,12 +19,45 @@ https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 from struct import pack
 import hmac
 
-from btclib.ec import EC, BytesLike
-from btclib.ecutils import bits2octets, bits2int, int2octets, \
-    bytes_from_hlenbytes
+from btclib.ec import EC, octets, int2octets, octets2int
 
 
-def rfc6979(prv: int, hlb: BytesLike, ec: EC, hf) -> int:
+def bits2int(ec: EC, o: octets) -> int:
+    """retain the leftmost bits only"""
+
+    b = octets2int(o)
+
+    """
+    i = int.from_bytes(b, 'big')
+    # retain the leftmost bits only
+    if bytesize > maxbytesize:
+        i >>= (bytesize - maxbytesize) * 8
+    return i
+    """
+
+    """
+    maxbytesize = ec.bytesize
+    bytesize = len(b)
+    # retain the leftmost bytes only
+    if bytesize > maxbytesize:
+        return int.from_bytes(b[:maxbytesize], 'big')
+    else:
+        return int.from_bytes(b, 'big')
+    """
+
+    h_len = b.bit_length()
+    L_n = ec.n.bit_length() # use the L_n leftmost bits of the hash
+    n = (h_len - L_n) if h_len >= L_n else 0
+    return b >> n
+
+
+def bits2octets(ec: EC, b: bytes) -> bytes:
+    z1 = bits2int(ec, b)
+    z2 = z1 % ec.n
+    return int2octets(ec, z2)
+
+
+def rfc6979(prv: int, hlb: bytes, ec: EC, hf) -> int:
 
     if not (0 < prv < ec.n):
         raise ValueError("invalid prv: %s" % prv)
@@ -33,9 +66,9 @@ def rfc6979(prv: int, hlb: BytesLike, ec: EC, hf) -> int:
     v = b'\x01' * hlen
     k = b'\x00' * hlen
 
-    hlb = bytes_from_hlenbytes(hlb, hf)
     # hlen or qlen ?
-    prv_and_m = int2octets(prv, hlen) + bits2octets(hlb, hlen)
+    prv_and_m = int2octets(ec, prv)
+    prv_and_m += bits2octets(ec, hlb)
     k = hmac.new(k, v + b'\x00' + prv_and_m, hf).digest()
     v = hmac.new(k, v, hf).digest()
     k = hmac.new(k, v + b'\x01' + prv_and_m, hf).digest()
@@ -47,7 +80,7 @@ def rfc6979(prv: int, hlb: BytesLike, ec: EC, hf) -> int:
         while len(t) < qlen:
             v = hmac.new(k, v, hf).digest()
             t = t + v
-        nonce = bits2int(t, qlen)
+        nonce = bits2int(ec, t)
         if nonce > 0 and nonce < ec.n:
             # here it should be checked that nonce do not yields a invalid signature
             # but then I should put the signature generation here

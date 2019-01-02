@@ -21,9 +21,9 @@ import random
 import unittest
 
 from btclib.numbertheory import legendre_symbol
-from btclib.ec import int_from_Scalar, bytes_from_Point, secp256k1, \
+from btclib.ec import octets2int, point2octets, secp256k1, \
     pointMult, DblScalarMult
-from btclib.ecssa import sha256, int_from_hlenbytes, ecssa_verify
+from btclib.ecssa import sha256, bits2int, ecssa_verify
 
 random.seed(42)
 
@@ -36,10 +36,9 @@ class TestEcssaMuSig(unittest.TestCase):
         M = sha256('message to sign'.encode()).digest()
 
         # first signer
-        q1 = int_from_Scalar(
-            ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
+        q1 = octets2int('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
         Q1 = pointMult(ec, q1, ec.G)
-        L.append(bytes_from_Point(ec, Q1, False))
+        L.append(point2octets(ec, Q1, False))
 
         # ephemeral private nonce
         k1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb
@@ -51,10 +50,9 @@ class TestEcssaMuSig(unittest.TestCase):
             #K1 = pointMult(ec, k1, ec.G)
 
         # second signer
-        q2 = int_from_Scalar(
-            ec, '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        q2 = octets2int('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q2 = pointMult(ec, q2, ec.G)
-        L.append(bytes_from_Point(ec, Q2, False))
+        L.append(point2octets(ec, Q2, False))
 
         k2 = 0x01a2a0d3eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbdb
         K2 = pointMult(ec, k2, ec.G)
@@ -70,7 +68,7 @@ class TestEcssaMuSig(unittest.TestCase):
         while Q3 == None:  # plausible only for small (test) cardinality groups
             q3 = random.getrandbits(bits) % ec.n
             Q3 = pointMult(ec, q3, ec.G)
-        L.append(bytes_from_Point(ec, Q3, False))
+        L.append(point2octets(ec, Q3, False))
 
         k3 = random.getrandbits(bits) % ec.n
         K3 = pointMult(ec, k3, ec.G)
@@ -88,16 +86,16 @@ class TestEcssaMuSig(unittest.TestCase):
         for i in range(len(L)):
             L_brackets += L[i]
 
-        h1 = sha256(L_brackets + bytes_from_Point(ec, Q1, False)).digest()
-        a1 = int_from_hlenbytes(h1, ec, sha256)
-        h2 = sha256(L_brackets + bytes_from_Point(ec, Q2, False)).digest()
-        a2 = int_from_hlenbytes(h2, ec, sha256)
-        h3 = sha256(L_brackets + bytes_from_Point(ec, Q3, False)).digest()
-        a3 = int_from_hlenbytes(h3, ec, sha256)
+        h1 = sha256(L_brackets + point2octets(ec, Q1, False)).digest()
+        a1 = bits2int(ec, h1)
+        h2 = sha256(L_brackets + point2octets(ec, Q2, False)).digest()
+        a2 = bits2int(ec, h2)
+        h3 = sha256(L_brackets + point2octets(ec, Q3, False)).digest()
+        a3 = bits2int(ec, h3)
         # aggregated public key
         Q_All = DblScalarMult(ec, a1, Q1, a2, Q2)
         Q_All = ec.add(Q_All, pointMult(ec, a3, Q3))
-        Q_All_bytes = bytes_from_Point(ec, Q_All, True)
+        Q_All_bytes = point2octets(ec, Q_All, True)
 
         ########################
         # exchange K_x, compute s
@@ -116,7 +114,7 @@ class TestEcssaMuSig(unittest.TestCase):
             k1 = ec.n - k1
         K1_All0_bytes = K1_All[0].to_bytes(32, byteorder="big")
         h1 = sha256(K1_All0_bytes + Q_All_bytes + M).digest()
-        c1 = int_from_hlenbytes(h1, ec, sha256)
+        c1 = bits2int(ec, h1)
         assert 0 < c1 and c1 < ec.n, "sign fail"
         s1 = (k1 + c1*a1*q1) % ec.n
 
@@ -132,7 +130,7 @@ class TestEcssaMuSig(unittest.TestCase):
             k2 = ec.n - k2
         K2_All0_bytes = K2_All[0].to_bytes(32, byteorder="big")
         h2 = sha256(K2_All0_bytes + Q_All_bytes + M).digest()
-        c2 = int_from_hlenbytes(h2, ec, sha256)
+        c2 = bits2int(ec, h2)
         assert 0 < c2 and c2 < ec.n, "sign fail"
         s2 = (k2 + c2*a2*q2) % ec.n
 
@@ -148,7 +146,7 @@ class TestEcssaMuSig(unittest.TestCase):
             k3 = ec.n - k3
         K3_All0_bytes = K3_All[0].to_bytes(32, byteorder="big")
         h3 = sha256(K3_All0_bytes + Q_All_bytes + M).digest()
-        c3 = int_from_hlenbytes(h3, ec, sha256)
+        c3 = bits2int(ec, h3)
         assert 0 < c3 and c3 < ec.n, "sign fail"
         s3 = (k3 + c3*a3*q3) % ec.n
 

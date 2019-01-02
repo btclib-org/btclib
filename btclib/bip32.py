@@ -13,8 +13,8 @@ from hashlib import sha512
 from typing import Union, Optional
 
 from btclib.base58 import b58encode_check, b58decode_check
-from btclib.ec import secp256k1 as ec, pointMult, bytes_from_Point, \
-    int_from_Scalar, to_Point
+from btclib.ec import secp256k1 as ec, pointMult, point2octets, \
+    octets2int, octets2point
 from btclib.wifaddress import h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes        Base58 encode starts with
@@ -39,7 +39,7 @@ ADDRESS = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
 # [13:45] chain code
 # [45:78] key (private/public)
 
-
+# FIXME: use octects
 def bip32_master_prvkey_from_seed(bip32_seed: Union[str, bytes], version: bytes) -> bytes:
     """derive the master extended private key from the seed"""
     if isinstance(bip32_seed, str):  # hex string
@@ -56,7 +56,7 @@ def bip32_master_prvkey_from_seed(bip32_seed: Union[str, bytes], version: bytes)
 
     # actual extended key (key + chain code) derivation
     hashValue = HMAC(b"Bitcoin seed", seed, sha512).digest()
-    mprv = int_from_Scalar(ec, hashValue[:32])
+    mprv = octets2int(hashValue[:32])
     xmprv += hashValue[32:]                     # chain code
     xmprv += b'\x00' + mprv.to_bytes(32, 'big')  # private key
 
@@ -82,9 +82,9 @@ def bip32_xpub_from_xprv(xprv: bytes) -> bytes:
     xpub += xprv[9:13]                         # child index
     xpub += xprv[13:45]                        # chain code
 
-    p = xprv[46:]
+    p = octets2int(xprv[46:])
     P = pointMult(ec, p, ec.G)
-    xpub += bytes_from_Point(ec, P, True)      # public key
+    xpub += point2octets(ec, P, True)      # public key
     return b58encode_check(xpub)
 
 
@@ -117,7 +117,7 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
         assert xparent[45] in (2, 3), \
             "version/key mismatch in extended parent key"
         Parent_bytes = xparent[45:]
-        Parent = to_Point(ec, Parent_bytes)
+        Parent = octets2point(ec, Parent_bytes)
         xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
         assert index[0] < 0x80, \
             "no private/hardened derivation from pubkey"
@@ -128,14 +128,14 @@ def bip32_ckd(xparentkey: bytes, index: Union[bytes, int]) -> bytes:
         offset = int.from_bytes(h[:32], 'big')
         Offset = pointMult(ec, offset, ec.G)
         Child = ec.add(Parent, Offset)
-        Child_bytes = bytes_from_Point(ec, Child, True)
+        Child_bytes = point2octets(ec, Child, True)
         xkey += h[32:]                            # chain code
         xkey += Child_bytes                       # public key
     elif (version in PRIVATE):
         assert xparent[45] == 0, "version/key mismatch in extended parent key"
         parent = int.from_bytes(xparent[46:], 'big')
         Parent = pointMult(ec, parent, ec.G)
-        Parent_bytes = bytes_from_Point(ec, Parent, True)
+        Parent_bytes = point2octets(ec, Parent, True)
         xkey += h160(Parent_bytes)[:4]            # parent pubkey fingerprint
         xkey += index                             # child index
         # actual extended key (key + chain code) derivation
@@ -191,7 +191,7 @@ def bip32_derive(xkey: bytes, path: str) -> bytes:
 # FIXME: revise address_from_xpub / address_from_pubkey relation
 
 
-def address_from_xpub(xpub: bytes, version: Optional[bytes] = None):
+def address_from_xpub(xpub: bytes, version: Optional[bytes] = None) -> bytes:
     xpub = b58decode_check(xpub, 78)
     assert xpub[45] in (2, 3), "extended key is not a public one"
     # bitcoin: address version can be derived from xkey version
@@ -202,7 +202,8 @@ def address_from_xpub(xpub: bytes, version: Optional[bytes] = None):
         xversion = xpub[:4]
         i = PUBLIC.index(xversion)
         version = ADDRESS[i]
-    return address_from_pubkey(xpub[45:], version)
+    P = octets2point(ec, xpub[45:])
+    return address_from_pubkey(P, True, version)
 
 
 def bip32_crack(parent_xpub: bytes, child_xprv: bytes) -> bytes:

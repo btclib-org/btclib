@@ -12,10 +12,10 @@ import unittest
 import random
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import sha256, int_from_Scalar, bytes_from_Point, secp256k1, \
+from btclib.ec import sha256, point2octets, secp256k1, \
     pointMult, DblScalarMult
 from btclib.pedersen import secondGenerator
-from btclib.ecssa import sha256, int_from_hlenbytes, _ecssa_verify
+from btclib.ecssa import sha256, bits2int, _ecssa_verify
 
 random.seed(42)
 
@@ -390,8 +390,10 @@ class TestEcssaThreshold(unittest.TestCase):
         ### PHASE THREE: signature generation ###
 
         # partial signatures
-        e = int_from_hlenbytes(sha256(K[0].to_bytes(
-            32, byteorder="big") + bytes_from_Point(ec, Q, True) + msg).digest(), ec, sha256)
+        ebytes = K[0].to_bytes(32, byteorder="big") 
+        ebytes += point2octets(ec, Q, True)
+        ebytes += msg
+        e = bits2int(ec, sha256(ebytes).digest())
         gamma1 = (beta1 + e * alpha1) % ec.n
         gamma3 = (beta3 + e * alpha3) % ec.n
 

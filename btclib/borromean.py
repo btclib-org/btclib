@@ -8,43 +8,43 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import os
+import random
 from hashlib import sha256
-from typing import List, Dict
+from typing import List, Dict, Tuple
+from collections import defaultdict
 
-from btclib.ec import secp256k1, Scalar, Tuple, pointMult, DblScalarMult, \
-    bytes_from_Point, to_Point, int_from_Scalar, bytes_from_Scalar
-from btclib.ecutils import int_from_hlenbytes
+from btclib.ec import Point, secp256k1, pointMult, DblScalarMult, \
+    point2octets, octets2point
+from btclib.rfc6979 import bits2int, rfc6979
 
-Signature = Tuple[bytes, ...]
 
 # source: https://github.com/ElementsProject/borromean-signatures-writeup
 
+random.seed(42)
 ec = secp256k1
 
-def borromean_hash(msg: bytes,
-                   R: bytes,
-                   i: int,
-                   j: int) -> bytes:
+def borromean_hash(msg: bytes, R: bytes, i: int, j: int) -> bytes:
     temp = msg + R + i.to_bytes(4, 'big') + j.to_bytes(4, 'big')
     return sha256(temp).digest()
 
 
-def get_msg_format(msg: bytes,
-                   pubk_rings: Dict[int, List[bytes]]) -> bytes:
-    hash_argument = msg
-    for i in range(len(pubk_rings)):
-        for j in range(len(pubk_rings[i])):
-            if type(pubk_rings[i][j]) != bytes:
-                pubk_rings[i][j] = bytes_from_Point(ec, pubk_rings[i][j], True)
-            hash_argument += pubk_rings[i][j]
-    return sha256(hash_argument).digest()
+def get_msg_format(msg: bytes, pubk_rings: Dict[int, List[Point]]) -> bytes:
+    m = msg
+    rings = len(pubk_rings)
+    for i in range(rings):
+        keys = len(pubk_rings[i])
+        for j in range(keys):
+            P = pubk_rings[i][j]
+            Pbytes = point2octets(ec, P, True)
+            m += Pbytes
+    return sha256(m).digest()
 
 
 def borromean_sign(msg: bytes,
+                   k: List[int],
                    sign_key_idx: List[int],
-                   sign_keys: List[Scalar],
-                   pubk_rings: Dict[int, List[bytes]]) -> Signature:
+                   sign_keys: List[int],
+                   pubk_rings: Dict[int, List[Point]]) -> Tuple[bytes, Dict[int, List[int]]]:
     """ Borromean ring signature - signing algorithm
 
     inputs:
@@ -53,85 +53,76 @@ def borromean_sign(msg: bytes,
     - sign_keys: list containing the whole set of signing keys (one per ring)
     - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys
     """
-    ring_number = len(pubk_rings)
-    # step 1
+    s: Dict[int, List[int]] = defaultdict(list)
+    e: Dict[int, List[int]] = defaultdict(list)
     m = get_msg_format(msg, pubk_rings)
-    k = [int_from_Scalar(ec, os.urandom(32)) for i in range(ring_number)]
-    sign_keys = [int_from_Scalar(ec, sign_keys[i])
-                 for i in range(len(sign_keys))]
-    s = {}
-    e = {}
-    last_R = m
-    for i in range(ring_number):
-        s[i] = [0]*len(pubk_rings[i])
-        e[i] = [0]*len(pubk_rings[i])
+    e0bytes = m
+    ring_size = len(pubk_rings)
+    # step 1
+    for i in range(ring_size):
+        keys_size = len(pubk_rings[i])
+        s[i] = [0]*keys_size
+        e[i] = [0]*keys_size
         j_star = sign_key_idx[i]
-        start_idx = (j_star + 1) % len(pubk_rings[i])
-        R = bytes_from_Point(ec, pointMult(ec, k[i], ec.G), True)
-        if start_idx == 0:
-            last_R += R
-        else:
-            for j in range(start_idx, len(pubk_rings[i])):
-                s[i][j] = os.urandom(32)
-                e[i][j] = int_from_hlenbytes(
-                    borromean_hash(m, R, i, j), ec, sha256)
+        start_idx = (j_star + 1) % keys_size
+        R = point2octets(ec, pointMult(ec, k[i], ec.G), True)
+        if start_idx != 0:
+            for j in range(start_idx, keys_size):
+                s[i][j] = random.getrandbits(256)
+                temp = borromean_hash(m, R, i, j)
+                e[i][j] = bits2int(ec, temp)
                 assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
-                T = DblScalarMult(ec,
-                    s[i][j], ec.G,
-                    ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
-                R = bytes_from_Point(ec, T, True)
-            last_R += R
-    e_0 = sha256(last_R).digest()
+                T = DblScalarMult(ec, s[i][j], ec.G, -e[i][j], pubk_rings[i][j])
+                R = point2octets(ec, T, True)
+        e0bytes += R
+    e0 = sha256(e0bytes).digest()
     # step 2
-    for i in range(ring_number):
-        j_star = sign_key_idx[i]
-        e[i][0] = int_from_hlenbytes(borromean_hash(m, e_0, i, 0), ec, sha256)
+    for i in range(ring_size):
+        temp = borromean_hash(m, e0, i, 0)
+        e[i][0] = bits2int(ec, temp)
         assert e[i][0] != 0 and e[i][0] < ec.n, "sign fail"
+        j_star = sign_key_idx[i]
         for j in range(1, j_star+1):
-            s[i][j-1] = os.urandom(32)
-            T = DblScalarMult(ec,
-                s[i][j-1], ec.G,
-                ec.n - e[i][j-1], to_Point(ec, pubk_rings[i][j-1]))
-            R = bytes_from_Point(ec, T, True)
-            e[i][j] = int_from_hlenbytes(
-                borromean_hash(m, R, i, j), ec, sha256)
+            s[i][j-1] = random.getrandbits(256)
+            T = DblScalarMult(ec, s[i][j-1], ec.G, -e[i][j-1], pubk_rings[i][j-1])
+            R = point2octets(ec, T, True)
+            e[i][j] = bits2int(ec, borromean_hash(m, R, i, j))
             assert e[i][j] != 0 and e[i][j] < ec.n, "sign fail"
-        s[i][j_star] = bytes_from_Scalar(ec, k[i] + sign_keys[i]*e[i][j_star])
-    return (e_0, s)
+        s[i][j_star] = k[i] + sign_keys[i]*e[i][j_star]
+    return e0, s
 
 
 def borromean_verify(msg: bytes,
-                     e_0: bytes,
-                     s: Dict[int, List[Scalar]],
-                     pubk_rings: Dict[int, List[bytes]]) -> bool:
+                     e0: bytes,
+                     s: Dict[int, List[int]],
+                     pubk_rings: Dict[int, List[Point]]) -> bool:
     """ Borromean ring signature - verification algorithm
 
     inputs: 
     - msg: msg to be signed (bytes)
-    - e_0: pinned e-value needed to start the verification algorithm
+    - e0: pinned e-value needed to start the verification algorithm
     - s: s-values, both real (one per ring) and forged
     - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys
     """
-    ring_number = len(pubk_rings)
+    ring_size = len(pubk_rings)
     m = get_msg_format(msg, pubk_rings)
-    e = {}
-    last_R = m
-    for i in range(ring_number):
-        e[i] = [0]*len(pubk_rings[i])
-        e[i][0] = int_from_hlenbytes(borromean_hash(m, e_0, i, 0), ec, sha256)
+    e: Dict[int, List[int]] = defaultdict(list)
+    e0bytes = m
+    for i in range(ring_size):
+        keys_size = len(pubk_rings[i])
+        e[i] = [0]*keys_size
+        e[i][0] = bits2int(ec, borromean_hash(m, e0, i, 0))
         if e[i][0] == 0 or e[i][0] >= ec.n:
             return False
-        for j in range(len(pubk_rings[i])):
-            T = DblScalarMult(ec,
-                s[i][j], ec.G,
-                ec.n - e[i][j], to_Point(ec, pubk_rings[i][j]))
-            R = bytes_from_Point(ec, T, True)
+        R = b'\0x00'
+        for j in range(keys_size):
+            T = DblScalarMult(ec, s[i][j], ec.G, -e[i][j], pubk_rings[i][j])
+            R = point2octets(ec, T, True)
             if j != len(pubk_rings[i])-1:
-                e[i][j +
-                     1] = int_from_hlenbytes(borromean_hash(m, R, i, j+1), ec, sha256)
+                e[i][j+1] = bits2int(ec, borromean_hash(m, R, i, j+1))
                 if e[i][j+1] == 0 or e[i][j+1] >= ec.n:
                     return False
             else:
-                last_R += R
-    e_0_prime = (sha256(last_R).digest())
-    return e_0_prime == e_0
+                e0bytes += R
+    e0_prime = sha256(e0bytes).digest()
+    return e0_prime == e0

@@ -257,12 +257,10 @@ class TestBIP32(unittest.TestCase):
         # m/0'/0'/463'
         addr1 = b'1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5'
         indexes = [0x80000000, 0x80000000, 0x80000000 + 463]
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(mprv, indexes)))
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)))
         self.assertEqual(addr, addr1)
         path = "m/0'/0'/463'"
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(mprv, path)))
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)))
         self.assertEqual(addr, addr1)
 
         # m/0'/0'/267'

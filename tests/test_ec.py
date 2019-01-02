@@ -11,10 +11,9 @@
 import unittest
 
 from btclib.numbertheory import mod_sqrt
-from btclib.ec import sha256, EC, bytes_from_Point, to_Point, pointMult, \
+from btclib.ec import sha256, EC, point2octets, octets2point, pointMult, \
     secp256k1, secp256r1, secp384r1, SEC2V1_curves, SEC2V2_curves, \
     DblScalarMult, _jac_from_aff, _pointMultJacobian, _pointMultAffine
-from btclib.ecutils import int_from_hlenbytes
 
  
 ec13_11 = EC(13, 7, 6, (1,   1),  11, False)
@@ -98,16 +97,12 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(Gy_even % 2, 0)
             self.assertTrue(ec.G[1] in (Gy_odd, Gy_even))
 
-            Gbytes = bytes_from_Point(ec, ec.G, True)
-            Gbytes = bytes_from_Point(ec, Gbytes, True)
-            G2 = to_Point(ec, Gbytes)
-            G2 = to_Point(ec, G2)
+            Gbytes = point2octets(ec, ec.G, True)
+            G2 = octets2point(ec, Gbytes)
             self.assertEqual(ec.G, G2)
 
-            Gbytes = bytes_from_Point(ec, ec.G, False)
-            Gbytes = bytes_from_Point(ec, Gbytes, False)
-            G2 = to_Point(ec, Gbytes)
-            G2 = to_Point(ec, G2)
+            Gbytes = point2octets(ec, ec.G, False)
+            G2 = octets2point(ec, Gbytes)
             self.assertEqual(ec.G, G2)
 
             P = ec.add(Inf, ec.G)
@@ -134,35 +129,35 @@ class TestEllipticCurve(unittest.TestCase):
             ec2 = eval(ec_repr)
             self.assertEqual(str(ec), str(ec2))
 
-    def test_to_point(self):
+    def test_octets2point(self):
         for ec in all_curves:
             bytesize = ec.bytesize
             Q = pointMult(ec, ec._p, ec.G)
 
             Q_bytes = (b'\x03' if (Q[1] & 1) else b'\x02') + Q[0].to_bytes(bytesize, "big")
-            R = to_Point(ec, Q_bytes)
+            R = octets2point(ec, Q_bytes)
             self.assertEqual(R, Q)
-            self.assertEqual(bytes_from_Point(ec, R, True), Q_bytes)
+            self.assertEqual(point2octets(ec, R, True), Q_bytes)
 
             Q_hex_str = Q_bytes.hex()
-            R = to_Point(ec, Q_hex_str)
+            R = octets2point(ec, Q_hex_str)
             self.assertEqual(R, Q)
 
             Q_bytes = b'\x04' + Q[0].to_bytes(bytesize, "big") + Q[1].to_bytes(bytesize, "big")
-            R = to_Point(ec, Q_bytes)
+            R = octets2point(ec, Q_bytes)
             self.assertEqual(R, Q)
-            self.assertEqual(bytes_from_Point(ec, R, False), Q_bytes)
+            self.assertEqual(point2octets(ec, R, False), Q_bytes)
 
             Q_hex_str = Q_bytes.hex()
-            R = to_Point(ec, Q_hex_str)
+            R = octets2point(ec, Q_hex_str)
             self.assertEqual(R, Q)
 
             # infinity point
-            self.assertEqual(to_Point(ec, b'\x00'), Inf)
-            self.assertEqual(bytes_from_Point(ec, Inf, True),  b'\x00')
-            self.assertEqual(bytes_from_Point(ec, Inf, False), b'\x00')
+            self.assertEqual(octets2point(ec, b'\x00'), Inf)
+            self.assertEqual(point2octets(ec, Inf, True),  b'\x00')
+            self.assertEqual(point2octets(ec, Inf, False), b'\x00')
             Inf_hex_str = b'\x00'.hex()
-            self.assertEqual(to_Point(ec, Inf_hex_str), Inf)
+            self.assertEqual(octets2point(ec, Inf_hex_str), Inf)
 
             # scalar in point multiplication can be int, str, or bytes
             t = tuple()
@@ -170,20 +165,20 @@ class TestEllipticCurve(unittest.TestCase):
 
             # not a compressed point
             Q_bytes = b'\x01' * (bytesize+1)
-            self.assertRaises(ValueError, to_Point, ec, Q_bytes)
+            self.assertRaises(ValueError, octets2point, ec, Q_bytes)
             # not a point
             Q_bytes += b'\x01'
-            self.assertRaises(ValueError, to_Point, ec, Q_bytes)
+            self.assertRaises(ValueError, octets2point, ec, Q_bytes)
             # not an uncompressed point
             Q_bytes = b'\x01' * 2 * (bytesize+1)
-            self.assertRaises(ValueError, to_Point, ec, Q_bytes)
+            self.assertRaises(ValueError, octets2point, ec, Q_bytes)
             # binary point not on curve
             #R = Q[0], (ec._p - Q[1] - 1) % ec._p
             #R_bytes = b'\x04' + R[0].to_bytes(ec.bytesize, byteorder='big')
             #R_bytes +=          R[1].to_bytes(ec.bytesize, byteorder='big')
-            #self.assertRaises(ValueError, to_Point, ec, R_bytes)
+            #self.assertRaises(ValueError, octets2point, ec, R_bytes)
             # tuple point not on curve
-            #self.assertRaises(ValueError, to_Point, ec, OffCurve)
+            #self.assertRaises(ValueError, octets2point, ec, OffCurve)
 
     def test_opposite(self):
         for ec in all_curves:
@@ -291,8 +286,6 @@ class TestEllipticCurve(unittest.TestCase):
         # with only the last curve
         checkInf = ec._affine_from_jac(_jac_from_aff(Inf))
         self.assertEqual(Inf, checkInf)
-        self.assertRaises(ValueError, ec._affine_from_jac, (1, 1, 1, 0))
-        self.assertRaises(ValueError, _jac_from_aff, (1, 1, 0))
 
     def test_Add(self):
         for ec in all_curves:
@@ -337,16 +330,6 @@ class TestEllipticCurve(unittest.TestCase):
         # with last curve
         self.assertEqual(Inf, _pointMultAffine(ec, 3, Inf))
         self.assertEqual(InfJ, _pointMultJacobian(ec, 3, InfJ))
-
-        # invalid scalar
-        q = b'\x00' * (ec.bytesize + 1)
-        self.assertRaises(ValueError, pointMult, ec, q, ec.G)
-
-        # invalid coordinates
-        Q = 1, 1, 0
-        self.assertRaises(ValueError, _pointMultAffine, ec, 1, Q)
-        Q = 1, 1, 1, 0
-        self.assertRaises(ValueError, _pointMultJacobian, ec, 1, Q)
 
     def test_shamir(self):
         ec = ec23_31
