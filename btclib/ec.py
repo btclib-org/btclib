@@ -26,6 +26,12 @@ Point = Tuple[int, int]
 # infinity point is (int, int, 0), checked with 'Inf[2] == 0'
 _JacPoint = Tuple[int, int, int]
 
+def _jac_from_aff(Q: Point) -> _JacPoint:
+    # point is assumed to be on curve
+    if Q[1] == 0:  # Infinity point in affine coordinates
+        return 1, 1, 0
+    return Q[0], Q[1], 1
+
 
 # elliptic curve y^2 = x^3 + a*x + b
 
@@ -141,9 +147,9 @@ class EC:
 
     # methods using _p: they would become functions if _p goes public
 
-    def checkCoordinate(self, c: int) -> None:  # FIXME: jac / affine ?
+    def checkCoordinate(self, c: int) -> None:
         """check that coordinate is in [0, p-1]"""
-        if not (0 <= c < self._p):
+        if not 0 <= c < self._p:
             raise ValueError("coordinate %X not in [0, p-1]" % c)
 
     def opposite(self, Q: Point) -> Point:
@@ -154,8 +160,7 @@ class EC:
             return Q[0], self._p - Q[1]
 
     def _affine_from_jac(self, Q: _JacPoint) -> Point:
-        if len(Q) != 3:
-            raise ValueError("input point not in Jacobian coordinates")
+        # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return 1, 0
         else:
@@ -207,7 +212,7 @@ class EC:
             return X, Y, Z
 
     def _addAffine(self, Q: Point, R: Point) -> Point:
-        # private method does not check for Q, R on curve
+        # points are assumed to be on curve
         if R[1] == 0:  # Infinity point in affine coordinates
             return Q
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -236,13 +241,14 @@ class EC:
         return self._affine_from_jac(R)
 
     def _y2(self, x: int) -> int:
-        self.checkCoordinate(x)
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to keep this method private
         return ((x*x + self._a)*x + self._b) % self._p
 
     def y(self, x: int) -> int:
+        if not 0 <= x < self._p:
+            raise ValueError("x-coordinate %X not in [0, p-1]" % x)
         y2 = self._y2(x)
         # mod_sqrt will raise a ValueError if root does not exist
         return mod_sqrt(y2, self._p)
@@ -258,7 +264,8 @@ class EC:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
             return True
-        self.checkCoordinate(Q[1])
+        if not 0 < Q[1] < self._p: # y cannot be = 0
+            raise ValueError("y-coordinate %X not in (0, p)" % Q[1])
         return self._y2(Q[0]) == (Q[1]*Q[1] % self._p)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
@@ -291,31 +298,22 @@ class EC:
         return root if legendre1 == quadRes else self._p - root
 
 
-
-# this function is used by the EC class; it might be a method...
-
-
-def _jac_from_aff(Q: Point) -> _JacPoint:
-    # private method does not check for Q on curve
-    if Q[1] == 0:  # Infinity point in affine coordinates
-        return 1, 1, 0
-    return Q[0], Q[1], 1
-
-
-# this function is used by the EC class; it might be a method...
-
-
 def pointMult(ec: EC, n: int, Q: Point) -> Point:
+    # this function is used by the EC class; it might be a method...
+    # but it does not need to
     ec.requireOnCurve(Q)
     QJ = _jac_from_aff(Q)
+    n %= ec.n
     R = _pointMultJacobian(ec, n, QJ)
     return ec._affine_from_jac(R)
 
 
 def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
-    """double & add in affine coordinates, using binary decomposition of n"""
+    """double & add in affine coordinates, using binary decomposition of n
+    
+       Point is assumed to be on curve, 0 < n < ec.n
+    """
     # private method does not check input
-    n %= ec.n #FIXME: remove
     if Q[1] == 0:  # Infinity point in affine coordinates
         return Q
     R = 1, 0      # initialize as infinity point
@@ -329,9 +327,11 @@ def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
 
 
 def _pointMultJacobian(ec: EC, n: int, Q: _JacPoint) -> _JacPoint:
-    """double & add in jacobian coordinates, using binary decomposition of n"""
+    """double & add in jacobian coordinates, using binary decomposition of n
+    
+       Point is assumed to be on curve, 0 < n < ec.n
+    """
     # private method does not check input
-    n %= ec.n #FIXME: remove
     if Q[2] == 0:  # Infinity point in Jacobian coordinates
         return 1, 1, 0
     R = 1, 1, 0   # initialize as infinity point

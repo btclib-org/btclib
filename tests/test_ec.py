@@ -25,31 +25,31 @@ InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 class TestEllipticCurve(unittest.TestCase):
     def test_exceptions(self):
         # good
-        EC(11, 2, 7, (6, 9), 7, 2, 3, False)
+        EC(11, 2, 7, (6, 9), 7, 2, 0, False)
 
         # p not odd
-        self.assertRaises(ValueError, EC, 10, 2, 7, (6, 9),    7, 2, 3, False)
+        self.assertRaises(ValueError, EC, 10, 2, 7, (6, 9),    7, 2, 0, False)
 
         # p not prime
-        self.assertRaises(ValueError, EC, 15, 2, 7, (6, 9),    7, 2, 3, False)
+        self.assertRaises(ValueError, EC, 15, 2, 7, (6, 9),    7, 2, 0, False)
 
         # zero discriminant
-        self.assertRaises(ValueError, EC, 11, 7, 7, (6, 9),    7, 2, 3, False)
+        self.assertRaises(ValueError, EC, 11, 7, 7, (6, 9),    7, 2, 0, False)
 
         # G not Tuple (int, int)
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9, 1), 7, 2, 3, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9, 1), 7, 2, 0, False)
 
         # G not on curve
-        self.assertRaises(ValueError, EC, 11, 2, 7, (7, 9),    7, 2, 3, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (7, 9),    7, 2, 0, False)
 
         # n not prime
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),    8, 2, 3, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),    8, 2, 0, False)
 
         # n not Hesse
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   71, 2, 3, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   71, 2, 0, True)
 
         # n not group order
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   13, 2, 3, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   13, 2, 0, False)
 
         # n=p -> weak curve
         # missing
