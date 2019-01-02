@@ -39,7 +39,7 @@ def mod_inv(a: int, m: int) -> int:
     g, x, _ = xgcd(a, m)
     if g == 1:
         return x % m
-    raise ValueError("%s has no inverse (mod %s)" % (a, m))
+    raise ValueError("%X has no inverse (mod %X)" % (a, m))
 
 
 def legendre_symbol(a, p):
@@ -73,7 +73,7 @@ def mod_sqrt(a: int, p: int) -> int:
         x = pow(a, (p >> 2) + 1, p)  # inverse candidate
         if x*x % p == a:
             return x
-        raise ValueError("%s has no root (mod %s)" % (a, p))
+        raise ValueError("%X has no root (mod %X)" % (a, p))
     elif p % 8 == 5:
         x = pow(a, (p >> 3) + 1, p)
         if x*x % p == a:
@@ -82,13 +82,13 @@ def mod_sqrt(a: int, p: int) -> int:
             x = x * pow(2, p >> 2, p) % p
             if x*x % p == a:
                 return x
-            raise ValueError("%s has no root (mod %s)" % (a, p))
+        raise ValueError("%X has no root (mod %X)" % (a, p))
     elif a == 0 or p == 2:
         return a
 
     # Check solution existence on odd prime
     if legendre_symbol(a, p) != 1:
-        raise ValueError("%s has no root (mod %s)" % (a, p))
+        raise ValueError("%X has no root (mod %X)" % (a, p))
 
     # Factor p-1 on the form q * 2^s (with Q odd)
     q, s = p - 1, 0

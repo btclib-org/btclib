@@ -86,11 +86,13 @@ def int2octets(q: int, bytesize: int) -> bytes:
     """SEC 1 v.2, section 2.3.7"""
     return q.to_bytes(bytesize, 'big')
 
+
 def bits2int(ec: EC, o: octets) -> int:
     """Return the leftmost ec.n.bitlength() bits only % ec.n"""
 
     i = _bits2int(ec, o)
     return i % ec.n
+
 
 def _bits2int(ec: EC, o: octets) -> int:
     """Return the leftmost ec.n.bitlength() bits only

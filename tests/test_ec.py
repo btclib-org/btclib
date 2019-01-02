@@ -159,13 +159,16 @@ class TestEllipticCurve(unittest.TestCase):
             # not an uncompressed point
             Q_bytes = b'\x01' * 2 * (bytesize+1)
             self.assertRaises(ValueError, octets2point, ec, Q_bytes)
-            # binary point not on curve
-            #R = Q[0], (ec._p - Q[1] - 1) % ec._p
-            #R_bytes = b'\x04' + R[0].to_bytes(ec.bytesize, byteorder='big')
-            #R_bytes +=          R[1].to_bytes(ec.bytesize, byteorder='big')
-            #self.assertRaises(ValueError, octets2point, ec, R_bytes)
-            # tuple point not on curve
-            #self.assertRaises(ValueError, octets2point, ec, OffCurve)
+        
+        # invalid x coordinate
+        ec = secp256k1
+        x = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
+        xstr = format(x, '32X')
+        self.assertRaises(ValueError, octets2point, ec, "03" + xstr)
+        self.assertRaises(ValueError, octets2point, ec, "04" + xstr + xstr)
+        self.assertRaises(ValueError, point2octets, ec, (x, x), True)
+        self.assertRaises(ValueError, point2octets, ec, (x, x), False)
+
 
     def test_opposite(self):
         for ec in all_curves:
