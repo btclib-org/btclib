@@ -8,28 +8,40 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-""" Elliptic Curve Schnorr Signature Algorithm
+"""Elliptic Curve Schnorr Signature Algorithm
 
-https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+   https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 """
 
 import heapq
-from hashlib import sha256
-from typing import List, Optional, Tuple
+from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ec import Point, EC, pointMult, DblScalarMult, \
     _jac_from_aff, _pointMultJacobian
-from btclib.ecurves import secp256k1
-from btclib.ecutils import bits2int, point2octets, octets2point
+from btclib.ecutils import bits2int, point2octets, int2octets
 from btclib.rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 
 
+def _ecssa_e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
+    # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
+    ebytes = int2octets(r, ec.bytesize) # FIXME: hlen, qlen, plen ?
+    ebytes += point2octets(ec, P, True)
+    ebytes += m
+    ebytes = hf(ebytes).digest()
+    e = bits2int(ec, ebytes)
+    return e
+    # should check for e == 0 ? FIXME
+
+
 def ecssa_sign(ec: EC, hf, m: bytes, d: int,
                k: Optional[int] = None) -> Tuple[int, int]:
-    """ECSSA signing operation according to bip-schnorr"""
+    """ECSSA signing operation according to bip-schnorr
+
+       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+    """
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
@@ -48,58 +60,56 @@ def ecssa_sign(ec: EC, hf, m: bytes, d: int,
         raise ValueError(errmsg)
 
     # The secret key d: an integer in the range 1..n-1.
-    d %= ec.n
-    if d == 0:
-        raise ValueError("invalid (zero) private key")
-    Q = pointMult(ec, d, ec.G)
-
-    if k is None:
-        k = rfc6979(ec, hf, m, d)
-    else:
-        k %= ec.n
+    if not 0 < d < ec.n:
+        raise ValueError("private key %X not in (0, n)" % d)
+    P = pointMult(ec, d, ec.G)
 
     # Fail if k' = 0.
-    if k == 0:
-        raise ValueError("ephemeral key k=0 in ecssa sign operation")
+    if k is None:
+        k = rfc6979(ec, hf, m, d)
+    if not 0 < k < ec.n:
+        raise ValueError("ephemeral key %X not in (0, n)" % k)
+
     # Let R = k'G.
     R = pointMult(ec, k, ec.G)
 
-    # Let k = k' if jacobi(y(R)) = 1, otherwise let k = n - k' .
+    # Let k = k' if jacobi(y(R)) = 1, otherwise let k = n - k'.
     # break the simmetry: any criteria might have been used,
     # jacobi is the proposed bitcoin standard
     if legendre_symbol(R[1], ec._p) != 1:
         # no need to actually change R[1], as it is not used anymore
-        # let just fix k instead, as it is used later
+        # let just fix k instead, as that is used later
         k = ec.n - k
 
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
-    ebytes = R[0].to_bytes(ec.bytesize, byteorder="big")
-    ebytes += point2octets(ec, Q, True)
-    ebytes += m
-    ebytes = hf(ebytes).digest()
-    e = bits2int(ec, ebytes)
+    e = _ecssa_e(ec, hf, R[0], P, m)
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
     return R[0], s
 
 
-def ecssa_verify(ec: EC, hf, m: bytes, Q: Point, sig: ECSS) -> bool:
-    """ECSSA veryfying operation according to bip-schnorr"""
+def ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
+    """ECSSA veryfying operation according to bip-schnorr
+
+       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+    """
 
     # this is just a try/except wrapper
     # _ecssa_verify raises Errors
     try:
-        return _ecssa_verify(ec, hf, m, Q, sig)
+        return _ecssa_verify(ec, hf, m, P, sig)
     except Exception:
         return False
 
-# Private function provided for testing purposes only.
-# It raises Errors, while verify should always return True or False
-
 
 def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
-    # ECSSA veryfying operation according to bip-schnorr
+    """Private function provided for testing purposes only.
+    
+       It raises Errors, while verify should always return True or False
+
+       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+    """
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
@@ -107,8 +117,8 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
 
-    # Let r = int(sig[0:32]); fail if r ≥ p.
-    # Let s = int(sig[32:64]); fail if s ≥ n.
+    # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
+    # Let s = int(sig[32:64]); fail if s is not [0, n-1].
     r, s = to_ssasig(ec, sig)
 
     # The message m: a 32-byte array
@@ -121,11 +131,7 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     ec.requireOnCurve(P)
 
     # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
-    ebytes = r.to_bytes(ec.bytesize, byteorder="big")
-    ebytes += point2octets(ec, P, True)
-    ebytes += m
-    ebytes = hf(ebytes).digest()
-    e = bits2int(ec, ebytes)
+    e = _ecssa_e(ec, hf, r, P, m)
 
     # Let R = sG - eP.
     R = DblScalarMult(ec, s, ec.G, -e, P)
@@ -133,29 +139,30 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     # Fail if infinite(R).
     if R[1] == 0:
         raise ValueError("sG - eP is infinite")
+
     # Fail if jacobi(y(R)) ≠ 1.
     if legendre_symbol(R[1], ec._p) != 1:
         raise ValueError("y(sG - eP) is not a quadratic residue")
+
     # Fail if x(R) ≠ r.
     return R[0] == r
 
 
-def _ecssa_pubkey_recovery(ec: EC, hf, ebytes: bytes, sig: ECSS) -> Point:
-
-    if len(ebytes) != hf().digest_size:
-        raise ValueError("wrong size for e")
+def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
+    """Private function provided for testing purposes only."""
 
     r, s = to_ssasig(ec, sig)
 
-    K = (r, ec.yQuadraticResidue(r, True))
-    e = bits2int(ec, ebytes)
+    # could be obtained from to_ssasig...
+    K = r, ec.yQuadraticResidue(r, True)
+
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
-    Q = DblScalarMult(ec, e1*s, ec.G, -e1, K)
-    if Q[1] == 0:
+    P = DblScalarMult(ec, e1*s, ec.G, -e1, K)
+    if P[1] == 0:
         raise ValueError("failed")
-    return Q
+    return P
 
 
 def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
@@ -166,16 +173,16 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
         m = "invalid length %s for ECSSA signature" % len(sig)
         raise TypeError(m)
 
-    # Let r = int(sig[0:32]); fail if r ≥ p.
+    # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
     r = int(sig[0])
-    # r is in [0, p-1]
+    # skip the following
     # ec.checkCoordinate(r)
-    # it might be too much, but R.x is valid iif R.y does exist
+    # in favor of a stronger check: R.x is valid iif R.y does exist
     ec.y(r)
 
-    # Let s = int(sig[32:64]); fail if s ≥ n.
+    # Let s = int(sig[32:64]); fail if s is not [0, n-1].
     s = int(sig[1])
-    if not (0 <= s < ec.n):
+    if not 0 <= s < ec.n:
         raise ValueError("s not in [0, n-1]")
 
     return r, s
@@ -184,7 +191,7 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
 def ecssa_batch_validation(ec: EC,
                            hf,
                            ms: List[bytes],
-                           Q: List[Point],
+                           P: List[Point],
                            a: List[int], 
                            sig: List[ECSS]) -> bool:
     # initialization
@@ -192,11 +199,11 @@ def ecssa_batch_validation(ec: EC,
     points = list()
     factors = list()
 
-    u = len(Q)
+    u = len(P)
     for i in range(u):
         r, s = to_ssasig(ec, sig[i])
         ebytes = r.to_bytes(32, byteorder="big")
-        ebytes += point2octets(ec, Q[i], True)
+        ebytes += point2octets(ec, P[i], True)
         ebytes += ms[i]
         ebytes = hf(ebytes).digest()
         e = bits2int(ec, ebytes)
@@ -206,7 +213,7 @@ def ecssa_batch_validation(ec: EC,
         mult += a[i] * s % ec.n
         points.append(_jac_from_aff((r, y)))
         factors.append(a[i])
-        points.append(_jac_from_aff(Q[i]))
+        points.append(_jac_from_aff(P[i]))
         factors.append(a[i] * e % ec.n)
 
     # Bos-coster's algorithm, source:

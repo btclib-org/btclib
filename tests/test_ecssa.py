@@ -18,7 +18,7 @@ from btclib.ecurves import secp256k1, secp224k1, low_card_curves
 from btclib.ecutils import octets2point, point2octets, bits2int
 from btclib.rfc6979 import rfc6979
 from btclib.ecssa import ecssa_sign, ecssa_verify, to_ssasig, \
-    _ecssa_verify, _ecssa_pubkey_recovery
+    _ecssa_e, _ecssa_verify, _ecssa_pubkey_recovery
 
 random.seed(42)
 
@@ -66,11 +66,8 @@ class TestEcssa(unittest.TestCase):
         # not ec.pIsThreeModFour
         self.assertFalse(ecssa_verify(secp224k1, hf, msg, Q, sig))
         self.assertRaises(ValueError, _ecssa_verify, secp224k1, hf, msg, Q, sig)
-        # wrong size for e
-        e = b'\x00'
-        self.assertRaises(ValueError, _ecssa_pubkey_recovery, ec, hf, e, sig)
         # invalid (zero) challenge e
-        e = b'\x00' * hf().digest_size
+        e = 0
         self.assertRaises(ValueError, _ecssa_pubkey_recovery, ec, hf, e, sig)
         # message of wrong size
         wrongmsg = msg[:-1]
@@ -93,7 +90,7 @@ class TestEcssa(unittest.TestCase):
         sig = ecssa_sign(ec, hf, msg, prv, eph_prv)
         self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
-        e = hf(sig[0].to_bytes(32, byteorder="big") + point2octets(ec, pub, True) + msg).digest()
+        e = _ecssa_e(ec, hf, sig[0], pub, msg)
         self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 2
@@ -106,7 +103,7 @@ class TestEcssa(unittest.TestCase):
         sig = ecssa_sign(ec, hf, msg, prv, eph_prv)
         self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
-        e = hf(sig[0].to_bytes(32, byteorder="big") + point2octets(ec, pub, True) + msg).digest()
+        e = _ecssa_e(ec, hf, sig[0], pub, msg)
         self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 3
@@ -119,7 +116,7 @@ class TestEcssa(unittest.TestCase):
         sig = ecssa_sign(ec, hf, msg, prv, eph_prv)
         self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
-        e = hf(sig[0].to_bytes(32, byteorder="big") + point2octets(ec, pub, True) + msg).digest()
+        e = _ecssa_e(ec, hf, sig[0], pub, msg)
         self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 4
@@ -128,7 +125,7 @@ class TestEcssa(unittest.TestCase):
         sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63,
                0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
         self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
-        e = hf(sig[0].to_bytes(32, byteorder="big") + point2octets(ec, pub, True) + msg).digest()
+        e = _ecssa_e(ec, hf, sig[0], pub, msg)
         self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 5
@@ -138,7 +135,7 @@ class TestEcssa(unittest.TestCase):
         sig = (0x52818579ACA59767E3291D91B76B637BEF062083284992F2D95F564CA6CB4E35,
                0x30B1DA849C8E8304ADC0CFE870660334B3CFC18E825EF1DB34CFAE3DFC5D8187)
         self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
-        e = hf(sig[0].to_bytes(32, byteorder="big") + point2octets(ec, pub, True) + msg).digest()
+        e = _ecssa_e(ec, hf, sig[0], pub, msg)
         self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 6
@@ -148,7 +145,7 @@ class TestEcssa(unittest.TestCase):
         sig = (0x570DD4CA83D4E6317B8EE6BAE83467A1BF419D0767122DE409394414B05080DC,
                0xE9EE5F237CBD108EABAE1E37759AE47F8E4203DA3532EB28DB860F33D62D49BD)
         self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
-        e = hf(sig[0].to_bytes(32, byteorder="big") + point2octets(ec, pub, True) + msg).digest()
+        e = _ecssa_e(ec, hf, sig[0], pub, msg)
         self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
 
         # new proposed test: test would fail if msg is reduced
@@ -157,7 +154,7 @@ class TestEcssa(unittest.TestCase):
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
         self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
-        e = hf(sig[0].to_bytes(32, byteorder="big") + point2octets(ec, pub, True) + msg).digest()
+        e = _ecssa_e(ec, hf, sig[0], pub, msg)
         self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
 
         # new proposed test: genuine failure
@@ -279,11 +276,7 @@ class TestEcssa(unittest.TestCase):
                         if legendre_symbol(K[1], ec._p) != 1:
                             k = ec.n - k
 
-                        ebytes = K[0].to_bytes(ec.bytesize, byteorder="big")
-                        ebytes += point2octets(ec, Q, True)
-                        ebytes += h
-                        ebytes = hf(ebytes).digest()
-                        e = bits2int(ec, ebytes)
+                        e = _ecssa_e(ec, hf, K[0], Q, h)
                         s = (k + e * q) % ec.n
 
                         # valid signature

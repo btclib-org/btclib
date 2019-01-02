@@ -8,19 +8,20 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-""" Elliptic Curve Digital Signature Algorithm
+"""Elliptic Curve Digital Signature Algorithm
 
-http://www.secg.org/sec1-v2.pdf
+   SEC 1 v.2
+   http://www.secg.org/sec1-v2.pdf
 """
 
-from typing import List, Tuple, Optional, Union
+from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv
 from btclib.ec import Point, EC, pointMult, DblScalarMult
 from btclib.ecutils import bits2int
 from btclib.rfc6979 import rfc6979
 
-ECDS = Tuple[int, int]
+ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
 def ecdsa_sign(ec: EC, hf, M: bytes, d: int,
@@ -76,7 +77,7 @@ def _ecdsa_sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     return r, s
 
 
-def ecdsa_verify(ec: EC, hf, M: bytes, Q: Point, sig: ECDS) -> bool:
+def ecdsa_verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
     """ECDSA veryfying operation to SEC 1
 
        See SEC 1 v.2 section 4.1.4
@@ -86,7 +87,7 @@ def ecdsa_verify(ec: EC, hf, M: bytes, Q: Point, sig: ECDS) -> bool:
     # this is just a try/except wrapper for the Errors
     # raised by _ecssa_verify
     try:
-        return _ecdsa_verify(ec, hf, M, Q, sig)
+        return _ecdsa_verify(ec, hf, M, P, sig)
     except Exception:
         return False
 
@@ -118,13 +119,14 @@ def _ecdsa_verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     r, s = to_dsasig(ec, sig)                          # 1
 
     s1 = mod_inv(s, ec.n)
-    u1 = e*s1
-    u2 = r*s1                                          # 4
-    R = DblScalarMult(ec, u1, ec.G, u2, P)             # 5
+    u = e*s1
+    v = r*s1                                          # 4
+    # Let R = u*G + v*P.
+    R = DblScalarMult(ec, u, ec.G, v, P)             # 5
 
     # Fail if infinite(R).
     if R[1] == 0:                                      # 5
-        return False
+        raise ValueError("uG + vP is infinite")
 
     v = R[0] % ec.n                                    # 6, 7
     # Fail if r ≠ x(R) %n.
@@ -180,12 +182,14 @@ def to_dsasig(ec: EC, sig: ECDS) -> Tuple[int, int]:
         m = "invalid length %s for ECDSA signature" % len(sig)
         raise TypeError(m)
 
+    # Fail if r is not [1, n-1]
     r = int(sig[0])
-    if not (0 < r < ec.n):
+    if not 0 < r < ec.n:
         raise ValueError("r (%X) not in [1, n-1]" % r)
 
+    # Fail if s is not [1, n-1]
     s = int(sig[1])
-    if not (0 < s < ec.n):
+    if not 0 < s < ec.n:
         raise ValueError("s (%X) not in [1, n-1]" % s)
 
     return r, s
