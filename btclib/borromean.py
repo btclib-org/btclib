@@ -121,7 +121,7 @@ def borromean_verify(msg: bytes,
             R = point2octets(ec, T, True)
             if j != len(pubk_rings[i])-1:
                 e[i][j+1] = bits2int(ec, borromean_hash(m, R, i, j+1))
-                if e[i][j+1] == 0 or e[i][j+1] >= ec.n:
+                if e[i][j+1] == 0:
                     return False
             else:
                 e0bytes += R
