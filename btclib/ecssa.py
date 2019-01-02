@@ -131,6 +131,8 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.requireOnCurve(P)
+    if P[1] == 0:
+        raise ValueError("public key is infinite")
 
     # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
     e = _ecssa_e(ec, hf, r, P, m)
