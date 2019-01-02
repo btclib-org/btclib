@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """
-Elliptic curve class, functions, and instances of SEC2 elliptic curves
+Elliptic curve class and functions
 
 TODO: document duck-typing and static typing design choices
 """
@@ -34,7 +34,7 @@ class EC:
     """Elliptic curve over Fp group"""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
-                 all_checks = True) -> None:
+                               h: int, t: int, all_checks = True) -> None:
         """EC instantiation
 
         Parameters are checked according to SEC2 3.1.1.2.1
@@ -47,19 +47,19 @@ class EC:
         if not pow(2, p-1, p) == 1:
             raise ValueError("p (%X) is not prime" % p)
 
-        if all_checks:
-            # the security level in bits 't' should be an input
-            # and required_bits should be checked accordingly
-            #
-            # for the time being just check bits are in required standards
-            #           t = { 80, 112, 128, 192, 256}
-            required_bits = [192, 224, 256, 384, 521]
-            nbits = p.bit_length()
-            if all_checks and not (nbits in required_bits):
-                raise UserWarning("wrong number of bits (%s)" % nbits)
+        nbits = p.bit_length()
+        self.t = t
+        if t != 0 and all_checks:
+            # t_range = [56, 64, 80, 96, 112, 128, 192, 256] # SEC 1 v.1
+            t_range =           [80, 96, 112, 128, 192, 256] # SEC 1 v.2
+            if t not in t_range:
+                raise ValueError("required security level %s not in the range of allowed values" % t)
+            required_bits = {80:192, 96:192, 112:224, 128:256, 192:384, 256:521}
+            if nbits != required_bits[t]:
+                raise UserWarning("not enough bits (%s) for required security level %s" % (nbits, t))
 
         self._p = p
-        self.bytesize = (p.bit_length() + 7) // 8  # FIXME: p or n
+        self.bytesize = (nbits + 7) // 8  # FIXME: p or n
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = (self._p % 4 == 3)
 
@@ -87,13 +87,18 @@ class EC:
             raise ValueError("n (%X) is not prime" % n)
         # also check n with Hasse Theorem
         if all_checks:
-            t = int(2 * sqrt(p))
-            if not (p+1 - t <= n <= p+1 + t):
-                raise ValueError("n (%X) not in [p+1 - t, p+1 + t]" % n)
+            delta = int(2 * sqrt(p))
+            if not (p+1 - delta <= n <= p+1 + delta):
+                raise ValueError("n (%X) not in [p+1 - delta, p+1 + delta]" % n)
         self.n = n
 
         # 6. Check cofactor
-        # missing for the time being
+        required_h = int(pow(sqrt(p)+1, 2) // n)
+        if h != required_h:
+            raise ValueError("h (%s) not equal to %s" % (h, required_h))
+        if all_checks and t != 0 and h > pow(2, t/8):
+            raise ValueError("h (%s) too big for t (%s)" % (h, t))
+        self.h = h
 
         # 7. Check that nG = Inf.
         # it cannot be chacked as
@@ -109,7 +114,7 @@ class EC:
             raise UserWarning("n=p -> weak curve")
         if all_checks:
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100
-            for i in (1, 100):
+            for i in range(1, 100):
                 if pow(p, i, n) == 1:
                     raise UserWarning("weak curve")
 
@@ -119,6 +124,8 @@ class EC:
         result += "\n a = 0x%X, b = 0x%X" % (self._a, self._b)
         result += "\n G = (0x%X,\n          0x%X)" % (self.G)
         result += "\n n = 0x%X" % self.n
+        result += "\n h = %s" % self.h
+        result += "\n t = %s" % self.t
         return result
 
     def __repr__(self) -> str:
@@ -126,7 +133,9 @@ class EC:
         result += "0x%X" % self._p
         result += ", 0x%X, 0x%X" % (self._a, self._b)
         result += ", (0x%X,0x%X)" % (self.G)
-        result += ", 0x%X)" % self.n
+        result += ", 0x%X" % self.n
+        result += ", %s" % self.h
+        result += ", %s)" % self.t
         return result
 
     # methods using _p: they would become functions if _p goes public

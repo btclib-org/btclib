@@ -13,8 +13,8 @@ import unittest
 from btclib.numbertheory import mod_sqrt
 from btclib.ec import EC, pointMult, DblScalarMult, \
     _jac_from_aff, _pointMultJacobian, _pointMultAffine
-from btclib.ecurves import secp256k1, secp256r1, secp384r1, all_curves, \
-    low_card_curves, ec23_31
+from btclib.ecurves import secp256k1, secp256r1, secp384r1, secp160r1, \
+    all_curves, low_card_curves, ec23_31
 from btclib.ecutils import point2octets, octets2point
 
  
@@ -25,48 +25,50 @@ InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 class TestEllipticCurve(unittest.TestCase):
     def test_exceptions(self):
         # good
-        EC(11, 2, 7, (6,   9),   7, False)
+        EC(11, 2, 7, (6, 9), 7, 2, 3, False)
 
         # p not odd
-        self.assertRaises(ValueError, EC, 10, 2, 7, (6, 9), 7, False)
+        self.assertRaises(ValueError, EC, 10, 2, 7, (6, 9),    7, 2, 3, False)
 
         # p not prime
-        self.assertRaises(ValueError, EC, 15, 2, 7, (6, 9), 7, False)
+        self.assertRaises(ValueError, EC, 15, 2, 7, (6, 9),    7, 2, 3, False)
 
         # zero discriminant
-        self.assertRaises(ValueError, EC, 11, 7, 7, (6, 9), 7, False)
+        self.assertRaises(ValueError, EC, 11, 7, 7, (6, 9),    7, 2, 3, False)
 
         # G not Tuple (int, int)
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9, 1), 7, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9, 1), 7, 2, 3, False)
 
         # G not on curve
-        self.assertRaises(ValueError, EC, 11, 2, 7, (7, 9), 7, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (7, 9),    7, 2, 3, False)
 
         # n not prime
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9), 8, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),    8, 2, 3, False)
 
         # n not Hesse
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9), 71, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   71, 2, 3, False)
 
         # n not group order
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9), 13, False)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   13, 2, 3, False)
 
         # n=p -> weak curve
         # missing
 
         # weak curve
-        self.assertRaises(UserWarning, EC, 13, 7, 6, (1, 1),  11)
+        self.assertRaises(UserWarning, EC, 11, 2, 7, (6, 9), 7, 2, 0, True)
 
         # according to SEC 1 for 80 bits of security
         # the curve should provide 192 bits
         # secp160r1 fails this requirement
-        p = 2**160 - 2**31 - 1
-        a = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFC
-        b = 0x1C97BEFC54BD7A8B65ACF89F81D4D4ADC565FA45
-        Gx = 0x4A96B5688EF573284664698968C38BB913CBFC82
-        Gy = 0x23A628553168947D59DCC912042351377AC5FB32
-        n = 0x0100000000000000000001F4C8F927AED3CA752257
-        self.assertRaises(UserWarning, EC, p, a, b, (Gx, Gy), n)
+        ec = secp160r1
+        p = ec._p
+        a = ec._a
+        b = ec._b
+        G = ec.G
+        n = ec.n
+        t = ec.t
+        h = ec.h
+        self.assertRaises(UserWarning, EC, p, a, b, G, n, h, t)
 
     def test_all_curves(self):
         for ec in all_curves:
