@@ -17,18 +17,16 @@ from hashlib import sha256
 from typing import List, Tuple, Optional, Union
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import Point, EC, secp256k1, pointMult, DblScalarMult
+from btclib.ec import Point, EC, pointMult, DblScalarMult
+from btclib.ecurves import secp256k1
 from btclib.ecutils import octets2point, bits2int
 from btclib.rfc6979 import rfc6979
 
 ECDS = Tuple[int, int]
 
 
-def ecdsa_sign(M: bytes,
-               d: int,
-               k: Optional[int] = None,
-               ec: EC = secp256k1,
-               hf = sha256) -> Tuple[int, int]:
+def ecdsa_sign(ec: EC, hf, M: bytes, d: int,
+               k: Optional[int] = None) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
@@ -41,16 +39,16 @@ def ecdsa_sign(M: bytes,
     d %= ec.n  # FIXME ?
 
     if k is None:
-        k = rfc6979(d, H, ec, hf)                     # 1
+        k = rfc6979(ec, hf, H, d)                     # 1
     k %= ec.n  # FIXME ?
 
     # second part delegated to helper function used in testing
-    return _ecdsa_sign(e, d, k, ec)
+    return _ecdsa_sign(ec, e, d, k)
 
 # Private function provided for testing purposes only.
 
 
-def _ecdsa_sign(e: int, d: int, k: int, ec: EC) -> Tuple[int, int]:
+def _ecdsa_sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
 
     # The secret key d: an integer in the range 1..n-1.
     if d == 0:
@@ -73,11 +71,7 @@ def _ecdsa_sign(e: int, d: int, k: int, ec: EC) -> Tuple[int, int]:
     return r, s
 
 
-def ecdsa_verify(dsasig: ECDS,
-                 H: bytes,
-                 Q: Point,
-                 ec: EC = secp256k1,
-                 hf = sha256) -> bool:
+def ecdsa_verify(ec: EC, hf, H: bytes, Q: Point, sig: ECDS) -> bool:
     """ECDSA veryfying operation to SEC 1
 
        See section 4.1.4
@@ -87,7 +81,7 @@ def ecdsa_verify(dsasig: ECDS,
     # this is just a try/except wrapper
     # _ecssa_verify raises Errors
     try:
-        return _ecdsa_verify(dsasig, H, Q, ec, hf)
+        return _ecdsa_verify(ec, hf, H, Q, sig)
     except Exception:
         return False
 
@@ -95,7 +89,7 @@ def ecdsa_verify(dsasig: ECDS,
 # It raises Errors, while verify should always return True or False
 
 
-def _ecdsa_verify(dsasig: ECDS, H: bytes, P: Point, ec: EC, hf) -> bool:
+def _ecdsa_verify(ec: EC, hf, H: bytes, P: Point, sig: ECDS) -> bool:
     # ECDSA veryfying operation to SEC 1
     # See section 4.1.4
 
@@ -107,16 +101,16 @@ def _ecdsa_verify(dsasig: ECDS, H: bytes, P: Point, ec: EC, hf) -> bool:
     # P on point will be checked below by DblScalarMult
 
     # second part delegated to helper function used in testing
-    return _ecdsa_verhlp(dsasig, e, P, ec)
+    return _ecdsa_verhlp(ec, e, P, sig)
 
 # Private function provided for testing purposes only.
 
 
-def _ecdsa_verhlp(dsasig: ECDS, e: int, P: Point, ec: EC) -> bool:
+def _ecdsa_verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
 
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = to_dsasig(dsasig, ec)                        # 1
+    r, s = to_dsasig(ec, sig)                        # 1
 
     s1 = mod_inv(s, ec.n)
     u1 = e*s1
@@ -132,10 +126,7 @@ def _ecdsa_verhlp(dsasig: ECDS, e: int, P: Point, ec: EC) -> bool:
     return r == v                                       # 8
 
 
-def ecdsa_pubkey_recovery(dsasig: ECDS,
-                          M: bytes,
-                          ec: EC = secp256k1,
-                          hf = sha256) -> List[Point]:
+def ecdsa_pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
@@ -146,16 +137,16 @@ def ecdsa_pubkey_recovery(dsasig: ECDS,
     H = hf(M).digest()
     e = bits2int(ec, H)  # ECDSA verification step 3
 
-    return _ecdsa_pubkey_recovery(dsasig, e, ec)
+    return _ecdsa_pubkey_recovery(ec, e, sig)
 
 # Private function provided for testing purposes only.
 
 
-def _ecdsa_pubkey_recovery(dsasig: ECDS, e: int, ec: EC) -> List[Point]:
+def _ecdsa_pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     # ECDSA public key recovery operation according to SEC 1
     # See section 4.1.6
 
-    r, s = to_dsasig(dsasig, ec)
+    r, s = to_dsasig(ec, sig)
 
     # precomputations
     r1 = mod_inv(r, ec.n)
@@ -178,18 +169,18 @@ def _ecdsa_pubkey_recovery(dsasig: ECDS, e: int, ec: EC) -> List[Point]:
     return keys
 
 
-def to_dsasig(dsasig: ECDS, ec: EC = secp256k1) -> Tuple[int, int]:
+def to_dsasig(ec: EC, sig: ECDS) -> Tuple[int, int]:
     """check DSA signature correct format and return the signature itself"""
 
-    if len(dsasig) != 2:
-        m = "invalid length %s for ECDSA signature" % len(dsasig)
+    if len(sig) != 2:
+        m = "invalid length %s for ECDSA signature" % len(sig)
         raise TypeError(m)
 
-    r = int(dsasig[0])
+    r = int(sig[0])
     if not (0 < r < ec.n):
         raise ValueError("r (%s) not in [1, n-1]" % r)
 
-    s = int(dsasig[1])
+    s = int(sig[1])
     if not (0 < s < ec.n):
         raise ValueError("s (%s) not in [1, n-1]" % s)
 

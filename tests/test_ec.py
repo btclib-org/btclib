@@ -9,32 +9,15 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from hashlib import sha256
 
 from btclib.numbertheory import mod_sqrt
-from btclib.ec import EC, pointMult, \
-    secp256k1, secp256r1, secp384r1, SEC2V1_curves, SEC2V2_curves, \
-    DblScalarMult, _jac_from_aff, _pointMultJacobian, _pointMultAffine
+from btclib.ec import EC, pointMult, DblScalarMult, \
+    _jac_from_aff, _pointMultJacobian, _pointMultAffine
+from btclib.ecurves import secp256k1, secp256r1, secp384r1, all_curves, \
+    low_card_curves, ec23_31
 from btclib.ecutils import point2octets, octets2point
 
  
-ec13_11 = EC(13, 7, 6, (1,   1),  11, False)
-ec13_19 = EC(13, 0, 2, (1,   9),  19, False)
-ec17_13 = EC(17, 6, 8, (0,  12),  13, False)
-ec17_23 = EC(17, 3, 5, (1,  14),  23, False)
-ec19_13 = EC(19, 0, 2, (4,  16),  13, False)
-ec19_23 = EC(19, 2, 9, (0,  16),  23, False)
-ec23_19 = EC(23, 9, 7, (5,   4),  19, False)
-ec23_31 = EC(23, 5, 1, (0,   1),  31, False)
-
-low_card_curves = [ec13_11, ec13_19,  # 13 % 4 = 1; 13 % 8 = 5
-                   ec17_13, ec17_23,  # 17 % 4 = 1; 17 % 8 = 1
-                   ec19_13, ec19_23,  # 19 % 4 = 3; 19 % 8 = 3
-                   ec23_19, ec23_31   # 23 % 4 = 3; 23 % 8 = 7 
-]
-
-all_curves = low_card_curves + SEC2V1_curves + SEC2V2_curves
-
 Inf = 1, 0  # Infinity point in affine coordinates
 InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 

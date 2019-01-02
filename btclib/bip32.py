@@ -13,7 +13,8 @@ from hashlib import sha512
 from typing import Union, Optional
 
 from btclib.base58 import b58encode_check, b58decode_check
-from btclib.ec import secp256k1 as ec, pointMult
+from btclib.ec import pointMult
+from btclib.ecurves import secp256k1 as ec
 from btclib.ecutils import octets2point, point2octets, octets2int
 from btclib.wifaddress import h160, address_from_pubkey
 

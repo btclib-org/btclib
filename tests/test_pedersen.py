@@ -11,7 +11,8 @@
 import unittest
 from hashlib import sha256, sha384
 
-from btclib.ec import secp256k1, secp256r1, secp384r1, pointMult, DblScalarMult
+from btclib.ec import pointMult, DblScalarMult
+from btclib.ecurves import secp256k1, secp256r1, secp384r1
 from btclib.ecutils import octets2point
 from btclib.pedersen import pedersen_commit, pedersen_open, secondGenerator
 

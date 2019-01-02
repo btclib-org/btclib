@@ -22,7 +22,7 @@ import hmac
 from btclib.ecutils import EC, octets, _bits2int, int2octets, bits2octets
 
 
-def rfc6979(prv: int, h1: bytes, ec: EC, hf) -> int:
+def rfc6979(ec: EC, hf, h1: bytes, prv: int) -> int:
 
     if not 0 < prv < ec.n:
         raise ValueError("invalid private key %X" %prv)

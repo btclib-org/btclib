@@ -10,7 +10,8 @@
 
 import unittest
 
-from btclib.ec import secp256k1 as ec, pointMult
+from btclib.ec import pointMult
+from btclib.ecurves import secp256k1 as ec
 from btclib.ecutils import int2octets, octets2point
 from btclib.wifaddress import b58encode_check, wif_from_prvkey, \
     prvkey_from_wif, address_from_pubkey, hash160_from_address, \

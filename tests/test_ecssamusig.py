@@ -19,10 +19,11 @@ https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-9
 
 import random
 import unittest
-from hashlib import sha256
+from hashlib import sha256 as hf
 
 from btclib.numbertheory import legendre_symbol
-from btclib.ec import secp256k1, pointMult, DblScalarMult
+from btclib.ec import pointMult, DblScalarMult
+from btclib.ecurves import secp256k1 as ec
 from btclib.ecutils import octets2int, point2octets, bits2int
 from btclib.ecssa import ecssa_verify
 
@@ -31,10 +32,9 @@ random.seed(42)
 class TestEcssaMuSig(unittest.TestCase):
 
     def test_ecssamusig(self):
-        ec = secp256k1
         bits = ec.bytesize * 8
         L = list()  # multiset of public keys
-        M = sha256('message to sign'.encode()).digest()
+        M = hf('message to sign'.encode()).digest()
 
         # first signer
         q1 = octets2int('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
@@ -87,11 +87,11 @@ class TestEcssaMuSig(unittest.TestCase):
         for i in range(len(L)):
             L_brackets += L[i]
 
-        h1 = sha256(L_brackets + point2octets(ec, Q1, False)).digest()
+        h1 = hf(L_brackets + point2octets(ec, Q1, False)).digest()
         a1 = bits2int(ec, h1)
-        h2 = sha256(L_brackets + point2octets(ec, Q2, False)).digest()
+        h2 = hf(L_brackets + point2octets(ec, Q2, False)).digest()
         a2 = bits2int(ec, h2)
-        h3 = sha256(L_brackets + point2octets(ec, Q3, False)).digest()
+        h3 = hf(L_brackets + point2octets(ec, Q3, False)).digest()
         a3 = bits2int(ec, h3)
         # aggregated public key
         Q_All = DblScalarMult(ec, a1, Q1, a2, Q2)
@@ -114,7 +114,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # let's fix k1 instead, as it is used later
             k1 = ec.n - k1
         K1_All0_bytes = K1_All[0].to_bytes(32, byteorder="big")
-        h1 = sha256(K1_All0_bytes + Q_All_bytes + M).digest()
+        h1 = hf(K1_All0_bytes + Q_All_bytes + M).digest()
         c1 = bits2int(ec, h1)
         assert 0 < c1 and c1 < ec.n, "sign fail"
         s1 = (k1 + c1*a1*q1) % ec.n
@@ -130,7 +130,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # let's fix k2 instead, as it is used later
             k2 = ec.n - k2
         K2_All0_bytes = K2_All[0].to_bytes(32, byteorder="big")
-        h2 = sha256(K2_All0_bytes + Q_All_bytes + M).digest()
+        h2 = hf(K2_All0_bytes + Q_All_bytes + M).digest()
         c2 = bits2int(ec, h2)
         assert 0 < c2 and c2 < ec.n, "sign fail"
         s2 = (k2 + c2*a2*q2) % ec.n
@@ -146,7 +146,7 @@ class TestEcssaMuSig(unittest.TestCase):
             # let's fix k3 instead, as it is used later
             k3 = ec.n - k3
         K3_All0_bytes = K3_All[0].to_bytes(32, byteorder="big")
-        h3 = sha256(K3_All0_bytes + Q_All_bytes + M).digest()
+        h3 = hf(K3_All0_bytes + Q_All_bytes + M).digest()
         c3 = bits2int(ec, h3)
         assert 0 < c3 and c3 < ec.n, "sign fail"
         s3 = (k3 + c3*a3*q3) % ec.n
@@ -158,9 +158,9 @@ class TestEcssaMuSig(unittest.TestCase):
         assert K1_All[0] == K2_All[0], "sign fail"
         assert K2_All[0] == K3_All[0], "sign fail"
         s_All = (s1 + s2 + s3) % ec.n
-        ssasig = (K1_All[0], s_All)
+        sig = (K1_All[0], s_All)
 
-        self.assertTrue(ecssa_verify(ssasig, M, Q_All, ec, sha256))
+        self.assertTrue(ecssa_verify(ec, hf, M, Q_All, sig))
 
 
 if __name__ == "__main__":

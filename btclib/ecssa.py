@@ -18,19 +18,17 @@ from hashlib import sha256
 from typing import List, Optional, Tuple
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Point, EC, secp256k1, _jac_from_aff, \
-    _pointMultJacobian, pointMult, DblScalarMult
+from btclib.ec import Point, EC, pointMult, DblScalarMult, \
+    _jac_from_aff, _pointMultJacobian
+from btclib.ecurves import secp256k1
 from btclib.ecutils import bits2int, point2octets, octets2point
 from btclib.rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 
 
-def ecssa_sign(m: bytes,
-               d: int,
-               k: Optional[int] = None,
-               ec: EC = secp256k1,
-               hf = sha256) -> Tuple[int, int]:
+def ecssa_sign(ec: EC, hf, m: bytes, d: int,
+               k: Optional[int] = None) -> Tuple[int, int]:
     """ECSSA signing operation according to bip-schnorr"""
 
     # the bitcoin proposed standard is only valid for curves
@@ -56,7 +54,7 @@ def ecssa_sign(m: bytes,
     Q = pointMult(ec, d, ec.G)
 
     if k is None:
-        k = rfc6979(d, m, ec, hf)
+        k = rfc6979(ec, hf, m, d)
     else:
         k %= ec.n
 
@@ -86,17 +84,13 @@ def ecssa_sign(m: bytes,
     return R[0], s
 
 
-def ecssa_verify(ssasig: ECSS,
-                 m: bytes,
-                 Q: Point,
-                 ec: EC = secp256k1,
-                 hf = sha256) -> bool:
+def ecssa_verify(ec: EC, hf, m: bytes, Q: Point, sig: ECSS) -> bool:
     """ECSSA veryfying operation according to bip-schnorr"""
 
     # this is just a try/except wrapper
     # _ecssa_verify raises Errors
     try:
-        return _ecssa_verify(ssasig, m, Q, ec, hf)
+        return _ecssa_verify(ec, hf, m, Q, sig)
     except Exception:
         return False
 
@@ -104,11 +98,7 @@ def ecssa_verify(ssasig: ECSS,
 # It raises Errors, while verify should always return True or False
 
 
-def _ecssa_verify(ssasig: ECSS,
-                  m: bytes,
-                  P: Point,
-                  ec: EC,
-                  hf) -> bool:
+def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     # ECSSA veryfying operation according to bip-schnorr
 
     # the bitcoin proposed standard is only valid for curves
@@ -119,7 +109,7 @@ def _ecssa_verify(ssasig: ECSS,
 
     # Let r = int(sig[0:32]); fail if r ≥ p.
     # Let s = int(sig[32:64]); fail if s ≥ n.
-    r, s = to_ssasig(ssasig, ec)
+    r, s = to_ssasig(ec, sig)
 
     # The message m: a 32-byte array
     if len(m) != hf().digest_size:
@@ -150,12 +140,12 @@ def _ecssa_verify(ssasig: ECSS,
     return R[0] == r
 
 
-def _ecssa_pubkey_recovery(ssasig: ECSS, ebytes: bytes, ec: EC, hf) -> Point:
+def _ecssa_pubkey_recovery(ec: EC, hf, ebytes: bytes, sig: ECSS) -> Point:
 
     if len(ebytes) != hf().digest_size:
         raise ValueError("wrong size for e")
 
-    r, s = to_ssasig(ssasig, ec)
+    r, s = to_ssasig(ec, sig)
 
     K = (r, ec.yQuadraticResidue(r, True))
     e = bits2int(ec, ebytes)
@@ -168,35 +158,35 @@ def _ecssa_pubkey_recovery(ssasig: ECSS, ebytes: bytes, ec: EC, hf) -> Point:
     return Q
 
 
-def to_ssasig(ssasig: ECSS, ec: EC) -> Tuple[int, int]:
+def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     """check SSA signature format is correct and return the signature itself"""
 
     # A signature sig: a 64-byte array.
-    if len(ssasig) != 2:
-        m = "invalid length %s for ECSSA signature" % len(ssasig)
+    if len(sig) != 2:
+        m = "invalid length %s for ECSSA signature" % len(sig)
         raise TypeError(m)
 
     # Let r = int(sig[0:32]); fail if r ≥ p.
-    r = int(ssasig[0])
+    r = int(sig[0])
     # r is in [0, p-1]
     # ec.checkCoordinate(r)
     # it might be too much, but R.x is valid iif R.y does exist
     ec.y(r)
 
     # Let s = int(sig[32:64]); fail if s ≥ n.
-    s = int(ssasig[1])
+    s = int(sig[1])
     if not (0 <= s < ec.n):
         raise ValueError("s not in [0, n-1]")
 
     return r, s
 
 
-def ecssa_batch_validation(sig: List[ECSS],
+def ecssa_batch_validation(ec: EC,
+                           hf,
                            ms: List[bytes],
                            Q: List[Point],
-                           a: List[int],
-                           ec: EC,
-                           hf) -> bool:
+                           a: List[int], 
+                           sig: List[ECSS]) -> bool:
     # initialization
     mult = 0
     points = list()
@@ -204,7 +194,7 @@ def ecssa_batch_validation(sig: List[ECSS],
 
     u = len(Q)
     for i in range(u):
-        r, s = to_ssasig(sig[i], ec)
+        r, s = to_ssasig(ec, sig[i])
         ebytes = r.to_bytes(32, byteorder="big")
         ebytes += point2octets(ec, Q[i], True)
         ebytes += ms[i]

@@ -9,32 +9,32 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
+from hashlib import sha256 as hf
 
-from btclib.ec import secp256k1, sha256, pointMult
+from btclib.ec import pointMult
+from btclib.ecurves import secp256k1 as ec
 from btclib.ecdsa import ecdsa_verify
 from btclib.ecssa import ecssa_verify
-from btclib.ecsigtocontract import ecdsa_commit_sign, \
-    ecssa_commit_sign, verify_commit
+from btclib.ecsigtocontract import ecdsa_commit_sign, ecssa_commit_sign, \
+    verify_commit
 
 
 class TestSignToContract(unittest.TestCase):
     def test_signtocontract(self):
         prv = 0x1
-        pub = pointMult(secp256k1, prv, secp256k1.G)
+        pub = pointMult(ec, prv, ec.G)
         m = "to be signed".encode()
         c = "to be committed".encode()
 
-        sig_ecdsa, receipt_ecdsa = ecdsa_commit_sign(
-            m, prv, c, None, secp256k1, sha256)
-        self.assertTrue(ecdsa_verify(sig_ecdsa, m, pub, secp256k1))
-        self.assertTrue(verify_commit(receipt_ecdsa, c, secp256k1, sha256))
+        dsa_sig, dsa_receipt = ecdsa_commit_sign(c, ec, hf, m, prv, None)
+        self.assertTrue(ecdsa_verify(ec, hf, m, pub, dsa_sig))
+        self.assertTrue(verify_commit(c, ec, hf, dsa_receipt))
 
         # 32 bytes message for ECSSA
-        m = sha256(m).digest()
-        sig_ecssa, receipt_ecssa = ecssa_commit_sign(
-            m, prv, c, None, secp256k1, sha256)
-        self.assertTrue(ecssa_verify(sig_ecssa, m, pub, secp256k1))
-        self.assertTrue(verify_commit(receipt_ecssa, c, secp256k1, sha256))
+        m = hf(m).digest()
+        ssa_sig, ssa_receipt = ecssa_commit_sign(c, ec, hf, m, prv, None)
+        self.assertTrue(ecssa_verify(ec, hf, m, pub, ssa_sig))
+        self.assertTrue(verify_commit(c, ec, hf, ssa_receipt))
 
 
 if __name__ == "__main__":

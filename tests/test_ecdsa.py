@@ -12,7 +12,8 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import secp256k1, _jac_from_aff, pointMult, DblScalarMult
+from btclib.ec import _jac_from_aff, pointMult, DblScalarMult
+from btclib.ecurves import secp256k1
 from btclib.ecutils import octets2point
 from btclib.rfc6979 import rfc6979
 from btclib.ecdsa import to_dsasig, ecdsa_sign, _ecdsa_sign, ecdsa_verify, \
@@ -24,48 +25,49 @@ from tests.test_ec import low_card_curves
 class TestEcdsa(unittest.TestCase):
     def test_ecdsa(self):
         ec = secp256k1
+        hf = sha256
         q = 0x1
         Q = pointMult(ec, q, ec.G)
         msg = 'Satoshi Nakamoto'.encode()
-        dsasig = ecdsa_sign(msg, q)
+        sig = ecdsa_sign(ec, hf, msg, q)
         # https://bitcointalk.org/index.php?topic=285142.40
         # Deterministic Usage of DSA and ECDSA (RFC 6979)
         exp_sig = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
                    0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
-        r, s = to_dsasig(dsasig, ec)
+        r, s = to_dsasig(ec, sig)
         self.assertEqual(r, exp_sig[0])
         self.assertIn(s, (exp_sig[1], ec.n - exp_sig[1]))
 
-        self.assertTrue(ecdsa_verify(dsasig, msg, Q))
-        self.assertTrue(_ecdsa_verify(dsasig, msg, Q, ec, sha256))
+        self.assertTrue(ecdsa_verify(ec, hf, msg, Q, sig))
+        self.assertTrue(_ecdsa_verify(ec, hf, msg, Q, sig))
 
         # malleability
         malleated_sig = (r, ec.n - s)
-        self.assertTrue(ecdsa_verify(malleated_sig, msg, Q))
-        self.assertTrue(_ecdsa_verify(malleated_sig, msg, Q, ec, sha256))
+        self.assertTrue(ecdsa_verify(ec, hf, msg, Q, malleated_sig))
+        self.assertTrue(_ecdsa_verify(ec, hf, msg, Q, malleated_sig))
 
-        keys = ecdsa_pubkey_recovery(dsasig, msg)
+        keys = ecdsa_pubkey_recovery(ec, hf, msg, sig)
         self.assertIn(Q, keys)
 
         fmsg = 'Craig Wright'.encode()
-        self.assertFalse(ecdsa_verify(dsasig, fmsg, Q))
-        self.assertFalse(_ecdsa_verify(dsasig, fmsg, Q, ec, sha256))
+        self.assertFalse(ecdsa_verify(ec, hf, fmsg, Q, sig))
+        self.assertFalse(_ecdsa_verify(ec, hf, fmsg, Q, sig))
 
-        fdsasig = (dsasig[0], dsasig[1], dsasig[1])
-        self.assertFalse(ecdsa_verify(fdsasig, msg, Q))
-        self.assertRaises(TypeError, _ecdsa_verify, fdsasig, msg, Q, ec, sha256)
+        fdsasig = (sig[0], sig[1], sig[1])
+        self.assertFalse(ecdsa_verify(ec, hf, msg, Q, fdsasig))
+        self.assertRaises(TypeError, _ecdsa_verify, ec, hf, msg, Q, fdsasig)
 
         fq = 0x4
         fQ = pointMult(ec, fq, ec.G)
-        self.assertFalse(ecdsa_verify(dsasig, msg, fQ))
-        self.assertFalse(_ecdsa_verify(dsasig, msg, fQ, ec, sha256))
+        self.assertFalse(ecdsa_verify(ec, hf, msg, fQ, sig))
+        self.assertFalse(_ecdsa_verify(ec, hf, msg, fQ, sig))
 
         # r not in [1, n-1]
-        invalid_dassig = 0, dsasig[1]
-        self.assertRaises(ValueError, to_dsasig, invalid_dassig, ec)
+        invalid_dassig = 0, sig[1]
+        self.assertRaises(ValueError, to_dsasig, ec, invalid_dassig)
         # s not in [1, n-1]
-        invalid_dassig = dsasig[0], 0
-        self.assertRaises(ValueError, to_dsasig, invalid_dassig, ec)
+        invalid_dassig = sig[0], 0
+        self.assertRaises(ValueError, to_dsasig, ec, invalid_dassig)
 
     def test_forge_hash_sig(self):
         """forging valid signatures for hash (DSA signs message, not hash)"""
@@ -81,9 +83,9 @@ class TestEcdsa(unittest.TestCase):
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
-        dsasig = r, s
+        sig = r, s
         e = s * u1 % ec.n
-        _ecdsa_verhlp(dsasig, e, P, ec)
+        _ecdsa_verhlp(ec, e, P, sig)
 
         u1 = 1234567890
         u2 = 987654321  # pick them at will
@@ -91,13 +93,14 @@ class TestEcdsa(unittest.TestCase):
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
-        dsasig = r, s
+        sig = r, s
         e = s * u1 % ec.n
-        _ecdsa_verhlp(dsasig, e, P, ec)
+        _ecdsa_verhlp(ec, e, P, sig)
 
     def test_low_cardinality(self):
         """test all msg/key pairs of low cardinality elliptic curves"""
 
+        hf = sha256
         # ec.n has to be prime to sign
         prime = [11,  13,  17,  19]
 
@@ -106,7 +109,7 @@ class TestEcdsa(unittest.TestCase):
             if ec._p in prime:  # only few curves or it would take too long
                 for d in range(ec.n):  # all possible private keys
                     if d == 0:  # invalid prvkey=0
-                        self.assertRaises(ValueError, _ecdsa_sign, 1, d, 1, ec)
+                        self.assertRaises(ValueError, _ecdsa_sign, ec, 1, d, 1)
                         continue
                     P = pointMult(ec, d, ec.G)  # public key
                     for e in range(e_max):  # all possible int from hash
@@ -114,32 +117,32 @@ class TestEcdsa(unittest.TestCase):
 
                             if k == 0:
                                 self.assertRaises(
-                                    ValueError, _ecdsa_sign, e, d, k, ec)
+                                    ValueError, _ecdsa_sign, ec, e, d, k)
                                 continue
                             R = pointMult(ec, k, ec.G)
 
                             r = R[0] % ec.n
                             if r == 0:
                                 self.assertRaises(
-                                    ValueError, _ecdsa_sign, e, d, k, ec)
+                                    ValueError, _ecdsa_sign, ec, e, d, k)
                                 continue
 
                             s = mod_inv(k, ec.n) * (e + d * r) % ec.n
                             if s == 0:
                                 self.assertRaises(
-                                    ValueError, _ecdsa_sign, e, d, k, ec)
+                                    ValueError, _ecdsa_sign, ec, e, d, k)
                                 continue
 
                             # valid signature
-                            sig = _ecdsa_sign(e, d, k, ec)
+                            sig = _ecdsa_sign(ec, e, d, k)
                             self.assertEqual((r, s), sig)
                             # valid signature must validate
-                            self.assertTrue(_ecdsa_verhlp(sig, e, P, ec))
+                            self.assertTrue(_ecdsa_verhlp(ec, e, P, sig))
                             # malleated signature must validate
                             #malleated_sig = (sig[0], ec.n - sig[1])
-                            #self.assertTrue(_ecdsa_verhlp(malleated_sig, e, P, ec))
+                            #self.assertTrue(_ecdsa_verhlp(ec, e, P, malleated_sig))
                             # key recovery
-                            #keys = _ecdsa_pubkey_recovery(sig, e, ec)
+                            #keys = _ecdsa_pubkey_recovery(ec, hf, e, sig)
                             #self.assertIn(P, keys)
 
 

@@ -42,7 +42,7 @@ from btclib.ecssa import ecssa_sign, ECSS
 Receipt = Tuple[int, Point]
 
 
-def tweak(k: int, c: bytes, ec: EC, hf) -> Tuple[Point, int]:
+def _tweak(c: bytes, ec: EC, hf, k: int) -> Tuple[Point, int]:
     """tweak kG
 
     returns:
@@ -55,41 +55,33 @@ def tweak(k: int, c: bytes, ec: EC, hf) -> Tuple[Point, int]:
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_sign(m: bytes,
-                      prvkey: int,
-                      c: bytes,
-                      eph_prv: Optional[int],
-                      ec: EC,
-                      hf) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
+def ecdsa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
+                      k: Optional[int] = None) -> Tuple[ECDS, Receipt]:
     mh = hf(m).digest()
-    if eph_prv is None:
-        eph_prv = rfc6979(prvkey, mh, ec, hf)
+    if k is None:
+        k = rfc6979(ec, hf, mh, prvkey)
 
     ch = hf(c).digest()
 
     # commit
-    R, eph_prv = tweak(eph_prv, ch, ec, hf)
+    R, new_k = _tweak(ch, ec, hf, k)
     # sign
-    sig = ecdsa_sign(m, prvkey, eph_prv, ec, hf)
+    sig = ecdsa_sign(ec, hf, m, prvkey, new_k)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
 
 
-def ecssa_commit_sign(m: bytes,
-                      prvkey: int,
-                      c: bytes,
-                      eph_prv: Optional[int],
-                      ec: EC,
-                      hf) -> Tuple[Tuple[int, int], Tuple[int, Point]]:
+def ecssa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
+                      k: Optional[int] = None) -> Tuple[ECSS, Receipt]:
     ch = hf(c).digest()
-    if eph_prv is None:
-        eph_prv = rfc6979(prvkey, m, ec, hf)
+    if k is None:
+        k = rfc6979(ec, hf, m, prvkey)
 
     # commit
-    R, eph_prv = tweak(eph_prv, ch, ec, hf)
+    R, new_k = _tweak(ch, ec, hf, k)
     # sign
-    sig = ecssa_sign(m, prvkey, eph_prv, ec, hf)
+    sig = ecssa_sign(ec, hf, m, prvkey, new_k)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
@@ -97,10 +89,7 @@ def ecssa_commit_sign(m: bytes,
 # FIXME: have create_commit instead of commit_sign
 
 
-def verify_commit(receipt: Receipt,
-                  c: bytes,
-                  ec: EC,
-                  hf) -> bool:
+def verify_commit(c: bytes, ec: EC, hf, receipt: Receipt) -> bool:
     w, R = receipt
     # w in [1..n-1] dsa
     # w in [1..p-1] ssa

@@ -18,7 +18,8 @@ from hashlib import sha256, new as hnew
 from typing import Tuple
 
 from btclib.base58 import b58encode_check, b58decode_check
-from btclib.ec import secp256k1 as ec, Point, pointMult
+from btclib.ec import Point, pointMult
+from btclib.ecurves import secp256k1 as ec
 from btclib.ecutils import octets, octets2int, int2octets, point2octets
 
 
