@@ -285,13 +285,13 @@ class TestEcssa(unittest.TestCase):
                             k = ec.n - k
 
                         e = _ecssa_e(ec, hf, K[0], Q, h)
-                        if e != 0:
-                            s = (k + e * q) % ec.n
-                            # valid signature
-                            sig = ecssa_sign(ec, hf, h, q, k)
-                            self.assertEqual((K[0], s), sig)
-                            # valid signature must validate
-                            self.assertTrue(_ecssa_verify(ec, hf, h, Q, sig))
+                        s = (k + e * q) % ec.n
+                        # valid signature
+                        sig = ecssa_sign(ec, hf, h, q, k)
+                        self.assertEqual((K[0], s), sig)
+                        # valid signature must validate
+                        self.assertTrue(_ecssa_verify(ec, hf, h, Q, sig))
+
 
 if __name__ == "__main__":
     # execute only if run as a script

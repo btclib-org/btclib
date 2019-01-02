@@ -83,8 +83,6 @@ def ecssa_sign(ec: EC, hf, m: bytes, d: int,
 
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
     e = _ecssa_e(ec, hf, R[0], P, m)
-    if e == 0:
-        raise ValueError("e = 0, signature would not depend on private key")
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
@@ -136,8 +134,6 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
     # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
     e = _ecssa_e(ec, hf, r, P, m)
-    if e == 0:
-        raise ValueError("e = 0, signature does not depend on private key")
 
     # Let R = sG - eP.
     R = DblScalarMult(ec, s, ec.G, -e, P)
