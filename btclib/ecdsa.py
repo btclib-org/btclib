@@ -102,8 +102,8 @@ def _ecdsa_verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
     """
 
     # The message digest m: a 32-byte array
-    hd = hf(M).digest()                                # 2
-    e = bits2int(ec, hd)                               # 3
+    hd = hf(M).digest()                               # 2
+    e = bits2int(ec, hd)                              # 3
 
     # Let P = point(pk); fail if point(pk) fails.
     # P on point will be checked below by DblScalarMult
@@ -116,21 +116,26 @@ def _ecdsa_verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only."""
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = to_dsasig(ec, sig)                          # 1
+    r, s = to_dsasig(ec, sig)                         # 1
+
+    # Let P = point(pk); fail if point(pk) fails.
+    ec.requireOnCurve(P)
+    if P[1] == 0:
+        raise ValueError("public key is infinite")
 
     s1 = mod_inv(s, ec.n)
     u = e*s1
     v = r*s1                                          # 4
     # Let R = u*G + v*P.
-    R = DblScalarMult(ec, u, ec.G, v, P)             # 5
+    R = DblScalarMult(ec, u, ec.G, v, P)              # 5
 
     # Fail if infinite(R).
-    if R[1] == 0:                                      # 5
+    if R[1] == 0:                                     # 5
         raise ValueError("uG + vP is infinite")
 
-    v = R[0] % ec.n                                    # 6, 7
+    v = R[0] % ec.n                                   # 6, 7
     # Fail if r ≠ x(R) %n.
-    return r == v                                      # 8
+    return r == v                                     # 8
 
 
 def ecdsa_pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:
@@ -166,10 +171,12 @@ def _ecdsa_pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
             R = (x, ec.yOdd(x, 1))                          # 1.2, 1.3, and 1.4
             # 1.5 already taken care outside this for loop
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)        # 1.6.1
-            keys.append(Q)                                  # 1.6.2
+            if Q[1] != 0:                                   # 1.6.2
+                keys.append(Q)
             R = ec.opposite(R)                              # 1.6.3
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)
-            keys.append(Q)                                  # 1.6.2
+            if Q[1] != 0:                                   # 1.6.2
+                keys.append(Q)                              # 1.6.2
         except Exception:  # can't get a curve's point
             pass
     return keys
