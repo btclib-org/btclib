@@ -8,8 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.ec import int2octets, EC, Point, octets2int, \
-    int2octets, pointMult
+from btclib.ec import int2octets, EC, Point, octets2int, pointMult
 
 
 def kdf(zbytes: bytes, keydatalen: int, ec: EC, hf) -> bytes:
@@ -29,7 +28,7 @@ def kdf(zbytes: bytes, keydatalen: int, ec: EC, hf) -> bytes:
         i += 1
     K_bytes = b''.join(K_temp[i] for i in range(keydatalen // hlen))
     K = octets2int(K_bytes) >> (keydatalen - hlen)
-    return int2octets(ec, K)
+    return int2octets(K, ec.bytesize)
 
 
 def key_agreement(dUV: int,
@@ -41,6 +40,6 @@ def key_agreement(dUV: int,
     if P == (1, 0):
         "invalid (zero) private key"
     z = P[0]
-    zbytes = int2octets(ec, z)
+    zbytes = int2octets(z, ec.bytesize)
     k = kdf(zbytes, keydatalen, ec, hf)
     return k

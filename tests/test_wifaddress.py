@@ -34,7 +34,7 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(p3[1], False)
 
 
-        p_bytes = int2octets(ec, p_num)
+        p_bytes = int2octets(p_num, ec.bytesize)
         payload = b'\x80' + p_bytes + b'\x01\x01'
         wif = b58encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, wif)

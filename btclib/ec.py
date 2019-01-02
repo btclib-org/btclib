@@ -362,15 +362,9 @@ def octets2int(o: octets) -> int:
 
     return int.from_bytes(o, 'big')
 
-def int2octets(ec: EC, q: int) -> bytes:
+def int2octets(q: int, bytesize: int) -> bytes:
     """SEC 1 v.2, section 2.3.7"""
-    # bytesize = rlen * 8
-    # rlen = 8*ceil(qlen/8)
-    # qlen = ec.n.bitlength()
-    # raise an error if i too big
-    # as of now does not raise an error if q <= i
-    q % ec.n
-    return q.to_bytes(ec.bytesize, 'big')
+    return q.to_bytes(bytesize, 'big')
 
 # this function is used by the EC class; it might be a method...
 

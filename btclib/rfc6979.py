@@ -54,7 +54,7 @@ def bits2int(ec: EC, o: octets) -> int:
 def bits2octets(ec: EC, b: bytes) -> bytes:
     z1 = bits2int(ec, b)
     z2 = z1 % ec.n
-    return int2octets(ec, z2)
+    return int2octets(z2, ec.bytesize)
 
 
 def rfc6979(prv: int, hlb: bytes, ec: EC, hf) -> int:
@@ -67,7 +67,7 @@ def rfc6979(prv: int, hlb: bytes, ec: EC, hf) -> int:
     k = b'\x00' * hlen
 
     # hlen or qlen ?
-    prv_and_m = int2octets(ec, prv)
+    prv_and_m = int2octets(prv, ec.bytesize)
     prv_and_m += bits2octets(ec, hlb)
     k = hmac.new(k, v + b'\x00' + prv_and_m, hf).digest()
     v = hmac.new(k, v, hf).digest()

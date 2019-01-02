@@ -11,7 +11,8 @@
 import unittest
 from hashlib import sha1
 
-from btclib.ec import secp160r1, octets2point, pointMult, point2octets, int2octets
+from btclib.ec import secp160r1, octets2point, point2octets, int2octets, \
+    pointMult
 from btclib.ecdh import key_agreement, kdf
 
 # test vectors taken from the guidelines for efficient cryptography
@@ -63,17 +64,17 @@ class TestEcdh(unittest.TestCase):
         keying_data_exp = '744ab703f5bc082e59185f6d049d2d367db245c2'
 
         # 4.1.4
-        z = pointMult(ec, dU, QV)[0]
+        z, _ = pointMult(ec, dU, QV)
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(qlen)+'x'), zstr)
-        keyingdata = kdf(int2octets(ec, z), keydatalen, ec, hf)
+        keyingdata = kdf(int2octets(z, ec.bytesize), keydatalen, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
         # 4.1.5
-        z = pointMult(ec, dV, QU)[0]
+        z, _ = pointMult(ec, dV, QU)
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(qlen)+'x'), zstr)
-        keyingdata = kdf(int2octets(ec, z), keydatalen, ec, hf)
+        keyingdata = kdf(int2octets(z, ec.bytesize), keydatalen, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
 

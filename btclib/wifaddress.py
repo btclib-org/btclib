@@ -24,7 +24,7 @@ from btclib.ec import octets, octets2int, int2octets, point2octets, Tuple, \
 def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     """private key to Wallet Import Format"""
 
-    payload = b'\x80' + int2octets(ec, prvkey)
+    payload = b'\x80' + int2octets(prvkey, ec.bytesize)
     if compressed:
         payload += b'\x01'
     return b58encode_check(payload)
