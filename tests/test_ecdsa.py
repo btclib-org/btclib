@@ -13,13 +13,11 @@ from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
 from btclib.ec import _jac_from_aff, pointMult, DblScalarMult
-from btclib.ecurves import secp256k1
+from btclib.ecurves import secp256k1, low_card_curves
 from btclib.ecutils import octets2point
 from btclib.rfc6979 import rfc6979
 from btclib.ecdsa import to_dsasig, ecdsa_sign, _ecdsa_sign, ecdsa_verify, \
     _ecdsa_verify, _ecdsa_verhlp, ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery
-
-from tests.test_ec import low_card_curves
 
 
 class TestEcdsa(unittest.TestCase):
@@ -100,7 +98,6 @@ class TestEcdsa(unittest.TestCase):
     def test_low_cardinality(self):
         """test all msg/key pairs of low cardinality elliptic curves"""
 
-        hf = sha256
         # ec.n has to be prime to sign
         prime = [11,  13,  17,  19]
 

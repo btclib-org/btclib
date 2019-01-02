@@ -14,13 +14,11 @@ from hashlib import sha256 as hf
 
 from btclib.numbertheory import legendre_symbol
 from btclib.ec import pointMult
-from btclib.ecurves import secp256k1, secp224k1
+from btclib.ecurves import secp256k1, secp224k1, low_card_curves
 from btclib.ecutils import octets2point, point2octets, bits2int
 from btclib.rfc6979 import rfc6979
 from btclib.ecssa import ecssa_sign, ecssa_verify, to_ssasig, \
     _ecssa_verify, _ecssa_pubkey_recovery
-
-from tests.test_ec import low_card_curves
 
 random.seed(42)
 

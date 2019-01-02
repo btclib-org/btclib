@@ -13,13 +13,11 @@
 http://www.secg.org/sec1-v2.pdf
 """
 
-from hashlib import sha256
 from typing import List, Tuple, Optional, Union
 
 from btclib.numbertheory import mod_inv
 from btclib.ec import Point, EC, pointMult, DblScalarMult
-from btclib.ecurves import secp256k1
-from btclib.ecutils import octets2point, bits2int
+from btclib.ecutils import bits2int
 from btclib.rfc6979 import rfc6979
 
 ECDS = Tuple[int, int]
@@ -141,8 +139,8 @@ def ecdsa_pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:
     """
 
     # The message digest m: a 32-byte array
-    hd = hf(M).digest()
-    e = bits2int(ec, hd)  # ECDSA verification step 3
+    hd = hf(M).digest()                                     # 1.5
+    e = bits2int(ec, hd)                                    # 1.5
 
     return _ecdsa_pubkey_recovery(ec, e, sig)
 
@@ -160,17 +158,17 @@ def _ecdsa_pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     r1s = r1*s
     r1e = -r1*e
     keys = []
-    for j in range(2):  # FIXME: use ec.cofactor+1 instead of 2
-        x = r + j*ec.n  # 1.1
+    for j in range(ec.h):                                   # 1
+        x = r + j*ec.n                                      # 1.1
         try:
-            R = (x, ec.yOdd(x, 1))  # 1.2, 1.3, and 1.4
+            R = (x, ec.yOdd(x, 1))                          # 1.2, 1.3, and 1.4
             # 1.5 already taken care outside this for loop
-            Q = DblScalarMult(ec, r1s, R, r1e, ec.G)  # 1.6.1
+            Q = DblScalarMult(ec, r1s, R, r1e, ec.G)        # 1.6.1
             # 1.6.2 is always satisfied for us, and we do not stop here
-            keys.append(Q)
-            R = ec.opposite(R)                                    # 1.6.3
+            keys.append(Q)                                  # 1.6.2
+            R = ec.opposite(R)                              # 1.6.3
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)
-            keys.append(Q)
+            keys.append(Q)                                  # 1.6.2
         except Exception:  # can't get a curve's point
             pass
     return keys
