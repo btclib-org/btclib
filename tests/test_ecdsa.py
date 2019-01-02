@@ -13,7 +13,7 @@ from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
 from btclib.ec import _jac_from_aff, pointMult, DblScalarMult
-from btclib.ecurves import secp256k1, low_card_curves
+from btclib.ecurves import secp256k1, secp112r2, low_card_curves
 from btclib.ecutils import octets2point
 from btclib.rfc6979 import rfc6979
 from btclib.ecdsa import to_dsasig, ecdsa_sign, _ecdsa_sign, ecdsa_verify, \
@@ -45,6 +45,7 @@ class TestEcdsa(unittest.TestCase):
         self.assertTrue(_ecdsa_verify(ec, hf, msg, Q, malleated_sig))
 
         keys = ecdsa_pubkey_recovery(ec, hf, msg, sig)
+        self.assertTrue(len(keys)==2)
         self.assertIn(Q, keys)
 
         fmsg = 'Craig Wright'.encode()
@@ -102,32 +103,28 @@ class TestEcdsa(unittest.TestCase):
         prime = [11,  13,  17,  19]
 
         for ec in low_card_curves:  # only low card curves or it would take forever
-            e_max = ec.n * 2
             if ec._p in prime:  # only few curves or it would take too long
                 for d in range(ec.n):  # all possible private keys
                     if d == 0:  # invalid prvkey=0
                         self.assertRaises(ValueError, _ecdsa_sign, ec, 1, d, 1)
                         continue
                     P = pointMult(ec, d, ec.G)  # public key
-                    for e in range(e_max):  # all possible int from hash
+                    for e in range(ec.n):  # all possible int from hash
                         for k in range(ec.n):  # all possible ephemeral keys
 
                             if k == 0:
-                                self.assertRaises(
-                                    ValueError, _ecdsa_sign, ec, e, d, k)
+                                self.assertRaises(ValueError, _ecdsa_sign, ec, e, d, k)
                                 continue
                             R = pointMult(ec, k, ec.G)
 
                             r = R[0] % ec.n
                             if r == 0:
-                                self.assertRaises(
-                                    ValueError, _ecdsa_sign, ec, e, d, k)
+                                self.assertRaises(ValueError, _ecdsa_sign, ec, e, d, k)
                                 continue
 
                             s = mod_inv(k, ec.n) * (e + d * r) % ec.n
                             if s == 0:
-                                self.assertRaises(
-                                    ValueError, _ecdsa_sign, ec, e, d, k)
+                                self.assertRaises(ValueError, _ecdsa_sign, ec, e, d, k)
                                 continue
 
                             # valid signature
@@ -135,12 +132,29 @@ class TestEcdsa(unittest.TestCase):
                             self.assertEqual((r, s), sig)
                             # valid signature must validate
                             self.assertTrue(_ecdsa_verhlp(ec, e, P, sig))
-                            # malleated signature must validate
-                            #malleated_sig = (sig[0], ec.n - sig[1])
-                            #self.assertTrue(_ecdsa_verhlp(ec, e, P, malleated_sig))
-                            # key recovery
-                            #keys = _ecdsa_pubkey_recovery(ec, hf, e, sig)
-                            #self.assertIn(P, keys)
+
+                            keys = _ecdsa_pubkey_recovery(ec, e, sig)
+                            self.assertIn(P, keys)
+                            for Q in keys:
+                                self.assertTrue(_ecdsa_verhlp(ec, e, Q, sig))
+
+    def test_pubkey_recovery(self):
+        ec = secp112r2
+        hf = sha256
+        q = 0x1
+        Q = pointMult(ec, q, ec.G)
+        msg = 'Satoshi Nakamoto'.encode()
+        sig = ecdsa_sign(ec, hf, msg, q)
+
+        self.assertTrue(ecdsa_verify(ec, hf, msg, Q, sig))
+        self.assertTrue(_ecdsa_verify(ec, hf, msg, Q, sig))
+
+        keys = ecdsa_pubkey_recovery(ec, hf, msg, sig)
+        self.assertTrue(len(keys)==6)
+        self.assertIn(Q, keys)
+        for Q in keys:
+            self.assertTrue(ecdsa_verify(ec, hf, msg, Q, sig))
+            self.assertTrue(_ecdsa_verify(ec, hf, msg, Q, sig))
 
 
 if __name__ == "__main__":

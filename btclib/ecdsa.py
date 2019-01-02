@@ -158,13 +158,12 @@ def _ecdsa_pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     r1s = r1*s
     r1e = -r1*e
     keys = []
-    for j in range(ec.h):                                   # 1
+    for j in range(ec.h+1):                                 # 1
         x = r + j*ec.n                                      # 1.1
         try:
             R = (x, ec.yOdd(x, 1))                          # 1.2, 1.3, and 1.4
             # 1.5 already taken care outside this for loop
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)        # 1.6.1
-            # 1.6.2 is always satisfied for us, and we do not stop here
             keys.append(Q)                                  # 1.6.2
             R = ec.opposite(R)                              # 1.6.3
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)
