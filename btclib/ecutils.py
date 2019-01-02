@@ -95,6 +95,9 @@ def bits2int(ec: EC, o: octets) -> int:
 def _bits2int(ec: EC, o: octets) -> int:
     """Return the leftmost ec.n.bitlength() bits only
 
+       http://www.secg.org/sec1-v2.pdf
+       SEC 1 v.2 section 4.1.3 (5)
+       
        Note that an additional mod ec.n is required to ensure that 0 < i < ec.n
     """
 

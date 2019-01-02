@@ -1,4 +1,5 @@
 resolve confusion between hlen and qlen
+add GEC 2 Test Vectors for SEC 1
 rfc6979 test
 revise kdf
 remove assert for if + raise
