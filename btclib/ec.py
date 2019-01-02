@@ -60,7 +60,8 @@ class EC:
             # t_range = [56, 64, 80, 96, 112, 128, 192, 256] # SEC 1 v.1
             t_range =           [80, 96, 112, 128, 192, 256] # SEC 1 v.2
             if t not in t_range:
-                m = "required security level %s not in the allowed range" % t
+                m = "required security level (%s) " % t
+                m += "not in the allowed range %s" % t_range
                 raise ValueError(m)
             required_bits = {80:192, 96:192, 112:224, 128:256, 192:384, 256:521}
             if nbits != required_bits[t]:

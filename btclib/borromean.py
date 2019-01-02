@@ -113,7 +113,7 @@ def borromean_verify(msg: bytes,
         keys_size = len(pubk_rings[i])
         e[i] = [0]*keys_size
         e[i][0] = bits2int(ec, borromean_hash(m, e0, i, 0))
-        if e[i][0] == 0 or e[i][0] >= ec.n:
+        if e[i][0] == 0:
             return False
         R = b'\0x00'
         for j in range(keys_size):
