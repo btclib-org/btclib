@@ -18,7 +18,7 @@ from btclib.ecurves import secp256k1, secp224k1
 from btclib.ecutils import octets2point, point2octets, bits2int
 from btclib.rfc6979 import rfc6979
 from btclib.ecssa import ecssa_sign, ecssa_verify, to_ssasig, \
-    _ecssa_verify, _ecssa_pubkey_recovery, ecssa_batch_validation
+    _ecssa_verify, _ecssa_pubkey_recovery
 
 from tests.test_ec import low_card_curves
 
@@ -293,29 +293,6 @@ class TestEcssa(unittest.TestCase):
                         self.assertEqual((K[0], s), sig)
                         # valid signature must validate
                         self.assertTrue(_ecssa_verify(ec, hf, h, Q, sig))
-
-    def test_batch_validation(self):
-        ec = secp256k1
-        m = []
-        sig = []
-        Q = []
-        a = []
-        bytesize = ec.bytesize
-        bits = bytesize * 8
-        for i in range(10):
-            m.append(random.getrandbits(bits).to_bytes(bytesize, 'big'))
-            q = random.getrandbits(bits) % ec.n
-            sig.append(ecssa_sign(ec, hf, m[i], q))
-            Q.append(pointMult(ec, q, ec.G))
-            a.append(random.getrandbits(bits))  # FIXME: % ec.n ?
-        self.assertTrue(ecssa_batch_validation(ec, hf, m, Q, a, sig))
-
-        m.append(m[0])
-        sig.append(sig[1])  # invalid
-        Q.append(Q[0])
-        a.append(a[0])
-        self.assertFalse(ecssa_batch_validation(ec, hf, m, Q, a, sig))
-
 
 if __name__ == "__main__":
     # execute only if run as a script
