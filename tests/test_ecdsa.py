@@ -70,7 +70,7 @@ class TestEcdsa(unittest.TestCase):
         self.assertRaises(ValueError, to_dsasig, ec, invalid_dassig)
 
         # pubkey = Inf
-        self.assertTrue(_ecdsa_verify(ec, hf, msg, (1, 0), sig))
+        self.assertRaises(ValueError, _ecdsa_verify, ec, hf, msg, (1, 0), sig)
         #_ecdsa_verify(ec, hf, msg, (1, 0), sig)
 
 

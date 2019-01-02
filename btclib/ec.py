@@ -62,7 +62,7 @@ class EC:
             if t not in t_range:
                 m = "required security level (%s) " % t
                 m += "not in the allowed range %s" % t_range
-                raise ValueError(m)
+                raise UserWarning(m)
             required_bits = {80:192, 96:192, 112:224, 128:256, 192:384, 256:521}
             if nbits != required_bits[t]:
                 raise UserWarning("not enough bits (%s) for required security level %s" % (nbits, t))
