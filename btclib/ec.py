@@ -47,6 +47,7 @@ class EC:
         if not pow(2, p-1, p) == 1:
             raise ValueError("p (%X) is not prime" % p)
 
+        # 1) check that p has enough bits
         nbits = p.bit_length()
         self.t = t
         if t != 0 and all_checks:
@@ -101,9 +102,9 @@ class EC:
         self.h = h
 
         # 7. Check that nG = Inf.
-        # it cannot be chacked as
+        # it cannot be simply checked with:
         # Inf = pointMult(self, n, self.G)
-        # the above would be tautologically true
+        # as the above would be tautologically true
         InfMinusG = pointMult(self, n-1, self.G)
         Inf = self.add(InfMinusG, self.G)
         if Inf[1] != 0:
