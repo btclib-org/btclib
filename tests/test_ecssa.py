@@ -77,6 +77,12 @@ class TestEcssa(unittest.TestCase):
         self.assertRaises(ValueError, ecssa_sign, ec, hf, wrongmsg, q, None)
         #ecssa_sign(ec, hf, wrongmsg, q, None)
 
+        # invalid (zero) challenge e
+        self.assertRaises(ValueError, _ecssa_pubkey_recovery, ec, hf, 0, sig)
+        #_ecssa_pubkey_recovery(ec, hf, 0, sig)
+
+
+
     def test_schnorr_bip_tv(self):
         """Bip-Schnorr Test Vectors
 
