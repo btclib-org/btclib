@@ -14,12 +14,12 @@ http://www.secg.org/sec1-v2.pdf
 """
 
 from hashlib import sha256
-from typing import List, Optional
+from typing import List, Tuple, Optional, Union
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import Union, Tuple, Point, octets2point, \
-    EC, secp256k1, pointMult, DblScalarMult
-from btclib.rfc6979 import bits2int, rfc6979
+from btclib.ec import Point, EC, secp256k1, pointMult, DblScalarMult
+from btclib.ecutils import octets2point, bits2int
+from btclib.rfc6979 import rfc6979
 
 ECDS = Tuple[int, int]
 
@@ -101,7 +101,7 @@ def _ecdsa_verify(dsasig: ECDS, H: bytes, P: Point, ec: EC, hf) -> bool:
 
     # The message digest m: a 32-byte array
     H = hf(H).digest()                                # 2
-    e = bits2int(ec, H)                             # 3
+    e = bits2int(ec, H)                               # 3
 
     # Let P = point(pk); fail if point(pk) fails.
     # P on point will be checked below by DblScalarMult

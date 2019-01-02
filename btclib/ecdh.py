@@ -8,8 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.ec import int2octets, EC, Point, octets2int, pointMult
-
+from btclib.ec import EC, Point, pointMult
+from btclib.ecutils import int2octets, octets2int
 
 def kdf(zbytes: bytes, keydatalen: int, ec: EC, hf) -> bytes:
     """ ANS-X9.63-KDF - SEC 1 specification

@@ -19,11 +19,12 @@ https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-9
 
 import random
 import unittest
+from hashlib import sha256
 
 from btclib.numbertheory import legendre_symbol
-from btclib.ec import octets2int, point2octets, secp256k1, \
-    pointMult, DblScalarMult
-from btclib.ecssa import sha256, bits2int, ecssa_verify
+from btclib.ec import secp256k1, pointMult, DblScalarMult
+from btclib.ecutils import octets2int, point2octets, bits2int
+from btclib.ecssa import ecssa_verify
 
 random.seed(42)
 

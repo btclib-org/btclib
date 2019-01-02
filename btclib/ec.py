@@ -16,7 +16,7 @@ TODO: document duck-typing and static typing design choices
 
 from hashlib import sha256
 from math import sqrt
-from typing import Tuple, NewType, Union
+from typing import Tuple
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
@@ -25,9 +25,6 @@ Point = Tuple[int, int]
 
 # infinity point is (int, int, 0), checked with 'Inf[2] == 0'
 _JacPoint = Tuple[int, int, int]
-
-octets = Union[str, bytes]
-
 
 
 # elliptic curve y^2 = x^3 + a*x + b
@@ -284,43 +281,6 @@ class EC:
         return root if legendre1 == quadRes else self._p - root
 
 
-def octets2point(ec: EC, o: octets) -> Point:
-    """Return a tuple (Px, Py) that belongs to the curve
-
-       SEC 1 v.2, section 2.3.4
-    """
- 
-    if isinstance(o, str):
-        o = bytes.fromhex(o)
-
-    if len(o) == 1 and o[0] == 0x00:  # infinity point
-        return 1, 0
-
-    if len(o) == ec.bytesize+1:       # compressed point
-        if o[0] not in (0x02, 0x03):
-            m = "%s bytes, but not a compressed point" % (ec.bytesize+1)
-            raise ValueError(m)
-        Px = int.from_bytes(o[1:], 'big')
-        try:
-            Py = ec.yOdd(Px, o[0] % 2)    # also check Px validity
-            return Px, Py
-        except:
-            raise ValueError("point not on curve")
-    else:                             # uncompressed point
-        if len(o) != 2*ec.bytesize+1:
-            m = "wrong byte-size (%s) for a point: it " % len(o)
-            m += "should be %s or %s" % (ec.bytesize+1, 2*ec.bytesize+1)
-            raise ValueError(m)
-        if o[0] != 0x04:
-            raise ValueError("not an uncompressed point")
-        Px = int.from_bytes(o[1:ec.bytesize+1], 'big')
-        P = Px, int.from_bytes(o[ec.bytesize+1:], 'big')
-        if ec.isOnCurve(P):
-            return P
-        else:
-            raise ValueError("point not on curve")
-    
-
 
 # this function is used by the EC class; it might be a method...
 
@@ -331,40 +291,6 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
         return 1, 1, 0
     return Q[0], Q[1], 1
 
-# this function is used by the EC class; it might be a method...
-
-
-def point2octets(ec: EC, Q: Point, compressed: bool) -> bytes:
-    """Return a compressed (0x02, 0x03) or uncompressed (0x04) point as octets
-    
-       SEC 1 v.2, section 2.3.3
-    """
-    # check that Q is a point and that is on curve
-    ec.requireOnCurve(Q)
-
-    if Q[1] == 0:  # infinity point in affine coordinates
-        return b'\x00'
-
-    bPx = Q[0].to_bytes(ec.bytesize, byteorder='big')
-    if compressed:
-        return (b'\x03' if (Q[1] & 1) else b'\x02') + bPx
-
-    return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
-
-
-def octets2int(o: octets) -> int:
-    """Integer for Point multiplication (i.e. private key), not coordinate
-
-       SEC 1 v.2, section 2.3.8
-    """
-    if isinstance(o, str):  # hex string
-        o = bytes.fromhex(o)
-
-    return int.from_bytes(o, 'big')
-
-def int2octets(q: int, bytesize: int) -> bytes:
-    """SEC 1 v.2, section 2.3.7"""
-    return q.to_bytes(bytesize, 'big')
 
 # this function is used by the EC class; it might be a method...
 

@@ -12,10 +12,10 @@ import unittest
 import random
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import sha256, point2octets, secp256k1, \
-    pointMult, DblScalarMult
+from btclib.ec import sha256, secp256k1, pointMult, DblScalarMult
+from btclib.ecutils import bits2int, point2octets
 from btclib.pedersen import secondGenerator
-from btclib.ecssa import sha256, bits2int, _ecssa_verify
+from btclib.ecssa import sha256, _ecssa_verify
 
 random.seed(42)
 

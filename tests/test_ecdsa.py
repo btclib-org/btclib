@@ -12,11 +12,11 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import secp256k1, octets2point, _jac_from_aff, pointMult, \
-    DblScalarMult
-from btclib.ecdsa import rfc6979, bits2int, to_dsasig, \
-    ecdsa_sign, _ecdsa_sign, ecdsa_verify, _ecdsa_verify, _ecdsa_verhlp, \
-    ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery
+from btclib.ec import secp256k1, _jac_from_aff, pointMult, DblScalarMult
+from btclib.ecutils import octets2point
+from btclib.rfc6979 import rfc6979
+from btclib.ecdsa import to_dsasig, ecdsa_sign, _ecdsa_sign, ecdsa_verify, \
+    _ecdsa_verify, _ecdsa_verhlp, ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery
 
 from tests.test_ec import low_card_curves
 

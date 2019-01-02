@@ -9,11 +9,13 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
+from hashlib import sha256
 
 from btclib.numbertheory import mod_sqrt
-from btclib.ec import sha256, EC, point2octets, octets2point, pointMult, \
+from btclib.ec import EC, pointMult, \
     secp256k1, secp256r1, secp384r1, SEC2V1_curves, SEC2V2_curves, \
     DblScalarMult, _jac_from_aff, _pointMultJacobian, _pointMultAffine
+from btclib.ecutils import point2octets, octets2point
 
  
 ec13_11 = EC(13, 7, 6, (1,   1),  11, False)

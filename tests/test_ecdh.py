@@ -11,8 +11,8 @@
 import unittest
 from hashlib import sha1
 
-from btclib.ec import secp160r1, octets2point, point2octets, int2octets, \
-    pointMult
+from btclib.ec import secp160r1, pointMult
+from btclib.ecutils import octets2point, point2octets, int2octets
 from btclib.ecdh import key_agreement, kdf
 
 # test vectors taken from the guidelines for efficient cryptography

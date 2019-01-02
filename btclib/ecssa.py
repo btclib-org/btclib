@@ -15,13 +15,13 @@ https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 
 import heapq
 from hashlib import sha256
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Tuple, Point, octets2point, \
-    EC, secp256k1, _jac_from_aff, _pointMultJacobian, pointMult, \
-    DblScalarMult, point2octets
-from btclib.rfc6979 import bits2int, rfc6979
+from btclib.ec import Point, EC, secp256k1, _jac_from_aff, \
+    _pointMultJacobian, pointMult, DblScalarMult
+from btclib.ecutils import bits2int, point2octets, octets2point
+from btclib.rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 

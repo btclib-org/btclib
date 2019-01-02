@@ -13,11 +13,11 @@ import unittest
 from hashlib import sha256
 
 from btclib.numbertheory import legendre_symbol
-from btclib.ec import secp256k1, secp224k1, octets2point, \
-    point2octets, pointMult
-from btclib.ecssa import rfc6979, bits2int, ecssa_sign, ecssa_sign, \
-    to_ssasig, _ecssa_verify, ecssa_verify, _ecssa_pubkey_recovery, \
-    ecssa_batch_validation
+from btclib.ec import secp256k1, secp224k1, pointMult
+from btclib.ecutils import octets2point, point2octets, bits2int
+from btclib.rfc6979 import rfc6979
+from btclib.ecssa import ecssa_sign, ecssa_verify, to_ssasig, \
+    _ecssa_verify, _ecssa_pubkey_recovery, ecssa_batch_validation
 
 from tests.test_ec import low_card_curves
 

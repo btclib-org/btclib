@@ -13,9 +13,9 @@ from hashlib import sha256
 from typing import List, Dict, Tuple
 from collections import defaultdict
 
-from btclib.ec import Point, secp256k1, pointMult, DblScalarMult, \
-    point2octets, octets2point
-from btclib.rfc6979 import bits2int, rfc6979
+from btclib.ec import Point, secp256k1, pointMult, DblScalarMult    
+from btclib.ecutils import bits2int, point2octets, octets2point
+from btclib.rfc6979 import rfc6979
 
 
 # source: https://github.com/ElementsProject/borromean-signatures-writeup
