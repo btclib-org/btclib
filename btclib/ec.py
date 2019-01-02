@@ -42,10 +42,10 @@ class EC:
 
         # 1) check that p is an odd prime
         if p % 2 == 0:
-            raise ValueError("p (%s) is not odd" % p)
+            raise ValueError("p (%X) is not odd" % p)
         # Fermat test will do as _probabilistic_ primality test...
         if not pow(2, p-1, p) == 1:
-            raise ValueError("p (%s) is not prime" % p)
+            raise ValueError("p (%X) is not prime" % p)
 
         if all_checks:
             # the security level in bits 't' should be an input
@@ -84,12 +84,12 @@ class EC:
 
         # 5. Check that n is prime.
         if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
-            raise ValueError("n (%s) is not prime" % n)
+            raise ValueError("n (%X) is not prime" % n)
         # also check n with Hasse Theorem
         if all_checks:
             t = int(2 * sqrt(p))
             if not (p+1 - t <= n <= p+1 + t):
-                raise ValueError("n (%s) not in [p+1 - t, p+1 + t]" % n)
+                raise ValueError("n (%X) not in [p+1 - t, p+1 + t]" % n)
         self.n = n
 
         # 6. Check cofactor
@@ -102,7 +102,7 @@ class EC:
         InfMinusG = pointMult(self, n-1, self.G)
         Inf = self.add(InfMinusG, self.G)
         if Inf[1] != 0:
-            raise ValueError("n (%s) is not the group order" % n)
+            raise ValueError("n (%X) is not the group order" % n)
 
         # 8. Check that n ≠ p
         if n == p:
@@ -115,18 +115,18 @@ class EC:
 
     def __str__(self) -> str:
         result = "EC"
-        result += "\n p = 0x%032x" % (self._p)
-        result += "\n a = %s, b = %s" % (self._a, self._b)
-        result += "\n G = (0x%032x,\n          0x%032x)" % (self.G)
-        result += "\n n = 0x%032x" % (self.n)
+        result += "\n p = 0x%X" % self._p
+        result += "\n a = 0x%X, b = 0x%X" % (self._a, self._b)
+        result += "\n G = (0x%X,\n          0x%X)" % (self.G)
+        result += "\n n = 0x%X" % self.n
         return result
 
     def __repr__(self) -> str:
         result = "EC("
-        result += "0x%032x" % (self._p)
-        result += ", %s, %s" % (self._a, self._b)
-        result += ", (0x%032x,0x%032x)" % (self.G)
-        result += ", 0x%032x)" % (self.n)
+        result += "0x%X" % self._p
+        result += ", 0x%X, 0x%X" % (self._a, self._b)
+        result += ", (0x%X,0x%X)" % (self.G)
+        result += ", 0x%X)" % self.n
         return result
 
     # methods using _p: they would become functions if _p goes public
@@ -134,7 +134,7 @@ class EC:
     def checkCoordinate(self, c: int) -> None:  # FIXME: jac / affine ?
         """check that coordinate is in [0, p-1]"""
         if not (0 <= c < self._p):
-            raise ValueError("coordinate %s not in [0, p-1]" % c)
+            raise ValueError("coordinate %X not in [0, p-1]" % c)
 
     def opposite(self, Q: Point) -> Point:
         self.requireOnCurve(Q)

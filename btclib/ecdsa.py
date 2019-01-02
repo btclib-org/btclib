@@ -178,10 +178,10 @@ def to_dsasig(ec: EC, sig: ECDS) -> Tuple[int, int]:
 
     r = int(sig[0])
     if not (0 < r < ec.n):
-        raise ValueError("r (%s) not in [1, n-1]" % r)
+        raise ValueError("r (%X) not in [1, n-1]" % r)
 
     s = int(sig[1])
     if not (0 < s < ec.n):
-        raise ValueError("s (%s) not in [1, n-1]" % s)
+        raise ValueError("s (%X) not in [1, n-1]" % s)
 
     return r, s
