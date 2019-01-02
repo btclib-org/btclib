@@ -181,9 +181,10 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
 
     # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
     r = int(sig[0])
-    # skip the following, as it is not really needed
-    # assert 0 <= r < ec._p
-    # moreover the real check would be to calculate R.y because
+    # might skip the following, as it is not really needed
+    if not 0 <= r < ec._p:
+        raise ValueError("r (%X) not in [0, p-1]" % r)
+    # the real check would be to calculate R.y because
     # R.x is valid iif R.y does exist
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
