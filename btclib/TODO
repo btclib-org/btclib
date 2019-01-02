@@ -3,7 +3,6 @@ rfc6979 test
 revise kdf
 remove assert for if + raise
 
-remove os.urandom from borromean ?
 remove _pointMultJacobian from batch validation ?
 BUG in batch validation with just one sig (plus wahy a[0]=1 ?)
 
