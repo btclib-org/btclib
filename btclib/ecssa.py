@@ -176,7 +176,7 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
     r = int(sig[0])
     # skip the following
-    # ec.checkCoordinate(r)
+    # assert 0 <= r < ec._p
     # in favor of a stronger check: R.x is valid iif R.y does exist
     ec.y(r)
 

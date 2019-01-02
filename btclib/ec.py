@@ -60,7 +60,8 @@ class EC:
             # t_range = [56, 64, 80, 96, 112, 128, 192, 256] # SEC 1 v.1
             t_range =           [80, 96, 112, 128, 192, 256] # SEC 1 v.2
             if t not in t_range:
-                raise ValueError("required security level %s not in the range of allowed values" % t)
+                m = "required security level %s not in the allowed range" % t
+                raise ValueError(m)
             required_bits = {80:192, 96:192, 112:224, 128:256, 192:384, 256:521}
             if nbits != required_bits[t]:
                 raise UserWarning("not enough bits (%s) for required security level %s" % (nbits, t))
@@ -71,8 +72,10 @@ class EC:
         self.pIsThreeModFour = (self._p % 4 == 3)
 
         # 2. check that a and b are integers in the interval [0, p−1]
-        self.checkCoordinate(a)
-        self.checkCoordinate(b)
+        if not 0 <= a < p:
+            raise ValueError("invalid a (%X) for the given p (%X)" % (a, p))
+        if not 0 <= b < p:
+            raise ValueError("invalid b (%X) for the given p (%X)" % (b, p))
 
         # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p).
         d = 4*a*a*a+27*b*b
@@ -146,11 +149,6 @@ class EC:
         return result
 
     # methods using _p: they would become functions if _p goes public
-
-    def checkCoordinate(self, c: int) -> None:
-        """check that coordinate is in [0, p-1]"""
-        if not 0 <= c < self._p:
-            raise ValueError("coordinate %X not in [0, p-1]" % c)
 
     def opposite(self, Q: Point) -> Point:
         self.requireOnCurve(Q)
@@ -259,12 +257,13 @@ class EC:
 
     def isOnCurve(self, Q: Point) -> bool:
         if not isinstance(Q, tuple):
-            raise ValueError("Point must be a tuple[int, int]")
+            errMsg = "Point must be a tuple, not '%s'" % type(Q).__name__
+            raise TypeError(errMsg)
         if len(Q) != 2:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
             return True
-        if not 0 < Q[1] < self._p: # y cannot be = 0
+        if not 0 < Q[1] < self._p: # y cannot be zero
             raise ValueError("y-coordinate %X not in (0, p)" % Q[1])
         return self._y2(Q[0]) == (Q[1]*Q[1] % self._p)
 

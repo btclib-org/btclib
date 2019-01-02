@@ -168,6 +168,12 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, octets2point, ec, "04" + xstr + xstr)
         self.assertRaises(ValueError, point2octets, ec, (x, x), True)
         self.assertRaises(ValueError, point2octets, ec, (x, x), False)
+        P = [x, x]
+        self.assertRaises(TypeError, ec.isOnCurve, P)
+        P = (x, x, x)
+        self.assertRaises(ValueError, ec.isOnCurve, P)
+        P = (x, ec._p+1)
+        self.assertRaises(ValueError, ec.isOnCurve, P)
 
 
     def test_opposite(self):

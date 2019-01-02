@@ -31,8 +31,8 @@ package
 jupyter for scripts
 
 uncovered code:
- 1 base58
- 2 borromean 2 return false (+ for cycle urandom)
+ 1 base58 str input
+ 2 borromean 2 return false
  1 ec n=p
  1 ecdsa verify Inf as public key
  1 ecssa_recovery, recover Inf as pub key
