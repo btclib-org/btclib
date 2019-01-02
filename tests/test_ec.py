@@ -33,36 +33,6 @@ class TestEllipticCurve(unittest.TestCase):
         # p not prime
         self.assertRaises(ValueError, EC, 15, 2, 7, (6, 9),    7, 1, 0, False)
 
-        # zero discriminant
-        self.assertRaises(ValueError, EC, 11, 7, 7, (6, 9),    7, 1, 0, False)
-
-        # G not Tuple (int, int)
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9, 1), 7, 1, 0, False)
-
-        # G not on curve
-        self.assertRaises(ValueError, EC, 11, 2, 7, (7, 9),    7, 1, 0, False)
-
-        # n not prime
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),    8, 1, 0, False)
-
-        # n not Hesse
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   71, 1, 0, True)
-
-        # n not group order
-        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   13, 1, 0, False)
-
-        # a > p
-        self.assertRaises(ValueError, EC, 11, 12, 7, (6, 9),   13, 1, 0, False)
-
-        # b > p
-        self.assertRaises(ValueError, EC, 11, 2, 12, (6, 9),   13, 1, 0, False)
-
-        # n=p -> weak curve
-        # missing
-
-        # weak curve
-        self.assertRaises(UserWarning, EC, 11, 2, 7, (6, 9), 7, 2, 0, True)
-
         # required security level not in the allowed range
         ec = secp112r1
         p = ec._p
@@ -86,6 +56,40 @@ class TestEllipticCurve(unittest.TestCase):
         h = ec.h
         self.assertRaises(UserWarning, EC, p, a, b, G, n, h, t)
         #EC(p, a, b, G, n, h, t)
+
+        # a > p
+        self.assertRaises(ValueError, EC, 11, 12, 7, (6, 9),   13, 1, 0, False)
+
+        # b > p
+        self.assertRaises(ValueError, EC, 11, 2, 12, (6, 9),   13, 1, 0, False)
+
+        # zero discriminant
+        self.assertRaises(ValueError, EC, 11, 7, 7, (6, 9),    7, 1, 0, False)
+
+        # G not Tuple (int, int)
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9, 1), 7, 1, 0, False)
+
+        # G not on curve
+        self.assertRaises(ValueError, EC, 11, 2, 7, (7, 9),    7, 1, 0, False)
+
+        # n not prime
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),    8, 1, 0, False)
+
+        # n not Hesse
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   71, 1, 0, True)
+
+        # h not as expected
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   7, 1, 0, True)
+        #EC(11, 2, 7, (6, 9), 7, 1, 0, True)
+
+        # n not group order
+        self.assertRaises(ValueError, EC, 11, 2, 7, (6, 9),   13, 1, 0, False)
+
+        # n=p -> weak curve
+        # missing
+
+        # weak curve
+        self.assertRaises(UserWarning, EC, 11, 2, 7, (6, 9), 7, 2, 0, True)
 
 
     def test_all_curves(self):
