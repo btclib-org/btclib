@@ -83,6 +83,8 @@ def ecssa_sign(ec: EC, hf, m: bytes, d: int,
 
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
     e = _ecssa_e(ec, hf, R[0], P, m)
+    if e == 0:
+        raise ValueError("e = 0, signature would not depend on private key")
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
@@ -132,6 +134,8 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
     # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
     e = _ecssa_e(ec, hf, r, P, m)
+    if e == 0:
+        raise ValueError("e = 0, signatur does not depend on private key")
 
     # Let R = sG - eP.
     R = DblScalarMult(ec, s, ec.G, -e, P)
@@ -178,12 +182,16 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     # skip the following
     # assert 0 <= r < ec._p
     # in favor of a stronger check: R.x is valid iif R.y does exist
-    ec.y(r)
+    try:
+        ec.y(r)
+    except:
+        m = "r (%X) not a valid field element given p (%X)" % (r, ec._p)
+        raise ValueError(m)
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
     s = int(sig[1])
     if not 0 <= s < ec.n:
-        raise ValueError("s not in [0, n-1]")
+        raise ValueError("s (%X) not in [0, n-1]" % s)
 
     return r, s
 

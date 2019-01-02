@@ -164,6 +164,13 @@ class TestEcssa(unittest.TestCase):
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
         self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
 
+        # new proposed test: invalid r
+        pub = octets2point(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        msg = bytes.fromhex("0000000000000000000000000000000000000000000000000000000000000000")
+        sig = (0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34,
+               0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
+        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+
         # test vector 7
         # public key not on the curve
         # impossible to verify with btclib analytics as it at Point conversion
@@ -277,13 +284,13 @@ class TestEcssa(unittest.TestCase):
                             k = ec.n - k
 
                         e = _ecssa_e(ec, hf, K[0], Q, h)
-                        s = (k + e * q) % ec.n
-
-                        # valid signature
-                        sig = ecssa_sign(ec, hf, h, q, k)
-                        self.assertEqual((K[0], s), sig)
-                        # valid signature must validate
-                        self.assertTrue(_ecssa_verify(ec, hf, h, Q, sig))
+                        if e != 0:
+                            s = (k + e * q) % ec.n
+                            # valid signature
+                            sig = ecssa_sign(ec, hf, h, q, k)
+                            self.assertEqual((K[0], s), sig)
+                            # valid signature must validate
+                            self.assertTrue(_ecssa_verify(ec, hf, h, Q, sig))
 
 if __name__ == "__main__":
     # execute only if run as a script
