@@ -104,9 +104,9 @@ class EC:
         self.n = n
 
         # 6. Check cofactor
-        required_h = int(pow(sqrt(p)+1, 2) // n)
-        if h != required_h:
-            raise ValueError("h (%s) not equal to %s" % (h, required_h))
+        exp_h = int(pow(sqrt(p)+1, 2) // n)
+        if h != exp_h:
+            raise ValueError("h (%s) not as expected (%s)" % (h, exp_h))
         if all_checks and t != 0 and h > pow(2, t/8):
             raise ValueError("h (%s) too big for t (%s)" % (h, t))
         self.h = h
