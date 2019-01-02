@@ -66,13 +66,16 @@ class TestEcssa(unittest.TestCase):
         # not ec.pIsThreeModFour
         self.assertFalse(ecssa_verify(secp224k1, hf, msg, Q, sig))
         self.assertRaises(ValueError, _ecssa_verify, secp224k1, hf, msg, Q, sig)
-        # invalid (zero) challenge e
-        e = 0
-        self.assertRaises(ValueError, _ecssa_pubkey_recovery, ec, hf, e, sig)
-        # message of wrong size
+
+        # verify: message of wrong size
         wrongmsg = msg[:-1]
         self.assertFalse(ecssa_verify(ec, hf, wrongmsg, Q, sig))
         self.assertRaises(ValueError, _ecssa_verify, ec, hf, wrongmsg, Q, sig)
+        #_ecssa_verify(ec, hf, wrongmsg, Q, sig)
+
+        # sign: message of wrong size
+        self.assertRaises(ValueError, ecssa_sign, ec, hf, wrongmsg, q, None)
+        #ecssa_sign(ec, hf, wrongmsg, q, None)
 
     def test_schnorr_bip_tv(self):
         """Bip-Schnorr Test Vectors

@@ -34,5 +34,6 @@ uncovered code:
  1 base58 str input
  2 borromean 2 return false
  1 ec n=p
- 1 ecdsa verify Inf as public key
+ 1 ecdsa verify R = Inf
  1 ecssa_recovery, recover Inf as pub key
+ 

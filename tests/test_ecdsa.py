@@ -64,9 +64,15 @@ class TestEcdsa(unittest.TestCase):
         # r not in [1, n-1]
         invalid_dassig = 0, sig[1]
         self.assertRaises(ValueError, to_dsasig, ec, invalid_dassig)
+
         # s not in [1, n-1]
         invalid_dassig = sig[0], 0
         self.assertRaises(ValueError, to_dsasig, ec, invalid_dassig)
+
+        # pubkey = Inf
+        self.assertTrue(_ecdsa_verify(ec, hf, msg, (1, 0), sig))
+        #_ecdsa_verify(ec, hf, msg, (1, 0), sig)
+
 
     def test_forge_hash_sig(self):
         """forging valid signatures for hash (DSA signs message, not hash)"""
