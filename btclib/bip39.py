@@ -94,8 +94,8 @@ def bip39_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
     password = mnemonic.encode()
     salt = ('mnemonic' + passphrase).encode()
     iterations = 2048
-    dklen = 64
-    return pbkdf2_hmac(hash_name, password, salt, iterations, dklen)
+    dksize = 64
+    return pbkdf2_hmac(hash_name, password, salt, iterations, dksize)
 
 # TODO: re-evaluate style
 

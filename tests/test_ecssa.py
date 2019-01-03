@@ -269,8 +269,8 @@ class TestEcssa(unittest.TestCase):
         prime = [11,  13,  17,  19]
 
         # all possible hashed messages
-        hlen = 32
-        H = [i.to_bytes(hlen, 'big') for i in range(max(prime)*2)]
+        hsize = 32
+        H = [i.to_bytes(hsize, 'big') for i in range(max(prime)*2)]
 
         # only low card curves or it would take forever
         for ec in low_card_curves:

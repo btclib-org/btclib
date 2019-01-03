@@ -16,7 +16,6 @@ from collections import defaultdict
 from btclib.ec import Point, pointMult, DblScalarMult    
 from btclib.ecurves import secp256k1    
 from btclib.ecutils import bits2int, point2octets, octets2point
-from btclib.rfc6979 import rfc6979
 
 
 # source: https://github.com/ElementsProject/borromean-signatures-writeup

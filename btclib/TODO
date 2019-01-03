@@ -1,6 +1,4 @@
-resolve confusion between hlen and qlen
 add GEC 2 Test Vectors for SEC 1
-rfc6979 test
 add brainpool curves https://tools.ietf.org/html/rfc5639
 revise kdf
 remove assert for if + raise

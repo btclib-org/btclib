@@ -27,13 +27,12 @@ ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 
 def _ecssa_e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
-    ebytes = int2octets(r, ec.bytesize) # FIXME: hlen, qlen, plen ?
+    ebytes = int2octets(r, ec.bytesize) # FIXME: hlen, nlen, plen ?
     ebytes += point2octets(ec, P, True)
     ebytes += m
     ebytes = hf(ebytes).digest()
     e = bits2int(ec, ebytes)
     return e
-    # should check for e == 0 ? FIXME
 
 
 def ecssa_sign(ec: EC, hf, m: bytes, d: int,

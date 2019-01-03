@@ -34,14 +34,13 @@ def ecdsa_sign(ec: EC, hf, M: bytes, d: int,
 
     # https://tools.ietf.org/html/rfc6979#section-3.2
     # The message M is first processed by hf, yielding the value hd(m),
-    # a sequence of bits of length hashlen.  Normally, hf is chosen such that
-    # its output length hlen is roughly equal to qlen, since the overall
-    # security of the signature scheme will depend on the smallest of hashlen
-    # and qlen; however, the (EC)DSA standard support all combinations of
-    # hashlen and qlen.
+    # a sequence of bits of length hlen.  Normally, hf is chosen such that
+    # its output length hlen is roughly equal to nlen, since the overall
+    # security of the signature scheme will depend on the smallest of hlen
+    # and nlen; however, the (EC)DSA standard support all combinations of
+    # hlen and nlen.
     hd = hf(M).digest()                               # 4
-    # H(m) is transformed into an integer modulo q using bits2int (that already
-    # inludes the extra modular reduction:
+    # H(m) is transformed into an integer modulo ec.n using bits2int:
     e = bits2int(ec, hd)                              # 5
 
     if k is None:
@@ -165,19 +164,19 @@ def _ecdsa_pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     r1s = r1*s
     r1e = -r1*e
     keys = []
-    for j in range(ec.h+1):                                 # 1
+    for j in range(ec.h):                                   # 1
         x = r + j*ec.n                                      # 1.1
         try:
-            R = (x, ec.yOdd(x, 1))                          # 1.2, 1.3, and 1.4
+            R = (x % ec._p, ec.yOdd(x, 1))                  # 1.2, 1.3, and 1.4
             # 1.5 already taken care outside this for loop
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)        # 1.6.1
-            if Q[1] != 0:                                   # 1.6.2
+            if Q[1] != 0 and _ecdsa_verhlp(ec, e, Q, sig):  # 1.6.2
                 keys.append(Q)
             R = ec.opposite(R)                              # 1.6.3
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)
-            if Q[1] != 0:                                   # 1.6.2
+            if Q[1] != 0 and _ecdsa_verhlp(ec, e, Q, sig):  # 1.6.2
                 keys.append(Q)                              # 1.6.2
-        except Exception:  # can't get a curve's point
+        except Exception:  # R is not a curve point
             pass
     return keys
 

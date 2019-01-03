@@ -24,8 +24,8 @@ class TestBIP39Wallet(unittest.TestCase):
         raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
         mnemonic = bip39_mnemonic_from_raw_entropy(raw_entr, lang)
         r = bip39_raw_entropy_from_mnemonic(mnemonic, lang)
-        nbytes = math.ceil(len(r)/8)
-        r = int(r, 2).to_bytes(nbytes, 'big')
+        size = math.ceil(len(r)/8)
+        r = int(r, 2).to_bytes(size, 'big')
         self.assertEqual(r, raw_entr)
 
         passphrase = ''
@@ -56,8 +56,8 @@ class TestBIP39Wallet(unittest.TestCase):
             self.assertEqual(mnemonic, test_vector[1])
 
             raw_entr = bip39_raw_entropy_from_mnemonic(mnemonic, lang)
-            nbytes = math.ceil(len(raw_entr)/8)
-            raw_entr = int(raw_entr, 2).to_bytes(nbytes, 'big')
+            size = math.ceil(len(raw_entr)/8)
+            raw_entr = int(raw_entr, 2).to_bytes(size, 'big')
             self.assertEqual(raw_entr, test_vector[0])
 
             seed = bip39_seed_from_mnemonic(mnemonic, "TREZOR").hex()

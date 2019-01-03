@@ -40,12 +40,12 @@ class TestDER(unittest.TestCase):
         DER2 = b'\x00' + DER[1:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
-        # Declared signature length does not match with size
+        # Declared signature size does not match with size
         DER2 = DER[:1] + b'\x00' + DER[2:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
-        lenR = DER[3]
-        # Zero-length integers are not allowed for r
+        Rsize = DER[3]
+        # Zero-size integers are not allowed for r
         DER2 = DER[:3] + b'\x00' + DER[4:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
@@ -53,12 +53,12 @@ class TestDER(unittest.TestCase):
         DER2 = DER[:3] + b'\x80' + DER[4:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
-        # Zero-length integers are not allowed for s
-        DER2 = DER[:lenR+5] + b'\x00' + DER[lenR+6:]
+        # Zero-size integers are not allowed for s
+        DER2 = DER[:Rsize+5] + b'\x00' + DER[Rsize+6:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
         # Signature size does not match with elements
-        DER2 = DER[:lenR+5] + b'\x4f' + DER[lenR+6:]
+        DER2 = DER[:Rsize+5] + b'\x4f' + DER[Rsize+6:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
         # r element must be an integer
@@ -74,15 +74,15 @@ class TestDER(unittest.TestCase):
         self.assertRaises(ValueError, DER_decode, DER2)
 
         # s element must be an integer
-        DER2 = DER[:lenR+4] + b'\x00' + DER[lenR+5:]
+        DER2 = DER[:Rsize+4] + b'\x00' + DER[Rsize+5:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
         # Negative numbers are not allowed for s
-        DER2 = DER[:lenR+6] + b'\x80' + DER[lenR+7:]
+        DER2 = DER[:Rsize+6] + b'\x80' + DER[Rsize+7:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
         # Invalid null bytes at the start of s
-        DER2 = DER[:lenR+6] + b'\x00\x00' + DER[lenR+8:]
+        DER2 = DER[:Rsize+6] + b'\x00\x00' + DER[Rsize+8:]
         self.assertRaises(ValueError, DER_decode, DER2)
 
         # sighash size > 1

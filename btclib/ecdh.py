@@ -11,29 +11,29 @@
 from btclib.ec import EC, Point, pointMult
 from btclib.ecutils import int2octets, octets2int
 
-def kdf(zbytes: bytes, keydatalen: int, ec: EC, hf) -> bytes:
+def kdf(zbytes: bytes, keydatasize: int, ec: EC, hf) -> bytes:
     """ ANS-X9.63-KDF - SEC 1 specification
 
     source: http://www.secg.org/sec1-v2.pdf, section 3.6.1
     """
-    hlen = hf().digest_size
-    assert keydatalen < hlen * (2**32 - 1), "invalid"
+    hsize = hf().digest_size
+    assert keydatasize < hsize * (2**32 - 1), "invalid"
     counter = 1
     counter_bytes = counter.to_bytes(4, 'big')
     K_temp = []
-    for i in range((keydatalen+1) // hlen):
+    for i in range((keydatasize+1) // hsize):
         K_temp.append(hf(zbytes + counter_bytes).digest())
         counter += 1
         counter_bytes = counter.to_bytes(4, 'big')
         i += 1
-    K_bytes = b''.join(K_temp[i] for i in range(keydatalen // hlen))
-    K = octets2int(K_bytes) >> (keydatalen - hlen)
+    K_bytes = b''.join(K_temp[i] for i in range(keydatasize // hsize))
+    K = octets2int(K_bytes) >> (keydatasize - hsize)
     return int2octets(K, ec.bytesize)
 
 
 def key_agreement(dUV: int,
                   QVU: Point,
-                  keydatalen: int,
+                  keydatasize: int,
                   ec: EC,
                   hf) -> bytes:
     P = pointMult(ec, dUV, QVU)
@@ -41,5 +41,5 @@ def key_agreement(dUV: int,
         "invalid (zero) private key"
     z = P[0]
     zbytes = int2octets(z, ec.bytesize)
-    k = kdf(zbytes, keydatalen, ec, hf)
+    k = kdf(zbytes, keydatasize, ec, hf)
     return k

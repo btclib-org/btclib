@@ -40,21 +40,21 @@ sighash_single_anyonecanpay = b'\x83'
 def bytes_from_element(element: int) -> bytes:
     if element<0:
         raise ValueError("negative (%s) signature element" % element)
-    bits = element.bit_length()
-    len_bytes = bits // 8 + 1  # not a bug
+    elen = element.bit_length()
+    esize = elen // 8 + 1  # not a bug
     # padding for 'highest bit set' is included above
-    n_bytes = element.to_bytes(len_bytes, 'big')
+    n_bytes = element.to_bytes(esize, 'big')
     return n_bytes
 
 def encode_element(element: int) -> bytes:
     x = bytes_from_element(element)
-    x_len = len(x).to_bytes(1, "big")
-    return b'\x02' + x_len + x
+    xsize = len(x).to_bytes(1, "big")
+    return b'\x02' + xsize + x
 
 
 def DER_encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
     if len(sighash) > 1:
-        raise ValueError("sighash size %s > 1" % len(sighash))
+        raise ValueError("sighash sigsize %s > 1" % len(sighash))
     r, s = sig
     enc = encode_element(int(r))
     enc += encode_element(s) # FIXME
@@ -62,30 +62,30 @@ def DER_encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
 
 def DER_decode(sig: bytes) -> Tuple[ECDS, bytes]:
 
-    size = len(sig)
-    if not 8 < size < 74:
-        raise ValueError("DER signature size (%s) should be in [9, 73]" % size)
+    sigsize = len(sig)
+    if not 8 < sigsize < 74:
+        raise ValueError("DER signature size (%s) should be in [9, 73]" % sigsize)
 
     if sig[0] != 0x30:
         raise ValueError("DER signature must be of type 0x30 (compound)")
 
-    # size checks
-    if sig[1] + 3 != size:
-        raise ValueError("Declared signature length does not match with size")
+    # sigsize checks
+    if sig[1] + 3 != sigsize:
+        raise ValueError("Declared signature size does not match with actual sigsize")
 
-    lenR = sig[3]  # length of the r element
-    if lenR == 0:
-        raise ValueError("Zero-length integers are not allowed for r")
+    sizeR = sig[3]  # size of the r element
+    if sizeR == 0:
+        raise ValueError("Zero-size integers are not allowed for r")
 
-    if 5 + lenR >= size:
-        raise ValueError("Length of the s element must be inside the signature")
+    if 5 + sizeR >= sigsize:
+        raise ValueError("Size of the s element must be inside the signature")
 
-    lenS = sig[5 + lenR]  # length of the s element
-    if lenS == 0:
-        raise ValueError("Zero-length integers are not allowed for s")
+    sizeS = sig[5 + sizeR]  # size of the s element
+    if sizeS == 0:
+        raise ValueError("Zero-size integers are not allowed for s")
 
-    if lenR + lenS + 7 != size:
-        raise ValueError("Signature size does not match with elements")
+    if sizeR + sizeS + 7 != sigsize:
+        raise ValueError("Signature size does not match with size of elements")
 
     # element r
     if sig[2] != 0x02:
@@ -96,21 +96,21 @@ def DER_decode(sig: bytes) -> Tuple[ECDS, bytes]:
 
     # Null bytes at the start of an element are not allowed, unless the
     # element would otherwise be interpreted as a negative number
-    if lenR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
+    if sizeR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
         raise ValueError("Invalid null bytes at the start of r")
 
-    r = int.from_bytes(sig[4:4+lenR], 'big')
+    r = int.from_bytes(sig[4:4+sizeR], 'big')
 
-    # element s (offset=2+lenR with respect to r)
-    if sig[lenR + 4] != 0x02:
+    # element s (offset=2+sizeR with respect to r)
+    if sig[sizeR + 4] != 0x02:
         raise ValueError("s element must be an integer")
 
-    if sig[lenR + 6] & 0x80:
+    if sig[sizeR + 6] & 0x80:
         raise ValueError("Negative numbers are not allowed for s")
 
-    if lenS > 1 and sig[lenR + 6] == 0x00 and not (sig[lenR + 7] & 0x80):
+    if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
         raise ValueError("Invalid null bytes at the start of s")
 
-    s = int.from_bytes(sig[6+lenR:6+lenR+lenS], 'big')
+    s = int.from_bytes(sig[6+sizeR:6+sizeR+sizeS], 'big')
 
-    return (r , s) , sig[size-1:]
+    return (r , s) , sig[sigsize-1:]

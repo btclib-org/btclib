@@ -54,7 +54,7 @@ class EC:
             raise ValueError("p (%X) is not prime" % p)
 
         # 1) check that p has enough bits
-        nbits = p.bit_length()
+        plen = p.bit_length()
         self.t = t
         if t != 0 and all_checks:
             # t_range = [56, 64, 80, 96, 112, 128, 192, 256] # SEC 1 v.1
@@ -64,11 +64,11 @@ class EC:
                 m += "not in the allowed range %s" % t_range
                 raise UserWarning(m)
             required_bits = {80:192, 96:192, 112:224, 128:256, 192:384, 256:521}
-            if nbits != required_bits[t]:
-                raise UserWarning("not enough bits (%s) for required security level %s" % (nbits, t))
+            if plen != required_bits[t]:
+                raise UserWarning("not enough bits (%s) for required security level %s" % (plen, t))
 
         self._p = p
-        self.bytesize = (nbits + 7) // 8  # FIXME: p or n
+        self.bytesize = (plen + 7) // 8
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = (self._p % 4 == 3)
 

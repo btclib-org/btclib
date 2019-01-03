@@ -63,8 +63,8 @@ def electrum_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
     password = mnemonic.encode()
     salt = ('electrum' + passphrase).encode()
     iterations = 2048
-    dklen = 64
-    return pbkdf2_hmac(hash_name, password, salt, iterations, dklen)
+    dksize = 64
+    return pbkdf2_hmac(hash_name, password, salt, iterations, dksize)
 
 
 def electrum_master_prvkey_from_mnemonic(mnemonic: str,
