@@ -11,7 +11,7 @@
 """ Deterministic generation of the nonce following rfc6979
 
 rfc6979 specification:
-https://tools.ietf.org/html/rfc6979#section-3.2
+https://tools.ietf.org/html/rfc6979 section 3.2
 code adapted from:
 https://github.com/AntonKueltz/fastecdsa/blob/master/fastecdsa/util.py
 """
