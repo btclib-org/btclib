@@ -33,7 +33,8 @@ jupyter for scripts
 uncovered code:
  1 base58 str input
  2 borromean 2 return false
- 1 ec n=p, h too big
+ 2 ec n=p, h too big
  1 ecdsa_verify R = Inf
  1 ecssa_recovery recover Inf as pub key
+ 1 pedersen Q = Inf
  
