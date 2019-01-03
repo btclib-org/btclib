@@ -43,7 +43,7 @@ class EC:
                        h: int, t: int = 0, all_checks: bool = True) -> None:
         """EC instantiation
 
-        Parameters are checked according to SEC2 3.1.1.2.1
+        Parameters are checked according to SEC 1 v.2 3.1.1.2.1
         """
 
         # 1) check that p is an odd prime
