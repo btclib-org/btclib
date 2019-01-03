@@ -21,23 +21,23 @@ from btclib.wifaddress import b58encode_check, wif_from_prvkey, \
 class TestKeys(unittest.TestCase):
 
     def test_wif_from_prvkey(self):
-        p_num = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+        q = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 
         # private key as number
-        wif = wif_from_prvkey(p_num, True)
+        wif = wif_from_prvkey(q, True)
         self.assertEqual(wif, b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617')
-        p2 = prvkey_from_wif(wif)
-        self.assertEqual(p2[0], p_num)
-        self.assertEqual(p2[1], True)
-        wif = wif_from_prvkey(p_num, False)
+        q2 = prvkey_from_wif(wif)
+        self.assertEqual(q2[0], q)
+        self.assertEqual(q2[1], True)
+        wif = wif_from_prvkey(q, False)
         self.assertEqual(wif, b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ')
-        p3 = prvkey_from_wif(wif)
-        self.assertEqual(p3[0], p_num)
-        self.assertEqual(p3[1], False)
+        q3 = prvkey_from_wif(wif)
+        self.assertEqual(q3[0], q)
+        self.assertEqual(q3[1], False)
 
 
-        p_bytes = int2octets(p_num, ec.bytesize)
-        payload = b'\x80' + p_bytes + b'\x01\x01'
+        qbytes = int2octets(q, ec.nsize)
+        payload = b'\x80' + qbytes + b'\x01\x01'
         wif = b58encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, wif)
 

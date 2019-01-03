@@ -28,7 +28,7 @@ def kdf(zbytes: bytes, keydatasize: int, ec: EC, hf) -> bytes:
         i += 1
     K_bytes = b''.join(K_temp[i] for i in range(keydatasize // hsize))
     K = octets2int(K_bytes) >> (keydatasize - hsize)
-    return int2octets(K, ec.bytesize)
+    return int2octets(K, ec.psize)
 
 
 def key_agreement(dUV: int,
@@ -40,6 +40,6 @@ def key_agreement(dUV: int,
     if P == (1, 0):
         "invalid (zero) private key"
     z = P[0]
-    zbytes = int2octets(z, ec.bytesize)
+    zbytes = int2octets(z, ec.psize)
     k = kdf(zbytes, keydatasize, ec, hf)
     return k

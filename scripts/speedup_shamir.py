@@ -11,21 +11,21 @@
 import random
 import time
 
-from btclib.ec import secp256k1, pointMult, DblScalarMult
+from btclib.ec import pointMult, DblScalarMult
+from btclib.ecurves import secp256k1
 
 random.seed(42)
 
 ec = secp256k1
-bits = ec.bytesize * 8
 
 # setup
 k1 = []
 k2 = []
 Q = []
 for _ in range(50):
-    k1.append(random.getrandbits(bits) % ec.n)
-    k2.append(random.getrandbits(bits) % ec.n)
-    q = random.getrandbits(bits) % ec.n
+    k1.append(random.getrandbits(ec.nlen) % ec.n)
+    k2.append(random.getrandbits(ec.nlen) % ec.n)
+    q = random.getrandbits(ec.nlen) % ec.n
     Q.append(pointMult(ec, q, ec.G))
 
 start = time.time()

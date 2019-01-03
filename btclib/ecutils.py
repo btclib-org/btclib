@@ -28,28 +28,28 @@ def octets2point(ec: EC, o: octets) -> Point:
         o = bytes.fromhex(o)
 
     bsize = len(o) # bytes
-    if bsize == 1 and o[0] == 0x00:  # infinity point
+    if bsize == 1 and o[0] == 0x00:     # infinity point
         return 1, 0
 
-    if bsize == ec.bytesize+1:       # compressed point
+    if bsize == ec.psize+1:             # compressed point
         if o[0] not in (0x02, 0x03):
-            m = "%s bytes, but not a compressed point" % (ec.bytesize+1)
+            m = "%s bytes, but not a compressed point" % (ec.psize+1)
             raise ValueError(m)
         Px = int.from_bytes(o[1:], 'big')
         try:
-            Py = ec.yOdd(Px, o[0] % 2)    # also check Px validity
+            Py = ec.yOdd(Px, o[0] % 2)  # also check Px validity
             return Px, Py
         except:
             raise ValueError("point not on curve")
-    else:                             # uncompressed point
-        if bsize != 2*ec.bytesize+1:
+    else:                               # uncompressed point
+        if bsize != 2*ec.psize+1:
             m = "wrong byte-size (%s) for a point: it " % bsize
-            m += "should be %s or %s" % (ec.bytesize+1, 2*ec.bytesize+1)
+            m += "should be %s or %s" % (ec.psize+1, 2*ec.psize+1)
             raise ValueError(m)
         if o[0] != 0x04:
             raise ValueError("not an uncompressed point")
-        Px = int.from_bytes(o[1:ec.bytesize+1], 'big')
-        P = Px, int.from_bytes(o[ec.bytesize+1:], 'big')
+        Px = int.from_bytes(o[1:ec.psize+1], 'big')
+        P = Px, int.from_bytes(o[ec.psize+1:], 'big')
         if ec.isOnCurve(P):
             return P
         else:
@@ -67,11 +67,11 @@ def point2octets(ec: EC, Q: Point, compressed: bool) -> bytes:
     if Q[1] == 0:  # infinity point in affine coordinates
         return b'\x00'
 
-    bPx = Q[0].to_bytes(ec.bytesize, byteorder='big')
+    bPx = Q[0].to_bytes(ec.psize, byteorder='big')
     if compressed:
         return (b'\x03' if (Q[1] & 1) else b'\x02') + bPx
 
-    return b'\x04' + bPx + Q[1].to_bytes(ec.bytesize, byteorder='big')
+    return b'\x04' + bPx + Q[1].to_bytes(ec.psize, byteorder='big')
 
 
 def octets2int(o: octets) -> int:
@@ -93,33 +93,32 @@ def int2octets(i: int, bytesize: int) -> bytes:
 # 8 and bit sequences already have length nlen.
 
 def bits2int(ec: EC, o: octets) -> int:
-    """ Return the leftmost ec.n.bitlength() bits % ec.n
+    """ Return the leftmost ec.nlen bits reduced modulo ec.n
     
         It takes as input a sequence of blen bits and calculate a non-negative
-        integer that is less than 2^nlen. It then further reduced it modulo
-        ec.n to ensure that 0 < i < ec.n.
+        integer 'i' that is less than 2^nlen. Further, it reduces 'i'
+        modulo ec.n to ensure that 0 < i < ec.n.
 
         bits2int is used during signature generation and verification in
         ECDSA and ECSSA to transform a hash value (computed over the input
         message) into an integer modulo ec.n.
     """
     i = _bits2int(ec, o)
-    return i % ec.n
+    return i % ec.n  # might be just a difference
 
 
 def _bits2int(ec: EC, o: octets) -> int:
-    """ Return the leftmost ec.n.bitlength() bits
+    """ Return the leftmost ec.nlen bits
 
         It takes as input a sequence of blen bits and outputs a non-negative
-        integer that is less than 2^nlen. Note that an additional mod ec.n
-        would be required to ensure that 0 < i < ec.n.
+        integer 'o' that is less than 2^nlen. Note that an additional reduction
+        modulo ec.n would be required to ensure that 0 < i < ec.n.
 
         http://www.secg.org/sec1-v2.pdf
         SEC 1 v.2 section 4.1.3 (5)
     """
     i = octets2int(o)
 
-    blen = len(o) * 8         # bits
-    nlen = ec.n.bit_length()  # bits
-    n = (blen - nlen) if blen >= nlen else 0
+    blen = len(o) * 8  # bits
+    n = (blen - ec.nlen) if blen >= ec.nlen else 0
     return i >> n

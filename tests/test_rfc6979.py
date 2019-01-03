@@ -34,6 +34,8 @@ class Testrfc6979(unittest.TestCase):
         class _helper:
             def __init__(self, n: int) -> None:
                 self.n = n
+                self.nlen = n.bit_length()
+                self.nsize = (self.nlen + 7) // 8
 
         # source: https://tools.ietf.org/html/rfc6979 section A.1
 

@@ -26,7 +26,7 @@ from btclib.ecutils import octets, octets2int, int2octets, point2octets
 def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     """private key to Wallet Import Format"""
 
-    payload = b'\x80' + int2octets(prvkey, ec.bytesize)
+    payload = b'\x80' + int2octets(prvkey, ec.psize)
     if compressed:
         payload += b'\x01'
     return b58encode_check(payload)
@@ -38,11 +38,11 @@ def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
     payload = b58decode_check(wif)
     assert payload[0] == 0x80, "not a WIF"
 
-    if len(payload) == ec.bytesize + 2:   # compressed WIF
+    if len(payload) == ec.psize + 2:   # compressed WIF
         # must have a trailing 0x01
-        assert payload[ec.bytesize + 1] == 0x01, "not a WIF"
+        assert payload[ec.psize + 1] == 0x01, "not a WIF"
         return octets2int(payload[1:-1]), True
-    elif len(payload) == ec.bytesize + 1:  # uncompressed WIF
+    elif len(payload) == ec.psize + 1:  # uncompressed WIF
         return octets2int(payload[1:]), False
 
     raise ValueError("not a WIF")

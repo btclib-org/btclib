@@ -68,7 +68,7 @@ class EC:
                 raise UserWarning("not enough bits (%s) for required security level %s" % (plen, t))
 
         self._p = p
-        self.bytesize = (plen + 7) // 8
+        self.psize = (plen + 7) // 8
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = (self._p % 4 == 3)
 
@@ -102,6 +102,8 @@ class EC:
             if not (p+1 - delta <= n <= p+1 + delta):
                 raise ValueError("n (%X) not in [p+1 - delta, p+1 + delta]" % n)
         self.n = n
+        self.nlen = n.bit_length()
+        self.nsize = (self.nlen + 7) // 8
 
         # 6. Check cofactor
         exp_h = int(pow(sqrt(p)+1, 2) // n)

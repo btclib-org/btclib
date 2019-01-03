@@ -27,7 +27,7 @@ ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 
 def _ecssa_e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
-    ebytes = int2octets(r, ec.bytesize) # FIXME: hlen, nlen, plen ?
+    ebytes = int2octets(r, ec.psize) # FIXME: hsize, nsize ?
     ebytes += point2octets(ec, P, True)
     ebytes += m
     ebytes = hf(ebytes).digest()

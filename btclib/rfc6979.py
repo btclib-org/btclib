@@ -51,16 +51,13 @@ def rfc6979(ec: EC, hf, h1: bytes, x: int) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
     # h1 = hf(m)                                           # 3.2.a
 
-    nlen = ec.n.bit_length()   # bits
-    nsize = (nlen + 7) // 8    # bytes
-
     # truncate and/or expand h1: encoding size is driven by nsize
-    z1 = _bits2int(ec, h1)      # leftmost ec.n.bitlength() bits
+    z1 = _bits2int(ec, h1)         # leftmost ec.nlen bits
     z1 %= ec.n
-    bm = int2octets(z1, nsize)  # bm = z1.to_bytes(nsize, 'big')
+    bm = int2octets(z1, ec.nsize)  # bm = z1.to_bytes(nsize, 'big')
 
     # convert the private key x to a sequence of nsize octets
-    bprv = int2octets(x, nsize) # bprv = x.to_bytes(nsize, 'big')
+    bprv = int2octets(x, ec.nsize) # bprv = x.to_bytes(nsize, 'big')
 
     bprvbm = bprv + bm
     V = b'\x01' * hsize                                    # 3.2.b
@@ -72,7 +69,7 @@ def rfc6979(ec: EC, hf, h1: bytes, x: int) -> int:
 
     while True:                                            # 3.2.h
         T = b''                                            # 3.2.h.1
-        while len(T) < nsize:                              # 3.2.h.2
+        while len(T) < ec.nsize:                           # 3.2.h.2
             V = hmac.new(K, V, hf).digest()
             T += V
         k = _bits2int(ec, T)  # candidate                  # 3.2.h.3

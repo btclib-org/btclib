@@ -11,18 +11,17 @@
 import random
 import time
 
-from btclib.ec import secp256k1, _jac_from_aff, \
-    _pointMultAffine, _pointMultJacobian
+from btclib.ec import _jac_from_aff, _pointMultAffine, _pointMultJacobian
+from btclib.ecurves import secp256k1
 
 random.seed(42)
 
 ec = secp256k1
-bits = ec.bytesize * 8
 
 # setup
 qs = []
 for _ in range(50):
-    qs.append(random.getrandbits(bits) % ec.n)
+    qs.append(random.getrandbits(ec.nlen) % ec.n)
 
 start = time.time()
 for q in qs:

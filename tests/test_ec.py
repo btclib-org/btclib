@@ -133,17 +133,17 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(pointMult(ec, 25, Inf), Inf)
 
             ec_repr = repr(ec)
-            if ec in low_card_curves or ec.bytesize < 24:
+            if ec in low_card_curves or ec.psize < 24:
                 ec_repr = ec_repr[:-1] + ", False)"
             ec2 = eval(ec_repr)
             self.assertEqual(str(ec), str(ec2))
 
     def test_octets2point(self):
         for ec in all_curves:
-            bytesize = ec.bytesize
             Q = pointMult(ec, ec._p, ec.G)
 
-            Q_bytes = (b'\x03' if (Q[1] & 1) else b'\x02') + Q[0].to_bytes(bytesize, "big")
+            Q_bytes = b'\x03' if Q[1] & 1 else b'\x02'
+            Q_bytes += Q[0].to_bytes(ec.psize, "big")
             R = octets2point(ec, Q_bytes)
             self.assertEqual(R, Q)
             self.assertEqual(point2octets(ec, R, True), Q_bytes)
@@ -152,7 +152,8 @@ class TestEllipticCurve(unittest.TestCase):
             R = octets2point(ec, Q_hex_str)
             self.assertEqual(R, Q)
 
-            Q_bytes = b'\x04' + Q[0].to_bytes(bytesize, "big") + Q[1].to_bytes(bytesize, "big")
+            Q_bytes = b'\x04' + Q[0].to_bytes(ec.psize, "big")
+            Q_bytes += Q[1].to_bytes(ec.psize, "big")
             R = octets2point(ec, Q_bytes)
             self.assertEqual(R, Q)
             self.assertEqual(point2octets(ec, R, False), Q_bytes)
@@ -173,13 +174,13 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertRaises(TypeError, pointMult, ec, t, ec.G)
 
             # not a compressed point
-            Q_bytes = b'\x01' * (bytesize+1)
+            Q_bytes = b'\x01' * (ec.psize+1)
             self.assertRaises(ValueError, octets2point, ec, Q_bytes)
             # not a point
             Q_bytes += b'\x01'
             self.assertRaises(ValueError, octets2point, ec, Q_bytes)
             # not an uncompressed point
-            Q_bytes = b'\x01' * 2 * (bytesize+1)
+            Q_bytes = b'\x01' * 2 * (ec.psize+1)
             self.assertRaises(ValueError, octets2point, ec, Q_bytes)
         
         # invalid x coordinate

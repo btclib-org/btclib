@@ -30,14 +30,15 @@ class TestEcssa2(unittest.TestCase):
         sig = []
         Q = []
         a = []
-        bytesize = ec.bytesize
-        bits = bytesize * 8
+
+        hsize =hf().digest_size
+        hlen = hsize * 8
         for i in range(10):
-            m.append(random.getrandbits(bits).to_bytes(bytesize, 'big'))
-            q = random.getrandbits(bits) % ec.n
+            m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
+            q = random.getrandbits(ec.nlen) % ec.n
             sig.append(ecssa_sign(ec, hf, m[i], q))
             Q.append(pointMult(ec, q, ec.G))
-            a.append(random.getrandbits(bits))  # FIXME: % ec.n ?
+            a.append(random.getrandbits(ec.nlen) % ec.n)
         self.assertTrue(ecssa_batch_validation(ec, hf, m, Q, a, sig))
 
         m.append(m[0])
@@ -49,7 +50,6 @@ class TestEcssa2(unittest.TestCase):
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
-        bits = ec.bytesize*8
         # parameters
         t = 2
         H = secondGenerator(ec, hf)
@@ -61,10 +61,10 @@ class TestEcssa2(unittest.TestCase):
         commits1 = list()
         q1 = 0  # secret value
         while q1 == 0:
-            q1 = random.getrandbits(bits) % ec.n
+            q1 = random.getrandbits(ec.nlen) % ec.n
         q1_prime = 0
         while q1_prime == 0:
-            q1_prime = random.getrandbits(bits) % ec.n
+            q1_prime = random.getrandbits(ec.nlen) % ec.n
 
         commits1.append(DblScalarMult(ec, q1, ec.G, q1_prime, H))
 
@@ -76,11 +76,11 @@ class TestEcssa2(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f1.append(temp)
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f1_prime.append(temp)
             commits1.append(DblScalarMult(
                 ec, f1[i], ec.G, f1_prime[i], H))
@@ -115,10 +115,10 @@ class TestEcssa2(unittest.TestCase):
         commits2 = list()
         q2 = 0  # secret value
         while q2 == 0:
-            q2 = random.getrandbits(bits) % ec.n
+            q2 = random.getrandbits(ec.nlen) % ec.n
         q2_prime = 0
         while q2_prime == 0:
-            q2_prime = random.getrandbits(bits) % ec.n
+            q2_prime = random.getrandbits(ec.nlen) % ec.n
 
         commits2.append(DblScalarMult(ec, q2, ec.G, q2_prime, H))
 
@@ -130,11 +130,11 @@ class TestEcssa2(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f2.append(temp)
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f2_prime.append(temp)
             commits2.append(DblScalarMult(
                 ec, f2[i], ec.G, f2_prime[i], H))
@@ -167,10 +167,10 @@ class TestEcssa2(unittest.TestCase):
         commits3 = list()
         q3 = 0  # secret value
         while q3 == 0:
-            q3 = random.getrandbits(bits) % ec.n
+            q3 = random.getrandbits(ec.nlen) % ec.n
         q3_prime = 0
         while q3_prime == 0:
-            q3_prime = random.getrandbits(bits) % ec.n
+            q3_prime = random.getrandbits(ec.nlen) % ec.n
 
         commits3.append(DblScalarMult(ec, q3, ec.G, q3_prime, H))
 
@@ -182,11 +182,11 @@ class TestEcssa2(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f3.append(temp)
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f3_prime.append(temp)
             commits3.append(DblScalarMult(
                 ec, f3[i], ec.G, f3_prime[i], H))
@@ -279,10 +279,10 @@ class TestEcssa2(unittest.TestCase):
         commits1 = list()
         k1 = 0  # secret value
         while k1 == 0:
-            k1 = random.getrandbits(bits) % ec.n
+            k1 = random.getrandbits(ec.nlen) % ec.n
         k1_prime = 0
         while k1_prime == 0:
-            k1_prime = random.getrandbits(bits) % ec.n
+            k1_prime = random.getrandbits(ec.nlen) % ec.n
 
         commits1.append(DblScalarMult(ec, k1, ec.G, k1_prime, H))
 
@@ -294,11 +294,11 @@ class TestEcssa2(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f1.append(temp)
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f1_prime.append(temp)
             commits1.append(DblScalarMult(
                 ec, f1[i], ec.G, f1_prime[i], H))
@@ -320,10 +320,10 @@ class TestEcssa2(unittest.TestCase):
         commits3 = list()
         k3 = 0  # secret value
         while k3 == 0:
-            k3 = random.getrandbits(bits) % ec.n
+            k3 = random.getrandbits(ec.nlen) % ec.n
         k3_prime = 0
         while k3_prime == 0:
-            k3_prime = random.getrandbits(bits) % ec.n
+            k3_prime = random.getrandbits(ec.nlen) % ec.n
 
         commits3.append(DblScalarMult(ec, k3, ec.G, k3_prime, H))
 
@@ -335,11 +335,11 @@ class TestEcssa2(unittest.TestCase):
         for i in range(1, t):
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f3.append(temp)
             temp = 0
             while temp == 0:
-                temp = random.getrandbits(bits) % ec.n
+                temp = random.getrandbits(ec.nlen) % ec.n
             f3_prime.append(temp)
             commits3.append(DblScalarMult(ec, f3[i], ec.G, f3_prime[i], H))
 
@@ -460,7 +460,6 @@ class TestEcssa2(unittest.TestCase):
         https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
         https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
         """
-        bits = ec.bytesize * 8
         L = list()  # multiset of public keys
         M = hf('message to sign'.encode()).digest()
 
@@ -492,17 +491,17 @@ class TestEcssa2(unittest.TestCase):
             #K2 = pointMult(ec, k2, ec.G)
 
         # third signer
-        q3 = random.getrandbits(bits) % ec.n
+        q3 = random.getrandbits(ec.nlen) % ec.n
         Q3 = pointMult(ec, q3, ec.G)
         while Q3 == None:  # plausible only for small (test) cardinality groups
-            q3 = random.getrandbits(bits) % ec.n
+            q3 = random.getrandbits(ec.nlen) % ec.n
             Q3 = pointMult(ec, q3, ec.G)
         L.append(point2octets(ec, Q3, False))
 
-        k3 = random.getrandbits(bits) % ec.n
+        k3 = random.getrandbits(ec.nlen) % ec.n
         K3 = pointMult(ec, k3, ec.G)
         while K3 == None:  # plausible only for small (test) cardinality groups
-            k3 = random.getrandbits(bits) % ec.n
+            k3 = random.getrandbits(ec.nlen) % ec.n
             K3 = pointMult(ec, k3, ec.G)
         K3_x = K3[0]
         if legendre_symbol(K3[1], ec._p) != 1:
