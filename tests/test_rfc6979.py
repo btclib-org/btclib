@@ -29,6 +29,10 @@ class Testrfc6979(unittest.TestCase):
         expected = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
         self.assertEqual(k, expected)
 
+        # mismatch between hf digest size and hashed message size
+        self.assertRaises(ValueError, rfc6979, ec, hf, msg[:-1], x)
+        #rfc6979(ec, hf, msg[:-1], x)
+
     def test_rfc6979_example(self):
 
         class _helper:
