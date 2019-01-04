@@ -1,6 +1,0 @@
-                            RPC = P2P-1
-Mainet:         P2P  8333 - RPC  8332
-Testnet:        P2P 18333 - RPC 18332
-Regtest:        P2P 18444 - RPC 18443
-Regtest Alice:  P2P 18555
-Regtest Bob:    P2P 18666
