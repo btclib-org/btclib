@@ -6,7 +6,7 @@
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 
-btclib is a python3 type annotated library intended for teaching and demonstration of the cryptography used in bitcoin.
+btclib is a python3 type annotated library intended for teaching and demonstration of the cryptography used in bitcoin. It has been used for the [_Bitcoin and Blockchain Technology Course_](https://www.ametrano.net/bbt/) at Milano Bicocca and Politecnico di Milano.
 
 To install (and upgrade) `btclib`:
 
@@ -42,4 +42,4 @@ The library includes:
 - EC Diffie-Hellman
 - Pedersen Committment
 
-A very extensive test suite reproduces results from major official sources and cover basically 100% of the library code base.
+A very extensive test suite reproduces results from major official sources and covers basically 100% of the library code base.
