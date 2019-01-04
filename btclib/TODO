@@ -30,5 +30,5 @@ package
 jupyter for scripts
 
 uncovered code:
- 1 base58 str input
  2 ec n=p, h too big
+ 5 bip32
