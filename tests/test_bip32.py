@@ -384,7 +384,7 @@ class TestBIP32(unittest.TestCase):
 
     def test_bip32_exceptions(self):
         mprv = b'xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
-        self.assertRaises(TypeError, bip32_ckd, mprv, 'invalid index')
+        self.assertRaises(ValueError, bip32_ckd, mprv, 'invalid index')
         self.assertRaises(ValueError, bip32_ckd, mprv, 0x80000000)
         self.assertRaises(ValueError, bip32_derive, mprv, '/1')
         self.assertRaises(TypeError, bip32_derive, mprv, 1)
