@@ -53,9 +53,15 @@ def h160(pubkey: bytes) -> bytes:
     return hnew('ripemd160', t).digest()
 
 
-def address_from_pubkey(Q: Point, compressed: bool, version: bytes = b'\x00') -> bytes:
+def address_from_pubkey(Q: Point, compressed: bool, version: octets = b'\x00') -> bytes:
     """Public key to (bytes) address"""
+
     pubkey = point2octets(ec, Q, compressed)
+
+    if isinstance(version, str):
+        version = version.strip()
+        version = version.encode()
+
     # FIXME: this is mainnet only
     vh160 = version + h160(pubkey)
     return b58encode_check(vh160)
