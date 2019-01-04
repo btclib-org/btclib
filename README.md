@@ -1,6 +1,6 @@
 # btclib: a bitcoin cryptography library
 
-## <http://github.com/dginst/btclib>
+<http://github.com/dginst/btclib>
 
 [![Build Status](https://travis-ci.org/dginst/btclib.svg)](https://travis-ci.org/dginst/btclib)
 [![Coverage Status](https://coveralls.io/repos/github/dginst/btclib/badge.svg)](https://coveralls.io/github/dginst/btclib)
