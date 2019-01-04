@@ -7,7 +7,7 @@ with open('README.md', 'r') as fh:
 setup(
     name = btclib.name,
     version = btclib.__version__,
-    url = 'https://github.com/dginst/BitcoinBlockchainTechnology',
+    url = 'https://github.com/dginst/btclib',
     license = 'MIT License',
     author = 'Ferdinando M. Ametrano',
     author_email = 'ferdinando@ametrano.net',
@@ -15,7 +15,7 @@ setup(
     long_description = 'Type annotated library intended for teaching and demonstration of the cryptography used in bitcoin.',
     long_description_content_type = 'text/markdown',
     packages = find_packages(),
-    keywords = 'bitcoin cryptography elliptic-curves ecdsa schnorr elliptic-curve-diffie-hellman bip32 bip39 base58 electrum rfc-6979 pedersen-commitment',
+    keywords = 'bitcoin cryptography elliptic-curves ecdsa schnorr rfc-6979 bip32 bip39 electrum base58',
     python_requires = '>=3.6',
     classifiers = [
         'Programming Language :: Python :: 3 :: Only',
