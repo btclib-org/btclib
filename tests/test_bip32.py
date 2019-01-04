@@ -12,6 +12,7 @@ import unittest
 import os
 import json
 
+from btclib.base58 import b58encode_check, b58decode_check
 from btclib.bip32 import PRIVATE, PUBLIC, bip32_mprv_from_seed, \
     bip32_xpub_from_xprv, bip32_ckd, bip32_derive, bip32_crack, \
     bip32_child_index, address_from_xpub, b58encode_check
@@ -314,6 +315,25 @@ class TestBIP32(unittest.TestCase):
         ind = [1, 2]
         addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, ind)))
         self.assertEqual(addr, b'16NLYkKtvYhW1Jp86tbocku3gxWcvitY1w')
+
+        # version/key mismatch in extended parent key
+        bmprv = b58decode_check(mprv)
+        bad_mprv = b58encode_check(bmprv[0:45] + b'\x01' + bmprv[46:])
+        self.assertRaises(ValueError, bip32_ckd, bad_mprv, 1)
+        #bip32_ckd(bad_mprv, 1)
+
+        # version/key mismatch in extended parent key
+        mpub = bip32_xpub_from_xprv(mprv)
+        bmpub = b58decode_check(mpub)
+        bad_mpub = b58encode_check(bmpub[0:45] + b'\x00' + bmpub[46:])
+        self.assertRaises(ValueError, bip32_ckd, bad_mpub, 1)
+        #bip32_ckd(bad_mpub, 1)
+
+        # no private/hardened derivation from pubkey
+        self.assertRaises(ValueError, bip32_ckd, mpub, 0x80000000)
+        #bip32_ckd(mpub, 0x80000000)
+
+
 
     def test_testnet(self):
         # bitcoin core derivation style
