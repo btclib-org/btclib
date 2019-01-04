@@ -9,7 +9,9 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import hashlib
-from btclib.ec import secp256k1 as ec
+
+from btclib.ec import pointMult
+from btclib.ecurves import secp256k1 as ec
 from btclib.base58 import b58encode_check, b58encode, b58decode_check
 
 # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses

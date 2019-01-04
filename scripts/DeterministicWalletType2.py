@@ -8,64 +8,44 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-Deterministic Wallet (Type-2)
+""" Deterministic Wallet (Type-2)
 """
 
-from hashlib import sha256
-from random import randint
+import random
+from hashlib import sha256 as hf
 
-from ellipticcurves import secp256k1 as ec, pointMult
-from wifaddress import int_from_prvkey
+from btclib.ec import pointMult
+from btclib.ecurves import secp256k1 as ec
+from btclib.ecutils import bits2int
 
 # master prvkey
-mprvkey = randint(0, ec.n-1)
-print('\nmaster private key:', format(mprvkey, '#064x'))
+mprvkey = random.getrandbits(ec.nlen) % ec.n
+print('\nmaster private key:', hex(mprvkey))
 
 # Master Pubkey:
 mpubkey = pointMult(ec, mprvkey, ec.G)
-print('Master Public Key:', format(mpubkey[0], '#064x'))
-print('                  ', format(mpubkey[1], '#064x'))
+print('Master Public Key:', hex(mpubkey[0]))
+print('                  ', hex(mpubkey[1]))
 
 # public random number
-r = randint(0, 2**256-1)
-print('public ephemeral key:', format(r, '#064x'))
+r = random.getrandbits(ec.nlen)
+print('\npublic ephemeral key:', format(r, '#064x'))
 
-p = []
-h_int = []
+q = []
+hint = []
+rbytes = r.to_bytes(ec.nsize, 'big')
 nKeys = 3
-r_bytes = r.to_bytes(32, 'big')
 for i in range(nKeys):
-  i_bytes = i.to_bytes(32, 'big')
-  h_hex = sha256(i_bytes+r_bytes).hexdigest()
-  h_int.append(int(h_hex, 16))
-  p.append((mprvkey + h_int[i]) % ec.n)
-  P = pointMult(ec, p[i])
-  print('prvkey#', i, ':', format(p[i], '#064x'))
-  print('Pubkey#', i, ':', format(P[0], '#064x'))
-  print('           ',     format(P[1], '#064x'))
+  ibytes = i.to_bytes(ec.nsize, 'big')
+  hd = hf(ibytes + rbytes).digest()
+  hint.append(bits2int(ec, hd))
+  q.append((mprvkey + hint[i]) % ec.n)
+  Q = pointMult(ec, q[i], ec.G)
+  print('\nprvkey#', i, ':', hex(q[i]))
+  print('Pubkey#',   i, ':', hex(Q[0]))
+  print('           ',       hex(Q[1]))
 
 # Pubkeys could be calculated without using prvkeys
 for i in range(nKeys):
-  P = ec.add(mpubkey, pointMult(ec, h_int[i], ec.G))
-  assert P == pointMult(ec, p[i], ec.G)
-
-def det_wallet2(key, r, i):
-  r_bytes = r.to_bytes(32, 'big')
-  i_bytes = i.to_bytes(32, 'big')
-  h_hex = sha256(i_bytes+r_bytes).hexdigest()
-  h_int = int(h_hex, 16)
-
-  try:
-    prvkey = int_from_prvkey(key)
-    return (prvkey + h_int) % ec.n
-  except:
-    pubkey = ec.octets2point(key)
-    return ec.add(pubkey, pointMult(ec, h_int, ec.G))
-  raise ValueError("Invalid key")
-
-print()
-print('prvkey#', 2, ':', format(det_wallet2(mprvkey, r, 2), '#064x'))
-P = det_wallet2(mpubkey, r, 2)
-print('Pubkey#', i, ':', format(P[0], '#064x'))
-print('           ',     format(P[1], '#064x'))
+  Q = ec.add(mpubkey, pointMult(ec, hint[i], ec.G))
+  assert Q == pointMult(ec, q[i], ec.G)

@@ -14,15 +14,17 @@ import time
 msg = input('insert string: ')
 if msg == "": msg = "Hello, world!"
 
-zeros = input('n of zeros: ')
-if zeros == "": zeros = 4
-else          : zeros = int(zeros)
+zerostr = input('n of zeros: ')
+if zerostr == "":
+    zeros = 4
+else:
+    zeros = int(zerostr)
 assert (zeros > 0), "the number of zeros to look for must be greater than zero"
 
 print("\nstring is:", msg)
 print("looking for", zeros, "zeros")
 
-start = time.clock()
+start = time.time()
 
 # n[i] is used to count the results starting with i+1 zeros
 n = [0 for x in range(zeros)]
@@ -38,7 +40,7 @@ while (n[zeros-1] == 0 and i < maxEval):
         if n[zeros-1] == 1: nonce = i
     i += 1
 
-elapsed = round(time.clock() - start)
+elapsed = round(time.time() - start)
 
 print("\nperformed evaluations:", i, "/", maxEval)
 print("elapsed time         :", elapsed, "seconds")

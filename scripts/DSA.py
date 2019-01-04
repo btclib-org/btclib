@@ -8,10 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from hashlib import sha256
+from hashlib import sha256 as hf
+
 from btclib.numbertheory import mod_inv
-from btclib.ec import secp256k1 as ec, \
-                                  pointMult
+from btclib.ec import pointMult
+from btclib.ecurves import secp256k1 as ec
 
 print("\n*** EC:")
 print(ec)
@@ -29,7 +30,7 @@ msg1 = "Paolo is afraid of ephemeral random numbers"
 print(msg1)
 
 print("*** Hash digest of the message")
-h_bytes = sha256(msg1.encode()).digest()
+h_bytes = hf(msg1.encode()).digest()
 # hash(msg) must be transformed into an integer modulo ec.n:
 h1 = int.from_bytes(h_bytes, 'big') % ec.n
 assert h1 != 0
@@ -37,10 +38,10 @@ print("    h1:", hex(h1))
 
 print("\n*** Signature")
 # ephemeral key k must be kept secret and never reused !!!!!
-# good choice: k = sha256(msg|q)
+# good choice: k = hf(msg|q)
 # different for each msg, private because of q
 temp = msg1+hex(q)
-k_bytes = sha256(temp.encode()).digest()
+k_bytes = hf(temp.encode()).digest()
 k1 = int.from_bytes(k_bytes, 'big') % ec.n
 assert k1 != 0
 print("eph k1:", hex(k1))
@@ -90,7 +91,7 @@ msg2 = "and Paolo is right to be afraid"
 print(msg2)
 
 print("*** Hash digest of the message")
-h_bytes = sha256(msg2.encode()).digest()
+h_bytes = hf(msg2.encode()).digest()
 # hash(msg) must be transformed into an integer modulo ec.n:
 h2 = int.from_bytes(h_bytes, 'big') % ec.n
 assert h2 != 0

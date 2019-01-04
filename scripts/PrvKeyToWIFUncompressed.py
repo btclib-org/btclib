@@ -15,11 +15,11 @@ from btclib.base58 import b58encode, b58encode_check, b58decode, b58decode_check
 print("\n****** Private ECDSA Key to WIF ******")
 
 print("\n*** [1] Private ECDSA Key:")
-p = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-print(hex(p))
+q = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+print(hex(q))
 
 print("\n*** [2] 0x80 Extended Key:")
-ExtKey = b'\x80' + p.to_bytes(32, 'big')
+ExtKey = b'\x80' + q.to_bytes(32, 'big')
 print(ExtKey.hex())
 
 print("\n*** [3] SHA-256 hashing of the Extended Key:")
@@ -61,6 +61,6 @@ print(ExtKey.hex() + " (" + ("true" if verified else "false") + ")")
 print(b58decode_check(wif).hex())
 
 print("\n*** [4] Private key")
-p2 = ExtKey[1:-1].hex() if compressed else ExtKey[1:].hex()
-assert int(p2, 16) == p, "failure"
-print(p2)
+q2 = ExtKey[1:-1].hex() if compressed else ExtKey[1:].hex()
+assert int(q2, 16) == q, "failure"
+print(q2)
