@@ -1,3 +1,2 @@
-include LICENSE
-include AUTHORS.md
-recursive-include data *
+include LICENSE AUTHORS.md requirements.txt
+include btclib/dictdata/*.txt

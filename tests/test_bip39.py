@@ -44,7 +44,7 @@ class TestBIP39Wallet(unittest.TestCase):
     def test_bip39_vectors(self):
         filename = "test_bip39_vectors.json"
         path_to_filename = os.path.join(os.path.dirname(__file__),
-                                        "../data/",
+                                        "./data/",
                                         filename)
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)["english"]

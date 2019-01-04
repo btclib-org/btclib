@@ -252,7 +252,7 @@ class TestBIP32(unittest.TestCase):
         """
         filename = "test_bip39_vectors.json"
         path_to_filename = os.path.join(os.path.dirname(__file__),
-                                        "../data/",
+                                        "./data/",
                                         filename)
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)["english"]

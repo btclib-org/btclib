@@ -14,7 +14,7 @@ setup(
     description = 'A bitcoin cryptography library.',
     long_description = 'Type annotated library intended for teaching and demonstration of the cryptography used in bitcoin.',
     long_description_content_type = 'text/markdown',
-    packages = find_packages(),
+    packages = find_packages(exclude=['tests']),
     include_package_data = True,
     keywords = 'bitcoin cryptography elliptic-curves ecdsa schnorr rfc-6979 bip32 bip39 electrum base58',
     python_requires = '>=3.6',
