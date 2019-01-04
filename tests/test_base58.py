@@ -50,7 +50,7 @@ class TestBase58CheckEncoding(unittest.TestCase):
 
     def test_b58_exceptions(self):
         # int is not hex-string or bytes
-        self.assertRaises(TypeError, b58encode_check, 3)
+        self.assertRaises(AttributeError, b58encode_check, 3)
 
         encoded = b58encode_check(b"test")
 
@@ -73,14 +73,27 @@ class TestBase58CheckEncoding(unittest.TestCase):
         key = b58decode_check(uncompressedWIF)
         self.assertEqual(key, uncompressedKey)
 
-        compressedKey = b'\x80' + \
-            prvkey.to_bytes(32, byteorder='big') + b'\x01'
+        compressedKey = b'\x80' + prvkey.to_bytes(32, byteorder='big') +b'\x01'
         compressedWIF = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
         wif = b58encode_check(compressedKey)
         self.assertEqual(wif, compressedWIF)
         key = b58decode_check(compressedWIF)
         self.assertEqual(key, compressedKey)
 
+        # string
+        compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
+        key = b58decode_check(compressedWIF)
+        self.assertEqual(key, compressedKey)
+
+        # string with leading space
+        compressedWIF = ' KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
+        b58decode_check(compressedWIF)
+        self.assertEqual(key, compressedKey)
+
+        # string with trailing space
+        compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 '
+        b58decode_check(compressedWIF)
+        self.assertEqual(key, compressedKey)
 
 if __name__ == "__main__":
     # execute only if run as a script
