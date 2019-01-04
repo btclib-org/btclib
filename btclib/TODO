@@ -28,7 +28,3 @@ clean up PRIVATE[0] mess
 pydoc
 package
 jupyter for scripts
-
-uncovered code:
- 2 ec n=p, h too big
- 5 bip32
