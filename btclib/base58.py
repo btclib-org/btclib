@@ -22,21 +22,17 @@ def double_sha256(s: bytes) -> bytes:
 
 
 def to_bytes(v: Union[str, bytes]) -> bytes:
-    '''Return bytes from bytes or string'''
+    """Encode string to bytes, stipping leading/trailing white spaces"""
 
     if isinstance(v, str):
         v = v.strip()
         v = v.encode()
 
-    if not isinstance(v, bytes):
-        raise TypeError(
-            "a bytes-like object is required (also string), not '%s'" %
-            type(v).__name__)
     return v
 
 
 def b58encode_int(i: int) -> bytes:
-    '''Encode an integer using Base58'''
+    """Encode an integer using Base58"""
 
     if i == 0:
         return __digits[0:1]
@@ -50,7 +46,7 @@ def b58encode_int(i: int) -> bytes:
 
 
 def b58encode(v: Union[str, bytes]) -> bytes:
-    '''Encode bytes using Base58'''
+    """Encode bytes using Base58"""
 
     v = to_bytes(v)
 
@@ -70,7 +66,7 @@ def b58encode(v: Union[str, bytes]) -> bytes:
 
 
 def b58encode_check(v: Union[str, bytes]) -> bytes:
-    '''Encode bytes using Base58 with a 4 character checksum'''
+    """Encode bytes using Base58 with a 4 character checksum"""
 
     v = to_bytes(v)
 
@@ -80,7 +76,7 @@ def b58encode_check(v: Union[str, bytes]) -> bytes:
 
 
 def b58decode_int(v: Union[str, bytes]) -> int:
-    '''Decode Base58 encoded bytes as integer'''
+    """Decode Base58 encoded bytes as integer"""
 
     v = to_bytes(v)
 
@@ -93,7 +89,7 @@ def b58decode_int(v: Union[str, bytes]) -> int:
 
 def b58decode(v: Union[str, bytes],
               output_size: Optional[int] = None) -> bytes:
-    '''Decode Base58 encoded bytes, with verified output length'''
+    """Decode Base58 encoded bytes, with verified output length"""
 
 
     v = to_bytes(v)
@@ -112,14 +108,16 @@ def b58decode(v: Union[str, bytes],
         result = result + i.to_bytes(nbytes, 'big')
 
     if output_size is not None and len(result) != output_size:
-        raise ValueError("Invalid decoded byte length: " +
-                                    f"{len(result)} instead of {output_size}")
+        m = "Invalid decoded byte length: "
+        m += f"{len(result)} instead of {output_size}"
+        raise ValueError(m)
+
     return result
 
 
 def b58decode_check(v: Union[str, bytes],
                     output_size: Optional[int] = None) -> bytes:
-    '''Decode Base58 encoded bytes, with verified checksum and output length'''
+    """Decode Base58 encoded bytes, with verified checksum and output length"""
 
     if output_size is not None:
         output_size += 4
@@ -129,7 +127,7 @@ def b58decode_check(v: Union[str, bytes],
 
     digest = double_sha256(result)
     if checksum != digest[:4]:
-        raise ValueError(
-            f"Invalid checksum: '{checksum}' instead of '{digest[:4]}'")
+        m = f"Invalid checksum: '{checksum}' instead of '{digest[:4]}'"
+        raise ValueError(m)
 
     return result
