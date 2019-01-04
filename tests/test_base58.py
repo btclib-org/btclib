@@ -50,7 +50,7 @@ class TestBase58CheckEncoding(unittest.TestCase):
 
     def test_b58_exceptions(self):
         # int is not hex-string or bytes
-        self.assertRaises(AttributeError, b58encode_check, 3)
+        self.assertRaises(TypeError, b58encode_check, 3)
 
         encoded = b58encode_check(b"test")
 

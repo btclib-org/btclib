@@ -24,9 +24,8 @@ def double_sha256(s: bytes) -> bytes:
 def to_bytes(v: Union[str, bytes]) -> bytes:
     '''Return bytes from bytes or string'''
 
-    v = v.strip()
-
     if isinstance(v, str):
+        v = v.strip()
         v = v.encode()
 
     if not isinstance(v, bytes):
