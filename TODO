@@ -1,3 +1,34 @@
 include scripts in test
 remove excel
 remove regtest-lab
+
+add GEC 2 Test Vectors for SEC 1
+add brainpool curves https://tools.ietf.org/html/rfc5639
+revise kdf
+remove assert for if + raise
+
+remove _pointMultJacobian from batch validation ?
+BUG in batch validation with just one sig (plus why a[0]=1 ?)
+
+allow hexstring for Signature
+allow binary Signature
+run scripts as part of test-suite
+revise ecssa_pubkey_recovery
+the name of functions returning bool should be a question
+
+crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
+
+document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
+
+how to export mprv from Electrum?
+    verify if first wif is that
+
+better mimic of electrum entropy search, they probably have the words inverted
+
+BIP44 in address_from...
+
+clean up PRIVATE[0] mess
+
+pydoc
+package
+jupyter for scripts
