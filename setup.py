@@ -20,13 +20,13 @@ setup(
     classifiers = [
         'Programming Language :: Python :: 3 :: Only',
         'Development Status :: 4 - Beta',
-        'Intended Audience :: Education',
         'Intended Audience :: Developers',
-        'Natural Language :: English',
-        'Topic :: Scientific/Engineering',
-        'Topic :: Security :: Cryptography',
-        'Topic :: Software Development :: Libraries :: Python Modules',
+        'Intended Audience :: Education',
         'License :: OSI Approved :: MIT License',
+        'Natural Language :: English',
         'Operating System :: OS Independent',
+        'Topic :: Security :: Cryptography',
+        'Topic :: Scientific/Engineering',
+        'Topic :: Software Development :: Libraries :: Python Modules',
     ],
 )
