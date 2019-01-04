@@ -47,6 +47,7 @@ def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
 
     raise ValueError("not a WIF")
 
+
 def h160(pubkey: bytes) -> bytes:
     t = sha256(pubkey).digest()
     return hnew('ripemd160', t).digest()
@@ -65,6 +66,7 @@ def hash160_from_address(addr: octets) -> bytes:
     # FIXME: this is mainnet only
     assert payload[0] == 0x00, "not an address"
     return payload[1:]
+
 
 def address_from_wif(wif: octets) -> bytes:
     prv, compressed = prvkey_from_wif(wif)
