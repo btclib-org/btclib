@@ -11,7 +11,7 @@
 
 [![Documentation Status](https://readthedocs.org/projects/ansicolortags/badge/?version=latest)](http://ansicolortags.readthedocs.io/?badge=latest)
 
-`btclib` is intended for teaching and demonstration of the cryptography used in bitcoin; algorithms are not to be used in production environments: they could be broken using side-channel attacks. Moreover, they will probably have major refactorings without care for backward compatibility.
+btclib is intended for teaching and demonstration of the cryptography used in bitcoin; algorithms are not to be used in production environments: they could be broken using side-channel attacks. Moreover, they will probably have major refactorings without care for backward compatibility.
 
 To install (and upgrade) `btclib`:
 ```
