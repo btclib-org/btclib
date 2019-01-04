@@ -11,7 +11,7 @@ setup(
     license = 'MIT License',
     author = 'Ferdinando M. Ametrano',
     author_email = 'ferdinando@ametrano.net',
-    description = 'A bitcoin cryptography library for students.',
+    description = 'A bitcoin cryptography library.',
     long_description = 'Type annotated library intended for teaching and demonstration of the cryptography used in bitcoin.',
     long_description_content_type = 'text/markdown',
     packages = find_packages(),
