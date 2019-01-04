@@ -238,4 +238,4 @@ def ecssa_batch_validation(ec: EC,
     RHS = ec._affine_from_jac(RHSJ)
     T = ec._affine_from_jac(TJ)
 
-    return  T == RHS
+    return T == RHS
