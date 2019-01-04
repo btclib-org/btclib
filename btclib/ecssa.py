@@ -161,8 +161,7 @@ def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
     P = DblScalarMult(ec, e1*s, ec.G, -e1, K)
-    if P[1] == 0:
-        raise ValueError("failed")
+    assert P[1] != 0, "how did you do that?!?"
     return P
 
 

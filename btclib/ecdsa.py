@@ -129,8 +129,7 @@ def _ecdsa_verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     R = DblScalarMult(ec, u, ec.G, v, P)              # 5
 
     # Fail if infinite(R).
-    if R[1] == 0:                                     # 5
-        raise ValueError("uG + vP is infinite")
+    assert R[1] != 0, "how did you do that?!?"        # 5
 
     v = R[0] % ec.n                                   # 6, 7
     # Fail if r ≠ x(R) %n.

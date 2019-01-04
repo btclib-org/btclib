@@ -37,8 +37,7 @@ def pedersen_commit(r: int, v: int, ec: EC, hf) -> Point:
     """Return rG + vH, with H being second (NUMS) generator of the curve"""
     H = secondGenerator(ec, hf)
     Q = DblScalarMult(ec, r, ec.G, v, H)
-    if Q[1] == 0:
-        raise ValueError("failed")
+    assert Q[1] != 0, "how did you do that?!?"
     return Q
 
 

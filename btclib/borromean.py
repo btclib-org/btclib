@@ -104,6 +104,20 @@ def borromean_verify(msg: bytes,
     - s: s-values, both real (one per ring) and forged
     - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys
     """
+
+    # this is just a try/except wrapper for the Errors
+    # raised by _borromean_verify
+    try:
+        return _borromean_verify(msg, e0, s, pubk_rings)
+    except Exception:
+        return False
+
+
+def _borromean_verify(msg: bytes,
+                      e0: bytes,
+                      s: Dict[int, List[int]],
+                      pubk_rings: Dict[int, List[Point]]) -> bool:
+
     ring_size = len(pubk_rings)
     m = get_msg_format(msg, pubk_rings)
     e: Dict[int, List[int]] = defaultdict(list)
@@ -112,16 +126,14 @@ def borromean_verify(msg: bytes,
         keys_size = len(pubk_rings[i])
         e[i] = [0]*keys_size
         e[i][0] = bits2int(ec, borromean_hash(m, e0, i, 0))
-        if e[i][0] == 0:
-            return False
+        assert e[i][0] != 0, "how did you do that?!?"
         R = b'\0x00'
         for j in range(keys_size):
             T = DblScalarMult(ec, s[i][j], ec.G, -e[i][j], pubk_rings[i][j])
             R = point2octets(ec, T, True)
             if j != len(pubk_rings[i])-1:
                 e[i][j+1] = bits2int(ec, borromean_hash(m, R, i, j+1))
-                if e[i][j+1] == 0:
-                    return False
+                assert e[i][j+1] != 0, "how did you do that?!?"
             else:
                 e0bytes += R
     e0_prime = sha256(e0bytes).digest()
