@@ -1,8 +1,8 @@
 # btclib: a bitcoin cryptography library
 
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![Build Status](https://travis-ci.org/dginst/btclib.svg)](https://travis-ci.org/dginst/btclib)
 [![Coverage Status](https://coveralls.io/repos/github/dginst/btclib/badge.svg)](https://coveralls.io/github/dginst/btclib)
-[![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI version fury.io](https://badge.fury.io/py/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
 
