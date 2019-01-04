@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import btclib
 
 with open('README.md', 'r') as fh:
-    long_description = fh.read()
+    longdescription = fh.read()
 
 setup(
     name = btclib.name,
@@ -12,7 +12,7 @@ setup(
     author = 'Ferdinando M. Ametrano',
     author_email = 'ferdinando@ametrano.net',
     description = 'A bitcoin cryptography library.',
-    long_description = 'Type annotated library intended for teaching and demonstration of the cryptography used in bitcoin.',
+    long_description = longdescription,
     long_description_content_type = 'text/markdown',
     packages = find_packages(exclude=['tests']),
     include_package_data = True,

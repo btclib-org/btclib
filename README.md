@@ -6,7 +6,7 @@
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 
-btclib is a python3 type annotated library intended for teaching and demonstration of the cryptography used in bitcoin. It has been used for the [_Bitcoin and Blockchain Technology Course_](https://www.ametrano.net/bbt/) at Milano Bicocca and Politecnico di Milano.
+btclib is a python3 type annotated library intended for teaching and demonstration of the cryptography used in bitcoin. It is used for the [_Bitcoin and Blockchain Technology Course_](https://www.ametrano.net/bbt/) at Milano Bicocca and Politecnico di Milano.
 
 To install (and upgrade) `btclib`:
 
@@ -35,11 +35,11 @@ The library includes:
   - MuSig multi-signature
 - Borromean ring signature
 - RFC-6979 to make signature schemes deterministic
+- EC Diffie-Hellman
+- Pedersen Committment
 - base58 encoding, addresses, WIFs
 - BIP32 hierarchical deterministic wallets
 - BIP39 mnemonic code for generating deterministic keys
 - Electrum standard for mnemonic code
-- EC Diffie-Hellman
-- Pedersen Committment
 
 A very extensive test suite reproduces results from major official sources and covers basically 100% of the library code base.
