@@ -7,7 +7,7 @@ with open('README.md', 'r') as fh:
 setup(
     name = btclib.name,
     version = btclib.__version__,
-    url = 'https://github.com/dginst/btclib',
+    url = 'http://www.dgi.io',
     license = 'MIT License',
     author = 'Ferdinando M. Ametrano',
     author_email = 'ferdinando@ametrano.net',
