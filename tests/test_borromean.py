@@ -38,6 +38,7 @@ class TestBorromeanRingSignature(unittest.TestCase):
         sig = borromean_sign(msg, list(range(1, 5)), signing_indexes, signing_keys, Pub_keys)
         self.assertTrue(borromean_verify(msg, sig[0], sig[1], Pub_keys))
 
+        self.assertFalse(borromean_verify(0, sig[0], sig[1], Pub_keys))
 
 if __name__ == "__main__":
     # execute only if run as a script
