@@ -2,10 +2,9 @@
 
 [![Build Status](https://travis-ci.org/dginst/BitcoinBlockchainTechnology.svg)](https://travis-ci.org/dginst/BitcoinBlockchainTechnology)
 [![Coverage Status](https://coveralls.io/repos/github/dginst/BitcoinBlockchainTechnology/badge.svg)](https://coveralls.io/github/dginst/BitcoinBlockchainTechnology)
-[![PyPI Version][https://badge.fury.io/py/btclib.svg]](https://pypi.python.org/pypi?name=btclib&:action=display)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI version fury.io](https://badge.fury.io/py/btclib.svg)](https://pypi.python.org/pypi/btclib/)
-[![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](http://btclib.readthedocs.io/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
 
 btclib is a python library intended for teaching and demonstration of the cryptography used in bitcoin.
 

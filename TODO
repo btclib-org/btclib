@@ -1,3 +1,6 @@
+readthedocs
+[![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
+
 add GEC 2 Test Vectors for SEC 1
 add brainpool curves https://tools.ietf.org/html/rfc5639
 revise kdf
