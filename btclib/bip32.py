@@ -70,6 +70,7 @@ def bip32_xpub_from_xprv(xprv: octets) -> bytes:
     Computation of the extended public key corresponding to an extended
     private key (“neutered” as it removes the ability to sign transactions)
     """
+
     xprv = b58decode_check(xprv, 78)
     assert xprv[45] == 0, "extended key is not a private one"
 
@@ -103,8 +104,9 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         index = index.to_bytes(4, 'big')
     elif isinstance(index, str):  # hex string
         index = bytes.fromhex(index)
+        
     if len(index) != 4:
-        raise TypeError("a 4 bytes int is required")
+        raise ValueError("a 4 bytes int is required")
 
     xparent = b58decode_check(xparentkey, 78)
 
@@ -115,7 +117,7 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     xkey += (xparent[4] + 1).to_bytes(1, 'big')  # (increased) depth
 
     if (version in PUBLIC):
-        if xparent[45] not in (2, 3):
+        if xparent[45] not in (2, 3):  # not a compressed public key
             raise ValueError("version/key mismatch in extended parent key")
         Parent_bytes = xparent[45:]
         Parent = octets2point(ec, Parent_bytes)
@@ -133,7 +135,7 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         xkey += h[32:]                            # chain code
         xkey += Child_bytes                       # public key
     elif (version in PRIVATE):
-        if xparent[45] != 0:
+        if xparent[45] != 0:    # not a private key
             raise ValueError("version/key mismatch in extended parent key")
         parent = int.from_bytes(xparent[46:], 'big')
         Parent = pointMult(ec, parent, ec.G)

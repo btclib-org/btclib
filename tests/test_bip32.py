@@ -12,17 +12,21 @@ import unittest
 import os
 import json
 
-from btclib.bip32 import PRIVATE, bip32_mprv_from_seed, \
+from btclib.bip32 import PRIVATE, PUBLIC, bip32_mprv_from_seed, \
     bip32_xpub_from_xprv, bip32_ckd, bip32_derive, bip32_crack, \
     bip32_child_index, address_from_xpub, b58encode_check
 
 
 class TestBIP32(unittest.TestCase):
     def test_bip32_vector1(self):
+        """ BIP32 test vestor 1
+            https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+        """
         xkey_version = PRIVATE[0]
 
         seed = "000102030405060708090a0b0c0d0e0f"
         mprv = bip32_mprv_from_seed(seed, xkey_version)
+        mprv = bip32_mprv_from_seed(seed, xkey_version.hex())
         self.assertEqual(
             mprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         mpub = bip32_xpub_from_xprv(mprv)  # neutering
@@ -107,6 +111,9 @@ class TestBIP32(unittest.TestCase):
             xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
 
     def test_bip32_vector2(self):
+        """ BIP32 test vestor 2
+            https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+        """
         xkey_version = PRIVATE[0]
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
@@ -200,6 +207,9 @@ class TestBIP32(unittest.TestCase):
             xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
 
     def test_bip32_vector3(self):
+        """ BIP32 test vestor 3
+            https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+        """
         xkey_version = PRIVATE[0]
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
@@ -235,8 +245,10 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(
             xpub, b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y")
 
-    # BIP39 test vectors includes a BIP32 part
     def test_bip39_vectors(self):
+        """ BIP32 test vectors from BIP39
+            https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+        """
         filename = "test_bip39_vectors.json"
         path_to_filename = os.path.join(os.path.dirname(__file__),
                                         "../data/",
@@ -266,12 +278,10 @@ class TestBIP32(unittest.TestCase):
         # m/0'/0'/267'
         addr2 = b'11x2mn59Qy43DjisZWQGRResjyQmgthki'
         indexes = [0x80000000, 0x80000000, 0x80000000 + 267]
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(mprv, indexes)))
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, indexes)))
         self.assertEqual(addr, addr2)
         path = "m/0'/0'/267'"
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(mprv, path)))
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)))
         self.assertEqual(addr, addr2)
 
         xkey_version = PRIVATE[0]
@@ -281,34 +291,28 @@ class TestBIP32(unittest.TestCase):
         xpub = b'xpub661MyMwAqRbcFMYjmw8C6dJV97a4oLss6hb3v9wTQn2X48msQB61RCaLGtNhzgPCWPaJu7SvuB9EBSFCL43kTaFJC3owdaMka85uS154cEh'
         self.assertEqual(bip32_xpub_from_xprv(xprv), xpub)
 
-        indexes = [0, 0]
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+        ind = [0, 0]
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, ind)))
         self.assertEqual(addr, b'1FcfDbWwGs1PmyhMVpCAhoTfMnmSuptH6g')
 
-        indexes = [0, 1]
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+        ind = [0, 1]
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, ind)))
         self.assertEqual(addr, b'1K5GjYkZnPFvMDTGaQHTrVnd8wjmrtfR5x')
 
-        indexes = [0, 2]
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+        ind = [0, 2]
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, ind)))
         self.assertEqual(addr, b'1PQYX2uN7NYFd7Hq22ECMzfDcKhtrHmkfi')
 
-        indexes = [1, 0]
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+        ind = [1, 0]
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, ind)))
         self.assertEqual(addr, b'1BvSYpojWoWUeaMLnzbkK55v42DbizCoyq')
 
-        indexes = [1, 1]
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+        ind = [1, 1]
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, ind)))
         self.assertEqual(addr, b'1NXB59hF4QzYpFrB7o6usLBjbk2D3ZqxAL')
 
-        indexes = [1, 2]
-        addr = address_from_xpub(
-            bip32_xpub_from_xprv(bip32_derive(xprv, indexes)))
+        ind = [1, 2]
+        addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(xprv, ind)))
         self.assertEqual(addr, b'16NLYkKtvYhW1Jp86tbocku3gxWcvitY1w')
 
     def test_testnet(self):
@@ -369,8 +373,7 @@ class TestBIP32(unittest.TestCase):
         seed = "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
         seed = bytes.fromhex(seed)
         mprv = bip32_mprv_from_seed(seed, xkey_version)
-        self.assertEqual(
-            mprv, b'xprv9s21ZrQH143K3t4UZrNgeA3w861fwjYLaGwmPtQyPMmzshV2owVpfBSd2Q7YsHZ9j6i6ddYjb5PLtUdMZn8LhvuCVhGcQntq5rn7JVMqnie')
+        self.assertEqual(mprv, b'xprv9s21ZrQH143K3t4UZrNgeA3w861fwjYLaGwmPtQyPMmzshV2owVpfBSd2Q7YsHZ9j6i6ddYjb5PLtUdMZn8LhvuCVhGcQntq5rn7JVMqnie')
 
         indexes = [0x80000000, 0, 0]  # receive
         addr = address_from_xpub(bip32_xpub_from_xprv(
@@ -384,8 +387,10 @@ class TestBIP32(unittest.TestCase):
 
     def test_bip32_exceptions(self):
         mprv = b'xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
+
         self.assertRaises(ValueError, bip32_ckd, mprv, 'invalid index')
         self.assertRaises(ValueError, bip32_ckd, mprv, 0x80000000)
+        self.assertRaises(ValueError, bip32_ckd, mprv, "800000")
         self.assertRaises(ValueError, bip32_derive, mprv, '/1')
         self.assertRaises(TypeError, bip32_derive, mprv, 1)
         mprv = b'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
