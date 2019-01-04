@@ -134,8 +134,9 @@ class EC:
     def __str__(self) -> str:
         result = "EC"
         result += "\n p = 0x%X" % self._p
-        result += "\n a = 0x%X, b = 0x%X" % (self._a, self._b)
-        result += "\n G = (0x%X,\n          0x%X)" % (self.G)
+        result += "\n a = 0x%X" % self._a
+        result += "\n b = 0x%X" % self._b
+        result += "\n G= (0x%X,\n     0x%X)" % (self.G)
         result += "\n n = 0x%X" % self.n
         result += "\n h = %s" % self.h
         result += "\n t = %s" % self.t
