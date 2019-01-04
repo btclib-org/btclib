@@ -83,8 +83,9 @@ class Mnemonic:
         self._load_language_if_not_available(lang)
 
         if type(entropy) != str:
-            raise TypeError("entropy must be binary string, ",
-                            "not '%s'" % type(entropy).__name__)
+            m = "entropy must be binary string, "
+            m += f"not '{type(entropy).__name__}'"
+            raise TypeError(m)
 
         bits = len(entropy)
         entropy = int(entropy, 2)

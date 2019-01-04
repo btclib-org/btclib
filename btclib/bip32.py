@@ -104,9 +104,9 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         index = index.to_bytes(4, 'big')
     elif isinstance(index, str):  # hex string
         index = bytes.fromhex(index)
-        
+
     if len(index) != 4:
-        raise ValueError("a 4 bytes int is required")
+        raise ValueError(f"a 4 bytes int is required, not {len(index)}")
 
     xparent = b58decode_check(xparentkey, 78)
 
@@ -170,7 +170,7 @@ def bip32_derive(xkey: octets, path: str) -> bytes:
     elif isinstance(path, str):
         steps = path.split('/')
         if steps[0] not in {'m', '.'}:
-            raise ValueError('Invalid derivation path: {}'.format(path))
+            raise ValueError(f'Invalid derivation path: {path}')
         if steps[0] == 'm':
             decoded = b58decode_check(xkey, 78)
             t = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'

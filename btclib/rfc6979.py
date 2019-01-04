@@ -40,12 +40,12 @@ def rfc6979(ec: EC, hf, h1: bytes, x: int) -> int:
     """Return a deterministic ephemeral key following rfc6979"""
 
     if not 0 < x < ec.n:
-        raise ValueError("invalid private key %X" %x)
+        raise ValueError(f"invalid private key {hex(x)}")
 
     hsize = hf().digest_size    # bytes
     if len(h1) != hsize:
-        errMsg = "mismatch between hf digest size (%s) and " % hsize
-        errMsg += "hashed message size (%s)" % len(h1)
+        errMsg = f"mismatch between hf digest size ({hsize}) and "
+        errMsg += f"hashed message size ({len(h1)})"
         raise ValueError(errMsg)
 
     # https://tools.ietf.org/html/rfc6979 section 3.2

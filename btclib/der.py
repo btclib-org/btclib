@@ -39,7 +39,7 @@ sighash_single_anyonecanpay = b'\x83'
 
 def bytes_from_element(element: int) -> bytes:
     if element<0:
-        raise ValueError("negative (%s) signature element" % element)
+        raise ValueError(f"negative ({element}) signature element")
     elen = element.bit_length()
     esize = elen // 8 + 1  # not a bug
     # padding for 'highest bit set' is included above
@@ -54,7 +54,7 @@ def encode_element(element: int) -> bytes:
 
 def DER_encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
     if len(sighash) > 1:
-        raise ValueError("sighash sigsize %s > 1" % len(sighash))
+        raise ValueError(f"sighash size {len(sighash)} > 1")
     r, s = sig
     enc = encode_element(int(r))
     enc += encode_element(s) # FIXME
@@ -64,14 +64,15 @@ def DER_decode(sig: bytes) -> Tuple[ECDS, bytes]:
 
     sigsize = len(sig)
     if not 8 < sigsize < 74:
-        raise ValueError("DER signature size (%s) should be in [9, 73]" % sigsize)
+        raise ValueError(f"DER signature size ({sigsize}) must be in [9, 73]")
 
     if sig[0] != 0x30:
         raise ValueError("DER signature must be of type 0x30 (compound)")
 
     # sigsize checks
     if sig[1] + 3 != sigsize:
-        raise ValueError("Declared signature size does not match with actual sigsize")
+        m = "Declared signature size does not match with actual signature size"
+        raise ValueError(m)
 
     sizeR = sig[3]  # size of the r element
     if sizeR == 0:

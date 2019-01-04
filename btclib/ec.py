@@ -48,10 +48,10 @@ class EC:
 
         # 1) check that p is an odd prime
         if p % 2 == 0:
-            raise ValueError("p (%X) is not odd" % p)
+            raise ValueError(f"p ({hex(p)}) is not odd")
         # Fermat test will do as _probabilistic_ primality test...
         if not pow(2, p-1, p) == 1:
-            raise ValueError("p (%X) is not prime" % p)
+            raise ValueError(f"p ({hex(p)}) is not prime")
 
         # 1) check that p has enough bits
         plen = p.bit_length()
@@ -60,12 +60,13 @@ class EC:
             # t_range = [56, 64, 80, 96, 112, 128, 192, 256] # SEC 1 v.1
             t_range =           [80, 96, 112, 128, 192, 256] # SEC 1 v.2
             if t not in t_range:
-                m = "required security level (%s) " % t
-                m += "not in the allowed range %s" % t_range
+                m = f"required security level ({t}) "
+                m += f"not in the allowed range {t_range}"
                 raise UserWarning(m)
             required_bits = {80:192, 96:192, 112:224, 128:256, 192:384, 256:521}
             if plen != required_bits[t]:
-                raise UserWarning("not enough bits (%s) for required security level %s" % (plen, t))
+                m = f"not enough bits ({plen}) for required security level {t}"
+                raise UserWarning(m)
 
         self._p = p
         self.psize = (plen + 7) // 8
@@ -74,9 +75,9 @@ class EC:
 
         # 2. check that a and b are integers in the interval [0, p−1]
         if not 0 <= a < p:
-            raise ValueError("invalid a (%X) for the given p (%X)" % (a, p))
+            raise ValueError(f"invalid a ({hex(a)}) for given p ({hex(p)})")
         if not 0 <= b < p:
-            raise ValueError("invalid b (%X) for the given p (%X)" % (b, p))
+            raise ValueError(f"invalid b ({hex(b)}) for given p ({hex(p)})")
 
         # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p).
         d = 4*a*a*a+27*b*b
@@ -95,12 +96,13 @@ class EC:
 
         # 5. Check that n is prime.
         if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
-            raise ValueError("n (%X) is not prime" % n)
+            raise ValueError(f"n ({hex(n)}) is not prime")
         # also check n with Hasse Theorem
         if all_checks:
             delta = int(2 * sqrt(p))
             if not (p+1 - delta <= n <= p+1 + delta):
-                raise ValueError("n (%X) not in [p+1 - delta, p+1 + delta]" % n)
+                m = f"n ({hex(n)}) not in [p+1 - delta, p+1 + delta]"
+                raise ValueError(m)
         self.n = n
         self.nlen = n.bit_length()
         self.nsize = (self.nlen + 7) // 8
@@ -108,9 +110,9 @@ class EC:
         # 6. Check cofactor
         exp_h = int(pow(sqrt(p)+1, 2) // n)
         if h != exp_h:
-            raise ValueError("h (%s) not as expected (%s)" % (h, exp_h))
+            raise ValueError(f"h ({h}) not as expected ({exp_h})")
         if all_checks and t != 0 and h > pow(2, t/8):
-            raise ValueError("h (%s) too big for t (%s)" % (h, t))
+            raise ValueError(f"h ({h}) too big for t ({t})")
         self.h = h
 
         # 7. Check that nG = Inf.
@@ -120,7 +122,7 @@ class EC:
         InfMinusG = pointMult(self, n-1, self.G)
         Inf = self.add(InfMinusG, self.G)
         if Inf[1] != 0:
-            raise ValueError("n (%X) is not the group order" % n)
+            raise ValueError("n ({hex(n)}) is not the group order")
 
         # 8. Check that n ≠ p
         if n == p:
@@ -133,23 +135,24 @@ class EC:
 
     def __str__(self) -> str:
         result = "EC"
-        result += "\n p = 0x%X" % self._p
-        result += "\n a = 0x%X" % self._a
-        result += "\n b = 0x%X" % self._b
-        result += "\n G= (0x%X,\n     0x%X)" % (self.G)
-        result += "\n n = 0x%X" % self.n
-        result += "\n h = %s" % self.h
-        result += "\n t = %s" % self.t
+        result += f"\n p   = {hex(self._p)}"
+        result += f"\n a   = {hex(self._a)}"
+        result += f"\n b   = {hex(self._b)}"
+        result += f"\n G.x = {hex(self.G[0])}"
+        result += f"\n G.y = {hex(self.G[1])}"
+        result += f"\n n   = {hex(self.n)}"
+        result += f"\n h = {self.h}"
+        result += f"\n t = {self.t}"
         return result
 
     def __repr__(self) -> str:
         result = "EC("
-        result += "0x%X" % self._p
-        result += ", 0x%X, 0x%X" % (self._a, self._b)
-        result += ", (0x%X,0x%X)" % (self.G)
-        result += ", 0x%X" % self.n
-        result += ", %s" % self.h
-        result += ", %s)" % self.t
+        result += f"{hex(self._p)}"
+        result += f", {hex(self._a)}, {hex(self._b)}"
+        result += f", ({hex(self.G[0])}, {hex(self.G[1])})"
+        result += f", {hex(self.n)}"
+        result += f", {self.h}"
+        result += f", {self.t})"
         return result
 
     # methods using _p: they would become functions if _p goes public
@@ -250,7 +253,7 @@ class EC:
 
     def y(self, x: int) -> int:
         if not 0 <= x < self._p:
-            raise ValueError("x-coordinate %X not in [0, p-1]" % x)
+            raise ValueError(f"x-coordinate {hex(x)} not in [0, p-1]")
         y2 = self._y2(x)
         # mod_sqrt will raise a ValueError if root does not exist
         return mod_sqrt(y2, self._p)
@@ -261,14 +264,14 @@ class EC:
 
     def isOnCurve(self, Q: Point) -> bool:
         if not isinstance(Q, tuple):
-            errMsg = "Point must be a tuple, not '%s'" % type(Q).__name__
+            errMsg = f"Point must be a tuple, not '{type(Q).__name__}'"
             raise TypeError(errMsg)
         if len(Q) != 2:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
             return True
         if not 0 < Q[1] < self._p: # y cannot be zero
-            raise ValueError("y-coordinate %X not in (0, p)" % Q[1])
+            raise ValueError(f"y-coordinate {hex(Q[1])} not in (0, p)")
         return self._y2(Q[0]) == (Q[1]*Q[1] % self._p)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria

@@ -33,7 +33,7 @@ def octets2point(ec: EC, o: octets) -> Point:
 
     if bsize == ec.psize+1:             # compressed point
         if o[0] not in (0x02, 0x03):
-            m = "%s bytes, but not a compressed point" % (ec.psize+1)
+            m = f"{ec.psize+1} bytes, but not a compressed point"
             raise ValueError(m)
         Px = int.from_bytes(o[1:], 'big')
         try:
@@ -43,8 +43,8 @@ def octets2point(ec: EC, o: octets) -> Point:
             raise ValueError("point not on curve")
     else:                               # uncompressed point
         if bsize != 2*ec.psize+1:
-            m = "wrong byte-size (%s) for a point: it " % bsize
-            m += "should be %s or %s" % (ec.psize+1, 2*ec.psize+1)
+            m = f"wrong byte-size ({bsize}) for a point: it "
+            m += f"should have be {ec.psize+1} or {2*ec.psize+1}"
             raise ValueError(m)
         if o[0] != 0x04:
             raise ValueError("not an uncompressed point")

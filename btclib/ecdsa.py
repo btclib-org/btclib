@@ -57,11 +57,11 @@ def _ecdsa_sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
 
     # The secret key d: an integer in the range 1..n-1.
     if not 0 < d < ec.n:
-        raise ValueError("private key %X not in (0, n)" % d)
+        raise ValueError(f"private key {hex(d)} not in (0, n)")
 
     # Fail if k' = 0.
     if not 0 < k < ec.n:
-        raise ValueError("ephemeral key %X not in (0, n)" % k)
+        raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
     # Let R = k'G.
     R = pointMult(ec, k, ec.G)                        # 1
 
@@ -184,17 +184,17 @@ def to_dsasig(ec: EC, sig: ECDS) -> Tuple[int, int]:
     """check DSA signature correct format and return the signature itself"""
 
     if len(sig) != 2:
-        m = "invalid length %s for ECDSA signature" % len(sig)
+        m = f"invalid length {len(sig)} for ECDSA signature"
         raise TypeError(m)
 
     # Fail if r is not [1, n-1]
     r = int(sig[0])
     if not 0 < r < ec.n:
-        raise ValueError("r (%X) not in [1, n-1]" % r)
+        raise ValueError(f"r ({hex(r)}) not in [1, n-1]")
 
     # Fail if s is not [1, n-1]
     s = int(sig[1])
     if not 0 < s < ec.n:
-        raise ValueError("s (%X) not in [1, n-1]" % s)
+        raise ValueError(f"s ({hex(r)}) not in [1, n-1]")
 
     return r, s

@@ -54,20 +54,20 @@ def ecssa_sign(ec: EC, hf, m: bytes, d: int,
 
     # The message m: a 32-byte array
     if len(m) != hf().digest_size:
-        errmsg = 'message of wrong size: %s' % len(m)
-        errmsg += ' instead of %s' % hf().digest_size
+        errmsg = f'message of wrong size: {len(m)}'
+        errmsg += f' instead of {hf().digest_size}'
         raise ValueError(errmsg)
 
     # The secret key d: an integer in the range 1..n-1.
     if not 0 < d < ec.n:
-        raise ValueError("private key %X not in (0, n)" % d)
+        raise ValueError(f"private key {hex(d)} not in (0, n)")
     P = pointMult(ec, d, ec.G)
 
     # Fail if k' = 0.
     if k is None:
         k = rfc6979(ec, hf, m, d)
     if not 0 < k < ec.n:
-        raise ValueError("ephemeral key %X not in (0, n)" % k)
+        raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
 
     # Let R = k'G.
     R = pointMult(ec, k, ec.G)
@@ -122,8 +122,8 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
     # The message m: a 32-byte array
     if len(m) != hf().digest_size:
-        errmsg = 'message of wrong size: %s' % len(m)
-        errmsg += ' instead of %s' % hf().digest_size
+        errmsg = f'message of wrong size: {len(m)}'
+        errmsg += f' instead of {hf().digest_size}'
         raise ValueError(errmsg)
 
     # Let P = point(pk); fail if point(pk) fails.
@@ -170,21 +170,21 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
 
     # A signature sig: a 64-byte array.
     if len(sig) != 2:
-        m = "invalid length %s for ECSSA signature" % len(sig)
+        m = f"invalid length {len(sig)} for ECSSA signature"
         raise TypeError(m)
 
     # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
     r = int(sig[0])
     # might skip the following, as it is not really needed
     if not 0 <= r < ec._p:
-        raise ValueError("r (%X) not in [0, p-1]" % r)
+        raise ValueError(f"r ({hex(r)}) not in [0, p-1]")
     # the real check would be to calculate R.y because
     # R.x is valid iif R.y does exist
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
     s = int(sig[1])
     if not 0 <= s < ec.n:
-        raise ValueError("s (%X) not in [0, n-1]" % s)
+        raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
 
     return r, s
 
