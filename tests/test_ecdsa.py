@@ -9,12 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from hashlib import sha256
+from hashlib import sha256, sha1
 
 from btclib.numbertheory import mod_inv
 from btclib.ec import _jac_from_aff, pointMult, DblScalarMult
-from btclib.ecurves import secp256k1, secp112r2, low_card_curves
-from btclib.ecutils import octets2point
+from btclib.ecurves import secp256k1, secp112r2, secp160r1, low_card_curves
+from btclib.ecutils import octets2point, point2octets
 from btclib.ecdsa import to_dsasig, ecdsa_sign, _ecdsa_sign, ecdsa_verify, \
     _ecdsa_verify, _ecdsa_verhlp, ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery
 
@@ -71,6 +71,38 @@ class TestEcdsa(unittest.TestCase):
         # pubkey = Inf
         self.assertRaises(ValueError, _ecdsa_verify, ec, hf, msg, (1, 0), sig)
         #_ecdsa_verify(ec, hf, msg, (1, 0), sig)
+
+    def test_ecdsa_gec(self):
+        """ GEC 2: Test Vectors for SEC 1, section 2
+
+            http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
+        """
+        # 2.1.1 Scheme setup
+        ec = secp160r1
+        hf = sha1
+
+        # 2.1.2 Key Deployment for U
+        dU = 971761939728640320549601132085879836204587084162
+        self.assertEqual(format(dU, str(ec.psize)+'x'),
+                         'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
+        QU = pointMult(ec, dU, ec.G)
+        self.assertEqual(QU, (466448783855397898016055842232266600516272889280, 1110706324081757720403272427311003102474457754220))
+        self.assertEqual(point2octets(ec, QU, True).hex(),
+                         '0251b4496fecc406ed0e75a24a3c03206251419dc0')
+
+        # 2.1.3 Signing Operation for U
+        msg = 'abc'.encode()
+        k =  702232148019446860144825009548118511996283736794
+        exp_sig = (0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
+                   0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54)
+        sig = ecdsa_sign(ec, hf, msg, dU, k)
+        r, s = to_dsasig(ec, sig)
+        self.assertEqual(r, exp_sig[0])
+        self.assertIn(s, (exp_sig[1], ec.n - exp_sig[1]))
+
+        # 2.1.4 Verifying Operation for V
+        self.assertTrue(ecdsa_verify(ec, hf, msg, QU, sig))
+        self.assertTrue(_ecdsa_verify(ec, hf, msg, QU, sig))
 
 
     def test_forge_hash_sig(self):

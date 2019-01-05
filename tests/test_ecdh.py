@@ -16,11 +16,6 @@ from btclib.ecurves import secp160r1
 from btclib.ecutils import octets2point, point2octets, int2octets
 from btclib.ecdh import key_agreement, kdf
 
-# test vectors taken from the guidelines for efficient cryptography
-# "GEC 2: Test Vectors for SEC 1"
-# http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
-
-
 class TestEcdh(unittest.TestCase):
     def test_ecdh(self):
         ec = secp160r1
@@ -37,7 +32,10 @@ class TestEcdh(unittest.TestCase):
         self.assertEqual(keyingdataU, keyingdataV)
 
     def test_key_deployment(self):
-        """GEC 2: Test Vectors for SEC 1, section 4.1"""
+        """ GEC 2: Test Vectors for SEC 1, section 4.1
+
+            http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
+        """
 
         # 4.1.1
         ec = secp160r1

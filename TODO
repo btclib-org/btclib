@@ -3,7 +3,6 @@ readthedocs
 
 jupyter for scripts
 
-add GEC 2 Test Vectors for SEC 1
 revise kdf
 remove assert for if + raise
 https://cryptojedi.org/peter/data/eccss-20130911b.pdf
