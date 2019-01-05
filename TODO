@@ -6,6 +6,10 @@ jupyter for scripts
 add GEC 2 Test Vectors for SEC 1
 revise kdf
 remove assert for if + raise
+https://cryptojedi.org/peter/data/eccss-20130911b.pdf
+https://arxiv.org/abs/1801.08589
+https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
+https://hal.archives-ouvertes.fr/hal-00932199/document
 
 transaction and block parsing (explorer based with optional full node)
 

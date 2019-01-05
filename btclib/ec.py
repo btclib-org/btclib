@@ -46,6 +46,10 @@ class EC:
         Parameters are checked according to SEC 1 v.2 3.1.1.2.1
         """
 
+        # first off discriminate invalid (..., Gx, Gy, ...) input
+        if len(G) != 2:
+            raise ValueError("Generator must a be a Tuple[int, int]")
+
         # 1) check that p is an odd prime
         if p % 2 == 0:
             raise ValueError(f"p ({hex(p)}) is not odd")
@@ -86,8 +90,6 @@ class EC:
 
         # 2. check that xG and yG are integers in the interval [0, p−1]
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p).
-        if len(G) != 2:
-            raise ValueError("Generator must a be a Tuple[int, int]")
         if not self.isOnCurve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = int(G[0]), int(G[1])
