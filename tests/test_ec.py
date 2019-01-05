@@ -42,8 +42,8 @@ class TestEllipticCurve(unittest.TestCase):
         n = ec.n
         t = ec.t
         h = ec.h
-        self.assertRaises(UserWarning, EC, p, a, b, G, n, h, t)
-        #EC(p, a, b, G, n, h, t)
+        self.assertRaises(UserWarning, EC, p, a, b, G, n, h, 273)
+        #EC(p, a, b, G, n, h, 273)
 
         # not enough bits for required security level
         ec = secp160r1
@@ -54,8 +54,8 @@ class TestEllipticCurve(unittest.TestCase):
         n = ec.n
         t = ec.t
         h = ec.h
-        self.assertRaises(UserWarning, EC, p, a, b, G, n, h, t)
-        #EC(p, a, b, G, n, h, t)
+        self.assertRaises(UserWarning, EC, p, a, b, G, n, h, 2*t)
+        #EC(p, a, b, G, n, h, 2*t)
 
         # a > p
         self.assertRaises(ValueError, EC, 11, 12, 7, (6, 9),   13, 1, 0, False)
