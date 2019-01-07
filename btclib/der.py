@@ -1,30 +1,52 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2019 The btclib developers
-#
-# This file is part of btclib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of btclib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
+""" 
+    ============
+    DER encoding
+    ============
 
-"""DER encoding
+    Copyright (C) 2017-2019 The btclib developers
 
-   https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
+    This file is part of btclib. It is subject to the license terms in the
+    LICENSE file found in the top-level directory of this distribution.
 
-   Encoding format:
-   0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
-   * total-length: 1-byte length descriptor of everything that follows,
-     excluding the sighash byte.
-   * R-length: 1-byte length descriptor of the R value that follows.
-   * R: arbitrary-length big-endian encoded R value. It must use the shortest
-     possible encoding for a positive integers (which means no null bytes at
-     the start, except a single one when the next byte has its highest bit set
-     to avoid being interpreted as a negative number).
-   * S-length: 1-byte length descriptor of the S value that follows.
-   * S: arbitrary-length big-endian encoded S value. The same R rules apply.
-   * sighash: 1-byte value indicating what data is hashed (not part of the DER
-     signature)
+    No part of btclib including this file, may be copied, modified, propagated,
+    or distributed except according to the terms contained in the LICENSE file.
+
+    source : https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
+
+    BIP: 66
+
+    Layer: Consensus (soft fork)
+
+    Title: Strict DER signatures
+
+    Author: Pieter Wuille <pieter.wuille@gmail.com>
+
+    Comments-Summary: No comments yet.
+
+    Comments-URI: https://github.com/bitcoin/bips/wiki/Comments:BIP-0066
+
+    Status: Final
+
+    Type: Standards Track
+
+    Created: 2015-01-10
+
+    License: BSD-2-Clause
+
+    Format: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
+
+    * total-length: 1-byte length descriptor of everything that follows,
+      excluding the sighash byte.	
+    * R-length: 1-byte length descriptor of the R value that follows.	
+    * R: arbitrary-length big-endian encoded R value. It must use the shortest	
+      possible encoding for a positive integers (which means no null bytes at	
+      the start, except a single one when the next byte has its highest bit set).	
+    * S-length: 1-byte length descriptor of the S value that follows.	
+    * S: arbitrary-length big-endian encoded S value. The same rules apply.	
+    * sighash: 1-byte value indicating what data is hashed (not part of the DER	
+      signature)	
 """
 
 from btclib.curves import secp256k1
