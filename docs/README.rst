@@ -74,6 +74,13 @@ by importing your docs.
 .. _reStructuredText: http://sphinx-doc.org/rest.html
 .. _this template: https://www.writethedocs.org/guide/writing/beginners-guide-to-docs/#id1
 
+Autogenerate docs
+--------------------------
+
+.. sourcecode:: bash
+
+    sphinx-apidoc -o ./docs ./btclib
+
 Using Markdown with Sphinx
 --------------------------
 
