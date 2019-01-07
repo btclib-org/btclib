@@ -17,6 +17,17 @@ def mod_inv(a: int, m: int) -> int:
     else: return ud + m
 
 def mod_sqrt(a: int, p: int) -> int:
+    """ 
+        Find a quadratic residue (mod p) of 'a'. p
+        must be an odd prime.
+        Solve the congruence of the form: x^2 = a (mod p)
+        And returns x. Note that p - x is also a root.
+        The Tonelli-Shanks algorithm is used (except
+        for some simple cases in which the solution
+        is known from an identity). This algorithm
+        runs in polynomial time (unless the
+        generalized Riemann hypothesis is false).	
+    """
     # Simple cases
     if a == 0 or p == 2:
         return a

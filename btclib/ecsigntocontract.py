@@ -1,5 +1,35 @@
 #!/usr/bin/env python3
 
+"""
+    ================
+    sign-to-contract
+    ================
+
+    IDEA:
+    -----
+    
+    Let c be a value (bytes) and P an EC point, then c, P -> h(P||c)G + P
+    is a commitment operation. (G generator, || concatenation)
+    The signature contains an EC point, thus it can become a
+    commitment to c.	
+
+    HOW:
+    ----
+    
+    when signing, generate a nonce (k) and compute a EC point (R = kG)
+    instead of proceeding using (k,R), compute a value (e) that is a
+    commitment to c: e = hash(R||c)
+    substitute the nonce k with k+e and R with R+eG, and proceed signing
+    in the standard way, using (k+e,R+eG).
+
+    COMMITMENT VERIFICATION:
+    ------------------------
+
+    the verifier can see W.x (W = R+eG) on the signature
+    the signer (and committer) provides R and c
+    the verifier checks that: W.x = (R+eG).x (with e = hash(R||c))	
+"""
+
 from hashlib import sha256
 from btclib.ellipticcurves import Optional, Tuple, \
                                   Scalar, Point, \
