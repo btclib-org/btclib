@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'btclib'
-copyright = '2018-2019, Nicholas Sollazzo'
+copyright = '2017-2019 The btclib developers'
 author = 'Nicholas Sollazzo'
 
 # The short X.Y version
