@@ -11,7 +11,7 @@
 
 btclib is a python3 type annotated library intended for teaching and demonstration of the cryptography used in bitcoin. It is used for the [_Bitcoin and Blockchain Technology Course_](https://www.ametrano.net/bbt/) at Milano Bicocca and Politecnico di Milano.
 
-To install (and upgrade) btclib:
+The library does not have external requirements or dependencies; to install (and upgrade) btclib:
 
 ```shell
 python3 -m pip install --upgrade btclib
