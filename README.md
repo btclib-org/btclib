@@ -1,4 +1,4 @@
-# btclib: a bitcoin cryptography library
+# btclib: a 'bitcoin cryptography' library
 
 <http://github.com/dginst/btclib>
 
