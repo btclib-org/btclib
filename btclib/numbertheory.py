@@ -55,15 +55,12 @@ def legendre_symbol(a, p):
 
 
 def mod_sqrt(a: int, p: int) -> int:
-    """Return a quadratic residue (mod p) of 'a'. p must be a prime.
-
-       Solve the equation
-           x^2 = a mod p
-       And returns x. Note that p - x is also a root.
-       The Tonelli-Shanks algorithm is used (except for some simple
-       cases in which the solution is known from an identity).
-
-       https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+    """ 
+        Find a quadratic residue (mod p) of 'a'. p must be an odd prime.
+        Solve the congruence of the form 'x^2 = a (mod p)' and returns x.
+        Note that p - x is also a root.
+        The Tonelli-Shanks algorithm is used (except for some simple cases
+        in which the solution is known from an identity).
     """
     
     a %= p
