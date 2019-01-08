@@ -17,7 +17,7 @@ It does not have external requirements or dependencies; to install (and upgrade)
 python3 -m pip install --upgrade btclib
 ```
 
-Originally developed for the [_Bitcoin and Blockchain Technology Course_](https://www.ametrano.net/bbt/) at Milano Bicocca and Politecnico di Milano, its algorithms are not to be used in production environments: they could be broken using side-channel attacks. Moreover, they might be subjected to major refactoring without care for backward compatibility.
+Originally developed for the [_Bitcoin and Blockchain Technology Course_](https://www.ametrano.net/bbt/) at Milano Bicocca and Politecnico di Milano, its algorithms are not intended for production environments: they could be broken using side-channel attacks; moreover, they might be subjected to major refactoring without care for backward compatibility.
 
 The library includes:
 
