@@ -40,11 +40,15 @@ class EC:
     """Elliptic curve over Fp group"""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
-                       h: int, t: int = 0, all_checks: bool = True) -> None:
+                       h: int, t: int, weakness_check: bool = True) -> None:
         """EC instantiation
 
         Parameters are checked according to SEC 1 v.2 3.1.1.2.1
         """
+
+        # first off discriminate invalid (..., Gx, Gy, ...) input
+        if len(G) != 2:
+            raise ValueError("Generator must a be a Tuple[int, int]")
 
         # 1) check that p is an odd prime
         if p % 2 == 0:
@@ -56,15 +60,13 @@ class EC:
         # 1) check that p has enough bits
         plen = p.bit_length()
         self.t = t
-        if t != 0 and all_checks:
-            # t_range = [56, 64, 80, 96, 112, 128, 192, 256] # SEC 1 v.1
-            t_range =           [80, 96, 112, 128, 192, 256] # SEC 1 v.2
+        if t != 0:
+            t_range = [56, 64, 80, 96, 112, 128, 160, 192, 256]
             if t not in t_range:
                 m = f"required security level ({t}) "
                 m += f"not in the allowed range {t_range}"
                 raise UserWarning(m)
-            required_bits = {80:192, 96:192, 112:224, 128:256, 192:384, 256:521}
-            if plen != required_bits[t]:
+            if plen < t*2:
                 m = f"not enough bits ({plen}) for required security level {t}"
                 raise UserWarning(m)
 
@@ -88,8 +90,6 @@ class EC:
 
         # 2. check that xG and yG are integers in the interval [0, p−1]
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p).
-        if len(G) != 2:
-            raise ValueError("Generator must a be a Tuple[int, int]")
         if not self.isOnCurve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = int(G[0]), int(G[1])
@@ -97,21 +97,21 @@ class EC:
         # 5. Check that n is prime.
         if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
             raise ValueError(f"n ({hex(n)}) is not prime")
+        delta = int(2 * sqrt(p))
         # also check n with Hasse Theorem
-        if all_checks:
-            delta = int(2 * sqrt(p))
-            if not (p+1 - delta <= n <= p+1 + delta):
-                m = f"n ({hex(n)}) not in [p+1 - delta, p+1 + delta]"
+        if h < 2:
+            if not (p + 1 - delta <= n <= p + 1 + delta):
+                m = f"n ({hex(n)}) not in [p + 1 - delta, p + 1 + delta]"
                 raise ValueError(m)
         self.n = n
         self.nlen = n.bit_length()
         self.nsize = (self.nlen + 7) // 8
 
         # 6. Check cofactor
-        exp_h = int(pow(sqrt(p)+1, 2) // n)
+        exp_h = int(1/n + delta/n + p/n)
         if h != exp_h:
             raise ValueError(f"h ({h}) not as expected ({exp_h})")
-        if all_checks and t != 0 and h > pow(2, t/8):
+        if t != 0 and h > pow(2, t/8):
             raise ValueError(f"h ({h}) too big for t ({t})")
         self.h = h
 
@@ -127,7 +127,7 @@ class EC:
         # 8. Check that n ≠ p
         if n == p:
             raise UserWarning("n=p -> weak curve")
-        if all_checks:
+        if weakness_check:
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100
             for i in range(1, 100):
                 if pow(p, i, n) == 1:

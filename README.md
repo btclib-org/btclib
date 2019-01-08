@@ -27,22 +27,20 @@ The library includes:
   - fast algebra implemented using Jacobian coordinates
   - double scalar multiplication (Shamir's trick)
   - point simmetry solution: odd/even, high/low, and quadratic residue
-  - SEC 1 v1 and v2 curves
-  - NIST curves
-  - low cardinality test curves
+  - available curves: SEC 1 v1 and v2, NIST, Brainpool, and low cardinality test curves
 - ECDSA signature and DER encoding
-- Sign-to-contract notarization
-- Schnorr signature (according to bip-schnorr bitcoin standardization)
+- EC sign-to-contract notarization
+- EC Schnorr signature (according to bip-schnorr bitcoin standardization)
   - batch validation
   - threshold signature
   - MuSig multi-signature
-- Borromean ring signature
+- EC Borromean ring signature
 - RFC-6979 to make signature schemes deterministic
 - EC Diffie-Hellman
 - Pedersen Committment
 - base58 encoding, addresses, WIFs
 - BIP32 hierarchical deterministic wallets
 - BIP39 mnemonic code for generating deterministic keys
-- Electrum standard for mnemonic code
+- [Electrum](https://electrum.org/#home) standard for mnemonic code
 
 A very extensive test suite reproduces results from major official sources and covers basically 100% of the library code base.
