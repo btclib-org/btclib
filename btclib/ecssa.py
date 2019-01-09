@@ -144,7 +144,7 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
     # Fail if jacobi(y(R)) ≠ 1.
     if legendre_symbol(R[1], ec._p) != 1:
-        raise ValueError("y(sG - eP) is not a quadratic residue")
+        raise ValueError("(sG - eP).y is not a quadratic residue")
 
     # Fail if x(R) ≠ r.
     return R[0] == r
@@ -155,7 +155,6 @@ def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
 
     r, s = _to_ssasig(ec, sig)
 
-    # could be obtained from to_ssasig...
     K = r, ec.yQuadraticResidue(r, True)
 
     if e == 0:
