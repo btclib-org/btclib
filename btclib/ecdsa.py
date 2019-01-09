@@ -115,7 +115,7 @@ def _ecdsa_verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only."""
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = to_dsasig(ec, sig)                         # 1
+    r, s = _to_dsasig(ec, sig)                         # 1
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.requireOnCurve(P)
@@ -156,7 +156,7 @@ def _ecdsa_pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     # http://www.secg.org/sec1-v2.pdf
     # See SEC 1 v.2 section 4.1.6
 
-    r, s = to_dsasig(ec, sig)
+    r, s = _to_dsasig(ec, sig)
 
     # precomputations
     r1 = mod_inv(r, ec.n)
@@ -180,7 +180,7 @@ def _ecdsa_pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     return keys
 
 
-def to_dsasig(ec: EC, sig: ECDS) -> Tuple[int, int]:
+def _to_dsasig(ec: EC, sig: ECDS) -> Tuple[int, int]:
     """check DSA signature correct format and return the signature itself"""
 
     if len(sig) != 2:
