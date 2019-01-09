@@ -19,7 +19,7 @@ from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ec import Point, EC, pointMult, DblScalarMult, \
-    _jac_from_aff, _pointMultJacobian
+    _jac_from_aff, _pointMultJacobian, _DblScalarMult
 from btclib.ecutils import bits2int, point2octets, int2octets
 from btclib.rfc6979 import rfc6979
 
@@ -71,22 +71,23 @@ def ecssa_sign(ec: EC, hf, m: bytes, d: int,
         raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
 
     # Let R = k'G.
-    R = pointMult(ec, k, ec.G)
+    RJ = _pointMultJacobian(ec, k, ec.GJ)
 
-    # Let k = k' if jacobi(y(R)) = 1, otherwise let k = n - k'.
     # break the simmetry: any criteria might have been used,
     # jacobi is the proposed bitcoin standard
-    if legendre_symbol(R[1], ec._p) != 1:
-        # no need to actually change R[1], as it is not used anymore
-        # let just fix k instead, as that is used later
+    # Let k = k' if jacobi(y(R)) = 1, otherwise let k = n - k'.
+    if legendre_symbol(RJ[1]*RJ[2] % ec._p, ec._p) != 1:
         k = ec.n - k
 
+    Z2 = RJ[2]*RJ[2]
+    r = (RJ[0]*mod_inv(Z2, ec._p)) % ec._p
+
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
-    e = _ecssa_e(ec, hf, R[0], P, m)
+    e = _ecssa_e(ec, hf, r, P, m)
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
-    return R[0], s
+    return r, s
 
 
 def ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
@@ -136,18 +137,19 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     e = _ecssa_e(ec, hf, r, P, m)
 
     # Let R = sG - eP.
-    R = DblScalarMult(ec, s, ec.G, -e, P)
+    # in Jacobian coordinates
+    R = _DblScalarMult(ec, s, ec.GJ, -e, (P[0], P[1], 1))
 
     # Fail if infinite(R).
-    if R[1] == 0:
+    if R[2] == 0:
         raise ValueError("sG - eP is infinite")
 
-    # Fail if jacobi(y(R)) ≠ 1.
-    if legendre_symbol(R[1], ec._p) != 1:
+    # Fail if jacobi(R.y) ≠ 1.
+    if legendre_symbol(R[1]*R[2] % ec._p, ec._p) != 1:
         raise ValueError("(sG - eP).y is not a quadratic residue")
 
-    # Fail if x(R) ≠ r.
-    return R[0] == r
+    # Fail if R.x ≠ r.
+    return R[0] == (R[2]*R[2]*r % ec._p)
 
 
 def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
@@ -156,6 +158,7 @@ def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
     r, s = _to_ssasig(ec, sig)
 
     K = r, ec.yQuadraticResidue(r, True)
+    # FIXME yQuadraticResidue in Jacobian coordinates?
 
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
