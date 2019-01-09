@@ -29,7 +29,6 @@ class TestEcssa2(unittest.TestCase):
         m = []
         sig = []
         Q = []
-        a = []
 
         hsize =hf().digest_size
         hlen = hsize * 8
@@ -38,14 +37,12 @@ class TestEcssa2(unittest.TestCase):
             q = random.getrandbits(ec.nlen) % ec.n
             sig.append(ecssa_sign(ec, hf, m[i], q))
             Q.append(pointMult(ec, q, ec.G))
-            a.append(random.getrandbits(ec.nlen) % ec.n)
-        self.assertTrue(ecssa_batch_validation(ec, hf, m, Q, a, sig))
+        self.assertTrue(ecssa_batch_validation(ec, hf, m, Q, sig))
 
         m.append(m[0])
         sig.append(sig[1])  # invalid
         Q.append(Q[0])
-        a.append(a[0])
-        self.assertFalse(ecssa_batch_validation(ec, hf, m, Q, a, sig))
+        self.assertFalse(ecssa_batch_validation(ec, hf, m, Q, sig))
 
 
     def test_threshold(self):
