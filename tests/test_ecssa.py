@@ -251,8 +251,8 @@ class TestEcssa(unittest.TestCase):
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC2F,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
-        #self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
+        #self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
 
         # test vector 16
         # sig[32:64] is equal to curve order

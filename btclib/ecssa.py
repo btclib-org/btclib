@@ -174,15 +174,16 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
         raise TypeError(m)
 
     # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
-    r = int(sig[0])
+    r = int(sig[0])  # FIXME: int from bytes ?
+
     # might skip the following, as it is not really needed
-    if not 0 <= r < ec._p:
-        raise ValueError(f"r ({hex(r)}) not in [0, p-1]")
-    # the real check would be to calculate R.y because
-    # R.x is valid iif R.y does exist
+    # if r is not a valid x-coordinate the verification would fail
+    # if r>= p the verification would fail
+    #if not 0 <= r < ec._p:
+    #    raise ValueError(f"r ({hex(r)}) not in [0, p-1]")
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
-    s = int(sig[1])
+    s = int(sig[1])  # FIXME: int from bytes ?
     if not 0 <= s < ec.n:
         raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
 
