@@ -15,7 +15,7 @@ from btclib.numbertheory import mod_inv
 from btclib.ec import _jac_from_aff, pointMult, DblScalarMult
 from btclib.ecurves import secp256k1, secp112r2, secp160r1, low_card_curves
 from btclib.ecutils import octets2point, point2octets
-from btclib.ecdsa import to_dsasig, ecdsa_sign, _ecdsa_sign, ecdsa_verify, \
+from btclib.ecdsa import ecdsa_sign, _ecdsa_sign, ecdsa_verify, \
     _ecdsa_verify, _ecdsa_verhlp, ecdsa_pubkey_recovery, _ecdsa_pubkey_recovery
 
 
@@ -31,9 +31,9 @@ class TestEcdsa(unittest.TestCase):
         # Deterministic Usage of DSA and ECDSA (RFC 6979)
         exp_sig = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
                    0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
-        r, s = to_dsasig(ec, sig)
-        self.assertEqual(r, exp_sig[0])
-        self.assertIn(s, (exp_sig[1], ec.n - exp_sig[1]))
+        r, s = sig
+        self.assertEqual(sig[0], exp_sig[0])
+        self.assertIn(sig[1], (exp_sig[1], ec.n - exp_sig[1]))
 
         self.assertTrue(ecdsa_verify(ec, hf, msg, Q, sig))
         self.assertTrue(_ecdsa_verify(ec, hf, msg, Q, sig))
@@ -62,11 +62,11 @@ class TestEcdsa(unittest.TestCase):
 
         # r not in [1, n-1]
         invalid_dassig = 0, sig[1]
-        self.assertRaises(ValueError, to_dsasig, ec, invalid_dassig)
+        self.assertFalse(ecdsa_verify(ec, hf, msg, Q, invalid_dassig))
 
         # s not in [1, n-1]
         invalid_dassig = sig[0], 0
-        self.assertRaises(ValueError, to_dsasig, ec, invalid_dassig)
+        self.assertFalse(ecdsa_verify(ec, hf, msg, Q, invalid_dassig))
 
         # pubkey = Inf
         self.assertRaises(ValueError, _ecdsa_verify, ec, hf, msg, (1, 0), sig)
@@ -96,7 +96,7 @@ class TestEcdsa(unittest.TestCase):
         exp_sig = (0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
                    0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54)
         sig = ecdsa_sign(ec, hf, msg, dU, k)
-        r, s = to_dsasig(ec, sig)
+        r, s = sig
         self.assertEqual(r, exp_sig[0])
         self.assertIn(s, (exp_sig[1], ec.n - exp_sig[1]))
 

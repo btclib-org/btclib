@@ -17,7 +17,7 @@ from btclib.ec import pointMult
 from btclib.ecurves import secp256k1, secp224k1, low_card_curves
 from btclib.ecutils import octets2point, point2octets, bits2int
 from btclib.rfc6979 import rfc6979
-from btclib.ecssa import ecssa_sign, ecssa_verify, to_ssasig, \
+from btclib.ecssa import ecssa_sign, ecssa_verify, \
     _ecssa_e, _ecssa_verify, _ecssa_pubkey_recovery
 
 random.seed(42)
@@ -36,9 +36,8 @@ class TestEcssa(unittest.TestCase):
         # same r because of rfc6979
         exp_sig = (0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8,
                    0x2DF2423F70563E3C4BD0E00BDEF658081613858F110ECF937A2ED9190BF4A01A)
-        r, s = to_ssasig(ec, sig)
-        self.assertEqual(r, exp_sig[0])
-        self.assertEqual(s, exp_sig[1])
+        self.assertEqual(sig[0], exp_sig[0])
+        self.assertEqual(sig[1], exp_sig[1])
 
         _ecssa_verify(ec, hf, msg, Q, sig)
         self.assertTrue(ecssa_verify(ec, hf, msg, Q, sig))
@@ -251,8 +250,7 @@ class TestEcssa(unittest.TestCase):
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC2F,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
-        #self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
+        self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
 
         # test vector 16
         # sig[32:64] is equal to curve order

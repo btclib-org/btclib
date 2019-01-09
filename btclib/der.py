@@ -28,7 +28,7 @@
 """
 
 from btclib.ecurves import secp256k1
-from btclib.ecdsa import Tuple, ECDS, to_dsasig
+from btclib.ecdsa import Tuple, ECDS
 
 sighash_all = b'\x01'
 sighash_none = b'\x02'
