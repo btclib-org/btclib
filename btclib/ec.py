@@ -317,7 +317,7 @@ def pointMult(ec: EC, n: int, Q: Point) -> Point:
 def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
     """double & add in affine coordinates, using binary decomposition of n
     
-       Point is assumed to be on curve, 0 < n < ec.n
+       Point is assumed to be on curve, 0 <= n < ec.n
     """
     # private method does not check input
     if Q[1] == 0:  # Infinity point in affine coordinates
@@ -335,7 +335,7 @@ def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
 def _pointMultJacobian(ec: EC, n: int, Q: _JacPoint) -> _JacPoint:
     """double & add in jacobian coordinates, using binary decomposition of n
     
-       Point is assumed to be on curve, 0 < n < ec.n
+       Point is assumed to be on curve, 0 <= n < ec.n
     """
     # private method does not check input
     if Q[2] == 0:  # Infinity point in Jacobian coordinates
@@ -353,36 +353,12 @@ def _pointMultJacobian(ec: EC, n: int, Q: _JacPoint) -> _JacPoint:
 def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
     """Shamir trick for efficient computation of u*Q + v*P"""
 
-    if u == 0:
-        if v == 0:
-            return 1, 0
-        ec.requireOnCurve(P)
-        PJ = _jac_from_aff(P)
-        v %= ec.n
-        R = _pointMultJacobian(ec, v, PJ)
-        return ec._affine_from_jac(R)
-
-    ec.requireOnCurve(Q)
-    if Q[1] == 0:
-        ec.requireOnCurve(P)
-        PJ = _jac_from_aff(P)
-        v %= ec.n
-        R = _pointMultJacobian(ec, v, PJ)
-        return ec._affine_from_jac(R)
-
     u %= ec.n
+    ec.requireOnCurve(Q)
     QJ = _jac_from_aff(Q)
 
-    if v == 0:
-        R = _pointMultJacobian(ec, u, QJ)
-        return ec._affine_from_jac(R)
-
-    ec.requireOnCurve(P)
-    if P[1] == 0:
-        R = _pointMultJacobian(ec, u, QJ)
-        return ec._affine_from_jac(R)
-
     v %= ec.n
+    ec.requireOnCurve(P)
     PJ = _jac_from_aff(P)
 
     R = _DblScalarMult(ec, u, QJ, v, PJ)
@@ -391,7 +367,11 @@ def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
 
 def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
                            v: int, PJ: _JacPoint) -> _JacPoint:
-    # u and v are assumed ≠ 0, Q and P ≠ infinite
+
+    if u == 0 or QJ[2] == 0:
+        return _pointMultJacobian(ec, v, PJ)
+    if v == 0 or PJ[2] == 0:
+        return _pointMultJacobian(ec, u, QJ)
 
     R = 1, 1, 0  # initialize as infinity point
     msb = max(u.bit_length(), v.bit_length())
