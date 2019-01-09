@@ -14,6 +14,7 @@
 """
 
 import heapq
+import random
 from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
@@ -116,9 +117,9 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
 
-    # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
+    # Let r = int(sig[ 0:32]).
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
-    r, s = to_ssasig(ec, sig)
+    r, s = _to_ssasig(ec, sig)
 
     # The message m: a 32-byte array
     if len(m) != hf().digest_size:
@@ -152,7 +153,7 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
     """Private function provided for testing purposes only."""
 
-    r, s = to_ssasig(ec, sig)
+    r, s = _to_ssasig(ec, sig)
 
     # could be obtained from to_ssasig...
     K = r, ec.yQuadraticResidue(r, True)
@@ -165,7 +166,7 @@ def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
     return P
 
 
-def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
+def _to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     """check SSA signature format is correct and return the signature itself"""
 
     # A signature sig: a 64-byte array.
@@ -173,13 +174,8 @@ def to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
         m = f"invalid length {len(sig)} for ECSSA signature"
         raise TypeError(m)
 
-    # Let r = int(sig[ 0:32]); fail if r is not [0, p-1].
+    # Let r = int(sig[ 0:32]).
     r = int(sig[0])
-    # might skip the following, as it is not really needed
-    if not 0 <= r < ec._p:
-        raise ValueError(f"r ({hex(r)}) not in [0, p-1]")
-    # the real check would be to calculate R.y because
-    # R.x is valid iif R.y does exist
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
     s = int(sig[1])
@@ -193,21 +189,23 @@ def ecssa_batch_validation(ec: EC,
                            hf,
                            ms: List[bytes],
                            P: List[Point],
-                           a: List[int], 
                            sig: List[ECSS]) -> bool:
-    # initialization
+
+    u = len(P)
+
+    a = [1]
+    # deterministically generated using a CSPRNG seeded by a cryptographic
+    # hash (e.g., SHA256) of all inputs of the algorithm, or randomly generated
+    # independently for each run of the batch verification algorithm
+    for i in range(1, u):
+        a.append(random.getrandbits(ec.nlen) % ec.n)
+
     mult = 0
     points = list()
     factors = list()
-
-    u = len(P)
     for i in range(u):
-        r, s = to_ssasig(ec, sig[i])
-        ebytes = r.to_bytes(32, byteorder="big")
-        ebytes += point2octets(ec, P[i], True)
-        ebytes += ms[i]
-        ebytes = hf(ebytes).digest()
-        e = bits2int(ec, ebytes)
+        r, s = _to_ssasig(ec, sig[i])
+        e = _ecssa_e(ec, hf, r, P[i], ms[i])
 
         y = ec.y(r)  # raises an error if y does not exist
 
