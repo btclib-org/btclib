@@ -235,7 +235,11 @@ def ecssa_batch_validation(ec: EC,
 
     RHSJ = _pointMultJacobian(ec, -aK[0], aK[1])
     TJ = _pointMultJacobian(ec, mult, ec.GJ)
-    RHS = ec._affine_from_jac(RHSJ)
-    T = ec._affine_from_jac(TJ)
 
-    return T == RHS
+    # return T == RHS, checked in Jacobian coordinates
+    RHSZ2 = RHSJ[2] * RHSJ[2]
+    TZ2 = TJ[2] * TJ[2]
+    if (TJ[0] * RHSZ2)  % ec._p != (RHSJ[0] * TZ2) % ec._p:
+        return False
+
+    return (TJ[1] * RHSZ2 * RHSJ[2]) % ec._p == (RHSJ[1] * TZ2 * TJ[2]) % ec._p
