@@ -16,7 +16,8 @@ TODO: document duck-typing and static typing design choices
 
 from hashlib import sha256
 from math import sqrt
-from typing import Tuple
+import heapq
+from typing import Tuple, Sequence
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
@@ -384,3 +385,23 @@ def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
         msb -= 1
 
     return R
+
+def _multiScalarMult(ec: EC, scalars: Sequence[int],
+                             Points: Sequence[_JacPoint]) -> _JacPoint:
+    # Bos-coster's algorithm, source:
+    # https://cr.yp.to/badbatch/boscoster2.py
+    x = list(zip([-n for n in scalars], Points))
+    heapq.heapify(x)
+    while len(x) > 1:
+        np1 = heapq.heappop(x)
+        np2 = heapq.heappop(x)
+        n1, p1 = -np1[0], np1[1]
+        n2, p2 = -np2[0], np2[1]
+        p2 = ec._addJacobian(p1, p2)
+        n1 -= n2
+        if n1 > 0:
+            heapq.heappush(x, (-n1, p1))
+        heapq.heappush(x, (-n2, p2))
+    np1 = heapq.heappop(x)
+    n1, p1 = -np1[0], np1[1]
+    return _pointMultJacobian(ec, n1, p1)

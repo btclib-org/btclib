@@ -9,7 +9,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![GitHub License](https://img.shields.io/github/license/dginst/btclib.svg)](https://github.com/dginst/btclib/blob/master/LICENSE)
 
-btclib is a python3 type annotated library intended for teaching and demonstration of the cryptography used in bitcoin.
+btclib is a python3 type annotated library intended for teaching and demonstration of the elliptic cryptography used in bitcoin.
 
 It does not have external requirements or dependencies; to install (and upgrade) btclib:
 
@@ -25,18 +25,19 @@ The library includes:
 - octet / integer / point conversion functions
 - elliptic curve class
   - fast algebra implemented using Jacobian coordinates
-  - double scalar multiplication (Shamir's trick)
+  - double scalar multiplication (Straus's algorithm, also known as Shamir's trick)
+  - multi scalar multiplication (Bos-coster's algorithm)
   - point simmetry solution: odd/even, high/low, and quadratic residue
   - available curves: SEC 1 v1 and v2, NIST, Brainpool, and low cardinality test curves
-- ECDSA signature and DER encoding
-- EC sign-to-contract notarization
-- EC Schnorr signature (according to bip-schnorr bitcoin standardization)
+- DSA signature and DER encoding
+- Schnorr signature (according to bip-schnorr bitcoin standardization)
   - batch validation
   - threshold signature
   - MuSig multi-signature
-- EC Borromean ring signature
+- Borromean ring signature
 - RFC-6979 to make signature schemes deterministic
-- EC Diffie-Hellman
+- sign-to-contract notarization
+- Diffie-Hellman
 - Pedersen Committment
 - base58 encoding, addresses, WIFs
 - BIP32 hierarchical deterministic wallets

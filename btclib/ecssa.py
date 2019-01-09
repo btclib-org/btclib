@@ -19,7 +19,7 @@ from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ec import Point, EC, pointMult, DblScalarMult, \
-    _jac_from_aff, _pointMultJacobian, _DblScalarMult
+    _jac_from_aff, _pointMultJacobian, _DblScalarMult, _multiScalarMult
 from btclib.ecutils import bits2int, point2octets, int2octets
 from btclib.rfc6979 import rfc6979
 
@@ -217,24 +217,8 @@ def ecssa_batch_validation(ec: EC,
         points.append(_jac_from_aff(P[i]))
         factors.append(a[i] * e % ec.n)
 
-    # Bos-coster's algorithm, source:
-    # https://cr.yp.to/badbatch/boscoster2.py
-    boscoster = list(zip([-n for n in factors], points))
-    heapq.heapify(boscoster)
-    while len(boscoster) > 1:
-        aK1 = heapq.heappop(boscoster)
-        aK2 = heapq.heappop(boscoster)
-        a1, K1 = -aK1[0], aK1[1]
-        a2, K2 = -aK2[0], aK2[1]
-        K2 = ec._addJacobian(K1, K2)
-        a1 -= a2
-        if a1 > 0:
-            heapq.heappush(boscoster, (-a1, K1))
-        heapq.heappush(boscoster, (-a2, K2))
-    aK = heapq.heappop(boscoster)
-
-    RHSJ = _pointMultJacobian(ec, -aK[0], aK[1])
     TJ = _pointMultJacobian(ec, mult, ec.GJ)
+    RHSJ = _multiScalarMult(ec, factors, points)
 
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
