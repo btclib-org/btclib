@@ -385,6 +385,14 @@ def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
     v %= ec.n
     PJ = _jac_from_aff(P)
 
+    R = _DblScalarMult(ec, u, QJ, v, PJ)
+
+    return ec._affine_from_jac(R)
+
+def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
+                           v: int, PJ: _JacPoint) -> _JacPoint:
+    # u and v are assumed ≠ 0, Q and P ≠ infinite
+
     R = 1, 1, 0  # initialize as infinity point
     msb = max(u.bit_length(), v.bit_length())
     while msb > 0:
@@ -398,4 +406,4 @@ def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
             R = ec._addJacobian(R, R)
         msb -= 1
 
-    return ec._affine_from_jac(R)
+    return R
