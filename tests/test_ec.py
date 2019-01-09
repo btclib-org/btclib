@@ -340,10 +340,9 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_Multiply(self):
         for ec in low_card_curves:
-            Gjac = _jac_from_aff(ec.G)
             for q in range(ec.n):
                 Q = _pointMultAffine(ec, q, ec.G)
-                Qjac = _pointMultJacobian(ec, q, Gjac)
+                Qjac = _pointMultJacobian(ec, q, ec.GJ)
                 Q2 = ec._affine_from_jac(Qjac)
                 self.assertEqual(Q, Q2)
         # with last curve

@@ -231,7 +231,7 @@ def ecssa_batch_validation(ec: EC,
     aK = heapq.heappop(boscoster)
 
     RHSJ = _pointMultJacobian(ec, -aK[0], aK[1])
-    TJ = _pointMultJacobian(ec, mult, _jac_from_aff(ec.G))
+    TJ = _pointMultJacobian(ec, mult, ec.GJ)
     RHS = ec._affine_from_jac(RHSJ)
     T = ec._affine_from_jac(TJ)
 

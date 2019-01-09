@@ -93,6 +93,7 @@ class EC:
         if not self.isOnCurve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = int(G[0]), int(G[1])
+        self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
 
         # 5. Check that n is prime.
         if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
