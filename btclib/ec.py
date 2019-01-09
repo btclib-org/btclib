@@ -309,55 +309,48 @@ def pointMult(ec: EC, n: int, Q: Point) -> Point:
     # but it does not need to
     ec.requireOnCurve(Q)
     QJ = _jac_from_aff(Q)
-    n %= ec.n
     R = _pointMultJacobian(ec, n, QJ)
     return ec._affine_from_jac(R)
 
 
 def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
-    """double & add in affine coordinates, using binary decomposition of n
-    
-       Point is assumed to be on curve, 0 <= n < ec.n
-    """
-    # private method does not check input
-    if Q[1] == 0:  # Infinity point in affine coordinates
+    # double & add in affine coordinates, using binary decomposition of n
+    # Point is assumed to be on curve
+
+    n %= ec.n
+    if Q[1] == 0:                    # Infinity point in affine coordinates
         return Q
-    R = 1, 0      # initialize as infinity point
-    while n > 0:  # use binary representation of n
-        if n & 1:  # if least significant bit is 1 then add current Q
-            R = ec.add(R, Q)
-        n = n >> 1  # right shift removes the bit just accounted for
-        # double Q for next step
-        Q = ec.add(Q, Q)
+    R = 1, 0                         # initialize as infinity point
+    while n > 0:                     # use binary representation of n
+        if n & 1:                    # if least significant bit is 1
+            R = ec._addAffine(R, Q)  # then add current Q
+        n = n >> 1                   # remove the bit just accounted for
+        Q = ec._addAffine(Q, Q)      # double Q for next step
     return R
 
 
 def _pointMultJacobian(ec: EC, n: int, Q: _JacPoint) -> _JacPoint:
-    """double & add in jacobian coordinates, using binary decomposition of n
-    
-       Point is assumed to be on curve, 0 <= n < ec.n
-    """
-    # private method does not check input
-    if Q[2] == 0:  # Infinity point in Jacobian coordinates
+    # double & add in Jacobian coordinates, using binary decomposition of n
+    # Point is assumed to be on curve
+
+    n %= ec.n
+    if Q[2] == 0:                      # Infinity point in Jacobian coordinates
         return 1, 1, 0
-    R = 1, 1, 0   # initialize as infinity point
-    while n > 0:  # use binary representation of n
-        if n & 1:  # if least significant bit is 1 then add current Q
-            R = ec._addJacobian(R, Q)
-        n = n >> 1  # right shift removes the bit just accounted for
-        # double Q for next step:
-        Q = ec._addJacobian(Q, Q)
+    R = 1, 1, 0                        # initialize as infinity point
+    while n > 0:                       # use binary representation of n
+        if n & 1:                      # if least significant bit is 1
+            R = ec._addJacobian(R, Q)  # then add current Q
+        n = n >> 1                     # remove the bit just accounted for
+        Q = ec._addJacobian(Q, Q)      # double Q for next step
     return R
 
 
 def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
     """Shamir trick for efficient computation of u*Q + v*P"""
 
-    u %= ec.n
     ec.requireOnCurve(Q)
     QJ = _jac_from_aff(Q)
 
-    v %= ec.n
     ec.requireOnCurve(P)
     PJ = _jac_from_aff(P)
 
@@ -368,8 +361,11 @@ def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
 def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
                            v: int, PJ: _JacPoint) -> _JacPoint:
 
+    u %= ec.n
     if u == 0 or QJ[2] == 0:
         return _pointMultJacobian(ec, v, PJ)
+
+    v %= ec.n
     if v == 0 or PJ[2] == 0:
         return _pointMultJacobian(ec, u, QJ)
 
