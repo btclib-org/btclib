@@ -11,7 +11,7 @@
 
 btclib is a python3 type annotated library intended for teaching and demonstration of the elliptic curve cryptography used in bitcoin.
 
-It does not have external requirements or dependencies; to install (and upgrade) btclib:
+It does not have external requirements or dependencies; to install (and upgrade) it:
 
 ```shell
 python3 -m pip install --upgrade btclib
