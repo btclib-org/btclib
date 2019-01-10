@@ -11,13 +11,13 @@
 import unittest
 from hashlib import sha1, sha224, sha256, sha384, sha512
 
-from btclib.ecurves import secp256k1, \
+from btclib.curves import secp256k1, \
                            nistp192, nistp224, nistp256, nistp384, nistp521
 from btclib.rfc6979 import rfc6979
 
 from btclib.ec import pointMult
-from btclib.ecdsa import ecdsa_sign
-from btclib.ecutils import bits2int, int2octets, _bits2int
+from btclib.dsa import ecdsa_sign
+from btclib.utils import bits2int, int2octets, _bits2int
 
 class Testrfc6979(unittest.TestCase):
     def test_rfc6979(self):

@@ -14,8 +14,8 @@ from typing import List, Dict, Tuple
 from collections import defaultdict
 
 from btclib.ec import Point, pointMult, DblScalarMult    
-from btclib.ecurves import secp256k1    
-from btclib.ecutils import bits2int, point2octets, octets2point
+from btclib.curves import secp256k1    
+from btclib.utils import bits2int, point2octets, octets2point
 
 
 # source: https://github.com/ElementsProject/borromean-signatures-writeup

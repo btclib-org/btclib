@@ -12,10 +12,10 @@ import unittest
 from hashlib import sha256 as hf
 
 from btclib.ec import pointMult
-from btclib.ecurves import secp256k1 as ec
-from btclib.ecdsa import ecdsa_verify
-from btclib.ecssa import ecssa_verify
-from btclib.ecsigtocontract import ecdsa_commit_sign, ecssa_commit_sign, \
+from btclib.curves import secp256k1 as ec
+from btclib.dsa import ecdsa_verify
+from btclib.ssa import ecssa_verify
+from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, \
     verify_commit
 
 

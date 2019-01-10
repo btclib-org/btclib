@@ -34,10 +34,10 @@
 from typing import Optional, Tuple
 
 from btclib.ec import EC, pointMult, Point
-from btclib.ecutils import bits2int, octets2point, point2octets
+from btclib.utils import bits2int, octets2point, point2octets
 from btclib.rfc6979 import rfc6979
-from btclib.ecdsa import ecdsa_sign, ECDS
-from btclib.ecssa import ecssa_sign, ECSS
+from btclib.dsa import ecdsa_sign, ECDS
+from btclib.ssa import ecssa_sign, ECSS
 
 Receipt = Tuple[int, Point]
 

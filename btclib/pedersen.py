@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from btclib.ec import Point, EC, DblScalarMult
-from btclib.ecutils import octets2int, point2octets, bits2int
+from btclib.utils import octets2int, point2octets, bits2int
 
 def secondGenerator(ec: EC, hf) -> Point:
     """Nothing-Up-My-Sleeve (NUMS) second generator H wrt ec.G 

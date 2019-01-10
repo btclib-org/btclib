@@ -16,7 +16,7 @@ setup(
     long_description_content_type = 'text/markdown',
     packages = find_packages(exclude=['tests']),
     include_package_data = True,
-    keywords = 'bitcoin cryptography elliptic-curves ecdsa schnorr rfc-6979 bip32 bip39 electrum base58',
+    keywords = 'bitcoin cryptography elliptic-curves dsa schnorr rfc-6979 bip32 bip39 electrum base58',
     python_requires = '>=3.6',
     classifiers = [
         'Programming Language :: Python :: 3 :: Only',

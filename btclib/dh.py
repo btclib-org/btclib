@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from btclib.ec import EC, Point, pointMult
-from btclib.ecutils import int2octets, octets2int
+from btclib.utils import int2octets, octets2int
 
 def kdf(zbytes: bytes, keydatasize: int, ec: EC, hf) -> bytes:
     """ ANS-X9.63-KDF - SEC 1 specification

@@ -18,7 +18,7 @@ from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv
 from btclib.ec import Point, EC, pointMult, DblScalarMult
-from btclib.ecutils import bits2int
+from btclib.utils import bits2int
 from btclib.rfc6979 import rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]

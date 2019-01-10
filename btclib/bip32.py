@@ -14,8 +14,8 @@ from typing import Union, Optional
 
 from btclib.base58 import b58encode_check, b58decode_check
 from btclib.ec import pointMult
-from btclib.ecurves import secp256k1 as ec
-from btclib.ecutils import octets, octets2point, point2octets, octets2int
+from btclib.curves import secp256k1 as ec
+from btclib.utils import octets, octets2point, point2octets, octets2int
 from btclib.wifaddress import h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes        Base58 encode starts with

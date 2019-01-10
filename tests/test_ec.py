@@ -13,9 +13,9 @@ import unittest
 from btclib.numbertheory import mod_sqrt
 from btclib.ec import EC, pointMult, DblScalarMult, \
     _jac_from_aff, _pointMultJacobian, _pointMultAffine
-from btclib.ecurves import secp256k1, secp256r1, secp384r1, secp160r1, \
+from btclib.curves import secp256k1, secp256r1, secp384r1, secp160r1, \
     secp112r1, all_curves, low_card_curves, ec23_31
-from btclib.ecutils import point2octets, octets2point
+from btclib.utils import point2octets, octets2point
 
  
 Inf = 1, 0  # Infinity point in affine coordinates

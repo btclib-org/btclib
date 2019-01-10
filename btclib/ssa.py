@@ -20,7 +20,7 @@ from typing import Tuple, List, Optional
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.ec import Point, EC, pointMult, DblScalarMult, \
     _jac_from_aff, _pointMultJacobian, _DblScalarMult, _multiScalarMult
-from btclib.ecutils import bits2int, point2octets, int2octets
+from btclib.utils import bits2int, point2octets, int2octets
 from btclib.rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[Coordinate, int]

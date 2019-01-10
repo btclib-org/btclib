@@ -27,8 +27,8 @@
      signature)
 """
 
-from btclib.ecurves import secp256k1
-from btclib.ecdsa import Tuple, ECDS
+from btclib.curves import secp256k1
+from btclib.dsa import Tuple, ECDS
 
 sighash_all = b'\x01'
 sighash_none = b'\x02'
