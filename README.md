@@ -9,7 +9,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![GitHub License](https://img.shields.io/github/license/dginst/btclib.svg)](https://github.com/dginst/btclib/blob/master/LICENSE)
 
-btclib is a python3 type annotated library intended for teaching and demonstration of the elliptic cryptography used in bitcoin.
+btclib is a python3 type annotated library intended for teaching and demonstration of the elliptic curve cryptography used in bitcoin.
 
 It does not have external requirements or dependencies; to install (and upgrade) btclib:
 
