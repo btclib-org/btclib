@@ -25,6 +25,11 @@ from btclib.rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 
+def _ensureCorrectMessageSize(hf, m: bytes) -> None:
+    if len(m) != hf().digest_size:
+        errmsg = f'message of wrong size: {len(m)}'
+        errmsg += f' instead of {hf().digest_size} bytes'
+        raise ValueError(errmsg)
 
 def _ecssa_e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
@@ -54,10 +59,7 @@ def ecssa_sign(ec: EC, hf, m: bytes, d: int,
     # a digest of other messages, but it does not need to.
 
     # The message m: a 32-byte array
-    if len(m) != hf().digest_size:
-        errmsg = f'message of wrong size: {len(m)}'
-        errmsg += f' instead of {hf().digest_size}'
-        raise ValueError(errmsg)
+    _ensureCorrectMessageSize(hf, m)
 
     # The secret key d: an integer in the range 1..n-1.
     if not 0 < d < ec.n:
@@ -118,10 +120,7 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     r, s = _to_ssasig(ec, sig)
 
     # The message m: a 32-byte array
-    if len(m) != hf().digest_size:
-        errmsg = f'message of wrong size: {len(m)}'
-        errmsg += f' instead of {hf().digest_size}'
-        raise ValueError(errmsg)
+    _ensureCorrectMessageSize(hf, m)
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.requireOnCurve(P)
@@ -210,6 +209,7 @@ def _ecssa_batch_verification(ec: EC,
     scalars = list()
     points = list()
     for i in range(len(P)):
+        _ensureCorrectMessageSize(hf, ms[i])
         ec.requireOnCurve(P[i])
         r, s = _to_ssasig(ec, sig[i])
         e = _ecssa_e(ec, hf, r, P[i], ms[i])
