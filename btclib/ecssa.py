@@ -206,26 +206,27 @@ def _ecssa_batch_verification(ec: EC,
                               ms: List[bytes],
                               P: List[Point],
                               sig: List[ECSS]) -> bool:
-    mult = 0
+    t = 0
     scalars = list()
     points = list()
     for i in range(len(P)):
+        ec.requireOnCurve(P[i])
+        r, s = _to_ssasig(ec, sig[i])
+        e = _ecssa_e(ec, hf, r, P[i], ms[i])
+        y = ec.y(r)  # raises an error if y does not exist
+
         # deterministically generated using a CSPRNG seeded by a cryptographic
         # hash (e.g., SHA256) of all inputs of the algorithm, or randomly
         # generated independently for each run of the batch verification
         # algorithm  FIXME
         a = (1 if i == 0 else random.getrandbits(ec.nlen) % ec.n)
-        ec.requireOnCurve(P[i])
-        r, s = _to_ssasig(ec, sig[i])
-        e = _ecssa_e(ec, hf, r, P[i], ms[i])
-        y = ec.y(r)  # raises an error if y does not exist
         scalars.append(a)
         points.append(_jac_from_aff((r, y)))
         scalars.append(a * e % ec.n)
         points.append(_jac_from_aff(P[i]))
-        mult += a * s % ec.n
+        t += a * s % ec.n
 
-    TJ = _pointMultJacobian(ec, mult, ec.GJ)
+    TJ = _pointMultJacobian(ec, t, ec.GJ)
     RHSJ = _multiScalarMult(ec, scalars, points)
 
     # return T == RHS, checked in Jacobian coordinates
