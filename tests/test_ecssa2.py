@@ -44,6 +44,10 @@ class TestEcssa2(unittest.TestCase):
         Q.append(Q[0])
         self.assertFalse(ecssa_batch_verification(ec, hf, m, Q, sig))
 
+        sig[-1] = sig[0]  # valid
+        m[-1] = m[0][:-1]  # invalid 31 bytes message
+        self.assertFalse(ecssa_batch_verification(ec, hf, m, Q, sig))
+
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
