@@ -18,7 +18,7 @@ from btclib.ecurves import secp256k1 as ec
 from btclib.ecutils import octets2int, point2octets, bits2int
 from btclib.pedersen import secondGenerator
 from btclib.ecssa import ecssa_sign, ecssa_verify, _ecssa_verify, \
-    ecssa_batch_validation
+    ecssa_batch_verification
 
 random.seed(42)
 
@@ -37,12 +37,12 @@ class TestEcssa2(unittest.TestCase):
             q = random.getrandbits(ec.nlen) % ec.n
             sig.append(ecssa_sign(ec, hf, m[i], q))
             Q.append(pointMult(ec, q, ec.G))
-        self.assertTrue(ecssa_batch_validation(ec, hf, m, Q, sig))
+        self.assertTrue(ecssa_batch_verification(ec, hf, m, Q, sig))
 
         m.append(m[0])
         sig.append(sig[1])  # invalid
         Q.append(Q[0])
-        self.assertFalse(ecssa_batch_validation(ec, hf, m, Q, sig))
+        self.assertFalse(ecssa_batch_verification(ec, hf, m, Q, sig))
 
 
     def test_threshold(self):

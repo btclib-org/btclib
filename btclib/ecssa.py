@@ -91,13 +91,13 @@ def ecssa_sign(ec: EC, hf, m: bytes, d: int,
 
 
 def ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
-    """ECSSA veryfying operation according to bip-schnorr
+    """ECSSA verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
     """
 
     # this is just a try/except wrapper
-    # _ecssa_verify raises Errors
+    # _ecssa_verify raises Exceptions
     try:
         return _ecssa_verify(ec, hf, m, P, sig)
     except Exception:
@@ -105,12 +105,7 @@ def ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
 
 def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
-    """Private function provided for testing purposes only.
-    
-       It raises Errors, while verify should always return True or False
-
-       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
-    """
+    # This raises Exceptions, while verify should always return True or False
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
@@ -153,7 +148,7 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
 
 def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
-    """Private function provided for testing purposes only."""
+    # Private function provided for testing purposes only.
 
     r, s = _to_ssasig(ec, sig)
 
@@ -169,7 +164,8 @@ def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
 
 
 def _to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
-    """check SSA signature format is correct and return the signature itself"""
+    # Private function provided for testing purposes only.
+    # check SSA signature format is correct and return the signature itself
 
     # A signature sig: a 64-byte array.
     if len(sig) != 2:
@@ -187,38 +183,50 @@ def _to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     return r, s
 
 
-def ecssa_batch_validation(ec: EC,
-                           hf,
-                           ms: List[bytes],
-                           P: List[Point],
-                           sig: List[ECSS]) -> bool:
+def ecssa_batch_verification(ec: EC,
+                             hf,
+                             ms: List[bytes],
+                             P: List[Point],
+                             sig: List[ECSS]) -> bool:
+    """ECSSA batch verification according to bip-schnorr
 
-    u = len(P)
+       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+    """
 
-    a = [1]
-    # deterministically generated using a CSPRNG seeded by a cryptographic
-    # hash (e.g., SHA256) of all inputs of the algorithm, or randomly generated
-    # independently for each run of the batch verification algorithm
-    for i in range(1, u):
-        a.append(random.getrandbits(ec.nlen) % ec.n)
+    # this is just a try/except wrapper
+    # _ecssa_batch_verification raises Exceptions
+    try:
+        return _ecssa_batch_verification(ec, hf, ms, P, sig)
+    except Exception:
+        return False
 
+
+def _ecssa_batch_verification(ec: EC,
+                              hf,
+                              ms: List[bytes],
+                              P: List[Point],
+                              sig: List[ECSS]) -> bool:
     mult = 0
+    scalars = list()
     points = list()
-    factors = list()
-    for i in range(u):
+    for i in range(len(P)):
+        # deterministically generated using a CSPRNG seeded by a cryptographic
+        # hash (e.g., SHA256) of all inputs of the algorithm, or randomly
+        # generated independently for each run of the batch verification
+        # algorithm  FIXME
+        a = (1 if i == 0 else random.getrandbits(ec.nlen) % ec.n)
+        ec.requireOnCurve(P[i])
         r, s = _to_ssasig(ec, sig[i])
         e = _ecssa_e(ec, hf, r, P[i], ms[i])
-
         y = ec.y(r)  # raises an error if y does not exist
-
-        mult += a[i] * s % ec.n
+        scalars.append(a)
         points.append(_jac_from_aff((r, y)))
-        factors.append(a[i])
+        scalars.append(a * e % ec.n)
         points.append(_jac_from_aff(P[i]))
-        factors.append(a[i] * e % ec.n)
+        mult += a * s % ec.n
 
     TJ = _pointMultJacobian(ec, mult, ec.GJ)
-    RHSJ = _multiScalarMult(ec, factors, points)
+    RHSJ = _multiScalarMult(ec, scalars, points)
 
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
