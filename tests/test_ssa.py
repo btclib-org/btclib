@@ -378,15 +378,13 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, pointMult(ec, pow(2, i), commits1[i]))
-        assert DblScalarMult(
-            ec, alpha12, ec.G, alpha12_prime, H) == RHS, 'player one is cheating'
+        assert DblScalarMult(ec, alpha12, ec.G, alpha12_prime, H) == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, pointMult(ec, pow(3, i), commits1[i]))
-        assert DblScalarMult(
-            ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
+        assert DblScalarMult(ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
 
         # signer two acting as the dealer
         commits2 = list()
@@ -698,8 +696,7 @@ class TestEcssa(unittest.TestCase):
                 RHS3 = ec.add(RHS3,
                               DblScalarMult(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i]))
 
-        assert pointMult(
-            ec, gamma3, ec.G) == RHS3, 'player three is cheating'
+        assert pointMult(ec, gamma3, ec.G) == RHS3, 'player three is cheating'
 
         # player three
         if legendre_symbol(K[1], ec._p) == 1:
