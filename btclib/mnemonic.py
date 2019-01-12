@@ -29,58 +29,69 @@ class Mnemonic:
     """
 
     def __init__(self) -> None:
+        # dictionaries are from:
         # https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
         # https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
-        self.language_files = {
-            'en': 'english.txt',
-            'it': 'italian.txt'
-        }
-        self.languages = self.language_files.keys()
 
-        # create dictionaries where each languaga has None wordlist
+        path = os.path.join(os.path.dirname(__file__), "dictdata")
+        self.language_files = {
+            'en': os.path.join(path, 'english.txt'),
+            'it': os.path.join(path, 'italian.txt')
+        }
+        self.languages = list(self.language_files)
+
+        # create dictionaries where each language has None wordlist
         values = len(self.languages)*[None]
         self._dictionary = dict(zip(self.languages, values))
         self._bits_per_word = dict(zip(self.languages, values))
         self._language_length = dict(zip(self.languages, values))
 
-    def _load_language_if_not_available(self, lang: str) -> None:
+    def _load_lang(self, lang: str, filename: str = None) -> None:
         """ Load the language worlidst if it has not been loaded yet """
-        assert lang in self.languages, "unknown language" + lang
 
+        if lang not in self.languages:
+            if filename is None:
+                raise ValueError(f"unknown language '{lang}'")
+            else:
+                self.languages.append(lang)
+                self.language_files[lang] = filename
+                self._dictionary[lang] = None
+                self._bits_per_word[lang] = None
+                self._language_length[lang] = None
+
+        # language has not been loaded yet
         if self._dictionary[lang] == None:
-            filename = self.language_files[lang]
-            path_to_filename = os.path.join(os.path.dirname(__file__),
-                                            "./dictdata/",
-                                            filename)
-            with open(path_to_filename, 'r') as f:
+            with open(self.language_files[lang], 'r') as f:
                 lines = f.readlines()
             f.closed
 
             nwords = len(lines)
             # http://www.graphics.stanford.edu/~seander/bithacks.html
             # Determining if an integer is a power of 2
-            assert nwords & (nwords - 1) == 0, \
-                "dictionary length must be a power of two"
+            if nwords & (nwords - 1) != 0:
+                errMsg = f"dictionary length ({nwords}) must be a power of two"
+                raise ValueError(errMsg)
+
             self._bits_per_word[lang] = int(math.log(nwords, 2))
             self._language_length[lang] = nwords
             # clean up and normalization are missing, but removal of \n
             self._dictionary[lang] = [line[:-1] for line in lines]
 
     def bits_per_word(self, lang: str) -> int:
-        self._load_language_if_not_available(lang)
+        self._load_lang(lang)
         return self._bits_per_word[lang]
 
     def word_list(self, lang: str) -> WordList:
-        self._load_language_if_not_available(lang)
+        self._load_lang(lang)
         return self._dictionary[lang]
 
     def language_length(self, lang: str) -> int:
-        self._load_language_if_not_available(lang)
+        self._load_lang(lang)
         return self._language_length[lang]
 
     # input entropy can be expresses as binary string or int
     def indexes_from_entropy(self, entropy: Entropy, lang: str) -> List[int]:
-        self._load_language_if_not_available(lang)
+        self._load_lang(lang)
 
         if type(entropy) != str:
             m = "entropy must be binary string, "
@@ -104,7 +115,7 @@ class Mnemonic:
         return list(reversed(indexes))
 
     def mnemonic_from_indexes(self, indexes: List[int], lang: str) -> str:
-        self._load_language_if_not_available(lang)
+        self._load_lang(lang)
 
         words = []
         dictionary = self._dictionary[lang]
@@ -114,7 +125,7 @@ class Mnemonic:
         return ' '.join(words)
 
     def indexes_from_mnemonic(self, mnemonic: str, lang: str) -> List[int]:
-        self._load_language_if_not_available(lang)
+        self._load_lang(lang)
 
         words = mnemonic.split()
         dictionary = self._dictionary[lang]
@@ -122,7 +133,7 @@ class Mnemonic:
         return indexes
 
     def entropy_from_indexes(self, indexes: List[int], lang: str) -> Entropy:
-        self._load_language_if_not_available(lang)
+        self._load_lang(lang)
 
         n = self._language_length[lang]
         entropy = 0
