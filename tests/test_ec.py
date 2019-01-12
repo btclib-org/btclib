@@ -12,7 +12,7 @@ import unittest
 import random
 
 from btclib.numbertheory import mod_sqrt
-from btclib.ec import EC, pointMult, DblScalarMult, \
+from btclib.ec import EC, Point, pointMult, DblScalarMult, \
     _jac_from_aff, _pointMultJacobian, _pointMultAffine, multiScalarMult
 from btclib.curves import secp256k1, secp256r1, secp384r1, secp160r1, \
     secp112r1, all_curves, low_card_curves, ec23_31
@@ -21,7 +21,7 @@ from btclib.pedersen import secondGenerator
 
 random.seed(42)
  
-Inf = 1, 0  # Infinity point in affine coordinates
+Inf = Point()  # Infinity point in affine coordinates
 InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 
 
@@ -193,8 +193,12 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, octets2point, ec, "04" + xstr + xstr)
         self.assertRaises(ValueError, point2octets, ec, (x, x), True)
         self.assertRaises(ValueError, point2octets, ec, (x, x), False)
+
+        # Point must be a tuple[int, int]
         P = (x, x, x)
         self.assertRaises(ValueError, ec.isOnCurve, P)
+
+        # y-coordinate not in (0, p)
         P = (x, ec._p+1)
         self.assertRaises(ValueError, ec.isOnCurve, P)
 

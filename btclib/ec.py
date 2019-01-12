@@ -17,12 +17,14 @@ TODO: document duck-typing and static typing design choices
 from hashlib import sha256
 from math import sqrt
 import heapq
-from typing import Tuple, Sequence
+from typing import NamedTuple, Tuple, Sequence
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
 # infinity point is (int, 0), checked with 'Inf[1] == 0'
-Point = Tuple[int, int]
+class Point(NamedTuple):
+    x: int = 1
+    y: int = 0
 
 # infinity point is (int, int, 0), checked with 'Inf[2] == 0'
 _JacPoint = Tuple[int, int, int]
@@ -90,7 +92,7 @@ class EC:
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p).
         if not self.isOnCurve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
-        self.G = int(G[0]), int(G[1])
+        self.G = Point(int(G[0]), int(G[1]))
         self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
 
         # 5. Check that n is prime.
@@ -159,17 +161,17 @@ class EC:
     def opposite(self, Q: Point) -> Point:
         self.requireOnCurve(Q)
         # % sel._p is to account for infinity point
-        return Q[0], (self._p - Q[1]) % self._p
+        return Point(Q[0], (self._p - Q[1]) % self._p)
 
     def _affine_from_jac(self, Q: _JacPoint) -> Point:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            return 1, 0
+            return Point()
         else:
             Z2 = Q[2]*Q[2]
             x = (Q[0]*mod_inv(Z2, self._p)) % self._p
             y = (Q[1]*mod_inv(Z2*Q[2], self._p)) % self._p
-            return x, y
+            return Point(x, y)
 
     # methods using _a, _b, _p
 
@@ -232,12 +234,12 @@ class EC:
                 lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self._p)
                 lam %= self._p
             else:             # opposite points
-                return 1, 0
+                return Point()
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
         x = (lam * lam - Q[0] - R[0]) % self._p
         y = (lam * (Q[0] - x) - Q[1]) % self._p
-        return x, y
+        return Point(x, y)
 
     def _y2(self, x: int) -> int:
         # skipping a crucial check here:
@@ -257,9 +259,6 @@ class EC:
             raise ValueError("Point not on curve")
 
     def isOnCurve(self, Q: Point) -> bool:
-        #if not isinstance(Q, tuple):
-        #    errMsg = f"Point must be a tuple, not '{type(Q).__name__}'"
-        #    raise TypeError(errMsg)
         if len(Q) != 2:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -314,7 +313,7 @@ def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
     n %= ec.n
     if Q[1] == 0:                    # Infinity point in affine coordinates
         return Q
-    R = 1, 0                         # initialize as infinity point
+    R = Point(1, 0)                  # initialize as infinity point
     while n > 0:                     # use binary representation of n
         if n & 1:                    # if least significant bit is 1
             R = ec._addAffine(R, Q)  # then add current Q
