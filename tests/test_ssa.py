@@ -730,12 +730,11 @@ class TestEcssa(unittest.TestCase):
         self.assertEqual((q1 + q2 + q3) % ec.n, secret)
 
     def test_musig(self):
-        """testing 3-of-3 MuSig
-
-        Resources:
-        https://eprint.iacr.org/2018/068
-        https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
-        https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
+        """ testing 3-of-3 MuSig
+        
+            https://eprint.iacr.org/2018/068
+            https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
+            https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
         """
         ec = secp256k1
         L = list()  # multiset of public keys
