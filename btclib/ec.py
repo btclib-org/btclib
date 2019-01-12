@@ -193,7 +193,7 @@ class EC:
         RZ3 = RZ2 * R[2]
         QZ2 = Q[2] * Q[2]
         QZ3 = QZ2 * Q[2]
-        if Q[0]*RZ2 % self._p == R[0]*QZ2 % self._p:     # same affine x
+        if Q[0]*RZ2 % self._p == R[0]*QZ2 % self._p:      # same affine x
             if Q[1]*RZ3 % self._p == R[1]*QZ3 % self._p:  # point doubling
                 QY2 = Q[1]*Q[1]
                 W = (3*Q[0]*Q[0] + self._a*QZ2*QZ2) % self._p
@@ -202,7 +202,7 @@ class EC:
                 Y = (W*(V - X) - 8*QY2*QY2) % self._p
                 Z = (2*Q[1]*Q[2]) % self._p
                 return X, Y, Z
-            else:                                        # opposite points
+            else:                                         # opposite points
                 return 1, 1, 0
         else:
             T = (Q[1]*RZ3) % self._p
@@ -229,14 +229,14 @@ class EC:
             return R
         if R[0] == Q[0]:
             if R[1] == Q[1]:  # point doubling
-                lam = ((3*Q[0]*Q[0]+self._a) *
-                       mod_inv(2*Q[1], self._p)) % self._p
-            else:  # must be opposite (points already checked to be on curve)
+                lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self._p)
+                lam %= self._p
+            else:             # opposite points
                 return 1, 0
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
-        x = (lam*lam-Q[0]-R[0]) % self._p
-        y = (lam*(Q[0]-x)-Q[1]) % self._p
+        x = (lam * lam - Q[0] - R[0]) % self._p
+        y = (lam * (Q[0] - x) - Q[1]) % self._p
         return x, y
 
     def _y2(self, x: int) -> int:
