@@ -9,14 +9,17 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
+import random
 
 from btclib.numbertheory import mod_sqrt
 from btclib.ec import EC, pointMult, DblScalarMult, \
-    _jac_from_aff, _pointMultJacobian, _pointMultAffine
+    _jac_from_aff, _pointMultJacobian, _pointMultAffine, multiScalarMult
 from btclib.curves import secp256k1, secp256r1, secp384r1, secp160r1, \
     secp112r1, all_curves, low_card_curves, ec23_31
 from btclib.utils import point2octets, octets2point
+from btclib.pedersen import secondGenerator
 
+random.seed(42)
  
 Inf = 1, 0  # Infinity point in affine coordinates
 InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
@@ -90,7 +93,6 @@ class TestEllipticCurve(unittest.TestCase):
 
         # weak curve
         self.assertRaises(UserWarning, EC, 11, 2, 7, (6, 9), 7, 2, 0, True)
-
 
     def test_all_curves(self):
         for ec in all_curves:
@@ -191,13 +193,10 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, octets2point, ec, "04" + xstr + xstr)
         self.assertRaises(ValueError, point2octets, ec, (x, x), True)
         self.assertRaises(ValueError, point2octets, ec, (x, x), False)
-        P = [x, x]
-        self.assertRaises(TypeError, ec.isOnCurve, P)
         P = (x, x, x)
         self.assertRaises(ValueError, ec.isOnCurve, P)
         P = (x, ec._p+1)
         self.assertRaises(ValueError, ec.isOnCurve, P)
-
 
     def test_opposite(self):
         for ec in all_curves:
@@ -211,9 +210,8 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(ec._addJacobian(Qjac, minus_Qjac), (1, 1, 0))
 
             # opposite of Inf is Inf
-            Q = Inf
-            minus_Q = ec.opposite(Q)
-            self.assertEqual(minus_Q, Inf)
+            minus_Inf = ec.opposite(Inf)
+            self.assertEqual(minus_Inf, Inf)
 
     def test_symmetry(self):
         """Methods to break simmetry: quadratic residue, odd/even, low/high"""
@@ -366,6 +364,23 @@ class TestEllipticCurve(unittest.TestCase):
                              pointMult(ec, k2, Inf))
                 self.assertEqual(shamir, std)
 
+    def test_boscoster(self):
+        ec = secp256k1
+
+        k = list()
+        ksum = 0
+        for i in range(11):
+            k.append(random.getrandbits(ec.nlen) % ec.n)
+            ksum += k[i]
+
+        P = [ec.G] * len(k)
+        boscoster = multiScalarMult(ec, k, P)
+        self.assertEqual(boscoster, pointMult(ec, ksum, ec.G))
+
+        # mismatch between scalar length and Points length
+        P = [ec.G] * (len(k)-1)
+        self.assertRaises(ValueError, multiScalarMult, ec, k, P)
+        #boscoster = multiScalarMult(ec, k, P)
 
 if __name__ == "__main__":
     # execute only if run as a script

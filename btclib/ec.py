@@ -34,11 +34,8 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
     return Q[0], Q[1], 1
 
 
-# elliptic curve y^2 = x^3 + a*x + b
-
-
 class EC:
-    """Elliptic curve over Fp group"""
+    """Elliptic curve y^2 = x^3 + a*x + b over Fp group"""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
                        h: int, t: int, weakness_check: bool = True) -> None:
@@ -161,10 +158,8 @@ class EC:
 
     def opposite(self, Q: Point) -> Point:
         self.requireOnCurve(Q)
-        if Q[1] == 0:  # Infinity point in affine coordinates
-            return Q
-        else:
-            return Q[0], self._p - Q[1]
+        # % sel._p is to account for infinity point
+        return Q[0], (self._p - Q[1]) % self._p
 
     def _affine_from_jac(self, Q: _JacPoint) -> Point:
         # point is assumed to be on curve
@@ -177,6 +172,14 @@ class EC:
             return x, y
 
     # methods using _a, _b, _p
+
+    def add(self, Q1: Point, Q2: Point) -> Point:
+        self.requireOnCurve(Q1)
+        QJ1 = _jac_from_aff(Q1)
+        self.requireOnCurve(Q2)
+        QJ2 = _jac_from_aff(Q2)
+        R = self._addJacobian(QJ1, QJ2)
+        return self._affine_from_jac(R)
 
     def _addJacobian(self, Q: _JacPoint, R: _JacPoint) -> _JacPoint:
         # points are assumed to be on curve
@@ -229,23 +232,12 @@ class EC:
                 lam = ((3*Q[0]*Q[0]+self._a) *
                        mod_inv(2*Q[1], self._p)) % self._p
             else:  # must be opposite (points already checked to be on curve)
-                # elif R[1] == self._p - Q[1]: # opposite points
                 return 1, 0
-            # else:
-            #    raise ValueError("points are not on the same curve")
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
         x = (lam*lam-Q[0]-R[0]) % self._p
         y = (lam*(Q[0]-x)-Q[1]) % self._p
         return x, y
-
-    def add(self, Q1: Point, Q2: Point) -> Point:
-        self.requireOnCurve(Q1)
-        self.requireOnCurve(Q2)
-        QJ1 = _jac_from_aff(Q1)
-        QJ2 = _jac_from_aff(Q2)
-        R = self._addJacobian(QJ1, QJ2)
-        return self._affine_from_jac(R)
 
     def _y2(self, x: int) -> int:
         # skipping a crucial check here:
@@ -265,9 +257,9 @@ class EC:
             raise ValueError("Point not on curve")
 
     def isOnCurve(self, Q: Point) -> bool:
-        if not isinstance(Q, tuple):
-            errMsg = f"Point must be a tuple, not '{type(Q).__name__}'"
-            raise TypeError(errMsg)
+        #if not isinstance(Q, tuple):
+        #    errMsg = f"Point must be a tuple, not '{type(Q).__name__}'"
+        #    raise TypeError(errMsg)
         if len(Q) != 2:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -360,6 +352,7 @@ def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
 
     return ec._affine_from_jac(R)
 
+
 def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
                            v: int, PJ: _JacPoint) -> _JacPoint:
 
@@ -386,11 +379,31 @@ def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
 
     return R
 
+
+def multiScalarMult(ec: EC, scalars: Sequence[int],
+                            Points: Sequence[Point]) -> Point:
+    """ Bos-coster's algorithm
+        source: https://cr.yp.to/badbatch/boscoster2.py
+    """
+
+    if len(scalars) != len(Points):
+        errMsg = f"mismatch between scalar length ({len(scalars)}) and "
+        errMsg += f"Points length ({len(Points)})"
+        raise ValueError(errMsg)
+        
+    JPoints = list()
+    for P in Points:
+        ec.requireOnCurve(P)
+        JPoints.append(_jac_from_aff(P))
+
+    R = _multiScalarMult(ec, scalars, JPoints)
+
+    return ec._affine_from_jac(R)
+
+
 def _multiScalarMult(ec: EC, scalars: Sequence[int],
-                             Points: Sequence[_JacPoint]) -> _JacPoint:
-    # Bos-coster's algorithm, source:
-    # https://cr.yp.to/badbatch/boscoster2.py
-    x = list(zip([-n for n in scalars], Points))
+                             JPoints: Sequence[_JacPoint]) -> _JacPoint:
+    x = list(zip([-n for n in scalars], JPoints))
     heapq.heapify(x)
     while len(x) > 1:
         np1 = heapq.heappop(x)
