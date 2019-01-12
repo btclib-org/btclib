@@ -12,7 +12,7 @@ import unittest
 from hashlib import sha256, sha1
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import _jac_from_aff, pointMult, DblScalarMult
+from btclib.ec import pointMult, DblScalarMult
 from btclib.curves import secp256k1, secp112r2, secp160r1, low_card_curves
 from btclib.utils import octets2point, point2octets
 from btclib.dsa import ecdsa_sign, _ecdsa_sign, ecdsa_verify, \
