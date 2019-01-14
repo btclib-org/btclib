@@ -108,8 +108,8 @@ def b58decode(v: Union[str, bytes],
         result = result + i.to_bytes(nbytes, 'big')
 
     if output_size is not None and len(result) != output_size:
-        m = "Invalid decoded byte length: "
-        m += f"{len(result)} instead of {output_size}"
+        m = "Invalid decoded size: "
+        m += f"{len(result)} bytes instead of {output_size}"
         raise ValueError(m)
 
     return result
