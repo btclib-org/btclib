@@ -30,7 +30,7 @@ def secondGenerator(ec: EC, hf) -> Point:
             isCurvePoint = True
         except:
             hx += 1
-    return hx, hy
+    return Point(hx, hy)
 
 
 def pedersen_commit(r: int, v: int, ec: EC, hf) -> Point:
