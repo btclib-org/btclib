@@ -17,7 +17,7 @@ TODO: document duck-typing and static typing design choices
 from hashlib import sha256
 from math import sqrt
 import heapq
-from typing import NamedTuple, Tuple, Sequence
+from typing import NamedTuple, Tuple, List, Sequence
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
@@ -390,7 +390,7 @@ def multiScalarMult(ec: EC, scalars: Sequence[int],
         errMsg += f"Points length ({len(Points)})"
         raise ValueError(errMsg)
         
-    JPoints = list()
+    JPoints: List[_JacPoint] = list()
     for P in Points:
         ec.requireOnCurve(P)
         JPoints.append(_jac_from_aff(P))

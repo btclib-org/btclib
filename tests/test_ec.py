@@ -10,6 +10,7 @@
 
 import unittest
 import random
+from typing import List
 
 from btclib.numbertheory import mod_sqrt
 from btclib.ec import EC, Point, pointMult, DblScalarMult, \
@@ -371,7 +372,7 @@ class TestEllipticCurve(unittest.TestCase):
     def test_boscoster(self):
         ec = secp256k1
 
-        k = list()
+        k: List[int] = list()
         ksum = 0
         for i in range(11):
             k.append(random.getrandbits(ec.nlen) % ec.n)

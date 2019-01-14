@@ -206,8 +206,8 @@ def _ecssa_batch_verification(ec: EC,
                               P: List[Point],
                               sig: List[ECSS]) -> bool:
     t = 0
-    scalars = list()
-    points = list()
+    scalars: List(int) = list()
+    points: List[Point] = list()
     for i in range(len(P)):
         _ensureCorrectMessageSize(hf, ms[i])
         ec.requireOnCurve(P[i])
