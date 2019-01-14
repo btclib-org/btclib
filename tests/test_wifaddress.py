@@ -23,23 +23,48 @@ class TestKeys(unittest.TestCase):
     def test_wif_from_prvkey(self):
         q = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 
-        # private key as number
+        # compressed WIF
         wif = wif_from_prvkey(q, True)
         self.assertEqual(wif, b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617')
         q2 = prvkey_from_wif(wif)
         self.assertEqual(q2[0], q)
         self.assertEqual(q2[1], True)
+
+        # uncompressed WIF
         wif = wif_from_prvkey(q, False)
         self.assertEqual(wif, b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ')
         q3 = prvkey_from_wif(wif)
         self.assertEqual(q3[0], q)
         self.assertEqual(q3[1], False)
 
+        # private key not in (0, n)
+        badq = ec.n
+        self.assertRaises(ValueError, wif_from_prvkey, badq, True)
+        #wif = wif_from_prvkey(badq, True)
+        
+        # Not a private key WIF: missing leading 0x80
+        payload = b'\x81' + int2octets(badq, ec.psize)
+        badwif = b58encode_check(payload)
+        self.assertRaises(ValueError, prvkey_from_wif, badwif)
+        #prvkey_from_wif(badwif)
 
-        qbytes = int2octets(q, ec.nsize)
-        payload = b'\x80' + qbytes + b'\x01\x01'
-        wif = b58encode_check(payload)
-        self.assertRaises(ValueError, prvkey_from_wif, wif)
+        # Not a compressed WIF: missing trailing 0x01
+        payload = b'\x80' + int2octets(badq, ec.psize) + b'\x00'
+        badwif = b58encode_check(payload)
+        self.assertRaises(ValueError, prvkey_from_wif, badwif)
+        # prvkey_from_wif(badwif)
+
+        # Not a WIF: wrong size (35)
+        payload = b'\x80' + int2octets(badq, ec.psize) + b'\x01\x00'
+        badwif = b58encode_check(payload)
+        self.assertRaises(ValueError, prvkey_from_wif, badwif)
+        #prvkey_from_wif(badwif)
+
+        # Not a WIF: private key not in (0, n)
+        payload = b'\x80' + int2octets(badq, ec.psize)
+        badwif = b58encode_check(payload)
+        self.assertRaises(ValueError, prvkey_from_wif, badwif)
+        #prvkey_from_wif(badwif)
 
     def test_address_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
@@ -54,6 +79,11 @@ class TestKeys(unittest.TestCase):
         addr = address_from_pubkey(pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
         hash160_from_address(addr)
+
+        # not a mainnet address
+        addr = address_from_pubkey(pub, False, b'\x80')
+        self.assertRaises(ValueError, hash160_from_address, addr)
+        #hash160_from_address(addr)
 
     def test_address_from_wif(self):
         wif1 = b"5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"

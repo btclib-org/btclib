@@ -26,6 +26,9 @@ from btclib.utils import octets, octets2int, int2octets, point2octets
 def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     """private key to Wallet Import Format"""
 
+    if not 0 < prvkey < ec.n:
+        raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
+
     payload = b'\x80' + int2octets(prvkey, ec.psize)
     if compressed:
         payload += b'\x01'
@@ -36,16 +39,24 @@ def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
     """Wallet Import Format to (bytes) private key"""
 
     payload = b58decode_check(wif)
-    assert payload[0] == 0x80, "not a WIF"
+    if payload[0] != 0x80:
+        raise ValueError("Not a private key WIF: missing leading 0x80")
 
-    if len(payload) == ec.psize + 2:   # compressed WIF
-        # must have a trailing 0x01
-        assert payload[ec.psize + 1] == 0x01, "not a WIF"
-        return octets2int(payload[1:-1]), True
-    elif len(payload) == ec.psize + 1:  # uncompressed WIF
-        return octets2int(payload[1:]), False
+    if len(payload) == ec.psize + 2:       # compressed WIF
+        compressed = True
+        if payload[ec.psize + 1] != 0x01:  # must have a trailing 0x01
+            raise ValueError("Not a compressed WIF: missing trailing 0x01")
+        prvkey = octets2int(payload[1:-1])
+    elif len(payload) == ec.psize + 1:     # uncompressed WIF
+        compressed = False
+        prvkey = octets2int(payload[1:])
+    else:
+        raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
+    
+    if not 0 < prvkey < ec.n:
+        raise ValueError(f"Not a WIF: private key {hex(prvkey)} not in (0, n)")
 
-    raise ValueError("not a WIF")
+    return prvkey, compressed
 
 
 def h160(pubkey: bytes) -> bytes:
@@ -56,6 +67,7 @@ def h160(pubkey: bytes) -> bytes:
 def address_from_pubkey(Q: Point, compressed: bool, version: bytes = b'\x00') -> bytes:
     """Public key to (bytes) address"""
 
+    # also check that the Point is on curve
     pubkey = point2octets(ec, Q, compressed)
 
     # FIXME: this is mainnet only
@@ -66,7 +78,8 @@ def address_from_pubkey(Q: Point, compressed: bool, version: bytes = b'\x00') ->
 def hash160_from_address(addr: octets) -> bytes:
     payload = b58decode_check(addr, 21)
     # FIXME: this is mainnet only
-    assert payload[0] == 0x00, "not an address"
+    if payload[0] != 0x00:
+        raise ValueError("not a mainnet address")
     return payload[1:]
 
 
