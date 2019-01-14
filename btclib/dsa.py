@@ -56,6 +56,7 @@ def _ecdsa_sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
     # The secret key d: an integer in the range 1..n-1.
+    # SEC 1 v.2 section 3.2.1
     if not 0 < d < ec.n:
         raise ValueError(f"private key {hex(d)} not in (0, n)")
 
