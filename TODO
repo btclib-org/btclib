@@ -12,14 +12,14 @@ https://hal.archives-ouvertes.fr/hal-00932199/document
 
 transaction and block parsing (explorer based with optional full node)
 
-remove _pointMultJacobian from batch validation ?
-BUG in batch validation with just one sig (plus why a[0]=1 ?)
-
+fix one sig only BUG in ecssa_batch_verify
 allow hexstring for Signature
 allow binary Signature
 run scripts as part of test-suite
 revise ecssa_pubkey_recovery
-the name of functions returning bool should be a question
+of a signature: verify or verification ?
+of a commit: verify or open ?
+
 
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 
