@@ -313,7 +313,7 @@ def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
     n %= ec.n
     if Q[1] == 0:                    # Infinity point in affine coordinates
         return Q
-    R = Point(1, 0)                  # initialize as infinity point
+    R = Point()                      # initialize as infinity point
     while n > 0:                     # use binary representation of n
         if n & 1:                    # if least significant bit is 1
             R = ec._addAffine(R, Q)  # then add current Q
