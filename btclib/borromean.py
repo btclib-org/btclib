@@ -17,10 +17,9 @@ from btclib.ec import Point, pointMult, DblScalarMult
 from btclib.curves import secp256k1    
 from btclib.utils import bits2int, point2octets, octets2point
 
-
-# source: https://github.com/ElementsProject/borromean-signatures-writeup
-
+# FIXME should bu urandom, but then tests would be non-deterministic
 random.seed(42)
+
 ec = secp256k1
 
 def borromean_hash(msg: bytes, R: bytes, i: int, j: int) -> bytes:
@@ -47,12 +46,16 @@ def borromean_sign(msg: bytes,
                    pubk_rings: Dict[int, List[Point]]) -> Tuple[bytes, Dict[int, List[int]]]:
     """ Borromean ring signature - signing algorithm
 
-    inputs:
-    - msg: msg to be signed (bytes)
-    - sign_key_idx: list of indexes representing each signing key per ring
-    - sign_keys: list containing the whole set of signing keys (one per ring)
-    - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys
+        https://github.com/ElementsProject/borromean-signatures-writeup
+        https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
+
+        inputs:
+        - msg: msg to be signed (bytes)
+        - sign_key_idx: list of indexes representing each signing key per ring
+        - sign_keys: list containing the whole set of signing keys (one per ring)
+        - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys
     """
+
     s: Dict[int, List[int]] = defaultdict(list)
     e: Dict[int, List[int]] = defaultdict(list)
     m = get_msg_format(msg, pubk_rings)
