@@ -20,7 +20,7 @@ from btclib.utils import octets2int, octets2point, point2octets, bits2int
 from btclib.pedersen import secondGenerator
 from btclib.rfc6979 import rfc6979
 from btclib.ssa import ecssa_sign, ecssa_verify, \
-    _ecssa_e, _ecssa_verify, _ecssa_pubkey_recovery, ecssa_batch_verification
+    _ecssa_e, _ecssa_verify, _ecssa_pubkey_recovery, ecssa_batch_verify
 
 random.seed(42)
 
@@ -313,16 +313,16 @@ class TestEcssa(unittest.TestCase):
             q = random.getrandbits(ec.nlen) % ec.n
             sig.append(ecssa_sign(ec, hf, m[i], q))
             Q.append(pointMult(ec, q, ec.G))
-        self.assertTrue(ecssa_batch_verification(ec, hf, m, Q, sig))
+        self.assertTrue(ecssa_batch_verify(ec, hf, m, Q, sig))
 
         m.append(m[0])
         sig.append(sig[1])  # invalid
         Q.append(Q[0])
-        self.assertFalse(ecssa_batch_verification(ec, hf, m, Q, sig))
+        self.assertFalse(ecssa_batch_verify(ec, hf, m, Q, sig))
 
         sig[-1] = sig[0]  # valid
         m[-1] = m[0][:-1]  # invalid 31 bytes message
-        self.assertFalse(ecssa_batch_verification(ec, hf, m, Q, sig))
+        self.assertFalse(ecssa_batch_verify(ec, hf, m, Q, sig))
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""

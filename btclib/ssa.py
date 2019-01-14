@@ -182,29 +182,29 @@ def _to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     return r, s
 
 
-def ecssa_batch_verification(ec: EC,
-                             hf,
-                             ms: List[bytes],
-                             P: List[Point],
-                             sig: List[ECSS]) -> bool:
+def ecssa_batch_verify(ec: EC,
+                       hf,
+                       ms: List[bytes],
+                       P: List[Point],
+                       sig: List[ECSS]) -> bool:
     """ECSSA batch verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
     """
 
     # this is just a try/except wrapper
-    # _ecssa_batch_verification raises Exceptions
+    # _ecssa_batch_verify raises Exceptions
     try:
-        return _ecssa_batch_verification(ec, hf, ms, P, sig)
+        return _ecssa_batch_verify(ec, hf, ms, P, sig)
     except Exception:
         return False
 
 
-def _ecssa_batch_verification(ec: EC,
-                              hf,
-                              ms: List[bytes],
-                              P: List[Point],
-                              sig: List[ECSS]) -> bool:
+def _ecssa_batch_verify(ec: EC,
+                        hf,
+                        ms: List[bytes],
+                        P: List[Point],
+                        sig: List[ECSS]) -> bool:
     t = 0
     scalars: List(int) = list()
     points: List[Point] = list()
