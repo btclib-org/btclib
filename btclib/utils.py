@@ -29,7 +29,7 @@ def octets2point(ec: EC, o: octets) -> Point:
 
     bsize = len(o) # bytes
     if bsize == 1 and o[0] == 0x00:     # infinity point
-        return 1, 0
+        return Point()
 
     if bsize == ec.psize+1:             # compressed point
         if o[0] not in (0x02, 0x03):
@@ -38,7 +38,7 @@ def octets2point(ec: EC, o: octets) -> Point:
         Px = int.from_bytes(o[1:], 'big')
         try:
             Py = ec.yOdd(Px, o[0] % 2)  # also check Px validity
-            return Px, Py
+            return Point(Px, Py)
         except:
             raise ValueError("point not on curve")
     else:                               # uncompressed point
@@ -49,7 +49,7 @@ def octets2point(ec: EC, o: octets) -> Point:
         if o[0] != 0x04:
             raise ValueError("not an uncompressed point")
         Px = int.from_bytes(o[1:ec.psize+1], 'big')
-        P = Px, int.from_bytes(o[ec.psize+1:], 'big')
+        P = Point(Px, int.from_bytes(o[ec.psize+1:], 'big'))
         if ec.isOnCurve(P):
             return P
         else:
