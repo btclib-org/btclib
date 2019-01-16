@@ -17,13 +17,16 @@ TODO: document duck-typing and static typing design choices
 from hashlib import sha256
 from math import sqrt
 import heapq
-from typing import NamedTuple, Tuple, Sequence
+from typing import NamedTuple, Tuple, Sequence, List
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
-# infinity point in affine coordinates is Inf = Point(int, 0)
-# it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
 class Point(NamedTuple):
+    """ Elliptic curve point
+        
+        Infinity point in affine coordinates is Inf = Point() and
+        it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
+    """
     x: int = 1
     y: int = 0
 
@@ -390,7 +393,7 @@ def multiScalarMult(ec: EC, scalars: Sequence[int],
         errMsg += f"Points length ({len(Points)})"
         raise ValueError(errMsg)
         
-    JPoints = list()
+    JPoints: List[int, int, int] = list()
     for P in Points:
         ec.requireOnCurve(P)
         JPoints.append(_jac_from_aff(P))
