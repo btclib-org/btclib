@@ -21,12 +21,14 @@ from typing import NamedTuple, Tuple, Sequence
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
-# infinity point is (int, 0), checked with 'Inf[1] == 0'
+# infinity point in affine coordinates is Inf = Point(int, 0)
+# it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
 class Point(NamedTuple):
     x: int = 1
     y: int = 0
 
-# infinity point is (int, int, 0), checked with 'Inf[2] == 0'
+# infinity point in Jacobian coordinates is Inf = (int, int, 0)
+# it can be checked with 'Inf[2] == 0'
 _JacPoint = Tuple[int, int, int]
 
 def _jac_from_aff(Q: Point) -> _JacPoint:
@@ -160,7 +162,7 @@ class EC:
 
     def opposite(self, Q: Point) -> Point:
         self.requireOnCurve(Q)
-        # % sel._p is to account for infinity point
+        # % self._p is required to account for infinity point, i.e. Q[1]==0
         return Point(Q[0], (self._p - Q[1]) % self._p)
 
     def _affine_from_jac(self, Q: _JacPoint) -> Point:
@@ -292,7 +294,7 @@ class EC:
         if not self.pIsThreeModFour:
             raise ValueError("this method works only when p = 3 (mod 4)")
         root = self.y(x)
-        # switch to quadratic residue root as needed (XORing the conditions)
+        # switch to quadratic residue root as needed
         legendre1 = legendre_symbol(root, self._p)
         return root if legendre1 == quadRes else self._p - root
 
@@ -381,9 +383,7 @@ def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
 
 def multiScalarMult(ec: EC, scalars: Sequence[int],
                             Points: Sequence[Point]) -> Point:
-    """ Bos-coster's algorithm
-        source: https://cr.yp.to/badbatch/boscoster2.py
-    """
+    """ Bos-coster's algorithm """
 
     if len(scalars) != len(Points):
         errMsg = f"mismatch between scalar length ({len(scalars)}) and "
@@ -402,6 +402,8 @@ def multiScalarMult(ec: EC, scalars: Sequence[int],
 
 def _multiScalarMult(ec: EC, scalars: Sequence[int],
                              JPoints: Sequence[_JacPoint]) -> _JacPoint:
+    # source: https://cr.yp.to/badbatch/boscoster2.py
+
     x = list(zip([-n for n in scalars], JPoints))
     heapq.heapify(x)
     while len(x) > 1:
