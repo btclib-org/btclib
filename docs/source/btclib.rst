@@ -44,18 +44,32 @@ btclib.ecdsa module
     :undoc-members:
     :show-inheritance:
 
+<<<<<<< HEAD
 btclib.ecsigntocontract module
 ------------------------------
 
 .. automodule:: btclib.ecsigntocontract
+=======
+btclib.ecsigtocontract module
+------------------------------
+
+.. automodule:: btclib.ecsigtocontract
+>>>>>>> 1f7faedf0d03964d6a0ba18c0cf37c2abc7381ff
     :members:
     :undoc-members:
     :show-inheritance:
 
+<<<<<<< HEAD
 btclib.ecsignutils module
 -------------------------
 
 .. automodule:: btclib.ecsignutils
+=======
+btclib.ecutils module
+-------------------------
+
+.. automodule:: btclib.ecutils
+>>>>>>> 1f7faedf0d03964d6a0ba18c0cf37c2abc7381ff
     :members:
     :undoc-members:
     :show-inheritance:
@@ -68,18 +82,32 @@ btclib.ecssa module
     :undoc-members:
     :show-inheritance:
 
+<<<<<<< HEAD
 btclib.electrum\_seed module
 ----------------------------
 
 .. automodule:: btclib.electrum_seed
+=======
+btclib.electrum module
+----------------------------
+
+.. automodule:: btclib.electrum
+>>>>>>> 1f7faedf0d03964d6a0ba18c0cf37c2abc7381ff
     :members:
     :undoc-members:
     :show-inheritance:
 
+<<<<<<< HEAD
 btclib.ellipticcurves module
 ----------------------------
 
 .. automodule:: btclib.ellipticcurves
+=======
+btclib.ecurves module
+----------------------------
+
+.. automodule:: btclib.ecurves
+>>>>>>> 1f7faedf0d03964d6a0ba18c0cf37c2abc7381ff
     :members:
     :undoc-members:
     :show-inheritance:
@@ -108,6 +136,7 @@ btclib.numbertheory module
     :undoc-members:
     :show-inheritance:
 
+<<<<<<< HEAD
 btclib.pbkdf2 module
 --------------------
 
@@ -120,6 +149,12 @@ btclib.pedersen\_commitment module
 ----------------------------------
 
 .. automodule:: btclib.pedersen_commitment
+=======
+btclib.pedersen module
+----------------------------------
+
+.. automodule:: btclib.pedersen
+>>>>>>> 1f7faedf0d03964d6a0ba18c0cf37c2abc7381ff
     :members:
     :undoc-members:
     :show-inheritance:

@@ -9,39 +9,11 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """ 
-    ============
-    DER encoding
-    ============
-
-    Copyright (C) 2017-2019 The btclib developers
-
-    This file is part of btclib. It is subject to the license terms in the
-    LICENSE file found in the top-level directory of this distribution.
-
-    No part of btclib including this file, may be copied, modified, propagated,
-    or distributed except according to the terms contained in the LICENSE file.
+    ===================
+    Strict DER encoding
+    ===================
 
     source : https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
-
-    BIP: 66
-
-    Layer: Consensus (soft fork)
-
-    Title: Strict DER signatures
-
-    Author: Pieter Wuille <pieter.wuille@gmail.com>
-
-    Comments-Summary: No comments yet.
-
-    Comments-URI: https://github.com/bitcoin/bips/wiki/Comments:BIP-0066
-
-    Status: Final
-
-    Type: Standards Track
-
-    Created: 2015-01-10
-
-    License: BSD-2-Clause
 
     Format: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
 
