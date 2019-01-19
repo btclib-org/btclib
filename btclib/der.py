@@ -8,11 +8,18 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""DER encoding
+"""Strict DER-encoded signature representation
+
+   The original Bitcoin implementation used OpenSSL to verify DER-encoded ASN.1
+   signature representation. However, OpenSSL does not do strict validation and
+   as long as the signature is not horribly malformed it is accepted.
+   E.g. extra padding is ignored and this changes the transaction hash value,
+   leading to transaction malleability.
+   This was fixed by BIP66, activated on block 363,724.
 
    https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 
-   Encoding format:
+   BIP66 mandates a strict encoding format:
    0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
    * total-length: 1-byte length descriptor of everything that follows,
      excluding the sighash byte.

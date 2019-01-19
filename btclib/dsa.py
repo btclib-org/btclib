@@ -10,8 +10,8 @@
 
 """Elliptic Curve Digital Signature Algorithm
 
-   SEC 1 v.2
-   http://www.secg.org/sec1-v2.pdf
+   SEC 1 v.2 (http://www.secg.org/sec1-v2.pdf)
+   with bitcoin canonical 'low-s' encoding for ECDSA signatures
 """
 
 from typing import Tuple, List, Optional
@@ -74,6 +74,12 @@ def _ecdsa_sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     if s == 0:  # required as the inverse of s is needed
         raise ValueError("s = 0, failed to sign")
 
+    # bitcoin canonical 'low-s' encoding for ECDSA signatures
+    # it removes signature malleability as cause of transaction malleability
+    # see https://github.com/bitcoin/bitcoin/pull/6769
+    if s > ec.n / 2:
+        s = ec.n - s
+
     return r, s
 
 
@@ -116,7 +122,7 @@ def _ecdsa_verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only."""
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = _to_dsasig(ec, sig)                         # 1
+    r, s = _to_dsasig(ec, sig)                        # 1
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.requireOnCurve(P)

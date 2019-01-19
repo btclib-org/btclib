@@ -164,6 +164,10 @@ class TestEcdsa(unittest.TestCase):
                                 self.assertRaises(ValueError, _ecdsa_sign, ec, e, d, k)
                                 continue
 
+                            # bitcoin canonical 'low-s' encoding for ECDSA signatures
+                            if s > ec.n / 2:
+                                s = ec.n - s
+
                             # valid signature
                             sig = _ecdsa_sign(ec, e, d, k)
                             self.assertEqual((r, s), sig)
