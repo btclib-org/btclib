@@ -19,7 +19,7 @@ from btclib.electrum import PRV, bip32_xpub_from_xprv, \
 
 
 class TestMnemonicDictionaries(unittest.TestCase):
-    def test_electrum_wallet(self):
+    def test_electrum(self):
         lang = "en"
 
         raw_entropy = 0x110aaaa03974d093eda670121023cd0772
@@ -38,10 +38,18 @@ class TestMnemonicDictionaries(unittest.TestCase):
             raw_entropy, passphrase, lang, xversion)
         self.assertEqual(mprv2, mprv)
 
-        # invalid mnemonic version '00'
+        # unmanaged electrum mnemonic version
         mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
         self.assertRaises(ValueError, electrum_mprv_from_mnemonic,
-                          mnemonic, passphrase, xversion)
+                                      mnemonic, passphrase, xversion)
+        #electrum_mprv_from_mnemonic(mnemonic, passphrase, xversion)
+
+        # mnemonic version not in electrum allowed mnemonic versions
+        eversion = 'std'
+        self.assertRaises(ValueError, electrum_mnemonic_from_raw_entropy,
+                                      raw_entropy, lang, eversion)
+        #electrum_mnemonic_from_raw_entropy(raw_entropy, lang, eversion)
+
 
     def test_electrum_vectors(self):
         filename = "test_electrum_vectors.json"
