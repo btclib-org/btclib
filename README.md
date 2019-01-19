@@ -1,4 +1,4 @@
-# btclib: a 'bitcoin cryptography' library
+# btclib: a python library for 'bitcoin cryptography'
 
 <http://github.com/dginst/btclib>
 
@@ -44,4 +44,4 @@ The library includes:
 - BIP39 mnemonic code for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic code
 
-A very extensive test suite reproduces results from major official sources and covers basically 100% of the library code base.
+A very extensive test suite reproduces results from major official sources and covers 100% of the library code base.
