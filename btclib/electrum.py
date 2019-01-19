@@ -16,7 +16,7 @@ import hmac
 from btclib.entropy import Entropy, GenericEntropy, int_from_entropy, \
     str_from_entropy
 from btclib.mnemonic import mnemonic_dict
-from btclib.bip32 import PRIVATE, bip32_mprv_from_seed, bip32_ckd, \
+from btclib.bip32 import PRV, bip32_mprv_from_seed, bip32_ckd, \
     bip32_xpub_from_xprv
 
 ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
@@ -67,9 +67,9 @@ def electrum_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
     return pbkdf2_hmac(hash_name, password, salt, iterations, dksize)
 
 
-def electrum_master_prvkey_from_mnemonic(mnemonic: str,
-                                         passphrase: str,
-                                         xversion: bytes) -> bytes:
+def electrum_mprv_from_mnemonic(mnemonic: str,
+                                passphrase: str,
+                                xversion: bytes) -> bytes:
     seed = electrum_seed_from_mnemonic(mnemonic, passphrase)
 
     # verify that the mnemonic is versioned
@@ -86,8 +86,11 @@ def electrum_master_prvkey_from_mnemonic(mnemonic: str,
         raise ValueError("unmanaged electrum mnemonic version")
 
 
-def electrum_master_prvkey_from_raw_entropy(raw_entropy: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
+def electrum_mprv_from_raw_entropy(raw_entropy: GenericEntropy,
+                                   passphrase: str,
+                                   lang: str,
+                                   xversion: bytes) -> bytes:
     mnemonic = electrum_mnemonic_from_raw_entropy(
         raw_entropy, lang, 'standard')
-    mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase, xversion)
+    mprv = electrum_mprv_from_mnemonic(mnemonic, passphrase, xversion)
     return mprv

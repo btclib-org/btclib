@@ -13,7 +13,7 @@ import os
 import json
 
 from btclib.base58 import b58encode_check, b58decode_check
-from btclib.bip32 import PRIVATE, PUBLIC, bip32_mprv_from_seed, \
+from btclib.bip32 import PRV, PUB, bip32_mprv_from_seed, \
     bip32_xpub_from_xprv, bip32_ckd, bip32_derive, bip32_crack, \
     bip32_child_index, address_from_xpub, b58encode_check
 
@@ -23,7 +23,7 @@ class TestBIP32(unittest.TestCase):
         """ BIP32 test vestor 1
             https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = PRIVATE[0]
+        xkey_version = PRV[0]
 
         seed = "000102030405060708090a0b0c0d0e0f"
         mprv = bip32_mprv_from_seed(seed, xkey_version)
@@ -115,7 +115,7 @@ class TestBIP32(unittest.TestCase):
         """ BIP32 test vestor 2
             https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = PRIVATE[0]
+        xkey_version = PRV[0]
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
         mprv = bip32_mprv_from_seed(seed, xkey_version)
@@ -211,7 +211,7 @@ class TestBIP32(unittest.TestCase):
         """ BIP32 test vestor 3
             https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = PRIVATE[0]
+        xkey_version = PRV[0]
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
         mprv = bip32_mprv_from_seed(seed, xkey_version)
@@ -257,7 +257,7 @@ class TestBIP32(unittest.TestCase):
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed
-        xkey_version = PRIVATE[0]
+        xkey_version = PRV[0]
         for test_vector in test_vectors:
             bip32_seed = test_vector[2]
             mprv = bip32_mprv_from_seed(bip32_seed, xkey_version)
@@ -285,7 +285,7 @@ class TestBIP32(unittest.TestCase):
         addr = address_from_xpub(bip32_xpub_from_xprv(bip32_derive(mprv, path)))
         self.assertEqual(addr, addr2)
 
-        xkey_version = PRIVATE[0]
+        xkey_version = PRV[0]
         seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
         seed = bytes.fromhex(seed)
         xprv = bip32_mprv_from_seed(seed, xkey_version)
@@ -389,7 +389,7 @@ class TestBIP32(unittest.TestCase):
             bip32_derive(mprv, path)), addr_version)
         self.assertEqual(addr, change)
 
-        xkey_version = PRIVATE[0]
+        xkey_version = PRV[0]
         seed = "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
         seed = bytes.fromhex(seed)
         mprv = bip32_mprv_from_seed(seed, xkey_version)

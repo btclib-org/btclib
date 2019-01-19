@@ -19,15 +19,15 @@ from btclib.utils import octets, octets2point, point2octets, octets2int
 from btclib.wifaddress import h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes        Base58 encode starts with
-MAINNET_PRIVATE = b'\x04\x88\xAD\xE4'  # xprv
-TESTNET_PRIVATE = b'\x04\x35\x83\x94'  # tprv
-SEGWIT_PRIVATE = b'\x04\xb2\x43\x0c'
-PRIVATE = [MAINNET_PRIVATE, TESTNET_PRIVATE, SEGWIT_PRIVATE]
+MAINNET_PRV = b'\x04\x88\xAD\xE4'  # xprv
+TESTNET_PRV = b'\x04\x35\x83\x94'  # tprv
+SEGWIT_PRV = b'\x04\xb2\x43\x0c'
+PRV = [MAINNET_PRV, TESTNET_PRV, SEGWIT_PRV]
 
-MAINNET_PUBLIC = b'\x04\x88\xB2\x1E'  # xpub
-TESTNET_PUBLIC = b'\x04\x35\x87\xCF'  # tpub
-SEGWIT_PUBLIC = b'\x04\xb2\x47\x46'
-PUBLIC = [MAINNET_PUBLIC,  TESTNET_PUBLIC,  SEGWIT_PUBLIC]
+MAINNET_PUB = b'\x04\x88\xB2\x1E'  # xpub
+TESTNET_PUB = b'\x04\x35\x87\xCF'  # tpub
+SEGWIT_PUB = b'\x04\xb2\x47\x46'
+PUB = [MAINNET_PUB,  TESTNET_PUB,  SEGWIT_PUB]
 
 MAINNET_ADDRESS = b'\x00'             # 1
 TESTNET_ADDRESS = b'\x6F'             # m or n
@@ -45,7 +45,7 @@ def bip32_mprv_from_seed(seed: octets, version: octets) -> bytes:
 
     if isinstance(version, str):  # hex string
         version = bytes.fromhex(version)
-    assert version in PRIVATE, "wrong version, master key must be private"
+    assert version in PRV, "wrong version, master key must be private"
 
     # serialization data
     xmprv = version                               # version
@@ -74,10 +74,10 @@ def bip32_xpub_from_xprv(xprv: octets) -> bytes:
     xprv = b58decode_check(xprv, 78)
     assert xprv[45] == 0, "extended key is not a private one"
 
-    i = PRIVATE.index(xprv[:4])
+    i = PRV.index(xprv[:4])
 
     # serialization data
-    xpub = PUBLIC[i]                           # version
+    xpub = PUB[i]                           # version
     # unchanged serialization data
     xpub += xprv[4: 5]                         # depth
     xpub += xprv[5: 9]                         # parent pubkey fingerprint
@@ -116,7 +116,7 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     xkey = version                               # version
     xkey += (xparent[4] + 1).to_bytes(1, 'big')  # (increased) depth
 
-    if (version in PUBLIC):
+    if (version in PUB):
         if xparent[45] not in (2, 3):  # not a compressed public key
             raise ValueError("version/key mismatch in extended parent key")
         Parent_bytes = xparent[45:]
@@ -134,7 +134,7 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         Child_bytes = point2octets(ec, Child, True)
         xkey += h[32:]                            # chain code
         xkey += Child_bytes                       # public key
-    elif (version in PRIVATE):
+    elif (version in PRV):
         if xparent[45] != 0:    # not a private key
             raise ValueError("version/key mismatch in extended parent key")
         parent = int.from_bytes(xparent[46:], 'big')
@@ -205,7 +205,7 @@ def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
     # FIXME use BIP44 here
     if version is None:
         xversion = xpub[:4]
-        i = PUBLIC.index(xversion)
+        i = PUB.index(xversion)
         version = ADDRESS[i]
     P = octets2point(ec, xpub[45:])
     return address_from_pubkey(P, True, version)

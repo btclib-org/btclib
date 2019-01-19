@@ -32,4 +32,4 @@ better mimic of electrum entropy search, they probably have the words inverted
 
 BIP44 in address_from...
 
-clean up PRIVATE[0] mess
+clean up PRV[0] mess
