@@ -28,8 +28,9 @@ class TestDSA(unittest.TestCase):
         sig = dsa.sign(ec, hf, msg, q)
         # https://bitcointalk.org/index.php?topic=285142.40
         # Deterministic Usage of DSA and ECDSA (RFC 6979)
-        exp_sig = (0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
-                   0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
+        exp_sig = (
+            0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
+            0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
         r, s = sig
         self.assertEqual(sig[0], exp_sig[0])
         self.assertIn(sig[1], (exp_sig[1], ec.n - exp_sig[1]))
@@ -85,7 +86,9 @@ class TestDSA(unittest.TestCase):
         self.assertEqual(format(dU, str(ec.psize)+'x'),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
         QU = pointMult(ec, dU, ec.G)
-        self.assertEqual(QU, (466448783855397898016055842232266600516272889280, 1110706324081757720403272427311003102474457754220))
+        self.assertEqual(QU,
+                         (466448783855397898016055842232266600516272889280,
+                          1110706324081757720403272427311003102474457754220))
         self.assertEqual(point2octets(ec, QU, True).hex(),
                          '0251b4496fecc406ed0e75a24a3c03206251419dc0')
 
@@ -137,10 +140,10 @@ class TestDSA(unittest.TestCase):
         # ec.n has to be prime to sign
         prime = [11,  13,  17,  19]
 
-        for ec in low_card_curves:  # only low card curves or it would take forever
+        for ec in low_card_curves:  # only low card or it would take forever
             if ec._p in prime:  # only few curves or it would take too long
                 for d in range(ec.n):  # all possible private keys
-                    if d == 0:  # invalid prvkey=0
+                    if d == 0:  # invalid prvkey = 0
                         self.assertRaises(ValueError, dsa._sign, ec, 1, d, 1)
                         continue
                     P = pointMult(ec, d, ec.G)  # public key
@@ -148,21 +151,24 @@ class TestDSA(unittest.TestCase):
                         for k in range(ec.n):  # all possible ephemeral keys
 
                             if k == 0:
-                                self.assertRaises(ValueError, dsa._sign, ec, e, d, k)
+                                self.assertRaises(ValueError,
+                                                  dsa._sign, ec, e, d, k)
                                 continue
                             R = pointMult(ec, k, ec.G)
 
                             r = R[0] % ec.n
                             if r == 0:
-                                self.assertRaises(ValueError, dsa._sign, ec, e, d, k)
+                                self.assertRaises(ValueError,
+                                                  dsa._sign, ec, e, d, k)
                                 continue
 
                             s = mod_inv(k, ec.n) * (e + d * r) % ec.n
                             if s == 0:
-                                self.assertRaises(ValueError, dsa._sign, ec, e, d, k)
+                                self.assertRaises(ValueError,
+                                                  dsa._sign, ec, e, d, k)
                                 continue
 
-                            # bitcoin canonical 'low-s' encoding for ECDSA signatures
+                            # bitcoin canonical 'low-s' encoding for ECDSA
                             if s > ec.n / 2:
                                 s = ec.n - s
 
