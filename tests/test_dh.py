@@ -14,7 +14,7 @@ from hashlib import sha1
 from btclib.ec import pointMult
 from btclib.curves import secp160r1
 from btclib.utils import octets2point, point2octets, int2octets
-from btclib.dh import key_agreement, kdf
+from btclib import dh
 
 class TestEcdh(unittest.TestCase):
     def test_ecdh(self):
@@ -27,8 +27,8 @@ class TestEcdh(unittest.TestCase):
         dV = 0x2
         QV = pointMult(ec, dV, ec.G)
 
-        keyingdataU = key_agreement(dU, QV, keydatasize, ec, hf)
-        keyingdataV = key_agreement(dV, QU, keydatasize, ec, hf)
+        keyingdataU = dh.key_agreement, dh.kdf(dU, QV, keydatasize, ec, hf)
+        keyingdataV = dh.key_agreement, dh.kdf(dV, QU, keydatasize, ec, hf)
         self.assertEqual(keyingdataU, keyingdataV)
 
     def test_key_deployment(self):
@@ -69,14 +69,14 @@ class TestEcdh(unittest.TestCase):
         z, _ = pointMult(ec, dU, QV)
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = kdf(int2octets(z, ec.psize), keydatasize, ec, hf)
+        keyingdata = dh.kdf(int2octets(z, ec.psize), keydatasize, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
         # 4.1.5
         z, _ = pointMult(ec, dV, QU)
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = kdf(int2octets(z, ec.psize), keydatasize, ec, hf)
+        keyingdata = dh.kdf(int2octets(z, ec.psize), keydatasize, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
 
