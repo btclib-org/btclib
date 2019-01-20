@@ -17,7 +17,7 @@ and public keys (addresses)
 from hashlib import sha256, new as hnew
 from typing import Tuple
 
-from btclib.base58 import b58encode_check, b58decode_check
+from btclib import base58
 from btclib.ec import Point, pointMult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets, octets2int, int2octets, point2octets
@@ -32,13 +32,13 @@ def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     payload = b'\x80' + int2octets(prvkey, ec.psize)
     if compressed:
         payload += b'\x01'
-    return b58encode_check(payload)
+    return base58.encode_check(payload)
 
 
 def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
     """Wallet Import Format to (bytes) private key"""
 
-    payload = b58decode_check(wif)
+    payload = base58.decode_check(wif)
     if payload[0] != 0x80:
         raise ValueError("Not a private key WIF: missing leading 0x80")
 
@@ -72,11 +72,11 @@ def address_from_pubkey(Q: Point, compressed: bool, version: bytes = b'\x00') ->
 
     # FIXME: this is mainnet only
     vh160 = version + h160(pubkey)
-    return b58encode_check(vh160)
+    return base58.encode_check(vh160)
 
 
 def hash160_from_address(addr: octets) -> bytes:
-    payload = b58decode_check(addr, 21)
+    payload = base58.decode_check(addr, 21)
     # FIXME: this is mainnet only
     if payload[0] != 0x00:
         raise ValueError("not a mainnet address")

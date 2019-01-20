@@ -12,7 +12,7 @@ from hmac import HMAC
 from hashlib import sha512
 from typing import Union, Optional
 
-from btclib.base58 import b58encode_check, b58decode_check
+from btclib import base58 
 from btclib.ec import pointMult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets, octets2point, point2octets, octets2int
@@ -61,7 +61,7 @@ def mprv_from_seed(seed: octets, version: octets) -> bytes:
     xmprv += hd[32:]                              # chain code
     xmprv += b'\x00' + mprv.to_bytes(32, 'big')   # private key
 
-    return b58encode_check(xmprv)
+    return base58.encode_check(xmprv)
 
 
 def xpub_from_xprv(xprv: octets) -> bytes:
@@ -71,7 +71,7 @@ def xpub_from_xprv(xprv: octets) -> bytes:
     private key (“neutered” as it removes the ability to sign transactions)
     """
 
-    xprv = b58decode_check(xprv, 78)
+    xprv = base58.decode_check(xprv, 78)
     assert xprv[45] == 0, "extended key is not a private one"
 
     i = PRIVATE.index(xprv[:4])
@@ -87,7 +87,7 @@ def xpub_from_xprv(xprv: octets) -> bytes:
     p = octets2int(xprv[46:])
     P = pointMult(ec, p, ec.G)
     xpub += point2octets(ec, P, True)          # public key
-    return b58encode_check(xpub)
+    return base58.encode_check(xpub)
 
 
 def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
@@ -108,7 +108,7 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     if len(index) != 4:
         raise ValueError(f"a 4 bytes int is required, not {len(index)}")
 
-    xparent = b58decode_check(xparentkey, 78)
+    xparent = base58.decode_check(xparentkey, 78)
 
     version = xparent[:4]
 
@@ -156,7 +156,7 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     else:
         raise ValueError("invalid extended key version")
 
-    return b58encode_check(xkey)
+    return base58.encode_check(xkey)
 
 
 def derive(xkey: octets, path: str) -> bytes:
@@ -172,7 +172,7 @@ def derive(xkey: octets, path: str) -> bytes:
         if steps[0] not in {'m', '.'}:
             raise ValueError(f'Invalid derivation path: {path}')
         if steps[0] == 'm':
-            decoded = b58decode_check(xkey, 78)
+            decoded = base58.decode_check(xkey, 78)
             t = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00'
             assert decoded[4:13] == t, "Trying to derive absolute path from non-master key"
 
@@ -197,7 +197,7 @@ def derive(xkey: octets, path: str) -> bytes:
 
 
 def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
-    xpub = b58decode_check(xpub, 78)
+    xpub = base58.decode_check(xpub, 78)
     assert xpub[45] in (2, 3), "extended key is not a public one"
     # bitcoin: address version can be derived from xkey version
     # altcoin: address version cannot be derived from xkey version
@@ -212,10 +212,10 @@ def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
 
 
 def crack(parent_xpub: octets, child_xprv: octets) -> bytes:
-    parent_xpub = b58decode_check(parent_xpub, 78)
+    parent_xpub = base58.decode_check(parent_xpub, 78)
     assert parent_xpub[45] in (2, 3), "extended parent key is not a public one"
 
-    child_xprv = b58decode_check(child_xprv, 78)
+    child_xprv = base58.decode_check(child_xprv, 78)
     assert child_xprv[45] == 0, "extended child key is not a private one"
 
     # check depth
@@ -246,11 +246,11 @@ def crack(parent_xpub: octets, child_xprv: octets) -> bytes:
     parent_bytes = b'\x00' + parent.to_bytes(32, 'big')
     parent_xprv += parent_bytes        # private key
 
-    return b58encode_check(parent_xprv)
+    return base58.encode_check(parent_xprv)
 
 
 def child_index(xkey: octets) -> bytes:
-    xkey = b58decode_check(xkey, 78)
+    xkey = base58.decode_check(xkey, 78)
     if xkey[4] == 0:
         raise ValueError("master key provided")
     return xkey[9:13]

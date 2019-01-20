@@ -12,7 +12,7 @@ import unittest
 import os
 import json
 
-from btclib.base58 import b58encode_check, b58decode_check
+from btclib import base58
 from btclib import bip32
 
 class TestBIP32(unittest.TestCase):
@@ -314,15 +314,15 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(addr, b'16NLYkKtvYhW1Jp86tbocku3gxWcvitY1w')
 
         # version/key mismatch in extended parent key
-        bmprv = b58decode_check(mprv)
-        bad_mprv = b58encode_check(bmprv[0:45] + b'\x01' + bmprv[46:])
+        bmprv = base58.decode_check(mprv)
+        bad_mprv = base58.encode_check(bmprv[0:45] + b'\x01' + bmprv[46:])
         self.assertRaises(ValueError, bip32.ckd, bad_mprv, 1)
         #bip32.ckd(bad_mprv, 1)
 
         # version/key mismatch in extended parent key
         mpub = bip32.xpub_from_xprv(mprv)
-        bmpub = b58decode_check(mpub)
-        bad_mpub = b58encode_check(bmpub[0:45] + b'\x00' + bmpub[46:])
+        bmpub = base58.decode_check(mpub)
+        bad_mpub = base58.encode_check(bmpub[0:45] + b'\x00' + bmpub[46:])
         self.assertRaises(ValueError, bip32.ckd, bad_mpub, 1)
         #bip32.ckd(bad_mpub, 1)
 
@@ -413,7 +413,7 @@ class TestBIP32(unittest.TestCase):
 
         xkey = b'\x04\x88\xAD\xE5'  # invalid version
         xkey += b'\x00'*74
-        xkey = b58encode_check(xkey)
+        xkey = base58.encode_check(xkey)
         self.assertRaises(ValueError, bip32.ckd, xkey, 0x80000000)
 
     def test_crack(self):
