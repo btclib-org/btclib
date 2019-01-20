@@ -18,8 +18,8 @@ from btclib.utils import octets2point, point2octets
 from btclib import dsa
 
 
-class TestEcdsa(unittest.TestCase):
-    def test_dsa(self):
+class TestDSA(unittest.TestCase):
+    def test_signature(self):
         ec = secp256k1
         hf = sha256
         q = 0x1
@@ -71,7 +71,7 @@ class TestEcdsa(unittest.TestCase):
         self.assertRaises(ValueError, dsa._verify, ec, hf, msg, (1, 0), sig)
         #dsa._verify(ec, hf, msg, (1, 0), sig)
 
-    def test_dsa_gec(self):
+    def test_gec(self):
         """ GEC 2: Test Vectors for SEC 1, section 2
 
             http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
