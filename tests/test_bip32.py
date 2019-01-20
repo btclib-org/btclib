@@ -330,8 +330,6 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.ckd, mpub, 0x80000000)
         #bip32.ckd(mpub, 0x80000000)
 
-
-
     def test_testnet(self):
         # bitcoin core derivation style
         mprv = b'tprv8ZgxMBicQKsPe3g3HwF9xxTLiyc5tNyEtjhBBAk29YA3MTQUqULrmg7aj9qTKNfieuu2HryQ6tGVHse9x7ANFGs3f4HgypMc5nSSoxwf7TK'
