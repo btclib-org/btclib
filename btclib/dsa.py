@@ -171,9 +171,10 @@ def _pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     keys: List[Point] = list()
     for j in range(ec.h):                                   # 1
         x = r + j*ec.n                                      # 1.1
-        try:
-            R = (x % ec._p, ec.yOdd(x, 1))                  # 1.2, 1.3, and 1.4
-            # 1.5 already taken care outside this for loop
+        try:  #TODO: check test reporting 1, 2, 3, or 4 keys
+            x %= ec._p
+            R = x, ec.yOdd(x, 1)                            # 1.2, 1.3, and 1.4
+            # skip 1.5: in this function, e is an input
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)        # 1.6.1
             if Q[1] != 0 and _verhlp(ec, e, Q, sig):        # 1.6.2
                 keys.append(Q)
