@@ -12,7 +12,8 @@ import unittest
 import os
 import json
 
-from btclib.electrum import PRIVATE, xpub_from_xprv, \
+from btclib import bip32
+from btclib.electrum import \
     electrum_entropy_from_mnemonic, electrum_mnemonic_from_raw_entropy, \
     electrum_master_prvkey_from_mnemonic, \
     electrum_master_prvkey_from_raw_entropy
@@ -57,10 +58,10 @@ class TestMnemonicDictionaries(unittest.TestCase):
             test_mnemonic = test_vector[1]
             passphrase = test_vector[2]
             test_mpub = test_vector[3]
-            xversion = PRIVATE[0]
+            xversion = bip32.PRIVATE[0]
             mprv = electrum_master_prvkey_from_mnemonic(
                 test_mnemonic, passphrase, xversion)
-            mpub = xpub_from_xprv(mprv).decode()
+            mpub = bip32.xpub_from_xprv(mprv).decode()
             self.assertEqual(mpub, test_mpub)
 
             lang = "en"

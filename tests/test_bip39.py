@@ -13,7 +13,8 @@ import os
 import json
 import math
 
-from btclib.bip39 import PRIVATE, bip39_mnemonic_from_raw_entropy, \
+from btclib import bip32
+from btclib.bip39 import bip39_mnemonic_from_raw_entropy, \
     bip39_raw_entropy_from_mnemonic, bip39_master_prvkey_from_mnemonic, \
     bip39_master_prvkey_from_raw_entropy, bip39_seed_from_mnemonic
 
@@ -31,12 +32,12 @@ class TestBIP39Wallet(unittest.TestCase):
         passphrase = ''
 
         mprv = bip39_master_prvkey_from_mnemonic(
-            mnemonic, passphrase, PRIVATE[0])
+            mnemonic, passphrase, bip32.PRIVATE[0])
         mprv_exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(mprv, mprv_exp)
 
         mprv2 = bip39_master_prvkey_from_raw_entropy(
-            raw_entr, passphrase, lang, PRIVATE[0])
+            raw_entr, passphrase, lang, bip32.PRIVATE[0])
         self.assertEqual(mprv2, mprv)
 
     # Test vectors:

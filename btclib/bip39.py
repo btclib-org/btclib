@@ -15,7 +15,7 @@ from hashlib import sha256, pbkdf2_hmac
 from btclib.entropy import Entropy, GenericEntropy, bytes_from_entropy, \
     str_from_entropy
 from btclib.mnemonic import mnemonic_dict
-from btclib.bip32 import PRIVATE, mprv_from_seed
+from btclib import bip32
 
 
 def bip39_raw_entropy_checksum(raw_entr: GenericEntropy) -> Entropy:
@@ -104,7 +104,7 @@ def bip39_master_prvkey_from_mnemonic(mnemonic: str,
                                       passphrase: str,
                                       xversion: bytes) -> bytes:
     seed = bip39_seed_from_mnemonic(mnemonic, passphrase)
-    return mprv_from_seed(seed, xversion)
+    return bip32.mprv_from_seed(seed, xversion)
 
 # TODO: move to wallet file
 
