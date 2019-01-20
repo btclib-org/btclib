@@ -42,6 +42,7 @@ def commit(r: int, v: int, ec: EC, hf) -> Point:
 
 
 def open(r: int, v: int, C: Point, ec: EC, hf) -> bool:
+    # try/except wrapper for the Errors raised by commit
     try:
         P = commit(r, v, ec, hf)
     except:
