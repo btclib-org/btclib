@@ -22,12 +22,12 @@ random.seed(42)
 
 ec = secp256k1
 
-def borromean_hash(msg: bytes, R: bytes, i: int, j: int) -> bytes:
+def hash(msg: bytes, R: bytes, i: int, j: int) -> bytes:
     temp = msg + R + i.to_bytes(4, 'big') + j.to_bytes(4, 'big')
     return sha256(temp).digest()
 
 
-def get_msg_format(msg: bytes, pubk_rings: Dict[int, List[Point]]) -> bytes:
+def _get_msg_format(msg: bytes, pubk_rings: Dict[int, List[Point]]) -> bytes:
     m = msg
     rings = len(pubk_rings)
     for i in range(rings):
@@ -39,7 +39,7 @@ def get_msg_format(msg: bytes, pubk_rings: Dict[int, List[Point]]) -> bytes:
     return sha256(m).digest()
 
 
-def borromean_sign(msg: bytes,
+def sign(msg: bytes,
                    k: List[int],
                    sign_key_idx: List[int],
                    sign_keys: List[int],
@@ -58,7 +58,7 @@ def borromean_sign(msg: bytes,
 
     s: Dict[int, List[int]] = defaultdict(list)
     e: Dict[int, List[int]] = defaultdict(list)
-    m = get_msg_format(msg, pubk_rings)
+    m = _get_msg_format(msg, pubk_rings)
     e0bytes = m
     ring_size = len(pubk_rings)
     # step 1
@@ -72,7 +72,7 @@ def borromean_sign(msg: bytes,
         if start_idx != 0:
             for j in range(start_idx, keys_size):
                 s[i][j] = random.getrandbits(256)
-                e[i][j] = bits2int(ec, borromean_hash(m, R, i, j))
+                e[i][j] = bits2int(ec, hash(m, R, i, j))
                 assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
                 T = DblScalarMult(ec, s[i][j], ec.G, -e[i][j], pubk_rings[i][j])
                 R = point2octets(ec, T, True)
@@ -80,20 +80,20 @@ def borromean_sign(msg: bytes,
     e0 = sha256(e0bytes).digest()
     # step 2
     for i in range(ring_size):
-        e[i][0] = bits2int(ec, borromean_hash(m, e0, i, 0))
+        e[i][0] = bits2int(ec, hash(m, e0, i, 0))
         assert 0 < e[i][0] < ec.n, "sign fail: how did you do that?!?"
         j_star = sign_key_idx[i]
         for j in range(1, j_star+1):
             s[i][j-1] = random.getrandbits(256)
             T = DblScalarMult(ec, s[i][j-1], ec.G, -e[i][j-1], pubk_rings[i][j-1])
             R = point2octets(ec, T, True)
-            e[i][j] = bits2int(ec, borromean_hash(m, R, i, j))
+            e[i][j] = bits2int(ec, hash(m, R, i, j))
             assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
         s[i][j_star] = k[i] + sign_keys[i]*e[i][j_star]
     return e0, s
 
 
-def borromean_verify(msg: bytes,
+def verify(msg: bytes,
                      e0: bytes,
                      s: Dict[int, List[int]],
                      pubk_rings: Dict[int, List[Point]]) -> bool:
@@ -107,33 +107,33 @@ def borromean_verify(msg: bytes,
     """
 
     # this is just a try/except wrapper for the Errors
-    # raised by _borromean_verify
+    # raised by _verify
     try:
-        return _borromean_verify(msg, e0, s, pubk_rings)
+        return _verify(msg, e0, s, pubk_rings)
     except Exception:
         return False
 
 
-def _borromean_verify(msg: bytes,
+def _verify(msg: bytes,
                       e0: bytes,
                       s: Dict[int, List[int]],
                       pubk_rings: Dict[int, List[Point]]) -> bool:
 
     ring_size = len(pubk_rings)
-    m = get_msg_format(msg, pubk_rings)
+    m = _get_msg_format(msg, pubk_rings)
     e: Dict[int, List[int]] = defaultdict(list)
     e0bytes = m
     for i in range(ring_size):
         keys_size = len(pubk_rings[i])
         e[i] = [0]*keys_size
-        e[i][0] = bits2int(ec, borromean_hash(m, e0, i, 0))
+        e[i][0] = bits2int(ec, hash(m, e0, i, 0))
         assert e[i][0] != 0, "invalid sig: how did you do that?!?"
         R = b'\0x00'
         for j in range(keys_size):
             T = DblScalarMult(ec, s[i][j], ec.G, -e[i][j], pubk_rings[i][j])
             R = point2octets(ec, T, True)
             if j != len(pubk_rings[i])-1:
-                e[i][j+1] = bits2int(ec, borromean_hash(m, R, i, j+1))
+                e[i][j+1] = bits2int(ec, hash(m, R, i, j+1))
                 assert e[i][j+1] != 0, "invalid sig: how did you do that?!?"
             else:
                 e0bytes += R
