@@ -44,7 +44,7 @@ sighash_all_anyonecanpay = b'\x81'
 sighash_none_anyonecanpay = b'\x82'
 sighash_single_anyonecanpay = b'\x83'
 
-def bytes_from_element(element: int) -> bytes:
+def _bytes_from_element(element: int) -> bytes:
     if element<0:
         raise ValueError(f"negative ({element}) signature element")
     elen = element.bit_length()
@@ -53,21 +53,21 @@ def bytes_from_element(element: int) -> bytes:
     n_bytes = element.to_bytes(esize, 'big')
     return n_bytes
 
-def encode_element(element: int) -> bytes:
-    x = bytes_from_element(element)
+def _encode_element(element: int) -> bytes:
+    x = _bytes_from_element(element)
     xsize = len(x).to_bytes(1, "big")
     return b'\x02' + xsize + x
 
 
-def DER_encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
+def encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
     if len(sighash) > 1:
         raise ValueError(f"sighash size {len(sighash)} > 1")
     r, s = sig
-    enc = encode_element(int(r))
-    enc += encode_element(s) # FIXME
+    enc = _encode_element(int(r))
+    enc += _encode_element(s) # FIXME
     return b'\x30' + len(enc).to_bytes(1, "big") + enc + sighash
 
-def DER_decode(sig: bytes) -> Tuple[ECDS, bytes]:
+def decode(sig: bytes) -> Tuple[ECDS, bytes]:
 
     sigsize = len(sig)
     if not 8 < sigsize < 74:
