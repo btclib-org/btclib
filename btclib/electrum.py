@@ -51,10 +51,8 @@ def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
 
     return mnemonic
 
-# entropy is returned as binary string
-
-
 def entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
+    """entropy is returned as binary string"""
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
     entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
     return entropy
