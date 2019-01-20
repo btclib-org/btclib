@@ -27,8 +27,8 @@ class TestEcdh(unittest.TestCase):
         dV = 0x2
         QV = pointMult(ec, dV, ec.G)
 
-        keyingdataU = dh.key_agreement, dh.kdf(dU, QV, keydatasize, ec, hf)
-        keyingdataV = dh.key_agreement, dh.kdf(dV, QU, keydatasize, ec, hf)
+        keyingdataU = dh.key_agreement(dU, QV, keydatasize, ec, hf)
+        keyingdataV = dh.key_agreement(dV, QU, keydatasize, ec, hf)
         self.assertEqual(keyingdataU, keyingdataV)
 
     def test_key_deployment(self):
