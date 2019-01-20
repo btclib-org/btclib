@@ -18,7 +18,7 @@ from btclib.mnemonic import mnemonic_dict
 from btclib import bip32
 
 
-def raw_entropy_checksum(raw_entr: GenericEntropy) -> Entropy:
+def _raw_entropy_checksum(raw_entr: GenericEntropy) -> Entropy:
     raw_entr = bytes_from_entropy(raw_entr, _allowed_raw_entr_bits)
     # raw_entr 256-bit checksum
     byteschecksum = sha256(raw_entr).digest()  # 256 bits
@@ -56,7 +56,7 @@ _allowed_raw_entr_bits = (128, 160, 192, 224, 256)
 
 def entropy_from_raw_entropy(raw_entropy: GenericEntropy) -> Entropy:
     raw_entropy = str_from_entropy(raw_entropy, _allowed_raw_entr_bits)
-    checksum = raw_entropy_checksum(raw_entropy)
+    checksum = _raw_entropy_checksum(raw_entropy)
     return raw_entropy + checksum
 
 
@@ -83,7 +83,7 @@ def raw_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
 
     # the second one being the checksum, to be verified
     bytes_raw_entr = int(raw_entr, 2).to_bytes(raw_entr_bits//8, 'big')
-    checksum = raw_entropy_checksum(bytes_raw_entr)
+    checksum = _raw_entropy_checksum(bytes_raw_entr)
     if entropy[raw_entr_bits:] != checksum:
         raise ValueError("invalid mnemonic checksum")
 
