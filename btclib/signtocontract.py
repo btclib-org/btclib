@@ -37,7 +37,7 @@ from btclib.ec import EC, pointMult, Point
 from btclib.utils import bits2int, octets2point, point2octets
 from btclib.rfc6979 import rfc6979
 from btclib import dsa
-from btclib.ssa import ecssa_sign, ECSS
+from btclib import ssa
 
 Receipt = Tuple[int, Point]
 
@@ -73,7 +73,7 @@ def ecdsa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
 
 
 def ecssa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
-                      k: Optional[int] = None) -> Tuple[ECSS, Receipt]:
+                      k: Optional[int] = None) -> Tuple[ssa.ECSS, Receipt]:
     ch = hf(c).digest()
     if k is None:
         k = rfc6979(ec, hf, m, prvkey)
@@ -81,7 +81,7 @@ def ecssa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
     # commit
     R, new_k = _tweak(ch, ec, hf, k)
     # sign
-    sig = ecssa_sign(ec, hf, m, prvkey, new_k)
+    sig = ssa.sign(ec, hf, m, prvkey, new_k)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt

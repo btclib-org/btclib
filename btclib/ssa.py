@@ -31,7 +31,7 @@ def _ensureCorrectMessageSize(hf, m: bytes) -> None:
         errmsg += f' instead of {hf().digest_size} bytes'
         raise ValueError(errmsg)
 
-def _ecssa_e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
+def _e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
     ebytes = int2octets(r, ec.psize) # FIXME: hsize, nsize ?
     ebytes += point2octets(ec, P, True)
@@ -41,8 +41,8 @@ def _ecssa_e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
     return e
 
 
-def ecssa_sign(ec: EC, hf, m: bytes, d: int,
-               k: Optional[int] = None) -> Tuple[int, int]:
+def sign(ec: EC, hf, m: bytes, d: int,
+         k: Optional[int] = None) -> Tuple[int, int]:
     """ECSSA signing operation according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
@@ -85,28 +85,27 @@ def ecssa_sign(ec: EC, hf, m: bytes, d: int,
     r = (RJ[0]*mod_inv(Z2, ec._p)) % ec._p
 
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
-    e = _ecssa_e(ec, hf, r, P, m)
+    e = _e(ec, hf, r, P, m)
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R)) || bytes(k + ed mod n).
     return r, s
 
 
-def ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
+def verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     """ECSSA verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
     """
 
-    # this is just a try/except wrapper
-    # _ecssa_verify raises Exceptions
+    # try/except wrapper for the Errors raised by _verify
     try:
-        return _ecssa_verify(ec, hf, m, P, sig)
+        return _verify(ec, hf, m, P, sig)
     except Exception:
         return False
 
 
-def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
+def _verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     # This raises Exceptions, while verify should always return True or False
 
     # the bitcoin proposed standard is only valid for curves
@@ -117,7 +116,7 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
     # Let r = int(sig[ 0:32]).
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
-    r, s = _to_ssasig(ec, sig)
+    r, s = _to_sig(ec, sig)
 
     # The message m: a 32-byte array
     _ensureCorrectMessageSize(hf, m)
@@ -128,7 +127,7 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
         raise ValueError("public key is infinite")
 
     # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
-    e = _ecssa_e(ec, hf, r, P, m)
+    e = _e(ec, hf, r, P, m)
 
     # Let R = sG - eP.
     # in Jacobian coordinates
@@ -146,10 +145,10 @@ def _ecssa_verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     return R[0] == (R[2]*R[2]*r % ec._p)
 
 
-def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
+def _pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
     # Private function provided for testing purposes only.
 
-    r, s = _to_ssasig(ec, sig)
+    r, s = _to_sig(ec, sig)
 
     K = r, ec.yQuadraticResidue(r, True)
     # FIXME yQuadraticResidue in Jacobian coordinates?
@@ -162,7 +161,7 @@ def _ecssa_pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
     return P
 
 
-def _to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
+def _to_sig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     # Private function provided for testing purposes only.
     # check SSA signature format is correct and return the signature itself
 
@@ -182,7 +181,7 @@ def _to_ssasig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     return r, s
 
 
-def ecssa_batch_verification(ec: EC,
+def batch_verification(ec: EC,
                              hf,
                              ms: List[bytes],
                              P: List[Point],
@@ -192,15 +191,14 @@ def ecssa_batch_verification(ec: EC,
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
     """
 
-    # this is just a try/except wrapper
-    # _ecssa_batch_verification raises Exceptions
+    # try/except wrapper for the Errors raised by _batch_verification
     try:
-        return _ecssa_batch_verification(ec, hf, ms, P, sig)
+        return _batch_verification(ec, hf, ms, P, sig)
     except Exception:
         return False
 
 
-def _ecssa_batch_verification(ec: EC,
+def _batch_verification(ec: EC,
                               hf,
                               ms: List[bytes],
                               P: List[Point],
@@ -211,8 +209,8 @@ def _ecssa_batch_verification(ec: EC,
     for i in range(len(P)):
         _ensureCorrectMessageSize(hf, ms[i])
         ec.requireOnCurve(P[i])
-        r, s = _to_ssasig(ec, sig[i])
-        e = _ecssa_e(ec, hf, r, P[i], ms[i])
+        r, s = _to_sig(ec, sig[i])
+        e = _e(ec, hf, r, P[i], ms[i])
         y = ec.y(r)  # raises an error if y does not exist
 
         # deterministically generated using a CSPRNG seeded by a cryptographic

@@ -18,7 +18,7 @@ BUG in batch validation with just one sig (plus why a[0]=1 ?)
 allow hexstring for Signature
 allow binary Signature
 run scripts as part of test-suite
-revise ecssa_pubkey_recovery
+revise ssa.pubkey_recovery
 the name of functions returning bool should be a question
 
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
