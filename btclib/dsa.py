@@ -168,7 +168,7 @@ def _pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
     r1e = -r1*e
-    keys = []
+    keys: List[Point] = list()
     for j in range(ec.h):                                   # 1
         x = r + j*ec.n                                      # 1.1
         try:
