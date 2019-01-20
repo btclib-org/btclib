@@ -21,3 +21,5 @@ better mimic of electrum entropy search, they probably have the words inverted
 BIP44 in address_from...
 clean up PRV[0] mess
 remove assert for if + raise
+bech32
+deserialize curves from jason file
