@@ -90,8 +90,7 @@ def verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
        http://www.secg.org/sec1-v2.pdf
     """
 
-    # this is just a try/except wrapper for the Errors
-    # raised by _ecssa_verify
+    # try/except wrapper for the Errors raised by _verify
     try:
         return _verify(ec, hf, M, P, sig)
     except Exception:
