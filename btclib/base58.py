@@ -21,7 +21,7 @@ def _double_sha256(s: bytes) -> bytes:
     return sha256(sha256(s).digest()).digest()
 
 
-def str_to_bytes(v: Union[str, bytes]) -> bytes:
+def _str_to_bytes(v: Union[str, bytes]) -> bytes:
     """Encode string to bytes, stipping leading/trailing white spaces"""
 
     if isinstance(v, str):
@@ -48,7 +48,7 @@ def encode_int(i: int) -> bytes:
 def encode(v: Union[str, bytes]) -> bytes:
     """Encode bytes using Base58"""
 
-    v = str_to_bytes(v)
+    v = _str_to_bytes(v)
 
     # preserve leading-0s
     # leading-0s become base58 leading-1s
@@ -68,7 +68,7 @@ def encode(v: Union[str, bytes]) -> bytes:
 def encode_check(v: Union[str, bytes]) -> bytes:
     """Encode bytes using Base58 with a 4 character checksum"""
 
-    v = str_to_bytes(v)
+    v = _str_to_bytes(v)
 
     digest = _double_sha256(v)
     result = encode(v + digest[:4])
@@ -78,7 +78,7 @@ def encode_check(v: Union[str, bytes]) -> bytes:
 def decode_int(v: Union[str, bytes]) -> int:
     """Decode Base58 encoded bytes as integer"""
 
-    v = str_to_bytes(v)
+    v = _str_to_bytes(v)
 
     i = 0
     for char in v:
@@ -92,7 +92,7 @@ def decode(v: Union[str, bytes],
     """Decode Base58 encoded bytes, with verified output length"""
 
 
-    v = str_to_bytes(v)
+    v = _str_to_bytes(v)
 
     # preserve leading-0s
     # base58 leading-1s become leading-0s
