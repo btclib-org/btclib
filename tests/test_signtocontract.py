@@ -13,7 +13,7 @@ from hashlib import sha256 as hf
 
 from btclib.ec import pointMult
 from btclib.curves import secp256k1 as ec
-from btclib.dsa import ecdsa_verify
+from btclib import dsa
 from btclib.ssa import ecssa_verify
 from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, \
     verify_commit
@@ -27,7 +27,7 @@ class TestSignToContract(unittest.TestCase):
         c = "to be committed".encode()
 
         dsa_sig, dsa_receipt = ecdsa_commit_sign(c, ec, hf, m, prv, None)
-        self.assertTrue(ecdsa_verify(ec, hf, m, pub, dsa_sig))
+        self.assertTrue(dsa.verify(ec, hf, m, pub, dsa_sig))
         self.assertTrue(verify_commit(c, ec, hf, dsa_receipt))
 
         # 32 bytes message for ECSSA
