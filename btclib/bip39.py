@@ -49,7 +49,7 @@ _allowed_raw_entr_bits = (128, 160, 192, 224, 256)
 #
 # input raw entropy can be expresses as binary string, bytes-like, or int
 # it must be 128, 160, 192, 224, or 256 bits
-# int is pre zero padded up to 128, 160, 192, 224, or 256 bits
+# int is front-padded with zeros up to 128, 160, 192, 224, or 256 bits
 #
 # output entropy is returned as binary string
 
@@ -67,22 +67,25 @@ def mnemonic_from_raw_entropy(raw_entr: GenericEntropy,
     mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
     return mnemonic
 
-# output raw entropy is returned as binary string
-
 
 def raw_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
+    """output raw entropy is returned as binary string"""
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
     entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
 
     # raw entropy is only the first part of entropy
     raw_entr_bits = int(len(entropy)*32/33)
-    assert raw_entr_bits in _allowed_raw_entr_bits, "invalid raw entropy size"
+    if raw_entr_bits not in _allowed_raw_entr_bits:
+        m = f"mnemonic with wrong number of bits ({raw_entr_bits}); "
+        m += f"expected: {_allowed_raw_entr_bits}"
+        raise ValueError(m)
     raw_entr = entropy[:raw_entr_bits]
 
     # the second one being the checksum, to be verified
     bytes_raw_entr = int(raw_entr, 2).to_bytes(raw_entr_bits//8, 'big')
     checksum = raw_entropy_checksum(bytes_raw_entr)
-    assert entropy[raw_entr_bits:] == checksum
+    if entropy[raw_entr_bits:] != checksum:
+        raise ValueError("invalid mnemonic checksum")
 
     return raw_entr
 
@@ -101,8 +104,8 @@ def seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
 
 
 def mprv_from_mnemonic(mnemonic: str,
-                                      passphrase: str,
-                                      xversion: bytes) -> bytes:
+                       passphrase: str,
+                       xversion: bytes) -> bytes:
     seed = seed_from_mnemonic(mnemonic, passphrase)
     return bip32.mprv_from_seed(seed, xversion)
 
@@ -110,9 +113,9 @@ def mprv_from_mnemonic(mnemonic: str,
 
 
 def mprv_from_raw_entropy(raw_entr: GenericEntropy,
-                                         passphrase: str,
-                                         lang: str,
-                                         xversion: bytes) -> bytes:
+                          passphrase: str,
+                          lang: str,
+                          xversion: bytes) -> bytes:
     mnemonic = mnemonic_from_raw_entropy(raw_entr, lang)
     mprv = mprv_from_mnemonic(mnemonic, passphrase, xversion)
     return mprv

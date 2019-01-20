@@ -32,7 +32,10 @@ def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
     # https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
     int_entropy = int_from_entropy(raw_entropy)
 
-    assert eversion in ELECTRUM_MNEMONIC_VERSIONS, "unknown electrum mnemonic version"
+    if eversion not in ELECTRUM_MNEMONIC_VERSIONS:
+        m = f"mnemonic version '{eversion}' not in electrum allowed "
+        m += f"mnemonic versions {list(ELECTRUM_MNEMONIC_VERSIONS.keys())}"
+        raise ValueError(m)
     invalid = True
     while invalid:
         str_entropy = str_from_entropy(int_entropy)
@@ -82,11 +85,10 @@ def mprv_from_mnemonic(mnemonic: str,
         # BIP32 default first account: m/0'
         return bip32.ckd(mprv, 0x80000000)
     else:
-        raise ValueError("unmanaged electrum mnemonic version")
+        raise ValueError(f"unmanaged electrum mnemonic version ({s[:3]})")
 
 
 def mprv_from_raw_entropy(raw_entropy: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
-    mnemonic = mnemonic_from_raw_entropy(
-        raw_entropy, lang, 'standard')
+    mnemonic = mnemonic_from_raw_entropy(raw_entropy, lang, 'standard')
     mprv = mprv_from_mnemonic(mnemonic, passphrase, xversion)
     return mprv

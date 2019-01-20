@@ -117,8 +117,7 @@ class EC:
         exp_h = int(1/n + delta/n + p/n)
         if h != exp_h:
             raise ValueError(f"h ({h}) not as expected ({exp_h})")
-        if t != 0 and h > pow(2, t/8):
-            raise ValueError(f"h ({h}) too big for t ({t})")
+        assert t == 0 or h <= pow(2, t/8), f"h ({h}) too big for t ({t})"
         self.h = h
 
         # 7. Check that nG = Inf.
@@ -128,11 +127,11 @@ class EC:
         InfMinusG = pointMult(self, n-1, self.G)
         Inf = self.add(InfMinusG, self.G)
         if Inf[1] != 0:
-            raise ValueError("n ({hex(n)}) is not the group order")
+            raise ValueError(f"n ({hex(n)}) is not the group order")
 
         # 8. Check that n ≠ p
-        if n == p:
-            raise UserWarning("n=p -> weak curve")
+        assert n != p, f"n=p ({hex(n)}) -> weak curve"
+        #    raise UserWarning("n=p -> weak curve")
         if weakness_check:
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100
             for i in range(1, 100):
@@ -393,7 +392,7 @@ def multiScalarMult(ec: EC, scalars: Sequence[int],
         errMsg += f"Points length ({len(Points)})"
         raise ValueError(errMsg)
         
-    JPoints: List[int, int, int] = list()
+    JPoints: List[_JacPoint] = list()
     for P in Points:
         ec.requireOnCurve(P)
         JPoints.append(_jac_from_aff(P))

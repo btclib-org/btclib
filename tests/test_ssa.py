@@ -11,9 +11,10 @@
 import random
 import unittest
 from hashlib import sha256 as hf
+from typing import List
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import pointMult, DblScalarMult
+from btclib.ec import Point, pointMult, DblScalarMult
 from btclib.curves import secp256k1, secp224k1, low_card_curves
 from btclib.utils import octets2int, octets2point, point2octets, bits2int
 from btclib.pedersen import secondGenerator
@@ -334,7 +335,7 @@ class TestEcssa(unittest.TestCase):
         ### FIRST PHASE: key pair generation ###
 
         # signer one acting as the dealer
-        commits1 = list()
+        commits1: List[Point] = list()
         q1 = 0  # secret value
         while q1 == 0:
             q1 = random.getrandbits(ec.nlen) % ec.n
@@ -345,9 +346,9 @@ class TestEcssa(unittest.TestCase):
         commits1.append(DblScalarMult(ec, q1, ec.G, q1_prime, H))
 
         # sharing polynomials
-        f1 = list()
+        f1: List[int] = list()
         f1.append(q1)
-        f1_prime = list()
+        f1_prime: List[int] = list()
         f1_prime.append(q1_prime)
         for i in range(1, t):
             temp = 0
@@ -386,7 +387,7 @@ class TestEcssa(unittest.TestCase):
         assert DblScalarMult(ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
 
         # signer two acting as the dealer
-        commits2 = list()
+        commits2: List[Point] = list()
         q2 = 0  # secret value
         while q2 == 0:
             q2 = random.getrandbits(ec.nlen) % ec.n
@@ -397,9 +398,9 @@ class TestEcssa(unittest.TestCase):
         commits2.append(DblScalarMult(ec, q2, ec.G, q2_prime, H))
 
         # sharing polynomials
-        f2 = list()
+        f2: List[int] = list()
         f2.append(q2)
-        f2_prime = list()
+        f2_prime: List[int] = list()
         f2_prime.append(q2_prime)
         for i in range(1, t):
             temp = 0
@@ -438,7 +439,7 @@ class TestEcssa(unittest.TestCase):
         assert DblScalarMult(ec, alpha23, ec.G, alpha23_prime, H) == RHS, 'player two is cheating'
 
         # signer three acting as the dealer
-        commits3 = list()
+        commits3: List[Point] = list()
         q3 = 0  # secret value
         while q3 == 0:
             q3 = random.getrandbits(ec.nlen) % ec.n
@@ -449,9 +450,9 @@ class TestEcssa(unittest.TestCase):
         commits3.append(DblScalarMult(ec, q3, ec.G, q3_prime, H))
 
         # sharing polynomials
-        f3 = list()
+        f3: List[int] = list()
         f3.append(q3)
-        f3_prime = list()
+        f3_prime: List[int] = list()
         f3_prime.append(q3_prime)
         for i in range(1, t):
             temp = 0
@@ -499,9 +500,9 @@ class TestEcssa(unittest.TestCase):
             alpha3 += (f3[i] * pow(3, i)) % ec.n
 
         # it's time to recover the public key Q = Q1 + Q2 + Q3 = (q1 + q2 + q3)G
-        A1 = list()
-        A2 = list()
-        A3 = list()
+        A1: List[Point] = list()
+        A2: List[Point] = list()
+        A3: List[Point] = list()
 
         # each participant i = 1, 2, 3 shares Qi as follows
 
@@ -539,7 +540,7 @@ class TestEcssa(unittest.TestCase):
         assert pointMult(ec, alpha13, ec.G) == RHS1, 'player one is cheating'
         assert pointMult(ec, alpha23, ec.G) == RHS2, 'player two is cheating'
 
-        A = list()  # commitment at the global sharing polynomial
+        A: List[Point] = list()  # commitment at the global sharing polynomial
         for i in range(t):
             A.append(ec.add(A1[i], ec.add(A2[i], A3[i])))
 
@@ -550,7 +551,7 @@ class TestEcssa(unittest.TestCase):
         # suppose that player one and three want to sign
 
         # signer one acting as the dealer
-        commits1 = list()
+        commits1: List[Point] = list()
         k1 = 0  # secret value
         while k1 == 0:
             k1 = random.getrandbits(ec.nlen) % ec.n
@@ -561,9 +562,9 @@ class TestEcssa(unittest.TestCase):
         commits1.append(DblScalarMult(ec, k1, ec.G, k1_prime, H))
 
         # sharing polynomials
-        f1 = list()
+        f1: List[int] = list()
         f1.append(k1)
-        f1_prime = list()
+        f1_prime: List[int] = list()
         f1_prime.append(k1_prime)
         for i in range(1, t):
             temp = 0
@@ -591,7 +592,7 @@ class TestEcssa(unittest.TestCase):
         assert DblScalarMult(ec, beta13, ec.G, beta13_prime, H) == RHS, 'player one is cheating'
 
         # signer three acting as the dealer
-        commits3 = list()
+        commits3: List[Point] = list()
         k3 = 0  # secret value
         while k3 == 0:
             k3 = random.getrandbits(ec.nlen) % ec.n
@@ -602,9 +603,9 @@ class TestEcssa(unittest.TestCase):
         commits3.append(DblScalarMult(ec, k3, ec.G, k3_prime, H))
 
         # sharing polynomials
-        f3 = list()
+        f3: List[int] = list()
         f3.append(k3)
-        f3_prime = list()
+        f3_prime: List[int] = list()
         f3_prime.append(k3_prime)
         for i in range(1, t):
             temp = 0
@@ -638,8 +639,8 @@ class TestEcssa(unittest.TestCase):
             beta3 += (f3[i] * pow(3, i)) % ec.n
 
         # it's time to recover the public nonce
-        B1 = list()
-        B3 = list()
+        B1: List[Point] = list()
+        B3: List[Point] = list()
 
         # each participant i = 1, 3 shares Qi as follows
 
@@ -661,7 +662,7 @@ class TestEcssa(unittest.TestCase):
             RHS1 = ec.add(RHS1, pointMult(ec, pow(3, i), B1[i]))
         assert pointMult(ec, beta13, ec.G) == RHS1, 'player one is cheating'
 
-        B = list()  # commitment at the global sharing polynomial
+        B: List[Point] = list()  # commitment at the global sharing polynomial
         for i in range(t):
             B.append(ec.add(B1[i], B3[i]))
 
@@ -733,7 +734,7 @@ class TestEcssa(unittest.TestCase):
             https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
         """
         ec = secp256k1
-        L = list()  # multiset of public keys
+        L: List[Point] = list()  # multiset of public keys
         M = hf('message to sign'.encode()).digest()
 
         # first signer

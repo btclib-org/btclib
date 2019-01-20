@@ -181,11 +181,8 @@ def _to_sig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     return r, s
 
 
-def batch_verification(ec: EC,
-                             hf,
-                             ms: List[bytes],
-                             P: List[Point],
-                             sig: List[ECSS]) -> bool:
+def batch_verification(ec: EC, hf, ms: List[bytes], P: List[Point],
+                                                    sig: List[ECSS]) -> bool:
     """ECSSA batch verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
@@ -198,14 +195,11 @@ def batch_verification(ec: EC,
         return False
 
 
-def _batch_verification(ec: EC,
-                              hf,
-                              ms: List[bytes],
-                              P: List[Point],
-                              sig: List[ECSS]) -> bool:
+def _batch_verification(ec: EC, hf, ms: List[bytes], P: List[Point],
+                                                     sig: List[ECSS]) -> bool:
     t = 0
-    scalars = list()
-    points = list()
+    scalars: List(int) = list()
+    points: List[Point] = list()
     for i in range(len(P)):
         _ensureCorrectMessageSize(hf, ms[i])
         ec.requireOnCurve(P[i])

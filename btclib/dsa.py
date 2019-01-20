@@ -10,8 +10,8 @@
 
 """Elliptic Curve Digital Signature Algorithm
 
-   SEC 1 v.2
-   http://www.secg.org/sec1-v2.pdf
+   SEC 1 v.2 (http://www.secg.org/sec1-v2.pdf)
+   with bitcoin canonical 'low-s' encoding for ECDSA signatures
 """
 
 from typing import Tuple, List, Optional
