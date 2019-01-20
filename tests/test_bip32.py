@@ -247,7 +247,7 @@ class TestBIP32(unittest.TestCase):
         """ BIP32 test vectors from BIP39
             https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
         """
-        filename = "test_bip39_vectors.json"
+        filename = "bip39_test_vectors.json"
         path_to_filename = os.path.join(os.path.dirname(__file__),
                                         "./data/",
                                         filename)
