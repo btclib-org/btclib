@@ -16,8 +16,8 @@ import hmac
 from btclib.entropy import Entropy, GenericEntropy, int_from_entropy, \
     str_from_entropy
 from btclib.mnemonic import mnemonic_dict
-from btclib.bip32 import PRIVATE, bip32_mprv_from_seed, bip32_ckd, \
-    bip32_xpub_from_xprv
+from btclib.bip32 import PRIVATE, mprv_from_seed, ckd, \
+    xpub_from_xprv
 
 ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
                               'segwit': '100',
@@ -76,12 +76,12 @@ def electrum_master_prvkey_from_mnemonic(mnemonic: str,
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
     if s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']):
         # FIXME: mainnet / testnet
-        return bip32_mprv_from_seed(seed, xversion)
+        return mprv_from_seed(seed, xversion)
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
         # FIXME: parametrizazion of the xversion prefix is needed
-        mprv = bip32_mprv_from_seed(seed, b'\x04\xb2\x43\x0c')
+        mprv = mprv_from_seed(seed, b'\x04\xb2\x43\x0c')
         # BIP32 default first account: m/0'
-        return bip32_ckd(mprv, 0x80000000)
+        return ckd(mprv, 0x80000000)
     else:
         raise ValueError("unmanaged electrum mnemonic version")
 

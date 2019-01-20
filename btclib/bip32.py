@@ -40,7 +40,7 @@ ADDRESS = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
 # [13:45] chain code
 # [45:78] key (private/public)
 
-def bip32_mprv_from_seed(seed: octets, version: octets) -> bytes:
+def mprv_from_seed(seed: octets, version: octets) -> bytes:
     """derive the master extended private key from the seed"""
 
     if isinstance(version, str):  # hex string
@@ -64,7 +64,7 @@ def bip32_mprv_from_seed(seed: octets, version: octets) -> bytes:
     return b58encode_check(xmprv)
 
 
-def bip32_xpub_from_xprv(xprv: octets) -> bytes:
+def xpub_from_xprv(xprv: octets) -> bytes:
     """Neutered Derivation (ND)
 
     Computation of the extended public key corresponding to an extended
@@ -90,7 +90,7 @@ def bip32_xpub_from_xprv(xprv: octets) -> bytes:
     return b58encode_check(xpub)
 
 
-def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
+def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     """Child Key Derivation (CDK)
 
     Key derivation is normal if the extended parent key is public or
@@ -159,7 +159,7 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     return b58encode_check(xkey)
 
 
-def bip32_derive(xkey: octets, path: str) -> bytes:
+def derive(xkey: octets, path: str) -> bytes:
     """derive an extended key according to path like
        "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative)
     """
@@ -189,7 +189,7 @@ def bip32_derive(xkey: octets, path: str) -> bytes:
             "list of indexes or string like 'm/44'/0'/1'/0/10' expected")
 
     for index in indexes:
-        xkey = bip32_ckd(xkey, index)
+        xkey = ckd(xkey, index)
 
     return xkey
 
@@ -211,7 +211,7 @@ def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
     return address_from_pubkey(P, True, version)
 
 
-def bip32_crack(parent_xpub: octets, child_xprv: octets) -> bytes:
+def crack(parent_xpub: octets, child_xprv: octets) -> bytes:
     parent_xpub = b58decode_check(parent_xpub, 78)
     assert parent_xpub[45] in (2, 3), "extended parent key is not a public one"
 
@@ -249,7 +249,7 @@ def bip32_crack(parent_xpub: octets, child_xprv: octets) -> bytes:
     return b58encode_check(parent_xprv)
 
 
-def bip32_child_index(xkey: octets) -> bytes:
+def child_index(xkey: octets) -> bytes:
     xkey = b58decode_check(xkey, 78)
     if xkey[4] == 0:
         raise ValueError("master key provided")
