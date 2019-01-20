@@ -57,9 +57,8 @@ def _tweak(c: bytes, ec: EC, hf, k: int) -> Tuple[Point, int]:
 
 def ecdsa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
                       k: Optional[int] = None) -> Tuple[dsa.ECDS, Receipt]:
-    mh = hf(m).digest()
     if k is None:
-        k = rfc6979(ec, hf, mh, prvkey)
+        k = rfc6979(ec, hf, hf(m).digest(), prvkey)
 
     ch = hf(c).digest()
 
@@ -74,9 +73,10 @@ def ecdsa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
 
 def ecssa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
                       k: Optional[int] = None) -> Tuple[ssa.ECSS, Receipt]:
-    ch = hf(c).digest()
     if k is None:
         k = rfc6979(ec, hf, m, prvkey)
+
+    ch = hf(c).digest()
 
     # commit
     R, new_k = _tweak(ch, ec, hf, k)
@@ -103,4 +103,4 @@ def verify_commit(c: bytes, ec: EC, hf, receipt: Receipt) -> bool:
     W = ec.add(R, pointMult(ec, e, ec.G))
     # different verify functions?
     # return w == W[0] # ECSS
-    return w == W[0] % ec.n  # ECDS
+    return w == W[0] % ec.n  # ECDS, FIXME: ECSSA
