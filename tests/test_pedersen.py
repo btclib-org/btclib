@@ -14,7 +14,7 @@ from hashlib import sha256, sha384
 from btclib.ec import pointMult, DblScalarMult
 from btclib.curves import secp256k1, secp256r1, secp384r1
 from btclib.utils import octets2point
-from btclib.pedersen import pedersen_commit, pedersen_open, secondGenerator
+from btclib import pedersen
 
 
 class TestSecondGenerator(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestSecondGenerator(unittest.TestCase):
         ec = secp256k1
         hf = sha256
 
-        H = secondGenerator(ec, hf)
+        H = pedersen.secondGenerator(ec, hf)
         self.assertEqual(H, octets2point(ec, '0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0'))
 
         # 0*G + 1*H
@@ -82,11 +82,11 @@ class TestSecondGenerator(unittest.TestCase):
         U = ec.add(ec.G, T)  # reusing previous T value
         self.assertEqual(U, octets2point(ec, '02b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a'))
 
-        H = secondGenerator(secp256r1, hf)
-        H = secondGenerator(secp384r1, sha384)
+        H = pedersen.secondGenerator(secp256r1, hf)
+        H = pedersen.secondGenerator(secp384r1, sha384)
 
 class TestPedersenCommitment(unittest.TestCase):
-    def test_pedersen_commitment(self):
+    def test_commitment(self):
 
         ec = secp256k1
         hf = sha256
@@ -94,22 +94,22 @@ class TestPedersenCommitment(unittest.TestCase):
         r1 = 0x1
         v1 = 0x2
         # r1*G + v1*H
-        C1 = pedersen_commit(r1, v1, ec, hf)
-        self.assertTrue(pedersen_open(r1, v1, C1, ec, hf))
+        C1 = pedersen.commit(r1, v1, ec, hf)
+        self.assertTrue(pedersen.open(r1, v1, C1, ec, hf))
 
         r2 = 0x3
         v2 = 0x4
         # r2*G + v2*H
-        C2 = pedersen_commit(r2, v2, ec, hf)
-        self.assertTrue(pedersen_open(r2, v2, C2, ec, hf))
+        C2 = pedersen.commit(r2, v2, ec, hf)
+        self.assertTrue(pedersen.open(r2, v2, C2, ec, hf))
 
         # Pedersen Commitment is additively homomorphic
         # Commit(r1, v1) + Commit(r2, v2) = Commit(r1+r2, v1+r2)
-        R = pedersen_commit(r1+r2, v1+v2, ec, hf)
+        R = pedersen.commit(r1+r2, v1+v2, ec, hf)
         self.assertTrue(ec.add(C1, C2), R)
 
         # commit does not open (with catched exception)
-        self.assertFalse(pedersen_open((r1, r1), v1, C2, ec, hf))
+        self.assertFalse(pedersen.open((r1, r1), v1, C2, ec, hf))
 
 
 if __name__ == "__main__":
