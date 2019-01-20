@@ -25,7 +25,7 @@ ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
 # entropy can be expresses as binary string, bytes-like, or int
 
 
-def electrum_mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
+def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
                                        lang: str,
                                        eversion: str) -> str:
     # electrum considers entropy as integer, losing any leading zero
@@ -51,13 +51,13 @@ def electrum_mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
 # entropy is returned as binary string
 
 
-def electrum_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
+def entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
     indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
     entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
     return entropy
 
 
-def electrum_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
+def seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
     hash_name = 'sha512'
     password = mnemonic.encode()
     salt = ('electrum' + passphrase).encode()
@@ -66,10 +66,10 @@ def electrum_seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
     return pbkdf2_hmac(hash_name, password, salt, iterations, dksize)
 
 
-def electrum_master_prvkey_from_mnemonic(mnemonic: str,
+def mprv_from_mnemonic(mnemonic: str,
                                          passphrase: str,
                                          xversion: bytes) -> bytes:
-    seed = electrum_seed_from_mnemonic(mnemonic, passphrase)
+    seed = seed_from_mnemonic(mnemonic, passphrase)
 
     # verify that the mnemonic is versioned
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
@@ -85,8 +85,8 @@ def electrum_master_prvkey_from_mnemonic(mnemonic: str,
         raise ValueError("unmanaged electrum mnemonic version")
 
 
-def electrum_master_prvkey_from_raw_entropy(raw_entropy: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
-    mnemonic = electrum_mnemonic_from_raw_entropy(
+def mprv_from_raw_entropy(raw_entropy: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
+    mnemonic = mnemonic_from_raw_entropy(
         raw_entropy, lang, 'standard')
-    mprv = electrum_master_prvkey_from_mnemonic(mnemonic, passphrase, xversion)
+    mprv = mprv_from_mnemonic(mnemonic, passphrase, xversion)
     return mprv
