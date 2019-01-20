@@ -1,35 +1,23 @@
-readthedocs
-[![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
-
-jupyter for scripts
-
+readthedocs [![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
 revise kdf
-remove assert for if + raise
-https://cryptojedi.org/peter/data/eccss-20130911b.pdf
-https://arxiv.org/abs/1801.08589
-https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
-https://hal.archives-ouvertes.fr/hal-00932199/document
-
+optimizations
+    https://cryptojedi.org/peter/data/eccss-20130911b.pdf
+    https://arxiv.org/abs/1801.08589
+    https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
+    https://hal.archives-ouvertes.fr/hal-00932199/document
+    https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
+    https://eprint.iacr.org/2005/419.pdf
 transaction and block parsing (explorer based with optional full node)
-
 fix one sig only BUG in ecssa_batch_verify
 allow hexstring for Signature
 allow binary Signature
-run scripts as part of test-suite
 revise ecssa_pubkey_recovery
-of a signature: verify or verification ?
-of a commit: verify or open ?
-
-
+of a signature: verify or verification ? of a commit: verify or open ?
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
-
 document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
-
 how to export mprv from Electrum?
     verify if first wif is that
-
 better mimic of electrum entropy search, they probably have the words inverted
-
 BIP44 in address_from...
-
 clean up PRV[0] mess
+remove assert for if + raise
