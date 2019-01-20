@@ -103,7 +103,6 @@ class TestDSA(unittest.TestCase):
         self.assertTrue(dsa.verify(ec, hf, msg, QU, sig))
         self.assertTrue(dsa._verify(ec, hf, msg, QU, sig))
 
-
     def test_forge_hash_sig(self):
         """forging valid signatures for hash (DSA signs message, not hash)"""
 
