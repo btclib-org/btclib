@@ -143,7 +143,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_octets2point(self):
         for ec in all_curves:
-            Q = pointMult(ec, ec._p, ec.G)
+            Q = pointMult(ec, ec._p, ec.G)  # just a random point, not Inf
 
             Q_bytes = b'\x03' if Q[1] & 1 else b'\x02'
             Q_bytes += Q[0].to_bytes(ec.psize, "big")
@@ -196,23 +196,22 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, point2octets, ec, (x, x), False)
 
         # Point must be a tuple[int, int]
-        P = (x, x, x)
+        P = x, x, x
         self.assertRaises(ValueError, ec.isOnCurve, P)
 
         # y-coordinate not in (0, p)
-        P = (x, ec._p+1)
+        P = x, ec._p+1
         self.assertRaises(ValueError, ec.isOnCurve, P)
 
     def test_opposite(self):
         for ec in all_curves:
-            # random point
-            Q = pointMult(ec, ec._p, ec.G)
+            Q = pointMult(ec, ec._p, ec.G)  # just a random point, not Inf
             minus_Q = ec.opposite(Q)
             self.assertEqual(ec.add(Q, minus_Q), Inf)
             # jacobian coordinates
             Qjac = _jac_from_aff(Q)
             minus_Qjac = _jac_from_aff(minus_Q)
-            self.assertEqual(ec._addJacobian(Qjac, minus_Qjac), (1, 1, 0))
+            self.assertEqual(ec._addJacobian(Qjac, minus_Qjac)[2], 0)
 
             # opposite of Inf is Inf
             minus_Inf = ec.opposite(Inf)
@@ -231,10 +230,7 @@ class TestEllipticCurve(unittest.TestCase):
                 hasRoot.add(i*i % ec._p)
 
             # test phase
-
-            # random point
-            Q = pointMult(ec, ec._p, ec.G)  # just a random point
-
+            Q = pointMult(ec, ec._p, ec.G)  # just a random point, not Inf
             x = Q[0]
             if ec._p % 4 == 3:
                 quad_res = ec.yQuadraticResidue(x, 1)
@@ -311,23 +307,20 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_Add(self):
         for ec in all_curves:
-            Q1 = pointMult(ec, ec._p, ec.G)  # just a random point
+            Q1 = pointMult(ec, ec._p, ec.G)  # just a random point, not Inf
             Q1J = _jac_from_aff(Q1)
 
-            Q2 = ec.G
-            Q2J = _jac_from_aff(Q2)
-
             # distinct points
-            Q3 = ec._addAffine(Q1,  Q2)
-            Q3jac = ec._addJacobian(Q1J, Q2J)
+            Q3 = ec._addAffine(Q1,  ec.G)
+            Q3jac = ec._addJacobian(Q1J, ec.GJ)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
             # point at infinity
-            Q3 = ec._addAffine(Q2,  Inf)
-            Q3jac = ec._addJacobian(Q2J, InfJ)
+            Q3 = ec._addAffine(ec.G,  Inf)
+            Q3jac = ec._addJacobian(ec.GJ, InfJ)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
-            Q3 = ec._addAffine(Inf,  Q2)
-            Q3jac = ec._addJacobian(InfJ, Q2J)
+            Q3 = ec._addAffine(Inf,  ec.G)
+            Q3jac = ec._addJacobian(InfJ, ec.GJ)
             self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
 
             # point doubling
