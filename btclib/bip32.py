@@ -16,7 +16,7 @@ from btclib.base58 import b58encode_check, b58decode_check
 from btclib.ec import pointMult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets, octets2point, point2octets, octets2int
-from btclib.wifaddress import h160, address_from_pubkey
+from btclib.wifaddress import _h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes     Base58 encode starts with
 MAINNET_PRV = b'\x04\x88\xAD\xE4'  # xprv
@@ -124,7 +124,7 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
             raise ValueError("version/key mismatch in extended parent key")
         Parent_bytes = xparent[45:]
         Parent = octets2point(ec, Parent_bytes)
-        xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
+        xkey += _h160(Parent_bytes)[:4]          # parent pubkey fingerprint
         if index[0] >= 0x80:
             raise ValueError("no private/hardened derivation from pubkey")
         xkey += index                            # child index
@@ -143,7 +143,7 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         parent = int.from_bytes(xparent[46:], 'big')
         Parent = pointMult(ec, parent, ec.G)
         Parent_bytes = point2octets(ec, Parent, True)
-        xkey += h160(Parent_bytes)[:4]            # parent pubkey fingerprint
+        xkey += _h160(Parent_bytes)[:4]           # parent pubkey fingerprint
         xkey += index                             # child index
         # actual extended key (key + chain code) derivation
         parent_chain_code = xparent[13:45]
@@ -228,7 +228,7 @@ def bip32_crack(parent_xpub: octets, child_xprv: octets) -> bytes:
 
     # check fingerprint
     Parent_bytes = parent_xpub[45:]
-    if child_xprv[5: 9] != h160(Parent_bytes)[:4]:
+    if child_xprv[5: 9] != _h160(Parent_bytes)[:4]:
         raise ValueError("not a child for the provided parent")
 
     # check normal derivation

@@ -14,7 +14,7 @@ from btclib.ec import pointMult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import int2octets, octets2point
 from btclib.wifaddress import b58encode_check, wif_from_prvkey, \
-    prvkey_from_wif, address_from_pubkey, hash160_from_address, \
+    prvkey_from_wif, address_from_pubkey, _h160_from_address, \
     address_from_wif
 
 
@@ -74,16 +74,16 @@ class TestKeys(unittest.TestCase):
 
         addr = address_from_pubkey(pub, True)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        hash160_from_address(addr)
+        _h160_from_address(addr)
 
         addr = address_from_pubkey(pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-        hash160_from_address(addr)
+        _h160_from_address(addr)
 
         # not a mainnet address
         addr = address_from_pubkey(pub, False, b'\x80')
-        self.assertRaises(ValueError, hash160_from_address, addr)
-        #hash160_from_address(addr)
+        self.assertRaises(ValueError, _h160_from_address, addr)
+        #_h160_from_address(addr)
 
     def test_address_from_wif(self):
         wif1 = b"5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
