@@ -21,3 +21,26 @@ better mimic of electrum entropy search, they probably have the words inverted
 BIP44 in address_from...
 clean up PRV[0] mess
 remove assert for if + raise
+
+mod_sqrt or modSqrt ?
+
+opposite in Jac coordinate using yQuadraticResidue ?
+
+type hash function as Callable(?)
+
+ec, hf as last parameters defaulting to secp256k1 and sha256
+
+ecdsa -> dsa
+ecssa -> ssa
+
+primitives for interactive threshold and musig
+
+add signature serialize/deserialize or encode/decode
+
+settle on ec, hf position in functions' signature
+
+generalize ec, hf in borromean
+
+Edwards curve (Curve25519)
+
+reference borromean
