@@ -104,9 +104,8 @@ class TestEcdsa(unittest.TestCase):
         self.assertTrue(ecdsa_verify(ec, hf, msg, QU, sig))
         self.assertTrue(_ecdsa_verify(ec, hf, msg, QU, sig))
 
-
     def test_forge_hash_sig(self):
-        """forging valid signatures for hash (DSA signs message, not hash)"""
+        """forging valid hash signatures (DSA signs a message, not a hash)"""
 
         ec = secp256k1
         # see https://twitter.com/pwuille/status/1063582706288586752
