@@ -28,7 +28,7 @@ class Point(NamedTuple):
         it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
     """
     x: int = 1
-    y: int = 0
+    y: int = 0 # no affine point has y=0 coordinate
 
 # infinity point in Jacobian coordinates is Inf = (int, int, 0)
 # it can be checked with 'Inf[2] == 0'
@@ -51,10 +51,6 @@ class EC:
         Parameters are checked according to SEC 1 v.2 3.1.1.2.1
         """
 
-        # first off discriminate invalid (..., Gx, Gy, ...) input
-        if len(G) != 2:
-            raise ValueError("Generator must a be a Tuple[int, int]")
-
         # 1) check that p is an odd prime
         if p % 2 == 0:
             raise ValueError(f"p ({hex(p)}) is not odd")
@@ -64,7 +60,6 @@ class EC:
 
         # 1) check that p has enough bits
         plen = p.bit_length()
-        self.t = t
         if t != 0:
             t_range = [56, 64, 80, 96, 112, 128, 160, 192, 256]
             if t not in t_range:
@@ -74,11 +69,12 @@ class EC:
             if plen < t*2:
                 m = f"not enough bits ({plen}) for required security level {t}"
                 raise UserWarning(m)
+        self.t = t
 
-        self._p = p
         self.psize = (plen + 7) // 8
         # must be true to break simmetry using quadratic residue
-        self.pIsThreeModFour = (self._p % 4 == 3)
+        self.pIsThreeModFour = (p % 4 == 3)
+        self._p = p
 
         # 2. check that a and b are integers in the interval [0, p−1]
         if not 0 <= a < p:
@@ -95,6 +91,8 @@ class EC:
 
         # 2. check that xG and yG are integers in the interval [0, p−1]
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p).
+        if len(G) != 2:
+            raise ValueError("Generator must a be a tuple[int, int]")
         if not self.isOnCurve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = Point(int(G[0]), int(G[1]))
@@ -180,6 +178,7 @@ class EC:
     # methods using _a, _b, _p
 
     def add(self, Q1: Point, Q2: Point) -> Point:
+        # TODO: verify if this is slower
         self.requireOnCurve(Q1)
         QJ1 = _jac_from_aff(Q1)
         self.requireOnCurve(Q2)
@@ -297,8 +296,8 @@ class EC:
             raise ValueError("this method works only when p = 3 (mod 4)")
         root = self.y(x)
         # switch to quadratic residue root as needed
-        legendre1 = legendre_symbol(root, self._p)
-        return root if legendre1 == quadRes else self._p - root
+        legendre = legendre_symbol(root, self._p)
+        return root if legendre == quadRes else self._p - root
 
 
 def pointMult(ec: EC, n: int, Q: Point) -> Point:
