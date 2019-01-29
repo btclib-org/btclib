@@ -58,7 +58,6 @@ def encode_element(element: int) -> bytes:
     xsize = len(x).to_bytes(1, "big")
     return b'\x02' + xsize + x
 
-
 def DER_encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
     if len(sighash) > 1:
         raise ValueError(f"sighash size {len(sighash)} > 1")

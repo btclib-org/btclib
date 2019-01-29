@@ -37,7 +37,7 @@ def key_agreement(dUV: int,
                   ec: EC,
                   hf) -> bytes:
     P = pointMult(ec, dUV, QVU)
-    if P == (1, 0):
+    if P[1] == 0:
         "invalid (zero) private key"
     z = P[0]
     zbytes = int2octets(z, ec.psize)
