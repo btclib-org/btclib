@@ -9,17 +9,15 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from hashlib import sha1
+from hashlib import sha1 as hf
 
 from btclib.ec import pointMult
-from btclib.curves import secp160r1
+from btclib.curves import secp160r1 as ec
 from btclib.utils import octets2point, point2octets, int2octets
 from btclib.dh import key_agreement, kdf
 
 class TestEcdh(unittest.TestCase):
     def test_ecdh(self):
-        ec = secp160r1
-        hf = sha1
         keydatasize = 20
 
         dU = 0x1
@@ -38,8 +36,8 @@ class TestEcdh(unittest.TestCase):
         """
 
         # 4.1.1
-        ec = secp160r1
-        hf = sha1
+        # ec = secp160r1
+        # hf = sha1
 
         # 4.1.2
         dU = 971761939728640320549601132085879836204587084162
