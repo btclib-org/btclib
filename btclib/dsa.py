@@ -45,6 +45,8 @@ def ecdsa_sign(ec: EC, hf, M: bytes, d: int,
 
     if k is None:
         k = rfc6979(ec, hf, hd, d)                    # 1
+    if not 0 < k < ec.n:
+        raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
 
     # second part delegated to helper function used in testing
     return _ecdsa_sign(ec, e, d, k)
