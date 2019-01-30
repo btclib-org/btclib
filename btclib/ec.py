@@ -311,34 +311,34 @@ def pointMult(ec: EC, n: int, Q: Point) -> Point:
     return ec._affine_from_jac(R)
 
 
-def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
-    # double & add in affine coordinates, using binary decomposition of n
+def _pointMultAffine(ec: EC, m: int, Q: Point) -> Point:
+    # double & add in affine coordinates, using binary decomposition of m
     # Point is assumed to be on curve
 
-    n %= ec.n
-    if n == 0 or Q[1] == 0:          # Infinity point in affine coordinates
-        return 1, 0
+    m %= ec.n
+    if m == 0 or Q[1] == 0:          # Infinity point in affine coordinates
+        return 1, 0                  # return Infinity point
     R = Point()                      # initialize as infinity point
-    while n > 0:                     # use binary representation of n
-        if n & 1:                    # if least significant bit is 1
+    while m > 0:                     # use binary representation of m
+        if m & 1:                    # if least significant bit is 1
             R = ec._addAffine(R, Q)  # then add current Q
-        n = n >> 1                   # remove the bit just accounted for
+        m = m >> 1                   # remove the bit just accounted for
         Q = ec._addAffine(Q, Q)      # double Q for next step
     return R
 
 
-def _pointMultJacobian(ec: EC, n: int, Q: _JacPoint) -> _JacPoint:
-    # double & add in Jacobian coordinates, using binary decomposition of n
+def _pointMultJacobian(ec: EC, m: int, Q: _JacPoint) -> _JacPoint:
+    # double & add in Jacobian coordinates, using binary decomposition of m
     # Point is assumed to be on curve
 
-    n %= ec.n
-    if n == 0 or Q[2] == 0:            # Infinity point in affine coordinates
-        return 1, 1, 0
+    m %= ec.n
+    if m == 0 or Q[2] == 0:            # Infinity point in affine coordinates
+        return 1, 1, 0                 # return Infinity point
     R = 1, 1, 0                        # initialize as infinity point
-    while n > 0:                       # use binary representation of n
-        if n & 1:                      # if least significant bit is 1
+    while m > 0:                       # use binary representation of m
+        if m & 1:                      # if least significant bit is 1
             R = ec._addJacobian(R, Q)  # then add current Q
-        n = n >> 1                     # remove the bit just accounted for
+        m = m >> 1                     # remove the bit just accounted for
         Q = ec._addJacobian(Q, Q)      # double Q for next step
     return R
 
