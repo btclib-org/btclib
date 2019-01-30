@@ -316,8 +316,8 @@ def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
     # Point is assumed to be on curve
 
     n %= ec.n
-    if Q[1] == 0:                    # Infinity point in affine coordinates
-        return Q
+    if n == 0 or Q[1] == 0:          # Infinity point in affine coordinates
+        return 1, 0
     R = Point()                      # initialize as infinity point
     while n > 0:                     # use binary representation of n
         if n & 1:                    # if least significant bit is 1
@@ -332,7 +332,7 @@ def _pointMultJacobian(ec: EC, n: int, Q: _JacPoint) -> _JacPoint:
     # Point is assumed to be on curve
 
     n %= ec.n
-    if Q[2] == 0:                      # Infinity point in Jacobian coordinates
+    if n == 0 or Q[2] == 0:            # Infinity point in affine coordinates
         return 1, 1, 0
     R = 1, 1, 0                        # initialize as infinity point
     while n > 0:                       # use binary representation of n
