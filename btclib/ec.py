@@ -232,6 +232,7 @@ class EC:
             return Q
         if Q[1] == 0:  # Infinity point in affine coordinates
             return R
+
         if R[0] == Q[0]:
             if R[1] == Q[1]:  # point doubling
                 lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self._p)
@@ -384,7 +385,7 @@ def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
 
 def multiScalarMult(ec: EC, scalars: Sequence[int],
                             Points: Sequence[Point]) -> Point:
-    """ Bos-coster's algorithm """
+    """ Bos-Coster's algorithm """
 
     if len(scalars) != len(Points):
         errMsg = f"mismatch between scalar length ({len(scalars)}) and "

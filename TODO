@@ -11,7 +11,7 @@ transaction and block parsing (explorer based with optional full node)
 fix one sig only BUG in ecssa_batch_verify
 allow hexstring for Signature
 allow binary Signature
-revise ecssa_pubkey_recovery
+revise ssa.pubkey_recovery
 of a signature: verify or verification ? of a commit: verify or open ?
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
@@ -30,9 +30,6 @@ type hash function as Callable(?)
 
 ec, hf as last parameters defaulting to secp256k1 and sha256
 
-ecdsa -> dsa
-ecssa -> ssa
-
 primitives for interactive threshold and musig
 
 add signature serialize/deserialize or encode/decode
@@ -44,3 +41,8 @@ generalize ec, hf in borromean
 Edwards curve (Curve25519)
 
 reference borromean
+bech32
+deserialize curves from jason file
+_to_sig should handle serialized signatures
+remove der file, add encode/decode to dsa and ssa
+remove signtocontract, adding commit to dsa and ssa

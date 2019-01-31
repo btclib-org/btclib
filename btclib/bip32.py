@@ -12,7 +12,7 @@ from hmac import HMAC
 from hashlib import sha512
 from typing import Union, Optional, Sequence, List
 
-from btclib.base58 import b58encode_check, b58decode_check
+from btclib import base58 
 from btclib.ec import pointMult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets, octets2point, point2octets, octets2int
@@ -40,7 +40,7 @@ ADDRESS = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
 # [13:45] chain code
 # [45:78] key (private/public)
 
-def bip32_mprv_from_seed(seed: octets, version: octets) -> bytes:
+def mprv_from_seed(seed: octets, version: octets) -> bytes:
     """derive the master extended private key from the seed"""
 
     if isinstance(version, str):  # hex string
@@ -63,17 +63,17 @@ def bip32_mprv_from_seed(seed: octets, version: octets) -> bytes:
     xmprv += hd[32:]                              # chain code
     xmprv += b'\x00' + mprv.to_bytes(32, 'big')   # private key
 
-    return b58encode_check(xmprv)
+    return base58.encode_check(xmprv)
 
 
-def bip32_xpub_from_xprv(xprv: octets) -> bytes:
+def xpub_from_xprv(xprv: octets) -> bytes:
     """Neutered Derivation (ND)
 
     Computation of the extended public key corresponding to an extended
     private key (“neutered” as it removes the ability to sign transactions)
     """
 
-    xprv = b58decode_check(xprv, 78)
+    xprv = base58.decode_check(xprv, 78)
     if xprv[45] != 0:
         raise ValueError("extended key is not a private one")
 
@@ -90,10 +90,10 @@ def bip32_xpub_from_xprv(xprv: octets) -> bytes:
     p = octets2int(xprv[46:])
     P = pointMult(ec, p, ec.G)
     xpub += point2octets(ec, P, True)          # public key
-    return b58encode_check(xpub)
+    return base58.encode_check(xpub)
 
 
-def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
+def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     """Child Key Derivation (CDK)
 
     Key derivation is normal if the extended parent key is public or
@@ -111,7 +111,7 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     if len(index) != 4:
         raise ValueError(f"a 4 bytes int is required, not {len(index)}")
 
-    xparent = b58decode_check(xparentkey, 78)
+    xparent = base58.decode_check(xparentkey, 78)
 
     version = xparent[:4]
 
@@ -159,10 +159,10 @@ def bip32_ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     else:
         raise ValueError("invalid extended key version")
 
-    return b58encode_check(xkey)
+    return base58.encode_check(xkey)
 
 
-def bip32_derive(xkey: octets, path: Union[str, Sequence[int]]) -> bytes:
+def derive(xkey: octets, path: Union[str, Sequence[int]]) -> bytes:
     """derive an extended key according to path like
        "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative)
     """
@@ -172,7 +172,7 @@ def bip32_derive(xkey: octets, path: Union[str, Sequence[int]]) -> bytes:
         if steps[0] not in {'m', '.'}:
             raise ValueError(f'Invalid derivation path: {path}')
         if steps[0] == 'm':
-            decoded = b58decode_check(xkey, 78)
+            decoded = base58.decode_check(xkey, 78)
             t = b'\x00'*9
             if decoded[4:13] != t:
                 raise ValueError("Absolute derivation path for non-master key")
@@ -190,7 +190,7 @@ def bip32_derive(xkey: octets, path: Union[str, Sequence[int]]) -> bytes:
         indexes = path
 
     for index in indexes:
-        xkey = bip32_ckd(xkey, index)
+        xkey = ckd(xkey, index)
 
     return xkey
 
@@ -198,7 +198,7 @@ def bip32_derive(xkey: octets, path: Union[str, Sequence[int]]) -> bytes:
 
 
 def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
-    xpub = b58decode_check(xpub, 78)
+    xpub = base58.decode_check(xpub, 78)
     if xpub[45] not in (2, 3):
         raise ValueError("extended key is not a public one")
     # bitcoin: address version can be derived from xkey version
@@ -213,12 +213,12 @@ def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
     return address_from_pubkey(P, True, version)
 
 
-def bip32_crack(parent_xpub: octets, child_xprv: octets) -> bytes:
-    parent_xpub = b58decode_check(parent_xpub, 78)
+def crack(parent_xpub: octets, child_xprv: octets) -> bytes:
+    parent_xpub = base58.decode_check(parent_xpub, 78)
     if parent_xpub[45] not in (2, 3):
         raise ValueError("extended parent key is not a public one")
 
-    child_xprv = b58decode_check(child_xprv, 78)
+    child_xprv = base58.decode_check(child_xprv, 78)
     if child_xprv[45] != 0:
          raise ValueError("extended child key is not a private one")
 
@@ -251,11 +251,11 @@ def bip32_crack(parent_xpub: octets, child_xprv: octets) -> bytes:
     parent_bytes = b'\x00' + parent.to_bytes(32, 'big')
     parent_xprv += parent_bytes        # private key
 
-    return b58encode_check(parent_xprv)
+    return base58.encode_check(parent_xprv)
 
 
-def bip32_child_index(xkey: octets) -> bytes:
-    xkey = b58decode_check(xkey, 78)
+def child_index(xkey: octets) -> bytes:
+    xkey = base58.decode_check(xkey, 78)
     if xkey[4] == 0:
         raise ValueError("master key provided")
     return xkey[9:13]

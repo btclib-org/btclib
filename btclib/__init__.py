@@ -1,2 +1,2 @@
 name = "btclib"
-__version__ = "2019.1.7"
+__version__ = "2019.1.20"

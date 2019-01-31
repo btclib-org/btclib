@@ -24,8 +24,8 @@ from btclib.rfc6979 import rfc6979
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
-def ecdsa_sign(ec: EC, hf, M: bytes, d: int,
-               k: Optional[int] = None) -> Tuple[int, int]:
+def sign(ec: EC, hf, M: bytes,
+         d: int, k: Optional[int] = None) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
@@ -49,10 +49,10 @@ def ecdsa_sign(ec: EC, hf, M: bytes, d: int,
         raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
 
     # second part delegated to helper function used in testing
-    return _ecdsa_sign(ec, e, d, k)
+    return _sign(ec, e, d, k)
 
 
-def _ecdsa_sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
+def _sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     """Private function provided for testing purposes only."""
     # e is assumed to be valid
     # Steps numbering follows SEC 1 v.2 section 4.1.3
@@ -85,22 +85,21 @@ def _ecdsa_sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     return r, s
 
 
-def ecdsa_verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
+def verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
     """ECDSA veryfying operation to SEC 1
 
        See SEC 1 v.2 section 4.1.4
        http://www.secg.org/sec1-v2.pdf
     """
 
-    # this is just a try/except wrapper for the Errors
-    # raised by _ecssa_verify
+    # try/except wrapper for the Errors raised by _verify
     try:
-        return _ecdsa_verify(ec, hf, M, P, sig)
+        return _verify(ec, hf, M, P, sig)
     except Exception:
         return False
 
 
-def _ecdsa_verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
+def _verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only.
     
        It raises Errors, while verify should always return True or False
@@ -117,14 +116,14 @@ def _ecdsa_verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
     # P on point will be checked below by DblScalarMult
 
     # second part delegated to helper function used in testing
-    return _ecdsa_verhlp(ec, e, P, sig)
+    return _verhlp(ec, e, P, sig)
 
 
-def _ecdsa_verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
+def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only."""
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = _to_dsasig(ec, sig)                        # 1
+    r, s = _to_sig(ec, sig)                           # 1
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.requireOnCurve(P)
@@ -145,7 +144,7 @@ def _ecdsa_verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     return r == v                                     # 8
 
 
-def ecdsa_pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:
+def pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
@@ -156,40 +155,41 @@ def ecdsa_pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:
     hd = hf(M).digest()                                     # 1.5
     e = bits2int(ec, hd)                                    # 1.5
 
-    return _ecdsa_pubkey_recovery(ec, e, sig)
+    return _pubkey_recovery(ec, e, sig)
 
 
-def _ecdsa_pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
+def _pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     """Private function provided for testing purposes only."""
     # ECDSA public key recovery operation according to SEC 1
     # http://www.secg.org/sec1-v2.pdf
     # See SEC 1 v.2 section 4.1.6
 
-    r, s = _to_dsasig(ec, sig)
+    r, s = _to_sig(ec, sig)
 
     # precomputations
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
     r1e = -r1*e
-    keys = []
+    keys: List[Point] = list()
     for j in range(ec.h):                                   # 1
         x = r + j*ec.n                                      # 1.1
-        try:
-            R = (x % ec._p, ec.yOdd(x, 1))                  # 1.2, 1.3, and 1.4
-            # 1.5 already taken care outside this for loop
+        try:  #TODO: check test reporting 1, 2, 3, or 4 keys
+            x %= ec._p
+            R = x, ec.yOdd(x, 1)                            # 1.2, 1.3, and 1.4
+            # skip 1.5: in this function, e is an input
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)        # 1.6.1
-            if Q[1] != 0 and _ecdsa_verhlp(ec, e, Q, sig):  # 1.6.2
+            if Q[1] != 0 and _verhlp(ec, e, Q, sig):        # 1.6.2
                 keys.append(Q)
             R = ec.opposite(R)                              # 1.6.3
             Q = DblScalarMult(ec, r1s, R, r1e, ec.G)
-            if Q[1] != 0 and _ecdsa_verhlp(ec, e, Q, sig):  # 1.6.2
+            if Q[1] != 0 and _verhlp(ec, e, Q, sig):        # 1.6.2
                 keys.append(Q)                              # 1.6.2
         except Exception:  # R is not a curve point
             pass
     return keys
 
 
-def _to_dsasig(ec: EC, sig: ECDS) -> Tuple[int, int]:
+def _to_sig(ec: EC, sig: ECDS) -> Tuple[int, int]:
     """check DSA signature correct format and return the signature itself"""
 
     if len(sig) != 2:

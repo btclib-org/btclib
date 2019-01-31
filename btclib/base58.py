@@ -6,7 +6,7 @@
    https://github.com/keis/base58, with the following modifications:
    - type annotated python3
    - using native python3 int.from_bytes() and i.to_bytes()
-   - added length check functionalities to b58decode and b58decode_check
+   - added length check functionalities to decode and decode_check
 """
 
 from hashlib import sha256
@@ -17,11 +17,11 @@ __digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __base = len(__digits)
 
 
-def double_sha256(s: bytes) -> bytes:
+def _double_sha256(s: bytes) -> bytes:
     return sha256(sha256(s).digest()).digest()
 
 
-def to_bytes(v: Union[str, bytes]) -> bytes:
+def _str_to_bytes(v: Union[str, bytes]) -> bytes:
     """Encode string to bytes, stipping leading/trailing white spaces"""
 
     if isinstance(v, str):
@@ -31,7 +31,7 @@ def to_bytes(v: Union[str, bytes]) -> bytes:
     return v
 
 
-def b58encode_int(i: int) -> bytes:
+def encode_int(i: int) -> bytes:
     """Encode an integer using Base58"""
 
     if i == 0:
@@ -45,10 +45,10 @@ def b58encode_int(i: int) -> bytes:
     return result
 
 
-def b58encode(v: Union[str, bytes]) -> bytes:
+def encode(v: Union[str, bytes]) -> bytes:
     """Encode bytes using Base58"""
 
-    v = to_bytes(v)
+    v = _str_to_bytes(v)
 
     # preserve leading-0s
     # leading-0s become base58 leading-1s
@@ -60,25 +60,25 @@ def b58encode(v: Union[str, bytes]) -> bytes:
 
     if vlen:
         i = int.from_bytes(v, 'big')
-        result = result + b58encode_int(i)
+        result = result + encode_int(i)
 
     return result
 
 
-def b58encode_check(v: Union[str, bytes]) -> bytes:
+def encode_check(v: Union[str, bytes]) -> bytes:
     """Encode bytes using Base58 with a 4 character checksum"""
 
-    v = to_bytes(v)
+    v = _str_to_bytes(v)
 
-    digest = double_sha256(v)
-    result = b58encode(v + digest[:4])
+    digest = _double_sha256(v)
+    result = encode(v + digest[:4])
     return result
 
 
-def b58decode_int(v: Union[str, bytes]) -> int:
+def decode_int(v: Union[str, bytes]) -> int:
     """Decode Base58 encoded bytes as integer"""
 
-    v = to_bytes(v)
+    v = _str_to_bytes(v)
 
     i = 0
     for char in v:
@@ -87,12 +87,12 @@ def b58decode_int(v: Union[str, bytes]) -> int:
     return i
 
 
-def b58decode(v: Union[str, bytes],
+def decode(v: Union[str, bytes],
               output_size: Optional[int] = None) -> bytes:
     """Decode Base58 encoded bytes, with verified output length"""
 
 
-    v = to_bytes(v)
+    v = _str_to_bytes(v)
 
     # preserve leading-0s
     # base58 leading-1s become leading-0s
@@ -103,7 +103,7 @@ def b58decode(v: Union[str, bytes],
     result = b'\0' * nPad
 
     if vlen:
-        i = b58decode_int(v)
+        i = decode_int(v)
         nbytes = (i.bit_length() + 7) // 8
         result = result + i.to_bytes(nbytes, 'big')
 
@@ -115,17 +115,17 @@ def b58decode(v: Union[str, bytes],
     return result
 
 
-def b58decode_check(v: Union[str, bytes],
+def decode_check(v: Union[str, bytes],
                     output_size: Optional[int] = None) -> bytes:
     """Decode Base58 encoded bytes, with verified checksum and output length"""
 
     if output_size is not None:
         output_size += 4
 
-    result = b58decode(v, output_size)
+    result = decode(v, output_size)
     result, checksum = result[:-4], result[-4:]
 
-    digest = double_sha256(result)
+    digest = _double_sha256(result)
     if checksum != digest[:4]:
         m = f"Invalid checksum: '{checksum}' instead of '{digest[:4]}'"
         raise ValueError(m)

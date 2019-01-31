@@ -36,8 +36,8 @@ from typing import Optional, Tuple
 from btclib.ec import EC, pointMult, Point
 from btclib.utils import bits2int, octets2point, point2octets
 from btclib.rfc6979 import rfc6979
-from btclib.dsa import ecdsa_sign, ECDS
-from btclib.ssa import ecssa_sign, ECSS
+from btclib import dsa
+from btclib import ssa
 
 Receipt = Tuple[int, Point]
 
@@ -56,32 +56,32 @@ def _tweak(c: bytes, ec: EC, hf, k: int) -> Tuple[Point, int]:
 
 
 def ecdsa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
-                      k: Optional[int] = None) -> Tuple[ECDS, Receipt]:
-    mh = hf(m).digest()
+                      k: Optional[int] = None) -> Tuple[dsa.ECDS, Receipt]:
     if k is None:
-        k = rfc6979(ec, hf, mh, prvkey)
+        k = rfc6979(ec, hf, hf(m).digest(), prvkey)
 
     ch = hf(c).digest()
 
     # commit
     R, new_k = _tweak(ch, ec, hf, k)
     # sign
-    sig = ecdsa_sign(ec, hf, m, prvkey, new_k)
+    sig = dsa.sign(ec, hf, m, prvkey, new_k)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
 
 
 def ecssa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
-                      k: Optional[int] = None) -> Tuple[ECSS, Receipt]:
-    ch = hf(c).digest()
+                      k: Optional[int] = None) -> Tuple[ssa.ECSS, Receipt]:
     if k is None:
         k = rfc6979(ec, hf, m, prvkey)
+
+    ch = hf(c).digest()
 
     # commit
     R, new_k = _tweak(ch, ec, hf, k)
     # sign
-    sig = ecssa_sign(ec, hf, m, prvkey, new_k)
+    sig = ssa.sign(ec, hf, m, prvkey, new_k)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
@@ -103,4 +103,4 @@ def verify_commit(c: bytes, ec: EC, hf, receipt: Receipt) -> bool:
     W = ec.add(R, pointMult(ec, e, ec.G))
     # different verify functions?
     # return w == W[0] # ECSS
-    return w == W[0] % ec.n  # ECDS
+    return w == W[0] % ec.n  # ECDS, FIXME: ECSSA

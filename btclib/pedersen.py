@@ -33,7 +33,7 @@ def secondGenerator(ec: EC, hf) -> Point:
     return Point(hx, hy)
 
 
-def pedersen_commit(r: int, v: int, ec: EC, hf) -> Point:
+def commit(r: int, v: int, ec: EC, hf) -> Point:
     """Return rG + vH, with H being second (NUMS) generator of the curve"""
     H = secondGenerator(ec, hf)
     Q = DblScalarMult(ec, r, ec.G, v, H)
@@ -41,9 +41,10 @@ def pedersen_commit(r: int, v: int, ec: EC, hf) -> Point:
     return Q
 
 
-def pedersen_open(r: int, v: int, C: Point, ec: EC, hf) -> bool:
+def open(r: int, v: int, C: Point, ec: EC, hf) -> bool:
+    # try/except wrapper for the Errors raised by commit
     try:
-        P = pedersen_commit(r, v, ec, hf)
+        P = commit(r, v, ec, hf)
     except:
         return False
     return C == P
