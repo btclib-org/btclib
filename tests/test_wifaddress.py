@@ -15,7 +15,7 @@ from btclib.curves import secp256k1 as ec
 from btclib.utils import int2octets, octets2point
 from btclib import base58
 from btclib.wifaddress import wif_from_prvkey, \
-    prvkey_from_wif, address_from_pubkey, hash160_from_address, \
+    prvkey_from_wif, address_from_pubkey, _h160_from_address, \
     address_from_wif
 
 

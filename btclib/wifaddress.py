@@ -71,11 +71,11 @@ def address_from_pubkey(Q: Point, compressed: bool, version: bytes = b'\x00') ->
     pubkey = point2octets(ec, Q, compressed)
 
     # FIXME: this is mainnet only
-    vh160 = version + h160(pubkey)
+    vh160 = version + _h160(pubkey)
     return base58.encode_check(vh160)
 
 
-def hash160_from_address(addr: octets) -> bytes:
+def _h160_from_address(addr: octets) -> bytes:
     payload = base58.decode_check(addr, 21)
     # FIXME: this is mainnet only
     if payload[0] != 0x00:
