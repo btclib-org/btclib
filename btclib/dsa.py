@@ -17,7 +17,7 @@
 from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import Point, EC, pointMult, DblScalarMult
+from btclib.ec import Point, EC, _pointMultJacobian, _DblScalarMult, DblScalarMult
 from btclib.utils import bits2int
 from btclib.rfc6979 import rfc6979
 
@@ -66,14 +66,15 @@ def _sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
     # Let R = k'G.
-    R = pointMult(ec, k, ec.G)                        # 1
+    RJ = _pointMultJacobian(ec, k, ec.GJ)             # 1
 
-    r = R[0] % ec.n                                   # 2, 3
+    Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
+    r = Rx % ec.n                                     # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
         raise ValueError("r = 0, failed to sign")
 
     s = mod_inv(k, ec.n) * (e + r*d) % ec.n           # 6
-    if s == 0:  # required as the inverse of s is needed
+    if s == 0:  # s≠0 required as verify will need the inverse of s
         raise ValueError("s = 0, failed to sign")
 
     # bitcoin canonical 'low-s' encoding for ECDSA signatures
@@ -123,7 +124,7 @@ def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only."""
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = _to_sig(ec, sig)                           # 1
+    r, s = _to_sig(ec, sig)                                  # 1
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.requireOnCurve(P)
@@ -131,17 +132,18 @@ def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
         raise ValueError("public key is infinite")
 
     s1 = mod_inv(s, ec.n)
-    u = e*s1
-    v = r*s1                                          # 4
+    u1 = e*s1
+    u2 = r*s1                                                # 4
     # Let R = u*G + v*P.
-    R = DblScalarMult(ec, u, ec.G, v, P)              # 5
+    RJ = _DblScalarMult(ec, u1, ec.GJ, u2, (P[0], P[1], 1))  # 5
 
     # Fail if infinite(R).
-    assert R[1] != 0, "how did you do that?!?"        # 5
+    assert RJ[2] != 0, "how did you do that?!?"              # 5
 
-    v = R[0] % ec.n                                   # 6, 7
+    Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
+    v = Rx % ec.n                                            # 6, 7
     # Fail if r ≠ x(R) %n.
-    return r == v                                     # 8
+    return r == v                                            # 8
 
 
 def pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:
