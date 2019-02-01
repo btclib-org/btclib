@@ -11,7 +11,7 @@
 import unittest
 from hashlib import sha256 as hf
 
-from btclib.ec import pointMult
+from btclib.ec import mult
 from btclib.curves import secp256k1 as ec
 from btclib import dsa
 from btclib import ssa
@@ -22,7 +22,7 @@ from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, \
 class TestSignToContract(unittest.TestCase):
     def test_signtocontract(self):
         prv = 0x1
-        pub = pointMult(ec, prv, ec.G)
+        pub = mult(ec, prv, ec.G)
         m = "to be signed".encode()
         c = "to be committed".encode()
 

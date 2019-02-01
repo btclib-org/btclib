@@ -17,8 +17,8 @@
 from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import Point, EC, _pointMultJacobian, _DblScalarMult, DblScalarMult
-from btclib.utils import bits2int
+from btclib.ec import Point, EC, _mult_jac, _double_mult, double_mult
+from btclib.utils import int_from_bits
 from btclib.rfc6979 import rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
@@ -40,8 +40,8 @@ def sign(ec: EC, hf, M: bytes,
     # and nlen; however, the (EC)DSA standard support all combinations of
     # hlen and nlen.
     hd = hf(M).digest()                               # 4
-    # H(m) is transformed into an integer modulo ec.n using bits2int:
-    e = bits2int(ec, hd)                              # 5
+    # H(m) is transformed into an integer modulo ec.n using int_from_bits:
+    e = int_from_bits(ec, hd)                              # 5
 
     if k is None:
         k = rfc6979(ec, hf, hd, d)                    # 1
@@ -66,7 +66,7 @@ def _sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
     # Let R = k'G.
-    RJ = _pointMultJacobian(ec, k, ec.GJ)             # 1
+    RJ = _mult_jac(ec, k, ec.GJ)             # 1
 
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     r = Rx % ec.n                                     # 2, 3
@@ -111,10 +111,10 @@ def _verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
 
     # The message digest m: a 32-byte array
     hd = hf(M).digest()                               # 2
-    e = bits2int(ec, hd)                              # 3
+    e = int_from_bits(ec, hd)                              # 3
 
     # Let P = point(pk); fail if point(pk) fails.
-    # P on point will be checked below by DblScalarMult
+    # P on point will be checked below by double_mult
 
     # second part delegated to helper function used in testing
     return _verhlp(ec, e, P, sig)
@@ -127,7 +127,7 @@ def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     r, s = _to_sig(ec, sig)                                  # 1
 
     # Let P = point(pk); fail if point(pk) fails.
-    ec.requireOnCurve(P)
+    ec.require_on_curve(P)
     if P[1] == 0:
         raise ValueError("public key is infinite")
 
@@ -135,7 +135,7 @@ def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     u1 = e*s1
     u2 = r*s1                                                # 4
     # Let R = u*G + v*P.
-    RJ = _DblScalarMult(ec, u1, ec.GJ, u2, (P[0], P[1], 1))  # 5
+    RJ = _double_mult(ec, u1, ec.GJ, u2, (P[0], P[1], 1))  # 5
 
     # Fail if infinite(R).
     assert RJ[2] != 0, "how did you do that?!?"              # 5
@@ -155,7 +155,7 @@ def pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:
 
     # The message digest m: a 32-byte array
     hd = hf(M).digest()                                     # 1.5
-    e = bits2int(ec, hd)                                    # 1.5
+    e = int_from_bits(ec, hd)                                    # 1.5
 
     return _pubkey_recovery(ec, e, sig)
 
@@ -177,13 +177,13 @@ def _pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
         x = r + j*ec.n                                      # 1.1
         try:  #TODO: check test reporting 1, 2, 3, or 4 keys
             x %= ec._p
-            R = x, ec.yOdd(x, 1)                            # 1.2, 1.3, and 1.4
+            R = x, ec.y_odd(x, 1)                            # 1.2, 1.3, and 1.4
             # skip 1.5: in this function, e is an input
-            Q = DblScalarMult(ec, r1s, R, r1e, ec.G)        # 1.6.1
+            Q = double_mult(ec, r1s, R, r1e, ec.G)        # 1.6.1
             if Q[1] != 0 and _verhlp(ec, e, Q, sig):        # 1.6.2
                 keys.append(Q)
             R = ec.opposite(R)                              # 1.6.3
-            Q = DblScalarMult(ec, r1s, R, r1e, ec.G)
+            Q = double_mult(ec, r1s, R, r1e, ec.G)
             if Q[1] != 0 and _verhlp(ec, e, Q, sig):        # 1.6.2
                 keys.append(Q)                              # 1.6.2
         except Exception:  # R is not a curve point

@@ -24,7 +24,7 @@ remove assert for if + raise
 
 mod_sqrt or modSqrt ?
 
-opposite in Jac coordinate using yQuadraticResidue ?
+opposite in Jac coordinate using y_quadratic_residue ?
 
 type hash function as Callable(?)
 

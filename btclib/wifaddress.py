@@ -18,9 +18,9 @@ from hashlib import sha256, new as hnew
 from typing import Tuple
 
 from btclib import base58
-from btclib.ec import Point, pointMult
+from btclib.ec import Point, mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets, octets2int, int2octets, point2octets
+from btclib.utils import octets, int_from_octets, octets_from_int, octets_from_point
 
 
 def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
@@ -29,7 +29,7 @@ def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     if not 0 < prvkey < ec.n:
         raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
 
-    payload = b'\x80' + int2octets(prvkey, ec.psize)
+    payload = b'\x80' + octets_from_int(prvkey, ec.psize)
     if compressed:
         payload += b'\x01'
     return base58.encode_check(payload)
@@ -46,10 +46,10 @@ def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
         compressed = True
         if payload[ec.psize + 1] != 0x01:  # must have a trailing 0x01
             raise ValueError("Not a compressed WIF: missing trailing 0x01")
-        prvkey = octets2int(payload[1:-1])
+        prvkey = int_from_octets(payload[1:-1])
     elif len(payload) == ec.psize + 1:     # uncompressed WIF
         compressed = False
-        prvkey = octets2int(payload[1:])
+        prvkey = int_from_octets(payload[1:])
     else:
         raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
     
@@ -68,7 +68,7 @@ def address_from_pubkey(Q: Point, compressed: bool, version: bytes = b'\x00') ->
     """Public key to (bytes) address"""
 
     # also check that the Point is on curve
-    pubkey = point2octets(ec, Q, compressed)
+    pubkey = octets_from_point(ec, Q, compressed)
 
     # FIXME: this is mainnet only
     vh160 = version + _h160(pubkey)
@@ -85,5 +85,5 @@ def _h160_from_address(addr: octets) -> bytes:
 
 def address_from_wif(wif: octets) -> bytes:
     prv, compressed = prvkey_from_wif(wif)
-    pub = pointMult(ec, prv, ec.G)
+    pub = mult(ec, prv, ec.G)
     return address_from_pubkey(pub, compressed)

@@ -18,14 +18,14 @@ import random
 from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Point, EC, pointMult, DblScalarMult, \
-    _jac_from_aff, _pointMultJacobian, _DblScalarMult, _multiScalarMult
-from btclib.utils import bits2int, point2octets, int2octets
+from btclib.ec import Point, EC, mult, double_mult, \
+    _jac_from_aff, _mult_jac, _double_mult, _multi_mult
+from btclib.utils import int_from_bits, octets_from_point, octets_from_int
 from btclib.rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 
-def _ensureCorrectMessageSize(hf, m: bytes) -> None:
+def _ensure_msg_size(hf, m: bytes) -> None:
     if len(m) != hf().digest_size:
         errmsg = f'message of wrong size: {len(m)}'
         errmsg += f' instead of {hf().digest_size} bytes'
@@ -33,11 +33,11 @@ def _ensureCorrectMessageSize(hf, m: bytes) -> None:
 
 def _e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
-    ebytes = int2octets(r, ec.psize) # FIXME: hsize, nsize ?
-    ebytes += point2octets(ec, P, True)
+    ebytes = octets_from_int(r, ec.psize) # FIXME: hsize, nsize ?
+    ebytes += octets_from_point(ec, P, True)
     ebytes += m
     ebytes = hf(ebytes).digest()
-    e = bits2int(ec, ebytes)
+    e = int_from_bits(ec, ebytes)
     return e
 
 
@@ -59,12 +59,12 @@ def sign(ec: EC, hf, m: bytes, d: int,
     # a digest of other messages, but it does not need to.
 
     # The message m: a 32-byte array
-    _ensureCorrectMessageSize(hf, m)
+    _ensure_msg_size(hf, m)
 
     # The secret key d: an integer in the range 1..n-1.
     if not 0 < d < ec.n:
         raise ValueError(f"private key {hex(d)} not in (0, n)")
-    P = pointMult(ec, d, ec.G)
+    P = mult(ec, d, ec.G)
 
     # Fail if k' = 0.
     if k is None:
@@ -73,7 +73,7 @@ def sign(ec: EC, hf, m: bytes, d: int,
         raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
 
     # Let R = k'G.
-    RJ = _pointMultJacobian(ec, k, ec.GJ)
+    RJ = _mult_jac(ec, k, ec.GJ)
 
     # break the simmetry: any criteria might have been used,
     # jacobi is the proposed bitcoin standard
@@ -88,7 +88,7 @@ def sign(ec: EC, hf, m: bytes, d: int,
     e = _e(ec, hf, r, P, m)
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
-    # The signature is bytes(x(R)) || bytes(k + ed mod n).
+    # The signature is bytes(x(R) || bytes((k + ed) mod n)).
     return r, s
 
 
@@ -119,10 +119,10 @@ def _verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     r, s = _to_sig(ec, sig)
 
     # The message m: a 32-byte array
-    _ensureCorrectMessageSize(hf, m)
+    _ensure_msg_size(hf, m)
 
     # Let P = point(pk); fail if point(pk) fails.
-    ec.requireOnCurve(P)
+    ec.require_on_curve(P)
     if P[1] == 0:
         raise ValueError("public key is infinite")
 
@@ -131,7 +131,7 @@ def _verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
     # Let R = sG - eP.
     # in Jacobian coordinates
-    R = _DblScalarMult(ec, s, ec.GJ, -e, (P[0], P[1], 1))
+    R = _double_mult(ec, s, ec.GJ, -e, (P[0], P[1], 1))
 
     # Fail if infinite(R).
     if R[2] == 0:
@@ -150,13 +150,13 @@ def _pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
 
     r, s = _to_sig(ec, sig)
 
-    K = r, ec.yQuadraticResidue(r, True)
-    # FIXME yQuadraticResidue in Jacobian coordinates?
+    K = r, ec.y_quadratic_residue(r, True)
+    # FIXME y_quadratic_residue in Jacobian coordinates?
 
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
-    P = DblScalarMult(ec, e1*s, ec.G, -e1, K)
+    P = double_mult(ec, e1*s, ec.G, -e1, K)
     assert P[1] != 0, "how did you do that?!?"
     return P
 
@@ -201,8 +201,8 @@ def _batch_verification(ec: EC, hf, ms: List[bytes], P: List[Point],
     scalars: List(int) = list()
     points: List[Point] = list()
     for i in range(len(P)):
-        _ensureCorrectMessageSize(hf, ms[i])
-        ec.requireOnCurve(P[i])
+        _ensure_msg_size(hf, ms[i])
+        ec.require_on_curve(P[i])
         r, s = _to_sig(ec, sig[i])
         e = _e(ec, hf, r, P[i], ms[i])
         y = ec.y(r)  # raises an error if y does not exist
@@ -218,8 +218,8 @@ def _batch_verification(ec: EC, hf, ms: List[bytes], P: List[Point],
         points.append(_jac_from_aff(P[i]))
         t += a * s % ec.n
 
-    TJ = _pointMultJacobian(ec, t, ec.GJ)
-    RHSJ = _multiScalarMult(ec, scalars, points)
+    TJ = _mult_jac(ec, t, ec.GJ)
+    RHSJ = _multi_mult(ec, scalars, points)
 
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]

@@ -33,8 +33,8 @@
 
 from typing import Optional, Tuple
 
-from btclib.ec import EC, pointMult, Point
-from btclib.utils import bits2int, octets2point, point2octets
+from btclib.ec import EC, mult, Point
+from btclib.utils import int_from_bits, point_from_octets, octets_from_point
 from btclib.rfc6979 import rfc6979
 from btclib import dsa
 from btclib import ssa
@@ -49,8 +49,8 @@ def _tweak(c: bytes, ec: EC, hf, k: int) -> Tuple[Point, int]:
     - point kG to tweak
     - tweaked private key k + h(kG||c), the corresponding pubkey is a commitment to kG, c
     """
-    R = pointMult(ec, k, ec.G)
-    e = hf(point2octets(ec, R, True) + c).digest()
+    R = mult(ec, k, ec.G)
+    e = hf(octets_from_point(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
     return R, (e + k) % ec.n
 
@@ -98,9 +98,9 @@ def verify_commit(c: bytes, ec: EC, hf, receipt: Receipt) -> bool:
     # verify R is a good point?    
 
     ch = hf(c).digest()
-    e = hf(point2octets(ec, R, True) + ch).digest()
-    e = bits2int(ec, e)
-    W = ec.add(R, pointMult(ec, e, ec.G))
+    e = hf(octets_from_point(ec, R, True) + ch).digest()
+    e = int_from_bits(ec, e)
+    W = ec.add(R, mult(ec, e, ec.G))
     # different verify functions?
     # return w == W[0] # ECSS
     return w == W[0] % ec.n  # ECDS, FIXME: ECSSA

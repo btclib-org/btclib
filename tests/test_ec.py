@@ -13,12 +13,12 @@ import random
 from typing import List
 
 from btclib.numbertheory import mod_sqrt
-from btclib.ec import EC, Point, pointMult, DblScalarMult, \
-    _jac_from_aff, _pointMultJacobian, _pointMultAffine, multiScalarMult
+from btclib.ec import EC, Point, mult, double_mult, \
+    _jac_from_aff, _mult_jac, _mult_aff, multi_mult
 from btclib.curves import secp256k1, secp256r1, secp384r1, secp160r1, \
     secp112r1, all_curves, low_card_curves, ec23_31
-from btclib.utils import point2octets, octets2point
-from btclib.pedersen import secondGenerator
+from btclib.utils import octets_from_point, point_from_octets
+from btclib.pedersen import second_generator
 
 random.seed(42)
  
@@ -97,24 +97,24 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_all_curves(self):
         for ec in all_curves:
-            self.assertEqual(pointMult(ec, 0, ec.G), Inf)
-            self.assertEqual(pointMult(ec, 0, ec.G), Inf)
+            self.assertEqual(mult(ec, 0, ec.G), Inf)
+            self.assertEqual(mult(ec, 0, ec.G), Inf)
 
-            self.assertEqual(pointMult(ec, 1, ec.G), ec.G)
-            self.assertEqual(pointMult(ec, 1, ec.G), ec.G)
+            self.assertEqual(mult(ec, 1, ec.G), ec.G)
+            self.assertEqual(mult(ec, 1, ec.G), ec.G)
 
-            Gy_odd = ec.yOdd(ec.G[0], True)
+            Gy_odd = ec.y_odd(ec.G[0], True)
             self.assertEqual(Gy_odd % 2, 1)
-            Gy_even = ec.yOdd(ec.G[0], False)
+            Gy_even = ec.y_odd(ec.G[0], False)
             self.assertEqual(Gy_even % 2, 0)
             self.assertTrue(ec.G[1] in (Gy_odd, Gy_even))
 
-            Gbytes = point2octets(ec, ec.G, True)
-            G2 = octets2point(ec, Gbytes)
+            Gbytes = octets_from_point(ec, ec.G, True)
+            G2 = point_from_octets(ec, Gbytes)
             self.assertEqual(ec.G, G2)
 
-            Gbytes = point2octets(ec, ec.G, False)
-            G2 = octets2point(ec, Gbytes)
+            Gbytes = octets_from_point(ec, ec.G, False)
+            G2 = point_from_octets(ec, Gbytes)
             self.assertEqual(ec.G, G2)
 
             P = ec.add(Inf, ec.G)
@@ -125,15 +125,15 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(P, Inf)
 
             P = ec.add(ec.G, ec.G)
-            self.assertEqual(P, pointMult(ec, 2, ec.G))
+            self.assertEqual(P, mult(ec, 2, ec.G))
 
-            P = pointMult(ec, ec.n-1, ec.G)
+            P = mult(ec, ec.n-1, ec.G)
             self.assertEqual(ec.add(P, ec.G), Inf)
-            self.assertEqual(pointMult(ec, ec.n, ec.G), Inf)
+            self.assertEqual(mult(ec, ec.n, ec.G), Inf)
 
-            self.assertEqual(pointMult(ec, 0, Inf), Inf)
-            self.assertEqual(pointMult(ec, 1, Inf), Inf)
-            self.assertEqual(pointMult(ec, 25, Inf), Inf)
+            self.assertEqual(mult(ec, 0, Inf), Inf)
+            self.assertEqual(mult(ec, 1, Inf), Inf)
+            self.assertEqual(mult(ec, 25, Inf), Inf)
 
             ec_repr = repr(ec)
             if ec in low_card_curves or ec.psize < 24:
@@ -143,75 +143,75 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_octets2point(self):
         for ec in all_curves:
-            Q = pointMult(ec, ec._p, ec.G)  # just a random point, not Inf
+            Q = mult(ec, ec._p, ec.G)  # just a random point, not Inf
 
             Q_bytes = b'\x03' if Q[1] & 1 else b'\x02'
             Q_bytes += Q[0].to_bytes(ec.psize, "big")
-            R = octets2point(ec, Q_bytes)
+            R = point_from_octets(ec, Q_bytes)
             self.assertEqual(R, Q)
-            self.assertEqual(point2octets(ec, R, True), Q_bytes)
+            self.assertEqual(octets_from_point(ec, R, True), Q_bytes)
 
             Q_hex_str = Q_bytes.hex()
-            R = octets2point(ec, Q_hex_str)
+            R = point_from_octets(ec, Q_hex_str)
             self.assertEqual(R, Q)
 
             Q_bytes = b'\x04' + Q[0].to_bytes(ec.psize, "big")
             Q_bytes += Q[1].to_bytes(ec.psize, "big")
-            R = octets2point(ec, Q_bytes)
+            R = point_from_octets(ec, Q_bytes)
             self.assertEqual(R, Q)
-            self.assertEqual(point2octets(ec, R, False), Q_bytes)
+            self.assertEqual(octets_from_point(ec, R, False), Q_bytes)
 
             Q_hex_str = Q_bytes.hex()
-            R = octets2point(ec, Q_hex_str)
+            R = point_from_octets(ec, Q_hex_str)
             self.assertEqual(R, Q)
 
             # infinity point
-            self.assertEqual(octets2point(ec, b'\x00'), Inf)
-            self.assertEqual(point2octets(ec, Inf, True),  b'\x00')
-            self.assertEqual(point2octets(ec, Inf, False), b'\x00')
+            self.assertEqual(point_from_octets(ec, b'\x00'), Inf)
+            self.assertEqual(octets_from_point(ec, Inf, True),  b'\x00')
+            self.assertEqual(octets_from_point(ec, Inf, False), b'\x00')
             Inf_hex_str = b'\x00'.hex()
-            self.assertEqual(octets2point(ec, Inf_hex_str), Inf)
+            self.assertEqual(point_from_octets(ec, Inf_hex_str), Inf)
 
             # scalar in point multiplication can be int, str, or bytes
             t = tuple()
-            self.assertRaises(TypeError, pointMult, ec, t, ec.G)
+            self.assertRaises(TypeError, mult, ec, t, ec.G)
 
             # not a compressed point
             Q_bytes = b'\x01' * (ec.psize+1)
-            self.assertRaises(ValueError, octets2point, ec, Q_bytes)
+            self.assertRaises(ValueError, point_from_octets, ec, Q_bytes)
             # not a point
             Q_bytes += b'\x01'
-            self.assertRaises(ValueError, octets2point, ec, Q_bytes)
+            self.assertRaises(ValueError, point_from_octets, ec, Q_bytes)
             # not an uncompressed point
             Q_bytes = b'\x01' * 2 * (ec.psize+1)
-            self.assertRaises(ValueError, octets2point, ec, Q_bytes)
+            self.assertRaises(ValueError, point_from_octets, ec, Q_bytes)
         
         # invalid x coordinate
         ec = secp256k1
         x = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
         xstr = format(x, '32X')
-        self.assertRaises(ValueError, octets2point, ec, "03" + xstr)
-        self.assertRaises(ValueError, octets2point, ec, "04" + xstr + xstr)
-        self.assertRaises(ValueError, point2octets, ec, (x, x), True)
-        self.assertRaises(ValueError, point2octets, ec, (x, x), False)
+        self.assertRaises(ValueError, point_from_octets, ec, "03" + xstr)
+        self.assertRaises(ValueError, point_from_octets, ec, "04" + xstr + xstr)
+        self.assertRaises(ValueError, octets_from_point, ec, (x, x), True)
+        self.assertRaises(ValueError, octets_from_point, ec, (x, x), False)
 
         # Point must be a tuple[int, int]
         P = x, x, x
-        self.assertRaises(ValueError, ec.isOnCurve, P)
+        self.assertRaises(ValueError, ec.is_on_curve, P)
 
         # y-coordinate not in (0, p)
         P = x, ec._p+1
-        self.assertRaises(ValueError, ec.isOnCurve, P)
+        self.assertRaises(ValueError, ec.is_on_curve, P)
 
     def test_opposite(self):
         for ec in all_curves:
-            Q = pointMult(ec, ec._p, ec.G)  # just a random point, not Inf
+            Q = mult(ec, ec._p, ec.G)  # just a random point, not Inf
             minus_Q = ec.opposite(Q)
             self.assertEqual(ec.add(Q, minus_Q), Inf)
             # jacobian coordinates
             Qjac = _jac_from_aff(Q)
             minus_Qjac = _jac_from_aff(minus_Q)
-            self.assertEqual(ec._addJacobian(Qjac, minus_Qjac)[2], 0)
+            self.assertEqual(ec._add_jac(Qjac, minus_Qjac)[2], 0)
 
             # opposite of Inf is Inf
             minus_Inf = ec.opposite(Inf)
@@ -230,11 +230,11 @@ class TestEllipticCurve(unittest.TestCase):
                 hasRoot.add(i*i % ec._p)
 
             # test phase
-            Q = pointMult(ec, ec._p, ec.G)  # just a random point, not Inf
+            Q = mult(ec, ec._p, ec.G)  # just a random point, not Inf
             x = Q[0]
             if ec._p % 4 == 3:
-                quad_res = ec.yQuadraticResidue(x, 1)
-                not_quad_res = ec.yQuadraticResidue(x, 0)
+                quad_res = ec.y_quadratic_residue(x, 1)
+                not_quad_res = ec.y_quadratic_residue(x, 0)
                 # in this case only quad_res is a quadratic residue
                 self.assertIn(quad_res, hasRoot)
                 root = mod_sqrt(quad_res, ec._p)
@@ -246,120 +246,120 @@ class TestEllipticCurve(unittest.TestCase):
                 self.assertNotIn(not_quad_res, hasRoot)
                 self.assertRaises(ValueError, mod_sqrt, not_quad_res, ec._p)
 
-                yOdd = ec.yOdd(x, 1)
-                self.assertTrue(yOdd in (quad_res, not_quad_res))
-                self.assertTrue(yOdd % 2 == 1)
-                yEven = ec.yOdd(x, 0)
+                y_odd = ec.y_odd(x, 1)
+                self.assertTrue(y_odd in (quad_res, not_quad_res))
+                self.assertTrue(y_odd % 2 == 1)
+                yEven = ec.y_odd(x, 0)
                 self.assertTrue(yEven in (quad_res, not_quad_res))
                 self.assertTrue(yEven % 2 == 0)
 
-                yLow = ec.yHigh(x, 0)
-                self.assertTrue(yLow in (yOdd, yEven))
-                yHigh = ec.yHigh(x, 1)
-                self.assertTrue(yHigh in (yOdd, yEven))
-                self.assertTrue(yLow < yHigh)
+                yLow = ec.y_high(x, 0)
+                self.assertTrue(yLow in (y_odd, yEven))
+                y_high = ec.y_high(x, 1)
+                self.assertTrue(y_high in (y_odd, yEven))
+                self.assertTrue(yLow < y_high)
             else:
                 self.assertTrue(ec._p % 4 == 1)
-                # cannot use yQuadraticResidue in this case
-                self.assertRaises(ValueError, ec.yQuadraticResidue, x, 1)
-                self.assertRaises(ValueError, ec.yQuadraticResidue, x, 0)
+                # cannot use y_quadratic_residue in this case
+                self.assertRaises(ValueError, ec.y_quadratic_residue, x, 1)
+                self.assertRaises(ValueError, ec.y_quadratic_residue, x, 0)
 
-                yOdd = ec.yOdd(x, 1)
-                self.assertTrue(yOdd % 2 == 1)
-                yEven = ec.yOdd(x, 0)
+                y_odd = ec.y_odd(x, 1)
+                self.assertTrue(y_odd % 2 == 1)
+                yEven = ec.y_odd(x, 0)
                 self.assertTrue(yEven % 2 == 0)
                 # in this case neither or both are quadratic residues
-                self.assertTrue((yOdd in hasRoot and yEven in hasRoot) or
-                                (yOdd not in hasRoot and yEven not in hasRoot))
-                if yOdd in hasRoot and yEven in hasRoot:
-                    root = mod_sqrt(yOdd, ec._p)
-                    self.assertEqual(yOdd, (root*root) % ec._p)
+                self.assertTrue((y_odd in hasRoot and yEven in hasRoot) or
+                                (y_odd not in hasRoot and yEven not in hasRoot))
+                if y_odd in hasRoot and yEven in hasRoot:
+                    root = mod_sqrt(y_odd, ec._p)
+                    self.assertEqual(y_odd, (root*root) % ec._p)
                     root = ec._p - root
-                    self.assertEqual(yOdd, (root*root) % ec._p)
+                    self.assertEqual(y_odd, (root*root) % ec._p)
                     root = mod_sqrt(yEven, ec._p)
                     self.assertEqual(yEven, (root*root) % ec._p)
                     root = ec._p - root
                     self.assertEqual(yEven, (root*root) % ec._p)
                 else:
                     self.assertTrue(
-                        yOdd not in hasRoot and yEven not in hasRoot)
-                    self.assertRaises(ValueError, mod_sqrt, yOdd, ec._p)
+                        y_odd not in hasRoot and yEven not in hasRoot)
+                    self.assertRaises(ValueError, mod_sqrt, y_odd, ec._p)
                     self.assertRaises(ValueError, mod_sqrt, yEven, ec._p)
 
-                yLow = ec.yHigh(x, 0)
-                self.assertTrue(yLow in (yOdd, yEven))
-                yHigh = ec.yHigh(x, 1)
-                self.assertTrue(yHigh in (yOdd, yEven))
-                self.assertTrue(yLow < yHigh)
+                yLow = ec.y_high(x, 0)
+                self.assertTrue(yLow in (y_odd, yEven))
+                y_high = ec.y_high(x, 1)
+                self.assertTrue(y_high in (y_odd, yEven))
+                self.assertTrue(yLow < y_high)
         # with the last curve
-        self.assertRaises(ValueError, ec.yHigh, x, 2)
-        self.assertRaises(ValueError, ec.yOdd, x, 2)
-        self.assertRaises(ValueError, ec.yQuadraticResidue, x, 2)
+        self.assertRaises(ValueError, ec.y_high, x, 2)
+        self.assertRaises(ValueError, ec.y_odd, x, 2)
+        self.assertRaises(ValueError, ec.y_quadratic_residue, x, 2)
 
     def test_affine_jac_conversions(self):
         for ec in all_curves:
-            Q = pointMult(ec, ec._p, ec.G)  # random point
-            checkQ = ec._affine_from_jac(_jac_from_aff(Q))
+            Q = mult(ec, ec._p, ec.G)  # random point
+            checkQ = ec._aff_from_jac(_jac_from_aff(Q))
             self.assertEqual(Q, checkQ)
         # with only the last curve
-        checkInf = ec._affine_from_jac(_jac_from_aff(Inf))
+        checkInf = ec._aff_from_jac(_jac_from_aff(Inf))
         self.assertEqual(Inf, checkInf)
 
     def test_Add(self):
         for ec in all_curves:
-            Q1 = pointMult(ec, ec._p, ec.G)  # just a random point, not Inf
+            Q1 = mult(ec, ec._p, ec.G)  # just a random point, not Inf
             Q1J = _jac_from_aff(Q1)
 
             # distinct points
-            Q3 = ec._addAffine(Q1,  ec.G)
-            Q3jac = ec._addJacobian(Q1J, ec.GJ)
-            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
+            Q3 = ec._add_aff(Q1,  ec.G)
+            Q3jac = ec._add_jac(Q1J, ec.GJ)
+            self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
             # point at infinity
-            Q3 = ec._addAffine(ec.G,  Inf)
-            Q3jac = ec._addJacobian(ec.GJ, InfJ)
-            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
-            Q3 = ec._addAffine(Inf,  ec.G)
-            Q3jac = ec._addJacobian(InfJ, ec.GJ)
-            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
+            Q3 = ec._add_aff(ec.G,  Inf)
+            Q3jac = ec._add_jac(ec.GJ, InfJ)
+            self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
+            Q3 = ec._add_aff(Inf,  ec.G)
+            Q3jac = ec._add_jac(InfJ, ec.GJ)
+            self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
             # point doubling
-            Q3 = ec._addAffine(Q1,  Q1)
-            Q3jac = ec._addJacobian(Q1J, Q1J)
-            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
+            Q3 = ec._add_aff(Q1,  Q1)
+            Q3jac = ec._add_jac(Q1J, Q1J)
+            self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
             # opposite points
             Q1opp = ec.opposite(Q1)
-            Q3 = ec._addAffine(Q1,  Q1opp)
-            Q3jac = ec._addJacobian(Q1J, _jac_from_aff(Q1opp))
-            self.assertEqual(Q3, ec._affine_from_jac(Q3jac))
+            Q3 = ec._add_aff(Q1,  Q1opp)
+            Q3jac = ec._add_jac(Q1J, _jac_from_aff(Q1opp))
+            self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
     def test_Multiply(self):
         for ec in low_card_curves:
             for q in range(ec.n):
-                Q = _pointMultAffine(ec, q, ec.G)
-                Qjac = _pointMultJacobian(ec, q, ec.GJ)
-                Q2 = ec._affine_from_jac(Qjac)
+                Q = _mult_aff(ec, q, ec.G)
+                Qjac = _mult_jac(ec, q, ec.GJ)
+                Q2 = ec._aff_from_jac(Qjac)
                 self.assertEqual(Q, Q2)
         # with last curve
-        self.assertEqual(Inf, _pointMultAffine(ec, 3, Inf))
-        self.assertEqual(InfJ, _pointMultJacobian(ec, 3, InfJ))
+        self.assertEqual(Inf, _mult_aff(ec, 3, Inf))
+        self.assertEqual(InfJ, _mult_jac(ec, 3, InfJ))
 
     def test_shamir(self):
         ec = ec23_31
         for k1 in range(ec.n):
             for k2 in range(ec.n):
-                shamir = DblScalarMult(ec, k1, ec.G, k2, ec.G)
-                std = ec.add(pointMult(ec, k1, ec.G),
-                             pointMult(ec, k2, ec.G))
+                shamir = double_mult(ec, k1, ec.G, k2, ec.G)
+                std = ec.add(mult(ec, k1, ec.G),
+                             mult(ec, k2, ec.G))
                 self.assertEqual(shamir, std)
-                shamir = DblScalarMult(ec, k1, Inf, k2, ec.G)
-                std = ec.add(pointMult(ec, k1, Inf),
-                             pointMult(ec, k2, ec.G))
+                shamir = double_mult(ec, k1, Inf, k2, ec.G)
+                std = ec.add(mult(ec, k1, Inf),
+                             mult(ec, k2, ec.G))
                 self.assertEqual(shamir, std)
-                shamir = DblScalarMult(ec, k1, ec.G, k2, Inf)
-                std = ec.add(pointMult(ec, k1, ec.G),
-                             pointMult(ec, k2, Inf))
+                shamir = double_mult(ec, k1, ec.G, k2, Inf)
+                std = ec.add(mult(ec, k1, ec.G),
+                             mult(ec, k2, Inf))
                 self.assertEqual(shamir, std)
 
     def test_boscoster(self):
@@ -372,13 +372,13 @@ class TestEllipticCurve(unittest.TestCase):
             ksum += k[i]
 
         P = [ec.G] * len(k)
-        boscoster = multiScalarMult(ec, k, P)
-        self.assertEqual(boscoster, pointMult(ec, ksum, ec.G))
+        boscoster = multi_mult(ec, k, P)
+        self.assertEqual(boscoster, mult(ec, ksum, ec.G))
 
         # mismatch between scalar length and Points length
         P = [ec.G] * (len(k)-1)
-        self.assertRaises(ValueError, multiScalarMult, ec, k, P)
-        #boscoster = multiScalarMult(ec, k, P)
+        self.assertRaises(ValueError, multi_mult, ec, k, P)
+        #boscoster = multi_mult(ec, k, P)
 
 if __name__ == "__main__":
     # execute only if run as a script

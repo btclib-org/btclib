@@ -34,7 +34,7 @@
 
 import hmac
 
-from btclib.utils import EC, octets, _bits2int, int2octets
+from btclib.utils import EC, octets, _int_from_bits, octets_from_int
 
 def rfc6979(ec: EC, hf, h1: bytes, x: int) -> int:
     """Return a deterministic ephemeral key following rfc6979"""
@@ -52,12 +52,12 @@ def rfc6979(ec: EC, hf, h1: bytes, x: int) -> int:
     # h1 = hf(m)                                           # 3.2.a
 
     # truncate and/or expand h1: encoding size is driven by nsize
-    z1 = _bits2int(ec, h1)         # leftmost ec.nlen bits
+    z1 = _int_from_bits(ec, h1)         # leftmost ec.nlen bits
     z1 %= ec.n
-    bm = int2octets(z1, ec.nsize)  # bm = z1.to_bytes(nsize, 'big')
+    bm = octets_from_int(z1, ec.nsize)  # bm = z1.to_bytes(nsize, 'big')
 
     # convert the private key x to a sequence of nsize octets
-    bprv = int2octets(x, ec.nsize) # bprv = x.to_bytes(nsize, 'big')
+    bprv = octets_from_int(x, ec.nsize) # bprv = x.to_bytes(nsize, 'big')
 
     bprvbm = bprv + bm
     V = b'\x01' * hsize                                    # 3.2.b
@@ -72,7 +72,7 @@ def rfc6979(ec: EC, hf, h1: bytes, x: int) -> int:
         while len(T) < ec.nsize:                           # 3.2.h.2
             V = hmac.new(K, V, hf).digest()
             T += V
-        k = _bits2int(ec, T)  # candidate                  # 3.2.h.3
+        k = _int_from_bits(ec, T)  # candidate                  # 3.2.h.3
         if 0 < k < ec.n:      # acceptable values for k
             return k          # successful candidate
         K = hmac.new(K, V + b'\x00', hf).digest()

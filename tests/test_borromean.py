@@ -11,7 +11,7 @@
 import unittest
 import random
 
-from btclib.ec import pointMult
+from btclib.ec import mult
 from btclib.curves import secp256k1
 from btclib import borromean
 
@@ -32,7 +32,7 @@ class TestBorromeanRingSignature(unittest.TestCase):
             Pub_keys[i] = [0]*ring_dim[i]
             for j in range(ring_dim[i]):
                 priv_keys[i][j] = j+1
-                Pub_keys[i][j] = pointMult(ec, priv_keys[i][j], ec.G)
+                Pub_keys[i][j] = mult(ec, priv_keys[i][j], ec.G)
             borromean.signing_keys.append(priv_keys[i][borromean.signing_indexes[i]])
         msg = 'Borromean ring borromean.signature'.encode()
         sig = borromean.sign(msg, list(range(1, 5)), borromean.signing_indexes, borromean.signing_keys, Pub_keys)

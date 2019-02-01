@@ -12,9 +12,9 @@ import unittest
 from hashlib import sha256, sha1
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import pointMult, DblScalarMult
+from btclib.ec import mult, double_mult
 from btclib.curves import secp256k1, secp112r2, secp160r1, low_card_curves
-from btclib.utils import octets2point, point2octets
+from btclib.utils import point_from_octets, octets_from_point
 from btclib import dsa
 
 
@@ -23,7 +23,7 @@ class TestDSA(unittest.TestCase):
         ec = secp256k1
         hf = sha256
         q = 0x1
-        Q = pointMult(ec, q, ec.G)
+        Q = mult(ec, q, ec.G)
         msg = 'Satoshi Nakamoto'.encode()
         sig = dsa.sign(ec, hf, msg, q)
         # https://bitcointalk.org/index.php?topic=285142.40
@@ -56,7 +56,7 @@ class TestDSA(unittest.TestCase):
         self.assertRaises(TypeError, dsa._verify, ec, hf, msg, Q, fdsasig)
 
         fq = 0x4
-        fQ = pointMult(ec, fq, ec.G)
+        fQ = mult(ec, fq, ec.G)
         self.assertFalse(dsa.verify(ec, hf, msg, fQ, sig))
         self.assertFalse(dsa._verify(ec, hf, msg, fQ, sig))
 
@@ -85,11 +85,11 @@ class TestDSA(unittest.TestCase):
         dU = 971761939728640320549601132085879836204587084162
         self.assertEqual(format(dU, str(ec.psize)+'x'),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
-        QU = pointMult(ec, dU, ec.G)
+        QU = mult(ec, dU, ec.G)
         self.assertEqual(QU,
                          (466448783855397898016055842232266600516272889280,
                           1110706324081757720403272427311003102474457754220))
-        self.assertEqual(point2octets(ec, QU, True).hex(),
+        self.assertEqual(octets_from_point(ec, QU, True).hex(),
                          '0251b4496fecc406ed0e75a24a3c03206251419dc0')
 
         # 2.1.3 Signing Operation for U
@@ -107,16 +107,16 @@ class TestDSA(unittest.TestCase):
         self.assertTrue(dsa._verify(ec, hf, msg, QU, sig))
 
     def test_forge_hash_sig(self):
-        """forging valid hash signatures (DSA signs a message, not a hash)"""
+        """forging valid hash signatures"""
 
         ec = secp256k1
         # see https://twitter.com/pwuille/status/1063582706288586752
         # Satoshi's key
-        P = octets2point(secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
+        P = point_from_octets(secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
 
         u1 = 1
         u2 = 2  # pick them at will
-        R = DblScalarMult(ec, u1, ec.G, u2, P)
+        R = double_mult(ec, u1, ec.G, u2, P)
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
@@ -126,7 +126,7 @@ class TestDSA(unittest.TestCase):
 
         u1 = 1234567890
         u2 = 987654321  # pick them at will
-        R = DblScalarMult(ec, u1, ec.G, u2, P)
+        R = double_mult(ec, u1, ec.G, u2, P)
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
@@ -146,7 +146,7 @@ class TestDSA(unittest.TestCase):
                     if d == 0:  # invalid prvkey = 0
                         self.assertRaises(ValueError, dsa._sign, ec, 1, d, 1)
                         continue
-                    P = pointMult(ec, d, ec.G)  # public key
+                    P = mult(ec, d, ec.G)  # public key
                     for e in range(ec.n):  # all possible int from hash
                         for k in range(ec.n):  # all possible ephemeral keys
 
@@ -154,7 +154,7 @@ class TestDSA(unittest.TestCase):
                                 self.assertRaises(ValueError,
                                                   dsa._sign, ec, e, d, k)
                                 continue
-                            R = pointMult(ec, k, ec.G)
+                            R = mult(ec, k, ec.G)
 
                             r = R[0] % ec.n
                             if r == 0:
@@ -187,7 +187,7 @@ class TestDSA(unittest.TestCase):
         ec = secp112r2
         hf = sha256
         q = 0x1
-        Q = pointMult(ec, q, ec.G)
+        Q = mult(ec, q, ec.G)
         msg = 'Satoshi Nakamoto'.encode()
         sig = dsa.sign(ec, hf, msg, q)
 

@@ -13,9 +13,9 @@ from hashlib import sha512
 from typing import Union, Optional, Sequence, List
 
 from btclib import base58 
-from btclib.ec import pointMult
+from btclib.ec import mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets, octets2point, point2octets, octets2int
+from btclib.utils import octets, point_from_octets, octets_from_point, int_from_octets
 from btclib.wifaddress import _h160, address_from_pubkey
 
 # VERSION BYTES =      4 bytes     Base58 encode starts with
@@ -59,7 +59,7 @@ def mprv_from_seed(seed: octets, version: octets) -> bytes:
     if isinstance(seed, str):  # hex string
         seed = bytes.fromhex(seed)
     hd = HMAC(b"Bitcoin seed", seed, sha512).digest()
-    mprv = octets2int(hd[:32])
+    mprv = int_from_octets(hd[:32])
     xmprv += hd[32:]                              # chain code
     xmprv += b'\x00' + mprv.to_bytes(32, 'big')   # private key
 
@@ -87,9 +87,9 @@ def xpub_from_xprv(xprv: octets) -> bytes:
     xpub += xprv[9:13]                         # child index
     xpub += xprv[13:45]                        # chain code
 
-    p = octets2int(xprv[46:])
-    P = pointMult(ec, p, ec.G)
-    xpub += point2octets(ec, P, True)          # public key
+    p = int_from_octets(xprv[46:])
+    P = mult(ec, p, ec.G)
+    xpub += octets_from_point(ec, P, True)          # public key
     return base58.encode_check(xpub)
 
 
@@ -123,7 +123,7 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         if xparent[45] not in (2, 3):  # not a compressed public key
             raise ValueError("version/key mismatch in extended parent key")
         Parent_bytes = xparent[45:]
-        Parent = octets2point(ec, Parent_bytes)
+        Parent = point_from_octets(ec, Parent_bytes)
         xkey += _h160(Parent_bytes)[:4]          # parent pubkey fingerprint
         if index[0] >= 0x80:
             raise ValueError("no private/hardened derivation from pubkey")
@@ -132,17 +132,17 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         # actual extended key (key + chain code) derivation
         h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
         offset = int.from_bytes(h[:32], 'big')
-        Offset = pointMult(ec, offset, ec.G)
+        Offset = mult(ec, offset, ec.G)
         Child = ec.add(Parent, Offset)
-        Child_bytes = point2octets(ec, Child, True)
+        Child_bytes = octets_from_point(ec, Child, True)
         xkey += h[32:]                            # chain code
         xkey += Child_bytes                       # public key
     elif (version in PRV):
         if xparent[45] != 0:    # not a private key
             raise ValueError("version/key mismatch in extended parent key")
         parent = int.from_bytes(xparent[46:], 'big')
-        Parent = pointMult(ec, parent, ec.G)
-        Parent_bytes = point2octets(ec, Parent, True)
+        Parent = mult(ec, parent, ec.G)
+        Parent_bytes = octets_from_point(ec, Parent, True)
         xkey += _h160(Parent_bytes)[:4]           # parent pubkey fingerprint
         xkey += index                             # child index
         # actual extended key (key + chain code) derivation
@@ -209,7 +209,7 @@ def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
         xversion = xpub[:4]
         i = PUB.index(xversion)
         version = ADDRESS[i]
-    P = octets2point(ec, xpub[45:])
+    P = point_from_octets(ec, xpub[45:])
     return address_from_pubkey(P, True, version)
 
 
