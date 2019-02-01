@@ -178,13 +178,11 @@ class EC:
     # methods using _a, _b, _p
 
     def add(self, Q1: Point, Q2: Point) -> Point:
-        # TODO: verify if this is slower
         self.requireOnCurve(Q1)
-        QJ1 = _jac_from_aff(Q1)
         self.requireOnCurve(Q2)
-        QJ2 = _jac_from_aff(Q2)
-        R = self._addJacobian(QJ1, QJ2)
-        return self._affine_from_jac(R)
+        # no Jacobian coordinates here as _affine_from_jac would cost 2 mod_inv
+        # while _addAffine costs only one mod_inv
+        return self._addAffine(Q1, Q2)
 
     def _addJacobian(self, Q: _JacPoint, R: _JacPoint) -> _JacPoint:
         # points are assumed to be on curve
