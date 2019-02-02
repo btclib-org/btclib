@@ -33,16 +33,16 @@ def _ensure_msg_size(hf, msg: bytes) -> None:
 
 def _e(ec: Curve, hf, r: int, P: Point, mhd: bytes) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
-    ebytes = octets_from_int(r, ec.psize) # FIXME: hsize, nsize ?
-    ebytes += octets_from_point(ec, P, True)
-    ebytes += mhd
-    ebytes = hf(ebytes).digest()
-    e = int_from_bits(ec, ebytes)
+    h = hf()
+    h.update(octets_from_int(r, ec.psize))
+    h.update(octets_from_point(ec, P, True))
+    h.update(mhd)
+    e = int_from_bits(ec, h.digest())
     return e
 
 
 def sign(ec: Curve, hf, mhd: bytes, d: int,
-                                 k: Optional[int] = None) -> Tuple[int, int]:
+                        k: Optional[int] = None) -> Tuple[int, int]:
     """ ECSSA signing operation according to bip-schnorr
 
         This signature scheme supports 32-byte messages.
