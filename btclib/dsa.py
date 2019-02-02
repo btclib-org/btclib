@@ -192,7 +192,8 @@ def _pubkey_recovery(ec: Curve, e: int, sig: ECDS) -> List[Point]:
 
 
 def _to_sig(ec: Curve, sig: ECDS) -> ECDS:
-    """check DSA signature correct format and return the signature itself"""
+    # check that the DSA signature is correct
+    # and return the signature itself
 
     if len(sig) != 2:
         m = f"invalid length {len(sig)} for ECDSA signature"

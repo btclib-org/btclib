@@ -161,9 +161,9 @@ def _pubkey_recovery(ec: Curve, hf, e: int, sig: ECSS) -> Point:
     return P
 
 
-def _to_sig(ec: Curve, sig: ECSS) -> Tuple[int, int]:
-    # Private function provided for testing purposes only.
-    # check SSA signature format is correct and return the signature itself
+def _to_sig(ec: Curve, sig: ECSS) -> ECSS:
+    # check that the SSA signature is correct
+    # and return the signature itself
 
     # A signature sig: a 64-byte array.
     if len(sig) != 2:
