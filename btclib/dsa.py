@@ -191,7 +191,7 @@ def _pubkey_recovery(ec: Curve, e: int, sig: ECDS) -> List[Point]:
     return keys
 
 
-def _to_sig(ec: Curve, sig: ECDS) -> Tuple[int, int]:
+def _to_sig(ec: Curve, sig: ECDS) -> ECDS:
     """check DSA signature correct format and return the signature itself"""
 
     if len(sig) != 2:
