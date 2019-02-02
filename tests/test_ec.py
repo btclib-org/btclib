@@ -233,8 +233,8 @@ class TestEllipticCurve(unittest.TestCase):
             Q = mult(ec, ec._p, ec.G)  # just a random point, not Inf
             x = Q[0]
             if ec._p % 4 == 3:
-                quad_res = ec.y_quadratic_residue(x, 1)
-                not_quad_res = ec.y_quadratic_residue(x, 0)
+                quad_res = ec.y_quadratic_residue(x, True)
+                not_quad_res = ec.y_quadratic_residue(x, False)
                 # in this case only quad_res is a quadratic residue
                 self.assertIn(quad_res, hasRoot)
                 root = mod_sqrt(quad_res, ec._p)
@@ -246,57 +246,56 @@ class TestEllipticCurve(unittest.TestCase):
                 self.assertNotIn(not_quad_res, hasRoot)
                 self.assertRaises(ValueError, mod_sqrt, not_quad_res, ec._p)
 
-                y_odd = ec.y_odd(x, 1)
+                y_odd = ec.y_odd(x, True)
                 self.assertTrue(y_odd in (quad_res, not_quad_res))
                 self.assertTrue(y_odd % 2 == 1)
-                yEven = ec.y_odd(x, 0)
-                self.assertTrue(yEven in (quad_res, not_quad_res))
-                self.assertTrue(yEven % 2 == 0)
+                y_even = ec.y_odd(x, False)
+                self.assertTrue(y_even in (quad_res, not_quad_res))
+                self.assertTrue(y_even % 2 == 0)
 
-                yLow = ec.y_high(x, 0)
-                self.assertTrue(yLow in (y_odd, yEven))
-                y_high = ec.y_high(x, 1)
-                self.assertTrue(y_high in (y_odd, yEven))
-                self.assertTrue(yLow < y_high)
+                y_low = ec.y_low(x, True)
+                self.assertTrue(y_low in (y_odd, y_even))
+                y_high = ec.y_low(x, False)
+                self.assertTrue(y_high in (y_odd, y_even))
+                self.assertTrue(y_low < y_high)
             else:
                 self.assertTrue(ec._p % 4 == 1)
                 # cannot use y_quadratic_residue in this case
-                self.assertRaises(ValueError, ec.y_quadratic_residue, x, 1)
-                self.assertRaises(ValueError, ec.y_quadratic_residue, x, 0)
+                self.assertRaises(ValueError, ec.y_quadratic_residue, x, True)
+                self.assertRaises(ValueError, ec.y_quadratic_residue, x, False)
 
-                y_odd = ec.y_odd(x, 1)
+                y_odd = ec.y_odd(x, True)
                 self.assertTrue(y_odd % 2 == 1)
-                yEven = ec.y_odd(x, 0)
-                self.assertTrue(yEven % 2 == 0)
+                y_even = ec.y_odd(x, False)
+                self.assertTrue(y_even % 2 == 0)
                 # in this case neither or both are quadratic residues
-                self.assertTrue((y_odd in hasRoot and yEven in hasRoot) or
-                                (y_odd not in hasRoot and yEven not in hasRoot))
-                if y_odd in hasRoot and yEven in hasRoot:
+                self.assertTrue((y_odd in hasRoot and y_even in hasRoot) or
+                                (y_odd not in hasRoot and y_even not in hasRoot))
+                if y_odd in hasRoot:  # both have roots
                     root = mod_sqrt(y_odd, ec._p)
                     self.assertEqual(y_odd, (root*root) % ec._p)
                     root = ec._p - root
                     self.assertEqual(y_odd, (root*root) % ec._p)
-                    root = mod_sqrt(yEven, ec._p)
-                    self.assertEqual(yEven, (root*root) % ec._p)
+                    root = mod_sqrt(y_even, ec._p)
+                    self.assertEqual(y_even, (root*root) % ec._p)
                     root = ec._p - root
-                    self.assertEqual(yEven, (root*root) % ec._p)
+                    self.assertEqual(y_even, (root*root) % ec._p)
                 else:
-                    self.assertTrue(
-                        y_odd not in hasRoot and yEven not in hasRoot)
                     self.assertRaises(ValueError, mod_sqrt, y_odd, ec._p)
-                    self.assertRaises(ValueError, mod_sqrt, yEven, ec._p)
+                    self.assertRaises(ValueError, mod_sqrt, y_even, ec._p)
 
-                yLow = ec.y_high(x, 0)
-                self.assertTrue(yLow in (y_odd, yEven))
-                y_high = ec.y_high(x, 1)
-                self.assertTrue(y_high in (y_odd, yEven))
-                self.assertTrue(yLow < y_high)
+                y_low = ec.y_low(x, True)
+                self.assertTrue(y_low in (y_odd, y_even))
+                y_high = ec.y_low(x, False)
+                self.assertTrue(y_high in (y_odd, y_even))
+                self.assertTrue(y_low < y_high)
+        
         # with the last curve
-        self.assertRaises(ValueError, ec.y_high, x, 2)
+        self.assertRaises(ValueError, ec.y_low, x, 2)
         self.assertRaises(ValueError, ec.y_odd, x, 2)
         self.assertRaises(ValueError, ec.y_quadratic_residue, x, 2)
 
-    def test_affine_jac_conversions(self):
+    def test_aff_jac_conversions(self):
         for ec in all_curves:
             Q = mult(ec, ec._p, ec.G)  # random point
             checkQ = ec._aff_from_jac(_jac_from_aff(Q))
@@ -305,7 +304,7 @@ class TestEllipticCurve(unittest.TestCase):
         checkInf = ec._aff_from_jac(_jac_from_aff(Inf))
         self.assertEqual(Inf, checkInf)
 
-    def test_Add(self):
+    def test_add(self):
         for ec in all_curves:
             Q1 = mult(ec, ec._p, ec.G)  # just a random point, not Inf
             Q1J = _jac_from_aff(Q1)
@@ -334,7 +333,7 @@ class TestEllipticCurve(unittest.TestCase):
             Q3jac = ec._add_jac(Q1J, _jac_from_aff(Q1opp))
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
-    def test_Multiply(self):
+    def test_mult(self):
         for ec in low_card_curves:
             for q in range(ec.n):
                 Q = _mult_aff(ec, q, ec.G)

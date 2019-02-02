@@ -274,29 +274,29 @@ class Curve:
     def y_odd(self, x: int, odd1even0: int) -> int:
         """return the odd (even) y coordinate associated to x"""
         if odd1even0 not in (0, 1):
-            raise ValueError("odd1even0 must be bool or 0/1")
+            raise ValueError("odd1even0 must be bool or 1/0")
         root = self.y(x)
         # switch even/odd root as needed (XORing the conditions)
         return root if root % 2 == odd1even0 else self._p - root
 
-    def y_high(self, x: int, high1low0: int) -> int:
-        """return the high (low) y coordinate associated to x"""
-        if high1low0 not in (0, 1):
-            raise ValueError("high1low0 must be bool or 0/1")
+    def y_low(self, x: int, low1high0: int) -> int:
+        """return the low (high) y coordinate associated to x"""
+        if low1high0 not in (0, 1):
+            raise ValueError("low1high0 must be bool or 1/0")
         root = self.y(x)
         # switch low/high root as needed (XORing the conditions)
-        return root if (self._p//2 < root) == high1low0 else self._p - root
+        return root if (self._p//2 >= root) == low1high0 else self._p - root
 
-    def y_quadratic_residue(self, x: int, quadRes: int) -> int:
+    def y_quadratic_residue(self, x: int, quad_res: int) -> int:
         """return the quadratic residue y coordinate associated to x"""
-        if quadRes not in (0, 1):
-            raise ValueError("quadRes must be bool or 0/1")
+        if quad_res not in (0, 1):
+            raise ValueError("quad_res must be bool or 1/0")
         if not self.pIsThreeModFour:
             raise ValueError("this method works only when p = 3 (mod 4)")
         root = self.y(x)
         # switch to quadratic residue root as needed
         legendre = legendre_symbol(root, self._p)
-        return root if legendre == quadRes else self._p - root
+        return root if legendre == quad_res else self._p - root
 
 
 def mult(ec: Curve, n: int, Q: Point) -> Point:
