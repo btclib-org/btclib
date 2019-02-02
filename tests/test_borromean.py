@@ -11,7 +11,7 @@
 import unittest
 import random
 
-from btclib.ec import mult
+from btclib.curve import mult
 from btclib.curves import secp256k1
 from btclib import borromean
 

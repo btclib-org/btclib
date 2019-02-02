@@ -10,7 +10,7 @@
 
 import unittest
 
-from btclib.ec import mult
+from btclib.curve import mult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets_from_int, point_from_octets
 from btclib import base58

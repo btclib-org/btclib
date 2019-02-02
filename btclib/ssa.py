@@ -18,7 +18,7 @@ import random
 from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Point, EC, mult, _mult_jac, double_mult, _double_mult, \
+from btclib.curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
     _jac_from_aff, _multi_mult
 from btclib.utils import int_from_bits, octets_from_point, octets_from_int
 from btclib.rfc6979 import rfc6979
@@ -31,7 +31,7 @@ def _ensure_msg_size(hf, msg: bytes) -> None:
         errmsg += f' instead of {hf().digest_size} bytes'
         raise ValueError(errmsg)
 
-def _e(ec: EC, hf, r: int, P: Point, mhd: bytes) -> int:
+def _e(ec: Curve, hf, r: int, P: Point, mhd: bytes) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
     ebytes = octets_from_int(r, ec.psize) # FIXME: hsize, nsize ?
     ebytes += octets_from_point(ec, P, True)
@@ -41,7 +41,7 @@ def _e(ec: EC, hf, r: int, P: Point, mhd: bytes) -> int:
     return e
 
 
-def sign(ec: EC, hf, mhd: bytes, d: int,
+def sign(ec: Curve, hf, mhd: bytes, d: int,
                                  k: Optional[int] = None) -> Tuple[int, int]:
     """ ECSSA signing operation according to bip-schnorr
 
@@ -92,7 +92,7 @@ def sign(ec: EC, hf, mhd: bytes, d: int,
     return r, s
 
 
-def verify(ec: EC, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
+def verify(ec: Curve, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
     """ECSSA verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
@@ -105,7 +105,7 @@ def verify(ec: EC, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
         return False
 
 
-def _verify(ec: EC, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
+def _verify(ec: Curve, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
     # This raises Exceptions, while verify should always return True or False
 
     # the bitcoin proposed standard is only valid for curves
@@ -145,7 +145,7 @@ def _verify(ec: EC, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
     return R[0] == (R[2]*R[2]*r % ec._p)
 
 
-def _pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
+def _pubkey_recovery(ec: Curve, hf, e: int, sig: ECSS) -> Point:
     # Private function provided for testing purposes only.
 
     r, s = _to_sig(ec, sig)
@@ -161,7 +161,7 @@ def _pubkey_recovery(ec: EC, hf, e: int, sig: ECSS) -> Point:
     return P
 
 
-def _to_sig(ec: EC, sig: ECSS) -> Tuple[int, int]:
+def _to_sig(ec: Curve, sig: ECSS) -> Tuple[int, int]:
     # Private function provided for testing purposes only.
     # check SSA signature format is correct and return the signature itself
 
@@ -181,7 +181,7 @@ def _to_sig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     return r, s
 
 
-def batch_verify(ec: EC, hf, ms: List[bytes], P: List[Point],
+def batch_verify(ec: Curve, hf, ms: List[bytes], P: List[Point],
                                               sig: List[ECSS]) -> bool:
     """ECSSA batch verification according to bip-schnorr
 
@@ -195,7 +195,7 @@ def batch_verify(ec: EC, hf, ms: List[bytes], P: List[Point],
         return False
 
 
-def _batch_verify(ec: EC, hf, ms: List[bytes], P: List[Point],
+def _batch_verify(ec: Curve, hf, ms: List[bytes], P: List[Point],
                                                sig: List[ECSS]) -> bool:
     t = 0
     scalars: List(int) = list()

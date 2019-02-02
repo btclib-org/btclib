@@ -15,7 +15,7 @@ from btclib.curves import secp256k1, \
                            nistp192, nistp224, nistp256, nistp384, nistp521
 from btclib.rfc6979 import rfc6979
 
-from btclib.ec import mult
+from btclib.curve import mult
 from btclib import dsa
 from btclib.utils import int_from_bits, octets_from_int, _int_from_bits
 

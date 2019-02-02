@@ -13,7 +13,7 @@ from hashlib import sha512
 from typing import Union, Optional, Sequence, List
 
 from btclib import base58 
-from btclib.ec import mult
+from btclib.curve import mult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets, point_from_octets, octets_from_point, int_from_octets
 from btclib.wifaddress import _h160, address_from_pubkey

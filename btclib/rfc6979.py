@@ -34,9 +34,9 @@
 
 import hmac
 
-from btclib.utils import EC, octets, _int_from_bits, octets_from_int
+from btclib.utils import Curve, octets, _int_from_bits, octets_from_int
 
-def rfc6979(ec: EC, hf, h1: bytes, x: int) -> int:
+def rfc6979(ec: Curve, hf, h1: bytes, x: int) -> int:
     """Return a deterministic ephemeral key following rfc6979"""
 
     if not 0 < x < ec.n:

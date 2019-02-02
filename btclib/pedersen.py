@@ -8,10 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.ec import Point, EC, double_mult
+from btclib.curve import Point, Curve, double_mult
 from btclib.utils import int_from_octets, octets_from_point, int_from_bits
 
-def second_generator(ec: EC, hf) -> Point:
+def second_generator(ec: Curve, hf) -> Point:
     """Nothing-Up-My-Sleeve (NUMS) second generator H wrt ec.G 
 
        source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
@@ -33,7 +33,7 @@ def second_generator(ec: EC, hf) -> Point:
     return Point(hx, hy)
 
 
-def commit(r: int, v: int, ec: EC, hf) -> Point:
+def commit(r: int, v: int, ec: Curve, hf) -> Point:
     """Return rG + vH, with H being second (NUMS) generator of the curve"""
     H = second_generator(ec, hf)
     Q = double_mult(ec, r, ec.G, v, H)
@@ -41,7 +41,7 @@ def commit(r: int, v: int, ec: EC, hf) -> Point:
     return Q
 
 
-def open(r: int, v: int, C: Point, ec: EC, hf) -> bool:
+def open(r: int, v: int, C: Point, ec: Curve, hf) -> bool:
     # try/except wrapper for the Errors raised by commit
     try:
         P = commit(r, v, ec, hf)

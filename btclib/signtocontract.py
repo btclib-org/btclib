@@ -11,13 +11,13 @@
 """sign-to-contract
 
     IDEA:
-    Let c be a value (bytes) and P an EC point, then
+    Let c be a value (bytes) and P an Curve point, then
     c, P -> h(P||c)G + P
     is a commitment operation. (G generator, || concatenation)
-    The signature contains an EC point, thus it can become a commitment to c.
+    The signature contains an Curve point, thus it can become a commitment to c.
 
     HOW:
-    when signing, generate a nonce (k) and compute a EC point (R = kG)
+    when signing, generate a nonce (k) and compute a Curve point (R = kG)
     instead of proceeding using (k,R), compute a value (e) that is a
     commitment to c:
     e = hash(R||c)
@@ -33,7 +33,7 @@
 
 from typing import Optional, Tuple
 
-from btclib.ec import EC, mult, Point
+from btclib.curve import Curve, mult, Point
 from btclib.utils import int_from_bits, point_from_octets, octets_from_point
 from btclib.rfc6979 import rfc6979
 from btclib import dsa
@@ -42,7 +42,7 @@ from btclib import ssa
 Receipt = Tuple[int, Point]
 
 
-def _tweak(c: bytes, ec: EC, hf, k: int) -> Tuple[Point, int]:
+def _tweak(c: bytes, ec: Curve, hf, k: int) -> Tuple[Point, int]:
     """tweak kG
 
     returns:
@@ -55,7 +55,7 @@ def _tweak(c: bytes, ec: EC, hf, k: int) -> Tuple[Point, int]:
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
+def ecdsa_commit_sign(c: bytes, ec: Curve, hf, m: bytes, prvkey: int,
                       k: Optional[int] = None) -> Tuple[dsa.ECDS, Receipt]:
     if k is None:
         k = rfc6979(ec, hf, hf(m).digest(), prvkey)
@@ -71,7 +71,7 @@ def ecdsa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
     return sig, receipt
 
 
-def ecssa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
+def ecssa_commit_sign(c: bytes, ec: Curve, hf, m: bytes, prvkey: int,
                       k: Optional[int] = None) -> Tuple[ssa.ECSS, Receipt]:
     if k is None:
         k = rfc6979(ec, hf, m, prvkey)
@@ -89,7 +89,7 @@ def ecssa_commit_sign(c: bytes, ec: EC, hf, m: bytes, prvkey: int,
 # FIXME: have create_commit instead of commit_sign
 
 
-def verify_commit(c: bytes, ec: EC, hf, receipt: Receipt) -> bool:
+def verify_commit(c: bytes, ec: Curve, hf, receipt: Receipt) -> bool:
     w, R = receipt
     # w in [1..n-1] dsa
     # w in [1..p-1] ssa

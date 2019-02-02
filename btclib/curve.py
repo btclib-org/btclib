@@ -41,12 +41,12 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
     return Q[0], Q[1], 1
 
 
-class EC:
+class Curve:
     """Elliptic curve y^2 = x^3 + a*x + b over Fp group"""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
                        h: int, t: int, weakness_check: bool = True) -> None:
-        """EC instantiation
+        """Curve instantiation
 
         Parameters are checked according to SEC 1 v.2 3.1.1.2.1
         """
@@ -137,7 +137,7 @@ class EC:
                     raise UserWarning("weak curve")
 
     def __str__(self) -> str:
-        result = "EC"
+        result = "Curve"
         result += f"\n p   = {hex(self._p)}"
         result += f"\n a   = {hex(self._a)}"
         result += f"\n b   = {hex(self._b)}"
@@ -149,7 +149,7 @@ class EC:
         return result
 
     def __repr__(self) -> str:
-        result = "EC("
+        result = "Curve("
         result += f"{hex(self._p)}"
         result += f", {hex(self._a)}, {hex(self._b)}"
         result += f", ({hex(self.G[0])}, {hex(self.G[1])})"
@@ -299,8 +299,8 @@ class EC:
         return root if legendre == quadRes else self._p - root
 
 
-def mult(ec: EC, n: int, Q: Point) -> Point:
-    # this function is used by the EC class; it might be a method...
+def mult(ec: Curve, n: int, Q: Point) -> Point:
+    # this function is used by the Curve class; it might be a method...
     # but it does not need to
     ec.require_on_curve(Q)
     QJ = _jac_from_aff(Q)
@@ -308,7 +308,7 @@ def mult(ec: EC, n: int, Q: Point) -> Point:
     return ec._aff_from_jac(R)
 
 
-def _mult_aff(ec: EC, m: int, Q: Point) -> Point:
+def _mult_aff(ec: Curve, m: int, Q: Point) -> Point:
     # double & add in affine coordinates, using binary decomposition of m
     # Point is assumed to be on curve
 
@@ -324,7 +324,7 @@ def _mult_aff(ec: EC, m: int, Q: Point) -> Point:
     return R
 
 
-def _mult_jac(ec: EC, m: int, Q: _JacPoint) -> _JacPoint:
+def _mult_jac(ec: Curve, m: int, Q: _JacPoint) -> _JacPoint:
     # double & add in Jacobian coordinates, using binary decomposition of m
     # Point is assumed to be on curve
 
@@ -340,7 +340,7 @@ def _mult_jac(ec: EC, m: int, Q: _JacPoint) -> _JacPoint:
     return R
 
 
-def double_mult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
+def double_mult(ec: Curve, u: int, Q: Point, v: int, P: Point) -> Point:
     """Shamir trick for efficient computation of u*Q + v*P"""
 
     ec.require_on_curve(Q)
@@ -354,7 +354,7 @@ def double_mult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
     return ec._aff_from_jac(R)
 
 
-def _double_mult(ec: EC, u: int, QJ: _JacPoint,
+def _double_mult(ec: Curve, u: int, QJ: _JacPoint,
                            v: int, PJ: _JacPoint) -> _JacPoint:
 
     u %= ec.n
@@ -381,7 +381,7 @@ def _double_mult(ec: EC, u: int, QJ: _JacPoint,
     return R
 
 
-def multi_mult(ec: EC, scalars: Sequence[int],
+def multi_mult(ec: Curve, scalars: Sequence[int],
                             Points: Sequence[Point]) -> Point:
     """ Bos-Coster's algorithm """
 
@@ -400,7 +400,7 @@ def multi_mult(ec: EC, scalars: Sequence[int],
     return ec._aff_from_jac(R)
 
 
-def _multi_mult(ec: EC, scalars: Sequence[int],
+def _multi_mult(ec: Curve, scalars: Sequence[int],
                              JPoints: Sequence[_JacPoint]) -> _JacPoint:
     # source: https://cr.yp.to/badbatch/boscoster2.py
 

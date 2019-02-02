@@ -17,14 +17,14 @@
 from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv
-from btclib.ec import Point, EC, _mult_jac, _double_mult, double_mult
+from btclib.curve import Point, Curve, _mult_jac, _double_mult, double_mult
 from btclib.utils import int_from_bits
 from btclib.rfc6979 import rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
-def sign(ec: EC, hf, msg: bytes, d: int,
+def sign(ec: Curve, hf, msg: bytes, d: int,
                                  k: Optional[int] = None) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 1
 
@@ -37,7 +37,7 @@ def sign(ec: EC, hf, msg: bytes, d: int,
     # a sequence of bits of length hlen.  Normally, hf is chosen such that
     # its output length hlen is roughly equal to nlen, since the overall
     # security of the signature scheme will depend on the smallest of hlen
-    # and nlen; however, the (EC)DSA standard support all combinations of
+    # and nlen; however, the (Curve)DSA standard support all combinations of
     # hlen and nlen.
     mhd = hf(msg).digest()                             # 4
     # H(m) is transformed into an integer modulo ec.n using int_from_bits:
@@ -52,7 +52,7 @@ def sign(ec: EC, hf, msg: bytes, d: int,
     return _sign(ec, e, d, k)
 
 
-def _sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
+def _sign(ec: Curve, e: int, d: int, k: int) -> Tuple[int, int]:
     """Private function provided for testing purposes only."""
     # e is assumed to be valid
     # Steps numbering follows SEC 1 v.2 section 4.1.3
@@ -86,7 +86,7 @@ def _sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     return r, s
 
 
-def verify(ec: EC, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
+def verify(ec: Curve, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
     """ECDSA veryfying operation to SEC 1
 
        See SEC 1 v.2 section 4.1.4
@@ -100,7 +100,7 @@ def verify(ec: EC, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
         return False
 
 
-def _verify(ec: EC, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
+def _verify(ec: Curve, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only.
     
        It raises Errors, while verify should always return True or False
@@ -120,7 +120,7 @@ def _verify(ec: EC, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
     return _verhlp(ec, e, P, sig)
 
 
-def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
+def _verhlp(ec: Curve, e: int, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only."""
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
@@ -146,7 +146,7 @@ def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     return r == v                                          # 8
 
 
-def pubkey_recovery(ec: EC, hf, msg: bytes, sig: ECDS) -> List[Point]:
+def pubkey_recovery(ec: Curve, hf, msg: bytes, sig: ECDS) -> List[Point]:
     """ECDSA public key recovery operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
@@ -160,7 +160,7 @@ def pubkey_recovery(ec: EC, hf, msg: bytes, sig: ECDS) -> List[Point]:
     return _pubkey_recovery(ec, e, sig)
 
 
-def _pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
+def _pubkey_recovery(ec: Curve, e: int, sig: ECDS) -> List[Point]:
     """Private function provided for testing purposes only."""
     # ECDSA public key recovery operation according to SEC 1
     # http://www.secg.org/sec1-v2.pdf
@@ -191,7 +191,7 @@ def _pubkey_recovery(ec: EC, e: int, sig: ECDS) -> List[Point]:
     return keys
 
 
-def _to_sig(ec: EC, sig: ECDS) -> Tuple[int, int]:
+def _to_sig(ec: Curve, sig: ECDS) -> Tuple[int, int]:
     """check DSA signature correct format and return the signature itself"""
 
     if len(sig) != 2:

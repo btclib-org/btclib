@@ -14,12 +14,12 @@ Assorted conversion utilities
 
 from typing import Union
 
-from btclib.ec import EC, Point
+from btclib.curve import Curve, Point
 
 octets = Union[str, bytes]
 
 
-def point_from_octets(ec: EC, o: octets) -> Point:
+def point_from_octets(ec: Curve, o: octets) -> Point:
     """Return a tuple (Px, Py) that belongs to the curve
 
        SEC 1 v.2, section 2.3.4
@@ -56,7 +56,7 @@ def point_from_octets(ec: EC, o: octets) -> Point:
             raise ValueError("point not on curve")
 
 
-def octets_from_point(ec: EC, Q: Point, compressed: bool) -> bytes:
+def octets_from_point(ec: Curve, Q: Point, compressed: bool) -> bytes:
     """Return a compressed (0x02, 0x03) or uncompressed (0x04) point as octets
 
        SEC 1 v.2, section 2.3.3
@@ -92,7 +92,7 @@ def octets_from_int(i: int, bytesize: int) -> bytes:
 # octets_from_int is the reverse of int_from_bits only when nlen is a multiple of
 # 8 and bit sequences already have length nlen.
 
-def int_from_bits(ec: EC, o: octets) -> int:
+def int_from_bits(ec: Curve, o: octets) -> int:
     """ Return the leftmost ec.nlen bits reduced modulo ec.n
     
         It takes as input a sequence of blen bits and calculate a non-negative
@@ -107,7 +107,7 @@ def int_from_bits(ec: EC, o: octets) -> int:
     return i % ec.n  # might be just a difference
 
 
-def _int_from_bits(ec: EC, o: octets) -> int:
+def _int_from_bits(ec: Curve, o: octets) -> int:
     """ Return the leftmost ec.nlen bits
 
         It takes as input a sequence of blen bits and outputs a non-negative

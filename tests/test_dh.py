@@ -11,7 +11,7 @@
 import unittest
 from hashlib import sha1 as hf
 
-from btclib.ec import mult
+from btclib.curve import mult
 from btclib.curves import secp160r1 as ec
 from btclib.utils import point_from_octets, octets_from_point, octets_from_int
 from btclib import dh

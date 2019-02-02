@@ -14,7 +14,7 @@ from hashlib import sha256 as hf
 from typing import List
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Point, mult, double_mult
+from btclib.curve import Point, mult, double_mult
 from btclib.curves import secp256k1, secp224k1, low_card_curves
 from btclib.utils import int_from_octets, point_from_octets, octets_from_point, int_from_bits
 from btclib.pedersen import second_generator
