@@ -51,13 +51,13 @@ def rfc6979(ec: Curve, hf, h1: bytes, x: int) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
     # h1 = hf(m)                                           # 3.2.a
 
+    # convert the private key x to a sequence of nsize octets
+    bprv = octets_from_int(x, ec.nsize) # bprv = x.to_bytes(nsize, 'big')
+
     # truncate and/or expand h1: encoding size is driven by nsize
     z1 = _int_from_bits(ec, h1)         # leftmost ec.nlen bits
     z1 %= ec.n
     bm = octets_from_int(z1, ec.nsize)  # bm = z1.to_bytes(nsize, 'big')
-
-    # convert the private key x to a sequence of nsize octets
-    bprv = octets_from_int(x, ec.nsize) # bprv = x.to_bytes(nsize, 'big')
 
     bprvbm = bprv + bm
     V = b'\x01' * hsize                                    # 3.2.b
