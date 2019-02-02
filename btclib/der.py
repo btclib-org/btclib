@@ -80,9 +80,12 @@ def encode(ec: Curve, sig: ECDS, sighash: bytes = sighash_all) -> bytes:
 def decode(ec: Curve, sig: bytes) -> Tuple[ECDS, bytes]:
     """Decode strict DER-encoded signature representation"""
 
+    maxsize = ec.nsize * 2 + 7
     sigsize = len(sig)
-    if not 8 < sigsize < 74:
-        raise ValueError(f"DER signature size ({sigsize}) must be in [9, 73]")
+    if not 8 < sigsize <= maxsize:
+        errmsg = f"DER signature size ({sigsize}) must be in "
+        errmsg += f"[9, {maxsize}]"
+        raise ValueError(errmsg)
 
     if sig[0] != 0x30:
         raise ValueError("DER signature must be of type 0x30 (compound)")
@@ -113,7 +116,7 @@ def decode(ec: Curve, sig: bytes) -> Tuple[ECDS, bytes]:
     if sig[4] & 0x80:
         raise ValueError("Negative numbers are not allowed for r")
 
-    # Null bytes at the start of an scalar are not allowed, unless the
+    # Null bytes at the start of a scalar are not allowed, unless the
     # scalar would otherwise be interpreted as a negative number
     if sizeR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
         raise ValueError("Invalid null bytes at the start of r")
@@ -127,6 +130,8 @@ def decode(ec: Curve, sig: bytes) -> Tuple[ECDS, bytes]:
     if sig[sizeR + 6] & 0x80:
         raise ValueError("Negative numbers are not allowed for s")
 
+    # Null bytes at the start of a scalar are not allowed, unless the
+    # scalar would otherwise be interpreted as a negative number
     if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
         raise ValueError("Invalid null bytes at the start of s")
 
