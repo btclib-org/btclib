@@ -60,6 +60,7 @@ def _encode_element(element: int) -> bytes:
 
 
 def encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
+    """Strict DER-encoded signature representation"""
     if len(sighash) > 1:
         raise ValueError(f"sighash size {len(sighash)} > 1")
     r, s = sig
@@ -68,6 +69,7 @@ def encode(sig: ECDS, sighash: bytes = sighash_all) -> bytes:
     return b'\x30' + len(enc).to_bytes(1, "big") + enc + sighash
 
 def decode(sig: bytes) -> Tuple[ECDS, bytes]:
+    """Decode strict DER-encoded signature representation"""
 
     sigsize = len(sig)
     if not 8 < sigsize < 74:
@@ -121,4 +123,4 @@ def decode(sig: bytes) -> Tuple[ECDS, bytes]:
 
     s = int.from_bytes(sig[6+sizeR:6+sizeR+sizeS], 'big')
 
-    return (r , s) , sig[sigsize-1:]
+    return (r, s), sig[sigsize-1:]
