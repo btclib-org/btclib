@@ -174,7 +174,7 @@ def _to_sig(ec: Curve, sig: ECSS) -> ECSS:
     r = int(sig[0])
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
-    s = int(sig[1])  # FIXME: int from bytes ?
+    s = int(sig[1])
     if not 0 <= s < ec.n:
         raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
 
@@ -182,7 +182,7 @@ def _to_sig(ec: Curve, sig: ECSS) -> ECSS:
 
 
 def batch_verify(ec: Curve, hf, ms: List[bytes], P: List[Point],
-                                              sig: List[ECSS]) -> bool:
+                                                 sig: List[ECSS]) -> bool:
     """ECSSA batch verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
@@ -196,7 +196,7 @@ def batch_verify(ec: Curve, hf, ms: List[bytes], P: List[Point],
 
 
 def _batch_verify(ec: Curve, hf, ms: List[bytes], P: List[Point],
-                                               sig: List[ECSS]) -> bool:
+                                                  sig: List[ECSS]) -> bool:
     t = 0
     scalars: List(int) = list()
     points: List[Point] = list()
