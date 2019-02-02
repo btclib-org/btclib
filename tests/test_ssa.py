@@ -312,16 +312,16 @@ class TestEcssa(unittest.TestCase):
             q = random.getrandbits(ec.nlen) % ec.n
             sig.append(ssa.sign(ec, hf, m[i], q))
             Q.append(mult(ec, q, ec.G))
-        self.assertTrue(ssa.batch_verification(ec, hf, m, Q, sig))
+        self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
 
         m.append(m[0])
         sig.append(sig[1])  # invalid
         Q.append(Q[0])
-        self.assertFalse(ssa.batch_verification(ec, hf, m, Q, sig))
+        self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
 
         sig[-1] = sig[0]  # valid
         m[-1] = m[0][:-1]  # invalid 31 bytes message
-        self.assertFalse(ssa.batch_verification(ec, hf, m, Q, sig))
+        self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""

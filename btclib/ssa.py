@@ -18,34 +18,38 @@ import random
 from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Point, EC, mult, double_mult, \
-    _jac_from_aff, _mult_jac, _double_mult, _multi_mult
+from btclib.ec import Point, EC, mult, _mult_jac, double_mult, _double_mult, \
+    _jac_from_aff, _multi_mult
 from btclib.utils import int_from_bits, octets_from_point, octets_from_int
 from btclib.rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
 
-def _ensure_msg_size(hf, m: bytes) -> None:
-    if len(m) != hf().digest_size:
-        errmsg = f'message of wrong size: {len(m)}'
+def _ensure_msg_size(hf, msg: bytes) -> None:
+    if len(msg) != hf().digest_size:
+        errmsg = f'message of wrong size: {len(msg)}'
         errmsg += f' instead of {hf().digest_size} bytes'
         raise ValueError(errmsg)
 
-def _e(ec: EC, hf, r: int, P: Point, m: bytes) -> int:
-    # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
+def _e(ec: EC, hf, r: int, P: Point, mhd: bytes) -> int:
+    # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
     ebytes = octets_from_int(r, ec.psize) # FIXME: hsize, nsize ?
     ebytes += octets_from_point(ec, P, True)
-    ebytes += m
+    ebytes += mhd
     ebytes = hf(ebytes).digest()
     e = int_from_bits(ec, ebytes)
     return e
 
 
-def sign(ec: EC, hf, m: bytes, d: int,
-         k: Optional[int] = None) -> Tuple[int, int]:
-    """ECSSA signing operation according to bip-schnorr
+def sign(ec: EC, hf, mhd: bytes, d: int,
+                                 k: Optional[int] = None) -> Tuple[int, int]:
+    """ ECSSA signing operation according to bip-schnorr
 
-       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+        This signature scheme supports 32-byte messages.
+        Differently from ECDSA, the 32-byte message can be a
+        digest of other messages, but it does not need to.
+
+        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
     """
 
     # the bitcoin proposed standard is only valid for curves
@@ -54,12 +58,8 @@ def sign(ec: EC, hf, m: bytes, d: int,
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
 
-    # This signature scheme supports 32-byte messages.
-    # Differently from ECDSA, the 32-byte message can be
-    # a digest of other messages, but it does not need to.
-
-    # The message m: a 32-byte array
-    _ensure_msg_size(hf, m)
+    # The message mhd: a 32-byte array
+    _ensure_msg_size(hf, mhd)
 
     # The secret key d: an integer in the range 1..n-1.
     if not 0 < d < ec.n:
@@ -68,7 +68,7 @@ def sign(ec: EC, hf, m: bytes, d: int,
 
     # Fail if k' = 0.
     if k is None:
-        k = rfc6979(ec, hf, m, d)
+        k = rfc6979(ec, hf, mhd, d)
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
 
@@ -84,15 +84,15 @@ def sign(ec: EC, hf, m: bytes, d: int,
     Z2 = RJ[2]*RJ[2]
     r = (RJ[0]*mod_inv(Z2, ec._p)) % ec._p
 
-    # Let e = int(hf(bytes(x(R)) || bytes(dG) || m)) mod n.
-    e = _e(ec, hf, r, P, m)
+    # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
+    e = _e(ec, hf, r, P, mhd)
 
     s = (k + e*d) % ec.n  # s=0 is ok: in verification there is no inverse of s
     # The signature is bytes(x(R) || bytes((k + ed) mod n)).
     return r, s
 
 
-def verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
+def verify(ec: EC, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
     """ECSSA verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
@@ -100,12 +100,12 @@ def verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(ec, hf, m, P, sig)
+        return _verify(ec, hf, mhd, P, sig)
     except Exception:
         return False
 
 
-def _verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
+def _verify(ec: EC, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
     # This raises Exceptions, while verify should always return True or False
 
     # the bitcoin proposed standard is only valid for curves
@@ -118,16 +118,16 @@ def _verify(ec: EC, hf, m: bytes, P: Point, sig: ECSS) -> bool:
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
     r, s = _to_sig(ec, sig)
 
-    # The message m: a 32-byte array
-    _ensure_msg_size(hf, m)
+    # The message mhd: a 32-byte array
+    _ensure_msg_size(hf, mhd)
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.require_on_curve(P)
     if P[1] == 0:
         raise ValueError("public key is infinite")
 
-    # Let e = int(hf(bytes(r) || bytes(P) || m)) mod n.
-    e = _e(ec, hf, r, P, m)
+    # Let e = int(hf(bytes(r) || bytes(P) || mhd)) mod n.
+    e = _e(ec, hf, r, P, mhd)
 
     # Let R = sG - eP.
     # in Jacobian coordinates
@@ -167,8 +167,8 @@ def _to_sig(ec: EC, sig: ECSS) -> Tuple[int, int]:
 
     # A signature sig: a 64-byte array.
     if len(sig) != 2:
-        m = f"invalid length {len(sig)} for ECSSA signature"
-        raise TypeError(m)
+        mhd = f"invalid length {len(sig)} for ECSSA signature"
+        raise TypeError(mhd)
 
     # Let r = int(sig[ 0:32]).
     r = int(sig[0])
@@ -181,22 +181,22 @@ def _to_sig(ec: EC, sig: ECSS) -> Tuple[int, int]:
     return r, s
 
 
-def batch_verification(ec: EC, hf, ms: List[bytes], P: List[Point],
-                                                    sig: List[ECSS]) -> bool:
+def batch_verify(ec: EC, hf, ms: List[bytes], P: List[Point],
+                                              sig: List[ECSS]) -> bool:
     """ECSSA batch verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
     """
 
-    # try/except wrapper for the Errors raised by _batch_verification
+    # try/except wrapper for the Errors raised by _batch_verify
     try:
-        return _batch_verification(ec, hf, ms, P, sig)
+        return _batch_verify(ec, hf, ms, P, sig)
     except Exception:
         return False
 
 
-def _batch_verification(ec: EC, hf, ms: List[bytes], P: List[Point],
-                                                     sig: List[ECSS]) -> bool:
+def _batch_verify(ec: EC, hf, ms: List[bytes], P: List[Point],
+                                               sig: List[ECSS]) -> bool:
     t = 0
     scalars: List(int) = list()
     points: List[Point] = list()
