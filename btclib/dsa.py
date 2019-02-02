@@ -24,8 +24,8 @@ from btclib.rfc6979 import rfc6979
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
-def sign(ec: EC, hf, M: bytes,
-         d: int, k: Optional[int] = None) -> Tuple[int, int]:
+def sign(ec: EC, hf, M: bytes, d: int,
+                               k: Optional[int] = None) -> Tuple[int, int]:
     """ECDSA signing operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
@@ -41,7 +41,7 @@ def sign(ec: EC, hf, M: bytes,
     # hlen and nlen.
     hd = hf(M).digest()                               # 4
     # H(m) is transformed into an integer modulo ec.n using int_from_bits:
-    e = int_from_bits(ec, hd)                              # 5
+    e = int_from_bits(ec, hd)                         # 5
 
     if k is None:
         k = rfc6979(ec, hf, hd, d)                    # 1
@@ -66,7 +66,7 @@ def _sign(ec: EC, e: int, d: int, k: int) -> Tuple[int, int]:
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
     # Let R = k'G.
-    RJ = _mult_jac(ec, k, ec.GJ)             # 1
+    RJ = _mult_jac(ec, k, ec.GJ)                      # 1
 
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     r = Rx % ec.n                                     # 2, 3
@@ -110,7 +110,7 @@ def _verify(ec: EC, hf, M: bytes, P: Point, sig: ECDS) -> bool:
     """
 
     # The message digest m: a 32-byte array
-    hd = hf(M).digest()                               # 2
+    hd = hf(M).digest()                                    # 2
     e = int_from_bits(ec, hd)                              # 3
 
     # Let P = point(pk); fail if point(pk) fails.
@@ -124,7 +124,7 @@ def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only."""
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = _to_sig(ec, sig)                                  # 1
+    r, s = _to_sig(ec, sig)                                # 1
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.require_on_curve(P)
@@ -133,17 +133,17 @@ def _verhlp(ec: EC, e: int, P: Point, sig: ECDS) -> bool:
 
     s1 = mod_inv(s, ec.n)
     u1 = e*s1
-    u2 = r*s1                                                # 4
+    u2 = r*s1                                              # 4
     # Let R = u*G + v*P.
     RJ = _double_mult(ec, u1, ec.GJ, u2, (P[0], P[1], 1))  # 5
 
     # Fail if infinite(R).
-    assert RJ[2] != 0, "how did you do that?!?"              # 5
+    assert RJ[2] != 0, "how did you do that?!?"            # 5
 
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
-    v = Rx % ec.n                                            # 6, 7
+    v = Rx % ec.n                                          # 6, 7
     # Fail if r ≠ x(R) %n.
-    return r == v                                            # 8
+    return r == v                                          # 8
 
 
 def pubkey_recovery(ec: EC, hf, M: bytes, sig: ECDS) -> List[Point]:

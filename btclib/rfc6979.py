@@ -72,7 +72,7 @@ def rfc6979(ec: EC, hf, h1: bytes, x: int) -> int:
         while len(T) < ec.nsize:                           # 3.2.h.2
             V = hmac.new(K, V, hf).digest()
             T += V
-        k = _int_from_bits(ec, T)  # candidate                  # 3.2.h.3
+        k = _int_from_bits(ec, T)  # candidate             # 3.2.h.3
         if 0 < k < ec.n:      # acceptable values for k
             return k          # successful candidate
         K = hmac.new(K, V + b'\x00', hf).digest()
