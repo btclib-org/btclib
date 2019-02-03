@@ -72,14 +72,14 @@ def sign(ec: Curve,
 
     # The secret key d: an integer in the range 1..n-1.
     if not 0 < d < ec.n:
-        raise ValueError(f"private key {hex(d)} not in (0, n)")
+        raise ValueError(f"private key {hex(d)} not in [1, n-1]")
     P = mult(ec, d, ec.G)
 
     # Fail if k' = 0.
     if k is None:
         k = rfc6979(ec, hf, mhd, d)
     if not 0 < k < ec.n:
-        raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
+        raise ValueError(f"ephemeral key {hex(k)} not in [1, n-1]")
 
     # Let R = k'G.
     RJ = _mult_jac(ec, k, ec.GJ)
