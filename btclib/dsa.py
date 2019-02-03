@@ -44,9 +44,9 @@ def sign(ec: Curve,
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
-    mhd = hf(msg).digest()                             # 4
+    mhd = hf(msg).digest()                            # 4
     # H(m) is transformed into an integer modulo ec.n using int_from_bits:
-    e = int_from_bits(ec, mhd)                         # 5
+    e = int_from_bits(ec, mhd)                        # 5
 
     # The secret key d: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
