@@ -121,9 +121,6 @@ def _verify(ec: Curve,
     # second part delegated to helper function
     return _verhlp(ec, e, P, sig)
 
-    # second part delegated to helper function used in testing
-    return _verhlp(ec, e, P, sig)
-
 
 def _verhlp(ec: Curve, e: int, P: Point, sig: ECDS) -> bool:
     """Private function provided for testing purposes only."""
