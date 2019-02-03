@@ -43,31 +43,31 @@ def sign(ec: Curve,
     # hlen and nlen.
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
+
     mhd = hf(msg).digest()                             # 4
     # H(m) is transformed into an integer modulo ec.n using int_from_bits:
     e = int_from_bits(ec, mhd)                         # 5
-
-    if k is None:
-        k = rfc6979(ec, hf, mhd, d)                    # 1
-
-    # second part delegated to helper function used in testing
-    return _sign(ec, e, d, k)
-
-
-def _sign(ec: Curve, e: int, d: int, k: int) -> ECDS:
-    """Private function provided for testing purposes only."""
-    # e is assumed to be valid
-    # Steps numbering follows SEC 1 v.2 section 4.1.3
 
     # The secret key d: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
     if not 0 < d < ec.n:
         raise ValueError(f"private key {hex(d)} not in [1, n-1]")
 
-    # Fail if k' = 0.
+    if k is None:
+        k = rfc6979(ec, hf, mhd, d)                    # 1
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in [1, n-1]")
-    # Let R = k'G.
+
+    # second part delegated to helper function
+    return _sign(ec, e, d, k)
+
+
+def _sign(ec: Curve, e: int, d: int, k: int) -> ECDS:
+    # Private function for test/dev purposes
+    # it is assumed that d, k, e are in [1, n-1]
+
+    # Steps numbering follows SEC 1 v.2 section 4.1.3
+
     RJ = _mult_jac(ec, k, ec.GJ)                      # 1
 
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
@@ -111,20 +111,15 @@ def _verify(ec: Curve,
             msg: bytes,
             P: Point,
             sig: ECDS) -> bool:
-    """Private function provided for testing purposes only.
-    
-       It raises Errors, while verify should always return True or False
-
-       See SEC 1 v.2 section 4.1.4
-       http://www.secg.org/sec1-v2.pdf
-    """
+    # Private function for test/dev purposes
+    # It raises Errors, while verify should always return True or False
 
     # The message digest m: a 32-byte array
     mhd = hf(msg).digest()                                 # 2
     e = int_from_bits(ec, mhd)                             # 3
 
-    # Let P = point(pk); fail if point(pk) fails.
-    # P on point will be checked below by double_mult
+    # second part delegated to helper function
+    return _verhlp(ec, e, P, sig)
 
     # second part delegated to helper function used in testing
     return _verhlp(ec, e, P, sig)
