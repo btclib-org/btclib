@@ -44,7 +44,7 @@ def rfc6979(ec: Curve, hf: Callable[[Any], Any], mhd: bytes, x: int) -> int:
     """Return a deterministic ephemeral key following rfc6979"""
 
     if not 0 < x < ec.n:
-        raise ValueError(f"invalid private key {hex(x)}")
+        raise ValueError(f"private key {hex(x)} not in [1, n-1]")
 
     hsize = hf().digest_size
     if len(mhd) != hsize:
