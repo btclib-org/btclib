@@ -142,18 +142,10 @@ class TestDSA(unittest.TestCase):
 
         for ec in low_card_curves:  # only low card or it would take forever
             if ec._p in prime:  # only few curves or it would take too long
-                for d in range(ec.n):  # all possible private keys
-                    if d == 0:  # invalid prvkey = 0
-                        self.assertRaises(ValueError, dsa._sign, ec, 1, d, 1)
-                        continue
+                for d in range(1, ec.n):  # all possible private keys
                     P = mult(ec, d, ec.G)  # public key
                     for e in range(ec.n):  # all possible int from hash
-                        for k in range(ec.n):  # all possible ephemeral keys
-
-                            if k == 0:
-                                self.assertRaises(ValueError,
-                                                  dsa._sign, ec, e, d, k)
-                                continue
+                        for k in range(1, ec.n):  # all possible ephemeral keys
                             R = mult(ec, k, ec.G)
 
                             r = R[0] % ec.n
