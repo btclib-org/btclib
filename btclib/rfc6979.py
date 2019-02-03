@@ -36,36 +36,41 @@ import hmac
 from typing import Callable, Any
 
 
-from btclib.utils import octets, _int_from_bits, octets_from_int
+from btclib.utils import octets, _int_from_bits, int_from_bits, octets_from_int
 from btclib.curve import Curve
 
 
-def rfc6979(ec: Curve, hf: Callable[[Any], Any], h1: bytes, x: int) -> int:
+def rfc6979(ec: Curve, hf: Callable[[Any], Any], mhd: bytes, x: int) -> int:
     """Return a deterministic ephemeral key following rfc6979"""
 
     if not 0 < x < ec.n:
         raise ValueError(f"invalid private key {hex(x)}")
 
-    hsize = hf().digest_size    # bytes
-    if len(h1) != hsize:
+    hsize = hf().digest_size
+    if len(mhd) != hsize:
         errMsg = f"mismatch between hf digest size ({hsize}) and "
-        errMsg += f"hashed message size ({len(h1)})"
+        errMsg += f"hashed message size ({len(mhd)})"
         raise ValueError(errMsg)
 
+    h_int = int_from_bits(ec, mhd)          # leftmost ec.nlen bits %= ec.n
+    return _rfc6979(ec, hf, h_int, x)
+
+
+def _rfc6979(ec: Curve, hf: Callable[[Any], Any], h_int: int, x: int) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
+
     # h1 = hf(m)                                           # 3.2.a
 
     # convert the private key x to a sequence of nsize octets
-    bprv = octets_from_int(x, ec.nsize) # bprv = x.to_bytes(nsize, 'big')
-
-    # truncate and/or expand h1: encoding size is driven by nsize
-    z1 = _int_from_bits(ec, h1)         # leftmost ec.nlen bits
-    z1 %= ec.n
-    bm = octets_from_int(z1, ec.nsize)  # bm = z1.to_bytes(nsize, 'big')
-
+    bprv = octets_from_int(x, ec.nsize)    # bprv = x.to_bytes(nsize, 'big')
+    # truncate and/or expand h_int: encoding size is driven by nsize
+    bm = octets_from_int(h_int, ec.nsize)  # bm = h_int.to_bytes(nsize, 'big')
     bprvbm = bprv + bm
+
+    hsize = hf().digest_size
     V = b'\x01' * hsize                                    # 3.2.b
     K = b'\x00' * hsize                                    # 3.2.c
+
     K = hmac.new(K, V + b'\x00' + bprvbm, hf).digest()     # 3.2.d
     V = hmac.new(K, V, hf).digest()                        # 3.2.e
     K = hmac.new(K, V + b'\x01' + bprvbm, hf).digest()     # 3.2.f
@@ -77,7 +82,7 @@ def rfc6979(ec: Curve, hf: Callable[[Any], Any], h1: bytes, x: int) -> int:
             V = hmac.new(K, V, hf).digest()
             T += V
         k = _int_from_bits(ec, T)  # candidate             # 3.2.h.3
-        if 0 < k < ec.n:      # acceptable values for k
-            return k          # successful candidate
+        if 0 < k < ec.n:           # acceptable values for k
+            return k               # successful candidate
         K = hmac.new(K, V + b'\x00', hf).digest()
         V = hmac.new(K, V, hf).digest()
