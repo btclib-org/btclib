@@ -26,8 +26,8 @@ ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
 
 
 def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
-                                       lang: str,
-                                       eversion: str) -> str:
+                              lang: str,
+                              eversion: str) -> str:
     # electrum considers entropy as integer, losing any leading zero
     # https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
     int_entropy = int_from_entropy(raw_entropy)
@@ -68,8 +68,8 @@ def seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
 
 
 def mprv_from_mnemonic(mnemonic: str,
-                                         passphrase: str,
-                                         xversion: bytes) -> bytes:
+                       passphrase: str,
+                       xversion: bytes) -> bytes:
     seed = seed_from_mnemonic(mnemonic, passphrase)
 
     # verify that the mnemonic is versioned
@@ -86,7 +86,10 @@ def mprv_from_mnemonic(mnemonic: str,
         raise ValueError(f"unmanaged electrum mnemonic version ({s[:3]})")
 
 
-def mprv_from_raw_entropy(raw_entropy: GenericEntropy, passphrase: str, lang: str, xversion: bytes) -> bytes:
+def mprv_from_raw_entropy(raw_entropy: GenericEntropy,
+                          passphrase: str,
+                          lang: str,
+                          xversion: bytes) -> bytes:
     mnemonic = mnemonic_from_raw_entropy(raw_entropy, lang, 'standard')
     mprv = mprv_from_mnemonic(mnemonic, passphrase, xversion)
     return mprv

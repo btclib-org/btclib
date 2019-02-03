@@ -33,10 +33,14 @@
 """
 
 import hmac
+from typing import Callable, Any
 
-from btclib.utils import Curve, octets, _int_from_bits, octets_from_int
 
-def rfc6979(ec: Curve, hf, h1: bytes, x: int) -> int:
+from btclib.utils import octets, _int_from_bits, octets_from_int
+from btclib.curve import Curve
+
+
+def rfc6979(ec: Curve, hf: Callable[[Any], Any], h1: bytes, x: int) -> int:
     """Return a deterministic ephemeral key following rfc6979"""
 
     if not 0 < x < ec.n:

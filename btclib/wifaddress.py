@@ -64,7 +64,9 @@ def _h160(pubkey: bytes) -> bytes:
     return hnew('ripemd160', t).digest()
 
 
-def address_from_pubkey(Q: Point, compressed: bool, version: bytes = b'\x00') -> bytes:
+def address_from_pubkey(Q: Point,
+                        compressed: bool,
+                        version: bytes = b'\x00') -> bytes:
     """Public key to (bytes) address"""
 
     # also check that the Point is on curve

@@ -14,7 +14,7 @@
    with bitcoin canonical 'low-s' encoding for ECDSA signatures
 """
 
-from typing import Tuple, List, Optional
+from typing import Tuple, Sequence, Optional, Callable, Any
 
 from btclib.numbertheory import mod_inv
 from btclib.curve import Point, Curve, _mult_jac, _double_mult, double_mult
@@ -24,8 +24,11 @@ from btclib.rfc6979 import rfc6979
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
-def sign(ec: Curve, hf, msg: bytes, d: int,
-                                 k: Optional[int] = None) -> Tuple[int, int]:
+def sign(ec: Curve,
+         hf: Callable[[Any], Any],
+         msg: bytes,
+         d: int,
+         k: Optional[int] = None) -> ECDS:
     """ECDSA signing operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
@@ -52,7 +55,7 @@ def sign(ec: Curve, hf, msg: bytes, d: int,
     return _sign(ec, e, d, k)
 
 
-def _sign(ec: Curve, e: int, d: int, k: int) -> Tuple[int, int]:
+def _sign(ec: Curve, e: int, d: int, k: int) -> ECDS:
     """Private function provided for testing purposes only."""
     # e is assumed to be valid
     # Steps numbering follows SEC 1 v.2 section 4.1.3
@@ -86,7 +89,11 @@ def _sign(ec: Curve, e: int, d: int, k: int) -> Tuple[int, int]:
     return r, s
 
 
-def verify(ec: Curve, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
+def verify(ec: Curve,
+           hf: Callable[[Any], Any],
+           msg: bytes,
+           P: Point,
+           sig: ECDS) -> bool:
     """ECDSA veryfying operation to SEC 1
 
        See SEC 1 v.2 section 4.1.4
@@ -100,7 +107,11 @@ def verify(ec: Curve, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
         return False
 
 
-def _verify(ec: Curve, hf, msg: bytes, P: Point, sig: ECDS) -> bool:
+def _verify(ec: Curve,
+            hf: Callable[[Any], Any],
+            msg: bytes,
+            P: Point,
+            sig: ECDS) -> bool:
     """Private function provided for testing purposes only.
     
        It raises Errors, while verify should always return True or False
@@ -146,7 +157,10 @@ def _verhlp(ec: Curve, e: int, P: Point, sig: ECDS) -> bool:
     return r == v                                          # 8
 
 
-def pubkey_recovery(ec: Curve, hf, msg: bytes, sig: ECDS) -> List[Point]:
+def pubkey_recovery(ec: Curve,
+                    hf: Callable[[Any],Any],
+                    msg: bytes,
+                    sig: ECDS) -> Sequence[Point]:
     """ECDSA public key recovery operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
@@ -160,7 +174,7 @@ def pubkey_recovery(ec: Curve, hf, msg: bytes, sig: ECDS) -> List[Point]:
     return _pubkey_recovery(ec, e, sig)
 
 
-def _pubkey_recovery(ec: Curve, e: int, sig: ECDS) -> List[Point]:
+def _pubkey_recovery(ec: Curve, e: int, sig: ECDS) -> Sequence[Point]:
     """Private function provided for testing purposes only."""
     # ECDSA public key recovery operation according to SEC 1
     # http://www.secg.org/sec1-v2.pdf
@@ -172,7 +186,7 @@ def _pubkey_recovery(ec: Curve, e: int, sig: ECDS) -> List[Point]:
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
     r1e = -r1*e
-    keys: List[Point] = list()
+    keys: Sequence[Point] = list()
     for j in range(ec.h):                                   # 1
         x = r + j*ec.n                                      # 1.1
         try:  #TODO: check test reporting 1, 2, 3, or 4 keys

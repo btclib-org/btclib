@@ -10,7 +10,7 @@
 
 import random
 from hashlib import sha256
-from typing import List, Dict, Tuple
+from typing import Sequence, Tuple, List, Dict
 from collections import defaultdict
 
 from btclib.curve import Point, mult, double_mult    
@@ -23,12 +23,15 @@ random.seed(42)
 ec = secp256k1 # FIXME: any curve
 hf = sha256 # FIXME: any hf
 
+PubkeyRing = Dict[int, Sequence[Point]]
+SValues = Dict[int, Sequence[int]]
+
 def _hash(msg: bytes, R: bytes, i: int, j: int) -> bytes:
     temp = msg + R + i.to_bytes(4, 'big') + j.to_bytes(4, 'big')
     return hf(temp).digest()
 
 
-def _get_msg_format(msg: bytes, pubk_rings: Dict[int, List[Point]]) -> bytes:
+def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
     m = msg
     rings = len(pubk_rings)
     for i in range(rings):
@@ -41,24 +44,24 @@ def _get_msg_format(msg: bytes, pubk_rings: Dict[int, List[Point]]) -> bytes:
 
 
 def sign(msg: bytes,
-                   k: List[int],
-                   sign_key_idx: List[int],
-                   sign_keys: List[int],
-                   pubk_rings: Dict[int, List[Point]]) -> Tuple[bytes, Dict[int, List[int]]]:
+         k: Sequence[int],
+         sign_key_idx: Sequence[int],
+         sign_keys: Sequence[int],
+         pubk_rings: PubkeyRing) -> Tuple[bytes, SValues]:
     """ Borromean ring signature - signing algorithm
 
         https://github.com/ElementsProject/borromean-signatures-writeup
         https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
 
         inputs:
-        - msg: msg to be signed (bytes)
+        - msg: message to be signed (bytes)
         - sign_key_idx: list of indexes representing each signing key per ring
         - sign_keys: list containing the whole set of signing keys (one per ring)
-        - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys
+        - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
 
-    s: Dict[int, List[int]] = defaultdict(list)
-    e: Dict[int, List[int]] = defaultdict(list)
+    s: Dict[int, Sequence[int]] = defaultdict(list)
+    e: Dict[int, Sequence[int]] = defaultdict(list)
     m = _get_msg_format(msg, pubk_rings)
     e0bytes = m
     ring_size = len(pubk_rings)
@@ -94,17 +97,14 @@ def sign(msg: bytes,
     return e0, s
 
 
-def verify(msg: bytes,
-                     e0: bytes,
-                     s: Dict[int, List[int]],
-                     pubk_rings: Dict[int, List[Point]]) -> bool:
+def verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     """ Borromean ring signature - verification algorithm
 
     inputs: 
-    - msg: msg to be signed (bytes)
+    - msg: message to be signed (bytes)
     - e0: pinned e-value needed to start the verification algorithm
     - s: s-values, both real (one per ring) and forged
-    - pubk_rings: dictionary of lists where internal lists represent single rings of pubkeys
+    - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
 
     # this is just a try/except wrapper for the Errors
@@ -115,14 +115,11 @@ def verify(msg: bytes,
         return False
 
 
-def _verify(msg: bytes,
-                      e0: bytes,
-                      s: Dict[int, List[int]],
-                      pubk_rings: Dict[int, List[Point]]) -> bool:
+def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
 
     ring_size = len(pubk_rings)
     m = _get_msg_format(msg, pubk_rings)
-    e: Dict[int, List[int]] = defaultdict(list)
+    e: Dict[int, Sequence[int]] = defaultdict(list)
     e0bytes = m
     for i in range(ring_size):
         keys_size = len(pubk_rings[i])

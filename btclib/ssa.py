@@ -15,7 +15,7 @@
 
 import heapq
 import random
-from typing import Tuple, List, Optional
+from typing import Tuple, Sequence, Optional, Callable, Any
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
@@ -23,15 +23,21 @@ from btclib.curve import Point, Curve, mult, _mult_jac, double_mult, _double_mul
 from btclib.utils import int_from_bits, octets_from_point, octets_from_int
 from btclib.rfc6979 import rfc6979
 
-ECSS = Tuple[int, int]  # Tuple[Coordinate, int]
+ECSS = Tuple[int, int]  # Tuple[field element, scalar]
 
-def _ensure_msg_size(hf, msg: bytes) -> None:
+
+def _ensure_msg_size(hf: Callable[[Any], Any], msg: bytes) -> None:
     if len(msg) != hf().digest_size:
         errmsg = f'message of wrong size: {len(msg)}'
         errmsg += f' instead of {hf().digest_size} bytes'
         raise ValueError(errmsg)
 
-def _e(ec: Curve, hf, r: int, P: Point, mhd: bytes) -> int:
+
+def _e(ec: Curve,
+       hf: Callable[[Any], Any],
+       r: int,
+       P: Point,
+       mhd: bytes) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
     h = hf()
     h.update(octets_from_int(r, ec.psize))
@@ -41,8 +47,11 @@ def _e(ec: Curve, hf, r: int, P: Point, mhd: bytes) -> int:
     return e
 
 
-def sign(ec: Curve, hf, mhd: bytes, d: int,
-                        k: Optional[int] = None) -> Tuple[int, int]:
+def sign(ec: Curve,
+         hf: Callable[[Any], Any],
+         mhd: bytes,
+         d: int,
+         k: Optional[int] = None) -> ECSS:
     """ ECSSA signing operation according to bip-schnorr
 
         This signature scheme supports 32-byte messages.
@@ -92,7 +101,11 @@ def sign(ec: Curve, hf, mhd: bytes, d: int,
     return r, s
 
 
-def verify(ec: Curve, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
+def verify(ec: Curve,
+           hf: Callable[[Any], Any],
+           mhd: bytes,
+           P: Point,
+           sig: ECSS) -> bool:
     """ECSSA verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
@@ -105,7 +118,11 @@ def verify(ec: Curve, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
         return False
 
 
-def _verify(ec: Curve, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
+def _verify(ec: Curve,
+            hf: Callable[[Any], Any],
+            mhd: bytes,
+            P: Point,
+            sig: ECSS) -> bool:
     # This raises Exceptions, while verify should always return True or False
 
     # the bitcoin proposed standard is only valid for curves
@@ -145,7 +162,10 @@ def _verify(ec: Curve, hf, mhd: bytes, P: Point, sig: ECSS) -> bool:
     return R[0] == (R[2]*R[2]*r % ec._p)
 
 
-def _pubkey_recovery(ec: Curve, hf, e: int, sig: ECSS) -> Point:
+def _pubkey_recovery(ec: Curve,
+                     hf: Callable[[Any], Any],
+                     e: int,
+                     sig: ECSS) -> Point:
     # Private function provided for testing purposes only.
 
     r, s = _to_sig(ec, sig)
@@ -181,8 +201,11 @@ def _to_sig(ec: Curve, sig: ECSS) -> ECSS:
     return r, s
 
 
-def batch_verify(ec: Curve, hf, ms: List[bytes], P: List[Point],
-                                                 sig: List[ECSS]) -> bool:
+def batch_verify(ec: Curve,
+                 hf: Callable[[Any], Any],
+                 ms: Sequence[bytes],
+                 P: Sequence[Point],
+                 sig: Sequence[ECSS]) -> bool:
     """ECSSA batch verification according to bip-schnorr
 
        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
@@ -195,11 +218,14 @@ def batch_verify(ec: Curve, hf, ms: List[bytes], P: List[Point],
         return False
 
 
-def _batch_verify(ec: Curve, hf, ms: List[bytes], P: List[Point],
-                                                  sig: List[ECSS]) -> bool:
+def _batch_verify(ec: Curve,
+                  hf: Callable[[Any], Any],
+                  ms: Sequence[bytes],
+                  P: Sequence[Point],
+                  sig: Sequence[ECSS]) -> bool:
     t = 0
-    scalars: List(int) = list()
-    points: List[Point] = list()
+    scalars: Sequence(int) = list()
+    points: Sequence[Point] = list()
     for i in range(len(P)):
         _ensure_msg_size(hf, ms[i])
         ec.require_on_curve(P[i])
