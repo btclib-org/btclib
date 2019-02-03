@@ -734,60 +734,37 @@ class TestEcssa(unittest.TestCase):
             https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
         """
         ec = secp256k1
-        L: List[Point] = list()  # multiset of public keys
         M = hf('message to sign'.encode()).digest()
+
+        # key setup is not interactive
 
         # first signer
         q1 = int_from_octets('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
         Q1 = mult(ec, q1, ec.G)
-        L.append(octets_from_point(ec, Q1, False))
-
-        # ephemeral private nonce
-        k1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb
+        k1 = rfc6979(ec, hf, M, q1)
         K1 = mult(ec, k1, ec.G)
-        K1_x = K1[0]
-        if legendre_symbol(K1[1], ec._p) != 1:
-            k1 = ec.n - k1
-            K1 = K1_x, ec.y_quadratic_residue(K1_x, True)
-            #K1 = mult(ec, k1, ec.G)
 
         # second signer
         q2 = int_from_octets('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q2 = mult(ec, q2, ec.G)
-        L.append(octets_from_point(ec, Q2, False))
-
-        k2 = 0x01a2a0d3eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbdb
+        k2 = rfc6979(ec, hf, M, q2)
         K2 = mult(ec, k2, ec.G)
-        K2_x = K2[0]
-        if legendre_symbol(K2[1], ec._p) != 1:
-            k2 = ec.n - k2
-            K2 = K2_x, ec.y_quadratic_residue(K2_x, True)
-            #K2 = mult(ec, k2, ec.G)
 
         # third signer
-        q3 = random.getrandbits(ec.nlen) % ec.n
+        q3 = int_from_octets('0c28fca386c7aff7600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q3 = mult(ec, q3, ec.G)
-        while Q3 == None:  # plausible only for small (test) cardinality groups
-            q3 = random.getrandbits(ec.nlen) % ec.n
-            Q3 = mult(ec, q3, ec.G)
-        L.append(octets_from_point(ec, Q3, False))
-
-        k3 = random.getrandbits(ec.nlen) % ec.n
+        k3 = rfc6979(ec, hf, M, q3)
         K3 = mult(ec, k3, ec.G)
-        while K3 == None:  # plausible only for small (test) cardinality groups
-            k3 = random.getrandbits(ec.nlen) % ec.n
-            K3 = mult(ec, k3, ec.G)
-        K3_x = K3[0]
-        if legendre_symbol(K3[1], ec._p) != 1:
-            k3 = ec.n - k3
-            K3 = K3_x, ec.y_quadratic_residue(K3_x, True)
-            #K3 = mult(ec, k3, ec.G)
 
-        L.sort()  # using lexicographic ordering
+        # this is MuSig core: the rest is just Schnorr signature additivity
+        L: List[Point] = list()  # multiset of public keys
+        L.append(octets_from_point(ec, Q1, False))
+        L.append(octets_from_point(ec, Q2, False))
+        L.append(octets_from_point(ec, Q3, False))
+        L.sort()                 # using lexicographic ordering
         L_brackets = b''
         for i in range(len(L)):
             L_brackets += L[i]
-
         h1 = hf(L_brackets + octets_from_point(ec, Q1, False)).digest()
         a1 = int_from_bits(ec, h1)
         h2 = hf(L_brackets + octets_from_point(ec, Q2, False)).digest()
@@ -795,73 +772,55 @@ class TestEcssa(unittest.TestCase):
         h3 = hf(L_brackets + octets_from_point(ec, Q3, False)).digest()
         a3 = int_from_bits(ec, h3)
         # aggregated public key
-        Q_All = double_mult(ec, a1, Q1, a2, Q2)
-        Q_All = ec.add(Q_All, mult(ec, a3, Q3))
-        Q_All_bytes = octets_from_point(ec, Q_All, True)
+        Q = ec.add(double_mult(ec, a1, Q1, a2, Q2), mult(ec, a3, Q3))
+        Q_bytes = octets_from_point(ec, Q, True)
+
 
         ########################
-        # exchange K_x, compute s
+        # interactive signature: exchange K, compute s
         # WARNING: the signers should exchange commitments to the public
         #          nonces before sending the nonces themselves
 
-        # first signer use K2_x and K3_x
-        y = ec.y_quadratic_residue(K2_x, True)
-        K2_recovered = (K2_x, y)
-        y = ec.y_quadratic_residue(K3_x, True)
-        K3_recovered = (K3_x, y)
-        K1_All = ec.add(ec.add(K1, K2_recovered), K3_recovered)
-        if legendre_symbol(K1_All[1], ec._p) != 1:
-            # no need to actually change K1_All[1], as it is not used anymore
+        # first signer
+        # K, r_bytes, and e as calculated by any signer
+        # are the same as the ones by the other signers
+        K = ec.add(ec.add(K1, K2), K3)
+        r_bytes = K[0].to_bytes(32, byteorder="big")
+        e = int_from_bits(ec, hf(r_bytes + Q_bytes + M).digest())
+        if legendre_symbol(K[1], ec._p) != 1:
+            # no need to actually change K[1], as it is not used anymore
             # let's fix k1 instead, as it is used later
+            # note that all other signers will change their k too
             k1 = ec.n - k1
-        K1_All0_bytes = K1_All[0].to_bytes(32, byteorder="big")
-        h1 = hf(K1_All0_bytes + Q_All_bytes + M).digest()
-        c1 = int_from_bits(ec, h1)
-        assert 0 < c1 and c1 < ec.n, "sign fail"
-        s1 = (k1 + c1*a1*q1) % ec.n
+        s1 = (k1 + e*a1*q1) % ec.n
 
-        # second signer use K1_x and K3_x
-        y = ec.y_quadratic_residue(K1_x, True)
-        K1_recovered = (K1_x, y)
-        y = ec.y_quadratic_residue(K3_x, True)
-        K3_recovered = (K3_x, y)
-        K2_All = ec.add(ec.add(K2, K1_recovered), K3_recovered)
-        if legendre_symbol(K2_All[1], ec._p) != 1:
-            # no need to actually change K2_All[1], as it is not used anymore
+        # second signer
+        # K, r_bytes, and e as calculated by any signer
+        # are the same as the ones by the other signers
+        if legendre_symbol(K[1], ec._p) != 1:
+            # no need to actually change K[1], as it is not used anymore
             # let's fix k2 instead, as it is used later
+            # note that all other signers will change their k too
             k2 = ec.n - k2
-        K2_All0_bytes = K2_All[0].to_bytes(32, byteorder="big")
-        h2 = hf(K2_All0_bytes + Q_All_bytes + M).digest()
-        c2 = int_from_bits(ec, h2)
-        assert 0 < c2 and c2 < ec.n, "sign fail"
-        s2 = (k2 + c2*a2*q2) % ec.n
+        s2 = (k2 + e*a2*q2) % ec.n
 
-        # third signer use K1_x and K2_x
-        y = ec.y_quadratic_residue(K1_x, True)
-        K1_recovered = (K1_x, y)
-        y = ec.y_quadratic_residue(K2_x, True)
-        K2_recovered = (K2_x, y)
-        K3_All = ec.add(ec.add(K1_recovered, K2_recovered), K3)
-        if legendre_symbol(K3_All[1], ec._p) != 1:
-            # no need to actually change K3_All[1], as it is not used anymore
+        # third signer
+        # K, r_bytes, and e as calculated by any signer
+        # are the same as the ones by the other signers
+        if legendre_symbol(K[1], ec._p) != 1:
+            # no need to actually change K[1], as it is not used anymore
             # let's fix k3 instead, as it is used later
+            # note that all other signers will change their k too
             k3 = ec.n - k3
-        K3_All0_bytes = K3_All[0].to_bytes(32, byteorder="big")
-        h3 = hf(K3_All0_bytes + Q_All_bytes + M).digest()
-        c3 = int_from_bits(ec, h3)
-        assert 0 < c3 and c3 < ec.n, "sign fail"
-        s3 = (k3 + c3*a3*q3) % ec.n
+        s3 = (k3 + e*a3*q3) % ec.n
 
         ############################################
-        # combine signatures into a single signature
-
+        # interactive signature: exchange signatures
+        # combine all (K[0], s) signatures into a single signature
         # anyone can do the following
-        assert K1_All[0] == K2_All[0], "sign fail"
-        assert K2_All[0] == K3_All[0], "sign fail"
-        s_All = (s1 + s2 + s3) % ec.n
-        sig = (K1_All[0], s_All)
+        sig = K[0], (s1 + s2 + s3) % ec.n
 
-        self.assertTrue(ssa.verify(ec, hf, M, Q_All, sig))
+        self.assertTrue(ssa.verify(ec, hf, M, Q, sig))
 
 
 if __name__ == "__main__":
