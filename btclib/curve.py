@@ -286,7 +286,7 @@ class Curve:
         # switch low/high root as needed (XORing the conditions)
         return root if (self._p//2 >= root) == low1high0 else self._p - root
 
-    def y_quadratic_residue(self, x: int, quad_res: int) -> int:
+    def y_quadratic_residue(self, x: int, quad_res: int = 1) -> int:
         """return the quadratic residue y coordinate associated to x"""
         if quad_res not in (0, 1):
             raise ValueError("quad_res must be bool or 1/0")
@@ -312,13 +312,13 @@ def _mult_aff(ec: Curve, m: int, Q: Point) -> Point:
     # Point is assumed to be on curve
 
     m %= ec.n
-    if m == 0 or Q[1] == 0:          # Infinity point in affine coordinates
-        return 1, 0                  # return Infinity point
-    R = Point()                      # initialize as infinity point
-    while m > 0:                     # use binary representation of m
-        if m & 1:                    # if least significant bit is 1
+    if m == 0 or Q[1] == 0:        # Infinity point in affine coordinates
+        return 1, 0                # return Infinity point
+    R = 1, 0                       # initialize as infinity point
+    while m > 0:                   # use binary representation of m
+        if m & 1:                  # if least significant bit is 1
             R = ec._add_aff(R, Q)  # then add current Q
-        m = m >> 1                   # remove the bit just accounted for
+        m = m >> 1                 # remove the bit just accounted for
         Q = ec._add_aff(Q, Q)      # double Q for next step
     return R
 
@@ -328,13 +328,13 @@ def _mult_jac(ec: Curve, m: int, Q: _JacPoint) -> _JacPoint:
     # Point is assumed to be on curve
 
     m %= ec.n
-    if m == 0 or Q[2] == 0:            # Infinity point in affine coordinates
-        return 1, 1, 0                 # return Infinity point
-    R = 1, 1, 0                        # initialize as infinity point
-    while m > 0:                       # use binary representation of m
-        if m & 1:                      # if least significant bit is 1
+    if m == 0 or Q[2] == 0:        # Infinity point in affine coordinates
+        return 1, 1, 0             # return Infinity point
+    R = 1, 1, 0                    # initialize as infinity point
+    while m > 0:                   # use binary representation of m
+        if m & 1:                  # if least significant bit is 1
             R = ec._add_jac(R, Q)  # then add current Q
-        m = m >> 1                     # remove the bit just accounted for
+        m = m >> 1                 # remove the bit just accounted for
         Q = ec._add_jac(Q, Q)      # double Q for next step
     return R
 
