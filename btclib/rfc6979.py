@@ -59,7 +59,7 @@ def rfc6979(ec: Curve, hf: Callable[[Any], Any], mhd: bytes, x: int) -> int:
 def _rfc6979(ec: Curve, hf: Callable[[Any], Any], h_int: int, x: int) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
 
-    # h1 = hf(m)                                           # 3.2.a
+    # h_int = hf(m)                                           # 3.2.a
 
     # convert the private key x to a sequence of nsize octets
     bprv = octets_from_int(x, ec.nsize)    # bprv = x.to_bytes(nsize, 'big')
