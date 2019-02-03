@@ -104,7 +104,7 @@ def int_from_bits(ec: Curve, o: octets) -> int:
         message) into an integer modulo ec.n.
     """
     i = _int_from_bits(ec, o)
-    return i % ec.n  # might be just a difference
+    return i % ec.n  # might be implemented as difference
 
 
 def _int_from_bits(ec: Curve, o: octets) -> int:
