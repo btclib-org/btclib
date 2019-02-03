@@ -14,7 +14,6 @@ Elliptic curve class and functions
 TODO: document duck-typing and static typing design choices
 """
 
-from hashlib import sha256
 from math import sqrt
 import heapq
 from typing import NamedTuple, Tuple, Sequence, List
