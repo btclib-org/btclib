@@ -32,7 +32,6 @@ def sign(ec: Curve,
     """ECDSA signing operation according to SEC 1
 
        http://www.secg.org/sec1-v2.pdf
-       Steps numbering follows SEC 1 v.2 section 4.1.3
     """
 
     # https://tools.ietf.org/html/rfc6979#section-3.2
@@ -40,16 +39,16 @@ def sign(ec: Curve,
     # a sequence of bits of length hlen.  Normally, hf is chosen such that
     # its output length hlen is roughly equal to nlen, since the overall
     # security of the signature scheme will depend on the smallest of hlen
-    # and nlen; however, the (Curve)DSA standard support all combinations of
+    # and nlen; however, the ECDSA standard support all combinations of
     # hlen and nlen.
+
+    # Steps numbering follows SEC 1 v.2 section 4.1.3
     mhd = hf(msg).digest()                             # 4
     # H(m) is transformed into an integer modulo ec.n using int_from_bits:
     e = int_from_bits(ec, mhd)                         # 5
 
     if k is None:
         k = rfc6979(ec, hf, mhd, d)                    # 1
-    if not 0 < k < ec.n:
-        raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
 
     # second part delegated to helper function used in testing
     return _sign(ec, e, d, k)
@@ -63,11 +62,11 @@ def _sign(ec: Curve, e: int, d: int, k: int) -> ECDS:
     # The secret key d: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
     if not 0 < d < ec.n:
-        raise ValueError(f"private key {hex(d)} not in (0, n)")
+        raise ValueError(f"private key {hex(d)} not in [1, n-1]")
 
     # Fail if k' = 0.
     if not 0 < k < ec.n:
-        raise ValueError(f"ephemeral key {hex(k)} not in (0, n)")
+        raise ValueError(f"ephemeral key {hex(k)} not in [1, n-1]")
     # Let R = k'G.
     RJ = _mult_jac(ec, k, ec.GJ)                      # 1
 
