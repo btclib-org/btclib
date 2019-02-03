@@ -123,7 +123,8 @@ def _verify(ec: Curve,
 
 
 def _verhlp(ec: Curve, e: int, P: Point, sig: ECDS) -> bool:
-    """Private function provided for testing purposes only."""
+    # Private function for test/dev purposes
+
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
     r, s = _to_sig(ec, sig)                                # 1
