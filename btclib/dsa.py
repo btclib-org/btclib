@@ -19,7 +19,7 @@ from typing import Tuple, Sequence, Optional, Callable, Any
 from btclib.numbertheory import mod_inv
 from btclib.curve import Point, Curve, _mult_jac, _double_mult, double_mult
 from btclib.utils import int_from_bits
-from btclib.rfc6979 import rfc6979
+from btclib.rfc6979 import _rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
@@ -54,7 +54,7 @@ def sign(ec: Curve,
         raise ValueError(f"private key {hex(d)} not in [1, n-1]")
 
     if k is None:
-        k = rfc6979(ec, hf, mhd, d)                    # 1
+        k = _rfc6979(ec, hf, e, d)                    # 1
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in [1, n-1]")
 
@@ -64,7 +64,7 @@ def sign(ec: Curve,
 
 def _sign(ec: Curve, e: int, d: int, k: int) -> ECDS:
     # Private function for test/dev purposes
-    # it is assumed that d, k, e are in [1, n-1]
+    # it is assumed that d, k, and e are in [1, n-1]
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
