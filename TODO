@@ -43,3 +43,4 @@ deserialize curves from jason file
 _to_sig should handle serialized signatures
 remove der file, add encode/decode to dsa and ssa
 remove signtocontract, adding commit to dsa and ssa
+e=0 in SSA ?
