@@ -308,14 +308,14 @@ class TestEcssa(unittest.TestCase):
         hsize =hf().digest_size
         hlen = hsize * 8
         m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
-        q = random.getrandbits(ec.nlen) % ec.n
+        q = (1+random.getrandbits(ec.nlen)) % ec.n
         sig.append(ssa.sign(ec, hf, m[0], q))
         Q.append(mult(ec, q, ec.G))
         # test with only 1 sig
         self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
         for i in range(1, 4):
             m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
-            q = random.getrandbits(ec.nlen) % ec.n
+            q = (1+random.getrandbits(ec.nlen)) % ec.n
             sig.append(ssa.sign(ec, hf, m[i], q))
             Q.append(mult(ec, q, ec.G))
         self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
@@ -355,13 +355,8 @@ class TestEcssa(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1: List[Point] = list()
-        q1 = 0  # secret value
-        while q1 == 0:
-            q1 = random.getrandbits(ec.nlen) % ec.n
-        q1_prime = 0
-        while q1_prime == 0:
-            q1_prime = random.getrandbits(ec.nlen) % ec.n
-
+        q1 = (1+random.getrandbits(ec.nlen)) % ec.n
+        q1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
         commits1.append(double_mult(ec, q1, ec.G, q1_prime, H))
 
         # sharing polynomials
@@ -370,16 +365,11 @@ class TestEcssa(unittest.TestCase):
         f1_prime: List[int] = list()
         f1_prime.append(q1_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
-            commits1.append(double_mult(
-                ec, f1[i], ec.G, f1_prime[i], H))
+            commits1.append(double_mult(ec, f1[i], ec.G, f1_prime[i], H))
 
         # shares of the secret
         alpha12 = 0  # share of q1 belonging to P2
@@ -407,13 +397,8 @@ class TestEcssa(unittest.TestCase):
 
         # signer two acting as the dealer
         commits2: List[Point] = list()
-        q2 = 0  # secret value
-        while q2 == 0:
-            q2 = random.getrandbits(ec.nlen) % ec.n
-        q2_prime = 0
-        while q2_prime == 0:
-            q2_prime = random.getrandbits(ec.nlen) % ec.n
-
+        q2 = (1+random.getrandbits(ec.nlen)) % ec.n
+        q2_prime = (1+random.getrandbits(ec.nlen)) % ec.n
         commits2.append(double_mult(ec, q2, ec.G, q2_prime, H))
 
         # sharing polynomials
@@ -422,16 +407,11 @@ class TestEcssa(unittest.TestCase):
         f2_prime: List[int] = list()
         f2_prime.append(q2_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f2.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f2_prime.append(temp)
-            commits2.append(double_mult(
-                ec, f2[i], ec.G, f2_prime[i], H))
+            commits2.append(double_mult(ec, f2[i], ec.G, f2_prime[i], H))
 
         # shares of the secret
         alpha21 = 0  # share of q2 belonging to P1
@@ -459,13 +439,8 @@ class TestEcssa(unittest.TestCase):
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
-        q3 = 0  # secret value
-        while q3 == 0:
-            q3 = random.getrandbits(ec.nlen) % ec.n
-        q3_prime = 0
-        while q3_prime == 0:
-            q3_prime = random.getrandbits(ec.nlen) % ec.n
-
+        q3 = (1+random.getrandbits(ec.nlen)) % ec.n
+        q3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
         commits3.append(double_mult(ec, q3, ec.G, q3_prime, H))
 
         # sharing polynomials
@@ -474,16 +449,11 @@ class TestEcssa(unittest.TestCase):
         f3_prime: List[int] = list()
         f3_prime.append(q3_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
-            commits3.append(double_mult(
-                ec, f3[i], ec.G, f3_prime[i], H))
+            commits3.append(double_mult(ec, f3[i], ec.G, f3_prime[i], H))
 
         # shares of the secret
         alpha31 = 0  # share of q3 belonging to P1
@@ -571,13 +541,8 @@ class TestEcssa(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1: List[Point] = list()
-        k1 = 0  # secret value
-        while k1 == 0:
-            k1 = random.getrandbits(ec.nlen) % ec.n
-        k1_prime = 0
-        while k1_prime == 0:
-            k1_prime = random.getrandbits(ec.nlen) % ec.n
-
+        k1 = (1+random.getrandbits(ec.nlen)) % ec.n
+        k1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
         commits1.append(double_mult(ec, k1, ec.G, k1_prime, H))
 
         # sharing polynomials
@@ -586,16 +551,11 @@ class TestEcssa(unittest.TestCase):
         f1_prime: List[int] = list()
         f1_prime.append(k1_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
-            commits1.append(double_mult(
-                ec, f1[i], ec.G, f1_prime[i], H))
+            commits1.append(double_mult(ec, f1[i], ec.G, f1_prime[i], H))
 
         # shares of the secret
         beta13 = 0  # share of k1 belonging to P3
@@ -612,13 +572,8 @@ class TestEcssa(unittest.TestCase):
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
-        k3 = 0  # secret value
-        while k3 == 0:
-            k3 = random.getrandbits(ec.nlen) % ec.n
-        k3_prime = 0
-        while k3_prime == 0:
-            k3_prime = random.getrandbits(ec.nlen) % ec.n
-
+        k3 = (1+random.getrandbits(ec.nlen)) % ec.n
+        k3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
         commits3.append(double_mult(ec, k3, ec.G, k3_prime, H))
 
         # sharing polynomials
@@ -627,13 +582,9 @@ class TestEcssa(unittest.TestCase):
         f3_prime: List[int] = list()
         f3_prime.append(k3_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
             commits3.append(double_mult(ec, f3[i], ec.G, f3_prime[i], H))
 
@@ -706,14 +657,14 @@ class TestEcssa(unittest.TestCase):
         if legendre_symbol(K[1], ec._p) == 1:
             RHS3 = ec.add(K, mult(ec, e, Q))
             for i in range(1, t):
-                RHS3 = ec.add(RHS3,
-                              double_mult(ec, pow(3, i), B[i], e * pow(3, i), A[i]))
+                temp = double_mult(ec, pow(3, i), B[i], e * pow(3, i), A[i])
+                RHS3 = ec.add(RHS3, temp)
         else:
             assert legendre_symbol(K[1], ec._p) != 1
             RHS3 = ec.add(ec.opposite(K), mult(ec, e, Q))
             for i in range(1, t):
-                RHS3 = ec.add(RHS3,
-                              double_mult(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i]))
+                temp = double_mult(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i])
+                RHS3 = ec.add(RHS3, temp)
 
         assert mult(ec, gamma3, ec.G) == RHS3, 'player three is cheating'
 
@@ -721,14 +672,14 @@ class TestEcssa(unittest.TestCase):
         if legendre_symbol(K[1], ec._p) == 1:
             RHS1 = ec.add(K, mult(ec, e, Q))
             for i in range(1, t):
-                RHS1 = ec.add(RHS1,
-                              double_mult(ec, pow(1, i), B[i], e * pow(1, i), A[i]))
+                temp = double_mult(ec, pow(1, i), B[i], e * pow(1, i), A[i])
+                RHS1 = ec.add(RHS1, temp)
         else:
             assert legendre_symbol(K[1], ec._p) != 1
             RHS1 = ec.add(ec.opposite(K), mult(ec, e, Q))
             for i in range(1, t):
-                RHS1 = ec.add(RHS1,
-                              double_mult(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i]))
+                temp = double_mult(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i])
+                RHS1 = ec.add(RHS1, temp)
 
         assert mult(ec, gamma1, ec.G) == RHS1, 'player two is cheating'
 
@@ -737,7 +688,7 @@ class TestEcssa(unittest.TestCase):
         omega3 = 1 * mod_inv(1 - 3, ec.n) % ec.n
         sigma = (gamma1 * omega1 + gamma3 * omega3) % ec.n
 
-        sig = (K[0], sigma)
+        sig = K[0], sigma
 
         self.assertTrue(ssa._verify(ec, hf, msg, Q, sig))
 
