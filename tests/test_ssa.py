@@ -307,21 +307,40 @@ class TestEcssa(unittest.TestCase):
 
         hsize =hf().digest_size
         hlen = hsize * 8
-        for i in range(10):
+        m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
+        q = random.getrandbits(ec.nlen) % ec.n
+        sig.append(ssa.sign(ec, hf, m[0], q))
+        Q.append(mult(ec, q, ec.G))
+        # test with only 1 sig
+        self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
+        for i in range(1, 10):
             m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
             q = random.getrandbits(ec.nlen) % ec.n
             sig.append(ssa.sign(ec, hf, m[i], q))
             Q.append(mult(ec, q, ec.G))
         self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
 
+        # invalid sig
         m.append(m[0])
-        sig.append(sig[1])  # invalid
+        sig.append(sig[1])
         Q.append(Q[0])
         self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
 
-        sig[-1] = sig[0]  # valid
-        m[-1] = m[0][:-1]  # invalid 31 bytes message
+        # invalid 31 bytes message
+        sig[-1] = sig[0]  # valid again
+        m[-1] = m[0][:-1]
         self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
+
+        # mismatch between number of pubkeys and number of messages
+        m.append(m[0])  # add extra message
+        self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
+        #ssa._batch_verify(ec, hf, m, Q, sig)
+
+        # mismatch between number of pubkeys and number of signatures
+        m.pop()  # remove extra message
+        sig.append(sig[0])  # add extra sig
+        self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
+        #ssa._batch_verify(ec, hf, m, Q, sig)
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""

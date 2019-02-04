@@ -8,7 +8,6 @@ optimizations
     https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
     https://eprint.iacr.org/2005/419.pdf
 transaction and block parsing (explorer based with optional full node)
-fix one sig only BUG in ecssa_batch_verify
 allow hexstring for Signature
 revise ssa.pubkey_recovery
 of a signature: verify or verification ? of a commit: verify or open ?

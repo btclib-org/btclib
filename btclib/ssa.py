@@ -230,15 +230,30 @@ def _batch_verify(ec: Curve,
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
 
+    batch_size = len(P)
+    if len(ms) != batch_size:
+        errMsg = f"mismatch between number of pubkeys ({batch_size}) "
+        errMsg += f"and number of messages ({len(ms)})"
+        raise ValueError(errMsg)
+    if len(sig) != batch_size:
+        errMsg = f"mismatch between number of pubkeys ({batch_size}) "
+        errMsg += f"and number of signatures ({len(sig)})"
+        raise ValueError(errMsg)
+    
+    if batch_size == 1:
+        return _verify(ec, hf, ms[0], P[0], sig[0])
+
     t = 0
     scalars: Sequence(int) = list()
     points: Sequence[Point] = list()
-    for i in range(len(P)):
+    for i in range(batch_size):
         r, s = _to_sig(ec, sig[i])
         _ensure_msg_size(hf, ms[i])
         ec.require_on_curve(P[i])
         e = _e(ec, hf, r, P[i], ms[i])
-        y = ec.y(r)  # raises an error if y does not exist
+        # raises an error if y does not exist
+        # no need to check for quadratic residue
+        y = ec.y(r)
 
         # a in [1, n-1] FIXME
         # deterministically generated using a CSPRNG seeded by a
