@@ -240,10 +240,11 @@ def _batch_verify(ec: Curve,
         e = _e(ec, hf, r, P[i], ms[i])
         y = ec.y(r)  # raises an error if y does not exist
 
-        # deterministically generated using a CSPRNG seeded by a cryptographic
-        # hash (e.g., SHA256) of all inputs of the algorithm, or randomly
-        # generated independently for each run of the batch verification
-        # algorithm  FIXME
+        # a in [1, n-1] FIXME
+        # deterministically generated using a CSPRNG seeded by a
+        # cryptographic hash (e.g., SHA256) of all inputs of the
+        # algorithm, or randomly generated independently for each
+        # run of the batch verification algorithm
         a = (1 if i == 0 else random.getrandbits(ec.nlen) % ec.n)
         scalars.append(a)
         points.append(_jac_from_aff((r, y)))
