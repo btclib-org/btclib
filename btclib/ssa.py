@@ -223,13 +223,20 @@ def _batch_verify(ec: Curve,
                   ms: Sequence[bytes],
                   P: Sequence[Point],
                   sig: Sequence[ECSS]) -> bool:
+
+    # the bitcoin proposed standard is only valid for curves
+    # whose prime p = 3 % 4
+    if not ec.pIsThreeModFour:
+        errmsg = 'curve prime p must be equal to 3 (mod 4)'
+        raise ValueError(errmsg)
+
     t = 0
     scalars: Sequence(int) = list()
     points: Sequence[Point] = list()
     for i in range(len(P)):
+        r, s = _to_sig(ec, sig[i])
         _ensure_msg_size(hf, ms[i])
         ec.require_on_curve(P[i])
-        r, s = _to_sig(ec, sig[i])
         e = _e(ec, hf, r, P[i], ms[i])
         y = ec.y(r)  # raises an error if y does not exist
 
