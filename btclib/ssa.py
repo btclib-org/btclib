@@ -249,7 +249,7 @@ def _batch_verify(ec: Curve,
         points.append(_jac_from_aff((r, y)))
         scalars.append(a * e % ec.n)
         points.append(_jac_from_aff(P[i]))
-        t += a * s % ec.n
+        t += a * s
 
     TJ = _mult_jac(ec, t, ec.GJ)
     RHSJ = _multi_mult(ec, scalars, points)
