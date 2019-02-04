@@ -95,6 +95,11 @@ class TestEllipticCurve(unittest.TestCase):
         # weak curve
         self.assertRaises(UserWarning, Curve, 11, 2, 7, (6, 9), 7, 2, 0, True)
 
+        # x-coordinate not in [0, p-1]
+        self.assertRaises(ValueError, secp256k1.y, secp256k1._p)
+        #secp256k1.y(secp256k1._p)
+
+
     def test_all_curves(self):
         for ec in all_curves:
             self.assertEqual(mult(ec, 0, ec.G), Inf)

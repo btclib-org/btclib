@@ -72,6 +72,14 @@ class TestDSA(unittest.TestCase):
         self.assertRaises(ValueError, dsa._verify, ec, hf, msg, (1, 0), sig)
         #dsa._verify(ec, hf, msg, (1, 0), sig)
 
+        # private key not in [1, n-1]
+        self.assertRaises(ValueError, dsa.sign, ec, hf, msg, 0)
+        #dsa.sign(ec, hf, msg, 0)
+
+        # ephemeral key not in [1, n-1]
+        self.assertRaises(ValueError, dsa.sign, ec, hf, msg, 1, 0)
+        #dsa.sign(ec, hf, msg, 1, 0)
+
     def test_gec(self):
         """ GEC 2: Test Vectors for SEC 1, section 2
 
