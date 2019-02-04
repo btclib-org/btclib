@@ -313,7 +313,7 @@ class TestEcssa(unittest.TestCase):
         Q.append(mult(ec, q, ec.G))
         # test with only 1 sig
         self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
-        for i in range(1, 10):
+        for i in range(1, 4):
             m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
             q = random.getrandbits(ec.nlen) % ec.n
             sig.append(ssa.sign(ec, hf, m[i], q))
