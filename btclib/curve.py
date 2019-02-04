@@ -380,8 +380,9 @@ def _double_mult(ec: Curve, u: int, QJ: _JacPoint,
     return R
 
 
-def multi_mult(ec: Curve, scalars: Sequence[int],
-                            Points: Sequence[Point]) -> Point:
+def multi_mult(ec: Curve,
+               scalars: Sequence[int],
+               Points: Sequence[Point]) -> Point:
     """ Bos-Coster's algorithm """
 
     if len(scalars) != len(Points):
@@ -399,8 +400,9 @@ def multi_mult(ec: Curve, scalars: Sequence[int],
     return ec._aff_from_jac(R)
 
 
-def _multi_mult(ec: Curve, scalars: Sequence[int],
-                             JPoints: Sequence[_JacPoint]) -> _JacPoint:
+def _multi_mult(ec: Curve,
+                scalars: Sequence[int],
+                JPoints: Sequence[_JacPoint]) -> _JacPoint:
     # source: https://cr.yp.to/badbatch/boscoster2.py
 
     x = list(zip([-n for n in scalars], JPoints))
