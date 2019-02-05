@@ -325,22 +325,32 @@ class TestEcssa(unittest.TestCase):
         sig.append(sig[1])
         Q.append(Q[0])
         self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
+        #ssa._batch_verify(ec, hf, m, Q, sig)
+        sig[-1] = sig[0]  # valid again
 
         # invalid 31 bytes message
-        sig[-1] = sig[0]  # valid again
         m[-1] = m[0][:-1]
         self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
+        #ssa._batch_verify(ec, hf, m, Q, sig)
+        m[-1] = m[0] # valid again
 
         # mismatch between number of pubkeys and number of messages
         m.append(m[0])  # add extra message
         self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
         #ssa._batch_verify(ec, hf, m, Q, sig)
+        m.pop()  # valid again
 
         # mismatch between number of pubkeys and number of signatures
-        m.pop()  # remove extra message
         sig.append(sig[0])  # add extra sig
         self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
         #ssa._batch_verify(ec, hf, m, Q, sig)
+        sig.pop()  # valid again
+
+        # curve prime p must be equal to 3 (mod 4)
+        ec = secp224k1
+        self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
+        #ssa._batch_verify(ec, hf, m, Q, sig)
+
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
