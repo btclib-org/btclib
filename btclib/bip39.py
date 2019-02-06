@@ -107,7 +107,7 @@ def mprv_from_mnemonic(mnemonic: str,
                        passphrase: str,
                        xversion: bytes) -> bytes:
     seed = seed_from_mnemonic(mnemonic, passphrase)
-    return bip32.mprv_from_seed(seed, xversion)
+    return bip32.xmprv_from_seed(seed, xversion)
 
 # TODO: move to wallet file
 

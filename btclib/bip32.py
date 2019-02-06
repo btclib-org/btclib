@@ -40,7 +40,7 @@ ADDRESS = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
 # [13:45] chain code
 # [45:78] key (private/public)
 
-def mprv_from_seed(seed: octets, version: octets) -> bytes:
+def xmprv_from_seed(seed: octets, version: octets) -> bytes:
     """derive the master extended private key from the seed"""
 
     if isinstance(version, str):  # hex string
