@@ -29,14 +29,14 @@ def _str_to_bytes(v: Union[str, bytes]) -> bytes:
     return v
 
 
-def encode_int(i: int) -> bytes:
+def encode_from_int(i: int) -> bytes:
     """Encode an integer using Base58"""
 
     if i == 0:
         return __digits[0:1]
 
     result = b""
-    while i > 0:
+    while i:
         i, idx = divmod(i, __base)
         result = __digits[idx:idx+1] + result
 
@@ -58,7 +58,7 @@ def encode(v: Union[str, bytes]) -> bytes:
 
     if vlen:
         i = int.from_bytes(v, 'big')
-        result = result + encode_int(i)
+        result += encode_from_int(i)
 
     return result
 
@@ -69,11 +69,10 @@ def encode_check(v: Union[str, bytes]) -> bytes:
     v = _str_to_bytes(v)
 
     digest = double_sha256(v)
-    result = encode(v + digest[:4])
-    return result
+    return encode(v + digest[:4])
 
 
-def decode_int(v: Union[str, bytes]) -> int:
+def decode_to_int(v: Union[str, bytes]) -> int:
     """Decode Base58 encoded bytes as integer"""
 
     v = _str_to_bytes(v)
@@ -86,7 +85,7 @@ def decode_int(v: Union[str, bytes]) -> int:
 
 
 def decode(v: Union[str, bytes],
-              output_size: Optional[int] = None) -> bytes:
+           output_size: Optional[int] = None) -> bytes:
     """Decode Base58 encoded bytes, with verified output length"""
 
 
@@ -101,7 +100,7 @@ def decode(v: Union[str, bytes],
     result = b'\0' * nPad
 
     if vlen:
-        i = decode_int(v)
+        i = decode_to_int(v)
         nbytes = (i.bit_length() + 7) // 8
         result = result + i.to_bytes(nbytes, 'big')
 
@@ -114,7 +113,7 @@ def decode(v: Union[str, bytes],
 
 
 def decode_check(v: Union[str, bytes],
-                    output_size: Optional[int] = None) -> bytes:
+                 output_size: Optional[int] = None) -> bytes:
     """Decode Base58 encoded bytes, with verified checksum and output length"""
 
     if output_size is not None:

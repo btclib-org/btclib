@@ -99,12 +99,12 @@ class Mnemonic:
             raise TypeError(m)
 
         bits = len(entropy)
-        entropy = int(entropy, 2)
+        int_entropy = int(entropy, 2)
         n = self._language_length[lang]
         indexes = []
-        while entropy:
-            indexes.append(entropy % n)
-            entropy = entropy // n
+        while int_entropy:
+            int_entropy, index = divmod(int_entropy, n)
+            indexes.append(index)
 
         # do not lose leading zeros entropy
         bpw = self._bits_per_word[lang]

@@ -23,8 +23,8 @@ class TestBIP32(unittest.TestCase):
         xkey_version = bip32.PRV[0]
 
         seed = "000102030405060708090a0b0c0d0e0f"
-        mprv = bip32.mprv_from_seed(seed, xkey_version)
-        mprv = bip32.mprv_from_seed(seed, xkey_version.hex())
+        mprv = bip32.xmprv_from_seed(seed, xkey_version)
+        mprv = bip32.xmprv_from_seed(seed, xkey_version.hex())
         self.assertEqual(
             mprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         mpub = bip32.xpub_from_xprv(mprv)  # neutering
@@ -115,7 +115,7 @@ class TestBIP32(unittest.TestCase):
         xkey_version = bip32.PRV[0]
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
-        mprv = bip32.mprv_from_seed(seed, xkey_version)
+        mprv = bip32.xmprv_from_seed(seed, xkey_version)
         self.assertEqual(
             mprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
         mpub = bip32.xpub_from_xprv(mprv)  # neutering
@@ -211,7 +211,7 @@ class TestBIP32(unittest.TestCase):
         xkey_version = bip32.PRV[0]
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
-        mprv = bip32.mprv_from_seed(seed, xkey_version)
+        mprv = bip32.xmprv_from_seed(seed, xkey_version)
         self.assertEqual(
             mprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         mpub = bip32.xpub_from_xprv(mprv)  # neutering
@@ -257,7 +257,7 @@ class TestBIP32(unittest.TestCase):
         xkey_version = bip32.PRV[0]
         for test_vector in test_vectors:
             seed = test_vector[2]
-            mprv = bip32.mprv_from_seed(seed, xkey_version)
+            mprv = bip32.xmprv_from_seed(seed, xkey_version)
             self.assertEqual(mprv.decode(), test_vector[3])
 
     def test_mainnet(self):
@@ -285,7 +285,7 @@ class TestBIP32(unittest.TestCase):
         xkey_version = bip32.PRV[0]
         seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
         seed = bytes.fromhex(seed)
-        xprv = bip32.mprv_from_seed(seed, xkey_version)
+        xprv = bip32.xmprv_from_seed(seed, xkey_version)
         xpub = b'xpub661MyMwAqRbcFMYjmw8C6dJV97a4oLss6hb3v9wTQn2X48msQB61RCaLGtNhzgPCWPaJu7SvuB9EBSFCL43kTaFJC3owdaMka85uS154cEh'
         self.assertEqual(bip32.xpub_from_xprv(xprv), xpub)
 
@@ -386,7 +386,7 @@ class TestBIP32(unittest.TestCase):
 
         xkey_version = bip32.PRV[0]
         seed = "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
-        mprv = bip32.mprv_from_seed(seed, xkey_version)
+        mprv = bip32.xmprv_from_seed(seed, xkey_version)
         self.assertEqual(mprv, b'xprv9s21ZrQH143K3t4UZrNgeA3w861fwjYLaGwmPtQyPMmzshV2owVpfBSd2Q7YsHZ9j6i6ddYjb5PLtUdMZn8LhvuCVhGcQntq5rn7JVMqnie')
 
         indexes = [0x80000000, 0, 0]  # receive
@@ -418,7 +418,7 @@ class TestBIP32(unittest.TestCase):
         # invalid private version
         version = b'\x04\x88\xAD\xE5'
         seed = "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
-        self.assertRaises(ValueError, bip32.mprv_from_seed, seed, version)
+        self.assertRaises(ValueError, bip32.xmprv_from_seed, seed, version)
         #bip32_mprv_from_seed(seed, version)
 
         # extended key is not a private one
