@@ -15,8 +15,9 @@ from typing import Union, Optional, Sequence, List
 from btclib import base58 
 from btclib.curve import mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets, point_from_octets, octets_from_point, int_from_octets
-from btclib.wifaddress import _h160, address_from_pubkey
+from btclib.utils import octets, point_from_octets, octets_from_point, \
+                         int_from_octets, h160
+from btclib.wifaddress import address_from_pubkey
 
 # VERSION BYTES =      4 bytes     Base58 encode starts with
 MAINNET_PRV = b'\x04\x88\xAD\xE4'  # xprv
@@ -124,7 +125,7 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
             raise ValueError("version/key mismatch in extended parent key")
         Parent_bytes = xparent[45:]
         Parent = point_from_octets(ec, Parent_bytes)
-        xkey += _h160(Parent_bytes)[:4]          # parent pubkey fingerprint
+        xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
         if index[0] >= 0x80:
             raise ValueError("no private/hardened derivation from pubkey")
         xkey += index                            # child index
@@ -143,7 +144,7 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         parent = int.from_bytes(xparent[46:], 'big')
         Parent = mult(ec, parent, ec.G)
         Parent_bytes = octets_from_point(ec, Parent, True)
-        xkey += _h160(Parent_bytes)[:4]           # parent pubkey fingerprint
+        xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
         xkey += index                             # child index
         # actual extended key (key + chain code) derivation
         parent_chain_code = xparent[13:45]
@@ -195,6 +196,7 @@ def derive(xkey: octets, path: Union[str, Sequence[int]]) -> bytes:
     return xkey
 
 # FIXME: revise address_from_xpub / address_from_pubkey relation
+# FIXME: address_from_xpub should be pubkey_from_xpub o point_from_xpub
 
 
 def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
@@ -228,7 +230,7 @@ def crack(parent_xpub: octets, child_xprv: octets) -> bytes:
 
     # check fingerprint
     Parent_bytes = parent_xpub[45:]
-    if child_xprv[5: 9] != _h160(Parent_bytes)[:4]:
+    if child_xprv[5: 9] != h160(Parent_bytes)[:4]:
         raise ValueError("not a child for the provided parent")
 
     # check normal derivation

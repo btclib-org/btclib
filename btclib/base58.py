@@ -12,13 +12,11 @@
 from hashlib import sha256
 from typing import Union, Optional
 
+from btclib.utils import double_sha256
+
 # used digits
 __digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __base = len(__digits)
-
-
-def _double_sha256(s: bytes) -> bytes:
-    return sha256(sha256(s).digest()).digest()
 
 
 def _str_to_bytes(v: Union[str, bytes]) -> bytes:
@@ -70,7 +68,7 @@ def encode_check(v: Union[str, bytes]) -> bytes:
 
     v = _str_to_bytes(v)
 
-    digest = _double_sha256(v)
+    digest = double_sha256(v)
     result = encode(v + digest[:4])
     return result
 
@@ -125,7 +123,7 @@ def decode_check(v: Union[str, bytes],
     result = decode(v, output_size)
     result, checksum = result[:-4], result[-4:]
 
-    digest = _double_sha256(result)
+    digest = double_sha256(result)
     if checksum != digest[:4]:
         m = f"Invalid checksum: '{checksum}' instead of '{digest[:4]}'"
         raise ValueError(m)

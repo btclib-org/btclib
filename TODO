@@ -42,3 +42,5 @@ remove der file, add encode/decode to dsa and ssa ?
 add signature serialize/deserialize or encode/decode
 remove signtocontract, adding commit to dsa and ssa
 e=0 in SSA ?
+
+settle on pubkey o point nomenclature. if point, what for prvkey?

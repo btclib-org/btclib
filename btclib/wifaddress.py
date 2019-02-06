@@ -20,7 +20,8 @@ from typing import Tuple
 from btclib import base58
 from btclib.curve import Point, mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets, int_from_octets, octets_from_int, octets_from_point
+from btclib.utils import octets, int_from_octets, octets_from_int, \
+                         octets_from_point, h160
 
 
 def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
@@ -44,7 +45,7 @@ def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
 
     if len(payload) == ec.nsize + 2:       # compressed WIF
         compressed = True
-        if payload[-1] != 0x01:  # must have a trailing 0x01
+        if payload[-1] != 0x01:            # must have a trailing 0x01
             raise ValueError("Not a compressed WIF: missing trailing 0x01")
         prvkey = int_from_octets(payload[1:-1])
     elif len(payload) == ec.nsize + 1:     # uncompressed WIF
@@ -59,11 +60,6 @@ def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
     return prvkey, compressed
 
 
-def _h160(pubkey: bytes) -> bytes:
-    t = sha256(pubkey).digest()
-    return hnew('ripemd160', t).digest()
-
-
 def address_from_pubkey(Q: Point,
                         compressed: bool,
                         version: bytes = b'\x00') -> bytes:
@@ -72,7 +68,7 @@ def address_from_pubkey(Q: Point,
     # also check that the Point is on curve
     pubkey = octets_from_point(ec, Q, compressed)
 
-    vh160 = version + _h160(pubkey)
+    vh160 = version + h160(pubkey)
     return base58.encode_check(vh160)
 
 

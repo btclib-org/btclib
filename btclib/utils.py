@@ -13,6 +13,7 @@ Assorted conversion utilities
 """
 
 from typing import Union
+from hashlib import sha256, new
 
 from btclib.curve import Curve, Point
 
@@ -122,3 +123,16 @@ def _int_from_bits(ec: Curve, o: octets) -> int:
     blen = len(o) * 8  # bits
     n = (blen - ec.nlen) if blen >= ec.nlen else 0
     return i >> n
+
+
+def h160(o: octets) -> bytes:
+
+    if isinstance(o, str):
+        o = bytes.fromhex(o)
+
+    t = sha256(o).digest()
+    return new('ripemd160', t).digest()
+
+
+def double_sha256(s: bytes) -> bytes:
+    return sha256(sha256(s).digest()).digest()
