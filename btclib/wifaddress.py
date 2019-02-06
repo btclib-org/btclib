@@ -29,7 +29,7 @@ def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     if not 0 < prvkey < ec.n:
         raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
 
-    payload = b'\x80' + octets_from_int(prvkey, ec.psize)
+    payload = b'\x80' + octets_from_int(prvkey, ec.nsize)
     if compressed:
         payload += b'\x01'
     return base58.encode_check(payload)
@@ -42,19 +42,19 @@ def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
     if payload[0] != 0x80:
         raise ValueError("Not a private key WIF: missing leading 0x80")
 
-    if len(payload) == ec.psize + 2:       # compressed WIF
+    if len(payload) == ec.nsize + 2:       # compressed WIF
         compressed = True
-        if payload[ec.psize + 1] != 0x01:  # must have a trailing 0x01
+        if payload[-1] != 0x01:  # must have a trailing 0x01
             raise ValueError("Not a compressed WIF: missing trailing 0x01")
         prvkey = int_from_octets(payload[1:-1])
-    elif len(payload) == ec.psize + 1:     # uncompressed WIF
+    elif len(payload) == ec.nsize + 1:     # uncompressed WIF
         compressed = False
         prvkey = int_from_octets(payload[1:])
     else:
         raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
     
     if not 0 < prvkey < ec.n:
-        raise ValueError(f"Not a WIF: private key {hex(prvkey)} not in (0, n)")
+        raise ValueError(f"Not a WIF: private key {hex(prvkey)} not in [1, n-1]")
 
     return prvkey, compressed
 
@@ -72,7 +72,6 @@ def address_from_pubkey(Q: Point,
     # also check that the Point is on curve
     pubkey = octets_from_point(ec, Q, compressed)
 
-    # FIXME: this is mainnet only
     vh160 = version + _h160(pubkey)
     return base58.encode_check(vh160)
 
