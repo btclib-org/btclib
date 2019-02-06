@@ -14,7 +14,6 @@ Implementation of Base58 encoding of private keys (wifs)
 and public keys (addresses)
 '''
 
-from hashlib import sha256, new as hnew
 from typing import Tuple
 
 from btclib import base58
