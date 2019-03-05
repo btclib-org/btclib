@@ -351,7 +351,6 @@ class TestEcssa(unittest.TestCase):
         self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
         #ssa._batch_verify(ec, hf, m, Q, sig)
 
-
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
 
@@ -709,6 +708,8 @@ class TestEcssa(unittest.TestCase):
     def test_musig(self):
         """ testing 3-of-3 MuSig
         
+            https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
+            https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
             https://eprint.iacr.org/2018/068
             https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
             https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
