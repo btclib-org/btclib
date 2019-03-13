@@ -40,11 +40,11 @@ from btclib.utils import octets, _int_from_bits, int_from_bits, octets_from_int
 from btclib.curve import Curve
 
 
-def rfc6979(ec: Curve, hf: Callable[[Any], Any], mhd: bytes, x: int) -> int:
+def rfc6979(ec: Curve, hf: Callable[[Any], Any], mhd: bytes, q: int) -> int:
     """Return a deterministic ephemeral key following rfc6979"""
 
-    if not 0 < x < ec.n:
-        raise ValueError(f"private key {hex(x)} not in [1, n-1]")
+    if not 0 < q < ec.n:
+        raise ValueError(f"private key {hex(q)} not in [1, n-1]")
 
     hsize = hf().digest_size
     if len(mhd) != hsize:
@@ -52,20 +52,20 @@ def rfc6979(ec: Curve, hf: Callable[[Any], Any], mhd: bytes, x: int) -> int:
         errMsg += f"hashed message size ({len(mhd)})"
         raise ValueError(errMsg)
 
-    h_int = int_from_bits(ec, mhd)          # leftmost ec.nlen bits %= ec.n
-    return _rfc6979(ec, hf, h_int, x)
+    c = int_from_bits(ec, mhd)          # leftmost ec.nlen bits %= ec.n
+    return _rfc6979(ec, hf, c, q)
 
 
-def _rfc6979(ec: Curve, hf: Callable[[Any], Any], h_int: int, x: int) -> int:
+def _rfc6979(ec: Curve, hf: Callable[[Any], Any], c: int, q: int) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
 
-    # h_int = hf(m)                                           # 3.2.a
+    # c = hf(m)                                            # 3.2.a
 
-    # convert the private key x to a sequence of nsize octets
-    bprv = octets_from_int(x, ec.nsize)    # bprv = x.to_bytes(nsize, 'big')
-    # truncate and/or expand h_int: encoding size is driven by nsize
-    bm = octets_from_int(h_int, ec.nsize)  # bm = h_int.to_bytes(nsize, 'big')
-    bprvbm = bprv + bm
+    # convert the private key q to a sequence of nsize octets
+    bprv = octets_from_int(q, ec.nsize)  # bprv = q.to_bytes(nsize, 'big')
+    # truncate and/or expand c: encoding size is driven by nsize
+    bc = octets_from_int(c, ec.nsize)    # bc = c.to_bytes(nsize, 'big')
+    bprvbm = bprv + bc
 
     hsize = hf().digest_size
     V = b'\x01' * hsize                                    # 3.2.b
