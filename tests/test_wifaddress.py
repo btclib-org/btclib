@@ -10,11 +10,12 @@
 
 import unittest
 
-from btclib.ec import pointMult
+from btclib.curve import mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import int2octets, octets2point
-from btclib.wifaddress import b58encode_check, wif_from_prvkey, \
-    prvkey_from_wif, address_from_pubkey, hash160_from_address, \
+from btclib.utils import octets_from_int, point_from_octets
+from btclib import base58
+from btclib.wifaddress import wif_from_prvkey, \
+    prvkey_from_wif, address_from_pubkey, _h160_from_address, \
     address_from_wif
 
 
@@ -43,47 +44,47 @@ class TestKeys(unittest.TestCase):
         #wif = wif_from_prvkey(badq, True)
         
         # Not a private key WIF: missing leading 0x80
-        payload = b'\x81' + int2octets(badq, ec.psize)
-        badwif = b58encode_check(payload)
+        payload = b'\x81' + octets_from_int(badq, ec.psize)
+        badwif = base58.encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         #prvkey_from_wif(badwif)
 
         # Not a compressed WIF: missing trailing 0x01
-        payload = b'\x80' + int2octets(badq, ec.psize) + b'\x00'
-        badwif = b58encode_check(payload)
+        payload = b'\x80' + octets_from_int(badq, ec.psize) + b'\x00'
+        badwif = base58.encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         # prvkey_from_wif(badwif)
 
         # Not a WIF: wrong size (35)
-        payload = b'\x80' + int2octets(badq, ec.psize) + b'\x01\x00'
-        badwif = b58encode_check(payload)
+        payload = b'\x80' + octets_from_int(badq, ec.psize) + b'\x01\x00'
+        badwif = base58.encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         #prvkey_from_wif(badwif)
 
         # Not a WIF: private key not in (0, n)
-        payload = b'\x80' + int2octets(badq, ec.psize)
-        badwif = b58encode_check(payload)
+        payload = b'\x80' + octets_from_int(badq, ec.psize)
+        badwif = base58.encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         #prvkey_from_wif(badwif)
 
     def test_address_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
         prv = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-        pub = pointMult(ec, prv, ec.G)
-        self.assertEqual(pub, octets2point(ec, '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'))
+        pub = mult(ec, prv, ec.G)
+        self.assertEqual(pub, point_from_octets(ec, '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'))
 
         addr = address_from_pubkey(pub, True)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        hash160_from_address(addr)
+        _h160_from_address(addr)
 
         addr = address_from_pubkey(pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-        hash160_from_address(addr)
+        _h160_from_address(addr)
 
         # not a mainnet address
         addr = address_from_pubkey(pub, False, b'\x80')
-        self.assertRaises(ValueError, hash160_from_address, addr)
-        #hash160_from_address(addr)
+        self.assertRaises(ValueError, _h160_from_address, addr)
+        #_h160_from_address(addr)
 
     def test_address_from_wif(self):
         wif1 = b"5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"

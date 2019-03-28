@@ -11,9 +11,9 @@
 import unittest
 import random
 
-from btclib.ec import pointMult
+from btclib.curve import mult
 from btclib.curves import secp256k1
-from btclib.borromean import borromean_sign, borromean_verify
+from btclib import borromean
 
 random.seed(42)
 
@@ -22,23 +22,23 @@ class TestBorromeanRingSignature(unittest.TestCase):
         ec = secp256k1
         ring_number = 4
         ring_dim = [random.randint(1, 4) for ring in range(ring_number)]
-        signing_indexes = [random.randrange(ring_dim[ring])
+        borromean.signing_indexes = [random.randrange(ring_dim[ring])
                            for ring in range(ring_number)]
         priv_keys = {}
         Pub_keys = {}
-        signing_keys = []
+        borromean.signing_keys = []
         for i in range(ring_number):
             priv_keys[i] = [0]*ring_dim[i]
             Pub_keys[i] = [0]*ring_dim[i]
             for j in range(ring_dim[i]):
                 priv_keys[i][j] = j+1
-                Pub_keys[i][j] = pointMult(ec, priv_keys[i][j], ec.G)
-            signing_keys.append(priv_keys[i][signing_indexes[i]])
-        msg = 'Borromean ring signature'.encode()
-        sig = borromean_sign(msg, list(range(1, 5)), signing_indexes, signing_keys, Pub_keys)
-        self.assertTrue(borromean_verify(msg, sig[0], sig[1], Pub_keys))
+                Pub_keys[i][j] = mult(ec, priv_keys[i][j], ec.G)
+            borromean.signing_keys.append(priv_keys[i][borromean.signing_indexes[i]])
+        msg = 'Borromean ring borromean.signature'.encode()
+        sig = borromean.sign(msg, list(range(1, 5)), borromean.signing_indexes, borromean.signing_keys, Pub_keys)
+        self.assertTrue(borromean.verify(msg, sig[0], sig[1], Pub_keys))
 
-        self.assertFalse(borromean_verify(0, sig[0], sig[1], Pub_keys))
+        self.assertFalse(borromean.verify(0, sig[0], sig[1], Pub_keys))
 
 if __name__ == "__main__":
     # execute only if run as a script

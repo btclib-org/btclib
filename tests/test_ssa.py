@@ -14,13 +14,12 @@ from hashlib import sha256 as hf
 from typing import List
 
 from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.ec import Point, pointMult, DblScalarMult
+from btclib.curve import Point, mult, double_mult
 from btclib.curves import secp256k1, secp224k1, low_card_curves
-from btclib.utils import octets2int, octets2point, point2octets, bits2int
-from btclib.pedersen import secondGenerator
+from btclib.utils import int_from_octets, point_from_octets, octets_from_point, int_from_bits
+from btclib.pedersen import second_generator
 from btclib.rfc6979 import rfc6979
-from btclib.ssa import ecssa_sign, ecssa_verify, \
-    _ecssa_e, _ecssa_verify, _ecssa_pubkey_recovery, ecssa_batch_verify
+from btclib import ssa
 
 random.seed(42)
 
@@ -30,9 +29,9 @@ class TestEcssa(unittest.TestCase):
         """Basic tests"""
         ec = secp256k1
         q = 0x1
-        Q = pointMult(ec, q, ec.G)
+        Q = mult(ec, q, ec.G)
         msg = hf('Satoshi Nakamoto'.encode()).digest()
-        sig = ecssa_sign(ec, hf, msg, q, None)
+        sig = ssa.sign(ec, hf, msg, q, None)
         # no source for the following... but
         # https://bitcointalk.org/index.php?topic=285142.40
         # same r because of rfc6979
@@ -41,46 +40,46 @@ class TestEcssa(unittest.TestCase):
         self.assertEqual(sig[0], exp_sig[0])
         self.assertEqual(sig[1], exp_sig[1])
 
-        _ecssa_verify(ec, hf, msg, Q, sig)
-        self.assertTrue(ecssa_verify(ec, hf, msg, Q, sig))
-        self.assertTrue(_ecssa_verify(ec, hf, msg, Q, sig))
+        ssa._verify(ec, hf, msg, Q, sig)
+        self.assertTrue(ssa.verify(ec, hf, msg, Q, sig))
+        self.assertTrue(ssa._verify(ec, hf, msg, Q, sig))
 
         fmsg = hf('Craig Wright'.encode()).digest()
-        self.assertFalse(ecssa_verify(ec, hf, fmsg, Q, sig))
-        self.assertFalse(_ecssa_verify(ec, hf, fmsg, Q, sig))
+        self.assertFalse(ssa.verify(ec, hf, fmsg, Q, sig))
+        self.assertFalse(ssa._verify(ec, hf, fmsg, Q, sig))
 
         fssasig = (sig[0], sig[1], sig[1])
-        self.assertFalse(ecssa_verify(ec, hf, msg, Q, fssasig))
-        self.assertRaises(TypeError, _ecssa_verify, ec, hf, msg, Q, fssasig)
+        self.assertFalse(ssa.verify(ec, hf, msg, Q, fssasig))
+        self.assertRaises(TypeError, ssa._verify, ec, hf, msg, Q, fssasig)
 
         # y(sG - eP) is not a quadratic residue
         fq = 0x2
-        fQ = pointMult(ec, fq, ec.G)
-        self.assertFalse(ecssa_verify(ec, hf, msg, fQ, sig))
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, fQ, sig)
+        fQ = mult(ec, fq, ec.G)
+        self.assertFalse(ssa.verify(ec, hf, msg, fQ, sig))
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, fQ, sig)
 
         fq = 0x4
-        fQ = pointMult(ec, fq, ec.G)
-        self.assertFalse(ecssa_verify(ec, hf, msg, fQ, sig))
-        self.assertFalse(_ecssa_verify(ec, hf, msg, fQ, sig))
+        fQ = mult(ec, fq, ec.G)
+        self.assertFalse(ssa.verify(ec, hf, msg, fQ, sig))
+        self.assertFalse(ssa._verify(ec, hf, msg, fQ, sig))
 
         # not ec.pIsThreeModFour
-        self.assertFalse(ecssa_verify(secp224k1, hf, msg, Q, sig))
-        self.assertRaises(ValueError, _ecssa_verify, secp224k1, hf, msg, Q, sig)
+        self.assertFalse(ssa.verify(secp224k1, hf, msg, Q, sig))
+        self.assertRaises(ValueError, ssa._verify, secp224k1, hf, msg, Q, sig)
 
         # verify: message of wrong size
         wrongmsg = msg[:-1]
-        self.assertFalse(ecssa_verify(ec, hf, wrongmsg, Q, sig))
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, wrongmsg, Q, sig)
-        #_ecssa_verify(ec, hf, wrongmsg, Q, sig)
+        self.assertFalse(ssa.verify(ec, hf, wrongmsg, Q, sig))
+        self.assertRaises(ValueError, ssa._verify, ec, hf, wrongmsg, Q, sig)
+        #ssa._verify(ec, hf, wrongmsg, Q, sig)
 
         # sign: message of wrong size
-        self.assertRaises(ValueError, ecssa_sign, ec, hf, wrongmsg, q, None)
-        #ecssa_sign(ec, hf, wrongmsg, q, None)
+        self.assertRaises(ValueError, ssa.sign, ec, hf, wrongmsg, q, None)
+        #ssa.sign(ec, hf, wrongmsg, q, None)
 
         # invalid (zero) challenge e
-        self.assertRaises(ValueError, _ecssa_pubkey_recovery, ec, hf, 0, sig)
-        #_ecssa_pubkey_recovery(ec, hf, 0, sig)
+        self.assertRaises(ValueError, ssa._pubkey_recovery, ec, hf, 0, sig)
+        #ssa._pubkey_recovery(ec, hf, 0, sig)
 
     def test_schnorr_bip_tv(self):
         """Bip-Schnorr Test Vectors
@@ -89,177 +88,177 @@ class TestEcssa(unittest.TestCase):
         """
         ec = secp256k1
         # test vector 1
-        prv = bits2int(ec, b'\x00' * 31 + b'\x01')
-        pub = pointMult(ec, prv, ec.G)
+        prv = int_from_bits(ec, b'\x00' * 31 + b'\x01')
+        pub = mult(ec, prv, ec.G)
         msg = b'\x00' * 32
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
         eph_prv = int.from_bytes(hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
-        sig = ecssa_sign(ec, hf, msg, prv, eph_prv)
-        self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
+        sig = ssa.sign(ec, hf, msg, prv, eph_prv)
+        self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
-        e = _ecssa_e(ec, hf, sig[0], pub, msg)
-        self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
+        e = ssa._e(ec, hf, sig[0], pub, msg)
+        self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 2
         prv = 0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
-        pub = pointMult(ec, prv, ec.G)
+        pub = mult(ec, prv, ec.G)
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         expected_sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                         0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
         eph_prv = int.from_bytes(hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
-        sig = ecssa_sign(ec, hf, msg, prv, eph_prv)
-        self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
+        sig = ssa.sign(ec, hf, msg, prv, eph_prv)
+        self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
-        e = _ecssa_e(ec, hf, sig[0], pub, msg)
-        self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
+        e = ssa._e(ec, hf, sig[0], pub, msg)
+        self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 3
         prv = 0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B14E5C7
-        pub = pointMult(ec, prv, ec.G)
+        pub = mult(ec, prv, ec.G)
         msg = bytes.fromhex("5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         expected_sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                         0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
         eph_prv = int.from_bytes(hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
-        sig = ecssa_sign(ec, hf, msg, prv, eph_prv)
-        self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
+        sig = ssa.sign(ec, hf, msg, prv, eph_prv)
+        self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
-        e = _ecssa_e(ec, hf, sig[0], pub, msg)
-        self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
+        e = ssa._e(ec, hf, sig[0], pub, msg)
+        self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 4
-        pub = octets2point(ec, "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
+        pub = point_from_octets(ec, "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
         msg = bytes.fromhex("4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703")
         sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63,
                0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
-        self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
-        e = _ecssa_e(ec, hf, sig[0], pub, msg)
-        self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
+        self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
+        e = ssa._e(ec, hf, sig[0], pub, msg)
+        self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 5
         # test would fail if jacobi symbol of x(R) instead of y(R) is used
-        pub = octets2point(ec, "031B84C5567B126440995D3ED5AABA0565D71E1834604819FF9C17F5E9D5DD078F")
+        pub = point_from_octets(ec, "031B84C5567B126440995D3ED5AABA0565D71E1834604819FF9C17F5E9D5DD078F")
         msg = bytes.fromhex("0000000000000000000000000000000000000000000000000000000000000000")
         sig = (0x52818579ACA59767E3291D91B76B637BEF062083284992F2D95F564CA6CB4E35,
                0x30B1DA849C8E8304ADC0CFE870660334B3CFC18E825EF1DB34CFAE3DFC5D8187)
-        self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
-        e = _ecssa_e(ec, hf, sig[0], pub, msg)
-        self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
+        self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
+        e = ssa._e(ec, hf, sig[0], pub, msg)
+        self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 6
         # test would fail if msg is reduced
-        pub = octets2point(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        pub = point_from_octets(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
         msg = bytes.fromhex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
         sig = (0x570DD4CA83D4E6317B8EE6BAE83467A1BF419D0767122DE409394414B05080DC,
                0xE9EE5F237CBD108EABAE1E37759AE47F8E4203DA3532EB28DB860F33D62D49BD)
-        self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
-        e = _ecssa_e(ec, hf, sig[0], pub, msg)
-        self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
+        self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
+        e = ssa._e(ec, hf, sig[0], pub, msg)
+        self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # new proposed test: test would fail if msg is reduced
-        pub = octets2point(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        pub = point_from_octets(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
         msg = bytes.fromhex("000008D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A5000000")
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
-        self.assertTrue(_ecssa_verify(ec, hf, msg, pub, sig))
-        e = _ecssa_e(ec, hf, sig[0], pub, msg)
-        self.assertEqual(_ecssa_pubkey_recovery(ec, hf, e, sig), pub)
+        self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
+        e = ssa._e(ec, hf, sig[0], pub, msg)
+        self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # new proposed test: genuine failure
-        pub = octets2point(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        pub = point_from_octets(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
         msg = bytes.fromhex("0000000000000000000000000000000000000000000000000000000000000000")
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
-        self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
+        self.assertFalse(ssa._verify(ec, hf, msg, pub, sig))
 
         # new proposed test: P = infinite
         pub = 1, 0
         msg = bytes.fromhex("5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 7
         # public key not on the curve
         # impossible to verify with btclib analytics as it at Point conversion
-        self.assertRaises(ValueError, octets2point, ec, "03EEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
+        self.assertRaises(ValueError, point_from_octets, ec, "03EEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
         # msg = bytes.fromhex("4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703")
         # sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63, 0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
-        # self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        # self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 8
         # Incorrect sig: incorrect R residuosity
-        pub = octets2point(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0xFA16AEE06609280A19B67A24E1977E4697712B5FD2943914ECD5F730901B4AB7)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 9
         # Incorrect sig: negated message hash
-        pub = octets2point(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        pub = point_from_octets(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
         msg = bytes.fromhex("5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                0xD092F9D860F1776A1F7412AD8A1EB50DACCC222BC8C0E26B2056DF2F273EFDEC)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 10
         # Incorrect sig: negated s value
-        pub = octets2point(ec, "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798")
+        pub = point_from_octets(ec, "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798")
         msg = b'\x00' * 32
         sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                0x8FCE5677CE7A623CB20011225797CE7A8DE1DC6CCD4F754A47DA6C600E59543C)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 11
         # Incorrect sig: negated public key
-        pub = octets2point(ec, "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        pub = point_from_octets(ec, "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D, 0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 12
         # sG - eP is infinite.
         # Test fails in single verification if jacobi(y(inf)) is defined as 1 and x(inf) as 0
-        pub = octets2point(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x0000000000000000000000000000000000000000000000000000000000000000,
                0x9E9D01AF988B5CEDCE47221BFA9B222721F3FA408915444A4B489021DB55775F)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 13
         # sG - eP is infinite.
         # Test fails in single verification if jacobi(y(inf)) is defined as 1 and x(inf) as 1"""
-        pub = octets2point(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x0000000000000000000000000000000000000000000000000000000000000001,
                0xD37DDF0254351836D84B1BD6A795FD5D523048F298C4214D187FE4892947F728)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 14
         # sig[0:32] is not an X coordinate on the curve
-        pub = octets2point(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x4A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
+        self.assertFalse(ssa._verify(ec, hf, msg, pub, sig))
 
         # test vector 15
         # sig[0:32] is equal to field size
-        pub = octets2point(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC2F,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        #self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
-        self.assertFalse(_ecssa_verify(ec, hf, msg, pub, sig))
+        #self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
+        self.assertFalse(ssa._verify(ec, hf, msg, pub, sig))
 
         # test vector 16
         # sig[32:64] is equal to curve order
-        pub = octets2point(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141)
-        self.assertRaises(ValueError, _ecssa_verify, ec, hf, msg, pub, sig)
+        self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
     def test_low_cardinality(self):
         """test all msg/key pairs of low cardinality elliptic curves"""
@@ -276,29 +275,29 @@ class TestEcssa(unittest.TestCase):
             if ec._p in prime:  # only few curves or it would take too long
                 # Schnorr-bip only applies to curve whose prime p = 3 %4
                 if not ec.pIsThreeModFour:
-                    self.assertRaises(ValueError, ecssa_sign, ec, hf, H[0], 1, None)
+                    self.assertRaises(ValueError, ssa.sign, ec, hf, H[0], 1, None)
                     continue
                 for q in range(ec.n):  # all possible private keys
                     if q == 0:  # invalid prvkey=0
-                        self.assertRaises(ValueError, ecssa_sign, ec, hf, H[0], q, None)
+                        self.assertRaises(ValueError, ssa.sign, ec, hf, H[0], q, None)
                         self.assertRaises(ValueError, rfc6979, ec, hf, H[0], q)
                         continue
-                    Q = pointMult(ec, q, ec.G)  # public key
+                    Q = mult(ec, q, ec.G)  # public key
                     for h in H:  # all possible hashed messages
                         # k = 0
-                        self.assertRaises(ValueError, ecssa_sign, ec, hf, h, q, 0)
+                        self.assertRaises(ValueError, ssa.sign, ec, hf, h, q, 0)
                         k = rfc6979(ec, hf, h, q)
-                        K = pointMult(ec, k, ec.G)
+                        K = mult(ec, k, ec.G)
                         if legendre_symbol(K[1], ec._p) != 1:
                             k = ec.n - k
 
-                        e = _ecssa_e(ec, hf, K[0], Q, h)
+                        e = ssa._e(ec, hf, K[0], Q, h)
                         s = (k + e * q) % ec.n
                         # valid signature
-                        sig = ecssa_sign(ec, hf, h, q, k)
+                        sig = ssa.sign(ec, hf, h, q, k)
                         self.assertEqual((K[0], s), sig)
                         # valid signature must validate
-                        self.assertTrue(_ecssa_verify(ec, hf, h, Q, sig))
+                        self.assertTrue(ssa._verify(ec, hf, h, Q, sig))
 
     def test_batch_validation(self):
         ec = secp256k1
@@ -308,21 +307,49 @@ class TestEcssa(unittest.TestCase):
 
         hsize =hf().digest_size
         hlen = hsize * 8
-        for i in range(10):
+        m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
+        q = (1+random.getrandbits(ec.nlen)) % ec.n
+        sig.append(ssa.sign(ec, hf, m[0], q))
+        Q.append(mult(ec, q, ec.G))
+        # test with only 1 sig
+        self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
+        for i in range(1, 4):
             m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
-            q = random.getrandbits(ec.nlen) % ec.n
-            sig.append(ecssa_sign(ec, hf, m[i], q))
-            Q.append(pointMult(ec, q, ec.G))
-        self.assertTrue(ecssa_batch_verify(ec, hf, m, Q, sig))
+            q = (1+random.getrandbits(ec.nlen)) % ec.n
+            sig.append(ssa.sign(ec, hf, m[i], q))
+            Q.append(mult(ec, q, ec.G))
+        self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
 
+        # invalid sig
         m.append(m[0])
-        sig.append(sig[1])  # invalid
+        sig.append(sig[1])
         Q.append(Q[0])
-        self.assertFalse(ecssa_batch_verify(ec, hf, m, Q, sig))
+        self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
+        #ssa._batch_verify(ec, hf, m, Q, sig)
+        sig[-1] = sig[0]  # valid again
 
-        sig[-1] = sig[0]  # valid
-        m[-1] = m[0][:-1]  # invalid 31 bytes message
-        self.assertFalse(ecssa_batch_verify(ec, hf, m, Q, sig))
+        # invalid 31 bytes message
+        m[-1] = m[0][:-1]
+        self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
+        #ssa._batch_verify(ec, hf, m, Q, sig)
+        m[-1] = m[0] # valid again
+
+        # mismatch between number of pubkeys and number of messages
+        m.append(m[0])  # add extra message
+        self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
+        #ssa._batch_verify(ec, hf, m, Q, sig)
+        m.pop()  # valid again
+
+        # mismatch between number of pubkeys and number of signatures
+        sig.append(sig[0])  # add extra sig
+        self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
+        #ssa._batch_verify(ec, hf, m, Q, sig)
+        sig.pop()  # valid again
+
+        # curve prime p must be equal to 3 (mod 4)
+        ec = secp224k1
+        self.assertRaises(ValueError, ssa._batch_verify, ec, hf, m, Q, sig)
+        #ssa._batch_verify(ec, hf, m, Q, sig)
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
@@ -330,21 +357,16 @@ class TestEcssa(unittest.TestCase):
         ec = secp256k1
         # parameters
         t = 2
-        H = secondGenerator(ec, hf)
+        H = second_generator(ec, hf)
         msg = hf('message to sign'.encode()).digest()
 
         ### FIRST PHASE: key pair generation ###
 
         # signer one acting as the dealer
         commits1: List[Point] = list()
-        q1 = 0  # secret value
-        while q1 == 0:
-            q1 = random.getrandbits(ec.nlen) % ec.n
-        q1_prime = 0
-        while q1_prime == 0:
-            q1_prime = random.getrandbits(ec.nlen) % ec.n
-
-        commits1.append(DblScalarMult(ec, q1, ec.G, q1_prime, H))
+        q1 = (1+random.getrandbits(ec.nlen)) % ec.n
+        q1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        commits1.append(double_mult(ec, q1, ec.G, q1_prime, H))
 
         # sharing polynomials
         f1: List[int] = list()
@@ -352,16 +374,11 @@ class TestEcssa(unittest.TestCase):
         f1_prime: List[int] = list()
         f1_prime.append(q1_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
-            commits1.append(DblScalarMult(
-                ec, f1[i], ec.G, f1_prime[i], H))
+            commits1.append(double_mult(ec, f1[i], ec.G, f1_prime[i], H))
 
         # shares of the secret
         alpha12 = 0  # share of q1 belonging to P2
@@ -378,25 +395,20 @@ class TestEcssa(unittest.TestCase):
         # player two verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMult(ec, pow(2, i), commits1[i]))
-        assert DblScalarMult(ec, alpha12, ec.G, alpha12_prime, H) == RHS, 'player one is cheating'
+            RHS = ec.add(RHS, mult(ec, pow(2, i), commits1[i]))
+        assert double_mult(ec, alpha12, ec.G, alpha12_prime, H) == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMult(ec, pow(3, i), commits1[i]))
-        assert DblScalarMult(ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
+            RHS = ec.add(RHS, mult(ec, pow(3, i), commits1[i]))
+        assert double_mult(ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
 
         # signer two acting as the dealer
         commits2: List[Point] = list()
-        q2 = 0  # secret value
-        while q2 == 0:
-            q2 = random.getrandbits(ec.nlen) % ec.n
-        q2_prime = 0
-        while q2_prime == 0:
-            q2_prime = random.getrandbits(ec.nlen) % ec.n
-
-        commits2.append(DblScalarMult(ec, q2, ec.G, q2_prime, H))
+        q2 = (1+random.getrandbits(ec.nlen)) % ec.n
+        q2_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        commits2.append(double_mult(ec, q2, ec.G, q2_prime, H))
 
         # sharing polynomials
         f2: List[int] = list()
@@ -404,16 +416,11 @@ class TestEcssa(unittest.TestCase):
         f2_prime: List[int] = list()
         f2_prime.append(q2_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f2.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f2_prime.append(temp)
-            commits2.append(DblScalarMult(
-                ec, f2[i], ec.G, f2_prime[i], H))
+            commits2.append(double_mult(ec, f2[i], ec.G, f2_prime[i], H))
 
         # shares of the secret
         alpha21 = 0  # share of q2 belonging to P1
@@ -430,25 +437,20 @@ class TestEcssa(unittest.TestCase):
         # player one verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMult(ec, pow(1, i), commits2[i]))
-        assert DblScalarMult(ec, alpha21, ec.G, alpha21_prime, H) == RHS, 'player two is cheating'
+            RHS = ec.add(RHS, mult(ec, pow(1, i), commits2[i]))
+        assert double_mult(ec, alpha21, ec.G, alpha21_prime, H) == RHS, 'player two is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMult(ec, pow(3, i), commits2[i]))
-        assert DblScalarMult(ec, alpha23, ec.G, alpha23_prime, H) == RHS, 'player two is cheating'
+            RHS = ec.add(RHS, mult(ec, pow(3, i), commits2[i]))
+        assert double_mult(ec, alpha23, ec.G, alpha23_prime, H) == RHS, 'player two is cheating'
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
-        q3 = 0  # secret value
-        while q3 == 0:
-            q3 = random.getrandbits(ec.nlen) % ec.n
-        q3_prime = 0
-        while q3_prime == 0:
-            q3_prime = random.getrandbits(ec.nlen) % ec.n
-
-        commits3.append(DblScalarMult(ec, q3, ec.G, q3_prime, H))
+        q3 = (1+random.getrandbits(ec.nlen)) % ec.n
+        q3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        commits3.append(double_mult(ec, q3, ec.G, q3_prime, H))
 
         # sharing polynomials
         f3: List[int] = list()
@@ -456,16 +458,11 @@ class TestEcssa(unittest.TestCase):
         f3_prime: List[int] = list()
         f3_prime.append(q3_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
-            commits3.append(DblScalarMult(
-                ec, f3[i], ec.G, f3_prime[i], H))
+            commits3.append(double_mult(ec, f3[i], ec.G, f3_prime[i], H))
 
         # shares of the secret
         alpha31 = 0  # share of q3 belonging to P1
@@ -482,14 +479,14 @@ class TestEcssa(unittest.TestCase):
         # player one verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMult(ec, pow(1, i), commits3[i]))
-        assert DblScalarMult(ec, alpha31, ec.G, alpha31_prime, H) == RHS, 'player three is cheating'
+            RHS = ec.add(RHS, mult(ec, pow(1, i), commits3[i]))
+        assert double_mult(ec, alpha31, ec.G, alpha31_prime, H) == RHS, 'player three is cheating'
 
         # player two verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMult(ec, pow(2, i), commits3[i]))
-        assert DblScalarMult(ec, alpha32, ec.G, alpha32_prime, H) == RHS, 'player two is cheating'
+            RHS = ec.add(RHS, mult(ec, pow(2, i), commits3[i]))
+        assert double_mult(ec, alpha32, ec.G, alpha32_prime, H) == RHS, 'player two is cheating'
 
         # shares of the secret key q = q1 + q2 + q3
         alpha1 = (alpha21 + alpha31) % ec.n
@@ -509,37 +506,37 @@ class TestEcssa(unittest.TestCase):
 
         # he broadcasts these values
         for i in range(t):
-            A1.append(pointMult(ec, f1[i], ec.G))
-            A2.append(pointMult(ec, f2[i], ec.G))
-            A3.append(pointMult(ec, f3[i], ec.G))
+            A1.append(mult(ec, f1[i], ec.G))
+            A2.append(mult(ec, f2[i], ec.G))
+            A3.append(mult(ec, f3[i], ec.G))
 
         # he checks the others' values
         # player one
         RHS2 = 1, 0
         RHS3 = 1, 0
         for i in range(t):
-            RHS2 = ec.add(RHS2, pointMult(ec, pow(1, i), A2[i]))
-            RHS3 = ec.add(RHS3, pointMult(ec, pow(1, i), A3[i]))
-        assert pointMult(ec, alpha21, ec.G) == RHS2, 'player two is cheating'
-        assert pointMult(ec, alpha31, ec.G) == RHS3, 'player three is cheating'
+            RHS2 = ec.add(RHS2, mult(ec, pow(1, i), A2[i]))
+            RHS3 = ec.add(RHS3, mult(ec, pow(1, i), A3[i]))
+        assert mult(ec, alpha21, ec.G) == RHS2, 'player two is cheating'
+        assert mult(ec, alpha31, ec.G) == RHS3, 'player three is cheating'
 
         # player two
         RHS1 = 1, 0
         RHS3 = 1, 0
         for i in range(t):
-            RHS1 = ec.add(RHS1, pointMult(ec, pow(2, i), A1[i]))
-            RHS3 = ec.add(RHS3, pointMult(ec, pow(2, i), A3[i]))
-        assert pointMult(ec, alpha12, ec.G) == RHS1, 'player one is cheating'
-        assert pointMult(ec, alpha32, ec.G) == RHS3, 'player three is cheating'
+            RHS1 = ec.add(RHS1, mult(ec, pow(2, i), A1[i]))
+            RHS3 = ec.add(RHS3, mult(ec, pow(2, i), A3[i]))
+        assert mult(ec, alpha12, ec.G) == RHS1, 'player one is cheating'
+        assert mult(ec, alpha32, ec.G) == RHS3, 'player three is cheating'
 
         # player three
         RHS1 = 1, 0
         RHS2 = 1, 0
         for i in range(t):
-            RHS1 = ec.add(RHS1, pointMult(ec, pow(3, i), A1[i]))
-            RHS2 = ec.add(RHS2, pointMult(ec, pow(3, i), A2[i]))
-        assert pointMult(ec, alpha13, ec.G) == RHS1, 'player one is cheating'
-        assert pointMult(ec, alpha23, ec.G) == RHS2, 'player two is cheating'
+            RHS1 = ec.add(RHS1, mult(ec, pow(3, i), A1[i]))
+            RHS2 = ec.add(RHS2, mult(ec, pow(3, i), A2[i]))
+        assert mult(ec, alpha13, ec.G) == RHS1, 'player one is cheating'
+        assert mult(ec, alpha23, ec.G) == RHS2, 'player two is cheating'
 
         A: List[Point] = list()  # commitment at the global sharing polynomial
         for i in range(t):
@@ -553,14 +550,9 @@ class TestEcssa(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1: List[Point] = list()
-        k1 = 0  # secret value
-        while k1 == 0:
-            k1 = random.getrandbits(ec.nlen) % ec.n
-        k1_prime = 0
-        while k1_prime == 0:
-            k1_prime = random.getrandbits(ec.nlen) % ec.n
-
-        commits1.append(DblScalarMult(ec, k1, ec.G, k1_prime, H))
+        k1 = (1+random.getrandbits(ec.nlen)) % ec.n
+        k1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        commits1.append(double_mult(ec, k1, ec.G, k1_prime, H))
 
         # sharing polynomials
         f1: List[int] = list()
@@ -568,16 +560,11 @@ class TestEcssa(unittest.TestCase):
         f1_prime: List[int] = list()
         f1_prime.append(k1_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
-            commits1.append(DblScalarMult(
-                ec, f1[i], ec.G, f1_prime[i], H))
+            commits1.append(double_mult(ec, f1[i], ec.G, f1_prime[i], H))
 
         # shares of the secret
         beta13 = 0  # share of k1 belonging to P3
@@ -589,19 +576,14 @@ class TestEcssa(unittest.TestCase):
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMult(ec, pow(3, i), commits1[i]))
-        assert DblScalarMult(ec, beta13, ec.G, beta13_prime, H) == RHS, 'player one is cheating'
+            RHS = ec.add(RHS, mult(ec, pow(3, i), commits1[i]))
+        assert double_mult(ec, beta13, ec.G, beta13_prime, H) == RHS, 'player one is cheating'
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
-        k3 = 0  # secret value
-        while k3 == 0:
-            k3 = random.getrandbits(ec.nlen) % ec.n
-        k3_prime = 0
-        while k3_prime == 0:
-            k3_prime = random.getrandbits(ec.nlen) % ec.n
-
-        commits3.append(DblScalarMult(ec, k3, ec.G, k3_prime, H))
+        k3 = (1+random.getrandbits(ec.nlen)) % ec.n
+        k3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        commits3.append(double_mult(ec, k3, ec.G, k3_prime, H))
 
         # sharing polynomials
         f3: List[int] = list()
@@ -609,15 +591,11 @@ class TestEcssa(unittest.TestCase):
         f3_prime: List[int] = list()
         f3_prime.append(k3_prime)
         for i in range(1, t):
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3.append(temp)
-            temp = 0
-            while temp == 0:
-                temp = random.getrandbits(ec.nlen) % ec.n
+            temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
-            commits3.append(DblScalarMult(ec, f3[i], ec.G, f3_prime[i], H))
+            commits3.append(double_mult(ec, f3[i], ec.G, f3_prime[i], H))
 
         # shares of the secret
         beta31 = 0  # share of k3 belonging to P1
@@ -629,8 +607,8 @@ class TestEcssa(unittest.TestCase):
         # player one verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
-            RHS = ec.add(RHS, pointMult(ec, pow(1, i), commits3[i]))
-        assert DblScalarMult(ec, beta31, ec.G, beta31_prime, H) == RHS, 'player three is cheating'
+            RHS = ec.add(RHS, mult(ec, pow(1, i), commits3[i]))
+        assert double_mult(ec, beta31, ec.G, beta31_prime, H) == RHS, 'player three is cheating'
 
         # shares of the secret nonce
         beta1 = beta31 % ec.n
@@ -647,21 +625,21 @@ class TestEcssa(unittest.TestCase):
 
         # he broadcasts these values
         for i in range(t):
-            B1.append(pointMult(ec, f1[i], ec.G))
-            B3.append(pointMult(ec, f3[i], ec.G))
+            B1.append(mult(ec, f1[i], ec.G))
+            B3.append(mult(ec, f3[i], ec.G))
 
         # he checks the others' values
         # player one
         RHS3 = 1, 0
         for i in range(t):
-            RHS3 = ec.add(RHS3, pointMult(ec, pow(1, i), B3[i]))
-        assert pointMult(ec, beta31, ec.G) == RHS3, 'player three is cheating'
+            RHS3 = ec.add(RHS3, mult(ec, pow(1, i), B3[i]))
+        assert mult(ec, beta31, ec.G) == RHS3, 'player three is cheating'
 
         # player three
         RHS1 = 1, 0
         for i in range(t):
-            RHS1 = ec.add(RHS1, pointMult(ec, pow(3, i), B1[i]))
-        assert pointMult(ec, beta13, ec.G) == RHS1, 'player one is cheating'
+            RHS1 = ec.add(RHS1, mult(ec, pow(3, i), B1[i]))
+        assert mult(ec, beta13, ec.G) == RHS1, 'player one is cheating'
 
         B: List[Point] = list()  # commitment at the global sharing polynomial
         for i in range(t):
@@ -676,9 +654,9 @@ class TestEcssa(unittest.TestCase):
 
         # partial signatures
         ebytes = K[0].to_bytes(32, byteorder="big") 
-        ebytes += point2octets(ec, Q, True)
+        ebytes += octets_from_point(ec, Q, True)
         ebytes += msg
-        e = bits2int(ec, hf(ebytes).digest())
+        e = int_from_bits(ec, hf(ebytes).digest())
         gamma1 = (beta1 + e * alpha1) % ec.n
         gamma3 = (beta3 + e * alpha3) % ec.n
 
@@ -686,42 +664,42 @@ class TestEcssa(unittest.TestCase):
 
         # player one
         if legendre_symbol(K[1], ec._p) == 1:
-            RHS3 = ec.add(K, pointMult(ec, e, Q))
+            RHS3 = ec.add(K, mult(ec, e, Q))
             for i in range(1, t):
-                RHS3 = ec.add(RHS3,
-                              DblScalarMult(ec, pow(3, i), B[i], e * pow(3, i), A[i]))
+                temp = double_mult(ec, pow(3, i), B[i], e * pow(3, i), A[i])
+                RHS3 = ec.add(RHS3, temp)
         else:
             assert legendre_symbol(K[1], ec._p) != 1
-            RHS3 = ec.add(ec.opposite(K), pointMult(ec, e, Q))
+            RHS3 = ec.add(ec.opposite(K), mult(ec, e, Q))
             for i in range(1, t):
-                RHS3 = ec.add(RHS3,
-                              DblScalarMult(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i]))
+                temp = double_mult(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i])
+                RHS3 = ec.add(RHS3, temp)
 
-        assert pointMult(ec, gamma3, ec.G) == RHS3, 'player three is cheating'
+        assert mult(ec, gamma3, ec.G) == RHS3, 'player three is cheating'
 
         # player three
         if legendre_symbol(K[1], ec._p) == 1:
-            RHS1 = ec.add(K, pointMult(ec, e, Q))
+            RHS1 = ec.add(K, mult(ec, e, Q))
             for i in range(1, t):
-                RHS1 = ec.add(RHS1,
-                              DblScalarMult(ec, pow(1, i), B[i], e * pow(1, i), A[i]))
+                temp = double_mult(ec, pow(1, i), B[i], e * pow(1, i), A[i])
+                RHS1 = ec.add(RHS1, temp)
         else:
             assert legendre_symbol(K[1], ec._p) != 1
-            RHS1 = ec.add(ec.opposite(K), pointMult(ec, e, Q))
+            RHS1 = ec.add(ec.opposite(K), mult(ec, e, Q))
             for i in range(1, t):
-                RHS1 = ec.add(RHS1,
-                              DblScalarMult(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i]))
+                temp = double_mult(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i])
+                RHS1 = ec.add(RHS1, temp)
 
-        assert pointMult(ec, gamma1, ec.G) == RHS1, 'player two is cheating'
+        assert mult(ec, gamma1, ec.G) == RHS1, 'player two is cheating'
 
         ### PHASE FOUR: aggregating the signature ###
         omega1 = 3 * mod_inv(3 - 1, ec.n) % ec.n
         omega3 = 1 * mod_inv(1 - 3, ec.n) % ec.n
         sigma = (gamma1 * omega1 + gamma3 * omega3) % ec.n
 
-        ssa = (K[0], sigma)
+        sig = K[0], sigma
 
-        self.assertTrue(_ecssa_verify(ec, hf, msg, Q, ssa))
+        self.assertTrue(ssa._verify(ec, hf, msg, Q, sig))
 
         ### ADDITIONAL PHASE: reconstruction of the private key ###
         secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
@@ -730,139 +708,100 @@ class TestEcssa(unittest.TestCase):
     def test_musig(self):
         """ testing 3-of-3 MuSig
         
+            https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
+            https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
             https://eprint.iacr.org/2018/068
             https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
             https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
         """
         ec = secp256k1
-        L: List[Point] = list()  # multiset of public keys
         M = hf('message to sign'.encode()).digest()
 
-        # first signer
-        q1 = octets2int('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
-        Q1 = pointMult(ec, q1, ec.G)
-        L.append(point2octets(ec, Q1, False))
+        # key setup is not interactive
 
-        # ephemeral private nonce
-        k1 = 0x012a2a833eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbb
-        K1 = pointMult(ec, k1, ec.G)
-        K1_x = K1[0]
-        if legendre_symbol(K1[1], ec._p) != 1:
-            k1 = ec.n - k1
-            K1 = K1_x, ec.yQuadraticResidue(K1_x, True)
-            #K1 = pointMult(ec, k1, ec.G)
+        # first signer
+        q1 = int_from_octets('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
+        Q1 = mult(ec, q1, ec.G)
+        k1 = rfc6979(ec, hf, M, q1)
+        K1 = mult(ec, k1, ec.G)
 
         # second signer
-        q2 = octets2int('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
-        Q2 = pointMult(ec, q2, ec.G)
-        L.append(point2octets(ec, Q2, False))
-
-        k2 = 0x01a2a0d3eac4e67e06611aba01345b85cdd4f5ad44f72e369ef0dd640424dbdb
-        K2 = pointMult(ec, k2, ec.G)
-        K2_x = K2[0]
-        if legendre_symbol(K2[1], ec._p) != 1:
-            k2 = ec.n - k2
-            K2 = K2_x, ec.yQuadraticResidue(K2_x, True)
-            #K2 = pointMult(ec, k2, ec.G)
+        q2 = int_from_octets('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        Q2 = mult(ec, q2, ec.G)
+        k2 = rfc6979(ec, hf, M, q2)
+        K2 = mult(ec, k2, ec.G)
 
         # third signer
-        q3 = random.getrandbits(ec.nlen) % ec.n
-        Q3 = pointMult(ec, q3, ec.G)
-        while Q3 == None:  # plausible only for small (test) cardinality groups
-            q3 = random.getrandbits(ec.nlen) % ec.n
-            Q3 = pointMult(ec, q3, ec.G)
-        L.append(point2octets(ec, Q3, False))
+        q3 = int_from_octets('0c28fca386c7aff7600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        Q3 = mult(ec, q3, ec.G)
+        k3 = rfc6979(ec, hf, M, q3)
+        K3 = mult(ec, k3, ec.G)
 
-        k3 = random.getrandbits(ec.nlen) % ec.n
-        K3 = pointMult(ec, k3, ec.G)
-        while K3 == None:  # plausible only for small (test) cardinality groups
-            k3 = random.getrandbits(ec.nlen) % ec.n
-            K3 = pointMult(ec, k3, ec.G)
-        K3_x = K3[0]
-        if legendre_symbol(K3[1], ec._p) != 1:
-            k3 = ec.n - k3
-            K3 = K3_x, ec.yQuadraticResidue(K3_x, True)
-            #K3 = pointMult(ec, k3, ec.G)
-
-        L.sort()  # using lexicographic ordering
+        # this is MuSig core: the rest is just Schnorr signature additivity
+        L: List[Point] = list()  # multiset of public keys
+        L.append(octets_from_point(ec, Q1, False))
+        L.append(octets_from_point(ec, Q2, False))
+        L.append(octets_from_point(ec, Q3, False))
+        L.sort()                 # using lexicographic ordering
         L_brackets = b''
         for i in range(len(L)):
             L_brackets += L[i]
-
-        h1 = hf(L_brackets + point2octets(ec, Q1, False)).digest()
-        a1 = bits2int(ec, h1)
-        h2 = hf(L_brackets + point2octets(ec, Q2, False)).digest()
-        a2 = bits2int(ec, h2)
-        h3 = hf(L_brackets + point2octets(ec, Q3, False)).digest()
-        a3 = bits2int(ec, h3)
+        h1 = hf(L_brackets + octets_from_point(ec, Q1, False)).digest()
+        a1 = int_from_bits(ec, h1)
+        h2 = hf(L_brackets + octets_from_point(ec, Q2, False)).digest()
+        a2 = int_from_bits(ec, h2)
+        h3 = hf(L_brackets + octets_from_point(ec, Q3, False)).digest()
+        a3 = int_from_bits(ec, h3)
         # aggregated public key
-        Q_All = DblScalarMult(ec, a1, Q1, a2, Q2)
-        Q_All = ec.add(Q_All, pointMult(ec, a3, Q3))
-        Q_All_bytes = point2octets(ec, Q_All, True)
+        Q = ec.add(double_mult(ec, a1, Q1, a2, Q2), mult(ec, a3, Q3))
+        Q_bytes = octets_from_point(ec, Q, True)
+
 
         ########################
-        # exchange K_x, compute s
+        # interactive signature: exchange K, compute s
         # WARNING: the signers should exchange commitments to the public
         #          nonces before sending the nonces themselves
 
-        # first signer use K2_x and K3_x
-        y = ec.yQuadraticResidue(K2_x, True)
-        K2_recovered = (K2_x, y)
-        y = ec.yQuadraticResidue(K3_x, True)
-        K3_recovered = (K3_x, y)
-        K1_All = ec.add(ec.add(K1, K2_recovered), K3_recovered)
-        if legendre_symbol(K1_All[1], ec._p) != 1:
-            # no need to actually change K1_All[1], as it is not used anymore
+        # first signer
+        # K, r_bytes, and e as calculated by any signer
+        # are the same as the ones by the other signers
+        K = ec.add(ec.add(K1, K2), K3)
+        r_bytes = K[0].to_bytes(32, byteorder="big")
+        e = int_from_bits(ec, hf(r_bytes + Q_bytes + M).digest())
+        if legendre_symbol(K[1], ec._p) != 1:
+            # no need to actually change K[1], as it is not used anymore
             # let's fix k1 instead, as it is used later
+            # note that all other signers will change their k too
             k1 = ec.n - k1
-        K1_All0_bytes = K1_All[0].to_bytes(32, byteorder="big")
-        h1 = hf(K1_All0_bytes + Q_All_bytes + M).digest()
-        c1 = bits2int(ec, h1)
-        assert 0 < c1 and c1 < ec.n, "sign fail"
-        s1 = (k1 + c1*a1*q1) % ec.n
+        s1 = (k1 + e*a1*q1) % ec.n
 
-        # second signer use K1_x and K3_x
-        y = ec.yQuadraticResidue(K1_x, True)
-        K1_recovered = (K1_x, y)
-        y = ec.yQuadraticResidue(K3_x, True)
-        K3_recovered = (K3_x, y)
-        K2_All = ec.add(ec.add(K2, K1_recovered), K3_recovered)
-        if legendre_symbol(K2_All[1], ec._p) != 1:
-            # no need to actually change K2_All[1], as it is not used anymore
+        # second signer
+        # K, r_bytes, and e as calculated by any signer
+        # are the same as the ones by the other signers
+        if legendre_symbol(K[1], ec._p) != 1:
+            # no need to actually change K[1], as it is not used anymore
             # let's fix k2 instead, as it is used later
+            # note that all other signers will change their k too
             k2 = ec.n - k2
-        K2_All0_bytes = K2_All[0].to_bytes(32, byteorder="big")
-        h2 = hf(K2_All0_bytes + Q_All_bytes + M).digest()
-        c2 = bits2int(ec, h2)
-        assert 0 < c2 and c2 < ec.n, "sign fail"
-        s2 = (k2 + c2*a2*q2) % ec.n
+        s2 = (k2 + e*a2*q2) % ec.n
 
-        # third signer use K1_x and K2_x
-        y = ec.yQuadraticResidue(K1_x, True)
-        K1_recovered = (K1_x, y)
-        y = ec.yQuadraticResidue(K2_x, True)
-        K2_recovered = (K2_x, y)
-        K3_All = ec.add(ec.add(K1_recovered, K2_recovered), K3)
-        if legendre_symbol(K3_All[1], ec._p) != 1:
-            # no need to actually change K3_All[1], as it is not used anymore
+        # third signer
+        # K, r_bytes, and e as calculated by any signer
+        # are the same as the ones by the other signers
+        if legendre_symbol(K[1], ec._p) != 1:
+            # no need to actually change K[1], as it is not used anymore
             # let's fix k3 instead, as it is used later
+            # note that all other signers will change their k too
             k3 = ec.n - k3
-        K3_All0_bytes = K3_All[0].to_bytes(32, byteorder="big")
-        h3 = hf(K3_All0_bytes + Q_All_bytes + M).digest()
-        c3 = bits2int(ec, h3)
-        assert 0 < c3 and c3 < ec.n, "sign fail"
-        s3 = (k3 + c3*a3*q3) % ec.n
+        s3 = (k3 + e*a3*q3) % ec.n
 
         ############################################
-        # combine signatures into a single signature
-
+        # interactive signature: exchange signatures
+        # combine all (K[0], s) signatures into a single signature
         # anyone can do the following
-        assert K1_All[0] == K2_All[0], "sign fail"
-        assert K2_All[0] == K3_All[0], "sign fail"
-        s_All = (s1 + s2 + s3) % ec.n
-        sig = (K1_All[0], s_All)
+        sig = K[0], (s1 + s2 + s3) % ec.n
 
-        self.assertTrue(ecssa_verify(ec, hf, M, Q_All, sig))
+        self.assertTrue(ssa.verify(ec, hf, M, Q, sig))
 
 
 if __name__ == "__main__":

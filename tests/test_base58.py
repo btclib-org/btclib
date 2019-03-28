@@ -10,57 +10,56 @@
 
 import unittest
 
-from btclib.base58 import b58encode, b58encode_check, b58decode, \
-    b58decode_check, b58encode_int, b58decode_int
+from btclib import base58
 
 
 class TestBase58CheckEncoding(unittest.TestCase):
-    def test_b58_empty(self):
-        self.assertEqual(b58encode(b''), b'')
-        self.assertEqual(b58decode(b''), b'')
-        self.assertEqual(b58decode(b58encode(b'')), b'')
-        self.assertEqual(b58encode(b58decode(b'')), b'')
+    def test_empty(self):
+        self.assertEqual(base58.encode(b''), b'')
+        self.assertEqual(base58.decode(b''), b'')
+        self.assertEqual(base58.decode(base58.encode(b'')), b'')
+        self.assertEqual(base58.encode(base58.decode(b'')), b'')
 
-    def test_b58_hello_world(self):
-        self.assertEqual(b58encode(b'hello world'), b'StV1DL6CwTryKyV')
-        self.assertEqual(b58decode(b'StV1DL6CwTryKyV'), b'hello world')
-        self.assertEqual(b58decode(b58encode(b'hello world')), b'hello world')
+    def test_hello_world(self):
+        self.assertEqual(base58.encode(b'hello world'), b'StV1DL6CwTryKyV')
+        self.assertEqual(base58.decode(b'StV1DL6CwTryKyV'), b'hello world')
+        self.assertEqual(base58.decode(base58.encode(b'hello world')), b'hello world')
         self.assertEqual(
-            b58encode(b58decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
+            base58.encode(base58.decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
 
-    def test_b58_trailing_zeros(self):
-        self.assertEqual(b58encode(b'\x00\x00hello world'),
+    def test_trailing_zeros(self):
+        self.assertEqual(base58.encode(b'\x00\x00hello world'),
                          b'11StV1DL6CwTryKyV')
-        self.assertEqual(b58decode(b'11StV1DL6CwTryKyV'),
+        self.assertEqual(base58.decode(b'11StV1DL6CwTryKyV'),
                          b'\x00\x00hello world')
         self.assertEqual(
-            b58decode(b58encode(b'\0\0hello world')), b'\x00\x00hello world')
+            base58.decode(base58.encode(b'\0\0hello world')), b'\x00\x00hello world')
         self.assertEqual(
-            b58encode(b58decode(b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
+            base58.encode(base58.decode(b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
 
-    def test_b58_integers(self):
+    def test_integers(self):
         digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
         for i in range(len(digits)):
             char = digits[i:i+1]
-            self.assertEqual(b58decode_int(char), i)
-            self.assertEqual(b58encode_int(i), char)
+            self.assertEqual(base58.decode_to_int(char), i)
+            self.assertEqual(base58.encode_from_int(i), char)
         number = 0x111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5  # noqa
-        self.assertEqual(b58decode_int(digits), number)
-        self.assertEqual(b58encode_int(number), digits[1:])
+        self.assertEqual(base58.decode_to_int(digits), number)
+        self.assertEqual(base58.encode_from_int(number), digits[1:])
 
-    def test_b58_exceptions(self):
+    def test_exceptions(self):
         # int is not hex-string or bytes
-        self.assertRaises(TypeError, b58encode_check, 3)
+        self.assertRaises(TypeError, base58.encode_check, 3)
 
-        encoded = b58encode_check(b"test")
+        encoded = base58.encode_check(b"test")
 
         # unexpected decoded length
         wrong_length = len(encoded)-1
-        self.assertRaises(ValueError, b58decode_check, encoded, wrong_length)
+        self.assertRaises(ValueError, base58.decode_check, encoded, wrong_length)
 
         # checksum is invalid
         invalidChecksum = encoded[:-4] + b'1111'
-        self.assertRaises(ValueError, b58decode_check, invalidChecksum, 4)
+        self.assertRaises(ValueError, base58.decode_check, invalidChecksum, 4)
 
     def test_wif(self):
         # https://en.bitcoin.it/wiki/Wallet_import_format
@@ -68,31 +67,31 @@ class TestBase58CheckEncoding(unittest.TestCase):
 
         uncompressedKey = b'\x80' + prvkey.to_bytes(32, byteorder='big')
         uncompressedWIF = b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ'
-        wif = b58encode_check(uncompressedKey)
+        wif = base58.encode_check(uncompressedKey)
         self.assertEqual(wif, uncompressedWIF)
-        key = b58decode_check(uncompressedWIF)
+        key = base58.decode_check(uncompressedWIF)
         self.assertEqual(key, uncompressedKey)
 
         compressedKey = b'\x80' + prvkey.to_bytes(32, byteorder='big') +b'\x01'
         compressedWIF = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
-        wif = b58encode_check(compressedKey)
+        wif = base58.encode_check(compressedKey)
         self.assertEqual(wif, compressedWIF)
-        key = b58decode_check(compressedWIF)
+        key = base58.decode_check(compressedWIF)
         self.assertEqual(key, compressedKey)
 
         # string
         compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
-        key = b58decode_check(compressedWIF)
+        key = base58.decode_check(compressedWIF)
         self.assertEqual(key, compressedKey)
 
         # string with leading space
         compressedWIF = ' KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
-        b58decode_check(compressedWIF)
+        base58.decode_check(compressedWIF)
         self.assertEqual(key, compressedKey)
 
         # string with trailing space
         compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 '
-        b58decode_check(compressedWIF)
+        base58.decode_check(compressedWIF)
         self.assertEqual(key, compressedKey)
 
 if __name__ == "__main__":

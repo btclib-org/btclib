@@ -8,10 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.ec import EC, Point, pointMult
-from btclib.utils import int2octets, octets2int
+from btclib.curve import Curve, Point, mult
+from btclib.utils import octets_from_int, int_from_octets
 
-def kdf(zbytes: bytes, keydatasize: int, ec: EC, hf) -> bytes:
+def kdf(zbytes: bytes, keydatasize: int, ec: Curve, hf) -> bytes:
     """ ANS-X9.63-KDF - SEC 1 specification
 
     source: http://www.secg.org/sec1-v2.pdf, section 3.6.1
@@ -27,19 +27,19 @@ def kdf(zbytes: bytes, keydatasize: int, ec: EC, hf) -> bytes:
         counter_bytes = counter.to_bytes(4, 'big')
         i += 1
     K_bytes = b''.join(K_temp[i] for i in range(keydatasize // hsize))
-    K = octets2int(K_bytes) >> (keydatasize - hsize)
-    return int2octets(K, ec.psize)
+    K = int_from_octets(K_bytes) >> (keydatasize - hsize)
+    return octets_from_int(K, ec.psize)
 
 
 def key_agreement(dUV: int,
                   QVU: Point,
                   keydatasize: int,
-                  ec: EC,
+                  ec: Curve,
                   hf) -> bytes:
-    P = pointMult(ec, dUV, QVU)
-    if P == (1, 0):
+    P = mult(ec, dUV, QVU)
+    if P[1] == 0:
         "invalid (zero) private key"
     z = P[0]
-    zbytes = int2octets(z, ec.psize)
+    zbytes = octets_from_int(z, ec.psize)
     k = kdf(zbytes, keydatasize, ec, hf)
     return k

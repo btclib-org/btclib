@@ -1,35 +1,46 @@
-readthedocs
-[![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
-
-jupyter for scripts
-
+readthedocs [![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
 revise kdf
-remove assert for if + raise
-https://cryptojedi.org/peter/data/eccss-20130911b.pdf
-https://arxiv.org/abs/1801.08589
-https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
-https://hal.archives-ouvertes.fr/hal-00932199/document
-
+optimizations
+    https://cryptojedi.org/peter/data/eccss-20130911b.pdf
+    https://arxiv.org/abs/1801.08589
+    https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
+    https://hal.archives-ouvertes.fr/hal-00932199/document
+    https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
+    https://eprint.iacr.org/2005/419.pdf
 transaction and block parsing (explorer based with optional full node)
-
-fix one sig only BUG in ecssa_batch_verify
 allow hexstring for Signature
-allow binary Signature
-run scripts as part of test-suite
-revise ecssa_pubkey_recovery
-of a signature: verify or verification ?
-of a commit: verify or open ?
-
-
+revise ssa.pubkey_recovery
+of a signature: verify or verification ? of a commit: verify or open ?
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
-
 document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
-
 how to export mprv from Electrum?
     verify if first wif is that
-
 better mimic of electrum entropy search, they probably have the words inverted
-
 BIP44 in address_from...
+clean up PRV[0] mess
+remove assert for if + raise
 
-clean up PRIVATE[0] mess
+opposite in Jac coordinate using y_quadratic_residue ?
+
+ec, hf as last parameters defaulting to secp256k1 and sha256
+
+primitives for interactive threshold and musig
+
+settle on ec, hf position in functions' signature
+
+generalize ec, hf in borromean
+
+Edwards curve (Curve25519)
+
+BLS
+
+reference borromean
+bech32
+deserialize curves from jason file
+_to_sig should handle serialized signatures ?
+remove der file, add encode/decode to dsa and ssa ?
+add signature serialize/deserialize or encode/decode
+remove signtocontract, adding commit to dsa and ssa
+e=0 in SSA ?
+
+settle on pubkey o point nomenclature. if point, what for prvkey?

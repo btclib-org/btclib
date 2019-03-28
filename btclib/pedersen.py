@@ -8,10 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.ec import Point, EC, DblScalarMult
-from btclib.utils import octets2int, point2octets, bits2int
+from btclib.curve import Point, Curve, double_mult
+from btclib.utils import int_from_octets, octets_from_point, int_from_bits
 
-def secondGenerator(ec: EC, hf) -> Point:
+def second_generator(ec: Curve, hf) -> Point:
     """Nothing-Up-My-Sleeve (NUMS) second generator H wrt ec.G 
 
        source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
@@ -20,30 +20,31 @@ def secondGenerator(ec: EC, hf) -> Point:
        The resulting point could not be a curvepoint: in this case keep on
        incrementing hx until a valid curve point (hx, hy) is obtained.
     """
-    G_bytes = point2octets(ec, ec.G, False)
+    G_bytes = octets_from_point(ec, ec.G, False)
     hd = hf(G_bytes).digest()
-    hx = bits2int(ec, hd)
+    hx = int_from_bits(ec, hd)
     isCurvePoint = False
     while not isCurvePoint:
         try:
-            hy = ec.yOdd(hx, False)
+            hy = ec.y_odd(hx, False)
             isCurvePoint = True
         except:
             hx += 1
     return Point(hx, hy)
 
 
-def pedersen_commit(r: int, v: int, ec: EC, hf) -> Point:
+def commit(r: int, v: int, ec: Curve, hf) -> Point:
     """Return rG + vH, with H being second (NUMS) generator of the curve"""
-    H = secondGenerator(ec, hf)
-    Q = DblScalarMult(ec, r, ec.G, v, H)
+    H = second_generator(ec, hf)
+    Q = double_mult(ec, r, ec.G, v, H)
     assert Q[1] != 0, "how did you do that?!?"
     return Q
 
 
-def pedersen_open(r: int, v: int, C: Point, ec: EC, hf) -> bool:
+def open(r: int, v: int, C: Point, ec: Curve, hf) -> bool:
+    # try/except wrapper for the Errors raised by commit
     try:
-        P = pedersen_commit(r, v, ec, hf)
+        P = commit(r, v, ec, hf)
     except:
         return False
     return C == P

@@ -14,19 +14,23 @@ Elliptic curve class and functions
 TODO: document duck-typing and static typing design choices
 """
 
-from hashlib import sha256
 from math import sqrt
 import heapq
-from typing import NamedTuple, Tuple, List, Sequence
+from typing import NamedTuple, Tuple, Sequence, List
 
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
-# infinity point is (int, 0), checked with 'Inf[1] == 0'
 class Point(NamedTuple):
+    """ Elliptic curve point
+        
+        Infinity point in affine coordinates is Inf = Point() and
+        it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
+    """
     x: int = 1
-    y: int = 0
+    y: int = 0 # no affine point has y=0 coordinate
 
-# infinity point is (int, int, 0), checked with 'Inf[2] == 0'
+# infinity point in Jacobian coordinates is Inf = (int, int, 0)
+# it can be checked with 'Inf[2] == 0'
 _JacPoint = Tuple[int, int, int]
 
 def _jac_from_aff(Q: Point) -> _JacPoint:
@@ -36,19 +40,15 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
     return Q[0], Q[1], 1
 
 
-class EC:
+class Curve:
     """Elliptic curve y^2 = x^3 + a*x + b over Fp group"""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
                        h: int, t: int, weakness_check: bool = True) -> None:
-        """EC instantiation
+        """Curve instantiation
 
         Parameters are checked according to SEC 1 v.2 3.1.1.2.1
         """
-
-        # first off discriminate invalid (..., Gx, Gy, ...) input
-        if len(G) != 2:
-            raise ValueError("Generator must a be a Tuple[int, int]")
 
         # 1) check that p is an odd prime
         if p % 2 == 0:
@@ -59,7 +59,6 @@ class EC:
 
         # 1) check that p has enough bits
         plen = p.bit_length()
-        self.t = t
         if t != 0:
             t_range = [56, 64, 80, 96, 112, 128, 160, 192, 256]
             if t not in t_range:
@@ -69,11 +68,12 @@ class EC:
             if plen < t*2:
                 m = f"not enough bits ({plen}) for required security level {t}"
                 raise UserWarning(m)
+        self.t = t
 
-        self._p = p
         self.psize = (plen + 7) // 8
         # must be true to break simmetry using quadratic residue
-        self.pIsThreeModFour = (self._p % 4 == 3)
+        self.pIsThreeModFour = (p % 4 == 3)
+        self._p = p
 
         # 2. check that a and b are integers in the interval [0, p−1]
         if not 0 <= a < p:
@@ -90,7 +90,9 @@ class EC:
 
         # 2. check that xG and yG are integers in the interval [0, p−1]
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p).
-        if not self.isOnCurve(G):
+        if len(G) != 2:
+            raise ValueError("Generator must a be a tuple[int, int]")
+        if not self.is_on_curve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = Point(int(G[0]), int(G[1]))
         self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
@@ -112,22 +114,21 @@ class EC:
         exp_h = int(1/n + delta/n + p/n)
         if h != exp_h:
             raise ValueError(f"h ({h}) not as expected ({exp_h})")
-        if t != 0 and h > pow(2, t/8):
-            raise ValueError(f"h ({h}) too big for t ({t})")
+        assert t == 0 or h <= pow(2, t/8), f"h ({h}) too big for t ({t})"
         self.h = h
 
         # 7. Check that nG = Inf.
         # it cannot be simply checked with:
-        # Inf = pointMult(self, n, self.G)
+        # Inf = mult(self, n, self.G)
         # as the above would be tautologically true
-        InfMinusG = pointMult(self, n-1, self.G)
+        InfMinusG = mult(self, n-1, self.G)
         Inf = self.add(InfMinusG, self.G)
         if Inf[1] != 0:
-            raise ValueError("n ({hex(n)}) is not the group order")
+            raise ValueError(f"n ({hex(n)}) is not the group order")
 
         # 8. Check that n ≠ p
-        if n == p:
-            raise UserWarning("n=p -> weak curve")
+        assert n != p, f"n=p ({hex(n)}) -> weak curve"
+        #    raise UserWarning("n=p -> weak curve")
         if weakness_check:
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100
             for i in range(1, 100):
@@ -135,7 +136,7 @@ class EC:
                     raise UserWarning("weak curve")
 
     def __str__(self) -> str:
-        result = "EC"
+        result = "Curve"
         result += f"\n p   = {hex(self._p)}"
         result += f"\n a   = {hex(self._a)}"
         result += f"\n b   = {hex(self._b)}"
@@ -147,7 +148,7 @@ class EC:
         return result
 
     def __repr__(self) -> str:
-        result = "EC("
+        result = "Curve("
         result += f"{hex(self._p)}"
         result += f", {hex(self._a)}, {hex(self._b)}"
         result += f", ({hex(self.G[0])}, {hex(self.G[1])})"
@@ -159,11 +160,11 @@ class EC:
     # methods using _p: they would become functions if _p goes public
 
     def opposite(self, Q: Point) -> Point:
-        self.requireOnCurve(Q)
-        # % sel._p is to account for infinity point
+        self.require_on_curve(Q)
+        # % self._p is required to account for infinity point, i.e. Q[1]==0
         return Point(Q[0], (self._p - Q[1]) % self._p)
 
-    def _affine_from_jac(self, Q: _JacPoint) -> Point:
+    def _aff_from_jac(self, Q: _JacPoint) -> Point:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return Point()
@@ -176,14 +177,13 @@ class EC:
     # methods using _a, _b, _p
 
     def add(self, Q1: Point, Q2: Point) -> Point:
-        self.requireOnCurve(Q1)
-        QJ1 = _jac_from_aff(Q1)
-        self.requireOnCurve(Q2)
-        QJ2 = _jac_from_aff(Q2)
-        R = self._addJacobian(QJ1, QJ2)
-        return self._affine_from_jac(R)
+        self.require_on_curve(Q1)
+        self.require_on_curve(Q2)
+        # no Jacobian coordinates here as _aff_from_jac would cost 2 mod_inv
+        # while _add_aff costs only one mod_inv
+        return self._add_aff(Q1, Q2)
 
-    def _addJacobian(self, Q: _JacPoint, R: _JacPoint) -> _JacPoint:
+    def _add_jac(self, Q: _JacPoint, R: _JacPoint) -> _JacPoint:
         # points are assumed to be on curve
 
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
@@ -223,12 +223,13 @@ class EC:
             Z = (V*Q[2]*R[2]) % self._p
             return X, Y, Z
 
-    def _addAffine(self, Q: Point, R: Point) -> Point:
+    def _add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
         if R[1] == 0:  # Infinity point in affine coordinates
             return Q
         if Q[1] == 0:  # Infinity point in affine coordinates
             return R
+
         if R[0] == Q[0]:
             if R[1] == Q[1]:  # point doubling
                 lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self._p)
@@ -254,11 +255,11 @@ class EC:
         # mod_sqrt will raise a ValueError if root does not exist
         return mod_sqrt(y2, self._p)
 
-    def requireOnCurve(self, Q: Point) -> None:
-        if not self.isOnCurve(Q):
+    def require_on_curve(self, Q: Point) -> None:
+        if not self.is_on_curve(Q):
             raise ValueError("Point not on curve")
 
-    def isOnCurve(self, Q: Point) -> bool:
+    def is_on_curve(self, Q: Point) -> bool:
         if len(Q) != 2:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -269,121 +270,120 @@ class EC:
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 
-    def yOdd(self, x: int, odd1even0: int) -> int:
+    def y_odd(self, x: int, odd1even0: int) -> int:
         """return the odd (even) y coordinate associated to x"""
         if odd1even0 not in (0, 1):
-            raise ValueError("odd1even0 must be bool or 0/1")
+            raise ValueError("odd1even0 must be bool or 1/0")
         root = self.y(x)
         # switch even/odd root as needed (XORing the conditions)
         return root if root % 2 == odd1even0 else self._p - root
 
-    def yHigh(self, x: int, high1low0: int) -> int:
-        """return the high (low) y coordinate associated to x"""
-        if high1low0 not in (0, 1):
-            raise ValueError("high1low0 must be bool or 0/1")
+    def y_low(self, x: int, low1high0: int) -> int:
+        """return the low (high) y coordinate associated to x"""
+        if low1high0 not in (0, 1):
+            raise ValueError("low1high0 must be bool or 1/0")
         root = self.y(x)
         # switch low/high root as needed (XORing the conditions)
-        return root if (self._p//2 < root) == high1low0 else self._p - root
+        return root if (self._p//2 >= root) == low1high0 else self._p - root
 
-    def yQuadraticResidue(self, x: int, quadRes: int) -> int:
+    def y_quadratic_residue(self, x: int, quad_res: int = 1) -> int:
         """return the quadratic residue y coordinate associated to x"""
-        if quadRes not in (0, 1):
-            raise ValueError("quadRes must be bool or 0/1")
+        if quad_res not in (0, 1):
+            raise ValueError("quad_res must be bool or 1/0")
         if not self.pIsThreeModFour:
             raise ValueError("this method works only when p = 3 (mod 4)")
         root = self.y(x)
-        # switch to quadratic residue root as needed (XORing the conditions)
-        legendre1 = legendre_symbol(root, self._p)
-        return root if legendre1 == quadRes else self._p - root
+        # switch to quadratic residue root as needed
+        legendre = legendre_symbol(root, self._p)
+        return root if legendre == quad_res else self._p - root
 
 
-def pointMult(ec: EC, n: int, Q: Point) -> Point:
-    # this function is used by the EC class; it might be a method...
+def mult(ec: Curve, n: int, Q: Point) -> Point:
+    # this function is used by the Curve class; it might be a method...
     # but it does not need to
-    ec.requireOnCurve(Q)
+    ec.require_on_curve(Q)
     QJ = _jac_from_aff(Q)
-    R = _pointMultJacobian(ec, n, QJ)
-    return ec._affine_from_jac(R)
+    R = _mult_jac(ec, n, QJ)
+    return ec._aff_from_jac(R)
 
 
-def _pointMultAffine(ec: EC, n: int, Q: Point) -> Point:
-    # double & add in affine coordinates, using binary decomposition of n
+def _mult_aff(ec: Curve, m: int, Q: Point) -> Point:
+    # double & add in affine coordinates, using binary decomposition of m
     # Point is assumed to be on curve
 
-    n %= ec.n
-    if Q[1] == 0:                    # Infinity point in affine coordinates
-        return Q
-    R = Point()                      # initialize as infinity point
-    while n > 0:                     # use binary representation of n
-        if n & 1:                    # if least significant bit is 1
-            R = ec._addAffine(R, Q)  # then add current Q
-        n = n >> 1                   # remove the bit just accounted for
-        Q = ec._addAffine(Q, Q)      # double Q for next step
+    m %= ec.n
+    if m == 0 or Q[1] == 0:        # Infinity point in affine coordinates
+        return 1, 0                # return Infinity point
+    R = 1, 0                       # initialize as infinity point
+    while m > 0:                   # use binary representation of m
+        if m & 1:                  # if least significant bit is 1
+            R = ec._add_aff(R, Q)  # then add current Q
+        m = m >> 1                 # remove the bit just accounted for
+        Q = ec._add_aff(Q, Q)      # double Q for next step
     return R
 
 
-def _pointMultJacobian(ec: EC, n: int, Q: _JacPoint) -> _JacPoint:
-    # double & add in Jacobian coordinates, using binary decomposition of n
+def _mult_jac(ec: Curve, m: int, Q: _JacPoint) -> _JacPoint:
+    # double & add in Jacobian coordinates, using binary decomposition of m
     # Point is assumed to be on curve
 
-    n %= ec.n
-    if Q[2] == 0:                      # Infinity point in Jacobian coordinates
-        return 1, 1, 0
-    R = 1, 1, 0                        # initialize as infinity point
-    while n > 0:                       # use binary representation of n
-        if n & 1:                      # if least significant bit is 1
-            R = ec._addJacobian(R, Q)  # then add current Q
-        n = n >> 1                     # remove the bit just accounted for
-        Q = ec._addJacobian(Q, Q)      # double Q for next step
+    m %= ec.n
+    if m == 0 or Q[2] == 0:        # Infinity point in affine coordinates
+        return 1, 1, 0             # return Infinity point
+    R = 1, 1, 0                    # initialize as infinity point
+    while m > 0:                   # use binary representation of m
+        if m & 1:                  # if least significant bit is 1
+            R = ec._add_jac(R, Q)  # then add current Q
+        m = m >> 1                 # remove the bit just accounted for
+        Q = ec._add_jac(Q, Q)      # double Q for next step
     return R
 
 
-def DblScalarMult(ec: EC, u: int, Q: Point, v: int, P: Point) -> Point:
+def double_mult(ec: Curve, u: int, Q: Point, v: int, P: Point) -> Point:
     """Shamir trick for efficient computation of u*Q + v*P"""
 
-    ec.requireOnCurve(Q)
+    ec.require_on_curve(Q)
     QJ = _jac_from_aff(Q)
 
-    ec.requireOnCurve(P)
+    ec.require_on_curve(P)
     PJ = _jac_from_aff(P)
 
-    R = _DblScalarMult(ec, u, QJ, v, PJ)
+    R = _double_mult(ec, u, QJ, v, PJ)
 
-    return ec._affine_from_jac(R)
+    return ec._aff_from_jac(R)
 
 
-def _DblScalarMult(ec: EC, u: int, QJ: _JacPoint,
+def _double_mult(ec: Curve, u: int, QJ: _JacPoint,
                            v: int, PJ: _JacPoint) -> _JacPoint:
 
     u %= ec.n
     if u == 0 or QJ[2] == 0:
-        return _pointMultJacobian(ec, v, PJ)
+        return _mult_jac(ec, v, PJ)
 
     v %= ec.n
     if v == 0 or PJ[2] == 0:
-        return _pointMultJacobian(ec, u, QJ)
+        return _mult_jac(ec, u, QJ)
 
     R = 1, 1, 0  # initialize as infinity point
     msb = max(u.bit_length(), v.bit_length())
     while msb > 0:
         if u >> (msb - 1):  # checking msb
-            R = ec._addJacobian(R, QJ)
+            R = ec._add_jac(R, QJ)
             u -= pow(2, u.bit_length() - 1)
         if v >> (msb - 1):  # checking msb
-            R = ec._addJacobian(R, PJ)
+            R = ec._add_jac(R, PJ)
             v -= pow(2, v.bit_length() - 1)
         if msb > 1:
-            R = ec._addJacobian(R, R)
+            R = ec._add_jac(R, R)
         msb -= 1
 
     return R
 
 
-def multiScalarMult(ec: EC, scalars: Sequence[int],
-                            Points: Sequence[Point]) -> Point:
-    """ Bos-coster's algorithm
-        source: https://cr.yp.to/badbatch/boscoster2.py
-    """
+def multi_mult(ec: Curve,
+               scalars: Sequence[int],
+               Points: Sequence[Point]) -> Point:
+    """ Bos-Coster's algorithm """
 
     if len(scalars) != len(Points):
         errMsg = f"mismatch between scalar length ({len(scalars)}) and "
@@ -392,16 +392,19 @@ def multiScalarMult(ec: EC, scalars: Sequence[int],
         
     JPoints: List[_JacPoint] = list()
     for P in Points:
-        ec.requireOnCurve(P)
+        ec.require_on_curve(P)
         JPoints.append(_jac_from_aff(P))
 
-    R = _multiScalarMult(ec, scalars, JPoints)
+    R = _multi_mult(ec, scalars, JPoints)
 
-    return ec._affine_from_jac(R)
+    return ec._aff_from_jac(R)
 
 
-def _multiScalarMult(ec: EC, scalars: Sequence[int],
-                             JPoints: Sequence[_JacPoint]) -> _JacPoint:
+def _multi_mult(ec: Curve,
+                scalars: Sequence[int],
+                JPoints: Sequence[_JacPoint]) -> _JacPoint:
+    # source: https://cr.yp.to/badbatch/boscoster2.py
+
     x = list(zip([-n for n in scalars], JPoints))
     heapq.heapify(x)
     while len(x) > 1:
@@ -409,11 +412,11 @@ def _multiScalarMult(ec: EC, scalars: Sequence[int],
         np2 = heapq.heappop(x)
         n1, p1 = -np1[0], np1[1]
         n2, p2 = -np2[0], np2[1]
-        p2 = ec._addJacobian(p1, p2)
+        p2 = ec._add_jac(p1, p2)
         n1 -= n2
         if n1 > 0:
             heapq.heappush(x, (-n1, p1))
         heapq.heappush(x, (-n2, p2))
     np1 = heapq.heappop(x)
     n1, p1 = -np1[0], np1[1]
-    return _pointMultJacobian(ec, n1, p1)
+    return _mult_jac(ec, n1, p1)

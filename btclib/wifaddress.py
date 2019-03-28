@@ -14,13 +14,13 @@ Implementation of Base58 encoding of private keys (wifs)
 and public keys (addresses)
 '''
 
-from hashlib import sha256, new as hnew
 from typing import Tuple
 
-from btclib.base58 import b58encode_check, b58decode_check
-from btclib.ec import Point, pointMult
+from btclib import base58
+from btclib.curve import Point, mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets, octets2int, int2octets, point2octets
+from btclib.utils import octets, int_from_octets, octets_from_int, \
+                         octets_from_point, h160
 
 
 def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
@@ -29,54 +29,50 @@ def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     if not 0 < prvkey < ec.n:
         raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
 
-    payload = b'\x80' + int2octets(prvkey, ec.psize)
+    payload = b'\x80' + octets_from_int(prvkey, ec.nsize)
     if compressed:
         payload += b'\x01'
-    return b58encode_check(payload)
+    return base58.encode_check(payload)
 
 
 def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
     """Wallet Import Format to (bytes) private key"""
 
-    payload = b58decode_check(wif)
+    payload = base58.decode_check(wif)
     if payload[0] != 0x80:
         raise ValueError("Not a private key WIF: missing leading 0x80")
 
-    if len(payload) == ec.psize + 2:       # compressed WIF
+    if len(payload) == ec.nsize + 2:       # compressed WIF
         compressed = True
-        if payload[ec.psize + 1] != 0x01:  # must have a trailing 0x01
+        if payload[-1] != 0x01:            # must have a trailing 0x01
             raise ValueError("Not a compressed WIF: missing trailing 0x01")
-        prvkey = octets2int(payload[1:-1])
-    elif len(payload) == ec.psize + 1:     # uncompressed WIF
+        prvkey = int_from_octets(payload[1:-1])
+    elif len(payload) == ec.nsize + 1:     # uncompressed WIF
         compressed = False
-        prvkey = octets2int(payload[1:])
+        prvkey = int_from_octets(payload[1:])
     else:
         raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
     
     if not 0 < prvkey < ec.n:
-        raise ValueError(f"Not a WIF: private key {hex(prvkey)} not in (0, n)")
+        raise ValueError(f"Not a WIF: private key {hex(prvkey)} not in [1, n-1]")
 
     return prvkey, compressed
 
 
-def h160(pubkey: bytes) -> bytes:
-    t = sha256(pubkey).digest()
-    return hnew('ripemd160', t).digest()
-
-
-def address_from_pubkey(Q: Point, compressed: bool, version: bytes = b'\x00') -> bytes:
+def address_from_pubkey(Q: Point,
+                        compressed: bool,
+                        version: bytes = b'\x00') -> bytes:
     """Public key to (bytes) address"""
 
     # also check that the Point is on curve
-    pubkey = point2octets(ec, Q, compressed)
+    pubkey = octets_from_point(ec, Q, compressed)
 
-    # FIXME: this is mainnet only
     vh160 = version + h160(pubkey)
-    return b58encode_check(vh160)
+    return base58.encode_check(vh160)
 
 
-def hash160_from_address(addr: octets) -> bytes:
-    payload = b58decode_check(addr, 21)
+def _h160_from_address(addr: octets) -> bytes:
+    payload = base58.decode_check(addr, 21)
     # FIXME: this is mainnet only
     if payload[0] != 0x00:
         raise ValueError("not a mainnet address")
@@ -85,5 +81,5 @@ def hash160_from_address(addr: octets) -> bytes:
 
 def address_from_wif(wif: octets) -> bytes:
     prv, compressed = prvkey_from_wif(wif)
-    pub = pointMult(ec, prv, ec.G)
+    pub = mult(ec, prv, ec.G)
     return address_from_pubkey(pub, compressed)
