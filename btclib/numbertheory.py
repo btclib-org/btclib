@@ -55,29 +55,31 @@ def legendre_symbol(a, p):
 
 
 def mod_sqrt(a: int, p: int) -> int:
-    """ 
-        Find a quadratic residue (mod p) of 'a'. p must be an odd prime.
-        Solve the congruence of the form 'x^2 = a (mod p)' and returns x.
-        Note that p - x is also a root.
-        The Tonelli-Shanks algorithm is used (except for some simple cases
-        in which the solution is known from an identity).
+    """ Return a quadratic residue (mod p) of 'a'; p must be a prime.
+        Solve the equation
+            x^2 = a mod p
+        And returns x. Note that p - x is also a root.
+        The Tonelli-Shanks algorithm is used (except for some simple
+        cases in which the solution is known from an identity).
+
+        https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
-    
+
     a %= p
 
     # Simple cases
     if p % 4 == 3:  # secp256k1 case
         x = pow(a, (p >> 2) + 1, p)  # inverse candidate
-        if x*x % p == a:
+        if x * x % p == a:
             return x
         raise ValueError(f"{hex(a)} has no root (mod {hex(p)})")
     elif p % 8 == 5:
         x = pow(a, (p >> 3) + 1, p)
-        if x*x % p == a:
+        if x * x % p == a:
             return x
         else:
             x = x * pow(2, p >> 2, p) % p
-            if x*x % p == a:
+            if x * x % p == a:
                 return x
         raise ValueError(f"{hex(a)} has no root (mod {hex(p)})")
     elif a == 0 or p == 2:
@@ -100,7 +102,7 @@ def mod_sqrt(a: int, p: int) -> int:
     c = pow(z, q, p)
 
     # Search for a solution
-    x = pow(a, (q + 1)//2, p)
+    x = pow(a, (q + 1) // 2, p)
     t = pow(a, q, p)
     m = s
     while t != 1:
