@@ -35,14 +35,14 @@ Assuming you have Python already, `install Sphinx`_ and sphinx-rtd-theme:
 .. sourcecode:: bash
 
     $ pip install sphinx
-    $ pip install sphinx_rtd_theme
+    $ pip install sphinx-rtd-theme
 
 Create a directory inside your project to hold your docs:
 
 .. sourcecode:: bash
 
-    $ cd /path/to/project
-    $ mkdir docs
+    $ cd /path/to/project/docs
+    $
 
 Run ``sphinx-quickstart`` in there:
 

@@ -1,5 +1,5 @@
 btclib
-==================
+======
 
 btclib is a python3 type annotated library intended for teaching and demonstration of the cryptography used in bitcoin.
 
@@ -39,7 +39,7 @@ Indices and tables
 * :ref:`search`
 
 Contents:
---------
+---------
 .. toctree::
    :maxdepth: 2
 
