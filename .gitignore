@@ -105,11 +105,8 @@ ENV/
 .vscode/
 
 # sphinx
-_build
-nstatic
-/docs/btclib.rst
-/docs/index.rst
-/docs/module.rst
+/docs/build
+/docs/sourcs/nstatic
 
 # PyCharm
 .idea/

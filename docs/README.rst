@@ -30,11 +30,12 @@ This screencast will help you get started or you can read the guide below.
 Quick start
 -----------
 
-Assuming you have Python already, `install Sphinx`_:
+Assuming you have Python already, `install Sphinx`_ and sphinx-rtd-theme:
 
 .. sourcecode:: bash
 
     $ pip install sphinx
+    $ pip install sphinx_rtd_theme
 
 Create a directory inside your project to hold your docs:
 
@@ -79,7 +80,7 @@ Autogenerate docs
 
 .. sourcecode:: bash
 
-    sphinx-apidoc -o ./docs ./btclib
+    sphinx-apidoc -o ./docs/source ./btclib
 
 Using Markdown with Sphinx
 --------------------------

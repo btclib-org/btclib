@@ -13,30 +13,30 @@
     Strict DER-encoded signature representation
     ===========================================
 
-   The original Bitcoin implementation used OpenSSL to verify DER-encoded ASN.1
-   signature representation. However, OpenSSL does not do strict validation and
-   as long as the signature is not horribly malformed it is accepted.
-   E.g. extra padding is ignored and this changes the transaction hash value,
-   leading to transaction malleability.
-   This was fixed by BIP66, activated on block 363,724.
+    The original Bitcoin implementation used OpenSSL to verify DER-encoded ASN.1
+    signature representation. However, OpenSSL does not do strict validation and
+    as long as the signature is not horribly malformed it is accepted.
+    E.g. extra padding is ignored and this changes the transaction hash value,
+    leading to transaction malleability.
+    This was fixed by BIP66, activated on block 363,724.
 
-   source: https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
+    source: https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 
-   BIP66 mandates a strict encoding format:
+    BIP66 mandates a strict encoding format:
 
-   Format: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
+    Format: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
 
-   * total-length: 1-byte length descriptor of everything that follows,
-     excluding the sighash byte.
-   * R-length: 1-byte length descriptor of the R value that follows.
-   * R: arbitrary-length big-endian encoded R value. It must use the shortest
-     possible encoding for a positive integers (which means no null bytes at
-     the start, except a single one when the next byte has its highest bit set
-     to avoid being interpreted as a negative number).
-   * S-length: 1-byte length descriptor of the S value that follows.
-   * S: arbitrary-length big-endian encoded S value. The same R rules apply.
-   * sighash: 1-byte value indicating what data is hashed (not part of the DER
-     signature)
+    * total-length: 1-byte length descriptor of everything that follows,
+      excluding the sighash byte.
+    * R-length: 1-byte length descriptor of the R value that follows.
+    * R: arbitrary-length big-endian encoded R value. It must use the shortest
+      possible encoding for a positive integers (which means no null bytes at
+      the start, except a single one when the next byte has its highest bit set
+      to avoid being interpreted as a negative number).
+    * S-length: 1-byte length descriptor of the S value that follows.
+    * S: arbitrary-length big-endian encoded S value. The same R rules apply.
+    * sighash: 1-byte value indicating what data is hashed (not part of the DER
+      signature)
 """
 
 from typing import Tuple
