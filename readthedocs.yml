@@ -2,8 +2,4 @@ build:
     image: latest
 
 python:
-<<<<<<< HEAD
     version: 3.5
-=======
-    version: 3.6
->>>>>>> 1f7faedf0d03964d6a0ba18c0cf37c2abc7381ff
