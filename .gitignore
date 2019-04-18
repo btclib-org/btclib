@@ -104,10 +104,6 @@ ENV/
 # vscode
 .vscode/
 
-# sphinx
-/docs/build
-/docs/sourcs/nstatic
-
 # PyCharm
 .idea/
 
