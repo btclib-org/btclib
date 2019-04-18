@@ -35,21 +35,13 @@ Assuming you have Python already, `install Sphinx`_ and sphinx-rtd-theme:
 .. sourcecode:: bash
 
     $ pip install sphinx
-    $ pip install sphinx-rtd-theme
+
 
 Create a directory inside your project to hold your docs:
 
 .. sourcecode:: bash
 
     $ cd /path/to/project/docs
-    $
-
-Run ``sphinx-quickstart`` in there:
-
-.. sourcecode:: bash
-
-    $ cd docs
-    $ sphinx-quickstart
 
 This quick start will walk you through creating the basic configuration; in most cases, you
 can just accept the defaults. When it's done, you'll have an ``index.rst``, a
@@ -74,13 +66,6 @@ by importing your docs.
 .. _install Sphinx: http://sphinx-doc.org/install.html
 .. _reStructuredText: http://sphinx-doc.org/rest.html
 .. _this template: https://www.writethedocs.org/guide/writing/beginners-guide-to-docs/#id1
-
-Autogenerate docs
---------------------------
-
-.. sourcecode:: bash
-
-    sphinx-apidoc -o ./docs/source ./btclib
 
 Using Markdown with Sphinx
 --------------------------
