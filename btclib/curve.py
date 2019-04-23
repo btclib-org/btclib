@@ -23,8 +23,8 @@ from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 class Point(NamedTuple):
     """ Elliptic curve point
         
-        Infinity point in affine coordinates is Inf = Point() and
-        it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
+    Infinity point in affine coordinates is Point() and
+    it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
     """
     x: int = 1
     y: int = 0 # no affine point has y=0 coordinate
@@ -41,7 +41,7 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
 
 
 class Curve:
-    """Elliptic curve y^2 = x^3 + a*x + b over Fp group"""
+    """ Elliptic curve y^2 = x^3 + a*x + b over Fp group """
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
                        h: int, t: int, weakness_check: bool = True) -> None:
@@ -270,7 +270,7 @@ class Curve:
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 
-    def y_odd(self, x: int, odd1even0: int) -> int:
+    def y_odd(self, x: int, odd1even0: int = 1) -> int:
         """return the odd (even) y coordinate associated to x"""
         if odd1even0 not in (0, 1):
             raise ValueError("odd1even0 must be bool or 1/0")
@@ -278,7 +278,7 @@ class Curve:
         # switch even/odd root as needed (XORing the conditions)
         return root if root % 2 == odd1even0 else self._p - root
 
-    def y_low(self, x: int, low1high0: int) -> int:
+    def y_low(self, x: int, low1high0: int = 1) -> int:
         """return the low (high) y coordinate associated to x"""
         if low1high0 not in (0, 1):
             raise ValueError("low1high0 must be bool or 1/0")

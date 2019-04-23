@@ -8,11 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-    ===========================================
-    Strict DER-encoded signature representation
-    ===========================================
-
+""" Strict DER-encoded signature representation
+   
     The original Bitcoin implementation used OpenSSL to verify DER-encoded ASN.1
     signature representation. However, OpenSSL does not do strict validation and
     as long as the signature is not horribly malformed it is accepted.

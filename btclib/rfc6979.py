@@ -41,7 +41,7 @@ from btclib.curve import Curve
 
 
 def rfc6979(ec: Curve, hf: Callable[[Any], Any], mhd: bytes, q: int) -> int:
-    """Return a deterministic ephemeral key following rfc6979"""
+    """Return a deterministic ephemeral key following RFC6979"""
 
     if not 0 < q < ec.n:
         raise ValueError(f"private key {hex(q)} not in [1, n-1]")

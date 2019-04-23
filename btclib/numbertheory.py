@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Modular algebra functions
+""" Modular algebra functions
 
    Implementations originally from
    https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
@@ -32,8 +32,8 @@ def xgcd(a: int, b: int) -> Tuple[int, int, int]:
 def mod_inv(a: int, m: int) -> int:
     """ Return the inverse of 'a' (mod m). m does not have to be a prime.
 
-       based on Extended Euclidean Algorithm, see
-       https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
+    Based on Extended Euclidean Algorithm, see:
+    https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
     """
     a %= m
     g, x, _ = xgcd(a, m)
@@ -45,10 +45,10 @@ def mod_inv(a: int, m: int) -> int:
 def legendre_symbol(a, p):
     """ Compute the Legendre symbol a|p using Euler's criterion.
 
-        p is a prime, a is relatively prime to p (if p divides a, then a|p = 0)
-        Returns 1 if a has a square root modulo p, -1 otherwise.
+    p is a prime, a is relatively prime to p (if p divides a, then a|p = 0).
+    It returns 1 if a has a square root modulo p, -1 otherwise.
 
-       https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+    https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
     ls = pow(a, p >> 1, p)
     return -1 if ls == p - 1 else ls
@@ -56,13 +56,15 @@ def legendre_symbol(a, p):
 
 def mod_sqrt(a: int, p: int) -> int:
     """ Return a quadratic residue (mod p) of 'a'; p must be a prime.
-        Solve the equation
-        x^2 = a mod p
-        And returns x. Note that p - x is also a root.
-        The Tonelli-Shanks algorithm is used (except for some simple
-        cases in which the solution is known from an identity).
 
-        https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+    Solve the equation:
+        x^2 = a mod p
+    And returns x. Note that p - x is also a root.
+
+    The Tonelli-Shanks algorithm is used (except for some simple
+    cases in which the solution is known from an identity).
+
+    https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
 
     a %= p
