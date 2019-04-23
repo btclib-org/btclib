@@ -30,26 +30,32 @@ This screencast will help you get started or you can read the guide below.
 Quick start
 -----------
 
-Assuming you have Python already, `install Sphinx`_ and sphinx-rtd-theme:
+Assuming you have Python already, `install Sphinx`_:
 
 .. sourcecode:: bash
 
     $ pip install sphinx
 
 
-Create a directory inside your project to hold your docs:
+Move into the btclib directory and autogenerate docs:
 
 .. sourcecode:: bash
 
-    $ cd /path/to/project/docs
+    $ cd /path/to/btclibproject
+    $ sphinx-apidoc -o ./docs/source ./btclib
 
-This quick start will walk you through creating the basic configuration; in most cases, you
-can just accept the defaults. When it's done, you'll have an ``index.rst``, a
-``conf.py`` and some other files. Add these to revision control.
+The file ``/path/to/btclib/docs/sourceindex.rst`` includes information about btclib.
+Build the docs to see how they look:
 
-Now, edit your ``index.rst`` and add some information about your project.
-Include as much detail as you like (refer to the reStructuredText_ syntax
-or `this template`_ if you need help). Build them to see how they look:
+
+Move into the docs directory:
+
+.. sourcecode:: bash
+
+    $ cd docs
+
+The file ``/path/to/btclib/docs/sourceindex.rst`` includes information about btclib.
+Build the docs to see how they look:
 
 .. sourcecode:: bash
 
