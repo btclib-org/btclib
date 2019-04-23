@@ -8,23 +8,32 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""sign-to-contract
-
+"""
+    ================
+    sign-to-contract
+    ================
+    
     IDEA:
-    Let c be a value (bytes) and P an Curve point, then
-    c, P -> h(P||c)G + P
+    -----
+    
+    Let c be a value (bytes) and P a Curve point, then c, P -> h(P||c)G + P
     is a commitment operation. (G generator, || concatenation)
-    The signature contains an Curve point, thus it can become a commitment to c.
-
+    The signature contains a Curve point, thus it can become a
+    commitment to c.	
+    
     HOW:
+    ----
+    
     when signing, generate a nonce (k) and compute a Curve point (R = kG)
     instead of proceeding using (k,R), compute a value (e) that is a
     commitment to c:
     e = hash(R||c)
     substitute the nonce k with k+e and R with R+eG, and proceed signing
     in the standard way, using (k+e,R+eG).
-
+    
     COMMITMENT VERIFICATION:
+    ------------------------
+    
     the verifier can see W.x (W = R+eG) on the signature
     the signer (and committer) provides R and c
     the verifier checks that:
