@@ -4,9 +4,10 @@
 
    Implementation of Base58 and Base58Check, originally from
    https://github.com/keis/base58, with the following modifications:
-   - type annotated python3
-   - using native python3 int.from_bytes() and i.to_bytes()
-   - added length check functionalities to decode and decode_check
+
+   * type annotated python3
+   * using native python3 int.from_bytes() and i.to_bytes()
+   * added length check functionalities to decode and decode_check
 """
 
 from hashlib import sha256
