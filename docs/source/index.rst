@@ -21,7 +21,7 @@ The library includes:
   - threshold signature
   - MuSig multi-signature
 - EC Borromean ring signature
-- RFC-6979 to make signature schemes deterministic
+- RFC 6979 to make signature schemes deterministic
 - EC Diffie-Hellman
 - Pedersen Committment
 - base58 encoding, addresses, WIFs

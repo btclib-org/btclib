@@ -41,7 +41,7 @@ Move into the btclib directory and autogenerate docs:
 
 .. sourcecode:: bash
 
-    $ cd /path/to/btclibproject
+    $ cd /path/to/btclibdirectory
     $ sphinx-apidoc -o ./docs/source ./btclib
 
 The file ``/path/to/btclib/docs/sourceindex.rst`` includes information about btclib.
