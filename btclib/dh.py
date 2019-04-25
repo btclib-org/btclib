@@ -8,11 +8,14 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+from typing import Callable, Any
+
 from btclib.curve import Curve, Point, mult
 from btclib.utils import octets_from_int, int_from_octets
 
-def kdf(zbytes: bytes, keydatasize: int, ec: Curve, hf) -> bytes:
-    """ ANS-X9.63-KDF - SEC 1 specification
+def kdf(zbytes: bytes, keydatasize: int, ec: Curve,
+        hf: Callable[[Any], Any]) -> bytes:
+    """ANS-X9.63-KDF - SEC 1 specification
 
     source: http://www.secg.org/sec1-v2.pdf, section 3.6.1
     """
@@ -35,7 +38,7 @@ def key_agreement(dUV: int,
                   QVU: Point,
                   keydatasize: int,
                   ec: Curve,
-                  hf) -> bytes:
+                  hf: Callable[[Any], Any]) -> bytes:
     P = mult(ec, dUV, QVU)
     if P[1] == 0:
         "invalid (zero) private key"

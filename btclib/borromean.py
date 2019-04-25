@@ -48,7 +48,7 @@ def sign(msg: bytes,
          sign_key_idx: Sequence[int],
          sign_keys: Sequence[int],
          pubk_rings: PubkeyRing) -> Tuple[bytes, SValues]:
-    """ Borromean ring signature - signing algorithm
+    """Borromean ring signature - signing algorithm
 
         https://github.com/ElementsProject/borromean-signatures-writeup
         https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
@@ -98,7 +98,7 @@ def sign(msg: bytes,
 
 
 def verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
-    """ Borromean ring signature - verification algorithm
+    """Borromean ring signature - verification algorithm
 
     inputs: 
     - msg: message to be signed (bytes)

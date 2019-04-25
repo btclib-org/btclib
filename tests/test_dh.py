@@ -30,7 +30,7 @@ class TestEcdh(unittest.TestCase):
         self.assertEqual(keyingdataU, keyingdataV)
 
     def test_key_deployment(self):
-        """ GEC 2: Test Vectors for SEC 1, section 4.1
+        """GEC 2: Test Vectors for SEC 1, section 4.1
 
             http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
         """

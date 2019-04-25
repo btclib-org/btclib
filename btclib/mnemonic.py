@@ -8,8 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-Mnemonic class for converting entropy into a mnemonic sentence
+"""Class for converting entropy into a mnemonic sentence.
 """
 
 import math
@@ -22,10 +21,10 @@ WordList = List[str]
 
 
 class Mnemonic:
-    """Word-list based conversions between entropy, word indexes, and mnemonic phrase.
-
-       Entropy is treated bitwise: (leading) zeros are not
-       considered redundant padding. 
+    """Class for converting entropy into a mnemonic sentence.
+    
+    Provide word-list based conversions between entropy, word indexes,
+    and mnemonic phrase.
     """
 
     def __init__(self) -> None:
@@ -40,14 +39,14 @@ class Mnemonic:
         }
         self.languages = list(self.language_files)
 
-        # create dictionaries where each language has None wordlist
+        # create dictionaries where each language has None word-list
         values = len(self.languages)*[None]
         self._dictionary = dict(zip(self.languages, values))
         self._bits_per_word = dict(zip(self.languages, values))
         self._language_length = dict(zip(self.languages, values))
 
     def _load_lang(self, lang: str, filename: str = None) -> None:
-        """ Load the language worlidst if it has not been loaded yet """
+        """Load the language worlidst if it has not been loaded yet."""
 
         if lang not in self.languages:
             if filename is None:
@@ -78,19 +77,36 @@ class Mnemonic:
             self._dictionary[lang] = [line[:-1] for line in lines]
 
     def bits_per_word(self, lang: str) -> int:
+        """Return the number of bits per word.
+
+        Return the number of bits per word for the given language.
+        """
         self._load_lang(lang)
         return self._bits_per_word[lang]
 
     def word_list(self, lang: str) -> WordList:
+        """Return the language word-list."""
+
         self._load_lang(lang)
         return self._dictionary[lang]
 
     def language_length(self, lang: str) -> int:
+        """Return the language word-list length."""
+
         self._load_lang(lang)
         return self._language_length[lang]
 
-    # input entropy can be expresses as binary string or int
     def indexes_from_entropy(self, entropy: Entropy, lang: str) -> List[int]:
+        """Return the list of integer indexes for a given entropy.
+        
+        Return the list of integer indexes into a language word-list
+        for a given entropy.
+
+        Entropy can be expresses as binary string or integer and is
+        treated bitwise: (leading) zeros are not considered redundant
+        padding.
+        """
+
         self._load_lang(lang)
 
         if type(entropy) != str:
@@ -115,6 +131,12 @@ class Mnemonic:
         return list(reversed(indexes))
 
     def mnemonic_from_indexes(self, indexes: List[int], lang: str) -> str:
+        """Return the mnemonic from a list of integer indexes.
+        
+        Return the mnemonic for a given language from a list of
+        integer indexes.
+        """
+
         self._load_lang(lang)
 
         words = []
@@ -125,6 +147,11 @@ class Mnemonic:
         return ' '.join(words)
 
     def indexes_from_mnemonic(self, mnemonic: str, lang: str) -> List[int]:
+        """Return the list of integer indexes from a mnemonic.
+        
+        Return the list of integer indexes from a mnemonic
+        in a given language.
+        """
         self._load_lang(lang)
 
         words = mnemonic.split()
@@ -133,6 +160,12 @@ class Mnemonic:
         return indexes
 
     def entropy_from_indexes(self, indexes: List[int], lang: str) -> Entropy:
+        """Return the entropy from a list of integer indexes.
+        
+        Return the entropy from a list of integer indexes for
+        a given language word-list.
+        """
+
         self._load_lang(lang)
 
         n = self._language_length[lang]
@@ -149,5 +182,5 @@ class Mnemonic:
 
         return binentropy
 
-
+# singleton
 mnemonic_dict = Mnemonic()

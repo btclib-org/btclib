@@ -21,7 +21,7 @@ from typing import NamedTuple, Tuple, Sequence, List
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
 class Point(NamedTuple):
-    """ Elliptic curve point
+    """Elliptic curve point
         
     Infinity point in affine coordinates is Point() and
     it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
@@ -41,7 +41,7 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
 
 
 class Curve:
-    """ Elliptic curve y^2 = x^3 + a*x + b over Fp group """
+    """Elliptic curve y^2 = x^3 + a*x + b over Fp group """
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
                        h: int, t: int, weakness_check: bool = True) -> None:
@@ -383,7 +383,7 @@ def _double_mult(ec: Curve, u: int, QJ: _JacPoint,
 def multi_mult(ec: Curve,
                scalars: Sequence[int],
                Points: Sequence[Point]) -> Point:
-    """ Bos-Coster's algorithm """
+    """Bos-Coster's algorithm """
 
     if len(scalars) != len(Points):
         errMsg = f"mismatch between scalar length ({len(scalars)}) and "

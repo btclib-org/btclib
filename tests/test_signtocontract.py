@@ -26,15 +26,15 @@ class TestSignToContract(unittest.TestCase):
         m = "to be signed".encode()
         c = "to be committed".encode()
 
-        dsa_sig, dsa_receipt = ecdsa_commit_sign(c, ec, hf, m, prv, None)
+        dsa_sig, dsa_receipt = ecdsa_commit_sign(ec, hf, c, m, prv, None)
         self.assertTrue(dsa.verify(ec, hf, m, pub, dsa_sig))
-        self.assertTrue(verify_commit(c, ec, hf, dsa_receipt))
+        self.assertTrue(verify_commit(ec, hf, c, dsa_receipt))
 
         # 32 bytes message for ECSSA
         m = hf(m).digest()
-        ssa_sig, ssa_receipt = ecssa_commit_sign(c, ec, hf, m, prv, None)
+        ssa_sig, ssa_receipt = ecssa_commit_sign(ec, hf, c, m, prv, None)
         self.assertTrue(ssa.verify(ec, hf, m, pub, ssa_sig))
-        self.assertTrue(verify_commit(c, ec, hf, ssa_receipt))
+        self.assertTrue(verify_commit(ec, hf, c, ssa_receipt))
 
 
 if __name__ == "__main__":

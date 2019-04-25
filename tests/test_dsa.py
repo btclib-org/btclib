@@ -81,7 +81,7 @@ class TestDSA(unittest.TestCase):
         #dsa.sign(ec, hf, msg, 1, 0)
 
     def test_gec(self):
-        """ GEC 2: Test Vectors for SEC 1, section 2
+        """GEC 2: Test Vectors for SEC 1, section 2
 
             http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
         """

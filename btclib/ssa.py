@@ -10,7 +10,8 @@
 
 """Elliptic Curve Schnorr Signature Algorithm
 
-   https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+Implementation according to bip-schnorr:
+https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
 """
 
 import heapq
@@ -52,13 +53,11 @@ def sign(ec: Curve,
          mhd: bytes,
          d: int,
          k: Optional[int] = None) -> ECSS:
-    """ ECSSA signing operation according to bip-schnorr
+    """ECSSA signing operation according to bip-schnorr.
 
-        This signature scheme supports 32-byte messages.
-        Differently from ECDSA, the 32-byte message can be a
-        digest of other messages, but it does not need to.
-
-        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+    This signature scheme supports 32-byte messages.
+    Differently from ECDSA, the 32-byte message can be a
+    digest of other messages, but it does not need to.
     """
 
     # the bitcoin proposed standard is only valid for curves
@@ -106,10 +105,7 @@ def verify(ec: Curve,
            mhd: bytes,
            P: Point,
            sig: ECSS) -> bool:
-    """ECSSA verification according to bip-schnorr
-
-       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
-    """
+    """ECSSA verification according to bip-schnorr."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
@@ -206,10 +202,7 @@ def batch_verify(ec: Curve,
                  ms: Sequence[bytes],
                  P: Sequence[Point],
                  sig: Sequence[ECSS]) -> bool:
-    """ECSSA batch verification according to bip-schnorr
-
-       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
-    """
+    """ECSSA batch verification according to bip-schnorr."""
 
     # try/except wrapper for the Errors raised by _batch_verify
     try:

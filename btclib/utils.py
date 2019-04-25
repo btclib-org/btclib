@@ -8,8 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-Assorted conversion utilities
+"""Assorted conversion utilities.
+
+Most conversions from SEC 1 v.2 2.3 are included.
+
+https://www.secg.org/sec1-v2.pdf
 """
 
 from typing import Union
@@ -17,14 +20,17 @@ from hashlib import sha256, new
 
 from btclib.curve import Curve, Point
 
+# bytes or hex string
 octets = Union[str, bytes]
 
 
 def point_from_octets(ec: Curve, o: octets) -> Point:
-    """Return a tuple (Px, Py) that belongs to the curve
+    """Return a tuple (Px, Py) that belongs to the curve.
 
-       SEC 1 v.2, section 2.3.4
+    Return a tuple (Px, Py) that belongs to the curve according to
+    SEC 1 v.2, section 2.3.4.
     """
+
     if isinstance(o, str):
         o = bytes.fromhex(o)
 
@@ -58,10 +64,12 @@ def point_from_octets(ec: Curve, o: octets) -> Point:
 
 
 def octets_from_point(ec: Curve, Q: Point, compressed: bool) -> bytes:
-    """Return a compressed (0x02, 0x03) or uncompressed (0x04) point as octets
-
-       SEC 1 v.2, section 2.3.3
+    """Return a point as compressed/uncompressed octets.
+    
+    Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
+    octets, according to SEC 1 v.2, section 2.3.3.
     """
+
     # check that Q is a point and that is on curve
     ec.require_on_curve(Q)
 
@@ -76,47 +84,55 @@ def octets_from_point(ec: Curve, Q: Point, compressed: bool) -> bytes:
 
 
 def int_from_octets(o: octets) -> int:
-    """SEC 1 v.2, section 2.3.8"""
+    """Return an integer from an octets (bytes or hex string).
+    
+    Return an integer from an octets (bytes or hex string) according to
+    SEC 1 v.2, section 2.3.8.
+    """
     if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
     return int.from_bytes(o, 'big')
 
 
 def octets_from_int(i: int, bytesize: int) -> bytes:
-    """SEC 1 v.2, section 2.3.7"""
+    """Return an octets from an integer.
+    
+    Return an octets from an integer according to
+    SEC 1 v.2, section 2.3.7.
+    """
+
     return i.to_bytes(bytesize, 'big')
 
-# https://tools.ietf.org/html/rfc6979#section-2.3.5
-# Note that octets_from_int is not the reverse of int_from_bits, even for input
-# sequences of length nlen: octets_from_int will add some bits on the left,
-# while int_from_bits will discard some bits on the right.
-# octets_from_int is the reverse of int_from_bits only when nlen is a multiple of
-# 8 and bit sequences already have length nlen.
-
 def int_from_bits(ec: Curve, o: octets) -> int:
-    """ Return the leftmost ec.nlen bits reduced modulo ec.n
-    
-        It takes as input a sequence of blen bits and calculate a non-negative
-        integer 'i' that is less than 2^nlen. Further, it reduces 'i'
-        modulo ec.n to ensure that 0 < i < ec.n.
+    """Return the leftmost nlen bits reduced modulo n.
 
-        int_from_bits is used during signature generation and verification in
-        ECDSA and ECSSA to transform a hash value (computed over the input
-        message) into an integer modulo ec.n.
+    Take as input a sequence of blen bits and calculate a
+    non-negative integer i that is less than 2^nlen according to
+    SEC 1 v.2 section 4.1.3 (5). Further,
+    reduce i module n to ensure that 0 < i < n.
+
+    int_from_bits is used during signature generation and verification
+    in ECDSA and ECSSA to transform a hash value (computed over the
+    input message) into an integer modulo n.
+
+    Note that int_from_bits is not the reverse of octets_from_int, even
+    for input sequences of length nlen: octets_from_int will add some
+    bits on the left, while int_from_bits will discard some bits on the
+    right. octets_from_int is the reverse of int_from_bits only when
+    nlen is a multiple of 8 and bit sequences already have length nlen.
+    See https://tools.ietf.org/html/rfc6979#section-2.3.5.
     """
     i = _int_from_bits(ec, o)
     return i % ec.n  # might be implemented as difference
 
 
 def _int_from_bits(ec: Curve, o: octets) -> int:
-    """ Return the leftmost ec.nlen bits
+    """Return the leftmost nlen bits.
 
-        It takes as input a sequence of blen bits and outputs a non-negative
-        integer 'o' that is less than 2^nlen. Note that an additional reduction
-        modulo ec.n would be required to ensure that 0 < i < ec.n.
-
-        http://www.secg.org/sec1-v2.pdf
-        SEC 1 v.2 section 4.1.3 (5)
+    Take as input a sequence of blen bits and calculate a
+    non-negative integer i that is less than 2^nlen according to
+    SEC 1 v.2 section 4.1.3 (5).  Note that an additional
+    reduction modulo n would be required to ensure that 0 < i < n.
     """
     i = int_from_octets(o)
 
@@ -126,6 +142,7 @@ def _int_from_bits(ec: Curve, o: octets) -> int:
 
 
 def h160(o: octets) -> bytes:
+    """Return RIPEMD160(SHA256) of an octets (bytes or hex string)."""
 
     if isinstance(o, str):
         o = bytes.fromhex(o)
@@ -134,5 +151,10 @@ def h160(o: octets) -> bytes:
     return new('ripemd160', t).digest()
 
 
-def double_sha256(s: bytes) -> bytes:
-    return sha256(sha256(s).digest()).digest()
+def double_sha256(o: octets) -> bytes:
+    """Return SHA256(SHA256()) of an octets (bytes or hex string)."""
+
+    if isinstance(o, str):
+        o = bytes.fromhex(o)
+
+    return sha256(sha256(o).digest()).digest()

@@ -8,7 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""BIP39 entropy / mnemonic / seed functions"""
+"""BIP39 entropy / mnemonic / seed functions.
+
+https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki.
+"""
+
 
 from hashlib import sha256, pbkdf2_hmac
 
