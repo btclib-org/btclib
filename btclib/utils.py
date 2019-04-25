@@ -112,7 +112,7 @@ def _int_from_bits(ec: Curve, o: octets) -> int:
     """ Return the leftmost ec.nlen bits
 
         It takes as input a sequence of blen bits and outputs a non-negative
-        integer 'o' that is less than 2^nlen. Note that an additional reduction
+        integer that is less than 2^nlen. Note that an additional reduction
         modulo ec.n would be required to ensure that 0 < i < ec.n.
 
         http://www.secg.org/sec1-v2.pdf
@@ -127,7 +127,7 @@ def _int_from_bits(ec: Curve, o: octets) -> int:
 
 def h160(o: octets) -> bytes:
 
-    if isinstance(o, str):
+    if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
 
     t = sha256(o).digest()
