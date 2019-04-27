@@ -11,6 +11,7 @@
 """Include a commitment inside an elliptic curve DSA/SSA signature.
 
 Let c be the commitment value and R a curve point, then
+
     e = hash(R||c)
 
 is a commitment operation.
@@ -18,6 +19,7 @@ is a commitment operation.
 When signing, an ephemeral secret key k is generated and its
 corresponding curve point R = kG is used. Here, instead of
 using (k, R), compute the commitment to c
+
     e = hash(R||c),
 
 tweak k with e and consequently substistute R with W = (k+e)G = R+eG,
@@ -25,6 +27,7 @@ the proceed signing in the standard way, using (k+e, W).
 
 When the committer/signer will reveal R and c,
 the verifier will check that
+
     W.x = (R+eG).x
 
 with e = hash(R||c)) and W.x being known from the signature.
