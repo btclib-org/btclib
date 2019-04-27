@@ -22,10 +22,10 @@ class WordLists:
     
     Word-lists are from:
 
-    * https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
-    * https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
+    * *en*: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
+    * *it*: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
 
-    More word-list can be added using the load_lang method.
+    More word-lists can be added using the load_lang method.
 
     Word-lists are loaded only if needed and read only once from disk.
     """
@@ -46,7 +46,11 @@ class WordLists:
         self._language_length = dict(zip(self.languages, values))
 
     def load_lang(self, lang: str, filename: str = None) -> None:
-        """Load the language word-list if not loaded yet."""
+        """Load/add a language word-list if not loaded/added yet.
+
+        The language file has to be provided for adding new languages
+        beyond those already provided. 
+        """
 
         # a new language, unknown before
         if lang not in self.languages:
