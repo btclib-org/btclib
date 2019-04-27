@@ -8,13 +8,18 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""BIP39 entropy / mnemonic / seed functions"""
+"""BIP39 entropy / mnemonic / seed functions.
+
+https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki.
+"""
+
 
 from hashlib import sha256, pbkdf2_hmac
 
 from btclib.entropy import Entropy, GenericEntropy, bytes_from_entropy, \
     str_from_entropy
-from btclib.mnemonic import mnemonic_dict
+from btclib.mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
+    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
 from btclib import bip32
 
 
@@ -60,18 +65,17 @@ def entropy_from_raw_entropy(raw_entropy: GenericEntropy) -> Entropy:
     return raw_entropy + checksum
 
 
-def mnemonic_from_raw_entropy(raw_entr: GenericEntropy,
-                                    lang: str) -> str:
+def mnemonic_from_raw_entropy(raw_entr: GenericEntropy, lang: str) -> Mnemonic:
     entropy = entropy_from_raw_entropy(raw_entr)
-    indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
-    mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
+    indexes = indexes_from_entropy(entropy, lang)
+    mnemonic = mnemonic_from_indexes(indexes, lang)
     return mnemonic
 
 
-def raw_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
+def raw_entropy_from_mnemonic(mnemonic: Mnemonic, lang: Mnemonic) -> Entropy:
     """output raw entropy is returned as binary string"""
-    indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
-    entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
+    indexes = indexes_from_mnemonic(mnemonic, lang)
+    entropy = entropy_from_indexes(indexes, lang)
 
     # raw entropy is only the first part of entropy
     raw_entr_bits = int(len(entropy)*32/33)
@@ -92,7 +96,7 @@ def raw_entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
 # TODO: re-evaluate style
 
 
-def seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
+def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     hash_name = 'sha512'
     password = mnemonic.encode()
     salt = ('mnemonic' + passphrase).encode()
@@ -103,7 +107,7 @@ def seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
 # TODO: re-evaluate style
 
 
-def mprv_from_mnemonic(mnemonic: str,
+def mprv_from_mnemonic(mnemonic: Mnemonic,
                        passphrase: str,
                        xversion: bytes) -> bytes:
     seed = seed_from_mnemonic(mnemonic, passphrase)
