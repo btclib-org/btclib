@@ -28,8 +28,6 @@ ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
 def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
                               lang: str,
                               eversion: str) -> str:
-    # electrum considers entropy as integer, losing any leading zero
-    # https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
     int_entropy = int_from_entropy(raw_entropy)
 
     if eversion not in ELECTRUM_MNEMONIC_VERSIONS:
@@ -38,7 +36,9 @@ def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
         raise ValueError(m)
     invalid = True
     while invalid:
-        str_entropy = str_from_entropy(int_entropy)
+        # electrum considers entropy as integer, losing any leading zero
+        # https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
+        str_entropy = str_from_entropy(int_entropy, int_entropy.bit_length())
         indexes = mnemonic_dict.indexes_from_entropy(str_entropy, lang)
         mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
         # version validity check

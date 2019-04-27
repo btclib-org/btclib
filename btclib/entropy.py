@@ -8,94 +8,73 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-Entropy convertions from/to binary string, int, and bytes
+"""Entropy conversions from/to binary string, int, and bytes.
+
+Input raw entropy (*GenericEntropy*) can be expressed as
+binary 0/1 string, bytes-like, or integer; by default, it must be
+128, 160, 192, 224, or 256 bits. In the case of integer,
+if the equivalent binary 0/1 string is shorter than 256 bits, then
+it is padded with leading zeros up to the next allowed bit length;
+if longer, then only the leftmost 256 bits are retained.
+
+Output entropy (*Entropy*) should always be a binary 0/1 string.
 """
 
-from typing import Union, Optional
+from typing import Union, Optional, Sequence
 
 Entropy = str  # binary 0/1 string
 GenericEntropy = Union[Entropy, int, bytes]
 
+_bits = (128, 160, 192, 224, 256)
 
-def str_from_entropy(entr: GenericEntropy, required_bits: Optional[Union[int, tuple]] = None) -> Entropy:
-    if type(required_bits) == int:
-        required_bits = (required_bits, )
+
+def str_from_entropy(entr: GenericEntropy,
+                     bits: Optional[Union[int, Sequence]] = _bits) -> Entropy:
+    if type(bits) == int:
+        bits = (bits, )
+    bits = sorted(set(bits))  # ascending sort unique
 
     if type(entr) == str:
-        int(entr, 2)            # check that entr is a valid binary string
-        if required_bits is not None:
-            if len(entr) not in required_bits:
-                m = f"{len(entr)} bits provided; expected: {required_bits}"
-                raise ValueError(m)
-        return entr
+        int(entr, 2)  # check that entr is a valid binary string
+        nbits = len(entr)
+        # no length adjustment
     elif type(entr) == bytes:
-        bits = len(entr) * 8
-        if required_bits is not None:
-            if bits not in required_bits:
-                m = f"{bits} bits provided, {required_bits} expected"
-                raise ValueError(m)
+        nbits = len(entr) * 8
         entr = int.from_bytes(entr, 'big')
-        entr = bin(entr)[2:]    # remove '0b'
-        return entr.zfill(bits)  # pad with lost leading zeros
+        entr = bin(entr)[2:]  # remove '0b'
+        # no length adjustment
     elif type(entr) == int:
         if entr < 0:
             raise ValueError(f"negative entropy {entr}")
-        entr = bin(entr)[2:]    # remove '0b'
-        if required_bits is not None:
-            if len(entr) not in required_bits:
-                m = f"{len(entr)} bits provided; expected: {required_bits}"
-                raise ValueError(m)
-        return entr
+        entr = bin(entr)[2:]  # remove '0b'
+        nbits = len(entr)
+        if nbits > bits[-1]:
+            # only the leftmost bits are retained
+            entr = entr[:bits[-1]]
+            nbits = bits[-1]
+        elif nbits not in bits:
+            # next allowed bit length
+            nbits = next(v for i, v in enumerate(bits) if v > nbits)
     else:
-        m = "entropy must be binary string, int, or bytes; "
+        m = "entropy must be binary 0/1 string, bytes-like, or int; "
         m += f"not '{type(entr).__name__}'"
         raise TypeError(m)
 
-
-def int_from_entropy(entr: GenericEntropy) -> int:
-    if type(entr) == str:
-        return int(entr, 2)
-    elif type(entr) == int:
-        if entr < 0:
-            raise ValueError(f"negative entropy {entr}")
-        return entr
-    elif type(entr) == bytes:
-        return int.from_bytes(entr, 'big')
-    else:
-        m = "entropy must be binary string, int, or bytes; "
-        m += f"not '{type(entr).__name__}'"
-        raise TypeError(m)
+    if nbits not in bits:
+        raise ValueError(f"{nbits} bits provided; expected: {bits}")
+    return entr.zfill(nbits)  # pad with leading zeros
 
 
-def bytes_from_entropy(entr: GenericEntropy, required_bits=None) -> bytes:
-    if type(required_bits) == int:
-        required_bits = (required_bits, )
+def int_from_entropy(entr: GenericEntropy,
+                     bits: Optional[Union[int, tuple]] = _bits) -> int:
+    entr = str_from_entropy(entr, bits)
+    return int(entr, 2)
 
-    if type(entr) == bytes:
-        if required_bits is not None:
-            if len(entr)*8 not in required_bits:
-                m = f"{len(entr)*8} bits provided; expected: {required_bits}"
-                raise ValueError(m)
-        return entr
-    elif type(entr) == str:
-        bits = len(entr)
-        if required_bits is not None:
-            if bits not in required_bits:
-                m = f"{bits} bits provided; expected: {required_bits}"
-                raise ValueError(m)
-        entr = int(entr, 2)
-        return entr.to_bytes((bits+7)//8, 'big')
-    elif type(entr) == int:
-        if entr < 0:
-            raise ValueError(f"negative entropy {entr}")
-        bits = entr.bit_length()
-        if required_bits is not None:
-            if bits not in required_bits:
-                m = f"{bits} bits provided; expected: {required_bits}"
-                raise ValueError(m)
-        return entr.to_bytes((bits+7)//8, 'big')
-    else:
-        m = "entropy must be binary string, int, or bytes; "
-        m += f"not '{type(entr).__name__}'"
-        raise TypeError(m)
+
+def bytes_from_entropy(entr: GenericEntropy,
+                       bits: Optional[Union[int, tuple]] = _bits) -> bytes:
+    entr = str_from_entropy(entr, bits)
+    nbits = len(entr)
+    nbytes = (nbits+7)//8
+    entr = int(entr, 2)
+    return entr.to_bytes(nbytes, 'big')

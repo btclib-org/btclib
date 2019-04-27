@@ -1,31 +1,8 @@
-Getting Started with Sphinx
-===========================
+Generate btclib documentation with Sphinx
+=========================================
 
 Sphinx is a powerful documentation generator that
 has many great features for writing technical documentation including:
-
-* Generate web pages, printable PDFs, documents for e-readers (ePub),
-  and more all from the same sources
-* You can use reStructuredText or Markdown
-  to write documentation
-* An extensive system of cross-referencing code and documentation
-* Syntax highlighted code samples
-* A vibrant ecosystem of first and third-party extensions_
-
-.. _extensions: http://www.sphinx-doc.org/en/master/ext/builtins.html#builtin-sphinx-extensions
-
-
-Quick start video
------------------
-
-This screencast will help you get started or you can read the guide below.
-
-.. raw:: html
-
-    <div style="text-align: center; margin-bottom: 2em;">
-    <iframe width="100%" height="350" src="https://www.youtube.com/embed/oJsUvBQyHBs?rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-    </div>
-
 
 Quick start
 -----------
@@ -34,7 +11,7 @@ Assuming you have Python already, `install Sphinx`_:
 
 .. sourcecode:: bash
 
-    $ pip install sphinx
+    $ python3 -m pip install --upgrade sphinx
 
 
 Move into the btclib directory and autogenerate docs:
@@ -44,65 +21,18 @@ Move into the btclib directory and autogenerate docs:
     $ cd /path/to/btclibdirectory
     $ sphinx-apidoc -o ./docs/source ./btclib
 
-The file ``/path/to/btclib/docs/sourceindex.rst`` includes information about btclib.
-Build the docs to see how they look:
-
-
-Move into the docs directory:
+Move into the docs directory and build the docs to see how they look:
 
 .. sourcecode:: bash
 
     $ cd docs
-
-The file ``/path/to/btclib/docs/sourceindex.rst`` includes information about btclib.
-Build the docs to see how they look:
-
-.. sourcecode:: bash
-
     $ make html
 
 Your ``index.rst`` has been built into ``index.html``
-in your documentation output directory (typically ``_build/html/index.html``).
+in your documentation output directory (``_build/html/index.html``).
 Open this file in your web browser to see your docs.
 
 Edit your files and rebuild until you like what you see, then commit your changes and push to your public repository.
-Once you have Sphinx documentation in a public repository, you can start using Read the Docs
-by importing your docs.
-
-.. _install Sphinx: http://sphinx-doc.org/install.html
-.. _reStructuredText: http://sphinx-doc.org/rest.html
-.. _this template: https://www.writethedocs.org/guide/writing/beginners-guide-to-docs/#id1
-
-Using Markdown with Sphinx
---------------------------
-
-You can use Markdown and reStructuredText in the same Sphinx project.
-We support this natively on Read the Docs, and you can do it locally:
-
-.. sourcecode:: bash
-
-    $ pip install recommonmark
-
-Then in your ``conf.py``:
-
-.. code-block:: python
-
-    from recommonmark.parser import CommonMarkParser
-
-    source_parsers = {
-        '.md': CommonMarkParser,
-    }
-
-    source_suffix = ['.rst', '.md']
-
-.. warning:: Markdown doesn't support a lot of the features of Sphinx,
-          like inline markup and directives. However, it works for
-          basic prose content. reStructuredText is the preferred
-          format for technical documentation, please read `this blog post`_
-          for motivation.
-
-.. _this blog post: http://ericholscher.com/blog/2016/mar/15/dont-use-markdown-for-technical-docs/
-
 
 External resources
 ------------------
@@ -114,6 +44,8 @@ Here are some external resources to help you learn more about Sphinx.
 * `An introduction to Sphinx and Read the Docs for technical writers`_
 * `Read the docs`_
 
+.. _install Sphinx: http://sphinx-doc.org/install.html
+.. _reStructuredText: http://sphinx-doc.org/rest.html
 .. _Sphinx documentation: http://www.sphinx-doc.org/
 .. _RestructuredText primer: http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
 .. _An introduction to Sphinx and Read the Docs for technical writers: http://ericholscher.com/blog/2016/jul/1/sphinx-and-rtd-for-writers/

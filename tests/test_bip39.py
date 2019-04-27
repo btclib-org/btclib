@@ -11,6 +11,7 @@
 import unittest
 import os
 import json
+import secrets
 
 from btclib import bip32
 from btclib import bip39
@@ -81,6 +82,8 @@ class TestBIP39(unittest.TestCase):
             # test_vector[3], i.e. the bip32 master private key from seed,
             # has been tested in bip32, as it does not belong here
 
+    def test_zeroleadingbit(self):
+        bip39.mnemonic_from_raw_entropy(secrets.randbits(127) , 'en')
 
 if __name__ == "__main__":
     unittest.main()
