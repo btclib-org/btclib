@@ -11,73 +11,43 @@
 import unittest
 import os
 
-from btclib.mnemonic import mnemonic_dict
+from btclib.mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
+    indexes_from_mnemonic, entropy_from_indexes
 
 
-class TestMnemonicDictionaries(unittest.TestCase):
+class TestMnemonic(unittest.TestCase):
     def test_1(self):
         lang = "en"
-
-        d = mnemonic_dict.word_list(lang)
-        self.assertIsInstance(d, list)
-        self.assertEqual(len(d), 2048)
-
-        length = mnemonic_dict.language_length(lang)
-        self.assertEqual(length, 2048)
-
-        bpw = mnemonic_dict.bits_per_word(lang)
-        self.assertEqual(bpw, 11)
 
         test_mnemonic = "ozone drill grab fiber curtain grace " \
                         "pudding thank cruise elder eight picnic"
         test_indexes = [1268,  535,  810,  685,  433,  811,
                         1385, 1790,  421,  570,  567, 1313]
-        indexes = mnemonic_dict.indexes_from_mnemonic(test_mnemonic, lang)
+        indexes = indexes_from_mnemonic(test_mnemonic, lang)
         self.assertEqual(indexes, test_indexes)
 
-        mnemonic = mnemonic_dict.mnemonic_from_indexes(test_indexes, lang)
+        mnemonic = mnemonic_from_indexes(test_indexes, lang)
         self.assertEqual(mnemonic, test_mnemonic)
 
-        entropy = mnemonic_dict.entropy_from_indexes(test_indexes, lang)
-        indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
+        entropy = entropy_from_indexes(test_indexes, lang)
+        indexes = indexes_from_entropy(entropy, lang)
+        self.assertEqual(indexes, test_indexes)
+
+        test_indexes = [   0,    0, 2047, 2047, 2047, 2047,
+                        2047, 2047, 2047, 2047, 2047,    0]
+        entropy = entropy_from_indexes(test_indexes, lang)
+        indexes = indexes_from_entropy(entropy, lang)
+        self.assertEqual(indexes, test_indexes)
+
+        test_indexes = [   0,    0, 2047, 2047, 2047, 2047,
+                        2047, 2047, 2047, 2047, 2047,    0]
+        entropy = entropy_from_indexes(test_indexes, lang)
+        indexes = indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
 
         # entropy must be binary string or int
         entropy = b'123456789abcdef0'
-        self.assertRaises(
-            TypeError, mnemonic_dict.indexes_from_entropy, entropy, lang)
-
-    def test_2(self):
-        lang = "en"
-        test_indexes = [0,    0, 2047, 2047, 2047, 2047,
-                        2047, 2047, 2047, 2047, 2047,    0]
-        entropy = mnemonic_dict.entropy_from_indexes(test_indexes, lang)
-        indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
-        self.assertEqual(indexes, test_indexes)
-
-        lang = "fakeng"
-        # unknown language 'fakeng''
-        self.assertRaises(ValueError, mnemonic_dict._load_lang, lang)
-        #mnemonic_dict._load_lang(lang)
-
-        # dictionary length (must be a power of two
-        filename = os.path.join(os.path.dirname(__file__),
-                                "data",
-                                "fakeenglish.txt")
-        self.assertRaises(ValueError, mnemonic_dict._load_lang, lang, filename)
-        #mnemonic_dict._load_lang(lang, filename)
-
-        lang = "eng"
-        filename = os.path.join(os.path.dirname(__file__),
-                                "data",
-                                "english.txt")
-        mnemonic_dict._load_lang(lang, filename)
-        test_indexes = [0,    0, 2047, 2047, 2047, 2047,
-                        2047, 2047, 2047, 2047, 2047,    0]
-        entropy = mnemonic_dict.entropy_from_indexes(test_indexes, lang)
-        indexes = mnemonic_dict.indexes_from_entropy(entropy, lang)
-        self.assertEqual(indexes, test_indexes)
-
+        self.assertRaises(TypeError, indexes_from_entropy, entropy, lang)
 
 if __name__ == "__main__":
     # execute only if run as a script

@@ -14,175 +14,88 @@
 """
 
 import math
-import os
-from typing import Union, List
+from typing import List
 
 from btclib.entropy import Entropy
+from btclib.wordlists import _wordlists
 
-WordList = List[str]
+Mnemonic = str
 
-class Mnemonic:
-    """Class for converting entropy from/to mnemonic sentence.
+def indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
+    """Return the word-list indexes for a given entropy.
     
-    Provide word-list based conversions between entropy, word indexes,
-    and mnemonic phrase.
+    Return the list of integer indexes into a language word-list
+    for a given entropy.
 
-    Word-list dictionaries are from:
-
-    * https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
-    * https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
+    Entropy must be represented as binary 0/1 string; leading zeros
+    are not considered redundant padding.
     """
 
-    def __init__(self) -> None:
+    if type(entropy) != str:
+        m = "entropy must be binary string, "
+        m += f"not '{type(entropy).__name__}'"
+        raise TypeError(m)
 
-        path = os.path.join(os.path.dirname(__file__), "dictdata")
-        self.language_files = {
-            'en': os.path.join(path, 'english.txt'),
-            'it': os.path.join(path, 'italian.txt')
-        }
-        self.languages = list(self.language_files)
+    bits = len(entropy)
+    int_entropy = int(entropy, 2)
+    n = _wordlists.language_length(lang)
+    indexes = []
+    while int_entropy:
+        int_entropy, index = divmod(int_entropy, n)
+        indexes.append(index)
 
-        # create dictionaries where each language has None word-list
-        values = len(self.languages)*[None]
-        self._dictionary = dict(zip(self.languages, values))
-        self._bits_per_word = dict(zip(self.languages, values))
-        self._language_length = dict(zip(self.languages, values))
+    # do not lose leading zeros entropy
+    bpw = _wordlists.bits_per_word(lang)
+    nwords = math.ceil(bits/bpw)
+    while len(indexes) < nwords:
+        indexes.append(0)
 
-    def _load_lang(self, lang: str, filename: str = None) -> None:
-        """Load the language worlidst if it has not been loaded yet."""
+    return list(reversed(indexes))
 
-        if lang not in self.languages:
-            if filename is None:
-                raise ValueError(f"unknown language '{lang}'")
-            else:
-                self.languages.append(lang)
-                self.language_files[lang] = filename
-                self._dictionary[lang] = None
-                self._bits_per_word[lang] = None
-                self._language_length[lang] = None
+def mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
+    """Return the mnemonic from a list of word-list indexes.
+    
+    Return the mnemonic from a list of integer word-list indexes
+    Return the mnemonic for a given language from a list of
+    integer indexes.
+    """
 
-        # language has not been loaded yet
-        if self._dictionary[lang] == None:
-            with open(self.language_files[lang], 'r') as f:
-                lines = f.readlines()
-            f.closed
+    words = []
+    wordlist = _wordlists.wordlist(lang)
+    for i in indexes:
+        word = wordlist[i]
+        words.append(word)
+    return ' '.join(words)
 
-            nwords = len(lines)
-            # http://www.graphics.stanford.edu/~seander/bithacks.html
-            # Determining if an integer is a power of 2
-            if nwords & (nwords - 1) != 0:
-                errMsg = f"dictionary length ({nwords}) must be a power of two"
-                raise ValueError(errMsg)
+def indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
+    """Return the word-list indexes for a given mnemonic.
+    
+    Return the list of integer indexes into a language word-list
+    for a given mnemonic.
+    """
 
-            self._bits_per_word[lang] = int(math.log(nwords, 2))
-            self._language_length[lang] = nwords
-            # clean up and normalization are missing, but removal of \n
-            self._dictionary[lang] = [line[:-1] for line in lines]
+    words = mnemonic.split()
+    wordlist = _wordlists.wordlist(lang)
+    indexes = [wordlist.index(w) for w in words]
+    return indexes
 
-    def bits_per_word(self, lang: str) -> int:
-        """Return the number of bits per word.
+def entropy_from_indexes(indexes: List[int], lang: str) -> Entropy:
+    """Return the entropy from a list of word-list indexes.
+    
+    Return the entropy from a list of integer indexes into
+    a given language word-list.
+    """
 
-        Return the number of bits per word for the given language.
-        """
-        self._load_lang(lang)
-        return self._bits_per_word[lang]
+    n = _wordlists.language_length(lang)
+    entropy = 0
+    for i in indexes:
+        entropy = entropy*n + i
 
-    def word_list(self, lang: str) -> WordList:
-        """Return the language word-list."""
+    binentropy = bin(entropy)[2:]    # remove '0b'
 
-        self._load_lang(lang)
-        return self._dictionary[lang]
+    # do not lose leading zeros entropy
+    bpw = _wordlists.bits_per_word(lang)
+    bits = len(indexes)*bpw
+    binentropy = binentropy.zfill(bits)
 
-    def language_length(self, lang: str) -> int:
-        """Return the language word-list length."""
-
-        self._load_lang(lang)
-        return self._language_length[lang]
-
-    def indexes_from_entropy(self, entropy: Entropy, lang: str) -> List[int]:
-        """Return the list of integer indexes for a given entropy.
-        
-        Return the list of integer indexes into a language word-list
-        for a given entropy.
-
-        Entropy must be represented as binary 0/1 string; leading zeros
-        are not considered redundant padding.
-        """
-
-        self._load_lang(lang)
-
-        if type(entropy) != str:
-            m = "entropy must be binary string, "
-            m += f"not '{type(entropy).__name__}'"
-            raise TypeError(m)
-
-        bits = len(entropy)
-        int_entropy = int(entropy, 2)
-        n = self._language_length[lang]
-        indexes = []
-        while int_entropy:
-            int_entropy, index = divmod(int_entropy, n)
-            indexes.append(index)
-
-        # do not lose leading zeros entropy
-        bpw = self._bits_per_word[lang]
-        nwords = math.ceil(bits/bpw)
-        while len(indexes) < nwords:
-            indexes.append(0)
-
-        return list(reversed(indexes))
-
-    def mnemonic_from_indexes(self, indexes: List[int], lang: str) -> str:
-        """Return the mnemonic from a list of integer indexes.
-        
-        Return the mnemonic for a given language from a list of
-        integer indexes.
-        """
-
-        self._load_lang(lang)
-
-        words = []
-        dictionary = self._dictionary[lang]
-        for i in indexes:
-            word = dictionary[i]
-            words.append(word)
-        return ' '.join(words)
-
-    def indexes_from_mnemonic(self, mnemonic: str, lang: str) -> List[int]:
-        """Return the list of integer indexes from a mnemonic.
-        
-        Return the list of integer indexes from a mnemonic
-        in a given language.
-        """
-        self._load_lang(lang)
-
-        words = mnemonic.split()
-        dictionary = self._dictionary[lang]
-        indexes = [dictionary.index(w) for w in words]
-        return indexes
-
-    def entropy_from_indexes(self, indexes: List[int], lang: str) -> Entropy:
-        """Return the entropy from a list of integer indexes.
-        
-        Return the entropy from a list of integer indexes for
-        a given language word-list.
-        """
-
-        self._load_lang(lang)
-
-        n = self._language_length[lang]
-        entropy = 0
-        for i in indexes:
-            entropy = entropy*n + i
-
-        binentropy = bin(entropy)[2:]    # remove '0b'
-
-        # do not lose leading zeros entropy
-        bpw = self._bits_per_word[lang]
-        bits = len(indexes)*bpw
-        binentropy = binentropy.zfill(bits)
-
-        return binentropy
-
-# singleton
-mnemonic_dict = Mnemonic()
+    return binentropy

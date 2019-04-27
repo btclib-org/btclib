@@ -15,7 +15,8 @@ import hmac
 
 from btclib.entropy import Entropy, GenericEntropy, _int_from_entropy, \
     str_from_entropy
-from btclib.mnemonic import mnemonic_dict
+from btclib.mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
+    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
 from btclib import bip32
 
 ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
@@ -27,7 +28,7 @@ ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
 
 def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
                               lang: str,
-                              eversion: str) -> str:
+                              eversion: str) -> Mnemonic:
 
     if eversion not in ELECTRUM_MNEMONIC_VERSIONS:
         m = f"mnemonic version '{eversion}' not in electrum allowed "
@@ -39,8 +40,8 @@ def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
     int_entropy = _int_from_entropy(raw_entropy)
     while invalid:
         str_entropy = str_from_entropy(int_entropy, int_entropy.bit_length())
-        indexes = mnemonic_dict.indexes_from_entropy(str_entropy, lang)
-        mnemonic = mnemonic_dict.mnemonic_from_indexes(indexes, lang)
+        indexes = indexes_from_entropy(str_entropy, lang)
+        mnemonic = mnemonic_from_indexes(indexes, lang)
         # version validity check
         s = hmac.new(b"Seed version", mnemonic.encode(
             'utf8'), sha512).hexdigest()
@@ -51,14 +52,14 @@ def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
 
     return mnemonic
 
-def entropy_from_mnemonic(mnemonic: str, lang: str) -> Entropy:
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     """entropy is returned as binary string"""
-    indexes = mnemonic_dict.indexes_from_mnemonic(mnemonic, lang)
-    entropy = mnemonic_dict.entropy_from_indexes(indexes, lang)
+    indexes = indexes_from_mnemonic(mnemonic, lang)
+    entropy = entropy_from_indexes(indexes, lang)
     return entropy
 
 
-def seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
+def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     hash_name = 'sha512'
     password = mnemonic.encode()
     salt = ('electrum' + passphrase).encode()
@@ -67,7 +68,7 @@ def seed_from_mnemonic(mnemonic: str, passphrase: str) -> bytes:
     return pbkdf2_hmac(hash_name, password, salt, iterations, dksize)
 
 
-def mprv_from_mnemonic(mnemonic: str,
+def mprv_from_mnemonic(mnemonic: Mnemonic,
                        passphrase: str,
                        xversion: bytes) -> bytes:
     seed = seed_from_mnemonic(mnemonic, passphrase)
