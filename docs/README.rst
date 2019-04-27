@@ -19,9 +19,12 @@ Move into the btclib directory and autogenerate docs:
 .. sourcecode:: bash
 
     $ cd /path/to/btclibdirectory
-    $ sphinx-apidoc -o ./docs/source ./btclib
+    $ sphinx-apidoc -f -o ./docs/source ./btclib
 
-Move into the docs directory and build the docs to see how they look:
+This sphinx-apidoc step has to be done at least once and everytime
+files are added/removed.
+
+Then, move into the docs directory and build the docs to see how they look:
 
 .. sourcecode:: bash
 
@@ -32,7 +35,8 @@ Your ``index.rst`` has been built into ``index.html``
 in your documentation output directory (``_build/html/index.html``).
 Open this file in your web browser to see your docs.
 
-Edit your files and rebuild until you like what you see, then commit your changes and push to your public repository.
+Edit your files and rebuild until you like what you see, then commit
+your changes and push to your public repository.
 
 External resources
 ------------------
