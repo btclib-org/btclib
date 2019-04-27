@@ -9,12 +9,13 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
+import random
 
-from secrets import randbits
 from btclib.entropy import Entropy, GenericEntropy, \
     bytes_from_entropy, str_from_entropy, \
     int_from_entropy
 
+random.seed(42)
 
 class TestEntropy(unittest.TestCase):
     def test_conversions(self):
@@ -72,8 +73,16 @@ class TestEntropy(unittest.TestCase):
         self.assertEqual(int_entropy.bit_length(), 254)
 
         # the 32 bytes integer has its leftmost bit set to 0
-        entropy = randbits(255)
-        self.assertEqual(len(str_from_entropy(entropy)), 256)
+        int_entropy = random.getrandbits(255)
+        self.assertEqual(len(str_from_entropy(int_entropy)), 256)
+
+        # 257 bits
+        int_entropy = 1 << 256
+        str_entropy = str_from_entropy(int_entropy)
+        self.assertEqual(len(str_entropy), 256)
+
+        exp_int_entropy = int_entropy >> 1
+        self.assertEqual(int_from_entropy(str_entropy), exp_int_entropy)
 
     def test_exceptions(self):
         entropy = '00101010' * 31
