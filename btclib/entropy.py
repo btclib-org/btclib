@@ -21,7 +21,7 @@ from typing import Union, Optional, Sequence
 Entropy = str  # binary 0/1 string
 GenericEntropy = Union[Entropy, int, bytes]
 
-_bits = (128, 160, 192, 224, 256)
+_bits = 128, 160, 192, 224, 256
 
 
 def str_from_entropy(entr: GenericEntropy,
@@ -100,7 +100,7 @@ def _bytes_from_entropy(entr: GenericEntropy,
     binary 0/1 string, bytes-like, or integer;
     by default, it must be 128, 160, 192, 224, or 256 bits.
 
-    In the case of binary 0/1 string and bytes-like
+    In the case of binary 0/1 string and bytes-like,
     leading zeros are not considered redundant padding.
     In the case of integer, where leading zeros cannot be represented,
     if the bit length is not an allowed value, then the binary 0/1
