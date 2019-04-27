@@ -55,9 +55,8 @@ def indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
 def mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
     """Return the mnemonic from a list of word-list indexes.
     
-    Return the mnemonic from a list of integer word-list indexes
-    Return the mnemonic for a given language from a list of
-    integer indexes.
+    Return the mnemonic from a list of integer indexes into
+    a given language word-list.
     """
 
     words = []
