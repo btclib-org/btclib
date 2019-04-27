@@ -13,7 +13,7 @@
 from hashlib import sha512, pbkdf2_hmac
 import hmac
 
-from btclib.entropy import Entropy, GenericEntropy, int_from_entropy, \
+from btclib.entropy import Entropy, GenericEntropy, _int_from_entropy, \
     str_from_entropy
 from btclib.mnemonic import mnemonic_dict
 from btclib import bip32
@@ -36,7 +36,7 @@ def mnemonic_from_raw_entropy(raw_entropy: GenericEntropy,
 
     invalid = True
     # electrum considers entropy as integer, losing any leading zero
-    int_entropy = int_from_entropy(raw_entropy)
+    int_entropy = _int_from_entropy(raw_entropy)
     while invalid:
         str_entropy = str_from_entropy(int_entropy, int_entropy.bit_length())
         indexes = mnemonic_dict.indexes_from_entropy(str_entropy, lang)

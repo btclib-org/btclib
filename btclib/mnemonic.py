@@ -8,7 +8,9 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Class for converting entropy into a mnemonic sentence.
+"""Class for converting entropy from/to mnemonic sentence.
+
+*Entropy* must be represented as binary 0/1 string.
 """
 
 import math
@@ -19,18 +21,19 @@ from btclib.entropy import Entropy
 
 WordList = List[str]
 
-
 class Mnemonic:
-    """Class for converting entropy into a mnemonic sentence.
+    """Class for converting entropy from/to mnemonic sentence.
     
     Provide word-list based conversions between entropy, word indexes,
     and mnemonic phrase.
+
+    Word-list dictionaries are from:
+
+    * https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
+    * https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
     """
 
     def __init__(self) -> None:
-        # dictionaries are from:
-        # https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
-        # https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
 
         path = os.path.join(os.path.dirname(__file__), "dictdata")
         self.language_files = {
@@ -102,9 +105,8 @@ class Mnemonic:
         Return the list of integer indexes into a language word-list
         for a given entropy.
 
-        Entropy can be expresses as binary string or integer and is
-        treated bitwise: (leading) zeros are not considered redundant
-        padding.
+        Entropy must be represented as binary 0/1 string; leading zeros
+        are not considered redundant padding.
         """
 
         self._load_lang(lang)

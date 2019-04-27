@@ -16,14 +16,14 @@ https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki.
 
 from hashlib import sha256, pbkdf2_hmac
 
-from btclib.entropy import Entropy, GenericEntropy, bytes_from_entropy, \
+from btclib.entropy import Entropy, GenericEntropy, _bytes_from_entropy, \
     str_from_entropy
 from btclib.mnemonic import mnemonic_dict
 from btclib import bip32
 
 
 def _raw_entropy_checksum(raw_entr: GenericEntropy) -> Entropy:
-    raw_entr = bytes_from_entropy(raw_entr, _allowed_raw_entr_bits)
+    raw_entr = _bytes_from_entropy(raw_entr, _allowed_raw_entr_bits)
     # raw_entr 256-bit checksum
     byteschecksum = sha256(raw_entr).digest()  # 256 bits
     # convert checksum to binary '01' string

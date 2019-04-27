@@ -12,8 +12,8 @@ import unittest
 
 from secrets import randbits
 from btclib.entropy import Entropy, GenericEntropy, \
-    bytes_from_entropy, str_from_entropy, \
-    int_from_entropy
+    _bytes_from_entropy, str_from_entropy, \
+    _int_from_entropy
 
 
 class TestEntropy(unittest.TestCase):
@@ -23,25 +23,25 @@ class TestEntropy(unittest.TestCase):
         str_entropy = str_from_entropy(entropy)
         self.assertEqual(len(str_entropy), 256)
         self.assertEqual(str_entropy, entropy)
-        bytes_entropy = bytes_from_entropy(entropy)
+        bytes_entropy = _bytes_from_entropy(entropy)
         self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = int_from_entropy(entropy)
+        int_entropy = _int_from_entropy(entropy)
         self.assertEqual(int_entropy.bit_length(), 256)
 
         str_entropy = str_from_entropy(bytes_entropy)
         self.assertEqual(len(str_entropy), 256)
         self.assertEqual(str_entropy, entropy)
-        bytes_entropy = bytes_from_entropy(bytes_entropy)
+        bytes_entropy = _bytes_from_entropy(bytes_entropy)
         self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = int_from_entropy(bytes_entropy)
+        int_entropy = _int_from_entropy(bytes_entropy)
         self.assertEqual(int_entropy.bit_length(), 256)
 
         str_entropy = str_from_entropy(int_entropy)
         self.assertEqual(len(str_entropy), 256)
         self.assertEqual(str_entropy, entropy)
-        bytes_entropy = bytes_from_entropy(int_entropy)
+        bytes_entropy = _bytes_from_entropy(int_entropy)
         self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = int_from_entropy(int_entropy)
+        int_entropy = _int_from_entropy(int_entropy)
         self.assertEqual(int_entropy.bit_length(), 256)
 
     def test_leading_zeros(self):
@@ -50,25 +50,25 @@ class TestEntropy(unittest.TestCase):
         str_entropy = str_from_entropy(entropy)
         self.assertEqual(len(str_entropy), 256)
         self.assertEqual(str_entropy, entropy)
-        bytes_entropy = bytes_from_entropy(entropy)
+        bytes_entropy = _bytes_from_entropy(entropy)
         self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = int_from_entropy(entropy)
+        int_entropy = _int_from_entropy(entropy)
         self.assertEqual(int_entropy.bit_length(), 254)
 
         str_entropy = str_from_entropy(bytes_entropy)
         self.assertEqual(len(str_entropy), 256)
         self.assertEqual(str_entropy, entropy)
-        bytes_entropy = bytes_from_entropy(bytes_entropy)
+        bytes_entropy = _bytes_from_entropy(bytes_entropy)
         self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = int_from_entropy(bytes_entropy)
+        int_entropy = _int_from_entropy(bytes_entropy)
         self.assertEqual(int_entropy.bit_length(), 254)
 
         str_entropy = str_from_entropy(int_entropy, 254)
         self.assertEqual(len(str_entropy), 254)
         self.assertEqual(str_entropy, entropy[2:])
-        bytes_entropy = bytes_from_entropy(int_entropy, 254)
+        bytes_entropy = _bytes_from_entropy(int_entropy, 254)
         self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = int_from_entropy(int_entropy)
+        int_entropy = _int_from_entropy(int_entropy)
         self.assertEqual(int_entropy.bit_length(), 254)
 
         # the 32 bytes integer has its leftmost bit set to 0
@@ -79,8 +79,8 @@ class TestEntropy(unittest.TestCase):
         entropy = '00101010' * 31
         entropy = entropy[2:]  # 246 bits
         str_entropy = str_from_entropy(entropy, 246)
-        bytes_entropy = bytes_from_entropy(entropy, 246)
-        int_entropy = int_from_entropy(entropy, 246)
+        bytes_entropy = _bytes_from_entropy(entropy, 246)
+        int_entropy = _int_from_entropy(entropy, 246)
         invalid_entropy = tuple()
 
         self.assertRaises(ValueError, str_from_entropy, str_entropy)
@@ -89,17 +89,17 @@ class TestEntropy(unittest.TestCase):
         self.assertEqual(len(str_from_entropy(int_entropy)), 256)
         self.assertRaises(TypeError, str_from_entropy, invalid_entropy)
 
-        self.assertRaises(ValueError, int_from_entropy, str_entropy)
-        self.assertRaises(ValueError, int_from_entropy, bytes_entropy)
-        self.assertRaises(ValueError, int_from_entropy, -1*int_entropy)
-        self.assertEqual(int_from_entropy(int_entropy), int_entropy)
-        self.assertRaises(TypeError, int_from_entropy, invalid_entropy)
+        self.assertRaises(ValueError, _int_from_entropy, str_entropy)
+        self.assertRaises(ValueError, _int_from_entropy, bytes_entropy)
+        self.assertRaises(ValueError, _int_from_entropy, -1*int_entropy)
+        self.assertEqual(_int_from_entropy(int_entropy), int_entropy)
+        self.assertRaises(TypeError, _int_from_entropy, invalid_entropy)
 
-        self.assertRaises(ValueError, bytes_from_entropy, str_entropy)
-        self.assertRaises(ValueError, bytes_from_entropy, bytes_entropy)
-        self.assertRaises(ValueError, bytes_from_entropy, -1*int_entropy)
-        self.assertEqual(len(bytes_from_entropy(int_entropy)), 32)
-        self.assertRaises(TypeError, bytes_from_entropy, invalid_entropy)
+        self.assertRaises(ValueError, _bytes_from_entropy, str_entropy)
+        self.assertRaises(ValueError, _bytes_from_entropy, bytes_entropy)
+        self.assertRaises(ValueError, _bytes_from_entropy, -1*int_entropy)
+        self.assertEqual(len(_bytes_from_entropy(int_entropy)), 32)
+        self.assertRaises(TypeError, _bytes_from_entropy, invalid_entropy)
 
 
 if __name__ == "__main__":
