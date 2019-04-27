@@ -82,7 +82,7 @@ class TestEntropy(unittest.TestCase):
         self.assertEqual(len(str_entropy), 256)
 
         exp_int_entropy = int_entropy >> 1
-        self.assertEqual(int_from_entropy(str_entropy), exp_int_entropy)
+        self.assertEqual(_int_from_entropy(str_entropy), exp_int_entropy)
 
     def test_exceptions(self):
         entropy = '00101010' * 31
