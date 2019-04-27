@@ -8,9 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Elliptic Curve Schnorr Signature Algorithm.
+"""Elliptic Curve Schnorr Signature Algorithm (ECSSA).
 
 Implementation according to bip-schnorr:
+
 https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki.
 """
 
@@ -55,7 +56,7 @@ def sign(ec: Curve,
          k: Optional[int] = None) -> ECSS:
     """ECSSA signing operation according to bip-schnorr.
 
-    This signature scheme supports 32-byte messages.
+    This signature scheme supports only 32-byte messages.
     Differently from ECDSA, the 32-byte message can be a
     digest of other messages, but it does not need to.
     """
@@ -105,7 +106,7 @@ def verify(ec: Curve,
            mhd: bytes,
            P: Point,
            sig: ECSS) -> bool:
-    """ECSSA verification according to bip-schnorr."""
+    """ECSSA signature verification according to bip-schnorr."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
@@ -119,7 +120,8 @@ def _verify(ec: Curve,
             mhd: bytes,
             P: Point,
             sig: ECSS) -> bool:
-    # This raises Exceptions, while verify should always return True or False
+    # Private function for test/dev purposes
+    # It raises Errors, while verify should always return True or False
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
@@ -202,7 +204,7 @@ def batch_verify(ec: Curve,
                  ms: Sequence[bytes],
                  P: Sequence[Point],
                  sig: Sequence[ECSS]) -> bool:
-    """ECSSA batch verification according to bip-schnorr."""
+    """ECSSA batch signature verification according to bip-schnorr."""
 
     # try/except wrapper for the Errors raised by _batch_verify
     try:

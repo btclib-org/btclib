@@ -8,10 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Elliptic Curve Digital Signature Algorithm
+"""Elliptic Curve Digital Signature Algorithm (ECDSA).
 
-   SEC 1 v.2 (http://www.secg.org/sec1-v2.pdf)
-   with bitcoin canonical 'low-s' encoding for ECDSA signatures
+   Implementation according to SEC 1 v.2:
+
+   http://www.secg.org/sec1-v2.pdf
+
+   specialized with bitcoin canonical 'low-s' encoding.
 """
 
 from typing import Tuple, Sequence, Optional, Callable, Any
@@ -29,19 +32,22 @@ def sign(ec: Curve,
          msg: bytes,
          q: int,
          k: Optional[int] = None) -> ECDS:
-    """ECDSA signing operation according to SEC 1
+    """ECDSA signing operation according to SEC 1 v.2.
 
-       http://www.secg.org/sec1-v2.pdf
+    The message msg is first processed by hf, yielding the value
+
+        msghd = hf(msg),
+
+    a sequence of bits of length *hlen*.
+    
+    Normally, hf is chosen such that its output length *hlen* is
+    roughly equal to *nlen*, the bit-length of the group order *n*,
+    since the overall security of the signature scheme will depend on
+    the smallest of *hlen* and *nlen*; however, the ECDSA standard
+    supports all combinations of *hlen* and *nlen*.
+
+    See https://tools.ietf.org/html/rfc6979#section-3.2
     """
-
-    # https://tools.ietf.org/html/rfc6979#section-3.2
-    # The message msg is first processed by hf, yielding the value
-    # msghd = hf(msg), a sequence of bits of length hlen.
-    # Normally, hf is chosen such that
-    # its output length hlen is roughly equal to nlen, since the overall
-    # security of the signature scheme will depend on the smallest of hlen
-    # and nlen; however, the ECDSA standard support all combinations of
-    # hlen and nlen.
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
@@ -94,11 +100,7 @@ def verify(ec: Curve,
            msg: bytes,
            P: Point,
            sig: ECDS) -> bool:
-    """ECDSA veryfying operation to SEC 1
-
-       See SEC 1 v.2 section 4.1.4
-       http://www.secg.org/sec1-v2.pdf
-    """
+    """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
@@ -154,11 +156,7 @@ def pubkey_recovery(ec: Curve,
                     hf: Callable[[Any],Any],
                     msg: bytes,
                     sig: ECDS) -> Sequence[Point]:
-    """ECDSA public key recovery operation according to SEC 1
-
-       http://www.secg.org/sec1-v2.pdf
-       See SEC 1 v.2 section 4.1.6
-    """
+    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6)."""
 
     # The message digest m: a 32-byte array
     msghd = hf(msg).digest()                                  # 1.5
@@ -168,10 +166,7 @@ def pubkey_recovery(ec: Curve,
 
 
 def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> Sequence[Point]:
-    """Private function provided for testing purposes only."""
-    # ECDSA public key recovery operation according to SEC 1
-    # http://www.secg.org/sec1-v2.pdf
-    # See SEC 1 v.2 section 4.1.6
+    # Private function provided for testing purposes only.
 
     r, s = _to_sig(ec, sig)
 

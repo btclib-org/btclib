@@ -8,11 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-Elliptic curve class and functions
-
-TODO: document duck-typing and static typing design choices
-"""
+"""Elliptic curve class and functions."""
 
 from math import sqrt
 import heapq
@@ -21,13 +17,14 @@ from typing import NamedTuple, Tuple, Sequence, List
 from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
 class Point(NamedTuple):
-    """Elliptic curve point
+    """Elliptic curve point.
         
-    Infinity point in affine coordinates is Point() and
-    it can be checked with 'Inf[1] == 0' or 'Inf.y == 0'
+    Infinity point in affine coordinates is Point(); it is
+    characterized by 'Inf[1] == 0' or 'Inf.y == 0' as no affine point
+    has y=0 coordinate in a group of prime order n.
     """
     x: int = 1
-    y: int = 0 # no affine point has y=0 coordinate
+    y: int = 0
 
 # infinity point in Jacobian coordinates is Inf = (int, int, 0)
 # it can be checked with 'Inf[2] == 0'
@@ -41,14 +38,11 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
 
 
 class Curve:
-    """Elliptic curve y^2 = x^3 + a*x + b over Fp group """
+    """Elliptic curve y^2 = x^3 + a*x + b over Fp group."""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
                        h: int, t: int, weakness_check: bool = True) -> None:
-        """Curve instantiation
-
-        Parameters are checked according to SEC 1 v.2 3.1.1.2.1
-        """
+        # Parameters are checked according to SEC 1 v.2 3.1.1.2.1
 
         # 1) check that p is an odd prime
         if p % 2 == 0:
@@ -160,6 +154,11 @@ class Curve:
     # methods using _p: they would become functions if _p goes public
 
     def opposite(self, Q: Point) -> Point:
+        """Return the opposite point on the curve.
+        
+        The input point must be on the curve.
+        """
+
         self.require_on_curve(Q)
         # % self._p is required to account for infinity point, i.e. Q[1]==0
         return Point(Q[0], (self._p - Q[1]) % self._p)
@@ -177,6 +176,11 @@ class Curve:
     # methods using _a, _b, _p
 
     def add(self, Q1: Point, Q2: Point) -> Point:
+        """Return the sum of two points.
+        
+        The input points must be on the curve.
+        """
+
         self.require_on_curve(Q1)
         self.require_on_curve(Q2)
         # no Jacobian coordinates here as _aff_from_jac would cost 2 mod_inv
@@ -249,6 +253,7 @@ class Curve:
         return ((x*x + self._a)*x + self._b) % self._p
 
     def y(self, x: int) -> int:
+        """Return the y coordinate from x, as in (x, y)."""
         if not 0 <= x < self._p:
             raise ValueError(f"x-coordinate {hex(x)} not in [0, p-1]")
         y2 = self._y2(x)
@@ -256,10 +261,12 @@ class Curve:
         return mod_sqrt(y2, self._p)
 
     def require_on_curve(self, Q: Point) -> None:
+        """Raise an Error if the input point is not on the curve."""
         if not self.is_on_curve(Q):
             raise ValueError("Point not on curve")
 
     def is_on_curve(self, Q: Point) -> bool:
+        """Return True if the input point is on the curve."""
         if len(Q) != 2:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -271,7 +278,7 @@ class Curve:
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 
     def y_odd(self, x: int, odd1even0: int = 1) -> int:
-        """return the odd (even) y coordinate associated to x"""
+        """Return the odd (even) y coordinate from x, as in (x, y)."""
         if odd1even0 not in (0, 1):
             raise ValueError("odd1even0 must be bool or 1/0")
         root = self.y(x)
@@ -279,7 +286,7 @@ class Curve:
         return root if root % 2 == odd1even0 else self._p - root
 
     def y_low(self, x: int, low1high0: int = 1) -> int:
-        """return the low (high) y coordinate associated to x"""
+        """Return the low (high) y coordinate from x, as in (x, y)."""
         if low1high0 not in (0, 1):
             raise ValueError("low1high0 must be bool or 1/0")
         root = self.y(x)
@@ -287,7 +294,7 @@ class Curve:
         return root if (self._p//2 >= root) == low1high0 else self._p - root
 
     def y_quadratic_residue(self, x: int, quad_res: int = 1) -> int:
-        """return the quadratic residue y coordinate associated to x"""
+        """Return the quadratic residue y from x, as in (x, y)."""
         if quad_res not in (0, 1):
             raise ValueError("quad_res must be bool or 1/0")
         if not self.pIsThreeModFour:
@@ -299,8 +306,12 @@ class Curve:
 
 
 def mult(ec: Curve, n: int, Q: Point) -> Point:
-    # this function is used by the Curve class; it might be a method...
-    # but it does not need to
+    """Return the result of the scalar point multiplication.
+    
+    Use Jacobian coordinates for efficient computation;
+    the input point must be on the curve.
+    """
+
     ec.require_on_curve(Q)
     QJ = _jac_from_aff(Q)
     R = _mult_jac(ec, n, QJ)
@@ -340,7 +351,11 @@ def _mult_jac(ec: Curve, m: int, Q: _JacPoint) -> _JacPoint:
 
 
 def double_mult(ec: Curve, u: int, Q: Point, v: int, P: Point) -> Point:
-    """Shamir trick for efficient computation of u*Q + v*P"""
+    """Return the double scalar multiplication u*Q + v*P.
+    
+    Use Shamir trick for efficient computation;
+    the input points must be on the curve.
+    """
 
     ec.require_on_curve(Q)
     QJ = _jac_from_aff(Q)
@@ -383,7 +398,11 @@ def _double_mult(ec: Curve, u: int, QJ: _JacPoint,
 def multi_mult(ec: Curve,
                scalars: Sequence[int],
                Points: Sequence[Point]) -> Point:
-    """Bos-Coster's algorithm """
+    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+    
+    Use Bos-Coster's algorithm for efficient computation;
+    the input points must be on the curve.
+    """
 
     if len(scalars) != len(Points):
         errMsg = f"mismatch between scalar length ({len(scalars)}) and "

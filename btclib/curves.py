@@ -8,9 +8,19 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Elliptic curves
+"""Elliptic curves.
 
-SEC 2 v.1, SEC 2 v.2, NIST, Brainpool, and test curves
+* SEC 2 v.2 curves
+  http://www.secg.org/sec2-v2.pdf
+* SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
+  http://www.secg.org/SEC2-Ver-1.0.pdf
+* Federal Information Processing Standards Publication 186-4
+  (NIST) curves
+  https://oag.ca.gov/sites/all/files/agweb/pdfs/erds1/fips_pub_07_2013.pdf
+* Brainpool standard curves
+  https://tools.ietf.org/html/rfc5639
+* test curves with very low cardinality
+
 """
 
 # scroll down at the end of the file for 'relevant' code
