@@ -85,5 +85,6 @@ class TestBIP39(unittest.TestCase):
     def test_zeroleadingbit(self):
         bip39.mnemonic_from_raw_entropy(secrets.randbits(127) , 'en')
 
+
 if __name__ == "__main__":
     unittest.main()

@@ -144,7 +144,7 @@ def _int_from_bits(ec: Curve, o: octets) -> int:
 def h160(o: octets) -> bytes:
     """Return RIPEMD160(SHA256) of an octets (bytes or hex string)."""
 
-    if isinstance(o, str):
+    if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
 
     t = sha256(o).digest()
