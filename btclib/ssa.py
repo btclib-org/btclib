@@ -8,10 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Elliptic Curve Schnorr Signature Algorithm
+"""Elliptic Curve Schnorr Signature Algorithm.
 
 Implementation according to bip-schnorr:
-https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki.
 """
 
 import heapq
