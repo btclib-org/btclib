@@ -17,7 +17,7 @@ https://github.com/keis/base58, with the following modifications:
 * using native python3 int.from_bytes() and i.to_bytes()
 * added optional check on output size for decode() and decode_check()
 
-Input can be bytes or a hex string that will encoded to bytes (after
+Input can be bytes or a string that will be encoded to bytes (after
 being stripped of leading/trailing white spaces)
 """
 
@@ -56,7 +56,7 @@ def encode_from_int(i: int) -> bytes:
 
 
 def encode(v: Union[str, bytes]) -> bytes:
-    """Encode bytes or hex string using Base58."""
+    """Encode bytes or string using Base58."""
 
     v = _str_to_bytes(v)
 
@@ -76,7 +76,7 @@ def encode(v: Union[str, bytes]) -> bytes:
 
 
 def encode_check(v: Union[str, bytes]) -> bytes:
-    """Encode bytes or hex string using checksummed Base58."""
+    """Encode bytes or string using checksummed Base58."""
 
     v = _str_to_bytes(v)
 
@@ -85,7 +85,7 @@ def encode_check(v: Union[str, bytes]) -> bytes:
 
 
 def decode_to_int(v: Union[str, bytes]) -> int:
-    """Decode Base58 encoded bytes or hex string as integer."""
+    """Decode Base58 encoded bytes or string as integer."""
 
     v = _str_to_bytes(v)
 
@@ -98,10 +98,10 @@ def decode_to_int(v: Union[str, bytes]) -> int:
 
 def decode(v: Union[str, bytes],
            output_size: Optional[int] = None) -> bytes:
-    """Decode Base58 encoded bytes or hex string.
+    """Decode Base58 encoded bytes or string.
     
-    Decode Base58 encoded bytes or hex string, optionally ensuring
-    required output size.
+    Decode Base58 encoded bytes or string,
+    optionally ensuring required output size.
     """
 
 
@@ -130,9 +130,9 @@ def decode(v: Union[str, bytes],
 
 def decode_check(v: Union[str, bytes],
                  output_size: Optional[int] = None) -> bytes:
-    """Decode Base58 encoded bytes or hex string, verifying checksum.
+    """Decode Base58 encoded bytes or string, verifying checksum.
     
-    Decode Base58 encoded bytes or hex string, verifying checksum and
+    Decode Base58 encoded bytes or string, verifying checksum and
     optionally ensuring required output size.
     """
 
