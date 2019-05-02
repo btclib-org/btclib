@@ -18,21 +18,21 @@ from btclib import dh
 
 class TestEcdh(unittest.TestCase):
     def test_ecdh(self):
-        keydatasize = 20
+        size = 20
 
         dU = 0x1
         QU = mult(ec, dU, ec.G)
         dV = 0x2
         QV = mult(ec, dV, ec.G)
 
-        keyingdataU = dh.key_agreement(dU, QV, keydatasize, ec, hf)
-        keyingdataV = dh.key_agreement(dV, QU, keydatasize, ec, hf)
+        keyingdataU = dh.diffie_hellman(ec, hf, dU, QV, size)
+        keyingdataV = dh.diffie_hellman(ec, hf, dV, QU, size)
         self.assertEqual(keyingdataU, keyingdataV)
 
     def test_key_deployment(self):
         """GEC 2: Test Vectors for SEC 1, section 4.1
 
-            http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
+        http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
         """
 
         # 4.1.1
@@ -60,21 +60,21 @@ class TestEcdh(unittest.TestCase):
         # expected results
         z_exp = 1155982782519895915997745984453282631351432623114
         zstr = 'ca7c0f8c3ffa87a96e1b74ac8e6af594347bb40a'
-        keydatasize = 20
+        size = 20
         keying_data_exp = '744ab703f5bc082e59185f6d049d2d367db245c2'
 
         # 4.1.4
-        z, _ = mult(ec, dU, QV)
+        z, _ = mult(ec, dU, QV)  # x coordinate only
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = dh.kdf(octets_from_int(z, ec.psize), keydatasize, ec, hf)
+        keyingdata = dh.ansi_x963_kdf(ec, hf, octets_from_int(z, ec.psize), size)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
         # 4.1.5
-        z, _ = mult(ec, dV, QU)
+        z, _ = mult(ec, dV, QU)  # x coordinate only
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = dh.kdf(octets_from_int(z, ec.psize), keydatasize, ec, hf)
+        keyingdata = dh.ansi_x963_kdf(ec, hf, octets_from_int(z, ec.psize), size)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
 

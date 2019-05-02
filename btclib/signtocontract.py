@@ -33,10 +33,11 @@ the verifier will check that
 with e = hash(R||c)) and W.x being known from the signature.
 """
 
-from typing import Optional, Tuple, Callable, Any
+from typing import Optional, Tuple
 
 from btclib.curve import Curve, mult, Point
-from btclib.utils import int_from_bits, point_from_octets, octets_from_point
+from btclib.utils import int_from_bits, point_from_octets, \
+    octets_from_point, HashF
 from btclib.rfc6979 import rfc6979
 from btclib import dsa
 from btclib import ssa
@@ -45,10 +46,7 @@ from btclib import ssa
 Receipt = Tuple[int, Point]
 
 
-def _tweak(ec: Curve,
-           hf: Callable[[Any], Any],
-           c: bytes,
-           k: int) -> Tuple[Point, int]:
+def _tweak(ec: Curve, hf: HashF, c: bytes, k: int) -> Tuple[Point, int]:
     """Tweak kG with hash(kG||c).
 
     Return:
@@ -61,11 +59,7 @@ def _tweak(ec: Curve,
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_sign(ec: Curve,
-                      hf: Callable[[Any], Any],
-                      c: bytes,
-                      m: bytes,
-                      prvkey: int,
+def ecdsa_commit_sign(ec: Curve, hf: HashF, c: bytes, m: bytes, prvkey: int,
                       k: Optional[int] = None) -> Tuple[dsa.ECDS, Receipt]:
     """Include a commitment c inside an ECDSA signature."""
 
@@ -83,11 +77,7 @@ def ecdsa_commit_sign(ec: Curve,
     return sig, receipt
 
 
-def ecssa_commit_sign(ec: Curve,
-                      hf: Callable[[Any], Any],
-                      c: bytes,
-                      m: bytes,
-                      prvkey: int,
+def ecssa_commit_sign(ec: Curve, hf: HashF, c: bytes, m: bytes, prvkey: int,
                       k: Optional[int] = None) -> Tuple[ssa.ECSS, Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
@@ -107,10 +97,7 @@ def ecssa_commit_sign(ec: Curve,
 # FIXME: have create_commit instead of commit_sign
 
 
-def verify_commit(ec: Curve,
-                  hf: Callable[[Any], Any],
-                  c: bytes,
-                  receipt: Receipt) -> bool:
+def verify_commit(ec: Curve, hf: HashF, c: bytes, receipt: Receipt) -> bool:
     """Open the commitment c inside an EC DSA/SSA signature."""
 
     # FIXME: verify the signature

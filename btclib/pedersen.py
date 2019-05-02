@@ -30,12 +30,11 @@ It is crucial for H to be Nothing-Up-My-Sleeve (NUMS), i.e.
 the discrete logarithm of H with respect to G must be unknown.
 """
 
-from typing import Callable, Any
-
+from btclib.utils import int_from_octets, octets_from_point, \
+    int_from_bits, HashF
 from btclib.curve import Point, Curve, double_mult
-from btclib.utils import int_from_octets, octets_from_point, int_from_bits
 
-def second_generator(ec: Curve, hf: Callable[[Any], Any]) -> Point:
+def second_generator(ec: Curve, hf: HashF) -> Point:
     """Second (with respect to G) elliptic curve generator.
 
     Second (with respect to G) Nothing-Up-My-Sleeve (NUMS)
@@ -63,7 +62,7 @@ def second_generator(ec: Curve, hf: Callable[[Any], Any]) -> Point:
     return Point(hx, hy)
 
 
-def commit(r: int, v: int, ec: Curve, hf: Callable[[Any], Any]) -> Point:
+def commit(r: int, v: int, ec: Curve, hf: HashF) -> Point:
     """Commit to r, returning rG+vH.
 
     Commit to r, returning rG+vH. H is the second Nothing-Up-My-Sleeve
@@ -77,7 +76,7 @@ def commit(r: int, v: int, ec: Curve, hf: Callable[[Any], Any]) -> Point:
 
 
 def open(r: int, v: int, C: Point, ec: Curve,
-         hf: Callable[[Any], Any]) -> bool:
+         hf: HashF) -> bool:
     """Open the commitment C and return True if valid."""
 
     # try/except wrapper for the Errors raised by commit

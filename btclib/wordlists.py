@@ -8,8 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Class for word-lists to be used in entropy/mnemonic conversions.
-"""
+"""Class for word-lists to be used in entropy/mnemonic conversions."""
 
 import math
 import os

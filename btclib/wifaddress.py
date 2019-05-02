@@ -19,7 +19,7 @@ from typing import Tuple
 from btclib import base58
 from btclib.curve import Point, mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets, int_from_octets, octets_from_int, \
+from btclib.utils import Octets, int_from_octets, octets_from_int, \
                          octets_from_point, h160
 
 
@@ -35,7 +35,7 @@ def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     return base58.encode_check(payload)
 
 
-def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
+def prvkey_from_wif(wif: Octets) -> Tuple[int, bool]:
     """Return the (private key, compressed) tuple from a WIF."""
 
     payload = base58.decode_check(wif)
@@ -71,7 +71,7 @@ def address_from_pubkey(Q: Point,
     return base58.encode_check(vh160)
 
 
-def _h160_from_address(addr: octets) -> bytes:
+def _h160_from_address(addr: Octets) -> bytes:
     payload = base58.decode_check(addr, 21)
     # FIXME: this is mainnet only
     if payload[0] != 0x00:
@@ -79,7 +79,7 @@ def _h160_from_address(addr: octets) -> bytes:
     return payload[1:]
 
 
-def address_from_wif(wif: octets) -> bytes:
+def address_from_wif(wif: Octets) -> bytes:
     """Return the address corresponding to a WIF."""
 
     prv, compressed = prvkey_from_wif(wif)

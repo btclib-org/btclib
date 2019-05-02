@@ -17,18 +17,19 @@ https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki.
 
 import heapq
 import random
-from typing import Tuple, Sequence, Optional, Callable, Any
+from typing import Tuple, Sequence, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
     _jac_from_aff, _multi_mult
-from btclib.utils import int_from_bits, octets_from_point, octets_from_int
+from btclib.utils import int_from_bits, octets_from_point, \
+    octets_from_int, HashF
 from btclib.rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[field element, scalar]
 
 
-def _ensure_msg_size(hf: Callable[[Any], Any], msg: bytes) -> None:
+def _ensure_msg_size(hf: HashF, msg: bytes) -> None:
     if len(msg) != hf().digest_size:
         errmsg = f'message of wrong size: {len(msg)}'
         errmsg += f' instead of {hf().digest_size} bytes'
@@ -36,7 +37,7 @@ def _ensure_msg_size(hf: Callable[[Any], Any], msg: bytes) -> None:
 
 
 def _e(ec: Curve,
-       hf: Callable[[Any], Any],
+       hf: HashF,
        r: int,
        P: Point,
        mhd: bytes) -> int:
@@ -50,7 +51,7 @@ def _e(ec: Curve,
 
 
 def sign(ec: Curve,
-         hf: Callable[[Any], Any],
+         hf: HashF,
          mhd: bytes,
          d: int,
          k: Optional[int] = None) -> ECSS:
@@ -102,7 +103,7 @@ def sign(ec: Curve,
 
 
 def verify(ec: Curve,
-           hf: Callable[[Any], Any],
+           hf: HashF,
            mhd: bytes,
            P: Point,
            sig: ECSS) -> bool:
@@ -116,7 +117,7 @@ def verify(ec: Curve,
 
 
 def _verify(ec: Curve,
-            hf: Callable[[Any], Any],
+            hf: HashF,
             mhd: bytes,
             P: Point,
             sig: ECSS) -> bool:
@@ -161,7 +162,7 @@ def _verify(ec: Curve,
 
 
 def _pubkey_recovery(ec: Curve,
-                     hf: Callable[[Any], Any],
+                     hf: HashF,
                      e: int,
                      sig: ECSS) -> Point:
     # Private function provided for testing purposes only.
@@ -200,7 +201,7 @@ def _to_sig(ec: Curve, sig: ECSS) -> ECSS:
 
 
 def batch_verify(ec: Curve,
-                 hf: Callable[[Any], Any],
+                 hf: HashF,
                  ms: Sequence[bytes],
                  P: Sequence[Point],
                  sig: Sequence[ECSS]) -> bool:
@@ -214,7 +215,7 @@ def batch_verify(ec: Curve,
 
 
 def _batch_verify(ec: Curve,
-                  hf: Callable[[Any], Any],
+                  hf: HashF,
                   ms: Sequence[bytes],
                   P: Sequence[Point],
                   sig: Sequence[ECSS]) -> bool:

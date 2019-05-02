@@ -1,5 +1,5 @@
 readthedocs [![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
-revise kdf
+revise ansi_x963_kdf
 optimizations
     https://cryptojedi.org/peter/data/eccss-20130911b.pdf
     https://arxiv.org/abs/1801.08589

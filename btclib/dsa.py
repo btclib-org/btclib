@@ -17,20 +17,17 @@
    specialized with bitcoin canonical 'low-s' encoding.
 """
 
-from typing import Tuple, Sequence, Optional, Callable, Any
+from typing import Tuple, List, Optional
 
 from btclib.numbertheory import mod_inv
+from btclib.utils import int_from_bits, HashF
 from btclib.curve import Point, Curve, _mult_jac, _double_mult, double_mult
-from btclib.utils import int_from_bits
 from btclib.rfc6979 import _rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
-def sign(ec: Curve,
-         hf: Callable[[Any], Any],
-         msg: bytes,
-         q: int,
+def sign(ec: Curve, hf: HashF, msg: bytes, q: int,
          k: Optional[int] = None) -> ECDS:
     """ECDSA signing operation according to SEC 1 v.2.
 
@@ -95,11 +92,7 @@ def _sign(ec: Curve, c: int, q: int, k: int) -> ECDS:
     return r, s
 
 
-def verify(ec: Curve,
-           hf: Callable[[Any], Any],
-           msg: bytes,
-           P: Point,
-           sig: ECDS) -> bool:
+def verify(ec: Curve, hf: HashF, msg: bytes, P: Point, sig: ECDS) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # try/except wrapper for the Errors raised by _verify
@@ -109,15 +102,11 @@ def verify(ec: Curve,
         return False
 
 
-def _verify(ec: Curve,
-            hf: Callable[[Any], Any],
-            msg: bytes,
-            P: Point,
-            sig: ECDS) -> bool:
+def _verify(ec: Curve, hf: HashF, msg: bytes, P: Point, sig: ECDS) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    # The message digest m: a 32-byte array
+    # The message digest mhd: a 32-byte array
     msghd = hf(msg).digest()                             # 2
     c = int_from_bits(ec, msghd)                         # 3
 
@@ -152,20 +141,17 @@ def _verhlp(ec: Curve, c: int, P: Point, sig: ECDS) -> bool:
     return r == x                                        # 8
 
 
-def pubkey_recovery(ec: Curve,
-                    hf: Callable[[Any],Any],
-                    msg: bytes,
-                    sig: ECDS) -> Sequence[Point]:
+def pubkey_recovery(ec: Curve, hf: HashF, msg: bytes, sig: ECDS) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6)."""
 
-    # The message digest m: a 32-byte array
+    # The message digest mhd: a 32-byte array
     msghd = hf(msg).digest()                                  # 1.5
     c = int_from_bits(ec, msghd)                              # 1.5
 
     return _pubkey_recovery(ec, c, sig)
 
 
-def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> Sequence[Point]:
+def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> List[Point]:
     # Private function provided for testing purposes only.
 
     r, s = _to_sig(ec, sig)
@@ -174,7 +160,7 @@ def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> Sequence[Point]:
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
     r1e = -r1*c
-    keys: Sequence[Point] = list()
+    keys: List[Point] = list()
     for j in range(ec.h):                                   # 1
         x = r + j*ec.n                                      # 1.1
         try:  #TODO: check test reporting 1, 2, 3, or 4 keys
@@ -198,8 +184,8 @@ def _to_sig(ec: Curve, sig: ECDS) -> ECDS:
     # and return the signature itself
 
     if len(sig) != 2:
-        m = f"invalid length {len(sig)} for ECDSA signature"
-        raise TypeError(m)
+        errMsg = f"invalid length {len(sig)} for ECDSA signature"
+        raise TypeError(errMsg)
 
     # Fail if r is not [1, n-1]
     r = int(sig[0])

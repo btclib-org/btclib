@@ -15,16 +15,18 @@ Most conversions from SEC 1 v.2 2.3 are included.
 https://www.secg.org/sec1-v2.pdf
 """
 
-from typing import Union
+from typing import Union, Callable, Any
 from hashlib import sha256, new
 
 from btclib.curve import Curve, Point
 
+HashF = Callable[[Any], Any]
+
 # bytes or hex string
-octets = Union[str, bytes]
+Octets = Union[str, bytes]
 
 
-def point_from_octets(ec: Curve, o: octets) -> Point:
+def point_from_octets(ec: Curve, o: Octets) -> Point:
     """Return a tuple (Px, Py) that belongs to the curve.
 
     Return a tuple (Px, Py) that belongs to the curve according to
@@ -64,10 +66,10 @@ def point_from_octets(ec: Curve, o: octets) -> Point:
 
 
 def octets_from_point(ec: Curve, Q: Point, compressed: bool) -> bytes:
-    """Return a point as compressed/uncompressed octets.
+    """Return a point as compressed/uncompressed octet sequence.
     
     Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
-    octets, according to SEC 1 v.2, section 2.3.3.
+    octet sequence, according to SEC 1 v.2, section 2.3.3.
     """
 
     # check that Q is a point and that is on curve
@@ -83,11 +85,11 @@ def octets_from_point(ec: Curve, Q: Point, compressed: bool) -> bytes:
     return b'\x04' + bPx + Q[1].to_bytes(ec.psize, byteorder='big')
 
 
-def int_from_octets(o: octets) -> int:
-    """Return an integer from an octets (bytes or hex string).
+def int_from_octets(o: Octets) -> int:
+    """Return an integer from an octet sequence (bytes or hex string).
     
-    Return an integer from an octets (bytes or hex string) according to
-    SEC 1 v.2, section 2.3.8.
+    Return an integer from an octet sequence (bytes or hex string)
+    according to SEC 1 v.2, section 2.3.8.
     """
     if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
@@ -95,15 +97,15 @@ def int_from_octets(o: octets) -> int:
 
 
 def octets_from_int(i: int, bytesize: int) -> bytes:
-    """Return an octets from an integer.
+    """Return an octet sequence from an integer.
     
-    Return an octets from an integer according to
-    SEC 1 v.2, section 2.3.7.
+    Return an octet sequence from an integer
+    according to SEC 1 v.2, section 2.3.7.
     """
 
     return i.to_bytes(bytesize, 'big')
 
-def int_from_bits(ec: Curve, o: octets) -> int:
+def int_from_bits(ec: Curve, o: Octets) -> int:
     """Return the leftmost nlen bits reduced modulo n.
 
     Take as input a sequence of blen bits and calculate a
@@ -126,7 +128,7 @@ def int_from_bits(ec: Curve, o: octets) -> int:
     return i % ec.n  # might be implemented as difference
 
 
-def _int_from_bits(ec: Curve, o: octets) -> int:
+def _int_from_bits(ec: Curve, o: Octets) -> int:
     """Return the leftmost nlen bits.
 
     Take as input a sequence of blen bits and calculate a
@@ -141,8 +143,8 @@ def _int_from_bits(ec: Curve, o: octets) -> int:
     return i >> n
 
 
-def h160(o: octets) -> bytes:
-    """Return RIPEMD160(SHA256) of an octets (bytes or hex string)."""
+def h160(o: Octets) -> bytes:
+    """Return RIPEMD160(SHA256) of an octet sequence."""
 
     if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
@@ -151,8 +153,8 @@ def h160(o: octets) -> bytes:
     return new('ripemd160', t).digest()
 
 
-def double_sha256(o: octets) -> bytes:
-    """Return SHA256(SHA256()) of an octets (bytes or hex string)."""
+def double_sha256(o: Octets) -> bytes:
+    """Return SHA256(SHA256()) of an octet sequence."""
 
     if isinstance(o, str):
         o = bytes.fromhex(o)
