@@ -23,10 +23,9 @@ remove assert for if + raise
 opposite in Jac coordinate using y_quadratic_residue ?
 
 ec, hf as last parameters defaulting to secp256k1 and sha256
+settle on ec, hf position in functions' signature
 
 primitives for interactive threshold and musig
-
-settle on ec, hf position in functions' signature
 
 generalize ec, hf in borromean
 

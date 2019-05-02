@@ -25,8 +25,10 @@ class TestEcdh(unittest.TestCase):
         dV = 0x2
         QV = mult(ec, dV, ec.G)
 
-        keyingdataU = dh.diffie_hellman(ec, hf, dU, QV, size)
-        keyingdataV = dh.diffie_hellman(ec, hf, dV, QU, size)
+        keyingdataU = dh.diffie_hellman(ec, hf, dh.ansi_x963_kdf,
+                                        dU, QV, size)
+        keyingdataV = dh.diffie_hellman(ec, hf, dh.ansi_x963_kdf,
+                                        dV, QU, size)
         self.assertEqual(keyingdataU, keyingdataV)
 
     def test_key_deployment(self):

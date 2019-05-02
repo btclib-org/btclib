@@ -27,13 +27,13 @@ from btclib.rfc6979 import _rfc6979
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
-def sign(ec: Curve, hf: HashF, msg: bytes, q: int,
+def sign(ec: Curve, hf: HashF, m: bytes, q: int,
          k: Optional[int] = None) -> ECDS:
     """ECDSA signing operation according to SEC 1 v.2.
 
-    The message msg is first processed by hf, yielding the value
+    The message m is first processed by hf, yielding the value
 
-        msghd = hf(msg),
+        mhd = hf(m),
 
     a sequence of bits of length *hlen*.
     
@@ -48,9 +48,9 @@ def sign(ec: Curve, hf: HashF, msg: bytes, q: int,
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
-    msghd = hf(msg).digest()                          # 4
-    # H(msg) is transformed into an integer modulo ec.n using int_from_bits:
-    c = int_from_bits(ec, msghd)                      # 5
+    mhd = hf(m).digest()                          # 4
+    # mhd is transformed into an integer modulo ec.n using int_from_bits:
+    c = int_from_bits(ec, mhd)                    # 5
 
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
@@ -58,7 +58,7 @@ def sign(ec: Curve, hf: HashF, msg: bytes, q: int,
         raise ValueError(f"private key {hex(q)} not in [1, n-1]")
 
     if k is None:
-        k = _rfc6979(ec, hf, c, q)                    # 1
+        k = _rfc6979(ec, hf, c, q)                # 1
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in [1, n-1]")
 
@@ -72,14 +72,14 @@ def _sign(ec: Curve, c: int, q: int, k: int) -> ECDS:
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
-    RJ = _mult_jac(ec, k, ec.GJ)                      # 1
+    RJ = _mult_jac(ec, k, ec.GJ)                  # 1
 
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
-    r = Rx % ec.n                                     # 2, 3
+    r = Rx % ec.n                                 # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
         raise ValueError("r = 0, failed to sign")
 
-    s = mod_inv(k, ec.n) * (c + r*q) % ec.n           # 6
+    s = mod_inv(k, ec.n) * (c + r*q) % ec.n       # 6
     if s == 0:  # s≠0 required as verify will need the inverse of s
         raise ValueError("s = 0, failed to sign")
 
@@ -92,23 +92,23 @@ def _sign(ec: Curve, c: int, q: int, k: int) -> ECDS:
     return r, s
 
 
-def verify(ec: Curve, hf: HashF, msg: bytes, P: Point, sig: ECDS) -> bool:
+def verify(ec: Curve, hf: HashF, m: bytes, P: Point, sig: ECDS) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(ec, hf, msg, P, sig)
+        return _verify(ec, hf, m, P, sig)
     except Exception:
         return False
 
 
-def _verify(ec: Curve, hf: HashF, msg: bytes, P: Point, sig: ECDS) -> bool:
+def _verify(ec: Curve, hf: HashF, m: bytes, P: Point, sig: ECDS) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     # The message digest mhd: a 32-byte array
-    msghd = hf(msg).digest()                             # 2
-    c = int_from_bits(ec, msghd)                         # 3
+    mhd = hf(m).digest()                                 # 2
+    c = int_from_bits(ec, mhd)                           # 3
 
     # second part delegated to helper function
     return _verhlp(ec, c, P, sig)
@@ -141,12 +141,12 @@ def _verhlp(ec: Curve, c: int, P: Point, sig: ECDS) -> bool:
     return r == x                                        # 8
 
 
-def pubkey_recovery(ec: Curve, hf: HashF, msg: bytes, sig: ECDS) -> List[Point]:
+def pubkey_recovery(ec: Curve, hf: HashF, m: bytes, sig: ECDS) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6)."""
 
     # The message digest mhd: a 32-byte array
-    msghd = hf(msg).digest()                                  # 1.5
-    c = int_from_bits(ec, msghd)                              # 1.5
+    mhd = hf(m).digest()                                  # 1.5
+    c = int_from_bits(ec, mhd)                            # 1.5
 
     return _pubkey_recovery(ec, c, sig)
 

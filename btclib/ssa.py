@@ -17,7 +17,7 @@ https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki.
 
 import heapq
 import random
-from typing import Tuple, Sequence, Optional
+from typing import Tuple, List, Sequence, Optional
 
 from btclib.numbertheory import mod_inv, legendre_symbol
 from btclib.curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
@@ -240,8 +240,8 @@ def _batch_verify(ec: Curve,
         return _verify(ec, hf, ms[0], P[0], sig[0])
 
     t = 0
-    scalars: Sequence(int) = list()
-    points: Sequence[Point] = list()
+    scalars: List(int) = list()
+    points: List[Point] = list()
     for i in range(batch_size):
         r, s = _to_sig(ec, sig[i])
         _ensure_msg_size(hf, ms[i])

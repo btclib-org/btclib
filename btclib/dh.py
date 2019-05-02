@@ -19,8 +19,12 @@ The two entities must agree on the elliptic curve and key derivation
 function to use.
 """
 
+from typing import Callable, Any
+
 from btclib.utils import octets_from_int, int_from_octets, HashF
 from btclib.curve import Curve, Point, mult
+
+KDF = Callable[[Curve, HashF, bytes, int], Any]
 
 def ansi_x963_kdf(ec: Curve, hf: HashF, z: bytes, size: int) -> bytes:
     """Return keying data according to ANS-X9.63-KDF.
@@ -45,12 +49,18 @@ def ansi_x963_kdf(ec: Curve, hf: HashF, z: bytes, size: int) -> bytes:
     return octets_from_int(K, ec.psize)
 
 
-def diffie_hellman(ec: Curve, hf: HashF,
+def diffie_hellman(ec: Curve, hf: HashF, kdf: KDF,
                    dU: int, QV: Point, size: int) -> bytes:
+    """
+
+    Diffie-Hellman elliptic curve key agreement scheme.
+
+    http://www.secg.org/sec1-v2.pdf, section 6.1
+    """
+
     P = mult(ec, dU, QV)
     if P[1] == 0:
         "invalid (zero) private key"
-    z = P[0]
+    z = P[0]  # shared secret field element
     z = octets_from_int(z, ec.psize)
-    k = ansi_x963_kdf(ec, hf, z, size)
-    return k
+    return kdf(ec, hf, z, size)
