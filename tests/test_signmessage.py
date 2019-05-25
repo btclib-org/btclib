@@ -10,8 +10,8 @@
 
 import unittest
 
-from .signmessage import sign, verify
-from .wifaddress import prvkey_from_wif
+from btclib.signmessage import sign, verify
+from btclib.wifaddress import prvkey_from_wif
 
 
 class TestSignMessage(unittest.TestCase):
