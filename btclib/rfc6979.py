@@ -36,8 +36,8 @@ import hmac
 from typing import Callable, Any
 
 
-from btclib.utils import octets, _int_from_bits, int_from_bits, octets_from_int
-from btclib.curve import Curve
+from .utils import octets, _int_from_bits, int_from_bits, octets_from_int
+from .curve import Curve
 
 
 def rfc6979(ec: Curve, hf: Callable[[Any], Any], mhd: bytes, q: int) -> int:

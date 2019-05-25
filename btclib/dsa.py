@@ -16,10 +16,10 @@
 
 from typing import Tuple, Sequence, Optional, Callable, Any
 
-from btclib.numbertheory import mod_inv
-from btclib.curve import Point, Curve, _mult_jac, _double_mult, double_mult
-from btclib.utils import int_from_bits
-from btclib.rfc6979 import _rfc6979
+from .numbertheory import mod_inv
+from .curve import Point, Curve, _mult_jac, _double_mult, double_mult
+from .utils import int_from_bits
+from .rfc6979 import _rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 

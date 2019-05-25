@@ -8,8 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.curve import Point, Curve, double_mult
-from btclib.utils import int_from_octets, octets_from_point, int_from_bits
+from .curve import Point, Curve, double_mult
+from .utils import int_from_octets, octets_from_point, int_from_bits
 
 def second_generator(ec: Curve, hf) -> Point:
     """Nothing-Up-My-Sleeve (NUMS) second generator H wrt ec.G 

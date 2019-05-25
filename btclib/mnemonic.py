@@ -16,8 +16,8 @@
 import math
 from typing import List
 
-from btclib.entropy import Entropy
-from btclib.wordlists import _wordlists
+from .entropy import Entropy
+from .wordlists import _wordlists
 
 Mnemonic = str
 
