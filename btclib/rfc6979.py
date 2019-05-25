@@ -41,7 +41,6 @@ from .utils import Octets, _int_from_bits, int_from_bits, octets_from_int, \
     HashF
 from .curve import Curve
 
-
 def rfc6979(ec: Curve, hf: HashF, mhd: bytes, q: int) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
