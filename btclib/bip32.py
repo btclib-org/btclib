@@ -8,6 +8,21 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"""BIP32 Hierarchical Deterministic Wallet functions.
+
+A deterministic wallet is a hash-chain of private/public key pairs that
+derives from a single root, which is the only element requiring backup.
+Moreover, there are schemes where public keys can be calculated without
+accessing private keys.
+
+A hierarchical deterministic wallet is a tree of multiple hash-chains,
+derived from a single root, allowing for selective sharing of keypair
+chains.
+
+Here, the HD wallet is implemented according to BIP32 bitcoin standard
+https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
+"""
+
 from hmac import HMAC
 from hashlib import sha512
 from typing import Union, Optional, Sequence, List
@@ -15,8 +30,8 @@ from typing import Union, Optional, Sequence, List
 from . import base58 
 from .curve import mult
 from .curves import secp256k1 as ec
-from .utils import octets, point_from_octets, octets_from_point, \
-                         int_from_octets, h160
+from .utils import Octets, point_from_octets, octets_from_point, \
+    int_from_octets, h160
 from .wifaddress import address_from_pubkey
 
 # VERSION BYTES =      4 bytes     Base58 encode starts with
@@ -41,7 +56,7 @@ ADDRESS = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
 # [13:45] chain code
 # [45:78] key (private/public)
 
-def xmprv_from_seed(seed: octets, version: octets) -> bytes:
+def xmprv_from_seed(seed: Octets, version: Octets) -> bytes:
     """derive the master extended private key from the seed"""
 
     if isinstance(version, str):  # hex string
@@ -67,7 +82,7 @@ def xmprv_from_seed(seed: octets, version: octets) -> bytes:
     return base58.encode_check(xmprv)
 
 
-def xpub_from_xprv(xprv: octets) -> bytes:
+def xpub_from_xprv(xprv: Octets) -> bytes:
     """Neutered Derivation (ND)
 
     Computation of the extended public key corresponding to an extended
@@ -94,7 +109,7 @@ def xpub_from_xprv(xprv: octets) -> bytes:
     return base58.encode_check(xpub)
 
 
-def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
+def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     """Child Key Derivation (CDK)
 
     Key derivation is normal if the extended parent key is public or
@@ -163,7 +178,7 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
     return base58.encode_check(xkey)
 
 
-def derive(xkey: octets, path: Union[str, Sequence[int]]) -> bytes:
+def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
     """derive an extended key according to path like
        "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative)
     """
@@ -199,7 +214,7 @@ def derive(xkey: octets, path: Union[str, Sequence[int]]) -> bytes:
 # FIXME: address_from_xpub should be pubkey_from_xpub o point_from_xpub
 
 
-def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
+def address_from_xpub(xpub: Octets, version: Optional[Octets] = None) -> bytes:
     xpub = base58.decode_check(xpub, 78)
     if xpub[45] not in (2, 3):
         raise ValueError("extended key is not a public one")
@@ -215,7 +230,7 @@ def address_from_xpub(xpub: octets, version: Optional[octets] = None) -> bytes:
     return address_from_pubkey(P, True, version)
 
 
-def crack(parent_xpub: octets, child_xprv: octets) -> bytes:
+def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
     parent_xpub = base58.decode_check(parent_xpub, 78)
     if parent_xpub[45] not in (2, 3):
         raise ValueError("extended parent key is not a public one")
@@ -256,7 +271,7 @@ def crack(parent_xpub: octets, child_xprv: octets) -> bytes:
     return base58.encode_check(parent_xprv)
 
 
-def child_index(xkey: octets) -> bytes:
+def child_index(xkey: Octets) -> bytes:
     xkey = base58.decode_check(xkey, 78)
     if xkey[4] == 0:
         raise ValueError("master key provided")

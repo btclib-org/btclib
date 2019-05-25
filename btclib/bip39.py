@@ -11,115 +11,153 @@
 """BIP39 entropy / mnemonic / seed functions.
 
 https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki.
+
+Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
+
+* bits per word = bpw = 11
+* **ENT** = raw entropy
+* **CS** = checksum = **ENT** / 32
+* **MS** = words in the mnemonic sentence = (**ENT+CS**) / bpw
+
++-----+----+--------+----+
+| ENT | CS | ENT+CS | MS |
++=====+====+========+====+
+| 128 |  4 |    132 | 12 |
++-----+----+--------+----+
+| 160 |  5 |    165 | 15 |
++-----+----+--------+----+
+| 192 |  6 |    198 | 18 |
++-----+----+--------+----+
+| 224 |  7 |    231 | 21 |
++-----+----+--------+----+
+| 256 |  8 |    264 | 24 |
++-----+----+--------+----+
+
 """
 
 
 from hashlib import sha256, pbkdf2_hmac
 
-from .entropy import Entropy, GenericEntropy, bytes_from_entropy, \
+from .entropy import Entropy, GenericEntropy, _bytes_from_entropy, \
     str_from_entropy
 from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
-    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
+    indexes_from_mnemonic, entropy_from_indexes, Mnemonic, _seed_from_mnemonic
 from . import bip32
 
 
-def _raw_entropy_checksum(raw_entr: GenericEntropy) -> Entropy:
-    raw_entr = bytes_from_entropy(raw_entr, _allowed_raw_entr_bits)
-    # raw_entr 256-bit checksum
-    byteschecksum = sha256(raw_entr).digest()  # 256 bits
+_bits = 128, 160, 192, 224, 256
+
+def _entropy_checksum(entropy: GenericEntropy) -> Entropy:
+
+    entropy = _bytes_from_entropy(entropy, _bits)
+    # 256-bit checksum
+    byteschecksum = sha256(entropy).digest()
+    # integer checksum (leading zeros are lost)
+    intchecksum = int.from_bytes(byteschecksum, 'big')
     # convert checksum to binary '01' string
-    intchecksum = int.from_bytes(
-        byteschecksum, 'big')                  # leading zeros are lost
-    checksum = bin(intchecksum)[2:]            # remove '0b'
-    checksum = checksum.zfill(256)             # pad with lost zeros
-    # rightmost bits
-    checksum_bits = len(raw_entr) // 4
+    checksum = bin(intchecksum)[2:]  # remove '0b'
+    checksum = checksum.zfill(256)   # pad with leading lost zeros
+    # leftmost bits
+    checksum_bits = len(entropy) // 4
     return checksum[:checksum_bits]
 
 
-#  bits per word = bpw = 11
-#  CheckSum = raw ENTropy / 32
-#  MnemonicSentence (in words) = (ENT + CS) / bpw
-#
-# | ENT | CS | ENT+CS | MS |
-# +-----+----+--------+----+
-# | 128 |  4 |    132 | 12 |
-# | 160 |  5 |    165 | 15 |
-# | 192 |  6 |    198 | 18 |
-# | 224 |  7 |    231 | 21 |
-# | 256 |  8 |    264 | 24 |
-_allowed_raw_entr_bits = (128, 160, 192, 224, 256)
+def cs_entropy_from_entropy(entropy: GenericEntropy) -> Entropy:
+    """Convert input entropy to checksummed BIP39 entropy.
 
-# https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
-#
-# input raw entropy can be expresses as binary string, bytes-like, or int
-# it must be 128, 160, 192, 224, or 256 bits
-# int is front-padded with zeros up to 128, 160, 192, 224, or 256 bits
-#
-# output entropy is returned as binary string
+    Input entropy (*GenericEntropy*) can be expressed as
+    binary 0/1 string, bytes-like, or integer;
+    it must be 128, 160, 192, 224, or 256 bits.
 
+    In the case of binary 0/1 string and bytes-like,
+    leading zeros are not considered redundant padding.
+    In the case of integer, where leading zeros cannot be represented,
+    if the bit length is not an allowed value, then the binary 0/1
+    string is padded with leading zeros up to the next allowed bit
+    length; if the integer bit length is longer than the maximum
+    length, then only the leftmost bits are retained.
+    """
 
-def entropy_from_raw_entropy(raw_entropy: GenericEntropy) -> Entropy:
-    raw_entropy = str_from_entropy(raw_entropy, _allowed_raw_entr_bits)
-    checksum = _raw_entropy_checksum(raw_entropy)
-    return raw_entropy + checksum
+    entropy = str_from_entropy(entropy, _bits)
+    checksum = _entropy_checksum(entropy)
+    return entropy + checksum
 
 
-def mnemonic_from_raw_entropy(raw_entr: GenericEntropy, lang: str) -> Mnemonic:
-    entropy = entropy_from_raw_entropy(raw_entr)
-    indexes = indexes_from_entropy(entropy, lang)
+def mnemonic_from_entropy(entropy: GenericEntropy, lang: str) -> Mnemonic:
+    """Convert input entropy to checksummed BIP39 mnemonic sentence.
+
+    Input entropy (*GenericEntropy*) can be expressed as
+    binary 0/1 string, bytes-like, or integer;
+    it must be 128, 160, 192, 224, or 256 bits.
+
+    In the case of binary 0/1 string and bytes-like,
+    leading zeros are not considered redundant padding.
+    In the case of integer, where leading zeros cannot be represented,
+    if the bit length is not an allowed value, then the binary 0/1
+    string is padded with leading zeros up to the next allowed bit
+    length; if the integer bit length is longer than the maximum
+    length, then only the leftmost bits are retained.
+    """
+
+    cs_entropy = cs_entropy_from_entropy(entropy)
+    indexes = indexes_from_entropy(cs_entropy, lang)
     mnemonic = mnemonic_from_indexes(indexes, lang)
     return mnemonic
 
 
-def raw_entropy_from_mnemonic(mnemonic: Mnemonic, lang: Mnemonic) -> Entropy:
-    """output raw entropy is returned as binary string"""
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
+    """Convert mnemonic sentence to entropy, verifying checksum."""
+
     indexes = indexes_from_mnemonic(mnemonic, lang)
-    entropy = entropy_from_indexes(indexes, lang)
+    cs_entropy = entropy_from_indexes(indexes, lang)
 
-    # raw entropy is only the first part of entropy
-    raw_entr_bits = int(len(entropy)*32/33)
-    if raw_entr_bits not in _allowed_raw_entr_bits:
-        m = f"mnemonic with wrong number of bits ({raw_entr_bits}); "
-        m += f"expected: {_allowed_raw_entr_bits}"
+    # entropy is only the first part of cs_entropy
+    bits = int(len(cs_entropy)*32/33)
+    if bits not in _bits:
+        m = f"mnemonic with wrong number of bits ({bits}); "
+        m += f"expected: {_bits}"
         raise ValueError(m)
-    raw_entr = entropy[:raw_entr_bits]
+    entropy = cs_entropy[:bits]
 
-    # the second one being the checksum, to be verified
-    bytes_raw_entr = int(raw_entr, 2).to_bytes(raw_entr_bits//8, 'big')
-    checksum = _raw_entropy_checksum(bytes_raw_entr)
-    if entropy[raw_entr_bits:] != checksum:
-        raise ValueError("invalid mnemonic checksum")
+    # the second part being the checksum, to be verified
+    bytes_entr = int(entropy, 2).to_bytes(bits//8, 'big')
+    checksum = _entropy_checksum(bytes_entr)
+    if cs_entropy[bits:] != checksum:
+        m = f"invalid mnemonic checksum ({cs_entropy[bits:]}); "
+        m += f"expected: {checksum}"
+        raise ValueError(m)
 
-    return raw_entr
-
-# TODO: re-evaluate style
+    return entropy
 
 
-def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
-    hash_name = 'sha512'
-    password = mnemonic.encode()
-    salt = ('mnemonic' + passphrase).encode()
-    iterations = 2048
-    dksize = 64
-    return pbkdf2_hmac(hash_name, password, salt, iterations, dksize)
+def seed_from_mnemonic(mnemonic: Mnemonic,
+                       passphrase: str) -> bytes:
+    """Return seed from mnemonic according to BIP39 standard.
+    
+    Also verify the mnemonic (implicit entropy) checksum.
+    """
 
-# TODO: re-evaluate style
+    # TODO: verify Mnemonic checksum
+    # entropy_from_mnemonic(mnemonic, lang)
+    return _seed_from_mnemonic(mnemonic, passphrase, 'mnemonic')
 
 
 def mprv_from_mnemonic(mnemonic: Mnemonic,
                        passphrase: str,
                        xversion: bytes) -> bytes:
+    """Return a BIP32 master private key from BIP39 mnemonic."""
+
+    # TODO: verify Mnemonic checksum
     seed = seed_from_mnemonic(mnemonic, passphrase)
     return bip32.xmprv_from_seed(seed, xversion)
 
-# TODO: move to wallet file
 
+def mprv_from_entropy(entropy: GenericEntropy,
+                      passphrase: str,
+                      lang: str,
+                      xversion: bytes) -> bytes:
+    """Return a BIP32 master private key from entropy."""
 
-def mprv_from_raw_entropy(raw_entr: GenericEntropy,
-                          passphrase: str,
-                          lang: str,
-                          xversion: bytes) -> bytes:
-    mnemonic = mnemonic_from_raw_entropy(raw_entr, lang)
+    mnemonic = mnemonic_from_entropy(entropy, lang)
     mprv = mprv_from_mnemonic(mnemonic, passphrase, xversion)
     return mprv
