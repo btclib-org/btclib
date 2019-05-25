@@ -30,7 +30,7 @@ class TestEcssa(unittest.TestCase):
         ec = secp256k1
         q = 0x1
         Q = mult(ec, q)
-        msg = hf('Satoshi Nakamoto'.encode()).digest()
+        msg = hf(b'Satoshi Nakamoto').digest()
         sig = ssa.sign(ec, hf, msg, q, None)
         # no source for the following... but
         # https://bitcointalk.org/index.php?topic=285142.40
@@ -44,7 +44,7 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(ssa.verify(ec, hf, msg, Q, sig))
         self.assertTrue(ssa._verify(ec, hf, msg, Q, sig))
 
-        fmsg = hf('Craig Wright'.encode()).digest()
+        fmsg = hf(b'Craig Wright').digest()
         self.assertFalse(ssa.verify(ec, hf, fmsg, Q, sig))
         self.assertFalse(ssa._verify(ec, hf, fmsg, Q, sig))
 
@@ -358,7 +358,7 @@ class TestEcssa(unittest.TestCase):
         # parameters
         t = 2
         H = second_generator(ec, hf)
-        msg = hf('message to sign'.encode()).digest()
+        msg = hf(b'message to sign').digest()
 
         ### FIRST PHASE: key pair generation ###
 
@@ -715,7 +715,7 @@ class TestEcssa(unittest.TestCase):
             https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
         """
         ec = secp256k1
-        M = hf('message to sign'.encode()).digest()
+        M = hf(b'message to sign').digest()
 
         # key setup is not interactive
 

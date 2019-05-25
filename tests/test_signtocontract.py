@@ -23,8 +23,8 @@ class TestSignToContract(unittest.TestCase):
     def test_signtocontract(self):
         prv = 0x1
         pub = mult(ec, prv)
-        m = "to be signed".encode()
-        c = "to be committed".encode()
+        m = b"to be signed"
+        c = b"to be committed"
 
         dsa_sig, dsa_receipt = ecdsa_commit_sign(ec, hf, c, m, prv, None)
         self.assertTrue(dsa.verify(ec, hf, m, pub, dsa_sig))
