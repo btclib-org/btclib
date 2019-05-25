@@ -24,7 +24,7 @@ class TestDSA(unittest.TestCase):
         hf = sha256
         q = 0x1
         Q = mult(ec, q)
-        msg = 'Satoshi Nakamoto'.encode()
+        msg = b'Satoshi Nakamoto'
         sig = dsa.sign(ec, hf, msg, q)
         # https://bitcointalk.org/index.php?topic=285142.40
         # Deterministic Usage of DSA and ECDSA (RFC 6979)
@@ -47,7 +47,7 @@ class TestDSA(unittest.TestCase):
         self.assertTrue(len(keys)==2)
         self.assertIn(Q, keys)
 
-        fmsg = 'Craig Wright'.encode()
+        fmsg = b'Craig Wright'
         self.assertFalse(dsa.verify(ec, hf, fmsg, Q, sig))
         self.assertFalse(dsa._verify(ec, hf, fmsg, Q, sig))
 
@@ -101,7 +101,7 @@ class TestDSA(unittest.TestCase):
                          '0251b4496fecc406ed0e75a24a3c03206251419dc0')
 
         # 2.1.3 Signing Operation for U
-        msg = 'abc'.encode()
+        msg = b'abc'
         k =  702232148019446860144825009548118511996283736794
         exp_sig = (0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
                    0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54)
@@ -188,7 +188,7 @@ class TestDSA(unittest.TestCase):
         hf = sha256
         q = 0x1
         Q = mult(ec, q)
-        msg = 'Satoshi Nakamoto'.encode()
+        msg = b'Satoshi Nakamoto'
         sig = dsa.sign(ec, hf, msg, q)
 
         self.assertTrue(dsa.verify(ec, hf, msg, Q, sig))
