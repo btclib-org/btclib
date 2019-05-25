@@ -15,7 +15,7 @@ Assorted conversion utilities
 from typing import Union
 from hashlib import sha256, new
 
-from btclib.curve import Curve, Point
+from .curve import Curve, Point
 
 octets = Union[str, bytes]
 

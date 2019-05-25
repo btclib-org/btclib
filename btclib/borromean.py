@@ -13,9 +13,9 @@ from hashlib import sha256
 from typing import Sequence, Tuple, List, Dict
 from collections import defaultdict
 
-from btclib.curve import Point, mult, double_mult    
-from btclib.curves import secp256k1    
-from btclib.utils import int_from_bits, octets_from_point, point_from_octets
+from .curve import Point, mult, double_mult    
+from .curves import secp256k1    
+from .utils import int_from_bits, octets_from_point, point_from_octets
 
 # FIXME: should be urandom, but then tests would be non-deterministic
 random.seed(42)

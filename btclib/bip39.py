@@ -16,11 +16,11 @@ https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki.
 
 from hashlib import sha256, pbkdf2_hmac
 
-from btclib.entropy import Entropy, GenericEntropy, bytes_from_entropy, \
+from .entropy import Entropy, GenericEntropy, bytes_from_entropy, \
     str_from_entropy
-from btclib.mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
+from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
     indexes_from_mnemonic, entropy_from_indexes, Mnemonic
-from btclib import bip32
+from . import bip32
 
 
 def _raw_entropy_checksum(raw_entr: GenericEntropy) -> Entropy:

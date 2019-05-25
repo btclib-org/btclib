@@ -12,12 +12,12 @@ from hmac import HMAC
 from hashlib import sha512
 from typing import Union, Optional, Sequence, List
 
-from btclib import base58 
-from btclib.curve import mult
-from btclib.curves import secp256k1 as ec
-from btclib.utils import octets, point_from_octets, octets_from_point, \
+from . import base58 
+from .curve import mult
+from .curves import secp256k1 as ec
+from .utils import octets, point_from_octets, octets_from_point, \
                          int_from_octets, h160
-from btclib.wifaddress import address_from_pubkey
+from .wifaddress import address_from_pubkey
 
 # VERSION BYTES =      4 bytes     Base58 encode starts with
 MAINNET_PRV = b'\x04\x88\xAD\xE4'  # xprv

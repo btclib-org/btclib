@@ -15,7 +15,7 @@ SEC 2 v.1, SEC 2 v.2, NIST, Brainpool, and test curves
 
 # scroll down at the end of the file for 'relevant' code
 
-from btclib.curve import Curve
+from .curve import Curve
 
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
 # http://www.secg.org/SEC2-Ver-1.0.pdf

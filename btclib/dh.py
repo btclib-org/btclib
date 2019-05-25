@@ -8,8 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from btclib.curve import Curve, Point, mult
-from btclib.utils import octets_from_int, int_from_octets
+from .curve import Curve, Point, mult
+from .utils import octets_from_int, int_from_octets
 
 def kdf(zbytes: bytes, keydatasize: int, ec: Curve, hf) -> bytes:
     """ ANS-X9.63-KDF - SEC 1 specification

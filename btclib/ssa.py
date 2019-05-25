@@ -17,11 +17,11 @@ import heapq
 import random
 from typing import Tuple, Sequence, Optional, Callable, Any
 
-from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
+from .numbertheory import mod_inv, legendre_symbol
+from .curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
     _jac_from_aff, _multi_mult
-from btclib.utils import int_from_bits, octets_from_point, octets_from_int
-from btclib.rfc6979 import rfc6979
+from .utils import int_from_bits, octets_from_point, octets_from_int
+from .rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[field element, scalar]
 

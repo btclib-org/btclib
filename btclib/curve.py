@@ -18,7 +18,7 @@ from math import sqrt
 import heapq
 from typing import NamedTuple, Tuple, Sequence, List
 
-from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
+from .numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
 class Point(NamedTuple):
     """ Elliptic curve point

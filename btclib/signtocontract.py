@@ -42,11 +42,11 @@
 
 from typing import Optional, Tuple, Callable, Any
 
-from btclib.curve import Curve, mult, Point
-from btclib.utils import int_from_bits, point_from_octets, octets_from_point
-from btclib.rfc6979 import rfc6979
-from btclib import dsa
-from btclib import ssa
+from .curve import Curve, mult, Point
+from .utils import int_from_bits, point_from_octets, octets_from_point
+from .rfc6979 import rfc6979
+from . import dsa
+from . import ssa
 
 Receipt = Tuple[int, Point]
 
