@@ -36,7 +36,7 @@ def second_generator(ec: Curve, hf) -> Point:
 def commit(r: int, v: int, ec: Curve, hf) -> Point:
     """Return rG + vH, with H being second (NUMS) generator of the curve"""
     H = second_generator(ec, hf)
-    Q = double_mult(ec, r, ec.G, v, H)
+    Q = double_mult(ec, v, H, r)
     assert Q[1] != 0, "how did you do that?!?"
     return Q
 

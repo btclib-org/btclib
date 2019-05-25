@@ -81,5 +81,5 @@ def _h160_from_address(addr: octets) -> bytes:
 
 def address_from_wif(wif: octets) -> bytes:
     prv, compressed = prvkey_from_wif(wif)
-    pub = mult(ec, prv, ec.G)
+    pub = mult(ec, prv)
     return address_from_pubkey(pub, compressed)

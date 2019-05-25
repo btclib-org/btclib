@@ -22,7 +22,7 @@ from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, \
 class TestSignToContract(unittest.TestCase):
     def test_signtocontract(self):
         prv = 0x1
-        pub = mult(ec, prv, ec.G)
+        pub = mult(ec, prv)
         m = "to be signed".encode()
         c = "to be committed".encode()
 

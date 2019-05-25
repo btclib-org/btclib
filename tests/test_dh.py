@@ -21,9 +21,9 @@ class TestEcdh(unittest.TestCase):
         keydatasize = 20
 
         dU = 0x1
-        QU = mult(ec, dU, ec.G)
+        QU = mult(ec, dU)
         dV = 0x2
-        QV = mult(ec, dV, ec.G)
+        QV = mult(ec, dV)
 
         keyingdataU = dh.key_agreement(dU, QV, keydatasize, ec, hf)
         keyingdataV = dh.key_agreement(dV, QU, keydatasize, ec, hf)
@@ -43,7 +43,7 @@ class TestEcdh(unittest.TestCase):
         dU = 971761939728640320549601132085879836204587084162
         self.assertEqual(format(dU, str(ec.psize)+'x'),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
-        QU = mult(ec, dU, ec.G)
+        QU = mult(ec, dU)
         self.assertEqual(QU, (466448783855397898016055842232266600516272889280, 1110706324081757720403272427311003102474457754220))
         self.assertEqual(octets_from_point(ec, QU, True).hex(),
                          '0251b4496fecc406ed0e75a24a3c03206251419dc0')
@@ -52,7 +52,7 @@ class TestEcdh(unittest.TestCase):
         dV = 399525573676508631577122671218044116107572676710
         self.assertEqual(format(dV, str(ec.psize)+'x'),
                          '45fb58a92a17ad4b15101c66e74f277e2b460866')
-        QV = mult(ec, dV, ec.G)
+        QV = mult(ec, dV)
         self.assertEqual(QV, (420773078745784176406965940076771545932416607676, 221937774842090227911893783570676792435918278531))
         self.assertEqual(octets_from_point(ec, QV, True).hex(),
                          '0349b41e0e9c0369c2328739d90f63d56707c6e5bc')

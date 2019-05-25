@@ -61,7 +61,7 @@ def _tweak(c: bytes,
     - point kG to tweak
     - tweaked private key k + h(kG||c), the corresponding pubkey is a commitment to kG, c
     """
-    R = mult(ec, k, ec.G)
+    R = mult(ec, k)
     e = hf(octets_from_point(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
     return R, (e + k) % ec.n
@@ -123,7 +123,7 @@ def verify_commit(c: bytes,
     ch = hf(c).digest()
     e = hf(octets_from_point(ec, R, True) + ch).digest()
     e = int_from_bits(ec, e)
-    W = ec.add(R, mult(ec, e, ec.G))
+    W = ec.add(R, mult(ec, e))
     # different verify functions?
     # return w == W[0] # ECSS
     return w == W[0] % ec.n  # ECDS, FIXME: ECSSA
