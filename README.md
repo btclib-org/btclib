@@ -49,7 +49,7 @@ The library includes:
 - Borromean ring signature
 - [RFC 6979](https://tools.ietf.org/html/rfc6979:) to make signature
   schemes deterministic
-- sign-to-contract notarization
+- Sign-to-contract commitment
 - Diffie-Hellman
 - Pedersen Committment
 - Base58 encoding, addresses, WIFs
