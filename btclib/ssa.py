@@ -73,7 +73,7 @@ def sign(ec: Curve,
     # The secret key d: an integer in the range 1..n-1.
     if not 0 < d < ec.n:
         raise ValueError(f"private key {hex(d)} not in [1, n-1]")
-    P = mult(ec, d, ec.G)
+    P = mult(ec, d)
 
     # Fail if k' = 0.
     if k is None:
@@ -148,7 +148,7 @@ def _verify(ec: Curve,
 
     # Let R = sG - eP.
     # in Jacobian coordinates
-    R = _double_mult(ec, s, ec.GJ, -e, (P[0], P[1], 1))
+    R = _double_mult(ec, -e, (P[0], P[1], 1), s, ec.GJ)
 
     # Fail if infinite(R).
     if R[2] == 0:
@@ -176,7 +176,7 @@ def _pubkey_recovery(ec: Curve,
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
-    P = double_mult(ec, e1*s, ec.G, -e1, K)
+    P = double_mult(ec, -e1, K, e1*s)
     assert P[1] != 0, "how did you do that?!?"
     return P
 

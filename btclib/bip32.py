@@ -89,7 +89,7 @@ def xpub_from_xprv(xprv: octets) -> bytes:
     xpub += xprv[13:45]                        # chain code
 
     p = int_from_octets(xprv[46:])
-    P = mult(ec, p, ec.G)
+    P = mult(ec, p)
     xpub += octets_from_point(ec, P, True)          # public key
     return base58.encode_check(xpub)
 
@@ -133,7 +133,7 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         # actual extended key (key + chain code) derivation
         h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
         offset = int.from_bytes(h[:32], 'big')
-        Offset = mult(ec, offset, ec.G)
+        Offset = mult(ec, offset)
         Child = ec.add(Parent, Offset)
         Child_bytes = octets_from_point(ec, Child, True)
         xkey += h[32:]                            # chain code
@@ -142,7 +142,7 @@ def ckd(xparentkey: octets, index: Union[octets, int]) -> bytes:
         if xparent[45] != 0:    # not a private key
             raise ValueError("version/key mismatch in extended parent key")
         parent = int.from_bytes(xparent[46:], 'big')
-        Parent = mult(ec, parent, ec.G)
+        Parent = mult(ec, parent)
         Parent_bytes = octets_from_point(ec, Parent, True)
         xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
         xkey += index                             # child index
