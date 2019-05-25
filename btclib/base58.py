@@ -1,13 +1,36 @@
 #!/usr/bin/env python3
 
-"""Base58 encoding
+# Copyright (C) 2017-2019 The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
 
-   Implementation of Base58 and Base58Check, originally from
-   https://github.com/keis/base58, with the following modifications:
+"""Base58 encoding and decoding functions.
 
-   * type annotated python3
-   * using native python3 int.from_bytes() and i.to_bytes()
-   * added length check functionalities to decode and decode_check
+Binary-to-text encoding schemes are designed to transport binary data across
+channels that are designed to deal with textual data. In Bitcoin they are mostly
+used to represent large integers as alphanumeric text.
+
+Base58 is similar to Base64, which uses 10 digits, 26 lowercase characters,
+26 uppercase characters, '+' (plus sign), and '/' (forward slash).
+Base58 omits the similar-looking letters
+0 (zero), O (capital o), I (capital i), and l (lower case L)
+to avoid ambiguity when printed; moreover, it removes the characters 
+'+' (plus sign) and '/' (forward slash) so that a double-click does
+select the whole string.
+
+This implementation of Base58 and Base58Check is originally from
+https://github.com/keis/base58, with the following modifications:
+
+* type annotated python3
+* using native python3 int.from_bytes() and i.to_bytes()
+* added optional check on output size for decode() and decode_check()
+
+Input can be bytes or a string that will be encoded to bytes (after
+being stripped of leading/trailing white spaces)
 """
 
 from hashlib import sha256
@@ -31,7 +54,7 @@ def _str_to_bytes(v: Union[str, bytes]) -> bytes:
 
 
 def encode_from_int(i: int) -> bytes:
-    """Encode an integer using Base58"""
+    """Encode an integer using Base58."""
 
     if i == 0:
         return __digits[0:1]
@@ -45,7 +68,7 @@ def encode_from_int(i: int) -> bytes:
 
 
 def encode(v: Union[str, bytes]) -> bytes:
-    """Encode bytes using Base58"""
+    """Encode bytes or string using Base58."""
 
     v = _str_to_bytes(v)
 
@@ -65,7 +88,7 @@ def encode(v: Union[str, bytes]) -> bytes:
 
 
 def encode_check(v: Union[str, bytes]) -> bytes:
-    """Encode bytes using Base58 with a 4 character checksum"""
+    """Encode bytes or string using checksummed Base58."""
 
     v = _str_to_bytes(v)
 
@@ -74,7 +97,7 @@ def encode_check(v: Union[str, bytes]) -> bytes:
 
 
 def decode_to_int(v: Union[str, bytes]) -> int:
-    """Decode Base58 encoded bytes as integer"""
+    """Decode Base58 encoded bytes or string as integer."""
 
     v = _str_to_bytes(v)
 
@@ -87,7 +110,11 @@ def decode_to_int(v: Union[str, bytes]) -> int:
 
 def decode(v: Union[str, bytes],
            output_size: Optional[int] = None) -> bytes:
-    """Decode Base58 encoded bytes, with verified output length"""
+    """Decode Base58 encoded bytes or string.
+    
+    Decode Base58 encoded bytes or string,
+    optionally ensuring required output size.
+    """
 
 
     v = _str_to_bytes(v)
@@ -115,7 +142,11 @@ def decode(v: Union[str, bytes],
 
 def decode_check(v: Union[str, bytes],
                  output_size: Optional[int] = None) -> bytes:
-    """Decode Base58 encoded bytes, with verified checksum and output length"""
+    """Decode Base58 encoded bytes or string, verifying checksum.
+    
+    Decode Base58 encoded bytes or string, verifying checksum and
+    optionally ensuring required output size.
+    """
 
     if output_size is not None:
         output_size += 4

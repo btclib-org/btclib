@@ -706,7 +706,7 @@ class TestEcssa(unittest.TestCase):
         self.assertEqual((q1 + q2 + q3) % ec.n, secret)
 
     def test_musig(self):
-        """ testing 3-of-3 MuSig
+        """testing 3-of-3 MuSig
         
             https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
             https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/

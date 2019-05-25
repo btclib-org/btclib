@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-""" Strict DER-encoded signature representation
+"""Strict DER-encoded signature representation.
    
     The original Bitcoin implementation used OpenSSL to verify DER-encoded ASN.1
     signature representation. However, OpenSSL does not do strict validation and
@@ -65,7 +65,7 @@ def _encode_scalar(scalar: int) -> bytes:
 
 
 def encode(ec: Curve, sig: ECDS, sighash: bytes = sighash_all) -> bytes:
-    """Strict DER-encoded signature representation"""
+    """Encode a strict DER-encoded signature."""
 
     if len(sighash) > 1:
         raise ValueError(f"sighash size {len(sighash)} > 1")
@@ -79,7 +79,7 @@ def encode(ec: Curve, sig: ECDS, sighash: bytes = sighash_all) -> bytes:
 
 
 def decode(ec: Curve, sig: bytes) -> Tuple[ECDS, bytes]:
-    """Decode strict DER-encoded signature representation"""
+    """Decode a strict DER-encoded signature."""
 
     maxsize = ec.nsize * 2 + 7
     sigsize = len(sig)

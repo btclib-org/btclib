@@ -1,26 +1,36 @@
 #!/usr/bin/env python3
 
-""" Modular algebra functions
+# Copyright (C) 2017-2019 The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
 
-   Implementations originally from
-   https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
-   and
-   https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
-   with the following modifications:
-   - type annotated python3
-   - minor improvements
-   - added extensive unit test
+"""Modular algebra functions.
+
+Implementations originally from
+https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
+and
+https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+with the following modifications:
+
+* type annotated python3
+* minor improvements
+* added extensive unit test
 """
 
 from typing import Tuple
 
 
 def xgcd(a: int, b: int) -> Tuple[int, int, int]:
-    """Return (g, x, y) such that a*x + b*y = g = gcd(x, y)
+    """Return (g, x, y) such that a*x + b*y = g = gcd(x, y).
 
-       based on Extended Euclidean Algorithm, see
-       https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
-   """
+    based on Extended Euclidean Algorithm, see
+    https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
+    """
+
     x0, x1, y0, y1 = 0, 1, 1, 0
     while a != 0:
         q, b, a = b // a, a, b % a
@@ -30,11 +40,12 @@ def xgcd(a: int, b: int) -> Tuple[int, int, int]:
 
 
 def mod_inv(a: int, m: int) -> int:
-    """ Return the inverse of 'a' (mod m). m does not have to be a prime.
+    """Return the inverse of a (mod m). m does not have to be a prime.
 
     Based on Extended Euclidean Algorithm, see:
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
     """
+
     a %= m
     g, x, _ = xgcd(a, m)
     if g == 1:
@@ -43,23 +54,26 @@ def mod_inv(a: int, m: int) -> int:
 
 
 def legendre_symbol(a, p):
-    """ Compute the Legendre symbol a|p using Euler's criterion.
+    """Compute the Legendre symbol a|p using Euler's criterion.
 
-    p is a prime, a is relatively prime to p (if p divides a, then a|p = 0).
+    p is a prime, a is relatively prime to p (if p divides a,
+    then a|p = 0).
     It returns 1 if a has a square root modulo p, -1 otherwise.
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
+
     ls = pow(a, p >> 1, p)
     return -1 if ls == p - 1 else ls
 
 
 def mod_sqrt(a: int, p: int) -> int:
-    """ Return a quadratic residue (mod p) of 'a'; p must be a prime.
+    """Return a quadratic residue (mod p) of a; p must be a prime.
 
     Solve the equation:
         x^2 = a mod p
-    And returns x. Note that p - x is also a root.
+    
+    and returns x. Note that p - x is also a root.
 
     The Tonelli-Shanks algorithm is used (except for some simple
     cases in which the solution is known from an identity).

@@ -14,6 +14,7 @@
 """
 
 import math
+from hashlib import pbkdf2_hmac
 from typing import List
 
 from .entropy import Entropy
@@ -55,9 +56,8 @@ def indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
 def mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
     """Return the mnemonic from a list of word-list indexes.
     
-    Return the mnemonic from a list of integer word-list indexes
-    Return the mnemonic for a given language from a list of
-    integer indexes.
+    Return the mnemonic from a list of integer indexes into
+    a given language word-list.
     """
 
     words = []
@@ -99,3 +99,12 @@ def entropy_from_indexes(indexes: List[int], lang: str) -> Entropy:
     binentropy = binentropy.zfill(bits)
 
     return binentropy
+
+def _seed_from_mnemonic(mnemonic: Mnemonic,
+                        passphrase: str, prefix: str) -> bytes:
+    hf_name = 'sha512'
+    password = mnemonic.encode()
+    salt = (prefix + passphrase).encode()
+    iterations = 2048
+    dksize = 64
+    return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)

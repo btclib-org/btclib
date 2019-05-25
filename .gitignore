@@ -109,3 +109,5 @@ ENV/
 
 # MACOS
 .DS_Store
+docs/source/btclib.rst
+docs/source/modules.rst

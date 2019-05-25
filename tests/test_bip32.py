@@ -17,7 +17,7 @@ from btclib import bip32
 
 class TestBIP32(unittest.TestCase):
     def test_vector1(self):
-        """ BIP32 test vestor 1
+        """BIP32 test vestor 1
             https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
         xkey_version = bip32.PRV[0]
@@ -109,7 +109,7 @@ class TestBIP32(unittest.TestCase):
             xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
 
     def test_vector2(self):
-        """ BIP32 test vestor 2
+        """BIP32 test vestor 2
             https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
         xkey_version = bip32.PRV[0]
@@ -205,7 +205,7 @@ class TestBIP32(unittest.TestCase):
             xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
 
     def test_vector3(self):
-        """ BIP32 test vestor 3
+        """BIP32 test vestor 3
             https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
         xkey_version = bip32.PRV[0]
@@ -244,7 +244,7 @@ class TestBIP32(unittest.TestCase):
             xpub, b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y")
 
     def test_bip39_vectors(self):
-        """ BIP32 test vectors from BIP39
+        """BIP32 test vectors from BIP39
             https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
         """
         filename = "bip39_test_vectors.json"

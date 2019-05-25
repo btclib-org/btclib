@@ -8,25 +8,27 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Elliptic Curve Schnorr Signature Algorithm
+"""Elliptic Curve Schnorr Signature Algorithm (ECSSA).
 
-   https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+Implementation according to bip-schnorr:
+
+https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki.
 """
 
 import heapq
 import random
-from typing import Tuple, Sequence, Optional, Callable, Any
+from typing import Tuple, List, Sequence, Optional
 
 from .numbertheory import mod_inv, legendre_symbol
 from .curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
     _jac_from_aff, _multi_mult
-from .utils import int_from_bits, octets_from_point, octets_from_int
+from .utils import int_from_bits, octets_from_point, octets_from_int, HashF
 from .rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[field element, scalar]
 
 
-def _ensure_msg_size(hf: Callable[[Any], Any], msg: bytes) -> None:
+def _ensure_msg_size(hf: HashF, msg: bytes) -> None:
     if len(msg) != hf().digest_size:
         errmsg = f'message of wrong size: {len(msg)}'
         errmsg += f' instead of {hf().digest_size} bytes'
@@ -34,7 +36,7 @@ def _ensure_msg_size(hf: Callable[[Any], Any], msg: bytes) -> None:
 
 
 def _e(ec: Curve,
-       hf: Callable[[Any], Any],
+       hf: HashF,
        r: int,
        P: Point,
        mhd: bytes) -> int:
@@ -48,17 +50,15 @@ def _e(ec: Curve,
 
 
 def sign(ec: Curve,
-         hf: Callable[[Any], Any],
+         hf: HashF,
          mhd: bytes,
          d: int,
          k: Optional[int] = None) -> ECSS:
-    """ ECSSA signing operation according to bip-schnorr
+    """ECSSA signing operation according to bip-schnorr.
 
-        This signature scheme supports 32-byte messages.
-        Differently from ECDSA, the 32-byte message can be a
-        digest of other messages, but it does not need to.
-
-        https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+    This signature scheme supports only 32-byte messages.
+    Differently from ECDSA, the 32-byte message can be a
+    digest of other messages, but it does not need to.
     """
 
     # the bitcoin proposed standard is only valid for curves
@@ -102,14 +102,11 @@ def sign(ec: Curve,
 
 
 def verify(ec: Curve,
-           hf: Callable[[Any], Any],
+           hf: HashF,
            mhd: bytes,
            P: Point,
            sig: ECSS) -> bool:
-    """ECSSA verification according to bip-schnorr
-
-       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
-    """
+    """ECSSA signature verification according to bip-schnorr."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
@@ -119,11 +116,12 @@ def verify(ec: Curve,
 
 
 def _verify(ec: Curve,
-            hf: Callable[[Any], Any],
+            hf: HashF,
             mhd: bytes,
             P: Point,
             sig: ECSS) -> bool:
-    # This raises Exceptions, while verify should always return True or False
+    # Private function for test/dev purposes
+    # It raises Errors, while verify should always return True or False
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
@@ -163,7 +161,7 @@ def _verify(ec: Curve,
 
 
 def _pubkey_recovery(ec: Curve,
-                     hf: Callable[[Any], Any],
+                     hf: HashF,
                      e: int,
                      sig: ECSS) -> Point:
     # Private function provided for testing purposes only.
@@ -202,14 +200,11 @@ def _to_sig(ec: Curve, sig: ECSS) -> ECSS:
 
 
 def batch_verify(ec: Curve,
-                 hf: Callable[[Any], Any],
+                 hf: HashF,
                  ms: Sequence[bytes],
                  P: Sequence[Point],
                  sig: Sequence[ECSS]) -> bool:
-    """ECSSA batch verification according to bip-schnorr
-
-       https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
-    """
+    """ECSSA batch signature verification according to bip-schnorr."""
 
     # try/except wrapper for the Errors raised by _batch_verify
     try:
@@ -219,7 +214,7 @@ def batch_verify(ec: Curve,
 
 
 def _batch_verify(ec: Curve,
-                  hf: Callable[[Any], Any],
+                  hf: HashF,
                   ms: Sequence[bytes],
                   P: Sequence[Point],
                   sig: Sequence[ECSS]) -> bool:
@@ -244,8 +239,8 @@ def _batch_verify(ec: Curve,
         return _verify(ec, hf, ms[0], P[0], sig[0])
 
     t = 0
-    scalars: Sequence(int) = list()
-    points: Sequence[Point] = list()
+    scalars: List(int) = list()
+    points: List[Point] = list()
     for i in range(batch_size):
         r, s = _to_sig(ec, sig[i])
         _ensure_msg_size(hf, ms[i])

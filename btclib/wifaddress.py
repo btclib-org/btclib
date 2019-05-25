@@ -8,23 +8,23 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-'''wifs and addresses
+"""Wallet Import Format (WIF) and Address functions.
 
-Implementation of Base58 encoding of private keys (wifs)
-and public keys (addresses)
-'''
+Implementation of Base58 encoding of private keys (WIFs)
+and public keys (addresses).
+"""
 
 from typing import Tuple
 
 from . import base58
 from .curve import Point, mult
 from .curves import secp256k1 as ec
-from .utils import octets, int_from_octets, octets_from_int, \
+from .utils import Octets, int_from_octets, octets_from_int, \
                          octets_from_point, h160
 
 
 def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
-    """private key to Wallet Import Format"""
+    """Return the Wallet Import Format from a private key."""
 
     if not 0 < prvkey < ec.n:
         raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
@@ -35,8 +35,8 @@ def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
     return base58.encode_check(payload)
 
 
-def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
-    """Wallet Import Format to (bytes) private key"""
+def prvkey_from_wif(wif: Octets) -> Tuple[int, bool]:
+    """Return the (private key, compressed) tuple from a WIF."""
 
     payload = base58.decode_check(wif)
     if payload[0] != 0x80:
@@ -62,7 +62,7 @@ def prvkey_from_wif(wif: octets) -> Tuple[int, bool]:
 def address_from_pubkey(Q: Point,
                         compressed: bool,
                         version: bytes = b'\x00') -> bytes:
-    """Public key to (bytes) address"""
+    """Return the address corresponding to a public key."""
 
     # also check that the Point is on curve
     pubkey = octets_from_point(ec, Q, compressed)
@@ -71,7 +71,7 @@ def address_from_pubkey(Q: Point,
     return base58.encode_check(vh160)
 
 
-def _h160_from_address(addr: octets) -> bytes:
+def _h160_from_address(addr: Octets) -> bytes:
     payload = base58.decode_check(addr, 21)
     # FIXME: this is mainnet only
     if payload[0] != 0x00:
@@ -79,7 +79,9 @@ def _h160_from_address(addr: octets) -> bytes:
     return payload[1:]
 
 
-def address_from_wif(wif: octets) -> bytes:
+def address_from_wif(wif: Octets) -> bytes:
+    """Return the address corresponding to a WIF."""
+
     prv, compressed = prvkey_from_wif(wif)
     pub = mult(ec, prv)
     return address_from_pubkey(pub, compressed)

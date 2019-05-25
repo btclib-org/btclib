@@ -8,14 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Entropy conversions from/to binary string, int, and bytes.
+"""Entropy conversions from/to binary 0/1 string, bytes-like, and int.
 
-Input raw entropy (*GenericEntropy*) can be expressed as
-binary 0/1 string, bytes-like, or integer; by default, it must be
-128, 160, 192, 224, or 256 bits. In the case of integer,
-if the equivalent binary 0/1 string is shorter than 256 bits, then
-it is padded with leading zeros up to the next allowed bit length;
-if longer, then only the leftmost 256 bits are retained.
+Input entropy (*GenericEntropy*) can be expressed as
+binary 0/1 string, bytes-like, or integer.
 
 Output entropy (*Entropy*) should always be a binary 0/1 string.
 """
@@ -25,11 +21,26 @@ from typing import Union, Optional, Sequence
 Entropy = str  # binary 0/1 string
 GenericEntropy = Union[Entropy, int, bytes]
 
-_bits = (128, 160, 192, 224, 256)
+_bits = 128, 160, 192, 224, 256
 
 
 def str_from_entropy(entr: GenericEntropy,
                      bits: Optional[Union[int, Sequence]] = _bits) -> Entropy:
+    """Convert the input entropy to binary 0/1 string.
+
+    Input entropy (*GenericEntropy*) can be expressed as
+    binary 0/1 string, bytes-like, or integer;
+    by default, it must be 128, 160, 192, 224, or 256 bits.
+
+    In the case of binary 0/1 string and bytes-like
+    leading zeros are not considered redundant padding.
+    In the case of integer, where leading zeros cannot be represented,
+    if the bit length is not an allowed value, then the binary 0/1
+    string is padded with leading zeros up to the next allowed bit
+    length; if the integer bit length is longer than the maximum
+    length, then only the leftmost bits are retained.
+    """
+
     if type(bits) == int:
         bits = (bits, )
     bits = sorted(set(bits))  # ascending sort unique
@@ -65,16 +76,48 @@ def str_from_entropy(entr: GenericEntropy,
     return entr.zfill(nbits)  # pad with leading zeros
 
 
-def int_from_entropy(entr: GenericEntropy,
-                     bits: Optional[Union[int, tuple]] = _bits) -> int:
+def _int_from_entropy(entr: GenericEntropy,
+                      bits: Optional[Union[int, tuple]] = _bits) -> int:
+    """Convert the input entropy to integer.
+
+    Input entropy (*GenericEntropy*) can be expressed as
+    binary 0/1 string, bytes-like, or integer;
+    by default, it must be 128, 160, 192, 224, or 256 bits.
+
+    Please note that leading zeros, which should not considered
+    redundant padding, are lost.
+    """
+
     entr = str_from_entropy(entr, bits)
     return int(entr, 2)
 
 
-def bytes_from_entropy(entr: GenericEntropy,
-                       bits: Optional[Union[int, tuple]] = _bits) -> bytes:
+def _bytes_from_entropy(entr: GenericEntropy,
+                        bits: Optional[Union[int, tuple]] = _bits) -> bytes:
+    """Convert the input entropy to bytes.
+
+    Input entropy (*GenericEntropy*) can be expressed as
+    binary 0/1 string, bytes-like, or integer;
+    by default, it must be 128, 160, 192, 224, or 256 bits.
+
+    In the case of binary 0/1 string and bytes-like,
+    leading zeros are not considered redundant padding.
+    In the case of integer, where leading zeros cannot be represented,
+    if the bit length is not an allowed value, then the binary 0/1
+    string is padded with leading zeros up to the next allowed bit
+    length; if the integer bit length is longer than the maximum
+    length, then only the leftmost bits are retained.
+
+    Please note that leading zeros, which should not considered
+    redundant padding, might be added if the allowed bit lengths are
+    not multiple of 8.
+    """
+
     entr = str_from_entropy(entr, bits)
     nbits = len(entr)
-    nbytes = (nbits+7)//8
+
     entr = int(entr, 2)
+
+    # uselessly convoluted if nbits is a multiple of 8, but just in case...
+    nbytes = (nbits+7)//8
     return entr.to_bytes(nbytes, 'big')
