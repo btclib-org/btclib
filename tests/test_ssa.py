@@ -29,7 +29,7 @@ class TestEcssa(unittest.TestCase):
         """Basic tests"""
         ec = secp256k1
         q = 0x1
-        Q = mult(ec, q, ec.G)
+        Q = mult(ec, q)
         msg = hf('Satoshi Nakamoto'.encode()).digest()
         sig = ssa.sign(ec, hf, msg, q, None)
         # no source for the following... but
@@ -54,12 +54,12 @@ class TestEcssa(unittest.TestCase):
 
         # y(sG - eP) is not a quadratic residue
         fq = 0x2
-        fQ = mult(ec, fq, ec.G)
+        fQ = mult(ec, fq)
         self.assertFalse(ssa.verify(ec, hf, msg, fQ, sig))
         self.assertRaises(ValueError, ssa._verify, ec, hf, msg, fQ, sig)
 
         fq = 0x4
-        fQ = mult(ec, fq, ec.G)
+        fQ = mult(ec, fq)
         self.assertFalse(ssa.verify(ec, hf, msg, fQ, sig))
         self.assertFalse(ssa._verify(ec, hf, msg, fQ, sig))
 
@@ -89,7 +89,7 @@ class TestEcssa(unittest.TestCase):
         ec = secp256k1
         # test vector 1
         prv = int_from_bits(ec, b'\x00' * 31 + b'\x01')
-        pub = mult(ec, prv, ec.G)
+        pub = mult(ec, prv)
         msg = b'\x00' * 32
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
@@ -102,7 +102,7 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 2
         prv = 0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
-        pub = mult(ec, prv, ec.G)
+        pub = mult(ec, prv)
         msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         expected_sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                         0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
@@ -115,7 +115,7 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 3
         prv = 0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B14E5C7
-        pub = mult(ec, prv, ec.G)
+        pub = mult(ec, prv)
         msg = bytes.fromhex("5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         expected_sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                         0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
@@ -282,12 +282,12 @@ class TestEcssa(unittest.TestCase):
                         self.assertRaises(ValueError, ssa.sign, ec, hf, H[0], q, None)
                         self.assertRaises(ValueError, rfc6979, ec, hf, H[0], q)
                         continue
-                    Q = mult(ec, q, ec.G)  # public key
+                    Q = mult(ec, q)  # public key
                     for h in H:  # all possible hashed messages
                         # k = 0
                         self.assertRaises(ValueError, ssa.sign, ec, hf, h, q, 0)
                         k = rfc6979(ec, hf, h, q)
-                        K = mult(ec, k, ec.G)
+                        K = mult(ec, k)
                         if legendre_symbol(K[1], ec._p) != 1:
                             k = ec.n - k
 
@@ -310,14 +310,14 @@ class TestEcssa(unittest.TestCase):
         m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
         q = (1+random.getrandbits(ec.nlen)) % ec.n
         sig.append(ssa.sign(ec, hf, m[0], q))
-        Q.append(mult(ec, q, ec.G))
+        Q.append(mult(ec, q))
         # test with only 1 sig
         self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
         for i in range(1, 4):
             m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
             q = (1+random.getrandbits(ec.nlen)) % ec.n
             sig.append(ssa.sign(ec, hf, m[i], q))
-            Q.append(mult(ec, q, ec.G))
+            Q.append(mult(ec, q))
         self.assertTrue(ssa.batch_verify(ec, hf, m, Q, sig))
 
         # invalid sig
@@ -366,7 +366,7 @@ class TestEcssa(unittest.TestCase):
         commits1: List[Point] = list()
         q1 = (1+random.getrandbits(ec.nlen)) % ec.n
         q1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits1.append(double_mult(ec, q1, ec.G, q1_prime, H))
+        commits1.append(double_mult(ec, q1_prime, H, q1))
 
         # sharing polynomials
         f1: List[int] = list()
@@ -378,7 +378,7 @@ class TestEcssa(unittest.TestCase):
             f1.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
-            commits1.append(double_mult(ec, f1[i], ec.G, f1_prime[i], H))
+            commits1.append(double_mult(ec, f1_prime[i], H, f1[i]))
 
         # shares of the secret
         alpha12 = 0  # share of q1 belonging to P2
@@ -396,19 +396,19 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(2, i), commits1[i]))
-        assert double_mult(ec, alpha12, ec.G, alpha12_prime, H) == RHS, 'player one is cheating'
+        assert double_mult(ec, alpha12_prime, H, alpha12) == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(3, i), commits1[i]))
-        assert double_mult(ec, alpha13, ec.G, alpha13_prime, H) == RHS, 'player one is cheating'
+        assert double_mult(ec, alpha13_prime, H, alpha13) == RHS, 'player one is cheating'
 
         # signer two acting as the dealer
         commits2: List[Point] = list()
         q2 = (1+random.getrandbits(ec.nlen)) % ec.n
         q2_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits2.append(double_mult(ec, q2, ec.G, q2_prime, H))
+        commits2.append(double_mult(ec, q2_prime, H, q2))
 
         # sharing polynomials
         f2: List[int] = list()
@@ -420,7 +420,7 @@ class TestEcssa(unittest.TestCase):
             f2.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f2_prime.append(temp)
-            commits2.append(double_mult(ec, f2[i], ec.G, f2_prime[i], H))
+            commits2.append(double_mult(ec, f2_prime[i], H, f2[i]))
 
         # shares of the secret
         alpha21 = 0  # share of q2 belonging to P1
@@ -438,19 +438,19 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(1, i), commits2[i]))
-        assert double_mult(ec, alpha21, ec.G, alpha21_prime, H) == RHS, 'player two is cheating'
+        assert double_mult(ec, alpha21_prime, H, alpha21) == RHS, 'player two is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(3, i), commits2[i]))
-        assert double_mult(ec, alpha23, ec.G, alpha23_prime, H) == RHS, 'player two is cheating'
+        assert double_mult(ec, alpha23_prime, H, alpha23) == RHS, 'player two is cheating'
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
         q3 = (1+random.getrandbits(ec.nlen)) % ec.n
         q3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits3.append(double_mult(ec, q3, ec.G, q3_prime, H))
+        commits3.append(double_mult(ec, q3_prime, H, q3))
 
         # sharing polynomials
         f3: List[int] = list()
@@ -462,7 +462,7 @@ class TestEcssa(unittest.TestCase):
             f3.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
-            commits3.append(double_mult(ec, f3[i], ec.G, f3_prime[i], H))
+            commits3.append(double_mult(ec, f3_prime[i], H, f3[i]))
 
         # shares of the secret
         alpha31 = 0  # share of q3 belonging to P1
@@ -480,13 +480,13 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(1, i), commits3[i]))
-        assert double_mult(ec, alpha31, ec.G, alpha31_prime, H) == RHS, 'player three is cheating'
+        assert double_mult(ec, alpha31_prime, H, alpha31) == RHS, 'player three is cheating'
 
         # player two verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(2, i), commits3[i]))
-        assert double_mult(ec, alpha32, ec.G, alpha32_prime, H) == RHS, 'player two is cheating'
+        assert double_mult(ec, alpha32_prime, H, alpha32) == RHS, 'player two is cheating'
 
         # shares of the secret key q = q1 + q2 + q3
         alpha1 = (alpha21 + alpha31) % ec.n
@@ -506,9 +506,9 @@ class TestEcssa(unittest.TestCase):
 
         # he broadcasts these values
         for i in range(t):
-            A1.append(mult(ec, f1[i], ec.G))
-            A2.append(mult(ec, f2[i], ec.G))
-            A3.append(mult(ec, f3[i], ec.G))
+            A1.append(mult(ec, f1[i]))
+            A2.append(mult(ec, f2[i]))
+            A3.append(mult(ec, f3[i]))
 
         # he checks the others' values
         # player one
@@ -517,8 +517,8 @@ class TestEcssa(unittest.TestCase):
         for i in range(t):
             RHS2 = ec.add(RHS2, mult(ec, pow(1, i), A2[i]))
             RHS3 = ec.add(RHS3, mult(ec, pow(1, i), A3[i]))
-        assert mult(ec, alpha21, ec.G) == RHS2, 'player two is cheating'
-        assert mult(ec, alpha31, ec.G) == RHS3, 'player three is cheating'
+        assert mult(ec, alpha21) == RHS2, 'player two is cheating'
+        assert mult(ec, alpha31) == RHS3, 'player three is cheating'
 
         # player two
         RHS1 = 1, 0
@@ -526,8 +526,8 @@ class TestEcssa(unittest.TestCase):
         for i in range(t):
             RHS1 = ec.add(RHS1, mult(ec, pow(2, i), A1[i]))
             RHS3 = ec.add(RHS3, mult(ec, pow(2, i), A3[i]))
-        assert mult(ec, alpha12, ec.G) == RHS1, 'player one is cheating'
-        assert mult(ec, alpha32, ec.G) == RHS3, 'player three is cheating'
+        assert mult(ec, alpha12) == RHS1, 'player one is cheating'
+        assert mult(ec, alpha32) == RHS3, 'player three is cheating'
 
         # player three
         RHS1 = 1, 0
@@ -535,8 +535,8 @@ class TestEcssa(unittest.TestCase):
         for i in range(t):
             RHS1 = ec.add(RHS1, mult(ec, pow(3, i), A1[i]))
             RHS2 = ec.add(RHS2, mult(ec, pow(3, i), A2[i]))
-        assert mult(ec, alpha13, ec.G) == RHS1, 'player one is cheating'
-        assert mult(ec, alpha23, ec.G) == RHS2, 'player two is cheating'
+        assert mult(ec, alpha13) == RHS1, 'player one is cheating'
+        assert mult(ec, alpha23) == RHS2, 'player two is cheating'
 
         A: List[Point] = list()  # commitment at the global sharing polynomial
         for i in range(t):
@@ -552,7 +552,7 @@ class TestEcssa(unittest.TestCase):
         commits1: List[Point] = list()
         k1 = (1+random.getrandbits(ec.nlen)) % ec.n
         k1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits1.append(double_mult(ec, k1, ec.G, k1_prime, H))
+        commits1.append(double_mult(ec, k1_prime, H, k1))
 
         # sharing polynomials
         f1: List[int] = list()
@@ -564,7 +564,7 @@ class TestEcssa(unittest.TestCase):
             f1.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
-            commits1.append(double_mult(ec, f1[i], ec.G, f1_prime[i], H))
+            commits1.append(double_mult(ec, f1_prime[i], H, f1[i]))
 
         # shares of the secret
         beta13 = 0  # share of k1 belonging to P3
@@ -577,13 +577,13 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(3, i), commits1[i]))
-        assert double_mult(ec, beta13, ec.G, beta13_prime, H) == RHS, 'player one is cheating'
+        assert double_mult(ec, beta13_prime, H, beta13) == RHS, 'player one is cheating'
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
         k3 = (1+random.getrandbits(ec.nlen)) % ec.n
         k3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits3.append(double_mult(ec, k3, ec.G, k3_prime, H))
+        commits3.append(double_mult(ec, k3_prime, H, k3))
 
         # sharing polynomials
         f3: List[int] = list()
@@ -595,7 +595,7 @@ class TestEcssa(unittest.TestCase):
             f3.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
-            commits3.append(double_mult(ec, f3[i], ec.G, f3_prime[i], H))
+            commits3.append(double_mult(ec, f3_prime[i], H, f3[i]))
 
         # shares of the secret
         beta31 = 0  # share of k3 belonging to P1
@@ -608,7 +608,7 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(1, i), commits3[i]))
-        assert double_mult(ec, beta31, ec.G, beta31_prime, H) == RHS, 'player three is cheating'
+        assert double_mult(ec, beta31_prime, H, beta31) == RHS, 'player three is cheating'
 
         # shares of the secret nonce
         beta1 = beta31 % ec.n
@@ -625,21 +625,21 @@ class TestEcssa(unittest.TestCase):
 
         # he broadcasts these values
         for i in range(t):
-            B1.append(mult(ec, f1[i], ec.G))
-            B3.append(mult(ec, f3[i], ec.G))
+            B1.append(mult(ec, f1[i]))
+            B3.append(mult(ec, f3[i]))
 
         # he checks the others' values
         # player one
         RHS3 = 1, 0
         for i in range(t):
             RHS3 = ec.add(RHS3, mult(ec, pow(1, i), B3[i]))
-        assert mult(ec, beta31, ec.G) == RHS3, 'player three is cheating'
+        assert mult(ec, beta31) == RHS3, 'player three is cheating'
 
         # player three
         RHS1 = 1, 0
         for i in range(t):
             RHS1 = ec.add(RHS1, mult(ec, pow(3, i), B1[i]))
-        assert mult(ec, beta13, ec.G) == RHS1, 'player one is cheating'
+        assert mult(ec, beta13) == RHS1, 'player one is cheating'
 
         B: List[Point] = list()  # commitment at the global sharing polynomial
         for i in range(t):
@@ -675,7 +675,7 @@ class TestEcssa(unittest.TestCase):
                 temp = double_mult(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i])
                 RHS3 = ec.add(RHS3, temp)
 
-        assert mult(ec, gamma3, ec.G) == RHS3, 'player three is cheating'
+        assert mult(ec, gamma3) == RHS3, 'player three is cheating'
 
         # player three
         if legendre_symbol(K[1], ec._p) == 1:
@@ -690,7 +690,7 @@ class TestEcssa(unittest.TestCase):
                 temp = double_mult(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i])
                 RHS1 = ec.add(RHS1, temp)
 
-        assert mult(ec, gamma1, ec.G) == RHS1, 'player two is cheating'
+        assert mult(ec, gamma1) == RHS1, 'player two is cheating'
 
         ### PHASE FOUR: aggregating the signature ###
         omega1 = 3 * mod_inv(3 - 1, ec.n) % ec.n
@@ -721,21 +721,21 @@ class TestEcssa(unittest.TestCase):
 
         # first signer
         q1 = int_from_octets('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
-        Q1 = mult(ec, q1, ec.G)
+        Q1 = mult(ec, q1)
         k1 = rfc6979(ec, hf, M, q1)
-        K1 = mult(ec, k1, ec.G)
+        K1 = mult(ec, k1)
 
         # second signer
         q2 = int_from_octets('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
-        Q2 = mult(ec, q2, ec.G)
+        Q2 = mult(ec, q2)
         k2 = rfc6979(ec, hf, M, q2)
-        K2 = mult(ec, k2, ec.G)
+        K2 = mult(ec, k2)
 
         # third signer
         q3 = int_from_octets('0c28fca386c7aff7600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
-        Q3 = mult(ec, q3, ec.G)
+        Q3 = mult(ec, q3)
         k3 = rfc6979(ec, hf, M, q3)
-        K3 = mult(ec, k3, ec.G)
+        K3 = mult(ec, k3)
 
         # this is MuSig core: the rest is just Schnorr signature additivity
         L: List[Point] = list()  # multiset of public keys

@@ -36,7 +36,7 @@ being stripped of leading/trailing white spaces)
 from hashlib import sha256
 from typing import Union, Optional
 
-from btclib.utils import double_sha256
+from .utils import double_sha256
 
 # used digits
 __digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'

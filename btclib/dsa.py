@@ -19,10 +19,10 @@
 
 from typing import Tuple, List, Optional
 
-from btclib.numbertheory import mod_inv
-from btclib.utils import int_from_bits, HashF
-from btclib.curve import Point, Curve, _mult_jac, _double_mult, double_mult
-from btclib.rfc6979 import _rfc6979
+from .numbertheory import mod_inv
+from .utils import int_from_bits, HashF
+from .curve import Point, Curve, _mult_jac, _double_mult, double_mult
+from .rfc6979 import _rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
@@ -130,7 +130,7 @@ def _verhlp(ec: Curve, c: int, P: Point, sig: ECDS) -> bool:
     u = c*w
     v = r*w                                              # 4
     # Let R = u*G + v*P.
-    RJ = _double_mult(ec, u, ec.GJ, v, (P[0], P[1], 1))  # 5
+    RJ = _double_mult(ec, v, (P[0], P[1], 1), u, ec.GJ)  # 5
 
     # Fail if infinite(R).
     assert RJ[2] != 0, "how did you do that?!?"          # 5
@@ -142,7 +142,10 @@ def _verhlp(ec: Curve, c: int, P: Point, sig: ECDS) -> bool:
 
 
 def pubkey_recovery(ec: Curve, hf: HashF, m: bytes, sig: ECDS) -> List[Point]:
-    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6)."""
+    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
+    
+    See also https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106    
+    """
 
     # The message digest mhd: a 32-byte array
     mhd = hf(m).digest()                                  # 1.5
@@ -167,11 +170,11 @@ def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> List[Point]:
             x %= ec._p
             R = x, ec.y_odd(x, 1)                           # 1.2, 1.3, and 1.4
             # skip 1.5: in this function, c is an input
-            Q = double_mult(ec, r1s, R, r1e, ec.G)          # 1.6.1
+            Q = double_mult(ec, r1s, R, r1e)                # 1.6.1
             if Q[1] != 0 and _verhlp(ec, c, Q, sig):        # 1.6.2
                 keys.append(Q)
             R = ec.opposite(R)                              # 1.6.3
-            Q = double_mult(ec, r1s, R, r1e, ec.G)
+            Q = double_mult(ec, r1s, R, r1e)
             if Q[1] != 0 and _verhlp(ec, c, Q, sig):        # 1.6.2
                 keys.append(Q)                              # 1.6.2
         except Exception:  # R is not a curve point

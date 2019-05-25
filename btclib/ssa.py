@@ -19,12 +19,11 @@ import heapq
 import random
 from typing import Tuple, List, Sequence, Optional
 
-from btclib.numbertheory import mod_inv, legendre_symbol
-from btclib.curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
+from .numbertheory import mod_inv, legendre_symbol
+from .curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
     _jac_from_aff, _multi_mult
-from btclib.utils import int_from_bits, octets_from_point, \
-    octets_from_int, HashF
-from btclib.rfc6979 import rfc6979
+from .utils import int_from_bits, octets_from_point, octets_from_int, HashF
+from .rfc6979 import rfc6979
 
 ECSS = Tuple[int, int]  # Tuple[field element, scalar]
 
@@ -74,7 +73,7 @@ def sign(ec: Curve,
     # The secret key d: an integer in the range 1..n-1.
     if not 0 < d < ec.n:
         raise ValueError(f"private key {hex(d)} not in [1, n-1]")
-    P = mult(ec, d, ec.G)
+    P = mult(ec, d)
 
     # Fail if k' = 0.
     if k is None:
@@ -147,7 +146,7 @@ def _verify(ec: Curve,
 
     # Let R = sG - eP.
     # in Jacobian coordinates
-    R = _double_mult(ec, s, ec.GJ, -e, (P[0], P[1], 1))
+    R = _double_mult(ec, -e, (P[0], P[1], 1), s, ec.GJ)
 
     # Fail if infinite(R).
     if R[2] == 0:
@@ -175,7 +174,7 @@ def _pubkey_recovery(ec: Curve,
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
-    P = double_mult(ec, e1*s, ec.G, -e1, K)
+    P = double_mult(ec, -e1, K, e1*s)
     assert P[1] != 0, "how did you do that?!?"
     return P
 

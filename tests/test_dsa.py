@@ -23,7 +23,7 @@ class TestDSA(unittest.TestCase):
         ec = secp256k1
         hf = sha256
         q = 0x1
-        Q = mult(ec, q, ec.G)
+        Q = mult(ec, q)
         msg = 'Satoshi Nakamoto'.encode()
         sig = dsa.sign(ec, hf, msg, q)
         # https://bitcointalk.org/index.php?topic=285142.40
@@ -56,7 +56,7 @@ class TestDSA(unittest.TestCase):
         self.assertRaises(TypeError, dsa._verify, ec, hf, msg, Q, fdsasig)
 
         fq = 0x4
-        fQ = mult(ec, fq, ec.G)
+        fQ = mult(ec, fq)
         self.assertFalse(dsa.verify(ec, hf, msg, fQ, sig))
         self.assertFalse(dsa._verify(ec, hf, msg, fQ, sig))
 
@@ -93,7 +93,7 @@ class TestDSA(unittest.TestCase):
         dU = 971761939728640320549601132085879836204587084162
         self.assertEqual(format(dU, str(ec.psize)+'x'),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
-        QU = mult(ec, dU, ec.G)
+        QU = mult(ec, dU)
         self.assertEqual(QU,
                          (466448783855397898016055842232266600516272889280,
                           1110706324081757720403272427311003102474457754220))
@@ -124,7 +124,7 @@ class TestDSA(unittest.TestCase):
 
         u1 = 1
         u2 = 2  # pick them at will
-        R = double_mult(ec, u1, ec.G, u2, P)
+        R = double_mult(ec, u2, P, u1)
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
@@ -134,7 +134,7 @@ class TestDSA(unittest.TestCase):
 
         u1 = 1234567890
         u2 = 987654321  # pick them at will
-        R = double_mult(ec, u1, ec.G, u2, P)
+        R = double_mult(ec, u2, P, u1)
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
@@ -151,10 +151,10 @@ class TestDSA(unittest.TestCase):
         for ec in low_card_curves:  # only low card or it would take forever
             if ec._p in prime:  # only few curves or it would take too long
                 for d in range(1, ec.n):  # all possible private keys
-                    P = mult(ec, d, ec.G)  # public key
+                    P = mult(ec, d)  # public key
                     for e in range(ec.n):  # all possible int from hash
                         for k in range(1, ec.n):  # all possible ephemeral keys
-                            R = mult(ec, k, ec.G)
+                            R = mult(ec, k)
 
                             r = R[0] % ec.n
                             if r == 0:
@@ -187,7 +187,7 @@ class TestDSA(unittest.TestCase):
         ec = secp112r2
         hf = sha256
         q = 0x1
-        Q = mult(ec, q, ec.G)
+        Q = mult(ec, q)
         msg = 'Satoshi Nakamoto'.encode()
         sig = dsa.sign(ec, hf, msg, q)
 

@@ -13,9 +13,9 @@ from hashlib import sha256
 from typing import Sequence, Tuple, List, Dict
 from collections import defaultdict
 
-from btclib.curve import Point, mult, double_mult    
-from btclib.curves import secp256k1    
-from btclib.utils import int_from_bits, octets_from_point, point_from_octets
+from .curve import Point, mult, double_mult    
+from .curves import secp256k1    
+from .utils import int_from_bits, octets_from_point, point_from_octets
 
 # FIXME: should be urandom, but then tests would be non-deterministic
 random.seed(42)
@@ -72,13 +72,13 @@ def sign(msg: bytes,
         e[i] = [0]*keys_size
         j_star = sign_key_idx[i]
         start_idx = (j_star + 1) % keys_size
-        R = octets_from_point(ec, mult(ec, k[i], ec.G), True)
+        R = octets_from_point(ec, mult(ec, k[i]), True)
         if start_idx != 0:
             for j in range(start_idx, keys_size):
                 s[i][j] = random.getrandbits(256)
                 e[i][j] = int_from_bits(ec, _hash(m, R, i, j))
                 assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
-                T = double_mult(ec, s[i][j], ec.G, -e[i][j], pubk_rings[i][j])
+                T = double_mult(ec, -e[i][j], pubk_rings[i][j], s[i][j])
                 R = octets_from_point(ec, T, True)
         e0bytes += R
     e0 = hf(e0bytes).digest()
@@ -89,7 +89,7 @@ def sign(msg: bytes,
         j_star = sign_key_idx[i]
         for j in range(1, j_star+1):
             s[i][j-1] = random.getrandbits(256)
-            T = double_mult(ec, s[i][j-1], ec.G, -e[i][j-1], pubk_rings[i][j-1])
+            T = double_mult(ec, -e[i][j-1], pubk_rings[i][j-1], s[i][j-1])
             R = octets_from_point(ec, T, True)
             e[i][j] = int_from_bits(ec, _hash(m, R, i, j))
             assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
@@ -128,7 +128,7 @@ def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
         assert e[i][0] != 0, "invalid sig: how did you do that?!?"
         R = b'\0x00'
         for j in range(keys_size):
-            T = double_mult(ec, s[i][j], ec.G, -e[i][j], pubk_rings[i][j])
+            T = double_mult(ec, -e[i][j], pubk_rings[i][j], s[i][j])
             R = octets_from_point(ec, T, True)
             if j != len(pubk_rings[i])-1:
                 e[i][j+1] = int_from_bits(ec, _hash(m, R, i, j+1))

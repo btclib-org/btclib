@@ -16,11 +16,11 @@ Electrum mnemonic is versioned, conveying BIP32 derivation rule too.
 from hashlib import sha512, pbkdf2_hmac
 import hmac
 
-from btclib.entropy import Entropy, GenericEntropy, _int_from_entropy, \
+from .entropy import Entropy, GenericEntropy, _int_from_entropy, \
     str_from_entropy
-from btclib.mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
+from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
     indexes_from_mnemonic, entropy_from_indexes, Mnemonic, _seed_from_mnemonic
-from btclib import bip32
+from . import bip32
 
 ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
                               'segwit': '100',

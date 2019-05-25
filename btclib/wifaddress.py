@@ -16,10 +16,10 @@ and public keys (addresses).
 
 from typing import Tuple
 
-from btclib import base58
-from btclib.curve import Point, mult
-from btclib.curves import secp256k1 as ec
-from btclib.utils import Octets, int_from_octets, octets_from_int, \
+from . import base58
+from .curve import Point, mult
+from .curves import secp256k1 as ec
+from .utils import Octets, int_from_octets, octets_from_int, \
                          octets_from_point, h160
 
 
@@ -83,5 +83,5 @@ def address_from_wif(wif: Octets) -> bytes:
     """Return the address corresponding to a WIF."""
 
     prv, compressed = prvkey_from_wif(wif)
-    pub = mult(ec, prv, ec.G)
+    pub = mult(ec, prv)
     return address_from_pubkey(pub, compressed)

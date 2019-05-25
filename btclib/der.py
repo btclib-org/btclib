@@ -38,8 +38,8 @@
 
 from typing import Tuple
 
-from btclib.curve import Curve
-from btclib.dsa import ECDS, _to_sig
+from .curve import Curve
+from .dsa import ECDS, _to_sig
 
 sighash_all = b'\x01'
 sighash_none = b'\x02'

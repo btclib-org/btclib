@@ -35,12 +35,11 @@ with e = hash(R||c)) and W.x being known from the signature.
 
 from typing import Optional, Tuple
 
-from btclib.curve import Curve, mult, Point
-from btclib.utils import int_from_bits, point_from_octets, \
-    octets_from_point, HashF
-from btclib.rfc6979 import rfc6979
-from btclib import dsa
-from btclib import ssa
+from .curve import Curve, mult, Point
+from .utils import int_from_bits, point_from_octets, octets_from_point, HashF
+from .rfc6979 import rfc6979
+from . import dsa
+from . import ssa
 
 # commitment receipt
 Receipt = Tuple[int, Point]
@@ -53,7 +52,7 @@ def _tweak(ec: Curve, hf: HashF, c: bytes, k: int) -> Tuple[Point, int]:
     - the point kG to tweak
     - tweaked private key k + hash(kG||c)
     """
-    R = mult(ec, k, ec.G)
+    R = mult(ec, k)
     e = hf(octets_from_point(ec, R, True) + c).digest()
     e = int.from_bytes(e, 'big')
     return R, (e + k) % ec.n
@@ -112,7 +111,7 @@ def verify_commit(ec: Curve, hf: HashF, c: bytes, receipt: Receipt) -> bool:
     ch = hf(c).digest()
     e = hf(octets_from_point(ec, R, True) + ch).digest()
     e = int_from_bits(ec, e)
-    W = ec.add(R, mult(ec, e, ec.G))
+    W = ec.add(R, mult(ec, e))
     # different verify functions?
     # return w == W[0] # ECSS
     return w == W[0] % ec.n  # ECDS, FIXME: ECSSA

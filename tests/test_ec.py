@@ -102,11 +102,11 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_all_curves(self):
         for ec in all_curves:
-            self.assertEqual(mult(ec, 0, ec.G), Inf)
-            self.assertEqual(mult(ec, 0, ec.G), Inf)
+            self.assertEqual(mult(ec, 0), Inf)
+            self.assertEqual(mult(ec, 0), Inf)
 
-            self.assertEqual(mult(ec, 1, ec.G), ec.G)
-            self.assertEqual(mult(ec, 1, ec.G), ec.G)
+            self.assertEqual(mult(ec, 1), ec.G)
+            self.assertEqual(mult(ec, 1), ec.G)
 
             Gy_odd = ec.y_odd(ec.G[0], True)
             self.assertEqual(Gy_odd % 2, 1)
@@ -130,11 +130,11 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(P, Inf)
 
             P = ec.add(ec.G, ec.G)
-            self.assertEqual(P, mult(ec, 2, ec.G))
+            self.assertEqual(P, mult(ec, 2))
 
-            P = mult(ec, ec.n-1, ec.G)
+            P = mult(ec, ec.n-1)
             self.assertEqual(ec.add(P, ec.G), Inf)
-            self.assertEqual(mult(ec, ec.n, ec.G), Inf)
+            self.assertEqual(mult(ec, ec.n), Inf)
 
             self.assertEqual(mult(ec, 0, Inf), Inf)
             self.assertEqual(mult(ec, 1, Inf), Inf)
@@ -148,7 +148,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_octets2point(self):
         for ec in all_curves:
-            Q = mult(ec, ec._p, ec.G)  # just a random point, not Inf
+            Q = mult(ec, ec._p)  # just a random point, not Inf
 
             Q_bytes = b'\x03' if Q[1] & 1 else b'\x02'
             Q_bytes += Q[0].to_bytes(ec.psize, "big")
@@ -179,7 +179,7 @@ class TestEllipticCurve(unittest.TestCase):
 
             # scalar in point multiplication can be int, str, or bytes
             t = tuple()
-            self.assertRaises(TypeError, mult, ec, t, ec.G)
+            self.assertRaises(TypeError, mult, ec, t)
 
             # not a compressed point
             Q_bytes = b'\x01' * (ec.psize+1)
@@ -210,7 +210,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_opposite(self):
         for ec in all_curves:
-            Q = mult(ec, ec._p, ec.G)  # just a random point, not Inf
+            Q = mult(ec, ec._p)  # just a random point, not Inf
             minus_Q = ec.opposite(Q)
             self.assertEqual(ec.add(Q, minus_Q), Inf)
             # jacobian coordinates
@@ -235,7 +235,7 @@ class TestEllipticCurve(unittest.TestCase):
                 hasRoot.add(i*i % ec._p)
 
             # test phase
-            Q = mult(ec, ec._p, ec.G)  # just a random point, not Inf
+            Q = mult(ec, ec._p)  # just a random point, not Inf
             x = Q[0]
             if ec._p % 4 == 3:
                 quad_res = ec.y_quadratic_residue(x, True)
@@ -302,7 +302,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_aff_jac_conversions(self):
         for ec in all_curves:
-            Q = mult(ec, ec._p, ec.G)  # random point
+            Q = mult(ec, ec._p)  # random point
             checkQ = ec._aff_from_jac(_jac_from_aff(Q))
             self.assertEqual(Q, checkQ)
         # with only the last curve
@@ -311,7 +311,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_add(self):
         for ec in all_curves:
-            Q1 = mult(ec, ec._p, ec.G)  # just a random point, not Inf
+            Q1 = mult(ec, ec._p)  # just a random point, not Inf
             Q1J = _jac_from_aff(Q1)
 
             # distinct points
@@ -353,17 +353,14 @@ class TestEllipticCurve(unittest.TestCase):
         ec = ec23_31
         for k1 in range(ec.n):
             for k2 in range(ec.n):
-                shamir = double_mult(ec, k1, ec.G, k2, ec.G)
-                std = ec.add(mult(ec, k1, ec.G),
-                             mult(ec, k2, ec.G))
+                shamir = double_mult(ec, k1, ec.G, k2)
+                std = ec.add(mult(ec, k1), mult(ec, k2))
                 self.assertEqual(shamir, std)
-                shamir = double_mult(ec, k1, Inf, k2, ec.G)
-                std = ec.add(mult(ec, k1, Inf),
-                             mult(ec, k2, ec.G))
+                shamir = double_mult(ec, k1, Inf, k2)
+                std = ec.add(mult(ec, k1, Inf), mult(ec, k2))
                 self.assertEqual(shamir, std)
                 shamir = double_mult(ec, k1, ec.G, k2, Inf)
-                std = ec.add(mult(ec, k1, ec.G),
-                             mult(ec, k2, Inf))
+                std = ec.add(mult(ec, k1), mult(ec, k2, Inf))
                 self.assertEqual(shamir, std)
 
     def test_boscoster(self):
@@ -377,7 +374,7 @@ class TestEllipticCurve(unittest.TestCase):
 
         P = [ec.G] * len(k)
         boscoster = multi_mult(ec, k, P)
-        self.assertEqual(boscoster, mult(ec, ksum, ec.G))
+        self.assertEqual(boscoster, mult(ec, ksum))
 
         # mismatch between scalar length and Points length
         P = [ec.G] * (len(k)-1)

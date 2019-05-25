@@ -30,9 +30,9 @@ It is crucial for H to be Nothing-Up-My-Sleeve (NUMS), i.e.
 the discrete logarithm of H with respect to G must be unknown.
 """
 
-from btclib.utils import int_from_octets, octets_from_point, \
+from .utils import int_from_octets, octets_from_point, \
     int_from_bits, HashF
-from btclib.curve import Point, Curve, double_mult
+from .curve import Point, Curve, double_mult
 
 def second_generator(ec: Curve, hf: HashF) -> Point:
     """Second (with respect to G) elliptic curve generator.
@@ -70,7 +70,7 @@ def commit(r: int, v: int, ec: Curve, hf: HashF) -> Point:
     """
 
     H = second_generator(ec, hf)
-    Q = double_mult(ec, r, ec.G, v, H)
+    Q = double_mult(ec, v, H, r)
     assert Q[1] != 0, "how did you do that?!?"
     return Q
 

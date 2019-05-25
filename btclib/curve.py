@@ -14,7 +14,7 @@ from math import sqrt
 import heapq
 from typing import NamedTuple, Tuple, Sequence, List
 
-from btclib.numbertheory import mod_inv, mod_sqrt, legendre_symbol
+from .numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
 class Point(NamedTuple):
     """Elliptic curve point.
@@ -305,15 +305,14 @@ class Curve:
         return root if legendre == quad_res else self._p - root
 
 
-def mult(ec: Curve, n: int, Q: Point) -> Point:
-    """Return the result of the scalar point multiplication.
-    
-    Use Jacobian coordinates for efficient computation;
-    the input point must be on the curve.
-    """
-
-    ec.require_on_curve(Q)
-    QJ = _jac_from_aff(Q)
+def mult(ec: Curve, n: int, Q: Point = None) -> Point:
+    # this function is used by the Curve class; it might be a method...
+    # but it does not need to
+    if Q is None:
+        QJ = ec.GJ
+    else:
+        ec.require_on_curve(Q)
+        QJ = _jac_from_aff(Q)
     R = _mult_jac(ec, n, QJ)
     return ec._aff_from_jac(R)
 
@@ -350,43 +349,42 @@ def _mult_jac(ec: Curve, m: int, Q: _JacPoint) -> _JacPoint:
     return R
 
 
-def double_mult(ec: Curve, u: int, Q: Point, v: int, P: Point) -> Point:
-    """Return the double scalar multiplication u*Q + v*P.
-    
-    Use Shamir trick for efficient computation;
-    the input points must be on the curve.
-    """
+def double_mult(ec: Curve, u: int, H: Point, v: int, Q: Point = None) -> Point:
+    """Shamir trick for efficient computation of u*H + v*Q"""
 
-    ec.require_on_curve(Q)
-    QJ = _jac_from_aff(Q)
+    ec.require_on_curve(H)
+    HJ = _jac_from_aff(H)
 
-    ec.require_on_curve(P)
-    PJ = _jac_from_aff(P)
+    if Q is None:
+        QJ = ec.GJ
+    else:
+        ec.require_on_curve(Q)
+        QJ = _jac_from_aff(Q)
 
-    R = _double_mult(ec, u, QJ, v, PJ)
+    R = _double_mult(ec, u, HJ, v, QJ)
 
     return ec._aff_from_jac(R)
 
 
-def _double_mult(ec: Curve, u: int, QJ: _JacPoint,
-                           v: int, PJ: _JacPoint) -> _JacPoint:
+def _double_mult(ec: Curve, u: int, HJ: _JacPoint,
+                            v: int, QJ: _JacPoint) -> _JacPoint:
 
     u %= ec.n
-    if u == 0 or QJ[2] == 0:
-        return _mult_jac(ec, v, PJ)
+    if u == 0 or HJ[2] == 0:
+        return _mult_jac(ec, v, QJ)
 
     v %= ec.n
-    if v == 0 or PJ[2] == 0:
-        return _mult_jac(ec, u, QJ)
+    if v == 0 or QJ[2] == 0:
+        return _mult_jac(ec, u, HJ)
 
     R = 1, 1, 0  # initialize as infinity point
     msb = max(u.bit_length(), v.bit_length())
     while msb > 0:
         if u >> (msb - 1):  # checking msb
-            R = ec._add_jac(R, QJ)
+            R = ec._add_jac(R, HJ)
             u -= pow(2, u.bit_length() - 1)
         if v >> (msb - 1):  # checking msb
-            R = ec._add_jac(R, PJ)
+            R = ec._add_jac(R, QJ)
             v -= pow(2, v.bit_length() - 1)
         if msb > 1:
             R = ec._add_jac(R, R)

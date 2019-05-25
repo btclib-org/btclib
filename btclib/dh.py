@@ -21,8 +21,8 @@ function to use.
 
 from typing import Callable, Any
 
-from btclib.utils import octets_from_int, int_from_octets, HashF
-from btclib.curve import Curve, Point, mult
+from .utils import octets_from_int, int_from_octets, HashF
+from .curve import Curve, Point, mult
 
 KDF = Callable[[Curve, HashF, bytes, int], Any]
 

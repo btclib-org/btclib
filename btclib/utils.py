@@ -18,7 +18,7 @@ https://www.secg.org/sec1-v2.pdf
 from typing import Union, Callable, Any
 from hashlib import sha256, new
 
-from btclib.curve import Curve, Point
+from .curve import Curve, Point
 
 HashF = Callable[[Any], Any]
 
