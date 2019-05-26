@@ -10,14 +10,14 @@
 
 import unittest
 
-from btclib.utils import h160
+from btclib.utils import h160, double_sha256
 
 class TestUtils(unittest.TestCase):
 
-    def test_h160(self):
+    def test_utils(self):
         s = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
-        h160(s)
-
+        self.assertEqual(h160(s), h160(bytes.fromhex(s)))
+        self.assertEqual(double_sha256(s), double_sha256(bytes.fromhex(s)))
 
 
 if __name__ == "__main__":
