@@ -22,14 +22,14 @@ The library includes:
 - modulo algebra functions (gcd, inverse, legendre symbol, square root)
 - octets / integer / point conversion functions
 - elliptic curve class
-  - fast algebra implemented using Jacobian coordinates
-  - double scalar multiplication (Straus's algorithm, also known as
+- fast algebra implemented using Jacobian coordinates
+- double scalar multiplication (Straus's algorithm, also known as
   Shamir's trick)
-  - multi scalar multiplication (Bos-coster's algorithm)
-  - point simmetry solution: odd/even, low/high, and quadratic residue
-  - available curves: SEC 1 v1 and v2, NIST, Brainpool, and
+- multi scalar multiplication (Bos-coster's algorithm)
+- point simmetry solution: odd/even, low/high, and quadratic residue
+- available curves: SEC 1 v1 and v2, NIST, Brainpool, and
   low cardinality test curves
-- DSA signature and DER encoding
+- DSA signature with (transaction) DER encoding and (message) compact encoding
 - Schnorr signature (according to
   [bip-schnorr](https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki)
   bitcoin standardization)
