@@ -136,10 +136,10 @@ def sign(msg: str, prvkey: int, compressed: bool) -> Tuple[str, str]:
     pubkey = mult(ec, prvkey)
     address = address_from_pubkey(pubkey, compressed, b'\x00')
 
-    bitcoin_msg = _magic_hash(msg)
-    sig = dsa.sign(ec, hf, bitcoin_msg, prvkey)
+    magic_msg = _magic_hash(msg)
+    sig = dsa.sign(ec, hf, magic_msg, prvkey)
 
-    pubkeys = dsa.pubkey_recovery(ec, hf, bitcoin_msg, sig)
+    pubkeys = dsa.pubkey_recovery(ec, hf, magic_msg, sig)
     sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
     for i in range(len(pubkeys)):
         if pubkeys[i] == pubkey:
@@ -171,8 +171,8 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
 
     r = int.from_bytes(sig[1:33], 'big')
     s = int.from_bytes(sig[33:], 'big')
-    bitcoin_msg = _magic_hash(msg)
-    pubkeys = dsa.pubkey_recovery(ec, hf, bitcoin_msg, (r, s))
+    magic_msg = _magic_hash(msg)
+    pubkeys = dsa.pubkey_recovery(ec, hf, magic_msg, (r, s))
 
     rf = int.from_bytes(sig[0:1], 'big')
     # i selects which key is recovered
