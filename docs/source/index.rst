@@ -12,7 +12,7 @@ python3 -m pip install --upgrade btclib
 ```
 
 Originally developed for the
-[_Bitcoin and Blockchain Technology Course_](https://www.ametrano.net/bbt/)
+[Bitcoin and Blockchain Technology](https://www.ametrano.net/bbt/) course
 at Milano Bicocca and Politecnico di Milano, its algorithms are not intended
 for production environments: they could be broken using side-channel attacks;
 moreover, they are often refactored without care for backward compatibility.
@@ -24,11 +24,11 @@ The library includes:
 - elliptic curve class
   - fast algebra implemented using Jacobian coordinates
   - double scalar multiplication (Straus's algorithm, also known as
-    Shamir's trick)
+  Shamir's trick)
   - multi scalar multiplication (Bos-coster's algorithm)
   - point simmetry solution: odd/even, low/high, and quadratic residue
   - available curves: SEC 1 v1 and v2, NIST, Brainpool, and
-    low cardinality test curves
+  low cardinality test curves
 - DSA signature and DER encoding
 - Schnorr signature (according to
   [bip-schnorr](https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki)

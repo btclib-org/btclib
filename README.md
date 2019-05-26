@@ -22,7 +22,7 @@ python3 -m pip install --upgrade btclib
 ```
 
 Originally developed for the
-[_Bitcoin and Blockchain Technology Course_](https://www.ametrano.net/bbt/)
+[_Bitcoin and Blockchain Technology_](https://www.ametrano.net/bbt/) course
 at Milano Bicocca and Politecnico di Milano, its algorithms are not intended
 for production environments: they could be broken using side-channel attacks;
 moreover, they are often refactored without care for backward compatibility.
