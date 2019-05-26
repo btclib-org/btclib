@@ -75,28 +75,42 @@ class TestSignMessage(unittest.TestCase):
         sig = b'HFh0InGTy8lLCs03yoUIpJU6MUbi0La/4abhVxyKcCsoUiF3RM7lg51rCqyoOZ8Yt43h8LZrmj7nwwO3HIfesiw='
         self.assertEqual(mysig[1], sig)
 
+        msg = 'test'
+        mysig = sign(prvkey, msg, compressed)
+        # auto-consistency check
+        self.assertTrue(verify(mysig[0], mysig[1], msg))
+        self.assertEqual(mysig[0], address)
+        sig = b'HJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
+        self.assertEqual(mysig[1], sig)
+
+        # sig is taken from Bitcoin Core
+        # (Electrum does strip leading/trailing spaces)
         msg = ' test '
         mysig = sign(prvkey, msg, compressed)
         # auto-consistency check
         self.assertTrue(verify(mysig[0], mysig[1], msg))
         self.assertEqual(mysig[0], address)
-        sig = b'HJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
+        sig = b'HA59z13/HBhvMMJtNwT6K7vJByE40lQUdqEMYhX2tnZSD+IGQIoBGE+1IYGCHCyqHvTvyGeqJTUx5ywb4StuX0s='
         self.assertEqual(mysig[1], sig)
 
+        # sig is taken from Bitcoin Core
+        # (Electrum does strip leading/trailing spaces)
         msg = 'test '
         mysig = sign(prvkey, msg, compressed)
         # auto-consistency check
         self.assertTrue(verify(mysig[0], mysig[1], msg))
         self.assertEqual(mysig[0], address)
-        sig = b'HJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
+        sig = b'HPp9l2w0LVYB4FYKBahs+k1/Oa08j+NTuzriDpPWnWQmfU0+UsJNLIPI8Q/gekrWPv6sDeYsFSG9VybUKDPGMuo='
         self.assertEqual(mysig[1], sig)
 
+        # sig is taken from Bitcoin Core
+        # (Electrum does strip leading/trailing spaces)
         msg = ' test'
         mysig = sign(prvkey, msg, compressed)
         # auto-consistency check
         self.assertTrue(verify(mysig[0], mysig[1], msg))
         self.assertEqual(mysig[0], address)
-        sig = b'HJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
+        sig = b'G1nGwD/kcMSmsYU6qihV2l2+Pa+7SPP9zyViZ59VER+QL9cJsIAtu1CuxfYDAVt3kgr4t3a/Es3PV82M6z0eQAo='
         self.assertEqual(mysig[1], sig)
 
 
