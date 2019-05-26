@@ -203,14 +203,10 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     magic_msg = _magic_hash(msg)
     pubkeys = dsa.pubkey_recovery(ec, hf, magic_msg, (r, s))
 
-    rf = int.from_bytes(sig[0:1], 'big')
-    # i selects which key is recovered
-    i = (rf - 27) & 3
-    pubkey = pubkeys[i]
-
     # almost any sig/msg pair recovers (a pubkey and) an addr:
     # signature is valid only if the provided addr is matched
     addr = _str_to_bytes(addr)
+    rf = int.from_bytes(sig[0:1], 'big')
     if rf < 27 or rf > 42:
         raise ValueError(f"Unknown recovery flag: {rf}")
     elif rf > 38 or addr.startswith(b'bc1'):
@@ -220,7 +216,9 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     else:
         # verify that input addr is a valid P2PKH addr
         h160 = _h160_from_address(addr)
+        # i selects which key is recovered
+        i = (rf - 27) & 3
         if rf < 31:
-            return h160 == h160_from_pubkey(pubkey, False)
+            return h160 == h160_from_pubkey(pubkeys[i], False)
         else:
-            return h160 == h160_from_pubkey(pubkey, True)
+            return h160 == h160_from_pubkey(pubkeys[i], True)

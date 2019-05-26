@@ -204,6 +204,7 @@ class TestSignMessage(unittest.TestCase):
         sig = 'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
         msg = 'test'
         self.assertRaises(ValueError, _verify, msg, address, sig)
+        self.assertFalse(verify(msg, address, sig))
 
         # same prvkey as above, but regular p2pkh address
         address = address_from_wif(wif)
@@ -215,10 +216,21 @@ class TestSignMessage(unittest.TestCase):
         sig = 'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
         msg = 'test'
         self.assertRaises(ValueError, _verify, msg, address, sig)
+        self.assertFalse(verify(msg, address, sig))
 
         # same prvkey as above, but regular p2pkh address
         address = address_from_wif(wif)
         self.assertTrue(_verify(msg, address, sig))
+
+        # short sig
+        sig = 'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc='
+        self.assertRaises(ValueError, _verify, msg, address, sig)
+        self.assertFalse(verify(msg, address, sig))
+
+        # invalid rf
+        sig = 'GpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU='
+        self.assertRaises(ValueError, _verify, msg, address, sig)
+        self.assertFalse(verify(msg, address, sig))
 
 if __name__ == "__main__":
     # execute only if run as a script
