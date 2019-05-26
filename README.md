@@ -18,7 +18,7 @@ It does not have external requirements or dependencies;
 to install (and upgrade) it:
 
 ```shell
-python3 -m pip install --upgrade btclib
+python -m pip install --upgrade btclib
 ```
 
 Originally developed for the
@@ -37,9 +37,9 @@ The library includes:
     Shamir's trick)
   - multi scalar multiplication (Bos-coster's algorithm)
   - point simmetry solution: odd/even, low/high, and quadratic residue
-  - available curves: SEC 1 v1 and v2, NIST, Brainpool, and
-    low cardinality test curves
-- DSA signature and DER encoding
+- available curves: SEC 1 v1 and v2, NIST, Brainpool, and
+  low cardinality test curves
+- DSA signature with (transaction) DER encoding and (message) compact encoding
 - Schnorr signature (according to
   [bip-schnorr](https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki)
   bitcoin standardization)
@@ -56,7 +56,9 @@ The library includes:
 - [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
   hierarchical deterministic wallets
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
-  mnemonic code for generating deterministic keys
+  wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic code
 
-A very extensive test suite reproduces results from major official sources and [covers 100%](https://coveralls.io/github/dginst/btclib) of the library code base.
+A very extensive test suite reproduces results from major official sources
+and [covers 100%](https://coveralls.io/github/dginst/btclib) of the library
+code base.

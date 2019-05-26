@@ -124,6 +124,14 @@ btclib.rfc6979 module
     :undoc-members:
     :show-inheritance:
 
+btclib.signmessage module
+-------------------------
+
+.. automodule:: btclib.signmessage
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 btclib.signtocontract module
 ----------------------------
 

@@ -29,7 +29,7 @@ ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 def sign(ec: Curve, hf: HashF, m: bytes, q: int,
          k: Optional[int] = None) -> ECDS:
-    """ECDSA signing operation according to SEC 1 v.2.
+    """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
     The message m is first processed by hf, yielding the value
 
@@ -164,19 +164,19 @@ def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> List[Point]:
     r1s = r1*s
     r1e = -r1*c
     keys: List[Point] = list()
-    for j in range(ec.h):                                   # 1
-        x = r + j*ec.n                                      # 1.1
+    for j in range(ec.h):                                 # 1
+        x = (r + j*ec.n) % ec._p                          # 1.1
         try:  #TODO: check test reporting 1, 2, 3, or 4 keys
-            x %= ec._p
-            R = x, ec.y_odd(x, 1)                           # 1.2, 1.3, and 1.4
+            # even root first for bitcoin message signing compatibility
+            R = x, ec.y_odd(x, 0)                         # 1.2, 1.3, and 1.4
             # skip 1.5: in this function, c is an input
-            Q = double_mult(ec, r1s, R, r1e)                # 1.6.1
-            if Q[1] != 0 and _verhlp(ec, c, Q, sig):        # 1.6.2
+            Q = double_mult(ec, r1s, R, r1e)              # 1.6.1
+            if Q[1] != 0 and _verhlp(ec, c, Q, sig):      # 1.6.2
                 keys.append(Q)
-            R = ec.opposite(R)                              # 1.6.3
+            R = ec.opposite(R)                            # 1.6.3
             Q = double_mult(ec, r1s, R, r1e)
-            if Q[1] != 0 and _verhlp(ec, c, Q, sig):        # 1.6.2
-                keys.append(Q)                              # 1.6.2
+            if Q[1] != 0 and _verhlp(ec, c, Q, sig):      # 1.6.2
+                keys.append(Q)                            # 1.6.2
         except Exception:  # R is not a curve point
             pass
     return keys
