@@ -62,6 +62,7 @@ from .wifaddress import address_from_pubkey, h160_from_pubkey, _h160_from_addres
 from . import dsa
 
 def _bitcoin_msg(msg: str) -> bytes:
+    msg = msg.strip()
     message = "\x18Bitcoin Signed Message:\n" + chr(len(msg)) + msg
     return hf(message.encode()).digest()
 
