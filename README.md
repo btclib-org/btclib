@@ -57,7 +57,7 @@ The library includes:
   hierarchical deterministic wallets
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   wordlists and mnemonic for generating deterministic keys
-- [Electrum](https://electrum.org/#home) standard for mnemonic code
+- [Electrum](https://electrum.org/#home) standard for mnemonic
 
 A very extensive test suite reproduces results from major official sources
 and [covers 100%](https://coveralls.io/github/dginst/btclib) of the library
