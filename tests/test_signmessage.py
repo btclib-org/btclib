@@ -19,7 +19,7 @@ class TestSignMessage(unittest.TestCase):
         msg = "test message"
         # sigs are taken from Electrum and Bitcoin Core
 
-        wif = b'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk'
+        wif = 'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk'
         prvkey, compressed = prvkey_from_wif(wif)
         self.assertEqual(prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
         self.assertTrue(compressed)
@@ -31,7 +31,7 @@ class TestSignMessage(unittest.TestCase):
         sig = b"H/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
         self.assertEqual(mysig[1], sig)
 
-        wif = b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
+        wif = '5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
         prvkey, compressed = prvkey_from_wif(wif)
         self.assertEqual(prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
         self.assertFalse(compressed)
@@ -43,7 +43,7 @@ class TestSignMessage(unittest.TestCase):
         sig = b"G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
         self.assertEqual(mysig[1], sig)
 
-        wif = b'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
+        wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         prvkey, compressed = prvkey_from_wif(wif)
         self.assertEqual(prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
         self.assertTrue(compressed)
@@ -55,7 +55,7 @@ class TestSignMessage(unittest.TestCase):
         sig = b"IFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA="
         self.assertEqual(mysig[1], sig)
 
-        wif = b'5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
+        wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         prvkey, compressed = prvkey_from_wif(wif)
         self.assertEqual(prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
         self.assertFalse(compressed)
@@ -66,6 +66,39 @@ class TestSignMessage(unittest.TestCase):
         self.assertEqual(mysig[0], address)
         sig = b"HFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA="
         self.assertEqual(mysig[1], sig)
+
+        msg = ''
+        mysig = sign(prvkey, msg, compressed)
+        # auto-consistency check
+        self.assertTrue(verify(mysig[0], mysig[1], msg))
+        self.assertEqual(mysig[0], address)
+        sig = b'HFh0InGTy8lLCs03yoUIpJU6MUbi0La/4abhVxyKcCsoUiF3RM7lg51rCqyoOZ8Yt43h8LZrmj7nwwO3HIfesiw='
+        self.assertEqual(mysig[1], sig)
+
+        msg = ' test '
+        mysig = sign(prvkey, msg, compressed)
+        # auto-consistency check
+        self.assertTrue(verify(mysig[0], mysig[1], msg))
+        self.assertEqual(mysig[0], address)
+        sig = b'HJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
+        self.assertEqual(mysig[1], sig)
+
+        msg = 'test '
+        mysig = sign(prvkey, msg, compressed)
+        # auto-consistency check
+        self.assertTrue(verify(mysig[0], mysig[1], msg))
+        self.assertEqual(mysig[0], address)
+        sig = b'HJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
+        self.assertEqual(mysig[1], sig)
+
+        msg = ' test'
+        mysig = sign(prvkey, msg, compressed)
+        # auto-consistency check
+        self.assertTrue(verify(mysig[0], mysig[1], msg))
+        self.assertEqual(mysig[0], address)
+        sig = b'HJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
+        self.assertEqual(mysig[1], sig)
+
 
     def test_verifymsgsig(self):
         msg = 'Hello, world!'
