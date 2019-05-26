@@ -14,7 +14,7 @@ The library includes:
   - double scalar multiplication (Shamir's trick)
   - point simmetry solution: odd/even, high/low, and quadratic residue
   - available curves: SEC 1 v1 and v2, NIST, Brainpool, and low cardinality test curves
-- ECDSA signature and DER encoding
+- DSA signature with (transaction) DER encoding and (message) compact encoding
 - EC sign-to-contract notarization
 - EC Schnorr signature (according to bip-schnorr bitcoin standardization)
   - batch validation

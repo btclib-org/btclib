@@ -70,11 +70,11 @@ from . import dsa
 
 def _bitcoin_msg(msg: str) -> bytes:
     # Electrum does strip leading and trailing spaces; bitcoin core does not
-    #msg = msg.strip()
+    # msg = msg.strip()
     message = "\x18Bitcoin Signed Message:\n" + chr(len(msg)) + msg
     return hf(message.encode()).digest()
 
-def sign(prvkey: int, msg: str, compressed: bool) -> Tuple[str, str]:
+def sign(msg: str, prvkey: int, compressed: bool) -> Tuple[str, str]:
 
     pubkey = mult(ec, prvkey)
     address = address_from_pubkey(pubkey, compressed, b'\x00')
@@ -94,17 +94,17 @@ def sign(prvkey: int, msg: str, compressed: bool) -> Tuple[str, str]:
     # the following line should never be executed
     raise ValueError("Public key could not be recovered")
 
-def verify(address: bytes, sig: bytes, msg: str) -> bool:
+def verify(msg: str, address: bytes, sig: bytes) -> bool:
     """Verify Bitcoin compact signature for a given address/message pair."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(address, sig, msg)
+        return _verify(msg, address, sig)
     except Exception:
         return False
 
 
-def _verify(address: bytes, sig: bytes, msg: str) -> bool:
+def _verify(msg: str, address: bytes, sig: bytes) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
