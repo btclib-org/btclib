@@ -29,7 +29,7 @@ ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 def sign(ec: Curve, hf: HashF, m: bytes, q: int,
          k: Optional[int] = None) -> ECDS:
-    """ECDSA signing operation according to SEC 1 v.2.
+    """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
     The message m is first processed by hf, yielding the value
 
