@@ -11,7 +11,7 @@
 import unittest
 
 from btclib.signmessage import sign, verify, _verify
-from btclib.wifaddress import prvkey_from_wif
+from btclib.wifaddress import prvkey_from_wif, address_from_wif
 
 
 class TestSignMessage(unittest.TestCase):
@@ -184,6 +184,40 @@ class TestSignMessage(unittest.TestCase):
         address = '1LsPb3D1o1Z7CzEt1kv5QVxErfqzXxaZXv'
         sig = 'H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As='
         msg = 'testtest'
+        self.assertTrue(_verify(msg, address, sig))
+
+        # leading space
+        sig = ' H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As='
+        self.assertTrue(_verify(msg, address, sig))
+
+        # trailing space
+        sig = 'H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As= '
+        self.assertTrue(_verify(msg, address, sig))
+
+        # leading and trailing spaces
+        sig = ' H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As= '
+        self.assertTrue(_verify(msg, address, sig))
+
+        # p2wpkh bech32 address
+        wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
+        address = 'bc1qz0knqc5dhlgvalc3z77898thhvqek6v6j0j5zj'
+        sig = 'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
+        msg = 'test'
+        self.assertRaises(ValueError, _verify, msg, address, sig)
+
+        # same prvkey as above, but regular p2pkh address
+        address = address_from_wif(wif)
+        self.assertTrue(_verify(msg, address, sig))
+
+        # p2wpkh-p2sh address
+        wif = 'KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu'
+        address = '34FTAdfxN1oDQnLWMokUhHZ263ocodbyen'
+        sig = 'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
+        msg = 'test'
+        self.assertRaises(ValueError, _verify, msg, address, sig)
+
+        # same prvkey as above, but regular p2pkh address
+        address = address_from_wif(wif)
         self.assertTrue(_verify(msg, address, sig))
 
 if __name__ == "__main__":
