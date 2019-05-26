@@ -37,19 +37,19 @@ The resulting 64 bytes (r, s) signature is serialized as
 informations during verification process about which of the recovered
 public keys will have to be used and if the corresponding address is
 compressed or not. Namely, the recovery flag value is
-    27 + (IF compressed THEN 4 ELSE 0) + recid
+    27 + (IF compressed THEN 4 ELSE 0) + key_id
 where:
-- 27 identify a P2PKH address (BIP137 has also proposed 31 for a
-  P2SH Segwit address and 35 for bech32 Segwit address,
-  but this module does not support it yet)
+- 27 identify a P2PKH address (Electrum supports also
+  Segwit P2WPKH-P2SH and P2WPKH, but not according to BIP137;
+  anyway this module and bitcoin core do not support them yet)
 - compressed indicates if the address is the hash of the compressed
   public key representation (Segwit is always compressed)
-- key id is the index in the [0, 3] range identifying which of the
+- key_id is the index in the [0, 3] range identifying which of the
   recovered public keys is the one associated to the address;
   it is stored in the least significant 2 bits of the header
 
 +-----------+--------+--------------------+
-| rec. flag | key id |    address type    |
+| rec. flag | key_id |    address type    |
 +===========+========+====================+
 |     27    |    0   | uncompressed P2PKH |
 |     28    |    1   | uncompressed P2PKH |
@@ -61,15 +61,15 @@ where:
 |     33    |    2   |   compressed P2PKH |
 |     34    |    3   |   compressed P2PKH |
 +-----------+--------+--------------------+
-|     35    |    0   |        P2SH Segwit |
-|     36    |    1   |        P2SH Segwit |
-|     37    |    2   |        P2SH Segwit |
-|     38    |    3   |        P2SH Segwit |
+|     35    |    0   |        P2WPKH-P2SH |
+|     36    |    1   |        P2WPKH-P2SH |
+|     37    |    2   |        P2WPKH-P2SH |
+|     38    |    3   |        P2WPKH-P2SH |
 +-----------+--------+--------------------+
-|     39    |    0   |        bech32      |
-|     40    |    1   |        bech32      |
-|     41    |    2   |        bech32      |
-|     42    |    3   |        bech32      |
+|     39    |    0   |      bech32 P2WPKH |
+|     40    |    1   |      bech32 P2WPKH |
+|     41    |    2   |      bech32 P2WPKH |
+|     42    |    3   |      bech32 P2WPKH |
 +-----------+--------+--------------------+
 
 Finally, the serialize signature can be base64-encoded to transport it
@@ -185,9 +185,9 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     if rf < 27 or rf > 42:
         raise ValueError(f"Unknown recovery flag: {rf}")
     elif rf > 38 or addr.startswith(b'bc1'):
-        raise ValueError("p2wpkh bech32 address not supported yet")
+        raise ValueError("P2WPKH bech32 address not supported yet")
     elif rf > 34 or addr.startswith(b'3'):
-        raise ValueError("p2wpkh-p2sh address not supported yet")
+        raise ValueError("P2WPKH-P2SH address not supported yet")
     else:
         # verify that input addr is a valid P2PKH addr
         h160 = _h160_from_address(addr)
