@@ -59,15 +59,20 @@ def prvkey_from_wif(wif: Octets) -> Tuple[int, bool]:
     return prvkey, compressed
 
 
+def h160_from_pubkey(Q: Point, compressed: bool) -> bytes:
+    """Return the H160(Q)=RIPEMD160(SHA256(Q)) of a public key Q."""
+
+    # also check that the Point is on curve
+    pubkey = octets_from_point(ec, Q, compressed)
+    return h160(pubkey)
+
+
 def address_from_pubkey(Q: Point,
                         compressed: bool,
                         version: bytes = b'\x00') -> bytes:
     """Return the address corresponding to a public key."""
 
-    # also check that the Point is on curve
-    pubkey = octets_from_point(ec, Q, compressed)
-
-    vh160 = version + h160(pubkey)
+    vh160 = version + h160_from_pubkey(Q, compressed)
     return base58.encode_check(vh160)
 
 
