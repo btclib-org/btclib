@@ -10,34 +10,33 @@
 
 """ Bitcoin address-based compact signature for messages.
 
-For message signatures, Bitcoin wallets use an address-based scheme with a
-compact 65 bytes custom signature encoding. Such a signature proves the control
-of the private key corresponding to a given address and, consequently, of the
-associated bitcoins (if any).
-The signature goes along with the address: at verification time public key
-recovery is used, i.e. given a message, the public key that would have created
-that signature is found and compared with the provided address.
+For message signatures, Bitcoin wallets use an address-based scheme with
+a compact 65 bytes custom signature encoding. Such a signature proves
+the control of the private key corresponding to a given address and,
+consequently, of the associated bitcoins (if any). The signature goes
+along with the address: at verification time public key recovery is
+used, i.e. given a message, the public key that would have created that
+signature is found and compared with the provided address.
 
-Note that in the Bitcoin protocol this compact 65 bytes signature encoding is
-only used for messages: for transactions Bitcoin uses DER encoding instead,
-resulting in 71 bytes signatures on average.
+Note that in the Bitcoin protocol this compact 65 bytes signature
+encoding is only used for messages: for transactions Bitcoin uses DER
+encoding instead, resulting in 71 bytes signatures on average.
 
-This scheme being address-based, at signing time it must rely on a wallet
-infrastructure to access the private key corresponding to the provided address.
-For a given message and address, the ECDSA signature of the hash of
-"\x18Bitcoin Signed Message:\n" + chr(len(msg)) + msg is calculated
-(0x18 is just the length of the prefix text); this prefix manipulation avoids
-the plain signature of a possibly deceiving message.
+This scheme being address-based, at signing time it must rely on a
+wallet infrastructure to access the private key corresponding to the
+provided address. For a given message and address, the ECDSA signature
+of the hash of "\0x18Bitcoin Signed Message:\n" + chr(len(msg)) + msg is
+calculated (0x18 is just the length of the prefix text); this prefix
+manipulation avoids the plain signature of a possibly deceiving message.
 Finally, the resulting 64 bytes (r, s) signature is base64-encoded as
-[1 byte][r][s], where the first byte is used to convey
-information in the verification process about which of the
-recovered public keys will have to be used and
-if the corresponding address is compressed or not.
+[1 byte][r][s], where the first byte is used to convey information in
+the verification process about which of the recovered public keys will
+have to be used and if the corresponding address is compressed or not.
 
-Base64-encoding uses 10 digits, 26 lowercase characters,
-26 uppercase characters, '+' (plus sign), and '/' (forward slash);
-equal sign '=' is used as 65th character pad,
-a complement in the final process of encoding a message.
+Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
+characters, '+' (plus sign), and '/' (forward slash); equal sign '=' is
+used as 65th character pad, a complement in the final process of
+message encoding.
 
 https://bitcoin.stackexchange.com/questions/10759/how-does-the-signature-verification-feature-in-bitcoin-qt-work-without-a-public
 https://bitcoin.stackexchange.com/questions/12554/why-the-signature-is-always-65-13232-bytes-long
@@ -60,6 +59,14 @@ from .curve import mult
 from .curves import secp256k1 as ec
 from .wifaddress import address_from_pubkey, h160_from_pubkey, _h160_from_address
 from . import dsa
+
+# TODO: support msg as bytes
+# TODO: add testnet / regtest / litecoin signature
+# TODO: add small wallet (address <-> private key) infrastructure
+# TODO:                           then also add sign(address, msg)
+# TODO: decouple serialization from address-based signature
+# TODO: add test vectors from P. Todd's library
+# TODO: report Electrum bug
 
 def _bitcoin_msg(msg: str) -> bytes:
     # Electrum does strip leading and trailing spaces; bitcoin core does not

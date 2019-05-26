@@ -17,7 +17,7 @@ from btclib.wifaddress import prvkey_from_wif
 class TestSignMessage(unittest.TestCase):
     def test_signmessage(self):
         msg = "test message"
-        # sigs are taken from Electrum and Bitcoin Core
+        # sigs are taken from (Electrum and) Bitcoin Core
 
         wif = 'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk'
         prvkey, compressed = prvkey_from_wif(wif)
