@@ -14,10 +14,10 @@ For message signatures, Bitcoin wallets use a P2PKH address-based scheme
 with a compact 65 bytes custom signature encoding.
 As it is the case for all digital signature scheme, this scheme actually
 works with keys, not addresses: it uses a P2PKH address to uniquely
-identify a private/public keypair:
-it proves the control of the private key corresponding to
+identify a private/public keypair.
+This signature proves the control of the private key corresponding to
 a given address and, consequently, of the associated bitcoins (if any).
-The signature goes along with the address: at verification time
+The signature goes along with its address: at verification time
 public key recovery is used, i.e. given a message, the public key
 that would have created that signature is found and compared with
 the provided address.
@@ -29,18 +29,21 @@ encoding instead, resulting in 71 bytes signatures on average.
 At signing time a wallet infrastructure is required
 to access the private key corresponding to the
 provided address. For a given message and address, the ECDSA signature
-of the hash of "\x18Bitcoin Signed Message:\n" + chr(len(msg)) + msg is
-calculated (0x18 is just the length of the prefix text); this prefix
+of the hash of "Bitcoin Signed Message" *magic* prefix followed by
+the message is calculated; this prefix
 manipulation avoids the plain signature of a possibly deceiving message.
 The resulting 64 bytes (r, s) signature is serialized as
-[1 byte][r][s], where the first byte is a recovery flag used to provide
-informations during verification process about which of the recovered
-public keys will have to be used and if the corresponding address is
-compressed or not. Namely, the recovery flag value is
+[1 byte][r][s], where the first byte is a recovery flag used
+during the verification process to discriminate among the recovered
+public keys and to manage address compression.
+Explicitly, the recovery flag value is:
+
     27 + (IF compressed THEN 4 ELSE 0) + key_id
+
 where:
-- 27 identify a P2PKH address (Electrum supports also
-  Segwit P2WPKH-P2SH and P2WPKH, but not according to BIP137;
+
+- 27 identify a P2PKH address (Electrum also supports Segwit P2WPKH-P2SH
+  and P2WPKH, but not according to the BIP137 specifications;
   anyway this module and bitcoin core do not support them yet)
 - compressed indicates if the address is the hash of the compressed
   public key representation (Segwit is always compressed)
@@ -51,28 +54,40 @@ where:
 +-----------+--------+--------------------+
 | rec. flag | key_id |    address type    |
 +===========+========+====================+
-|     27    |    0   | uncompressed P2PKH |
-|     28    |    1   | uncompressed P2PKH |
-|     29    |    2   | uncompressed P2PKH |
-|     30    |    3   | uncompressed P2PKH |
+|     27    |    0   | P2PKH uncompressed |
 +-----------+--------+--------------------+
-|     31    |    0   |   compressed P2PKH |
-|     32    |    1   |   compressed P2PKH |
-|     33    |    2   |   compressed P2PKH |
-|     34    |    3   |   compressed P2PKH |
+|     28    |    1   | P2PKH uncompressed |
 +-----------+--------+--------------------+
-|     35    |    0   |        P2WPKH-P2SH |
-|     36    |    1   |        P2WPKH-P2SH |
-|     37    |    2   |        P2WPKH-P2SH |
-|     38    |    3   |        P2WPKH-P2SH |
+|     29    |    2   | P2PKH uncompressed |
 +-----------+--------+--------------------+
-|     39    |    0   |      bech32 P2WPKH |
-|     40    |    1   |      bech32 P2WPKH |
-|     41    |    2   |      bech32 P2WPKH |
-|     42    |    3   |      bech32 P2WPKH |
+|     30    |    3   | P2PKH uncompressed |
++-----------+--------+--------------------+
+|     31    |    0   | P2PKH compressed   |
++-----------+--------+--------------------+
+|     32    |    1   | P2PKH compressed   |
++-----------+--------+--------------------+
+|     33    |    2   | P2PKH compressed   |
++-----------+--------+--------------------+
+|     34    |    3   | P2PKH compressed   |
++-----------+--------+--------------------+
+|     35    |    0   | P2WPKH-P2SH        |
++-----------+--------+--------------------+
+|     36    |    1   | P2WPKH-P2SH        |
++-----------+--------+--------------------+
+|     37    |    2   | P2WPKH-P2SH        |
++-----------+--------+--------------------+
+|     38    |    3   | P2WPKH-P2SH        |
++-----------+--------+--------------------+
+|     39    |    0   | P2WPKH (bech32)    |
++-----------+--------+--------------------+
+|     40    |    1   | P2WPKH (bech32)    |
++-----------+--------+--------------------+
+|     41    |    2   | P2WPKH (bech32)    |
++-----------+--------+--------------------+
+|     42    |    3   | P2WPKH (bech32)    |
 +-----------+--------+--------------------+
 
-Finally, the serialize signature can be base64-encoded to transport it
+Finally, the serialized signature can be base64-encoded to transport it
 across channels that are designed to deal with textual data.
 Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
 characters, '+' (plus sign), and '/' (forward slash); equal sign '=' is
@@ -80,25 +95,39 @@ used as 65th character pad, a complement in the final process of
 message encoding.
 
 Warning: one should never sign a vague statement that could be reused
-out of the context it was intended for. E.g. always include
+out of the context it was intended for. E.g. always include at least
+
 - your name (nickname, customer id, email, etc.)
 - date and time
 - who the message is intended for (name, business name, email, etc.)
 - specific purpose of the message
 
 https://bitcoin.stackexchange.com/questions/10759/how-does-the-signature-verification-feature-in-bitcoin-qt-work-without-a-public
+
 https://bitcoin.stackexchange.com/questions/12554/why-the-signature-is-always-65-13232-bytes-long
+
 https://bitcoin.stackexchange.com/questions/34135/what-is-the-strmessagemagic-good-for
+
 https://bitcoin.stackexchange.com/questions/36838/why-does-the-standard-bitcoin-message-signature-include-a-message-prefix
+
 https://bitcoin.stackexchange.com/questions/68844/explicit-message-length-in-bitcoin-signed-message
+
 https://github.com/bitcoinjs/bitcoinjs-lib/blob/1079bf95c1095f7fb018f6e4757277d83b7b9d07/src/message.js#L13
+
 https://bitcointalk.org/index.php?topic=6428
+
 https://bitcointalk.org/index.php?topic=6430
+
 https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106?newreg=670c5855241d4340af0cbbc960fd2dc3
+
 https://github.com/bitcoin/bitcoin/pull/524
+
 https://www.reddit.com/r/Bitcoin/comments/bgcgs2/can_bitcoin_core_0171_sign_message_from_segwit/
+
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
+
 https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
+
 """
 
 import base64
