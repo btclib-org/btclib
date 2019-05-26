@@ -103,8 +103,9 @@ https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
 
 import base64
 from hashlib import sha256 as hf
-from typing import Tuple
+from typing import Tuple, Union
 
+from .base58 import _str_to_bytes
 from .curve import mult
 from .curves import secp256k1 as ec
 from .wifaddress import address_from_pubkey, h160_from_pubkey, _h160_from_address
@@ -150,17 +151,17 @@ def sign(msg: str, prvkey: int, compressed: bool) -> Tuple[str, str]:
     # the following line should never be executed
     raise ValueError("Public key not recovered")
 
-def verify(msg: str, address: bytes, sig: bytes) -> bool:
+def verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     """Verify message signature for a given P2PKH address."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(msg, address, sig)
+        return _verify(msg, addr, sig)
     except Exception:
         return False
 
 
-def _verify(msg: str, address: bytes, sig: bytes) -> bool:
+def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -177,18 +178,20 @@ def _verify(msg: str, address: bytes, sig: bytes) -> bool:
     # i selects which key is recovered
     i = (rf - 27) & 3
     pubkey = pubkeys[i]
+
+    # almost any sig/msg pair recovers (a pubkey and) an addr:
+    # signature is valid only if the provided addr is matched
+    addr = _str_to_bytes(addr)
     if rf < 27 or rf > 42:
         raise ValueError(f"Unknown recovery flag: {rf}")
-    elif rf < 35:
-        # verify the input address is a valid P2PKH address
-        h160 = _h160_from_address(address)
-        # almost any sig/msg pair recovers (a pubkey and) an address:
-        # signature is valid only if the provided address is matched
+    elif rf > 38 or addr.startswith(b'bc1'):
+        raise ValueError("p2wpkh bech32 address not supported yet")
+    elif rf > 34 or addr.startswith(b'3'):
+        raise ValueError("p2wpkh-p2sh address not supported yet")
+    else:
+        # verify that input addr is a valid P2PKH addr
+        h160 = _h160_from_address(addr)
         if rf < 31:
             return h160 == h160_from_pubkey(pubkey, False)
         else:
             return h160 == h160_from_pubkey(pubkey, True)
-    elif rf < 39:
-        raise ValueError("P2SH Segwit not supported yet")
-    else:
-        raise ValueError("Bech32 address not supported yet")
