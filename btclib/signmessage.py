@@ -24,7 +24,7 @@ resulting in 71 bytes signatures on average.
 
 This scheme being address-based, at signing time it must rely on a wallet
 infrastructure to access the private key corresponding to the provided address.
-For a given message and address, the ECDSA signature of
+For a given message and address, the ECDSA signature of the hash of
 "\x18Bitcoin Signed Message:\n" + chr(len(msg)) + msg is calculated
 (0x18 is just the length of the prefix text); this prefix manipulation avoids
 the plain signature of a possibly deceiving message.
