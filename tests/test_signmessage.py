@@ -10,13 +10,14 @@
 
 import unittest
 
-from btclib.signmessage import sign, verify
+from btclib.signmessage import sign, verify, _verify
 from btclib.wifaddress import prvkey_from_wif
 
 
 class TestSignMessage(unittest.TestCase):
     def test_signmessage(self):
         msg = "test message"
+        # sigs are taken from Electrum and Bitcoin Core
 
         wif = b'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk'
         prvkey, compressed = prvkey_from_wif(wif)
@@ -27,8 +28,8 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(mysig[0], mysig[1], msg))
         address = b'14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY'
         self.assertEqual(mysig[0], address)
-        sig = "IPn9bbEdNUp6+bneZqE2YJbq9Hv5aNILq9E5eZoMSF3/fBX4zjeIN6fpXfGSGPrZyKfHQ/c/kTSP+NIwmyTzMfk="
-        #self.assertEqual(mysig[1], sig)
+        sig = b"H/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
+        self.assertEqual(mysig[1], sig)
 
         wif = b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
         prvkey, compressed = prvkey_from_wif(wif)
@@ -39,8 +40,8 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(mysig[0], mysig[1], msg))
         address = b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
         self.assertEqual(mysig[0], address)
-        sig = "G0k+Nt1u5boTTUfLyj6x1T5flg1v9rUKGlhs/jPApaTWLHf3GVdAIOIHip6sVwXEuzQGPWIlS0VT+yryXiDaavw="
-        #self.assertEqual(mysig[1], sig)
+        sig = b"G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
+        self.assertEqual(mysig[1], sig)
 
         wif = b'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         prvkey, compressed = prvkey_from_wif(wif)
@@ -51,8 +52,8 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(mysig[0], mysig[1], msg))
         address = b'1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
         self.assertEqual(mysig[0], address)
-        sig = ""
-        #self.assertEqual(mysig[1], sig)
+        sig = b"IFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA="
+        self.assertEqual(mysig[1], sig)
 
         wif = b'5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         prvkey, compressed = prvkey_from_wif(wif)
@@ -63,15 +64,64 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(mysig[0], mysig[1], msg))
         address = b'19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
         self.assertEqual(mysig[0], address)
-        sig = ""
-        #self.assertEqual(mysig[1], sig)
+        sig = b"HFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA="
+        self.assertEqual(mysig[1], sig)
 
     def test_verifymsgsig(self):
-        msg = "Hello, world!"
-        address = b'1FEz167JCVgBvhJBahpzmrsTNewhiwgWVG'
+        msg = 'Hello, world!'
+        address = '1FEz167JCVgBvhJBahpzmrsTNewhiwgWVG'
         sig = "G+WptuOvPCSswt/Ncm1upO4lPSCWbS2cpKariPmHvxX5eOJwgqmdEExMTKvaR0S3f1TXwggLn/m4CbI2jv0SCuM="
-        self.assertTrue(verify(address, sig, msg))
+        _verify(address, sig, msg)
+        self.assertTrue(_verify(address, sig, msg))
 
+        # https://github.com/stequald/bitcoin-sign-message
+        msg = 'test message'
+        address = '14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY'
+        sig = "IPn9bbEdNUp6+bneZqE2YJbq9Hv5aNILq9E5eZoMSF3/fBX4zjeIN6fpXfGSGPrZyKfHQ/c/kTSP+NIwmyTzMfk="
+        self.assertTrue(_verify(address, sig, msg))
+
+        # https://github.com/stequald/bitcoin-sign-message
+        msg = 'test message'
+        address = '1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
+        sig = "G0k+Nt1u5boTTUfLyj6x1T5flg1v9rUKGlhs/jPApaTWLHf3GVdAIOIHip6sVwXEuzQGPWIlS0VT+yryXiDaavw="
+        self.assertTrue(_verify(address, sig, msg))
+
+        # https://github.com/petertodd/python-bitcoinlib/blob/05cbb3c9560b36cfe71bac06085a231a6244e13a/bitcoin/tests/test_signmessage.py
+        address = "1F26pNMrywyZJdr22jErtKcjF8R3Ttt55G"
+        msg = address
+        sig = "H85WKpqtNZDrajOnYDgUY+abh0KCAcOsAIOQwx2PftAbLEPRA7mzXA/CjXRxzz0MC225pR/hx02Vf2Ag2x33kU4="
+        self.assertTrue(_verify(address, sig, msg))
+
+        # https://github.com/nanotube/supybot-bitcoin-marketmonitor/blob/master/GPG/local/bitcoinsig.py
+        address = '16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce'
+        sig = 'HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50='
+        msg = 'test message'
+        self.assertTrue(_verify(address, sig, msg))
+
+        address = '16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce'
+        sig = 'HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50='
+        msg = 'test message 2'
+        self.assertFalse(_verify(address, sig, msg))
+
+        address = '1GdKjTSg2eMyeVvPV5Nivo6kR8yP2GT7wF'
+        sig = 'GyMn9AdYeZIPWLVCiAblOOG18Qqy4fFaqjg5rjH6QT5tNiUXLS6T2o7iuWkV1gc4DbEWvyi8yJ8FvSkmEs3voWE='
+        msg = 'freenode:#bitcoin-otc:b42f7e7ea336db4109df6badc05c6b3ea8bfaa13575b51631c5178a7'
+        self.assertTrue(_verify(address, sig, msg))
+
+        address = '1Hpj6xv9AzaaXjPPisQrdAD2tu84cnPv3f'
+        sig = 'INEJxQnSu6mwGnLs0E8eirl5g+0cAC9D5M7hALHD9sK0XQ66CH9mas06gNoIX7K1NKTLaj3MzVe8z3pt6apGJ34='
+        msg = 'testtest'
+        self.assertTrue(_verify(address, sig, msg))
+
+        address = '18uitB5ARAhyxmkN2Sa9TbEuoGN1he83BX'
+        sig = 'IMAtT1SjRyP6bz6vm5tKDTTTNYS6D8w2RQQyKD3VGPq2i2txGd2ar18L8/nvF1+kAMo5tNc4x0xAOGP0HRjKLjc='
+        msg = 'testtest'
+        self.assertTrue(_verify(address, sig, msg))
+
+        address = '1LsPb3D1o1Z7CzEt1kv5QVxErfqzXxaZXv'
+        sig = 'H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As='
+        msg = 'testtest'
+        self.assertTrue(_verify(address, sig, msg))
 
 if __name__ == "__main__":
     # execute only if run as a script
