@@ -17,24 +17,25 @@ works with keys, not addresses: it uses a P2PKH address to uniquely
 identify a private/public keypair.
 This signature proves the control of the private key corresponding to
 a given address and, consequently, of the associated bitcoins (if any).
-The signature goes along with its address: at verification time
-public key recovery is used, i.e. given a message, the public key
+The signature goes along with its address: public key recovery is used
+at verification time, i.e. given a message, the public key
 that would have created that signature is found and compared with
 the provided address.
 
 Note that in the Bitcoin protocol this compact 65 bytes signature
 encoding is only used for messages: for transactions Bitcoin uses DER
-encoding instead, resulting in 71 bytes signatures on average.
+encoding instead, resulting in 71 bytes average signature.
 
-At signing time a wallet infrastructure is required
-to access the private key corresponding to the
-provided address. For a given message and address, the ECDSA signature
-of the hash of "Bitcoin Signed Message" *magic* prefix followed by
-the message is calculated; this prefix
-manipulation avoids the plain signature of a possibly deceiving message.
-The resulting 64 bytes (r, s) signature is serialized as
+At signing time a wallet infrastructure is required to access the
+private key corresponding to the given address; alternatively
+the private key must be provided explicitly.
+For a given message, the ECDSA signature operates on the hash of the
+*magic* "Bitcoin Signed Message" prefix concatenated to the actual
+message; this prefix manipulation avoids the plain signature of a
+possibly deceiving message.
+The resulting (r, s) signature is serialized as
 [1 byte][r][s], where the first byte is a recovery flag used
-during the verification process to discriminate among the recovered
+during signature verification to discriminate among recovered
 public keys and to manage address compression.
 Explicitly, the recovery flag value is:
 
@@ -147,6 +148,8 @@ from . import dsa
 # TODO: decouple serialization from address-based signature
 # TODO: add test vectors from P. Todd's library
 # TODO: report Electrum bug
+# TODO: generalize to other curves and hash functions
+# TODO: implement P2WPKH-P2SH and P2WPKH
 
 def _magic_hash(msg: str) -> bytes:
     # Electrum does strip leading and trailing spaces;
