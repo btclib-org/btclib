@@ -18,9 +18,8 @@ Base58 is similar to Base64, which uses 10 digits, 26 lowercase characters,
 26 uppercase characters, '+' (plus sign), and '/' (forward slash).
 Base58 omits the similar-looking letters
 0 (zero), O (capital o), I (capital i), and l (lower case L)
-to avoid ambiguity when printed; moreover, it removes the characters 
-'+' (plus sign) and '/' (forward slash) so that a double-click does
-select the whole string.
+to avoid ambiguity when printed; moreover, it removes '+' and '/'
+so that a double-click does select the whole string.
 
 This implementation of Base58 and Base58Check is originally from
 https://github.com/keis/base58, with the following modifications:
