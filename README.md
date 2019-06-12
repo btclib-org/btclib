@@ -1,6 +1,6 @@
 # btclib: a python3 library for 'bitcoin cryptography'
 
-[![](/img/btclib-logo-40.jpg)](http://github.com/dginst/btclib)
+[![btclib logo](/img/btclib-logo-40.jpg)](http://github.com/dginst/btclib)
 
 [![Build Status](https://travis-ci.org/dginst/btclib.svg)](https://travis-ci.org/dginst/btclib)
 [![Coverage Status](https://coveralls.io/repos/github/dginst/btclib/badge.svg)](https://coveralls.io/github/dginst/btclib)
