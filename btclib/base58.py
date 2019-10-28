@@ -26,7 +26,7 @@ https://github.com/keis/base58, with the following modifications:
 
 * type annotated python3
 * using native python3 int.from_bytes() and i.to_bytes()
-* added optional check on output size for decode() and decode_check()
+* added optional check on output size for _decode() and decode_check()
 
 Input can be bytes or a string that will be encoded to bytes (after
 being stripped of leading/trailing white spaces)
@@ -52,7 +52,7 @@ def _str_to_bytes(v: Union[str, bytes]) -> bytes:
     return v
 
 
-def encode_from_int(i: int) -> bytes:
+def _encode_from_int(i: int) -> bytes:
     """Encode an integer using Base58."""
 
     if i == 0:
@@ -66,7 +66,7 @@ def encode_from_int(i: int) -> bytes:
     return result
 
 
-def encode(v: Union[str, bytes]) -> bytes:
+def _encode(v: Union[str, bytes]) -> bytes:
     """Encode bytes or string using Base58."""
 
     v = _str_to_bytes(v)
@@ -81,7 +81,7 @@ def encode(v: Union[str, bytes]) -> bytes:
 
     if vlen:
         i = int.from_bytes(v, 'big')
-        result += encode_from_int(i)
+        result += _encode_from_int(i)
 
     return result
 
@@ -92,10 +92,10 @@ def encode_check(v: Union[str, bytes]) -> bytes:
     v = _str_to_bytes(v)
 
     digest = double_sha256(v)
-    return encode(v + digest[:4])
+    return _encode(v + digest[:4])
 
 
-def decode_to_int(v: Union[str, bytes]) -> int:
+def _decode_to_int(v: Union[str, bytes]) -> int:
     """Decode Base58 encoded bytes or string as integer."""
 
     v = _str_to_bytes(v)
@@ -107,8 +107,8 @@ def decode_to_int(v: Union[str, bytes]) -> int:
     return i
 
 
-def decode(v: Union[str, bytes],
-           output_size: Optional[int] = None) -> bytes:
+def _decode(v: Union[str, bytes],
+            output_size: Optional[int] = None) -> bytes:
     """Decode Base58 encoded bytes or string.
     
     Decode Base58 encoded bytes or string,
@@ -127,7 +127,7 @@ def decode(v: Union[str, bytes],
     result = b'\0' * nPad
 
     if vlen:
-        i = decode_to_int(v)
+        i = _decode_to_int(v)
         nbytes = (i.bit_length() + 7) // 8
         result = result + i.to_bytes(nbytes, 'big')
 
@@ -150,7 +150,7 @@ def decode_check(v: Union[str, bytes],
     if output_size is not None:
         output_size += 4
 
-    result = decode(v, output_size)
+    result = _decode(v, output_size)
     result, checksum = result[:-4], result[-4:]
 
     digest = double_sha256(result)

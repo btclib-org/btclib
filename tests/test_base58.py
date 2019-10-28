@@ -15,37 +15,37 @@ from btclib import base58
 
 class TestBase58CheckEncoding(unittest.TestCase):
     def test_empty(self):
-        self.assertEqual(base58.encode(b''), b'')
-        self.assertEqual(base58.decode(b''), b'')
-        self.assertEqual(base58.decode(base58.encode(b'')), b'')
-        self.assertEqual(base58.encode(base58.decode(b'')), b'')
+        self.assertEqual(base58._encode(b''), b'')
+        self.assertEqual(base58._decode(b''), b'')
+        self.assertEqual(base58._decode(base58._encode(b'')), b'')
+        self.assertEqual(base58._encode(base58._decode(b'')), b'')
 
     def test_hello_world(self):
-        self.assertEqual(base58.encode(b'hello world'), b'StV1DL6CwTryKyV')
-        self.assertEqual(base58.decode(b'StV1DL6CwTryKyV'), b'hello world')
-        self.assertEqual(base58.decode(base58.encode(b'hello world')), b'hello world')
+        self.assertEqual(base58._encode(b'hello world'), b'StV1DL6CwTryKyV')
+        self.assertEqual(base58._decode(b'StV1DL6CwTryKyV'), b'hello world')
+        self.assertEqual(base58._decode(base58._encode(b'hello world')), b'hello world')
         self.assertEqual(
-            base58.encode(base58.decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
+            base58._encode(base58._decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
 
     def test_trailing_zeros(self):
-        self.assertEqual(base58.encode(b'\x00\x00hello world'),
+        self.assertEqual(base58._encode(b'\x00\x00hello world'),
                          b'11StV1DL6CwTryKyV')
-        self.assertEqual(base58.decode(b'11StV1DL6CwTryKyV'),
+        self.assertEqual(base58._decode(b'11StV1DL6CwTryKyV'),
                          b'\x00\x00hello world')
         self.assertEqual(
-            base58.decode(base58.encode(b'\0\0hello world')), b'\x00\x00hello world')
+            base58._decode(base58._encode(b'\0\0hello world')), b'\x00\x00hello world')
         self.assertEqual(
-            base58.encode(base58.decode(b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
+            base58._encode(base58._decode(b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
 
     def test_integers(self):
         digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
         for i in range(len(digits)):
             char = digits[i:i+1]
-            self.assertEqual(base58.decode_to_int(char), i)
-            self.assertEqual(base58.encode_from_int(i), char)
+            self.assertEqual(base58._decode_to_int(char), i)
+            self.assertEqual(base58._encode_from_int(i), char)
         number = 0x111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5  # noqa
-        self.assertEqual(base58.decode_to_int(digits), number)
-        self.assertEqual(base58.encode_from_int(number), digits[1:])
+        self.assertEqual(base58._decode_to_int(digits), number)
+        self.assertEqual(base58._encode_from_int(number), digits[1:])
 
     def test_exceptions(self):
         # int is not hex-string or bytes
