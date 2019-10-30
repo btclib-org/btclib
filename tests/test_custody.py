@@ -24,22 +24,24 @@ class TestCustody(unittest.TestCase):
         root = "m/44'/" + str(testnet1mainnet0) + "'" 
         account = "/0'"
         account_root = root + account
-        print("\n", account_root)
+        print()
+        print(account_root)
 
         mnemonic = list()
         passphrase = ''
+        account_mprv = list()
         account_mpub = list()
-        for i in range(6): # iterate over wallets
+        for i in range(9): # iterate over wallets
             # 128 bits
             raw_entr = bytes.fromhex(str(i)*32)
             # 12 words
             mnemonic.append(bip39.mnemonic_from_entropy(raw_entr, 'en'))
-            #print(mnemonic[i])
             mprv = bip39.mprv_from_mnemonic(mnemonic[i], passphrase, bip32.PRV[testnet1mainnet0])
-            account_mprv = bip32.derive(mprv, account_root)
-            account_mpub.append(bip32.xpub_from_xprv(account_mprv))
+            account_mprv.append(bip32.derive(mprv, account_root))
+            account_mpub.append(bip32.xpub_from_xprv(account_mprv[i]))
 
-        print(account_mpub)
+
+        print(account_mpub[5])
 
         xpub_ext = bip32.derive(account_mpub[5], "./0")  # external
         # first address
