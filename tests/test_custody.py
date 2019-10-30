@@ -18,36 +18,38 @@ class TestCustody(unittest.TestCase):
 
         testnet1mainnet0 = 1
         root = "m"  # BIP32 m / account' / change / address_index
-        root += "/44'/" + str(testnet1mainnet0) + "'"  # BIP39 m / purpose' / coin_type' / account' / change / address_index
+        # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
+        root = "m/84'/" + str(testnet1mainnet0) + "'" 
+        # BIP39 m / purpose' / coin_type' / account' / change / address_index
+        root = "m/44'/" + str(testnet1mainnet0) + "'" 
         account = "/0'"
         account_root = root + account
         print("\n", account_root)
 
         mnemonic = list()
         passphrase = ''
-        mprv = list()
-        for i in range(6):
+        account_mpub = list()
+        for i in range(6): # iterate over wallets
             # 128 bits
             raw_entr = bytes.fromhex(str(i)*32)
             # 12 words
             mnemonic.append(bip39.mnemonic_from_entropy(raw_entr, 'en'))
             #print(mnemonic[i])
-            mprv.append(bip39.mprv_from_mnemonic(mnemonic[i], passphrase, bip32.PRV[testnet1mainnet0]))
-            #print(mprv[i])
-            account_root_xprv = bip32.derive(mprv[i], account_root)
-            #account_root_xpub = bip32.xpub_from_xprv(account_root_xprv)
-            xprv_ext = bip32.derive(account_root_xprv, "./0")  # external
-            xprv_int = bip32.derive(account_root_xprv, "./1")  # internal
-            xpub_ext = bip32.xpub_from_xprv(xprv_ext)
-            xpub_int = bip32.xpub_from_xprv(xprv_int)
+            mprv = bip39.mprv_from_mnemonic(mnemonic[i], passphrase, bip32.PRV[testnet1mainnet0])
+            account_mprv = bip32.derive(mprv, account_root)
+            account_mpub.append(bip32.xpub_from_xprv(account_mprv))
 
+        print(account_mpub)
+
+        xpub_ext = bip32.derive(account_mpub[5], "./0")  # external
+        # first address
         xpub = bip32.ckd(xpub_ext, 0)
         ecpub= base58.decode_check(xpub)[-33:]
         print()
         print(xpub)
         print(ecpub.hex())
         print(bip32.address_from_xpub(xpub))
-
+        # second address
         xpub = bip32.ckd(xpub_ext, 1)
         ecpub= base58.decode_check(xpub)[-33:]
         print()
@@ -55,13 +57,15 @@ class TestCustody(unittest.TestCase):
         print(ecpub.hex())
         print(bip32.address_from_xpub(xpub))
 
+        # first address
+        xpub_int = bip32.derive(account_mpub[5], "./1")  # internal
         xpub = bip32.ckd(xpub_int, 0)
         ecpub= base58.decode_check(xpub)[-33:]
         print()
         print(xpub)
         print(ecpub.hex())
         print(bip32.address_from_xpub(xpub))
-
+        # second address
         xpub = bip32.ckd(xpub_int, 1)
         ecpub= base58.decode_check(xpub)[-33:]
         print()
