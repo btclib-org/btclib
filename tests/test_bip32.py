@@ -473,6 +473,8 @@ class TestBIP32(unittest.TestCase):
 
     def test_versions(self):
 
+        # data cross-checked with Electrum and https://jlopp.github.io/xpub-converter/
+
         # 128 bits
         raw_entr = bytes.fromhex('6'*32)
         # 12 words
@@ -522,7 +524,8 @@ class TestBIP32(unittest.TestCase):
         m = bip32.xmprv_from_seed(seed, version)
         mprv = bip32.derive(m, path)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(mpub.decode("utf-8")[:4], 'Upub')
+        mpub_exp = b'Upub5QdDrMHJWmBrWhwG1nskCtnoTdn91PBwqWU1BbiUFXA2ETUSTc5KiaWZZhSoj5c4KUBTr7Anv92P4U9Dqxd1zDTyQkaWYfmVP2U3Js1W5cG'
+        self.assertEqual(mpub, mpub_exp)
 
         # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/1h/0h"
@@ -547,7 +550,8 @@ class TestBIP32(unittest.TestCase):
         m = bip32.xmprv_from_seed(seed, version)
         mprv = bip32.derive(m, path)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(mpub.decode("utf-8")[:4], 'Vpub')
+        mpub_exp = b'Vpub5kbPtsdz74uSibzaFLuUwnFbEu2a5Cm7DeKhfb9aPn8HGjoTjEgtBgjirpXr5r9wk87r2ikwhp4P5wxTwhXUkpAdYTkagjqp2PjMmGPBESU'
+        self.assertEqual(mpub, mpub_exp)
 
         ##### MAINNET
 
@@ -592,7 +596,8 @@ class TestBIP32(unittest.TestCase):
         m = bip32.xmprv_from_seed(seed, version)
         mprv = bip32.derive(m, path)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(mpub.decode("utf-8")[:4], 'Ypub')
+        mpub_exp = b'Ypub6j5Mkne6mTDAp4vkUL6qLmuyvKug1gzxyA2S8QrvqdABQW4gVNrQk8mEeeE7Kcp2z4EYgsofYjnxTm8b3km22EWt1Km3bszdVFRcipc6rXu'
+        self.assertEqual(mpub, mpub_exp)
 
         # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/0h/0h"
@@ -617,7 +622,9 @@ class TestBIP32(unittest.TestCase):
         m = bip32.xmprv_from_seed(seed, version)
         mprv = bip32.derive(m, path)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(mpub.decode("utf-8")[:4], 'Zpub')
+        mpub_exp = b'Zpub72a8bqjcjNJnMBLrV2EY7XLQbfji28irEZneqYK6w8Zf16sfhr7zDbLsVQficP9j9uzbF6VW1y3ypmeFKf6Dxaw82WvK8WFjcsLyEvMNZjF'
+        self.assertEqual(mpub, mpub_exp)
+
 
 if __name__ == "__main__":
     # execute only if run as a script
