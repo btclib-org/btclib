@@ -15,7 +15,7 @@ from btclib.curves import secp256k1 as ec
 from btclib.utils import octets_from_int, point_from_octets
 from btclib import base58
 from btclib.wifaddress import wif_from_prvkey, \
-    prvkey_from_wif, address_from_pubkey, _h160_from_address, \
+    prvkey_from_wif, p2pkh_address, _h160_from_address, \
     address_from_wif
 
 
@@ -73,16 +73,16 @@ class TestKeys(unittest.TestCase):
         pub = mult(ec, prv)
         self.assertEqual(pub, point_from_octets(ec, '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'))
 
-        addr = address_from_pubkey(pub, True)
+        addr = p2pkh_address(pub, True)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
         _h160_from_address(addr)
 
-        addr = address_from_pubkey(pub, False)
+        addr = p2pkh_address(pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
         _h160_from_address(addr)
 
         # not a mainnet address
-        addr = address_from_pubkey(pub, False, b'\x80')
+        addr = p2pkh_address(pub, False, b'\x80')
         self.assertRaises(ValueError, _h160_from_address, addr)
         #_h160_from_address(addr)
 

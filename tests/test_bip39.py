@@ -29,18 +29,18 @@ class TestBIP39(unittest.TestCase):
 
         passphrase = ''
 
-        mprv = bip39.mprv_from_mnemonic(mnemonic, passphrase, bip32.PRV[0])
+        mprv = bip39.mprv_from_mnemonic(mnemonic, passphrase, bip32.PRV_VERSION[0])
         mprv_exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(mprv, mprv_exp)
 
-        mprv2 = bip39.mprv_from_entropy(raw_entr, passphrase, lang, bip32.PRV[0])
+        mprv2 = bip39.mprv_from_entropy(raw_entr, passphrase, lang, bip32.PRV_VERSION[0])
         self.assertEqual(mprv2, mprv)
 
-        mprv = bip39.mprv_from_mnemonic(mnemonic, passphrase, bip32.PRV[0])
+        mprv = bip39.mprv_from_mnemonic(mnemonic, passphrase, bip32.PRV_VERSION[0])
         mprv_exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(mprv, mprv_exp)
 
-        mprv2 = bip39.mprv_from_entropy(raw_entr, passphrase, lang, bip32.PRV[0])
+        mprv2 = bip39.mprv_from_entropy(raw_entr, passphrase, lang, bip32.PRV_VERSION[0])
         self.assertEqual(mprv2, mprv)
 
         # mnemonic with wrong number of bits
@@ -83,6 +83,7 @@ class TestBIP39(unittest.TestCase):
             # has been tested in bip32, as it does not belong here
 
     def test_zeroleadingbit(self):
+        # it should not throw an error
         bip39.mnemonic_from_entropy(secrets.randbits(127) , 'en')
 
 

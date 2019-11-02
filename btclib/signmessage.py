@@ -137,7 +137,7 @@ from typing import Tuple, Union
 from .base58 import _str_to_bytes
 from .curve import mult
 from .curves import secp256k1 as ec
-from .wifaddress import address_from_pubkey, h160_from_pubkey, _h160_from_address
+from .wifaddress import p2pkh_address, h160_from_pubkey, _h160_from_address
 from . import dsa
 
 # TODO: support msg as bytes
@@ -163,7 +163,7 @@ def sign(msg: str, prvkey: int, compressed: bool) -> Tuple[str, str]:
     """Generate message signature for a given P2PKH address."""
 
     pubkey = mult(ec, prvkey)
-    address = address_from_pubkey(pubkey, compressed, b'\x00')
+    address = p2pkh_address(pubkey, compressed, b'\x00')
 
     magic_msg = _magic_hash(msg)
     sig = dsa.sign(ec, hf, magic_msg, prvkey)
