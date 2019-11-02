@@ -517,6 +517,13 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'2N872CRJ3E1CzWjfixXr3aeC3hkF5Cz4kWb'
         # FIXME: self.assertEqual(address, exp_address)
 
+        # multi-sig version
+        version = bip32.TEST_Uprv
+        m = bip32.xmprv_from_seed(seed, version)
+        mprv = bip32.derive(m, path)
+        mpub = bip32.xpub_from_xprv(mprv)
+        self.assertEqual(mpub.decode("utf-8")[:4], 'Upub')
+
         # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/1h/0h"
         version = bip32.TEST_vprv
@@ -534,6 +541,13 @@ class TestBIP32(unittest.TestCase):
         # FIXME: address = bip32.p2pkh_address_from_xpub(xpub)
         exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'
         # FIXME: self.assertEqual(address, exp_address)
+
+        # multi-sig version
+        version = bip32.TEST_Vprv
+        m = bip32.xmprv_from_seed(seed, version)
+        mprv = bip32.derive(m, path)
+        mpub = bip32.xpub_from_xprv(mprv)
+        self.assertEqual(mpub.decode("utf-8")[:4], 'Vpub')
 
         ##### MAINNET
 
@@ -573,6 +587,13 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'34FLgkoRYX5Q5fqiZCZDwsK5GpXxmFuLJN'
         # FIXME: self.assertEqual(address, exp_address)
 
+        # multi-sig version
+        version = bip32.MAIN_Yprv
+        m = bip32.xmprv_from_seed(seed, version)
+        mprv = bip32.derive(m, path)
+        mpub = bip32.xpub_from_xprv(mprv)
+        self.assertEqual(mpub.decode("utf-8")[:4], 'Ypub')
+
         # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/0h/0h"
         version = bip32.MAIN_zprv
@@ -590,6 +611,13 @@ class TestBIP32(unittest.TestCase):
         # FIXME: address = bip32.p2pkh_address_from_xpub(xpub)
         exp_address = b'bc1qy4x03jyl88h2zeg7l287xhv2xrwk4c3ztfpjd2'
         # FIXME: self.assertEqual(address, exp_address)
+
+        # multi-sig version
+        version = bip32.MAIN_Zprv
+        m = bip32.xmprv_from_seed(seed, version)
+        mprv = bip32.derive(m, path)
+        mpub = bip32.xpub_from_xprv(mprv)
+        self.assertEqual(mpub.decode("utf-8")[:4], 'Zpub')
 
 if __name__ == "__main__":
     # execute only if run as a script

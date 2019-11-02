@@ -37,29 +37,31 @@ from .wifaddress import p2pkh_address
 # Bitcoin core uses the m/0h (core) BIP32 derivation path
 # with xprv/xpub and tprv/tpub Base58 encoding
 
-# VERSION BYTES =      4 bytes   BIP32 path   Address encoding
+# VERSION BYTES =      4 bytes
+#                                BIP32 path   Encoded addresses
 MAIN_xprv = b'\x04\x88\xAD\xE4'  # m/44h/0h   P2PKH or P2SH
-MAIN_yprv = b'\x04\x9D\x78\x78'  # m/49h/0h   p2sh-segwit P2WPKH-P2SH
-MAIN_zprv = b'\x04\xB2\x43\x0C'  # m/84h/0h   native segwit P2WPKH
-MAIN_Yprv = b'\x02\x95\xB0\x05'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
-MAIN_Zprv = b'\x02\xAA\x7A\x99'  #   ---      native segwit multi-sig P2WPKH
-
 MAIN_xpub = b'\x04\x88\xB2\x1E'  # m/44h/0h   P2PKH or P2SH
-MAIN_ypub = b'\x04\x9D\x7C\xB2'  # m/49h/0h   p2sh-segwit P2WPKH-P2SH
-MAIN_zpub = b'\x04\xB2\x47\x46'  # m/84h/0h   native segwit P2WPKH
-MAIN_Ypub = b'\x02\x95\xB4\x3F'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
-MAIN_Zpub = b'\x02\xAA\x7E\xD3'  #   ---      native segwit multi-sig P2WPKH
-
 TEST_tprv = b'\x04\x35\x83\x94'  # m/44h/1h   P2PKH or P2SH
-TEST_uprv = b'\x04\x4A\x4E\x28'  # m/49h/1h   p2sh-segwit P2WPKH-P2SH
-TEST_vprv = b'\x04\x5F\x18\xBC'  # m/84h/1h   native segwit P2WPKH
-TEST_Uprv = b'\x02\x42\x85\xB5'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
-TEST_Vprv = b'\x02\x57\x50\x48'  #   ---      native segwit multi-sig P2WPKH
-
 TEST_tpub = b'\x04\x35\x87\xCF'  # m/44h/1h   P2PKH or P2SH
+
+MAIN_yprv = b'\x04\x9D\x78\x78'  # m/49h/0h   p2sh-segwit P2WPKH-P2SH
+MAIN_ypub = b'\x04\x9D\x7C\xB2'  # m/49h/0h   p2sh-segwit P2WPKH-P2SH
+TEST_uprv = b'\x04\x4A\x4E\x28'  # m/49h/1h   p2sh-segwit P2WPKH-P2SH
 TEST_upub = b'\x04\x4A\x52\x62'  # m/49h/1h   p2sh-segwit P2WPKH-P2SH
+
+MAIN_zprv = b'\x04\xB2\x43\x0C'  # m/84h/0h   native segwit P2WPKH
+MAIN_zpub = b'\x04\xB2\x47\x46'  # m/84h/0h   native segwit P2WPKH
+TEST_vprv = b'\x04\x5F\x18\xBC'  # m/84h/1h   native segwit P2WPKH
 TEST_vpub = b'\x04\x5F\x1C\xF6'  # m/84h/1h   native segwit P2WPKH
+
+MAIN_Yprv = b'\x02\x95\xB0\x05'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
+MAIN_Ypub = b'\x02\x95\xB4\x3F'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
+TEST_Uprv = b'\x02\x42\x85\xB5'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
 TEST_Upub = b'\x02\x42\x89\xEF'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
+
+MAIN_Zprv = b'\x02\xAA\x7A\x99'  #   ---      native segwit multi-sig P2WPKH
+MAIN_Zpub = b'\x02\xAA\x7E\xD3'  #   ---      native segwit multi-sig P2WPKH
+TEST_Vprv = b'\x02\x57\x50\x48'  #   ---      native segwit multi-sig P2WPKH
 TEST_Vpub = b'\x02\x57\x54\x83'  #   ---      native segwit multi-sig P2WPKH
 
 
@@ -68,7 +70,7 @@ PRV_VERSION = [
     TEST_tprv, TEST_uprv, TEST_vprv, TEST_Uprv, TEST_Vprv]
 PUB_VERSION = [
     MAIN_xpub, MAIN_ypub, MAIN_zpub, MAIN_Ypub, MAIN_Zpub,
-    TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vprv]
+    TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
 
 # [  : 4] version
 # [ 4: 5] depth
@@ -161,7 +163,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
             raise ValueError("version/key mismatch in extended parent key")
         Parent_bytes = xparent[45:]
         Parent = point_from_octets(ec, Parent_bytes)
-        xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
+        xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
         if index[0] >= 0x80:
             raise ValueError("no private/hardened derivation from pubkey")
         xkey += index                            # child index
@@ -172,8 +174,8 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         Offset = mult(ec, offset)
         Child = ec.add(Parent, Offset)
         Child_bytes = octets_from_point(ec, Child, True)
-        xkey += h[32:]                            # chain code
-        xkey += Child_bytes                       # public key
+        xkey += h[32:]                           # chain code
+        xkey += Child_bytes                      # public key
     elif (version in PRV_VERSION):
         if xparent[45] != 0:    # not a private key
             raise ValueError("version/key mismatch in extended parent key")
@@ -181,18 +183,18 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         Parent = mult(ec, parent)
         Parent_bytes = octets_from_point(ec, Parent, True)
         xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
-        xkey += index                             # child index
+        xkey += index                            # child index
         # actual extended key (key + chain code) derivation
         parent_chain_code = xparent[13:45]
-        if (index[0] < 0x80):                     # normal derivation
+        if (index[0] < 0x80):                    # normal derivation
             h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
-        else:                                     # hardened derivation
+        else:                                    # hardened derivation
             h = HMAC(parent_chain_code, xparent[45:] + index, sha512).digest()
         offset = int.from_bytes(h[:32], 'big')
         child = (parent + offset) % ec.n
         child_bytes = b'\x00' + child.to_bytes(32, 'big')
-        xkey += h[32:]                            # chain code
-        xkey += child_bytes                       # private key
+        xkey += h[32:]                           # chain code
+        xkey += child_bytes                      # private key
     else:
         raise ValueError("invalid extended key version")
 
