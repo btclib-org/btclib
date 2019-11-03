@@ -67,10 +67,10 @@ def h160_from_pubkey(Q: Point, compressed: bool) -> bytes:
     return h160(pubkey)
 
 
-def address_from_pubkey(Q: Point,
-                        compressed: bool,
-                        version: bytes = b'\x00') -> bytes:
-    """Return the address corresponding to a public key."""
+def p2pkh_address(Q: Point,
+                  compressed: bool,
+                  version: bytes = b'\x00') -> bytes:
+    """Return the p2pkh address corresponding to a public key."""
 
     vh160 = version + h160_from_pubkey(Q, compressed)
     return base58.encode_check(vh160)
@@ -89,4 +89,4 @@ def address_from_wif(wif: Octets) -> bytes:
 
     prv, compressed = prvkey_from_wif(wif)
     pub = mult(ec, prv)
-    return address_from_pubkey(pub, compressed)
+    return p2pkh_address(pub, compressed)

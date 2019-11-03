@@ -62,7 +62,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
             passphrase = test_vector[2]
             mpub = test_vector[3]
 
-            xversion = bip32.PRV[0]  #FIXME: version / xversion
+            xversion = bip32.PRV_VERSION[0]  #FIXME: version / xversion
             mprv = electrum.mprv_from_mnemonic(mnemonic, passphrase, xversion)
             mpub2 = bip32.xpub_from_xprv(mprv).decode()
             self.assertEqual(mpub2, mpub)

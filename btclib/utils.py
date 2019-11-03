@@ -105,6 +105,7 @@ def octets_from_int(i: int, bytesize: int) -> bytes:
 
     return i.to_bytes(bytesize, 'big')
 
+
 def int_from_bits(ec: Curve, o: Octets) -> int:
     """Return the leftmost nlen bits reduced modulo n.
 

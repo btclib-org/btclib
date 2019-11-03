@@ -32,22 +32,45 @@ from .curve import mult
 from .curves import secp256k1 as ec
 from .utils import Octets, point_from_octets, octets_from_point, \
     int_from_octets, h160
-from .wifaddress import address_from_pubkey
+from .wifaddress import p2pkh_address
 
-# VERSION BYTES =      4 bytes     Base58 encode starts with
-MAINNET_PRV = b'\x04\x88\xAD\xE4'  # xprv
-TESTNET_PRV = b'\x04\x35\x83\x94'  # tprv
-SEGWIT_PRV  = b'\x04\xb2\x43\x0c'
-PRV = [MAINNET_PRV, TESTNET_PRV, SEGWIT_PRV]
+# Bitcoin core uses the m/0h (core) BIP32 derivation path
+# with xprv/xpub and tprv/tpub Base58 encoding
 
-MAINNET_PUB = b'\x04\x88\xB2\x1E'  # xpub
-TESTNET_PUB = b'\x04\x35\x87\xCF'  # tpub
-SEGWIT_PUB  = b'\x04\xb2\x47\x46'
-PUB = [MAINNET_PUB,  TESTNET_PUB,  SEGWIT_PUB]
+# VERSION BYTES =      4 bytes
+#                                BIP32 path   Encoded addresses
+MAIN_xprv = b'\x04\x88\xAD\xE4'  # m/44h/0h   P2PKH or P2SH
+MAIN_xpub = b'\x04\x88\xB2\x1E'  # m/44h/0h   P2PKH or P2SH
+TEST_tprv = b'\x04\x35\x83\x94'  # m/44h/1h   P2PKH or P2SH
+TEST_tpub = b'\x04\x35\x87\xCF'  # m/44h/1h   P2PKH or P2SH
 
-MAINNET_ADDRESS = b'\x00'          # 1
-TESTNET_ADDRESS = b'\x6F'          # m or n
-ADDRESS = [MAINNET_ADDRESS,  TESTNET_ADDRESS]
+MAIN_yprv = b'\x04\x9D\x78\x78'  # m/49h/0h   p2sh-segwit P2WPKH-P2SH
+MAIN_ypub = b'\x04\x9D\x7C\xB2'  # m/49h/0h   p2sh-segwit P2WPKH-P2SH
+TEST_uprv = b'\x04\x4A\x4E\x28'  # m/49h/1h   p2sh-segwit P2WPKH-P2SH
+TEST_upub = b'\x04\x4A\x52\x62'  # m/49h/1h   p2sh-segwit P2WPKH-P2SH
+
+MAIN_zprv = b'\x04\xB2\x43\x0C'  # m/84h/0h   native segwit P2WPKH
+MAIN_zpub = b'\x04\xB2\x47\x46'  # m/84h/0h   native segwit P2WPKH
+TEST_vprv = b'\x04\x5F\x18\xBC'  # m/84h/1h   native segwit P2WPKH
+TEST_vpub = b'\x04\x5F\x1C\xF6'  # m/84h/1h   native segwit P2WPKH
+
+MAIN_Yprv = b'\x02\x95\xB0\x05'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
+MAIN_Ypub = b'\x02\x95\xB4\x3F'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
+TEST_Uprv = b'\x02\x42\x85\xB5'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
+TEST_Upub = b'\x02\x42\x89\xEF'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
+
+MAIN_Zprv = b'\x02\xAA\x7A\x99'  #   ---      native segwit multi-sig P2WPKH
+MAIN_Zpub = b'\x02\xAA\x7E\xD3'  #   ---      native segwit multi-sig P2WPKH
+TEST_Vprv = b'\x02\x57\x50\x48'  #   ---      native segwit multi-sig P2WPKH
+TEST_Vpub = b'\x02\x57\x54\x83'  #   ---      native segwit multi-sig P2WPKH
+
+
+PRV_VERSION = [
+    MAIN_xprv, MAIN_yprv, MAIN_zprv, MAIN_Yprv, MAIN_Zprv,
+    TEST_tprv, TEST_uprv, TEST_vprv, TEST_Uprv, TEST_Vprv]
+PUB_VERSION = [
+    MAIN_xpub, MAIN_ypub, MAIN_zpub, MAIN_Ypub, MAIN_Zpub,
+    TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
 
 # [  : 4] version
 # [ 4: 5] depth
@@ -61,7 +84,7 @@ def xmprv_from_seed(seed: Octets, version: Octets) -> bytes:
 
     if isinstance(version, str):  # hex string
         version = bytes.fromhex(version)
-    if version not in PRV:
+    if version not in PRV_VERSION:
         m = f"invalid private version ({version})"
         raise ValueError(m)
 
@@ -93,10 +116,10 @@ def xpub_from_xprv(xprv: Octets) -> bytes:
     if xprv[45] != 0:
         raise ValueError("extended key is not a private one")
 
-    i = PRV.index(xprv[:4])
+    i = PRV_VERSION.index(xprv[:4])
 
     # serialization data
-    xpub = PUB[i]                           # version
+    xpub = PUB_VERSION[i]                      # version
     # unchanged serialization data
     xpub += xprv[4: 5]                         # depth
     xpub += xprv[5: 9]                         # parent pubkey fingerprint
@@ -135,12 +158,12 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     xkey = version                               # version
     xkey += (xparent[4] + 1).to_bytes(1, 'big')  # (increased) depth
 
-    if (version in PUB):
+    if (version in PUB_VERSION):
         if xparent[45] not in (2, 3):  # not a compressed public key
             raise ValueError("version/key mismatch in extended parent key")
         Parent_bytes = xparent[45:]
         Parent = point_from_octets(ec, Parent_bytes)
-        xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
+        xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
         if index[0] >= 0x80:
             raise ValueError("no private/hardened derivation from pubkey")
         xkey += index                            # child index
@@ -151,27 +174,27 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         Offset = mult(ec, offset)
         Child = ec.add(Parent, Offset)
         Child_bytes = octets_from_point(ec, Child, True)
-        xkey += h[32:]                            # chain code
-        xkey += Child_bytes                       # public key
-    elif (version in PRV):
+        xkey += h[32:]                           # chain code
+        xkey += Child_bytes                      # public key
+    elif (version in PRV_VERSION):
         if xparent[45] != 0:    # not a private key
             raise ValueError("version/key mismatch in extended parent key")
         parent = int.from_bytes(xparent[46:], 'big')
         Parent = mult(ec, parent)
         Parent_bytes = octets_from_point(ec, Parent, True)
         xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
-        xkey += index                             # child index
+        xkey += index                            # child index
         # actual extended key (key + chain code) derivation
         parent_chain_code = xparent[13:45]
-        if (index[0] < 0x80):                     # normal derivation
+        if (index[0] < 0x80):                    # normal derivation
             h = HMAC(parent_chain_code, Parent_bytes + index, sha512).digest()
-        else:                                     # hardened derivation
+        else:                                    # hardened derivation
             h = HMAC(parent_chain_code, xparent[45:] + index, sha512).digest()
         offset = int.from_bytes(h[:32], 'big')
         child = (parent + offset) % ec.n
         child_bytes = b'\x00' + child.to_bytes(32, 'big')
-        xkey += h[32:]                            # chain code
-        xkey += child_bytes                       # private key
+        xkey += h[32:]                           # chain code
+        xkey += child_bytes                      # private key
     else:
         raise ValueError("invalid extended key version")
 
@@ -196,7 +219,7 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
         indexes: List[int] = list()
         for step in steps[1:]:
             hardened = False
-            if step[-1] == "'" or step[-1] == "H":
+            if step[-1] in ("'", "H", "h"):
                 hardened = True
                 step = step[:-1]
             index = int(step)
@@ -210,24 +233,23 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
 
     return xkey
 
-# FIXME: revise address_from_xpub / address_from_pubkey relation
-# FIXME: address_from_xpub should be pubkey_from_xpub o point_from_xpub
 
-
-def address_from_xpub(xpub: Octets, version: Optional[Octets] = None) -> bytes:
+def p2pkh_address_from_xpub(xpub: Octets, version: Optional[Octets] = None) -> bytes:
     xpub = base58.decode_check(xpub, 78)
     if xpub[45] not in (2, 3):
         raise ValueError("extended key is not a public one")
-    # bitcoin: address version can be derived from xkey version
-    # altcoin: address version cannot be derived from xkey version
-    #          if xkey version bytes have not been specialized
-    # FIXME use BIP44 here
+
     if version is None:
         xversion = xpub[:4]
-        i = PUB.index(xversion)
-        version = ADDRESS[i]
+        if xversion == MAIN_xpub:
+            version = b'\x00'          # 1
+        elif xversion == TEST_tpub:
+            version = b'\x6F'          # m or n
+        else:
+            raise ValueError(f"xkey is not of p2pkh type (xpub/tpub)")
+
     P = point_from_octets(ec, xpub[45:])
-    return address_from_pubkey(P, True, version)
+    return p2pkh_address(P, True, version)
 
 
 def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
