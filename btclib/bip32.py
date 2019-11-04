@@ -74,7 +74,7 @@ PUB_VERSION = [
 
 # [  : 4] version
 # [ 4: 5] depth
-# [ 5: 9] parent pubkey fingerprint
+# [ 5: 9] parent _pubkey_ fingerprint
 # [ 9:13] child index
 # [13:45] chain code
 # [45:78] key (private/public)
@@ -158,9 +158,9 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     xkey = version                               # version
     xkey += (xparent[4] + 1).to_bytes(1, 'big')  # (increased) depth
 
-    if (version in PUB_VERSION):
+    if version in PUB_VERSION:
         if xparent[45] not in (2, 3):  # not a compressed public key
-            raise ValueError("version/key mismatch in extended parent key")
+            raise ValueError("(pubversion/prvkey) mismatch in extended parent key")
         Parent_bytes = xparent[45:]
         Parent = point_from_octets(ec, Parent_bytes)
         xkey += h160(Parent_bytes)[:4]           # parent pubkey fingerprint
@@ -176,9 +176,9 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         Child_bytes = octets_from_point(ec, Child, True)
         xkey += h[32:]                           # chain code
         xkey += Child_bytes                      # public key
-    elif (version in PRV_VERSION):
+    elif version in PRV_VERSION:
         if xparent[45] != 0:    # not a private key
-            raise ValueError("version/key mismatch in extended parent key")
+            raise ValueError("(prvversion/pubkey) mismatch in extended parent key")
         parent = int.from_bytes(xparent[46:], 'big')
         Parent = mult(ec, parent)
         Parent_bytes = octets_from_point(ec, Parent, True)
@@ -298,3 +298,21 @@ def child_index(xkey: Octets) -> bytes:
     if xkey[4] == 0:
         raise ValueError("master key provided")
     return xkey[9:13]
+
+def fingerprint(xkey: Octets) -> bytes:
+    key = base58.decode_check(xkey, 78)
+    version = key[:4]
+
+    if key[45] == 0:
+        if version in PRV_VERSION:
+            xkey = xpub_from_xprv(xkey)
+            key = base58.decode_check(xkey, 78)
+        else:
+            raise ValueError("(pubversion/prvkey) mismatch in extended parent key")
+    elif key[45] in (2, 3):
+        if version not in PUB_VERSION:
+            raise ValueError("(prvversion/pubkey) mismatch in extended parent key")
+    else:
+        ValueError("not a valid extended key")
+
+    return h160(key[45:])[:4]
