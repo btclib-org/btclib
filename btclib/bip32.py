@@ -38,31 +38,24 @@ from .wifaddress import p2pkh_address
 # with xprv/xpub and tprv/tpub Base58 encoding
 
 # VERSION BYTES =      4 bytes
-#                                BIP32 path   Encoded addresses
-MAIN_xprv = b'\x04\x88\xAD\xE4'  # m/44h/0h   P2PKH or P2SH
-MAIN_xpub = b'\x04\x88\xB2\x1E'  # m/44h/0h   P2PKH or P2SH
-TEST_tprv = b'\x04\x35\x83\x94'  # m/44h/1h   P2PKH or P2SH
-TEST_tpub = b'\x04\x35\x87\xCF'  # m/44h/1h   P2PKH or P2SH
-
-MAIN_yprv = b'\x04\x9D\x78\x78'  # m/49h/0h   p2sh-segwit P2WPKH-P2SH
-MAIN_ypub = b'\x04\x9D\x7C\xB2'  # m/49h/0h   p2sh-segwit P2WPKH-P2SH
-TEST_uprv = b'\x04\x4A\x4E\x28'  # m/49h/1h   p2sh-segwit P2WPKH-P2SH
-TEST_upub = b'\x04\x4A\x52\x62'  # m/49h/1h   p2sh-segwit P2WPKH-P2SH
-
-MAIN_zprv = b'\x04\xB2\x43\x0C'  # m/84h/0h   native segwit P2WPKH
-MAIN_zpub = b'\x04\xB2\x47\x46'  # m/84h/0h   native segwit P2WPKH
-TEST_vprv = b'\x04\x5F\x18\xBC'  # m/84h/1h   native segwit P2WPKH
-TEST_vpub = b'\x04\x5F\x1C\xF6'  # m/84h/1h   native segwit P2WPKH
-
-MAIN_Yprv = b'\x02\x95\xB0\x05'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
-MAIN_Ypub = b'\x02\x95\xB4\x3F'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
-TEST_Uprv = b'\x02\x42\x85\xB5'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
-TEST_Upub = b'\x02\x42\x89\xEF'  #   ---      p2sh-segwit multi-sig P2WPKH-P2SH
-
-MAIN_Zprv = b'\x02\xAA\x7A\x99'  #   ---      native segwit multi-sig P2WPKH
-MAIN_Zpub = b'\x02\xAA\x7E\xD3'  #   ---      native segwit multi-sig P2WPKH
-TEST_Vprv = b'\x02\x57\x50\x48'  #   ---      native segwit multi-sig P2WPKH
-TEST_Vpub = b'\x02\x57\x54\x83'  #   ---      native segwit multi-sig P2WPKH
+# m/44h/0h  p2pkh or p2sh
+MAIN_xprv = b'\x04\x88\xAD\xE4'; MAIN_xpub = b'\x04\x88\xB2\x1E'
+# m/44h/1h  p2pkh or p2sh
+TEST_tprv = b'\x04\x35\x83\x94'; TEST_tpub = b'\x04\x35\x87\xCF'
+# m/49h/0h  p2sh-segwit p2wpkh-p2sh
+MAIN_yprv = b'\x04\x9D\x78\x78'; MAIN_ypub = b'\x04\x9D\x7C\xB2'
+# m/49h/1h  p2sh-segwit p2wpkh-p2sh
+TEST_uprv = b'\x04\x4A\x4E\x28'; TEST_upub = b'\x04\x4A\x52\x62'
+# m/84h/0h  native segwit P2WPKH
+MAIN_zprv = b'\x04\xB2\x43\x0C'; MAIN_zpub = b'\x04\xB2\x47\x46'
+# m/84h/1h  native segwit P2WPKH
+TEST_vprv = b'\x04\x5F\x18\xBC'; TEST_vpub = b'\x04\x5F\x1C\xF6'
+#   ---     p2sh-segwit multi-sig p2wpkh-p2sh
+MAIN_Yprv = b'\x02\x95\xB0\x05'; MAIN_Ypub = b'\x02\x95\xB4\x3F'
+TEST_Uprv = b'\x02\x42\x85\xB5'; TEST_Upub = b'\x02\x42\x89\xEF'
+#   ---     native segwit multi-sig p2wpkh
+MAIN_Zprv = b'\x02\xAA\x7A\x99'; MAIN_Zpub = b'\x02\xAA\x7E\xD3'
+TEST_Vprv = b'\x02\x57\x50\x48'; TEST_Vpub = b'\x02\x57\x54\x83'
 
 
 PRV_VERSION = [
@@ -214,7 +207,9 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
             decoded = base58.decode_check(xkey, 78)
             t = b'\x00'*9
             if decoded[4:13] != t:
-                raise ValueError("Absolute derivation path for non-master key")
+                msg = "Absolute derivation path for non-root master key"
+                raise ValueError(msg)
+            steps.pop(0)
 
         indexes: List[int] = list()
         for step in steps[1:]:
