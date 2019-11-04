@@ -79,30 +79,30 @@ PUB_VERSION = [
 # [13:45] chain code
 # [45:78] key (private/public)
 
-def xmprv_from_seed(seed: Octets, version: Octets) -> bytes:
-    """derive the master extended private key from the seed"""
+def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
+    """derive the BIP32 root master extended private key from the seed"""
 
     if isinstance(version, str):  # hex string
         version = bytes.fromhex(version)
     if version not in PRV_VERSION:
-        m = f"invalid private version ({version})"
-        raise ValueError(m)
+        msg = f"invalid private version ({version})"
+        raise ValueError(msg)
 
     # serialization data
-    xmprv = version                               # version
-    xmprv += b'\x00'                              # depth
-    xmprv += b'\x00\x00\x00\x00'                  # parent pubkey fingerprint
-    xmprv += b'\x00\x00\x00\x00'                  # child index
+    rootxprv = version                            # version
+    rootxprv += b'\x00'                           # depth
+    rootxprv += b'\x00\x00\x00\x00'               # parent pubkey fingerprint
+    rootxprv += b'\x00\x00\x00\x00'               # child index
 
     # actual extended key (key + chain code) derivation
     if isinstance(seed, str):  # hex string
         seed = bytes.fromhex(seed)
     hd = HMAC(b"Bitcoin seed", seed, sha512).digest()
-    mprv = int_from_octets(hd[:32])
-    xmprv += hd[32:]                              # chain code
-    xmprv += b'\x00' + mprv.to_bytes(32, 'big')   # private key
+    rootprv = int_from_octets(hd[:32])
+    rootxprv += hd[32:]                                # chain code
+    rootxprv += b'\x00' + rootprv.to_bytes(32, 'big')  # private key
 
-    return base58.encode_check(xmprv)
+    return base58.encode_check(rootxprv)
 
 
 def xpub_from_xprv(xprv: Octets) -> bytes:
