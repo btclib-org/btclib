@@ -13,7 +13,7 @@ revise ssa.pubkey_recovery
 of a signature: verify or verification ? of a commit: verify or open ?
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 document bitcoin core derivation path vs Electrum (standard / segwit) vs ledger
-how to export mprv from Electrum?
+how to export rootxprv from Electrum?
     verify if first wif is that
 better mimic of electrum entropy search, they probably have the words inverted
 BIP44 in address_from...

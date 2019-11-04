@@ -83,10 +83,10 @@ def _seed_from_electrum_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
 
     return _seed_from_mnemonic(mnemonic, passphrase, 'electrum')
 
-
-def mprv_from_mnemonic(mnemonic: Mnemonic,
-                       passphrase: str,
-                       xversion: bytes) -> bytes:
+# FIXME: this is not always a rootxprv
+def rootxprv_from_mnemonic(mnemonic: Mnemonic,
+                           passphrase: str,
+                           xversion: bytes) -> bytes:
     """Return a BIP32 master private key from Electrum mnemonic."""
 
     seed = _seed_from_electrum_mnemonic(mnemonic, passphrase)
@@ -95,22 +95,21 @@ def mprv_from_mnemonic(mnemonic: Mnemonic,
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
     if s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']):
         # FIXME: mainnet / testnet
-        return bip32.xmprv_from_seed(seed, xversion)
+        return bip32.rootxprv_from_seed(seed, xversion)
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
         # FIXME: parametrizazion of the xversion prefix is needed
-        mprv = bip32.xmprv_from_seed(seed, b'\x04\xb2\x43\x0c')
+        rootxprv = bip32.rootxprv_from_seed(seed, b'\x04\xb2\x43\x0c')
         # BIP32 default first account: m/0'
-        return bip32.ckd(mprv, 0x80000000)
+        return bip32.ckd(rootxprv, 0x80000000)
     else:
         raise ValueError(f"unmanaged electrum mnemonic version ({s[:3]})")
 
 
-def mprv_from_entropy(entropy: GenericEntropy,
-                      passphrase: str,
-                      lang: str,
-                      xversion: bytes) -> bytes:
+def rootxprv_from_entropy(entropy: GenericEntropy,
+                          passphrase: str,
+                          lang: str,
+                          xversion: bytes) -> bytes:
     """Return a BIP32 master private key from entropy."""
 
     mnemonic = mnemonic_from_entropy(entropy, lang, 'standard')
-    mprv = mprv_from_mnemonic(mnemonic, passphrase, xversion)
-    return mprv
+    return rootxprv_from_mnemonic(mnemonic, passphrase, xversion)

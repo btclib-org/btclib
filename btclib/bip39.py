@@ -142,22 +142,21 @@ def seed_from_mnemonic(mnemonic: Mnemonic,
     return _seed_from_mnemonic(mnemonic, passphrase, 'mnemonic')
 
 
-def mprv_from_mnemonic(mnemonic: Mnemonic,
+def rootxprv_from_mnemonic(mnemonic: Mnemonic,
                        passphrase: str,
                        xversion: bytes) -> bytes:
-    """Return a BIP32 master private key from BIP39 mnemonic."""
+    """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     # TODO: verify Mnemonic checksum
     seed = seed_from_mnemonic(mnemonic, passphrase)
-    return bip32.xmprv_from_seed(seed, xversion)
+    return bip32.rootxprv_from_seed(seed, xversion)
 
 
-def mprv_from_entropy(entropy: GenericEntropy,
-                      passphrase: str,
-                      lang: str,
-                      xversion: bytes) -> bytes:
-    """Return a BIP32 master private key from entropy."""
+def rootxprv_from_entropy(entropy: GenericEntropy,
+                          passphrase: str,
+                          lang: str,
+                          xversion: bytes) -> bytes:
+    """Return BIP32 root master extended private key from entropy."""
 
     mnemonic = mnemonic_from_entropy(entropy, lang)
-    mprv = mprv_from_mnemonic(mnemonic, passphrase, xversion)
-    return mprv
+    return rootxprv_from_mnemonic(mnemonic, passphrase, xversion)
