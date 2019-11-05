@@ -25,7 +25,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
 
 from hmac import HMAC
 from hashlib import sha512
-from typing import Union, Optional, Sequence, List
+from typing import Union, Optional, Sequence, List, Tuple
 
 from . import base58 
 from .curve import mult
@@ -194,31 +194,45 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     return base58.encode_check(xkey)
 
 
+def indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
+    """Extract derivation indexes from a derivation path like
+       "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative)
+    """
+
+    steps = path.split('/')
+    if steps[0] == 'm':
+        absolute = True
+    elif steps[0] == '.':
+        absolute = False
+    else:
+        raise ValueError(f'Invalid derivation path: {path}')
+
+    indexes: List[int] = list()
+    for step in steps[1:]:
+        hardened = False
+        if step[-1] in ("'", "H", "h"):
+            hardened = True
+            step = step[:-1]
+        index = int(step)
+        index += 0x80000000 if hardened else 0
+        indexes.append(index)
+
+    return indexes, absolute
+
+
 def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
     """derive an extended key according to path like
        "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative)
     """
 
     if isinstance(path, str):
-        steps = path.split('/')
-        if steps[0] not in {'m', '.'}:
-            raise ValueError(f'Invalid derivation path: {path}')
-        if steps[0] == 'm':
+        indexes, absolute = indexes_from_path(path)
+        if absolute:
             decoded = base58.decode_check(xkey, 78)
             t = b'\x00'*9
             if decoded[4:13] != t:
                 msg = "Absolute derivation path for non-root master key"
                 raise ValueError(msg)
-
-        indexes: List[int] = list()
-        for step in steps[1:]:
-            hardened = False
-            if step[-1] in ("'", "H", "h"):
-                hardened = True
-                step = step[:-1]
-            index = int(step)
-            index += 0x80000000 if hardened else 0
-            indexes.append(index)
     else:
         indexes = path
 
