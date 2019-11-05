@@ -209,7 +209,6 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
             if decoded[4:13] != t:
                 msg = "Absolute derivation path for non-root master key"
                 raise ValueError(msg)
-            steps.pop(0)
 
         indexes: List[int] = list()
         for step in steps[1:]:
