@@ -132,10 +132,9 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
 def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     """Return seed from mnemonic according to BIP39 standard.
     
-    Also verify the mnemonic (implicit entropy) checksum.
+    It does not verify the mnemonic (implicit entropy) checksum:
+    for that use entropy_from_mnemonic.
     """
-
-    #entropy_from_mnemonic(mnemonic, lang)  # throws if mnemonic is not valid
 
     hf_name = 'sha512'
     password = mnemonic.encode()
