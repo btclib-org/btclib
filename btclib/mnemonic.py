@@ -101,7 +101,8 @@ def entropy_from_indexes(indexes: List[int], lang: str) -> Entropy:
     return binentropy
 
 def _seed_from_mnemonic(mnemonic: Mnemonic,
-                        passphrase: str, prefix: str) -> bytes:
+                        passphrase: str,
+                        prefix: str) -> bytes:
     hf_name = 'sha512'
     password = mnemonic.encode()
     salt = (prefix + passphrase).encode()
