@@ -22,9 +22,11 @@ from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
     indexes_from_mnemonic, entropy_from_indexes, Mnemonic
 from . import bip32
 
-ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
-                              'segwit': '100',
-                              '2fa': '101'}
+ELECTRUM_MNEMONIC_VERSIONS = {
+    'standard'   :  '01',  # P2PKH and Multisig P2SH wallets
+    'segwit'     : '100',  # P2WPKH and P2WSH wallets
+    '2fa'        : '101',  # Two-factor authenticated wallets
+    '2fa_segwit' : '102'}  # Two-factor authenticated wallets, using segwit
 
 def mnemonic_from_entropy(entropy: GenericEntropy,
                           lang: str,
@@ -68,10 +70,11 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     valid = (
         s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']) or
         s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']) or
-        s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa'])
+        s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa']) or
+        s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa_segwit'])
         )
     if not valid:
-        raise ValueError(f"unmanaged electrum mnemonic version ({s[:3]})")
+        raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
 
     indexes = indexes_from_mnemonic(mnemonic, lang)
     entropy = entropy_from_indexes(indexes, lang)
@@ -110,5 +113,9 @@ def rootxprv_from_mnemonic(mnemonic: Mnemonic,
         rootxprv = bip32.rootxprv_from_seed(seed, b'\x04\xb2\x43\x0c')
         # BIP32 default first account: m/0'
         return bip32.ckd(rootxprv, 0x80000000)
+    elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa']):
+        raise ValueError(f"2fa mnemonic version is not managed yet")
+    elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa_segwit']):
+        raise ValueError(f"2fa_segwit mnemonic version is not managed yet")
     else:
-        raise ValueError(f"unmanaged electrum mnemonic version ({s[:3]})")
+        raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
