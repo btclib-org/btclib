@@ -95,11 +95,14 @@ def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     dksize = 64
     return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
 
-# FIXME: this is not always a rootxprv
-def rootxprv_from_mnemonic(mnemonic: Mnemonic,
-                           passphrase: str,
-                           mainnet: bool) -> bytes:
-    """Return BIP32 root master extended private key from Electrum mnemonic."""
+def masterxprv_from_mnemonic(mnemonic: Mnemonic,
+                             passphrase: str,
+                             mainnet: bool) -> bytes:
+    """Return BIP32 master extended private key from Electrum mnemonic.
+
+    Note that for a standard mnemonic the derivation path is "m",
+    for a segwit mnemonic it is "m/0h" instead.
+    """
 
     seed = _seed_from_mnemonic(mnemonic, passphrase)
 
@@ -111,8 +114,7 @@ def rootxprv_from_mnemonic(mnemonic: Mnemonic,
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
         xversion = bip32.MAIN_zprv if mainnet else bip32.TEST_vprv
         rootxprv = bip32.rootxprv_from_seed(seed, xversion)
-        # BIP32 default first account: m/0'
-        return bip32.ckd(rootxprv, 0x80000000)
+        return bip32.ckd(rootxprv, 0x80000000)  # "m/0h"
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa']):
         raise ValueError(f"2fa mnemonic version is not managed yet")
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa_segwit']):
