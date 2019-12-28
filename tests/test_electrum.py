@@ -78,6 +78,9 @@ class TestMnemonicDictionaries(unittest.TestCase):
                 address2 = bip32.p2pkh_address_from_xpub(xpub)
                 self.assertEqual(address2.decode(), address)
 
+            if version == "segwit":
+                pass  # FIXME: check bech32 addresses
+
             lang = "en"
             entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
             mnem = electrum.mnemonic_from_entropy(entr, lang, version)
