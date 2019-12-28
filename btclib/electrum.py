@@ -98,7 +98,7 @@ def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
 # FIXME: this is not always a rootxprv
 def rootxprv_from_mnemonic(mnemonic: Mnemonic,
                            passphrase: str,
-                           xversion: bytes) -> bytes:
+                           mainnet: bool) -> bytes:
     """Return BIP32 root master extended private key from Electrum mnemonic."""
 
     seed = _seed_from_mnemonic(mnemonic, passphrase)
@@ -106,11 +106,11 @@ def rootxprv_from_mnemonic(mnemonic: Mnemonic,
     # verify that the mnemonic is versioned
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
     if s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']):
-        # FIXME: mainnet / testnet
+        xversion = bip32.MAIN_xprv if mainnet else bip32.TEST_tprv
         return bip32.rootxprv_from_seed(seed, xversion)
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
-        # FIXME: parametrizazion of the xversion prefix is needed
-        rootxprv = bip32.rootxprv_from_seed(seed, bip32.MAIN_zprv)
+        xversion = bip32.MAIN_zprv if mainnet else bip32.TEST_vprv
+        rootxprv = bip32.rootxprv_from_seed(seed, xversion)
         # BIP32 default first account: m/0'
         return bip32.ckd(rootxprv, 0x80000000)
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa']):
