@@ -307,6 +307,7 @@ def child_index(xkey: Octets) -> bytes:
         raise ValueError("master key provided")
     return xkey[9:13]
 
+
 def fingerprint(xkey: Octets) -> bytes:
     key = base58.decode_check(xkey, 78)
     version = key[:4]
