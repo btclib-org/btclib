@@ -120,8 +120,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     entropy = cs_entropy[:bits]
 
     # the second part being the checksum, to be verified
-    bytes_entr = int(entropy, 2).to_bytes(bits//8, 'big')
-    checksum = _entropy_checksum(bytes_entr)
+    checksum = _entropy_checksum(entropy)
     if cs_entropy[bits:] != checksum:
         m = f"invalid mnemonic checksum ({cs_entropy[bits:]}); "
         m += f"expected: {checksum}"
@@ -130,8 +129,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     return entropy
 
 
-def seed_from_mnemonic(mnemonic: Mnemonic,
-                       passphrase: str) -> bytes:
+def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     """Return seed from mnemonic according to BIP39 standard.
     
     Also verify the mnemonic (implicit entropy) checksum.
@@ -143,11 +141,10 @@ def seed_from_mnemonic(mnemonic: Mnemonic,
 
 
 def rootxprv_from_mnemonic(mnemonic: Mnemonic,
-                       passphrase: str,
-                       xversion: bytes) -> bytes:
+                           passphrase: str,
+                           xversion: bytes) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
-    # TODO: verify Mnemonic checksum
     seed = seed_from_mnemonic(mnemonic, passphrase)
     return bip32.rootxprv_from_seed(seed, xversion)
 
