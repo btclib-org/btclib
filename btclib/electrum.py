@@ -19,7 +19,7 @@ import hmac
 from .entropy import Entropy, GenericEntropy, _int_from_entropy, \
     str_from_entropy
 from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
-    indexes_from_mnemonic, entropy_from_indexes, Mnemonic, _seed_from_mnemonic
+    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
 from . import bip32
 
 ELECTRUM_MNEMONIC_VERSIONS = {'standard': '01',
@@ -78,14 +78,19 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     return entropy
 
 
-def _seed_from_electrum_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
+def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     """Return seed from mnemonic according to Electrum standard.
     
     Please note: in the Electrum standard, mnemonic conveys BIP32
     derivation rule too. As such, seed alone is partial information.
     """
 
-    return _seed_from_mnemonic(mnemonic, passphrase, 'electrum')
+    hf_name = 'sha512'
+    password = mnemonic.encode()
+    salt = ('electrum' + passphrase).encode()
+    iterations = 2048
+    dksize = 64
+    return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
 
 # FIXME: this is not always a rootxprv
 def rootxprv_from_mnemonic(mnemonic: Mnemonic,
@@ -93,7 +98,7 @@ def rootxprv_from_mnemonic(mnemonic: Mnemonic,
                            xversion: bytes) -> bytes:
     """Return BIP32 root master extended private key from Electrum mnemonic."""
 
-    seed = _seed_from_electrum_mnemonic(mnemonic, passphrase)
+    seed = _seed_from_mnemonic(mnemonic, passphrase)
 
     # verify that the mnemonic is versioned
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()

@@ -99,13 +99,3 @@ def entropy_from_indexes(indexes: List[int], lang: str) -> Entropy:
     binentropy = binentropy.zfill(bits)
 
     return binentropy
-
-def _seed_from_mnemonic(mnemonic: Mnemonic,
-                        passphrase: str,
-                        prefix: str) -> bytes:
-    hf_name = 'sha512'
-    password = mnemonic.encode()
-    salt = (prefix + passphrase).encode()
-    iterations = 2048
-    dksize = 64
-    return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)

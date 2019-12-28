@@ -41,7 +41,7 @@ from hashlib import sha256, pbkdf2_hmac
 from .entropy import Entropy, GenericEntropy, _bytes_from_entropy, \
     str_from_entropy
 from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
-    indexes_from_mnemonic, entropy_from_indexes, Mnemonic, _seed_from_mnemonic
+    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
 from . import bip32
 
 
@@ -135,9 +135,15 @@ def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     Also verify the mnemonic (implicit entropy) checksum.
     """
 
-    # TODO: verify Mnemonic checksum
-    # entropy_from_mnemonic(mnemonic, lang)
-    return _seed_from_mnemonic(mnemonic, passphrase, 'mnemonic')
+    #entropy_from_mnemonic(mnemonic, lang)  # throws if mnemonic is not valid
+
+    hf_name = 'sha512'
+    password = mnemonic.encode()
+    salt = ('mnemonic' + passphrase).encode()
+    iterations = 2048
+    dksize = 64
+    return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
+
 
 
 def rootxprv_from_mnemonic(mnemonic: Mnemonic,
