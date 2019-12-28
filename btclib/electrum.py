@@ -110,7 +110,7 @@ def rootxprv_from_mnemonic(mnemonic: Mnemonic,
         return bip32.rootxprv_from_seed(seed, xversion)
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
         # FIXME: parametrizazion of the xversion prefix is needed
-        rootxprv = bip32.rootxprv_from_seed(seed, b'\x04\xb2\x43\x0c')
+        rootxprv = bip32.rootxprv_from_seed(seed, bip32.MAIN_zprv)
         # BIP32 default first account: m/0'
         return bip32.ckd(rootxprv, 0x80000000)
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa']):
