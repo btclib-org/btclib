@@ -65,7 +65,11 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     """Convert mnemonic sentence to Electrum versioned entropy."""
 
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
-    valid = s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']) or s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']) or s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa'])
+    valid = (
+        s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']) or
+        s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']) or
+        s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa'])
+        )
     if not valid:
         raise ValueError(f"unmanaged electrum mnemonic version ({s[:3]})")
 
@@ -87,7 +91,7 @@ def _seed_from_electrum_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
 def rootxprv_from_mnemonic(mnemonic: Mnemonic,
                            passphrase: str,
                            xversion: bytes) -> bytes:
-    """Return a BIP32 master private key from Electrum mnemonic."""
+    """Return BIP32 root master extended private key from Electrum mnemonic."""
 
     seed = _seed_from_electrum_mnemonic(mnemonic, passphrase)
 
@@ -109,7 +113,7 @@ def rootxprv_from_entropy(entropy: GenericEntropy,
                           passphrase: str,
                           lang: str,
                           xversion: bytes) -> bytes:
-    """Return a BIP32 master private key from entropy."""
+    """Return BIP32 root master extended private key from entropy."""
 
     mnemonic = mnemonic_from_entropy(entropy, lang, 'standard')
     return rootxprv_from_mnemonic(mnemonic, passphrase, xversion)
