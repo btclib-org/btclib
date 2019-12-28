@@ -112,13 +112,3 @@ def rootxprv_from_mnemonic(mnemonic: Mnemonic,
         return bip32.ckd(rootxprv, 0x80000000)
     else:
         raise ValueError(f"unmanaged electrum mnemonic version ({s[:3]})")
-
-
-def rootxprv_from_entropy(entropy: GenericEntropy,
-                          passphrase: str,
-                          lang: str,
-                          xversion: bytes) -> bytes:
-    """Return BIP32 root master extended private key from entropy."""
-
-    mnemonic = mnemonic_from_entropy(entropy, lang, 'standard')
-    return rootxprv_from_mnemonic(mnemonic, passphrase, xversion)

@@ -153,13 +153,3 @@ def rootxprv_from_mnemonic(mnemonic: Mnemonic,
 
     seed = seed_from_mnemonic(mnemonic, passphrase)
     return bip32.rootxprv_from_seed(seed, xversion)
-
-
-def rootxprv_from_entropy(entropy: GenericEntropy,
-                          passphrase: str,
-                          lang: str,
-                          xversion: bytes) -> bytes:
-    """Return BIP32 root master extended private key from entropy."""
-
-    mnemonic = mnemonic_from_entropy(entropy, lang)
-    return rootxprv_from_mnemonic(mnemonic, passphrase, xversion)
