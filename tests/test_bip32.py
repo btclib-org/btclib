@@ -263,9 +263,6 @@ class TestBIP32(unittest.TestCase):
             rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
             self.assertEqual(rootxprv.decode(), test_vector[3])
 
-    def test_version(self):
-        pass
-
     def test_mainnet(self):
         # bitcoin core derivation style
         rootxprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
@@ -406,20 +403,40 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(addr, b'VRtaZvAe4s29aB3vuXyq7GYEpahsQet2B1')
 
     def test_exceptions(self):
-        xprv = b'xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
-
-        self.assertRaises(ValueError, bip32.ckd, xprv, 'invalid index')
-        self.assertRaises(ValueError, bip32.ckd, xprv, 0x80000000)
-        self.assertRaises(ValueError, bip32.ckd, xprv, "800000")
-        self.assertRaises(ValueError, bip32.derive, xprv, '/1')
-        self.assertRaises(TypeError, bip32.derive, xprv, 1)
+        # valid xprv
         xprv = b'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
-        self.assertRaises(ValueError, bip32.child_index, xprv)
 
-        version = b'\x04\x88\xAD\xE5'  # invalid version
+        # master key provided
+        self.assertRaises(ValueError, bip32.child_index, xprv)
+        #bip32.child_index(xprv)
+
+        # invalid index
+        self.assertRaises(ValueError, bip32.ckd, xprv, 'invalid index')
+        #bip32.ckd(xprv, 'invalid index')
+
+        # a 4 bytes int is required, not 3
+        self.assertRaises(ValueError, bip32.ckd, xprv, "800000")
+        #bip32.ckd(xprv, "800000")
+
+        # Invalid derivation path root: ""
+        self.assertRaises(ValueError, bip32.derive, xprv, '/1')
+        #bip32.derive(xprv, '/1')
+
+        # object of type 'int' has no len()
+        self.assertRaises(TypeError, bip32.derive, xprv, 1)
+        #bip32.derive(xprv, 1)
+
+        # invalid checksum
+        xprv = b'xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
+        self.assertRaises(ValueError, bip32.ckd, xprv, 0x80000000)
+        #bip32.ckd(xprv, 0x80000000)
+        
+        # invalid extended key version
+        version = b'\x04\x88\xAD\xE5'
         xkey = version + b'\x00'*74
         xkey = base58.encode_check(xkey)
         self.assertRaises(ValueError, bip32.ckd, xkey, 0x80000000)
+        #bip32.ckd(xkey, 0x80000000)
 
         # invalid private version
         version = b'\x04\x88\xAD\xE5'
@@ -435,6 +452,10 @@ class TestBIP32(unittest.TestCase):
         # Absolute derivation path for non-master key
         self.assertRaises(ValueError, bip32.derive, xpub, "m/44'/0'/1'/0/10")
         #bip32.derive(xpub, "m/0/1")
+
+        # empty derivation path
+        self.assertRaises(ValueError, bip32.derive, xpub, "")
+        #bip32.derive(xpub, "")
 
         # extended key is not a public one
         self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xprv)
