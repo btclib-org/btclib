@@ -63,25 +63,25 @@ class TestKeys(unittest.TestCase):
 
         # Not a private key WIF: missing leading 0x80
         payload = b'\x81' + octets_from_int(badq, ec.psize)
-        badwif = base58.encode_check(payload)
+        badwif = base58.encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         # prvkey_from_wif(badwif)
 
         # Not a compressed WIF: missing trailing 0x01
         payload = b'\x80' + octets_from_int(badq, ec.psize) + b'\x00'
-        badwif = base58.encode_check(payload)
+        badwif = base58.encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         # prvkey_from_wif(badwif)
 
         # Not a WIF: wrong size (35)
         payload = b'\x80' + octets_from_int(badq, ec.psize) + b'\x01\x00'
-        badwif = base58.encode_check(payload)
+        badwif = base58.encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         # prvkey_from_wif(badwif)
 
         # Not a WIF: private key not in (0, n)
         payload = b'\x80' + octets_from_int(badq, ec.psize)
-        badwif = base58.encode_check(payload)
+        badwif = base58.encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         # prvkey_from_wif(badwif)
 

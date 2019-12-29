@@ -35,13 +35,13 @@ def wif_from_prvkey(prvkey: int,
     payload += octets_from_int(prvkey, ec.nsize)
     if compressed:
         payload += b'\x01'
-    return base58.encode_check(payload)
+    return base58.encode(payload)
 
 
 def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, bool]:
     """Return the (private key, compressed, testnet) tuple from a WIF."""
 
-    payload = base58.decode_check(wif)
+    payload = base58.decode(wif)
 
     if payload[0] == 0x80:
         testnet = False
@@ -85,11 +85,11 @@ def p2pkh_address(Q: Point,
     # results in the leading char being 'm' or 'n' if testnet else '1'
     version = b'\x6F' if testnet else b'\x00'
     vh160 = version + h160_from_pubkey(Q, compressed)
-    return base58.encode_check(vh160)
+    return base58.encode(vh160)
 
 
 def _h160_from_p2pkh_address(addr: Octets) -> bytes:
-    payload = base58.decode_check(addr, 21)
+    payload = base58.decode(addr, 21)
     if payload[0] not in {0x6F, 0x00}:
         raise ValueError("not a testnet/mainnet address")
     return payload[1:]

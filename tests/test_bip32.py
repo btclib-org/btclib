@@ -26,7 +26,7 @@ class TestBIP32(unittest.TestCase):
         v, d, f, i, c, k, P = bip32.xkey_parse(xkey)
         self.assertEqual(P, mult(ec, int_from_octets(k)))
 
-        decoded_key = base58.decode_check(xkey, 78)
+        decoded_key = base58.decode(xkey, 78)
         self.assertEqual(v, decoded_key[:4])
         self.assertEqual(d, decoded_key[4])
         self.assertEqual(f, decoded_key[5:9])
@@ -36,21 +36,21 @@ class TestBIP32(unittest.TestCase):
 
         # zero depth with non-zero parent_fingerprint
         f2 = b'\x01\x01\x01\x01'
-        invalid_key = base58.encode_check(
+        invalid_key = base58.encode(
             v + d.to_bytes(1, 'big') + f2 + i + c + k)
         self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
         # bip32.xkey_parse(invalid_key)
 
         # zero depth with non-zero child_index
         i2 = b'\x01\x01\x01\x01'
-        invalid_key = base58.encode_check(
+        invalid_key = base58.encode(
             v + d.to_bytes(1, 'big') + f + i2 + c + k)
         self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
         # bip32.xkey_parse(invalid_key)
 
         # non-zero depth (255) with zero parent_fingerprint
         d2 = 255
-        invalid_key = base58.encode_check(
+        invalid_key = base58.encode(
             v + d2.to_bytes(1, 'big') + f + i + c + k)
         self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
         # bip32.xkey_parse(invalid_key)
@@ -403,15 +403,15 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(addr, b'16NLYkKtvYhW1Jp86tbocku3gxWcvitY1w')
 
         # version/key mismatch in extended parent key
-        temp = base58.decode_check(rootxprv)
-        bad_xprv = base58.encode_check(temp[0:45] + b'\x01' + temp[46:])
+        temp = base58.decode(rootxprv)
+        bad_xprv = base58.encode(temp[0:45] + b'\x01' + temp[46:])
         self.assertRaises(ValueError, bip32.ckd, bad_xprv, 1)
         #bip32.ckd(bad_xprv, 1)
 
         # version/key mismatch in extended parent key
         xpub = bip32.xpub_from_xprv(rootxprv)
-        temp = base58.decode_check(xpub)
-        bad_xpub = base58.encode_check(temp[0:45] + b'\x00' + temp[46:])
+        temp = base58.decode(xpub)
+        bad_xpub = base58.encode(temp[0:45] + b'\x00' + temp[46:])
         self.assertRaises(ValueError, bip32.ckd, bad_xpub, 1)
         #bip32.ckd(bad_xpub, 1)
 
@@ -477,7 +477,7 @@ class TestBIP32(unittest.TestCase):
         # invalid extended key version
         version = b'\x04\x88\xAD\xE5'
         xkey = version + b'\x00'*74
-        xkey = base58.encode_check(xkey)
+        xkey = base58.encode(xkey)
         self.assertRaises(ValueError, bip32.ckd, xkey, 0x80000000)
         #bip32.ckd(xkey, 0x80000000)
 

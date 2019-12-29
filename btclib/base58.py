@@ -21,6 +21,10 @@ Base58 omits the similar-looking letters
 to avoid ambiguity when printed; moreover, it removes '+' and '/'
 so that a double-click does select the whole string.
 
+Base58Check is the checksummed version of Base58, using
+double_sha256(v)[:4] as checksum suffix before encoding;
+at the decoding stage the checksum validity ensure data integrity.
+
 This implementation of Base58 and Base58Check is originally from
 https://github.com/keis/base58, with the following modifications:
 
@@ -86,8 +90,8 @@ def _encode(v: Union[str, bytes]) -> bytes:
     return result
 
 
-def encode_check(v: Union[str, bytes]) -> bytes:
-    """Encode bytes or string using checksummed Base58."""
+def encode(v: Union[str, bytes]) -> bytes:
+    """Encode bytes or string using Base58Check."""
 
     v = _str_to_bytes(v)
 
@@ -111,8 +115,7 @@ def _decode(v: Union[str, bytes],
             output_size: Optional[int] = None) -> bytes:
     """Decode Base58 encoded bytes or string.
 
-    Decode Base58 encoded bytes or string,
-    optionally ensuring required output size.
+    Optionally, it also ensures required output size.
     """
 
     v = _str_to_bytes(v)
@@ -138,12 +141,11 @@ def _decode(v: Union[str, bytes],
     return result
 
 
-def decode_check(v: Union[str, bytes],
-                 output_size: Optional[int] = None) -> bytes:
-    """Decode Base58 encoded bytes or string, verifying checksum.
+def decode(v: Union[str, bytes],
+           output_size: Optional[int] = None) -> bytes:
+    """Decode Base58Check encoded bytes or string, verifying checksum.
 
-    Decode Base58 encoded bytes or string, verifying checksum and
-    optionally ensuring required output size.
+    Optionally, it also ensures required output size.
     """
 
     if output_size is not None:

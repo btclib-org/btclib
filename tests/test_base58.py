@@ -50,18 +50,18 @@ class TestBase58CheckEncoding(unittest.TestCase):
 
     def test_exceptions(self):
         # int is not hex-string or bytes
-        self.assertRaises(TypeError, base58.encode_check, 3)
+        self.assertRaises(TypeError, base58.encode, 3)
 
-        encoded = base58.encode_check(b"test")
+        encoded = base58.encode(b"test")
 
         # unexpected decoded length
         wrong_length = len(encoded)-1
-        self.assertRaises(ValueError, base58.decode_check,
+        self.assertRaises(ValueError, base58.decode,
                           encoded, wrong_length)
 
         # checksum is invalid
         invalidChecksum = encoded[:-4] + b'1111'
-        self.assertRaises(ValueError, base58.decode_check, invalidChecksum, 4)
+        self.assertRaises(ValueError, base58.decode, invalidChecksum, 4)
 
     def test_wif(self):
         # https://en.bitcoin.it/wiki/Wallet_import_format
@@ -69,32 +69,32 @@ class TestBase58CheckEncoding(unittest.TestCase):
 
         uncompressedKey = b'\x80' + prvkey.to_bytes(32, byteorder='big')
         uncompressedWIF = b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ'
-        wif = base58.encode_check(uncompressedKey)
+        wif = base58.encode(uncompressedKey)
         self.assertEqual(wif, uncompressedWIF)
-        key = base58.decode_check(uncompressedWIF)
+        key = base58.decode(uncompressedWIF)
         self.assertEqual(key, uncompressedKey)
 
         compressedKey = b'\x80' + \
             prvkey.to_bytes(32, byteorder='big') + b'\x01'
         compressedWIF = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
-        wif = base58.encode_check(compressedKey)
+        wif = base58.encode(compressedKey)
         self.assertEqual(wif, compressedWIF)
-        key = base58.decode_check(compressedWIF)
+        key = base58.decode(compressedWIF)
         self.assertEqual(key, compressedKey)
 
         # string
         compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
-        key = base58.decode_check(compressedWIF)
+        key = base58.decode(compressedWIF)
         self.assertEqual(key, compressedKey)
 
         # string with leading space
         compressedWIF = ' KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
-        base58.decode_check(compressedWIF)
+        base58.decode(compressedWIF)
         self.assertEqual(key, compressedKey)
 
         # string with trailing space
         compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 '
-        base58.decode_check(compressedWIF)
+        base58.decode(compressedWIF)
         self.assertEqual(key, compressedKey)
 
 

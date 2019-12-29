@@ -89,7 +89,7 @@ PUB_VERSION = [
 
 
 def xkey_parse(xkey: Octets) -> Tuple:
-    xkey = base58.decode_check(xkey, 78)
+    xkey = base58.decode(xkey, 78)
 
     version = xkey[:4]
     depth = xkey[4]
@@ -169,7 +169,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
     rootxprv += hd[32:]                                # chain code
     rootxprv += b'\x00' + rootprv.to_bytes(32, 'big')  # private key
 
-    return base58.encode_check(rootxprv)
+    return base58.encode(rootxprv)
 
 
 def xpub_from_xprv(xprv: Octets) -> bytes:
@@ -191,7 +191,7 @@ def xpub_from_xprv(xprv: Octets) -> bytes:
     xpub += i                                 # child index
     xpub += c                                 # chain code
     xpub += octets_from_point(ec, P, True)    # public key
-    return base58.encode_check(xpub)
+    return base58.encode(xpub)
 
 
 def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
@@ -245,7 +245,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         Child = ec.add(Point, Offset)
         xkey += octets_from_point(ec, Child, True)   # child public key
 
-    return base58.encode_check(xkey)
+    return base58.encode(xkey)
 
 
 def indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
@@ -365,4 +365,4 @@ def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
     parent_bytes = b'\x00' + parent.to_bytes(32, 'big')
     parent_xprv += parent_bytes           # private key
 
-    return base58.encode_check(parent_xprv)
+    return base58.encode(parent_xprv)
