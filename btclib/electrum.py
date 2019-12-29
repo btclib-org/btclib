@@ -98,7 +98,7 @@ def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
 
 def masterxprv_from_mnemonic(mnemonic: Mnemonic,
                              passphrase: str,
-                             mainnet: bool) -> bytes:
+                             testnet: bool = False) -> bytes:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
     Note that for a standard mnemonic the derivation path is "m",
@@ -110,10 +110,10 @@ def masterxprv_from_mnemonic(mnemonic: Mnemonic,
     # verify that the mnemonic is versioned
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
     if s.startswith(ELECTRUM_MNEMONIC_VERSIONS['standard']):
-        xversion = bip32.MAIN_xprv if mainnet else bip32.TEST_tprv
+        xversion = bip32.TEST_tprv if testnet else bip32.MAIN_xprv
         return bip32.rootxprv_from_seed(seed, xversion)
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']):
-        xversion = bip32.MAIN_zprv if mainnet else bip32.TEST_vprv
+        xversion = bip32.TEST_vprv if testnet else bip32.MAIN_zprv
         rootxprv = bip32.rootxprv_from_seed(seed, xversion)
         return bip32.ckd(rootxprv, 0x80000000)  # "m/0h"
     elif s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa']):

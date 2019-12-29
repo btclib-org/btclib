@@ -42,30 +42,29 @@ class TestMnemonicDictionaries(unittest.TestCase):
         #electrum.entropy_from_mnemonic(unknown_version, lang)
 
         passphrase = ''
-        mainnet = True
 
         # unknown electrum mnemonic version (00c)
         self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
-                                      unknown_version, passphrase, mainnet)
-        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+                                      unknown_version, passphrase)
+        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
 
         xprv= "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
-        xprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+        xprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
         self.assertEqual(xprv2.decode(), xprv)
 
         eversion = '2fa'
         mnemonic = electrum.mnemonic_from_entropy(entropy, lang, eversion)
         # 2fa mnemonic version is not managed yet
         self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
-                                      mnemonic, passphrase, mainnet)
-        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+                                      mnemonic, passphrase)
+        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
 
         eversion = '2fa_segwit'
         mnemonic = electrum.mnemonic_from_entropy(entropy, lang, eversion)
         # 2fa_segwit mnemonic version is not managed yet
         self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
-                                      mnemonic, passphrase, mainnet)
-        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+                                      mnemonic, passphrase)
+        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
 
 
     def test_vectors(self):
@@ -85,8 +84,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
             mxpub = test_vector[4]
             address = test_vector[5]  # "./0/0"
 
-            mainnet = True
-            mxprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+            mxprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
             self.assertEqual(mxprv2.decode(), mxprv)
             mxpub2 = bip32.xpub_from_xprv(mxprv2)
             self.assertEqual(mxpub2.decode(), mxpub)
