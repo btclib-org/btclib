@@ -110,11 +110,10 @@ def _decode_to_int(v: Union[str, bytes]) -> int:
 def _decode(v: Union[str, bytes],
             output_size: Optional[int] = None) -> bytes:
     """Decode Base58 encoded bytes or string.
-    
+
     Decode Base58 encoded bytes or string,
     optionally ensuring required output size.
     """
-
 
     v = _str_to_bytes(v)
 
@@ -142,7 +141,7 @@ def _decode(v: Union[str, bytes],
 def decode_check(v: Union[str, bytes],
                  output_size: Optional[int] = None) -> bytes:
     """Decode Base58 encoded bytes or string, verifying checksum.
-    
+
     Decode Base58 encoded bytes or string, verifying checksum and
     optionally ensuring required output size.
     """

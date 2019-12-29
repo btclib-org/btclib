@@ -16,6 +16,7 @@ from btclib.curves import secp160r1 as ec
 from btclib.utils import point_from_octets, octets_from_point, octets_from_int
 from btclib import dh
 
+
 class TestEcdh(unittest.TestCase):
     def test_ecdh(self):
         size = 20
@@ -46,7 +47,8 @@ class TestEcdh(unittest.TestCase):
         self.assertEqual(format(dU, str(ec.psize)+'x'),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
         QU = mult(ec, dU)
-        self.assertEqual(QU, (466448783855397898016055842232266600516272889280, 1110706324081757720403272427311003102474457754220))
+        self.assertEqual(QU, (466448783855397898016055842232266600516272889280,
+                              1110706324081757720403272427311003102474457754220))
         self.assertEqual(octets_from_point(ec, QU, True).hex(),
                          '0251b4496fecc406ed0e75a24a3c03206251419dc0')
 
@@ -55,7 +57,8 @@ class TestEcdh(unittest.TestCase):
         self.assertEqual(format(dV, str(ec.psize)+'x'),
                          '45fb58a92a17ad4b15101c66e74f277e2b460866')
         QV = mult(ec, dV)
-        self.assertEqual(QV, (420773078745784176406965940076771545932416607676, 221937774842090227911893783570676792435918278531))
+        self.assertEqual(QV, (420773078745784176406965940076771545932416607676,
+                              221937774842090227911893783570676792435918278531))
         self.assertEqual(octets_from_point(ec, QV, True).hex(),
                          '0349b41e0e9c0369c2328739d90f63d56707c6e5bc')
 
@@ -69,14 +72,16 @@ class TestEcdh(unittest.TestCase):
         z, _ = mult(ec, dU, QV)  # x coordinate only
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = dh.ansi_x963_kdf(ec, hf, octets_from_int(z, ec.psize), size)
+        keyingdata = dh.ansi_x963_kdf(
+            ec, hf, octets_from_int(z, ec.psize), size)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
         # 4.1.5
         z, _ = mult(ec, dV, QU)  # x coordinate only
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = dh.ansi_x963_kdf(ec, hf, octets_from_int(z, ec.psize), size)
+        keyingdata = dh.ansi_x963_kdf(
+            ec, hf, octets_from_int(z, ec.psize), size)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
 

@@ -16,9 +16,10 @@ from typing import List
 
 WordList = List[str]
 
+
 class WordLists:
     """Class for word-lists to be used in entropy/mnemonic conversions.
-    
+
     Word-lists are from:
 
     * *en*: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
@@ -101,6 +102,7 @@ class WordLists:
 
         self.load_lang(lang)
         return self._language_length[lang]
+
 
 # singleton
 _wordlists = WordLists()

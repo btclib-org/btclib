@@ -26,28 +26,32 @@ class TestKeys(unittest.TestCase):
 
         # compressed WIF
         wif = wif_from_prvkey(q, True)
-        self.assertEqual(wif, b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617')
+        self.assertEqual(
+            wif, b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617')
         q2 = prvkey_from_wif(wif)
         self.assertEqual(q2[0], q)
         self.assertEqual(q2[1], True)
 
         # compressed WIF (testnet)
         wif = wif_from_prvkey(q, True, True)
-        self.assertEqual(wif, b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx')
+        self.assertEqual(
+            wif, b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx')
         q2 = prvkey_from_wif(wif)
         self.assertEqual(q2[0], q)
         self.assertEqual(q2[1], True)
 
         # uncompressed WIF
         wif = wif_from_prvkey(q, False)
-        self.assertEqual(wif, b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ')
+        self.assertEqual(
+            wif, b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ')
         q3 = prvkey_from_wif(wif)
         self.assertEqual(q3[0], q)
         self.assertEqual(q3[1], False)
 
         # uncompressed WIF (testnet)
         wif = wif_from_prvkey(q, False, True)
-        self.assertEqual(wif, b'91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2')
+        self.assertEqual(
+            wif, b'91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2')
         q3 = prvkey_from_wif(wif)
         self.assertEqual(q3[0], q)
         self.assertEqual(q3[1], False)
@@ -56,12 +60,12 @@ class TestKeys(unittest.TestCase):
         badq = ec.n
         self.assertRaises(ValueError, wif_from_prvkey, badq, True)
         #wif = wif_from_prvkey(badq, True)
-        
+
         # Not a private key WIF: missing leading 0x80
         payload = b'\x81' + octets_from_int(badq, ec.psize)
         badwif = base58.encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
-        #prvkey_from_wif(badwif)
+        # prvkey_from_wif(badwif)
 
         # Not a compressed WIF: missing trailing 0x01
         payload = b'\x80' + octets_from_int(badq, ec.psize) + b'\x00'
@@ -73,19 +77,20 @@ class TestKeys(unittest.TestCase):
         payload = b'\x80' + octets_from_int(badq, ec.psize) + b'\x01\x00'
         badwif = base58.encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
-        #prvkey_from_wif(badwif)
+        # prvkey_from_wif(badwif)
 
         # Not a WIF: private key not in (0, n)
         payload = b'\x80' + octets_from_int(badq, ec.psize)
         badwif = base58.encode_check(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
-        #prvkey_from_wif(badwif)
+        # prvkey_from_wif(badwif)
 
     def test_address_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
         prv = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
         pub = mult(ec, prv)
-        self.assertEqual(pub, point_from_octets(ec, '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'))
+        self.assertEqual(pub, point_from_octets(
+            ec, '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'))
 
         addr = p2pkh_address(pub, True)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
@@ -94,7 +99,6 @@ class TestKeys(unittest.TestCase):
         addr = p2pkh_address(pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
         _h160_from_p2pkh_address(addr)
-
 
     def test_p2pkh_address_from_wif(self):
         wif1 = b"5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
@@ -117,6 +121,7 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(a, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
+
 
 if __name__ == "__main__":
     # execute only if run as a script

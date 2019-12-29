@@ -16,9 +16,10 @@ from typing import NamedTuple, Tuple, Sequence, List
 
 from .numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
+
 class Point(NamedTuple):
     """Elliptic curve point.
-        
+
     Infinity point in affine coordinates is Point(); it is
     characterized by 'Inf[1] == 0' or 'Inf.y == 0' as no affine point
     has y=0 coordinate in a group of prime order n.
@@ -26,9 +27,11 @@ class Point(NamedTuple):
     x: int = 1
     y: int = 0
 
+
 # infinity point in Jacobian coordinates is Inf = (int, int, 0)
 # it can be checked with 'Inf[2] == 0'
 _JacPoint = Tuple[int, int, int]
+
 
 def _jac_from_aff(Q: Point) -> _JacPoint:
     # point is assumed to be on curve
@@ -41,7 +44,7 @@ class Curve:
     """Elliptic curve y^2 = x^3 + a*x + b over Fp group."""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
-                       h: int, t: int, weakness_check: bool = True) -> None:
+                 h: int, t: int, weakness_check: bool = True) -> None:
         # Parameters are checked according to SEC 1 v.2 3.1.1.2.1
 
         # 1) check that p is an odd prime
@@ -155,7 +158,7 @@ class Curve:
 
     def opposite(self, Q: Point) -> Point:
         """Return the opposite point on the curve.
-        
+
         The input point must be on the curve.
         """
 
@@ -177,7 +180,7 @@ class Curve:
 
     def add(self, Q1: Point, Q2: Point) -> Point:
         """Return the sum of two points.
-        
+
         The input points must be on the curve.
         """
 
@@ -271,7 +274,7 @@ class Curve:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
             return True
-        if not 0 < Q[1] < self._p: # y cannot be zero
+        if not 0 < Q[1] < self._p:  # y cannot be zero
             raise ValueError(f"y-coordinate {hex(Q[1])} not in (0, p)")
         return self._y2(Q[0]) == (Q[1]*Q[1] % self._p)
 
@@ -397,7 +400,7 @@ def multi_mult(ec: Curve,
                scalars: Sequence[int],
                Points: Sequence[Point]) -> Point:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
-    
+
     Use Bos-Coster's algorithm for efficient computation;
     the input points must be on the curve.
     """
@@ -406,7 +409,7 @@ def multi_mult(ec: Curve,
         errMsg = f"mismatch between scalar length ({len(scalars)}) and "
         errMsg += f"Points length ({len(Points)})"
         raise ValueError(errMsg)
-        
+
     JPoints: List[_JacPoint] = list()
     for P in Points:
         ec.require_on_curve(P)

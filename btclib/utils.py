@@ -36,7 +36,7 @@ def point_from_octets(ec: Curve, o: Octets) -> Point:
     if isinstance(o, str):
         o = bytes.fromhex(o)
 
-    bsize = len(o) # bytes
+    bsize = len(o)  # bytes
     if bsize == 1 and o[0] == 0x00:     # infinity point
         return Point()
 
@@ -67,7 +67,7 @@ def point_from_octets(ec: Curve, o: Octets) -> Point:
 
 def octets_from_point(ec: Curve, Q: Point, compressed: bool) -> bytes:
     """Return a point as compressed/uncompressed octet sequence.
-    
+
     Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
     octet sequence, according to SEC 1 v.2, section 2.3.3.
     """
@@ -87,7 +87,7 @@ def octets_from_point(ec: Curve, Q: Point, compressed: bool) -> bytes:
 
 def int_from_octets(o: Octets) -> int:
     """Return an integer from an octet sequence (bytes or hex string).
-    
+
     Return an integer from an octet sequence (bytes or hex string)
     according to SEC 1 v.2, section 2.3.8.
     """
@@ -98,7 +98,7 @@ def int_from_octets(o: Octets) -> int:
 
 def octets_from_int(i: int, bytesize: int) -> bytes:
     """Return an octet sequence from an integer.
-    
+
     Return an octet sequence from an integer
     according to SEC 1 v.2, section 2.3.7.
     """

@@ -21,7 +21,8 @@ class TestSignMessage(unittest.TestCase):
 
         wif = 'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk'
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
+        self.assertEqual(
+            prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
         self.assertTrue(compressed)
         mysig = sign(msg, prvkey, compressed)
         # auto-consistency check
@@ -33,7 +34,8 @@ class TestSignMessage(unittest.TestCase):
 
         wif = '5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
+        self.assertEqual(
+            prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
         self.assertFalse(compressed)
         mysig = sign(msg, prvkey, compressed)
         # auto-consistency check
@@ -45,7 +47,8 @@ class TestSignMessage(unittest.TestCase):
 
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
+        self.assertEqual(
+            prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
         self.assertTrue(compressed)
         mysig = sign(msg, prvkey, compressed)
         # auto-consistency check
@@ -57,7 +60,8 @@ class TestSignMessage(unittest.TestCase):
 
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
+        self.assertEqual(
+            prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
         self.assertFalse(compressed)
         mysig = sign(msg, prvkey, compressed)
         # auto-consistency check
@@ -128,7 +132,6 @@ class TestSignMessage(unittest.TestCase):
         self.assertEqual(mysig[0], address)
         sig = b'G1nGwD/kcMSmsYU6qihV2l2+Pa+7SPP9zyViZ59VER+QL9cJsIAtu1CuxfYDAVt3kgr4t3a/Es3PV82M6z0eQAo='
         self.assertEqual(mysig[1], sig)
-
 
     def test_verifymsgsig(self):
         msg = 'Hello, world!'
@@ -231,6 +234,7 @@ class TestSignMessage(unittest.TestCase):
         sig = 'GpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU='
         self.assertRaises(ValueError, _verify, msg, address, sig)
         self.assertFalse(verify(msg, address, sig))
+
 
 if __name__ == "__main__":
     # execute only if run as a script

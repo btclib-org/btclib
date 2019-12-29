@@ -17,13 +17,14 @@ from btclib import borromean
 
 random.seed(42)
 
+
 class TestBorromeanRingSignature(unittest.TestCase):
     def test_borromean(self):
         ec = secp256k1
         ring_number = 4
         ring_dim = [random.randint(1, 4) for ring in range(ring_number)]
         borromean.signing_indexes = [random.randrange(ring_dim[ring])
-                           for ring in range(ring_number)]
+                                     for ring in range(ring_number)]
         priv_keys = {}
         Pub_keys = {}
         borromean.signing_keys = []
@@ -33,12 +34,15 @@ class TestBorromeanRingSignature(unittest.TestCase):
             for j in range(ring_dim[i]):
                 priv_keys[i][j] = j+1
                 Pub_keys[i][j] = mult(ec, priv_keys[i][j])
-            borromean.signing_keys.append(priv_keys[i][borromean.signing_indexes[i]])
+            borromean.signing_keys.append(
+                priv_keys[i][borromean.signing_indexes[i]])
         msg = b'Borromean ring borromean.signature'
-        sig = borromean.sign(msg, list(range(1, 5)), borromean.signing_indexes, borromean.signing_keys, Pub_keys)
+        sig = borromean.sign(msg, list(
+            range(1, 5)), borromean.signing_indexes, borromean.signing_keys, Pub_keys)
         self.assertTrue(borromean.verify(msg, sig[0], sig[1], Pub_keys))
 
         self.assertFalse(borromean.verify(0, sig[0], sig[1], Pub_keys))
+
 
 if __name__ == "__main__":
     # execute only if run as a script

@@ -36,7 +36,7 @@ def sign(ec: Curve, hf: HashF, m: bytes, q: int,
         mhd = hf(m),
 
     a sequence of bits of length *hlen*.
-    
+
     Normally, hf is chosen such that its output length *hlen* is
     roughly equal to *nlen*, the bit-length of the group order *n*,
     since the overall security of the signature scheme will depend on
@@ -143,7 +143,7 @@ def _verhlp(ec: Curve, c: int, P: Point, sig: ECDS) -> bool:
 
 def pubkey_recovery(ec: Curve, hf: HashF, m: bytes, sig: ECDS) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
-    
+
     See also https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106    
     """
 
@@ -166,7 +166,7 @@ def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> List[Point]:
     keys: List[Point] = list()
     for j in range(ec.h):                                 # 1
         x = (r + j*ec.n) % ec._p                          # 1.1
-        try:  #TODO: check test reporting 1, 2, 3, or 4 keys
+        try:  # TODO: check test reporting 1, 2, 3, or 4 keys
             # even root first for bitcoin message signing compatibility
             R = x, ec.y_odd(x, 0)                         # 1.2, 1.3, and 1.4
             # skip 1.5: in this function, c is an input

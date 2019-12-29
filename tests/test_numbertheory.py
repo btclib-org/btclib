@@ -25,6 +25,7 @@ primes = [2,    3,   5,   7,  11,  13,   17,  19,  23, 29,
           2**384 - 2**128 - 2**96 + 2**32 - 1,
           2**521 - 1]
 
+
 class TestNumberTheory(unittest.TestCase):
     def test_mod_inv_prime(self):
         for p in primes:

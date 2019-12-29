@@ -72,7 +72,7 @@ def mod_sqrt(a: int, p: int) -> int:
 
     Solve the equation:
         x^2 = a mod p
-    
+
     and returns x. Note that p - x is also a root.
 
     The Tonelli-Shanks algorithm is used (except for some simple

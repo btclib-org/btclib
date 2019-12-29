@@ -16,12 +16,14 @@ import secrets
 from btclib import bip32
 from btclib import bip39
 
+
 class TestBIP39(unittest.TestCase):
     def test_bip39(self):
         lang = "en"
         raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
         mnemonic = bip39.mnemonic_from_entropy(raw_entr, lang)
-        self.assertEqual(mnemonic, "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract")
+        self.assertEqual(
+            mnemonic, "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract")
         r = bip39.entropy_from_mnemonic(mnemonic, lang)
         size = (len(r)+7) // 8
         r = int(r, 2).to_bytes(size, 'big')
@@ -29,20 +31,22 @@ class TestBIP39(unittest.TestCase):
 
         passphrase = ''
 
-        rootxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.PRV_VERSION[0])
+        rootxprv = bip39.rootxprv_from_mnemonic(
+            mnemonic, passphrase, bip32.PRV_VERSION[0])
         exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(rootxprv, exp)
 
         # mnemonic with wrong number of bits
         wrong_mnemonic = mnemonic + " abandon"
-        self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
+        self.assertRaises(
+            ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
         #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # invalid mnemonic checksum
         wrong_mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce walnut"
-        self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
+        self.assertRaises(
+            ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
         #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
-
 
     def test_vectors(self):
         """BIP39 test vectors
@@ -62,7 +66,7 @@ class TestBIP39(unittest.TestCase):
             self.assertEqual(mnemonic, test_vector[1])
 
             raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
-            size =  (len(raw_entr)+7) // 8
+            size = (len(raw_entr)+7) // 8
             raw_entr = int(raw_entr, 2).to_bytes(size, 'big')
             self.assertEqual(raw_entr, test_vector[0])
 
@@ -74,7 +78,7 @@ class TestBIP39(unittest.TestCase):
 
     def test_zeroleadingbit(self):
         # it should not throw an error
-        bip39.mnemonic_from_entropy(secrets.randbits(127) , 'en')
+        bip39.mnemonic_from_entropy(secrets.randbits(127), 'en')
 
 
 if __name__ == "__main__":

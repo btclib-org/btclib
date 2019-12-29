@@ -44,7 +44,7 @@ class TestDSA(unittest.TestCase):
         self.assertTrue(dsa._verify(ec, hf, msg, Q, malleated_sig))
 
         keys = dsa.pubkey_recovery(ec, hf, msg, sig)
-        self.assertTrue(len(keys)==2)
+        self.assertTrue(len(keys) == 2)
         self.assertIn(Q, keys)
 
         fmsg = b'Craig Wright'
@@ -102,7 +102,7 @@ class TestDSA(unittest.TestCase):
 
         # 2.1.3 Signing Operation for U
         msg = b'abc'
-        k =  702232148019446860144825009548118511996283736794
+        k = 702232148019446860144825009548118511996283736794
         exp_sig = (0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
                    0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54)
         sig = dsa.sign(ec, hf, msg, dU, k)
@@ -120,7 +120,8 @@ class TestDSA(unittest.TestCase):
         ec = secp256k1
         # see https://twitter.com/pwuille/status/1063582706288586752
         # Satoshi's key
-        P = point_from_octets(secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
+        P = point_from_octets(
+            secp256k1, "0311db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c")
 
         u1 = 1
         u2 = 2  # pick them at will

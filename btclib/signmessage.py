@@ -151,6 +151,7 @@ from . import dsa
 # TODO: generalize to other curves and hash functions
 # TODO: implement P2WPKH-P2SH and P2WPKH
 
+
 def _magic_hash(msg: str) -> bytes:
     # Electrum does strip leading and trailing spaces;
     # bitcoin core does not
@@ -161,6 +162,7 @@ def _magic_hash(msg: str) -> bytes:
     message = chr(len(msg)) + msg
     m.update(message.encode())
     return m.digest()
+
 
 def sign(msg: str, prvkey: int,
          compressed: bool = True, testnet: bool = False) -> Tuple[str, str]:
@@ -183,6 +185,7 @@ def sign(msg: str, prvkey: int,
 
     # the following line should never be executed
     raise ValueError("Public key not recovered")
+
 
 def verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     """Verify message signature for a given P2PKH address."""

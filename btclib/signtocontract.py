@@ -105,8 +105,8 @@ def verify_commit(ec: Curve, hf: HashF, c: bytes, receipt: Receipt) -> bool:
     # w in [1..n-1] dsa
     # w in [1..p-1] ssa
     # different verify functions?
-    
-    # verify R is a good point?    
+
+    # verify R is a good point?
 
     ch = hf(c).digest()
     e = hf(octets_from_point(ec, R, True) + ch).digest()

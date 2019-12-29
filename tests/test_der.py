@@ -22,13 +22,13 @@ class TestDER(unittest.TestCase):
         # these are invalid for secp256k1
         #sig73  = 2**256 - 1, 2**256 - 1
         #sig72  = 2**255 - 1, 2**256 - 1
-        
-        sig71  = 2**255 - 1, 2**255 - 1
+
+        sig71 = 2**255 - 1, 2**255 - 1
         sig71b = 2**255 - 1, 2**248 - 1
-        sig70  = 2**255 - 1, 2**247 - 1
-        sig69  = 2**247 - 1, 2**247 - 1
-        sigs = [#sig73, sig72,
-                sig71, sig71b, sig70, sig69]
+        sig70 = 2**255 - 1, 2**247 - 1
+        sig69 = 2**247 - 1, 2**247 - 1
+        sigs = [  # sig73, sig72,
+            sig71, sig71b, sig70, sig69]
 
         for sig in sigs:
             DER = der.encode(ec, sig, sighash_all)
@@ -91,10 +91,11 @@ class TestDER(unittest.TestCase):
         self.assertRaises(ValueError, der.decode, ec, DER2)
 
         # sighash size > 1
-        self.assertRaises(ValueError, der.encode, ec, sig, sighash_all + b'\x01')
+        self.assertRaises(ValueError, der.encode, ec,
+                          sig, sighash_all + b'\x01')
 
         # negative signature scalar
-        sig2 = -1 , sig[1]
+        sig2 = -1, sig[1]
         self.assertRaises(ValueError, der.encode, ec, sig2, sighash_all)
 
 

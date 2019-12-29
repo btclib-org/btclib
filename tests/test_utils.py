@@ -12,6 +12,7 @@ import unittest
 
 from btclib.utils import h160, double_sha256
 
+
 class TestUtils(unittest.TestCase):
 
     def test_utils(self):

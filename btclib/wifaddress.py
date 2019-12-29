@@ -61,7 +61,7 @@ def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, bool]:
         prvkey = int_from_octets(payload[1:])
     else:
         raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
-    
+
     if not 0 < prvkey < ec.n:
         msg = f"Not a WIF: private key {hex(prvkey)} not in [1, n-1]"
         raise ValueError(msg)

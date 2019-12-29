@@ -33,13 +33,13 @@ class TestMnemonic(unittest.TestCase):
         indexes = indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
 
-        test_indexes = [   0,    0, 2047, 2047, 2047, 2047,
+        test_indexes = [0,    0, 2047, 2047, 2047, 2047,
                         2047, 2047, 2047, 2047, 2047,    0]
         entropy = entropy_from_indexes(test_indexes, lang)
         indexes = indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
 
-        test_indexes = [   0,    0, 2047, 2047, 2047, 2047,
+        test_indexes = [0,    0, 2047, 2047, 2047, 2047,
                         2047, 2047, 2047, 2047, 2047,    0]
         entropy = entropy_from_indexes(test_indexes, lang)
         indexes = indexes_from_entropy(entropy, lang)
@@ -48,6 +48,7 @@ class TestMnemonic(unittest.TestCase):
         # entropy must be binary string or int
         entropy = b'123456789abcdef0'
         self.assertRaises(TypeError, indexes_from_entropy, entropy, lang)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

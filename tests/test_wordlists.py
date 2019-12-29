@@ -32,7 +32,7 @@ class TestWordLists(unittest.TestCase):
         lang = "fakeen"
         # missing file for language 'fakeen''
         self.assertRaises(ValueError, _wordlists.load_lang, lang)
-        #_wordlists.load_lang(lang)
+        # _wordlists.load_lang(lang)
 
         # dictionary length (must be a power of two
         filename = os.path.join(os.path.dirname(__file__),
@@ -49,6 +49,7 @@ class TestWordLists(unittest.TestCase):
         _wordlists.load_lang(lang, filename)
         length = _wordlists.language_length(lang)
         self.assertEqual(length, 2048)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

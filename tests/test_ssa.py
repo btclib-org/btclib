@@ -23,6 +23,7 @@ from btclib import ssa
 
 random.seed(42)
 
+
 class TestEcssa(unittest.TestCase):
 
     def test_ecssa(self):
@@ -93,7 +94,8 @@ class TestEcssa(unittest.TestCase):
         msg = b'\x00' * 32
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
-        eph_prv = int.from_bytes(hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
+        eph_prv = int.from_bytes(
+            hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
         sig = ssa.sign(ec, hf, msg, prv, eph_prv)
         self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
@@ -103,10 +105,12 @@ class TestEcssa(unittest.TestCase):
         # test vector 2
         prv = 0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
         pub = mult(ec, prv)
-        msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+        msg = bytes.fromhex(
+            "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         expected_sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                         0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        eph_prv = int.from_bytes(hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
+        eph_prv = int.from_bytes(
+            hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
         sig = ssa.sign(ec, hf, msg, prv, eph_prv)
         self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
@@ -116,10 +120,12 @@ class TestEcssa(unittest.TestCase):
         # test vector 3
         prv = 0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B14E5C7
         pub = mult(ec, prv)
-        msg = bytes.fromhex("5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
+        msg = bytes.fromhex(
+            "5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         expected_sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                         0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
-        eph_prv = int.from_bytes(hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
+        eph_prv = int.from_bytes(
+            hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
         sig = ssa.sign(ec, hf, msg, prv, eph_prv)
         self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
         self.assertEqual(sig, expected_sig)
@@ -127,8 +133,10 @@ class TestEcssa(unittest.TestCase):
         self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # test vector 4
-        pub = point_from_octets(ec, "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
-        msg = bytes.fromhex("4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703")
+        pub = point_from_octets(
+            ec, "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
+        msg = bytes.fromhex(
+            "4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703")
         sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63,
                0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
         self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
@@ -137,8 +145,10 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 5
         # test would fail if jacobi symbol of x(R) instead of y(R) is used
-        pub = point_from_octets(ec, "031B84C5567B126440995D3ED5AABA0565D71E1834604819FF9C17F5E9D5DD078F")
-        msg = bytes.fromhex("0000000000000000000000000000000000000000000000000000000000000000")
+        pub = point_from_octets(
+            ec, "031B84C5567B126440995D3ED5AABA0565D71E1834604819FF9C17F5E9D5DD078F")
+        msg = bytes.fromhex(
+            "0000000000000000000000000000000000000000000000000000000000000000")
         sig = (0x52818579ACA59767E3291D91B76B637BEF062083284992F2D95F564CA6CB4E35,
                0x30B1DA849C8E8304ADC0CFE870660334B3CFC18E825EF1DB34CFAE3DFC5D8187)
         self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
@@ -147,8 +157,10 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 6
         # test would fail if msg is reduced
-        pub = point_from_octets(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
-        msg = bytes.fromhex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+        pub = point_from_octets(
+            ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        msg = bytes.fromhex(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
         sig = (0x570DD4CA83D4E6317B8EE6BAE83467A1BF419D0767122DE409394414B05080DC,
                0xE9EE5F237CBD108EABAE1E37759AE47F8E4203DA3532EB28DB860F33D62D49BD)
         self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
@@ -156,8 +168,10 @@ class TestEcssa(unittest.TestCase):
         self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # new proposed test: test would fail if msg is reduced
-        pub = point_from_octets(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
-        msg = bytes.fromhex("000008D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A5000000")
+        pub = point_from_octets(
+            ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        msg = bytes.fromhex(
+            "000008D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A5000000")
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
         self.assertTrue(ssa._verify(ec, hf, msg, pub, sig))
@@ -165,15 +179,18 @@ class TestEcssa(unittest.TestCase):
         self.assertEqual(ssa._pubkey_recovery(ec, hf, e, sig), pub)
 
         # new proposed test: genuine failure
-        pub = point_from_octets(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
-        msg = bytes.fromhex("0000000000000000000000000000000000000000000000000000000000000000")
+        pub = point_from_octets(
+            ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        msg = bytes.fromhex(
+            "0000000000000000000000000000000000000000000000000000000000000000")
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
         self.assertFalse(ssa._verify(ec, hf, msg, pub, sig))
 
         # new proposed test: P = infinite
         pub = 1, 0
-        msg = bytes.fromhex("5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
+        msg = bytes.fromhex(
+            "5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
         self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
@@ -181,30 +198,36 @@ class TestEcssa(unittest.TestCase):
         # test vector 7
         # public key not on the curve
         # impossible to verify with btclib analytics as it at Point conversion
-        self.assertRaises(ValueError, point_from_octets, ec, "03EEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
+        self.assertRaises(ValueError, point_from_octets, ec,
+                          "03EEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
         # msg = bytes.fromhex("4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703")
         # sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63, 0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
         # self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 8
         # Incorrect sig: incorrect R residuosity
-        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
-        msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+        pub = point_from_octets(
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        msg = bytes.fromhex(
+            "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0xFA16AEE06609280A19B67A24E1977E4697712B5FD2943914ECD5F730901B4AB7)
         self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 9
         # Incorrect sig: negated message hash
-        pub = point_from_octets(ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
-        msg = bytes.fromhex("5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
+        pub = point_from_octets(
+            ec, "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        msg = bytes.fromhex(
+            "5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                0xD092F9D860F1776A1F7412AD8A1EB50DACCC222BC8C0E26B2056DF2F273EFDEC)
         self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 10
         # Incorrect sig: negated s value
-        pub = point_from_octets(ec, "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798")
+        pub = point_from_octets(
+            ec, "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798")
         msg = b'\x00' * 32
         sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                0x8FCE5677CE7A623CB20011225797CE7A8DE1DC6CCD4F754A47DA6C600E59543C)
@@ -212,16 +235,21 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 11
         # Incorrect sig: negated public key
-        pub = point_from_octets(ec, "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
-        msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
-        sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D, 0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
+        pub = point_from_octets(
+            ec, "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        msg = bytes.fromhex(
+            "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+        sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
+               0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
         self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 12
         # sG - eP is infinite.
         # Test fails in single verification if jacobi(y(inf)) is defined as 1 and x(inf) as 0
-        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
-        msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+        pub = point_from_octets(
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        msg = bytes.fromhex(
+            "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x0000000000000000000000000000000000000000000000000000000000000000,
                0x9E9D01AF988B5CEDCE47221BFA9B222721F3FA408915444A4B489021DB55775F)
         self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
@@ -229,24 +257,30 @@ class TestEcssa(unittest.TestCase):
         # test vector 13
         # sG - eP is infinite.
         # Test fails in single verification if jacobi(y(inf)) is defined as 1 and x(inf) as 1"""
-        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
-        msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+        pub = point_from_octets(
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        msg = bytes.fromhex(
+            "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x0000000000000000000000000000000000000000000000000000000000000001,
                0xD37DDF0254351836D84B1BD6A795FD5D523048F298C4214D187FE4892947F728)
         self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
 
         # test vector 14
         # sig[0:32] is not an X coordinate on the curve
-        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
-        msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+        pub = point_from_octets(
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        msg = bytes.fromhex(
+            "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x4A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
         self.assertFalse(ssa._verify(ec, hf, msg, pub, sig))
 
         # test vector 15
         # sig[0:32] is equal to field size
-        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
-        msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+        pub = point_from_octets(
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        msg = bytes.fromhex(
+            "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC2F,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
         #self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
@@ -254,8 +288,10 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 16
         # sig[32:64] is equal to curve order
-        pub = point_from_octets(ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
-        msg = bytes.fromhex("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+        pub = point_from_octets(
+            ec, "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
+        msg = bytes.fromhex(
+            "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141)
         self.assertRaises(ValueError, ssa._verify, ec, hf, msg, pub, sig)
@@ -275,17 +311,20 @@ class TestEcssa(unittest.TestCase):
             if ec._p in prime:  # only few curves or it would take too long
                 # Schnorr-bip only applies to curve whose prime p = 3 %4
                 if not ec.pIsThreeModFour:
-                    self.assertRaises(ValueError, ssa.sign, ec, hf, H[0], 1, None)
+                    self.assertRaises(ValueError, ssa.sign,
+                                      ec, hf, H[0], 1, None)
                     continue
                 for q in range(ec.n):  # all possible private keys
                     if q == 0:  # invalid prvkey=0
-                        self.assertRaises(ValueError, ssa.sign, ec, hf, H[0], q, None)
+                        self.assertRaises(ValueError, ssa.sign,
+                                          ec, hf, H[0], q, None)
                         self.assertRaises(ValueError, rfc6979, ec, hf, H[0], q)
                         continue
                     Q = mult(ec, q)  # public key
                     for h in H:  # all possible hashed messages
                         # k = 0
-                        self.assertRaises(ValueError, ssa.sign, ec, hf, h, q, 0)
+                        self.assertRaises(
+                            ValueError, ssa.sign, ec, hf, h, q, 0)
                         k = rfc6979(ec, hf, h, q)
                         K = mult(ec, k)
                         if legendre_symbol(K[1], ec._p) != 1:
@@ -305,7 +344,7 @@ class TestEcssa(unittest.TestCase):
         sig = []
         Q = []
 
-        hsize =hf().digest_size
+        hsize = hf().digest_size
         hlen = hsize * 8
         m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
         q = (1+random.getrandbits(ec.nlen)) % ec.n
@@ -332,7 +371,7 @@ class TestEcssa(unittest.TestCase):
         m[-1] = m[0][:-1]
         self.assertFalse(ssa.batch_verify(ec, hf, m, Q, sig))
         #ssa._batch_verify(ec, hf, m, Q, sig)
-        m[-1] = m[0] # valid again
+        m[-1] = m[0]  # valid again
 
         # mismatch between number of pubkeys and number of messages
         m.append(m[0])  # add extra message
@@ -396,13 +435,15 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(2, i), commits1[i]))
-        assert double_mult(ec, alpha12_prime, H, alpha12) == RHS, 'player one is cheating'
+        assert double_mult(ec, alpha12_prime, H,
+                           alpha12) == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(3, i), commits1[i]))
-        assert double_mult(ec, alpha13_prime, H, alpha13) == RHS, 'player one is cheating'
+        assert double_mult(ec, alpha13_prime, H,
+                           alpha13) == RHS, 'player one is cheating'
 
         # signer two acting as the dealer
         commits2: List[Point] = list()
@@ -438,13 +479,15 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(1, i), commits2[i]))
-        assert double_mult(ec, alpha21_prime, H, alpha21) == RHS, 'player two is cheating'
+        assert double_mult(ec, alpha21_prime, H,
+                           alpha21) == RHS, 'player two is cheating'
 
         # player three verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(3, i), commits2[i]))
-        assert double_mult(ec, alpha23_prime, H, alpha23) == RHS, 'player two is cheating'
+        assert double_mult(ec, alpha23_prime, H,
+                           alpha23) == RHS, 'player two is cheating'
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
@@ -480,13 +523,15 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(1, i), commits3[i]))
-        assert double_mult(ec, alpha31_prime, H, alpha31) == RHS, 'player three is cheating'
+        assert double_mult(ec, alpha31_prime, H,
+                           alpha31) == RHS, 'player three is cheating'
 
         # player two verifies consistency of his share
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(2, i), commits3[i]))
-        assert double_mult(ec, alpha32_prime, H, alpha32) == RHS, 'player two is cheating'
+        assert double_mult(ec, alpha32_prime, H,
+                           alpha32) == RHS, 'player two is cheating'
 
         # shares of the secret key q = q1 + q2 + q3
         alpha1 = (alpha21 + alpha31) % ec.n
@@ -577,7 +622,8 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(3, i), commits1[i]))
-        assert double_mult(ec, beta13_prime, H, beta13) == RHS, 'player one is cheating'
+        assert double_mult(ec, beta13_prime, H,
+                           beta13) == RHS, 'player one is cheating'
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
@@ -608,7 +654,8 @@ class TestEcssa(unittest.TestCase):
         RHS = 1, 0
         for i in range(t):
             RHS = ec.add(RHS, mult(ec, pow(1, i), commits3[i]))
-        assert double_mult(ec, beta31_prime, H, beta31) == RHS, 'player three is cheating'
+        assert double_mult(ec, beta31_prime, H,
+                           beta31) == RHS, 'player three is cheating'
 
         # shares of the secret nonce
         beta1 = beta31 % ec.n
@@ -653,7 +700,7 @@ class TestEcssa(unittest.TestCase):
         ### PHASE THREE: signature generation ###
 
         # partial signatures
-        ebytes = K[0].to_bytes(32, byteorder="big") 
+        ebytes = K[0].to_bytes(32, byteorder="big")
         ebytes += octets_from_point(ec, Q, True)
         ebytes += msg
         e = int_from_bits(ec, hf(ebytes).digest())
@@ -672,7 +719,8 @@ class TestEcssa(unittest.TestCase):
             assert legendre_symbol(K[1], ec._p) != 1
             RHS3 = ec.add(ec.opposite(K), mult(ec, e, Q))
             for i in range(1, t):
-                temp = double_mult(ec, pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i])
+                temp = double_mult(ec, pow(3, i), ec.opposite(
+                    B[i]), e * pow(3, i), A[i])
                 RHS3 = ec.add(RHS3, temp)
 
         assert mult(ec, gamma3) == RHS3, 'player three is cheating'
@@ -687,7 +735,8 @@ class TestEcssa(unittest.TestCase):
             assert legendre_symbol(K[1], ec._p) != 1
             RHS1 = ec.add(ec.opposite(K), mult(ec, e, Q))
             for i in range(1, t):
-                temp = double_mult(ec, pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i])
+                temp = double_mult(ec, pow(1, i), ec.opposite(
+                    B[i]), e * pow(1, i), A[i])
                 RHS1 = ec.add(RHS1, temp)
 
         assert mult(ec, gamma1) == RHS1, 'player two is cheating'
@@ -707,7 +756,7 @@ class TestEcssa(unittest.TestCase):
 
     def test_musig(self):
         """testing 3-of-3 MuSig
-        
+
             https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
             https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
             https://eprint.iacr.org/2018/068
@@ -720,19 +769,22 @@ class TestEcssa(unittest.TestCase):
         # key setup is not interactive
 
         # first signer
-        q1 = int_from_octets('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
+        q1 = int_from_octets(
+            '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
         Q1 = mult(ec, q1)
         k1 = rfc6979(ec, hf, M, q1)
         K1 = mult(ec, k1)
 
         # second signer
-        q2 = int_from_octets('0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        q2 = int_from_octets(
+            '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q2 = mult(ec, q2)
         k2 = rfc6979(ec, hf, M, q2)
         K2 = mult(ec, k2)
 
         # third signer
-        q3 = int_from_octets('0c28fca386c7aff7600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        q3 = int_from_octets(
+            '0c28fca386c7aff7600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
         Q3 = mult(ec, q3)
         k3 = rfc6979(ec, hf, M, q3)
         K3 = mult(ec, k3)
@@ -755,7 +807,6 @@ class TestEcssa(unittest.TestCase):
         # aggregated public key
         Q = ec.add(double_mult(ec, a1, Q1, a2, Q2), mult(ec, a3, Q3))
         Q_bytes = octets_from_point(ec, Q, True)
-
 
         ########################
         # interactive signature: exchange K, compute s

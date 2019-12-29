@@ -26,6 +26,7 @@ from .curve import Curve, Point, mult
 
 KDF = Callable[[Curve, HashF, bytes, int], Any]
 
+
 def ansi_x963_kdf(ec: Curve, hf: HashF, z: bytes, size: int) -> bytes:
     """Return keying data according to ANS-X9.63-KDF.
 

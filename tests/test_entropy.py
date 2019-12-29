@@ -17,6 +17,7 @@ from btclib.entropy import Entropy, GenericEntropy, \
 
 random.seed(42)
 
+
 class TestEntropy(unittest.TestCase):
     def test_conversions(self):
         entropy = '10101011' * 32

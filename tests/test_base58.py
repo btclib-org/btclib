@@ -23,7 +23,8 @@ class TestBase58CheckEncoding(unittest.TestCase):
     def test_hello_world(self):
         self.assertEqual(base58._encode(b'hello world'), b'StV1DL6CwTryKyV')
         self.assertEqual(base58._decode(b'StV1DL6CwTryKyV'), b'hello world')
-        self.assertEqual(base58._decode(base58._encode(b'hello world')), b'hello world')
+        self.assertEqual(base58._decode(
+            base58._encode(b'hello world')), b'hello world')
         self.assertEqual(
             base58._encode(base58._decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
 
@@ -55,7 +56,8 @@ class TestBase58CheckEncoding(unittest.TestCase):
 
         # unexpected decoded length
         wrong_length = len(encoded)-1
-        self.assertRaises(ValueError, base58.decode_check, encoded, wrong_length)
+        self.assertRaises(ValueError, base58.decode_check,
+                          encoded, wrong_length)
 
         # checksum is invalid
         invalidChecksum = encoded[:-4] + b'1111'
@@ -72,7 +74,8 @@ class TestBase58CheckEncoding(unittest.TestCase):
         key = base58.decode_check(uncompressedWIF)
         self.assertEqual(key, uncompressedKey)
 
-        compressedKey = b'\x80' + prvkey.to_bytes(32, byteorder='big') +b'\x01'
+        compressedKey = b'\x80' + \
+            prvkey.to_bytes(32, byteorder='big') + b'\x01'
         compressedWIF = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
         wif = base58.encode_check(compressedKey)
         self.assertEqual(wif, compressedWIF)
@@ -93,6 +96,7 @@ class TestBase58CheckEncoding(unittest.TestCase):
         compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 '
         base58.decode_check(compressedWIF)
         self.assertEqual(key, compressedKey)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

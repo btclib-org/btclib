@@ -47,6 +47,7 @@ from . import bip32
 
 _bits = 128, 160, 192, 224, 256
 
+
 def _entropy_checksum(entropy: GenericEntropy) -> Entropy:
 
     entropy = _bytes_from_entropy(entropy, _bits)
@@ -131,7 +132,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
 
 def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     """Return seed from mnemonic according to BIP39 standard.
-    
+
     It does not verify the mnemonic (implicit entropy) checksum:
     for that use entropy_from_mnemonic.
     """
@@ -142,7 +143,6 @@ def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     iterations = 2048
     dksize = 64
     return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
-
 
 
 def rootxprv_from_mnemonic(mnemonic: Mnemonic,

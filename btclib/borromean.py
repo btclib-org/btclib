@@ -13,18 +13,19 @@ from hashlib import sha256
 from typing import Sequence, Tuple, List, Dict
 from collections import defaultdict
 
-from .curve import Point, mult, double_mult    
-from .curves import secp256k1    
+from .curve import Point, mult, double_mult
+from .curves import secp256k1
 from .utils import int_from_bits, octets_from_point, point_from_octets
 
 # FIXME: should be urandom, but then tests would be non-deterministic
 random.seed(42)
 
-ec = secp256k1 # FIXME: any curve
-hf = sha256 # FIXME: any hf
+ec = secp256k1  # FIXME: any curve
+hf = sha256  # FIXME: any hf
 
 PubkeyRing = Dict[int, Sequence[Point]]
 SValues = Dict[int, Sequence[int]]
+
 
 def _hash(msg: bytes, R: bytes, i: int, j: int) -> bytes:
     temp = msg + R + i.to_bytes(4, 'big') + j.to_bytes(4, 'big')

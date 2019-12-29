@@ -27,7 +27,7 @@ from hmac import HMAC
 from hashlib import sha512
 from typing import Union, Optional, Sequence, List, Tuple
 
-from . import base58 
+from . import base58
 from .curve import mult
 from .curves import secp256k1 as ec
 from .utils import Octets, point_from_octets, octets_from_point, \
@@ -40,27 +40,37 @@ from .wifaddress import p2pkh_address
 # VERSION BYTES (4 bytes)
 
 # m/44h/0h  p2pkh or p2sh
-MAIN_xprv = b'\x04\x88\xAD\xE4'; MAIN_xpub = b'\x04\x88\xB2\x1E'
+MAIN_xprv = b'\x04\x88\xAD\xE4'
+MAIN_xpub = b'\x04\x88\xB2\x1E'
 # m/44h/1h  p2pkh or p2sh
-TEST_tprv = b'\x04\x35\x83\x94'; TEST_tpub = b'\x04\x35\x87\xCF'
+TEST_tprv = b'\x04\x35\x83\x94'
+TEST_tpub = b'\x04\x35\x87\xCF'
 
 # m/49h/0h  p2sh-segwit p2wpkh-p2sh
-MAIN_yprv = b'\x04\x9D\x78\x78'; MAIN_ypub = b'\x04\x9D\x7C\xB2'
+MAIN_yprv = b'\x04\x9D\x78\x78'
+MAIN_ypub = b'\x04\x9D\x7C\xB2'
 # m/49h/1h  p2sh-segwit p2wpkh-p2sh
-TEST_uprv = b'\x04\x4A\x4E\x28'; TEST_upub = b'\x04\x4A\x52\x62'
+TEST_uprv = b'\x04\x4A\x4E\x28'
+TEST_upub = b'\x04\x4A\x52\x62'
 
 # m/84h/0h  native segwit P2WPKH
-MAIN_zprv = b'\x04\xB2\x43\x0C'; MAIN_zpub = b'\x04\xB2\x47\x46'
+MAIN_zprv = b'\x04\xB2\x43\x0C'
+MAIN_zpub = b'\x04\xB2\x47\x46'
 # m/84h/1h  native segwit P2WPKH
-TEST_vprv = b'\x04\x5F\x18\xBC'; TEST_vpub = b'\x04\x5F\x1C\xF6'
+TEST_vprv = b'\x04\x5F\x18\xBC'
+TEST_vpub = b'\x04\x5F\x1C\xF6'
 
 #   ---     p2sh-segwit multi-sig p2wpkh-p2sh
-MAIN_Yprv = b'\x02\x95\xB0\x05'; MAIN_Ypub = b'\x02\x95\xB4\x3F'
-TEST_Uprv = b'\x02\x42\x85\xB5'; TEST_Upub = b'\x02\x42\x89\xEF'
+MAIN_Yprv = b'\x02\x95\xB0\x05'
+MAIN_Ypub = b'\x02\x95\xB4\x3F'
+TEST_Uprv = b'\x02\x42\x85\xB5'
+TEST_Upub = b'\x02\x42\x89\xEF'
 
 #   ---     native segwit multi-sig p2wpkh
-MAIN_Zprv = b'\x02\xAA\x7A\x99'; MAIN_Zpub = b'\x02\xAA\x7E\xD3'
-TEST_Vprv = b'\x02\x57\x50\x48'; TEST_Vpub = b'\x02\x57\x54\x83'
+MAIN_Zprv = b'\x02\xAA\x7A\x99'
+MAIN_Zpub = b'\x02\xAA\x7E\xD3'
+TEST_Vprv = b'\x02\x57\x50\x48'
+TEST_Vpub = b'\x02\x57\x54\x83'
 
 
 PRV_VERSION = [
@@ -77,15 +87,16 @@ PUB_VERSION = [
 # [13:45] chain code
 # [45:78] key (private/public)
 
+
 def xkey_parse(xkey: Octets) -> Tuple:
     xkey = base58.decode_check(xkey, 78)
 
-    version            = xkey[  : 4]
-    depth              = xkey[4]
-    parent_fingerprint = xkey[ 5: 9]
-    child_index        = xkey[ 9:13]
-    chain_code         = xkey[13:45]
-    key                = xkey[45:  ]
+    version = xkey[:4]
+    depth = xkey[4]
+    parent_fingerprint = xkey[5:9]
+    child_index = xkey[9:13]
+    chain_code = xkey[13:45]
+    key = xkey[45:]
 
     if version in PRV_VERSION:
         if key[0] != 0:
@@ -100,15 +111,18 @@ def xkey_parse(xkey: Octets) -> Tuple:
 
     if depth == 0:
         if parent_fingerprint != b'\x00\x00\x00\x00':
-            raise ValueError(f"extended key: zero depth with non-zero parent_fingerprint {parent_fingerprint}")
+            msg = f"extended key: zero depth with non-zero parent_fingerprint {parent_fingerprint}"
+            raise ValueError(msg)
         if child_index != b'\x00\x00\x00\x00':
-            raise ValueError(f"extended key: zero depth with non-zero child_index {child_index}")
+            msg = f"extended key: zero depth with non-zero child_index {child_index}"
+            raise ValueError(msg)
     else:
         if parent_fingerprint == b'\x00\x00\x00\x00':
-            raise ValueError(f"extended key: non-zero depth ({depth}) with zero parent_fingerprint")
+            msg = f"extended key: non-zero depth ({depth}) with zero parent_fingerprint"
+            raise ValueError()
 
     return version, depth, parent_fingerprint, \
-           child_index, chain_code, key, Point
+        child_index, chain_code, key, Point
 
 
 def parent_fingerprint(xkey: Octets) -> bytes:
@@ -236,7 +250,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
 
 def indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
     """Extract derivation indexes from a derivation path.
-    
+
     Derivation path must be like "m/44'/0'/1'/0/10" (absolute)
     or "./0/10" (relative).
     """
@@ -268,7 +282,7 @@ def indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
 
 def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
     """Derive an extended key.
-    
+
     Derivation is according to path like "m/44h/0'/1H/0/10" (absolute)
     or "./0/10" (relative).
     """
@@ -324,7 +338,7 @@ def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
 
     cv, cd, cf, ci, _, ck, _ = xkey_parse(child_xprv)
     if ck[0] != 0:
-         raise ValueError("extended child key is not a private one")
+        raise ValueError("extended child key is not a private one")
 
     # check depth
     if cd != pd + 1:

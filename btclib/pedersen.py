@@ -34,6 +34,7 @@ from .utils import int_from_octets, octets_from_point, \
     int_from_bits, HashF
 from .curve import Point, Curve, double_mult
 
+
 def second_generator(ec: Curve, hf: HashF) -> Point:
     """Second (with respect to G) elliptic curve generator.
 

@@ -174,7 +174,8 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(xprv, "./1000000000")  # private relative
         self.assertEqual(
             xprv, b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
-        xprv = bip32.derive(rootxprv, "m/0'/1/2'/2/1000000000")  # private absolute
+        # private absolute
+        xprv = bip32.derive(rootxprv, "m/0'/1/2'/2/1000000000")
         self.assertEqual(
             xprv, b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
         xpub = bip32.derive(xpub, "./1000000000")  # public relative
@@ -448,7 +449,7 @@ class TestBIP32(unittest.TestCase):
 
         # master key provided
         self.assertRaises(ValueError, bip32.child_index, xprv)
-        #bip32.child_index(xprv)
+        # bip32.child_index(xprv)
 
         # invalid index
         self.assertRaises(ValueError, bip32.ckd, xprv, 'invalid index')

@@ -23,10 +23,11 @@ from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
 from . import bip32
 
 ELECTRUM_MNEMONIC_VERSIONS = {
-    'standard'   :  '01',  # P2PKH and Multisig P2SH wallets
-    'segwit'     : '100',  # P2WPKH and P2WSH wallets
-    '2fa'        : '101',  # Two-factor authenticated wallets
-    '2fa_segwit' : '102'}  # Two-factor authenticated wallets, using segwit
+    'standard':  '01',  # P2PKH and Multisig P2SH wallets
+    'segwit': '100',  # P2WPKH and P2WSH wallets
+    '2fa': '101',  # Two-factor authenticated wallets
+    '2fa_segwit': '102'}  # Two-factor authenticated wallets, using segwit
+
 
 def mnemonic_from_entropy(entropy: GenericEntropy,
                           lang: str,
@@ -72,7 +73,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
         s.startswith(ELECTRUM_MNEMONIC_VERSIONS['segwit']) or
         s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa']) or
         s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa_segwit'])
-        )
+    )
     if valid:
         indexes = indexes_from_mnemonic(mnemonic, lang)
         entropy = entropy_from_indexes(indexes, lang)
@@ -83,7 +84,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     """Return seed from mnemonic according to Electrum standard.
-    
+
     Please note: in the Electrum standard, mnemonic conveys BIP32
     derivation rule too. As such, seed alone is partial information.
     """

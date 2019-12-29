@@ -234,7 +234,7 @@ def _batch_verify(ec: Curve,
         errMsg = f"mismatch between number of pubkeys ({batch_size}) "
         errMsg += f"and number of signatures ({len(sig)})"
         raise ValueError(errMsg)
-    
+
     if batch_size == 1:
         return _verify(ec, hf, ms[0], P[0], sig[0])
 
@@ -268,7 +268,7 @@ def _batch_verify(ec: Curve,
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
-    if (TJ[0] * RHSZ2)  % ec._p != (RHSJ[0] * TZ2) % ec._p:
+    if (TJ[0] * RHSZ2) % ec._p != (RHSJ[0] * TZ2) % ec._p:
         return False
 
     return (TJ[1] * RHSZ2 * RHSJ[2]) % ec._p == (RHSJ[1] * TZ2 * TJ[2]) % ec._p

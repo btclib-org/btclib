@@ -21,7 +21,7 @@ from btclib.utils import octets_from_point, point_from_octets
 from btclib.pedersen import second_generator
 
 random.seed(42)
- 
+
 Inf = Point()  # Infinity point in affine coordinates
 InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 
@@ -32,10 +32,12 @@ class TestEllipticCurve(unittest.TestCase):
         Curve(11, 2, 7, (6, 9), 7, 2, 0, False)
 
         # p not odd
-        self.assertRaises(ValueError, Curve, 10, 2, 7, (6, 9),    7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 10, 2, 7,
+                          (6, 9),    7, 1, 0, False)
 
         # p not prime
-        self.assertRaises(ValueError, Curve, 15, 2, 7, (6, 9),    7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 15, 2, 7,
+                          (6, 9),    7, 1, 0, False)
 
         # required security level not in the allowed range
         ec = secp112r1
@@ -62,32 +64,40 @@ class TestEllipticCurve(unittest.TestCase):
         #Curve(p, a, b, G, n, h, 2*t)
 
         # a > p
-        self.assertRaises(ValueError, Curve, 11, 12, 7, (6, 9),   13, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 12,
+                          7, (6, 9),   13, 1, 0, False)
 
         # b > p
-        self.assertRaises(ValueError, Curve, 11, 2, 12, (6, 9),   13, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 12,
+                          (6, 9),   13, 1, 0, False)
 
         # zero discriminant
-        self.assertRaises(ValueError, Curve, 11, 7, 7, (6, 9),    7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 7, 7,
+                          (6, 9),    7, 1, 0, False)
 
         # G not Tuple (int, int)
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9, 1), 7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7,
+                          (6, 9, 1), 7, 1, 0, False)
 
         # G not on curve
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (7, 9),    7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7,
+                          (7, 9),    7, 1, 0, False)
 
         # n not prime
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9),    8, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7,
+                          (6, 9),    8, 1, 0, False)
 
         # n not Hesse
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9),   71, 1, 0, True)
+        self.assertRaises(ValueError, Curve, 11, 2,
+                          7, (6, 9),   71, 1, 0, True)
 
         # h not as expected
         self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9),   7, 1, 0, True)
         #Curve(11, 2, 7, (6, 9), 7, 1, 0, True)
 
         # n not group order
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9),   13, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7,
+                          (6, 9),   13, 1, 0, False)
 
         # n=p -> weak curve
         # missing
@@ -97,8 +107,7 @@ class TestEllipticCurve(unittest.TestCase):
 
         # x-coordinate not in [0, p-1]
         self.assertRaises(ValueError, secp256k1.y, secp256k1._p)
-        #secp256k1.y(secp256k1._p)
-
+        # secp256k1.y(secp256k1._p)
 
     def test_all_curves(self):
         for ec in all_curves:
@@ -190,13 +199,14 @@ class TestEllipticCurve(unittest.TestCase):
             # not an uncompressed point
             Q_bytes = b'\x01' * 2 * (ec.psize+1)
             self.assertRaises(ValueError, point_from_octets, ec, Q_bytes)
-        
+
         # invalid x coordinate
         ec = secp256k1
         x = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
         xstr = format(x, '32X')
         self.assertRaises(ValueError, point_from_octets, ec, "03" + xstr)
-        self.assertRaises(ValueError, point_from_octets, ec, "04" + xstr + xstr)
+        self.assertRaises(ValueError, point_from_octets,
+                          ec, "04" + xstr + xstr)
         self.assertRaises(ValueError, octets_from_point, ec, (x, x), True)
         self.assertRaises(ValueError, octets_from_point, ec, (x, x), False)
 
@@ -294,7 +304,7 @@ class TestEllipticCurve(unittest.TestCase):
                 y_high = ec.y_low(x, False)
                 self.assertTrue(y_high in (y_odd, y_even))
                 self.assertTrue(y_low < y_high)
-        
+
         # with the last curve
         self.assertRaises(ValueError, ec.y_low, x, 2)
         self.assertRaises(ValueError, ec.y_odd, x, 2)
@@ -380,6 +390,7 @@ class TestEllipticCurve(unittest.TestCase):
         P = [ec.G] * (len(k)-1)
         self.assertRaises(ValueError, multi_mult, ec, k, P)
         #boscoster = multi_mult(ec, k, P)
+
 
 if __name__ == "__main__":
     # execute only if run as a script
