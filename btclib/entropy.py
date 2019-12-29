@@ -16,7 +16,7 @@ binary 0/1 string, bytes-like, or integer.
 Output entropy (*Entropy*) should always be a binary 0/1 string.
 """
 
-from typing import Union, Optional, Sequence
+from typing import Union, Optional, Iterable
 
 Entropy = str  # binary 0/1 string
 GenericEntropy = Union[Entropy, int, bytes]
@@ -25,7 +25,7 @@ _bits = 128, 160, 192, 224, 256
 
 
 def str_from_entropy(entr: GenericEntropy,
-                     bits: Optional[Union[int, Sequence]] = _bits) -> Entropy:
+                     bits: Optional[Union[int, Iterable[int]]] = _bits) -> Entropy:
     """Convert the input entropy to binary 0/1 string.
 
     Input entropy (*GenericEntropy*) can be expressed as
