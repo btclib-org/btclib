@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-import os
+from os import path
 
 from btclib.wordlists import _wordlists
 
@@ -35,17 +35,15 @@ class TestWordLists(unittest.TestCase):
         # _wordlists.load_lang(lang)
 
         # dictionary length (must be a power of two
-        filename = os.path.join(os.path.dirname(__file__),
-                                "data",
-                                "fakeenglish.txt")
+        filename = path.join(path.dirname(__file__),
+                             "data", "fakeenglish.txt")
         self.assertRaises(ValueError, _wordlists.load_lang, lang, filename)
         #_wordlists.load_lang(lang, filename)
 
         # dinamically add a new language
         lang = "en2"
-        filename = os.path.join(os.path.dirname(__file__),
-                                "data",
-                                "english.txt")
+        filename = path.join(path.dirname(__file__),
+                             "data", "english.txt")
         _wordlists.load_lang(lang, filename)
         length = _wordlists.language_length(lang)
         self.assertEqual(length, 2048)

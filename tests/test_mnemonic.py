@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-import os
 
 from btclib.mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
     indexes_from_mnemonic, entropy_from_indexes

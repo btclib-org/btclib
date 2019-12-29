@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-import os
+from os import path
 import json
 
 from btclib import bip32
@@ -69,9 +69,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
     def test_vectors(self):
         filename = "electrum_test_vectors.json"
-        path_to_filename = os.path.join(os.path.dirname(__file__),
-                                        "./data/",
-                                        filename)
+        path_to_filename = path.join(path.dirname(__file__),
+                                     "./data/", filename)
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)
         f.closed

@@ -11,7 +11,7 @@
 """Class for word-lists to be used in entropy/mnemonic conversions."""
 
 import math
-import os
+from os import path
 from typing import List
 
 WordList = List[str]
@@ -32,10 +32,10 @@ class WordLists:
 
     def __init__(self) -> None:
 
-        path = os.path.join(os.path.dirname(__file__), "dictdata")
+        path_to_filename = path.join(path.dirname(__file__), "dictdata")
         self.language_files = {
-            'en': os.path.join(path, 'english.txt'),
-            'it': os.path.join(path, 'italian.txt')
+            'en': path.join(path_to_filename, 'english.txt'),
+            'it': path.join(path_to_filename, 'italian.txt')
         }
         self.languages = list(self.language_files)
 

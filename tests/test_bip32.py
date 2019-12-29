@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-import os
+from os import path
 import json
 
 from btclib import base58
@@ -91,7 +91,8 @@ class TestBIP32(unittest.TestCase):
 
     def test_vector1(self):
         """BIP32 test vestor 1
-            https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+
+        https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
         xkey_version = bip32.PRV_VERSION[0]
 
@@ -187,7 +188,8 @@ class TestBIP32(unittest.TestCase):
 
     def test_vector2(self):
         """BIP32 test vestor 2
-            https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+
+        https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
         xkey_version = bip32.PRV_VERSION[0]
 
@@ -322,12 +324,12 @@ class TestBIP32(unittest.TestCase):
 
     def test_bip39_vectors(self):
         """BIP32 test vectors from BIP39
-            https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+
+        https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
         """
         filename = "bip39_test_vectors.json"
-        path_to_filename = os.path.join(os.path.dirname(__file__),
-                                        "./data/",
-                                        filename)
+        path_to_filename = path.join(path.dirname(__file__),
+                                     "./data/", filename)
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed

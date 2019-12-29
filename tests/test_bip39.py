@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-import os
+from os import path
 import json
 import secrets
 
@@ -53,9 +53,8 @@ class TestBIP39(unittest.TestCase):
            https://github.com/trezor/python-mnemonic/blob/master/vectors.json
         """
         filename = "bip39_test_vectors.json"
-        path_to_filename = os.path.join(os.path.dirname(__file__),
-                                        "./data/",
-                                        filename)
+        path_to_filename = path.join(path.dirname(__file__),
+                                     "./data/", filename)
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed
