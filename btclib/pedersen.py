@@ -75,8 +75,7 @@ def commit(r: int, v: int, ec: Curve, hf: HashF) -> Point:
     return Q
 
 
-def open(r: int, v: int, C: Point, ec: Curve,
-         hf: HashF) -> bool:
+def open(r: int, v: int, C: Point, ec: Curve, hf: HashF) -> bool:
     """Open the commitment C and return True if valid."""
 
     # try/except wrapper for the Errors raised by commit
