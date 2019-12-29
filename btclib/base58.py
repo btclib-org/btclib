@@ -10,8 +10,8 @@
 
 """Base58 encoding and decoding functions.
 
-Binary-to-text encoding schemes are designed to transport binary data across
-channels that are designed to deal with textual data. In Bitcoin they are mostly
+Binary-to-text encoding schemes are used to transport binary data across
+channels designed to deal with textual data. In Bitcoin they are mostly
 used to represent large integers as alphanumeric text.
 
 Base58 is similar to Base64, which uses 10 digits, 26 lowercase characters,
