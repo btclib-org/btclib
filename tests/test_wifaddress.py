@@ -15,8 +15,8 @@ from btclib.curves import secp256k1 as ec
 from btclib.utils import octets_from_int, point_from_octets
 from btclib import base58
 from btclib.wifaddress import wif_from_prvkey, \
-    prvkey_from_wif, p2pkh_address, _h160_from_address, \
-    address_from_wif
+    prvkey_from_wif, p2pkh_address, _h160_from_p2pkh_address, \
+    p2pkh_address_from_wif
 
 
 class TestKeys(unittest.TestCase):
@@ -89,35 +89,31 @@ class TestKeys(unittest.TestCase):
 
         addr = p2pkh_address(pub, True)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        _h160_from_address(addr)
+        _h160_from_p2pkh_address(addr)
 
         addr = p2pkh_address(pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-        _h160_from_address(addr)
+        _h160_from_p2pkh_address(addr)
 
-        # not a mainnet address
-        addr = p2pkh_address(pub, False, b'\x80')
-        self.assertRaises(ValueError, _h160_from_address, addr)
-        #_h160_from_address(addr)
 
-    def test_address_from_wif(self):
+    def test_p2pkh_address_from_wif(self):
         wif1 = b"5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-        a = address_from_wif(wif1)
+        a = p2pkh_address_from_wif(wif1)
         self.assertEqual(a, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
 
         wif2 = b"Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162"
-        a = address_from_wif(wif2)
+        a = p2pkh_address_from_wif(wif2)
         self.assertEqual(a, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
 
         # testnet
         wif1 = b"91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
-        a = address_from_wif(wif1)
+        a = p2pkh_address_from_wif(wif1)
         self.assertEqual(a, b'mvgbzkCSgKbYgaeG38auUzR7otscEGi8U7')
 
         wif2 = b"cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx"
-        a = address_from_wif(wif2)
+        a = p2pkh_address_from_wif(wif2)
         self.assertEqual(a, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])

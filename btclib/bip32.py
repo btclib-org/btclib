@@ -293,23 +293,27 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
     return xkey
 
 
-def p2pkh_address_from_xpub(xpub: Octets,
-                            version: Optional[Octets] = None) -> bytes:
+def p2pkh_address_from_xpub(xpub: Octets) -> bytes:
+    """Return the p2pkh address from the xpub, according to the xpub version.
+
+    Even if/when generalized to alt-coins, the p2pkh prefix should always
+    be deduced from the xpub version, not requiring explicit prefix
+    """
 
     v, _, _, _, _, k, P = xkey_parse(xpub)
 
     if k[0] not in (2, 3):
         raise ValueError("xkey is not a public one")
 
-    if version is None:
-        if v == MAIN_xpub:
-            version = b'\x00'          # 1
-        elif v == TEST_tpub:
-            version = b'\x6F'          # m or n
-        else:
-            raise ValueError(f"xkey is of {v} type, not p2pkh (xpub/tpub)")
+    if v == MAIN_xpub:
+        testnet = False
+    elif v == TEST_tpub:
+        testnet = True
+    else:
+        raise ValueError(f"xkey is of {v} type, not p2pkh (xpub/tpub)")
 
-    return p2pkh_address(P, True, version)
+    compressed = True
+    return p2pkh_address(P, compressed, testnet)
 
 
 def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:

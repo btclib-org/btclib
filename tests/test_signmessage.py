@@ -11,7 +11,7 @@
 import unittest
 
 from btclib.signmessage import sign, verify, _verify
-from btclib.wifaddress import prvkey_from_wif, address_from_wif
+from btclib.wifaddress import prvkey_from_wif, p2pkh_address_from_wif
 
 
 class TestSignMessage(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestSignMessage(unittest.TestCase):
         # sigs are taken from (Electrum and) Bitcoin Core
 
         wif = 'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk'
-        prvkey, compressed = prvkey_from_wif(wif)
+        prvkey, compressed, _ = prvkey_from_wif(wif)
         self.assertEqual(prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
         self.assertTrue(compressed)
         mysig = sign(msg, prvkey, compressed)
@@ -32,7 +32,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertEqual(mysig[1], sig)
 
         wif = '5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
-        prvkey, compressed = prvkey_from_wif(wif)
+        prvkey, compressed, _ = prvkey_from_wif(wif)
         self.assertEqual(prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
         self.assertFalse(compressed)
         mysig = sign(msg, prvkey, compressed)
@@ -44,7 +44,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertEqual(mysig[1], sig)
 
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
-        prvkey, compressed = prvkey_from_wif(wif)
+        prvkey, compressed, _ = prvkey_from_wif(wif)
         self.assertEqual(prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
         self.assertTrue(compressed)
         mysig = sign(msg, prvkey, compressed)
@@ -56,7 +56,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertEqual(mysig[1], sig)
 
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
-        prvkey, compressed = prvkey_from_wif(wif)
+        prvkey, compressed, _ = prvkey_from_wif(wif)
         self.assertEqual(prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
         self.assertFalse(compressed)
         mysig = sign(msg, prvkey, compressed)
@@ -207,7 +207,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertFalse(verify(msg, address, sig))
 
         # same prvkey as above, but regular p2pkh address
-        address = address_from_wif(wif)
+        address = p2pkh_address_from_wif(wif)
         self.assertTrue(_verify(msg, address, sig))
 
         # p2wpkh-p2sh address
@@ -219,7 +219,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertFalse(verify(msg, address, sig))
 
         # same prvkey as above, but regular p2pkh address
-        address = address_from_wif(wif)
+        address = p2pkh_address_from_wif(wif)
         self.assertTrue(_verify(msg, address, sig))
 
         # short sig

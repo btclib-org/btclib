@@ -20,27 +20,36 @@ from . import base58
 from .curve import Point, mult
 from .curves import secp256k1 as ec
 from .utils import Octets, int_from_octets, octets_from_int, \
-                         octets_from_point, h160
+    octets_from_point, h160
 
 
-def wif_from_prvkey(prvkey: int, compressed: bool, testnet: bool = False) -> bytes:
+def wif_from_prvkey(prvkey: int,
+                    compressed: bool = True,
+                    testnet: bool = False) -> bytes:
     """Return the Wallet Import Format from a private key."""
 
     if not 0 < prvkey < ec.n:
         raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
 
-    payload = (b'\xEF' if testnet else b'\x80') + octets_from_int(prvkey, ec.nsize)
+    payload = b'\xEF' if testnet else b'\x80'
+    payload += octets_from_int(prvkey, ec.nsize)
     if compressed:
         payload += b'\x01'
     return base58.encode_check(payload)
 
 
-def prvkey_from_wif(wif: Octets) -> Tuple[int, bool]:
-    """Return the (private key, compressed) tuple from a WIF."""
+def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, bool]:
+    """Return the (private key, compressed, testnet) tuple from a WIF."""
 
     payload = base58.decode_check(wif)
-    if payload[0] not in {0x80, 0xEF}:
-        raise ValueError("Not a private key WIF: missing leading 0x80 or 0xEF")
+
+    if payload[0] == 0x80:
+        testnet = False
+    elif payload[0] == 0xEF:
+        testnet = True
+    else:
+        msg = "Not a testnet/mainnet private key WIF"
+        raise ValueError(msg)
 
     if len(payload) == ec.nsize + 2:       # compressed WIF
         compressed = True
@@ -54,12 +63,13 @@ def prvkey_from_wif(wif: Octets) -> Tuple[int, bool]:
         raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
     
     if not 0 < prvkey < ec.n:
-        raise ValueError(f"Not a WIF: private key {hex(prvkey)} not in [1, n-1]")
+        msg = f"Not a WIF: private key {hex(prvkey)} not in [1, n-1]"
+        raise ValueError(msg)
 
-    return prvkey, compressed
+    return prvkey, compressed, testnet
 
 
-def h160_from_pubkey(Q: Point, compressed: bool) -> bytes:
+def h160_from_pubkey(Q: Point, compressed: bool = True) -> bytes:
     """Return the H160(Q)=RIPEMD160(SHA256(Q)) of a public key Q."""
 
     # also check that the Point is on curve
@@ -68,27 +78,26 @@ def h160_from_pubkey(Q: Point, compressed: bool) -> bytes:
 
 
 def p2pkh_address(Q: Point,
-                  compressed: bool,
-                  version: bytes = b'\x00') -> bytes:
+                  compressed: bool = True,
+                  testnet: bool = False) -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
+    # results in the leading char being 'm' or 'n' if testnet else '1'
+    version = b'\x6F' if testnet else b'\x00'
     vh160 = version + h160_from_pubkey(Q, compressed)
     return base58.encode_check(vh160)
 
 
-def _h160_from_address(addr: Octets) -> bytes:
+def _h160_from_p2pkh_address(addr: Octets) -> bytes:
     payload = base58.decode_check(addr, 21)
-    # FIXME: this is mainnet only
-    if payload[0] != 0x00:
-        raise ValueError("not a mainnet address")
+    if payload[0] not in {0x6F, 0x00}:
+        raise ValueError("not a testnet/mainnet address")
     return payload[1:]
 
 
-def address_from_wif(wif: Octets) -> bytes:
+def p2pkh_address_from_wif(wif: Octets) -> bytes:
     """Return the address corresponding to a WIF."""
 
-    prv, compressed = prvkey_from_wif(wif)
-    payload = base58.decode_check(wif)
-    version = b'\x00' if payload[0] == 0x80 else b'\x6F'
+    prv, compressed, testnet = prvkey_from_wif(wif)
     pub = mult(ec, prv)
-    return p2pkh_address(pub, compressed, version)
+    return p2pkh_address(pub, compressed, testnet)

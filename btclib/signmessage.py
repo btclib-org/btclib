@@ -138,7 +138,7 @@ from typing import Tuple, Union
 from .base58 import _str_to_bytes
 from .curve import mult
 from .curves import secp256k1 as ec
-from .wifaddress import p2pkh_address, h160_from_pubkey, _h160_from_address
+from .wifaddress import p2pkh_address, h160_from_pubkey, _h160_from_p2pkh_address
 from . import dsa
 
 # TODO: support msg as bytes
@@ -162,11 +162,12 @@ def _magic_hash(msg: str) -> bytes:
     m.update(message.encode())
     return m.digest()
 
-def sign(msg: str, prvkey: int, compressed: bool) -> Tuple[str, str]:
-    """Generate message signature for a given P2PKH address."""
+def sign(msg: str, prvkey: int,
+         compressed: bool = True, testnet: bool = False) -> Tuple[str, str]:
+    """Generate the message signature Tuple(P2PKH address, signature)."""
 
     pubkey = mult(ec, prvkey)
-    address = p2pkh_address(pubkey, compressed, b'\x00')
+    address = p2pkh_address(pubkey, compressed, testnet)
 
     magic_msg = _magic_hash(msg)
     sig = dsa.sign(ec, hf, magic_msg, prvkey)
@@ -218,7 +219,7 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
         raise ValueError("P2WPKH-P2SH address not supported yet")
     else:
         # verify that input addr is a valid P2PKH addr
-        h160 = _h160_from_address(addr)
+        h160 = _h160_from_p2pkh_address(addr)
         # i selects which key is recovered
         i = (rf - 27) & 3
         if rf < 31:
