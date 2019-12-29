@@ -23,13 +23,13 @@ from .utils import Octets, int_from_octets, octets_from_int, \
                          octets_from_point, h160
 
 
-def wif_from_prvkey(prvkey: int, compressed: bool) -> bytes:
+def wif_from_prvkey(prvkey: int, compressed: bool, testnet: bool = False) -> bytes:
     """Return the Wallet Import Format from a private key."""
 
     if not 0 < prvkey < ec.n:
         raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
 
-    payload = b'\x80' + octets_from_int(prvkey, ec.nsize)
+    payload = (b'\xEF' if testnet else b'\x80') + octets_from_int(prvkey, ec.nsize)
     if compressed:
         payload += b'\x01'
     return base58.encode_check(payload)
@@ -39,8 +39,8 @@ def prvkey_from_wif(wif: Octets) -> Tuple[int, bool]:
     """Return the (private key, compressed) tuple from a WIF."""
 
     payload = base58.decode_check(wif)
-    if payload[0] != 0x80:
-        raise ValueError("Not a private key WIF: missing leading 0x80")
+    if payload[0] not in {0x80, 0xEF}:
+        raise ValueError("Not a private key WIF: missing leading 0x80 or 0xEF")
 
     if len(payload) == ec.nsize + 2:       # compressed WIF
         compressed = True
@@ -88,5 +88,7 @@ def address_from_wif(wif: Octets) -> bytes:
     """Return the address corresponding to a WIF."""
 
     prv, compressed = prvkey_from_wif(wif)
+    payload = base58.decode_check(wif)
+    version = b'\x00' if payload[0] == 0x80 else b'\x6F'
     pub = mult(ec, prv)
-    return p2pkh_address(pub, compressed)
+    return p2pkh_address(pub, compressed, version)
