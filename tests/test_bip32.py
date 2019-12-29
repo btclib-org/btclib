@@ -20,38 +20,71 @@ from btclib.utils import int_from_octets
 
 
 class TestBIP32(unittest.TestCase):
-    def test_xkey_parse(self):
+    def test_utils(self):
         # root key, zero depth
         xkey = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         v, d, f, i, c, k, P = bip32.xkey_parse(xkey)
-
-        xkey = base58.decode_check(xkey, 78)
-        self.assertEqual(v, xkey[  : 4])
-        self.assertEqual(d, xkey[4])
-        self.assertEqual(f, xkey[ 5: 9])
-        self.assertEqual(i, xkey[ 9:13])
-        self.assertEqual(c, xkey[13:45])
-        self.assertEqual(k, xkey[45:  ])
         self.assertEqual(P, mult(ec, int_from_octets(k)))
+
+        decoded_key = base58.decode_check(xkey, 78)
+        self.assertEqual(v, decoded_key[  : 4])
+        self.assertEqual(d, decoded_key[4])
+        self.assertEqual(f, decoded_key[ 5: 9])
+        self.assertEqual(i, decoded_key[ 9:13])
+        self.assertEqual(c, decoded_key[13:45])
+        self.assertEqual(k, decoded_key[45:  ])
 
         # zero depth with non-zero parent_fingerprint
         f2 = b'\x01\x01\x01\x01'
-        xkey = base58.encode_check(v + d.to_bytes(1, 'big') + f2 + i + c + k)
-        self.assertRaises(ValueError, bip32.xkey_parse, xkey)
-        #bip32.xkey_parse(xkey)
+        invalid_key = base58.encode_check(v + d.to_bytes(1, 'big') + f2 + i + c + k)
+        self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
+        #bip32.xkey_parse(invalid_key)
 
         # zero depth with non-zero child_index
         i2 = b'\x01\x01\x01\x01'
-        xkey = base58.encode_check(v + d.to_bytes(1, 'big') + f + i2 + c + k)
-        self.assertRaises(ValueError, bip32.xkey_parse, xkey)
-        #bip32.xkey_parse(xkey)
+        invalid_key = base58.encode_check(v + d.to_bytes(1, 'big') + f + i2 + c + k)
+        self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
+        #bip32.xkey_parse(invalid_key)
 
         # non-zero depth (255) with zero parent_fingerprint
         d2 = 255
-        xkey = base58.encode_check(v + d2.to_bytes(1, 'big') + f + i + c + k)
-        self.assertRaises(ValueError, bip32.xkey_parse, xkey)
-        #bip32.xkey_parse(xkey)
+        invalid_key = base58.encode_check(v + d2.to_bytes(1, 'big') + f + i + c + k)
+        self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
+        #bip32.xkey_parse(invalid_key)
 
+        # master key provided
+        self.assertRaises(ValueError, bip32.parent_fingerprint, xkey)
+        #bip32.parent_fingerprint(xkey)
+
+        f = bip32.fingerprint(xkey)
+        child_key = bip32.ckd(xkey, 0)
+        f2 = bip32.parent_fingerprint(child_key)
+        self.assertEqual(f, f2)
+        
+        # Derivation path final depth 256>255
+        self.assertRaises(ValueError, bip32.derive, child_key, "." + 255*"/0")
+        #bip32.derive(child_key, "."+255*"/0")
+        
+        # Empty derivation path
+        self.assertRaises(ValueError, bip32.derive, child_key, "")
+        #bip32.derive(child_key, "")
+        
+        # Invalid derivation path root: ";"
+        self.assertRaises(ValueError, bip32.derive, child_key, ";/0")
+        #bip32.derive(child_key, ";/0")
+
+        # Derivation path depth 256>255
+        self.assertRaises(ValueError, bip32.derive, child_key, "." + 256*"/0")
+        #bip32.derive(child_key, "." + 256*"/0")
+
+        # xkey is not a public one
+        self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xkey)
+        #bip32.p2pkh_address_from_xpub(xkey)
+
+        # xkey is not of p2pkh type (xpub/tpub)
+        xkey = b"zpub6nC6GjnipUB41rp3yS2TozLkyoHiR4jCHJiZ69GhsJRNEeXJR63fV5sCoHTkhc999fevr5S78b6XPydetbe5w2b5HHpUoWCLHCfe55VknvX"
+        self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xkey)
+        #bip32.p2pkh_address_from_xpub(xkey)
 
     def test_vector1(self):
         """BIP32 test vestor 1
