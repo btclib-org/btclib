@@ -31,9 +31,23 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(q2[0], q)
         self.assertEqual(q2[1], True)
 
+        # compressed WIF (testnet)
+        wif = wif_from_prvkey(q, True, True)
+        self.assertEqual(wif, b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx')
+        q2 = prvkey_from_wif(wif)
+        self.assertEqual(q2[0], q)
+        self.assertEqual(q2[1], True)
+
         # uncompressed WIF
         wif = wif_from_prvkey(q, False)
         self.assertEqual(wif, b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ')
+        q3 = prvkey_from_wif(wif)
+        self.assertEqual(q3[0], q)
+        self.assertEqual(q3[1], False)
+
+        # uncompressed WIF (testnet)
+        wif = wif_from_prvkey(q, False, True)
+        self.assertEqual(wif, b'91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2')
         q3 = prvkey_from_wif(wif)
         self.assertEqual(q3[0], q)
         self.assertEqual(q3[1], False)
@@ -97,6 +111,16 @@ class TestKeys(unittest.TestCase):
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
 
+        # testnet
+        wif1 = b"91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
+        a = address_from_wif(wif1)
+        self.assertEqual(a, b'mvgbzkCSgKbYgaeG38auUzR7otscEGi8U7')
+
+        wif2 = b"cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx"
+        a = address_from_wif(wif2)
+        self.assertEqual(a, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
+
+        self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
 
 if __name__ == "__main__":
     # execute only if run as a script
