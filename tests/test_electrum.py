@@ -29,29 +29,43 @@ class TestMnemonicDictionaries(unittest.TestCase):
         entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
         self.assertLess(entr-entropy, 0xfff)
 
-        passphrase = ''
-
-        mainnet = True
-        xprv= "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
-        xprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
-        self.assertEqual(xprv2.decode(), xprv)
-
-        # unknown electrum mnemonic version (00c)
-        mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
-        self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
-                                      mnemonic, passphrase, mainnet)
-        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
-
-        # unknown electrum mnemonic version (00c)
-        mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
-        self.assertRaises(ValueError, electrum.entropy_from_mnemonic, mnemonic, lang)
-        #electrum.entropy_from_mnemonic(mnemonic, lang)
-
         # mnemonic version not in electrum allowed mnemonic versions
         eversion = 'std'
         self.assertRaises(ValueError, electrum.mnemonic_from_entropy,
                                       entropy, lang, eversion)
         #electrum.mnemonic_from_entropy(entropy, lang, eversion)
+
+        # unknown electrum mnemonic version (00c)
+        unknown_version = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
+        self.assertRaises(ValueError, electrum.entropy_from_mnemonic,
+                                      unknown_version, lang)
+        #electrum.entropy_from_mnemonic(unknown_version, lang)
+
+        passphrase = ''
+        mainnet = True
+
+        # unknown electrum mnemonic version (00c)
+        self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
+                                      unknown_version, passphrase, mainnet)
+        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+
+        xprv= "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
+        xprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+        self.assertEqual(xprv2.decode(), xprv)
+
+        eversion = '2fa'
+        mnemonic = electrum.mnemonic_from_entropy(entropy, lang, eversion)
+        # 2fa mnemonic version is not managed yet
+        self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
+                                      mnemonic, passphrase, mainnet)
+        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+
+        eversion = '2fa_segwit'
+        mnemonic = electrum.mnemonic_from_entropy(entropy, lang, eversion)
+        # 2fa_segwit mnemonic version is not managed yet
+        self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
+                                      mnemonic, passphrase, mainnet)
+        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
 
 
     def test_vectors(self):
