@@ -159,29 +159,24 @@ def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
 
 
 def xpub_from_xprv(xprv: Octets) -> bytes:
-    """Neutered Derivation (ND)
+    """Neutered Derivation (ND).
 
     Computation of the extended public key corresponding to an extended
-    private key (“neutered” as it removes the ability to sign transactions)
+    private key (“neutered” as it removes the ability to sign transactions).
     """
 
-    xprv = base58.decode_check(xprv, 78)
-    if xprv[45] != 0:
+    v, d, f, i, c, k, P = xkey_parse(xprv)
+
+    if k[0] != 0:
         raise ValueError("extended key is not a private one")
 
-    i = PRV_VERSION.index(xprv[:4])
-
     # serialization data
-    xpub = PUB_VERSION[i]                      # version
-    # unchanged serialization data
-    xpub += xprv[4: 5]                         # depth
-    xpub += xprv[5: 9]                         # parent pubkey fingerprint
-    xpub += xprv[9:13]                         # child index
-    xpub += xprv[13:45]                        # chain code
-
-    p = int_from_octets(xprv[46:])
-    P = mult(ec, p)
-    xpub += octets_from_point(ec, P, True)          # public key
+    xpub = PUB_VERSION[PRV_VERSION.index(v)]  # version
+    xpub += d.to_bytes(1, 'big')              # depth
+    xpub += f                                 # parent pubkey fingerprint
+    xpub += i                                 # child index
+    xpub += c                                 # chain code
+    xpub += octets_from_point(ec, P, True)    # public key
     return base58.encode_check(xpub)
 
 
@@ -203,20 +198,20 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     if len(index) != 4:
         raise ValueError(f"a 4 bytes int is required, not {len(index)}")
 
-    version, depth, _, _, chain_code, bytes_key, Point = xkey_parse(xparentkey)
+    v, depth, _, _, chain_code, bytes_key, Point = xkey_parse(xparentkey)
 
     # serialization data
-    xkey = version                             # child version
-    xkey += (depth + 1).to_bytes(1, 'big')     # child depth
+    xkey = v                                # child version
+    xkey += (depth + 1).to_bytes(1, 'big')  # child depth, fail if depth=255
 
-    if bytes_key[0] == 0:                      # parent is a prvkey
+    if bytes_key[0] == 0:                   # parent is a prvkey
         Parent_bytes = octets_from_point(ec, Point, True)
-    else:                                      # parent is a pubkey
+    else:                                   # parent is a pubkey
         Parent_bytes = bytes_key
-        if index[0] >= 0x80:                   # hardened derivation
+        if index[0] >= 0x80:                # hardened derivation
             raise ValueError("hardened derivation from pubkey is impossible")
-    xkey += h160(Parent_bytes)[:4]             # parent pubkey fingerprint
-    xkey += index                              # child index
+    xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
+    xkey += index                           # child index
 
     if bytes_key[0] == 0:                            # parent is a prvkey
         if index[0] >= 0x80:                         # hardened derivation
@@ -240,17 +235,19 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
 
 
 def indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
-    """Extract derivation indexes from a derivation path like
-       "m/44'/0'/1'/0/10" (absolute) or "./0/10" (relative)
+    """Extract derivation indexes from a derivation path.
+    
+    Derivation path must be like "m/44'/0'/1'/0/10" (absolute)
+    or "./0/10" (relative).
     """
 
     steps = path.split('/')
-    if len(steps) == 0:
-        raise ValueError('Empty derivation path')
     if steps[0] in ('m', 'M'):
         absolute = True
     elif steps[0] == '.':
         absolute = False
+    elif steps[0] == '':
+        raise ValueError('Empty derivation path')
     else:
         raise ValueError(f'Invalid derivation path root: "{steps[0]}"')
     if len(steps) > 256:
@@ -296,60 +293,58 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
     return xkey
 
 
-def p2pkh_address_from_xpub(xpub: Octets, version: Optional[Octets] = None) -> bytes:
-    xpub = base58.decode_check(xpub, 78)
-    if xpub[45] not in (2, 3):
-        raise ValueError("extended key is not a public one")
+def p2pkh_address_from_xpub(xpub: Octets,
+                            version: Optional[Octets] = None) -> bytes:
+
+    v, _, _, _, _, k, P = xkey_parse(xpub)
+
+    if k[0] not in (2, 3):
+        raise ValueError("xkey is not a public one")
 
     if version is None:
-        xversion = xpub[:4]
-        if xversion == MAIN_xpub:
+        if v == MAIN_xpub:
             version = b'\x00'          # 1
-        elif xversion == TEST_tpub:
+        elif v == TEST_tpub:
             version = b'\x6F'          # m or n
         else:
-            raise ValueError(f"xkey is not of p2pkh type (xpub/tpub)")
+            raise ValueError(f"xkey is of {v} type, not p2pkh (xpub/tpub)")
 
-    P = point_from_octets(ec, xpub[45:])
     return p2pkh_address(P, True, version)
 
 
 def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
-    parent_xpub = base58.decode_check(parent_xpub, 78)
-    if parent_xpub[45] not in (2, 3):
+    _, pd, pf, pi, pc, pk, _ = xkey_parse(parent_xpub)
+
+    if pk[0] not in (2, 3):
         raise ValueError("extended parent key is not a public one")
 
-    child_xprv = base58.decode_check(child_xprv, 78)
-    if child_xprv[45] != 0:
+    cv, cd, cf, ci, _, ck, _ = xkey_parse(child_xprv)
+    if ck[0] != 0:
          raise ValueError("extended child key is not a private one")
 
     # check depth
-    if child_xprv[4] != parent_xpub[4] + 1:
-         raise ValueError("wrong child/parent depth relation")
+    if cd != pd + 1:
+        raise ValueError("not a parent's child: wrong depth relation")
 
     # check fingerprint
-    Parent_bytes = parent_xpub[45:]
-    if child_xprv[5: 9] != h160(Parent_bytes)[:4]:
-        raise ValueError("not a child for the provided parent")
+    if cf != h160(pk)[:4]:
+        raise ValueError("not a parent's child: wrong parent fingerprint")
 
     # check normal derivation
-    child_index = child_xprv[9:13]
-    if child_index[0] >= 0x80:
-        raise ValueError("hardened derivation")
+    if ci[0] >= 0x80:
+        raise ValueError("hardened child derivation")
 
-    parent_xprv = child_xprv[: 4]     # version
-    parent_xprv += parent_xpub[4: 5]  # depth
-    parent_xprv += parent_xpub[5: 9]  # parent pubkey fingerprint
-    parent_xprv += parent_xpub[9:13]  # child index
+    parent_xprv = cv                      # version
+    parent_xprv += pd.to_bytes(1, 'big')  # depth
+    parent_xprv += pf                     # parent pubkey fingerprint
+    parent_xprv += pi                     # child index
+    parent_xprv += pc                     # chain code
 
-    parent_chain_code = parent_xpub[13:45]
-    parent_xprv += parent_chain_code  # chain code
-
-    h = HMAC(parent_chain_code, Parent_bytes + child_index, sha512).digest()
+    h = HMAC(pc, pk + ci, sha512).digest()
     offset = int.from_bytes(h[:32], 'big')
-    child = int.from_bytes(child_xprv[46:], 'big')
+    child = int.from_bytes(ck[1:], 'big')
     parent = (child - offset) % ec.n
     parent_bytes = b'\x00' + parent.to_bytes(32, 'big')
-    parent_xprv += parent_bytes        # private key
+    parent_xprv += parent_bytes           # private key
 
     return base58.encode_check(parent_xprv)
