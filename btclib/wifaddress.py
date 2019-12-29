@@ -101,3 +101,21 @@ def p2pkh_address_from_wif(wif: Octets) -> bytes:
     prv, compressed, testnet = prvkey_from_wif(wif)
     pub = mult(ec, prv)
     return p2pkh_address(pub, compressed, testnet)
+
+def p2sh_address(script_sig: bytes,
+                 testnet: bool = False) -> bytes:
+    """Return p2sh address."""
+
+    prefix = b"\xc4" if testnet else b"\x05"
+    ph160 = prefix + h160(script_sig)
+    return base58.encode(ph160)
+
+def p2sh_p2wpkh_address(Q: Point,
+                        testnet: bool = False) -> bytes:
+    """Return SegWit p2wpkh nested in p2sh address."""
+
+    # Script sig is just PUSH(20){hash160(cpk)}
+    push_20 = bytes.fromhex("0014")
+    compressed = True
+    script_sig = push_20 + h160_from_pubkey(Q, compressed)
+    return p2sh_address(script_sig, testnet)

@@ -16,10 +16,11 @@ from btclib.utils import octets_from_int, point_from_octets
 from btclib import base58
 from btclib.wifaddress import wif_from_prvkey, \
     prvkey_from_wif, p2pkh_address, _h160_from_p2pkh_address, \
-    p2pkh_address_from_wif
+    p2pkh_address_from_wif, p2sh_p2wpkh_address
 
 
 class TestKeys(unittest.TestCase):
+
 
     def test_wif_from_prvkey(self):
         q = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
@@ -85,7 +86,8 @@ class TestKeys(unittest.TestCase):
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         # prvkey_from_wif(badwif)
 
-    def test_address_from_pubkey(self):
+
+    def test_p2pkh_address_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
         prv = 0x18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
         pub = mult(ec, prv)
@@ -99,6 +101,7 @@ class TestKeys(unittest.TestCase):
         addr = p2pkh_address(pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
         _h160_from_p2pkh_address(addr)
+
 
     def test_p2pkh_address_from_wif(self):
         wif1 = b"5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
@@ -121,6 +124,18 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(a, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
+
+
+    def test_p2sh_p2wpkh_address_from_pubkey(self):
+        # https://matthewdowney.github.io/create-segwit-address.html
+        pub = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        Pub = point_from_octets(ec, pub)
+
+        addr = p2sh_p2wpkh_address(Pub)
+        self.assertEqual(addr, b'36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g')
+
+        addr = p2sh_p2wpkh_address(Pub, True)
+        self.assertEqual(addr, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
 
 
 if __name__ == "__main__":
