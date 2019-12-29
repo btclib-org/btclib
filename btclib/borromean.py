@@ -35,9 +35,7 @@ def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
     m = msg
     rings = len(pubk_rings)
     for i in range(rings):
-        keys = len(pubk_rings[i])
-        for j in range(keys):
-            P = pubk_rings[i][j]
+        for P in pubk_rings[i]:
             Pbytes = octets_from_point(ec, P, True)
             m += Pbytes
     return hf(m).digest()
