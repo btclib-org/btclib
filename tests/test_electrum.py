@@ -21,7 +21,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
         entropy = 0x110aaaa03974d093eda670121023cd0772
         eversion = 'standard'
-        # FIXME: is the following mnemonic obtained in Electron from the above entropy?
+        # FIXME: is the following mnemonic obtained in Electrum from the above entropy?
         mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball crouch bunker"
         mnemonic2 = electrum.mnemonic_from_entropy(entropy, lang, eversion)
         self.assertEqual(mnemonic, mnemonic2)
@@ -36,18 +36,22 @@ class TestMnemonicDictionaries(unittest.TestCase):
         xprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
         self.assertEqual(xprv2.decode(), xprv)
 
-        # unmanaged electrum mnemonic version
-        mnemonic = "ability awful fetch liberty company spatial panda \
-                    hat then canal ball cross video"
+        # unknown electrum mnemonic version (00c)
+        mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
         self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
                                       mnemonic, passphrase, mainnet)
-        #electrum_rootxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+        #electrum.masterxprv_from_mnemonic(mnemonic, passphrase, mainnet)
+
+        # unknown electrum mnemonic version (00c)
+        mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
+        self.assertRaises(ValueError, electrum.entropy_from_mnemonic, mnemonic, lang)
+        #electrum.entropy_from_mnemonic(mnemonic, lang)
 
         # mnemonic version not in electrum allowed mnemonic versions
         eversion = 'std'
         self.assertRaises(ValueError, electrum.mnemonic_from_entropy,
                                       entropy, lang, eversion)
-        #electrum_mnemonic_from_entropy(entropy, lang, eversion)
+        #electrum.mnemonic_from_entropy(entropy, lang, eversion)
 
 
     def test_vectors(self):

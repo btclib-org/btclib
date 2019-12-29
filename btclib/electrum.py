@@ -73,12 +73,12 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
         s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa']) or
         s.startswith(ELECTRUM_MNEMONIC_VERSIONS['2fa_segwit'])
         )
-    if not valid:
-        raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
+    if valid:
+        indexes = indexes_from_mnemonic(mnemonic, lang)
+        entropy = entropy_from_indexes(indexes, lang)
+        return entropy
 
-    indexes = indexes_from_mnemonic(mnemonic, lang)
-    entropy = entropy_from_indexes(indexes, lang)
-    return entropy
+    raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
 
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
@@ -94,6 +94,7 @@ def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
     iterations = 2048
     dksize = 64
     return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
+
 
 def masterxprv_from_mnemonic(mnemonic: Mnemonic,
                              passphrase: str,
