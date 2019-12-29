@@ -103,13 +103,12 @@ def xkey_parse(xkey: Octets) -> Tuple:
             raise ValueError(f"extended key: zero depth with non-zero parent_fingerprint {parent_fingerprint}")
         if child_index != b'\x00\x00\x00\x00':
             raise ValueError(f"extended key: zero depth with non-zero child_index {child_index}")
-    elif depth > 255:
-        raise ValueError("extended key: depth {depth}>255")
     else:
         if parent_fingerprint == b'\x00\x00\x00\x00':
-            raise ValueError(f"extended key: non-zero depth {depth} with zero parent_fingerprint {parent_fingerprint}")
+            raise ValueError(f"extended key: non-zero depth ({depth}) with zero parent_fingerprint")
 
-    return version, depth, parent_fingerprint, child_index, chain_code, key, Point
+    return version, depth, parent_fingerprint, \
+           child_index, chain_code, key, Point
 
 
 def parent_fingerprint(xkey: Octets) -> bytes:

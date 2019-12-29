@@ -14,8 +14,45 @@ import json
 
 from btclib import base58
 from btclib import bip32, bip39
+from btclib.curve import mult
+from btclib.curves import secp256k1 as ec
+from btclib.utils import int_from_octets
+
 
 class TestBIP32(unittest.TestCase):
+    def test_xkey_parse(self):
+        # root key, zero depth
+        xkey = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        v, d, f, i, c, k, P = bip32.xkey_parse(xkey)
+
+        xkey = base58.decode_check(xkey, 78)
+        self.assertEqual(v, xkey[  : 4])
+        self.assertEqual(d, xkey[4])
+        self.assertEqual(f, xkey[ 5: 9])
+        self.assertEqual(i, xkey[ 9:13])
+        self.assertEqual(c, xkey[13:45])
+        self.assertEqual(k, xkey[45:  ])
+        self.assertEqual(P, mult(ec, int_from_octets(k)))
+
+        # zero depth with non-zero parent_fingerprint
+        f2 = b'\x01\x01\x01\x01'
+        xkey = base58.encode_check(v + d.to_bytes(1, 'big') + f2 + i + c + k)
+        self.assertRaises(ValueError, bip32.xkey_parse, xkey)
+        #bip32.xkey_parse(xkey)
+
+        # zero depth with non-zero child_index
+        i2 = b'\x01\x01\x01\x01'
+        xkey = base58.encode_check(v + d.to_bytes(1, 'big') + f + i2 + c + k)
+        self.assertRaises(ValueError, bip32.xkey_parse, xkey)
+        #bip32.xkey_parse(xkey)
+
+        # non-zero depth (255) with zero parent_fingerprint
+        d2 = 255
+        xkey = base58.encode_check(v + d2.to_bytes(1, 'big') + f + i + c + k)
+        self.assertRaises(ValueError, bip32.xkey_parse, xkey)
+        #bip32.xkey_parse(xkey)
+
+
     def test_vector1(self):
         """BIP32 test vestor 1
             https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
