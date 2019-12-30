@@ -83,11 +83,13 @@ def _convertbits(data: Iterable[int], frombits: int,
         while bits >= tobits:
             bits -= tobits
             ret.append((acc >> bits) & maxv)
+
     if pad:
         if bits:
             ret.append((acc << (tobits - bits)) & maxv)
     elif bits >= frombits or ((acc << (tobits - bits)) & maxv):
         raise ValueError("failure")
+
     return ret
 
 
@@ -144,19 +146,12 @@ def decode(addr: str, network: str = 'mainnet') -> Tuple[int, List[int]]:
     if _NETWORKS[_P2WPKH_PREFIXES.index(hrp)] != network:
         raise ValueError(f"HPR ({hrp}) / network ({network}) mismatch")
 
-    # witvers = data[0]
-    # check_witness(witvers, witprog)
+    if len(data) == 0:
+        raise ValueError(f"Bech32 address with empty data")
 
-    witprog = _convertbits(data[1:], 5, 8, False)
-    l = len(witprog)
-    if l < 2 or l > 40:
-        raise ValueError(f"{l}-bytes witness program: must be in [2, 40]")
     witvers = data[0]
-    if witvers > 16 or witvers < 0:
-        msg = f"witness version ({witvers}) not in [0, 16]"
-        raise ValueError(msg)
-    if witvers == 0 and l != 20 and l != 32:
-        raise ValueError(f"{l}-bytes witness program: must be 20 or 32")
+    witprog = _convertbits(data[1:], 5, 8, False)
+    check_witness(witvers, witprog)
     
     return witvers, witprog
 

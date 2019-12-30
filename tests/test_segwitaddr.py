@@ -92,7 +92,7 @@ class TestSegwitAddress(unittest.TestCase):
 
 
     def test_valid_address(self):
-        """Test whether valid addresses decode to the correct output."""
+        """Test whether valid addresses decode to the correct output"""
         for (address, hexscript) in VALID_BC_ADDRESS:
             wit_version, wit_program = segwitaddr.decode(address, 'mainnet')
             script_pubkey = segwitaddr.scriptpubkey(wit_version, wit_program)
@@ -110,16 +110,15 @@ class TestSegwitAddress(unittest.TestCase):
 
 
     def test_invalid_address(self):
-        """Test whether invalid addresses fail to decode."""
+        """Test whether invalid addresses fail to decode"""
         for addr in INVALID_ADDRESS:
             self.assertRaises(ValueError, segwitaddr.decode, addr, 'mainnet')
             self.assertRaises(ValueError, segwitaddr.decode, addr, 'testnet')
 
 
     def test_invalid_address_enc(self):
-        """Test whether address encoding fails on invalid input."""
+        """Test whether address encoding fails on invalid input"""
         for network, version, length in INVALID_ADDRESS_ENC:
-            print(network, version, length)
             self.assertRaises(ValueError, segwitaddr.encode,
                               version, [0] * length, network)
 
