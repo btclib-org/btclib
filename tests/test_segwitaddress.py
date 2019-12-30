@@ -43,7 +43,7 @@ with the following modifications:
 import binascii
 import unittest
 
-from btclib import segwitaddr
+from btclib import segwitaddress
 from btclib.curves import secp256k1 as ec
 from btclib.utils import point_from_octets
 
@@ -93,33 +93,33 @@ class TestSegwitAddress(unittest.TestCase):
 
     def test_valid_address(self):
         """Test whether valid addresses decode to the correct output"""
-        for (address, hexscript) in VALID_BC_ADDRESS:
-            wit_version, wit_program = segwitaddr.decode(address, 'mainnet')
-            script_pubkey = segwitaddr.scriptpubkey(wit_version, wit_program)
+        for a, hexscript in VALID_BC_ADDRESS:
+            witvers, witprog = segwitaddress.decode(a, 'mainnet')
+            script_pubkey = segwitaddress.scriptpubkey(witvers, witprog)
             self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
-            addr = segwitaddr.encode(wit_version, wit_program, 'mainnet')
-            self.assertEqual(address.lower(), addr)
-            self.assertRaises(ValueError, segwitaddr.decode, address, 'testnet')
-        for (address, hexscript) in VALID_TB_ADDRESS:
-            wit_version, wit_program = segwitaddr.decode(address, 'testnet')
-            script_pubkey = segwitaddr.scriptpubkey(wit_version, wit_program)
+            address = segwitaddress.encode(witvers, witprog, 'mainnet')
+            self.assertEqual(a.lower(), address)
+            self.assertRaises(ValueError, segwitaddress.decode, a, 'testnet')
+        for a, hexscript in VALID_TB_ADDRESS:
+            witvers, witprog = segwitaddress.decode(a, 'testnet')
+            script_pubkey = segwitaddress.scriptpubkey(witvers, witprog)
             self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
-            addr = segwitaddr.encode(wit_version, wit_program, 'testnet')
-            self.assertEqual(address.lower(), addr)
-            self.assertRaises(ValueError, segwitaddr.decode, address, 'mainnet')
+            address = segwitaddress.encode(witvers, witprog, 'testnet')
+            self.assertEqual(a.lower(), address)
+            self.assertRaises(ValueError, segwitaddress.decode, a, 'mainnet')
 
 
     def test_invalid_address(self):
         """Test whether invalid addresses fail to decode"""
-        for addr in INVALID_ADDRESS:
-            self.assertRaises(ValueError, segwitaddr.decode, addr, 'mainnet')
-            self.assertRaises(ValueError, segwitaddr.decode, addr, 'testnet')
+        for a in INVALID_ADDRESS:
+            self.assertRaises(ValueError, segwitaddress.decode, a, 'mainnet')
+            self.assertRaises(ValueError, segwitaddress.decode, a, 'testnet')
 
 
     def test_invalid_address_enc(self):
         """Test whether address encoding fails on invalid input"""
         for network, version, length in INVALID_ADDRESS_ENC:
-            self.assertRaises(ValueError, segwitaddr.encode,
+            self.assertRaises(ValueError, segwitaddress.encode,
                               version, [0] * length, network)
 
 
@@ -128,18 +128,18 @@ class TestSegwitAddress(unittest.TestCase):
         pub = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
         Pub = point_from_octets(ec, pub)
 
-        addr = segwitaddr.p2wpkh_p2sh_address(Pub)
-        self.assertEqual(addr, b'36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g')
+        address = segwitaddress.p2wpkh_p2sh_address(Pub)
+        self.assertEqual(address, b'36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g')
 
-        addr = segwitaddr.p2wpkh_p2sh_address(Pub, 'testnet')
-        self.assertEqual(addr, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
+        address = segwitaddress.p2wpkh_p2sh_address(Pub, 'testnet')
+        self.assertEqual(address, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
 
         # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh_address
         pub = "02f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
         Pub = point_from_octets(ec, pub)
 
-        addr = segwitaddr.p2wpkh_p2sh_address(Pub)
-        self.assertEqual(addr, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
+        address = segwitaddress.p2wpkh_p2sh_address(Pub)
+        self.assertEqual(address, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
 
 
     def test_p2wpkh_address_from_pubkey(self):
@@ -148,16 +148,16 @@ class TestSegwitAddress(unittest.TestCase):
         # http://bitcoinscri.pt/pages/segwit_native_p2wpkh_address
         pub = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         Pub = point_from_octets(ec, pub)
-        address = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        self.assertEqual(address, segwitaddr.p2wpkh_address(Pub))
+        addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
+        self.assertEqual(addr, segwitaddress.p2wpkh_address(Pub))
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
         pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         Pub = point_from_octets(ec, pub)
-        address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
-        self.assertEqual(address, segwitaddr.p2wpkh_address(Pub))
-        address = 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
-        self.assertEqual(address, segwitaddr.p2wpkh_address(Pub, 'testnet'))
+        addr = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
+        self.assertEqual(addr, segwitaddress.p2wpkh_address(Pub))
+        addr = 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
+        self.assertEqual(addr, segwitaddress.p2wpkh_address(Pub, 'testnet'))
 
 
 if __name__ == "__main__":
