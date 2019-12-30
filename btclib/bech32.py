@@ -36,7 +36,7 @@ with the following modifications:
 * splitted the original segwit_addr.py file in bech32.py and segwitaddr.py
 * type annotated python3
 * avoided returning (None, None), throwing ValueError instead
-* removed 90 character limit for Bech32 string
+* removed the 90-characters limit for Bech32 string
 """
 
 
