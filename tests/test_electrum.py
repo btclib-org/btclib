@@ -75,31 +75,30 @@ class TestMnemonicDictionaries(unittest.TestCase):
             test_vectors = json.load(f)
         f.closed
 
+        lang = "en"
         for test_vector in test_vectors:
-            version = test_vector[0]
-            mnemonic = test_vector[1]
-            passphrase = test_vector[2]
-            mxprv = test_vector[3]
-            mxpub = test_vector[4]
-            address = test_vector[5]  # "./0/0"
+            mnemonic = test_vector[0]
+            passphrase = test_vector[1]
+            mxprv = test_vector[2]
+            mxpub = test_vector[3]
+            address = test_vector[4]  # "./0/0"
 
-            mxprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
-            self.assertEqual(mxprv2.decode(), mxprv)
-            mxpub2 = bip32.xpub_from_xprv(mxprv2)
-            self.assertEqual(mxpub2.decode(), mxpub)
-            xpub = bip32.derive(mxpub2, "./0/0")
+            if mnemonic != "":
+                mxprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
+                self.assertEqual(mxprv2.decode(), mxprv)
 
-            if version == "standard":
-                address2 = bip32.p2pkh_address_from_xpub(xpub)
-                self.assertEqual(address2.decode(), address)
+                version = electrum.version_from_mnemonic(mnemonic)
+                entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
+                mnem = electrum.mnemonic_from_entropy(entr, lang, version)
+                self.assertEqual(mnem, mnemonic)
 
-            if version == "segwit":
-                pass  # FIXME: check bech32 addresses
+            if mxprv != "":
+                mxpub2 = bip32.xpub_from_xprv(mxprv)
+                self.assertEqual(mxpub2.decode(), mxpub)
 
-            lang = "en"
-            entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
-            mnem = electrum.mnemonic_from_entropy(entr, lang, version)
-            self.assertEqual(mnem, mnemonic)
+            xpub = bip32.derive(mxpub, "./0/0")
+            address2 = bip32.address_from_xpub(xpub)
+            self.assertEqual(address2, address)
 
 
 if __name__ == "__main__":

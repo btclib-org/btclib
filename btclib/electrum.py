@@ -31,7 +31,7 @@ _MNEMONIC_VERSIONS = {
 
 def mnemonic_from_entropy(entropy: GenericEntropy,
                           lang: str,
-                          eversion: str) -> Mnemonic:
+                          electrum_version: str) -> Mnemonic:
     """Convert input entropy to versioned Electrum mnemonic sentence.
 
     Input entropy (*GenericEntropy*) can be expressed as
@@ -41,12 +41,13 @@ def mnemonic_from_entropy(entropy: GenericEntropy,
     leading zeros are considered redundant padding.
     """
 
-    if eversion not in _MNEMONIC_VERSIONS:
-        m = f"mnemonic version '{eversion}' not in electrum allowed "
+    if electrum_version not in _MNEMONIC_VERSIONS:
+        m = f"mnemonic version '{electrum_version}' not in electrum allowed "
         m += f"mnemonic versions {list(_MNEMONIC_VERSIONS.keys())}"
         raise ValueError(m)
 
     invalid = True
+    version = _MNEMONIC_VERSIONS[electrum_version]
     # electrum considers entropy as integer, losing any leading zero
     int_entropy = _int_from_entropy(entropy)
     while invalid:
@@ -56,7 +57,7 @@ def mnemonic_from_entropy(entropy: GenericEntropy,
         # version validity check
         s = hmac.new(b"Seed version",
                      mnemonic.encode('utf8'), sha512).hexdigest()
-        if s.startswith(_MNEMONIC_VERSIONS[eversion]):
+        if s.startswith(version):
             invalid = False
         # next trial
         int_entropy += 1
@@ -64,22 +65,29 @@ def mnemonic_from_entropy(entropy: GenericEntropy,
     return mnemonic
 
 
+def version_from_mnemonic(mnemonic: Mnemonic) -> str:
+
+    s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
+
+    if s.startswith(_MNEMONIC_VERSIONS['standard']):
+        return 'standard'
+    if s.startswith(_MNEMONIC_VERSIONS['segwit']):
+        return 'segwit'
+    if s.startswith(_MNEMONIC_VERSIONS['2fa']):
+        return '2fa'
+    if s.startswith(_MNEMONIC_VERSIONS['2fa_segwit']):
+        return '2fa_segwit'
+
+    raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
+
+
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     """Convert mnemonic sentence to Electrum versioned entropy."""
 
-    s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
-    valid = (
-        s.startswith(_MNEMONIC_VERSIONS['standard']) or
-        s.startswith(_MNEMONIC_VERSIONS['segwit']) or
-        s.startswith(_MNEMONIC_VERSIONS['2fa']) or
-        s.startswith(_MNEMONIC_VERSIONS['2fa_segwit'])
-    )
-    if valid:
-        indexes = indexes_from_mnemonic(mnemonic, lang)
-        entropy = entropy_from_indexes(indexes, lang)
-        return entropy
-
-    raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
+    _ = version_from_mnemonic(mnemonic)
+    indexes = indexes_from_mnemonic(mnemonic, lang)
+    entropy = entropy_from_indexes(indexes, lang)
+    return entropy
 
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:

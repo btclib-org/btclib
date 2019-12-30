@@ -84,17 +84,13 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xkey)
         # bip32.p2pkh_address_from_xpub(xkey)
 
-        # xkey is not of p2pkh type (xpub/tpub)
-        xkey = b"zpub6nC6GjnipUB41rp3yS2TozLkyoHiR4jCHJiZ69GhsJRNEeXJR63fV5sCoHTkhc999fevr5S78b6XPydetbe5w2b5HHpUoWCLHCfe55VknvX"
-        self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xkey)
-        # bip32.p2pkh_address_from_xpub(xkey)
 
     def test_vector1(self):
-        """BIP32 test vestor 1
+        """BIP32 test vector 1
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = bip32._PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSIONS[0]
 
         seed = "000102030405060708090a0b0c0d0e0f"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
@@ -187,11 +183,11 @@ class TestBIP32(unittest.TestCase):
             xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
 
     def test_vector2(self):
-        """BIP32 test vestor 2
+        """BIP32 test vector 2
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = bip32._PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSIONS[0]
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
@@ -284,10 +280,11 @@ class TestBIP32(unittest.TestCase):
             xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
 
     def test_vector3(self):
-        """BIP32 test vestor 3
-            https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+        """BIP32 test vector 3
+
+        https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = bip32._PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSIONS[0]
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
@@ -322,6 +319,57 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(
             xpub, b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y")
 
+
+    def test_slip32(self):
+        """SLIP32 test vector
+
+        https://github.com/satoshilabs/slips/blob/master/slip-0132.md
+        """
+
+        mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+        passphrase = ""
+
+        path = "m/44'/0'/0'"
+        prv = "xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
+        pub = "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
+        address = "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
+        rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_xprv)
+        mprv = bip32.derive(rxprv, path)
+        self.assertEqual(prv, mprv.decode())
+        mpub = bip32.xpub_from_xprv(mprv)
+        self.assertEqual(pub, mpub.decode())
+        pub = bip32.derive(mpub, "./0/0")
+        addr = bip32.address_from_xpub(pub)
+        self.assertEqual(address, addr)
+
+        path = "m/49'/0'/0'"
+        prv = "yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQeKTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"
+        pub = "ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"
+        address = "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
+        rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_yprv)
+        mprv = bip32.derive(rxprv, path)
+        self.assertEqual(prv, mprv.decode())
+        mpub = bip32.xpub_from_xprv(mprv)
+        self.assertEqual(pub, mpub.decode())
+        pub = bip32.derive(mpub, "./0/0")
+        addr = bip32.address_from_xpub(pub)
+        self.assertEqual(address, addr)
+
+        path = "m/84'/0'/0'"
+        prv = "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
+        pub = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
+        address = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+        rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_zprv)
+        mprv = bip32.derive(rxprv, path)
+        self.assertEqual(prv, mprv.decode())
+        mpub = bip32.xpub_from_xprv(mprv)
+        self.assertEqual(pub, mpub.decode())
+        pub = bip32.derive(mpub, "./0/0")
+        addr = bip32.address_from_xpub(pub)
+        self.assertEqual(address, addr)
+
+
+
     def test_bip39_vectors(self):
         """BIP32 test vectors from BIP39
 
@@ -333,7 +381,7 @@ class TestBIP32(unittest.TestCase):
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed
-        xkey_version = bip32._PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSIONS[0]
         for test_vector in test_vectors:
             seed = test_vector[2]
             rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
@@ -365,7 +413,7 @@ class TestBIP32(unittest.TestCase):
             bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
-        xkey_version = bip32._PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSIONS[0]
         seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
         seed = bytes.fromhex(seed)
         xprv = bip32.rootxprv_from_seed(seed, xkey_version)
