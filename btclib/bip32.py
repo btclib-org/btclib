@@ -46,39 +46,52 @@ MAIN_xpub = b'\x04\x88\xB2\x1E'
 TEST_tprv = b'\x04\x35\x83\x94'
 TEST_tpub = b'\x04\x35\x87\xCF'
 
-# m/49h/0h  p2sh-segwit p2wpkh-p2sh
+# m/49h/0h  p2wpkh-p2sh (p2sh-segwit)
 MAIN_yprv = b'\x04\x9D\x78\x78'
 MAIN_ypub = b'\x04\x9D\x7C\xB2'
-# m/49h/1h  p2sh-segwit p2wpkh-p2sh
+# m/49h/1h  p2wpkh-p2sh (p2sh-segwit)
 TEST_uprv = b'\x04\x4A\x4E\x28'
 TEST_upub = b'\x04\x4A\x52\x62'
 
-# m/84h/0h  native segwit P2WPKH
+# m/84h/0h  p2wpkh (native-segwit)
 MAIN_zprv = b'\x04\xB2\x43\x0C'
 MAIN_zpub = b'\x04\xB2\x47\x46'
-# m/84h/1h  native segwit P2WPKH
+# m/84h/1h  p2wpkh (native-segwit)
 TEST_vprv = b'\x04\x5F\x18\xBC'
 TEST_vpub = b'\x04\x5F\x1C\xF6'
 
-#   ---     p2sh-segwit multi-sig p2wpkh-p2sh
+#   ---     multi-sig p2wpkh-p2sh (p2sh-segwit)
 MAIN_Yprv = b'\x02\x95\xB0\x05'
 MAIN_Ypub = b'\x02\x95\xB4\x3F'
 TEST_Uprv = b'\x02\x42\x85\xB5'
 TEST_Upub = b'\x02\x42\x89\xEF'
 
-#   ---     native segwit multi-sig p2wpkh
+#   ---     multi-sig p2wpkh (native-segwit)
 MAIN_Zprv = b'\x02\xAA\x7A\x99'
 MAIN_Zpub = b'\x02\xAA\x7E\xD3'
 TEST_Vprv = b'\x02\x57\x50\x48'
 TEST_Vpub = b'\x02\x57\x54\x83'
 
-
-PRV_VERSION = [
+_PRV_VERSION = [
     MAIN_xprv, MAIN_yprv, MAIN_zprv, MAIN_Yprv, MAIN_Zprv,
     TEST_tprv, TEST_uprv, TEST_vprv, TEST_Uprv, TEST_Vprv]
-PUB_VERSION = [
+_PUB_VERSION = [
     MAIN_xpub, MAIN_ypub, MAIN_zpub, MAIN_Ypub, MAIN_Zpub,
     TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
+
+_NETWORKS = ['mainnet', 'testnet', 'regtest']
+_XPRV_PREFIXES = [MAIN_xprv, TEST_tprv, TEST_tprv]
+_XPUB_PREFIXES = [MAIN_xpub, TEST_tpub, TEST_tpub]
+_P2WPKH_P2SH_PRV_PREFIXES = [MAIN_yprv, TEST_uprv, TEST_uprv]
+_P2WPKH_P2SH_PUB_PREFIXES = [MAIN_ypub, TEST_upub, TEST_upub]
+_P2WPKH_PRV_PREFIXES = [MAIN_zprv, TEST_vprv, TEST_vprv]
+_P2WPKH_PUB_PREFIXES = [MAIN_zpub, TEST_vpub, TEST_vpub]
+_MSIG_P2WPKH_P2SH_PRV_PREFIXES = [MAIN_Yprv, TEST_Uprv, TEST_Uprv]
+_MSIG_P2WPKH_P2SH_PUB_PREFIXES = [MAIN_Ypub, TEST_Upub, TEST_Upub]
+_MSIG_P2WPKH_PRV_PREFIXES = [MAIN_Zprv, TEST_Vprv, TEST_Vprv]
+_MSIG_P2WPKH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
+
+
 
 # [  : 4] version
 # [ 4: 5] depth
@@ -98,11 +111,11 @@ def xkey_parse(xkey: Octets) -> Tuple:
     chain_code = xkey[13:45]
     key = xkey[45:]
 
-    if version in PRV_VERSION:
+    if version in _PRV_VERSION:
         if key[0] != 0:
             raise ValueError("extended key: (prvversion/pubkey) mismatch")
         Point = mult(ec, int_from_octets(key))
-    elif version in PUB_VERSION:
+    elif version in _PUB_VERSION:
         if key[0] not in (2, 3):
             raise ValueError("extended key: (pubversion/prvkey) mismatch")
         Point = point_from_octets(ec, key)
@@ -151,7 +164,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
 
     if isinstance(version, str):  # hex string
         version = bytes.fromhex(version)
-    if version not in PRV_VERSION:
+    if version not in _PRV_VERSION:
         msg = f"invalid private version ({version})"
         raise ValueError(msg)
 
@@ -185,12 +198,12 @@ def xpub_from_xprv(xprv: Octets) -> bytes:
         raise ValueError("extended key is not a private one")
 
     # serialization data
-    xpub = PUB_VERSION[PRV_VERSION.index(v)]  # version
-    xpub += d.to_bytes(1, 'big')              # depth
-    xpub += f                                 # parent pubkey fingerprint
-    xpub += i                                 # child index
-    xpub += c                                 # chain code
-    xpub += octets_from_point(ec, P, True)    # public key
+    xpub = _PUB_VERSION[_PRV_VERSION.index(v)]  # version
+    xpub += d.to_bytes(1, 'big')                # depth
+    xpub += f                                   # parent pubkey fingerprint
+    xpub += i                                   # child index
+    xpub += c                                   # chain code
+    xpub += octets_from_point(ec, P, True)      # public key
     return base58.encode(xpub)
 
 
@@ -319,15 +332,10 @@ def p2pkh_address_from_xpub(xpub: Octets) -> bytes:
     if k[0] not in (2, 3):
         raise ValueError("xkey is not a public one")
 
-    if v == MAIN_xpub:
-        testnet = False
-    elif v == TEST_tpub:
-        testnet = True
-    else:
-        raise ValueError(f"xkey is of {v} type, not p2pkh (xpub/tpub)")
+    network = _NETWORKS[_XPUB_PREFIXES.index(v)]
 
     compressed = True
-    return p2pkh_address(P, compressed, testnet)
+    return p2pkh_address(P, compressed, network)
 
 
 def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:

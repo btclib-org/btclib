@@ -142,7 +142,6 @@ from .wifaddress import p2pkh_address, h160_from_pubkey, _h160_from_p2pkh_addres
 from . import dsa
 
 # TODO: support msg as bytes
-# TODO: add testnet / regtest / litecoin signature
 # TODO: add small wallet (address <-> private key) infrastructure
 # TODO:                           then also add sign(address, msg)
 # TODO: decouple serialization from address-based signature
@@ -165,11 +164,12 @@ def _magic_hash(msg: str) -> bytes:
 
 
 def sign(msg: str, prvkey: int,
-         compressed: bool = True, testnet: bool = False) -> Tuple[str, str]:
+         compressed: bool = True,
+         network: str = 'mainnet') -> Tuple[bytes, bytes]:
     """Generate the message signature Tuple(P2PKH address, signature)."""
 
     pubkey = mult(ec, prvkey)
-    address = p2pkh_address(pubkey, compressed, testnet)
+    address = p2pkh_address(pubkey, compressed, network)
 
     magic_msg = _magic_hash(msg)
     sig = dsa.sign(ec, hf, magic_msg, prvkey)

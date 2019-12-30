@@ -32,7 +32,7 @@ class TestBIP39(unittest.TestCase):
         passphrase = ''
 
         rootxprv = bip39.rootxprv_from_mnemonic(
-            mnemonic, passphrase, bip32.PRV_VERSION[0])
+            mnemonic, passphrase, bip32._PRV_VERSION[0])
         exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(rootxprv, exp)
 

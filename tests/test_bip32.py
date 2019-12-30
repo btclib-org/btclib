@@ -94,7 +94,7 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = bip32.PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSION[0]
 
         seed = "000102030405060708090a0b0c0d0e0f"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
@@ -191,7 +191,7 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = bip32.PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSION[0]
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
@@ -287,7 +287,7 @@ class TestBIP32(unittest.TestCase):
         """BIP32 test vestor 3
             https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = bip32.PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSION[0]
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
@@ -333,7 +333,7 @@ class TestBIP32(unittest.TestCase):
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed
-        xkey_version = bip32.PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSION[0]
         for test_vector in test_vectors:
             seed = test_vector[2]
             rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
@@ -365,7 +365,7 @@ class TestBIP32(unittest.TestCase):
             bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
-        xkey_version = bip32.PRV_VERSION[0]
+        xkey_version = bip32._PRV_VERSION[0]
         seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
         seed = bytes.fromhex(seed)
         xprv = bip32.rootxprv_from_seed(seed, xkey_version)

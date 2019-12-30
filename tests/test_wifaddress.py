@@ -16,7 +16,7 @@ from btclib.utils import octets_from_int, point_from_octets
 from btclib import base58
 from btclib.wifaddress import wif_from_prvkey, \
     prvkey_from_wif, p2pkh_address, _h160_from_p2pkh_address, \
-    p2pkh_address_from_wif, p2sh_p2wpkh_address
+    p2pkh_address_from_wif, p2wpkh_p2sh_address
 
 
 class TestKeys(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(q2[1], True)
 
         # compressed WIF (testnet)
-        wif = wif_from_prvkey(q, True, True)
+        wif = wif_from_prvkey(q, True, 'testnet')
         self.assertEqual(
             wif, b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx')
         q2 = prvkey_from_wif(wif)
@@ -50,7 +50,7 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(q3[1], False)
 
         # uncompressed WIF (testnet)
-        wif = wif_from_prvkey(q, False, True)
+        wif = wif_from_prvkey(q, False, 'testnet')
         self.assertEqual(
             wif, b'91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2')
         q3 = prvkey_from_wif(wif)
@@ -131,10 +131,10 @@ class TestKeys(unittest.TestCase):
         pub = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
         Pub = point_from_octets(ec, pub)
 
-        addr = p2sh_p2wpkh_address(Pub)
+        addr = p2wpkh_p2sh_address(Pub)
         self.assertEqual(addr, b'36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g')
 
-        addr = p2sh_p2wpkh_address(Pub, True)
+        addr = p2wpkh_p2sh_address(Pub, 'testnet')
         self.assertEqual(addr, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
 
 

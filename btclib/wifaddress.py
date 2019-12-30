@@ -22,34 +22,43 @@ from .curves import secp256k1 as ec
 from .utils import Octets, int_from_octets, octets_from_int, \
     octets_from_point, h160
 
+_NETWORKS = ['mainnet', 'testnet', 'regtest']
+_WIF_PREFIXES = [
+    b'\x80',  # WIF starts with {K,L} (if compressed) or 5 (if uncompressed)
+    b'\xef',  # WIF starts with c (if compressed) or 9 (if uncompressed)
+    b'\xef',  # WIF starts with c (if compressed) or 9 (if uncompressed)
+]
+_P2PKH_PREFIXES = [
+    b'\x00',  # address starts with 1
+    b'\x6f',  # address starts with {m, n}
+    b'\x6f'   # address starts with {m, n}
+]
+_P2SH_PREFIXES = [
+    b'\x05',  # address starts with 3
+    b'\xc4',  # address starts with 2
+    b'\xc4',  # address starts with 2
+]
 
 def wif_from_prvkey(prvkey: int,
                     compressed: bool = True,
-                    testnet: bool = False) -> bytes:
+                    network: str = 'mainnet') -> bytes:
     """Return the Wallet Import Format from a private key."""
 
     if not 0 < prvkey < ec.n:
         raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
 
-    payload = b'\xEF' if testnet else b'\x80'
+    payload = _WIF_PREFIXES[_NETWORKS.index(network)]
     payload += octets_from_int(prvkey, ec.nsize)
     if compressed:
         payload += b'\x01'
     return base58.encode(payload)
 
 
-def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, bool]:
-    """Return the (private key, compressed, testnet) tuple from a WIF."""
+def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, str]:
+    """Return the (private key, compressed, network) tuple from a WIF."""
 
     payload = base58.decode(wif)
-
-    if payload[0] == 0x80:
-        testnet = False
-    elif payload[0] == 0xEF:
-        testnet = True
-    else:
-        msg = "Not a testnet/mainnet private key WIF"
-        raise ValueError(msg)
+    network = _NETWORKS[_WIF_PREFIXES.index(payload[0:1])]
 
     if len(payload) == ec.nsize + 2:       # compressed WIF
         compressed = True
@@ -66,7 +75,7 @@ def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, bool]:
         msg = f"Not a WIF: private key {hex(prvkey)} not in [1, n-1]"
         raise ValueError(msg)
 
-    return prvkey, compressed, testnet
+    return prvkey, compressed, network
 
 
 def h160_from_pubkey(Q: Point, compressed: bool = True) -> bytes:
@@ -79,43 +88,43 @@ def h160_from_pubkey(Q: Point, compressed: bool = True) -> bytes:
 
 def p2pkh_address(Q: Point,
                   compressed: bool = True,
-                  testnet: bool = False) -> bytes:
+                  network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
-    # results in the leading char being 'm' or 'n' if testnet else '1'
-    version = b'\x6F' if testnet else b'\x00'
-    vh160 = version + h160_from_pubkey(Q, compressed)
-    return base58.encode(vh160)
+    payload = _P2PKH_PREFIXES[_NETWORKS.index(network)]
+    payload += h160_from_pubkey(Q, compressed)
+    return base58.encode(payload)
 
 
 def _h160_from_p2pkh_address(addr: Octets) -> bytes:
     payload = base58.decode(addr, 21)
-    if payload[0] not in {0x6F, 0x00}:
-        raise ValueError("not a testnet/mainnet address")
+    _ = _NETWORKS[_P2PKH_PREFIXES.index(payload[0:1])]
     return payload[1:]
 
 
 def p2pkh_address_from_wif(wif: Octets) -> bytes:
     """Return the address corresponding to a WIF."""
 
-    prv, compressed, testnet = prvkey_from_wif(wif)
-    pub = mult(ec, prv)
-    return p2pkh_address(pub, compressed, testnet)
+    prv, compressed, network = prvkey_from_wif(wif)
+    Pub = mult(ec, prv)
+    return p2pkh_address(Pub, compressed, network)
 
-def p2sh_address(script_sig: bytes,
-                 testnet: bool = False) -> bytes:
+
+def p2sh_address(script_pubkey: bytes,
+                 network: str = 'mainnet') -> bytes:
     """Return p2sh address."""
 
-    prefix = b"\xc4" if testnet else b"\x05"
-    ph160 = prefix + h160(script_sig)
-    return base58.encode(ph160)
+    payload = _P2SH_PREFIXES[_NETWORKS.index(network)]
+    payload += h160(script_pubkey)
+    return base58.encode(payload)
 
-def p2sh_p2wpkh_address(Q: Point,
-                        testnet: bool = False) -> bytes:
+
+def p2wpkh_p2sh_address(Q: Point,
+                        network: str = 'mainnet') -> bytes:
     """Return SegWit p2wpkh nested in p2sh address."""
 
-    # Script sig is just PUSH(20){hash160(cpk)}
+    # script_pubkey is just PUSH(20){hash160(pubkey)}
     push_20 = bytes.fromhex("0014")
     compressed = True
-    script_sig = push_20 + h160_from_pubkey(Q, compressed)
-    return p2sh_address(script_sig, testnet)
+    script_pubkey = push_20 + h160_from_pubkey(Q, compressed)
+    return p2sh_address(script_pubkey, network)
