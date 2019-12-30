@@ -10,14 +10,12 @@
 
 import unittest
 
+from btclib import base58
 from btclib.curve import mult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets_from_int, point_from_octets
-from btclib import base58
-from btclib.wifaddress import wif_from_prvkey, \
-    prvkey_from_wif, p2pkh_address, _h160_from_p2pkh_address, \
-    p2pkh_address_from_wif, p2wpkh_p2sh_address, p2wpkh_address
-from btclib import segwitaddr
+from btclib.wifaddress import wif_from_prvkey, prvkey_from_wif, \
+    p2pkh_address, _h160_from_p2pkh_address, p2pkh_address_from_wif
 
 
 class TestKeys(unittest.TestCase):
@@ -126,42 +124,6 @@ class TestKeys(unittest.TestCase):
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
 
-
-    def test_p2wpkh_p2sh_address_from_pubkey(self):
-        # https://matthewdowney.github.io/create-segwit-address.html
-        pub = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        Pub = point_from_octets(ec, pub)
-
-        addr = p2wpkh_p2sh_address(Pub)
-        self.assertEqual(addr, b'36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g')
-
-        addr = p2wpkh_p2sh_address(Pub, 'testnet')
-        self.assertEqual(addr, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
-
-        # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh_address
-        pub = "02f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
-        Pub = point_from_octets(ec, pub)
-
-        addr = p2wpkh_p2sh_address(Pub)
-        self.assertEqual(addr, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
-
-
-    def test_p2wpkh_address_from_pubkey(self):
-        #TODO: avoid useless convertion from SEC pk to Point
-
-        # http://bitcoinscri.pt/pages/segwit_native_p2wpkh_address
-        pub = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-        Pub = point_from_octets(ec, pub)
-        address = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        self.assertEqual(address, p2wpkh_address(Pub))
-
-        # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
-        pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-        Pub = point_from_octets(ec, pub)
-        address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
-        self.assertEqual(address, p2wpkh_address(Pub))
-        address = 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
-        self.assertEqual(address, p2wpkh_address(Pub, 'testnet'))
 
 if __name__ == "__main__":
     # execute only if run as a script

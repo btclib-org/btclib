@@ -19,6 +19,7 @@ from typing import Union, Callable, Any
 from hashlib import sha256, new
 
 from .curve import Curve, Point
+from .curves import secp256k1 as ec
 
 HashF = Callable[[Any], Any]
 
@@ -161,3 +162,11 @@ def double_sha256(o: Octets) -> bytes:
         o = bytes.fromhex(o)
 
     return sha256(sha256(o).digest()).digest()
+
+
+def h160_from_pubkey(Q: Point, compressed: bool = True) -> bytes:
+    """Return the H160(Q)=RIPEMD160(SHA256(Q)) of a public key Q."""
+
+    # also check that the Point is on curve
+    pubkey = octets_from_point(ec, Q, compressed)
+    return h160(pubkey)

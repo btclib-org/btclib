@@ -91,7 +91,7 @@ def decode(bech: str) -> Tuple[str, List[int]]:
         msg = "Bech32 string contains "
         msg += "ASCII characters outside printable set [33-126]"
         raise ValueError(msg)
-    if (bech.lower() != bech and bech.upper() != bech):
+    if bech.lower() != bech and bech.upper() != bech:
         raise ValueError("Mixed case Bech32 string")
     bech = bech.lower()
 

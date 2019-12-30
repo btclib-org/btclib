@@ -17,11 +17,10 @@ and public keys (addresses).
 from typing import Tuple
 
 from . import base58
-from . import segwitaddr
 from .curve import Point, mult
 from .curves import secp256k1 as ec
 from .utils import Octets, int_from_octets, octets_from_int, \
-    octets_from_point, h160
+    octets_from_point, h160, h160_from_pubkey
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _WIF_PREFIXES = [
@@ -39,11 +38,7 @@ _P2SH_PREFIXES = [
     b'\xc4',  # address starts with 2
     b'\xc4',  # address starts with 2
 ]
-_P2WPKH_PREFIXES = [
-    'bc',  # address starts with 3
-    'tb',  # address starts with 2
-    'bcrt',  # address starts with 2
-]
+
 
 def wif_from_prvkey(prvkey: int,
                     compressed: bool = True,
@@ -84,14 +79,6 @@ def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, str]:
     return prvkey, compressed, network
 
 
-def h160_from_pubkey(Q: Point, compressed: bool = True) -> bytes:
-    """Return the H160(Q)=RIPEMD160(SHA256(Q)) of a public key Q."""
-
-    # also check that the Point is on curve
-    pubkey = octets_from_point(ec, Q, compressed)
-    return h160(pubkey)
-
-
 def p2pkh_address(Q: Point,
                   compressed: bool = True,
                   network: str = 'mainnet') -> bytes:
@@ -123,24 +110,3 @@ def p2sh_address(script_pubkey: bytes,
     payload = _P2SH_PREFIXES[_NETWORKS.index(network)]
     payload += h160(script_pubkey)
     return base58.encode(payload)
-
-
-def p2wpkh_p2sh_address(Q: Point,
-                        network: str = 'mainnet') -> bytes:
-    """Return SegWit p2wpkh nested in p2sh address."""
-
-    witness_version = 0
-    compressed = True
-    witness_program = h160_from_pubkey(Q, compressed)
-    script_pubkey = segwitaddr.scriptpubkey(witness_version, witness_program)
-    return p2sh_address(script_pubkey, network)
-
-def p2wpkh_address(Q: Point,
-                   network: str = 'mainnet') -> str:
-    """Return native SegWit Bech32 p2wpkh address."""
-
-    hrp = _P2WPKH_PREFIXES[_NETWORKS.index(network)]
-    witness_version = 0
-    compressed = True
-    witness_program = h160_from_pubkey(Q, compressed)
-    return segwitaddr.encode(hrp, witness_version, witness_program)

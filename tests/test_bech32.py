@@ -20,6 +20,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+# Copyright (C) 2019-2020 The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
 
 """Reference tests for Bech32
 
@@ -56,7 +64,7 @@ INVALID_CHECKSUM = [
 
 
 class TestBech32(unittest.TestCase):
-    """Unit test class for segwit addressess."""
+    """Unit test class for Bech32 encodings."""
 
 
     def test_valid_checksum(self):
