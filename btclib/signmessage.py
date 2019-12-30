@@ -23,8 +23,8 @@ that would have created that signature is found and compared with
 the provided address.
 
 Note that in the Bitcoin protocol this compact 65 bytes signature
-encoding is only used for messages: for transactions Bitcoin uses DER
-encoding instead, resulting in 71 bytes average signature.
+encoding is only used for messages: for transactions DER encoding is used
+instead, resulting in 71 bytes average signature.
 
 At signing time a wallet infrastructure is required to access the
 private key corresponding to the given address; alternatively
@@ -39,7 +39,7 @@ during signature verification to discriminate among recovered
 public keys and to manage address compression.
 Explicitly, the recovery flag value is:
 
-    27 + (IF compressed THEN 4 ELSE 0) + key_id
+    27 + (4 if compressed else 0) + key_id
 
 where:
 
@@ -47,10 +47,10 @@ where:
   and P2WPKH, but not according to the BIP137 specifications;
   anyway this module and bitcoin core do not support them yet)
 - compressed indicates if the address is the hash of the compressed
-  public key representation (Segwit is always compressed)
+  public key representation (SegWit is always compressed)
 - key_id is the index in the [0, 3] range identifying which of the
   recovered public keys is the one associated to the address;
-  it is stored in the least significant 2 bits of the header
+  it is stored in the least significant 2 bits of the recovery flag
 
 +-----------+--------+--------------------+
 | rec. flag | key_id |    address type    |
@@ -91,9 +91,8 @@ where:
 Finally, the serialized signature can be base64-encoded to transport it
 across channels that are designed to deal with textual data.
 Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
-characters, '+' (plus sign), and '/' (forward slash); equal sign '=' is
-used as 65th character pad, a complement in the final process of
-message encoding.
+characters, '+' (plus sign), and '/' (forward slash);
+the equal sign '=' is used as end marker of the encoded message.
 
 Warning: one should never sign a vague statement that could be reused
 out of the context it was intended for. E.g. always include at least
@@ -175,13 +174,13 @@ def sign(msg: str, prvkey: int,
     sig = dsa.sign(ec, hf, magic_msg, prvkey)
 
     pubkeys = dsa.pubkey_recovery(ec, hf, magic_msg, sig)
-    sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
+    bytes_sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
     for i in range(len(pubkeys)):
         if pubkeys[i] == pubkey:
             rf = 27 + i
             if compressed:
                 rf += 4
-            return address, base64.b64encode(bytes([rf]) + sig)
+            return address, base64.b64encode(bytes([rf]) + bytes_sig)
 
     # the following line should never be executed
     raise ValueError("Public key not recovered")
@@ -213,7 +212,7 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # almost any sig/msg pair recovers (a pubkey and) an addr:
     # signature is valid only if the provided addr is matched
     addr = _str_to_bytes(addr)
-    rf = int.from_bytes(sig[0:1], 'big')
+    rf = sig[0]
     if rf < 27 or rf > 42:
         raise ValueError(f"Unknown recovery flag: {rf}")
     elif rf > 38 or addr.startswith(b'bc1'):
