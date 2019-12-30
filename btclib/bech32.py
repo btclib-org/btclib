@@ -36,6 +36,7 @@ with the following modifications:
 * splitted the original segwit_addr.py file in bech32.py and segwitaddr.py
 * type annotated python3
 * avoided returning (None, None), throwing ValueError instead
+* removed 90 character limit for Bech32 string
 """
 
 
@@ -86,7 +87,7 @@ def decode(bech: str) -> Tuple[str, List[int]]:
         raise ValueError("invalid Bech32 string")
     bech = bech.lower()
     pos = bech.rfind('1')
-    if pos < 1 or pos + 7 > len(bech) or len(bech) > 90:
+    if pos < 1 or pos + 7 > len(bech): #or len(bech) > 90:
         raise ValueError("invalid Bech32 string")
     if not all(x in __CHARSET for x in bech[pos+1:]):
         raise ValueError("invalid Bech32 string")
