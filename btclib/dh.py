@@ -62,6 +62,6 @@ def diffie_hellman(ec: Curve, hf: HashF, kdf: KDF,
     P = mult(ec, dU, QV)
     if P[1] == 0:
         "invalid (zero) private key"
-    z = P[0]  # shared secret field element
-    z = octets_from_int(z, ec.psize)
+    shared_secret = P[0]  # shared secret field element
+    z = octets_from_int(shared_secret, ec.psize)
     return kdf(ec, hf, z, size)

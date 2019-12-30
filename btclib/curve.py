@@ -326,8 +326,8 @@ def _mult_aff(ec: Curve, m: int, Q: Point) -> Point:
 
     m %= ec.n
     if m == 0 or Q[1] == 0:        # Infinity point in affine coordinates
-        return 1, 0                # return Infinity point
-    R = 1, 0                       # initialize as infinity point
+        return Point()             # return Infinity point
+    R = Point()                    # initialize as infinity point
     while m > 0:                   # use binary representation of m
         if m & 1:                  # if least significant bit is 1
             R = ec._add_aff(R, Q)  # then add current Q

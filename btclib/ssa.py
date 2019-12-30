@@ -21,7 +21,7 @@ from typing import Tuple, List, Sequence, Optional
 
 from .numbertheory import mod_inv, legendre_symbol
 from .curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
-    _jac_from_aff, _multi_mult
+    _jac_from_aff, _multi_mult, _JacPoint
 from .utils import int_from_bits, octets_from_point, octets_from_int, HashF
 from .rfc6979 import rfc6979
 
@@ -168,7 +168,7 @@ def _pubkey_recovery(ec: Curve,
 
     r, s = _to_sig(ec, sig)
 
-    K = r, ec.y_quadratic_residue(r, True)
+    K = Point(r, ec.y_quadratic_residue(r, True))
     # FIXME y_quadratic_residue in Jacobian coordinates?
 
     if e == 0:
@@ -239,8 +239,8 @@ def _batch_verify(ec: Curve,
         return _verify(ec, hf, ms[0], P[0], sig[0])
 
     t = 0
-    scalars: List(int) = list()
-    points: List[Point] = list()
+    scalars: List[int] = list()
+    points: List[_JacPoint] = list()
     for i in range(batch_size):
         r, s = _to_sig(ec, sig[i])
         _ensure_msg_size(hf, ms[i])
@@ -257,7 +257,7 @@ def _batch_verify(ec: Curve,
         # run of the batch verification algorithm
         a = (1 if i == 0 else (1+random.getrandbits(ec.nlen)) % ec.n)
         scalars.append(a)
-        points.append(_jac_from_aff((r, y)))
+        points.append(_jac_from_aff(Point(r, y)))
         scalars.append(a * e % ec.n)
         points.append(_jac_from_aff(P[i]))
         t += a * s
