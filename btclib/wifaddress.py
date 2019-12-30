@@ -17,6 +17,7 @@ and public keys (addresses).
 from typing import Tuple
 
 from . import base58
+from . import segwitaddr
 from .curve import Point, mult
 from .curves import secp256k1 as ec
 from .utils import Octets, int_from_octets, octets_from_int, \
@@ -37,6 +38,11 @@ _P2SH_PREFIXES = [
     b'\x05',  # address starts with 3
     b'\xc4',  # address starts with 2
     b'\xc4',  # address starts with 2
+]
+_P2WPKH_PREFIXES = [
+    'bc',  # address starts with 3
+    'tb',  # address starts with 2
+    'bcrt',  # address starts with 2
 ]
 
 def wif_from_prvkey(prvkey: int,
@@ -123,8 +129,18 @@ def p2wpkh_p2sh_address(Q: Point,
                         network: str = 'mainnet') -> bytes:
     """Return SegWit p2wpkh nested in p2sh address."""
 
-    # script_pubkey is just PUSH(20){hash160(pubkey)}
-    push_20 = bytes.fromhex("0014")
+    witness_version = 0
     compressed = True
-    script_pubkey = push_20 + h160_from_pubkey(Q, compressed)
+    witness_program = h160_from_pubkey(Q, compressed)
+    script_pubkey = segwitaddr.scriptpubkey(witness_version, witness_program)
     return p2sh_address(script_pubkey, network)
+
+def p2wpkh_address(Q: Point,
+                   network: str = 'mainnet') -> str:
+    """Return native SegWit Bech32 p2wpkh address."""
+
+    hrp = _P2WPKH_PREFIXES[_NETWORKS.index(network)]
+    witness_version = 0
+    compressed = True
+    witness_program = h160_from_pubkey(Q, compressed)
+    return segwitaddr.encode(hrp, witness_version, witness_program)

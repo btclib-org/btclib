@@ -37,11 +37,6 @@ import unittest
 from btclib import segwitaddr
 
 
-def segwit_scriptpubkey(witver, witprog):
-    """Construct a Segwit scriptPubKey for a given witness program."""
-    return bytes([witver + 0x50 if witver else 0, len(witprog)] + witprog)
-
-
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
         "0014751e76e8199196d454941c45d1b3a323f1433bd6"],
@@ -89,20 +84,18 @@ class TestSegwitAddress(unittest.TestCase):
         """Test whether valid addresses decode to the correct output."""
         for (address, hexscript) in VALID_BC_ADDRESS:
             hrp = "bc"
-            witver, witprog = segwitaddr.decode(hrp, address)
-            self.assertIsNotNone(witver)
-            scriptpubkey = segwit_scriptpubkey(witver, witprog)
-            self.assertEqual(scriptpubkey, binascii.unhexlify(hexscript))
-            addr = segwitaddr.encode(hrp, witver, witprog)
+            wit_version, wit_program = segwitaddr.decode(hrp, address)
+            script_pubkey = segwitaddr.scriptpubkey(wit_version, wit_program)
+            self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
+            addr = segwitaddr.encode(hrp, wit_version, wit_program)
             self.assertEqual(address.lower(), addr)
             self.assertRaises(ValueError, segwitaddr.decode, "tb", address)
         for (address, hexscript) in VALID_TB_ADDRESS:
             hrp = "tb"
-            witver, witprog = segwitaddr.decode(hrp, address)
-            self.assertIsNotNone(witver)
-            scriptpubkey = segwit_scriptpubkey(witver, witprog)
-            self.assertEqual(scriptpubkey, binascii.unhexlify(hexscript))
-            addr = segwitaddr.encode(hrp, witver, witprog)
+            wit_version, wit_program = segwitaddr.decode(hrp, address)
+            script_pubkey = segwitaddr.scriptpubkey(wit_version, wit_program)
+            self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
+            addr = segwitaddr.encode(hrp, wit_version, wit_program)
             self.assertEqual(address.lower(), addr)
             self.assertRaises(ValueError, segwitaddr.decode, "bc", address)
 

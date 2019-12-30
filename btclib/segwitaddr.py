@@ -66,6 +66,18 @@ def _convertbits(data: Iterable[int], frombits: int,
     return ret
 
 
+def scriptpubkey(witness_version, witness_program):
+    """Construct a Segwit scriptPubKey for a given witness program."""
+
+    # script_pubkey starts with a OP_0,
+    script_pubkey = [witness_version + 0x50 if witness_version else 0]
+    # followed by a canonical push of the 20-bytes keyhash
+    script_pubkey += [len(witness_program)]
+    script_pubkey += witness_program
+    # (i.e. script_pubkey = 0x0014{20-byte keyhash})
+    return bytes(script_pubkey)
+
+
 def decode(hrp: str, addr: str) -> Tuple[int, List[int]]:
     """Decode a segwit address."""
     hrpgot, data = bech32.decode(addr)
