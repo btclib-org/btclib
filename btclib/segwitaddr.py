@@ -36,10 +36,14 @@ with the following modifications:
 * splitted the original segwit_addr.py file in bech32.py and segwitaddr.py
 * type annotated python3
 * avoided returning None or (None, None), throwing ValueError instead
+* detailed error messages and exteded safety checks
+* check that Bech32 addresses are not longer than 90 characters
+  (as this is not enforced by bech32.encode)
 """
 
-from . import bech32
+
 from typing import Tuple, Iterable, List
+from . import bech32
 
 
 def _convertbits(data: Iterable[int], frombits: int,
@@ -66,31 +70,64 @@ def _convertbits(data: Iterable[int], frombits: int,
     return ret
 
 
-def scriptpubkey(witness_version, witness_program):
-    """Construct a Segwit scriptPubKey for a given witness program."""
+def scriptpubkey(witness_version: int, witness_program: List[int]) -> bytes:
+    """Construct a SegWit scriptPubKey for a given witness.
+    
+    The scriptPubKey is the witness version
+    (OP_0 for version 0, OP_1 for version 1, etc.)
+    followed by the canonical push of the witness program
+    (i.e. program lenght + program).
 
-    # script_pubkey starts with a OP_0,
+    E.g. for P2WPKH, where the program is a 20-byte keyhash,
+    the scriptPubkey is 0x0014{20-byte keyhash}
+    """
+
+    l = len(witness_program)
+    if witness_version == 0:
+        if l != 20 and l != 32:
+            raise ValueError(f"{l}-bytes witness program: must be 20 or 32")
+    elif witness_version > 16 or witness_version < 0:
+        msg = f"witness version ({witness_version}) not in [0, 16]"
+        raise ValueError(msg)
+    else:
+        if l < 2 or l > 40:
+            raise ValueError(f"{l}-bytes witness program: must be in [2,40]")
+
+    # start with witness version
+    # OP_0 is encoded as 0x00, but OP_1 through OP_16 are encoded as 0x51 though 0x60
     script_pubkey = [witness_version + 0x50 if witness_version else 0]
-    # followed by a canonical push of the 20-bytes keyhash
+    
+    # follow with the canonical push of the witness program
     script_pubkey += [len(witness_program)]
     script_pubkey += witness_program
-    # (i.e. script_pubkey = 0x0014{20-byte keyhash})
+
     return bytes(script_pubkey)
 
 
 def decode(hrp: str, addr: str) -> Tuple[int, List[int]]:
     """Decode a segwit address."""
+
+    # the following check was 
+    if len(addr) > 90:
+        raise ValueError(f"Bech32 address length ({len(addr)}) > 90")
+
     hrpgot, data = bech32.decode(addr)
     if hrpgot != hrp:
         raise ValueError("failure")
-    decoded = _convertbits(data[1:], 5, 8, False)
-    if len(decoded) < 2 or len(decoded) > 40:
-        raise ValueError("failure")
-    if data[0] > 16:
-        raise ValueError("failure")
-    if data[0] == 0 and len(decoded) != 20 and len(decoded) != 32:
-        raise ValueError("failure")
-    return data[0], decoded
+
+    witness_program = _convertbits(data[1:], 5, 8, False)
+    l = len(witness_program)
+    if l < 2 or l > 40:
+        raise ValueError(f"{l}-bytes witness program: must be in [2, 40]")
+
+    witness_version = data[0]
+    if witness_version > 16 or witness_version < 0:
+        msg = f"witness version ({witness_version}) not in [0, 16]"
+        raise ValueError(msg)
+    if witness_version == 0 and l != 20 and l != 32:
+        raise ValueError(f"{l}-bytes witness program: must be 20 or 32")
+    
+    return witness_version, witness_program
 
 
 def encode(hrp: str, witver: int, witprog: Iterable[int]) -> str:

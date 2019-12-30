@@ -147,13 +147,21 @@ class TestKeys(unittest.TestCase):
 
 
     def test_p2wpkh_address_from_pubkey(self):
+        #TODO: avoid useless convertion from SEC pk to Point
+
         # http://bitcoinscri.pt/pages/segwit_native_p2wpkh_address
         pub = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-        address = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-
         Pub = point_from_octets(ec, pub)
+        address = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
         self.assertEqual(address, p2wpkh_address(Pub))
 
+        # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+        pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        Pub = point_from_octets(ec, pub)
+        address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
+        self.assertEqual(address, p2wpkh_address(Pub))
+        address = 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
+        self.assertEqual(address, p2wpkh_address(Pub, 'testnet'))
 
 if __name__ == "__main__":
     # execute only if run as a script

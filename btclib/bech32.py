@@ -29,6 +29,8 @@
 
 """Bech32 encoding and decoding functions.
 
+BIP173: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+
 This implementation of Bech32 is originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
@@ -36,7 +38,8 @@ with the following modifications:
 * splitted the original segwit_addr.py file in bech32.py and segwitaddr.py
 * type annotated python3
 * avoided returning (None, None), throwing ValueError instead
-* removed the 90-characters limit for Bech32 string
+* removed the 90-chars limit for Bech32 string, enforced by segwitaddr instead
+* detailed error messages
 """
 
 
@@ -62,16 +65,12 @@ def _hrp_expand(hrp: str) -> List[int]:
     return [ord(x) >> 5 for x in hrp] + [0] + [ord(x) & 31 for x in hrp]
 
 
-def _verify_checksum(hrp: str, data: List[int]) -> bool:
-    """Verify a checksum given HRP and converted data characters."""
-    return _polymod(_hrp_expand(hrp) + data) == 1
-
-
 def _create_checksum(hrp: str, data: List[int]) -> List[int]:
     """Compute the checksum values given HRP and data."""
     values = _hrp_expand(hrp) + data
-    chk = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ 1
-    return [(chk >> 5 * (5 - i)) & 31 for i in range(6)]
+    polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ 1
+    checksum = [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
+    return checksum
 
 
 def encode(hrp: str, data: List[int]) -> str:
@@ -80,19 +79,38 @@ def encode(hrp: str, data: List[int]) -> str:
     return hrp + '1' + ''.join([__CHARSET[d] for d in combined])
 
 
+def _verify_checksum(hrp: str, data: List[int]) -> bool:
+    """Verify a checksum given HRP and converted data characters."""
+    return _polymod(_hrp_expand(hrp) + data) == 1
+
+
 def decode(bech: str) -> Tuple[str, List[int]]:
     """Validate a Bech32 string, and determine HRP and data."""
-    if ((any(ord(x) < 33 or ord(x) > 126 for x in bech)) or
-            (bech.lower() != bech and bech.upper() != bech)):
-        raise ValueError("invalid Bech32 string")
+
+    if (any(ord(x) < 33 or ord(x) > 126 for x in bech)):
+        msg = "Bech32 string contains "
+        msg += "ASCII characters outside printable set [33-126]"
+        raise ValueError(msg)
+    if (bech.lower() != bech and bech.upper() != bech):
+        raise ValueError("Mixed case Bech32 string")
     bech = bech.lower()
-    pos = bech.rfind('1')
-    if pos < 1 or pos + 7 > len(bech): #or len(bech) > 90:
-        raise ValueError("invalid Bech32 string")
-    if not all(x in __CHARSET for x in bech[pos+1:]):
-        raise ValueError("invalid Bech32 string")
+
+    # if len(bech) > 90:
+    #     raise ValueError(f"Bech32 string length ({len(bech)}) > 90")
+
+    pos = bech.rfind('1')  # find the separator between hrp and data
+    if pos < 1:
+        raise ValueError("Missing HRP in Bech32 string")
+    if pos + 7 > len(bech):
+        raise ValueError("Bech32 checksum length < 6")
+
     hrp = bech[:pos]
+
+    if not all(x in __CHARSET for x in bech[pos+1:]):
+        msg = "Bech32 string data part contains invalid characters"
+        raise ValueError(msg)
     data = [__CHARSET.find(x) for x in bech[pos+1:]]
-    if not _verify_checksum(hrp, data):
-        raise ValueError("invalid Bech32 string")
-    return hrp, data[:-6]
+
+    if _verify_checksum(hrp, data):
+        return hrp, data[:-6]
+    raise ValueError("Invalid Bech32 string checksum")

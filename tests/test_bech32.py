@@ -60,7 +60,7 @@ class TestBech32(unittest.TestCase):
 
 
     def test_valid_checksum(self):
-        """Test checksum creation and validation."""
+        """Test validation of valid checksums."""
         for test in VALID_CHECKSUM:
             hrp, _ = bech32.decode(test)
             pos = test.rfind('1')
@@ -69,7 +69,7 @@ class TestBech32(unittest.TestCase):
 
 
     def test_invalid_checksum(self):
-        """Test validation of invalid checksums."""
+        """Test validation (failure) of invalid checksums."""
         for test in INVALID_CHECKSUM:
             self.assertRaises(ValueError, bech32.decode, test)
 
