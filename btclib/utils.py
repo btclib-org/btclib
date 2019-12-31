@@ -16,7 +16,7 @@ https://www.secg.org/sec1-v2.pdf
 """
 
 from typing import Union, Callable, Any
-from hashlib import sha256, new
+import hashlib
 
 from .curve import Curve, Point
 from .curves import secp256k1 as ec
@@ -145,23 +145,27 @@ def _int_from_bits(ec: Curve, o: Octets) -> int:
     return i >> n
 
 
-def h160(o: Octets) -> bytes:
-    """Return RIPEMD160(SHA256) of an octet sequence."""
+def sha256(o: Octets) -> bytes:
+    """Return SHA256(*) of an octet sequence."""
 
     if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
 
-    t = sha256(o).digest()
-    return new('ripemd160', t).digest()
+    return hashlib.sha256(o).digest()
+
+
+def h160(o: Octets) -> bytes:
+    """Return RIPEMD160(SHA256(*)) of an octet sequence."""
+
+    t = sha256(o)
+    return hashlib.new('ripemd160', t).digest()
 
 
 def double_sha256(o: Octets) -> bytes:
-    """Return SHA256(SHA256()) of an octet sequence."""
+    """Return SHA256(SHA256(*)) of an octet sequence."""
 
-    if isinstance(o, str):
-        o = bytes.fromhex(o)
-
-    return sha256(sha256(o).digest()).digest()
+    t = sha256(o)
+    return hashlib.sha256(t).digest()
 
 
 def h160_from_pubkey(Q: Point, compressed: bool = True) -> bytes:
