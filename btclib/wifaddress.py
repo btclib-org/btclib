@@ -103,8 +103,7 @@ def p2pkh_address_from_wif(wif: Octets) -> bytes:
     return p2pkh_address(Pub, compressed, network)
 
 
-def p2sh_address(script_pubkey: bytes,
-                 network: str = 'mainnet') -> bytes:
+def p2sh_address(script_pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return p2sh address."""
 
     payload = _P2SH_PREFIXES[_NETWORKS.index(network)]
