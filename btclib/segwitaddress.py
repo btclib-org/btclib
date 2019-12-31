@@ -45,6 +45,7 @@ with the following modifications:
 from typing import Tuple, Iterable, List, Union
 
 from . import bech32
+from . import script
 from .curve import Point
 from .utils import h160_from_pubkey
 from .wifaddress import p2sh_address
@@ -111,17 +112,7 @@ def scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
     """
 
     check_witness(witvers, witprog)
-
-    # start with witness version; OP_0 is encoded as 0x00,
-    # but OP_1 through OP_16 are encoded as 0x51 though 0x60
-    script_pubkey = [witvers + 0x50 if witvers else 0]
-    
-    # follow with the canonical push of the witness program
-    script_pubkey += [len(witprog)]
-    # if witprog is bytes, it is automatically casted to list
-    script_pubkey += witprog
-
-    return bytes(script_pubkey)
+    return script.serialize([witvers, bytes(witprog)])
 
 
 def decode(addr: str, network: str = 'mainnet') -> Tuple[int, List[int]]:
