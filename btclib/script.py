@@ -250,7 +250,7 @@ def _op_pushdata(data: bytes) -> bytes:
         r += OP_CODES['OP_PUSHDATA2']
         r += length.to_bytes(2, 'little')
     else:
-        raise ValueError("Script: Cannot push {length} bytes on the stack")
+        raise ValueError(f"Script: Cannot push {length} bytes on the stack")
     r += data
     return r
 
@@ -262,7 +262,7 @@ def serialize(script: Iterable[Token]) -> bytes:
             if token >= 0 and token <= 16:
                 r += OP_CODES['OP_' + str(token)]
             else:
-                raise ValueError(f"Script: int ({token}) not in [0, 16]")
+                raise ValueError(f"Script: {token} not in [0, 16]")
         elif isinstance(token, str):
             token = token.upper()
             if token in OP_CODES:
@@ -271,12 +271,12 @@ def serialize(script: Iterable[Token]) -> bytes:
                 try:
                    token = bytes.fromhex(token)
                 except Exception:
-                    raise ValueError(f"Script: invalid OP_CODE {token}")
+                    raise ValueError(f"Script: invalid {token} opcode")
                 r += _op_pushdata(token)
         elif isinstance(token, bytes):
                 r += _op_pushdata(token)
         else:
-            raise ValueError(f"Script: unmanaged token type ({type(token)}")
+            raise ValueError(f"Script: unmanaged {type(token)} token type")
     return r
 
 

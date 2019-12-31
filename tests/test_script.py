@@ -43,8 +43,18 @@ class TestScript(unittest.TestCase):
             self.assertTrue(i in OP_CODE_NAMES.keys())
 
 
-    def test_add(self):
+    def test_simple(self):
         script = [2, 3, 'OP_ADD', 5, 'OP_EQUAL']
+        script_bytes = serialize(script)
+        script2 = parse(script_bytes)
+        self.assertEqual(script, script2)
+
+        script = ["1f"*250, 'OP_DROP']
+        script_bytes = serialize(script)
+        script2 = parse(script_bytes)
+        self.assertEqual(script, script2)
+
+        script = ["1f"*520, 'OP_DROP']
         script_bytes = serialize(script)
         script2 = parse(script_bytes)
         self.assertEqual(script, script2)
@@ -103,3 +113,30 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script_bytes.hex(), "0020"+witness_script_hash.hex())
         script2 = parse(script_bytes)
         self.assertEqual(script, script2)
+
+
+    def test_exceptions(self):
+
+        # Script: 25 not in [0, 16]
+        script = [12, 13, 'OP_ADD', 25, 'OP_EQUAL']
+        self.assertRaises(ValueError, serialize, script)
+        # script_bytes = serialize(script)
+
+        # Script: invalid OP_VERIF opcode
+        script = [2, 3, 'OP_ADD', 5, 'OP_VERIF']
+        self.assertRaises(ValueError, serialize, script)
+        # script_bytes = serialize(script)
+
+        # Script: unmanaged <class 'function'> token type
+        script = [2, 3, 'OP_ADD', 5, serialize]
+        self.assertRaises(ValueError, serialize, script)
+        # script_bytes = serialize(script)
+
+        # Script: Cannot push 521 bytes on the stack
+        script = ["1f"*521, 'OP_DROP']
+        self.assertRaises(ValueError, serialize, script)
+        # script_bytes = serialize(script)
+
+if __name__ == "__main__":
+    # execute only if run as a script
+    unittest.main()
