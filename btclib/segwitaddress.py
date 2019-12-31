@@ -47,17 +47,13 @@ from typing import Tuple, Iterable, List, Union
 from . import bech32
 from . import script
 from .curve import Point
-from .utils import h160_from_pubkey
+from .utils import h160_from_pubkey, Octets, sha256
 from .wifaddress import p2sh_address
 
 WitnessProgram = Union[List[int], bytes]
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
-_P2WPKH_PREFIXES = [
-    'bc',  # address starts with 3
-    'tb',  # address starts with 2
-    'bcrt',  # address starts with 2
-]
+_P2W_PREFIXES = ['bc', 'tb', 'bcrt']
 
 
 def _convertbits(data: Iterable[int], frombits: int,
@@ -107,8 +103,10 @@ def scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
     followed by the canonical push of the witness program
     (i.e. program lenght + program).
 
-    E.g. for P2WPKH, where the program is a 20-byte keyhash,
-    the scriptPubkey is 0x0014{20-byte keyhash}
+    E.g. for P2WPKH the program is a 20-byte keyhash,
+    the scriptPubkey is 0x0014{20-byte key-hash};
+    for P2SKH the program is a 32-byte script-hash,
+    the scriptPubkey is 0x0020{32-byte keyhash}
     """
 
     check_witness(witvers, witprog)
@@ -126,7 +124,7 @@ def decode(addr: str, network: str = 'mainnet') -> Tuple[int, List[int]]:
     hrp, data = bech32.decode(addr)
 
     # also verify that the network is known
-    if _NETWORKS[_P2WPKH_PREFIXES.index(hrp)] != network:
+    if _NETWORKS[_P2W_PREFIXES.index(hrp)] != network:
         raise ValueError(f"HPR ({hrp}) / network ({network}) mismatch")
 
     if len(data) == 0:
@@ -141,7 +139,7 @@ def decode(addr: str, network: str = 'mainnet') -> Tuple[int, List[int]]:
 
 def encode(wver: int, wprog: WitnessProgram, network: str = 'mainnet') -> str:
     """Encode a segwit address."""
-    hrp = _P2WPKH_PREFIXES[_NETWORKS.index(network)]
+    hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
     check_witness(wver, wprog)
     ret = bech32.encode(hrp, [wver] + _convertbits(wprog, 8, 5))
     return ret
@@ -150,9 +148,8 @@ def encode(wver: int, wprog: WitnessProgram, network: str = 'mainnet') -> str:
 def p2wpkh_p2sh_address(Q: Point, network: str = 'mainnet') -> bytes:
     """Return SegWit p2wpkh nested in p2sh address."""
 
-    compressed = True
-    witprog = h160_from_pubkey(Q, compressed)
     witvers = 0
+    witprog = h160_from_pubkey(Q, True)
     script_pubkey = scriptpubkey(witvers, witprog)
     return p2sh_address(script_pubkey, network)
 
@@ -160,7 +157,24 @@ def p2wpkh_p2sh_address(Q: Point, network: str = 'mainnet') -> bytes:
 def p2wpkh_address(Q: Point, network: str = 'mainnet') -> str:
     """Return native SegWit Bech32 p2wpkh address."""
 
-    compressed = True
-    witprog = h160_from_pubkey(Q, compressed)
     witvers = 0
+    witprog = h160_from_pubkey(Q, True)
+    return encode(witvers, witprog, network)
+
+
+
+def p2wsh_p2sh_address(witness_script: Octets, network: str = 'mainnet') -> bytes:
+    """Return SegWit p2wsh nested in p2sh address."""
+
+    witvers = 0
+    witprog = sha256(witness_script)
+    script_pubkey = scriptpubkey(witvers, witprog)
+    return p2sh_address(script_pubkey, network)
+
+
+def p2wsh_address(witness_script: Octets, network: str = 'mainnet') -> str:
+    """Return native SegWit Bech32 p2wsh address."""
+
+    witvers = 0
+    witprog = sha256(witness_script)
     return encode(witvers, witprog, network)

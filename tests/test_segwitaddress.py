@@ -46,6 +46,7 @@ import unittest
 from btclib import segwitaddress
 from btclib.curves import secp256k1 as ec
 from btclib.utils import point_from_octets
+from btclib.script import serialize
 
 
 VALID_BC_ADDRESS = [
@@ -156,6 +157,27 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(addr, segwitaddress.p2wpkh_address(Pub))
         addr = 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
         self.assertEqual(addr, segwitaddress.p2wpkh_address(Pub, 'testnet'))
+
+
+    def test_p2wsh_p2sh_address_from_pubkey(self):
+
+        pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        witness_script = [pub, 'OP_CHECKSIG']
+        witness_script_bytes = serialize(witness_script)
+        segwitaddress.p2wsh_p2sh_address(witness_script_bytes)
+        segwitaddress.p2wsh_p2sh_address(witness_script_bytes, 'testnet')
+
+
+    def test_p2wsh_address_from_pubkey(self):
+
+        # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+        pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        witness_script = [pub, 'OP_CHECKSIG']
+        witness_script_bytes = serialize(witness_script)
+        addr = 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
+        self.assertEqual(addr, segwitaddress.p2wsh_address(witness_script_bytes))
+        addr = 'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
+        self.assertEqual(addr, segwitaddress.p2wsh_address(witness_script_bytes, 'testnet'))
 
 
 if __name__ == "__main__":
