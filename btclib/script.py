@@ -301,30 +301,29 @@ def parse(script: bytes) -> List[Token]:
         elif i < 76:
             # 1-byte-data-length | data
             data = s.read(i)
-            r.append(data.hex())
             counter += i
+            r.append(data.hex())
         elif i == 76:
             # OP_PUSHDATA1 | 1-byte-data-length | data
             data_length = int.from_bytes(s.read(1), 'little')
             data = s.read(data_length)
-            r.append(data.hex())
             counter += 1 + data_length
+            r.append(data.hex())
         elif i == 77:
-            # OP_PUSHDATA2 | 1-byte-data-length | data
+            # OP_PUSHDATA2 | 2-byte-data-length | data
             data_length = int.from_bytes(s.read(2), 'little')
             data = s.read(data_length)
-            r.append(data.hex())
             counter += 2 + data_length
+            r.append(data.hex())
         elif i == 78:
-            # OP_PUSHDATA4 | 1-byte-data-length | data
+            # OP_PUSHDATA4 | 4-byte-data-length | data
             data_length = int.from_bytes(s.read(4), 'little')
             data = s.read(data_length)
+            counter += 4 + data_length
             r.append(data.hex())
             raise ValueError("Script: Cannot push {length} bytes on the stack")
         else:
             # OP_CODE
             r.append(OP_CODE_NAMES[i])
-    if counter != length:
-        raise SyntaxError('Parsing script failed')
 
     return r
