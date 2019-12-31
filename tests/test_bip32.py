@@ -354,6 +354,8 @@ class TestBIP32(unittest.TestCase):
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
+        addr = bip32.p2wpkh_p2sh_address_from_xpub(pub)
+        self.assertEqual(address, addr.decode())
 
         path = "m/84'/0'/0'"
         prv = "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
