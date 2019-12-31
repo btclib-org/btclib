@@ -66,16 +66,19 @@ VALID_TB_ADDRESS = [
 ]
 
 INVALID_ADDRESS = [
-    "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
-    "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
-    "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
-    "bc1rw5uspcuh",
+    "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",  # Invalid human-readable part
+    "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",  # Invalid checksum
+    "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",  # Invalid witness version
+    "bc1rw5uspcuh",  # Invalid program length
+    # Invalid program length
     "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
+    # Invalid program length for witness version 0 (per BIP141)
     "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
-    "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
-    "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
+    "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",  # Mixed case
+    "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",  # zero padding of more than 4 bits
+    # Non-zero padding in 8-to-5 conversion
     "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-    "bc1gmk9yu",
+    "bc1gmk9yu",  # Empty data section
 ]
 
 INVALID_ADDRESS_ENC = [
@@ -89,7 +92,6 @@ INVALID_ADDRESS_ENC = [
 
 class TestSegwitAddress(unittest.TestCase):
     """Unit test class for SegWit addressess."""
-
 
     def test_valid_address(self):
         """Test whether valid addresses decode to the correct output"""
@@ -108,20 +110,17 @@ class TestSegwitAddress(unittest.TestCase):
             self.assertEqual(a.lower(), address)
             self.assertRaises(ValueError, segwitaddress.decode, a, 'mainnet')
 
-
     def test_invalid_address(self):
         """Test whether invalid addresses fail to decode"""
         for a in INVALID_ADDRESS:
             self.assertRaises(ValueError, segwitaddress.decode, a, 'mainnet')
             self.assertRaises(ValueError, segwitaddress.decode, a, 'testnet')
 
-
     def test_invalid_address_enc(self):
         """Test whether address encoding fails on invalid input"""
         for network, version, length in INVALID_ADDRESS_ENC:
             self.assertRaises(ValueError, segwitaddress.encode,
                               version, [0] * length, network)
-
 
     def test_p2wpkh_p2sh_address_from_pubkey(self):
         # https://matthewdowney.github.io/create-segwit-address.html
@@ -140,7 +139,6 @@ class TestSegwitAddress(unittest.TestCase):
 
         address = segwitaddress.p2wpkh_p2sh_address(Pub)
         self.assertEqual(address, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
-
 
     def test_p2wpkh_address_from_pubkey(self):
         # TODO: avoid useless convertion from SEC pk to Point
