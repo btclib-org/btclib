@@ -234,14 +234,14 @@ Token = Union[int, str, bytes]
 def _op_pushdata(data: bytes) -> bytes:
     """Convert to canonical push: OP_PUSHDATA (if needed) | length | data.
 
-    According to standardness rules (BIP-62)
-    the minimum possible PUSHDATA operator must be used.
+    According to standardness rules (BIP-62) the
+    minimum possible PUSHDATA operator must be used.
     Byte vectors on the stack are not allowed to be more than 520 bytes long.
     """
 
     r = b''
     length = len(data)
-    if length < 75:  # 1-byte-length
+    if length < 75:     # 1-byte-length
         r += length.to_bytes(1, 'little')
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
         r += OP_CODES['OP_PUSHDATA1']
@@ -286,7 +286,6 @@ def parse(script: bytes) -> List[Token]:
     r: List[Union[str, int, bytes]] = []
 
     s = BytesIO(script)
-    # length of the stream
     length = len(script)
     counter = 0
     while counter < length:
@@ -299,7 +298,7 @@ def parse(script: bytes) -> List[Token]:
         elif i > 80 and i < 97:
             # numeric values 1-16 (OP_1-OP_16)
             r.append(i-80)
-        elif i > 0 and i < 76:
+        elif i < 76:
             # 1-byte-data-length | data
             data = s.read(i)
             r.append(data.hex())
