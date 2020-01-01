@@ -29,7 +29,7 @@
 
 """SegWit address implementation.
 
-Most of the functions here are originally from
+Some of these functions were originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
@@ -46,8 +46,7 @@ from typing import Tuple, Iterable, List, Union
 
 from . import bech32
 from . import script
-from .curve import Point
-from .utils import h160_from_pubkey, Octets, sha256
+from .utils import Octets, h160, sha256
 from .wifaddress import p2sh_address
 
 WitnessProgram = Union[List[int], bytes]
@@ -86,13 +85,13 @@ def check_witness(witvers: int, witprog: WitnessProgram):
     l = len(witprog)
     if witvers == 0:
         if l != 20 and l != 32:
-            raise ValueError(f"{l}-bytes witness program: must be 20 or 32")
+            raise ValueError(f"witness program length ({l}) is not 20 or 32")
     elif witvers > 16 or witvers < 0:
         msg = f"witness version ({witvers}) not in [0, 16]"
         raise ValueError(msg)
     else:
         if l < 2 or l > 40:
-            raise ValueError(f"{l}-bytes witness program: must be in [2,40]")
+            raise ValueError(f"witness program length ({l}) not in [2, 40]")
 
 
 def scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
@@ -113,19 +112,28 @@ def scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
     return script.serialize([witvers, bytes(witprog)])
 
 
-def decode(addr: str, network: str = 'mainnet') -> Tuple[int, List[int]]:
-    """Decode a segwit address."""
+def decode(address: Union[str, bytes],
+           network: str = 'mainnet') -> Tuple[str, int, List[int]]:
+    """Decode a SegWit address."""
+
+    if isinstance(address, str):
+        address = address.strip()
 
     # the following check was originally in bech32.decode2
     # but it does not pertain there
-    if len(addr) > 90:
-        raise ValueError(f"Bech32 address length ({len(addr)}) > 90")
+    if len(address) > 90:
+        raise ValueError(f"Bech32 address length ({len(address)}) > 90")
 
-    hrp, data = bech32.decode(addr)
+    hrp, data = bech32.decode(address)
 
-    # also verify that the network is known
-    if _NETWORKS[_P2W_PREFIXES.index(hrp)] != network:
-        raise ValueError(f"HPR ({hrp}) / network ({network}) mismatch")
+    # check that it is a SegWit address
+    i = _P2W_PREFIXES.index(hrp)
+
+    # check that it is a SegWit address for the given network
+    if _NETWORKS[i] != network:
+        msg = f"{address} is a SegWit address for "
+        msg += f"a network other than {network}"
+        raise ValueError(msg)
 
     if len(data) == 0:
         raise ValueError(f"Bech32 address with empty data")
@@ -134,47 +142,94 @@ def decode(addr: str, network: str = 'mainnet') -> Tuple[int, List[int]]:
     witprog = _convertbits(data[1:], 5, 8, False)
     check_witness(witvers, witprog)
     
-    return witvers, witprog
+    return hrp, witvers, witprog
 
 
-def encode(wver: int, wprog: WitnessProgram, network: str = 'mainnet') -> str:
-    """Encode a segwit address."""
+def encode(wver: int, wprog: WitnessProgram, network: str = 'mainnet') -> bytes:
+    """Encode a SegWit address."""
     hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
     check_witness(wver, wprog)
     ret = bech32.encode(hrp, [wver] + _convertbits(wprog, 8, 5))
     return ret
 
 
-def p2wpkh_p2sh_address(Q: Point, network: str = 'mainnet') -> bytes:
-    """Return SegWit p2wpkh nested in p2sh address."""
+def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
+    """Return the p2wpkh address as native SegWit or legacy p2sh-wrapped."""
+
+    if isinstance(pubkey, str):  # hex string
+        pubkey = bytes.fromhex(pubkey)
+    if pubkey[0] not in (2, 3):
+        raise ValueError(f"Uncompressed pubkey {pubkey}")
 
     witvers = 0
-    witprog = h160_from_pubkey(Q, True)
+    witprog = h160(pubkey)
+
+    if native:
+        return encode(witvers, witprog, network)
     script_pubkey = scriptpubkey(witvers, witprog)
     return p2sh_address(script_pubkey, network)
 
 
-def p2wpkh_address(Q: Point, network: str = 'mainnet') -> str:
-    """Return native SegWit Bech32 p2wpkh address."""
-
-    witvers = 0
-    witprog = h160_from_pubkey(Q, True)
-    return encode(witvers, witprog, network)
+def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
+    """Return the p2wpkh native SegWit address."""
+    return _p2wpkh_address(pubkey, True, network)
 
 
+def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
+    """Return the p2wpkh-p2sh (legacy) address."""
+    return _p2wpkh_address(pubkey, False, network)
 
-def p2wsh_p2sh_address(witness_script: Octets, network: str = 'mainnet') -> bytes:
-    """Return SegWit p2wsh nested in p2sh address."""
+
+def h160_from_p2wpkh_address(address = Union[str, bytes],
+                             network: str = 'mainnet') -> bytes:
+
+    if isinstance(address, str):
+        address = address.strip()
+
+    hrp, witver, witprog = decode(address, network)
+
+    # check that it is a p2wpkh address
+    if len(witprog) != 20 and witver == 0:
+        msg = f"Witness program length ({len(witprog)}) is not "
+        msg += "20: not a V0 p2wpkh address"
+        raise ValueError(msg)
+
+    return bytes(witprog)
+
+
+def _p2wsh_address(witness_script: Octets, native: bool, network: str) -> bytes:
+    """Return the address as native SegWit Bech32 or legacy p2sh-wrapped."""
 
     witvers = 0
     witprog = sha256(witness_script)
+    if native:
+        return encode(witvers, witprog, network)
     script_pubkey = scriptpubkey(witvers, witprog)
     return p2sh_address(script_pubkey, network)
 
 
-def p2wsh_address(witness_script: Octets, network: str = 'mainnet') -> str:
-    """Return native SegWit Bech32 p2wsh address."""
+def p2wsh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
+    """Return the p2wsh native SegWit address."""
+    return _p2wsh_address(pubkey, True, network)
 
-    witvers = 0
-    witprog = sha256(witness_script)
-    return encode(witvers, witprog, network)
+
+def p2wsh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
+    """Return the p2wsh-p2sh (legacy) address."""
+    return _p2wsh_address(pubkey, False, network)
+
+
+def sha256_from_p2wsh_address(address = Union[str, bytes],
+                              network: str = 'mainnet') -> bytes:
+
+    if isinstance(address, str):
+        address = address.strip()
+
+    hrp, witver, witprog = decode(address, network)
+
+    # check that it is a p2wsh address
+    if len(witprog) != 32 and witver == 0:
+        msg = f"Witness program length ({len(witprog)}) is not "
+        msg += "32: not a V0 p2wsh address"
+        raise ValueError(msg)
+
+    return bytes(witprog)

@@ -47,5 +47,5 @@ crypto: {
     Octets: Union[bytes, str],   # bytes or hex-string (not string)
     prvkey: Union[int, Octets],  # not sure about int...
     pubkey: Octets,
-    address, WIF: Union[str, bytes]  # string, not hex-string
+    address, WIF: Union[str, bytes]  # ASCII string, not hex-string, always s.strip()
 }

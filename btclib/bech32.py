@@ -40,12 +40,15 @@ with the following modifications:
 * avoided returning (None, None), throwing ValueError instead
 * removed the 90-chars limit for Bech32 string, enforced by segwitaddr instead
 * detailed error messages
+* interface mimics the native python3 base64 interface, i.e.
+  it supports encoding bytes-like objects to ASCII bytes,
+  and decoding bytes-like objects or ASCII strings to bytes
 """
 
 
-from typing import Tuple, Iterable, List
+from typing import Tuple, Iterable, List, Union
 
-__CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+__ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 
 def _polymod(values: Iterable[int]) -> int:
@@ -73,10 +76,12 @@ def _create_checksum(hrp: str, data: List[int]) -> List[int]:
     return checksum
 
 
-def encode(hrp: str, data: List[int]) -> str:
+def encode(hrp: str, data: List[int]) -> bytes:
     """Compute a Bech32 string given HRP and data values."""
     combined = data + _create_checksum(hrp, data)
-    return hrp + '1' + ''.join([__CHARSET[d] for d in combined])
+    # FIXME: work with bytes
+    s = hrp + '1' + ''.join([__ALPHABET[d] for d in combined])
+    return s.encode()
 
 
 def _verify_checksum(hrp: str, data: List[int]) -> bool:
@@ -84,8 +89,11 @@ def _verify_checksum(hrp: str, data: List[int]) -> bool:
     return _polymod(_hrp_expand(hrp) + data) == 1
 
 
-def decode(bech: str) -> Tuple[str, List[int]]:
+def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
     """Validate a Bech32 string, and determine HRP and data."""
+
+    if isinstance(bech, bytes):
+        bech = bech.decode("ascii")
 
     if (any(ord(x) < 33 or ord(x) > 126 for x in bech)):
         msg = "Bech32 string contains "
@@ -106,10 +114,10 @@ def decode(bech: str) -> Tuple[str, List[int]]:
 
     hrp = bech[:pos]
 
-    if not all(x in __CHARSET for x in bech[pos+1:]):
+    if not all(x in __ALPHABET for x in bech[pos+1:]):
         msg = "Bech32 string data part contains invalid characters"
         raise ValueError(msg)
-    data = [__CHARSET.find(x) for x in bech[pos+1:]]
+    data = [__ALPHABET.find(x) for x in bech[pos+1:]]
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]

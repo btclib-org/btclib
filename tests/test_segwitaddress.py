@@ -57,6 +57,8 @@ VALID_BC_ADDRESS = [
     ["BC1SW50QA3JX3S", "6002751e"],
     ["bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
         "5210751e76e8199196d454941c45d1b3a323"],
+    [" bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
+        "5210751e76e8199196d454941c45d1b3a323"],
 ]
 
 VALID_TB_ADDRESS = [
@@ -97,18 +99,18 @@ class TestSegwitAddress(unittest.TestCase):
     def test_valid_address(self):
         """Test whether valid addresses decode to the correct output"""
         for a, hexscript in VALID_BC_ADDRESS:
-            witvers, witprog = segwitaddress.decode(a, 'mainnet')
+            hrp, witvers, witprog = segwitaddress.decode(a, 'mainnet')
             script_pubkey = segwitaddress.scriptpubkey(witvers, witprog)
             self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
             address = segwitaddress.encode(witvers, witprog, 'mainnet')
-            self.assertEqual(a.lower(), address)
+            self.assertEqual(a.lower().strip(), address.decode())
             self.assertRaises(ValueError, segwitaddress.decode, a, 'testnet')
         for a, hexscript in VALID_TB_ADDRESS:
-            witvers, witprog = segwitaddress.decode(a, 'testnet')
+            hrp, witvers, witprog = segwitaddress.decode(a, 'testnet')
             script_pubkey = segwitaddress.scriptpubkey(witvers, witprog)
             self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
             address = segwitaddress.encode(witvers, witprog, 'testnet')
-            self.assertEqual(a.lower(), address)
+            self.assertEqual(a.lower(), address.decode())
             self.assertRaises(ValueError, segwitaddress.decode, a, 'mainnet')
 
     def test_invalid_address(self):
@@ -125,43 +127,39 @@ class TestSegwitAddress(unittest.TestCase):
 
     def test_p2wpkh_p2sh_address_from_pubkey(self):
         # https://matthewdowney.github.io/create-segwit-address.html
-        pub = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        Pub = point_from_octets(ec, pub)
+        pub = " 03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
 
-        address = segwitaddress.p2wpkh_p2sh_address(Pub)
+        address = segwitaddress.p2wpkh_p2sh_address(pub)
         self.assertEqual(address, b'36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g')
 
-        address = segwitaddress.p2wpkh_p2sh_address(Pub, 'testnet')
+        address = segwitaddress.p2wpkh_p2sh_address(pub, 'testnet')
         self.assertEqual(address, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
 
         # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh_address
         pub = "02f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
-        Pub = point_from_octets(ec, pub)
 
-        address = segwitaddress.p2wpkh_p2sh_address(Pub)
+        address = segwitaddress.p2wpkh_p2sh_address(pub)
         self.assertEqual(address, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
 
     def test_p2wpkh_address_from_pubkey(self):
         # TODO: avoid useless convertion from SEC pk to Point
 
         # http://bitcoinscri.pt/pages/segwit_native_p2wpkh_address
-        pub = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-        Pub = point_from_octets(ec, pub)
-        addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        self.assertEqual(addr, segwitaddress.p2wpkh_address(Pub))
+        pub = " 02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+        addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
+        self.assertEqual(addr, segwitaddress.p2wpkh_address(pub))
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
         pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-        Pub = point_from_octets(ec, pub)
-        addr = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
-        self.assertEqual(addr, segwitaddress.p2wpkh_address(Pub))
-        addr = 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
-        self.assertEqual(addr, segwitaddress.p2wpkh_address(Pub, 'testnet'))
+        addr = b'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
+        self.assertEqual(addr, segwitaddress.p2wpkh_address(pub))
+        addr = b'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
+        self.assertEqual(addr, segwitaddress.p2wpkh_address(pub, 'testnet'))
 
 
     def test_p2wsh_p2sh_address_from_pubkey(self):
 
-        pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         witness_script = [pub, 'OP_CHECKSIG']
         witness_script_bytes = serialize(witness_script)
         segwitaddress.p2wsh_p2sh_address(witness_script_bytes)
@@ -171,12 +169,12 @@ class TestSegwitAddress(unittest.TestCase):
     def test_p2wsh_address_from_pubkey(self):
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
-        pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         witness_script = [pub, 'OP_CHECKSIG']
         witness_script_bytes = serialize(witness_script)
-        addr = 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
+        addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
         self.assertEqual(addr, segwitaddress.p2wsh_address(witness_script_bytes))
-        addr = 'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
+        addr = b'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
         self.assertEqual(addr, segwitaddress.p2wsh_address(witness_script_bytes, 'testnet'))
 
 

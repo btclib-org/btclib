@@ -30,10 +30,10 @@ https://github.com/keis/base58, with the following modifications:
 
 * type annotated python3
 * using native python3 int.from_bytes() and i.to_bytes()
-* added optional check on output size for _decode() and decode_check()
-
-Input can be bytes or a string that will be encoded to bytes (after
-being stripped of leading/trailing white spaces)
+* added optional check on output size for decode()
+* interface mimics the native python3 base64 interface, i.e.
+  it supports encoding bytes-like objects to ASCII bytes,
+  and decoding bytes-like objects or ASCII strings to bytes
 """
 
 from hashlib import sha256
@@ -41,39 +41,25 @@ from typing import Union, Optional
 
 from .utils import double_sha256
 
-# used digits
-__digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-__base = len(__digits)
-
-
-def _str_to_bytes(v: Union[str, bytes]) -> bytes:
-    """Encode string to bytes, stipping leading/trailing white spaces"""
-
-    if isinstance(v, str):
-        v = v.strip()
-        v = v.encode()
-
-    return v
+__ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+__BASE = len(__ALPHABET)
 
 
 def _encode_from_int(i: int) -> bytes:
-    """Encode an integer using Base58."""
 
     if i == 0:
-        return __digits[0:1]
+        return __ALPHABET[0:1]
 
     result = b""
     while i:
-        i, idx = divmod(i, __base)
-        result = __digits[idx:idx+1] + result
+        i, idx = divmod(i, __BASE)
+        result = __ALPHABET[idx:idx+1] + result
 
     return result
 
 
-def _encode(v: Union[str, bytes]) -> bytes:
-    """Encode bytes or string using Base58."""
-
-    v = _str_to_bytes(v)
+def _encode(v: bytes) -> bytes:
+    """Encode a bytes-like object using Base58."""
 
     # preserve leading-0s
     # leading-0s become base58 leading-1s
@@ -81,7 +67,7 @@ def _encode(v: Union[str, bytes]) -> bytes:
     v = v.lstrip(b'\0')
     vlen = len(v)
     nPad -= vlen
-    result = __digits[0:1] * nPad
+    result = __ALPHABET[0:1] * nPad
 
     if vlen:
         i = int.from_bytes(v, 'big')
@@ -90,40 +76,35 @@ def _encode(v: Union[str, bytes]) -> bytes:
     return result
 
 
-def encode(v: Union[str, bytes]) -> bytes:
-    """Encode bytes or string using Base58Check."""
-
-    v = _str_to_bytes(v)
+def encode(v: bytes) -> bytes:
+    """Encode a bytes-like object using Base58Check."""
 
     digest = double_sha256(v)
     return _encode(v + digest[:4])
 
 
-def _decode_to_int(v: Union[str, bytes]) -> int:
-    """Decode Base58 encoded bytes or string as integer."""
-
-    v = _str_to_bytes(v)
+def _decode_to_int(v: bytes) -> int:
 
     i = 0
     for char in v:
-        i *= __base
-        i += __digits.index(char)
+        i *= __BASE
+        i += __ALPHABET.index(char)
     return i
 
 
-def _decode(v: Union[str, bytes],
-            output_size: Optional[int] = None) -> bytes:
-    """Decode Base58 encoded bytes or string.
+def _decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
+    """Decode a Base58 encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.
     """
 
-    v = _str_to_bytes(v)
+    if isinstance(v, str):
+        v = v.encode("ascii")
 
     # preserve leading-0s
     # base58 leading-1s become leading-0s
     nPad = len(v)
-    v = v.lstrip(__digits[0:1])
+    v = v.lstrip(__ALPHABET[0:1])
     vlen = len(v)
     nPad -= vlen
     result = b'\0' * nPad
@@ -133,25 +114,24 @@ def _decode(v: Union[str, bytes],
         nbytes = (i.bit_length() + 7) // 8
         result = result + i.to_bytes(nbytes, 'big')
 
-    if output_size is not None and len(result) != output_size:
+    if out_size is not None and len(result) != out_size:
         m = "Invalid decoded size: "
-        m += f"{len(result)} bytes instead of {output_size}"
+        m += f"{len(result)} bytes instead of {out_size}"
         raise ValueError(m)
 
     return result
 
 
-def decode(v: Union[str, bytes],
-           output_size: Optional[int] = None) -> bytes:
-    """Decode Base58Check encoded bytes or string, verifying checksum.
+def decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
+    """Decode a Base58Check encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.
     """
 
-    if output_size is not None:
-        output_size += 4
+    if out_size is not None:
+        out_size += 4
 
-    result = _decode(v, output_size)
+    result = _decode(v, out_size)
     result, checksum = result[:-4], result[-4:]
 
     digest = double_sha256(result)

@@ -330,42 +330,42 @@ class TestBIP32(unittest.TestCase):
         passphrase = ""
 
         path = "m/44'/0'/0'"
-        prv = "xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
-        pub = "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
-        address = "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
+        prv = b"xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
+        pub = b"xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
+        address = b"1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
         rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_xprv)
         mprv = bip32.derive(rxprv, path)
-        self.assertEqual(prv, mprv.decode())
+        self.assertEqual(prv, mprv)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(pub, mpub.decode())
+        self.assertEqual(pub, mpub)
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
 
         path = "m/49'/0'/0'"
-        prv = "yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQeKTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"
-        pub = "ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"
-        address = "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
+        prv = b"yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQeKTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"
+        pub = b"ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"
+        address = b"37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
         rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_yprv)
         mprv = bip32.derive(rxprv, path)
-        self.assertEqual(prv, mprv.decode())
+        self.assertEqual(prv, mprv)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(pub, mpub.decode())
+        self.assertEqual(pub, mpub)
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
         addr = bip32.p2wpkh_p2sh_address_from_xpub(pub)
-        self.assertEqual(address, addr.decode())
+        self.assertEqual(address, addr)
 
         path = "m/84'/0'/0'"
-        prv = "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
-        pub = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
-        address = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+        prv = b"zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
+        pub = b"zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
+        address = b"bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
         rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_zprv)
         mprv = bip32.derive(rxprv, path)
-        self.assertEqual(prv, mprv.decode())
+        self.assertEqual(prv, mprv)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(pub, mpub.decode())
+        self.assertEqual(pub, mpub)
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)

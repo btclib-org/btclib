@@ -16,27 +16,23 @@ from btclib import base58
 class TestBase58CheckEncoding(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(base58._encode(b''), b'')
-        self.assertEqual(base58._decode(b''), b'')
+        self.assertEqual(base58._decode(''), b'')
         self.assertEqual(base58._decode(base58._encode(b'')), b'')
-        self.assertEqual(base58._encode(base58._decode(b'')), b'')
+        self.assertEqual(base58._encode(base58._decode('')), b'')
 
     def test_hello_world(self):
         self.assertEqual(base58._encode(b'hello world'), b'StV1DL6CwTryKyV')
-        self.assertEqual(base58._decode(b'StV1DL6CwTryKyV'), b'hello world')
+        self.assertEqual(base58._decode('StV1DL6CwTryKyV'), b'hello world')
         self.assertEqual(base58._decode(
             base58._encode(b'hello world')), b'hello world')
         self.assertEqual(
-            base58._encode(base58._decode(b'StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
+            base58._encode(base58._decode('StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
 
     def test_trailing_zeros(self):
-        self.assertEqual(base58._encode(b'\x00\x00hello world'),
-                         b'11StV1DL6CwTryKyV')
-        self.assertEqual(base58._decode(b'11StV1DL6CwTryKyV'),
-                         b'\x00\x00hello world')
-        self.assertEqual(
-            base58._decode(base58._encode(b'\0\0hello world')), b'\x00\x00hello world')
-        self.assertEqual(
-            base58._encode(base58._decode(b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
+        self.assertEqual(base58._encode(b'\x00\x00hello world'), b'11StV1DL6CwTryKyV')
+        self.assertEqual(base58._decode('11StV1DL6CwTryKyV'), b'\x00\x00hello world')
+        self.assertEqual(base58._decode(base58._encode(b'\0\0hello world')), b'\x00\x00hello world')
+        self.assertEqual(base58._encode(base58._decode('11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
 
     def test_integers(self):
         digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -44,7 +40,7 @@ class TestBase58CheckEncoding(unittest.TestCase):
             char = digits[i:i+1]
             self.assertEqual(base58._decode_to_int(char), i)
             self.assertEqual(base58._encode_from_int(i), char)
-        number = 0x111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5  # noqa
+        number = 0x111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5
         self.assertEqual(base58._decode_to_int(digits), number)
         self.assertEqual(base58._encode_from_int(number), digits[1:])
 
@@ -62,6 +58,10 @@ class TestBase58CheckEncoding(unittest.TestCase):
         # checksum is invalid
         invalidChecksum = encoded[:-4] + b'1111'
         self.assertRaises(ValueError, base58.decode, invalidChecksum, 4)
+
+        # non-ascii character
+        self.assertRaises(ValueError, base58.decode, "hèllo world")
+        # base58.decode("hèllo world")
 
     def test_wif(self):
         # https://en.bitcoin.it/wiki/Wallet_import_format
@@ -83,18 +83,8 @@ class TestBase58CheckEncoding(unittest.TestCase):
         self.assertEqual(key, compressedKey)
 
         # string
-        compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
+        compressedWIF = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
         key = base58.decode(compressedWIF)
-        self.assertEqual(key, compressedKey)
-
-        # string with leading space
-        compressedWIF = ' KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
-        base58.decode(compressedWIF)
-        self.assertEqual(key, compressedKey)
-
-        # string with trailing space
-        compressedWIF = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 '
-        base58.decode(compressedWIF)
         self.assertEqual(key, compressedKey)
 
 

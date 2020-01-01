@@ -134,11 +134,11 @@ import base64
 from hashlib import sha256 as hf
 from typing import Tuple, Union
 
-from .base58 import _str_to_bytes
 from .curve import mult
-from .curves import secp256k1 as ec
-from .wifaddress import p2pkh_address, h160_from_pubkey, _h160_from_p2pkh_address
+from .curves import secp256k1
+from .wifaddress import p2pkh_address, h160_from_p2pkh_address
 from . import dsa
+from .utils import octets_from_point, h160
 
 # TODO: support msg as bytes
 # TODO: add small wallet (address <-> private key) infrastructure
@@ -167,13 +167,14 @@ def sign(msg: str, prvkey: int,
          network: str = 'mainnet') -> Tuple[bytes, bytes]:
     """Generate the message signature Tuple(P2PKH address, signature)."""
 
-    pubkey = mult(ec, prvkey)
-    address = p2pkh_address(pubkey, compressed, network)
+    pubkey = mult(secp256k1, prvkey)
+    pk = octets_from_point(secp256k1, pubkey, compressed)
+    address = p2pkh_address(pk, network)
 
     magic_msg = _magic_hash(msg)
-    sig = dsa.sign(ec, hf, magic_msg, prvkey)
+    sig = dsa.sign(secp256k1, hf, magic_msg, prvkey)
 
-    pubkeys = dsa.pubkey_recovery(ec, hf, magic_msg, sig)
+    pubkeys = dsa.pubkey_recovery(secp256k1, hf, magic_msg, sig)
     bytes_sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
     for i in range(len(pubkeys)):
         if pubkeys[i] == pubkey:
@@ -207,24 +208,22 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     r = int.from_bytes(sig[1:33], 'big')
     s = int.from_bytes(sig[33:], 'big')
     magic_msg = _magic_hash(msg)
-    pubkeys = dsa.pubkey_recovery(ec, hf, magic_msg, (r, s))
+    pubkeys = dsa.pubkey_recovery(secp256k1, hf, magic_msg, (r, s))
 
     # almost any sig/msg pair recovers (a pubkey and) an addr:
     # signature is valid only if the provided addr is matched
-    addr = _str_to_bytes(addr)
     rf = sig[0]
     if rf < 27 or rf > 42:
         raise ValueError(f"Unknown recovery flag: {rf}")
-    elif rf > 38 or addr.startswith(b'bc1'):
+    elif rf > 38:
         raise ValueError("P2WPKH bech32 address not supported yet")
-    elif rf > 34 or addr.startswith(b'3'):
+    elif rf > 34:
         raise ValueError("P2WPKH-P2SH address not supported yet")
     else:
-        # verify that input addr is a valid P2PKH addr
-        h160 = _h160_from_p2pkh_address(addr)
         # i selects which key is recovered
         i = (rf - 27) & 3
         if rf < 31:
-            return h160 == h160_from_pubkey(pubkeys[i], False)
+            pk = octets_from_point(secp256k1, pubkeys[i], False)
         else:
-            return h160 == h160_from_pubkey(pubkeys[i], True)
+            pk = octets_from_point(secp256k1, pubkeys[i], True)
+        return h160(pk) == h160_from_p2pkh_address(addr)

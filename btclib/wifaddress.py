@@ -14,15 +14,16 @@ Implementation of Base58 encoding of private keys (WIFs)
 and public keys (addresses).
 """
 
-from typing import Tuple
+from typing import Tuple, Union
 
 from . import base58
-from .curve import Point, mult
-from .curves import secp256k1 as ec
+from .curve import mult
+from .curves import secp256k1
 from .utils import Octets, int_from_octets, octets_from_int, \
-    octets_from_point, h160, h160_from_pubkey
+    octets_from_point, h160
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
+_CURVES = [secp256k1, secp256k1, secp256k1]
 _WIF_PREFIXES = [
     b'\x80',  # WIF starts with {K,L} (if compressed) or 5 (if uncompressed)
     b'\xef',  # WIF starts with c (if compressed) or 9 (if uncompressed)
@@ -40,26 +41,40 @@ _P2SH_PREFIXES = [
 ]
 
 
-def wif_from_prvkey(prvkey: int,
+def wif_from_prvkey(prvkey: Union[int, Octets],
                     compressed: bool = True,
                     network: str = 'mainnet') -> bytes:
     """Return the Wallet Import Format from a private key."""
 
-    if not 0 < prvkey < ec.n:
-        raise ValueError(f"private key {hex(prvkey)} not in (0, n)")
+    network_index = _NETWORKS.index(network)
+    payload = _WIF_PREFIXES[network_index]
 
-    payload = _WIF_PREFIXES[_NETWORKS.index(network)]
-    payload += octets_from_int(prvkey, ec.nsize)
-    if compressed:
-        payload += b'\x01'
+    ec = _CURVES[network_index]
+    if isinstance(prvkey, int):
+        payload += octets_from_int(prvkey, ec.nsize)
+    elif isinstance(prvkey, str):
+        t = bytes.fromhex(prvkey)
+        payload += t
+        prvkey = int.from_bytes(t, 'big')
+    else:
+        payload += prvkey
+        prvkey = int.from_bytes(prvkey, 'big')
+    if not 0 < prvkey < ec.n:
+        raise ValueError(f"private key {hex(prvkey)} not in (0, ec.n)")
+
+    payload += b'\x01' if compressed else b''
     return base58.encode(payload)
 
 
-def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, str]:
+def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
     """Return the (private key, compressed, network) tuple from a WIF."""
 
+    if isinstance(wif, str):
+        wif = wif.strip()
+
     payload = base58.decode(wif)
-    network = _NETWORKS[_WIF_PREFIXES.index(payload[0:1])]
+    wif_index = _WIF_PREFIXES.index(payload[0:1])
+    ec = _CURVES[wif_index]
 
     if len(payload) == ec.nsize + 2:       # compressed WIF
         compressed = True
@@ -76,31 +91,50 @@ def prvkey_from_wif(wif: Octets) -> Tuple[int, bool, str]:
         msg = f"Not a WIF: private key {hex(prvkey)} not in [1, n-1]"
         raise ValueError(msg)
 
+    network = _NETWORKS[wif_index]
     return prvkey, compressed, network
 
 
-def p2pkh_address(Q: Point,
-                  compressed: bool = True,
-                  network: str = 'mainnet') -> bytes:
+def p2pkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
+    """Return the address corresponding to a WIF.
+
+    WIF encodes the information about the pubkey to be used for the
+    address computation being the compressed or uncompressed one.
+    """
+
+    if isinstance(wif, str):
+        wif = wif.strip()
+
+    prv, compressed, network = prvkey_from_wif(wif)
+    network_index = _NETWORKS.index(network)
+    ec = _CURVES[network_index]
+    Pub = mult(ec, prv)
+    o = octets_from_point(ec, Pub, compressed)
+    return p2pkh_address(o, network)
+
+
+def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
     payload = _P2PKH_PREFIXES[_NETWORKS.index(network)]
-    payload += h160_from_pubkey(Q, compressed)
+    payload += h160(pubkey)
     return base58.encode(payload)
 
 
-def _h160_from_p2pkh_address(addr: Octets) -> bytes:
-    payload = base58.decode(addr, 21)
-    _ = _NETWORKS[_P2PKH_PREFIXES.index(payload[0:1])]
+def h160_from_p2pkh_address(address = Union[str, bytes],
+                            network: str = 'mainnet') -> bytes:
+    if isinstance(address, str):
+        address = address.strip()
+
+    payload = base58.decode(address, 21)
+    # check that it is a p2pkh address
+    i = _P2PKH_PREFIXES.index(payload[0:1])
+    # check that it is a p2pkh address for the given network
+    if _NETWORKS[i] != network:
+        msg = f"{address} is a p2pkh address for "
+        msg += "a network other than {network}"
+        raise ValueError(msg)
     return payload[1:]
-
-
-def p2pkh_address_from_wif(wif: Octets) -> bytes:
-    """Return the address corresponding to a WIF."""
-
-    prv, compressed, network = prvkey_from_wif(wif)
-    Pub = mult(ec, prv)
-    return p2pkh_address(Pub, compressed, network)
 
 
 def p2sh_address(redeem_script: Octets, network: str = 'mainnet') -> bytes:
@@ -109,3 +143,19 @@ def p2sh_address(redeem_script: Octets, network: str = 'mainnet') -> bytes:
     payload = _P2SH_PREFIXES[_NETWORKS.index(network)]
     payload += h160(redeem_script)
     return base58.encode(payload)
+
+
+def h160_from_p2sh_address(address = Union[str, bytes],
+                           network: str = 'mainnet') -> bytes:
+    if isinstance(address, str):
+        address = address.strip()
+
+    payload = base58.decode(address, 21)
+    # check that it is a p2sh address
+    i = _P2PKH_PREFIXES.index(payload[0:1])
+    # check that it is a p2sh address for the given network
+    if _NETWORKS[i] != network:
+        msg = f"{address} is a p2sh address for "
+        msg += "a network other than {network}"
+        raise ValueError(msg)
+    return payload[1:]

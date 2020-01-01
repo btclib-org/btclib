@@ -329,10 +329,10 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
     return xkey
 
 
-def address_from_xpub(xpub: Octets) -> str:
+def address_from_xpub(xpub: Octets) -> bytes:
     """Return the address according to xpub version type.
     """
-    v, _, _, _, _, k, P = xkey_parse(xpub)
+    v, _, _, _, _, k, _ = xkey_parse(xpub)
 
     if k[0] not in (2, 3):
         raise ValueError("xkey is not a public one")
@@ -341,57 +341,62 @@ def address_from_xpub(xpub: Octets) -> str:
 
     # p2pkh
     if v in _XPUB_PREFIXES:
-        return _p2pkh_address_from_xpub(v , P).decode()
+        return _p2pkh_address_from_xpub(v , k)
 
     # p2wpkh native-segwit
     if v in _P2WPKH_PUB_PREFIXES:
-        return _p2wpkh_address_from_xpub(v , P)
+        return _p2wpkh_address_from_xpub(v , k)
 
     # p2wpkh p2sh-wrapped-segwit
     if v in _P2WPKH_P2SH_PUB_PREFIXES:
-        return _p2wpkh_p2sh_address_from_xpub(v , P).decode()
+        return _p2wpkh_p2sh_address_from_xpub(v , k)
 
     raise ValueError("Unkown version")
 
 
-def _p2pkh_address_from_xpub(v , P) -> bytes:
-    compressed = True
+def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
     network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2pkh_address(P, compressed, network)
+    return p2pkh_address(pk, network)
 
 
 def p2pkh_address_from_xpub(xpub: Octets) -> bytes:
     """Return the p2pkh address."""
-    v, _, _, _, _, k, P = xkey_parse(xpub)
-    if k[0] not in (2, 3):
+    v, _, _, _, _, pk, _ = xkey_parse(xpub)
+    if pk[0] not in (2, 3):
+        # Deriving pubkey from prvkey would not be enough:
+        # compressed ot uncompressed?
         raise ValueError("xkey is not a public one")
-    return _p2pkh_address_from_xpub(v, P)
+    return _p2pkh_address_from_xpub(v, pk)
 
 
-def _p2wpkh_address_from_xpub(v, P) -> str:
+def _p2wpkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
     network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2wpkh_address(P, network)
+    return p2wpkh_address(pk, network)
 
 
-def p2wpkh_address_from_xpub(xpub: Octets) -> str:
+def p2wpkh_address_from_xpub(xpub: Octets) -> bytes:
     """Return the p2wpkh (native SegWit) address."""
-    v, _, _, _, _, k, P = xkey_parse(xpub)
-    if k[0] not in (2, 3):
+    v, _, _, _, _, pk, _ = xkey_parse(xpub)
+    if pk[0] not in (2, 3):
+        # pubkey could be derived from prvkey
+        # and this safety check could be removed
         raise ValueError("xkey is not a public one")
-    return _p2wpkh_address_from_xpub(v, P)
+    return _p2wpkh_address_from_xpub(v, pk)
 
 
-def _p2wpkh_p2sh_address_from_xpub(v, P) -> bytes:
+def _p2wpkh_p2sh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
     network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2wpkh_p2sh_address(P, network)
+    return p2wpkh_p2sh_address(pk, network)
 
 
 def p2wpkh_p2sh_address_from_xpub(xpub: Octets) -> bytes:
     """Return the p2wpkh p2sh-wrapped (legacy) address."""
-    v, _, _, _, _, k, P = xkey_parse(xpub)
-    if k[0] not in (2, 3):
+    v, _, _, _, _, pk, _ = xkey_parse(xpub)
+    if pk[0] not in (2, 3):
+        # pubkey could be derived from prvkey
+        # and this safety check could be removed
         raise ValueError("xkey is not a public one")
-    return _p2wpkh_p2sh_address_from_xpub(v, P)
+    return _p2wpkh_p2sh_address_from_xpub(v, pk)
 
 
 def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:

@@ -19,12 +19,11 @@ from typing import Union, Callable, Any
 import hashlib
 
 from .curve import Curve, Point
-from .curves import secp256k1 as ec
 
 HashF = Callable[[Any], Any]
 
-# bytes or hex string
-Octets = Union[str, bytes]
+# bytes or hex-string (not string)
+Octets = Union[bytes, str]
 
 
 def point_from_octets(ec: Curve, o: Octets) -> Point:
@@ -146,7 +145,7 @@ def _int_from_bits(ec: Curve, o: Octets) -> int:
 
 
 def sha256(o: Octets) -> bytes:
-    """Return SHA256(*) of an octet sequence."""
+    """Return SHA256(*) of the inputoctet sequence."""
 
     if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
@@ -155,22 +154,15 @@ def sha256(o: Octets) -> bytes:
 
 
 def h160(o: Octets) -> bytes:
-    """Return RIPEMD160(SHA256(*)) of an octet sequence."""
+    """Return RIPEMD160(SHA256(*)) of the inputoctet sequence."""
 
     t = sha256(o)
     return hashlib.new('ripemd160', t).digest()
 
 
 def double_sha256(o: Octets) -> bytes:
-    """Return SHA256(SHA256(*)) of an octet sequence."""
+    """Return SHA256(SHA256(*)) of the input octet sequence."""
 
     t = sha256(o)
     return hashlib.sha256(t).digest()
 
-
-def h160_from_pubkey(Q: Point, compressed: bool = True) -> bytes:
-    """Return the H160(Q)=RIPEMD160(SHA256(Q)) of a public key Q."""
-
-    # also check that the Point is on curve
-    pubkey = octets_from_point(ec, Q, compressed)
-    return h160(pubkey)
