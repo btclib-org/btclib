@@ -25,7 +25,7 @@ _bits = 128, 160, 192, 224, 256
 
 
 def str_from_entropy(entr: GenericEntropy,
-                     bits: Optional[Union[int, Iterable[int]]] = _bits) -> Entropy:
+                     bits: Union[int, Iterable[int]] = _bits) -> Entropy:
     """Convert the input entropy to binary 0/1 string.
 
     Input entropy (*GenericEntropy*) can be expressed as
@@ -41,20 +41,21 @@ def str_from_entropy(entr: GenericEntropy,
     length, then only the leftmost bits are retained.
     """
 
-    if type(bits) == int:
+    if isinstance(bits, int):
         bits = (bits, )
     bits = sorted(set(bits))  # ascending sort unique
 
-    if type(entr) == str:
+    if isinstance(entr, str):
+        entr = entr.strip()
         int(entr, 2)  # check that entr is a valid binary string
         nbits = len(entr)
         # no length adjustment
-    elif type(entr) == bytes:
+    elif isinstance(entr, bytes):
         nbits = len(entr) * 8
         entr = int.from_bytes(entr, 'big')
         entr = bin(entr)[2:]  # remove '0b'
         # no length adjustment
-    elif type(entr) == int:
+    elif isinstance(entr, int):
         if entr < 0:
             raise ValueError(f"negative entropy {entr}")
         entr = bin(entr)[2:]  # remove '0b'
@@ -77,7 +78,7 @@ def str_from_entropy(entr: GenericEntropy,
 
 
 def _int_from_entropy(entr: GenericEntropy,
-                      bits: Optional[Union[int, tuple]] = _bits) -> int:
+                      bits: Union[int, Iterable[int]] = _bits) -> int:
     """Convert the input entropy to integer.
 
     Input entropy (*GenericEntropy*) can be expressed as
@@ -93,7 +94,7 @@ def _int_from_entropy(entr: GenericEntropy,
 
 
 def _bytes_from_entropy(entr: GenericEntropy,
-                        bits: Optional[Union[int, tuple]] = _bits) -> bytes:
+                        bits: Union[int, Iterable[int]] = _bits) -> bytes:
     """Convert the input entropy to bytes.
 
     Input entropy (*GenericEntropy*) can be expressed as

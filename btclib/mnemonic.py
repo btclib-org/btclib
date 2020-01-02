@@ -33,7 +33,9 @@ def indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
     are not considered redundant padding.
     """
 
-    if type(entropy) != str:
+    if isinstance(entropy, str):
+        entropy = entropy.strip()
+    else:
         m = "entropy must be binary string, "
         m += f"not '{type(entropy).__name__}'"
         raise TypeError(m)
