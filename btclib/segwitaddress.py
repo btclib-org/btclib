@@ -65,7 +65,7 @@ def _convertbits(data: Iterable[int], frombits: int,
     max_acc = (1 << (frombits + tobits - 1)) - 1
     for value in data:
         if value < 0 or (value >> frombits):
-            raise ValueError("failure")
+            raise ValueError(f"invalid value {value}")
         acc = ((acc << frombits) | value) & max_acc
         bits += frombits
         while bits >= tobits:
@@ -185,23 +185,6 @@ def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return _p2wpkh_address(pubkey, False, network)
 
 
-def h160_from_p2wpkh_address(address=Union[str, bytes],
-                             network: str = 'mainnet') -> bytes:
-
-    if isinstance(address, str):
-        address = address.strip()
-
-    _, witver, witprog = decode(address, network)
-
-    # check that it is a p2wpkh address
-    if len(witprog) != 20 and witver == 0:
-        msg = f"Witness program length ({len(witprog)}) is not "
-        msg += "20: not a V0 p2wpkh address"
-        raise ValueError(msg)
-
-    return bytes(witprog)
-
-
 def _p2wsh_address(witness_script: Octets, native: bool, network: str) -> bytes:
     """Return the address as native SegWit Bech32 or legacy p2sh-wrapped."""
 
@@ -221,20 +204,3 @@ def p2wsh_address(witness_script: Octets, network: str = 'mainnet') -> bytes:
 def p2wsh_p2sh_address(witness_script: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh-p2sh (legacy) address."""
     return _p2wsh_address(witness_script, False, network)
-
-
-def sha256_from_p2wsh_address(address=Union[str, bytes],
-                              network: str = 'mainnet') -> bytes:
-
-    if isinstance(address, str):
-        address = address.strip()
-
-    _, witver, witprog = decode(address, network)
-
-    # check that it is a p2wsh address
-    if len(witprog) != 32 and witver == 0:
-        msg = f"Witness program length ({len(witprog)}) is not "
-        msg += "32: not a V0 p2wsh address"
-        raise ValueError(msg)
-
-    return bytes(witprog)

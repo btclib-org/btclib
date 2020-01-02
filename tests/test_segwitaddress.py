@@ -43,13 +43,12 @@ with the following modifications:
 import binascii
 import unittest
 
-from btclib.segwitaddress import decode, encode, scriptpubkey, \
-    p2wpkh_address, h160_from_p2wpkh_address, p2wpkh_p2sh_address, \
-    p2wsh_address, sha256_from_p2wsh_address, p2wsh_p2sh_address
 from btclib.curves import secp256k1 as ec
-from btclib.utils import point_from_octets, octets_from_point, h160, sha256
 from btclib.script import serialize
-
+from btclib.segwitaddress import (decode, encode, p2wpkh_address,
+                                  p2wpkh_p2sh_address, p2wsh_address,
+                                  p2wsh_p2sh_address, scriptpubkey)
+from btclib.utils import h160, octets_from_point, point_from_octets, sha256
 
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
@@ -127,6 +126,23 @@ class TestSegwitAddress(unittest.TestCase):
             self.assertRaises(ValueError, encode,
                               version, [0] * length, network)
 
+    def test_encode_decode(self):
+
+        # self-consistency
+        addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
+        hrp, wv, wp = decode(addr)
+        self.assertEqual(encode(wv, wp), addr)
+
+        # invalid value
+        wp[-1] = -1
+        self.assertRaises(ValueError, encode, wv, wp)
+        # encode(wv, wp)
+
+        # string input
+        addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
+        hrp, wv, wp = decode(addr)
+        self.assertEqual(encode(wv, wp), addr.encode())
+
     def test_p2wpkh_p2sh_address(self):
         # https://matthewdowney.github.io/create-segwit-address.html
         pub = " 03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
@@ -158,28 +174,17 @@ class TestSegwitAddress(unittest.TestCase):
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
         self.assertEqual(addr, p2wpkh_address(pub))
 
-        self.assertEqual(h160_from_p2wpkh_address(addr), h160(pub))
-
-        # testing string input
-        addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        self.assertEqual(h160_from_p2wpkh_address(addr), h160(pub))
+        _, _, wp = decode(addr)
+        self.assertEqual(bytes(wp), h160(pub))
 
         # SegWit address for 'mainnet', not 'testnet'
-        self.assertRaises(
-            ValueError, h160_from_p2wpkh_address, addr, 'testnet')
-        # h160_from_p2wpkh_address(addr, 'testnet')
-
-        # Witness program length (32) is not 20: not a V0 p2wpkh address
-        #  p2wsh mainnet address
-        addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
-        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr)
-        # h160_from_p2wpkh_address(addr)
+        self.assertRaises(ValueError, decode, addr, 'testnet')
+        # decode(addr, 'testnet')
 
         # Uncompressed pubkey
-        uncompressed_pub = octets_from_point(
-            ec, point_from_octets(ec, pub), False)
-        self.assertRaises(ValueError, p2wpkh_address, uncompressed_pub)
-        # p2wpkh_address(uncompressed_pub)
+        uncompr_pub = octets_from_point(ec, point_from_octets(ec, pub), False)
+        self.assertRaises(ValueError, p2wpkh_address, uncompr_pub)
+        # p2wpkh_address(uncompr_pub)
 
         # Wrong pubkey size: 34 instead of 33
         wrong_size_pub = pub + '00'
@@ -206,24 +211,12 @@ class TestSegwitAddress(unittest.TestCase):
         addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
         self.assertEqual(addr, p2wsh_address(witness_script_bytes))
 
-        self.assertEqual(sha256_from_p2wsh_address(
-            addr), sha256(witness_script_bytes))
-
-        # testing string input
-        addr = 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
-        self.assertEqual(sha256_from_p2wsh_address(
-            addr), sha256(witness_script_bytes))
+        _, _, wp = decode(addr)
+        self.assertEqual(bytes(wp), sha256(witness_script_bytes))
 
         # SegWit address for 'mainnet', not 'testnet'
-        self.assertRaises(
-            ValueError, sha256_from_p2wsh_address, addr, 'testnet')
-        # h160_from_p2wpkh_address(addr, 'testnet')
-
-        # Witness program length (20) is not 32: not a V0 p2wsh address
-        #  p2wpkh mainnet address
-        addr = b'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
-        self.assertRaises(ValueError, sha256_from_p2wsh_address, addr)
-        # sha256_from_p2wsh_address(addr)
+        self.assertRaises(ValueError, decode, addr, 'testnet')
+        # decode(addr, 'testnet')
 
 
 if __name__ == "__main__":
