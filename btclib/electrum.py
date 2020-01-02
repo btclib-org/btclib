@@ -29,6 +29,7 @@ _MNEMONIC_VERSIONS = {
     '2fa_segwit': '102',  # Two-factor authenticated wallets, using segwit
 }
 
+
 def mnemonic_from_entropy(entropy: GenericEntropy,
                           lang: str,
                           electrum_version: str) -> Mnemonic:

@@ -101,14 +101,14 @@ class TestSegwitAddress(unittest.TestCase):
     def test_valid_address(self):
         """Test whether valid addresses decode to the correct output"""
         for a, hexscript in VALID_BC_ADDRESS:
-            hrp, witvers, witprog = decode(a, 'mainnet')
+            _, witvers, witprog = decode(a, 'mainnet')
             script_pubkey = scriptpubkey(witvers, witprog)
             self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
             address = encode(witvers, witprog, 'mainnet')
             self.assertEqual(a.lower().strip(), address.decode())
             self.assertRaises(ValueError, decode, a, 'testnet')
         for a, hexscript in VALID_TB_ADDRESS:
-            hrp, witvers, witprog = decode(a, 'testnet')
+            _, witvers, witprog = decode(a, 'testnet')
             script_pubkey = scriptpubkey(witvers, witprog)
             self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
             address = encode(witvers, witprog, 'testnet')

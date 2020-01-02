@@ -16,7 +16,6 @@ from btclib.utils import h160, sha256
 
 class TestScript(unittest.TestCase):
 
-
     def test_operators(self):
         for i in OP_CODE_NAMES.keys():
             b = OP_CODES[OP_CODE_NAMES[i]]
@@ -42,7 +41,6 @@ class TestScript(unittest.TestCase):
                 continue
             self.assertTrue(i in OP_CODE_NAMES.keys())
 
-
     def test_simple(self):
         script = [2, 3, 'OP_ADD', 5, 'OP_EQUAL']
         script_bytes = serialize(script)
@@ -58,7 +56,6 @@ class TestScript(unittest.TestCase):
         script_bytes = serialize(script)
         script2 = parse(script_bytes)
         self.assertEqual(script, script2)
-
 
     def test_scriptpubkey(self):
 
@@ -85,7 +82,8 @@ class TestScript(unittest.TestCase):
 
         pubkey_hash = h160(pubkey)
         # p2pkh
-        script = ['OP_DUP', 'OP_HASH160', pubkey_hash.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
+        script = ['OP_DUP', 'OP_HASH160',
+                  pubkey_hash.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
         redeem_script_bytes = serialize(script)
         script2 = parse(redeem_script_bytes)
         self.assertEqual(script, script2)
@@ -113,7 +111,6 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script_bytes.hex(), "0020"+witness_script_hash.hex())
         script2 = parse(script_bytes)
         self.assertEqual(script, script2)
-
 
     def test_exceptions(self):
 
@@ -145,6 +142,7 @@ class TestScript(unittest.TestCase):
         self.assertRaises(ValueError, serialize, script)
         # serialize(script)
         # FIXME: why is the error message reporting 522 bytes instead of 521
+
 
 if __name__ == "__main__":
     # execute only if run as a script

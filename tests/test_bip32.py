@@ -84,7 +84,6 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xkey)
         # bip32.p2pkh_address_from_xpub(xkey)
 
-
     def test_vector1(self):
         """BIP32 test vector 1
 
@@ -319,7 +318,6 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(
             xpub, b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y")
 
-
     def test_slip32(self):
         """SLIP32 test vector
 
@@ -333,7 +331,8 @@ class TestBIP32(unittest.TestCase):
         prv = b"xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
         pub = b"xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
         address = b"1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
-        rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_xprv)
+        rxprv = bip39.rootxprv_from_mnemonic(
+            mnemonic, passphrase, bip32.MAIN_xprv)
         mprv = bip32.derive(rxprv, path)
         self.assertEqual(prv, mprv)
         mpub = bip32.xpub_from_xprv(mprv)
@@ -346,7 +345,8 @@ class TestBIP32(unittest.TestCase):
         prv = b"yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQeKTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"
         pub = b"ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"
         address = b"37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
-        rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_yprv)
+        rxprv = bip39.rootxprv_from_mnemonic(
+            mnemonic, passphrase, bip32.MAIN_yprv)
         mprv = bip32.derive(rxprv, path)
         self.assertEqual(prv, mprv)
         mpub = bip32.xpub_from_xprv(mprv)
@@ -361,7 +361,8 @@ class TestBIP32(unittest.TestCase):
         prv = b"zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
         pub = b"zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
         address = b"bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
-        rxprv = bip39.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_zprv)
+        rxprv = bip39.rootxprv_from_mnemonic(
+            mnemonic, passphrase, bip32.MAIN_zprv)
         mprv = bip32.derive(rxprv, path)
         self.assertEqual(prv, mprv)
         mpub = bip32.xpub_from_xprv(mprv)
@@ -369,8 +370,6 @@ class TestBIP32(unittest.TestCase):
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
-
-
 
     def test_bip39_vectors(self):
         """BIP32 test vectors from BIP39
@@ -560,9 +559,9 @@ class TestBIP32(unittest.TestCase):
         # bip32.address_from_xpub(xprv)
         self.assertRaises(ValueError, bip32.p2wpkh_address_from_xpub, xprv)
         # bip32.p2wpkh_address_from_xpub(xprv)
-        self.assertRaises(ValueError, bip32.p2wpkh_p2sh_address_from_xpub, xprv)
+        self.assertRaises(
+            ValueError, bip32.p2wpkh_p2sh_address_from_xpub, xprv)
         # bip32.p2wpkh_p2sh_address_from_xpub(xprv)
-
 
     def test_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
@@ -665,11 +664,13 @@ class TestBIP32(unittest.TestCase):
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
         address = bip32.p2wpkh_address_from_xpub(xpub_ext)
-        exp_address = b'bcrt1qv8lcnmj09rpdqwgl025h2deygur64z4hqf7me5'  # this is regtest, not testnet!!
+        # this is regtest, not testnet!!
+        exp_address = b'bcrt1qv8lcnmj09rpdqwgl025h2deygur64z4hqf7me5'
         # FIXME: self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
         address = bip32.p2wpkh_address_from_xpub(xpub_int)
-        exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'  # this is regtest, not testnet!!
+        # this is regtest, not testnet!!
+        exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'
         # FIXME: self.assertEqual(address, exp_address)
 
         # native segwit (p2wsh) m / 84'/ coin_type' / account' / change / address_index
@@ -766,6 +767,7 @@ class TestBIP32(unittest.TestCase):
     def test_regtest_versions(self):
         pass
         # FIXME: how to obtain regtest addresses from btclib?
+
 
 if __name__ == "__main__":
     # execute only if run as a script

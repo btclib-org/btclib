@@ -122,7 +122,7 @@ def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return base58.encode(payload)
 
 
-def h160_from_p2pkh_address(address = Union[str, bytes],
+def h160_from_p2pkh_address(address: Union[str, bytes],
                             network: str = 'mainnet') -> bytes:
     if isinstance(address, str):
         address = address.strip()
@@ -146,7 +146,7 @@ def p2sh_address(redeem_script: Octets, network: str = 'mainnet') -> bytes:
     return base58.encode(payload)
 
 
-def h160_from_p2sh_address(address = Union[str, bytes],
+def h160_from_p2sh_address(address: Union[str, bytes],
                            network: str = 'mainnet') -> bytes:
     if isinstance(address, str):
         address = address.strip()

@@ -84,7 +84,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
             address = test_vector[4]  # "./0/0"
 
             if mnemonic != "":
-                mxprv2 = electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
+                mxprv2 = electrum.masterxprv_from_mnemonic(
+                    mnemonic, passphrase)
                 self.assertEqual(mxprv2.decode(), mxprv)
 
                 version = electrum.version_from_mnemonic(mnemonic)

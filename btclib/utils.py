@@ -168,4 +168,3 @@ def double_sha256(o: Octets) -> bytes:
 
     t = sha256(o)
     return hashlib.sha256(t).digest()
-

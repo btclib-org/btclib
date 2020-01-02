@@ -29,10 +29,14 @@ class TestBase58CheckEncoding(unittest.TestCase):
             base58._encode(base58._decode('StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
 
     def test_trailing_zeros(self):
-        self.assertEqual(base58._encode(b'\x00\x00hello world'), b'11StV1DL6CwTryKyV')
-        self.assertEqual(base58._decode('11StV1DL6CwTryKyV'), b'\x00\x00hello world')
-        self.assertEqual(base58._decode(base58._encode(b'\0\0hello world')), b'\x00\x00hello world')
-        self.assertEqual(base58._encode(base58._decode('11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
+        self.assertEqual(base58._encode(
+            b'\x00\x00hello world'), b'11StV1DL6CwTryKyV')
+        self.assertEqual(base58._decode('11StV1DL6CwTryKyV'),
+                         b'\x00\x00hello world')
+        self.assertEqual(base58._decode(base58._encode(
+            b'\0\0hello world')), b'\x00\x00hello world')
+        self.assertEqual(base58._encode(base58._decode(
+            '11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
 
     def test_integers(self):
         digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'

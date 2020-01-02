@@ -104,7 +104,6 @@ _P2WSH_PRV_PREFIXES = [MAIN_Zprv, TEST_Vprv, TEST_Vprv]
 _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
 
 
-
 # [  : 4] version
 # [ 4: 5] depth
 # [ 5: 9] parent _pubkey_ fingerprint
@@ -343,15 +342,15 @@ def address_from_xpub(xpub: Octets) -> bytes:
 
     # p2pkh
     if v in _XPUB_PREFIXES:
-        return _p2pkh_address_from_xpub(v , k)
+        return _p2pkh_address_from_xpub(v, k)
 
     # p2wpkh native-segwit
     if v in _P2WPKH_PUB_PREFIXES:
-        return _p2wpkh_address_from_xpub(v , k)
+        return _p2wpkh_address_from_xpub(v, k)
 
     # p2wpkh p2sh-wrapped-segwit
     if v in _P2WPKH_P2SH_PUB_PREFIXES:
-        return _p2wpkh_p2sh_address_from_xpub(v , k)
+        return _p2wpkh_p2sh_address_from_xpub(v, k)
 
     raise ValueError("Unkown version")
 
