@@ -208,14 +208,14 @@ def _p2wsh_address(witness_script: Octets, native: bool, network: str) -> bytes:
     return p2sh_address(script_pubkey, network)
 
 
-def p2wsh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
+def p2wsh_address(witness_script: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh native SegWit address."""
-    return _p2wsh_address(pubkey, True, network)
+    return _p2wsh_address(witness_script, True, network)
 
 
-def p2wsh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
+def p2wsh_p2sh_address(witness_script: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh-p2sh (legacy) address."""
-    return _p2wsh_address(pubkey, False, network)
+    return _p2wsh_address(witness_script, False, network)
 
 
 def sha256_from_p2wsh_address(address = Union[str, bytes],
