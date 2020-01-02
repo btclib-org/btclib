@@ -96,7 +96,7 @@ def check_witness(witvers: int, witprog: WitnessProgram):
 
 def scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
     """Construct a SegWit scriptPubKey for a given witness.
-    
+
     The scriptPubKey is the witness version
     (OP_0 for version 0, OP_1 for version 1, etc.)
     followed by the canonical push of the witness program
@@ -141,7 +141,7 @@ def decode(address: Union[str, bytes],
     witvers = data[0]
     witprog = _convertbits(data[1:], 5, 8, False)
     check_witness(witvers, witprog)
-    
+
     return hrp, witvers, witprog
 
 
@@ -161,11 +161,10 @@ def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
         pubkey = bytes.fromhex(pubkey)
     if pubkey[0] not in (2, 3):
         raise ValueError(f"Uncompressed pubkey {pubkey.hex()}")
-    psize = 32 # FIXME: parametrize on network
+    psize = 32  # FIXME: parametrize on network
     if len(pubkey) != psize + 1:
-        msg = f"Wrong pubkey size: {len(pubkey)} instead of  {psize + 1}"
+        msg = f"Wrong pubkey size: {len(pubkey)} instead of {psize + 1}"
         raise ValueError(msg)
-
 
     witvers = 0
     witprog = h160(pubkey)
@@ -186,13 +185,13 @@ def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return _p2wpkh_address(pubkey, False, network)
 
 
-def h160_from_p2wpkh_address(address = Union[str, bytes],
+def h160_from_p2wpkh_address(address=Union[str, bytes],
                              network: str = 'mainnet') -> bytes:
 
     if isinstance(address, str):
         address = address.strip()
 
-    hrp, witver, witprog = decode(address, network)
+    _, witver, witprog = decode(address, network)
 
     # check that it is a p2wpkh address
     if len(witprog) != 20 and witver == 0:
@@ -224,13 +223,13 @@ def p2wsh_p2sh_address(witness_script: Octets, network: str = 'mainnet') -> byte
     return _p2wsh_address(witness_script, False, network)
 
 
-def sha256_from_p2wsh_address(address = Union[str, bytes],
+def sha256_from_p2wsh_address(address=Union[str, bytes],
                               network: str = 'mainnet') -> bytes:
 
     if isinstance(address, str):
         address = address.strip()
 
-    hrp, witver, witprog = decode(address, network)
+    _, witver, witprog = decode(address, network)
 
     # check that it is a p2wsh address
     if len(witprog) != 32 and witver == 0:

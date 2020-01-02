@@ -115,13 +115,11 @@ class TestSegwitAddress(unittest.TestCase):
             self.assertEqual(a.lower(), address.decode())
             self.assertRaises(ValueError, decode, a, 'mainnet')
 
-
     def test_invalid_address(self):
         """Test whether invalid addresses fail to decode"""
         for a in INVALID_ADDRESS:
             self.assertRaises(ValueError, decode, a, 'mainnet')
             self.assertRaises(ValueError, decode, a, 'testnet')
-
 
     def test_invalid_address_enc(self):
         """Test whether address encoding fails on invalid input"""
@@ -129,8 +127,7 @@ class TestSegwitAddress(unittest.TestCase):
             self.assertRaises(ValueError, encode,
                               version, [0] * length, network)
 
-
-    def test_p2wpkh_p2sh_address_from_pubkey(self):
+    def test_p2wpkh_p2sh_address(self):
         # https://matthewdowney.github.io/create-segwit-address.html
         pub = " 03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
 
@@ -146,8 +143,7 @@ class TestSegwitAddress(unittest.TestCase):
         address = p2wpkh_p2sh_address(pub)
         self.assertEqual(address, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
 
-
-    def test_p2wpkh_address_from_pubkey(self):
+    def test_p2wpkh_address(self):
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
         # leading/trailing spaces should be tolerated
@@ -163,8 +159,14 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(addr, p2wpkh_address(pub))
 
         self.assertEqual(h160_from_p2wpkh_address(addr), h160(pub))
+
+        # testing string input
+        addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
+        self.assertEqual(h160_from_p2wpkh_address(addr), h160(pub))
+
         # SegWit address for 'mainnet', not 'testnet'
-        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr, 'testnet')
+        self.assertRaises(
+            ValueError, h160_from_p2wpkh_address, addr, 'testnet')
         # h160_from_p2wpkh_address(addr, 'testnet')
 
         # Witness program length (32) is not 20: not a V0 p2wpkh address
@@ -174,11 +176,17 @@ class TestSegwitAddress(unittest.TestCase):
         # h160_from_p2wpkh_address(addr)
 
         # Uncompressed pubkey
-        uncompressed_pub = octets_from_point(ec, point_from_octets(ec, pub), False)
+        uncompressed_pub = octets_from_point(
+            ec, point_from_octets(ec, pub), False)
         self.assertRaises(ValueError, p2wpkh_address, uncompressed_pub)
-        #p2wpkh_address(uncompressed_pub)
+        # p2wpkh_address(uncompressed_pub)
 
-    def test_p2wsh_p2sh_address_from_pubkey(self):
+        # Wrong pubkey size: 34 instead of 33
+        wrong_size_pub = pub + '00'
+        self.assertRaises(ValueError, p2wpkh_address, wrong_size_pub)
+        # p2wpkh_address(wrong_size_pub)
+
+    def test_p2wsh_p2sh_address(self):
 
         # leading/trailing spaces should be tolerated
         pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
@@ -187,8 +195,7 @@ class TestSegwitAddress(unittest.TestCase):
         p2wsh_p2sh_address(witness_script_bytes)
         p2wsh_p2sh_address(witness_script_bytes, 'testnet')
 
-
-    def test_p2wsh_address_from_pubkey(self):
+    def test_p2wsh_address(self):
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
         pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
@@ -199,16 +206,25 @@ class TestSegwitAddress(unittest.TestCase):
         addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
         self.assertEqual(addr, p2wsh_address(witness_script_bytes))
 
-        self.assertEqual(sha256_from_p2wsh_address(addr), sha256(witness_script_bytes))
+        self.assertEqual(sha256_from_p2wsh_address(
+            addr), sha256(witness_script_bytes))
+
+        # testing string input
+        addr = 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
+        self.assertEqual(sha256_from_p2wsh_address(
+            addr), sha256(witness_script_bytes))
+
         # SegWit address for 'mainnet', not 'testnet'
-        self.assertRaises(ValueError, sha256_from_p2wsh_address, addr, 'testnet')
+        self.assertRaises(
+            ValueError, sha256_from_p2wsh_address, addr, 'testnet')
         # h160_from_p2wpkh_address(addr, 'testnet')
 
         # Witness program length (20) is not 32: not a V0 p2wsh address
         #  p2wpkh mainnet address
         addr = b'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
         self.assertRaises(ValueError, sha256_from_p2wsh_address, addr)
-        #sha256_from_p2wsh_address(addr)
+        # sha256_from_p2wsh_address(addr)
+
 
 if __name__ == "__main__":
     # execute only if run as a script
