@@ -79,7 +79,6 @@ def _create_checksum(hrp: str, data: List[int]) -> List[int]:
 def encode(hrp: str, data: List[int]) -> bytes:
     """Compute a Bech32 string given HRP and data values."""
     combined = data + _create_checksum(hrp, data)
-    # FIXME: work with bytes
     s = hrp + '1' + ''.join([__ALPHABET[d] for d in combined])
     return s.encode()
 
@@ -103,6 +102,10 @@ def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
         raise ValueError("Mixed case Bech32 string")
     bech = bech.lower()
 
+    # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
+    # this should be enforced when working with addresses,
+    # not here at bech32 level.
+    # e.g. Lightning Network uses bech32 without such limitation
     # if len(bech) > 90:
     #     raise ValueError(f"Bech32 string length ({len(bech)}) > 90")
 

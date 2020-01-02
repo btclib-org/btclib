@@ -142,7 +142,6 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(address, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
 
     def test_p2wpkh_address_from_pubkey(self):
-        # TODO: avoid useless convertion from SEC pk to Point
 
         # http://bitcoinscri.pt/pages/segwit_native_p2wpkh_address
         pub = " 02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
