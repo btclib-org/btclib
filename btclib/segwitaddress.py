@@ -131,8 +131,8 @@ def decode(address: Union[str, bytes],
 
     # check that it is a SegWit address for the given network
     if _NETWORKS[i] != network:
-        msg = f"{address} is a SegWit address for "
-        msg += f"a network other than {network}"
+        msg = f"{address} is a SegWit address for '{_NETWORKS[i]}', "
+        msg += f"not '{network}'"
         raise ValueError(msg)
 
     if len(data) == 0:
