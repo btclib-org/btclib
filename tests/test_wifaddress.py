@@ -24,49 +24,51 @@ class TestKeys(unittest.TestCase):
 
 
     def test_wif(self):
+        q = b'0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'
         q = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 
         # compressed WIF
         wif = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
         self.assertEqual(wif, wif_from_prvkey(q, True))
-        q2 = prvkey_from_wif(wif)
-        self.assertEqual(q2[0], q)
-        self.assertEqual(q2[1], True)
+        prvkey, compressed, network = prvkey_from_wif(wif)
+        self.assertEqual(prvkey, q)
+        self.assertEqual(compressed, True)
 
         # compressed WIF (testnet)
         wif = b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx'
         self.assertEqual(wif, wif_from_prvkey(q, True, 'testnet'))
-        q2 = prvkey_from_wif(wif)
-        self.assertEqual(q2[0], q)
-        self.assertEqual(q2[1], True)
+        prvkey, compressed, network = prvkey_from_wif(wif)
+        self.assertEqual(prvkey, q)
+        self.assertEqual(compressed, True)
 
         # uncompressed WIF
         wif = b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ'
         self.assertEqual(wif, wif_from_prvkey(q, False))
-        q3 = prvkey_from_wif(wif)
-        self.assertEqual(q3[0], q)
-        self.assertEqual(q3[1], False)
+        prvkey, compressed, network = prvkey_from_wif(wif)
+        self.assertEqual(prvkey, q)
+        self.assertEqual(compressed, False)
 
         # uncompressed WIF (testnet)
         wif = b'91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2'
         self.assertEqual(wif, wif_from_prvkey(q, False, 'testnet'))
-        q3 = prvkey_from_wif(wif)
-        self.assertEqual(q3[0], q)
-        self.assertEqual(q3[1], False)
+        prvkey, compressed, network = prvkey_from_wif(wif)
+        self.assertEqual(prvkey, q)
+        self.assertEqual(compressed, False)
 
         # WIF as string with leading spaces
         wif = '  KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
-        q2 = prvkey_from_wif(wif)
-        self.assertEqual(q2[0], q)
-        self.assertEqual(q2[1], True)
+        prvkey, compressed, network = prvkey_from_wif(wif)
+        self.assertEqual(prvkey, q)
+        self.assertEqual(compressed, True)
 
         # WIF as string with trailing spaces
         wif = 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617  '
-        q2 = prvkey_from_wif(wif)
-        self.assertEqual(q2[0], q)
-        self.assertEqual(q2[1], True)
+        prvkey, compressed, network = prvkey_from_wif(wif)
+        self.assertEqual(prvkey, q)
+        self.assertEqual(compressed, True)
 
 
+    def test_wif_exceptions(self):
 
         # private key not in (0, n)
         badq = ec.n
@@ -139,6 +141,14 @@ class TestKeys(unittest.TestCase):
         self.assertEqual(redeem_script_hash.hex(), '4266fc6f2c2861d7fe229b279a79803afca7ba34')
         output_script = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
         output_script_bytes = serialize(output_script)
+
+        # address with trailing/leading spaces
+        redeem_script_hash2 = h160_from_p2sh_address(' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
+        self.assertEqual(redeem_script_hash, redeem_script_hash2)
+
+        # p2sh address for a network other than 'testnet'
+        self.assertRaises(ValueError, h160_from_p2sh_address, addr, 'testnet')
+        # h160_from_p2sh_address(addr, 'testnet')
 
 
     def test_p2pkh_address_from_wif(self):

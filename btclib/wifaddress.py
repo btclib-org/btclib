@@ -53,6 +53,7 @@ def wif_from_prvkey(prvkey: Union[int, Octets],
     if isinstance(prvkey, int):
         payload += octets_from_int(prvkey, ec.nsize)
     elif isinstance(prvkey, str):
+        prvkey = prvkey.strip()
         t = bytes.fromhex(prvkey)
         payload += t
         prvkey = int.from_bytes(t, 'big')
@@ -80,19 +81,19 @@ def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
         compressed = True
         if payload[-1] != 0x01:            # must have a trailing 0x01
             raise ValueError("Not a compressed WIF: missing trailing 0x01")
-        prvkey = int_from_octets(payload[1:-1])
+        prv = int_from_octets(payload[1:-1])
     elif len(payload) == ec.nsize + 1:     # uncompressed WIF
         compressed = False
-        prvkey = int_from_octets(payload[1:])
+        prv = int_from_octets(payload[1:])
     else:
         raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
 
-    if not 0 < prvkey < ec.n:
-        msg = f"Not a WIF: private key {hex(prvkey)} not in [1, n-1]"
+    if not 0 < prv < ec.n:
+        msg = f"Not a WIF: private key {hex(prv)} not in [1, n-1]"
         raise ValueError(msg)
 
     network = _NETWORKS[wif_index]
-    return prvkey, compressed, network
+    return prv, compressed, network
 
 
 def p2pkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
