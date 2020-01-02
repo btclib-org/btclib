@@ -132,7 +132,7 @@ def h160_from_p2pkh_address(address = Union[str, bytes],
     # check that it is a p2pkh address for the given network
     if _NETWORKS[i] != network:
         msg = f"{address} is a p2pkh address for "
-        msg += "a network other than {network}"
+        msg += f"a network other than '{network}'"
         raise ValueError(msg)
     return payload[1:]
 
@@ -152,10 +152,10 @@ def h160_from_p2sh_address(address = Union[str, bytes],
 
     payload = base58.decode(address, 21)
     # check that it is a p2sh address
-    i = _P2PKH_PREFIXES.index(payload[0:1])
+    i = _P2SH_PREFIXES.index(payload[0:1])
     # check that it is a p2sh address for the given network
     if _NETWORKS[i] != network:
         msg = f"{address} is a p2sh address for "
-        msg += "a network other than {network}"
+        msg += f"a network other than '{network}'"
         raise ValueError(msg)
     return payload[1:]

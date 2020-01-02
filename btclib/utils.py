@@ -34,6 +34,7 @@ def point_from_octets(ec: Curve, o: Octets) -> Point:
     """
 
     if isinstance(o, str):
+        o = o.strip()
         o = bytes.fromhex(o)
 
     bsize = len(o)  # bytes
@@ -92,6 +93,7 @@ def int_from_octets(o: Octets) -> int:
     according to SEC 1 v.2, section 2.3.8.
     """
     if isinstance(o, str):  # hex string
+        o = o.strip()
         o = bytes.fromhex(o)
     return int.from_bytes(o, 'big')
 
@@ -148,6 +150,7 @@ def sha256(o: Octets) -> bytes:
     """Return SHA256(*) of the inputoctet sequence."""
 
     if isinstance(o, str):  # hex string
+        o = o.strip()
         o = bytes.fromhex(o)
 
     return hashlib.sha256(o).digest()

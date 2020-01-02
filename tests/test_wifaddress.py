@@ -13,9 +13,11 @@ import unittest
 from btclib import base58
 from btclib.curve import mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets_from_int, point_from_octets, octets_from_point
+from btclib.utils import octets_from_int, point_from_octets, octets_from_point, h160
 from btclib.wifaddress import wif_from_prvkey, prvkey_from_wif, \
-    p2pkh_address, p2pkh_address_from_wif
+    p2pkh_address, h160_from_p2pkh_address, p2pkh_address_from_wif, \
+    p2sh_address, h160_from_p2sh_address
+from btclib.script import serialize
 
 
 class TestKeys(unittest.TestCase):
@@ -115,6 +117,29 @@ class TestKeys(unittest.TestCase):
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
 
+        self.assertEqual(h160_from_p2pkh_address(addr), h160(pub))
+        
+        # p2sh address for a network other than 'testnet'
+        self.assertRaises(ValueError, h160_from_p2pkh_address, addr, 'testnet')
+        # h160_from_p2pkh_address(addr, 'testnet')
+
+
+    def test_p2sh_address_from_script(self):
+        # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
+        script = ['OP_2DUP', 'OP_EQUAL', 'OP_NOT', 'OP_VERIFY', 'OP_SHA1', 'OP_SWAP', 'OP_SHA1', 'OP_EQUAL']
+        script_bytes = serialize(script)
+        self.assertEqual(script_bytes.hex(), '6e879169a77ca787')
+
+        addr = p2sh_address(script_bytes)
+        self.assertEqual(addr, b'37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP')
+
+        redeem_script_hash = h160_from_p2sh_address(addr)
+        self.assertEqual(redeem_script_hash, h160(script_bytes))
+
+        self.assertEqual(redeem_script_hash.hex(), '4266fc6f2c2861d7fe229b279a79803afca7ba34')
+        output_script = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
+        output_script_bytes = serialize(output_script)
+
 
     def test_p2pkh_address_from_wif(self):
         wif1 = "5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
@@ -146,6 +171,7 @@ class TestKeys(unittest.TestCase):
         wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162  "
         a = p2pkh_address_from_wif(wif2)
         self.assertEqual(a, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
+
 
 if __name__ == "__main__":
     # execute only if run as a script
