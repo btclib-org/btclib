@@ -264,6 +264,7 @@ def serialize(script: Iterable[Token]) -> bytes:
             else:
                 raise ValueError(f"Script: {token} not in [0, 16]")
         elif isinstance(token, str):
+            token = token.strip()
             token = token.upper()
             if token in OP_CODES:
                 r += OP_CODES[token]

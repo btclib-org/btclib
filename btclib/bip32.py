@@ -175,6 +175,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
     """derive the BIP32 root master extended private key from the seed"""
 
     if isinstance(version, str):  # hex string
+        version = version.strip()
         version = bytes.fromhex(version)
     if version not in _PRV_VERSIONS:
         msg = f"invalid private version ({version})"
@@ -188,6 +189,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
 
     # actual extended key (key + chain code) derivation
     if isinstance(seed, str):  # hex string
+        seed = seed.strip()
         seed = bytes.fromhex(seed)
     hd = HMAC(b"Bitcoin seed", seed, sha512).digest()
     rootprv = int_from_octets(hd[:32])
@@ -232,6 +234,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     if isinstance(index, int):
         index = index.to_bytes(4, 'big')
     elif isinstance(index, str):  # hex string
+        index = index.strip()
         index = bytes.fromhex(index)
 
     if len(index) != 4:
@@ -315,6 +318,7 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
     _, depth, _, _, _, _, _ = xkey_parse(xkey)
 
     if isinstance(path, str):
+        path = path.strip()
         indexes, absolute = indexes_from_path(path)
         if absolute and depth != 0:
             msg = "Absolute derivation path for non-root master key"
