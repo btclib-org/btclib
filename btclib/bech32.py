@@ -31,14 +31,14 @@
 
 BIP173: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
 
-This implementation of Bech32 is originally from
+This implementation of bech32 is originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
 * splitted the original segwit_addr.py file in bech32.py and segwitaddr.py
 * type annotated python3
 * avoided returning (None, None), throwing ValueError instead
-* removed the 90-chars limit for Bech32 string, enforced by segwitaddr instead
+* removed the 90-chars limit for bech32 string, enforced by segwitaddr instead
 * detailed error messages
 * interface mimics the native python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
@@ -52,7 +52,7 @@ __ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 
 def _polymod(values: Iterable[int]) -> int:
-    """Internal function that computes the Bech32 checksum."""
+    """Internal function that computes the bech32 checksum."""
     generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
     chk = 1
     for value in values:
@@ -77,7 +77,7 @@ def _create_checksum(hrp: str, data: List[int]) -> List[int]:
 
 
 def encode(hrp: str, data: List[int]) -> bytes:
-    """Compute a Bech32 string given HRP and data values."""
+    """Compute a bech32 string given HRP and data values."""
     combined = data + _create_checksum(hrp, data)
     s = hrp + '1' + ''.join([__ALPHABET[d] for d in combined])
     return s.encode()
@@ -89,7 +89,7 @@ def _verify_checksum(hrp: str, data: List[int]) -> bool:
 
 
 def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
-    """Validate a Bech32 string, and determine HRP and data."""
+    """Validate a bech32 string, and determine HRP and data."""
 
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
@@ -99,7 +99,7 @@ def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
         msg += "ASCII characters outside printable set [33-126]"
         raise ValueError(msg)
     if bech.lower() != bech and bech.upper() != bech:
-        raise ValueError("Mixed case Bech32 string")
+        raise ValueError("Mixed case bech32 string")
     bech = bech.lower()
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
@@ -111,7 +111,7 @@ def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
 
     pos = bech.rfind('1')  # find the separator between hrp and data
     if pos < 1:
-        raise ValueError("Missing HRP in Bech32 string")
+        raise ValueError("Missing HRP in bech32 string")
     if pos + 7 > len(bech):
         raise ValueError("Bech32 checksum length < 6")
 
@@ -124,4 +124,4 @@ def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]
-    raise ValueError("Invalid Bech32 string checksum")
+    raise ValueError("Invalid bech32 string checksum")

@@ -37,7 +37,7 @@ with the following modifications:
 * type annotated python3
 * avoided returning None or (None, None), throwing ValueError instead
 * detailed error messages and exteded safety checks
-* check that Bech32 addresses are not longer than 90 characters
+* check that bech32 addresses are not longer than 90 characters
   (as this is not enforced by bech32.encode anymore)
 """
 
@@ -186,7 +186,7 @@ def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
 
 
 def _p2wsh_address(witness_script: Octets, native: bool, network: str) -> bytes:
-    """Return the address as native SegWit Bech32 or legacy p2sh-wrapped."""
+    """Return the address as native SegWit bech32 or legacy p2sh-wrapped."""
 
     witvers = 0
     witprog = sha256(witness_script)

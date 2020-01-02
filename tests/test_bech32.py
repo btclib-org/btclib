@@ -29,7 +29,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 
-"""Reference tests for Bech32
+"""Reference tests for bech32.
 
 These tests are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
@@ -70,7 +70,7 @@ INVALID_CHECKSUM = [
 
 
 class TestBech32(unittest.TestCase):
-    """Unit test class for Bech32 encodings."""
+    """Unit test class for bech32 encodings."""
 
     def test_valid_checksum(self):
         """Test validation of valid checksums."""
