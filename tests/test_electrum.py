@@ -101,6 +101,13 @@ class TestMnemonicDictionaries(unittest.TestCase):
             address2 = bip32.address_from_xpub(xpub).decode()
             self.assertEqual(address2, address)
 
+        # version 2fa_segwit
+        mnemonic = "slender flight session office noodle hand couple option office wait uniform morning"
+        self.assertEqual("2fa_segwit", electrum.version_from_mnemonic(mnemonic))
+
+        # version 2fa
+        mnemonic = "history recycle company awful donor fold beef nominee hard bleak bracket six"
+        self.assertEqual("2fa", electrum.version_from_mnemonic(mnemonic))
 
 if __name__ == "__main__":
     # execute only if run as a script
