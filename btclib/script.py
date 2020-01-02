@@ -322,7 +322,6 @@ def parse(script: bytes) -> List[Token]:
             data = s.read(data_length)
             counter += 4 + data_length
             r.append(data.hex())
-            raise ValueError("Script: Cannot push {length} bytes on the stack")
         else:
             # OP_CODE
             r.append(OP_CODE_NAMES[i])

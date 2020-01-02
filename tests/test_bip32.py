@@ -554,6 +554,16 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xprv)
         # bip32.p2pkh_address_from_xpub(xprv)
 
+        # xkey is not a public one
+        xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
+        self.assertRaises(ValueError, bip32.address_from_xpub, xprv)
+        # bip32.address_from_xpub(xprv)
+        self.assertRaises(ValueError, bip32.p2wpkh_address_from_xpub, xprv)
+        # bip32.p2wpkh_address_from_xpub(xprv)
+        self.assertRaises(ValueError, bip32.p2wpkh_p2sh_address_from_xpub, xprv)
+        # bip32.p2wpkh_p2sh_address_from_xpub(xprv)
+
+
     def test_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
         child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
