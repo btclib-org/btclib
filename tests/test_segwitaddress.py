@@ -83,6 +83,8 @@ INVALID_ADDRESS = [
     # Non-zero padding in 8-to-5 conversion
     "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
     "bc1gmk9yu",  # Empty data section
+    # 92 chars
+    "bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5"
 ]
 
 INVALID_ADDRESS_ENC = [
