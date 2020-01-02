@@ -183,6 +183,7 @@ def sign(msg: str, prvkey: int,
                 rf += 4
             return address, base64.b64encode(bytes([rf]) + bytes_sig)
 
+    # hic sunt leones
     # the following line should never be executed
     raise ValueError("Public key not recovered")
 

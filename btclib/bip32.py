@@ -352,6 +352,8 @@ def address_from_xpub(xpub: Octets) -> bytes:
     if v in _P2WPKH_P2SH_PUB_PREFIXES:
         return _p2wpkh_p2sh_address_from_xpub(v, k)
 
+    # hic sunt leones
+    # the following line should never be executed
     raise ValueError("Unkown version")
 
 
