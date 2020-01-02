@@ -19,10 +19,11 @@ class TestSignMessage(unittest.TestCase):
         msg = "test message"
         # sigs are taken from (Electrum and) Bitcoin Core
 
+        prvkey_exp = b'1234567890123456789012345678901234567890123456789012345678901234'
+        prvkey_exp = 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB
         wif = 'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk'
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(
-            prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
+        self.assertEqual(prvkey, prvkey_exp)
         self.assertTrue(compressed)
         mysig = sign(msg, prvkey, compressed)
         # auto-consistency check
@@ -34,8 +35,7 @@ class TestSignMessage(unittest.TestCase):
 
         wif = '5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(
-            prvkey, 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB)
+        self.assertEqual(prvkey, prvkey_exp)
         self.assertFalse(compressed)
         mysig = sign(msg, prvkey, compressed)
         # auto-consistency check
@@ -45,10 +45,10 @@ class TestSignMessage(unittest.TestCase):
         sig = b"G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
         self.assertEqual(mysig[1], sig)
 
+        prvkey_exp = 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(
-            prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
+        self.assertEqual(prvkey, prvkey_exp)
         self.assertTrue(compressed)
         mysig = sign(msg, prvkey, compressed)
         # auto-consistency check
@@ -60,8 +60,7 @@ class TestSignMessage(unittest.TestCase):
 
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(
-            prvkey, 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886)
+        self.assertEqual(prvkey, prvkey_exp)
         self.assertFalse(compressed)
         mysig = sign(msg, prvkey, compressed)
         # auto-consistency check

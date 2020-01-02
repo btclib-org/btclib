@@ -161,6 +161,11 @@ def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
         pubkey = bytes.fromhex(pubkey)
     if pubkey[0] not in (2, 3):
         raise ValueError(f"Uncompressed pubkey {pubkey}")
+    psize = 32 # FIXME: parametrize on network
+    if len(pubkey) != psize + 1:
+        msg = f"Wrong pubkey size: {len(pubkey)} instead of  {psize + 1}"
+        raise ValueError(msg)
+
 
     witvers = 0
     witprog = h160(pubkey)

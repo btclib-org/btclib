@@ -2,6 +2,8 @@ isinstance(entr, bytearray):
 or 
 isinstance(entr, bytes):
 
+verify all isinstance for bytesize (what is hexstring is short?)
+
 readthedocs [![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
 revise ansi_x963_kdf
 optimizations

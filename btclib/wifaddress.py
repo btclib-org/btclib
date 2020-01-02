@@ -41,7 +41,7 @@ _P2SH_PREFIXES = [
 ]
 
 
-def wif_from_prvkey(prvkey: Union[int, Octets],
+def wif_from_prvkey(prv: Union[int, Octets],
                     compressed: bool = True,
                     network: str = 'mainnet') -> bytes:
     """Return the Wallet Import Format from a private key."""
@@ -50,18 +50,16 @@ def wif_from_prvkey(prvkey: Union[int, Octets],
     payload = _WIF_PREFIXES[network_index]
 
     ec = _CURVES[network_index]
-    if isinstance(prvkey, int):
-        payload += octets_from_int(prvkey, ec.nsize)
-    elif isinstance(prvkey, str):
-        prvkey = prvkey.strip()
-        t = bytes.fromhex(prvkey)
-        payload += t
-        prvkey = int.from_bytes(t, 'big')
+    if isinstance(prv, int):
+        payload += octets_from_int(prv, ec.nsize)
+    elif isinstance(prv, str):
+        prv = int(prv, 16)
+        payload += prv.to_bytes(ec.nsize, 'big')
     else:
-        payload += prvkey
-        prvkey = int.from_bytes(prvkey, 'big')
-    if not 0 < prvkey < ec.n:
-        raise ValueError(f"private key {hex(prvkey)} not in (0, ec.n)")
+        payload += prv
+        prv = int.from_bytes(prv, 'big')
+    if not 0 < prv < ec.n:
+        raise ValueError(f"private key {hex(prv)} not in (0, ec.n)")
 
     payload += b'\x01' if compressed else b''
     return base58.encode(payload)
@@ -81,10 +79,12 @@ def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
         compressed = True
         if payload[-1] != 0x01:            # must have a trailing 0x01
             raise ValueError("Not a compressed WIF: missing trailing 0x01")
-        prv = int_from_octets(payload[1:-1])
+        prvkey = payload[1:-1]
+        prv = int_from_octets(prvkey)
     elif len(payload) == ec.nsize + 1:     # uncompressed WIF
         compressed = False
-        prv = int_from_octets(payload[1:])
+        prvkey = payload[1:]
+        prv = int_from_octets(prvkey)
     else:
         raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
 

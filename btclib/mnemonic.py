@@ -36,7 +36,7 @@ def indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
     if isinstance(entropy, str):
         entropy = entropy.strip()
     else:
-        m = "entropy must be binary string, "
+        m = "entropy must be binary 0/1 string, "
         m += f"not '{type(entropy).__name__}'"
         raise TypeError(m)
 
