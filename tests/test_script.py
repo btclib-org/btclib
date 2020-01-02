@@ -120,22 +120,31 @@ class TestScript(unittest.TestCase):
         # Script: 25 not in [0, 16]
         script = [12, 13, 'OP_ADD', 25, 'OP_EQUAL']
         self.assertRaises(ValueError, serialize, script)
-        # script_bytes = serialize(script)
+        # serialize(script)
 
         # Script: invalid OP_VERIF opcode
         script = [2, 3, 'OP_ADD', 5, 'OP_VERIF']
         self.assertRaises(ValueError, serialize, script)
-        # script_bytes = serialize(script)
+        # serialize(script)
 
         # Script: unmanaged <class 'function'> token type
         script = [2, 3, 'OP_ADD', 5, serialize]
         self.assertRaises(ValueError, serialize, script)
-        # script_bytes = serialize(script)
+        # serialize(script)
 
         # Script: Cannot push 521 bytes on the stack
         script = ["1f"*521, 'OP_DROP']
         self.assertRaises(ValueError, serialize, script)
-        # script_bytes = serialize(script)
+        # serialize(script)
+
+        # Can parse a script with OP_PUSHDATA4
+        script_bytes = b'NN\t\x02\x00\x00' + 521 * b'\xff'  # OP_PUSHDATA4 + 521 bytes
+        script = parse(script_bytes)
+        # but cannot serialize:
+        # Script: Cannot push 522 bytes on the stack
+        self.assertRaises(ValueError, serialize, script)
+        # serialize(script)
+        # FIXME: why is the error message reporting 522 bytes instead of 521
 
 if __name__ == "__main__":
     # execute only if run as a script

@@ -250,6 +250,10 @@ def _op_pushdata(data: bytes) -> bytes:
         r += OP_CODES['OP_PUSHDATA2']
         r += length.to_bytes(2, 'little')
     else:
+        # because of the 520 bytes limit
+        # there is no need to use OP_PUSHDATA4
+        # r += OP_CODES['OP_PUSHDATA4']
+        # r += length.to_bytes(4, 'little')
         raise ValueError(f"Script: Cannot push {length} bytes on the stack")
     r += data
     return r
