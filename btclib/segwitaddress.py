@@ -157,6 +157,7 @@ def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
     """Return the p2wpkh address as native SegWit or legacy p2sh-wrapped."""
 
     if isinstance(pubkey, str):  # hex string
+        pubkey = pubkey.strip()
         pubkey = bytes.fromhex(pubkey)
     if pubkey[0] not in (2, 3):
         raise ValueError(f"Uncompressed pubkey {pubkey}")
