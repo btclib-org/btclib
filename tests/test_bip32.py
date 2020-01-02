@@ -589,7 +589,7 @@ class TestBIP32(unittest.TestCase):
                           parent_xpub, hardened_child_xprv)
         #bip32.crack(parent_xpub, hardened_child_xprv)
 
-    def test_versions(self):
+    def test_testnet_versions(self):
 
         # data cross-checked with Electrum and https://jlopp.github.io/xpub-converter/
 
@@ -598,8 +598,6 @@ class TestBIP32(unittest.TestCase):
         # 12 words
         mnemonic = bip39.mnemonic_from_entropy(raw_entr, 'en')
         seed = bip39.seed_from_mnemonic(mnemonic, '')
-
-        # TESTNET
 
         # p2pkh BIP44 m / 44' / coin_type' / account' / change / address_index
         path = "m/44h/1h/0h"
@@ -629,15 +627,16 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        # TODO: address = bip32.p2pkh_address_from_xpub(xpub_ext)
+        address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_ext)
         exp_address = b'2Mw8tQ6uT6mHhybarVhjgomUhHQJTeV9A2c'
-        # TODO: self.assertEqual(address, exp_address)
+        self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        # TODO: address = bip32.p2pkh_address_from_xpub(xpub_int)
+        address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_int)
         exp_address = b'2N872CRJ3E1CzWjfixXr3aeC3hkF5Cz4kWb'
-        # TODO: self.assertEqual(address, exp_address)
+        self.assertEqual(address, exp_address)
 
-        # multi-sig version
+        # legacy segwit (p2wsh-p2sh) m / 49'/ coin_type' / account' / change / address_index
+        path = "m/49h/1h/0h"
         version = bip32.TEST_Uprv
         rootprv = bip32.rootxprv_from_seed(seed, version)
         xprv = bip32.derive(rootprv, path)
@@ -655,15 +654,16 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        # FIXME: address = bip32.p2pkh_address_from_xpub(xpub_ext)
-        exp_address = b'bcrt1qv8lcnmj09rpdqwgl025h2deygur64z4hqf7me5'
+        address = bip32.p2wpkh_address_from_xpub(xpub_ext)
+        exp_address = b'bcrt1qv8lcnmj09rpdqwgl025h2deygur64z4hqf7me5'  # this is regtest, not testnet!!
         # FIXME: self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        # FIXME: address = bip32.p2pkh_address_from_xpub(xpub_int)
-        exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'
+        address = bip32.p2wpkh_address_from_xpub(xpub_int)
+        exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'  # this is regtest, not testnet!!
         # FIXME: self.assertEqual(address, exp_address)
 
-        # multi-sig version
+        # native segwit (p2wsh) m / 84'/ coin_type' / account' / change / address_index
+        path = "m/84h/1h/0h"
         version = bip32.TEST_Vprv
         rootprv = bip32.rootxprv_from_seed(seed, version)
         xprv = bip32.derive(rootprv, path)
@@ -671,7 +671,15 @@ class TestBIP32(unittest.TestCase):
         exp = b'Vpub5kbPtsdz74uSibzaFLuUwnFbEu2a5Cm7DeKhfb9aPn8HGjoTjEgtBgjirpXr5r9wk87r2ikwhp4P5wxTwhXUkpAdYTkagjqp2PjMmGPBESU'
         self.assertEqual(xpub, exp)
 
-        # MAINNET
+    def test_mainnet_versions(self):
+
+        # data cross-checked with Electrum and https://jlopp.github.io/xpub-converter/
+
+        # 128 bits
+        raw_entr = bytes.fromhex('6'*32)
+        # 12 words
+        mnemonic = bip39.mnemonic_from_entropy(raw_entr, 'en')
+        seed = bip39.seed_from_mnemonic(mnemonic, '')
 
         # p2pkh BIP44 m / 44' / coin_type' / account' / change / address_index
         path = "m/44h/0h/0h"
@@ -701,15 +709,16 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        # FIXME: address = bip32.p2pkh_address_from_xpub(xpub_ext)
+        address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_ext)
         exp_address = b'3FmNAiTCWe5kPMgc4dtSgEdY8VuaCiJEH8'
-        # FIXME: self.assertEqual(address, exp_address)
+        self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        # FIXME: address = bip32.p2pkh_address_from_xpub(xpub_int)
+        address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_int)
         exp_address = b'34FLgkoRYX5Q5fqiZCZDwsK5GpXxmFuLJN'
-        # FIXME: self.assertEqual(address, exp_address)
+        self.assertEqual(address, exp_address)
 
-        # multi-sig version
+        # legacy segwit (p2wsh-p2sh) m / 49'/ coin_type' / account' / change / address_index
+        path = "m/49h/0h/0h"
         version = bip32.MAIN_Yprv
         rootprv = bip32.rootxprv_from_seed(seed, version)
         xprv = bip32.derive(rootprv, path)
@@ -727,15 +736,16 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        # FIXME: address = bip32.p2pkh_address_from_xpub(xpub_ext)
+        address = bip32.p2wpkh_address_from_xpub(xpub_ext)
         exp_address = b'bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a'
-        # FIXME: self.assertEqual(address, exp_address)
+        self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        # FIXME: address = bip32.p2pkh_address_from_xpub(xpub_int)
+        address = bip32.p2wpkh_address_from_xpub(xpub_int)
         exp_address = b'bc1qy4x03jyl88h2zeg7l287xhv2xrwk4c3ztfpjd2'
-        # FIXME: self.assertEqual(address, exp_address)
+        self.assertEqual(address, exp_address)
 
-        # multi-sig version
+        # native segwit (p2wsh) m / 84'/ coin_type' / account' / change / address_index
+        path = "m/84h/0h/0h"
         version = bip32.MAIN_Zprv
         rootprv = bip32.rootxprv_from_seed(seed, version)
         xprv = bip32.derive(rootprv, path)
@@ -743,6 +753,9 @@ class TestBIP32(unittest.TestCase):
         exp = b'Zpub72a8bqjcjNJnMBLrV2EY7XLQbfji28irEZneqYK6w8Zf16sfhr7zDbLsVQficP9j9uzbF6VW1y3ypmeFKf6Dxaw82WvK8WFjcsLyEvMNZjF'
         self.assertEqual(xpub, exp)
 
+    def test_regtest_versions(self):
+        pass
+        # FIXME: how to obtain regtest addresses from btclib?
 
 if __name__ == "__main__":
     # execute only if run as a script

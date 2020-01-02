@@ -340,8 +340,6 @@ def address_from_xpub(xpub: Octets) -> bytes:
     if k[0] not in (2, 3):
         raise ValueError("xkey is not a public one")
 
-    # FIXME: segwit addresses are str, legacy addresses are bytes
-
     # p2pkh
     if v in _XPUB_PREFIXES:
         return _p2pkh_address_from_xpub(v , k)
