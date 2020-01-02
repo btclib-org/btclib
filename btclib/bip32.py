@@ -87,16 +87,19 @@ _PUB_VERSIONS = [
     TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
+# p2pkh or p2sh
 _XPRV_PREFIXES = [MAIN_xprv, TEST_tprv, TEST_tprv]
 _XPUB_PREFIXES = [MAIN_xpub, TEST_tpub, TEST_tpub]
-# p2sh-wrapped-segwit
+# p2wpkh p2sh-wrapped-segwit
 _P2WPKH_P2SH_PRV_PREFIXES = [MAIN_yprv, TEST_uprv, TEST_uprv]
 _P2WPKH_P2SH_PUB_PREFIXES = [MAIN_ypub, TEST_upub, TEST_upub]
+# p2wsh p2sh-wrapped-segwit
 _P2WSH_P2SH_PRV_PREFIXES = [MAIN_Yprv, TEST_Uprv, TEST_Uprv]
 _P2WSH_P2SH_PUB_PREFIXES = [MAIN_Ypub, TEST_Upub, TEST_Upub]
-# native-segwit
+# p2wpkh native-segwit
 _P2WPKH_PRV_PREFIXES = [MAIN_zprv, TEST_vprv, TEST_vprv]
 _P2WPKH_PUB_PREFIXES = [MAIN_zpub, TEST_vpub, TEST_vpub]
+# p2wsh native-segwit
 _P2WSH_PRV_PREFIXES = [MAIN_Zprv, TEST_Vprv, TEST_Vprv]
 _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
 
@@ -361,12 +364,12 @@ def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
 
 def p2pkh_address_from_xpub(xpub: Octets) -> bytes:
     """Return the p2pkh address."""
-    v, _, _, _, _, pk, _ = xkey_parse(xpub)
-    if pk[0] not in (2, 3):
+    v, _, _, _, _, k, _ = xkey_parse(xpub)
+    if k[0] not in (2, 3):
         # Deriving pubkey from prvkey would not be enough:
         # compressed ot uncompressed?
         raise ValueError("xkey is not a public one")
-    return _p2pkh_address_from_xpub(v, pk)
+    return _p2pkh_address_from_xpub(v, k)
 
 
 def _p2wpkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
@@ -376,12 +379,12 @@ def _p2wpkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
 
 def p2wpkh_address_from_xpub(xpub: Octets) -> bytes:
     """Return the p2wpkh (native SegWit) address."""
-    v, _, _, _, _, pk, _ = xkey_parse(xpub)
-    if pk[0] not in (2, 3):
+    v, _, _, _, _, k, _ = xkey_parse(xpub)
+    if k[0] not in (2, 3):
         # pubkey could be derived from prvkey
         # and this safety check could be removed
         raise ValueError("xkey is not a public one")
-    return _p2wpkh_address_from_xpub(v, pk)
+    return _p2wpkh_address_from_xpub(v, k)
 
 
 def _p2wpkh_p2sh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
@@ -391,12 +394,12 @@ def _p2wpkh_p2sh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
 
 def p2wpkh_p2sh_address_from_xpub(xpub: Octets) -> bytes:
     """Return the p2wpkh p2sh-wrapped (legacy) address."""
-    v, _, _, _, _, pk, _ = xkey_parse(xpub)
-    if pk[0] not in (2, 3):
+    v, _, _, _, _, k, _ = xkey_parse(xpub)
+    if k[0] not in (2, 3):
         # pubkey could be derived from prvkey
         # and this safety check could be removed
         raise ValueError("xkey is not a public one")
-    return _p2wpkh_p2sh_address_from_xpub(v, pk)
+    return _p2wpkh_p2sh_address_from_xpub(v, k)
 
 
 def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
