@@ -47,7 +47,7 @@ from btclib.segwitaddress import decode, encode, scriptpubkey, \
     p2wpkh_address, h160_from_p2wpkh_address, p2wpkh_p2sh_address, \
     p2wsh_address, sha256_from_p2wsh_address, p2wsh_p2sh_address
 from btclib.curves import secp256k1 as ec
-from btclib.utils import point_from_octets, h160, sha256
+from btclib.utils import point_from_octets, octets_from_point, h160, sha256
 from btclib.script import serialize
 
 
@@ -167,6 +167,17 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertRaises(ValueError, h160_from_p2wpkh_address, addr, 'testnet')
         # h160_from_p2wpkh_address(addr, 'testnet')
 
+        # Witness program length (32) is not 20: not a V0 p2wpkh address
+        #  p2wsh mainnet address
+        addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
+        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr)
+        # h160_from_p2wpkh_address(addr)
+
+        # Uncompressed pubkey
+        uncompressed_pub = octets_from_point(ec, point_from_octets(ec, pub), False)
+        self.assertRaises(ValueError, p2wpkh_address, uncompressed_pub)
+        #p2wpkh_address(uncompressed_pub)
+
     def test_p2wsh_p2sh_address_from_pubkey(self):
 
         # leading/trailing spaces should be tolerated
@@ -193,6 +204,11 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertRaises(ValueError, sha256_from_p2wsh_address, addr, 'testnet')
         # h160_from_p2wpkh_address(addr, 'testnet')
 
+        # Witness program length (20) is not 32: not a V0 p2wsh address
+        #  p2wpkh mainnet address
+        addr = b'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
+        self.assertRaises(ValueError, sha256_from_p2wsh_address, addr)
+        #sha256_from_p2wsh_address(addr)
 
 if __name__ == "__main__":
     # execute only if run as a script
