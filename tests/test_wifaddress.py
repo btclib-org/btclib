@@ -15,7 +15,7 @@ from btclib.curve import mult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets_from_int, point_from_octets, octets_from_point, h160
 from btclib.wifaddress import wif_from_prvkey, prvkey_from_wif, \
-    p2pkh_address, h160_from_p2pkh_address, p2pkh_address_from_wif, \
+    p2pkh_address, h160_from_address, p2pkh_address_from_wif, \
     p2sh_address, h160_from_p2sh_address
 from btclib.script import serialize
 
@@ -117,11 +117,7 @@ class TestKeys(unittest.TestCase):
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
 
-        self.assertEqual(h160_from_p2pkh_address(addr), h160(pub))
-
-        # p2sh address for a network other than 'testnet'
-        self.assertRaises(ValueError, h160_from_p2pkh_address, addr, 'testnet')
-        # h160_from_p2pkh_address(addr, 'testnet')
+        self.assertEqual(h160_from_address(addr), h160(pub))
 
     def test_p2sh_address_from_script(self):
         # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d

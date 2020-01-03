@@ -104,7 +104,7 @@ def scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
 
     E.g. for P2WPKH the program is a 20-byte keyhash,
     the scriptPubkey is 0x0014{20-byte key-hash};
-    for P2SKH the program is a 32-byte script-hash,
+    for P2WSH the program is a 32-byte script-hash,
     the scriptPubkey is 0x0020{32-byte keyhash}
     """
 
