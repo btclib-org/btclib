@@ -136,9 +136,10 @@ from typing import Tuple, Union
 
 from .curve import mult
 from .curves import secp256k1
-from .wifaddress import p2pkh_address, h160_from_p2pkh_address
-from . import dsa
+from .wifaddress import p2pkh_address, h160_from_address
+from .dsa import sign, pubkey_recovery
 from .utils import octets_from_point, h160
+from .segwitaddress import decode
 
 # TODO: support msg as bytes
 # TODO: add small wallet (address <-> private key) infrastructure
@@ -147,7 +148,7 @@ from .utils import octets_from_point, h160
 # TODO: add test vectors from P. Todd's library
 # TODO: report Electrum bug
 # TODO: generalize to other curves and hash functions
-# TODO: implement P2WPKH-P2SH and P2WPKH
+# TODO: test P2WPKH-P2SH and P2WPKH
 
 
 def _magic_hash(msg: str) -> bytes:
@@ -162,9 +163,9 @@ def _magic_hash(msg: str) -> bytes:
     return m.digest()
 
 
-def sign(msg: str, prvkey: int,
-         compressed: bool = True,
-         network: str = 'mainnet') -> Tuple[bytes, bytes]:
+def msgsign(msg: str, prvkey: int,
+            compressed: bool = True,
+            network: str = 'mainnet') -> Tuple[bytes, bytes]:
     """Generate the message signature Tuple(P2PKH address, signature)."""
 
     pubkey = mult(secp256k1, prvkey)
@@ -172,9 +173,9 @@ def sign(msg: str, prvkey: int,
     address = p2pkh_address(pk, network)
 
     magic_msg = _magic_hash(msg)
-    sig = dsa.sign(secp256k1, hf, magic_msg, prvkey)
+    sig = sign(secp256k1, hf, magic_msg, prvkey)
 
-    pubkeys = dsa.pubkey_recovery(secp256k1, hf, magic_msg, sig)
+    pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, sig)
     bytes_sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
     for i in range(len(pubkeys)):
         if pubkeys[i] == pubkey:
@@ -209,22 +210,33 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     r = int.from_bytes(sig[1:33], 'big')
     s = int.from_bytes(sig[33:], 'big')
     magic_msg = _magic_hash(msg)
-    pubkeys = dsa.pubkey_recovery(secp256k1, hf, magic_msg, (r, s))
+    pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, (r, s))
 
     # almost any sig/msg pair recovers (a pubkey and) an addr:
     # signature is valid only if the provided addr is matched
     rf = sig[0]
-    if rf < 27 or rf > 42:
-        raise ValueError(f"Unknown recovery flag: {rf}")
-    elif rf > 38:
-        raise ValueError("P2WPKH bech32 address not supported yet")
-    elif rf > 34:
-        raise ValueError("P2WPKH-P2SH address not supported yet")
+    if rf < 27:
+        raise ValueError(f"Invalid recovery flag: {rf}")
+    if rf < 31:  # uncompressed key
+        i = rf - 27
+        pk = octets_from_point(secp256k1, pubkeys[i], False)
+    else:  # compressed key
+        i = rf - 31
+        pk = octets_from_point(secp256k1, pubkeys[i], True)
+
+    if rf < 35:  # P2PKH
+        return h160(pk) == h160_from_address(addr)
+
+    # Segwit
+    if rf < 38:  # native P2WPKH
+        _, wv, wp = decode(addr)
+        if wv != 0:
+            raise ValueError(f"Invalid witness version: {wv}")
+        return h160(pk) == bytes(wp)
+    if rf < 42:  # legacy P2WPKH-P2SH
+        # scriptPubkey is 0x0014{20-byte key-hash}
+        scriptPubkey_hash = h160_from_address(addr)
+        hash160 = h160(b'\x00\x14' + pk)
+        return h160(pk) == scriptPubkey_hash
     else:
-        # i selects which key is recovered
-        i = (rf - 27) & 3
-        if rf < 31:
-            pk = octets_from_point(secp256k1, pubkeys[i], False)
-        else:
-            pk = octets_from_point(secp256k1, pubkeys[i], True)
-        return h160(pk) == h160_from_p2pkh_address(addr)
+        raise ValueError(f"Invalid recovery flag: {rf}")
