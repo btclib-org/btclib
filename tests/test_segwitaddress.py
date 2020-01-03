@@ -132,7 +132,7 @@ class TestSegwitAddress(unittest.TestCase):
 
         # self-consistency
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        hrp, wv, wp = decode(addr)
+        _, wv, wp = decode(addr)
         self.assertEqual(encode(wv, wp), addr)
 
         # invalid value
@@ -142,7 +142,7 @@ class TestSegwitAddress(unittest.TestCase):
 
         # string input
         addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        hrp, wv, wp = decode(addr)
+        _, wv, wp = decode(addr)
         self.assertEqual(encode(wv, wp), addr.encode())
 
     def test_p2wpkh_p2sh_address(self):

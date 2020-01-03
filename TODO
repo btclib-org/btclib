@@ -44,6 +44,7 @@ remove signtocontract, adding commit to dsa and ssa
 e=0 in SSA ?
 
 settle on pubkey o point nomenclature. if point, what for prvkey?
+
 crypto: {
     prv: int,
     pub: Point
@@ -51,7 +52,7 @@ crypto: {
 
 (bitcoin) network: {
     Octets: Union[bytes, str],   # bytes or hex-string (not string)
-    prvkey: Union[int, Octets],  # not sure about int...
+    prvkey: Octets,
     pubkey: Octets,
     address, WIF: Union[str, bytes]  # ASCII string, not hex-string, always s.strip()
 }

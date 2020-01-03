@@ -168,6 +168,7 @@ def msgsign(msg: str, prvkey: int,
             network: str = 'mainnet') -> Tuple[bytes, bytes]:
     """Generate the message signature Tuple(P2PKH address, signature)."""
 
+    # TODO: add support for P2PWKH and P2PWKH-P2SH
     pubkey = mult(secp256k1, prvkey)
     pk = octets_from_point(secp256k1, pubkey, compressed)
     address = p2pkh_address(pk, network)
@@ -175,8 +176,10 @@ def msgsign(msg: str, prvkey: int,
     magic_msg = _magic_hash(msg)
     sig = sign(secp256k1, hf, magic_msg, prvkey)
 
-    pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, sig)
+    # [r][s]
     bytes_sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
+
+    pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, sig)
     for i in range(len(pubkeys)):
         if pubkeys[i] == pubkey:
             rf = 27 + i
@@ -203,6 +206,7 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
+    # [rf][r][s]
     sig = base64.b64decode(sig)
     if len(sig) != 65:
         raise ValueError(f"Wrong encoding length: {len(sig)} instead of 65")
