@@ -127,6 +127,8 @@ def h160_from_address(address: Union[str, bytes]) -> bytes:
         address = address.strip()
 
     payload = base58.decode(address, 21)
+    if payload[0:1] not in _P2PKH_PREFIXES + _P2SH_PREFIXES:
+        raise ValueError("Invalid base58 address prefix")
     return payload[1:]
 
 
