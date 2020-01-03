@@ -235,8 +235,7 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
         return h160(pk) == bytes(wp)
     if rf < 42:  # legacy P2WPKH-P2SH
         # scriptPubkey is 0x0014{20-byte key-hash}
-        scriptPubkey_hash = h160_from_address(addr)
-        hash160 = h160(b'\x00\x14' + pk)
-        return h160(pk) == scriptPubkey_hash
+        scriptPubkey = b'\x00\x14' + h160(pk)
+        return h160(scriptPubkey) == h160_from_address(addr)
     else:
         raise ValueError(f"Invalid recovery flag: {rf}")
