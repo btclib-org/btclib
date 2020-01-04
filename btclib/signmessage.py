@@ -152,8 +152,6 @@ from .utils import octets_from_point, h160
 # TODO: decouple serialization from address-based signature
 # TODO: add test vectors from P. Todd's library
 # TODO: report Electrum bug
-# TODO: generalize to other curves and hash functions
-# TODO: test P2WPKH-P2SH and P2WPKH
 
 
 def _magic_hash(msg: str) -> bytes:
