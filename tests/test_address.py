@@ -83,7 +83,8 @@ class TestAddresses(unittest.TestCase):
         pubkey = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
         payload += h160(pubkey)
         invalid_address = base58.encode(payload)
-        _h160_from_address(invalid_address)
+        self.assertRaises(ValueError, _h160_from_address, invalid_address)
+        #_h160_from_address(invalid_address)
 
 
 if __name__ == "__main__":

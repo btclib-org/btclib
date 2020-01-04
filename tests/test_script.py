@@ -11,7 +11,7 @@
 import unittest
 
 from btclib.script import serialize, parse, OP_CODES, OP_CODE_NAMES
-from btclib.utils import h160, sha256
+from btclib.utils import h160, _sha256
 
 
 class TestScript(unittest.TestCase):
@@ -104,7 +104,7 @@ class TestScript(unittest.TestCase):
 
         witness_script = [pubkey, 'OP_CHECKSIG']
         witness_script_bytes = serialize(witness_script)
-        witness_script_hash = sha256(witness_script_bytes)
+        witness_script_hash = _sha256(witness_script_bytes)
         # p2wsh
         script = [0, witness_script_hash.hex()]
         script_bytes = serialize(script)

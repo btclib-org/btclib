@@ -48,7 +48,7 @@ from btclib.script import serialize
 from btclib.segwitaddress import (
     _decode, _encode, _scriptpubkey,
     p2wpkh_address, p2wpkh_p2sh_address, p2wsh_address, p2wsh_p2sh_address)
-from btclib.utils import h160, octets_from_point, point_from_octets, sha256
+from btclib.utils import h160, octets_from_point, point_from_octets, _sha256
 
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
@@ -214,7 +214,7 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(addr, p2wsh_address(witness_script_bytes))
 
         _, _, wp = _decode(addr)
-        self.assertEqual(bytes(wp), sha256(witness_script_bytes))
+        self.assertEqual(bytes(wp), _sha256(witness_script_bytes))
 
         # SegWit address for 'mainnet', not 'testnet'
         self.assertRaises(ValueError, _decode, addr, 'testnet')

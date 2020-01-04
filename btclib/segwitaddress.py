@@ -46,7 +46,7 @@ from typing import Tuple, Iterable, List, Union
 
 from . import bech32
 from . import script
-from .utils import Octets, h160, sha256
+from .utils import Octets, h160, _sha256
 from .address import p2sh_address
 
 WitnessProgram = Union[List[int], bytes]
@@ -211,7 +211,7 @@ def _p2wsh_address(witness_script: Octets, native: bool, network: str) -> bytes:
     """Return the address as native SegWit bech32 or legacy p2sh-wrapped."""
 
     witvers = 0
-    witprog = sha256(witness_script)
+    witprog = _sha256(witness_script)
     if native:
         return _encode(witvers, witprog, network)
     script_pubkey = _scriptpubkey(witvers, witprog)
