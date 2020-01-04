@@ -9,6 +9,8 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
+from os import path
+import json
 
 from btclib.signmessage import msgsign, verify, _verify
 from btclib.wif import (wif_from_prvkey,
@@ -262,6 +264,28 @@ class TestSignMessage(unittest.TestCase):
         # Mismatch between p2wpkh_p2sh address and key pair
         self.assertRaises(ValueError, msgsign, msg, wif, p2wpkh_p2sh_address)
         # msgsign(msg, wif, p2wpkh_p2sh_address)
+
+    def test_vector(self):
+        """Test python-bitcoinlib test vectors
+        
+        https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/data/signmessage.json        
+        """
+
+        # FIXME
+        filename = "signmessage.json"
+        path_to_filename = path.join(path.dirname(__file__),
+                                     "./data/", filename)
+        with open(path_to_filename, 'r') as f:
+            test_vectors = json.load(f)
+
+        #for vector in test_vectors:
+        for i in range(5):
+            vector = test_vectors[i]
+            msg = vector['address']
+            signature = msgsign(msg, vector['wif'])
+            self.assertTrue(_verify(msg, vector['address'], signature))
+            self.assertTrue(_verify(msg, vector['address'], vector['signature']))
+            #self.assertEqual(signature.decode(), vector['signature'])
 
 
 if __name__ == '__main__':
