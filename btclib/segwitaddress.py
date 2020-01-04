@@ -27,18 +27,18 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 
-"""SegWit address implementation.
+"""SegWit address functions.
 
 Some of these functions were originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-* splitted the original segwit_addr.py file in bech32.py and segwitaddr.py
+* moved bech32 stuff into bech32.py
 * type annotated python3
 * avoided returning None or (None, None), throwing ValueError instead
 * detailed error messages and exteded safety checks
 * check that bech32 addresses are not longer than 90 characters
-  (as this is not enforced by bech32.encode anymore)
+  (as this is not enforced by bech32._encode anymore)
 """
 
 
@@ -47,7 +47,7 @@ from typing import Tuple, Iterable, List, Union
 from . import bech32
 from . import script
 from .utils import Octets, h160, sha256
-from .wifaddress import p2sh_address
+from .address import p2sh_address
 
 WitnessProgram = Union[List[int], bytes]
 
@@ -81,7 +81,7 @@ def _convertbits(data: Iterable[int], frombits: int,
     return ret
 
 
-def check_witness(witvers: int, witprog: WitnessProgram):
+def _check_witness(witvers: int, witprog: WitnessProgram):
     l = len(witprog)
     if witvers == 0:
         if l != 20 and l != 32:
@@ -94,7 +94,7 @@ def check_witness(witvers: int, witprog: WitnessProgram):
             raise ValueError(f"witness program length ({l}) not in [2, 40]")
 
 
-def scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
+def _scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
     """Construct a SegWit scriptPubKey for a given witness.
 
     The scriptPubKey is the witness version
@@ -108,11 +108,11 @@ def scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
     the scriptPubkey is 0x0020{32-byte keyhash}
     """
 
-    check_witness(witvers, witprog)
+    _check_witness(witvers, witprog)
     return script.serialize([witvers, bytes(witprog)])
 
 
-def decode(address: Union[str, bytes],
+def _decode(address: Union[str, bytes],
            network: str = 'mainnet') -> Tuple[str, int, List[int]]:
     """Decode a SegWit address."""
 
@@ -140,15 +140,15 @@ def decode(address: Union[str, bytes],
 
     witvers = data[0]
     witprog = _convertbits(data[1:], 5, 8, False)
-    check_witness(witvers, witprog)
+    _check_witness(witvers, witprog)
 
     return hrp, witvers, witprog
 
 
-def encode(wver: int, wprog: WitnessProgram, network: str = 'mainnet') -> bytes:
+def _encode(wver: int, wprog: WitnessProgram, network: str = 'mainnet') -> bytes:
     """Encode a SegWit address."""
     hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
-    check_witness(wver, wprog)
+    _check_witness(wver, wprog)
     ret = bech32.encode(hrp, [wver] + _convertbits(wprog, 8, 5))
     return ret
 
@@ -170,8 +170,8 @@ def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
     witprog = h160(pubkey)
 
     if native:
-        return encode(witvers, witprog, network)
-    script_pubkey = scriptpubkey(witvers, witprog)
+        return _encode(witvers, witprog, network)
+    script_pubkey = _scriptpubkey(witvers, witprog)
     return p2sh_address(script_pubkey, network)
 
 
@@ -191,8 +191,8 @@ def _p2wsh_address(witness_script: Octets, native: bool, network: str) -> bytes:
     witvers = 0
     witprog = sha256(witness_script)
     if native:
-        return encode(witvers, witprog, network)
-    script_pubkey = scriptpubkey(witvers, witprog)
+        return _encode(witvers, witprog, network)
+    script_pubkey = _scriptpubkey(witvers, witprog)
     return p2sh_address(script_pubkey, network)
 
 

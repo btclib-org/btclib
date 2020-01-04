@@ -11,15 +11,14 @@
 from typing import Tuple, Union
 
 from . import base58
-from . import bech32
 
 from .curve import mult
 from .curves import secp256k1
-from .utils import Octets, int_from_octets, octets_from_int, \
-    octets_from_point, h160
+from .utils import (Octets, int_from_octets, octets_from_int,
+                    octets_from_point)
 
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
-from .wifaddress import prvkey_from_wif
+from .address import p2pkh_address
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _CURVES = [secp256k1, secp256k1, secp256k1]
@@ -39,7 +38,62 @@ _P2SH_PREFIXES = [
     b'\xc4',  # address starts with 2
 ]
 
-def pubkey_from_wif(wif: Union[str, bytes]) -> Tuple[bytes, str]:
+def wif_from_prvkey(prv: Union[int, Octets],
+                    compressed: bool = True,
+                    network: str = 'mainnet') -> bytes:
+    """Return the Wallet Import Format from a private key."""
+
+    network_index = _NETWORKS.index(network)
+    payload = _WIF_PREFIXES[network_index]
+
+    ec = _CURVES[network_index]
+    if isinstance(prv, int):
+        payload += octets_from_int(prv, ec.nsize)
+    elif isinstance(prv, str):
+        prv = int(prv, 16)
+        payload += prv.to_bytes(ec.nsize, 'big')
+    else:
+        payload += prv
+        prv = int.from_bytes(prv, 'big')
+    if not 0 < prv < ec.n:
+        raise ValueError(f"private key {hex(prv)} not in (0, ec.n)")
+
+    payload += b'\x01' if compressed else b''
+    return base58.encode(payload)
+
+
+def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
+    """Return the (private key, compressed, network) tuple from a WIF."""
+
+    if isinstance(wif, str):
+        wif = wif.strip()
+
+    payload = base58.decode(wif)
+    wif_index = _WIF_PREFIXES.index(payload[0:1])
+    ec = _CURVES[wif_index]
+
+    if len(payload) == ec.nsize + 2:       # compressed WIF
+        compressed = True
+        if payload[-1] != 0x01:            # must have a trailing 0x01
+            raise ValueError("Not a compressed WIF: missing trailing 0x01")
+        prvkey = payload[1:-1]
+        prv = int_from_octets(prvkey)
+    elif len(payload) == ec.nsize + 1:     # uncompressed WIF
+        compressed = False
+        prvkey = payload[1:]
+        prv = int_from_octets(prvkey)
+    else:
+        raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
+
+    if not 0 < prv < ec.n:
+        msg = f"Not a WIF: private key {hex(prv)} not in [1, n-1]"
+        raise ValueError(msg)
+
+    network = _NETWORKS[wif_index]
+    return prv, compressed, network
+
+
+def _pubkey_from_wif(wif: Union[str, bytes]) -> Tuple[bytes, str]:
 
     if isinstance(wif, str):
         wif = wif.strip()
@@ -51,10 +105,30 @@ def pubkey_from_wif(wif: Union[str, bytes]) -> Tuple[bytes, str]:
     o = octets_from_point(ec, Pub, compressed)
     return o, network
 
+
+def p2pkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
+    """Return the address corresponding to a WIF.
+
+    WIF encodes the information about the pubkey to be used for the
+    address computation being the compressed or uncompressed one.
+    """
+
+    if isinstance(wif, str):
+        wif = wif.strip()
+
+    prv, compressed, network = prvkey_from_wif(wif)
+    network_index = _NETWORKS.index(network)
+    ec = _CURVES[network_index]
+    Pub = mult(ec, prv)
+    o = octets_from_point(ec, Pub, compressed)
+    return p2pkh_address(o, network)
+
+
 def p2wpkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
-    o, network = pubkey_from_wif(wif)
+    o, network = _pubkey_from_wif(wif)
     return p2wpkh_address(o, network)
 
+
 def p2wpkh_p2sh_address_from_wif(wif: Union[str, bytes]) -> bytes:
-    o, network = pubkey_from_wif(wif)
+    o, network = _pubkey_from_wif(wif)
     return p2wpkh_p2sh_address(o, network)

@@ -140,8 +140,8 @@ from . import segwitaddress
 from . import base58
 from .curve import mult
 from .curves import secp256k1
-from .wifaddress import (p2pkh_address, h160_from_address, prvkey_from_wif,
-                         _P2PKH_PREFIXES, _P2SH_PREFIXES)
+from .address import _h160_from_address, _P2PKH_PREFIXES, _P2SH_PREFIXES
+from .wif import prvkey_from_wif
 from .dsa import sign, pubkey_recovery
 from .utils import octets_from_point, h160
 
@@ -167,7 +167,8 @@ def _magic_hash(msg: str) -> bytes:
     return m.digest()
 
 
-def msgsign(msg: str, wif: Union[str, bytes], address: Optional[Union[str, bytes]] = None) -> bytes:
+def msgsign(msg: str, wif: Union[str, bytes], 
+            addr: Optional[Union[str, bytes]] = None) -> bytes:
     """Generate the message signature."""
 
     # first sign the message
@@ -183,7 +184,7 @@ def msgsign(msg: str, wif: Union[str, bytes], address: Optional[Union[str, bytes
     pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, sig)
     rf = pubkeys.index(pubkey)
 
-    if address is None:
+    if addr is None:
         # assume p2pkh address
         rf += 27
         rf += 4 if compressedwif else 0
@@ -199,28 +200,43 @@ def msgsign(msg: str, wif: Union[str, bytes], address: Optional[Union[str, bytes
     # 2 verify that it corresponds to the given private key
     # 3 compute rf according to BIP137
     try:
-        hash160 = h160_from_address(address)
-        base58 = True
+        prefix, hash160 = _h160_from_address(addr)
+        is_p2wpkh = False
+        is_p2wpkh_p2sh = False
+        if prefix in _P2SH_PREFIXES:
+            is_p2wpkh_p2sh = True
     except Exception:
-        _, wv, wp = segwitaddress.decode(address)
+        _, wv, wp = segwitaddress._decode(addr)
         if wv != 0:
             raise ValueError(f"Invalid witness version: {wv}")
-        base58 = False
+        hash160 = bytes(wp)
+        is_p2wpkh = True
+        is_p2wpkh_p2sh = False
 
     pk = octets_from_point(secp256k1, pubkey, True)
-    if base58:
-        if hash160 == h160(pk):  # p2pkh (compressed key)
+    if is_p2wpkh_p2sh:
+        # scriptPubkey is 0x0014{20-byte key-hash}
+        scriptPubkey = b'\x00\x14' + h160(pk)
+        if h160(scriptPubkey) == hash160:
+            rf += 35  # p2wpkh-p2sh
+        else:
+            raise ValueError("Mismatch between p2wpkh_p2sh address and key pair")
+    elif is_p2wpkh:
+        if h160(pk) == hash160:
+            rf += 39  # p2wpkh
+        else:
+            raise ValueError("Mismatch between p2wpkh address and key pair")
+    else:
+        if h160(pk) == hash160:
             if compressedwif:
-                rf += 31
+                rf += 31  # p2pkh (compressed key)
             else:
                 msg = "Pubkey mismatch: "
                 msg += "uncompressed wif, compressed address"
                 raise ValueError(msg)
-        elif hash160 == h160(b'\x00\x14' + h160(pk)):
-            rf += 35  # p2wpkh-p2sh
         else:  # try with uncompressed key
             pk = octets_from_point(secp256k1, pubkey, False)
-            if hash160 == h160(pk):
+            if h160(pk) == hash160:
                 if compressedwif:
                     msg = "Pubkey mismatch: "
                     msg += "compressed wif, uncompressed address"
@@ -228,11 +244,7 @@ def msgsign(msg: str, wif: Union[str, bytes], address: Optional[Union[str, bytes
                 else:
                     rf += 27  # p2pkh (uncompressed key)
             else:
-                raise ValueError("Mismatch between address and key pair")
-    else:
-        rf += 39  # p2wpkh
-        if bytes(wp) != h160(pk):
-            raise ValueError("Mismatch between address and key pair")
+                raise ValueError("Mismatch between p2pkh address and key pair")
 
     # [rf][r][s]
     return base64.b64encode(bytes([rf]) + bytes_sig)
@@ -261,18 +273,12 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
 
     # first: calculate hash160 from address
     try:
-        if isinstance(addr, str):
-            addr = addr.strip()
-        payload = base58.decode(addr, 21)
-        if payload[0:1] in _P2PKH_PREFIXES:
-            is_p2wpkh_p2sh = False
-        elif payload[0:1] in _P2SH_PREFIXES:
+        prefix, hash160 = _h160_from_address(addr)
+        is_p2wpkh_p2sh = False
+        if prefix in _P2SH_PREFIXES:
             is_p2wpkh_p2sh = True
-        else:
-            raise ValueError("Invalid base58 address prefix")
-        hash160 = payload[1:]
-    except:
-        _, wv, wp = segwitaddress.decode(addr)
+    except Exception:
+        _, wv, wp = segwitaddress._decode(addr)
         if wv != 0:
             raise ValueError(f"Invalid witness version: {wv}")
         hash160 = bytes(wp)

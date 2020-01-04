@@ -32,7 +32,7 @@ from .curve import mult
 from .curves import secp256k1 as ec
 from .utils import Octets, point_from_octets, octets_from_point, \
     int_from_octets, h160
-from .wifaddress import p2pkh_address
+from .address import p2pkh_address
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
 
 # Bitcoin core uses the m/0h (core) BIP32 derivation path

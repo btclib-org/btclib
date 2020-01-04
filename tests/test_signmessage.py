@@ -11,8 +11,9 @@
 import unittest
 
 from btclib.signmessage import msgsign, verify, _verify
-from btclib.wifaddress import wif_from_prvkey, p2pkh_address_from_wif
-from btclib.wif import p2wpkh_address_from_wif, p2wpkh_p2sh_address_from_wif
+from btclib.wif import (wif_from_prvkey,
+                        p2pkh_address_from_wif, p2wpkh_address_from_wif,
+                        p2wpkh_p2sh_address_from_wif)
 
 
 class TestSignMessage(unittest.TestCase):

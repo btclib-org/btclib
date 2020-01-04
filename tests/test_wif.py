@@ -11,16 +11,12 @@
 import unittest
 
 from btclib import base58
-from btclib.curve import mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets_from_int, point_from_octets, octets_from_point, h160
-from btclib.wifaddress import wif_from_prvkey, prvkey_from_wif, \
-    p2pkh_address, h160_from_address, p2pkh_address_from_wif, \
-    p2sh_address, h160_from_p2sh_address
-from btclib.script import serialize
+from btclib.utils import octets_from_int
+from btclib.wif import wif_from_prvkey, prvkey_from_wif, p2pkh_address_from_wif
 
 
-class TestKeys(unittest.TestCase):
+class TestWif(unittest.TestCase):
 
     def test_wif(self):
         q = b'0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'
@@ -96,55 +92,6 @@ class TestKeys(unittest.TestCase):
         badwif = base58.encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         # prvkey_from_wif(badwif)
-
-    def test_p2pkh_address_from_pubkey(self):
-        # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
-        pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
-        addr = p2pkh_address(pub)
-        self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-
-        uncompressed_pub = octets_from_point(
-            ec, point_from_octets(ec, pub), False)
-        addr = p2pkh_address(uncompressed_pub)
-        self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-
-        # trailing/leading spaces in string
-        pub = '  0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
-        addr = p2pkh_address(pub)
-        self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-
-        pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  '
-        addr = p2pkh_address(pub)
-        self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-
-        self.assertEqual(h160_from_address(addr), h160(pub))
-
-    def test_p2sh_address_from_script(self):
-        # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
-        script = ['OP_2DUP', 'OP_EQUAL', 'OP_NOT', 'OP_VERIFY',
-                  'OP_SHA1', 'OP_SWAP', 'OP_SHA1', 'OP_EQUAL']
-        script_bytes = serialize(script)
-        self.assertEqual(script_bytes.hex(), '6e879169a77ca787')
-
-        addr = p2sh_address(script_bytes)
-        self.assertEqual(addr, b'37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP')
-
-        redeem_script_hash = h160_from_p2sh_address(addr)
-        self.assertEqual(redeem_script_hash, h160(script_bytes))
-
-        self.assertEqual(redeem_script_hash.hex(),
-                         '4266fc6f2c2861d7fe229b279a79803afca7ba34')
-        output_script = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
-        _ = serialize(output_script)
-
-        # address with trailing/leading spaces
-        redeem_script_hash2 = h160_from_p2sh_address(
-            ' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
-        self.assertEqual(redeem_script_hash, redeem_script_hash2)
-
-        # p2sh address for a network other than 'testnet'
-        self.assertRaises(ValueError, h160_from_p2sh_address, addr, 'testnet')
-        # h160_from_p2sh_address(addr, 'testnet')
 
     def test_p2pkh_address_from_wif(self):
         wif1 = "5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
