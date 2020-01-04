@@ -183,9 +183,6 @@ def h160_from_p2wpkh_address(address: Union[str, bytes],
     _, wv, wp = _decode(address, network)
     if wv != 0:
         raise ValueError(f"Invalid witness version: {wv}")
-    if len(wp) != 20:
-        msg = f"Invalid p2wpkh address: witness program length is {len(wp)}"
-        raise ValueError(msg)
 
     return bytes(wp)
 
