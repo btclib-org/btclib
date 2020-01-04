@@ -47,17 +47,15 @@ def wif_from_prvkey(prv: Union[int, Octets],
     payload = _WIF_PREFIXES[network_index]
 
     ec = _CURVES[network_index]
-    if isinstance(prv, int):
-        payload += octets_from_int(prv, ec.nsize)
-    elif isinstance(prv, str):
-        prv = int(prv, 16)
-        payload += prv.to_bytes(ec.nsize, 'big')
-    else:
-        payload += prv
+    if isinstance(prv, str):
+        prv = bytes.fromhex(prv)
+
+    if isinstance(prv, bytes):
         prv = int.from_bytes(prv, 'big')
     if not 0 < prv < ec.n:
         raise ValueError(f"private key {hex(prv)} not in (0, ec.n)")
 
+    payload += octets_from_int(prv, ec.nsize)
     payload += b'\x01' if compressed else b''
     return base58.encode(payload)
 

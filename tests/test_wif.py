@@ -19,23 +19,23 @@ from btclib.wif import wif_from_prvkey, prvkey_from_wif, p2pkh_address_from_wif
 class TestWif(unittest.TestCase):
 
     def test_wif(self):
-        q = b'0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'
-        q = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-
+        q = '0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'
         # compressed WIF
         wif = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
         self.assertEqual(wif, wif_from_prvkey(q, True))
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, q)
+        self.assertEqual(prvkey, int(q, 16))
         self.assertEqual(compressed, True)
 
+        q = bytes.fromhex(q)
         # compressed WIF (testnet)
         wif = b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx'
         self.assertEqual(wif, wif_from_prvkey(q, True, 'testnet'))
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, q)
+        self.assertEqual(prvkey, int.from_bytes(q, 'big'))
         self.assertEqual(compressed, True)
 
+        q = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
         # uncompressed WIF
         wif = b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ'
         self.assertEqual(wif, wif_from_prvkey(q, False))
