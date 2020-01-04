@@ -40,14 +40,14 @@ class TestSignMessage(unittest.TestCase):
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         address = '1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
         exp_sig = b'IFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA='
-        sig = msgsign(msg, wif)
+        sig = msgsign(msg, wif, address)
         self.assertTrue(_verify(msg, address, sig))
         self.assertEqual(sig, exp_sig)
 
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         address = '19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
         exp_sig = b'HFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA='
-        sig = msgsign(msg, wif)
+        sig = msgsign(msg, wif, address)
         self.assertTrue(_verify(msg, address, sig))
         self.assertEqual(sig, exp_sig)
 
@@ -221,10 +221,17 @@ class TestSignMessage(unittest.TestCase):
         self.assertRaises(ValueError, _verify, msg, address, exp_sig)
         self.assertFalse(verify(msg, address, exp_sig))
 
-        # invalid rf
+        # Invalid recovery flag: 26
         exp_sig = b'GpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU='
         self.assertRaises(ValueError, _verify, msg, address, exp_sig)
         self.assertFalse(verify(msg, address, exp_sig))
+        #_verify(msg, address, exp_sig)
+
+        # Invalid recovery flag: 66
+        exp_sig = b'QpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU='
+        self.assertRaises(ValueError, _verify, msg, address, exp_sig)
+        self.assertFalse(verify(msg, address, exp_sig))
+        #_verify(msg, address, exp_sig)
 
         # Pubkey mismatch: compressed wif, uncompressed address
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
@@ -237,6 +244,19 @@ class TestSignMessage(unittest.TestCase):
         address = '1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
         self.assertRaises(ValueError, msgsign, msg, wif, address)
         # sig = msgsign(msg, wif, address)
+
+        msg = 'test'
+        wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
+        p2wpkh_address = p2wpkh_address_from_wif(wif)
+        p2wpkh_p2sh_address = p2wpkh_p2sh_address_from_wif(wif)
+        wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
+        # Mismatch between p2wpkh address and key pair
+        self.assertRaises(ValueError, msgsign, msg, wif, p2wpkh_address)
+        # msgsign(msg, wif, p2wpkh_address)
+
+        # Mismatch between p2wpkh_p2sh address and key pair
+        self.assertRaises(ValueError, msgsign, msg, wif, p2wpkh_p2sh_address)
+        # msgsign(msg, wif, p2wpkh_p2sh_address)
 
 
 if __name__ == '__main__':
