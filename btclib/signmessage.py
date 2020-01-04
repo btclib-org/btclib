@@ -8,27 +8,26 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-""" Bitcoin (P2PKH) address-based compact signature for messages.
+""" Bitcoin address-based compact signature for messages.
 
-For message signatures, Bitcoin wallets use a P2PKH address-based scheme
-with a compact 65 bytes custom signature encoding.
+Bitcoin wallets use an address-based scheme for message signature: this
+signature proves the control of the private key corresponding to
+the given address and, consequently, of the associated bitcoins (if any).
+Message signature adopts a custom compact 65 bytes signature encoding,
+not the DER encoding used for transactions,
+which results in 71 bytes average signature.
+
 As it is the case for all digital signature scheme, this scheme actually
-works with keys, not addresses: it uses a P2PKH address to uniquely
+works with keys, not addresses: the address is only used to uniquely
 identify a private/public keypair.
-This signature proves the control of the private key corresponding to
-a given address and, consequently, of the associated bitcoins (if any).
-The signature goes along with its address: public key recovery is used
-at verification time, i.e. given a message, the public key
-that would have created that signature is found and compared with
-the provided address.
-
-Note that in the Bitcoin protocol this compact 65 bytes signature
-encoding is only used for messages: for transactions DER encoding is used
-instead, resulting in 71 bytes average signature.
-
 At signing time a wallet infrastructure is required to access the
 private key corresponding to the given address; alternatively
 the private key must be provided explicitly.
+The resulting signature goes along with its address:
+public key recovery is used at verification time,
+i.e. given a message, the public key that would have created that signature
+is found and compared with the provided address.
+
 For a given message, the ECDSA signature operates on the hash of the
 *magic* "Bitcoin Signed Message" prefix concatenated to the actual
 message; this prefix manipulation avoids the plain signature of a
@@ -36,21 +35,23 @@ possibly deceiving message.
 The resulting (r, s) signature is serialized as
 [1 byte][r][s], where the first byte is a recovery flag used
 during signature verification to discriminate among recovered
-public keys and to manage address compression.
+public keys and address types.
 Explicitly, the recovery flag value is:
 
-    27 + (4 if compressed else 0) + key_id
+    key_id + 27 + (4 if compressed else 0)
 
 where:
 
-- 27 identify a P2PKH address (Electrum also supports Segwit P2WPKH-P2SH
-  and P2WPKH, but not according to the BIP137 specifications;
-  anyway this module and bitcoin core do not support them yet)
-- compressed indicates if the address is the hash of the compressed
-  public key representation (SegWit is always compressed)
 - key_id is the index in the [0, 3] range identifying which of the
   recovered public keys is the one associated to the address;
   it is stored in the least significant 2 bits of the recovery flag
+- 27 identify a P2PKH address, which is the only kind of address
+  supported by Bicoin Core;
+  straightforward extensions to SegWit P2WPKH-P2SH and P2WPKH are obtained
+  using 35 and 39 (respectively) instead of 27: this is the BIP137 (Trezor)
+  specification (Electrum has a different incompatible specification);
+- compressed indicates if the address is the hash of the compressed
+  public key representation (SegWit is always compressed)
 
 +-----------+--------+--------------------+
 | rec. flag | key_id |    address type    |
@@ -88,14 +89,15 @@ where:
 |     42    |    3   | P2WPKH (bech32)    |
 +-----------+--------+--------------------+
 
-Finally, the serialized signature can be base64-encoded to transport it
+Finally, the serialized signature is base64-encoded to transport it
 across channels that are designed to deal with textual data.
 Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
 characters, '+' (plus sign), and '/' (forward slash);
 the equal sign '=' is used as end marker of the encoded message.
 
 Warning: one should never sign a vague statement that could be reused
-out of the context it was intended for. E.g. always include at least
+out of the context it was intended for.
+Always include at least
 
 - your name (nickname, customer id, email, etc.)
 - date and time
@@ -132,11 +134,11 @@ https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
 
 import base64
 from hashlib import sha256 as hf
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 
 from .curve import mult
 from .curves import secp256k1
-from .wifaddress import p2pkh_address, h160_from_address
+from .wifaddress import p2pkh_address, h160_from_address, prvkey_from_wif
 from .dsa import sign, pubkey_recovery
 from .utils import octets_from_point, h160
 from .segwitaddress import decode
@@ -163,33 +165,58 @@ def _magic_hash(msg: str) -> bytes:
     return m.digest()
 
 
-def msgsign(msg: str, prvkey: int,
-            compressed: bool = True,
-            network: str = 'mainnet') -> Tuple[bytes, bytes]:
-    """Generate the message signature Tuple(P2PKH address, signature)."""
+def msgsign(msg: str, wif: Union[str, bytes], address: Optional[Union[str, bytes]] = None) -> bytes:
+    """Generate the message signature."""
 
-    # TODO: add support for P2PWKH and P2PWKH-P2SH
-    pubkey = mult(secp256k1, prvkey)
-    pk = octets_from_point(secp256k1, pubkey, compressed)
-    address = p2pkh_address(pk, network)
-
+    # first sign the message
     magic_msg = _magic_hash(msg)
+    prvkey, compressed, _ = prvkey_from_wif(wif)
     sig = sign(secp256k1, hf, magic_msg, prvkey)
 
     # [r][s]
     bytes_sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
 
+    # now calculate the recovery flag, aka recId
+    pubkey = mult(secp256k1, prvkey)
     pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, sig)
-    for i in range(len(pubkeys)):
-        if pubkeys[i] == pubkey:
-            rf = 27 + i
-            if compressed:
-                rf += 4
-            return address, base64.b64encode(bytes([rf]) + bytes_sig)
+    rf = pubkeys.index(pubkey)
 
-    # hic sunt leones
-    # the following line should never be executed
-    raise ValueError("Public key not recovered")
+    if address is None:
+        # assume p2pkh address
+        rf += 27
+        rf += 4 if compressed else 0
+        # [rf][r][s]
+        return base64.b64encode(bytes([rf]) + bytes_sig)
+
+    # determine the type of address
+    try:
+        hash160 = h160_from_address(address)
+        base58 = True
+    except Exception:
+        _, wv, wp = decode(address)
+        if wv != 0:
+            raise ValueError(f"Invalid witness version: {wv}")
+        base58 = False
+
+    pk = octets_from_point(secp256k1, pubkey, True)
+    if base58:
+        if hash160 == h160(pk):
+            rf += 31  # p2pkh (compressed key)
+        elif hash160 == h160(b'\x00\x14' + h160(pk)):
+            rf += 35  # p2wpkh-p2sh
+        else:  # try with uncompressed key
+            pk = octets_from_point(secp256k1, pubkey, False)
+            if hash160 == h160(pk):
+                rf += 27  # p2pkh (uncompressed key)
+            else:
+                raise ValueError("Mismatch between address and key pair")
+    else:
+        rf += 39  # p2wpkh
+        if bytes(wp) != h160(pk):
+            raise ValueError("Mismatch between address and key pair")
+
+    # [rf][r][s]
+    return base64.b64encode(bytes([rf]) + bytes_sig)
 
 
 def verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
@@ -216,30 +243,30 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     magic_msg = _magic_hash(msg)
     pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, (r, s))
 
-    # almost any sig/msg pair recovers (a pubkey and) an addr:
-    # signature is valid only if the provided addr is matched
+    # signature is valid only if the provided address is matched
     rf = sig[0]
     if rf < 27:
         raise ValueError(f"Invalid recovery flag: {rf}")
-    if rf < 31:  # uncompressed key
+    elif rf < 31:  # uncompressed key
         i = rf - 27
         pk = octets_from_point(secp256k1, pubkeys[i], False)
-    else:  # compressed key
+        return h160(pk) == h160_from_address(addr)
+    elif rf < 35:  # P2PKH
         i = rf - 31
         pk = octets_from_point(secp256k1, pubkeys[i], True)
-
-    if rf < 35:  # P2PKH
         return h160(pk) == h160_from_address(addr)
-
-    # Segwit
-    if rf < 38:  # native P2WPKH
-        _, wv, wp = decode(addr)
-        if wv != 0:
-            raise ValueError(f"Invalid witness version: {wv}")
-        return h160(pk) == bytes(wp)
-    if rf < 42:  # legacy P2WPKH-P2SH
+    elif rf < 39:  # legacy P2WPKH-P2SH
+        i = rf - 35
+        pk = octets_from_point(secp256k1, pubkeys[i], True)
         # scriptPubkey is 0x0014{20-byte key-hash}
         scriptPubkey = b'\x00\x14' + h160(pk)
         return h160(scriptPubkey) == h160_from_address(addr)
+    elif rf < 43:  # native P2WPKH
+        _, wv, wp = decode(addr)
+        if wv != 0:
+            raise ValueError(f"Invalid witness version: {wv}")
+        i = rf - 39
+        pk = octets_from_point(secp256k1, pubkeys[i], True)
+        return h160(pk) == bytes(wp)
     else:
         raise ValueError(f"Invalid recovery flag: {rf}")

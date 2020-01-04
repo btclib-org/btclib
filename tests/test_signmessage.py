@@ -11,132 +11,101 @@
 import unittest
 
 from btclib.signmessage import msgsign, verify, _verify
-from btclib.wifaddress import prvkey_from_wif, p2pkh_address_from_wif
+from btclib.wifaddress import wif_from_prvkey, p2pkh_address_from_wif
 
 
 class TestSignMessage(unittest.TestCase):
-    def test_signmessage(self):
+    def test_msgsign_p2pkh(self):
         msg = "test message"
         # sigs are taken from (Electrum and) Bitcoin Core
 
-        prvkey_exp = b'1234567890123456789012345678901234567890123456789012345678901234'
-        prvkey_exp = 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB
+        # first private key
         wif = 'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk'
-        prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, prvkey_exp)
-        self.assertTrue(compressed)
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        address = b'14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY'
-        self.assertEqual(mysig[0], address)
         sig = b"H/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
-        self.assertEqual(mysig[1], sig)
+        address = b'14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY'
+        mysig = msgsign(msg, wif)
+        self.assertTrue(_verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
         wif = '5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
-        prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, prvkey_exp)
-        self.assertFalse(compressed)
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        address = b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
-        self.assertEqual(mysig[0], address)
         sig = b"G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
-        self.assertEqual(mysig[1], sig)
+        address = b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
+        mysig = msgsign(msg, wif)
+        self.assertTrue(_verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
-        prvkey_exp = 0x35687eed35e44235053dce4c65dc23b11327ecee9acc51c90651e7072047f886
+        # second private key
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
-        prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, prvkey_exp)
-        self.assertTrue(compressed)
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        address = b'1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
-        self.assertEqual(mysig[0], address)
         sig = b"IFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA="
-        self.assertEqual(mysig[1], sig)
+        address = b'1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(_verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
-        prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, prvkey_exp)
-        self.assertFalse(compressed)
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        address = b'19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
-        self.assertEqual(mysig[0], address)
         sig = b"HFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA="
-        self.assertEqual(mysig[1], sig)
+        address = b'19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(_verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
+
+    def test_sign_strippable_message(self):
+
+        wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
+        address = b'19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
 
         msg = ''
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        self.assertEqual(mysig[0], address)
         sig = b'HFh0InGTy8lLCs03yoUIpJU6MUbi0La/4abhVxyKcCsoUiF3RM7lg51rCqyoOZ8Yt43h8LZrmj7nwwO3HIfesiw='
-        self.assertEqual(mysig[1], sig)
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
         msg = ' '
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        self.assertEqual(mysig[0], address)
         sig = b'HEveV6CMmOk5lFP+oDbw8cir/OkhJn4S767wt+YwhzHnEYcFOb/uC6rrVmTtG3M43mzfObA0Nn1n9CRcv5IGyak='
-        self.assertEqual(mysig[1], sig)
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
         msg = '  '
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        self.assertEqual(mysig[0], address)
         sig = b'G/QjF1V4fVI8IHX8ko0SIypmb0yxfaZLF0o56Cif9z8CX24n4petTxolH59pYVMvbTKQkGKpznSiPiQVn83eJF0='
-        self.assertEqual(mysig[1], sig)
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
         msg = 'test'
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        self.assertEqual(mysig[0], address)
         sig = b'HJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
-        self.assertEqual(mysig[1], sig)
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
         # sig is taken from Bitcoin Core
         # (Electrum does strip leading/trailing spaces)
         msg = ' test '
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        self.assertEqual(mysig[0], address)
         sig = b'HA59z13/HBhvMMJtNwT6K7vJByE40lQUdqEMYhX2tnZSD+IGQIoBGE+1IYGCHCyqHvTvyGeqJTUx5ywb4StuX0s='
-        self.assertEqual(mysig[1], sig)
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
         # sig is taken from Bitcoin Core
         # (Electrum does strip leading/trailing spaces)
         msg = 'test '
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        self.assertEqual(mysig[0], address)
         sig = b'HPp9l2w0LVYB4FYKBahs+k1/Oa08j+NTuzriDpPWnWQmfU0+UsJNLIPI8Q/gekrWPv6sDeYsFSG9VybUKDPGMuo='
-        self.assertEqual(mysig[1], sig)
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
         # sig is taken from Bitcoin Core
         # (Electrum does strip leading/trailing spaces)
         msg = ' test'
-        mysig = msgsign(msg, prvkey, compressed)
-        # auto-consistency check
-        self.assertTrue(verify(msg, mysig[0], mysig[1]))
-        self.assertEqual(mysig[0], address)
         sig = b'G1nGwD/kcMSmsYU6qihV2l2+Pa+7SPP9zyViZ59VER+QL9cJsIAtu1CuxfYDAVt3kgr4t3a/Es3PV82M6z0eQAo='
-        self.assertEqual(mysig[1], sig)
+        mysig = msgsign(msg, wif, address)
+        self.assertTrue(verify(msg, address, mysig))
+        self.assertEqual(mysig, sig)
 
-    def test_verifymsgsig_p2pkh(self):
+    def test_verify_p2pkh(self):
         msg = 'Hello, world!'
         address = '1FEz167JCVgBvhJBahpzmrsTNewhiwgWVG'
         sig = "G+WptuOvPCSswt/Ncm1upO4lPSCWbS2cpKariPmHvxX5eOJwgqmdEExMTKvaR0S3f1TXwggLn/m4CbI2jv0SCuM="
-        _verify(msg, address, sig)
         self.assertTrue(_verify(msg, address, sig))
 
         # https://github.com/stequald/bitcoin-sign-message
@@ -200,27 +169,34 @@ class TestSignMessage(unittest.TestCase):
         sig = ' H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As= '
         self.assertTrue(_verify(msg, address, sig))
 
-    def test_verifymsgsig_segwit(self):
+    def test_verify_p2wpkh(self):
         # p2wpkh bech32 address
+        msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
         address = 'bc1qz0knqc5dhlgvalc3z77898thhvqek6v6j0j5zj'
-        sig = 'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
-        msg = 'test'
-        #self.assertTrue(verify(msg, address, sig))
+        sig = ''
+        mysig = msgsign(msg, wif, address)
+        # auto-consistency check first
+        self.assertTrue(_verify(msg, address, mysig))
+        #self.assertEqual(mysig, sig)
 
-        # same prvkey as above, but regular p2pkh address
-        address = p2pkh_address_from_wif(wif)
-        self.assertTrue(_verify(msg, address, sig))
-
+    def test_verify_p2wsh(self):
         # p2wpkh-p2sh address
+        msg = 'test'
         wif = 'KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu'
         address = '34FTAdfxN1oDQnLWMokUhHZ263ocodbyen'
-        sig = 'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
-        msg = 'test'
-        #self.assertTrue(_verify(msg, address, sig))
+        sig = ''
+        mysig = msgsign(msg, wif, address)
+        # auto-consistency check first
+        self.assertTrue(_verify(msg, address, mysig))
+        #self.assertEqual(mysig, sig)
 
-        # same prvkey as above, but regular p2pkh address
+    def test_exceptions(self):
+
+        msg = 'test'
+        wif = 'KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu'
         address = p2pkh_address_from_wif(wif)
+        sig = 'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
         self.assertTrue(_verify(msg, address, sig))
 
         # short sig
