@@ -101,6 +101,10 @@ def _decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     if isinstance(v, str):
         v = v.encode("ascii")
 
+    if any(x not in __ALPHABET for x in v):
+        msg = "Base58 string contains invalid characters"
+        raise ValueError(msg)
+
     # preserve leading-0s
     # base58 leading-1s become leading-0s
     nPad = len(v)

@@ -94,16 +94,15 @@ def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
 
-    if (any(ord(x) < 33 or ord(x) > 126 for x in bech)):
-        msg = "Bech32 string contains "
-        msg += "ASCII characters outside printable set [33-126]"
+    if any(ord(x) < 48 or ord(x) > 122 for x in bech):
+        msg = "Bech32 string contains ASCII characters outside [48-122]"
         raise ValueError(msg)
     if bech.lower() != bech and bech.upper() != bech:
         raise ValueError("Mixed case bech32 string")
     bech = bech.lower()
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
-    # this should be enforced when working with addresses,
+    # but it should be enforced when working with addresses,
     # not here at bech32 level.
     # e.g. Lightning Network uses bech32 without such limitation
     # if len(bech) > 90:
