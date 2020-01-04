@@ -136,12 +136,14 @@ import base64
 from hashlib import sha256 as hf
 from typing import Tuple, Union, Optional
 
+from . import segwitaddress
+from . import base58
 from .curve import mult
 from .curves import secp256k1
-from .wifaddress import p2pkh_address, h160_from_address, prvkey_from_wif
+from .wifaddress import (p2pkh_address, h160_from_address, prvkey_from_wif,
+                         _P2PKH_PREFIXES, _P2SH_PREFIXES)
 from .dsa import sign, pubkey_recovery
 from .utils import octets_from_point, h160
-from .segwitaddress import decode
 
 # TODO: support msg as bytes
 # TODO: add small wallet (address <-> private key) infrastructure
@@ -170,7 +172,7 @@ def msgsign(msg: str, wif: Union[str, bytes], address: Optional[Union[str, bytes
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    prvkey, compressed, _ = prvkey_from_wif(wif)
+    prvkey, compressedwif, _ = prvkey_from_wif(wif)
     sig = sign(secp256k1, hf, magic_msg, prvkey)
 
     # [r][s]
@@ -184,30 +186,47 @@ def msgsign(msg: str, wif: Union[str, bytes], address: Optional[Union[str, bytes
     if address is None:
         # assume p2pkh address
         rf += 27
-        rf += 4 if compressed else 0
+        rf += 4 if compressedwif else 0
         # [rf][r][s]
         return base64.b64encode(bytes([rf]) + bytes_sig)
 
-    # determine the type of address
+    # the following is only for BIP137
+    #
+    # redundant at best for P2PKH, it can only throw in case of 
+    # compression mismatch between wif and adress
+
+    # 1 determine the type of address
+    # 2 verify that it corresponds to the given private key
+    # 3 compute rf according to BIP137
     try:
         hash160 = h160_from_address(address)
         base58 = True
     except Exception:
-        _, wv, wp = decode(address)
+        _, wv, wp = segwitaddress.decode(address)
         if wv != 0:
             raise ValueError(f"Invalid witness version: {wv}")
         base58 = False
 
     pk = octets_from_point(secp256k1, pubkey, True)
     if base58:
-        if hash160 == h160(pk):
-            rf += 31  # p2pkh (compressed key)
+        if hash160 == h160(pk):  # p2pkh (compressed key)
+            if compressedwif:
+                rf += 31
+            else:
+                msg = "Pubkey mismatch: "
+                msg += "uncompressed wif, compressed address"
+                raise ValueError(msg)
         elif hash160 == h160(b'\x00\x14' + h160(pk)):
             rf += 35  # p2wpkh-p2sh
         else:  # try with uncompressed key
             pk = octets_from_point(secp256k1, pubkey, False)
             if hash160 == h160(pk):
-                rf += 27  # p2pkh (uncompressed key)
+                if compressedwif:
+                    msg = "Pubkey mismatch: "
+                    msg += "compressed wif, uncompressed address"
+                    raise ValueError(msg)
+                else:
+                    rf += 27  # p2pkh (uncompressed key)
             else:
                 raise ValueError("Mismatch between address and key pair")
     else:
@@ -238,35 +257,48 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     if len(sig) != 65:
         raise ValueError(f"Wrong encoding length: {len(sig)} instead of 65")
 
+    # signature is valid only if the provided address is matched
+
+    # first: calculate hash160 from address
+    try:
+        if isinstance(addr, str):
+            addr = addr.strip()
+        payload = base58.decode(addr, 21)
+        if payload[0:1] in _P2PKH_PREFIXES:
+            is_p2wpkh_p2sh = False
+        elif payload[0:1] in _P2SH_PREFIXES:
+            is_p2wpkh_p2sh = True
+        else:
+            raise ValueError("Invalid base58 address prefix")
+        hash160 = payload[1:]
+    except:
+        _, wv, wp = segwitaddress.decode(addr)
+        if wv != 0:
+            raise ValueError(f"Invalid witness version: {wv}")
+        hash160 = bytes(wp)
+        is_p2wpkh_p2sh = False
+
+    # second: recover pubkey from sig
+    rf = sig[0]
+    compressed = True
+    if rf < 27:
+        raise ValueError(f"Invalid recovery flag: {rf}")
+    elif rf < 31:
+        compressed = False
+    elif rf > 42:
+        raise ValueError(f"Invalid recovery flag: {rf}")
+
     r = int.from_bytes(sig[1:33], 'big')
     s = int.from_bytes(sig[33:], 'big')
     magic_msg = _magic_hash(msg)
     pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, (r, s))
+    i = rf + 1 & 3  # the right pubkey for both BIP137 and Electrum
+    pubkey = pubkeys[i]
+    pk = octets_from_point(secp256k1, pubkey, compressed)
 
-    # signature is valid only if the provided address is matched
-    rf = sig[0]
-    if rf < 27:
-        raise ValueError(f"Invalid recovery flag: {rf}")
-    elif rf < 31:  # uncompressed key
-        i = rf - 27
-        pk = octets_from_point(secp256k1, pubkeys[i], False)
-        return h160(pk) == h160_from_address(addr)
-    elif rf < 35:  # P2PKH
-        i = rf - 31
-        pk = octets_from_point(secp256k1, pubkeys[i], True)
-        return h160(pk) == h160_from_address(addr)
-    elif rf < 39:  # legacy P2WPKH-P2SH
-        i = rf - 35
-        pk = octets_from_point(secp256k1, pubkeys[i], True)
+    if is_p2wpkh_p2sh:
         # scriptPubkey is 0x0014{20-byte key-hash}
         scriptPubkey = b'\x00\x14' + h160(pk)
-        return h160(scriptPubkey) == h160_from_address(addr)
-    elif rf < 43:  # native P2WPKH
-        _, wv, wp = decode(addr)
-        if wv != 0:
-            raise ValueError(f"Invalid witness version: {wv}")
-        i = rf - 39
-        pk = octets_from_point(secp256k1, pubkeys[i], True)
-        return h160(pk) == bytes(wp)
-    else:
-        raise ValueError(f"Invalid recovery flag: {rf}")
+        return h160(scriptPubkey) == hash160
+    
+    return h160(pk) == hash160
