@@ -46,7 +46,7 @@ import unittest
 from btclib.curves import secp256k1 as ec
 from btclib.script import serialize
 from btclib.segwitaddress import (
-    _decode, _encode, _scriptpubkey,
+    _decode, _encode, _scriptpubkey, h160_from_p2wpkh_address,
     p2wpkh_address, p2wpkh_p2sh_address, p2wsh_address, p2wsh_p2sh_address)
 from btclib.utils import h160, octets_from_point, point_from_octets, _sha256
 
@@ -192,6 +192,29 @@ class TestSegwitAddress(unittest.TestCase):
         wrong_size_pub = pub + '00'
         self.assertRaises(ValueError, p2wpkh_address, wrong_size_pub)
         # p2wpkh_address(wrong_size_pub)
+
+    def test_h160_from_p2wphk(self):
+        pass
+        network = "testnet"
+        wv = 0
+        wp = 20 * b'\x05'
+        addr = _encode(wv, wp, network)
+        h160_from_p2wpkh_address(addr, network)
+
+        # Invalid witness version: 1
+        addr = _encode(1, wp, network)
+        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr, network)
+        # h160_from_p2wpkh_address(addr, network)
+
+        # witness program length (21) is not 20 or 32
+        addr = 'tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef'
+        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr, network)
+        # h160_from_p2wpkh_address(addr, network)
+
+        # is a SegWit address for 'mainnet', not 'testnet'
+        addr = _encode(wv, wp, 'mainnet')
+        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr, network)
+        # h160_from_p2wpkh_address(addr, network)
 
     def test_p2wsh_p2sh_address(self):
 

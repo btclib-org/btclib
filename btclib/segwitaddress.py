@@ -113,7 +113,7 @@ def _scriptpubkey(witvers: int, witprog: WitnessProgram) -> bytes:
 
 
 def _decode(address: Union[str, bytes],
-           network: str = 'mainnet') -> Tuple[str, int, List[int]]:
+            network: str = 'mainnet') -> Tuple[str, int, List[int]]:
     """Decode a SegWit address."""
 
     if isinstance(address, str):
@@ -180,21 +180,13 @@ def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
 def h160_from_p2wpkh_address(address: Union[str, bytes],
                              network: str = 'mainnet') -> bytes:
 
-    hrp, wv, wp = _decode(address)
+    _, wv, wp = _decode(address, network)
     if wv != 0:
         raise ValueError(f"Invalid witness version: {wv}")
     if len(wp) != 20:
         msg = f"Invalid p2wpkh address: witness program length is {len(wp)}"
         raise ValueError(msg)
 
-    # check that it is a p2wpkh address for a known network
-    i = _P2W_PREFIXES.index(hrp)
-
-    # check that it is a p2wpkh address for the given network
-    if _NETWORKS[i] != network:
-        msg = f"{address} is a p2wpkh address for '{_NETWORKS[i]}', "
-        msg += f"not '{network}'"
-        raise ValueError(msg)
     return bytes(wp)
 
 def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
