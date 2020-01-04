@@ -171,9 +171,31 @@ def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
 
     if native:
         return _encode(witvers, witprog, network)
-    script_pubkey = _scriptpubkey(witvers, witprog)
+    # script_pubkey = _scriptpubkey(witvers, witprog)
+    # scriptPubkey is 0x0014{20-byte key-hash}
+    script_pubkey = b'\x00\x14' + witprog
     return p2sh_address(script_pubkey, network)
 
+
+def h160_from_p2wpkh_address(address: Union[str, bytes],
+                             network: str = 'mainnet') -> bytes:
+
+    hrp, wv, wp = _decode(address)
+    if wv != 0:
+        raise ValueError(f"Invalid witness version: {wv}")
+    if len(wp) != 20:
+        msg = f"Invalid p2wpkh address: witness program length is {len(wp)}"
+        raise ValueError(msg)
+
+    # check that it is a p2wpkh address for a known network
+    i = _P2W_PREFIXES.index(hrp)
+
+    # check that it is a p2wpkh address for the given network
+    if _NETWORKS[i] != network:
+        msg = f"{address} is a p2wpkh address for '{_NETWORKS[i]}', "
+        msg += f"not '{network}'"
+        raise ValueError(msg)
+    return bytes(wp)
 
 def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh native SegWit address."""

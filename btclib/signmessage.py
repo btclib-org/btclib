@@ -141,6 +141,7 @@ from . import base58
 from .curve import mult
 from .curves import secp256k1
 from .address import _h160_from_address, _P2PKH_PREFIXES, _P2SH_PREFIXES
+from .segwitaddress import h160_from_p2wpkh_address
 from .wif import prvkey_from_wif
 from .dsa import sign, pubkey_recovery
 from .utils import octets_from_point, h160
@@ -206,18 +207,15 @@ def msgsign(msg: str, wif: Union[str, bytes],
         if prefix in _P2SH_PREFIXES:
             is_p2wpkh_p2sh = True
     except Exception:
-        _, wv, wp = segwitaddress._decode(addr)
-        if wv != 0:
-            raise ValueError(f"Invalid witness version: {wv}")
-        hash160 = bytes(wp)
+        hash160 = h160_from_p2wpkh_address(addr)
         is_p2wpkh = True
         is_p2wpkh_p2sh = False
 
     pk = octets_from_point(secp256k1, pubkey, True)
     if is_p2wpkh_p2sh:
-        # scriptPubkey is 0x0014{20-byte key-hash}
-        scriptPubkey = b'\x00\x14' + h160(pk)
-        if h160(scriptPubkey) == hash160:
+        # script_pubkey is 0x0014{20-byte key-hash}
+        script_pubkey = b'\x00\x14' + h160(pk)
+        if h160(script_pubkey) == hash160:
             rf += 35  # p2wpkh-p2sh
         else:
             raise ValueError("Mismatch between p2wpkh_p2sh address and key pair")
@@ -278,10 +276,7 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
         if prefix in _P2SH_PREFIXES:
             is_p2wpkh_p2sh = True
     except Exception:
-        _, wv, wp = segwitaddress._decode(addr)
-        if wv != 0:
-            raise ValueError(f"Invalid witness version: {wv}")
-        hash160 = bytes(wp)
+        hash160 = h160_from_p2wpkh_address(addr)
         is_p2wpkh_p2sh = False
 
     # second: recover pubkey from sig
@@ -303,8 +298,8 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     pk = octets_from_point(secp256k1, pubkey, compressed)
 
     if is_p2wpkh_p2sh:
-        # scriptPubkey is 0x0014{20-byte key-hash}
-        scriptPubkey = b'\x00\x14' + h160(pk)
-        return h160(scriptPubkey) == hash160
+        # script_pubkey is 0x0014{20-byte key-hash}
+        script_pubkey = b'\x00\x14' + h160(pk)
+        return h160(script_pubkey) == hash160
     
     return h160(pk) == hash160
