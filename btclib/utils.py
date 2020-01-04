@@ -38,10 +38,10 @@ def point_from_octets(ec: Curve, o: Octets) -> Point:
         o = bytes.fromhex(o)
 
     bsize = len(o)  # bytes
-    if bsize == 1 and o[0] == 0x00:     # infinity point
+    if bsize == 1 and o[0] == 0x00:      # infinity point
         return Point()
 
-    if bsize == ec.psize+1:             # compressed point
+    if bsize == ec.psize+1:              # compressed point
         if o[0] not in (0x02, 0x03):
             m = f"{ec.psize+1} bytes, but not a compressed point"
             raise ValueError(m)
@@ -51,7 +51,7 @@ def point_from_octets(ec: Curve, o: Octets) -> Point:
             return Point(Px, Py)
         except:
             raise ValueError("point not on curve")
-    else:                               # uncompressed point
+    else:                                # uncompressed point
         if bsize != 2*ec.psize+1:
             m = f"wrong byte-size ({bsize}) for a point: it "
             m += f"should have be {ec.psize+1} or {2*ec.psize+1}"
