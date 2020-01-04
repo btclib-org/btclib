@@ -247,9 +247,14 @@ class TestSignMessage(unittest.TestCase):
 
         msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
+        p2pkh_address = p2pkh_address_from_wif(wif)
         p2wpkh_address = p2wpkh_address_from_wif(wif)
         p2wpkh_p2sh_address = p2wpkh_p2sh_address_from_wif(wif)
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
+        # Mismatch between p2pkh address and key pair
+        self.assertRaises(ValueError, msgsign, msg, wif, p2pkh_address)
+        msgsign(msg, wif, p2pkh_address)
+
         # Mismatch between p2wpkh address and key pair
         self.assertRaises(ValueError, msgsign, msg, wif, p2wpkh_address)
         # msgsign(msg, wif, p2wpkh_address)

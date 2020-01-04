@@ -10,10 +10,12 @@
 
 import unittest
 
+from btclib import base58
 from btclib.curves import secp256k1 as ec
 from btclib.utils import point_from_octets, octets_from_point, h160
 from btclib.address import (p2pkh_address, h160_from_p2pkh_address,
-                            p2sh_address, h160_from_p2sh_address)
+                            p2sh_address, h160_from_p2sh_address,
+                            _h160_from_address)
 from btclib.script import serialize
 
 
@@ -73,6 +75,16 @@ class TestAddresses(unittest.TestCase):
         # p2sh address for a network other than 'testnet'
         self.assertRaises(ValueError, h160_from_p2sh_address, addr, 'testnet')
         # h160_from_p2sh_address(addr, 'testnet')
+
+    def test_exceptions(self):
+
+        # Invalid base58 address prefix b'\xf5'
+        payload = b'\xf5'
+        pubkey = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
+        payload += h160(pubkey)
+        invalid_address = base58.encode(payload)
+        _h160_from_address(invalid_address)
+
 
 if __name__ == "__main__":
     # execute only if run as a script
