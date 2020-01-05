@@ -17,13 +17,14 @@ https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki.
 
 import heapq
 import random
-from typing import Tuple, List, Sequence, Optional
+from typing import List, Optional, Sequence, Tuple
 
-from .numbertheory import mod_inv, legendre_symbol
-from .curve import Point, Curve, mult, _mult_jac, double_mult, _double_mult, \
-    _jac_from_aff, _multi_mult, _JacPoint
-from .utils import int_from_bits, octets_from_point, octets_from_int, HashF
+from .curve import Curve, Point, _JacPoint
+from .curvemult import (_double_mult, _jac_from_aff, _mult_jac,
+                        _multi_mult, double_mult, mult)
+from .numbertheory import legendre_symbol, mod_inv
 from .rfc6979 import rfc6979
+from .utils import HashF, int_from_bits, octets_from_int, octets_from_point
 
 ECSS = Tuple[int, int]  # Tuple[field element, scalar]
 

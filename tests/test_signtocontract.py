@@ -11,7 +11,7 @@
 import unittest
 from hashlib import sha256 as hf
 
-from btclib.curve import mult
+from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
 from btclib import dsa
 from btclib import ssa

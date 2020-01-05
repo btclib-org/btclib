@@ -12,7 +12,7 @@ from typing import Tuple, Union
 
 from . import base58
 
-from .curve import mult
+from .curvemult import mult
 from .curves import secp256k1
 from .utils import (Octets, int_from_octets, octets_from_int,
                     octets_from_point)

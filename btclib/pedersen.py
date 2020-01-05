@@ -30,9 +30,9 @@ It is crucial for H to be Nothing-Up-My-Sleeve (NUMS), i.e.
 the discrete logarithm of H with respect to G must be unknown.
 """
 
-from .utils import int_from_octets, octets_from_point, \
-    int_from_bits, HashF
-from .curve import Point, Curve, double_mult
+from .curve import Curve, Point
+from .curvemult import double_mult
+from .utils import HashF, int_from_bits, int_from_octets, octets_from_point
 
 
 def second_generator(ec: Curve, hf: HashF) -> Point:

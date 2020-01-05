@@ -11,7 +11,7 @@
 import unittest
 from hashlib import sha256, sha384
 
-from btclib.curve import mult, double_mult
+from btclib.curvemult import mult, double_mult
 from btclib.curves import secp256k1, secp256r1, secp384r1
 from btclib.utils import point_from_octets
 from btclib import pedersen

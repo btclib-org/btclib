@@ -22,7 +22,8 @@ function to use.
 from typing import Callable, Any
 
 from .utils import octets_from_int, int_from_octets, HashF
-from .curve import Curve, Point, mult
+from .curve import Curve, Point
+from .curvemult import mult
 
 KDF = Callable[[Curve, HashF, bytes, int], Any]
 

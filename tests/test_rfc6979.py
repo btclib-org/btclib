@@ -11,13 +11,12 @@
 import unittest
 from hashlib import sha1, sha224, sha256, sha384, sha512
 
-from btclib.curves import secp256k1, \
-    nistp192, nistp224, nistp256, nistp384, nistp521
-from btclib.rfc6979 import rfc6979
-
-from btclib.curve import mult
 from btclib import dsa
-from btclib.utils import int_from_bits, octets_from_int, _int_from_bits
+from btclib.curvemult import mult
+from btclib.curves import (nistp192, nistp224, nistp256, nistp384, nistp521,
+                           secp256k1)
+from btclib.rfc6979 import rfc6979
+from btclib.utils import _int_from_bits, int_from_bits, octets_from_int
 
 
 class Testrfc6979(unittest.TestCase):

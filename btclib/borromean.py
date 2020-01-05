@@ -13,7 +13,8 @@ from hashlib import sha256
 from typing import Sequence, Tuple, List, Dict
 from collections import defaultdict
 
-from .curve import Point, mult, double_mult
+from .curve import Point
+from .curvemult import mult, double_mult
 from .curves import secp256k1
 from .utils import int_from_bits, octets_from_point, point_from_octets
 

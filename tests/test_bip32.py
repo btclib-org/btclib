@@ -14,7 +14,7 @@ import json
 
 from btclib import base58
 from btclib import bip32, bip39
-from btclib.curve import mult
+from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import int_from_octets
 

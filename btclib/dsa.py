@@ -21,7 +21,8 @@ from typing import Tuple, List, Optional
 
 from .numbertheory import mod_inv
 from .utils import int_from_bits, HashF
-from .curve import Point, Curve, _mult_jac, _double_mult, double_mult
+from .curve import Curve, Point
+from .curvemult import _mult_jac, _double_mult, double_mult
 from .rfc6979 import _rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]

@@ -138,7 +138,7 @@ from typing import Tuple, Union, Optional
 
 from . import segwitaddress
 from . import base58
-from .curve import mult
+from .curvemult import mult
 from .curves import secp256k1
 from .address import _h160_from_address, _P2PKH_PREFIXES, _P2SH_PREFIXES
 from .segwitaddress import h160_from_p2wpkh_address

@@ -28,7 +28,7 @@ from hashlib import sha512
 from typing import Union, Optional, Sequence, List, Tuple
 
 from . import base58
-from .curve import mult
+from .curvemult import mult
 from .curves import secp256k1 as ec
 from .utils import Octets, point_from_octets, octets_from_point, \
     int_from_octets, h160

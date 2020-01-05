@@ -35,7 +35,8 @@ with e = hash(R||c)) and W.x being known from the signature.
 
 from typing import Optional, Tuple
 
-from .curve import Curve, mult, Point
+from .curve import Curve, Point
+from .curvemult import mult
 from .utils import int_from_bits, point_from_octets, octets_from_point, HashF
 from .rfc6979 import rfc6979
 from . import dsa
