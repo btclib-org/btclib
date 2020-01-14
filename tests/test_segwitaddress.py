@@ -184,7 +184,7 @@ class TestSegwitAddress(unittest.TestCase):
         # _decode(addr, 'testnet')
 
         # Uncompressed pubkey
-        uncompr_pub = octets_from_point(ec, point_from_octets(ec, pub), False)
+        uncompr_pub = octets_from_point(point_from_octets(pub, ec), False, ec)
         self.assertRaises(ValueError, p2wpkh_address, uncompr_pub)
         # p2wpkh_address(uncompr_pub)
 

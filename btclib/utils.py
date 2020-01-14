@@ -19,14 +19,17 @@ from typing import Union, Callable, Any
 import hashlib
 
 from .curve import Curve, Point
+from .curves import secp256k1
 
-HashF = Callable[[Any], Any]
+# the digest constructor: it may be any name suitable to hashlib.new()
+HashF = Callable[[], Any]
+# HashF = Callable[[Any], Any]
 
 # bytes or hex-string (not string)
 Octets = Union[bytes, str]
 
 
-def point_from_octets(ec: Curve, o: Octets) -> Point:
+def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:
     """Return a tuple (Px, Py) that belongs to the curve.
 
     Return a tuple (Px, Py) that belongs to the curve according to
@@ -66,7 +69,7 @@ def point_from_octets(ec: Curve, o: Octets) -> Point:
             raise ValueError("point not on curve")
 
 
-def octets_from_point(ec: Curve, Q: Point, compressed: bool) -> bytes:
+def octets_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> bytes:
     """Return a point as compressed/uncompressed octet sequence.
 
     Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
@@ -108,7 +111,7 @@ def octets_from_int(i: int, bytesize: int) -> bytes:
     return i.to_bytes(bytesize, 'big')
 
 
-def int_from_bits(ec: Curve, o: Octets) -> int:
+def int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
     """Return the leftmost nlen bits reduced modulo n.
 
     Take as input a sequence of blen bits and calculate a
@@ -127,11 +130,11 @@ def int_from_bits(ec: Curve, o: Octets) -> int:
     nlen is a multiple of 8 and bit sequences already have length nlen.
     See https://tools.ietf.org/html/rfc6979#section-2.3.5.
     """
-    i = _int_from_bits(ec, o)
+    i = _int_from_bits(o, ec)
     return i % ec.n  # might be implemented as difference
 
 
-def _int_from_bits(ec: Curve, o: Octets) -> int:
+def _int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
     """Return the leftmost nlen bits.
 
     Take as input a sequence of blen bits and calculate a

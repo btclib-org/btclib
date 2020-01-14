@@ -117,12 +117,12 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(Gy_even % 2, 0)
             self.assertTrue(ec.G[1] in (Gy_odd, Gy_even))
 
-            Gbytes = octets_from_point(ec, ec.G, True)
-            G2 = point_from_octets(ec, Gbytes)
+            Gbytes = octets_from_point(ec.G, True, ec)
+            G2 = point_from_octets(Gbytes, ec)
             self.assertEqual(ec.G, G2)
 
-            Gbytes = octets_from_point(ec, ec.G, False)
-            G2 = point_from_octets(ec, Gbytes)
+            Gbytes = octets_from_point(ec.G, False, ec)
+            G2 = point_from_octets(Gbytes, ec)
             self.assertEqual(ec.G, G2)
 
             P = ec.add(Inf, ec.G)
@@ -155,30 +155,30 @@ class TestEllipticCurve(unittest.TestCase):
 
             Q_bytes = b'\x03' if Q[1] & 1 else b'\x02'
             Q_bytes += Q[0].to_bytes(ec.psize, "big")
-            R = point_from_octets(ec, Q_bytes)
+            R = point_from_octets(Q_bytes, ec)
             self.assertEqual(R, Q)
-            self.assertEqual(octets_from_point(ec, R, True), Q_bytes)
+            self.assertEqual(octets_from_point(R, True, ec), Q_bytes)
 
             Q_hex_str = Q_bytes.hex()
-            R = point_from_octets(ec, Q_hex_str)
+            R = point_from_octets(Q_hex_str, ec)
             self.assertEqual(R, Q)
 
             Q_bytes = b'\x04' + Q[0].to_bytes(ec.psize, "big")
             Q_bytes += Q[1].to_bytes(ec.psize, "big")
-            R = point_from_octets(ec, Q_bytes)
+            R = point_from_octets(Q_bytes, ec)
             self.assertEqual(R, Q)
-            self.assertEqual(octets_from_point(ec, R, False), Q_bytes)
+            self.assertEqual(octets_from_point(R, False, ec), Q_bytes)
 
             Q_hex_str = Q_bytes.hex()
-            R = point_from_octets(ec, Q_hex_str)
+            R = point_from_octets(Q_hex_str, ec)
             self.assertEqual(R, Q)
 
             # infinity point
-            self.assertEqual(point_from_octets(ec, b'\x00'), Inf)
-            self.assertEqual(octets_from_point(ec, Inf, True),  b'\x00')
-            self.assertEqual(octets_from_point(ec, Inf, False), b'\x00')
+            self.assertEqual(point_from_octets(b'\x00', ec), Inf)
+            self.assertEqual(octets_from_point(Inf, True, ec),  b'\x00')
+            self.assertEqual(octets_from_point(Inf, False, ec), b'\x00')
             Inf_hex_str = b'\x00'.hex()
-            self.assertEqual(point_from_octets(ec, Inf_hex_str), Inf)
+            self.assertEqual(point_from_octets(Inf_hex_str, ec), Inf)
 
             # scalar in point multiplication can be int, str, or bytes
             t = tuple()
@@ -186,23 +186,22 @@ class TestEllipticCurve(unittest.TestCase):
 
             # not a compressed point
             Q_bytes = b'\x01' * (ec.psize+1)
-            self.assertRaises(ValueError, point_from_octets, ec, Q_bytes)
+            self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
             # not a point
             Q_bytes += b'\x01'
-            self.assertRaises(ValueError, point_from_octets, ec, Q_bytes)
+            self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
             # not an uncompressed point
             Q_bytes = b'\x01' * 2 * (ec.psize+1)
-            self.assertRaises(ValueError, point_from_octets, ec, Q_bytes)
+            self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
 
         # invalid x coordinate
         ec = secp256k1
         x = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
         xstr = format(x, '32X')
-        self.assertRaises(ValueError, point_from_octets, ec, "03" + xstr)
-        self.assertRaises(ValueError, point_from_octets,
-                          ec, "04" + xstr + xstr)
-        self.assertRaises(ValueError, octets_from_point, ec, (x, x), True)
-        self.assertRaises(ValueError, octets_from_point, ec, (x, x), False)
+        self.assertRaises(ValueError, point_from_octets, "03" + xstr, ec)
+        self.assertRaises(ValueError, point_from_octets, "04" + 2*xstr, ec)
+        self.assertRaises(ValueError, octets_from_point, (x, x), True, ec)
+        self.assertRaises(ValueError, octets_from_point, (x, x), False, ec)
 
         # Point must be a tuple[int, int]
         P = x, x, x

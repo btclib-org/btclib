@@ -99,8 +99,8 @@ def _pubkey_from_wif(wif: Union[str, bytes]) -> Tuple[bytes, str]:
     prv, compressed, network = prvkey_from_wif(wif)
     network_index = _NETWORKS.index(network)
     ec = _CURVES[network_index]
-    Pub = mult(ec, prv)
-    o = octets_from_point(ec, Pub, compressed)
+    Pub = mult(prv, ec.G, ec)
+    o = octets_from_point(Pub, compressed, ec)
     return o, network
 
 
@@ -117,8 +117,8 @@ def p2pkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
     prv, compressed, network = prvkey_from_wif(wif)
     network_index = _NETWORKS.index(network)
     ec = _CURVES[network_index]
-    Pub = mult(ec, prv)
-    o = octets_from_point(ec, Pub, compressed)
+    Pub = mult(prv, ec.G, ec)
+    o = octets_from_point(Pub, compressed, ec)
     return p2pkh_address(o, network)
 
 

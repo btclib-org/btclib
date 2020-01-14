@@ -125,11 +125,11 @@ def xkey_parse(xkey: Octets) -> Tuple:
     if version in _PRV_VERSIONS:
         if key[0] != 0:
             raise ValueError("extended key: (prvversion/pubkey) mismatch")
-        Point = mult(ec, int_from_octets(key))
+        Point = mult(int_from_octets(key))
     elif version in _PUB_VERSIONS:
         if key[0] not in (2, 3):
             raise ValueError("extended key: (pubversion/prvkey) mismatch")
-        Point = point_from_octets(ec, key)
+        Point = point_from_octets(key, ec)
     else:
         raise ValueError("extended key: unknown version")
 
@@ -166,7 +166,7 @@ def child_index(xkey: Octets) -> bytes:
 def fingerprint(xkey: Octets) -> bytes:
     _, _, _, _, _, key, Point = xkey_parse(xkey)
     if key[0] == 0:
-        key = octets_from_point(ec, Point, True)
+        key = octets_from_point(Point, True, ec)
     return h160(key)[:4]
 
 
@@ -214,7 +214,7 @@ def xpub_from_xprv(xprv: Octets) -> bytes:
     xpub += f                                     # parent pubkey fingerprint
     xpub += i                                     # child index
     xpub += c                                     # chain code
-    xpub += octets_from_point(ec, P, True)        # public key
+    xpub += octets_from_point(P, True, ec)        # public key
     return base58.encode(xpub)
 
 
@@ -243,7 +243,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     xkey += (depth + 1).to_bytes(1, 'big')  # child depth, fail if depth=255
 
     if bytes_key[0] == 0:                   # parent is a prvkey
-        Parent_bytes = octets_from_point(ec, Point, True)
+        Parent_bytes = octets_from_point(Point, True, ec)
     else:                                   # parent is a pubkey
         Parent_bytes = bytes_key
         if index[0] >= 0x80:                # hardened derivation
@@ -265,9 +265,9 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         h = HMAC(chain_code, bytes_key + index, sha512).digest()
         xkey += h[32:]                               # child chain code
         offset = int.from_bytes(h[:32], 'big')
-        Offset = mult(ec, offset)
+        Offset = mult(offset)
         Child = ec.add(Point, Offset)
-        xkey += octets_from_point(ec, Child, True)   # child public key
+        xkey += octets_from_point(Child, True, ec)   # child public key
 
     return base58.encode(xkey)
 

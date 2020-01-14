@@ -18,18 +18,20 @@
 """
 
 from typing import Tuple, List, Optional
+from hashlib import sha256
 
 from .numbertheory import mod_inv
 from .utils import int_from_bits, HashF
 from .curve import Curve, Point
+from .curves import secp256k1
 from .curvemult import _mult_jac, _double_mult, double_mult
 from .rfc6979 import _rfc6979
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
-def sign(ec: Curve, hf: HashF, m: bytes, q: int,
-         k: Optional[int] = None) -> ECDS:
+def sign(m: bytes, q: int, k: Optional[int] = None,
+         ec: Curve = secp256k1, hf: HashF = sha256) -> ECDS:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
     The message m is first processed by hf, yielding the value
@@ -51,7 +53,7 @@ def sign(ec: Curve, hf: HashF, m: bytes, q: int,
 
     mhd = hf(m).digest()                          # 4
     # mhd is transformed into an integer modulo ec.n using int_from_bits:
-    c = int_from_bits(ec, mhd)                    # 5
+    c = int_from_bits(mhd, ec)                    # 5
 
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
@@ -59,21 +61,21 @@ def sign(ec: Curve, hf: HashF, m: bytes, q: int,
         raise ValueError(f"private key {hex(q)} not in [1, n-1]")
 
     if k is None:
-        k = _rfc6979(ec, hf, c, q)                # 1
+        k = _rfc6979(c, q, ec, hf)                # 1
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in [1, n-1]")
 
     # second part delegated to helper function
-    return _sign(ec, c, q, k)
+    return _sign(c, q, k, ec)
 
 
-def _sign(ec: Curve, c: int, q: int, k: int) -> ECDS:
+def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> ECDS:
     # Private function for test/dev purposes
     # it is assumed that q, k, and c are in [1, n-1]
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
-    RJ = _mult_jac(ec, k, ec.GJ)                  # 1
+    RJ = _mult_jac(k, ec.GJ, ec)                  # 1
 
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     r = Rx % ec.n                                 # 2, 3
@@ -93,34 +95,36 @@ def _sign(ec: Curve, c: int, q: int, k: int) -> ECDS:
     return r, s
 
 
-def verify(ec: Curve, hf: HashF, m: bytes, P: Point, sig: ECDS) -> bool:
+def verify(m: bytes, P: Point, sig: ECDS,
+           ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(ec, hf, m, P, sig)
+        return _verify(m, P, sig, ec, hf)
     except Exception:
         return False
 
 
-def _verify(ec: Curve, hf: HashF, m: bytes, P: Point, sig: ECDS) -> bool:
+def _verify(m: bytes, P: Point, sig: ECDS,
+            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     # The message digest mhd: a 32-byte array
     mhd = hf(m).digest()                                 # 2
-    c = int_from_bits(ec, mhd)                           # 3
+    c = int_from_bits(mhd, ec)                           # 3
 
     # second part delegated to helper function
-    return _verhlp(ec, c, P, sig)
+    return _verhlp(c, P, sig, ec)
 
 
-def _verhlp(ec: Curve, c: int, P: Point, sig: ECDS) -> bool:
+def _verhlp(c: int, P: Point, sig: ECDS, ec: Curve = secp256k1) -> bool:
     # Private function for test/dev purposes
 
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = _to_sig(ec, sig)                              # 1
+    r, s = _to_sig(sig, ec)                              # 1
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.require_on_curve(P)
@@ -131,7 +135,7 @@ def _verhlp(ec: Curve, c: int, P: Point, sig: ECDS) -> bool:
     u = c*w
     v = r*w                                              # 4
     # Let R = u*G + v*P.
-    RJ = _double_mult(ec, v, (P[0], P[1], 1), u, ec.GJ)  # 5
+    RJ = _double_mult(v, (P[0], P[1], 1), u, ec.GJ, ec)  # 5
 
     # Fail if infinite(R).
     assert RJ[2] != 0, "how did you do that?!?"          # 5
@@ -142,7 +146,8 @@ def _verhlp(ec: Curve, c: int, P: Point, sig: ECDS) -> bool:
     return r == x                                        # 8
 
 
-def pubkey_recovery(ec: Curve, hf: HashF, m: bytes, sig: ECDS) -> List[Point]:
+def pubkey_recovery(m: bytes, sig: ECDS,
+                    ec: Curve = secp256k1, hf: HashF = sha256) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106    
@@ -150,15 +155,16 @@ def pubkey_recovery(ec: Curve, hf: HashF, m: bytes, sig: ECDS) -> List[Point]:
 
     # The message digest mhd: a 32-byte array
     mhd = hf(m).digest()                                  # 1.5
-    c = int_from_bits(ec, mhd)                            # 1.5
+    c = int_from_bits(mhd, ec)                            # 1.5
 
-    return _pubkey_recovery(ec, c, sig)
+    return _pubkey_recovery(c, sig, ec)
 
 
-def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> List[Point]:
+def _pubkey_recovery(c: int, sig: ECDS, ec: Curve = secp256k1) -> List[Point]:
     # Private function provided for testing purposes only.
+    # TODO: use _double_mult instead of double_mult
 
-    r, s = _to_sig(ec, sig)
+    r, s = _to_sig(sig, ec)
 
     # precomputations
     r1 = mod_inv(r, ec.n)
@@ -171,19 +177,19 @@ def _pubkey_recovery(ec: Curve, c: int, sig: ECDS) -> List[Point]:
             # even root first for bitcoin message signing compatibility
             R = Point(x, ec.y_odd(x, 0))                  # 1.2, 1.3, and 1.4
             # skip 1.5: in this function, c is an input
-            Q = double_mult(ec, r1s, R, r1e)              # 1.6.1
-            if Q[1] != 0 and _verhlp(ec, c, Q, sig):      # 1.6.2
+            Q = double_mult(r1s, R, r1e, ec.G, ec)        # 1.6.1
+            if Q[1] != 0 and _verhlp(c, Q, sig, ec):      # 1.6.2
                 keys.append(Q)
             R = ec.opposite(R)                            # 1.6.3
-            Q = double_mult(ec, r1s, R, r1e)
-            if Q[1] != 0 and _verhlp(ec, c, Q, sig):      # 1.6.2
+            Q = double_mult(r1s, R, r1e, ec.G, ec)
+            if Q[1] != 0 and _verhlp(c, Q, sig, ec):      # 1.6.2
                 keys.append(Q)                            # 1.6.2
         except Exception:  # R is not a curve point
             pass
     return keys
 
 
-def _to_sig(ec: Curve, sig: ECDS) -> ECDS:
+def _to_sig(sig: ECDS, ec: Curve = secp256k1) -> ECDS:
     # check that the DSA signature is correct
     # and return the signature itself
 

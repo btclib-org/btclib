@@ -133,13 +133,13 @@ https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
 """
 
 import base64
-from hashlib import sha256 as hf
+from hashlib import sha256
 from typing import Tuple, Union, Optional
 
 from . import segwitaddress
 from . import base58
 from .curvemult import mult
-from .curves import secp256k1
+from .curves import secp256k1  # TODO: remove this import
 from .address import _h160_from_address, _P2PKH_PREFIXES, _P2SH_PREFIXES
 from .segwitaddress import h160_from_p2wpkh_address
 from .wif import prvkey_from_wif
@@ -158,12 +158,9 @@ def _magic_hash(msg: str) -> bytes:
     # Electrum does strip leading and trailing spaces;
     # bitcoin core does not
     # msg = msg.strip()
-    m = hf()
-    prefix = b'\x18Bitcoin Signed Message:\n'
-    m.update(prefix)
-    message = chr(len(msg)) + msg
-    m.update(message.encode())
-    return m.digest()
+    msgstring = chr(len(msg)) + msg
+    t = b'\x18Bitcoin Signed Message:\n' + msgstring.encode()
+    return sha256(t).digest()
 
 
 def msgsign(msg: str, wif: Union[str, bytes], 
@@ -173,14 +170,14 @@ def msgsign(msg: str, wif: Union[str, bytes],
     # first sign the message
     magic_msg = _magic_hash(msg)
     prvkey, compressedwif, _ = prvkey_from_wif(wif)
-    sig = sign(secp256k1, hf, magic_msg, prvkey)
+    sig = sign(magic_msg, prvkey)
 
     # [r][s]
     bytes_sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
 
     # now calculate the recovery flag, aka recId
-    pubkey = mult(secp256k1, prvkey)
-    pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, sig)
+    pubkey = mult(prvkey)
+    pubkeys = pubkey_recovery(magic_msg, sig)
     rf = pubkeys.index(pubkey)
 
     if addr is None:
@@ -209,7 +206,7 @@ def msgsign(msg: str, wif: Union[str, bytes],
         is_p2wpkh = True
         is_p2wpkh_p2sh = False
 
-    pk = octets_from_point(secp256k1, pubkey, True)
+    pk = octets_from_point(pubkey, True, secp256k1)
     if is_p2wpkh_p2sh:
         # script_pubkey is 0x0014{20-byte key-hash}
         script_pubkey = b'\x00\x14' + h160(pk)
@@ -231,7 +228,7 @@ def msgsign(msg: str, wif: Union[str, bytes],
                 msg += "uncompressed wif, compressed address"
                 raise ValueError(msg)
         else:  # try with uncompressed key
-            pk = octets_from_point(secp256k1, pubkey, False)
+            pk = octets_from_point(pubkey, False, secp256k1)
             if h160(pk) == hash160:
                 if compressedwif:
                     msg = "Pubkey mismatch: "
@@ -290,10 +287,10 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     r = int.from_bytes(sig[1:33], 'big')
     s = int.from_bytes(sig[33:], 'big')
     magic_msg = _magic_hash(msg)
-    pubkeys = pubkey_recovery(secp256k1, hf, magic_msg, (r, s))
+    pubkeys = pubkey_recovery(magic_msg, (r, s))
     i = rf + 1 & 3  # the right pubkey for both BIP137 and Electrum
     pubkey = pubkeys[i]
-    pk = octets_from_point(secp256k1, pubkey, compressed)
+    pk = octets_from_point(pubkey, compressed, secp256k1)
 
     if is_p2wpkh_p2sh:
         # script_pubkey is 0x0014{20-byte key-hash}

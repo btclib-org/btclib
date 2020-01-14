@@ -36,13 +36,15 @@ messages to the set of possible k values) would return.
 """
 
 import hmac
+from hashlib import sha256
 
-from .utils import Octets, _int_from_bits, int_from_bits, octets_from_int, \
-    HashF
 from .curve import Curve
+from .curves import secp256k1
+from .utils import (HashF, Octets, _int_from_bits, int_from_bits,
+                    octets_from_int)
 
 
-def rfc6979(ec: Curve, hf: HashF, mhd: bytes, q: int) -> int:
+def rfc6979(mhd: bytes, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
     if not 0 < q < ec.n:
@@ -54,11 +56,11 @@ def rfc6979(ec: Curve, hf: HashF, mhd: bytes, q: int) -> int:
         errMsg += f"hashed message size ({len(mhd)})"
         raise ValueError(errMsg)
 
-    c = int_from_bits(ec, mhd)          # leftmost ec.nlen bits %= ec.n
-    return _rfc6979(ec, hf, c, q)
+    c = int_from_bits(mhd, ec)          # leftmost ec.nlen bits %= ec.n
+    return _rfc6979(c, q, ec, hf)
 
 
-def _rfc6979(ec: Curve, hf: HashF, c: int, q: int) -> int:
+def _rfc6979(c: int, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
 
     # c = hf(m)                                            # 3.2.a
@@ -83,7 +85,7 @@ def _rfc6979(ec: Curve, hf: HashF, c: int, q: int) -> int:
         while len(T) < ec.nsize:                           # 3.2.h.2
             V = hmac.new(K, V, hf).digest()
             T += V
-        k = _int_from_bits(ec, T)  # candidate             # 3.2.h.3
+        k = _int_from_bits(T, ec)  # candidate             # 3.2.h.3
         if 0 < k < ec.n:           # acceptable values for k
             return k               # successful candidate
         K = hmac.new(K, V + b'\x00', hf).digest()

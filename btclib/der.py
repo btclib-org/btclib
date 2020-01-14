@@ -39,6 +39,7 @@
 from typing import Tuple
 
 from .curve import Curve
+from .curves import secp256k1
 from .dsa import ECDS, _to_sig
 
 sighash_all = b'\x01'
@@ -64,21 +65,21 @@ def _encode_scalar(scalar: int) -> bytes:
     return b'\x02' + xsize + x
 
 
-def encode(ec: Curve, sig: ECDS, sighash: bytes = sighash_all) -> bytes:
+def encode(sig: ECDS, sighash: bytes = sighash_all, ec: Curve = secp256k1) -> bytes:
     """Encode a strict DER-encoded signature."""
 
     if len(sighash) > 1:
         raise ValueError(f"sighash size {len(sighash)} > 1")
 
     # check that it is a valid signature for the given Curve
-    r, s = _to_sig(ec, sig)
+    r, s = _to_sig(sig, ec)
 
     enc = _encode_scalar(r)
     enc += _encode_scalar(s)
     return b'\x30' + len(enc).to_bytes(1, "big") + enc + sighash
 
 
-def decode(ec: Curve, sig: bytes) -> Tuple[ECDS, bytes]:
+def decode(sig: bytes, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
     """Decode a strict DER-encoded signature."""
 
     maxsize = ec.nsize * 2 + 7
@@ -139,4 +140,4 @@ def decode(ec: Curve, sig: bytes) -> Tuple[ECDS, bytes]:
     s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], 'big')
 
     # _to_sig checks that the signature is valid for the given Curve
-    return _to_sig(ec, (r, s)), sig[sigsize - 1:]
+    return _to_sig((r, s), ec), sig[sigsize - 1:]

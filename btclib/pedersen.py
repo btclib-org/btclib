@@ -30,12 +30,15 @@ It is crucial for H to be Nothing-Up-My-Sleeve (NUMS), i.e.
 the discrete logarithm of H with respect to G must be unknown.
 """
 
+from hashlib import sha256
+
 from .curve import Curve, Point
+from .curves import secp256k1
 from .curvemult import double_mult
 from .utils import HashF, int_from_bits, int_from_octets, octets_from_point
 
 
-def second_generator(ec: Curve, hf: HashF) -> Point:
+def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     """Second (with respect to G) elliptic curve generator.
 
     Second (with respect to G) Nothing-Up-My-Sleeve (NUMS)
@@ -50,9 +53,9 @@ def second_generator(ec: Curve, hf: HashF) -> Point:
     source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
     """
 
-    G_bytes = octets_from_point(ec, ec.G, False)
+    G_bytes = octets_from_point(ec.G, False, ec)
     hd = hf(G_bytes).digest()
-    hx = int_from_bits(ec, hd)
+    hx = int_from_bits(hd, ec)
     isCurvePoint = False
     while not isCurvePoint:
         try:
@@ -63,7 +66,7 @@ def second_generator(ec: Curve, hf: HashF) -> Point:
     return Point(hx, hy)
 
 
-def commit(r: int, v: int, ec: Curve, hf: HashF) -> Point:
+def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     """Commit to r, returning rG+vH.
 
     Commit to r, returning rG+vH. H is the second Nothing-Up-My-Sleeve
@@ -71,12 +74,12 @@ def commit(r: int, v: int, ec: Curve, hf: HashF) -> Point:
     """
 
     H = second_generator(ec, hf)
-    Q = double_mult(ec, v, H, r)
+    Q = double_mult(v, H, r, ec.G, ec)
     assert Q[1] != 0, "how did you do that?!?"
     return Q
 
 
-def open(r: int, v: int, C: Point, ec: Curve, hf: HashF) -> bool:
+def open(r: int, v: int, C: Point, ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Open the commitment C and return True if valid."""
 
     # try/except wrapper for the Errors raised by commit

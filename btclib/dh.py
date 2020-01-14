@@ -20,15 +20,18 @@ function to use.
 """
 
 from typing import Callable, Any
+from hashlib import sha256
 
 from .utils import octets_from_int, int_from_octets, HashF
 from .curve import Curve, Point
+from .curves import secp256k1
 from .curvemult import mult
 
-KDF = Callable[[Curve, HashF, bytes, int], Any]
+KDF = Callable[[bytes, int, Curve, HashF], Any]
 
 
-def ansi_x963_kdf(ec: Curve, hf: HashF, z: bytes, size: int) -> bytes:
+def ansi_x963_kdf(z: bytes, size: int,
+                  ec: Curve = secp256k1, hf: HashF = sha256) -> bytes:
     """Return keying data according to ANS-X9.63-KDF.
 
     Return a keying data octet sequence of the requested size according
@@ -51,18 +54,16 @@ def ansi_x963_kdf(ec: Curve, hf: HashF, z: bytes, size: int) -> bytes:
     return octets_from_int(K, ec.psize)
 
 
-def diffie_hellman(ec: Curve, hf: HashF, kdf: KDF,
-                   dU: int, QV: Point, size: int) -> bytes:
-    """
-
-    Diffie-Hellman elliptic curve key agreement scheme.
+def diffie_hellman(kdf: KDF, dU: int, QV: Point, size: int,
+                   ec: Curve = secp256k1, hf: HashF = sha256) -> bytes:
+    """Diffie-Hellman elliptic curve key agreement scheme.
 
     http://www.secg.org/sec1-v2.pdf, section 6.1
     """
 
-    P = mult(ec, dU, QV)
+    P = mult(dU, QV, ec)
     if P[1] == 0:
         "invalid (zero) private key"
     shared_secret = P[0]  # shared secret field element
     z = octets_from_int(shared_secret, ec.psize)
-    return kdf(ec, hf, z, size)
+    return kdf(z, size, ec, hf)

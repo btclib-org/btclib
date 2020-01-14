@@ -24,7 +24,7 @@ class TestBIP32(unittest.TestCase):
         # root key, zero depth
         xkey = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         v, d, f, i, c, k, P = bip32.xkey_parse(xkey)
-        self.assertEqual(P, mult(ec, int_from_octets(k)))
+        self.assertEqual(P, mult(int_from_octets(k), ec.G, ec))
 
         decoded_key = base58.decode(xkey, 78)
         self.assertEqual(v, decoded_key[:4])

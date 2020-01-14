@@ -14,8 +14,9 @@ import heapq
 from typing import Sequence, List
 
 from .curve import Curve, Point, _JacPoint, _jac_from_aff
+from .curves import secp256k1
 
-def mult(ec: Curve, m: int, Q: Point = None) -> Point:
+def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
     # this function is used by the Curve class; it might be a method...
     # but it does not need to
     if Q is None:
@@ -23,10 +24,10 @@ def mult(ec: Curve, m: int, Q: Point = None) -> Point:
     else:
         ec.require_on_curve(Q)
         QJ = _jac_from_aff(Q)
-    R = _mult_jac(ec, m, QJ)
+    R = _mult_jac(m, QJ, ec)
     return ec._aff_from_jac(R)
 
-def _mult_jac(ec: Curve, m: int, Q: _JacPoint) -> _JacPoint:
+def _mult_jac(m: int, Q: _JacPoint, ec: Curve = secp256k1) -> _JacPoint:
     # double & add in Jacobian coordinates, using binary decomposition of m
     # Point is assumed to be on curve
 
@@ -42,7 +43,8 @@ def _mult_jac(ec: Curve, m: int, Q: _JacPoint) -> _JacPoint:
     return R
 
 
-def double_mult(ec: Curve, u: int, H: Point, v: int, Q: Point = None) -> Point:
+def double_mult(u: int, H: Point, v: int, Q: Point = None,
+                ec: Curve = secp256k1) -> Point:
     """Shamir trick for efficient computation of u*H + v*Q"""
 
     ec.require_on_curve(H)
@@ -54,21 +56,21 @@ def double_mult(ec: Curve, u: int, H: Point, v: int, Q: Point = None) -> Point:
         ec.require_on_curve(Q)
         QJ = _jac_from_aff(Q)
 
-    R = _double_mult(ec, u, HJ, v, QJ)
+    R = _double_mult(u, HJ, v, QJ, ec)
 
     return ec._aff_from_jac(R)
 
 
-def _double_mult(ec: Curve, u: int, HJ: _JacPoint,
-                            v: int, QJ: _JacPoint) -> _JacPoint:
+def _double_mult(u: int, HJ: _JacPoint, v: int, QJ: _JacPoint,
+                 ec: Curve = secp256k1) -> _JacPoint:
 
     u %= ec.n
     if u == 0 or HJ[2] == 0:
-        return _mult_jac(ec, v, QJ)
+        return _mult_jac(v, QJ, ec)
 
     v %= ec.n
     if v == 0 or QJ[2] == 0:
-        return _mult_jac(ec, u, HJ)
+        return _mult_jac(u, HJ, ec)
 
     R = 1, 1, 0  # initialize as infinity point
     msb = max(u.bit_length(), v.bit_length())
@@ -86,9 +88,8 @@ def _double_mult(ec: Curve, u: int, HJ: _JacPoint,
     return R
 
 
-def multi_mult(ec: Curve,
-               scalars: Sequence[int],
-               Points: Sequence[Point]) -> Point:
+def multi_mult(scalars: Sequence[int], Points: Sequence[Point],
+               ec: Curve = secp256k1) -> Point:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
     Use Bos-Coster's algorithm for efficient computation;
@@ -105,14 +106,13 @@ def multi_mult(ec: Curve,
         ec.require_on_curve(P)
         JPoints.append(_jac_from_aff(P))
 
-    R = _multi_mult(ec, scalars, JPoints)
+    R = _multi_mult(scalars, JPoints, ec)
 
     return ec._aff_from_jac(R)
 
 
-def _multi_mult(ec: Curve,
-                scalars: Sequence[int],
-                JPoints: Sequence[_JacPoint]) -> _JacPoint:
+def _multi_mult(scalars: Sequence[int], JPoints: Sequence[_JacPoint],
+                ec: Curve = secp256k1) -> _JacPoint:
     # source: https://cr.yp.to/badbatch/boscoster2.py
 
     x = list(zip([-n for n in scalars], JPoints))
@@ -129,4 +129,4 @@ def _multi_mult(ec: Curve,
         heapq.heappush(x, (-n2, p2))
     np1 = heapq.heappop(x)
     n1, p1 = -np1[0], np1[1]
-    return _mult_jac(ec, n1, p1)
+    return _mult_jac(n1, p1, ec)

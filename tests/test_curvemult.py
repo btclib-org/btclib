@@ -28,25 +28,25 @@ class TestEllipticCurve(unittest.TestCase):
         for ec in low_card_curves:
             for q in range(ec.n):
                 Q = ec._mult_aff(q, ec.G)
-                Qjac = _mult_jac(ec, q, ec.GJ)
+                Qjac = _mult_jac(q, ec.GJ, ec)
                 Q2 = ec._aff_from_jac(Qjac)
                 self.assertEqual(Q, Q2)
         # with last curve
         self.assertEqual(Inf, ec._mult_aff(3, Inf))
-        self.assertEqual(InfJ, _mult_jac(ec, 3, InfJ))
+        self.assertEqual(InfJ, _mult_jac(3, InfJ, ec))
 
     def test_shamir(self):
         ec = ec23_31
         for k1 in range(ec.n):
             for k2 in range(ec.n):
-                shamir = double_mult(ec, k1, ec.G, k2)
-                std = ec.add(mult(ec, k1), mult(ec, k2))
+                shamir = double_mult(k1, ec.G, k2, ec.G, ec)
+                std = ec.add(mult(k1, ec.G, ec), mult(k2, ec.G, ec))
                 self.assertEqual(shamir, std)
-                shamir = double_mult(ec, k1, Inf, k2)
-                std = ec.add(mult(ec, k1, Inf), mult(ec, k2))
+                shamir = double_mult(k1, Inf, k2, ec.G, ec)
+                std = ec.add(mult(k1, Inf, ec), mult(k2, ec.G, ec))
                 self.assertEqual(shamir, std)
-                shamir = double_mult(ec, k1, ec.G, k2, Inf)
-                std = ec.add(mult(ec, k1), mult(ec, k2, Inf))
+                shamir = double_mult(k1, ec.G, k2, Inf, ec)
+                std = ec.add(mult(k1, ec.G, ec), mult(k2, Inf, ec))
                 self.assertEqual(shamir, std)
 
     def test_boscoster(self):
@@ -59,13 +59,13 @@ class TestEllipticCurve(unittest.TestCase):
             ksum += k[i]
 
         P = [ec.G] * len(k)
-        boscoster = multi_mult(ec, k, P)
-        self.assertEqual(boscoster, mult(ec, ksum))
+        boscoster = multi_mult(k, P, ec)
+        self.assertEqual(boscoster, mult(ksum, ec.G, ec))
 
         # mismatch between scalar length and Points length
         P = [ec.G] * (len(k)-1)
-        self.assertRaises(ValueError, multi_mult, ec, k, P)
-        #boscoster = multi_mult(ec, k, P)
+        self.assertRaises(ValueError, multi_mult, k, P, ec)
+        #multi_mult(k, P, ec)
 
 
 if __name__ == "__main__":

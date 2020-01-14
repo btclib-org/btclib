@@ -29,7 +29,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(h160_from_p2pkh_address(addr), h160(pub))
 
         uncompressed_pub = octets_from_point(
-            ec, point_from_octets(ec, pub), False)
+            point_from_octets(pub, ec), False, ec)
         addr = p2pkh_address(uncompressed_pub)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
         self.assertEqual(h160_from_p2pkh_address(addr), h160(uncompressed_pub))
