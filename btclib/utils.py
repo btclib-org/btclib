@@ -25,7 +25,7 @@ from .curves import secp256k1
 HashF = Callable[[], Any]
 # HashF = Callable[[Any], Any]
 
-# bytes or hex-string (not string)
+# binary octets are eight-bit bytes or hex-string (not string)
 Octets = Union[bytes, str]
 
 
@@ -171,3 +171,4 @@ def double_sha256(o: Octets) -> bytes:
 
     t = _sha256(o)
     return hashlib.sha256(t).digest()
+
