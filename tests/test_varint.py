@@ -21,7 +21,7 @@ class TestVarInt(unittest.TestCase):
         self.assertEqual(len(b), 1)
         self.assertEqual(varint.decode(b), i)
 
-        i = 0xfd
+        i += 1
         b = varint.encode(i)
         self.assertEqual(len(b), 3)
         self.assertEqual(varint.decode(b), i)
@@ -31,9 +31,19 @@ class TestVarInt(unittest.TestCase):
         self.assertEqual(len(b), 3)
         self.assertEqual(varint.decode(b), i)
 
+        i += 1
+        b = varint.encode(i)
+        self.assertEqual(len(b), 5)
+        self.assertEqual(varint.decode(b), i)
+
         i = 0xffffffff
         b = varint.encode(i)
         self.assertEqual(len(b), 5)
+        self.assertEqual(varint.decode(b), i)
+
+        i += 1
+        b = varint.encode(i)
+        self.assertEqual(len(b), 9)
         self.assertEqual(varint.decode(b), i)
 
         i = 0xffffffffffffffff
