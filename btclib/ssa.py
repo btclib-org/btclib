@@ -157,7 +157,7 @@ def _pubkey_recovery(e: int, sig: ECSS,
 
     r, s = _to_sig(sig, ec)
 
-    K = Point(r, ec.y_quadratic_residue(r, True))
+    K = r, ec.y_quadratic_residue(r, True)
     # FIXME: y_quadratic_residue in Jacobian coordinates?
 
     if e == 0:
@@ -240,7 +240,7 @@ def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[ECSS],
         # run of the batch verification algorithm
         a = (1 if i == 0 else (1+random.getrandbits(ec.nlen)) % ec.n)
         scalars.append(a)
-        points.append(_jac_from_aff(Point(r, y)))
+        points.append(_jac_from_aff((r, y)))
         scalars.append(a * e % ec.n)
         points.append(_jac_from_aff(P[i]))
         t += a * s

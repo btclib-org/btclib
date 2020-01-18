@@ -175,7 +175,7 @@ def _pubkey_recovery(c: int, sig: ECDS, ec: Curve = secp256k1) -> List[Point]:
         x = (r + j*ec.n) % ec._p                          # 1.1
         try:  # TODO: check test reporting 1, 2, 3, or 4 keys
             # even root first for bitcoin message signing compatibility
-            R = Point(x, ec.y_odd(x, 0))                  # 1.2, 1.3, and 1.4
+            R = x, ec.y_odd(x, 0)                         # 1.2, 1.3, and 1.4
             # skip 1.5: in this function, c is an input
             Q = double_mult(r1s, R, r1e, ec.G, ec)        # 1.6.1
             if Q[1] != 0 and _verhlp(c, Q, sig, ec):      # 1.6.2

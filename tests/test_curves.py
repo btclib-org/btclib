@@ -16,7 +16,7 @@ from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
 from btclib.numbertheory import mod_sqrt
 from btclib.utils import octets_from_point, point_from_octets
 
-Inf = Point()  # Infinity point in affine coordinates
+Inf = 1, 0  # Infinity point in affine coordinates
 InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 
 

@@ -15,16 +15,10 @@ from typing import NamedTuple, Tuple
 
 from .numbertheory import mod_inv, mod_sqrt, legendre_symbol
 
-class Point(NamedTuple):
-    """Elliptic curve point.
-
-    Infinity point in affine coordinates is Point(); it is
-    characterized by 'Inf[1] == 0' or 'Inf.y == 0' as no affine point
-    has y=0 coordinate in a group of prime order n.
-    """
-    x: int = 1
-    y: int = 0
-
+# infinity point in affine coordinates is Inf = (int, 0)
+# as no affine point has y=0 coordinate in a group of prime order n
+# it can be checked with 'Inf[1] == 0'
+Point = Tuple[int, int]
 
 # infinity point in Jacobian coordinates is Inf = (int, int, 0)
 # it can be checked with 'Inf[2] == 0'
@@ -89,7 +83,7 @@ class Curve:
             raise ValueError("Generator must a be a tuple[int, int]")
         if not self.is_on_curve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
-        self.G = Point(int(G[0]), int(G[1]))
+        self.G = int(G[0]), int(G[1])
         self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
 
         # 5. Check that n is prime.
@@ -168,8 +162,8 @@ class Curve:
 
         m %= self.n
         if m == 0 or Q[1] == 0:          # Infinity point, affine coordinates
-            return Point()               # return Infinity point
-        R = Point()                      # initialize as infinity point
+            return 1, 0                  # return Infinity point
+        R = 1, 0                         # initialize as infinity point
         while m > 0:                     # use binary representation of m
             if m & 1:                    # if least significant bit is 1
                 R = self._add_aff(R, Q)  # then add current Q
@@ -187,17 +181,17 @@ class Curve:
 
         self.require_on_curve(Q)
         # % self._p is required to account for infinity point, i.e. Q[1]==0
-        return Point(Q[0], (self._p - Q[1]) % self._p)
+        return Q[0], (self._p - Q[1]) % self._p
 
     def _aff_from_jac(self, Q: _JacPoint) -> Point:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            return Point()
+            return 1, 0
         else:
             Z2 = Q[2]*Q[2]
             x = (Q[0]*mod_inv(Z2, self._p)) % self._p
             y = (Q[1]*mod_inv(Z2*Q[2], self._p)) % self._p
-            return Point(x, y)
+            return x, y
 
     # methods using _a, _b, _p
 
@@ -265,12 +259,12 @@ class Curve:
                 lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self._p)
                 lam %= self._p
             else:             # opposite points
-                return Point()
+                return 1, 0
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
         x = (lam * lam - Q[0] - R[0]) % self._p
         y = (lam * (Q[0] - x) - Q[1]) % self._p
-        return Point(x, y)
+        return x, y
 
     def _y2(self, x: int) -> int:
         # skipping a crucial check here:

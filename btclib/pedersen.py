@@ -63,7 +63,7 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
             isCurvePoint = True
         except:
             hx += 1
-    return Point(hx, hy)
+    return hx, hy
 
 
 def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:

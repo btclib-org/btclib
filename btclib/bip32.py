@@ -125,11 +125,11 @@ def xkey_parse(xkey: Octets) -> Tuple:
     if version in _PRV_VERSIONS:
         if key[0] != 0:
             raise ValueError("extended key: (prvversion/pubkey) mismatch")
-        Point = mult(int_from_octets(key))
+        P = mult(int_from_octets(key))
     elif version in _PUB_VERSIONS:
         if key[0] not in (2, 3):
             raise ValueError("extended key: (pubversion/prvkey) mismatch")
-        Point = point_from_octets(key, ec)
+        P = point_from_octets(key, ec)
     else:
         raise ValueError("extended key: unknown version")
 
@@ -146,7 +146,7 @@ def xkey_parse(xkey: Octets) -> Tuple:
             raise ValueError()
 
     return version, depth, parent_fingerprint, \
-        child_index, chain_code, key, Point
+        child_index, chain_code, key, P
 
 
 def parent_fingerprint(xkey: Octets) -> bytes:
@@ -164,9 +164,9 @@ def child_index(xkey: Octets) -> bytes:
 
 
 def fingerprint(xkey: Octets) -> bytes:
-    _, _, _, _, _, key, Point = xkey_parse(xkey)
+    _, _, _, _, _, key, P = xkey_parse(xkey)
     if key[0] == 0:
-        key = octets_from_point(Point, True, ec)
+        key = octets_from_point(P, True, ec)
     return h160(key)[:4]
 
 
@@ -236,14 +236,14 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     if len(index) != 4:
         raise ValueError(f"a 4 bytes int is required, not {len(index)}")
 
-    v, depth, _, _, chain_code, bytes_key, Point = xkey_parse(xparentkey)
+    v, depth, _, _, chain_code, bytes_key, P = xkey_parse(xparentkey)
 
     # serialization data
     xkey = v                                # child version
     xkey += (depth + 1).to_bytes(1, 'big')  # child depth, fail if depth=255
 
     if bytes_key[0] == 0:                   # parent is a prvkey
-        Parent_bytes = octets_from_point(Point, True, ec)
+        Parent_bytes = octets_from_point(P, True, ec)
     else:                                   # parent is a pubkey
         Parent_bytes = bytes_key
         if index[0] >= 0x80:                # hardened derivation
@@ -266,7 +266,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         xkey += h[32:]                               # child chain code
         offset = int.from_bytes(h[:32], 'big')
         Offset = mult(offset)
-        Child = ec.add(Point, Offset)
+        Child = ec.add(P, Offset)
         xkey += octets_from_point(Child, True, ec)   # child public key
 
     return base58.encode(xkey)

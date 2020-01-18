@@ -19,7 +19,7 @@ from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
 
 random.seed(42)
 
-Inf = Point()  # Infinity point in affine coordinates
+Inf = 1, 0  # Infinity point in affine coordinates
 InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 
 

@@ -42,7 +42,7 @@ def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:
 
     bsize = len(o)  # bytes
     if bsize == 1 and o[0] == 0x00:      # infinity point
-        return Point()
+        return 1, 0
 
     if bsize == ec.psize+1:              # compressed point
         if o[0] not in (0x02, 0x03):
@@ -51,7 +51,7 @@ def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:
         Px = int.from_bytes(o[1:], 'big')
         try:
             Py = ec.y_odd(Px, o[0] % 2)  # also check Px validity
-            return Point(Px, Py)
+            return Px, Py
         except:
             raise ValueError("point not on curve")
     else:                                # uncompressed point
@@ -62,7 +62,7 @@ def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:
         if o[0] != 0x04:
             raise ValueError("not an uncompressed point")
         Px = int.from_bytes(o[1:ec.psize+1], 'big')
-        P = Point(Px, int.from_bytes(o[ec.psize+1:], 'big'))
+        P = Px, int.from_bytes(o[ec.psize+1:], 'big')
         if ec.is_on_curve(P):
             return P
         else:
