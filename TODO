@@ -43,8 +43,8 @@ e=0 in SSA ?
 settle on pubkey o point nomenclature. if point, what for prvkey?
 
 crypto: {
-    prv: int,
-    pub: Point
+    prv, q: int,
+    pub, Q: Point
 }
 
 (bitcoin) network: {
@@ -53,3 +53,15 @@ crypto: {
     pubkey: Octets,
     address, WIF: Union[str, bytes]  # ASCII string, not hex-string, always s.strip()
 }
+
+def bytes_from_Octets(o: Octets) -> bytes:
+    if isinstance(o, str):  # hex string
+        o = o.strip()
+        o = bytes.fromhex(pubkey)
+    return o
+
+def bytes_from_base58_or_bech32(o: Union[str, bytes]) -> bytes:
+    if isinstance(o, str):  # string
+        o = o.strip()
+        o = o.encode("ascii")
+    return o

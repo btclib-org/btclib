@@ -229,7 +229,8 @@ from .utils import Octets
 # str are for opcodes (e.g. 'OP_HASH160') or hexstring data
 # bytes ia for data
 Token = Union[int, str, bytes]
-
+# TODO: use Script as input and serialize Iterable[Token] to bytes on the fly
+Script = Union[bytes, Iterable[Token]]
 
 def _op_pushdata(data: bytes) -> bytes:
     """Convert to canonical push: OP_PUSHDATA (if needed) | length | data.

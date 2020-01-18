@@ -13,11 +13,12 @@
 Base58 encoding of public keys and scripts as addresses.
 """
 
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 from . import base58
-from .utils import Octets, int_from_octets, octets_from_int, \
-    octets_from_point, h160
+from .script import Script, Token
+from .utils import (Octets, h160, int_from_octets, octets_from_int,
+                    octets_from_point)
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [
@@ -40,12 +41,28 @@ def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return base58.encode(payload)
 
 
+def p2pkh_scriptPubKey(h160: bytes) -> List[Token]:
+    """Return the p2pkh scriptPubKey of the provided HASH160 key-hash."""
+    if len(h160) != 20:
+        msg = f"Invalid h160 lenght ({len(h160)}) for p2pk2 scriptPubKey"
+        raise ValueError(msg)
+    return ['OP_DUP', 'OP_HASH160', h160, 'OP_EQUALVERIFY', 'OP_CHECKSIG']
+
+
 def p2sh_address(redeem_script: Octets, network: str = 'mainnet') -> bytes:
     """Return p2sh address."""
 
     payload = _P2SH_PREFIXES[_NETWORKS.index(network)]
     payload += h160(redeem_script)
     return base58.encode(payload)
+
+
+def p2sh_scriptPubKey(h160: bytes) -> List[Token]:
+    """Return the p2sh scriptPubKey of the provided HASH160 script-hash."""
+    if len(h160) != 20:
+        msg = f"Invalid h160 lenght ({len(h160)}) for p2sh scriptPubKey"
+        raise ValueError(msg)
+    return ['OP_HASH160', h160, 'OP_EQUAL']
 
 
 def h160_from_base58_address(address: Union[str, bytes]) -> Tuple[str, bool, bytes]:
