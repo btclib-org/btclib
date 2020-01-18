@@ -45,10 +45,11 @@ import unittest
 
 from btclib.curves import secp256k1 as ec
 from btclib.script import serialize
-from btclib.segwitaddress import (
-    _decode, _encode, _scriptpubkey, h160_from_p2wpkh_address,
-    p2wpkh_address, p2wpkh_p2sh_address, p2wsh_address, p2wsh_p2sh_address)
-from btclib.utils import h160, octets_from_point, point_from_octets, _sha256
+from btclib.segwitaddress import (_decode, _encode, _scriptpubkey,
+                                  hash_from_bech32_address, p2wpkh_address,
+                                  p2wpkh_p2sh_address, p2wsh_address,
+                                  p2wsh_p2sh_address)
+from btclib.utils import _sha256, h160, octets_from_point, point_from_octets
 
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
@@ -101,26 +102,17 @@ class TestSegwitAddress(unittest.TestCase):
 
     def test_valid_address(self):
         """Test whether valid addresses decode to the correct output"""
-        for a, hexscript in VALID_BC_ADDRESS:
-            _, witvers, witprog = _decode(a, 'mainnet')
+        for a, hexscript in VALID_BC_ADDRESS + VALID_TB_ADDRESS:
+            network, witvers, witprog = _decode(a)
             script_pubkey = _scriptpubkey(witvers, witprog)
             self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
-            address = _encode(witvers, witprog, 'mainnet')
+            address = _encode(network, witvers, witprog)
             self.assertEqual(a.lower().strip(), address.decode())
-            self.assertRaises(ValueError, _decode, a, 'testnet')
-        for a, hexscript in VALID_TB_ADDRESS:
-            _, witvers, witprog = _decode(a, 'testnet')
-            script_pubkey = _scriptpubkey(witvers, witprog)
-            self.assertEqual(script_pubkey, binascii.unhexlify(hexscript))
-            address = _encode(witvers, witprog, 'testnet')
-            self.assertEqual(a.lower(), address.decode())
-            self.assertRaises(ValueError, _decode, a, 'mainnet')
 
     def test_invalid_address(self):
         """Test whether invalid addresses fail to decode"""
         for a in INVALID_ADDRESS:
-            self.assertRaises(ValueError, _decode, a, 'mainnet')
-            self.assertRaises(ValueError, _decode, a, 'testnet')
+            self.assertRaises(ValueError, _decode, a)
 
     def test_invalid_address_enc(self):
         """Test whether address encoding fails on invalid input"""
@@ -132,18 +124,18 @@ class TestSegwitAddress(unittest.TestCase):
 
         # self-consistency
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        _, wv, wp = _decode(addr)
-        self.assertEqual(_encode(wv, wp), addr)
+        network, wv, wp = _decode(addr)
+        self.assertEqual(_encode(network, wv, wp), addr)
 
         # invalid value
         wp[-1] = -1
-        self.assertRaises(ValueError, _encode, wv, wp)
+        self.assertRaises(ValueError, _encode, network, wv, wp)
         # _encode(wv, wp)
 
         # string input
         addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        _, wv, wp = _decode(addr)
-        self.assertEqual(_encode(wv, wp), addr.encode())
+        network, wv, wp = _decode(addr)
+        self.assertEqual(_encode(network, wv, wp), addr.encode())
 
     def test_p2wpkh_p2sh_address(self):
         # https://matthewdowney.github.io/create-segwit-address.html
@@ -179,10 +171,6 @@ class TestSegwitAddress(unittest.TestCase):
         _, _, wp = _decode(addr)
         self.assertEqual(bytes(wp), h160(pub))
 
-        # SegWit address for 'mainnet', not 'testnet'
-        self.assertRaises(ValueError, _decode, addr, 'testnet')
-        # _decode(addr, 'testnet')
-
         # Uncompressed pubkey
         uncompr_pub = octets_from_point(point_from_octets(pub, ec), False, ec)
         self.assertRaises(ValueError, p2wpkh_address, uncompr_pub)
@@ -193,28 +181,24 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertRaises(ValueError, p2wpkh_address, wrong_size_pub)
         # p2wpkh_address(wrong_size_pub)
 
-    def test_h160_from_p2wphk(self):
-        pass
+    def test_hash_from_bech32(self):
         network = "testnet"
         wv = 0
         wp = 20 * b'\x05'
-        addr = _encode(wv, wp, network)
-        h160_from_p2wpkh_address(addr, network)
+        addr = _encode(network, wv, wp)
+        n2, wp2 = hash_from_bech32_address(addr)
+        self.assertEqual(n2, network)
+        self.assertEqual(wp2, wp)
 
         # Invalid witness version: 1
-        addr = _encode(1, wp, network)
-        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr, network)
-        # h160_from_p2wpkh_address(addr, network)
+        addr = _encode(network, 1, wp)
+        self.assertRaises(ValueError, hash_from_bech32_address, addr)
+        # hash_from_bech32_address(addr)
 
         # witness program length (21) is not 20 or 32
         addr = 'tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef'
-        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr, network)
-        # h160_from_p2wpkh_address(addr, network)
-
-        # is a SegWit address for 'mainnet', not 'testnet'
-        addr = _encode(wv, wp, 'mainnet')
-        self.assertRaises(ValueError, h160_from_p2wpkh_address, addr, network)
-        # h160_from_p2wpkh_address(addr, network)
+        self.assertRaises(ValueError, hash_from_bech32_address, addr)
+        # hash_from_bech32_address(addr)
 
     def test_p2wsh_p2sh_address(self):
 
@@ -238,10 +222,6 @@ class TestSegwitAddress(unittest.TestCase):
 
         _, _, wp = _decode(addr)
         self.assertEqual(bytes(wp), _sha256(witness_script_bytes))
-
-        # SegWit address for 'mainnet', not 'testnet'
-        self.assertRaises(ValueError, _decode, addr, 'testnet')
-        # _decode(addr, 'testnet')
 
 
 if __name__ == "__main__":

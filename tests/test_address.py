@@ -11,12 +11,11 @@
 import unittest
 
 from btclib import base58
+from btclib.address import (h160_from_base58_address, p2pkh_address,
+                            p2sh_address)
 from btclib.curves import secp256k1 as ec
-from btclib.utils import point_from_octets, octets_from_point, h160
-from btclib.address import (p2pkh_address, h160_from_p2pkh_address,
-                            p2sh_address, h160_from_p2sh_address,
-                            _h160_from_address)
 from btclib.script import serialize
+from btclib.utils import h160, octets_from_point, point_from_octets
 
 
 class TestAddresses(unittest.TestCase):
@@ -26,28 +25,29 @@ class TestAddresses(unittest.TestCase):
         pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        self.assertEqual(h160_from_p2pkh_address(addr), h160(pub))
+        _, _, hash2 = h160_from_base58_address(addr)
+        self.assertEqual(hash2, h160(pub))
 
         uncompressed_pub = octets_from_point(
             point_from_octets(pub, ec), False, ec)
         addr = p2pkh_address(uncompressed_pub)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-        self.assertEqual(h160_from_p2pkh_address(addr), h160(uncompressed_pub))
+        _, _, hash2 = h160_from_base58_address(addr)
+        self.assertEqual(hash2, h160(uncompressed_pub))
 
         # trailing/leading spaces in string
         pub = '  0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        self.assertEqual(h160_from_p2pkh_address(addr), h160(pub))
+        _, _, hash2 = h160_from_base58_address(addr)
+        self.assertEqual(hash2, h160(pub))
 
         pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  '
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        self.assertEqual(h160_from_p2pkh_address(addr), h160(pub))
+        _, _, hash2 = h160_from_base58_address(addr)
+        self.assertEqual(hash2, h160(pub))
 
-        # p2pkh address for a network other than 'testnet'
-        self.assertRaises(ValueError, h160_from_p2pkh_address, addr, 'testnet')
-        # h160_from_p2pkh_address(addr, 'testnet')
 
     def test_p2sh_address_from_script(self):
         # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
@@ -56,10 +56,13 @@ class TestAddresses(unittest.TestCase):
         script_bytes = serialize(script)
         self.assertEqual(script_bytes.hex(), '6e879169a77ca787')
 
-        addr = p2sh_address(script_bytes)
+        network = 'mainnet'
+        addr = p2sh_address(script_bytes, network)
         self.assertEqual(addr, b'37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP')
 
-        redeem_script_hash = h160_from_p2sh_address(addr)
+        network2, is_p2sh, redeem_script_hash = h160_from_base58_address(addr)
+        self.assertEqual(network, network2)
+        self.assertTrue(is_p2sh)
         self.assertEqual(redeem_script_hash, h160(script_bytes))
 
         self.assertEqual(redeem_script_hash.hex(),
@@ -68,13 +71,9 @@ class TestAddresses(unittest.TestCase):
         _ = serialize(output_script)
 
         # address with trailing/leading spaces
-        redeem_script_hash2 = h160_from_p2sh_address(
-            ' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
-        self.assertEqual(redeem_script_hash, redeem_script_hash2)
+        _, _, h2 = h160_from_base58_address(' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
+        self.assertEqual(redeem_script_hash, h2)
 
-        # p2sh address for a network other than 'testnet'
-        self.assertRaises(ValueError, h160_from_p2sh_address, addr, 'testnet')
-        # h160_from_p2sh_address(addr, 'testnet')
 
     def test_exceptions(self):
 
@@ -83,8 +82,8 @@ class TestAddresses(unittest.TestCase):
         pubkey = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
         payload += h160(pubkey)
         invalid_address = base58.encode(payload)
-        self.assertRaises(ValueError, _h160_from_address, invalid_address)
-        #_h160_from_address(invalid_address)
+        self.assertRaises(ValueError, h160_from_base58_address, invalid_address)
+        #_h160_from_base58_address(invalid_address)
 
 
 if __name__ == "__main__":

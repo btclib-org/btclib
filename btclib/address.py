@@ -48,40 +48,19 @@ def p2sh_address(redeem_script: Octets, network: str = 'mainnet') -> bytes:
     return base58.encode(payload)
 
 
-def _h160_from_address(address: Union[str, bytes]) -> Tuple[bytes, bytes]:
+def h160_from_base58_address(address: Union[str, bytes]) -> Tuple[str, bool, bytes]:
     if isinstance(address, str):
         address = address.strip()
 
     payload = base58.decode(address, 21)
-    if payload[0:1] not in _P2PKH_PREFIXES + _P2SH_PREFIXES:
-        raise ValueError(f"Invalid base58 address prefix {payload[0:1]}")
-    return payload[0:1], payload[1:]
+    prefix = payload[0:1]
+    if prefix in _P2PKH_PREFIXES:
+        i = _P2PKH_PREFIXES.index(prefix)
+        is_p2sh = False
+    elif prefix in _P2SH_PREFIXES:
+        i = _P2SH_PREFIXES.index(prefix)
+        is_p2sh = True
+    else:
+        raise ValueError(f"Invalid base58 address prefix {prefix}")
 
-
-def h160_from_p2pkh_address(address: Union[str, bytes],
-                            network: str = 'mainnet') -> bytes:
-    prefix, hash160 = _h160_from_address(address)
-
-    # check that it is a p2pkh address
-    i = _P2PKH_PREFIXES.index(prefix)
-    # check that it is a p2pkh address for the given network
-    if _NETWORKS[i] != network:
-        msg = f"{address} is a p2pkh address for '{_NETWORKS[i]}', "
-        msg += f"not '{network}'"
-        raise ValueError(msg)
-    return hash160
-
-
-def h160_from_p2sh_address(address: Union[str, bytes],
-                           network: str = 'mainnet') -> bytes:
-
-    prefix, hash160 = _h160_from_address(address)
-
-    # check that it is a p2sh address
-    i = _P2SH_PREFIXES.index(prefix)
-    # check that it is a p2sh address for the given network
-    if _NETWORKS[i] != network:
-        msg = f"{address} is a p2sh address for '{_NETWORKS[i]}', "
-        msg += f"not '{network}'"
-        raise ValueError(msg)
-    return hash160
+    return _NETWORKS[i], is_p2sh, payload[1:]

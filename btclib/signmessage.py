@@ -140,8 +140,8 @@ from . import segwitaddress
 from . import base58
 from .curvemult import mult
 from .curves import secp256k1  # TODO: remove this import
-from .address import _h160_from_address, _P2PKH_PREFIXES, _P2SH_PREFIXES
-from .segwitaddress import h160_from_p2wpkh_address
+from .address import h160_from_base58_address, _P2PKH_PREFIXES, _P2SH_PREFIXES
+from .segwitaddress import hash_from_bech32_address
 from .wif import prvkey_from_wif
 from .dsa import sign, pubkey_recovery
 from .utils import octets_from_point, h160
@@ -169,7 +169,7 @@ def msgsign(msg: str, wif: Union[str, bytes],
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    prvkey, compressedwif, _ = prvkey_from_wif(wif)
+    prvkey, compressedwif, network = prvkey_from_wif(wif)
     sig = sign(magic_msg, prvkey)
 
     # [r][s]
@@ -196,13 +196,10 @@ def msgsign(msg: str, wif: Union[str, bytes],
     # 2 verify that it corresponds to the given private key
     # 3 compute rf according to BIP137
     try:
-        prefix, hash160 = _h160_from_address(addr)
+        network, is_p2wpkh_p2sh, hash160 = h160_from_base58_address(addr)
         is_p2wpkh = False
-        is_p2wpkh_p2sh = False
-        if prefix in _P2SH_PREFIXES:
-            is_p2wpkh_p2sh = True
     except Exception:
-        hash160 = h160_from_p2wpkh_address(addr)
+        network, hash160 = hash_from_bech32_address(addr)
         is_p2wpkh = True
         is_p2wpkh_p2sh = False
 
@@ -266,12 +263,9 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
 
     # first: calculate hash160 from address
     try:
-        prefix, hash160 = _h160_from_address(addr)
-        is_p2wpkh_p2sh = False
-        if prefix in _P2SH_PREFIXES:
-            is_p2wpkh_p2sh = True
+        network, is_p2wpkh_p2sh, hash160 = h160_from_base58_address(addr)
     except Exception:
-        hash160 = h160_from_p2wpkh_address(addr)
+        network, hash160 = hash_from_bech32_address(addr)
         is_p2wpkh_p2sh = False
 
     # second: recover pubkey from sig
