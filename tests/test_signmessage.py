@@ -129,7 +129,7 @@ class TestSignMessage(unittest.TestCase):
 
         # p2pkh base58 address (Core, Electrum, BIP137)
         exp_sig = b'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
-        sig = msgsign(msg, wif)  # non address: p2pkh assumed
+        sig = msgsign(msg, wif)  # no address: p2pkh assumed
         _verify(msg, p2pkh_address, sig)
         self.assertTrue(_verify(msg, p2pkh_address, sig))
         self.assertEqual(sig, exp_sig)

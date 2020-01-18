@@ -134,17 +134,15 @@ https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
 
 import base64
 from hashlib import sha256
-from typing import Tuple, Union, Optional
+from typing import Optional, Union
 
-from . import segwitaddress
-from . import base58
+from .address import h160_from_base58_address, p2pkh_address
 from .curvemult import mult
-from .curves import secp256k1  # TODO: remove this import
-from .address import h160_from_base58_address, _P2PKH_PREFIXES, _P2SH_PREFIXES
-from .segwitaddress import hash_from_bech32_address
+from .dsa import pubkey_recovery, sign
+from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
+                            p2wpkh_p2sh_address)
+from .utils import h160, octets_from_point
 from .wif import prvkey_from_wif
-from .dsa import sign, pubkey_recovery
-from .utils import octets_from_point, h160
 
 # TODO: support msg as bytes
 # TODO: add small wallet (address <-> private key) infrastructure
@@ -167,77 +165,37 @@ def msgsign(msg: str, wif: Union[str, bytes],
             addr: Optional[Union[str, bytes]] = None) -> bytes:
     """Generate the message signature."""
 
+    if isinstance(addr, str):
+        addr = addr.strip()
+        addr = addr.encode("ascii")
+
     # first sign the message
     magic_msg = _magic_hash(msg)
-    prvkey, compressedwif, network = prvkey_from_wif(wif)
-    sig = sign(magic_msg, prvkey)
-
-    # [r][s]
-    bytes_sig = sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
+    q, compressedwif, network = prvkey_from_wif(wif)
+    sig = sign(magic_msg, q)
 
     # now calculate the recovery flag, aka recId
-    pubkey = mult(prvkey)
     pubkeys = pubkey_recovery(magic_msg, sig)
-    rf = pubkeys.index(pubkey)
-
+    Q = mult(q)
+    rf = pubkeys.index(Q)
+    pubkey = octets_from_point(Q, compressedwif)
     if addr is None:
-        # assume p2pkh address
         rf += 27
         rf += 4 if compressedwif else 0
-        # [rf][r][s]
-        return base64.b64encode(bytes([rf]) + bytes_sig)
-
-    # the following is only for BIP137
-    #
-    # redundant at best for P2PKH, it can only throw in case of 
-    # compression mismatch between wif and adress
-
-    # 1 determine the type of address
-    # 2 verify that it corresponds to the given private key
-    # 3 compute rf according to BIP137
-    try:
-        network, is_p2wpkh_p2sh, hash160 = h160_from_base58_address(addr)
-        is_p2wpkh = False
-    except Exception:
-        network, hash160 = hash_from_bech32_address(addr)
-        is_p2wpkh = True
-        is_p2wpkh_p2sh = False
-
-    pk = octets_from_point(pubkey, True, secp256k1)
-    if is_p2wpkh_p2sh:
-        # script_pubkey is 0x0014{20-byte key-hash}
-        script_pubkey = b'\x00\x14' + h160(pk)
-        if h160(script_pubkey) == hash160:
-            rf += 35  # p2wpkh-p2sh
-        else:
-            raise ValueError("Mismatch between p2wpkh_p2sh address and key pair")
-    elif is_p2wpkh:
-        if h160(pk) == hash160:
-            rf += 39  # p2wpkh
-        else:
-            raise ValueError("Mismatch between p2wpkh address and key pair")
+    elif addr == p2pkh_address(pubkey):
+        rf += 27
+        rf += 4 if compressedwif else 0
+    # BIP137
+    elif addr == p2wpkh_p2sh_address(pubkey):
+        rf += 35
+    elif addr == p2wpkh_address(pubkey):
+        rf += 39
     else:
-        if h160(pk) == hash160:
-            if compressedwif:
-                rf += 31  # p2pkh (compressed key)
-            else:
-                msg = "Pubkey mismatch: "
-                msg += "uncompressed wif, compressed address"
-                raise ValueError(msg)
-        else:  # try with uncompressed key
-            pk = octets_from_point(pubkey, False, secp256k1)
-            if h160(pk) == hash160:
-                if compressedwif:
-                    msg = "Pubkey mismatch: "
-                    msg += "compressed wif, uncompressed address"
-                    raise ValueError(msg)
-                else:
-                    rf += 27  # p2pkh (uncompressed key)
-            else:
-                raise ValueError("Mismatch between p2pkh address and key pair")
-
+        raise ValueError("Mismatch between private key and address")
+    
     # [rf][r][s]
-    return base64.b64encode(bytes([rf]) + bytes_sig)
+    t = bytes([rf]) + sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
+    return base64.b64encode(t)
 
 
 def verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
@@ -254,41 +212,47 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
+    if isinstance(addr, str):
+        addr = addr.strip()
+        addr = addr.encode("ascii")
+
     # [rf][r][s]
     sig = base64.b64decode(sig)
     if len(sig) != 65:
         raise ValueError(f"Wrong encoding length: {len(sig)} instead of 65")
 
-    # signature is valid only if the provided address is matched
-
-    # first: calculate hash160 from address
-    try:
-        network, is_p2wpkh_p2sh, hash160 = h160_from_base58_address(addr)
-    except Exception:
-        network, hash160 = hash_from_bech32_address(addr)
-        is_p2wpkh_p2sh = False
-
-    # second: recover pubkey from sig
     rf = sig[0]
-    compressed = True
-    if rf < 27:
+    if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
-    elif rf < 31:
-        compressed = False
-    elif rf > 42:
-        raise ValueError(f"Invalid recovery flag: {rf}")
-
     r = int.from_bytes(sig[1:33], 'big')
     s = int.from_bytes(sig[33:], 'big')
     magic_msg = _magic_hash(msg)
     pubkeys = pubkey_recovery(magic_msg, (r, s))
     i = rf + 1 & 3  # the right pubkey for both BIP137 and Electrum
     pubkey = pubkeys[i]
-    pk = octets_from_point(pubkey, compressed, secp256k1)
 
-    if is_p2wpkh_p2sh:
-        # script_pubkey is 0x0014{20-byte key-hash}
+    # signature is valid only if the provided address is matched
+    if rf < 31:
+        pk = octets_from_point(pubkey, False)
+        _, _, hash160 = h160_from_base58_address(addr)
+        return h160(pk) == hash160
+
+    pk = octets_from_point(pubkey, True)
+    if rf < 35:
+        try:
+            _, _, hash160 = h160_from_base58_address(addr)
+            if h160(pk) == hash160:  # p2pkh
+                return True
+            else:  # Electrum p2wpkh-p2sh
+                script_pubkey = b'\x00\x14' + h160(pk)
+                return h160(script_pubkey) == hash160
+        except Exception:  # Electrum p2wpkh
+            _, hash160 = hash_from_bech32_address(addr)
+            return h160(pk) == hash160
+    elif rf < 39:  # BIP137 p2wpkh-ps2h
+        _, _, hash160 = h160_from_base58_address(addr)
         script_pubkey = b'\x00\x14' + h160(pk)
         return h160(script_pubkey) == hash160
-    
-    return h160(pk) == hash160
+    else:          # BIP137 p2wpkh
+        _, hash160 = hash_from_bech32_address(addr)
+        return h160(pk) == hash160
