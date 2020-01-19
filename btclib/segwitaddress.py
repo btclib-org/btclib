@@ -170,20 +170,6 @@ def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return _p2wpkh_address(pubkey, True, network)
 
 
-def p2wpkh_scriptPubKey(h160: bytes) -> List[Token]:
-    """Return the p2wpkh scriptPubKey of the provided witness program.
-    
-    For P2WPKH the witness program must be the HASH160 20-byte key-hash;
-    the scriptPubkey is the witness version 0 followed by the canonical push
-    of the witness program (program lenght + program),
-    that is 0x0014{20-byte key-hash}
-    """
-    if len(h160) != 20:
-        msg = f"Invalid witness program lenght ({len(h160)}) for p2wpkh"
-        raise ValueError(msg)
-    return [0, h160]
-
-
 def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh-p2sh (legacy) address."""
     return _p2wpkh_address(pubkey, False, network)
@@ -203,20 +189,6 @@ def _p2wsh_address(wscript: Octets, native: bool, network: str) -> bytes:
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh native SegWit address."""
     return _p2wsh_address(wscript, True, network)
-
-
-def p2wsh_scriptPubKey(h256: bytes) -> List[Token]:
-    """Return the p2wsh scriptPubKey of the provided witness program.
-    
-    For P2WSH the witness program must be the SHA256 32-byte script-hash;
-    the scriptPubkey is the witness version 0 followed by the canonical push
-    of the witness program (program lenght + program),
-    that is 0x0020{32-byte script-hash}
-    """
-    if len(h256) != 32:
-        msg = f"Invalid witness program lenght ({len(h256)}) for p2wsh"
-        raise ValueError(msg)
-    return [0, h256]
 
 
 def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:

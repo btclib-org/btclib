@@ -57,61 +57,6 @@ class TestScript(unittest.TestCase):
         script2 = parse(script_bytes)
         self.assertEqual(script, script2)
 
-    def test_scriptpubkey(self):
-
-        data = "time-stamped data".encode()
-        # OP_RETURN
-        script = ['OP_RETURN', data.hex()]
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
-        self.assertEqual(script, script2)
-
-        pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        # p2pk
-        script = [pubkey, 'OP_CHECKSIG']
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
-        self.assertEqual(script, script2)
-
-        pubKey2 = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-        # multi-sig
-        script = [1, pubkey, pubKey2, 2, 'OP_CHECKMULTISIGVERIFY']
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
-        self.assertEqual(script, script2)
-
-        pubkey_hash = h160(pubkey)
-        # p2pkh
-        script = ['OP_DUP', 'OP_HASH160',
-                  pubkey_hash.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
-        redeem_script_bytes = serialize(script)
-        script2 = parse(redeem_script_bytes)
-        self.assertEqual(script, script2)
-
-        redeem_script_hash = h160(redeem_script_bytes)
-        # p2sh
-        script = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
-        self.assertEqual(script, script2)
-
-        # p2wpkh
-        script = [0, pubkey_hash.hex()]
-        script_bytes = serialize(script)
-        self.assertEqual(script_bytes.hex(), "0014"+pubkey_hash.hex())
-        script2 = parse(script_bytes)
-        self.assertEqual(script, script2)
-
-        witness_script = [pubkey, 'OP_CHECKSIG']
-        witness_script_bytes = serialize(witness_script)
-        witness_script_hash = _sha256(witness_script_bytes)
-        # p2wsh
-        script = [0, witness_script_hash.hex()]
-        script_bytes = serialize(script)
-        self.assertEqual(script_bytes.hex(), "0020"+witness_script_hash.hex())
-        script2 = parse(script_bytes)
-        self.assertEqual(script, script2)
-
     def test_exceptions(self):
 
         # Script: 25 not in [0, 16]
