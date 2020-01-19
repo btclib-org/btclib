@@ -10,12 +10,13 @@
 
 import unittest
 
-from btclib.script import OP_CODE_NAMES, OP_CODES, parse, serialize
+from btclib.script import OP_CODE_NAMES, OP_CODES, decode, encode
 from btclib.scriptpubkey import (multisig_scriptPubKey, nulldata_scriptPubKey,
                                  p2pk_scriptPubKey, p2pkh_scriptPubKey,
                                  p2sh_scriptPubKey, p2wpkh_scriptPubKey,
                                  p2wsh_scriptPubKey)
 from btclib.utils import _sha256, h160
+from btclib import segwitaddress
 
 
 class TestScriptPubKey(unittest.TestCase):
@@ -26,59 +27,59 @@ class TestScriptPubKey(unittest.TestCase):
         data = "time-stamped data".encode().hex()
         # script = ['OP_RETURN', data.hex()]
         script = nulldata_scriptPubKey(data)
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         # p2pk
         pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
         #script = [pubkey, 'OP_CHECKSIG']
         script = p2pk_scriptPubKey(pubkey)
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         # multi-sig
         pubKey2 = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         # script = [1, pubkey, pubKey2, 2, 'OP_CHECKMULTISIGVERIFY']
         script = multisig_scriptPubKey(1, (pubkey, pubKey2))
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         # p2pkh
         pubkey_hash = h160(pubkey).hex()
         # script = ['OP_DUP', 'OP_HASH160', pubkey_hash.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
         script = p2pkh_scriptPubKey(pubkey_hash)
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         # p2sh (p2pkh-p2sh)
         redeem_script_hash = h160(script_bytes).hex()
         # script = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
         script = p2sh_scriptPubKey(redeem_script_hash)
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         # p2wpkh
         # script = [0, pubkey_hash.hex()]
         script = p2wpkh_scriptPubKey(pubkey_hash)
-        script_bytes = serialize(script)
+        script_bytes = encode(script)
         self.assertEqual(script_bytes.hex(), "0014"+pubkey_hash)
-        script2 = parse(script_bytes)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         # p2wsh
         witness_script = [pubkey, 'OP_CHECKSIG']
-        witness_script_bytes = serialize(witness_script)
+        witness_script_bytes = encode(witness_script)
         witness_script_hash = _sha256(witness_script_bytes)
         # script = [0, witness_script_hash.hex()]
         script = p2wsh_scriptPubKey(witness_script_hash.hex())
-        script_bytes = serialize(script)
+        script_bytes = encode(script)
         self.assertEqual(script_bytes.hex(), "0020"+witness_script_hash.hex())
-        script2 = parse(script_bytes)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
     def test_exceptions(self):

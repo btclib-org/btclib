@@ -14,7 +14,7 @@ from btclib import base58
 from btclib.address import (h160_from_base58_address, p2pkh_address,
                             p2sh_address)
 from btclib.curves import secp256k1 as ec
-from btclib.script import serialize
+from btclib.script import encode
 from btclib.utils import h160, octets_from_point, point_from_octets
 
 
@@ -53,7 +53,7 @@ class TestAddresses(unittest.TestCase):
         # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
         script = ['OP_2DUP', 'OP_EQUAL', 'OP_NOT', 'OP_VERIFY',
                   'OP_SHA1', 'OP_SWAP', 'OP_SHA1', 'OP_EQUAL']
-        script_bytes = serialize(script)
+        script_bytes = encode(script)
         self.assertEqual(script_bytes.hex(), '6e879169a77ca787')
 
         network = 'mainnet'
@@ -68,7 +68,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(redeem_script_hash.hex(),
                          '4266fc6f2c2861d7fe229b279a79803afca7ba34')
         output_script = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
-        _ = serialize(output_script)
+        _ = encode(output_script)
 
         # address with trailing/leading spaces
         _, _, h2 = h160_from_base58_address(' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')

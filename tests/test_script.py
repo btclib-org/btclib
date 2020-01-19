@@ -10,7 +10,7 @@
 
 import unittest
 
-from btclib.script import serialize, parse, OP_CODES, OP_CODE_NAMES
+from btclib.script import encode, decode, OP_CODES, OP_CODE_NAMES
 from btclib.utils import h160, _sha256
 
 
@@ -43,54 +43,54 @@ class TestScript(unittest.TestCase):
 
     def test_simple(self):
         script = [2, 3, 'OP_ADD', 5, 'OP_EQUAL']
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         script = [12, 13, 'OP_ADD', '19', 'OP_EQUAL']
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         script = [12, -1, 'OP_ADD', 11, 'OP_EQUAL']
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         script = ["1f"*250, 'OP_DROP']
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
         script = ["1f"*520, 'OP_DROP']
-        script_bytes = serialize(script)
-        script2 = parse(script_bytes)
+        script_bytes = encode(script)
+        script2 = decode(script_bytes)
         self.assertEqual(script, script2)
 
     def test_exceptions(self):
 
         # Script: invalid OP_VERIF opcode
         script = [2, 3, 'OP_ADD', 5, 'OP_VERIF']
-        self.assertRaises(ValueError, serialize, script)
-        # serialize(script)
+        self.assertRaises(ValueError, encode, script)
+        # encode(script)
 
         # Script: unmanaged <class 'function'> token type
-        script = [2, 3, 'OP_ADD', 5, serialize]
-        self.assertRaises(ValueError, serialize, script)
-        # serialize(script)
+        script = [2, 3, 'OP_ADD', 5, encode]
+        self.assertRaises(ValueError, encode, script)
+        # encode(script)
 
         # Script: Cannot push 521 bytes on the stack
         script = ["1f"*521, 'OP_DROP']
-        self.assertRaises(ValueError, serialize, script)
-        # serialize(script)
+        self.assertRaises(ValueError, encode, script)
+        # encode(script)
 
-        # Can parse a script with OP_PUSHDATA4
+        # A script with OP_PUSHDATA4 can be decoded
         script_bytes = b'NN\t\x02\x00\x00' + 521 * b'\xff'  # OP_PUSHDATA4 + 521 bytes
-        script = parse(script_bytes)
-        # but cannot serialize:
+        script = decode(script_bytes)
+        # but cannot be encoded
         # Script: Cannot push 522 bytes on the stack
-        self.assertRaises(ValueError, serialize, script)
-        # serialize(script)
+        self.assertRaises(ValueError, encode, script)
+        # encode(script)
         # FIXME: why is the error message reporting 522 bytes instead of 521
 
 

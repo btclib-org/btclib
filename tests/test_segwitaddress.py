@@ -40,11 +40,10 @@ with the following modifications:
 * checked for assertRaises instead of assertIsNone
 """
 
-import binascii
 import unittest
 
 from btclib.curves import secp256k1 as ec
-from btclib.script import serialize
+from btclib.script import encode
 from btclib.segwitaddress import (_decode, _encode, _scriptPubKey,
                                   hash_from_bech32_address, p2wpkh_address,
                                   p2wpkh_p2sh_address, p2wsh_address,
@@ -105,7 +104,7 @@ class TestSegwitAddress(unittest.TestCase):
         for a, hexscript in VALID_BC_ADDRESS + VALID_TB_ADDRESS:
             network, witvers, witprog = _decode(a)
             script_pubkey = _scriptPubKey(witvers, witprog)
-            self.assertEqual(serialize(script_pubkey), binascii.unhexlify(hexscript))
+            self.assertEqual(encode(script_pubkey).hex(), hexscript)
             address = _encode(network, witvers, witprog)
             self.assertEqual(a.lower().strip(), address.decode())
 
@@ -117,8 +116,7 @@ class TestSegwitAddress(unittest.TestCase):
     def test_invalid_address_enc(self):
         """Test whether address encoding fails on invalid input"""
         for network, version, length in INVALID_ADDRESS_ENC:
-            self.assertRaises(ValueError, _encode,
-                              version, [0] * length, network)
+            self.assertRaises(ValueError, _encode, network, version, [0] * length)
 
     def test_encode_decode(self):
 
@@ -205,7 +203,7 @@ class TestSegwitAddress(unittest.TestCase):
         # leading/trailing spaces should be tolerated
         pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         witness_script = [pub, 'OP_CHECKSIG']
-        witness_script_bytes = serialize(witness_script)
+        witness_script_bytes = encode(witness_script)
         p2wsh_p2sh_address(witness_script_bytes)
         p2wsh_p2sh_address(witness_script_bytes, 'testnet')
 
@@ -214,7 +212,7 @@ class TestSegwitAddress(unittest.TestCase):
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
         pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         witness_script = [pub, 'OP_CHECKSIG']
-        witness_script_bytes = serialize(witness_script)
+        witness_script_bytes = encode(witness_script)
         addr = b'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
         self.assertEqual(addr, p2wsh_address(witness_script_bytes, 'testnet'))
         addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'

@@ -220,9 +220,10 @@ OP_CODE_NAMES = {
     185: 'OP_NOP10',
 }
 
-from typing import Iterable, Union, List
 from io import BytesIO
+from typing import Iterable, List, Union, BinaryIO
 
+from . import varint
 from .utils import Octets
 
 # the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
@@ -233,6 +234,7 @@ from .utils import Octets
 Token = Union[int, str, bytes]
 # TODO: use Script as input and serialize Iterable[Token] to bytes on the fly
 Script = Union[bytes, Iterable[Token]]
+
 
 def _op_pushdata(data: bytes) -> bytes:
     """Convert to canonical push: OP_PUSHDATA (if needed) | length | data.
@@ -262,7 +264,7 @@ def _op_pushdata(data: bytes) -> bytes:
     return r
 
 
-def serialize(script: Iterable[Token]) -> bytes:
+def encode(script: Iterable[Token]) -> bytes:
     r = b''
     for token in script:
         if isinstance(token, int):
@@ -297,13 +299,17 @@ def serialize(script: Iterable[Token]) -> bytes:
     return r
 
 
-def parse(script: bytes) -> List[Token]:
+def decode(script: Octets) -> List[Token]:
+
+    if isinstance(script, str):  # hex-string
+        script = script.strip()
+        script = bytes.fromhex(script)
 
     # initialize the result list
     r: List[Union[str, int, bytes]] = []
 
-    s = BytesIO(script)
     length = len(script)
+    s = BytesIO(script)
     counter = 0
     while counter < length:
         # get one byte and convert it to an integer

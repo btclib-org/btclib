@@ -45,7 +45,7 @@ with the following modifications:
 from typing import Tuple, Iterable, List, Union
 
 from . import bech32
-from .script import Token, serialize
+from .script import Token, encode
 from .utils import Octets, h160, _sha256
 from .address import p2sh_address
 
@@ -135,8 +135,8 @@ def _decode(address: Union[str, bytes]) -> Tuple[str, int, List[int]]:
 
 def _encode(network: str, wv: int, wp: WitnessProgram) -> bytes:
     """Encode a SegWit address."""
-    hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
     _check_witness(wv, wp)
+    hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
     ret = bech32.encode(hrp, [wv] + _convertbits(wp, 8, 5))
     return ret
 
@@ -183,7 +183,7 @@ def _p2wsh_address(wscript: Octets, native: bool, network: str) -> bytes:
     if native:
         return _encode(network, witvers, witprog)
     script_pubkey = _scriptPubKey(witvers, witprog)
-    return p2sh_address(serialize(script_pubkey), network)
+    return p2sh_address(encode(script_pubkey), network)
 
 
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
