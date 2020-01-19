@@ -10,13 +10,13 @@
 
 import unittest
 
-from btclib.script import OP_CODE_NAMES, OP_CODES, decode, encode
+from btclib import segwitaddress
+from btclib.script import OP_CODE_NAMES, OP_CODES, decode, encode, serialize
 from btclib.scriptpubkey import (multisig_scriptPubKey, nulldata_scriptPubKey,
                                  p2pk_scriptPubKey, p2pkh_scriptPubKey,
                                  p2sh_scriptPubKey, p2wpkh_scriptPubKey,
                                  p2wsh_scriptPubKey)
 from btclib.utils import _sha256, h160
-from btclib import segwitaddress
 
 
 class TestScriptPubKey(unittest.TestCase):
@@ -130,6 +130,27 @@ class TestScriptPubKey(unittest.TestCase):
         # Invalid witness program lenght (33 bytes) for p2wsh scriptPubKey
         self.assertRaises(ValueError, p2wsh_scriptPubKey, "00"*33)
         # p2wsh_scriptPubKey("00"*33)
+
+    def test_CLT(self):
+        
+        vault_pubkeys = [b'\x00'*33, b'\x11'*33, b'\x22'*33]
+        recovery_pubkeys = [b'\x77'*33, b'\x88'*33, b'\x99'*33]
+
+        script = [
+            'OP_IF',
+                2, *vault_pubkeys, 3, 'OP_CHECKMULTISIG',
+            'OP_ELSE',
+                500, 'OP_CHECKLOCKTIMEVERIFY', 'OP_DROP',
+                2, *recovery_pubkeys, 3, 'OP_CHECKMULTISIG',
+            'OP_ENDIF'
+        ]
+        witness_program = encode(script)
+        witness_hash = _sha256(witness_program)
+
+        script_pubkey = p2wsh_scriptPubKey(witness_hash)
+        self.assertEqual(encode(script_pubkey).hex(), "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708")
+        address = segwitaddress._encode("mainnet", 0, witness_hash)
+        self.assertEqual(address.decode(), "bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj")
 
 
 if __name__ == "__main__":
