@@ -279,7 +279,7 @@ def encode(script: Iterable[Token]) -> bytes:
             # FIXME: negative numbers?
             else:
                 nbytes = (token.bit_length() + 7) // 8
-                data = token.to_bytes(nbytes, byteorder='big')
+                data = token.to_bytes(nbytes, byteorder='little')
                 r += _op_pushdata(data)
         elif isinstance(token, str):
             token = token.strip()
