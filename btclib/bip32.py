@@ -34,6 +34,7 @@ from .curves import secp256k1 as ec
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
 from .utils import (Octets, bytes_from_hexstring, h160, int_from_octets,
                     octets_from_point, point_from_octets)
+from .wif import wif_from_prvkey
 
 # Bitcoin core uses the m/0h (core) BIP32 derivation path
 # with xprv/xpub and tprv/tpub Base58 encoding
@@ -145,8 +146,8 @@ def xkey_parse(xkey: Octets) -> Tuple:
             msg = f"extended key: non-zero depth ({depth}) with zero parent_fingerprint"
             raise ValueError()
 
-    return version, depth, parent_fingerprint, \
-        child_index, chain_code, key, P
+    return (version, depth, parent_fingerprint,
+            child_index, chain_code, key, P)
 
 
 def parent_fingerprint(xkey: Octets) -> bytes:
@@ -170,7 +171,7 @@ def fingerprint(xkey: Octets) -> bytes:
     return h160(key)[:4]
 
 
-def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
+def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     """derive the BIP32 root master extended private key from the seed"""
 
     version = bytes_from_hexstring(version)
@@ -331,7 +332,7 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
 
 
 def address_from_xpub(xpub: Octets) -> bytes:
-    """Return the address according to xpub version type."""
+    """Return the address according to the xpub SLIP32 version type."""
 
     v, _, _, _, _, k, _ = xkey_parse(xpub)
 
@@ -348,6 +349,19 @@ def address_from_xpub(xpub: Octets) -> bytes:
         # v in _P2WPKH_P2SH_PUB_PREFIXES
         # p2wpkh p2sh-wrapped-segwit
         return _p2wpkh_p2sh_address_from_xpub(v, k)
+
+
+def wif_from_xprv(xprv: Octets) -> bytes:
+    """Return the WIF according to xpub version type."""
+
+    v, _, _, _, _, k, _ = xkey_parse(xprv)
+
+    if k[0] != 0:
+        raise ValueError("xkey is not a private one")
+
+    compressed = True
+    network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(v)]
+    return wif_from_prvkey(k, compressed, network)
 
 
 def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:

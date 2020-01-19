@@ -16,6 +16,7 @@ from btclib import base58, bip32, bip39
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import int_from_octets
+from btclib.wif import p2pkh_address_from_wif
 
 
 class TestBIP32(unittest.TestCase):
@@ -766,6 +767,17 @@ class TestBIP32(unittest.TestCase):
     def test_regtest_versions(self):
         pass
         # FIXME: how to obtain regtest addresses from btclib?
+
+    def test_wif_address_from_xkey(self):
+        seed = b"00"*32  # better be random
+        rxprv = bip32.rootxprv_from_seed(seed)
+        path = "m/0h/0h/12"
+        xprv = bip32.derive(rxprv, path)
+        wif = bip32.wif_from_xprv(xprv)
+        self.assertEqual(wif, b'KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP')
+        address = p2pkh_address_from_wif(wif)
+        address2 = bip32.address_from_xpub(bip32.xpub_from_xprv(xprv))
+        self.assertEqual(address, address2)
 
 
 if __name__ == "__main__":
