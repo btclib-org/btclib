@@ -776,9 +776,11 @@ class TestBIP32(unittest.TestCase):
         wif = bip32.wif_from_xprv(xprv)
         self.assertEqual(wif, b'KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP')
         address = p2pkh_address_from_wif(wif)
-        address2 = bip32.address_from_xpub(bip32.xpub_from_xprv(xprv))
+        xpub = bip32.xpub_from_xprv(xprv)
+        address2 = bip32.address_from_xpub(xpub)
         self.assertEqual(address, address2)
 
+        self.assertRaises(ValueError, bip32.wif_from_xprv, xpub)
 
 if __name__ == "__main__":
     # execute only if run as a script
