@@ -81,11 +81,11 @@ class TestScript(unittest.TestCase):
 
         script_list = ["1f"*520, 'OP_DROP']
         script_bytes = encode(script_list)
-        script_list2 = decode(script_bytes)
+        script_list2 = decode(script_bytes.hex())
         self.assertEqual(script_list, script_list2)
 
         script_serialized = serialize(script_list)
-        script_list2 = parse(script_serialized)
+        script_list2 = parse(script_serialized.hex())
         self.assertEqual(script_list, script_list2)
 
     def test_exceptions(self):
