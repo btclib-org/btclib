@@ -225,9 +225,11 @@ from io import BytesIO
 
 from .utils import Octets
 
-# int [0-16] are shorcuts for 'OP_0'-'OP_16'
-# str are for opcodes (e.g. 'OP_HASH160') or hexstring data
-# bytes ia for data
+# the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
+# the integer -1 is a shorcut for 'OP_1NEGATE'
+# other integers are bytes encoded (require push operation) 
+# str are for opcodes (e.g. 'OP_HASH160') or hexstring data to be pushed
+# bytes is for data to be pushed
 Token = Union[int, str, bytes]
 # TODO: use Script as input and serialize Iterable[Token] to bytes on the fly
 Script = Union[bytes, Iterable[Token]]
@@ -264,10 +266,19 @@ def serialize(script: Iterable[Token]) -> bytes:
     r = b''
     for token in script:
         if isinstance(token, int):
+            # Short 1-byte opcodes exist
+            # to push numbers in [-1, 16]
             if token >= 0 and token <= 16:
                 r += OP_CODES['OP_' + str(token)]
+            elif token == -1:
+                r += OP_CODES['OP_1NEGATE']
+            # Pushing any other number requires an
+            # explicit push operation of its bytes encoding
+            # FIXME: negative numbers?
             else:
-                raise ValueError(f"Script: {token} not in [0, 16]")
+                nbytes = (token.bit_length() + 7) // 8
+                data = token.to_bytes(nbytes, byteorder='big')
+                r += _op_pushdata(data)
         elif isinstance(token, str):
             token = token.strip()
             token = token.upper()
@@ -301,6 +312,9 @@ def parse(script: bytes) -> List[Token]:
         if i == 0:
             # numeric value 0 (OP_0)
             r.append(i)
+        elif i == 79:
+            # numeric value -1 (OP_1NEGATE)
+            r.append(-1)
         elif i > 80 and i < 97:
             # numeric values 1-16 (OP_1-OP_16)
             r.append(i-80)

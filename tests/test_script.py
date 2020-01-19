@@ -47,6 +47,16 @@ class TestScript(unittest.TestCase):
         script2 = parse(script_bytes)
         self.assertEqual(script, script2)
 
+        script = [12, 13, 'OP_ADD', '19', 'OP_EQUAL']
+        script_bytes = serialize(script)
+        script2 = parse(script_bytes)
+        self.assertEqual(script, script2)
+
+        script = [12, -1, 'OP_ADD', 11, 'OP_EQUAL']
+        script_bytes = serialize(script)
+        script2 = parse(script_bytes)
+        self.assertEqual(script, script2)
+
         script = ["1f"*250, 'OP_DROP']
         script_bytes = serialize(script)
         script2 = parse(script_bytes)
@@ -58,11 +68,6 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script, script2)
 
     def test_exceptions(self):
-
-        # Script: 25 not in [0, 16]
-        script = [12, 13, 'OP_ADD', 25, 'OP_EQUAL']
-        self.assertRaises(ValueError, serialize, script)
-        # serialize(script)
 
         # Script: invalid OP_VERIF opcode
         script = [2, 3, 'OP_ADD', 5, 'OP_VERIF']
