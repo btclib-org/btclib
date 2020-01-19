@@ -309,7 +309,7 @@ def decode(script: Octets) -> List[Token]:
     r: List[Union[str, int, bytes]] = []
 
     length = len(script)
-    s = BytesIO(script)
+    s = BytesIO(script)  # TODO: avoid unnecessary streamification
     counter = 0
     while counter < length:
         # get one byte and convert it to an integer
@@ -352,3 +352,24 @@ def decode(script: Octets) -> List[Token]:
             r.append(OP_CODE_NAMES[i])
 
     return r
+
+
+def serialize(script: Iterable[Token]) -> bytes:
+    r = encode(script)
+    # prepend length as varint
+    length  = len(r)
+    return varint.encode(length) + r
+
+
+def parse(stream: Union[BinaryIO, Octets]) -> List[Token]:
+
+    if isinstance(stream, str):  # hex-string
+        stream = stream.strip()
+        stream = bytes.fromhex(stream)
+
+    if isinstance(stream, bytes):
+        stream = BytesIO(stream)
+
+    length = varint.decode(stream)
+    script = stream.read(length)
+    return decode(script)

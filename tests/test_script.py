@@ -10,8 +10,9 @@
 
 import unittest
 
-from btclib.script import encode, decode, OP_CODES, OP_CODE_NAMES
-from btclib.utils import h160, _sha256
+from btclib.script import (OP_CODE_NAMES, OP_CODES, decode, encode, parse,
+                           serialize)
+from btclib.utils import _sha256, h160
 
 
 class TestScript(unittest.TestCase):
@@ -42,30 +43,50 @@ class TestScript(unittest.TestCase):
             self.assertTrue(i in OP_CODE_NAMES.keys())
 
     def test_simple(self):
-        script = [2, 3, 'OP_ADD', 5, 'OP_EQUAL']
-        script_bytes = encode(script)
-        script2 = decode(script_bytes)
-        self.assertEqual(script, script2)
+        script_list = [2, 3, 'OP_ADD', 5, 'OP_EQUAL']
+        script_bytes = encode(script_list)
+        script_list2 = decode(script_bytes)
+        self.assertEqual(script_list, script_list2)
 
-        script = [12, 13, 'OP_ADD', '19', 'OP_EQUAL']
-        script_bytes = encode(script)
-        script2 = decode(script_bytes)
-        self.assertEqual(script, script2)
+        script_serialized = serialize(script_list)
+        script_list2 = parse(script_serialized)
+        self.assertEqual(script_list, script_list2)
 
-        script = [12, -1, 'OP_ADD', 11, 'OP_EQUAL']
-        script_bytes = encode(script)
-        script2 = decode(script_bytes)
-        self.assertEqual(script, script2)
+        script_list = [12, 13, 'OP_ADD', '19', 'OP_EQUAL']
+        script_bytes = encode(script_list)
+        script_list2 = decode(script_bytes)
+        self.assertEqual(script_list, script_list2)
 
-        script = ["1f"*250, 'OP_DROP']
-        script_bytes = encode(script)
-        script2 = decode(script_bytes)
-        self.assertEqual(script, script2)
+        script_serialized = serialize(script_list)
+        script_list2 = parse(script_serialized)
+        self.assertEqual(script_list, script_list2)
 
-        script = ["1f"*520, 'OP_DROP']
-        script_bytes = encode(script)
-        script2 = decode(script_bytes)
-        self.assertEqual(script, script2)
+        script_list = [12, -1, 'OP_ADD', 11, 'OP_EQUAL']
+        script_bytes = encode(script_list)
+        script_list2 = decode(script_bytes)
+        self.assertEqual(script_list, script_list2)
+
+        script_serialized = serialize(script_list)
+        script_list2 = parse(script_serialized)
+        self.assertEqual(script_list, script_list2)
+
+        script_list = ["1f"*250, 'OP_DROP']
+        script_bytes = encode(script_list)
+        script_list2 = decode(script_bytes)
+        self.assertEqual(script_list, script_list2)
+
+        script_serialized = serialize(script_list)
+        script_list2 = parse(script_serialized)
+        self.assertEqual(script_list, script_list2)
+
+        script_list = ["1f"*520, 'OP_DROP']
+        script_bytes = encode(script_list)
+        script_list2 = decode(script_bytes)
+        self.assertEqual(script_list, script_list2)
+
+        script_serialized = serialize(script_list)
+        script_list2 = parse(script_serialized)
+        self.assertEqual(script_list, script_list2)
 
     def test_exceptions(self):
 
