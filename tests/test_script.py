@@ -52,7 +52,7 @@ class TestScript(unittest.TestCase):
         script_list2 = parse(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = [12, 13, 'OP_ADD', '19', 'OP_EQUAL']
+        script_list = [26, -1, 'OP_ADD', 25, 'OP_EQUAL']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)
@@ -61,7 +61,7 @@ class TestScript(unittest.TestCase):
         script_list2 = parse(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = [12, -1, 'OP_ADD', 11, 'OP_EQUAL']
+        script_list = [0xffffffff, -1, 'OP_ADD', 0xfffffffe, 'OP_EQUAL']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)

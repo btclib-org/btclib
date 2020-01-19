@@ -326,7 +326,12 @@ def decode(script: Octets) -> List[Token]:
             # 1-byte-data-length | data
             data = s.read(i)
             counter += i
-            r.append(data.hex())
+            n = int.from_bytes(data, 'little')
+            if n <= 0xffffffff:
+                # probably a number, it won't hurt to consider it a number
+                r.append(n)
+            else:
+                r.append(data.hex())
         elif i == 76:
             # OP_PUSHDATA1 | 1-byte-data-length | data
             data_length = int.from_bytes(s.read(1), 'little')
