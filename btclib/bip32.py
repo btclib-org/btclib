@@ -331,28 +331,23 @@ def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
 
 
 def address_from_xpub(xpub: Octets) -> bytes:
-    """Return the address according to xpub version type.
-    """
+    """Return the address according to xpub version type."""
+
     v, _, _, _, _, k, _ = xkey_parse(xpub)
 
     if k[0] not in (2, 3):
         raise ValueError("xkey is not a public one")
 
-    # p2pkh
     if v in _XPUB_PREFIXES:
+        # p2pkh
         return _p2pkh_address_from_xpub(v, k)
-
-    # p2wpkh native-segwit
-    if v in _P2WPKH_PUB_PREFIXES:
+    elif v in _P2WPKH_PUB_PREFIXES:
+        # p2wpkh native-segwit
         return _p2wpkh_address_from_xpub(v, k)
-
-    # p2wpkh p2sh-wrapped-segwit
-    if v in _P2WPKH_P2SH_PUB_PREFIXES:
+    else:
+        # v in _P2WPKH_P2SH_PUB_PREFIXES
+        # p2wpkh p2sh-wrapped-segwit
         return _p2wpkh_p2sh_address_from_xpub(v, k)
-
-    # the following line should never be executed
-    # if the checks in xkey_parse are effective
-    raise ValueError("Unkown version")
 
 
 def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
