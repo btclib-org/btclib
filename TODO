@@ -57,7 +57,7 @@ crypto: {
 def bytes_from_Octets(o: Octets) -> bytes:
     if isinstance(o, str):  # hex string
         o = o.strip()
-        o = bytes.fromhex(pubkey)
+        o = bytes.fromhex(o)
     return o
 
 def bytes_from_base58_or_bech32(o: Union[str, bytes]) -> bytes:
