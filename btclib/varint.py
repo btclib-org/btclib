@@ -30,33 +30,38 @@ Up to 0xfc, a varint is just 1 byte; however, if the integer is greater than
 """
 
 from io import BytesIO
+from typing import Union, BinaryIO
 
 from .utils import Octets
 
-def decode(varint: Octets) -> int:
-    '''Return the integer represented by the varint stream.'''
+def decode(stream: Union[BinaryIO, Octets]) -> int:
+    '''Return the variable-length integer read from a stream.'''
 
-    if isinstance(varint, str):
-        varint = bytes.fromhex(varint)
+    if isinstance(stream, str):  # hex-string
+        stream = stream.strip()
+        stream = bytes.fromhex(stream)
 
-    s = BytesIO(varint)
-    i = s.read(1)[0]
+    if isinstance(stream, bytes):
+        stream = BytesIO(stream)
+
+    i = stream.read(1)[0]
     if i == 0xfd:
         # 0xfd marks the next two bytes as the number
-        return int.from_bytes(s.read(2), byteorder='little')
+        return int.from_bytes(stream.read(2), byteorder='little')
     elif i == 0xfe:
         # 0xfe marks the next four bytes as the number
-        return int.from_bytes(s.read(4), byteorder='little')
+        return int.from_bytes(stream.read(4), byteorder='little')
     elif i == 0xff:
         # 0xff marks the next eight bytes as the number
-        return int.from_bytes(s.read(8), byteorder='little')
+        return int.from_bytes(stream.read(8), byteorder='little')
     else:
         # anything else is just the integer
         return i
 
 
 def encode(i: int) -> bytes:
-    '''Return the varint bytes encoding on an integer.'''
+    '''Return the varint bytes encoding of an integer.'''
+
     if i <= 0xfc:                  # 1 byte
         return bytes([i])
     elif i <= 0xffff:              # 2 bytes
