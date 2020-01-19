@@ -13,14 +13,15 @@ import unittest
 from hashlib import sha256
 from typing import List
 
-from btclib.numbertheory import mod_inv, legendre_symbol
+from btclib import ssa
 from btclib.curve import Point
-from btclib.curvemult import mult, double_mult
-from btclib.curves import secp256k1, secp224k1, low_card_curves
-from btclib.utils import int_from_octets, point_from_octets, octets_from_point, int_from_bits
+from btclib.curvemult import double_mult, mult
+from btclib.curves import low_card_curves, secp224k1, secp256k1
+from btclib.numbertheory import legendre_symbol, mod_inv
 from btclib.pedersen import second_generator
 from btclib.rfc6979 import rfc6979
-from btclib import ssa
+from btclib.utils import (int_from_bits, int_from_octets,
+                          octets_from_point, point_from_octets)
 
 random.seed(42)
 

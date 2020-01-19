@@ -11,14 +11,12 @@
 from typing import Tuple, Union
 
 from . import base58
-
+from .address import p2pkh_address
 from .curvemult import mult
 from .curves import secp256k1
-from .utils import (Octets, int_from_octets, octets_from_int,
-                    octets_from_point)
-
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
-from .address import p2pkh_address
+from .utils import (Octets, bytes_from_hexstring, int_from_octets,
+                    octets_from_int, octets_from_point)
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _CURVES = [secp256k1, secp256k1, secp256k1]
@@ -47,8 +45,7 @@ def wif_from_prvkey(prv: Union[int, Octets],
     payload = _WIF_PREFIXES[network_index]
 
     ec = _CURVES[network_index]
-    if isinstance(prv, str):
-        prv = bytes.fromhex(prv)
+    prv = bytes_from_hexstring(prv)
 
     if isinstance(prv, bytes):
         prv = int.from_bytes(prv, 'big')
@@ -93,9 +90,6 @@ def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
 
 def _pubkey_from_wif(wif: Union[str, bytes]) -> Tuple[bytes, str]:
 
-    if isinstance(wif, str):
-        wif = wif.strip()
-
     prv, compressed, network = prvkey_from_wif(wif)
     network_index = _NETWORKS.index(network)
     ec = _CURVES[network_index]
@@ -110,9 +104,6 @@ def p2pkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
     WIF encodes the information about the pubkey to be used for the
     address computation being the compressed or uncompressed one.
     """
-
-    if isinstance(wif, str):
-        wif = wif.strip()
 
     prv, compressed, network = prvkey_from_wif(wif)
     network_index = _NETWORKS.index(network)

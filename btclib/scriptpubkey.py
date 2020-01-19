@@ -12,17 +12,16 @@
 
 """
 
-from typing import Iterable, Union, List
+from typing import Iterable, List, Union
 
 from .script import Token
-from .utils import Octets
+from .utils import Octets, bytes_from_hexstring
 
 
 def nulldata_scriptPubKey(data: Octets) -> List[Token]:
     """Return the nulldata scriptPubKey with the provided data."""
-    if isinstance(data, str):  # hex string
-        data = data.strip()
-        data = bytes.fromhex(data)
+
+    data = bytes_from_hexstring(data)
     if len(data) > 40:
         msg = f"Invalid data lenght ({len(data)} bytes) "
         msg += "for nulldata scriptPubKey"
@@ -32,9 +31,8 @@ def nulldata_scriptPubKey(data: Octets) -> List[Token]:
 
 def p2pk_scriptPubKey(pubkey: Octets) -> List[Token]:
     """Return the p2pk scriptPubKey of the provided pubkey."""
-    if isinstance(pubkey, str):  # hex string
-        pubkey = pubkey.strip()
-        pubkey = bytes.fromhex(pubkey)
+
+    pubkey = bytes_from_hexstring(pubkey)
     if len(pubkey) not in (33, 65):
         msg = f"Invalid pubkey lenght ({len(pubkey)} bytes) "
         msg += "for p2pk scriptPubKey"
@@ -51,9 +49,7 @@ def multisig_scriptPubKey(m: int, pubkeys: Iterable[Octets]) -> List[Token]:
 
     scriptPubKey : List[Token] = [m]
     for pubkey in pubkeys:
-        if isinstance(pubkey, str):  # hex string
-            pubkey = pubkey.strip()
-            pubkey = bytes.fromhex(pubkey)
+        pubkey = bytes_from_hexstring(pubkey)
         if len(pubkey) not in (33, 65):
             msg = f"Invalid pubkey lenght ({len(pubkey)} bytes) "
             msg += "for m-of-n multi-sig scriptPubKey"
@@ -74,9 +70,8 @@ def multisig_scriptPubKey(m: int, pubkeys: Iterable[Octets]) -> List[Token]:
 
 def p2pkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     """Return the p2pkh scriptPubKey of the provided HASH160 pubkey-hash."""
-    if isinstance(pubkey_h160, str):  # hex string
-        pubkey_h160 = pubkey_h160.strip()
-        pubkey_h160 = bytes.fromhex(pubkey_h160)
+
+    pubkey_h160 = bytes_from_hexstring(pubkey_h160)
     if len(pubkey_h160) != 20:
         msg = f"Invalid pubkey-hash lenght ({len(pubkey_h160)} bytes) "
         msg += "for p2pkh scriptPubKey"
@@ -86,9 +81,8 @@ def p2pkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
 
 def p2sh_scriptPubKey(script_h160: Octets) -> List[Token]:
     """Return the p2sh scriptPubKey of the provided HASH160 script-hash."""
-    if isinstance(script_h160, str):  # hex string
-        script_h160 = script_h160.strip()
-        script_h160 = bytes.fromhex(script_h160)
+
+    script_h160 = bytes_from_hexstring(script_h160)
     if len(script_h160) != 20:
         msg = f"Invalid script-hash lenght ({len(script_h160)} bytes) "
         msg += "for p2sh scriptPubKey"
@@ -104,9 +98,8 @@ def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     of the witness program (program lenght + program),
     that is 0x0014{20-byte key-hash}
     """
-    if isinstance(pubkey_h160, str):  # hex string
-        pubkey_h160 = pubkey_h160.strip()
-        pubkey_h160 = bytes.fromhex(pubkey_h160)
+
+    pubkey_h160 = bytes_from_hexstring(pubkey_h160)
     if len(pubkey_h160) != 20:
         msg = f"Invalid witness program lenght ({len(pubkey_h160)} bytes) "
         msg += "for p2wpkh scriptPubKey"
@@ -122,9 +115,8 @@ def p2wsh_scriptPubKey(script_h160: Octets) -> List[Token]:
     of the witness program (program lenght + program),
     that is 0x0020{32-byte script-hash}
     """
-    if isinstance(script_h160, str):  # hex string
-        script_h160 = script_h160.strip()
-        script_h160 = bytes.fromhex(script_h160)
+
+    script_h160 = bytes_from_hexstring(script_h160)
     if len(script_h160) != 32:
         msg = f"Invalid witness program lenght ({len(script_h160)} bytes) "
         msg += "for p2wsh scriptPubKey"

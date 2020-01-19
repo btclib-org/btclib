@@ -23,17 +23,17 @@ Here, the HD wallet is implemented according to BIP32 bitcoin standard
 https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
 """
 
-from hmac import HMAC
 from hashlib import sha512
-from typing import Union, Optional, Sequence, List, Tuple
+from hmac import HMAC
+from typing import List, Optional, Sequence, Tuple, Union
 
 from . import base58
+from .address import p2pkh_address
 from .curvemult import mult
 from .curves import secp256k1 as ec
-from .utils import Octets, point_from_octets, octets_from_point, \
-    int_from_octets, h160
-from .address import p2pkh_address
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
+from .utils import (Octets, bytes_from_hexstring, h160, int_from_octets,
+                    octets_from_point, point_from_octets)
 
 # Bitcoin core uses the m/0h (core) BIP32 derivation path
 # with xprv/xpub and tprv/tpub Base58 encoding
@@ -173,8 +173,7 @@ def fingerprint(xkey: Octets) -> bytes:
 def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
     """derive the BIP32 root master extended private key from the seed"""
 
-    if isinstance(version, str):  # hex string
-        version = bytes.fromhex(version)
+    version = bytes_from_hexstring(version)
     if version not in _PRV_VERSIONS:
         msg = f"invalid private version ({version})"
         raise ValueError(msg)
@@ -186,8 +185,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets) -> bytes:
     rootxprv += b'\x00\x00\x00\x00'               # child index
 
     # actual extended key (key + chain code) derivation
-    if isinstance(seed, str):  # hex string
-        seed = bytes.fromhex(seed)
+    seed = bytes_from_hexstring(seed)
     hd = HMAC(b"Bitcoin seed", seed, sha512).digest()
     rootprv = int_from_octets(hd[:32])
     rootxprv += hd[32:]                                # chain code
@@ -230,8 +228,8 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
 
     if isinstance(index, int):
         index = index.to_bytes(4, 'big')
-    elif isinstance(index, str):  # hex string
-        index = bytes.fromhex(index)
+
+    index = bytes_from_hexstring(index)
 
     if len(index) != 4:
         raise ValueError(f"a 4 bytes int is required, not {len(index)}")

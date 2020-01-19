@@ -8,12 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+import json
 import unittest
 from os import path
-import json
 
-from btclib import base58
-from btclib import bip32, bip39
+from btclib import base58, bip32, bip39
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
 from btclib.utils import int_from_octets

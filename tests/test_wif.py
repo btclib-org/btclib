@@ -12,8 +12,8 @@ import unittest
 
 from btclib import base58
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets_from_int
-from btclib.wif import wif_from_prvkey, prvkey_from_wif, p2pkh_address_from_wif
+from btclib.utils import bytes_from_hexstring, octets_from_int
+from btclib.wif import p2pkh_address_from_wif, prvkey_from_wif, wif_from_prvkey
 
 
 class TestWif(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestWif(unittest.TestCase):
         self.assertEqual(prvkey, int(q, 16))
         self.assertEqual(compressed, True)
 
-        q = bytes.fromhex(q)
+        q = bytes_from_hexstring(q)
         # compressed WIF (testnet)
         wif = b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx'
         self.assertEqual(wif, wif_from_prvkey(q, True, 'testnet'))

@@ -15,7 +15,7 @@ import secrets
 
 from btclib import bip32
 from btclib import bip39
-
+from btclib.utils import bytes_from_hexstring
 
 class TestBIP39(unittest.TestCase):
     def test_bip39(self):
@@ -60,7 +60,7 @@ class TestBIP39(unittest.TestCase):
         f.closed
         for test_vector in test_vectors:
             lang = "en"
-            test_vector[0] = bytes.fromhex(test_vector[0])
+            test_vector[0] = bytes_from_hexstring(test_vector[0])
             mnemonic = bip39.mnemonic_from_entropy(test_vector[0], lang)
             self.assertEqual(mnemonic, test_vector[1])
 

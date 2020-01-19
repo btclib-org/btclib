@@ -25,7 +25,7 @@ from .curves import secp256k1
 HashF = Callable[[], Any]
 # HashF = Callable[[Any], Any]
 
-# binary octets are eight-bit bytes or hex-string (not string)
+# binary octets are eight-bit bytes or hex-string (not a string)
 Octets = Union[bytes, str]
 
 
@@ -36,9 +36,7 @@ def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:
     SEC 1 v.2, section 2.3.4.
     """
 
-    if isinstance(o, str):
-        o = o.strip()
-        o = bytes.fromhex(o)
+    o = bytes_from_hexstring(o)
 
     bsize = len(o)  # bytes
     if bsize == 1 and o[0] == 0x00:      # infinity point
@@ -95,9 +93,8 @@ def int_from_octets(o: Octets) -> int:
     Return an integer from an octet sequence (bytes or hex string)
     according to SEC 1 v.2, section 2.3.8.
     """
-    if isinstance(o, str):  # hex string
-        o = o.strip()
-        o = bytes.fromhex(o)
+
+    o = bytes_from_hexstring(o)
     return int.from_bytes(o, 'big')
 
 
@@ -152,10 +149,7 @@ def _int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
 def _sha256(o: Octets) -> bytes:
     """Return SHA256(*) of the inputoctet sequence."""
 
-    if isinstance(o, str):  # hex string
-        o = o.strip()
-        o = bytes.fromhex(o)
-
+    o = bytes_from_hexstring(o)
     return hashlib.sha256(o).digest()
 
 
@@ -172,3 +166,12 @@ def double_sha256(o: Octets) -> bytes:
     t = _sha256(o)
     return hashlib.sha256(t).digest()
 
+def bytes_from_hexstring(o: Union[Any, str]) -> Union[Any, bytes]:
+    """Return bytes from a hex-string, stripping leading/trailing spaces.
+
+    If the input is not a string, then it goes untouched.
+    """
+    if isinstance(o, str):  # hex string
+        o = o.strip()
+        o = bytes.fromhex(o)
+    return o

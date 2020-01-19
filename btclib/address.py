@@ -50,9 +50,9 @@ def p2sh_address(redeem_script: Octets, network: str = 'mainnet') -> bytes:
 
 
 def h160_from_base58_address(address: Union[str, bytes]) -> Tuple[str, bool, bytes]:
+
     if isinstance(address, str):
         address = address.strip()
-
     payload = base58.decode(address, 21)
     prefix = payload[0:1]
     if prefix in _P2PKH_PREFIXES:

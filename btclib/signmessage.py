@@ -165,10 +165,6 @@ def msgsign(msg: str, wif: Union[str, bytes],
             addr: Optional[Union[str, bytes]] = None) -> bytes:
     """Generate the message signature."""
 
-    if isinstance(addr, str):
-        addr = addr.strip()
-        addr = addr.encode("ascii")
-
     # first sign the message
     magic_msg = _magic_hash(msg)
     q, compressedwif, network = prvkey_from_wif(wif)
@@ -179,6 +175,9 @@ def msgsign(msg: str, wif: Union[str, bytes],
     Q = mult(q)
     rf = pubkeys.index(Q)
     pubkey = octets_from_point(Q, compressedwif)
+    if isinstance(addr, str):
+        addr = addr.strip()
+        addr = addr.encode("ascii")
     if addr is None:
         rf += 27
         rf += 4 if compressedwif else 0
@@ -211,10 +210,6 @@ def verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
 def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
-
-    if isinstance(addr, str):
-        addr = addr.strip()
-        addr = addr.encode("ascii")
 
     # [rf][r][s]
     sig = base64.b64decode(sig)

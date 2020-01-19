@@ -221,10 +221,10 @@ OP_CODE_NAMES = {
 }
 
 from io import BytesIO
-from typing import Iterable, List, Union, BinaryIO
+from typing import BinaryIO, Iterable, List, Union
 
 from . import varint
-from .utils import Octets
+from .utils import Octets, bytes_from_hexstring
 
 # the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
 # the integer -1 is a shorcut for 'OP_1NEGATE'
@@ -301,9 +301,7 @@ def encode(script: Iterable[Token]) -> bytes:
 
 def decode(script: Octets) -> List[Token]:
 
-    if isinstance(script, str):  # hex-string
-        script = script.strip()
-        script = bytes.fromhex(script)
+    script = bytes_from_hexstring(script)
 
     # initialize the result list
     r: List[Union[str, int, bytes]] = []
@@ -363,9 +361,7 @@ def serialize(script: Iterable[Token]) -> bytes:
 
 def parse(stream: Union[BinaryIO, Octets]) -> List[Token]:
 
-    if isinstance(stream, str):  # hex-string
-        stream = stream.strip()
-        stream = bytes.fromhex(stream)
+    stream = bytes_from_hexstring(stream)
 
     if isinstance(stream, bytes):
         stream = BytesIO(stream)

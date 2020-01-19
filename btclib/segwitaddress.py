@@ -42,12 +42,12 @@ with the following modifications:
 """
 
 
-from typing import Tuple, Iterable, List, Union
+from typing import Iterable, List, Tuple, Union
 
 from . import bech32
-from .script import Token, encode
-from .utils import Octets, h160, _sha256
 from .address import p2sh_address
+from .script import Token, encode
+from .utils import Octets, _sha256, bytes_from_hexstring, h160
 
 WitnessProgram = Union[List[int], bytes]
 
@@ -144,9 +144,7 @@ def _encode(network: str, wv: int, wp: WitnessProgram) -> bytes:
 def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
     """Return the p2wpkh address as native SegWit or legacy p2sh-wrapped."""
 
-    if isinstance(pubkey, str):  # hex string
-        pubkey = pubkey.strip()
-        pubkey = bytes.fromhex(pubkey)
+    pubkey = bytes_from_hexstring(pubkey)
     if pubkey[0] not in (2, 3):
         raise ValueError(f"Uncompressed pubkey {pubkey.hex()}")
     psize = 32  # FIXME: parametrize on network
@@ -197,8 +195,6 @@ def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
 
 
 def hash_from_bech32_address(address: Union[str, bytes]) -> Tuple[str, bytes]:
-    if isinstance(address, str):
-        address = address.strip()
 
     network, wv, wp = _decode(address)
     if wv != 0:
