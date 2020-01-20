@@ -3,7 +3,7 @@
 [![btclib logo](/img/btclib-logo-40.jpg)](http://github.com/dginst/btclib)
 
 [![Build Status](https://travis-ci.org/dginst/btclib.svg)](https://travis-ci.org/dginst/btclib)
-[![Coverage Status](https://coveralls.io/repos/github/dginst/btclib/badge.svg)](https://coveralls.io/github/dginst/btclib)
+[![Coverage Status](https://coveralls.io/repos/github/dginst/btclib/badge.svg?branch=master)](https://coveralls.io/github/dginst/btclib?branch=master)
 [![PyPI status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
