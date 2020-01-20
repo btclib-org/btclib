@@ -30,7 +30,7 @@ moreover, they are often refactored without care for backward compatibility.
 The library includes:
 
 - modulo algebra functions (gcd, inverse, legendre symbol, square root)
-- octets / integer / point conversion functions
+- octets / integer / varint / point conversion functions
 - elliptic curve class
   - fast algebra implemented using Jacobian coordinates
   - double scalar multiplication (Straus's algorithm, also known as
@@ -39,7 +39,10 @@ The library includes:
   - point simmetry solution: odd/even, low/high, and quadratic residue
 - available curves: SEC 1 v1 and v2, NIST, Brainpool, and
   low cardinality test curves
-- DSA signature with (transaction) DER encoding and (message) compact encoding
+- DSA signature with (transaction) DER encoding
+- DSA signature with (message) compact encoding: standard p2pkh and
+  [BIP137](https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki)/[Electrum](https://electrum.org/#home)
+  extensions to p2wpkh and p2wpkh-p2sh
 - Schnorr signature (according to
   [bip-schnorr](https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki)
   bitcoin standardization)
@@ -52,13 +55,18 @@ The library includes:
 - Sign-to-contract commitment
 - Diffie-Hellman
 - Pedersen Committment
-- Base58 encoding, addresses, WIFs
+- Base58 encoding/decoding
+- p2pkh/p2sh addresses and WIFs
+- Bech32 encoding/decoding
+- p2wpkh/p2wsh native SegWit addresses and their legacy p2sh-wrapped version
 - [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
   hierarchical deterministic wallets
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic
+- Script encoding/decoding
+- nulldata, p2pk, p2pkh, multi-sig, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 
 A very extensive test suite reproduces results from major official sources
-and [covers 100%](https://coveralls.io/github/dginst/btclib) of the library
-code base.
+and [covers 100%](https://coveralls.io/github/dginst/btclib)
+of the library code base.

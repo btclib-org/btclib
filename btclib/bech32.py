@@ -42,7 +42,7 @@ with the following modifications:
 * detailed error messages
 * interface mimics the native python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
-  and decoding bytes-like objects or ASCII strings to bytes
+  and decoding ASCII bytes-like objects or ASCII strings to bytes.
 """
 
 

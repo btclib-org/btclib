@@ -33,7 +33,7 @@ https://github.com/keis/base58, with the following modifications:
 * added optional check on output size for decode()
 * interface mimics the native python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
-  and decoding bytes-like objects or ASCII strings to bytes
+  and decoding ASCII bytes-like objects or ASCII strings to bytes.
 """
 
 from hashlib import sha256

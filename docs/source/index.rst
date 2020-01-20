@@ -4,16 +4,24 @@ btclib
 btclib is a python3 type annotated library intended for teaching and
 demonstration of the elliptic curve cryptography used in bitcoin.
 
+It does not have external requirements or dependencies;
+to install (and upgrade) it:
+
+```shell
+python -m pip install --upgrade btclib
+```
+
 Originally developed for the
 Bitcoin and Blockchain Technology course
-at Milano Bicocca and Politecnico di Milano, its algorithms are not intended
+at University of Milano-Bicocca and Politecnico di Milano,
+its algorithms are not intended
 for production environments: they could be broken using side-channel attacks;
 moreover, they are often refactored without care for backward compatibility.
 
 The library includes:
 
 * modulo algebra functions (gcd, inverse, legendre symbol, square root)
-* octets / integer / point conversion functions
+* octets / integer / varint / point conversion functions
 * elliptic curve class
 
   * fast algebra implemented using Jacobian coordinates
@@ -21,7 +29,10 @@ The library includes:
   * multi scalar multiplication (Bos-coster's algorithm)
   * point simmetry solution: odd/even, low/high, and quadratic residue
 * available curves: SEC 1 v1 and v2, NIST, Brainpool, and low cardinality test curves
-* DSA signature with (transaction) DER encoding and (message) compact encoding
+* DSA signature with (transaction) DER encoding
+* DSA signature with (message) compact encoding: standard p2pkh
+  and BIP137/Electrum
+  extensions to p2wpkh and p2wpkh-p2sh
 * Schnorr signature (according to bip-schnorr bitcoin standardization)
 
   * batch validation
@@ -32,13 +43,19 @@ The library includes:
 * Sign-to-contract commitment
 * Diffie-Hellman
 * Pedersen Committment
-* Base58 encoding, addresses, WIFs
+* Base58 encoding/decoding
+* p2pkh/p2sh addresses and WIFs
+* Bech32 encoding/decoding
+* p2wpkh/p2wsh native SegWit addresses and their legacy p2sh-wrapped version
 * BIP32 hierarchical deterministic wallets
 * BIP39 wordlists and mnemonic for generating deterministic keys
 * Electrum standard for mnemonic
+* Script encoding/decoding
+* nulldata, p2pk, p2pkh, multi-sig, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 
 A very extensive test suite reproduces results from major official sources
-and covers 100% of the library code base.
+and covers 100%
+of the library code base.
 
 Indices and tables
 ==================

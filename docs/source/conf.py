@@ -18,11 +18,11 @@ sys.path.insert(0, path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 
 project = 'btclib'
-copyright = '2019, dgi.io'
+copyright = '2020, dgi.io'
 author = 'dgi.io'
 
 # The full version, including alpha/beta/rc tags
-release = '2019.4'
+release = '2020.01.20'
 
 
 # -- General configuration ---------------------------------------------------
