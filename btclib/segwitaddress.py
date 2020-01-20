@@ -165,12 +165,14 @@ def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
 
 def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh native SegWit address."""
-    return _p2wpkh_address(pubkey, True, network)
+    native = True
+    return _p2wpkh_address(pubkey, native, network)
 
 
 def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh-p2sh (legacy) address."""
-    return _p2wpkh_address(pubkey, False, network)
+    native = False
+    return _p2wpkh_address(pubkey, native, network)
 
 
 def _p2wsh_address(wscript: Octets, native: bool, network: str) -> bytes:
@@ -186,12 +188,14 @@ def _p2wsh_address(wscript: Octets, native: bool, network: str) -> bytes:
 
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh native SegWit address."""
-    return _p2wsh_address(wscript, True, network)
+    native = True
+    return _p2wsh_address(wscript, native, network)
 
 
 def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh-p2sh (legacy) address."""
-    return _p2wsh_address(wscript, False, network)
+    native = False
+    return _p2wsh_address(wscript, native, network)
 
 
 def hash_from_bech32_address(address: Union[str, bytes]) -> Tuple[str, bytes]:
