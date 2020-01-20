@@ -11,6 +11,13 @@
 """Bitcoin Script.
 
 https://en.bitcoin.it/wiki/Script
+
+Scripts are represented by Iterable[Token] (usually List[Token]),
+where Token = Union[int, str, bytes]:
+
+* int [-1, 16] are shorcuts for 'OP_1NEGATE', 'OP_0' - 'OP_16'
+* str are for opcodes (e.g. 'OP_HASH160') or hexstring data
+* bytes are for data (but integers are often casted to int)
 """
 
 OP_CODES = {
