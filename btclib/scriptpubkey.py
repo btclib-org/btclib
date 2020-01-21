@@ -107,7 +107,7 @@ def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     return [0, pubkey_h160.hex()]
 
 
-def p2wsh_scriptPubKey(script_h160: Octets) -> List[Token]:
+def p2wsh_scriptPubKey(script_h256: Octets) -> List[Token]:
     """Return the p2wsh scriptPubKey of the provided SHA256 script-hash.
     
     For P2WSH, the witness program must be the SHA256 32-byte script-hash;
@@ -116,9 +116,9 @@ def p2wsh_scriptPubKey(script_h160: Octets) -> List[Token]:
     that is 0x0020{32-byte script-hash}
     """
 
-    script_h160 = bytes_from_hexstring(script_h160)
-    if len(script_h160) != 32:
-        msg = f"Invalid witness program lenght ({len(script_h160)} bytes) "
+    script_h256 = bytes_from_hexstring(script_h256)
+    if len(script_h256) != 32:
+        msg = f"Invalid witness program lenght ({len(script_h256)} bytes) "
         msg += "for p2wsh scriptPubKey"
         raise ValueError(msg)
-    return [0, script_h160.hex()]
+    return [0, script_h256.hex()]
