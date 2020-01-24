@@ -10,8 +10,8 @@
 
 import unittest
 
-from btclib.mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
-    indexes_from_mnemonic, entropy_from_indexes
+from btclib.mnemonic import _indexes_from_entropy, _mnemonic_from_indexes, \
+    _indexes_from_mnemonic, _entropy_from_indexes
 
 
 class TestMnemonic(unittest.TestCase):
@@ -22,31 +22,31 @@ class TestMnemonic(unittest.TestCase):
                         "pudding thank cruise elder eight picnic"
         test_indexes = [1268,  535,  810,  685,  433,  811,
                         1385, 1790,  421,  570,  567, 1313]
-        indexes = indexes_from_mnemonic(test_mnemonic, lang)
+        indexes = _indexes_from_mnemonic(test_mnemonic, lang)
         self.assertEqual(indexes, test_indexes)
 
-        mnemonic = mnemonic_from_indexes(test_indexes, lang)
+        mnemonic = _mnemonic_from_indexes(test_indexes, lang)
         self.assertEqual(mnemonic, test_mnemonic)
 
-        entropy = entropy_from_indexes(test_indexes, lang)
-        indexes = indexes_from_entropy(entropy, lang)
+        entropy = _entropy_from_indexes(test_indexes, lang)
+        indexes = _indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
 
         test_indexes = [0,    0, 2047, 2047, 2047, 2047,
                         2047, 2047, 2047, 2047, 2047,    0]
-        entropy = entropy_from_indexes(test_indexes, lang)
-        indexes = indexes_from_entropy(entropy, lang)
+        entropy = _entropy_from_indexes(test_indexes, lang)
+        indexes = _indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
 
         test_indexes = [0,    0, 2047, 2047, 2047, 2047,
                         2047, 2047, 2047, 2047, 2047,    0]
-        entropy = entropy_from_indexes(test_indexes, lang)
-        indexes = indexes_from_entropy(entropy, lang)
+        entropy = _entropy_from_indexes(test_indexes, lang)
+        indexes = _indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
 
         # entropy must be binary string or int
         entropy = b'123456789abcdef0'
-        self.assertRaises(TypeError, indexes_from_entropy, entropy, lang)
+        self.assertRaises(TypeError, _indexes_from_entropy, entropy, lang)
 
 
 if __name__ == "__main__":

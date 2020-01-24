@@ -23,7 +23,7 @@ from .wordlists import _wordlists
 Mnemonic = str
 
 
-def indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
+def _indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
     """Return the word-list indexes for a given entropy.
 
     Return the list of integer indexes into a language word-list
@@ -57,7 +57,7 @@ def indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
     return list(reversed(indexes))
 
 
-def mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
+def _mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
     """Return the mnemonic from a list of word-list indexes.
 
     Return the mnemonic from a list of integer indexes into
@@ -72,7 +72,7 @@ def mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
     return ' '.join(words)
 
 
-def indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
+def _indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
     """Return the word-list indexes for a given mnemonic.
 
     Return the list of integer indexes into a language word-list
@@ -85,7 +85,7 @@ def indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
     return indexes
 
 
-def entropy_from_indexes(indexes: List[int], lang: str) -> Entropy:
+def _entropy_from_indexes(indexes: List[int], lang: str) -> Entropy:
     """Return the entropy from a list of word-list indexes.
 
     Return the entropy from a list of integer indexes into

@@ -18,8 +18,8 @@ import hmac
 
 from .entropy import Entropy, GenericEntropy, _int_from_entropy, \
     str_from_entropy
-from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
-    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
+from .mnemonic import _indexes_from_entropy, _mnemonic_from_indexes, \
+    _indexes_from_mnemonic, _entropy_from_indexes, Mnemonic
 from . import bip32
 
 _MNEMONIC_VERSIONS = {
@@ -30,9 +30,8 @@ _MNEMONIC_VERSIONS = {
 }
 
 
-def mnemonic_from_entropy(entropy: GenericEntropy,
-                          lang: str,
-                          electrum_version: str) -> Mnemonic:
+def mnemonic_from_entropy(electrum_version: str, entropy: GenericEntropy,
+                          lang: str = "en") -> Mnemonic:
     """Convert input entropy to versioned Electrum mnemonic sentence.
 
     Input entropy (*GenericEntropy*) can be expressed as
@@ -53,8 +52,8 @@ def mnemonic_from_entropy(entropy: GenericEntropy,
     int_entropy = _int_from_entropy(entropy)
     while invalid:
         str_entropy = str_from_entropy(int_entropy, int_entropy.bit_length())
-        indexes = indexes_from_entropy(str_entropy, lang)
-        mnemonic = mnemonic_from_indexes(indexes, lang)
+        indexes = _indexes_from_entropy(str_entropy, lang)
+        mnemonic = _mnemonic_from_indexes(indexes, lang)
         # version validity check
         s = hmac.new(b"Seed version",
                      mnemonic.encode('utf8'), sha512).hexdigest()
@@ -82,12 +81,12 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> str:
     raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
 
 
-def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
     """Convert mnemonic sentence to Electrum versioned entropy."""
 
     _ = version_from_mnemonic(mnemonic)
-    indexes = indexes_from_mnemonic(mnemonic, lang)
-    entropy = entropy_from_indexes(indexes, lang)
+    indexes = _indexes_from_mnemonic(mnemonic, lang)
+    entropy = _entropy_from_indexes(indexes, lang)
     return entropy
 
 

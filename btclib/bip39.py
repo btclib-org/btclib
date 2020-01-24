@@ -40,8 +40,8 @@ from hashlib import sha256, pbkdf2_hmac
 
 from .entropy import Entropy, GenericEntropy, _bytes_from_entropy, \
     str_from_entropy
-from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
-    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
+from .mnemonic import _indexes_from_entropy, _mnemonic_from_indexes, \
+    _indexes_from_mnemonic, _entropy_from_indexes, Mnemonic
 from . import bip32
 
 
@@ -84,7 +84,7 @@ def cs_entropy_from_entropy(entropy: GenericEntropy) -> Entropy:
     return entropy + checksum
 
 
-def mnemonic_from_entropy(entropy: GenericEntropy, lang: str) -> Mnemonic:
+def mnemonic_from_entropy(entropy: GenericEntropy, lang: str = "en") -> Mnemonic:
     """Convert input entropy to checksummed BIP39 mnemonic sentence.
 
     Input entropy (*GenericEntropy*) can be expressed as
@@ -101,16 +101,16 @@ def mnemonic_from_entropy(entropy: GenericEntropy, lang: str) -> Mnemonic:
     """
 
     cs_entropy = cs_entropy_from_entropy(entropy)
-    indexes = indexes_from_entropy(cs_entropy, lang)
-    mnemonic = mnemonic_from_indexes(indexes, lang)
+    indexes = _indexes_from_entropy(cs_entropy, lang)
+    mnemonic = _mnemonic_from_indexes(indexes, lang)
     return mnemonic
 
 
-def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
     """Convert mnemonic sentence to entropy, verifying checksum."""
 
-    indexes = indexes_from_mnemonic(mnemonic, lang)
-    cs_entropy = entropy_from_indexes(indexes, lang)
+    indexes = _indexes_from_mnemonic(mnemonic, lang)
+    cs_entropy = _entropy_from_indexes(indexes, lang)
 
     # entropy is only the first part of cs_entropy
     bits = int(len(cs_entropy)*32/33)
@@ -130,7 +130,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     return entropy
 
 
-def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
+def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str = "en") -> bytes:
     """Return seed from mnemonic according to BIP39 standard.
 
     It does not verify the mnemonic (implicit entropy) checksum:
