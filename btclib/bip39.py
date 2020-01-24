@@ -36,16 +36,17 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 """
 
 
-from hashlib import sha256, pbkdf2_hmac
+from hashlib import pbkdf2_hmac, sha256
 
-from .entropy import Entropy, GenericEntropy, _bytes_from_entropy, \
-    str_from_entropy
-from .mnemonic import _indexes_from_entropy, _mnemonic_from_indexes, \
-    _indexes_from_mnemonic, _entropy_from_indexes, Mnemonic
 from . import bip32
-
+from .entropy import (Entropy, GenericEntropy, _bytes_from_entropy,
+                      str_from_entropy)
+from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
+                       _indexes_from_mnemonic, _mnemonic_from_indexes)
+from .utils import Octets
 
 _bits = 128, 160, 192, 224, 256
+_words = (b // 32 * 3 for b in _bits)
 
 
 def _entropy_checksum(entropy: GenericEntropy) -> Entropy:
@@ -110,8 +111,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
     """Convert mnemonic sentence to entropy, verifying checksum."""
 
     words = len(mnemonic.split())
-    allowed = (b // 32 * 3 for b in _bits)
-    if words not in allowed:
+    if words not in _words:
         msg = f"mnemonic with wrong number of words ({words}); "
         msg += f"expected: {allowed}"
         raise ValueError(msg)
@@ -153,8 +153,8 @@ def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
 
 def rootxprv_from_mnemonic(mnemonic: Mnemonic,
                            passphrase: str,
-                           xversion: bytes) -> bytes:
+                           version: Octets = bip32.MAIN_xprv) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = seed_from_mnemonic(mnemonic, passphrase)
-    return bip32.rootxprv_from_seed(seed, xversion)
+    return bip32.rootxprv_from_seed(seed, version)
