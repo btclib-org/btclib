@@ -13,14 +13,15 @@
 Electrum mnemonic is versioned, conveying BIP32 derivation rule too.
 """
 
-from hashlib import sha512, pbkdf2_hmac
 import hmac
+from hashlib import pbkdf2_hmac, sha512
+from typing import Tuple
 
-from .entropy import Entropy, GenericEntropy, _int_from_entropy, \
-    str_from_entropy
-from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
-    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
 from . import bip32
+from .entropy import (Entropy, GenericEntropy, _int_from_entropy,
+                      str_from_entropy)
+from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
+                       _indexes_from_mnemonic, _mnemonic_from_indexes)
 
 _MNEMONIC_VERSIONS = {
     'standard':  '01',  # P2PKH and Multisig P2SH wallets
@@ -30,9 +31,8 @@ _MNEMONIC_VERSIONS = {
 }
 
 
-def mnemonic_from_entropy(entropy: GenericEntropy,
-                          lang: str,
-                          electrum_version: str) -> Mnemonic:
+def mnemonic_from_entropy(electrum_version: str, entropy: GenericEntropy,
+                          lang: str = "en") -> Mnemonic:
     """Convert input entropy to versioned Electrum mnemonic sentence.
 
     Input entropy (*GenericEntropy*) can be expressed as
@@ -53,8 +53,8 @@ def mnemonic_from_entropy(entropy: GenericEntropy,
     int_entropy = _int_from_entropy(entropy)
     while invalid:
         str_entropy = str_from_entropy(int_entropy, int_entropy.bit_length())
-        indexes = indexes_from_entropy(str_entropy, lang)
-        mnemonic = mnemonic_from_indexes(indexes, lang)
+        indexes = _indexes_from_entropy(str_entropy, lang)
+        mnemonic = _mnemonic_from_indexes(indexes, lang)
         # version validity check
         s = hmac.new(b"Seed version",
                      mnemonic.encode('utf8'), sha512).hexdigest()
@@ -64,6 +64,15 @@ def mnemonic_from_entropy(entropy: GenericEntropy,
         int_entropy += 1
 
     return mnemonic
+
+
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
+    """Convert mnemonic sentence to Electrum versioned entropy."""
+
+    _ = version_from_mnemonic(mnemonic)
+    indexes = _indexes_from_mnemonic(mnemonic, lang)
+    entropy = _entropy_from_indexes(indexes, lang)
+    return entropy
 
 
 def version_from_mnemonic(mnemonic: Mnemonic) -> str:
@@ -82,28 +91,17 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> str:
     raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
 
 
-def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
-    """Convert mnemonic sentence to Electrum versioned entropy."""
+def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:
+    """Return (version, seed) from mnemonic according to Electrum standard."""
 
-    _ = version_from_mnemonic(mnemonic)
-    indexes = indexes_from_mnemonic(mnemonic, lang)
-    entropy = entropy_from_indexes(indexes, lang)
-    return entropy
-
-
-def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
-    """Return seed from mnemonic according to Electrum standard.
-
-    Please note: in the Electrum standard, mnemonic conveys BIP32
-    derivation rule too. As such, seed alone is partial information.
-    """
+    version = version_from_mnemonic(mnemonic)
 
     hf_name = 'sha512'
     password = mnemonic.encode()
     salt = ('electrum' + passphrase).encode()
     iterations = 2048
     dksize = 64
-    return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
+    return version, pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
 
 
 def masterxprv_from_mnemonic(mnemonic: Mnemonic,
@@ -111,24 +109,23 @@ def masterxprv_from_mnemonic(mnemonic: Mnemonic,
                              network: str = 'mainnet') -> bytes:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
-    Note that for a standard mnemonic the derivation path is "m",
-    for a segwit mnemonic it is "m/0h" instead.
+    Note that for a 'standard' mnemonic the derivation path is "m",
+    for a 'segwit' mnemonic it is "m/0h" instead.
     """
 
-    seed = _seed_from_mnemonic(mnemonic, passphrase)
+    version, seed = _seed_from_mnemonic(mnemonic, passphrase)
+    prefix = bip32._NETWORKS.index(network)
 
-    # verify that the mnemonic is versioned
-    s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
-    if s.startswith(_MNEMONIC_VERSIONS['standard']):
-        xversion = bip32._XPRV_PREFIXES[bip32._NETWORKS.index(network)]
+    if version == 'standard':
+        xversion = bip32._XPRV_PREFIXES[prefix]
         return bip32.rootxprv_from_seed(seed, xversion)
-    elif s.startswith(_MNEMONIC_VERSIONS['segwit']):
-        xversion = bip32._P2WPKH_PRV_PREFIXES[bip32._NETWORKS.index(network)]
+    elif version == 'segwit':
+        xversion = bip32._P2WPKH_PRV_PREFIXES[prefix]
         rootxprv = bip32.rootxprv_from_seed(seed, xversion)
         return bip32.ckd(rootxprv, 0x80000000)  # "m/0h"
-    elif s.startswith(_MNEMONIC_VERSIONS['2fa']):
+    elif version == '2fa':
         raise ValueError(f"2fa mnemonic version is not managed yet")
-    elif s.startswith(_MNEMONIC_VERSIONS['2fa_segwit']):
+    elif version == '2fa_segwit':
         raise ValueError(f"2fa_segwit mnemonic version is not managed yet")
     else:
-        raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
+        raise ValueError(f"unknown electrum mnemonic version ({version})")

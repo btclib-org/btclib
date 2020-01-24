@@ -36,16 +36,17 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 """
 
 
-from hashlib import sha256, pbkdf2_hmac
+from hashlib import pbkdf2_hmac, sha256
 
-from .entropy import Entropy, GenericEntropy, _bytes_from_entropy, \
-    str_from_entropy
-from .mnemonic import indexes_from_entropy, mnemonic_from_indexes, \
-    indexes_from_mnemonic, entropy_from_indexes, Mnemonic
 from . import bip32
-
+from .entropy import (Entropy, GenericEntropy, _bytes_from_entropy,
+                      str_from_entropy)
+from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
+                       _indexes_from_mnemonic, _mnemonic_from_indexes)
+from .utils import Octets
 
 _bits = 128, 160, 192, 224, 256
+_words = tuple(b // 32 * 3 for b in _bits)
 
 
 def _entropy_checksum(entropy: GenericEntropy) -> Entropy:
@@ -84,7 +85,7 @@ def cs_entropy_from_entropy(entropy: GenericEntropy) -> Entropy:
     return entropy + checksum
 
 
-def mnemonic_from_entropy(entropy: GenericEntropy, lang: str) -> Mnemonic:
+def mnemonic_from_entropy(entropy: GenericEntropy, lang: str = "en") -> Mnemonic:
     """Convert input entropy to checksummed BIP39 mnemonic sentence.
 
     Input entropy (*GenericEntropy*) can be expressed as
@@ -101,23 +102,25 @@ def mnemonic_from_entropy(entropy: GenericEntropy, lang: str) -> Mnemonic:
     """
 
     cs_entropy = cs_entropy_from_entropy(entropy)
-    indexes = indexes_from_entropy(cs_entropy, lang)
-    mnemonic = mnemonic_from_indexes(indexes, lang)
+    indexes = _indexes_from_entropy(cs_entropy, lang)
+    mnemonic = _mnemonic_from_indexes(indexes, lang)
     return mnemonic
 
 
-def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
     """Convert mnemonic sentence to entropy, verifying checksum."""
 
-    indexes = indexes_from_mnemonic(mnemonic, lang)
-    cs_entropy = entropy_from_indexes(indexes, lang)
+    words = len(mnemonic.split())
+    if words not in _words:
+        msg = f"mnemonic with wrong number of words ({words}); "
+        msg += f"expected: {_words}"
+        raise ValueError(msg)
+
+    indexes = _indexes_from_mnemonic(mnemonic, lang)
+    cs_entropy = _entropy_from_indexes(indexes, lang)
 
     # entropy is only the first part of cs_entropy
     bits = int(len(cs_entropy)*32/33)
-    if bits not in _bits:
-        m = f"mnemonic with wrong number of bits ({bits}); "
-        m += f"expected: {_bits}"
-        raise ValueError(m)
     entropy = cs_entropy[:bits]
 
     # the second part being the checksum, to be verified
@@ -130,13 +133,16 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> Entropy:
     return entropy
 
 
-def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
+def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
+                       verify_checksum = True) -> bytes:
     """Return seed from mnemonic according to BIP39 standard.
 
-    It does not verify the mnemonic (implicit entropy) checksum:
-    for that use entropy_from_mnemonic.
+    The verification of the mnemonic (implicit entropy) checksum
+    can be skipped if needed.
     """
 
+    if verify_checksum:
+        entropy_from_mnemonic(mnemonic)
     hf_name = 'sha512'
     password = mnemonic.encode()
     salt = ('mnemonic' + passphrase).encode()
@@ -147,8 +153,8 @@ def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> bytes:
 
 def rootxprv_from_mnemonic(mnemonic: Mnemonic,
                            passphrase: str,
-                           xversion: bytes) -> bytes:
+                           version: Octets = bip32.MAIN_xprv) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = seed_from_mnemonic(mnemonic, passphrase)
-    return bip32.rootxprv_from_seed(seed, xversion)
+    return bip32.rootxprv_from_seed(seed, version)

@@ -74,7 +74,7 @@ def str_from_entropy(entr: GenericEntropy,
 
     if nbits not in bits:
         raise ValueError(f"{nbits} bits provided; expected: {bits}")
-    return entr.zfill(nbits)  # pad with leading zeros
+    return entr.zfill(nbits)  # int might need pad with leading zeros
 
 
 def _int_from_entropy(entr: GenericEntropy,

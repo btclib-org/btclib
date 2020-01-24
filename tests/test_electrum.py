@@ -24,7 +24,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
         eversion = 'standard'
         # FIXME: is the following mnemonic obtained in Electrum from the above entropy?
         mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball crouch bunker"
-        mnemonic2 = electrum.mnemonic_from_entropy(entropy, lang, eversion)
+        mnemonic2 = electrum.mnemonic_from_entropy(eversion, entropy, lang)
         self.assertEqual(mnemonic, mnemonic2)
 
         entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
@@ -33,8 +33,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
         # mnemonic version not in electrum allowed mnemonic versions
         eversion = 'std'
         self.assertRaises(ValueError, electrum.mnemonic_from_entropy,
-                          entropy, lang, eversion)
-        #electrum.mnemonic_from_entropy(entropy, lang, eversion)
+                          eversion, entropy, lang)
+        #electrum.mnemonic_from_entropy(eversion, entropy, lang)
 
         # unknown electrum mnemonic version (00c)
         unknown_version = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
@@ -54,14 +54,14 @@ class TestMnemonicDictionaries(unittest.TestCase):
         self.assertEqual(xprv2.decode(), xprv)
 
         eversion = '2fa'
-        mnemonic = electrum.mnemonic_from_entropy(entropy, lang, eversion)
+        mnemonic = electrum.mnemonic_from_entropy(eversion, entropy, lang)
         # 2fa mnemonic version is not managed yet
         self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
                           mnemonic, passphrase)
         #electrum.masterxprv_from_mnemonic(mnemonic, passphrase)
 
         eversion = '2fa_segwit'
-        mnemonic = electrum.mnemonic_from_entropy(entropy, lang, eversion)
+        mnemonic = electrum.mnemonic_from_entropy(eversion, entropy, lang)
         # 2fa_segwit mnemonic version is not managed yet
         self.assertRaises(ValueError, electrum.masterxprv_from_mnemonic,
                           mnemonic, passphrase)
@@ -88,9 +88,9 @@ class TestMnemonicDictionaries(unittest.TestCase):
                     mnemonic, passphrase)
                 self.assertEqual(mxprv2.decode(), mxprv)
 
-                version = electrum.version_from_mnemonic(mnemonic)
+                eversion = electrum.version_from_mnemonic(mnemonic)
                 entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
-                mnem = electrum.mnemonic_from_entropy(entr, lang, version)
+                mnem = electrum.mnemonic_from_entropy(eversion, entr, lang)
                 self.assertEqual(mnem, mnemonic)
 
             if mxprv != "":
