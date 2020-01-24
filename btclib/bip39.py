@@ -46,7 +46,7 @@ from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
 from .utils import Octets
 
 _bits = 128, 160, 192, 224, 256
-_words = (b // 32 * 3 for b in _bits)
+_words = tuple(b // 32 * 3 for b in _bits)
 
 
 def _entropy_checksum(entropy: GenericEntropy) -> Entropy:
@@ -113,7 +113,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
     words = len(mnemonic.split())
     if words not in _words:
         msg = f"mnemonic with wrong number of words ({words}); "
-        msg += f"expected: {allowed}"
+        msg += f"expected: {_words}"
         raise ValueError(msg)
 
     indexes = _indexes_from_mnemonic(mnemonic, lang)
