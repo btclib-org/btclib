@@ -123,9 +123,5 @@ def masterxprv_from_mnemonic(mnemonic: Mnemonic,
         xversion = bip32._P2WPKH_PRV_PREFIXES[prefix]
         rootxprv = bip32.rootxprv_from_seed(seed, xversion)
         return bip32.ckd(rootxprv, 0x80000000)  # "m/0h"
-    elif version == '2fa':
-        raise ValueError(f"2fa mnemonic version is not managed yet")
-    elif version == '2fa_segwit':
-        raise ValueError(f"2fa_segwit mnemonic version is not managed yet")
     else:
-        raise ValueError(f"unknown electrum mnemonic version ({version})")
+        raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
