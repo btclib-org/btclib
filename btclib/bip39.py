@@ -109,15 +109,18 @@ def mnemonic_from_entropy(entropy: GenericEntropy, lang: str = "en") -> Mnemonic
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
     """Convert mnemonic sentence to entropy, verifying checksum."""
 
+    words = len(mnemonic.split())
+    allowed = (b // 32 * 3 for b in _bits)
+    if words not in allowed:
+        msg = f"mnemonic with wrong number of words ({words}); "
+        msg += f"expected: {allowed}"
+        raise ValueError(msg)
+
     indexes = _indexes_from_mnemonic(mnemonic, lang)
     cs_entropy = _entropy_from_indexes(indexes, lang)
 
     # entropy is only the first part of cs_entropy
     bits = int(len(cs_entropy)*32/33)
-    if bits not in _bits:
-        m = f"mnemonic with wrong number of bits ({bits}); "
-        m += f"expected: {_bits}"
-        raise ValueError(m)
     entropy = cs_entropy[:bits]
 
     # the second part being the checksum, to be verified
@@ -130,13 +133,16 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
     return entropy
 
 
-def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str = "en") -> bytes:
+def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
+                       verify_checksum = True) -> bytes:
     """Return seed from mnemonic according to BIP39 standard.
 
-    It does not verify the mnemonic (implicit entropy) checksum:
-    for that use entropy_from_mnemonic.
+    The verification of the mnemonic (implicit entropy) checksum
+    can be skipped if needed.
     """
 
+    if verify_checksum:
+        entropy_from_mnemonic(mnemonic)
     hf_name = 'sha512'
     password = mnemonic.encode()
     salt = ('mnemonic' + passphrase).encode()

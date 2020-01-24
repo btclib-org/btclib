@@ -36,7 +36,7 @@ class TestBIP39(unittest.TestCase):
         exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(rootxprv, exp)
 
-        # mnemonic with wrong number of bits
+        # mnemonic with wrong number of words
         wrong_mnemonic = mnemonic + " abandon"
         self.assertRaises(
             ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
