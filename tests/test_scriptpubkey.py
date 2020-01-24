@@ -15,7 +15,8 @@ from btclib.script import OP_CODE_NAMES, OP_CODES, decode, encode, serialize
 from btclib.scriptpubkey import (multisig_scriptPubKey, nulldata_scriptPubKey,
                                  p2pk_scriptPubKey, p2pkh_scriptPubKey,
                                  p2sh_scriptPubKey, p2wpkh_scriptPubKey,
-                                 p2wsh_scriptPubKey)
+                                 p2wsh_scriptPubKey, address_from_scriptPubKey,
+                                 scriptPubKey_from_address)
 from btclib.utils import _sha256, h160
 
 
@@ -151,6 +152,31 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(encode(script_pubkey).hex(), "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708")
         address = segwitaddress._encode("mainnet", 0, witness_hash)
         self.assertEqual(address, b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj")
+
+
+    def test_address_scriptPubKey(self):
+
+        pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        pubkey_hash = h160(pubkey).hex()
+
+        script = [0, pubkey_hash]
+        address_from_scriptPubKey(script)
+        script2, _ = scriptPubKey_from_address(address_from_scriptPubKey(script))
+        self.assertEqual(script, script2)
+
+        script = ['OP_DUP', 'OP_HASH160', pubkey_hash, 'OP_EQUALVERIFY', 'OP_CHECKSIG']
+        script2, _ = scriptPubKey_from_address(address_from_scriptPubKey(script))
+        self.assertEqual(script, script2)
+
+        script_hash = h160(encode(script)).hex()
+        script = ['OP_HASH160',script_hash, 'OP_EQUAL']
+        script2, _ = scriptPubKey_from_address(address_from_scriptPubKey(script))
+        self.assertEqual(script, script2)
+
+        script_hash = _sha256(encode(script)).hex()
+        script = [0, script_hash]
+        script2, _ = scriptPubKey_from_address(address_from_scriptPubKey(script))
+        self.assertEqual(script, script2)
 
 
 if __name__ == "__main__":

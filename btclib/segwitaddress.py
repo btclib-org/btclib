@@ -141,9 +141,19 @@ def _encode(network: str, wv: int, wp: WitnessProgram) -> bytes:
     return ret
 
 
-def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
+def _p2wpkh_address(hash160: bytes, native: bool, network: str) -> bytes:
     """Return the p2wpkh address as native SegWit or legacy p2sh-wrapped."""
 
+    witvers = 0
+    if native:
+        return _encode(network, witvers, hash160)
+    # script_pubkey = _scriptPubKey(witvers, hash160)
+    # scriptPubkey is 0x0014{20-byte key-hash}
+    script_pubkey = b'\x00\x14' + hash160
+    return p2sh_address(script_pubkey, network)
+
+
+def h160_pubkey(pubkey: Octets) -> bytes:
     pubkey = bytes_from_hexstring(pubkey)
     if pubkey[0] not in (2, 3):
         raise ValueError(f"Uncompressed pubkey {pubkey.hex()}")
@@ -151,51 +161,41 @@ def _p2wpkh_address(pubkey: Octets, native: bool, network: str) -> bytes:
     if len(pubkey) != psize + 1:
         msg = f"Wrong pubkey size: {len(pubkey)} instead of {psize + 1}"
         raise ValueError(msg)
-
-    witvers = 0
-    witprog = h160(pubkey)
-
-    if native:
-        return _encode(network, witvers, witprog)
-    # script_pubkey = _scriptPubKey(witvers, witprog)
-    # scriptPubkey is 0x0014{20-byte key-hash}
-    script_pubkey = b'\x00\x14' + witprog
-    return p2sh_address(script_pubkey, network)
+    return h160(pubkey)
 
 
 def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh native SegWit address."""
     native = True
-    return _p2wpkh_address(pubkey, native, network)
+    return _p2wpkh_address(h160_pubkey(pubkey), native, network)
 
 
 def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh-p2sh (legacy) address."""
     native = False
-    return _p2wpkh_address(pubkey, native, network)
+    return _p2wpkh_address(h160_pubkey(pubkey), native, network)
 
 
-def _p2wsh_address(wscript: Octets, native: bool, network: str) -> bytes:
+def _p2wsh_address(sha256: bytes, native: bool, network: str) -> bytes:
     """Return the address as native SegWit bech32 or legacy p2sh-wrapped."""
 
     witvers = 0
-    witprog = _sha256(wscript)
     if native:
-        return _encode(network, witvers, witprog)
-    script_pubkey = _scriptPubKey(witvers, witprog)
+        return _encode(network, witvers, sha256)
+    script_pubkey = _scriptPubKey(witvers, sha256)
     return p2sh_address(encode(script_pubkey), network)
 
 
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh native SegWit address."""
     native = True
-    return _p2wsh_address(wscript, native, network)
+    return _p2wsh_address(_sha256(wscript), native, network)
 
 
 def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh-p2sh (legacy) address."""
     native = False
-    return _p2wsh_address(wscript, native, network)
+    return _p2wsh_address(_sha256(wscript), native, network)
 
 
 def hash_from_bech32_address(address: Union[str, bytes]) -> Tuple[str, bytes]:
