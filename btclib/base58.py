@@ -70,7 +70,7 @@ def _encode(v: bytes) -> bytes:
     result = __ALPHABET[0:1] * nPad
 
     if vlen:
-        i = int.from_bytes(v, 'big')
+        i = int.from_bytes(v, byteorder='big')
         result += _encode_from_int(i)
 
     return result
@@ -116,7 +116,7 @@ def _decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     if vlen:
         i = _decode_to_int(v)
         nbytes = (i.bit_length() + 7) // 8
-        result = result + i.to_bytes(nbytes, 'big')
+        result = result + i.to_bytes(nbytes, byteorder='big')
 
     if out_size is not None and len(result) != out_size:
         m = "Invalid decoded size: "

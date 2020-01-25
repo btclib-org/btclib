@@ -58,7 +58,7 @@ def _tweak(c: bytes, k: int,
     """
     R = mult(k, ec.G, ec)
     e = hf(octets_from_point(R, True, ec) + c).digest()
-    e = int.from_bytes(e, 'big')
+    e = int.from_bytes(e, byteorder='big')
     return R, (e + k) % ec.n
 
 

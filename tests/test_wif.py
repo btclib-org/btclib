@@ -32,7 +32,7 @@ class TestWif(unittest.TestCase):
         wif = b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx'
         self.assertEqual(wif, wif_from_prvkey(q, True, 'testnet'))
         prvkey, compressed, _ = prvkey_from_wif(wif)
-        self.assertEqual(prvkey, int.from_bytes(q, 'big'))
+        self.assertEqual(prvkey, int.from_bytes(q, byteorder='big'))
         self.assertEqual(compressed, True)
 
         q = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D

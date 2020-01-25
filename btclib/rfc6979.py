@@ -66,9 +66,9 @@ def _rfc6979(c: int, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     # c = hf(m)                                            # 3.2.a
 
     # convert the private key q to an octet sequence of size nsize
-    bprv = octets_from_int(q, ec.nsize)  # bprv = q.to_bytes(nsize, 'big')
+    bprv = octets_from_int(q, ec.nsize)  # bprv = q.to_bytes(nsize, byteorder='big')
     # truncate and/or expand c: encoding size is driven by nsize
-    bc = octets_from_int(c, ec.nsize)    # bc = c.to_bytes(nsize, 'big')
+    bc = octets_from_int(c, ec.nsize)    # bc = c.to_bytes(nsize, byteorder='big')
     bprvbm = bprv + bc
 
     hsize = hf().digest_size

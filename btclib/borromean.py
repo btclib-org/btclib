@@ -26,7 +26,8 @@ SValues = Dict[int, Sequence[int]]
 
 
 def _hash(msg: bytes, R: bytes, i: int, j: int) -> bytes:
-    temp = msg + R + i.to_bytes(4, 'big') + j.to_bytes(4, 'big')
+    temp = msg + R
+    temp += i.to_bytes(4, byteorder='big') + j.to_bytes(4, byteorder='big')
     return hf(temp).digest()
 
 

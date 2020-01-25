@@ -46,7 +46,7 @@ def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:
         if o[0] not in (0x02, 0x03):
             m = f"{ec.psize+1} bytes, but not a compressed point"
             raise ValueError(m)
-        Px = int.from_bytes(o[1:], 'big')
+        Px = int.from_bytes(o[1:], byteorder='big')
         try:
             Py = ec.y_odd(Px, o[0] % 2)  # also check Px validity
             return Px, Py
@@ -59,8 +59,8 @@ def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:
             raise ValueError(m)
         if o[0] != 0x04:
             raise ValueError("not an uncompressed point")
-        Px = int.from_bytes(o[1:ec.psize+1], 'big')
-        P = Px, int.from_bytes(o[ec.psize+1:], 'big')
+        Px = int.from_bytes(o[1:ec.psize+1], byteorder='big')
+        P = Px, int.from_bytes(o[ec.psize+1:], byteorder='big')
         if ec.is_on_curve(P):
             return P
         else:
@@ -95,7 +95,7 @@ def int_from_octets(o: Octets) -> int:
     """
 
     o = bytes_from_hexstring(o)
-    return int.from_bytes(o, 'big')
+    return int.from_bytes(o, byteorder='big')
 
 
 def octets_from_int(i: int, bytesize: int) -> bytes:
@@ -105,7 +105,7 @@ def octets_from_int(i: int, bytesize: int) -> bytes:
     according to SEC 1 v.2, section 2.3.7.
     """
 
-    return i.to_bytes(bytesize, 'big')
+    return i.to_bytes(bytesize, byteorder='big')
 
 
 def int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:

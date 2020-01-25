@@ -219,8 +219,8 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     rf = sig[0]
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
-    r = int.from_bytes(sig[1:33], 'big')
-    s = int.from_bytes(sig[33:], 'big')
+    r = int.from_bytes(sig[1:33], byteorder='big')
+    s = int.from_bytes(sig[33:], byteorder='big')
     magic_msg = _magic_hash(msg)
     pubkeys = pubkey_recovery(magic_msg, (r, s))
     i = rf + 1 & 3  # the right pubkey for both BIP137 and Electrum

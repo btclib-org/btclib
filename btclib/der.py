@@ -54,14 +54,14 @@ def _bytes_from_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
     elen = scalar.bit_length()
     esize = elen // 8 + 1  # not a bug: 'highest bit set' padding included here
-    n_bytes = scalar.to_bytes(esize, 'big')
+    n_bytes = scalar.to_bytes(esize, byteorder='big')
     return n_bytes
 
 
 def _encode_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
     x = _bytes_from_scalar(scalar)
-    xsize = len(x).to_bytes(1, "big")
+    xsize = len(x).to_bytes(1, byteorder='big')
     return b'\x02' + xsize + x
 
 
@@ -76,7 +76,7 @@ def encode(sig: ECDS, sighash: bytes = sighash_all, ec: Curve = secp256k1) -> by
 
     enc = _encode_scalar(r)
     enc += _encode_scalar(s)
-    return b'\x30' + len(enc).to_bytes(1, "big") + enc + sighash
+    return b'\x30' + len(enc).to_bytes(1, byteorder='big') + enc + sighash
 
 
 def decode(sig: bytes, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
@@ -123,7 +123,7 @@ def decode(sig: bytes, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
     if sizeR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
         raise ValueError("Invalid null bytes at the start of r")
 
-    r = int.from_bytes(sig[4:4 + sizeR], 'big')
+    r = int.from_bytes(sig[4:4 + sizeR], byteorder='big')
 
     # scalar s (offset=2+sizeR with respect to r)
     if sig[sizeR + 4] != 0x02:
@@ -137,7 +137,7 @@ def decode(sig: bytes, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
     if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
         raise ValueError("Invalid null bytes at the start of s")
 
-    s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], 'big')
+    s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
 
     # _to_sig checks that the signature is valid for the given Curve
     return _to_sig((r, s), ec), sig[sigsize - 1:]
