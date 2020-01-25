@@ -39,11 +39,13 @@ class WordLists:
         }
         self.languages = list(self.language_files)
 
-        # create dictionaries where each language has None word-list
-        values = len(self.languages)*[None]
-        self._wordlist = dict(zip(self.languages, values))
-        self._bits_per_word = dict(zip(self.languages, values))
-        self._language_length = dict(zip(self.languages, values))
+        # create dictionaries where each language has empty word-list
+        wordlists: List[List[str]] = [[] for _ in range(len(self.languages))]
+        self._wordlist = dict(zip(self.languages, wordlists))
+
+        zeros = len(self.languages)*[0]
+        self._bits_per_word = dict(zip(self.languages, zeros))
+        self._language_length = dict(zip(self.languages, zeros))
 
     def load_lang(self, lang: str, filename: str = None) -> None:
         """Load/add a language word-list if not loaded/added yet.
@@ -60,12 +62,12 @@ class WordLists:
                 # initialize the new language
                 self.languages.append(lang)
                 self.language_files[lang] = filename
-                self._wordlist[lang] = None
-                self._bits_per_word[lang] = None
-                self._language_length[lang] = None
+                self._wordlist[lang] = []
+                self._bits_per_word[lang] = 0
+                self._language_length[lang] = 0
 
         # language has not been loaded yet
-        if self._wordlist[lang] == None:
+        if self._language_length[lang] == 0:
             with open(self.language_files[lang], 'r') as f:
                 lines = f.readlines()
             f.closed

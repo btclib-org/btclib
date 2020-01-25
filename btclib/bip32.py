@@ -228,7 +228,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     """
 
     if isinstance(index, int):
-        index = index.to_bytes(4, 'big')
+        index = index.to_bytes(4, byteorder='big')
 
     index = bytes_from_hexstring(index)
 
@@ -256,14 +256,14 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         else:                                        # normal derivation
             h = HMAC(chain_code, Parent_bytes + index, sha512).digest()
         xkey += h[32:]                               # child chain code
-        offset = int.from_bytes(h[:32], 'big')
-        parent = int.from_bytes(bytes_key[1:], 'big')
+        offset = int.from_bytes(h[:32], byteorder='big')
+        parent = int.from_bytes(bytes_key[1:], byteorder='big')
         child = (parent + offset) % ec.n
         xkey += b'\x00' + child.to_bytes(32, 'big')  # child private key
     else:                                            # parent is a pubkey
         h = HMAC(chain_code, bytes_key + index, sha512).digest()
         xkey += h[32:]                               # child chain code
-        offset = int.from_bytes(h[:32], 'big')
+        offset = int.from_bytes(h[:32], byteorder='big')
         Offset = mult(offset)
         Child = ec.add(P, Offset)
         xkey += octets_from_point(Child, True, ec)   # child public key
@@ -438,10 +438,10 @@ def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
     parent_xprv += pc                     # chain code
 
     h = HMAC(pc, pk + ci, sha512).digest()
-    offset = int.from_bytes(h[:32], 'big')
-    child = int.from_bytes(ck[1:], 'big')
+    offset = int.from_bytes(h[:32], byteorder='big')
+    child = int.from_bytes(ck[1:], byteorder='big')
     parent = (child - offset) % ec.n
-    parent_bytes = b'\x00' + parent.to_bytes(32, 'big')
+    parent_bytes = b'\x00' + parent.to_bytes(32, byteorder='big')
     parent_xprv += parent_bytes           # private key
 
     return base58.encode(parent_xprv)

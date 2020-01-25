@@ -37,21 +37,21 @@ class TestBIP32(unittest.TestCase):
         # zero depth with non-zero parent_fingerprint
         f2 = b'\x01\x01\x01\x01'
         invalid_key = base58.encode(
-            v + d.to_bytes(1, 'big') + f2 + i + c + k)
+            v + d.to_bytes(1, byteorder='big') + f2 + i + c + k)
         self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
         # bip32.xkey_parse(invalid_key)
 
         # zero depth with non-zero child_index
         i2 = b'\x01\x01\x01\x01'
         invalid_key = base58.encode(
-            v + d.to_bytes(1, 'big') + f + i2 + c + k)
+            v + d.to_bytes(1, byteorder='big') + f + i2 + c + k)
         self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
         # bip32.xkey_parse(invalid_key)
 
         # non-zero depth (255) with zero parent_fingerprint
         d2 = 255
         invalid_key = base58.encode(
-            v + d2.to_bytes(1, 'big') + f + i + c + k)
+            v + d2.to_bytes(1, byteorder='big') + f + i + c + k)
         self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
         # bip32.xkey_parse(invalid_key)
 
