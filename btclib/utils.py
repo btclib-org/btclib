@@ -166,6 +166,7 @@ def double_sha256(o: Octets) -> bytes:
     t = _sha256(o)
     return hashlib.sha256(t).digest()
 
+
 def bytes_from_hexstring(o: Union[Any, str]) -> Union[Any, bytes]:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
