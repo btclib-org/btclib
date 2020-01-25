@@ -39,13 +39,12 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 from hashlib import pbkdf2_hmac, sha256
 
 from . import bip32
-from .entropy import (Entropy, GenericEntropy, _bytes_from_entropy,
+from .entropy import (Entropy, GenericEntropy, _bits, _bytes_from_entropy,
                       str_from_entropy)
 from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
                        _indexes_from_mnemonic, _mnemonic_from_indexes)
 from .utils import Octets
 
-_bits = 128, 160, 192, 224, 256
 _words = tuple(b // 32 * 3 for b in _bits)
 
 
