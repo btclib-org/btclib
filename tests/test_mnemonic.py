@@ -10,8 +10,8 @@
 
 import unittest
 
-from btclib.mnemonic import _indexes_from_entropy, _mnemonic_from_indexes, \
-    _indexes_from_mnemonic, _entropy_from_indexes
+from btclib.mnemonic import (_entropy_from_indexes, _indexes_from_entropy,
+                             _indexes_from_mnemonic, _mnemonic_from_indexes)
 
 
 class TestMnemonic(unittest.TestCase):
@@ -43,10 +43,6 @@ class TestMnemonic(unittest.TestCase):
         entropy = _entropy_from_indexes(test_indexes, lang)
         indexes = _indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
-
-        # entropy must be binary string or int
-        entropy = b'123456789abcdef0'
-        self.assertRaises(TypeError, _indexes_from_entropy, entropy, lang)
 
 
 if __name__ == "__main__":

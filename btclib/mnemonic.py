@@ -8,23 +8,26 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Class for converting entropy from/to mnemonic sentence.
+"""Functions for entropy conversion from/to mnemonic sentence.
 
-*Entropy* must be represented as binary 0/1 string.
+Entropy must be represented as binary 0/1 string.
+
+Warning: these functions are not meant for end-users which are
+better served by the bip39 and electrum module functions.
 """
 
 import math
 from hashlib import pbkdf2_hmac
 from typing import List
 
-from .entropy import Entropy
+from .entropy import BinStr
 from .wordlists import _wordlists
 
 Mnemonic = str
 
 
-def _indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
-    """Return the word-list indexes for a given entropy.
+def _indexes_from_entropy(entropy: BinStr, lang: str) -> List[int]:
+    """Return the word-list indexes for a given binary 0/1 string entropy.
 
     Return the list of integer indexes into a language word-list
     for a given entropy.
@@ -32,13 +35,6 @@ def _indexes_from_entropy(entropy: Entropy, lang: str) -> List[int]:
     Entropy must be represented as binary 0/1 string; leading zeros
     are not considered redundant padding.
     """
-
-    if isinstance(entropy, str):
-        entropy = entropy.strip()
-    else:
-        m = "entropy must be binary 0/1 string, "
-        m += f"not '{type(entropy).__name__}'"
-        raise TypeError(m)
 
     bits = len(entropy)
     int_entropy = int(entropy, 2)
@@ -85,7 +81,7 @@ def _indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
     return indexes
 
 
-def _entropy_from_indexes(indexes: List[int], lang: str) -> Entropy:
+def _entropy_from_indexes(indexes: List[int], lang: str) -> BinStr:
     """Return the entropy from a list of word-list indexes.
 
     Return the entropy from a list of integer indexes into

@@ -10,25 +10,25 @@
 
 """Entropy conversions from/to binary 0/1 string, bytes-like, and int.
 
-Input entropy (*GenericEntropy*) can be expressed as
+Input entropy can be expressed as
 binary 0/1 string, bytes-like, or integer.
 
-Output entropy (*Entropy*) should always be a binary 0/1 string.
+Output entropy is always a binary 0/1 string.
 """
 
-from typing import Union, Optional, Iterable
+from typing import Iterable, Optional, Union
 
-Entropy = str  # binary 0/1 string
-GenericEntropy = Union[Entropy, int, bytes]
+BinStr = str  # binary 0/1 string
+Entropy = Union[BinStr, int, bytes]
 
 _bits = 128, 160, 192, 224, 256
 
 
-def str_from_entropy(entr: GenericEntropy,
-                     bits: Union[int, Iterable[int]] = _bits) -> Entropy:
+def binstr_from_entropy(entr: Entropy,
+                        bits: Union[int, Iterable[int]] = _bits) -> BinStr:
     """Convert the input entropy to binary 0/1 string.
 
-    Input entropy (*GenericEntropy*) can be expressed as
+    Input entropy can be expressed as
     binary 0/1 string, bytes-like, or integer;
     by default, it must be 128, 160, 192, 224, or 256 bits.
 
@@ -36,33 +36,35 @@ def str_from_entropy(entr: GenericEntropy,
     leading zeros are not considered redundant padding.
     In the case of integer, where leading zeros cannot be represented,
     if the bit length is not an allowed value, then the binary 0/1
-    string is padded with leading zeros up to the next allowed bit
+    string is padded with leading zeros up to the first allowed bit
     length; if the integer bit length is longer than the maximum
     length, then only the leftmost bits are retained.
     """
 
     if isinstance(bits, int):
-        bits = (bits, )
-    bits = sorted(set(bits))  # ascending sort unique
+        bits = (bits, )       # if a single int, make it a tuple
+    bits = sorted(set(bits))  # ascending unique sorting of allowed bits
 
     if isinstance(entr, str):
-        entr = entr.strip()
-        int(entr, 2)  # check that entr is a valid binary string
-        nbits = len(entr)
+        binstr_entr = entr.strip()
+        if binstr_entr[:2] == '0b':
+            binstr_entr = binstr_entr[2:]
+        int(binstr_entr, 2)  # check that entr is a valid binary string
+        nbits = len(binstr_entr)
         # no length adjustment
     elif isinstance(entr, bytes):
         nbits = len(entr) * 8
-        entr = int.from_bytes(entr, 'big')
-        entr = bin(entr)[2:]  # remove '0b'
+        int_entr = int.from_bytes(entr, 'big')
+        binstr_entr = bin(int_entr)[2:]  # remove '0b'
         # no length adjustment
     elif isinstance(entr, int):
         if entr < 0:
-            raise ValueError(f"negative entropy {entr}")
-        entr = bin(entr)[2:]  # remove '0b'
-        nbits = len(entr)
+            raise ValueError(f"negative entropy ({entr})")
+        binstr_entr = bin(entr)[2:]  # remove '0b'
+        nbits = len(binstr_entr)
         if nbits > bits[-1]:
             # only the leftmost bits are retained
-            entr = entr[:bits[-1]]
+            binstr_entr = binstr_entr[:bits[-1]]
             nbits = bits[-1]
         elif nbits not in bits:
             # next allowed bit length
@@ -73,52 +75,5 @@ def str_from_entropy(entr: GenericEntropy,
         raise TypeError(m)
 
     if nbits not in bits:
-        raise ValueError(f"{nbits} bits provided; expected: {bits}")
-    return entr.zfill(nbits)  # int might need pad with leading zeros
-
-
-def _int_from_entropy(entr: GenericEntropy,
-                      bits: Union[int, Iterable[int]] = _bits) -> int:
-    """Convert the input entropy to integer.
-
-    Input entropy (*GenericEntropy*) can be expressed as
-    binary 0/1 string, bytes-like, or integer;
-    by default, it must be 128, 160, 192, 224, or 256 bits.
-
-    Please note that leading zeros, which should not considered
-    redundant padding, are lost.
-    """
-
-    entr = str_from_entropy(entr, bits)
-    return int(entr, 2)
-
-
-def _bytes_from_entropy(entr: GenericEntropy,
-                        bits: Union[int, Iterable[int]] = _bits) -> bytes:
-    """Convert the input entropy to bytes.
-
-    Input entropy (*GenericEntropy*) can be expressed as
-    binary 0/1 string, bytes-like, or integer;
-    by default, it must be 128, 160, 192, 224, or 256 bits.
-
-    In the case of binary 0/1 string and bytes-like,
-    leading zeros are not considered redundant padding.
-    In the case of integer, where leading zeros cannot be represented,
-    if the bit length is not an allowed value, then the binary 0/1
-    string is padded with leading zeros up to the next allowed bit
-    length; if the integer bit length is longer than the maximum
-    length, then only the leftmost bits are retained.
-
-    Please note that leading zeros, which should not considered
-    redundant padding, might be added if the allowed bit lengths are
-    not multiple of 8.
-    """
-
-    entr = str_from_entropy(entr, bits)
-    nbits = len(entr)
-
-    entr = int(entr, 2)
-
-    # uselessly convoluted if nbits is a multiple of 8, but just in case...
-    nbytes = (nbits+7)//8
-    return entr.to_bytes(nbytes, 'big')
+        raise ValueError(f"{nbits} bits entropy provided; expected: {bits}")
+    return binstr_entr.zfill(nbits)  # might need padding with leading zeros

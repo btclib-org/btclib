@@ -39,8 +39,7 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 from hashlib import pbkdf2_hmac, sha256
 
 from . import bip32
-from .entropy import (Entropy, GenericEntropy, _bits, _bytes_from_entropy,
-                      str_from_entropy)
+from .entropy import BinStr, Entropy, _bits, binstr_from_entropy
 from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
                        _indexes_from_mnemonic, _mnemonic_from_indexes)
 from .utils import Octets
@@ -48,46 +47,39 @@ from .utils import Octets
 _words = tuple(b // 32 * 3 for b in _bits)
 
 
-def _entropy_checksum(entropy: GenericEntropy) -> Entropy:
+def _entropy_checksum(str_entropy: BinStr) -> BinStr:
+    """Return the checksum of the binary string input entropy.
 
-    entropy = _bytes_from_entropy(entropy, _bits)
+    Entropy must be expressed as binary 0/1 string and
+    must be 128, 160, 192, 224, or 256 bits.
+    Leading zeros are considered genuine entropy, not redundant padding.
+    """
+
+    nbits = len(str_entropy)
+    int_entropy = int(str_entropy, 2)
+    if nbits not in _bits:
+        msg = f"Invalid number of bits ({nbits}) for BIP39 entropy; "
+        msg += f"must be in ({_bits})"
+        raise ValueError(msg)
+    nbytes = (nbits+7)//8
+    bytes_entropy = int_entropy.to_bytes(nbytes, 'big')
+
     # 256-bit checksum
-    byteschecksum = sha256(entropy).digest()
+    byteschecksum = sha256(bytes_entropy).digest()
     # integer checksum (leading zeros are lost)
     intchecksum = int.from_bytes(byteschecksum, 'big')
     # convert checksum to binary '01' string
     checksum = bin(intchecksum)[2:]  # remove '0b'
     checksum = checksum.zfill(256)   # pad with leading lost zeros
     # leftmost bits
-    checksum_bits = len(entropy) // 4
+    checksum_bits = nbytes // 4
     return checksum[:checksum_bits]
 
 
-def cs_entropy_from_entropy(entropy: GenericEntropy) -> Entropy:
-    """Convert input entropy to checksummed BIP39 entropy.
-
-    Input entropy (*GenericEntropy*) can be expressed as
-    binary 0/1 string, bytes-like, or integer;
-    it must be 128, 160, 192, 224, or 256 bits.
-
-    In the case of binary 0/1 string and bytes-like,
-    leading zeros are not considered redundant padding.
-    In the case of integer, where leading zeros cannot be represented,
-    if the bit length is not an allowed value, then the binary 0/1
-    string is padded with leading zeros up to the next allowed bit
-    length; if the integer bit length is longer than the maximum
-    length, then only the leftmost bits are retained.
-    """
-
-    entropy = str_from_entropy(entropy, _bits)
-    checksum = _entropy_checksum(entropy)
-    return entropy + checksum
-
-
-def mnemonic_from_entropy(entropy: GenericEntropy, lang: str = "en") -> Mnemonic:
+def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
     """Convert input entropy to checksummed BIP39 mnemonic sentence.
 
-    Input entropy (*GenericEntropy*) can be expressed as
+    Input entropy can be expressed as
     binary 0/1 string, bytes-like, or integer;
     it must be 128, 160, 192, 224, or 256 bits.
 
@@ -100,13 +92,13 @@ def mnemonic_from_entropy(entropy: GenericEntropy, lang: str = "en") -> Mnemonic
     length, then only the leftmost bits are retained.
     """
 
-    cs_entropy = cs_entropy_from_entropy(entropy)
-    indexes = _indexes_from_entropy(cs_entropy, lang)
-    mnemonic = _mnemonic_from_indexes(indexes, lang)
-    return mnemonic
+    str_entropy = binstr_from_entropy(entropy, _bits)
+    checksum = _entropy_checksum(str_entropy)
+    indexes = _indexes_from_entropy(str_entropy + checksum, lang)
+    return _mnemonic_from_indexes(indexes, lang)
 
 
-def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     """Convert mnemonic sentence to entropy, verifying checksum."""
 
     words = len(mnemonic.split())
@@ -120,28 +112,28 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
 
     # entropy is only the first part of cs_entropy
     bits = int(len(cs_entropy)*32/33)
-    entropy = cs_entropy[:bits]
+    binstr_entropy = cs_entropy[:bits]
 
     # the second part being the checksum, to be verified
-    checksum = _entropy_checksum(entropy)
+    checksum = _entropy_checksum(binstr_entropy)
     if cs_entropy[bits:] != checksum:
         m = f"invalid mnemonic checksum ({cs_entropy[bits:]}); "
         m += f"expected: {checksum}"
         raise ValueError(m)
 
-    return entropy
+    return binstr_entropy
 
 
 def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
                        verify_checksum = True) -> bytes:
     """Return seed from mnemonic according to BIP39 standard.
 
-    The verification of the mnemonic (implicit entropy) checksum
-    can be skipped if needed.
+    The mnemonic checksum verification can be skipped if needed.
     """
 
     if verify_checksum:
         entropy_from_mnemonic(mnemonic)
+    
     hf_name = 'sha512'
     password = mnemonic.encode()
     salt = ('mnemonic' + passphrase).encode()
