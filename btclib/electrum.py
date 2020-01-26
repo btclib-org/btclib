@@ -31,6 +31,7 @@ _MNEMONIC_VERSIONS = {
 
 
 def version_from_mnemonic(mnemonic: Mnemonic) -> str:
+    """Return the Electrum version embedded in the mnemonic sentence."""
 
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
 
@@ -68,7 +69,7 @@ def mnemonic_from_entropy(electrum_version: str, entropy: Entropy,
     invalid = True
     while invalid:
         # electrum considers entropy as integer, losing any leading zero
-        # so the value of str_entropy before the while must be updated
+        # so the value of binstr_entropy before the while must be updated
         nbits = int_entropy.bit_length()
         binstr_entropy = binstr_from_entropy(int_entropy, nbits)
         indexes = _indexes_from_entropy(binstr_entropy, lang)
@@ -87,6 +88,7 @@ def mnemonic_from_entropy(electrum_version: str, entropy: Entropy,
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     """Convert mnemonic sentence to Electrum versioned entropy."""
 
+    # verify that it is a valid Electrum mnemonic sentence
     _ = version_from_mnemonic(mnemonic)
     indexes = _indexes_from_mnemonic(mnemonic, lang)
     entropy = _entropy_from_indexes(indexes, lang)

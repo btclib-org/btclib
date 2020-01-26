@@ -42,10 +42,14 @@ class TestBIP39(unittest.TestCase):
         #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # invalid mnemonic checksum
-        wrong_mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce walnut"
-        self.assertRaises(
-            ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
+        wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce walnut"
+        self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wr_m, lang)
         #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
+
+        # Invalid number of bits (130) for BIP39 entropy; must be in ...
+        binstr_entropy = '01' * 65  # 130 bits
+        self.assertRaises(ValueError, bip39._entropy_checksum, binstr_entropy)
+        #bip39._entropy_checksum(binstr_entropy)
 
     def test_vectors(self):
         """BIP39 test vectors

@@ -26,6 +26,9 @@ class TestEntropy(unittest.TestCase):
         entropy = binstr_from_entropy(int_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
+        entropy = binstr_from_entropy(bin(int_entropy))
+        self.assertEqual(entropy, binstr_entropy)
+
         bytes_entropy = int_entropy.to_bytes(32, byteorder='big')
         entropy = binstr_from_entropy(bytes_entropy)
         self.assertEqual(entropy, binstr_entropy)

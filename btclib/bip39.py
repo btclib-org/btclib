@@ -47,7 +47,7 @@ from .utils import Octets
 _words = tuple(b // 32 * 3 for b in _bits)
 
 
-def _entropy_checksum(str_entropy: BinStr) -> BinStr:
+def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
     """Return the checksum of the binary string input entropy.
 
     Entropy must be expressed as binary 0/1 string and
@@ -55,11 +55,11 @@ def _entropy_checksum(str_entropy: BinStr) -> BinStr:
     Leading zeros are considered genuine entropy, not redundant padding.
     """
 
-    nbits = len(str_entropy)
-    int_entropy = int(str_entropy, 2)
+    nbits = len(binstr_entropy)
+    int_entropy = int(binstr_entropy, 2)
     if nbits not in _bits:
         msg = f"Invalid number of bits ({nbits}) for BIP39 entropy; "
-        msg += f"must be in ({_bits})"
+        msg += f"must be in {_bits}"
         raise ValueError(msg)
     nbytes = (nbits+7)//8
     bytes_entropy = int_entropy.to_bytes(nbytes, 'big')
@@ -92,9 +92,9 @@ def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
     length, then only the leftmost bits are retained.
     """
 
-    str_entropy = binstr_from_entropy(entropy, _bits)
-    checksum = _entropy_checksum(str_entropy)
-    indexes = _indexes_from_entropy(str_entropy + checksum, lang)
+    binstr_entropy = binstr_from_entropy(entropy, _bits)
+    checksum = _entropy_checksum(binstr_entropy)
+    indexes = _indexes_from_entropy(binstr_entropy + checksum, lang)
     return _mnemonic_from_indexes(indexes, lang)
 
 
