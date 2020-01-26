@@ -94,19 +94,6 @@ def _check_witness(witvers: int, witprog: WitnessProgram):
             raise ValueError(f"witness program length ({l}) not in [2, 40]")
 
 
-def _scriptPubKey(witvers: int, witprog: WitnessProgram) -> List[Token]:
-    """Construct a SegWit scriptPubKey for a given witness.
-
-    The scriptPubKey is the witness version
-    (OP_0 for version 0, OP_1 for version 1, etc.)
-    followed by the canonical push of the witness program
-    (i.e. program lenght + program).
-    """
-
-    _check_witness(witvers, witprog)
-    return [witvers, bytes(witprog)]
-
-
 def _decode(address: Union[str, bytes]) -> Tuple[str, int, List[int]]:
     """Decode a SegWit address."""
 
@@ -147,8 +134,7 @@ def _p2wpkh_address(hash160: bytes, native: bool, network: str) -> bytes:
     witvers = 0
     if native:
         return _encode(network, witvers, hash160)
-    # script_pubkey = _scriptPubKey(witvers, hash160)
-    # scriptPubkey is 0x0014{20-byte key-hash}
+    # script_pubkey = [0, key_hash], i.e. 0x0014{20-byte key-hash}
     script_pubkey = b'\x00\x14' + hash160
     return p2sh_address(script_pubkey, network)
 
@@ -176,13 +162,17 @@ def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return _p2wpkh_address(h160_pubkey(pubkey), native, network)
 
 
-def _p2wsh_address(sha256: bytes, native: bool, network: str) -> bytes:
+def _p2wsh_address(h256: bytes, native: bool, network: str) -> bytes:
     """Return the address as native SegWit bech32 or legacy p2sh-wrapped."""
 
     witvers = 0
     if native:
-        return _encode(network, witvers, sha256)
-    script_pubkey = _scriptPubKey(witvers, sha256)
+        return _encode(network, witvers, h256)
+
+    if len(h256) != 32:
+        raise ValueError(f"witness program length ({len(h256)}) is not 32")
+    script_pubkey: List[Token] = [witvers, h256]
+
     return p2sh_address(encode(script_pubkey), network)
 
 

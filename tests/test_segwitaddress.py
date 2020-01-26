@@ -44,10 +44,9 @@ import unittest
 
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
-from btclib.segwitaddress import (_decode, _encode, _scriptPubKey,
-                                  hash_from_bech32_address, p2wpkh_address,
-                                  p2wpkh_p2sh_address, p2wsh_address,
-                                  p2wsh_p2sh_address)
+from btclib.segwitaddress import (_decode, _encode, hash_from_bech32_address,
+                                  p2wpkh_address, p2wpkh_p2sh_address,
+                                  p2wsh_address, p2wsh_p2sh_address)
 from btclib.utils import _sha256, h160, octets_from_point, point_from_octets
 
 VALID_BC_ADDRESS = [
@@ -103,7 +102,7 @@ class TestSegwitAddress(unittest.TestCase):
         """Test whether valid addresses decode to the correct output"""
         for a, hexscript in VALID_BC_ADDRESS + VALID_TB_ADDRESS:
             network, witvers, witprog = _decode(a)
-            script_pubkey = _scriptPubKey(witvers, witprog)
+            script_pubkey = [witvers, bytes(witprog)]
             self.assertEqual(encode(script_pubkey).hex(), hexscript)
             address = _encode(network, witvers, witprog)
             self.assertEqual(a.lower().strip(), address.decode())

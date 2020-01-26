@@ -153,7 +153,6 @@ class TestScriptPubKey(unittest.TestCase):
         address = segwitaddress._encode("mainnet", 0, witness_hash)
         self.assertEqual(address, b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj")
 
-
     def test_address_scriptPubKey(self):
 
         pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
@@ -177,6 +176,11 @@ class TestScriptPubKey(unittest.TestCase):
         script = [0, script_hash]
         script2, _ = scriptPubKey_from_address(address_from_scriptPubKey(script))
         self.assertEqual(script, script2)
+
+        # Unknown script
+        script = [16, pubkey_hash]
+        self.assertRaises(ValueError, address_from_scriptPubKey, script)
+        #address_from_scriptPubKey(script)
 
 
 if __name__ == "__main__":
