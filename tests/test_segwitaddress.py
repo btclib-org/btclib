@@ -44,10 +44,11 @@ import unittest
 
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
-from btclib.segwitaddress import (_decode, _encode, hash_from_bech32_address,
-                                  p2wpkh_address, p2wpkh_p2sh_address,
-                                  p2wsh_address, p2wsh_p2sh_address)
-from btclib.utils import h256, h160, octets_from_point, point_from_octets
+from btclib.segwitaddress import (_decode, _encode, _p2wsh_address,
+                                  hash_from_bech32_address, p2wpkh_address,
+                                  p2wpkh_p2sh_address, p2wsh_address,
+                                  p2wsh_p2sh_address)
+from btclib.utils import h160, h256, octets_from_point, point_from_octets
 
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
@@ -212,13 +213,20 @@ class TestSegwitAddress(unittest.TestCase):
         pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         witness_script = [pub, 'OP_CHECKSIG']
         witness_script_bytes = encode(witness_script)
+
         addr = b'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
         self.assertEqual(addr, p2wsh_address(witness_script_bytes, 'testnet'))
-        addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
-        self.assertEqual(addr, p2wsh_address(witness_script_bytes))
-
         _, _, wp = _decode(addr)
         self.assertEqual(bytes(wp), h256(witness_script_bytes))
+
+        addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
+        self.assertEqual(addr, p2wsh_address(witness_script_bytes))
+        _, _, wp = _decode(addr)
+        self.assertEqual(bytes(wp), h256(witness_script_bytes))
+
+        # witness program length (35) is not 32
+        self.assertRaises(ValueError, _p2wsh_address, witness_script_bytes[1:], True, "mainnet")
+        #_p2wsh_address(witness_script_bytes, True, "mainnet")
 
 
 if __name__ == "__main__":

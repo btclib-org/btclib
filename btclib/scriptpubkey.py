@@ -125,9 +125,11 @@ def p2wsh_scriptPubKey(script_h160: Octets) -> List[Token]:
     return [0, script_h160.hex()]
 
 
-def address_from_scriptPubKey(scr: Iterable[Token], network: str = "mainnet") -> bytes:
+def address_from_scriptPubKey(scriptPubKey: Iterable[Token],
+                              network: str = "mainnet") -> bytes:
+    """Return the bech32/base58 address from the input scriptPubKey."""
 
-    s = encode(scr)
+    s = encode(scriptPubKey)
     len_s = len(s)
     if len_s == 34 and s[:2] == b'\x00\x20':
         return segwitaddress._p2wsh_address(s[2:], True, network)
@@ -142,20 +144,20 @@ def address_from_scriptPubKey(scr: Iterable[Token], network: str = "mainnet") ->
 
 
 def scriptPubKey_from_address(addr: Union[str, bytes]) -> Tuple[List[Token], str]:
-    try:
+    """Return (scriptPubKey, network) from the input bech32/base58 address"""
+
+    if segwitaddress.has_segwit_prefix(addr):
+        # also check witness validity
         network, witvers, witprog = segwitaddress._decode(addr)
         if witvers == 0:
             len_wprog = len(witprog)
             if len_wprog == 32:
                 return p2wsh_scriptPubKey(bytes(witprog)), network
-            elif len_wprog == 20:
+            else:  # must be len_wprog == 20
                 return p2wpkh_scriptPubKey(bytes(witprog)), network
-            else:
-                msg = f"Unhandled witness program length ({len_wprog})"
-                raise ValueError(msg)
         else:
             raise ValueError(f"Unhandled witness version ({witvers})")
-    except Exception:
+    else:
         network, is_p2sh, payload = address.h160_from_base58_address(addr)
         if is_p2sh:
             return p2sh_scriptPubKey(payload), network

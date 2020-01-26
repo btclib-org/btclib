@@ -182,6 +182,12 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, address_from_scriptPubKey, script)
         #address_from_scriptPubKey(script)
 
+        # Unhandled witness version (16)
+        wp = h160(pubkey)[2:]
+        addr = segwitaddress._encode("mainnet", 16, wp)
+        self.assertRaises(ValueError, scriptPubKey_from_address, addr)
+        # scriptPubKey_from_address(addr)
+
 
 if __name__ == "__main__":
     # execute only if run as a script
