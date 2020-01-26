@@ -17,7 +17,7 @@ from btclib.scriptpubkey import (multisig_scriptPubKey, nulldata_scriptPubKey,
                                  p2sh_scriptPubKey, p2wpkh_scriptPubKey,
                                  p2wsh_scriptPubKey, address_from_scriptPubKey,
                                  scriptPubKey_from_address)
-from btclib.utils import _sha256, h160
+from btclib.utils import h256, h160
 
 
 class TestScriptPubKey(unittest.TestCase):
@@ -75,7 +75,7 @@ class TestScriptPubKey(unittest.TestCase):
         # p2wsh
         witness_script = [pubkey, 'OP_CHECKSIG']
         witness_script_bytes = encode(witness_script)
-        witness_script_hash = _sha256(witness_script_bytes)
+        witness_script_hash = h256(witness_script_bytes)
         # script = [0, witness_script_hash.hex()]
         script = p2wsh_scriptPubKey(witness_script_hash.hex())
         script_bytes = encode(script)
@@ -146,7 +146,7 @@ class TestScriptPubKey(unittest.TestCase):
             'OP_ENDIF'
         ]
         witness_program = encode(script)
-        witness_hash = _sha256(witness_program)
+        witness_hash = h256(witness_program)
 
         script_pubkey = p2wsh_scriptPubKey(witness_hash)
         self.assertEqual(encode(script_pubkey).hex(), "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708")
@@ -172,7 +172,7 @@ class TestScriptPubKey(unittest.TestCase):
         script2, _ = scriptPubKey_from_address(address_from_scriptPubKey(script))
         self.assertEqual(script, script2)
 
-        script_hash = _sha256(encode(script)).hex()
+        script_hash = h256(encode(script)).hex()
         script = [0, script_hash]
         script2, _ = scriptPubKey_from_address(address_from_scriptPubKey(script))
         self.assertEqual(script, script2)

@@ -47,7 +47,7 @@ from typing import Iterable, List, Tuple, Union
 from . import bech32
 from .address import p2sh_address
 from .script import Token, encode
-from .utils import Octets, _sha256, bytes_from_hexstring, h160
+from .utils import Octets, h256, bytes_from_hexstring, h160
 
 WitnessProgram = Union[List[int], bytes]
 
@@ -162,16 +162,16 @@ def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return _p2wpkh_address(h160_pubkey(pubkey), native, network)
 
 
-def _p2wsh_address(h256: bytes, native: bool, network: str) -> bytes:
+def _p2wsh_address(hash256: bytes, native: bool, network: str) -> bytes:
     """Return the address as native SegWit bech32 or legacy p2sh-wrapped."""
 
     witvers = 0
     if native:
-        return _encode(network, witvers, h256)
+        return _encode(network, witvers, hash256)
 
-    if len(h256) != 32:
-        raise ValueError(f"witness program length ({len(h256)}) is not 32")
-    script_pubkey: List[Token] = [witvers, h256]
+    if len(hash256) != 32:
+        raise ValueError(f"witness program length ({len(hash256)}) is not 32")
+    script_pubkey: List[Token] = [witvers, hash256]
 
     return p2sh_address(encode(script_pubkey), network)
 
@@ -179,13 +179,13 @@ def _p2wsh_address(h256: bytes, native: bool, network: str) -> bytes:
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh native SegWit address."""
     native = True
-    return _p2wsh_address(_sha256(wscript), native, network)
+    return _p2wsh_address(h256(wscript), native, network)
 
 
 def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh-p2sh (legacy) address."""
     native = False
-    return _p2wsh_address(_sha256(wscript), native, network)
+    return _p2wsh_address(h256(wscript), native, network)
 
 
 def hash_from_bech32_address(address: Union[str, bytes]) -> Tuple[str, bytes]:

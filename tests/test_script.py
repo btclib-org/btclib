@@ -12,7 +12,6 @@ import unittest
 
 from btclib.script import (OP_CODE_NAMES, OP_CODES, decode, encode, parse,
                            serialize)
-from btclib.utils import _sha256, h160
 
 
 class TestScript(unittest.TestCase):
