@@ -55,6 +55,20 @@ _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2W_PREFIXES = ['bc', 'tb', 'bcrt']
 
 
+def has_segwit_prefix(addr: Union[str, bytes]) -> bool:
+
+    if isinstance(addr, bytes):
+        str_addr = addr.decode()
+    else:
+        str_addr = addr.strip()
+    
+    for prefix in _P2W_PREFIXES:
+        if str_addr.startswith(prefix + '1'):
+            return True
+
+    return False
+
+
 def _convertbits(data: Iterable[int], frombits: int,
                  tobits: int, pad: bool = True) -> List[int]:
     """General power-of-2 base conversion."""
@@ -122,6 +136,7 @@ def _decode(address: Union[str, bytes]) -> Tuple[str, int, List[int]]:
 
 def _encode(network: str, wv: int, wp: WitnessProgram) -> bytes:
     """Encode a SegWit address."""
+
     _check_witness(wv, wp)
     hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
     ret = bech32.encode(hrp, [wv] + _convertbits(wp, 8, 5))
@@ -165,14 +180,13 @@ def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
 def _p2wsh_address(hash256: bytes, native: bool, network: str) -> bytes:
     """Return the address as native SegWit bech32 or legacy p2sh-wrapped."""
 
+    if len(hash256) != 32:
+        raise ValueError(f"witness program length ({len(hash256)}) is not 32")
     witvers = 0
     if native:
         return _encode(network, witvers, hash256)
 
-    if len(hash256) != 32:
-        raise ValueError(f"witness program length ({len(hash256)}) is not 32")
     script_pubkey: List[Token] = [witvers, hash256]
-
     return p2sh_address(encode(script_pubkey), network)
 
 
