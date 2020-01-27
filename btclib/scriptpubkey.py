@@ -12,10 +12,11 @@
 
 """
 
-from typing import Iterable, List, Union
+from typing import Iterable, List, Union, Tuple
 
-from .script import Token
+from .script import encode, Token
 from .utils import Octets, bytes_from_hexstring
+from . import segwitaddress, address
 
 
 def nulldata_scriptPubKey(data: Octets) -> List[Token]:
@@ -107,7 +108,7 @@ def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     return [0, pubkey_h160.hex()]
 
 
-def p2wsh_scriptPubKey(script_h256: Octets) -> List[Token]:
+def p2wsh_scriptPubKey(script_h160: Octets) -> List[Token]:
     """Return the p2wsh scriptPubKey of the provided SHA256 script-hash.
     
     For P2WSH, the witness program must be the SHA256 32-byte script-hash;
@@ -116,9 +117,49 @@ def p2wsh_scriptPubKey(script_h256: Octets) -> List[Token]:
     that is 0x0020{32-byte script-hash}
     """
 
-    script_h256 = bytes_from_hexstring(script_h256)
-    if len(script_h256) != 32:
-        msg = f"Invalid witness program lenght ({len(script_h256)} bytes) "
+    script_h160 = bytes_from_hexstring(script_h160)
+    if len(script_h160) != 32:
+        msg = f"Invalid witness program lenght ({len(script_h160)} bytes) "
         msg += "for p2wsh scriptPubKey"
         raise ValueError(msg)
-    return [0, script_h256.hex()]
+    return [0, script_h160.hex()]
+
+
+def address_from_scriptPubKey(scriptPubKey: Iterable[Token],
+                              network: str = "mainnet") -> bytes:
+    """Return the bech32/base58 address from the input scriptPubKey."""
+
+    s = encode(scriptPubKey)
+    len_s = len(s)
+    if len_s == 34 and s[:2] == b'\x00\x20':
+        return segwitaddress._p2wsh_address(s[2:], True, network)
+    elif len_s == 22 and s[:2] == b'\x00\x14':
+        return segwitaddress._p2wpkh_address(s[2:], True, network)
+    elif len_s == 23 and s[:2] == b'\xa9\x14' and s[-1:] == b'\x87':
+        return address._p2sh_address(s[2:len_s-1], network)
+    elif len_s == 25 and s[:3] == b'\x76\xa9\x14' and s[-2:] == b'\x88\xac':
+        return address._p2pkh_address(s[3:len_s-2], network)
+    else:
+        raise ValueError("Unknown script")
+
+
+def scriptPubKey_from_address(addr: Union[str, bytes]) -> Tuple[List[Token], str]:
+    """Return (scriptPubKey, network) from the input bech32/base58 address"""
+
+    if segwitaddress.has_segwit_prefix(addr):
+        # also check witness validity
+        network, witvers, witprog = segwitaddress._decode(addr)
+        if witvers == 0:
+            len_wprog = len(witprog)
+            if len_wprog == 32:
+                return p2wsh_scriptPubKey(bytes(witprog)), network
+            else:  # must be len_wprog == 20
+                return p2wpkh_scriptPubKey(bytes(witprog)), network
+        else:
+            raise ValueError(f"Unhandled witness version ({witvers})")
+    else:
+        network, is_p2sh, payload = address.h160_from_base58_address(addr)
+        if is_p2sh:
+            return p2sh_scriptPubKey(payload), network
+        else:
+            return p2pkh_scriptPubKey(payload), network

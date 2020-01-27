@@ -8,108 +8,102 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import unittest
 import random
+import unittest
 
-from btclib.entropy import Entropy, GenericEntropy, \
-    _bytes_from_entropy, str_from_entropy, \
-    _int_from_entropy
+from btclib.entropy import Entropy, binstr_from_entropy
 
 random.seed(42)
 
 
 class TestEntropy(unittest.TestCase):
     def test_conversions(self):
-        entropy = '10101011' * 32
+        binstr_entropy = '10101011' * 32
+        entropy = binstr_from_entropy(binstr_entropy)
+        self.assertEqual(entropy, binstr_entropy)
 
-        str_entropy = str_from_entropy(entropy)
-        self.assertEqual(len(str_entropy), 256)
-        self.assertEqual(str_entropy, entropy)
-        bytes_entropy = _bytes_from_entropy(entropy)
-        self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = _int_from_entropy(entropy)
-        self.assertEqual(int_entropy.bit_length(), 256)
+        int_entropy = int(binstr_entropy, 2)
+        entropy = binstr_from_entropy(int_entropy)
+        self.assertEqual(entropy, binstr_entropy)
 
-        str_entropy = str_from_entropy(bytes_entropy)
-        self.assertEqual(len(str_entropy), 256)
-        self.assertEqual(str_entropy, entropy)
-        bytes_entropy = _bytes_from_entropy(bytes_entropy)
-        self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = _int_from_entropy(bytes_entropy)
-        self.assertEqual(int_entropy.bit_length(), 256)
+        entropy = binstr_from_entropy(bin(int_entropy))
+        self.assertEqual(entropy, binstr_entropy)
 
-        str_entropy = str_from_entropy(int_entropy)
-        self.assertEqual(len(str_entropy), 256)
-        self.assertEqual(str_entropy, entropy)
-        bytes_entropy = _bytes_from_entropy(int_entropy)
-        self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = _int_from_entropy(int_entropy)
-        self.assertEqual(int_entropy.bit_length(), 256)
+        bytes_entropy = int_entropy.to_bytes(32, byteorder='big')
+        entropy = binstr_from_entropy(bytes_entropy)
+        self.assertEqual(entropy, binstr_entropy)
 
-    def test_leading_zeros(self):
-        entropy = '00101010' * 32
+        binstr_entropy = '00101011' * 32
+        entropy = binstr_from_entropy(binstr_entropy)
+        self.assertEqual(entropy, binstr_entropy)
 
-        str_entropy = str_from_entropy(entropy)
-        self.assertEqual(len(str_entropy), 256)
-        self.assertEqual(str_entropy, entropy)
-        bytes_entropy = _bytes_from_entropy(entropy)
-        self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = _int_from_entropy(entropy)
-        self.assertEqual(int_entropy.bit_length(), 254)
+        int_entropy = int(binstr_entropy, 2)
+        entropy = binstr_from_entropy(int_entropy)
+        self.assertEqual(entropy, binstr_entropy)
 
-        str_entropy = str_from_entropy(bytes_entropy)
-        self.assertEqual(len(str_entropy), 256)
-        self.assertEqual(str_entropy, entropy)
-        bytes_entropy = _bytes_from_entropy(bytes_entropy)
-        self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = _int_from_entropy(bytes_entropy)
-        self.assertEqual(int_entropy.bit_length(), 254)
+        bytes_entropy = int_entropy.to_bytes(32, byteorder='big')
+        entropy = binstr_from_entropy(bytes_entropy)
+        self.assertEqual(entropy, binstr_entropy)
 
-        str_entropy = str_from_entropy(int_entropy, 254)
-        self.assertEqual(len(str_entropy), 254)
-        self.assertEqual(str_entropy, entropy[2:])
-        bytes_entropy = _bytes_from_entropy(int_entropy, 254)
-        self.assertEqual(len(bytes_entropy), 32)
-        int_entropy = _int_from_entropy(int_entropy)
-        self.assertEqual(int_entropy.bit_length(), 254)
+        binstr_entropy = '00000000' + '10101011' * 31
+        entropy = binstr_from_entropy(binstr_entropy)
+        self.assertEqual(entropy, binstr_entropy)
+
+        int_entropy = int(binstr_entropy, 2)
+        entropy = binstr_from_entropy(int_entropy)
+        self.assertEqual(entropy, binstr_entropy)
+
+        bytes_entropy = int_entropy.to_bytes(32, byteorder='big')
+        entropy = binstr_from_entropy(bytes_entropy)
+        self.assertEqual(entropy, binstr_entropy)
 
         # the 32 bytes integer has its leftmost bit set to 0
         int_entropy = random.getrandbits(255)
-        self.assertEqual(len(str_from_entropy(int_entropy)), 256)
+        binstr_entropy = binstr_from_entropy(int_entropy)
+        self.assertEqual(len(binstr_entropy), 256)
 
         # 257 bits
         int_entropy = 1 << 256
-        str_entropy = str_from_entropy(int_entropy)
-        self.assertEqual(len(str_entropy), 256)
+        binstr_entropy = binstr_from_entropy(int_entropy)
+        self.assertEqual(len(binstr_entropy), 256)
 
         exp_int_entropy = int_entropy >> 1
-        self.assertEqual(_int_from_entropy(str_entropy), exp_int_entropy)
+        int_entropy = int(binstr_entropy, 2)
+        self.assertEqual(int_entropy, exp_int_entropy)
 
     def test_exceptions(self):
-        entropy = '00101010' * 31
-        entropy = entropy[2:]  # 246 bits
-        str_entropy = str_from_entropy(entropy, 246)
-        bytes_entropy = _bytes_from_entropy(entropy, 246)
-        int_entropy = _int_from_entropy(entropy, 246)
+        binstr_entropy1 = '00011010' * 27  # 216 bits
+        binstr_entropy = binstr_entropy1[2:]  # 214 bits
+
+        entropy = binstr_from_entropy(binstr_entropy, 214)
+        self.assertEqual(entropy, binstr_entropy)
+        self.assertRaises(ValueError, binstr_from_entropy, binstr_entropy)
+        # binstr_from_entropy(binstr_entropy)
+        self.assertRaises(ValueError, binstr_from_entropy, binstr_entropy, 216)
+        #binstr_from_entropy(binstr_entropy, 216)
+
+        int_entropy = int(binstr_entropy, 2)  # 213 bits
+        entropy = binstr_from_entropy(int_entropy, 214)
+        self.assertEqual(entropy, binstr_entropy)
+        entropy = binstr_from_entropy(int_entropy, 256)
+        self.assertEqual(len(entropy), 256)
+        self.assertEqual(int(entropy, 2), int_entropy)
+        entropy = binstr_from_entropy(int_entropy)
+        self.assertEqual(len(entropy), 224)
+        self.assertEqual(int(entropy, 2), int_entropy)
+        self.assertRaises(ValueError, binstr_from_entropy, -1*int_entropy)
+        # binstr_from_entropy(-1*int_entropy)
+
+        bytes_entropy = int_entropy.to_bytes(27, byteorder='big')
+        self.assertRaises(ValueError, binstr_from_entropy, bytes_entropy, 214)
+        #binstr_from_entropy(bytes_entropy, 214)
+        entropy = binstr_from_entropy(bytes_entropy, 216)
+        self.assertEqual(entropy, binstr_entropy1)
+        self.assertRaises(ValueError, binstr_from_entropy, bytes_entropy, 224)
+        #binstr_from_entropy(bytes_entropy, 224)
+
         invalid_entropy = tuple()
-
-        self.assertRaises(ValueError, str_from_entropy, str_entropy)
-        self.assertRaises(ValueError, str_from_entropy, bytes_entropy)
-        self.assertRaises(ValueError, str_from_entropy, -1*int_entropy)
-        self.assertEqual(len(str_from_entropy(int_entropy)), 256)
-        self.assertRaises(TypeError, str_from_entropy, invalid_entropy)
-
-        self.assertRaises(ValueError, _int_from_entropy, str_entropy)
-        self.assertRaises(ValueError, _int_from_entropy, bytes_entropy)
-        self.assertRaises(ValueError, _int_from_entropy, -1*int_entropy)
-        self.assertEqual(_int_from_entropy(int_entropy), int_entropy)
-        self.assertRaises(TypeError, _int_from_entropy, invalid_entropy)
-
-        self.assertRaises(ValueError, _bytes_from_entropy, str_entropy)
-        self.assertRaises(ValueError, _bytes_from_entropy, bytes_entropy)
-        self.assertRaises(ValueError, _bytes_from_entropy, -1*int_entropy)
-        self.assertEqual(len(_bytes_from_entropy(int_entropy)), 32)
-        self.assertRaises(TypeError, _bytes_from_entropy, invalid_entropy)
+        self.assertRaises(TypeError, binstr_from_entropy, invalid_entropy)
 
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ from .address import p2pkh_address
 from .curvemult import mult
 from .curves import secp256k1 as ec
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
-from .utils import (Octets, bytes_from_hexstring, h160, int_from_octets,
+from .utils import (Octets, bytes_from_hexstring, h160h256, int_from_octets,
                     octets_from_point, point_from_octets)
 from .wif import wif_from_prvkey
 
@@ -168,7 +168,7 @@ def fingerprint(xkey: Octets) -> bytes:
     _, _, _, _, _, key, P = xkey_parse(xkey)
     if key[0] == 0:
         key = octets_from_point(P, True, ec)
-    return h160(key)[:4]
+    return h160h256(key)[:4]
 
 
 def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
@@ -228,7 +228,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     """
 
     if isinstance(index, int):
-        index = index.to_bytes(4, 'big')
+        index = index.to_bytes(4, byteorder='big')
 
     index = bytes_from_hexstring(index)
 
@@ -247,7 +247,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         Parent_bytes = bytes_key
         if index[0] >= 0x80:                # hardened derivation
             raise ValueError("hardened derivation from pubkey is impossible")
-    xkey += h160(Parent_bytes)[:4]          # parent pubkey fingerprint
+    xkey += h160h256(Parent_bytes)[:4]          # parent pubkey fingerprint
     xkey += index                           # child index
 
     if bytes_key[0] == 0:                            # parent is a prvkey
@@ -256,14 +256,14 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
         else:                                        # normal derivation
             h = HMAC(chain_code, Parent_bytes + index, sha512).digest()
         xkey += h[32:]                               # child chain code
-        offset = int.from_bytes(h[:32], 'big')
-        parent = int.from_bytes(bytes_key[1:], 'big')
+        offset = int.from_bytes(h[:32], byteorder='big')
+        parent = int.from_bytes(bytes_key[1:], byteorder='big')
         child = (parent + offset) % ec.n
         xkey += b'\x00' + child.to_bytes(32, 'big')  # child private key
     else:                                            # parent is a pubkey
         h = HMAC(chain_code, bytes_key + index, sha512).digest()
         xkey += h[32:]                               # child chain code
-        offset = int.from_bytes(h[:32], 'big')
+        offset = int.from_bytes(h[:32], byteorder='big')
         Offset = mult(offset)
         Child = ec.add(P, Offset)
         xkey += octets_from_point(Child, True, ec)   # child public key
@@ -424,7 +424,7 @@ def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
         raise ValueError("not a parent's child: wrong depth relation")
 
     # check fingerprint
-    if cf != h160(pk)[:4]:
+    if cf != h160h256(pk)[:4]:
         raise ValueError("not a parent's child: wrong parent fingerprint")
 
     # check normal derivation
@@ -438,10 +438,10 @@ def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
     parent_xprv += pc                     # chain code
 
     h = HMAC(pc, pk + ci, sha512).digest()
-    offset = int.from_bytes(h[:32], 'big')
-    child = int.from_bytes(ck[1:], 'big')
+    offset = int.from_bytes(h[:32], byteorder='big')
+    child = int.from_bytes(ck[1:], byteorder='big')
     parent = (child - offset) % ec.n
-    parent_bytes = b'\x00' + parent.to_bytes(32, 'big')
+    parent_bytes = b'\x00' + parent.to_bytes(32, byteorder='big')
     parent_xprv += parent_bytes           # private key
 
     return base58.encode(parent_xprv)

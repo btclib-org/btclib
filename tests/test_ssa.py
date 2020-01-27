@@ -100,7 +100,7 @@ class TestEcssa(unittest.TestCase):
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
         eph_prv = int.from_bytes(
-            hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
+            hf(prv.to_bytes(32, byteorder='big') + msg).digest(), byteorder='big')
         sig = ssa.sign(msg, prv, eph_prv)
         self.assertTrue(ssa._verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
@@ -115,7 +115,7 @@ class TestEcssa(unittest.TestCase):
         expected_sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                         0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
         eph_prv = int.from_bytes(
-            hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
+            hf(prv.to_bytes(32, byteorder='big') + msg).digest(), byteorder='big')
         sig = ssa.sign(msg, prv, eph_prv)
         self.assertTrue(ssa._verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
@@ -130,7 +130,7 @@ class TestEcssa(unittest.TestCase):
         expected_sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
                         0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
         eph_prv = int.from_bytes(
-            hf(prv.to_bytes(32, byteorder="big") + msg).digest(), byteorder="big")
+            hf(prv.to_bytes(32, byteorder='big') + msg).digest(), byteorder='big')
         sig = ssa.sign(msg, prv, eph_prv)
         self.assertTrue(ssa._verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
@@ -309,7 +309,7 @@ class TestEcssa(unittest.TestCase):
 
         # all possible hashed messages
         hsize = 32
-        H = [i.to_bytes(hsize, 'big') for i in range(max(prime)*2)]
+        H = [i.to_bytes(hsize, byteorder='big') for i in range(max(prime)*2)]
 
         # only low card curves or it would take forever
         for ec in low_card_curves:
@@ -351,14 +351,14 @@ class TestEcssa(unittest.TestCase):
 
         hsize = hf().digest_size
         hlen = hsize * 8
-        m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
+        m.append(random.getrandbits(hlen).to_bytes(hsize, byteorder='big'))
         q = (1+random.getrandbits(ec.nlen)) % ec.n
         sig.append(ssa.sign(m[0], q, None, ec, hf))
         Q.append(mult(q, ec.G, ec))
         # test with only 1 sig
         self.assertTrue(ssa.batch_verify(m, Q, sig, ec, hf))
         for i in range(1, 4):
-            m.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
+            m.append(random.getrandbits(hlen).to_bytes(hsize, byteorder='big'))
             q = (1+random.getrandbits(ec.nlen)) % ec.n
             sig.append(ssa.sign(m[i], q, None, ec, hf))
             Q.append(mult(q, ec.G, ec))
@@ -706,7 +706,7 @@ class TestEcssa(unittest.TestCase):
         ### PHASE THREE: signature generation ###
 
         # partial signatures
-        ebytes = K[0].to_bytes(32, byteorder="big")
+        ebytes = K[0].to_bytes(32, byteorder='big')
         ebytes += octets_from_point(Q, True, ec)
         ebytes += msg
         e = int_from_bits(hf(ebytes).digest(), ec)
@@ -825,7 +825,7 @@ class TestEcssa(unittest.TestCase):
         # K, r_bytes, and e as calculated by any signer
         # are the same as the ones by the other signers
         K = ec.add(ec.add(K1, K2), K3)
-        r_bytes = K[0].to_bytes(32, byteorder="big")
+        r_bytes = K[0].to_bytes(32, byteorder='big')
         e = int_from_bits(hf(r_bytes + Q_bytes + M).digest(), ec)
         if legendre_symbol(K[1], ec._p) != 1:
             # no need to actually change K[1], as it is not used anymore

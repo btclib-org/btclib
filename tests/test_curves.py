@@ -154,7 +154,7 @@ class TestEllipticCurve(unittest.TestCase):
             Q = ec.mult(ec._p)  # just a random point, not Inf
 
             Q_bytes = b'\x03' if Q[1] & 1 else b'\x02'
-            Q_bytes += Q[0].to_bytes(ec.psize, "big")
+            Q_bytes += Q[0].to_bytes(ec.psize, byteorder='big')
             R = point_from_octets(Q_bytes, ec)
             self.assertEqual(R, Q)
             self.assertEqual(octets_from_point(R, True, ec), Q_bytes)
@@ -163,8 +163,8 @@ class TestEllipticCurve(unittest.TestCase):
             R = point_from_octets(Q_hex_str, ec)
             self.assertEqual(R, Q)
 
-            Q_bytes = b'\x04' + Q[0].to_bytes(ec.psize, "big")
-            Q_bytes += Q[1].to_bytes(ec.psize, "big")
+            Q_bytes = b'\x04' + Q[0].to_bytes(ec.psize, byteorder='big')
+            Q_bytes += Q[1].to_bytes(ec.psize, byteorder='big')
             R = point_from_octets(Q_bytes, ec)
             self.assertEqual(R, Q)
             self.assertEqual(octets_from_point(R, False, ec), Q_bytes)

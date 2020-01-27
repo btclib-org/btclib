@@ -42,12 +42,12 @@ def ansi_x963_kdf(z: bytes, size: int,
     hsize = hf().digest_size
     assert size < hsize * (2**32 - 1), "invalid"
     counter = 1
-    counter_bytes = counter.to_bytes(4, 'big')
+    counter_bytes = counter.to_bytes(4, byteorder='big')
     K_temp = []
     for i in range((size+1) // hsize):
         K_temp.append(hf(z + counter_bytes).digest())
         counter += 1
-        counter_bytes = counter.to_bytes(4, 'big')
+        counter_bytes = counter.to_bytes(4, byteorder='big')
         i += 1
     K_bytes = b''.join(K_temp[i] for i in range(size // hsize))
     K = int_from_octets(K_bytes) >> (size - hsize)

@@ -15,7 +15,6 @@ import secrets
 
 from btclib import bip32
 from btclib import bip39
-from btclib.utils import bytes_from_hexstring
 
 class TestBIP39(unittest.TestCase):
     def test_bip39(self):
@@ -26,7 +25,7 @@ class TestBIP39(unittest.TestCase):
             mnemonic, "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract")
         r = bip39.entropy_from_mnemonic(mnemonic, lang)
         size = (len(r)+7) // 8
-        r = int(r, 2).to_bytes(size, 'big')
+        r = int(r, 2).to_bytes(size, byteorder='big')
         self.assertEqual(r, raw_entr)
 
         passphrase = ''
@@ -43,10 +42,14 @@ class TestBIP39(unittest.TestCase):
         #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # invalid mnemonic checksum
-        wrong_mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce walnut"
-        self.assertRaises(
-            ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
+        wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce walnut"
+        self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wr_m, lang)
         #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
+
+        # Invalid number of bits (130) for BIP39 entropy; must be in ...
+        binstr_entropy = '01' * 65  # 130 bits
+        self.assertRaises(ValueError, bip39._entropy_checksum, binstr_entropy)
+        #bip39._entropy_checksum(binstr_entropy)
 
     def test_vectors(self):
         """BIP39 test vectors
@@ -60,14 +63,14 @@ class TestBIP39(unittest.TestCase):
         f.closed
         for test_vector in test_vectors:
             lang = "en"
-            test_vector[0] = bytes_from_hexstring(test_vector[0])
-            mnemonic = bip39.mnemonic_from_entropy(test_vector[0], lang)
+            entropy = bytes.fromhex(test_vector[0])
+            mnemonic = bip39.mnemonic_from_entropy(entropy, lang)
             self.assertEqual(mnemonic, test_vector[1])
 
             raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
             size = (len(raw_entr)+7) // 8
-            raw_entr = int(raw_entr, 2).to_bytes(size, 'big')
-            self.assertEqual(raw_entr, test_vector[0])
+            raw_entr = int(raw_entr, 2).to_bytes(size, byteorder='big')
+            self.assertEqual(raw_entr, entropy)
 
             seed = bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
             self.assertEqual(seed, test_vector[2])

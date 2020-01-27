@@ -18,8 +18,7 @@ from hashlib import pbkdf2_hmac, sha512
 from typing import Tuple
 
 from . import bip32
-from .entropy import (Entropy, GenericEntropy, _int_from_entropy,
-                      str_from_entropy)
+from .entropy import BinStr, Entropy, binstr_from_entropy
 from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
                        _indexes_from_mnemonic, _mnemonic_from_indexes)
 
@@ -31,51 +30,8 @@ _MNEMONIC_VERSIONS = {
 }
 
 
-def mnemonic_from_entropy(electrum_version: str, entropy: GenericEntropy,
-                          lang: str = "en") -> Mnemonic:
-    """Convert input entropy to versioned Electrum mnemonic sentence.
-
-    Input entropy (*GenericEntropy*) can be expressed as
-    binary 0/1 string, bytes-like, or integer.
-
-    In the case of binary 0/1 string and bytes-like,
-    leading zeros are considered redundant padding.
-    """
-
-    if electrum_version not in _MNEMONIC_VERSIONS:
-        m = f"mnemonic version '{electrum_version}' not in electrum allowed "
-        m += f"mnemonic versions {list(_MNEMONIC_VERSIONS.keys())}"
-        raise ValueError(m)
-
-    invalid = True
-    version = _MNEMONIC_VERSIONS[electrum_version]
-    # electrum considers entropy as integer, losing any leading zero
-    int_entropy = _int_from_entropy(entropy)
-    while invalid:
-        str_entropy = str_from_entropy(int_entropy, int_entropy.bit_length())
-        indexes = _indexes_from_entropy(str_entropy, lang)
-        mnemonic = _mnemonic_from_indexes(indexes, lang)
-        # version validity check
-        s = hmac.new(b"Seed version",
-                     mnemonic.encode('utf8'), sha512).hexdigest()
-        if s.startswith(version):
-            invalid = False
-        # next trial
-        int_entropy += 1
-
-    return mnemonic
-
-
-def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> Entropy:
-    """Convert mnemonic sentence to Electrum versioned entropy."""
-
-    _ = version_from_mnemonic(mnemonic)
-    indexes = _indexes_from_mnemonic(mnemonic, lang)
-    entropy = _entropy_from_indexes(indexes, lang)
-    return entropy
-
-
 def version_from_mnemonic(mnemonic: Mnemonic) -> str:
+    """Return the Electrum version embedded in the mnemonic sentence."""
 
     s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
 
@@ -89,6 +45,54 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> str:
         return '2fa_segwit'
 
     raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
+
+
+def mnemonic_from_entropy(electrum_version: str, entropy: Entropy,
+                          lang: str = "en") -> Mnemonic:
+    """Convert input entropy to versioned Electrum mnemonic sentence.
+
+    Input entropy can be expressed as
+    binary 0/1 string, bytes-like, or integer.
+
+    In the case of binary 0/1 string and bytes-like,
+    leading zeros are considered redundant padding.
+    """
+
+    if electrum_version not in _MNEMONIC_VERSIONS:
+        m = f"mnemonic version '{electrum_version}' not in electrum allowed "
+        m += f"mnemonic versions {list(_MNEMONIC_VERSIONS.keys())}"
+        raise ValueError(m)
+    version = _MNEMONIC_VERSIONS[electrum_version]
+
+    binstr_entropy = binstr_from_entropy(entropy)
+    int_entropy = int(binstr_entropy, 2)
+    invalid = True
+    while invalid:
+        # electrum considers entropy as integer, losing any leading zero
+        # so the value of binstr_entropy before the while must be updated
+        nbits = int_entropy.bit_length()
+        binstr_entropy = binstr_from_entropy(int_entropy, nbits)
+        indexes = _indexes_from_entropy(binstr_entropy, lang)
+        mnemonic = _mnemonic_from_indexes(indexes, lang)
+        # version validity check
+        s = hmac.new(b"Seed version",
+                     mnemonic.encode('utf8'), sha512).hexdigest()
+        if s.startswith(version):
+            invalid = False
+        # next trial
+        int_entropy += 1
+
+    return mnemonic
+
+
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
+    """Convert mnemonic sentence to Electrum versioned entropy."""
+
+    # verify that it is a valid Electrum mnemonic sentence
+    _ = version_from_mnemonic(mnemonic)
+    indexes = _indexes_from_mnemonic(mnemonic, lang)
+    entropy = _entropy_from_indexes(indexes, lang)
+    return entropy
 
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:

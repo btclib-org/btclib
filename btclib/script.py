@@ -254,18 +254,18 @@ def _op_pushdata(data: bytes) -> bytes:
     r = b''
     length = len(data)
     if length < 75:     # 1-byte-length
-        r += length.to_bytes(1, 'little')
+        r += length.to_bytes(1, byteorder='little')
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
         r += OP_CODES['OP_PUSHDATA1']
-        r += length.to_bytes(1, 'little')
+        r += length.to_bytes(1, byteorder='little')
     elif length < 521:  # OP_PUSHDATA2 | 2-byte-length
         r += OP_CODES['OP_PUSHDATA2']
-        r += length.to_bytes(2, 'little')
+        r += length.to_bytes(2, byteorder='little')
     else:
         # because of the 520 bytes limit
         # there is no need to use OP_PUSHDATA4
         # r += OP_CODES['OP_PUSHDATA4']
-        # r += length.to_bytes(4, 'little')
+        # r += length.to_bytes(4, byteorder='little')
         raise ValueError(f"Script: Cannot push {length} bytes on the stack")
     r += data
     return r
@@ -333,7 +333,7 @@ def decode(script: Octets) -> List[Token]:
             # 1-byte-data-length | data
             data = s.read(i)
             counter += i
-            n = int.from_bytes(data, 'little')
+            n = int.from_bytes(data, byteorder='little')
             if n <= 0xffffffff:
                 # probably a number, it won't hurt to consider it a number
                 r.append(n)
@@ -341,19 +341,19 @@ def decode(script: Octets) -> List[Token]:
                 r.append(data.hex())
         elif i == 76:
             # OP_PUSHDATA1 | 1-byte-data-length | data
-            data_length = int.from_bytes(s.read(1), 'little')
+            data_length = int.from_bytes(s.read(1), byteorder='little')
             data = s.read(data_length)
             counter += 1 + data_length
             r.append(data.hex())
         elif i == 77:
             # OP_PUSHDATA2 | 2-byte-data-length | data
-            data_length = int.from_bytes(s.read(2), 'little')
+            data_length = int.from_bytes(s.read(2), byteorder='little')
             data = s.read(data_length)
             counter += 2 + data_length
             r.append(data.hex())
         elif i == 78:
             # OP_PUSHDATA4 | 4-byte-data-length | data
-            data_length = int.from_bytes(s.read(4), 'little')
+            data_length = int.from_bytes(s.read(4), byteorder='little')
             data = s.read(data_length)
             counter += 4 + data_length
             r.append(data.hex())
