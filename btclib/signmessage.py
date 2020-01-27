@@ -141,7 +141,7 @@ from .curvemult import mult
 from .dsa import pubkey_recovery, sign
 from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
                             p2wpkh_p2sh_address)
-from .utils import h160, octets_from_point
+from .utils import h160h256, octets_from_point
 from .wif import prvkey_from_wif
 
 # TODO: support msg as bytes
@@ -230,24 +230,24 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     if rf < 31:
         pk = octets_from_point(pubkey, False)
         _, _, hash160 = h160_from_base58_address(addr)
-        return h160(pk) == hash160
+        return h160h256(pk) == hash160
 
     pk = octets_from_point(pubkey, True)
     if rf < 35:
         try:
             _, _, hash160 = h160_from_base58_address(addr)
-            if h160(pk) == hash160:  # p2pkh
+            if h160h256(pk) == hash160:  # p2pkh
                 return True
             else:  # Electrum p2wpkh-p2sh
-                script_pubkey = b'\x00\x14' + h160(pk)
-                return h160(script_pubkey) == hash160
+                script_pubkey = b'\x00\x14' + h160h256(pk)
+                return h160h256(script_pubkey) == hash160
         except Exception:  # Electrum p2wpkh
             _, hash160 = hash_from_bech32_address(addr)
-            return h160(pk) == hash160
+            return h160h256(pk) == hash160
     elif rf < 39:  # BIP137 p2wpkh-ps2h
         _, _, hash160 = h160_from_base58_address(addr)
-        script_pubkey = b'\x00\x14' + h160(pk)
-        return h160(script_pubkey) == hash160
+        script_pubkey = b'\x00\x14' + h160h256(pk)
+        return h160h256(script_pubkey) == hash160
     else:          # BIP137 p2wpkh
         _, hash160 = hash_from_bech32_address(addr)
-        return h160(pk) == hash160
+        return h160h256(pk) == hash160

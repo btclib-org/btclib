@@ -17,7 +17,7 @@ from typing import List, Tuple, Union
 
 from . import base58
 from .script import Script, Token
-from .utils import Octets, h160, int_from_octets, octets_from_point
+from .utils import Octets, h160h256, int_from_octets, octets_from_point
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [
@@ -43,7 +43,7 @@ def _p2pkh_address(hash160: bytes, network: str = 'mainnet') -> bytes:
 def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
-    hash160 = h160(pubkey)
+    hash160 = h160h256(pubkey)
     return _p2pkh_address(hash160, network)
 
 
@@ -57,7 +57,7 @@ def _p2sh_address(hash160: bytes, network: str = 'mainnet') -> bytes:
 def p2sh_address(script: Octets, network: str = 'mainnet') -> bytes:
     """Return p2sh address."""
 
-    hash160 = h160(script)
+    hash160 = h160h256(script)
     return _p2sh_address(hash160, network)
 
 

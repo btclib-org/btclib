@@ -22,7 +22,7 @@ to avoid ambiguity when printed; moreover, it removes '+' and '/'
 so that a double-click does select the whole string.
 
 Base58Check is the checksummed version of Base58, using
-double_sha256(v)[:4] as checksum suffix before encoding;
+h256h256(v)[:4] as checksum suffix before encoding;
 at the decoding stage the checksum validity ensure data integrity.
 
 This implementation of Base58 and Base58Check is originally from
@@ -39,7 +39,7 @@ https://github.com/keis/base58, with the following modifications:
 from hashlib import sha256
 from typing import Union, Optional
 
-from .utils import double_sha256
+from .utils import h256h256
 
 __ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __BASE = len(__ALPHABET)
@@ -79,8 +79,8 @@ def _encode(v: bytes) -> bytes:
 def encode(v: bytes) -> bytes:
     """Encode a bytes-like object using Base58Check."""
 
-    digest = double_sha256(v)
-    return _encode(v + digest[:4])
+    hash256 = h256h256(v)
+    return _encode(v + hash256[:4])
 
 
 def _decode_to_int(v: bytes) -> int:
@@ -138,9 +138,9 @@ def decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     result = _decode(v, out_size)
     result, checksum = result[:-4], result[-4:]
 
-    digest = double_sha256(result)
-    if checksum != digest[:4]:
-        m = f"Invalid checksum: '{checksum}' instead of '{digest[:4]}'"
+    hash256 = h256h256(result)
+    if checksum != hash256[:4]:
+        m = f"Invalid checksum: '{checksum}' instead of '{hash256[:4]}'"
         raise ValueError(m)
 
     return result

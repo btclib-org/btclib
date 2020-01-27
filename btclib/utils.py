@@ -153,14 +153,14 @@ def h256(o: Octets) -> bytes:
     return hashlib.sha256(o).digest()
 
 
-def h160(o: Octets) -> bytes:
+def h160h256(o: Octets) -> bytes:
     """Return RIPEMD160(SHA256(*)) of the inputoctet sequence."""
 
     t = h256(o)
     return hashlib.new('ripemd160', t).digest()
 
 
-def double_sha256(o: Octets) -> bytes:
+def h256h256(o: Octets) -> bytes:
     """Return SHA256(SHA256(*)) of the input octet sequence."""
 
     t = h256(o)

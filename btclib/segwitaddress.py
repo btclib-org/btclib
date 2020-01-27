@@ -47,7 +47,7 @@ from typing import Iterable, List, Tuple, Union
 from . import bech32
 from .address import p2sh_address
 from .script import Token, encode
-from .utils import Octets, h256, bytes_from_hexstring, h160
+from .utils import Octets, bytes_from_hexstring, h160h256, h256
 
 WitnessProgram = Union[List[int], bytes]
 
@@ -163,7 +163,7 @@ def h160_pubkey(pubkey: Octets) -> bytes:
     if len(pubkey) != psize + 1:
         msg = f"Wrong pubkey size: {len(pubkey)} instead of {psize + 1}"
         raise ValueError(msg)
-    return h160(pubkey)
+    return h160h256(pubkey)
 
 
 def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:

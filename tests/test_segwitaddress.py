@@ -48,7 +48,7 @@ from btclib.segwitaddress import (_decode, _encode, _p2wsh_address,
                                   has_segwit_prefix, hash_from_bech32_address,
                                   p2wpkh_address, p2wpkh_p2sh_address,
                                   p2wsh_address, p2wsh_p2sh_address)
-from btclib.utils import h160, h256, octets_from_point, point_from_octets
+from btclib.utils import h160h256, h256, octets_from_point, point_from_octets
 
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
@@ -168,7 +168,7 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(addr, p2wpkh_address(pub))
 
         _, _, wp = _decode(addr)
-        self.assertEqual(bytes(wp), h160(pub))
+        self.assertEqual(bytes(wp), h160h256(pub))
 
         # Uncompressed pubkey
         uncompr_pub = octets_from_point(point_from_octets(pub, ec), False, ec)
