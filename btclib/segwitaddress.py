@@ -47,7 +47,7 @@ from typing import Iterable, List, Tuple, Union
 from . import bech32
 from .address import p2sh_address
 from .script import Token, encode
-from .utils import Octets, bytes_from_hexstring, h160h256, h256
+from .utils import Octets, bytes_from_hexstring, hash160, sha256
 
 WitnessProgram = Union[List[int], bytes]
 
@@ -144,14 +144,14 @@ def _encode(network: str, wv: int, wp: WitnessProgram) -> bytes:
     return ret
 
 
-def _p2wpkh_address(hash160: bytes, native: bool, network: str) -> bytes:
+def _p2wpkh_address(h160: bytes, native: bool, network: str) -> bytes:
     """Return the p2wpkh address as native SegWit or legacy p2sh-wrapped."""
 
     witvers = 0
     if native:
-        return _encode(network, witvers, hash160)
+        return _encode(network, witvers, h160)
     # script_pubkey = [0, key_hash], i.e. 0x0014{20-byte key-hash}
-    script_pubkey = b'\x00\x14' + hash160
+    script_pubkey = b'\x00\x14' + h160
     return p2sh_address(script_pubkey, network)
 
 
@@ -163,7 +163,7 @@ def h160_pubkey(pubkey: Octets) -> bytes:
     if len(pubkey) != psize + 1:
         msg = f"Wrong pubkey size: {len(pubkey)} instead of {psize + 1}"
         raise ValueError(msg)
-    return h160h256(pubkey)
+    return hash160(pubkey)
 
 
 def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
@@ -194,13 +194,13 @@ def _p2wsh_address(hash256: bytes, native: bool, network: str) -> bytes:
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh native SegWit address."""
     native = True
-    return _p2wsh_address(h256(wscript), native, network)
+    return _p2wsh_address(sha256(wscript), native, network)
 
 
 def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh-p2sh (legacy) address."""
     native = False
-    return _p2wsh_address(h256(wscript), native, network)
+    return _p2wsh_address(sha256(wscript), native, network)
 
 
 def hash_from_bech32_address(address: Union[str, bytes]) -> Tuple[str, bytes]:

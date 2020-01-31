@@ -141,7 +141,7 @@ from .curvemult import mult
 from .dsa import pubkey_recovery, sign
 from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
                             p2wpkh_p2sh_address)
-from .utils import h160h256, octets_from_point
+from .utils import hash160, octets_from_point
 from .wif import prvkey_from_wif
 
 # TODO: support msg as bytes
@@ -167,7 +167,7 @@ def msgsign(msg: str, wif: Union[str, bytes],
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, compressedwif, network = prvkey_from_wif(wif)
+    q, compressedwif, _ = prvkey_from_wif(wif)
     sig = sign(magic_msg, q)
 
     # now calculate the recovery flag, aka recId
@@ -229,25 +229,25 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # signature is valid only if the provided address is matched
     if rf < 31:
         pk = octets_from_point(pubkey, False)
-        _, _, hash160 = h160_from_base58_address(addr)
-        return h160h256(pk) == hash160
+        _, _, h160 = h160_from_base58_address(addr)
+        return hash160(pk) == h160
 
     pk = octets_from_point(pubkey, True)
     if rf < 35:
         try:
-            _, _, hash160 = h160_from_base58_address(addr)
-            if h160h256(pk) == hash160:  # p2pkh
+            _, _, h160 = h160_from_base58_address(addr)
+            if hash160(pk) == h160:  # p2pkh
                 return True
             else:  # Electrum p2wpkh-p2sh
-                script_pubkey = b'\x00\x14' + h160h256(pk)
-                return h160h256(script_pubkey) == hash160
+                script_pubkey = b'\x00\x14' + hash160(pk)
+                return hash160(script_pubkey) == h160
         except Exception:  # Electrum p2wpkh
-            _, hash160 = hash_from_bech32_address(addr)
-            return h160h256(pk) == hash160
+            _, h160 = hash_from_bech32_address(addr)
+            return hash160(pk) == h160
     elif rf < 39:  # BIP137 p2wpkh-ps2h
-        _, _, hash160 = h160_from_base58_address(addr)
-        script_pubkey = b'\x00\x14' + h160h256(pk)
-        return h160h256(script_pubkey) == hash160
+        _, _, h160 = h160_from_base58_address(addr)
+        script_pubkey = b'\x00\x14' + hash160(pk)
+        return hash160(script_pubkey) == h160
     else:          # BIP137 p2wpkh
-        _, hash160 = hash_from_bech32_address(addr)
-        return h160h256(pk) == hash160
+        _, h160 = hash_from_bech32_address(addr)
+        return hash160(pk) == h160

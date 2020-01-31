@@ -17,7 +17,7 @@ from typing import List, Tuple, Union
 
 from . import base58
 from .script import Script, Token
-from .utils import Octets, h160h256, int_from_octets, octets_from_point
+from .utils import Octets, hash160, int_from_octets, octets_from_point
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [
@@ -32,33 +32,33 @@ _P2SH_PREFIXES = [
 ]
 
 
-def _p2pkh_address(hash160: bytes, network: str = 'mainnet') -> bytes:
+def _p2pkh_address(h160: bytes, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
     payload = _P2PKH_PREFIXES[_NETWORKS.index(network)]
-    payload += hash160
+    payload += h160
     return base58.encode(payload)
 
 
 def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
-    hash160 = h160h256(pubkey)
-    return _p2pkh_address(hash160, network)
+    h160 = hash160(pubkey)
+    return _p2pkh_address(h160, network)
 
 
-def _p2sh_address(hash160: bytes, network: str = 'mainnet') -> bytes:
+def _p2sh_address(h160: bytes, network: str = 'mainnet') -> bytes:
     """Return p2sh address."""
 
     payload = _P2SH_PREFIXES[_NETWORKS.index(network)]
-    payload += hash160
+    payload += h160
     return base58.encode(payload)
 
 def p2sh_address(script: Octets, network: str = 'mainnet') -> bytes:
     """Return p2sh address."""
 
-    hash160 = h160h256(script)
-    return _p2sh_address(hash160, network)
+    h160 = hash160(script)
+    return _p2sh_address(h160, network)
 
 
 def h160_from_base58_address(address: Union[str, bytes]) -> Tuple[str, bool, bytes]:

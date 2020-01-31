@@ -146,24 +146,24 @@ def _int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
     return i >> n
 
 
-def h256(o: Octets) -> bytes:
-    """Return SHA256(*) of the inputoctet sequence."""
+def sha256(o: Octets) -> bytes:
+    """Return SHA256(*) of the input octet sequence."""
 
     o = bytes_from_hexstring(o)
     return hashlib.sha256(o).digest()
 
 
-def h160h256(o: Octets) -> bytes:
-    """Return RIPEMD160(SHA256(*)) of the inputoctet sequence."""
+def hash160(o: Octets) -> bytes:
+    """Return RIPEMD160(SHA256(*)) of the input octet sequence."""
 
-    t = h256(o)
+    t = sha256(o)
     return hashlib.new('ripemd160', t).digest()
 
 
-def h256h256(o: Octets) -> bytes:
+def hash256(o: Octets) -> bytes:
     """Return SHA256(SHA256(*)) of the input octet sequence."""
 
-    t = h256(o)
+    t = sha256(o)
     return hashlib.sha256(t).digest()
 
 
