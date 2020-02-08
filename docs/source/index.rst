@@ -13,11 +13,12 @@ python -m pip install --upgrade btclib
 ```
 
 Originally developed for the
-Bitcoin and Blockchain Technology course
-at University of Milano-Bicocca and Politecnico di Milano,
-its algorithms are not intended
-for production environments: they could be broken using side-channel attacks;
-moreover, they are often refactored without care for backward compatibility.
+Bitcoin and Blockchain Technology
+course at the University of Milano-Bicocca,
+the library is not intended for production environments:
+it is often refactored for improved clarity,
+without care for backward compatibility;
+moreover, some of its algorithms could be broken using side-channel attacks.
 
 The library includes:
 
