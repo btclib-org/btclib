@@ -320,18 +320,18 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
 def xpub_from_xprv(xprv: Octets) -> bytes:
     """Neutered Derivation (ND).
 
-    Computation of the extended public key corresponding to an extended
+    Derivation of the extended public key corresponding to an extended
     private key (“neutered” as it removes the ability to sign transactions).
     """
 
     d = parse(xprv)
 
-    d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
-
     if d['key'][0] != 0:
         raise ValueError("extended key is not a private one")
     P = mult(int_from_octets(d['key'][1:]))
     d['key'] = octets_from_point(P, True, ec)
+
+    d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
 
     return serialize(d)
 
