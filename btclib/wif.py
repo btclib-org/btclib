@@ -48,6 +48,8 @@ def wif_from_prvkey(prv: Union[int, Octets],
     prv = bytes_from_hexstring(prv)
 
     if isinstance(prv, bytes):
+        if len(prv) != 32:  # TODO: parametrize on ec
+            raise ValueError(f"not a 32-bytes private key: {prv.hex()}")
         prv = int.from_bytes(prv, byteorder='big')
     if not 0 < prv < ec.n:
         raise ValueError(f"private key {hex(prv)} not in (0, ec.n)")

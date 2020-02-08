@@ -147,6 +147,8 @@ def _encode(network: str, wv: int, wp: WitnessProgram) -> bytes:
 def _p2wpkh_address(h160: bytes, native: bool, network: str) -> bytes:
     """Return the p2wpkh address as native SegWit or legacy p2sh-wrapped."""
 
+    if len(h160) != 20:
+        raise ValueError(f"witness program length ({len(h160)}) is not 20")
     witvers = 0
     if native:
         return _encode(network, witvers, h160)
@@ -155,7 +157,7 @@ def _p2wpkh_address(h160: bytes, native: bool, network: str) -> bytes:
     return p2sh_address(script_pubkey, network)
 
 
-def h160_pubkey(pubkey: Octets) -> bytes:
+def _h160_pubkey(pubkey: Octets) -> bytes:
     pubkey = bytes_from_hexstring(pubkey)
     if pubkey[0] not in (2, 3):
         raise ValueError(f"Uncompressed pubkey {pubkey.hex()}")
@@ -169,25 +171,25 @@ def h160_pubkey(pubkey: Octets) -> bytes:
 def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh native SegWit address."""
     native = True
-    return _p2wpkh_address(h160_pubkey(pubkey), native, network)
+    return _p2wpkh_address(_h160_pubkey(pubkey), native, network)
 
 
 def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh-p2sh (legacy) address."""
     native = False
-    return _p2wpkh_address(h160_pubkey(pubkey), native, network)
+    return _p2wpkh_address(_h160_pubkey(pubkey), native, network)
 
 
-def _p2wsh_address(hash256: bytes, native: bool, network: str) -> bytes:
+def _p2wsh_address(h256: bytes, native: bool, network: str) -> bytes:
     """Return the address as native SegWit bech32 or legacy p2sh-wrapped."""
 
-    if len(hash256) != 32:
-        raise ValueError(f"witness program length ({len(hash256)}) is not 32")
+    if len(h256) != 32:
+        raise ValueError(f"witness program length ({len(h256)}) is not 32")
     witvers = 0
     if native:
-        return _encode(network, witvers, hash256)
+        return _encode(network, witvers, h256)
 
-    script_pubkey: List[Token] = [witvers, hash256]
+    script_pubkey: List[Token] = [witvers, h256]
     return p2sh_address(encode(script_pubkey), network)
 
 

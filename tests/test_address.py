@@ -45,8 +45,6 @@ class TestAddresses(unittest.TestCase):
         pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  '
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        _, _, hash2 = h160_from_base58_address(addr)
-        self.assertEqual(hash2, hash160(pub))
 
 
     def test_p2sh_address_from_script(self):

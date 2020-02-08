@@ -17,7 +17,7 @@ from typing import List, Tuple, Union
 
 from . import base58
 from .script import Script, Token
-from .utils import Octets, hash160, int_from_octets, octets_from_point
+from .utils import Octets, hash160, int_from_octets, octets_from_point, bytes_from_hexstring
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [
@@ -43,6 +43,9 @@ def _p2pkh_address(h160: bytes, network: str = 'mainnet') -> bytes:
 def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
+    pubkey = bytes_from_hexstring(pubkey)
+    if len(pubkey) not in (33, 65):
+        raise ValueError(f"Invalid pubkey length {len(pubkey)}")
     h160 = hash160(pubkey)
     return _p2pkh_address(h160, network)
 
