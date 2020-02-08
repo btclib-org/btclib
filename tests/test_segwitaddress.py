@@ -44,11 +44,12 @@ import unittest
 
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
-from btclib.segwitaddress import (_decode, _encode, _p2wsh_address,
-                                  has_segwit_prefix, hash_from_bech32_address,
-                                  p2wpkh_address, p2wpkh_p2sh_address,
-                                  p2wsh_address, p2wsh_p2sh_address)
-from btclib.utils import hash160, sha256, octets_from_point, point_from_octets
+from btclib.segwitaddress import (_decode, _encode, _p2wpkh_address,
+                                  _p2wsh_address, has_segwit_prefix,
+                                  hash_from_bech32_address, p2wpkh_address,
+                                  p2wpkh_p2sh_address, p2wsh_address,
+                                  p2wsh_p2sh_address)
+from btclib.utils import hash160, octets_from_point, point_from_octets, sha256
 
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
@@ -176,9 +177,13 @@ class TestSegwitAddress(unittest.TestCase):
         # p2wpkh_address(uncompr_pub)
 
         # Wrong pubkey size: 34 instead of 33
-        wrong_size_pub = pub + '00'
-        self.assertRaises(ValueError, p2wpkh_address, wrong_size_pub)
-        # p2wpkh_address(wrong_size_pub)
+        self.assertRaises(ValueError, p2wpkh_address, pub + '00')
+        # p2wpkh_address(pub + '00')
+
+        # Witness program length (21) is not 20
+        self.assertRaises(ValueError, _p2wpkh_address,
+                          hash160(pub) + b'\x00', True, "mainnet")
+        #_p2wpkh_address(hash160(pub) + b'\x00', True, "mainnet")
 
     def test_hash_from_bech32(self):
         network = "testnet"

@@ -45,7 +45,7 @@ def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
 
     pubkey = bytes_from_hexstring(pubkey)
     if len(pubkey) not in (33, 65):
-        raise ValueError(f"Invalid pubkey length {len(pubkey)}")
+        raise ValueError(f"Invalid SEC pubkey length: {len(pubkey)}-bytes")
     h160 = hash160(pubkey)
     return _p2pkh_address(h160, network)
 

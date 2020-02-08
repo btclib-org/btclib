@@ -148,7 +148,9 @@ def _p2wpkh_address(h160: bytes, native: bool, network: str) -> bytes:
     """Return the p2wpkh address as native SegWit or legacy p2sh-wrapped."""
 
     if len(h160) != 20:
-        raise ValueError(f"witness program length ({len(h160)}) is not 20")
+        msg = f"Witness program length ({len(h160)}) "
+        msg += "is not 20-bytes"
+        raise ValueError(msg)
     witvers = 0
     if native:
         return _encode(network, witvers, h160)

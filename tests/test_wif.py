@@ -64,6 +64,11 @@ class TestWif(unittest.TestCase):
 
     def test_wif_exceptions(self):
 
+        # not a 32-bytes private key
+        badq = 33 * b'\x02'
+        self.assertRaises(ValueError, wif_from_prvkey, badq, True)
+        #wif_from_prvkey(badq, True)
+
         # private key not in (0, n)
         badq = ec.n
         self.assertRaises(ValueError, wif_from_prvkey, badq, True)

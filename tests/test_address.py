@@ -83,6 +83,10 @@ class TestAddresses(unittest.TestCase):
         self.assertRaises(ValueError, h160_from_base58_address, invalid_address)
         #_h160_from_base58_address(invalid_address)
 
+        # Invalid SEC pubkey length: 34-bytes
+        self.assertRaises(ValueError, p2pkh_address, pubkey+'00')
+        # p2pkh_address(pubkey+'00')
+
 
 if __name__ == "__main__":
     # execute only if run as a script
