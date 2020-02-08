@@ -107,35 +107,45 @@ _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
 
 # [  : 4] version
 # [ 4: 5] depth
-# [ 5: 9] parent _pubkey_ fingerprint
-# [ 9:13] child index
-# [13:45] chain code
+# [ 5: 9] parent_fingerprint
+# [ 9:13] index
+# [13:45] chain_code
 # [45:78] key (private/public)
 
 def _check_version_key(v: bytes, k: bytes) -> None:
+    if not isinstance(k, bytes):
+        msg = f"invalid key type: must be bytes, not '{type(k).__name__}'"
+        raise TypeError(msg)
+    if len(k) != 33:
+        raise ValueError(f"invalid {len(k)}-bytes key length")
+
     if v in _PRV_VERSIONS:
         if k[0] != 0:
-            raise ValueError("extended key: (prvversion/pubkey) mismatch")
+            raise ValueError("prvversion/pubkey mismatch")
     elif v in _PUB_VERSIONS:
         if k[0] not in (2, 3):
-            raise ValueError("extended key: (pubversion/prvkey) mismatch")
+            raise ValueError("pubversion/prvkey mismatch")
     else:
-        raise ValueError("extended key: unknown version")
+        raise ValueError("unknown extended key version")
 
 
 def _check_depth_fingerprint_index(d: int, f: bytes, i: bytes) -> None:
     if not isinstance(f, bytes):
-        raise ValueError("extended key: invalid parent_fingerprint type")
+        msg = "invalid parent_fingerprint type: "
+        msg += f"must be bytes, not '{type(f).__name__}'"
+        raise TypeError(msg)
     if len(f) != 4:
-        raise ValueError("extended key: invalid parent_fingerprint length")
+        raise ValueError(f"invalid {len(f)}-bytes parent_fingerprint length")
 
     if not isinstance(i, bytes):
-        raise ValueError("extended key: invalid index type")
+        msg = "invalid index type: "
+        msg += f"must be bytes, not '{type(i).__name__}'"
+        raise TypeError(msg)
     if len(i) != 4:
-        raise ValueError("extended key: invalid index length")
+        raise ValueError("invalid index length")
 
     if d < 0 or d > 255:
-        raise ValueError("extended key: invalid depth")
+        raise ValueError(f"invalid depth ({d})")
     elif d == 0:
         if f != b'\x00\x00\x00\x00':
             msg = "extended key: zero depth with "
@@ -163,6 +173,7 @@ def parse(xkey: Octets) -> Dict:
         'chain_code'         : xkey[13:45],
         'key'                : xkey[45:]
     }
+    # coherence checks
     _check_version_key(d['version'], d['key'])
     _check_depth_fingerprint_index(d['depth'],
                                    d['parent_fingerprint'], d['index'])
@@ -171,25 +182,24 @@ def parse(xkey: Octets) -> Dict:
 
 def serialize(d: Dict) -> bytes:
 
+    # coherence checks
     _check_version_key(d['version'], d['key'])
-    t = d['version']
-
     _check_depth_fingerprint_index(d['depth'],
                                    d['parent_fingerprint'], d['index'])
+    t = d['version']
     t += d['depth'].to_bytes(1, 'big')
     t += d['parent_fingerprint']
     t += d['index']
 
-    if not isinstance(d['chain_code'], bytes):
-        raise ValueError("extended key: invalid chain_code type")
-    if len(d['chain_code']) != 32:
-        raise ValueError("extended key: invalid chain_code length")
-    t += d['chain_code']
+    chain_code = d['chain_code']
+    if not isinstance(chain_code, bytes):
+        msg = "invalid chain_code type: "
+        msg += f"must be bytes, not '{type(chain_code).__name__}'"
+        raise TypeError(msg)
+    if len(chain_code) != 32:
+        raise ValueError(f"invalid {len(chain_code)}-bytes chain_code length")
+    t += chain_code
 
-    if not isinstance(d['key'], bytes):
-        raise ValueError("extended key: invalid key type")
-    if len(d['key']) != 33:
-        raise ValueError("extended key: invalid key length")
     t += d['key']
 
     return base58.encode(t)

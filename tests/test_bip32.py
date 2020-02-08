@@ -559,6 +559,48 @@ class TestBIP32(unittest.TestCase):
             ValueError, bip32.p2wpkh_p2sh_address_from_xpub, xprv)
         # bip32.p2wpkh_p2sh_address_from_xpub(xprv)
 
+    def test_exceptions2(self):
+        xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
+        d = bip32.parse(xprv)
+        self.assertEqual(bip32.serialize(d), xprv)
+
+        # invalid 34-bytes key length
+        d['key'] += b'\x00'
+        self.assertRaises(ValueError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # invalid key type: must be bytes, not 'str'
+        d['key'] = "this is a string"
+        self.assertRaises(TypeError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # reset to a valid dictionary
+        d = bip32.parse(xprv)
+
+        # invalid 5-bytes parent_fingerprint length
+        d['parent_fingerprint'] += b'\x00'
+        self.assertRaises(ValueError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # invalid parent_fingerprint type: must be bytes, not 'str'
+        d['parent_fingerprint'] = "this is a string"
+        self.assertRaises(TypeError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # reset to a valid dictionary
+        d = bip32.parse(xprv)
+
+        # invalid 33-bytes chain_code length
+        d['chain_code'] += b'\x00'
+        self.assertRaises(ValueError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # invalid chain_code type: must be bytes, not 'str'
+        d['chain_code'] = "this is a string"
+        self.assertRaises(TypeError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+
     def test_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
         child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
