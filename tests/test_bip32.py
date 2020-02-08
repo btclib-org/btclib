@@ -23,37 +23,33 @@ class TestBIP32(unittest.TestCase):
     def test_utils(self):
         # root key, zero depth
         xkey = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        v, d, f, i, c, k, P = bip32.xkey_parse(xkey)
-        self.assertEqual(P, mult(int_from_octets(k), ec.G, ec))
+        xdict = bip32.parse(xkey)
 
         decoded_key = base58.decode(xkey, 78)
-        self.assertEqual(v, decoded_key[:4])
-        self.assertEqual(d, decoded_key[4])
-        self.assertEqual(f, decoded_key[5:9])
-        self.assertEqual(i, decoded_key[9:13])
-        self.assertEqual(c, decoded_key[13:45])
-        self.assertEqual(k, decoded_key[45:])
+        self.assertEqual(xdict["version"], decoded_key[:4])
+        self.assertEqual(xdict["depth"], decoded_key[4])
+        self.assertEqual(xdict["parent_fingerprint"], decoded_key[5:9])
+        self.assertEqual(xdict["index"], decoded_key[9:13])
+        self.assertEqual(xdict["chain_code"], decoded_key[13:45])
+        self.assertEqual(xdict["key"], decoded_key[45:])
 
         # zero depth with non-zero parent_fingerprint
         f2 = b'\x01\x01\x01\x01'
-        invalid_key = base58.encode(
-            v + d.to_bytes(1, byteorder='big') + f2 + i + c + k)
-        self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
-        # bip32.xkey_parse(invalid_key)
+        invalid_key = base58.encode(xkey[:5] + f2 + xkey[9:])
+        self.assertRaises(ValueError, bip32.parse, invalid_key)
+        # bip32.parse(invalid_key)
 
         # zero depth with non-zero child_index
         i2 = b'\x01\x01\x01\x01'
-        invalid_key = base58.encode(
-            v + d.to_bytes(1, byteorder='big') + f + i2 + c + k)
-        self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
-        # bip32.xkey_parse(invalid_key)
+        invalid_key = base58.encode(xkey[:9] + i2 + xkey[13:])
+        self.assertRaises(ValueError, bip32.parse, invalid_key)
+        # bip32.parse(invalid_key)
 
         # non-zero depth (255) with zero parent_fingerprint
-        d2 = 255
-        invalid_key = base58.encode(
-            v + d2.to_bytes(1, byteorder='big') + f + i + c + k)
-        self.assertRaises(ValueError, bip32.xkey_parse, invalid_key)
-        # bip32.xkey_parse(invalid_key)
+        d2 = b'ff'
+        invalid_key = base58.encode(xkey[:4] + d2 + xkey[5:])
+        self.assertRaises(ValueError, bip32.parse, invalid_key)
+        # bip32.parse(invalid_key)
 
         # master key provided
         self.assertRaises(ValueError, bip32.parent_fingerprint, xkey)

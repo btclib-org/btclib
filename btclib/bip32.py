@@ -25,7 +25,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
 
 from hashlib import sha512
 from hmac import HMAC
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union, Dict
 
 from . import base58
 from .address import p2pkh_address
@@ -112,87 +112,202 @@ _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
 # [13:45] chain code
 # [45:78] key (private/public)
 
-
-def xkey_parse(xkey: Octets) -> Tuple:
-    xkey = base58.decode(xkey, 78)
-
-    version = xkey[:4]
-    depth = xkey[4]
-    parent_fingerprint = xkey[5:9]
-    child_index = xkey[9:13]
-    chain_code = xkey[13:45]
-    key = xkey[45:]
-
-    if version in _PRV_VERSIONS:
-        if key[0] != 0:
+def _check_version_key(v: bytes, k: bytes) -> None:
+    if v in _PRV_VERSIONS:
+        if k[0] != 0:
             raise ValueError("extended key: (prvversion/pubkey) mismatch")
-        P = mult(int_from_octets(key))
-    elif version in _PUB_VERSIONS:
-        if key[0] not in (2, 3):
+    elif v in _PUB_VERSIONS:
+        if k[0] not in (2, 3):
             raise ValueError("extended key: (pubversion/prvkey) mismatch")
-        P = point_from_octets(key, ec)
     else:
         raise ValueError("extended key: unknown version")
 
-    if depth == 0:
-        if parent_fingerprint != b'\x00\x00\x00\x00':
-            msg = f"extended key: zero depth with non-zero parent_fingerprint {parent_fingerprint}"
+
+def _check_depth_fingerprint_index(d: int, f: bytes, i: bytes) -> None:
+    if not isinstance(f, bytes):
+        raise ValueError("extended key: invalid parent_fingerprint type")
+    if len(f) != 4:
+        raise ValueError("extended key: invalid parent_fingerprint length")
+
+    if not isinstance(i, bytes):
+        raise ValueError("extended key: invalid index type")
+    if len(i) != 4:
+        raise ValueError("extended key: invalid index length")
+
+    if d < 0 or d > 255:
+        raise ValueError("extended key: invalid depth")
+    elif d == 0:
+        if f != b'\x00\x00\x00\x00':
+            msg = "extended key: zero depth with "
+            msg += f"non-zero parent_fingerprint {f}"
             raise ValueError(msg)
-        if child_index != b'\x00\x00\x00\x00':
-            msg = f"extended key: zero depth with non-zero child_index {child_index}"
+        if i != b'\x00\x00\x00\x00':
+            msg = "extended key: zero depth with "
+            msg += f"non-zero child_index {i}"
             raise ValueError(msg)
     else:
-        if parent_fingerprint == b'\x00\x00\x00\x00':
-            msg = f"extended key: non-zero depth ({depth}) with zero parent_fingerprint"
+        if f == b'\x00\x00\x00\x00':
+            msg = f"extended key: non-zero depth ({d}) with "
+            msg += "zero parent_fingerprint"
             raise ValueError()
 
-    return (version, depth, parent_fingerprint,
-            child_index, chain_code, key, P)
+
+def parse(xkey: Octets) -> Dict:
+
+    xkey = base58.decode(xkey, 78)
+    d = {
+        'version'            : xkey[:4],
+        'depth'              : xkey[4],
+        'parent_fingerprint' : xkey[5:9],
+        'index'              : xkey[9:13],
+        'chain_code'         : xkey[13:45],
+        'key'                : xkey[45:]
+    }
+    _check_version_key(d['version'], d['key'])
+    _check_depth_fingerprint_index(d['depth'],
+                                   d['parent_fingerprint'], d['index'])
+    return d
+
+
+def serialize(d: Dict) -> bytes:
+
+    _check_version_key(d['version'], d['key'])
+    t = d['version']
+
+    _check_depth_fingerprint_index(d['depth'],
+                                   d['parent_fingerprint'], d['index'])
+    t += d['depth'].to_bytes(1, 'big')
+    t += d['parent_fingerprint']
+    t += d['index']
+
+    if not isinstance(d['chain_code'], bytes):
+        raise ValueError("extended key: invalid chain_code type")
+    if len(d['chain_code']) != 32:
+        raise ValueError("extended key: invalid chain_code length")
+    t += d['chain_code']
+
+    if not isinstance(d['key'], bytes):
+        raise ValueError("extended key: invalid key type")
+    if len(d['key']) != 33:
+        raise ValueError("extended key: invalid key length")
+    t += d['key']
+
+    return base58.encode(t)
 
 
 def parent_fingerprint(xkey: Octets) -> bytes:
-    _, depth, parent_fingerprint, _, _, _, _ = xkey_parse(xkey)
-    if depth == 0:
+    d = parse(xkey)
+    if d['depth'] == 0:
         raise ValueError("master key provided")
-    return parent_fingerprint
+    return d['parent_fingerprint']
 
 
 def child_index(xkey: Octets) -> bytes:
-    _, depth, _, child_index, _, _, _ = xkey_parse(xkey)
-    if depth == 0:
+    d = parse(xkey)
+    if d['depth'] == 0:
         raise ValueError("master key provided")
-    return child_index
+    return d['index']
 
 
 def fingerprint(xkey: Octets) -> bytes:
-    _, _, _, _, _, key, P = xkey_parse(xkey)
-    if key[0] == 0:
-        key = octets_from_point(P, True, ec)
-    return hash160(key)[:4]
+    d = parse(xkey)
+    if d['key'][0] == 0:
+        P = mult(int_from_octets(d['key'][1:]))
+        d['key'] = octets_from_point(P, True, ec)
+    return hash160(d['key'])[:4]
+
+
+def address_from_xpub(xpub: Octets) -> bytes:
+    """Return the address according to the xpub SLIP32 version type."""
+
+    d = parse(xpub)
+
+    if d['key'][0] not in (2, 3):
+        raise ValueError("xkey is not a public one")
+
+    if d['version'] in _XPUB_PREFIXES:
+        # p2pkh
+        return _p2pkh_address_from_xpub(d['version'], d['key'])
+    elif d['version'] in _P2WPKH_PUB_PREFIXES:
+        # p2wpkh native-segwit
+        return _p2wpkh_address_from_xpub(d['version'], d['key'])
+    else:
+        # v in _P2WPKH_P2SH_PUB_PREFIXES
+        # p2wpkh p2sh-wrapped-segwit
+        return _p2wpkh_p2sh_address_from_xpub(d['version'], d['key'])
+
+
+def wif_from_xprv(xprv: Octets, compressed: bool = True) -> bytes:
+    """Return the WIF according to xpub version type."""
+
+    d = parse(xprv)
+
+    if d['key'][0] != 0:
+        raise ValueError("xkey is not a private one")
+
+    network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(d['version'])]
+    return wif_from_prvkey(d['key'][1:], compressed, network)
+
+
+def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
+    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
+    return p2pkh_address(pk, network)
+
+
+def p2pkh_address_from_xpub(xpub: Octets) -> bytes:
+    """Return the p2pkh address."""
+    d = parse(xpub)
+    if d['key'][0] not in (2, 3):
+        # Deriving pubkey from prvkey would not be enough:
+        # compressed ot uncompressed?
+        raise ValueError("xkey is not a public one")
+    return _p2pkh_address_from_xpub(d['version'], d['key'])
+
+
+def _p2wpkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
+    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
+    return p2wpkh_address(pk, network)
+
+
+def p2wpkh_address_from_xpub(xpub: Octets) -> bytes:
+    """Return the p2wpkh (native SegWit) address."""
+    d = parse(xpub)
+    if d['key'][0] not in (2, 3):
+        # if pubkey would be derived from prvkey,
+        # then this safety check might be removed
+        raise ValueError("xkey is not a public one")
+    return _p2wpkh_address_from_xpub(d['version'], d['key'])
+
+
+def _p2wpkh_p2sh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
+    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
+    return p2wpkh_p2sh_address(pk, network)
+
+
+def p2wpkh_p2sh_address_from_xpub(xpub: Octets) -> bytes:
+    """Return the p2wpkh p2sh-wrapped (legacy) address."""
+    d = parse(xpub)
+    if d['key'][0] not in (2, 3):
+        # if pubkey would be derived from prvkey,
+        # then this safety check might be removed
+        raise ValueError("xkey is not a public one")
+    return _p2wpkh_p2sh_address_from_xpub(d['version'], d['key'])
 
 
 def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     """derive the BIP32 root master extended private key from the seed"""
 
-    version = bytes_from_hexstring(version)
-    if version not in _PRV_VERSIONS:
-        msg = f"invalid private version ({version})"
-        raise ValueError(msg)
-
-    # serialization data
-    rootxprv = version                            # version
-    rootxprv += b'\x00'                           # depth
-    rootxprv += b'\x00\x00\x00\x00'               # parent pubkey fingerprint
-    rootxprv += b'\x00\x00\x00\x00'               # child index
-
-    # actual extended key (key + chain code) derivation
     seed = bytes_from_hexstring(seed)
     hd = HMAC(b"Bitcoin seed", seed, sha512).digest()
-    rootprv = int_from_octets(hd[:32])
-    rootxprv += hd[32:]                                # chain code
-    rootxprv += b'\x00' + rootprv.to_bytes(32, 'big')  # private key
-
-    return base58.encode(rootxprv)
+    d = {
+        'version'            : bytes_from_hexstring(version),
+        'depth'              : 0,
+        'parent_fingerprint' : b'\x00\x00\x00\x00',
+        'index'              : b'\x00\x00\x00\x00',
+        'chain_code'         : hd[32:],
+        'key'                : b'\x00' + hd[:32]
+    }
+    return serialize(d)
 
 
 def xpub_from_xprv(xprv: Octets) -> bytes:
@@ -202,19 +317,16 @@ def xpub_from_xprv(xprv: Octets) -> bytes:
     private key (“neutered” as it removes the ability to sign transactions).
     """
 
-    v, d, f, i, c, k, P = xkey_parse(xprv)
+    d = parse(xprv)
 
-    if k[0] != 0:
+    d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
+
+    if d['key'][0] != 0:
         raise ValueError("extended key is not a private one")
+    P = mult(int_from_octets(d['key'][1:]))
+    d['key'] = octets_from_point(P, True, ec)
 
-    # serialization data
-    xpub = _PUB_VERSIONS[_PRV_VERSIONS.index(v)]  # version
-    xpub += d.to_bytes(1, 'big')                  # depth
-    xpub += f                                     # parent pubkey fingerprint
-    xpub += i                                     # child index
-    xpub += c                                     # chain code
-    xpub += octets_from_point(P, True, ec)        # public key
-    return base58.encode(xpub)
+    return serialize(d)
 
 
 def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
@@ -227,6 +339,12 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     child_index is not less than 0x80000000.
     """
 
+    d = parse(xparentkey)
+    _ckd(d, index)
+    return serialize(d)
+
+
+def _ckd(d: Dict, index: Union[Octets, int]) -> None:
     if isinstance(index, int):
         index = index.to_bytes(4, byteorder='big')
 
@@ -235,43 +353,39 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     if len(index) != 4:
         raise ValueError(f"a 4 bytes int is required, not {len(index)}")
 
-    v, depth, _, _, chain_code, bytes_key, P = xkey_parse(xparentkey)
+    d['depth'] += 1
 
-    # serialization data
-    xkey = v                                # child version
-    xkey += (depth + 1).to_bytes(1, 'big')  # child depth, fail if depth=255
-
-    if bytes_key[0] == 0:                   # parent is a prvkey
-        Parent_bytes = octets_from_point(P, True, ec)
-    else:                                   # parent is a pubkey
-        Parent_bytes = bytes_key
-        if index[0] >= 0x80:                # hardened derivation
-            raise ValueError("hardened derivation from pubkey is impossible")
-    xkey += hash160(Parent_bytes)[:4]          # parent pubkey fingerprint
-    xkey += index                           # child index
-
-    if bytes_key[0] == 0:                            # parent is a prvkey
-        if index[0] >= 0x80:                         # hardened derivation
-            h = HMAC(chain_code, bytes_key + index, sha512).digest()
-        else:                                        # normal derivation
-            h = HMAC(chain_code, Parent_bytes + index, sha512).digest()
-        xkey += h[32:]                               # child chain code
-        offset = int.from_bytes(h[:32], byteorder='big')
-        parent = int.from_bytes(bytes_key[1:], byteorder='big')
-        child = (parent + offset) % ec.n
-        xkey += b'\x00' + child.to_bytes(32, 'big')  # child private key
+    if d['key'][0] == 0:                             # parent is a prvkey
+        parent = int.from_bytes(d['key'][1:], byteorder='big')
+        Parent = mult(parent)
+        Parent_bytes = octets_from_point(Parent, True, ec)
     else:                                            # parent is a pubkey
-        h = HMAC(chain_code, bytes_key + index, sha512).digest()
-        xkey += h[32:]                               # child chain code
+        Parent = point_from_octets(d['key'], ec)
+        Parent_bytes = d['key']
+        if index[0] >= 0x80:                         # hardened derivation
+            raise ValueError("hardened derivation from pubkey is impossible")
+    d['parent_fingerprint'] = hash160(Parent_bytes)[:4]
+    d['index'] = index
+
+    if d['key'][0] == 0:                             # parent is a prvkey
+        if index[0] >= 0x80:                         # hardened derivation
+            h = HMAC(d['chain_code'], d['key'] + index, sha512).digest()
+        else:                                        # normal derivation
+            h = HMAC(d['chain_code'], Parent_bytes + index, sha512).digest()
+        d['chain_code'] = h[32:]
+        offset = int.from_bytes(h[:32], byteorder='big')
+        child = (parent + offset) % ec.n
+        d['key'] = b'\x00' + child.to_bytes(32, 'big')
+    else:                                            # parent is a pubkey
+        h = HMAC(d['chain_code'], d['key'] + index, sha512).digest()
+        d['chain_code'] = h[32:]
         offset = int.from_bytes(h[:32], byteorder='big')
         Offset = mult(offset)
-        Child = ec.add(P, Offset)
-        xkey += octets_from_point(Child, True, ec)   # child public key
-
-    return base58.encode(xkey)
+        Child = ec.add(Parent, Offset)
+        d['key'] = octets_from_point(Child, True, ec)
 
 
-def indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
+def _indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
     """Extract derivation indexes from a derivation path.
 
     Derivation path must be like "m/44'/0'/1'/0/10" (absolute)
@@ -306,142 +420,60 @@ def indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
 def derive(xkey: Octets, path: Union[str, Sequence[int]]) -> bytes:
     """Derive an extended key.
 
-    Derivation is according to path like "m/44h/0'/1H/0/10" (absolute)
-    or "./0/10" (relative).
+    Derivation is according to absolute path like "m/44h/0'/1H/0/10"
+    or relative path like "./0/10".
     """
 
-    _, depth, _, _, _, _, _ = xkey_parse(xkey)
+    d = parse(xkey)
 
     if isinstance(path, str):
         path = path.strip()
-        indexes, absolute = indexes_from_path(path)
-        if absolute and depth != 0:
+        indexes, absolute = _indexes_from_path(path)
+        if absolute and d["depth"] != 0:
             msg = "Absolute derivation path for non-root master key"
             raise ValueError(msg)
     else:
         indexes = path
 
-    final_depth = depth + len(indexes)
+    final_depth = d["depth"] + len(indexes)
     if final_depth > 255:
         raise ValueError(f'Derivation path final depth {final_depth}>255')
 
     for index in indexes:
-        xkey = ckd(xkey, index)
+        _ckd(d, index)
 
-    return xkey
-
-
-def address_from_xpub(xpub: Octets) -> bytes:
-    """Return the address according to the xpub SLIP32 version type."""
-
-    v, _, _, _, _, k, _ = xkey_parse(xpub)
-
-    if k[0] not in (2, 3):
-        raise ValueError("xkey is not a public one")
-
-    if v in _XPUB_PREFIXES:
-        # p2pkh
-        return _p2pkh_address_from_xpub(v, k)
-    elif v in _P2WPKH_PUB_PREFIXES:
-        # p2wpkh native-segwit
-        return _p2wpkh_address_from_xpub(v, k)
-    else:
-        # v in _P2WPKH_P2SH_PUB_PREFIXES
-        # p2wpkh p2sh-wrapped-segwit
-        return _p2wpkh_p2sh_address_from_xpub(v, k)
-
-
-def wif_from_xprv(xprv: Octets) -> bytes:
-    """Return the WIF according to xpub version type."""
-
-    v, _, _, _, _, k, _ = xkey_parse(xprv)
-
-    if k[0] != 0:
-        raise ValueError("xkey is not a private one")
-
-    compressed = True
-    network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(v)]
-    return wif_from_prvkey(k[1:], compressed, network)
-
-
-def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
-    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2pkh_address(pk, network)
-
-
-def p2pkh_address_from_xpub(xpub: Octets) -> bytes:
-    """Return the p2pkh address."""
-    v, _, _, _, _, k, _ = xkey_parse(xpub)
-    if k[0] not in (2, 3):
-        # Deriving pubkey from prvkey would not be enough:
-        # compressed ot uncompressed?
-        raise ValueError("xkey is not a public one")
-    return _p2pkh_address_from_xpub(v, k)
-
-
-def _p2wpkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
-    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2wpkh_address(pk, network)
-
-
-def p2wpkh_address_from_xpub(xpub: Octets) -> bytes:
-    """Return the p2wpkh (native SegWit) address."""
-    v, _, _, _, _, k, _ = xkey_parse(xpub)
-    if k[0] not in (2, 3):
-        # pubkey could be derived from prvkey
-        # and this safety check could be removed
-        raise ValueError("xkey is not a public one")
-    return _p2wpkh_address_from_xpub(v, k)
-
-
-def _p2wpkh_p2sh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
-    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2wpkh_p2sh_address(pk, network)
-
-
-def p2wpkh_p2sh_address_from_xpub(xpub: Octets) -> bytes:
-    """Return the p2wpkh p2sh-wrapped (legacy) address."""
-    v, _, _, _, _, k, _ = xkey_parse(xpub)
-    if k[0] not in (2, 3):
-        # pubkey could be derived from prvkey
-        # and this safety check could be removed
-        raise ValueError("xkey is not a public one")
-    return _p2wpkh_p2sh_address_from_xpub(v, k)
+    return serialize(d)
 
 
 def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
-    _, pd, pf, pi, pc, pk, _ = xkey_parse(parent_xpub)
+    p = parse(parent_xpub)
 
-    if pk[0] not in (2, 3):
+    if p['key'][0] not in (2, 3):
         raise ValueError("extended parent key is not a public one")
 
-    cv, cd, cf, ci, _, ck, _ = xkey_parse(child_xprv)
-    if ck[0] != 0:
+    c = parse(child_xprv)
+    if c['key'][0] != 0:
         raise ValueError("extended child key is not a private one")
 
     # check depth
-    if cd != pd + 1:
+    if c['depth'] != p['depth'] + 1:
         raise ValueError("not a parent's child: wrong depth relation")
 
     # check fingerprint
-    if cf != hash160(pk)[:4]:
+    if c['parent_fingerprint'] != hash160(p['key'])[:4]:
         raise ValueError("not a parent's child: wrong parent fingerprint")
 
     # check normal derivation
-    if ci[0] >= 0x80:
+    if c['index'][0] >= 0x80:
         raise ValueError("hardened child derivation")
 
-    parent_xprv = cv                      # version
-    parent_xprv += pd.to_bytes(1, 'big')  # depth
-    parent_xprv += pf                     # parent pubkey fingerprint
-    parent_xprv += pi                     # child index
-    parent_xprv += pc                     # chain code
+    p['version'] = c['version']
 
-    h = HMAC(pc, pk + ci, sha512).digest()
+    h = HMAC(p['chain_code'], p['key'] + c['index'], sha512).digest()
     offset = int.from_bytes(h[:32], byteorder='big')
-    child = int.from_bytes(ck[1:], byteorder='big')
+    child = int.from_bytes(c['key'][1:], byteorder='big')
     parent = (child - offset) % ec.n
-    parent_bytes = b'\x00' + parent.to_bytes(32, byteorder='big')
-    parent_xprv += parent_bytes           # private key
+    Parent_b = b'\x00' + parent.to_bytes(32, byteorder='big')
+    p['key'] = Parent_b
 
-    return base58.encode(parent_xprv)
+    return serialize(p)
