@@ -98,7 +98,7 @@ def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
         msg = "Bech32 string contains ASCII characters outside [48-122]"
         raise ValueError(msg)
     if bech.lower() != bech and bech.upper() != bech:
-        raise ValueError("Mixed case bech32 string")
+        raise ValueError(f"Mixed case bech32 string: {bech}")
     bech = bech.lower()
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
