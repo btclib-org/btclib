@@ -1,8 +1,9 @@
 btclib
 ======
 
-btclib is a python3 type annotated library intended for teaching and
-demonstration of the elliptic curve cryptography used in bitcoin.
+btclib is a python3 type annotated library intended for
+teaching/learning/using bitcoin, its blockchain,
+and the associatec elliptic curve cryptography.
 
 It does not have external requirements or dependencies;
 to install (and upgrade) it:
@@ -42,11 +43,11 @@ The library includes:
 * RFC 6979 to make signature schemes deterministic
 * Sign-to-contract commitment
 * Diffie-Hellman
-* Pedersen Committment
+* Pedersen committment
 * Base58 encoding/decoding
 * p2pkh/p2sh addresses and WIFs
 * Bech32 encoding/decoding
-* p2wpkh/p2wsh native SegWit addresses and their legacy p2sh-wrapped version
+* p2wpkh/p2wsh native SegWit addresses and their legacy p2sh-wrapped versions
 * BIP32 hierarchical deterministic wallets
 * BIP39 wordlists and mnemonic for generating deterministic keys
 * Electrum standard for mnemonic
