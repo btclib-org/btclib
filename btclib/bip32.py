@@ -361,7 +361,7 @@ def wif_from_xprv(xprv: Octets) -> bytes:
 
     compressed = True
     network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(v)]
-    return wif_from_prvkey(k, compressed, network)
+    return wif_from_prvkey(k[1:], compressed, network)
 
 
 def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
