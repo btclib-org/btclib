@@ -190,7 +190,7 @@ class TestSegwitAddress(unittest.TestCase):
         wv = 0
         wp = 20 * b'\x05'
         addr = _encode(network, wv, wp)
-        n2, wp2 = hash_from_bech32_address(addr)
+        n2, _, wp2 = hash_from_bech32_address(addr)
         self.assertEqual(n2, network)
         self.assertEqual(wp2, wp)
 

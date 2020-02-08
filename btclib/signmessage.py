@@ -242,12 +242,12 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
                 script_pubkey = b'\x00\x14' + hash160(pk)
                 return hash160(script_pubkey) == h160
         except Exception:  # Electrum p2wpkh
-            _, h160 = hash_from_bech32_address(addr)
+            _, _, h160 = hash_from_bech32_address(addr)
             return hash160(pk) == h160
     elif rf < 39:  # BIP137 p2wpkh-ps2h
         _, _, h160 = h160_from_base58_address(addr)
         script_pubkey = b'\x00\x14' + hash160(pk)
         return hash160(script_pubkey) == h160
     else:          # BIP137 p2wpkh
-        _, h160 = hash_from_bech32_address(addr)
+        _, _, h160 = hash_from_bech32_address(addr)
         return hash160(pk) == h160

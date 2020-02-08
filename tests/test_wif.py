@@ -11,9 +11,13 @@
 import unittest
 
 from btclib import base58
+from btclib.address import h160_from_base58_address
 from btclib.curves import secp256k1 as ec
-from btclib.utils import bytes_from_hexstring, octets_from_int
-from btclib.wif import p2pkh_address_from_wif, prvkey_from_wif, wif_from_prvkey
+from btclib.segwitaddress import hash_from_bech32_address
+from btclib.utils import bytes_from_hexstring, hash160, octets_from_int
+from btclib.wif import (p2pkh_address_from_wif, p2wpkh_address_from_wif,
+                        p2wpkh_p2sh_address_from_wif, prvkey_from_wif,
+                        wif_from_prvkey)
 
 
 class TestWif(unittest.TestCase):
@@ -98,36 +102,67 @@ class TestWif(unittest.TestCase):
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         #prvkey_from_wif(badwif)
 
-    def test_p2pkh_address_from_wif(self):
+    def test_address_from_wif(self):
+        # uncompressed mainnet
         wif1 = "5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-        a = p2pkh_address_from_wif(wif1)
-        self.assertEqual(a, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
+        b58 = p2pkh_address_from_wif(wif1)
+        self.assertEqual(b58, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
+        self.assertRaises(ValueError, p2wpkh_address_from_wif, wif1)
+        self.assertRaises(ValueError, p2wpkh_p2sh_address_from_wif, wif1)
 
+        # compressed mainnet
         wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162"
-        a = p2pkh_address_from_wif(wif2)
-        self.assertEqual(a, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
+        b58 = p2pkh_address_from_wif(wif2)
+        self.assertEqual(b58, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
+        b32 = p2wpkh_address_from_wif(wif2)
+        self.assertEqual(h160_from_base58_address(b58),
+                         hash_from_bech32_address(b32))
+        b = p2wpkh_p2sh_address_from_wif(wif2)
+        h160 = h160_from_base58_address(b58)[2]
+        self.assertEqual(hash160(b'\x00\x14' + h160),
+                         h160_from_base58_address(b)[2])
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
 
-        # testnet
+        # uncompressed testnet
         wif1 = "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
-        a = p2pkh_address_from_wif(wif1)
-        self.assertEqual(a, b'mvgbzkCSgKbYgaeG38auUzR7otscEGi8U7')
+        b58 = p2pkh_address_from_wif(wif1)
+        self.assertEqual(b58, b'mvgbzkCSgKbYgaeG38auUzR7otscEGi8U7')
+        self.assertRaises(ValueError, p2wpkh_address_from_wif, wif1)
+        self.assertRaises(ValueError, p2wpkh_p2sh_address_from_wif, wif1)
 
+        # compressed testnet
         wif2 = "cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx"
-        a = p2pkh_address_from_wif(wif2)
-        self.assertEqual(a, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
+        b58 = p2pkh_address_from_wif(wif2)
+        self.assertEqual(b58, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
+        b32 = p2wpkh_address_from_wif(wif2)
+        self.assertEqual(h160_from_base58_address(b58),
+                         hash_from_bech32_address(b32))
+        b = p2wpkh_p2sh_address_from_wif(wif2)
+        h160 = h160_from_base58_address(b58)[2]
+        self.assertEqual(hash160(b'\x00\x14' + h160),
+                         h160_from_base58_address(b)[2])
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
 
-        # trailing/leading spaces in string
+        # uncompressed mainnet, trailing/leading spaces in string
         wif1 = "  5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-        a = p2pkh_address_from_wif(wif1)
-        self.assertEqual(a, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
+        b58 = p2pkh_address_from_wif(wif1)
+        self.assertEqual(b58, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
+        self.assertRaises(ValueError, p2wpkh_address_from_wif, wif1)
+        self.assertRaises(ValueError, p2wpkh_p2sh_address_from_wif, wif1)
 
+        # compressed mainnet, trailing/leading spaces in string
         wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162  "
-        a = p2pkh_address_from_wif(wif2)
-        self.assertEqual(a, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
+        b58 = p2pkh_address_from_wif(wif2)
+        self.assertEqual(b58, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
+        b32 = p2wpkh_address_from_wif(wif2)
+        self.assertEqual(h160_from_base58_address(b58),
+                         hash_from_bech32_address(b32))
+        b = p2wpkh_p2sh_address_from_wif(wif2)
+        h160 = h160_from_base58_address(b58)[2]
+        self.assertEqual(hash160(b'\x00\x14' + h160),
+                         h160_from_base58_address(b)[2])
 
 
 if __name__ == "__main__":

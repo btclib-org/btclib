@@ -207,10 +207,14 @@ def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     return _p2wsh_address(sha256(wscript), native, network)
 
 
-def hash_from_bech32_address(address: Union[str, bytes]) -> Tuple[str, bytes]:
+def hash_from_bech32_address(address: Union[str, bytes]) -> Tuple[str, bool, bytes]:
 
     network, wv, wp = _decode(address)
     if wv != 0:
         raise ValueError(f"Invalid witness version: {wv}")
+    if len(wp) == 20:
+        is_script_hash = False
+    else:
+        is_script_hash = True
 
-    return network, bytes(wp)
+    return network, is_script_hash, bytes(wp)
