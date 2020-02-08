@@ -142,24 +142,21 @@ def _check_depth_fingerprint_index(d: int, f: bytes, i: bytes) -> None:
         msg += f"must be bytes, not '{type(i).__name__}'"
         raise TypeError(msg)
     if len(i) != 4:
-        raise ValueError("invalid index length")
+        raise ValueError(f"invalid {len(i)}-bytes index length")
 
     if d < 0 or d > 255:
         raise ValueError(f"invalid depth ({d})")
     elif d == 0:
         if f != b'\x00\x00\x00\x00':
-            msg = "extended key: zero depth with "
-            msg += f"non-zero parent_fingerprint {f}"
+            msg = f"zero depth with non-zero parent_fingerprint {f}"
             raise ValueError(msg)
         if i != b'\x00\x00\x00\x00':
-            msg = "extended key: zero depth with "
-            msg += f"non-zero child_index {i}"
+            msg = f"zero depth with non-zero index {i}"
             raise ValueError(msg)
     else:
         if f == b'\x00\x00\x00\x00':
-            msg = f"extended key: non-zero depth ({d}) with "
-            msg += "zero parent_fingerprint"
-            raise ValueError()
+            msg = f"non-zero depth ({d}) with zero parent_fingerprint {f}"
+            raise ValueError(msg)
 
 
 def parse(xkey: Octets) -> Dict:
@@ -212,7 +209,7 @@ def parent_fingerprint(xkey: Octets) -> bytes:
     return d['parent_fingerprint']
 
 
-def child_index(xkey: Octets) -> bytes:
+def index(xkey: Octets) -> bytes:
     d = parse(xkey)
     if d['depth'] == 0:
         raise ValueError("master key provided")
@@ -343,10 +340,10 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     """Child Key Derivation (CDK)
 
     Key derivation is normal if the extended parent key is public or
-    child_index is less than 0x80000000.
+    index is less than 0x80000000.
 
     Key derivation is hardened if the extended parent key is private and
-    child_index is not less than 0x80000000.
+    index is not less than 0x80000000.
     """
 
     d = parse(xparentkey)

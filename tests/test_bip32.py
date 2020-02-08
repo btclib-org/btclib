@@ -39,7 +39,7 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.parse, invalid_key)
         # bip32.parse(invalid_key)
 
-        # zero depth with non-zero child_index
+        # zero depth with non-zero index
         i2 = b'\x01\x01\x01\x01'
         invalid_key = base58.encode(xkey[:9] + i2 + xkey[13:])
         self.assertRaises(ValueError, bip32.parse, invalid_key)
@@ -495,8 +495,8 @@ class TestBIP32(unittest.TestCase):
         xprv = b'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
 
         # master key provided
-        self.assertRaises(ValueError, bip32.child_index, xprv)
-        # bip32.child_index(xprv)
+        self.assertRaises(ValueError, bip32.index, xprv)
+        # bip32.index(xprv)
 
         # invalid index
         self.assertRaises(ValueError, bip32.ckd, xprv, 'invalid index')
@@ -560,9 +560,9 @@ class TestBIP32(unittest.TestCase):
         # bip32.p2wpkh_p2sh_address_from_xpub(xprv)
 
     def test_exceptions2(self):
-        xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
-        d = bip32.parse(xprv)
-        self.assertEqual(bip32.serialize(d), xprv)
+        rootxprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
+        d = bip32.parse(rootxprv)
+        self.assertEqual(bip32.serialize(d), rootxprv)
 
         # invalid 34-bytes key length
         d['key'] += b'\x00'
@@ -570,34 +570,70 @@ class TestBIP32(unittest.TestCase):
         #bip32.serialize(d)
 
         # invalid key type: must be bytes, not 'str'
+        d = bip32.parse(rootxprv)
         d['key'] = "this is a string"
         self.assertRaises(TypeError, bip32.serialize, d)
         #bip32.serialize(d)
 
-        # reset to a valid dictionary
-        d = bip32.parse(xprv)
-
-        # invalid 5-bytes parent_fingerprint length
-        d['parent_fingerprint'] += b'\x00'
-        self.assertRaises(ValueError, bip32.serialize, d)
-        #bip32.serialize(d)
-
-        # invalid parent_fingerprint type: must be bytes, not 'str'
-        d['parent_fingerprint'] = "this is a string"
-        self.assertRaises(TypeError, bip32.serialize, d)
-        #bip32.serialize(d)
-
-        # reset to a valid dictionary
-        d = bip32.parse(xprv)
-
         # invalid 33-bytes chain_code length
+        d = bip32.parse(rootxprv)
         d['chain_code'] += b'\x00'
         self.assertRaises(ValueError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # invalid chain_code type: must be bytes, not 'str'
+        d = bip32.parse(rootxprv)
         d['chain_code'] = "this is a string"
         self.assertRaises(TypeError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # invalid 5-bytes parent_fingerprint length
+        d = bip32.parse(rootxprv)
+        d['parent_fingerprint'] += b'\x00'
+        self.assertRaises(ValueError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # invalid parent_fingerprint type: must be bytes, not 'str'
+        d = bip32.parse(rootxprv)
+        d['parent_fingerprint'] = "this is a string"
+        self.assertRaises(TypeError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # invalid 5-bytes index length
+        d = bip32.parse(rootxprv)
+        d['index'] += b'\x00'
+        self.assertRaises(ValueError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # invalid index type: must be bytes, not 'str'
+        d = bip32.parse(rootxprv)
+        d['index'] = "this is a string"
+        self.assertRaises(TypeError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # invalid depth (256)
+        d = bip32.parse(rootxprv)
+        d['depth'] = 256
+        self.assertRaises(ValueError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # zero depth with non-zero index b'\x00\x00\x00\x01'
+        d = bip32.parse(rootxprv)
+        d['index'] = b'\x00\x00\x00\x01'
+        self.assertRaises(ValueError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # zero depth with non-zero parent_fingerprint b'\x00\x00\x00\x01'
+        d = bip32.parse(rootxprv)
+        d['parent_fingerprint'] = b'\x00\x00\x00\x01'
+        self.assertRaises(ValueError, bip32.serialize, d)
+        #bip32.serialize(d)
+
+        # non-zero depth (1) with zero parent_fingerprint b'\x00\x00\x00\x00'
+        xprv = bip32.ckd(rootxprv, 1)
+        d = bip32.parse(xprv)
+        d['parent_fingerprint'] = b'\x00\x00\x00\x00'
+        self.assertRaises(ValueError, bip32.serialize, d)
         #bip32.serialize(d)
 
 
@@ -606,7 +642,7 @@ class TestBIP32(unittest.TestCase):
         child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
         parent_xprv = bip32.crack(parent_xpub, child_xprv)
         self.assertEqual(bip32.xpub_from_xprv(parent_xprv), parent_xpub)
-        index = bip32.child_index(child_xprv)
+        index = bip32.index(child_xprv)
         self.assertEqual(bip32.ckd(parent_xprv, index), child_xprv)
         path = [index]
         self.assertEqual(bip32.derive(parent_xprv, path), child_xprv)

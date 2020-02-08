@@ -230,6 +230,8 @@ class TestSegwitAddress(unittest.TestCase):
         _, _, wp = _decode(addr)
         self.assertEqual(bytes(wp), sha256(witness_script_bytes))
 
+        self.assertEqual(hash_from_bech32_address(addr)[2], sha256(witness_script_bytes))
+
         # witness program length (35) is not 32
         self.assertRaises(ValueError, _p2wsh_address, witness_script_bytes[1:], True, "mainnet")
         #_p2wsh_address(witness_script_bytes, True, "mainnet")
