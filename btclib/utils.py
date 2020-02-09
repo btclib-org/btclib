@@ -15,8 +15,8 @@ Most conversions from SEC 1 v.2 2.3 are included.
 https://www.secg.org/sec1-v2.pdf
 """
 
-from typing import Union, Callable, Any
 import hashlib
+from typing import Any, Callable, Union
 
 from .curve import Curve, Point
 from .curves import secp256k1
@@ -176,3 +176,8 @@ def bytes_from_hexstring(o: Union[Any, str]) -> Union[Any, bytes]:
         o = o.strip()
         o = bytes.fromhex(o)
     return o
+
+def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
+    # http://www.graphics.stanford.edu/~seander/bithacks.html
+    if n & (n - 1) != 0:
+        raise ValueError(f"{var_name} ({n}) must be a power of two")

@@ -14,6 +14,8 @@ import math
 from os import path
 from typing import List
 
+from btclib.utils import ensure_is_power_of_two
+
 WordList = List[str]
 
 
@@ -73,11 +75,7 @@ class WordLists:
             f.closed
 
             nwords = len(lines)
-            # http://www.graphics.stanford.edu/~seander/bithacks.html
-            # Determining if an integer is a power of 2
-            if nwords & (nwords - 1) != 0:
-                errMsg = f"wordlist length ({nwords}) must be a power of two"
-                raise ValueError(errMsg)
+            ensure_is_power_of_two(nwords, "wordlist length")
 
             self._bits_per_word[lang] = int(math.log(nwords, 2))
             self._language_length[lang] = nwords
