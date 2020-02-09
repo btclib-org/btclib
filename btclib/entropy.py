@@ -19,9 +19,8 @@ Output entropy is always a binary 0/1 string.
 import math
 import random
 import secrets
+from hashlib import sha256
 from typing import Iterable, List, Optional, Union
-
-from btclib.utils import ensure_is_power_of_two
 
 BinStr = str  # binary 0/1 string
 Entropy = Union[BinStr, int, bytes]
@@ -84,40 +83,51 @@ def binstr_from_entropy(entr: Entropy,
     return binstr_entr.zfill(nbits)  # might need padding with leading zeros
 
 
-def generate_entropy(base: int, rolls: List[int],
-                     shuffle: bool = True, xor: bool = True,
-                     target_bits: int = 256) -> BinStr:
+def generate_entropy(bits: int, base: Optional[int] = None,
+                     rolls: Optional[List[int]] = None, shuffle: bool = True,
+                     hash: bool = True, xor: bool = True) -> BinStr:
 
-    ensure_is_power_of_two(target_bits, "target bits")
-
-    bits_per_roll = math.floor(math.log2(base))
-    base = 2 ** bits_per_roll
-    min_roll_number = math.ceil(target_bits/bits_per_roll)
-
-    if shuffle:
-        random.seed(secrets.token_bytes(32))
-        random.shuffle(rolls)
-
-    i = 0
-    for r in rolls:
-        # collect only valid rolls
-        if 0 < r and r <= base:
-            i *= base
-            i += r-1
-            min_roll_number -= 1
-    if min_roll_number > 0:
-        msg = f"too few rolls, missing {min_roll_number} "
-        msg += f"valid [1-{base}] rolls"
+    if bits not in _bits:
+        msg = f"Invalid number of bits ({bits}); "
+        msg += f"must be in {_bits}"
         raise ValueError(msg)
 
+    i = 0
+    # start with the exogenously provided roll-based entropy
+    if (base is not None) and (rolls is not None):
+        if base < 2:
+            raise ValueError(f"Invalid base ({base}): must be >= 2")
+        bits_per_roll = math.floor(math.log2(base))
+        base = 2 ** bits_per_roll
+        min_roll_number = math.ceil(bits/bits_per_roll)
+
+        if shuffle:
+            random.seed(secrets.token_bytes(32))
+            random.shuffle(rolls)
+
+        for r in rolls:
+            # collect only valid rolls
+            if (0 < r) and (r <= base):
+                i *= base
+                i += r-1
+                min_roll_number -= 1
+        if min_roll_number > 0:
+            msg = f"too few rolls, missing {min_roll_number} "
+            msg += f"valid [1-{base}] rolls"
+            raise ValueError(msg)
+
+    if hash:
+        h256 = sha256(i.to_bytes(32, byteorder='big')).digest()
+        i = int.from_bytes(h256, byteorder='big')
+
     if xor:
-        i ^= secrets.randbits(target_bits)
+        i ^= secrets.randbits(bits)
 
     # convert to binary string
     binstr = bin(i)
     # remove leading 0b
     binstr = binstr[2:]
-    # fill with leading zero if needed
-    binstr = binstr.zfill(target_bits)
+    # do not lose the leading zeros
+    binstr = binstr.zfill(bits)
     # take only the (possibly xor-ed) rightmost bits
-    return binstr[-target_bits:]
+    return binstr[-bits:]

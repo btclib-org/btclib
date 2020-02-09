@@ -8,13 +8,14 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+import math
 import random
+import secrets
 import unittest
 
-from btclib.entropy import Entropy, binstr_from_entropy
+from btclib.entropy import Entropy, binstr_from_entropy, generate_entropy
 
 random.seed(42)
-
 
 class TestEntropy(unittest.TestCase):
     def test_conversions(self):
@@ -105,6 +106,51 @@ class TestEntropy(unittest.TestCase):
         invalid_entropy = tuple()
         self.assertRaises(TypeError, binstr_from_entropy, invalid_entropy)
 
+    def test_generate_entropy(self):
+        base = 20
+        bits_per_roll = math.floor(math.log2(base))
+        base = 2 ** bits_per_roll
+        bits = 256
+        roll_number = math.ceil(bits/bits_per_roll)
+
+        rolls = [base for _ in range(roll_number)]
+        binstr = generate_entropy(bits, base, rolls, False, False, False)
+        self.assertEqual(binstr, '1'*256)
+
+        rolls = [base for _ in range(2*roll_number)]
+        binstr = generate_entropy(bits, base, rolls, False, False, False)
+        self.assertEqual(binstr, '1'*256)
+
+        rolls = [1 for _ in range(roll_number)]
+        binstr = generate_entropy(bits, base, rolls, False, False, False)
+        self.assertEqual(binstr, '0'*256)
+
+        rolls = [1 for _ in range(2*roll_number)]
+        binstr = generate_entropy(bits, base, rolls, False, False, False)
+        self.assertEqual(binstr, '0'*256)
+
+        rolls = [secrets.randbelow(base)+1 for _ in range(roll_number)]
+        binstr = generate_entropy(bits, base, rolls)
+        self.assertEqual(len(binstr), 256)
+        rolls = [secrets.randbelow(base)+1 for _ in range(roll_number)]
+        binstr2 = generate_entropy(bits, base, rolls)
+        self.assertEqual(len(binstr2), 256)
+        self.assertNotEqual(binstr, binstr2)
+
+        # Invalid number of bits (255); must be in (128, 160, 192, 224, 256)
+        self.assertRaises(ValueError, generate_entropy, bits-1, base, rolls)
+        #generate_entropy(bits-1, base, rolls)
+
+        # too few rolls, missing 2 valid [1-16] rolls
+        rolls = [secrets.randbelow(base)+1 for _ in range(roll_number-2)]
+        self.assertRaises(ValueError, generate_entropy, bits, base, rolls)
+        #generate_entropy(bits, base, rolls)
+
+        binstr = generate_entropy(bits)
+        self.assertEqual(len(binstr), 256)
+        binstr2 = generate_entropy(bits)
+        self.assertEqual(len(binstr2), 256)
+        self.assertNotEqual(binstr, binstr2)
 
 if __name__ == "__main__":
     # execute only if run as a script
