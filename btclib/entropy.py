@@ -97,8 +97,8 @@ def generate_entropy(bits: int, dice_base: int = 0,
     The optional exogenous roll-based entropy must consist of integers in the
     [1-dice_base] range; anyway, only rolls having value in the [1-base] range
     are used, with base being the highest power of 2 lower than the dice_base
-    (e.g. for a D6 dice, only rolls having value in [1-4] are used;
-    for a D20 dice, only rolls having value in [1-16] are used; etc.).
+    (e.g. for a traditional D6 dice, only rolls having value in [1-4] are
+    used; for a D20 dice, only rolls having value in [1-16] are used; etc.).
 
     If provided, the exogenous roll-based entropy must supply at least the
     required number of bits. Its rolls can be shuffled, entropy can be hashed,
