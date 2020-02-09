@@ -16,7 +16,12 @@ binary 0/1 string, bytes-like, or integer.
 Output entropy is always a binary 0/1 string.
 """
 
-from typing import Iterable, Optional, Union
+import math
+import random
+import secrets
+from typing import Iterable, List, Optional, Union
+
+from btclib.utils import ensure_is_power_of_two
 
 BinStr = str  # binary 0/1 string
 Entropy = Union[BinStr, int, bytes]
@@ -77,3 +82,42 @@ def binstr_from_entropy(entr: Entropy,
     if nbits not in bits:
         raise ValueError(f"{nbits} bits entropy provided; expected: {bits}")
     return binstr_entr.zfill(nbits)  # might need padding with leading zeros
+
+
+def generate_entropy(base: int, rolls: List[int],
+                     shuffle: bool = True, xor: bool = True,
+                     target_bits: int = 256) -> BinStr:
+
+    ensure_is_power_of_two(target_bits, "target bits")
+
+    bits_per_roll = math.floor(math.log2(base))
+    base = 2 ** bits_per_roll
+    min_roll_number = math.ceil(target_bits/bits_per_roll)
+
+    if shuffle:
+        random.seed(secrets.token_bytes(32))
+        random.shuffle(rolls)
+
+    i = 0
+    for r in rolls:
+        # collect only valid rolls
+        if 0 < r and r <= base:
+            i *= base
+            i += r-1
+            min_roll_number -= 1
+    if min_roll_number > 0:
+        msg = f"too few rolls, missing {min_roll_number} "
+        msg += f"valid [1-{base}] rolls"
+        raise ValueError(msg)
+
+    if xor:
+        i ^= secrets.randbits(target_bits)
+
+    # convert to binary string
+    binstr = bin(i)
+    # remove leading 0b
+    binstr = binstr[2:]
+    # fill with leading zero if needed
+    binstr = binstr.zfill(target_bits)
+    # take only the (possibly xor-ed) rightmost bits
+    return binstr[-target_bits:]
