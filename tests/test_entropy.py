@@ -168,6 +168,11 @@ class TestEntropy(unittest.TestCase):
         self.assertRaises(ValueError, generate_entropy, bits, dice_base, rolls)
         #generate_entropy(bits, dice_base, rolls)
 
+        # Invalid dice base (1): must be >= 2
+        rolls = [secrets.randbelow(base)+1 for _ in range(roll_number)]
+        self.assertRaises(ValueError, generate_entropy, bits, 1, rolls)
+        #generate_entropy(bits, 1, rolls)
+
 
 if __name__ == "__main__":
     # execute only if run as a script
