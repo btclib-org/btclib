@@ -107,50 +107,67 @@ class TestEntropy(unittest.TestCase):
         self.assertRaises(TypeError, binstr_from_entropy, invalid_entropy)
 
     def test_generate_entropy(self):
-        base = 20
-        bits_per_roll = math.floor(math.log2(base))
-        base = 2 ** bits_per_roll
         bits = 256
+        dice_base = 20
+        bits_per_roll = math.floor(math.log2(dice_base))
+        base = 2 ** bits_per_roll
         roll_number = math.ceil(bits/bits_per_roll)
 
         rolls = [base for _ in range(roll_number)]
-        binstr = generate_entropy(bits, base, rolls, False, False, False)
+        binstr = generate_entropy(bits, dice_base, rolls, False, False, False)
         self.assertEqual(binstr, '1'*256)
 
         rolls = [base for _ in range(2*roll_number)]
-        binstr = generate_entropy(bits, base, rolls, False, False, False)
+        binstr = generate_entropy(bits, dice_base, rolls, False, False, False)
         self.assertEqual(binstr, '1'*256)
 
         rolls = [1 for _ in range(roll_number)]
-        binstr = generate_entropy(bits, base, rolls, False, False, False)
+        binstr = generate_entropy(bits, dice_base, rolls, False, False, False)
         self.assertEqual(binstr, '0'*256)
 
         rolls = [1 for _ in range(2*roll_number)]
-        binstr = generate_entropy(bits, base, rolls, False, False, False)
+        binstr = generate_entropy(bits, dice_base, rolls, False, False, False)
         self.assertEqual(binstr, '0'*256)
 
         rolls = [secrets.randbelow(base)+1 for _ in range(roll_number)]
-        binstr = generate_entropy(bits, base, rolls)
+        binstr = generate_entropy(bits, dice_base, rolls)
         self.assertEqual(len(binstr), 256)
         rolls = [secrets.randbelow(base)+1 for _ in range(roll_number)]
-        binstr2 = generate_entropy(bits, base, rolls)
+        binstr2 = generate_entropy(bits, dice_base, rolls)
         self.assertEqual(len(binstr2), 256)
         self.assertNotEqual(binstr, binstr2)
-
-        # Invalid number of bits (255); must be in (128, 160, 192, 224, 256)
-        self.assertRaises(ValueError, generate_entropy, bits-1, base, rolls)
-        #generate_entropy(bits-1, base, rolls)
-
-        # too few rolls, missing 2 valid [1-16] rolls
-        rolls = [secrets.randbelow(base)+1 for _ in range(roll_number-2)]
-        self.assertRaises(ValueError, generate_entropy, bits, base, rolls)
-        #generate_entropy(bits, base, rolls)
 
         binstr = generate_entropy(bits)
         self.assertEqual(len(binstr), 256)
         binstr2 = generate_entropy(bits)
         self.assertEqual(len(binstr2), 256)
         self.assertNotEqual(binstr, binstr2)
+
+        # goes through bit lenght reduction before hashing
+        rolls = [base for _ in range(roll_number+1)]
+        binstr = generate_entropy(bits, dice_base, rolls)
+
+        # Number of bits (255) must be in (128, 160, 192, 224, 256)
+        self.assertRaises(ValueError, generate_entropy, bits-1, dice_base, rolls)
+        #generate_entropy(bits-1, dice_base, rolls)
+
+        # too few usable [1-16] rolls, missing 2
+        rolls = [secrets.randbelow(base)+1 for _ in range(roll_number-2)]
+        self.assertRaises(ValueError, generate_entropy, bits, dice_base, rolls)
+        #generate_entropy(bits, dice_base, rolls)
+
+        # too few usable [1-16] rolls, missing 1
+        rolls = [secrets.randbelow(base)+1 for _ in range(roll_number)]
+        rolls[1] = base+1
+        self.assertRaises(ValueError, generate_entropy, bits, dice_base, rolls)
+        #generate_entropy(bits, dice_base, rolls)
+
+        # invalid (21) roll, not in [1-20]
+        rolls = [secrets.randbelow(base)+1 for _ in range(roll_number)]
+        rolls[1] = dice_base+1
+        self.assertRaises(ValueError, generate_entropy, bits, dice_base, rolls)
+        #generate_entropy(bits, dice_base, rolls)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

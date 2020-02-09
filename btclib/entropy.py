@@ -17,7 +17,6 @@ Output entropy is always a binary 0/1 string.
 """
 
 import math
-import random
 import secrets
 from hashlib import sha256
 from typing import Iterable, List, Optional, Union
@@ -83,51 +82,78 @@ def binstr_from_entropy(entr: Entropy,
     return binstr_entr.zfill(nbits)  # might need padding with leading zeros
 
 
-def generate_entropy(bits: int, base: Optional[int] = None,
+def generate_entropy(bits: int, dice_base: int = 0,
                      rolls: Optional[List[int]] = None, shuffle: bool = True,
                      hash: bool = True, xor: bool = True) -> BinStr:
+    """Return CSPRNG system entropy mixed with exogenous roll-based entropy.
+
+    If no exogenous entropy is provided, then entropy generated with the
+    system cryptographically strong pseudo-random number generator (CSPRNG)
+    is returned.
+
+    Instead, if exogenous entropy is provided, then it is possibly manipulated
+    and, finally, XOR-ed with the CSPRNG system entropy.
+
+    The optional exogenous roll-based entropy must consist of integers in the
+    [1-dice_base] range; anyway, only rolls having value in the [1-base] range
+    are used, with base being the highest power of 2 lower than the dice_base
+    (e.g. for a D6 dice, only rolls having value in [1-4] are used;
+    for a D20 dice, only rolls having value in [1-16] are used; etc.).
+
+    If provided, the exogenous roll-based entropy must supply at least the
+    required number of bits. Its rolls can be shuffled, entropy can be hashed,
+    and it is finally XOR-ed with the CSPRNG system entropy.
+    If not shuffled, hashed, and/or XOR-ed, then the function returns the
+    rightmost required number of bits from the unaltered exogenous entropy.
+    """
 
     if bits not in _bits:
-        msg = f"Invalid number of bits ({bits}); "
-        msg += f"must be in {_bits}"
-        raise ValueError(msg)
+        raise ValueError(f"Number of bits ({bits}) must be in {_bits}")
 
     i = 0
     # start with the exogenously provided roll-based entropy
-    if (base is not None) and (rolls is not None):
-        if base < 2:
-            raise ValueError(f"Invalid base ({base}): must be >= 2")
-        bits_per_roll = math.floor(math.log2(base))
+    if rolls is not None:
+        if dice_base < 2:
+            raise ValueError(f"Invalid dice base ({dice_base}): must be >= 2")
+        bits_per_roll = math.floor(math.log2(dice_base))
+        # used base
         base = 2 ** bits_per_roll
-        min_roll_number = math.ceil(bits/bits_per_roll)
 
         if shuffle:
-            random.seed(secrets.token_bytes(32))
-            random.shuffle(rolls)
+            secrets.SystemRandom().shuffle(rolls)
 
+        min_roll_number = math.ceil(bits/bits_per_roll)
         for r in rolls:
-            # collect only valid rolls
-            if (0 < r) and (r <= base):
+            # collect only usable rolls in [1-base)]
+            if 0 < r and r <= base:
                 i *= base
                 i += r-1
                 min_roll_number -= 1
+            # reject invalid rolls not in [1-dice_base)]
+            elif r < 1 or r > dice_base:
+                msg = f"invalid ({r}) roll, not in [1-{dice_base}]"
+                raise ValueError(msg)
         if min_roll_number > 0:
-            msg = f"too few rolls, missing {min_roll_number} "
-            msg += f"valid [1-{base}] rolls"
+            msg = f"too few usable [1-{base}] rolls, missing {min_roll_number}"
             raise ValueError(msg)
 
-    if hash:
-        h256 = sha256(i.to_bytes(32, byteorder='big')).digest()
-        i = int.from_bytes(h256, byteorder='big')
+        # hash the (possibly shuffled) exogenous entropy
+        if hash:
+            if i.bit_length() > 256:
+                i >>= i.bit_length() - 256
+            h256 = sha256(i.to_bytes(32, byteorder='big')).digest()
+            i = int.from_bytes(h256, byteorder='big')
 
+    # XOR the (possibly shuffled and/or hashed) exogenous entropy
+    # with CSPRNG system entropy
     if xor:
         i ^= secrets.randbits(bits)
 
     # convert to binary string
     binstr = bin(i)
-    # remove leading 0b
+    # remove leading '0b'
     binstr = binstr[2:]
-    # do not lose the leading zeros
+    # do not lose leading zeros
     binstr = binstr.zfill(bits)
-    # take only the (possibly xor-ed) rightmost bits
+    # take only the (possibly XOR-ed) rightmost bits
     return binstr[-bits:]
