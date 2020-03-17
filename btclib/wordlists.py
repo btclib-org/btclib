@@ -42,7 +42,7 @@ class WordLists:
         self.languages = list(self.language_files)
 
         # create dictionaries where each language has empty word-list
-        wordlists: List[List[str]] = [[] for _ in range(len(self.languages))]
+        wordlists: List[List[str]] = [[] for _ in self.languages]
         self._wordlist = dict(zip(self.languages, wordlists))
 
         zeros = len(self.languages)*[0]
