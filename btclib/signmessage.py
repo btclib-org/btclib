@@ -10,28 +10,36 @@
 
 """ Bitcoin address-based compact signature for messages.
 
-Bitcoin wallets use an address-based scheme for message signature: this
-signature proves the control of the private key corresponding to
-the given address and, consequently, of the associated bitcoins (if any).
-Message signature adopts a custom compact 65 bytes signature encoding,
-not the DER encoding used for transactions,
-which results in 71 bytes average signature.
+Bitcoin uses an address-based scheme for message signature:
+this signature proves the control of the private key corresponding to
+a given address and, consequently, of the associated bitcoins (if any).
+Message signature adopts a custom compact 65-bytes signature encoding
+(i.e. not the DER encoding used for transactions,
+which would results in 71-bytes average signature).
 
-As it is the case for all digital signature scheme, this scheme actually
-works with keys, not addresses: the address is only used to uniquely
-identify a private/public keypair.
+As it is the case for all digital signature scheme,
+this scheme actually works with private/public key pairs, not addresses:
+the address is only used to uniquely identify a private/public key pair.
 At signing time a wallet infrastructure is required to access the
-private key corresponding to the given address; alternatively
-the private key must be provided explicitly.
+private key corresponding to a given address;
+alternatively, the private key must be provided explicitly.
 The resulting signature goes along with its address:
-public key recovery is used at verification time,
+public key recovery from the signature is used at verification time,
 i.e. given a message, the public key that would have created that signature
 is found and compared with the provided address.
 
-For a given message, the ECDSA signature operates on the hash of the
-*magic* "Bitcoin Signed Message" prefix concatenated to the actual
-message; this prefix manipulation avoids the plain signature of a
-possibly deceiving message.
+One should never sign a vague statement that could be reused
+out of the context it was intended for. Always include at least
+
+- name (nickname, customer id, email, etc.)
+- date and time
+- who the message is intended for (name, business name, email, etc.)
+- specific purpose of the message
+
+To mitigate the risk of signing a possibly deceiving message,
+for any given message a *magic* "Bitcoin Signed Message" prefix is added,
+then the hash of the resulting message is ECDSA signed.
+
 The resulting (r, s) signature is serialized as
 [1 byte][r][s], where the first byte is a recovery flag used
 during signature verification to discriminate among recovered
@@ -95,15 +103,6 @@ Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
 characters, '+' (plus sign), and '/' (forward slash);
 the equal sign '=' is used as end marker of the encoded message.
 
-Warning: one should never sign a vague statement that could be reused
-out of the context it was intended for.
-Always include at least
-
-- your name (nickname, customer id, email, etc.)
-- date and time
-- who the message is intended for (name, business name, email, etc.)
-- specific purpose of the message
-
 https://bitcoin.stackexchange.com/questions/10759/how-does-the-signature-verification-feature-in-bitcoin-qt-work-without-a-public
 
 https://bitcoin.stackexchange.com/questions/12554/why-the-signature-is-always-65-13232-bytes-long
@@ -149,12 +148,12 @@ from .wif import prvkey_from_wif
 # TODO:                           then also add sign(address, msg)
 # TODO: decouple serialization from address-based signature
 # TODO: add test vectors from P. Todd's library
-# TODO: report Electrum bug
 
 
 def _magic_hash(msg: str) -> bytes:
     # Electrum does strip leading and trailing spaces;
     # bitcoin core does not
+    # TODO: report Electrum bug
     # msg = msg.strip()
     msgstring = chr(len(msg)) + msg
     t = b'\x18Bitcoin Signed Message:\n' + msgstring.encode()
@@ -164,6 +163,10 @@ def _magic_hash(msg: str) -> bytes:
 def msgsign(msg: str, wif: Union[str, bytes], 
             addr: Optional[Union[str, bytes]] = None) -> bytes:
     """Generate the message signature."""
+
+    if isinstance(addr, str):
+        addr = addr.strip()
+        addr = addr.encode("ascii")
 
     # first sign the message
     magic_msg = _magic_hash(msg)
@@ -175,13 +178,8 @@ def msgsign(msg: str, wif: Union[str, bytes],
     Q = mult(q)
     rf = pubkeys.index(Q)
     pubkey = octets_from_point(Q, compressedwif)
-    if isinstance(addr, str):
-        addr = addr.strip()
-        addr = addr.encode("ascii")
-    if addr is None:
-        rf += 27
-        rf += 4 if compressedwif else 0
-    elif addr == p2pkh_address(pubkey):
+
+    if addr is None or addr == p2pkh_address(pubkey):
         rf += 27
         rf += 4 if compressedwif else 0
     # BIP137
@@ -228,6 +226,7 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
 
     # signature is valid only if the provided address is matched
     if rf < 31:
+        # P2PKH, uncompressed
         pk = octets_from_point(pubkey, False)
         _, _, h160 = h160_from_base58_address(addr)
         return hash160(pk) == h160
@@ -235,19 +234,25 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     pk = octets_from_point(pubkey, True)
     if rf < 35:
         try:
+            # P2PKH, compressed
             _, _, h160 = h160_from_base58_address(addr)
-            if hash160(pk) == h160:  # p2pkh
+            if hash160(pk) == h160:
+                # P2PKH, compressed
                 return True
-            else:  # Electrum p2wpkh-p2sh
+            else:
+                # Electrum p2wpkh-p2sh
                 script_pubkey = b'\x00\x14' + hash160(pk)
                 return hash160(script_pubkey) == h160
-        except Exception:  # Electrum p2wpkh
+        except Exception:
+            # Electrum p2wpkh
             _, _, h160 = hash_from_bech32_address(addr)
             return hash160(pk) == h160
-    elif rf < 39:  # BIP137 p2wpkh-ps2h
+    elif rf < 39:
+        # BIP137 p2wpkh-ps2h
         _, _, h160 = h160_from_base58_address(addr)
         script_pubkey = b'\x00\x14' + hash160(pk)
         return hash160(script_pubkey) == h160
-    else:          # BIP137 p2wpkh
+    else:
+        # BIP137 p2wpkh
         _, _, h160 = hash_from_bech32_address(addr)
         return hash160(pk) == h160
