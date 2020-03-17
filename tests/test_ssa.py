@@ -89,12 +89,10 @@ class TestEcssa(unittest.TestCase):
         https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
         """
 
-        # TODO: remove the 2 following lines
-        ec = secp256k1
         hf = sha256
 
         # test vector 1
-        prv = int_from_bits(b'\x00' * 31 + b'\x01', ec)
+        prv = int_from_bits(b'\x00' * 31 + b'\x01')
         pub = mult(prv)
         msg = b'\x00' * 32
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
@@ -139,7 +137,7 @@ class TestEcssa(unittest.TestCase):
 
         # test vector 4
         pub = point_from_octets(
-            "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34", ec)
+            "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
         msg = bytes.fromhex(
             "4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703")
         sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63,
@@ -151,7 +149,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 5
         # test would fail if jacobi symbol of x(R) instead of y(R) is used
         pub = point_from_octets(
-            "031B84C5567B126440995D3ED5AABA0565D71E1834604819FF9C17F5E9D5DD078F", ec)
+            "031B84C5567B126440995D3ED5AABA0565D71E1834604819FF9C17F5E9D5DD078F")
         msg = bytes.fromhex(
             "0000000000000000000000000000000000000000000000000000000000000000")
         sig = (0x52818579ACA59767E3291D91B76B637BEF062083284992F2D95F564CA6CB4E35,
@@ -163,7 +161,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 6
         # test would fail if msg is reduced
         pub = point_from_octets(
-            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B", ec)
+            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
         msg = bytes.fromhex(
             "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
         sig = (0x570DD4CA83D4E6317B8EE6BAE83467A1BF419D0767122DE409394414B05080DC,
@@ -174,7 +172,7 @@ class TestEcssa(unittest.TestCase):
 
         # new proposed test: test would fail if msg is reduced
         pub = point_from_octets(
-            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B", ec)
+            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
         msg = bytes.fromhex(
             "000008D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A5000000")
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
@@ -185,7 +183,7 @@ class TestEcssa(unittest.TestCase):
 
         # new proposed test: genuine failure
         pub = point_from_octets(
-            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B", ec)
+            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
         msg = bytes.fromhex(
             "0000000000000000000000000000000000000000000000000000000000000000")
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
@@ -204,7 +202,7 @@ class TestEcssa(unittest.TestCase):
         # public key not on the curve
         # impossible to verify with btclib analytics as it at Point conversion
         self.assertRaises(ValueError, point_from_octets,
-                          "03EEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34", ec)
+                          "03EEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
         # msg = bytes.fromhex("4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703")
         # sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63, 0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
         # self.assertRaises(ValueError, ssa._verify, msg, pub, sig)
@@ -212,7 +210,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 8
         # Incorrect sig: incorrect R residuosity
         pub = point_from_octets(
-            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659", ec)
+            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
@@ -222,7 +220,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 9
         # Incorrect sig: negated message hash
         pub = point_from_octets(
-            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B", ec)
+            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
         msg = bytes.fromhex(
             "5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C")
         sig = (0x00DA9B08172A9B6F0466A2DEFD817F2D7AB437E0D253CB5395A963866B3574BE,
@@ -232,7 +230,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 10
         # Incorrect sig: negated s value
         pub = point_from_octets(
-            "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", ec)
+            "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798")
         msg = b'\x00' * 32
         sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                0x8FCE5677CE7A623CB20011225797CE7A8DE1DC6CCD4F754A47DA6C600E59543C)
@@ -241,7 +239,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 11
         # Incorrect sig: negated public key
         pub = point_from_octets(
-            "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659", ec)
+            "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
@@ -252,7 +250,7 @@ class TestEcssa(unittest.TestCase):
         # sG - eP is infinite.
         # Test fails in single verification if jacobi(y(inf)) is defined as 1 and x(inf) as 0
         pub = point_from_octets(
-            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659", ec)
+            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x0000000000000000000000000000000000000000000000000000000000000000,
@@ -263,7 +261,7 @@ class TestEcssa(unittest.TestCase):
         # sG - eP is infinite.
         # Test fails in single verification if jacobi(y(inf)) is defined as 1 and x(inf) as 1"""
         pub = point_from_octets(
-            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659", ec)
+            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x0000000000000000000000000000000000000000000000000000000000000001,
@@ -273,7 +271,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 14
         # sig[0:32] is not an X coordinate on the curve
         pub = point_from_octets(
-            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659", ec)
+            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x4A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
@@ -283,7 +281,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 15
         # sig[0:32] is equal to field size
         pub = point_from_octets(
-            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659", ec)
+            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC2F,
@@ -294,7 +292,7 @@ class TestEcssa(unittest.TestCase):
         # test vector 16
         # sig[32:64] is equal to curve order
         pub = point_from_octets(
-            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659", ec)
+            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x2A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
