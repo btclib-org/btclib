@@ -12,96 +12,104 @@
 
 Bitcoin uses an address-based scheme for message signature:
 this signature proves the control of the private key corresponding to
-a given address and, consequently, of the associated bitcoins (if any).
-Message signature adopts a custom compact 65-bytes signature encoding
+the address and, consequently, of the associated bitcoins (if any).
+Message signature adopts a custom compact 65-bytes encoding
 (i.e. not the DER encoding used for transactions,
 which would results in 71-bytes average signature).
 
-As it is the case for all digital signature scheme,
-this scheme actually works with private/public key pairs, not addresses:
-the address is only used to uniquely identify a private/public key pair.
-At signing time a wallet infrastructure is required to access the
-private key corresponding to a given address;
-alternatively, the private key must be provided explicitly.
-The resulting signature goes along with its address:
-public key recovery from the signature is used at verification time,
-i.e. given a message, the public key that would have created that signature
-is found and compared with the provided address.
-
 One should never sign a vague statement that could be reused
-out of the context it was intended for. Always include at least
+out of the context it was intended for. Always include at least:
 
-- name (nickname, customer id, email, etc.)
+- name (nickname, customer id, e-mail, etc.)
 - date and time
-- who the message is intended for (name, business name, email, etc.)
+- who the message is intended for (name, business name, e-mail, etc.)
 - specific purpose of the message
 
 To mitigate the risk of signing a possibly deceiving message,
 for any given message a *magic* "Bitcoin Signed Message" prefix is added,
 then the hash of the resulting message is ECDSA signed.
 
-The resulting (r, s) signature is serialized as
-[1 byte][r][s], where the first byte is a recovery flag used
-during signature verification to discriminate among recovered
-public keys and address types.
+As it is the case for all digital signature schemes,
+this scheme works with private/public key pairs, not addresses:
+the address is only used to uniquely identify a private/public key pair.
+At signing time, a wallet infrastructure is required to access the
+private key corresponding to a given address;
+alternatively, the private key must be provided explicitly.
+
+To verify the signature the public key is not needed
+because (EC)DSA allows public key recovery:
+public keys that correctly verify the signature
+can be implied from the signature itself.
+In the case of the Bitcoin secp256k1 curve,
+up to four public keys are recovered:
+at verification time the address must match
+the public key in the recovery set
+that was explicitly marked as the right one
+at signature time using a dedicated recovery flag.
+
+The (r, s) DSA signature is serialized as
+[1 byte][r][s], where the first byte is the recovery flag used
+at verification time to discriminate among recovered
+public keys (and address types).
 Explicitly, the recovery flag value is:
 
-    key_id + 27 + (4 if compressed else 0)
+    key_id + (4 if compressed else 0) + 27
 
 where:
 
 - key_id is the index in the [0, 3] range identifying which of the
   recovered public keys is the one associated to the address;
-  it is stored in the least significant 2 bits of the recovery flag
-- 27 identify a P2PKH address, which is the only kind of address
-  supported by Bicoin Core;
-  straightforward extensions to SegWit P2WPKH-P2SH and P2WPKH are obtained
-  using 35 and 39 (respectively) instead of 27: this is the BIP137 (Trezor)
-  specification (Electrum has a different incompatible specification);
 - compressed indicates if the address is the hash of the compressed
-  public key representation (SegWit is always compressed)
+  public key representation
+- 27 identify a P2PKH address, which is the only kind of address
+  supported by Bitcoin Core;
+  when the recovery flag is in the [31, 34] range of compressed addresses,
+  Electrum also check for P2WPKH-P2SH and P2WPKH
+  (SegWit always uses compressed public keys);
+  BIP137 (Trezor) uses, instead, 35 and 39 instead of 27
+  for P2WPKH-P2SH and P2WPKH (respectively).
 
-+-----------+--------+--------------------+
-| rec. flag | key_id |    address type    |
-+===========+========+====================+
-|     27    |    0   | P2PKH uncompressed |
-+-----------+--------+--------------------+
-|     28    |    1   | P2PKH uncompressed |
-+-----------+--------+--------------------+
-|     29    |    2   | P2PKH uncompressed |
-+-----------+--------+--------------------+
-|     30    |    3   | P2PKH uncompressed |
-+-----------+--------+--------------------+
-|     31    |    0   | P2PKH compressed   |
-+-----------+--------+--------------------+
-|     32    |    1   | P2PKH compressed   |
-+-----------+--------+--------------------+
-|     33    |    2   | P2PKH compressed   |
-+-----------+--------+--------------------+
-|     34    |    3   | P2PKH compressed   |
-+-----------+--------+--------------------+
-|     35    |    0   | P2WPKH-P2SH        |
-+-----------+--------+--------------------+
-|     36    |    1   | P2WPKH-P2SH        |
-+-----------+--------+--------------------+
-|     37    |    2   | P2WPKH-P2SH        |
-+-----------+--------+--------------------+
-|     38    |    3   | P2WPKH-P2SH        |
-+-----------+--------+--------------------+
-|     39    |    0   | P2WPKH (bech32)    |
-+-----------+--------+--------------------+
-|     40    |    1   | P2WPKH (bech32)    |
-+-----------+--------+--------------------+
-|     41    |    2   | P2WPKH (bech32)    |
-+-----------+--------+--------------------+
-|     42    |    3   | P2WPKH (bech32)    |
-+-----------+--------+--------------------+
++-----------+--------+-------------------------------------------------------+
+| recflag | key_id | address type                                            |
++=========+========+=========================================================+
+|    27   |    0   | P2PKH uncompressed                                      |
++--------+--------+----------------------------------------------------------+
+|    28   |    1   | P2PKH uncompressed                                      |
++---------+--------+---------------------------------------------------------+
+|    29   |    2   | P2PKH uncompressed                                      |
++---------+--------+---------------------------------------------------------+
+|    30   |    3   | P2PKH uncompressed                                      |
++---------+--------+---------------------------------------------------------+
+|    31   |    0   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
++---------+--------+---------------------------------------------------------+
+|    32   |    1   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
++---------+--------+---------------------------------------------------------+
+|    33   |    2   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
++---------+--------+---------------------------------------------------------+
+|    34   |    3   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
++---------+--------+---------------------------------------------------------+
+|    35   |    0   | BIP137 P2WPKH-P2SH                                      |
++---------+--------+---------------------------------------------------------+
+|    36   |    1   | BIP137 P2WPKH-P2SH                                      |
++---------+--------+---------------------------------------------------------+
+|    37   |    2   | BIP137 P2WPKH-P2SH                                      |
++---------+--------+---------------------------------------------------------+
+|    38   |    3   | BIP137 P2WPKH-P2SH                                      |
++---------+--------+---------------------------------------------------------+
+|    39   |    0   | BIP137 P2WPKH (bech32)                                  |
++---------+--------+---------------------------------------------------------+
+|    40   |    1   | BIP137 P2WPKH (bech32)                                  |
++---------+--------+---------------------------------------------------------+
+|    41   |    2   | BIP137 P2WPKH (bech32)                                  |
++---------+--------+---------------------------------------------------------+
+|    42   |    3   | BIP137 P2WPKH (bech32)                                  |
++---------+--------+---------------------------------------------------------+
 
 Finally, the serialized signature is base64-encoded to transport it
 across channels that are designed to deal with textual data.
 Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
-characters, '+' (plus sign), and '/' (forward slash);
-the equal sign '=' is used as end marker of the encoded message.
+characters, '+' (plus sign), and '/' (forward slash).
+The equal sign '=' is used as end marker of the encoded message.
 
 https://bitcoin.stackexchange.com/questions/10759/how-does-the-signature-verification-feature-in-bitcoin-qt-work-without-a-public
 
@@ -170,23 +178,23 @@ def msgsign(msg: str, wif: Union[str, bytes],
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, compressedwif, _ = prvkey_from_wif(wif)
+    q, compressed, _ = prvkey_from_wif(wif)
     sig = sign(magic_msg, q)
 
     # now calculate the recovery flag, aka recId
     pubkeys = pubkey_recovery(magic_msg, sig)
     Q = mult(q)
-    rf = pubkeys.index(Q)
-    pubkey = octets_from_point(Q, compressedwif)
+    key_id = pubkeys.index(Q)
+    pubkey = octets_from_point(Q, compressed)
 
     if addr is None or addr == p2pkh_address(pubkey):
-        rf += 27
-        rf += 4 if compressedwif else 0
+        rf = key_id + 27
+        rf += 4 if compressed else 0
     # BIP137
     elif addr == p2wpkh_p2sh_address(pubkey):
-        rf += 35
+        rf = key_id + 35
     elif addr == p2wpkh_address(pubkey):
-        rf += 39
+        rf = key_id + 39
     else:
         raise ValueError("Mismatch between private key and address")
     
@@ -196,7 +204,7 @@ def msgsign(msg: str, wif: Union[str, bytes],
 
 
 def verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
-    """Verify message signature for a given P2PKH address."""
+    """Verify message signature for a given address."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
@@ -209,50 +217,58 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    # [rf][r][s]
+    # signature serialization is 65-bytes base64-encoded
     sig = base64.b64decode(sig)
     if len(sig) != 65:
         raise ValueError(f"Wrong encoding length: {len(sig)} instead of 65")
 
+    # sig = [rf][r][s]
     rf = sig[0]
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
     r = int.from_bytes(sig[1:33], byteorder='big')
     s = int.from_bytes(sig[33:], byteorder='big')
     magic_msg = _magic_hash(msg)
-    pubkeys = pubkey_recovery(magic_msg, (r, s))
-    i = rf + 1 & 3  # the right pubkey for both BIP137 and Electrum
-    pubkey = pubkeys[i]
+    Qs = pubkey_recovery(magic_msg, (r, s))
+    # key_id can be retireved as least significant 2 bits of the recovery flag
+    #   key_id = 00;    key_id = 01;    key_id = 10;    key_id = 11
+    # 27+1 = 011100;  28+1 = 011101;  29+1 = 011110;  30+1 = 011111
+    # 31+1 = 100000;  32+1 = 100001;  33+1 = 100010;  34+1 = 100011
+    # 35+1 = 100100;  36+1 = 100101;  37+1 = 100110;  38+1 = 100111
+    # 39+1 = 101000;  40+1 = 101001;  41+1 = 101010;  42+1 = 101011
+    key_id = rf + 1 & 0b11
+    Q = Qs[key_id]
 
     # signature is valid only if the provided address is matched
     if rf < 31:
         # P2PKH, uncompressed
-        pk = octets_from_point(pubkey, False)
+        pubkey = octets_from_point(Q, False)
         _, _, h160 = h160_from_base58_address(addr)
-        return hash160(pk) == h160
+        return hash160(pubkey) == h160
 
-    pk = octets_from_point(pubkey, True)
+    # all other cases use compressed pubkey
+    pubkey = octets_from_point(Q, True)
     if rf < 35:
         try:
             # P2PKH, compressed
             _, _, h160 = h160_from_base58_address(addr)
-            if hash160(pk) == h160:
+            if hash160(pubkey) == h160:
                 # P2PKH, compressed
                 return True
             else:
                 # Electrum p2wpkh-p2sh
-                script_pubkey = b'\x00\x14' + hash160(pk)
+                script_pubkey = b'\x00\x14' + hash160(pubkey)
                 return hash160(script_pubkey) == h160
         except Exception:
             # Electrum p2wpkh
             _, _, h160 = hash_from_bech32_address(addr)
-            return hash160(pk) == h160
+            return hash160(pubkey) == h160
     elif rf < 39:
         # BIP137 p2wpkh-ps2h
         _, _, h160 = h160_from_base58_address(addr)
-        script_pubkey = b'\x00\x14' + hash160(pk)
+        script_pubkey = b'\x00\x14' + hash160(pubkey)
         return hash160(script_pubkey) == h160
     else:
         # BIP137 p2wpkh
         _, _, h160 = hash_from_bech32_address(addr)
-        return hash160(pk) == h160
+        return hash160(pubkey) == h160
