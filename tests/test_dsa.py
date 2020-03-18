@@ -183,20 +183,20 @@ class TestDSA(unittest.TestCase):
 
     def test_pubkey_recovery(self):
         ec = secp112r2
-        hf = sha256
-        q = 0x1
+        q = 0x10
         Q = mult(q, ec.G, ec)
         msg = b'Satoshi Nakamoto'
-        sig = dsa.sign(msg, q, None, ec, hf)
+        sig = dsa.sign(msg, q, None, ec)
 
-        self.assertTrue(dsa.verify(msg, Q, sig, ec, hf))
-        self.assertTrue(dsa._verify(msg, Q, sig, ec, hf))
+        self.assertTrue(dsa.verify(msg, Q, sig, ec))
+        self.assertTrue(dsa._verify(msg, Q, sig, ec))
 
-        keys = dsa.pubkey_recovery(msg, sig, ec, hf)
+        keys = dsa.pubkey_recovery(msg, sig, ec)
+        self.assertEqual(len(keys), 4)
         self.assertIn(Q, keys)
         for Q in keys:
-            self.assertTrue(dsa.verify(msg, Q, sig, ec, hf))
-            self.assertTrue(dsa._verify(msg, Q, sig, ec, hf))
+            self.assertTrue(dsa.verify(msg, Q, sig, ec))
+            self.assertTrue(dsa._verify(msg, Q, sig, ec))
 
 
 if __name__ == "__main__":
