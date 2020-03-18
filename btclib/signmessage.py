@@ -181,12 +181,13 @@ def msgsign(msg: str, wif: Union[str, bytes],
     q, compressed, _ = prvkey_from_wif(wif)
     sig = sign(magic_msg, q)
 
-    # now calculate the recovery flag, aka recId
+    # now calculate the key_id
     pubkeys = pubkey_recovery(magic_msg, sig)
     Q = mult(q)
     key_id = pubkeys.index(Q)
     pubkey = octets_from_point(Q, compressed)
 
+    # finally, calculate the recovery flag
     if addr is None or addr == p2pkh_address(pubkey):
         rf = key_id + 27
         rf += 4 if compressed else 0
@@ -198,7 +199,7 @@ def msgsign(msg: str, wif: Union[str, bytes],
     else:
         raise ValueError("Mismatch between private key and address")
     
-    # [rf][r][s]
+    # serialize [rf][r][s]
     t = bytes([rf]) + sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
     return base64.b64encode(t)
 
@@ -217,7 +218,7 @@ def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    # signature serialization is 65-bytes base64-encoded
+    # signature is serialized as 65-bytes in base64 encoding
     sig = base64.b64decode(sig)
     if len(sig) != 65:
         raise ValueError(f"Wrong encoding length: {len(sig)} instead of 65")
