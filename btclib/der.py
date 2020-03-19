@@ -40,7 +40,7 @@ from typing import Tuple
 
 from .curve import Curve
 from .curves import secp256k1
-from .dsa import ECDS, _to_sig
+from .dsa import ECDS, _check_sig
 
 sighash_all = b'\x01'
 sighash_none = b'\x02'
@@ -72,10 +72,10 @@ def encode(sig: ECDS, sighash: bytes = sighash_all, ec: Curve = secp256k1) -> by
         raise ValueError(f"sighash size {len(sighash)} > 1")
 
     # check that it is a valid signature for the given Curve
-    r, s = _to_sig(sig, ec)
+    _check_sig(sig, ec)
 
-    enc = _encode_scalar(r)
-    enc += _encode_scalar(s)
+    enc = _encode_scalar(sig[0])
+    enc += _encode_scalar(sig[1])
     return b'\x30' + len(enc).to_bytes(1, byteorder='big') + enc + sighash
 
 
@@ -139,5 +139,6 @@ def decode(sig: bytes, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
 
     s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
 
-    # _to_sig checks that the signature is valid for the given Curve
-    return _to_sig((r, s), ec), sig[sigsize - 1:]
+    # checks that the signature is valid for the given Curve
+    _check_sig((r, s), ec)
+    return (r, s), sig[sigsize - 1:]
