@@ -269,14 +269,15 @@ class TestEcssa(unittest.TestCase):
         self.assertRaises(ValueError, ssa._verify, msg, pub, sig)
 
         # test vector 14
-        # sig[0:32] is not an X coordinate on the curve
+        # sig[0:32] is not a valid x-coordinate
         pub = point_from_octets(
             "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
         sig = (0x4A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        self.assertFalse(ssa._verify(msg, pub, sig))
+        self.assertRaises(ValueError, ssa._check_sig, sig)
+        self.assertFalse(ssa.verify(msg, pub, sig))
 
         # test vector 15
         # sig[0:32] is equal to field size
@@ -284,10 +285,10 @@ class TestEcssa(unittest.TestCase):
             "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659")
         msg = bytes.fromhex(
             "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
-        sig = (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC2F,
+        sig = (2**256 - 2**32 - 977,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        #self.assertRaises(ValueError, ssa._verify, msg, pub, sig)
-        self.assertFalse(ssa._verify(msg, pub, sig))
+        self.assertRaises(ValueError, ssa._verify, msg, pub, sig)
+        self.assertFalse(ssa.verify(msg, pub, sig))
 
         # test vector 16
         # sig[32:64] is equal to curve order

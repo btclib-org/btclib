@@ -177,9 +177,8 @@ def _check_sig(sig: ECSS, ec: Curve = secp256k1) -> None:
         mhd = f"invalid length {len(sig)} for ECSSA signature"
         raise TypeError(mhd)
 
-    # Let r = int(sig[ 0:32]).
-    if not 0 <= sig[0] < 2**256-1:
-        raise ValueError(f"r ({hex(sig[0])}) not in [0, 2**256-1]")
+    # Let r = int(sig[ 0:32]); fail if r is not a valid x-coordinate.
+    ec.y(sig[0])
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
     if not 0 <= sig[1] < ec.n:
