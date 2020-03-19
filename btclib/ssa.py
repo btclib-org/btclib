@@ -121,7 +121,7 @@ def _verify(mhd: bytes, P: Point, sig: ECSS,
 
     # Let r = int(sig[ 0:32]).
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
-    r, s = _to_sig(sig, ec)
+    _check_sig(sig, ec)
 
     # The message mhd: a 32-byte array
     _ensure_msg_size(mhd, hf)
@@ -132,11 +132,11 @@ def _verify(mhd: bytes, P: Point, sig: ECSS,
         raise ValueError("public key is infinite")
 
     # Let e = int(hf(bytes(r) || bytes(P) || mhd)) mod n.
-    e = _e(r, P, mhd, ec, hf)
+    e = _e(sig[0], P, mhd, ec, hf)
 
     # Let R = sG - eP.
     # in Jacobian coordinates
-    R = _double_mult(-e, (P[0], P[1], 1), s, ec.GJ, ec)
+    R = _double_mult(-e, (P[0], P[1], 1), sig[1], ec.GJ, ec)
 
     # Fail if infinite(R).
     if R[2] == 0:
@@ -147,7 +147,7 @@ def _verify(mhd: bytes, P: Point, sig: ECSS,
         raise ValueError("(sG - eP).y is not a quadratic residue")
 
     # Fail if R.x ≠ r.
-    return R[0] == (R[2]*R[2]*r % ec._p)
+    return R[0] == (R[2]*R[2]*sig[0] % ec._p)
 
 
 def _pubkey_recovery(e: int, sig: ECSS,
@@ -155,20 +155,20 @@ def _pubkey_recovery(e: int, sig: ECSS,
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
 
-    r, s = _to_sig(sig, ec)
+    _check_sig(sig, ec)
 
-    K = r, ec.y_quadratic_residue(r, True)
+    K = sig[0], ec.y_quadratic_residue(sig[0], True)
     # FIXME: y_quadratic_residue in Jacobian coordinates?
 
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
-    P = double_mult(-e1, K, e1*s, ec.G, ec)
+    P = double_mult(-e1, K, e1*sig[1], ec.G, ec)
     assert P[1] != 0, "how did you do that?!?"
     return P
 
 
-def _to_sig(sig: ECSS, ec: Curve = secp256k1) -> ECSS:
+def _check_sig(sig: ECSS, ec: Curve = secp256k1) -> None:
     # check that the SSA signature is correct
     # and return the signature itself
 
@@ -178,14 +178,13 @@ def _to_sig(sig: ECSS, ec: Curve = secp256k1) -> ECSS:
         raise TypeError(mhd)
 
     # Let r = int(sig[ 0:32]).
-    r = int(sig[0])
+    if not 0 <= sig[0] < 2**256-1:
+        raise ValueError(f"r ({hex(sig[0])}) not in [0, 2**256-1]")
 
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].
-    s = int(sig[1])
-    if not 0 <= s < ec.n:
-        raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
+    if not 0 <= sig[1] < ec.n:
+        raise ValueError(f"s ({hex(sig[1])}) not in [0, n-1]")
 
-    return r, s
 
 
 def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[ECSS],
@@ -225,7 +224,8 @@ def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[ECSS],
     scalars: List[int] = list()
     points: List[_JacPoint] = list()
     for i in range(batch_size):
-        r, s = _to_sig(sig[i], ec)
+        _check_sig(sig[i], ec)
+        r, s = sig[i]
         _ensure_msg_size(ms[i], hf)
         ec.require_on_curve(P[i])
         e = _e(r, P[i], ms[i], ec, hf)

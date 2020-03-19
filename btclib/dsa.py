@@ -124,16 +124,16 @@ def _verhlp(c: int, P: Point, sig: ECDS, ec: Curve = secp256k1) -> bool:
 
     # Fail if r is not [1, n-1]
     # Fail if s is not [1, n-1]
-    r, s = _to_sig(sig, ec)                              # 1
+    _check_sig(sig, ec)                                  # 1
 
     # Let P = point(pk); fail if point(pk) fails.
     ec.require_on_curve(P)
     if P[1] == 0:
         raise ValueError("public key is infinite")
 
-    w = mod_inv(s, ec.n)
+    w = mod_inv(sig[1], ec.n)
     u = c*w
-    v = r*w                                              # 4
+    v = sig[0]*w                                         # 4
     # Let R = u*G + v*P.
     RJ = _double_mult(v, (P[0], P[1], 1), u, ec.GJ, ec)  # 5
 
@@ -143,7 +143,7 @@ def _verhlp(c: int, P: Point, sig: ECDS, ec: Curve = secp256k1) -> bool:
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     x = Rx % ec.n                                        # 6, 7
     # Fail if r ≠ x(R) %n.
-    return r == x                                        # 8
+    return sig[0] == x                                   # 8
 
 
 def pubkey_recovery(m: bytes, sig: ECDS,
@@ -164,18 +164,18 @@ def _pubkey_recovery(c: int, sig: ECDS, ec: Curve = secp256k1) -> List[Point]:
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
 
-    r, s = _to_sig(sig, ec)
+    _check_sig(sig, ec)
 
     # precomputations
-    r1 = mod_inv(r, ec.n)
-    r1s = r1*s
+    r1 = mod_inv(sig[0], ec.n)
+    r1s = r1*sig[1]
     r1e = -r1*c
     keys: List[Point] = list()
     # r = R[0] % ec.n
     # if ec.n < R[0] < ec._p (probable when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
     for j in range(ec.h):                                 # 1
-        x = (r + j*ec.n) % ec._p                          # 1.1
+        x = (sig[0] + j*ec.n) % ec._p                     # 1.1
         try:
             # odd root first for bitcoin message signing compatibility
             R = x, ec.y_odd(x, 0)                         # 1.2, 1.3, and 1.4
@@ -192,7 +192,7 @@ def _pubkey_recovery(c: int, sig: ECDS, ec: Curve = secp256k1) -> List[Point]:
     return keys
 
 
-def _to_sig(sig: ECDS, ec: Curve = secp256k1) -> ECDS:
+def _check_sig(sig: ECDS, ec: Curve = secp256k1) -> None:
     # check that the DSA signature is correct
     # and return the signature itself
 
@@ -201,13 +201,9 @@ def _to_sig(sig: ECDS, ec: Curve = secp256k1) -> ECDS:
         raise TypeError(errMsg)
 
     # Fail if r is not [1, n-1]
-    r = int(sig[0])
-    if not 0 < r < ec.n:
-        raise ValueError(f"r ({hex(r)}) not in [1, n-1]")
+    if not 0 < sig[0] < ec.n:
+        raise ValueError(f"r ({hex(sig[0])}) not in [1, n-1]")
 
     # Fail if s is not [1, n-1]
-    s = int(sig[1])
-    if not 0 < s < ec.n:
-        raise ValueError(f"s ({hex(r)}) not in [1, n-1]")
-
-    return r, s
+    if not 0 < sig[1] < ec.n:
+        raise ValueError(f"s ({hex(sig[1])}) not in [1, n-1]")
