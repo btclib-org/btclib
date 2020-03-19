@@ -11,10 +11,10 @@
 """ Bitcoin address-based compact signature for messages.
 
 Bitcoin uses an address-based scheme for message signature:
-this signature proves the control of the private key corresponding to
+such a signature does prove the control of the private key corresponding to
 the address and, consequently, of the associated bitcoins (if any).
-Message signature adopts a custom compact 65-bytes encoding
-(i.e. not the DER encoding used for transactions,
+Message signature adopts a custom compact 65-bytes serialization format
+(i.e. not the ASN.1 DER format used for transactions,
 which would results in 71-bytes average signature).
 
 One should never sign a vague statement that could be reused
@@ -41,11 +41,11 @@ because (EC)DSA allows public key recovery:
 public keys that correctly verify the signature
 can be implied from the signature itself.
 In the case of the Bitcoin secp256k1 curve,
-up to four public keys are recovered:
+two public keys are recovered
+(up to four with non-zero but negligible probability);
 at verification time the address must match
-the public key in the recovery set
-that was explicitly marked as the right one
-at signature time using a dedicated recovery flag.
+that public key in the recovery set
+marked as the right one at signature time.
 
 The (r, s) DSA signature is serialized as
 [1-byte recovery flag][32-bytes r][32-bytes s],
@@ -106,7 +106,7 @@ where:
 |    42   |    3   | BIP137 (Trezor) P2WPKH                                  |
 +---------+--------+---------------------------------------------------------+
 
-Finally, the serialized signature is base64-encoded to transport it
+Finally, the signature is base64-encoded to transport it
 across channels that are designed to deal with textual data.
 Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
 characters, '+' (plus sign), and '/' (forward slash).
