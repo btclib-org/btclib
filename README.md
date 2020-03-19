@@ -1,6 +1,6 @@
 # btclib: a python3 library for 'bitcoin cryptography'
 
-[![btclib logo](/img/btclib-logo-40.jpg)](http://github.com/dginst/btclib)
+[![btclib logo](/img/btclib-logo-40.jpg)](http://github.com/btclib-org/btclib)
 
 [![Build Status](https://travis-ci.org/btclib-org/btclib.svg)](https://travis-ci.org/btclib-org/btclib)
 [![Coverage Status](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?branch=master)](https://coveralls.io/github/btclib-org/btclib?branch=master)
@@ -70,5 +70,5 @@ The library includes:
 - nulldata, p2pk, p2pkh, multi-sig, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 
 A very extensive test suite reproduces results from major official sources
-and [covers 100%](https://coveralls.io/github/dginst/btclib)
+and [covers 100%](https://coveralls.io/github/btclib-org/btclib)
 of the library code base.

@@ -7,7 +7,7 @@ with open('README.md', 'r') as fh:
 setup(
     name = btclib.name,
     version = btclib.__version__,
-    url = 'http://github.com/dginst/btclib',
+    url = 'http://github.com/btclib-org/btclib',
     license = btclib.__license__,
     author = 'Digital Gold Institute',
     description = 'A bitcoin cryptography library.',
