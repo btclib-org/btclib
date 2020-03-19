@@ -95,8 +95,6 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, address, exp_sig))
 
         msg = 'test message 2'
-        address = '16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce'
-        exp_sig = b'HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50='
         self.assertFalse(_verify(msg, address, exp_sig))
 
         msg = 'freenode:#bitcoin-otc:b42f7e7ea336db4109df6badc05c6b3ea8bfaa13575b51631c5178a7'

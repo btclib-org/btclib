@@ -139,7 +139,7 @@ https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
 
 """
 
-import base64
+from base64 import b64decode, b64encode
 from hashlib import sha256
 from typing import Optional, Union
 
@@ -203,7 +203,7 @@ def msgsign(msg: Union[str, bytes], wif: Union[str, bytes],
     
     # serialize [rf][r][s]
     t = bytes([rf]) + sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
-    return base64.b64encode(t)
+    return b64encode(t)
 
 
 def verify(msg: Union[str, bytes],
@@ -223,7 +223,7 @@ def _verify(msg: Union[str, bytes],
     # It raises Errors, while verify should always return True or False
 
     # signature is serialized as 65-bytes in base64 encoding
-    sig = base64.b64decode(sig)
+    sig = b64decode(sig)
     if len(sig) != 65:
         raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
 
@@ -244,29 +244,29 @@ def _verify(msg: Union[str, bytes],
     key_id = rf - 27 & 0b11
     Q = Qs[key_id]
 
+    try:
+        _, is_script_hash, h160 = h160_from_base58_address(addr)
+        is_b58 = True
+    except Exception:
+        _, is_script_hash, h160 = hash_from_bech32_address(addr)
+        is_b58 = False
+
     # signature is valid only if the provided address is matched
     compressed = True
     if rf < 31:
         compressed = False
     pubkey = octets_from_point(Q, compressed)
-    try:
-        # base58 address
-        _, _, h160 = h160_from_base58_address(addr)
-        if rf < 35 and hash160(pubkey) == h160:
-            # P2PKH
-            return True
-        elif rf < 39:
-            # P2WPKH-P2SH
+    if is_b58:
+        if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
             script_pubkey = b'\x00\x14' + hash160(pubkey)
             return hash160(script_pubkey) == h160
+        elif rf < 35:                               # P2PKH
+            return hash160(pubkey) == h160
         else:
             errmsg = f"Invalid recovery flag ({rf}) for base58 address ({addr!r})"
             raise ValueError(errmsg)
-    except Exception:
-        # bech32 address
-        _, _, h160 = hash_from_bech32_address(addr)
-        if rf > 38 or (30 < rf and rf < 35) :
-            # P2WPKH
+    else:
+        if rf > 38 or (30 < rf and rf < 35):        # P2WPKH
             return hash160(pubkey) == h160
         else:
             errmsg = f"Invalid recovery flag ({rf}) for bech32 address ({addr!r})"
