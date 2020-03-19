@@ -177,8 +177,8 @@ def _pubkey_recovery(c: int, sig: ECDS, ec: Curve = secp256k1) -> List[Point]:
     for j in range(ec.h):                                 # 1
         x = (sig[0] + j*ec.n) % ec._p                     # 1.1
         try:
-            # odd root first for bitcoin message signing compatibility
-            R = x, ec.y_odd(x, 0)                         # 1.2, 1.3, and 1.4
+            # even root first for bitcoin message signing compatibility
+            R = x, ec.y_odd(x, False)                     # 1.2, 1.3, and 1.4
             # 1.5 has been performed in the pubkey_recovery calling function
             Q1 = double_mult(r1s, R, r1e, ec.G, ec)       # 1.6.1
             if Q1[1] != 0 and _verhlp(c, Q1, sig, ec):    # 1.6.2
