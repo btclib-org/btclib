@@ -30,14 +30,14 @@ https://github.com/keis/base58, with the following modifications:
 
 * type annotated python3
 * using native python3 int.from_bytes() and i.to_bytes()
-* added optional check on output size for decode()
+* added optional check on output size for b58decode()
 * interface mimics the native python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
   and decoding ASCII bytes-like objects or ASCII strings to bytes.
 """
 
 from hashlib import sha256
-from typing import Union, Optional
+from typing import Optional, Union
 
 from .utils import hash256
 
@@ -45,7 +45,7 @@ __ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __BASE = len(__ALPHABET)
 
 
-def _encode_from_int(i: int) -> bytes:
+def _b58encode_from_int(i: int) -> bytes:
 
     if i == 0:
         return __ALPHABET[0:1]
@@ -58,7 +58,7 @@ def _encode_from_int(i: int) -> bytes:
     return result
 
 
-def _encode(v: bytes) -> bytes:
+def _b58encode(v: bytes) -> bytes:
     """Encode a bytes-like object using Base58."""
 
     # preserve leading-0s
@@ -71,19 +71,19 @@ def _encode(v: bytes) -> bytes:
 
     if vlen:
         i = int.from_bytes(v, byteorder='big')
-        result += _encode_from_int(i)
+        result += _b58encode_from_int(i)
 
     return result
 
 
-def encode(v: bytes) -> bytes:
+def b58encode(v: bytes) -> bytes:
     """Encode a bytes-like object using Base58Check."""
 
     h256 = hash256(v)
-    return _encode(v + h256[:4])
+    return _b58encode(v + h256[:4])
 
 
-def _decode_to_int(v: bytes) -> int:
+def _b58decode_to_int(v: bytes) -> int:
 
     i = 0
     for char in v:
@@ -92,7 +92,7 @@ def _decode_to_int(v: bytes) -> int:
     return i
 
 
-def _decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
+def _b58decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     """Decode a Base58 encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.
@@ -114,7 +114,7 @@ def _decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     result = b'\0' * nPad
 
     if vlen:
-        i = _decode_to_int(v)
+        i = _b58decode_to_int(v)
         nbytes = (i.bit_length() + 7) // 8
         result = result + i.to_bytes(nbytes, byteorder='big')
 
@@ -126,7 +126,7 @@ def _decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     return result
 
 
-def decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
+def b58decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     """Decode a Base58Check encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.
@@ -135,7 +135,7 @@ def decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     if out_size is not None:
         out_size += 4
 
-    result = _decode(v, out_size)
+    result = _b58decode(v, out_size)
     result, checksum = result[:-4], result[-4:]
 
     h256 = hash256(result)

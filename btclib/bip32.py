@@ -25,10 +25,10 @@ https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
 
 from hashlib import sha512
 from hmac import HMAC
-from typing import List, Optional, Sequence, Tuple, Union, Dict
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from . import base58
 from .address import p2pkh_address
+from .base58 import b58decode, b58encode
 from .curvemult import mult
 from .curves import secp256k1 as ec
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
@@ -161,7 +161,7 @@ def _check_depth_fingerprint_index(d: int, f: bytes, i: bytes) -> None:
 
 def parse(xkey: Octets) -> Dict:
 
-    xkey = base58.decode(xkey, 78)
+    xkey = b58decode(xkey, 78)
     d = {
         'version'            : xkey[:4],
         'depth'              : xkey[4],
@@ -199,7 +199,7 @@ def serialize(d: Dict) -> bytes:
 
     t += d['key']
 
-    return base58.encode(t)
+    return b58encode(t)
 
 
 def parent_fingerprint(xkey: Octets) -> bytes:

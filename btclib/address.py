@@ -15,9 +15,10 @@ Base58 encoding of public keys and scripts as addresses.
 
 from typing import List, Tuple, Union
 
-from . import base58
+from .base58 import b58decode, b58encode
 from .script import Script, Token
-from .utils import Octets, hash160, int_from_octets, octets_from_point, bytes_from_hexstring
+from .utils import (Octets, bytes_from_hexstring, hash160, int_from_octets,
+                    octets_from_point)
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [
@@ -37,7 +38,7 @@ def _p2pkh_address(h160: bytes, network: str = 'mainnet') -> bytes:
 
     payload = _P2PKH_PREFIXES[_NETWORKS.index(network)]
     payload += h160
-    return base58.encode(payload)
+    return b58encode(payload)
 
 
 def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
@@ -55,7 +56,7 @@ def _p2sh_address(h160: bytes, network: str = 'mainnet') -> bytes:
 
     payload = _P2SH_PREFIXES[_NETWORKS.index(network)]
     payload += h160
-    return base58.encode(payload)
+    return b58encode(payload)
 
 def p2sh_address(script: Octets, network: str = 'mainnet') -> bytes:
     """Return p2sh address."""
@@ -68,7 +69,7 @@ def h160_from_base58_address(address: Union[str, bytes]) -> Tuple[str, bool, byt
 
     if isinstance(address, str):
         address = address.strip()
-    payload = base58.decode(address, 21)
+    payload = b58decode(address, 21)
     prefix = payload[0:1]
     if prefix in _P2PKH_PREFIXES:
         i = _P2PKH_PREFIXES.index(prefix)

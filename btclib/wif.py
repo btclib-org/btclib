@@ -10,8 +10,8 @@
 
 from typing import Tuple, Union
 
-from . import base58
 from .address import p2pkh_address
+from .base58 import b58decode, b58encode
 from .curvemult import mult
 from .curves import secp256k1
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
@@ -56,7 +56,7 @@ def wif_from_prvkey(prv: Union[int, Octets],
 
     payload += octets_from_int(prv, ec.nsize)
     payload += b'\x01' if compressed else b''
-    return base58.encode(payload)
+    return b58encode(payload)
 
 
 def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
@@ -65,7 +65,7 @@ def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
     if isinstance(wif, str):
         wif = wif.strip()
 
-    payload = base58.decode(wif)
+    payload = b58decode(wif)
     wif_index = _WIF_PREFIXES.index(payload[0:1])
     ec = _CURVES[wif_index]
 

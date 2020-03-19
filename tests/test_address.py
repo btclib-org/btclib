@@ -10,9 +10,9 @@
 
 import unittest
 
-from btclib import base58
 from btclib.address import (h160_from_base58_address, p2pkh_address,
                             p2sh_address)
+from btclib.base58 import b58decode, b58encode
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.utils import hash160, octets_from_point, point_from_octets
@@ -79,7 +79,7 @@ class TestAddresses(unittest.TestCase):
         payload = b'\xf5'
         pubkey = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
         payload += hash160(pubkey)
-        invalid_address = base58.encode(payload)
+        invalid_address = b58encode(payload)
         self.assertRaises(ValueError, h160_from_base58_address, invalid_address)
         #_h160_from_base58_address(invalid_address)
 

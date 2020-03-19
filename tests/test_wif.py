@@ -10,8 +10,8 @@
 
 import unittest
 
-from btclib import base58
 from btclib.address import h160_from_base58_address
+from btclib.base58 import b58decode, b58encode
 from btclib.curves import secp256k1 as ec
 from btclib.segwitaddress import hash_from_bech32_address
 from btclib.utils import bytes_from_hexstring, hash160, octets_from_int
@@ -80,25 +80,25 @@ class TestWif(unittest.TestCase):
 
         # Not a private key WIF: missing leading 0x80
         payload = b'\x81' + octets_from_int(badq, ec.psize)
-        badwif = base58.encode(payload)
+        badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         #prvkey_from_wif(badwif)
 
         # Not a compressed WIF: missing trailing 0x01
         payload = b'\x80' + octets_from_int(badq, ec.psize) + b'\x00'
-        badwif = base58.encode(payload)
+        badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         #prvkey_from_wif(badwif)
 
         # Not a WIF: wrong size (35)
         payload = b'\x80' + octets_from_int(badq, ec.psize) + b'\x01\x00'
-        badwif = base58.encode(payload)
+        badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         #prvkey_from_wif(badwif)
 
         # Not a WIF: private key not in (0, n)
         payload = b'\x80' + octets_from_int(badq, ec.psize)
-        badwif = base58.encode(payload)
+        badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_from_wif, badwif)
         #prvkey_from_wif(badwif)
 
