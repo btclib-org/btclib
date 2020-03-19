@@ -48,7 +48,8 @@ that was explicitly marked as the right one
 at signature time using a dedicated recovery flag.
 
 The (r, s) DSA signature is serialized as
-[1 byte][r][s], where the first byte is the recovery flag used
+[1-byte recovery flag][32-bytes r][32-bytes s],
+where the first byte is the recovery flag used
 at verification time to discriminate among recovered
 public keys (and address types).
 Explicitly, the recovery flag value is:
@@ -141,11 +142,11 @@ https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
 
 from base64 import b64decode, b64encode
 from hashlib import sha256
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from .address import h160_from_base58_address, p2pkh_address
 from .curvemult import mult
-from .dsa import pubkey_recovery, sign
+from .dsa import _check_sig, pubkey_recovery, sign
 from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
                             p2wpkh_p2sh_address)
 from .utils import hash160, octets_from_point
@@ -161,13 +162,36 @@ def _magic_hash(msg: Union[str, bytes]) -> bytes:
     t = b'\x18Bitcoin Signed Message:\n' + len(msg).to_bytes(1, 'big')
     if isinstance(msg, str):
         # Electrum does strip leading and trailing spaces;
-        # bitcoin core does not
+        # Bitcoin Core does not
         # TODO: report Electrum bug
         # msg = msg.strip()
         t += msg.encode()
     else:
         t += msg
     return sha256(t).digest()
+
+
+def _serialize(rf: int, r: int, s: int) -> bytes:
+    # serialize [1-byte rf][32-bytes r][32-bytes s]
+    if rf < 27 or rf > 42:
+        raise ValueError(f"Invalid recovery flag: {rf}")
+    _check_sig((r, s))
+    t = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
+    return b64encode(t)
+
+
+def _deserialize(sig: Union[str, bytes]) -> Tuple[int, int, int]:
+    # deserialize [1-byte rf][32-bytes r][32-bytes s]
+    sig = b64decode(sig)
+    if len(sig) != 65:
+        raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
+    rf = sig[0]
+    if rf < 27 or rf > 42:
+        raise ValueError(f"Invalid recovery flag: {rf}")
+    r = int.from_bytes(sig[1:33], byteorder='big')
+    s = int.from_bytes(sig[33:], byteorder='big')
+    _check_sig((r, s))
+    return rf, r, s
 
 
 def msgsign(msg: Union[str, bytes], wif: Union[str, bytes], 
@@ -201,9 +225,7 @@ def msgsign(msg: Union[str, bytes], wif: Union[str, bytes],
     else:
         raise ValueError("Mismatch between private key and address")
     
-    # serialize [rf][r][s]
-    t = bytes([rf]) + sig[0].to_bytes(32, 'big') + sig[1].to_bytes(32, 'big')
-    return b64encode(t)
+    return _serialize(rf, sig[0], sig[1]) 
 
 
 def verify(msg: Union[str, bytes],
@@ -222,17 +244,7 @@ def _verify(msg: Union[str, bytes],
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    # signature is serialized as 65-bytes in base64 encoding
-    sig = b64decode(sig)
-    if len(sig) != 65:
-        raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
-
-    # sig = [rf][r][s]
-    rf = sig[0]
-    if rf < 27 or rf > 42:
-        raise ValueError(f"Invalid recovery flag: {rf}")
-    r = int.from_bytes(sig[1:33], byteorder='big')
-    s = int.from_bytes(sig[33:], byteorder='big')
+    rf, r, s = _deserialize(sig)
     magic_msg = _magic_hash(msg)
     Qs = pubkey_recovery(magic_msg, (r, s))
     # key_id can be retireved as least significant 2 bits of the recovery flag
