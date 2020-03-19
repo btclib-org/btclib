@@ -8,14 +8,14 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+import json
 import unittest
 from os import path
-import json
 
-from btclib.signmessage import msgsign, verify, _verify
-from btclib.wif import (wif_from_prvkey,
-                        p2pkh_address_from_wif, p2wpkh_address_from_wif,
-                        p2wpkh_p2sh_address_from_wif)
+from btclib.signmessage import (_deserialize, _serialize, _verify, msgsign,
+                                verify)
+from btclib.wif import (p2pkh_address_from_wif, p2wpkh_address_from_wif,
+                        p2wpkh_p2sh_address_from_wif, wif_from_prvkey)
 
 
 class TestSignMessage(unittest.TestCase):
@@ -228,6 +228,11 @@ class TestSignMessage(unittest.TestCase):
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
         self.assertTrue(_verify(msg, address, exp_sig))
 
+        # Invalid recovery flag: 26
+        rf, r, s = _deserialize(exp_sig)
+        self.assertRaises(ValueError, _serialize, 26, r, s)
+        #_serialize(26, r, s)
+
         # short exp_sig
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc='
         self.assertRaises(ValueError, _verify, msg, address, exp_sig)
@@ -249,13 +254,13 @@ class TestSignMessage(unittest.TestCase):
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         address = '19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
         self.assertRaises(ValueError, msgsign, msg, wif, address)
-        # sig = msgsign(msg, wif, address)
+        #msgsign(msg, wif, address)
 
         # Pubkey mismatch: uncompressed wif, compressed address
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         address = '1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
         self.assertRaises(ValueError, msgsign, msg, wif, address)
-        # sig = msgsign(msg, wif, address)
+        #msgsign(msg, wif, address)
 
         msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
@@ -274,6 +279,20 @@ class TestSignMessage(unittest.TestCase):
         # Mismatch between p2wpkh_p2sh address and key pair
         self.assertRaises(ValueError, msgsign, msg, wif, p2wpkh_p2sh_address)
         # msgsign(msg, wif, p2wpkh_p2sh_address)
+
+        # Invalid recovery flag (39) for base58 address
+        exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
+        _, r, s = _deserialize(exp_sig)
+        sig = _serialize(39, r, s)
+        self.assertRaises(ValueError, _verify, msg, p2pkh_address, sig)
+        #_verify(msg, p2pkh_address, sig)
+
+        # Invalid recovery flag (35) for bech32 address
+        exp_sig = b'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
+        _, r, s = _deserialize(exp_sig)
+        sig = _serialize(35, r, s)
+        self.assertRaises(ValueError, _verify, msg, p2wpkh_address, sig)
+        #_verify(msg, p2wpkh_address, sig)
 
     def test_vector(self):
         """Test python-bitcoinlib test vectors

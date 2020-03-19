@@ -196,7 +196,7 @@ def _deserialize(sig: Union[str, bytes]) -> Tuple[int, int, int]:
 
 def msgsign(msg: Union[str, bytes], wif: Union[str, bytes], 
             addr: Optional[Union[str, bytes]] = None) -> bytes:
-    """Generate the message signature."""
+    """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
         addr = addr.strip()
@@ -230,7 +230,7 @@ def msgsign(msg: Union[str, bytes], wif: Union[str, bytes],
 
 def verify(msg: Union[str, bytes],
            addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
-    """Verify message signature for a given address."""
+    """Verify address-based compact signature for the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
