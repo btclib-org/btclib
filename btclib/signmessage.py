@@ -236,44 +236,38 @@ def _verify(msg: Union[str, bytes],
     magic_msg = _magic_hash(msg)
     Qs = pubkey_recovery(magic_msg, (r, s))
     # key_id can be retireved as least significant 2 bits of the recovery flag
-    #   key_id = 00;    key_id = 01;    key_id = 10;    key_id = 11
-    # 27+1 = 011100;  28+1 = 011101;  29+1 = 011110;  30+1 = 011111
-    # 31+1 = 100000;  32+1 = 100001;  33+1 = 100010;  34+1 = 100011
-    # 35+1 = 100100;  36+1 = 100101;  37+1 = 100110;  38+1 = 100111
-    # 39+1 = 101000;  40+1 = 101001;  41+1 = 101010;  42+1 = 101011
-    key_id = rf + 1 & 0b11
+    #    key_id = 00;     key_id = 01;     key_id = 10;     key_id = 11
+    # 27-27 = 000000;  28-27 = 000001;  29-27 = 000010;  30-27 = 000011
+    # 31-27 = 000100;  32-27 = 000101;  33-27 = 000110;  34-27 = 000111
+    # 35-27 = 001000;  36-27 = 001001;  37-27 = 001010;  38-27 = 001011
+    # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
+    key_id = rf - 27 & 0b11
     Q = Qs[key_id]
 
     # signature is valid only if the provided address is matched
+    compressed = True
     if rf < 31:
-        # P2PKH, uncompressed
-        pubkey = octets_from_point(Q, False)
+        compressed = False
+    pubkey = octets_from_point(Q, compressed)
+    try:
+        # base58 address
         _, _, h160 = h160_from_base58_address(addr)
-        return hash160(pubkey) == h160
-
-    # all other cases use compressed pubkey
-    pubkey = octets_from_point(Q, True)
-    if rf < 35:
-        try:
-            # P2PKH, compressed
-            _, _, h160 = h160_from_base58_address(addr)
-            if hash160(pubkey) == h160:
-                # P2PKH, compressed
-                return True
-            else:
-                # Electrum p2wpkh-p2sh
-                script_pubkey = b'\x00\x14' + hash160(pubkey)
-                return hash160(script_pubkey) == h160
-        except Exception:
-            # Electrum p2wpkh
-            _, _, h160 = hash_from_bech32_address(addr)
-            return hash160(pubkey) == h160
-    elif rf < 39:
-        # BIP137 p2wpkh-ps2h
-        _, _, h160 = h160_from_base58_address(addr)
-        script_pubkey = b'\x00\x14' + hash160(pubkey)
-        return hash160(script_pubkey) == h160
-    else:
-        # BIP137 p2wpkh
+        if rf < 35 and hash160(pubkey) == h160:
+            # P2PKH
+            return True
+        elif rf < 39:
+            # P2WPKH-P2SH
+            script_pubkey = b'\x00\x14' + hash160(pubkey)
+            return hash160(script_pubkey) == h160
+        else:
+            errmsg = f"Invalid recovery flag ({rf}) for base58 address ({addr})"
+            raise ValueError(errmsg)
+    except Exception:
+        # bech32 address
         _, _, h160 = hash_from_bech32_address(addr)
-        return hash160(pubkey) == h160
+        if rf > 38 or (30 < rf and rf < 35) :
+            # P2WPKH
+            return hash160(pubkey) == h160
+        else:
+            errmsg = f"Invalid recovery flag ({rf}) for bech32 address ({addr})"
+            raise ValueError(errmsg)

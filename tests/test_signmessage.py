@@ -83,7 +83,7 @@ class TestSignMessage(unittest.TestCase):
         exp_sig = b'G0k+Nt1u5boTTUfLyj6x1T5flg1v9rUKGlhs/jPApaTWLHf3GVdAIOIHip6sVwXEuzQGPWIlS0VT+yryXiDaavw='
         self.assertTrue(_verify(msg, address, exp_sig))
 
-        # https://github.com/petertodd/python-bitcoinlib/blob/05cbb3c9560b36cfe71bac06085a231a6244e13a/bitcoin/tests/test_signmessage.py
+        # https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/test_signmessage.py
         msg = address = '1F26pNMrywyZJdr22jErtKcjF8R3Ttt55G'
         exp_sig = b'H85WKpqtNZDrajOnYDgUY+abh0KCAcOsAIOQwx2PftAbLEPRA7mzXA/CjXRxzz0MC225pR/hx02Vf2Ag2x33kU4='
         self.assertTrue(_verify(msg, address, exp_sig))
