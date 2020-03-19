@@ -1,3 +1,8 @@
+add wallet infrastructure
+add sign(address, msg) using wallet infrastrucure
+report test vectors from P. Todd's library
+report trailing/leading blank trimming in Electrum message signing
+
 isinstance(entr, bytearray): 
 or 
 isinstance(entr, bytes):

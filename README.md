@@ -72,3 +72,7 @@ The library includes:
 A very extensive test suite reproduces results from major official sources
 and [covers 100%](https://coveralls.io/github/btclib-org/btclib)
 of the library code base.
+
+The library is actively supported by the [Digital Gold Institute](http://dgi.io)
+
+[![DGI logo](https://dgi.io/img/logo/dgi-logo.png)](http://dgi.io)

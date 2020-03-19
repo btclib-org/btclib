@@ -152,18 +152,12 @@ from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
 from .utils import hash160, octets_from_point
 from .wif import prvkey_from_wif
 
-# TODO: add small wallet (address <-> private key) infrastructure
-# TODO:                           then also add sign(address, msg)
-# TODO: decouple serialization from address-based signature
-# TODO: check test vectors from P. Todd's library
-
 
 def _magic_hash(msg: Union[str, bytes]) -> bytes:
     t = b'\x18Bitcoin Signed Message:\n' + len(msg).to_bytes(1, 'big')
     if isinstance(msg, str):
         # Electrum does strip leading and trailing spaces;
         # Bitcoin Core does not
-        # TODO: report Electrum bug
         # msg = msg.strip()
         t += msg.encode()
     else:
