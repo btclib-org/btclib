@@ -44,7 +44,7 @@ with the following modifications:
 
 from typing import Iterable, List, Tuple, Union
 
-from . import bech32
+from .bech32 import b32decode, b32encode
 from .address import p2sh_address
 from .script import Token, encode
 from .utils import Octets, bytes_from_hexstring, hash160, sha256
@@ -115,12 +115,12 @@ def _decode(address: Union[str, bytes]) -> Tuple[str, int, List[int]]:
     if isinstance(address, str):
         address = address.strip()
 
-    # the following check was originally in bech32.decode2
+    # the following check was originally in b32decode
     # but it does not pertain there
     if len(address) > 90:
         raise ValueError(f"Bech32 address length ({len(address)}) > 90")
 
-    hrp, data = bech32.decode(address)
+    hrp, data = b32decode(address)
 
     # check that it is a SegWit address
     i = _P2W_PREFIXES.index(hrp)
@@ -140,7 +140,7 @@ def _encode(network: str, wv: int, wp: WitnessProgram) -> bytes:
 
     _check_witness(wv, wp)
     hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
-    ret = bech32.encode(hrp, [wv] + _convertbits(wp, 8, 5))
+    ret = b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
     return ret
 
 

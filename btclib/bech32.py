@@ -35,7 +35,7 @@ This implementation of bech32 is originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-* splitted the original segwit_addr.py file in bech32.py and segwitaddr.py
+* splitted the original segwit_addr.py file in bech32.py and segwitaddress.py
 * type annotated python3
 * avoided returning (None, None), throwing ValueError instead
 * removed the 90-chars limit for bech32 string, enforced by segwitaddr instead
@@ -76,7 +76,7 @@ def _create_checksum(hrp: str, data: List[int]) -> List[int]:
     return checksum
 
 
-def encode(hrp: str, data: List[int]) -> bytes:
+def b32encode(hrp: str, data: List[int]) -> bytes:
     """Compute a bech32 string given HRP and data values."""
     combined = data + _create_checksum(hrp, data)
     s = hrp + '1' + ''.join([__ALPHABET[d] for d in combined])
@@ -88,7 +88,7 @@ def _verify_checksum(hrp: str, data: List[int]) -> bool:
     return _polymod(_hrp_expand(hrp) + data) == 1
 
 
-def decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
+def b32decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
     """Validate a bech32 string, and determine HRP and data."""
 
     if isinstance(bech, bytes):

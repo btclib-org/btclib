@@ -40,7 +40,8 @@ with the following modifications:
 """
 
 import unittest
-from btclib import bech32
+
+from btclib.bech32 import b32decode
 
 VALID_CHECKSUM = [
     "A12UEL5L",
@@ -75,15 +76,15 @@ class TestBech32(unittest.TestCase):
     def test_valid_checksum(self):
         """Test validation of valid checksums."""
         for test in VALID_CHECKSUM:
-            _, _ = bech32.decode(test)
+            _, _ = b32decode(test)
             pos = test.rfind('1')
             test = test[:pos+1] + chr(ord(test[pos + 1]) ^ 1) + test[pos+2:]
-            self.assertRaises(ValueError, bech32.decode, test)
+            self.assertRaises(ValueError, b32decode, test)
 
     def test_invalid_checksum(self):
         """Test validation (failure) of invalid checksums."""
         for test in INVALID_CHECKSUM:
-            self.assertRaises(ValueError, bech32.decode, test)
+            self.assertRaises(ValueError, b32decode, test)
 
 
 if __name__ == "__main__":
