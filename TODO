@@ -32,15 +32,12 @@ Edwards curve (Curve25519)
 BLS
 
 reference borromean
-bech32
 deserialize curves from jason file
-_to_sig should handle serialized signatures ?
-remove der file, add encode/decode to dsa and ssa ?
-add signature serialize/deserialize or encode/decode
+serialized signatures
+add der serialize/deserialize to dsa
+add signature serialize/deserialize
 remove signtocontract, adding commit to dsa and ssa
 e=0 in SSA ?
-
-settle on pubkey o point nomenclature. if point, what for prvkey?
 
 crypto: {
     prv, q: int,
