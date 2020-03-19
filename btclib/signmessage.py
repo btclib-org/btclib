@@ -225,7 +225,7 @@ def _verify(msg: Union[str, bytes],
     # signature is serialized as 65-bytes in base64 encoding
     sig = base64.b64decode(sig)
     if len(sig) != 65:
-        raise ValueError(f"Wrong encoding length: {len(sig)} instead of 65")
+        raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
 
     # sig = [rf][r][s]
     rf = sig[0]
