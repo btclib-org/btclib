@@ -30,12 +30,18 @@ class TestSignMessage(unittest.TestCase):
         sig = msgsign(msg, wif)
         self.assertTrue(_verify(msg, address, sig))
         self.assertEqual(sig, exp_sig)
+        sig = msgsign(msg.encode(), wif)
+        self.assertTrue(_verify(msg.encode(), address, sig))
+        self.assertEqual(sig, exp_sig)
 
         wif = '5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
         address = '1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
         exp_sig = b'G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4='
         sig = msgsign(msg, wif)
         self.assertTrue(_verify(msg, address, sig))
+        self.assertEqual(sig, exp_sig)
+        sig = msgsign(msg.encode(), wif)
+        self.assertTrue(_verify(msg.encode(), address, sig))
         self.assertEqual(sig, exp_sig)
 
         # second private key
@@ -45,12 +51,18 @@ class TestSignMessage(unittest.TestCase):
         sig = msgsign(msg, wif, address)
         self.assertTrue(_verify(msg, address, sig))
         self.assertEqual(sig, exp_sig)
+        sig = msgsign(msg.encode(), wif)
+        self.assertTrue(_verify(msg.encode(), address, sig))
+        self.assertEqual(sig, exp_sig)
 
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         address = '19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
         exp_sig = b'HFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA='
         sig = msgsign(msg, wif, address)
         self.assertTrue(_verify(msg, address, sig))
+        self.assertEqual(sig, exp_sig)
+        sig = msgsign(msg.encode(), wif)
+        self.assertTrue(_verify(msg.encode(), address, sig))
         self.assertEqual(sig, exp_sig)
 
     def test_verify_p2pkh(self):

@@ -88,21 +88,21 @@ where:
 +---------+--------+---------------------------------------------------------+
 |    34   |    3   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
 +---------+--------+---------------------------------------------------------+
-|    35   |    0   | BIP137 P2WPKH-P2SH                                      |
+|    35   |    0   | BIP137 (Trezor) P2WPKH-P2SH                             |
 +---------+--------+---------------------------------------------------------+
-|    36   |    1   | BIP137 P2WPKH-P2SH                                      |
+|    36   |    1   | BIP137 (Trezor) P2WPKH-P2SH                             |
 +---------+--------+---------------------------------------------------------+
-|    37   |    2   | BIP137 P2WPKH-P2SH                                      |
+|    37   |    2   | BIP137 (Trezor) P2WPKH-P2SH                             |
 +---------+--------+---------------------------------------------------------+
-|    38   |    3   | BIP137 P2WPKH-P2SH                                      |
+|    38   |    3   | BIP137 (Trezor) P2WPKH-P2SH                             |
 +---------+--------+---------------------------------------------------------+
-|    39   |    0   | BIP137 P2WPKH (bech32)                                  |
+|    39   |    0   | BIP137 (Trezor) P2WPKH                                  |
 +---------+--------+---------------------------------------------------------+
-|    40   |    1   | BIP137 P2WPKH (bech32)                                  |
+|    40   |    1   | BIP137 (Trezor) P2WPKH                                  |
 +---------+--------+---------------------------------------------------------+
-|    41   |    2   | BIP137 P2WPKH (bech32)                                  |
+|    41   |    2   | BIP137 (Trezor) P2WPKH                                  |
 +---------+--------+---------------------------------------------------------+
-|    42   |    3   | BIP137 P2WPKH (bech32)                                  |
+|    42   |    3   | BIP137 (Trezor) P2WPKH                                  |
 +---------+--------+---------------------------------------------------------+
 
 Finally, the serialized signature is base64-encoded to transport it
@@ -151,24 +151,26 @@ from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
 from .utils import hash160, octets_from_point
 from .wif import prvkey_from_wif
 
-# TODO: support msg as bytes
 # TODO: add small wallet (address <-> private key) infrastructure
 # TODO:                           then also add sign(address, msg)
 # TODO: decouple serialization from address-based signature
-# TODO: add test vectors from P. Todd's library
+# TODO: check test vectors from P. Todd's library
 
 
-def _magic_hash(msg: str) -> bytes:
-    # Electrum does strip leading and trailing spaces;
-    # bitcoin core does not
-    # TODO: report Electrum bug
-    # msg = msg.strip()
-    msgstring = chr(len(msg)) + msg
-    t = b'\x18Bitcoin Signed Message:\n' + msgstring.encode()
+def _magic_hash(msg: Union[str, bytes]) -> bytes:
+    t = b'\x18Bitcoin Signed Message:\n' + len(msg).to_bytes(1, 'big')
+    if isinstance(msg, str):
+        # Electrum does strip leading and trailing spaces;
+        # bitcoin core does not
+        # TODO: report Electrum bug
+        # msg = msg.strip()
+        t += msg.encode()
+    else:
+        t += msg
     return sha256(t).digest()
 
 
-def msgsign(msg: str, wif: Union[str, bytes], 
+def msgsign(msg: Union[str, bytes], wif: Union[str, bytes], 
             addr: Optional[Union[str, bytes]] = None) -> bytes:
     """Generate the message signature."""
 
@@ -204,7 +206,8 @@ def msgsign(msg: str, wif: Union[str, bytes],
     return base64.b64encode(t)
 
 
-def verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
+def verify(msg: Union[str, bytes],
+           addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     """Verify message signature for a given address."""
 
     # try/except wrapper for the Errors raised by _verify
@@ -214,7 +217,8 @@ def verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
         return False
 
 
-def _verify(msg: str, addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
+def _verify(msg: Union[str, bytes],
+            addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
