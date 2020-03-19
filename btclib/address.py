@@ -77,6 +77,6 @@ def h160_from_base58_address(address: Union[str, bytes]) -> Tuple[str, bool, byt
         i = _P2SH_PREFIXES.index(prefix)
         is_script_hash = True
     else:
-        raise ValueError(f"Invalid base58 address prefix {prefix}")
+        raise ValueError(f"Invalid base58 address prefix {prefix!r}")
 
     return _NETWORKS[i], is_script_hash, payload[1:]

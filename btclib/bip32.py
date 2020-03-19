@@ -148,14 +148,14 @@ def _check_depth_fingerprint_index(d: int, f: bytes, i: bytes) -> None:
         raise ValueError(f"invalid depth ({d})")
     elif d == 0:
         if f != b'\x00\x00\x00\x00':
-            msg = f"zero depth with non-zero parent_fingerprint {f}"
+            msg = f"zero depth with non-zero parent_fingerprint {f!r}"
             raise ValueError(msg)
         if i != b'\x00\x00\x00\x00':
-            msg = f"zero depth with non-zero index {i}"
+            msg = f"zero depth with non-zero index {i!r}"
             raise ValueError(msg)
     else:
         if f == b'\x00\x00\x00\x00':
-            msg = f"non-zero depth ({d}) with zero parent_fingerprint {f}"
+            msg = f"non-zero depth ({d}) with zero parent_fingerprint {f!r}"
             raise ValueError(msg)
 
 

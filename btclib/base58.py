@@ -140,7 +140,7 @@ def decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
 
     h256 = hash256(result)
     if checksum != h256[:4]:
-        m = f"Invalid checksum: '{checksum}' instead of '{h256[:4]}'"
+        m = f"Invalid checksum: '{checksum!r}' instead of '{h256[:4]!r}'"
         raise ValueError(m)
 
     return result

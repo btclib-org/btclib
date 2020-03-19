@@ -297,7 +297,7 @@ def encode(script: Iterable[Token]) -> bytes:
                 try:
                    token = bytes.fromhex(token)
                 except Exception:
-                    raise ValueError(f"Script: invalid {token} opcode")
+                    raise ValueError(f"Script: invalid {token!r} opcode")
                 r += _op_pushdata(token)
         elif isinstance(token, bytes):
                 r += _op_pushdata(token)

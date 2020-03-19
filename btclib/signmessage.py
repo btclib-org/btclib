@@ -260,7 +260,7 @@ def _verify(msg: Union[str, bytes],
             script_pubkey = b'\x00\x14' + hash160(pubkey)
             return hash160(script_pubkey) == h160
         else:
-            errmsg = f"Invalid recovery flag ({rf}) for base58 address ({addr})"
+            errmsg = f"Invalid recovery flag ({rf}) for base58 address ({addr!r})"
             raise ValueError(errmsg)
     except Exception:
         # bech32 address
@@ -269,5 +269,5 @@ def _verify(msg: Union[str, bytes],
             # P2WPKH
             return hash160(pubkey) == h160
         else:
-            errmsg = f"Invalid recovery flag ({rf}) for bech32 address ({addr})"
+            errmsg = f"Invalid recovery flag ({rf}) for bech32 address ({addr!r})"
             raise ValueError(errmsg)
