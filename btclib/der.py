@@ -8,10 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Strict DER-encoded signature representation.
+"""Strict ASN.1 DER format for ECDSA signature representation.
    
-    The original Bitcoin implementation used OpenSSL to verify DER-encoded ASN.1
-    signature representation. However, OpenSSL does not do strict validation and
+    The original Bitcoin implementation used OpenSSL to verify
+    ECDSA signatures in ASN.1 DER representation.
+    However, OpenSSL does not do strict validation and
     as long as the signature is not horribly malformed it is accepted.
     E.g. extra padding is ignored and this changes the transaction hash value,
     leading to transaction malleability.
@@ -19,19 +20,19 @@
 
     source: https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 
-    BIP66 mandates a strict encoding format:
+    BIP66 mandates a strict DER format:
 
     Format: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
 
     * total-length: 1-byte length descriptor of everything that follows,
       excluding the sighash byte.
     * R-length: 1-byte length descriptor of the R value that follows.
-    * R: arbitrary-length big-endian encoded R value. It must use the shortest
+    * R: arbitrary-length big-endian R value. It must use the shortest
       possible encoding for a positive integers (which means no null bytes at
       the start, except a single one when the next byte has its highest bit set
       to avoid being interpreted as a negative number).
     * S-length: 1-byte length descriptor of the S value that follows.
-    * S: arbitrary-length big-endian encoded S value. The same R rules apply.
+    * S: arbitrary-length big-endian S value. Same rules of the R value apply.
     * sighash: 1-byte value indicating what data is hashed (not part of the DER
       signature)
 """
@@ -58,15 +59,15 @@ def _bytes_from_scalar(scalar: int) -> bytes:
     return n_bytes
 
 
-def _encode_scalar(scalar: int) -> bytes:
+def _serialize_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
     x = _bytes_from_scalar(scalar)
     xsize = len(x).to_bytes(1, byteorder='big')
     return b'\x02' + xsize + x
 
 
-def encode(sig: ECDS, sighash: bytes = sighash_all, ec: Curve = secp256k1) -> bytes:
-    """Encode a strict DER-encoded signature."""
+def serialize(sig: ECDS, sighash: bytes = sighash_all, ec: Curve = secp256k1) -> bytes:
+    """Serialize an ECDSA signature in strict ASN.1 DER representation."""
 
     if len(sighash) > 1:
         raise ValueError(f"sighash size {len(sighash)} > 1")
@@ -74,13 +75,13 @@ def encode(sig: ECDS, sighash: bytes = sighash_all, ec: Curve = secp256k1) -> by
     # check that it is a valid signature for the given Curve
     _check_sig(sig, ec)
 
-    enc = _encode_scalar(sig[0])
-    enc += _encode_scalar(sig[1])
+    enc = _serialize_scalar(sig[0])
+    enc += _serialize_scalar(sig[1])
     return b'\x30' + len(enc).to_bytes(1, byteorder='big') + enc + sighash
 
 
-def decode(sig: bytes, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
-    """Decode a strict DER-encoded signature."""
+def deserialize(sig: bytes, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
+    """Deserialize a strict ASN.1 DER representation of an ECDSA signature."""
 
     maxsize = ec.nsize * 2 + 7
     sigsize = len(sig)
