@@ -1,15 +1,14 @@
 # btclib: a python3 library for 'bitcoin cryptography'
 
-[![btclib logo](/img/btclib-logo-40.jpg)](http://github.com/btclib-org/btclib)
-
 [![Build Status](https://travis-ci.org/btclib-org/btclib.svg)](https://travis-ci.org/btclib-org/btclib)
+[![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
 [![Coverage Status](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?branch=master)](https://coveralls.io/github/btclib-org/btclib?branch=master)
 [![PyPI status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
-[![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
 
+[![btclib logo](https://github.com/btclib-org/btclib/blob/master/img/btclib-logo-40.jpg)](https://github.com/btclib-org)
 btclib is a python3 type annotated library intended for
 teaching/learning/using bitcoin, its blockchain,
 and the associated elliptic curve cryptography.
