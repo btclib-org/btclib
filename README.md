@@ -38,13 +38,13 @@ The library includes:
     Shamir's trick)
   - multi scalar multiplication (Bos-coster's algorithm)
   - point simmetry solution: odd/even, low/high, and quadratic residue
-- available curves: SEC 1 v1 and v2, NIST, Brainpool, and
+- elliptic curves: SEC 1 v1 and v2, NIST, Brainpool, and
   low cardinality test curves
-- DSA signature with (transaction) DER encoding
-- DSA signature with (message) compact encoding: standard p2pkh and
+- ECDSA signature with (transaction) DER encoding
+- ECDSA signature with (message) compact encoding: standard p2pkh and
   [BIP137](https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki)/[Electrum](https://electrum.org/#home)
   extensions to p2wpkh and p2wpkh-p2sh
-- Schnorr signature (according to
+- EC Schnorr signature (according to
   [bip-schnorr](https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki)
   bitcoin standardization)
   - batch validation
