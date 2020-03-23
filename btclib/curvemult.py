@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Elliptic curve class and functions."""
+"""Elliptic curve point multiplication functions."""
 
 import heapq
 from typing import Sequence, List
@@ -17,8 +17,10 @@ from .curve import Curve, Point, _JacPoint, _jac_from_aff
 from .curves import secp256k1
 
 def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
-    # this function is used by the Curve class; it might be a method...
-    # but it does not need to
+    """Point multiplication, implemented using 'double and add'.
+    
+    Computations use Jacobian coordinates and binary decomposition of m.
+    """
     if Q is None:
         QJ = ec.GJ
     else:

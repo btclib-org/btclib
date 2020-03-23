@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Modular algebra functions.
+"""Number theory and modular arithmetic functions.
 
 Implementations originally from
 https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
@@ -53,7 +53,7 @@ def mod_inv(a: int, m: int) -> int:
     raise ValueError(f"{hex(a)} has no inverse (mod {hex(m)})")
 
 
-def legendre_symbol(a, p):
+def legendre_symbol(a, p) -> int:
     """Compute the Legendre symbol a|p using Euler's criterion.
 
     p is a prime, a is relatively prime to p (if p divides a,

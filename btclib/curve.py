@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Elliptic curve class and functions."""
+"""Elliptic curve class."""
 
 from math import sqrt
 from typing import NamedTuple, Tuple
@@ -147,9 +147,13 @@ class Curve:
         return result
 
     # mult could be a function, but it is used by the Curve constructor;
-    # moreover, it might be convenient to provide the Curve class with a
-    # basic multiplication method, reserving more advanced one as functions
+    # moreover, it might be convenient to provide the Curve class with a basic
+    # multiplication method, implementing more advanced ones as functions
     def mult(self, m: int, Q: Point = None) -> Point:
+        """Point multiplication, implemented using 'double and add'.
+        
+        Computations use affine coordinates and binary decomposition of m.
+        """
         if Q is None:
             Q = self.G
         else:
