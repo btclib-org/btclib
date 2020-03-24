@@ -225,7 +225,11 @@ def fingerprint(xkey: Octets) -> bytes:
 
 
 def address_from_xpub(xpub: Octets) -> bytes:
-    """Return the address according to the xpub SLIP32 version type."""
+    """Return the address according to the xpub SLIP32 version type.
+    
+    The address is always derived from the compressed public key,
+    as this is the default public key representation in BIP32.
+    """
 
     d = parse(xpub)
 
@@ -239,13 +243,20 @@ def address_from_xpub(xpub: Octets) -> bytes:
         # p2wpkh native-segwit
         return _p2wpkh_address_from_xpub(d['version'], d['key'])
     else:
-        # v in _P2WPKH_P2SH_PUB_PREFIXES
+        # v has been already checked at parsing stage
+        # v must be in _P2WPKH_P2SH_PUB_PREFIXES
+        # moreover, _p2wpkh_p2sh_address_from_xpub will raise an Error
+        # if something is wrong
         # p2wpkh p2sh-wrapped-segwit
         return _p2wpkh_p2sh_address_from_xpub(d['version'], d['key'])
 
 
-def wif_from_xprv(xprv: Octets, compressed: bool = True) -> bytes:
-    """Return the WIF according to xpub version type."""
+def wif_from_xprv(xprv: Octets) -> bytes:
+    """Return the WIF encoding of the provided xprv.
+    
+    The WIF is always of the compressed kind,
+    as this is the default public key representation in BIP32.
+    """
 
     d = parse(xprv)
 
@@ -253,6 +264,7 @@ def wif_from_xprv(xprv: Octets, compressed: bool = True) -> bytes:
         raise ValueError("xkey is not a private one")
 
     network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(d['version'])]
+    compressed = True
     return wif_from_prvkey(d['key'][1:], compressed, network)
 
 
