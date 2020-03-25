@@ -15,6 +15,7 @@ from btclib.curves import secp256k1 as ec
 
 
 class TestDER(unittest.TestCase):
+
     def test_der(self):
 
         sighash_all = b'\x01'
@@ -35,10 +36,15 @@ class TestDER(unittest.TestCase):
             self.assertEqual(sig, sig2)
             self.assertEqual(sighash_all, sighash_all2)
             self.assertEqual(len(DER), lenght)
+            # without sighash
+            sig2, sighash_all2 = deserialize(DER[:-1])
+            self.assertEqual(sig, sig2)
+            self.assertIsNone(sighash_all2)
+
         # with the last one
 
         # DER signature size should be in [9, 73]
-        DER2 = DER + b'\x00' * 10
+        DER2 = DER + b'\x00' * 70
         self.assertRaises(ValueError, deserialize, DER2)
 
         # DER signature must be of type 0x30 (compound)
@@ -96,12 +102,6 @@ class TestDER(unittest.TestCase):
         # negative signature scalar
         sig2 = -1, sig[1]
         self.assertRaises(ValueError, serialize, sig2, sighash_all)
-
-    def test_no_sighash(self):
-        DER = "3044022044487c80833b7025739f450751c1d6624118e32e5f922b5a40a407efb48382e202200f2b6e53448f8e219ee1c2f109fa5b0a2b8bae482a4a81cf8c54f8c168260886"
-        sig, sighash = deserialize(DER)
-        self.assertIsNone(sighash)
-
 
 
 if __name__ == "__main__":

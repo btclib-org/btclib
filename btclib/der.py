@@ -12,32 +12,35 @@
    
     The original Bitcoin implementation used OpenSSL to verify
     ECDSA signatures in ASN.1 DER representation.
-    However, OpenSSL does not do strict validation and
-    as long as the signature is not horribly malformed it is accepted.
-    E.g. extra padding is ignored and this changes the transaction hash value,
-    leading to transaction malleability.
+    However, OpenSSL does not do strict validation and as long as the
+    signature is not horribly malformed it is accepted.
+    E.g. extra padding is ignored and this changes the transaction
+    hash value, leading to transaction malleability.
     This was fixed by BIP66, activated on block 363,724.
 
-    source: https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
+    source:
+    https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 
     BIP66 mandates a strict DER format:
 
-    Format: 0x30 [length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
+    Format:
+    [0x30][length][0x02][R-length][R][0x02][S-length][S][sighash]
 
-    * 0x30 coumpond DER marker
-    * length: 1-byte length descriptor of everything that follows,
+    * 0x30 header byte to indicate compound structure
+    * length: 1-byte length descriptor of the following data,
       excluding the sighash byte
-    * 0x02 integer marker
-    * R-length: 1-byte length descriptor of the R value that follows
-    * R: arbitrary-length big-endian R value. It must use the shortest
-      possible encoding for a positive integers (which means no null bytes at
-      the start, except a single one when the next byte has its highest bit set
+    * 0x02 header byte indicating an integer
+    * r-length: 1-byte length descriptor of the r value that follows
+    * r: arbitrary-length big-endian r value.
+      It must use the shortest possible encoding for
+      a positive integers (which means no null bytes at the start,
+      except a single one when the next byte has its highest bit set
       to avoid being interpreted as a negative number)
-    * 0x02 integer marker
-    * S-length: 1-byte length descriptor of the S value that follows
-    * S: arbitrary-length big-endian S value. Same rules of the R value apply
-    * sighash: 1-byte value indicating what data is hashed (not part of the DER
-      signature)
+    * 0x02 header byte indicating an integer
+    * s-length: 1-byte length descriptor of the s value that follows
+    * s: arbitrary-length big-endian s value. Same rules as for r apply
+    * sighash: 1-byte value indicating what data is hashed
+      (not part of the DER signature)
 """
 
 from typing import Tuple, Optional
@@ -78,19 +81,21 @@ def _serialize_scalar(scalar: int) -> bytes:
     return b'\x02' + xsize + x
 
 
-def serialize(sig: ECDS, sighash: Octets = sighash_all, ec: Curve = secp256k1) -> bytes:
+def serialize(sig: Tuple[int, int], sighash: Octets = sighash_all, ec: Curve = secp256k1) -> bytes:
     """Serialize an ECDSA signature in strict ASN.1 DER representation."""
+
+    # check that it is a valid signature for the given Curve
+    _check_sig(sig, ec)
+    result = _serialize_scalar(sig[0])
+    result += _serialize_scalar(sig[1])
+    result = b'\x30' + len(result).to_bytes(1, byteorder='big') + result
+    if sighash is None:
+        return result
 
     sighash = bytes_from_hexstring(sighash)
     if len(sighash) > 1:
         raise ValueError(f"sighash size {len(sighash)} > 1")
-
-    # check that it is a valid signature for the given Curve
-    _check_sig(sig, ec)
-
-    enc = _serialize_scalar(sig[0])
-    enc += _serialize_scalar(sig[1])
-    return b'\x30' + len(enc).to_bytes(1, byteorder='big') + enc + sighash
+    return result + sighash
 
 
 def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, Optional[bytes]]:
