@@ -59,7 +59,7 @@ def wif_from_prvkey(prv: Union[int, Octets],
     return b58encode(payload)
 
 
-def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
+def prvkey_from_wif(wif: Union[bytes, str]) -> Tuple[int, bool, str]:
     """Return the (private key, compressed, network) tuple from a WIF."""
 
     if isinstance(wif, str):
@@ -90,7 +90,7 @@ def prvkey_from_wif(wif: Union[str, bytes]) -> Tuple[int, bool, str]:
     return prv, compressed, network
 
 
-def _pubkey_from_wif(wif: Union[str, bytes]) -> Tuple[bytes, str]:
+def _pubkey_from_wif(wif: Union[bytes, str]) -> Tuple[bytes, str]:
 
     prv, compressed, network = prvkey_from_wif(wif)
     network_index = _NETWORKS.index(network)
@@ -100,7 +100,7 @@ def _pubkey_from_wif(wif: Union[str, bytes]) -> Tuple[bytes, str]:
     return o, network
 
 
-def p2pkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
+def p2pkh_address_from_wif(wif: Union[bytes, str]) -> bytes:
     """Return the address corresponding to a WIF.
 
     WIF encodes the information about the pubkey to be used for the
@@ -115,11 +115,11 @@ def p2pkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
     return p2pkh_address(o, network)
 
 
-def p2wpkh_address_from_wif(wif: Union[str, bytes]) -> bytes:
+def p2wpkh_address_from_wif(wif: Union[bytes, str]) -> bytes:
     o, network = _pubkey_from_wif(wif)
     return p2wpkh_address(o, network)
 
 
-def p2wpkh_p2sh_address_from_wif(wif: Union[str, bytes]) -> bytes:
+def p2wpkh_p2sh_address_from_wif(wif: Union[bytes, str]) -> bytes:
     o, network = _pubkey_from_wif(wif)
     return p2wpkh_p2sh_address(o, network)

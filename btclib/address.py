@@ -67,7 +67,7 @@ def p2sh_address(script: Octets, network: str = 'mainnet') -> bytes:
     return _p2sh_address(h160, network)
 
 
-def h160_from_base58_address(address: Union[str, bytes]) -> Tuple[str, bool, bytes]:
+def h160_from_base58_address(address: Union[bytes, str]) -> Tuple[str, bool, bytes]:
 
     if isinstance(address, str):
         address = address.strip()

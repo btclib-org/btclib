@@ -92,7 +92,7 @@ def _b58decode_to_int(v: bytes) -> int:
     return i
 
 
-def _b58decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
+def _b58decode(v: Union[bytes, str], out_size: Optional[int] = None) -> bytes:
     """Decode a Base58 encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.
@@ -126,7 +126,7 @@ def _b58decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
     return result
 
 
-def b58decode(v: Union[str, bytes], out_size: Optional[int] = None) -> bytes:
+def b58decode(v: Union[bytes, str], out_size: Optional[int] = None) -> bytes:
     """Decode a Base58Check encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.

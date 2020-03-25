@@ -55,7 +55,7 @@ _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2W_PREFIXES = ['bc', 'tb', 'bcrt']
 
 
-def has_segwit_prefix(addr: Union[str, bytes]) -> bool:
+def has_segwit_prefix(addr: Union[bytes, str]) -> bool:
 
     if isinstance(addr, bytes):
         str_addr = addr.decode()
@@ -109,7 +109,7 @@ def _check_witness(witvers: int, witprog: WitnessProgram):
             raise ValueError(f"witness program length ({l}) not in [2, 40]")
 
 
-def _decode(address: Union[str, bytes]) -> Tuple[str, int, List[int]]:
+def _decode(address: Union[bytes, str]) -> Tuple[str, int, List[int]]:
     """Decode a SegWit address."""
 
     if isinstance(address, str):
@@ -209,7 +209,7 @@ def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     return _p2wsh_address(sha256(wscript), native, network)
 
 
-def hash_from_bech32_address(address: Union[str, bytes]) -> Tuple[str, bool, bytes]:
+def hash_from_bech32_address(address: Union[bytes, str]) -> Tuple[str, bool, bytes]:
 
     network, wv, wp = _decode(address)
     if wv != 0:

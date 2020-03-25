@@ -143,7 +143,7 @@ def address_from_scriptPubKey(scriptPubKey: Iterable[Token],
         raise ValueError("Unknown script")
 
 
-def scriptPubKey_from_address(addr: Union[str, bytes]) -> Tuple[List[Token], str]:
+def scriptPubKey_from_address(addr: Union[bytes, str]) -> Tuple[List[Token], str]:
     """Return (scriptPubKey, network) from the input bech32/base58 address"""
 
     if segwitaddress.has_segwit_prefix(addr):

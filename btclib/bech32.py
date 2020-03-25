@@ -88,7 +88,7 @@ def _verify_checksum(hrp: str, data: List[int]) -> bool:
     return _polymod(_hrp_expand(hrp) + data) == 1
 
 
-def b32decode(bech: Union[str, bytes]) -> Tuple[str, List[int]]:
+def b32decode(bech: Union[bytes, str]) -> Tuple[str, List[int]]:
     """Validate a bech32 string, and determine HRP and data."""
 
     if isinstance(bech, bytes):

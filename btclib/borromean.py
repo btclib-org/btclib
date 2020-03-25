@@ -25,7 +25,7 @@ PubkeyRing = Dict[int, Sequence[Point]]
 SValues = Dict[int, Sequence[int]]
 
 
-def _hash(msg: Union[str, bytes], R: bytes, i: int, j: int) -> bytes:
+def _hash(msg: Union[bytes, str], R: bytes, i: int, j: int) -> bytes:
     if isinstance(msg, str):
         msg = msg.encode()
     temp = msg + R
@@ -33,7 +33,7 @@ def _hash(msg: Union[str, bytes], R: bytes, i: int, j: int) -> bytes:
     return hf(temp).digest()
 
 
-def _get_msg_format(msg: Union[str, bytes], pubk_rings: PubkeyRing) -> bytes:
+def _get_msg_format(msg: Union[bytes, str], pubk_rings: PubkeyRing) -> bytes:
     if isinstance(msg, str):
         msg = msg.encode()
     rings = len(pubk_rings)
@@ -44,7 +44,7 @@ def _get_msg_format(msg: Union[str, bytes], pubk_rings: PubkeyRing) -> bytes:
     return hf(msg).digest()
 
 
-def sign(msg: Union[str, bytes],
+def sign(msg: Union[bytes, str],
          k: Sequence[int],
          sign_key_idx: Sequence[int],
          sign_keys: Sequence[int],
@@ -101,7 +101,7 @@ def sign(msg: Union[str, bytes],
     return e0, s
 
 
-def verify(msg: Union[str, bytes], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     """Borromean ring signature - verification algorithm
 
     inputs: 
@@ -122,7 +122,7 @@ def verify(msg: Union[str, bytes], e0: bytes, s: SValues, pubk_rings: PubkeyRing
         return False
 
 
-def _verify(msg: Union[str, bytes], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def _verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
 
     if isinstance(msg, str):
         msg = msg.encode()
