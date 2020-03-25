@@ -97,6 +97,12 @@ class TestDER(unittest.TestCase):
         sig2 = -1, sig[1]
         self.assertRaises(ValueError, serialize, sig2, sighash_all)
 
+    def test_no_sighash(self):
+        DER = "3044022044487c80833b7025739f450751c1d6624118e32e5f922b5a40a407efb48382e202200f2b6e53448f8e219ee1c2f109fa5b0a2b8bae482a4a81cf8c54f8c168260886"
+        sig, sighash = deserialize(DER)
+        self.assertIsNone(sighash)
+
+
 
 if __name__ == "__main__":
     # execute only if run as a script

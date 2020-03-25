@@ -40,7 +40,7 @@
       signature)
 """
 
-from typing import Tuple
+from typing import Tuple, Optional
 
 from .curve import Curve
 from .curves import secp256k1
@@ -53,6 +53,14 @@ sighash_single = b'\x03'
 sighash_all_anyonecanpay = b'\x81'
 sighash_none_anyonecanpay = b'\x82'
 sighash_single_anyonecanpay = b'\x83'
+sighashes = [
+    sighash_all,
+    sighash_none,
+    sighash_single,
+    sighash_all_anyonecanpay,
+    sighash_none_anyonecanpay,
+    sighash_single_anyonecanpay,
+]
 
 
 def _bytes_from_scalar(scalar: int) -> bytes:
@@ -85,7 +93,7 @@ def serialize(sig: ECDS, sighash: Octets = sighash_all, ec: Curve = secp256k1) -
     return b'\x30' + len(enc).to_bytes(1, byteorder='big') + enc + sighash
 
 
-def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
+def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, Optional[bytes]]:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature."""
 
     sig = bytes_from_hexstring(sig)
@@ -94,7 +102,7 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
     # compound header, compound length,
     # r value header, r value length,
     # s value header, s value length
-    # sighash type
+    # sighash type (optional)
     #
     # the ECDSA signature (r, s) should be 64 bytes,
     # r and s being 32 bytes integers each;
@@ -117,14 +125,21 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
         raise ValueError(msg)
 
     # sigsize checks
-    if sig[1] != sigsize - 3:
+    leftover = sigsize - 2 - sig[1]
+    if leftover == 0:    # no sighash value
+        sighash = None
+    elif leftover == 1:  # sighash value
+        sighash = sig[sigsize - 1:]
+        if sighash not in sighashes:
+            raise ValueError(f"Invalid sighash type {sighash!r}")
+    else:
         msg = f"Declared length ({sig[1]}) does not "
-        msg += f"match with actual signature size - 3 ({sigsize-3})"
+        msg += f"match with actual signature size ({sigsize}) +2 or +3"
         raise ValueError(msg)
 
     sizeR = sig[3]  # size of the r scalar
     if sizeR == 0:
-        raise ValueError("Zero-size intege is not allowed for r")
+        raise ValueError("Zero-size integer is not allowed for r")
 
     if 5 + sizeR >= sigsize:
         raise ValueError("Size of the s scalar must be inside the signature")
@@ -133,7 +148,7 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
     if sizeS == 0:
         raise ValueError("Zero-size integer is not allowed for s")
 
-    if sizeR + sizeS + 7 != sigsize:
+    if sigsize - sizeR - sizeS != 6 + leftover:
         raise ValueError("Signature size does not match with size of scalars")
 
     # scalar r
@@ -141,7 +156,7 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
         raise ValueError("r scalar must be an integer")
 
     if sig[4] & 0x80:
-        raise ValueError("Negative numbers are not allowed for r")
+        raise ValueError("Negative number is not allowed for r")
 
     # Null bytes at the start of a scalar are not allowed, unless the
     # scalar would otherwise be interpreted as a negative number
@@ -155,7 +170,7 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
         raise ValueError("s scalar must be an integer")
 
     if sig[sizeR + 6] & 0x80:
-        raise ValueError("Negative numbers are not allowed for s")
+        raise ValueError("Negative number is not allowed for s")
 
     # Null bytes at the start of a scalar are not allowed, unless the
     # scalar would otherwise be interpreted as a negative number
@@ -166,4 +181,4 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
 
     # checks that the signature is valid for the given Curve
     _check_sig((r, s), ec)
-    return (r, s), sig[sigsize - 1:]
+    return (r, s), sighash
