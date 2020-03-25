@@ -22,17 +22,20 @@
 
     BIP66 mandates a strict DER format:
 
-    Format: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
+    Format: 0x30 [length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash]
 
-    * total-length: 1-byte length descriptor of everything that follows,
-      excluding the sighash byte.
-    * R-length: 1-byte length descriptor of the R value that follows.
+    * 0x30 coumpond DER marker
+    * length: 1-byte length descriptor of everything that follows,
+      excluding the sighash byte
+    * 0x02 integer marker
+    * R-length: 1-byte length descriptor of the R value that follows
     * R: arbitrary-length big-endian R value. It must use the shortest
       possible encoding for a positive integers (which means no null bytes at
       the start, except a single one when the next byte has its highest bit set
-      to avoid being interpreted as a negative number).
-    * S-length: 1-byte length descriptor of the S value that follows.
-    * S: arbitrary-length big-endian S value. Same rules of the R value apply.
+      to avoid being interpreted as a negative number)
+    * 0x02 integer marker
+    * S-length: 1-byte length descriptor of the S value that follows
+    * S: arbitrary-length big-endian S value. Same rules of the R value apply
     * sighash: 1-byte value indicating what data is hashed (not part of the DER
       signature)
 """
@@ -110,23 +113,25 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
         raise ValueError(errmsg)
 
     if sig[0] != 0x30:
-        raise ValueError("DER signature must be of type 0x30 (compound)")
+        msg = f"DER signature must be of type 0x30 (compound), not {sig[0]}"
+        raise ValueError(msg)
 
     # sigsize checks
-    if sig[1] + 3 != sigsize:
-        m = "Declared signature size does not match with actual signature size"
-        raise ValueError(m)
+    if sig[1] != sigsize - 3:
+        msg = f"Declared length ({sig[1]}) does not "
+        msg += f"match with actual signature size - 3 ({sigsize-3})"
+        raise ValueError(msg)
 
     sizeR = sig[3]  # size of the r scalar
     if sizeR == 0:
-        raise ValueError("Zero-size integers are not allowed for r")
+        raise ValueError("Zero-size intege is not allowed for r")
 
     if 5 + sizeR >= sigsize:
         raise ValueError("Size of the s scalar must be inside the signature")
 
     sizeS = sig[5 + sizeR]  # size of the s scalar
     if sizeS == 0:
-        raise ValueError("Zero-size integers are not allowed for s")
+        raise ValueError("Zero-size integer is not allowed for s")
 
     if sizeR + sizeS + 7 != sigsize:
         raise ValueError("Signature size does not match with size of scalars")

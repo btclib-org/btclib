@@ -11,6 +11,7 @@
 import unittest
 
 from btclib.der import deserialize, serialize
+from btclib.curves import secp256k1 as ec
 
 
 class TestDER(unittest.TestCase):
@@ -18,22 +19,22 @@ class TestDER(unittest.TestCase):
 
         sighash_all = b'\x01'
 
-        # these are invalid for secp256k1
-        #sig73  = 2**256 - 1, 2**256 - 1
-        #sig72  = 2**255 - 1, 2**256 - 1
-
-        sig71 = 2**255 - 1, 2**255 - 1
+        sig73  =   ec.n - 1,   ec.n - 1
+        sig72  = 2**255 - 1,   ec.n - 1
+        sig71  = 2**255 - 1, 2**255 - 1
         sig71b = 2**255 - 1, 2**248 - 1
-        sig70 = 2**255 - 1, 2**247 - 1
-        sig69 = 2**247 - 1, 2**247 - 1
-        sigs = [  # sig73, sig72,
-            sig71, sig71b, sig70, sig69]
+        sig70  = 2**255 - 1, 2**247 - 1
+        sig69  = 2**247 - 1, 2**247 - 1
+        sig9   =          1,          1
+        sigs = [sig73, sig72, sig71, sig71b, sig70, sig69]
+        lenghts = [73, 72, 71, 71, 70, 69, 9]
 
-        for sig in sigs:
+        for lenght, sig in zip(lenghts, sigs):
             DER = serialize(sig, sighash_all)
             sig2, sighash_all2 = deserialize(DER)
             self.assertEqual(sig, sig2)
             self.assertEqual(sighash_all, sighash_all2)
+            self.assertEqual(len(DER), lenght)
         # with the last one
 
         # DER signature size should be in [9, 73]
