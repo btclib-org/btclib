@@ -18,19 +18,19 @@
 """
 
 from hashlib import sha256
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from .curve import Curve, Point
 from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
-from .utils import HashF, int_from_bits
+from .utils import HashF, Octets, bytes_from_hexstring, int_from_bits
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 
 
-def sign(m: bytes, q: int, k: Optional[int] = None,
+def sign(msg: Union[str, bytes], q: int, k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> ECDS:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
@@ -49,9 +49,12 @@ def sign(m: bytes, q: int, k: Optional[int] = None,
     See https://tools.ietf.org/html/rfc6979#section-3.2
     """
 
+    if isinstance(msg, str):
+        msg = msg.encode()
+
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
-    mhd = hf(m).digest()                          # 4
+    mhd = hf(msg).digest()                        # 4
     # mhd is transformed into an integer modulo ec.n using int_from_bits:
     c = int_from_bits(mhd, ec)                    # 5
 
@@ -95,24 +98,30 @@ def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> ECDS:
     return r, s
 
 
-def verify(m: bytes, P: Point, sig: ECDS,
+def verify(msg: Union[str, bytes], P: Point, sig: ECDS,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
+    if isinstance(msg, str):
+        msg = msg.encode()
+
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(m, P, sig, ec, hf)
+        return _verify(msg, P, sig, ec, hf)
     except Exception:
         return False
 
 
-def _verify(m: bytes, P: Point, sig: ECDS,
+def _verify(msg: Union[str, bytes], P: Point, sig: ECDS,
             ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
+    if isinstance(msg, str):
+        msg = msg.encode()
+
     # The message digest mhd: a 32-byte array
-    mhd = hf(m).digest()                                 # 2
+    mhd = hf(msg).digest()                               # 2
     c = int_from_bits(mhd, ec)                           # 3
 
     # second part delegated to helper function
@@ -146,15 +155,18 @@ def _verhlp(c: int, P: Point, sig: ECDS, ec: Curve = secp256k1) -> bool:
     return sig[0] == x                                   # 8
 
 
-def pubkey_recovery(m: bytes, sig: ECDS,
+def pubkey_recovery(msg: Union[str, bytes], sig: ECDS,
                     ec: Curve = secp256k1, hf: HashF = sha256) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106    
     """
 
+    if isinstance(msg, str):
+        msg = msg.encode()
+
     # The message digest mhd: a 32-byte array
-    mhd = hf(m).digest()                                  # 1.5
+    mhd = hf(msg).digest()                                # 1.5
     c = int_from_bits(mhd, ec)                            # 1.5
 
     return _pubkey_recovery(c, sig, ec)

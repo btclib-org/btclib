@@ -177,6 +177,7 @@ def bytes_from_hexstring(o: Union[Any, str]) -> Union[Any, bytes]:
         o = bytes.fromhex(o)
     return o
 
+
 def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
     # http://www.graphics.stanford.edu/~seander/bithacks.html
     if n & (n - 1) != 0:

@@ -42,6 +42,7 @@ from typing import Tuple
 from .curve import Curve
 from .curves import secp256k1
 from .dsa import ECDS, _check_sig
+from .utils import Octets, bytes_from_hexstring
 
 sighash_all = b'\x01'
 sighash_none = b'\x02'
@@ -66,9 +67,10 @@ def _serialize_scalar(scalar: int) -> bytes:
     return b'\x02' + xsize + x
 
 
-def serialize(sig: ECDS, sighash: bytes = sighash_all, ec: Curve = secp256k1) -> bytes:
+def serialize(sig: ECDS, sighash: Octets = sighash_all, ec: Curve = secp256k1) -> bytes:
     """Serialize an ECDSA signature in strict ASN.1 DER representation."""
 
+    sighash = bytes_from_hexstring(sighash)
     if len(sighash) > 1:
         raise ValueError(f"sighash size {len(sighash)} > 1")
 
@@ -80,10 +82,27 @@ def serialize(sig: ECDS, sighash: bytes = sighash_all, ec: Curve = secp256k1) ->
     return b'\x30' + len(enc).to_bytes(1, byteorder='big') + enc + sighash
 
 
-def deserialize(sig: bytes, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
+def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, bytes]:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature."""
 
-    maxsize = ec.nsize * 2 + 7
+    sig = bytes_from_hexstring(sig)
+
+    # 7 bytes of meta-data:
+    # compound header, compound length,
+    # r value header, r value length,
+    # s value header, s value length
+    # sighash type
+    #
+    # the ECDSA signature (r, s) should be 64 bytes,
+    # r and s being 32 bytes integers each;
+    # however, integers in DER are signed,
+    # so if the value being encoded is greater than 2^128,
+    # a 33rd byte is added in front.
+    # Bitcoin has a "low s" rule for the s value to be below ec.n,
+    # but it is only a standardness rule miners are allowed to ignore.
+    # Moreover, no such rule exists for r.
+
+    maxsize = (ec.nsize+1) * 2 + 7  # 73 bytes
     sigsize = len(sig)
     if not 8 < sigsize <= maxsize:
         errmsg = f"DER signature size ({sigsize}) must be in "

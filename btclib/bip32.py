@@ -268,7 +268,8 @@ def wif_from_xprv(xprv: Octets) -> bytes:
     return wif_from_prvkey(d['key'][1:], compressed, network)
 
 
-def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
+def _p2pkh_address_from_xpub(v: Octets, pk: Octets) -> bytes:
+    v = bytes_from_hexstring(v)
     network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
     return p2pkh_address(pk, network)
 

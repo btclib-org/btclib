@@ -9,12 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import random
-from hashlib import sha256 as hf  # FIXME: any hf
-from typing import Sequence, Tuple, List, Dict
 from collections import defaultdict
+from hashlib import sha256 as hf  # FIXME: any hf
+from typing import Dict, List, Sequence, Tuple, Union
 
 from .curve import Point
-from .curvemult import mult, double_mult
+from .curvemult import double_mult, mult
 from .curves import secp256k1 as ec  # FIXME: any curve
 from .utils import int_from_bits, octets_from_point, point_from_octets
 
@@ -25,23 +25,26 @@ PubkeyRing = Dict[int, Sequence[Point]]
 SValues = Dict[int, Sequence[int]]
 
 
-def _hash(msg: bytes, R: bytes, i: int, j: int) -> bytes:
+def _hash(msg: Union[str, bytes], R: bytes, i: int, j: int) -> bytes:
+    if isinstance(msg, str):
+        msg = msg.encode()
     temp = msg + R
     temp += i.to_bytes(4, byteorder='big') + j.to_bytes(4, byteorder='big')
     return hf(temp).digest()
 
 
-def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
-    m = msg
+def _get_msg_format(msg: Union[str, bytes], pubk_rings: PubkeyRing) -> bytes:
+    if isinstance(msg, str):
+        msg = msg.encode()
     rings = len(pubk_rings)
     for i in range(rings):
         for P in pubk_rings[i]:
-            Pbytes = octets_from_point(P, True, ec)
-            m += Pbytes
-    return hf(m).digest()
+            
+            msg += octets_from_point(P, True, ec)
+    return hf(msg).digest()
 
 
-def sign(msg: bytes,
+def sign(msg: Union[str, bytes],
          k: Sequence[int],
          sign_key_idx: Sequence[int],
          sign_keys: Sequence[int],
@@ -57,6 +60,9 @@ def sign(msg: bytes,
         - sign_keys: list containing the whole set of signing keys (one per ring)
         - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
+
+    if isinstance(msg, str):
+        msg = msg.encode()
 
     s: Dict[int, Sequence[int]] = defaultdict(list)
     e: Dict[int, Sequence[int]] = defaultdict(list)
@@ -95,7 +101,7 @@ def sign(msg: bytes,
     return e0, s
 
 
-def verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def verify(msg: Union[str, bytes], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     """Borromean ring signature - verification algorithm
 
     inputs: 
@@ -105,6 +111,9 @@ def verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
 
+    if isinstance(msg, str):
+        msg = msg.encode()
+
     # this is just a try/except wrapper for the Errors
     # raised by _verify
     try:
@@ -113,7 +122,10 @@ def verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
         return False
 
 
-def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def _verify(msg: Union[str, bytes], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+
+    if isinstance(msg, str):
+        msg = msg.encode()
 
     ring_size = len(pubk_rings)
     m = _get_msg_format(msg, pubk_rings)

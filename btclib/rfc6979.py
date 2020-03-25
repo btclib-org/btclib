@@ -40,13 +40,14 @@ from hashlib import sha256
 
 from .curve import Curve
 from .curves import secp256k1
-from .utils import (HashF, Octets, _int_from_bits, int_from_bits,
-                    octets_from_int)
+from .utils import (HashF, Octets, _int_from_bits, bytes_from_hexstring,
+                    int_from_bits, octets_from_int)
 
 
-def rfc6979(mhd: bytes, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def rfc6979(mhd: Octets, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
+    mhd = bytes_from_hexstring(mhd)
     if not 0 < q < ec.n:
         raise ValueError(f"private key {hex(q)} not in [1, n-1]")
 

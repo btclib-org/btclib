@@ -144,9 +144,10 @@ def _encode(network: str, wv: int, wp: WitnessProgram) -> bytes:
     return ret
 
 
-def _p2wpkh_address(h160: bytes, native: bool, network: str) -> bytes:
+def _p2wpkh_address(h160: Octets, native: bool, network: str) -> bytes:
     """Return the p2wpkh address as native SegWit or legacy p2sh-wrapped."""
 
+    h160 = bytes_from_hexstring(h160)
     if len(h160) != 20:
         msg = f"Witness program length ({len(h160)}) "
         msg += "is not 20-bytes"
@@ -182,9 +183,10 @@ def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return _p2wpkh_address(_h160_pubkey(pubkey), native, network)
 
 
-def _p2wsh_address(h256: bytes, native: bool, network: str) -> bytes:
+def _p2wsh_address(h256: Octets, native: bool, network: str) -> bytes:
     """Return the address as native SegWit bech32 or legacy p2sh-wrapped."""
 
+    h256 = bytes_from_hexstring(h256)
     if len(h256) != 32:
         raise ValueError(f"witness program length ({len(h256)}) is not 32")
     witvers = 0

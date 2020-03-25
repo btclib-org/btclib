@@ -26,29 +26,32 @@ from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
 from .curves import secp256k1
 from .numbertheory import legendre_symbol, mod_inv
 from .rfc6979 import rfc6979
-from .utils import HashF, int_from_bits, octets_from_int, octets_from_point
+from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
+                    octets_from_int, octets_from_point)
 
 ECSS = Tuple[int, int]  # Tuple[field element, scalar]
 
 
-def _ensure_msg_size(msg: bytes, hf: HashF = sha256) -> None:
-    if len(msg) != hf().digest_size:
-        errmsg = f'message of wrong size: {len(msg)}'
+def _ensure_msg_size(mhd: Octets, hf: HashF = sha256) -> None:
+    mhd = bytes_from_hexstring(mhd)
+    if len(mhd) != hf().digest_size:
+        errmsg = f'message of wrong size: {len(mhd)}'
         errmsg += f' instead of {hf().digest_size} bytes'
         raise ValueError(errmsg)
 
 
-def _e(r: int, P: Point, mhd: bytes, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def _e(r: int, P: Point, mhd: Octets,
+       ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
     h = hf()
     h.update(octets_from_int(r, ec.psize))
     h.update(octets_from_point(P, True, ec))
-    h.update(mhd)
+    h.update(bytes_from_hexstring(mhd))
     e = int_from_bits(h.digest(), ec)
     return e
 
 
-def sign(mhd: bytes, d: int, k: Optional[int] = None,
+def sign(mhd: Octets, d: int, k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> ECSS:
     """ECSSA signing operation according to bip-schnorr.
 
@@ -56,6 +59,8 @@ def sign(mhd: bytes, d: int, k: Optional[int] = None,
     Differently from ECDSA, the 32-byte message can be a
     digest of other messages, but it does not need to.
     """
+
+    mhd = bytes_from_hexstring(mhd)
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
@@ -97,7 +102,7 @@ def sign(mhd: bytes, d: int, k: Optional[int] = None,
     return r, s
 
 
-def verify(mhd: bytes, P: Point, sig: ECSS,
+def verify(mhd: Octets, P: Point, sig: ECSS,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECSSA signature verification according to bip-schnorr."""
 
@@ -108,7 +113,7 @@ def verify(mhd: bytes, P: Point, sig: ECSS,
         return False
 
 
-def _verify(mhd: bytes, P: Point, sig: ECSS,
+def _verify(mhd: Octets, P: Point, sig: ECSS,
             ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -118,6 +123,8 @@ def _verify(mhd: bytes, P: Point, sig: ECSS,
     if not ec.pIsThreeModFour:
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
+
+    mhd = bytes_from_hexstring(mhd)
 
     # Let r = int(sig[ 0:32]).
     # Let s = int(sig[32:64]); fail if s is not [0, n-1].

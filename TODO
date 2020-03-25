@@ -53,6 +53,10 @@ crypto: {
     Octets: Union[bytes, str],   # bytes or hex-string (not string)
     prvkey: Octets,
     pubkey: Octets,
-    address, WIF: Union[str, bytes]  # ASCII string, not hex-string, always s.strip()
+    sig: Octets,
+    h160, h256: Octets
+    version, sighash: Octets 
+    msg: Union[str, bytes]  # string to be encoded, not hex-string, never s.strip()
+    address, WIF: Union[str, bytes]  # ASCII string to be encoded, not hex-string, always s.strip()
 }
 

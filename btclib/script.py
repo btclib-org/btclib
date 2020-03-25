@@ -243,7 +243,7 @@ Token = Union[int, str, bytes]
 Script = Union[bytes, Iterable[Token]]
 
 
-def _op_pushdata(data: bytes) -> bytes:
+def _op_pushdata(data: Octets) -> bytes:
     """Convert to canonical push: OP_PUSHDATA (if needed) | length | data.
 
     According to standardness rules (BIP-62) the
@@ -251,6 +251,7 @@ def _op_pushdata(data: bytes) -> bytes:
     Byte vectors on the stack are not allowed to be more than 520 bytes long.
     """
 
+    data = bytes_from_hexstring(data)
     r = b''
     length = len(data)
     if length < 75:     # 1-byte-length

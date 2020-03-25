@@ -33,22 +33,22 @@ the verifier will check that
 with e = hash(R||c)) and W.x being known from the signature.
 """
 
-from typing import Optional, Tuple
 from hashlib import sha256
+from typing import Optional, Tuple
 
+from . import dsa, ssa
 from .curve import Curve, Point
-from .curves import secp256k1
 from .curvemult import mult
-from .utils import int_from_bits, point_from_octets, octets_from_point, HashF
+from .curves import secp256k1
 from .rfc6979 import rfc6979
-from . import dsa
-from . import ssa
+from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
+                    octets_from_point, point_from_octets)
 
 # commitment receipt
 Receipt = Tuple[int, Point]
 
 
-def _tweak(c: bytes, k: int,
+def _tweak(c: Octets, k: int,
            ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[Point, int]:
     """Tweak kG with hash(kG||c).
 
@@ -56,15 +56,20 @@ def _tweak(c: bytes, k: int,
     - the point kG to tweak
     - tweaked private key k + hash(kG||c)
     """
+
+    c = bytes_from_hexstring(c)
     R = mult(k, ec.G, ec)
     e = hf(octets_from_point(R, True, ec) + c).digest()
     e = int.from_bytes(e, byteorder='big')
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_sign(c: bytes, m: bytes, prvkey: int, k: Optional[int] = None,
+def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: int, k: Optional[int] = None,
                       ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[dsa.ECDS, Receipt]:
     """Include a commitment c inside an ECDSA signature."""
+
+    c = bytes_from_hexstring(c)
+    m = bytes_from_hexstring(m)
 
     if k is None:
         k = rfc6979(hf(m).digest(), prvkey, ec, hf)
@@ -80,9 +85,12 @@ def ecdsa_commit_sign(c: bytes, m: bytes, prvkey: int, k: Optional[int] = None,
     return sig, receipt
 
 
-def ecssa_commit_sign(c: bytes, m: bytes, prvkey: int, k: Optional[int] = None,
+def ecssa_commit_sign(c: Octets, m: Octets, prvkey: int, k: Optional[int] = None,
                       ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[ssa.ECSS, Receipt]:
     """Include a commitment c inside an ECSSA signature."""
+
+    c = bytes_from_hexstring(c)
+    m = bytes_from_hexstring(m)
 
     if k is None:
         k = rfc6979(m, prvkey, ec, hf)
@@ -100,9 +108,11 @@ def ecssa_commit_sign(c: bytes, m: bytes, prvkey: int, k: Optional[int] = None,
 # FIXME: have create_commit instead of commit_sign
 
 
-def verify_commit(c: bytes, receipt: Receipt,
+def verify_commit(c: Octets, receipt: Receipt,
                   ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Open the commitment c inside an EC DSA/SSA signature."""
+
+    c = bytes_from_hexstring(c)
 
     # FIXME: verify the signature
 

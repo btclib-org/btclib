@@ -33,9 +33,10 @@ _P2SH_PREFIXES = [
 ]
 
 
-def _p2pkh_address(h160: bytes, network: str = 'mainnet') -> bytes:
+def _p2pkh_address(h160: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
+    h160 = bytes_from_hexstring(h160)
     payload = _P2PKH_PREFIXES[_NETWORKS.index(network)]
     payload += h160
     return b58encode(payload)
@@ -51,9 +52,10 @@ def p2pkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     return _p2pkh_address(h160, network)
 
 
-def _p2sh_address(h160: bytes, network: str = 'mainnet') -> bytes:
+def _p2sh_address(h160: Octets, network: str = 'mainnet') -> bytes:
     """Return p2sh address."""
 
+    h160 = bytes_from_hexstring(h160)
     payload = _P2SH_PREFIXES[_NETWORKS.index(network)]
     payload += h160
     return b58encode(payload)

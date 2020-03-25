@@ -154,14 +154,13 @@ from .wif import prvkey_from_wif
 
 
 def _magic_hash(msg: Union[str, bytes]) -> bytes:
-    t = b'\x18Bitcoin Signed Message:\n' + len(msg).to_bytes(1, 'big')
+
+    # Electrum does strip leading and trailing spaces;
+    # Bitcoin Core does not
     if isinstance(msg, str):
-        # Electrum does strip leading and trailing spaces;
-        # Bitcoin Core does not
-        # msg = msg.strip()
-        t += msg.encode()
-    else:
-        t += msg
+        msg = msg.encode()
+
+    t = b'\x18Bitcoin Signed Message:\n' + len(msg).to_bytes(1, 'big') + msg
     return sha256(t).digest()
 
 
