@@ -13,7 +13,7 @@
 from math import sqrt
 from typing import NamedTuple, Tuple
 
-from .numbertheory import mod_inv, mod_sqrt, legendre_symbol
+from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
 
 # infinity point in affine coordinates is Inf = (int, 0)
 # as no affine point has y=0 coordinate in a group of prime order n

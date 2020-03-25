@@ -17,15 +17,15 @@
    specialized with bitcoin canonical 'low-s' encoding.
 """
 
-from typing import Tuple, List, Optional
 from hashlib import sha256
+from typing import List, Optional, Tuple
 
-from .numbertheory import mod_inv
-from .utils import int_from_bits, HashF
 from .curve import Curve, Point
+from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
-from .curvemult import _mult_jac, _double_mult, double_mult
+from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
+from .utils import HashF, int_from_bits
 
 ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
 

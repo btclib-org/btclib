@@ -17,13 +17,13 @@ https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki.
 
 import heapq
 import random
-from typing import List, Optional, Sequence, Tuple
 from hashlib import sha256
+from typing import List, Optional, Sequence, Tuple
 
 from .curve import Curve, Point, _JacPoint
+from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
+                        double_mult, mult)
 from .curves import secp256k1
-from .curvemult import (_double_mult, _jac_from_aff, _mult_jac,
-                        _multi_mult, double_mult, mult)
 from .numbertheory import legendre_symbol, mod_inv
 from .rfc6979 import rfc6979
 from .utils import HashF, int_from_bits, octets_from_int, octets_from_point
