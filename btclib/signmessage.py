@@ -153,7 +153,7 @@ from .utils import hash160, octets_from_point
 from .wif import prvkey_from_wif
 
 
-def _magic_hash(msg: Union[str, bytes]) -> bytes:
+def _magic_hash(msg: Union[bytes, str]) -> bytes:
 
     # Electrum does strip leading and trailing spaces;
     # Bitcoin Core does not
@@ -173,7 +173,7 @@ def _serialize(rf: int, r: int, s: int) -> bytes:
     return b64encode(t)
 
 
-def _deserialize(sig: Union[str, bytes]) -> Tuple[int, int, int]:
+def _deserialize(sig: Union[bytes, str]) -> Tuple[int, int, int]:
     # deserialize [1-byte rf][32-bytes r][32-bytes s]
     sig = b64decode(sig)
     if len(sig) != 65:
@@ -187,8 +187,8 @@ def _deserialize(sig: Union[str, bytes]) -> Tuple[int, int, int]:
     return rf, r, s
 
 
-def msgsign(msg: Union[str, bytes], wif: Union[str, bytes], 
-            addr: Optional[Union[str, bytes]] = None) -> bytes:
+def msgsign(msg: Union[bytes, str], wif: Union[bytes, str], 
+            addr: Optional[Union[bytes, str]] = None) -> bytes:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -221,8 +221,8 @@ def msgsign(msg: Union[str, bytes], wif: Union[str, bytes],
     return _serialize(rf, sig[0], sig[1]) 
 
 
-def verify(msg: Union[str, bytes],
-           addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
+def verify(msg: Union[bytes, str],
+           addr: Union[bytes, str], sig: Union[bytes, str]) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
@@ -232,8 +232,8 @@ def verify(msg: Union[str, bytes],
         return False
 
 
-def _verify(msg: Union[str, bytes],
-            addr: Union[str, bytes], sig: Union[str, bytes]) -> bool:
+def _verify(msg: Union[bytes, str],
+            addr: Union[bytes, str], sig: Union[bytes, str]) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
