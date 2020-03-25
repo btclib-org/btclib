@@ -20,17 +20,20 @@
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
+from . import der
 from .curve import Curve, Point
 from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
-from .utils import HashF, Octets, bytes_from_hexstring, int_from_bits
+from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
+                    point_from_octets)
 
-ECDS = Tuple[int, int]  # Tuple[scalar, scalar]
+# (r, s) or DER serialization (bytes or hex-string)
+ECDS = Union[Tuple[int, int], Octets] 
 
 
-def sign(msg: Union[str, bytes], q: int, k: Optional[int] = None,
+def sign(msg: Union[bytes, str], q: int, k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> ECDS:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
@@ -98,12 +101,11 @@ def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> ECDS:
     return r, s
 
 
-def verify(msg: Union[str, bytes], P: Point, sig: ECDS,
+def verify(msg: Union[bytes, str],
+           P: Union[Point, Octets],
+           sig: ECDS,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
-
-    if isinstance(msg, str):
-        msg = msg.encode()
 
     # try/except wrapper for the Errors raised by _verify
     try:
@@ -112,7 +114,9 @@ def verify(msg: Union[str, bytes], P: Point, sig: ECDS,
         return False
 
 
-def _verify(msg: Union[str, bytes], P: Point, sig: ECDS,
+def _verify(msg: Union[bytes, str],
+            P: Union[Point, Octets],
+            sig: ECDS,
             ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -128,17 +132,24 @@ def _verify(msg: Union[str, bytes], P: Point, sig: ECDS,
     return _verhlp(c, P, sig, ec)
 
 
-def _verhlp(c: int, P: Point, sig: ECDS, ec: Curve = secp256k1) -> bool:
+def _verhlp(c: int,
+            P: Union[Point, Octets],
+            sig: ECDS,
+            ec: Curve = secp256k1) -> bool:
     # Private function for test/dev purposes
 
-    # Fail if r is not [1, n-1]
-    # Fail if s is not [1, n-1]
-    _check_sig(sig, ec)                                  # 1
-
     # Let P = point(pk); fail if point(pk) fails.
-    ec.require_on_curve(P)
+    if not isinstance(P, tuple):
+        P = point_from_octets(P, ec)
+    else:
+        ec.require_on_curve(P)
     if P[1] == 0:
         raise ValueError("public key is infinite")
+
+    if not isinstance(sig, tuple):
+        sig, _ = der.deserialize(sig, ec)
+    else:
+        _check_sig(sig, ec)                              # 1
 
     w = mod_inv(sig[1], ec.n)
     u = c*w
@@ -155,7 +166,8 @@ def _verhlp(c: int, P: Point, sig: ECDS, ec: Curve = secp256k1) -> bool:
     return sig[0] == x                                   # 8
 
 
-def pubkey_recovery(msg: Union[str, bytes], sig: ECDS,
+def pubkey_recovery(msg: Union[bytes, str],
+                    sig: ECDS,
                     ec: Curve = secp256k1, hf: HashF = sha256) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
@@ -172,11 +184,16 @@ def pubkey_recovery(msg: Union[str, bytes], sig: ECDS,
     return _pubkey_recovery(c, sig, ec)
 
 
-def _pubkey_recovery(c: int, sig: ECDS, ec: Curve = secp256k1) -> List[Point]:
+def _pubkey_recovery(c: int,
+                     sig: ECDS,
+                     ec: Curve = secp256k1) -> List[Point]:
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
 
-    _check_sig(sig, ec)
+    if not isinstance(sig, tuple):
+        sig, _ = der.deserialize(sig, ec)
+    else:
+        _check_sig(sig, ec)
 
     # precomputations
     r1 = mod_inv(sig[0], ec.n)
@@ -204,7 +221,7 @@ def _pubkey_recovery(c: int, sig: ECDS, ec: Curve = secp256k1) -> List[Point]:
     return keys
 
 
-def _check_sig(sig: ECDS, ec: Curve = secp256k1) -> None:
+def _check_sig(sig: Tuple[int, int], ec: Curve = secp256k1) -> None:
     # check that the DSA signature is correct
     # and return the signature itself
 
