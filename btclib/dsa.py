@@ -75,8 +75,9 @@ def sign(msg: Union[bytes, str], q: int, k: Optional[int] = None,
         msg = msg.encode()
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
-
-    mhd = hf(msg).digest()                        # 4
+    h = hf()
+    h.update(msg)
+    mhd = h.digest()                              # 4
     # mhd is transformed into an integer modulo ec.n using int_from_bits:
     c = int_from_bits(mhd, ec)                    # 5
 
@@ -144,7 +145,9 @@ def _verify(msg: Union[bytes, str],
         msg = msg.encode()
 
     # The message digest mhd: a 32-byte array
-    mhd = hf(msg).digest()                               # 2
+    h = hf()
+    h.update(msg)
+    mhd = h.digest()                                     # 2
     c = int_from_bits(mhd, ec)                           # 3
 
     # second part delegated to helper function
@@ -198,7 +201,9 @@ def pubkey_recovery(msg: Union[bytes, str], sig: Sig,
         msg = msg.encode()
 
     # The message digest mhd: a 32-byte array
-    mhd = hf(msg).digest()                                # 1.5
+    h = hf()
+    h.update(msg)
+    mhd = h.digest()                                      # 1.5
     c = int_from_bits(mhd, ec)                            # 1.5
 
     return _pubkey_recovery(c, sig, ec)

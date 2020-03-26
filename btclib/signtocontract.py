@@ -59,8 +59,9 @@ def _tweak(c: Octets, k: int,
 
     c = bytes_from_hexstring(c)
     R = mult(k, ec.G, ec)
-    e = hf(octets_from_point(R, True, ec) + c).digest()
-    e = int.from_bytes(e, byteorder='big')
+    h = hf()
+    h.update(octets_from_point(R, True, ec) + c)
+    e = int.from_bytes(h.digest(), byteorder='big')
     return R, (e + k) % ec.n
 
 
@@ -73,9 +74,13 @@ def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: int,
     m = bytes_from_hexstring(m)
 
     if k is None:
-        k = rfc6979(hf(m).digest(), prvkey, ec, hf)
+        h = hf()
+        h.update(m)
+        k = rfc6979(h.digest(), prvkey, ec, hf)
 
-    ch = hf(c).digest()
+    h = hf()
+    h.update(c)
+    ch = h.digest()
 
     # commit
     R, new_k = _tweak(ch, k, ec, hf)
@@ -98,7 +103,9 @@ def ecssa_commit_sign(c: Octets, m: Octets, prvkey: int,
     if k is None:
         k = rfc6979(m, prvkey, ec, hf)
 
-    ch = hf(c).digest()
+    h = hf()
+    h.update(c)
+    ch = h.digest()
 
     # commit
     R, new_k = _tweak(ch, k, ec, hf)
@@ -126,8 +133,12 @@ def verify_commit(c: Octets, receipt: Receipt,
 
     # verify R is a good point?
 
-    ch = hf(c).digest()
-    e = hf(octets_from_point(R, True, ec) + ch).digest()
+    h = hf()
+    h.update(c)
+    ch = h.digest()
+    h = hf()
+    h.update(octets_from_point(R, True, ec) + ch)
+    e = h.digest()
     e = int_from_bits(e, ec)
     W = ec.add(R, mult(e, ec.G, ec))
     # different verify functions?

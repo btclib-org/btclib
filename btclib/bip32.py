@@ -23,8 +23,7 @@ Here, the HD wallet is implemented according to BIP32 bitcoin standard
 https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
 """
 
-from hashlib import sha512
-from hmac import HMAC
+import hmac
 from typing import List, Sequence, Tuple, TypedDict, Union
 
 from .address import p2pkh_address
@@ -325,7 +324,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     """derive the BIP32 root master extended private key from the seed"""
 
     seed = bytes_from_hexstring(seed)
-    hd = HMAC(b"Bitcoin seed", seed, sha512).digest()
+    hd = hmac.digest(b"Bitcoin seed", seed, 'sha512')
     d: XkeyDict = {
         'version'            : bytes_from_hexstring(version),
         'depth'              : 0,
@@ -396,15 +395,15 @@ def _ckd(d: XkeyDict, index: Union[Octets, int]) -> None:
 
     if d['key'][0] == 0:                             # parent is a prvkey
         if index[0] >= 0x80:                         # hardened derivation
-            h = HMAC(d['chain_code'], d['key'] + index, sha512).digest()
+            h = hmac.digest(d['chain_code'], d['key'] + index, 'sha512')
         else:                                        # normal derivation
-            h = HMAC(d['chain_code'], Parent_bytes + index, sha512).digest()
+            h = hmac.digest(d['chain_code'], Parent_bytes + index, 'sha512')
         d['chain_code'] = h[32:]
         offset = int.from_bytes(h[:32], byteorder='big')
         child = (parent + offset) % ec.n
         d['key'] = b'\x00' + child.to_bytes(32, 'big')
     else:                                            # parent is a pubkey
-        h = HMAC(d['chain_code'], d['key'] + index, sha512).digest()
+        h = hmac.digest(d['chain_code'], d['key'] + index, 'sha512')
         d['chain_code'] = h[32:]
         offset = int.from_bytes(h[:32], byteorder='big')
         Offset = mult(offset)
@@ -496,7 +495,7 @@ def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
 
     p['version'] = c['version']
 
-    h = HMAC(p['chain_code'], p['key'] + c['index'], sha512).digest()
+    h = hmac.digest(p['chain_code'], p['key'] + c['index'], 'sha512')
     offset = int.from_bytes(h[:32], byteorder='big')
     child = int.from_bytes(c['key'][1:], byteorder='big')
     parent = (child - offset) % ec.n

@@ -45,7 +45,9 @@ def ansi_x963_kdf(z: bytes, size: int,
     counter_bytes = counter.to_bytes(4, byteorder='big')
     K_temp = []
     for i in range((size+1) // hsize):
-        K_temp.append(hf(z + counter_bytes).digest())
+        h = hf()
+        h.update(z + counter_bytes)
+        K_temp.append(h.digest())
         counter += 1
         counter_bytes = counter.to_bytes(4, byteorder='big')
         i += 1

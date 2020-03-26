@@ -54,7 +54,9 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     """
 
     G_bytes = octets_from_point(ec.G, False, ec)
-    hd = hf(G_bytes).digest()
+    h = hf()
+    h.update(G_bytes)
+    hd = h.digest()
     hx = int_from_bits(hd, ec)
     isCurvePoint = False
     while not isCurvePoint:

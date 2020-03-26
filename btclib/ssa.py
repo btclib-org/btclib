@@ -43,8 +43,9 @@ def _ensure_msg_size(mhd: Octets, hf: HashF = sha256) -> None:
 def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
     mhd = bytes_from_hexstring(mhd)
     t = d.to_bytes(32, byteorder='big') + mhd
-    ht = hf(t).digest()
-    return int.from_bytes(ht, byteorder='big')
+    h = hf()
+    h.update(t)
+    return int.from_bytes(h.digest(), byteorder='big')
 
 
 def _e(r: int, P: Union[Point, Octets], mhd: Octets,
