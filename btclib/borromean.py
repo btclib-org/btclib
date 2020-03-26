@@ -25,10 +25,8 @@ PubkeyRing = Dict[int, Sequence[Point]]
 SValues = Dict[int, Sequence[int]]
 
 
-def _hash(msg: Union[bytes, str], R: bytes, i: int, j: int) -> bytes:
-    if isinstance(msg, str):
-        msg = msg.encode()
-    temp = msg + R
+def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
+    temp = m + R
     temp += i.to_bytes(4, byteorder='big') + j.to_bytes(4, byteorder='big')
     return hf(temp).digest()
 
@@ -39,7 +37,6 @@ def _get_msg_format(msg: Union[bytes, str], pubk_rings: PubkeyRing) -> bytes:
     rings = len(pubk_rings)
     for i in range(rings):
         for P in pubk_rings[i]:
-            
             msg += octets_from_point(P, True, ec)
     return hf(msg).digest()
 
@@ -60,9 +57,6 @@ def sign(msg: Union[bytes, str],
         - sign_keys: list containing the whole set of signing keys (one per ring)
         - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
-
-    if isinstance(msg, str):
-        msg = msg.encode()
 
     s: Dict[int, Sequence[int]] = defaultdict(list)
     e: Dict[int, Sequence[int]] = defaultdict(list)
@@ -111,9 +105,6 @@ def verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing
     - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
 
-    if isinstance(msg, str):
-        msg = msg.encode()
-
     # this is just a try/except wrapper for the Errors
     # raised by _verify
     try:
@@ -123,9 +114,6 @@ def verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing
 
 
 def _verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
-
-    if isinstance(msg, str):
-        msg = msg.encode()
 
     ring_size = len(pubk_rings)
     m = _get_msg_format(msg, pubk_rings)
