@@ -167,18 +167,24 @@ def _magic_hash(msg: Union[bytes, str]) -> bytes:
     return sha256(t).digest()
 
 
-def serialize(rf: int, r: int, s: int) -> bytes:
+def _serialize(rf: int, r: int, s: int) -> bytes:
     # serialize [1-byte rf][32-bytes r][32-bytes s]
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
     dsa._check_sig(r, s)
-    t = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
-    return b64encode(t)
+    return bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
 
 
-def deserialize(sig: Octets) -> Tuple[int, int, int]:
-    # deserialize [1-byte rf][32-bytes r][32-bytes s]
-    sig = b64decode(sig)
+def serialize(rf: int, r: int, s: int) -> bytes:
+    """Return the address-based compact signature as base64-encoding.
+
+    The compact signature is [1-byte rf][32-bytes r][32-bytes s]
+    """
+    sig = _serialize(rf, r, s)
+    return b64encode(sig)
+
+
+def _deserialize(sig: bytes) -> Tuple[int, int, int]:
     if len(sig) != 65:
         raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
     rf = sig[0]
@@ -188,6 +194,15 @@ def deserialize(sig: Octets) -> Tuple[int, int, int]:
     s = int.from_bytes(sig[33:], byteorder='big')
     dsa._check_sig(r, s)
     return rf, r, s
+
+
+def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
+    """Return the elements of the address-based compact signature.
+
+    The compact signature is [1-byte rf][32-bytes r][32-bytes s]
+    """
+    sig = b64decode(base64sig)
+    return _deserialize(sig)
 
 
 def sign(msg: Union[bytes, str], wif: WIF, 
@@ -240,6 +255,7 @@ def _verify(msg: Union[bytes, str], addr: Address, sig: Sig) -> bool:
 
 
     if not isinstance(sig, tuple):
+        # it is a base64 sig
         rf, r, s = deserialize(sig)
     else:
         rf, r, s = sig
