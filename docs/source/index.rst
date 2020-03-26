@@ -31,11 +31,11 @@ The library includes:
   * multi scalar multiplication (Bos-coster's algorithm)
   * point simmetry solution: odd/even, low/high, and quadratic residue
 * available curves: SEC 1 v1 and v2, NIST, Brainpool, and low cardinality test curves
-* DSA signature with (transaction) DER encoding
-* DSA signature with (message) compact encoding: standard p2pkh
+* ECDSA signature with (transaction) DER encoding
+* ECDSA signature with (message) compact encoding: standard p2pkh
   and BIP137/Electrum
   extensions to p2wpkh and p2wpkh-p2sh
-* Schnorr signature (according to bip-schnorr bitcoin standardization)
+* EC Schnorr signature (according to bip-schnorr bitcoin standardization)
 
   * batch validation
   * threshold signature (see test-suite)
