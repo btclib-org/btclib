@@ -25,7 +25,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
 
 from hashlib import sha512
 from hmac import HMAC
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, TypedDict, Union
 
 from .address import p2pkh_address
 from .base58 import b58decode, b58encode
@@ -158,11 +158,18 @@ def _check_depth_fingerprint_index(d: int, f: bytes, i: bytes) -> None:
             msg = f"non-zero depth ({d}) with zero parent_fingerprint {f!r}"
             raise ValueError(msg)
 
+class XkeyDict(TypedDict):
+    version            : bytes
+    depth              : int
+    parent_fingerprint : bytes
+    index              : bytes
+    chain_code         : bytes
+    key                : bytes
 
-def parse(xkey: Octets) -> Dict:
+def parse(xkey: Octets) -> XkeyDict:
 
     xkey = b58decode(xkey, 78)
-    d = {
+    d: XkeyDict = {
         'version'            : xkey[:4],
         'depth'              : xkey[4],
         'parent_fingerprint' : xkey[5:9],
@@ -177,7 +184,7 @@ def parse(xkey: Octets) -> Dict:
     return d
 
 
-def serialize(d: Dict) -> bytes:
+def serialize(d: XkeyDict) -> bytes:
 
     # coherence checks
     _check_version_key(d['version'], d['key'])
@@ -319,7 +326,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
 
     seed = bytes_from_hexstring(seed)
     hd = HMAC(b"Bitcoin seed", seed, sha512).digest()
-    d = {
+    d: XkeyDict = {
         'version'            : bytes_from_hexstring(version),
         'depth'              : 0,
         'parent_fingerprint' : b'\x00\x00\x00\x00',
@@ -364,7 +371,7 @@ def ckd(xparentkey: Octets, index: Union[Octets, int]) -> bytes:
     return serialize(d)
 
 
-def _ckd(d: Dict, index: Union[Octets, int]) -> None:
+def _ckd(d: XkeyDict, index: Union[Octets, int]) -> None:
     if isinstance(index, int):
         index = index.to_bytes(4, byteorder='big')
 
