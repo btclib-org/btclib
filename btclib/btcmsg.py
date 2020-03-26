@@ -152,7 +152,7 @@ from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
 from .utils import hash160, octets_from_point, Octets
 from .wif import prvkey_from_wif, WIF
 
-# (rec_flag, r, s) or compact serialization (bytes or hex-string)
+# (rf, r, s) or base64 compact serialization (bytes or hex-string)
 Sig = Union[Tuple[int, int, int], Octets]
 
 
