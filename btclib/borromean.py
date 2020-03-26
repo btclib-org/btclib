@@ -58,8 +58,8 @@ def sign(msg: Union[bytes, str],
         - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
 
-    s: Dict[int, Sequence[int]] = defaultdict(list)
-    e: Dict[int, Sequence[int]] = defaultdict(list)
+    s: SValues = defaultdict(list)
+    e: SValues = defaultdict(list)
     m = _get_msg_format(msg, pubk_rings)
     e0bytes = m
     ring_size = len(pubk_rings)
