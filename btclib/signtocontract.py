@@ -86,8 +86,10 @@ def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: int,
     return sig, receipt
 
 
-def ecssa_commit_sign(c: Octets, m: Octets, prvkey: int, k: Optional[int] = None,
-                      ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[ssa.ECSS, Receipt]:
+def ecssa_commit_sign(c: Octets, m: Octets, prvkey: int,
+                      k: Optional[int] = None,
+                      ec: Curve = secp256k1,
+                      hf: HashF = sha256) -> Tuple[ssa.Sig, Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
     c = bytes_from_hexstring(c)

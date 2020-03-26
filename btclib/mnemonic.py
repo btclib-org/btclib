@@ -62,8 +62,8 @@ def _mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
 
     words = []
     wordlist = _wordlists.wordlist(lang)
-    for i in indexes:
-        word = wordlist[i]
+    for index in indexes:
+        word = wordlist[index]
         words.append(word)
     return ' '.join(words)
 
@@ -90,8 +90,8 @@ def _entropy_from_indexes(indexes: List[int], lang: str) -> BinStr:
 
     n = _wordlists.language_length(lang)
     entropy = 0
-    for i in indexes:
-        entropy = entropy*n + i
+    for index in indexes:
+        entropy = entropy*n + index
 
     binentropy = bin(entropy)[2:]    # remove '0b'
 

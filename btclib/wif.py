@@ -86,10 +86,10 @@ def prvkey_from_wif(wif: Union[bytes, str]) -> Tuple[int, bool, str]:
         prvkey = payload[1:]
         prv = int_from_octets(prvkey)
     else:
-        raise ValueError(f"Not a WIF: wrong size ({len(payload)})")
+        raise ValueError(f"Wrong WIF size ({len(payload)})")
 
     if not 0 < prv < ec.n:
-        msg = f"Not a WIF: private key {hex(prv)} not in [1, n-1]"
+        msg = f"Invalid private key {hex(prv)} not in [1, n-1]"
         raise ValueError(msg)
 
     network = _NETWORKS[wif_index]
