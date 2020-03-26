@@ -31,70 +31,70 @@ class TestDER(unittest.TestCase):
         lenghts = [73, 72, 71, 71, 70, 69, 9]
 
         for lenght, sig in zip(lenghts, sigs):
-            DER = serialize(*sig, sighash_all)
-            r, s, sighash_all2 = deserialize(DER)
+            dersig = serialize(*sig, sighash_all)
+            r, s, sighash_all2 = deserialize(dersig)
             self.assertEqual(sig, (r, s))
             self.assertEqual(sighash_all, sighash_all2)
-            self.assertEqual(len(DER), lenght)
+            self.assertEqual(len(dersig), lenght)
             # without sighash
-            r, s, sighash_all2 = deserialize(DER[:-1])
+            r, s, sighash_all2 = deserialize(dersig[:-1])
             self.assertEqual(sig, (r, s))
             self.assertIsNone(sighash_all2)
 
         # with the last one
 
         # DER signature size should be in [9, 73]
-        DER2 = DER + b'\x00' * 70
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig + b'\x00' * 70
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # DER signature must be of type 0x30 (compound)
-        DER2 = b'\x00' + DER[1:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = b'\x00' + dersig[1:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # Declared signature size does not match with size
-        DER2 = DER[:1] + b'\x00' + DER[2:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:1] + b'\x00' + dersig[2:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
-        Rsize = DER[3]
+        Rsize = dersig[3]
         # Zero-size integers are not allowed for r
-        DER2 = DER[:3] + b'\x00' + DER[4:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:3] + b'\x00' + dersig[4:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # Length of the s scalar must be inside the signature
-        DER2 = DER[:3] + b'\x80' + DER[4:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:3] + b'\x80' + dersig[4:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # Zero-size integers are not allowed for s
-        DER2 = DER[:Rsize+5] + b'\x00' + DER[Rsize+6:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:Rsize+5] + b'\x00' + dersig[Rsize+6:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # Signature size does not match with scalars
-        DER2 = DER[:Rsize+5] + b'\x4f' + DER[Rsize+6:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:Rsize+5] + b'\x4f' + dersig[Rsize+6:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # r scalar must be an integer
-        DER2 = DER[:2] + b'\x00' + DER[3:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:2] + b'\x00' + dersig[3:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # Negative numbers are not allowed for r
-        DER2 = DER[:4] + b'\x80' + DER[5:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:4] + b'\x80' + dersig[5:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # Invalid null bytes at the start of r
-        DER2 = DER[:4] + b'\x00\x00' + DER[6:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:4] + b'\x00\x00' + dersig[6:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # s scalar must be an integer
-        DER2 = DER[:Rsize+4] + b'\x00' + DER[Rsize+5:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:Rsize+4] + b'\x00' + dersig[Rsize+5:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # Negative numbers are not allowed for s
-        DER2 = DER[:Rsize+6] + b'\x80' + DER[Rsize+7:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:Rsize+6] + b'\x80' + dersig[Rsize+7:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # Invalid null bytes at the start of s
-        DER2 = DER[:Rsize+6] + b'\x00\x00' + DER[Rsize+8:]
-        self.assertRaises(ValueError, deserialize, DER2)
+        dersig2 = dersig[:Rsize+6] + b'\x00\x00' + dersig[Rsize+8:]
+        self.assertRaises(ValueError, deserialize, dersig2)
 
         # sighash size > 1
         self.assertRaises(ValueError, serialize, *sig, sighash_all + b'\x01')
@@ -103,6 +103,9 @@ class TestDER(unittest.TestCase):
         sig2 = -1, sig[1]
         self.assertRaises(ValueError, serialize, *sig2, sighash_all)
 
+        # Invalid sighash type b'\x00'
+        self.assertRaises(ValueError, deserialize, dersig[:-1] + b'\x00')
+        #deserialize(dersig[:-1] + b'\x00')
 
 if __name__ == "__main__":
     # execute only if run as a script

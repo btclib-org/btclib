@@ -35,7 +35,7 @@ class TestBorromeanRingSignature(unittest.TestCase):
                 Pub_keys[i][j] = mult(priv_keys[i][j], ec.G, ec)
             borromean.signing_keys.append(
                 priv_keys[i][borromean.signing_indexes[i]])
-        msg = b'Borromean ring borromean.signature'
+        msg = 'Borromean ring signature'
         sig = borromean.sign(msg, list(
             range(1, 5)), borromean.signing_indexes, borromean.signing_keys, Pub_keys)
         self.assertTrue(borromean.verify(msg, sig[0], sig[1], Pub_keys))

@@ -22,7 +22,7 @@ class TestDSA(unittest.TestCase):
     def test_signature(self):
         q = 0x1
         Q = mult(q)
-        msg = b'Satoshi Nakamoto'
+        msg = 'Satoshi Nakamoto'
         sig = dsa.sign(msg, q)
         # https://bitcointalk.org/index.php?topic=285142.40
         # Deterministic Usage of DSA and ECDSA (RFC 6979)
@@ -33,20 +33,17 @@ class TestDSA(unittest.TestCase):
         self.assertEqual(sig[0], exp_sig[0])
         self.assertIn(sig[1], (exp_sig[1], secp256k1.n - exp_sig[1]))
 
-        self.assertTrue(dsa.verify(msg, Q, sig))
         self.assertTrue(dsa._verify(msg, Q, sig))
 
         # malleability
         malleated_sig = (r, secp256k1.n - s)
-        self.assertTrue(dsa.verify(msg, Q, malleated_sig))
         self.assertTrue(dsa._verify(msg, Q, malleated_sig))
 
         keys = dsa.pubkey_recovery(msg, sig)
         self.assertTrue(len(keys) == 2)
         self.assertIn(Q, keys)
 
-        fmsg = b'Craig Wright'
-        self.assertFalse(dsa.verify(fmsg, Q, sig))
+        fmsg = 'Craig Wright'
         self.assertFalse(dsa._verify(fmsg, Q, sig))
 
         fdsasig = (sig[0], sig[1], sig[1])
@@ -55,7 +52,6 @@ class TestDSA(unittest.TestCase):
 
         fq = 0x4
         fQ = mult(fq)
-        self.assertFalse(dsa.verify(msg, fQ, sig))
         self.assertFalse(dsa._verify(msg, fQ, sig))
 
         # r not in [1, n-1]
@@ -109,7 +105,6 @@ class TestDSA(unittest.TestCase):
         self.assertIn(s, (exp_sig[1], ec.n - exp_sig[1]))
 
         # 2.1.4 Verifying Operation for V
-        self.assertTrue(dsa.verify(msg, QU, sig, ec, hf))
         self.assertTrue(dsa._verify(msg, QU, sig, ec, hf))
 
     def test_forge_hash_sig(self):
@@ -185,17 +180,20 @@ class TestDSA(unittest.TestCase):
         ec = secp112r2
         q = 0x10
         Q = mult(q, ec.G, ec)
-        msg = b'Satoshi Nakamoto'
-        sig = dsa.sign(msg, q, None, ec)
-
-        self.assertTrue(dsa.verify(msg, Q, sig, ec))
+        msg = 'Satoshi Nakamoto'
+        k = sighash = None
+        sig = dsa.sign(msg, q, k, ec)
         self.assertTrue(dsa._verify(msg, Q, sig, ec))
+        dersig = dsa.serialize(*sig, sighash, ec)
+        self.assertTrue(dsa._verify(msg, Q, dersig, ec))
+        r, s, _ = dsa.deserialize(dersig)
+        self.assertEqual((r, s), sig)
 
-        keys = dsa.pubkey_recovery(msg, sig, ec)
+
+        keys = dsa.pubkey_recovery(msg, dersig, ec)
         self.assertEqual(len(keys), 4)
         self.assertIn(Q, keys)
         for Q in keys:
-            self.assertTrue(dsa.verify(msg, Q, sig, ec))
             self.assertTrue(dsa._verify(msg, Q, sig, ec))
 
 
