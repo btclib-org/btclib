@@ -9,7 +9,7 @@
 [![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
 
 [![btclib logo](https://github.com/btclib-org/btclib/blob/master/img/btclib-logo-40.jpg)](https://github.com/btclib-org)
-btclib is a python3 type annotated library intended for
+btclib is a python3 (>=3.8) type annotated library intended for
 teaching/learning/using bitcoin, its blockchain,
 and the associated elliptic curve cryptography.
 
