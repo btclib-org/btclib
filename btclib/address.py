@@ -32,6 +32,8 @@ _P2SH_PREFIXES = [
     b'\xc4',  # address starts with 2
 ]
 
+# Public key hash base58 encoding, as bytes or string
+Address = Union[bytes, str]
 
 def _p2pkh_address(h160: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""

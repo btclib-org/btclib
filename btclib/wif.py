@@ -36,6 +36,12 @@ _P2SH_PREFIXES = [
     b'\xc4',  # address starts with 2
 ]
 
+# Private key base58 encoding, as bytes or string.
+# Note that WIF is more than just the private key,
+# as it carries the information about which public key
+# (compressed/uncompressed) is to be used in address derivation
+WIF = Union[bytes, str]
+
 def wif_from_prvkey(prv: Union[int, Octets],
                     compressed: bool = True,
                     network: str = 'mainnet') -> bytes:
