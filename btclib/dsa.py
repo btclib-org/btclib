@@ -25,6 +25,7 @@ from .curve import Curve, Point
 from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
+from .prvkey import prvkey_int
 from .rfc6979 import _rfc6979
 from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
                     point_from_octets)
@@ -52,7 +53,9 @@ def deserialize(dersig: Octets,
     return der.deserialize(dersig, ec)
 
 
-def sign(msg: Union[bytes, str], q: int, k: Optional[int] = None,
+def sign(msg: Union[bytes, str],
+         q: Union[int, bytes, str],
+         k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
@@ -83,8 +86,7 @@ def sign(msg: Union[bytes, str], q: int, k: Optional[int] = None,
 
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
-    if not 0 < q < ec.n:
-        raise ValueError(f"private key {hex(q)} not in [1, n-1]")
+    q = prvkey_int(q, ec)
 
     if k is None:
         k = _rfc6979(c, q, ec, hf)                # 1

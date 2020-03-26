@@ -34,7 +34,7 @@ with e = hash(R||c)) and W.x being known from the signature.
 """
 
 from hashlib import sha256
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from . import dsa, ssa
 from .curve import Curve, Point
@@ -65,7 +65,7 @@ def _tweak(c: Octets, k: int,
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: int,
+def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: Union[int, bytes, str],
                       k: Optional[int] = None, ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECDSA signature."""
@@ -91,10 +91,10 @@ def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: int,
     return sig, receipt
 
 
-def ecssa_commit_sign(c: Octets, m: Octets, prvkey: int,
+def ecssa_commit_sign(c: Octets, m: Octets, prvkey: Union[int, bytes, str],
                       k: Optional[int] = None,
                       ec: Curve = secp256k1,
-                      hf: HashF = sha256) -> Tuple[ssa.Sig, Receipt]:
+                      hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
     c = bytes_from_hexstring(c)

@@ -37,19 +37,21 @@ messages to the set of possible k values) would return.
 
 import hmac
 from hashlib import sha256
+from typing import Union
 
 from .curve import Curve
 from .curves import secp256k1
+from .prvkey import prvkey_int
 from .utils import (HashF, Octets, _int_from_bits, bytes_from_hexstring,
                     int_from_bits, octets_from_int)
 
 
-def rfc6979(mhd: Octets, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def rfc6979(mhd: Octets, q: Union[int, bytes, str],
+            ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
     mhd = bytes_from_hexstring(mhd)
-    if not 0 < q < ec.n:
-        raise ValueError(f"private key {hex(q)} not in [1, n-1]")
+    q = prvkey_int(q, ec)
 
     hsize = hf().digest_size
     if len(mhd) != hsize:
