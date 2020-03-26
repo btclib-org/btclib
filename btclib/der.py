@@ -84,7 +84,10 @@ def _serialize_scalar(scalar: int) -> bytes:
 def serialize(r: int, s: int,
               sighash: Optional[Octets],
               ec: Curve = secp256k1) -> bytes:
-    """Serialize an ECDSA signature in strict ASN.1 DER representation."""
+    """Serialize an ECDSA signature in strict ASN.1 DER representation.
+    
+    Trailing sighash is added if provided
+    """
 
     # check that it is a valid signature for the given Curve
     dsa._check_sig(r, s, ec)
@@ -100,11 +103,14 @@ def serialize(r: int, s: int,
     return result + sighash
 
 
-def deserialize(sig: Octets,
+def deserialize(dersig: Octets,
                 ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
-    """Deserialize a strict ASN.1 DER representation of an ECDSA signature."""
+    """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
+    
+    Return r, s, sighash; sighash is None if not available.
+    """
 
-    sig = bytes_from_hexstring(sig)
+    dersig = bytes_from_hexstring(dersig)
 
     # 7 bytes of meta-data:
     # compound header, compound length,
@@ -121,38 +127,38 @@ def deserialize(sig: Octets,
     # but it is only a standardness rule miners are allowed to ignore.
     # Moreover, no such rule exists for r.
 
-    maxsize = (ec.nsize+1) * 2 + 7  # 73 bytes
-    sigsize = len(sig)
+    maxsize = (ec.nsize+1) * 2 + 7  # 73 bytes for secp256k1
+    sigsize = len(dersig)
     if not 8 < sigsize <= maxsize:
         errmsg = f"DER signature size ({sigsize}) must be in "
         errmsg += f"[9, {maxsize}]"
         raise ValueError(errmsg)
 
-    if sig[0] != 0x30:
-        msg = f"DER signature must be of type 0x30 (compound), not {sig[0]}"
+    if dersig[0] != 0x30:
+        msg = f"DER signature type must be 0x30 (compound), not {dersig[0]}"
         raise ValueError(msg)
 
     # sigsize checks
-    leftover = sigsize - 2 - sig[1]
+    leftover = sigsize - 2 - dersig[1]
     if leftover == 0:    # no sighash value
         sighash = None
     elif leftover == 1:  # sighash value
-        sighash = sig[sigsize - 1:]
+        sighash = dersig[sigsize - 1:]
         if sighash not in sighashes:
             raise ValueError(f"Invalid sighash type {sighash!r}")
     else:
-        msg = f"Declared length ({sig[1]}) does not "
+        msg = f"Declared length ({dersig[1]}) does not "
         msg += f"match with actual signature size ({sigsize}) +2 or +3"
         raise ValueError(msg)
 
-    sizeR = sig[3]  # size of the r scalar
+    sizeR = dersig[3]  # size of the r scalar
     if sizeR == 0:
         raise ValueError("Zero-size integer is not allowed for r")
 
     if 5 + sizeR >= sigsize:
         raise ValueError("Size of the s scalar must be inside the signature")
 
-    sizeS = sig[5 + sizeR]  # size of the s scalar
+    sizeS = dersig[5 + sizeR]  # size of the s scalar
     if sizeS == 0:
         raise ValueError("Zero-size integer is not allowed for s")
 
@@ -160,32 +166,32 @@ def deserialize(sig: Octets,
         raise ValueError("Signature size does not match with size of scalars")
 
     # scalar r
-    if sig[2] != 0x02:
+    if dersig[2] != 0x02:
         raise ValueError("r scalar must be an integer")
 
-    if sig[4] & 0x80:
+    if dersig[4] & 0x80:
         raise ValueError("Negative number is not allowed for r")
 
     # Null bytes at the start of a scalar are not allowed, unless the
     # scalar would otherwise be interpreted as a negative number
-    if sizeR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
+    if sizeR > 1 and dersig[4] == 0x00 and not (dersig[5] & 0x80):
         raise ValueError("Invalid null bytes at the start of r")
 
-    r = int.from_bytes(sig[4:4 + sizeR], byteorder='big')
+    r = int.from_bytes(dersig[4:4 + sizeR], byteorder='big')
 
     # scalar s (offset=2+sizeR with respect to r)
-    if sig[sizeR + 4] != 0x02:
+    if dersig[sizeR + 4] != 0x02:
         raise ValueError("s scalar must be an integer")
 
-    if sig[sizeR + 6] & 0x80:
+    if dersig[sizeR + 6] & 0x80:
         raise ValueError("Negative number is not allowed for s")
 
     # Null bytes at the start of a scalar are not allowed, unless the
     # scalar would otherwise be interpreted as a negative number
-    if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
+    if sizeS>1 and dersig[sizeR+6]==0x00 and not (dersig[sizeR+7] & 0x80):
         raise ValueError("Invalid null bytes at the start of s")
 
-    s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
+    s = int.from_bytes(dersig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
 
     # checks that the signature is valid for the given Curve
     dsa._check_sig(r, s, ec)

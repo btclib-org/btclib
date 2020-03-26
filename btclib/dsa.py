@@ -37,11 +37,19 @@ Sig = Union[Tuple[int, int], Octets]
 def serialize(r: int, s: int,
               sighash: Optional[Octets],
               ec: Curve = secp256k1) -> bytes:
+    """Serialize an ECDSA signature in strict ASN.1 DER representation.
+    
+    Trailing sighash is added if provided
+    """
     return der.serialize(r, s, sighash, ec)
 
-def deserialize(sig: Octets,
+def deserialize(dersig: Octets,
                 ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
-    return der.deserialize(sig, ec)
+    """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
+    
+    Return r, s, sighash; sighash is None if not available.
+    """
+    return der.deserialize(dersig, ec)
 
 
 def sign(msg: Union[bytes, str], q: int, k: Optional[int] = None,
