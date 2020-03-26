@@ -31,7 +31,7 @@ from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
 
 # (r, s) or DER serialization (bytes or hex-string)
 # DER can include sighash
-Sig = Union[Tuple[int, int], Octets]
+Sig = Union[Tuple[int, int], Octets]  # Tuple[scalar, scalar]
 
 
 def serialize(r: int, s: int,
@@ -243,7 +243,6 @@ def _pubkey_recovery(c: int, sig: Sig, ec: Curve = secp256k1) -> List[Point]:
 
 def _check_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
     # check that the DSA signature is correct
-    # and return the signature itself
 
     # Fail if r is not [1, n-1]
     if not 0 < r < ec.n:
