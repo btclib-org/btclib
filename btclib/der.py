@@ -43,11 +43,11 @@
       (not part of the DER signature)
 """
 
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
+from . import dsa
 from .curve import Curve
 from .curves import secp256k1
-from .dsa import ECDS, _check_sig
 from .utils import Octets, bytes_from_hexstring
 
 sighash_all = b'\x01'
@@ -81,13 +81,15 @@ def _serialize_scalar(scalar: int) -> bytes:
     return b'\x02' + xsize + x
 
 
-def serialize(sig: Tuple[int, int], sighash: Octets = sighash_all, ec: Curve = secp256k1) -> bytes:
+def serialize(r: int, s: int,
+              sighash: Optional[Octets],
+              ec: Curve = secp256k1) -> bytes:
     """Serialize an ECDSA signature in strict ASN.1 DER representation."""
 
     # check that it is a valid signature for the given Curve
-    _check_sig(sig, ec)
-    result = _serialize_scalar(sig[0])
-    result += _serialize_scalar(sig[1])
+    dsa._check_sig(r, s, ec)
+    result = _serialize_scalar(r)
+    result += _serialize_scalar(s)
     result = b'\x30' + len(result).to_bytes(1, byteorder='big') + result
     if sighash is None:
         return result
@@ -98,7 +100,8 @@ def serialize(sig: Tuple[int, int], sighash: Octets = sighash_all, ec: Curve = s
     return result + sighash
 
 
-def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, Optional[bytes]]:
+def deserialize(sig: Octets,
+                ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature."""
 
     sig = bytes_from_hexstring(sig)
@@ -185,5 +188,5 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[ECDS, Optional[byte
     s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
 
     # checks that the signature is valid for the given Curve
-    _check_sig((r, s), ec)
-    return (r, s), sighash
+    dsa._check_sig(r, s, ec)
+    return r, s, sighash

@@ -64,8 +64,9 @@ def _tweak(c: Octets, k: int,
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: int, k: Optional[int] = None,
-                      ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[dsa.ECDS, Receipt]:
+def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: int,
+                      k: Optional[int] = None, ec: Curve = secp256k1,
+                      hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECDSA signature."""
 
     c = bytes_from_hexstring(c)

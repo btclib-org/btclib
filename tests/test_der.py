@@ -31,14 +31,14 @@ class TestDER(unittest.TestCase):
         lenghts = [73, 72, 71, 71, 70, 69, 9]
 
         for lenght, sig in zip(lenghts, sigs):
-            DER = serialize(sig, sighash_all)
-            sig2, sighash_all2 = deserialize(DER)
-            self.assertEqual(sig, sig2)
+            DER = serialize(*sig, sighash_all)
+            r, s, sighash_all2 = deserialize(DER)
+            self.assertEqual(sig, (r, s))
             self.assertEqual(sighash_all, sighash_all2)
             self.assertEqual(len(DER), lenght)
             # without sighash
-            sig2, sighash_all2 = deserialize(DER[:-1])
-            self.assertEqual(sig, sig2)
+            r, s, sighash_all2 = deserialize(DER[:-1])
+            self.assertEqual(sig, (r, s))
             self.assertIsNone(sighash_all2)
 
         # with the last one
@@ -97,11 +97,11 @@ class TestDER(unittest.TestCase):
         self.assertRaises(ValueError, deserialize, DER2)
 
         # sighash size > 1
-        self.assertRaises(ValueError, serialize, sig, sighash_all + b'\x01')
+        self.assertRaises(ValueError, serialize, *sig, sighash_all + b'\x01')
 
         # negative signature scalar
         sig2 = -1, sig[1]
-        self.assertRaises(ValueError, serialize, sig2, sighash_all)
+        self.assertRaises(ValueError, serialize, *sig2, sighash_all)
 
 
 if __name__ == "__main__":

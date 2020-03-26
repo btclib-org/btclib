@@ -180,10 +180,10 @@ btclib.segwitaddress module
    :undoc-members:
    :show-inheritance:
 
-btclib.signmessage module
+btclib.btcmsg module
 -------------------------
 
-.. automodule:: btclib.signmessage
+.. automodule:: btclib.btcmsg
    :members:
    :undoc-members:
    :show-inheritance:

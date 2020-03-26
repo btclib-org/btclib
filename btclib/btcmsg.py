@@ -144,13 +144,16 @@ from base64 import b64decode, b64encode
 from hashlib import sha256
 from typing import Optional, Tuple, Union
 
-from .address import h160_from_base58_address, p2pkh_address
+from . import dsa
+from .address import h160_from_base58_address, p2pkh_address, Address
 from .curvemult import mult
-from .dsa import _check_sig, pubkey_recovery, sign
 from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
                             p2wpkh_p2sh_address)
-from .utils import hash160, octets_from_point
-from .wif import prvkey_from_wif
+from .utils import hash160, octets_from_point, Octets
+from .wif import prvkey_from_wif, WIF
+
+# (rec_flag, r, s) or compact serialization (bytes or hex-string)
+Sig = Union[Tuple[int, int, int], Octets]
 
 
 def _magic_hash(msg: Union[bytes, str]) -> bytes:
@@ -168,12 +171,12 @@ def _serialize(rf: int, r: int, s: int) -> bytes:
     # serialize [1-byte rf][32-bytes r][32-bytes s]
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
-    _check_sig((r, s))
+    dsa._check_sig(r, s)
     t = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
     return b64encode(t)
 
 
-def _deserialize(sig: Union[bytes, str]) -> Tuple[int, int, int]:
+def _deserialize(sig: Octets) -> Tuple[int, int, int]:
     # deserialize [1-byte rf][32-bytes r][32-bytes s]
     sig = b64decode(sig)
     if len(sig) != 65:
@@ -183,12 +186,12 @@ def _deserialize(sig: Union[bytes, str]) -> Tuple[int, int, int]:
         raise ValueError(f"Invalid recovery flag: {rf}")
     r = int.from_bytes(sig[1:33], byteorder='big')
     s = int.from_bytes(sig[33:], byteorder='big')
-    _check_sig((r, s))
+    dsa._check_sig(r, s)
     return rf, r, s
 
 
-def msgsign(msg: Union[bytes, str], wif: Union[bytes, str], 
-            addr: Optional[Union[bytes, str]] = None) -> bytes:
+def sign(msg: Union[bytes, str], wif: WIF, 
+         addr: Optional[Address] = None) -> Tuple[int, int, int]:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -198,10 +201,10 @@ def msgsign(msg: Union[bytes, str], wif: Union[bytes, str],
     # first sign the message
     magic_msg = _magic_hash(msg)
     q, compressed, _ = prvkey_from_wif(wif)
-    sig = sign(magic_msg, q)
+    r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
-    pubkeys = pubkey_recovery(magic_msg, sig)
+    pubkeys = dsa.pubkey_recovery(magic_msg, (r, s))
     Q = mult(q)
     key_id = pubkeys.index(Q)
     pubkey = octets_from_point(Q, compressed)
@@ -218,11 +221,10 @@ def msgsign(msg: Union[bytes, str], wif: Union[bytes, str],
     else:
         raise ValueError("Mismatch between private key and address")
     
-    return _serialize(rf, sig[0], sig[1]) 
+    return rf, r, s
 
 
-def verify(msg: Union[bytes, str],
-           addr: Union[bytes, str], sig: Union[bytes, str]) -> bool:
+def verify(msg: Union[bytes, str], addr: Address, sig: Sig) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
@@ -232,14 +234,20 @@ def verify(msg: Union[bytes, str],
         return False
 
 
-def _verify(msg: Union[bytes, str],
-            addr: Union[bytes, str], sig: Union[bytes, str]) -> bool:
+def _verify(msg: Union[bytes, str], addr: Address, sig: Sig) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    rf, r, s = _deserialize(sig)
+
+    if not isinstance(sig, tuple):
+        rf, r, s = _deserialize(sig)
+    else:
+        rf, r, s = sig
+        dsa._check_sig(r, s)
+
+
     magic_msg = _magic_hash(msg)
-    Qs = pubkey_recovery(magic_msg, (r, s))
+    Qs = dsa.pubkey_recovery(magic_msg, (r, s))
     # key_id can be retireved as least significant 2 bits of the recovery flag
     #    key_id = 00;     key_id = 01;     key_id = 10;     key_id = 11
     # 27-27 = 000000;  28-27 = 000001;  29-27 = 000010;  30-27 = 000011

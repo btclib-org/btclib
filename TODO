@@ -54,7 +54,8 @@ crypto: {
     prvkey: Octets,
     pubkey, Q: Union[Point, Octets],
     DER: Octets,
-    ECDS: Union[Tuple[int, int], DER],  # (r, s) or DER serialization
+    ECDSA Sig = Union[Tuple[int, int], Octets],  # (r, s) or DER serialization
+    BTCMSG Sig = Union[Tuple[int, int, int], Octets],  # (rec_flag, r, s) or compact serialization
     h160, h256: Octets
     version, sighash: Octets 
     msg: Union[bytes, str]  # string to be encoded, not hex-string, never s.strip()

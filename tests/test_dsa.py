@@ -51,7 +51,7 @@ class TestDSA(unittest.TestCase):
 
         fdsasig = (sig[0], sig[1], sig[1])
         self.assertFalse(dsa.verify(msg, Q, fdsasig))
-        self.assertRaises(TypeError, dsa._verify, msg, Q, fdsasig)
+        self.assertRaises(ValueError, dsa._verify, msg, Q, fdsasig)
 
         fq = 0x4
         fQ = mult(fq)

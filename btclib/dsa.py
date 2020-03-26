@@ -30,11 +30,22 @@ from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
                     point_from_octets)
 
 # (r, s) or DER serialization (bytes or hex-string)
-ECDS = Union[Tuple[int, int], Octets] 
+# DER can include sighash
+Sig = Union[Tuple[int, int], Octets]
+
+
+def _serialize(r: int, s: int,
+               sighash: Optional[Octets] = None,
+               ec: Curve = secp256k1) -> bytes:
+    return der.serialize(r, s, sighash, ec)
+
+def _deserialize(sig: Octets,
+                 ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
+    return der.deserialize(sig, ec)
 
 
 def sign(msg: Union[bytes, str], q: int, k: Optional[int] = None,
-         ec: Curve = secp256k1, hf: HashF = sha256) -> ECDS:
+         ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
     The message m is first processed by hf, yielding the value
@@ -75,7 +86,7 @@ def sign(msg: Union[bytes, str], q: int, k: Optional[int] = None,
     return _sign(c, q, k, ec)
 
 
-def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> ECDS:
+def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> Tuple[int, int]:
     # Private function for test/dev purposes
     # it is assumed that q, k, and c are in [1, n-1]
 
@@ -103,7 +114,7 @@ def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> ECDS:
 
 def verify(msg: Union[bytes, str],
            P: Union[Point, Octets],
-           sig: ECDS,
+           sig: Sig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
@@ -116,7 +127,7 @@ def verify(msg: Union[bytes, str],
 
 def _verify(msg: Union[bytes, str],
             P: Union[Point, Octets],
-            sig: ECDS,
+            sig: Sig,
             ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -134,7 +145,7 @@ def _verify(msg: Union[bytes, str],
 
 def _verhlp(c: int,
             P: Union[Point, Octets],
-            sig: ECDS,
+            sig: Sig,
             ec: Curve = secp256k1) -> bool:
     # Private function for test/dev purposes
 
@@ -147,13 +158,15 @@ def _verhlp(c: int,
         raise ValueError("public key is infinite")
 
     if not isinstance(sig, tuple):
-        sig, _ = der.deserialize(sig, ec)
+        # sighash is not needed
+        r, s, _ = der.deserialize(sig, ec)
     else:
-        _check_sig(sig, ec)                              # 1
+        r, s = sig
+        _check_sig(r, s, ec)                             # 1
 
-    w = mod_inv(sig[1], ec.n)
+    w = mod_inv(s, ec.n)
     u = c*w
-    v = sig[0]*w                                         # 4
+    v = r*w                                              # 4
     # Let R = u*G + v*P.
     RJ = _double_mult(v, (P[0], P[1], 1), u, ec.GJ, ec)  # 5
 
@@ -163,11 +176,10 @@ def _verhlp(c: int,
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     x = Rx % ec.n                                        # 6, 7
     # Fail if r ≠ x(R) %n.
-    return sig[0] == x                                   # 8
+    return r == x                                        # 8
 
 
-def pubkey_recovery(msg: Union[bytes, str],
-                    sig: ECDS,
+def pubkey_recovery(msg: Union[bytes, str], sig: Sig,
                     ec: Curve = secp256k1, hf: HashF = sha256) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
@@ -184,27 +196,27 @@ def pubkey_recovery(msg: Union[bytes, str],
     return _pubkey_recovery(c, sig, ec)
 
 
-def _pubkey_recovery(c: int,
-                     sig: ECDS,
-                     ec: Curve = secp256k1) -> List[Point]:
+def _pubkey_recovery(c: int, sig: Sig, ec: Curve = secp256k1) -> List[Point]:
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
 
     if not isinstance(sig, tuple):
-        sig, _ = der.deserialize(sig, ec)
+        # sighash is not needed
+        r, s, _ = der.deserialize(sig, ec)
     else:
-        _check_sig(sig, ec)
+        r, s = sig
+        _check_sig(r, s, ec)
 
     # precomputations
-    r1 = mod_inv(sig[0], ec.n)
-    r1s = r1*sig[1]
+    r1 = mod_inv(r, ec.n)
+    r1s = r1*s
     r1e = -r1*c
     keys: List[Point] = list()
     # r = R[0] % ec.n
     # if ec.n < R[0] < ec._p (probable when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
     for j in range(ec.h):                                 # 1
-        x = (sig[0] + j*ec.n) % ec._p                     # 1.1
+        x = (r + j*ec.n) % ec._p                     # 1.1
         try:
             # even root first for bitcoin message signing compatibility
             R = x, ec.y_odd(x, False)                     # 1.2, 1.3, and 1.4
@@ -221,18 +233,14 @@ def _pubkey_recovery(c: int,
     return keys
 
 
-def _check_sig(sig: Tuple[int, int], ec: Curve = secp256k1) -> None:
+def _check_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
     # check that the DSA signature is correct
     # and return the signature itself
 
-    if len(sig) != 2:
-        errMsg = f"invalid length {len(sig)} for ECDSA signature"
-        raise TypeError(errMsg)
-
     # Fail if r is not [1, n-1]
-    if not 0 < sig[0] < ec.n:
-        raise ValueError(f"r ({hex(sig[0])}) not in [1, n-1]")
+    if not 0 < r < ec.n:
+        raise ValueError(f"r ({hex(r)}) not in [1, n-1]")
 
     # Fail if s is not [1, n-1]
-    if not 0 < sig[1] < ec.n:
-        raise ValueError(f"s ({hex(sig[1])}) not in [1, n-1]")
+    if not 0 < s < ec.n:
+        raise ValueError(f"s ({hex(s)}) not in [1, n-1]")
