@@ -47,11 +47,16 @@ def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
     return int.from_bytes(ht, byteorder='big')
 
 
-def _e(r: int, P: Point, mhd: Octets,
+def _e(r: int, P: Union[Point, Octets], mhd: Octets,
        ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
     h = hf()
     h.update(octets_from_int(r, ec.psize))
+    if not isinstance(P, tuple):
+        # it does test for a valid point,
+        # while getting rid of any uncompressed representation
+        P = point_from_octets(P, ec)
     h.update(octets_from_point(P, True, ec))
     h.update(bytes_from_hexstring(mhd))
     e = int_from_bits(h.digest(), ec)

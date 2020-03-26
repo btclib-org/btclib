@@ -97,8 +97,7 @@ class TestEcssa(unittest.TestCase):
         msg = b'\x00' * 32
         expected_sig = (0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF6,
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
-        eph_prv = int.from_bytes(
-            hf(prv.to_bytes(32, byteorder='big') + msg).digest(), byteorder='big')
+        eph_prv = ssa._k(prv, msg)
         sig = ssa.sign(msg, prv, eph_prv)
         self.assertTrue(ssa._verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
@@ -132,46 +131,42 @@ class TestEcssa(unittest.TestCase):
         self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
 
         # test vector 4
-        pub = point_from_octets(
-            "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34")
+        pub = "03DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34"
         msg = "4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703"
         sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63,
                0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
         self.assertTrue(ssa._verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
+        self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
 
         # test vector 5
         # test would fail if jacobi symbol of x(R) instead of y(R) is used
-        pub = point_from_octets(
-            "031B84C5567B126440995D3ED5AABA0565D71E1834604819FF9C17F5E9D5DD078F")
+        pub = "031B84C5567B126440995D3ED5AABA0565D71E1834604819FF9C17F5E9D5DD078F"
         msg = "0000000000000000000000000000000000000000000000000000000000000000"
         sig = (0x52818579ACA59767E3291D91B76B637BEF062083284992F2D95F564CA6CB4E35,
                0x30B1DA849C8E8304ADC0CFE870660334B3CFC18E825EF1DB34CFAE3DFC5D8187)
         self.assertTrue(ssa._verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
+        self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
 
         # test vector 6
         # test would fail if msg is reduced
-        pub = point_from_octets(
-            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        pub = "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B"
         msg = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
         sig = (0x570DD4CA83D4E6317B8EE6BAE83467A1BF419D0767122DE409394414B05080DC,
                0xE9EE5F237CBD108EABAE1E37759AE47F8E4203DA3532EB28DB860F33D62D49BD)
         self.assertTrue(ssa._verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
+        self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
 
         # new proposed test: test would fail if msg is reduced
-        pub = point_from_octets(
-            "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B")
+        pub = "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B"
         msg = "000008D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A5000000"
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
         self.assertTrue(ssa._verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
+        self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
 
         # new proposed test: genuine failure
         pub = "03FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B"
@@ -192,7 +187,8 @@ class TestEcssa(unittest.TestCase):
         # impossible to verify with btclib analytics as it at Point conversion
         pub = "03EEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34"
         msg = "4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703"
-        sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63, 0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
+        sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63,
+               0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
         self.assertRaises(ValueError, ssa._verify, msg, pub, sig)
 
         # test vector 8
