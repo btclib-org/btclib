@@ -167,7 +167,7 @@ def _magic_hash(msg: Union[bytes, str]) -> bytes:
     return sha256(t).digest()
 
 
-def _serialize(rf: int, r: int, s: int) -> bytes:
+def serialize(rf: int, r: int, s: int) -> bytes:
     # serialize [1-byte rf][32-bytes r][32-bytes s]
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
@@ -176,7 +176,7 @@ def _serialize(rf: int, r: int, s: int) -> bytes:
     return b64encode(t)
 
 
-def _deserialize(sig: Octets) -> Tuple[int, int, int]:
+def deserialize(sig: Octets) -> Tuple[int, int, int]:
     # deserialize [1-byte rf][32-bytes r][32-bytes s]
     sig = b64decode(sig)
     if len(sig) != 65:
@@ -240,7 +240,7 @@ def _verify(msg: Union[bytes, str], addr: Address, sig: Sig) -> bool:
 
 
     if not isinstance(sig, tuple):
-        rf, r, s = _deserialize(sig)
+        rf, r, s = deserialize(sig)
     else:
         rf, r, s = sig
         dsa._check_sig(r, s)

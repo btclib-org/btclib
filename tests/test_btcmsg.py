@@ -14,7 +14,7 @@ from os import path
 
 from btclib import der, dsa
 from btclib.address import p2pkh_address
-from btclib.btcmsg import _deserialize, _serialize, _verify, sign, verify
+from btclib.btcmsg import _verify, deserialize, serialize, sign, verify
 from btclib.utils import bytes_from_hexstring
 from btclib.wif import (p2pkh_address_from_wif, p2wpkh_address_from_wif,
                         p2wpkh_p2sh_address_from_wif, wif_from_prvkey)
@@ -32,10 +32,10 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(_verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
         sig = sign(msg.encode(), wif)
         self.assertTrue(_verify(msg.encode(), address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         wif = '5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
         address = '1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
@@ -43,10 +43,10 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(_verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
         sig = sign(msg.encode(), wif)
         self.assertTrue(_verify(msg.encode(), address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         # second private key
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
@@ -55,10 +55,10 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, address, exp_sig))
         sig = sign(msg, wif, address)
         self.assertTrue(_verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
         sig = sign(msg.encode(), wif)
         self.assertTrue(_verify(msg.encode(), address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         address = '19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
@@ -66,10 +66,10 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, address, exp_sig))
         sig = sign(msg, wif, address)
         self.assertTrue(_verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
         sig = sign(msg.encode(), wif)
         self.assertTrue(_verify(msg.encode(), address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
     def test_verify_p2pkh(self):
         msg = 'Hello, world!'
@@ -148,7 +148,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, p2pkh_address, exp_sig))
         sig = sign(msg, wif)  # no address: p2pkh assumed
         self.assertTrue(_verify(msg, p2pkh_address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         # p2wpkh-p2sh base58 address (Electrum)
         self.assertTrue(_verify(msg, p2wpkh_p2sh_address, sig))
@@ -162,7 +162,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, p2wpkh_p2sh_address, exp_sig))
         sig = sign(msg, wif, p2wpkh_p2sh_address)
         self.assertTrue(_verify(msg, p2wpkh_p2sh_address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         # p2wpkh bech32 address (BIP137)
         # different first letter in sig because of different rf
@@ -170,7 +170,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, p2wpkh_address, exp_sig))
         sig = sign(msg, wif, p2wpkh_address)
         self.assertTrue(_verify(msg, p2wpkh_address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
     def test_sign_strippable_message(self):
 
@@ -182,7 +182,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = ' '
@@ -190,7 +190,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = '  '
@@ -198,14 +198,14 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         msg = 'test'
         exp_sig = b'IJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
         self.assertTrue(verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = ' test '
@@ -213,7 +213,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = 'test '
@@ -221,7 +221,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = ' test'
@@ -229,7 +229,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(verify(msg, address, exp_sig))
         sig = sign(msg, wif)
         self.assertTrue(verify(msg, address, sig))
-        self.assertEqual(_serialize(*sig), exp_sig)
+        self.assertEqual(serialize(*sig), exp_sig)
 
     def test_exceptions(self):
 
@@ -240,9 +240,9 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(_verify(msg, address, exp_sig))
 
         # Invalid recovery flag: 26
-        rf, r, s = _deserialize(exp_sig)
-        self.assertRaises(ValueError, _serialize, 26, r, s)
-        #_serialize(26, r, s)
+        rf, r, s = deserialize(exp_sig)
+        self.assertRaises(ValueError, serialize, 26, r, s)
+        #serialize(26, r, s)
 
         # short exp_sig
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc='
@@ -293,15 +293,15 @@ class TestSignMessage(unittest.TestCase):
 
         # Invalid recovery flag (39) for base58 address
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
-        _, r, s = _deserialize(exp_sig)
-        sig = _serialize(39, r, s)
+        _, r, s = deserialize(exp_sig)
+        sig = serialize(39, r, s)
         self.assertRaises(ValueError, _verify, msg, p2pkh_address, sig)
         #_verify(msg, p2pkh_address, sig)
 
         # Invalid recovery flag (35) for bech32 address
         exp_sig = b'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
-        _, r, s = _deserialize(exp_sig)
-        sig = _serialize(35, r, s)
+        _, r, s = deserialize(exp_sig)
+        sig = serialize(35, r, s)
         self.assertRaises(ValueError, _verify, msg, p2wpkh_address, sig)
         #_verify(msg, p2wpkh_address, sig)
 
@@ -345,7 +345,7 @@ class TestSignMessage(unittest.TestCase):
 
         # equivalent Bitcoin Message Signature verification
         rec_flag = 27 + bytes_from_hexstring(DER)[0] - 48
-        msgsig = _serialize(rec_flag, r, s)
+        msgsig = serialize(rec_flag, r, s)
         addr = p2pkh_address(pubkey)
         _verify(msg, addr, msgsig)
 

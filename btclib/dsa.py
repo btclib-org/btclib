@@ -34,13 +34,13 @@ from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
 Sig = Union[Tuple[int, int], Octets]
 
 
-def _serialize(r: int, s: int,
-               sighash: Optional[Octets] = None,
-               ec: Curve = secp256k1) -> bytes:
+def serialize(r: int, s: int,
+              sighash: Optional[Octets],
+              ec: Curve = secp256k1) -> bytes:
     return der.serialize(r, s, sighash, ec)
 
-def _deserialize(sig: Octets,
-                 ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
+def deserialize(sig: Octets,
+                ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
     return der.deserialize(sig, ec)
 
 
