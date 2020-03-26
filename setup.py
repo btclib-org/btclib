@@ -16,11 +16,9 @@ setup(
     packages = find_packages(exclude=['tests']),
     include_package_data = True,
     keywords = 'bitcoin cryptography elliptic-curves ecdsa schnorr RFC-6979 bip32 bip39 electrum base58 bech32 segwit message-signing',
-    python_requires = '>=3.6',
+    python_requires = '>=3.8',
     classifiers = [
         'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
 
         'Development Status :: 4 - Beta',
