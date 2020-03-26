@@ -60,6 +60,14 @@ btclib.borromean module
    :undoc-members:
    :show-inheritance:
 
+btclib.btcmsg module
+--------------------
+
+.. automodule:: btclib.btcmsg
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.curve module
 -------------------
 
@@ -148,6 +156,14 @@ btclib.pedersen module
    :undoc-members:
    :show-inheritance:
 
+btclib.prvkey module
+--------------------
+
+.. automodule:: btclib.prvkey
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.rfc6979 module
 ---------------------
 
@@ -176,14 +192,6 @@ btclib.segwitaddress module
 ---------------------------
 
 .. automodule:: btclib.segwitaddress
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.btcmsg module
--------------------------
-
-.. automodule:: btclib.btcmsg
    :members:
    :undoc-members:
    :show-inheritance:
