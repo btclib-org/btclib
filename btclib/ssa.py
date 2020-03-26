@@ -18,7 +18,7 @@ https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki.
 import heapq
 import random
 from hashlib import sha256
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple, Union
 
 from .curve import Curve, Point, _JacPoint
 from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
@@ -27,9 +27,9 @@ from .curves import secp256k1
 from .numbertheory import legendre_symbol, mod_inv
 from .rfc6979 import rfc6979
 from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
-                    octets_from_int, octets_from_point)
+                    octets_from_int, octets_from_point, point_from_octets)
 
-ECSS = Tuple[int, int]  # Tuple[field element, scalar]
+Sig = Tuple[int, int]  # Tuple[field element, scalar]
 
 
 def _ensure_msg_size(mhd: Octets, hf: HashF = sha256) -> None:
@@ -38,6 +38,13 @@ def _ensure_msg_size(mhd: Octets, hf: HashF = sha256) -> None:
         errmsg = f'message of wrong size: {len(mhd)}'
         errmsg += f' instead of {hf().digest_size} bytes'
         raise ValueError(errmsg)
+
+
+def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
+    mhd = bytes_from_hexstring(mhd)
+    t = d.to_bytes(32, byteorder='big') + mhd
+    ht = hf(t).digest()
+    return int.from_bytes(ht, byteorder='big')
 
 
 def _e(r: int, P: Point, mhd: Octets,
@@ -52,7 +59,7 @@ def _e(r: int, P: Point, mhd: Octets,
 
 
 def sign(mhd: Octets, d: int, k: Optional[int] = None,
-         ec: Curve = secp256k1, hf: HashF = sha256) -> ECSS:
+         ec: Curve = secp256k1, hf: HashF = sha256) -> Sig:
     """ECSSA signing operation according to bip-schnorr.
 
     This signature scheme supports only 32-byte messages.
@@ -102,7 +109,9 @@ def sign(mhd: Octets, d: int, k: Optional[int] = None,
     return r, s
 
 
-def verify(mhd: Octets, P: Point, sig: ECSS,
+def verify(mhd: Octets,
+           P: Union[Point, Octets],
+           sig: Sig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECSSA signature verification according to bip-schnorr."""
 
@@ -113,7 +122,9 @@ def verify(mhd: Octets, P: Point, sig: ECSS,
         return False
 
 
-def _verify(mhd: Octets, P: Point, sig: ECSS,
+def _verify(mhd: Octets,
+            P: Union[Point, Octets],
+            sig: Sig,
             ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -126,24 +137,26 @@ def _verify(mhd: Octets, P: Point, sig: ECSS,
 
     mhd = bytes_from_hexstring(mhd)
 
-    # Let r = int(sig[ 0:32]).
-    # Let s = int(sig[32:64]); fail if s is not [0, n-1].
-    _check_sig(sig, ec)
+    r, s = sig
+    _check_sig(r, s, ec)
 
     # The message mhd: a 32-byte array
     _ensure_msg_size(mhd, hf)
 
     # Let P = point(pk); fail if point(pk) fails.
-    ec.require_on_curve(P)
+    if not isinstance(P, tuple):
+        P = point_from_octets(P, ec)
+    else:
+        ec.require_on_curve(P)
     if P[1] == 0:
         raise ValueError("public key is infinite")
 
     # Let e = int(hf(bytes(r) || bytes(P) || mhd)) mod n.
-    e = _e(sig[0], P, mhd, ec, hf)
+    e = _e(r, P, mhd, ec, hf)
 
     # Let R = sG - eP.
     # in Jacobian coordinates
-    R = _double_mult(-e, (P[0], P[1], 1), sig[1], ec.GJ, ec)
+    R = _double_mult(-e, (P[0], P[1], 1), s, ec.GJ, ec)
 
     # Fail if infinite(R).
     if R[2] == 0:
@@ -154,46 +167,40 @@ def _verify(mhd: Octets, P: Point, sig: ECSS,
         raise ValueError("(sG - eP).y is not a quadratic residue")
 
     # Fail if R.x ≠ r.
-    return R[0] == (R[2]*R[2]*sig[0] % ec._p)
+    return R[0] == (R[2]*R[2]*r % ec._p)
 
 
-def _pubkey_recovery(e: int, sig: ECSS,
-                     ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
+def _pubkey_recovery(e: int, sig: Sig, ec: Curve = secp256k1) -> Point:
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
 
-    _check_sig(sig, ec)
+    r, s = sig
+    _check_sig(r, s, ec)
 
-    K = sig[0], ec.y_quadratic_residue(sig[0], True)
+    K = r, ec.y_quadratic_residue(r, True)
     # FIXME: y_quadratic_residue in Jacobian coordinates?
 
     if e == 0:
         raise ValueError("invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
-    P = double_mult(-e1, K, e1*sig[1], ec.G, ec)
+    P = double_mult(-e1, K, e1*s, ec.G, ec)
     assert P[1] != 0, "how did you do that?!?"
     return P
 
 
-def _check_sig(sig: ECSS, ec: Curve = secp256k1) -> None:
+def _check_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
     # check that the SSA signature is correct
-    # and return the signature itself
 
-    # A signature sig: a 64-byte array.
-    if len(sig) != 2:
-        mhd = f"invalid length {len(sig)} for ECSSA signature"
-        raise TypeError(mhd)
+    # Fail if r is not a field element, i.e. a valid x-coordinate
+    ec.y(r)
 
-    # Let r = int(sig[ 0:32]); fail if r is not a valid x-coordinate.
-    ec.y(sig[0])
-
-    # Let s = int(sig[32:64]); fail if s is not [0, n-1].
-    if not 0 <= sig[1] < ec.n:
-        raise ValueError(f"s ({hex(sig[1])}) not in [0, n-1]")
+    # Fail if s is not [0, n-1].
+    if not 0 <= s < ec.n:
+        raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
 
 
 
-def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[ECSS],
+def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
                  ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECSSA batch signature verification according to bip-schnorr."""
 
@@ -204,7 +211,7 @@ def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[ECSS],
         return False
 
 
-def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[ECSS],
+def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
                   ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
 
     # the bitcoin proposed standard is only valid for curves
@@ -230,8 +237,8 @@ def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[ECSS],
     scalars: List[int] = list()
     points: List[_JacPoint] = list()
     for i in range(batch_size):
-        _check_sig(sig[i], ec)
         r, s = sig[i]
+        _check_sig(r, s, ec)
         _ensure_msg_size(ms[i], hf)
         ec.require_on_curve(P[i])
         e = _e(r, P[i], ms[i], ec, hf)
