@@ -56,7 +56,7 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.parent_fingerprint, xkey)
         # bip32.parent_fingerprint(xkey)
 
-        f = bip32.fingerprint(xkey)
+        f, _, _ = bip32._fingerprint(bip32.deserialize(xkey))
         child_key = bip32.ckd(xkey, 0)
         f2 = bip32.parent_fingerprint(child_key)
         self.assertEqual(f, f2)

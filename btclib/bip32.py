@@ -38,7 +38,8 @@ from typing import List, Sequence, Tuple, TypedDict, Union
 
 from .address import p2pkh_address
 from .base58 import b58decode, b58encode
-from .bip39 import seed_from_mnemonic, Mnemonic
+from .mnemonic import Mnemonic
+from . import bip39, electrum
 from .curve import Point
 from .curvemult import mult
 from .curves import secp256k1 as ec
@@ -401,8 +402,31 @@ def rootxprv_from_mnemonic(mnemonic: Mnemonic,
                            version: Octets = MAIN_xprv) -> XkeyDict:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
-    seed = seed_from_mnemonic(mnemonic, passphrase)
+    seed = bip39.seed_from_mnemonic(mnemonic, passphrase)
     return rootxprv_from_seed(seed, version)
+
+
+def masterxprv_from_mnemonic(mnemonic: Mnemonic,
+                             passphrase: str,
+                             network: str = 'mainnet') -> XkeyDict:
+    """Return BIP32 master extended private key from Electrum mnemonic.
+
+    Note that for a 'standard' mnemonic the derivation path is "m",
+    for a 'segwit' mnemonic it is "m/0h" instead.
+    """
+
+    version, seed = electrum._seed_from_mnemonic(mnemonic, passphrase)
+    prefix = _NETWORKS.index(network)
+
+    if version == 'standard':
+        xversion = _XPRV_PREFIXES[prefix]
+        return rootxprv_from_seed(seed, xversion)
+    elif version == 'segwit':
+        xversion = _P2WPKH_PRV_PREFIXES[prefix]
+        rootxprv = rootxprv_from_seed(seed, xversion)
+        return ckd(rootxprv, 0x80000000)  # "m/0h"
+    else:
+        raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
 
 
 def xpub_from_xprv(xprv: Union[XkeyDict, Octets]) -> XkeyDict:

@@ -106,26 +106,3 @@ def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes
     iterations = 2048
     dksize = 64
     return version, pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
-
-
-def masterxprv_from_mnemonic(mnemonic: Mnemonic,
-                             passphrase: str,
-                             network: str = 'mainnet') -> bytes:
-    """Return BIP32 master extended private key from Electrum mnemonic.
-
-    Note that for a 'standard' mnemonic the derivation path is "m",
-    for a 'segwit' mnemonic it is "m/0h" instead.
-    """
-
-    version, seed = _seed_from_mnemonic(mnemonic, passphrase)
-    prefix = bip32._NETWORKS.index(network)
-
-    if version == 'standard':
-        xversion = bip32._XPRV_PREFIXES[prefix]
-        return bip32.rootxprv_from_seed(seed, xversion)
-    elif version == 'segwit':
-        xversion = bip32._P2WPKH_PRV_PREFIXES[prefix]
-        rootxprv = bip32.rootxprv_from_seed(seed, xversion)
-        return bip32.ckd(rootxprv, 0x80000000)  # "m/0h"
-    else:
-        raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
