@@ -39,7 +39,7 @@ https://github.com/keis/base58, with the following modifications:
 from hashlib import sha256
 from typing import Optional, Union
 
-from .utils import hash256
+from .utils import hash256, Octets, bytes_from_hexstring
 
 __ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __BASE = len(__ALPHABET)
@@ -59,7 +59,6 @@ def _b58encode_from_int(i: int) -> bytes:
 
 
 def _b58encode(v: bytes) -> bytes:
-    """Encode a bytes-like object using Base58."""
 
     # preserve leading-0s
     # leading-0s become base58 leading-1s
@@ -76,9 +75,10 @@ def _b58encode(v: bytes) -> bytes:
     return result
 
 
-def b58encode(v: bytes) -> bytes:
+def b58encode(v: Octets) -> bytes:
     """Encode a bytes-like object using Base58Check."""
 
+    v = bytes_from_hexstring(v)
     h256 = hash256(v)
     return _b58encode(v + h256[:4])
 
@@ -92,14 +92,7 @@ def _b58decode_to_int(v: bytes) -> int:
     return i
 
 
-def _b58decode(v: Union[bytes, str], out_size: Optional[int] = None) -> bytes:
-    """Decode a Base58 encoded bytes-like object or ASCII string.
-
-    Optionally, it also ensures required output size.
-    """
-
-    if isinstance(v, str):
-        v = v.encode("ascii")
+def _b58decode(v: bytes, out_size: Optional[int]) -> bytes:
 
     if any(x not in __ALPHABET for x in v):
         msg = "Base58 string contains invalid characters"
@@ -131,6 +124,9 @@ def b58decode(v: Union[bytes, str], out_size: Optional[int] = None) -> bytes:
 
     Optionally, it also ensures required output size.
     """
+
+    if isinstance(v, str):
+        v = v.encode("ascii")
 
     if out_size is not None:
         out_size += 4

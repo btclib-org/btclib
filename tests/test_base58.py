@@ -17,27 +17,19 @@ from btclib.base58 import (_b58decode, _b58decode_to_int, _b58encode,
 class TestBase58CheckEncoding(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(_b58encode(b''), b'')
-        self.assertEqual(_b58decode(''), b'')
-        self.assertEqual(_b58decode(_b58encode(b'')), b'')
-        self.assertEqual(_b58encode(_b58decode('')), b'')
+        self.assertEqual(_b58decode(_b58encode(b''), None), b'')
 
     def test_hello_world(self):
         self.assertEqual(_b58encode(b'hello world'), b'StV1DL6CwTryKyV')
-        self.assertEqual(_b58decode('StV1DL6CwTryKyV'), b'hello world')
-        self.assertEqual(_b58decode(
-            _b58encode(b'hello world')), b'hello world')
-        self.assertEqual(
-            _b58encode(_b58decode('StV1DL6CwTryKyV')), b'StV1DL6CwTryKyV')
+        self.assertEqual(_b58decode(b'StV1DL6CwTryKyV', None), b'hello world')
+        self.assertEqual(_b58decode(_b58encode(b'hello world'), None), b'hello world')
+        self.assertEqual(_b58encode(_b58decode(b'StV1DL6CwTryKyV', None)), b'StV1DL6CwTryKyV')
 
     def test_trailing_zeros(self):
-        self.assertEqual(_b58encode(
-            b'\x00\x00hello world'), b'11StV1DL6CwTryKyV')
-        self.assertEqual(_b58decode('11StV1DL6CwTryKyV'),
-                         b'\x00\x00hello world')
-        self.assertEqual(_b58decode(_b58encode(
-            b'\0\0hello world')), b'\x00\x00hello world')
-        self.assertEqual(_b58encode(_b58decode(
-            '11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
+        self.assertEqual(_b58encode(b'\x00\x00hello world'), b'11StV1DL6CwTryKyV')
+        self.assertEqual(_b58decode(b'11StV1DL6CwTryKyV', None), b'\x00\x00hello world')
+        self.assertEqual(_b58decode(_b58encode(b'\0\0hello world'), None), b'\x00\x00hello world')
+        self.assertEqual(_b58encode(_b58decode(b'11StV1DL6CwTryKyV', None)), b'11StV1DL6CwTryKyV')
 
     def test_integers(self):
         digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
