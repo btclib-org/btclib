@@ -9,7 +9,6 @@ isinstance(entr, bytes):
 
 verify all isinstance for bytesize (what is hexstring is short?)
 
-readthedocs [![Documentation Status](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io/)
 revise ansi_x963_kdf
 optimizations
     https://cryptojedi.org/peter/data/eccss-20130911b.pdf
@@ -19,7 +18,6 @@ optimizations
     https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
     https://eprint.iacr.org/2005/419.pdf
 transaction and block parsing (explorer based with optional full node)
-allow hexstring for Signature
 revise ssa.pubkey_recovery
 of a signature: verify or verification ? of a commit: verify or open ?
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
@@ -38,27 +36,51 @@ BLS
 
 reference borromean
 deserialize curves from jason file
-serialized signatures
-add der serialize/deserialize to dsa
-add signature serialize/deserialize
+allow hexstring for Signature
+add signature serialize/deserialize to SSA
 remove signtocontract, adding commit to dsa and ssa
 e=0 in SSA ?
 
-crypto: {
-    prv, q: int,
-    pub, Q: Point
-}
+remove checks from _functions
 
-(bitcoin) network: {
-    Octets: Union[bytes, str],   # bytes or hex-string (not string)
-    prvkey: Octets,
-    pubkey, Q: Union[Point, Octets],
-    DER: Octets,
-    ECDSA Sig = Union[Tuple[int, int], Octets],  # (r, s) or DER serialization
-    BTCMSG Sig = Union[Tuple[int, int, int], Octets],  # (rec_flag, r, s) or compact serialization
-    h160, h256: Octets
-    version, sighash: Octets 
-    msg: Union[bytes, str]  # string to be encoded, not hex-string, never s.strip()
-    address, WIF: Union[bytes, str]  # ASCII string to be encoded, not hex-string, always s.strip()
+    ## pure crypto
+    Point = Tuple[int, int]
+
+    prvkey, prv, q: int
+    pubkey, pub, Q: Point
+
+
+    ## bitcoin infrastructure
+    Octets = Union[bytes, str]  # bytes or hex-string (not a string)
+
+    # bytes or hex-string (not string)
+    script: Octets        # variable length
+    h160: Octets          # 20 bytes
+    h256: Octets          # 32 bytes
+    bip32version: Octets  # 4 byte
+    sighash: Octets       # 1 byte
+    # ECDSA signature with DER serialization, with or without sighash
+    dersig: Octets        # 9-73 bytes
+    # Bitcoin message compact signature serialization
+    msgsig: Octets        # 65 bytes
+
+    # BIP32 xkey (bytes or string), WIF (bytes or string), Octets, native int
+    prvkey, prv, q: Union[Point, bytes, str]  # to_prv_int
+
+    # BIP32 xkey (bytes or string), Octets, native tuple
+    pubkey, pub, Q: Union[Point, bytes, str]  # to_pub_tuple
+
+    dersig: Tuple[int, int, bytes]  # (r, s, sighash)
+    dsasig = Union[Tuple[int, int], Octets]  # (r, s) or DER serialization
+    msgsig = Union[Tuple[int, int, int], Octets]  # (rf, r, s) or compact serialization
+
+    # string to be encoded for bytes (not hex-string), never s.strip()
+    msg: Union[bytes, str]
+
+    # ASCII string (not hex-string) to be encoded for bytes
+    # always s.strip()
+    b58address: Union[bytes, str]  # base58
+    b32address: Union[bytes, str]  # bech32
+    wif: Union[bytes, str]         # WIF
 }
 

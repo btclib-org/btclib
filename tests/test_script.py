@@ -10,7 +10,7 @@
 
 import unittest
 
-from btclib.script import (OP_CODE_NAMES, OP_CODES, decode, encode, parse,
+from btclib.script import (OP_CODE_NAMES, OP_CODES, decode, encode, deserialize,
                            serialize)
 
 
@@ -48,7 +48,7 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script_list, script_list2)
 
         script_serialized = serialize(script_list)
-        script_list2 = parse(script_serialized)
+        script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
         script_list = [26, -1, 'OP_ADD', 25, 'OP_EQUAL']
@@ -57,7 +57,7 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script_list, script_list2)
 
         script_serialized = serialize(script_list)
-        script_list2 = parse(script_serialized)
+        script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
         script_list = [0xffffffff, -1, 'OP_ADD', 0xfffffffe, 'OP_EQUAL']
@@ -66,7 +66,7 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script_list, script_list2)
 
         script_serialized = serialize(script_list)
-        script_list2 = parse(script_serialized)
+        script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
         script_list = ["1f"*250, 'OP_DROP']
@@ -75,7 +75,7 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script_list, script_list2)
 
         script_serialized = serialize(script_list)
-        script_list2 = parse(script_serialized)
+        script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
         script_list = ["1f"*520, 'OP_DROP']
@@ -84,7 +84,7 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script_list, script_list2)
 
         script_serialized = serialize(script_list)
-        script_list2 = parse(script_serialized.hex())
+        script_list2 = deserialize(script_serialized.hex())
         self.assertEqual(script_list, script_list2)
 
     def test_exceptions(self):

@@ -69,11 +69,11 @@ def p2sh_address(script: Octets, network: str = 'mainnet') -> bytes:
     return _p2sh_address(h160, network)
 
 
-def h160_from_base58_address(address: Union[bytes, str]) -> Tuple[str, bool, bytes]:
+def h160_from_base58_address(b58address: Union[bytes, str]) -> Tuple[str, bool, bytes]:
 
-    if isinstance(address, str):
-        address = address.strip()
-    payload = b58decode(address, 21)
+    if isinstance(b58address, str):
+        b58address = b58address.strip()
+    payload = b58decode(b58address, 21)
     prefix = payload[0:1]
     if prefix in _P2PKH_PREFIXES:
         i = _P2PKH_PREFIXES.index(prefix)

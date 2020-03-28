@@ -372,7 +372,7 @@ def serialize(script: Iterable[Token]) -> bytes:
     return varint.encode(length) + r
 
 
-def parse(stream: Union[BinaryIO, Octets]) -> List[Token]:
+def deserialize(stream: Union[BinaryIO, Octets]) -> List[Token]:
 
     stream = bytes_from_hexstring(stream)
 
