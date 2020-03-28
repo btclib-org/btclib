@@ -13,7 +13,6 @@ from os import path
 import json
 import secrets
 
-from btclib import bip32
 from btclib import bip39
 
 class TestBIP39(unittest.TestCase):
@@ -28,17 +27,9 @@ class TestBIP39(unittest.TestCase):
         r = int(r, 2).to_bytes(size, byteorder='big')
         self.assertEqual(r, raw_entr)
 
-        passphrase = ''
-
-        rootxprv = bip39.rootxprv_from_mnemonic(
-            mnemonic, passphrase, bip32._PRV_VERSIONS[0])
-        exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
-        self.assertEqual(rootxprv, exp)
-
         # mnemonic with wrong number of words
         wrong_mnemonic = mnemonic + " abandon"
-        self.assertRaises(
-            ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
+        self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
         #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # invalid mnemonic checksum

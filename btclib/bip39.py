@@ -38,7 +38,6 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 
 from hashlib import pbkdf2_hmac, sha256
 
-from . import bip32
 from .entropy import BinStr, Entropy, _bits, binstr_from_entropy
 from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
                        _indexes_from_mnemonic, _mnemonic_from_indexes)
@@ -140,12 +139,3 @@ def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
     iterations = 2048
     dksize = 64
     return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
-
-
-def rootxprv_from_mnemonic(mnemonic: Mnemonic,
-                           passphrase: str,
-                           version: Octets = bip32.MAIN_xprv) -> bytes:
-    """Return BIP32 root master extended private key from BIP39 mnemonic."""
-
-    seed = seed_from_mnemonic(mnemonic, passphrase)
-    return bip32.rootxprv_from_seed(seed, version)

@@ -24,7 +24,7 @@ class TestBIP32(unittest.TestCase):
     def test_utils(self):
         # root key, zero depth
         xkey = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        xdict = bip32.parse(xkey)
+        xdict = bip32.deserialize(xkey)
 
         decoded_key = b58decode(xkey, 78)
         self.assertEqual(xdict["version"], decoded_key[:4])
@@ -37,20 +37,20 @@ class TestBIP32(unittest.TestCase):
         # zero depth with non-zero parent_fingerprint
         f2 = b'\x01\x01\x01\x01'
         invalid_key = b58encode(xkey[:5] + f2 + xkey[9:])
-        self.assertRaises(ValueError, bip32.parse, invalid_key)
-        # bip32.parse(invalid_key)
+        self.assertRaises(ValueError, bip32.deserialize, invalid_key)
+        # bip32.deserialize(invalid_key)
 
         # zero depth with non-zero index
         i2 = b'\x01\x01\x01\x01'
         invalid_key = b58encode(xkey[:9] + i2 + xkey[13:])
-        self.assertRaises(ValueError, bip32.parse, invalid_key)
-        # bip32.parse(invalid_key)
+        self.assertRaises(ValueError, bip32.deserialize, invalid_key)
+        # bip32.deserialize(invalid_key)
 
         # non-zero depth (255) with zero parent_fingerprint
         d2 = b'ff'
         invalid_key = b58encode(xkey[:4] + d2 + xkey[5:])
-        self.assertRaises(ValueError, bip32.parse, invalid_key)
-        # bip32.parse(invalid_key)
+        self.assertRaises(ValueError, bip32.deserialize, invalid_key)
+        # bip32.deserialize(invalid_key)
 
         # master key provided
         self.assertRaises(ValueError, bip32.parent_fingerprint, xkey)
@@ -90,93 +90,68 @@ class TestBIP32(unittest.TestCase):
 
         seed = "000102030405060708090a0b0c0d0e0f"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
-        self.assertEqual(rootxprv,
-                         b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
+        self.assertEqual(bip32.serialize(rootxprv), b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version.hex())
-        self.assertEqual(rootxprv,
-                         b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
+        self.assertEqual(bip32.serialize(rootxprv), b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         rootxpub = bip32.xpub_from_xprv(rootxprv)  # neutering
-        self.assertEqual(rootxpub,
-                         b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
+        self.assertEqual(bip32.serialize(rootxpub), b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
 
-        xprv = rootxprv
-        xpub = rootxpub
+        xprv = bip32.serialize(rootxprv)
+        xpub = bip32.serialize(rootxpub)
 
         xprv = bip32.derive(xprv, ".")  # private relative
-        self.assertEqual(xprv,
-                         b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         xprv = bip32.derive(rootxprv, "m")  # private absolute
-        self.assertEqual(xprv,
-                         b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         xpub = bip32.derive(xpub, ".")  # public relative
-        self.assertEqual(xpub,
-                         b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
+        self.assertEqual(bip32.serialize(xpub), b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
         xpub = bip32.derive(rootxpub, "m")  # public absolute
-        self.assertEqual(xpub,
-                         b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
+        self.assertEqual(bip32.serialize(xpub), b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub,
-                         b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
+        self.assertEqual(bip32.serialize(xpub), b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
 
         xprv = bip32.derive(xprv, "./0'")  # private relative
-        self.assertEqual(xprv,
-                         b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7")
         xprv = bip32.derive(rootxprv, "m/0'")  # private absolute
-        self.assertEqual(xprv,
-                         b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub,
-                         b"xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw")
+        self.assertEqual(bip32.serialize(xpub), b"xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw")
 
         xprv = bip32.derive(xprv, "./1")  # private relative
-        self.assertEqual(xprv,
-                         b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs")
         xprv = bip32.derive(rootxprv, "m/0'/1")  # private absolute
-        self.assertEqual(xprv,
-                         b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs")
         xpub = bip32.derive(xpub, "./1")  # public relative
-        self.assertEqual(xpub,
-                         b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub,
-                         b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ")
 
         xprv = bip32.derive(xprv, "./2H")  # private relative
-        self.assertEqual(xprv,
-                         b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM")
         xprv = bip32.derive(rootxprv, "m/0'/1/2'")  # private absolute
-        self.assertEqual(xprv,
-                         b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub,
-                         b"xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5")
 
         xprv = bip32.derive(xprv, "./2")  # private relative
-        self.assertEqual(xprv,
+        self.assertEqual(bip32.serialize(xprv),
                          b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334")
         xprv = bip32.derive(rootxprv, "m/0'/1/2'/2")  # private absolute
-        self.assertEqual(
-            xprv, b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334")
+        self.assertEqual(bip32.serialize(xprv), b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334")
         xpub = bip32.derive(xpub, "./2")  # public relative
-        self.assertEqual(
-            xpub, b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV")
 
         xprv = bip32.derive(xprv, "./1000000000")  # private relative
-        self.assertEqual(
-            xprv, b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
+        self.assertEqual(bip32.serialize(xprv), b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
         # private absolute
         xprv = bip32.derive(rootxprv, "m/0'/1/2'/2/1000000000")
-        self.assertEqual(
-            xprv, b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
+        self.assertEqual(bip32.serialize(xprv), b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
         xpub = bip32.derive(xpub, "./1000000000")  # public relative
-        self.assertEqual(
-            xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
 
     def test_vector2(self):
         """BIP32 test vector 2
@@ -187,93 +162,68 @@ class TestBIP32(unittest.TestCase):
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
-        self.assertEqual(
-            rootxprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
+        self.assertEqual(bip32.serialize(rootxprv), b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
         rootxpub = bip32.xpub_from_xprv(rootxprv)  # neutering
-        self.assertEqual(
-            rootxpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
-        xprv = rootxprv
-        xpub = rootxpub
+        self.assertEqual(bip32.serialize(rootxpub), b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
+
+        xprv = bip32.serialize(rootxprv)
+        xpub = bip32.serialize(rootxpub)
 
         xprv = bip32.derive(xprv, ".")  # private relative
-        self.assertEqual(
-            xprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
         xprv = bip32.derive(rootxprv, "m")  # private absolute
-        self.assertEqual(
-            xprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
         xpub = bip32.derive(xpub, ".")  # public relative
-        self.assertEqual(
-            xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
+        self.assertEqual(bip32.serialize(xpub), b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
         xpub = bip32.derive(rootxpub, "m")  # public absolute
-        self.assertEqual(
-            xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
+        self.assertEqual(bip32.serialize(xpub), b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
+        self.assertEqual(bip32.serialize(xpub), b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
 
         xprv = bip32.derive(xprv, "./0")  # private relative
-        self.assertEqual(
-            xprv, b"xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt")
         xprv = bip32.derive(rootxprv, "m/0")  # private absolute
-        self.assertEqual(
-            xprv, b"xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt")
         xpub = bip32.derive(xpub, "./0")  # public relative
-        self.assertEqual(
-            xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
+        self.assertEqual(bip32.serialize(xpub), b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
         xpub = bip32.derive(rootxpub, "m/0")  # public absolute
-        self.assertEqual(
-            xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
+        self.assertEqual(bip32.serialize(xpub), b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
+        self.assertEqual(bip32.serialize(xpub), b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
 
         xprv = bip32.derive(xprv, "./2147483647H")  # private relative
-        self.assertEqual(
-            xprv, b"xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9")
         xprv = bip32.derive(rootxprv, "m/0/2147483647H")  # private absolute
-        self.assertEqual(
-            xprv, b"xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub6ASAVgeehLbnwdqV6UKMHVzgqAG8Gr6riv3Fxxpj8ksbH9ebxaEyBLZ85ySDhKiLDBrQSARLq1uNRts8RuJiHjaDMBU4Zn9h8LZNnBC5y4a")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6ASAVgeehLbnwdqV6UKMHVzgqAG8Gr6riv3Fxxpj8ksbH9ebxaEyBLZ85ySDhKiLDBrQSARLq1uNRts8RuJiHjaDMBU4Zn9h8LZNnBC5y4a")
 
         xprv = bip32.derive(xprv, "./1")  # private relative
-        self.assertEqual(
-            xprv, b"xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef")
         xprv = bip32.derive(rootxprv, "m/0/2147483647H/1")  # private absolute
-        self.assertEqual(
-            xprv, b"xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef")
         xpub = bip32.derive(xpub, "./1")  # public relative
-        self.assertEqual(
-            xpub, b"xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon")
 
         xprv = bip32.derive(xprv, "./2147483646H")  # private relative
-        self.assertEqual(
-            xprv, b"xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc")
+        self.assertEqual(bip32.serialize(xprv), b"xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc")
         # private absolute
         xprv = bip32.derive(rootxprv, "m/0/2147483647H/1/2147483646H")
-        self.assertEqual(
-            xprv, b"xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc")
+        self.assertEqual(bip32.serialize(xprv), b"xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL")
 
         xprv = bip32.derive(xprv, "./2")  # private relative
-        self.assertEqual(
-            xprv, b"xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j")
+        self.assertEqual(bip32.serialize(xprv), b"xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j")
         # private absolute
         xprv = bip32.derive(rootxprv, "m/0/2147483647H/1/2147483646H/2")
-        self.assertEqual(
-            xprv, b"xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j")
+        self.assertEqual(bip32.serialize(xprv), b"xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j")
         xpub = bip32.derive(xpub, "./2")  # public relative
-        self.assertEqual(
-            xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
+        self.assertEqual(bip32.serialize(xpub), b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
 
     def test_vector3(self):
         """BIP32 test vector 3
@@ -284,36 +234,28 @@ class TestBIP32(unittest.TestCase):
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
         rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
-        self.assertEqual(
-            rootxprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
+        self.assertEqual(bip32.serialize(rootxprv), b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         rootxpub = bip32.xpub_from_xprv(rootxprv)  # neutering
-        self.assertEqual(
-            rootxpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
-        xprv = rootxprv
-        xpub = rootxpub
+        self.assertEqual(bip32.serialize(rootxpub), b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
+
+        xprv = bip32.serialize(rootxprv)
+        xpub = bip32.serialize(rootxpub)
 
         xprv = bip32.derive(xprv, ".")  # private relative
-        self.assertEqual(
-            xprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         xprv = bip32.derive(rootxprv, "m")  # private absolute
-        self.assertEqual(
-            xprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         xpub = bip32.derive(xpub, ".")  # public relative
-        self.assertEqual(
-            xpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
+        self.assertEqual(bip32.serialize(xpub), b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
         xpub = bip32.derive(rootxpub, "m")  # public absolute
-        self.assertEqual(
-            xpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
+        self.assertEqual(bip32.serialize(xpub), b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
 
         xprv = bip32.derive(xprv, "./0'")  # private relative
-        self.assertEqual(
-            xprv, b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L")
         xprv = bip32.derive(rootxprv, "m/0'")  # private absolute
-        self.assertEqual(
-            xprv, b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L")
+        self.assertEqual(bip32.serialize(xprv), b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L")
         xpub = bip32.xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(
-            xpub, b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y")
+        self.assertEqual(bip32.serialize(xpub), b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y")
 
     def test_slip32(self):
         """SLIP32 test vector
@@ -328,12 +270,11 @@ class TestBIP32(unittest.TestCase):
         prv = b"xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
         pub = b"xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
         address = b"1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
-        rxprv = bip39.rootxprv_from_mnemonic(
-            mnemonic, passphrase, bip32.MAIN_xprv)
+        rxprv = bip32.rootxprv_from_mnemonic(mnemonic, passphrase, bip32.MAIN_xprv)
         mprv = bip32.derive(rxprv, path)
-        self.assertEqual(prv, mprv)
+        self.assertEqual(bip32.serialize(mprv), prv)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(pub, mpub)
+        self.assertEqual(bip32.serialize(mpub), pub)
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
@@ -342,12 +283,12 @@ class TestBIP32(unittest.TestCase):
         prv = b"yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQeKTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"
         pub = b"ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"
         address = b"37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
-        rxprv = bip39.rootxprv_from_mnemonic(
+        rxprv = bip32.rootxprv_from_mnemonic(
             mnemonic, passphrase, bip32.MAIN_yprv)
         mprv = bip32.derive(rxprv, path)
-        self.assertEqual(prv, mprv)
+        self.assertEqual(bip32.serialize(mprv), prv)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(pub, mpub)
+        self.assertEqual(bip32.serialize(mpub), pub)
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
@@ -358,12 +299,12 @@ class TestBIP32(unittest.TestCase):
         prv = b"zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
         pub = b"zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
         address = b"bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
-        rxprv = bip39.rootxprv_from_mnemonic(
+        rxprv = bip32.rootxprv_from_mnemonic(
             mnemonic, passphrase, bip32.MAIN_zprv)
         mprv = bip32.derive(rxprv, path)
-        self.assertEqual(prv, mprv)
+        self.assertEqual(bip32.serialize(mprv), prv)
         mpub = bip32.xpub_from_xprv(mprv)
-        self.assertEqual(pub, mpub)
+        self.assertEqual(bip32.serialize(mpub), pub)
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
@@ -383,7 +324,7 @@ class TestBIP32(unittest.TestCase):
         for test_vector in test_vectors:
             seed = test_vector[2]
             rootxprv = bip32.rootxprv_from_seed(seed, xkey_version)
-            self.assertEqual(rootxprv.decode(), test_vector[3])
+            self.assertEqual(bip32.serialize(rootxprv), test_vector[3].encode())
 
     def test_mainnet(self):
         # bitcoin core derivation style
@@ -391,24 +332,20 @@ class TestBIP32(unittest.TestCase):
 
         # m/0'/0'/463'
         addr1 = b'1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5'
-        indexes = [0x80000000, 0x80000000, 0x80000000 + 463]
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
+        indexes = [b'\x80\x00\x00\x00', b'\x80\x00\x00\x00', b'\x80\x00\x01\xcf']
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
         self.assertEqual(addr, addr1)
         path = "m/0'/0'/463'"
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr1)
 
         # m/0'/0'/267'
         addr2 = b'11x2mn59Qy43DjisZWQGRResjyQmgthki'
-        indexes = [0x80000000, 0x80000000, 0x80000000 + 267]
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
+        indexes = [b'\x80\x00\x00\x00', b'\x80\x00\x00\x00', b'\x80\x00\x01\x0b']
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
         self.assertEqual(addr, addr2)
         path = "m/0'/0'/267'"
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
         xkey_version = bip32._PRV_VERSIONS[0]
@@ -416,36 +353,30 @@ class TestBIP32(unittest.TestCase):
         seed = bytes.fromhex(seed)
         xprv = bip32.rootxprv_from_seed(seed, xkey_version)
         xpub = b'xpub661MyMwAqRbcFMYjmw8C6dJV97a4oLss6hb3v9wTQn2X48msQB61RCaLGtNhzgPCWPaJu7SvuB9EBSFCL43kTaFJC3owdaMka85uS154cEh'
-        self.assertEqual(bip32.xpub_from_xprv(xprv), xpub)
+        self.assertEqual(bip32.xpub_from_xprv(xprv), bip32.deserialize(xpub))
 
-        ind = [0, 0]
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        ind = './0/0'
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1FcfDbWwGs1PmyhMVpCAhoTfMnmSuptH6g')
 
-        ind = [0, 1]
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        ind = './0/1'
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1K5GjYkZnPFvMDTGaQHTrVnd8wjmrtfR5x')
 
-        ind = [0, 2]
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        ind = './0/2'
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1PQYX2uN7NYFd7Hq22ECMzfDcKhtrHmkfi')
 
-        ind = [1, 0]
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        ind = './1/0'
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1BvSYpojWoWUeaMLnzbkK55v42DbizCoyq')
 
-        ind = [1, 1]
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        ind = './1/1'
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1NXB59hF4QzYpFrB7o6usLBjbk2D3ZqxAL')
 
-        ind = [1, 2]
-        addr = bip32.p2pkh_address_from_xpub(
-            bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        ind = './1/2'
+        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'16NLYkKtvYhW1Jp86tbocku3gxWcvitY1w')
 
         # version/key mismatch in extended parent key
@@ -456,7 +387,7 @@ class TestBIP32(unittest.TestCase):
 
         # version/key mismatch in extended parent key
         xpub = bip32.xpub_from_xprv(rootxprv)
-        temp = b58decode(xpub)
+        temp = b58decode(bip32.serialize(xpub))
         bad_xpub = b58encode(temp[0:45] + b'\x00' + temp[46:])
         self.assertRaises(ValueError, bip32.ckd, bad_xpub, 1)
         #bip32.ckd(bad_xpub, 1)
@@ -527,7 +458,7 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.ckd, xkey, 0x80000000)
         #bip32.ckd(xkey, 0x80000000)
 
-        # invalid private version
+        # unknown extended key version
         version = b'\x04\x88\xAD\xE5'
         seed = "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
         self.assertRaises(ValueError, bip32.rootxprv_from_seed, seed, version)
@@ -562,7 +493,7 @@ class TestBIP32(unittest.TestCase):
 
     def test_exceptions2(self):
         rootxprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         self.assertEqual(bip32.serialize(d), rootxprv)
 
         # invalid 34-bytes key length
@@ -571,82 +502,80 @@ class TestBIP32(unittest.TestCase):
         #bip32.serialize(d)
 
         # invalid key type: must be bytes, not 'str'
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['key'] = "this is a string"
         self.assertRaises(TypeError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # invalid 33-bytes chain_code length
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['chain_code'] += b'\x00'
         self.assertRaises(ValueError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # invalid chain_code type: must be bytes, not 'str'
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['chain_code'] = "this is a string"
         self.assertRaises(TypeError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # invalid 5-bytes parent_fingerprint length
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['parent_fingerprint'] += b'\x00'
         self.assertRaises(ValueError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # invalid parent_fingerprint type: must be bytes, not 'str'
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['parent_fingerprint'] = "this is a string"
         self.assertRaises(TypeError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # invalid 5-bytes index length
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['index'] += b'\x00'
         self.assertRaises(ValueError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # invalid index type: must be bytes, not 'str'
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['index'] = "this is a string"
         self.assertRaises(TypeError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # invalid depth (256)
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['depth'] = 256
         self.assertRaises(ValueError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # zero depth with non-zero index b'\x00\x00\x00\x01'
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['index'] = b'\x00\x00\x00\x01'
         self.assertRaises(ValueError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # zero depth with non-zero parent_fingerprint b'\x00\x00\x00\x01'
-        d = bip32.parse(rootxprv)
+        d = bip32.deserialize(rootxprv)
         d['parent_fingerprint'] = b'\x00\x00\x00\x01'
         self.assertRaises(ValueError, bip32.serialize, d)
         #bip32.serialize(d)
 
         # non-zero depth (1) with zero parent_fingerprint b'\x00\x00\x00\x00'
         xprv = bip32.ckd(rootxprv, 1)
-        d = bip32.parse(xprv)
-        d['parent_fingerprint'] = b'\x00\x00\x00\x00'
-        self.assertRaises(ValueError, bip32.serialize, d)
-        #bip32.serialize(d)
-
+        xprv['parent_fingerprint'] = b'\x00\x00\x00\x00'
+        self.assertRaises(ValueError, bip32.serialize, xprv)
+        #bip32.serialize(xprv)
 
     def test_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
         child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
         parent_xprv = bip32.crack(parent_xpub, child_xprv)
-        self.assertEqual(bip32.xpub_from_xprv(parent_xprv), parent_xpub)
+        self.assertEqual(bip32.xpub_from_xprv(parent_xprv), bip32.deserialize(parent_xpub))
         index = bip32.index(child_xprv)
-        self.assertEqual(bip32.ckd(parent_xprv, index), child_xprv)
+        self.assertEqual(bip32.ckd(parent_xprv, index), bip32.deserialize(child_xprv))
         path = [index]
-        self.assertEqual(bip32.derive(parent_xprv, path), child_xprv)
+        self.assertEqual(bip32.derive(parent_xprv, path), bip32.deserialize(child_xprv))
 
         # extended parent key is not a public one
         self.assertRaises(ValueError, bip32.crack, parent_xprv, child_xprv)
@@ -690,7 +619,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'tpubDChqWo2Xi2wNsxyJBE8ipcTJHLKWcqeeNUKBVTpUCNPZkHzHTm3qKAeHqgCou1t8PAY5ZnJ9QDa6zXSZxmjDnhiBpgZ7f6Yv88wEm5HXVbm'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
         address = bip32.p2pkh_address_from_xpub(xpub_ext)
@@ -708,7 +637,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'upub5Dj8j7YrwodV68mt58QmNpSzjqjso2WMXEpLGLSvskKccGuXhCh3dTedkzVLAePA617UyXAg2vdswJXTYjU4qjMJaHU79GJVVJCAiy9ezZ2'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
         address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_ext)
@@ -726,7 +655,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'Upub5QdDrMHJWmBrWhwG1nskCtnoTdn91PBwqWU1BbiUFXA2ETUSTc5KiaWZZhSoj5c4KUBTr7Anv92P4U9Dqxd1zDTyQkaWYfmVP2U3Js1W5cG'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
 
         # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/1h/0h"
@@ -735,7 +664,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'vpub5ZhJmduYY7M5J2qCJgSW7hunX6zJrr5WuNg2kKt321HseZEYxqJc6Zso47aNXQw3Wf3sA8kppbfsxnLheUNXcL3xhzeBHLNp8fTVBN6DnJF'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
         address = bip32.p2wpkh_address_from_xpub(xpub_ext)
@@ -755,7 +684,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'Vpub5kbPtsdz74uSibzaFLuUwnFbEu2a5Cm7DeKhfb9aPn8HGjoTjEgtBgjirpXr5r9wk87r2ikwhp4P5wxTwhXUkpAdYTkagjqp2PjMmGPBESU'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
 
     def test_mainnet_versions(self):
 
@@ -774,7 +703,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'xpub6C3uWu5Go5q62JzJpbjyCLYRGLYvexFeiepZTsYZ6SRexARkNfjG7GKtQVuGR3KHsyKsAwv7Hz3iNucPp6pfHiLvBczyK1j5CtBtpHB3NKx'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
         address = bip32.p2pkh_address_from_xpub(xpub_ext)
@@ -792,7 +721,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'ypub6YBGdYufCVeoPVmNXfdrWhaBCXsQoLKNetNmD9bPTrKmnKVmiyU8f1uJqwGdmBb8kbAZpHoYfXQTLbWpkXc4skQDAreeCUXdbX9k8vtiHsN'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
         address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_ext)
@@ -810,7 +739,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'Ypub6j5Mkne6mTDAp4vkUL6qLmuyvKug1gzxyA2S8QrvqdABQW4gVNrQk8mEeeE7Kcp2z4EYgsofYjnxTm8b3km22EWt1Km3bszdVFRcipc6rXu'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
 
         # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/0h/0h"
@@ -819,7 +748,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'zpub6qg3Uc1BAQkQvcBUYMmZHSzbsshSon3FvJ8yvH3ZZMjFNvJkwSji8UUwghiF3wvpvSvcNWVP8kfUhc2V2RwGp6pTC3ouj6njj956f26TniN'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
         address = bip32.p2wpkh_address_from_xpub(xpub_ext)
@@ -837,7 +766,7 @@ class TestBIP32(unittest.TestCase):
         xprv = bip32.derive(rootprv, path)
         xpub = bip32.xpub_from_xprv(xprv)
         exp = b'Zpub72a8bqjcjNJnMBLrV2EY7XLQbfji28irEZneqYK6w8Zf16sfhr7zDbLsVQficP9j9uzbF6VW1y3ypmeFKf6Dxaw82WvK8WFjcsLyEvMNZjF'
-        self.assertEqual(xpub, exp)
+        self.assertEqual(bip32.serialize(xpub), exp)
 
     def test_regtest_versions(self):
         pass
@@ -856,6 +785,13 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(address, address2)
 
         self.assertRaises(ValueError, bip32.wif_from_xprv, xpub)
+
+    def test_rootxprv_from_mnemonic(self):
+        mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
+        passphrase = ''
+        rootxprv = bip32.rootxprv_from_mnemonic(mnemonic, passphrase, bip32._PRV_VERSIONS[0])
+        exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
+        self.assertEqual(rootxprv, bip32.deserialize(exp))
 
 if __name__ == "__main__":
     # execute only if run as a script
