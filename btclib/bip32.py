@@ -21,6 +21,15 @@ chains.
 
 Here, the HD wallet is implemented according to BIP32 bitcoin standard
 https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
+
+A BIP32 extended key is 78 bytes:
+
+- [  : 4] version
+- [ 4: 5] depth
+- [ 5: 9] parent fingerprint
+- [ 9:13] index
+- [13:45] chain code
+- [45:78] compressed pubkey or [0x00][prvkey]
 """
 
 import hmac
@@ -28,11 +37,12 @@ from typing import List, Sequence, Tuple, TypedDict, Union
 
 from .address import p2pkh_address
 from .base58 import b58decode, b58encode
+from .curve import Point
 from .curvemult import mult
 from .curves import secp256k1 as ec
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
-from .utils import (Octets, bytes_from_hexstring, hash160, int_from_octets,
-                    octets_from_point, point_from_octets)
+from .utils import (Octets, bytes_from_hexstring, hash160, octets_from_point,
+                    point_from_octets)
 from .wif import wif_from_prvkey
 
 # Bitcoin core uses the m/0h (core) BIP32 derivation path
@@ -104,13 +114,6 @@ _P2WSH_PRV_PREFIXES = [MAIN_Zprv, TEST_Vprv, TEST_Vprv]
 _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
 
 
-# [  : 4] version
-# [ 4: 5] depth
-# [ 5: 9] parent_fingerprint
-# [ 9:13] index
-# [13:45] chain_code
-# [45:78] key (private/public)
-
 def _check_version_key(v: bytes, k: bytes) -> None:
     if not isinstance(k, bytes):
         msg = f"invalid key type: must be bytes, not '{type(k).__name__}'"
@@ -157,6 +160,7 @@ def _check_depth_fingerprint_index(d: int, f: bytes, i: bytes) -> None:
             msg = f"non-zero depth ({d}) with zero parent_fingerprint {f!r}"
             raise ValueError(msg)
 
+
 class XkeyDict(TypedDict):
     version            : bytes
     depth              : int
@@ -164,6 +168,9 @@ class XkeyDict(TypedDict):
     index              : bytes
     chain_code         : bytes
     key                : bytes
+    prvkey             : int
+    Point              : Point
+
 
 def parse(xkey: Octets) -> XkeyDict:
 
@@ -174,12 +181,26 @@ def parse(xkey: Octets) -> XkeyDict:
         'parent_fingerprint' : xkey[5:9],
         'index'              : xkey[9:13],
         'chain_code'         : xkey[13:45],
-        'key'                : xkey[45:]
+        'key'                : xkey[45:],
+        'prvkey'             : 0,
+        'Point'              : (0, 0)
     }
     # coherence checks
     _check_version_key(d['version'], d['key'])
     _check_depth_fingerprint_index(d['depth'],
                                    d['parent_fingerprint'], d['index'])
+    # validate key
+    if d['key'][0] in (2, 3):
+        d['prvkey'] = 0
+        d['Point'] = point_from_octets(d['key'], ec)
+    elif d['key'][0] == 0:
+        d['prvkey'] = int.from_bytes(d['key'][1:], byteorder='big')
+        d['Point'] = (0, 0)
+        if not 0 < d['prvkey'] < ec.n:
+            raise ValueError(f"private key {hex(d['prvkey'])} not in [1, n-1]")
+    else:
+        raise ValueError(f"not a valid key {d['key'].hex()}")
+
     return d
 
 
@@ -211,21 +232,22 @@ def serialize(d: XkeyDict) -> bytes:
 def parent_fingerprint(xkey: Octets) -> bytes:
     d = parse(xkey)
     if d['depth'] == 0:
-        raise ValueError("master key provided")
+        raise ValueError("Master key has no parent")
     return d['parent_fingerprint']
 
 
 def index(xkey: Octets) -> bytes:
     d = parse(xkey)
     if d['depth'] == 0:
-        raise ValueError("master key provided")
+        raise ValueError("Master key has no index")
     return d['index']
 
 
 def fingerprint(xkey: Octets) -> bytes:
+    # FIXME
     d = parse(xkey)
     if d['key'][0] == 0:
-        P = mult(int_from_octets(d['key'][1:]))
+        P = mult(int.from_bytes(d['key'][1:], byteorder='big'))
         d['key'] = octets_from_point(P, True, ec)
     return hash160(d['key'])[:4]
 
@@ -331,7 +353,9 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
         'parent_fingerprint' : b'\x00\x00\x00\x00',
         'index'              : b'\x00\x00\x00\x00',
         'chain_code'         : hd[32:],
-        'key'                : b'\x00' + hd[:32]
+        'key'                : b'\x00' + hd[:32],
+        'prvkey'             : int.from_bytes(hd[:32], byteorder='big'),
+        'Point'              : (0, 0)
     }
     return serialize(d)
 
@@ -344,12 +368,12 @@ def xpub_from_xprv(xprv: Octets) -> bytes:
     """
 
     d = parse(xprv)
-
     if d['key'][0] != 0:
         raise ValueError("extended key is not a private one")
-    P = mult(int_from_octets(d['key'][1:]))
-    d['key'] = octets_from_point(P, True, ec)
 
+    d['Point'] = mult(d['prvkey'])
+    d['key'] = octets_from_point(d['Point'], True, ec)
+    d['prvkey'] = 0
     d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
 
     return serialize(d)
@@ -375,18 +399,16 @@ def _ckd(d: XkeyDict, index: Union[Octets, int]) -> None:
         index = index.to_bytes(4, byteorder='big')
 
     index = bytes_from_hexstring(index)
-
     if len(index) != 4:
         raise ValueError(f"a 4 bytes int is required, not {len(index)}")
 
     d['depth'] += 1
 
     if d['key'][0] == 0:                             # parent is a prvkey
-        parent = int.from_bytes(d['key'][1:], byteorder='big')
-        Parent = mult(parent)
+        Parent = mult(d['prvkey'])
         Parent_bytes = octets_from_point(Parent, True, ec)
     else:                                            # parent is a pubkey
-        Parent = point_from_octets(d['key'], ec)
+        Parent = d['Point']
         Parent_bytes = d['key']
         if index[0] >= 0x80:                         # hardened derivation
             raise ValueError("hardened derivation from pubkey is impossible")
@@ -400,15 +422,17 @@ def _ckd(d: XkeyDict, index: Union[Octets, int]) -> None:
             h = hmac.digest(d['chain_code'], Parent_bytes + index, 'sha512')
         d['chain_code'] = h[32:]
         offset = int.from_bytes(h[:32], byteorder='big')
-        child = (parent + offset) % ec.n
-        d['key'] = b'\x00' + child.to_bytes(32, 'big')
+        d['prvkey'] = (d['prvkey'] + offset) % ec.n   # child private key
+        d['key'] = b'\x00' + d['prvkey'].to_bytes(32, 'big')
+        d['Point'] = (0, 0)
     else:                                            # parent is a pubkey
         h = hmac.digest(d['chain_code'], d['key'] + index, 'sha512')
         d['chain_code'] = h[32:]
         offset = int.from_bytes(h[:32], byteorder='big')
         Offset = mult(offset)
-        Child = ec.add(Parent, Offset)
-        d['key'] = octets_from_point(Child, True, ec)
+        d['Point'] = ec.add(Parent, Offset)
+        d['key'] = octets_from_point(d['Point'], True, ec)
+        d['prvkey'] = 0
 
 
 def _indexes_from_path(path: str) -> Tuple[Sequence[int], bool]:
@@ -497,9 +521,8 @@ def crack(parent_xpub: Octets, child_xprv: Octets) -> bytes:
 
     h = hmac.digest(p['chain_code'], p['key'] + c['index'], 'sha512')
     offset = int.from_bytes(h[:32], byteorder='big')
-    child = int.from_bytes(c['key'][1:], byteorder='big')
-    parent = (child - offset) % ec.n
-    Parent_b = b'\x00' + parent.to_bytes(32, byteorder='big')
-    p['key'] = Parent_b
+    parent = (c['prvkey'] - offset) % ec.n
+    p['key'] = b'\x00' + parent.to_bytes(32, byteorder='big')
+    p['Point'] = (0, 0)
 
     return serialize(p)
