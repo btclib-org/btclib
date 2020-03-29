@@ -45,27 +45,27 @@ class TestMnemonicDictionaries(unittest.TestCase):
         passphrase = ''
 
         # unknown electrum mnemonic version (00c)
-        self.assertRaises(ValueError, bip32.masterxprv_from_mnemonic,
+        self.assertRaises(ValueError, bip32.masterxprv_from_electrummnemonic,
                           unknown_version, passphrase)
-        #bip32.masterxprv_from_mnemonic(mnemonic, passphrase)
+        #bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
 
         xprv = "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
-        xprv2 = bip32.masterxprv_from_mnemonic(mnemonic, passphrase)
+        xprv2 = bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
         self.assertEqual(xprv2, bip32.deserialize(xprv))
 
         eversion = '2fa'
         mnemonic = electrum.mnemonic_from_entropy(eversion, entropy, lang)
         # 2fa mnemonic version is not managed yet
-        self.assertRaises(ValueError, bip32.masterxprv_from_mnemonic,
+        self.assertRaises(ValueError, bip32.masterxprv_from_electrummnemonic,
                           mnemonic, passphrase)
-        #bip32.masterxprv_from_mnemonic(mnemonic, passphrase)
+        #bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
 
         eversion = '2fa_segwit'
         mnemonic = electrum.mnemonic_from_entropy(eversion, entropy, lang)
         # 2fa_segwit mnemonic version is not managed yet
-        self.assertRaises(ValueError, bip32.masterxprv_from_mnemonic,
+        self.assertRaises(ValueError, bip32.masterxprv_from_electrummnemonic,
                           mnemonic, passphrase)
-        #bip32.masterxprv_from_mnemonic(mnemonic, passphrase)
+        #bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
 
     def test_vectors(self):
         filename = "electrum_test_vectors.json"
@@ -84,7 +84,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
             address = test_vector[4]  # "./0/0"
 
             if mnemonic != "":
-                mxprv2 = bip32.masterxprv_from_mnemonic(mnemonic, passphrase)
+                mxprv2 = bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
                 self.assertEqual(mxprv2, bip32.deserialize(mxprv))
 
                 eversion = electrum.version_from_mnemonic(mnemonic)

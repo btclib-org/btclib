@@ -340,7 +340,7 @@ def p2wpkh_p2sh_address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
 
 
 def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:
-    """derive the BIP32 root master extended private key from the seed"""
+    """Return BIP32 root master extended private key from seed."""
 
     seed = bytes_from_hexstring(seed)
     hd = hmac.digest(b"Bitcoin seed", seed, 'sha512')
@@ -362,18 +362,18 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:
     return d
 
 
-def rootxprv_from_mnemonic(mnemonic: Mnemonic,
-                           passphrase: str,
-                           version: Octets = MAIN_xprv) -> XkeyDict:
+def rootxprv_from_bip39mnemonic(mnemonic: Mnemonic,
+                                passphrase: str,
+                                version: Octets = MAIN_xprv) -> XkeyDict:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = bip39.seed_from_mnemonic(mnemonic, passphrase)
     return rootxprv_from_seed(seed, version)
 
 
-def masterxprv_from_mnemonic(mnemonic: Mnemonic,
-                             passphrase: str,
-                             network: str = 'mainnet') -> XkeyDict:
+def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
+                                     passphrase: str,
+                                     network: str = 'mainnet') -> XkeyDict:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
     Note that for a 'standard' mnemonic the derivation path is "m",
