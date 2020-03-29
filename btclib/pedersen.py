@@ -18,7 +18,7 @@ In a commitment scheme the committer:
   scheme algorithm and producing a commitment C=Commit(r,v)
 * makes C public
 
-Later, when he reveals r and v, the verifier *opens* the 
+Later, when he reveals r and v, the verifier *opens* the
 commitment checking if indeed C=Commit(r,v).
 
 Pedersen commitment uses a public group of large order n

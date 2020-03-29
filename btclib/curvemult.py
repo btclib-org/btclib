@@ -18,7 +18,7 @@ from .curves import secp256k1
 
 def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
     """Point multiplication, implemented using 'double and add'.
-    
+
     Computations use Jacobian coordinates and binary decomposition of m.
     """
     if Q is None:

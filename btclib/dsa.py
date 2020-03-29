@@ -38,7 +38,7 @@ Sig = Union[Tuple[int, int], Octets]  # Tuple[scalar, scalar]
 def serialize(r: int, s: int,
               sighash: Optional[Octets], ec: Curve = secp256k1) -> bytes:
     """Serialize an ECDSA signature in strict ASN.1 DER representation.
-    
+
     Trailing sighash is added if provided
     """
     return der.serialize(r, s, sighash, ec)
@@ -47,7 +47,7 @@ def serialize(r: int, s: int,
 def deserialize(dersig: Octets,
                 ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
-    
+
     Return r, s, sighash; sighash is None if not available.
     """
     return der.deserialize(dersig, ec)
@@ -196,7 +196,7 @@ def pubkey_recovery(msg: Union[bytes, str], sig: Sig,
                     ec: Curve = secp256k1, hf: HashF = sha256) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
-    See also https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106    
+    See also https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
 
     if isinstance(msg, str):

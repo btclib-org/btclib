@@ -19,7 +19,7 @@ from btclib.wif import prvkey_from_wif
 class TestPrvKey(unittest.TestCase):
 
     def test_to_prv_int(self):
-        
+
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         xprv_str = xprv.decode()
         xprv_dict = bip32.deserialize(xprv)
@@ -70,7 +70,7 @@ class TestPrvKey(unittest.TestCase):
 
 
     def test_to_pub_tuple(self):
-        
+
         xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
         xpub_str = xpub.decode()
         xpub_dict = bip32.deserialize(xpub)
@@ -111,7 +111,7 @@ class TestPrvKey(unittest.TestCase):
 
 
     def test_to_pub_bytes(self):
-        
+
         xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
         xpub_str = xpub.decode()
         xpub_dict = bip32.deserialize(xpub)

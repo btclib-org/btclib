@@ -93,7 +93,7 @@ def p2sh_scriptPubKey(script_h160: Octets) -> List[Token]:
 
 def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     """Return the p2wpkh scriptPubKey of the provided HASH160 pubkey-hash.
-    
+
     For P2WPKH, the witness program must be the HASH160 20-byte pubkey-hash;
     the scriptPubkey is the witness version 0 followed by the canonical push
     of the witness program (program lenght + program),
@@ -110,7 +110,7 @@ def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
 
 def p2wsh_scriptPubKey(script_h160: Octets) -> List[Token]:
     """Return the p2wsh scriptPubKey of the provided SHA256 script-hash.
-    
+
     For P2WSH, the witness program must be the SHA256 32-byte script-hash;
     the scriptPubkey is the witness version 0 followed by the canonical push
     of the witness program (program lenght + program),

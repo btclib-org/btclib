@@ -151,7 +151,7 @@ class Curve:
     # multiplication method, implementing more advanced ones as functions
     def mult(self, m: int, Q: Point = None) -> Point:
         """Point multiplication, implemented using 'double and add'.
-        
+
         Computations use affine coordinates and binary decomposition of m.
         """
         if Q is None:

@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Strict ASN.1 DER format for ECDSA signature representation.
-   
+
     The original Bitcoin implementation used OpenSSL to verify
     ECDSA signatures in ASN.1 DER representation.
     However, OpenSSL does not do strict validation and as long as the
@@ -85,7 +85,7 @@ def serialize(r: int, s: int,
               sighash: Optional[Octets],
               ec: Curve = secp256k1) -> bytes:
     """Serialize an ECDSA signature in strict ASN.1 DER representation.
-    
+
     Trailing sighash is added if provided
     """
 
@@ -106,7 +106,7 @@ def serialize(r: int, s: int,
 def deserialize(dersig: Octets,
                 ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
-    
+
     Return r, s, sighash; sighash is None if not available.
     """
 

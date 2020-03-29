@@ -326,8 +326,8 @@ class TestSignMessage(unittest.TestCase):
 
     def test_vector(self):
         """Test python-bitcoinlib test vectors
-        
-        https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/data/btcmsg.json        
+
+        https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/data/btcmsg.json
         """
 
         # FIXME
@@ -367,7 +367,7 @@ class TestSignMessage(unittest.TestCase):
         pubkey = '022374b3b6b06b65a3b831f857634ea135bf10b014d5bba0f935cb9eb26a4b6547'
         msg = "hello world".encode()
         magic_msg = b'\x18Bitcoin Signed Message:\n'
-        magic_msg += len(msg).to_bytes(1, 'big') + msg 
+        magic_msg += len(msg).to_bytes(1, 'big') + msg
 
         # ECDSA signature verification
         dsa._verify(magic_msg, pubkey, DER)

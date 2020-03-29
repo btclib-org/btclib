@@ -53,7 +53,7 @@ class WordLists:
         """Load/add a language word-list if not loaded/added yet.
 
         The language file has to be provided for adding new languages
-        beyond those already provided. 
+        beyond those already provided.
         """
 
         # a new language, unknown before

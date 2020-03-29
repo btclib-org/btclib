@@ -98,7 +98,8 @@ def sign(msg: Union[bytes, str],
 def verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     """Borromean ring signature - verification algorithm
 
-    inputs: 
+    inputs:
+
     - msg: message to be signed (bytes)
     - e0: pinned e-value needed to start the verification algorithm
     - s: s-values, both real (one per ring) and forged

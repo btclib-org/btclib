@@ -90,7 +90,7 @@ def sign(mhd: Octets,
 
     # The secret key d: an integer in the range 1..n-1.
     d = to_prv_int(d, ec)
-    
+
     P = mult(d, ec.G, ec)
 
     # Fail if k' = 0.

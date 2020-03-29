@@ -235,7 +235,7 @@ from .utils import Octets, bytes_from_hexstring
 
 # the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
 # the integer -1 is a shorcut for 'OP_1NEGATE'
-# other integers are bytes encoded (require push operation) 
+# other integers are bytes encoded (require push operation)
 # str are for opcodes (e.g. 'OP_HASH160') or hexstring data to be pushed
 # bytes is for data to be pushed
 Token = Union[int, str, bytes]

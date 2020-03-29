@@ -132,7 +132,7 @@ def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
 
     if verify_checksum:
         entropy_from_mnemonic(mnemonic)
-    
+
     hf_name = 'sha512'
     password = mnemonic.encode()
     salt = ('mnemonic' + passphrase).encode()

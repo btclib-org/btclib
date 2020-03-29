@@ -21,7 +21,7 @@ def to_prv_int(q: Union[int, bip32.XkeyDict, bytes, str], ec: Curve = secp256k1)
     """Return a private key int from any possible key representation.
 
     Support:
-    
+
     - BIP32 extended keys (bytes, string, or XkeyDict)
     - WIF keys (bytes or string)
     - Octets (bytes or hex-string)
@@ -74,7 +74,7 @@ def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str],
     """Return a public key tuple from any possible representation.
 
     It supports:
-    
+
     - BIP32 extended keys (bytes, string, or XkeyDict)
     - Octets (bytes or hex-string)
     - native tuple
@@ -107,7 +107,7 @@ def to_pub_bytes(P: Union[Point, bytes, str, bip32.XkeyDict],
     """Return a public key tuple from any possible representation.
 
     It supports:
-    
+
     - BIP32 extended keys (bytes, string, or XkeyDict)
     - Octets (bytes or hex-string)
     - native tuple

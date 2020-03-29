@@ -132,7 +132,7 @@ class TestScriptPubKey(unittest.TestCase):
         # p2wsh_scriptPubKey("00"*33)
 
     def test_CLT(self):
-        
+
         vault_pubkeys = [b'\x00'*33, b'\x11'*33, b'\x22'*33]
         recovery_pubkeys = [b'\x77'*33, b'\x88'*33, b'\x99'*33]
 

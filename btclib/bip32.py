@@ -273,7 +273,7 @@ def _fingerprint(d: XkeyDict) -> Tuple[bytes, bytes, Point]:
 
 def address_from_xpub(xpub: Union[XkeyDict, Octets]) -> bytes:
     """Return the address according to the xpub SLIP32 version type.
-    
+
     The address is always derived from the compressed public key,
     as this is the default public key representation in BIP32.
     """
@@ -303,7 +303,7 @@ def address_from_xpub(xpub: Union[XkeyDict, Octets]) -> bytes:
 
 def wif_from_xprv(xprv: Union[XkeyDict, Octets]) -> bytes:
     """Return the WIF encoding of the provided xprv.
-    
+
     The WIF is always of the compressed kind,
     as this is the default public key representation in BIP32.
     """

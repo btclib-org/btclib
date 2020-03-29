@@ -205,7 +205,7 @@ def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
     return _deserialize(sig)
 
 
-def sign(msg: Union[bytes, str], wif: WIF, 
+def sign(msg: Union[bytes, str], wif: WIF,
          addr: Optional[Address] = None) -> Tuple[int, int, int]:
     """Generate address-based compact signature for the provided message."""
 
@@ -235,7 +235,7 @@ def sign(msg: Union[bytes, str], wif: WIF,
         rf = key_id + 39
     else:
         raise ValueError("Mismatch between private key and address")
-    
+
     return rf, r, s
 
 
