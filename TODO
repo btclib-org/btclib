@@ -7,7 +7,7 @@ isinstance(entr, bytearray):
 or
 isinstance(entr, bytes):
 
-verify all isinstance for bytesize (what is hexstring is short?)
+verify all isinstance for bytesize (what if hexstring is short?)
 
 revise ansi_x963_kdf
 optimizations
@@ -36,7 +36,6 @@ BLS
 
 reference borromean
 deserialize curves from jason file
-allow hexstring for Signature
 add signature serialize/deserialize to SSA
 remove signtocontract, adding commit to dsa and ssa
 e=0 in SSA ?
