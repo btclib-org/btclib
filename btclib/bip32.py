@@ -178,16 +178,15 @@ def deserialize(xkey: Octets) -> XkeyDict:
     _check_depth_pfp_index(d['depth'], d['parent_fingerprint'], d['index'])
 
     # calculate d['prvkey'] and d['Point']
-    if d['key'][0] in (2, 3):
+    if d['key'][0] == 0:
+        q = int.from_bytes(d['key'][1:], byteorder='big')
+        if not 0 < q < ec.n:
+            raise ValueError(f"private key {hex(q)} not in [1, n-1]")
+        d['prvkey'] = q
+        d['Point'] = (0, 0)
+    else:  # must be public (already checked by _check_version_key)
         d['prvkey'] = 0
         d['Point'] = point_from_octets(d['key'], ec)
-    elif d['key'][0] == 0:
-        d['prvkey'] = int.from_bytes(d['key'][1:], byteorder='big')
-        d['Point'] = (0, 0)
-        if not 0 < d['prvkey'] < ec.n:
-            raise ValueError(f"private key {hex(d['prvkey'])} not in [1, n-1]")
-    else:
-        raise ValueError(f"Not a valid BIP32 xkey {d['key'].hex()}")
 
     return d
 
@@ -510,7 +509,7 @@ def _indexes_from_path(path: str) -> Tuple[Sequence[bytes], bool]:
 
 
 def derive(d: Union[XkeyDict, Octets], path: Union[str, Sequence[bytes]]) -> XkeyDict:
-    """Derive an extended key.
+    """Derive an extended key across a path spanning multiple depth levels.
 
     Derivation is according to absolute path like "m/44h/0'/1H/0/10"
     or relative path like "./0/10".
@@ -539,7 +538,7 @@ def derive(d: Union[XkeyDict, Octets], path: Union[str, Sequence[bytes]]) -> Xke
             index = index.to_bytes(4, byteorder='big')
         else:
             if len(index) != 4:
-                raise ValueError(f"a 4 bytes int is required, not {len(index)}")
+                raise ValueError(f"Index must be 4-bytes, not {len(index)}")
         _ckd(d, index)
 
     return d

@@ -540,6 +540,10 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.serialize, xprv)
         #bip32.serialize(xprv)
 
+        # Index must be 4-bytes, not 5
+        self.assertRaises(ValueError, bip32.derive, rootxprv, [b'\x00'*5])
+        #bip32.derive(rootxprv, [b'\x00'*5])
+
     def test_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
         child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
@@ -763,7 +767,17 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(rootxprv, bip32.deserialize(exp))
 
     def test_serialize(self):
-        pass
+        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        xprv_dict = bip32.deserialize(xprv)
+        xpr2 = bip32.serialize(xprv_dict)
+        self.assertEqual(xpr2, xprv)
+
+        # private key not in [1, n-1]
+        inv_key = (ec.n).to_bytes(ec.nsize, 'big')
+        decoded_key = b58decode(xprv, 78)
+        xkey = b58encode(decoded_key[:46] + inv_key)
+        self.assertRaises(ValueError, bip32.deserialize, xkey)
+        #bip32.deserialize(xkey)
 
 
 if __name__ == "__main__":
