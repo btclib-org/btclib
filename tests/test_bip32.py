@@ -16,7 +16,6 @@ from btclib import bip32, bip39
 from btclib.base58 import b58decode, b58encode
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
-from btclib.utils import int_from_octets
 from btclib.wif import p2pkh_address_from_wif
 
 

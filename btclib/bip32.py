@@ -32,17 +32,17 @@ A BIP32 extended key is 78 bytes:
 - [45:78] compressed pubkey or [0x00][prvkey]
 """
 
-import hmac
 import copy
+import hmac
 from typing import List, Sequence, Tuple, TypedDict, Union
 
+from . import bip39, electrum
 from .address import p2pkh_address
 from .base58 import b58decode, b58encode
-from .mnemonic import Mnemonic
-from . import bip39, electrum
 from .curve import Point
 from .curvemult import mult
 from .curves import secp256k1 as ec
+from .mnemonic import Mnemonic
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
 from .utils import (Octets, bytes_from_hexstring, hash160, octets_from_point,
                     point_from_octets)
@@ -116,6 +116,16 @@ _P2WPKH_PUB_PREFIXES = [MAIN_zpub, TEST_vpub, TEST_vpub]
 _P2WSH_PRV_PREFIXES = [MAIN_Zprv, TEST_Vprv, TEST_Vprv]
 _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
 
+class XkeyDict(TypedDict):
+    version            : bytes
+    depth              : int
+    parent_fingerprint : bytes
+    index              : bytes
+    chain_code         : bytes
+    key                : bytes
+    prvkey             : int
+    Point              : Point
+
 
 def _check_version_key(v: bytes, k: bytes) -> None:
     if not isinstance(k, bytes):
@@ -173,18 +183,10 @@ def _check_chaincode(c: bytes) -> None:
         raise ValueError(f"invalid {len(c)}-bytes chain_code length")
 
 
-class XkeyDict(TypedDict):
-    version            : bytes
-    depth              : int
-    parent_fingerprint : bytes
-    index              : bytes
-    chain_code         : bytes
-    key                : bytes
-    prvkey             : int
-    Point              : Point
-
-
 def deserialize(xkey: Octets) -> XkeyDict:
+
+    if isinstance(xkey, str):
+        xkey = xkey.strip()
 
     xkey = b58decode(xkey, 78)
     d: XkeyDict = {
@@ -197,6 +199,7 @@ def deserialize(xkey: Octets) -> XkeyDict:
         'prvkey'             : 0,
         'Point'              : (0, 0)
     }
+
     # coherence checks
     _check_version_key(d['version'], d['key'])
     _check_depth_fingerprint_index(d['depth'],
