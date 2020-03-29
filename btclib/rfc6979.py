@@ -39,19 +39,20 @@ import hmac
 from hashlib import sha256
 from typing import Union
 
+from .bip32 import XkeyDict
 from .curve import Curve
 from .curves import secp256k1
-from .prvkey import prvkey_int
+from .key import to_prv_int
 from .utils import (HashF, Octets, _int_from_bits, bytes_from_hexstring,
                     int_from_bits, octets_from_int)
 
 
-def rfc6979(mhd: Octets, q: Union[int, bytes, str],
+def rfc6979(mhd: Octets, q: Union[int, XkeyDict, bytes, str],
             ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
     mhd = bytes_from_hexstring(mhd)
-    q = prvkey_int(q, ec)
+    q = to_prv_int(q, ec)
 
     hsize = hf().digest_size
     if len(mhd) != hsize:

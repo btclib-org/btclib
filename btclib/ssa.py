@@ -20,12 +20,13 @@ import random
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
+from .bip32 import XkeyDict
 from .curve import Curve, Point, _JacPoint
 from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
                         double_mult, mult)
 from .curves import secp256k1
+from .key import to_prv_int
 from .numbertheory import legendre_symbol, mod_inv
-from .prvkey import prvkey_int
 from .rfc6979 import rfc6979
 from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
                     octets_from_int, octets_from_point, point_from_octets)
@@ -66,7 +67,7 @@ def _e(r: int, P: Union[Point, Octets], mhd: Octets,
 
 
 def sign(mhd: Octets,
-         d: Union[int, bytes, str],
+         d: Union[int, XkeyDict, bytes, str],
          k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Sig:
     """ECSSA signing operation according to bip-schnorr.
@@ -88,7 +89,7 @@ def sign(mhd: Octets,
     _ensure_msg_size(mhd, hf)
 
     # The secret key d: an integer in the range 1..n-1.
-    d = prvkey_int(d, ec)
+    d = to_prv_int(d, ec)
     
     P = mult(d, ec.G, ec)
 

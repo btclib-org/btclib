@@ -20,12 +20,12 @@
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
-from . import der
+from . import der, key
+from .bip32 import XkeyDict
 from .curve import Curve, Point
 from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
-from .prvkey import prvkey_int
 from .rfc6979 import _rfc6979
 from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
                     point_from_octets)
@@ -36,13 +36,13 @@ Sig = Union[Tuple[int, int], Octets]  # Tuple[scalar, scalar]
 
 
 def serialize(r: int, s: int,
-              sighash: Optional[Octets],
-              ec: Curve = secp256k1) -> bytes:
+              sighash: Optional[Octets], ec: Curve = secp256k1) -> bytes:
     """Serialize an ECDSA signature in strict ASN.1 DER representation.
     
     Trailing sighash is added if provided
     """
     return der.serialize(r, s, sighash, ec)
+
 
 def deserialize(dersig: Octets,
                 ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
@@ -54,7 +54,7 @@ def deserialize(dersig: Octets,
 
 
 def sign(msg: Union[bytes, str],
-         q: Union[int, bytes, str],
+         q: Union[int, XkeyDict, bytes, str],
          k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
@@ -86,15 +86,15 @@ def sign(msg: Union[bytes, str],
 
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
-    q = prvkey_int(q, ec)
+    d = key.to_prv_int(q, ec)
 
     if k is None:
-        k = _rfc6979(c, q, ec, hf)                # 1
+        k = _rfc6979(c, d, ec, hf)                # 1
     if not 0 < k < ec.n:
         raise ValueError(f"ephemeral key {hex(k)} not in [1, n-1]")
 
     # second part delegated to helper function
-    return _sign(c, q, k, ec)
+    return _sign(c, d, k, ec)
 
 
 def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> Tuple[int, int]:
