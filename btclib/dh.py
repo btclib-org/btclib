@@ -19,13 +19,13 @@ The two entities must agree on the elliptic curve and key derivation
 function to use.
 """
 
-from typing import Callable, Any
 from hashlib import sha256
+from typing import Any, Callable
 
-from .utils import octets_from_int, int_from_octets, HashF
 from .curve import Curve, Point
-from .curves import secp256k1
 from .curvemult import mult
+from .curves import secp256k1
+from .utils import HashF, octets_from_int
 
 KDF = Callable[[bytes, int, Curve, HashF], Any]
 
@@ -52,7 +52,7 @@ def ansi_x963_kdf(z: bytes, size: int,
         counter_bytes = counter.to_bytes(4, byteorder='big')
         i += 1
     K_bytes = b''.join(K_temp[i] for i in range(size // hsize))
-    K = int_from_octets(K_bytes) >> (size - hsize)
+    K = int.from_bytes(K_bytes, byteorder='big') >> (size - hsize)
     return octets_from_int(K, ec.psize)
 
 

@@ -33,9 +33,9 @@ the discrete logarithm of H with respect to G must be unknown.
 from hashlib import sha256
 
 from .curve import Curve, Point
-from .curves import secp256k1
 from .curvemult import double_mult
-from .utils import HashF, int_from_bits, int_from_octets, octets_from_point
+from .curves import secp256k1
+from .utils import HashF, int_from_bits, octets_from_point
 
 
 def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:

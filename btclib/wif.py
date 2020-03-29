@@ -15,8 +15,8 @@ from .base58 import b58decode, b58encode
 from .curvemult import mult
 from .curves import secp256k1
 from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
-from .utils import (Octets, bytes_from_hexstring, int_from_octets,
-                    octets_from_int, octets_from_point)
+from .utils import (Octets, bytes_from_hexstring, octets_from_int,
+                    octets_from_point)
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _CURVES = [secp256k1, secp256k1, secp256k1]
@@ -80,11 +80,11 @@ def prvkey_from_wif(wif: Union[bytes, str]) -> Tuple[int, bool, str]:
         if payload[-1] != 0x01:            # must have a trailing 0x01
             raise ValueError("Not a compressed WIF: missing trailing 0x01")
         prvkey = payload[1:-1]
-        prv = int_from_octets(prvkey)
+        prv = int.from_bytes(prvkey, byteorder='big')
     elif len(payload) == ec.nsize + 1:     # uncompressed WIF
         compressed = False
         prvkey = payload[1:]
-        prv = int_from_octets(prvkey)
+        prv = int.from_bytes(prvkey, byteorder='big')
     else:
         raise ValueError(f"Wrong WIF size ({len(payload)})")
 

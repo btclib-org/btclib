@@ -17,8 +17,7 @@ from typing import List, Tuple, Union
 
 from .base58 import b58decode, b58encode
 from .script import Script, Token
-from .utils import (Octets, bytes_from_hexstring, hash160, int_from_octets,
-                    octets_from_point)
+from .utils import Octets, bytes_from_hexstring, hash160, octets_from_point
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [
