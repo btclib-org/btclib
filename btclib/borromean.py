@@ -31,9 +31,7 @@ def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
     return hf(temp).digest()
 
 
-def _get_msg_format(msg: Union[bytes, str], pubk_rings: PubkeyRing) -> bytes:
-    if isinstance(msg, str):
-        msg = msg.encode()
+def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
     rings = len(pubk_rings)
     for i in range(rings):
         for P in pubk_rings[i]:
@@ -60,6 +58,8 @@ def sign(msg: Union[bytes, str],
 
     s: SValues = defaultdict(list)
     e: SValues = defaultdict(list)
+    if isinstance(msg, str):
+        msg = msg.encode()
     m = _get_msg_format(msg, pubk_rings)
     e0bytes = m
     ring_size = len(pubk_rings)
@@ -106,6 +106,9 @@ def verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing
     - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
 
+    if isinstance(msg, str):
+        msg = msg.encode()
+
     # this is just a try/except wrapper for the Errors
     # raised by _verify
     try:
@@ -114,7 +117,7 @@ def verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing
         return False
 
 
-def _verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
 
     ring_size = len(pubk_rings)
     m = _get_msg_format(msg, pubk_rings)
