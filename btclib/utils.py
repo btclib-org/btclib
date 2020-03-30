@@ -25,8 +25,32 @@ from .curves import secp256k1
 HashF = Callable[[], Any]
 # HashF = Callable[[Any], Any]
 
-# binary octets are eight-bit bytes or hex-string (not a string)
+# binary octets are eight-bit bytes or hex-string (not text string)
+#
+# use bytes_from_hexstring to properly convert to bytes
+#
+# e.g. script, h160 (20 bytes), h256 (32 bytes),
+# bip32version (4 bytes), sighash (1 byte),
+# dersig (DER serialization of ECDSA signature),
+# msgsig (Bitcoin message compact signature serialization, 65 bytes),
+# etc.
 Octets = Union[bytes, str]
+
+# bytes or ASCII string (not hex-string)
+#
+# to convert to bytes, just encode()
+# e.g. in order to sign a message
+#    if isinstance(msg, str):
+#        msg = msg.encode('ascii')
+#
+# in many cases (e.g. b58addr, b32addr, wif, bip32key )
+# leading/trailing blanks can be stripped
+# if isinstance(b58addr, str):
+#     b58addr = b58addr.strip()
+#
+# in those cases often there is no need to encode() to bytes
+# as b58decode/b32decode/etc. will take care of that
+String = Union[bytes, str]
 
 
 def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:

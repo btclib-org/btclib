@@ -149,14 +149,14 @@ from .base58address import (h160_from_b58address, p2pkh_address,
                             p2wpkh_p2sh_address)
 from .bech32address import p2wpkh_address, witness_from_b32address
 from .curvemult import mult
-from .utils import Octets, hash160, octets_from_point
-from .wif import WIF, prvkey_from_wif
+from .utils import Octets, String, hash160, octets_from_point
+from .wif import prvkey_from_wif
 
 # (rf, r, s) or base64 compact serialization (bytes or hex-string)
 Sig = Union[Tuple[int, int, int], Octets]
 
 
-def _magic_hash(msg: Union[bytes, str]) -> bytes:
+def _magic_hash(msg: String) -> bytes:
 
     # Electrum does strip leading and trailing spaces;
     # Bitcoin Core does not
@@ -196,13 +196,13 @@ def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
     return rf, r, s
 
 
-def sign(msg: Union[bytes, str], wif: WIF,
-         addr: Optional[Union[bytes, str]] = None) -> Tuple[int, int, int]:
+def sign(msg: String, wif: String,
+         addr: Optional[String] = None) -> Tuple[int, int, int]:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
         addr = addr.strip()
-        addr = addr.encode("ascii")
+        addr = addr.encode('ascii')
 
     # first sign the message
     magic_msg = _magic_hash(msg)
@@ -230,7 +230,7 @@ def sign(msg: Union[bytes, str], wif: WIF,
     return rf, r, s
 
 
-def verify(msg: Union[bytes, str], addr: Union[bytes, str], sig: Sig) -> bool:
+def verify(msg: String, addr: String, sig: Sig) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
@@ -240,7 +240,7 @@ def verify(msg: Union[bytes, str], addr: Union[bytes, str], sig: Sig) -> bool:
         return False
 
 
-def _verify(msg: Union[bytes, str], addr: Union[bytes, str], sig: Sig) -> bool:
+def _verify(msg: String, addr: String, sig: Sig) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 

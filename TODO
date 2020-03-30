@@ -48,35 +48,6 @@ remove checks from _functions
     prvkey, prv, q: int
     pubkey, pub, Q: Point
 
-
-    # bytes or text string (not hex-string)
-    # always encode to convert to bytes
-    msg: Union[bytes, str]      # text message, do not s.strip()
-
-    # bytes or text string (not hex-string)
-    # no need to encode to bytes as b58decode will take care
-    b58addr: Union[bytes, str]       # always s.strip()
-
-    # bytes or text string (not hex-string)
-    # always encode to convert to bytes
-    b32addr: Union[bytes, str]  # bech32, always s.strip()
-    wif: Union[bytes, str]      # WIF, always s.strip()
-    xkey: Union[bytes, str]     # BIP32, always s.strip()
-
-
-    # bytes or hex-string (not text string)
-    # always use bytes_from_hexstring to convert to bytes
-    Octets = Union[bytes, str]
-    script: Octets        # variable length
-    h160: Octets          # 20 bytes
-    h256: Octets          # 32 bytes
-    bip32version: Octets  # 4 byte
-    sighash: Octets       # 1 byte
-    # ECDSA signature with DER serialization, with or without sighash
-    dersig: Octets        # 9-73 bytes
-    # Bitcoin message compact signature serialization
-    msgsig: Octets        # 65 bytes
-
     # BIP32 xkey (bytes, string, or XkeyDict), WIF (bytes or string), Octets, native int
     prvkey, prv, q: Union[int, bip32.XkeyDict, bytes, str]  # to_prv_int
 
@@ -88,4 +59,3 @@ remove checks from _functions
     msgsig = Union[Tuple[int, int, int], Octets]  # (rf, r, s) or compact serialization
 
 }
-

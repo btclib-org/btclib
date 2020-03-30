@@ -16,7 +16,7 @@ from typing import Dict, List, Sequence, Tuple, Union
 from .curve import Point
 from .curvemult import double_mult, mult
 from .curves import secp256k1 as ec  # FIXME: any curve
-from .utils import int_from_bits, octets_from_point, point_from_octets
+from .utils import String, int_from_bits, octets_from_point, point_from_octets
 
 # FIXME: should be urandom, but then tests would be non-deterministic
 random.seed(42)
@@ -39,7 +39,7 @@ def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
     return hf(msg).digest()
 
 
-def sign(msg: Union[bytes, str],
+def sign(msg: String,
          k: Sequence[int],
          sign_key_idx: Sequence[int],
          sign_keys: Sequence[int],
@@ -56,12 +56,13 @@ def sign(msg: Union[bytes, str],
         - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
 
-    s: SValues = defaultdict(list)
-    e: SValues = defaultdict(list)
     if isinstance(msg, str):
         msg = msg.encode()
     m = _get_msg_format(msg, pubk_rings)
+
     e0bytes = m
+    s: SValues = defaultdict(list)
+    e: SValues = defaultdict(list)
     ring_size = len(pubk_rings)
     # step 1
     for i in range(ring_size):
@@ -95,7 +96,7 @@ def sign(msg: Union[bytes, str],
     return e0, s
 
 
-def verify(msg: Union[bytes, str], e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     """Borromean ring signature - verification algorithm
 
     inputs:

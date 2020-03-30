@@ -39,7 +39,7 @@ https://github.com/keis/base58, with the following modifications:
 from hashlib import sha256
 from typing import Optional, Union
 
-from .utils import hash256, Octets, bytes_from_hexstring
+from .utils import Octets, String, bytes_from_hexstring, hash256
 
 __ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __BASE = len(__ALPHABET)
@@ -118,7 +118,7 @@ def _b58decode(v: bytes, out_size: Optional[int]) -> bytes:
     raise ValueError(m)
 
 
-def b58decode(v: Union[bytes, str], out_size: Optional[int] = None) -> bytes:
+def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
     """Decode a Base58Check encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.

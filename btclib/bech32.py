@@ -46,7 +46,9 @@ with the following modifications:
 """
 
 
-from typing import Tuple, Iterable, List, Union
+from typing import Iterable, List, Tuple, Union
+
+from .utils import String
 
 __ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
@@ -88,9 +90,12 @@ def _verify_checksum(hrp: str, data: List[int]) -> bool:
     return _polymod(_hrp_expand(hrp) + data) == 1
 
 
-def b32decode(bech: Union[bytes, str]) -> Tuple[str, List[int]]:
+def b32decode(bech: String) -> Tuple[str, List[int]]:
     """Validate a bech32 string, and determine HRP and data."""
 
+    if isinstance(bech, str):
+        bech = bech.strip()
+    
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
 

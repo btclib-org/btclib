@@ -19,7 +19,7 @@ from .base58address import (_P2PKH_PREFIXES, _P2SH_PREFIXES,
 from .bech32address import (b32address_from_witness, has_segwit_prefix,
                             witness_from_b32address)
 from .script import Token, encode
-from .utils import Octets, bytes_from_hexstring
+from .utils import Octets, String, bytes_from_hexstring
 
 
 def nulldata_scriptPubKey(data: Octets) -> List[Token]:
@@ -132,7 +132,7 @@ def address_from_scriptPubKey(scriptPubKey: Iterable[Token],
         raise ValueError("Unknown script")
 
 
-def scriptPubKey_from_address(addr: Union[bytes, str]) -> Tuple[List[Token], str]:
+def scriptPubKey_from_address(addr: String) -> Tuple[List[Token], str]:
     """Return (scriptPubKey, network) from the input bech32/base58 address"""
 
     if has_segwit_prefix(addr):

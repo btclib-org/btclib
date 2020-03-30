@@ -45,20 +45,20 @@ with the following modifications:
 from typing import Iterable, List, Tuple, Union
 
 from .bech32 import b32decode, b32encode
-from .utils import (Octets, bytes_from_hexstring, h160_from_pubkey, hash160,
-                    sha256)
+from .utils import (Octets, String, bytes_from_hexstring, h160_from_pubkey,
+                    hash160, sha256)
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2W_PREFIXES = ['bc', 'tb', 'bcrt']
 
 
-def has_segwit_prefix(addr: Union[bytes, str]) -> bool:
+def has_segwit_prefix(addr: String) -> bool:
 
-    if isinstance(addr, bytes):
-        str_addr = addr.decode()
-    else:
+    if isinstance(addr, str):
         str_addr = addr.strip()
         str_addr = str_addr.lower()
+    else:
+        str_addr = addr.decode()
 
     for prefix in _P2W_PREFIXES:
         if str_addr.startswith(prefix + '1'):
@@ -119,7 +119,7 @@ def b32address_from_witness(wv: int, wp: Octets, network: str = 'mainnet') -> by
     return ret
 
 
-def witness_from_b32address(b32addr: Union[bytes, str]) -> Tuple[int, bytes, str, bool]:
+def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     """Decode a bech32 native SegWit address."""
 
     if isinstance(b32addr, str):

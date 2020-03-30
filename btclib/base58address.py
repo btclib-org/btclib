@@ -16,8 +16,8 @@ Base58 encoding of public keys and scripts as addresses.
 from typing import List, Tuple, Union
 
 from .base58 import b58decode, b58encode
-from .utils import (Octets, bytes_from_hexstring, h160_from_pubkey, hash160,
-                    sha256)
+from .utils import (Octets, String, bytes_from_hexstring, h160_from_pubkey,
+                    hash160, sha256)
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [
@@ -39,10 +39,11 @@ def b58address_from_h160(prefix_list: List[bytes], h160: Octets, network: str = 
     return b58encode(payload)
 
 
-def h160_from_b58address(b58addr: Union[bytes, str]) -> Tuple[bytes, bytes, str, bool]:
+def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
 
     if isinstance(b58addr, str):
         b58addr = b58addr.strip()
+
     payload = b58decode(b58addr, 21)
     prefix = payload[0:1]
     if prefix in _P2PKH_PREFIXES:
@@ -91,11 +92,9 @@ def b58address_from_witness(wp: Octets, network: str = 'mainnet') -> bytes:
     raise ValueError(m)
 
 
-def witness_from_b58address(b58addr: Union[bytes, str]) -> Tuple[int, bytes, str, bool]:
+def witness_from_b58address(b58addr: String) -> Tuple[int, bytes, str, bool]:
     """Decode a base58 legacy (p2sh-wrapped) SegWit address."""
-
     _, wp, network, is_script_hash = h160_from_b58address(b58addr)
-
     return 0, wp, network, is_script_hash
 
 
