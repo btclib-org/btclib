@@ -119,12 +119,18 @@ class TestSegwitAddress(unittest.TestCase):
         for network, version, length in INVALID_ADDRESS_ENC:
             self.assertRaises(ValueError, b32address_from_witness, version, [0] * length, network)
 
-    def test_encode_decode(self):
+    def test_b32address_from_witness(self):
 
         # self-consistency
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
         wv, wp, network, _ = witness_from_b32address(addr)
         self.assertEqual(b32address_from_witness(wv, wp, network), addr)
+
+        # invalid value -1
+        wp = [i for i in wp]  # convert to List[int]
+        wp[-1] = -1  # alter the last element with an invalid value
+        self.assertRaises(ValueError, b32address_from_witness, wv, wp, network)
+        #b32address_from_witness(wv, wp, network)
 
         # string input
         addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
