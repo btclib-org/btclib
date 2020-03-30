@@ -111,12 +111,11 @@ def _b58decode(v: bytes, out_size: Optional[int]) -> bytes:
         nbytes = (i.bit_length() + 7) // 8
         result = result + i.to_bytes(nbytes, byteorder='big')
 
-    if out_size is not None and len(result) != out_size:
-        m = "Invalid decoded size: "
-        m += f"{len(result)} bytes instead of {out_size}"
-        raise ValueError(m)
+    if out_size is None or len(result) == out_size:
+        return result
 
-    return result
+    m = f"Invalid decoded size: {len(result)} bytes instead of {out_size}"
+    raise ValueError(m)
 
 
 def b58decode(v: Union[bytes, str], out_size: Optional[int] = None) -> bytes:
