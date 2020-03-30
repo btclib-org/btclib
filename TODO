@@ -51,11 +51,17 @@ remove checks from _functions
 
     # bytes or text string (not hex-string)
     # always encode to convert to bytes
-    msg: Union[bytes, str]         # text message, do not s.strip()
-    b58address: Union[bytes, str]  # base58, always s.strip()
-    b32address: Union[bytes, str]  # bech32, always s.strip()
-    wif: Union[bytes, str]         # WIF, always s.strip()
-    xkey: Union[bytes, str]        # BIP32, always s.strip()
+    msg: Union[bytes, str]      # text message, do not s.strip()
+
+    # bytes or text string (not hex-string)
+    # no need to encode to bytes as b58decode will take care
+    b58addr: Union[bytes, str]       # always s.strip()
+
+    # bytes or text string (not hex-string)
+    # always encode to convert to bytes
+    b32addr: Union[bytes, str]  # bech32, always s.strip()
+    wif: Union[bytes, str]      # WIF, always s.strip()
+    xkey: Union[bytes, str]     # BIP32, always s.strip()
 
 
     # bytes or hex-string (not text string)
