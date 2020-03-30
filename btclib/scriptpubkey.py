@@ -75,22 +75,14 @@ def multisig_scriptPubKey(m: int, pubkeys: Iterable[Octets]) -> List[Token]:
 def p2pkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     """Return the p2pkh scriptPubKey of the provided HASH160 pubkey-hash."""
 
-    pubkey_h160 = bytes_from_hexstring(pubkey_h160)
-    if len(pubkey_h160) != 20:
-        msg = f"Invalid pubkey-hash lenght ({len(pubkey_h160)} bytes) "
-        msg += "for p2pkh scriptPubKey"
-        raise ValueError(msg)
+    pubkey_h160 = bytes_from_hexstring(pubkey_h160, 20)
     return ['OP_DUP', 'OP_HASH160', pubkey_h160.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
 
 
 def p2sh_scriptPubKey(script_h160: Octets) -> List[Token]:
     """Return the p2sh scriptPubKey of the provided HASH160 script-hash."""
 
-    script_h160 = bytes_from_hexstring(script_h160)
-    if len(script_h160) != 20:
-        msg = f"Invalid script-hash lenght ({len(script_h160)} bytes) "
-        msg += "for p2sh scriptPubKey"
-        raise ValueError(msg)
+    script_h160 = bytes_from_hexstring(script_h160, 20)
     return ['OP_HASH160', script_h160.hex(), 'OP_EQUAL']
 
 
@@ -103,15 +95,11 @@ def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     that is 0x0014{20-byte key-hash}
     """
 
-    pubkey_h160 = bytes_from_hexstring(pubkey_h160)
-    if len(pubkey_h160) != 20:
-        msg = f"Invalid witness program lenght ({len(pubkey_h160)} bytes) "
-        msg += "for p2wpkh scriptPubKey"
-        raise ValueError(msg)
+    pubkey_h160 = bytes_from_hexstring(pubkey_h160, 20)
     return [0, pubkey_h160.hex()]
 
 
-def p2wsh_scriptPubKey(script_h160: Octets) -> List[Token]:
+def p2wsh_scriptPubKey(script_h256: Octets) -> List[Token]:
     """Return the p2wsh scriptPubKey of the provided SHA256 script-hash.
 
     For P2WSH, the witness program must be the SHA256 32-byte script-hash;
@@ -120,12 +108,8 @@ def p2wsh_scriptPubKey(script_h160: Octets) -> List[Token]:
     that is 0x0020{32-byte script-hash}
     """
 
-    script_h160 = bytes_from_hexstring(script_h160)
-    if len(script_h160) != 32:
-        msg = f"Invalid witness program lenght ({len(script_h160)} bytes) "
-        msg += "for p2wsh scriptPubKey"
-        raise ValueError(msg)
-    return [0, script_h160.hex()]
+    script_h256 = bytes_from_hexstring(script_h256, 32)
+    return [0, script_h256.hex()]
 
 
 def address_from_scriptPubKey(scriptPubKey: Iterable[Token],

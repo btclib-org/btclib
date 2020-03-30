@@ -34,16 +34,8 @@ from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
 Sig = Tuple[int, int]  # Tuple[field element, scalar]
 
 
-def _ensure_msg_size(mhd: Octets, hf: HashF = sha256) -> None:
-    mhd = bytes_from_hexstring(mhd)
-    if len(mhd) != hf().digest_size:
-        errmsg = f'message of wrong size: {len(mhd)}'
-        errmsg += f' instead of {hf().digest_size} bytes'
-        raise ValueError(errmsg)
-
-
 def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
-    mhd = bytes_from_hexstring(mhd)
+    mhd = bytes_from_hexstring(mhd, hf().digest_size)
     t = d.to_bytes(32, byteorder='big') + mhd
     h = hf()
     h.update(t)
@@ -61,7 +53,7 @@ def _e(r: int, P: Union[Point, Octets], mhd: Octets,
         # while getting rid of any uncompressed representation
         P = point_from_octets(P, ec)
     h.update(octets_from_point(P, True, ec))
-    h.update(bytes_from_hexstring(mhd))
+    h.update(bytes_from_hexstring(mhd, hf().digest_size))
     e = int_from_bits(h.digest(), ec)
     return e
 
@@ -77,16 +69,14 @@ def sign(mhd: Octets,
     digest of other messages, but it does not need to.
     """
 
-    mhd = bytes_from_hexstring(mhd)
+    # The message mhd: a 32-byte array
+    mhd = bytes_from_hexstring(mhd, hf().digest_size)
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
     if not ec.pIsThreeModFour:
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
-
-    # The message mhd: a 32-byte array
-    _ensure_msg_size(mhd, hf)
 
     # The secret key d: an integer in the range 1..n-1.
     d = to_prv_int(d, ec)
@@ -145,13 +135,11 @@ def _verify(mhd: Octets,
         errmsg = 'curve prime p must be equal to 3 (mod 4)'
         raise ValueError(errmsg)
 
-    mhd = bytes_from_hexstring(mhd)
+    # The message mhd: a 32-byte array
+    mhd = bytes_from_hexstring(mhd, hf().digest_size)
 
     r, s = sig
     _check_sig(r, s, ec)
-
-    # The message mhd: a 32-byte array
-    _ensure_msg_size(mhd, hf)
 
     # Let P = point(pk); fail if point(pk) fails.
     if not isinstance(P, tuple):
@@ -221,7 +209,7 @@ def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
         return False
 
 
-def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
+def _batch_verify(ms: Sequence[Octets], P: Sequence[Point], sig: Sequence[Sig],
                   ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
 
     # the bitcoin proposed standard is only valid for curves
@@ -249,9 +237,9 @@ def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
     for i in range(batch_size):
         r, s = sig[i]
         _check_sig(r, s, ec)
-        _ensure_msg_size(ms[i], hf)
+        m = bytes_from_hexstring(ms[i], hf().digest_size)
         ec.require_on_curve(P[i])
-        e = _e(r, P[i], ms[i], ec, hf)
+        e = _e(r, P[i], m, ec, hf)
         # raises an error if y does not exist
         # no need to check for quadratic residue
         y = ec.y(r)

@@ -31,7 +31,7 @@ class TestWif(unittest.TestCase):
         self.assertEqual(prvkey, int(q, 16))
         self.assertEqual(compressed, True)
 
-        q = bytes_from_hexstring(q)
+        q = bytes_from_hexstring(q, 32)
         # compressed WIF (testnet)
         wif = b'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx'
         self.assertEqual(wif, wif_from_prvkey(q, True, 'testnet'))

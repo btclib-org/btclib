@@ -54,11 +54,7 @@ def to_prv_int(q: Union[int, bip32.XkeyDict, bytes, str], ec: Curve = secp256k1)
                 raise ValueError(f"Not a private key: {xkey['key'].hex()}")
 
         try:
-            q = bytes_from_hexstring(q)
-            if len(q) != ec.nsize:
-                m = "Invalid private key size: "
-                m += f"{len(q)} bytes instead of {ec.nsize}"
-                raise ValueError(m)
+            q = bytes_from_hexstring(q, ec.nsize)
             q2 = int.from_bytes(q, 'big')
         except Exception:
             raise ValueError("not a private key")

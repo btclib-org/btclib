@@ -434,10 +434,8 @@ def ckd(d: Union[XkeyDict, Octets], index: Union[Octets, int]) -> XkeyDict:
     if isinstance(index, int):
         i = index.to_bytes(4, byteorder='big')
     else:
-        i = bytes_from_hexstring(index)
-        if len(i) != 4:
-            raise ValueError(f"a 4 bytes int is required, not {len(i)}")
-
+        i = bytes_from_hexstring(index, 4)
+ 
     _ckd(d, i)
     return d
 

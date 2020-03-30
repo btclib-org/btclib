@@ -27,8 +27,7 @@ from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
-from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
-                    point_from_octets)
+from .utils import HashF, Octets, int_from_bits, point_from_octets
 
 # (r, s) or DER serialization (bytes or hex-string)
 # DER can include sighash

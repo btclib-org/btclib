@@ -97,9 +97,7 @@ def serialize(r: int, s: int,
     if sighash is None:
         return result
 
-    sighash = bytes_from_hexstring(sighash)
-    if len(sighash) > 1:
-        raise ValueError(f"sighash size {len(sighash)} > 1")
+    sighash = bytes_from_hexstring(sighash, 1)
     return result + sighash
 
 

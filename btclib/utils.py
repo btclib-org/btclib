@@ -176,10 +176,9 @@ def bytes_from_hexstring(o: Union[Any, str], out_size: Optional[int] = None) -> 
     """
 
     if isinstance(o, str):  # hex string
-        o = o.strip()
         o = bytes.fromhex(o)
 
-    if out_size is None or len(o) == out_size:
+    if (out_size is None) or (len(o) == out_size):
        return o
 
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"
