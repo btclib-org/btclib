@@ -40,6 +40,8 @@ add signature serialize/deserialize to SSA
 remove signtocontract, adding commit to dsa and ssa
 e=0 in SSA ?
 
+remove (ec, hf) in favor of network
+
 remove checks from _functions
 
     ## pure crypto

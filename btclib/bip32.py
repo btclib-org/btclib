@@ -44,9 +44,8 @@ from .curve import Point
 from .curvemult import mult
 from .curves import secp256k1 as ec
 from .mnemonic import Mnemonic
-from .utils import (Octets, bytes_from_hexstring, hash160, octets_from_point,
-                    point_from_octets)
-from .wif import wif_from_prvkey
+from .utils import (Octets, String, bytes_from_hexstring, hash160,
+                    octets_from_point, point_from_octets)
 
 # Bitcoin core uses the m/0h (core) BIP32 derivation path
 # with xprv/xpub and tprv/tpub Base58 encoding
@@ -226,7 +225,7 @@ def serialize(d: XkeyDict) -> bytes:
     return b58encode(t)
 
 
-def fingerprint(d: Union[XkeyDict, Octets]) -> bytes:
+def fingerprint(d: Union[XkeyDict, String]) -> bytes:
 
     if not isinstance(d, dict):
         d = deserialize(d)
@@ -240,26 +239,7 @@ def fingerprint(d: Union[XkeyDict, Octets]) -> bytes:
     return hash160(d['key'])[:4]
 
 
-def wif_from_xprv(d: Union[XkeyDict, Octets]) -> bytes:
-    """Return the WIF encoding of the provided xprv.
-
-    The WIF is always of the compressed kind,
-    as this is the default public key representation in BIP32.
-    """
-
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-
-    if d['key'][0] != 0:
-        raise ValueError("xkey is not a private one")
-
-    network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(d['version'])]
-    compressed = True
-    return wif_from_prvkey(d['key'][1:], compressed, network)
-
-
-def address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
+def address_from_xpub(d: Union[XkeyDict, String]) -> bytes:
     """Return the SLIP32 base58/bech32 address.
 
     The address is always derived from the compressed public key,
@@ -292,7 +272,7 @@ def _p2pkh_from_xpub(v: bytes, pk: bytes) -> bytes:
     return p2pkh_address(pk, network)
 
 
-def p2pkh_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
+def p2pkh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
     """Return the p2pkh address."""
     if not isinstance(d, dict):
         d = deserialize(d)
@@ -309,7 +289,7 @@ def _p2wpkh_from_xpub(v: bytes, pk: bytes) -> bytes:
     return p2wpkh_address(pk, network)
 
 
-def p2wpkh_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
+def p2wpkh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
     """Return the p2wpkh (native SegWit) address."""
     if not isinstance(d, dict):
         d = deserialize(d)
@@ -326,7 +306,7 @@ def _p2wpkh_p2sh_from_xpub(v: bytes, pk: bytes) -> bytes:
     return p2wpkh_p2sh_address(pk, network)
 
 
-def p2wpkh_p2sh_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
+def p2wpkh_p2sh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
     """Return the p2wpkh p2sh-wrapped (legacy) address."""
     if not isinstance(d, dict):
         d = deserialize(d)
@@ -393,7 +373,7 @@ def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
         raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
 
 
-def xpub_from_xprv(d: Union[XkeyDict, Octets]) -> XkeyDict:
+def xpub_from_xprv(d: Union[XkeyDict, String]) -> XkeyDict:
     """Neutered Derivation (ND).
 
     Derivation of the extended public key corresponding to an extended
@@ -416,7 +396,7 @@ def xpub_from_xprv(d: Union[XkeyDict, Octets]) -> XkeyDict:
     return d
 
 
-def ckd(d: Union[XkeyDict, Octets], index: Union[Octets, int]) -> XkeyDict:
+def ckd(d: Union[XkeyDict, String], index: Union[Octets, int]) -> XkeyDict:
     """Child Key Derivation (CDK)
 
     Key derivation is normal if the extended parent key is public or
@@ -506,7 +486,7 @@ def _indexes_from_path(path: str) -> Tuple[Sequence[bytes], bool]:
     return indexes, absolute
 
 
-def derive(d: Union[XkeyDict, Octets], path: Union[str, Sequence[bytes]]) -> XkeyDict:
+def derive(d: Union[XkeyDict, String], path: Union[str, Sequence[bytes]]) -> XkeyDict:
     """Derive an extended key across a path spanning multiple depth levels.
 
     Derivation is according to absolute path like "m/44h/0'/1H/0/10"
@@ -542,7 +522,7 @@ def derive(d: Union[XkeyDict, Octets], path: Union[str, Sequence[bytes]]) -> Xke
     return d
 
 
-def crack(parent_xpub: Union[XkeyDict, Octets], child_xprv: Union[XkeyDict, Octets]) -> XkeyDict:
+def crack(parent_xpub: Union[XkeyDict, String], child_xprv: Union[XkeyDict, String]) -> XkeyDict:
 
     if isinstance(parent_xpub, dict):
         p = copy.copy(parent_xpub)

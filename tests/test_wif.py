@@ -10,6 +10,7 @@
 
 import unittest
 
+from btclib import bip32
 from btclib.base58 import b58decode, b58encode
 from btclib.base58address import h160_from_b58address
 from btclib.bech32address import witness_from_b32address
@@ -17,7 +18,7 @@ from btclib.curves import secp256k1 as ec
 from btclib.utils import bytes_from_hexstring, hash160, octets_from_int
 from btclib.wif import (p2pkh_address_from_wif, p2wpkh_address_from_wif,
                         p2wpkh_p2sh_address_from_wif, prvkey_from_wif,
-                        wif_from_prvkey)
+                        to_prv_int, wif_from_prvkey, wif_from_xprv)
 
 
 class TestWif(unittest.TestCase):
@@ -157,6 +158,69 @@ class TestWif(unittest.TestCase):
         h160 = h160_from_b58address(b58)[1]
         b = p2wpkh_p2sh_address_from_wif(wif2)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
+
+    def test_wif_address_from_xkey(self):
+        seed = b"00"*32  # better be random
+        rxprv = bip32.rootxprv_from_seed(seed)
+        path = "m/0h/0h/12"
+        xprv = bip32.derive(rxprv, path)
+        wif = wif_from_xprv(xprv)
+        self.assertEqual(wif, b'KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP')
+        address = p2pkh_address_from_wif(wif)
+        xpub = bip32.xpub_from_xprv(xprv)
+        address2 = bip32.address_from_xpub(xpub)
+        self.assertEqual(address, address2)
+
+        self.assertRaises(ValueError, wif_from_xprv, xpub)
+
+    def test_to_prv_int(self):
+
+        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        xprv_str = xprv.decode()
+        xprv_dict = bip32.deserialize(xprv)
+        wif = wif_from_xprv(xprv)
+        wif_str = wif.decode()
+        q = xprv_dict['prvkey']
+        qb = xprv_dict['key'][1:]
+        q_hexstr = qb.hex()
+
+        # BIP32
+        self.assertEqual(to_prv_int(xprv), (q, True, 'mainnet'))
+        self.assertEqual(to_prv_int(xprv_str), (q, True, 'mainnet'))
+        self.assertEqual(to_prv_int(' ' + xprv_str + ' '), (q, True, 'mainnet'))
+        self.assertEqual(to_prv_int(xprv_dict), (q, True, 'mainnet'))
+
+        # WIF keys (bytes or string)
+        self.assertEqual(to_prv_int(wif), (q, True, 'mainnet'))
+        self.assertEqual(to_prv_int(wif_str), (q, True, 'mainnet'))
+        self.assertEqual(to_prv_int(' ' + wif_str + ' '), (q, True, 'mainnet'))
+
+        # Octets (bytes or hex-string)
+        self.assertEqual(to_prv_int(qb), (q, None, None))
+        self.assertRaises(ValueError, to_prv_int, b'\x00' + qb)
+        self.assertEqual(to_prv_int(q_hexstr), (q, None, None))
+        self.assertEqual(to_prv_int(' ' + q_hexstr + ' '), (q, None, None))
+        self.assertRaises(ValueError, to_prv_int, q_hexstr + '00')
+
+        # native int
+        self.assertEqual(to_prv_int(q), (q, None, None))
+
+
+        q = ec.n
+        self.assertRaises(ValueError, to_prv_int, q)
+        qb = q.to_bytes(32, byteorder='big')
+        self.assertRaises(ValueError, to_prv_int, qb)
+        q_hexstr = qb.hex()
+        self.assertRaises(ValueError, to_prv_int, q_hexstr)
+
+        self.assertRaises(ValueError, to_prv_int, "not a key")
+        #to_prv_int("not a key")
+
+        # prvkey input
+        xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
+        self.assertRaises(ValueError, to_prv_int, xpub)
+        xpub_dict = bip32.deserialize(xpub)
+        self.assertRaises(ValueError, to_prv_int, xpub_dict)
 
 
 if __name__ == "__main__":

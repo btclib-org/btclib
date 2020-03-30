@@ -13,61 +13,10 @@ import unittest
 from btclib import bip32, key
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets_from_point
-from btclib.wif import prvkey_from_wif
+from btclib.wif import prvkey_from_wif, wif_from_xprv
 
 
 class TestPrvKey(unittest.TestCase):
-
-    def test_to_prv_int(self):
-
-        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        xprv_str = xprv.decode()
-        xprv_dict = bip32.deserialize(xprv)
-        wif = bip32.wif_from_xprv(xprv)
-        wif_str = wif.decode()
-        q = xprv_dict['prvkey']
-        qb = xprv_dict['key'][1:]
-        q_hexstr = qb.hex()
-
-        # BIP32
-        self.assertEqual(key.to_prv_int(xprv), q)
-        self.assertEqual(key.to_prv_int(xprv_str), q)
-        self.assertEqual(key.to_prv_int(' ' + xprv_str + ' '), q)
-        self.assertEqual(key.to_prv_int(xprv_dict), q)
-
-        # WIF keys (bytes or string)
-        self.assertEqual(key.to_prv_int(wif), q)
-        self.assertEqual(key.to_prv_int(wif_str), q)
-        self.assertEqual(key.to_prv_int(' ' + wif_str + ' '), q)
-
-        # Octets (bytes or hex-string)
-        self.assertEqual(key.to_prv_int(qb), q)
-        self.assertRaises(ValueError, key.to_prv_int, b'\x00' + qb)
-        self.assertEqual(key.to_prv_int(q_hexstr), q)
-        self.assertEqual(key.to_prv_int(' ' + q_hexstr + ' '), q)
-        self.assertRaises(ValueError, key.to_prv_int, q_hexstr + '00')
-
-        # native int
-        self.assertEqual(key.to_prv_int(q), q)
-
-
-        q = ec.n
-        self.assertRaises(ValueError, key.to_prv_int, q)
-        qb = q.to_bytes(32, byteorder='big')
-        self.assertRaises(ValueError, key.to_prv_int, qb)
-        q_hexstr = qb.hex()
-        self.assertRaises(ValueError, key.to_prv_int, q_hexstr)
-
-        self.assertRaises(ValueError, key.to_prv_int, "not a key")
-        #key.to_prv_int("not a key")
-
-        # prvkey input
-        xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
-        self.assertRaises(ValueError, key.to_prv_int, xpub)
-        xpub_dict = bip32.deserialize(xpub)
-        self.assertRaises(ValueError, key.to_prv_int, xpub_dict)
-
-
 
     def test_to_pub_tuple(self):
 
@@ -108,7 +57,6 @@ class TestPrvKey(unittest.TestCase):
         self.assertRaises(ValueError, key.to_pub_tuple, xprv)
         xprv_dict = bip32.deserialize(xprv)
         self.assertRaises(ValueError, key.to_pub_tuple, xprv_dict)
-
 
     def test_to_pub_bytes(self):
 

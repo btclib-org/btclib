@@ -33,9 +33,9 @@ _P2SH_PREFIXES = [
 
 # TODO accept any pubkey
 
+# FIXME make it the perfect reverse of h160_from_b58address
 def b58address_from_h160(prefix_list: List[bytes], h160: Octets, network: str = 'mainnet') -> bytes:
 
-    # FIXME make it the perfect reverse of h160_from_b58address
     payload = prefix_list[_NETWORKS.index(network)]
     payload += bytes_from_hexstring(h160, 20)
     return b58encode(payload)
