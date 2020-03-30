@@ -10,7 +10,7 @@
 
 import unittest
 
-from btclib import segwitaddress
+from btclib.bech32address import b32address_from_witness
 from btclib.script import OP_CODE_NAMES, OP_CODES, decode, encode, serialize
 from btclib.scriptpubkey import (address_from_scriptPubKey,
                                  multisig_scriptPubKey, nulldata_scriptPubKey,
@@ -149,7 +149,7 @@ class TestScriptPubKey(unittest.TestCase):
 
         script_pubkey = p2wsh_scriptPubKey(witness_hash)
         self.assertEqual(encode(script_pubkey).hex(), "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708")
-        address = segwitaddress._encode("mainnet", 0, witness_hash)
+        address = b32address_from_witness(0, witness_hash)
         self.assertEqual(address, b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj")
 
     def test_address_scriptPubKey(self):
@@ -183,7 +183,7 @@ class TestScriptPubKey(unittest.TestCase):
 
         # Unhandled witness version (16)
         wp = hash160(pubkey)[2:]
-        addr = segwitaddress._encode("mainnet", 16, wp)
+        addr = b32address_from_witness(16, wp)
         self.assertRaises(ValueError, scriptPubKey_from_address, addr)
         # scriptPubKey_from_address(addr)
 

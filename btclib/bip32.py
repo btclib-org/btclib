@@ -37,13 +37,13 @@ import hmac
 from typing import List, Sequence, Tuple, TypedDict, Union
 
 from . import bip39, electrum
-from .address import p2pkh_address
 from .base58 import b58decode, b58encode
+from .base58address import p2pkh_address, p2wpkh_p2sh_address
+from .bech32address import p2wpkh_address
 from .curve import Point
 from .curvemult import mult
 from .curves import secp256k1 as ec
 from .mnemonic import Mnemonic
-from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
 from .utils import (Octets, bytes_from_hexstring, hash160, octets_from_point,
                     point_from_octets)
 from .wif import wif_from_prvkey
@@ -274,25 +274,25 @@ def address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
 
     if d['version'] in _XPUB_PREFIXES:
         # p2pkh
-        return _p2pkh_address_from_xpub(d['version'], d['key'])
+        return _p2pkh_from_xpub(d['version'], d['key'])
     elif d['version'] in _P2WPKH_PUB_PREFIXES:
         # p2wpkh native-segwit
-        return _p2wpkh_address_from_xpub(d['version'], d['key'])
+        return _p2wpkh_from_xpub(d['version'], d['key'])
     else:
         # v has been already checked at parsing stage
         # v must be in _P2WPKH_P2SH_PUB_PREFIXES
-        # moreover, _p2wpkh_p2sh_address_from_xpub will raise an Error
+        # moreover, _p2wpkh_p2sh_from_xpub will raise an Error
         # if something is wrong
         # p2wpkh p2sh-wrapped-segwit
-        return _p2wpkh_p2sh_address_from_xpub(d['version'], d['key'])
+        return _p2wpkh_p2sh_from_xpub(d['version'], d['key'])
 
 
-def _p2pkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
+def _p2pkh_from_xpub(v: bytes, pk: bytes) -> bytes:
     network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
     return p2pkh_address(pk, network)
 
 
-def p2pkh_address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
+def p2pkh_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
     """Return the p2pkh address."""
     if not isinstance(d, dict):
         d = deserialize(d)
@@ -301,15 +301,15 @@ def p2pkh_address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
         # Deriving pubkey from prvkey would not be enough:
         # compressed ot uncompressed?
         raise ValueError("xkey is not a public one")
-    return _p2pkh_address_from_xpub(d['version'], d['key'])
+    return _p2pkh_from_xpub(d['version'], d['key'])
 
 
-def _p2wpkh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
+def _p2wpkh_from_xpub(v: bytes, pk: bytes) -> bytes:
     network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
     return p2wpkh_address(pk, network)
 
 
-def p2wpkh_address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
+def p2wpkh_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
     """Return the p2wpkh (native SegWit) address."""
     if not isinstance(d, dict):
         d = deserialize(d)
@@ -318,15 +318,15 @@ def p2wpkh_address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
         # if pubkey would be derived from prvkey,
         # then this safety check might be removed
         raise ValueError("xkey is not a public one")
-    return _p2wpkh_address_from_xpub(d['version'], d['key'])
+    return _p2wpkh_from_xpub(d['version'], d['key'])
 
 
-def _p2wpkh_p2sh_address_from_xpub(v: bytes, pk: bytes) -> bytes:
+def _p2wpkh_p2sh_from_xpub(v: bytes, pk: bytes) -> bytes:
     network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
     return p2wpkh_p2sh_address(pk, network)
 
 
-def p2wpkh_p2sh_address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
+def p2wpkh_p2sh_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
     """Return the p2wpkh p2sh-wrapped (legacy) address."""
     if not isinstance(d, dict):
         d = deserialize(d)
@@ -335,7 +335,7 @@ def p2wpkh_p2sh_address_from_xpub(d: Union[XkeyDict, Octets]) -> bytes:
         # if pubkey would be derived from prvkey,
         # then this safety check might be removed
         raise ValueError("xkey is not a public one")
-    return _p2wpkh_p2sh_address_from_xpub(d['version'], d['key'])
+    return _p2wpkh_p2sh_from_xpub(d['version'], d['key'])
 
 
 def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:

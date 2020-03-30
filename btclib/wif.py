@@ -10,11 +10,11 @@
 
 from typing import Tuple, Union
 
-from .address import p2pkh_address
 from .base58 import b58decode, b58encode
+from .base58address import p2pkh_address, p2wpkh_p2sh_address
+from .bech32address import p2wpkh_address
 from .curvemult import mult
 from .curves import secp256k1
-from .segwitaddress import p2wpkh_address, p2wpkh_p2sh_address
 from .utils import (Octets, bytes_from_hexstring, octets_from_int,
                     octets_from_point)
 

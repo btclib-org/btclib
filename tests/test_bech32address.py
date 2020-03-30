@@ -42,13 +42,12 @@ with the following modifications:
 
 import unittest
 
+from btclib.base58address import p2wpkh_p2sh_address, p2wsh_p2sh_address
+from btclib.bech32address import (b32address_from_witness, has_segwit_prefix,
+                                  p2wpkh_address, p2wsh_address,
+                                  witness_from_b32address)
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
-from btclib.segwitaddress import (_decode, _encode, _p2wpkh_address,
-                                  _p2wsh_address, has_segwit_prefix,
-                                  hash_from_bech32_address, p2wpkh_address,
-                                  p2wpkh_p2sh_address, p2wsh_address,
-                                  p2wsh_p2sh_address)
 from btclib.utils import hash160, octets_from_point, point_from_octets, sha256
 
 VALID_BC_ADDRESS = [
@@ -104,38 +103,33 @@ class TestSegwitAddress(unittest.TestCase):
         """Test whether valid addresses decode to the correct output"""
         for a, hexscript in VALID_BC_ADDRESS + VALID_TB_ADDRESS:
             self.assertTrue(has_segwit_prefix(a))
-            network, witvers, witprog = _decode(a)
-            script_pubkey = [witvers, bytes(witprog)]
+            witvers, witprog, network, _ = witness_from_b32address(a)
+            script_pubkey = [witvers, witprog]
             self.assertEqual(encode(script_pubkey).hex(), hexscript)
-            address = _encode(network, witvers, witprog)
+            address = b32address_from_witness(witvers, witprog, network)
             self.assertEqual(a.lower().strip(), address.decode())
 
     def test_invalid_address(self):
         """Test whether invalid addresses fail to decode"""
         for a in INVALID_ADDRESS:
-            self.assertRaises(ValueError, _decode, a)
+            self.assertRaises(ValueError, witness_from_b32address, a)
 
     def test_invalid_address_enc(self):
         """Test whether address encoding fails on invalid input"""
         for network, version, length in INVALID_ADDRESS_ENC:
-            self.assertRaises(ValueError, _encode, network, version, [0] * length)
+            self.assertRaises(ValueError, b32address_from_witness, version, [0] * length, network)
 
     def test_encode_decode(self):
 
         # self-consistency
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        network, wv, wp = _decode(addr)
-        self.assertEqual(_encode(network, wv, wp), addr)
-
-        # invalid value
-        wp[-1] = -1
-        self.assertRaises(ValueError, _encode, network, wv, wp)
-        # _encode(wv, wp)
+        wv, wp, network, _ = witness_from_b32address(addr)
+        self.assertEqual(b32address_from_witness(wv, wp, network), addr)
 
         # string input
         addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        network, wv, wp = _decode(addr)
-        self.assertEqual(_encode(network, wv, wp), addr.encode())
+        wv, wp, network, _ = witness_from_b32address(addr)
+        self.assertEqual(b32address_from_witness(wv, wp, network), addr.encode())
 
     def test_p2wpkh_p2sh_address(self):
         # https://matthewdowney.github.io/create-segwit-address.html
@@ -168,7 +162,7 @@ class TestSegwitAddress(unittest.TestCase):
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
         self.assertEqual(addr, p2wpkh_address(pub))
 
-        _, _, wp = _decode(addr)
+        _, wp, _, _ = witness_from_b32address(addr)
         self.assertEqual(bytes(wp), hash160(pub))
 
         # Uncompressed pubkey
@@ -181,28 +175,22 @@ class TestSegwitAddress(unittest.TestCase):
         # p2wpkh_address(pub + '00')
 
         # Witness program length (21) is not 20
-        self.assertRaises(ValueError, _p2wpkh_address,
-                          hash160(pub) + b'\x00', True, "mainnet")
-        #_p2wpkh_address(hash160(pub) + b'\x00', True, "mainnet")
+        self.assertRaises(ValueError, b32address_from_witness, 0, hash160(pub) + b'\x00')
+        #b32address_from_witness(0, hash160(pub) + b'\x00')
 
     def test_hash_from_bech32(self):
         network = "testnet"
         wv = 0
         wp = 20 * b'\x05'
-        addr = _encode(network, wv, wp)
-        n2, _, wp2 = hash_from_bech32_address(addr)
+        addr = b32address_from_witness(wv, wp, network)
+        _, wp2, n2, _ = witness_from_b32address(addr)
         self.assertEqual(n2, network)
         self.assertEqual(wp2, wp)
 
-        # Invalid witness version: 1
-        addr = _encode(network, 1, wp)
-        self.assertRaises(ValueError, hash_from_bech32_address, addr)
-        # hash_from_bech32_address(addr)
-
         # witness program length (21) is not 20 or 32
         addr = 'tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef'
-        self.assertRaises(ValueError, hash_from_bech32_address, addr)
-        # hash_from_bech32_address(addr)
+        self.assertRaises(ValueError, witness_from_b32address, addr)
+        # witness_from_b32address(addr)
 
     def test_p2wsh_p2sh_address(self):
 
@@ -222,19 +210,19 @@ class TestSegwitAddress(unittest.TestCase):
 
         addr = b'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
         self.assertEqual(addr, p2wsh_address(witness_script_bytes, 'testnet'))
-        _, _, wp = _decode(addr)
+        _, wp, _, _ = witness_from_b32address(addr)
         self.assertEqual(bytes(wp), sha256(witness_script_bytes))
 
         addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
         self.assertEqual(addr, p2wsh_address(witness_script_bytes))
-        _, _, wp = _decode(addr)
+        _, wp, _, _ = witness_from_b32address(addr)
         self.assertEqual(bytes(wp), sha256(witness_script_bytes))
 
-        self.assertEqual(hash_from_bech32_address(addr)[2], sha256(witness_script_bytes))
+        self.assertEqual(witness_from_b32address(addr)[1], sha256(witness_script_bytes))
 
         # witness program length (35) is not 32
-        self.assertRaises(ValueError, _p2wsh_address, witness_script_bytes[1:], True, "mainnet")
-        #_p2wsh_address(witness_script_bytes, True, "mainnet")
+        self.assertRaises(ValueError, b32address_from_witness, 0, witness_script_bytes[1:])
+        #b32address_from_witness(0, witness_script_bytes)
 
 
 if __name__ == "__main__":

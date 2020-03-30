@@ -10,9 +10,9 @@
 
 import unittest
 
-from btclib.address import (h160_from_base58_address, p2pkh_address,
-                            p2sh_address)
 from btclib.base58 import b58decode, b58encode
+from btclib.base58address import (h160_from_b58address, p2pkh_address,
+                                  p2sh_address)
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.utils import hash160, octets_from_point, point_from_octets
@@ -25,21 +25,21 @@ class TestAddresses(unittest.TestCase):
         pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        _, _, hash2 = h160_from_base58_address(addr)
+        _, hash2, _, _ = h160_from_b58address(addr)
         self.assertEqual(hash2, hash160(pub))
 
         uncompressed_pub = octets_from_point(
             point_from_octets(pub, ec), False, ec)
         addr = p2pkh_address(uncompressed_pub)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-        _, _, hash2 = h160_from_base58_address(addr)
+        _, hash2, _, _ = h160_from_b58address(addr)
         self.assertEqual(hash2, hash160(uncompressed_pub))
 
         # trailing/leading spaces in string
         pub = '  0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        _, _, hash2 = h160_from_base58_address(addr)
+        _, hash2, _, _ = h160_from_b58address(addr)
         self.assertEqual(hash2, hash160(pub))
 
         pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  '
@@ -58,7 +58,7 @@ class TestAddresses(unittest.TestCase):
         addr = p2sh_address(script_bytes, network)
         self.assertEqual(addr, b'37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP')
 
-        network2, is_p2sh, redeem_script_hash = h160_from_base58_address(addr)
+        _, redeem_script_hash, network2, is_p2sh = h160_from_b58address(addr)
         self.assertEqual(network, network2)
         self.assertTrue(is_p2sh)
         self.assertEqual(redeem_script_hash, hash160(script_bytes))
@@ -69,7 +69,7 @@ class TestAddresses(unittest.TestCase):
         _ = encode(output_script)
 
         # address with trailing/leading spaces
-        _, _, h2 = h160_from_base58_address(' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
+        _, h2, _, _ = h160_from_b58address(' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
         self.assertEqual(redeem_script_hash, h2)
 
 
@@ -80,8 +80,8 @@ class TestAddresses(unittest.TestCase):
         pubkey = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
         payload += hash160(pubkey)
         invalid_address = b58encode(payload)
-        self.assertRaises(ValueError, h160_from_base58_address, invalid_address)
-        #_h160_from_base58_address(invalid_address)
+        self.assertRaises(ValueError, h160_from_b58address, invalid_address)
+        #_h160_from_b58address(invalid_address)
 
         # Invalid SEC pubkey length: 34-bytes
         self.assertRaises(ValueError, p2pkh_address, pubkey+'00')

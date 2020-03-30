@@ -145,12 +145,12 @@ from hashlib import sha256
 from typing import Optional, Tuple, Union
 
 from . import dsa
-from .address import h160_from_base58_address, p2pkh_address, Address
-from .curvemult import mult
-from .segwitaddress import (hash_from_bech32_address, p2wpkh_address,
+from .base58address import (h160_from_b58address, p2pkh_address,
                             p2wpkh_p2sh_address)
-from .utils import hash160, octets_from_point, Octets
-from .wif import prvkey_from_wif, WIF
+from .bech32address import p2wpkh_address, witness_from_b32address
+from .curvemult import mult
+from .utils import Octets, hash160, octets_from_point
+from .wif import WIF, prvkey_from_wif
 
 # (rf, r, s) or base64 compact serialization (bytes or hex-string)
 Sig = Union[Tuple[int, int, int], Octets]
@@ -197,7 +197,7 @@ def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
 
 
 def sign(msg: Union[bytes, str], wif: WIF,
-         addr: Optional[Address] = None) -> Tuple[int, int, int]:
+         addr: Optional[Union[bytes, str]] = None) -> Tuple[int, int, int]:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -230,7 +230,7 @@ def sign(msg: Union[bytes, str], wif: WIF,
     return rf, r, s
 
 
-def verify(msg: Union[bytes, str], addr: Address, sig: Sig) -> bool:
+def verify(msg: Union[bytes, str], addr: Union[bytes, str], sig: Sig) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
@@ -240,7 +240,7 @@ def verify(msg: Union[bytes, str], addr: Address, sig: Sig) -> bool:
         return False
 
 
-def _verify(msg: Union[bytes, str], addr: Address, sig: Sig) -> bool:
+def _verify(msg: Union[bytes, str], addr: Union[bytes, str], sig: Sig) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -265,10 +265,10 @@ def _verify(msg: Union[bytes, str], addr: Address, sig: Sig) -> bool:
     Q = Qs[key_id]
 
     try:
-        _, is_script_hash, h160 = h160_from_base58_address(addr)
+        _, h160, _, is_script_hash = h160_from_b58address(addr)
         is_b58 = True
     except Exception:
-        _, is_script_hash, h160 = hash_from_bech32_address(addr)
+        _, h160, _, is_script_hash = witness_from_b32address(addr)
         is_b58 = False
 
     # signature is valid only if the provided address is matched

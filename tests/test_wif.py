@@ -10,10 +10,10 @@
 
 import unittest
 
-from btclib.address import h160_from_base58_address
 from btclib.base58 import b58decode, b58encode
+from btclib.base58address import h160_from_b58address
+from btclib.bech32address import witness_from_b32address
 from btclib.curves import secp256k1 as ec
-from btclib.segwitaddress import hash_from_bech32_address
 from btclib.utils import bytes_from_hexstring, hash160, octets_from_int
 from btclib.wif import (p2pkh_address_from_wif, p2wpkh_address_from_wif,
                         p2wpkh_p2sh_address_from_wif, prvkey_from_wif,
@@ -115,12 +115,10 @@ class TestWif(unittest.TestCase):
         b58 = p2pkh_address_from_wif(wif2)
         self.assertEqual(b58, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
         b32 = p2wpkh_address_from_wif(wif2)
-        self.assertEqual(h160_from_base58_address(b58),
-                         hash_from_bech32_address(b32))
+        self.assertEqual(h160_from_b58address(b58)[1:], witness_from_b32address(b32)[1:])
+        h160 = h160_from_b58address(b58)[1]
         b = p2wpkh_p2sh_address_from_wif(wif2)
-        h160 = h160_from_base58_address(b58)[2]
-        self.assertEqual(hash160(b'\x00\x14' + h160),
-                         h160_from_base58_address(b)[2])
+        self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
 
@@ -136,12 +134,10 @@ class TestWif(unittest.TestCase):
         b58 = p2pkh_address_from_wif(wif2)
         self.assertEqual(b58, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
         b32 = p2wpkh_address_from_wif(wif2)
-        self.assertEqual(h160_from_base58_address(b58),
-                         hash_from_bech32_address(b32))
+        self.assertEqual(h160_from_b58address(b58)[1:], witness_from_b32address(b32)[1:])
+        h160 = h160_from_b58address(b58)[1]
         b = p2wpkh_p2sh_address_from_wif(wif2)
-        h160 = h160_from_base58_address(b58)[2]
-        self.assertEqual(hash160(b'\x00\x14' + h160),
-                         h160_from_base58_address(b)[2])
+        self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
         self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
 
@@ -157,12 +153,10 @@ class TestWif(unittest.TestCase):
         b58 = p2pkh_address_from_wif(wif2)
         self.assertEqual(b58, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
         b32 = p2wpkh_address_from_wif(wif2)
-        self.assertEqual(h160_from_base58_address(b58),
-                         hash_from_bech32_address(b32))
+        self.assertEqual(h160_from_b58address(b58)[1:], witness_from_b32address(b32)[1:])
+        h160 = h160_from_b58address(b58)[1]
         b = p2wpkh_p2sh_address_from_wif(wif2)
-        h160 = h160_from_base58_address(b58)[2]
-        self.assertEqual(hash160(b'\x00\x14' + h160),
-                         h160_from_base58_address(b)[2])
+        self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
 
 if __name__ == "__main__":

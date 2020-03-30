@@ -12,11 +12,14 @@
 
 """
 
-from typing import Iterable, List, Union, Tuple
+from typing import Iterable, List, Tuple, Union
 
-from .script import encode, Token
+from .base58address import (_P2PKH_PREFIXES, _P2SH_PREFIXES,
+                            b58address_from_h160, h160_from_b58address)
+from .bech32address import (b32address_from_witness, has_segwit_prefix,
+                            witness_from_b32address)
+from .script import Token, encode
 from .utils import Octets, bytes_from_hexstring
-from . import segwitaddress, address
 
 
 def nulldata_scriptPubKey(data: Octets) -> List[Token]:
@@ -131,14 +134,16 @@ def address_from_scriptPubKey(scriptPubKey: Iterable[Token],
 
     s = encode(scriptPubKey)
     len_s = len(s)
+    # [0, script_hash] : 0x0020{32-byte key-script_hash}
     if len_s == 34 and s[:2] == b'\x00\x20':
-        return segwitaddress._p2wsh_address(s[2:], True, network)
+        return b32address_from_witness(0, s[2:], network)
+    # [0, key_hash]    : 0x0014{20-byte key-hash}
     elif len_s == 22 and s[:2] == b'\x00\x14':
-        return segwitaddress._p2wpkh_address(s[2:], True, network)
+        return b32address_from_witness(0, s[2:], network)
     elif len_s == 23 and s[:2] == b'\xa9\x14' and s[-1:] == b'\x87':
-        return address._p2sh_address(s[2:len_s-1], network)
+        return b58address_from_h160(_P2SH_PREFIXES, s[2:len_s-1], network)
     elif len_s == 25 and s[:3] == b'\x76\xa9\x14' and s[-2:] == b'\x88\xac':
-        return address._p2pkh_address(s[3:len_s-2], network)
+        return b58address_from_h160(_P2PKH_PREFIXES, s[3:len_s-2], network)
     else:
         raise ValueError("Unknown script")
 
@@ -146,20 +151,20 @@ def address_from_scriptPubKey(scriptPubKey: Iterable[Token],
 def scriptPubKey_from_address(addr: Union[bytes, str]) -> Tuple[List[Token], str]:
     """Return (scriptPubKey, network) from the input bech32/base58 address"""
 
-    if segwitaddress.has_segwit_prefix(addr):
+    if has_segwit_prefix(addr):
         # also check witness validity
-        network, witvers, witprog = segwitaddress._decode(addr)
+        witvers, witprog, network, _ = witness_from_b32address(addr)
         if witvers == 0:
             len_wprog = len(witprog)
             if len_wprog == 32:
-                return p2wsh_scriptPubKey(bytes(witprog)), network
+                return p2wsh_scriptPubKey(witprog), network
             else:  # must be len_wprog == 20
-                return p2wpkh_scriptPubKey(bytes(witprog)), network
+                return p2wpkh_scriptPubKey(witprog), network
         else:
             raise ValueError(f"Unhandled witness version ({witvers})")
     else:
-        network, is_p2sh, payload = address.h160_from_base58_address(addr)
+        _, h160, network, is_p2sh = h160_from_b58address(addr)
         if is_p2sh:
-            return p2sh_scriptPubKey(payload), network
+            return p2sh_scriptPubKey(h160), network
         else:
-            return p2pkh_scriptPubKey(payload), network
+            return p2pkh_scriptPubKey(h160), network

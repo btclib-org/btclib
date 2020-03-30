@@ -81,8 +81,8 @@ class TestBIP32(unittest.TestCase):
         #bip32.derive(child_key, "." + 256*"/0")
 
         # xkey is not a public one
-        self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xprv)
-        # bip32.p2pkh_address_from_xpub(xprv)
+        self.assertRaises(ValueError, bip32.p2pkh_from_xpub, xprv)
+        # bip32.p2pkh_from_xpub(xprv)
 
     def test_vector1(self):
         """BIP32 test vector 1
@@ -294,7 +294,7 @@ class TestBIP32(unittest.TestCase):
         pub = bip32.derive(mpub, "./0/0")
         addr = bip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
-        addr = bip32.p2wpkh_p2sh_address_from_xpub(pub)
+        addr = bip32.p2wpkh_p2sh_from_xpub(pub)
         self.assertEqual(address, addr)
 
         path = "m/84'/0'/0'"
@@ -334,19 +334,19 @@ class TestBIP32(unittest.TestCase):
         # m/0'/0'/463'
         addr1 = b'1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5'
         indexes = [b'\x80\x00\x00\x00', b'\x80\x00\x00\x00', b'\x80\x00\x01\xcf']
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
         self.assertEqual(addr, addr1)
         path = "m/0'/0'/463'"
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr1)
 
         # m/0'/0'/267'
         addr2 = b'11x2mn59Qy43DjisZWQGRResjyQmgthki'
         indexes = [b'\x80\x00\x00\x00', b'\x80\x00\x00\x00', b'\x80\x00\x01\x0b']
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
         self.assertEqual(addr, addr2)
         path = "m/0'/0'/267'"
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
         xkey_version = bip32._PRV_VERSIONS[0]
@@ -357,27 +357,27 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(bip32.xpub_from_xprv(xprv), bip32.deserialize(xpub))
 
         ind = './0/0'
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1FcfDbWwGs1PmyhMVpCAhoTfMnmSuptH6g')
 
         ind = './0/1'
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1K5GjYkZnPFvMDTGaQHTrVnd8wjmrtfR5x')
 
         ind = './0/2'
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1PQYX2uN7NYFd7Hq22ECMzfDcKhtrHmkfi')
 
         ind = './1/0'
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1BvSYpojWoWUeaMLnzbkK55v42DbizCoyq')
 
         ind = './1/1'
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'1NXB59hF4QzYpFrB7o6usLBjbk2D3ZqxAL')
 
         ind = './1/2'
-        addr = bip32.p2pkh_address_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
+        addr = bip32.p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(xprv, ind)))
         self.assertEqual(addr, b'16NLYkKtvYhW1Jp86tbocku3gxWcvitY1w')
 
         # version/key mismatch in extended parent key
@@ -404,22 +404,22 @@ class TestBIP32(unittest.TestCase):
         # m/0'/0'/51'
         addr1 = b'mfXYCCsvWPgeCv8ZYGqcubpNLYy5nYHbbj'
         indexes = [0x80000000, 0x80000000, 0x80000000 + 51]
-        addr = bip32.p2pkh_address_from_xpub(
+        addr = bip32.p2pkh_from_xpub(
             bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
         self.assertEqual(addr, addr1)
         path = "m/0'/0'/51'"
-        addr = bip32.p2pkh_address_from_xpub(
+        addr = bip32.p2pkh_from_xpub(
             bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr1)
 
         # m/0'/1'/150'
         addr2 = b'mfaUnRFxVvf55uD1P3zWXpprN1EJcKcGrb'
         indexes = [0x80000000, 0x80000000 + 1, 0x80000000 + 150]
-        addr = bip32.p2pkh_address_from_xpub(
+        addr = bip32.p2pkh_from_xpub(
             bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
         self.assertEqual(addr, addr2)
         path = "m/0'/1'/150'"
-        addr = bip32.p2pkh_address_from_xpub(
+        addr = bip32.p2pkh_from_xpub(
             bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
@@ -475,18 +475,18 @@ class TestBIP32(unittest.TestCase):
         #bip32.derive(xpub, "")
 
         # extended key is not a public one
-        self.assertRaises(ValueError, bip32.p2pkh_address_from_xpub, xprv)
-        # bip32.p2pkh_address_from_xpub(xprv)
+        self.assertRaises(ValueError, bip32.p2pkh_from_xpub, xprv)
+        # bip32.p2pkh_from_xpub(xprv)
 
         # xkey is not a public one
         xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
         self.assertRaises(ValueError, bip32.address_from_xpub, xprv)
         # bip32.address_from_xpub(xprv)
-        self.assertRaises(ValueError, bip32.p2wpkh_address_from_xpub, xprv)
-        # bip32.p2wpkh_address_from_xpub(xprv)
+        self.assertRaises(ValueError, bip32.p2wpkh_from_xpub, xprv)
+        # bip32.p2wpkh_from_xpub(xprv)
         self.assertRaises(
-            ValueError, bip32.p2wpkh_p2sh_address_from_xpub, xprv)
-        # bip32.p2wpkh_p2sh_address_from_xpub(xprv)
+            ValueError, bip32.p2wpkh_p2sh_from_xpub, xprv)
+        # bip32.p2wpkh_p2sh_from_xpub(xprv)
 
     def test_exceptions2(self):
         rootxprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
@@ -595,11 +595,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = bip32.p2pkh_address_from_xpub(xpub_ext)
+        address = bip32.p2pkh_from_xpub(xpub_ext)
         exp_address = b'moutHSzeFWViMNEcvBxKzNCMj2kca8MvE1'
         self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = bip32.p2pkh_address_from_xpub(xpub_int)
+        address = bip32.p2pkh_from_xpub(xpub_int)
         exp_address = b'myWcXdNais9ExumnGKnNoJwoihQKfNPG9i'
         self.assertEqual(address, exp_address)
 
@@ -613,11 +613,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_ext)
+        address = bip32.p2wpkh_p2sh_from_xpub(xpub_ext)
         exp_address = b'2Mw8tQ6uT6mHhybarVhjgomUhHQJTeV9A2c'
         self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_int)
+        address = bip32.p2wpkh_p2sh_from_xpub(xpub_int)
         exp_address = b'2N872CRJ3E1CzWjfixXr3aeC3hkF5Cz4kWb'
         self.assertEqual(address, exp_address)
 
@@ -640,12 +640,12 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = bip32.p2wpkh_address_from_xpub(xpub_ext)
+        address = bip32.p2wpkh_from_xpub(xpub_ext)
         # this is regtest, not testnet!!
         exp_address = b'bcrt1qv8lcnmj09rpdqwgl025h2deygur64z4hqf7me5'
         # FIXME: self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = bip32.p2wpkh_address_from_xpub(xpub_int)
+        address = bip32.p2wpkh_from_xpub(xpub_int)
         # this is regtest, not testnet!!
         exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'
         # FIXME: self.assertEqual(address, exp_address)
@@ -679,11 +679,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = bip32.p2pkh_address_from_xpub(xpub_ext)
+        address = bip32.p2pkh_from_xpub(xpub_ext)
         exp_address = b'1DDKKVHoFWGfctyEEJvrusqq6ipEaieGCq'
         self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = bip32.p2pkh_address_from_xpub(xpub_int)
+        address = bip32.p2pkh_from_xpub(xpub_int)
         exp_address = b'1FhKoffreKHzhtBMVW9NSsg3ZF148JPGoR'
         self.assertEqual(address, exp_address)
 
@@ -697,11 +697,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_ext)
+        address = bip32.p2wpkh_p2sh_from_xpub(xpub_ext)
         exp_address = b'3FmNAiTCWe5kPMgc4dtSgEdY8VuaCiJEH8'
         self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = bip32.p2wpkh_p2sh_address_from_xpub(xpub_int)
+        address = bip32.p2wpkh_p2sh_from_xpub(xpub_int)
         exp_address = b'34FLgkoRYX5Q5fqiZCZDwsK5GpXxmFuLJN'
         self.assertEqual(address, exp_address)
 
@@ -724,11 +724,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(bip32.serialize(xpub), exp)
         # first addresses
         xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = bip32.p2wpkh_address_from_xpub(xpub_ext)
+        address = bip32.p2wpkh_from_xpub(xpub_ext)
         exp_address = b'bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a'
         self.assertEqual(address, exp_address)
         xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = bip32.p2wpkh_address_from_xpub(xpub_int)
+        address = bip32.p2wpkh_from_xpub(xpub_int)
         exp_address = b'bc1qy4x03jyl88h2zeg7l287xhv2xrwk4c3ztfpjd2'
         self.assertEqual(address, exp_address)
 

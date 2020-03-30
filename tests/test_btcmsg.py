@@ -13,11 +13,11 @@ import unittest
 from os import path
 
 from btclib import btcmsg, der, dsa
-from btclib.address import p2pkh_address
+from btclib.base58address import p2pkh_address
+from btclib.curves import secp256k1 as ec
 from btclib.utils import bytes_from_hexstring
 from btclib.wif import (p2pkh_address_from_wif, p2wpkh_address_from_wif,
                         p2wpkh_p2sh_address_from_wif, wif_from_prvkey)
-from btclib.curves import secp256k1 as ec
 
 
 class TestSignMessage(unittest.TestCase):
