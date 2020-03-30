@@ -11,11 +11,14 @@
 import unittest
 
 from btclib.base58 import b58decode, b58encode
-from btclib.base58address import (h160_from_b58address, p2pkh_address,
-                                  p2sh_address)
+from btclib.base58address import (_b58segwitaddress,
+                                  h160_from_b58address, p2pkh_address,
+                                  p2sh_address, p2wpkh_p2sh_address,
+                                  p2wsh_p2sh_address)
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
-from btclib.utils import hash160, octets_from_point, point_from_octets
+from btclib.utils import (h160_from_pubkey, hash160, sha256,
+                          octets_from_point, point_from_octets)
 
 
 class TestAddresses(unittest.TestCase):
@@ -46,7 +49,6 @@ class TestAddresses(unittest.TestCase):
         addr = p2pkh_address(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
 
-
     def test_p2sh_address_from_script(self):
         # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
         script = ['OP_2DUP', 'OP_EQUAL', 'OP_NOT', 'OP_VERIFY',
@@ -72,7 +74,6 @@ class TestAddresses(unittest.TestCase):
         _, h2, _, _ = h160_from_b58address(' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
         self.assertEqual(redeem_script_hash, h2)
 
-
     def test_exceptions(self):
 
         # Invalid base58 address prefix b'\xf5'
@@ -86,6 +87,41 @@ class TestAddresses(unittest.TestCase):
         # Invalid SEC pubkey length: 34-bytes
         self.assertRaises(ValueError, p2pkh_address, pubkey+'00')
         # p2pkh_address(pubkey+'00')
+
+    def test_witness(self):
+
+        pub = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        b58addr = p2wpkh_p2sh_address(pub)
+        _, h160, network, is_script_hash = h160_from_b58address(b58addr)
+        self.assertEqual(network, 'mainnet')
+        self.assertEqual(is_script_hash, True)  #?!?!?
+        self.assertEqual(len(h160), 20)
+
+        b58addr = _b58segwitaddress(h160_from_pubkey(pub))
+        _, h160_2, network, is_script_hash = h160_from_b58address(b58addr)
+        self.assertEqual(network, 'mainnet')
+        self.assertEqual(is_script_hash, True)  #?!?!?
+        self.assertEqual(len(h160), 20)
+        self.assertEqual(h160.hex(), h160_2.hex())
+
+
+        wscript = "a8a58c2d034b28bf90c8803f5a53f769a4"
+        b58addr = p2wsh_p2sh_address(wscript)
+        _, h160, network, is_script_hash = h160_from_b58address(b58addr)
+        self.assertEqual(network, 'mainnet')
+        self.assertEqual(is_script_hash, True)  #?!?!?
+        self.assertEqual(len(h160), 20)
+
+        b58addr = _b58segwitaddress(sha256(wscript))
+        _, h160_2, network, is_script_hash = h160_from_b58address(b58addr)
+        self.assertEqual(network, 'mainnet')
+        self.assertEqual(is_script_hash, True)  #?!?!?
+        self.assertEqual(len(h160), 20)
+        self.assertEqual(h160.hex(), h160_2.hex())
+
+        # Invalid witness program length (19)
+        self.assertRaises(ValueError, _b58segwitaddress, h160[:-1])
+        #_b58segwitaddress(h160[:-1])
 
 
 if __name__ == "__main__":

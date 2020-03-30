@@ -76,8 +76,7 @@ def p2sh_address(script: Octets, network: str = 'mainnet') -> bytes:
 # (p2sh-wrapped) base58 legacy SegWit addresses
 
 
-def b58address_from_witness(wp: Octets, network: str = 'mainnet') -> bytes:
-    """Encode a base58 legacy (p2sh-wrapped) SegWit address."""
+def _b58segwitaddress(wp: Octets, network: str = 'mainnet') -> bytes:
 
     wp = bytes_from_hexstring(wp)
     length = len(wp)
@@ -92,19 +91,13 @@ def b58address_from_witness(wp: Octets, network: str = 'mainnet') -> bytes:
     raise ValueError(m)
 
 
-def witness_from_b58address(b58addr: String) -> Tuple[int, bytes, str, bool]:
-    """Decode a base58 legacy (p2sh-wrapped) SegWit address."""
-    _, wp, network, is_script_hash = h160_from_b58address(b58addr)
-    return 0, wp, network, is_script_hash
-
-
 def p2wpkh_p2sh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
     h160 = h160_from_pubkey(pubkey)
-    return b58address_from_witness(h160, network)
+    return _b58segwitaddress(h160, network)
 
 
 def p2wsh_p2sh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh-p2sh (base58 legacy) SegWit address."""
     h256 = sha256(wscript)
-    return b58address_from_witness(h256, network)
+    return _b58segwitaddress(h256, network)
