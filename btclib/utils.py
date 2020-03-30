@@ -16,7 +16,7 @@ https://www.secg.org/sec1-v2.pdf
 """
 
 import hashlib
-from typing import Any, Callable, Union
+from typing import Any, Callable, Optional, Union
 
 from .curve import Curve, Point
 from .curves import secp256k1
@@ -168,15 +168,38 @@ def hash256(o: Octets) -> bytes:
     return hashlib.sha256(t).digest()
 
 
-def bytes_from_hexstring(o: Union[Any, str]) -> Union[Any, bytes]:
+def bytes_from_hexstring(o: Union[Any, str], out_size: Optional[int] = None) -> Union[Any, bytes]:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
     If the input is not a string, then it goes untouched.
+    Optionally, it also ensures required output size.
     """
+
     if isinstance(o, str):  # hex string
         o = o.strip()
         o = bytes.fromhex(o)
-    return o
+
+    if out_size is None or len(o) == out_size:
+       return o
+
+    m = f"Invalid size: {len(o)} bytes instead of {out_size}"
+    raise ValueError(m)
+
+
+def h160_from_pubkey(pubkey: Octets,
+                     compressed_only: bool = True, ec: Curve = secp256k1) -> bytes:
+
+    pubkey = bytes_from_hexstring(pubkey)
+    plength = len(pubkey)
+
+    compressed = pubkey[0] in (2, 3) and plength == ec.psize+1
+    uncompressed = pubkey[0] == 4 and plength == 2*ec.psize+1
+    if not (compressed or uncompressed):
+        raise ValueError(f"Invalid SEC public key: {pubkey.hex()}")
+
+    if uncompressed and compressed_only:
+        raise ValueError(f"Compressed SEC public key: {pubkey.hex()}")
+    return hash160(pubkey)
 
 
 def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
