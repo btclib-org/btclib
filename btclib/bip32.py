@@ -250,7 +250,7 @@ def fingerprint(d: Union[XkeyDict, String]) -> bytes:
     return hash160(d['key'])[:4]
 
 
-def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:
+def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     """Return BIP32 root master extended private key from seed."""
 
     seed = bytes_from_hexstring(seed)
@@ -272,12 +272,12 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:
         'Q'                  : (1, 0),
         'network'            : network
     }
-    return d
+    return serialize(d)
 
 
 def rootxprv_from_bip39mnemonic(mnemonic: Mnemonic,
                                 passphrase: str,
-                                version: Octets = MAIN_xprv) -> XkeyDict:
+                                version: Octets = MAIN_xprv) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = bip39.seed_from_mnemonic(mnemonic, passphrase)
@@ -286,7 +286,7 @@ def rootxprv_from_bip39mnemonic(mnemonic: Mnemonic,
 
 def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
                                      passphrase: str,
-                                     network: str = 'mainnet') -> XkeyDict:
+                                     network: str = 'mainnet') -> bytes:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
     Note that for a 'standard' mnemonic the derivation path is "m",
@@ -307,7 +307,7 @@ def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
         raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
 
 
-def xpub_from_xprv(d: Union[XkeyDict, String]) -> XkeyDict:
+def xpub_from_xprv(d: Union[XkeyDict, String]) -> bytes:
     """Neutered Derivation (ND).
 
     Derivation of the extended public key corresponding to an extended
@@ -327,7 +327,7 @@ def xpub_from_xprv(d: Union[XkeyDict, String]) -> XkeyDict:
     d['q'] = 0
     d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
 
-    return d
+    return serialize(d)
 
 
 def _ckd(d: XkeyDict, index: bytes) -> None:
@@ -389,7 +389,7 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
 
     return indexes, absolute
 
-def derive(d: Union[XkeyDict, String], path: Path) -> XkeyDict:
+def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
     """Derive an extended key across a path spanning multiple depth levels.
 
     Derivation is according to:
@@ -428,10 +428,10 @@ def derive(d: Union[XkeyDict, String], path: Path) -> XkeyDict:
     for index in indexes:
         _ckd(d, index)
 
-    return d
+    return serialize(d)
 
 
-def crack(parent_xpub: Union[XkeyDict, String], child_xprv: Union[XkeyDict, String]) -> XkeyDict:
+def crack(parent_xpub: Union[XkeyDict, String], child_xprv: Union[XkeyDict, String]) -> bytes:
 
     if isinstance(parent_xpub, dict):
         p = copy.copy(parent_xpub)
@@ -468,4 +468,4 @@ def crack(parent_xpub: Union[XkeyDict, String], child_xprv: Union[XkeyDict, Stri
     p['key'] = b'\x00' + p['q'].to_bytes(32, byteorder='big')
     p['Q'] = (1, 0)
 
-    return p
+    return serialize(p)

@@ -51,7 +51,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
         xprv = "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
         xprv2 = bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
-        self.assertEqual(xprv2, bip32.deserialize(xprv))
+        self.assertEqual(xprv2, xprv.encode())
 
         eversion = '2fa'
         mnemonic = electrum.mnemonic_from_entropy(eversion, entropy, lang)
@@ -85,7 +85,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
             if mnemonic != "":
                 mxprv2 = bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
-                self.assertEqual(mxprv2, bip32.deserialize(mxprv))
+                self.assertEqual(mxprv2, mxprv.encode())
 
                 eversion = electrum.version_from_mnemonic(mnemonic)
                 entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
@@ -94,7 +94,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
             if mxprv != "":
                 mxpub2 = bip32.xpub_from_xprv(mxprv)
-                self.assertEqual(mxpub2, bip32.deserialize(mxpub))
+                self.assertEqual(mxpub2, mxpub.encode())
 
             xpub = bip32.derive(mxpub, "./0/0")
             address2 = slip32.address_from_xpub(xpub).decode()
