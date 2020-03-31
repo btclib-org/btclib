@@ -41,7 +41,7 @@ class TestAddresses(unittest.TestCase):
 
     def test_p2pkh_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
-        pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
+        pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
         addr = p2pkh(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
         _, hash2, _, _ = h160_from_b58address(addr)
@@ -94,7 +94,7 @@ class TestAddresses(unittest.TestCase):
 
         # Invalid base58 address prefix b'\xf5'
         payload = b'\xf5'
-        pubkey = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
+        pubkey = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
         payload += hash160(pubkey)
         invalid_address = b58encode(payload)
         self.assertRaises(ValueError, h160_from_b58address, invalid_address)
