@@ -170,8 +170,8 @@ def deserialize(xkey: Octets) -> XkeyDict:
         'chain_code'         : xkey[13:45],
         'key'                : xkey[45:],
         # extensions
-        'prvkey'             : 0,
-        'Point'              : (0, 0),
+        'prvkey'             : 0,       # TODO rename as q
+        'Point'              : (0, 0),  # TODO rename as Q
         'network'            : ''
     }
 
@@ -235,7 +235,7 @@ def fingerprint(d: Union[XkeyDict, String]) -> bytes:
         d = deserialize(d)
 
     if d['key'][0] == 0:
-        P = mult(int.from_bytes(d['key'][1:], byteorder='big'))
+        P = mult(d['prvkey'])
         pubkey = octets_from_point(P, True, ec)
         return hash160(pubkey)[:4]
 
@@ -352,8 +352,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
     # d is a prvkey
     if d['key'][0] == 0:
         d['depth'] += 1
-        Pbytes = octets_from_point(
-            mult(int.from_bytes(d['key'][1:], 'big')), True, ec)
+        Pbytes = octets_from_point(mult(d['prvkey']), True, ec)
         d['parent_fingerprint'] = hash160(Pbytes)[:4]
         d['index'] = index
         if index[0] >= 0x80:  # hardened derivation
