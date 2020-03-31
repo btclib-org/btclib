@@ -114,7 +114,8 @@ def _b58decode(v: bytes, out_size: Optional[int]) -> bytes:
     if out_size is None or len(result) == out_size:
         return result
 
-    m = f"Invalid decoded size: {len(result)} bytes instead of {out_size}"
+    m = f"Invalid base58 decoded size: "
+    m += "{len(result)} bytes instead of {out_size}"
     raise ValueError(m)
 
 
