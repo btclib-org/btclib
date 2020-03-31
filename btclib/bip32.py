@@ -34,7 +34,7 @@ A BIP32 extended key is 78 bytes:
 
 import copy
 import hmac
-from typing import List, Sequence, Tuple, TypedDict, Union
+from typing import Iterable, List, Tuple, TypedDict, Union
 
 from . import bip39, electrum
 from .base58 import b58decode, b58encode
@@ -113,6 +113,13 @@ _P2WPKH_PUB_PREFIXES = [MAIN_zpub, TEST_vpub, TEST_vpub]
 _P2WSH_PRV_PREFIXES = [MAIN_Zprv, TEST_Vprv, TEST_Vprv]
 _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
 
+# absolute path as "m/44h/0'/1H/0/10" string
+# relative path as "./0/10" string
+# relative path as sequence of integer indexes
+# relative one level child derivation with single 4-bytes index
+# relative one level child derivation with single integer index
+# TODO allow also Iterable[bytes], while making mypy happy
+Path = Union[str, Iterable[int], int, bytes]
 
 class XkeyDict(TypedDict):
     version            : bytes
@@ -295,7 +302,7 @@ def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
     elif version == 'segwit':
         xversion = _P2WPKH_PRV_PREFIXES[prefix]
         rootxprv = rootxprv_from_seed(seed, xversion)
-        return ckd(rootxprv, 0x80000000)  # "m/0h"
+        return derive(rootxprv, 0x80000000)  # "m/0h"
     else:
         raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
 
@@ -320,30 +327,6 @@ def xpub_from_xprv(d: Union[XkeyDict, String]) -> XkeyDict:
     d['q'] = 0
     d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
 
-    return d
-
-
-def ckd(d: Union[XkeyDict, String], index: Union[Octets, int]) -> XkeyDict:
-    """Child Key Derivation (CDK)
-
-    Key derivation is normal if the extended parent key is public or
-    index is less than 0x80000000.
-
-    Key derivation is hardened if the extended parent key is private and
-    index is not less than 0x80000000.
-    """
-
-    if isinstance(d, dict):
-        d = copy.copy(d)
-    else:
-        d = deserialize(d)
-
-    if isinstance(index, int):
-        i = index.to_bytes(4, byteorder='big')
-    else:
-        i = bytes_from_hexstring(index, 4)
- 
-    _ckd(d, i)
     return d
 
 
@@ -380,12 +363,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
         d['q'] = 0
 
 
-def _indexes_from_path(path: str) -> Tuple[Sequence[bytes], bool]:
-    """Extract derivation indexes from a derivation path.
-
-    Derivation path must be like "m/44'/0'/1'/0/10" (absolute)
-    or "./0/10" (relative).
-    """
+def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
 
     steps = path.split('/')
     if steps[0] in ('m', 'M'):
@@ -411,12 +389,16 @@ def _indexes_from_path(path: str) -> Tuple[Sequence[bytes], bool]:
 
     return indexes, absolute
 
-
-def derive(d: Union[XkeyDict, String], path: Union[str, Sequence[bytes]]) -> XkeyDict:
+def derive(d: Union[XkeyDict, String], path: Path) -> XkeyDict:
     """Derive an extended key across a path spanning multiple depth levels.
 
-    Derivation is according to absolute path like "m/44h/0'/1H/0/10"
-    or relative path like "./0/10".
+    Derivation is according to:
+    
+    - absolute path as "m/44h/0'/1H/0/10" string
+    - relative path as "./0/10" string
+    - relative path as iterable integer indexes
+    - relative one level child derivation with single integer index
+    - relative one level child derivation with single 4-bytes index
     """
 
     if not isinstance(d, dict):
@@ -430,19 +412,20 @@ def derive(d: Union[XkeyDict, String], path: Union[str, Sequence[bytes]]) -> Xke
         if absolute and d["depth"] != 0:
             msg = "Absolute derivation path for non-root master key"
             raise ValueError(msg)
+    elif isinstance(path, int):
+        indexes = [path.to_bytes(4, byteorder='big')]
+    elif isinstance(path, bytes):
+        if len(path) != 4:
+            raise ValueError(f"Index must be 4-bytes, not {len(path)}")
+        indexes = [path]
     else:
-        indexes = path
+        indexes = [i.to_bytes(4, byteorder='big') for i in path]
 
     final_depth = d["depth"] + len(indexes)
     if final_depth > 255:
         raise ValueError(f'Derivation path final depth {final_depth}>255')
 
     for index in indexes:
-        if isinstance(index, int):
-            index = index.to_bytes(4, byteorder='big')
-        else:
-            if len(index) != 4:
-                raise ValueError(f"Index must be 4-bytes, not {len(index)}")
         _ckd(d, index)
 
     return d

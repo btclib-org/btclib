@@ -25,7 +25,7 @@ class TestBIP32(unittest.TestCase):
     def test_fingerprint(self):
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         f = bip32.fingerprint(xprv)
-        child_key = bip32.ckd(xprv, 0)
+        child_key = bip32.derive(xprv, 0)
         self.assertEqual(f, child_key['parent_fingerprint'])
 
         xpub = bip32.xpub_from_xprv(xprv)
@@ -63,7 +63,7 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.deserialize, invalid_key)
         # bip32.deserialize(invalid_key)
 
-        child_key = bip32.ckd(xprv, 0)
+        child_key = bip32.derive(xprv, 0)
 
         # Derivation path final depth 256>255
         self.assertRaises(ValueError, bip32.derive, child_key, "." + 255*"/0")
@@ -284,7 +284,7 @@ class TestBIP32(unittest.TestCase):
 
         # m/0'/0'/463'
         addr1 = b'1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5'
-        indexes = [b'\x80\x00\x00\x00', b'\x80\x00\x00\x00', b'\x80\x00\x01\xcf']
+        indexes = [0x80000000, 0x80000000, 0x800001cf]
         addr = p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
         self.assertEqual(addr, addr1)
         path = "m/0'/0'/463'"
@@ -293,7 +293,7 @@ class TestBIP32(unittest.TestCase):
 
         # m/0'/0'/267'
         addr2 = b'11x2mn59Qy43DjisZWQGRResjyQmgthki'
-        indexes = [b'\x80\x00\x00\x00', b'\x80\x00\x00\x00', b'\x80\x00\x01\x0b']
+        indexes = [0x80000000, 0x80000000, 0x8000010b]
         addr = p2pkh_from_xpub(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
         self.assertEqual(addr, addr2)
         path = "m/0'/0'/267'"
@@ -334,19 +334,19 @@ class TestBIP32(unittest.TestCase):
         # version/key mismatch in extended parent key
         temp = b58decode(rootxprv)
         bad_xprv = b58encode(temp[0:45] + b'\x01' + temp[46:])
-        self.assertRaises(ValueError, bip32.ckd, bad_xprv, 1)
-        #bip32.ckd(bad_xprv, 1)
+        self.assertRaises(ValueError, bip32.derive, bad_xprv, 1)
+        #bip32.derive(bad_xprv, 1)
 
         # version/key mismatch in extended parent key
         xpub = bip32.xpub_from_xprv(rootxprv)
         temp = b58decode(bip32.serialize(xpub))
         bad_xpub = b58encode(temp[0:45] + b'\x00' + temp[46:])
-        self.assertRaises(ValueError, bip32.ckd, bad_xpub, 1)
-        #bip32.ckd(bad_xpub, 1)
+        self.assertRaises(ValueError, bip32.derive, bad_xpub, 1)
+        #bip32.derive(bad_xpub, 1)
 
         # no private/hardened derivation from pubkey
-        self.assertRaises(ValueError, bip32.ckd, xpub, 0x80000000)
-        #bip32.ckd(xpub, 0x80000000)
+        self.assertRaises(ValueError, bip32.derive, xpub, 0x80000000)
+        #bip32.derive(xpub, 0x80000000)
 
     def test_testnet(self):
         # bitcoin core derivation style
@@ -379,32 +379,28 @@ class TestBIP32(unittest.TestCase):
         xprv = b'xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
 
         # invalid index
-        self.assertRaises(ValueError, bip32.ckd, xprv, 'invalid index')
-        #bip32.ckd(xprv, 'invalid index')
+        self.assertRaises(ValueError, bip32.derive, xprv, 'invalid index')
+        #bip32.derive(xprv, 'invalid index')
 
         # a 4 bytes int is required, not 3
-        self.assertRaises(ValueError, bip32.ckd, xprv, "800000")
-        #bip32.ckd(xprv, "800000")
+        self.assertRaises(ValueError, bip32.derive, xprv, "800000")
+        #bip32.derive(xprv, "800000")
 
         # Invalid derivation path root: ""
         self.assertRaises(ValueError, bip32.derive, xprv, '/1')
         #bip32.derive(xprv, '/1')
 
-        # object of type 'int' has no len()
-        self.assertRaises(TypeError, bip32.derive, xprv, 1)
-        #bip32.derive(xprv, 1)
-
         # invalid checksum
         xprv = b'xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L'
-        self.assertRaises(ValueError, bip32.ckd, xprv, 0x80000000)
-        #bip32.ckd(xprv, 0x80000000)
+        self.assertRaises(ValueError, bip32.derive, xprv, 0x80000000)
+        #bip32.derive(xprv, 0x80000000)
 
         # invalid extended key version
         version = b'\x04\x88\xAD\xE5'
         xkey = version + b'\x00'*74
         xkey = b58encode(xkey)
-        self.assertRaises(ValueError, bip32.ckd, xkey, 0x80000000)
-        #bip32.ckd(xkey, 0x80000000)
+        self.assertRaises(ValueError, bip32.derive, xkey, 0x80000000)
+        #bip32.derive(xkey, 0x80000000)
 
         # unknown extended key version
         version = b'\x04\x88\xAD\xE5'
@@ -486,14 +482,17 @@ class TestBIP32(unittest.TestCase):
         #bip32.serialize(d)
 
         # non-zero depth (1) with zero parent_fingerprint b'\x00\x00\x00\x00'
-        xprv = bip32.ckd(rootxprv, 1)
+        xprv = bip32.derive(rootxprv, 1)
         xprv['parent_fingerprint'] = b'\x00\x00\x00\x00'
         self.assertRaises(ValueError, bip32.serialize, xprv)
         #bip32.serialize(xprv)
 
+        # int too big to convert
+        self.assertRaises(OverflowError, bip32.derive, rootxprv, 256**4)
+
         # Index must be 4-bytes, not 5
-        self.assertRaises(ValueError, bip32.derive, rootxprv, [b'\x00'*5])
-        #bip32.derive(rootxprv, [b'\x00'*5])
+        self.assertRaises(ValueError, bip32.derive, rootxprv, b'\x00'*5)
+        #bip32.derive(rootxprv, b'\x00'*5)
 
     def test_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
@@ -515,13 +514,13 @@ class TestBIP32(unittest.TestCase):
         #bip32.crack(child_xpub, child_xprv)
 
         # not a child for the provided parent
-        child0_xprv = bip32.ckd(parent_xprv, 0)
-        grandchild_xprv = bip32.ckd(child0_xprv, 0)
+        child0_xprv = bip32.derive(parent_xprv, 0)
+        grandchild_xprv = bip32.derive(child0_xprv, 0)
         self.assertRaises(ValueError, bip32.crack, child_xpub, grandchild_xprv)
         #bip32.crack(child_xpub, grandchild_xprv)
 
         # hardened derivation
-        hardened_child_xprv = bip32.ckd(parent_xprv, 0x80000000)
+        hardened_child_xprv = bip32.derive(parent_xprv, 0x80000000)
         self.assertRaises(ValueError, bip32.crack,
                           parent_xpub, hardened_child_xprv)
         #bip32.crack(parent_xpub, hardened_child_xprv)
