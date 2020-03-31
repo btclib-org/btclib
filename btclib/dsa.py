@@ -157,19 +157,19 @@ def _verhlp(c: int,
     # Private function for test/dev purposes
 
     # Let P = point(pk); fail if point(pk) fails.
-    if not isinstance(P, tuple):
-        P = point_from_octets(P, ec)
-    else:
+    if isinstance(P, tuple):
         ec.require_on_curve(P)
+    else:
+        P = point_from_octets(P, ec)
     if P[1] == 0:
         raise ValueError("public key is infinite")
 
-    if not isinstance(sig, tuple):
-        # sighash is not needed
-        r, s, _ = der.deserialize(sig, ec)
-    else:
+    if isinstance(sig, tuple):
         r, s = sig
         _check_sig(r, s, ec)                             # 1
+    else:
+        # sighash is not needed
+        r, s, _ = der.deserialize(sig, ec)
 
     w = mod_inv(s, ec.n)
     u = c*w
@@ -209,12 +209,12 @@ def _pubkey_recovery(c: int, sig: Sig, ec: Curve = secp256k1) -> List[Point]:
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
 
-    if not isinstance(sig, tuple):
-        # sighash is not needed
-        r, s, _ = der.deserialize(sig, ec)
-    else:
+    if isinstance(sig, tuple):
         r, s = sig
         _check_sig(r, s, ec)
+    else:
+        # sighash is not needed
+        r, s, _ = der.deserialize(sig, ec)
 
     # precomputations
     r1 = mod_inv(r, ec.n)

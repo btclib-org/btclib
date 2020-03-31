@@ -137,10 +137,10 @@ def _verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
     _check_sig(r, s, ec)
 
     # Let P = point(pk); fail if point(pk) fails.
-    if not isinstance(P, tuple):
-        P = point_from_octets(P, ec)
-    else:
+    if isinstance(P, tuple):
         ec.require_on_curve(P)
+    else:
+        P = point_from_octets(P, ec)
     if P[1] == 0:
         raise ValueError("public key is infinite")
 

@@ -401,10 +401,10 @@ def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
     - relative one level child derivation with single 4-bytes index
     """
 
-    if not isinstance(d, dict):
-        d = deserialize(d)
-    else:
+    if isinstance(d, dict):
         d = copy.copy(d)
+    else:
+        d = deserialize(d)
 
     if isinstance(path, str):
         path = path.strip()

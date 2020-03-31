@@ -244,12 +244,12 @@ def _verify(msg: String, addr: String, sig: Sig) -> bool:
     # It raises Errors, while verify should always return True or False
 
 
-    if not isinstance(sig, tuple):
-        # it is a base64 sig
-        rf, r, s = deserialize(sig)
-    else:
+    if isinstance(sig, tuple):
         rf, r, s = sig
         dsa._check_sig(r, s)
+    else:
+        # it is a base64 sig
+        rf, r, s = deserialize(sig)
 
 
     magic_msg = _magic_hash(msg)
