@@ -112,25 +112,17 @@ def octets_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> byte
     return b'\x04' + bPx + Q[1].to_bytes(ec.psize, byteorder='big')
 
 
-def int_from_octets(o: Octets) -> int:
-    """Return an integer from an octet sequence (bytes or hex string).
+def int_from_prvkey(prvkey: Union[int, Octets], ec: Curve = secp256k1) -> int:
+    """Return a verified-as-valid private key integer."""
 
-    Return an integer from an octet sequence (bytes or hex string)
-    according to SEC 1 v.2, section 2.3.8.
-    """
+    if not isinstance(prvkey, int):
+        prvkey = bytes_from_hexstring(prvkey, ec.nsize)
+        prvkey = int.from_bytes(prvkey, 'big')
 
-    o = bytes_from_hexstring(o)
-    return int.from_bytes(o, byteorder='big')
+    if not 0 < prvkey < ec.n:
+        raise ValueError(f"private key {hex(prvkey)} not in [1, n-1]")
 
-
-def octets_from_int(i: int, bytesize: int) -> bytes:
-    """Return an octet sequence from an integer.
-
-    Return an octet sequence from an integer
-    according to SEC 1 v.2, section 2.3.7.
-    """
-
-    return i.to_bytes(bytesize, byteorder='big')
+    return prvkey
 
 
 def int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
@@ -145,10 +137,10 @@ def int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
     in ECDSA and ECSSA to transform a hash value (computed over the
     input message) into an integer modulo n.
 
-    Note that int_from_bits is not the reverse of octets_from_int, even
-    for input sequences of length nlen: octets_from_int will add some
+    Note that int_from_bits is not the reverse of i.to_bytes, even
+    for input sequences of length nlen: i.to_bytes will add some
     bits on the left, while int_from_bits will discard some bits on the
-    right. octets_from_int is the reverse of int_from_bits only when
+    right. i.to_bytes is the reverse of int_from_bits only when
     nlen is a multiple of 8 and bit sequences already have length nlen.
     See https://tools.ietf.org/html/rfc6979#section-2.3.5.
     """
@@ -164,7 +156,9 @@ def _int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
     SEC 1 v.2 section 4.1.3 (5).  Note that an additional
     reduction modulo n would be required to ensure that 0 < i < n.
     """
-    i = int_from_octets(o)
+
+    o = bytes_from_hexstring(o)
+    i = int.from_bytes(o, byteorder='big')
 
     blen = len(o) * 8  # bits
     n = (blen - ec.nlen) if blen >= ec.nlen else 0
@@ -192,7 +186,7 @@ def hash256(o: Octets) -> bytes:
     return hashlib.sha256(t).digest()
 
 
-def bytes_from_hexstring(o: Union[Any, str], out_size: Optional[int] = None) -> Union[Any, bytes]:
+def bytes_from_hexstring(o: Union[bytes, str], out_size: Optional[int] = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
     If the input is not a string, then it goes untouched.

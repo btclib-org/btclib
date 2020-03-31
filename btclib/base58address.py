@@ -19,7 +19,7 @@ from .base58 import b58decode, b58encode
 from .bip32 import XkeyDict, deserialize
 from .utils import (Octets, String, bytes_from_hexstring, h160_from_pubkey,
                     hash160, sha256)
-from .base58wif import _pubkey_from_wif
+from .base58wif import _pubkeytuple_from_wif
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [
@@ -78,7 +78,7 @@ def p2pkh_from_wif(wif: String) -> bytes:
     (compressed/uncompressed) to use for the address.
     """
 
-    o, network = _pubkey_from_wif(wif)
+    o, network = _pubkeytuple_from_wif(wif)
     return p2pkh(o, network)
 
 
@@ -127,7 +127,7 @@ def p2wpkh_p2sh(pubkey: Octets, network: str = 'mainnet') -> bytes:
 
 def p2wpkh_p2sh_from_wif(wif: String) -> bytes:
     """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
-    o, network = _pubkey_from_wif(wif)
+    o, network = _pubkeytuple_from_wif(wif)
     return p2wpkh_p2sh(o, network)
 
 

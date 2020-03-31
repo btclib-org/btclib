@@ -10,19 +10,34 @@
 
 import unittest
 
+from btclib import bip32, slip32
 from btclib.base58 import b58decode, b58encode
 from btclib.base58address import (_b58segwitaddress, h160_from_b58address,
                                   p2pkh, p2pkh_from_wif, p2sh, p2wpkh_p2sh,
                                   p2wpkh_p2sh_from_wif, p2wsh_p2sh)
+from btclib.base58wif import prvkeytuple_from_wif, wif_from_xprv
 from btclib.bech32address import p2wpkh_from_wif, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.utils import (h160_from_pubkey, hash160, octets_from_point,
                           point_from_octets, sha256)
-from btclib.base58wif import prvkey_from_wif
 
 
 class TestAddresses(unittest.TestCase):
+
+    def test_p2pkh_from_wif(self):
+        seed = b"00"*32  # better be random
+        rxprv = bip32.rootxprv_from_seed(seed)
+        path = "m/0h/0h/12"
+        xprv = bip32.derive(rxprv, path)
+        wif = wif_from_xprv(xprv)
+        self.assertEqual(wif, b'KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP')
+        address = p2pkh_from_wif(wif)
+        xpub = bip32.xpub_from_xprv(xprv)
+        address2 = slip32.address_from_xpub(xpub)
+        self.assertEqual(address, address2)
+
+        self.assertRaises(ValueError, wif_from_xprv, xpub)
 
     def test_p2pkh_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
@@ -142,7 +157,7 @@ class TestAddresses(unittest.TestCase):
         b = p2wpkh_p2sh_from_wif(wif2)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
-        self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
+        self.assertEqual(prvkeytuple_from_wif(wif1)[0], prvkeytuple_from_wif(wif2)[0])
 
         # uncompressed testnet
         wif1 = "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
@@ -161,7 +176,7 @@ class TestAddresses(unittest.TestCase):
         b = p2wpkh_p2sh_from_wif(wif2)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
-        self.assertEqual(prvkey_from_wif(wif1)[0], prvkey_from_wif(wif2)[0])
+        self.assertEqual(prvkeytuple_from_wif(wif1)[0], prvkeytuple_from_wif(wif2)[0])
 
         # uncompressed mainnet, trailing/leading spaces in string
         wif1 = "  5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"

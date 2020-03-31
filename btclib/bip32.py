@@ -122,8 +122,8 @@ class XkeyDict(TypedDict):
     chain_code         : bytes
     key                : bytes
     # extensions
-    prvkey             : int
-    Point              : Point
+    q                  : int
+    Q                  : Point
     network            : str
 
 
@@ -170,25 +170,25 @@ def deserialize(xkey: Octets) -> XkeyDict:
         'chain_code'         : xkey[13:45],
         'key'                : xkey[45:],
         # extensions
-        'prvkey'             : 0,       # TODO rename as q
-        'Point'              : (0, 0),  # TODO rename as Q
+        'q'                  : 0,      # non zero only if xprv
+        'Q'                  : (1, 0), # non inf only if xpub
         'network'            : ''
     }
 
     _check_version_key(d['version'], d['key'])
     _check_depth_pfp_index(d['depth'], d['parent_fingerprint'], d['index'])
 
-    # calculate d['prvkey'] and d['Point']
+    # calculate d['q'] and d['Q']
     if d['key'][0] == 0:
         q = int.from_bytes(d['key'][1:], byteorder='big')
         if not 0 < q < ec.n:
             raise ValueError(f"private key {hex(q)} not in [1, n-1]")
-        d['prvkey'] = q
-        d['Point'] = (0, 0)
+        d['q'] = q
+        d['Q'] = (1, 0)
         d['network'] = _REPEATED_NETWORKS[_PRV_VERSIONS.index(d['version'])]
     else:  # must be public (already checked by _check_version_key)
-        d['prvkey'] = 0
-        d['Point'] = point_from_octets(d['key'], ec)
+        d['q'] = 0
+        d['Q'] = point_from_octets(d['key'], ec)
         d['network'] = _REPEATED_NETWORKS[_PUB_VERSIONS.index(d['version'])]
 
     return d
@@ -224,7 +224,7 @@ def serialize(d: XkeyDict) -> bytes:
     # already checked in _check_version_key
     t += d['key']
 
-    # d['prvkey'], d['Point'], and d['network']  are just neglected
+    # d['q'], d['Q'], and d['network']  are just neglected
 
     return b58encode(t)
 
@@ -235,7 +235,7 @@ def fingerprint(d: Union[XkeyDict, String]) -> bytes:
         d = deserialize(d)
 
     if d['key'][0] == 0:
-        P = mult(d['prvkey'])
+        P = mult(d['q'])
         pubkey = octets_from_point(P, True, ec)
         return hash160(pubkey)[:4]
 
@@ -261,8 +261,8 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:
         'index'              : b'\x00\x00\x00\x00',
         'chain_code'         : hd[32:],
         'key'                : k,
-        'prvkey'             : int.from_bytes(hd[:32], byteorder='big'),
-        'Point'              : (0, 0),
+        'q'                  : int.from_bytes(hd[:32], byteorder='big'),
+        'Q'                  : (1, 0),
         'network'            : network
     }
     return d
@@ -315,9 +315,9 @@ def xpub_from_xprv(d: Union[XkeyDict, String]) -> XkeyDict:
     if d['key'][0] != 0:
         raise ValueError("extended key is not a private one")
 
-    d['Point'] = mult(d['prvkey'])
-    d['key'] = octets_from_point(d['Point'], True, ec)
-    d['prvkey'] = 0
+    d['Q'] = mult(d['q'])
+    d['key'] = octets_from_point(d['Q'], True, ec)
+    d['q'] = 0
     d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
 
     return d
@@ -352,7 +352,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
     # d is a prvkey
     if d['key'][0] == 0:
         d['depth'] += 1
-        Pbytes = octets_from_point(mult(d['prvkey']), True, ec)
+        Pbytes = octets_from_point(mult(d['q']), True, ec)
         d['parent_fingerprint'] = hash160(Pbytes)[:4]
         d['index'] = index
         if index[0] >= 0x80:  # hardened derivation
@@ -361,9 +361,9 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
             h = hmac.digest(d['chain_code'], Pbytes + index, 'sha512')
         d['chain_code'] = h[32:]
         offset = int.from_bytes(h[:32], byteorder='big')
-        d['prvkey'] = (d['prvkey'] + offset) % ec.n
-        d['key'] = b'\x00' + d['prvkey'].to_bytes(32, 'big')
-        d['Point'] = (0, 0)
+        d['q'] = (d['q'] + offset) % ec.n
+        d['key'] = b'\x00' + d['q'].to_bytes(32, 'big')
+        d['Q'] = (1, 0)
     # d is a pubkey
     else:
         if index[0] >= 0x80:
@@ -375,9 +375,9 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
         d['chain_code'] = h[32:]
         offset = int.from_bytes(h[:32], byteorder='big')
         Offset = mult(offset)
-        d['Point'] = ec.add(d['Point'], Offset)
-        d['key'] = octets_from_point(d['Point'], True, ec)
-        d['prvkey'] = 0
+        d['Q'] = ec.add(d['Q'], Offset)
+        d['key'] = octets_from_point(d['Q'], True, ec)
+        d['q'] = 0
 
 
 def _indexes_from_path(path: str) -> Tuple[Sequence[bytes], bool]:
@@ -481,8 +481,8 @@ def crack(parent_xpub: Union[XkeyDict, String], child_xprv: Union[XkeyDict, Stri
 
     h = hmac.digest(p['chain_code'], p['key'] + c['index'], 'sha512')
     offset = int.from_bytes(h[:32], byteorder='big')
-    p['prvkey'] = (c['prvkey'] - offset) % ec.n
-    p['key'] = b'\x00' + p['prvkey'].to_bytes(32, byteorder='big')
-    p['Point'] = (0, 0)
+    p['q'] = (c['q'] - offset) % ec.n
+    p['key'] = b'\x00' + p['q'].to_bytes(32, byteorder='big')
+    p['Q'] = (1, 0)
 
     return p

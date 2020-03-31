@@ -48,7 +48,7 @@ from .bech32 import b32decode, b32encode
 from .bip32 import XkeyDict, deserialize
 from .utils import (Octets, String, bytes_from_hexstring, h160_from_pubkey,
                     hash160, sha256)
-from .base58wif import _pubkey_from_wif
+from .base58wif import _pubkeytuple_from_wif
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2W_PREFIXES = ['bc', 'tb', 'bcrt']
@@ -160,7 +160,7 @@ def p2wpkh(pubkey: Octets, network: str = 'mainnet') -> bytes:
 
 def p2wpkh_from_wif(wif: String) -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
-    o, network = _pubkey_from_wif(wif)
+    o, network = _pubkeytuple_from_wif(wif)
     return p2wpkh(o, network)
 
 

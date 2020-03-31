@@ -42,17 +42,18 @@ from typing import Union
 from .bip32 import XkeyDict
 from .curve import Curve
 from .curves import secp256k1
-from .key import to_prv_int
 from .utils import (HashF, Octets, _int_from_bits, bytes_from_hexstring,
-                    int_from_bits, octets_from_int)
+                    int_from_bits)
 
+# TODO accept Octets private key
 
-def rfc6979(mhd: Octets, q: Union[int, XkeyDict, bytes, str],
+def rfc6979(mhd: Octets, q: int,
             ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
     mhd = bytes_from_hexstring(mhd)
-    q = to_prv_int(q, ec)
+    if not 0 < q < ec.n:
+        raise ValueError(f"private key {hex(q)} not in [1, n-1]")
 
     hsize = hf().digest_size
     if len(mhd) != hsize:
@@ -70,9 +71,9 @@ def _rfc6979(c: int, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     # c = hf(m)                                            # 3.2.a
 
     # convert the private key q to an octet sequence of size nsize
-    bprv = octets_from_int(q, ec.nsize)  # bprv = q.to_bytes(nsize, byteorder='big')
+    bprv = q.to_bytes(ec.nsize, 'big')
     # truncate and/or expand c: encoding size is driven by nsize
-    bc = octets_from_int(c, ec.nsize)    # bc = c.to_bytes(nsize, byteorder='big')
+    bc = c.to_bytes(ec.nsize, 'big')
     bprvbm = bprv + bc
 
     hsize = hf().digest_size

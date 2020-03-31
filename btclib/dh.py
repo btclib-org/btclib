@@ -25,7 +25,7 @@ from typing import Any, Callable
 from .curve import Curve, Point
 from .curvemult import mult
 from .curves import secp256k1
-from .utils import HashF, octets_from_int
+from .utils import HashF
 
 KDF = Callable[[bytes, int, Curve, HashF], Any]
 
@@ -53,7 +53,7 @@ def ansi_x963_kdf(z: bytes, size: int,
         i += 1
     K_bytes = b''.join(K_temp[i] for i in range(size // hsize))
     K = int.from_bytes(K_bytes, byteorder='big') >> (size - hsize)
-    return octets_from_int(K, ec.psize)
+    return K.to_bytes(ec.psize, 'big')
 
 
 def diffie_hellman(kdf: KDF, dU: int, QV: Point, size: int,
@@ -67,5 +67,5 @@ def diffie_hellman(kdf: KDF, dU: int, QV: Point, size: int,
     if P[1] == 0:
         "invalid (zero) private key"
     shared_secret = P[0]  # shared secret field element
-    z = octets_from_int(shared_secret, ec.psize)
+    z = shared_secret.to_bytes(ec.psize, 'big')
     return kdf(z, size, ec, hf)

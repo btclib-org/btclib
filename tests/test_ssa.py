@@ -20,7 +20,7 @@ from btclib.curves import low_card_curves, secp224k1, secp256k1
 from btclib.numbertheory import legendre_symbol, mod_inv
 from btclib.pedersen import second_generator
 from btclib.rfc6979 import rfc6979
-from btclib.utils import (int_from_bits, int_from_octets, octets_from_point,
+from btclib.utils import (int_from_bits, octets_from_point,
                           point_from_octets)
 
 random.seed(42)
@@ -742,22 +742,19 @@ class TestEcssa(unittest.TestCase):
         # key setup is not interactive
 
         # first signer
-        q1 = int_from_octets(
-            '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d92ad1d')
+        q1 = 0x010101
         Q1 = mult(q1)
         k1 = rfc6979(M, q1)
         K1 = mult(k1)
 
         # second signer
-        q2 = int_from_octets(
-            '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        q2 = 0x020202
         Q2 = mult(q2)
         k2 = rfc6979(M, q2)
         K2 = mult(k2)
 
         # third signer
-        q3 = int_from_octets(
-            '0c28fca386c7aff7600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d')
+        q3 = 0x030303
         Q3 = mult(q3)
         k3 = rfc6979(M, q3)
         K3 = mult(k3)

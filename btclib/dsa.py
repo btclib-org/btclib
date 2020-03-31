@@ -20,14 +20,15 @@
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
-from . import der, key
+from . import der
 from .bip32 import XkeyDict
 from .curve import Curve, Point
 from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
-from .utils import HashF, Octets, String, int_from_bits, point_from_octets
+from .utils import (HashF, Octets, String, int_from_bits, int_from_prvkey,
+                    point_from_octets)
 
 # (r, s) or DER serialization (bytes or hex-string)
 # DER can include sighash
@@ -52,9 +53,7 @@ def deserialize(dersig: Octets,
     return der.deserialize(dersig, ec)
 
 
-def sign(msg: String,
-         q: Union[int, XkeyDict, bytes, str],
-         k: Optional[int] = None,
+def sign(msg: String, q: Union[int, Octets], k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
@@ -85,7 +84,7 @@ def sign(msg: String,
 
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
-    d = key.to_prv_int(q, ec)
+    d = int_from_prvkey(q, ec)
 
     if k is None:
         k = _rfc6979(c, d, ec, hf)                # 1

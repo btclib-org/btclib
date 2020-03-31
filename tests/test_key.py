@@ -13,7 +13,6 @@ import unittest
 from btclib import bip32, key
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets_from_point
-from btclib.base58wif import prvkey_from_wif, wif_from_xprv
 
 
 class TestPrvKey(unittest.TestCase):
@@ -25,7 +24,7 @@ class TestPrvKey(unittest.TestCase):
         xpub_dict = bip32.deserialize(xpub)
         Pbytes_compressed = xpub_dict['key']
         Pbytes_compressed_hexstr = Pbytes_compressed.hex()
-        P = xpub_dict['Point']
+        P = xpub_dict['Q']
         Pbytes_uncompressed = octets_from_point(P, False, ec)
         Pbytes_uncompressed_hexstr = Pbytes_uncompressed.hex()
 
@@ -65,7 +64,7 @@ class TestPrvKey(unittest.TestCase):
         xpub_dict = bip32.deserialize(xpub)
         Pbytes_compressed = xpub_dict['key']
         Pbytes_compressed_hexstr = Pbytes_compressed.hex()
-        P = xpub_dict['Point']
+        P = xpub_dict['Q']
         Pbytes_uncompressed = octets_from_point(P, False, ec)
         Pbytes_uncompressed_hexstr = Pbytes_uncompressed.hex()
 

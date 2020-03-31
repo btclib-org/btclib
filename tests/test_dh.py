@@ -13,7 +13,7 @@ from hashlib import sha1 as hf
 
 from btclib.curvemult import mult
 from btclib.curves import secp160r1 as ec
-from btclib.utils import point_from_octets, octets_from_point, octets_from_int
+from btclib.utils import point_from_octets, octets_from_point
 from btclib import dh
 
 
@@ -72,16 +72,14 @@ class TestEcdh(unittest.TestCase):
         z, _ = mult(dU, QV, ec)  # x coordinate only
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = dh.ansi_x963_kdf(
-            octets_from_int(z, ec.psize), size, ec, hf)
+        keyingdata = dh.ansi_x963_kdf(z.to_bytes(ec.psize, 'big'), size, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
         # 4.1.5
         z, _ = mult(dV, QU, ec)  # x coordinate only
         self.assertEqual(z, z_exp)
         self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = dh.ansi_x963_kdf(
-            octets_from_int(z, ec.psize), size, ec, hf)
+        keyingdata = dh.ansi_x963_kdf(z.to_bytes(ec.psize, 'big'), size, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
 

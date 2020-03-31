@@ -25,11 +25,11 @@ from .curve import Curve, Point, _JacPoint
 from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
                         double_mult, mult)
 from .curves import secp256k1
-from .key import to_prv_int
 from .numbertheory import legendre_symbol, mod_inv
 from .rfc6979 import rfc6979
 from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
-                    octets_from_int, octets_from_point, point_from_octets)
+                    int_from_prvkey, octets_from_point,
+                    point_from_octets)
 
 Sig = Tuple[int, int]  # Tuple[field element, scalar]
 
@@ -39,6 +39,7 @@ def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
     t = d.to_bytes(32, byteorder='big') + mhd
     h = hf()
     h.update(t)
+    # FIXME 0 < k < ec.n
     return int.from_bytes(h.digest(), byteorder='big')
 
 
@@ -47,7 +48,7 @@ def _e(r: int, P: Union[Point, Octets], mhd: Octets,
 
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
     h = hf()
-    h.update(octets_from_int(r, ec.psize))
+    h.update(r.to_bytes(ec.psize, 'big'))
     if not isinstance(P, tuple):
         # it does test for a valid point,
         # while getting rid of any uncompressed representation
@@ -58,9 +59,7 @@ def _e(r: int, P: Union[Point, Octets], mhd: Octets,
     return e
 
 
-def sign(mhd: Octets,
-         d: Union[int, XkeyDict, bytes, str],
-         k: Optional[int] = None,
+def sign(mhd: Octets, d: Union[int, Octets], k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Sig:
     """ECSSA signing operation according to bip-schnorr.
 
@@ -79,7 +78,7 @@ def sign(mhd: Octets,
         raise ValueError(errmsg)
 
     # The secret key d: an integer in the range 1..n-1.
-    d = to_prv_int(d, ec)
+    d = int_from_prvkey(d, ec)
 
     P = mult(d, ec.G, ec)
 
@@ -109,9 +108,7 @@ def sign(mhd: Octets,
     return r, s
 
 
-def verify(mhd: Octets,
-           P: Union[Point, Octets],
-           sig: Sig,
+def verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECSSA signature verification according to bip-schnorr."""
 
@@ -122,9 +119,7 @@ def verify(mhd: Octets,
         return False
 
 
-def _verify(mhd: Octets,
-            P: Union[Point, Octets],
-            sig: Sig,
+def _verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
             ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -195,7 +190,6 @@ def _check_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
     # Fail if s is not [0, n-1].
     if not 0 <= s < ec.n:
         raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
-
 
 
 def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
