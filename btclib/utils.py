@@ -36,14 +36,14 @@ HashF = Callable[[], Any]
 # etc.
 Octets = Union[bytes, str]
 
-# bytes or ASCII string (not hex-string)
+# bytes or text string (not hex-string)
 #
 # to convert to bytes, just encode()
 # e.g. in order to sign a message
 #    if isinstance(msg, str):
-#        msg = msg.encode('ascii')
+#        msg = msg.encode()
 #
-# in many cases (e.g. b58addr, b32addr, wif, bip32key )
+# in many cases (e.g. b58addr, b32addr, wif, bip32key)
 # leading/trailing blanks can be stripped
 # if isinstance(b58addr, str):
 #     b58addr = b58addr.strip()
