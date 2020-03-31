@@ -14,7 +14,7 @@ from . import bip32
 from .curve import Curve, Point
 from .curves import secp256k1
 from .utils import bytes_from_hexstring, octets_from_point, point_from_octets
-from .wif import prvkey_from_wif, wif_from_prvkey
+from .base58wif import prvkey_from_wif, wif_from_prvkey
 
 
 def to_prv_int(q: Union[int, bip32.XkeyDict, bytes, str], ec: Curve = secp256k1) -> int:

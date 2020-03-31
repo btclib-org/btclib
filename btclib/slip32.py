@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+
+# Copyright (C) 2017-2020 The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
+"""SLIP32 address.
+
+"""
+
+from typing import Union
+
+from .bip32 import XkeyDict, deserialize, _XPUB_PREFIXES, _P2WPKH_PUB_PREFIXES
+from .base58address import p2pkh_from_xpub, p2wpkh_p2sh_from_xpub
+from .bech32address import p2wpkh_from_xpub
+from .utils import String
+
+def address_from_xpub(d: Union[XkeyDict, String]) -> bytes:
+    """Return the SLIP32 base58/bech32 address.
+
+    The address is always derived from the compressed public key,
+    as this is the default public key representation in BIP32.
+    """
+
+    if not isinstance(d, dict):
+        d = deserialize(d)
+
+    if d['key'][0] not in (2, 3):
+        raise ValueError("xkey is not a public one")
+
+    if d['version'] in _XPUB_PREFIXES:
+        # p2pkh
+        return p2pkh_from_xpub(d)
+    elif d['version'] in _P2WPKH_PUB_PREFIXES:
+        # p2wpkh native-segwit
+        return p2wpkh_from_xpub(d)
+    else:
+        # v has been already checked at parsing stage
+        # v must be in _P2WPKH_P2SH_PUB_PREFIXES
+        # moreover, _p2wpkh_p2sh_from_xpub will raise an Error
+        # if something is wrong
+        # p2wpkh p2sh-wrapped-segwit
+        return p2wpkh_p2sh_from_xpub(d)

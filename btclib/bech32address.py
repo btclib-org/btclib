@@ -45,8 +45,10 @@ with the following modifications:
 from typing import Iterable, List, Tuple, Union
 
 from .bech32 import b32decode, b32encode
+from .bip32 import XkeyDict, deserialize
 from .utils import (Octets, String, bytes_from_hexstring, h160_from_pubkey,
                     hash160, sha256)
+from .base58wif import _pubkey_from_wif
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2W_PREFIXES = ['bc', 'tb', 'bcrt']
@@ -150,10 +152,28 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     return witvers, bytes(witprog), _NETWORKS[i], is_script_hash
 
 
-def p2wpkh_address(pubkey: Octets, network: str = 'mainnet') -> bytes:
+def p2wpkh(pubkey: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
     h160 = h160_from_pubkey(pubkey)
     return b32address_from_witness(0, h160, network)
+
+
+def p2wpkh_from_wif(wif: String) -> bytes:
+    """Return the p2wpkh (bech32 native) SegWit address."""
+    o, network = _pubkey_from_wif(wif)
+    return p2wpkh(o, network)
+
+
+def p2wpkh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
+    """Return the p2wpkh (native SegWit) address."""
+    if not isinstance(d, dict):
+        d = deserialize(d)
+
+    if d['key'][0] not in (2, 3):
+        # if pubkey would be derived from prvkey,
+        # then this safety check might be removed
+        raise ValueError("xkey is not a public one")
+    return p2wpkh(d['key'], d['network'])
 
 
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:

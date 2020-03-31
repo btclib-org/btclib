@@ -145,12 +145,11 @@ from hashlib import sha256
 from typing import Optional, Tuple, Union
 
 from . import dsa
-from .base58address import (h160_from_b58address, p2pkh_address,
-                            p2wpkh_p2sh_address)
-from .bech32address import p2wpkh_address, witness_from_b32address
+from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
+from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .utils import Octets, String, hash160, octets_from_point
-from .wif import prvkey_from_wif
+from .base58wif import prvkey_from_wif
 
 # (rf, r, s) or base64 compact serialization (bytes or hex-string)
 Sig = Union[Tuple[int, int, int], Octets]
@@ -216,13 +215,13 @@ def sign(msg: String, wif: String,
     pubkey = octets_from_point(Q, compressed)
 
     # finally, calculate the recovery flag
-    if addr is None or addr == p2pkh_address(pubkey):
+    if addr is None or addr == p2pkh(pubkey):
         rf = key_id + 27
         rf += 4 if compressed else 0
     # BIP137
-    elif addr == p2wpkh_p2sh_address(pubkey):
+    elif addr == p2wpkh_p2sh(pubkey):
         rf = key_id + 35
-    elif addr == p2wpkh_address(pubkey):
+    elif addr == p2wpkh(pubkey):
         rf = key_id + 39
     else:
         raise ValueError("Mismatch between private key and address")

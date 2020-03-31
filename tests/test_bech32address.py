@@ -42,9 +42,9 @@ with the following modifications:
 
 import unittest
 
-from btclib.base58address import p2wpkh_p2sh_address, p2wsh_p2sh_address
+from btclib.base58address import p2wpkh_p2sh, p2wsh_p2sh
 from btclib.bech32address import (b32address_from_witness, has_segwit_prefix,
-                                  p2wpkh_address, p2wsh_address,
+                                  p2wpkh, p2wsh_address,
                                   witness_from_b32address)
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
@@ -137,48 +137,48 @@ class TestSegwitAddress(unittest.TestCase):
         wv, wp, network, _ = witness_from_b32address(addr)
         self.assertEqual(b32address_from_witness(wv, wp, network), addr.encode())
 
-    def test_p2wpkh_p2sh_address(self):
+    def test_p2wpkh_p2sh(self):
         # https://matthewdowney.github.io/create-segwit-address.html
         pub = " 03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
 
-        address = p2wpkh_p2sh_address(pub)
+        address = p2wpkh_p2sh(pub)
         self.assertEqual(address, b'36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g')
 
-        address = p2wpkh_p2sh_address(pub, 'testnet')
+        address = p2wpkh_p2sh(pub, 'testnet')
         self.assertEqual(address, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
 
-        # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh_address
+        # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh
         pub = "02f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
 
-        address = p2wpkh_p2sh_address(pub)
+        address = p2wpkh_p2sh(pub)
         self.assertEqual(address, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
 
-    def test_p2wpkh_address(self):
+    def test_p2wpkh(self):
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
         # leading/trailing spaces should be tolerated
         pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         addr = b'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
-        self.assertEqual(addr, p2wpkh_address(pub))
+        self.assertEqual(addr, p2wpkh(pub))
         addr = b'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
-        self.assertEqual(addr, p2wpkh_address(pub, 'testnet'))
+        self.assertEqual(addr, p2wpkh(pub, 'testnet'))
 
-        # http://bitcoinscri.pt/pages/segwit_native_p2wpkh_address
+        # http://bitcoinscri.pt/pages/segwit_native_p2wpkh
         pub = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
-        self.assertEqual(addr, p2wpkh_address(pub))
+        self.assertEqual(addr, p2wpkh(pub))
 
         _, wp, _, _ = witness_from_b32address(addr)
         self.assertEqual(bytes(wp), hash160(pub))
 
         # Uncompressed pubkey
         uncompr_pub = octets_from_point(point_from_octets(pub, ec), False, ec)
-        self.assertRaises(ValueError, p2wpkh_address, uncompr_pub)
-        # p2wpkh_address(uncompr_pub)
+        self.assertRaises(ValueError, p2wpkh, uncompr_pub)
+        # p2wpkh(uncompr_pub)
 
         # Wrong pubkey size: 34 instead of 33
-        self.assertRaises(ValueError, p2wpkh_address, pub + '00')
-        # p2wpkh_address(pub + '00')
+        self.assertRaises(ValueError, p2wpkh, pub + '00')
+        # p2wpkh(pub + '00')
 
         # Witness program length (21) is not 20
         self.assertRaises(ValueError, b32address_from_witness, 0, hash160(pub) + b'\x00')
@@ -198,14 +198,14 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertRaises(ValueError, witness_from_b32address, addr)
         # witness_from_b32address(addr)
 
-    def test_p2wsh_p2sh_address(self):
+    def test_p2wsh_p2sh(self):
 
         # leading/trailing spaces should be tolerated
         pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         witness_script = [pub, 'OP_CHECKSIG']
         witness_script_bytes = encode(witness_script)
-        p2wsh_p2sh_address(witness_script_bytes)
-        p2wsh_p2sh_address(witness_script_bytes, 'testnet')
+        p2wsh_p2sh(witness_script_bytes)
+        p2wsh_p2sh(witness_script_bytes, 'testnet')
 
     def test_p2wsh_address(self):
 

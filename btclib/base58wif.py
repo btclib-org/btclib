@@ -11,8 +11,6 @@
 from typing import Tuple, Union, Optional
 
 from .base58 import b58decode, b58encode
-from .base58address import p2pkh_address, p2wpkh_p2sh_address
-from .bech32address import p2wpkh_address
 from . import bip32
 from .curvemult import mult
 from .curves import secp256k1
@@ -103,7 +101,7 @@ def wif_from_xprv(d: Union[bip32.XkeyDict, String]) -> bytes:
     if d['key'][0] != 0:
         raise ValueError("xkey is not a private one")
 
-    network = bip32._REPEATED_NETWORKS[bip32._PRV_VERSIONS.index(d['version'])]
+    network = d['network']
     network_index = _NETWORKS.index(network)
     payload = _WIF_PREFIXES[network_index] + d['key'][1:] + b'\x01'
     return b58encode(payload)
@@ -118,7 +116,7 @@ def prvkey_from_xprv(d: Union[bip32.XkeyDict, String]) -> Tuple[int, bool, str]:
     if d['key'][0] != 0:
         raise ValueError("xkey is not a private one")
 
-    network = bip32._REPEATED_NETWORKS[bip32._PRV_VERSIONS.index(d['version'])]
+    network = d['network']
 
     return d['prvkey'], True, network
 
@@ -167,7 +165,7 @@ def to_prv_int(q: Union[int, bip32.XkeyDict, bytes, str],
 
     return q2, None, None
 
-# TODO move the following function in base58address and bech32address
+# helper function
 
 def _pubkey_from_wif(wif: String) -> Tuple[bytes, str]:
 
@@ -177,28 +175,3 @@ def _pubkey_from_wif(wif: String) -> Tuple[bytes, str]:
     Pub = mult(prv, ec.G, ec)
     o = octets_from_point(Pub, compressed, ec)
     return o, network
-
-
-def p2pkh_address_from_wif(wif: String) -> bytes:
-    """Return the address corresponding to a WIF.
-
-    WIF encodes the information about the pubkey to be used for the
-    address computation being the compressed or uncompressed one.
-    """
-
-    prv, compressed, network = prvkey_from_wif(wif)
-    network_index = _NETWORKS.index(network)
-    ec = _CURVES[network_index]
-    Pub = mult(prv, ec.G, ec)
-    o = octets_from_point(Pub, compressed, ec)
-    return p2pkh_address(o, network)
-
-
-def p2wpkh_address_from_wif(wif: String) -> bytes:
-    o, network = _pubkey_from_wif(wif)
-    return p2wpkh_address(o, network)
-
-
-def p2wpkh_p2sh_address_from_wif(wif: String) -> bytes:
-    o, network = _pubkey_from_wif(wif)
-    return p2wpkh_p2sh_address(o, network)

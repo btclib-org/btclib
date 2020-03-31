@@ -13,7 +13,7 @@ import unittest
 from btclib import bip32, key
 from btclib.curves import secp256k1 as ec
 from btclib.utils import octets_from_point
-from btclib.wif import prvkey_from_wif, wif_from_xprv
+from btclib.base58wif import prvkey_from_wif, wif_from_xprv
 
 
 class TestPrvKey(unittest.TestCase):

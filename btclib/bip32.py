@@ -38,8 +38,6 @@ from typing import List, Sequence, Tuple, TypedDict, Union
 
 from . import bip39, electrum
 from .base58 import b58decode, b58encode
-from .base58address import p2pkh_address, p2wpkh_p2sh_address
-from .bech32address import p2wpkh_address
 from .curve import Point
 from .curvemult import mult
 from .curves import secp256k1 as ec
@@ -123,8 +121,10 @@ class XkeyDict(TypedDict):
     index              : bytes
     chain_code         : bytes
     key                : bytes
+    # extensions
     prvkey             : int
     Point              : Point
+    network            : str
 
 
 def _check_version_key(v: bytes, k: bytes) -> None:
@@ -169,8 +169,10 @@ def deserialize(xkey: Octets) -> XkeyDict:
         'index'              : xkey[9:13],
         'chain_code'         : xkey[13:45],
         'key'                : xkey[45:],
+        # extensions
         'prvkey'             : 0,
-        'Point'              : (0, 0)
+        'Point'              : (0, 0),
+        'network'            : ''
     }
 
     _check_version_key(d['version'], d['key'])
@@ -183,9 +185,11 @@ def deserialize(xkey: Octets) -> XkeyDict:
             raise ValueError(f"private key {hex(q)} not in [1, n-1]")
         d['prvkey'] = q
         d['Point'] = (0, 0)
+        d['network'] = _REPEATED_NETWORKS[_PRV_VERSIONS.index(d['version'])]
     else:  # must be public (already checked by _check_version_key)
         d['prvkey'] = 0
         d['Point'] = point_from_octets(d['key'], ec)
+        d['network'] = _REPEATED_NETWORKS[_PUB_VERSIONS.index(d['version'])]
 
     return d
 
@@ -220,7 +224,7 @@ def serialize(d: XkeyDict) -> bytes:
     # already checked in _check_version_key
     t += d['key']
 
-    # d['prvkey'] and d['Point'] are just neglected
+    # d['prvkey'], d['Point'], and d['network']  are just neglected
 
     return b58encode(t)
 
@@ -239,85 +243,6 @@ def fingerprint(d: Union[XkeyDict, String]) -> bytes:
     return hash160(d['key'])[:4]
 
 
-def address_from_xpub(d: Union[XkeyDict, String]) -> bytes:
-    """Return the SLIP32 base58/bech32 address.
-
-    The address is always derived from the compressed public key,
-    as this is the default public key representation in BIP32.
-    """
-
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-    if d['key'][0] not in (2, 3):
-        raise ValueError("xkey is not a public one")
-
-    if d['version'] in _XPUB_PREFIXES:
-        # p2pkh
-        return _p2pkh_from_xpub(d['version'], d['key'])
-    elif d['version'] in _P2WPKH_PUB_PREFIXES:
-        # p2wpkh native-segwit
-        return _p2wpkh_from_xpub(d['version'], d['key'])
-    else:
-        # v has been already checked at parsing stage
-        # v must be in _P2WPKH_P2SH_PUB_PREFIXES
-        # moreover, _p2wpkh_p2sh_from_xpub will raise an Error
-        # if something is wrong
-        # p2wpkh p2sh-wrapped-segwit
-        return _p2wpkh_p2sh_from_xpub(d['version'], d['key'])
-
-
-def _p2pkh_from_xpub(v: bytes, pk: bytes) -> bytes:
-    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2pkh_address(pk, network)
-
-
-def p2pkh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
-    """Return the p2pkh address."""
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-    if d['key'][0] not in (2, 3):
-        # Deriving pubkey from prvkey would not be enough:
-        # compressed ot uncompressed?
-        raise ValueError("xkey is not a public one")
-    return _p2pkh_from_xpub(d['version'], d['key'])
-
-
-def _p2wpkh_from_xpub(v: bytes, pk: bytes) -> bytes:
-    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2wpkh_address(pk, network)
-
-
-def p2wpkh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
-    """Return the p2wpkh (native SegWit) address."""
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-    if d['key'][0] not in (2, 3):
-        # if pubkey would be derived from prvkey,
-        # then this safety check might be removed
-        raise ValueError("xkey is not a public one")
-    return _p2wpkh_from_xpub(d['version'], d['key'])
-
-
-def _p2wpkh_p2sh_from_xpub(v: bytes, pk: bytes) -> bytes:
-    network = _REPEATED_NETWORKS[_PUB_VERSIONS.index(v)]
-    return p2wpkh_p2sh_address(pk, network)
-
-
-def p2wpkh_p2sh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
-    """Return the p2wpkh p2sh-wrapped (legacy) address."""
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-    if d['key'][0] not in (2, 3):
-        # if pubkey would be derived from prvkey,
-        # then this safety check might be removed
-        raise ValueError("xkey is not a public one")
-    return _p2wpkh_p2sh_from_xpub(d['version'], d['key'])
-
-
 def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:
     """Return BIP32 root master extended private key from seed."""
 
@@ -325,8 +250,9 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:
     hd = hmac.digest(b"Bitcoin seed", seed, 'sha512')
     k = b'\x00' + hd[:32]
     v = bytes_from_hexstring(version)
-    if v not in _PRV_VERSIONS:
-        raise ValueError(f"unknown extended private key version {v!r}")
+    #if v not in _PRV_VERSIONS:
+    #    raise ValueError(f"unknown extended private key version {v!r}")
+    network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(v)]
 
     d: XkeyDict = {
         'version'            : v,
@@ -336,7 +262,8 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> XkeyDict:
         'chain_code'         : hd[32:],
         'key'                : k,
         'prvkey'             : int.from_bytes(hd[:32], byteorder='big'),
-        'Point'              : (0, 0)
+        'Point'              : (0, 0),
+        'network'            : network
     }
     return d
 

@@ -12,7 +12,7 @@ import unittest
 from os import path
 import json
 
-from btclib import bip32
+from btclib import bip32, slip32
 from btclib import electrum
 
 
@@ -97,7 +97,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
                 self.assertEqual(mxpub2, bip32.deserialize(mxpub))
 
             xpub = bip32.derive(mxpub, "./0/0")
-            address2 = bip32.address_from_xpub(xpub).decode()
+            address2 = slip32.address_from_xpub(xpub).decode()
             self.assertEqual(address2, address)
 
         # version 2fa_segwit
