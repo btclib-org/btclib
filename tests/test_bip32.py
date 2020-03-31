@@ -22,15 +22,37 @@ from btclib.curves import secp256k1 as ec
 
 class TestBIP32(unittest.TestCase):
 
+    def test_serialize(self):
+        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        xprv_dict = bip32.deserialize(xprv)
+        xpr2 = bip32.serialize(xprv_dict)
+        self.assertEqual(xpr2, xprv)
+
+        # private key not in [1, n-1]
+        inv_key = (ec.n).to_bytes(ec.nsize, 'big')
+        decoded_key = b58decode(xprv, 78)
+        xkey = b58encode(decoded_key[:46] + inv_key)
+        self.assertRaises(ValueError, bip32.deserialize, xkey)
+        #bip32.deserialize(xkey)
+
+        xpub = bip32.xpub_from_xprv(xprv)
+        xpub2 = bip32.xpub_from_xprv(bip32.deserialize(xprv))
+        self.assertEqual(xpub, xpub2)
+
+
     def test_fingerprint(self):
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         f = bip32.fingerprint(xprv)
-        child_key = bip32.deserialize(bip32.derive(xprv, b'\x00\x00\x00\x00'))
-        self.assertEqual(f, child_key['parent_fingerprint'])
+        child_key = bip32.derive(xprv, b'\x00\x00\x00\x00')
+        pf = bip32.deserialize(child_key)['parent_fingerprint']
+        self.assertEqual(f, pf)
 
         xpub = bip32.xpub_from_xprv(xprv)
         f = bip32.fingerprint(xpub)
-        self.assertEqual(f, child_key['parent_fingerprint'])
+        self.assertEqual(f, pf)
+
+        child_key2 = bip32.derive(bip32.deserialize(xprv), 0)
+        self.assertEqual(child_key2, child_key)
 
     def test_utils(self):
         # root key, zero depth
@@ -493,37 +515,6 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, bip32.derive, rootxprv, b'\x00'*5)
         #bip32.derive(rootxprv, b'\x00'*5)
 
-    def test_crack(self):
-        parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
-        child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
-        parent_xprv = bip32.crack(parent_xpub, child_xprv)
-        self.assertEqual(bip32.xpub_from_xprv(parent_xprv), parent_xpub)
-
-        # extended parent key is not a public one
-        self.assertRaises(ValueError, bip32.crack, parent_xprv, child_xprv)
-        #bip32.crack(parent_xprv, child_xprv)
-
-        # extended child key is not a private one
-        self.assertRaises(ValueError, bip32.crack, parent_xpub, parent_xpub)
-        #bip32.crack(parent_xpub, parent_xpub)
-
-        # wrong child/parent depth relation
-        child_xpub = bip32.xpub_from_xprv(child_xprv)
-        self.assertRaises(ValueError, bip32.crack, child_xpub, child_xprv)
-        #bip32.crack(child_xpub, child_xprv)
-
-        # not a child for the provided parent
-        child0_xprv = bip32.derive(parent_xprv, 0)
-        grandchild_xprv = bip32.derive(child0_xprv, 0)
-        self.assertRaises(ValueError, bip32.crack, child_xpub, grandchild_xprv)
-        #bip32.crack(child_xpub, grandchild_xprv)
-
-        # hardened derivation
-        hardened_child_xprv = bip32.derive(parent_xprv, 0x80000000)
-        self.assertRaises(ValueError, bip32.crack,
-                          parent_xpub, hardened_child_xprv)
-        #bip32.crack(parent_xpub, hardened_child_xprv)
-
     def test_testnet_versions(self):
 
         # data cross-checked with Electrum and https://jlopp.github.io/xpub-converter/
@@ -701,18 +692,39 @@ class TestBIP32(unittest.TestCase):
         exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(rootxprv, exp)
 
-    def test_serialize(self):
-        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        xprv_dict = bip32.deserialize(xprv)
-        xpr2 = bip32.serialize(xprv_dict)
-        self.assertEqual(xpr2, xprv)
+    def test_crack(self):
+        parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
+        child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
+        parent_xprv = bip32.crack(parent_xpub, child_xprv)
+        self.assertEqual(bip32.xpub_from_xprv(parent_xprv), parent_xpub)
+        # same check with XKeyDict
+        parent_xprv = bip32.crack(bip32.deserialize(parent_xpub), bip32.deserialize(child_xprv))
+        self.assertEqual(bip32.xpub_from_xprv(parent_xprv), parent_xpub)
 
-        # private key not in [1, n-1]
-        inv_key = (ec.n).to_bytes(ec.nsize, 'big')
-        decoded_key = b58decode(xprv, 78)
-        xkey = b58encode(decoded_key[:46] + inv_key)
-        self.assertRaises(ValueError, bip32.deserialize, xkey)
-        #bip32.deserialize(xkey)
+        # extended parent key is not a public one
+        self.assertRaises(ValueError, bip32.crack, parent_xprv, child_xprv)
+        #bip32.crack(parent_xprv, child_xprv)
+
+        # extended child key is not a private one
+        self.assertRaises(ValueError, bip32.crack, parent_xpub, parent_xpub)
+        #bip32.crack(parent_xpub, parent_xpub)
+
+        # wrong child/parent depth relation
+        child_xpub = bip32.xpub_from_xprv(child_xprv)
+        self.assertRaises(ValueError, bip32.crack, child_xpub, child_xprv)
+        #bip32.crack(child_xpub, child_xprv)
+
+        # not a child for the provided parent
+        child0_xprv = bip32.derive(parent_xprv, 0)
+        grandchild_xprv = bip32.derive(child0_xprv, 0)
+        self.assertRaises(ValueError, bip32.crack, child_xpub, grandchild_xprv)
+        #bip32.crack(child_xpub, grandchild_xprv)
+
+        # hardened derivation
+        hardened_child_xprv = bip32.derive(parent_xprv, 0x80000000)
+        self.assertRaises(ValueError, bip32.crack,
+                          parent_xpub, hardened_child_xprv)
+        #bip32.crack(parent_xpub, hardened_child_xprv)
 
 
 if __name__ == "__main__":
