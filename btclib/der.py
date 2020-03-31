@@ -133,7 +133,7 @@ def deserialize(dersig: Octets,
         raise ValueError(errmsg)
 
     if dersig[0] != 0x30:
-        msg = f"DER signature type must be 0x30 (compound), not {dersig[0]}"
+        msg = f"DER signature type must be 0x30 (compound), not {hex(dersig[0])}"
         raise ValueError(msg)
 
     # sigsize checks
