@@ -33,7 +33,7 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(script, script2)
 
         # p2pk
-        pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
         #script = [pubkey, 'OP_CHECKSIG']
         script = p2pk_scriptPubKey(pubkey)
         script_bytes = encode(script)
@@ -41,7 +41,7 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(script, script2)
 
         # multi-sig
-        pubKey2 = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         # script = [1, pubkey, pubKey2, 2, 'OP_CHECKMULTISIGVERIFY']
         script = multisig_scriptPubKey(1, (pubkey, pubKey2))
         script_bytes = encode(script)
@@ -91,27 +91,27 @@ class TestScriptPubKey(unittest.TestCase):
         #nulldata_scriptPubKey(data)
 
         # Invalid pubkey lenght (34 bytes) for p2pk scriptPubKey
-        pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
         self.assertRaises(ValueError, p2pk_scriptPubKey, pubkey+"00")
         # p2pk_scriptPubKey(pubkey+"00")
 
         # Invalid m (0)
-        pubKey2 = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         self.assertRaises(ValueError, multisig_scriptPubKey, 0, (pubkey, pubKey2))
         # multisig_scriptPubKey(0, (pubkey, pubKey2))
 
         # Invalid pubkey lenght (34 bytes) for m-of-n multi-sig scriptPubKey
-        pubKey2 = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         self.assertRaises(ValueError, multisig_scriptPubKey, 1, (pubkey+"00", pubKey2))
         #multisig_scriptPubKey(1, (pubkey+"00", pubKey2))
 
         # Invalid n (17)
-        pubKey2 = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         self.assertRaises(ValueError, multisig_scriptPubKey, 3, [pubkey]*17)
         # multisig_scriptPubKey(3, [pubkey]*17)
 
         # Impossible m-of-n (3-of-2)
-        pubKey2 = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         self.assertRaises(ValueError, multisig_scriptPubKey, 3, (pubkey, pubKey2))
         # multisig_scriptPubKey(3, (pubkey, pubKey2))
 
@@ -154,7 +154,7 @@ class TestScriptPubKey(unittest.TestCase):
 
     def test_address_scriptPubKey(self):
 
-        pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
         pubkey_hash = hash160(pubkey).hex()
 
         script = [0, pubkey_hash]

@@ -148,7 +148,7 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(address, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
 
         # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh
-        pub = "02f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
+        pub = "02 f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
 
         address = p2wpkh_p2sh(pub)
         self.assertEqual(address, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
@@ -164,7 +164,7 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(addr, p2wpkh(pub, 'testnet'))
 
         # http://bitcoinscri.pt/pages/segwit_native_p2wpkh
-        pub = "02530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+        pub = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
         self.assertEqual(addr, p2wpkh(pub))
 
@@ -210,7 +210,7 @@ class TestSegwitAddress(unittest.TestCase):
     def test_p2wsh_address(self):
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
-        pub = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
         witness_script = [pub, 'OP_CHECKSIG']
         witness_script_bytes = encode(witness_script)
 

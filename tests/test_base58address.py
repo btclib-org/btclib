@@ -106,7 +106,7 @@ class TestAddresses(unittest.TestCase):
 
     def test_witness(self):
 
-        pub = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        pub = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
         b58addr = p2wpkh_p2sh(pub)
         _, h160, network, is_script_hash = h160_from_b58address(b58addr)
         self.assertEqual(network, 'mainnet')
