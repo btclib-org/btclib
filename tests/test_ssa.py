@@ -44,34 +44,27 @@ class TestEcssa(unittest.TestCase):
 
         ssa._verify(msg, Q, sig)
         self.assertTrue(ssa.verify(msg, Q, sig))
-        self.assertTrue(ssa._verify(msg, Q, sig))
 
         fmsg = sha256(b'Craig Wright').digest()
-        self.assertFalse(ssa.verify(fmsg, Q, sig))
-        self.assertFalse(ssa._verify(fmsg, Q, sig))
+        self.assertRaises(AssertionError, ssa._verify, fmsg, Q, sig)
 
         fssasig = (sig[0], sig[1], sig[1])
-        self.assertFalse(ssa.verify(msg, Q, fssasig))
         self.assertRaises(ValueError, ssa._verify, msg, Q, fssasig)
 
         # y(sG - eP) is not a quadratic residue
         fq = 0x2
         fQ = mult(fq)
-        self.assertFalse(ssa.verify(msg, fQ, sig))
         self.assertRaises(ValueError, ssa._verify, msg, fQ, sig)
 
         fq = 0x4
         fQ = mult(fq)
-        self.assertFalse(ssa.verify(msg, fQ, sig))
-        self.assertFalse(ssa._verify(msg, fQ, sig))
+        self.assertRaises(AssertionError, ssa._verify, msg, fQ, sig)
 
         # not ec.pIsThreeModFour
-        self.assertFalse(ssa.verify(msg, Q, sig, secp224k1))
         self.assertRaises(ValueError, ssa._verify, msg, Q, sig, secp224k1)
 
         # verify: message of wrong size
         wrongmsg = msg[:-1]
-        self.assertFalse(ssa.verify(wrongmsg, Q, sig))
         self.assertRaises(ValueError, ssa._verify, wrongmsg, Q, sig)
         #ssa._verify(wrongmsg, Q, sig)
 
@@ -99,7 +92,7 @@ class TestEcssa(unittest.TestCase):
                         0x7031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05)
         eph_prv = ssa._k(prv, msg)
         sig = ssa.sign(msg, prv, eph_prv)
-        self.assertTrue(ssa._verify(msg, pub, sig))
+        self.assertTrue(ssa.verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
         e = ssa._e(sig[0], pub, msg)
         self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
@@ -112,7 +105,7 @@ class TestEcssa(unittest.TestCase):
                         0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
         eph_prv = ssa._k(prv, msg)
         sig = ssa.sign(msg, prv, eph_prv)
-        self.assertTrue(ssa._verify(msg, pub, sig))
+        self.assertTrue(ssa.verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
         e = ssa._e(sig[0], pub, msg)
         self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
@@ -125,7 +118,7 @@ class TestEcssa(unittest.TestCase):
                         0x00880371D01766935B92D2AB4CD5C8A2A5837EC57FED7660773A05F0DE142380)
         eph_prv = ssa._k(prv, msg)
         sig = ssa.sign(msg, prv, eph_prv)
-        self.assertTrue(ssa._verify(msg, pub, sig))
+        self.assertTrue(ssa.verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
         e = ssa._e(sig[0], pub, msg)
         self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
@@ -135,7 +128,7 @@ class TestEcssa(unittest.TestCase):
         msg = "4DF3C3F68FCC83B27E9D42C90431A72499F17875C81A599B566C9889B9696703"
         sig = (0x00000000000000000000003B78CE563F89A0ED9414F5AA28AD0D96D6795F9C63,
                0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
-        self.assertTrue(ssa._verify(msg, pub, sig))
+        self.assertTrue(ssa.verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
         self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
 
@@ -145,7 +138,7 @@ class TestEcssa(unittest.TestCase):
         msg = "0000000000000000000000000000000000000000000000000000000000000000"
         sig = (0x52818579ACA59767E3291D91B76B637BEF062083284992F2D95F564CA6CB4E35,
                0x30B1DA849C8E8304ADC0CFE870660334B3CFC18E825EF1DB34CFAE3DFC5D8187)
-        self.assertTrue(ssa._verify(msg, pub, sig))
+        self.assertTrue(ssa.verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
         self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
 
@@ -155,7 +148,7 @@ class TestEcssa(unittest.TestCase):
         msg = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
         sig = (0x570DD4CA83D4E6317B8EE6BAE83467A1BF419D0767122DE409394414B05080DC,
                0xE9EE5F237CBD108EABAE1E37759AE47F8E4203DA3532EB28DB860F33D62D49BD)
-        self.assertTrue(ssa._verify(msg, pub, sig))
+        self.assertTrue(ssa.verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
         self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
 
@@ -164,7 +157,7 @@ class TestEcssa(unittest.TestCase):
         msg = "000008D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A5000000"
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
-        self.assertTrue(ssa._verify(msg, pub, sig))
+        self.assertTrue(ssa.verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
         self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
 
@@ -173,7 +166,7 @@ class TestEcssa(unittest.TestCase):
         msg = "0000000000000000000000000000000000000000000000000000000000000000"
         sig = (0x3598678C6C661F02557E2F5614440B53156997936FE54A90961CFCC092EF789D,
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
-        self.assertFalse(ssa._verify(msg, pub, sig))
+        self.assertFalse(ssa.verify(msg, pub, sig))
 
         # new proposed test: P = infinite
         pub = 1, 0
@@ -305,7 +298,7 @@ class TestEcssa(unittest.TestCase):
                         sig = ssa.sign(h, q, k, ec)
                         self.assertEqual((K[0], s), sig)
                         # valid signature must validate
-                        self.assertTrue(ssa._verify(h, Q, sig, ec))
+                        self.assertTrue(ssa.verify(h, Q, sig, ec))
 
     def test_batch_validation(self):
         ec = secp256k1
@@ -719,7 +712,7 @@ class TestEcssa(unittest.TestCase):
 
         sig = K[0], sigma
 
-        self.assertTrue(ssa._verify(msg, Q, sig))
+        self.assertTrue(ssa.verify(msg, Q, sig))
 
         ### ADDITIONAL PHASE: reconstruction of the private key ###
         secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n

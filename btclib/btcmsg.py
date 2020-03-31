@@ -234,12 +234,14 @@ def verify(msg: String, addr: String, sig: Sig) -> bool:
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(msg, addr, sig)
+        _verify(msg, addr, sig)
     except Exception:
         return False
+    else:
+        return True
 
 
-def _verify(msg: String, addr: String, sig: Sig) -> bool:
+def _verify(msg: String, addr: String, sig: Sig) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -278,15 +280,15 @@ def _verify(msg: String, addr: String, sig: Sig) -> bool:
     if is_b58:
         if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
             script_pubkey = b'\x00\x14' + hash160(pubkey)
-            return hash160(script_pubkey) == h160
+            assert hash160(script_pubkey) == h160
         elif rf < 35:                               # P2PKH
-            return hash160(pubkey) == h160
+            assert hash160(pubkey) == h160
         else:
             errmsg = f"Invalid recovery flag ({rf}) for base58 address ({addr!r})"
             raise ValueError(errmsg)
     else:
         if rf > 38 or (30 < rf and rf < 35):        # P2WPKH
-            return hash160(pubkey) == h160
+            assert hash160(pubkey) == h160
         else:
             errmsg = f"Invalid recovery flag ({rf}) for bech32 address ({addr!r})"
             raise ValueError(errmsg)

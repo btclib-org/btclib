@@ -33,18 +33,18 @@ class TestDSA(unittest.TestCase):
         self.assertEqual(sig[0], exp_sig[0])
         self.assertIn(sig[1], (exp_sig[1], secp256k1.n - exp_sig[1]))
 
-        self.assertTrue(dsa._verify(msg, Q, sig))
+        self.assertTrue(dsa.verify(msg, Q, sig))
 
         # malleability
         malleated_sig = (r, secp256k1.n - s)
-        self.assertTrue(dsa._verify(msg, Q, malleated_sig))
+        self.assertTrue(dsa.verify(msg, Q, malleated_sig))
 
         keys = dsa.pubkey_recovery(msg, sig)
         self.assertTrue(len(keys) == 2)
         self.assertIn(Q, keys)
 
         fmsg = 'Craig Wright'
-        self.assertFalse(dsa._verify(fmsg, Q, sig))
+        self.assertFalse(dsa.verify(fmsg, Q, sig))
 
         fdsasig = (sig[0], sig[1], sig[1])
         self.assertFalse(dsa.verify(msg, Q, fdsasig))
@@ -52,7 +52,7 @@ class TestDSA(unittest.TestCase):
 
         fq = 0x4
         fQ = mult(fq)
-        self.assertFalse(dsa._verify(msg, fQ, sig))
+        self.assertFalse(dsa.verify(msg, fQ, sig))
 
         # r not in [1, n-1]
         invalid_dassig = 0, sig[1]
@@ -105,7 +105,7 @@ class TestDSA(unittest.TestCase):
         self.assertIn(s, (exp_sig[1], ec.n - exp_sig[1]))
 
         # 2.1.4 Verifying Operation for V
-        self.assertTrue(dsa._verify(msg, QU, sig, ec, hf))
+        self.assertTrue(dsa.verify(msg, QU, sig, ec, hf))
 
     def test_forge_hash_sig(self):
         """forging valid hash signatures"""
@@ -123,7 +123,7 @@ class TestDSA(unittest.TestCase):
         s = r * u2inv % ec.n
         sig = r, s
         e = s * u1 % ec.n
-        dsa._verhlp(e, P, sig, ec)
+        dsa._verhlp(e, P, r, s, ec)
 
         u1 = 1234567890
         u2 = 987654321  # pick them at will
@@ -133,7 +133,7 @@ class TestDSA(unittest.TestCase):
         s = r * u2inv % ec.n
         sig = r, s
         e = s * u1 % ec.n
-        dsa._verhlp(e, P, sig, ec)
+        dsa._verhlp(e, P, r, s, ec)
 
     def test_low_cardinality(self):
         """test all msg/key pairs of low cardinality elliptic curves"""
@@ -169,12 +169,12 @@ class TestDSA(unittest.TestCase):
                             sig = dsa._sign(e, d, k, ec)
                             self.assertEqual((r, s), sig)
                             # valid signature must validate
-                            self.assertTrue(dsa._verhlp(e, P, sig, ec))
+                            self.assertIsNone(dsa._verhlp(e, P, r, s, ec))
 
-                            keys = dsa._pubkey_recovery(e, sig, ec)
+                            keys = dsa._pubkey_recovery(e, r, s, ec)
                             self.assertIn(P, keys)
                             for Q in keys:
-                                self.assertTrue(dsa._verhlp(e, Q, sig, ec))
+                                self.assertIsNone(dsa._verhlp(e, Q, r, s, ec))
 
     def test_pubkey_recovery(self):
         ec = secp112r2
@@ -183,9 +183,9 @@ class TestDSA(unittest.TestCase):
         msg = 'Satoshi Nakamoto'
         k = sighash = None
         sig = dsa.sign(msg, q, k, ec)
-        self.assertTrue(dsa._verify(msg, Q, sig, ec))
+        self.assertTrue(dsa.verify(msg, Q, sig, ec))
         dersig = dsa.serialize(*sig, sighash, ec)
-        self.assertTrue(dsa._verify(msg, Q, dersig, ec))
+        self.assertTrue(dsa.verify(msg, Q, dersig, ec))
         r, s, _ = dsa.deserialize(dersig)
         self.assertEqual((r, s), sig)
 
@@ -194,7 +194,7 @@ class TestDSA(unittest.TestCase):
         self.assertEqual(len(keys), 4)
         self.assertIn(Q, keys)
         for Q in keys:
-            self.assertTrue(dsa._verify(msg, Q, sig, ec))
+            self.assertTrue(dsa.verify(msg, Q, sig, ec))
 
 
 if __name__ == "__main__":

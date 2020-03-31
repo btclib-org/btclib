@@ -127,42 +127,20 @@ def verify(msg: String, P: Union[Point, Octets], sig: Sig,
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(msg, P, sig, ec, hf)
+        _verify(msg, P, sig, ec, hf)
     except Exception:
         return False
+    else:
+        return True
 
 
 def _verify(msg: String, P: Union[Point, Octets], sig: Sig,
-            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+            ec: Curve = secp256k1, hf: HashF = sha256) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     if isinstance(msg, str):
         msg = msg.encode()
-
-    # The message digest mhd: a 32-byte array
-    h = hf()
-    h.update(msg)
-    mhd = h.digest()                                     # 2
-    c = int_from_bits(mhd, ec)                           # 3
-
-    # second part delegated to helper function
-    return _verhlp(c, P, sig, ec)
-
-
-def _verhlp(c: int,
-            P: Union[Point, Octets],
-            sig: Sig,
-            ec: Curve = secp256k1) -> bool:
-    # Private function for test/dev purposes
-
-    # Let P = point(pk); fail if point(pk) fails.
-    if isinstance(P, tuple):
-        ec.require_on_curve(P)
-    else:
-        P = point_from_octets(P, ec)
-    if P[1] == 0:
-        raise ValueError("public key is infinite")
 
     if isinstance(sig, tuple):
         r, s = sig
@@ -170,6 +148,28 @@ def _verhlp(c: int,
     else:
         # sighash is not needed
         r, s, _ = der.deserialize(sig, ec)
+
+    # The message digest mhd: a 32-byte array
+    h = hf()
+    h.update(msg)
+    mhd = h.digest()                                     # 2
+    c = int_from_bits(mhd, ec)                           # 3
+
+    # Let P = point(pk); fail if point(pk) fails.
+    if isinstance(P, tuple):
+        ec.require_on_curve(P)
+    else:
+        P = point_from_octets(P, ec)
+
+    # second part delegated to helper function
+    _verhlp(c, P, r, s, ec)
+
+
+def _verhlp(c: int, P: Point, r: int, s: int, ec: Curve = secp256k1) -> None:
+    # Private function for test/dev purposes
+
+    if P[1] == 0:
+        raise ValueError("public key is infinite")
 
     w = mod_inv(s, ec.n)
     u = c*w
@@ -183,7 +183,7 @@ def _verhlp(c: int,
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     x = Rx % ec.n                                        # 6, 7
     # Fail if r ≠ x(R) %n.
-    return r == x                                        # 8
+    assert r == x                                        # 8
 
 
 def pubkey_recovery(msg: String, sig: Sig,
@@ -202,19 +202,19 @@ def pubkey_recovery(msg: String, sig: Sig,
     mhd = h.digest()                                      # 1.5
     c = int_from_bits(mhd, ec)                            # 1.5
 
-    return _pubkey_recovery(c, sig, ec)
-
-
-def _pubkey_recovery(c: int, sig: Sig, ec: Curve = secp256k1) -> List[Point]:
-    # Private function provided for testing purposes only.
-    # TODO: use _double_mult instead of double_mult
-
     if isinstance(sig, tuple):
         r, s = sig
         _check_sig(r, s, ec)
     else:
         # sighash is not needed
         r, s, _ = der.deserialize(sig, ec)
+
+    return _pubkey_recovery(c, r, s, ec)
+
+
+def _pubkey_recovery(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[Point]:
+    # Private function provided for testing purposes only.
+    # TODO: use _double_mult instead of double_mult
 
     # precomputations
     r1 = mod_inv(r, ec.n)
@@ -231,11 +231,19 @@ def _pubkey_recovery(c: int, sig: Sig, ec: Curve = secp256k1) -> List[Point]:
             R = x, ec.y_odd(x, False)                     # 1.2, 1.3, and 1.4
             # 1.5 has been performed in the pubkey_recovery calling function
             Q1 = double_mult(r1s, R, r1e, ec.G, ec)       # 1.6.1
-            if Q1[1] != 0 and _verhlp(c, Q1, sig, ec):    # 1.6.2
-                keys.append(Q1)
+            try:
+                _verhlp(c, Q1, r, s, ec)                  # 1.6.2
+            except Exception:
+                pass
+            else:
+                keys.append(Q1)                           # 1.6.2
             R = ec.opposite(R)                            # 1.6.3
             Q2 = double_mult(r1s, R, r1e, ec.G, ec)
-            if Q2[1] != 0 and _verhlp(c, Q2, sig, ec):    # 1.6.2
+            try:
+                _verhlp(c, Q2, r, s, ec)                  # 1.6.2
+            except Exception:
+                pass
+            else:
                 keys.append(Q2)                           # 1.6.2
         except Exception:  # R is not a curve point
             pass

@@ -114,13 +114,15 @@ def verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        return _verify(mhd, P, sig, ec, hf)
+        _verify(mhd, P, sig, ec, hf)
     except Exception:
         return False
+    else:
+        return True
 
 
 def _verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
-            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+            ec: Curve = secp256k1, hf: HashF = sha256) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -160,7 +162,7 @@ def _verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
         raise ValueError("(sG - eP).y is not a quadratic residue")
 
     # Fail if R.x ≠ r.
-    return R[0] == (R[2]*R[2]*r % ec._p)
+    assert R[0] == (R[2]*R[2]*r % ec._p)
 
 
 def _pubkey_recovery(e: int, sig: Sig, ec: Curve = secp256k1) -> Point:
@@ -198,13 +200,18 @@ def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
 
     # try/except wrapper for the Errors raised by _batch_verify
     try:
-        return _batch_verify(ms, P, sig, ec, hf)
+        if len(P) < 2:
+            _verify(ms[0], P[0], sig[0], ec, hf)
+        else:
+            _batch_verify(ms, P, sig, ec, hf)
     except Exception:
         return False
+    else:
+        return True
 
 
-def _batch_verify(ms: Sequence[Octets], P: Sequence[Point], sig: Sequence[Sig],
-                  ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
+                  ec: Curve = secp256k1, hf: HashF = sha256) -> None:
 
     # the bitcoin proposed standard is only valid for curves
     # whose prime p = 3 % 4
@@ -221,9 +228,6 @@ def _batch_verify(ms: Sequence[Octets], P: Sequence[Point], sig: Sequence[Sig],
         errMsg = f"mismatch between number of pubkeys ({batch_size}) "
         errMsg += f"and number of signatures ({len(sig)})"
         raise ValueError(errMsg)
-
-    if batch_size == 1:
-        return _verify(ms[0], P[0], sig[0], ec, hf)
 
     t = 0
     scalars: List[int] = list()
@@ -256,7 +260,6 @@ def _batch_verify(ms: Sequence[Octets], P: Sequence[Point], sig: Sequence[Sig],
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
-    if (TJ[0] * RHSZ2) % ec._p != (RHSJ[0] * TZ2) % ec._p:
-        return False
+    assert (TJ[0] * RHSZ2) % ec._p == (RHSJ[0] * TZ2) % ec._p
 
-    return (TJ[1] * RHSZ2 * RHSJ[2]) % ec._p == (RHSJ[1] * TZ2 * TJ[2]) % ec._p
+    assert (TJ[1] * RHSZ2 * RHSJ[2]) % ec._p == (RHSJ[1] * TZ2 * TJ[2]) % ec._p
