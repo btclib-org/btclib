@@ -42,7 +42,7 @@ from .curvemult import mult
 from .curves import secp256k1
 from .rfc6979 import rfc6979
 from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
-                    octets_from_point, point_from_octets)
+                    int_from_prvkey, octets_from_point, point_from_octets)
 
 # commitment receipt
 Receipt = Tuple[int, Point]
@@ -65,18 +65,20 @@ def _tweak(c: Octets, k: int,
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: Union[int, bytes, str],
-                      k: Optional[int] = None, ec: Curve = secp256k1,
+def ecdsa_commit_sign(c: Octets, m: Octets, q: Union[int, Octets],
+                      k: Optional[int] = None,
+                      ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECDSA signature."""
 
     c = bytes_from_hexstring(c)
     m = bytes_from_hexstring(m)
+    q = int_from_prvkey(q, ec)
 
     if k is None:
         h = hf()
         h.update(m)
-        k = rfc6979(h.digest(), prvkey, ec, hf)
+        k = rfc6979(h.digest(), q, ec, hf)
 
     h = hf()
     h.update(c)
@@ -85,13 +87,13 @@ def ecdsa_commit_sign(c: Octets, m: Octets, prvkey: Union[int, bytes, str],
     # commit
     R, new_k = _tweak(ch, k, ec, hf)
     # sign
-    sig = dsa.sign(m, prvkey, new_k, ec, hf)
+    sig = dsa.sign(m, q, new_k, ec, hf)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
 
 
-def ecssa_commit_sign(c: Octets, m: Octets, prvkey: Union[int, bytes, str],
+def ecssa_commit_sign(c: Octets, m: Octets, q: Union[int, bytes, str],
                       k: Optional[int] = None,
                       ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
@@ -99,9 +101,10 @@ def ecssa_commit_sign(c: Octets, m: Octets, prvkey: Union[int, bytes, str],
 
     c = bytes_from_hexstring(c)
     m = bytes_from_hexstring(m)
+    q = int_from_prvkey(q, ec)
 
     if k is None:
-        k = rfc6979(m, prvkey, ec, hf)
+        k = rfc6979(m, q, ec, hf)
 
     h = hf()
     h.update(c)
@@ -110,7 +113,7 @@ def ecssa_commit_sign(c: Octets, m: Octets, prvkey: Union[int, bytes, str],
     # commit
     R, new_k = _tweak(ch, k, ec, hf)
     # sign
-    sig = ssa.sign(m, prvkey, new_k, ec, hf)
+    sig = ssa.sign(m, q, new_k, ec, hf)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
