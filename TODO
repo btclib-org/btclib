@@ -7,8 +7,6 @@ isinstance(entr, bytearray):
 or
 isinstance(entr, bytes):
 
-verify all isinstance for bytesize (what if hexstring is short?)
-
 revise ansi_x963_kdf
 optimizations
     https://cryptojedi.org/peter/data/eccss-20130911b.pdf
@@ -40,24 +38,6 @@ add signature serialize/deserialize to SSA
 remove signtocontract, adding commit to dsa and ssa
 e=0 in SSA ?
 
-remove (ec, hf) in favor of network
-
-remove checks from _functions
-
-    ## pure crypto
-    Point = Tuple[int, int]
-
-    prvkey, prv, q: int
-    pubkey, pub, Q: Point
-
-    # BIP32 xkey (bytes, string, or XkeyDict), WIF (bytes or string), Octets, native int
-    prvkey, prv, q: Union[int, bip32.XkeyDict, bytes, str]  # to_prv_int
-
-    # BIP32 xkey (bytes, string, or XkeyDict), Octets, native tuple
-    pubkey, pub, Q: Union[Point, bip32.XkeyDict, bytes, str]  # to_pub_tuple or to_pub_bytes
-
-    dersig: Tuple[int, int, bytes]  # (r, s, sighash)
-    dsasig = Union[Tuple[int, int], Octets]  # (r, s) or DER serialization
-    msgsig = Union[Tuple[int, int, int], Octets]  # (rf, r, s) or compact serialization
+remove (ec, hf) in favor of network (global default?)
 
 }
