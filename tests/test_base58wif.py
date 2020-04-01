@@ -32,7 +32,8 @@ class TestWif(unittest.TestCase):
             ['KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ', True, 'mainnet']
         ]
         for v in test_vectors:
-            self.assertEqual(v[0].strip(), wif_from_prvkey(prvkey, v[1], v[2]).decode())
+            wif = wif_from_prvkey(prvkey, v[1], v[2])
+            self.assertEqual(v[0].strip(), wif.decode('ascii'))
             q, compressed, network = prvkeytuple_from_wif(v[0])
             self.assertEqual(q, int(prvkey, 16))
             self.assertEqual(compressed, v[1])
@@ -76,10 +77,10 @@ class TestWif(unittest.TestCase):
     def test_prvkeytuple_from_xprvwif(self):
 
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        xprv_str = xprv.decode()
+        xprv_str = xprv.decode('ascii')
         xprv_dict = bip32.deserialize(xprv)
         wif = wif_from_xprv(xprv)
-        wif_str = wif.decode()
+        wif_str = wif.decode('ascii')
         ref_tuple = (xprv_dict['q'], True, 'mainnet')
 
         # BIP32

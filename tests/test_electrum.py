@@ -97,7 +97,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
                 self.assertEqual(mxpub2, mxpub.encode())
 
             xpub = bip32.derive(mxpub, "./0/0")
-            address2 = slip32.address_from_xpub(xpub).decode()
+            address2 = slip32.address_from_xpub(xpub).decode('ascii')
             self.assertEqual(address2, address)
 
         # version 2fa_segwit

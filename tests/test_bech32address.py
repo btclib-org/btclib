@@ -107,7 +107,7 @@ class TestSegwitAddress(unittest.TestCase):
             script_pubkey = [witvers, witprog]
             self.assertEqual(encode(script_pubkey).hex(), hexscript)
             address = b32address_from_witness(witvers, witprog, network)
-            self.assertEqual(a.lower().strip(), address.decode())
+            self.assertEqual(a.lower().strip(), address.decode('ascii'))
 
     def test_invalid_address(self):
         """Test whether invalid addresses fail to decode"""

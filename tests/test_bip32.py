@@ -303,7 +303,7 @@ class TestBIP32(unittest.TestCase):
         for test_vector in test_vectors:
             seed = test_vector[2]
             rootxprv = rootxprv_from_seed(seed, xkey_version)
-            self.assertEqual(rootxprv, test_vector[3].encode())
+            self.assertEqual(rootxprv, test_vector[3].encode('ascii'))
 
     def test_mainnet(self):
         # bitcoin core derivation style

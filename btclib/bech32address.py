@@ -58,7 +58,7 @@ def has_segwit_prefix(addr: String) -> bool:
         str_addr = addr.strip()
         str_addr = str_addr.lower()
     else:
-        str_addr = addr.decode()
+        str_addr = addr.decode('ascii')
 
     for prefix in _P2W_PREFIXES:
         if str_addr.startswith(prefix + '1'):

@@ -20,7 +20,7 @@ class TestPrvKey(unittest.TestCase):
     def test_to_pub_tuple(self):
 
         xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
-        xpub_str = xpub.decode()
+        xpub_str = xpub.decode('ascii')
         xpub_dict = bip32.deserialize(xpub)
         Pbytes_compressed = xpub_dict['key']
         Pbytes_compressed_hexstr = Pbytes_compressed.hex()
@@ -60,7 +60,7 @@ class TestPrvKey(unittest.TestCase):
     def test_to_pub_bytes(self):
 
         xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
-        xpub_str = xpub.decode()
+        xpub_str = xpub.decode('ascii')
         xpub_dict = bip32.deserialize(xpub)
         Pbytes_compressed = xpub_dict['key']
         Pbytes_compressed_hexstr = Pbytes_compressed.hex()

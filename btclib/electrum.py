@@ -33,7 +33,7 @@ _MNEMONIC_VERSIONS = {
 def version_from_mnemonic(mnemonic: Mnemonic) -> str:
     """Return the Electrum version embedded in the mnemonic sentence."""
 
-    s = hmac.new(b"Seed version", mnemonic.encode('utf8'), sha512).hexdigest()
+    s = hmac.new(b"Seed version", mnemonic.encode(), sha512).hexdigest()
 
     if s.startswith(_MNEMONIC_VERSIONS['standard']):
         return 'standard'
@@ -76,7 +76,7 @@ def mnemonic_from_entropy(electrum_version: str, entropy: Entropy,
         mnemonic = _mnemonic_from_indexes(indexes, lang)
         # version validity check
         s = hmac.new(b"Seed version",
-                     mnemonic.encode('utf8'), sha512).hexdigest()
+                     mnemonic.encode(), sha512).hexdigest()
         if s.startswith(version):
             invalid = False
         # next trial
