@@ -28,8 +28,7 @@ from .curves import secp256k1
 from .numbertheory import legendre_symbol, mod_inv
 from .rfc6979 import rfc6979
 from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
-                    int_from_prvkey, octets_from_point,
-                    point_from_octets)
+                    int_from_prvkey, octets_from_point, point_from_octets)
 
 Sig = Tuple[int, int]  # Tuple[field element, scalar]
 

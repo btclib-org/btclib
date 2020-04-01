@@ -16,10 +16,10 @@ Base58 encoding of public keys and scripts as addresses.
 from typing import List, Tuple, Union
 
 from .base58 import b58decode, b58encode
+from .base58wif import _pubkeytuple_from_wif
 from .bip32 import XkeyDict, deserialize
 from .utils import (Octets, String, bytes_from_hexstring, h160_from_pubkey,
                     hash160, sha256)
-from .base58wif import _pubkeytuple_from_wif
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2PKH_PREFIXES = [

@@ -44,11 +44,12 @@ with the following modifications:
 
 from typing import Iterable, List, Tuple, Union
 
+from .base58wif import _pubkeytuple_from_wif
 from .bech32 import b32decode, b32encode
 from .bip32 import XkeyDict, deserialize
 from .utils import (Octets, String, bytes_from_hexstring, h160_from_pubkey,
                     hash160, sha256)
-from .base58wif import _pubkeytuple_from_wif
+
 
 _NETWORKS = ['mainnet', 'testnet', 'regtest']
 _P2W_PREFIXES = ['bc', 'tb', 'bcrt']

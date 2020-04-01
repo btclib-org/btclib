@@ -11,10 +11,11 @@
 """Elliptic curve point multiplication functions."""
 
 import heapq
-from typing import Sequence, List
+from typing import List, Sequence
 
-from .curve import Curve, Point, _JacPoint, _jac_from_aff
+from .curve import Curve, Point, _jac_from_aff, _JacPoint
 from .curves import secp256k1
+
 
 def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
     """Point multiplication, implemented using 'double and add'.

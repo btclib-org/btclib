@@ -146,10 +146,11 @@ from typing import Optional, Tuple, Union
 
 from . import dsa
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
+from .base58wif import prvkeytuple_from_wif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .utils import Octets, String, hash160, octets_from_point
-from .base58wif import prvkeytuple_from_wif
+
 
 # (rf, r, s) or base64 compact serialization (bytes or hex-string)
 Sig = Union[Tuple[int, int, int], Octets]
