@@ -22,10 +22,10 @@ function to use.
 from hashlib import sha256
 from typing import Any, Callable
 
-from .curve import Curve, Point
+from .alias import HashF, Point
+from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
-from .utils import HashF
 
 KDF = Callable[[bytes, int, Curve, HashF], Any]
 

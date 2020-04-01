@@ -44,15 +44,12 @@ with the following modifications:
 
 from typing import Iterable, List, Tuple, Union
 
+from .alias import Octets, String, XkeyDict
 from .base58wif import _pubkeytuple_from_wif
 from .bech32 import b32decode, b32encode
-from .bip32 import XkeyDict, deserialize
-from .utils import (Octets, String, bytes_from_hexstring, h160_from_pubkey,
-                    hash160, sha256)
-
-
-_NETWORKS = ['mainnet', 'testnet', 'regtest']
-_P2W_PREFIXES = ['bc', 'tb', 'bcrt']
+from .bip32 import deserialize
+from .network import _NETWORKS, _P2W_PREFIXES
+from .utils import bytes_from_hexstring, h160_from_pubkey, hash160, sha256
 
 
 def has_segwit_prefix(addr: String) -> bool:

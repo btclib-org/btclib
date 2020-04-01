@@ -24,7 +24,8 @@ from io import BytesIO
 from typing import BinaryIO, Iterable, List, Union
 
 from . import varint
-from .utils import Octets, bytes_from_hexstring
+from .alias import Octets
+from .utils import bytes_from_hexstring
 
 OP_CODES = {
     # Constants

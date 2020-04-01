@@ -145,15 +145,12 @@ from hashlib import sha256
 from typing import Optional, Tuple, Union
 
 from . import dsa
+from .alias import BMSig
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import prvkeytuple_from_wif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .utils import Octets, String, hash160, octets_from_point
-
-
-# (rf, r, s) or base64 compact serialization (bytes or hex-string)
-Sig = Union[Tuple[int, int, int], Octets]
 
 
 def _magic_hash(msg: String) -> bytes:
@@ -230,7 +227,7 @@ def sign(msg: String, wif: String,
     return rf, r, s
 
 
-def verify(msg: String, addr: String, sig: Sig) -> bool:
+def verify(msg: String, addr: String, sig: BMSig) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
@@ -242,7 +239,7 @@ def verify(msg: String, addr: String, sig: Sig) -> bool:
         return True
 
 
-def _verify(msg: String, addr: String, sig: Sig) -> None:
+def _verify(msg: String, addr: String, sig: BMSig) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 

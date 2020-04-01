@@ -32,13 +32,15 @@ Up to 0xfc, a varint is just 1 byte; however, if the integer is greater than
 from io import BytesIO
 from typing import BinaryIO, Union
 
-from .utils import Octets, bytes_from_hexstring
+from .alias import Octets
+from .utils import bytes_from_hexstring
 
 
 def decode(stream: Union[BinaryIO, Octets]) -> int:
     '''Return the variable-length integer read from a stream.'''
 
-    stream = bytes_from_hexstring(stream)
+    if isinstance(stream, str):
+        stream = bytes_from_hexstring(stream)
 
     if isinstance(stream, bytes):
         stream = BytesIO(stream)

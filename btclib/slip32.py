@@ -14,10 +14,11 @@
 
 from typing import Union
 
+from .alias import String, XkeyDict
 from .base58address import p2pkh_from_xpub, p2wpkh_p2sh_from_xpub
 from .bech32address import p2wpkh_from_xpub
-from .bip32 import _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES, XkeyDict, deserialize
-from .utils import String
+from .bip32 import deserialize
+from .network import _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
 
 
 def address_from_xpub(d: Union[XkeyDict, String]) -> bytes:

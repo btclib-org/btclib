@@ -37,15 +37,13 @@ from hashlib import sha256
 from typing import Optional, Tuple, Union
 
 from . import dsa, ssa
-from .curve import Curve, Point
+from .alias import HashF, Octets, Point, Receipt
+from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
 from .rfc6979 import rfc6979
-from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
-                    int_from_prvkey, octets_from_point, point_from_octets)
-
-# commitment receipt
-Receipt = Tuple[int, Point]
+from .utils import (bytes_from_hexstring, int_from_bits, int_from_prvkey,
+                    octets_from_point, point_from_octets)
 
 
 def _tweak(c: Octets, k: int,

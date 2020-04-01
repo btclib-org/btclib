@@ -48,7 +48,7 @@ with the following modifications:
 
 from typing import Iterable, List, Tuple, Union
 
-from .utils import String
+from .alias import String
 
 __ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 

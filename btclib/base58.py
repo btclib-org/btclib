@@ -39,7 +39,8 @@ https://github.com/keis/base58, with the following modifications:
 from hashlib import sha256
 from typing import Optional, Union
 
-from .utils import Octets, String, bytes_from_hexstring, hash256
+from .alias import Octets, String
+from .utils import bytes_from_hexstring, hash256
 
 __ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __BASE = len(__ALPHABET)

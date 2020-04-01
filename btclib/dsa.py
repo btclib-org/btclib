@@ -21,18 +21,13 @@ from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
 from . import der
-from .bip32 import XkeyDict
-from .curve import Curve, Point
+from .alias import DSASig, HashF, Octets, Point, String, XkeyDict
+from .curve import Curve
 from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
-from .utils import (HashF, Octets, String, int_from_bits, int_from_prvkey,
-                    point_from_octets)
-
-# (r, s) or DER serialization (bytes or hex-string)
-# DER can include sighash
-Sig = Union[Tuple[int, int], Octets]  # Tuple[scalar, scalar]
+from .utils import int_from_bits, int_from_prvkey, point_from_octets
 
 
 def serialize(r: int, s: int,
@@ -121,7 +116,7 @@ def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> Tuple[int, int]:
     return r, s
 
 
-def verify(msg: String, P: Union[Point, Octets], sig: Sig,
+def verify(msg: String, P: Union[Point, Octets], sig: DSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
@@ -134,7 +129,7 @@ def verify(msg: String, P: Union[Point, Octets], sig: Sig,
         return True
 
 
-def _verify(msg: String, P: Union[Point, Octets], sig: Sig,
+def _verify(msg: String, P: Union[Point, Octets], sig: DSASig,
             ec: Curve = secp256k1, hf: HashF = sha256) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -186,7 +181,7 @@ def _verhlp(c: int, P: Point, r: int, s: int, ec: Curve = secp256k1) -> None:
     assert r == x, "Invalid signature"                   # 8
 
 
-def pubkey_recovery(msg: String, sig: Sig,
+def pubkey_recovery(msg: String, sig: DSASig,
                     ec: Curve = secp256k1, hf: HashF = sha256) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 

@@ -15,26 +15,11 @@ from .base58 import b58decode, b58encode
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
+from .network import (_CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES,
+                      _WIF_PREFIXES)
 from .utils import (Octets, String, bytes_from_hexstring, int_from_prvkey,
                     octets_from_point)
 
-_NETWORKS = ['mainnet', 'testnet', 'regtest']
-_CURVES = [secp256k1, secp256k1, secp256k1]
-_WIF_PREFIXES = [
-    b'\x80',  # WIF starts with {K,L} (if compressed) or 5 (if uncompressed)
-    b'\xef',  # WIF starts with c (if compressed) or 9 (if uncompressed)
-    b'\xef',  # WIF starts with c (if compressed) or 9 (if uncompressed)
-]
-_P2PKH_PREFIXES = [
-    b'\x00',  # address starts with 1
-    b'\x6f',  # address starts with {m, n}
-    b'\x6f'   # address starts with {m, n}
-]
-_P2SH_PREFIXES = [
-    b'\x05',  # address starts with 3
-    b'\xc4',  # address starts with 2
-    b'\xc4',  # address starts with 2
-]
 
 def wif_from_xprv(xkey: Union[bip32.XkeyDict, String]) -> bytes:
     """Return the WIF encoding of a BIP32 extended private key.

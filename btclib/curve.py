@@ -11,18 +11,10 @@
 """Elliptic curve class."""
 
 from math import sqrt
-from typing import NamedTuple, Tuple
+from typing import Tuple
 
+from .alias import Point, _JacPoint
 from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
-
-# infinity point in affine coordinates is Inf = (int, 0)
-# as no affine point has y=0 coordinate in a group of prime order n
-# it can be checked with 'Inf[1] == 0'
-Point = Tuple[int, int]
-
-# infinity point in Jacobian coordinates is Inf = (int, int, 0)
-# it can be checked with 'Inf[2] == 0'
-_JacPoint = Tuple[int, int, int]
 
 
 def _jac_from_aff(Q: Point) -> _JacPoint:

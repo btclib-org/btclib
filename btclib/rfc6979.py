@@ -39,11 +39,10 @@ import hmac
 from hashlib import sha256
 from typing import Union
 
-from .bip32 import XkeyDict
+from .alias import HashF, Octets, XkeyDict
 from .curve import Curve
 from .curves import secp256k1
-from .utils import (HashF, Octets, _int_from_bits, bytes_from_hexstring,
-                    int_from_bits)
+from .utils import _int_from_bits, bytes_from_hexstring, int_from_bits
 
 # TODO accept Octets private key
 

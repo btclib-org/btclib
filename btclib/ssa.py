@@ -20,17 +20,15 @@ import random
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
-from .bip32 import XkeyDict
-from .curve import Curve, Point, _JacPoint
+from .alias import HashF, Octets, Point, SSASig, _JacPoint
+from .curve import Curve
 from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
                         double_mult, mult)
 from .curves import secp256k1
 from .numbertheory import legendre_symbol, mod_inv
 from .rfc6979 import rfc6979
-from .utils import (HashF, Octets, bytes_from_hexstring, int_from_bits,
-                    int_from_prvkey, octets_from_point, point_from_octets)
-
-Sig = Tuple[int, int]  # Tuple[field element, scalar]
+from .utils import (bytes_from_hexstring, int_from_bits, int_from_prvkey,
+                    octets_from_point, point_from_octets)
 
 
 def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
@@ -59,7 +57,7 @@ def _e(r: int, P: Union[Point, Octets], mhd: Octets,
 
 
 def sign(mhd: Octets, d: Union[int, Octets], k: Optional[int] = None,
-         ec: Curve = secp256k1, hf: HashF = sha256) -> Sig:
+         ec: Curve = secp256k1, hf: HashF = sha256) -> SSASig:
     """ECSSA signing operation according to bip-schnorr.
 
     This signature scheme supports only 32-byte messages.
@@ -107,7 +105,7 @@ def sign(mhd: Octets, d: Union[int, Octets], k: Optional[int] = None,
     return r, s
 
 
-def verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
+def verify(mhd: Octets, P: Union[Point, Octets], sig: SSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECSSA signature verification according to bip-schnorr."""
 
@@ -120,7 +118,7 @@ def verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
         return True
 
 
-def _verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
+def _verify(mhd: Octets, P: Union[Point, Octets], sig: SSASig,
             ec: Curve = secp256k1, hf: HashF = sha256) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -164,7 +162,7 @@ def _verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
     assert R[0] == R[2]*R[2]*r % ec._p, "Invalid signature"
 
 
-def _pubkey_recovery(e: int, sig: Sig, ec: Curve = secp256k1) -> Point:
+def _pubkey_recovery(e: int, sig: SSASig, ec: Curve = secp256k1) -> Point:
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
 
@@ -193,7 +191,7 @@ def _check_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
         raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
 
 
-def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
+def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[SSASig],
                  ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECSSA batch signature verification according to bip-schnorr."""
 
@@ -209,7 +207,7 @@ def batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
         return True
 
 
-def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
+def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[SSASig],
                   ec: Curve = secp256k1, hf: HashF = sha256) -> None:
 
     # the bitcoin proposed standard is only valid for curves
