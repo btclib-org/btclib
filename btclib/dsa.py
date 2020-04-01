@@ -183,7 +183,7 @@ def _verhlp(c: int, P: Point, r: int, s: int, ec: Curve = secp256k1) -> None:
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     x = Rx % ec.n                                        # 6, 7
     # Fail if r ≠ x(R) %n.
-    assert r == x                                        # 8
+    assert r == x, "Invalid signature"                   # 8
 
 
 def pubkey_recovery(msg: String, sig: Sig,

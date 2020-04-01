@@ -279,16 +279,16 @@ def _verify(msg: String, addr: String, sig: Sig) -> None:
     pubkey = octets_from_point(Q, compressed)
     if is_b58:
         if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
-            script_pubkey = b'\x00\x14' + hash160(pubkey)
-            assert hash160(script_pubkey) == h160
+            script_pk = b'\x00\x14' + hash160(pubkey)
+            assert hash160(script_pk) == h160, "Unmatched p2wpkh-p2sh address"
         elif rf < 35:                               # P2PKH
-            assert hash160(pubkey) == h160
+            assert hash160(pubkey) == h160, "Unmatched p2pkh address"
         else:
-            errmsg = f"Invalid recovery flag ({rf}) for base58 address ({addr!r})"
-            raise ValueError(errmsg)
+            m = f"Invalid recovery flag ({rf}) for base58 address ({addr!r})"
+            raise ValueError(m)
     else:
         if rf > 38 or (30 < rf and rf < 35):        # P2WPKH
-            assert hash160(pubkey) == h160
+            assert hash160(pubkey) == h160, "Unmatched p2wpkh address"
         else:
-            errmsg = f"Invalid recovery flag ({rf}) for bech32 address ({addr!r})"
-            raise ValueError(errmsg)
+            m = f"Invalid recovery flag ({rf}) for bech32 address ({addr!r})"
+            raise ValueError(m)

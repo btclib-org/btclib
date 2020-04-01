@@ -162,7 +162,7 @@ def _verify(mhd: Octets, P: Union[Point, Octets], sig: Sig,
         raise ValueError("(sG - eP).y is not a quadratic residue")
 
     # Fail if R.x ≠ r.
-    assert R[0] == (R[2]*R[2]*r % ec._p)
+    assert R[0] == R[2]*R[2]*r % ec._p, "Invalid signature"
 
 
 def _pubkey_recovery(e: int, sig: Sig, ec: Curve = secp256k1) -> Point:
@@ -260,6 +260,8 @@ def _batch_verify(ms: Sequence[bytes], P: Sequence[Point], sig: Sequence[Sig],
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
-    assert (TJ[0] * RHSZ2) % ec._p == (RHSJ[0] * TZ2) % ec._p
+    precondition = TJ[0]*RHSZ2 % ec._p == RHSJ[0]*TZ2 % ec._p
+    assert precondition, "Invalid precondition"
 
-    assert (TJ[1] * RHSZ2 * RHSJ[2]) % ec._p == (RHSJ[1] * TZ2 * TJ[2]) % ec._p
+    valid_sig = TJ[1]*RHSZ2*RHSJ[2] % ec._p == RHSJ[1]*TZ2*TJ[2] % ec._p
+    assert valid_sig, "Invalid signature"
