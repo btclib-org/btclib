@@ -20,6 +20,12 @@ where Token = Union[int, str, bytes]:
 * bytes are for data (but integers are often casted to int)
 """
 
+from io import BytesIO
+from typing import BinaryIO, Iterable, List, Union
+
+from . import varint
+from .utils import Octets, bytes_from_hexstring
+
 OP_CODES = {
     # Constants
     'OP_0'                  : b'\x00',
@@ -227,12 +233,6 @@ OP_CODE_NAMES = {
     185: 'OP_NOP10',
 }
 
-from io import BytesIO
-from typing import BinaryIO, Iterable, List, Union
-
-from . import varint
-from .utils import Octets, bytes_from_hexstring
-
 # the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
 # the integer -1 is a shorcut for 'OP_1NEGATE'
 # other integers are bytes encoded (require push operation)
@@ -374,7 +374,8 @@ def serialize(script: Iterable[Token]) -> bytes:
 
 def deserialize(stream: Union[BinaryIO, Octets]) -> List[Token]:
 
-    stream = bytes_from_hexstring(stream)
+    if isinstance(stream, str):
+        stream = bytes_from_hexstring(stream)
 
     if isinstance(stream, bytes):
         stream = BytesIO(stream)
