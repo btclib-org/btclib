@@ -217,29 +217,29 @@ def _pubkey_recovery(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[Poin
     r1e = -r1*c
     keys: List[Point] = list()
     # r = R[0] % ec.n
-    # if ec.n < R[0] < ec._p (probable when cofactor ec.h > 1)
+    # if ec.n < R[0] < ec._p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
-    for j in range(ec.h):                                 # 1
+    for j in range(ec.h):                            # 1
         x = (r + j*ec.n) % ec._p                     # 1.1
         try:
             # even root first for bitcoin message signing compatibility
-            R = x, ec.y_odd(x, False)                     # 1.2, 1.3, and 1.4
+            R = x, ec.y_odd(x, False)                # 1.2, 1.3, and 1.4
             # 1.5 has been performed in the pubkey_recovery calling function
-            Q1 = double_mult(r1s, R, r1e, ec.G, ec)       # 1.6.1
+            Q1 = double_mult(r1s, R, r1e, ec.G, ec)  # 1.6.1
             try:
-                _verhlp(c, Q1, r, s, ec)                  # 1.6.2
+                _verhlp(c, Q1, r, s, ec)             # 1.6.2
             except Exception:
                 pass
             else:
-                keys.append(Q1)                           # 1.6.2
-            R = ec.opposite(R)                            # 1.6.3
+                keys.append(Q1)                      # 1.6.2
+            R = ec.opposite(R)                       # 1.6.3
             Q2 = double_mult(r1s, R, r1e, ec.G, ec)
             try:
-                _verhlp(c, Q2, r, s, ec)                  # 1.6.2
+                _verhlp(c, Q2, r, s, ec)             # 1.6.2
             except Exception:
                 pass
             else:
-                keys.append(Q2)                           # 1.6.2
+                keys.append(Q2)                      # 1.6.2
         except Exception:  # R is not a curve point
             pass
     return keys

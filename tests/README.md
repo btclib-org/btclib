@@ -21,13 +21,13 @@ then see htmlcov/index.html
 ## Profile
 
 ```shell
- python -m cProfile -s tottime setup.py test
+python -m cProfile -s tottime setup.py test
 ```
 
 ```shell
- python -m cProfile -s time setup.py test
+python -m cProfile -s time setup.py test
 ```
 
 ```shell
- python -m cProfile -o btclib.prof setup.py test
+python -m cProfile -o btclib.prof setup.py test
 ```
