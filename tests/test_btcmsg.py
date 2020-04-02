@@ -335,7 +335,7 @@ class TestSignMessage(unittest.TestCase):
         with open(path_to_filename, 'r') as f:
             test_vectors = json.load(f)
 
-        for vector in test_vectors[:50]:
+        for vector in test_vectors[:5]:
             msg = vector['address']
             tuplesig = btcmsg.sign(msg, vector['wif'])
             self.assertTrue(btcmsg.verify(msg, vector['address'], tuplesig))
