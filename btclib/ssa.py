@@ -20,11 +20,12 @@ import random
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
-from .alias import HashF, Octets, Point, SSASig, _JacPoint
+from .alias import HashF, Octets, Point, PubKey, SSASig, _JacPoint
 from .curve import Curve
 from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
                         double_mult, mult)
 from .curves import secp256k1
+from .to_pubkey import to_pub_bytes, to_pub_tuple
 from .numbertheory import legendre_symbol, mod_inv
 from .rfc6979 import rfc6979
 from .utils import (bytes_from_hexstring, int_from_bits, int_from_prvkey,
@@ -36,21 +37,18 @@ def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
     t = d.to_bytes(32, byteorder='big') + mhd
     h = hf()
     h.update(t)
-    # FIXME 0 < k < ec.n
+    # FIXME: 0 < k < ec.n
     return int.from_bytes(h.digest(), byteorder='big')
 
 
-def _e(r: int, P: Union[Point, Octets], mhd: Octets,
+def _e(r: int, P: PubKey, mhd: Octets,
        ec: Curve = secp256k1, hf: HashF = sha256) -> int:
 
     # Let e = int(hf(bytes(x(R)) || bytes(dG) || mhd)) mod n.
     h = hf()
     h.update(r.to_bytes(ec.psize, 'big'))
-    if not isinstance(P, tuple):
-        # it does test for a valid point,
-        # while getting rid of any uncompressed representation
-        P = point_from_octets(P, ec)
-    h.update(octets_from_point(P, True, ec))
+    P = to_pub_bytes(P, True, ec)
+    h.update(P)
     h.update(bytes_from_hexstring(mhd, hf().digest_size))
     e = int_from_bits(h.digest(), ec)
     return e
@@ -105,7 +103,7 @@ def sign(mhd: Octets, d: Union[int, Octets], k: Optional[int] = None,
     return r, s
 
 
-def verify(mhd: Octets, P: Union[Point, Octets], sig: SSASig,
+def verify(mhd: Octets, P: PubKey, sig: SSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECSSA signature verification according to bip-schnorr."""
 
@@ -118,7 +116,7 @@ def verify(mhd: Octets, P: Union[Point, Octets], sig: SSASig,
         return True
 
 
-def _verify(mhd: Octets, P: Union[Point, Octets], sig: SSASig,
+def _verify(mhd: Octets, P: PubKey, sig: SSASig,
             ec: Curve = secp256k1, hf: HashF = sha256) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -136,10 +134,7 @@ def _verify(mhd: Octets, P: Union[Point, Octets], sig: SSASig,
     _check_sig(r, s, ec)
 
     # Let P = point(pk); fail if point(pk) fails.
-    if isinstance(P, tuple):
-        ec.require_on_curve(P)
-    else:
-        P = point_from_octets(P, ec)
+    P = to_pub_tuple(P, ec)
     if P[1] == 0:
         raise ValueError("public key is infinite")
 

@@ -12,18 +12,32 @@ import unittest
 
 from btclib import bip32, slip32
 from btclib.base58 import b58decode, b58encode
-from btclib.base58address import (_b58segwitaddress, h160_from_b58address,
-                                  p2pkh, p2pkh_from_wif, p2sh, p2wpkh_p2sh,
-                                  p2wpkh_p2sh_from_wif, p2wsh_p2sh)
+from btclib.base58address import (_b58segwitaddress, b58address_from_h160,
+                                  h160_from_b58address, p2pkh, p2pkh_from_wif,
+                                  p2sh, p2wpkh_p2sh, p2wpkh_p2sh_from_wif,
+                                  p2wsh_p2sh)
 from btclib.base58wif import prvkeytuple_from_wif, wif_from_xprv
 from btclib.bech32address import p2wpkh_from_wif, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
-from btclib.utils import (h160_from_pubkey, hash160, octets_from_point,
-                          point_from_octets, sha256)
+from btclib.to_pubkey import to_pub_bytes
+from btclib.utils import hash160, octets_from_point, point_from_octets, sha256
 
 
 class TestAddresses(unittest.TestCase):
+
+    def test_b58address_from_h160(self):
+        addr = b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs'
+        prefix, payload, _, _ = h160_from_b58address(addr)
+        self.assertEqual(addr, b58address_from_h160(prefix, payload))
+
+        addr = b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM'
+        prefix, payload, _, _ = h160_from_b58address(addr)
+        self.assertEqual(addr, b58address_from_h160(prefix, payload))
+
+        addr = b'37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP'
+        prefix, payload, _, _ = h160_from_b58address(addr)
+        self.assertEqual(addr, b58address_from_h160(prefix, payload))
 
     def test_p2pkh_from_wif(self):
         seed = b"00"*32  # better be random
@@ -42,27 +56,26 @@ class TestAddresses(unittest.TestCase):
     def test_p2pkh_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
         pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
-        addr = p2pkh(pub)
+        addr = p2pkh(pub, True)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        _, hash2, _, _ = h160_from_b58address(addr)
-        self.assertEqual(hash2, hash160(pub))
+        _, h160, _, _ = h160_from_b58address(addr)
+        self.assertEqual(h160, hash160(pub))
 
-        uncompressed_pub = octets_from_point(
-            point_from_octets(pub, ec), False, ec)
-        addr = p2pkh(uncompressed_pub)
+        uncompr_pub = octets_from_point(point_from_octets(pub, ec), False, ec)
+        addr = p2pkh(uncompr_pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
-        _, hash2, _, _ = h160_from_b58address(addr)
-        self.assertEqual(hash2, hash160(uncompressed_pub))
+        _, h160, _, _ = h160_from_b58address(addr)
+        self.assertEqual(h160, hash160(uncompr_pub))
 
         # trailing/leading spaces in string
-        pub = '  0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
-        addr = p2pkh(pub)
+        pub = '  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
+        addr = p2pkh(pub, True)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
-        _, hash2, _, _ = h160_from_b58address(addr)
-        self.assertEqual(hash2, hash160(pub))
+        _, h160, _, _ = h160_from_b58address(addr)
+        self.assertEqual(h160, hash160(pub))
 
-        pub = '0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  '
-        addr = p2pkh(pub)
+        pub = '02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  '
+        addr = p2pkh(pub, True)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
 
     def test_p2sh_from_script(self):
@@ -87,8 +100,8 @@ class TestAddresses(unittest.TestCase):
         _ = encode(output_script)
 
         # address with trailing/leading spaces
-        _, h2, _, _ = h160_from_b58address(' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
-        self.assertEqual(redeem_script_hash, h2)
+        _, h160, _, _ = h160_from_b58address(' 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP ')
+        self.assertEqual(redeem_script_hash, h160)
 
     def test_exceptions(self):
 
@@ -101,7 +114,7 @@ class TestAddresses(unittest.TestCase):
         #_h160_from_b58address(invalid_address)
 
         # Invalid SEC pubkey length: 34-bytes
-        self.assertRaises(ValueError, p2pkh, pubkey+'00')
+        self.assertRaises(ValueError, p2pkh, pubkey+'00', True)
         # p2pkh(pubkey+'00')
 
     def test_witness(self):
@@ -113,7 +126,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
 
-        b58addr = _b58segwitaddress(h160_from_pubkey(pub))
+        b58addr = _b58segwitaddress(hash160(to_pub_bytes(pub, True, ec)))
         _, h160_2, network, is_script_hash = h160_from_b58address(b58addr)
         self.assertEqual(network, 'mainnet')
         self.assertEqual(is_script_hash, True)  #?!?!?

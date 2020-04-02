@@ -44,7 +44,7 @@ from .curve import Curve
 from .curves import secp256k1
 from .utils import _int_from_bits, bytes_from_hexstring, int_from_bits
 
-# TODO accept Octets private key
+# TODO: accept Octets private key
 
 def rfc6979(mhd: Octets, q: int,
             ec: Curve = secp256k1, hf: HashF = sha256) -> int:

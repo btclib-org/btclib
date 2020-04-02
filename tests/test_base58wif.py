@@ -19,7 +19,7 @@ from btclib.curves import secp256k1 as ec
 
 class TestWif(unittest.TestCase):
 
-    # TODO add test_wif_from_xprv
+    # TODO: add test_wif_from_xprv
 
     def test_wif_from_prvkey(self):
         prvkey = '0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'

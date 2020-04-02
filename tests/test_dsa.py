@@ -9,13 +9,13 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from hashlib import sha256, sha1
+from hashlib import sha1, sha256
 
+from btclib import der, dsa
+from btclib.curvemult import double_mult, mult
+from btclib.curves import low_card_curves, secp112r2, secp160r1, secp256k1
 from btclib.numbertheory import mod_inv
-from btclib.curvemult import mult, double_mult
-from btclib.curves import secp256k1, secp112r2, secp160r1, low_card_curves
-from btclib.utils import point_from_octets, octets_from_point
-from btclib import dsa
+from btclib.utils import octets_from_point, point_from_octets
 
 
 class TestDSA(unittest.TestCase):
@@ -184,9 +184,9 @@ class TestDSA(unittest.TestCase):
         k = sighash = None
         sig = dsa.sign(msg, q, k, ec)
         self.assertTrue(dsa.verify(msg, Q, sig, ec))
-        dersig = dsa.serialize(*sig, sighash, ec)
+        dersig = der.serialize(*sig, sighash, ec)
         self.assertTrue(dsa.verify(msg, Q, dersig, ec))
-        r, s, _ = dsa.deserialize(dersig)
+        r, s, _ = der.deserialize(dersig)
         self.assertEqual((r, s), sig)
 
 

@@ -171,14 +171,14 @@ class TestSegwitAddress(unittest.TestCase):
         _, wp, _, _ = witness_from_b32address(addr)
         self.assertEqual(bytes(wp), hash160(pub))
 
-        # Uncompressed pubkey
+        # Wrong size (65-bytes) for compressed SEC key
         uncompr_pub = octets_from_point(point_from_octets(pub, ec), False, ec)
         self.assertRaises(ValueError, p2wpkh, uncompr_pub)
-        # p2wpkh(uncompr_pub)
+        #p2wpkh(uncompr_pub)
 
         # Wrong pubkey size: 34 instead of 33
         self.assertRaises(ValueError, p2wpkh, pub + '00')
-        # p2wpkh(pub + '00')
+        #p2wpkh(pub + '00')
 
         # Witness program length (21) is not 20
         self.assertRaises(ValueError, b32address_from_witness, 0, hash160(pub) + b'\x00')

@@ -18,44 +18,45 @@ https://www.secg.org/sec1-v2.pdf
 import hashlib
 from typing import Optional, Union
 
-from .alias import HashF, Octets, Point, String
+from .alias import HashF, Octets, Point, PubKey, String
 from .curve import Curve
 from .curves import secp256k1
 
 
-def point_from_octets(o: Octets, ec: Curve = secp256k1) -> Point:
+def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
     """Return a tuple (Px, Py) that belongs to the curve.
 
     Return a tuple (Px, Py) that belongs to the curve according to
     SEC 1 v.2, section 2.3.4.
     """
 
-    o = bytes_from_hexstring(o)
+    pubkey = bytes_from_hexstring(pubkey)
 
-    bsize = len(o)  # bytes
-    if bsize == 1 and o[0] == 0x00:      # infinity point
+    # TODO: remove support for infinity point?
+    bsize = len(pubkey)  # bytes
+    if bsize == 1 and pubkey[0] == 0x00:      # infinity point
         return 1, 0
 
-    if bsize == ec.psize+1:              # compressed point
-        if o[0] not in (0x02, 0x03):
+    if bsize == ec.psize + 1:                 # compressed point
+        if pubkey[0] not in (0x02, 0x03):
             msg = f"{ec.psize+1} bytes, but not a compressed point"
             raise ValueError(msg)
-        Px = int.from_bytes(o[1:], byteorder='big')
+        Px = int.from_bytes(pubkey[1:], byteorder='big')
         try:
-            Py = ec.y_odd(Px, o[0] % 2)  # also check Px validity
+            Py = ec.y_odd(Px, pubkey[0] % 2)  # also check Px validity
             return Px, Py
         except:
             msg = f"{ec.psize+1} bytes, but not a valid x coordinate {Px}"
             raise ValueError(msg)
-    else:                                # uncompressed point
-        if bsize != 2*ec.psize+1:
+    else:                                     # uncompressed point
+        if bsize != 2*ec.psize + 1:
             msg = f"wrong byte-size ({bsize}) for a point: it "
             msg += f"should have be {ec.psize+1} or {2*ec.psize+1}"
             raise ValueError(msg)
-        if o[0] != 0x04:
+        if pubkey[0] != 0x04:
             raise ValueError("not an uncompressed point")
-        Px = int.from_bytes(o[1:ec.psize+1], byteorder='big')
-        P = Px, int.from_bytes(o[ec.psize+1:], byteorder='big')
+        Px = int.from_bytes(pubkey[1:ec.psize+1], byteorder='big')
+        P = Px, int.from_bytes(pubkey[ec.psize+1:], byteorder='big')
         if ec.is_on_curve(P):
             return P
         else:
@@ -171,22 +172,6 @@ def bytes_from_hexstring(o: Union[bytes, str], out_size: Optional[int] = None) -
 
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"
     raise ValueError(m)
-
-
-def h160_from_pubkey(pubkey: Octets,
-                     compressed_only: bool = True, ec: Curve = secp256k1) -> bytes:
-
-    pubkey = bytes_from_hexstring(pubkey)
-    plength = len(pubkey)
-
-    compressed = pubkey[0] in (2, 3) and plength == ec.psize+1
-    uncompressed = pubkey[0] == 4 and plength == 2*ec.psize+1
-    if not (compressed or uncompressed):
-        raise ValueError(f"Invalid SEC public key: {pubkey.hex()}")
-
-    if uncompressed and compressed_only:
-        raise ValueError(f"Compressed SEC public key: {pubkey.hex()}")
-    return hash160(pubkey)
 
 
 def ensure_is_power_of_two(n: int, var_name: str = None) -> None:

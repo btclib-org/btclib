@@ -145,12 +145,12 @@ from hashlib import sha256
 from typing import Optional, Tuple, Union
 
 from . import dsa
-from .alias import BMSig
+from .alias import BMSig, Octets, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import prvkeytuple_from_wif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
-from .utils import Octets, String, hash160, octets_from_point
+from .utils import hash160, octets_from_point
 
 
 def _magic_hash(msg: String) -> bytes:
@@ -213,7 +213,7 @@ def sign(msg: String, wif: String,
     pubkey = octets_from_point(Q, compressed)
 
     # finally, calculate the recovery flag
-    if addr is None or addr == p2pkh(pubkey):
+    if addr is None or addr == p2pkh(pubkey, compressed):
         rf = key_id + 27
         rf += 4 if compressed else 0
     # BIP137

@@ -46,9 +46,10 @@
 from typing import Optional, Tuple
 
 from . import dsa
+from .alias import DERSigTuple, Octets
 from .curve import Curve
 from .curves import secp256k1
-from .utils import Octets, bytes_from_hexstring
+from .utils import bytes_from_hexstring
 
 sighash_all = b'\x01'
 sighash_none = b'\x02'
@@ -65,7 +66,6 @@ sighashes = [
     sighash_single_anyonecanpay,
 ]
 
-
 def _bytes_from_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
     elen = scalar.bit_length()
@@ -81,8 +81,7 @@ def _serialize_scalar(scalar: int) -> bytes:
     return b'\x02' + xsize + x
 
 
-def serialize(r: int, s: int,
-              sighash: Optional[Octets],
+def serialize(r: int, s: int, sighash: Optional[Octets],
               ec: Curve = secp256k1) -> bytes:
     """Serialize an ECDSA signature in strict ASN.1 DER representation.
 
@@ -101,8 +100,7 @@ def serialize(r: int, s: int,
     return result + sighash
 
 
-def deserialize(dersig: Octets,
-                ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
+def deserialize(dersig: Octets, ec: Curve = secp256k1) -> DERSigTuple:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
 
     Return r, s, sighash; sighash is None if not available.

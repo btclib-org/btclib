@@ -45,7 +45,6 @@ class TestBIP32(unittest.TestCase):
         xpub2 = xpub_from_xprv(deserialize(xprv))
         self.assertEqual(xpub, xpub2)
 
-
     def test_fingerprint(self):
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         f = fingerprint(xprv)
@@ -531,7 +530,8 @@ class TestBIP32(unittest.TestCase):
         mnemonic = bip39.mnemonic_from_entropy(raw_entr, 'en')
         seed = bip39.seed_from_mnemonic(mnemonic, '')
 
-        # p2pkh BIP44 m / 44' / coin_type' / account' / change / address_index
+        # p2pkh BIP44
+        # m / 44' / coin_type' / account' / change / address_index
         path = "m/44h/1h/0h"
         version = TEST_tprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -549,7 +549,8 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'myWcXdNais9ExumnGKnNoJwoihQKfNPG9i'
         self.assertEqual(address, exp_address)
 
-        # legacy segwit (p2wpkh-p2sh) m / 49'/ coin_type' / account' / change / address_index
+        # legacy segwit (p2wpkh-p2sh)
+        # m / 49'/ coin_type' / account' / change / address_index
         path = "m/49h/1h/0h"
         version = TEST_uprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -567,7 +568,8 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'2N872CRJ3E1CzWjfixXr3aeC3hkF5Cz4kWb'
         self.assertEqual(address, exp_address)
 
-        # legacy segwit (p2wsh-p2sh) m / 49'/ coin_type' / account' / change / address_index
+        # legacy segwit (p2wsh-p2sh)
+        # m / 49'/ coin_type' / account' / change / address_index
         path = "m/49h/1h/0h"
         version = TEST_Uprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -576,7 +578,8 @@ class TestBIP32(unittest.TestCase):
         exp = b'Upub5QdDrMHJWmBrWhwG1nskCtnoTdn91PBwqWU1BbiUFXA2ETUSTc5KiaWZZhSoj5c4KUBTr7Anv92P4U9Dqxd1zDTyQkaWYfmVP2U3Js1W5cG'
         self.assertEqual(xpub, exp)
 
-        # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
+        # native segwit (p2wpkh)
+        # m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/1h/0h"
         version = TEST_vprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -596,7 +599,8 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'
         # FIXME: self.assertEqual(address, exp_address)
 
-        # native segwit (p2wsh) m / 84'/ coin_type' / account' / change / address_index
+        # native segwit (p2wsh)
+        # m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/1h/0h"
         version = TEST_Vprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -615,7 +619,8 @@ class TestBIP32(unittest.TestCase):
         mnemonic = bip39.mnemonic_from_entropy(raw_entr, 'en')
         seed = bip39.seed_from_mnemonic(mnemonic, '')
 
-        # p2pkh BIP44 m / 44' / coin_type' / account' / change / address_index
+        # p2pkh BIP44
+        # m / 44' / coin_type' / account' / change / address_index
         path = "m/44h/0h/0h"
         version = MAIN_xprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -633,7 +638,8 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'1FhKoffreKHzhtBMVW9NSsg3ZF148JPGoR'
         self.assertEqual(address, exp_address)
 
-        # legacy segwit (p2wpkh-p2sh) m / 49'/ coin_type' / account' / change / address_index
+        # legacy segwit (p2wpkh-p2sh)
+        # m / 49'/ coin_type' / account' / change / address_index
         path = "m/49h/0h/0h"
         version = MAIN_yprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -651,7 +657,8 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'34FLgkoRYX5Q5fqiZCZDwsK5GpXxmFuLJN'
         self.assertEqual(address, exp_address)
 
-        # legacy segwit (p2wsh-p2sh) m / 49'/ coin_type' / account' / change / address_index
+        # legacy segwit (p2wsh-p2sh)
+        # m / 49'/ coin_type' / account' / change / address_index
         path = "m/49h/0h/0h"
         version = MAIN_Yprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -660,7 +667,8 @@ class TestBIP32(unittest.TestCase):
         exp = b'Ypub6j5Mkne6mTDAp4vkUL6qLmuyvKug1gzxyA2S8QrvqdABQW4gVNrQk8mEeeE7Kcp2z4EYgsofYjnxTm8b3km22EWt1Km3bszdVFRcipc6rXu'
         self.assertEqual(xpub, exp)
 
-        # native segwit (p2wpkh) m / 84'/ coin_type' / account' / change / address_index
+        # native segwit (p2wpkh)
+        # m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/0h/0h"
         version = MAIN_zprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -678,7 +686,8 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'bc1qy4x03jyl88h2zeg7l287xhv2xrwk4c3ztfpjd2'
         self.assertEqual(address, exp_address)
 
-        # native segwit (p2wsh) m / 84'/ coin_type' / account' / change / address_index
+        # native segwit (p2wsh)
+        # m / 84'/ coin_type' / account' / change / address_index
         path = "m/84h/0h/0h"
         version = MAIN_Zprv
         rootprv = rootxprv_from_seed(seed, version)
@@ -686,10 +695,6 @@ class TestBIP32(unittest.TestCase):
         xpub = xpub_from_xprv(xprv)
         exp = b'Zpub72a8bqjcjNJnMBLrV2EY7XLQbfji28irEZneqYK6w8Zf16sfhr7zDbLsVQficP9j9uzbF6VW1y3ypmeFKf6Dxaw82WvK8WFjcsLyEvMNZjF'
         self.assertEqual(xpub, exp)
-
-    def test_regtest_versions(self):
-        pass
-        # FIXME: how to obtain regtest addresses from btclib?
 
     def test_rootxprv_from_mnemonic(self):
         mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"

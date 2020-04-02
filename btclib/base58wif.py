@@ -11,17 +11,17 @@
 from typing import Optional, Tuple, TypedDict, Union
 
 from . import bip32
+from .alias import Octets, String, XkeyDict
 from .base58 import b58decode, b58encode
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
 from .network import (_CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES,
                       _WIF_PREFIXES)
-from .utils import (Octets, String, bytes_from_hexstring, int_from_prvkey,
-                    octets_from_point)
+from .utils import bytes_from_hexstring, int_from_prvkey, octets_from_point
 
 
-def wif_from_xprv(xkey: Union[bip32.XkeyDict, String]) -> bytes:
+def wif_from_xprv(xkey: Union[XkeyDict, String]) -> bytes:
     """Return the WIF encoding of a BIP32 extended private key.
 
     The WIF is always of the compressed kind,
@@ -66,7 +66,7 @@ def wif_from_prvkey(prvkey: Union[int, Octets],
     return b58encode(payload)
 
 
-def prvkeytuple_from_xprvwif(xkeywif: Union[bip32.XkeyDict, String],
+def prvkeytuple_from_xprvwif(xkeywif: Union[XkeyDict, String],
                              network: str = 'mainnet') -> Tuple[int, Optional[bool], Optional[str]]:
     """Return a verified-as-valid private key tuple (prvkey, compressed, network).
 
@@ -109,7 +109,7 @@ def prvkeytuple_from_wif(wif: String) -> Tuple[int, bool, str]:
     return q, compressed, network
 
 
-def prvkeytuple_from_xprv(xkey: Union[bip32.XkeyDict, String]) -> Tuple[int, bool, str]:
+def prvkeytuple_from_xprv(xkey: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
     """Return the (private key, compressed, network) tuple from a BIP32 xprv."""
 
     if not isinstance(xkey, dict):
@@ -126,11 +126,11 @@ def prvkeytuple_from_xprv(xkey: Union[bip32.XkeyDict, String]) -> Tuple[int, boo
 # helper function
 
 
-def _pubkeytuple_from_wif(wif: String) -> Tuple[bytes, str]:
+def _pubkeytuple_from_wif(wif: String) -> Tuple[bytes, bool, str]:
 
-    prv, compressed, network = prvkeytuple_from_wif(wif)
+    prvkey, compressed, network = prvkeytuple_from_wif(wif)
     network_index = _NETWORKS.index(network)
     ec = _CURVES[network_index]
-    Pub = mult(prv, ec.G, ec)
-    o = octets_from_point(Pub, compressed, ec)
-    return o, network
+    Pub = mult(prvkey, ec.G, ec)
+    pubkey = octets_from_point(Pub, compressed, ec)
+    return pubkey, compressed, network

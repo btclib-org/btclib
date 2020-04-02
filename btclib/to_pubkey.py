@@ -11,13 +11,14 @@
 from typing import Union
 
 from . import bip32
-from .curve import Curve, Point
+from .alias import Point, PubKey
+from .curve import Curve
 from .curves import secp256k1
-from .utils import octets_from_point, point_from_octets
+from .utils import bytes_from_hexstring, octets_from_point, point_from_octets
 
+# TODO: raise exception for infinite point?
 
-def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str],
-                 ec: Curve = secp256k1) -> Point:
+def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str], ec: Curve) -> Point:
     """Return a public key tuple from any possible representation.
 
     It supports:
@@ -33,8 +34,7 @@ def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str],
     elif isinstance(P, dict):
         if P['q'] != 0:
             raise ValueError(f"Not a public key: {P['key'].hex()}")
-        else:
-            return P['Q']
+        return P['Q']
     else:
         try:
             xkey = bip32.deserialize(P)
@@ -43,14 +43,12 @@ def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str],
         else:
             if xkey['q'] != 0:
                 raise ValueError(f"Not a public key: {xkey['key'].hex()}")
-            else:
-                return xkey['Q']
+            return xkey['Q']
 
     return point_from_octets(P, ec)
 
 
-def to_pub_bytes(P: Union[Point, bytes, str, bip32.XkeyDict],
-                 compressed: bool = True, ec: Curve = secp256k1) -> bytes:
+def to_pub_bytes(P: Union[Point, bytes, str, bip32.XkeyDict], compressed: bool, ec: Curve) -> bytes:
     """Return a public key tuple from any possible representation.
 
     It supports:
@@ -63,26 +61,32 @@ def to_pub_bytes(P: Union[Point, bytes, str, bip32.XkeyDict],
     if isinstance(P, tuple):
         return octets_from_point(P, compressed, ec)
     elif isinstance(P, dict):
+        if not compressed:
+            m = "Uncompressed BIP32 / compressed SEC key mismatch"
+            raise ValueError(m)
         if P['q'] != 0:
             raise ValueError(f"Not a public key: {P['key'].hex()}")
-        else:
-            if compressed:
-                return P['key']
-            else:
-                return octets_from_point(P['Q'], False, ec)
+        return P['key']
     else:
         try:
             xkey = bip32.deserialize(P)
         except Exception:
             pass
         else:
+            if not compressed:
+                m = "Uncompressed BIP32 / compressed SEC key mismatch"
+                raise ValueError(m)
             if xkey['q'] != 0:
                 raise ValueError(f"Not a public key: {xkey['key'].hex()}")
-            else:
-                if compressed:
-                    return xkey['key']
-                else:
-                    return octets_from_point(xkey['Q'], False, ec)
+            return xkey['key']
 
-        Q = point_from_octets(P, ec)
+
+        pubkey = bytes_from_hexstring(P)
+        if not compressed and len(pubkey) != 2*ec.psize + 1:
+            m = f"Wrong size ({len(pubkey)}-bytes) for uncompressed SEC key"
+            raise ValueError(m)
+        if compressed and len(pubkey) != ec.psize + 1:
+            m = f"Wrong size ({len(pubkey)}-bytes) for compressed SEC key"
+            raise ValueError(m)
+        Q = point_from_octets(pubkey, ec)  # verify it is a valid point
         return octets_from_point(Q, compressed, ec)

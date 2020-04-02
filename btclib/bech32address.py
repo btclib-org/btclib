@@ -44,12 +44,13 @@ with the following modifications:
 
 from typing import Iterable, List, Tuple, Union
 
-from .alias import Octets, String, XkeyDict
+from .alias import Octets, PubKey, String, XkeyDict
 from .base58wif import _pubkeytuple_from_wif
 from .bech32 import b32decode, b32encode
 from .bip32 import deserialize
-from .network import _NETWORKS, _P2W_PREFIXES
-from .utils import bytes_from_hexstring, h160_from_pubkey, hash160, sha256
+from .to_pubkey import to_pub_bytes
+from .network import _CURVES, _NETWORKS, _P2W_PREFIXES
+from .utils import bytes_from_hexstring, hash160, sha256
 
 
 def has_segwit_prefix(addr: String) -> bool:
@@ -150,16 +151,21 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     return witvers, bytes(witprog), _NETWORKS[i], is_script_hash
 
 
-def p2wpkh(pubkey: Octets, network: str = 'mainnet') -> bytes:
+def p2wpkh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
-    h160 = h160_from_pubkey(pubkey)
+    network_index = _NETWORKS.index(network)
+    ec = _CURVES[network_index]
+    pubkey = to_pub_bytes(pubkey, True, ec)
+    h160 = hash160(pubkey)
     return b32address_from_witness(0, h160, network)
 
 
 def p2wpkh_from_wif(wif: String) -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
-    o, network = _pubkeytuple_from_wif(wif)
-    return p2wpkh(o, network)
+    pubkey, compressed, network = _pubkeytuple_from_wif(wif)
+    if not compressed:
+        raise ValueError ("No p2wpkh from compressed wif")
+    return p2wpkh(pubkey, network)
 
 
 def p2wpkh_from_xpub(d: Union[XkeyDict, String]) -> bytes:

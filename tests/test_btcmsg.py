@@ -328,7 +328,6 @@ class TestSignMessage(unittest.TestCase):
         https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/data/btcmsg.json
         """
 
-        # FIXME
         filename = "btcmsg.json"
         path_to_filename = path.join(path.dirname(__file__),
                                      "./data/", filename)
@@ -386,8 +385,8 @@ class TestSignMessage(unittest.TestCase):
         dsa._verify(magic_msg, pubkey1, dersig)
         #dsa._verify(magic_msg, pubkey2, dersig)
 
-        addr1 = p2pkh(pubkey1)
-        addr2 = p2pkh(pubkey2)
+        addr1 = p2pkh(pubkey1, False)
+        addr2 = p2pkh(pubkey2, True)
 
         # equivalent Bitcoin Message Signature verification
         dersig = bytes.fromhex(dersig)
@@ -419,8 +418,8 @@ class TestSignMessage(unittest.TestCase):
         dsa._verify(magic_msg, pubkey1, dersig)
         dsa._verify(magic_msg, pubkey2, dersig)
 
-        addr1 = p2pkh(pubkey1)
-        addr2 = p2pkh(pubkey2)
+        addr1 = p2pkh(pubkey1, False)
+        addr2 = p2pkh(pubkey2, True)
 
         # equivalent Bitcoin Message Signature verification
         bad_dersig = bytes.fromhex(bad_dersig)

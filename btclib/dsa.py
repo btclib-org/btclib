@@ -21,32 +21,14 @@ from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
 from . import der
-from .alias import DSASig, HashF, Octets, Point, String, XkeyDict
+from .alias import DSASig, HashF, Octets, Point, PubKey, String
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac, double_mult
 from .curves import secp256k1
+from .to_pubkey import to_pub_tuple
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
 from .utils import int_from_bits, int_from_prvkey, point_from_octets
-
-
-def serialize(r: int, s: int,
-              sighash: Optional[Octets], ec: Curve = secp256k1) -> bytes:
-    """Serialize an ECDSA signature in strict ASN.1 DER representation.
-
-    Trailing sighash is added if provided
-    """
-    return der.serialize(r, s, sighash, ec)
-
-
-def deserialize(dersig: Octets,
-                ec: Curve = secp256k1) -> Tuple[int, int, Optional[bytes]]:
-    """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
-
-    Return r, s, sighash; sighash is None if not available.
-    """
-    return der.deserialize(dersig, ec)
-
 
 def sign(msg: String, q: Union[int, Octets], k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
@@ -116,7 +98,7 @@ def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> Tuple[int, int]:
     return r, s
 
 
-def verify(msg: String, P: Union[Point, Octets], sig: DSASig,
+def verify(msg: String, P: PubKey, sig: DSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
@@ -129,7 +111,7 @@ def verify(msg: String, P: Union[Point, Octets], sig: DSASig,
         return True
 
 
-def _verify(msg: String, P: Union[Point, Octets], sig: DSASig,
+def _verify(msg: String, P: PubKey, sig: DSASig,
             ec: Curve = secp256k1, hf: HashF = sha256) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -151,10 +133,7 @@ def _verify(msg: String, P: Union[Point, Octets], sig: DSASig,
     c = int_from_bits(mhd, ec)                           # 3
 
     # Let P = point(pk); fail if point(pk) fails.
-    if isinstance(P, tuple):
-        ec.require_on_curve(P)
-    else:
-        P = point_from_octets(P, ec)
+    P = to_pub_tuple(P, ec)
 
     # second part delegated to helper function
     _verhlp(c, P, r, s, ec)
@@ -210,6 +189,7 @@ def pubkey_recovery(msg: String, sig: DSASig,
 def _pubkey_recovery(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[Point]:
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
+    # TODO: allow for single key calculation
 
     # precomputations
     r1 = mod_inv(r, ec.n)

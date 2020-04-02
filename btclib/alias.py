@@ -14,8 +14,8 @@ mypy aliases, documenting also coding imput conventions.
 """
 
 
-from typing import Any, Callable, Iterable, List, Tuple, TypedDict, Union
-
+from typing import (Any, Callable, Iterable, List, Optional, Tuple, TypedDict,
+                    Union)
 
 # binary octets are eight-bit bytes or hex-string (not text string)
 #
@@ -42,6 +42,7 @@ Octets = Union[bytes, str]
 #
 # in those cases often there is no need to encode() to bytes
 # as b58decode/b32decode/etc. will take care of that
+# also those string are 'ascii', a subset of 'utf-8'
 String = Union[bytes, str]
 
 
@@ -70,7 +71,7 @@ _JacPoint = Tuple[int, int, int]
 # relative path as sequence of integer indexes
 # relative one level child derivation with single 4-bytes index
 # relative one level child derivation with single integer index
-# TODO allow also Iterable[bytes], while making mypy happy
+# TODO: allow also Iterable[bytes], while making mypy happy
 Path = Union[str, Iterable[int], int, bytes]
 
 
@@ -88,10 +89,23 @@ class XkeyDict(TypedDict):
     network            : str  # mainnet, testnet, regtest, etc.
 
 
+# typical inputs:
+# BIP32key -> xkey: Union[XkeyDict, String]
+# private key (no extra info) -> q: Union[int, Octets]
+# private key (with network and compressed): -> 
+
+PubKey = Union[Point, XkeyDict, bytes, str]
+
+
 # ECDSA signature
 # (r, s) or DER serialization (bytes or hex-string)
 # both r and s are scalar: 0 < r < ec.n, 0 < s < ec.n 
 DSASig = Union[Tuple[int, int], Octets]
+
+
+#DER serialization
+# (r, s, sighash)
+DERSigTuple = Tuple[int, int, Optional[bytes]]
 
 
 # Bitcoin message signature
@@ -105,7 +119,3 @@ BMSig = Union[Tuple[int, int, int], Octets]
 # Tuple[field element, scalar]
 # r is a field element, s is a scalar: 0 < r < ec.p, 0 < s < ec.n 
 SSASig = Tuple[int, int]
-
-
-# commitment receipt
-Receipt = Tuple[int, Point]

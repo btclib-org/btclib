@@ -14,50 +14,51 @@
 
 from typing import Iterable, List, Tuple, Union
 
-from .base58address import (_P2PKH_PREFIXES, _P2SH_PREFIXES,
-                            b58address_from_h160, h160_from_b58address)
+from .alias import Octets, PubKey, String
+from .base58address import b58address_from_h160, h160_from_b58address
 from .bech32address import (b32address_from_witness, has_segwit_prefix,
                             witness_from_b32address)
+from .curves import secp256k1
+from .network import _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
 from .script import Token, encode
-from .utils import Octets, String, bytes_from_hexstring
+from .to_pubkey import to_pub_bytes
+from .utils import bytes_from_hexstring
 
 
 def nulldata_scriptPubKey(data: Octets) -> List[Token]:
     """Return the nulldata scriptPubKey with the provided data."""
 
     data = bytes_from_hexstring(data)
-    if len(data) > 40:
+    if len(data) > 80:
         msg = f"Invalid data lenght ({len(data)} bytes) "
         msg += "for nulldata scriptPubKey"
         raise ValueError(msg)
     return ['OP_RETURN', data.hex()]
 
 
-def p2pk_scriptPubKey(pubkey: Octets) -> List[Token]:
+def p2pk_scriptPubKey(pubkey: PubKey) -> List[Token]:
     """Return the p2pk scriptPubKey of the provided pubkey."""
 
-    pubkey = bytes_from_hexstring(pubkey)
-    if len(pubkey) not in (33, 65):
-        msg = f"Invalid pubkey lenght ({len(pubkey)} bytes) "
-        msg += "for p2pk scriptPubKey"
-        raise ValueError(msg)
+    # FIXME: does P2PK work also with compressed key?
+    # TODO: remove hardcoded secp256k1
+    compressed = False
+    pubkey = to_pub_bytes(pubkey, compressed, secp256k1)
     return [pubkey.hex(), 'OP_CHECKSIG']
 
 
-def multisig_scriptPubKey(m: int, pubkeys: Iterable[Octets]) -> List[Token]:
+def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey]) -> List[Token]:
     """Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."""
 
     if m<1 or m>16:
-        raise ValueError(f"Invalid m ({m})")
+        raise ValueError(f"Invalid m ({m}) in m-of-n")
         # raise ValueError("Impossible m-of-n ({m}-of-{n})")
 
     scriptPubKey : List[Token] = [m]
+    # FIXME: does P2MS work also with compressed key?
+    # TODO: remove hardcoded secp256k1
+    compressed = False
     for pubkey in pubkeys:
-        pubkey = bytes_from_hexstring(pubkey)
-        if len(pubkey) not in (33, 65):
-            msg = f"Invalid pubkey lenght ({len(pubkey)} bytes) "
-            msg += "for m-of-n multi-sig scriptPubKey"
-            raise ValueError(msg)
+        pubkey = to_pub_bytes(pubkey, compressed, secp256k1)
         scriptPubKey.append(pubkey.hex())
 
     # FIXME: handle script max length
@@ -68,7 +69,7 @@ def multisig_scriptPubKey(m: int, pubkeys: Iterable[Octets]) -> List[Token]:
     if m>n:
         raise ValueError(f"Impossible m-of-n ({m}-of-{n})")
     scriptPubKey.append(n)
-    scriptPubKey.append('OP_CHECKMULTISIGVERIFY')
+    scriptPubKey.append('OP_CHECKMULTISIG')
     return scriptPubKey
 
 
@@ -112,24 +113,27 @@ def p2wsh_scriptPubKey(script_h256: Octets) -> List[Token]:
     return [0, script_h256.hex()]
 
 
-def address_from_scriptPubKey(scriptPubKey: Iterable[Token],
+def address_from_scriptPubKey(s: Union[Iterable[Token], bytes],
                               network: str = "mainnet") -> bytes:
     """Return the bech32/base58 address from the input scriptPubKey."""
 
-    s = encode(scriptPubKey)
-    len_s = len(s)
+    if not isinstance(s, bytes):
+        s = encode(s)
+    length = len(s)
     # [0, script_hash] : 0x0020{32-byte key-script_hash}
-    if len_s == 34 and s[:2] == b'\x00\x20':
+    if length == 34 and s[:2] == b'\x00\x20':
         return b32address_from_witness(0, s[2:], network)
     # [0, key_hash]    : 0x0014{20-byte key-hash}
-    elif len_s == 22 and s[:2] == b'\x00\x14':
+    elif length == 22 and s[:2] == b'\x00\x14':
         return b32address_from_witness(0, s[2:], network)
-    elif len_s == 23 and s[:2] == b'\xa9\x14' and s[-1:] == b'\x87':
-        return b58address_from_h160(_P2SH_PREFIXES, s[2:len_s-1], network)
-    elif len_s == 25 and s[:3] == b'\x76\xa9\x14' and s[-2:] == b'\x88\xac':
-        return b58address_from_h160(_P2PKH_PREFIXES, s[3:len_s-2], network)
+    elif length == 23 and s[:2] == b'\xa9\x14' and s[-1:] == b'\x87':
+        prefix = _P2SH_PREFIXES[_NETWORKS.index(network)]
+        return b58address_from_h160(prefix, s[2:length-1])
+    elif length == 25 and s[:3] == b'\x76\xa9\x14' and s[-2:] == b'\x88\xac':
+        prefix = _P2PKH_PREFIXES[_NETWORKS.index(network)]
+        return b58address_from_h160(prefix, s[3:length-2])
     else:
-        raise ValueError("Unknown script")
+        raise ValueError(f"No address for script {s.decode()}")
 
 
 def scriptPubKey_from_address(addr: String) -> Tuple[List[Token], str]:
