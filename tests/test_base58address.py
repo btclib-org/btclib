@@ -39,6 +39,11 @@ class TestAddresses(unittest.TestCase):
         prefix, payload, _, _ = h160_from_b58address(addr)
         self.assertEqual(addr, b58address_from_h160(prefix, payload))
 
+        # Invalid base58 address prefix b'\xbb'
+        bad_prefix = b'\xbb'
+        self.assertRaises(ValueError, b58address_from_h160, bad_prefix, payload)
+        #b58address_from_h160(bad_prefix, payload)
+
     def test_p2pkh_from_wif(self):
         seed = b"00"*32  # better be random
         rxprv = bip32.rootxprv_from_seed(seed)

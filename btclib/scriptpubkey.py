@@ -50,7 +50,7 @@ def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey]) -> List[Token]:
     """Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."""
 
     if m<1 or m>16:
-        raise ValueError(f"Invalid m ({m}) in m-of-n")
+        raise ValueError(f"Invalid m ({m}) in m-of-n multisignature")
         # raise ValueError("Impossible m-of-n ({m}-of-{n})")
 
     scriptPubKey : List[Token] = [m]
@@ -65,9 +65,9 @@ def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey]) -> List[Token]:
     # FIXME: enable lexicographic key sorting
     n = len(scriptPubKey)-1
     if n<1 or n>16:
-        raise ValueError(f"Invalid n ({n})")
+        raise ValueError(f"Invalid n ({n}) in {m}-of-{n} multisignature")
     if m>n:
-        raise ValueError(f"Impossible m-of-n ({m}-of-{n})")
+        raise ValueError(f"Impossible {m}-of-{n} multisignature")
     scriptPubKey.append(n)
     scriptPubKey.append('OP_CHECKMULTISIG')
     return scriptPubKey

@@ -45,6 +45,15 @@ class TestScriptPubKey(unittest.TestCase):
         prefix = _P2PKH_PREFIXES[_NETWORKS.index('mainnet')]
         self.assertEqual(addr, b58address_from_h160(prefix, pubkey_hash))
 
+        # Wrong size (33-bytes) for uncompressed SEC key
+        pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        self.assertRaises(ValueError, p2pk_scriptPubKey, pubkey)
+        #p2pk_scriptPubKey(pubkey)
+
+        # Invalid size: 11 bytes instead of 20
+        self.assertRaises(ValueError, p2pkh_scriptPubKey, "00"*11)
+        #p2pkh_scriptPubKey("00"*11)
+
     def test_p2ms(self):
         # https://learnmeabitcoin.com/guide/p2ms
         # opcodes = [1, pubkey, pubKey2, 2, 'OP_CHECKMULTISIG']
@@ -54,6 +63,22 @@ class TestScriptPubKey(unittest.TestCase):
         scriptPubKey = encode(opcodes)
         self.assertEqual(scriptPubKey.hex(), "514104cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4410461cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d76519aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af52ae")
         # no address for this script
+
+        # Impossible 3-of-2 multisignature
+        self.assertRaises(ValueError, p2ms_scriptPubKey, 3, (pubkey1, pubkey2))
+        #p2ms_scriptPubKey(3, [pubkey1, pubkey2])
+
+        # Invalid m (0) in m-of-n multisignature
+        self.assertRaises(ValueError, p2ms_scriptPubKey, 0, (pubkey1, pubkey2))
+        #p2ms_scriptPubKey(0, (pubkey1, pubkey2))
+
+        # Wrong size (66-bytes) for uncompressed SEC key
+        self.assertRaises(ValueError, p2ms_scriptPubKey, 1, (pubkey1+"00", pubkey2))
+        #p2ms_scriptPubKey(1, (pubkey1+"00", pubkey2))
+
+        # Invalid n (17) in 3-of-17 multisignature
+        self.assertRaises(ValueError, p2ms_scriptPubKey, 3, [pubkey1]*17)
+        #p2ms_scriptPubKey(3, [pubkey1]*17)
 
     def test_p2sh(self):
         # https://learnmeabitcoin.com/guide/p2sh
@@ -65,6 +90,10 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(scriptPubKey.hex(), "a914748284390f9e263a4b766a75d0633c50426eb87587")
         addr = address_from_scriptPubKey(scriptPubKey)
         self.assertEqual(addr.decode(), "3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V")
+
+        # Invalid size: 21 bytes instead of 20
+        self.assertRaises(ValueError, p2sh_scriptPubKey, "00"*21)
+        #p2sh_scriptPubKey("00"*21)
 
     def test_nulldata(self):
         # https://learnmeabitcoin.com/guide/nulldata
@@ -90,6 +119,11 @@ class TestScriptPubKey(unittest.TestCase):
         scriptPubKey = encode(opcodes)
         self.assertEqual(scriptPubKey.hex(), "6a39e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184")
         # no address for this script
+
+        # Invalid data lenght (81 bytes) for nulldata scriptPubKey
+        data = '00'*81
+        self.assertRaises(ValueError, nulldata_scriptPubKey, data)
+        #nulldata_scriptPubKey(data)
 
     def test_selfconsistency(self):
 
@@ -154,51 +188,13 @@ class TestScriptPubKey(unittest.TestCase):
 
     def test_exceptions(self):
 
-        # Invalid data lenght (81 bytes) for nulldata scriptPubKey
-        data = '00'*81
-        self.assertRaises(ValueError, nulldata_scriptPubKey, data)
-        #nulldata_scriptPubKey(data)
-
-        # Invalid pubkey lenght (34 bytes) for p2pk scriptPubKey
-        pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        self.assertRaises(ValueError, p2pk_scriptPubKey, pubkey+"00")
-        # p2pk_scriptPubKey(pubkey+"00")
-
-        # Invalid m (0)
-        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-        self.assertRaises(ValueError, p2ms_scriptPubKey, 0, (pubkey, pubKey2))
-        # p2ms_scriptPubKey(0, (pubkey, pubKey2))
-
-        # Invalid pubkey lenght (34 bytes) for m-of-n multi-sig scriptPubKey
-        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-        self.assertRaises(ValueError, p2ms_scriptPubKey, 1, (pubkey+"00", pubKey2))
-        #p2ms_scriptPubKey(1, (pubkey+"00", pubKey2))
-
-        # Invalid n (17)
-        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-        self.assertRaises(ValueError, p2ms_scriptPubKey, 3, [pubkey]*17)
-        # p2ms_scriptPubKey(3, [pubkey]*17)
-
-        # Impossible m-of-n (3-of-2)
-        pubKey2 = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-        self.assertRaises(ValueError, p2ms_scriptPubKey, 3, (pubkey, pubKey2))
-        # p2ms_scriptPubKey(3, (pubkey, pubKey2))
-
-        # Invalid pubkey-hash lenght (11 bytes) for p2pkh scriptPubKey
-        self.assertRaises(ValueError, p2pkh_scriptPubKey, "00"*11)
-        # p2pkh_scriptPubKey("00"*11)
-
-        # Invalid script-hash lenght (21 bytes) for p2sh scriptPubKey
-        self.assertRaises(ValueError, p2sh_scriptPubKey, "00"*21)
-        # p2sh_scriptPubKey("00"*21)
-
-        # Invalid witness program lenght (11 bytes) for p2wpkh scriptPubKey
+        # Invalid size: 11 bytes instead of 20
         self.assertRaises(ValueError, p2wpkh_scriptPubKey, "00"*11)
-        # p2wpkh_scriptPubKey("00"*11)
+        #p2wpkh_scriptPubKey("00"*11)
 
-        # Invalid witness program lenght (33 bytes) for p2wsh scriptPubKey
+        # Invalid size: 33 bytes instead of 32
         self.assertRaises(ValueError, p2wsh_scriptPubKey, "00"*33)
-        # p2wsh_scriptPubKey("00"*33)
+        #p2wsh_scriptPubKey("00"*33)
 
     def test_CLT(self):
 
