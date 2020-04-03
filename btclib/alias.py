@@ -89,11 +89,18 @@ class XkeyDict(TypedDict):
     network            : str  # mainnet, testnet, regtest, etc.
 
 
-# typical inputs:
+# private key inputs:
+# integer -> q: int
+# integer, possibly in bytes representation -> prvkey: Union[int, Octets]
 # BIP32key -> xkey: Union[XkeyDict, String]
-# private key (no extra info) -> q: Union[int, Octets]
-# private key (with network and compressed): -> 
+# WIF -> wif: String
+#
+# BIP32key and WIF also provide extra network
+# and compressed-pubkey-derivation info
+PrvKey = Union[int, Octets, String, XkeyDict]
 
+# public key inputs:
+# ...
 PubKey = Union[Point, XkeyDict, bytes, str]
 
 

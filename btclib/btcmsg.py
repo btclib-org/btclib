@@ -211,12 +211,15 @@ def sign(msg: String, wif: String,
     # TODO do the match in Jacobian coordinates avoiding mod_inv
     pubkeys = dsa.recover_pubkeys(magic_msg, (r, s))
     Q = mult(q)
+    # key_id is in [0, 3]
+    # first two bits in rf are reserved for it
     key_id = pubkeys.index(Q)
     pubkey = octets_from_point(Q, compressed)
 
     # finally, calculate the recovery flag
     if addr is None or addr == p2pkh(pubkey, compressed):
         rf = key_id + 27
+        # third bit in rf is reserved for the 'compressed' boolean
         rf += 4 if compressed else 0
     # BIP137
     elif addr == p2wpkh_p2sh(pubkey):
@@ -255,7 +258,7 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
 
 
     magic_msg = _magic_hash(msg)
-    # key_id can be retireved as least significant 2 bits of the recovery flag
+    # first two bits in rf are reserved for key_id
     #    key_id = 00;     key_id = 01;     key_id = 10;     key_id = 11
     # 27-27 = 000000;  28-27 = 000001;  29-27 = 000010;  30-27 = 000011
     # 31-27 = 000100;  32-27 = 000101;  33-27 = 000110;  34-27 = 000111

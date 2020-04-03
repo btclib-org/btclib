@@ -43,6 +43,7 @@ def _challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     # mhd is transformed into an integer modulo ec.n using int_from_bits:
     return int_from_bits(mhd, ec)                 # 5
 
+
 def sign(msg: String, q: Union[int, Octets], k: Optional[int] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
@@ -85,6 +86,7 @@ def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> Tuple[int, int]:
 
     RJ = _mult_jac(k, ec.GJ, ec)                  # 1
 
+    # affine x-coordinate of R
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     r = Rx % ec.n                                 # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
@@ -98,7 +100,7 @@ def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> Tuple[int, int]:
     # it removes signature malleability as cause of transaction malleability
     # see https://github.com/bitcoin/bitcoin/pull/6769
     if s > ec.n / 2:
-        s = ec.n - s
+        s = ec.n - s  # s = - s % ec.n
 
     return r, s
 
@@ -142,7 +144,7 @@ def _verhlp(c: int, PJ: _JacPoint, r: int, s: int, ec: Curve = secp256k1) -> Non
     # Private function for test/dev purposes
 
     if PJ[2] == 0:
-        raise ValueError("public key is infinite")
+        raise ValueError("Public key is infinite")
 
     w = mod_inv(s, ec.n)
     u = c*w
@@ -153,6 +155,7 @@ def _verhlp(c: int, PJ: _JacPoint, r: int, s: int, ec: Curve = secp256k1) -> Non
     # Fail if infinite(R).
     assert RJ[2] != 0, "how did you do that?!?"  # 5
 
+    # affine x-coordinate of R
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
     x = Rx % ec.n                                # 6, 7
     # Fail if r ≠ x(R) %n.
@@ -193,6 +196,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[_Jac
     # then both x=r and x=r+ec.n must be tested
     for j in range(ec.h):                                # 1
         x = (r + j*ec.n) % ec._p                         # 1.1
+        # two possible keys for each cycle
         try:
             # even root first for bitcoin message signing compatibility
             yodd = ec.y_odd(x, False)
