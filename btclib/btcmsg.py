@@ -177,7 +177,7 @@ def serialize(rf: int, r: int, s: int) -> bytes:
     return b64encode(sig)
 
 
-def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
+def deserialize(base64sig: Octets) -> BMSig:
     """Return the elements of the address-based compact signature.
 
     The compact signature is [1-byte rf][32-bytes r][32-bytes s]
@@ -194,8 +194,7 @@ def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
     return rf, r, s
 
 
-def sign(msg: String, wif: String,
-         addr: Optional[String] = None) -> Tuple[int, int, int]:
+def sign(msg: String, wif: String, addr: Optional[String] = None) -> BMSig:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -264,10 +263,7 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
     c = dsa._challenge(magic_msg)
 
     Recovered = dsa._recover_pubkey(key_id, c, r, s)
-    if Recovered is None:
-        raise ValueError("no public key recovered")
-    else:
-        Q = secp256k1._aff_from_jac(Recovered)
+    Q = secp256k1._aff_from_jac(Recovered)
 
     try:
         _, h160, _, is_script_hash = h160_from_b58address(addr)

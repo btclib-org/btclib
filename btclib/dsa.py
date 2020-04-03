@@ -31,7 +31,10 @@ from .to_pubkey import to_pub_tuple
 from .utils import int_from_bits, int_from_prvkey, point_from_octets
 
 
-def _challenge(msg: bytes, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def _challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+
+    if isinstance(msg, str):
+        msg = msg.encode()
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
     h = hf()
@@ -58,9 +61,6 @@ def sign(msg: String, q: Union[int, Octets], k: Optional[int] = None,
 
     See https://tools.ietf.org/html/rfc6979#section-3.2
     """
-
-    if isinstance(msg, str):
-        msg = msg.encode()
 
     c = _challenge(msg, ec, hf)                    # 4, 5
 
@@ -121,17 +121,14 @@ def _verify(msg: String, P: PubKey, sig: DSASig,
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    if isinstance(msg, str):
-        msg = msg.encode()
-
     if isinstance(sig, tuple):
         r, s = sig
-        _check_sig(r, s, ec)                             # 1
+        _check_sig(r, s, ec)                     # 1
     else:
         # sighash is not needed
         r, s, _ = der.deserialize(sig, ec)
 
-    c = _challenge(msg, ec, hf)                          # 2, 3
+    c = _challenge(msg, ec, hf)                  # 2, 3
 
     # Let P = point(pk); fail if point(pk) fails.
     P = to_pub_tuple(P, ec)
@@ -149,17 +146,17 @@ def _verhlp(c: int, PJ: _JacPoint, r: int, s: int, ec: Curve = secp256k1) -> Non
 
     w = mod_inv(s, ec.n)
     u = c*w
-    v = r*w                                              # 4
+    v = r*w                                      # 4
     # Let R = u*G + v*P.
-    RJ = _double_mult(v, PJ, u, ec.GJ, ec)  # 5
+    RJ = _double_mult(v, PJ, u, ec.GJ, ec)       # 5
 
     # Fail if infinite(R).
-    assert RJ[2] != 0, "how did you do that?!?"          # 5
+    assert RJ[2] != 0, "how did you do that?!?"  # 5
 
     Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
-    x = Rx % ec.n                                        # 6, 7
+    x = Rx % ec.n                                # 6, 7
     # Fail if r ≠ x(R) %n.
-    assert r == x, "Invalid signature"                   # 8
+    assert r == x, "Invalid signature"           # 8
 
 
 def recover_pubkeys(msg: String, sig: DSASig,
@@ -169,10 +166,7 @@ def recover_pubkeys(msg: String, sig: DSASig,
     See also https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
 
-    if isinstance(msg, str):
-        msg = msg.encode()
-
-    c = _challenge(msg, ec, hf)                           # 1.5
+    c = _challenge(msg, ec, hf)                  # 1.5
 
     if isinstance(sig, tuple):
         r, s = sig
@@ -187,7 +181,7 @@ def recover_pubkeys(msg: String, sig: DSASig,
 
 def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[_JacPoint]:
     # Private function provided for testing purposes only.
-    # TODO: allow for single key calculation
+    # TODO: use _recover_pubkey
 
     # precomputations
     r1 = mod_inv(r, ec.n)
@@ -224,7 +218,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[_Jac
     return keys
 
 
-def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve = secp256k1) -> Optional[_JacPoint]:
+def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve = secp256k1) -> _JacPoint:
     # Private function provided for testing purposes only.
 
     # precomputations
@@ -235,20 +229,16 @@ def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve = secp256k1) 
     # if ec.n < R[0] < ec._p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
     j = key_id & 0b110  # allow for key_id in [0, 7]
-    x = (r + j*ec.n) % ec._p                             # 1.1
+    x = (r + j*ec.n) % ec._p                         # 1.1
 
     # even root first for Bitcoin Core compatibility
     i = key_id & 0b01
-    try:
-        y = ec.y_odd(x, i)
-        RJ = x, y, 1                                     # 1.2, 1.3, and 1.4
-        # 1.5 has been performed in the recover_pubkeys calling function
-        QJ = _double_mult(r1s, RJ, r1e, ec.GJ, ec)       # 1.6.1
-        _verhlp(c, QJ, r, s, ec)                         # 1.6.2
-    except Exception:
-        return None
-    else:
-        return QJ
+    y = ec.y_odd(x, i)
+    RJ = x, y, 1                                     # 1.2, 1.3, and 1.4
+    # 1.5 has been performed in the recover_pubkeys calling function
+    QJ = _double_mult(r1s, RJ, r1e, ec.GJ, ec)       # 1.6.1
+    _verhlp(c, QJ, r, s, ec)                         # 1.6.2
+    return QJ
 
 
 def _check_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
