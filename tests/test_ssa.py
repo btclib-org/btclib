@@ -240,7 +240,7 @@ class TestEcssa(unittest.TestCase):
         msg = "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"
         sig = (0x4A298DACAE57395A15D0795DDBFD1DCB564DA82B0F269BC70A74F8220429BA1D,
                0x1E51A22CCEC35599B8F266912281F8365FFC2D035A230434A1A64DC59F7013FD)
-        self.assertRaises(ValueError, ssa._check_sig, *sig)
+        self.assertRaises(ValueError, ssa._validate_sig, *sig)
         self.assertFalse(ssa.verify(msg, pub, sig))
 
         # test vector 15

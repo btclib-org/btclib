@@ -89,7 +89,7 @@ def serialize(r: int, s: int, sighash: Optional[Octets],
     """
 
     # check that it is a valid signature for the given Curve
-    dsa._check_sig(r, s, ec)
+    dsa._validate_sig(r, s, ec)
     result = _serialize_scalar(r)
     result += _serialize_scalar(s)
     result = b'\x30' + len(result).to_bytes(1, byteorder='big') + result
@@ -190,5 +190,5 @@ def deserialize(dersig: Octets, ec: Curve = secp256k1) -> DERSigTuple:
     s = int.from_bytes(dersig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
 
     # checks that the signature is valid for the given Curve
-    dsa._check_sig(r, s, ec)
+    dsa._validate_sig(r, s, ec)
     return r, s, sighash

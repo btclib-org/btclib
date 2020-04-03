@@ -172,7 +172,7 @@ def serialize(rf: int, r: int, s: int) -> bytes:
     """
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
-    dsa._check_sig(r, s)
+    dsa._validate_sig(r, s)
     sig = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
     return b64encode(sig)
 
@@ -190,10 +190,10 @@ def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
         raise ValueError(f"Invalid recovery flag: {rf}")
     r = int.from_bytes(sig[1:33], byteorder='big')
     s = int.from_bytes(sig[33:], byteorder='big')
-    dsa._check_sig(r, s)
+    dsa._validate_sig(r, s)
     return rf, r, s
 
-
+# TODO allow to sign also with BIP32key: Union[XkeyDict, String]
 def sign(msg: String, wif: String,
          addr: Optional[String] = None) -> Tuple[int, int, int]:
     """Generate address-based compact signature for the provided message."""
@@ -251,9 +251,9 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
 
     if isinstance(sig, tuple):
         rf, r, s = sig
-        dsa._check_sig(r, s)
+        dsa._validate_sig(r, s)
     else:
-        # it is a base64 sig
+        # it is a base64 serialized signature
         rf, r, s = deserialize(sig)
 
 
