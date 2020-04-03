@@ -177,7 +177,7 @@ def serialize(rf: int, r: int, s: int) -> bytes:
     return b64encode(sig)
 
 
-def deserialize(base64sig: Octets) -> BMSig:
+def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
     """Return the elements of the address-based compact signature.
 
     The compact signature is [1-byte rf][32-bytes r][32-bytes s]
@@ -194,7 +194,8 @@ def deserialize(base64sig: Octets) -> BMSig:
     return rf, r, s
 
 
-def sign(msg: String, wif: String, addr: Optional[String] = None) -> BMSig:
+def sign(msg: String, wif: String,
+         addr: Optional[String] = None) -> Tuple[int, int, int]:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -207,6 +208,7 @@ def sign(msg: String, wif: String, addr: Optional[String] = None) -> BMSig:
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
+    # TODO do the match in Jacobian coordinates avoiding mod_inv
     pubkeys = dsa.recover_pubkeys(magic_msg, (r, s))
     Q = mult(q)
     key_id = pubkeys.index(Q)
