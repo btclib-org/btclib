@@ -31,6 +31,7 @@ from .rfc6979 import rfc6979
 from .utils import (bytes_from_hexstring, int_from_bits, int_from_prvkey,
                     octets_from_point, point_from_octets)
 
+# TODO use _mult and _double_mult to avoid useless checks
 
 def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
     mhd = bytes_from_hexstring(mhd, hf().digest_size)
@@ -43,6 +44,10 @@ def _k(d: int, mhd: Octets, hf: HashF = sha256) -> int:
 
 def _e(r: int, Q: PubKey, mhd: Octets,
        ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+
+    # remove PubKey and Octets for bytes
+    # note that only Q_x is needed
+    # if Q is Jacobian Q_y calculation can be avoided
 
     # Let e = int(hf(bytes(K_x) || bytes(Q) || mhd)) mod n.
     h = hf()
@@ -159,7 +164,6 @@ def _verify(mhd: Octets, Q: PubKey, sig: SSASig,
 
 def _recover_pubkeys(e: int, sig: SSASig, ec: Curve = secp256k1) -> Point:
     # Private function provided for testing purposes only.
-    # TODO: use _double_mult instead of double_mult
 
     r, s = _to_sig(sig)
 
@@ -169,7 +173,6 @@ def _recover_pubkeys(e: int, sig: SSASig, ec: Curve = secp256k1) -> Point:
     if e == 0:
         raise ValueError("Invalid (zero) challenge e")
     e1 = mod_inv(e, ec.n)
-    # TODO use _double_mult to avoid useless checks
     Q = double_mult(-e1, K, e1*s, ec.G, ec)
     assert Q[1] != 0, "how did you do that?!?"
     return Q
