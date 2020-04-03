@@ -12,7 +12,7 @@ import unittest
 from hashlib import sha1, sha256
 
 from btclib import der, dsa
-from btclib.curvemult import double_mult, mult
+from btclib.curvemult import _mult_jac, double_mult, mult
 from btclib.curves import low_card_curves, secp112r2, secp160r1, secp256k1
 from btclib.numbertheory import mod_inv
 from btclib.utils import octets_from_point, point_from_octets
@@ -39,7 +39,7 @@ class TestDSA(unittest.TestCase):
         malleated_sig = (r, secp256k1.n - s)
         self.assertTrue(dsa.verify(msg, Q, malleated_sig))
 
-        keys = dsa.pubkey_recovery(msg, sig)
+        keys = dsa.recover_pubkeys(msg, sig)
         self.assertTrue(len(keys) == 2)
         self.assertIn(Q, keys)
 
@@ -123,7 +123,7 @@ class TestDSA(unittest.TestCase):
         s = r * u2inv % ec.n
         sig = r, s
         e = s * u1 % ec.n
-        dsa._verhlp(e, P, r, s, ec)
+        dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
 
         u1 = 1234567890
         u2 = 987654321  # pick them at will
@@ -133,7 +133,7 @@ class TestDSA(unittest.TestCase):
         s = r * u2inv % ec.n
         sig = r, s
         e = s * u1 % ec.n
-        dsa._verhlp(e, P, r, s, ec)
+        dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
 
     def test_low_cardinality(self):
         """test all msg/key pairs of low cardinality elliptic curves"""
@@ -144,12 +144,12 @@ class TestDSA(unittest.TestCase):
         for ec in low_card_curves:  # only low card or it would take forever
             if ec._p in prime:  # only few curves or it would take too long
                 for d in range(1, ec.n):  # all possible private keys
-                    P = mult(d, ec.G, ec)  # public key
+                    PJ = _mult_jac(d, ec.GJ, ec)  # public key
                     for e in range(ec.n):  # all possible int from hash
                         for k in range(1, ec.n):  # all possible ephemeral keys
-                            R = mult(k, ec.G, ec)
-
-                            r = R[0] % ec.n
+                            RJ = _mult_jac(k, ec.GJ, ec)
+                            Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
+                            r = Rx % ec.n
                             if r == 0:
                                 self.assertRaises(ValueError,
                                                   dsa._sign, e, d, k, ec)
@@ -169,12 +169,11 @@ class TestDSA(unittest.TestCase):
                             sig = dsa._sign(e, d, k, ec)
                             self.assertEqual((r, s), sig)
                             # valid signature must validate
-                            self.assertIsNone(dsa._verhlp(e, P, r, s, ec))
+                            self.assertIsNone(dsa._verhlp(e, PJ, r, s, ec))
 
-                            keys = dsa._pubkey_recovery(e, r, s, ec)
-                            self.assertIn(P, keys)
-                            for Q in keys:
-                                self.assertIsNone(dsa._verhlp(e, Q, r, s, ec))
+                            keys = dsa._recover_pubkeys(e, r, s, ec)
+                            Qs = [ec._aff_from_jac(key) for key in keys]
+                            self.assertIn(ec._aff_from_jac(PJ), Qs)
 
     def test_pubkey_recovery(self):
         ec = secp112r2
@@ -190,7 +189,7 @@ class TestDSA(unittest.TestCase):
         self.assertEqual((r, s), sig)
 
 
-        keys = dsa.pubkey_recovery(msg, dersig, ec)
+        keys = dsa.recover_pubkeys(msg, dersig, ec)
         self.assertEqual(len(keys), 4)
         self.assertIn(Q, keys)
         for Q in keys:

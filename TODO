@@ -16,7 +16,7 @@ optimizations
     https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
     https://eprint.iacr.org/2005/419.pdf
 transaction and block parsing (explorer based with optional full node)
-revise ssa.pubkey_recovery
+revise ssa._recover_pubkeys
 of a signature: verify or verification ? of a commit: verify or open ?
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 better mimic of electrum entropy search, they probably have the words inverted

@@ -150,6 +150,7 @@ from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import prvkeytuple_from_wif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
+from .curves import secp256k1
 from .utils import hash160, octets_from_point
 
 
@@ -207,7 +208,7 @@ def sign(msg: String, wif: String,
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
-    pubkeys = dsa.pubkey_recovery(magic_msg, (r, s))
+    pubkeys = dsa.recover_pubkeys(magic_msg, (r, s))
     Q = mult(q)
     key_id = pubkeys.index(Q)
     pubkey = octets_from_point(Q, compressed)
@@ -253,7 +254,6 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
 
 
     magic_msg = _magic_hash(msg)
-    Qs = dsa.pubkey_recovery(magic_msg, (r, s))
     # key_id can be retireved as least significant 2 bits of the recovery flag
     #    key_id = 00;     key_id = 01;     key_id = 10;     key_id = 11
     # 27-27 = 000000;  28-27 = 000001;  29-27 = 000010;  30-27 = 000011
@@ -261,7 +261,13 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
     # 35-27 = 001000;  36-27 = 001001;  37-27 = 001010;  38-27 = 001011
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
     key_id = rf - 27 & 0b11
-    Q = Qs[key_id]
+    c = dsa._challenge(magic_msg)
+
+    Recovered = dsa._recover_pubkey(key_id, c, r, s)
+    if Recovered is None:
+        raise ValueError("no public key recovered")
+    else:
+        Q = secp256k1._aff_from_jac(Recovered)
 
     try:
         _, h160, _, is_script_hash = h160_from_b58address(addr)
