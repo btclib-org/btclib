@@ -73,8 +73,8 @@ class TestEcssa(unittest.TestCase):
         #ssa.sign(wrongmsg, q, None)
 
         # invalid (zero) challenge e
-        self.assertRaises(ValueError, ssa._pubkey_recovery, 0, sig)
-        #ssa._pubkey_recovery(0, sig)
+        self.assertRaises(ValueError, ssa._recover_pubkeys, 0, sig)
+        #ssa._recover_pubkeys(0, sig)
 
     def test_schnorr_bip_tv(self):
         """Bip-Schnorr Test Vectors
@@ -95,7 +95,7 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(ssa.verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
+        self.assertEqual(ssa._recover_pubkeys(e, sig), pub)
 
         # test vector 2
         prv = 0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
@@ -108,7 +108,7 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(ssa.verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
+        self.assertEqual(ssa._recover_pubkeys(e, sig), pub)
 
         # test vector 3
         prv = 0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B14E5C7
@@ -121,7 +121,7 @@ class TestEcssa(unittest.TestCase):
         self.assertTrue(ssa.verify(msg, pub, sig))
         self.assertEqual(sig, expected_sig)
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), pub)
+        self.assertEqual(ssa._recover_pubkeys(e, sig), pub)
 
         # test vector 4
         pub = "03 DEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34"
@@ -130,7 +130,7 @@ class TestEcssa(unittest.TestCase):
                0x02A8DC32E64E86A333F20EF56EAC9BA30B7246D6D25E22ADB8C6BE1AEB08D49D)
         self.assertTrue(ssa.verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
+        self.assertEqual(ssa._recover_pubkeys(e, sig), point_from_octets(pub))
 
         # test vector 5
         # test would fail if jacobi symbol of x(R) instead of y(R) is used
@@ -140,7 +140,7 @@ class TestEcssa(unittest.TestCase):
                0x30B1DA849C8E8304ADC0CFE870660334B3CFC18E825EF1DB34CFAE3DFC5D8187)
         self.assertTrue(ssa.verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
+        self.assertEqual(ssa._recover_pubkeys(e, sig), point_from_octets(pub))
 
         # test vector 6
         # test would fail if msg is reduced
@@ -150,7 +150,7 @@ class TestEcssa(unittest.TestCase):
                0xE9EE5F237CBD108EABAE1E37759AE47F8E4203DA3532EB28DB860F33D62D49BD)
         self.assertTrue(ssa.verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
+        self.assertEqual(ssa._recover_pubkeys(e, sig), point_from_octets(pub))
 
         # new proposed test: test would fail if msg is reduced
         pub = "03 FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B"
@@ -159,7 +159,7 @@ class TestEcssa(unittest.TestCase):
                0x41E4E4386E54C924251679ADD3D837367EECBFF248A3DE7C2DB4CE52A3D6192A)
         self.assertTrue(ssa.verify(msg, pub, sig))
         e = ssa._e(sig[0], pub, msg)
-        self.assertEqual(ssa._pubkey_recovery(e, sig), point_from_octets(pub))
+        self.assertEqual(ssa._recover_pubkeys(e, sig), point_from_octets(pub))
 
         # new proposed test: genuine failure
         pub = "03 FAC2114C2FBB091527EB7C64ECB11F8021CB45E8E7809D3C0938E4B8C0E5F84B"

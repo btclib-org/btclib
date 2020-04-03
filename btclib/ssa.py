@@ -157,7 +157,7 @@ def _verify(mhd: Octets, P: PubKey, sig: SSASig,
     assert R[0] == R[2]*R[2]*r % ec._p, "Invalid signature"
 
 
-def _pubkey_recovery(e: int, sig: SSASig, ec: Curve = secp256k1) -> Point:
+def _recover_pubkeys(e: int, sig: SSASig, ec: Curve = secp256k1) -> Point:
     # Private function provided for testing purposes only.
     # TODO: use _double_mult instead of double_mult
 
