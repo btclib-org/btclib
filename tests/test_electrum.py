@@ -68,10 +68,9 @@ class TestMnemonicDictionaries(unittest.TestCase):
         #bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
 
     def test_vectors(self):
-        filename = "electrum_test_vectors.json"
-        path_to_filename = path.join(path.dirname(__file__),
-                                     "./data/", filename)
-        with open(path_to_filename, 'r') as f:
+        file = "electrum_test_vectors.json"
+        filename = path.join(path.dirname(__file__), "data", file)
+        with open(filename, 'r') as f:
             test_vectors = json.load(f)
         f.closed
 

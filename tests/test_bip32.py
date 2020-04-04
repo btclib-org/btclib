@@ -292,10 +292,9 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
         """
-        filename = "bip39_test_vectors.json"
-        path_to_filename = path.join(path.dirname(__file__),
-                                     "./data/", filename)
-        with open(path_to_filename, 'r') as f:
+        file = "bip39_test_vectors.json"
+        filename = path.join(path.dirname(__file__), "data", file)
+        with open(filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed
         xkey_version = _PRV_VERSIONS[0]

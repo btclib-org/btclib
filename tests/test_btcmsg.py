@@ -328,10 +328,9 @@ class TestSignMessage(unittest.TestCase):
         https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/data/btcmsg.json
         """
 
-        filename = "btcmsg.json"
-        path_to_filename = path.join(path.dirname(__file__),
-                                     "./data/", filename)
-        with open(path_to_filename, 'r') as f:
+        file = "btcmsg.json"
+        filename = path.join(path.dirname(__file__), "data", file)
+        with open(filename, 'r') as f:
             test_vectors = json.load(f)
 
         for vector in test_vectors[:5]:
