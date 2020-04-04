@@ -89,6 +89,14 @@ def _rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
         while len(T) < ec.nsize:                           # 3.2.h.2
             V = hmac.new(K, V, hf).digest()
             T += V
+        # The following line would introduce a bias
+        # k = int.from_bytes(T, 'big') % ec.n
+        # In general, taking a uniformly random integer (like those
+        # obtained from a hash function in the random oracle model)
+        # modulo the curve order n would produce a biased result.
+        # However, if the order n is sufficiently close to 2^hlen,
+        # then the bias is not observable: e.g.
+        # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
         k = _int_from_bits(T, ec)  # candidate k           # 3.2.h.3
         if 0 < k < ec.n:           # acceptable values for k
             return k               # successful candidate

@@ -40,17 +40,17 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
     h = hf()
     h.update(msg)
     mhd = h.digest()                              # 4
-    # mhd is transformed into an integer modulo ec.n using int_from_bits:
-    return int_from_bits(mhd, ec)                 # 5
-
+    c = int_from_bits(mhd, ec)                    # 5
+    return c
 
 # TODO allow to sign also with WIF: String
 # TODO allow to sign also with BIP32key: Union[XkeyDict, String]
 def sign(msg: String, prvkey: Union[int, Octets],
          k: Optional[Union[int, Octets]] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
-    """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
+    """ECDSA signature with canonical low-s encoding.
 
+    Implemented according to SEC 1 v.2 
     The message m is first processed by hf, yielding the value
 
         mhd = hf(m),

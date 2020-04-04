@@ -124,8 +124,10 @@ def _int_from_bits(o: Octets, ec: Curve) -> int:
 
     Take as input a sequence of blen bits and calculate a
     non-negative integer i that is less than 2^nlen according to
-    SEC 1 v.2 section 4.1.3 (5).  Note that an additional
-    reduction modulo n would be required to ensure that 0 < i < n.
+    SEC 1 v.2 section 4.1.3 (5).
+    
+    Note that an additional reduction modulo n would be required
+    to ensure that 0 < i < n.
     """
 
     o = bytes_from_hexstring(o)
