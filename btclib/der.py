@@ -46,7 +46,7 @@
 from typing import Optional, Tuple
 
 from . import dsa
-from .alias import DERSigTuple, Octets
+from .alias import Octets
 from .curve import Curve
 from .curves import secp256k1
 from .utils import bytes_from_hexstring
@@ -65,6 +65,10 @@ sighashes = [
     sighash_none_anyonecanpay,
     sighash_single_anyonecanpay,
 ]
+
+# (r, s, sighash)
+DERSigTuple = Tuple[int, int, Optional[bytes]]
+
 
 def _bytes_from_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
