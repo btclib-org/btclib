@@ -73,10 +73,10 @@ def mod_sqrt(a: int, p: int) -> int:
     Solve the equation:
         x^2 = a mod p
 
-    and returns x. Note that p - x is also a root.
+    and return x. Note that p - x is also a root.
 
-    The Tonelli-Shanks algorithm is used (except for some simple
-    cases in which the solution is known from an identity).
+    If a simple solution is not available for p,
+    then the Tonelli-Shanks algorithm is used.
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
@@ -85,15 +85,18 @@ def mod_sqrt(a: int, p: int) -> int:
 
     # Simple cases
     if p % 4 == 3:  # secp256k1 case
-        x = pow(a, (p >> 2) + 1, p)  # inverse candidate
+        # inverse candidate is pow(a, (p + 1) // 4, p)
+        x = pow(a, (p >> 2) + 1, p)
         if x * x % p == a:
             return x
         raise ValueError(f"{hex(a)} has no root (mod {hex(p)})")
     elif p % 8 == 5:
+        # inverse candidate is pow(a, (p + 3) // 8, p)
         x = pow(a, (p >> 3) + 1, p)
         if x * x % p == a:
             return x
         else:
+            # inverse candidate
             x = x * pow(2, p >> 2, p) % p
             if x * x % p == a:
                 return x
@@ -101,7 +104,7 @@ def mod_sqrt(a: int, p: int) -> int:
     elif a == 0 or p == 2:
         return a
 
-    # Check solution existence on odd prime
+    # Check solution existence for odd primes
     if legendre_symbol(a, p) != 1:
         raise ValueError(f"{hex(a)} has no root (mod {hex(p)})")
 

@@ -31,6 +31,8 @@ from .to_pubkey import to_pub_tuple
 from .utils import int_from_bits, int_from_prvkey, point_from_octets
 
 
+# TODO remove default from _ functions
+
 def _challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
 
     if isinstance(msg, str):

@@ -104,6 +104,7 @@ def ecssa_commit_sign(c: Octets, m: Octets, q: Union[int, bytes, str],
     q = int_from_prvkey(q, ec)
 
     if k is None:
+        # TODO use BIPSchnorr _k
         k = rfc6979(m, q, ec, hf)
 
     h = hf()

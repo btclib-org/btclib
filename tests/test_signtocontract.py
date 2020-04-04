@@ -11,11 +11,11 @@
 import unittest
 from hashlib import sha256
 
+from btclib import dsa, ssa
 from btclib.curvemult import mult
-from btclib import dsa
-from btclib import ssa
-from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, \
-    verify_commit
+from btclib.signtocontract import (ecdsa_commit_sign, ecssa_commit_sign,
+                                   verify_commit)
+from btclib.curves import secp256k1 as ec
 
 
 class TestSignToContract(unittest.TestCase):
@@ -26,13 +26,13 @@ class TestSignToContract(unittest.TestCase):
         c = b"to be committed"
 
         dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv, None)
-        self.assertTrue(dsa.verify(m, pub, dsa_sig))
+        self.assertIsNone(dsa._verify(m, pub, dsa_sig, ec, sha256))
         self.assertTrue(verify_commit(c, dsa_receipt))
 
         # 32 bytes message for ECSSA
         m = sha256(m).digest()
         ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv, None)
-        self.assertTrue(ssa.verify(m, pub, ssa_sig))
+        self.assertIsNone(ssa._verify(m, pub, ssa_sig, ec, sha256))
         self.assertTrue(verify_commit(c, ssa_receipt))
 
 

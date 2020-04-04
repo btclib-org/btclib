@@ -143,8 +143,8 @@ class TestDSA(unittest.TestCase):
 
         for ec in low_card_curves:  # only low card or it would take forever
             if ec._p in prime:  # only few curves or it would take too long
-                for d in range(1, ec.n):  # all possible private keys
-                    PJ = _mult_jac(d, ec.GJ, ec)  # public key
+                for q in range(1, ec.n):  # all possible private keys
+                    PJ = _mult_jac(q, ec.GJ, ec)  # public key
                     for e in range(ec.n):  # all possible int from hash
                         for k in range(1, ec.n):  # all possible ephemeral keys
                             RJ = _mult_jac(k, ec.GJ, ec)
@@ -152,13 +152,13 @@ class TestDSA(unittest.TestCase):
                             r = Rx % ec.n
                             if r == 0:
                                 self.assertRaises(ValueError,
-                                                  dsa._sign, e, d, k, ec)
+                                                  dsa._sign, e, q, k, ec)
                                 continue
 
-                            s = mod_inv(k, ec.n) * (e + d * r) % ec.n
+                            s = mod_inv(k, ec.n) * (e + q * r) % ec.n
                             if s == 0:
                                 self.assertRaises(ValueError,
-                                                  dsa._sign, e, d, k, ec)
+                                                  dsa._sign, e, q, k, ec)
                                 continue
 
                             # bitcoin canonical 'low-s' encoding for ECDSA
@@ -166,7 +166,7 @@ class TestDSA(unittest.TestCase):
                                 s = ec.n - s
 
                             # valid signature
-                            sig = dsa._sign(e, d, k, ec)
+                            sig = dsa._sign(e, q, k, ec)
                             self.assertEqual((r, s), sig)
                             # valid signature must validate
                             self.assertIsNone(dsa._verhlp(e, PJ, r, s, ec))
