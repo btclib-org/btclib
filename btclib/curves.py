@@ -25,7 +25,8 @@
 
 # scroll down at the end of the file for 'relevant' code
 
-from .curve import Curve, Point
+from .alias import Point
+from .curve import Curve
 
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
 # http://www.secg.org/SEC2-Ver-1.0.pdf

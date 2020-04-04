@@ -13,11 +13,11 @@
 from math import sqrt
 from typing import Tuple
 
-from .alias import Point, _JacPoint
+from .alias import Point, JacPoint
 from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
 
 
-def _jac_from_aff(Q: Point) -> _JacPoint:
+def _jac_from_aff(Q: Point) -> JacPoint:
     # point is assumed to be on curve
     if Q[1] == 0:  # Infinity point in affine coordinates
         return 1, 1, 0
@@ -181,7 +181,7 @@ class Curve:
         # % self._p is required to account for infinity point, i.e. Q[1]==0
         return Q[0], (self._p - Q[1]) % self._p
 
-    def _aff_from_jac(self, Q: _JacPoint) -> Point:
+    def _aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return 1, 0
@@ -205,7 +205,7 @@ class Curve:
         # while _add_aff costs only one mod_inv
         return self._add_aff(Q1, Q2)
 
-    def _add_jac(self, Q: _JacPoint, R: _JacPoint) -> _JacPoint:
+    def _add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
 
         if Q[2] == 0:  # Infinity point in Jacobian coordinates

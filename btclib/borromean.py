@@ -13,7 +13,7 @@ from collections import defaultdict
 from hashlib import sha256 as hf  # FIXME: any hf
 from typing import Dict, List, Sequence, Tuple, Union
 
-from .curve import Point
+from .alias import Point
 from .curvemult import double_mult, mult
 from .curves import secp256k1 as ec  # FIXME: any curve
 from .utils import String, int_from_bits, octets_from_point, point_from_octets

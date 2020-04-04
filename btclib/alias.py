@@ -62,7 +62,7 @@ Point = Tuple[int, int]
 # Elliptic curve point in JAcobian coordinates
 # infinity point in Jacobian coordinates is Inf = (int, int, 0)
 # it can be checked with 'Inf[2] == 0'
-_JacPoint = Tuple[int, int, int]
+JacPoint = Tuple[int, int, int]
 
 
 # BIP 32 derivation path

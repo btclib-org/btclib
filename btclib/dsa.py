@@ -21,7 +21,7 @@ from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
 from . import der
-from .alias import DSASig, HashF, Octets, Point, PubKey, String, _JacPoint
+from .alias import DSASig, HashF, Octets, Point, PubKey, String, JacPoint
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac
 from .curves import secp256k1
@@ -140,7 +140,7 @@ def _verify(msg: String, Q: PubKey, sig: DSASig,
     _verhlp(c, QJ, r, s, ec)
 
 
-def _verhlp(c: int, QJ: _JacPoint, r: int, s: int, ec: Curve = secp256k1) -> None:
+def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve = secp256k1) -> None:
     # Private function for test/dev purposes
 
     # TODO is this really required?
@@ -179,7 +179,7 @@ def recover_pubkeys(msg: String, sig: DSASig,
     return [ec._aff_from_jac(QJ) for QJ in QJs]
 
 
-def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[_JacPoint]:
+def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[JacPoint]:
     # Private function provided for testing purposes only.
     # TODO: use _recover_pubkey
 
@@ -187,7 +187,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[_Jac
     r1 = mod_inv(r, ec.n)
     r1s = r1*s
     r1e = -r1*c
-    keys: List[_JacPoint] = list()
+    keys: List[JacPoint] = list()
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec._p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
@@ -220,7 +220,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[_Jac
     return keys
 
 
-def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve = secp256k1) -> _JacPoint:
+def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve = secp256k1) -> JacPoint:
     # Private function provided for testing purposes only.
 
     # precomputations
