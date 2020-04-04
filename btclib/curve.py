@@ -22,6 +22,8 @@ def _jac_from_aff(Q: Point) -> _JacPoint:
     if Q[1] == 0:  # Infinity point in affine coordinates
         return 1, 1, 0
     return Q[0], Q[1], 1
+    # TODO: test the following alternative
+    # return Q[0], Q[1], 1 if Q[1] else 0
 
 
 class Curve:
@@ -282,7 +284,7 @@ class Curve:
             raise ValueError("Point not on curve")
 
     def is_on_curve(self, Q: Point) -> bool:
-        """Return True if the input point is on the curve."""
+        """Return True if the point is on the curve."""
         if len(Q) != 2:
             raise ValueError("Point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -290,6 +292,12 @@ class Curve:
         if not 0 < Q[1] < self._p:  # y cannot be zero
             raise ValueError(f"y-coordinate {hex(Q[1])} not in (0, p)")
         return self._y2(Q[0]) == (Q[1]*Q[1] % self._p)
+
+    def has_square_y(self, Q: Point) -> bool:
+        """Return True if the y-coordinate of the point is a square."""
+        if Q[1] == 0:
+            return False
+        return legendre_symbol(Q[1], self._p) == 1 
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 
