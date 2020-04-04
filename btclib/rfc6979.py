@@ -90,7 +90,7 @@ def _rfc6979(c: int, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
             V = hmac.new(K, V, hf).digest()
             T += V
         k = _int_from_bits(T, ec)  # candidate k           # 3.2.h.3
-        if k != 0:                 # acceptable values for k
+        if 0 < k < ec.n:           # acceptable values for k
             return k               # successful candidate
         K = hmac.new(K, V + b'\x00', hf).digest()
         V = hmac.new(K, V, hf).digest()

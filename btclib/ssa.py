@@ -20,7 +20,7 @@ import random
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
-from .alias import HashF, Octets, Point, PubKey, SSASig, _JacPoint
+from .alias import HashF, Octets, Point, PubKey, SSASig, JacPoint
 from .curve import Curve
 from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
                         double_mult, mult)
@@ -238,7 +238,7 @@ def _batch_verify(ms: Sequence[bytes], Q: Sequence[Point], sig: Sequence[SSASig]
 
     t = 0
     scalars: List[int] = list()
-    points: List[_JacPoint] = list()
+    points: List[JacPoint] = list()
     for i in range(batch_size):
         r, s = sig[i]
         _validate_sig(r, s, ec)

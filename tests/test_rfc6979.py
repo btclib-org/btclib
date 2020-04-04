@@ -32,6 +32,23 @@ class Testrfc6979(unittest.TestCase):
         self.assertRaises(ValueError, rfc6979, msg[:-1], x)
         #rfc6979(msg[:-1], x)
 
+    def test_rfc6979_example(self):
+
+        class _helper:
+            def __init__(self, n: int) -> None:
+                self.n = n
+                self.nlen = n.bit_length()
+                self.nsize = (self.nlen + 7) // 8
+
+        # source: https://tools.ietf.org/html/rfc6979 section A.1
+
+        fake_ec = _helper(0x4000000000000000000020108A2E0CC0D99F8A5EF)
+        x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272F
+        msg = b'sample'
+        m = sha256(msg).digest()
+        k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
+        self.assertEqual(k, rfc6979(m, x, fake_ec))
+        
     def test_rfc6979_tv(self):
 
         # source: https://tools.ietf.org/html/rfc6979 section A.2.3
