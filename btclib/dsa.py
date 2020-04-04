@@ -47,7 +47,8 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
 # TODO make k Union[int, Octets]
 # TODO allow to sign also with WIF: String
 # TODO allow to sign also with BIP32key: Union[XkeyDict, String]
-def sign(msg: String, prvkey: Union[int, Octets], k: Optional[int] = None,
+def sign(msg: String, prvkey: Union[int, Octets],
+         k: Optional[Union[int, Octets]] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """ECDSA signature according to SEC 1 v.2 with canonical low-s encoding.
 
@@ -66,7 +67,7 @@ def sign(msg: String, prvkey: Union[int, Octets], k: Optional[int] = None,
     See https://tools.ietf.org/html/rfc6979#section-3.2
     """
 
-    c = _challenge(msg, ec, hf)                    # 4, 5
+    c = _challenge(msg, ec, hf)                   # 4, 5
 
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
@@ -74,16 +75,17 @@ def sign(msg: String, prvkey: Union[int, Octets], k: Optional[int] = None,
 
     if k is None:
         k = _rfc6979(c, q, ec, hf)                # 1
-    if not 0 < k < ec.n:
-        raise ValueError(f"Ephemeral key {hex(k)} not in [1, n-1]")
+    else:
+        k = int_from_prvkey(k, ec)
 
     # second part delegated to helper function
     return _sign(c, q, k, ec)
 
 
 def _sign(c: int, q: int, k: int, ec: Curve) -> Tuple[int, int]:
-    # Private function for test/dev purposes
-    # it is assumed that q, k, and c are in [1, n-1]
+    # Private function for testing purposes: it allows to explore all
+    # possible value of the challenge c (for low-cardinality curves).
+    # It assume that c is in [0, n-1], while q and k are in [1, n-1]
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
@@ -92,7 +94,7 @@ def _sign(c: int, q: int, k: int, ec: Curve) -> Tuple[int, int]:
     # affine x-coordinate of K (field element)
     K_x = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec._p)) % ec._p
     # mod n makes it a scalar
-    r = K_x % ec.n                                 # 2, 3
+    r = K_x % ec.n                                # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
         raise ValueError("r = 0, failed to sign")
 
