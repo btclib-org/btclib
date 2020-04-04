@@ -19,11 +19,7 @@ from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
 
 def _jac_from_aff(Q: Point) -> JacPoint:
     # point is assumed to be on curve
-    if Q[1] == 0:  # Infinity point in affine coordinates
-        return 1, 1, 0
-    return Q[0], Q[1], 1
-    # TODO: test the following alternative
-    # return Q[0], Q[1], 1 if Q[1] else 0
+    return Q[0], Q[1], 1 if Q[1] else 0
 
 
 class Curve:
@@ -295,8 +291,6 @@ class Curve:
 
     def has_square_y(self, Q: Point) -> bool:
         """Return True if the y-coordinate of the point is a square."""
-        if Q[1] == 0:
-            return False
         return legendre_symbol(Q[1], self._p) == 1 
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
