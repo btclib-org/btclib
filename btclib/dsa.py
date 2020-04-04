@@ -44,7 +44,6 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
     return int_from_bits(mhd, ec)                 # 5
 
 
-# TODO make k Union[int, Octets]
 # TODO allow to sign also with WIF: String
 # TODO allow to sign also with BIP32key: Union[XkeyDict, String]
 def sign(msg: String, prvkey: Union[int, Octets],
