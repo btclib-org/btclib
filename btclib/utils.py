@@ -119,7 +119,7 @@ def int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
     return i % ec.n  # might be implemented as difference
 
 
-def _int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:
+def _int_from_bits(o: Octets, ec: Curve) -> int:
     """Return the leftmost nlen bits.
 
     Take as input a sequence of blen bits and calculate a

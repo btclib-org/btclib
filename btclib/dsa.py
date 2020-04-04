@@ -31,9 +31,7 @@ from .to_pubkey import to_pub_tuple
 from .utils import int_from_bits, int_from_prvkey, point_from_octets
 
 
-# TODO remove default from _ functions
-
-def _challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
 
     if isinstance(msg, str):
         msg = msg.encode()
@@ -83,7 +81,7 @@ def sign(msg: String, prvkey: Union[int, Octets], k: Optional[int] = None,
     return _sign(c, q, k, ec)
 
 
-def _sign(c: int, q: int, k: int, ec: Curve = secp256k1) -> Tuple[int, int]:
+def _sign(c: int, q: int, k: int, ec: Curve) -> Tuple[int, int]:
     # Private function for test/dev purposes
     # it is assumed that q, k, and c are in [1, n-1]
 
@@ -125,7 +123,7 @@ def verify(msg: String, Q: PubKey, sig: DSASig,
 
 
 def _verify(msg: String, Q: PubKey, sig: DSASig,
-            ec: Curve = secp256k1, hf: HashF = sha256) -> None:
+            ec: Curve, hf: HashF) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -140,7 +138,7 @@ def _verify(msg: String, Q: PubKey, sig: DSASig,
     _verhlp(c, QJ, r, s, ec)
 
 
-def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve = secp256k1) -> None:
+def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
 
     # TODO is this really required?
@@ -179,7 +177,7 @@ def recover_pubkeys(msg: String, sig: DSASig,
     return [ec._aff_from_jac(QJ) for QJ in QJs]
 
 
-def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[JacPoint]:
+def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     # Private function provided for testing purposes only.
     # TODO: use _recover_pubkey
 
@@ -220,7 +218,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve = secp256k1) -> List[JacP
     return keys
 
 
-def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve = secp256k1) -> JacPoint:
+def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
     # Private function provided for testing purposes only.
 
     # precomputations
@@ -243,7 +241,7 @@ def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve = secp256k1) 
     return QJ
 
 
-def _validate_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
+def _validate_sig(r: int, s: int, ec: Curve) -> None:
     # check that the DSA signature is correct
 
     # Fail if r is not [1, n-1]
@@ -255,7 +253,7 @@ def _validate_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
         raise ValueError(f"s ({hex(s)}) not in [1, n-1]")
 
 
-def _to_sig(sig: DSASig, ec: Curve = secp256k1) -> Tuple[int, int]:
+def _to_sig(sig: DSASig, ec: Curve) -> Tuple[int, int]:
     if isinstance(sig, tuple):
         r, s = sig
         _validate_sig(r, s, ec)

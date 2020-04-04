@@ -131,7 +131,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
 
-        b58addr = _b58segwitaddress(hash160(to_pub_bytes(pub, True, ec)))
+        b58addr = _b58segwitaddress(hash160(to_pub_bytes(pub, True, ec)), network)
         _, h160_2, network, is_script_hash = h160_from_b58address(b58addr)
         self.assertEqual(network, 'mainnet')
         self.assertEqual(is_script_hash, True)  #?!?!?
@@ -146,7 +146,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
 
-        b58addr = _b58segwitaddress(sha256(wscript))
+        b58addr = _b58segwitaddress(sha256(wscript), network)
         _, h160_2, network, is_script_hash = h160_from_b58address(b58addr)
         self.assertEqual(network, 'mainnet')
         self.assertEqual(is_script_hash, True)  #?!?!?
@@ -154,8 +154,8 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(h160.hex(), h160_2.hex())
 
         # Invalid witness program length (19)
-        self.assertRaises(ValueError, _b58segwitaddress, h160[:-1])
-        #_b58segwitaddress(h160[:-1])
+        self.assertRaises(ValueError, _b58segwitaddress, h160[:-1], network)
+        #_b58segwitaddress(h160[:-1], network)
 
     def test_address_from_wif(self):
         # uncompressed mainnet

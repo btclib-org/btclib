@@ -64,7 +64,7 @@ def rfc6979(mhd: Octets, q: int,
     return _rfc6979(c, q, ec, hf)
 
 
-def _rfc6979(c: int, q: int, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def _rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
 
     # c = hf(m)                                            # 3.2.a

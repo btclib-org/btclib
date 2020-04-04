@@ -101,7 +101,7 @@ def p2sh(script: Octets, network: str = 'mainnet') -> bytes:
 # (p2sh-wrapped) base58 legacy SegWit addresses
 
 
-def _b58segwitaddress(wp: Octets, network: str = 'mainnet') -> bytes:
+def _b58segwitaddress(wp: Octets, network: str) -> bytes:
 
     wp = bytes_from_hexstring(wp)
     length = len(wp)

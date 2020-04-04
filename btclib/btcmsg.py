@@ -172,7 +172,7 @@ def serialize(rf: int, r: int, s: int) -> bytes:
     """
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
-    dsa._validate_sig(r, s)
+    dsa._validate_sig(r, s, secp256k1)
     sig = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
     return b64encode(sig)
 
@@ -190,7 +190,7 @@ def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
         raise ValueError(f"Invalid recovery flag: {rf}")
     r = int.from_bytes(sig[1:33], byteorder='big')
     s = int.from_bytes(sig[33:], byteorder='big')
-    dsa._validate_sig(r, s)
+    dsa._validate_sig(r, s, secp256k1)
     return rf, r, s
 
 # TODO allow to sign also with BIP32key: Union[XkeyDict, String]
@@ -251,7 +251,7 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
 
     if isinstance(sig, tuple):
         rf, r, s = sig
-        dsa._validate_sig(r, s)
+        dsa._validate_sig(r, s, secp256k1)
     else:
         # it is a base64 serialized signature
         rf, r, s = deserialize(sig)
@@ -265,9 +265,9 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
     # 35-27 = 001000;  36-27 = 001001;  37-27 = 001010;  38-27 = 001011
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
     key_id = rf - 27 & 0b11
-    c = dsa._challenge(magic_msg)
+    c = dsa._challenge(magic_msg, secp256k1, sha256)
 
-    Recovered = dsa._recover_pubkey(key_id, c, r, s)
+    Recovered = dsa._recover_pubkey(key_id, c, r, s, secp256k1)
     Q = secp256k1._aff_from_jac(Recovered)
 
     try:

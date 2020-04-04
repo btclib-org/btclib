@@ -31,7 +31,8 @@ def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
     R = _mult_jac(m, QJ, ec)
     return ec._aff_from_jac(R)
 
-def _mult_jac(m: int, Q: JacPoint, ec: Curve = secp256k1) -> JacPoint:
+
+def _mult_jac(m: int, Q: JacPoint, ec: Curve) -> JacPoint:
     # double & add in Jacobian coordinates, using binary decomposition of m
     # Point is assumed to be on curve
 
@@ -66,7 +67,7 @@ def double_mult(u: int, H: Point, v: int, Q: Point = None,
 
 
 def _double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint,
-                 ec: Curve = secp256k1) -> JacPoint:
+                 ec: Curve) -> JacPoint:
 
     u %= ec.n
     if u == 0 or HJ[2] == 0:
@@ -116,7 +117,7 @@ def multi_mult(scalars: Sequence[int], Points: Sequence[Point],
 
 
 def _multi_mult(scalars: Sequence[int], JPoints: Sequence[JacPoint],
-                ec: Curve = secp256k1) -> JacPoint:
+                ec: Curve) -> JacPoint:
     # source: https://cr.yp.to/badbatch/boscoster2.py
 
     x = list(zip([-n for n in scalars], JPoints))

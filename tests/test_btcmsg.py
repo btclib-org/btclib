@@ -10,6 +10,7 @@
 
 import json
 import unittest
+from hashlib import sha256 as hf
 from os import path
 
 from btclib import btcmsg, der, dsa
@@ -385,8 +386,8 @@ class TestSignMessage(unittest.TestCase):
         pubkey1 = '04 c61aee8a81b18dc79a9a4afd33ea7bea296e4132e74d79826ef34616cdd33ed4 437e0e4fade942d12d71548c7f83decf1adfe3efcd52496fc0de79ae54e76c09'
         pubkey2 = '03 c61aee8a81b18dc79a9a4afd33ea7bea296e4132e74d79826ef34616cdd33ed4'
         # ECDSA signature verification
-        dsa._verify(magic_msg, pubkey1, dersig)
-        dsa._verify(magic_msg, pubkey2, dersig)
+        dsa._verify(magic_msg, pubkey1, dersig, ec, hf)
+        dsa._verify(magic_msg, pubkey2, dersig, ec, hf)
 
         addr1 = p2pkh(pubkey1, False)
         addr2 = p2pkh(pubkey2, True)

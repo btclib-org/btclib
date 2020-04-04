@@ -17,6 +17,8 @@ from btclib.curves import low_card_curves, secp112r2, secp160r1, secp256k1
 from btclib.numbertheory import mod_inv
 from btclib.utils import octets_from_point, point_from_octets
 
+ec = secp256k1
+hf = sha256
 
 class TestDSA(unittest.TestCase):
     def test_signature(self):
@@ -48,7 +50,7 @@ class TestDSA(unittest.TestCase):
 
         fdsasig = (sig[0], sig[1], sig[1])
         self.assertFalse(dsa.verify(msg, Q, fdsasig))
-        self.assertRaises(ValueError, dsa._verify, msg, Q, fdsasig)
+        self.assertRaises(ValueError, dsa._verify, msg, Q, fdsasig, ec, hf)
 
         fq = 0x4
         fQ = mult(fq)
@@ -63,7 +65,7 @@ class TestDSA(unittest.TestCase):
         self.assertFalse(dsa.verify(msg, Q, invalid_dassig))
 
         # pubkey = Inf
-        self.assertRaises(ValueError, dsa._verify, msg, (1, 0), sig)
+        self.assertRaises(ValueError, dsa._verify, msg, (1, 0), sig, ec, hf)
         #dsa._verify(msg, (1, 0), sig)
 
         # private key not in [1, n-1]
@@ -110,7 +112,6 @@ class TestDSA(unittest.TestCase):
     def test_forge_hash_sig(self):
         """forging valid hash signatures"""
 
-        ec = secp256k1
         # see https://twitter.com/pwuille/status/1063582706288586752
         # Satoshi's key
         P = point_from_octets("03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c", ec)
