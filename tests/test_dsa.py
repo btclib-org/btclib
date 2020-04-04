@@ -151,29 +151,22 @@ class TestDSA(unittest.TestCase):
                             RJ = _mult_jac(k, ec.GJ, ec)
                             Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
                             r = Rx % ec.n
-                            if r == 0:
-                                self.assertRaises(ValueError,
-                                                  dsa._sign, e, q, k, ec)
-                                continue
-
                             s = mod_inv(k, ec.n) * (e + q * r) % ec.n
-                            if s == 0:
-                                self.assertRaises(ValueError,
-                                                  dsa._sign, e, q, k, ec)
-                                continue
-
                             # bitcoin canonical 'low-s' encoding for ECDSA
                             if s > ec.n / 2:
                                 s = ec.n - s
+                            if r == 0 or s==0:
+                                self.assertRaises(ValueError,
+                                                  dsa._sign, e, q, k, ec)
+                                continue
 
-                            # valid signature
                             sig = dsa._sign(e, q, k, ec)
                             self.assertEqual((r, s), sig)
-                            # valid signature must validate
+                            # valid signature must pass verification
                             self.assertIsNone(dsa._verhlp(e, PJ, r, s, ec))
 
-                            keys = dsa._recover_pubkeys(e, r, s, ec)
-                            Qs = [ec._aff_from_jac(key) for key in keys]
+                            JacobianKeys = dsa._recover_pubkeys(e, r, s, ec)
+                            Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
                             self.assertIn(ec._aff_from_jac(PJ), Qs)
 
     def test_pubkey_recovery(self):
