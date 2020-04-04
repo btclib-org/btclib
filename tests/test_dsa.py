@@ -65,8 +65,8 @@ class TestDSA(unittest.TestCase):
         self.assertFalse(dsa.verify(msg, Q, invalid_dassig))
 
         # pubkey = Inf
-        self.assertRaises(ValueError, dsa._verify, msg, (1, 0), sig, ec, hf)
-        #dsa._verify(msg, (1, 0), sig)
+        self.assertRaises(AssertionError, dsa._verify, msg, (1, 0), sig, ec, hf)
+        #dsa._verify(msg, (1, 0), sig, ec, hf)
 
         # private key not in [1, n-1]
         self.assertRaises(ValueError, dsa.sign, msg, 0)

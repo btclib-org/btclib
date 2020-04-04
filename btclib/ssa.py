@@ -159,7 +159,7 @@ def _verify(mhd: Octets, Q: PubKey, sig: SSASig,
         raise ValueError("(sG - eQ)_y is not a quadratic residue")
 
     # Fail if r ≠ K_x.
-    assert KJ[0] == KJ[2]*KJ[2]*r % ec._p, "Invalid signature"
+    assert KJ[0] == KJ[2]*KJ[2]*r % ec._p, "Signature verification failed"
 
 
 def _recover_pubkeys(e: int, sig: SSASig, ec: Curve = secp256k1) -> Point:
@@ -268,7 +268,7 @@ def _batch_verify(ms: Sequence[bytes], Q: Sequence[Point], sig: Sequence[SSASig]
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
     precondition = TJ[0]*RHSZ2 % ec._p == RHSJ[0]*TZ2 % ec._p
-    assert precondition, "Invalid precondition"
+    assert precondition, "Signature verification precondition failed"
 
     valid_sig = TJ[1]*RHSZ2*RHSJ[2] % ec._p == RHSJ[1]*TZ2*TJ[2] % ec._p
-    assert valid_sig, "Invalid signature"
+    assert valid_sig, "Signature verification failed"

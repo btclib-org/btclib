@@ -141,10 +141,6 @@ def _verify(msg: String, Q: PubKey, sig: DSASig,
 def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
 
-    # TODO is this really required?
-    if QJ[2] == 0:
-        raise ValueError("Public key is infinite")
-
     w = mod_inv(s, ec.n)
     u = c*w
     v = r*w                                      # 4
@@ -159,7 +155,7 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     K_x = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec._p)) % ec._p
     x = K_x % ec.n                               # 6, 7
     # Fail if r ≠ K_x %n.
-    assert r == x, "Invalid signature"           # 8
+    assert r == x, "Signature verification failed"  # 8
 
 
 def recover_pubkeys(msg: String, sig: DSASig,
