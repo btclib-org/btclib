@@ -137,7 +137,7 @@ class TestDSA(unittest.TestCase):
         dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
 
     def test_low_cardinality(self):
-        """test all msg/key pairs of low cardinality elliptic curves"""
+        """test low-cardinality curves for all msg/key pairs."""
 
         # ec.n has to be prime to sign
         prime = [11,  13,  17,  19]
