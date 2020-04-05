@@ -312,6 +312,7 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(Inf, checkInf)
             # the following is relevant in BIP340-Schnorr signature verification
             self.assertFalse(ec.has_square_y(Inf))
+            self.assertRaises(ValueError, ec.has_square_y, "Not a Point")
 
 
     def test_add(self):

@@ -35,7 +35,7 @@ The library includes:
 * ECDSA signature with (message) compact encoding: standard p2pkh
   and BIP137/Electrum
   extensions to p2wpkh and p2wpkh-p2sh
-* EC Schnorr signature (according to bip-schnorr bitcoin standardization)
+* EC Schnorr signature (according to BIP340 standardization)
 
   * batch validation
   * threshold signature (see test-suite)

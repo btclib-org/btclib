@@ -12,7 +12,7 @@
 
 This implementation is according to BIP340-Schnorr:
 
-https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki
+https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
 Differently from ECDSA, the BIP340-Schnorr scheme supports
 messages of size hsize only.
@@ -74,11 +74,7 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[int, int]:
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    sig = bytes_from_hexstring(sig)
-    if len(sig) != ec.psize+ec.nsize:
-        m = f"Wrong signature length: {len(sig)} instead of"
-        m += f"{ec.psize+ec.nsize}"
-        raise ValueError(m)
+    sig = bytes_from_hexstring(sig, ec.psize+ec.nsize)
 
     r = int.from_bytes(sig[:ec.psize], byteorder='big')
     s = int.from_bytes(sig[ec.psize:], byteorder='big')
@@ -89,6 +85,7 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[int, int]:
 def k(mhd: Octets, prvkey: Union[int, Octets],
       ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
+
     # The message mhd: a hlen array
     mhd = bytes_from_hexstring(mhd, hf().digest_size)
 

@@ -45,7 +45,7 @@ The library includes:
   [BIP137](https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki)/[Electrum](https://electrum.org/#home)
   extensions to p2wpkh and p2wpkh-p2sh
 - EC Schnorr signature (according to
-  [bip-schnorr](https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki)
+  [BIP340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki)
   bitcoin standardization)
   - batch validation
   - threshold signature (see test-suite)

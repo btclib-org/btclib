@@ -39,28 +39,22 @@ import hmac
 from hashlib import sha256
 from typing import Union
 
-from .alias import HashF, Octets, XkeyDict
+from .alias import HashF, Octets
 from .curve import Curve
 from .curves import secp256k1
-from .utils import _int_from_bits, bytes_from_hexstring, int_from_bits
+from .utils import (_int_from_bits, bytes_from_hexstring, int_from_bits,
+                    int_from_prvkey)
 
-# TODO: accept Octets private key
-
-def rfc6979(mhd: Octets, q: int,
+def rfc6979(mhd: Octets, prvkey: Union[int, Octets],
             ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
-    mhd = bytes_from_hexstring(mhd)
-    if not 0 < q < ec.n:
-        raise ValueError(f"private key {hex(q)} not in [1, n-1]")
-
     hsize = hf().digest_size
-    if len(mhd) != hsize:
-        errMsg = f"mismatch between hf digest size ({hsize}) and "
-        errMsg += f"hashed message size ({len(mhd)})"
-        raise ValueError(errMsg)
+    mhd = bytes_from_hexstring(mhd, hsize)
 
-    c = int_from_bits(mhd, ec)          # leftmost ec.nlen bits %= ec.n
+    q = int_from_prvkey(prvkey, ec)
+
+    c = int_from_bits(mhd, ec)  # leftmost ec.nlen bits %= ec.n
     return _rfc6979(c, q, ec, hf)
 
 

@@ -23,6 +23,44 @@ from .curve import Curve
 from .curves import secp256k1
 
 
+# TODO rename as bytes_from_octets
+def bytes_from_hexstring(o: Octets, out_size: Optional[int] = None) -> bytes:
+    """Return bytes from a hex-string, stripping leading/trailing spaces.
+
+    If the input is not a string, then it goes untouched.
+    Optionally, it also ensures required output size.
+    """
+
+    if isinstance(o, str):  # hex string
+        o = bytes.fromhex(o)
+
+    if (out_size is None) or (len(o) == out_size):
+       return o
+
+    m = f"Invalid size: {len(o)} bytes instead of {out_size}"
+    raise ValueError(m)
+
+# TODO rename as bytes_from_point
+def octets_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> bytes:
+    """Return a point as compressed/uncompressed octet sequence.
+
+    Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
+    octet sequence, according to SEC 1 v.2, section 2.3.3.
+    """
+
+    # check that Q is a point and that is on curve
+    ec.require_on_curve(Q)
+
+    if Q[1] == 0:  # infinity point in affine coordinates
+        return b'\x00'
+
+    bPx = Q[0].to_bytes(ec.psize, byteorder='big')
+    if compressed:
+        return (b'\x03' if (Q[1] & 1) else b'\x02') + bPx
+
+    return b'\x04' + bPx + Q[1].to_bytes(ec.psize, byteorder='big')
+
+
 def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
     """Return a tuple (Px, Py) that belongs to the curve.
 
@@ -61,26 +99,6 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
             return P
         else:
             raise ValueError(f"point {P} not on curve")
-
-
-def octets_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> bytes:
-    """Return a point as compressed/uncompressed octet sequence.
-
-    Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
-    octet sequence, according to SEC 1 v.2, section 2.3.3.
-    """
-
-    # check that Q is a point and that is on curve
-    ec.require_on_curve(Q)
-
-    if Q[1] == 0:  # infinity point in affine coordinates
-        return b'\x00'
-
-    bPx = Q[0].to_bytes(ec.psize, byteorder='big')
-    if compressed:
-        return (b'\x03' if (Q[1] & 1) else b'\x02') + bPx
-
-    return b'\x04' + bPx + Q[1].to_bytes(ec.psize, byteorder='big')
 
 
 def int_from_prvkey(prvkey: Union[int, Octets], ec: Curve = secp256k1) -> int:
@@ -157,23 +175,6 @@ def hash256(o: Octets) -> bytes:
 
     t = sha256(o)
     return hashlib.sha256(t).digest()
-
-
-def bytes_from_hexstring(o: Union[bytes, str], out_size: Optional[int] = None) -> bytes:
-    """Return bytes from a hex-string, stripping leading/trailing spaces.
-
-    If the input is not a string, then it goes untouched.
-    Optionally, it also ensures required output size.
-    """
-
-    if isinstance(o, str):  # hex string
-        o = bytes.fromhex(o)
-
-    if (out_size is None) or (len(o) == out_size):
-       return o
-
-    m = f"Invalid size: {len(o)} bytes instead of {out_size}"
-    raise ValueError(m)
 
 
 def ensure_is_power_of_two(n: int, var_name: str = None) -> None:

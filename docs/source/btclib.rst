@@ -4,10 +4,10 @@ btclib package
 Submodules
 ----------
 
-btclib.address module
----------------------
+btclib.alias module
+-------------------
 
-.. automodule:: btclib.address
+.. automodule:: btclib.alias
    :members:
    :undoc-members:
    :show-inheritance:
@@ -28,10 +28,34 @@ btclib.base58 module
    :undoc-members:
    :show-inheritance:
 
+btclib.base58address module
+---------------------------
+
+.. automodule:: btclib.base58address
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.base58wif module
+-----------------------
+
+.. automodule:: btclib.base58wif
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.bech32 module
 --------------------
 
 .. automodule:: btclib.bech32
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.bech32address module
+---------------------------
+
+.. automodule:: btclib.bech32address
    :members:
    :undoc-members:
    :show-inheritance:
@@ -140,6 +164,14 @@ btclib.mnemonic module
    :undoc-members:
    :show-inheritance:
 
+btclib.network module
+---------------------
+
+.. automodule:: btclib.network
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.numbertheory module
 --------------------------
 
@@ -152,14 +184,6 @@ btclib.pedersen module
 ----------------------
 
 .. automodule:: btclib.pedersen
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.prvkey module
---------------------
-
-.. automodule:: btclib.prvkey
    :members:
    :undoc-members:
    :show-inheritance:
@@ -188,14 +212,6 @@ btclib.scriptpubkey module
    :undoc-members:
    :show-inheritance:
 
-btclib.segwitaddress module
----------------------------
-
-.. automodule:: btclib.segwitaddress
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 btclib.signtocontract module
 ----------------------------
 
@@ -204,10 +220,26 @@ btclib.signtocontract module
    :undoc-members:
    :show-inheritance:
 
+btclib.slip32 module
+--------------------
+
+.. automodule:: btclib.slip32
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.ssa module
 -----------------
 
 .. automodule:: btclib.ssa
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.to\_pubkey module
+------------------------
+
+.. automodule:: btclib.to_pubkey
    :members:
    :undoc-members:
    :show-inheritance:
@@ -224,14 +256,6 @@ btclib.varint module
 --------------------
 
 .. automodule:: btclib.varint
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.wif module
------------------
-
-.. automodule:: btclib.wif
    :members:
    :undoc-members:
    :show-inheritance:

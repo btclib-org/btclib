@@ -120,7 +120,7 @@ class TestEcssa(unittest.TestCase):
                     if not ec.has_square_y(Q):
                         q = ec.n - q
                     for h in H:  # all possible hashed messages
-                        k = ssa._k(h, q, ec, hf)
+                        k = ssa.k(h, q, ec, hf)
                         K = mult(k, ec.G, ec)
                         if not ec.has_square_y(K):
                             k = ec.n - k
@@ -151,7 +151,8 @@ class TestEcssa(unittest.TestCase):
         sigs = []
         ms.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
         q = random.randint(1, ec.n-1)
-        Qs.append(mult(q, ec.G, ec))
+        # bytes version
+        Qs.append(mult(q, ec.G, ec)[0].to_bytes(ec.psize, 'big'))
         sigs.append(ssa.sign(ms[0], q, None, ec, hf))
         # test with only 1 sig
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
@@ -159,6 +160,7 @@ class TestEcssa(unittest.TestCase):
             mhd = random.getrandbits(hlen).to_bytes(hsize, 'big')
             ms.append(mhd)
             q = random.randint(1, ec.n-1)
+            # Point version
             Qs.append(mult(q, ec.G, ec))
             sigs.append(ssa.sign(mhd, q, None, ec, hf))
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
@@ -168,6 +170,7 @@ class TestEcssa(unittest.TestCase):
         ms.append(ms[0])
         sigs.append(sigs[1])
         Qs.append(Qs[0])
+        self.assertFalse(ssa.batch_verify(ms, Qs, sigs, ec, hf))
         self.assertRaises(AssertionError, ssa._batch_verify, ms, Qs, sigs, ec, hf)
         #ssa._batch_verify(ms, Qs, sigs, ec, hf)
         sigs[-1] = sigs[0]  # valid again

@@ -21,8 +21,7 @@ Move into the btclib directory and autogenerate docs:
     $ cd /path/to/btclibdirectory
     $ sphinx-apidoc -f -o ./docs/source ./btclib
 
-This sphinx-apidoc step has to be done at least once and everytime
-files are added/removed.
+Perform the above sphinx-apidoc step everytime files are added/removed.
 
 Then, move into the docs directory and build the docs to see how they look:
 
