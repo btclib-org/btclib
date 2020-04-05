@@ -10,14 +10,13 @@
 
 import unittest
 
-from btclib.curvemult import Curve, Point, _jac_from_aff
+from btclib.alias import INF, INFJ, Point
+from btclib.curve import _jac_from_aff
+from btclib.curvemult import Curve
 from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
                            secp160r1, secp256k1, secp256r1, secp384r1)
 from btclib.numbertheory import mod_sqrt
 from btclib.utils import bytes_from_point, point_from_octets
-
-Inf = 1, 0  # Infinity point in affine coordinates
-InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 
 
 class TestEllipticCurve(unittest.TestCase):
@@ -105,8 +104,8 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_all_curves(self):
         for ec in all_curves:
-            self.assertEqual(ec.mult(0), Inf)
-            self.assertEqual(ec.mult(0), Inf)
+            self.assertEqual(ec.mult(0), INF)
+            self.assertEqual(ec.mult(0), INF)
 
             self.assertEqual(ec.mult(1), ec.G)
             self.assertEqual(ec.mult(1), ec.G)
@@ -125,23 +124,23 @@ class TestEllipticCurve(unittest.TestCase):
             G2 = point_from_octets(Gbytes, ec)
             self.assertEqual(ec.G, G2)
 
-            P = ec.add(Inf, ec.G)
+            P = ec.add(INF, ec.G)
             self.assertEqual(P, ec.G)
-            P = ec.add(ec.G, Inf)
+            P = ec.add(ec.G, INF)
             self.assertEqual(P, ec.G)
-            P = ec.add(Inf, Inf)
-            self.assertEqual(P, Inf)
+            P = ec.add(INF, INF)
+            self.assertEqual(P, INF)
 
             P = ec.add(ec.G, ec.G)
             self.assertEqual(P, ec.mult(2))
 
             P = ec.mult(ec.n-1)
-            self.assertEqual(ec.add(P, ec.G), Inf)
-            self.assertEqual(ec.mult(ec.n), Inf)
+            self.assertEqual(ec.add(P, ec.G), INF)
+            self.assertEqual(ec.mult(ec.n), INF)
 
-            self.assertEqual(ec.mult(0, Inf), Inf)
-            self.assertEqual(ec.mult(1, Inf), Inf)
-            self.assertEqual(ec.mult(25, Inf), Inf)
+            self.assertEqual(ec.mult(0, INF), INF)
+            self.assertEqual(ec.mult(1, INF), INF)
+            self.assertEqual(ec.mult(25, INF), INF)
 
             ec_repr = repr(ec)
             if ec in low_card_curves or ec.psize < 24:
@@ -151,7 +150,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_octets2point(self):
         for ec in all_curves:
-            Q = ec.mult(ec._p)  # just a random point, not Inf
+            Q = ec.mult(ec._p)  # just a random point, not INF
 
             Q_bytes = b'\x03' if Q[1] & 1 else b'\x02'
             Q_bytes += Q[0].to_bytes(ec.psize, byteorder='big')
@@ -206,13 +205,17 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_opposite(self):
         for ec in all_curves:
-            Q = ec.mult(ec._p)  # just a random point, not Inf
+            Q = ec.mult(ec._p)  # just a random point, not INF
             minus_Q = ec.opposite(Q)
-            self.assertEqual(ec.add(Q, minus_Q), Inf)
+            self.assertEqual(ec.add(Q, minus_Q), INF)
             # jacobian coordinates
             Qjac = _jac_from_aff(Q)
             minus_Qjac = _jac_from_aff(minus_Q)
             self.assertEqual(ec._add_jac(Qjac, minus_Qjac)[2], 0)
+
+            # opposite of INF is INF
+            minus_Inf = ec.opposite(INF)
+            self.assertEqual(minus_Inf, INF)
 
     def test_symmetry(self):
         """Methods to break simmetry: quadratic residue, odd/even, low/high"""
@@ -227,7 +230,7 @@ class TestEllipticCurve(unittest.TestCase):
                 hasRoot.add(i*i % ec._p)
 
             # test phase
-            Q = ec.mult(ec._p)  # just a random point, not Inf
+            Q = ec.mult(ec._p)  # just a random point, not INF
             x = Q[0]
             if ec._p % 4 == 3:
                 quad_res = ec.y_quadratic_residue(x, True)
@@ -294,19 +297,19 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_aff_jac_conversions(self):
         for ec in all_curves:
-            Q = ec.mult(ec._p)  # just a random point, not Inf
+            Q = ec.mult(ec._p)  # just a random point, not INF
             checkQ = ec._aff_from_jac(_jac_from_aff(Q))
             self.assertEqual(Q, checkQ)
-            checkInf = ec._aff_from_jac(_jac_from_aff(Inf))
-            self.assertEqual(Inf, checkInf)
+            checkInf = ec._aff_from_jac(_jac_from_aff(INF))
+            self.assertEqual(INF, checkInf)
             # the following is relevant in BIP340-Schnorr signature verification
-            self.assertFalse(ec.has_square_y(Inf))
+            self.assertFalse(ec.has_square_y(INF))
             self.assertRaises(ValueError, ec.has_square_y, "Not a Point")
 
 
     def test_add(self):
         for ec in all_curves:
-            Q1 = ec.mult(ec._p)  # just a random point, not Inf
+            Q1 = ec.mult(ec._p)  # just a random point, not INF
             Q1J = _jac_from_aff(Q1)
 
             # distinct points
@@ -315,11 +318,11 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
             # point at infinity
-            Q3 = ec._add_aff(ec.G,  Inf)
-            Q3jac = ec._add_jac(ec.GJ, InfJ)
+            Q3 = ec._add_aff(ec.G,  INF)
+            Q3jac = ec._add_jac(ec.GJ, INFJ)
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
-            Q3 = ec._add_aff(Inf,  ec.G)
-            Q3jac = ec._add_jac(InfJ, ec.GJ)
+            Q3 = ec._add_aff(INF,  ec.G)
+            Q3jac = ec._add_jac(INFJ, ec.GJ)
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
             # point doubling

@@ -56,7 +56,6 @@ from .to_pubkey import to_pub_bytes, to_pub_tuple
 from .utils import (_int_from_bits, bytes_from_octets, bytes_from_point,
                     int_from_bits, point_from_octets)
 
-# TODO use _mult and _double_mult to avoid useless checks
 # TODO remove the p_ThreeModFour requirement
 
 
@@ -122,9 +121,10 @@ def pubkey_gen(prvkey: Union[int, bytes, str, bip32.XkeyDict],
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    x = to_prvkey_int(prvkey, ec)
-    Q = mult(x, ec.G, ec)
-    return Q[0].to_bytes(ec.psize, byteorder="big")
+    q = to_prvkey_int(prvkey, ec)
+    QJ = _mult_jac(q, ec.GJ, ec)
+    x = ec._x_aff_from_jac(QJ)
+    return x.to_bytes(ec.psize, byteorder="big")
 
 
 # This implementation can be sped up by storing the midstate after hashing
@@ -247,12 +247,12 @@ def _verify(mhd: Octets, Q: Union[Octets, Point], sig: SSASig,
 def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
     # Private function provided for testing purposes only.
 
-    K = r, ec.y_quadratic_residue(r, True)
+    KJ = r, ec.y_quadratic_residue(r, True), 1
 
     e1 = mod_inv(c, ec.n)
-    Q = double_mult(-e1, K, e1*s, ec.G, ec)
-    assert Q[1] != 0, "how did you do that?!?"
-    return Q[0]
+    QJ = _double_mult(-e1, KJ, e1*s, ec.GJ, ec)
+    assert QJ[2] != 0, "how did you do that?!?"
+    return ec._x_aff_from_jac(QJ)
 
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:

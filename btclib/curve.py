@@ -13,7 +13,7 @@
 from math import sqrt
 from typing import Tuple, Union
 
-from .alias import Point, JacPoint
+from .alias import INF, INFJ, JacPoint, Point
 from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
 
 
@@ -96,13 +96,13 @@ class Curve:
         assert t == 0 or h <= pow(2, t/8), f"h ({h}) too big for t ({t})"
         self.h = h
 
-        # 7. Check that nG = Inf.
+        # 7. Check that nG = INF.
         # it cannot be simply checked with:
-        # Inf = mult(self, n, self.G)
+        # INF = mult(self, n, self.G)
         # as the above would be tautologically true
         InfMinusG = self._mult_aff(n-1, self.G)
-        Inf = self.add(InfMinusG, self.G)
-        if Inf[1] != 0:
+        Infinity = self.add(InfMinusG, self.G)
+        if Infinity[1] != 0:
             raise ValueError(f"n ({hex(n)}) is not the group order")
 
         # 8. Check that n ≠ p
@@ -156,8 +156,8 @@ class Curve:
 
         m %= self.n
         if m == 0 or Q[1] == 0:          # Infinity point, affine coordinates
-            return 1, 0                  # return Infinity point
-        R = 1, 0                         # initialize as infinity point
+            return INF                   # return Infinity point
+        R = INF                          # initialize as infinity point
         while m > 0:                     # use binary representation of m
             if m & 1:                    # if least significant bit is 1
                 R = self._add_aff(R, Q)  # then add current Q
@@ -180,12 +180,20 @@ class Curve:
     def _aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            return 1, 0
+            return INF
         else:
             Z2 = Q[2]*Q[2]
             x = (Q[0]*mod_inv(Z2, self._p)) % self._p
             y = (Q[1]*mod_inv(Z2*Q[2], self._p)) % self._p
             return x, y
+
+    def _x_aff_from_jac(self, Q: JacPoint) -> int:
+        # point is assumed to be on curve
+        if Q[2] == 0:  # Infinity point in Jacobian coordinates
+            raise ValueError("Infinity point has no x-coordinate")
+        else:
+            Z2 = Q[2]*Q[2]
+            return (Q[0]*mod_inv(Z2, self._p)) % self._p
 
     # methods using _a, _b, _p
 
@@ -223,7 +231,7 @@ class Curve:
                 Z = (2*Q[1]*Q[2]) % self._p
                 return X, Y, Z
             else:                                         # opposite points
-                return 1, 1, 0
+                return INFJ
         else:
             T = (Q[1]*RZ3) % self._p
             U = (R[1]*QZ3) % self._p
@@ -253,7 +261,7 @@ class Curve:
                 lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self._p)
                 lam %= self._p
             else:             # opposite points
-                return 1, 0
+                return INF
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self._p)) % self._p
         x = (lam * lam - Q[0] - R[0]) % self._p

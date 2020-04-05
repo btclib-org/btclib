@@ -8,19 +8,17 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import unittest
 import random
+import unittest
 from typing import List
 
-from btclib.curvemult import Curve, Point, _jac_from_aff
-from btclib.curvemult import _mult_jac, double_mult, mult, multi_mult
+from btclib.alias import INF, INFJ, Point
+from btclib.curvemult import (Curve, _jac_from_aff, _mult_jac, double_mult,
+                              mult, multi_mult)
 from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
                            secp160r1, secp256k1, secp256r1, secp384r1)
 
 random.seed(42)
-
-Inf = 1, 0  # Infinity point in affine coordinates
-InfJ = 1, 1, 0  # Infinity point in jacobian coordinates
 
 
 class TestEllipticCurve(unittest.TestCase):
@@ -32,8 +30,8 @@ class TestEllipticCurve(unittest.TestCase):
                 Q2 = ec._aff_from_jac(Qjac)
                 self.assertEqual(Q, Q2)
         # with last curve
-        self.assertEqual(Inf, ec._mult_aff(3, Inf))
-        self.assertEqual(InfJ, _mult_jac(3, InfJ, ec))
+        self.assertEqual(INF, ec._mult_aff(3, INF))
+        self.assertEqual(INFJ, _mult_jac(3, INFJ, ec))
 
     def test_shamir(self):
         ec = ec23_31
@@ -42,11 +40,11 @@ class TestEllipticCurve(unittest.TestCase):
                 shamir = double_mult(k1, ec.G, k2, ec.G, ec)
                 std = ec.add(mult(k1, ec.G, ec), mult(k2, ec.G, ec))
                 self.assertEqual(shamir, std)
-                shamir = double_mult(k1, Inf, k2, ec.G, ec)
-                std = ec.add(mult(k1, Inf, ec), mult(k2, ec.G, ec))
+                shamir = double_mult(k1, INF, k2, ec.G, ec)
+                std = ec.add(mult(k1, INF, ec), mult(k2, ec.G, ec))
                 self.assertEqual(shamir, std)
-                shamir = double_mult(k1, ec.G, k2, Inf, ec)
-                std = ec.add(mult(k1, ec.G, ec), mult(k2, Inf, ec))
+                shamir = double_mult(k1, ec.G, k2, INF, ec)
+                std = ec.add(mult(k1, ec.G, ec), mult(k2, INF, ec))
                 self.assertEqual(shamir, std)
 
     def test_boscoster(self):

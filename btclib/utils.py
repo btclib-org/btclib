@@ -51,7 +51,7 @@ def bytes_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> bytes
     ec.require_on_curve(Q)
 
     if Q[1] == 0:  # infinity point in affine coordinates
-        return b'\x00'
+        raise ValueError("No bytes representation for the infinity point")
 
     bPx = Q[0].to_bytes(ec.psize, byteorder='big')
     if compressed:
@@ -90,6 +90,8 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
             raise ValueError("not an uncompressed point")
         Px = int.from_bytes(pubkey[1:ec.psize+1], byteorder='big')
         P = Px, int.from_bytes(pubkey[ec.psize+1:], byteorder='big')
+        if P[1] == 0:  # infinity point in affine coordinates
+            raise ValueError("No bytes representation for the infinity point")
         if ec.is_on_curve(P):
             return P
         else:

@@ -17,7 +17,7 @@ from os import path
 from typing import List
 
 from btclib import ssa
-from btclib.alias import Point
+from btclib.alias import INF, Point
 from btclib.curvemult import double_mult, mult
 from btclib.curves import low_card_curves, secp224k1
 from btclib.curves import secp256k1 as ec
@@ -237,14 +237,14 @@ class TestEcssa(unittest.TestCase):
             alpha13_prime += (f1_prime[i] * pow(3, i)) % ec.n
 
         # player two verifies consistency of his share
-        RHS = 1, 0
+        RHS = INF
         for i in range(t):
             RHS = ec.add(RHS, mult(pow(2, i), commits1[i]))
         assert double_mult(alpha12_prime, H,
                            alpha12) == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
-        RHS = 1, 0
+        RHS = INF
         for i in range(t):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
         assert double_mult(alpha13_prime, H,
@@ -281,14 +281,14 @@ class TestEcssa(unittest.TestCase):
             alpha23_prime += (f2_prime[i] * pow(3, i)) % ec.n
 
         # player one verifies consistency of his share
-        RHS = 1, 0
+        RHS = INF
         for i in range(t):
             RHS = ec.add(RHS, mult(pow(1, i), commits2[i]))
         assert double_mult(alpha21_prime, H,
                            alpha21) == RHS, 'player two is cheating'
 
         # player three verifies consistency of his share
-        RHS = 1, 0
+        RHS = INF
         for i in range(t):
             RHS = ec.add(RHS, mult(pow(3, i), commits2[i]))
         assert double_mult(alpha23_prime, H,
@@ -325,14 +325,14 @@ class TestEcssa(unittest.TestCase):
             alpha32_prime += (f3_prime[i] * pow(2, i)) % ec.n
 
         # player one verifies consistency of his share
-        RHS = 1, 0
+        RHS = INF
         for i in range(t):
             RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
         assert double_mult(alpha31_prime, H,
                            alpha31) == RHS, 'player three is cheating'
 
         # player two verifies consistency of his share
-        RHS = 1, 0
+        RHS = INF
         for i in range(t):
             RHS = ec.add(RHS, mult(pow(2, i), commits3[i]))
         assert double_mult(alpha32_prime, H,
@@ -362,8 +362,8 @@ class TestEcssa(unittest.TestCase):
 
         # he checks the others' values
         # player one
-        RHS2 = 1, 0
-        RHS3 = 1, 0
+        RHS2 = INF
+        RHS3 = INF
         for i in range(t):
             RHS2 = ec.add(RHS2, mult(pow(1, i), A2[i]))
             RHS3 = ec.add(RHS3, mult(pow(1, i), A3[i]))
@@ -371,8 +371,8 @@ class TestEcssa(unittest.TestCase):
         assert mult(alpha31) == RHS3, 'player three is cheating'
 
         # player two
-        RHS1 = 1, 0
-        RHS3 = 1, 0
+        RHS1 = INF
+        RHS3 = INF
         for i in range(t):
             RHS1 = ec.add(RHS1, mult(pow(2, i), A1[i]))
             RHS3 = ec.add(RHS3, mult(pow(2, i), A3[i]))
@@ -380,8 +380,8 @@ class TestEcssa(unittest.TestCase):
         assert mult(alpha32) == RHS3, 'player three is cheating'
 
         # player three
-        RHS1 = 1, 0
-        RHS2 = 1, 0
+        RHS1 = INF
+        RHS2 = INF
         for i in range(t):
             RHS1 = ec.add(RHS1, mult(pow(3, i), A1[i]))
             RHS2 = ec.add(RHS2, mult(pow(3, i), A2[i]))
@@ -424,7 +424,7 @@ class TestEcssa(unittest.TestCase):
             beta13_prime += (f1_prime[i] * pow(3, i)) % ec.n
 
         # player three verifies consistency of his share
-        RHS = 1, 0
+        RHS = INF
         for i in range(t):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
         assert double_mult(beta13_prime, H,
@@ -456,7 +456,7 @@ class TestEcssa(unittest.TestCase):
             beta31_prime += (f3_prime[i] * pow(1, i)) % ec.n
 
         # player one verifies consistency of his share
-        RHS = 1, 0
+        RHS = INF
         for i in range(t):
             RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
         assert double_mult(beta31_prime, H,
@@ -482,13 +482,13 @@ class TestEcssa(unittest.TestCase):
 
         # he checks the others' values
         # player one
-        RHS3 = 1, 0
+        RHS3 = INF
         for i in range(t):
             RHS3 = ec.add(RHS3, mult(pow(1, i), B3[i]))
         assert mult(beta31) == RHS3, 'player three is cheating'
 
         # player three
-        RHS1 = 1, 0
+        RHS1 = INF
         for i in range(t):
             RHS1 = ec.add(RHS1, mult(pow(3, i), B1[i]))
         assert mult(beta13) == RHS1, 'player one is cheating'

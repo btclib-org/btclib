@@ -12,6 +12,7 @@ import unittest
 from hashlib import sha1, sha256
 
 from btclib import der, dsa
+from btclib.alias import INF
 from btclib.curvemult import _mult_jac, double_mult, mult
 from btclib.curves import low_card_curves, secp112r2, secp160r1, secp256k1
 from btclib.numbertheory import mod_inv
@@ -64,9 +65,9 @@ class TestDSA(unittest.TestCase):
         invalid_dassig = sig[0], 0
         self.assertFalse(dsa.verify(msg, Q, invalid_dassig))
 
-        # pubkey = Inf
-        self.assertRaises(AssertionError, dsa._verify, msg, (1, 0), sig, ec, hf)
-        #dsa._verify(msg, (1, 0), sig, ec, hf)
+        # pubkey = INF
+        self.assertRaises(ValueError, dsa._verify, msg, INF, sig, ec, hf)
+        #dsa._verify(msg, INF, sig, ec, hf)
 
         # private key not in [1, n-1]
         self.assertRaises(ValueError, dsa.sign, msg, 0)

@@ -37,7 +37,7 @@ import hmac
 from typing import Iterable, List, Tuple, TypedDict, Union
 
 from . import bip39, electrum
-from .alias import Octets, Path, Point, String, XkeyDict
+from .alias import INF, Octets, Path, Point, String, XkeyDict
 from .base58 import b58decode, b58encode
 from .curvemult import mult
 from .curves import secp256k1 as ec
@@ -52,7 +52,7 @@ from .network import (_NETWORKS, _P2WPKH_P2SH_PRV_PREFIXES,
                       MAIN_Ypub, MAIN_zprv, MAIN_Zprv, MAIN_zpub, MAIN_Zpub,
                       TEST_tprv, TEST_tpub, TEST_uprv, TEST_Uprv, TEST_upub,
                       TEST_Upub, TEST_vprv, TEST_Vprv, TEST_vpub, TEST_Vpub)
-from .utils import (bytes_from_octets, hash160, bytes_from_point,
+from .utils import (bytes_from_octets, bytes_from_point, hash160,
                     point_from_octets)
 
 
@@ -99,8 +99,8 @@ def deserialize(xkey: Octets) -> XkeyDict:
         'chain_code'         : xkey[13:45],
         'key'                : xkey[45:],
         # extensions
-        'q'                  : 0,      # non zero only if xprv
-        'Q'                  : (1, 0), # non inf only if xpub
+        'q'                  : 0,   # non zero only if xprv
+        'Q'                  : INF, # non INF only if xpub
         'network'            : ''
     }
 
@@ -113,7 +113,7 @@ def deserialize(xkey: Octets) -> XkeyDict:
         if not 0 < q < ec.n:
             raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
         d['q'] = q
-        d['Q'] = (1, 0)
+        d['Q'] = INF
         d['network'] = _REPEATED_NETWORKS[_PRV_VERSIONS.index(d['version'])]
     else:  # must be public (already checked by _check_version_key)
         d['q'] = 0
@@ -191,7 +191,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
         'chain_code'         : hd[32:],
         'key'                : k,
         'q'                  : int.from_bytes(hd[:32], byteorder='big'),
-        'Q'                  : (1, 0),
+        'Q'                  : INF,
         'network'            : network
     }
     return serialize(d)
@@ -268,7 +268,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
         offset = int.from_bytes(h[:32], byteorder='big')
         d['q'] = (d['q'] + offset) % ec.n
         d['key'] = b'\x00' + d['q'].to_bytes(32, 'big')
-        d['Q'] = (1, 0)
+        d['Q'] = INF
     # d is a pubkey
     else:
         if index[0] >= 0x80:
@@ -388,6 +388,6 @@ def crack(parent_xpub: Union[XkeyDict, String], child_xprv: Union[XkeyDict, Stri
     offset = int.from_bytes(h[:32], byteorder='big')
     p['q'] = (c['q'] - offset) % ec.n
     p['key'] = b'\x00' + p['q'].to_bytes(32, byteorder='big')
-    p['Q'] = (1, 0)
+    p['Q'] = INF
 
     return serialize(p)

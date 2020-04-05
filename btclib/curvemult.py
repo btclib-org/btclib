@@ -13,7 +13,7 @@
 import heapq
 from typing import List, Sequence
 
-from .alias import Point, JacPoint
+from .alias import INFJ, JacPoint, Point
 from .curve import Curve, _jac_from_aff
 from .curves import secp256k1
 
@@ -28,6 +28,7 @@ def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
     else:
         ec.require_on_curve(Q)
         QJ = _jac_from_aff(Q)
+
     R = _mult_jac(m, QJ, ec)
     return ec._aff_from_jac(R)
 
@@ -38,8 +39,8 @@ def _mult_jac(m: int, Q: JacPoint, ec: Curve) -> JacPoint:
 
     m %= ec.n
     if m == 0 or Q[2] == 0:        # Infinity point in affine coordinates
-        return 1, 1, 0             # return Infinity point
-    R = 1, 1, 0                    # initialize as infinity point
+        return INFJ                # return Infinity point
+    R = INFJ                       # initialize as infinity point
     while m > 0:                   # use binary representation of m
         if m & 1:                  # if least significant bit is 1
             R = ec._add_jac(R, Q)  # then add current Q
@@ -77,7 +78,7 @@ def _double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint,
     if v == 0 or QJ[2] == 0:
         return _mult_jac(u, HJ, ec)
 
-    R = 1, 1, 0  # initialize as infinity point
+    R = INFJ  # initialize as infinity point
     msb = max(u.bit_length(), v.bit_length())
     while msb > 0:
         if u >> (msb - 1):  # checking msb

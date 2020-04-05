@@ -11,13 +11,14 @@
 import unittest
 
 from btclib import bip32
-from btclib.to_pubkey import to_pub_bytes, to_pub_tuple
+from btclib.alias import INF
+from btclib.base58 import b58encode
 from btclib.curves import secp256k1 as ec
+from btclib.to_pubkey import to_pub_bytes, to_pub_tuple
 from btclib.utils import bytes_from_point
 
 
-# TODO add test for (x, y) where x is not a field element
-class TestKey(unittest.TestCase):
+class TestToPubKey(unittest.TestCase):
 
     def test_to_pub_tuple(self):
 
@@ -59,6 +60,27 @@ class TestKey(unittest.TestCase):
         xprv_dict = bip32.deserialize(xprv)
         self.assertRaises(ValueError, to_pub_tuple, xprv_dict, ec)
 
+        # Invalid point: 7 is not a field element
+        P = INF
+        self.assertRaises(ValueError, to_pub_tuple, P, ec)
+        Pbytes_compressed = b'\x02' + P[0].to_bytes(ec.psize, 'big')
+        self.assertRaises(ValueError, to_pub_tuple, Pbytes_compressed, ec)
+        Pbytes_uncompressed = b'\x04' + P[0].to_bytes(ec.psize, 'big') + P[1].to_bytes(ec.psize, 'big')
+        self.assertRaises(ValueError, to_pub_tuple, Pbytes_uncompressed, ec)
+        Pbytes_compressed_hexstr = Pbytes_compressed.hex()
+        self.assertRaises(ValueError, to_pub_tuple, Pbytes_compressed_hexstr, ec)
+        Pbytes_uncompressed_hexstr = Pbytes_uncompressed.hex()
+        self.assertRaises(ValueError, to_pub_tuple, Pbytes_uncompressed_hexstr, ec)
+        t = xpub_dict['version']
+        t += xpub_dict['depth'].to_bytes(1, 'big')
+        t += xpub_dict['parent_fingerprint']
+        t += xpub_dict['index']
+        t += xpub_dict['chain_code']
+        t += Pbytes_compressed
+        xpub = b58encode(t)
+        self.assertRaises(ValueError, to_pub_tuple, xpub, ec)
+        xpub_str = xpub.decode('ascii')
+        self.assertRaises(ValueError, to_pub_tuple, xpub_str, ec)
 
     def test_to_pub_bytes(self):
 
@@ -118,6 +140,28 @@ class TestKey(unittest.TestCase):
         self.assertRaises(ValueError, to_pub_bytes, xprv, True, ec)
         xprv_dict = bip32.deserialize(xprv)
         self.assertRaises(ValueError, to_pub_bytes, xprv_dict, True, ec)
+
+        # Invalid point: 7 is not a field element
+        P = INF
+        self.assertRaises(ValueError, to_pub_bytes, P, True, ec)
+        Pbytes_compressed = b'\x02' + P[0].to_bytes(ec.psize, 'big')
+        self.assertRaises(ValueError, to_pub_bytes, Pbytes_compressed, True, ec)
+        Pbytes_uncompressed = b'\x04' + P[0].to_bytes(ec.psize, 'big') + P[1].to_bytes(ec.psize, 'big')
+        self.assertRaises(ValueError, to_pub_bytes, Pbytes_uncompressed, True, ec)
+        Pbytes_compressed_hexstr = Pbytes_compressed.hex()
+        self.assertRaises(ValueError, to_pub_bytes, Pbytes_compressed_hexstr, True, ec)
+        Pbytes_uncompressed_hexstr = Pbytes_uncompressed.hex()
+        self.assertRaises(ValueError, to_pub_bytes, Pbytes_uncompressed_hexstr, True, ec)
+        t = xpub_dict['version']
+        t += xpub_dict['depth'].to_bytes(1, 'big')
+        t += xpub_dict['parent_fingerprint']
+        t += xpub_dict['index']
+        t += xpub_dict['chain_code']
+        t += Pbytes_compressed
+        xpub = b58encode(t)
+        self.assertRaises(ValueError, to_pub_bytes, xpub, True, ec)
+        xpub_str = xpub.decode('ascii')
+        self.assertRaises(ValueError, to_pub_bytes, xpub_str, True, ec)
 
 
 if __name__ == "__main__":

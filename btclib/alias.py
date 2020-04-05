@@ -51,18 +51,28 @@ HashF = Callable[[], Any]
 # HashF = Callable[[Any], Any]
 
 
-# Elliptic curve point in affine coordinates
-# Note that the Infinity point in affine coordinates is Inf = (int, 0)
-# (no affine point has y=0 coordinate in a group of prime order n).
-# It can be checked with 'Inf[1] == 0'
+# Elliptic curve point in affine coordinates.
 # Warning: to make Point a NamedTuple would slow down the code
 Point = Tuple[int, int]
 
+# Note that the infinity point in affine coordinates is INF = (int, 0)
+# (no affine point has y=0 coordinate in a group of prime order n).
+# It can be checked with 'INF[1] == 0'
+# The x-coordinate is arbitrary: 7 is preferred
+# because it is not a field element in secp256k1
+INF = 7, 0
 
-# Elliptic curve point in JAcobian coordinates
-# infinity point in Jacobian coordinates is Inf = (int, int, 0)
-# it can be checked with 'Inf[2] == 0'
+
+# Elliptic curve point in Jacobian coordinates.
 JacPoint = Tuple[int, int, int]
+
+# Infinity point in Jacobian coordinates is INF = (int, int, 0).
+# It can be checked with 'INF[2] == 0'
+# The x and y coordinates are arbitrary: 7, 0
+# are used as because those are what one would obtain
+# from the generic affine to jacobian transformation:
+# QJ = Q[0], Q[1], 1 if Q[1] else 0
+INFJ = 7, 0, 0
 
 
 # BIP 32 derivation path

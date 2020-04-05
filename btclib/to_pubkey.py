@@ -29,8 +29,9 @@ def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str], ec: Curve) -> Poin
     """
 
     if isinstance(P, tuple):
-        ec.require_on_curve(P)
-        return P
+        if ec.is_on_curve(P) and P[1] != 0:
+            return P
+        raise ValueError(f"Not a public key: {P}")
     elif isinstance(P, dict):
         if P['q'] != 0 or P['Q'][1]==0:
             raise ValueError(f"Not a public key: {P['key'].hex()}")
