@@ -28,7 +28,7 @@ from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
 from .to_prvkey import to_prvkey_int
-from .to_pubkey import point_from_octets, to_pub_tuple
+from .to_pubkey import to_pub_tuple
 from .utils import int_from_bits
 
 

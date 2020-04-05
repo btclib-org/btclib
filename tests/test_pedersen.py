@@ -14,7 +14,7 @@ from hashlib import sha256, sha384
 from btclib import pedersen
 from btclib.curvemult import double_mult, mult
 from btclib.curves import secp256k1, secp256r1, secp384r1
-from btclib.to_pubkey import point_from_octets
+from btclib.secpoint import point_from_octets
 
 
 class TestSecondGenerator(unittest.TestCase):

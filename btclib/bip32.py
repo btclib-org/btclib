@@ -52,7 +52,7 @@ from .network import (_NETWORKS, _P2WPKH_P2SH_PRV_PREFIXES,
                       MAIN_Ypub, MAIN_zprv, MAIN_Zprv, MAIN_zpub, MAIN_Zpub,
                       TEST_tprv, TEST_tpub, TEST_uprv, TEST_Uprv, TEST_upub,
                       TEST_Upub, TEST_vprv, TEST_Vprv, TEST_vpub, TEST_Vpub)
-from .to_pubkey import bytes_from_point, point_from_octets
+from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, hash160
 
 

@@ -16,7 +16,7 @@ from typing import Dict, List, Sequence, Tuple, Union
 from .alias import Point, String
 from .curvemult import double_mult, mult
 from .curves import secp256k1 as ec  # FIXME: any curve
-from .to_pubkey import bytes_from_point, point_from_octets
+from .secpoint import bytes_from_point, point_from_octets
 from .utils import int_from_bits
 
 # FIXME: should be urandom, but then tests would be non-deterministic

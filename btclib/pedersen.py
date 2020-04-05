@@ -36,7 +36,7 @@ from .alias import HashF, Point
 from .curve import Curve
 from .curvemult import double_mult
 from .curves import secp256k1
-from .to_pubkey import bytes_from_point
+from .secpoint import bytes_from_point
 from .utils import int_from_bits
 
 

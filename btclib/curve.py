@@ -11,7 +11,7 @@
 """Elliptic curve class."""
 
 from math import sqrt
-from typing import Tuple, Union
+from typing import Union
 
 from .alias import INF, INFJ, JacPoint, Point
 from .numbertheory import legendre_symbol, mod_inv, mod_sqrt

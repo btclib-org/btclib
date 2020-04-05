@@ -45,7 +45,7 @@ from .curvemult import mult
 from .curves import secp256k1
 from .rfc6979 import rfc6979
 from .to_prvkey import to_prvkey_int
-from .to_pubkey import bytes_from_point, point_from_octets
+from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, int_from_bits
 
 # commitment receipt

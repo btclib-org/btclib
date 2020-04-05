@@ -18,7 +18,7 @@ from .curvemult import mult
 from .curves import secp256k1
 from .network import (_CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES,
                       _WIF_PREFIXES)
-from .to_pubkey import bytes_from_point, point_from_octets
+from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets
 
 
