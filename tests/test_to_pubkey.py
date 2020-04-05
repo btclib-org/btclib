@@ -13,7 +13,7 @@ import unittest
 from btclib import bip32
 from btclib.to_pubkey import to_pub_bytes, to_pub_tuple
 from btclib.curves import secp256k1 as ec
-from btclib.utils import octets_from_point
+from btclib.utils import bytes_from_point
 
 
 class TestKey(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestKey(unittest.TestCase):
         Pbytes_compressed = xpub_dict['key']
         Pbytes_compressed_hexstr = Pbytes_compressed.hex()
         P = xpub_dict['Q']
-        Pbytes_uncompressed = octets_from_point(P, False, ec)
+        Pbytes_uncompressed = bytes_from_point(P, False, ec)
         Pbytes_uncompressed_hexstr = Pbytes_uncompressed.hex()
 
         # BIP32
@@ -66,7 +66,7 @@ class TestKey(unittest.TestCase):
         Pbytes_compressed = xpub_dict['key']
         Pbytes_compressed_hexstr = Pbytes_compressed.hex()
         P = xpub_dict['Q']
-        Pbytes_uncompressed = octets_from_point(P, False, ec)
+        Pbytes_uncompressed = bytes_from_point(P, False, ec)
         Pbytes_uncompressed_hexstr = Pbytes_uncompressed.hex()
 
         # BIP32 input, compressed result

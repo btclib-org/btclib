@@ -42,8 +42,8 @@ from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
 from .rfc6979 import rfc6979
-from .utils import (bytes_from_hexstring, int_from_bits, int_from_prvkey,
-                    octets_from_point, point_from_octets)
+from .utils import (bytes_from_octets, int_from_bits, int_from_prvkey,
+                    bytes_from_point, point_from_octets)
 
 # commitment receipt
 Receipt = Tuple[int, Point]
@@ -57,10 +57,10 @@ def _tweak(c: Octets, k: int,
     - tweaked private key k + hash(kG||c)
     """
 
-    c = bytes_from_hexstring(c)
+    c = bytes_from_octets(c)
     R = mult(k, ec.G, ec)
     h = hf()
-    h.update(octets_from_point(R, True, ec) + c)
+    h.update(bytes_from_point(R, True, ec) + c)
     e = int.from_bytes(h.digest(), byteorder='big')
     return R, (e + k) % ec.n
 
@@ -71,8 +71,8 @@ def ecdsa_commit_sign(c: Octets, m: Octets, q: Union[int, Octets],
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECDSA signature."""
 
-    c = bytes_from_hexstring(c)
-    m = bytes_from_hexstring(m)
+    c = bytes_from_octets(c)
+    m = bytes_from_octets(m)
     q = int_from_prvkey(q, ec)
 
     if k is None:
@@ -99,8 +99,8 @@ def ecssa_commit_sign(c: Octets, m: Octets, q: Union[int, bytes, str],
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
-    c = bytes_from_hexstring(c)
-    m = bytes_from_hexstring(m)
+    c = bytes_from_octets(c)
+    m = bytes_from_octets(m)
     q = int_from_prvkey(q, ec)
 
     if k is None:
@@ -126,7 +126,7 @@ def verify_commit(c: Octets, receipt: Receipt,
                   ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Open the commitment c inside an EC DSA/SSA signature."""
 
-    c = bytes_from_hexstring(c)
+    c = bytes_from_octets(c)
 
     # FIXME: verify the signature
 
@@ -141,7 +141,7 @@ def verify_commit(c: Octets, receipt: Receipt,
     h.update(c)
     ch = h.digest()
     h = hf()
-    h.update(octets_from_point(R, True, ec) + ch)
+    h.update(bytes_from_point(R, True, ec) + ch)
     e = h.digest()
     e = int_from_bits(e, ec)
     W = ec.add(R, mult(e, ec.G, ec))

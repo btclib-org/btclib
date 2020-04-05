@@ -36,7 +36,7 @@ from .alias import HashF, Point
 from .curve import Curve
 from .curvemult import double_mult
 from .curves import secp256k1
-from .utils import int_from_bits, octets_from_point
+from .utils import int_from_bits, bytes_from_point
 
 
 def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
@@ -54,7 +54,7 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
     """
 
-    G_bytes = octets_from_point(ec.G, False, ec)
+    G_bytes = bytes_from_point(ec.G, False, ec)
     h = hf()
     h.update(G_bytes)
     hd = h.digest()

@@ -15,7 +15,7 @@ from btclib import der, dsa
 from btclib.curvemult import _mult_jac, double_mult, mult
 from btclib.curves import low_card_curves, secp112r2, secp160r1, secp256k1
 from btclib.numbertheory import mod_inv
-from btclib.utils import octets_from_point, point_from_octets
+from btclib.utils import bytes_from_point, point_from_octets
 
 ec = secp256k1
 hf = sha256
@@ -93,7 +93,7 @@ class TestDSA(unittest.TestCase):
         self.assertEqual(QU,
                          (466448783855397898016055842232266600516272889280,
                           1110706324081757720403272427311003102474457754220))
-        self.assertEqual(octets_from_point(QU, True, ec).hex(),
+        self.assertEqual(bytes_from_point(QU, True, ec).hex(),
                          '0251b4496fecc406ed0e75a24a3c03206251419dc0')
 
         # 2.1.3 Signing Operation for U

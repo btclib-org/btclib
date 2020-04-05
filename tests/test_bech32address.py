@@ -48,7 +48,7 @@ from btclib.bech32address import (b32address_from_witness, has_segwit_prefix,
                                   witness_from_b32address)
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
-from btclib.utils import hash160, octets_from_point, point_from_octets, sha256
+from btclib.utils import hash160, bytes_from_point, point_from_octets, sha256
 
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
@@ -172,7 +172,7 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(bytes(wp), hash160(pub))
 
         # Wrong size (65-bytes) for compressed SEC key
-        uncompr_pub = octets_from_point(point_from_octets(pub, ec), False, ec)
+        uncompr_pub = bytes_from_point(point_from_octets(pub, ec), False, ec)
         self.assertRaises(ValueError, p2wpkh, uncompr_pub)
         #p2wpkh(uncompr_pub)
 

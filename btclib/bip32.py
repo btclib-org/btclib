@@ -52,7 +52,7 @@ from .network import (_NETWORKS, _P2WPKH_P2SH_PRV_PREFIXES,
                       MAIN_Ypub, MAIN_zprv, MAIN_Zprv, MAIN_zpub, MAIN_Zpub,
                       TEST_tprv, TEST_tpub, TEST_uprv, TEST_Uprv, TEST_upub,
                       TEST_Upub, TEST_vprv, TEST_Vprv, TEST_vpub, TEST_Vpub)
-from .utils import (bytes_from_hexstring, hash160, octets_from_point,
+from .utils import (bytes_from_octets, hash160, bytes_from_point,
                     point_from_octets)
 
 
@@ -165,7 +165,7 @@ def fingerprint(d: Union[XkeyDict, String]) -> bytes:
 
     if d['key'][0] == 0:
         P = mult(d['q'])
-        pubkey = octets_from_point(P, True, ec)
+        pubkey = bytes_from_point(P, True, ec)
         return hash160(pubkey)[:4]
 
     # must be a public key
@@ -175,10 +175,10 @@ def fingerprint(d: Union[XkeyDict, String]) -> bytes:
 def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     """Return BIP32 root master extended private key from seed."""
 
-    seed = bytes_from_hexstring(seed)
+    seed = bytes_from_octets(seed)
     hd = hmac.digest(b"Bitcoin seed", seed, 'sha512')
     k = b'\x00' + hd[:32]
-    v = bytes_from_hexstring(version)
+    v = bytes_from_octets(version)
     #if v not in _PRV_VERSIONS:
     #    raise ValueError(f"unknown extended private key version {v!r}")
     network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(v)]
@@ -245,7 +245,7 @@ def xpub_from_xprv(d: Union[XkeyDict, String]) -> bytes:
         raise ValueError("extended key is not a private one")
 
     d['Q'] = mult(d['q'])
-    d['key'] = octets_from_point(d['Q'], True, ec)
+    d['key'] = bytes_from_point(d['Q'], True, ec)
     d['q'] = 0
     d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
 
@@ -257,7 +257,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
     # d is a prvkey
     if d['key'][0] == 0:
         d['depth'] += 1
-        Pbytes = octets_from_point(mult(d['q']), True, ec)
+        Pbytes = bytes_from_point(mult(d['q']), True, ec)
         d['parent_fingerprint'] = hash160(Pbytes)[:4]
         d['index'] = index
         if index[0] >= 0x80:  # hardened derivation
@@ -281,7 +281,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
         offset = int.from_bytes(h[:32], byteorder='big')
         Offset = mult(offset)
         d['Q'] = ec.add(d['Q'], Offset)
-        d['key'] = octets_from_point(d['Q'], True, ec)
+        d['key'] = bytes_from_point(d['Q'], True, ec)
         d['q'] = 0
 
 

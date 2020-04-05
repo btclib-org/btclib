@@ -21,7 +21,7 @@ from btclib.bech32address import p2wpkh_from_wif, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.to_pubkey import to_pub_bytes
-from btclib.utils import hash160, octets_from_point, point_from_octets, sha256
+from btclib.utils import hash160, bytes_from_point, point_from_octets, sha256
 
 
 class TestAddresses(unittest.TestCase):
@@ -66,7 +66,7 @@ class TestAddresses(unittest.TestCase):
         _, h160, _, _ = h160_from_b58address(addr)
         self.assertEqual(h160, hash160(pub))
 
-        uncompr_pub = octets_from_point(point_from_octets(pub, ec), False, ec)
+        uncompr_pub = bytes_from_point(point_from_octets(pub, ec), False, ec)
         addr = p2pkh(uncompr_pub, False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
         _, h160, _, _ = h160_from_b58address(addr)

@@ -42,7 +42,7 @@ from typing import Union
 from .alias import HashF, Octets
 from .curve import Curve
 from .curves import secp256k1
-from .utils import (_int_from_bits, bytes_from_hexstring, int_from_bits,
+from .utils import (_int_from_bits, bytes_from_octets, int_from_bits,
                     int_from_prvkey)
 
 def rfc6979(mhd: Octets, prvkey: Union[int, Octets],
@@ -50,7 +50,7 @@ def rfc6979(mhd: Octets, prvkey: Union[int, Octets],
     """Return a deterministic ephemeral key following RFC 6979."""
 
     hsize = hf().digest_size
-    mhd = bytes_from_hexstring(mhd, hsize)
+    mhd = bytes_from_octets(mhd, hsize)
 
     q = int_from_prvkey(prvkey, ec)
 

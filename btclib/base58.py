@@ -40,7 +40,7 @@ from hashlib import sha256
 from typing import Optional, Union
 
 from .alias import Octets, String
-from .utils import bytes_from_hexstring, hash256
+from .utils import bytes_from_octets, hash256
 
 __ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 __BASE = len(__ALPHABET)
@@ -79,7 +79,7 @@ def _b58encode(v: bytes) -> bytes:
 def b58encode(v: Octets) -> bytes:
     """Encode a bytes-like object using Base58Check."""
 
-    v = bytes_from_hexstring(v)
+    v = bytes_from_octets(v)
     h256 = hash256(v)
     return _b58encode(v + h256[:4])
 

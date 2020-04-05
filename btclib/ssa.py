@@ -50,8 +50,8 @@ from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .to_pubkey import to_pub_bytes, to_pub_tuple
-from .utils import (_int_from_bits, bytes_from_hexstring, int_from_bits,
-                    int_from_prvkey, octets_from_point, point_from_octets)
+from .utils import (_int_from_bits, bytes_from_octets, int_from_bits,
+                    int_from_prvkey, bytes_from_point, point_from_octets)
 
 # TODO use _mult and _double_mult to avoid useless checks
 # TODO remove the p_ThreeModFour requirement
@@ -74,7 +74,7 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[int, int]:
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    sig = bytes_from_hexstring(sig, ec.psize+ec.nsize)
+    sig = bytes_from_octets(sig, ec.psize+ec.nsize)
 
     r = int.from_bytes(sig[:ec.psize], byteorder='big')
     s = int.from_bytes(sig[ec.psize:], byteorder='big')
@@ -87,7 +87,7 @@ def k(mhd: Octets, prvkey: Union[int, Octets],
     """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
 
     # The message mhd: a hlen array
-    mhd = bytes_from_hexstring(mhd, hf().digest_size)
+    mhd = bytes_from_octets(mhd, hf().digest_size)
 
     # The secret key d: an integer in the range 1..n-1.
     q = int_from_prvkey(prvkey, ec)
@@ -162,7 +162,7 @@ def sign(mhd: Octets, prvkey: Union[int, Octets],
     ec.require_p_ThreeModFour()
 
     # The message mhd: a hlen array
-    mhd = bytes_from_hexstring(mhd, hf().digest_size)
+    mhd = bytes_from_octets(mhd, hf().digest_size)
 
     # The secret key d: an integer in the range 1..n-1.
     q = int_from_prvkey(prvkey, ec)
@@ -216,14 +216,14 @@ def _verify(mhd: Octets, Q: Union[Octets, Point], sig: SSASig,
     ec.require_p_ThreeModFour()
 
     # The message mhd: a hlen array
-    mhd = bytes_from_hexstring(mhd, hf().digest_size)
+    mhd = bytes_from_octets(mhd, hf().digest_size)
 
     r, s = _to_sig(sig, ec)
 
     if isinstance(Q, tuple):
         x_Q = Q[0]
     else:
-        Q = bytes_from_hexstring(Q, ec.psize)
+        Q = bytes_from_octets(Q, ec.psize)
         x_Q = int.from_bytes(Q, 'big')
     QJ = x_Q, ec.y_quadratic_residue(x_Q, True), 1
 
@@ -314,7 +314,7 @@ def _batch_verify(ms: Sequence[Octets],
     scalars: List[int] = list()
     points: List[JacPoint] = list()
     for i, (m, Q, sig) in enumerate(zip(ms, Qs, sigs)):
-        m = bytes_from_hexstring(m, hf().digest_size)
+        m = bytes_from_octets(m, hf().digest_size)
 
         r, s = _to_sig(sig, ec)
         KJ = r, ec.y_quadratic_residue(r, True), 1
@@ -322,7 +322,7 @@ def _batch_verify(ms: Sequence[Octets],
         if isinstance(Q, tuple):
             x_Q = Q[0]
         else:
-            Q = bytes_from_hexstring(Q, ec.psize)
+            Q = bytes_from_octets(Q, ec.psize)
             x_Q = int.from_bytes(Q, 'big')
         QJ = x_Q, ec.y_quadratic_residue(x_Q, True), 1
 

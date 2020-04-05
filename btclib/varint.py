@@ -33,14 +33,14 @@ from io import BytesIO
 from typing import BinaryIO, Union
 
 from .alias import Octets
-from .utils import bytes_from_hexstring
+from .utils import bytes_from_octets
 
 
 def decode(stream: Union[BinaryIO, Octets]) -> int:
     '''Return the variable-length integer read from a stream.'''
 
     if isinstance(stream, str):
-        stream = bytes_from_hexstring(stream)
+        stream = bytes_from_octets(stream)
 
     if isinstance(stream, bytes):
         stream = BytesIO(stream)

@@ -18,7 +18,7 @@ from .curvemult import mult
 from .curves import secp256k1
 from .network import (_CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES,
                       _WIF_PREFIXES)
-from .utils import bytes_from_hexstring, int_from_prvkey, octets_from_point
+from .utils import bytes_from_octets, int_from_prvkey, bytes_from_point
 
 
 def wif_from_xprv(xkey: Union[XkeyDict, String]) -> bytes:
@@ -52,7 +52,7 @@ def wif_from_prvkey(prvkey: Union[int, Octets],
 
     payload = _WIF_PREFIXES[network_index]
     if not isinstance(prvkey, int):
-        prvkey = bytes_from_hexstring(prvkey, ec.nsize)
+        prvkey = bytes_from_octets(prvkey, ec.nsize)
         payload += prvkey
         q = int.from_bytes(prvkey, byteorder='big')
     else:
@@ -132,5 +132,5 @@ def _pubkeytuple_from_wif(wif: String) -> Tuple[bytes, bool, str]:
     network_index = _NETWORKS.index(network)
     ec = _CURVES[network_index]
     Pub = mult(prvkey, ec.G, ec)
-    pubkey = octets_from_point(Pub, compressed, ec)
+    pubkey = bytes_from_point(Pub, compressed, ec)
     return pubkey, compressed, network

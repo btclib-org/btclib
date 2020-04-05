@@ -23,8 +23,7 @@ from .curve import Curve
 from .curves import secp256k1
 
 
-# TODO rename as bytes_from_octets
-def bytes_from_hexstring(o: Octets, out_size: Optional[int] = None) -> bytes:
+def bytes_from_octets(o: Octets, out_size: Optional[int] = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
     If the input is not a string, then it goes untouched.
@@ -41,7 +40,7 @@ def bytes_from_hexstring(o: Octets, out_size: Optional[int] = None) -> bytes:
     raise ValueError(m)
 
 # TODO rename as bytes_from_point
-def octets_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> bytes:
+def bytes_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> bytes:
     """Return a point as compressed/uncompressed octet sequence.
 
     Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
@@ -68,7 +67,7 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
     SEC 1 v.2, section 2.3.4.
     """
 
-    pubkey = bytes_from_hexstring(pubkey)
+    pubkey = bytes_from_octets(pubkey)
 
     # TODO: remove support for infinity point?
     bsize = len(pubkey)  # bytes
@@ -105,7 +104,7 @@ def int_from_prvkey(prvkey: Union[int, Octets], ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer."""
 
     if not isinstance(prvkey, int):
-        prvkey = bytes_from_hexstring(prvkey, ec.nsize)
+        prvkey = bytes_from_octets(prvkey, ec.nsize)
         prvkey = int.from_bytes(prvkey, 'big')
 
     if not 0 < prvkey < ec.n:
@@ -148,7 +147,7 @@ def _int_from_bits(o: Octets, ec: Curve) -> int:
     to ensure that 0 < i < n.
     """
 
-    o = bytes_from_hexstring(o)
+    o = bytes_from_octets(o)
     i = int.from_bytes(o, byteorder='big')
 
     blen = len(o) * 8  # bits
@@ -159,7 +158,7 @@ def _int_from_bits(o: Octets, ec: Curve) -> int:
 def sha256(o: Octets) -> bytes:
     """Return SHA256(*) of the input octet sequence."""
 
-    o = bytes_from_hexstring(o)
+    o = bytes_from_octets(o)
     return hashlib.sha256(o).digest()
 
 

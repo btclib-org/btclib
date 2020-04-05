@@ -49,7 +49,7 @@ from . import dsa
 from .alias import Octets
 from .curve import Curve
 from .curves import secp256k1
-from .utils import bytes_from_hexstring
+from .utils import bytes_from_octets
 
 sighash_all = b'\x01'
 sighash_none = b'\x02'
@@ -100,7 +100,7 @@ def serialize(r: int, s: int, sighash: Optional[Octets],
     if sighash is None:
         return result
 
-    sighash = bytes_from_hexstring(sighash, 1)
+    sighash = bytes_from_octets(sighash, 1)
     return result + sighash
 
 
@@ -110,7 +110,7 @@ def deserialize(dersig: Octets, ec: Curve = secp256k1) -> DERSigTuple:
     Return r, s, sighash; sighash is None if not available.
     """
 
-    dersig = bytes_from_hexstring(dersig)
+    dersig = bytes_from_octets(dersig)
 
     # 7 bytes of meta-data:
     # compound header, compound length,

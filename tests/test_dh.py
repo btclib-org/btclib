@@ -13,7 +13,7 @@ from hashlib import sha1 as hf
 
 from btclib.curvemult import mult
 from btclib.curves import secp160r1 as ec
-from btclib.utils import point_from_octets, octets_from_point
+from btclib.utils import point_from_octets, bytes_from_point
 from btclib import dh
 
 
@@ -49,7 +49,7 @@ class TestEcdh(unittest.TestCase):
         QU = mult(dU, ec.G, ec)
         self.assertEqual(QU, (466448783855397898016055842232266600516272889280,
                               1110706324081757720403272427311003102474457754220))
-        self.assertEqual(octets_from_point(QU, True, ec).hex(),
+        self.assertEqual(bytes_from_point(QU, True, ec).hex(),
                          '0251b4496fecc406ed0e75a24a3c03206251419dc0')
 
         # 4.1.3
@@ -59,7 +59,7 @@ class TestEcdh(unittest.TestCase):
         QV = mult(dV, ec.G, ec)
         self.assertEqual(QV, (420773078745784176406965940076771545932416607676,
                               221937774842090227911893783570676792435918278531))
-        self.assertEqual(octets_from_point(QV, True, ec).hex(),
+        self.assertEqual(bytes_from_point(QV, True, ec).hex(),
                          '0349b41e0e9c0369c2328739d90f63d56707c6e5bc')
 
         # expected results

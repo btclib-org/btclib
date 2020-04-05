@@ -50,7 +50,7 @@ from .bech32 import b32decode, b32encode
 from .bip32 import deserialize
 from .to_pubkey import to_pub_bytes
 from .network import _CURVES, _NETWORKS, _P2W_PREFIXES
-from .utils import bytes_from_hexstring, hash160, sha256
+from .utils import bytes_from_octets, hash160, sha256
 
 
 def has_segwit_prefix(addr: String) -> bool:
@@ -113,7 +113,7 @@ def _check_witness(witvers: int, witprog: bytes):
 def b32address_from_witness(wv: int, wp: Octets, network: str = 'mainnet') -> bytes:
     """Encode a bech32 native SegWit address."""
 
-    wp = bytes_from_hexstring(wp)
+    wp = bytes_from_octets(wp)
     _check_witness(wv, wp)
     hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
     ret = b32encode(hrp, [wv] + _convertbits(wp, 8, 5))

@@ -25,7 +25,7 @@ from typing import BinaryIO, Iterable, List, Union
 
 from . import varint
 from .alias import Octets
-from .utils import bytes_from_hexstring
+from .utils import bytes_from_octets
 
 OP_CODES = {
     # Constants
@@ -252,7 +252,7 @@ def _op_pushdata(data: Octets) -> bytes:
     Byte vectors on the stack are not allowed to be more than 520 bytes long.
     """
 
-    data = bytes_from_hexstring(data)
+    data = bytes_from_octets(data)
     r = b''
     length = len(data)
     if length < 75:     # 1-byte-length
@@ -310,7 +310,7 @@ def encode(script: Iterable[Token]) -> bytes:
 
 def decode(script: Octets) -> List[Token]:
 
-    script = bytes_from_hexstring(script)
+    script = bytes_from_octets(script)
 
     # initialize the result list
     r: List[Union[str, int, bytes]] = []
@@ -376,7 +376,7 @@ def serialize(script: Iterable[Token]) -> bytes:
 def deserialize(stream: Union[BinaryIO, Octets]) -> List[Token]:
 
     if isinstance(stream, str):
-        stream = bytes_from_hexstring(stream)
+        stream = bytes_from_octets(stream)
 
     if isinstance(stream, bytes):
         stream = BytesIO(stream)

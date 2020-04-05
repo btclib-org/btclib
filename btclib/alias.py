@@ -19,7 +19,7 @@ from typing import (Any, Callable, Iterable, List, Optional, Tuple, TypedDict,
 
 # binary octets are eight-bit bytes or hex-string (not text string)
 #
-# use bytes_from_hexstring to properly convert to bytes
+# use bytes_from_octets to properly convert to bytes
 #
 # used for script, h160 (20 bytes), h256 (32 bytes),
 # bip32version (4 bytes), sighash (1 byte),

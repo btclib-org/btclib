@@ -21,14 +21,14 @@ from .base58wif import _pubkeytuple_from_wif
 from .bip32 import deserialize
 from .network import _CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
 from .to_pubkey import to_pub_bytes
-from .utils import bytes_from_hexstring, hash160, sha256
+from .utils import bytes_from_octets, hash160, sha256
 
 
 def b58address_from_h160(prefix: bytes, h160: Octets) -> bytes:
 
     if prefix not in _P2PKH_PREFIXES + _P2SH_PREFIXES:
         raise ValueError(f"Invalid base58 address prefix {prefix!r}")
-    payload = prefix + bytes_from_hexstring(h160, 20)
+    payload = prefix + bytes_from_octets(h160, 20)
     return b58encode(payload)
 
 
@@ -103,7 +103,7 @@ def p2sh(script: Octets, network: str = 'mainnet') -> bytes:
 
 def _b58segwitaddress(wp: Octets, network: str) -> bytes:
 
-    wp = bytes_from_hexstring(wp)
+    wp = bytes_from_octets(wp)
     length = len(wp)
     if length in (20, 32):
         # [wv,          wp]

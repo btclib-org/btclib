@@ -14,7 +14,7 @@ from . import bip32
 from .alias import Point, PubKey
 from .curve import Curve
 from .curves import secp256k1
-from .utils import bytes_from_hexstring, octets_from_point, point_from_octets
+from .utils import bytes_from_octets, bytes_from_point, point_from_octets
 
 # TODO: raise exception for infinite point?
 
@@ -59,7 +59,7 @@ def to_pub_bytes(P: Union[Point, bytes, str, bip32.XkeyDict], compressed: bool, 
     """
 
     if isinstance(P, tuple):
-        return octets_from_point(P, compressed, ec)
+        return bytes_from_point(P, compressed, ec)
     elif isinstance(P, dict):
         if not compressed:
             m = "Uncompressed BIP32 / compressed SEC key mismatch"
@@ -81,7 +81,7 @@ def to_pub_bytes(P: Union[Point, bytes, str, bip32.XkeyDict], compressed: bool, 
             return xkey['key']
 
 
-        pubkey = bytes_from_hexstring(P)
+        pubkey = bytes_from_octets(P)
         if not compressed and len(pubkey) != 2*ec.psize + 1:
             m = f"Wrong size ({len(pubkey)}-bytes) for uncompressed SEC key"
             raise ValueError(m)
@@ -89,4 +89,4 @@ def to_pub_bytes(P: Union[Point, bytes, str, bip32.XkeyDict], compressed: bool, 
             m = f"Wrong size ({len(pubkey)}-bytes) for compressed SEC key"
             raise ValueError(m)
         Q = point_from_octets(pubkey, ec)  # verify it is a valid point
-        return octets_from_point(Q, compressed, ec)
+        return bytes_from_point(Q, compressed, ec)

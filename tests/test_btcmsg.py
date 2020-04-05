@@ -18,7 +18,7 @@ from btclib.base58address import p2pkh, p2pkh_from_wif, p2wpkh_p2sh_from_wif
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh_from_wif
 from btclib.curves import secp256k1 as ec
-from btclib.utils import bytes_from_hexstring, sha256
+from btclib.utils import bytes_from_octets, sha256
 
 
 class TestSignMessage(unittest.TestCase):

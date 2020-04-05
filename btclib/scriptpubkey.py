@@ -22,13 +22,13 @@ from .curves import secp256k1
 from .network import _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
 from .script import Token, encode
 from .to_pubkey import to_pub_bytes
-from .utils import bytes_from_hexstring
+from .utils import bytes_from_octets
 
 
 def nulldata_scriptPubKey(data: Octets) -> List[Token]:
     """Return the nulldata scriptPubKey with the provided data."""
 
-    data = bytes_from_hexstring(data)
+    data = bytes_from_octets(data)
     if len(data) > 80:
         msg = f"Invalid data lenght ({len(data)} bytes) "
         msg += "for nulldata scriptPubKey"
@@ -76,14 +76,14 @@ def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey]) -> List[Token]:
 def p2pkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     """Return the p2pkh scriptPubKey of the provided HASH160 pubkey-hash."""
 
-    pubkey_h160 = bytes_from_hexstring(pubkey_h160, 20)
+    pubkey_h160 = bytes_from_octets(pubkey_h160, 20)
     return ['OP_DUP', 'OP_HASH160', pubkey_h160.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
 
 
 def p2sh_scriptPubKey(script_h160: Octets) -> List[Token]:
     """Return the p2sh scriptPubKey of the provided HASH160 script-hash."""
 
-    script_h160 = bytes_from_hexstring(script_h160, 20)
+    script_h160 = bytes_from_octets(script_h160, 20)
     return ['OP_HASH160', script_h160.hex(), 'OP_EQUAL']
 
 
@@ -96,7 +96,7 @@ def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     that is 0x0014{20-byte key-hash}
     """
 
-    pubkey_h160 = bytes_from_hexstring(pubkey_h160, 20)
+    pubkey_h160 = bytes_from_octets(pubkey_h160, 20)
     return [0, pubkey_h160.hex()]
 
 
@@ -109,7 +109,7 @@ def p2wsh_scriptPubKey(script_h256: Octets) -> List[Token]:
     that is 0x0020{32-byte script-hash}
     """
 
-    script_h256 = bytes_from_hexstring(script_h256, 32)
+    script_h256 = bytes_from_octets(script_h256, 32)
     return [0, script_h256.hex()]
 
 

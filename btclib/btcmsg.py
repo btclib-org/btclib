@@ -151,7 +151,7 @@ from .base58wif import prvkeytuple_from_wif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .curves import secp256k1
-from .utils import hash160, octets_from_point
+from .utils import hash160, bytes_from_point
 
 
 def _magic_hash(msg: String) -> bytes:
@@ -214,7 +214,7 @@ def sign(msg: String, wif: String,
     # key_id is in [0, 3]
     # first two bits in rf are reserved for it
     key_id = pubkeys.index(Q)
-    pubkey = octets_from_point(Q, compressed)
+    pubkey = bytes_from_point(Q, compressed)
 
     # finally, calculate the recovery flag
     if addr is None or addr == p2pkh(pubkey, compressed):
@@ -281,7 +281,7 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
     compressed = True
     if rf < 31:
         compressed = False
-    pubkey = octets_from_point(Q, compressed)
+    pubkey = bytes_from_point(Q, compressed)
     if is_b58:
         if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
             script_pk = b'\x00\x14' + hash160(pubkey)
