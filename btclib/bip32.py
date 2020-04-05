@@ -111,7 +111,7 @@ def deserialize(xkey: Octets) -> XkeyDict:
     if d['key'][0] == 0:
         q = int.from_bytes(d['key'][1:], byteorder='big')
         if not 0 < q < ec.n:
-            raise ValueError(f"private key {hex(q)} not in [1, n-1]")
+            raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
         d['q'] = q
         d['Q'] = (1, 0)
         d['network'] = _REPEATED_NETWORKS[_PRV_VERSIONS.index(d['version'])]
