@@ -11,7 +11,7 @@
 import unittest
 
 from btclib import bip32
-from btclib.base58 import b58decode, b58encode
+from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_xprv
 from btclib.curves import secp256k1 as ec
 from btclib.to_prvkey import to_prvkey_int
