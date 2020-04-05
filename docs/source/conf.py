@@ -19,10 +19,10 @@ sys.path.insert(0, path.abspath('../../'))
 
 project = 'btclib'
 copyright = '2017-2020 The btclib developers'
-author = 'dgi.io'
+author = 'www.dgi.io'
 
 # The full version, including alpha/beta/rc tags
-release = '2020.3.20'
+release = '2020.4.6'
 
 
 # -- General configuration ---------------------------------------------------
