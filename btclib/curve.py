@@ -11,7 +11,7 @@
 """Elliptic curve class."""
 
 from math import sqrt
-from typing import Tuple
+from typing import Tuple, Union
 
 from .alias import Point, JacPoint
 from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
@@ -289,9 +289,13 @@ class Curve:
             raise ValueError(f"y-coordinate {hex(Q[1])} not in (0, p)")
         return self._y2(Q[0]) == (Q[1]*Q[1] % self._p)
 
-    def has_square_y(self, Q: Point) -> bool:
-        """Return True if the y-coordinate of the point is a square."""
-        return legendre_symbol(Q[1], self._p) == 1 
+    def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
+        """Return True if the affine y-coordinate is a square."""
+        if len(Q) == 2:
+            return legendre_symbol(Q[1], self._p) == 1
+        if len(Q) == 3:
+            return legendre_symbol(Q[1]*Q[2] % self._p, self._p) == 1
+        raise ValueError(f"Not a Point")
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 

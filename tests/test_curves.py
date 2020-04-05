@@ -308,9 +308,11 @@ class TestEllipticCurve(unittest.TestCase):
             Q = ec.mult(ec._p)  # just a random point, not Inf
             checkQ = ec._aff_from_jac(_jac_from_aff(Q))
             self.assertEqual(Q, checkQ)
-        # with only the last curve
-        checkInf = ec._aff_from_jac(_jac_from_aff(Inf))
-        self.assertEqual(Inf, checkInf)
+            checkInf = ec._aff_from_jac(_jac_from_aff(Inf))
+            self.assertEqual(Inf, checkInf)
+            # the following is relevant in BIP340-Schnorr signature verification
+            self.assertFalse(ec.has_square_y(Inf))
+
 
     def test_add(self):
         for ec in all_curves:
