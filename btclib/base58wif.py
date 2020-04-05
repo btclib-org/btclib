@@ -18,7 +18,7 @@ from .curvemult import mult
 from .curves import secp256k1
 from .network import (_CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES,
                       _WIF_PREFIXES)
-from .utils import bytes_from_octets, int_from_prvkey, bytes_from_point
+from .utils import bytes_from_octets, bytes_from_point
 
 
 def wif_from_xprv(xkey: Union[XkeyDict, String]) -> bytes:
@@ -103,7 +103,9 @@ def prvkeytuple_from_wif(wif: String) -> Tuple[int, bool, str]:
     else:
         raise ValueError(f"Wrong WIF size ({len(payload)})")
 
-    q = int_from_prvkey(prvkey)
+    q = int.from_bytes(prvkey, byteorder='big')
+    if not 0 < q < ec.n:
+        raise ValueError(f"Private key {hex(q)} not in [1, n-1]")
 
     network = _NETWORKS[wif_index]
     return q, compressed, network
