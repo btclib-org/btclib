@@ -214,10 +214,6 @@ class TestEllipticCurve(unittest.TestCase):
             minus_Qjac = _jac_from_aff(minus_Q)
             self.assertEqual(ec._add_jac(Qjac, minus_Qjac)[2], 0)
 
-            # opposite of Inf is Inf
-            minus_Inf = ec.opposite(Inf)
-            self.assertEqual(minus_Inf, Inf)
-
     def test_symmetry(self):
         """Methods to break simmetry: quadratic residue, odd/even, low/high"""
         for ec in low_card_curves:
