@@ -275,7 +275,10 @@ class Curve:
         return mod_sqrt(y2, self._p)
 
     def require_on_curve(self, Q: Point) -> None:
-        """Raise an Error if the input point is not on the curve."""
+        """Require the input curve Point to be on the curve.
+        
+        An Error is raised if not.
+        """
         if not self.is_on_curve(Q):
             raise ValueError("Point not on curve")
 
@@ -289,6 +292,15 @@ class Curve:
             raise ValueError(f"y-coordinate {hex(Q[1])} not in (0, p)")
         return self._y2(Q[0]) == (Q[1]*Q[1] % self._p)
 
+    def require_square_y(self,Q: Union[Point, JacPoint]) -> None:
+        """Require the affine y-coordinate of the Point to be a square.
+        
+        An Error is raised if not.
+        """
+        if not self.has_square_y(Q):
+            m = f'y_Q is not a quadratic residue'
+            raise ValueError(m)
+
     def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
         """Return True if the affine y-coordinate is a square."""
         if len(Q) == 2:
@@ -297,10 +309,19 @@ class Curve:
             return legendre_symbol(Q[1]*Q[2] % self._p, self._p) == 1
         raise ValueError(f"Not a Point")
 
+    def require_p_ThreeModFour(self) -> None:
+        """Require the field prime p to be equal to 3 mod 4.
+        
+        An Error is raised if not.
+        """
+        if not self.pIsThreeModFour:
+            m = f'field prime p is not equal to 3 (mod 4)'
+            raise ValueError(m)
+
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 
     def y_odd(self, x: int, odd1even0: int = 1) -> int:
-        """Return the odd (even) y coordinate from x, as in (x, y)."""
+        """Return the odd/even affine y-coordinate associated to x."""
         if odd1even0 not in (0, 1):
             raise ValueError("odd1even0 must be bool or 1/0")
         root = self.y(x)
@@ -308,7 +329,7 @@ class Curve:
         return root if root % 2 == odd1even0 else self._p - root
 
     def y_low(self, x: int, low1high0: int = 1) -> int:
-        """Return the low (high) y coordinate from x, as in (x, y)."""
+        """Return the low/high affine y-coordinate associated to x."""
         if low1high0 not in (0, 1):
             raise ValueError("low1high0 must be bool or 1/0")
         root = self.y(x)
@@ -316,11 +337,10 @@ class Curve:
         return root if (self._p//2 >= root) == low1high0 else self._p - root
 
     def y_quadratic_residue(self, x: int, quad_res: int = 1) -> int:
-        """Return the quadratic residue y from x, as in (x, y)."""
+        """Return the quadratic residue affine y-coordinate."""
         if quad_res not in (0, 1):
             raise ValueError("quad_res must be bool or 1/0")
-        if not self.pIsThreeModFour:
-            raise ValueError("this method works only when p = 3 (mod 4)")
+        self.require_p_ThreeModFour()
         root = self.y(x)
         # switch to quadratic residue root as needed
         legendre = legendre_symbol(root, self._p)
