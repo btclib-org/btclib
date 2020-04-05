@@ -16,7 +16,7 @@ from .curve import Curve
 from .curves import secp256k1
 from .utils import bytes_from_octets, bytes_from_point, point_from_octets
 
-# TODO: raise exception for infinite point?
+# TODO: do not rely on BIP32 extensions
 
 def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str], ec: Curve) -> Point:
     """Return a public key tuple from any possible representation.
@@ -48,7 +48,7 @@ def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str], ec: Curve) -> Poin
     return point_from_octets(P, ec)
 
 
-def to_pub_bytes(P: Union[Point, bytes, str, bip32.XkeyDict], compressed: bool, ec: Curve) -> bytes:
+def to_pub_bytes(P: Union[Point, bip32.XkeyDict, bytes, str], compressed: bool, ec: Curve) -> bytes:
     """Return a public key tuple from any possible representation.
 
     It supports:
