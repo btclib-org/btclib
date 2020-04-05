@@ -67,7 +67,7 @@ def wif_from_prvkey(prvkey: Union[int, Octets],
 
 
 def prvkeytuple_from_xprvwif(xkeywif: Union[XkeyDict, String],
-                             network: str = 'mainnet') -> Tuple[int, Optional[bool], Optional[str]]:
+                             network: str = 'mainnet') -> Tuple[int, bool, str]:
     """Return a verified-as-valid private key tuple (prvkey, compressed, network).
 
     Support WIF or BIP32 xkey.
