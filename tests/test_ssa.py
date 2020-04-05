@@ -137,7 +137,6 @@ class TestEcssa(unittest.TestCase):
                             # valid signature must validate
                             self.assertIsNone(ssa._verify(h, Q, sig, ec, hf))
 
-                            # TODO recover pubkey from e
                             if e != 0:  # FIXME
                                 x_Q = ssa._recover_pubkeys(e, x_K, s, ec)
                                 self.assertEqual(Q[0], x_Q)
