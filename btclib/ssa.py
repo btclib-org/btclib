@@ -43,15 +43,18 @@ import secrets
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
+from btclib import bip32
+
 from .alias import HashF, JacPoint, Octets, Point, PubKey, SSASig
 from .curve import Curve
 from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
                         double_mult, mult)
 from .curves import secp256k1
 from .numbertheory import mod_inv
+from .to_prvkey import to_prvkey_int
 from .to_pubkey import to_pub_bytes, to_pub_tuple
-from .utils import (_int_from_bits, bytes_from_octets, int_from_bits,
-                    int_from_prvkey, bytes_from_point, point_from_octets)
+from .utils import (_int_from_bits, bytes_from_octets, bytes_from_point,
+                    int_from_bits, point_from_octets)
 
 # TODO use _mult and _double_mult to avoid useless checks
 # TODO remove the p_ThreeModFour requirement
@@ -82,7 +85,7 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[int, int]:
     return r, s
 
 
-def k(mhd: Octets, prvkey: Union[int, Octets],
+def k(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
       ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
 
@@ -90,7 +93,7 @@ def k(mhd: Octets, prvkey: Union[int, Octets],
     mhd = bytes_from_octets(mhd, hf().digest_size)
 
     # The secret key d: an integer in the range 1..n-1.
-    q = int_from_prvkey(prvkey, ec)
+    q = to_prvkey_int(prvkey, ec)
 
     return _k(mhd, q, ec, hf)
 
@@ -113,12 +116,13 @@ def _k(mhd: bytes, q: int, ec: Curve, hf: HashF) -> int:
             return k               # successful candidate
 
 
-def pubkey_gen(prvkey: Octets, ec: Curve = secp256k1) -> bytes:
+def pubkey_gen(prvkey: Union[int, bytes, str, bip32.XkeyDict],
+               ec: Curve = secp256k1) -> bytes:
     """Return a BIP340-Schnorr p-size public key."""
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    x = int_from_prvkey(prvkey, ec)
+    x = to_prvkey_int(prvkey, ec)
     Q = mult(x, ec.G, ec)
     return Q[0].to_bytes(ec.psize, byteorder="big")
 
@@ -151,9 +155,7 @@ def _challenge(r: int, x_Q: int, mhd: bytes, ec: Curve, hf: HashF) -> int:
     return c
 
 
-# TODO allow to sign also with WIF: String
-# TODO allow to sign also with BIP32key: Union[XkeyDict, String]
-def sign(mhd: Octets, prvkey: Union[int, Octets],
+def sign(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
          k: Optional[Union[int, Octets]] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> SSASig:
     """Sign message according to BIP340-Schnorr signature algorithm."""
@@ -165,7 +167,7 @@ def sign(mhd: Octets, prvkey: Union[int, Octets],
     mhd = bytes_from_octets(mhd, hf().digest_size)
 
     # The secret key d: an integer in the range 1..n-1.
-    q = int_from_prvkey(prvkey, ec)
+    q = to_prvkey_int(prvkey, ec)
     QJ = _mult_jac(q, ec.GJ, ec)
     x_Q = (QJ[0]*mod_inv(QJ[2]*QJ[2], ec._p)) % ec._p
     if not ec.has_square_y(QJ):
@@ -175,7 +177,7 @@ def sign(mhd: Octets, prvkey: Union[int, Octets],
     if k is None:
         k = _k(mhd, q, ec, hf)
     else:
-        k = int_from_prvkey(k, ec)
+        k = to_prvkey_int(k, ec)
 
     # Let K = kG
     KJ = _mult_jac(k, ec.GJ, ec)

@@ -36,20 +36,22 @@ with e = hash(R||c)) and W.x being known from the signature.
 from hashlib import sha256
 from typing import Optional, Tuple, Union
 
+from btclib import bip32
+
 from . import dsa, ssa
 from .alias import HashF, Octets, Point
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
 from .rfc6979 import rfc6979
-from .utils import (bytes_from_octets, int_from_bits, int_from_prvkey,
-                    bytes_from_point, point_from_octets)
+from .to_prvkey import to_prvkey_int
+from .utils import (bytes_from_octets, bytes_from_point, int_from_bits,
+                    point_from_octets)
 
 # commitment receipt
 Receipt = Tuple[int, Point]
 
-def _tweak(c: Octets, k: int,
-           ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[Point, int]:
+def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     """Tweak kG with hash(kG||c).
 
     Return:
@@ -65,7 +67,8 @@ def _tweak(c: Octets, k: int,
     return R, (e + k) % ec.n
 
 
-def ecdsa_commit_sign(c: Octets, m: Octets, q: Union[int, Octets],
+def ecdsa_commit_sign(c: Octets, m: Octets,
+                      q: Union[int, bytes, str, bip32.XkeyDict],
                       k: Optional[int] = None,
                       ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
@@ -73,7 +76,7 @@ def ecdsa_commit_sign(c: Octets, m: Octets, q: Union[int, Octets],
 
     c = bytes_from_octets(c)
     m = bytes_from_octets(m)
-    q = int_from_prvkey(q, ec)
+    q = to_prvkey_int(q, ec)
 
     if k is None:
         h = hf()
@@ -93,7 +96,8 @@ def ecdsa_commit_sign(c: Octets, m: Octets, q: Union[int, Octets],
     return sig, receipt
 
 
-def ecssa_commit_sign(c: Octets, m: Octets, q: Union[int, bytes, str],
+def ecssa_commit_sign(c: Octets, m: Octets,
+                      q: Union[int, bytes, str, bip32.XkeyDict],
                       k: Optional[int] = None,
                       ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
@@ -101,7 +105,7 @@ def ecssa_commit_sign(c: Octets, m: Octets, q: Union[int, bytes, str],
 
     c = bytes_from_octets(c)
     m = bytes_from_octets(m)
-    q = int_from_prvkey(q, ec)
+    q = to_prvkey_int(q, ec)
 
     if k is None:
         # TODO use BIPSchnorr _k

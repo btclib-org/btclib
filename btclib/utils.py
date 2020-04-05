@@ -39,7 +39,7 @@ def bytes_from_octets(o: Octets, out_size: Optional[int] = None) -> bytes:
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"
     raise ValueError(m)
 
-# TODO rename as bytes_from_point
+
 def bytes_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> bytes:
     """Return a point as compressed/uncompressed octet sequence.
 
@@ -98,19 +98,6 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
             return P
         else:
             raise ValueError(f"point {P} not on curve")
-
-
-def int_from_prvkey(prvkey: Union[int, Octets], ec: Curve = secp256k1) -> int:
-    """Return a verified-as-valid private key integer."""
-
-    if not isinstance(prvkey, int):
-        prvkey = bytes_from_octets(prvkey, ec.nsize)
-        prvkey = int.from_bytes(prvkey, 'big')
-
-    if not 0 < prvkey < ec.n:
-        raise ValueError(f"private key {hex(prvkey)} not in [1, n-1]")
-
-    return prvkey
 
 
 def int_from_bits(o: Octets, ec: Curve = secp256k1) -> int:

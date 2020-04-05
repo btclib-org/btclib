@@ -20,15 +20,16 @@
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
-from . import der
-from .alias import DSASig, HashF, Octets, Point, PubKey, String, JacPoint
+from . import bip32, der
+from .alias import DSASig, HashF, JacPoint, Octets, Point, PubKey, String
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
+from .to_prvkey import to_prvkey_int
 from .to_pubkey import to_pub_tuple
-from .utils import int_from_bits, int_from_prvkey, point_from_octets
+from .utils import int_from_bits, point_from_octets
 
 
 def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
@@ -43,10 +44,8 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
     c = int_from_bits(mhd, ec)                    # 5
     return c
 
-# TODO allow to sign also with WIF: String
-# TODO allow to sign also with BIP32key: Union[XkeyDict, String]
-def sign(msg: String, prvkey: Union[int, Octets],
-         k: Optional[Union[int, Octets]] = None,
+def sign(msg: String, prvkey: Union[int, Octets, bip32.XkeyDict],
+         k: Optional[Union[int, Octets, bip32.XkeyDict]] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """ECDSA signature with canonical low-s encoding.
 
@@ -70,12 +69,12 @@ def sign(msg: String, prvkey: Union[int, Octets],
 
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
-    q = int_from_prvkey(prvkey, ec)
+    q = to_prvkey_int(prvkey, ec)
 
     if k is None:
         k = _rfc6979(c, q, ec, hf)                # 1
     else:
-        k = int_from_prvkey(k, ec)
+        k = to_prvkey_int(k, ec)
 
     # second part delegated to helper function
     return _sign(c, q, k, ec)
@@ -149,7 +148,6 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     KJ = _double_mult(v, QJ, u, ec.GJ, ec)       # 5
 
     # Fail if infinite(K).
-    # TODO: why this occur with SSA and not DSA?
     assert KJ[2] != 0, "how did you do that?!?"  # 5
 
     # affine x-coordinate of K

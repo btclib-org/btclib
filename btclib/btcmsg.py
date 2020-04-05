@@ -144,14 +144,14 @@ from base64 import b64decode, b64encode
 from hashlib import sha256
 from typing import Optional, Tuple, Union
 
-from . import dsa
+from . import bip32, dsa
 from .alias import BMSig, Octets, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
-from .base58wif import prvkeytuple_from_wif
+from .base58wif import prvkeytuple_from_xprvwif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .curves import secp256k1
-from .utils import hash160, bytes_from_point
+from .utils import bytes_from_point, hash160
 
 
 def _magic_hash(msg: String) -> bytes:
@@ -193,8 +193,7 @@ def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
     dsa._validate_sig(r, s, secp256k1)
     return rf, r, s
 
-# TODO allow to sign also with BIP32key: Union[XkeyDict, String]
-def sign(msg: String, wif: String,
+def sign(msg: String, wif: Union[String, bip32.XkeyDict],
          addr: Optional[String] = None) -> Tuple[int, int, int]:
     """Generate address-based compact signature for the provided message."""
 
@@ -204,7 +203,7 @@ def sign(msg: String, wif: String,
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, compressed, _ = prvkeytuple_from_wif(wif)
+    q, compressed, _ = prvkeytuple_from_xprvwif(wif)
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
