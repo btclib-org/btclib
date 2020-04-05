@@ -315,7 +315,7 @@ class Curve:
         An Error is raised if not.
         """
         if not self.pIsThreeModFour:
-            m = f'field prime p is not equal to 3 (mod 4)'
+            m = f'field prime p ({hex(self._p)}) is not equal to 3 (mod 4)'
             raise ValueError(m)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
