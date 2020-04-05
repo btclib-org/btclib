@@ -78,6 +78,36 @@ class TestToPrvKey(unittest.TestCase):
         self.assertRaises(ValueError, to_prvkey_int, xprv)
         self.assertRaises(ValueError, to_prvkey_int, xprv_str)
 
+        # wrong private key int
+        q = 0
+        self.assertRaises(ValueError, to_prvkey_int, q)
+        # bytes
+        qbytes = q.to_bytes(32, byteorder='big')
+        qhex = qbytes.hex()
+        self.assertRaises(ValueError, to_prvkey_int, qbytes)
+        self.assertRaises(ValueError, to_prvkey_int, qhex)
+        # WIF
+        t = b'\x80' + qbytes + b'\x01'
+        wif = b58encode(t)
+        wif_str = wif.decode('ascii')
+        self.assertRaises(ValueError, to_prvkey_int, wif)
+        self.assertRaises(ValueError, to_prvkey_int, wif_str)
+        # BIP32
+        t = xprv_dict['version']
+        t += xprv_dict['depth'].to_bytes(1, 'big')
+        t += xprv_dict['parent_fingerprint']
+        t += xprv_dict['index']
+        t += xprv_dict['chain_code']
+        t += b'\x00' + qbytes
+        xprv = b58encode(t)
+        xprv_str = xprv.decode('ascii')
+        self.assertRaises(ValueError, to_prvkey_int, xprv)
+        self.assertRaises(ValueError, to_prvkey_int, xprv_str)
+
+        # pub key
+        xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
+        self.assertRaises(ValueError, to_prvkey_int, xpub)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

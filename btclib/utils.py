@@ -69,11 +69,7 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
 
     pubkey = bytes_from_octets(pubkey)
 
-    # TODO: remove support for infinity point?
     bsize = len(pubkey)  # bytes
-    if bsize == 1 and pubkey[0] == 0x00:      # infinity point
-        return 1, 0
-
     if bsize == ec.psize + 1:                 # compressed point
         if pubkey[0] not in (0x02, 0x03):
             msg = f"{ec.psize+1} bytes, but not a compressed point"

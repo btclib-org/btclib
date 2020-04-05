@@ -173,13 +173,6 @@ class TestEllipticCurve(unittest.TestCase):
             R = point_from_octets(Q_hex_str, ec)
             self.assertEqual(R, Q)
 
-            # infinity point
-            self.assertEqual(point_from_octets(b'\x00', ec), Inf)
-            self.assertEqual(bytes_from_point(Inf, True, ec),  b'\x00')
-            self.assertEqual(bytes_from_point(Inf, False, ec), b'\x00')
-            Inf_hex_str = b'\x00'.hex()
-            self.assertEqual(point_from_octets(Inf_hex_str, ec), Inf)
-
             # scalar in point multiplication can be int, str, or bytes
             t = tuple()
             self.assertRaises(TypeError, ec.mult, t)

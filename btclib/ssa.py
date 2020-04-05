@@ -157,7 +157,7 @@ def _challenge(r: int, x_Q: int, mhd: bytes, ec: Curve, hf: HashF) -> int:
 
 def sign(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
          k: Optional[Union[int, Octets]] = None,
-         ec: Curve = secp256k1, hf: HashF = sha256) -> SSASig:
+         ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """Sign message according to BIP340-Schnorr signature algorithm."""
 
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4

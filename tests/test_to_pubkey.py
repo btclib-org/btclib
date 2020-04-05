@@ -16,6 +16,7 @@ from btclib.curves import secp256k1 as ec
 from btclib.utils import bytes_from_point
 
 
+# TODO add test for (x, y) where x is not a field element
 class TestKey(unittest.TestCase):
 
     def test_to_pub_tuple(self):
@@ -57,6 +58,7 @@ class TestKey(unittest.TestCase):
         self.assertRaises(ValueError, to_pub_tuple, xprv, ec)
         xprv_dict = bip32.deserialize(xprv)
         self.assertRaises(ValueError, to_pub_tuple, xprv_dict, ec)
+
 
     def test_to_pub_bytes(self):
 

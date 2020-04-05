@@ -108,8 +108,7 @@ def ecssa_commit_sign(c: Octets, m: Octets,
     q = to_prvkey_int(q, ec)
 
     if k is None:
-        # TODO use BIPSchnorr _k
-        k = rfc6979(m, q, ec, hf)
+        k = ssa.k(m, q, ec, hf)
 
     h = hf()
     h.update(c)
