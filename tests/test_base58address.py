@@ -20,8 +20,8 @@ from btclib.base58wif import prvkeytuple_from_wif, wif_from_xprv
 from btclib.bech32address import p2wpkh_from_wif, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
-from btclib.to_pubkey import to_pub_bytes
-from btclib.utils import hash160, bytes_from_point, point_from_octets, sha256
+from btclib.to_pubkey import bytes_from_point, point_from_octets, to_pub_bytes
+from btclib.utils import hash160, sha256
 
 
 class TestAddresses(unittest.TestCase):

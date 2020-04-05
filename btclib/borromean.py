@@ -13,10 +13,11 @@ from collections import defaultdict
 from hashlib import sha256 as hf  # FIXME: any hf
 from typing import Dict, List, Sequence, Tuple, Union
 
-from .alias import Point
+from .alias import Point, String
 from .curvemult import double_mult, mult
 from .curves import secp256k1 as ec  # FIXME: any curve
-from .utils import String, int_from_bits, bytes_from_point, point_from_octets
+from .to_pubkey import bytes_from_point, point_from_octets
+from .utils import int_from_bits
 
 # FIXME: should be urandom, but then tests would be non-deterministic
 random.seed(42)
@@ -75,7 +76,7 @@ def sign(msg: String,
         if start_idx != 0:
             for j in range(start_idx, keys_size):
                 s[i][j] = random.getrandbits(256)
-                e[i][j] = int_from_bits(_hash(m, R, i, j), ec)
+                e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
                 assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
                 T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j])
                 R = bytes_from_point(T, True, ec)
@@ -83,14 +84,14 @@ def sign(msg: String,
     e0 = hf(e0bytes).digest()
     # step 2
     for i in range(ring_size):
-        e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec)
+        e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
         assert 0 < e[i][0] < ec.n, "sign fail: how did you do that?!?"
         j_star = sign_key_idx[i]
         for j in range(1, j_star+1):
             s[i][j-1] = random.getrandbits(256)
             T = double_mult(-e[i][j-1], pubk_rings[i][j-1], s[i][j-1])
             R = bytes_from_point(T, True, ec)
-            e[i][j] = int_from_bits(_hash(m, R, i, j), ec)
+            e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
             assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
         s[i][j_star] = k[i] + sign_keys[i]*e[i][j_star]
     return e0, s
@@ -127,14 +128,14 @@ def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     for i in range(ring_size):
         keys_size = len(pubk_rings[i])
         e[i] = [0]*keys_size
-        e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec)
+        e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
         assert e[i][0] != 0, "invalid sig: how did you do that?!?"
         R = b'\0x00'
         for j in range(keys_size):
             T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j])
             R = bytes_from_point(T, True, ec)
             if j != len(pubk_rings[i])-1:
-                e[i][j+1] = int_from_bits(_hash(m, R, i, j+1), ec)
+                e[i][j+1] = int_from_bits(_hash(m, R, i, j+1), ec.nlen) % ec.n
                 assert e[i][j+1] != 0, "invalid sig: how did you do that?!?"
             else:
                 e0bytes += R

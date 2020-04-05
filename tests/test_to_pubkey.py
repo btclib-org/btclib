@@ -14,8 +14,7 @@ from btclib import bip32
 from btclib.alias import INF
 from btclib.base58 import b58encode
 from btclib.curves import secp256k1 as ec
-from btclib.to_pubkey import to_pub_bytes, to_pub_tuple
-from btclib.utils import bytes_from_point
+from btclib.to_pubkey import bytes_from_point, to_pub_bytes, to_pub_tuple
 
 
 class TestToPubKey(unittest.TestCase):

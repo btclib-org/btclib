@@ -16,7 +16,6 @@ from btclib.curvemult import mult
 from btclib.curves import (nistp192, nistp224, nistp256, nistp384, nistp521,
                            secp256k1)
 from btclib.rfc6979 import rfc6979
-from btclib.utils import _int_from_bits, int_from_bits
 
 
 class Testrfc6979(unittest.TestCase):

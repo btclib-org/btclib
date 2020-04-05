@@ -16,7 +16,7 @@ from btclib.curvemult import Curve
 from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
                            secp160r1, secp256k1, secp256r1, secp384r1)
 from btclib.numbertheory import mod_sqrt
-from btclib.utils import bytes_from_point, point_from_octets
+from btclib.to_pubkey import bytes_from_point, point_from_octets
 
 
 class TestEllipticCurve(unittest.TestCase):

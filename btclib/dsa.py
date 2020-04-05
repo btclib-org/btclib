@@ -28,8 +28,8 @@ from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
 from .to_prvkey import to_prvkey_int
-from .to_pubkey import to_pub_tuple
-from .utils import int_from_bits, point_from_octets
+from .to_pubkey import point_from_octets, to_pub_tuple
+from .utils import int_from_bits
 
 
 def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
@@ -41,7 +41,7 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
     h = hf()
     h.update(msg)
     mhd = h.digest()                              # 4
-    c = int_from_bits(mhd, ec)                    # 5
+    c = int_from_bits(mhd, ec.nlen) % ec.n        # 5
     return c
 
 def sign(msg: String, prvkey: Union[int, Octets, bip32.XkeyDict],

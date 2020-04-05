@@ -586,9 +586,9 @@ class TestEcssa(unittest.TestCase):
         keys.sort()
         # 2. coefficients
         prefix = b''.join(keys)
-        a1 = int_from_bits(hf(prefix + Q1_x).digest(), ec)
-        a2 = int_from_bits(hf(prefix + Q2_x).digest(), ec)
-        a3 = int_from_bits(hf(prefix + Q3_x).digest(), ec)
+        a1 = int_from_bits(hf(prefix + Q1_x).digest(), ec.nlen) % ec.n
+        a2 = int_from_bits(hf(prefix + Q2_x).digest(), ec.nlen) % ec.n
+        a3 = int_from_bits(hf(prefix + Q3_x).digest(), ec.nlen) % ec.n
         # 3. aggregated public key
         Q = ec.add(double_mult(a1, Q1, a2, Q2), mult(a3, Q3))
 

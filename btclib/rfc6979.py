@@ -45,7 +45,7 @@ from .alias import HashF, Octets
 from .curve import Curve
 from .curves import secp256k1
 from .to_prvkey import to_prvkey_int
-from .utils import _int_from_bits, bytes_from_octets, int_from_bits
+from .utils import bytes_from_octets, int_from_bits
 
 
 def rfc6979(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
@@ -57,7 +57,7 @@ def rfc6979(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
 
     q = to_prvkey_int(prvkey, ec)
 
-    c = int_from_bits(mhd, ec)  # leftmost ec.nlen bits %= ec.n
+    c = int_from_bits(mhd, ec.nlen) % ec.n  # leftmost ec.nlen bits %= ec.n
     return _rfc6979(c, q, ec, hf)
 
 
@@ -94,8 +94,8 @@ def _rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
         # However, if the order n is sufficiently close to 2^hlen,
         # then the bias is not observable: e.g.
         # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
-        k = _int_from_bits(T, ec)  # candidate k           # 3.2.h.3
-        if 0 < k < ec.n:           # acceptable values for k
-            return k               # successful candidate
+        k = int_from_bits(T, ec.nlen)   # candidate k           # 3.2.h.3
+        if 0 < k < ec.n:                # acceptable values for k
+            return k                    # successful candidate
         K = hmac.new(K, V + b'\x00', hf).digest()
         V = hmac.new(K, V, hf).digest()

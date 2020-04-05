@@ -45,8 +45,8 @@ from .curvemult import mult
 from .curves import secp256k1
 from .rfc6979 import rfc6979
 from .to_prvkey import to_prvkey_int
-from .utils import (bytes_from_octets, bytes_from_point, int_from_bits,
-                    point_from_octets)
+from .to_pubkey import bytes_from_point, point_from_octets
+from .utils import bytes_from_octets, int_from_bits
 
 # commitment receipt
 Receipt = Tuple[int, Point]
@@ -146,7 +146,7 @@ def verify_commit(c: Octets, receipt: Receipt,
     h = hf()
     h.update(bytes_from_point(R, True, ec) + ch)
     e = h.digest()
-    e = int_from_bits(e, ec)
+    e = int_from_bits(e, ec.nlen) % ec.n
     W = ec.add(R, mult(e, ec.G, ec))
     # different verify functions?
     # return w == W[0] # ECSS

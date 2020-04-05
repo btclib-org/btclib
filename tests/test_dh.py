@@ -11,10 +11,10 @@
 import unittest
 from hashlib import sha1 as hf
 
+from btclib import dh
 from btclib.curvemult import mult
 from btclib.curves import secp160r1 as ec
-from btclib.utils import point_from_octets, bytes_from_point
-from btclib import dh
+from btclib.to_pubkey import bytes_from_point
 
 
 class TestEcdh(unittest.TestCase):

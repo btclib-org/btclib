@@ -36,7 +36,8 @@ from .alias import HashF, Point
 from .curve import Curve
 from .curvemult import double_mult
 from .curves import secp256k1
-from .utils import int_from_bits, bytes_from_point
+from .to_pubkey import bytes_from_point
+from .utils import int_from_bits
 
 
 def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
@@ -58,7 +59,7 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     h = hf()
     h.update(G_bytes)
     hd = h.digest()
-    hx = int_from_bits(hd, ec)
+    hx = int_from_bits(hd, ec.nlen) % ec.n
     isCurvePoint = False
     while not isCurvePoint:
         try:

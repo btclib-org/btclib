@@ -52,9 +52,9 @@ from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .to_prvkey import to_prvkey_int
-from .to_pubkey import to_pub_bytes, to_pub_tuple
-from .utils import (_int_from_bits, bytes_from_octets, bytes_from_point,
-                    int_from_bits, point_from_octets)
+from .to_pubkey import (bytes_from_point, point_from_octets, to_pub_bytes,
+                        to_pub_tuple)
+from .utils import bytes_from_octets, int_from_bits
 
 # TODO remove the p_ThreeModFour requirement
 
@@ -110,9 +110,9 @@ def _k(mhd: bytes, q: int, ec: Curve, hf: HashF) -> int:
         # However, if the order n is sufficiently close to 2^hlen,
         # then the bias is not observable: e.g.
         # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
-        k = _int_from_bits(t, ec)  # candidate k
-        if 0 < k < ec.n:           # acceptable value for k
-            return k               # successful candidate
+        k = int_from_bits(t, ec.nlen)   # candidate k
+        if 0 < k < ec.n:                # acceptable value for k
+            return k                    # successful candidate
 
 
 def pubkey_gen(prvkey: Union[int, bytes, str, bip32.XkeyDict],
@@ -149,7 +149,7 @@ def _challenge(r: int, x_Q: int, mhd: bytes, ec: Curve, hf: HashF) -> int:
     # mhd size must have been already checked to be equal to hsize
     t += mhd
     t = _tagged_hash("BIPSchnorr", t, hf)
-    c = int_from_bits(t, ec)
+    c = int_from_bits(t, ec.nlen) % ec.n
     if c == 0:
         raise ValueError("Invalid (zero) challenge")
     return c

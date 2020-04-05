@@ -151,7 +151,8 @@ from .base58wif import prvkeytuple_from_xprvwif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .curves import secp256k1
-from .utils import bytes_from_point, hash160
+from .to_pubkey import bytes_from_point
+from .utils import hash160
 
 
 def _magic_hash(msg: String) -> bytes:
