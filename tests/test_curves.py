@@ -298,12 +298,17 @@ class TestEllipticCurve(unittest.TestCase):
     def test_aff_jac_conversions(self):
         for ec in all_curves:
             Q = ec.mult(ec._p)  # just a random point, not INF
-            checkQ = ec._aff_from_jac(_jac_from_aff(Q))
+            QJ = _jac_from_aff(Q)
+            checkQ = ec._aff_from_jac(QJ)
             self.assertEqual(Q, checkQ)
+            x = ec._x_aff_from_jac(QJ)
+            self.assertEqual(Q[0], x)
+
             checkInf = ec._aff_from_jac(_jac_from_aff(INF))
             self.assertEqual(INF, checkInf)
-            # the following is relevant in BIP340-Schnorr signature verification
+            # relevant for BIP340-Schnorr signature verification
             self.assertFalse(ec.has_square_y(INF))
+            self.assertRaises(ValueError, ec._x_aff_from_jac, INFJ)
             self.assertRaises(ValueError, ec.has_square_y, "Not a Point")
 
 

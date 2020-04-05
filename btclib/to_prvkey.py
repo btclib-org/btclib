@@ -33,13 +33,9 @@ def to_prvkey_int(prvkey: Union[int, bytes, str, bip32.XkeyDict], ec: Curve = se
         q = prvkey
     else:
         if isinstance(prvkey, dict):
-            try:
-                q, _, _ = prvkeytuple_from_xprv(prvkey)
-            except Exception:
-                pass
-            else:
-                # it has been already validated as 0 < q < n
-                return q
+            q, _, _ = prvkeytuple_from_xprv(prvkey)
+            # it has been already validated as 0 < q < n
+            return q
         else:
             try:
                 q, _, _ = prvkeytuple_from_xprv(prvkey)

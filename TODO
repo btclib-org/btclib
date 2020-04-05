@@ -16,27 +16,23 @@ optimizations
     https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
     https://eprint.iacr.org/2005/419.pdf
 transaction and block parsing (explorer based with optional full node)
-revise ssa._recover_pubkeys
 of a signature: verify or verification ? of a commit: verify or open ?
 crack https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/
 better mimic of electrum entropy search, they probably have the words inverted
 BIP44 in address_from...
 
-opposite in Jac coordinate using y_quadratic_residue ?
-
 primitives for interactive threshold and musig
 
+borromean references
 generalize ec, hf in borromean
 
 Edwards curve (Curve25519)
 
 BLS
 
-reference borromean
 deserialize curves from jason file
-add signature serialize/deserialize to SSA
 remove signtocontract, adding commit to dsa and ssa
-e=0 in SSA ?
+e=0 in SSA ? See FIXME
 
 remove (ec, hf) in favor of network (global default?)
 

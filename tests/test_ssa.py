@@ -127,18 +127,18 @@ class TestEcssa(unittest.TestCase):
                         x_K = K[0]
 
                         try:
-                            e = ssa._challenge(x_K, Q[0], h, ec, hf)
+                            c = ssa._challenge(x_K, Q[0], h, ec, hf)
                         except Exception:
                             pass
                         else:
-                            s = (k + e*q) % ec.n
+                            s = (k + c*q) % ec.n
                             sig = ssa.sign(h, q, None, ec)
                             self.assertEqual((x_K, s), sig)
                             # valid signature must validate
                             self.assertIsNone(ssa._verify(h, Q, sig, ec, hf))
 
-                            if e != 0:  # FIXME
-                                x_Q = ssa._recover_pubkeys(e, x_K, s, ec)
+                            if c != 0:  # FIXME
+                                x_Q = ssa._recover_pubkeys(c, x_K, s, ec)
                                 self.assertEqual(Q[0], x_Q)
 
     def test_batch_validation(self):
