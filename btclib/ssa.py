@@ -49,7 +49,7 @@ from .curvemult import _double_mult, _mult_jac, _multi_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .to_prvkey import to_prvkey_int
-from .to_pubkey import to_pub_tuple
+from .to_pubkey import to_pubkey_tuple
 from .utils import bytes_from_octets, int_from_bits
 
 # TODO relax the p_ThreeModFour requirement
@@ -75,7 +75,7 @@ def to_bip340_pubkey_tuple(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
         return x_Q, y_Q
     else:
         try:
-            x_Q = to_pub_tuple(x_Q, ec)[0]
+            x_Q = to_pubkey_tuple(x_Q, ec)[0]
             y_Q = ec.y_quadratic_residue(x_Q, True)
             return x_Q, y_Q
         except Exception:

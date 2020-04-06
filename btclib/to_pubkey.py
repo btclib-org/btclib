@@ -17,9 +17,8 @@ from .curves import secp256k1
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets
 
-# TODO rename as to_pubkey_tuple to_pubkey_bytes:
 
-def to_pub_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
+def to_pubkey_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
     """Return a public key tuple from any possible representation.
 
     It supports:
@@ -50,7 +49,7 @@ def to_pub_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
     return point_from_octets(P, ec)
 
 
-def to_pub_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -> bytes:
+def to_pubkey_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -> bytes:
     """Return a public key tuple from any possible representation.
 
     It supports:

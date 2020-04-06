@@ -49,7 +49,7 @@ remove (ec, hf) in favor of network (global default?)
             'parent_fingerprint' : b'\x00\x00\x00\x00',
             'index'              : b'\x00\x00\x00\x00',
             'chain_code'         : b'\x00'*32,
-            'key'                : to_pub_bytes(parent_pub)
+            'key'                : to_pubkey_bytes(parent_pub)
         }
         child_xprv: XkeyDict = {
             'version'            : MAIN_xprv,

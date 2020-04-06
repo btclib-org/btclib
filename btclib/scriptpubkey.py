@@ -21,7 +21,7 @@ from .bech32address import (b32address_from_witness, has_segwit_prefix,
 from .curves import secp256k1
 from .network import _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
 from .script import Token, encode
-from .to_pubkey import to_pub_bytes
+from .to_pubkey import to_pubkey_bytes
 from .utils import bytes_from_octets
 
 
@@ -42,7 +42,7 @@ def p2pk_scriptPubKey(pubkey: PubKey) -> List[Token]:
     # FIXME: does P2PK work also with compressed key?
     # TODO: remove hardcoded secp256k1
     compressed = False
-    pubkey = to_pub_bytes(pubkey, compressed, secp256k1)
+    pubkey = to_pubkey_bytes(pubkey, compressed, secp256k1)
     return [pubkey.hex(), 'OP_CHECKSIG']
 
 
@@ -58,7 +58,7 @@ def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey]) -> List[Token]:
     # TODO: remove hardcoded secp256k1
     compressed = False
     for pubkey in pubkeys:
-        pubkey = to_pub_bytes(pubkey, compressed, secp256k1)
+        pubkey = to_pubkey_bytes(pubkey, compressed, secp256k1)
         scriptPubKey.append(pubkey.hex())
 
     # FIXME: handle script max length

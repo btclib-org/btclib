@@ -20,7 +20,7 @@ from .base58 import b58decode, b58encode
 from .base58wif import _pubkeytuple_from_wif
 from .bip32 import deserialize
 from .network import _CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
-from .to_pubkey import to_pub_bytes
+from .to_pubkey import to_pubkey_bytes
 from .utils import bytes_from_octets, hash160, sha256
 
 
@@ -58,7 +58,7 @@ def p2pkh(pubkey: PubKey, compressed: bool = True, network: str = 'mainnet') -> 
     prefix = _P2PKH_PREFIXES[_NETWORKS.index(network)]
 
     ec = _CURVES[network_index]
-    pubkey = to_pub_bytes(pubkey, compressed, ec)
+    pubkey = to_pubkey_bytes(pubkey, compressed, ec)
     h160 = hash160(pubkey)
 
     return b58address_from_h160(prefix, h160)
@@ -120,7 +120,7 @@ def p2wpkh_p2sh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
     network_index = _NETWORKS.index(network)
     ec = _CURVES[network_index]
-    pubkey = to_pub_bytes(pubkey, True, ec)
+    pubkey = to_pubkey_bytes(pubkey, True, ec)
     h160 = hash160(pubkey)
     return _b58segwitaddress(h160, network)
 

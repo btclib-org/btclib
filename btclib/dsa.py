@@ -28,7 +28,7 @@ from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
 from .to_prvkey import to_prvkey_int
-from .to_pubkey import to_pub_tuple
+from .to_pubkey import to_pubkey_tuple
 from .utils import int_from_bits
 
 
@@ -131,7 +131,7 @@ def _verify(msg: String, Q: PubKey, sig: DSASig,
 
     c = _challenge(msg, ec, hf)                  # 2, 3
 
-    Q = to_pub_tuple(Q, ec)
+    Q = to_pubkey_tuple(Q, ec)
     QJ = Q[0], Q[1], 1 if Q[1] else 0
 
     # second part delegated to helper function
@@ -172,9 +172,9 @@ def recover_pubkeys(msg: String, sig: DSASig,
     return [ec._aff_from_jac(QJ) for QJ in QJs]
 
 
+# TODO: use _recover_pubkey to avoid code duplication
 def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     # Private function provided for testing purposes only.
-    # TODO: use _recover_pubkey
 
     # precomputations
     r1 = mod_inv(r, ec.n)

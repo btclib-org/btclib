@@ -21,7 +21,7 @@ from btclib.bech32address import p2wpkh_from_wif, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
-from btclib.to_pubkey import to_pub_bytes
+from btclib.to_pubkey import to_pubkey_bytes
 from btclib.utils import hash160, sha256
 
 
@@ -132,7 +132,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
 
-        b58addr = _b58segwitaddress(hash160(to_pub_bytes(pub, True, ec)), network)
+        b58addr = _b58segwitaddress(hash160(to_pubkey_bytes(pub, True, ec)), network)
         _, h160_2, network, is_script_hash = h160_from_b58address(b58addr)
         self.assertEqual(network, 'mainnet')
         self.assertEqual(is_script_hash, True)  #?!?!?
