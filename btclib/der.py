@@ -12,9 +12,8 @@
 
     The original Bitcoin implementation used OpenSSL to verify
     ECDSA signatures in ASN.1 DER representation.
-    However, OpenSSL does not do strict validation and as long as the
-    signature is not horribly malformed it is accepted.
-    E.g. extra padding is ignored and this changes the transaction
+    However, OpenSSL does not do strict validation
+    (e.g. extra padding is ignored) and this changes the transaction
     hash value, leading to transaction malleability.
     This was fixed by BIP66, activated on block 363,724.
 
@@ -85,7 +84,7 @@ def _serialize_scalar(scalar: int) -> bytes:
     return b'\x02' + xsize + x
 
 
-def serialize(r: int, s: int, sighash: Optional[Octets],
+def serialize(r: int, s: int, sighash: Optional[Octets] = None,
               ec: Curve = secp256k1) -> bytes:
     """Serialize an ECDSA signature in strict ASN.1 DER representation.
 
