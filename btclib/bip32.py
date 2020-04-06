@@ -198,7 +198,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
 
 
 def rootxprv_from_bip39mnemonic(mnemonic: Mnemonic,
-                                passphrase: str,
+                                passphrase: str = "",
                                 version: Octets = MAIN_xprv) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
@@ -207,7 +207,7 @@ def rootxprv_from_bip39mnemonic(mnemonic: Mnemonic,
 
 
 def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
-                                     passphrase: str,
+                                     passphrase: str = "",
                                      network: str = 'mainnet') -> bytes:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
