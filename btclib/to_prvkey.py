@@ -19,6 +19,7 @@ from .utils import bytes_from_octets
 
 Key = Union[int, bytes, str, bip32.XkeyDict]
 
+
 def to_prvkey_int(prvkey: Key, ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer.
     
@@ -27,7 +28,7 @@ def to_prvkey_int(prvkey: Key, ec: Curve = secp256k1) -> int:
     - WIF (bytes or string)
     - BIP32 extended keys (bytes, string, or XkeyDict)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
-    - native integer
+    - integer (native int or hex-strin)
     """
 
     if isinstance(prvkey, int):
