@@ -17,8 +17,11 @@ from .curves import secp256k1
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets
 
+Key = Union[bytes, str, bip32.XkeyDict]
 
-def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str], ec: Curve) -> Point:
+# TODO rename as to_pubkey_tuple to_pubkey_bytes:
+
+def to_pub_tuple(P: Key, ec: Curve) -> Point:
     """Return a public key tuple from any possible representation.
 
     It supports:
@@ -49,7 +52,7 @@ def to_pub_tuple(P: Union[Point, bip32.XkeyDict, bytes, str], ec: Curve) -> Poin
     return point_from_octets(P, ec)
 
 
-def to_pub_bytes(P: Union[Point, bip32.XkeyDict, bytes, str], compressed: bool, ec: Curve) -> bytes:
+def to_pub_bytes(P: Key, compressed: bool, ec: Curve) -> bytes:
     """Return a public key tuple from any possible representation.
 
     It supports:
@@ -66,6 +69,7 @@ def to_pub_bytes(P: Union[Point, bip32.XkeyDict, bytes, str], compressed: bool, 
             m = "Uncompressed SEC / compressed BIP32 key mismatch"
             raise ValueError(m)
         if P['key'][0] in (2, 3):
+            # TODO verify x_P is a field element
             return P['key']
         raise ValueError(f"Not a public key: {P['key'].hex()}")
     else:
@@ -78,6 +82,7 @@ def to_pub_bytes(P: Union[Point, bip32.XkeyDict, bytes, str], compressed: bool, 
                 m = "Uncompressed SEC / compressed BIP32 key mismatch"
                 raise ValueError(m)
             if xkey['key'][0] in (2, 3):
+                # TODO verify x_P is a field element
                 return xkey['key']
             raise ValueError(f"Not a public key: {xkey['key'].hex()}")
 
