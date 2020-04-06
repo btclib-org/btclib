@@ -36,29 +36,3 @@ e=0 in SSA ? See FIXME
 remove (ec, hf) in favor of network (global default?)
 
 }
-
-    def test_crack2(self):
-        "https://bitcoinmagazine.com/articles/deterministic-wallets-advantages-flaw-1385450276/"
-
-        #parent_pub = '04 fd6d91db1bdfc231116fd7d44c61a02e032b38b90aad419ecf75acf501eebdc7 a0b7818e16a97a6c87693c723106e6fe17d4da743fae991139b05e6d1fe5c8a8'
-        parent_pub = '02 fd6d91db1bdfc231116fd7d44c61a02e032b38b90aad419ecf75acf501eebdc7'
-        child0_prv =    'a0835e3fc02475c1b9c418794fc247a732bbabd16ca4ef38983923bd3dcd8177'
-        parent_xpub: XkeyDict = {
-            'version'            : MAIN_xpub,
-            'depth'              : 0,
-            'parent_fingerprint' : b'\x00\x00\x00\x00',
-            'index'              : b'\x00\x00\x00\x00',
-            'chain_code'         : b'\x00'*32,
-            'key'                : to_pubkey_bytes(parent_pub)
-        }
-        child_xprv: XkeyDict = {
-            'version'            : MAIN_xprv,
-            'depth'              : 1,
-            'parent_fingerprint' : b'\x00\x00\x00\x00',
-            'index'              : b'\x00\x00\x00\x00',
-            'chain_code'         : b'\x00'*32,
-            'key'                : b'\x00' + int(child0_prv, 16).to_bytes(32, 'big')
-        }
-        # TODO use to_prvkey_bytes
-        parent_xprv = crack_prvkey(parent_xpub, child_xprv)
-        self.assertEqual(xpub_from_xprv(parent_xprv), parent_xpub)

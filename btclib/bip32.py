@@ -55,8 +55,6 @@ from .network import (_NETWORKS, _P2WPKH_P2SH_PRV_PREFIXES,
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, hash160
 
-# TODO avoid BIP32 extensions as much as possible (i.e. everywhere but _ckd)
-
 
 def _check_version_key(v: bytes, k: bytes) -> None:
 

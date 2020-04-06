@@ -66,7 +66,6 @@ def to_pubkey_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -
             m = "Uncompressed SEC / compressed BIP32 key mismatch"
             raise ValueError(m)
         if P['key'][0] in (2, 3):
-            # TODO verify x_P is a field element
             return P['key']
         raise ValueError(f"Not a public key: {P['key'].hex()}")
     else:
@@ -79,7 +78,6 @@ def to_pubkey_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -
                 m = "Uncompressed SEC / compressed BIP32 key mismatch"
                 raise ValueError(m)
             if xkey['key'][0] in (2, 3):
-                # TODO verify x_P is a field element
                 return xkey['key']
             raise ValueError(f"Not a public key: {xkey['key'].hex()}")
 
