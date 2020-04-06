@@ -124,22 +124,22 @@ class Curve:
 
     def __str__(self) -> str:
         result = "Curve"
-        result += f"\n p   = {hex(self._p)}"
-        result += f"\n a   = {hex(self._a)}"
-        result += f"\n b   = {hex(self._b)}"
-        result += f"\n G.x = {hex(self.G[0])}"
-        result += f"\n G.y = {hex(self.G[1])}"
-        result += f"\n n   = {hex(self.n)}"
+        result += f"\n p   = {hex(self._p).upper()}"
+        result += f"\n a   = {hex(self._a).upper()}"
+        result += f"\n b   = {hex(self._b).upper()}"
+        result += f"\n x_G = {hex(self.G[0]).upper()}"
+        result += f"\n y_G = {hex(self.G[1]).upper()}"
+        result += f"\n n   = {hex(self.n).upper()}"
         result += f"\n h = {self.h}"
         result += f"\n sec_bits = {self.sec_bits}"
         return result
 
     def __repr__(self) -> str:
         result = "Curve("
-        result += f"{hex(self._p)}"
-        result += f", {hex(self._a)}, {hex(self._b)}"
-        result += f", ({hex(self.G[0])}, {hex(self.G[1])})"
-        result += f", {hex(self.n)}"
+        result += f"{hex(self._p).upper()}"
+        result += f", {hex(self._a).upper()}, {hex(self._b).upper()}"
+        result += f", ({hex(self.G[0]).upper()}, {hex(self.G[1]).upper()})"
+        result += f", {hex(self.n).upper()}"
         result += f", {self.h}"
         result += f", {self.sec_bits})"
         return result

@@ -385,9 +385,9 @@ class TestSignMessage(unittest.TestCase):
         # the actual message being signed
         magic_msg = btcmsg._magic_hash(msg)
 
-        # save parity and patch dersig
+        # save key_id and patch dersig
         dersig = bytes.fromhex(dersig)
-        parity = dersig[0]
+        key_id = dersig[0]
         dersig = b'\x30' + dersig[1:]
 
         r, s, sighash = der.deserialize(dersig)
@@ -401,7 +401,7 @@ class TestSignMessage(unittest.TestCase):
         addr = p2pkh(xpub)
 
         # equivalent Bitcoin Message Signature (non-serialized)
-        rec_flag = 27 + 4 + (parity & 0x01)
+        rec_flag = 27 + 4 + (key_id & 0x01)
         btcmsgsig = (rec_flag, r, s)
 
         # Bitcoin Message Signature verification
@@ -423,9 +423,9 @@ class TestSignMessage(unittest.TestCase):
         # the actual message being signed
         magic_msg = btcmsg._magic_hash(msg)
 
-        # save parity and patch dersig
+        # save key_id and patch dersig
         dersig = bytes.fromhex(dersig)
-        parity = dersig[0]
+        key_id = dersig[0]
         dersig = b'\x30' + dersig[1:]
 
         r, s, sighash = der.deserialize(dersig)
@@ -439,7 +439,7 @@ class TestSignMessage(unittest.TestCase):
         addr = p2pkh(xpub)
 
         # equivalent Bitcoin Message Signature (non-serialized)
-        rec_flag = 27 + 4 + (parity & 0x01)
+        rec_flag = 27 + 4 + (key_id & 0x01)
         btcmsgsig = (rec_flag, r, s)
 
         # Bitcoin Message Signature verification

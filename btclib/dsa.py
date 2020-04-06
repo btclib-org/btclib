@@ -44,6 +44,7 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
     c = int_from_bits(mhd, ec.nlen) % ec.n        # 5
     return c
 
+
 def sign(msg: String, prvkey: Union[int, Octets, bip32.XkeyDict],
          k: Optional[Union[int, Octets, bip32.XkeyDict]] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
