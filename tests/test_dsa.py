@@ -196,13 +196,13 @@ class TestDSA(unittest.TestCase):
 
         msg1 = "Paolo is afraid of ephemeral random numbers"
         sig1 = dsa.sign(msg1, q, k)
-        print(f'\nr1: {hex(sig1[0]).upper()}')
-        print(f's1: {hex(sig1[1]).upper()}')
+        #print(f'\nr1: {hex(sig1[0]).upper()}')
+        #print(f's1: {hex(sig1[1]).upper()}')
 
         msg2 = "and Paolo is right to be afraid"
         sig2 = dsa.sign(msg2, q, k)
-        print(f'\nr2: {hex(sig2[0]).upper()}')
-        print(f's2: {hex(sig2[1]).upper()}')
+        #print(f'\nr2: {hex(sig2[0]).upper()}')
+        #print(f's2: {hex(sig2[1]).upper()}')
 
         qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
         self.assertEqual(q, qc)

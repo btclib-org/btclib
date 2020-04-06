@@ -635,16 +635,16 @@ class TestEcssa(unittest.TestCase):
         msg1 = "Paolo is afraid of ephemeral random numbers"
         msg1 = hf(msg1.encode()).digest()
         sig1 = ssa.sign(msg1, q, k)
-        print(f'\nmsg1: {msg1.hex().upper()}')
-        print(f'  r1: {hex(sig1[0]).upper()}')
-        print(f'  s1: {hex(sig1[1]).upper()}')
+        #print(f'\nmsg1: {msg1.hex().upper()}')
+        #print(f'  r1: {hex(sig1[0]).upper()}')
+        #print(f'  s1: {hex(sig1[1]).upper()}')
 
         msg2 = "and Paolo is right to be afraid"
         msg2 = hf(msg2.encode()).digest()
         sig2 = ssa.sign(msg2, q, k)
-        print(f'\nmsg2: {msg2.hex().upper()}')
-        print(f'  r2: {hex(sig2[0]).upper()}')
-        print(f'  s2: {hex(sig2[1]).upper()}')
+        #print(f'\nmsg2: {msg2.hex().upper()}')
+        #print(f'  r2: {hex(sig2[0]).upper()}')
+        #print(f'  s2: {hex(sig2[1]).upper()}')
 
         qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
         self.assertIn(q, (qc, ec.n-qc))
