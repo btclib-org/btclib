@@ -27,7 +27,7 @@ def to_pub_tuple(P: Key, ec: Curve) -> Point:
     It supports:
 
     - BIP32 extended keys (bytes, string, or XkeyDict)
-    - Octets (bytes or hex-string)
+    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
 
@@ -58,7 +58,7 @@ def to_pub_bytes(P: Key, compressed: bool, ec: Curve) -> bytes:
     It supports:
 
     - BIP32 extended keys (bytes, string, or XkeyDict)
-    - Octets (bytes or hex-string)
+    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
 

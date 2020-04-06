@@ -37,14 +37,14 @@ class TestToPubKey(unittest.TestCase):
         self.assertEqual(to_pub_tuple(' ' + xpub_str + ' ', ec), P)
         self.assertEqual(to_pub_tuple(xpub_dict, ec), P)
 
-        # compressed Octets (bytes or hex-string)
+        # compressed SEC Octets (bytes or hex-string, with 02 or 03 prefix)
         self.assertEqual(to_pub_tuple(Pbytes_compressed, ec), P)
         self.assertRaises(ValueError, to_pub_tuple, b'\x00' + Pbytes_compressed, ec)
         self.assertEqual(to_pub_tuple(Pbytes_compressed_hexstr, ec), P)
         self.assertEqual(to_pub_tuple(' ' + Pbytes_compressed_hexstr + ' ', ec), P)
         self.assertRaises(ValueError, to_pub_tuple, Pbytes_compressed_hexstr + '00', ec)
 
-        # uncompressed Octets (bytes or hex-string)
+        # uncompressed SEC Octets (bytes or hex-string, with 04 prefix)
         self.assertEqual(to_pub_tuple(Pbytes_uncompressed, ec), P)
         self.assertRaises(ValueError, to_pub_tuple, b'\x00' + Pbytes_uncompressed, ec)
         self.assertEqual(to_pub_tuple(Pbytes_uncompressed_hexstr, ec), P)
@@ -99,14 +99,14 @@ class TestToPubKey(unittest.TestCase):
         self.assertEqual(to_pub_bytes(' ' + xpub_str + ' ', True, ec), Pbytes_compressed)
         self.assertEqual(to_pub_bytes(xpub_dict, True, ec), Pbytes_compressed)
 
-        # compressed Octets (bytes or hex-string) input, compressed result
+        # compressed SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix) input, compressed result
         self.assertEqual(to_pub_bytes(Pbytes_compressed, True, ec), Pbytes_compressed)
         self.assertRaises(ValueError, to_pub_bytes, b'\x00' + Pbytes_compressed, True, ec)
         self.assertEqual(to_pub_bytes(Pbytes_compressed_hexstr, True, ec), Pbytes_compressed)
         self.assertEqual(to_pub_bytes(' ' + Pbytes_compressed_hexstr + ' ', True, ec), Pbytes_compressed)
         self.assertRaises(ValueError, to_pub_bytes, Pbytes_compressed_hexstr + '00', True, ec)
 
-        # uncompressed Octets (bytes or hex-string) input, compressed result
+        # uncompressed SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix) input, compressed result
         self.assertRaises(ValueError, to_pub_bytes, Pbytes_uncompressed, True, ec)
         self.assertRaises(ValueError, to_pub_bytes, Pbytes_uncompressed_hexstr, True, ec)
         self.assertRaises(ValueError, to_pub_bytes, ' ' + Pbytes_uncompressed_hexstr + ' ', True, ec)
@@ -120,12 +120,12 @@ class TestToPubKey(unittest.TestCase):
         self.assertRaises(ValueError, to_pub_bytes, ' ' + xpub_str + ' ', False, ec)
         self.assertRaises(ValueError, to_pub_bytes, xpub_dict, False, ec)
 
-        # compressed Octets (bytes or hex-string) input, uncompressed result
+        # compressed SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix) input, uncompressed result
         self.assertRaises(ValueError, to_pub_bytes, Pbytes_compressed, False, ec)
         self.assertRaises(ValueError, to_pub_bytes, Pbytes_compressed_hexstr, False, ec)
         self.assertRaises(ValueError, to_pub_bytes, ' ' + Pbytes_compressed_hexstr + ' ', False, ec)
 
-        # uncompressed Octets (bytes or hex-string) input, uncompressed result
+        # uncompressed SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix) input, uncompressed result
         self.assertEqual(to_pub_bytes(Pbytes_uncompressed, False, ec), Pbytes_uncompressed)
         self.assertRaises(ValueError, to_pub_bytes, b'\x00' + Pbytes_uncompressed, False, ec)
         self.assertEqual(to_pub_bytes(Pbytes_uncompressed_hexstr, False, ec), Pbytes_uncompressed)

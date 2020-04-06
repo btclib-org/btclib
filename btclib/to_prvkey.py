@@ -26,7 +26,7 @@ def to_prvkey_int(prvkey: Key, ec: Curve = secp256k1) -> int:
 
     - WIF (bytes or string)
     - BIP32 extended keys (bytes, string, or XkeyDict)
-    - Octets (bytes or hex-string)
+    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native integer
     """
 
