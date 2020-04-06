@@ -58,6 +58,7 @@ from .utils import bytes_from_octets, int_from_bits
 
 # TODO remove the p_ThreeModFour requirement
 
+Key = Union[int, bytes, str, bip32.XkeyDict]
 
 def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
     """Return a BIP340-Schnorr signature serialization."""
@@ -84,22 +85,21 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[int, int]:
     return r, s
 
 
-def k(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
-      ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def k(m: Octets, prv: Key, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
 
-    # The message mhd: a hlen array
-    mhd = bytes_from_octets(mhd, hf().digest_size)
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
 
     # The secret key d: an integer in the range 1..n-1.
-    q = to_prvkey_int(prvkey, ec)
+    q = to_prvkey_int(prv, ec)
 
-    return _k(mhd, q, ec, hf)
+    return _k(m, q, ec, hf)
 
 
-def _k(mhd: bytes, q: int, ec: Curve, hf: HashF) -> int:
+def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
 
-    t = q.to_bytes(ec.nsize, 'big') + mhd
+    t = q.to_bytes(ec.nsize, 'big') + m
     while True:
         t = _tagged_hash("BIPSchnorrDerive", t, hf)
         # The following line would introduce a bias
@@ -115,8 +115,7 @@ def _k(mhd: bytes, q: int, ec: Curve, hf: HashF) -> int:
             return k                    # successful candidate
 
 
-def pubkey_gen(prvkey: Union[int, bytes, str, bip32.XkeyDict],
-               ec: Curve = secp256k1) -> bytes:
+def pubkey_gen(prvkey: Key, ec: Curve = secp256k1) -> bytes:
     """Return a BIP340-Schnorr p-size public key."""
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
@@ -129,25 +128,25 @@ def pubkey_gen(prvkey: Union[int, bytes, str, bip32.XkeyDict],
 
 # This implementation can be sped up by storing the midstate after hashing
 # tag_hash instead of rehashing it all the time.
-def _tagged_hash(tag: str, mhd: bytes, hf: HashF) -> bytes:
+def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
     t = tag.encode()
     h1 = hf()
     h1.update(t)
     tag_hash = h1.digest()
     h2 = hf()
-    h2.update(tag_hash + tag_hash + mhd)
+    h2.update(tag_hash + tag_hash + m)
     return h2.digest()
 
 
-def _challenge(r: int, x_Q: int, mhd: bytes, ec: Curve, hf: HashF) -> int:
+def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
 
     # note that only x_Q is needed
     # if Q is Jacobian Q_y calculation can be avoided
 
     t = r.to_bytes(ec.psize, 'big')
     t += x_Q.to_bytes(ec.psize, 'big')
-    # mhd size must have been already checked to be equal to hsize
-    t += mhd
+    # m size must have been already checked to be equal to hsize
+    t += m
     t = _tagged_hash("BIPSchnorr", t, hf)
     c = int_from_bits(t, ec.nlen) % ec.n
     if c == 0:
@@ -155,16 +154,15 @@ def _challenge(r: int, x_Q: int, mhd: bytes, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def sign(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
-         k: Optional[Union[int, Octets]] = None,
+def sign(m: Octets, prvkey: Key, k: Key = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """Sign message according to BIP340-Schnorr signature algorithm."""
 
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    # The message mhd: a hlen array
-    mhd = bytes_from_octets(mhd, hf().digest_size)
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
 
     # The secret key d: an integer in the range 1..n-1.
     q = to_prvkey_int(prvkey, ec)
@@ -175,7 +173,7 @@ def sign(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
 
     # Fail if k' = 0.
     if k is None:
-        k = _k(mhd, q, ec, hf)
+        k = _k(m, q, ec, hf)
     else:
         k = to_prvkey_int(k, ec)
 
@@ -186,8 +184,8 @@ def sign(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
     if not ec.has_square_y(KJ):
         k = ec.n - k
 
-    # Let c = int(hf(bytes(x_K) || bytes(Q) || mhd)) mod n.
-    c = _challenge(x_K, x_Q, mhd, ec, hf)
+    # Let c = int(hf(bytes(x_K) || bytes(Q) || m)) mod n.
+    c = _challenge(x_K, x_Q, m, ec, hf)
 
     # s=0 is ok: in verification there is no inverse of s
     s = (k + c*q) % ec.n
@@ -196,41 +194,42 @@ def sign(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
     return x_K, s
 
 
-def verify(mhd: Octets, Q: Union[Octets, Point], sig: SSASig,
+def verify(m: Octets, Q: Key, sig: SSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Verify the BIP340-Schnorr signature of the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        _verify(mhd, Q, sig, ec, hf)
+        _verify(m, Q, sig, ec, hf)
     except Exception:
         return False
     else:
         return True
 
 
-def _verify(mhd: Octets, Q: Union[Octets, Point], sig: SSASig,
-            ec: Curve, hf: HashF) -> None:
+def _verify(m: Octets, Q: Key, sig: SSASig, ec: Curve, hf: HashF) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    # The message mhd: a hlen array
-    mhd = bytes_from_octets(mhd, hf().digest_size)
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
 
     r, s = _to_sig(sig, ec)
 
     if isinstance(Q, tuple):
         x_Q = Q[0]
+    elif isinstance(Q, int):
+        x_Q = Q
     else:
         Q = bytes_from_octets(Q, ec.psize)
         x_Q = int.from_bytes(Q, 'big')
     QJ = x_Q, ec.y_quadratic_residue(x_Q, True), 1
 
-    # Let c = int(hf(bytes(r) || bytes(Q) || mhd)) mod n.
-    c = _challenge(r, x_Q, mhd, ec, hf)
+    # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
+    c = _challenge(r, x_Q, m, ec, hf)
 
     # Let K = sG - eQ.
     # in Jacobian coordinates
@@ -276,24 +275,20 @@ def _to_sig(sig: SSASig, ec: Curve) -> Tuple[int, int]:
     return r, s
 
 
-def batch_verify(ms: Sequence[Octets],
-                 Qs: Sequence[Union[Octets, Point]],
-                 sigs: Sequence[SSASig],
+def batch_verify(m: Sequence[Octets], Q: Sequence[Key], sig: Sequence[SSASig],
                  ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Batch verification of BIP340-Schnorr signatures."""
 
     # try/except wrapper for the Errors raised by _batch_verify
     try:
-        _batch_verify(ms, Qs, sigs, ec, hf)
+        _batch_verify(m, Q, sig, ec, hf)
     except Exception:
         return False
     else:
         return True
 
 
-def _batch_verify(ms: Sequence[Octets],
-                  Qs: Sequence[Union[Octets, Point]],
-                  sigs: Sequence[SSASig],
+def _batch_verify(ms: Sequence[Octets], Qs: Sequence[Key], sigs: Sequence[SSASig],
                   ec: Curve, hf: HashF) -> None:
 
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
