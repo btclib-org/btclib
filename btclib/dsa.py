@@ -260,7 +260,7 @@ def _to_sig(sig: DSASig, ec: Curve) -> Tuple[int, int]:
 
 
 def crack_prvkey(m1: String, sig1: DSASig, m2: String, sig2: DSASig,
-                 ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+                 ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
 
     r1, s1 = _to_sig(sig1, ec)
     r2, s2 = _to_sig(sig2, ec)
@@ -271,5 +271,6 @@ def crack_prvkey(m1: String, sig1: DSASig, m2: String, sig2: DSASig,
 
     c1 = _challenge(m1, ec, hf)
     c2 = _challenge(m2, ec, hf)
-    k = (c1-c2) * mod_inv(s1-s2, ec.n)
-    return (s2*k-c2) * mod_inv(r1, ec.n) %ec.n
+    k = (c1-c2) * mod_inv(s1-s2, ec.n) %ec.n
+    q = (s2*k-c2) * mod_inv(r1, ec.n) %ec.n
+    return q, k 

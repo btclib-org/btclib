@@ -190,6 +190,27 @@ class TestDSA(unittest.TestCase):
         for Q in keys:
             self.assertTrue(dsa.verify(msg, Q, sig, ec))
 
+    def test_crack_prvkey(self):
+        q = 0xDEADBEEF6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+        k = 1010101010101010101
+
+        msg1 = "Paolo is afraid of ephemeral random numbers"
+        sig1 = dsa.sign(msg1, q, k)
+        print(f'\nr1: {hex(sig1[0]).upper()}')
+        print(f's1: {hex(sig1[1]).upper()}')
+
+        msg2 = "and Paolo is right to be afraid"
+        sig2 = dsa.sign(msg2, q, k)
+        print(f'\nr2: {hex(sig2[0]).upper()}')
+        print(f's2: {hex(sig2[1]).upper()}')
+
+        qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
+        self.assertEqual(q, qc)
+        self.assertIn(k, (kc, ec.n - kc))
+
+        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]))
+        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg2, sig1)
+
 
 if __name__ == "__main__":
     # execute only if run as a script
