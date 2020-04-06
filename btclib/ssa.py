@@ -19,22 +19,33 @@ messages of size hsize only.
 
 It also uses as public key the x-coordinate (field element)
 of the curve point associated to the private key 0 < q < n.
-As such, both q and n-q share the same public key. 
-For sepcp256k1 the public key size is 32 bytes.
+Therefore, for sepcp256k1 the public key size is 32 bytes.
+Arguably, the knowledge of q as the discrete logarithm of Q
+also implies the knowledge of n-q as discrete logarithm of -Q.
+As such, {q, n-q} can be considered a single private key and
+{Q, -Q} the associated public key characterized by the shared x_Q.
 
-To allow for efficient batch verification of multiple signatures,
+Also, BIP340 advocates its own SHA256 modification as hash function:
+TaggedHash(tag, x) = SHA256(SHA256(tag)||SHA256(tag)||x)
+The rationale is to make BIP340 signatures invalid for anything else
+but Bitcoin and vice versa.
+
+TaggedHash is used for both the challenge (with tag 'BIPSchnorr')
+and the deterministic nonce (with tag 'BIPSchnorrDerive').
+
+To allow for secure batch verification of multiple signatures,
 BIP340-Schnorr uses a challenge that prevents public key recovery
-from signature.
+from signature: c = TaggedHash('BIPSchnorr', x_k||x_Q||msg).
     
-BIP340-Schnorr advocates a custom deterministic algorithm
-for the ephemeral key (nonce) used for signing,
-instead of the RFC6979 standard.
+A custom deterministic algorithm for the ephemeral key (nonce)
+is used for signing, instead of the RFC6979 standard:
+k = TaggedHash('BIPSchnorrDerive', q||msg)
 
-BIP340-Schnorr adopts a robust [r][s] custom serialization
+Finally, BIP340-Schnorr adopts a robust [r][s] custom serialization
 format, instead of the loosely specified ASN.1 DER standard.
-The signature size is p-size*n-size, where p-size is the
-byte size of a field element (point coordinate) and n-size is the
-byte size of a scalar (point multiplication coefficient).
+The signature size is p-size*n-size, where p-size is the field element
+(curve point coordinate) byte size and n-size is the scalar
+(curve point multiplication coefficient) byte size.
 For sepcp256k1 the resulting signature size is 64 bytes.
 """
 
@@ -132,17 +143,22 @@ def k(m: Octets, prv: BIP340Key,
 
 def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
 
+    # assume the random oracle model for the hash function,
+    # i.e. hash values can be considered uniformly random
+
+    # Note that in general, taking a uniformly random integer
+    # modulo the curve order n would produce a biased result.
+    # However, if the order n is sufficiently close to 2^hlen,
+    # then the bias is not observable:
+    # e.g. for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
+
+    # the unbiased implementation is provided here,
+    # which works also for very-low-cardinality test curves
     t = q.to_bytes(ec.nsize, 'big') + m
     while True:
         t = _tagged_hash("BIPSchnorrDerive", t, hf)
         # The following line would introduce a bias
         # k = int.from_bytes(t, 'big') % ec.n
-        # In general, taking a uniformly random integer (like those
-        # obtained from a hash function in the random oracle model)
-        # modulo the curve order n would produce a biased result.
-        # However, if the order n is sufficiently close to 2^hlen,
-        # then the bias is not observable: e.g.
-        # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
         k = int_from_bits(t, ec.nlen)   # candidate k
         if 0 < k < ec.n:                # acceptable value for k
             return k                    # successful candidate
