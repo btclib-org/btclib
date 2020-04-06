@@ -38,27 +38,57 @@ byte size of a scalar (point multiplication coefficient).
 For sepcp256k1 the resulting signature size is 64 bytes.
 """
 
-import heapq
 import secrets
 from hashlib import sha256
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 
-from btclib import bip32
-
-from .alias import HashF, JacPoint, Octets, Point, PubKey, SSASig
+from .alias import HashF, JacPoint, Octets, Point, SSASig
+from .bip32 import XkeyDict
 from .curve import Curve
-from .curvemult import (_double_mult, _jac_from_aff, _mult_jac, _multi_mult,
-                        double_mult, mult)
+from .curvemult import _double_mult, _mult_jac, _multi_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .to_prvkey import to_prvkey_int
-from .to_pubkey import (bytes_from_point, point_from_octets, to_pub_bytes,
-                        to_pub_tuple)
+from .to_pubkey import to_pub_tuple
 from .utils import bytes_from_octets, int_from_bits
 
-# TODO remove the p_ThreeModFour requirement
+# TODO relax the p_ThreeModFour requirement
 
-Key = Union[int, bytes, str, bip32.XkeyDict]
+BIP340Key = Union[int, bytes, str, XkeyDict]
+
+def to_bip340_pubkey_tuple(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
+    """Return a verified-as-valid BIP340 public key tuple.
+    
+    It supports:
+
+    - BIP32 extended keys (bytes, string, or XkeyDict)
+    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
+    - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
+    - native tuple
+    """
+
+    # BIP 340 key as integer
+    if isinstance(x_Q, int):
+        y_Q = ec.y_quadratic_residue(x_Q, True)
+        return x_Q, y_Q
+    else:
+        try:
+            x_Q = to_pub_tuple(x_Q, ec)[0]
+            y_Q = ec.y_quadratic_residue(x_Q, True)
+            return x_Q, y_Q
+        except Exception:
+            pass
+ 
+    # BIP 340 key as bytes or hex-string
+    if isinstance(x_Q, str) or isinstance(x_Q, bytes):
+        Q = bytes_from_octets(x_Q, ec.psize)
+        x_Q = int.from_bytes(Q, 'big')
+        y_Q = ec.y_quadratic_residue(x_Q, True)
+    else:
+        raise ValueError("not a BIP340 public key")
+
+    return x_Q, y_Q
+
 
 def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
     """Return a BIP340-Schnorr signature serialization."""
@@ -85,7 +115,8 @@ def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[int, int]:
     return r, s
 
 
-def k(m: Octets, prv: Key, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def k(m: Octets, prv: BIP340Key,
+      ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
 
     # The message m: a hlen array
@@ -115,7 +146,7 @@ def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
             return k                    # successful candidate
 
 
-def pubkey_gen(prvkey: Key, ec: Curve = secp256k1) -> bytes:
+def pubkey_gen(prvkey: BIP340Key, ec: Curve = secp256k1) -> bytes:
     """Return a BIP340-Schnorr p-size public key."""
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
@@ -154,7 +185,7 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def sign(m: Octets, prvkey: Key, k: Key = None,
+def sign(m: Octets, prvkey: BIP340Key, k: BIP340Key = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """Sign message according to BIP340-Schnorr signature algorithm."""
 
@@ -167,7 +198,7 @@ def sign(m: Octets, prvkey: Key, k: Key = None,
     # The secret key d: an integer in the range 1..n-1.
     q = to_prvkey_int(prvkey, ec)
     QJ = _mult_jac(q, ec.GJ, ec)
-    x_Q = (QJ[0]*mod_inv(QJ[2]*QJ[2], ec._p)) % ec._p
+    x_Q = ec._x_aff_from_jac(QJ)
     if not ec.has_square_y(QJ):
         q = ec.n - q
 
@@ -179,7 +210,7 @@ def sign(m: Octets, prvkey: Key, k: Key = None,
 
     # Let K = kG
     KJ = _mult_jac(k, ec.GJ, ec)
-    x_K = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec._p)) % ec._p
+    x_K = ec._x_aff_from_jac(KJ)
     # Let k = k' if jacobi(y_K) = 1, otherwise let k = n - k'.
     if not ec.has_square_y(KJ):
         k = ec.n - k
@@ -194,7 +225,7 @@ def sign(m: Octets, prvkey: Key, k: Key = None,
     return x_K, s
 
 
-def verify(m: Octets, Q: Key, sig: SSASig,
+def verify(m: Octets, Q: BIP340Key, sig: SSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Verify the BIP340-Schnorr signature of the provided message."""
 
@@ -207,7 +238,8 @@ def verify(m: Octets, Q: Key, sig: SSASig,
         return True
 
 
-def _verify(m: Octets, Q: Key, sig: SSASig, ec: Curve, hf: HashF) -> None:
+def _verify(m: Octets, Q: BIP340Key, sig: SSASig,
+            ec: Curve, hf: HashF) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -219,14 +251,8 @@ def _verify(m: Octets, Q: Key, sig: SSASig, ec: Curve, hf: HashF) -> None:
 
     r, s = _to_sig(sig, ec)
 
-    if isinstance(Q, tuple):
-        x_Q = Q[0]
-    elif isinstance(Q, int):
-        x_Q = Q
-    else:
-        Q = bytes_from_octets(Q, ec.psize)
-        x_Q = int.from_bytes(Q, 'big')
-    QJ = x_Q, ec.y_quadratic_residue(x_Q, True), 1
+    x_Q, y_Q = to_bip340_pubkey_tuple(Q, ec)
+    QJ = x_Q, y_Q, 1
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
     c = _challenge(r, x_Q, m, ec, hf)
@@ -275,7 +301,8 @@ def _to_sig(sig: SSASig, ec: Curve) -> Tuple[int, int]:
     return r, s
 
 
-def batch_verify(m: Sequence[Octets], Q: Sequence[Key], sig: Sequence[SSASig],
+def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340Key],
+                 sig: Sequence[SSASig],
                  ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Batch verification of BIP340-Schnorr signatures."""
 
@@ -288,7 +315,8 @@ def batch_verify(m: Sequence[Octets], Q: Sequence[Key], sig: Sequence[SSASig],
         return True
 
 
-def _batch_verify(ms: Sequence[Octets], Qs: Sequence[Key], sigs: Sequence[SSASig],
+def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340Key],
+                  sigs: Sequence[SSASig],
                   ec: Curve, hf: HashF) -> None:
 
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
@@ -316,12 +344,8 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[Key], sigs: Sequence[SSASig
         r, s = _to_sig(sig, ec)
         KJ = r, ec.y_quadratic_residue(r, True), 1
 
-        if isinstance(Q, tuple):
-            x_Q = Q[0]
-        else:
-            Q = bytes_from_octets(Q, ec.psize)
-            x_Q = int.from_bytes(Q, 'big')
-        QJ = x_Q, ec.y_quadratic_residue(x_Q, True), 1
+        x_Q, y_Q = to_bip340_pubkey_tuple(Q, ec)
+        QJ = x_Q, y_Q, 1
 
         c = _challenge(r, x_Q, m, ec, hf)
 
