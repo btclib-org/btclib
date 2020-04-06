@@ -194,7 +194,10 @@ def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
     dsa._validate_sig(r, s, secp256k1)
     return rf, r, s
 
-def sign(msg: String, wif: Union[String, bip32.XkeyDict],
+
+# Note it must be a prvkey including compressed information
+# TODO make compressed a default to relax the above note
+def sign(msg: String, prvkey: Union[String, bip32.XkeyDict],
          addr: Optional[String] = None) -> Tuple[int, int, int]:
     """Generate address-based compact signature for the provided message."""
 
@@ -204,7 +207,7 @@ def sign(msg: String, wif: Union[String, bip32.XkeyDict],
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, compressed, _ = prvkeytuple_from_xprvwif(wif)
+    q, compressed, _ = prvkeytuple_from_xprvwif(prvkey)
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id

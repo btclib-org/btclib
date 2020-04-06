@@ -257,3 +257,19 @@ def _to_sig(sig: DSASig, ec: Curve) -> Tuple[int, int]:
         # sighash is not needed
         r, s, _ = der.deserialize(sig, ec)
     return r, s
+
+
+def crack_prvkey(m1: String, sig1: DSASig, m2: String, sig2: DSASig,
+                 ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+
+    r1, s1 = _to_sig(sig1, ec)
+    r2, s2 = _to_sig(sig2, ec)
+    if r1 != r2:
+        raise ValueError("Not the same r in signatures")
+    if s1 == s2:
+        raise ValueError("Identical signatures")
+
+    c1 = _challenge(m1, ec, hf)
+    c2 = _challenge(m2, ec, hf)
+    k = (c1-c2) * mod_inv(s1-s2, ec.n)
+    return (s2*k-c2) * mod_inv(r1, ec.n) %ec.n
