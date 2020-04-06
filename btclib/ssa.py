@@ -374,3 +374,25 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340Key],
 
     valid_sig = TJ[1]*RHSZ2*RHSJ[2] % ec._p == RHSJ[1]*TZ2*TJ[2] % ec._p
     assert valid_sig, "Signature verification failed"
+
+
+def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
+                 Q: BIP340Key,
+                 ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
+
+    m1 = bytes_from_octets(m1, hf().digest_size)
+    r1, s1 = _to_sig(sig1, ec)
+    m2 = bytes_from_octets(m2, hf().digest_size)
+    r2, s2 = _to_sig(sig2, ec)
+    x_Q = to_bip340_pubkey_tuple(Q, ec)[0]
+
+    if r1 != r2:
+        raise ValueError("Not the same r in signatures")
+    if s1 == s2:
+        raise ValueError("Identical signatures")
+
+    c1 = _challenge(r1, x_Q, m1, ec, hf)
+    c2 = _challenge(r2, x_Q, m2, ec, hf)
+    q = (s1-s2) * mod_inv(c2-c1, ec.n) %ec.n
+    k = (s1 + c1 * q) %ec.n
+    return q, k 

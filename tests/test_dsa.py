@@ -209,7 +209,7 @@ class TestDSA(unittest.TestCase):
         self.assertIn(k, (kc, ec.n - kc))
 
         self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]))
-        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg2, sig1)
+        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg1, sig1)
 
 
 if __name__ == "__main__":

@@ -627,6 +627,32 @@ class TestEcssa(unittest.TestCase):
         # check signature is valid
         self.assertTrue(ssa.verify(mhd, Q, sig))
 
+    def test_crack_prvkey(self):
+        q = 0x6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725DEADBEEF
+        x_Q = mult(q)[0]
+        k = 1010101010101010101
+
+        msg1 = "Paolo is afraid of ephemeral random numbers"
+        msg1 = hf(msg1.encode()).digest()
+        sig1 = ssa.sign(msg1, q, k)
+        print(f'\nmsg1: {msg1.hex().upper()}')
+        print(f'  r1: {hex(sig1[0]).upper()}')
+        print(f'  s1: {hex(sig1[1]).upper()}')
+
+        msg2 = "and Paolo is right to be afraid"
+        msg2 = hf(msg2.encode()).digest()
+        sig2 = ssa.sign(msg2, q, k)
+        print(f'\nmsg2: {msg2.hex().upper()}')
+        print(f'  r2: {hex(sig2[0]).upper()}')
+        print(f'  s2: {hex(sig2[1]).upper()}')
+
+        qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
+        self.assertIn(q, (qc, ec.n-qc))
+        self.assertIn(k, (kc, ec.n - kc))
+
+        self.assertRaises(ValueError, ssa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]), x_Q)
+        self.assertRaises(ValueError, ssa.crack_prvkey, msg1, sig1, msg1, sig1, x_Q)
+
 
 if __name__ == "__main__":
     # execute only if run as a script
