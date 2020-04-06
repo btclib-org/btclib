@@ -16,7 +16,7 @@ from .curves import secp256k1
 from .utils import bytes_from_octets
 
 
-def bytes_from_point(Q: Point, compressed: bool, ec: Curve = secp256k1) -> bytes:
+def bytes_from_point(Q: Point, compressed: bool = True, ec: Curve = secp256k1) -> bytes:
     """Return a point as compressed/uncompressed octet sequence.
 
     Return a point as compressed (0x02, 0x03) or uncompressed (0x04)

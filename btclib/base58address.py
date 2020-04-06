@@ -51,7 +51,7 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
     return prefix, payload[1:], _NETWORKS[i], is_script_hash
 
 
-def p2pkh(pubkey: PubKey, compressed: bool, network: str = 'mainnet') -> bytes:
+def p2pkh(pubkey: PubKey, compressed: bool = True, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
     network_index = _NETWORKS.index(network)
