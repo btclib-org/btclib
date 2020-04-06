@@ -21,7 +21,7 @@ from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
 from . import bip32, der
-from .alias import DSASig, HashF, JacPoint, Octets, Point, PubKey, String
+from .alias import DSASig, HashF, JacPoint, Point, PrvKey, PubKey, String
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac
 from .curves import secp256k1
@@ -45,8 +45,7 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def sign(msg: String, prvkey: Union[int, Octets, bip32.XkeyDict],
-         k: Optional[Union[int, Octets, bip32.XkeyDict]] = None,
+def sign(msg: String, prvkey: PrvKey, k: Optional[PrvKey] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
     """ECDSA signature with canonical low-s encoding.
 

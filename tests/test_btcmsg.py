@@ -409,6 +409,7 @@ class TestSignMessage(unittest.TestCase):
         self.assertTrue(btcmsg.verify(msg, addr, btcmsgsig))
         self.assertFalse(btcmsg.verify(magic_msg, addr, btcmsgsig))
 
+        btcmsg.sign(msg, xprv)
 
         #### standard leading 30 in DER serialization
         derivation_path = 'm/0/0'

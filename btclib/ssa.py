@@ -54,7 +54,9 @@ from .utils import bytes_from_octets, int_from_bits
 
 # TODO relax the p_ThreeModFour requirement
 
+
 BIP340Key = Union[int, bytes, str, XkeyDict]
+
 
 def to_bip340_pubkey_tuple(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
     """Return a verified-as-valid BIP340 public key tuple.
