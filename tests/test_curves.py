@@ -39,7 +39,7 @@ class TestEllipticCurve(unittest.TestCase):
         b = ec._b
         G = ec.G
         n = ec.n
-        t = ec.t
+        t = ec.sec_bits
         h = ec.h
         self.assertRaises(UserWarning, Curve, p, a, b, G, n, h, 273)
         #Curve(p, a, b, G, n, h, 273)
@@ -51,7 +51,7 @@ class TestEllipticCurve(unittest.TestCase):
         b = ec._b
         G = ec.G
         n = ec.n
-        t = ec.t
+        t = ec.sec_bits
         h = ec.h
         self.assertRaises(UserWarning, Curve, p, a, b, G, n, h, 2*t)
         #Curve(p, a, b, G, n, h, 2*t)

@@ -26,8 +26,15 @@ class Curve:
     """Elliptic curve y^2 = x^3 + a*x + b over Fp group."""
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
-                 h: int, t: int, weakness_check: bool = True) -> None:
+                 h: int, sec_bits: int, weakness_check: bool = True) -> None:
         # Parameters are checked according to SEC 1 v.2 3.1.1.2.1
+        #
+        # Security level is expressed in bits, where n-bit security
+        # means that the attacker would have to perform 2^n operations
+        # to break it. Security bits are half the key size for asymmetric
+        # elliptic curve cryptography, i.e. half of the number of bits
+        # required to express the group order n or, holding Hasse theorem,
+        # to express the field prime p
 
         # 1) check that p is an odd prime
         if p % 2 == 0:
@@ -38,16 +45,17 @@ class Curve:
 
         # 1) check that p has enough bits
         plen = p.bit_length()
-        if t != 0:
+        if sec_bits != 0:
             t_range = [56, 64, 80, 96, 112, 128, 160, 192, 256]
-            if t not in t_range:
-                m = f"required security level ({t}) "
+            if sec_bits not in t_range:
+                m = f"required security bits ({sec_bits}) "
                 m += f"not in the allowed range {t_range}"
                 raise UserWarning(m)
-            if plen < t*2:
-                m = f"not enough bits ({plen}) for required security level {t}"
+            if plen < sec_bits*2:
+                m = f"not enough bits in the field prime ({plen}) "
+                m += f"for required security bits {sec_bits}"
                 raise UserWarning(m)
-        self.t = t
+        self.sec_bits = sec_bits
 
         self.psize = (plen + 7) // 8
         # must be true to break simmetry using quadratic residue
@@ -93,7 +101,7 @@ class Curve:
         exp_h = int(1/n + delta/n + p/n)
         if h != exp_h:
             raise ValueError(f"h ({h}) not as expected ({exp_h})")
-        assert t == 0 or h <= pow(2, t/8), f"h ({h}) too big for t ({t})"
+        assert sec_bits == 0 or h <= pow(2, sec_bits/8), f"h ({h}) too big for security bits ({sec_bits})"
         self.h = h
 
         # 7. Check that nG = INF.
@@ -123,7 +131,7 @@ class Curve:
         result += f"\n G.y = {hex(self.G[1])}"
         result += f"\n n   = {hex(self.n)}"
         result += f"\n h = {self.h}"
-        result += f"\n t = {self.t}"
+        result += f"\n sec_bits = {self.sec_bits}"
         return result
 
     def __repr__(self) -> str:
@@ -133,7 +141,7 @@ class Curve:
         result += f", ({hex(self.G[0])}, {hex(self.G[1])})"
         result += f", {hex(self.n)}"
         result += f", {self.h}"
-        result += f", {self.t})"
+        result += f", {self.sec_bits})"
         return result
 
     # mult could be a function, but it is used by the Curve constructor;
