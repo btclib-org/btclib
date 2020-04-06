@@ -55,6 +55,8 @@ from .network import (_NETWORKS, _P2WPKH_P2SH_PRV_PREFIXES,
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, hash160
 
+# TODO avoid BIP32 extensions as much as possible (i.e. everywhere but _ckd)
+
 
 def _check_version_key(v: bytes, k: bytes) -> None:
 
@@ -311,6 +313,7 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
 
     return indexes, absolute
 
+
 def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
     """Derive an extended key across a path spanning multiple depth levels.
 
@@ -353,7 +356,8 @@ def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
     return serialize(d)
 
 
-def crack(parent_xpub: Union[XkeyDict, String], child_xprv: Union[XkeyDict, String]) -> bytes:
+def crack_prvkey(parent_xpub: Union[XkeyDict, String],
+                 child_xprv: Union[XkeyDict, String]) -> bytes:
 
     if isinstance(parent_xpub, dict):
         p = copy.copy(parent_xpub)

@@ -16,7 +16,7 @@ from btclib import bip39, slip32
 from btclib.base58 import b58decode, b58encode
 from btclib.base58address import p2pkh_from_xpub, p2wpkh_p2sh_from_xpub
 from btclib.bech32address import p2wpkh_from_xpub
-from btclib.bip32 import (crack, derive, deserialize, fingerprint,
+from btclib.bip32 import (crack_prvkey, derive, deserialize, fingerprint,
                           rootxprv_from_bip39mnemonic, rootxprv_from_seed,
                           serialize, xpub_from_xprv)
 from btclib.curvemult import mult
@@ -705,36 +705,36 @@ class TestBIP32(unittest.TestCase):
     def test_crack(self):
         parent_xpub = b'xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV'
         child_xprv = b'xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm'
-        parent_xprv = crack(parent_xpub, child_xprv)
+        parent_xprv = crack_prvkey(parent_xpub, child_xprv)
         self.assertEqual(xpub_from_xprv(parent_xprv), parent_xpub)
         # same check with XKeyDict
-        parent_xprv = crack(deserialize(parent_xpub), deserialize(child_xprv))
+        parent_xprv = crack_prvkey(deserialize(parent_xpub), deserialize(child_xprv))
         self.assertEqual(xpub_from_xprv(parent_xprv), parent_xpub)
 
         # extended parent key is not a public one
-        self.assertRaises(ValueError, crack, parent_xprv, child_xprv)
-        #crack(parent_xprv, child_xprv)
+        self.assertRaises(ValueError, crack_prvkey, parent_xprv, child_xprv)
+        #crack_prvkey(parent_xprv, child_xprv)
 
         # extended child key is not a private one
-        self.assertRaises(ValueError, crack, parent_xpub, parent_xpub)
-        #crack(parent_xpub, parent_xpub)
+        self.assertRaises(ValueError, crack_prvkey, parent_xpub, parent_xpub)
+        #crack_prvkey(parent_xpub, parent_xpub)
 
         # wrong child/parent depth relation
         child_xpub = xpub_from_xprv(child_xprv)
-        self.assertRaises(ValueError, crack, child_xpub, child_xprv)
-        #crack(child_xpub, child_xprv)
+        self.assertRaises(ValueError, crack_prvkey, child_xpub, child_xprv)
+        #crack_prvkey(child_xpub, child_xprv)
 
         # not a child for the provided parent
         child0_xprv = derive(parent_xprv, 0)
         grandchild_xprv = derive(child0_xprv, 0)
-        self.assertRaises(ValueError, crack, child_xpub, grandchild_xprv)
-        #crack(child_xpub, grandchild_xprv)
+        self.assertRaises(ValueError, crack_prvkey, child_xpub, grandchild_xprv)
+        #crack_prvkey(child_xpub, grandchild_xprv)
 
         # hardened derivation
         hardened_child_xprv = derive(parent_xprv, 0x80000000)
-        self.assertRaises(ValueError, crack,
+        self.assertRaises(ValueError, crack_prvkey,
                           parent_xpub, hardened_child_xprv)
-        #crack(parent_xpub, hardened_child_xprv)
+        #crack_prvkey(parent_xpub, hardened_child_xprv)
 
 
 if __name__ == "__main__":
