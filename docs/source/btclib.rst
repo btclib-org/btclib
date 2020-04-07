@@ -212,6 +212,14 @@ btclib.scriptpubkey module
    :undoc-members:
    :show-inheritance:
 
+btclib.secpoint module
+----------------------
+
+.. automodule:: btclib.secpoint
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.signtocontract module
 ----------------------------
 
@@ -232,6 +240,14 @@ btclib.ssa module
 -----------------
 
 .. automodule:: btclib.ssa
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.to\_prvkey module
+------------------------
+
+.. automodule:: btclib.to_prvkey
    :members:
    :undoc-members:
    :show-inheritance:

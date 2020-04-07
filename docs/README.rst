@@ -31,7 +31,7 @@ Then, move into the docs directory and build the docs to see how they look:
     $ make html
 
 Your ``index.rst`` has been built into ``index.html``
-in your documentation output directory (``_build/html/index.html``).
+in the output subdirectory (``build/html/index.html``).
 Open this file in your web browser to see your docs.
 
 Edit your files and rebuild until you like what you see, then commit

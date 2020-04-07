@@ -1,5 +1,5 @@
 name = "btclib"
-__version__ = "2020.4.6"
+__version__ = "2020.4.7"
 __author__ = "The btclib developers"
 __copyright__ = "Copyright (C) 2017-2020 The btclib developers"
 __license__ = "MIT License"
