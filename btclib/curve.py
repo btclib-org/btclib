@@ -36,11 +36,9 @@ class Curve:
         # required to express the group order n or, holding Hasse theorem,
         # to express the field prime p
 
-        # 1) check that p is an odd prime
-        if p % 2 == 0:
-            raise ValueError(f"p ({hex(p)}) is not odd")
+        # 1) check that p is a prime
         # Fermat test will do as _probabilistic_ primality test...
-        if not pow(2, p-1, p) == 1:
+        if p < 2 or p % 2 == 0 or pow(2, p-1, p) != 1:
             raise ValueError(f"p ({hex(p)}) is not prime")
 
         # 1) check that p has enough bits
@@ -68,7 +66,7 @@ class Curve:
         if not 0 <= b < p:
             raise ValueError(f"invalid b ({hex(b)}) for given p ({hex(p)})")
 
-        # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p).
+        # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p)
         d = 4*a*a*a+27*b*b
         if d % p == 0:
             raise ValueError("zero discriminant")
@@ -76,7 +74,7 @@ class Curve:
         self._b = b
 
         # 2. check that xG and yG are integers in the interval [0, p−1]
-        # 4. Check that yG^2 = xG^3 + a*xG + b (mod p).
+        # 4. Check that yG^2 = xG^3 + a*xG + b (mod p)
         if len(G) != 2:
             raise ValueError("Generator must a be a tuple[int, int]")
         if not self.is_on_curve(G):
@@ -85,7 +83,7 @@ class Curve:
         self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
 
         # 5. Check that n is prime.
-        if n < 2 or (n > 2 and not pow(2, n-1, n) == 1):
+        if n < 2 or n % 2 == 0 or pow(2, n-1, n) != 1:
             raise ValueError(f"n ({hex(n)}) is not prime")
         delta = int(2 * sqrt(p))
         # also check n with Hasse Theorem
@@ -104,7 +102,7 @@ class Curve:
         assert sec_bits == 0 or h <= pow(2, sec_bits/8), f"h ({h}) too big for security bits ({sec_bits})"
         self.h = h
 
-        # 7. Check that nG = INF.
+        # 7. Check that nG = INF
         # it cannot be simply checked with:
         # INF = mult(self, n, self.G)
         # as the above would be tautologically true
