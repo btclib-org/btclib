@@ -115,21 +115,25 @@ PubKey = Union[Point, XkeyDict, bytes, str]
 
 
 # ECDSA signature
-# (r, s) or DER serialization (bytes or hex-string)
-# both r and s are scalar: 0 < r < ec.n, 0 < s < ec.n 
-DSASig = Union[Tuple[int, int], Octets]
+# (r, s, sighash)
+# both r and s are scalar: 0 < r < ec.n, 0 < s < ec.n
+DSASigTuple = Tuple[int, int]
+# DSASigTuple or DER serialization (bytes or hex-string, no sighash)
+DSASig = Union[DSASigTuple, Octets]
 
 
 # Bitcoin message signature
-# (rf, r, s) or base64 65-bytes serialization (bytes or hex-string)
-# (r, s) are a DSASig
-BMSig = Union[Tuple[int, int, int], Octets]
+# (rf, r, s), where r and s are the components of a DSASigTuple
+BMSigTuple = Tuple[int, int, int]
+# BMSigTuple or base64 65-bytes serialization (bytes or hex-string)
+BMSig = Union[BMSigTuple, Octets]
 
 
 # BIP340-Schnorr signature
-# (r, s) or BIP340-Schnorr 64-bytes serialization (bytes or hex-string)
-# Tuple[field element, scalar]
+# (r, s)
 # r is a _field_element_, 0 <= r < ec.p
 # s is a scalar, 0 <= s < ec.n (yes, for BIP340-Schnorr it can be zero)
 # (p is the field prime, n is the curve order)
-SSASig = Union[Tuple[int, int], Octets]
+SSASigTuple = Tuple[int, int]
+# SSASigTuple or BIP340-Schnorr 64-bytes serialization (bytes or hex-string)
+SSASig = Union[SSASigTuple, Octets]
