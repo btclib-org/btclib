@@ -287,7 +287,7 @@ def _verify(m: Octets, Q: BIP340Key, sig: SSASig,
     ec.require_square_y(KJ)
 
     # Fail if x_K ≠ r
-    assert KJ[0] == KJ[2]*KJ[2]*r % ec._p, "Signature verification failed"
+    assert KJ[0] == KJ[2]*KJ[2]*r % ec.p, "Signature verification failed"
 
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
@@ -410,8 +410,8 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340Key],
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
-    precondition = TJ[0]*RHSZ2 % ec._p == RHSJ[0]*TZ2 % ec._p
+    precondition = TJ[0]*RHSZ2 % ec.p == RHSJ[0]*TZ2 % ec.p
     assert precondition, "Signature verification precondition failed"
 
-    valid_sig = TJ[1]*RHSZ2*RHSJ[2] % ec._p == RHSJ[1]*TZ2*TJ[2] % ec._p
+    valid_sig = TJ[1]*RHSZ2*RHSJ[2] % ec.p == RHSJ[1]*TZ2*TJ[2] % ec.p
     assert valid_sig, "Signature verification failed"

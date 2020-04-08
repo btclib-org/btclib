@@ -115,7 +115,7 @@ def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
     KJ = _mult_jac(k, ec.GJ, ec)                  # 1
 
     # affine x-coordinate of K (field element)
-    K_x = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec._p)) % ec._p
+    K_x = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec.p)) % ec.p
     # mod n makes it a scalar
     r = K_x % ec.n                                # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
@@ -176,7 +176,7 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     assert KJ[2] != 0, "how did you do that?!?"  # 5
 
     # affine x-coordinate of K
-    K_x = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec._p)) % ec._p
+    K_x = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec.p)) % ec.p
     x = K_x % ec.n                               # 6, 7
     # Fail if r ≠ K_x %n.
     assert r == x, "Signature verification failed"  # 8
@@ -230,11 +230,11 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     r1e = -r1*c
     keys: List[JacPoint] = list()
     # r = K[0] % ec.n
-    # if ec.n < K[0] < ec._p (likely when cofactor ec.h > 1)
+    # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
     for j in range(ec.h):                                # 1
         # affine x-coordinate of K (field element)
-        x = (r + j*ec.n) % ec._p                         # 1.1
+        x = (r + j*ec.n) % ec.p                         # 1.1
         # two possible y-coordinates, i.e. two possible keys for each cycle
         try:
             # even root first for bitcoin message signing compatibility
@@ -248,7 +248,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
                 pass
             else:
                 keys.append(Q1J)                         # 1.6.2
-            KJ = x, ec._p - yodd, 1                      # 1.6.3
+            KJ = x, ec.p - yodd, 1                      # 1.6.3
             Q2J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
             try:
                 _verhlp(c, Q2J, r, s, ec)                # 1.6.2
@@ -269,10 +269,10 @@ def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
     r1s = r1*s
     r1e = -r1*c
     # r = K[0] % ec.n
-    # if ec.n < K[0] < ec._p (likely when cofactor ec.h > 1)
+    # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
     j = key_id & 0b110  # allow for key_id in [0, 7]
-    x = (r + j*ec.n) % ec._p                         # 1.1
+    x = (r + j*ec.n) % ec.p                         # 1.1
 
     # even root first for Bitcoin Core compatibility
     i = key_id & 0b01

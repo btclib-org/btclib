@@ -145,13 +145,13 @@ class TestDSA(unittest.TestCase):
         prime = [11,  13,  17,  19]
 
         for ec in low_card_curves:  # only low card or it would take forever
-            if ec._p in prime:  # only few curves or it would take too long
+            if ec.p in prime:  # only few curves or it would take too long
                 for q in range(1, ec.n):  # all possible private keys
                     PJ = _mult_jac(q, ec.GJ, ec)  # public key
                     for e in range(ec.n):  # all possible int from hash
                         for k in range(1, ec.n):  # all possible ephemeral keys
                             RJ = _mult_jac(k, ec.GJ, ec)
-                            Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec._p)) % ec._p
+                            Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec.p)) % ec.p
                             r = Rx % ec.n
                             s = mod_inv(k, ec.n) * (e + q * r) % ec.n
                             # bitcoin canonical 'low-s' encoding for ECDSA

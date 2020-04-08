@@ -13,8 +13,9 @@ import unittest
 from typing import List
 
 from btclib.alias import INF, INFJ, Point
-from btclib.curvemult import (Curve, _jac_from_aff, _mult_jac, double_mult,
-                              mult, multi_mult)
+from btclib.curve import _mult_aff, _mult_jac
+from btclib.curvemult import (Curve, _jac_from_aff, double_mult, mult,
+                              multi_mult)
 from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
                            secp160r1, secp256k1, secp256r1, secp384r1)
 
@@ -25,12 +26,12 @@ class TestEllipticCurve(unittest.TestCase):
     def test_mult(self):
         for ec in low_card_curves:
             for q in range(ec.n):
-                Q = ec._mult_aff(q, ec.G)
-                Qjac = _mult_jac(q, ec.GJ, ec)
-                Q2 = ec._aff_from_jac(Qjac)
+                Q = _mult_aff(q, ec.G, ec)
+                QJ = _mult_jac(q, ec.GJ, ec)
+                Q2 = ec._aff_from_jac(QJ)
                 self.assertEqual(Q, Q2)
         # with last curve
-        self.assertEqual(INF, ec._mult_aff(3, INF))
+        self.assertEqual(INF, _mult_aff(3, INF, ec))
         self.assertEqual(INFJ, _mult_jac(3, INFJ, ec))
 
     def test_shamir(self):

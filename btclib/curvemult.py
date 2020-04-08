@@ -14,7 +14,7 @@ import heapq
 from typing import List, Sequence
 
 from .alias import INFJ, JacPoint, Point
-from .curve import Curve, _jac_from_aff
+from .curve import Curve, _jac_from_aff, _mult_jac
 from .curves import secp256k1
 
 
@@ -29,27 +29,12 @@ def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
         ec.require_on_curve(Q)
         QJ = _jac_from_aff(Q)
 
+    m %= ec.n
     R = _mult_jac(m, QJ, ec)
     return ec._aff_from_jac(R)
 
 
-def _mult_jac(m: int, Q: JacPoint, ec: Curve) -> JacPoint:
-    # double & add in Jacobian coordinates, using binary decomposition of m
-    # Point is assumed to be on curve
-
-    m %= ec.n
-    if m == 0 or Q[2] == 0:        # Infinity point in affine coordinates
-        return INFJ                # return Infinity point
-    R = INFJ                       # initialize as infinity point
-    while m > 0:                   # use binary representation of m
-        if m & 1:                  # if least significant bit is 1
-            R = ec._add_jac(R, Q)  # then add current Q
-        m = m >> 1                 # remove the bit just accounted for
-        Q = ec._add_jac(Q, Q)      # double Q for next step
-    return R
-
-
-def double_mult(u: int, H: Point, v: int, Q: Point = None,
+def double_mult(u: int, H: Point, v: int, Q: Point,
                 ec: Curve = secp256k1) -> Point:
     """Shamir trick for efficient computation of u*H + v*Q"""
 

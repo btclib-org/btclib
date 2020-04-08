@@ -115,7 +115,7 @@ class TestSSA(unittest.TestCase):
         H = [i.to_bytes(hsize, 'big') for i in range(max(prime)*4)]
         # only low card curves or it would take forever
         for ec in low_card_curves:
-            if ec._p in prime:  # only few curves or it would take too long
+            if ec.p in prime:  # only few curves or it would take too long
                 # BIP340 Schnorr only applies to curve whose prime p = 3 %4
                 if not ec.pIsThreeModFour:
                     self.assertRaises(ValueError, ssa.sign, H[0], 1, None, ec)
@@ -205,7 +205,7 @@ class TestSSA(unittest.TestCase):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
 
         # parameters
-        t = 2
+        m = 2
         H = second_generator(ec, hf)
         mhd = hf(b'message to sign').digest()
 
@@ -215,26 +215,26 @@ class TestSSA(unittest.TestCase):
         commits1: List[Point] = list()
         q1 = (1+random.getrandbits(ec.nlen)) % ec.n
         q1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits1.append(double_mult(q1_prime, H, q1))
+        commits1.append(double_mult(q1_prime, H, q1, ec.G))
 
         # sharing polynomials
         f1: List[int] = list()
         f1.append(q1)
         f1_prime: List[int] = list()
         f1_prime.append(q1_prime)
-        for i in range(1, t):
+        for i in range(1, m):
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
-            commits1.append(double_mult(f1_prime[i], H, f1[i]))
+            commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
 
         # shares of the secret
         alpha12 = 0  # share of q1 belonging to P2
         alpha12_prime = 0
         alpha13 = 0  # share of q1 belonging to P3
         alpha13_prime = 0
-        for i in range(t):
+        for i in range(m):
             alpha12 += (f1[i] * pow(2, i)) % ec.n
             alpha12_prime += (f1_prime[i] * pow(2, i)) % ec.n
 
@@ -243,42 +243,42 @@ class TestSSA(unittest.TestCase):
 
         # player two verifies consistency of his share
         RHS = INF
-        for i in range(t):
+        for i in range(m):
             RHS = ec.add(RHS, mult(pow(2, i), commits1[i]))
-        assert double_mult(alpha12_prime, H,
-                           alpha12) == RHS, 'player one is cheating'
+        t = double_mult(alpha12_prime, H, alpha12, ec.G)
+        assert t == RHS, 'player one is cheating'
 
         # player three verifies consistency of his share
         RHS = INF
-        for i in range(t):
+        for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
-        assert double_mult(alpha13_prime, H,
-                           alpha13) == RHS, 'player one is cheating'
+        t = double_mult(alpha13_prime, H, alpha13, ec.G) 
+        assert t == RHS, 'player one is cheating'
 
         # signer two acting as the dealer
         commits2: List[Point] = list()
         q2 = (1+random.getrandbits(ec.nlen)) % ec.n
         q2_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits2.append(double_mult(q2_prime, H, q2))
+        commits2.append(double_mult(q2_prime, H, q2, ec.G))
 
         # sharing polynomials
         f2: List[int] = list()
         f2.append(q2)
         f2_prime: List[int] = list()
         f2_prime.append(q2_prime)
-        for i in range(1, t):
+        for i in range(1, m):
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f2.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f2_prime.append(temp)
-            commits2.append(double_mult(f2_prime[i], H, f2[i]))
+            commits2.append(double_mult(f2_prime[i], H, f2[i], ec.G))
 
         # shares of the secret
         alpha21 = 0  # share of q2 belonging to P1
         alpha21_prime = 0
         alpha23 = 0  # share of q2 belonging to P3
         alpha23_prime = 0
-        for i in range(t):
+        for i in range(m):
             alpha21 += (f2[i] * pow(1, i)) % ec.n
             alpha21_prime += (f2_prime[i] * pow(1, i)) % ec.n
 
@@ -287,42 +287,42 @@ class TestSSA(unittest.TestCase):
 
         # player one verifies consistency of his share
         RHS = INF
-        for i in range(t):
+        for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits2[i]))
-        assert double_mult(alpha21_prime, H,
-                           alpha21) == RHS, 'player two is cheating'
+        t = double_mult(alpha21_prime, H, alpha21, ec.G)
+        assert t == RHS, 'player two is cheating'
 
         # player three verifies consistency of his share
         RHS = INF
-        for i in range(t):
+        for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits2[i]))
-        assert double_mult(alpha23_prime, H,
-                           alpha23) == RHS, 'player two is cheating'
+        t = double_mult(alpha23_prime, H, alpha23, ec.G)
+        assert t == RHS, 'player two is cheating'
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
         q3 = (1+random.getrandbits(ec.nlen)) % ec.n
         q3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits3.append(double_mult(q3_prime, H, q3))
+        commits3.append(double_mult(q3_prime, H, q3, ec.G))
 
         # sharing polynomials
         f3: List[int] = list()
         f3.append(q3)
         f3_prime: List[int] = list()
         f3_prime.append(q3_prime)
-        for i in range(1, t):
+        for i in range(1, m):
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
-            commits3.append(double_mult(f3_prime[i], H, f3[i]))
+            commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
 
         # shares of the secret
         alpha31 = 0  # share of q3 belonging to P1
         alpha31_prime = 0
         alpha32 = 0  # share of q3 belonging to P2
         alpha32_prime = 0
-        for i in range(t):
+        for i in range(m):
             alpha31 += (f3[i] * pow(1, i)) % ec.n
             alpha31_prime += (f3_prime[i] * pow(1, i)) % ec.n
 
@@ -331,23 +331,23 @@ class TestSSA(unittest.TestCase):
 
         # player one verifies consistency of his share
         RHS = INF
-        for i in range(t):
+        for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
-        assert double_mult(alpha31_prime, H,
-                           alpha31) == RHS, 'player three is cheating'
+        t = double_mult(alpha31_prime, H, alpha31, ec.G)
+        assert t == RHS, 'player three is cheating'
 
         # player two verifies consistency of his share
         RHS = INF
-        for i in range(t):
+        for i in range(m):
             RHS = ec.add(RHS, mult(pow(2, i), commits3[i]))
-        assert double_mult(alpha32_prime, H,
-                           alpha32) == RHS, 'player two is cheating'
+        t = double_mult(alpha32_prime, H, alpha32, ec.G)
+        assert t == RHS, 'player two is cheating'
 
         # shares of the secret key q = q1 + q2 + q3
         alpha1 = (alpha21 + alpha31) % ec.n
         alpha2 = (alpha12 + alpha32) % ec.n
         alpha3 = (alpha13 + alpha23) % ec.n
-        for i in range(t):
+        for i in range(m):
             alpha1 += (f1[i] * pow(1, i)) % ec.n
             alpha2 += (f2[i] * pow(2, i)) % ec.n
             alpha3 += (f3[i] * pow(3, i)) % ec.n
@@ -360,7 +360,7 @@ class TestSSA(unittest.TestCase):
         # each participant i = 1, 2, 3 shares Qi as follows
 
         # he broadcasts these values
-        for i in range(t):
+        for i in range(m):
             A1.append(mult(f1[i]))
             A2.append(mult(f2[i]))
             A3.append(mult(f3[i]))
@@ -369,7 +369,7 @@ class TestSSA(unittest.TestCase):
         # player one
         RHS2 = INF
         RHS3 = INF
-        for i in range(t):
+        for i in range(m):
             RHS2 = ec.add(RHS2, mult(pow(1, i), A2[i]))
             RHS3 = ec.add(RHS3, mult(pow(1, i), A3[i]))
         assert mult(alpha21) == RHS2, 'player two is cheating'
@@ -378,7 +378,7 @@ class TestSSA(unittest.TestCase):
         # player two
         RHS1 = INF
         RHS3 = INF
-        for i in range(t):
+        for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(2, i), A1[i]))
             RHS3 = ec.add(RHS3, mult(pow(2, i), A3[i]))
         assert mult(alpha12) == RHS1, 'player one is cheating'
@@ -387,14 +387,14 @@ class TestSSA(unittest.TestCase):
         # player three
         RHS1 = INF
         RHS2 = INF
-        for i in range(t):
+        for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(3, i), A1[i]))
             RHS2 = ec.add(RHS2, mult(pow(3, i), A2[i]))
         assert mult(alpha13) == RHS1, 'player one is cheating'
         assert mult(alpha23) == RHS2, 'player two is cheating'
 
         A: List[Point] = list()  # commitment at the global sharing polynomial
-        for i in range(t):
+        for i in range(m):
             A.append(ec.add(A1[i], ec.add(A2[i], A3[i])))
 
         Q = A[0]  # aggregated public key
@@ -407,70 +407,70 @@ class TestSSA(unittest.TestCase):
         commits1: List[Point] = list()
         k1 = (1+random.getrandbits(ec.nlen)) % ec.n
         k1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits1.append(double_mult(k1_prime, H, k1))
+        commits1.append(double_mult(k1_prime, H, k1, ec.G))
 
         # sharing polynomials
         f1: List[int] = list()
         f1.append(k1)
         f1_prime: List[int] = list()
         f1_prime.append(k1_prime)
-        for i in range(1, t):
+        for i in range(1, m):
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
-            commits1.append(double_mult(f1_prime[i], H, f1[i]))
+            commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
 
         # shares of the secret
         beta13 = 0  # share of k1 belonging to P3
         beta13_prime = 0
-        for i in range(t):
+        for i in range(m):
             beta13 += (f1[i] * pow(3, i)) % ec.n
             beta13_prime += (f1_prime[i] * pow(3, i)) % ec.n
 
         # player three verifies consistency of his share
         RHS = INF
-        for i in range(t):
+        for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
-        assert double_mult(beta13_prime, H,
-                           beta13) == RHS, 'player one is cheating'
+        t = double_mult(beta13_prime, H, beta13, ec.G)
+        assert t == RHS, 'player one is cheating'
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
         k3 = (1+random.getrandbits(ec.nlen)) % ec.n
         k3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
-        commits3.append(double_mult(k3_prime, H, k3))
+        commits3.append(double_mult(k3_prime, H, k3, ec.G))
 
         # sharing polynomials
         f3: List[int] = list()
         f3.append(k3)
         f3_prime: List[int] = list()
         f3_prime.append(k3_prime)
-        for i in range(1, t):
+        for i in range(1, m):
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3.append(temp)
             temp = (1+random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
-            commits3.append(double_mult(f3_prime[i], H, f3[i]))
+            commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
 
         # shares of the secret
         beta31 = 0  # share of k3 belonging to P1
         beta31_prime = 0
-        for i in range(t):
+        for i in range(m):
             beta31 += (f3[i] * pow(1, i)) % ec.n
             beta31_prime += (f3_prime[i] * pow(1, i)) % ec.n
 
         # player one verifies consistency of his share
         RHS = INF
-        for i in range(t):
+        for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
-        assert double_mult(beta31_prime, H,
-                           beta31) == RHS, 'player three is cheating'
+        t = double_mult(beta31_prime, H, beta31, ec.G)
+        assert t == RHS, 'player three is cheating'
 
         # shares of the secret nonce
         beta1 = beta31 % ec.n
         beta3 = beta13 % ec.n
-        for i in range(t):
+        for i in range(m):
             beta1 += (f1[i] * pow(1, i)) % ec.n
             beta3 += (f3[i] * pow(3, i)) % ec.n
 
@@ -481,25 +481,25 @@ class TestSSA(unittest.TestCase):
         # each participant i = 1, 3 shares Qi as follows
 
         # he broadcasts these values
-        for i in range(t):
+        for i in range(m):
             B1.append(mult(f1[i]))
             B3.append(mult(f3[i]))
 
         # he checks the others' values
         # player one
         RHS3 = INF
-        for i in range(t):
+        for i in range(m):
             RHS3 = ec.add(RHS3, mult(pow(1, i), B3[i]))
         assert mult(beta31) == RHS3, 'player three is cheating'
 
         # player three
         RHS1 = INF
-        for i in range(t):
+        for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(3, i), B1[i]))
         assert mult(beta13) == RHS1, 'player one is cheating'
 
         B: List[Point] = list()  # commitment at the global sharing polynomial
-        for i in range(t):
+        for i in range(m):
             B.append(ec.add(B1[i], B3[i]))
 
         K = B[0]  # aggregated public nonce
@@ -519,14 +519,13 @@ class TestSSA(unittest.TestCase):
         # player one
         if ec.has_square_y(K):
             RHS3 = ec.add(K, mult(e, Q))
-            for i in range(1, t):
-                temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i])
+            for i in range(1, m):
+                temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i], ec.G)
                 RHS3 = ec.add(RHS3, temp)
         else:
             RHS3 = ec.add(ec.opposite(K), mult(e, Q))
-            for i in range(1, t):
-                temp = double_mult(pow(3, i), ec.opposite(
-                    B[i]), e * pow(3, i), A[i])
+            for i in range(1, m):
+                temp = double_mult(pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i])
                 RHS3 = ec.add(RHS3, temp)
 
         assert mult(gamma3) == RHS3, 'player three is cheating'
@@ -534,14 +533,13 @@ class TestSSA(unittest.TestCase):
         # player three
         if ec.has_square_y(K):
             RHS1 = ec.add(K, mult(e, Q))
-            for i in range(1, t):
+            for i in range(1, m):
                 temp = double_mult(pow(1, i), B[i], e * pow(1, i), A[i])
                 RHS1 = ec.add(RHS1, temp)
         else:
             RHS1 = ec.add(ec.opposite(K), mult(e, Q))
-            for i in range(1, t):
-                temp = double_mult(pow(1, i), ec.opposite(
-                    B[i]), e * pow(1, i), A[i])
+            for i in range(1, m):
+                temp = double_mult(pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i])
                 RHS1 = ec.add(RHS1, temp)
 
         assert mult(gamma1) == RHS1, 'player two is cheating'

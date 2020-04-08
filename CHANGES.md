@@ -8,10 +8,13 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- introduced CurveGroup and CurveSubGroup as grand-parent and parent
+  of Curve. Also, renamed ec._p as ec.p and removed default ec.G
+  from double_mult
 - the usage of DER (de)serialization is advocated through
-dsa.(de)serialize, similarly to ssa.(de)serialize
-and btcmsg.(de)serialize; therefore, the corresponding
-der.py functions have been renamed with leading underscore
+  dsa.(de)serialize, similarly to ssa.(de)serialize
+  and btcmsg.(de)serialize; therefore, the corresponding
+  der.py functions have been renamed with leading underscore
 - introduced Sig and SigTuple for DSA, BTCMSG, and SSA
 
 ## v2020.4.7

@@ -11,8 +11,8 @@
 import unittest
 
 from btclib.alias import INF, INFJ, Point
-from btclib.curve import _jac_from_aff
-from btclib.curvemult import Curve
+from btclib.curve import Curve, _jac_from_aff
+from btclib.curvemult import mult
 from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
                            secp160r1, secp256k1, secp256r1, secp384r1)
 from btclib.numbertheory import mod_sqrt
@@ -34,7 +34,7 @@ class TestEllipticCurve(unittest.TestCase):
 
         # required security level not in the allowed range
         ec = secp112r1
-        p = ec._p
+        p = ec.p
         a = ec._a
         b = ec._b
         G = ec.G
@@ -46,7 +46,7 @@ class TestEllipticCurve(unittest.TestCase):
 
         # not enough bits for required security level
         ec = secp160r1
-        p = ec._p
+        p = ec.p
         a = ec._a
         b = ec._b
         G = ec.G
@@ -99,16 +99,16 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(UserWarning, Curve, 11, 2, 7, (6, 9), 7, 2, 0, True)
 
         # x-coordinate not in [0, p-1]
-        self.assertRaises(ValueError, secp256k1.y, secp256k1._p)
-        # secp256k1.y(secp256k1._p)
+        self.assertRaises(ValueError, secp256k1.y, secp256k1.p)
+        # secp256k1.y(secp256k1.p)
 
     def test_all_curves(self):
         for ec in all_curves:
-            self.assertEqual(ec.mult(0), INF)
-            self.assertEqual(ec.mult(0), INF)
+            self.assertEqual(mult(0, ec.G, ec), INF)
+            self.assertEqual(mult(0, ec.G, ec), INF)
 
-            self.assertEqual(ec.mult(1), ec.G)
-            self.assertEqual(ec.mult(1), ec.G)
+            self.assertEqual(mult(1, ec.G, ec), ec.G)
+            self.assertEqual(mult(1, ec.G, ec), ec.G)
 
             Gy_odd = ec.y_odd(ec.G[0], True)
             self.assertEqual(Gy_odd % 2, 1)
@@ -132,15 +132,15 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(P, INF)
 
             P = ec.add(ec.G, ec.G)
-            self.assertEqual(P, ec.mult(2))
+            self.assertEqual(P, mult(2, ec.G, ec))
 
-            P = ec.mult(ec.n-1)
+            P = mult(ec.n-1, ec.G, ec)
             self.assertEqual(ec.add(P, ec.G), INF)
-            self.assertEqual(ec.mult(ec.n), INF)
+            self.assertEqual(mult(ec.n, ec.G, ec), INF)
 
-            self.assertEqual(ec.mult(0, INF), INF)
-            self.assertEqual(ec.mult(1, INF), INF)
-            self.assertEqual(ec.mult(25, INF), INF)
+            self.assertEqual(mult(0, INF, ec), INF)
+            self.assertEqual(mult(1, INF, ec), INF)
+            self.assertEqual(mult(25, INF, ec), INF)
 
             ec_repr = repr(ec)
             if ec in low_card_curves or ec.psize < 24:
@@ -150,7 +150,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_octets2point(self):
         for ec in all_curves:
-            Q = ec.mult(ec._p)  # just a random point, not INF
+            Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
 
             Q_bytes = b'\x03' if Q[1] & 1 else b'\x02'
             Q_bytes += Q[0].to_bytes(ec.psize, byteorder='big')
@@ -174,7 +174,7 @@ class TestEllipticCurve(unittest.TestCase):
 
             # scalar in point multiplication can be int, str, or bytes
             t = tuple()
-            self.assertRaises(TypeError, ec.mult, t)
+            self.assertRaises(TypeError, mult, t, ec.G, ec)
 
             # not a compressed point
             Q_bytes = b'\x01' * (ec.psize+1)
@@ -200,12 +200,12 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, ec.is_on_curve, P)
 
         # y-coordinate not in (0, p)
-        P = x, ec._p+1
+        P = x, ec.p+1
         self.assertRaises(ValueError, ec.is_on_curve, P)
 
     def test_opposite(self):
         for ec in all_curves:
-            Q = ec.mult(ec._p)  # just a random point, not INF
+            Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
             minus_Q = ec.opposite(Q)
             self.assertEqual(ec.add(Q, minus_Q), INF)
             # jacobian coordinates
@@ -226,25 +226,25 @@ class TestEllipticCurve(unittest.TestCase):
             hasRoot = set()
             hasRoot.add(1)
 
-            for i in range(2, ec._p):
-                hasRoot.add(i*i % ec._p)
+            for i in range(2, ec.p):
+                hasRoot.add(i*i % ec.p)
 
             # test phase
-            Q = ec.mult(ec._p)  # just a random point, not INF
+            Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
             x = Q[0]
-            if ec._p % 4 == 3:
+            if ec.p % 4 == 3:
                 quad_res = ec.y_quadratic_residue(x, True)
                 not_quad_res = ec.y_quadratic_residue(x, False)
                 # in this case only quad_res is a quadratic residue
                 self.assertIn(quad_res, hasRoot)
-                root = mod_sqrt(quad_res, ec._p)
-                self.assertEqual(quad_res, (root*root) % ec._p)
-                root = ec._p - root
-                self.assertEqual(quad_res, (root*root) % ec._p)
+                root = mod_sqrt(quad_res, ec.p)
+                self.assertEqual(quad_res, (root*root) % ec.p)
+                root = ec.p - root
+                self.assertEqual(quad_res, (root*root) % ec.p)
 
-                self.assertTrue(not_quad_res == ec._p - quad_res)
+                self.assertTrue(not_quad_res == ec.p - quad_res)
                 self.assertNotIn(not_quad_res, hasRoot)
-                self.assertRaises(ValueError, mod_sqrt, not_quad_res, ec._p)
+                self.assertRaises(ValueError, mod_sqrt, not_quad_res, ec.p)
 
                 y_odd = ec.y_odd(x, True)
                 self.assertTrue(y_odd in (quad_res, not_quad_res))
@@ -259,7 +259,7 @@ class TestEllipticCurve(unittest.TestCase):
                 self.assertTrue(y_high in (y_odd, y_even))
                 self.assertTrue(y_low < y_high)
             else:
-                self.assertTrue(ec._p % 4 == 1)
+                self.assertTrue(ec.p % 4 == 1)
                 # cannot use y_quadratic_residue in this case
                 self.assertRaises(ValueError, ec.y_quadratic_residue, x, True)
                 self.assertRaises(ValueError, ec.y_quadratic_residue, x, False)
@@ -272,17 +272,17 @@ class TestEllipticCurve(unittest.TestCase):
                 self.assertTrue((y_odd in hasRoot and y_even in hasRoot) or
                                 (y_odd not in hasRoot and y_even not in hasRoot))
                 if y_odd in hasRoot:  # both have roots
-                    root = mod_sqrt(y_odd, ec._p)
-                    self.assertEqual(y_odd, (root*root) % ec._p)
-                    root = ec._p - root
-                    self.assertEqual(y_odd, (root*root) % ec._p)
-                    root = mod_sqrt(y_even, ec._p)
-                    self.assertEqual(y_even, (root*root) % ec._p)
-                    root = ec._p - root
-                    self.assertEqual(y_even, (root*root) % ec._p)
+                    root = mod_sqrt(y_odd, ec.p)
+                    self.assertEqual(y_odd, (root*root) % ec.p)
+                    root = ec.p - root
+                    self.assertEqual(y_odd, (root*root) % ec.p)
+                    root = mod_sqrt(y_even, ec.p)
+                    self.assertEqual(y_even, (root*root) % ec.p)
+                    root = ec.p - root
+                    self.assertEqual(y_even, (root*root) % ec.p)
                 else:
-                    self.assertRaises(ValueError, mod_sqrt, y_odd, ec._p)
-                    self.assertRaises(ValueError, mod_sqrt, y_even, ec._p)
+                    self.assertRaises(ValueError, mod_sqrt, y_odd, ec.p)
+                    self.assertRaises(ValueError, mod_sqrt, y_even, ec.p)
 
                 y_low = ec.y_low(x, True)
                 self.assertTrue(y_low in (y_odd, y_even))
@@ -297,7 +297,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_aff_jac_conversions(self):
         for ec in all_curves:
-            Q = ec.mult(ec._p)  # just a random point, not INF
+            Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
             QJ = _jac_from_aff(Q)
             checkQ = ec._aff_from_jac(QJ)
             self.assertEqual(Q, checkQ)
@@ -314,7 +314,7 @@ class TestEllipticCurve(unittest.TestCase):
 
     def test_add(self):
         for ec in all_curves:
-            Q1 = ec.mult(ec._p)  # just a random point, not INF
+            Q1 = mult(ec.p, ec.G, ec)  # just a random point, not INF
             Q1J = _jac_from_aff(Q1)
 
             # distinct points
