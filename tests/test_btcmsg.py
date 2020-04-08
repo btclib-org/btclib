@@ -21,7 +21,19 @@ from btclib.curves import secp256k1 as ec
 from btclib.utils import bytes_from_octets, sha256
 
 
-class TestSignMessage(unittest.TestCase):
+class TestMessageSign(unittest.TestCase):
+    
+    def test_signature(self):
+        # sig taken from (Electrum and) Bitcoin Core
+        msg = 'test message'
+        wif = b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
+        exp_sig = b'G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4='
+        addr = b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
+        sig = btcmsg.sign(msg, wif)
+        self.assertEqual(exp_sig, btcmsg.serialize(*sig))
+        self.assertEqual(sig, btcmsg.deserialize(sig))
+        self.assertTrue(btcmsg.verify(msg, addr, sig))
+
     def test_msgsign_p2pkh(self):
         msg = 'test message'
         # sigs are taken from (Electrum and) Bitcoin Core

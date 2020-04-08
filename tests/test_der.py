@@ -11,7 +11,7 @@
 import unittest
 
 from btclib.curves import secp256k1 as ec
-from btclib.der import _deserialize, _serialize
+from btclib.der import _deserialize, _serialize, _validate_sig
 
 
 class TestDER(unittest.TestCase):
@@ -32,16 +32,23 @@ class TestDER(unittest.TestCase):
 
         for lenght, sig in zip(lenghts, sigs):
             dersig = _serialize(*sig, sighash_all)
-            r, s, sighash_all2 = _deserialize(dersig)
+            r, s, sighash = _deserialize(dersig)
             self.assertEqual(sig, (r, s))
-            self.assertEqual(sighash_all, sighash_all2)
+            self.assertEqual(sighash_all, sighash)
             self.assertEqual(len(dersig), lenght)
             # without sighash
-            r, s, sighash_all2 = _deserialize(dersig[:-1])
+            r, s, no_sighash = _deserialize(dersig[:-1])
             self.assertEqual(sig, (r, s))
-            self.assertIsNone(sighash_all2)
+            self.assertIsNone(no_sighash)
 
         # with the last one
+
+        self.assertEqual((r, s, sighash), _deserialize((r, s, sighash)))
+
+        # Invalid sighash (b'\x00')
+        badsig = dersig[:-1] + b'\x00'
+        self.assertRaises(ValueError, _deserialize, badsig)
+        #_deserialize(badsig)
 
         # DER signature size should be in [9, 73]
         dersig2 = dersig + b'\x00' * 70

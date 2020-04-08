@@ -253,14 +253,7 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-
-    if isinstance(sig, tuple):
-        rf, r, s = sig
-        dsa._validate_sig(r, s, secp256k1)
-    else:
-        # it is a base64 serialized signature
-        rf, r, s = deserialize(sig)
-
+    rf, r, s = _to_sig(sig)
 
     magic_msg = _magic_hash(msg)
     # first two bits in rf are reserved for key_id
@@ -317,6 +310,6 @@ def _to_sig(sig: BMSig) -> BMSigTuple:
         rf, r, s = sig
         _validate_sig(rf, r, s)
     else:
-        # it is a serialized signature
+        # it is a base64 serialized signature
         rf, r, s = deserialize(sig)
     return rf, r, s

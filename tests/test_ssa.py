@@ -27,14 +27,15 @@ from btclib.utils import int_from_bits
 
 random.seed(42)
 
-class TestEcssa(unittest.TestCase):
+class TestSSA(unittest.TestCase):
 
-    def test_ecssa(self):
+    def test_signature(self):
         """Basic tests"""
         q = 0x1
         Q = mult(q)
         mhd = hf(b'Satoshi Nakamoto').digest()
         sig = ssa.sign(mhd, q, None)
+        self.assertEqual(sig, ssa.deserialize(sig))
         ssa._verify(mhd, Q, sig, ec, hf)
         self.assertTrue(ssa.verify(mhd, Q, sig))
 

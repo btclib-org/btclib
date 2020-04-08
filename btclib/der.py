@@ -154,8 +154,6 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
             sighash = None
         elif leftover == 1:  # sighash value
             sighash = sig[sigsize - 1:]
-            if sighash not in sighashes:
-                raise ValueError(f"Invalid sighash type {sighash!r}")
         else:
             msg = f"Declared length ({sig[1]}) does not "
             msg += f"match with actual signature size ({sigsize}) +2 or +3"
@@ -217,13 +215,3 @@ def _validate_sig(r: int, s: int, sighash: Optional[Octets], ec: Curve) -> None:
     if sighash is not None and sighash not in sighashes:
         m = f"Invalid sighash ({sighash!r})"
         raise ValueError(m)
-
-
-def _to_sig(sig: DERSig, ec: Curve) -> DERSigTuple:
-    if isinstance(sig, tuple):
-        r, s, sighash = sig
-        _validate_sig(r, s, sighash, ec)
-    else:
-        # it is a serialized signature
-        r, s, sighash = _deserialize(sig, ec)
-    return r, s, sighash

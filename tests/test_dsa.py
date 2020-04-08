@@ -27,6 +27,7 @@ class TestDSA(unittest.TestCase):
         Q = mult(q)
         msg = 'Satoshi Nakamoto'
         sig = dsa.sign(msg, q)
+        self.assertEqual(sig, dsa.deserialize(sig))
         # https://bitcointalk.org/index.php?topic=285142.40
         # Deterministic Usage of DSA and ECDSA (RFC 6979)
         exp_sig = (
