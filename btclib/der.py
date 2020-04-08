@@ -40,9 +40,26 @@
     * s: arbitrary-length big-endian s value. Same rules as for r apply
     * sighash: 1-byte value indicating what data is hashed
       (not part of the DER signature)
+
+    There are 7 bytes of meta-data:
+    
+    * compound header, compound length,
+    * value header, r value length,
+    * value header, s value length
+    * sighash type (optional)
+
+    The ECDSA signature (r, s) should be 64 bytes,
+    r and s being 32 bytes integers each;
+    however, integers in DER are signed,
+    so if the value being encoded is greater than 2^128,
+    a 33rd byte is added in front.
+    Bitcoin has a "low s" rule for the s value to be below ec.n,
+    but it is only a standardness rule miners are allowed to ignore.
+    Moreover, no such rule exists for r.
+
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from . import dsa
 from .alias import Octets
@@ -66,7 +83,10 @@ sighashes = [
 ]
 
 # (r, s, sighash)
+# r and s are the components of a DSASigTuple
 DERSigTuple = Tuple[int, int, Optional[bytes]]
+# DERSigTuple or DER serialization (bytes or hex-string, with sighash)
+DERSig = Union[DERSigTuple, Octets]
 
 
 def _bytes_from_scalar(scalar: int) -> bytes:
@@ -84,11 +104,11 @@ def _serialize_scalar(scalar: int) -> bytes:
     return b'\x02' + xsize + x
 
 
-def serialize(r: int, s: int, sighash: Optional[Octets] = None,
-              ec: Curve = secp256k1) -> bytes:
-    """Serialize an ECDSA signature in strict ASN.1 DER representation.
+def _serialize(r: int, s: int, sighash: Optional[Octets] = None,
+               ec: Curve = secp256k1) -> bytes:
+    """Serialize an ECDSA signature to strict ASN.1 DER representation.
 
-    Trailing sighash is added if provided
+    Trailing sighash is added if provided.
     """
 
     # check that it is a valid signature for the given Curve
@@ -103,95 +123,107 @@ def serialize(r: int, s: int, sighash: Optional[Octets] = None,
     return result + sighash
 
 
-def deserialize(dersig: Octets, ec: Curve = secp256k1) -> DERSigTuple:
+def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
 
     Return r, s, sighash; sighash is None if not available.
     """
 
-    dersig = bytes_from_octets(dersig)
-
-    # 7 bytes of meta-data:
-    # compound header, compound length,
-    # r value header, r value length,
-    # s value header, s value length
-    # sighash type (optional)
-    #
-    # the ECDSA signature (r, s) should be 64 bytes,
-    # r and s being 32 bytes integers each;
-    # however, integers in DER are signed,
-    # so if the value being encoded is greater than 2^128,
-    # a 33rd byte is added in front.
-    # Bitcoin has a "low s" rule for the s value to be below ec.n,
-    # but it is only a standardness rule miners are allowed to ignore.
-    # Moreover, no such rule exists for r.
-
-    maxsize = (ec.nsize+1) * 2 + 7  # 73 bytes for secp256k1
-    sigsize = len(dersig)
-    if not 8 < sigsize <= maxsize:
-        errmsg = f"DER signature size ({sigsize}) must be in "
-        errmsg += f"[9, {maxsize}]"
-        raise ValueError(errmsg)
-
-    if dersig[0] != 0x30:
-        msg = f"DER signature type must be 0x30 (compound), not {hex(dersig[0])}"
-        raise ValueError(msg)
-
-    # sigsize checks
-    leftover = sigsize - 2 - dersig[1]
-    if leftover == 0:    # no sighash value
-        sighash = None
-    elif leftover == 1:  # sighash value
-        sighash = dersig[sigsize - 1:]
-        if sighash not in sighashes:
-            raise ValueError(f"Invalid sighash type {sighash!r}")
+    if isinstance(sig, tuple):
+        r, s, sighash = sig
+        _validate_sig(r, s, sighash, ec)
+        return r, s, sighash
     else:
-        msg = f"Declared length ({dersig[1]}) does not "
-        msg += f"match with actual signature size ({sigsize}) +2 or +3"
-        raise ValueError(msg)
 
-    sizeR = dersig[3]  # size of the r scalar
-    if sizeR == 0:
-        raise ValueError("Zero-size integer is not allowed for r")
+        sig = bytes_from_octets(sig)
 
-    if 5 + sizeR >= sigsize:
-        raise ValueError("Size of the s scalar must be inside the signature")
+        maxsize = (ec.nsize+1) * 2 + 7  # 73 bytes for secp256k1
+        sigsize = len(sig)
+        if not 8 < sigsize <= maxsize:
+            errmsg = f"DER signature size ({sigsize}) must be in "
+            errmsg += f"[9, {maxsize}]"
+            raise ValueError(errmsg)
 
-    sizeS = dersig[5 + sizeR]  # size of the s scalar
-    if sizeS == 0:
-        raise ValueError("Zero-size integer is not allowed for s")
+        if sig[0] != 0x30:
+            msg = f"DER signature type must be 0x30 (compound), not {hex(sig[0])}"
+            raise ValueError(msg)
 
-    if sigsize - sizeR - sizeS != 6 + leftover:
-        raise ValueError("Signature size does not match with size of scalars")
+        # sigsize checks
+        leftover = sigsize - 2 - sig[1]
+        if leftover == 0:    # no sighash value
+            sighash = None
+        elif leftover == 1:  # sighash value
+            sighash = sig[sigsize - 1:]
+            if sighash not in sighashes:
+                raise ValueError(f"Invalid sighash type {sighash!r}")
+        else:
+            msg = f"Declared length ({sig[1]}) does not "
+            msg += f"match with actual signature size ({sigsize}) +2 or +3"
+            raise ValueError(msg)
 
-    # scalar r
-    if dersig[2] != 0x02:
-        raise ValueError("r scalar must be an integer")
+        sizeR = sig[3]  # size of the r scalar
+        if sizeR == 0:
+            raise ValueError("Zero-size integer is not allowed for r")
 
-    if dersig[4] & 0x80:
-        raise ValueError("Negative number is not allowed for r")
+        if 5 + sizeR >= sigsize:
+            raise ValueError("Size of the s scalar must be inside the signature")
 
-    # Null bytes at the start of a scalar are not allowed, unless the
-    # scalar would otherwise be interpreted as a negative number
-    if sizeR > 1 and dersig[4] == 0x00 and not (dersig[5] & 0x80):
-        raise ValueError("Invalid null bytes at the start of r")
+        sizeS = sig[5 + sizeR]  # size of the s scalar
+        if sizeS == 0:
+            raise ValueError("Zero-size integer is not allowed for s")
 
-    r = int.from_bytes(dersig[4:4 + sizeR], byteorder='big')
+        if sigsize - sizeR - sizeS != 6 + leftover:
+            raise ValueError("Signature size does not match with size of scalars")
 
-    # scalar s (offset=2+sizeR with respect to r)
-    if dersig[sizeR + 4] != 0x02:
-        raise ValueError("s scalar must be an integer")
+        # scalar r
+        if sig[2] != 0x02:
+            raise ValueError("r scalar must be an integer")
 
-    if dersig[sizeR + 6] & 0x80:
-        raise ValueError("Negative number is not allowed for s")
+        if sig[4] & 0x80:
+            raise ValueError("Negative number is not allowed for r")
 
-    # Null bytes at the start of a scalar are not allowed, unless the
-    # scalar would otherwise be interpreted as a negative number
-    if sizeS>1 and dersig[sizeR+6]==0x00 and not (dersig[sizeR+7] & 0x80):
-        raise ValueError("Invalid null bytes at the start of s")
+        # Null bytes at the start of a scalar are not allowed, unless the
+        # scalar would otherwise be interpreted as a negative number
+        if sizeR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
+            raise ValueError("Invalid null bytes at the start of r")
 
-    s = int.from_bytes(dersig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
+        r = int.from_bytes(sig[4:4 + sizeR], byteorder='big')
+
+        # scalar s (offset=2+sizeR with respect to r)
+        if sig[sizeR + 4] != 0x02:
+            raise ValueError("s scalar must be an integer")
+
+        if sig[sizeR + 6] & 0x80:
+            raise ValueError("Negative number is not allowed for s")
+
+        # Null bytes at the start of a scalar are not allowed, unless the
+        # scalar would otherwise be interpreted as a negative number
+        if sizeS>1 and sig[sizeR+6]==0x00 and not (sig[sizeR+7] & 0x80):
+            raise ValueError("Invalid null bytes at the start of s")
+
+        s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
 
     # checks that the signature is valid for the given Curve
+    _validate_sig(r, s, sighash, ec)
+    return r, s, sighash
+
+
+def _validate_sig(r: int, s: int, sighash: Optional[Octets], ec: Curve) -> None:
+    # check that the DER signature is correct
+
     dsa._validate_sig(r, s, ec)
+
+    # TODO improve sighash validation
+    if sighash is not None and sighash not in sighashes:
+        m = f"Invalid sighash ({sighash!r})"
+        raise ValueError(m)
+
+
+def _to_sig(sig: DERSig, ec: Curve) -> DERSigTuple:
+    if isinstance(sig, tuple):
+        r, s, sighash = sig
+        _validate_sig(r, s, sighash, ec)
+    else:
+        # it is a serialized signature
+        r, s, sighash = _deserialize(sig, ec)
     return r, s, sighash

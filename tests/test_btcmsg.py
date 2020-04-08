@@ -13,7 +13,7 @@ import unittest
 from hashlib import sha256 as hf
 from os import path
 
-from btclib import btcmsg, der, dsa, bip32
+from btclib import bip32, btcmsg, dsa
 from btclib.base58address import p2pkh, p2pkh_from_wif, p2wpkh_p2sh_from_wif
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh_from_wif
@@ -390,8 +390,7 @@ class TestSignMessage(unittest.TestCase):
         key_id = dersig[0]
         dersig = b'\x30' + dersig[1:]
 
-        r, s, sighash = der.deserialize(dersig)
-        self.assertIsNone(sighash)
+        r, s = dsa.deserialize(dersig)
 
         # ECDSA signature verification of the patched dersig
         dsa._verify(magic_msg, xpub, dersig, ec, hf)
@@ -429,8 +428,7 @@ class TestSignMessage(unittest.TestCase):
         key_id = dersig[0]
         dersig = b'\x30' + dersig[1:]
 
-        r, s, sighash = der.deserialize(dersig)
-        self.assertIsNone(sighash)
+        r, s = dsa.deserialize(dersig)
 
         # ECDSA signature verification of the patched dersig
         dsa._verify(magic_msg, xpub, dersig, ec, hf)

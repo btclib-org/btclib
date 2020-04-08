@@ -11,7 +11,7 @@
 import unittest
 from hashlib import sha1, sha256
 
-from btclib import der, dsa
+from btclib import dsa
 from btclib.alias import INF
 from btclib.curvemult import _mult_jac, double_mult, mult
 from btclib.curves import low_card_curves, secp112r2, secp160r1, secp256k1
@@ -175,16 +175,16 @@ class TestDSA(unittest.TestCase):
         q = 0x10
         Q = mult(q, ec.G, ec)
         msg = 'Satoshi Nakamoto'
-        k = sighash = None
+        k = None
         sig = dsa.sign(msg, q, k, ec)
         self.assertTrue(dsa.verify(msg, Q, sig, ec))
-        dersig = der.serialize(*sig, sighash, ec)
+        dersig = dsa.serialize(*sig, ec)
         self.assertTrue(dsa.verify(msg, Q, dersig, ec))
-        r, s, _ = der.deserialize(dersig)
+        r, s = dsa.deserialize(dersig)
         self.assertEqual((r, s), sig)
 
 
-        keys = dsa.recover_pubkeys(msg, dersig, ec)
+        keys = dsa.recover_pubkeys(msg, sig, ec)
         self.assertEqual(len(keys), 4)
         self.assertIn(Q, keys)
         for Q in keys:

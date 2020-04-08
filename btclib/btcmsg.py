@@ -145,7 +145,7 @@ from hashlib import sha256
 from typing import Optional, Tuple, Union
 
 from . import bip32, dsa
-from .alias import BMSig, Octets, String
+from .alias import BMSig, BMSigTuple, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import prvkeytuple_from_xprvwif
 from .bech32address import p2wpkh, witness_from_b32address
@@ -153,17 +153,6 @@ from .curvemult import mult
 from .curves import secp256k1
 from .secpoint import bytes_from_point
 from .utils import hash160
-
-
-def _magic_hash(msg: String) -> bytes:
-
-    # Electrum does strip leading and trailing spaces;
-    # Bitcoin Core does not
-    if isinstance(msg, str):
-        msg = msg.encode()
-
-    t = b'\x18Bitcoin Signed Message:\n' + len(msg).to_bytes(1, 'big') + msg
-    return sha256(t).digest()
 
 
 def serialize(rf: int, r: int, s: int) -> bytes:
@@ -178,27 +167,40 @@ def serialize(rf: int, r: int, s: int) -> bytes:
     return b64encode(sig)
 
 
-def deserialize(base64sig: Octets) -> Tuple[int, int, int]:
+def deserialize(sig: BMSig) -> BMSigTuple:
     """Return the elements of the address-based compact signature.
 
     The compact signature is [1-byte rf][32-bytes r][32-bytes s]
     """
-    sig = b64decode(base64sig)
-    if len(sig) != 65:
-        raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
-    rf = sig[0]
-    if rf < 27 or rf > 42:
-        raise ValueError(f"Invalid recovery flag: {rf}")
-    r = int.from_bytes(sig[1:33], byteorder='big')
-    s = int.from_bytes(sig[33:], byteorder='big')
-    dsa._validate_sig(r, s, secp256k1)
+    if isinstance(sig, tuple):
+        rf, r, s = sig
+    else:
+        sig = b64decode(sig)
+        if len(sig) != 65:
+            raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
+        rf = sig[0]
+        r = int.from_bytes(sig[1:33], byteorder='big')
+        s = int.from_bytes(sig[33:], byteorder='big')
+
+    _validate_sig(rf, r, s)
     return rf, r, s
+
+
+def _magic_hash(msg: String) -> bytes:
+
+    # Electrum does strip leading and trailing spaces;
+    # Bitcoin Core does not
+    if isinstance(msg, str):
+        msg = msg.encode()
+
+    t = b'\x18Bitcoin Signed Message:\n' + len(msg).to_bytes(1, 'big') + msg
+    return sha256(t).digest()
 
 
 # Note it must be a prvkey including compressed information
 # TODO make compressed a default to relax the above note
 def sign(msg: String, prvkey: Union[String, bip32.XkeyDict],
-         addr: Optional[String] = None) -> Tuple[int, int, int]:
+         addr: Optional[String] = None) -> BMSigTuple:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -300,3 +302,21 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
         else:
             m = f"Invalid recovery flag ({rf}) for bech32 address ({addr!r})"
             raise ValueError(m)
+
+
+def _validate_sig(rf: int, r: int, s: int) -> None:
+    # check that the BMSig signature is correct
+
+    if rf < 27 or rf > 42:
+        raise ValueError(f"Invalid recovery flag: {rf}")
+    dsa._validate_sig(r, s, secp256k1)
+
+
+def _to_sig(sig: BMSig) -> BMSigTuple:
+    if isinstance(sig, tuple):
+        rf, r, s = sig
+        _validate_sig(rf, r, s)
+    else:
+        # it is a serialized signature
+        rf, r, s = deserialize(sig)
+    return rf, r, s

@@ -21,7 +21,8 @@ from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
 from . import bip32, der
-from .alias import DSASig, HashF, JacPoint, Point, PrvKey, PubKey, String
+from .alias import (DSASig, DSASigTuple, HashF, JacPoint, Point, PrvKey,
+                    PubKey, String)
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac
 from .curves import secp256k1
@@ -30,6 +31,30 @@ from .rfc6979 import _rfc6979
 from .to_prvkey import to_prvkey_int
 from .to_pubkey import to_pubkey_tuple
 from .utils import int_from_bits
+
+
+def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
+    "Serialize an ECDSA signature to strict ASN.1 DER representation."
+
+    # this function is basically just a der._serialize wrapper
+    # to have for dsa the same pattern available for ssa and btcmesg
+    return der._serialize(r, s, None)
+
+
+def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:
+    "Deserialize a strict ASN.1 DER representation of an ECDSA signature."
+
+    # this function is basically just a der._deserialize wrapper
+    # to have for dsa the same pattern available for ssa and btcmesg
+    if isinstance(sig, tuple):
+        r, s = sig
+        _validate_sig(r, s, ec)
+        return r, s
+    else:
+        return der._deserialize(sig, ec)[0:2]
+
+
+# RFC6979 is used for deterministic nonce
 
 
 def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
@@ -46,7 +71,7 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
 
 
 def sign(msg: String, prvkey: PrvKey, k: Optional[PrvKey] = None,
-         ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
+         ec: Curve = secp256k1, hf: HashF = sha256) -> DSASigTuple:
     """ECDSA signature with canonical low-s encoding.
 
     Implemented according to SEC 1 v.2 
@@ -80,7 +105,7 @@ def sign(msg: String, prvkey: PrvKey, k: Optional[PrvKey] = None,
     return _sign(c, q, k, ec)
 
 
-def _sign(c: int, q: int, k: int, ec: Curve) -> Tuple[int, int]:
+def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and k are in [1, n-1]
@@ -155,6 +180,29 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     x = K_x % ec.n                               # 6, 7
     # Fail if r ≠ K_x %n.
     assert r == x, "Signature verification failed"  # 8
+
+
+def _validate_sig(r: int, s: int, ec: Curve) -> None:
+    # check that the DSA signature is correct
+
+    # Fail if r is not [1, n-1]
+    if not 0 < r < ec.n:
+        raise ValueError(f"r ({hex(r)}) not in [1, n-1]")
+
+    # Fail if s is not [1, n-1]
+    if not 0 < s < ec.n:
+        raise ValueError(f"s ({hex(s)}) not in [1, n-1]")
+
+
+def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:
+    if isinstance(sig, tuple):
+        r, s = sig
+        _validate_sig(r, s, ec)
+    else:
+        # it is a DER serialized signature
+        # sighash is not needed
+        r, s = deserialize(sig, ec)
+    return r, s
 
 
 def recover_pubkeys(msg: String, sig: DSASig,
@@ -234,29 +282,6 @@ def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
     QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)       # 1.6.1
     _verhlp(c, QJ, r, s, ec)                         # 1.6.2
     return QJ
-
-
-def _validate_sig(r: int, s: int, ec: Curve) -> None:
-    # check that the DSA signature is correct
-
-    # Fail if r is not [1, n-1]
-    if not 0 < r < ec.n:
-        raise ValueError(f"r ({hex(r)}) not in [1, n-1]")
-
-    # Fail if s is not [1, n-1]
-    if not 0 < s < ec.n:
-        raise ValueError(f"s ({hex(s)}) not in [1, n-1]")
-
-
-def _to_sig(sig: DSASig, ec: Curve) -> Tuple[int, int]:
-    if isinstance(sig, tuple):
-        r, s = sig
-        _validate_sig(r, s, ec)
-    else:
-        # it is a DER serialized signature
-        # sighash is not needed
-        r, s, _ = der.deserialize(sig, ec)
-    return r, s
 
 
 def crack_prvkey(m1: String, sig1: DSASig, m2: String, sig2: DSASig,

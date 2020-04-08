@@ -115,7 +115,7 @@ PubKey = Union[Point, XkeyDict, bytes, str]
 
 
 # ECDSA signature
-# (r, s, sighash)
+# (r, s)
 # both r and s are scalar: 0 < r < ec.n, 0 < s < ec.n
 DSASigTuple = Tuple[int, int]
 # DSASigTuple or DER serialization (bytes or hex-string, no sighash)

@@ -53,7 +53,7 @@ import secrets
 from hashlib import sha256
 from typing import List, Sequence, Tuple, Union
 
-from .alias import HashF, JacPoint, Octets, Point, SSASig
+from .alias import HashF, JacPoint, Octets, Point, SSASig, SSASigTuple
 from .bip32 import XkeyDict
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac, _multi_mult
@@ -103,6 +103,17 @@ def to_bip340_pubkey_tuple(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
     return x_Q, y_Q
 
 
+def pubkey_gen(prvkey: BIP340Key, ec: Curve = secp256k1) -> bytes:
+    """Return a BIP340-Schnorr p-size public key."""
+    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
+    ec.require_p_ThreeModFour()
+
+    q = to_prvkey_int(prvkey, ec)
+    QJ = _mult_jac(q, ec.GJ, ec)
+    x = ec._x_aff_from_jac(QJ)
+    return x.to_bytes(ec.psize, byteorder="big")
+
+
 def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
     """Return a BIP340-Schnorr signature serialization."""
 
@@ -114,21 +125,36 @@ def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
     return sig
 
 
-def deserialize(sig: Octets, ec: Curve = secp256k1) -> Tuple[int, int]:
+def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
     """Return a BIP340-Schnorr signature as (r, s) tuple."""
 
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    sig = bytes_from_octets(sig, ec.psize+ec.nsize)
+    if isinstance(sig, tuple):
+        r, s = sig
+    else:
+        sig = bytes_from_octets(sig, ec.psize+ec.nsize)
+        r = int.from_bytes(sig[:ec.psize], byteorder='big')
+        s = int.from_bytes(sig[ec.psize:], byteorder='big')
 
-    r = int.from_bytes(sig[:ec.psize], byteorder='big')
-    s = int.from_bytes(sig[ec.psize:], byteorder='big')
     _validate_sig(r, s, ec)
     return r, s
 
 
-def k(m: Octets, prv: BIP340Key,
+# This implementation can be sped up by storing the midstate after hashing
+# tag_hash instead of rehashing it all the time.
+def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
+    t = tag.encode()
+    h1 = hf()
+    h1.update(t)
+    tag_hash = h1.digest()
+    h2 = hf()
+    h2.update(tag_hash + tag_hash + m)
+    return h2.digest()
+
+
+def k(m: Octets, prv: BIP340Key, 
       ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
 
@@ -164,29 +190,6 @@ def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
             return k                    # successful candidate
 
 
-def pubkey_gen(prvkey: BIP340Key, ec: Curve = secp256k1) -> bytes:
-    """Return a BIP340-Schnorr p-size public key."""
-    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
-
-    q = to_prvkey_int(prvkey, ec)
-    QJ = _mult_jac(q, ec.GJ, ec)
-    x = ec._x_aff_from_jac(QJ)
-    return x.to_bytes(ec.psize, byteorder="big")
-
-
-# This implementation can be sped up by storing the midstate after hashing
-# tag_hash instead of rehashing it all the time.
-def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
-    t = tag.encode()
-    h1 = hf()
-    h1.update(t)
-    tag_hash = h1.digest()
-    h2 = hf()
-    h2.update(tag_hash + tag_hash + m)
-    return h2.digest()
-
-
 def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
 
     # note that only x_Q is needed
@@ -204,7 +207,7 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
 
 
 def sign(m: Octets, prvkey: BIP340Key, k: BIP340Key = None,
-         ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
+         ec: Curve = secp256k1, hf: HashF = sha256) -> SSASigTuple:
     """Sign message according to BIP340-Schnorr signature algorithm."""
 
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
@@ -287,17 +290,6 @@ def _verify(m: Octets, Q: BIP340Key, sig: SSASig,
     assert KJ[0] == KJ[2]*KJ[2]*r % ec._p, "Signature verification failed"
 
 
-def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
-    # Private function provided for testing purposes only.
-
-    KJ = r, ec.y_quadratic_residue(r, True), 1
-
-    e1 = mod_inv(c, ec.n)
-    QJ = _double_mult(-e1, KJ, e1*s, ec.GJ, ec)
-    assert QJ[2] != 0, "how did you do that?!?"
-    return ec._x_aff_from_jac(QJ)
-
-
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
     # check that the SSA signature is correct
 
@@ -309,7 +301,7 @@ def _validate_sig(r: int, s: int, ec: Curve) -> None:
         raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
 
 
-def _to_sig(sig: SSASig, ec: Curve) -> Tuple[int, int]:
+def _to_sig(sig: SSASig, ec: Curve) -> SSASigTuple:
     if isinstance(sig, tuple):
         r, s = sig
         _validate_sig(r, s, ec)
@@ -317,6 +309,39 @@ def _to_sig(sig: SSASig, ec: Curve) -> Tuple[int, int]:
         # it is a serialized signature
         r, s = deserialize(sig, ec)
     return r, s
+
+
+def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
+    # Private function provided for testing purposes only.
+
+    KJ = r, ec.y_quadratic_residue(r, True), 1
+
+    e1 = mod_inv(c, ec.n)
+    QJ = _double_mult(-e1, KJ, e1*s, ec.GJ, ec)
+    assert QJ[2] != 0, "how did you do that?!?"
+    return ec._x_aff_from_jac(QJ)
+
+
+def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
+                 Q: BIP340Key,
+                 ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
+
+    m1 = bytes_from_octets(m1, hf().digest_size)
+    r1, s1 = _to_sig(sig1, ec)
+    m2 = bytes_from_octets(m2, hf().digest_size)
+    r2, s2 = _to_sig(sig2, ec)
+    x_Q = to_bip340_pubkey_tuple(Q, ec)[0]
+
+    if r1 != r2:
+        raise ValueError("Not the same r in signatures")
+    if s1 == s2:
+        raise ValueError("Identical signatures")
+
+    c1 = _challenge(r1, x_Q, m1, ec, hf)
+    c2 = _challenge(r2, x_Q, m2, ec, hf)
+    q = (s1-s2) * mod_inv(c2-c1, ec.n) %ec.n
+    k = (s1 + c1 * q) %ec.n
+    return q, k 
 
 
 def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340Key],
@@ -390,25 +415,3 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340Key],
 
     valid_sig = TJ[1]*RHSZ2*RHSJ[2] % ec._p == RHSJ[1]*TZ2*TJ[2] % ec._p
     assert valid_sig, "Signature verification failed"
-
-
-def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
-                 Q: BIP340Key,
-                 ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
-
-    m1 = bytes_from_octets(m1, hf().digest_size)
-    r1, s1 = _to_sig(sig1, ec)
-    m2 = bytes_from_octets(m2, hf().digest_size)
-    r2, s2 = _to_sig(sig2, ec)
-    x_Q = to_bip340_pubkey_tuple(Q, ec)[0]
-
-    if r1 != r2:
-        raise ValueError("Not the same r in signatures")
-    if s1 == s2:
-        raise ValueError("Identical signatures")
-
-    c1 = _challenge(r1, x_Q, m1, ec, hf)
-    c2 = _challenge(r2, x_Q, m2, ec, hf)
-    q = (s1-s2) * mod_inv(c2-c1, ec.n) %ec.n
-    k = (s1 + c1 * q) %ec.n
-    return q, k 
