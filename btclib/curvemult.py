@@ -14,7 +14,7 @@ import heapq
 from typing import List, Sequence
 
 from .alias import INFJ, JacPoint, Point
-from .curve import Curve, _jac_from_aff, _mult_jac
+from .curve import Curve, CurveGroup, _jac_from_aff, _mult_jac
 from .curves import secp256k1
 
 
@@ -51,7 +51,7 @@ def double_mult(u: int, H: Point, v: int, Q: Point,
 
 
 def _double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint,
-                 ec: Curve) -> JacPoint:
+                 ec: CurveGroup) -> JacPoint:
 
     if u == 0 or HJ[2] == 0:
         return _mult_jac(v, QJ, ec)
@@ -76,7 +76,7 @@ def _double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint,
 
 
 def multi_mult(scalars: Sequence[int], Points: Sequence[Point],
-               ec: Curve = secp256k1) -> Point:
+               ec: CurveGroup = secp256k1) -> Point:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
     Use Bos-Coster's algorithm for efficient computation;
@@ -99,7 +99,7 @@ def multi_mult(scalars: Sequence[int], Points: Sequence[Point],
 
 
 def _multi_mult(scalars: Sequence[int], JPoints: Sequence[JacPoint],
-                ec: Curve) -> JacPoint:
+                ec: CurveGroup) -> JacPoint:
     # source: https://cr.yp.to/badbatch/boscoster2.py
 
     x = list(zip([-n for n in scalars], JPoints))

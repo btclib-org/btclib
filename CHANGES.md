@@ -43,5 +43,6 @@ Moreover, major changes include:
 - updated the Schnorr implementation to BIP340 proposed standard
 - refactored BIP32 for increased derivation efficiency
 - improved documentation
-- extended functional test case coverage (as usual tests cover 100% of the code base)
+- extended functional test case coverage (as usual tests cover 100% of
+  the code base)
 - removed all mypy warnings (but one)
