@@ -280,7 +280,7 @@ def _verify(m: Octets, Q: BIP340Key, sig: SSASig,
 
     # Let K = sG - eQ.
     # in Jacobian coordinates
-    KJ = _double_mult(-c, QJ, s, ec.GJ, ec)
+    KJ = _double_mult(ec.n-c, QJ, s, ec.GJ, ec)
 
     # Fail if infinite(KJ).
     # Fail if jacobi(y_K) ≠ 1.
@@ -317,7 +317,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
     KJ = r, ec.y_quadratic_residue(r, True), 1
 
     e1 = mod_inv(c, ec.n)
-    QJ = _double_mult(-e1, KJ, e1*s, ec.GJ, ec)
+    QJ = _double_mult(ec.n-e1, KJ, e1*s, ec.GJ, ec)
     assert QJ[2] != 0, "how did you do that?!?"
     return ec._x_aff_from_jac(QJ)
 

@@ -102,6 +102,10 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, secp256k1.y, secp256k1.p)
         # secp256k1.y(secp256k1.p)
 
+        # INF point does not generate a prime order subgroup
+        self.assertRaises(ValueError, Curve, 11, 2, 7, INF, 7, 2, 0, False)
+        #Curve(11, 2, 7, INF, 7, 2, 0, False)
+
     def test_all_curves(self):
         for ec in all_curves:
             self.assertEqual(mult(0, ec.G, ec), INF)
@@ -310,7 +314,6 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertFalse(ec.has_square_y(INF))
             self.assertRaises(ValueError, ec._x_aff_from_jac, INFJ)
             self.assertRaises(ValueError, ec.has_square_y, "Not a Point")
-
 
     def test_add(self):
         for ec in all_curves:

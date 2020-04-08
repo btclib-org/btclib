@@ -41,25 +41,21 @@ def double_mult(u: int, H: Point, v: int, Q: Point,
     ec.require_on_curve(H)
     HJ = _jac_from_aff(H)
 
-    if Q is None:
-        QJ = ec.GJ
-    else:
-        ec.require_on_curve(Q)
-        QJ = _jac_from_aff(Q)
+    ec.require_on_curve(Q)
+    QJ = _jac_from_aff(Q)
 
+    u %= ec.n
+    v %= ec.n
     R = _double_mult(u, HJ, v, QJ, ec)
-
     return ec._aff_from_jac(R)
 
 
 def _double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint,
                  ec: Curve) -> JacPoint:
 
-    u %= ec.n
     if u == 0 or HJ[2] == 0:
         return _mult_jac(v, QJ, ec)
 
-    v %= ec.n
     if v == 0 or QJ[2] == 0:
         return _mult_jac(u, HJ, ec)
 
@@ -120,4 +116,5 @@ def _multi_mult(scalars: Sequence[int], JPoints: Sequence[JacPoint],
         heapq.heappush(x, (-n2, p2))
     np1 = heapq.heappop(x)
     n1, p1 = -np1[0], np1[1]
+    #n1 %= ec.n
     return _mult_jac(n1, p1, ec)

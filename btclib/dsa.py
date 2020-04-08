@@ -167,8 +167,8 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
 
     w = mod_inv(s, ec.n)
-    u = c*w
-    v = r*w                                      # 4
+    u = c*w % ec.n
+    v = r*w % ec.n                               # 4
     # Let K = u*G + v*Q.
     KJ = _double_mult(v, QJ, u, ec.GJ, ec)       # 5
 
@@ -226,8 +226,8 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
 
     # precomputations
     r1 = mod_inv(r, ec.n)
-    r1s = r1*s
-    r1e = -r1*c
+    r1s = r1*s % ec.n
+    r1e = -r1*c % ec.n
     keys: List[JacPoint] = list()
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
@@ -266,8 +266,8 @@ def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
 
     # precomputations
     r1 = mod_inv(r, ec.n)
-    r1s = r1*s
-    r1e = -r1*c
+    r1s = r1*s % ec.n
+    r1e = -r1*c % ec.n
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested

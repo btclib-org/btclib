@@ -520,7 +520,7 @@ class TestSSA(unittest.TestCase):
         if ec.has_square_y(K):
             RHS3 = ec.add(K, mult(e, Q))
             for i in range(1, m):
-                temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i], ec.G)
+                temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i])
                 RHS3 = ec.add(RHS3, temp)
         else:
             RHS3 = ec.add(ec.opposite(K), mult(e, Q))
