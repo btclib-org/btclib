@@ -164,7 +164,8 @@ def fingerprint(d: Union[XkeyDict, String]) -> bytes:
         d = deserialize(d)
 
     if d['key'][0] == 0:
-        P = mult(d['q'])
+        q = int.from_bytes(d['key'][1:], byteorder='big')
+        P = mult(q)
         pubkey = bytes_from_point(P, True, ec)
         return hash160(pubkey)[:4]
 
