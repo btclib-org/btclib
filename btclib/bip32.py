@@ -163,13 +163,14 @@ def fingerprint(d: Union[XkeyDict, String]) -> bytes:
     if not isinstance(d, dict):
         d = deserialize(d)
 
+    # it is a private key
     if d['key'][0] == 0:
         q = int.from_bytes(d['key'][1:], byteorder='big')
         P = mult(q)
         pubkey = bytes_from_point(P, True, ec)
         return hash160(pubkey)[:4]
 
-    # must be a public key
+    # it is a public key
     return hash160(d['key'])[:4]
 
 
