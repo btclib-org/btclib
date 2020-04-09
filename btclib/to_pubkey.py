@@ -29,7 +29,7 @@ def _pubkey_tuple_from_dict(d: XkeyDict, ec: Curve) -> Point:
 
 
 def to_pubkey_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
-    """Return a public key tuple from any possible representation.
+    """Return a point tuple from any possible pubkey representation.
 
     It supports:
 
@@ -55,8 +55,17 @@ def to_pubkey_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
     return point_from_octets(P, ec)
 
 
+def _to_pubkey_bytes_from_dict(d: XkeyDict, compressed: bool) -> bytes:
+        if not compressed:
+            m = "Uncompressed SEC / compressed BIP32 key mismatch"
+            raise ValueError(m)
+        if d['key'][0] in (2, 3):
+            return d['key']
+        raise ValueError(f"Not a public key: {d['key'].hex()}")
+
+
 def to_pubkey_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -> bytes:
-    """Return a public key tuple from any possible representation.
+    """Return SEC bytes from any possible pubkey representation.
 
     It supports:
 
@@ -68,24 +77,14 @@ def to_pubkey_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -
     if isinstance(P, tuple):
         return bytes_from_point(P, compressed, ec)
     elif isinstance(P, dict):
-        if not compressed:
-            m = "Uncompressed SEC / compressed BIP32 key mismatch"
-            raise ValueError(m)
-        if P['key'][0] in (2, 3):
-            return P['key']
-        raise ValueError(f"Not a public key: {P['key'].hex()}")
+        return _to_pubkey_bytes_from_dict(P, compressed)
     else:
         try:
             xkey = bip32.deserialize(P)
         except Exception:
             pass
         else:
-            if not compressed:
-                m = "Uncompressed SEC / compressed BIP32 key mismatch"
-                raise ValueError(m)
-            if xkey['key'][0] in (2, 3):
-                return xkey['key']
-            raise ValueError(f"Not a public key: {xkey['key'].hex()}")
+            return _to_pubkey_bytes_from_dict(xkey, compressed)
 
 
         pubkey = bytes_from_octets(P)
