@@ -11,11 +11,21 @@
 from typing import Union
 
 from . import bip32
-from .alias import Octets, Point, PubKey
+from .alias import Octets, Point, PubKey, XkeyDict
 from .curve import Curve
 from .curves import secp256k1
+from .network import curve_from_bip32version
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets
+
+
+def _pubkey_tuple_from_dict(d: XkeyDict, ec: Curve) -> Point:
+    if d['key'][0] in (2, 3):
+        if ec != curve_from_bip32version(d['version']):
+            m = f"ec / xpub version ({d['version']!r}) mismatch"
+            raise ValueError(m)
+        return point_from_octets(d['key'], ec)
+    raise ValueError(f"Not a public key: {d['key'].hex()}")
 
 
 def to_pubkey_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
@@ -33,18 +43,14 @@ def to_pubkey_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
             return P
         raise ValueError(f"Not a public key: {P}")
     elif isinstance(P, dict):
-        if P['key'][0] in (2, 3):
-            return point_from_octets(P['key'], ec)
-        raise ValueError(f"Not a public key: {P['key'].hex()}")
+        return _pubkey_tuple_from_dict(P, ec)
     else:
         try:
             xkey = bip32.deserialize(P)
         except Exception:
             pass
         else:
-            if xkey['key'][0] in (2, 3):
-                return point_from_octets(xkey['key'], ec)
-            raise ValueError(f"Not a public key: {xkey['key'].hex()}")
+            return _pubkey_tuple_from_dict(xkey, ec)
 
     return point_from_octets(P, ec)
 

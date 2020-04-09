@@ -8,10 +8,9 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Network constants
+"""Network constants and associated functions."""
 
-"""
-
+from .curve import Curve
 from .curves import secp256k1
 
 
@@ -106,3 +105,17 @@ _PUB_VERSIONS = [
     MAIN_xpub, MAIN_ypub, MAIN_zpub, MAIN_Ypub, MAIN_Zpub,
     TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub,
     TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
+
+
+def curve_from_network(network: str) -> Curve:
+    network_index = _NETWORKS.index(network)
+    return _CURVES[network_index]
+
+def curve_from_bip32version(version: bytes) -> Curve:
+    if version in _PRV_VERSIONS:
+        network_index = _PRV_VERSIONS.index(version)
+    elif version in _PUB_VERSIONS:
+        network_index = _PUB_VERSIONS.index(version)
+    else:
+        raise ValueError(f'unknown version ({version!r})')
+    return _CURVES[network_index]
