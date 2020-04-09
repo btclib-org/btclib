@@ -86,13 +86,12 @@ def to_pubkey_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -
         else:
             return _to_pubkey_bytes_from_dict(xkey, compressed)
 
-
-        pubkey = bytes_from_octets(P)
-        if not compressed and len(pubkey) != 2*ec.psize + 1:
-            m = f"Wrong size ({len(pubkey)}-bytes) for uncompressed SEC key"
-            raise ValueError(m)
-        if compressed and len(pubkey) != ec.psize + 1:
-            m = f"Wrong size ({len(pubkey)}-bytes) for compressed SEC key"
-            raise ValueError(m)
-        Q = point_from_octets(pubkey, ec)  # verify it is a valid point
-        return bytes_from_point(Q, compressed, ec)
+    pubkey = bytes_from_octets(P)
+    if not compressed and len(pubkey) != 2*ec.psize + 1:
+        m = f"Wrong size ({len(pubkey)}-bytes) for uncompressed SEC key"
+        raise ValueError(m)
+    if compressed and len(pubkey) != ec.psize + 1:
+        m = f"Wrong size ({len(pubkey)}-bytes) for compressed SEC key"
+        raise ValueError(m)
+    Q = point_from_octets(pubkey, ec)  # verify it is a valid point
+    return bytes_from_point(Q, compressed, ec)
