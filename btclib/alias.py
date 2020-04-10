@@ -93,9 +93,11 @@ class XkeyDict(TypedDict):
     index              : bytes
     chain_code         : bytes
     key                : bytes
-    # btclib convenience extensions
+    # extensions used to cache intemediate results
+    # in multi-level derivation: do not rely on them elsewhere
     q                  : int  # non-zero for private key only
     Q                  : Point  # non-Infinity for public key only
+    # TODO remove network, as it is not used in derivation
     network            : str  # mainnet, testnet, regtest, etc.
 
 
