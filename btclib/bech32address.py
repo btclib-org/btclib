@@ -158,6 +158,7 @@ def p2wpkh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
     h160 = hash160(pubkey)
     return b32address_from_witness(0, h160, network)
 
+
 def p2wpkh_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
 
