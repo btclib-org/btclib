@@ -100,8 +100,7 @@ def deserialize(xkey: Octets) -> XkeyDict:
         'key'                : xkey[45:],
         # extensions
         'q'                  : 0,   # non zero only if xprv
-        'Q'                  : INF, # non INF only if xpub
-        'network'            : ''
+        'Q'                  : INF  # non INF only if xpub
     }
 
     _check_version_key(d['version'], d['key'])
@@ -114,11 +113,9 @@ def deserialize(xkey: Octets) -> XkeyDict:
             raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
         d['q'] = q
         d['Q'] = INF
-        d['network'] = _REPEATED_NETWORKS[_PRV_VERSIONS_ALL.index(d['version'])]
     else:  # must be public (already checked by _check_version_key)
         d['q'] = 0
         d['Q'] = point_from_octets(d['key'], ec)
-        d['network'] = _REPEATED_NETWORKS[_PUB_VERSIONS_ALL.index(d['version'])]
 
     return d
 
@@ -153,7 +150,7 @@ def serialize(d: XkeyDict) -> bytes:
     # already checked in _check_version_key
     t += d['key']
 
-    # d['q'], d['Q'], and d['network']  are just neglected
+    # d['q'] and d['Q'] are just neglected
 
     return b58encode(t)
 
@@ -194,8 +191,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
         'chain_code'         : hd[32:],
         'key'                : k,
         'q'                  : int.from_bytes(hd[:32], byteorder='big'),
-        'Q'                  : INF,
-        'network'            : network
+        'Q'                  : INF
     }
     return serialize(d)
 

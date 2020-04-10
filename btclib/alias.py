@@ -97,8 +97,6 @@ class XkeyDict(TypedDict):
     # in multi-level derivation: do not rely on them elsewhere
     q                  : int  # non-zero for private key only
     Q                  : Point  # non-Infinity for public key only
-    # TODO remove network, as it is not used in derivation
-    network            : str  # mainnet, testnet, regtest, etc.
 
 
 # private key inputs:

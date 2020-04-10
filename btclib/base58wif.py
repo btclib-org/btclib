@@ -17,7 +17,7 @@ from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
 from .network import (_CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES,
-                      _WIF_PREFIXES)
+                      _PRV_VERSIONS_ALL, _REPEATED_NETWORKS, _WIF_PREFIXES)
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets
 
@@ -36,8 +36,9 @@ def wif_from_xprv(xprv: Union[XkeyDict, String]) -> bytes:
 
     if xprv['key'][0] != 0:
         raise ValueError(f"Not a private key: {bip32.serialize(xprv).decode}")
-
-    network = xprv['network']
+    
+    # FIXME: does it work for regtest too?
+    network = _REPEATED_NETWORKS[_PRV_VERSIONS_ALL.index(xprv['version'])]
     network_index = _NETWORKS.index(network)
     payload = _WIF_PREFIXES[network_index] + xprv['key'][1:] + b'\x01'
     return b58encode(payload)
@@ -119,7 +120,10 @@ def prvkeytuple_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, bool, str
     if xprv['key'][0] != 0:
         m = f"Not a private key: {bip32.serialize(xprv).decode()}"
         raise ValueError(m)
-    return xprv['q'], True, xprv['network']
+
+    # FIXME: does it work for regtest too?
+    network = _REPEATED_NETWORKS[_PRV_VERSIONS_ALL.index(xprv['version'])]
+    return xprv['q'], True, network
 
 
 # helper function
