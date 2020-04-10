@@ -20,6 +20,10 @@ from typing import Optional, Union
 
 from .alias import HashF, Octets
 
+# hexstr_from_bytes is not needed!!
+#def hexstr_from_bytes(byte_str: bytes) -> str:
+#    return byte_str.hex()
+
 
 def bytes_from_octets(o: Octets, out_size: Optional[int] = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
