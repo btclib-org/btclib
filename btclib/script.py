@@ -27,6 +27,21 @@ from . import varint
 from .alias import Octets
 from .utils import bytes_from_octets
 
+
+SIGHASH_ALL = 1
+SIGHASH_NONE = 2
+SIGHASH_SINGLE = 3
+SIGHASH_ANYONECANPAY = 0x80
+
+SIGHASHES = [
+    bytes([SIGHASH_ALL]),
+    bytes([SIGHASH_NONE]),
+    bytes([SIGHASH_SINGLE]),
+    bytes([SIGHASH_ANYONECANPAY + SIGHASH_ALL]),
+    bytes([SIGHASH_ANYONECANPAY + SIGHASH_NONE]),
+    bytes([SIGHASH_ANYONECANPAY + SIGHASH_SINGLE]),
+]
+
 OP_CODES = {
     # Constants
     'OP_0'                  : b'\x00',

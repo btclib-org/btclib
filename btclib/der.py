@@ -66,21 +66,7 @@ from .alias import Octets
 from .curve import Curve
 from .curves import secp256k1
 from .utils import bytes_from_octets
-
-sighash_all = b'\x01'
-sighash_none = b'\x02'
-sighash_single = b'\x03'
-sighash_all_anyonecanpay = b'\x81'
-sighash_none_anyonecanpay = b'\x82'
-sighash_single_anyonecanpay = b'\x83'
-sighashes = [
-    sighash_all,
-    sighash_none,
-    sighash_single,
-    sighash_all_anyonecanpay,
-    sighash_none_anyonecanpay,
-    sighash_single_anyonecanpay,
-]
+from .script import SIGHASHES
 
 # (r, s, sighash)
 # r and s are the components of a DSASigTuple
@@ -211,6 +197,7 @@ def _validate_sig(r: int, s: int, sighash: Optional[Octets], ec: Curve) -> None:
 
     dsa._validate_sig(r, s, ec)
 
-    if sighash is not None and sighash not in sighashes:
+    if sighash is not None and sighash not in SIGHASHES:
+        print(SIGHASHES)
         m = f"Invalid sighash ({sighash!r})"
         raise ValueError(m)
