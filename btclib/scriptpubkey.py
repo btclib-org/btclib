@@ -36,17 +36,17 @@ def nulldata_scriptPubKey(data: Octets) -> List[Token]:
     return ['OP_RETURN', data.hex()]
 
 
-def p2pk_scriptPubKey(pubkey: PubKey) -> List[Token]:
+def p2pk_scriptPubKey(pubkey: PubKey, network = 'mainnet') -> List[Token]:
     """Return the p2pk scriptPubKey of the provided pubkey."""
 
     # FIXME: does P2PK work also with compressed key?
-    # TODO: remove hardcoded secp256k1
     compressed = False
-    pubkey = to_pubkey_bytes(pubkey, compressed, secp256k1)
+    pubkey = to_pubkey_bytes(pubkey, compressed, network)
     return [pubkey.hex(), 'OP_CHECKSIG']
 
 
-def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey]) -> List[Token]:
+def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey],
+                      network = 'mainnet') -> List[Token]:
     """Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."""
 
     if m<1 or m>16:
@@ -55,10 +55,9 @@ def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey]) -> List[Token]:
 
     scriptPubKey : List[Token] = [m]
     # FIXME: does P2MS work also with compressed key?
-    # TODO: remove hardcoded secp256k1
     compressed = False
     for pubkey in pubkeys:
-        pubkey = to_pubkey_bytes(pubkey, compressed, secp256k1)
+        pubkey = to_pubkey_bytes(pubkey, compressed, network)
         scriptPubKey.append(pubkey.hex())
 
     # FIXME: handle script max length

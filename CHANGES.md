@@ -8,6 +8,9 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- removed p2pkh_from_xpub, p2wpkh_p2sh_from_xpub, and p2wpkh_from_xpub
+  (use p2pkh, p2wpkh, and p2wpkh instead);
+  changed _to_pubkey_bytes_from_dict signature (network instead of curve)
 - introduced CurveGroup and CurveSubGroup as grand-parent and parent
   of Curve. Also, renamed ec._p as ec.p and removed default ec.G
   from double_mult

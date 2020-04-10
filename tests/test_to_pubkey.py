@@ -20,7 +20,7 @@ from btclib.to_pubkey import to_pubkey_bytes, to_pubkey_tuple
 
 class TestToPubKey(unittest.TestCase):
 
-    def test_to_pub_tuple(self):
+    def test_to_pubkey_tuple(self):
 
         xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
         xpub_str = xpub.decode('ascii')
@@ -82,8 +82,9 @@ class TestToPubKey(unittest.TestCase):
         xpub_str = xpub.decode('ascii')
         self.assertRaises(ValueError, to_pubkey_tuple, xpub_str, ec)
 
-    def test_to_pub_bytes(self):
+    def test_to_pubkey_bytes(self):
 
+        network = 'mainnet'
         xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
         xpub_str = xpub.decode('ascii')
         xpub_dict = bip32.deserialize(xpub)
@@ -94,64 +95,64 @@ class TestToPubKey(unittest.TestCase):
         P_uncompr_hexstr = P_uncompr.hex()
 
         # BIP32 input, compressed result
-        self.assertEqual(to_pubkey_bytes(xpub, True, ec), P_compr)
-        self.assertEqual(to_pubkey_bytes(xpub_str, True, ec), P_compr)
-        self.assertEqual(to_pubkey_bytes(' ' + xpub_str + ' ', True, ec), P_compr)
-        self.assertEqual(to_pubkey_bytes(xpub_dict, True, ec), P_compr)
+        self.assertEqual(to_pubkey_bytes(xpub, True, network), P_compr)
+        self.assertEqual(to_pubkey_bytes(xpub_str, True, network), P_compr)
+        self.assertEqual(to_pubkey_bytes(' ' + xpub_str + ' ', True, network), P_compr)
+        self.assertEqual(to_pubkey_bytes(xpub_dict, True, network), P_compr)
 
         # compressed SEC Octets input, compressed result
-        self.assertEqual(to_pubkey_bytes(P_compr, True, ec), P_compr)
-        self.assertRaises(ValueError, to_pubkey_bytes, b'\x00' + P_compr, True, ec)
-        self.assertEqual(to_pubkey_bytes(P_compr_hexstr, True, ec), P_compr)
-        self.assertEqual(to_pubkey_bytes(' ' + P_compr_hexstr + ' ', True, ec), P_compr)
-        self.assertRaises(ValueError, to_pubkey_bytes, P_compr_hexstr + '00', True, ec)
+        self.assertEqual(to_pubkey_bytes(P_compr, True, network), P_compr)
+        self.assertRaises(ValueError, to_pubkey_bytes, b'\x00' + P_compr, True, network)
+        self.assertEqual(to_pubkey_bytes(P_compr_hexstr, True, network), P_compr)
+        self.assertEqual(to_pubkey_bytes(' ' + P_compr_hexstr + ' ', True, network), P_compr)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_compr_hexstr + '00', True, network)
 
         # uncompressed SEC Octets input, compressed result
-        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr, True, ec)
-        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr_hexstr, True, ec)
-        self.assertRaises(ValueError, to_pubkey_bytes, ' ' + P_uncompr_hexstr + ' ', True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr, True, network)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr_hexstr, True, network)
+        self.assertRaises(ValueError, to_pubkey_bytes, ' ' + P_uncompr_hexstr + ' ', True, network)
 
         # native tuple input, compressed result
-        self.assertEqual(to_pubkey_bytes(P, True, ec), P_compr)
+        self.assertEqual(to_pubkey_bytes(P, True, network), P_compr)
 
         # BIP32 input, uncompressed result
-        self.assertRaises(ValueError, to_pubkey_bytes, xpub, False, ec)
-        self.assertRaises(ValueError, to_pubkey_bytes, xpub_str, False, ec)
-        self.assertRaises(ValueError, to_pubkey_bytes, ' ' + xpub_str + ' ', False, ec)
-        self.assertRaises(ValueError, to_pubkey_bytes, xpub_dict, False, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, xpub, False, network)
+        self.assertRaises(ValueError, to_pubkey_bytes, xpub_str, False, network)
+        self.assertRaises(ValueError, to_pubkey_bytes, ' ' + xpub_str + ' ', False, network)
+        self.assertRaises(ValueError, to_pubkey_bytes, xpub_dict, False, network)
 
         # compressed SEC Octets input, uncompressed result
-        self.assertRaises(ValueError, to_pubkey_bytes, P_compr, False, ec)
-        self.assertRaises(ValueError, to_pubkey_bytes, P_compr_hexstr, False, ec)
-        self.assertRaises(ValueError, to_pubkey_bytes, ' ' + P_compr_hexstr + ' ', False, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_compr, False, network)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_compr_hexstr, False, network)
+        self.assertRaises(ValueError, to_pubkey_bytes, ' ' + P_compr_hexstr + ' ', False, network)
 
         # uncompressed SEC Octets input, uncompressed result
-        self.assertEqual(to_pubkey_bytes(P_uncompr, False, ec), P_uncompr)
-        self.assertRaises(ValueError, to_pubkey_bytes, b'\x00' + P_uncompr, False, ec)
-        self.assertEqual(to_pubkey_bytes(P_uncompr_hexstr, False, ec), P_uncompr)
-        self.assertEqual(to_pubkey_bytes(' ' + P_uncompr_hexstr + ' ', False, ec), P_uncompr)
-        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr_hexstr + '00', False, ec)
+        self.assertEqual(to_pubkey_bytes(P_uncompr, False, network), P_uncompr)
+        self.assertRaises(ValueError, to_pubkey_bytes, b'\x00' + P_uncompr, False, network)
+        self.assertEqual(to_pubkey_bytes(P_uncompr_hexstr, False, network), P_uncompr)
+        self.assertEqual(to_pubkey_bytes(' ' + P_uncompr_hexstr + ' ', False, network), P_uncompr)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr_hexstr + '00', False, network)
 
         # native tuple input, uncompressed result
-        self.assertEqual(to_pubkey_bytes(P, False, ec), P_uncompr)
+        self.assertEqual(to_pubkey_bytes(P, False, network), P_uncompr)
 
         # pubkey input
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        self.assertRaises(ValueError, to_pubkey_bytes, xprv, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, xprv, True, network)
         xprv_dict = bip32.deserialize(xprv)
-        self.assertRaises(ValueError, to_pubkey_bytes, xprv_dict, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, xprv_dict, True, network)
 
         # Invalid point: 7 is not a field element
         P = INF
-        self.assertRaises(ValueError, to_pubkey_bytes, P, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, P, True, network)
         P_compr = b'\x02' + P[0].to_bytes(ec.psize, 'big')
-        self.assertRaises(ValueError, to_pubkey_bytes, P_compr, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_compr, True, network)
         P_uncompr = b'\x04' + P[0].to_bytes(ec.psize, 'big') + P[1].to_bytes(ec.psize, 'big')
-        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr, True, network)
         P_compr_hexstr = P_compr.hex()
-        self.assertRaises(ValueError, to_pubkey_bytes, P_compr_hexstr, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_compr_hexstr, True, network)
         P_uncompr_hexstr = P_uncompr.hex()
-        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr_hexstr, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, P_uncompr_hexstr, True, network)
         t = xpub_dict['version']
         t += xpub_dict['depth'].to_bytes(1, 'big')
         t += xpub_dict['parent_fingerprint']
@@ -159,9 +160,9 @@ class TestToPubKey(unittest.TestCase):
         t += xpub_dict['chain_code']
         t += P_compr
         xpub = b58encode(t)
-        self.assertRaises(ValueError, to_pubkey_bytes, xpub, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, xpub, True, network)
         xpub_str = xpub.decode('ascii')
-        self.assertRaises(ValueError, to_pubkey_bytes, xpub_str, True, ec)
+        self.assertRaises(ValueError, to_pubkey_bytes, xpub_str, True, network)
 
 
 if __name__ == "__main__":

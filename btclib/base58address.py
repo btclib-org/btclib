@@ -55,15 +55,12 @@ def p2pkh(pubkey: PubKey, compressed: bool = True, network: str = 'mainnet') -> 
     """Return the p2pkh address corresponding to a public key."""
 
     network_index = _NETWORKS.index(network)
-    prefix = _P2PKH_PREFIXES[_NETWORKS.index(network)]
-
-    ec = _CURVES[network_index]
-    pubkey = to_pubkey_bytes(pubkey, compressed, ec)
+    prefix = _P2PKH_PREFIXES[network_index]
+    pubkey = to_pubkey_bytes(pubkey, compressed, network)
     h160 = hash160(pubkey)
-
     return b58address_from_h160(prefix, h160)
 
-
+# TODO accept any privkey
 def p2pkh_from_wif(wif: String) -> bytes:
     """Return the p2pkh address corresponding to a WIF.
 
@@ -75,26 +72,12 @@ def p2pkh_from_wif(wif: String) -> bytes:
     return p2pkh(pubkey, compressed, network)
 
 
-def p2pkh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
-    """Return the p2pkh address."""
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-    if d['key'][0] not in (2, 3):
-        # if pubkey would be derived from prvkey,
-        # then this safety check might be removed
-        raise ValueError("xkey is not a public one")
-    return p2pkh(d['key'], True, d['network'])
-
-
 def p2sh(script: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2sh address corresponding to a script."""
 
     network_index = _NETWORKS.index(network)
-    prefix = _P2SH_PREFIXES[_NETWORKS.index(network)]
-
+    prefix = _P2SH_PREFIXES[network_index]
     h160 = hash160(script)
-
     return b58address_from_h160(prefix, h160)
 
 
@@ -118,9 +101,8 @@ def _b58segwitaddress(wp: Octets, network: str) -> bytes:
 
 def p2wpkh_p2sh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
-    network_index = _NETWORKS.index(network)
-    ec = _CURVES[network_index]
-    pubkey = to_pubkey_bytes(pubkey, True, ec)
+
+    pubkey = to_pubkey_bytes(pubkey, True, network)
     h160 = hash160(pubkey)
     return _b58segwitaddress(h160, network)
 
@@ -131,18 +113,6 @@ def p2wpkh_p2sh_from_wif(wif: String) -> bytes:
     if not compressed:
         raise ValueError ("No p2wpkh-p2sh from compressed wif")
     return p2wpkh_p2sh(pubkey, network)
-
-
-def p2wpkh_p2sh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
-    """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-    if d['key'][0] not in (2, 3):
-        # if pubkey would be derived from prvkey,
-        # then this safety check might be removed
-        raise ValueError("xkey is not a public one")
-    return p2wpkh_p2sh(d['key'], d['network'])
 
 
 def p2wsh_p2sh(wscript: Octets, network: str = 'mainnet') -> bytes:

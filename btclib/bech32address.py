@@ -153,34 +153,23 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 
 def p2wpkh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
-    network_index = _NETWORKS.index(network)
-    ec = _CURVES[network_index]
-    pubkey = to_pubkey_bytes(pubkey, True, ec)
+
+    pubkey = to_pubkey_bytes(pubkey, True, network)
     h160 = hash160(pubkey)
     return b32address_from_witness(0, h160, network)
 
-
+# TODO accept any privkey
 def p2wpkh_from_wif(wif: String) -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
+
     pubkey, compressed, network = _pubkeytuple_from_wif(wif)
     if not compressed:
         raise ValueError ("No p2wpkh from compressed wif")
     return p2wpkh(pubkey, network)
 
 
-def p2wpkh_from_xpub(d: Union[XkeyDict, String]) -> bytes:
-    """Return the p2wpkh (native SegWit) address."""
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-    if d['key'][0] not in (2, 3):
-        # if pubkey would be derived from prvkey,
-        # then this safety check might be removed
-        raise ValueError("xkey is not a public one")
-    return p2wpkh(d['key'], d['network'])
-
-
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh (bech32 native) SegWit address."""
+
     h256 = sha256(wscript)
     return b32address_from_witness(0, h256, network)

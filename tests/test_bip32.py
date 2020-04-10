@@ -14,14 +14,14 @@ from os import path
 
 from btclib import bip39, slip32
 from btclib.base58 import b58decode, b58encode
-from btclib.base58address import p2pkh_from_xpub, p2wpkh_p2sh_from_xpub
-from btclib.bech32address import p2wpkh_from_xpub
+from btclib.base58address import p2pkh, p2wpkh_p2sh
+from btclib.bech32address import p2wpkh
 from btclib.bip32 import (crack_prvkey, derive, deserialize, fingerprint,
                           rootxprv_from_bip39mnemonic, rootxprv_from_seed,
                           serialize, xpub_from_xprv)
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
-from btclib.network import (_PRV_VERSIONS, MAIN_xprv, MAIN_yprv, MAIN_Yprv,
+from btclib.network import (_PRV_VERSIONS_ALL, MAIN_xprv, MAIN_yprv, MAIN_Yprv,
                             MAIN_zprv, MAIN_Zprv, TEST_tprv, TEST_uprv,
                             TEST_Uprv, TEST_vprv, TEST_Vprv)
 
@@ -109,15 +109,15 @@ class TestBIP32(unittest.TestCase):
         #derive(child_key, "." + 256*"/0")
 
         # xkey is not a public one
-        self.assertRaises(ValueError, p2pkh_from_xpub, xprv)
-        # p2pkh_from_xpub(xprv)
+        self.assertRaises(ValueError, p2pkh, xprv)
+        # p2pkh(xprv)
 
     def test_vector1(self):
         """BIP32 test vector 1
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = _PRV_VERSIONS[0]
+        xkey_version = _PRV_VERSIONS_ALL[0]
 
         seed = "000102030405060708090a0b0c0d0e0f"
         rootxprv = rootxprv_from_seed(seed, xkey_version)
@@ -188,7 +188,7 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = _PRV_VERSIONS[0]
+        xkey_version = _PRV_VERSIONS_ALL[0]
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
         rootxprv = rootxprv_from_seed(seed, xkey_version)
@@ -260,7 +260,7 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = _PRV_VERSIONS[0]
+        xkey_version = _PRV_VERSIONS_ALL[0]
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
         rootxprv = rootxprv_from_seed(seed, xkey_version)
@@ -297,7 +297,7 @@ class TestBIP32(unittest.TestCase):
         with open(filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed
-        xkey_version = _PRV_VERSIONS[0]
+        xkey_version = _PRV_VERSIONS_ALL[0]
         for test_vector in test_vectors:
             seed = test_vector[2]
             rootxprv = rootxprv_from_seed(seed, xkey_version)
@@ -310,22 +310,22 @@ class TestBIP32(unittest.TestCase):
         # m/0'/0'/463'
         addr1 = b'1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5'
         indexes = [0x80000000, 0x80000000, 0x800001cf]
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(rootxprv, indexes)))
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
         self.assertEqual(addr, addr1)
         path = "m/0'/0'/463'"
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(rootxprv, path)))
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)))
         self.assertEqual(addr, addr1)
 
         # m/0'/0'/267'
         addr2 = b'11x2mn59Qy43DjisZWQGRResjyQmgthki'
         indexes = [0x80000000, 0x80000000, 0x8000010b]
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(rootxprv, indexes)))
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
         self.assertEqual(addr, addr2)
         path = "m/0'/0'/267'"
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(rootxprv, path)))
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
-        xkey_version = _PRV_VERSIONS[0]
+        xkey_version = _PRV_VERSIONS_ALL[0]
         seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
         seed = bytes.fromhex(seed)
         xprv = rootxprv_from_seed(seed, xkey_version)
@@ -333,27 +333,27 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub_from_xprv(xprv), xpub)
 
         ind = './0/0'
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(xprv, ind)))
+        addr = p2pkh(xpub_from_xprv(derive(xprv, ind)))
         self.assertEqual(addr, b'1FcfDbWwGs1PmyhMVpCAhoTfMnmSuptH6g')
 
         ind = './0/1'
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(xprv, ind)))
+        addr = p2pkh(xpub_from_xprv(derive(xprv, ind)))
         self.assertEqual(addr, b'1K5GjYkZnPFvMDTGaQHTrVnd8wjmrtfR5x')
 
         ind = './0/2'
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(xprv, ind)))
+        addr = p2pkh(xpub_from_xprv(derive(xprv, ind)))
         self.assertEqual(addr, b'1PQYX2uN7NYFd7Hq22ECMzfDcKhtrHmkfi')
 
         ind = './1/0'
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(xprv, ind)))
+        addr = p2pkh(xpub_from_xprv(derive(xprv, ind)))
         self.assertEqual(addr, b'1BvSYpojWoWUeaMLnzbkK55v42DbizCoyq')
 
         ind = './1/1'
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(xprv, ind)))
+        addr = p2pkh(xpub_from_xprv(derive(xprv, ind)))
         self.assertEqual(addr, b'1NXB59hF4QzYpFrB7o6usLBjbk2D3ZqxAL')
 
         ind = './1/2'
-        addr = p2pkh_from_xpub(xpub_from_xprv(derive(xprv, ind)))
+        addr = p2pkh(xpub_from_xprv(derive(xprv, ind)))
         self.assertEqual(addr, b'16NLYkKtvYhW1Jp86tbocku3gxWcvitY1w')
 
         # version/key mismatch in extended parent key
@@ -380,23 +380,19 @@ class TestBIP32(unittest.TestCase):
         # m/0'/0'/51'
         addr1 = b'mfXYCCsvWPgeCv8ZYGqcubpNLYy5nYHbbj'
         indexes = [0x80000000, 0x80000000, 0x80000000 + 51]
-        addr = p2pkh_from_xpub(
-            xpub_from_xprv(derive(rootxprv, indexes)))
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)), True, 'testnet')  # TODO: do not require explicit network 
         self.assertEqual(addr, addr1)
         path = "m/0'/0'/51'"
-        addr = p2pkh_from_xpub(
-            xpub_from_xprv(derive(rootxprv, path)))
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)), True, 'testnet')  # TODO: do not require explicit network 
         self.assertEqual(addr, addr1)
 
         # m/0'/1'/150'
         addr2 = b'mfaUnRFxVvf55uD1P3zWXpprN1EJcKcGrb'
         indexes = [0x80000000, 0x80000000 + 1, 0x80000000 + 150]
-        addr = p2pkh_from_xpub(
-            xpub_from_xprv(derive(rootxprv, indexes)))
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)), True, 'testnet')  # TODO: do not require explicit network 
         self.assertEqual(addr, addr2)
         path = "m/0'/1'/150'"
-        addr = p2pkh_from_xpub(
-            xpub_from_xprv(derive(rootxprv, path)))
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)), True, 'testnet')  # TODO: do not require explicit network 
         self.assertEqual(addr, addr2)
 
     def test_exceptions(self):
@@ -447,18 +443,18 @@ class TestBIP32(unittest.TestCase):
         #derive(xpub, "")
 
         # extended key is not a public one
-        self.assertRaises(ValueError, p2pkh_from_xpub, xprv)
-        # p2pkh_from_xpub(xprv)
+        self.assertRaises(ValueError, p2pkh, xprv)
+        # p2pkh(xprv)
 
         # xkey is not a public one
         xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
         self.assertRaises(ValueError, slip32.address_from_xpub, xprv)
         # slip32.address_from_xpub(xprv)
-        self.assertRaises(ValueError, p2wpkh_from_xpub, xprv)
-        # p2wpkh_from_xpub(xprv)
+        self.assertRaises(ValueError, p2wpkh, xprv)
+        # p2wpkh(xprv)
         self.assertRaises(
-            ValueError, p2wpkh_p2sh_from_xpub, xprv)
-        # p2wpkh_p2sh_from_xpub(xprv)
+            ValueError, p2wpkh_p2sh, xprv)
+        # p2wpkh_p2sh(xprv)
 
     def test_exceptions2(self):
         rootxprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
@@ -540,11 +536,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2pkh_from_xpub(xpub_ext)
+        address = p2pkh(xpub_ext, True, 'testnet')  # TODO: do not require explicit network 
         exp_address = b'moutHSzeFWViMNEcvBxKzNCMj2kca8MvE1'
         self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2pkh_from_xpub(xpub_int)
+        address = p2pkh(xpub_int, True, 'testnet')  # TODO: do not require explicit network 
         exp_address = b'myWcXdNais9ExumnGKnNoJwoihQKfNPG9i'
         self.assertEqual(address, exp_address)
 
@@ -559,11 +555,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2wpkh_p2sh_from_xpub(xpub_ext)
+        address = p2wpkh_p2sh(xpub_ext, 'testnet')  # TODO: do not require explicit network 
         exp_address = b'2Mw8tQ6uT6mHhybarVhjgomUhHQJTeV9A2c'
         self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2wpkh_p2sh_from_xpub(xpub_int)
+        address = p2wpkh_p2sh(xpub_int, 'testnet')  # TODO: do not require explicit network 
         exp_address = b'2N872CRJ3E1CzWjfixXr3aeC3hkF5Cz4kWb'
         self.assertEqual(address, exp_address)
 
@@ -588,15 +584,13 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2wpkh_from_xpub(xpub_ext)
-        # this is regtest, not testnet!!
+        address = p2wpkh(xpub_ext, 'regtest')  # TODO: do not require explicit network 
         exp_address = b'bcrt1qv8lcnmj09rpdqwgl025h2deygur64z4hqf7me5'
-        # FIXME: self.assertEqual(address, exp_address)
+        self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2wpkh_from_xpub(xpub_int)
-        # this is regtest, not testnet!!
+        address = p2wpkh(xpub_int, 'regtest')  # TODO: do not require explicit network
         exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'
-        # FIXME: self.assertEqual(address, exp_address)
+        self.assertEqual(address, exp_address)
 
         # native segwit (p2wsh)
         # m / 84'/ coin_type' / account' / change / address_index
@@ -629,11 +623,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2pkh_from_xpub(xpub_ext)
+        address = p2pkh(xpub_ext)
         exp_address = b'1DDKKVHoFWGfctyEEJvrusqq6ipEaieGCq'
         self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2pkh_from_xpub(xpub_int)
+        address = p2pkh(xpub_int)
         exp_address = b'1FhKoffreKHzhtBMVW9NSsg3ZF148JPGoR'
         self.assertEqual(address, exp_address)
 
@@ -648,11 +642,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2wpkh_p2sh_from_xpub(xpub_ext)
+        address = p2wpkh_p2sh(xpub_ext)
         exp_address = b'3FmNAiTCWe5kPMgc4dtSgEdY8VuaCiJEH8'
         self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2wpkh_p2sh_from_xpub(xpub_int)
+        address = p2wpkh_p2sh(xpub_int)
         exp_address = b'34FLgkoRYX5Q5fqiZCZDwsK5GpXxmFuLJN'
         self.assertEqual(address, exp_address)
 
@@ -677,11 +671,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2wpkh_from_xpub(xpub_ext)
+        address = p2wpkh(xpub_ext)
         exp_address = b'bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a'
         self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2wpkh_from_xpub(xpub_int)
+        address = p2wpkh(xpub_int)
         exp_address = b'bc1qy4x03jyl88h2zeg7l287xhv2xrwk4c3ztfpjd2'
         self.assertEqual(address, exp_address)
 
@@ -698,7 +692,7 @@ class TestBIP32(unittest.TestCase):
     def test_rootxprv_from_mnemonic(self):
         mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
         passphrase = ''
-        rootxprv = rootxprv_from_bip39mnemonic(mnemonic, passphrase, _PRV_VERSIONS[0])
+        rootxprv = rootxprv_from_bip39mnemonic(mnemonic, passphrase, _PRV_VERSIONS_ALL[0])
         exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(rootxprv, exp)
 

@@ -126,30 +126,31 @@ class TestAddresses(unittest.TestCase):
     def test_witness(self):
 
         pub = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        b58addr = p2wpkh_p2sh(pub)
-        _, h160, network, is_script_hash = h160_from_b58address(b58addr)
-        self.assertEqual(network, 'mainnet')
+        network = 'mainnet'
+        b58addr = p2wpkh_p2sh(pub, network)
+        _, h160, network2, is_script_hash = h160_from_b58address(b58addr)
+        self.assertEqual(network2, network)
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
 
-        b58addr = _b58segwitaddress(hash160(to_pubkey_bytes(pub, True, ec)), network)
-        _, h160_2, network, is_script_hash = h160_from_b58address(b58addr)
-        self.assertEqual(network, 'mainnet')
+        b58addr = _b58segwitaddress(hash160(to_pubkey_bytes(pub, True, network)), network)
+        _, h160_2, network2, is_script_hash = h160_from_b58address(b58addr)
+        self.assertEqual(network2, network)
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
         self.assertEqual(h160.hex(), h160_2.hex())
 
 
         wscript = "a8a58c2d034b28bf90c8803f5a53f769a4"
-        b58addr = p2wsh_p2sh(wscript)
-        _, h160, network, is_script_hash = h160_from_b58address(b58addr)
-        self.assertEqual(network, 'mainnet')
+        b58addr = p2wsh_p2sh(wscript, network)
+        _, h160, network2, is_script_hash = h160_from_b58address(b58addr)
+        self.assertEqual(network2, network)
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
 
         b58addr = _b58segwitaddress(sha256(wscript), network)
-        _, h160_2, network, is_script_hash = h160_from_b58address(b58addr)
-        self.assertEqual(network, 'mainnet')
+        _, h160_2, network2, is_script_hash = h160_from_b58address(b58addr)
+        self.assertEqual(network2, network)
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
         self.assertEqual(h160.hex(), h160_2.hex())

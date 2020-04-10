@@ -49,7 +49,7 @@ class TestSLIP32(unittest.TestCase):
         pub = bip32.derive(mpub, "./0/0")
         addr = slip32.address_from_xpub(pub)
         self.assertEqual(address, addr)
-        addr = base58address.p2wpkh_p2sh_from_xpub(pub)
+        addr = base58address.p2wpkh_p2sh(pub)
         self.assertEqual(address, addr)
 
         path = "m/84'/0'/0'"

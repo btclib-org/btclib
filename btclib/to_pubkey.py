@@ -8,13 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Union
+from typing import Optional, Union
 
 from . import bip32
 from .alias import Octets, Point, PubKey, XkeyDict
 from .curve import Curve
 from .curves import secp256k1
-from .network import curve_from_bip32version
+from .network import curve_from_bip32version, curve_from_network, _pub_versions_from_network
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets
 
@@ -55,16 +55,20 @@ def to_pubkey_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
     return point_from_octets(P, ec)
 
 
-def _to_pubkey_bytes_from_dict(d: XkeyDict, compressed: bool) -> bytes:
+def _to_pubkey_bytes_from_dict(d: XkeyDict, compressed: bool, network: str) -> bytes:
         if not compressed:
             m = "Uncompressed SEC / compressed BIP32 key mismatch"
+            raise ValueError(m)
+        if d['version'] not in _pub_versions_from_network(network):
+            m = f"network ({network}) / "
+            m += f"BIP32 key ({bip32.serialize(d).decode()}) mismatch"
             raise ValueError(m)
         if d['key'][0] in (2, 3):
             return d['key']
         raise ValueError(f"Not a public key: {d['key'].hex()}")
 
 
-def to_pubkey_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -> bytes:
+def to_pubkey_bytes(P: PubKey, compressed: bool = True, network: str = 'mainnet') -> bytes:
     """Return SEC bytes from any possible pubkey representation.
 
     It supports:
@@ -75,17 +79,19 @@ def to_pubkey_bytes(P: PubKey, compressed: bool = True, ec: Curve = secp256k1) -
     """
 
     if isinstance(P, tuple):
+        ec = curve_from_network(network)
         return bytes_from_point(P, compressed, ec)
     elif isinstance(P, dict):
-        return _to_pubkey_bytes_from_dict(P, compressed)
+        return _to_pubkey_bytes_from_dict(P, compressed, network)
     else:
         try:
             xkey = bip32.deserialize(P)
         except Exception:
             pass
         else:
-            return _to_pubkey_bytes_from_dict(xkey, compressed)
+            return _to_pubkey_bytes_from_dict(xkey, compressed, network)
 
+    ec = curve_from_network(network)
     pubkey = bytes_from_octets(P)
     if not compressed and len(pubkey) != 2*ec.psize + 1:
         m = f"Wrong size ({len(pubkey)}-bytes) for uncompressed SEC key"

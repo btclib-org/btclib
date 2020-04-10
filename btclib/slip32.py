@@ -15,8 +15,8 @@
 from typing import Union
 
 from .alias import String, XkeyDict
-from .base58address import p2pkh_from_xpub, p2wpkh_p2sh_from_xpub
-from .bech32address import p2wpkh_from_xpub
+from .base58address import p2pkh, p2wpkh_p2sh
+from .bech32address import p2wpkh
 from .bip32 import deserialize
 from .network import _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
 
@@ -35,12 +35,12 @@ def address_from_xpub(d: Union[XkeyDict, String]) -> bytes:
         raise ValueError("xkey is not a public one")
 
     if d['version'] in _XPUB_PREFIXES:
-        return p2pkh_from_xpub(d)
+        return p2pkh(d)
     elif d['version'] in _P2WPKH_PUB_PREFIXES:
-        return p2wpkh_from_xpub(d)
+        return p2wpkh(d)
     else:
         # v has been already checked at parsing stage
         # v must be in _P2WPKH_P2SH_PUB_PREFIXES
         # moreover, _p2wpkh_p2sh_from_xpub will raise an Error
         # if something is wrong
-        return p2wpkh_p2sh_from_xpub(d)
+        return p2wpkh_p2sh(d)

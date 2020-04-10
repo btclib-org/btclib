@@ -46,7 +46,7 @@ from .network import (_NETWORKS, _P2WPKH_P2SH_PRV_PREFIXES,
                       _P2WPKH_P2SH_PUB_PREFIXES, _P2WPKH_PRV_PREFIXES,
                       _P2WPKH_PUB_PREFIXES, _P2WSH_P2SH_PRV_PREFIXES,
                       _P2WSH_P2SH_PUB_PREFIXES, _P2WSH_PRV_PREFIXES,
-                      _P2WSH_PUB_PREFIXES, _PRV_VERSIONS, _PUB_VERSIONS,
+                      _P2WSH_PUB_PREFIXES, _PRV_VERSIONS_ALL, _PUB_VERSIONS_ALL,
                       _REPEATED_NETWORKS, _XPRV_PREFIXES, _XPUB_PREFIXES,
                       MAIN_xprv, MAIN_xpub, MAIN_yprv, MAIN_Yprv, MAIN_ypub,
                       MAIN_Ypub, MAIN_zprv, MAIN_Zprv, MAIN_zpub, MAIN_Zpub,
@@ -58,10 +58,10 @@ from .utils import bytes_from_octets, hash160
 
 def _check_version_key(v: bytes, k: bytes) -> None:
 
-    if v in _PRV_VERSIONS:
+    if v in _PRV_VERSIONS_ALL:
         if k[0] != 0:
             raise ValueError("prv_version/pubkey mismatch")
-    elif v in _PUB_VERSIONS:
+    elif v in _PUB_VERSIONS_ALL:
         if k[0] not in (2, 3):
             raise ValueError("pub_version/prvkey mismatch")
     else:
@@ -114,11 +114,11 @@ def deserialize(xkey: Octets) -> XkeyDict:
             raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
         d['q'] = q
         d['Q'] = INF
-        d['network'] = _REPEATED_NETWORKS[_PRV_VERSIONS.index(d['version'])]
+        d['network'] = _REPEATED_NETWORKS[_PRV_VERSIONS_ALL.index(d['version'])]
     else:  # must be public (already checked by _check_version_key)
         d['q'] = 0
         d['Q'] = point_from_octets(d['key'], ec)
-        d['network'] = _REPEATED_NETWORKS[_PUB_VERSIONS.index(d['version'])]
+        d['network'] = _REPEATED_NETWORKS[_PUB_VERSIONS_ALL.index(d['version'])]
 
     return d
 
@@ -181,9 +181,10 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     hd = hmac.digest(b"Bitcoin seed", seed, 'sha512')
     k = b'\x00' + hd[:32]
     v = bytes_from_octets(version)
-    #if v not in _PRV_VERSIONS:
+    # FIXME restore the check
+    #if v not in _PRV_VERSIONS_ALL:
     #    raise ValueError(f"unknown extended private key version {v!r}")
-    network = _REPEATED_NETWORKS[_PRV_VERSIONS.index(v)]
+    network = _REPEATED_NETWORKS[_PRV_VERSIONS_ALL.index(v)]
 
     d: XkeyDict = {
         'version'            : v,
@@ -249,7 +250,7 @@ def xpub_from_xprv(d: Union[XkeyDict, String]) -> bytes:
     d['Q'] = mult(d['q'])
     d['key'] = bytes_from_point(d['Q'], True, ec)
     d['q'] = 0
-    d['version'] = _PUB_VERSIONS[_PRV_VERSIONS.index(d['version'])]
+    d['version'] = _PUB_VERSIONS_ALL[_PRV_VERSIONS_ALL.index(d['version'])]
 
     return serialize(d)
 
