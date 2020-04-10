@@ -211,7 +211,6 @@ def _validate_sig(r: int, s: int, sighash: Optional[Octets], ec: Curve) -> None:
 
     dsa._validate_sig(r, s, ec)
 
-    # TODO improve sighash validation
     if sighash is not None and sighash not in sighashes:
         m = f"Invalid sighash ({sighash!r})"
         raise ValueError(m)

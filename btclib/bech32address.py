@@ -45,7 +45,7 @@ with the following modifications:
 from typing import Iterable, List, Tuple, Union
 
 from .alias import Octets, PubKey, String, XkeyDict
-from .base58wif import _pubkeytuple_from_wif
+from .base58wif import _pubkeytuple_from_xprvwif
 from .bech32 import b32decode, b32encode
 from .bip32 import deserialize
 from .to_pubkey import to_pubkey_bytes
@@ -158,14 +158,13 @@ def p2wpkh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
     h160 = hash160(pubkey)
     return b32address_from_witness(0, h160, network)
 
-# TODO accept any privkey
-def p2wpkh_from_wif(wif: String) -> bytes:
+def p2wpkh_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
 
-    pubkey, compressed, network = _pubkeytuple_from_wif(wif)
-    if not compressed:
-        raise ValueError ("No p2wpkh from compressed wif")
-    return p2wpkh(pubkey, network)
+    pubkey, compressed, network = _pubkeytuple_from_xprvwif(xkeywif)
+    if compressed:
+        return p2wpkh(pubkey, network)
+    raise ValueError ("No p2wpkh from compressed wif or xprv")
 
 
 def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:

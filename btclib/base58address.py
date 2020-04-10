@@ -17,7 +17,7 @@ from typing import List, Tuple, Union
 
 from .alias import Octets, PubKey, String, XkeyDict
 from .base58 import b58decode, b58encode
-from .base58wif import _pubkeytuple_from_wif
+from .base58wif import _pubkeytuple_from_xprvwif
 from .bip32 import deserialize
 from .network import _CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
 from .to_pubkey import to_pubkey_bytes
@@ -60,15 +60,15 @@ def p2pkh(pubkey: PubKey, compressed: bool = True, network: str = 'mainnet') -> 
     h160 = hash160(pubkey)
     return b58address_from_h160(prefix, h160)
 
-# TODO accept any privkey
-def p2pkh_from_wif(wif: String) -> bytes:
+
+def p2pkh_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> bytes:
     """Return the p2pkh address corresponding to a WIF.
 
     WIF encodes the information about which pubkey
     (compressed/uncompressed) to use for the address.
     """
 
-    pubkey, compressed, network = _pubkeytuple_from_wif(wif)
+    pubkey, compressed, network = _pubkeytuple_from_xprvwif(xkeywif)
     return p2pkh(pubkey, compressed, network)
 
 
@@ -107,12 +107,12 @@ def p2wpkh_p2sh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
     return _b58segwitaddress(h160, network)
 
 
-def p2wpkh_p2sh_from_wif(wif: String) -> bytes:
+def p2wpkh_p2sh_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> bytes:
     """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
-    pubkey, compressed, network = _pubkeytuple_from_wif(wif)
-    if not compressed:
-        raise ValueError ("No p2wpkh-p2sh from compressed wif")
-    return p2wpkh_p2sh(pubkey, network)
+    pubkey, compressed, network = _pubkeytuple_from_xprvwif(xkeywif)
+    if compressed:
+        return p2wpkh_p2sh(pubkey, network)
+    raise ValueError ("No p2wpkh-p2sh from compressed wif or xprv")
 
 
 def p2wsh_p2sh(wscript: Octets, network: str = 'mainnet') -> bytes:

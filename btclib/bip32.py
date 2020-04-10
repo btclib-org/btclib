@@ -245,7 +245,7 @@ def xpub_from_xprv(d: Union[XkeyDict, String]) -> bytes:
         d = deserialize(d)
 
     if d['key'][0] != 0:
-        raise ValueError("extended key is not a private one")
+        raise ValueError(f"Not a private key: {serialize(d).decode()}")
 
     d['Q'] = mult(d['q'])
     d['key'] = bytes_from_point(d['Q'], True, ec)
@@ -366,14 +366,18 @@ def crack_prvkey(parent_xpub: Union[XkeyDict, String],
         p = deserialize(parent_xpub)
 
     if p['key'][0] not in (2, 3):
-        raise ValueError("extended parent key is not a public one")
+        m = "Extended parent key is not a public key: "
+        m += f"{serialize(p).decode()}"
+        raise ValueError(m)
 
     if isinstance(child_xprv, dict):
         c = child_xprv
     else:
         c = deserialize(child_xprv)
     if c['key'][0] != 0:
-        raise ValueError("extended child key is not a private one")
+        m = f"Extended child key is not a private key: "
+        m += f"{serialize(c).decode()}"
+        raise ValueError(m)
 
     # check depth
     if c['depth'] != p['depth'] + 1:

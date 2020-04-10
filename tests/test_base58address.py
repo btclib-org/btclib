@@ -13,11 +13,11 @@ import unittest
 from btclib import bip32, slip32
 from btclib.base58 import b58decode, b58encode
 from btclib.base58address import (_b58segwitaddress, b58address_from_h160,
-                                  h160_from_b58address, p2pkh, p2pkh_from_wif,
-                                  p2sh, p2wpkh_p2sh, p2wpkh_p2sh_from_wif,
+                                  h160_from_b58address, p2pkh, p2pkh_from_xprvwif,
+                                  p2sh, p2wpkh_p2sh, p2wpkh_p2sh_from_xprvwif,
                                   p2wsh_p2sh)
 from btclib.base58wif import prvkeytuple_from_wif, wif_from_xprv
-from btclib.bech32address import p2wpkh_from_wif, witness_from_b32address
+from btclib.bech32address import p2wpkh_from_xprvwif, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
@@ -52,7 +52,7 @@ class TestAddresses(unittest.TestCase):
         xprv = bip32.derive(rxprv, path)
         wif = wif_from_xprv(xprv)
         self.assertEqual(wif, b'KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP')
-        address = p2pkh_from_wif(wif)
+        address = p2pkh_from_xprvwif(wif)
         xpub = bip32.xpub_from_xprv(xprv)
         address2 = slip32.address_from_xpub(xpub)
         self.assertEqual(address, address2)
@@ -162,57 +162,57 @@ class TestAddresses(unittest.TestCase):
     def test_address_from_wif(self):
         # uncompressed mainnet
         wif1 = "5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-        b58 = p2pkh_from_wif(wif1)
+        b58 = p2pkh_from_xprvwif(wif1)
         self.assertEqual(b58, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
-        self.assertRaises(ValueError, p2wpkh_from_wif, wif1)
-        self.assertRaises(ValueError, p2wpkh_p2sh_from_wif, wif1)
+        self.assertRaises(ValueError, p2wpkh_from_xprvwif, wif1)
+        self.assertRaises(ValueError, p2wpkh_p2sh_from_xprvwif, wif1)
 
         # compressed mainnet
         wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162"
-        b58 = p2pkh_from_wif(wif2)
+        b58 = p2pkh_from_xprvwif(wif2)
         self.assertEqual(b58, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
-        b32 = p2wpkh_from_wif(wif2)
+        b32 = p2wpkh_from_xprvwif(wif2)
         self.assertEqual(h160_from_b58address(b58)[1:], witness_from_b32address(b32)[1:])
         h160 = h160_from_b58address(b58)[1]
-        b = p2wpkh_p2sh_from_wif(wif2)
+        b = p2wpkh_p2sh_from_xprvwif(wif2)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
         self.assertEqual(prvkeytuple_from_wif(wif1)[0], prvkeytuple_from_wif(wif2)[0])
 
         # uncompressed testnet
         wif1 = "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
-        b58 = p2pkh_from_wif(wif1)
+        b58 = p2pkh_from_xprvwif(wif1)
         self.assertEqual(b58, b'mvgbzkCSgKbYgaeG38auUzR7otscEGi8U7')
-        self.assertRaises(ValueError, p2wpkh_from_wif, wif1)
-        self.assertRaises(ValueError, p2wpkh_p2sh_from_wif, wif1)
+        self.assertRaises(ValueError, p2wpkh_from_xprvwif, wif1)
+        self.assertRaises(ValueError, p2wpkh_p2sh_from_xprvwif, wif1)
 
         # compressed testnet
         wif2 = "cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx"
-        b58 = p2pkh_from_wif(wif2)
+        b58 = p2pkh_from_xprvwif(wif2)
         self.assertEqual(b58, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
-        b32 = p2wpkh_from_wif(wif2)
+        b32 = p2wpkh_from_xprvwif(wif2)
         self.assertEqual(h160_from_b58address(b58)[1:], witness_from_b32address(b32)[1:])
         h160 = h160_from_b58address(b58)[1]
-        b = p2wpkh_p2sh_from_wif(wif2)
+        b = p2wpkh_p2sh_from_xprvwif(wif2)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
         self.assertEqual(prvkeytuple_from_wif(wif1)[0], prvkeytuple_from_wif(wif2)[0])
 
         # uncompressed mainnet, trailing/leading spaces in string
         wif1 = "  5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-        b58 = p2pkh_from_wif(wif1)
+        b58 = p2pkh_from_xprvwif(wif1)
         self.assertEqual(b58, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
-        self.assertRaises(ValueError, p2wpkh_from_wif, wif1)
-        self.assertRaises(ValueError, p2wpkh_p2sh_from_wif, wif1)
+        self.assertRaises(ValueError, p2wpkh_from_xprvwif, wif1)
+        self.assertRaises(ValueError, p2wpkh_p2sh_from_xprvwif, wif1)
 
         # compressed mainnet, trailing/leading spaces in string
         wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162  "
-        b58 = p2pkh_from_wif(wif2)
+        b58 = p2pkh_from_xprvwif(wif2)
         self.assertEqual(b58, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
-        b32 = p2wpkh_from_wif(wif2)
+        b32 = p2wpkh_from_xprvwif(wif2)
         self.assertEqual(h160_from_b58address(b58)[1:], witness_from_b32address(b32)[1:])
         h160 = h160_from_b58address(b58)[1]
-        b = p2wpkh_p2sh_from_wif(wif2)
+        b = p2wpkh_p2sh_from_xprvwif(wif2)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
 
