@@ -29,6 +29,8 @@ Edwards curve (Curve25519)
 
 BLS
 
+wherever a Curve is required, accept also a network str
+
 deserialize curves from jason file
 remove signtocontract, adding commit to dsa and ssa
 e=0 in SSA ? See FIXME
