@@ -8,6 +8,8 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- removed trailing _scriptPubKey suffix from the function names
+  in the scriptPubKey module
 - tests are now distributed as btclib.tests subpackage
 - removed p2pkh_from_xpub, p2wpkh_p2sh_from_xpub, and p2wpkh_from_xpub
   (use p2pkh, p2wpkh, and p2wpkh instead);
