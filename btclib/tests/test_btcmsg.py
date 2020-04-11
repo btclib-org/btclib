@@ -270,7 +270,7 @@ class TestMessageSign(unittest.TestCase):
         self.assertTrue(btcmsg.verify(msg, address, exp_sig))
 
         # Invalid recovery flag: 26
-        rf, r, s = btcmsg.deserialize(exp_sig)
+        _, r, s = btcmsg.deserialize(exp_sig)
         self.assertRaises(ValueError, btcmsg.serialize, 26, r, s)
         #btcmsg.serialize(26, r, s)
 
@@ -361,7 +361,7 @@ class TestMessageSign(unittest.TestCase):
             # python-bitcoinlib does not use RFC6979 deterministic nonce
             # as proved by different r compared to Core/Electrum/btclib
             rf, r, s = tuplesig
-            rf0, r0, s0 = btcmsg.deserialize(vector['signature'])
+            _, r0, _ = btcmsg.deserialize(vector['signature'])
             self.assertNotEqual(r, r0)
 
             # while Core/Electrum/btclib use 'low-s' canonical signature
@@ -461,4 +461,4 @@ class TestMessageSign(unittest.TestCase):
 
 if __name__ == '__main__':
     # execute only if run as a script
-    unittest.main()
+    unittest.main()  # pragma: no cover

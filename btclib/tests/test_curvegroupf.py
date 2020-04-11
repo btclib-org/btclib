@@ -74,3 +74,8 @@ class TestECFunctions(unittest.TestCase):
         G = (2, 3265)
         self.assertRaises(ValueError, find_subgroup_points, ec, G)
         #find_subgroup_points(ec, G)
+
+
+if __name__ == "__main__":
+    # execute only if run as a script
+    unittest.main()  # pragma: no cover

@@ -124,7 +124,6 @@ class TestDSA(unittest.TestCase):
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
-        sig = r, s
         e = s * u1 % ec.n
         dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
 
@@ -134,7 +133,6 @@ class TestDSA(unittest.TestCase):
         r = R[0] % ec.n
         u2inv = mod_inv(u2, ec.n)
         s = r * u2inv % ec.n
-        sig = r, s
         e = s * u1 % ec.n
         dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
 
@@ -215,4 +213,4 @@ class TestDSA(unittest.TestCase):
 
 if __name__ == "__main__":
     # execute only if run as a script
-    unittest.main()
+    unittest.main()  # pragma: no cover

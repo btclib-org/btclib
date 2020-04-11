@@ -44,4 +44,4 @@ class TestBorromeanRingSignature(unittest.TestCase):
 
 if __name__ == "__main__":
     # execute only if run as a script
-    unittest.main()
+    unittest.main()  # pragma: no cover
