@@ -143,7 +143,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     witprog = _convertbits(data[1:], 5, 8, False)
     _check_witness(witvers, bytes(witprog))
 
-    if len(witprog) == 20:
+    if witvers == 0 and len(witprog) == 20:
         is_script_hash = False
     else:
         is_script_hash = True
