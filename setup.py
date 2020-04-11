@@ -18,6 +18,7 @@ setup(
     package_data = {
         "btclib": ["dictdata/*", "tests/data/*"],
     },
+    test_suite = "btclib.tests",
     keywords = 'bitcoin cryptography elliptic-curves ecdsa schnorr RFC-6979 bip32 bip39 electrum base58 bech32 segwit message-signing',
     python_requires = '>=3.8',
     classifiers = [
