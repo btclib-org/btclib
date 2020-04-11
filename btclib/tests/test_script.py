@@ -10,8 +10,8 @@
 
 import unittest
 
-from btclib.script import (OP_CODE_NAMES, OP_CODES, decode, encode, deserialize,
-                           serialize)
+from btclib.script import (OP_CODE_NAMES, OP_CODES, decode, deserialize,
+                           encode, serialize)
 
 
 class TestScript(unittest.TestCase):

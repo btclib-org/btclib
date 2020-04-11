@@ -22,6 +22,7 @@ where Token = Union[int, str, bytes]:
 
 from io import BytesIO
 from typing import BinaryIO, Iterable, List, Union
+from alias import Token, Script
 
 from . import varint
 from .alias import Octets
@@ -248,15 +249,6 @@ OP_CODE_NAMES = {
     184: 'OP_NOP9',
     185: 'OP_NOP10',
 }
-
-# the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
-# the integer -1 is a shorcut for 'OP_1NEGATE'
-# other integers are bytes encoded (require push operation)
-# str are for opcodes (e.g. 'OP_HASH160') or hexstring data to be pushed
-# bytes is for data to be pushed
-Token = Union[int, str, bytes]
-# TODO: use Script as input and serialize Iterable[Token] to bytes on the fly
-Script = Union[bytes, Iterable[Token]]
 
 
 def _op_pushdata(data: Octets) -> bytes:

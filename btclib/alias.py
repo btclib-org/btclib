@@ -137,3 +137,12 @@ BMSig = Union[BMSigTuple, Octets]
 SSASigTuple = Tuple[int, int]
 # SSASigTuple or BIP340-Schnorr 64-bytes serialization (bytes or hex-string)
 SSASig = Union[SSASigTuple, Octets]
+
+# the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
+# the integer -1 is a shorcut for 'OP_1NEGATE'
+# other integers are bytes encoded (require push operation)
+# ascii str are for opcodes (e.g. 'OP_HASH160')
+# Octets are for data to be pushed
+Token = Union[int, str, bytes]
+# TODO: use Script as input and serialize Iterable[Token] to bytes on the fly
+Script = Union[bytes, Iterable[Token]]

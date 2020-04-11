@@ -14,18 +14,18 @@
 
 from typing import Iterable, List, Tuple, Union
 
-from .alias import Octets, PubKey, String
+from .alias import Octets, PubKey, String, Token
 from .base58address import b58address_from_h160, h160_from_b58address
 from .bech32address import (b32address_from_witness, has_segwit_prefix,
                             witness_from_b32address)
 from .curves import secp256k1
 from .network import _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
-from .script import Token, encode
+from .script import encode
 from .to_pubkey import to_pubkey_bytes
 from .utils import bytes_from_octets
 
 
-def nulldata_scriptPubKey(data: Octets) -> List[Token]:
+def nulldata(data: Octets) -> bytes:
     """Return the nulldata scriptPubKey with the provided data."""
 
     data = bytes_from_octets(data)
@@ -33,60 +33,67 @@ def nulldata_scriptPubKey(data: Octets) -> List[Token]:
         msg = f"Invalid data lenght ({len(data)} bytes) "
         msg += "for nulldata scriptPubKey"
         raise ValueError(msg)
-    return ['OP_RETURN', data.hex()]
+    script = ['OP_RETURN', data.hex()]
+    return encode(script)
 
 
-def p2pk_scriptPubKey(pubkey: PubKey, network = 'mainnet') -> List[Token]:
+def p2pk(pubkey: PubKey, network = 'mainnet') -> bytes:
     """Return the p2pk scriptPubKey of the provided pubkey."""
 
     # FIXME: does P2PK work also with compressed key?
     compressed = False
     pubkey = to_pubkey_bytes(pubkey, compressed, network)
-    return [pubkey.hex(), 'OP_CHECKSIG']
+    script = [pubkey.hex(), 'OP_CHECKSIG']
+    return encode(script)
 
 
-def p2ms_scriptPubKey(m: int, pubkeys: Iterable[PubKey],
-                      network = 'mainnet') -> List[Token]:
+def p2ms(m: int, pubkeys: Iterable[PubKey],
+                      network = 'mainnet') -> bytes:
     """Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."""
 
     if m<1 or m>16:
         raise ValueError(f"Invalid m ({m}) in m-of-n multisignature")
         # raise ValueError("Impossible m-of-n ({m}-of-{n})")
 
-    scriptPubKey : List[Token] = [m]
+    script : List[Token] = [m]
     # FIXME: does P2MS work also with compressed key?
     compressed = False
     for pubkey in pubkeys:
         pubkey = to_pubkey_bytes(pubkey, compressed, network)
-        scriptPubKey.append(pubkey.hex())
+        script.append(pubkey.hex())
 
     # FIXME: handle script max length
     # FIXME: enable lexicographic key sorting
-    n = len(scriptPubKey)-1
+    n = len(script)-1
     if n<1 or n>16:
         raise ValueError(f"Invalid n ({n}) in {m}-of-{n} multisignature")
     if m>n:
         raise ValueError(f"Impossible {m}-of-{n} multisignature")
-    scriptPubKey.append(n)
-    scriptPubKey.append('OP_CHECKMULTISIG')
-    return scriptPubKey
+    script.append(n)
+    script.append('OP_CHECKMULTISIG')
+    return encode(script)
 
 
-def p2pkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
+def p2pkh(pubkey_h160: Octets) -> bytes:
     """Return the p2pkh scriptPubKey of the provided HASH160 pubkey-hash."""
 
     pubkey_h160 = bytes_from_octets(pubkey_h160, 20)
-    return ['OP_DUP', 'OP_HASH160', pubkey_h160.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
+    script = [
+        'OP_DUP', 'OP_HASH160', pubkey_h160.hex(),
+        'OP_EQUALVERIFY', 'OP_CHECKSIG'
+    ]
+    return encode(script)
 
 
-def p2sh_scriptPubKey(script_h160: Octets) -> List[Token]:
+def p2sh(script_h160: Octets) -> bytes:
     """Return the p2sh scriptPubKey of the provided HASH160 script-hash."""
 
     script_h160 = bytes_from_octets(script_h160, 20)
-    return ['OP_HASH160', script_h160.hex(), 'OP_EQUAL']
+    script = ['OP_HASH160', script_h160.hex(), 'OP_EQUAL']
+    return encode(script)
 
 
-def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
+def p2wpkh(pubkey_h160: Octets) -> bytes:
     """Return the p2wpkh scriptPubKey of the provided HASH160 pubkey-hash.
 
     For P2WPKH, the witness program must be the HASH160 20-byte pubkey-hash;
@@ -96,10 +103,11 @@ def p2wpkh_scriptPubKey(pubkey_h160: Octets) -> List[Token]:
     """
 
     pubkey_h160 = bytes_from_octets(pubkey_h160, 20)
-    return [0, pubkey_h160.hex()]
+    script = [0, pubkey_h160.hex()]
+    return encode(script)
 
 
-def p2wsh_scriptPubKey(script_h256: Octets) -> List[Token]:
+def p2wsh(script_h256: Octets) -> bytes:
     """Return the p2wsh scriptPubKey of the provided SHA256 script-hash.
 
     For P2WSH, the witness program must be the SHA256 32-byte script-hash;
@@ -109,7 +117,8 @@ def p2wsh_scriptPubKey(script_h256: Octets) -> List[Token]:
     """
 
     script_h256 = bytes_from_octets(script_h256, 32)
-    return [0, script_h256.hex()]
+    script = [0, script_h256.hex()]
+    return encode(script)
 
 
 def address_from_scriptPubKey(s: Union[Iterable[Token], bytes],
@@ -135,23 +144,25 @@ def address_from_scriptPubKey(s: Union[Iterable[Token], bytes],
         raise ValueError(f"No address for script {s.decode()}")
 
 
-def scriptPubKey_from_address(addr: String) -> Tuple[List[Token], str]:
+def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
     """Return (scriptPubKey, network) from the input bech32/base58 address"""
 
     if has_segwit_prefix(addr):
         # also check witness validity
         witvers, witprog, network, _ = witness_from_b32address(addr)
-        if witvers == 0:
-            len_wprog = len(witprog)
-            if len_wprog == 32:
-                return p2wsh_scriptPubKey(witprog), network
-            else:  # must be len_wprog == 20
-                return p2wpkh_scriptPubKey(witprog), network
-        else:
+        if witvers != 0:
             raise ValueError(f"Unhandled witness version ({witvers})")
+        len_wprog = len(witprog)
+        if len_wprog == 32:
+            return p2wsh(witprog), network
+        elif len_wprog == 20:
+            return p2wpkh(witprog), network
+        else:
+            m = f"Unhandled witness program length ({len_wprog})"
+            raise ValueError(m)
     else:
         _, h160, network, is_p2sh = h160_from_b58address(addr)
         if is_p2sh:
-            return p2sh_scriptPubKey(h160), network
+            return p2sh(h160), network
         else:
-            return p2pkh_scriptPubKey(h160), network
+            return p2pkh(h160), network
