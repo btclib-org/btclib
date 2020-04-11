@@ -1,4 +1,16 @@
-# Code coverage and profiling
+# Tests, code coverage, and profiling
+
+## Tests
+
+```shell
+python -m setup test
+```
+
+or
+
+```shell
+python setup.py test
+```
 
 ## Coverage
 
