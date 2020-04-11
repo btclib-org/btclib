@@ -27,7 +27,7 @@ class TestDER(unittest.TestCase):
         sig70  = 2**255 - 1, 2**247 - 1
         sig69  = 2**247 - 1, 2**247 - 1
         sig9   =          1,          1
-        sigs = [sig73, sig72, sig71, sig71b, sig70, sig69]
+        sigs = [sig73, sig72, sig71, sig71b, sig70, sig69, sig9]
         lenghts = [73, 72, 71, 71, 70, 69, 9]
 
         for lenght, sig in zip(lenghts, sigs):
@@ -116,4 +116,4 @@ class TestDER(unittest.TestCase):
 
 if __name__ == "__main__":
     # execute only if run as a script
-    unittest.main()
+    unittest.main()  # pragma: no cover

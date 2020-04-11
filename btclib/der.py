@@ -123,9 +123,12 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
 
         sig = bytes_from_octets(sig)
 
-        maxsize = (ec.nsize+1) * 2 + 7  # 73 bytes for secp256k1
+        # 73 bytes for secp256k1 (including sighash)
+        maxsize = (ec.nsize+1) * 2 + 6 + 1
+        # 1 byte for r, 1 bytes for s, excluding sighash
+        minsize = 1 * 2 + 6
         sigsize = len(sig)
-        if not 8 < sigsize <= maxsize:
+        if not minsize <= sigsize <= maxsize:
             errmsg = f"DER signature size ({sigsize}) must be in "
             errmsg += f"[9, {maxsize}]"
             raise ValueError(errmsg)
