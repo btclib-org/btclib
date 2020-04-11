@@ -22,34 +22,33 @@ from .curves import secp256k1
 from .network import _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
 from .script import encode
 from .to_pubkey import to_pubkey_bytes
-from .utils import bytes_from_octets
+from .utils import bytes_from_octets, hash160, sha256
 
 
 def nulldata(data: Octets) -> bytes:
-    """Return the nulldata scriptPubKey with the provided data."""
+    "Return the nulldata scriptPubKey with the provided data."
 
     data = bytes_from_octets(data)
     if len(data) > 80:
         msg = f"Invalid data lenght ({len(data)} bytes) "
         msg += "for nulldata scriptPubKey"
         raise ValueError(msg)
-    script = ['OP_RETURN', data.hex()]
+    script = ['OP_RETURN', data]
     return encode(script)
 
 
 def p2pk(pubkey: PubKey, network = 'mainnet') -> bytes:
-    """Return the p2pk scriptPubKey of the provided pubkey."""
+    "Return the p2pk scriptPubKey of the provided pubkey."
 
     # FIXME: does P2PK work also with compressed key?
     compressed = False
     pubkey = to_pubkey_bytes(pubkey, compressed, network)
-    script = [pubkey.hex(), 'OP_CHECKSIG']
+    script = [pubkey, 'OP_CHECKSIG']
     return encode(script)
 
 
-def p2ms(m: int, pubkeys: Iterable[PubKey],
-                      network = 'mainnet') -> bytes:
-    """Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."""
+def p2ms(m: int, pubkeys: Iterable[PubKey], network = 'mainnet') -> bytes:
+    "Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."
 
     if m<1 or m>16:
         raise ValueError(f"Invalid m ({m}) in m-of-n multisignature")
@@ -60,7 +59,7 @@ def p2ms(m: int, pubkeys: Iterable[PubKey],
     compressed = False
     for pubkey in pubkeys:
         pubkey = to_pubkey_bytes(pubkey, compressed, network)
-        script.append(pubkey.hex())
+        script.append(pubkey)
 
     # FIXME: handle script max length
     # FIXME: enable lexicographic key sorting
@@ -75,26 +74,35 @@ def p2ms(m: int, pubkeys: Iterable[PubKey],
 
 
 def p2pkh(pubkey_h160: Octets) -> bytes:
-    """Return the p2pkh scriptPubKey of the provided HASH160 pubkey-hash."""
+    "Return the p2pkh scriptPubKey of the provided HASH160 pubkey."
 
     pubkey_h160 = bytes_from_octets(pubkey_h160, 20)
     script = [
-        'OP_DUP', 'OP_HASH160', pubkey_h160.hex(),
+        'OP_DUP', 'OP_HASH160', pubkey_h160,
         'OP_EQUALVERIFY', 'OP_CHECKSIG'
     ]
     return encode(script)
 
 
-def p2sh(script_h160: Octets) -> bytes:
-    """Return the p2sh scriptPubKey of the provided HASH160 script-hash."""
+def p2sh(script: Union[Octets, List[Token]]) -> bytes:
+    """Return the p2sh scriptPubKey of the script (hashed or not).
+    
+    Warning: the input must be the HASH160 20-byte script-hash or
+    the List[Token] script; byte encoded script is not supported, as
+    it cannot be reliably differentiated from the HASH160(script).
+    """
 
-    script_h160 = bytes_from_octets(script_h160, 20)
-    script = ['OP_HASH160', script_h160.hex(), 'OP_EQUAL']
+    if isinstance(script, list):
+        scriptPubKey = encode(script)
+        script_h160 = hash160(scriptPubKey)
+    else:
+        script_h160 = bytes_from_octets(script, 20)
+    script = ['OP_HASH160', script_h160, 'OP_EQUAL']
     return encode(script)
 
 
 def p2wpkh(pubkey_h160: Octets) -> bytes:
-    """Return the p2wpkh scriptPubKey of the provided HASH160 pubkey-hash.
+    """Return the p2wpkh scriptPubKey of the provided HASH160 pubkey.
 
     For P2WPKH, the witness program must be the HASH160 20-byte pubkey-hash;
     the scriptPubkey is the witness version 0 followed by the canonical push
@@ -103,27 +111,35 @@ def p2wpkh(pubkey_h160: Octets) -> bytes:
     """
 
     pubkey_h160 = bytes_from_octets(pubkey_h160, 20)
-    script = [0, pubkey_h160.hex()]
+    script = [0, pubkey_h160]
     return encode(script)
 
 
-def p2wsh(script_h256: Octets) -> bytes:
-    """Return the p2wsh scriptPubKey of the provided SHA256 script-hash.
+def p2wsh(script: Union[Octets, List[Token]]) -> bytes:
+    """Return the p2wsh scriptPubKey of the script (hashed or not).
+    
+    Warning: the input must be the SHA256 32-byte script-hash or
+    the List[Token] script; byte encoded script is not supported, as
+    it cannot be reliably differentiated from the SHA256(script).
 
-    For P2WSH, the witness program must be the SHA256 32-byte script-hash;
-    the scriptPubkey is the witness version 0 followed by the canonical push
-    of the witness program (program lenght + program),
+    The scriptPubkey is the witness version 0 followed by the
+    canonical push of the witness program (program lenght + program),
     that is 0x0020{32-byte script-hash}
     """
 
-    script_h256 = bytes_from_octets(script_h256, 32)
-    script = [0, script_h256.hex()]
+    if isinstance(script, list):
+        scriptPubKey = encode(script)
+        script_h256 = sha256(scriptPubKey)
+    else:
+        script_h256 = bytes_from_octets(script, 32)
+
+    script = [0, script_h256]
     return encode(script)
 
 
 def address_from_scriptPubKey(s: Union[Iterable[Token], bytes],
                               network: str = "mainnet") -> bytes:
-    """Return the bech32/base58 address from the input scriptPubKey."""
+    "Return the bech32/base58 address from the input scriptPubKey."
 
     if not isinstance(s, bytes):
         s = encode(s)
@@ -145,7 +161,7 @@ def address_from_scriptPubKey(s: Union[Iterable[Token], bytes],
 
 
 def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
-    """Return (scriptPubKey, network) from the input bech32/base58 address"""
+    "Return (scriptPubKey, network) from the input bech32/base58 address"
 
     if has_segwit_prefix(addr):
         # also check witness validity

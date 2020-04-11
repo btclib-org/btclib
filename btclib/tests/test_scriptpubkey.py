@@ -161,13 +161,13 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(script, script_exp)
 
         # p2wsh
-        witness_script = [pubkey, 'OP_CHECKSIG']
-        witness_script_bytes = encode(witness_script)
-        witness_script_hash = sha256(witness_script_bytes)
-        scriptPubKey = p2wsh(witness_script_hash.hex())
-        self.assertEqual(scriptPubKey.hex(), "0020"+witness_script_hash.hex())
+        script = [pubkey, 'OP_CHECKSIG']
+        scriptPubKey = p2wsh(script)
+        script_bytes = encode(script)
+        script_hash = sha256(script_bytes)
+        self.assertEqual(scriptPubKey.hex(), "0020" + script_hash.hex())
         script = decode(scriptPubKey)
-        script_exp = [0, witness_script_hash.hex()]
+        script_exp = [0, script_hash.hex()]
         self.assertEqual(script, script_exp)
 
     def test_exceptions(self):
@@ -193,11 +193,10 @@ class TestScriptPubKey(unittest.TestCase):
                 2, *recovery_pubkeys, 3, 'OP_CHECKMULTISIG',
             'OP_ENDIF'
         ]
+        script_pubkey = p2wsh(script)
+        self.assertEqual(script_pubkey.hex(), "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708")
         witness_program = encode(script)
         witness_hash = sha256(witness_program)
-
-        script_pubkey = p2wsh(witness_hash)
-        self.assertEqual(script_pubkey.hex(), "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708")
         address = b32address_from_witness(0, witness_hash)
         self.assertEqual(address, b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj")
 
