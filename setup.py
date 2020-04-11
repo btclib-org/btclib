@@ -9,12 +9,15 @@ setup(
     version = btclib.__version__,
     url = 'http://github.com/btclib-org/btclib',
     license = btclib.__license__,
-    author = 'The btclib developers',
+    author = btclib.__author__,
     description = 'A "bitcoin cryptography" library.',
     long_description = longdescription,
     long_description_content_type = 'text/markdown',
-    packages = find_packages(exclude=['tests']),
+    packages = find_packages(),
     include_package_data = True,
+    package_data = {
+        "btclib": ["dictdata/*", "tests/data/*"],
+    },
     keywords = 'bitcoin cryptography elliptic-curves ecdsa schnorr RFC-6979 bip32 bip39 electrum base58 bech32 segwit message-signing',
     python_requires = '>=3.8',
     classifiers = [
