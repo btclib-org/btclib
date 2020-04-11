@@ -93,46 +93,69 @@ _P2WSH_PRV_PREFIXES = [MAIN_Zprv, TEST_Vprv, TEST_Vprv]
 _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
 
 
-_PRV_VERSIONS_MAIN = [MAIN_xprv, MAIN_yprv, MAIN_zprv, MAIN_Yprv, MAIN_Zprv]
-_PRV_VERSIONS_TEST = [TEST_tprv, TEST_uprv, TEST_vprv, TEST_Uprv, TEST_Vprv]
-_PUB_VERSIONS_MAIN = [MAIN_xpub, MAIN_ypub, MAIN_zpub, MAIN_Ypub, MAIN_Zpub]
-_PUB_VERSIONS_TEST = [TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
+_XPRV_VERSIONS_MAIN = [MAIN_xprv, MAIN_yprv, MAIN_zprv, MAIN_Yprv, MAIN_Zprv]
+_XPRV_VERSIONS_TEST = [TEST_tprv, TEST_uprv, TEST_vprv, TEST_Uprv, TEST_Vprv]
+_XPUB_VERSIONS_MAIN = [MAIN_xpub, MAIN_ypub, MAIN_zpub, MAIN_Ypub, MAIN_Zpub]
+_XPUB_VERSIONS_TEST = [TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
 
-_PRV_VERSIONS = [_PRV_VERSIONS_MAIN, _PRV_VERSIONS_TEST, _PRV_VERSIONS_TEST]
-_PUB_VERSIONS = [_PUB_VERSIONS_MAIN, _PUB_VERSIONS_TEST, _PUB_VERSIONS_TEST]
+_XPRV_VERSIONS = [_XPRV_VERSIONS_MAIN, _XPRV_VERSIONS_TEST, _XPRV_VERSIONS_TEST]
+_XPUB_VERSIONS = [_XPUB_VERSIONS_MAIN, _XPUB_VERSIONS_TEST, _XPUB_VERSIONS_TEST]
 
 # TODO remove _REPEATED_NETWORKS as it provides false match for regtest
 _REPEATED_NETWORKS = [
     'mainnet', 'mainnet', 'mainnet', 'mainnet', 'mainnet',
     'testnet', 'testnet', 'testnet', 'testnet', 'testnet',
     'regtest', 'regtest', 'regtest', 'regtest', 'regtest']
-_PRV_VERSIONS_ALL = _PRV_VERSIONS_MAIN + _PRV_VERSIONS_TEST + _PRV_VERSIONS_TEST
-_PUB_VERSIONS_ALL = _PUB_VERSIONS_MAIN + _PUB_VERSIONS_TEST + _PUB_VERSIONS_TEST
+_XPRV_VERSIONS_ALL = _XPRV_VERSIONS_MAIN + _XPRV_VERSIONS_TEST + _XPRV_VERSIONS_TEST
+_XPUB_VERSIONS_ALL = _XPUB_VERSIONS_MAIN + _XPUB_VERSIONS_TEST + _XPUB_VERSIONS_TEST
 
 
 def curve_from_network(network: str) -> Curve:
+    index = _NETWORKS.index(network)
+    return _CURVES[index]
+
+
+def curve_from_xpubversion(xpubversion: bytes) -> Curve:
+    index =  _XPUB_VERSIONS_ALL.index(xpubversion)
+    return _CURVES[index]
+
+
+def _xpub_versions_from_network(network: str) -> List[bytes]:
+    index = _NETWORKS.index(network)
+    return _XPUB_VERSIONS[index]
+
+
+def wif_prefix_from_network(network: str) -> bytes:
+    index = _NETWORKS.index(network)
+    return _WIF_PREFIXES[index]
+
+
+def network_from_wif_prefix(prefix: bytes) -> str:
+    index = _WIF_PREFIXES.index(prefix)
+    return _NETWORKS[index]
+
+
+def p2pkh_prefix_from_network(network: str) -> bytes:
     network_index = _NETWORKS.index(network)
-    return _CURVES[network_index]
+    return _P2PKH_PREFIXES[network_index]
 
 
-def _network_index_from_bip32version(bip32version: bytes) -> int:
-    if bip32version in _PRV_VERSIONS_ALL:
-        return _PRV_VERSIONS_ALL.index(bip32version)
-    if bip32version in _PUB_VERSIONS_ALL:
-        return _PUB_VERSIONS_ALL.index(bip32version)
-    raise ValueError(f'Unknown BIP32 version ({bip32version!r})')
+def network_from_p2pkh_prefix(prefix: bytes) -> str:
+    index = _P2PKH_PREFIXES.index(prefix)
+    return _NETWORKS[index]
 
 
-def curve_from_bip32version(bip32version: bytes) -> Curve:
-    network_index = _network_index_from_bip32version(bip32version)
-    return _CURVES[network_index]
+def p2sh_prefix_from_network(network: str) -> bytes:
+    index = _NETWORKS.index(network)
+    return _P2SH_PREFIXES[index]
 
 
-def _pub_versions_from_network(network: str) -> List[bytes]:
-    network_index = _NETWORKS.index(network)
-    return _PUB_VERSIONS[network_index]
+def network_from_p2sh_prefix(prefix: bytes) -> str:
+    index = _P2SH_PREFIXES.index(prefix)
+    return _NETWORKS[index]
 
 
-def _prv_versions_from_network(network: str) -> List[bytes]:
-    network_index = _NETWORKS.index(network)
-    return _PRV_VERSIONS[network_index]
+# FIXME: regtest?!?
+def network_from_xprv(xprvversion: bytes) -> str:
+    index = _XPRV_VERSIONS_ALL.index(xprvversion)
+    return _REPEATED_NETWORKS[index]

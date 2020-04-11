@@ -39,12 +39,12 @@ from typing import Optional, Tuple, Union
 from btclib import bip32
 
 from . import dsa, ssa
-from .alias import HashF, Octets, Point
+from .alias import HashF, Octets, Point, XkeyDict
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
 from .rfc6979 import rfc6979
-from .to_prvkey import to_prvkey_int
+from .to_prvkey import int_from_prvkey
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, int_from_bits
 
@@ -68,7 +68,7 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
 
 
 def ecdsa_commit_sign(c: Octets, m: Octets,
-                      q: Union[int, bytes, str, bip32.XkeyDict],
+                      q: Union[int, bytes, str, XkeyDict],
                       k: Optional[int] = None,
                       ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
@@ -76,7 +76,7 @@ def ecdsa_commit_sign(c: Octets, m: Octets,
 
     c = bytes_from_octets(c)
     m = bytes_from_octets(m)
-    q = to_prvkey_int(q, ec)
+    q = int_from_prvkey(q, ec)
 
     if k is None:
         h = hf()
@@ -97,7 +97,7 @@ def ecdsa_commit_sign(c: Octets, m: Octets,
 
 
 def ecssa_commit_sign(c: Octets, m: Octets,
-                      q: Union[int, bytes, str, bip32.XkeyDict],
+                      q: Union[int, bytes, str, XkeyDict],
                       k: Optional[int] = None,
                       ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
@@ -105,7 +105,7 @@ def ecssa_commit_sign(c: Octets, m: Octets,
 
     c = bytes_from_octets(c)
     m = bytes_from_octets(m)
-    q = to_prvkey_int(q, ec)
+    q = int_from_prvkey(q, ec)
 
     if k is None:
         k = ssa.k(m, q, ec, hf)

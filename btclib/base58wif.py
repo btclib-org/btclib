@@ -16,8 +16,8 @@ from .base58 import b58decode, b58encode
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
-from .network import (_CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES,
-                      _PRV_VERSIONS_ALL, _REPEATED_NETWORKS, _WIF_PREFIXES)
+from .network import (curve_from_network, network_from_xprv,
+                      wif_prefix_from_network)
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets
 
@@ -29,7 +29,7 @@ def wif_from_xprv(xprv: Union[XkeyDict, String]) -> bytes:
     as this is the default public key representation in BIP32.
     """
 
-    # the next few lines of code could be replaced by prvkeytuple_from_xprv
+    # the next few lines of code could be replaced by info_from_xprv
     # but the last few lines of code need intermediate results
     if not isinstance(xprv, dict):
         xprv = bip32.deserialize(xprv)
@@ -37,103 +37,29 @@ def wif_from_xprv(xprv: Union[XkeyDict, String]) -> bytes:
     if xprv['key'][0] != 0:
         raise ValueError(f"Not a private key: {bip32.serialize(xprv).decode}")
     
-    # FIXME: does it work for regtest too?
-    network = _REPEATED_NETWORKS[_PRV_VERSIONS_ALL.index(xprv['version'])]
-    network_index = _NETWORKS.index(network)
-    payload = _WIF_PREFIXES[network_index] + xprv['key'][1:] + b'\x01'
+    network = network_from_xprv(xprv['version'])
+    payload = wif_prefix_from_network(network)
+    payload += xprv['key'][1:] + b'\x01'
     return b58encode(payload)
 
 
-def wif_from_prvkey(prvkey: Union[int, Octets],
+def wif_from_prvkey(q: Union[int, Octets],
                     compressed: bool = True,
                     network: str = 'mainnet') -> bytes:
-    """Return the WIF encoding of a private key."""
+    """Return the WIF encoding of a private key integer."""
 
-    network_index = _NETWORKS.index(network)
-    ec = _CURVES[network_index]
-
-    payload = _WIF_PREFIXES[network_index]
-    if not isinstance(prvkey, int):
-        prvkey = bytes_from_octets(prvkey, ec.nsize)
-        payload += prvkey
-        q = int.from_bytes(prvkey, byteorder='big')
+    ec = curve_from_network(network)
+    payload = wif_prefix_from_network(network)
+    if not isinstance(q, int):
+        q = bytes_from_octets(q, ec.nsize)
+        payload += q
+        q = int.from_bytes(q, byteorder='big')
     else:
-        payload += prvkey.to_bytes(ec.nsize, 'big')
-        q = prvkey
+        payload += q.to_bytes(ec.nsize, 'big')
+        q = q
 
     if not 0 < q < ec.n:
         raise ValueError(f"private key {hex(q)} not in (0, ec.n)")
 
     payload += b'\x01' if compressed else b''
     return b58encode(payload)
-
-
-def prvkeytuple_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
-    """Return a verified-as-valid private key tuple (prvkey, compressed, network).
-
-    Support WIF or BIP32 xprv.
-    """
-
-    if not isinstance(xkeywif, dict):
-        try:
-            return prvkeytuple_from_wif(xkeywif)
-        except Exception:
-            pass
-
-    return prvkeytuple_from_xprv(xkeywif)
-
-
-def prvkeytuple_from_wif(wif: String) -> Tuple[int, bool, str]:
-    """Return the (private key, compressed, network) tuple from a WIF."""
-
-    if isinstance(wif, str):
-        wif = wif.strip()
-
-    payload = b58decode(wif)
-    wif_index = _WIF_PREFIXES.index(payload[0:1])
-    ec = _CURVES[wif_index]
-
-    if len(payload) == ec.nsize + 2:       # compressed WIF
-        compressed = True
-        if payload[-1] != 0x01:            # must have a trailing 0x01
-            raise ValueError("Not a compressed WIF: missing trailing 0x01")
-        prvkey = payload[1:-1]
-    elif len(payload) == ec.nsize + 1:     # uncompressed WIF
-        compressed = False
-        prvkey = payload[1:]
-    else:
-        raise ValueError(f"Wrong WIF size ({len(payload)})")
-
-    q = int.from_bytes(prvkey, byteorder='big')
-    if not 0 < q < ec.n:
-        raise ValueError(f"Private key {hex(q)} not in [1, n-1]")
-
-    network = _NETWORKS[wif_index]
-    return q, compressed, network
-
-
-def prvkeytuple_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
-    """Return the (private key, compressed, network) tuple from a BIP32 xprv."""
-
-    if not isinstance(xprv, dict):
-        xprv = bip32.deserialize(xprv)
-    if xprv['key'][0] != 0:
-        m = f"Not a private key: {bip32.serialize(xprv).decode()}"
-        raise ValueError(m)
-
-    # FIXME: does it work for regtest too?
-    network = _REPEATED_NETWORKS[_PRV_VERSIONS_ALL.index(xprv['version'])]
-    return xprv['q'], True, network
-
-
-# helper function
-
-
-def _pubkeytuple_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> Tuple[bytes, bool, str]:
-
-    prvkey, compressed, network = prvkeytuple_from_xprvwif(xkeywif)
-    network_index = _NETWORKS.index(network)
-    ec = _CURVES[network_index]
-    Pub = mult(prvkey, ec.G, ec)
-    pubkey = bytes_from_point(Pub, compressed, ec)
-    return pubkey, compressed, network

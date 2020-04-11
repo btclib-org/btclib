@@ -59,8 +59,8 @@ from .curve import Curve
 from .curvemult import _double_mult, _mult_jac, _multi_mult
 from .curves import secp256k1
 from .numbertheory import mod_inv
-from .to_prvkey import to_prvkey_int
-from .to_pubkey import to_pubkey_tuple
+from .to_prvkey import int_from_prvkey
+from .to_pubkey import point_from_pubkey
 from .utils import bytes_from_octets, int_from_bits
 
 # TODO relax the p_ThreeModFour requirement
@@ -69,7 +69,7 @@ from .utils import bytes_from_octets, int_from_bits
 BIP340Key = Union[int, bytes, str, XkeyDict]
 
 
-def to_bip340_pubkey_tuple(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
+def to_bip340_point(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
     """Return a verified-as-valid BIP340 public key tuple.
     
     It supports:
@@ -86,7 +86,7 @@ def to_bip340_pubkey_tuple(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
         return x_Q, y_Q
     else:
         try:
-            x_Q = to_pubkey_tuple(x_Q, ec)[0]
+            x_Q = point_from_pubkey(x_Q, ec)[0]
             y_Q = ec.y_quadratic_residue(x_Q, True)
             return x_Q, y_Q
         except Exception:
@@ -108,7 +108,7 @@ def pubkey_gen(prvkey: BIP340Key, ec: Curve = secp256k1) -> bytes:
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    q = to_prvkey_int(prvkey, ec)
+    q = int_from_prvkey(prvkey, ec)
     QJ = _mult_jac(q, ec.GJ, ec)
     x = ec._x_aff_from_jac(QJ)
     return x.to_bytes(ec.psize, byteorder="big")
@@ -162,7 +162,7 @@ def k(m: Octets, prv: BIP340Key,
     m = bytes_from_octets(m, hf().digest_size)
 
     # The secret key d: an integer in the range 1..n-1.
-    q = to_prvkey_int(prv, ec)
+    q = int_from_prvkey(prv, ec)
 
     return _k(m, q, ec, hf)
 
@@ -217,7 +217,7 @@ def sign(m: Octets, prvkey: BIP340Key, k: BIP340Key = None,
     m = bytes_from_octets(m, hf().digest_size)
 
     # The secret key d: an integer in the range 1..n-1.
-    q = to_prvkey_int(prvkey, ec)
+    q = int_from_prvkey(prvkey, ec)
     QJ = _mult_jac(q, ec.GJ, ec)
     x_Q = ec._x_aff_from_jac(QJ)
     if not ec.has_square_y(QJ):
@@ -227,7 +227,7 @@ def sign(m: Octets, prvkey: BIP340Key, k: BIP340Key = None,
     if k is None:
         k = _k(m, q, ec, hf)
     else:
-        k = to_prvkey_int(k, ec)
+        k = int_from_prvkey(k, ec)
 
     # Let K = kG
     KJ = _mult_jac(k, ec.GJ, ec)
@@ -272,7 +272,7 @@ def _verify(m: Octets, Q: BIP340Key, sig: SSASig,
 
     r, s = _to_sig(sig, ec)
 
-    x_Q, y_Q = to_bip340_pubkey_tuple(Q, ec)
+    x_Q, y_Q = to_bip340_point(Q, ec)
     QJ = x_Q, y_Q, 1
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
@@ -330,7 +330,7 @@ def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
     r1, s1 = _to_sig(sig1, ec)
     m2 = bytes_from_octets(m2, hf().digest_size)
     r2, s2 = _to_sig(sig2, ec)
-    x_Q = to_bip340_pubkey_tuple(Q, ec)[0]
+    x_Q = to_bip340_point(Q, ec)[0]
 
     if r1 != r2:
         raise ValueError("Not the same r in signatures")
@@ -387,7 +387,7 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340Key],
         r, s = _to_sig(sig, ec)
         KJ = r, ec.y_quadratic_residue(r, True), 1
 
-        x_Q, y_Q = to_bip340_pubkey_tuple(Q, ec)
+        x_Q, y_Q = to_bip340_point(Q, ec)
         QJ = x_Q, y_Q, 1
 
         c = _challenge(r, x_Q, m, ec, hf)

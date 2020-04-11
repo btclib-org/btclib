@@ -19,9 +19,9 @@ from .base58address import b58address_from_h160, h160_from_b58address
 from .bech32address import (b32address_from_witness, has_segwit_prefix,
                             witness_from_b32address)
 from .curves import secp256k1
-from .network import _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
+from .network import p2pkh_prefix_from_network, p2sh_prefix_from_network
 from .script import encode
-from .to_pubkey import to_pubkey_bytes
+from .to_pubkey import bytes_from_pubkey
 from .utils import bytes_from_octets, hash160, sha256
 
 
@@ -33,7 +33,7 @@ def nulldata(data: Octets) -> bytes:
         msg = f"Invalid data lenght ({len(data)} bytes) "
         msg += "for nulldata scriptPubKey"
         raise ValueError(msg)
-    script = ['OP_RETURN', data]
+    script: List[Token] = ['OP_RETURN', data]
     return encode(script)
 
 
@@ -42,8 +42,8 @@ def p2pk(pubkey: PubKey, network = 'mainnet') -> bytes:
 
     # FIXME: does P2PK work also with compressed key?
     compressed = False
-    pubkey = to_pubkey_bytes(pubkey, compressed, network)
-    script = [pubkey, 'OP_CHECKSIG']
+    pubkey = bytes_from_pubkey(pubkey, compressed, network)
+    script: List[Token] = [pubkey, 'OP_CHECKSIG']
     return encode(script)
 
 
@@ -58,7 +58,7 @@ def p2ms(m: int, pubkeys: Iterable[PubKey], network = 'mainnet') -> bytes:
     # FIXME: does P2MS work also with compressed key?
     compressed = False
     for pubkey in pubkeys:
-        pubkey = to_pubkey_bytes(pubkey, compressed, network)
+        pubkey = bytes_from_pubkey(pubkey, compressed, network)
         script.append(pubkey)
 
     # FIXME: handle script max length
@@ -77,7 +77,7 @@ def p2pkh(pubkey_h160: Octets) -> bytes:
     "Return the p2pkh scriptPubKey of the provided HASH160 pubkey."
 
     pubkey_h160 = bytes_from_octets(pubkey_h160, 20)
-    script = [
+    script: List[Token] = [
         'OP_DUP', 'OP_HASH160', pubkey_h160,
         'OP_EQUALVERIFY', 'OP_CHECKSIG'
     ]
@@ -111,7 +111,7 @@ def p2wpkh(pubkey_h160: Octets) -> bytes:
     """
 
     pubkey_h160 = bytes_from_octets(pubkey_h160, 20)
-    script = [0, pubkey_h160]
+    script: List[Token] = [0, pubkey_h160]
     return encode(script)
 
 
@@ -151,10 +151,10 @@ def address_from_scriptPubKey(s: Union[Iterable[Token], bytes],
     elif length == 22 and s[:2] == b'\x00\x14':
         return b32address_from_witness(0, s[2:], network)
     elif length == 23 and s[:2] == b'\xa9\x14' and s[-1:] == b'\x87':
-        prefix = _P2SH_PREFIXES[_NETWORKS.index(network)]
+        prefix = p2sh_prefix_from_network(network)
         return b58address_from_h160(prefix, s[2:length-1])
     elif length == 25 and s[:3] == b'\x76\xa9\x14' and s[-2:] == b'\x88\xac':
-        prefix = _P2PKH_PREFIXES[_NETWORKS.index(network)]
+        prefix = p2pkh_prefix_from_network(network)
         return b58address_from_h160(prefix, s[3:length-2])
     else:
         raise ValueError(f"No address for script {s.decode()}")
@@ -173,9 +173,9 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
             return p2wsh(witprog), network
         elif len_wprog == 20:
             return p2wpkh(witprog), network
-        else:
-            m = f"Unhandled witness program length ({len_wprog})"
-            raise ValueError(m)
+        else:  # witness_from_b32address has already checked witprog
+            m = f"Unhandled witness program length ({len_wprog})"  # pragma: no cover
+            raise ValueError(m)  # pragma: no cover
     else:
         _, h160, network, is_p2sh = h160_from_b58address(addr)
         if is_p2sh:

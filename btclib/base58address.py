@@ -17,10 +17,11 @@ from typing import List, Tuple, Union
 
 from .alias import Octets, PubKey, String, XkeyDict
 from .base58 import b58decode, b58encode
-from .base58wif import _pubkeytuple_from_xprvwif
 from .bip32 import deserialize
-from .network import _CURVES, _NETWORKS, _P2PKH_PREFIXES, _P2SH_PREFIXES
-from .to_pubkey import to_pubkey_bytes
+from .network import (_P2PKH_PREFIXES, _P2SH_PREFIXES,
+                      network_from_p2pkh_prefix, network_from_p2sh_prefix,
+                      p2pkh_prefix_from_network, p2sh_prefix_from_network)
+from .to_pubkey import bytes_from_pubkey, pubkeyinfo_from_xprvwif
 from .utils import bytes_from_octets, hash160, sha256
 
 
@@ -40,23 +41,22 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
     payload = b58decode(b58addr, 21)
     prefix = payload[0:1]
     if prefix in _P2PKH_PREFIXES:
-        i = _P2PKH_PREFIXES.index(prefix)
+        network = network_from_p2pkh_prefix(prefix)
         is_script_hash = False
     elif prefix in _P2SH_PREFIXES:
-        i = _P2SH_PREFIXES.index(prefix)
+        network = network_from_p2sh_prefix(prefix)
         is_script_hash = True
     else:
         raise ValueError(f"Invalid base58 address prefix {prefix!r}")
 
-    return prefix, payload[1:], _NETWORKS[i], is_script_hash
+    return prefix, payload[1:], network, is_script_hash
 
 
 def p2pkh(pubkey: PubKey, compressed: bool = True, network: str = 'mainnet') -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
-    network_index = _NETWORKS.index(network)
-    prefix = _P2PKH_PREFIXES[network_index]
-    pubkey = to_pubkey_bytes(pubkey, compressed, network)
+    prefix = p2pkh_prefix_from_network(network)
+    pubkey = bytes_from_pubkey(pubkey, compressed, network)
     h160 = hash160(pubkey)
     return b58address_from_h160(prefix, h160)
 
@@ -68,15 +68,14 @@ def p2pkh_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> bytes:
     (compressed/uncompressed) to use for the address.
     """
 
-    pubkey, compressed, network = _pubkeytuple_from_xprvwif(xkeywif)
+    pubkey, compressed, network = pubkeyinfo_from_xprvwif(xkeywif)
     return p2pkh(pubkey, compressed, network)
 
 
 def p2sh(script: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2sh address corresponding to a script."""
 
-    network_index = _NETWORKS.index(network)
-    prefix = _P2SH_PREFIXES[network_index]
+    prefix = p2sh_prefix_from_network(network)
     h160 = hash160(script)
     return b58address_from_h160(prefix, h160)
 
@@ -102,14 +101,14 @@ def _b58segwitaddress(wp: Octets, network: str) -> bytes:
 def p2wpkh_p2sh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
     """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
 
-    pubkey = to_pubkey_bytes(pubkey, True, network)
+    pubkey = bytes_from_pubkey(pubkey, True, network)
     h160 = hash160(pubkey)
     return _b58segwitaddress(h160, network)
 
 
 def p2wpkh_p2sh_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> bytes:
     """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
-    pubkey, compressed, network = _pubkeytuple_from_xprvwif(xkeywif)
+    pubkey, compressed, network = pubkeyinfo_from_xprvwif(xkeywif)
     if compressed:
         return p2wpkh_p2sh(pubkey, network)
     raise ValueError ("No p2wpkh-p2sh from compressed wif or xprv")

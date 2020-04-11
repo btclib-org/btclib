@@ -12,7 +12,7 @@ import unittest
 
 from btclib.base58address import b58address_from_h160
 from btclib.bech32address import b32address_from_witness
-from btclib.network import _NETWORKS, _P2PKH_PREFIXES
+from btclib.network import p2pkh_prefix_from_network
 from btclib.script import decode, encode
 from btclib.scriptpubkey import (address_from_scriptPubKey, nulldata, p2ms,
                                  p2pk, p2pkh, p2sh, p2wpkh, p2wsh,
@@ -38,7 +38,7 @@ class TestScriptPubKey(unittest.TestCase):
         scriptPubKey = p2pkh(pubkey_hash)
         self.assertEqual(scriptPubKey.hex(), "76a91412ab8dc588ca9d5787dde7eb29569da63c3a238c88ac")
         addr = address_from_scriptPubKey(scriptPubKey)
-        prefix = _P2PKH_PREFIXES[_NETWORKS.index('mainnet')]
+        prefix = p2pkh_prefix_from_network('mainnet')
         self.assertEqual(addr, b58address_from_h160(prefix, pubkey_hash))
 
         # Wrong size (33-bytes) for uncompressed SEC key
@@ -148,7 +148,7 @@ class TestScriptPubKey(unittest.TestCase):
 
         # p2sh (p2pkh-p2sh)
         redeem_script_hash = hash160(scriptPubKey)
-        scriptPubKey = p2sh(redeem_script_hash)
+        scriptPubKey = p2sh(script_exp)
         script = decode(scriptPubKey)
         script_exp = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
         self.assertEqual(script, script_exp)

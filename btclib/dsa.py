@@ -28,8 +28,8 @@ from .curvemult import _double_mult, _mult_jac
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
-from .to_prvkey import to_prvkey_int
-from .to_pubkey import to_pubkey_tuple
+from .to_prvkey import int_from_prvkey
+from .to_pubkey import point_from_pubkey
 from .utils import int_from_bits
 
 
@@ -94,12 +94,12 @@ def sign(msg: String, prvkey: PrvKey, k: Optional[PrvKey] = None,
 
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
-    q = to_prvkey_int(prvkey, ec)
+    q = int_from_prvkey(prvkey, ec)
 
     if k is None:
         k = _rfc6979(c, q, ec, hf)                # 1
     else:
-        k = to_prvkey_int(k, ec)
+        k = int_from_prvkey(k, ec)
 
     # second part delegated to helper function
     return _sign(c, q, k, ec)
@@ -156,7 +156,7 @@ def _verify(msg: String, Q: PubKey, sig: DSASig,
 
     c = _challenge(msg, ec, hf)                  # 2, 3
 
-    Q = to_pubkey_tuple(Q, ec)
+    Q = point_from_pubkey(Q, ec)
     QJ = Q[0], Q[1], 1 if Q[1] else 0
 
     # second part delegated to helper function

@@ -145,9 +145,9 @@ from hashlib import sha256
 from typing import Optional, Tuple, Union
 
 from . import bip32, dsa
-from .alias import BMSig, BMSigTuple, String
+from .alias import BMSig, BMSigTuple, String, XkeyDict
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
-from .base58wif import prvkeytuple_from_xprvwif
+from .to_prvkey import prvkey_info_from_xprvwif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .curves import secp256k1
@@ -199,7 +199,7 @@ def _magic_hash(msg: String) -> bytes:
 
 # Note it must be a prvkey including compressed information
 # TODO make compressed a default to relax the above note
-def sign(msg: String, prvkey: Union[String, bip32.XkeyDict],
+def sign(msg: String, prvkey: Union[String, XkeyDict],
          addr: Optional[String] = None) -> BMSigTuple:
     """Generate address-based compact signature for the provided message."""
 
@@ -209,7 +209,7 @@ def sign(msg: String, prvkey: Union[String, bip32.XkeyDict],
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, compressed, _ = prvkeytuple_from_xprvwif(prvkey)
+    q, compressed, _ = prvkey_info_from_xprvwif(prvkey)
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id

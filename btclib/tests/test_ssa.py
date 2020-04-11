@@ -71,8 +71,8 @@ class TestSSA(unittest.TestCase):
         #ssa._recover_pubkeys(0, sig)
 
         # not a BIP340 public key
-        self.assertRaises(ValueError, ssa.to_bip340_pubkey_tuple, ["not", "a BIP340", "public key"])
-        #ssa.to_bip340_pubkey_tuple(["not", "a BIP340", "public key"])
+        self.assertRaises(ValueError, ssa.to_bip340_point, ["not", "a BIP340", "public key"])
+        #ssa.to_bip340_point(["not", "a BIP340", "public key"])
 
     def test_bip340_vectors(self):
         """BIP340 (Schnorr) test vectors

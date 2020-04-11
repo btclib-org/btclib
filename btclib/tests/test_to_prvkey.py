@@ -14,12 +14,12 @@ from btclib import bip32
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_xprv
 from btclib.curves import secp256k1 as ec
-from btclib.to_prvkey import to_prvkey_int
+from btclib.to_prvkey import int_from_prvkey
 
 
 class TestToPrvKey(unittest.TestCase):
 
-    def test_to_prvkey_int(self):
+    def test_int_from_prvkey(self):
 
         # BIP32
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
@@ -33,39 +33,39 @@ class TestToPrvKey(unittest.TestCase):
         qhex = qbytes.hex()
         # int
         q = xprv_dict['q']
-        self.assertEqual(q, to_prvkey_int(q))
+        self.assertEqual(q, int_from_prvkey(q))
         # bytes
-        self.assertEqual(q, to_prvkey_int(qbytes))
-        self.assertRaises(ValueError, to_prvkey_int, b'\x00' + qbytes)
-        self.assertEqual(q, to_prvkey_int(qhex))
-        self.assertEqual(q, to_prvkey_int(' ' + qhex + ' '))
-        self.assertRaises(ValueError, to_prvkey_int, qhex + '00')
+        self.assertEqual(q, int_from_prvkey(qbytes))
+        self.assertRaises(ValueError, int_from_prvkey, b'\x00' + qbytes)
+        self.assertEqual(q, int_from_prvkey(qhex))
+        self.assertEqual(q, int_from_prvkey(' ' + qhex + ' '))
+        self.assertRaises(ValueError, int_from_prvkey, qhex + '00')
         # WIF
-        self.assertEqual(q, to_prvkey_int(wif))
-        self.assertRaises(ValueError, to_prvkey_int, wif + b'\x00')
-        self.assertEqual(q, to_prvkey_int(wif_str))
-        self.assertEqual(q, to_prvkey_int(' ' + wif_str + ' '))
+        self.assertEqual(q, int_from_prvkey(wif))
+        self.assertRaises(ValueError, int_from_prvkey, wif + b'\x00')
+        self.assertEqual(q, int_from_prvkey(wif_str))
+        self.assertEqual(q, int_from_prvkey(' ' + wif_str + ' '))
         # BIP32
-        self.assertEqual(q, to_prvkey_int(xprv))
-        self.assertRaises(ValueError, to_prvkey_int, xprv + b'\x00')
-        self.assertEqual(q, to_prvkey_int(xprv_str))
-        self.assertEqual(q, to_prvkey_int(' ' + xprv_str + ' '))
-        self.assertEqual(q, to_prvkey_int(xprv_dict))
+        self.assertEqual(q, int_from_prvkey(xprv))
+        self.assertRaises(ValueError, int_from_prvkey, xprv + b'\x00')
+        self.assertEqual(q, int_from_prvkey(xprv_str))
+        self.assertEqual(q, int_from_prvkey(' ' + xprv_str + ' '))
+        self.assertEqual(q, int_from_prvkey(xprv_dict))
 
         # wrong private key int
         q = ec.n
-        self.assertRaises(ValueError, to_prvkey_int, q)
+        self.assertRaises(ValueError, int_from_prvkey, q)
         # bytes
         qbytes = q.to_bytes(32, byteorder='big')
         qhex = qbytes.hex()
-        self.assertRaises(ValueError, to_prvkey_int, qbytes)
-        self.assertRaises(ValueError, to_prvkey_int, qhex)
+        self.assertRaises(ValueError, int_from_prvkey, qbytes)
+        self.assertRaises(ValueError, int_from_prvkey, qhex)
         # WIF
         t = b'\x80' + qbytes + b'\x01'
         wif = b58encode(t)
         wif_str = wif.decode('ascii')
-        self.assertRaises(ValueError, to_prvkey_int, wif)
-        self.assertRaises(ValueError, to_prvkey_int, wif_str)
+        self.assertRaises(ValueError, int_from_prvkey, wif)
+        self.assertRaises(ValueError, int_from_prvkey, wif_str)
         # BIP32
         t = xprv_dict['version']
         t += xprv_dict['depth'].to_bytes(1, 'big')
@@ -75,23 +75,23 @@ class TestToPrvKey(unittest.TestCase):
         t += b'\x00' + qbytes
         xprv = b58encode(t)
         xprv_str = xprv.decode('ascii')
-        self.assertRaises(ValueError, to_prvkey_int, xprv)
-        self.assertRaises(ValueError, to_prvkey_int, xprv_str)
+        self.assertRaises(ValueError, int_from_prvkey, xprv)
+        self.assertRaises(ValueError, int_from_prvkey, xprv_str)
 
         # wrong private key int
         q = 0
-        self.assertRaises(ValueError, to_prvkey_int, q)
+        self.assertRaises(ValueError, int_from_prvkey, q)
         # bytes
         qbytes = q.to_bytes(32, byteorder='big')
         qhex = qbytes.hex()
-        self.assertRaises(ValueError, to_prvkey_int, qbytes)
-        self.assertRaises(ValueError, to_prvkey_int, qhex)
+        self.assertRaises(ValueError, int_from_prvkey, qbytes)
+        self.assertRaises(ValueError, int_from_prvkey, qhex)
         # WIF
         t = b'\x80' + qbytes + b'\x01'
         wif = b58encode(t)
         wif_str = wif.decode('ascii')
-        self.assertRaises(ValueError, to_prvkey_int, wif)
-        self.assertRaises(ValueError, to_prvkey_int, wif_str)
+        self.assertRaises(ValueError, int_from_prvkey, wif)
+        self.assertRaises(ValueError, int_from_prvkey, wif_str)
         # BIP32
         t = xprv_dict['version']
         t += xprv_dict['depth'].to_bytes(1, 'big')
@@ -101,12 +101,12 @@ class TestToPrvKey(unittest.TestCase):
         t += b'\x00' + qbytes
         xprv = b58encode(t)
         xprv_str = xprv.decode('ascii')
-        self.assertRaises(ValueError, to_prvkey_int, xprv)
-        self.assertRaises(ValueError, to_prvkey_int, xprv_str)
+        self.assertRaises(ValueError, int_from_prvkey, xprv)
+        self.assertRaises(ValueError, int_from_prvkey, xprv_str)
 
         # pub key
         xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
-        self.assertRaises(ValueError, to_prvkey_int, xpub)
+        self.assertRaises(ValueError, int_from_prvkey, xpub)
 
 
 if __name__ == "__main__":

@@ -8,27 +8,29 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Optional, Union
+from typing import Tuple, Union
 
 from . import bip32
-from .alias import Octets, Point, PubKey, XkeyDict
+from .alias import Octets, Point, PubKey, String, XkeyDict
 from .curve import Curve
+from .curvemult import mult
 from .curves import secp256k1
-from .network import curve_from_bip32version, curve_from_network, _pub_versions_from_network
+from .network import (_xpub_versions_from_network, curve_from_xpubversion,
+                      curve_from_network)
 from .secpoint import bytes_from_point, point_from_octets
+from .to_prvkey import prvkey_info_from_xprvwif
 from .utils import bytes_from_octets
 
 
-def _pubkey_tuple_from_dict(d: XkeyDict, ec: Curve) -> Point:
-    if d['key'][0] in (2, 3):
-        if ec != curve_from_bip32version(d['version']):
-            m = f"ec / xpub version ({d['version']!r}) mismatch"
-            raise ValueError(m)
-        return point_from_octets(d['key'], ec)
-    raise ValueError(f"Not a public key: {d['key'].hex()}")
+def _point_from_xpub(xpubd: XkeyDict, ec: Curve) -> Point:
+    if xpubd['key'][0] in (2, 3):
+        ec2 = curve_from_xpubversion(xpubd['version'])
+        assert ec == ec2, f"ec/xpub version ({xpubd['version']!r}) mismatch"
+        return point_from_octets(xpubd['key'], ec)
+    raise ValueError(f"Not a public key: {xpubd['key'].hex()}")
 
 
-def to_pubkey_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
+def point_from_pubkey(P: PubKey, ec: Curve = secp256k1) -> Point:
     """Return a point tuple from any possible pubkey representation.
 
     It supports:
@@ -43,32 +45,33 @@ def to_pubkey_tuple(P: PubKey, ec: Curve = secp256k1) -> Point:
             return P
         raise ValueError(f"Not a public key: {P}")
     elif isinstance(P, dict):
-        return _pubkey_tuple_from_dict(P, ec)
+        return _point_from_xpub(P, ec)
     else:
         try:
             xkey = bip32.deserialize(P)
         except Exception:
             pass
         else:
-            return _pubkey_tuple_from_dict(xkey, ec)
+            return _point_from_xpub(xkey, ec)
 
     return point_from_octets(P, ec)
 
 
-def _to_pubkey_bytes_from_dict(d: XkeyDict, compressed: bool, network: str) -> bytes:
-        if not compressed:
-            m = "Uncompressed SEC / compressed BIP32 key mismatch"
+def _bytes_from_xpub(xpubd: XkeyDict, compr: bool, network: str) -> bytes:
+        if not compr:
+            m = "Uncompressed SEC / compr BIP32 key mismatch"
             raise ValueError(m)
-        if d['version'] not in _pub_versions_from_network(network):
+        if xpubd['version'] not in _xpub_versions_from_network(network):
             m = f"network ({network}) / "
-            m += f"BIP32 key ({bip32.serialize(d).decode()}) mismatch"
+            m += f"BIP32 key ({bip32.serialize(xpubd).decode()}) mismatch"
             raise ValueError(m)
-        if d['key'][0] in (2, 3):
-            return d['key']
-        raise ValueError(f"Not a public key: {d['key'].hex()}")
+        if xpubd['key'][0] in (2, 3):
+            return xpubd['key']
+        raise ValueError(f"Not a public key: {xpubd['key'].hex()}")
 
 
-def to_pubkey_bytes(P: PubKey, compressed: bool = True, network: str = 'mainnet') -> bytes:
+def bytes_from_pubkey(P: PubKey,
+                      compr: bool = True, network: str = 'mainnet') -> bytes:
     """Return SEC bytes from any possible pubkey representation.
 
     It supports:
@@ -80,24 +83,33 @@ def to_pubkey_bytes(P: PubKey, compressed: bool = True, network: str = 'mainnet'
 
     if isinstance(P, tuple):
         ec = curve_from_network(network)
-        return bytes_from_point(P, compressed, ec)
+        return bytes_from_point(P, compr, ec)
     elif isinstance(P, dict):
-        return _to_pubkey_bytes_from_dict(P, compressed, network)
+        return _bytes_from_xpub(P, compr, network)
     else:
         try:
             xkey = bip32.deserialize(P)
         except Exception:
             pass
         else:
-            return _to_pubkey_bytes_from_dict(xkey, compressed, network)
+            return _bytes_from_xpub(xkey, compr, network)
 
     ec = curve_from_network(network)
     pubkey = bytes_from_octets(P)
-    if not compressed and len(pubkey) != 2*ec.psize + 1:
+    if not compr and len(pubkey) != 2*ec.psize + 1:
         m = f"Wrong size ({len(pubkey)}-bytes) for uncompressed SEC key"
         raise ValueError(m)
-    if compressed and len(pubkey) != ec.psize + 1:
-        m = f"Wrong size ({len(pubkey)}-bytes) for compressed SEC key"
+    if compr and len(pubkey) != ec.psize + 1:
+        m = f"Wrong size ({len(pubkey)}-bytes) for compr SEC key"
         raise ValueError(m)
     Q = point_from_octets(pubkey, ec)  # verify it is a valid point
-    return bytes_from_point(Q, compressed, ec)
+    return bytes_from_point(Q, compr, ec)
+
+
+def pubkeyinfo_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[bytes, bool, str]:
+
+    prvkey, compr, network = prvkey_info_from_xprvwif(xprvwif)
+    ec = curve_from_network(network)
+    Pub = mult(prvkey, ec.G, ec)
+    pubkey = bytes_from_point(Pub, compr, ec)
+    return pubkey, compr, network

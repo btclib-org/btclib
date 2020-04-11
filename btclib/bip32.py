@@ -42,26 +42,18 @@ from .base58 import b58decode, b58encode
 from .curvemult import mult
 from .curves import secp256k1 as ec
 from .mnemonic import Mnemonic
-from .network import (_NETWORKS, _P2WPKH_P2SH_PRV_PREFIXES,
-                      _P2WPKH_P2SH_PUB_PREFIXES, _P2WPKH_PRV_PREFIXES,
-                      _P2WPKH_PUB_PREFIXES, _P2WSH_P2SH_PRV_PREFIXES,
-                      _P2WSH_P2SH_PUB_PREFIXES, _P2WSH_PRV_PREFIXES,
-                      _P2WSH_PUB_PREFIXES, _PRV_VERSIONS_ALL, _PUB_VERSIONS_ALL,
-                      _REPEATED_NETWORKS, _XPRV_PREFIXES, _XPUB_PREFIXES,
-                      MAIN_xprv, MAIN_xpub, MAIN_yprv, MAIN_Yprv, MAIN_ypub,
-                      MAIN_Ypub, MAIN_zprv, MAIN_Zprv, MAIN_zpub, MAIN_Zpub,
-                      TEST_tprv, TEST_tpub, TEST_uprv, TEST_Uprv, TEST_upub,
-                      TEST_Upub, TEST_vprv, TEST_Vprv, TEST_vpub, TEST_Vpub)
+from .network import (_NETWORKS, _P2WPKH_PRV_PREFIXES, _XPRV_PREFIXES,
+                      _XPRV_VERSIONS_ALL, _XPUB_VERSIONS_ALL, MAIN_xprv)
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, hash160
 
 
 def _check_version_key(v: bytes, k: bytes) -> None:
 
-    if v in _PRV_VERSIONS_ALL:
+    if v in _XPRV_VERSIONS_ALL:
         if k[0] != 0:
             raise ValueError("prv_version/pubkey mismatch")
-    elif v in _PUB_VERSIONS_ALL:
+    elif v in _XPUB_VERSIONS_ALL:
         if k[0] not in (2, 3):
             raise ValueError("pub_version/prvkey mismatch")
     else:
@@ -178,10 +170,8 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     hd = hmac.digest(b"Bitcoin seed", seed, 'sha512')
     k = b'\x00' + hd[:32]
     v = bytes_from_octets(version)
-    # FIXME restore the check
-    #if v not in _PRV_VERSIONS_ALL:
-    #    raise ValueError(f"unknown extended private key version {v!r}")
-    network = _REPEATED_NETWORKS[_PRV_VERSIONS_ALL.index(v)]
+    if v not in _XPRV_VERSIONS_ALL:
+        raise ValueError(f"unknown extended private key version {v!r}")
 
     d: XkeyDict = {
         'version'            : v,
@@ -215,13 +205,13 @@ def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
     """
 
     version, seed = electrum._seed_from_mnemonic(mnemonic, passphrase)
-    prefix = _NETWORKS.index(network)
+    network_index = _NETWORKS.index(network)
 
     if version == 'standard':
-        xversion = _XPRV_PREFIXES[prefix]
+        xversion = _XPRV_PREFIXES[network_index]
         return rootxprv_from_seed(seed, xversion)
     elif version == 'segwit':
-        xversion = _P2WPKH_PRV_PREFIXES[prefix]
+        xversion = _P2WPKH_PRV_PREFIXES[network_index]
         rootxprv = rootxprv_from_seed(seed, xversion)
         return derive(rootxprv, 0x80000000)  # "m/0h"
     else:
@@ -246,7 +236,7 @@ def xpub_from_xprv(d: Union[XkeyDict, String]) -> bytes:
     d['Q'] = mult(d['q'])
     d['key'] = bytes_from_point(d['Q'], True, ec)
     d['q'] = 0
-    d['version'] = _PUB_VERSIONS_ALL[_PRV_VERSIONS_ALL.index(d['version'])]
+    d['version'] = _XPUB_VERSIONS_ALL[_XPRV_VERSIONS_ALL.index(d['version'])]
 
     return serialize(d)
 

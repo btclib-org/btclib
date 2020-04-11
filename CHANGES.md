@@ -8,12 +8,13 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- refactorred to_pub and to_prv functions
+- added network <-> prefix <-> curve functions in network module
 - removed trailing _scriptPubKey suffix from the function names
   in the scriptPubKey module
 - tests are now distributed as btclib.tests subpackage
 - removed p2pkh_from_xpub, p2wpkh_p2sh_from_xpub, and p2wpkh_from_xpub
-  (use p2pkh, p2wpkh, and p2wpkh instead);
-  changed _to_pubkey_bytes_from_dict signature (network instead of curve)
+  (use p2pkh, p2wpkh, and p2wpkh instead)
 - introduced CurveGroup and CurveSubGroup as grand-parent and parent
   of Curve. Also, renamed ec._p as ec.p and removed default parameters
   from double_mult

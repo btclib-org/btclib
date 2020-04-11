@@ -16,12 +16,13 @@ from btclib.base58address import (_b58segwitaddress, b58address_from_h160,
                                   h160_from_b58address, p2pkh, p2pkh_from_xprvwif,
                                   p2sh, p2wpkh_p2sh, p2wpkh_p2sh_from_xprvwif,
                                   p2wsh_p2sh)
-from btclib.base58wif import prvkeytuple_from_wif, wif_from_xprv
+from btclib.base58wif import wif_from_xprv
+from btclib.to_prvkey import prvkey_info_from_wif
 from btclib.bech32address import p2wpkh_from_xprvwif, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
-from btclib.to_pubkey import to_pubkey_bytes
+from btclib.to_pubkey import bytes_from_pubkey
 from btclib.utils import hash160, sha256
 
 
@@ -133,7 +134,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
 
-        b58addr = _b58segwitaddress(hash160(to_pubkey_bytes(pub, True, network)), network)
+        b58addr = _b58segwitaddress(hash160(bytes_from_pubkey(pub, True, network)), network)
         _, h160_2, network2, is_script_hash = h160_from_b58address(b58addr)
         self.assertEqual(network2, network)
         self.assertEqual(is_script_hash, True)  #?!?!?
@@ -177,7 +178,7 @@ class TestAddresses(unittest.TestCase):
         b = p2wpkh_p2sh_from_xprvwif(wif2)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
-        self.assertEqual(prvkeytuple_from_wif(wif1)[0], prvkeytuple_from_wif(wif2)[0])
+        self.assertEqual(prvkey_info_from_wif(wif1)[0], prvkey_info_from_wif(wif2)[0])
 
         # uncompressed testnet
         wif1 = "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
@@ -196,7 +197,7 @@ class TestAddresses(unittest.TestCase):
         b = p2wpkh_p2sh_from_xprvwif(wif2)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
-        self.assertEqual(prvkeytuple_from_wif(wif1)[0], prvkeytuple_from_wif(wif2)[0])
+        self.assertEqual(prvkey_info_from_wif(wif1)[0], prvkey_info_from_wif(wif2)[0])
 
         # uncompressed mainnet, trailing/leading spaces in string
         wif1 = "  5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"

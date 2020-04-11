@@ -21,7 +21,7 @@ from btclib.bip32 import (crack_prvkey, derive, deserialize, fingerprint,
                           serialize, xpub_from_xprv)
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
-from btclib.network import (_PRV_VERSIONS_ALL, MAIN_xprv, MAIN_yprv, MAIN_Yprv,
+from btclib.network import (MAIN_xprv, MAIN_yprv, MAIN_Yprv,
                             MAIN_zprv, MAIN_Zprv, TEST_tprv, TEST_uprv,
                             TEST_Uprv, TEST_vprv, TEST_Vprv)
 
@@ -117,12 +117,9 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = _PRV_VERSIONS_ALL[0]
 
         seed = "000102030405060708090a0b0c0d0e0f"
-        rootxprv = rootxprv_from_seed(seed, xkey_version)
-        self.assertEqual(rootxprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
-        rootxprv = rootxprv_from_seed(seed, xkey_version.hex())
+        rootxprv = rootxprv_from_seed(seed)
         self.assertEqual(rootxprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         rootxpub = xpub_from_xprv(rootxprv)  # neutering
         self.assertEqual(rootxpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
@@ -188,10 +185,9 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = _PRV_VERSIONS_ALL[0]
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
-        rootxprv = rootxprv_from_seed(seed, xkey_version)
+        rootxprv = rootxprv_from_seed(seed)
         self.assertEqual(rootxprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
         rootxpub = xpub_from_xprv(rootxprv)  # neutering
         self.assertEqual(rootxpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
@@ -260,10 +256,9 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
         """
-        xkey_version = _PRV_VERSIONS_ALL[0]
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
-        rootxprv = rootxprv_from_seed(seed, xkey_version)
+        rootxprv = rootxprv_from_seed(seed)
         self.assertEqual(rootxprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         rootxpub = xpub_from_xprv(rootxprv)  # neutering
         self.assertEqual(rootxpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
@@ -297,10 +292,9 @@ class TestBIP32(unittest.TestCase):
         with open(filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed
-        xkey_version = _PRV_VERSIONS_ALL[0]
         for test_vector in test_vectors:
             seed = test_vector[2]
-            rootxprv = rootxprv_from_seed(seed, xkey_version)
+            rootxprv = rootxprv_from_seed(seed)
             self.assertEqual(rootxprv, test_vector[3].encode('ascii'))
 
     def test_mainnet(self):
@@ -325,10 +319,9 @@ class TestBIP32(unittest.TestCase):
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
-        xkey_version = _PRV_VERSIONS_ALL[0]
         seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
         seed = bytes.fromhex(seed)
-        xprv = rootxprv_from_seed(seed, xkey_version)
+        xprv = rootxprv_from_seed(seed)
         xpub = b'xpub661MyMwAqRbcFMYjmw8C6dJV97a4oLss6hb3v9wTQn2X48msQB61RCaLGtNhzgPCWPaJu7SvuB9EBSFCL43kTaFJC3owdaMka85uS154cEh'
         self.assertEqual(xpub_from_xprv(xprv), xpub)
 
@@ -692,7 +685,7 @@ class TestBIP32(unittest.TestCase):
     def test_rootxprv_from_mnemonic(self):
         mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
         passphrase = ''
-        rootxprv = rootxprv_from_bip39mnemonic(mnemonic, passphrase, _PRV_VERSIONS_ALL[0])
+        rootxprv = rootxprv_from_bip39mnemonic(mnemonic, passphrase)
         exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(rootxprv, exp)
 

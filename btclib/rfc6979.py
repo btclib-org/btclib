@@ -41,21 +41,21 @@ from typing import Union
 
 from btclib import bip32
 
-from .alias import HashF, Octets
+from .alias import HashF, Octets, XkeyDict
 from .curve import Curve
 from .curves import secp256k1
-from .to_prvkey import to_prvkey_int
+from .to_prvkey import int_from_prvkey
 from .utils import bytes_from_octets, int_from_bits
 
 
-def rfc6979(mhd: Octets, prvkey: Union[int, bytes, str, bip32.XkeyDict],
+def rfc6979(mhd: Octets, prvkey: Union[int, bytes, str, XkeyDict],
             ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
     hsize = hf().digest_size
     mhd = bytes_from_octets(mhd, hsize)
 
-    q = to_prvkey_int(prvkey, ec)
+    q = int_from_prvkey(prvkey, ec)
 
     c = int_from_bits(mhd, ec.nlen) % ec.n  # leftmost ec.nlen bits %= ec.n
     return _rfc6979(c, q, ec, hf)
