@@ -1,1 +1,3 @@
-include LICENSE AUTHORS.md requirements.txt
+include LICENSE
+include *.md
+include requirements.txt
