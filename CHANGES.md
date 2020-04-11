@@ -1,24 +1,25 @@
 # Release notes
 
-All notable changes to this project will be documented in this file.
-Release names follow [Calendar Versioning](https://calver.org/):
+Notable changes to the codebase are documented here.
+Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-MM-DD)
 
-## current master branch
+## current master branch (unreleased yet)
 
 Major changes includes:
 
+- tests are now distributed as btclib.tests subpackage
 - removed p2pkh_from_xpub, p2wpkh_p2sh_from_xpub, and p2wpkh_from_xpub
   (use p2pkh, p2wpkh, and p2wpkh instead);
   changed _to_pubkey_bytes_from_dict signature (network instead of curve)
 - introduced CurveGroup and CurveSubGroup as grand-parent and parent
-  of Curve. Also, renamed ec._p as ec.p and removed default ec.G
+  of Curve. Also, renamed ec._p as ec.p and removed default parameters
   from double_mult
 - the usage of DER (de)serialization is advocated through
   dsa.(de)serialize, similarly to ssa.(de)serialize
   and btcmsg.(de)serialize; therefore, the corresponding
   der.py functions have been renamed with leading underscore
-- introduced Sig and SigTuple for DSA, BTCMSG, and SSA
+- introduced XXXSig and XXXSigTuple for XXX = DSA, BTCMSG, and SSA
 
 ## v2020.4.7
 
