@@ -130,7 +130,7 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
         sigsize = len(sig)
         if not minsize <= sigsize <= maxsize:
             errmsg = f"DER signature size ({sigsize}) must be in "
-            errmsg += f"[9, {maxsize}]"
+            errmsg += f"{minsize}, {maxsize}]"
             raise ValueError(errmsg)
 
         if sig[0] != 0x30:

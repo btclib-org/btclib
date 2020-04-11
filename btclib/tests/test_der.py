@@ -20,15 +20,15 @@ class TestDER(unittest.TestCase):
 
         sighash_all = b'\x01'
 
+        sig9   =          1,          1
         sig73  =   ec.n - 1,   ec.n - 1
         sig72  = 2**255 - 1,   ec.n - 1
         sig71  = 2**255 - 1, 2**255 - 1
         sig71b = 2**255 - 1, 2**248 - 1
         sig70  = 2**255 - 1, 2**247 - 1
         sig69  = 2**247 - 1, 2**247 - 1
-        sig9   =          1,          1
-        sigs = [sig73, sig72, sig71, sig71b, sig70, sig69, sig9]
-        lenghts = [73, 72, 71, 71, 70, 69, 9]
+        sigs = [sig9, sig73, sig72, sig71, sig71b, sig70, sig69]
+        lenghts = [9, 73, 72, 71, 71, 70, 69]
 
         for lenght, sig in zip(lenghts, sigs):
             dersig = _serialize(*sig, sighash_all)
@@ -50,7 +50,7 @@ class TestDER(unittest.TestCase):
         self.assertRaises(ValueError, _deserialize, badsig)
         #_deserialize(badsig)
 
-        # DER signature size should be in [9, 73]
+        # DER signature size should be in [8, 73]
         dersig2 = dersig + b'\x00' * 70
         self.assertRaises(ValueError, _deserialize, dersig2)
 
@@ -90,6 +90,7 @@ class TestDER(unittest.TestCase):
         # Invalid null bytes at the start of r
         dersig2 = dersig[:4] + b'\x00\x00' + dersig[6:]
         self.assertRaises(ValueError, _deserialize, dersig2)
+        #deserialize(dersig2)
 
         # s scalar must be an integer
         dersig2 = dersig[:Rsize+4] + b'\x00' + dersig[Rsize+5:]
