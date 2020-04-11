@@ -22,12 +22,10 @@ where Token = Union[int, str, bytes]:
 
 from io import BytesIO
 from typing import BinaryIO, Iterable, List, Union
-from alias import Token, Script
 
 from . import varint
-from .alias import Octets
+from .alias import Octets, Script, Token
 from .utils import bytes_from_octets
-
 
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
