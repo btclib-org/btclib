@@ -30,6 +30,11 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(scriptPubKey.hex(), "4104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac")
         # no address for this script
 
+        # Wrong size (33-bytes) for uncompressed SEC key
+        pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        self.assertRaises(ValueError, p2pk, pubkey)
+        #p2pk(pubkey)
+
     def test_p2pkh(self):
         # https://learnmeabitcoin.com/guide/p2pkh
         # script = ['OP_DUP', 'OP_HASH160', pubkey_hash.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
@@ -40,11 +45,6 @@ class TestScriptPubKey(unittest.TestCase):
         addr = address_from_scriptPubKey(scriptPubKey)
         prefix = p2pkh_prefix_from_network('mainnet')
         self.assertEqual(addr, b58address_from_h160(prefix, pubkey_hash))
-
-        # Wrong size (33-bytes) for uncompressed SEC key
-        pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        self.assertRaises(ValueError, p2pk, pubkey)
-        #p2pk(pubkey)
 
         # Invalid size: 11 bytes instead of 20
         self.assertRaises(ValueError, p2pkh, "00"*11)

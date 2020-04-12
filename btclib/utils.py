@@ -16,9 +16,9 @@ https://www.secg.org/sec1-v2.pdf
 """
 
 import hashlib
-from typing import Optional, Union
+from typing import Optional
 
-from .alias import HashF, Octets
+from .alias import Octets
 
 # hexstr_from_bytes is not needed!!
 #def hexstr_from_bytes(byte_str: bytes) -> str:

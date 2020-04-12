@@ -67,6 +67,7 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     return R, (e + k) % ec.n
 
 
+# TODO accept PrvKey
 def ecdsa_commit_sign(c: Octets, m: Octets,
                       q: Union[int, bytes, str, XkeyDict],
                       k: Optional[int] = None,
@@ -96,6 +97,7 @@ def ecdsa_commit_sign(c: Octets, m: Octets,
     return sig, receipt
 
 
+# TODO accept PrvKey
 def ecssa_commit_sign(c: Octets, m: Octets,
                       q: Union[int, bytes, str, XkeyDict],
                       k: Optional[int] = None,

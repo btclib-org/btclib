@@ -57,8 +57,7 @@ def point_from_pubkey(P: PubKey, ec: Curve = secp256k1) -> Point:
     return point_from_octets(P, ec)
 
 
-def _bytes_from_xpub(xpubd: XkeyDict,
-                     compressed: Optional[bool] = None,
+def _bytes_from_xpub(xpubd: XkeyDict, compressed: Optional[bool] = None,
                      network: Optional[str] = None) -> Tuple[bytes, str]:
 
     if xpubd['key'][0] not in (2, 3):

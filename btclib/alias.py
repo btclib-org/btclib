@@ -144,4 +144,4 @@ SSASig = Union[SSASigTuple, Octets]
 # ascii str are for opcodes (e.g. 'OP_HASH160')
 # Octets are for data to be pushed
 Token = Union[int, str, bytes]
-Script = Union[bytes, Iterable[Token]]
+Script = Union[bytes, List[Token]]

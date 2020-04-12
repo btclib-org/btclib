@@ -147,6 +147,7 @@ def serialize(d: XkeyDict) -> bytes:
     return b58encode(t)
 
 
+# TODO accept a generic PubKey
 def fingerprint(d: Union[XkeyDict, String]) -> bytes:
 
     if not isinstance(d, dict):

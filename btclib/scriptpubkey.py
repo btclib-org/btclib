@@ -36,6 +36,7 @@ def nulldata(data: Octets) -> bytes:
     script: List[Token] = ['OP_RETURN', data]
     return encode(script)
 
+
 def p2pk(pubkey: PubKey) -> bytes:
     "Return the p2pk scriptPubKey of the provided pubkey."
 
@@ -87,8 +88,8 @@ def p2sh(script: Union[Octets, List[Token]]) -> bytes:
     """Return the p2sh scriptPubKey of the script (hashed or not).
     
     Warning: the input must be the HASH160 20-byte script-hash or
-    the List[Token] script; byte encoded script is not supported, as
-    it cannot be reliably differentiated from the HASH160(script).
+    the List[Token] script; byte encoded script is not supported,
+    as it cannot be reliably differentiated from the HASH160(script).
     """
 
     if isinstance(script, list):
@@ -118,8 +119,8 @@ def p2wsh(script: Union[Octets, List[Token]]) -> bytes:
     """Return the p2wsh scriptPubKey of the script (hashed or not).
     
     Warning: the input must be the SHA256 32-byte script-hash or
-    the List[Token] script; byte encoded script is not supported, as
-    it cannot be reliably differentiated from the SHA256(script).
+    the List[Token] script; byte encoded script is not supported,
+    as it cannot be reliably differentiated from the SHA256(script).
 
     The scriptPubkey is the witness version 0 followed by the
     canonical push of the witness program (program lenght + program),
