@@ -22,7 +22,7 @@ from .utils import bytes_from_octets
 PrvKey = Union[int, bytes, str, XkeyDict]
 
 
-def prvkey_info_from_wif(wif: String) -> Tuple[int, bool, str]:
+def _prvkey_info_from_wif(wif: String) -> Tuple[int, bool, str]:
     "Return (prvkey, compressed, network) info from WIF."
 
     if isinstance(wif, str):
@@ -51,7 +51,7 @@ def prvkey_info_from_wif(wif: String) -> Tuple[int, bool, str]:
     return q, compressed, network
 
 
-def prvkey_info_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
+def _prvkey_info_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
     "Return (prvkey, compressed, network) info from BIP32xprv."
 
     if not isinstance(xprv, dict):
@@ -64,7 +64,7 @@ def prvkey_info_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, bool, str
     return xprv['q'], True, network
 
 
-def prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
+def _prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
     """Return (prvkey, compressed, network) info from WIF or BIP32xprv.
 
     Support WIF or BIP32 xprv.
@@ -72,11 +72,11 @@ def prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, boo
 
     if not isinstance(xprvwif, dict):
         try:
-            return prvkey_info_from_wif(xprvwif)
+            return _prvkey_info_from_wif(xprvwif)
         except Exception:
             pass
 
-    return prvkey_info_from_xprv(xprvwif)
+    return _prvkey_info_from_xprv(xprvwif)
 
 
 def prvkey_info_from_prvkey(prvkey: PrvKey,
@@ -90,7 +90,7 @@ def prvkey_info_from_prvkey(prvkey: PrvKey,
     if isinstance(prvkey, int):
         q = prvkey
     elif isinstance(prvkey, dict):
-        q, compr, net = prvkey_info_from_xprvwif(prvkey)
+        q, compr, net = _prvkey_info_from_xprv(prvkey)
         if compressed is not None:
             assert compr == compressed
         if network is not None:
@@ -98,7 +98,7 @@ def prvkey_info_from_prvkey(prvkey: PrvKey,
         return q, compr, net
     else:
         try:
-            q, compr, net = prvkey_info_from_xprvwif(prvkey)
+            q, compr, net = _prvkey_info_from_xprvwif(prvkey)
         except Exception:
             pass
         else:
@@ -131,14 +131,14 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     if isinstance(prvkey, int):
         q = prvkey
     elif isinstance(prvkey, dict):
-        q, _, network = prvkey_info_from_xprvwif(prvkey)
+        q, _, network = _prvkey_info_from_xprvwif(prvkey)
         # q has been validated on the xprv/wif network
         ec2 =  curve_from_network(network)
         assert ec == ec2, f"ec / network ({network}) mismatch"
         return q
     else:
         try:
-            q, _, network = prvkey_info_from_xprvwif(prvkey)
+            q, _, network = _prvkey_info_from_xprvwif(prvkey)
         except Exception:
             pass
         else:

@@ -20,7 +20,7 @@ from btclib.bech32address import p2wpkh, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
-from btclib.to_prvkey import prvkey_info_from_wif
+from btclib.to_prvkey import prvkey_info_from_prvkey
 from btclib.to_pubkey import bytes_from_pubkey, pubkey_info_from_prvkey
 from btclib.utils import hash160, sha256
 
@@ -181,7 +181,7 @@ class TestAddresses(unittest.TestCase):
         b = p2wpkh_p2sh(pubkey)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
-        self.assertEqual(prvkey_info_from_wif(wif1)[0], prvkey_info_from_wif(wif2)[0])
+        self.assertEqual(prvkey_info_from_prvkey(wif1)[0], prvkey_info_from_prvkey(wif2)[0])
 
         # uncompressed testnet
         wif1 = "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
@@ -202,7 +202,7 @@ class TestAddresses(unittest.TestCase):
         b = p2wpkh_p2sh(pubkey, network)
         self.assertEqual(hash160(b'\x00\x14'+h160), h160_from_b58address(b)[1])
 
-        self.assertEqual(prvkey_info_from_wif(wif1)[0], prvkey_info_from_wif(wif2)[0])
+        self.assertEqual(prvkey_info_from_prvkey(wif1)[0], prvkey_info_from_prvkey(wif2)[0])
 
         # uncompressed mainnet, trailing/leading spaces in string
         wif1 = "  5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"

@@ -14,7 +14,7 @@ from btclib import bip32
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey, wif_from_xprv
 from btclib.curves import secp256k1 as ec
-from btclib.to_prvkey import prvkey_info_from_wif, prvkey_info_from_xprvwif
+from btclib.to_prvkey import prvkey_info_from_prvkey
 
 
 class TestWif(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestWif(unittest.TestCase):
         for v in test_vectors:
             wif = wif_from_prvkey(prvkey, v[1], v[2])
             self.assertEqual(v[0].strip(), wif.decode('ascii'))
-            q, compressed, network = prvkey_info_from_wif(v[0])
+            q, compressed, network = prvkey_info_from_prvkey(v[0])
             self.assertEqual(q, int(prvkey, 16))
             self.assertEqual(compressed, v[1])
             self.assertEqual(network, v[2])
@@ -53,26 +53,26 @@ class TestWif(unittest.TestCase):
         # Not a private key WIF: missing leading 0x80
         payload = b'\x81' + badq.to_bytes(ec.psize, 'big')
         badwif = b58encode(payload)
-        self.assertRaises(ValueError, prvkey_info_from_wif, badwif)
-        #prvkey_info_from_wif(badwif)
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
+        #prvkey_info_from_prvkey(badwif)
 
         # Not a compressed WIF: missing trailing 0x01
         payload = b'\x80' + badq.to_bytes(ec.psize, 'big') + b'\x00'
         badwif = b58encode(payload)
-        self.assertRaises(ValueError, prvkey_info_from_wif, badwif)
-        #prvkey_info_from_wif(badwif)
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
+        #prvkey_info_from_prvkey(badwif)
 
         # Not a WIF: wrong size (35)
         payload = b'\x80' + badq.to_bytes(ec.psize, 'big') + b'\x01\x00'
         badwif = b58encode(payload)
-        self.assertRaises(ValueError, prvkey_info_from_wif, badwif)
-        #prvkey_info_from_wif(badwif)
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
+        #prvkey_info_from_prvkey(badwif)
 
         # Not a WIF: private key not in (0, n)
         payload = b'\x80' + badq.to_bytes(ec.psize, 'big')
         badwif = b58encode(payload)
-        self.assertRaises(ValueError, prvkey_info_from_wif, badwif)
-        #prvkey_info_from_wif(badwif)
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
+        #prvkey_info_from_prvkey(badwif)
 
     def test_info_from_xprvwif(self):
 
@@ -84,30 +84,30 @@ class TestWif(unittest.TestCase):
         ref_tuple = (xprv_dict['q'], True, 'mainnet')
 
         # BIP32
-        self.assertEqual(ref_tuple, prvkey_info_from_xprvwif(xprv))
-        self.assertEqual(ref_tuple, prvkey_info_from_xprvwif(xprv_str))
-        self.assertEqual(ref_tuple, prvkey_info_from_xprvwif(' ' + xprv_str + ' '))
-        self.assertEqual(ref_tuple, prvkey_info_from_xprvwif(xprv_dict))
+        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(xprv))
+        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(xprv_str))
+        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(' ' + xprv_str + ' '))
+        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(xprv_dict))
 
         # Invalid decoded size: 6 bytes instead of 82
         xpub = 'notakey'
-        self.assertRaises(ValueError, prvkey_info_from_xprvwif, xpub)
-        #prvkey_info_from_xprvwif(xpub)
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xpub)
+        #prvkey_info_from_prvkey(xpub)
 
         # xkey is not a private one
         xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
-        self.assertRaises(ValueError, prvkey_info_from_xprvwif, xpub)
-        #prvkey_info_from_xprvwif(xpub)
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xpub)
+        #prvkey_info_from_prvkey(xpub)
 
         # xkey is not a private one
         xpub_dict = bip32.deserialize(xpub)
-        self.assertRaises(ValueError, prvkey_info_from_xprvwif, xpub_dict)
-        #prvkey_info_from_xprvwif(xpub_dict)
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xpub_dict)
+        #prvkey_info_from_prvkey(xpub_dict)
 
         # WIF keys (bytes or string)
-        self.assertEqual(ref_tuple, prvkey_info_from_xprvwif(wif))
-        self.assertEqual(ref_tuple, prvkey_info_from_xprvwif(wif_str))
-        self.assertEqual(ref_tuple, prvkey_info_from_xprvwif(' ' + wif_str + ' '))
+        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(wif))
+        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(wif_str))
+        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(' ' + wif_str + ' '))
 
 
 if __name__ == "__main__":
