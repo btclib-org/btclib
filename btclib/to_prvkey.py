@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Tuple, Union, Optional
+from typing import Optional, Tuple, Union
 
 from . import bip32
 from .alias import Octets, String, XkeyDict

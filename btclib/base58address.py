@@ -13,7 +13,7 @@
 Base58 encoding of public keys and scripts as addresses.
 """
 
-from typing import List, Tuple, Union, Optional
+from typing import List, Optional, Tuple, Union
 
 from .alias import Octets, PubKey, String, XkeyDict
 from .base58 import b58decode, b58encode
@@ -21,7 +21,7 @@ from .bip32 import deserialize
 from .network import (_P2PKH_PREFIXES, _P2SH_PREFIXES,
                       network_from_p2pkh_prefix, network_from_p2sh_prefix,
                       p2pkh_prefix_from_network, p2sh_prefix_from_network)
-from .to_pubkey import pubkey_info_from_pubkey
+from .to_pubkey import bytes_from_pubkey
 from .utils import bytes_from_octets, hash160, sha256
 
 
@@ -55,7 +55,7 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
 def p2pkh(pubkey: PubKey, compressed: Optional[bool] = None, network: Optional[str] = None) -> bytes:
     """Return the p2pkh address corresponding to a public key."""
 
-    pubkey, network = pubkey_info_from_pubkey(pubkey, compressed, network)
+    pubkey, network = bytes_from_pubkey(pubkey, compressed, network)
 
     prefix = p2pkh_prefix_from_network(network)
     h160 = hash160(pubkey)
@@ -91,7 +91,7 @@ def _b58segwitaddress(wp: Octets, network: str) -> bytes:
 def p2wpkh_p2sh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
     """Return the p2wpkh-p2sh (base58 legacy) Segwit address."""
 
-    pubkey, network = pubkey_info_from_pubkey(pubkey, True, network)
+    pubkey, network = bytes_from_pubkey(pubkey, True, network)
 
     h160 = hash160(pubkey)
     return _b58segwitaddress(h160, network)

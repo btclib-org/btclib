@@ -42,13 +42,13 @@ with the following modifications:
 """
 
 
-from typing import Iterable, List, Tuple, Union, Optional
+from typing import Iterable, List, Optional, Tuple, Union
 
 from .alias import Octets, PubKey, String, XkeyDict
 from .bech32 import b32decode, b32encode
 from .bip32 import deserialize
 from .network import _CURVES, _NETWORKS, _P2W_PREFIXES
-from .to_pubkey import pubkey_info_from_pubkey, pubkey_info_from_prvkey
+from .to_pubkey import bytes_from_pubkey, pubkey_info_from_prvkey
 from .utils import bytes_from_octets, hash160, sha256
 
 
@@ -153,7 +153,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 def p2wpkh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
 
-    pubkey, network = pubkey_info_from_pubkey(pubkey, True, network)
+    pubkey, network = bytes_from_pubkey(pubkey, True, network)
     h160 = hash160(pubkey)
     return b32address_from_witness(0, h160, network)
 

@@ -44,8 +44,7 @@ import unittest
 
 from btclib.base58address import p2wpkh_p2sh, p2wsh_p2sh
 from btclib.bech32address import (b32address_from_witness, has_segwit_prefix,
-                                  p2wpkh, p2wsh,
-                                  witness_from_b32address)
+                                  p2wpkh, p2wsh, witness_from_b32address)
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets

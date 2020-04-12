@@ -8,17 +8,17 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Tuple, Union, Optional
+from typing import Optional, Tuple, Union
 
 from . import bip32
 from .alias import Octets, Point, PubKey, String, XkeyDict
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
-from .network import (_xpub_versions_from_network, curve_from_xpubversion,
-                      curve_from_network, network_from_xpub)
+from .network import (_xpub_versions_from_network, curve_from_network,
+                      curve_from_xpubversion, network_from_xpub)
 from .secpoint import bytes_from_point, point_from_octets
-from .to_prvkey import prvkey_info_from_prvkey, PrvKey
+from .to_prvkey import PrvKey, prvkey_info_from_prvkey
 from .utils import bytes_from_octets
 
 
@@ -135,11 +135,3 @@ def pubkey_info_from_prvkey(prvkey: PrvKey, compressed: Optional[bool] = None,
     Pub = mult(q, ec.G, ec)
     pubkey = bytes_from_point(Pub, compr, ec)
     return pubkey, net
-
-
-def pubkey_info_from_pubkey(pubkey: PubKey, compressed: Optional[bool] = None,
-                            network: Optional[str] = None) -> Tuple[bytes, str]:
-
-    pubkey, network = bytes_from_pubkey(pubkey, compressed, network)
-
-    return pubkey, network

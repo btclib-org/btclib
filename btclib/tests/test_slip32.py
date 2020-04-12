@@ -13,6 +13,7 @@ import unittest
 from btclib import base58address, bip32, bip39, slip32
 from btclib.network import MAIN_xprv, MAIN_yprv, MAIN_zprv
 
+
 class TestSLIP32(unittest.TestCase):
 
     def test_slip32(self):
