@@ -37,17 +37,17 @@ def nulldata(data: Octets) -> bytes:
     return encode(script)
 
 # FIXME no need for network
-def p2pk(pubkey: PubKey, network = 'mainnet') -> bytes:
+def p2pk(pubkey: PubKey) -> bytes:
     "Return the p2pk scriptPubKey of the provided pubkey."
 
     # FIXME: does P2PK work also with compressed key?
     compressed = False
-    pubkey, _ = bytes_from_pubkey(pubkey, compressed, network)
+    pubkey, _ = bytes_from_pubkey(pubkey, compressed)
     script: List[Token] = [pubkey, 'OP_CHECKSIG']
     return encode(script)
 
 
-def p2ms(m: int, pubkeys: Iterable[PubKey], network = 'mainnet') -> bytes:
+def p2ms(m: int, pubkeys: Iterable[PubKey]) -> bytes:
     "Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."
 
     if m<1 or m>16:
@@ -58,7 +58,7 @@ def p2ms(m: int, pubkeys: Iterable[PubKey], network = 'mainnet') -> bytes:
     # FIXME: does P2MS work also with compressed key?
     compressed = False
     for pubkey in pubkeys:
-        pubkey, _ = bytes_from_pubkey(pubkey, compressed, network)
+        pubkey, _ = bytes_from_pubkey(pubkey, compressed)
         script.append(pubkey)
 
     # FIXME: handle script max length
