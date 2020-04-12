@@ -142,16 +142,16 @@ https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
 
 from base64 import b64decode, b64encode
 from hashlib import sha256
-from typing import Optional, Tuple, Union
+from typing import Optional
 
 from . import bip32, dsa
-from .alias import BMSig, BMSigTuple, String, XkeyDict
+from .alias import BMSig, BMSigTuple, PrvKey, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
-from .to_prvkey import prvkey_info_from_xprvwif
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .curves import secp256k1
 from .secpoint import bytes_from_point
+from .to_prvkey import prvkey_info_from_prvkey
 from .utils import hash160
 
 
@@ -197,9 +197,7 @@ def _magic_hash(msg: String) -> bytes:
     return sha256(t).digest()
 
 
-# Note it must be a prvkey including compressed information
-# TODO make compressed a default to relax the above note
-def sign(msg: String, prvkey: Union[String, XkeyDict],
+def sign(msg: String, prvkey: PrvKey,
          addr: Optional[String] = None) -> BMSigTuple:
     """Generate address-based compact signature for the provided message."""
 
@@ -209,7 +207,7 @@ def sign(msg: String, prvkey: Union[String, XkeyDict],
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, compressed, _ = prvkey_info_from_xprvwif(prvkey)
+    q, compressed, _ = prvkey_info_from_prvkey(prvkey)
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
