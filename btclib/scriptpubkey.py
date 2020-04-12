@@ -169,13 +169,11 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
         if witvers != 0:
             raise ValueError(f"Unhandled witness version ({witvers})")
         len_wprog = len(witprog)
+        assert len_wprog in (20, 32), f"Witness program length: {len_wprog}"
         if len_wprog == 32:
             return p2wsh(witprog), network
-        elif len_wprog == 20:
+        else:
             return p2wpkh(witprog), network
-        else:  # witness_from_b32address has already checked witprog
-            m = f"Unhandled witness program length ({len_wprog})"  # pragma: no cover
-            raise ValueError(m)  # pragma: no cover
     else:
         _, h160, network, is_p2sh = h160_from_b58address(addr)
         if is_p2sh:
