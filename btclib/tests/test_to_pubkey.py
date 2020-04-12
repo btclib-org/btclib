@@ -95,8 +95,6 @@ class TestToPubKey(unittest.TestCase):
         P_uncompr = bytes_from_point(P, False, ec)
         P_uncompr_hexstr = P_uncompr.hex()
 
-        # FIXME: remove explicit compressed where it is not needed
-
         # BIP32 input, compressed result
         self.assertEqual(bytes_from_pubkey(xpub)[0], P_compr)
         self.assertEqual(bytes_from_pubkey(xpub_str)[0], P_compr)

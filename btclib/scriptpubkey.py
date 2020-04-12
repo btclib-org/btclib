@@ -36,7 +36,6 @@ def nulldata(data: Octets) -> bytes:
     script: List[Token] = ['OP_RETURN', data]
     return encode(script)
 
-# FIXME no need for network
 def p2pk(pubkey: PubKey) -> bytes:
     "Return the p2pk scriptPubKey of the provided pubkey."
 

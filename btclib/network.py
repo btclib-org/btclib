@@ -142,7 +142,6 @@ def p2sh_prefix_from_network(network: str) -> bytes:
     return _P2SH_PREFIXES[index]
 
 
-#FIXME avoid these network function for smarter checks on prefix in ()
 def network_from_wif_prefix(prefix: bytes) -> str:
     """Return network string from WIF prefix.
 
