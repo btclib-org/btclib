@@ -13,10 +13,9 @@ import unittest
 from hashlib import sha256 as hf
 from os import path
 
-from btclib import bip32, btcmsg, dsa
-from btclib.base58address import p2pkh, p2pkh_from_xprvwif, p2wpkh_p2sh_from_xprvwif
+from btclib import base58address, bech32address, bip32, btcmsg, dsa
+from btclib.to_pubkey import pubkey_info_from_prvkey
 from btclib.base58wif import wif_from_prvkey
-from btclib.bech32address import p2wpkh_from_xprvwif
 from btclib.curves import secp256k1 as ec
 from btclib.utils import bytes_from_octets, sha256
 
@@ -40,20 +39,24 @@ class TestMessageSign(unittest.TestCase):
 
         # first private key
         q1 = 91634880152443617534842621287039938041581081254914058002978601050179556493499
+
         # uncompressed
         wif1u = wif_from_prvkey(q1, False)
         self.assertEqual(wif1u, b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw')
-        add1u = p2pkh_from_xprvwif(wif1u)
+        pubkey1u, network = pubkey_info_from_prvkey(wif1u)
+        add1u = base58address.p2pkh(pubkey1u)
         self.assertEqual(add1u, b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD')
         sig1u = btcmsg.sign(msg, wif1u)
         self.assertTrue(btcmsg.verify(msg, add1u, sig1u))
         self.assertEqual(sig1u[0], 27)
         exp_sig1u = b'G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4='
         self.assertEqual(btcmsg.serialize(*sig1u), exp_sig1u)
+
         # compressed
         wif1c = wif_from_prvkey(q1, True)
         self.assertEqual(wif1c, b'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk')
-        add1c = p2pkh_from_xprvwif(wif1c)
+        pubkey1c, network = pubkey_info_from_prvkey(wif1c)
+        add1c = base58address.p2pkh(pubkey1c)
         self.assertEqual(add1c, b'14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY')
         sig1c = btcmsg.sign(msg, wif1c)
         self.assertTrue(btcmsg.verify(msg, add1c, sig1c))
@@ -169,9 +172,10 @@ class TestMessageSign(unittest.TestCase):
 
         msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
-        p2pkh = p2pkh_from_xprvwif(wif)
-        p2wpkh = p2wpkh_from_xprvwif(wif)
-        p2wpkh_p2sh = p2wpkh_p2sh_from_xprvwif(wif)
+        pubkey, network = pubkey_info_from_prvkey(wif)
+        p2pkh = base58address.p2pkh(pubkey)
+        p2wpkh = bech32address.p2wpkh(pubkey)
+        p2wpkh_p2sh = base58address.p2wpkh_p2sh(pubkey)
 
         # p2pkh base58 address (Core, Electrum, BIP137)
         exp_sig = b'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
@@ -265,7 +269,8 @@ class TestMessageSign(unittest.TestCase):
 
         msg = 'test'
         wif = 'KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu'
-        address = p2pkh_from_xprvwif(wif)
+        pubkey, network = pubkey_info_from_prvkey(wif)
+        address = base58address.p2pkh(pubkey)
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
         self.assertTrue(btcmsg.verify(msg, address, exp_sig))
 
@@ -305,9 +310,11 @@ class TestMessageSign(unittest.TestCase):
 
         msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
-        p2pkh = p2pkh_from_xprvwif(wif)
-        p2wpkh = p2wpkh_from_xprvwif(wif)
-        p2wpkh_p2sh = p2wpkh_p2sh_from_xprvwif(wif)
+        pubkey, network = pubkey_info_from_prvkey(wif)
+        p2pkh = base58address.p2pkh(pubkey)
+        p2wpkh = bech32address.p2wpkh(pubkey)
+        p2wpkh_p2sh = base58address.p2wpkh_p2sh(pubkey)
+
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         # Mismatch between p2pkh address and key pair
         self.assertRaises(ValueError, btcmsg.sign, msg, wif, p2pkh)
@@ -409,7 +416,7 @@ class TestMessageSign(unittest.TestCase):
         self.assertTrue(dsa.verify(magic_msg, xpub, dersig))
 
         # compressed address
-        addr = p2pkh(xpub)
+        addr = base58address.p2pkh(xpub)
 
         # equivalent Bitcoin Message Signature (non-serialized)
         rec_flag = 27 + 4 + (key_id & 0x01)
@@ -447,7 +454,7 @@ class TestMessageSign(unittest.TestCase):
         self.assertTrue(dsa.verify(magic_msg, xpub, dersig))
 
         # compressed address
-        addr = p2pkh(xpub)
+        addr = base58address.p2pkh(xpub)
 
         # equivalent Bitcoin Message Signature (non-serialized)
         rec_flag = 27 + 4 + (key_id & 0x01)

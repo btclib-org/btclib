@@ -8,6 +8,8 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- removed dangerous functions going from prvkey to address
+- improved to_pub and to_prv functions
 - renamed ec.oppositte(P) ad ec.negate(P)
 - refactorred to_pub and to_prv functions
 - added network <-> prefix <-> curve functions in network module

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 
 from . import bip32
 from .alias import Octets, String, XkeyDict
@@ -19,7 +19,7 @@ from .network import (curve_from_network, network_from_wif_prefix,
                       network_from_xprv)
 from .utils import bytes_from_octets
 
-Key = Union[int, bytes, str, XkeyDict]
+PrvKey = Union[int, bytes, str, XkeyDict]
 
 
 def prvkey_info_from_wif(wif: String) -> Tuple[int, bool, str]:
@@ -79,7 +79,45 @@ def prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, boo
     return prvkey_info_from_xprv(xprvwif)
 
 
-def int_from_prvkey(prvkey: Key, ec: Curve = secp256k1) -> int:
+def prvkey_info_from_prvkey(prvkey: PrvKey,
+                            compressed: Optional[bool] = None,
+                            network: Optional[str] = None) -> Tuple[int, bool, str]:
+
+    compr = True if compressed is None else compressed
+    net = 'mainnet' if network is None else network
+    ec = curve_from_network(net)
+
+    if isinstance(prvkey, int):
+        q = prvkey
+    elif isinstance(prvkey, dict):
+        q, compr, net = prvkey_info_from_xprvwif(prvkey)
+        if compressed is not None:
+            assert compr == compressed
+        if network is not None:
+            assert net == network 
+        return q, compr, net
+    else:
+        try:
+            q, compr, net = prvkey_info_from_xprvwif(prvkey)
+        except Exception:
+            pass
+        else:
+            if compressed is not None:
+                assert compr == compressed
+            if network is not None:
+                assert net == network 
+            return q, compr, net
+
+        prvkey = bytes_from_octets(prvkey, ec.nsize)
+        q = int.from_bytes(prvkey, 'big')
+
+    if not 0 < q < ec.n:
+        raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
+
+    return q, compr, net
+
+
+def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer.
     
     It supports:
@@ -93,14 +131,14 @@ def int_from_prvkey(prvkey: Key, ec: Curve = secp256k1) -> int:
     if isinstance(prvkey, int):
         q = prvkey
     elif isinstance(prvkey, dict):
-        q, compressed, network = prvkey_info_from_xprvwif(prvkey)
+        q, _, network = prvkey_info_from_xprvwif(prvkey)
         # q has been validated on the xprv/wif network
         ec2 =  curve_from_network(network)
         assert ec == ec2, f"ec / network ({network}) mismatch"
         return q
     else:
         try:
-            q, compressed, network = prvkey_info_from_xprvwif(prvkey)
+            q, _, network = prvkey_info_from_xprvwif(prvkey)
         except Exception:
             pass
         else:

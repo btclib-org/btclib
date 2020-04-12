@@ -101,7 +101,9 @@ _XPUB_VERSIONS_TEST = [TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
 _XPRV_VERSIONS = [_XPRV_VERSIONS_MAIN, _XPRV_VERSIONS_TEST, _XPRV_VERSIONS_TEST]
 _XPUB_VERSIONS = [_XPUB_VERSIONS_MAIN, _XPUB_VERSIONS_TEST, _XPUB_VERSIONS_TEST]
 
-# TODO remove _REPEATED_NETWORKS as it provides false match for regtest
+# it provides false match for regtest
+# not a problem as long as it is used for WIF/Base58Address/BIP32xkey
+# where the two network share same prefixes.
 _REPEATED_NETWORKS = [
     'mainnet', 'mainnet', 'mainnet', 'mainnet', 'mainnet',
     'testnet', 'testnet', 'testnet', 'testnet', 'testnet',
@@ -130,19 +132,9 @@ def wif_prefix_from_network(network: str) -> bytes:
     return _WIF_PREFIXES[index]
 
 
-def network_from_wif_prefix(prefix: bytes) -> str:
-    index = _WIF_PREFIXES.index(prefix)
-    return _NETWORKS[index]
-
-
 def p2pkh_prefix_from_network(network: str) -> bytes:
     network_index = _NETWORKS.index(network)
     return _P2PKH_PREFIXES[network_index]
-
-
-def network_from_p2pkh_prefix(prefix: bytes) -> str:
-    index = _P2PKH_PREFIXES.index(prefix)
-    return _NETWORKS[index]
 
 
 def p2sh_prefix_from_network(network: str) -> bytes:
@@ -150,12 +142,57 @@ def p2sh_prefix_from_network(network: str) -> bytes:
     return _P2SH_PREFIXES[index]
 
 
+#FIXME avoid these network function for smarter checks on prefix in ()
+def network_from_wif_prefix(prefix: bytes) -> str:
+    """Return network string from WIF prefix.
+
+    Warning: when used on 'regtest' it returns 'testnet', which is not
+    a problem as long as it is used for WIF/Base58Address/BIP32xkey
+    where the two network share same prefixes.
+    """
+    index = _WIF_PREFIXES.index(prefix)
+    return _NETWORKS[index]
+
+
+def network_from_p2pkh_prefix(prefix: bytes) -> str:
+    """Return network string from p2pkh prefix.
+
+    Warning: when used on 'regtest' it returns 'testnet', which is not
+    a problem as long as it is used for WIF/Base58Address/BIP32xkey
+    where the two network share same prefixes.
+    """
+    index = _P2PKH_PREFIXES.index(prefix)
+    return _NETWORKS[index]
+
+
 def network_from_p2sh_prefix(prefix: bytes) -> str:
+    """Return network string from p2sh prefix.
+
+    Warning: when used on 'regtest' it returns 'testnet', which is not
+    a problem as long as it is used for WIF/Base58Address/BIP32xkey
+    where the two network share same prefixes.
+    """
     index = _P2SH_PREFIXES.index(prefix)
     return _NETWORKS[index]
 
 
-# FIXME: regtest?!?
 def network_from_xprv(xprvversion: bytes) -> str:
+    """Return network string from xprv prefix.
+
+    Warning: when used on 'regtest' it returns 'testnet', which is not
+    a problem as long as it is used for WIF/Base58Address/BIP32xkey
+    where the two network share same prefixes.
+    """
     index = _XPRV_VERSIONS_ALL.index(xprvversion)
+    return _REPEATED_NETWORKS[index]
+
+
+def network_from_xpub(xpubversion: bytes) -> str:
+    """Return network string from xpub prefix.
+
+    Warning: when used on 'regtest' it returns 'testnet', which is not
+    a problem as long as it is used for WIF/Base58Address/BIP32xkey
+    where the two network share same prefixes.
+    """
+    index = _XPUB_VERSIONS_ALL.index(xpubversion)
     return _REPEATED_NETWORKS[index]

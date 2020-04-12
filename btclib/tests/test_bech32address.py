@@ -44,7 +44,7 @@ import unittest
 
 from btclib.base58address import p2wpkh_p2sh, p2wsh_p2sh
 from btclib.bech32address import (b32address_from_witness, has_segwit_prefix,
-                                  p2wpkh, p2wsh_address,
+                                  p2wpkh, p2wsh,
                                   witness_from_b32address)
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
@@ -208,7 +208,7 @@ class TestSegwitAddress(unittest.TestCase):
         p2wsh_p2sh(witness_script_bytes)
         p2wsh_p2sh(witness_script_bytes, 'testnet')
 
-    def test_p2wsh_address(self):
+    def test_p2wsh(self):
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
         pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
@@ -216,12 +216,12 @@ class TestSegwitAddress(unittest.TestCase):
         witness_script_bytes = encode(witness_script)
 
         addr = b'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
-        self.assertEqual(addr, p2wsh_address(witness_script_bytes, 'testnet'))
+        self.assertEqual(addr, p2wsh(witness_script_bytes, 'testnet'))
         _, wp, _, _ = witness_from_b32address(addr)
         self.assertEqual(bytes(wp), sha256(witness_script_bytes))
 
         addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
-        self.assertEqual(addr, p2wsh_address(witness_script_bytes))
+        self.assertEqual(addr, p2wsh(witness_script_bytes))
         _, wp, _, _ = witness_from_b32address(addr)
         self.assertEqual(bytes(wp), sha256(witness_script_bytes))
 

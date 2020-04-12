@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 
 from . import bip32
 from .alias import Octets, Point, PubKey, String, XkeyDict
@@ -16,9 +16,9 @@ from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
 from .network import (_xpub_versions_from_network, curve_from_xpubversion,
-                      curve_from_network)
+                      curve_from_network, network_from_xpub)
 from .secpoint import bytes_from_point, point_from_octets
-from .to_prvkey import prvkey_info_from_xprvwif
+from .to_prvkey import prvkey_info_from_prvkey, PrvKey
 from .utils import bytes_from_octets
 
 
@@ -57,21 +57,31 @@ def point_from_pubkey(P: PubKey, ec: Curve = secp256k1) -> Point:
     return point_from_octets(P, ec)
 
 
-def _bytes_from_xpub(xpubd: XkeyDict, compr: bool, network: str) -> bytes:
-        if not compr:
-            m = "Uncompressed SEC / compr BIP32 key mismatch"
-            raise ValueError(m)
-        if xpubd['version'] not in _xpub_versions_from_network(network):
+def _bytes_from_xpub(xpubd: XkeyDict,
+                     compressed: Optional[bool] = None,
+                     network: Optional[str] = None) -> Tuple[bytes, str]:
+
+    if xpubd['key'][0] not in (2, 3):
+        raise ValueError(f"Not a public key: {xpubd['key'].hex()}")
+
+    if compressed is not None:
+        if not compressed:
+            raise ValueError("Uncompressed SEC / compressed BIP32 mismatch")
+
+    if network is not None:
+        allowed_xpubs = _xpub_versions_from_network(network)
+        if xpubd['version'] not in allowed_xpubs:
             m = f"network ({network}) / "
             m += f"BIP32 key ({bip32.serialize(xpubd).decode()}) mismatch"
             raise ValueError(m)
-        if xpubd['key'][0] in (2, 3):
-            return xpubd['key']
-        raise ValueError(f"Not a public key: {xpubd['key'].hex()}")
+        return xpubd['key'], network
+    else:
+        return xpubd['key'], network_from_xpub(xpubd['version'])
 
 
 def bytes_from_pubkey(P: PubKey,
-                      compr: bool = True, network: str = 'mainnet') -> bytes:
+                      compressed: Optional[bool] = None,
+                      network: Optional[str] = None) -> Tuple[bytes, str]:
     """Return SEC bytes from any possible pubkey representation.
 
     It supports:
@@ -82,34 +92,54 @@ def bytes_from_pubkey(P: PubKey,
     """
 
     if isinstance(P, tuple):
-        ec = curve_from_network(network)
-        return bytes_from_point(P, compr, ec)
+        compr = True if compressed is None else compressed
+        net = 'mainnet' if network is None else network
+        ec = curve_from_network(net)
+        return bytes_from_point(P, compr, ec), net
     elif isinstance(P, dict):
-        return _bytes_from_xpub(P, compr, network)
+        return _bytes_from_xpub(P, compressed, network)
     else:
         try:
             xkey = bip32.deserialize(P)
         except Exception:
             pass
         else:
-            return _bytes_from_xpub(xkey, compr, network)
+            return _bytes_from_xpub(xkey, compressed, network)
 
-    ec = curve_from_network(network)
-    pubkey = bytes_from_octets(P)
-    if not compr and len(pubkey) != 2*ec.psize + 1:
-        m = f"Wrong size ({len(pubkey)}-bytes) for uncompressed SEC key"
-        raise ValueError(m)
-    if compr and len(pubkey) != ec.psize + 1:
-        m = f"Wrong size ({len(pubkey)}-bytes) for compr SEC key"
-        raise ValueError(m)
-    Q = point_from_octets(pubkey, ec)  # verify it is a valid point
-    return bytes_from_point(Q, compr, ec)
+    net = 'mainnet' if network is None else network
+    ec = curve_from_network(net)
+
+    if compressed is None:
+        pubkey = bytes_from_octets(P)
+        size = len(pubkey)
+        if size == ec.psize + 1:
+            compr = True
+        elif size == 2* ec.psize + 1:
+            compr = False
+    else:
+        size = ec.psize + 1 if compressed else 2* ec.psize + 1
+        compr = compressed
+        pubkey = bytes_from_octets(P, size)
+
+    # verify that it is a valid point
+    Q = point_from_octets(pubkey, ec)
+
+    return bytes_from_point(Q, compr, ec), net
 
 
-def pubkeyinfo_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[bytes, bool, str]:
+def pubkey_info_from_prvkey(prvkey: PrvKey, compressed: Optional[bool] = None,
+                            network: Optional[str] = None) -> Tuple[bytes, str]:
 
-    prvkey, compr, network = prvkey_info_from_xprvwif(xprvwif)
-    ec = curve_from_network(network)
-    Pub = mult(prvkey, ec.G, ec)
+    q, compr, net = prvkey_info_from_prvkey(prvkey, compressed, network)
+    ec = curve_from_network(net)
+    Pub = mult(q, ec.G, ec)
     pubkey = bytes_from_point(Pub, compr, ec)
-    return pubkey, compr, network
+    return pubkey, net
+
+
+def pubkey_info_from_pubkey(pubkey: PubKey, compressed: Optional[bool] = None,
+                            network: Optional[str] = None) -> Tuple[bytes, str]:
+
+    pubkey, network = bytes_from_pubkey(pubkey, compressed, network)
+
+    return pubkey, network

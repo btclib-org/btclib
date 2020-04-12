@@ -42,13 +42,13 @@ with the following modifications:
 """
 
 
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, List, Tuple, Union, Optional
 
 from .alias import Octets, PubKey, String, XkeyDict
 from .bech32 import b32decode, b32encode
 from .bip32 import deserialize
 from .network import _CURVES, _NETWORKS, _P2W_PREFIXES
-from .to_pubkey import bytes_from_pubkey, pubkeyinfo_from_xprvwif
+from .to_pubkey import pubkey_info_from_pubkey, pubkey_info_from_prvkey
 from .utils import bytes_from_octets, hash160, sha256
 
 
@@ -150,24 +150,15 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     return witvers, bytes(witprog), _NETWORKS[i], is_script_hash
 
 
-def p2wpkh(pubkey: PubKey, network: str = 'mainnet') -> bytes:
+def p2wpkh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
     """Return the p2wpkh (bech32 native) SegWit address."""
 
-    pubkey = bytes_from_pubkey(pubkey, True, network)
+    pubkey, network = pubkey_info_from_pubkey(pubkey, True, network)
     h160 = hash160(pubkey)
     return b32address_from_witness(0, h160, network)
 
 
-def p2wpkh_from_xprvwif(xkeywif: Union[XkeyDict, String]) -> bytes:
-    """Return the p2wpkh (bech32 native) SegWit address."""
-
-    pubkey, compressed, network = pubkeyinfo_from_xprvwif(xkeywif)
-    if compressed:
-        return p2wpkh(pubkey, network)
-    raise ValueError ("No p2wpkh from compressed wif or xprv")
-
-
-def p2wsh_address(wscript: Octets, network: str = 'mainnet') -> bytes:
+def p2wsh(wscript: Octets, network: str = 'mainnet') -> bytes:
     """Return the p2wsh (bech32 native) SegWit address."""
 
     h256 = sha256(wscript)
