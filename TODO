@@ -39,4 +39,4 @@ e=0 in SSA ? See FIXME
 
 remove (ec, hf) in favor of network (global default?)
 
-}
+compare with test_framework
