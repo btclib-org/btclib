@@ -24,7 +24,7 @@ class TestECFunctions(unittest.TestCase):
 
         # challenge = 'Point Negation'
         P = (8045, 6936)
-        S = ec.opposite(P)
+        S = ec.negate(P)
         S_exp = (8045, 2803)
         self.assertEqual(S, S_exp)
 

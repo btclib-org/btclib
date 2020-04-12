@@ -523,9 +523,9 @@ class TestSSA(unittest.TestCase):
                 temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i])
                 RHS3 = ec.add(RHS3, temp)
         else:
-            RHS3 = ec.add(ec.opposite(K), mult(e, Q))
+            RHS3 = ec.add(ec.negate(K), mult(e, Q))
             for i in range(1, m):
-                temp = double_mult(pow(3, i), ec.opposite(B[i]), e * pow(3, i), A[i])
+                temp = double_mult(pow(3, i), ec.negate(B[i]), e * pow(3, i), A[i])
                 RHS3 = ec.add(RHS3, temp)
 
         assert mult(gamma3) == RHS3, 'player three is cheating'
@@ -537,9 +537,9 @@ class TestSSA(unittest.TestCase):
                 temp = double_mult(pow(1, i), B[i], e * pow(1, i), A[i])
                 RHS1 = ec.add(RHS1, temp)
         else:
-            RHS1 = ec.add(ec.opposite(K), mult(e, Q))
+            RHS1 = ec.add(ec.negate(K), mult(e, Q))
             for i in range(1, m):
-                temp = double_mult(pow(1, i), ec.opposite(B[i]), e * pow(1, i), A[i])
+                temp = double_mult(pow(1, i), ec.negate(B[i]), e * pow(1, i), A[i])
                 RHS1 = ec.add(RHS1, temp)
 
         assert mult(gamma1) == RHS1, 'player two is cheating'

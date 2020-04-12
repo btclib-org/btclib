@@ -78,7 +78,7 @@ class CurveGroup:
 
     # methods using p: they could become functions
 
-    def opposite(self, Q: Point) -> Point:
+    def negate(self, Q: Point) -> Point:
         """Return the opposite point on the curve.
 
         The input point must be on the curve.
@@ -141,7 +141,7 @@ class CurveGroup:
                 Y = (W*(V - X) - 8*QY2*QY2) % self.p
                 Z = (2*Q[1]*Q[2]) % self.p
                 return X, Y, Z
-            else:                                         # opposite points
+            else:                                       # opposite points
                 return INFJ
         else:
             T = (Q[1]*RZ3) % self.p
@@ -171,7 +171,7 @@ class CurveGroup:
             if R[1] == Q[1]:  # point doubling
                 lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self.p)
                 lam %= self.p
-            else:             # opposite points
+            else:      # opposite points
                 return INF
         else:
             lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self.p)) % self.p

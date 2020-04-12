@@ -8,6 +8,7 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- renamed ec.oppositte(P) ad ec.negate(P)
 - refactorred to_pub and to_prv functions
 - added network <-> prefix <-> curve functions in network module
 - removed trailing _scriptPubKey suffix from the function names

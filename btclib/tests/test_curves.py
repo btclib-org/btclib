@@ -210,15 +210,15 @@ class TestEllipticCurve(unittest.TestCase):
     def test_opposite(self):
         for ec in all_curves:
             Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
-            minus_Q = ec.opposite(Q)
+            minus_Q = ec.negate(Q)
             self.assertEqual(ec.add(Q, minus_Q), INF)
             # jacobian coordinates
             Qjac = _jac_from_aff(Q)
             minus_Qjac = _jac_from_aff(minus_Q)
             self.assertEqual(ec._add_jac(Qjac, minus_Qjac)[2], 0)
 
-            # opposite of INF is INF
-            minus_Inf = ec.opposite(INF)
+            # negate of INF is INF
+            minus_Inf = ec.negate(INF)
             self.assertEqual(minus_Inf, INF)
 
     def test_symmetry(self):
@@ -338,8 +338,8 @@ class TestEllipticCurve(unittest.TestCase):
             Q3jac = ec._add_jac(Q1J, Q1J)
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
-            # opposite points
-            Q1opp = ec.opposite(Q1)
+            # negate points
+            Q1opp = ec.negate(Q1)
             Q3 = ec._add_aff(Q1,  Q1opp)
             Q3jac = ec._add_jac(Q1J, _jac_from_aff(Q1opp))
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
