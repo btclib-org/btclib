@@ -12,14 +12,12 @@ import unittest
 
 from btclib import bip32
 from btclib.base58 import b58encode
-from btclib.base58wif import wif_from_prvkey, wif_from_xprv
+from btclib.base58wif import wif_from_prvkey
 from btclib.curves import secp256k1 as ec
 from btclib.to_prvkey import prvkey_info_from_prvkey
 
 
 class TestWif(unittest.TestCase):
-
-    # TODO: add test_wif_from_xprv
 
     def test_wif_from_prvkey(self):
         prvkey = '0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'
@@ -73,41 +71,6 @@ class TestWif(unittest.TestCase):
         badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
         #prvkey_info_from_prvkey(badwif)
-
-    def test_info_from_xprvwif(self):
-
-        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        xprv_str = xprv.decode('ascii')
-        xprv_dict = bip32.deserialize(xprv)
-        wif = wif_from_xprv(xprv)
-        wif_str = wif.decode('ascii')
-        ref_tuple = (xprv_dict['q'], True, 'mainnet')
-
-        # BIP32
-        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(xprv))
-        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(xprv_str))
-        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(' ' + xprv_str + ' '))
-        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(xprv_dict))
-
-        # Invalid decoded size: 6 bytes instead of 82
-        xpub = 'notakey'
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, xpub)
-        #prvkey_info_from_prvkey(xpub)
-
-        # xkey is not a private one
-        xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, xpub)
-        #prvkey_info_from_prvkey(xpub)
-
-        # xkey is not a private one
-        xpub_dict = bip32.deserialize(xpub)
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, xpub_dict)
-        #prvkey_info_from_prvkey(xpub_dict)
-
-        # WIF keys (bytes or string)
-        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(wif))
-        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(wif_str))
-        self.assertEqual(ref_tuple, prvkey_info_from_prvkey(' ' + wif_str + ' '))
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ from btclib.base58 import b58decode, b58encode
 from btclib.base58address import (_b58segwitaddress, b58address_from_h160,
                                   h160_from_b58address, p2pkh, p2sh,
                                   p2wpkh_p2sh, p2wsh_p2sh)
-from btclib.base58wif import wif_from_xprv
+from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
@@ -50,7 +50,7 @@ class TestAddresses(unittest.TestCase):
         rxprv = bip32.rootxprv_from_seed(seed)
         path = "m/0h/0h/12"
         xprv = bip32.derive(rxprv, path)
-        wif = wif_from_xprv(xprv)
+        wif = wif_from_prvkey(xprv)
         self.assertEqual(wif, b'KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP')
         pubkey, _ = pubkey_info_from_prvkey(wif)
         address = p2pkh(pubkey)
@@ -58,7 +58,7 @@ class TestAddresses(unittest.TestCase):
         address2 = slip32.address_from_xpub(xpub)
         self.assertEqual(address, address2)
 
-        self.assertRaises(ValueError, wif_from_xprv, xpub)
+        self.assertRaises(ValueError, wif_from_prvkey, xpub)
 
     def test_p2pkh_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
