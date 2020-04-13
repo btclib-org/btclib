@@ -12,6 +12,7 @@
 
 from typing import List
 
+from .alias import String
 from .curve import Curve
 from .curves import secp256k1
 
@@ -142,6 +143,26 @@ def p2sh_prefix_from_network(network: str) -> bytes:
     return _P2SH_PREFIXES[index]
 
 
+def p2w_prefix_from_network(network: str) -> str:
+    index = _NETWORKS.index(network)
+    return _P2W_PREFIXES[index]
+
+
+def has_segwit_prefix(addr: String) -> bool:
+
+    if isinstance(addr, str):
+        str_addr = addr.strip()
+        str_addr = str_addr.lower()
+    else:
+        str_addr = addr.decode('ascii')
+
+    for prefix in _P2W_PREFIXES:
+        if str_addr.startswith(prefix + '1'):
+            return True
+
+    return False
+
+
 def network_from_wif_prefix(prefix: bytes) -> str:
     """Return network string from WIF prefix.
 
@@ -195,3 +216,9 @@ def network_from_xpub(xpubversion: bytes) -> str:
     """
     index = _XPUB_VERSIONS_ALL.index(xpubversion)
     return _REPEATED_NETWORKS[index]
+
+
+def network_from_p2w_prefix(prefix: str) -> str:
+    "Return network string from p2w prefix."
+    index = _P2W_PREFIXES.index(prefix)
+    return _NETWORKS[index]

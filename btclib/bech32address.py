@@ -47,27 +47,13 @@ from typing import Iterable, List, Optional, Tuple, Union
 from .alias import Octets, PubKey, Script, String, XkeyDict
 from .base58address import h160_from_pubkey, h256_from_script
 from .bech32 import b32decode, b32encode
-from .network import _CURVES, _NETWORKS, _P2W_PREFIXES
+from .network import (has_segwit_prefix, network_from_p2w_prefix,
+                      p2w_prefix_from_network)
 from .script import encode
 from .to_pubkey import bytes_from_pubkey, pubkey_info_from_prvkey
 from .utils import bytes_from_octets, hash160, sha256
 
 # 0. bech32 facilities
-
-def has_segwit_prefix(addr: String) -> bool:
-
-    if isinstance(addr, str):
-        str_addr = addr.strip()
-        str_addr = str_addr.lower()
-    else:
-        str_addr = addr.decode('ascii')
-
-    for prefix in _P2W_PREFIXES:
-        if str_addr.startswith(prefix + '1'):
-            return True
-
-    return False
-
 
 def _convertbits(data: Iterable[int], frombits: int,
                  tobits: int, pad: bool = True) -> List[int]:
@@ -120,7 +106,7 @@ def b32address_from_witness(wv: int, wp: Script, network: str = 'mainnet') -> by
 
     wp = bytes_from_octets(wp)
     _check_witness(wv, wp)
-    hrp = _P2W_PREFIXES[_NETWORKS.index(network)]
+    hrp = p2w_prefix_from_network(network)
     ret = b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
     return ret
 
@@ -138,8 +124,8 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 
     hrp, data = b32decode(b32addr)
 
-    # check that it is a SegWit address
-    i = _P2W_PREFIXES.index(hrp)
+    # check that it is a known SegWit address type
+    network = network_from_p2w_prefix(hrp)
 
     if len(data) == 0:
         raise ValueError(f"Bech32 address with empty data")
@@ -153,7 +139,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     else:
         is_script_hash = True
 
-    return witvers, bytes(witprog), _NETWORKS[i], is_script_hash
+    return witvers, bytes(witprog), network, is_script_hash
 
 # 1.+2. = 3. bech32 address from pubkey/script
 
