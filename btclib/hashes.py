@@ -15,27 +15,26 @@
 from typing import Optional, Tuple
 
 from .alias import PubKey, Script
-from .utils import hash160, sha256
 from .script import encode
 from .to_pubkey import bytes_from_pubkey
+from .utils import hash160, sha256
 
-def h160_from_pubkey(pubkey: PubKey, compressed: Optional[bool] = None,
-                     network: Optional[str] = None) -> Tuple[bytes, str]:
+
+# TODO rename as hash160
+def hash160_from_pubkey(pubkey: PubKey, compressed: Optional[bool] = None,
+                        network: Optional[str] = None) -> Tuple[bytes, str]:
     pubkey, network = bytes_from_pubkey(pubkey, compressed, network)
     h160 = hash160(pubkey)
     return h160, network
 
 
-def h160_from_script(script: Script) -> bytes:
+def hash160_from_script(script: Script) -> bytes:
     if isinstance(script, list):
         script = encode(script)
-    h160 = hash160(script)
-    return h160
+    return hash160(script)
 
 
-def h256_from_script(script: Script) -> bytes:
+def hash256_from_script(script: Script) -> bytes:
     if isinstance(script, list):
         script = encode(script)
-    h256 = sha256(script)
-    return h256
-
+    return sha256(script)

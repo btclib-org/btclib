@@ -91,10 +91,12 @@ def prvkey_info_from_prvkey(prvkey: PrvKey,
         q = prvkey
     elif isinstance(prvkey, dict):
         q, compr, net = _prvkey_info_from_xprv(prvkey)
-        if compressed is not None:
-            assert compr == compressed
-        if network is not None:
-            assert net == network 
+        if compressed is not None and compr != compressed:
+            m = "Compressed key provided, uncompressed key requested"
+            raise ValueError(m)
+        if network is not None and net != network:
+            m = f"{net.capitalize()} key provided, {network} key requested"
+            raise ValueError(m)
         return q, compr, net
     else:
         try:
@@ -102,10 +104,12 @@ def prvkey_info_from_prvkey(prvkey: PrvKey,
         except Exception:
             pass
         else:
-            if compressed is not None:
-                assert compr == compressed
-            if network is not None:
-                assert net == network 
+            if compressed is not None and compr != compressed:
+                m = "Compression requirement mismatch"
+                raise ValueError(m)
+            if network is not None and net != network:
+                m = f"{net.capitalize()} key provided, {network} key requested"
+                raise ValueError(m)
             return q, compr, net
 
         prvkey = bytes_from_octets(prvkey, ec.nsize)

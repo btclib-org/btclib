@@ -19,6 +19,7 @@ from btclib.base58address import (b58address_from_h160,
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh, witness_from_b32address
 from btclib.curves import secp256k1 as ec
+from btclib.hashes import hash160_from_pubkey, hash256_from_script
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.to_prvkey import prvkey_info_from_prvkey
@@ -125,42 +126,24 @@ class TestAddresses(unittest.TestCase):
         self.assertRaises(ValueError, p2pkh, pubkey+'00', True)
         # p2pkh(pubkey+'00')
 
-    def test_witness(self):
+    def test_p2w_p2sh(self):
 
-        pub = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        network = 'mainnet'
-        b58addr = p2wpkh_p2sh(pub, network)
-        _, h160, network2, is_script_hash = h160_from_b58address(b58addr)
-        self.assertEqual(network2, network)
-        self.assertEqual(is_script_hash, True)  #?!?!?
-        self.assertEqual(len(h160), 20)
-
-        pubkey, _ = bytes_from_pubkey(pub, True, network)
-        b58addr = b58address_from_witness(hash160(pubkey), network)
-        _, h160_2, network2, is_script_hash = h160_from_b58address(b58addr)
-        self.assertEqual(network2, network)
-        self.assertEqual(is_script_hash, True)  #?!?!?
-        self.assertEqual(len(h160), 20)
-        self.assertEqual(h160.hex(), h160_2.hex())
+        pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        h160pubkey, network = hash160_from_pubkey(pubkey)
+        b58addr = p2wpkh_p2sh(pubkey, network)
+        b58addr2 = b58address_from_witness(h160pubkey, network)
+        self.assertEqual(b58addr2, b58addr)
 
 
-        wscript = "a8a58c2d034b28bf90c8803f5a53f769a4"
-        b58addr = p2wsh_p2sh(wscript, network)
-        _, h160, network2, is_script_hash = h160_from_b58address(b58addr)
-        self.assertEqual(network2, network)
-        self.assertEqual(is_script_hash, True)  #?!?!?
-        self.assertEqual(len(h160), 20)
-
-        b58addr = b58address_from_witness(sha256(wscript), network)
-        _, h160_2, network2, is_script_hash = h160_from_b58address(b58addr)
-        self.assertEqual(network2, network)
-        self.assertEqual(is_script_hash, True)  #?!?!?
-        self.assertEqual(len(h160), 20)
-        self.assertEqual(h160.hex(), h160_2.hex())
+        script = encode(['OP_DUP', 'OP_HASH160', h160pubkey, 'OP_EQUALVERIFY', 'OP_CHECKSIG'])
+        h256script = hash256_from_script(script)
+        b58addr = p2wsh_p2sh(script, network)
+        b58addr2 = b58address_from_witness(h256script, network)
+        self.assertEqual(b58addr2, b58addr)
 
         # Invalid witness program length (19)
-        self.assertRaises(ValueError, b58address_from_witness, h160[:-1], network)
-        #b58address_from_witness(h160[:-1], network)
+        self.assertRaises(ValueError, b58address_from_witness, h256script[:-1], network)
+        #b58address_from_witness(h256script[:-1], network)
 
     def test_address_from_wif(self):
         # uncompressed mainnet

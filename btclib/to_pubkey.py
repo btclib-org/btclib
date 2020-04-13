@@ -70,8 +70,8 @@ def _bytes_from_xpub(xpubd: XkeyDict, compressed: Optional[bool] = None,
     if network is not None:
         allowed_xpubs = _xpub_versions_from_network(network)
         if xpubd['version'] not in allowed_xpubs:
-            m = f"network ({network}) / "
-            m += f"BIP32 key ({bip32.serialize(xpubd).decode()}) mismatch"
+            m = f"Not a key for ({network}) network: "
+            m += f"{bip32.serialize(xpubd).decode()}"
             raise ValueError(m)
         return xpubd['key'], network
     else:

@@ -44,9 +44,9 @@ with the following modifications:
 
 from typing import Iterable, List, Optional, Tuple
 
-from .alias import PubKey, Script, String
+from .alias import Octets, PubKey, Script, String
 from .bech32 import b32decode, b32encode
-from .hashes import h160_from_pubkey, h256_from_script
+from .hashes import hash160_from_pubkey, hash256_from_script
 from .network import network_from_p2w_prefix, p2w_prefix_from_network
 from .script import encode
 from .utils import bytes_from_octets
@@ -96,13 +96,10 @@ def _check_witness(witvers: int, witprog: bytes):
 
 # 2. bech32 address from WitnessProgram and vice versa
 
-def b32address_from_witness(wv: int, wp: Script, network: str = 'mainnet') -> bytes:
+def b32address_from_witness(wv: int, wp: Octets, network: str = 'mainnet') -> bytes:
     "Encode a bech32 native SegWit address from the witness."
 
-    if isinstance(wp, list):
-        wp = encode(wp)
-    else:
-        wp = bytes_from_octets(wp)
+    wp = bytes_from_octets(wp)
 
     _check_witness(wv, wp)
     hrp = p2w_prefix_from_network(network)
@@ -143,11 +140,11 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 
 def p2wpkh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh bech32 address corresponding to a public key."
-    h160, network = h160_from_pubkey(pubkey, True, network)
+    h160, network = hash160_from_pubkey(pubkey, True, network)
     return b32address_from_witness(0, h160, network)
 
 
 def p2wsh(wscript: Script, network: str = 'mainnet') -> bytes:
     "Return the p2wsh bech32 address corresponding to a script."
-    h256 = h256_from_script(wscript)
+    h256 = hash256_from_script(wscript)
     return b32address_from_witness(0, h256, network)

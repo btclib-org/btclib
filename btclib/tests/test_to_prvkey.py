@@ -143,6 +143,29 @@ class TestToPrvKey(unittest.TestCase):
         self.assertEqual(ref_tuple, prvkey_info_from_prvkey(wif_str))
         self.assertEqual(ref_tuple, prvkey_info_from_prvkey(' ' + wif_str + ' '))
 
+    def test_exceptions(self):
+
+        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        xprvd = bip32.deserialize(xprv)
+
+        # Compressed key provided, uncompressed key requested
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprvd, False, 'mainnet')
+        #prvkey_info_from_prvkey(xprvd, False, 'mainnet')
+
+        # Mainnet key provided, testnet key requested
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprvd, True, 'testnet')
+        #prvkey_info_from_prvkey(xprvd, True, 'testnet')
+
+        # Compression requirement mismatch
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprv, False, 'mainnet')
+        #prvkey_info_from_prvkey(xprv, False, 'mainnet')
+
+        # Mainnet key provided, testnet key requested
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprv, True, 'testnet')
+        #prvkey_info_from_prvkey(xprv, True, 'testnet')
+
+
+
 
 if __name__ == "__main__":
     # execute only if run as a script

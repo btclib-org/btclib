@@ -174,9 +174,20 @@ class TestToPubKey(unittest.TestCase):
     def test_fingerprint(self):
         xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
         pf = fingerprint(xpub)
-        child_key = bip32.derive(xpub, 0)
+        # bytes are used to increase code coverage
+        # dict is used to increase code coverage
+        xpubd = bip32.deserialize(xpub)
+        child_key = bip32.derive(xpubd, b'\x00'*4)
         pf2 = bip32.deserialize(child_key)['parent_fingerprint']
         self.assertEqual(pf, pf2)
+
+    def test_exceptions(self):
+
+        # Not a key for (testnet) network
+        xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+        xpubd = bip32.deserialize(xpub)
+        self.assertRaises(ValueError, _bytes_from_xpub, xpubd, None, 'testnet')
+        #_bytes_from_xpub(xpubd, None, 'testnet')
 
 
 if __name__ == "__main__":

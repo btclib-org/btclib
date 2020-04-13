@@ -15,7 +15,8 @@
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from .alias import Octets, PubKey, Script, String, Token
-from .hashes import h160_from_pubkey, h160_from_script, h256_from_script
+from .hashes import (hash160_from_pubkey, hash160_from_script,
+                     hash256_from_script)
 from .network import p2pkh_prefix_from_network, p2sh_prefix_from_network
 from .script import decode, encode
 from .to_pubkey import bytes_from_pubkey
@@ -23,7 +24,7 @@ from .utils import bytes_from_octets
 
 # 1. Hash/WitnessProgram from pubkey/script
 
-# h160_from_pubkey, h160_from_script, and h256_from_script
+# hash160_from_pubkey, hash160_from_script, and hash256_from_script
 # are imported from base58address
 
 # FIXME: do P2PK and P2MS work also with compressed key?
@@ -72,12 +73,12 @@ def scriptPubKey_from_payload(script_type: str, payload: Octets, m: int = 0) -> 
             msg = f"Invalid payload lenght ({length} bytes) "
             msg += "for p2ms scriptPubKey"
             raise ValueError(msg)
-        if m>n:
-            raise ValueError(f"Impossible m>n {m}-of-{n} multisignature")
         if m<1 or m>16:
             raise ValueError(f"Invalid m ({m}) in {m}-of-{n} multisignature")
         if n<1 or n>16:
             raise ValueError(f"Invalid n ({n}) in {m}-of-{n} multisignature")
+        if m>n:
+            raise ValueError(f"Impossible m>n {m}-of-{n} multisignature")
         m_keys_n.append(m)
         for i in range(n):
             start = i*65
@@ -110,7 +111,7 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, bytes, int]:
         s = bytes_from_octets(script)
 
     l = len(s)
-    n, r = divmod(l - 3, 66)  # n in m-of-n
+    nkeys, r = divmod(l - 3, 66)  # n. of keys in m-of-n
     if   l==67 and s[0] == 0x41           and s[-1] == 0xAC:        # pk
         # p2pk [pubkey, OP_CHECKSIG]
         # 0x41{65-byte pubkey}AC
@@ -118,40 +119,45 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, bytes, int]:
     elif r== 0                            and s[-1] == 0xAE:        # ms
         # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
         # 0x{1-byte m}41{65-byte pubkey1}...41{65-byte pubkeyn}{1-byte n}AE
-        if n<1 or n>16:
-            errmsg = f"Invalid n ({n}) in m-of-n multisignature"
+        m = s[0]-80 if s[0] else 0
+        if nkeys < 1 or nkeys > 16:
+            errmsg = f"Invalid number of keys ({nkeys}) in m-of-n "
+            errmsg += f"multisignature: {decode(s)}"
+            raise ValueError(errmsg)
+        if m < 1 or m > 16:
+            errmsg = f"Invalid m ({m}) in {m}-of-{nkeys} multisignature"
             errmsg += f": {decode(s)}"
             raise ValueError(errmsg)
-        assert n == s[-2]-80, f"Invalid n ({n}) in m-of-n multisignature"
-        m = s[0]-80
+        n = s[-2]-80 if s[-2] else 0
+        if n != nkeys:
+            errmsg = f"Keys ({nkeys}) / n ({n}) mismatch "
+            errmsg += "in m-of-n multisignature"
+            raise ValueError(errmsg)
         if m>n:
-            errmsg = f"Impossible m>n {m}-of-{n} multisignature"
-            errmsg += f": {decode(s)}"
-            raise ValueError(errmsg)
-        if m<1 or m>16:
-            errmsg = f"Invalid m ({m}) in {m}-of-{n} multisignature"
+            errmsg = f"Impossible {m}-of-{n} multisignature"
             errmsg += f": {decode(s)}"
             raise ValueError(errmsg)
         payload = b''
         for i in range(n):
             if s[i*66+1] != 0x41:
-                errmsg = f"{i}-th byte "
+                errmsg = f"{i*66+1}-th byte "
                 errmsg += f"in {m}-of-{n} multisignature payload "
-                errmsg += f"is {hex(s[i*65+1])}, it should have been 0x41"
+                errmsg += f"is {hex(s[i*66+1])}, it should have been 0x41"
                 errmsg += f": {decode(s)}"
                 raise ValueError(errmsg)
             payload += s[i*66+2:i*66+67] 
         return 'p2ms', payload, m
     elif l<=83 and s[0] == 0x6A:                                    # nulldata
         # nulldata [OP_RETURN, data]
+        zeroone = int(l>77)
+        if s[1+zeroone] != l - 2 - zeroone:
+            errmsg = f"Wrong data lenght ({s[1]}) in {l}-bytes "
+            errmsg += f"nulldata script: it should have been {l-2-zeroone}"
+            errmsg += f": {decode(s)}"
+            raise ValueError(errmsg)
         if l < 77:
             # OP_RETURN, data length, data up to 74 bytes max
             # 0x6A{1 byte data-length}{data (0-74 bytes)}
-            if s[1] != l-2:
-                errmsg = f"Wrong data lenght {s[1]} in {l}-bytes "
-                errmsg += f"nulldata script: it should have been {l-2}"
-                errmsg += f": {decode(s)}"
-                raise ValueError(errmsg)
             return 'nulldata', s[2:], 0
         if l > 77:
             # OP_RETURN, OP_PUSHDATA1, data length, data min 75 bytes up to 80
@@ -159,11 +165,6 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, bytes, int]:
             if s[1] != 0x4C:
                 errmsg = f"Missing OP_PUSHDATA1 (0xAC) in {l}-bytes nulldata script"
                 errmsg += f", got {hex(s[1])} instead"
-                errmsg += f": {decode(s)}"
-                raise ValueError(errmsg)
-            if s[2] != l - 3:
-                errmsg = f"Wrong data lenght {s[2]} in {l}-bytes "
-                errmsg += f"nulldata script: it should have been {l-3}"
                 errmsg += f": {decode(s)}"
                 raise ValueError(errmsg)
             return 'nulldata', s[3:], 0
@@ -218,14 +219,14 @@ def nulldata(data: String) -> bytes:
 def p2pkh(pubkey: PubKey, compressed: Optional[bool] = None) -> bytes:
     "Return the p2pkh scriptPubKey of the provided pubkey."
 
-    pubkey_h160, _ = h160_from_pubkey(pubkey, compressed)
+    pubkey_h160, _ = hash160_from_pubkey(pubkey, compressed)
     return scriptPubKey_from_payload('p2pkh', pubkey_h160)
 
 
 def p2sh(script: Script) -> bytes:
     "Return the p2sh scriptPubKey of the provided script."
 
-    script_h160 = h160_from_script(script)
+    script_h160 = hash160_from_script(script)
     return scriptPubKey_from_payload('p2sh', script_h160)
 
 
@@ -233,12 +234,12 @@ def p2wpkh(pubkey: PubKey) -> bytes:
     "Return the p2wpkh scriptPubKey of the provided pubkey."
 
     compressed = True
-    pubkey_h160, _ = h160_from_pubkey(pubkey, compressed)
+    pubkey_h160, _ = hash160_from_pubkey(pubkey, compressed)
     return scriptPubKey_from_payload('p2wpkh', pubkey_h160)
 
 
 def p2wsh(wscript: Script) -> bytes:
     "Return the p2wsh scriptPubKey of the provided script."
 
-    script_h256 = h256_from_script(wscript)
+    script_h256 = hash256_from_script(wscript)
     return scriptPubKey_from_payload('p2wsh', script_h256)
