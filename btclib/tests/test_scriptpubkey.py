@@ -10,12 +10,16 @@
 
 import unittest
 
-from btclib.base58address import b58address_from_h160
+from btclib import base58address, bech32address
 from btclib.bech32address import b32address_from_witness
+from btclib.base58address import b58address_from_h160, b58address_from_witness
+# TODO verify b58address_from_witness 
 from btclib.network import p2pkh_prefix_from_network
 from btclib.script import decode, encode
 from btclib.scriptpubkey import (address_from_scriptPubKey, nulldata, p2ms,
-                                 p2pk, payload_from_scriptPubKey,
+                                 p2pk, p2pkh, p2sh, p2wpkh, p2wsh,
+                                 payload_from_pubkeys,
+                                 payload_from_scriptPubKey,
                                  scriptPubKey_from_address,
                                  scriptPubKey_from_payload)
 from btclib.utils import hash160, sha256
@@ -25,85 +29,289 @@ from btclib.utils import hash160, sha256
 class TestScriptPubKey(unittest.TestCase):
 
     def test_p2pk(self):
-        # https://learnmeabitcoin.com/guide/p2pk
-        # script = [pubkey, 'OP_CHECKSIG']
-        pubkey = "04 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
-        scriptPubKey = p2pk(pubkey)
-        self.assertEqual(scriptPubKey.hex(), "4104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac")
-        # no address for this script
 
-        # Wrong size (33-bytes) for uncompressed SEC key
-        pubkey = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        script_type = 'p2pk'
+
+        # self-consistency
+        pubkey = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+        payload = payload_from_pubkeys(pubkey)
+        script = encode([payload, 'OP_CHECKSIG'])
+
+        # straight to the scriptPubKey
+        scriptPubKey = p2pk(pubkey)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+
+        # to the scriptPubKey in two steps (trhough payload)
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+        
+        # back from the scriptPubKey to the payload
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+
+        # data -> payload in this case is invertible (no hash functions)
+        self.assertEqual(payload.hex(), pubkey)
+
+        # no address in this case
+
+        # documented test case: https://learnmeabitcoin.com/guide/p2pk
+        pubkey = "04 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
+        script = "4104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac"
+        scriptPubKey = p2pk(pubkey)
+        self.assertEqual(scriptPubKey.hex(), script)
+
+        # Invalid size: 33 bytes instead of 65
+        pubkey = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
         self.assertRaises(ValueError, p2pk, pubkey)
         #p2pk(pubkey)
 
-    def test_p2pkh(self):
-        # https://learnmeabitcoin.com/guide/p2pkh
-        # script = ['OP_DUP', 'OP_HASH160', pubkey_hash.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
-
-        pubkey_hash = "12ab8dc588ca9d5787dde7eb29569da63c3a238c"
-        scriptPubKey = scriptPubKey_from_payload(pubkey_hash, 'p2pkh')
-        self.assertEqual(scriptPubKey.hex(), "76a91412ab8dc588ca9d5787dde7eb29569da63c3a238c88ac")
-
-        hash, scriptPubKey_type, _ = payload_from_scriptPubKey(scriptPubKey)
-        self.assertEqual(hash.hex(), pubkey_hash)
-        self.assertEqual(scriptPubKey_type, "p2pkh")
-
-        network = 'mainnet'
-        addr = address_from_scriptPubKey(scriptPubKey, network)
-        prefix = p2pkh_prefix_from_network(network)
-        self.assertEqual(addr, b58address_from_h160(prefix, pubkey_hash))
-
-        scriptPubKey2, network2 = scriptPubKey_from_address(addr)
-        self.assertEqual(scriptPubKey2, scriptPubKey)
-        self.assertEqual(network2, network)
-
-        # Invalid size: 11 bytes instead of 20
-        self.assertRaises(ValueError, scriptPubKey_from_payload, "00"*11, 'p2pkh')
-        #p2pkh("00"*11)
-
     def test_p2ms(self):
-        # https://learnmeabitcoin.com/guide/p2ms
-        # script = [1, pubkey, pubKey2, 2, 'OP_CHECKMULTISIG']
+
+        script_type = 'p2ms'
+
+        # self-consistency
+        pubkey1 = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+        pubkey2 = "0461cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d76519aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
+        pubkeys = [pubkey1, pubkey2]
+        lexicographic_sort = True
+        payload = payload_from_pubkeys(pubkeys, lexicographic_sort)
+        m = 1
+        n = 2
+        script = encode([m, pubkey2, pubkey1, n, 'OP_CHECKMULTISIG'])
+
+        # straight to the scriptPubKey
+        scriptPubKey = p2ms(m, pubkeys, lexicographic_sort)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+
+        # to the scriptPubKey in two steps (trhough payload)
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload, m)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+        
+        # back from the scriptPubKey to the payload
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(m, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(m, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+
+        # data -> payload in this case is invertible (no hash functions)
+        self.assertEqual(payload.hex(), ''.join([pubkey2, pubkey1]))
+
+        # no address in this case
+
+        # documented test case: https://learnmeabitcoin.com/guide/p2ms
         pubkey1 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
         pubkey2 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
-        scriptPubKey = p2ms(1, [pubkey1, pubkey2], False)
-        self.assertEqual(scriptPubKey.hex(), "514104cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4410461cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d76519aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af52ae")
-        # no address for this script
+        pubkeys = [pubkey1, pubkey2]
+        m = 1
+        n = 2
+        lexicographic_sort = False
+        script = "514104cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4410461cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d76519aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af52ae"
+        scriptPubKey = p2ms(1, pubkeys, lexicographic_sort)
+        self.assertEqual(scriptPubKey.hex(), script)
 
-        # Impossible 3-of-2 multisignature
-        self.assertRaises(ValueError, p2ms, 3, (pubkey1, pubkey2))
-        #p2ms(3, [pubkey1, pubkey2])
+        # Impossible m>n 3-of-2 multisignature
+        self.assertRaises(ValueError, p2ms, 3, pubkeys)
+        #p2ms(3, pubkeys)
 
-        # Invalid m (0) in m-of-n multisignature
-        self.assertRaises(ValueError, p2ms, 0, (pubkey1, pubkey2))
-        #p2ms(0, (pubkey1, pubkey2))
+        # Invalid m (0) for p2ms script
+        self.assertRaises(ValueError, p2ms, 0, pubkeys)
+        #p2ms(0, pubkeys)
 
-        # Wrong size (66-bytes) for uncompressed SEC key
-        self.assertRaises(ValueError, p2ms, 1, (pubkey1+"00", pubkey2))
-        #p2ms(1, (pubkey1+"00", pubkey2))
+        # Invalid size: 66 bytes instead of 65
+        self.assertRaises(ValueError, p2ms, 1, [pubkey1+"00", pubkey2])
+        #p2ms(1, [pubkey1+"00", pubkey2])
 
         # Invalid n (17) in 3-of-17 multisignature
         self.assertRaises(ValueError, p2ms, 3, [pubkey1]*17)
         #p2ms(3, [pubkey1]*17)
 
-    def test_p2sh(self):
-        # https://learnmeabitcoin.com/guide/p2sh
-        # script = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
+    def test_nulldata(self):
 
-        script_hash = "748284390f9e263a4b766a75d0633c50426eb875"
-        scriptPubKey = scriptPubKey_from_payload(script_hash, 'p2sh')
-        self.assertEqual(scriptPubKey.hex(), "a914748284390f9e263a4b766a75d0633c50426eb87587")
+        script_type = 'nulldata'
 
-        hash, scriptPubKey_type, _ = payload_from_scriptPubKey(scriptPubKey)
-        self.assertEqual(hash.hex(), script_hash)
-        self.assertEqual(scriptPubKey_type, "p2sh")
+        # self-consistency
+        string = "time-stamped data"
+        payload = string.encode()
+        script = encode(['OP_RETURN', payload])
 
+        # straight to the scriptPubKey
+        scriptPubKey = nulldata(string)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+
+        # to the scriptPubKey in two steps (trhough payload)
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+
+        # back from the scriptPubKey to the payload
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+
+        # data -> payload in this case is invertible (no hash functions)
+        self.assertEqual(payload.decode(), string)
+
+        # no address in this case
+
+        # documented test cases: https://learnmeabitcoin.com/guide/nulldata
+
+        string = "hello world"
+        payload = string.encode()
+        self.assertEqual(payload.hex(), "68656c6c6f20776f726c64")
+        script = bytes.fromhex("6a0b68656c6c6f20776f726c64")
+        scriptPubKey = nulldata(string)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+
+        string = "charley loves heidi"
+        payload = string.encode()
+        self.assertEqual(payload.hex(), "636861726c6579206c6f766573206865696469")
+        script = bytes.fromhex("6a13636861726c6579206c6f766573206865696469")
+        scriptPubKey = nulldata(string)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+
+        string = "家族も友達もみんなが笑顔の毎日がほしい"
+        payload = string.encode()
+        self.assertEqual(payload.hex(), "e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184")
+        script = bytes.fromhex("6a39e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184")
+        scriptPubKey = nulldata(string)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+
+        # Invalid data lenght (81 bytes) for nulldata scriptPubKey
+        data = '00'*81
+        self.assertRaises(ValueError, scriptPubKey_from_payload, data, 'nulldata')
+        #scriptPubKey_from_payload(data, 'nulldata')
+
+    def test_p2pkh(self):
+
+        script_type = 'p2pkh'
+
+        # self-consistency
+        pubkey = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+        payload = hash160(pubkey)
+        script = encode(['OP_DUP', 'OP_HASH160', payload, 'OP_EQUALVERIFY', 'OP_CHECKSIG'])
+
+        # straight to the scriptPubKey
+        scriptPubKey = p2pkh(pubkey)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+
+        # to the scriptPubKey in two steps (trhough payload)
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+
+        # back from the scriptPubKey to the payload
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+
+        # data -> payload is not invertible (hash functions)
+
+        # address
         network = 'mainnet'
-        addr = address_from_scriptPubKey(scriptPubKey, network)
-        self.assertEqual(addr.decode(), "3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V")
+        address = base58address.p2pkh(pubkey, None, network)
+        address2 = address_from_scriptPubKey(scriptPubKey, network)
+        self.assertEqual(address, address2)
+        scriptPubKey2, network2 = scriptPubKey_from_address(address)
+        self.assertEqual(scriptPubKey2, scriptPubKey)
+        self.assertEqual(network2, network)
 
-        scriptPubKey2, network2 = scriptPubKey_from_address(addr)
+        # documented test case: https://learnmeabitcoin.com/guide/p2pkh
+        payload = "12ab8dc588ca9d5787dde7eb29569da63c3a238c"
+        script = "76a91412ab8dc588ca9d5787dde7eb29569da63c3a238c88ac"
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script)
+        # FIXME no address on the webpage?
+
+        # Invalid size: 11 bytes instead of 20
+        self.assertRaises(ValueError, scriptPubKey_from_payload, "00"*11, 'p2pkh')
+        #p2pkh("00"*11)
+
+    def test_p2sh(self):
+
+        script_type = 'p2sh'
+
+        # self-consistency
+        pubkey = "02cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+        pubkey_hash = hash160(pubkey)
+        redeem_script = scriptPubKey_from_payload('p2pkh', pubkey_hash)
+        payload = hash160(redeem_script)
+        script = encode(['OP_HASH160', payload, 'OP_EQUAL'])
+
+        # straight to the scriptPubKey
+        scriptPubKey = p2sh(redeem_script)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+
+        # to the scriptPubKey in two steps (trhough payload)
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
+
+        # back from the scriptPubKey to the payload
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+
+        # data -> payload is not invertible (hash functions)
+
+        # address
+        network = 'mainnet'
+        address = base58address.p2sh(redeem_script, network)
+        address2 = address_from_scriptPubKey(scriptPubKey, network)
+        self.assertEqual(address, address2)
+        scriptPubKey2, network2 = scriptPubKey_from_address(address)
+        self.assertEqual(scriptPubKey2, scriptPubKey)
+        self.assertEqual(network2, network)
+
+        # documented test case: https://learnmeabitcoin.com/guide/p2sh
+        payload = "748284390f9e263a4b766a75d0633c50426eb875"
+        script = "a914748284390f9e263a4b766a75d0633c50426eb87587"
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script)
+        network = 'mainnet'
+        address = b"3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V"
+        address2 = address_from_scriptPubKey(scriptPubKey, network)
+        self.assertEqual(address, address2)
+        scriptPubKey2, network2 = scriptPubKey_from_address(address)
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
 
@@ -111,141 +319,83 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00"*21, 'p2sh')
         #scriptPubKey_from_payload("00"*21, 'p2sh')
 
-    def test_nulldata(self):
-        # https://learnmeabitcoin.com/guide/nulldata
-        # script = ['OP_RETURN', data.hex()]
+    def test_p2wpkh(self):
 
-        string = "hello world"
-        data = string.encode()
-        self.assertEqual(data.hex(), "68656c6c6f20776f726c64")
-        scriptPubKey = scriptPubKey_from_payload(data, 'nulldata')
-        self.assertEqual(scriptPubKey.hex(), "6a0b68656c6c6f20776f726c64")
+        script_type = 'p2wpkh'
 
-        hash, scriptPubKey_type, _ = payload_from_scriptPubKey(scriptPubKey)
-        self.assertEqual(hash.hex(), data.hex())
-        self.assertEqual(scriptPubKey_type, "nulldata")
-        self.assertEqual(hash.decode(), string)
+        # self-consistency
+        pubkey = "02cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+        payload = hash160(pubkey)
+        script = encode([0, payload])
 
-        # no address for this script
-        scriptPubKey2 = nulldata(string)
-        self.assertEqual(scriptPubKey, scriptPubKey2)
+        # straight to the scriptPubKey
+        scriptPubKey = p2wpkh(pubkey)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
 
-        string = "charley loves heidi"
-        data = string.encode()
-        self.assertEqual(data.hex(), "636861726c6579206c6f766573206865696469")
-        scriptPubKey = scriptPubKey_from_payload(data, 'nulldata')
-        self.assertEqual(scriptPubKey.hex(), "6a13636861726c6579206c6f766573206865696469")
+        # to the scriptPubKey in two steps (trhough payload)
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
 
-        hash, scriptPubKey_type, _ = payload_from_scriptPubKey(scriptPubKey)
-        self.assertEqual(hash.hex(), data.hex())
-        self.assertEqual(scriptPubKey_type, "nulldata")
-        self.assertEqual(hash.decode(), string)
+        # back from the scriptPubKey to the payload
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
 
-        # no address for this script
-        scriptPubKey2 = nulldata(string)
-        self.assertEqual(scriptPubKey, scriptPubKey2)
+        # data -> payload is not invertible (hash functions)
 
-        string = "家族も友達もみんなが笑顔の毎日がほしい"
-        data = string.encode()
-        self.assertEqual(data.hex(), "e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184")
-        scriptPubKey = scriptPubKey_from_payload(data, 'nulldata')
-        self.assertEqual(scriptPubKey.hex(), "6a39e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184")
+        # address
+        network = 'mainnet'
+        address = bech32address.p2wpkh(pubkey, network)
+        address2 = address_from_scriptPubKey(scriptPubKey, network)
+        self.assertEqual(address, address2)
+        scriptPubKey2, network2 = scriptPubKey_from_address(address)
+        self.assertEqual(scriptPubKey2, scriptPubKey)
+        self.assertEqual(network2, network)
 
-        hash, scriptPubKey_type, _ = payload_from_scriptPubKey(scriptPubKey)
-        self.assertEqual(hash.hex(), data.hex())
-        self.assertEqual(scriptPubKey_type, "nulldata")
-        self.assertEqual(hash.decode(), string)
+    def test_p2wsh(self):
 
-        # no address for this script
-        scriptPubKey2 = nulldata(string)
-        self.assertEqual(scriptPubKey, scriptPubKey2)
+        script_type = 'p2wsh'
 
-        # Invalid data lenght (81 bytes) for nulldata scriptPubKey
-        data = '00'*81
-        self.assertRaises(ValueError, scriptPubKey_from_payload, data, 'nulldata')
-        #scriptPubKey_from_payload(data, 'nulldata')
-
-    def test_selfconsistency0(self):
-
-        # OP_RETURN
-        string = "time-stamped data"
-        data = string.encode()
-        scriptPubKey = scriptPubKey_from_payload(data, 'nulldata')
-        scriptPubKey2 = nulldata(string)
-        self.assertEqual(scriptPubKey, scriptPubKey2)
-        script = decode(scriptPubKey)
-        script_exp = ['OP_RETURN', data.hex()]
-        self.assertEqual(script, script_exp)
-        hash, scriptPubKey_type, _ = payload_from_scriptPubKey(scriptPubKey)
-        self.assertEqual(hash.hex(), data.hex())
-        self.assertEqual(scriptPubKey_type, "nulldata")
-        self.assertEqual(hash.decode(), string)
-
-    def test_selfconsistency1(self):
-
-        # p2pk
-        pubkey = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        scriptPubKey = p2pk(pubkey)
-        script = decode(scriptPubKey)
-        script_exp = [pubkey, 'OP_CHECKSIG']
-        self.assertEqual(script, script_exp)
-
-    def test_selfconsistency2(self):
-
-        # multi-sig (lexicographically sorted)
-        pubkey1 = "0461cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d76519aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
-        pubkey2 = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        scriptPubKey = p2ms(1, (pubkey1, pubkey2))
-        script = decode(scriptPubKey)
-        script_exp = [1, pubkey1, pubkey2, 2, 'OP_CHECKMULTISIG']
-        self.assertEqual(script, script_exp)
-
-    def test_selfconsistency3(self):
-
-        # p2pkh
-        pubkey = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+        # self-consistency
+        pubkey = "02cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
         pubkey_hash = hash160(pubkey)
-        scriptPubKey = scriptPubKey_from_payload(pubkey_hash, 'p2pkh')
-        script = decode(scriptPubKey)
-        script_exp = ['OP_DUP', 'OP_HASH160', pubkey_hash.hex(), 'OP_EQUALVERIFY', 'OP_CHECKSIG']
-        self.assertEqual(script, script_exp)
+        redeem_script = scriptPubKey_from_payload('p2pkh', pubkey_hash)
+        payload = sha256(redeem_script)
+        script = encode([0, payload])
 
-    def test_selfconsistency4(self):
+        # straight to the scriptPubKey
+        scriptPubKey = p2wsh(redeem_script)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
 
-        # p2sh (p2pkh-p2sh)
-        pubkey = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        pubkey_hash = hash160(pubkey)
-        scriptPubKey = scriptPubKey_from_payload(pubkey_hash, 'p2pkh')
+        # to the scriptPubKey in two steps (trhough payload)
+        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+        self.assertEqual(scriptPubKey.hex(), script.hex())
 
-        redeem_script_hash = hash160(scriptPubKey)
-        scriptPubKey = scriptPubKey_from_payload(redeem_script_hash, 'p2sh')
-        script = decode(scriptPubKey)
-        script_exp = ['OP_HASH160', redeem_script_hash.hex(), 'OP_EQUAL']
-        self.assertEqual(script, script_exp)
+        # back from the scriptPubKey to the payload
+        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
+        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
+        self.assertEqual(script_type, script_type2)
+        self.assertEqual(0, m2)
+        self.assertEqual(payload.hex(), payload2.hex())
 
-    def test_selfconsistency5(self):
+        # data -> payload is not invertible (hash functions)
 
-        # p2wpkh
-        pubkey = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        pubkey_hash = hash160(pubkey)
-        scriptPubKey = scriptPubKey_from_payload(pubkey_hash,'p2wpkh')
-        self.assertEqual(scriptPubKey.hex(), "0014"+pubkey_hash.hex())
-        script = decode(scriptPubKey)
-        script_exp = [0, pubkey_hash.hex()]
-        self.assertEqual(script, script_exp)
-
-    def test_selfconsistency6(self):
-
-        # p2wsh
-        pubkey = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        script = [pubkey, 'OP_CHECKSIG']
-        script_bytes = encode(script)
-        script_hash = sha256(script_bytes)
-        scriptPubKey = scriptPubKey_from_payload(script_hash, 'p2wsh')
-        self.assertEqual(scriptPubKey.hex(), "0020" + script_hash.hex())
-        script = decode(scriptPubKey)
-        script_exp = [0, script_hash.hex()]
-        self.assertEqual(script, script_exp)
+        # address
+        network = 'mainnet'
+        address = bech32address.p2wsh(redeem_script, network)
+        address2 = address_from_scriptPubKey(scriptPubKey, network)
+        self.assertEqual(address, address2)
+        scriptPubKey2, network2 = scriptPubKey_from_address(address)
+        self.assertEqual(scriptPubKey2, scriptPubKey)
+        self.assertEqual(network2, network)
 
     def test_exceptions(self):
 
@@ -256,6 +406,16 @@ class TestScriptPubKey(unittest.TestCase):
         # Invalid size: 33 bytes instead of 32
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00"*33, 'p2wsh')
         #scriptPubKey_from_payload("00"*33, 'p2wsh')
+
+        # Unknown script
+        script = [16, 20*b'\x00']
+        self.assertRaises(ValueError, address_from_scriptPubKey, script)
+        #address_from_scriptPubKey(script)
+
+        # Unhandled witness version (16)
+        addr = b32address_from_witness(16, 20*b'\x00')
+        self.assertRaises(ValueError, scriptPubKey_from_address, addr)
+        #scriptPubKey_from_address(addr)
 
     def test_CLT(self):
 
@@ -272,51 +432,11 @@ class TestScriptPubKey(unittest.TestCase):
         ]
         witness_program = encode(script)
         witness_hash = sha256(witness_program)
-        scriptPubKey = scriptPubKey_from_payload(witness_hash, 'p2wsh')
+        scriptPubKey = scriptPubKey_from_payload('p2wsh', witness_hash)
         self.assertEqual(scriptPubKey.hex(), "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708")
+        # TODO improve
         address = b32address_from_witness(0, witness_hash)
         self.assertEqual(address, b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj")
-
-    def test_address_scriptPubKey(self):
-
-        pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        pubkey_hash = hash160(pubkey).hex()
-
-        script = [0, pubkey_hash]
-        addr = address_from_scriptPubKey(script)
-        scriptPubKey, _ = scriptPubKey_from_address(addr)
-        self.assertEqual(scriptPubKey, encode(script))
-
-        script = [
-            'OP_DUP', 'OP_HASH160', pubkey_hash,
-            'OP_EQUALVERIFY', 'OP_CHECKSIG'
-        ]
-        addr = address_from_scriptPubKey(script)
-        scriptPubKey, _ = scriptPubKey_from_address(addr)
-        self.assertEqual(scriptPubKey, encode(script))
-
-        script_hash = hash160(scriptPubKey).hex()
-        script = ['OP_HASH160',script_hash, 'OP_EQUAL']
-        addr = address_from_scriptPubKey(script)
-        scriptPubKey, _ = scriptPubKey_from_address(addr)
-        self.assertEqual(scriptPubKey, encode(script))
-
-        script_hash = sha256(scriptPubKey).hex()
-        script = [0, script_hash]
-        addr = address_from_scriptPubKey(script)
-        scriptPubKey, _ = scriptPubKey_from_address(addr)
-        self.assertEqual(scriptPubKey, encode(script))
-
-        # Unknown script
-        script = [16, pubkey_hash]
-        self.assertRaises(ValueError, address_from_scriptPubKey, script)
-        #address_from_scriptPubKey(script)
-
-        # Unhandled witness version (16)
-        wp = hash160(pubkey)[2:]
-        addr = b32address_from_witness(16, wp)
-        self.assertRaises(ValueError, scriptPubKey_from_address, addr)
-        # scriptPubKey_from_address(addr)
 
 
 if __name__ == "__main__":
