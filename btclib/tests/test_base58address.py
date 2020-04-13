@@ -12,7 +12,8 @@ import unittest
 
 from btclib import bip32, slip32
 from btclib.base58 import b58decode, b58encode
-from btclib.base58address import (_b58segwitaddress, b58address_from_h160,
+from btclib.base58address import (b58address_from_h160,
+                                  b58address_from_witness,
                                   h160_from_b58address, p2pkh, p2sh,
                                   p2wpkh_p2sh, p2wsh_p2sh)
 from btclib.base58wif import wif_from_prvkey
@@ -135,7 +136,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(len(h160), 20)
 
         pubkey, _ = bytes_from_pubkey(pub, True, network)
-        b58addr = _b58segwitaddress(hash160(pubkey), network)
+        b58addr = b58address_from_witness(hash160(pubkey), network)
         _, h160_2, network2, is_script_hash = h160_from_b58address(b58addr)
         self.assertEqual(network2, network)
         self.assertEqual(is_script_hash, True)  #?!?!?
@@ -150,7 +151,7 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(is_script_hash, True)  #?!?!?
         self.assertEqual(len(h160), 20)
 
-        b58addr = _b58segwitaddress(sha256(wscript), network)
+        b58addr = b58address_from_witness(sha256(wscript), network)
         _, h160_2, network2, is_script_hash = h160_from_b58address(b58addr)
         self.assertEqual(network2, network)
         self.assertEqual(is_script_hash, True)  #?!?!?
@@ -158,8 +159,8 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(h160.hex(), h160_2.hex())
 
         # Invalid witness program length (19)
-        self.assertRaises(ValueError, _b58segwitaddress, h160[:-1], network)
-        #_b58segwitaddress(h160[:-1], network)
+        self.assertRaises(ValueError, b58address_from_witness, h160[:-1], network)
+        #b58address_from_witness(h160[:-1], network)
 
     def test_address_from_wif(self):
         # uncompressed mainnet

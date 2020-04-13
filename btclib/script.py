@@ -12,8 +12,7 @@
 
 https://en.bitcoin.it/wiki/Script
 
-Scripts are represented by Iterable[Token] (usually List[Token]),
-where Token = Union[int, str, bytes]:
+Scripts are represented by List[Token], where Token = Union[int, str, bytes]:
 
 * int [-1, 16] are shorcuts for 'OP_1NEGATE', 'OP_0' - 'OP_16'
 * str are for opcodes (e.g. 'OP_HASH160') or hexstring data
@@ -21,7 +20,7 @@ where Token = Union[int, str, bytes]:
 """
 
 from io import BytesIO
-from typing import BinaryIO, Iterable, List, Union
+from typing import BinaryIO, List, Union
 
 from . import varint
 from .alias import Octets, Script, Token
@@ -278,7 +277,7 @@ def _op_pushdata(data: Octets) -> bytes:
     return r
 
 
-def encode(script: Iterable[Token]) -> bytes:
+def encode(script: List[Token]) -> bytes:
     r = b''
     for token in script:
         if isinstance(token, int):
@@ -371,7 +370,7 @@ def decode(script: Octets) -> List[Token]:
     return r
 
 
-def serialize(script: Iterable[Token]) -> bytes:
+def serialize(script: List[Token]) -> bytes:
     r = encode(script)
     # prepend length as varint
     length  = len(r)

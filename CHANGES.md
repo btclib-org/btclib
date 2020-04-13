@@ -8,6 +8,7 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- refactored address/scriptPubKey
 - consolidated wif_from_* in wif_from_prvkey
 - removed dangerous functions going from prvkey to address
 - improved to_pub and to_prv functions

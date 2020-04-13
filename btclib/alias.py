@@ -144,4 +144,8 @@ SSASig = Union[SSASigTuple, Octets]
 # ascii str are for opcodes (e.g. 'OP_HASH160')
 # Octets are for data to be pushed
 Token = Union[int, str, bytes]
-Script = Union[bytes, List[Token]]
+
+# Bitcoin script expressed as List[Token]
+# e.g. [OP_HASH160, script_h160, OP_EQUAL]
+# or Octets of its byte-encoded representation
+Script = Union[Octets, List[Token]]
