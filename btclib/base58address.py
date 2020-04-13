@@ -76,19 +76,23 @@ def p2sh(script: Script, network: str = 'mainnet') -> bytes:
 
 # 2b. base58 address from WitnessProgram and vice versa
 
-def b58address_from_witness(witprog: Octets, network: str) -> bytes:
-    witver = b'\x00'
-    witprog = bytes_from_octets(witprog)
-    length = len(witprog)
-    if length in (20, 32):
-        # [wv,     witprog]
-        # [ 0,    key_hash] : 0x0014{20-byte key-hash}
-        # [ 0, script_hash] : 0x0020{32-byte key-script_hash}
-        script_pubkey = witver + length.to_bytes(1, 'big') + witprog
-        return p2sh(script_pubkey, network)
+def b58address_from_witness(wp: Script, network: str = 'mainnet') -> bytes:
+    "Encode a legacy base58 p2sh-wrapped SegWit address."
 
-    m = f"Invalid witness program length ({len(witprog)})"
-    raise ValueError(m)
+    if isinstance(wp, list):
+        wp = encode(wp)
+
+    length = len(wp)
+    if length == 20:
+        redeem_script = scriptPubKey_from_payload('p2wpkh', wp)
+    elif length == 32:
+        redeem_script = scriptPubKey_from_payload('p2wsh', wp)
+    else:
+        m = f"Invalid witness program length ({len(wp)})"
+        raise ValueError(m)
+
+    return p2sh(redeem_script, network)
+
 
 def witness_from_b58address(b58addr: String) -> Tuple[bytes, str, bool]:
     "Decode a legacy base58 p2sh-wrapped SegWit address."
@@ -127,11 +131,7 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
     if has_segwit_prefix(addr):
         # also check witness validity
         witvers, witprog, network, is_script_hash = witness_from_b32address(addr)
-        if witvers != 0:
-            raise ValueError(f"Unhandled witness version ({witvers})")
-        len_wprog = len(witprog)
-        assert len_wprog in (20, 32), f"Witness program length: {len_wprog}"
-        if len_wprog == 32 and is_script_hash:
+        if is_script_hash:
             return scriptPubKey_from_payload('p2wsh', witprog), network
         else:
             return scriptPubKey_from_payload('p2wpkh', witprog), network
