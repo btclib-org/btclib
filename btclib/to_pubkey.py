@@ -19,7 +19,7 @@ from .network import (_xpub_versions_from_network, curve_from_network,
                       curve_from_xpubversion, network_from_xpub)
 from .secpoint import bytes_from_point, point_from_octets
 from .to_prvkey import PrvKey, prvkey_info_from_prvkey
-from .utils import bytes_from_octets
+from .utils import bytes_from_octets, hash160
 
 
 def _point_from_xpub(xpubd: XkeyDict, ec: Curve) -> Point:
@@ -80,7 +80,7 @@ def _bytes_from_xpub(xpubd: XkeyDict, compressed: Optional[bool] = None,
 
 def bytes_from_pubkey(P: PubKey, compressed: Optional[bool] = None,
                       network: Optional[str] = None) -> Tuple[bytes, str]:
-    """Return SEC bytes from any possible pubkey representation.
+    """Return (SEC-bytes, network) from any possible pubkey representation.
 
     It supports:
 
@@ -133,3 +133,10 @@ def pubkey_info_from_prvkey(prvkey: PrvKey, compressed: Optional[bool] = None,
     Pub = mult(q, ec.G, ec)
     pubkey = bytes_from_point(Pub, compr, ec)
     return pubkey, net
+
+
+def fingerprint(pubkey: PubKey, network: Optional[str] = None) -> bytes:
+
+    # compressed pubkey
+    pubkey, _ = bytes_from_pubkey(pubkey, True, network)
+    return hash160(pubkey)[:4]

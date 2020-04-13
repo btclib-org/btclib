@@ -16,8 +16,8 @@ from btclib.alias import INF
 from btclib.base58 import b58encode
 from btclib.curves import secp256k1 as ec
 from btclib.secpoint import bytes_from_point
-from btclib.to_pubkey import (_bytes_from_xpub, bytes_from_pubkey,
-                              point_from_pubkey)
+from btclib.to_pubkey import (
+    _bytes_from_xpub, bytes_from_pubkey, fingerprint, point_from_pubkey)
 
 
 class TestToPubKey(unittest.TestCase):
@@ -170,6 +170,13 @@ class TestToPubKey(unittest.TestCase):
         self.assertRaises(ValueError, bytes_from_pubkey, xpub)
         xpub_str = xpub.decode('ascii')
         self.assertRaises(ValueError, bytes_from_pubkey, xpub_str)
+
+    def test_fingerprint(self):
+        xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+        pf = fingerprint(xpub)
+        child_key = bip32.derive(xpub, 0)
+        pf2 = bip32.deserialize(child_key)['parent_fingerprint']
+        self.assertEqual(pf, pf2)
 
 
 if __name__ == "__main__":

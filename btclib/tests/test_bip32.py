@@ -16,14 +16,14 @@ from btclib import bip39, slip32
 from btclib.base58 import b58decode, b58encode
 from btclib.base58address import p2pkh, p2wpkh_p2sh
 from btclib.bech32address import p2wpkh
-from btclib.bip32 import (crack_prvkey, derive, deserialize, fingerprint,
+from btclib.bip32 import (crack_prvkey, derive, deserialize,
                           rootxprv_from_bip39mnemonic, rootxprv_from_seed,
                           serialize, xpub_from_xprv)
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
-from btclib.network import (MAIN_xprv, MAIN_yprv, MAIN_Yprv,
-                            MAIN_zprv, MAIN_Zprv, TEST_tprv, TEST_uprv,
-                            TEST_Uprv, TEST_vprv, TEST_Vprv)
+from btclib.network import (MAIN_xprv, MAIN_yprv, MAIN_Yprv, MAIN_zprv,
+                            MAIN_Zprv, TEST_tprv, TEST_uprv, TEST_Uprv,
+                            TEST_vprv, TEST_Vprv)
 
 
 class TestBIP32(unittest.TestCase):
@@ -44,20 +44,6 @@ class TestBIP32(unittest.TestCase):
         xpub = xpub_from_xprv(xprv)
         xpub2 = xpub_from_xprv(deserialize(xprv))
         self.assertEqual(xpub, xpub2)
-
-    def test_fingerprint(self):
-        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        f = fingerprint(xprv)
-        child_key = derive(xprv, b'\x00\x00\x00\x00')
-        pf = deserialize(child_key)['parent_fingerprint']
-        self.assertEqual(f, pf)
-
-        xpub = xpub_from_xprv(xprv)
-        f = fingerprint(xpub)
-        self.assertEqual(f, pf)
-
-        child_key2 = derive(deserialize(xprv), 0)
-        self.assertEqual(child_key2, child_key)
 
     def test_utils(self):
         # root key, zero depth
@@ -529,11 +515,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2pkh(xpub_ext, True, 'testnet')  # TODO: do not require explicit network 
+        address = p2pkh(xpub_ext)
         exp_address = b'moutHSzeFWViMNEcvBxKzNCMj2kca8MvE1'
         self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2pkh(xpub_int, True, 'testnet')  # TODO: do not require explicit network 
+        address = p2pkh(xpub_int)
         exp_address = b'myWcXdNais9ExumnGKnNoJwoihQKfNPG9i'
         self.assertEqual(address, exp_address)
 
@@ -548,11 +534,11 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2wpkh_p2sh(xpub_ext, 'testnet')  # TODO: do not require explicit network 
+        address = p2wpkh_p2sh(xpub_ext)
         exp_address = b'2Mw8tQ6uT6mHhybarVhjgomUhHQJTeV9A2c'
         self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2wpkh_p2sh(xpub_int, 'testnet')  # TODO: do not require explicit network 
+        address = p2wpkh_p2sh(xpub_int)
         exp_address = b'2N872CRJ3E1CzWjfixXr3aeC3hkF5Cz4kWb'
         self.assertEqual(address, exp_address)
 
@@ -577,11 +563,13 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
         # first addresses
         xpub_ext = derive(xpub, "./0/0")  # external
-        address = p2wpkh(xpub_ext, 'regtest')  # TODO: do not require explicit network 
+        # explicit network is required to discriminate from testnet
+        address = p2wpkh(xpub_ext, 'regtest')
         exp_address = b'bcrt1qv8lcnmj09rpdqwgl025h2deygur64z4hqf7me5'
         self.assertEqual(address, exp_address)
         xpub_int = derive(xpub, "./1/0")  # internal
-        address = p2wpkh(xpub_int, 'regtest')  # TODO: do not require explicit network
+        # explicit network is required to discriminate from testnet
+        address = p2wpkh(xpub_int, 'regtest')
         exp_address = b'bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5'
         self.assertEqual(address, exp_address)
 

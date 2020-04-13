@@ -147,23 +147,6 @@ def serialize(d: XkeyDict) -> bytes:
     return b58encode(t)
 
 
-# TODO accept a generic PubKey
-def fingerprint(d: Union[XkeyDict, String]) -> bytes:
-
-    if not isinstance(d, dict):
-        d = deserialize(d)
-
-    # it is a private key
-    if d['key'][0] == 0:
-        q = int.from_bytes(d['key'][1:], byteorder='big')
-        P = mult(q)
-        pubkey = bytes_from_point(P, True, ec)
-        return hash160(pubkey)[:4]
-
-    # it is a public key
-    return hash160(d['key'])[:4]
-
-
 def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     """Return BIP32 root master extended private key from seed."""
 
