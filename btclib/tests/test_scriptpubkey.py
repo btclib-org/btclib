@@ -11,14 +11,15 @@
 import unittest
 
 from btclib import base58address, bech32address
-from btclib.base58address import b58address_from_h160
-from btclib.base58address import address_from_scriptPubKey, scriptPubKey_from_address
+from btclib.base58address import (address_from_scriptPubKey,
+                                  b58address_from_h160,
+                                  b58address_from_witness,
+                                  scriptPubKey_from_address)
 from btclib.bech32address import b32address_from_witness
 from btclib.network import p2pkh_prefix_from_network, p2sh_prefix_from_network
 from btclib.script import decode, encode
-from btclib.scriptpubkey import (nulldata, p2ms,
-                                 p2pk, p2pkh, p2sh, p2wpkh, p2wsh,
-                                 payload_from_pubkeys,
+from btclib.scriptpubkey import (nulldata, p2ms, p2pk, p2pkh, p2sh, p2wpkh,
+                                 p2wsh, payload_from_pubkeys,
                                  payload_from_scriptPubKey,
                                  scriptPubKey_from_payload)
 from btclib.utils import hash160, sha256
@@ -356,7 +357,6 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00"*21, 'p2sh')
         #scriptPubKey_from_payload("00"*21, 'p2sh')
 
-#TODO test p2sh wrapped addresses
     def test_p2wpkh(self):
 
         script_type = 'p2wpkh'
@@ -386,7 +386,7 @@ class TestScriptPubKey(unittest.TestCase):
 
         # data -> payload is not invertible (hash functions)
 
-        # address
+        # bech32 address
         network = 'mainnet'
         address = bech32address.p2wpkh(pubkey, network)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
@@ -397,6 +397,11 @@ class TestScriptPubKey(unittest.TestCase):
         scriptPubKey2, network2 = scriptPubKey_from_address(address)
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
+
+        # p2sh-wrapped base58 address
+        address = base58address.p2wpkh_p2sh(pubkey, network)
+        address2 = b58address_from_witness(payload, network)
+        self.assertEqual(address, address2)
 
     def test_p2wsh(self):
 
@@ -429,7 +434,7 @@ class TestScriptPubKey(unittest.TestCase):
 
         # data -> payload is not invertible (hash functions)
 
-        # address
+        # bech32 address
         network = 'mainnet'
         address = bech32address.p2wsh(redeem_script, network)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
@@ -440,6 +445,11 @@ class TestScriptPubKey(unittest.TestCase):
         scriptPubKey2, network2 = scriptPubKey_from_address(address)
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
+
+        # p2sh-wrapped base58 address
+        address = base58address.p2wsh_p2sh(redeem_script, network)
+        address2 = b58address_from_witness(payload, network)
+        self.assertEqual(address, address2)
 
     def test_exceptions(self):
 
