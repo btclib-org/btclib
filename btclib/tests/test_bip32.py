@@ -373,19 +373,19 @@ class TestBIP32(unittest.TestCase):
         # m/0'/0'/51'
         addr1 = b'mfXYCCsvWPgeCv8ZYGqcubpNLYy5nYHbbj'
         indexes = [0x80000000, 0x80000000, 0x80000000 + 51]
-        addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)), True, 'testnet')  # TODO: do not require explicit network 
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
         self.assertEqual(addr, addr1)
         path = "m/0'/0'/51'"
-        addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)), True, 'testnet')  # TODO: do not require explicit network 
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)))
         self.assertEqual(addr, addr1)
 
         # m/0'/1'/150'
         addr2 = b'mfaUnRFxVvf55uD1P3zWXpprN1EJcKcGrb'
         indexes = [0x80000000, 0x80000000 + 1, 0x80000000 + 150]
-        addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)), True, 'testnet')  # TODO: do not require explicit network 
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
         self.assertEqual(addr, addr2)
         path = "m/0'/1'/150'"
-        addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)), True, 'testnet')  # TODO: do not require explicit network 
+        addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
     def test_exceptions(self):
