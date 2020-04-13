@@ -116,48 +116,76 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, bytes, int]:
 
     l = len(s)
     n, r = divmod(l - 3, 66)  # n in m-of-n
-    if   l==67 and s[:1] ==b'\x41'         and s[-1:]==b'\xAC':      # pk
+    if   l==67 and s[0] == 0x41           and s[-1] == 0xAC:        # pk
         # p2pk [pubkey, OP_CHECKSIG]
         # 0x41{65-byte pubkey}AC
         return 'p2pk', s[1:-1], 0
-    elif r== 0 and s[-1:]==b'\xAE':                                  # ms
+    elif r== 0                            and s[-1] == 0xAE:        # ms
         # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
         # 0x{1-byte m}41{65-byte pubkey1}...41{65-byte pubkeyn}{1-byte n}AE
         if n<1 or n>16:
-            raise ValueError(f"Invalid n ({n}) in m-of-n multisignature")
+            errmsg = f"Invalid n ({n}) in m-of-n multisignature"
+            errmsg += f": {decode(s)}"
+            raise ValueError(errmsg)
         assert n == s[-2]-80, f"Invalid n ({n}) in m-of-n multisignature"
         m = s[0]-80
         if m>n:
-            raise ValueError(f"Impossible m>n {m}-of-{n} multisignature")
+            errmsg = f"Impossible m>n {m}-of-{n} multisignature"
+            errmsg += f": {decode(s)}"
+            raise ValueError(errmsg)
         if m<1 or m>16:
-            raise ValueError(f"Invalid m ({m}) in {m}-of-{n} multisignature")
+            errmsg = f"Invalid m ({m}) in {m}-of-{n} multisignature"
+            errmsg += f": {decode(s)}"
+            raise ValueError(errmsg)
         payload = b''
         for i in range(n):
             if s[i*66+1] != 0x41:
                 errmsg = f"{i}-th byte "
                 errmsg += f"in {m}-of-{n} multisignature payload "
                 errmsg += f"is {hex(s[i*65+1])}, it should have been 0x41"
+                errmsg += f": {decode(s)}"
                 raise ValueError(errmsg)
             payload += s[i*66+2:i*66+67] 
         return 'p2ms', payload, m
-    # fix l-2 condition for e.g. l = 14
-    elif l<=82 and s[:1] ==b'\x6A'         and s[1]  ==l-2:          # nulldata
+    elif l<=83 and s[0] == 0x6A:                                    # nulldata
         # nulldata [OP_RETURN, data]
-        # 0x6A{1-byte data-length}{data (max 80 bytes)}
-        return 'nulldata', s[2:], 0
-    elif l==25 and s[:3] ==b'\x76\xa9\x14' and s[-2:]==b'\x88\xac':  # pkh
+        if l < 77:
+            # OP_RETURN, data length, data up to 74 bytes max
+            # 0x6A{1 byte data-length}{data (0-74 bytes)}
+            if s[1] != l-2:
+                errmsg = f"Wrong data lenght {s[1]} in {l}-bytes "
+                errmsg += f"nulldata script: it should have been {l-2}"
+                errmsg += f": {decode(s)}"
+                raise ValueError(errmsg)
+            return 'nulldata', s[2:], 0
+        if l > 77:
+            # OP_RETURN, OP_PUSHDATA1, data length, data min 75 bytes up to 80
+            # 0x6A4C{1-byte data-length}{data (75-80 bytes)}
+            if s[1] != 0x4C:
+                errmsg = f"Missing OP_PUSHDATA1 (0xAC) in {l}-bytes nulldata script"
+                errmsg += f", got {hex(s[1])} instead"
+                errmsg += f": {decode(s)}"
+                raise ValueError(errmsg)
+            if s[2] != l - 3:
+                errmsg = f"Wrong data lenght {s[2]} in {l}-bytes "
+                errmsg += f"nulldata script: it should have been {l-3}"
+                errmsg += f": {decode(s)}"
+                raise ValueError(errmsg)
+            return 'nulldata', s[3:], 0
+        raise ValueError(f"Invalid 77 bytes OP_RETURN script length")
+    elif l==25 and s[:3]==b'\x76\xa9\x14' and s[-2:]==b'\x88\xac':  # pkh
         # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
         # 0x76A914{20-byte pubkey_hash}88AC
         return 'p2pkh', s[3:l-2], 0
-    elif l==23 and s[:2] ==b'\xa9\x14'     and s[-1:]==b'\x87':      # sh
+    elif l==23 and s[:2]==b'\xa9\x14'     and s[-1] == 0x87:        # sh
         # p2sh [OP_HASH160, script_hash, OP_EQUAL]
         # 0xA914{20-byte script_hash}87
         return 'p2sh', s[2:l-1], 0
-    elif l==22 and s[:2] ==b'\x00\x14':                              # wkh
+    elif l==22 and s[:2]==b'\x00\x14':                              # wkh
         # p2wpkh [0, pubkey_hash]
         # 0x0014{20-byte pubkey_hash}
         return 'p2wpkh', s[2:], 0
-    elif l==34 and s[:2] ==b'\x00\x20':                              # wsh
+    elif l==34 and s[:2]==b'\x00\x20':                              # wsh
         # p2wsh [0, script_hash]
         # 0x0020{32-byte script_hash}
         return 'p2wsh', s[2:], 0

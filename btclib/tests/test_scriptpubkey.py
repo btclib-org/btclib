@@ -165,8 +165,7 @@ class TestScriptPubKey(unittest.TestCase):
 
         # no address in this case
 
-        # documented test cases: https://learnmeabitcoin.com/guide/nulldata
-
+        ### documented test cases: https://learnmeabitcoin.com/guide/nulldata
         string = "hello world"
         payload = string.encode()
         self.assertEqual(payload.hex(), "68656c6c6f20776f726c64")
@@ -180,6 +179,7 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(0, m2)
         self.assertEqual(payload.hex(), payload2.hex())
 
+        ### documented test cases: https://learnmeabitcoin.com/guide/nulldata
         string = "charley loves heidi"
         payload = string.encode()
         self.assertEqual(payload.hex(), "636861726c6579206c6f766573206865696469")
@@ -193,6 +193,7 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(0, m2)
         self.assertEqual(payload.hex(), payload2.hex())
 
+        ### documented test cases: https://learnmeabitcoin.com/guide/nulldata
         string = "家族も友達もみんなが笑顔の毎日がほしい"
         payload = string.encode()
         self.assertEqual(payload.hex(), "e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184")
@@ -206,10 +207,35 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(0, m2)
         self.assertEqual(payload.hex(), payload2.hex())
 
-        # Invalid data lenght (81 bytes) for nulldata scriptPubKey
-        data = '00'*81
-        self.assertRaises(ValueError, scriptPubKey_from_payload, data, 'nulldata')
-        #scriptPubKey_from_payload(data, 'nulldata')
+    def test_nulldata2 (self):
+
+        script_type = 'nulldata'
+
+        ### max length case
+        # FIXME test with b'\x00'
+        byte = b'\x11'
+        for length in (0, 1, 16, 17, 74, 75, 80):
+            payload = byte*length
+            script = encode(['OP_RETURN', payload])
+
+            scriptPubKey = scriptPubKey_from_payload(script_type, payload)
+            self.assertEqual(scriptPubKey.hex(), script.hex())
+
+            # back from the scriptPubKey to the payload
+            script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
+            self.assertEqual(script_type, script_type2)
+            self.assertEqual(0, m2)
+            self.assertEqual(payload.hex(), payload2.hex())
+            script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
+            self.assertEqual(script_type, script_type2)
+            self.assertEqual(0, m2)
+            self.assertEqual(payload.hex(), payload2.hex())
+
+
+        ### Invalid data lenght (81 bytes) for nulldata scriptPubKey
+        payload = '00'*81
+        self.assertRaises(ValueError, scriptPubKey_from_payload, 'nulldata', payload)
+        #scriptPubKey_from_payload('nulldata', payload)
 
     def test_p2pkh(self):
 
