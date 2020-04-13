@@ -13,38 +13,21 @@
 Base58 encoding of public keys and scripts as addresses.
 """
 
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from .alias import Octets, PubKey, Script, String
 from .base58 import b58decode, b58encode
-from .network import (_P2PKH_PREFIXES, _P2SH_PREFIXES,
+from .bech32address import _check_witness, witness_from_b32address, b32address_from_witness
+from .hashes import h160_from_pubkey, h160_from_script, h256_from_script
+from .network import (_P2PKH_PREFIXES, _P2SH_PREFIXES, has_segwit_prefix,
                       network_from_p2pkh_prefix, network_from_p2sh_prefix,
                       p2pkh_prefix_from_network, p2sh_prefix_from_network)
 from .script import encode
-from .to_pubkey import bytes_from_pubkey
-from .utils import bytes_from_octets, hash160, sha256
+from .scriptpubkey import scriptPubKey_from_payload, payload_from_scriptPubKey
+from .utils import bytes_from_octets
 
 # 1. Hash/WitnessProgram from pubkey/script
-
-def h160_from_pubkey(pubkey: PubKey, compressed: Optional[bool] = None,
-                     network: Optional[str] = None) -> Tuple[bytes, str]:
-    pubkey, network = bytes_from_pubkey(pubkey, compressed, network)
-    h160 = hash160(pubkey)
-    return h160, network
-
-
-def h160_from_script(script: Script) -> bytes:
-    if isinstance(script, list):
-        script = encode(script)
-    h160 = hash160(script)
-    return h160
-
-
-def h256_from_script(script: Script) -> bytes:
-    if isinstance(script, list):
-        script = encode(script)
-    h256 = sha256(script)
-    return h256
+# imported from the hashes module
 
 # 2. base58 address from HASH and vice versa
 
@@ -133,3 +116,50 @@ def p2wsh_p2sh(wscript: Script, network: str = 'mainnet') -> bytes:
     "Return the p2wsh-p2sh (base58 legacy) SegWit address."
     witprog = h256_from_script(wscript)
     return b58address_from_witness(witprog, network)
+
+
+##########################
+
+
+def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
+    "Return (scriptPubKey, network) from the input bech32/base58 address"
+
+    if has_segwit_prefix(addr):
+        # also check witness validity
+        witvers, witprog, network, is_script_hash = witness_from_b32address(addr)
+        if witvers != 0:
+            raise ValueError(f"Unhandled witness version ({witvers})")
+        len_wprog = len(witprog)
+        assert len_wprog in (20, 32), f"Witness program length: {len_wprog}"
+        if len_wprog == 32 and is_script_hash:
+            return scriptPubKey_from_payload('p2wsh', witprog), network
+        else:
+            return scriptPubKey_from_payload('p2wpkh', witprog), network
+    else:
+        _, h160, network, is_p2sh = h160_from_b58address(addr)
+        if is_p2sh:
+            return scriptPubKey_from_payload('p2sh', h160), network
+        else:
+            return scriptPubKey_from_payload('p2pkh', h160), network
+
+
+def address_from_scriptPubKey(s: Script, network: str = "mainnet") -> bytes:
+    "Return the bech32/base58 address from the input scriptPubKey."
+
+    script_type, payload, _ = payload_from_scriptPubKey(s)
+    if script_type == 'p2pk':
+        raise ValueError("No address for p2pk script")
+    if script_type == 'p2ms':
+        raise ValueError("No address for p2ms script")
+    if script_type == 'nulldata':
+        raise ValueError("No address for null data script")
+
+    if script_type == 'p2pkh':
+        prefix = p2pkh_prefix_from_network(network)
+        return b58address_from_h160(prefix, payload)
+    if script_type == 'p2sh':
+        prefix = p2sh_prefix_from_network(network)
+        return b58address_from_h160(prefix, payload)
+
+    # 'p2wsh' or 'p2wpkh'
+    return b32address_from_witness(0, payload, network)

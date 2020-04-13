@@ -42,16 +42,14 @@ with the following modifications:
 """
 
 
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple
 
-from .alias import Octets, PubKey, Script, String, XkeyDict
-from .base58address import h160_from_pubkey, h256_from_script
+from .alias import PubKey, Script, String
 from .bech32 import b32decode, b32encode
-from .network import (has_segwit_prefix, network_from_p2w_prefix,
-                      p2w_prefix_from_network)
+from .hashes import h160_from_pubkey, h256_from_script
+from .network import network_from_p2w_prefix, p2w_prefix_from_network
 from .script import encode
-from .to_pubkey import bytes_from_pubkey, pubkey_info_from_prvkey
-from .utils import bytes_from_octets, hash160, sha256
+from .utils import bytes_from_octets
 
 # 0. bech32 facilities
 
@@ -94,7 +92,7 @@ def _check_witness(witvers: int, witprog: bytes):
             raise ValueError(f"witness program length ({l}) not in [2, 40]")
 
 # 1. Hash/WitnessProgram from pubkey/script
-# imported from base58address
+# imported from the hashes module
 
 # 2. bech32 address from WitnessProgram and vice versa
 
@@ -107,8 +105,7 @@ def b32address_from_witness(wv: int, wp: Script, network: str = 'mainnet') -> by
     wp = bytes_from_octets(wp)
     _check_witness(wv, wp)
     hrp = p2w_prefix_from_network(network)
-    ret = b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
-    return ret
+    return b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
 
 
 def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:

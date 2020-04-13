@@ -43,12 +43,12 @@ with the following modifications:
 import unittest
 
 from btclib.base58address import p2wpkh_p2sh, p2wsh_p2sh
-from btclib.bech32address import (b32address_from_witness, has_segwit_prefix,
-                                  p2wpkh, p2wsh, witness_from_b32address)
+from btclib.bech32address import b32address_from_witness, p2wpkh, p2wsh, witness_from_b32address
 from btclib.curves import secp256k1 as ec
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.utils import hash160, sha256
+from btclib.network import has_segwit_prefix
 
 VALID_BC_ADDRESS = [
     ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",

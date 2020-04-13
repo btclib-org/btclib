@@ -11,15 +11,15 @@
 import unittest
 
 from btclib import base58address, bech32address
-from btclib.base58address import b58address_from_h160, b58address_from_witness
+from btclib.base58address import b58address_from_h160
+from btclib.base58address import address_from_scriptPubKey, scriptPubKey_from_address
 from btclib.bech32address import b32address_from_witness
 from btclib.network import p2pkh_prefix_from_network, p2sh_prefix_from_network
 from btclib.script import decode, encode
-from btclib.scriptpubkey import (address_from_scriptPubKey, nulldata, p2ms,
+from btclib.scriptpubkey import (nulldata, p2ms,
                                  p2pk, p2pkh, p2sh, p2wpkh, p2wsh,
                                  payload_from_pubkeys,
                                  payload_from_scriptPubKey,
-                                 scriptPubKey_from_address,
                                  scriptPubKey_from_payload)
 from btclib.utils import hash160, sha256
 
@@ -356,6 +356,7 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00"*21, 'p2sh')
         #scriptPubKey_from_payload("00"*21, 'p2sh')
 
+#TODO test p2sh wrapped addresses
     def test_p2wpkh(self):
 
         script_type = 'p2wpkh'
