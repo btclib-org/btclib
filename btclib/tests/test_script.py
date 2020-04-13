@@ -121,18 +121,17 @@ class TestScript(unittest.TestCase):
         # encode(script)
 
         # Script: Cannot push 521 bytes on the stack
-        script = ["1f"*521, 'OP_DROP']
+        script = ['1f'*521, 'OP_DROP']
         self.assertRaises(ValueError, encode, script)
         # encode(script)
 
         # A script with OP_PUSHDATA4 can be decoded
-        script_bytes = b'NN\t\x02\x00\x00' + 521 * b'\xff'  # OP_PUSHDATA4 + 521 bytes
+        script_bytes = '4e09020000' + '00'*521 + '75'  # ['00'*521, 'OP_DROP']
         script = decode(script_bytes)
-        # but cannot be encoded
-        # Script: Cannot push 522 bytes on the stack
+        # but it cannot be encoded
+        # Cannot push 521 bytes on the stack
         self.assertRaises(ValueError, encode, script)
-        # encode(script)
-        # FIXME: why is the error message reporting 522 bytes instead of 521
+        #encode(script)
 
     def test_nulldata(self):
 

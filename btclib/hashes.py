@@ -20,7 +20,6 @@ from .to_pubkey import bytes_from_pubkey
 from .utils import hash160, sha256
 
 
-# TODO rename as hash160
 def hash160_from_pubkey(pubkey: PubKey, compressed: Optional[bool] = None,
                         network: Optional[str] = None) -> Tuple[bytes, str]:
     pubkey, network = bytes_from_pubkey(pubkey, compressed, network)
