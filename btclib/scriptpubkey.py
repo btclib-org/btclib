@@ -50,7 +50,6 @@ def payload_from_pubkeys(pubkeys: Union[List[PubKey], PubKey],
 
 # 2. scriptPubKey from Hash/WitnessProgram and vice versa
 
-# TODO sort in the script_type, payload, m order
 def scriptPubKey_from_payload(script_type: str, payload: Octets, m: int = 0) -> bytes:
     "Return the requested scriptPubKey for the provided payload."
 

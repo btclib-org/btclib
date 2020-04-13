@@ -11,10 +11,9 @@
 import unittest
 
 from btclib import base58address, bech32address
-from btclib.bech32address import b32address_from_witness
 from btclib.base58address import b58address_from_h160, b58address_from_witness
-# TODO verify b58address_from_witness 
-from btclib.network import p2pkh_prefix_from_network
+from btclib.bech32address import b32address_from_witness
+from btclib.network import p2pkh_prefix_from_network, p2sh_prefix_from_network
 from btclib.script import decode, encode
 from btclib.scriptpubkey import (address_from_scriptPubKey, nulldata, p2ms,
                                  p2pk, p2pkh, p2sh, p2wpkh, p2wsh,
@@ -24,7 +23,6 @@ from btclib.scriptpubkey import (address_from_scriptPubKey, nulldata, p2ms,
                                  scriptPubKey_from_payload)
 from btclib.utils import hash160, sha256
 
-# TODO reorder these tests
 
 class TestScriptPubKey(unittest.TestCase):
 
@@ -247,6 +245,10 @@ class TestScriptPubKey(unittest.TestCase):
         address = base58address.p2pkh(pubkey, None, network)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
         self.assertEqual(address, address2)
+        prefix = p2pkh_prefix_from_network(network)
+        address2 = b58address_from_h160(prefix, payload)
+        self.assertEqual(address, address2)
+
         scriptPubKey2, network2 = scriptPubKey_from_address(address)
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
@@ -256,7 +258,13 @@ class TestScriptPubKey(unittest.TestCase):
         script = "76a91412ab8dc588ca9d5787dde7eb29569da63c3a238c88ac"
         scriptPubKey = scriptPubKey_from_payload(script_type, payload)
         self.assertEqual(scriptPubKey.hex(), script)
-        # FIXME no address on the webpage?
+        network = 'mainnet'
+        address = b"12higDjoCCNXSA95xZMWUdPvXNmkAduhWv"
+        address2 = address_from_scriptPubKey(scriptPubKey, network)
+        self.assertEqual(address, address2)
+        scriptPubKey2, network2 = scriptPubKey_from_address(address)
+        self.assertEqual(scriptPubKey2, scriptPubKey)
+        self.assertEqual(network2, network)
 
         # Invalid size: 11 bytes instead of 20
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00"*11, 'p2pkh')
@@ -298,6 +306,10 @@ class TestScriptPubKey(unittest.TestCase):
         address = base58address.p2sh(redeem_script, network)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
         self.assertEqual(address, address2)
+        prefix = p2sh_prefix_from_network(network)
+        address2 = b58address_from_h160(prefix, payload)
+        self.assertEqual(address, address2)
+
         scriptPubKey2, network2 = scriptPubKey_from_address(address)
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
@@ -353,6 +365,9 @@ class TestScriptPubKey(unittest.TestCase):
         address = bech32address.p2wpkh(pubkey, network)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
         self.assertEqual(address, address2)
+        address2 = b32address_from_witness(0, payload, network)
+        self.assertEqual(address, address2)
+
         scriptPubKey2, network2 = scriptPubKey_from_address(address)
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
@@ -393,6 +408,9 @@ class TestScriptPubKey(unittest.TestCase):
         address = bech32address.p2wsh(redeem_script, network)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
         self.assertEqual(address, address2)
+        address2 = b32address_from_witness(0, payload, network)
+        self.assertEqual(address, address2)
+
         scriptPubKey2, network2 = scriptPubKey_from_address(address)
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
@@ -419,24 +437,33 @@ class TestScriptPubKey(unittest.TestCase):
 
     def test_CLT(self):
 
+        network = 'mainnet'
+
         vault_pubkeys = [b'\x00'*33, b'\x11'*33, b'\x22'*33]
         recovery_pubkeys = [b'\x77'*33, b'\x88'*33, b'\x99'*33]
-
-        script = [
+        redeem_script = encode([
             'OP_IF',
                 2, *vault_pubkeys, 3, 'OP_CHECKMULTISIG',
             'OP_ELSE',
                 500, 'OP_CHECKLOCKTIMEVERIFY', 'OP_DROP',
                 2, *recovery_pubkeys, 3, 'OP_CHECKMULTISIG',
             'OP_ENDIF'
-        ]
-        witness_program = encode(script)
-        witness_hash = sha256(witness_program)
-        scriptPubKey = scriptPubKey_from_payload('p2wsh', witness_hash)
-        self.assertEqual(scriptPubKey.hex(), "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708")
-        # TODO improve
-        address = b32address_from_witness(0, witness_hash)
-        self.assertEqual(address, b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj")
+        ])
+        payload = sha256(redeem_script)
+        script = "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708"
+
+        scriptPubKey = p2wsh(redeem_script)
+        self.assertEqual(scriptPubKey.hex(), script)
+        scriptPubKey = scriptPubKey_from_payload('p2wsh', payload)
+        self.assertEqual(scriptPubKey.hex(), script)
+
+        address = b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
+        address2 = address_from_scriptPubKey(scriptPubKey, network)
+        self.assertEqual(address, address2)
+        address2 = bech32address.p2wsh(redeem_script, network)
+        self.assertEqual(address, address2)
+        address2 = b32address_from_witness(0, payload, network)
+        self.assertEqual(address, address2)
 
 
 if __name__ == "__main__":
