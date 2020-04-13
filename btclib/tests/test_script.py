@@ -46,42 +46,63 @@ class TestScript(unittest.TestCase):
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)
+        script_bytes2 = encode(script_list2)
+        self.assertEqual(script_bytes, script_bytes2)
 
         script_serialized = serialize(script_list)
         script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = [26, -1, 'OP_ADD', 25, 'OP_EQUAL']
+        script_list = ['1ADD', 'OP_1ADD', '1ADE', 'OP_EQUAL']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)
+        script_bytes2 = encode(script_list2)
+        self.assertEqual(script_bytes, script_bytes2)
 
         script_serialized = serialize(script_list)
         script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = [0xffffffff, -1, 'OP_ADD', 0xfffffffe, 'OP_EQUAL']
+        script_list = [hex(26)[2:].upper(), -1, 'OP_ADD', hex(26)[2:].upper(), 'OP_EQUAL']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)
+        script_bytes2 = encode(script_list2)
+        self.assertEqual(script_bytes, script_bytes2)
 
         script_serialized = serialize(script_list)
         script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = ["1f"*250, 'OP_DROP']
+        script_list = [hex(0xffffffff)[2:].upper(), -1, 'OP_ADD', hex(0xffffffff)[2:].upper(), 'OP_EQUAL']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)
+        script_bytes2 = encode(script_list2)
+        self.assertEqual(script_bytes, script_bytes2)
 
         script_serialized = serialize(script_list)
         script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = ["1f"*520, 'OP_DROP']
+        script_list = ["1F"*250, 'OP_DROP']
+        script_bytes = encode(script_list)
+        script_list2 = decode(script_bytes)
+        self.assertEqual(script_list, script_list2)
+        script_bytes2 = encode(script_list2)
+        self.assertEqual(script_bytes, script_bytes2)
+
+        script_serialized = serialize(script_list)
+        script_list2 = deserialize(script_serialized)
+        self.assertEqual(script_list, script_list2)
+
+        script_list = ["1F"*520, 'OP_DROP']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes.hex())
         self.assertEqual(script_list, script_list2)
+        script_bytes2 = encode(script_list2)
+        self.assertEqual(script_bytes, script_bytes2)
 
         script_serialized = serialize(script_list)
         script_list2 = deserialize(script_serialized.hex())
@@ -112,6 +133,24 @@ class TestScript(unittest.TestCase):
         self.assertRaises(ValueError, encode, script)
         # encode(script)
         # FIXME: why is the error message reporting 522 bytes instead of 521
+
+    def test_nulldata(self):
+
+        script = ['OP_RETURN', '11'*79]
+        bscript = encode(script)
+        self.assertEqual(script, decode(bscript))
+
+        script2 = ['OP_RETURN', b'\x11'*79]
+        bscript = encode(script)
+        self.assertEqual(script, decode(bscript))
+
+        script = ['OP_RETURN', '00'*79]
+        bscript = encode(script)
+        self.assertEqual(script, decode(bscript))
+
+        script2 = ['OP_RETURN', b'\x11'*79]
+        bscript = encode(script)
+        self.assertEqual(script, decode(bscript))
 
 
 if __name__ == "__main__":

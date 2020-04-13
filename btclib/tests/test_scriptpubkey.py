@@ -212,8 +212,7 @@ class TestScriptPubKey(unittest.TestCase):
         script_type = 'nulldata'
 
         ### max length case
-        # FIXME test with b'\x00'
-        byte = b'\x11'
+        byte = b'\x00'
         for length in (0, 1, 16, 17, 74, 75, 80):
             payload = byte*length
             script = encode(['OP_RETURN', payload])

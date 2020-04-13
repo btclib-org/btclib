@@ -23,7 +23,7 @@ from io import BytesIO
 from typing import BinaryIO, List, Union
 
 from . import varint
-from .alias import Octets, Script, Token
+from .alias import Octets, Token
 from .utils import bytes_from_octets
 
 SIGHASH_ALL = 1
@@ -104,7 +104,7 @@ OP_CODES = {
     'OP_EQUALVERIFY'        : b'\x88',
 
     # Arithmetic
-    'OP_1ADD'               : b'\x8b',
+    'OP_1ADD'               : b'\x8b',  # without OP_, 1ADD would be a number
     'OP_1SUB'               : b'\x8c',
     'OP_NEGATE'             : b'\x8f',
     'OP_ABS'                : b'\x90',
@@ -272,7 +272,7 @@ def _op_pushdata(data: Octets) -> bytes:
         # there is no need to use OP_PUSHDATA4
         # r += OP_CODES['OP_PUSHDATA4']
         # r += length.to_bytes(4, byteorder='little')
-        raise ValueError(f"Script: Cannot push {length} bytes on the stack")
+        raise ValueError(f"Cannot push {length} bytes on the stack")
     r += data
     return r
 
@@ -315,7 +315,7 @@ def encode(script: List[Token]) -> bytes:
         elif isinstance(token, bytes):
                 r += _op_pushdata(token)
         else:
-            raise ValueError(f"Script: unmanaged {type(token)} token type")
+            raise ValueError(f"Unmanaged {type(token)} token type")
     return r
 
 
@@ -324,7 +324,7 @@ def decode(script: Octets) -> List[Token]:
     script = bytes_from_octets(script)
 
     # initialize the result list
-    r: List[Union[str, int, bytes]] = []
+    r: List[Token] = []
 
     length = len(script)
     s = BytesIO(script)  # TODO: avoid unnecessary streamification
@@ -335,41 +335,38 @@ def decode(script: Octets) -> List[Token]:
         counter += 1
         if i == 0:
             # numeric value 0 (OP_0)
+            # r.append(OP_CODE_NAMES[i])
             r.append(i)
         elif i == 79:
             # numeric value -1 (OP_1NEGATE)
             r.append(-1)
         elif i > 80 and i < 97:
             # numeric values 1-16 (OP_1-OP_16)
+            # r.append(OP_CODE_NAMES[i])
             r.append(i-80)
         elif i < 76:
             # 1-byte-data-length | data
             data = s.read(i)
             counter += i
-            n = int.from_bytes(data, byteorder='little')
-            if n <= 0xffffffff:
-                # probably a number, it won't hurt to consider it a number
-                r.append(n)
-            else:
-                r.append(data.hex())
+            r.append(data.hex().upper())
         elif i == 76:
             # OP_PUSHDATA1 | 1-byte-data-length | data
             data_length = int.from_bytes(s.read(1), byteorder='little')
             data = s.read(data_length)
             counter += 1 + data_length
-            r.append(data.hex())
+            r.append(data.hex().upper())
         elif i == 77:
             # OP_PUSHDATA2 | 2-byte-data-length | data
             data_length = int.from_bytes(s.read(2), byteorder='little')
             data = s.read(data_length)
             counter += 2 + data_length
-            r.append(data.hex())
+            r.append(data.hex().upper())
         elif i == 78:
             # OP_PUSHDATA4 | 4-byte-data-length | data
             data_length = int.from_bytes(s.read(4), byteorder='little')
             data = s.read(data_length)
             counter += 4 + data_length
-            r.append(data.hex())
+            r.append(data.hex().upper())
         else:
             # OP_CODE
             r.append(OP_CODE_NAMES[i])
