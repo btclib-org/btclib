@@ -277,34 +277,41 @@ def _op_pushdata(data: Octets) -> bytes:
     return r
 
 
+def _op_int(token: int) -> bytes:
+    # Short 1-byte opcodes exist
+    # to push numbers in [-1, 16]
+    if token >= 0 and token <= 16:
+        return OP_CODES['OP_' + str(token)]
+    elif token == -1:
+        return OP_CODES['OP_1NEGATE']
+    # Pushing any other number requires an
+    # explicit push operation of its bytes encoding
+    # FIXME: negative numbers?
+    else:
+        nbytes = (token.bit_length() + 7) // 8
+        data = token.to_bytes(nbytes, byteorder='little')
+        return _op_pushdata(data)
+
+
+def _op_str(token: str) -> bytes:
+    token = token.strip()
+    token = token.upper()
+    if token in OP_CODES:
+        return OP_CODES[token]
+    try:
+        data = bytes.fromhex(token)
+    except Exception:
+        raise ValueError(f"Invalid string token: {token}")
+    return _op_pushdata(data)
+
+
 def encode(script: List[Token]) -> bytes:
     r = b''
     for token in script:
         if isinstance(token, int):
-            # Short 1-byte opcodes exist
-            # to push numbers in [-1, 16]
-            if token >= 0 and token <= 16:
-                r += OP_CODES['OP_' + str(token)]
-            elif token == -1:
-                r += OP_CODES['OP_1NEGATE']
-            # Pushing any other number requires an
-            # explicit push operation of its bytes encoding
-            # FIXME: negative numbers?
-            else:
-                nbytes = (token.bit_length() + 7) // 8
-                data = token.to_bytes(nbytes, byteorder='little')
-                r += _op_pushdata(data)
+            r += _op_int(token)
         elif isinstance(token, str):
-            token = token.strip()
-            token = token.upper()
-            if token in OP_CODES:
-                r += OP_CODES[token]
-            else:
-                try:
-                   token = bytes.fromhex(token)
-                except Exception:
-                    raise ValueError(f"Script: invalid {token!r} opcode")
-                r += _op_pushdata(token)
+            r += _op_str(token)
         elif isinstance(token, bytes):
                 r += _op_pushdata(token)
         else:
