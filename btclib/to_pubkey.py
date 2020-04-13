@@ -78,8 +78,7 @@ def _bytes_from_xpub(xpubd: XkeyDict, compressed: Optional[bool] = None,
         return xpubd['key'], network_from_xpub(xpubd['version'])
 
 
-def bytes_from_pubkey(P: PubKey,
-                      compressed: Optional[bool] = None,
+def bytes_from_pubkey(P: PubKey, compressed: Optional[bool] = None,
                       network: Optional[str] = None) -> Tuple[bytes, str]:
     """Return SEC bytes from any possible pubkey representation.
 
