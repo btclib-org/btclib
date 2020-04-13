@@ -48,7 +48,8 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
     bsize = len(pubkey)  # bytes
     if bsize == ec.psize + 1:                 # compressed point
         if pubkey[0] not in (0x02, 0x03):
-            msg = f"{ec.psize+1} bytes, but not a compressed point"
+            msg = f"{ec.psize+1} bytes, "
+            msg += f"but not a compressed point prefix ({pubkey[0]})"
             raise ValueError(msg)
         Px = int.from_bytes(pubkey[1:], byteorder='big')
         try:
