@@ -33,6 +33,7 @@ from .utils import bytes_from_octets
 
 # TODO accept Octets prefix
 def b58address_from_h160(prefix: bytes, h160: Octets) -> bytes:
+    "Encode a base58 address from the payload."
 
     if prefix not in _P2PKH_PREFIXES + _P2SH_PREFIXES:
         raise ValueError(f"Invalid base58 address prefix {prefix!r}")
@@ -41,6 +42,7 @@ def b58address_from_h160(prefix: bytes, h160: Octets) -> bytes:
 
 
 def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
+    "Return the payload from a base58 address."
 
     if isinstance(b58addr, str):
         b58addr = b58addr.strip()
@@ -62,14 +64,14 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
 
 def p2pkh(pubkey: PubKey, compressed: Optional[bool] = None,
           network: Optional[str] = None) -> bytes:
-    "Return the p2pkh address corresponding to a public key."
+    "Return the p2pkh base58 address corresponding to a public key."
     h160, network = h160_from_pubkey(pubkey, compressed, network)
     prefix = p2pkh_prefix_from_network(network)
     return b58address_from_h160(prefix, h160)
 
 
 def p2sh(script: Script, network: str = 'mainnet') -> bytes:
-    "Return the p2sh address corresponding to a script."
+    "Return the p2sh base58 address corresponding to a script."
     h160 = h160_from_script(script)
     prefix = p2sh_prefix_from_network(network)
     return b58address_from_h160(prefix, h160)
@@ -111,13 +113,13 @@ def witness_from_b58address(b58addr: String) -> Tuple[bytes, str, bool]:
 # 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pubkey/script
 
 def p2wpkh_p2sh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
-    "Return the p2wpkh-p2sh (base58 legacy) Segwit address."
+    "Return the p2wpkh-p2sh base58 address corresponding to a pubkey."
     witprog, network = h160_from_pubkey(pubkey, True, network)
     return b58address_from_witness(witprog, network)
 
 
 def p2wsh_p2sh(wscript: Script, network: str = 'mainnet') -> bytes:
-    "Return the p2wsh-p2sh (base58 legacy) SegWit address."
+    "Return the p2wsh-p2sh base58 address corresponding to a script."
     witprog = h256_from_script(wscript)
     return b58address_from_witness(witprog, network)
 

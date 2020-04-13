@@ -97,19 +97,20 @@ def _check_witness(witvers: int, witprog: bytes):
 # 2. bech32 address from WitnessProgram and vice versa
 
 def b32address_from_witness(wv: int, wp: Script, network: str = 'mainnet') -> bytes:
-    "Encode a bech32 native SegWit address."
+    "Encode a bech32 native SegWit address from the witness."
 
     if isinstance(wp, list):
         wp = encode(wp)
+    else:
+        wp = bytes_from_octets(wp)
 
-    wp = bytes_from_octets(wp)
     _check_witness(wv, wp)
     hrp = p2w_prefix_from_network(network)
     return b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
 
 
 def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
-    "Decode a bech32 native SegWit address."
+    "Return the witness from a bech32 native SegWit address."
 
     if isinstance(b32addr, str):
         b32addr = b32addr.strip()
@@ -141,12 +142,12 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 # 1.+2. = 3. bech32 address from pubkey/script
 
 def p2wpkh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
-    "Return the p2wpkh (bech32 native) SegWit address."
+    "Return the p2wpkh bech32 address corresponding to a public key."
     h160, network = h160_from_pubkey(pubkey, True, network)
     return b32address_from_witness(0, h160, network)
 
 
 def p2wsh(wscript: Script, network: str = 'mainnet') -> bytes:
-    "Return the p2wsh (bech32 native) SegWit address."
+    "Return the p2wsh bech32 address corresponding to a script."
     h256 = h256_from_script(wscript)
     return b32address_from_witness(0, h256, network)
