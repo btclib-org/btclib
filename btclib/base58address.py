@@ -91,7 +91,7 @@ def p2sh(script: Script, network: str = 'mainnet') -> bytes:
     prefix = p2sh_prefix_from_network(network)
     return b58address_from_h160(prefix, h160)
 
-# 2b. base58 address from WitnessProgram and vice versa (TODO)
+# 2b. base58 address from WitnessProgram and vice versa
 
 def b58address_from_witness(witprog: Octets, network: str) -> bytes:
     witver = b'\x00'
@@ -106,6 +106,20 @@ def b58address_from_witness(witprog: Octets, network: str) -> bytes:
 
     m = f"Invalid witness program length ({len(witprog)})"
     raise ValueError(m)
+
+def witness_from_b58address(b58addr: String) -> Tuple[bytes, str, bool]:
+    "Decode a legacy base58 p2sh-wrapped SegWit address."
+
+    _, payload, network, is_script_hash = h160_from_b58address(b58addr)
+    if not is_script_hash:
+        raise ValueError("Not a p2sh address")
+
+    is_script_hash = False
+    length = len(payload)
+    if length == 32:
+        is_script_hash = True
+
+    return payload, network, is_script_hash
 
 # 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pubkey/script
 
