@@ -151,7 +151,7 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, bytes, int]:
         # nulldata [OP_RETURN, data]
         zeroone = int(l>77)
         if s[1+zeroone] != l - 2 - zeroone:
-            errmsg = f"Wrong data lenght ({s[1]}) in {l}-bytes "
+            errmsg = f"Wrong data lenght ({s[1+zeroone]}) in {l}-bytes "
             errmsg += f"nulldata script: it should have been {l-2-zeroone}"
             errmsg += f": {decode(s)}"
             raise ValueError(errmsg)
@@ -162,8 +162,8 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, bytes, int]:
         if l > 77:
             # OP_RETURN, OP_PUSHDATA1, data length, data min 75 bytes up to 80
             # 0x6A4C{1-byte data-length}{data (75-80 bytes)}
-            if s[1] != 0x4C:
-                errmsg = f"Missing OP_PUSHDATA1 (0xAC) in {l}-bytes nulldata script"
+            if s[1] != 0x4c:
+                errmsg = f"Missing OP_PUSHDATA1 (0x4c) in {l}-bytes nulldata script"
                 errmsg += f", got {hex(s[1])} instead"
                 errmsg += f": {decode(s)}"
                 raise ValueError(errmsg)

@@ -287,20 +287,19 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, scriptPubKey_from_payload, 'nulldata', payload)
         #scriptPubKey_from_payload('nulldata', payload)
 
-        # Wrong data lenght (32) in 52-bytes nulldata script: it should have been 50
-        script = encode(['OP_RETURN', b'\x00'*50])
+        # Wrong data lenght (32) in 35-bytes nulldata script: it should have been 33
+        script = encode(['OP_RETURN', b'\x00'*33])
         script = script[:1] + b'\x20' + script[2:]
         self.assertRaises(ValueError, payload_from_scriptPubKey, script)
         #payload_from_scriptPubKey(script)
 
-        #TODO 76 ?!?!?!?
-        # Wrong data lenght (76) in 83-bytes nulldata script: it should have been 80
+        # Wrong data lenght (32) in 83-bytes nulldata script: it should have been 80
         script = encode(['OP_RETURN', b'\x00'*80])
-        script = script[:2] + b'\x09' + script[3:]
+        script = script[:2] + b'\x20' + script[3:]
         self.assertRaises(ValueError, payload_from_scriptPubKey, script)
         #payload_from_scriptPubKey(script)
 
-        # Missing OP_PUSHDATA1 (0xAC) in 83-bytes nulldata script, got 0x20 instead
+        # Missing OP_PUSHDATA1 (0x4c) in 83-bytes nulldata script, got 0x20 instead
         script = encode(['OP_RETURN', b'\x00'*80])
         script = script[:1] + b'\x20' + script[2:]
         self.assertRaises(ValueError, payload_from_scriptPubKey, script)
