@@ -140,7 +140,7 @@ class TestScript(unittest.TestCase):
         self.assertEqual(script, decode(bscript))
 
         script2 = ['OP_RETURN', b'\x11'*79]
-        bscript = encode(script)
+        bscript = encode(script2)
         self.assertEqual(script, decode(bscript))
 
         script = ['OP_RETURN', '00'*79]
