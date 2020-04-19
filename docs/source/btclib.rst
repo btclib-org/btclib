@@ -84,10 +84,10 @@ btclib.borromean module
    :undoc-members:
    :show-inheritance:
 
-btclib.btcmsg module
+btclib.bms module
 --------------------
 
-.. automodule:: btclib.btcmsg
+.. automodule:: btclib.bms
    :members:
    :undoc-members:
    :show-inheritance:

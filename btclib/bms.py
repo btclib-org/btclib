@@ -8,14 +8,14 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-""" Bitcoin address-based compact signature for messages.
+""" Bitcoin message signing (BMS).
 
-Bitcoin uses an address-based scheme for message signature:
-such a signature does prove the control of the private key corresponding to
+Bitcoin uses a P2PKH address-based scheme for message signature: such
+a signature does prove the control of the private key corresponding to
 the address and, consequently, of the associated bitcoins (if any).
-Message signature adopts a custom compact 65-bytes serialization format
-(i.e. not the ASN.1 DER format used for transactions,
-which would results in 71-bytes average signature).
+Message signature adopts a custom compact 65-bytes (fixed size)
+serialization format (i.e. not the ASN.1 DER format used for
+transactions, which would results in 71-bytes average signature).
 
 One should never sign a vague statement that could be reused
 out of the context it was intended for. Always include at least:
@@ -26,17 +26,17 @@ out of the context it was intended for. Always include at least:
 - specific purpose of the message
 
 To mitigate the risk of signing a possibly deceiving message,
-for any given message a *magic* "Bitcoin Signed Message" prefix is added,
-then the hash of the resulting message is ECDSA signed.
+for any given message a *magic* "Bitcoin Signed Message:\\n" prefix is
+added, then the hash of the resulting message is signed.
 
-As it is the case for all digital signature schemes,
-this scheme works with private/public key pairs, not addresses:
-the address is only used to uniquely identify a private/public key pair.
-At signing time, a wallet infrastructure is required to access the
-private key corresponding to a given address;
+This BMS scheme relies on ECDSA,
+i.e. it works with private/public key pairs, not addresses:
+the address is only used to identify a key pair.
+At signing time, a wallet infrastructure is required to access
+the private key corresponding to a given address;
 alternatively, the private key must be provided explicitly.
 
-To verify the signature the public key is not needed
+To verify the ECDSA signature the public key is not needed
 because (EC)DSA allows public key recovery:
 public keys that correctly verify the signature
 can be implied from the signature itself.
@@ -49,9 +49,11 @@ marked as the right one at signature time.
 
 The (r, s) DSA signature is serialized as
 [1-byte recovery flag][32-bytes r][32-bytes s],
-where the first byte is the recovery flag used
+in a compact 65-bytes (fixed-size) encoding
+where the first byte is, indeed, the recovery flag used
 at verification time to discriminate among recovered
-public keys (and address types).
+public keys (and among address types in the case
+of scheme extension beyond P2PKH).
 Explicitly, the recovery flag value is:
 
     key_id + (4 if compressed else 0) + 27
@@ -64,53 +66,54 @@ where:
   public key representation
 - 27 identify a P2PKH address, which is the only kind of address
   supported by Bitcoin Core;
-  when the recovery flag is in the [31, 34] range of compressed addresses,
-  Electrum also check for P2WPKH-P2SH and P2WPKH
+  when the recovery flag is in the [31, 34] range of compressed
+  addresses, Electrum also check for P2WPKH-P2SH and P2WPKH
   (SegWit always uses compressed public keys);
   BIP137 (Trezor) uses, instead, 35 and 39 instead of 27
   for P2WPKH-P2SH and P2WPKH (respectively).
 
-+---------+--------+---------------------------------------------------------+
-| recflag | key_id | address type                                            |
-+=========+========+=========================================================+
-|    27   |    0   | P2PKH uncompressed                                      |
-+---------+--------+---------------------------------------------------------+
-|    28   |    1   | P2PKH uncompressed                                      |
-+---------+--------+---------------------------------------------------------+
-|    29   |    2   | P2PKH uncompressed                                      |
-+---------+--------+---------------------------------------------------------+
-|    30   |    3   | P2PKH uncompressed                                      |
-+---------+--------+---------------------------------------------------------+
-|    31   |    0   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
-+---------+--------+---------------------------------------------------------+
-|    32   |    1   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
-+---------+--------+---------------------------------------------------------+
-|    33   |    2   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
-+---------+--------+---------------------------------------------------------+
-|    34   |    3   | P2PKH compressed (also P2WPKH-P2SH/P2WPKH for Electrum) |
-+---------+--------+---------------------------------------------------------+
-|    35   |    0   | BIP137 (Trezor) P2WPKH-P2SH                             |
-+---------+--------+---------------------------------------------------------+
-|    36   |    1   | BIP137 (Trezor) P2WPKH-P2SH                             |
-+---------+--------+---------------------------------------------------------+
-|    37   |    2   | BIP137 (Trezor) P2WPKH-P2SH                             |
-+---------+--------+---------------------------------------------------------+
-|    38   |    3   | BIP137 (Trezor) P2WPKH-P2SH                             |
-+---------+--------+---------------------------------------------------------+
-|    39   |    0   | BIP137 (Trezor) P2WPKH                                  |
-+---------+--------+---------------------------------------------------------+
-|    40   |    1   | BIP137 (Trezor) P2WPKH                                  |
-+---------+--------+---------------------------------------------------------+
-|    41   |    2   | BIP137 (Trezor) P2WPKH                                  |
-+---------+--------+---------------------------------------------------------+
-|    42   |    3   | BIP137 (Trezor) P2WPKH                                  |
-+---------+--------+---------------------------------------------------------+
++------+-----+-----------------------------------------------------+
+|  rec | key |                                                     |
+| flag |  id | address type                                        |
++======+=====+=====================================================+
+|  27  |  0  | P2PKH uncompressed                                  |
++------+-----+-----------------------------------------------------+
+|  28  |  1  | P2PKH uncompressed                                  |
++------+-----+-----------------------------------------------------+
+|  29  |  2  | P2PKH uncompressed                                  |
++------+-----+-----------------------------------------------------+
+|  30  |  3  | P2PKH uncompressed                                  |
++------+-----+-----------------------------------------------------+
+|  31  |  0  | P2PKH compressed (also Electrum P2WPKH-P2SH/P2WPKH) |
++------+-----+-----------------------------------------------------+
+|  32  |  1  | P2PKH compressed (also Electrum P2WPKH-P2SH/P2WPKH) |
++------+-----+-----------------------------------------------------+
+|  33  |  2  | P2PKH compressed (also Electrum P2WPKH-P2SH/P2WPKH) |
++------+-----+-----------------------------------------------------+
+|  34  |  3  | P2PKH compressed (also Electrum P2WPKH-P2SH/P2WPKH) |
++------+-----+-----------------------------------------------------+
+|  35  |  0  | BIP137 (Trezor) P2WPKH-P2SH                         |
++------+-----+-----------------------------------------------------+
+|  36  |  1  | BIP137 (Trezor) P2WPKH-P2SH                         |
++------+-----+-----------------------------------------------------+
+|  37  |  2  | BIP137 (Trezor) P2WPKH-P2SH                         |
++------+-----+-----------------------------------------------------+
+|  38  |  3  | BIP137 (Trezor) P2WPKH-P2SH                         |
++------+-----+-----------------------------------------------------+
+|  39  |  0  | BIP137 (Trezor) P2WPKH                              |
++------+-----+-----------------------------------------------------+
+|  40  |  1  | BIP137 (Trezor) P2WPKH                              |
++------+-----+-----------------------------------------------------+
+|  41  |  2  | BIP137 (Trezor) P2WPKH                              |
++------+-----+-----------------------------------------------------+
+|  42  |  3  | BIP137 (Trezor) P2WPKH                              |
++------+-----+-----------------------------------------------------+
 
 Finally, the signature is base64-encoded to transport it
 across channels that are designed to deal with textual data.
 Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
 characters, '+' (plus sign), and '/' (forward slash).
-The equal sign '=' is used as end marker of the encoded message.
+The equal sign '=' is used as encoding end marker.
 
 https://bitcoin.stackexchange.com/questions/10759/how-does-the-signature-verification-feature-in-bitcoin-qt-work-without-a-public
 

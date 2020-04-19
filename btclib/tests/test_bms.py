@@ -13,7 +13,7 @@ import unittest
 from hashlib import sha256 as hf
 from os import path
 
-from btclib import base58address, bech32address, bip32, btcmsg, dsa
+from btclib import base58address, bech32address, bip32, bms, dsa
 from btclib.to_pubkey import pubkey_info_from_prvkey
 from btclib.base58wif import wif_from_prvkey
 from btclib.curves import secp256k1 as ec
@@ -28,10 +28,10 @@ class TestMessageSign(unittest.TestCase):
         wif = b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
         exp_sig = b'G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4='
         addr = b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
-        sig = btcmsg.sign(msg, wif)
-        self.assertEqual(exp_sig, btcmsg.serialize(*sig))
-        self.assertEqual(sig, btcmsg.deserialize(sig))
-        self.assertTrue(btcmsg.verify(msg, addr, sig))
+        sig = bms.sign(msg, wif)
+        self.assertEqual(exp_sig, bms.serialize(*sig))
+        self.assertEqual(sig, bms.deserialize(sig))
+        self.assertTrue(bms.verify(msg, addr, sig))
 
     def test_msgsign_p2pkh(self):
         msg = 'test message'
@@ -46,11 +46,11 @@ class TestMessageSign(unittest.TestCase):
         pubkey1u, _ = pubkey_info_from_prvkey(wif1u)
         add1u = base58address.p2pkh(pubkey1u)
         self.assertEqual(add1u, b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD')
-        sig1u = btcmsg.sign(msg, wif1u)
-        self.assertTrue(btcmsg.verify(msg, add1u, sig1u))
+        sig1u = bms.sign(msg, wif1u)
+        self.assertTrue(bms.verify(msg, add1u, sig1u))
         self.assertEqual(sig1u[0], 27)
         exp_sig1u = b'G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4='
-        self.assertEqual(btcmsg.serialize(*sig1u), exp_sig1u)
+        self.assertEqual(bms.serialize(*sig1u), exp_sig1u)
 
         # compressed
         wif1c = wif_from_prvkey(q1, True)
@@ -58,22 +58,22 @@ class TestMessageSign(unittest.TestCase):
         pubkey1c, _ = pubkey_info_from_prvkey(wif1c)
         add1c = base58address.p2pkh(pubkey1c)
         self.assertEqual(add1c, b'14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY')
-        sig1c = btcmsg.sign(msg, wif1c)
-        self.assertTrue(btcmsg.verify(msg, add1c, sig1c))
+        sig1c = bms.sign(msg, wif1c)
+        self.assertTrue(bms.verify(msg, add1c, sig1c))
         self.assertEqual(sig1c[0], 31)
         exp_sig1c = b'H/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4='
-        self.assertEqual(btcmsg.serialize(*sig1c), exp_sig1c)
+        self.assertEqual(bms.serialize(*sig1c), exp_sig1c)
 
-        self.assertFalse(btcmsg.verify(msg, add1c, sig1u))
-        self.assertFalse(btcmsg.verify(msg, add1u, sig1c))
+        self.assertFalse(bms.verify(msg, add1c, sig1u))
+        self.assertFalse(bms.verify(msg, add1u, sig1c))
 
         rf, r, s, = sig1c
-        sig1c_malleated_rf = btcmsg.serialize(rf+1, r, s)
-        self.assertFalse(btcmsg.verify(msg, add1c, sig1c_malleated_rf))
-        sig1c_malleated_s = btcmsg.serialize(rf, r, ec.n - s)
-        self.assertFalse(btcmsg.verify(msg, add1c, sig1c_malleated_s))
-        sig1c_malleated_rf_s = btcmsg.serialize(rf+1, r, ec.n - s)
-        self.assertTrue(btcmsg.verify(msg, add1c, sig1c_malleated_rf_s))
+        sig1c_malleated_rf = bms.serialize(rf+1, r, s)
+        self.assertFalse(bms.verify(msg, add1c, sig1c_malleated_rf))
+        sig1c_malleated_s = bms.serialize(rf, r, ec.n - s)
+        self.assertFalse(bms.verify(msg, add1c, sig1c_malleated_s))
+        sig1c_malleated_rf_s = bms.serialize(rf+1, r, ec.n - s)
+        self.assertTrue(bms.verify(msg, add1c, sig1c_malleated_rf_s))
 
     def test_msgsign_p2pkh_2(self):
         msg = 'test message'
@@ -84,89 +84,89 @@ class TestMessageSign(unittest.TestCase):
         # compressed
         address = '1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
         exp_sig = b'IFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif, address)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
-        sig = btcmsg.sign(msg.encode(), wif)
-        self.assertTrue(btcmsg.verify(msg.encode(), address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif, address)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
+        sig = bms.sign(msg.encode(), wif)
+        self.assertTrue(bms.verify(msg.encode(), address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         # uncompressed
         address = '19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
         exp_sig = b'HFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif, address)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
-        sig = btcmsg.sign(msg.encode(), wif)
-        self.assertTrue(btcmsg.verify(msg.encode(), address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif, address)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
+        sig = bms.sign(msg.encode(), wif)
+        self.assertTrue(bms.verify(msg.encode(), address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
     def test_verify_p2pkh(self):
         msg = 'Hello, world!'
         address = '1FEz167JCVgBvhJBahpzmrsTNewhiwgWVG'
         exp_sig = b'G+WptuOvPCSswt/Ncm1upO4lPSCWbS2cpKariPmHvxX5eOJwgqmdEExMTKvaR0S3f1TXwggLn/m4CbI2jv0SCuM='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
-        # https://github.com/stequald/bitcoin-btcmsg.sign-message
+        # https://github.com/stequald/bitcoin-bms.sign-message
         msg = 'test message'
         address = '14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY'
         exp_sig = b'IPn9bbEdNUp6+bneZqE2YJbq9Hv5aNILq9E5eZoMSF3/fBX4zjeIN6fpXfGSGPrZyKfHQ/c/kTSP+NIwmyTzMfk='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
-        # https://github.com/stequald/bitcoin-btcmsg.sign-message
+        # https://github.com/stequald/bitcoin-bms.sign-message
         msg = 'test message'
         address = '1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
         exp_sig = b'G0k+Nt1u5boTTUfLyj6x1T5flg1v9rUKGlhs/jPApaTWLHf3GVdAIOIHip6sVwXEuzQGPWIlS0VT+yryXiDaavw='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         # https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/test_signmessage.py
         msg = address = '1F26pNMrywyZJdr22jErtKcjF8R3Ttt55G'
         exp_sig = b'H85WKpqtNZDrajOnYDgUY+abh0KCAcOsAIOQwx2PftAbLEPRA7mzXA/CjXRxzz0MC225pR/hx02Vf2Ag2x33kU4='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         # https://github.com/nanotube/supybot-bitcoin-marketmonitor/blob/master/GPG/local/bitcoinsig.py
         msg = 'test message'
         address = '16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce'
         exp_sig = b'HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         msg = 'test message 2'
-        self.assertFalse(btcmsg.verify(msg, address, exp_sig))
+        self.assertFalse(bms.verify(msg, address, exp_sig))
 
         msg = 'freenode:#bitcoin-otc:b42f7e7ea336db4109df6badc05c6b3ea8bfaa13575b51631c5178a7'
         address = '1GdKjTSg2eMyeVvPV5Nivo6kR8yP2GT7wF'
         exp_sig = b'GyMn9AdYeZIPWLVCiAblOOG18Qqy4fFaqjg5rjH6QT5tNiUXLS6T2o7iuWkV1gc4DbEWvyi8yJ8FvSkmEs3voWE='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         msg = 'testtest'
         address = '1Hpj6xv9AzaaXjPPisQrdAD2tu84cnPv3f'
         exp_sig = b'INEJxQnSu6mwGnLs0E8eirl5g+0cAC9D5M7hALHD9sK0XQ66CH9mas06gNoIX7K1NKTLaj3MzVe8z3pt6apGJ34='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         msg = 'testtest'
         address = '18uitB5ARAhyxmkN2Sa9TbEuoGN1he83BX'
         exp_sig = b'IMAtT1SjRyP6bz6vm5tKDTTTNYS6D8w2RQQyKD3VGPq2i2txGd2ar18L8/nvF1+kAMo5tNc4x0xAOGP0HRjKLjc='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         msg = 'testtest'
         address = '1LsPb3D1o1Z7CzEt1kv5QVxErfqzXxaZXv'
         exp_sig = b'H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         # leading space
         exp_sig = b' H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         # trailing space
         exp_sig = b'H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As= '
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         # leading and trailing spaces
         exp_sig = b' H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As= '
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
     def test_segwit(self):
 
@@ -179,32 +179,32 @@ class TestMessageSign(unittest.TestCase):
 
         # p2pkh base58 address (Core, Electrum, BIP137)
         exp_sig = b'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
-        self.assertTrue(btcmsg.verify(msg, p2pkh, exp_sig))
-        sig = btcmsg.sign(msg, wif)  # no address: p2pkh assumed
-        self.assertTrue(btcmsg.verify(msg, p2pkh, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, p2pkh, exp_sig))
+        sig = bms.sign(msg, wif)  # no address: p2pkh assumed
+        self.assertTrue(bms.verify(msg, p2pkh, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         # p2wpkh-p2sh base58 address (Electrum)
-        self.assertTrue(btcmsg.verify(msg, p2wpkh_p2sh, sig))
+        self.assertTrue(bms.verify(msg, p2wpkh_p2sh, sig))
 
         # p2wpkh bech32 address (Electrum)
-        self.assertTrue(btcmsg.verify(msg, p2wpkh, sig))
+        self.assertTrue(bms.verify(msg, p2wpkh, sig))
 
         # p2wpkh-p2sh base58 address (BIP137)
         # different first letter in sig because of different rf
         exp_sig = b'JBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
-        self.assertTrue(btcmsg.verify(msg, p2wpkh_p2sh, exp_sig))
-        sig = btcmsg.sign(msg, wif, p2wpkh_p2sh)
-        self.assertTrue(btcmsg.verify(msg, p2wpkh_p2sh, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, p2wpkh_p2sh, exp_sig))
+        sig = bms.sign(msg, wif, p2wpkh_p2sh)
+        self.assertTrue(bms.verify(msg, p2wpkh_p2sh, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         # p2wpkh bech32 address (BIP137)
         # different first letter in sig because of different rf
         exp_sig = b'KBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
-        self.assertTrue(btcmsg.verify(msg, p2wpkh, exp_sig))
-        sig = btcmsg.sign(msg, wif, p2wpkh)
-        self.assertTrue(btcmsg.verify(msg, p2wpkh, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, p2wpkh, exp_sig))
+        sig = bms.sign(msg, wif, p2wpkh)
+        self.assertTrue(bms.verify(msg, p2wpkh, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
     def test_sign_strippable_message(self):
 
@@ -213,57 +213,57 @@ class TestMessageSign(unittest.TestCase):
 
         msg = ''
         exp_sig = b'IFh0InGTy8lLCs03yoUIpJU6MUbi0La/4abhVxyKcCsoUiF3RM7lg51rCqyoOZ8Yt43h8LZrmj7nwwO3HIfesiw='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = ' '
         exp_sig = b'IEveV6CMmOk5lFP+oDbw8cir/OkhJn4S767wt+YwhzHnEYcFOb/uC6rrVmTtG3M43mzfObA0Nn1n9CRcv5IGyak='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = '  '
         exp_sig = b'H/QjF1V4fVI8IHX8ko0SIypmb0yxfaZLF0o56Cif9z8CX24n4petTxolH59pYVMvbTKQkGKpznSiPiQVn83eJF0='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         msg = 'test'
         exp_sig = b'IJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = ' test '
         exp_sig = b'IA59z13/HBhvMMJtNwT6K7vJByE40lQUdqEMYhX2tnZSD+IGQIoBGE+1IYGCHCyqHvTvyGeqJTUx5ywb4StuX0s='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = 'test '
         exp_sig = b'IPp9l2w0LVYB4FYKBahs+k1/Oa08j+NTuzriDpPWnWQmfU0+UsJNLIPI8Q/gekrWPv6sDeYsFSG9VybUKDPGMuo='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
         # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
         msg = ' test'
         exp_sig = b'H1nGwD/kcMSmsYU6qihV2l2+Pa+7SPP9zyViZ59VER+QL9cJsIAtu1CuxfYDAVt3kgr4t3a/Es3PV82M6z0eQAo='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
-        sig = btcmsg.sign(msg, wif)
-        self.assertTrue(btcmsg.verify(msg, address, sig))
-        self.assertEqual(btcmsg.serialize(*sig), exp_sig)
+        self.assertTrue(bms.verify(msg, address, exp_sig))
+        sig = bms.sign(msg, wif)
+        self.assertTrue(bms.verify(msg, address, sig))
+        self.assertEqual(bms.serialize(*sig), exp_sig)
 
     def test_exceptions(self):
 
@@ -272,41 +272,41 @@ class TestMessageSign(unittest.TestCase):
         pubkey, _ = pubkey_info_from_prvkey(wif)
         address = base58address.p2pkh(pubkey)
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
-        self.assertTrue(btcmsg.verify(msg, address, exp_sig))
+        self.assertTrue(bms.verify(msg, address, exp_sig))
 
         # Invalid recovery flag: 26
-        _, r, s = btcmsg.deserialize(exp_sig)
-        self.assertRaises(ValueError, btcmsg.serialize, 26, r, s)
-        #btcmsg.serialize(26, r, s)
+        _, r, s = bms.deserialize(exp_sig)
+        self.assertRaises(ValueError, bms.serialize, 26, r, s)
+        #bms.serialize(26, r, s)
 
         # short exp_sig
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc='
-        self.assertRaises(ValueError, btcmsg._verify, msg, address, exp_sig)
-        self.assertFalse(btcmsg.verify(msg, address, exp_sig))
+        self.assertRaises(ValueError, bms._verify, msg, address, exp_sig)
+        self.assertFalse(bms.verify(msg, address, exp_sig))
 
         # Invalid recovery flag: 26
         exp_sig = b'GpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU='
-        self.assertRaises(ValueError, btcmsg._verify, msg, address, exp_sig)
-        self.assertFalse(btcmsg.verify(msg, address, exp_sig))
-        #btcmsg._verify(msg, address, exp_sig)
+        self.assertRaises(ValueError, bms._verify, msg, address, exp_sig)
+        self.assertFalse(bms.verify(msg, address, exp_sig))
+        #bms._verify(msg, address, exp_sig)
 
         # Invalid recovery flag: 66
         exp_sig = b'QpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU='
-        self.assertRaises(ValueError, btcmsg._verify, msg, address, exp_sig)
-        self.assertFalse(btcmsg.verify(msg, address, exp_sig))
-        #btcmsg._verify(msg, address, exp_sig)
+        self.assertRaises(ValueError, bms._verify, msg, address, exp_sig)
+        self.assertFalse(bms.verify(msg, address, exp_sig))
+        #bms._verify(msg, address, exp_sig)
 
         # Pubkey mismatch: compressed wif, uncompressed address
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         address = '19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
-        self.assertRaises(ValueError, btcmsg.sign, msg, wif, address)
-        #btcmsg.sign(msg, wif, address)
+        self.assertRaises(ValueError, bms.sign, msg, wif, address)
+        #bms.sign(msg, wif, address)
 
         # Pubkey mismatch: uncompressed wif, compressed address
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         address = '1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
-        self.assertRaises(ValueError, btcmsg.sign, msg, wif, address)
-        #btcmsg.sign(msg, wif, address)
+        self.assertRaises(ValueError, bms.sign, msg, wif, address)
+        #bms.sign(msg, wif, address)
 
         msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
@@ -317,49 +317,49 @@ class TestMessageSign(unittest.TestCase):
 
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         # Mismatch between p2pkh address and key pair
-        self.assertRaises(ValueError, btcmsg.sign, msg, wif, p2pkh)
-        # btcmsg.sign(msg, wif, p2pkh)
+        self.assertRaises(ValueError, bms.sign, msg, wif, p2pkh)
+        # bms.sign(msg, wif, p2pkh)
 
         # Mismatch between p2wpkh address and key pair
-        self.assertRaises(ValueError, btcmsg.sign, msg, wif, p2wpkh)
-        # btcmsg.sign(msg, wif, p2wpkh)
+        self.assertRaises(ValueError, bms.sign, msg, wif, p2wpkh)
+        # bms.sign(msg, wif, p2wpkh)
 
         # Mismatch between p2wpkh_p2sh address and key pair
-        self.assertRaises(ValueError, btcmsg.sign, msg, wif, p2wpkh_p2sh)
-        # btcmsg.sign(msg, wif, p2wpkh_p2sh)
+        self.assertRaises(ValueError, bms.sign, msg, wif, p2wpkh_p2sh)
+        # bms.sign(msg, wif, p2wpkh_p2sh)
 
         # Invalid recovery flag (39) for base58 address
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
-        _, r, s = btcmsg.deserialize(exp_sig)
-        sig = btcmsg.serialize(39, r, s)
-        self.assertRaises(ValueError, btcmsg._verify, msg, p2pkh, sig)
-        #btcmsg._verify(msg, p2pkh, sig)
+        _, r, s = bms.deserialize(exp_sig)
+        sig = bms.serialize(39, r, s)
+        self.assertRaises(ValueError, bms._verify, msg, p2pkh, sig)
+        #bms._verify(msg, p2pkh, sig)
 
         # Invalid recovery flag (35) for bech32 address
         exp_sig = b'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
-        _, r, s = btcmsg.deserialize(exp_sig)
-        sig = btcmsg.serialize(35, r, s)
-        self.assertRaises(ValueError, btcmsg._verify, msg, p2wpkh, sig)
-        #btcmsg._verify(msg, p2wpkh, sig)
+        _, r, s = bms.deserialize(exp_sig)
+        sig = bms.serialize(35, r, s)
+        self.assertRaises(ValueError, bms._verify, msg, p2wpkh, sig)
+        #bms._verify(msg, p2wpkh, sig)
 
     def test_vector_python_bitcoinlib(self):
         """Test python-bitcoinlib test vectors
 
-        https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/data/btcmsg.json
+        https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/data/bms.json
         """
 
-        file = "btcmsg.json"
+        file = "bms.json"
         filename = path.join(path.dirname(__file__), "data", file)
         with open(filename, 'r') as f:
             test_vectors = json.load(f)
 
         for vector in test_vectors[:5]:
             msg = vector['address']
-            tuplesig = btcmsg.sign(msg, vector['wif'])
-            self.assertTrue(btcmsg.verify(msg, vector['address'], tuplesig))
-            b64sig = btcmsg.serialize(*tuplesig)
-            self.assertTrue(btcmsg.verify(msg, vector['address'], b64sig))
-            self.assertTrue(btcmsg.verify(msg, vector['address'], vector['signature']))
+            tuplesig = bms.sign(msg, vector['wif'])
+            self.assertTrue(bms.verify(msg, vector['address'], tuplesig))
+            b64sig = bms.serialize(*tuplesig)
+            self.assertTrue(bms.verify(msg, vector['address'], b64sig))
+            self.assertTrue(bms.verify(msg, vector['address'], vector['signature']))
 
             # python-bitcoinlib has a signature different from the
             # one generated by Core/Electrum/btclib (which are identical)
@@ -368,7 +368,7 @@ class TestMessageSign(unittest.TestCase):
             # python-bitcoinlib does not use RFC6979 deterministic nonce
             # as proved by different r compared to Core/Electrum/btclib
             rf, r, s = tuplesig
-            _, r0, _ = btcmsg.deserialize(vector['signature'])
+            _, r0, _ = bms.deserialize(vector['signature'])
             self.assertNotEqual(r, r0)
 
             # while Core/Electrum/btclib use 'low-s' canonical signature
@@ -380,9 +380,9 @@ class TestMessageSign(unittest.TestCase):
             # just in case you wonder, here's the malleated signature
             rf += (1 if rf == 31 else -1)
             tuplesig_malleated = rf, r, ec.n - s
-            self.assertTrue(btcmsg.verify(msg, vector['address'], tuplesig_malleated))
-            b64sig_malleated = btcmsg.serialize(*tuplesig_malleated)
-            self.assertTrue(btcmsg.verify(msg, vector['address'], b64sig_malleated))
+            self.assertTrue(bms.verify(msg, vector['address'], tuplesig_malleated))
+            b64sig_malleated = bms.serialize(*tuplesig_malleated)
+            self.assertTrue(bms.verify(msg, vector['address'], b64sig_malleated))
             # of course, it is not equal to the python-bitcoinlib one (different r)
             self.assertNotEqual(b64sig_malleated.decode(), vector['signature'])
 
@@ -402,7 +402,7 @@ class TestMessageSign(unittest.TestCase):
         xpub = bip32.xpub_from_xprv(xprv)
 
         # the actual message being signed
-        magic_msg = btcmsg._magic_hash(msg)
+        magic_msg = bms._magic_hash(msg)
 
         # save key_id and patch dersig
         dersig = bytes.fromhex(dersig)
@@ -423,11 +423,11 @@ class TestMessageSign(unittest.TestCase):
         btcmsgsig = (rec_flag, r, s)
 
         # Bitcoin Message Signature verification
-        btcmsg._verify(msg, addr, btcmsgsig)
-        self.assertTrue(btcmsg.verify(msg, addr, btcmsgsig))
-        self.assertFalse(btcmsg.verify(magic_msg, addr, btcmsgsig))
+        bms._verify(msg, addr, btcmsgsig)
+        self.assertTrue(bms.verify(msg, addr, btcmsgsig))
+        self.assertFalse(bms.verify(magic_msg, addr, btcmsgsig))
 
-        btcmsg.sign(msg, xprv)
+        bms.sign(msg, xprv)
 
         #### standard leading 30 in DER serialization
         derivation_path = 'm/0/0'
@@ -440,7 +440,7 @@ class TestMessageSign(unittest.TestCase):
         xpub = bip32.xpub_from_xprv(xprv)
 
         # the actual message being signed
-        magic_msg = btcmsg._magic_hash(msg)
+        magic_msg = bms._magic_hash(msg)
 
         # save key_id and patch dersig
         dersig = bytes.fromhex(dersig)
@@ -461,9 +461,9 @@ class TestMessageSign(unittest.TestCase):
         btcmsgsig = (rec_flag, r, s)
 
         # Bitcoin Message Signature verification
-        btcmsg._verify(msg, addr, btcmsgsig)
-        self.assertTrue(btcmsg.verify(msg, addr, btcmsgsig))
-        self.assertFalse(btcmsg.verify(magic_msg, addr, btcmsgsig))
+        bms._verify(msg, addr, btcmsgsig)
+        self.assertTrue(bms.verify(msg, addr, btcmsgsig))
+        self.assertFalse(bms.verify(magic_msg, addr, btcmsgsig))
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- The Bitcoin Message Signing module btcmsg.py has been rename bsm.py
 - refactored address/scriptPubKey
 - consolidated wif_from_* in wif_from_prvkey
 - removed dangerous functions going from prvkey to address
@@ -25,7 +26,7 @@ Major changes includes:
   from double_mult
 - the usage of DER (de)serialization is advocated through
   dsa.(de)serialize, similarly to ssa.(de)serialize
-  and btcmsg.(de)serialize; therefore, the corresponding
+  and bms.(de)serialize; therefore, the corresponding
   der.py functions have been renamed with leading underscore
 - introduced XXXSig and XXXSigTuple for XXX = DSA, BTCMSG, and SSA
 
