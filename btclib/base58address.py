@@ -118,6 +118,8 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
     if has_segwit_prefix(addr):
         # also check witness validity
         witvers, witprog, network, is_script_hash = witness_from_b32address(addr)
+        if witvers != 0:
+            raise ValueError(f"Unmanaged witness version ({witvers})")
         if is_script_hash:
             return scriptPubKey_from_payload('p2wsh', witprog), network
         else:
