@@ -15,8 +15,7 @@ python setup.py test
 ## Coverage
 
 ```shell
-python -m pip install --upgrade pip
-python -m pip install --upgrade setuptools coverage
+python -m pip install --upgrade pip setuptools coverage
 
 coverage run --source=btclib setup.py test
 coverage report -m
