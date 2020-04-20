@@ -49,8 +49,15 @@ marked as the right one at signature time.
 
 The (r, s) DSA signature is serialized as
 [1-byte recovery flag][32-bytes r][32-bytes s],
-in a compact 65-bytes (fixed-size) encoding
-where the first byte is, indeed, the recovery flag used
+in a compact 65-bytes (fixed-size) encoding.
+
+The serialized signature is then base64-encoded to transport it
+across channels that are designed to deal with textual data.
+Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
+characters, '+' (plus sign), and '/' (forward slash).
+The equal sign '=' is used as encoding end marker.
+
+The recovery flag is used
 at verification time to discriminate among recovered
 public keys (and among address types in the case
 of scheme extension beyond P2PKH).
@@ -109,37 +116,20 @@ where:
 |  42  |  3  | BIP137 (Trezor) P2WPKH                              |
 +------+-----+-----------------------------------------------------+
 
-Finally, the signature is base64-encoded to transport it
-across channels that are designed to deal with textual data.
-Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
-characters, '+' (plus sign), and '/' (forward slash).
-The equal sign '=' is used as encoding end marker.
+This implementation endorses the Electrum approach: a signature
+generated with a compressed WIF (i.e. without explicit address or
+with a P2PKH address) is valid also for the
+P2WPKH-P2SH and P2WPKH addresses derived from the same WIF.
 
-https://bitcoin.stackexchange.com/questions/10759/how-does-the-signature-verification-feature-in-bitcoin-qt-work-without-a-public
-
-https://bitcoin.stackexchange.com/questions/12554/why-the-signature-is-always-65-13232-bytes-long
-
-https://bitcoin.stackexchange.com/questions/34135/what-is-the-strmessagemagic-good-for
-
-https://bitcoin.stackexchange.com/questions/36838/why-does-the-standard-bitcoin-message-signature-include-a-message-prefix
-
-https://bitcoin.stackexchange.com/questions/68844/explicit-message-length-in-bitcoin-signed-message
-
-https://github.com/bitcoinjs/bitcoinjs-lib/blob/1079bf95c1095f7fb018f6e4757277d83b7b9d07/src/message.js#L13
-
-https://bitcointalk.org/index.php?topic=6428
-
-https://bitcointalk.org/index.php?topic=6430
-
-https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106?newreg=670c5855241d4340af0cbbc960fd2dc3
+Nonetheless, it is possible to obtain the BIP137 behaviour if
+at signing time the compressed WIF is supplemented with
+a P2WPKH-P2SH or P2WPKH address:
+in this case the signature will be valid only for that same
+address.
 
 https://github.com/bitcoin/bitcoin/pull/524
 
-https://www.reddit.com/r/Bitcoin/comments/bgcgs2/can_bitcoin_core_0171_sign_message_from_segwit/
-
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
-
-https://github.com/brianddk/bips/blob/legacysignverify/bip-0xyz.mediawiki
 
 """
 
@@ -210,7 +200,7 @@ def sign(msg: String, prvkey: PrvKey,
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, compressed, _ = prvkey_info_from_prvkey(prvkey)
+    q, compressed, network = prvkey_info_from_prvkey(prvkey)
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
@@ -223,14 +213,14 @@ def sign(msg: String, prvkey: PrvKey,
     pubkey = bytes_from_point(Q, compressed)
 
     # finally, calculate the recovery flag
-    if addr is None or addr == p2pkh(pubkey, compressed):
+    if addr is None or addr == p2pkh(pubkey, compressed, network):
         rf = key_id + 27
         # third bit in rf is reserved for the 'compressed' boolean
         rf += 4 if compressed else 0
     # BIP137
-    elif addr == p2wpkh_p2sh(pubkey):
+    elif addr == p2wpkh_p2sh(pubkey, network):
         rf = key_id + 35
-    elif addr == p2wpkh(pubkey):
+    elif addr == p2wpkh(pubkey, network):
         rf = key_id + 39
     else:
         raise ValueError("Mismatch between private key and address")
