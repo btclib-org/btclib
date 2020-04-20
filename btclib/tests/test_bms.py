@@ -14,9 +14,12 @@ from hashlib import sha256 as hf
 from os import path
 
 from btclib import base58address, bech32address, bip32, bms, dsa
-from btclib.to_pubkey import pubkey_info_from_prvkey
+from btclib.base58address import p2pkh, p2wpkh_p2sh
 from btclib.base58wif import wif_from_prvkey
+from btclib.bech32address import p2wpkh
 from btclib.curves import secp256k1 as ec
+from btclib.to_prvkey import prvkey_info_from_prvkey
+from btclib.to_pubkey import pubkey_info_from_prvkey
 from btclib.utils import bytes_from_octets, sha256
 
 
@@ -464,6 +467,65 @@ class TestMessageSign(unittest.TestCase):
         bms._verify(msg, addr, btcmsgsig)
         self.assertTrue(bms.verify(msg, addr, btcmsgsig))
         self.assertFalse(bms.verify(magic_msg, addr, btcmsgsig))
+
+    def test_one_prvkey_multiple_addresses(self):
+
+        msg = "Paolo is afraid of ephemeral random numbers"
+
+        # Compressed WIF
+        wif = b'Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C'
+        pubkey, network = pubkey_info_from_prvkey(wif)
+        address1 = p2pkh(pubkey)
+        address2 = p2wpkh_p2sh(pubkey)
+        address3 = p2wpkh(pubkey) 
+
+        # sign with no address (or compressed P2PKH)
+        sig1 = bms.sign(msg, wif)
+        # True for Bitcoin Core
+        self.assertTrue(bms.verify(msg, address1, sig1))
+        # True for Electrum p2wpkh_p2sh
+        self.assertTrue(bms.verify(msg, address2, sig1))
+        # True for Electrum p2wpkh
+        self.assertTrue(bms.verify(msg, address3, sig1))
+
+        # sign with p2wpkh_p2sh address (BIP137)
+        sig2 = bms.sign(msg, wif, address2)
+        # False for Bitcoin Core
+        self.assertFalse(bms.verify(msg, address1, sig2))
+        # True for BIP137 p2wpkh_p2sh
+        self.assertTrue(bms.verify(msg, address2, sig2))
+        # False for BIP137 p2wpkh
+        self.assertFalse(bms.verify(msg, address3, sig2))
+
+        # sign with p2wpkh address (BIP137)
+        sig3 = bms.sign(msg, wif, address3)
+        # False for Bitcoin Core
+        self.assertFalse(bms.verify(msg, address1, sig3))
+        # False for BIP137 p2wpkh_p2sh
+        self.assertFalse(bms.verify(msg, address2, sig3))
+        # True for BIP137 p2wpkh
+        self.assertTrue(bms.verify(msg, address3, sig3))
+
+
+        # uncompressed WIF / P2PKH address
+        q, _, network = prvkey_info_from_prvkey(wif)
+        wif2 = wif_from_prvkey(q, False, network)
+        pubkey, network = pubkey_info_from_prvkey(wif2)
+        address4 = p2pkh(pubkey)
+
+        # sign with uncompressed P2PKH
+        sig4 = bms.sign(msg, wif2, address4)
+        # False for Bitcoin Core compressed p2pkh
+        self.assertFalse(bms.verify(msg, address1, sig4))
+        # False for BIP137 p2wpkh_p2sh
+        self.assertFalse(bms.verify(msg, address2, sig4))
+        # False for BIP137 p2wpkh
+        self.assertFalse(bms.verify(msg, address3, sig4))
+        # True for Bitcoin Core uncompressed p2pkh
+        self.assertTrue(bms.verify(msg, address4, sig4))
+
+        self.assertRaises(ValueError, bms.sign, msg, wif2, address1)
+        self.assertRaises(ValueError, bms.sign, msg, wif, address4)
 
 
 if __name__ == '__main__':

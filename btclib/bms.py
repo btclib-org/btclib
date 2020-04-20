@@ -118,7 +118,7 @@ where:
 
 This implementation endorses the Electrum approach: a signature
 generated with a compressed WIF (i.e. without explicit address or
-with a P2PKH address) is valid also for the
+with a compressed P2PKH address) is valid also for the
 P2WPKH-P2SH and P2WPKH addresses derived from the same WIF.
 
 Nonetheless, it is possible to obtain the BIP137 behaviour if
