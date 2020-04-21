@@ -4,17 +4,15 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-MM-DD)
 
-## current master branch (unreleased yet)
+## v2020.4.21
 
 Major changes includes:
 
-- The Bitcoin Message Signing module btcmsg.py has been rename bsm.py
+- The Bitcoin Message Signing module btcmsg.py has been rename bms.py
 - refactored address/scriptPubKey
 - consolidated wif_from_* in wif_from_prvkey
-- removed dangerous functions going from prvkey to address
-- improved to_pub and to_prv functions
-- renamed ec.oppositte(P) ad ec.negate(P)
-- refactorred to_pub and to_prv functions
+- removed ambigous functions going from prvkey to address
+- refactored to_pub and to_prv functions
 - added network <-> prefix <-> curve functions in network module
 - removed trailing _scriptPubKey suffix from the function names
   in the scriptPubKey module
@@ -24,6 +22,7 @@ Major changes includes:
 - introduced CurveGroup and CurveSubGroup as grand-parent and parent
   of Curve. Also, renamed ec._p as ec.p and removed default parameters
   from double_mult
+- renamed ec.opposite(P) as ec.negate(P)
 - the usage of DER (de)serialization is advocated through
   dsa.(de)serialize, similarly to ssa.(de)serialize
   and bms.(de)serialize; therefore, the corresponding
