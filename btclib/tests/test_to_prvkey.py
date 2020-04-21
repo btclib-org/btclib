@@ -149,20 +149,20 @@ class TestToPrvKey(unittest.TestCase):
         xprvd = bip32.deserialize(xprv)
 
         # Compressed key provided, uncompressed key requested
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprvd, False, 'mainnet')
-        #prvkey_info_from_prvkey(xprvd, False, 'mainnet')
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprvd, 'mainnet', False)
+        #prvkey_info_from_prvkey(xprvd, 'mainnet', False)
 
         # Mainnet key provided, testnet key requested
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprvd, True, 'testnet')
-        #prvkey_info_from_prvkey(xprvd, True, 'testnet')
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprvd, 'testnet', True)
+        #prvkey_info_from_prvkey(xprvd, 'testnet', True)
 
         # Compression requirement mismatch
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprv, False, 'mainnet')
-        #prvkey_info_from_prvkey(xprv, False, 'mainnet')
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprv, 'mainnet', False)
+        #prvkey_info_from_prvkey(xprv, 'mainnet', False)
 
         # Mainnet key provided, testnet key requested
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprv, True, 'testnet')
-        #prvkey_info_from_prvkey(xprv, True, 'testnet')
+        self.assertRaises(ValueError, prvkey_info_from_prvkey, xprv, 'testnet', True)
+        #prvkey_info_from_prvkey(xprv, 'testnet', True)
 
 
 

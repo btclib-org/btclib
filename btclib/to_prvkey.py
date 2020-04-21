@@ -79,9 +79,8 @@ def _prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, bo
     return _prvkey_info_from_xprv(xprvwif)
 
 
-def prvkey_info_from_prvkey(prvkey: PrvKey,
-                            compressed: Optional[bool] = None,
-                            network: Optional[str] = None) -> Tuple[int, bool, str]:
+def prvkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
+                            compressed: Optional[bool] = None) -> Tuple[int, bool, str]:
 
     compr = True if compressed is None else compressed
     net = 'mainnet' if network is None else network

@@ -135,7 +135,7 @@ class TestToPubKey(unittest.TestCase):
         self.assertRaises(ValueError, bytes_from_pubkey, P_uncompr_hexstr + '00')
 
         # native tuple input, uncompressed result
-        self.assertEqual(bytes_from_pubkey(P, False)[0], P_uncompr)
+        self.assertEqual(bytes_from_pubkey(P, compressed=False)[0], P_uncompr)
 
         # xprv input
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
@@ -186,8 +186,8 @@ class TestToPubKey(unittest.TestCase):
         # Not a key for (testnet) network
         xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
         xpubd = bip32.deserialize(xpub)
-        self.assertRaises(ValueError, _bytes_from_xpub, xpubd, None, 'testnet')
-        #_bytes_from_xpub(xpubd, None, 'testnet')
+        self.assertRaises(ValueError, _bytes_from_xpub, xpubd, 'testnet', None)
+        #_bytes_from_xpub(xpubd, 'testnet', None)
 
 
 if __name__ == "__main__":

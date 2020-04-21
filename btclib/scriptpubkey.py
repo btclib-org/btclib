@@ -33,11 +33,10 @@ from .utils import bytes_from_octets
 def payload_from_pubkeys(pubkeys: Union[List[PubKey], PubKey],
                          lexicographic_sort: bool = True) -> bytes:
 
-    compressed = False
     if not isinstance(pubkeys, List):
-        payload, _ = bytes_from_pubkey(pubkeys, compressed)
+        payload, _ = bytes_from_pubkey(pubkeys, compressed=False)
     else:
-        pk = [bytes_from_pubkey(p, compressed)[0] for p in pubkeys]
+        pk = [bytes_from_pubkey(p, compressed=False)[0] for p in pubkeys]
         if lexicographic_sort:
             pk.sort()
         payload = b''.join(pk)

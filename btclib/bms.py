@@ -213,7 +213,7 @@ def sign(msg: String, prvkey: PrvKey,
     pubkey = bytes_from_point(Q, compressed)
 
     # finally, calculate the recovery flag
-    if addr is None or addr == p2pkh(pubkey, compressed, network):
+    if addr is None or addr == p2pkh(pubkey, network, compressed):
         rf = key_id + 27
         # third bit in rf is reserved for the 'compressed' boolean
         rf += 4 if compressed else 0

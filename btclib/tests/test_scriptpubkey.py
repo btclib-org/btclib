@@ -341,7 +341,7 @@ class TestScriptPubKey(unittest.TestCase):
 
         # address
         network = 'mainnet'
-        address = base58address.p2pkh(pubkey, None, network)
+        address = base58address.p2pkh(pubkey, network, None)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
         self.assertEqual(address, address2)
         prefix = p2pkh_prefix_from_network(network)

@@ -30,7 +30,7 @@ class TestWif(unittest.TestCase):
             ['KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ', True, 'mainnet']
         ]
         for v in test_vectors:
-            wif = wif_from_prvkey(prvkey, v[1], v[2])
+            wif = wif_from_prvkey(prvkey, v[2], v[1])
             self.assertEqual(v[0].strip(), wif.decode('ascii'))
             q, compressed, network = prvkey_info_from_prvkey(v[0])
             self.assertEqual(q, int(prvkey, 16))
@@ -40,13 +40,13 @@ class TestWif(unittest.TestCase):
 
         # not a 32-bytes private key
         badq = 33 * b'\x02'
-        self.assertRaises(ValueError, wif_from_prvkey, badq, True)
-        #wif_from_prvkey(badq, True)
+        self.assertRaises(ValueError, wif_from_prvkey, badq, 'mainnet', True)
+        #wif_from_prvkey(badq, 'mainnet', True)
 
         # private key not in (0, n)
         badq = ec.n
-        self.assertRaises(ValueError, wif_from_prvkey, badq, True)
-        #wif_from_prvkey(badq, True)
+        self.assertRaises(ValueError, wif_from_prvkey, badq, 'mainnet', True)
+        #wif_from_prvkey(badq, 'mainnet', True)
 
         # Not a private key WIF: missing leading 0x80
         payload = b'\x81' + badq.to_bytes(ec.psize, 'big')

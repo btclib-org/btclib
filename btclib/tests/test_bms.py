@@ -44,7 +44,7 @@ class TestMessageSign(unittest.TestCase):
         q1 = 91634880152443617534842621287039938041581081254914058002978601050179556493499
 
         # uncompressed
-        wif1u = wif_from_prvkey(q1, False)
+        wif1u = wif_from_prvkey(q1, 'mainnet', False)
         self.assertEqual(wif1u, b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw')
         pubkey1u, _ = pubkey_info_from_prvkey(wif1u)
         add1u = base58address.p2pkh(pubkey1u)
@@ -56,7 +56,7 @@ class TestMessageSign(unittest.TestCase):
         self.assertEqual(bms.serialize(*sig1u), exp_sig1u)
 
         # compressed
-        wif1c = wif_from_prvkey(q1, True)
+        wif1c = wif_from_prvkey(q1, 'mainnet', True)
         self.assertEqual(wif1c, b'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk')
         pubkey1c, _ = pubkey_info_from_prvkey(wif1c)
         add1c = base58address.p2pkh(pubkey1c)
@@ -509,7 +509,7 @@ class TestMessageSign(unittest.TestCase):
 
         # uncompressed WIF / P2PKH address
         q, _, network = prvkey_info_from_prvkey(wif)
-        wif2 = wif_from_prvkey(q, False, network)
+        wif2 = wif_from_prvkey(q, network, False)
         pubkey, network = pubkey_info_from_prvkey(wif2)
         address4 = p2pkh(pubkey)
 

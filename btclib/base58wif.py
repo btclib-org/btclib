@@ -17,12 +17,11 @@ from .network import curve_from_network, wif_prefix_from_network
 from .to_pubkey import prvkey_info_from_prvkey
 
 
-def wif_from_prvkey(prvkey: PrvKey,
-                    compressed: Optional[bool] = None,
-                    network: Optional[str] = None) -> bytes:
+def wif_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
+                    compressed: Optional[bool] = None) -> bytes:
     "Return the WIF encoding of a private key."
 
-    q, compr, net = prvkey_info_from_prvkey(prvkey, compressed, network)
+    q, compr, net = prvkey_info_from_prvkey(prvkey, network, compressed)
     ec = curve_from_network(net)
 
     payload = wif_prefix_from_network(net)

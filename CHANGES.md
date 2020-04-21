@@ -4,7 +4,22 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-MM-DD)
 
-## v2020.4.21
+## v2020.5 (not released yet)
+
+Major changes includes:
+
+- Wherever input parameters had a 'compressed: bool, network: str'
+  sequence, the order has been reversed
+  'network: str, compressed: bool'.
+  Affected functions:
+  base58address.p2pkh,
+  base58wif.wif_from_prvkey,
+  to_prvkey.prvkey_info_from_prvkey,
+  to_pubkey._bytes_from_xpub,
+  to_pubkey.bytes_from_pubkey,
+  to_pubkey.pubkey_info_from_prvkey,
+
+## v2020.5
 
 Major changes includes:
 

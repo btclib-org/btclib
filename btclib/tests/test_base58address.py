@@ -65,26 +65,26 @@ class TestAddresses(unittest.TestCase):
     def test_p2pkh_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
         pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
-        addr = p2pkh(pub, True)
+        addr = p2pkh(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
         _, h160, _, _ = h160_from_b58address(addr)
         self.assertEqual(h160, hash160(pub))
 
         uncompr_pub = bytes_from_point(point_from_octets(pub, ec), False, ec)
-        addr = p2pkh(uncompr_pub, False)
+        addr = p2pkh(uncompr_pub, compressed=False)
         self.assertEqual(addr, b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM')
         _, h160, _, _ = h160_from_b58address(addr)
         self.assertEqual(h160, hash160(uncompr_pub))
 
         # trailing/leading spaces in string
         pub = '  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352'
-        addr = p2pkh(pub, True)
+        addr = p2pkh(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
         _, h160, _, _ = h160_from_b58address(addr)
         self.assertEqual(h160, hash160(pub))
 
         pub = '02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  '
-        addr = p2pkh(pub, True)
+        addr = p2pkh(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
 
     def test_p2sh_from_script(self):
@@ -170,7 +170,7 @@ class TestAddresses(unittest.TestCase):
         # uncompressed testnet
         wif1 = "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
         pubkey, network = pubkey_info_from_prvkey(wif1)
-        b58 = p2pkh(pubkey, None, network)
+        b58 = p2pkh(pubkey, network, None)
         self.assertEqual(b58, b'mvgbzkCSgKbYgaeG38auUzR7otscEGi8U7')
         self.assertRaises(ValueError, p2wpkh, pubkey)
         self.assertRaises(ValueError, p2wpkh_p2sh, pubkey)
@@ -178,7 +178,7 @@ class TestAddresses(unittest.TestCase):
         # compressed testnet
         wif2 = "cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx"
         pubkey, network = pubkey_info_from_prvkey(wif2)
-        b58 = p2pkh(pubkey, None, network)
+        b58 = p2pkh(pubkey, network, None)
         self.assertEqual(b58, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
         b32 = p2wpkh(pubkey, network)
         self.assertEqual(h160_from_b58address(b58)[1:], witness_from_b32address(b32)[1:])

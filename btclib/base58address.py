@@ -64,8 +64,8 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
 
 # 1.+2. = 3. base58 address from pubkey/script
 
-def p2pkh(pubkey: PubKey, compressed: Optional[bool] = None,
-          network: Optional[str] = None) -> bytes:
+def p2pkh(pubkey: PubKey, network: Optional[str] = None,
+          compressed: Optional[bool] = None) -> bytes:
     "Return the p2pkh base58 address corresponding to a public key."
     h160, network = hash160_from_pubkey(pubkey, compressed, network)
     prefix = p2pkh_prefix_from_network(network)
