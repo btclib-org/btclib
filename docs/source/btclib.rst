@@ -1,6 +1,14 @@
 btclib package
 ==============
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   btclib.tests
+
 Submodules
 ----------
 
@@ -76,6 +84,14 @@ btclib.bip39 module
    :undoc-members:
    :show-inheritance:
 
+btclib.bms module
+-----------------
+
+.. automodule:: btclib.bms
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.borromean module
 -----------------------
 
@@ -84,18 +100,18 @@ btclib.borromean module
    :undoc-members:
    :show-inheritance:
 
-btclib.bms module
---------------------
-
-.. automodule:: btclib.bms
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 btclib.curve module
 -------------------
 
 .. automodule:: btclib.curve
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.curvegroupf module
+-------------------------
+
+.. automodule:: btclib.curvegroupf
    :members:
    :undoc-members:
    :show-inheritance:
@@ -152,6 +168,14 @@ btclib.entropy module
 ---------------------
 
 .. automodule:: btclib.entropy
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.hashes module
+--------------------
+
+.. automodule:: btclib.hashes
    :members:
    :undoc-members:
    :show-inheritance:
