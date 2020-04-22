@@ -14,10 +14,8 @@
 
 from typing import Union
 
+from . import base58address, bech32address, bip32
 from .alias import String, XkeyDict
-from .base58address import p2pkh, p2wpkh_p2sh
-from .bech32address import p2wpkh
-from .bip32 import deserialize, serialize
 from .network import _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
 
 
@@ -29,19 +27,17 @@ def address_from_xpub(d: Union[XkeyDict, String]) -> bytes:
     """
 
     if not isinstance(d, dict):
-        d = deserialize(d)
+        d = bip32.deserialize(d)
 
     if d['key'][0] not in (2, 3):
-        m = f"Not a public key: {serialize(d).decode()}"
+        m = f"Not a public key: {bip32.serialize(d).decode()}"
         raise ValueError(m)
 
     if d['version'] in _XPUB_PREFIXES:
-        return p2pkh(d)
+        return base58address.p2pkh(d)
     elif d['version'] in _P2WPKH_PUB_PREFIXES:
-        return p2wpkh(d)
+        return bech32address.p2wpkh(d)
     else:
         # v has been already checked at parsing stage
         # v must be in _P2WPKH_P2SH_PUB_PREFIXES
-        # moreover, _p2wpkh_p2sh_from_xpub will raise an Error
-        # if something is wrong
-        return p2wpkh_p2sh(d)
+        return base58address.p2wpkh_p2sh(d)

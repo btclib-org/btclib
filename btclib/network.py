@@ -80,15 +80,22 @@ TEST_Vpub = b'\x02\x57\x54\x83'
 # p2pkh or p2sh
 _XPRV_PREFIXES = [MAIN_xprv, TEST_tprv, TEST_tprv]
 _XPUB_PREFIXES = [MAIN_xpub, TEST_tpub, TEST_tpub]
+
+# FIXME: these are not used/tested
 # p2wpkh p2sh-wrapped-segwit
 _P2WPKH_P2SH_PRV_PREFIXES = [MAIN_yprv, TEST_uprv, TEST_uprv]
 _P2WPKH_P2SH_PUB_PREFIXES = [MAIN_ypub, TEST_upub, TEST_upub]
+
+# FIXME: these are not used/tested
 # p2wsh p2sh-wrapped-segwit
 _P2WSH_P2SH_PRV_PREFIXES = [MAIN_Yprv, TEST_Uprv, TEST_Uprv]
 _P2WSH_P2SH_PUB_PREFIXES = [MAIN_Ypub, TEST_Upub, TEST_Upub]
+
 # p2wpkh native-segwit
 _P2WPKH_PRV_PREFIXES = [MAIN_zprv, TEST_vprv, TEST_vprv]
 _P2WPKH_PUB_PREFIXES = [MAIN_zpub, TEST_vpub, TEST_vpub]
+
+# FIXME: these are not used/tested
 # p2wsh native-segwit
 _P2WSH_PRV_PREFIXES = [MAIN_Zprv, TEST_Vprv, TEST_Vprv]
 _P2WSH_PUB_PREFIXES = [MAIN_Zpub, TEST_Vpub, TEST_Vpub]
