@@ -55,7 +55,8 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
     """
 
-    G_bytes = bytes_from_point(ec.G, False, ec)
+    compressed = False
+    G_bytes = bytes_from_point(ec.G, ec, compressed)
     h = hf()
     h.update(G_bytes)
     hd = h.digest()

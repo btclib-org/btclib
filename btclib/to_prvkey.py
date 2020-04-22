@@ -22,7 +22,7 @@ from .utils import bytes_from_octets
 PrvKey = Union[int, bytes, str, XkeyDict]
 
 
-def _prvkey_info_from_wif(wif: String) -> Tuple[int, bool, str]:
+def _prvkey_info_from_wif(wif: String) -> Tuple[int, str, bool]:
     "Return (prvkey, compressed, network) info from WIF."
 
     if isinstance(wif, str):
@@ -48,10 +48,10 @@ def _prvkey_info_from_wif(wif: String) -> Tuple[int, bool, str]:
     if not 0 < q < ec.n:
         raise ValueError(f"Private key {hex(q)} not in [1, n-1]")
 
-    return q, compressed, network
+    return q, network, compressed
 
 
-def _prvkey_info_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
+def _prvkey_info_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, str, bool]:
     "Return (prvkey, compressed, network) info from BIP32xprv."
 
     if not isinstance(xprv, dict):
@@ -61,10 +61,10 @@ def _prvkey_info_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, bool, st
         raise ValueError(m)
 
     network = network_from_xprv(xprv['version'])
-    return xprv['q'], True, network
+    return xprv['q'], network, True
 
 
-def _prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, bool, str]:
+def _prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, str, bool]:
     """Return (prvkey, compressed, network) info from WIF or BIP32xprv.
 
     Support WIF or BIP32 xprv.
@@ -80,7 +80,7 @@ def _prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, bo
 
 
 def prvkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
-                            compressed: Optional[bool] = None) -> Tuple[int, bool, str]:
+                            compressed: Optional[bool] = None) -> Tuple[int, str, bool]:
 
     compr = True if compressed is None else compressed
     net = 'mainnet' if network is None else network
@@ -89,17 +89,17 @@ def prvkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
     if isinstance(prvkey, int):
         q = prvkey
     elif isinstance(prvkey, dict):
-        q, compr, net = _prvkey_info_from_xprv(prvkey)
+        q, net, compr = _prvkey_info_from_xprv(prvkey)
         if compressed is not None and compr != compressed:
             m = "Compressed key provided, uncompressed key requested"
             raise ValueError(m)
         if network is not None and net != network:
             m = f"{net.capitalize()} key provided, {network} key requested"
             raise ValueError(m)
-        return q, compr, net
+        return q, net, compr
     else:
         try:
-            q, compr, net = _prvkey_info_from_xprvwif(prvkey)
+            q, net, compr = _prvkey_info_from_xprvwif(prvkey)
         except Exception:
             pass
         else:
@@ -109,7 +109,7 @@ def prvkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
             if network is not None and net != network:
                 m = f"{net.capitalize()} key provided, {network} key requested"
                 raise ValueError(m)
-            return q, compr, net
+            return q, net, compr
 
         prvkey = bytes_from_octets(prvkey, ec.nsize)
         q = int.from_bytes(prvkey, 'big')
@@ -117,7 +117,7 @@ def prvkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
     if not 0 < q < ec.n:
         raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
 
-    return q, compr, net
+    return q, net, compr
 
 
 def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
@@ -134,14 +134,14 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     if isinstance(prvkey, int):
         q = prvkey
     elif isinstance(prvkey, dict):
-        q, _, network = _prvkey_info_from_xprvwif(prvkey)
+        q, network, _ = _prvkey_info_from_xprvwif(prvkey)
         # q has been validated on the xprv/wif network
         ec2 =  curve_from_network(network)
         assert ec == ec2, f"ec / network ({network}) mismatch"
         return q
     else:
         try:
-            q, _, network = _prvkey_info_from_xprvwif(prvkey)
+            q, network, _ = _prvkey_info_from_xprvwif(prvkey)
         except Exception:
             pass
         else:

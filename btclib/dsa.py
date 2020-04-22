@@ -38,7 +38,7 @@ def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
 
     # this function is basically just a der._serialize wrapper
     # to have for dsa the same pattern available for ssa and btcmesg
-    return der._serialize(r, s, None)
+    return der._serialize(r, s)
 
 
 def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:

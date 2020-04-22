@@ -96,7 +96,7 @@ def bytes_from_pubkey(P: PubKey, network: Optional[str] = None,
         compr = True if compressed is None else compressed
         net = 'mainnet' if network is None else network
         ec = curve_from_network(net)
-        return bytes_from_point(P, compr, ec), net
+        return bytes_from_point(P, ec, compr), net
     elif isinstance(P, dict):
         return _bytes_from_xpub(P, network, compressed)
     else:
@@ -125,16 +125,16 @@ def bytes_from_pubkey(P: PubKey, network: Optional[str] = None,
     # verify that it is a valid point
     Q = point_from_octets(pubkey, ec)
 
-    return bytes_from_point(Q, compr, ec), net
+    return bytes_from_point(Q, ec, compr), net
 
 
 def pubkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
                             compressed: Optional[bool] = None) -> Tuple[bytes, str]:
 
-    q, compr, net = prvkey_info_from_prvkey(prvkey, network, compressed)
+    q, net, compr = prvkey_info_from_prvkey(prvkey, network, compressed)
     ec = curve_from_network(net)
     Pub = mult(q, ec.G, ec)
-    pubkey = bytes_from_point(Pub, compr, ec)
+    pubkey = bytes_from_point(Pub, ec, compr)
     return pubkey, net
 
 

@@ -140,7 +140,8 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 
 def p2wpkh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh bech32 address corresponding to a public key."
-    h160, network = hash160_from_pubkey(pubkey, True, network)
+    compressed = True  # needed to force check on pubkey
+    h160, network = hash160_from_pubkey(pubkey, network, compressed)
     return b32address_from_witness(0, h160, network)
 
 

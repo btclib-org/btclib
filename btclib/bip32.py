@@ -218,7 +218,7 @@ def xpub_from_xprv(d: Union[XkeyDict, String]) -> bytes:
         raise ValueError(f"Not a private key: {serialize(d).decode()}")
 
     d['Q'] = mult(d['q'])
-    d['key'] = bytes_from_point(d['Q'], True, ec)
+    d['key'] = bytes_from_point(d['Q'])
     d['q'] = 0
     d['version'] = _XPUB_VERSIONS_ALL[_XPRV_VERSIONS_ALL.index(d['version'])]
 
@@ -230,7 +230,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
     # d is a prvkey
     if d['key'][0] == 0:
         d['depth'] += 1
-        Pbytes = bytes_from_point(mult(d['q']), True, ec)
+        Pbytes = bytes_from_point(mult(d['q']))
         d['parent_fingerprint'] = hash160(Pbytes)[:4]
         d['index'] = index
         if index[0] >= 0x80:  # hardened derivation
@@ -254,7 +254,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
         offset = int.from_bytes(h[:32], byteorder='big')
         Offset = mult(offset)
         d['Q'] = ec.add(d['Q'], Offset)
-        d['key'] = bytes_from_point(d['Q'], True, ec)
+        d['key'] = bytes_from_point(d['Q'])
         d['q'] = 0
 
 

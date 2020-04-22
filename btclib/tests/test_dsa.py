@@ -95,7 +95,7 @@ class TestDSA(unittest.TestCase):
         self.assertEqual(QU,
                          (466448783855397898016055842232266600516272889280,
                           1110706324081757720403272427311003102474457754220))
-        self.assertEqual(bytes_from_point(QU, True, ec).hex(),
+        self.assertEqual(bytes_from_point(QU, ec).hex(),
                          '0251b4496fecc406ed0e75a24a3c03206251419dc0')
 
         # 2.1.3 Signing Operation for U

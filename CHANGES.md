@@ -8,8 +8,9 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
-- Wherever input parameters had a 'compressed: bool, network: str'
-  sequence, the order has been reversed
+- Wherever input/output parameters had a
+  'compressed: bool, network: str' sequence,
+  the order has been inverted resulting in
   'network: str, compressed: bool'.
   Affected functions:
   base58address.p2pkh,
@@ -18,6 +19,8 @@ Major changes includes:
   to_pubkey._bytes_from_xpub,
   to_pubkey.bytes_from_pubkey,
   to_pubkey.pubkey_info_from_prvkey,
+  hashes.hash160_from_pubkey,
+  secpoint.bytes_from_point,
 
 ## v2020.5
 

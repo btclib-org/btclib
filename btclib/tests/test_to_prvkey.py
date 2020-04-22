@@ -115,7 +115,7 @@ class TestToPrvKey(unittest.TestCase):
         xprv_dict = bip32.deserialize(xprv)
         wif = wif_from_prvkey(xprv)
         wif_str = wif.decode('ascii')
-        ref_tuple = (xprv_dict['q'], True, 'mainnet')
+        ref_tuple = (xprv_dict['q'], 'mainnet', True)
 
         # BIP32
         self.assertEqual(ref_tuple, prvkey_info_from_prvkey(xprv))

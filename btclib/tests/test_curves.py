@@ -120,11 +120,11 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertEqual(Gy_even % 2, 0)
             self.assertTrue(ec.G[1] in (Gy_odd, Gy_even))
 
-            Gbytes = bytes_from_point(ec.G, True, ec)
+            Gbytes = bytes_from_point(ec.G, ec)
             G2 = point_from_octets(Gbytes, ec)
             self.assertEqual(ec.G, G2)
 
-            Gbytes = bytes_from_point(ec.G, False, ec)
+            Gbytes = bytes_from_point(ec.G, ec, False)
             G2 = point_from_octets(Gbytes, ec)
             self.assertEqual(ec.G, G2)
 
@@ -160,7 +160,7 @@ class TestEllipticCurve(unittest.TestCase):
             Q_bytes += Q[0].to_bytes(ec.psize, byteorder='big')
             R = point_from_octets(Q_bytes, ec)
             self.assertEqual(R, Q)
-            self.assertEqual(bytes_from_point(R, True, ec), Q_bytes)
+            self.assertEqual(bytes_from_point(R, ec), Q_bytes)
 
             Q_hex_str = Q_bytes.hex()
             R = point_from_octets(Q_hex_str, ec)
@@ -170,7 +170,7 @@ class TestEllipticCurve(unittest.TestCase):
             Q_bytes += Q[1].to_bytes(ec.psize, byteorder='big')
             R = point_from_octets(Q_bytes, ec)
             self.assertEqual(R, Q)
-            self.assertEqual(bytes_from_point(R, False, ec), Q_bytes)
+            self.assertEqual(bytes_from_point(R, ec, False), Q_bytes)
 
             Q_hex_str = Q_bytes.hex()
             R = point_from_octets(Q_hex_str, ec)
@@ -196,8 +196,8 @@ class TestEllipticCurve(unittest.TestCase):
         xstr = format(x, '32X')
         self.assertRaises(ValueError, point_from_octets, "03" + xstr, ec)
         self.assertRaises(ValueError, point_from_octets, "04" + 2*xstr, ec)
-        self.assertRaises(ValueError, bytes_from_point, (x, x), True, ec)
-        self.assertRaises(ValueError, bytes_from_point, (x, x), False, ec)
+        self.assertRaises(ValueError, bytes_from_point, (x, x), ec)
+        self.assertRaises(ValueError, bytes_from_point, (x, x), ec, False)
 
         # Point must be a tuple[int, int]
         P = x, x, x

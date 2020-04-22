@@ -62,7 +62,7 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     c = bytes_from_octets(c)
     R = mult(k, ec.G, ec)
     h = hf()
-    h.update(bytes_from_point(R, True, ec) + c)
+    h.update(bytes_from_point(R, ec) + c)
     e = int.from_bytes(h.digest(), byteorder='big')
     return R, (e + k) % ec.n
 
@@ -146,7 +146,7 @@ def verify_commit(c: Octets, receipt: Receipt,
     h.update(c)
     ch = h.digest()
     h = hf()
-    h.update(bytes_from_point(R, True, ec) + ch)
+    h.update(bytes_from_point(R, ec) + ch)
     e = h.digest()
     e = int_from_bits(e, ec.nlen) % ec.n
     W = ec.add(R, mult(e, ec.G, ec))

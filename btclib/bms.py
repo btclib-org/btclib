@@ -200,7 +200,7 @@ def sign(msg: String, prvkey: PrvKey,
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, compressed, network = prvkey_info_from_prvkey(prvkey)
+    q, network, compressed = prvkey_info_from_prvkey(prvkey)
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
@@ -210,7 +210,7 @@ def sign(msg: String, prvkey: PrvKey,
     # key_id is in [0, 3]
     # first two bits in rf are reserved for it
     key_id = pubkeys.index(Q)
-    pubkey = bytes_from_point(Q, compressed)
+    pubkey = bytes_from_point(Q, compressed=compressed)
 
     # finally, calculate the recovery flag
     if addr is None or addr == p2pkh(pubkey, network, compressed):
@@ -270,7 +270,7 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
     compressed = True
     if rf < 31:
         compressed = False
-    pubkey = bytes_from_point(Q, compressed)
+    pubkey = bytes_from_point(Q, compressed=compressed)
     if is_b58:
         if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
             script_pk = b'\x00\x14' + hash160(pubkey)

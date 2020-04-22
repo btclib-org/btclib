@@ -67,7 +67,7 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
 def p2pkh(pubkey: PubKey, network: Optional[str] = None,
           compressed: Optional[bool] = None) -> bytes:
     "Return the p2pkh base58 address corresponding to a public key."
-    h160, network = hash160_from_pubkey(pubkey, compressed, network)
+    h160, network = hash160_from_pubkey(pubkey, network, compressed)
     prefix = p2pkh_prefix_from_network(network)
     return b58address_from_h160(prefix, h160)
 
@@ -99,7 +99,8 @@ def b58address_from_witness(wp: Octets, network: str = 'mainnet') -> bytes:
 
 def p2wpkh_p2sh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh-p2sh base58 address corresponding to a pubkey."
-    witprog, network = hash160_from_pubkey(pubkey, True, network)
+    compressed = True  # needed to force check on pubkey
+    witprog, network = hash160_from_pubkey(pubkey, network, compressed)
     return b58address_from_witness(witprog, network)
 
 

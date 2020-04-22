@@ -30,7 +30,7 @@ class TestToPubKey(unittest.TestCase):
         P_compr = xpub_dict['key']
         P_compr_hexstr = P_compr.hex()
         P = xpub_dict['Q']
-        P_uncompr = bytes_from_point(P, False, ec)
+        P_uncompr = bytes_from_point(P, ec, False)
         P_uncompr_hexstr = P_uncompr.hex()
 
         # BIP32
@@ -92,7 +92,7 @@ class TestToPubKey(unittest.TestCase):
         P_compr = xpub_dict['key']
         P_compr_hexstr = P_compr.hex()
         P = xpub_dict['Q']
-        P_uncompr = bytes_from_point(P, False, ec)
+        P_uncompr = bytes_from_point(P, ec, False)
         P_uncompr_hexstr = P_uncompr.hex()
 
         # BIP32 input, compressed result

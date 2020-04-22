@@ -475,9 +475,9 @@ class TestMessageSign(unittest.TestCase):
         # Compressed WIF
         wif = b'Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C'
         pubkey, network = pubkey_info_from_prvkey(wif)
-        address1 = p2pkh(pubkey)
-        address2 = p2wpkh_p2sh(pubkey)
-        address3 = p2wpkh(pubkey) 
+        address1 = p2pkh(pubkey, network)
+        address2 = p2wpkh_p2sh(pubkey, network)
+        address3 = p2wpkh(pubkey, network)
 
         # sign with no address (or compressed P2PKH)
         sig1 = bms.sign(msg, wif)
@@ -508,10 +508,10 @@ class TestMessageSign(unittest.TestCase):
 
 
         # uncompressed WIF / P2PKH address
-        q, _, network = prvkey_info_from_prvkey(wif)
+        q, network, _ = prvkey_info_from_prvkey(wif)
         wif2 = wif_from_prvkey(q, network, False)
         pubkey, network = pubkey_info_from_prvkey(wif2)
-        address4 = p2pkh(pubkey)
+        address4 = p2pkh(pubkey, network)
 
         # sign with uncompressed P2PKH
         sig4 = bms.sign(msg, wif2, address4)

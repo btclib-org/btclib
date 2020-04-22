@@ -20,8 +20,8 @@ from .to_pubkey import bytes_from_pubkey
 from .utils import hash160, sha256
 
 
-def hash160_from_pubkey(pubkey: PubKey, compressed: Optional[bool] = None,
-                        network: Optional[str] = None) -> Tuple[bytes, str]:
+def hash160_from_pubkey(pubkey: PubKey, network: Optional[str] = None,
+                        compressed: Optional[bool]=None) -> Tuple[bytes, str]:
     pubkey, network = bytes_from_pubkey(pubkey, network, compressed)
     h160 = hash160(pubkey)
     return h160, network

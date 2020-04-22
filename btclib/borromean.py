@@ -36,7 +36,7 @@ def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
     rings = len(pubk_rings)
     for i in range(rings):
         for P in pubk_rings[i]:
-            msg += bytes_from_point(P, True, ec)
+            msg += bytes_from_point(P, ec)
     return hf(msg).digest()
 
 
@@ -72,14 +72,14 @@ def sign(msg: String,
         e[i] = [0]*keys_size
         j_star = sign_key_idx[i]
         start_idx = (j_star + 1) % keys_size
-        R = bytes_from_point(mult(k[i]), True, ec)
+        R = bytes_from_point(mult(k[i]), ec)
         if start_idx != 0:
             for j in range(start_idx, keys_size):
                 s[i][j] = random.getrandbits(256)
                 e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
                 assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
                 T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
-                R = bytes_from_point(T, True, ec)
+                R = bytes_from_point(T, ec)
         e0bytes += R
     e0 = hf(e0bytes).digest()
     # step 2
@@ -90,7 +90,7 @@ def sign(msg: String,
         for j in range(1, j_star+1):
             s[i][j-1] = random.getrandbits(256)
             T = double_mult(-e[i][j-1], pubk_rings[i][j-1], s[i][j-1], ec.G)
-            R = bytes_from_point(T, True, ec)
+            R = bytes_from_point(T, ec)
             e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
             assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
         s[i][j_star] = k[i] + sign_keys[i]*e[i][j_star]
@@ -133,7 +133,7 @@ def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
         R = b'\0x00'
         for j in range(keys_size):
             T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
-            R = bytes_from_point(T, True, ec)
+            R = bytes_from_point(T, ec)
             if j != len(pubk_rings[i])-1:
                 e[i][j+1] = int_from_bits(_hash(m, R, i, j+1), ec.nlen) % ec.n
                 assert e[i][j+1] != 0, "invalid sig: how did you do that?!?"

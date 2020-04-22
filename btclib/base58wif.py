@@ -21,7 +21,7 @@ def wif_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
                     compressed: Optional[bool] = None) -> bytes:
     "Return the WIF encoding of a private key."
 
-    q, compr, net = prvkey_info_from_prvkey(prvkey, network, compressed)
+    q, net, compr = prvkey_info_from_prvkey(prvkey, network, compressed)
     ec = curve_from_network(net)
 
     payload = wif_prefix_from_network(net)

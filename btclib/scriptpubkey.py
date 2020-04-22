@@ -29,7 +29,6 @@ from .utils import bytes_from_octets
 
 # FIXME: do P2PK and P2MS work also with compressed key?
 # TODO: accept Sequence instead of List
-# def payload_from_pubkeys(pubkeys: List[PubKey], compressed: Optional[bool] = None) -> bytes:
 def payload_from_pubkeys(pubkeys: Union[List[PubKey], PubKey],
                          lexicographic_sort: bool = True) -> bytes:
 
@@ -218,7 +217,7 @@ def nulldata(data: String) -> bytes:
 def p2pkh(pubkey: PubKey, compressed: Optional[bool] = None) -> bytes:
     "Return the p2pkh scriptPubKey of the provided pubkey."
 
-    pubkey_h160, _ = hash160_from_pubkey(pubkey, compressed)
+    pubkey_h160, _ = hash160_from_pubkey(pubkey, compressed=compressed)
     return scriptPubKey_from_payload('p2pkh', pubkey_h160)
 
 
@@ -231,9 +230,8 @@ def p2sh(script: Script) -> bytes:
 
 def p2wpkh(pubkey: PubKey) -> bytes:
     "Return the p2wpkh scriptPubKey of the provided pubkey."
-
-    compressed = True
-    pubkey_h160, _ = hash160_from_pubkey(pubkey, compressed)
+    compressed = True  # needed to force check on pubkey
+    pubkey_h160, _ = hash160_from_pubkey(pubkey, compressed=compressed)
     return scriptPubKey_from_payload('p2wpkh', pubkey_h160)
 
 
