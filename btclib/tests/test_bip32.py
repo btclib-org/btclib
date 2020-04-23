@@ -361,7 +361,7 @@ class TestBIP32(unittest.TestCase):
         indexes = [0x80000000, 0x80000000, 0x8000010b]
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
         self.assertEqual(addr, addr2)
-        path = "m/0'/0'/267'"
+        path = "M / 0H / 0' // 267' / "
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 

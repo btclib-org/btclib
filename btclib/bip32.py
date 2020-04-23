@@ -269,19 +269,19 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
         raise ValueError('Empty derivation path')
     else:
         raise ValueError(f'Invalid derivation path root: "{steps[0]}"')
-    if len(steps) > 256:
-        raise ValueError(f'Derivation path depth {len(steps)-1}>255')
 
     indexes: List[bytes] = list()
     for step in steps[1:]:
-        hardened = False
-        if step[-1] in ("'", "H", "h"):
-            hardened = True
-            step = step[:-1]
-        index = int(step)
-        index += 0x80000000 if hardened else 0
+        if step == '':  # extra slash
+            continue
+        elif step[-1] in ("'", "H", "h"):
+            index = int(step[:-1]) + 0x80000000
+        else:
+            index = int(step)
         indexes.append(index.to_bytes(4, 'big'))
 
+    if len(indexes) > 255:
+        raise ValueError(f'Derivation path depth {len(indexes)}>255')
     return indexes, absolute
 
 
