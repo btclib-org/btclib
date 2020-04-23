@@ -53,7 +53,7 @@ import secrets
 from hashlib import sha256
 from typing import List, Sequence, Tuple, Union
 
-from .alias import HashF, JacPoint, Octets, Point, SSASig, SSASigTuple
+from .alias import HashF, JacPoint, Octets, Point, PrvKey, SSASig, SSASigTuple
 from .bip32 import XkeyDict
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac, _multi_mult
@@ -66,10 +66,10 @@ from .utils import bytes_from_octets, int_from_bits
 # TODO relax the p_ThreeModFour requirement
 
 
-BIP340Key = Union[int, bytes, str, XkeyDict]
+BIP340PubKey = Union[int, bytes, str, XkeyDict]
 
 
-def to_bip340_point(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
+def to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     """Return a verified-as-valid BIP340 public key as Point tuple.
 
     It supports:
@@ -103,7 +103,7 @@ def to_bip340_point(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
     return x_Q, y_Q
 
 
-def pubkey_gen(prvkey: BIP340Key, ec: Curve = secp256k1) -> bytes:
+def pubkey_gen(prvkey: PrvKey, ec: Curve = secp256k1) -> bytes:
     """Return a BIP340-Schnorr p-size public key."""
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
@@ -154,7 +154,7 @@ def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
     return h2.digest()
 
 
-def k(m: Octets, prv: BIP340Key,
+def k(m: Octets, prv: PrvKey,
       ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
 
@@ -206,7 +206,7 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def sign(m: Octets, prvkey: BIP340Key, k: BIP340Key = None,
+def sign(m: Octets, prvkey: PrvKey, k: PrvKey = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> SSASigTuple:
     """Sign message according to BIP340-Schnorr signature algorithm."""
 
@@ -246,7 +246,7 @@ def sign(m: Octets, prvkey: BIP340Key, k: BIP340Key = None,
     return x_K, s
 
 
-def verify(m: Octets, Q: BIP340Key, sig: SSASig,
+def verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Verify the BIP340-Schnorr signature of the provided message."""
 
@@ -259,7 +259,7 @@ def verify(m: Octets, Q: BIP340Key, sig: SSASig,
         return True
 
 
-def _verify(m: Octets, Q: BIP340Key, sig: SSASig,
+def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
             ec: Curve, hf: HashF) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -323,7 +323,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
 
 
 def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
-                 Q: BIP340Key,
+                 Q: BIP340PubKey,
                  ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
 
     m1 = bytes_from_octets(m1, hf().digest_size)
@@ -344,7 +344,7 @@ def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
     return q, k
 
 
-def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340Key],
+def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340PubKey],
                  sig: Sequence[SSASig],
                  ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Batch verification of BIP340-Schnorr signatures."""
@@ -358,7 +358,7 @@ def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340Key],
         return True
 
 
-def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340Key],
+def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
                   sigs: Sequence[SSASig],
                   ec: Curve, hf: HashF) -> None:
 
