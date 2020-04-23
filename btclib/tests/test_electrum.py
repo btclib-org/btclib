@@ -28,7 +28,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
         self.assertEqual(mnemonic, mnemonic2)
 
         entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
-        self.assertLess(entr-entropy, 0xfff)
+        self.assertLess(entr - entropy, 0xfff)
 
         # mnemonic version not in electrum allowed mnemonic versions
         eversion = 'std'
@@ -83,7 +83,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
             address = test_vector[4]  # "./0/0"
 
             if mnemonic != "":
-                mxprv2 = bip32.masterxprv_from_electrummnemonic(mnemonic, passphrase)
+                mxprv2 = bip32.masterxprv_from_electrummnemonic(
+                    mnemonic, passphrase)
                 self.assertEqual(mxprv2, mxprv.encode())
 
                 eversion = electrum.version_from_mnemonic(mnemonic)
@@ -101,11 +102,13 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
         # version 2fa_segwit
         mnemonic = "slender flight session office noodle hand couple option office wait uniform morning"
-        self.assertEqual("2fa_segwit", electrum.version_from_mnemonic(mnemonic))
+        self.assertEqual(
+            "2fa_segwit", electrum.version_from_mnemonic(mnemonic))
 
         # version 2fa
         mnemonic = "history recycle company awful donor fold beef nominee hard bleak bracket six"
         self.assertEqual("2fa", electrum.version_from_mnemonic(mnemonic))
+
 
 if __name__ == "__main__":
     # execute only if run as a script

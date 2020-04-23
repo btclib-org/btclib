@@ -106,8 +106,10 @@ _XPRV_VERSIONS_TEST = [TEST_tprv, TEST_uprv, TEST_vprv, TEST_Uprv, TEST_Vprv]
 _XPUB_VERSIONS_MAIN = [MAIN_xpub, MAIN_ypub, MAIN_zpub, MAIN_Ypub, MAIN_Zpub]
 _XPUB_VERSIONS_TEST = [TEST_tpub, TEST_upub, TEST_vpub, TEST_Upub, TEST_Vpub]
 
-_XPRV_VERSIONS = [_XPRV_VERSIONS_MAIN, _XPRV_VERSIONS_TEST, _XPRV_VERSIONS_TEST]
-_XPUB_VERSIONS = [_XPUB_VERSIONS_MAIN, _XPUB_VERSIONS_TEST, _XPUB_VERSIONS_TEST]
+_XPRV_VERSIONS = [_XPRV_VERSIONS_MAIN,
+                  _XPRV_VERSIONS_TEST, _XPRV_VERSIONS_TEST]
+_XPUB_VERSIONS = [_XPUB_VERSIONS_MAIN,
+                  _XPUB_VERSIONS_TEST, _XPUB_VERSIONS_TEST]
 
 # it provides false match for regtest
 # not a problem as long as it is used for WIF/Base58Address/BIP32xkey
@@ -116,8 +118,10 @@ _REPEATED_NETWORKS = [
     'mainnet', 'mainnet', 'mainnet', 'mainnet', 'mainnet',
     'testnet', 'testnet', 'testnet', 'testnet', 'testnet',
     'regtest', 'regtest', 'regtest', 'regtest', 'regtest']
-_XPRV_VERSIONS_ALL = _XPRV_VERSIONS_MAIN + _XPRV_VERSIONS_TEST + _XPRV_VERSIONS_TEST
-_XPUB_VERSIONS_ALL = _XPUB_VERSIONS_MAIN + _XPUB_VERSIONS_TEST + _XPUB_VERSIONS_TEST
+_XPRV_VERSIONS_ALL = _XPRV_VERSIONS_MAIN + \
+    _XPRV_VERSIONS_TEST + _XPRV_VERSIONS_TEST
+_XPUB_VERSIONS_ALL = _XPUB_VERSIONS_MAIN + \
+    _XPUB_VERSIONS_TEST + _XPUB_VERSIONS_TEST
 
 
 def curve_from_network(network: str) -> Curve:
@@ -126,7 +130,7 @@ def curve_from_network(network: str) -> Curve:
 
 
 def curve_from_xpubversion(xpubversion: bytes) -> Curve:
-    index =  _XPUB_VERSIONS_ALL.index(xpubversion)
+    index = _XPUB_VERSIONS_ALL.index(xpubversion)
     return _CURVES[index]
 
 

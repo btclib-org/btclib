@@ -68,7 +68,7 @@ class TestECFunctions(unittest.TestCase):
 
         # p (10007) is too big to count all group points
         self.assertRaises(ValueError, find_all_points, ec)
-        #find_all_points(ec)
+        # find_all_points(ec)
 
         # p (10007) is too big to count all subgroup points
         G = (2, 3265)

@@ -28,10 +28,10 @@ class TestBorromeanRingSignature(unittest.TestCase):
         Pub_keys = {}
         signing_keys = []
         for i in range(ring_number):
-            priv_keys[i] = [0]*ring_dim[i]
-            Pub_keys[i] = [0]*ring_dim[i]
+            priv_keys[i] = [0] * ring_dim[i]
+            Pub_keys[i] = [0] * ring_dim[i]
             for j in range(ring_dim[i]):
-                priv_keys[i][j] = j+1
+                priv_keys[i][j] = j + 1
                 Pub_keys[i][j] = mult(priv_keys[i][j], ec.G, ec)
             signing_keys.append(priv_keys[i][signing_indexes[i]])
         msg = 'Borromean ring signature'

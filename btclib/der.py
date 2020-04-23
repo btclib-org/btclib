@@ -124,7 +124,7 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
         sig = bytes_from_octets(sig)
 
         # 73 bytes for secp256k1 (including sighash)
-        maxsize = (ec.nsize+1) * 2 + 6 + 1
+        maxsize = (ec.nsize + 1) * 2 + 6 + 1
         # 1 byte for r, 1 bytes for s, excluding sighash
         minsize = 1 * 2 + 6
         sigsize = len(sig)
@@ -153,14 +153,16 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
             raise ValueError("Zero-size integer is not allowed for r")
 
         if 5 + sizeR >= sigsize:
-            raise ValueError("Size of the s scalar must be inside the signature")
+            raise ValueError(
+                "Size of the s scalar must be inside the signature")
 
         sizeS = sig[5 + sizeR]  # size of the s scalar
         if sizeS == 0:
             raise ValueError("Zero-size integer is not allowed for s")
 
         if sigsize - sizeR - sizeS != 6 + leftover:
-            raise ValueError("Signature size does not match with size of scalars")
+            raise ValueError(
+                "Signature size does not match with size of scalars")
 
         # scalar r
         if sig[2] != 0x02:
@@ -185,7 +187,7 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
 
         # Null bytes at the start of a scalar are not allowed, unless the
         # scalar would otherwise be interpreted as a negative number
-        if sizeS>1 and sig[sizeR+6]==0x00 and not (sig[sizeR+7] & 0x80):
+        if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
             raise ValueError("Invalid null bytes at the start of s")
 
         s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')

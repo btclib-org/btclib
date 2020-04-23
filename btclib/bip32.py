@@ -84,15 +84,15 @@ def deserialize(xkey: Octets) -> XkeyDict:
 
     xkey = b58decode(xkey, 78)
     d: XkeyDict = {
-        'version'            : xkey[:4],
-        'depth'              : xkey[4],
-        'parent_fingerprint' : xkey[5:9],
-        'index'              : xkey[9:13],
-        'chain_code'         : xkey[13:45],
-        'key'                : xkey[45:],
+        'version': xkey[:4],
+        'depth': xkey[4],
+        'parent_fingerprint': xkey[5:9],
+        'index': xkey[9:13],
+        'chain_code': xkey[13:45],
+        'key': xkey[45:],
         # extensions
-        'q'                  : 0,   # non zero only if xprv
-        'Q'                  : INF  # non INF only if xpub
+        'q': 0,   # non zero only if xprv
+        'Q': INF  # non INF only if xpub
     }
 
     _check_version_key(d['version'], d['key'])
@@ -129,7 +129,7 @@ def serialize(d: XkeyDict) -> bytes:
         m = f"Invalid {len(d['index'])}-bytes BIP32 index length"
         raise ValueError(m)
     _check_depth_pfp_index(d['depth'],
-                                   d['parent_fingerprint'], d['index'])
+                           d['parent_fingerprint'], d['index'])
     t += d['depth'].to_bytes(1, 'big')
     t += d['parent_fingerprint']
     t += d['index']
@@ -158,14 +158,14 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
         raise ValueError(f"unknown extended private key version {v!r}")
 
     d: XkeyDict = {
-        'version'            : v,
-        'depth'              : 0,
-        'parent_fingerprint' : b'\x00\x00\x00\x00',
-        'index'              : b'\x00\x00\x00\x00',
-        'chain_code'         : hd[32:],
-        'key'                : k,
-        'q'                  : int.from_bytes(hd[:32], byteorder='big'),
-        'Q'                  : INF
+        'version': v,
+        'depth': 0,
+        'parent_fingerprint': b'\x00\x00\x00\x00',
+        'index': b'\x00\x00\x00\x00',
+        'chain_code': hd[32:],
+        'key': k,
+        'q': int.from_bytes(hd[:32], byteorder='big'),
+        'Q': INF
     }
     return serialize(d)
 
@@ -289,7 +289,7 @@ def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
     """Derive an extended key across a path spanning multiple depth levels.
 
     Derivation is according to:
-    
+
     - absolute path as "m/44h/0'/1H/0/10" string
     - relative path as "./0/10" string
     - relative path as iterable integer indexes

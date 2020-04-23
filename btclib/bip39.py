@@ -60,7 +60,7 @@ def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
         msg = f"Invalid number of bits ({nbits}) for BIP39 entropy; "
         msg += f"must be in {_bits}"
         raise ValueError(msg)
-    nbytes = (nbits+7)//8
+    nbytes = (nbits + 7) // 8
     bytes_entropy = int_entropy.to_bytes(nbytes, 'big')
 
     # 256-bit checksum
@@ -110,7 +110,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     cs_entropy = _entropy_from_indexes(indexes, lang)
 
     # entropy is only the first part of cs_entropy
-    bits = int(len(cs_entropy)*32/33)
+    bits = int(len(cs_entropy) * 32 / 33)
     binstr_entropy = cs_entropy[:bits]
 
     # the second part being the checksum, to be verified
@@ -124,7 +124,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
 
 
 def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
-                       verify_checksum = True) -> bytes:
+                       verify_checksum=True) -> bytes:
     """Return seed from mnemonic according to BIP39 standard.
 
     The mnemonic checksum verification can be skipped if needed.

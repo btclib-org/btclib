@@ -51,6 +51,7 @@ from .utils import bytes_from_octets, int_from_bits
 # commitment receipt
 Receipt = Tuple[int, Point]
 
+
 def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     """Tweak kG with hash(kG||c).
 

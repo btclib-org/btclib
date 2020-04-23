@@ -70,8 +70,8 @@ BIP340Key = Union[int, bytes, str, XkeyDict]
 
 
 def to_bip340_point(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
-    """Return a verified-as-valid BIP340 public key tuple.
-    
+    """Return a verified-as-valid BIP340 public key as Point tuple.
+
     It supports:
 
     - BIP32 extended keys (bytes, string, or XkeyDict)
@@ -91,7 +91,7 @@ def to_bip340_point(x_Q: BIP340Key, ec: Curve = secp256k1) -> Point:
             return x_Q, y_Q
         except Exception:
             pass
- 
+
     # BIP 340 key as bytes or hex-string
     if isinstance(x_Q, str) or isinstance(x_Q, bytes):
         Q = bytes_from_octets(x_Q, ec.psize)
@@ -134,7 +134,7 @@ def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
     if isinstance(sig, tuple):
         r, s = sig
     else:
-        sig = bytes_from_octets(sig, ec.psize+ec.nsize)
+        sig = bytes_from_octets(sig, ec.psize + ec.nsize)
         r = int.from_bytes(sig[:ec.psize], byteorder='big')
         s = int.from_bytes(sig[ec.psize:], byteorder='big')
 
@@ -154,7 +154,7 @@ def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
     return h2.digest()
 
 
-def k(m: Octets, prv: BIP340Key, 
+def k(m: Octets, prv: BIP340Key,
       ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
 
@@ -240,7 +240,7 @@ def sign(m: Octets, prvkey: BIP340Key, k: BIP340Key = None,
     c = _challenge(x_K, x_Q, m, ec, hf)
 
     # s=0 is ok: in verification there is no inverse of s
-    s = (k + c*q) % ec.n
+    s = (k + c * q) % ec.n
 
     # The signature is bytes(x_K || bytes((k + ed) mod n)).
     return x_K, s
@@ -280,14 +280,14 @@ def _verify(m: Octets, Q: BIP340Key, sig: SSASig,
 
     # Let K = sG - eQ.
     # in Jacobian coordinates
-    KJ = _double_mult(ec.n-c, QJ, s, ec.GJ, ec)
+    KJ = _double_mult(ec.n - c, QJ, s, ec.GJ, ec)
 
     # Fail if infinite(KJ).
     # Fail if jacobi(y_K) ≠ 1.
     ec.require_square_y(KJ)
 
     # Fail if x_K ≠ r
-    assert KJ[0] == KJ[2]*KJ[2]*r % ec.p, "Signature verification failed"
+    assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "Signature verification failed"
 
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
@@ -317,7 +317,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
     KJ = r, ec.y_quadratic_residue(r, True), 1
 
     e1 = mod_inv(c, ec.n)
-    QJ = _double_mult(ec.n-e1, KJ, e1*s, ec.GJ, ec)
+    QJ = _double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
     assert QJ[2] != 0, "how did you do that?!?"
     return ec._x_aff_from_jac(QJ)
 
@@ -339,9 +339,9 @@ def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
 
     c1 = _challenge(r1, x_Q, m1, ec, hf)
     c2 = _challenge(r2, x_Q, m2, ec, hf)
-    q = (s1-s2) * mod_inv(c2-c1, ec.n) %ec.n
-    k = (s1 + c1 * q) %ec.n
-    return q, k 
+    q = (s1 - s2) * mod_inv(c2 - c1, ec.n) % ec.n
+    k = (s1 + c1 * q) % ec.n
+    return q, k
 
 
 def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340Key],
@@ -397,7 +397,7 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340Key],
         # cryptographic hash (e.g., SHA256) of all inputs of the
         # algorithm, or randomly generated independently for each
         # run of the batch verification algorithm
-        a = (1 if i == 0 else 1+secrets.randbelow(ec.n-1))
+        a = (1 if i == 0 else 1 + secrets.randbelow(ec.n - 1))
         scalars.append(a)
         points.append(KJ)
         scalars.append(a * c % ec.n)
@@ -410,8 +410,8 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340Key],
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
-    precondition = TJ[0]*RHSZ2 % ec.p == RHSJ[0]*TZ2 % ec.p
+    precondition = TJ[0] * RHSZ2 % ec.p == RHSJ[0] * TZ2 % ec.p
     assert precondition, "Signature verification precondition failed"
 
-    valid_sig = TJ[1]*RHSZ2*RHSJ[2] % ec.p == RHSJ[1]*TZ2*TJ[2] % ec.p
+    valid_sig = TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p
     assert valid_sig, "Signature verification failed"

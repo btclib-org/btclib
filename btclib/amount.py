@@ -23,9 +23,11 @@ The provided functions properly handle conversion between satoshi amounts
 and float monetary values.
 """
 
+
 def sat_from_float(value: float) -> int:
     """Return the satoshi amount equivalent of a float monetary value."""
     return int(round(value * 1e8))
+
 
 def float_from_sat(amount: int) -> float:
     """Return the float monetary value equivalent of a satoshi amount."""

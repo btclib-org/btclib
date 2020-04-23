@@ -23,6 +23,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(hash160(s_spaces), hash160(bytes_from_octets(s)))
         self.assertEqual(hash256(s_spaces), hash256(bytes_from_octets(s)))
 
+
 if __name__ == "__main__":
     # execute only if run as a script
     unittest.main()  # pragma: no cover

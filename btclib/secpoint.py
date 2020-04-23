@@ -59,14 +59,14 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
             msg = f"{ec.psize+1} bytes, but not a valid x coordinate {Px}"
             raise ValueError(msg)
     else:                                     # uncompressed point
-        if bsize != 2*ec.psize + 1:
+        if bsize != 2 * ec.psize + 1:
             msg = f"wrong byte-size ({bsize}) for a point: it "
             msg += f"should have be {ec.psize+1} or {2*ec.psize+1}"
             raise ValueError(msg)
         if pubkey[0] != 0x04:
             raise ValueError("not an uncompressed point")
-        Px = int.from_bytes(pubkey[1:ec.psize+1], byteorder='big')
-        P = Px, int.from_bytes(pubkey[ec.psize+1:], byteorder='big')
+        Px = int.from_bytes(pubkey[1:ec.psize + 1], byteorder='big')
+        P = Px, int.from_bytes(pubkey[ec.psize + 1:], byteorder='big')
         if P[1] == 0:  # infinity point in affine coordinates
             raise ValueError("No bytes representation for the infinity point")
         if ec.is_on_curve(P):

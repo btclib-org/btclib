@@ -64,7 +64,8 @@ class TestScript(unittest.TestCase):
         script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = [hex(26)[2:].upper(), -1, 'OP_ADD', hex(26)[2:].upper(), 'OP_EQUAL']
+        script_list = [hex(26)[2:].upper(), -1, 'OP_ADD',
+                       hex(26)[2:].upper(), 'OP_EQUAL']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)
@@ -75,7 +76,8 @@ class TestScript(unittest.TestCase):
         script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = [hex(0xffffffff)[2:].upper(), -1, 'OP_ADD', hex(0xffffffff)[2:].upper(), 'OP_EQUAL']
+        script_list = [hex(0xffffffff)[2:].upper(), -1,
+                       'OP_ADD', hex(0xffffffff)[2:].upper(), 'OP_EQUAL']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)
@@ -86,7 +88,7 @@ class TestScript(unittest.TestCase):
         script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = ["1F"*250, 'OP_DROP']
+        script_list = ["1F" * 250, 'OP_DROP']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes)
         self.assertEqual(script_list, script_list2)
@@ -97,7 +99,7 @@ class TestScript(unittest.TestCase):
         script_list2 = deserialize(script_serialized)
         self.assertEqual(script_list, script_list2)
 
-        script_list = ["1F"*520, 'OP_DROP']
+        script_list = ["1F" * 520, 'OP_DROP']
         script_bytes = encode(script_list)
         script_list2 = decode(script_bytes.hex())
         self.assertEqual(script_list, script_list2)
@@ -121,33 +123,34 @@ class TestScript(unittest.TestCase):
         # encode(script)
 
         # Script: Cannot push 521 bytes on the stack
-        script = ['1f'*521, 'OP_DROP']
+        script = ['1f' * 521, 'OP_DROP']
         self.assertRaises(ValueError, encode, script)
         # encode(script)
 
         # A script with OP_PUSHDATA4 can be decoded
-        script_bytes = '4e09020000' + '00'*521 + '75'  # ['00'*521, 'OP_DROP']
+        script_bytes = '4e09020000' + '00' * \
+            521 + '75'  # ['00'*521, 'OP_DROP']
         script = decode(script_bytes)
         # but it cannot be encoded
         # Cannot push 521 bytes on the stack
         self.assertRaises(ValueError, encode, script)
-        #encode(script)
+        # encode(script)
 
     def test_nulldata(self):
 
-        script = ['OP_RETURN', '11'*79]
+        script = ['OP_RETURN', '11' * 79]
         bscript = encode(script)
         self.assertEqual(script, decode(bscript))
 
-        script2 = ['OP_RETURN', b'\x11'*79]
+        script2 = ['OP_RETURN', b'\x11' * 79]
         bscript = encode(script2)
         self.assertEqual(script, decode(bscript))
 
-        script = ['OP_RETURN', '00'*79]
+        script = ['OP_RETURN', '00' * 79]
         bscript = encode(script)
         self.assertEqual(script, decode(bscript))
 
-        script2 = ['OP_RETURN', b'\x11'*79]
+        script2 = ['OP_RETURN', b'\x11' * 79]
         bscript = encode(script)
         self.assertEqual(script, decode(bscript))
 

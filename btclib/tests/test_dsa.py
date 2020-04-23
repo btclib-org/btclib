@@ -21,6 +21,7 @@ from btclib.secpoint import bytes_from_point, point_from_octets
 ec = secp256k1
 hf = sha256
 
+
 class TestDSA(unittest.TestCase):
     def test_signature(self):
         q = 0x1
@@ -89,7 +90,7 @@ class TestDSA(unittest.TestCase):
 
         # 2.1.2 Key Deployment for U
         dU = 971761939728640320549601132085879836204587084162
-        self.assertEqual(format(dU, str(ec.psize)+'x'),
+        self.assertEqual(format(dU, str(ec.psize) + 'x'),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
         QU = mult(dU, ec.G, ec)
         self.assertEqual(QU,
@@ -116,7 +117,8 @@ class TestDSA(unittest.TestCase):
 
         # see https://twitter.com/pwuille/status/1063582706288586752
         # Satoshi's key
-        P = point_from_octets("03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c", ec)
+        P = point_from_octets(
+            "03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c", ec)
 
         u1 = 1
         u2 = 2  # pick them at will
@@ -140,7 +142,7 @@ class TestDSA(unittest.TestCase):
         """test low-cardinality curves for all msg/key pairs."""
 
         # ec.n has to be prime to sign
-        prime = [11,  13,  17,  19]
+        prime = [11, 13, 17, 19]
 
         for ec in low_card_curves:  # only low card or it would take forever
             if ec.p in prime:  # only few curves or it would take too long
@@ -149,13 +151,13 @@ class TestDSA(unittest.TestCase):
                     for e in range(ec.n):  # all possible int from hash
                         for k in range(1, ec.n):  # all possible ephemeral keys
                             RJ = _mult_jac(k, ec.GJ, ec)
-                            Rx = (RJ[0]*mod_inv(RJ[2]*RJ[2], ec.p)) % ec.p
+                            Rx = (RJ[0] * mod_inv(RJ[2] * RJ[2], ec.p)) % ec.p
                             r = Rx % ec.n
                             s = mod_inv(k, ec.n) * (e + q * r) % ec.n
                             # bitcoin canonical 'low-s' encoding for ECDSA
                             if s > ec.n / 2:
                                 s = ec.n - s
-                            if r == 0 or s==0:
+                            if r == 0 or s == 0:
                                 self.assertRaises(ValueError,
                                                   dsa._sign, e, q, k, ec)
                                 continue
@@ -166,7 +168,8 @@ class TestDSA(unittest.TestCase):
                             self.assertIsNone(dsa._verhlp(e, PJ, r, s, ec))
 
                             JacobianKeys = dsa._recover_pubkeys(e, r, s, ec)
-                            Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
+                            Qs = [ec._aff_from_jac(key)
+                                  for key in JacobianKeys]
                             self.assertIn(ec._aff_from_jac(PJ), Qs)
 
     def test_pubkey_recovery(self):
@@ -181,7 +184,6 @@ class TestDSA(unittest.TestCase):
         self.assertTrue(dsa.verify(msg, Q, dersig, ec))
         r, s = dsa.deserialize(dersig)
         self.assertEqual((r, s), sig)
-
 
         keys = dsa.recover_pubkeys(msg, sig, ec)
         self.assertEqual(len(keys), 4)
@@ -207,7 +209,8 @@ class TestDSA(unittest.TestCase):
         self.assertEqual(q, qc)
         self.assertIn(k, (kc, ec.n - kc))
 
-        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]))
+        self.assertRaises(ValueError, dsa.crack_prvkey,
+                          msg1, sig1, msg2, (16, sig1[1]))
         self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg1, sig1)
 
 

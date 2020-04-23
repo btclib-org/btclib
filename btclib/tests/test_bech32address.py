@@ -116,7 +116,8 @@ class TestSegwitAddress(unittest.TestCase):
     def test_invalid_address_enc(self):
         """Test whether address encoding fails on invalid input"""
         for network, version, length in INVALID_ADDRESS_ENC:
-            self.assertRaises(ValueError, b32address_from_witness, version, [0] * length, network)
+            self.assertRaises(ValueError, b32address_from_witness,
+                              version, [0] * length, network)
 
     def test_b32address_from_witness(self):
 
@@ -134,7 +135,8 @@ class TestSegwitAddress(unittest.TestCase):
         # string input
         addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
         wv, wp, network, _ = witness_from_b32address(addr)
-        self.assertEqual(b32address_from_witness(wv, wp, network), addr.encode())
+        self.assertEqual(b32address_from_witness(
+            wv, wp, network), addr.encode())
 
     def test_p2wpkh_p2sh(self):
         # https://matthewdowney.github.io/create-segwit-address.html
@@ -171,16 +173,18 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(bytes(wp), hash160(pub))
 
         # Wrong size (65-bytes) for compressed SEC key
-        uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
+        uncompr_pub = bytes_from_point(
+            point_from_octets(pub), compressed=False)
         self.assertRaises(ValueError, p2wpkh, uncompr_pub)
-        #p2wpkh(uncompr_pub)
+        # p2wpkh(uncompr_pub)
 
         # Wrong pubkey size: 34 instead of 33
         self.assertRaises(ValueError, p2wpkh, pub + '00')
         #p2wpkh(pub + '00')
 
         # Witness program length (21) is not 20
-        self.assertRaises(ValueError, b32address_from_witness, 0, hash160(pub) + b'\x00')
+        self.assertRaises(ValueError, b32address_from_witness,
+                          0, hash160(pub) + b'\x00')
         #b32address_from_witness(0, hash160(pub) + b'\x00')
 
     def test_hash_from_bech32(self):
@@ -223,10 +227,12 @@ class TestSegwitAddress(unittest.TestCase):
         _, wp, _, _ = witness_from_b32address(addr)
         self.assertEqual(bytes(wp), sha256(witness_script_bytes))
 
-        self.assertEqual(witness_from_b32address(addr)[1], sha256(witness_script_bytes))
+        self.assertEqual(witness_from_b32address(
+            addr)[1], sha256(witness_script_bytes))
 
         # witness program length (35) is not 32
-        self.assertRaises(ValueError, b32address_from_witness, 0, witness_script_bytes[1:])
+        self.assertRaises(ValueError, b32address_from_witness,
+                          0, witness_script_bytes[1:])
         #b32address_from_witness(0, witness_script_bytes)
 
 

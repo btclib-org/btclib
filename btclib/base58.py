@@ -51,7 +51,7 @@ def _b58encode_from_int(i: int) -> bytes:
     result = b""
     while True:
         i, idx = divmod(i, __BASE)
-        result = __ALPHABET[idx:idx+1] + result
+        result = __ALPHABET[idx:idx + 1] + result
         if not i:
             break
 

@@ -44,7 +44,7 @@ class TestEcdh(unittest.TestCase):
 
         # 4.1.2
         dU = 971761939728640320549601132085879836204587084162
-        self.assertEqual(format(dU, str(ec.psize)+'x'),
+        self.assertEqual(format(dU, str(ec.psize) + 'x'),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
         QU = mult(dU, ec.G, ec)
         self.assertEqual(QU, (466448783855397898016055842232266600516272889280,
@@ -54,7 +54,7 @@ class TestEcdh(unittest.TestCase):
 
         # 4.1.3
         dV = 399525573676508631577122671218044116107572676710
-        self.assertEqual(format(dV, str(ec.psize)+'x'),
+        self.assertEqual(format(dV, str(ec.psize) + 'x'),
                          '45fb58a92a17ad4b15101c66e74f277e2b460866')
         QV = mult(dV, ec.G, ec)
         self.assertEqual(QV, (420773078745784176406965940076771545932416607676,
@@ -71,15 +71,17 @@ class TestEcdh(unittest.TestCase):
         # 4.1.4
         z, _ = mult(dU, QV, ec)  # x coordinate only
         self.assertEqual(z, z_exp)
-        self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = dh.ansi_x963_kdf(z.to_bytes(ec.psize, 'big'), size, ec, hf)
+        self.assertEqual(format(z, str(ec.psize) + 'x'), zstr)
+        keyingdata = dh.ansi_x963_kdf(
+            z.to_bytes(ec.psize, 'big'), size, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
         # 4.1.5
         z, _ = mult(dV, QU, ec)  # x coordinate only
         self.assertEqual(z, z_exp)
-        self.assertEqual(format(z, str(ec.psize)+'x'), zstr)
-        keyingdata = dh.ansi_x963_kdf(z.to_bytes(ec.psize, 'big'), size, ec, hf)
+        self.assertEqual(format(z, str(ec.psize) + 'x'), zstr)
+        keyingdata = dh.ansi_x963_kdf(
+            z.to_bytes(ec.psize, 'big'), size, ec, hf)
         self.assertEqual(keyingdata.hex(), keying_data_exp)
 
 

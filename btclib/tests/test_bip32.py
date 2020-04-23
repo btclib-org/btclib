@@ -39,7 +39,7 @@ class TestBIP32(unittest.TestCase):
         decoded_key = b58decode(xprv, 78)
         xkey = b58encode(decoded_key[:46] + inv_key)
         self.assertRaises(ValueError, deserialize, xkey)
-        #deserialize(xkey)
+        # deserialize(xkey)
 
         xpub = xpub_from_xprv(xprv)
         xpub2 = xpub_from_xprv(deserialize(xprv))
@@ -79,7 +79,7 @@ class TestBIP32(unittest.TestCase):
         child_key = derive(xprv, 0)
 
         # Derivation path final depth 256>255
-        self.assertRaises(ValueError, derive, child_key, "." + 255*"/0")
+        self.assertRaises(ValueError, derive, child_key, "." + 255 * "/0")
         #derive(child_key, "."+255*"/0")
 
         # Empty derivation path
@@ -91,11 +91,11 @@ class TestBIP32(unittest.TestCase):
         #derive(child_key, ";/0")
 
         # Derivation path depth 256>255
-        self.assertRaises(ValueError, derive, child_key, "." + 256*"/0")
+        self.assertRaises(ValueError, derive, child_key, "." + 256 * "/0")
         #derive(child_key, "." + 256*"/0")
 
         # xkey is not a public one
-        self.assertRaises(ValueError, p2pkh, xprv)
+        # self.assertRaises(ValueError, p2pkh, xprv)
         # p2pkh(xprv)
 
     def test_vector1(self):
@@ -106,65 +106,90 @@ class TestBIP32(unittest.TestCase):
 
         seed = "000102030405060708090a0b0c0d0e0f"
         rootxprv = rootxprv_from_seed(seed)
-        self.assertEqual(rootxprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
+        self.assertEqual(
+            rootxprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         rootxpub = xpub_from_xprv(rootxprv)  # neutering
-        self.assertEqual(rootxpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
+        self.assertEqual(
+            rootxpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
 
         xprv = rootxprv
         xpub = rootxpub
 
         xprv = derive(xprv, ".")  # private relative
-        self.assertEqual(xprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
+        self.assertEqual(
+            xprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         xprv = derive(rootxprv, "m")  # private absolute
-        self.assertEqual(xprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
+        self.assertEqual(
+            xprv, b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi")
         xpub = derive(xpub, ".")  # public relative
-        self.assertEqual(xpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
+        self.assertEqual(
+            xpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
         xpub = derive(rootxpub, "m")  # public absolute
-        self.assertEqual(xpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
+        self.assertEqual(
+            xpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
+        self.assertEqual(
+            xpub, b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8")
 
         xprv = derive(xprv, "./0'")  # private relative
-        self.assertEqual(xprv, b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7")
+        self.assertEqual(
+            xprv, b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7")
         xprv = derive(rootxprv, "m/0'")  # private absolute
-        self.assertEqual(xprv, b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7")
+        self.assertEqual(
+            xprv, b"xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw")
+        self.assertEqual(
+            xpub, b"xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw")
 
         xprv = derive(xprv, "./1")  # private relative
-        self.assertEqual(xprv, b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs")
+        self.assertEqual(
+            xprv, b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs")
         xprv = derive(rootxprv, "m/0'/1")  # private absolute
-        self.assertEqual(xprv, b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs")
+        self.assertEqual(
+            xprv, b"xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs")
         xpub = derive(xpub, "./1")  # public relative
-        self.assertEqual(xpub, b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ")
+        self.assertEqual(
+            xpub, b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ")
+        self.assertEqual(
+            xpub, b"xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ")
 
         xprv = derive(xprv, "./2H")  # private relative
-        self.assertEqual(xprv, b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM")
+        self.assertEqual(
+            xprv, b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM")
         xprv = derive(rootxprv, "m/0'/1/2'")  # private absolute
-        self.assertEqual(xprv, b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM")
+        self.assertEqual(
+            xprv, b"xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5")
+        self.assertEqual(
+            xpub, b"xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5")
 
         xprv = derive(xprv, "./2")  # private relative
-        self.assertEqual(xprv, b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334")
+        self.assertEqual(
+            xprv, b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334")
         xprv = derive(rootxprv, "m/0'/1/2'/2")  # private absolute
-        self.assertEqual(xprv, b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334")
+        self.assertEqual(
+            xprv, b"xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334")
         xpub = derive(xpub, "./2")  # public relative
-        self.assertEqual(xpub, b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV")
+        self.assertEqual(
+            xpub, b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV")
+        self.assertEqual(
+            xpub, b"xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV")
 
         xprv = derive(xprv, "./1000000000")  # private relative
-        self.assertEqual(xprv, b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
+        self.assertEqual(
+            xprv, b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
         # private absolute
         xprv = derive(rootxprv, "m/0'/1/2'/2/1000000000")
-        self.assertEqual(xprv, b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
+        self.assertEqual(
+            xprv, b"xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76")
         xpub = derive(xpub, "./1000000000")  # public relative
-        self.assertEqual(xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
+        self.assertEqual(
+            xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
+        self.assertEqual(
+            xpub, b"xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy")
 
     def test_vector2(self):
         """BIP32 test vector 2
@@ -174,68 +199,94 @@ class TestBIP32(unittest.TestCase):
 
         seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
         rootxprv = rootxprv_from_seed(seed)
-        self.assertEqual(rootxprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
+        self.assertEqual(
+            rootxprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
         rootxpub = xpub_from_xprv(rootxprv)  # neutering
-        self.assertEqual(rootxpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
+        self.assertEqual(
+            rootxpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
 
         xprv = rootxprv
         xpub = rootxpub
 
         xprv = derive(xprv, ".")  # private relative
-        self.assertEqual(xprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
+        self.assertEqual(
+            xprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
         xprv = derive(rootxprv, "m")  # private absolute
-        self.assertEqual(xprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
+        self.assertEqual(
+            xprv, b"xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U")
         xpub = derive(xpub, ".")  # public relative
-        self.assertEqual(xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
+        self.assertEqual(
+            xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
         xpub = derive(rootxpub, "m")  # public absolute
-        self.assertEqual(xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
+        self.assertEqual(
+            xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
+        self.assertEqual(
+            xpub, b"xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB")
 
         xprv = derive(xprv, "./0")  # private relative
-        self.assertEqual(xprv, b"xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt")
+        self.assertEqual(
+            xprv, b"xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt")
         xprv = derive(rootxprv, "m/0")  # private absolute
-        self.assertEqual(xprv, b"xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt")
+        self.assertEqual(
+            xprv, b"xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt")
         xpub = derive(xpub, "./0")  # public relative
-        self.assertEqual(xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
+        self.assertEqual(
+            xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
         xpub = derive(rootxpub, "m/0")  # public absolute
-        self.assertEqual(xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
+        self.assertEqual(
+            xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
+        self.assertEqual(
+            xpub, b"xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH")
 
         xprv = derive(xprv, "./2147483647H")  # private relative
-        self.assertEqual(xprv, b"xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9")
+        self.assertEqual(
+            xprv, b"xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9")
         xprv = derive(rootxprv, "m/0/2147483647H")  # private absolute
-        self.assertEqual(xprv, b"xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9")
+        self.assertEqual(
+            xprv, b"xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub6ASAVgeehLbnwdqV6UKMHVzgqAG8Gr6riv3Fxxpj8ksbH9ebxaEyBLZ85ySDhKiLDBrQSARLq1uNRts8RuJiHjaDMBU4Zn9h8LZNnBC5y4a")
+        self.assertEqual(
+            xpub, b"xpub6ASAVgeehLbnwdqV6UKMHVzgqAG8Gr6riv3Fxxpj8ksbH9ebxaEyBLZ85ySDhKiLDBrQSARLq1uNRts8RuJiHjaDMBU4Zn9h8LZNnBC5y4a")
 
         xprv = derive(xprv, "./1")  # private relative
-        self.assertEqual(xprv, b"xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef")
+        self.assertEqual(
+            xprv, b"xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef")
         xprv = derive(rootxprv, "m/0/2147483647H/1")  # private absolute
-        self.assertEqual(xprv, b"xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef")
+        self.assertEqual(
+            xprv, b"xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef")
         xpub = derive(xpub, "./1")  # public relative
-        self.assertEqual(xpub, b"xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon")
+        self.assertEqual(
+            xpub, b"xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon")
+        self.assertEqual(
+            xpub, b"xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon")
 
         xprv = derive(xprv, "./2147483646H")  # private relative
-        self.assertEqual(xprv, b"xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc")
+        self.assertEqual(
+            xprv, b"xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc")
         # private absolute
         xprv = derive(rootxprv, "m/0/2147483647H/1/2147483646H")
-        self.assertEqual(xprv, b"xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc")
+        self.assertEqual(
+            xprv, b"xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL")
+        self.assertEqual(
+            xpub, b"xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL")
 
         xprv = derive(xprv, "./2")  # private relative
-        self.assertEqual(xprv, b"xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j")
+        self.assertEqual(
+            xprv, b"xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j")
         # private absolute
         xprv = derive(rootxprv, "m/0/2147483647H/1/2147483646H/2")
-        self.assertEqual(xprv, b"xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j")
+        self.assertEqual(
+            xprv, b"xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j")
         xpub = derive(xpub, "./2")  # public relative
-        self.assertEqual(xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
+        self.assertEqual(
+            xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
+        self.assertEqual(
+            xpub, b"xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt")
 
     def test_vector3(self):
         """BIP32 test vector 3
@@ -245,28 +296,37 @@ class TestBIP32(unittest.TestCase):
 
         seed = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"
         rootxprv = rootxprv_from_seed(seed)
-        self.assertEqual(rootxprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
+        self.assertEqual(
+            rootxprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         rootxpub = xpub_from_xprv(rootxprv)  # neutering
-        self.assertEqual(rootxpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
+        self.assertEqual(
+            rootxpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
 
         xprv = rootxprv
         xpub = rootxpub
 
         xprv = derive(xprv, ".")  # private relative
-        self.assertEqual(xprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
+        self.assertEqual(
+            xprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         xprv = derive(rootxprv, "m")  # private absolute
-        self.assertEqual(xprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
+        self.assertEqual(
+            xprv, b"xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6")
         xpub = derive(xpub, ".")  # public relative
-        self.assertEqual(xpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
+        self.assertEqual(
+            xpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
         xpub = derive(rootxpub, "m")  # public absolute
-        self.assertEqual(xpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
+        self.assertEqual(
+            xpub, b"xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13")
 
         xprv = derive(xprv, "./0'")  # private relative
-        self.assertEqual(xprv, b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L")
+        self.assertEqual(
+            xprv, b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L")
         xprv = derive(rootxprv, "m/0'")  # private absolute
-        self.assertEqual(xprv, b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L")
+        self.assertEqual(
+            xprv, b"xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L")
         xpub = xpub_from_xprv(xprv)  # neutering
-        self.assertEqual(xpub, b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y")
+        self.assertEqual(
+            xpub, b"xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y")
 
     def test_bip39_vectors(self):
         """BIP32 test vectors from BIP39
@@ -397,7 +457,7 @@ class TestBIP32(unittest.TestCase):
 
         # invalid extended key version
         version = b'\x04\x88\xAD\xE5'
-        xkey = version + b'\x00'*74
+        xkey = version + b'\x00' * 74
         xkey = b58encode(xkey)
         self.assertRaises(ValueError, derive, xkey, 0x80000000)
         #derive(xkey, 0x80000000)
@@ -427,12 +487,12 @@ class TestBIP32(unittest.TestCase):
 
         # xkey is not a public one
         xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
+        # FIXME: accept also xprv
         self.assertRaises(ValueError, slip32.address_from_xpub, xprv)
         # slip32.address_from_xpub(xprv)
-        self.assertRaises(ValueError, p2wpkh, xprv)
+        #self.assertRaises(ValueError, p2wpkh, xprv)
         # p2wpkh(xprv)
-        self.assertRaises(
-            ValueError, p2wpkh_p2sh, xprv)
+        #self.assertRaises(ValueError, p2wpkh_p2sh, xprv)
         # p2wpkh_p2sh(xprv)
 
     def test_exceptions2(self):
@@ -443,55 +503,55 @@ class TestBIP32(unittest.TestCase):
         # invalid 34-bytes key length
         d['key'] += b'\x00'
         self.assertRaises(ValueError, serialize, d)
-        #serialize(d)
+        # serialize(d)
 
         # invalid 33-bytes chain_code length
         d = deserialize(rootxprv)
         d['chain_code'] += b'\x00'
         self.assertRaises(ValueError, serialize, d)
-        #serialize(d)
+        # serialize(d)
 
         # invalid 5-bytes parent_fingerprint length
         d = deserialize(rootxprv)
         d['parent_fingerprint'] += b'\x00'
         self.assertRaises(ValueError, serialize, d)
-        #serialize(d)
+        # serialize(d)
 
         # invalid 5-bytes index length
         d = deserialize(rootxprv)
         d['index'] += b'\x00'
         self.assertRaises(ValueError, serialize, d)
-        #serialize(d)
+        # serialize(d)
 
         # invalid depth (256)
         d = deserialize(rootxprv)
         d['depth'] = 256
         self.assertRaises(ValueError, serialize, d)
-        #serialize(d)
+        # serialize(d)
 
         # zero depth with non-zero index b'\x00\x00\x00\x01'
         d = deserialize(rootxprv)
         d['index'] = b'\x00\x00\x00\x01'
         self.assertRaises(ValueError, serialize, d)
-        #serialize(d)
+        # serialize(d)
 
         # zero depth with non-zero parent_fingerprint b'\x00\x00\x00\x01'
         d = deserialize(rootxprv)
         d['parent_fingerprint'] = b'\x00\x00\x00\x01'
         self.assertRaises(ValueError, serialize, d)
-        #serialize(d)
+        # serialize(d)
 
         # non-zero depth (1) with zero parent_fingerprint b'\x00\x00\x00\x00'
         xprv = deserialize(derive(rootxprv, 1))
         xprv['parent_fingerprint'] = b'\x00\x00\x00\x00'
         self.assertRaises(ValueError, serialize, xprv)
-        #serialize(xprv)
+        # serialize(xprv)
 
         # int too big to convert
         self.assertRaises(OverflowError, derive, rootxprv, 256**4)
 
         # Index must be 4-bytes, not 5
-        self.assertRaises(ValueError, derive, rootxprv, b'\x00'*5)
+        self.assertRaises(ValueError, derive, rootxprv, b'\x00' * 5)
         #derive(rootxprv, b'\x00'*5)
 
     def test_testnet_versions(self):
@@ -499,7 +559,7 @@ class TestBIP32(unittest.TestCase):
         # data cross-checked with Electrum and https://jlopp.github.io/xpub-converter/
 
         # 128 bits
-        raw_entr = bytes.fromhex('6'*32)
+        raw_entr = bytes.fromhex('6' * 32)
         # 12 words
         mnemonic = bip39.mnemonic_from_entropy(raw_entr, 'en')
         seed = bip39.seed_from_mnemonic(mnemonic, '')
@@ -588,7 +648,7 @@ class TestBIP32(unittest.TestCase):
         # data cross-checked with Electrum and https://jlopp.github.io/xpub-converter/
 
         # 128 bits
-        raw_entr = bytes.fromhex('6'*32)
+        raw_entr = bytes.fromhex('6' * 32)
         # 12 words
         mnemonic = bip39.mnemonic_from_entropy(raw_entr, 'en')
         seed = bip39.seed_from_mnemonic(mnemonic, '')
@@ -683,7 +743,8 @@ class TestBIP32(unittest.TestCase):
         parent_xprv = crack_prvkey(parent_xpub, child_xprv)
         self.assertEqual(xpub_from_xprv(parent_xprv), parent_xpub)
         # same check with XKeyDict
-        parent_xprv = crack_prvkey(deserialize(parent_xpub), deserialize(child_xprv))
+        parent_xprv = crack_prvkey(deserialize(
+            parent_xpub), deserialize(child_xprv))
         self.assertEqual(xpub_from_xprv(parent_xprv), parent_xpub)
 
         # extended parent key is not a public one
@@ -702,7 +763,8 @@ class TestBIP32(unittest.TestCase):
         # not a child for the provided parent
         child0_xprv = derive(parent_xprv, 0)
         grandchild_xprv = derive(child0_xprv, 0)
-        self.assertRaises(ValueError, crack_prvkey, child_xpub, grandchild_xprv)
+        self.assertRaises(ValueError, crack_prvkey,
+                          child_xpub, grandchild_xprv)
         #crack_prvkey(child_xpub, grandchild_xprv)
 
         # hardened derivation

@@ -12,16 +12,17 @@ import unittest
 
 from btclib import amount
 
+
 class TestAmount(unittest.TestCase):
 
     def test_conversion(self):
         v1 = 1.1
         v2 = 2.2
-        vtot = v1+v2
+        vtot = v1 + v2
         self.assertNotEqual(vtot, 3.3)     # _NOT_ equal !!
         s1 = amount.sat_from_float(v1)
         s2 = amount.sat_from_float(v2)
-        stot = s1+s2
+        stot = s1 + s2
         self.assertEqual(stot, 330000000)
         vtot = amount.float_from_sat(stot)
         self.assertEqual(vtot, 3.3)        # equal !!

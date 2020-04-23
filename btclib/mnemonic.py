@@ -46,7 +46,7 @@ def _indexes_from_entropy(entropy: BinStr, lang: str) -> List[int]:
 
     # do not lose leading zeros entropy
     bpw = _wordlists.bits_per_word(lang)
-    nwords = math.ceil(bits/bpw)
+    nwords = math.ceil(bits / bpw)
     while len(indexes) < nwords:
         indexes.append(0)
 
@@ -91,13 +91,13 @@ def _entropy_from_indexes(indexes: List[int], lang: str) -> BinStr:
     n = _wordlists.language_length(lang)
     entropy = 0
     for index in indexes:
-        entropy = entropy*n + index
+        entropy = entropy * n + index
 
     binentropy = bin(entropy)[2:]    # remove '0b'
 
     # do not lose leading zeros entropy
     bpw = _wordlists.bits_per_word(lang)
-    bits = len(indexes)*bpw
+    bits = len(indexes) * bpw
     binentropy = binentropy.zfill(bits)
 
     return binentropy

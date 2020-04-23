@@ -26,11 +26,11 @@ class TestEllipticCurve(unittest.TestCase):
 
         # p not odd
         self.assertRaises(ValueError, Curve, 10, 2, 7,
-                          (6, 9),    7, 1, 0, False)
+                          (6, 9), 7, 1, 0, False)
 
         # p not prime
         self.assertRaises(ValueError, Curve, 15, 2, 7,
-                          (6, 9),    7, 1, 0, False)
+                          (6, 9), 7, 1, 0, False)
 
         # required security level not in the allowed range
         ec = secp112r1
@@ -53,20 +53,20 @@ class TestEllipticCurve(unittest.TestCase):
         n = ec.n
         t = ec.sec_bits
         h = ec.h
-        self.assertRaises(UserWarning, Curve, p, a, b, G, n, h, 2*t)
+        self.assertRaises(UserWarning, Curve, p, a, b, G, n, h, 2 * t)
         #Curve(p, a, b, G, n, h, 2*t)
 
         # a > p
         self.assertRaises(ValueError, Curve, 11, 12,
-                          7, (6, 9),   13, 1, 0, False)
+                          7, (6, 9), 13, 1, 0, False)
 
         # b > p
         self.assertRaises(ValueError, Curve, 11, 2, 12,
-                          (6, 9),   13, 1, 0, False)
+                          (6, 9), 13, 1, 0, False)
 
         # zero discriminant
         self.assertRaises(ValueError, Curve, 11, 7, 7,
-                          (6, 9),    7, 1, 0, False)
+                          (6, 9), 7, 1, 0, False)
 
         # G not Tuple (int, int)
         self.assertRaises(ValueError, Curve, 11, 2, 7,
@@ -74,23 +74,23 @@ class TestEllipticCurve(unittest.TestCase):
 
         # G not on curve
         self.assertRaises(ValueError, Curve, 11, 2, 7,
-                          (7, 9),    7, 1, 0, False)
+                          (7, 9), 7, 1, 0, False)
 
         # n not prime
         self.assertRaises(ValueError, Curve, 11, 2, 7,
-                          (6, 9),    8, 1, 0, False)
+                          (6, 9), 8, 1, 0, False)
 
         # n not Hesse
         self.assertRaises(ValueError, Curve, 11, 2,
-                          7, (6, 9),   71, 1, 0, True)
+                          7, (6, 9), 71, 1, 0, True)
 
         # h not as expected
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9),   7, 1, 0, True)
+        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 7, 1, 0, True)
         #Curve(11, 2, 7, (6, 9), 7, 1, 0, True)
 
         # n not group order
         self.assertRaises(ValueError, Curve, 11, 2, 7,
-                          (6, 9),   13, 1, 0, False)
+                          (6, 9), 13, 1, 0, False)
 
         # n=p -> weak curve
         # missing
@@ -138,7 +138,7 @@ class TestEllipticCurve(unittest.TestCase):
             P = ec.add(ec.G, ec.G)
             self.assertEqual(P, mult(2, ec.G, ec))
 
-            P = mult(ec.n-1, ec.G, ec)
+            P = mult(ec.n - 1, ec.G, ec)
             self.assertEqual(ec.add(P, ec.G), INF)
             self.assertEqual(mult(ec.n, ec.G, ec), INF)
 
@@ -181,13 +181,13 @@ class TestEllipticCurve(unittest.TestCase):
             self.assertRaises(TypeError, mult, t, ec.G, ec)
 
             # not a compressed point
-            Q_bytes = b'\x01' * (ec.psize+1)
+            Q_bytes = b'\x01' * (ec.psize + 1)
             self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
             # not a point
             Q_bytes += b'\x01'
             self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
             # not an uncompressed point
-            Q_bytes = b'\x01' * 2 * (ec.psize+1)
+            Q_bytes = b'\x01' * 2 * (ec.psize + 1)
             self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
 
         # invalid x coordinate
@@ -195,7 +195,7 @@ class TestEllipticCurve(unittest.TestCase):
         x = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
         xstr = format(x, '32X')
         self.assertRaises(ValueError, point_from_octets, "03" + xstr, ec)
-        self.assertRaises(ValueError, point_from_octets, "04" + 2*xstr, ec)
+        self.assertRaises(ValueError, point_from_octets, "04" + 2 * xstr, ec)
         self.assertRaises(ValueError, bytes_from_point, (x, x), ec)
         self.assertRaises(ValueError, bytes_from_point, (x, x), ec, False)
 
@@ -204,7 +204,7 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertRaises(ValueError, ec.is_on_curve, P)
 
         # y-coordinate not in (0, p)
-        P = x, ec.p+1
+        P = x, ec.p + 1
         self.assertRaises(ValueError, ec.is_on_curve, P)
 
     def test_opposite(self):
@@ -231,7 +231,7 @@ class TestEllipticCurve(unittest.TestCase):
             hasRoot.add(1)
 
             for i in range(2, ec.p):
-                hasRoot.add(i*i % ec.p)
+                hasRoot.add(i * i % ec.p)
 
             # test phase
             Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
@@ -242,9 +242,9 @@ class TestEllipticCurve(unittest.TestCase):
                 # in this case only quad_res is a quadratic residue
                 self.assertIn(quad_res, hasRoot)
                 root = mod_sqrt(quad_res, ec.p)
-                self.assertEqual(quad_res, (root*root) % ec.p)
+                self.assertEqual(quad_res, (root * root) % ec.p)
                 root = ec.p - root
-                self.assertEqual(quad_res, (root*root) % ec.p)
+                self.assertEqual(quad_res, (root * root) % ec.p)
 
                 self.assertTrue(not_quad_res == ec.p - quad_res)
                 self.assertNotIn(not_quad_res, hasRoot)
@@ -277,13 +277,13 @@ class TestEllipticCurve(unittest.TestCase):
                                 (y_odd not in hasRoot and y_even not in hasRoot))
                 if y_odd in hasRoot:  # both have roots
                     root = mod_sqrt(y_odd, ec.p)
-                    self.assertEqual(y_odd, (root*root) % ec.p)
+                    self.assertEqual(y_odd, (root * root) % ec.p)
                     root = ec.p - root
-                    self.assertEqual(y_odd, (root*root) % ec.p)
+                    self.assertEqual(y_odd, (root * root) % ec.p)
                     root = mod_sqrt(y_even, ec.p)
-                    self.assertEqual(y_even, (root*root) % ec.p)
+                    self.assertEqual(y_even, (root * root) % ec.p)
                     root = ec.p - root
-                    self.assertEqual(y_even, (root*root) % ec.p)
+                    self.assertEqual(y_even, (root * root) % ec.p)
                 else:
                     self.assertRaises(ValueError, mod_sqrt, y_odd, ec.p)
                     self.assertRaises(ValueError, mod_sqrt, y_even, ec.p)
@@ -321,26 +321,26 @@ class TestEllipticCurve(unittest.TestCase):
             Q1J = _jac_from_aff(Q1)
 
             # distinct points
-            Q3 = ec._add_aff(Q1,  ec.G)
+            Q3 = ec._add_aff(Q1, ec.G)
             Q3jac = ec._add_jac(Q1J, ec.GJ)
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
             # point at infinity
-            Q3 = ec._add_aff(ec.G,  INF)
+            Q3 = ec._add_aff(ec.G, INF)
             Q3jac = ec._add_jac(ec.GJ, INFJ)
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
-            Q3 = ec._add_aff(INF,  ec.G)
+            Q3 = ec._add_aff(INF, ec.G)
             Q3jac = ec._add_jac(INFJ, ec.GJ)
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
             # point doubling
-            Q3 = ec._add_aff(Q1,  Q1)
+            Q3 = ec._add_aff(Q1, Q1)
             Q3jac = ec._add_jac(Q1J, Q1J)
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 
             # negate points
             Q1opp = ec.negate(Q1)
-            Q3 = ec._add_aff(Q1,  Q1opp)
+            Q3 = ec._add_aff(Q1, Q1opp)
             Q3jac = ec._add_jac(Q1J, _jac_from_aff(Q1opp))
             self.assertEqual(Q3, ec._aff_from_jac(Q3jac))
 

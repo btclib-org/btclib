@@ -40,7 +40,7 @@ class CurveGroup:
 
         # 1) check that p is a prime
         # Fermat test will do as _probabilistic_ primality test...
-        if p < 2 or p % 2 == 0 or pow(2, p-1, p) != 1:
+        if p < 2 or p % 2 == 0 or pow(2, p - 1, p) != 1:
             raise ValueError(f"p ({hex(p)}) is not prime")
 
         plen = p.bit_length()
@@ -56,7 +56,7 @@ class CurveGroup:
             raise ValueError(f"invalid b ({hex(b)}) for given p ({hex(p)})")
 
         # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p)
-        d = 4*a*a*a+27*b*b
+        d = 4 * a * a * a + 27 * b * b
         if d % p == 0:
             raise ValueError("zero discriminant")
         self._a = a
@@ -93,9 +93,9 @@ class CurveGroup:
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return INF
         else:
-            Z2 = Q[2]*Q[2]
-            x = (Q[0]*mod_inv(Z2, self.p)) % self.p
-            y = (Q[1]*mod_inv(Z2*Q[2], self.p)) % self.p
+            Z2 = Q[2] * Q[2]
+            x = (Q[0] * mod_inv(Z2, self.p)) % self.p
+            y = (Q[1] * mod_inv(Z2 * Q[2], self.p)) % self.p
             return x, y
 
     def _x_aff_from_jac(self, Q: JacPoint) -> int:
@@ -103,8 +103,8 @@ class CurveGroup:
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             raise ValueError("Infinity point has no x-coordinate")
         else:
-            Z2 = Q[2]*Q[2]
-            return (Q[0]*mod_inv(Z2, self.p)) % self.p
+            Z2 = Q[2] * Q[2]
+            return (Q[0] * mod_inv(Z2, self.p)) % self.p
 
     # methods using _a, _b, _p
 
@@ -132,32 +132,32 @@ class CurveGroup:
         RZ3 = RZ2 * R[2]
         QZ2 = Q[2] * Q[2]
         QZ3 = QZ2 * Q[2]
-        if Q[0]*RZ2 % self.p == R[0]*QZ2 % self.p:      # same affine x
-            if Q[1]*RZ3 % self.p == R[1]*QZ3 % self.p:  # point doubling
-                QY2 = Q[1]*Q[1]
-                W = (3*Q[0]*Q[0] + self._a*QZ2*QZ2) % self.p
-                V = (4*Q[0]*QY2) % self.p
-                X = (W*W - 2*V) % self.p
-                Y = (W*(V - X) - 8*QY2*QY2) % self.p
-                Z = (2*Q[1]*Q[2]) % self.p
+        if Q[0] * RZ2 % self.p == R[0] * QZ2 % self.p:      # same affine x
+            if Q[1] * RZ3 % self.p == R[1] * QZ3 % self.p:  # point doubling
+                QY2 = Q[1] * Q[1]
+                W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % self.p
+                V = (4 * Q[0] * QY2) % self.p
+                X = (W * W - 2 * V) % self.p
+                Y = (W * (V - X) - 8 * QY2 * QY2) % self.p
+                Z = (2 * Q[1] * Q[2]) % self.p
                 return X, Y, Z
             else:                                       # opposite points
                 return INFJ
         else:
-            T = (Q[1]*RZ3) % self.p
-            U = (R[1]*QZ3) % self.p
+            T = (Q[1] * RZ3) % self.p
+            U = (R[1] * QZ3) % self.p
             W = (U - T) % self.p
 
-            M = (Q[0]*RZ2) % self.p
-            N = (R[0]*QZ2) % self.p
+            M = (Q[0] * RZ2) % self.p
+            N = (R[0] * QZ2) % self.p
             V = (N - M) % self.p
 
             V2 = V * V
             V3 = V2 * V
             MV2 = M * V2
-            X = (W*W - V3 - 2*MV2) % self.p
-            Y = (W*(MV2 - X) - T*V3) % self.p
-            Z = (V*Q[2]*R[2]) % self.p
+            X = (W * W - V3 - 2 * MV2) % self.p
+            Y = (W * (MV2 - X) - T * V3) % self.p
+            Z = (V * Q[2] * R[2]) % self.p
             return X, Y, Z
 
     def _add_aff(self, Q: Point, R: Point) -> Point:
@@ -174,7 +174,7 @@ class CurveGroup:
             else:      # opposite points
                 return INF
         else:
-            lam = ((R[1]-Q[1]) * mod_inv(R[0]-Q[0], self.p)) % self.p
+            lam = ((R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)) % self.p
         x = (lam * lam - Q[0] - R[0]) % self.p
         y = (lam * (Q[0] - x) - Q[1]) % self.p
         return x, y
@@ -183,7 +183,7 @@ class CurveGroup:
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to keep this method private
-        return ((x*x + self._a)*x + self._b) % self.p
+        return ((x * x + self._a) * x + self._b) % self.p
 
     def y(self, x: int) -> int:
         """Return the y coordinate from x, as in (x, y)."""
@@ -195,7 +195,7 @@ class CurveGroup:
 
     def require_on_curve(self, Q: Point) -> None:
         """Require the input curve Point to be on the curve.
-        
+
         An Error is raised if not.
         """
         if not self.is_on_curve(Q):
@@ -209,11 +209,11 @@ class CurveGroup:
             return True
         if not 0 < Q[1] < self.p:  # y cannot be zero
             raise ValueError(f"y-coordinate {hex(Q[1])} not in (0, p)")
-        return self._y2(Q[0]) == (Q[1]*Q[1] % self.p)
+        return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
 
-    def require_square_y(self,Q: Union[Point, JacPoint]) -> None:
+    def require_square_y(self, Q: Union[Point, JacPoint]) -> None:
         """Require the affine y-coordinate of the Point to be a square.
-        
+
         An Error is raised if not.
         """
         if not self.has_square_y(Q):
@@ -225,12 +225,12 @@ class CurveGroup:
         if len(Q) == 2:
             return legendre_symbol(Q[1], self.p) == 1
         if len(Q) == 3:
-            return legendre_symbol(Q[1]*Q[2] % self.p, self.p) == 1
+            return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1
         raise ValueError(f"Not a Point")
 
     def require_p_ThreeModFour(self) -> None:
         """Require the field prime p to be equal to 3 mod 4.
-        
+
         An Error is raised if not.
         """
         if not self.pIsThreeModFour:
@@ -253,7 +253,7 @@ class CurveGroup:
             raise ValueError("low1high0 must be bool or 1/0")
         root = self.y(x)
         # switch low/high root as needed (XORing the conditions)
-        return root if (self.p//2 >= root) == low1high0 else self.p - root
+        return root if (self.p // 2 >= root) == low1high0 else self.p - root
 
     def y_quadratic_residue(self, x: int, quad_res: int = 1) -> int:
         """Return the quadratic residue affine y-coordinate."""
@@ -320,12 +320,12 @@ class CurveSubGroup(CurveGroup):
         result += f"\n y_G = {hex(self.G[1]).upper()}"
         return result
 
-
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
         result += f", ({hex(self.G[0]).upper()}, {hex(self.G[1]).upper()})"
         result += ")"
         return result
+
 
 class Curve(CurveSubGroup):
     "Prime order subgroup of the points of an elliptic curve over Fp."
@@ -350,7 +350,7 @@ class Curve(CurveSubGroup):
                 m = f"required security bits ({sec_bits}) "
                 m += f"not in the allowed range {t_range}"
                 raise UserWarning(m)
-            if plen < sec_bits*2:
+            if plen < sec_bits * 2:
                 m = f"not enough bits in the field prime ({plen}) "
                 m += f"for required security bits {sec_bits}"
                 raise UserWarning(m)
@@ -361,7 +361,7 @@ class Curve(CurveSubGroup):
         self.nsize = (self.nlen + 7) // 8
 
         # 5. Check that n is prime.
-        if n < 2 or n % 2 == 0 or pow(2, n-1, n) != 1:
+        if n < 2 or n % 2 == 0 or pow(2, n - 1, n) != 1:
             raise ValueError(f"n ({hex(n)}) is not prime")
         delta = int(2 * sqrt(p))
         # also check n with Hasse Theorem
@@ -379,10 +379,11 @@ class Curve(CurveSubGroup):
             raise ValueError(f"n ({hex(n)}) is not the group order")
 
         # 6. Check cofactor
-        exp_h = int(1/n + delta/n + p/n)
+        exp_h = int(1 / n + delta / n + p / n)
         if h != exp_h:
             raise ValueError(f"h ({h}) not as expected ({exp_h})")
-        assert sec_bits == 0 or h <= pow(2, sec_bits/8), f"h ({h}) too big for security bits ({sec_bits})"
+        assert sec_bits == 0 or h <= pow(
+            2, sec_bits / 8), f"h ({h}) too big for security bits ({sec_bits})"
         self.h = h
 
         # 8. Check that n ≠ p
@@ -394,14 +395,12 @@ class Curve(CurveSubGroup):
                 if pow(p, i, n) == 1:
                     raise UserWarning("weak curve")
 
-
     def __str__(self) -> str:
         result = super().__str__()
         result += f"\n n   = {hex(self.n).upper()}"
         result += f"\n h = {self.h}"
         result += f"\n sec_bits = {self.sec_bits}"
         return result
-
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]

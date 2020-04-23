@@ -23,7 +23,7 @@ from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
                        _indexes_from_mnemonic, _mnemonic_from_indexes)
 
 _MNEMONIC_VERSIONS = {
-    'standard':  '01',  # P2PKH and Multisig P2SH wallets
+    'standard': '01',  # P2PKH and Multisig P2SH wallets
     'segwit': '100',  # P2WPKH and P2WSH wallets
     '2fa': '101',  # Two-factor authenticated wallets
     '2fa_segwit': '102',  # Two-factor authenticated wallets, using segwit

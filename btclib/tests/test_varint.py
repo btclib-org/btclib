@@ -12,6 +12,7 @@ import unittest
 
 from btclib import varint
 
+
 class TestVarInt(unittest.TestCase):
 
     def test_conversion(self):
@@ -54,11 +55,12 @@ class TestVarInt(unittest.TestCase):
         # integer too large (0x10000000000000000) for varint encoding
         i += 1
         self.assertRaises(ValueError, varint.encode, i)
-        #varint.encode(i)
+        # varint.encode(i)
 
         self.assertEqual(varint.decode('6a'), 106)
         self.assertEqual(varint.decode('fd2602'), 550)
         self.assertEqual(varint.decode('fe703a0f00'), 998000)
+
 
 if __name__ == "__main__":
     # execute only if run as a script

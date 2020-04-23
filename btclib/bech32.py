@@ -95,7 +95,7 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
 
     if isinstance(bech, str):
         bech = bech.strip()
-    
+
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
 
@@ -121,10 +121,10 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
 
     hrp = bech[:pos]
 
-    if not all(x in __ALPHABET for x in bech[pos+1:]):
+    if not all(x in __ALPHABET for x in bech[pos + 1:]):
         msg = "Bech32 string data part contains invalid characters"
         raise ValueError(msg)
-    data = [__ALPHABET.find(x) for x in bech[pos+1:]]
+    data = [__ALPHABET.find(x) for x in bech[pos + 1:]]
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]

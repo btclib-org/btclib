@@ -22,7 +22,7 @@ from .curve import CurveGroup
 
 def find_all_points(ec: CurveGroup) -> List[Point]:
     """Attemp to find all group points, if p is low.
-    
+
     Very unsofisticated walk-through approach,
     for didactical sake only.
     """
@@ -39,14 +39,14 @@ def find_all_points(ec: CurveGroup) -> List[Point]:
 
         points.append((x, y))
         if y != 0:
-            points.append((x, ec.p-y))
+            points.append((x, ec.p - y))
 
     return points
 
 
 def find_subgroup_points(ec: CurveGroup, G: Point) -> List[Point]:
     """Attemp to count all G-generated subgroup points, if p is low.
-    
+
     Very unsofisticated walk-through approach,
     for didactical sake only.
     """

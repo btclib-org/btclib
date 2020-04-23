@@ -122,12 +122,12 @@ def generate_entropy(bits: int, dice_base: int = 0,
         if shuffle:
             secrets.SystemRandom().shuffle(rolls)
 
-        min_roll_number = math.ceil(bits/bits_per_roll)
+        min_roll_number = math.ceil(bits / bits_per_roll)
         for r in rolls:
             # collect only usable rolls in [1-base)]
             if 0 < r and r <= base:
                 i *= base
-                i += r-1
+                i += r - 1
                 min_roll_number -= 1
             # reject invalid rolls not in [1-dice_base)]
             elif r < 1 or r > dice_base:

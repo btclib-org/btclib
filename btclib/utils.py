@@ -21,7 +21,7 @@ from typing import Optional
 from .alias import Octets
 
 # hexstr_from_bytes is not needed!!
-#def hexstr_from_bytes(byte_str: bytes) -> str:
+# def hexstr_from_bytes(byte_str: bytes) -> str:
 #    return byte_str.hex()
 
 
@@ -36,7 +36,7 @@ def bytes_from_octets(o: Octets, out_size: Optional[int] = None) -> bytes:
         o = bytes.fromhex(o)
 
     if (out_size is None) or (len(o) == out_size):
-       return o
+        return o
 
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"
     raise ValueError(m)

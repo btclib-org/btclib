@@ -12,9 +12,9 @@ import unittest
 
 from btclib.numbertheory import mod_inv, mod_sqrt
 
-primes = [2,    3,   5,   7,  11,  13,   17,  19,  23, 29,
-          31,  37,  41,  43,  47,  53,   59,  61,  67, 71,
-          73,  79,  83,  89,  97, 101,  103, 107, 109, 113,
+primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29,
+          31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
+          73, 79, 83, 89, 97, 101, 103, 107, 109, 113,
           2**160 - 2**31 - 1,
           2**192 - 2**32 - 2**12 - 2**8 - 2**7 - 2**6 - 2**3 - 1,
           2**192 - 2**64 - 1,
@@ -33,21 +33,21 @@ class TestNumberTheory(unittest.TestCase):
             self.assertRaises(ValueError, mod_inv, 0, p)
             for a in range(1, min(p, 500)):  # exhausted only for small p
                 inv = mod_inv(a, p)
-                self.assertEqual(a*inv % p, 1)
-                inv = mod_inv(a+p, p)
-                self.assertEqual(a*inv % p, 1)
+                self.assertEqual(a * inv % p, 1)
+                inv = mod_inv(a + p, p)
+                self.assertEqual(a * inv % p, 1)
 
     def test_mod_inv(self):
         max_m = 100
         for m in range(2, max_m):
             nums = list(range(m))
             for a in nums:
-                mult = [a*i % m for i in nums]
+                mult = [a * i % m for i in nums]
                 if 1 in mult:
                     inv = mod_inv(a, m)
-                    self.assertEqual(a*inv % m, 1)
-                    inv = mod_inv(a+m, m)
-                    self.assertEqual(a*inv % m, 1)
+                    self.assertEqual(a * inv % m, 1)
+                    inv = mod_inv(a + m, m)
+                    self.assertEqual(a * inv % m, 1)
                 else:
                     self.assertRaises(ValueError, mod_inv, a, m)
 
@@ -57,15 +57,15 @@ class TestNumberTheory(unittest.TestCase):
             hasRoot.add(0)
             hasRoot.add(1)
             for i in range(2, p):
-                hasRoot.add(i*i % p)
+                hasRoot.add(i * i % p)
             for i in range(p):
                 if i in hasRoot:
                     root = mod_sqrt(i, p)
-                    self.assertEqual(i, (root*root) % p)
+                    self.assertEqual(i, (root * root) % p)
                     root = p - root
-                    self.assertEqual(i, (root*root) % p)
-                    root = mod_sqrt(i+p, p)
-                    self.assertEqual(i, (root*root) % p)
+                    self.assertEqual(i, (root * root) % p)
+                    root = mod_sqrt(i + p, p)
+                    self.assertEqual(i, (root * root) % p)
                 else:
                     self.assertRaises(ValueError, mod_sqrt, i, p)
 

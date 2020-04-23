@@ -78,7 +78,8 @@ class TestBech32(unittest.TestCase):
         for test in VALID_CHECKSUM:
             _, _ = b32decode(test)
             pos = test.rfind('1')
-            test = test[:pos+1] + chr(ord(test[pos + 1]) ^ 1) + test[pos+2:]
+            test = test[:pos + 1] + \
+                chr(ord(test[pos + 1]) ^ 1) + test[pos + 2:]
             self.assertRaises(ValueError, b32decode, test)
 
     def test_invalid_checksum(self):

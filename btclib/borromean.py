@@ -68,8 +68,8 @@ def sign(msg: String,
     # step 1
     for i in range(ring_size):
         keys_size = len(pubk_rings[i])
-        s[i] = [0]*keys_size
-        e[i] = [0]*keys_size
+        s[i] = [0] * keys_size
+        e[i] = [0] * keys_size
         j_star = sign_key_idx[i]
         start_idx = (j_star + 1) % keys_size
         R = bytes_from_point(mult(k[i]), ec)
@@ -87,13 +87,14 @@ def sign(msg: String,
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
         assert 0 < e[i][0] < ec.n, "sign fail: how did you do that?!?"
         j_star = sign_key_idx[i]
-        for j in range(1, j_star+1):
-            s[i][j-1] = random.getrandbits(256)
-            T = double_mult(-e[i][j-1], pubk_rings[i][j-1], s[i][j-1], ec.G)
+        for j in range(1, j_star + 1):
+            s[i][j - 1] = random.getrandbits(256)
+            T = double_mult(-e[i][j - 1], pubk_rings[i]
+                            [j - 1], s[i][j - 1], ec.G)
             R = bytes_from_point(T, ec)
             e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
             assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
-        s[i][j_star] = k[i] + sign_keys[i]*e[i][j_star]
+        s[i][j_star] = k[i] + sign_keys[i] * e[i][j_star]
     return e0, s
 
 
@@ -127,16 +128,17 @@ def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     e0bytes = m
     for i in range(ring_size):
         keys_size = len(pubk_rings[i])
-        e[i] = [0]*keys_size
+        e[i] = [0] * keys_size
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
         assert e[i][0] != 0, "invalid sig: how did you do that?!?"
         R = b'\0x00'
         for j in range(keys_size):
             T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
             R = bytes_from_point(T, ec)
-            if j != len(pubk_rings[i])-1:
-                e[i][j+1] = int_from_bits(_hash(m, R, i, j+1), ec.nlen) % ec.n
-                assert e[i][j+1] != 0, "invalid sig: how did you do that?!?"
+            if j != len(pubk_rings[i]) - 1:
+                e[i][j + 1] = int_from_bits(_hash(m,
+                                                  R, i, j + 1), ec.nlen) % ec.n
+                assert e[i][j + 1] != 0, "invalid sig: how did you do that?!?"
             else:
                 e0bytes += R
     e0_prime = hf(e0bytes).digest()

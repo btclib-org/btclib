@@ -47,7 +47,7 @@ class Testrfc6979(unittest.TestCase):
         m = sha256(msg).digest()
         k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
         self.assertEqual(k, rfc6979(m, x, fake_ec))
-        
+
     def test_rfc6979_tv(self):
 
         # source: https://tools.ietf.org/html/rfc6979 section A.2.3

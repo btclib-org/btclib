@@ -62,7 +62,7 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertEqual(boscoster, mult(ksum, ec.G, ec))
 
         # mismatch between scalar length and Points length
-        P = [ec.G] * (len(k)-1)
+        P = [ec.G] * (len(k) - 1)
         self.assertRaises(ValueError, multi_mult, k, P, ec)
         #multi_mult(k, P, ec)
 

@@ -122,7 +122,7 @@ def prvkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
 
 def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer.
-    
+
     It supports:
 
     - WIF (bytes or string)
@@ -136,7 +136,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     elif isinstance(prvkey, dict):
         q, network, _ = _prvkey_info_from_xprvwif(prvkey)
         # q has been validated on the xprv/wif network
-        ec2 =  curve_from_network(network)
+        ec2 = curve_from_network(network)
         assert ec == ec2, f"ec / network ({network}) mismatch"
         return q
     else:
@@ -146,7 +146,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
             pass
         else:
             # q has been validated on the xprv/wif network
-            ec2 =  curve_from_network(network)
+            ec2 = curve_from_network(network)
             assert ec == ec2, f"ec / network ({network}) mismatch"
             return q
 

@@ -20,8 +20,8 @@ class TestMnemonic(unittest.TestCase):
 
         test_mnemonic = "ozone drill grab fiber curtain grace " \
                         "pudding thank cruise elder eight picnic"
-        test_indexes = [1268,  535,  810,  685,  433,  811,
-                        1385, 1790,  421,  570,  567, 1313]
+        test_indexes = [1268, 535, 810, 685, 433, 811,
+                        1385, 1790, 421, 570, 567, 1313]
         indexes = _indexes_from_mnemonic(test_mnemonic, lang)
         self.assertEqual(indexes, test_indexes)
 
@@ -32,14 +32,14 @@ class TestMnemonic(unittest.TestCase):
         indexes = _indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
 
-        test_indexes = [0,    0, 2047, 2047, 2047, 2047,
-                        2047, 2047, 2047, 2047, 2047,    0]
+        test_indexes = [0, 0, 2047, 2047, 2047, 2047,
+                        2047, 2047, 2047, 2047, 2047, 0]
         entropy = _entropy_from_indexes(test_indexes, lang)
         indexes = _indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)
 
-        test_indexes = [0,    0, 2047, 2047, 2047, 2047,
-                        2047, 2047, 2047, 2047, 2047,    0]
+        test_indexes = [0, 0, 2047, 2047, 2047, 2047,
+                        2047, 2047, 2047, 2047, 2047, 0]
         entropy = _entropy_from_indexes(test_indexes, lang)
         indexes = _indexes_from_entropy(entropy, lang)
         self.assertEqual(indexes, test_indexes)

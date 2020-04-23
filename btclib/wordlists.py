@@ -45,7 +45,7 @@ class WordLists:
         wordlists: List[List[str]] = [[] for _ in self.languages]
         self._wordlist = dict(zip(self.languages, wordlists))
 
-        zeros = len(self.languages)*[0]
+        zeros = len(self.languages) * [0]
         self._bits_per_word = dict(zip(self.languages, zeros))
         self._language_length = dict(zip(self.languages, zeros))
 

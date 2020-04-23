@@ -170,7 +170,8 @@ def deserialize(sig: BMSig) -> BMSigTuple:
     else:
         sig = b64decode(sig)
         if len(sig) != 65:
-            raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
+            raise ValueError(
+                f"Wrong signature length: {len(sig)} instead of 65")
         rf = sig[0]
         r = int.from_bytes(sig[1:33], byteorder='big')
         s = int.from_bytes(sig[33:], byteorder='big')

@@ -124,7 +124,7 @@ class TestPedersenCommitment(unittest.TestCase):
 
         # Pedersen Commitment is additively homomorphic
         # Commit(r1, v1) + Commit(r2, v2) = Commit(r1+r2, v1+r2)
-        R = pedersen.commit(r1+r2, v1+v2, ec, hf)
+        R = pedersen.commit(r1 + r2, v1 + v2, ec, hf)
         self.assertTrue(ec.add(C1, C2), R)
 
         # commit does not open (with catched exception)
