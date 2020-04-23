@@ -260,7 +260,7 @@ def _ckd(d: XkeyDict, index: bytes) -> None:
 
 def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
 
-    steps = path.split('/')
+    steps = [x.strip() for x in path.split("/")]
     if steps[0] in ('m', 'M'):
         absolute = True
     elif steps[0] == '.':
