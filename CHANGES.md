@@ -8,21 +8,17 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- Generic public/provate Key accepted wherever PubKey is expected
+  (except for Schnorr)
 - Wherever input/output parameters had a
-  'compressed: bool, network: str' sequence,
-  the order has been inverted resulting in
-  'network: str, compressed: bool'.
-  Affected functions:
-  base58address.p2pkh,
-  base58wif.wif_from_prvkey,
-  to_prvkey.prvkey_info_from_prvkey,
-  to_pubkey._bytes_from_xpub,
-  to_pubkey.bytes_from_key,
-  to_pubkey.pubkey_info_from_prvkey,
-  hashes.hash160_from_pubkey,
-  secpoint.bytes_from_point,
+  'compressed: bool, network: str' sequence, the order has been
+  inverted resulting in 'network: str, compressed: bool'.
+  Affected functions: base58address.p2pkh, base58wif.wif_from_prvkey,
+  to_prvkey.prvkey_info_from_prvkey, to_pubkey._bytes_from_xpub,
+  to_pubkey.bytes_from_key, to_pubkey.pubkey_info_from_prvkey,
+  hashes.hash160_from_pubkey, secpoint.bytes_from_point,
 
-## v2020.5
+## v2020.4.21
 
 Major changes includes:
 
