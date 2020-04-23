@@ -87,16 +87,16 @@ Path = Union[str, Iterable[int], int, bytes]
 
 # BIP 32 extended key as a TypedDict
 class XkeyDict(TypedDict):
-    version            : bytes
-    depth              : int
-    parent_fingerprint : bytes
-    index              : bytes
-    chain_code         : bytes
-    key                : bytes
+    version: bytes
+    depth: int
+    parent_fingerprint: bytes
+    index: bytes
+    chain_code: bytes
+    key: bytes
     # extensions used to cache intemediate results
     # in multi-level derivation: do not rely on them elsewhere
-    q                  : int  # non-zero for private key only
-    Q                  : Point  # non-Infinity for public key only
+    q: int  # non-zero for private key only
+    Q: Point  # non-Infinity for public key only
 
 
 # private key inputs:
@@ -113,6 +113,7 @@ PrvKey = Union[int, Octets, String, XkeyDict]
 # ...
 PubKey = Union[Point, XkeyDict, bytes, str]
 
+Key = Union[PubKey, PrvKey]
 
 # ECDSA signature
 # (r, s)

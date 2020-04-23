@@ -11,7 +11,7 @@
 from typing import Optional, Tuple, Union
 
 from . import bip32
-from .alias import Octets, Point, PubKey, String, XkeyDict
+from .alias import Octets, Point, PubKey, String, XkeyDict, Key
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
@@ -25,9 +25,32 @@ from .utils import bytes_from_octets, hash160
 def _point_from_xpub(xpubd: XkeyDict, ec: Curve) -> Point:
     if xpubd['key'][0] in (2, 3):
         ec2 = curve_from_xpubversion(xpubd['version'])
-        assert ec == ec2, f"ec/xpub version ({xpubd['version']!r}) mismatch"
+        if ec != ec2:
+            raise ValueError(
+                f"ec/xpub version ({xpubd['version'].hex()}) mismatch")
         return point_from_octets(xpubd['key'], ec)
     raise ValueError(f"Not a public key: {xpubd['key'].hex()}")
+
+
+def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
+    """Return a point tuple from any possible key representation.
+
+    It supports:
+
+    - BIP32 extended keys (bytes, string, or XkeyDict)
+    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
+    - native tuple
+    """
+    try:
+        q, net, _ = prvkey_info_from_prvkey(key)
+    except:
+        pass
+    else:
+        if ec != curve_from_network(net):
+            raise ValueError("Curve mismatch")
+        return mult(q, ec.G, ec)
+
+    return point_from_pubkey(key, ec)
 
 
 def point_from_pubkey(P: PubKey, ec: Curve = secp256k1) -> Point:
@@ -81,6 +104,17 @@ def _bytes_from_xpub(xpubd: XkeyDict, network: Optional[str] = None,
         return xpubd['key'], network_from_xpub(xpubd['version'])
 
 
+def bytes_from_key(key: Key, network: Optional[str] = None,
+                   compressed: Optional[bool] = None) -> Tuple[bytes, str]:
+
+    try:
+        P, network = pubkey_info_from_prvkey(key, network, compressed)
+    except:
+        P = key
+
+    return bytes_from_pubkey(P, network, compressed)
+
+
 def bytes_from_pubkey(P: PubKey, network: Optional[str] = None,
                       compressed: Optional[bool] = None) -> Tuple[bytes, str]:
     """Return (SEC-bytes, network) from any possible pubkey representation.
@@ -115,10 +149,10 @@ def bytes_from_pubkey(P: PubKey, network: Optional[str] = None,
         size = len(pubkey)
         if size == ec.psize + 1:
             compr = True
-        elif size == 2* ec.psize + 1:
+        elif size == 2 * ec.psize + 1:
             compr = False
     else:
-        size = ec.psize + 1 if compressed else 2* ec.psize + 1
+        size = ec.psize + 1 if compressed else 2 * ec.psize + 1
         compr = compressed
         pubkey = bytes_from_octets(P, size)
 
@@ -138,8 +172,7 @@ def pubkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
     return pubkey, net
 
 
-def fingerprint(pubkey: PubKey, network: Optional[str] = None) -> bytes:
+def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
 
-    # compressed pubkey
-    pubkey, _ = bytes_from_pubkey(pubkey, network, True)
+    pubkey, _ = bytes_from_key(key, network, compressed=True)
     return hash160(pubkey)[:4]

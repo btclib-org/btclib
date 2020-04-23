@@ -19,6 +19,21 @@ from .alias import String, XkeyDict
 from .network import _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
 
 
+def address_from_xkey(xkey: Union[XkeyDict, String]) -> bytes:
+    """Return the SLIP32 base58/bech32 address.
+
+    The address is always derived from the compressed public key,
+    as this is the default public key representation in BIP32.
+    """
+
+    try:
+        xpub = bip32.xpub_from_xprv(xkey)
+    except:
+        xpub = xkey
+
+    return address_from_xpub(xpub)
+
+
 def address_from_xpub(d: Union[XkeyDict, String]) -> bytes:
     """Return the SLIP32 base58/bech32 address.
 

@@ -21,15 +21,15 @@ from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
 from . import bip32, der
-from .alias import (DSASig, DSASigTuple, HashF, JacPoint, Point, PrvKey,
-                    PubKey, String)
+from .alias import (DSASig, DSASigTuple, HashF, JacPoint, Key, Point, PrvKey,
+                    String)
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac
 from .curves import secp256k1
 from .numbertheory import mod_inv
 from .rfc6979 import _rfc6979
 from .to_prvkey import int_from_prvkey
-from .to_pubkey import point_from_pubkey
+from .to_pubkey import point_from_key
 from .utils import int_from_bits
 
 
@@ -115,13 +115,13 @@ def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
     KJ = _mult_jac(k, ec.GJ, ec)                  # 1
 
     # affine x-coordinate of K (field element)
-    K_x = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec.p)) % ec.p
+    K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
     # mod n makes it a scalar
     r = K_x % ec.n                                # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
         raise ValueError("r = 0, failed to sign")
 
-    s = mod_inv(k, ec.n) * (c + r*q) % ec.n       # 6
+    s = mod_inv(k, ec.n) * (c + r * q) % ec.n       # 6
     if s == 0:  # s≠0 required as verify will need the inverse of s
         raise ValueError("s = 0, failed to sign")
 
@@ -134,20 +134,20 @@ def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
     return r, s
 
 
-def verify(msg: String, Q: PubKey, sig: DSASig,
+def verify(msg: String, P: Key, sig: DSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
-        _verify(msg, Q, sig, ec, hf)
+        _verify(msg, P, sig, ec, hf)
     except Exception:
         return False
     else:
         return True
 
 
-def _verify(msg: String, Q: PubKey, sig: DSASig,
+def _verify(msg: String, P: Key, sig: DSASig,
             ec: Curve, hf: HashF) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -156,7 +156,7 @@ def _verify(msg: String, Q: PubKey, sig: DSASig,
 
     c = _challenge(msg, ec, hf)                  # 2, 3
 
-    Q = point_from_pubkey(Q, ec)
+    Q = point_from_key(P, ec)
     QJ = Q[0], Q[1], 1 if Q[1] else 0
 
     # second part delegated to helper function
@@ -167,8 +167,8 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
 
     w = mod_inv(s, ec.n)
-    u = c*w % ec.n
-    v = r*w % ec.n                               # 4
+    u = c * w % ec.n
+    v = r * w % ec.n                               # 4
     # Let K = u*G + v*Q.
     KJ = _double_mult(v, QJ, u, ec.GJ, ec)       # 5
 
@@ -176,7 +176,7 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     assert KJ[2] != 0, "how did you do that?!?"  # 5
 
     # affine x-coordinate of K
-    K_x = (KJ[0]*mod_inv(KJ[2]*KJ[2], ec.p)) % ec.p
+    K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
     x = K_x % ec.n                               # 6, 7
     # Fail if r ≠ K_x %n.
     assert r == x, "Signature verification failed"  # 8
@@ -226,15 +226,15 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
 
     # precomputations
     r1 = mod_inv(r, ec.n)
-    r1s = r1*s % ec.n
-    r1e = -r1*c % ec.n
+    r1s = r1 * s % ec.n
+    r1e = -r1 * c % ec.n
     keys: List[JacPoint] = list()
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
     for j in range(ec.h):                                # 1
         # affine x-coordinate of K (field element)
-        x = (r + j*ec.n) % ec.p                         # 1.1
+        x = (r + j * ec.n) % ec.p                         # 1.1
         # two possible y-coordinates, i.e. two possible keys for each cycle
         try:
             # even root first for bitcoin message signing compatibility
@@ -266,13 +266,13 @@ def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
 
     # precomputations
     r1 = mod_inv(r, ec.n)
-    r1s = r1*s % ec.n
-    r1e = -r1*c % ec.n
+    r1s = r1 * s % ec.n
+    r1e = -r1 * c % ec.n
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
     j = key_id & 0b110  # allow for key_id in [0, 7]
-    x = (r + j*ec.n) % ec.p                         # 1.1
+    x = (r + j * ec.n) % ec.p                         # 1.1
 
     # even root first for Bitcoin Core compatibility
     i = key_id & 0b01
@@ -296,6 +296,6 @@ def crack_prvkey(m1: String, sig1: DSASig, m2: String, sig2: DSASig,
 
     c1 = _challenge(m1, ec, hf)
     c2 = _challenge(m2, ec, hf)
-    k = (c1-c2) * mod_inv(s1-s2, ec.n) %ec.n
-    q = (s2*k-c2) * mod_inv(r1, ec.n) %ec.n
-    return q, k 
+    k = (c1 - c2) * mod_inv(s1 - s2, ec.n) % ec.n
+    q = (s2 * k - c2) * mod_inv(r1, ec.n) % ec.n
+    return q, k

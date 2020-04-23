@@ -44,7 +44,7 @@ with the following modifications:
 
 from typing import Iterable, List, Optional, Tuple
 
-from .alias import Octets, PubKey, Script, String
+from .alias import Key, Octets, Script, String
 from .bech32 import b32decode, b32encode
 from .hashes import hash160_from_pubkey, hash256_from_script
 from .network import network_from_p2w_prefix, p2w_prefix_from_network
@@ -52,6 +52,7 @@ from .script import encode
 from .utils import bytes_from_octets
 
 # 0. bech32 facilities
+
 
 def _convertbits(data: Iterable[int], frombits: int,
                  tobits: int, pad: bool = True) -> List[int]:
@@ -96,6 +97,7 @@ def _check_witness(witvers: int, witprog: bytes):
 
 # 2. bech32 address from WitnessProgram and vice versa
 
+
 def b32address_from_witness(wv: int, wp: Octets, network: str = 'mainnet') -> bytes:
     "Encode a bech32 native SegWit address from the witness."
 
@@ -138,10 +140,11 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 
 # 1.+2. = 3. bech32 address from pubkey/script
 
-def p2wpkh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
+
+def p2wpkh(key: Key, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh bech32 address corresponding to a public key."
     compressed = True  # needed to force check on pubkey
-    h160, network = hash160_from_pubkey(pubkey, network, compressed)
+    h160, network = hash160_from_pubkey(key, network, compressed)
     return b32address_from_witness(0, h160, network)
 
 

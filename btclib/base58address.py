@@ -15,7 +15,7 @@ Base58 encoding of public keys and scripts as addresses.
 
 from typing import Optional, Tuple
 
-from .alias import Octets, PubKey, Script, String
+from .alias import Key, Octets, Script, String
 from .base58 import b58decode, b58encode
 from .bech32address import (_check_witness, b32address_from_witness,
                             witness_from_b32address)
@@ -34,6 +34,8 @@ from .utils import bytes_from_octets
 # 2. base58 address from HASH and vice versa
 
 # TODO accept Octets prefix
+
+
 def b58address_from_h160(prefix: bytes, h160: Octets) -> bytes:
     "Encode a base58 address from the payload."
 
@@ -64,10 +66,11 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
 
 # 1.+2. = 3. base58 address from pubkey/script
 
-def p2pkh(pubkey: PubKey, network: Optional[str] = None,
+
+def p2pkh(key: Key, network: Optional[str] = None,
           compressed: Optional[bool] = None) -> bytes:
     "Return the p2pkh base58 address corresponding to a public key."
-    h160, network = hash160_from_pubkey(pubkey, network, compressed)
+    h160, network = hash160_from_pubkey(key, network, compressed)
     prefix = p2pkh_prefix_from_network(network)
     return b58address_from_h160(prefix, h160)
 
@@ -80,6 +83,7 @@ def p2sh(script: Script, network: str = 'mainnet') -> bytes:
 
 # 2b. base58 address from WitnessProgram
 # it cannot be inverted because of the hash performed by p2sh
+
 
 def b58address_from_witness(wp: Octets, network: str = 'mainnet') -> bytes:
     "Encode a legacy base58 p2sh-wrapped SegWit address."
@@ -97,10 +101,11 @@ def b58address_from_witness(wp: Octets, network: str = 'mainnet') -> bytes:
 
 # 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pubkey/script
 
-def p2wpkh_p2sh(pubkey: PubKey, network: Optional[str] = None) -> bytes:
+
+def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh-p2sh base58 address corresponding to a pubkey."
     compressed = True  # needed to force check on pubkey
-    witprog, network = hash160_from_pubkey(pubkey, network, compressed)
+    witprog, network = hash160_from_pubkey(key, network, compressed)
     return b58address_from_witness(witprog, network)
 
 
@@ -118,13 +123,13 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
 
     if has_segwit_prefix(addr):
         # also check witness validity
-        witvers, witprog, network, is_script_hash = witness_from_b32address(addr)
-        if witvers != 0:
-            raise ValueError(f"Unmanaged witness version ({witvers})")
+        wv, wp, network, is_script_hash = witness_from_b32address(addr)
+        if wv != 0:
+            raise ValueError(f"Unmanaged witness version ({wv})")
         if is_script_hash:
-            return scriptPubKey_from_payload('p2wsh', witprog), network
+            return scriptPubKey_from_payload('p2wsh', wp), network
         else:
-            return scriptPubKey_from_payload('p2wpkh', witprog), network
+            return scriptPubKey_from_payload('p2wpkh', wp), network
     else:
         _, h160, network, is_p2sh = h160_from_b58address(addr)
         if is_p2sh:

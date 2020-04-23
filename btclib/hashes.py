@@ -14,15 +14,15 @@
 
 from typing import Optional, Tuple
 
-from .alias import PubKey, Script
+from .alias import Key, Script
 from .script import encode
-from .to_pubkey import bytes_from_pubkey
+from .to_pubkey import bytes_from_key
 from .utils import hash160, sha256
 
 
-def hash160_from_pubkey(pubkey: PubKey, network: Optional[str] = None,
-                        compressed: Optional[bool]=None) -> Tuple[bytes, str]:
-    pubkey, network = bytes_from_pubkey(pubkey, network, compressed)
+def hash160_from_pubkey(key: Key, network: Optional[str] = None,
+                        compressed: Optional[bool] = None) -> Tuple[bytes, str]:
+    pubkey, network = bytes_from_key(key, network, compressed)
     h160 = hash160(pubkey)
     return h160, network
 

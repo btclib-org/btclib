@@ -17,7 +17,7 @@ Major changes includes:
   base58wif.wif_from_prvkey,
   to_prvkey.prvkey_info_from_prvkey,
   to_pubkey._bytes_from_xpub,
-  to_pubkey.bytes_from_pubkey,
+  to_pubkey.bytes_from_key,
   to_pubkey.pubkey_info_from_prvkey,
   hashes.hash160_from_pubkey,
   secpoint.bytes_from_point,
