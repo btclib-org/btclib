@@ -22,7 +22,7 @@ from btclib.hashes import hash160_from_pubkey, hash256_from_script
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.to_prvkey import prvkey_info_from_prvkey
-from btclib.to_pubkey import bytes_from_pubkey, pubkey_info_from_prvkey
+from btclib.to_pubkey import pubkey_info_from_prvkey
 from btclib.utils import hash160, sha256
 
 
