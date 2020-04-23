@@ -295,6 +295,9 @@ def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
     - relative path as iterable integer indexes
     - relative one level child derivation with single integer index
     - relative one level child derivation with single 4-bytes index
+
+    Path is case/blank/extra-slash insensitive
+    (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
 
     if isinstance(d, dict):
