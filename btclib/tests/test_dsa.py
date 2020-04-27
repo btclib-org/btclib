@@ -55,8 +55,7 @@ class TestDSA(unittest.TestCase):
         self.assertFalse(dsa.verify(msg, Q, fdsasig))
         self.assertRaises(ValueError, dsa._verify, msg, Q, fdsasig, ec, hf)
 
-        fq = 0x4
-        fQ = mult(fq)
+        fq, fQ = dsa.gen_keys()
         self.assertFalse(dsa.verify(msg, fQ, sig))
 
         # r not in [1, n-1]

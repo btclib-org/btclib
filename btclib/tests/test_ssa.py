@@ -47,12 +47,10 @@ class TestSSA(unittest.TestCase):
         self.assertRaises(ValueError, ssa._verify, mhd, x_Q, fssasig, ec, hf)
 
         # y(sG - eP) is not a quadratic residue
-        fq = 0x2
-        fQ = mult(fq)
+        fq, fQ = ssa.gen_keys(0x2)
         self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
 
-        fq = 0x4
-        fQ = mult(fq)
+        fq, fQ = ssa.gen_keys(0x4)
         self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
 
         # not ec.pIsThreeModFour
