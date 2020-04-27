@@ -82,9 +82,9 @@ def binstr_from_entropy(entr: Entropy,
     return binstr_entr.zfill(nbits)  # might need padding with leading zeros
 
 
-def generate_entropy(bits: int, dice_base: int = 0,
-                     rolls: Optional[List[int]] = None, shuffle: bool = True,
-                     hash: bool = True, xor: bool = True) -> BinStr:
+def generate(bits: int, dice_base: int = 0,
+             rolls: Optional[List[int]] = None, shuffle: bool = True,
+             hash: bool = True, xor: bool = True) -> BinStr:
     """Return CSPRNG system entropy mixed with exogenous roll-based entropy.
 
     If no exogenous entropy is provided, then entropy generated with the
@@ -101,7 +101,9 @@ def generate_entropy(bits: int, dice_base: int = 0,
     used; for a D20 dice, only rolls having value in [1-16] are used; etc.).
 
     If provided, the exogenous roll-based entropy must supply at least the
-    required number of bits. Its rolls can be shuffled, entropy can be hashed,
+    required number of bits.
+    Rolls can be shuffled,
+    resulting entropy can be hashed,
     and it is finally XOR-ed with the CSPRNG system entropy.
     If not shuffled, hashed, and/or XOR-ed, then the function returns the
     rightmost required number of bits from the unaltered exogenous entropy.
