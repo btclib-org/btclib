@@ -8,8 +8,12 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
-- Generic public/provate Key accepted wherever PubKey is expected
-  (except for Schnorr)
+- entropy.generate_entropy has been renamed as entropy.generate
+- added gen_keys to dsa, ssa, bms, so that now all the standard
+  gen_keys, sig, and verify functions are available
+- Generic public/private Key accepted wherever PubKey is expected
+  (except for Schnorr where a public key cannot be discriminated as
+  different from a private key)
 - Wherever input/output parameters had a
   'compressed: bool, network: str' sequence, the order has been
   inverted resulting in 'network: str, compressed: bool'.
