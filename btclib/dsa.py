@@ -17,6 +17,7 @@
    specialized with bitcoin canonical 'low-s' encoding.
 """
 
+import secrets
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
@@ -31,6 +32,27 @@ from .rfc6979 import _rfc6979
 from .to_prvkey import int_from_prvkey
 from .to_pubkey import point_from_key
 from .utils import int_from_bits
+
+
+def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1,
+             compressed: Optional[bool] = None) -> Tuple[int, Point]:
+    """Return a private/public key pair.
+
+    The public key is the compressed or uncompressed SEC representation
+    of a curve point.
+    """
+
+    if prvkey is None:
+        # q in the range [1, ec.p-1]
+        q = 1 + secrets.randbelow(ec.p - 1)
+    else:
+        q = int_from_prvkey(prvkey, ec)
+
+    QJ = _mult_jac(q, ec.GJ, ec)
+    Q = ec._aff_from_jac(QJ)
+    # q.to_bytes(ec.psize, 'big')
+    # bytes_from_point(Q, ec, compressed)
+    return q, Q
 
 
 def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:

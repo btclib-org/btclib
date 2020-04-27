@@ -27,52 +27,56 @@ from btclib.utils import int_from_bits
 
 random.seed(42)
 
+
 class TestSSA(unittest.TestCase):
 
     def test_signature(self):
         """Basic tests"""
-        q = 0x1
-        Q = mult(q)
+
+        q, x_Q = ssa.gen_keys()
         mhd = hf(b'Satoshi Nakamoto').digest()
         sig = ssa.sign(mhd, q, None)
         self.assertEqual(sig, ssa.deserialize(sig))
-        ssa._verify(mhd, Q, sig, ec, hf)
-        self.assertTrue(ssa.verify(mhd, Q, sig))
+        ssa._verify(mhd, x_Q, sig, ec, hf)
+        self.assertTrue(ssa.verify(mhd, x_Q, sig))
 
         fmhd = hf(b'Craig Wright').digest()
-        self.assertRaises(AssertionError, ssa._verify, fmhd, Q, sig, ec, hf)
+        self.assertRaises(AssertionError, ssa._verify, fmhd, x_Q, sig, ec, hf)
 
         fssasig = (sig[0], sig[1], sig[1])
-        self.assertRaises(ValueError, ssa._verify, mhd, Q, fssasig, ec, hf)
+        self.assertRaises(ValueError, ssa._verify, mhd, x_Q, fssasig, ec, hf)
 
         # y(sG - eP) is not a quadratic residue
         fq = 0x2
         fQ = mult(fq)
-        self.assertRaises(ValueError, ssa._verify, mhd, fQ, sig, ec, hf)
+        self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
 
         fq = 0x4
         fQ = mult(fq)
         self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
 
         # not ec.pIsThreeModFour
-        self.assertRaises(ValueError, ssa._verify, mhd, Q, sig, secp224k1, hf)
+        self.assertRaises(ValueError, ssa._verify,
+                          mhd, x_Q, sig, secp224k1, hf)
 
         # verify: message of wrong size
         wrongmhd = mhd[:-1]
-        self.assertRaises(ValueError, ssa._verify, wrongmhd, Q, sig, ec, hf)
-        #ssa._verify(wrongmhd, Q, sig)
+        self.assertRaises(ValueError, ssa._verify, wrongmhd, x_Q, sig, ec, hf)
+        #ssa._verify(wrongmhd, x_Q, sig)
 
         # sign: message of wrong size
         self.assertRaises(ValueError, ssa.sign, wrongmhd, q, None)
         #ssa.sign(wrongmhd, q, None)
 
         # invalid (zero) challenge e
-        self.assertRaises(ValueError, ssa._recover_pubkeys, 0, sig[0], sig[1], ec)
+        self.assertRaises(ValueError, ssa._recover_pubkeys,
+                          0, sig[0], sig[1], ec)
         #ssa._recover_pubkeys(0, sig)
 
         # not a BIP340 public key
-        self.assertRaises(ValueError, ssa.to_bip340_point, ["not", "a BIP340", "public key"])
-        #ssa.to_bip340_point(["not", "a BIP340", "public key"])
+        self.assertRaises(ValueError, ssa._to_bip340_point,
+                          ["not", "a BIP340", "public key"])
+        #ssa._to_bip340_point(["not", "a BIP340", "public key"])
 
     def test_bip340_vectors(self):
         """BIP340 (Schnorr) test vectors
@@ -91,8 +95,9 @@ class TestSSA(unittest.TestCase):
                 errmsg = f"Test vector #{int(index)}"
                 if seckey != '':
                     seckey = bytes.fromhex(seckey)
-                    pubkey_actual = ssa.pubkey_gen(seckey)
-                    self.assertEqual(pubkey, pubkey_actual.hex().upper(), errmsg)
+                    _, pubkey_actual = ssa.gen_keys(seckey)
+                    self.assertEqual(
+                        pubkey, pubkey_actual.hex().upper(), errmsg)
 
                     sig_actual = ssa.serialize(*ssa.sign(mhd, seckey))
                     self.assertEqual(sig, sig_actual.hex().upper(), errmsg)
@@ -106,13 +111,13 @@ class TestSSA(unittest.TestCase):
     def test_low_cardinality(self):
         """test low-cardinality curves for all msg/key pairs."""
         # ec.n has to be prime to sign
-        prime = [11,  13,  17,  19]
+        prime = [11, 13, 17, 19]
 
         # for dsa it is possible to directy iterate on all
         # possible values for e;
         # for ssa we have to iterate over all possible hash values
         hsize = hf().digest_size
-        H = [i.to_bytes(hsize, 'big') for i in range(max(prime)*4)]
+        H = [i.to_bytes(hsize, 'big') for i in range(max(prime) * 4)]
         # only low card curves or it would take forever
         for ec in low_card_curves:
             if ec.p in prime:  # only few curves or it would take too long
@@ -136,7 +141,7 @@ class TestSSA(unittest.TestCase):
                         except Exception:
                             pass
                         else:
-                            s = (k + c*q) % ec.n
+                            s = (k + c * q) % ec.n
                             sig = ssa.sign(h, q, None, ec)
                             self.assertEqual((x_K, s), sig)
                             # valid signature must validate
@@ -154,7 +159,7 @@ class TestSSA(unittest.TestCase):
         Qs = []
         sigs = []
         ms.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
-        q = random.randint(1, ec.n-1)
+        q = random.randint(1, ec.n - 1)
         # bytes version
         Qs.append(mult(q, ec.G, ec)[0].to_bytes(ec.psize, 'big'))
         sigs.append(ssa.sign(ms[0], q, None, ec, hf))
@@ -163,7 +168,7 @@ class TestSSA(unittest.TestCase):
         for _ in range(3):
             mhd = random.getrandbits(hlen).to_bytes(hsize, 'big')
             ms.append(mhd)
-            q = random.randint(1, ec.n-1)
+            q = random.randint(1, ec.n - 1)
             # Point version
             Qs.append(mult(q, ec.G, ec))
             sigs.append(ssa.sign(mhd, q, None, ec, hf))
@@ -175,7 +180,8 @@ class TestSSA(unittest.TestCase):
         sigs.append(sigs[1])
         Qs.append(Qs[0])
         self.assertFalse(ssa.batch_verify(ms, Qs, sigs, ec, hf))
-        self.assertRaises(AssertionError, ssa._batch_verify, ms, Qs, sigs, ec, hf)
+        self.assertRaises(AssertionError, ssa._batch_verify,
+                          ms, Qs, sigs, ec, hf)
         #ssa._batch_verify(ms, Qs, sigs, ec, hf)
         sigs[-1] = sigs[0]  # valid again
 
@@ -198,7 +204,8 @@ class TestSSA(unittest.TestCase):
         sigs.pop()  # valid again
 
         # field prime p is not equal to 3 (mod 4)
-        self.assertRaises(ValueError, ssa._batch_verify, ms, Qs, sigs, secp224k1, hf)
+        self.assertRaises(ValueError, ssa._batch_verify,
+                          ms, Qs, sigs, secp224k1, hf)
         #ssa._batch_verify(ms, Qs, sigs, secp224k1, hf)
 
     def test_threshold(self):
@@ -213,8 +220,8 @@ class TestSSA(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1: List[Point] = list()
-        q1 = (1+random.getrandbits(ec.nlen)) % ec.n
-        q1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        q1 = (1 + random.getrandbits(ec.nlen)) % ec.n
+        q1_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
         commits1.append(double_mult(q1_prime, H, q1, ec.G))
 
         # sharing polynomials
@@ -223,9 +230,9 @@ class TestSSA(unittest.TestCase):
         f1_prime: List[int] = list()
         f1_prime.append(q1_prime)
         for i in range(1, m):
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f1.append(temp)
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
             commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
 
@@ -252,13 +259,13 @@ class TestSSA(unittest.TestCase):
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
-        t = double_mult(alpha13_prime, H, alpha13, ec.G) 
+        t = double_mult(alpha13_prime, H, alpha13, ec.G)
         assert t == RHS, 'player one is cheating'
 
         # signer two acting as the dealer
         commits2: List[Point] = list()
-        q2 = (1+random.getrandbits(ec.nlen)) % ec.n
-        q2_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        q2 = (1 + random.getrandbits(ec.nlen)) % ec.n
+        q2_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
         commits2.append(double_mult(q2_prime, H, q2, ec.G))
 
         # sharing polynomials
@@ -267,9 +274,9 @@ class TestSSA(unittest.TestCase):
         f2_prime: List[int] = list()
         f2_prime.append(q2_prime)
         for i in range(1, m):
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f2.append(temp)
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f2_prime.append(temp)
             commits2.append(double_mult(f2_prime[i], H, f2[i], ec.G))
 
@@ -301,8 +308,8 @@ class TestSSA(unittest.TestCase):
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
-        q3 = (1+random.getrandbits(ec.nlen)) % ec.n
-        q3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        q3 = (1 + random.getrandbits(ec.nlen)) % ec.n
+        q3_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
         commits3.append(double_mult(q3_prime, H, q3, ec.G))
 
         # sharing polynomials
@@ -311,9 +318,9 @@ class TestSSA(unittest.TestCase):
         f3_prime: List[int] = list()
         f3_prime.append(q3_prime)
         for i in range(1, m):
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f3.append(temp)
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
             commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
 
@@ -405,8 +412,8 @@ class TestSSA(unittest.TestCase):
 
         # signer one acting as the dealer
         commits1: List[Point] = list()
-        k1 = (1+random.getrandbits(ec.nlen)) % ec.n
-        k1_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        k1 = (1 + random.getrandbits(ec.nlen)) % ec.n
+        k1_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
         commits1.append(double_mult(k1_prime, H, k1, ec.G))
 
         # sharing polynomials
@@ -415,9 +422,9 @@ class TestSSA(unittest.TestCase):
         f1_prime: List[int] = list()
         f1_prime.append(k1_prime)
         for i in range(1, m):
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f1.append(temp)
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f1_prime.append(temp)
             commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
 
@@ -437,8 +444,8 @@ class TestSSA(unittest.TestCase):
 
         # signer three acting as the dealer
         commits3: List[Point] = list()
-        k3 = (1+random.getrandbits(ec.nlen)) % ec.n
-        k3_prime = (1+random.getrandbits(ec.nlen)) % ec.n
+        k3 = (1 + random.getrandbits(ec.nlen)) % ec.n
+        k3_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
         commits3.append(double_mult(k3_prime, H, k3, ec.G))
 
         # sharing polynomials
@@ -447,9 +454,9 @@ class TestSSA(unittest.TestCase):
         f3_prime: List[int] = list()
         f3_prime.append(k3_prime)
         for i in range(1, m):
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f3.append(temp)
-            temp = (1+random.getrandbits(ec.nlen)) % ec.n
+            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
             f3_prime.append(temp)
             commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
 
@@ -525,7 +532,8 @@ class TestSSA(unittest.TestCase):
         else:
             RHS3 = ec.add(ec.negate(K), mult(e, Q))
             for i in range(1, m):
-                temp = double_mult(pow(3, i), ec.negate(B[i]), e * pow(3, i), A[i])
+                temp = double_mult(pow(3, i), ec.negate(
+                    B[i]), e * pow(3, i), A[i])
                 RHS3 = ec.add(RHS3, temp)
 
         assert mult(gamma3) == RHS3, 'player three is cheating'
@@ -539,7 +547,8 @@ class TestSSA(unittest.TestCase):
         else:
             RHS1 = ec.add(ec.negate(K), mult(e, Q))
             for i in range(1, m):
-                temp = double_mult(pow(1, i), ec.negate(B[i]), e * pow(1, i), A[i])
+                temp = double_mult(pow(1, i), ec.negate(
+                    B[i]), e * pow(1, i), A[i])
                 RHS1 = ec.add(RHS1, temp)
 
         assert mult(gamma1) == RHS1, 'player two is cheating'
@@ -570,16 +579,29 @@ class TestSSA(unittest.TestCase):
 
         # the signers private and public keys,
         # including both the curve Point and the BIP340-Schnorr public key
-        q1 = 0x010101; Q1 = mult(q1); Q1_x = Q1[0].to_bytes(ec.psize, 'big')
-        q2 = 0x020202; Q2 = mult(q2); Q2_x = Q2[0].to_bytes(ec.psize, 'big')
-        q3 = 0x030303; Q3 = mult(q3); Q3_x = Q3[0].to_bytes(ec.psize, 'big')
+        q1 = 0x010101
+        Q1 = mult(q1)
+        Q1_x = Q1[0].to_bytes(ec.psize, 'big')
+
+        q2 = 0x020202
+        Q2 = mult(q2)
+        Q2_x = Q2[0].to_bytes(ec.psize, 'big')
+
+        q3 = 0x030303
+        Q3 = mult(q3)
+        Q3_x = Q3[0].to_bytes(ec.psize, 'big')
 
         # ready to sign: nonces and nonce commitments
-        k1 = 1 + secrets.randbelow(ec.n-1); K1 = mult(k1)
-        k2 = 1 + secrets.randbelow(ec.n-1); K2 = mult(k2)
-        k3 = 1 + secrets.randbelow(ec.n-1); K3 = mult(k3)
+        k1 = 1 + secrets.randbelow(ec.n - 1)
+        K1 = mult(k1)
 
-        #### (non interactive) key setup
+        k2 = 1 + secrets.randbelow(ec.n - 1)
+        K2 = mult(k2)
+
+        k3 = 1 + secrets.randbelow(ec.n - 1)
+        K3 = mult(k3)
+
+        # (non interactive) key setup
         # this is MuSig core: the rest is just Schnorr signature additivity
         # 1. lexicographic sorting of public keys
         keys: List[bytes] = list()
@@ -595,9 +617,9 @@ class TestSSA(unittest.TestCase):
         # 3. aggregated public key
         Q = ec.add(double_mult(a1, Q1, a2, Q2), mult(a3, Q3))
 
-        #### exchange {K_i} (interactive)
+        # exchange {K_i} (interactive)
 
-        #### computes s_i (non interactive)
+        # computes s_i (non interactive)
         # WARNING:
         # the signers must exchange the nonces
         # commitments {K_i} before sharing {s_i}
@@ -610,21 +632,21 @@ class TestSSA(unittest.TestCase):
         # first signer
         if not ec.has_square_y(K):
             k1 = ec.n - k1
-        s1 = (k1 + e*a1*q1) % ec.n
+        s1 = (k1 + e * a1 * q1) % ec.n
 
         # second signer
         if not ec.has_square_y(K):
             k2 = ec.n - k2
-        s2 = (k2 + e*a2*q2) % ec.n
+        s2 = (k2 + e * a2 * q2) % ec.n
 
         # third signer
         if not ec.has_square_y(K):
             k3 = ec.n - k3
-        s3 = (k3 + e*a3*q3) % ec.n
+        s3 = (k3 + e * a3 * q3) % ec.n
 
-        #### exchange s_i (interactive)
+        # exchange s_i (interactive)
 
-        #### finalize signature (non interactive)
+        # finalize signature (non interactive)
         s = (s1 + s2 + s3) % ec.n
         sig = r, s
         # check signature is valid
@@ -650,11 +672,13 @@ class TestSSA(unittest.TestCase):
         #print(f'  s2: {hex(sig2[1]).upper()}')
 
         qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
-        self.assertIn(q, (qc, ec.n-qc))
+        self.assertIn(q, (qc, ec.n - qc))
         self.assertIn(k, (kc, ec.n - kc))
 
-        self.assertRaises(ValueError, ssa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]), x_Q)
-        self.assertRaises(ValueError, ssa.crack_prvkey, msg1, sig1, msg1, sig1, x_Q)
+        self.assertRaises(ValueError, ssa.crack_prvkey, msg1,
+                          sig1, msg2, (16, sig1[1]), x_Q)
+        self.assertRaises(ValueError, ssa.crack_prvkey,
+                          msg1, sig1, msg1, sig1, x_Q)
 
 
 if __name__ == "__main__":

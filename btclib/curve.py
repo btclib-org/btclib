@@ -11,7 +11,7 @@
 """Elliptic curve classes."""
 
 from math import sqrt
-from typing import Union, Optional
+from typing import Optional, Union
 
 from .alias import INF, INFJ, JacPoint, Point
 from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
@@ -210,15 +210,6 @@ class CurveGroup:
         if not 0 < Q[1] < self.p:  # y cannot be zero
             raise ValueError(f"y-coordinate {hex(Q[1])} not in (0, p)")
         return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
-
-    def require_square_y(self, Q: Union[Point, JacPoint]) -> None:
-        """Require the affine y-coordinate of the Point to be a square.
-
-        An Error is raised if not.
-        """
-        if not self.has_square_y(Q):
-            m = f'y_Q is not a quadratic residue'
-            raise ValueError(m)
 
     def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
         """Return True if the affine y-coordinate is a square."""

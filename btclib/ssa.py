@@ -69,7 +69,7 @@ from .utils import bytes_from_octets, int_from_bits
 BIP340PubKey = Union[int, bytes, str, XkeyDict]
 
 
-def to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
+def _to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     """Return a verified-as-valid BIP340 public key as Point tuple.
 
     It supports:
@@ -103,15 +103,24 @@ def to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     return x_Q, y_Q
 
 
-def pubkey_gen(prvkey: PrvKey, ec: Curve = secp256k1) -> bytes:
-    """Return a BIP340-Schnorr p-size public key."""
+def gen_keys(prvkey: PrvKey = None,
+             ec: Curve = secp256k1) -> Tuple[bytes, bytes]:
+    """Return a private/public key pair.
+
+    The public key is the BIP340-Schnorr public key (ec.psize bytes).
+    """
     # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
-    q = int_from_prvkey(prvkey, ec)
+    if prvkey is None:
+        # q in the range [1, ec.p-1]
+        q = 1 + secrets.randbelow(ec.p - 1)
+    else:
+        q = int_from_prvkey(prvkey, ec)
+
     QJ = _mult_jac(q, ec.GJ, ec)
-    x = ec._x_aff_from_jac(QJ)
-    return x.to_bytes(ec.psize, byteorder="big")
+    x_Q = ec._x_aff_from_jac(QJ)
+    return q.to_bytes(ec.psize, 'big'), x_Q.to_bytes(ec.psize, 'big')
 
 
 def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
@@ -272,7 +281,7 @@ def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
 
     r, s = _to_sig(sig, ec)
 
-    x_Q, y_Q = to_bip340_point(Q, ec)
+    x_Q, y_Q = _to_bip340_point(Q, ec)
     QJ = x_Q, y_Q, 1
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
@@ -284,7 +293,7 @@ def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
 
     # Fail if infinite(KJ).
     # Fail if jacobi(y_K) ≠ 1.
-    ec.require_square_y(KJ)
+    assert ec.has_square_y(KJ), 'y_K is not a quadratic residue'
 
     # Fail if x_K ≠ r
     assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "Signature verification failed"
@@ -330,7 +339,7 @@ def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
     r1, s1 = _to_sig(sig1, ec)
     m2 = bytes_from_octets(m2, hf().digest_size)
     r2, s2 = _to_sig(sig2, ec)
-    x_Q = to_bip340_point(Q, ec)[0]
+    x_Q = _to_bip340_point(Q, ec)[0]
 
     if r1 != r2:
         raise ValueError("Not the same r in signatures")
@@ -387,7 +396,7 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
         r, s = _to_sig(sig, ec)
         KJ = r, ec.y_quadratic_residue(r, True), 1
 
-        x_Q, y_Q = to_bip340_point(Q, ec)
+        x_Q, y_Q = _to_bip340_point(Q, ec)
         QJ = x_Q, y_Q, 1
 
         c = _challenge(r, x_Q, m, ec, hf)

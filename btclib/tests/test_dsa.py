@@ -23,9 +23,9 @@ hf = sha256
 
 
 class TestDSA(unittest.TestCase):
+
     def test_signature(self):
-        q = 0x1
-        Q = mult(q)
+        q, Q = dsa.gen_keys(0x1)
         msg = 'Satoshi Nakamoto'
         sig = dsa.sign(msg, q)
         self.assertEqual(sig, dsa.deserialize(sig))

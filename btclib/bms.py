@@ -133,19 +133,40 @@ https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
 
 """
 
+import secrets
 from base64 import b64decode, b64encode
 from hashlib import sha256
-from typing import Optional
+from typing import Optional, Tuple
 
 from . import bip32, dsa
 from .alias import BMSig, BMSigTuple, PrvKey, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
+from .base58wif import wif_from_prvkey
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .curves import secp256k1
 from .secpoint import bytes_from_point
 from .to_prvkey import prvkey_info_from_prvkey
 from .utils import hash160
+
+
+def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
+             compressed: Optional[bool] = None) -> Tuple[bytes, bytes]:
+    """Return a private/public key pair.
+
+    The private key is a WIF, the public key is a base58 P2PKH address.
+    """
+
+    if prvkey is None:
+        # q in the range [1, ec.p-1]
+        q = 1 + secrets.randbelow(ec.p - 1)
+    else:
+        q = prvKey
+
+    wif = wif_from_prvkey(prvkey, network, compressed)
+    address = p2pkh(wif)
+
+    return wif, address
 
 
 def serialize(rf: int, r: int, s: int) -> bytes:
