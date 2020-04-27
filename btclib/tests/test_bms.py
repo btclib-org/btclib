@@ -26,11 +26,15 @@ from btclib.utils import bytes_from_octets, sha256
 class TestMessageSign(unittest.TestCase):
 
     def test_signature(self):
-        # sig taken from (Electrum and) Bitcoin Core
         msg = 'test message'
-        wif = b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw'
+        wif, addr = bms.gen_keys()
+        sig = bms.sign(msg, wif)
+        self.assertTrue(bms.verify(msg, addr, sig))
+
+        # sig taken from (Electrum and) Bitcoin Core
+        wif, addr = bms.gen_keys(
+            b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw')
         exp_sig = b'G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4='
-        addr = b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD'
         sig = bms.sign(msg, wif)
         self.assertEqual(exp_sig, bms.serialize(*sig))
         self.assertEqual(sig, bms.deserialize(sig))

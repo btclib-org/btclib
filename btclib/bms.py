@@ -148,6 +148,7 @@ from .curves import secp256k1
 from .secpoint import bytes_from_point
 from .to_prvkey import prvkey_info_from_prvkey
 from .utils import hash160
+from .network import curve_from_network
 
 
 def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
@@ -158,12 +159,15 @@ def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
     """
 
     if prvkey is None:
+        if network is None:
+            network = 'mainnet'
+        ec = curve_from_network(network)
         # q in the range [1, ec.p-1]
         q = 1 + secrets.randbelow(ec.p - 1)
+        wif = wif_from_prvkey(q, network, compressed)
     else:
-        q = prvKey
+        wif = wif_from_prvkey(prvkey, network, compressed)
 
-    wif = wif_from_prvkey(prvkey, network, compressed)
     address = p2pkh(wif)
 
     return wif, address
