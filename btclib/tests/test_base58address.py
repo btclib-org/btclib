@@ -89,7 +89,7 @@ class TestAddresses(unittest.TestCase):
         addr = p2pkh(pub)
         self.assertEqual(addr, b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs')
 
-    def test_p2sh_from_script(self):
+    def test_p2sh(self):
         # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
         script = ['OP_2DUP', 'OP_EQUAL', 'OP_NOT', 'OP_VERIFY',
                   'OP_SHA1', 'OP_SWAP', 'OP_SHA1', 'OP_EQUAL']
