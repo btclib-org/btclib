@@ -95,7 +95,7 @@ class TestSSA(unittest.TestCase):
                     seckey = bytes.fromhex(seckey)
                     _, pubkey_actual = ssa.gen_keys(seckey)
                     self.assertEqual(
-                        pubkey, pubkey_actual.hex().upper(), errmsg)
+                        pubkey, hex(pubkey_actual).upper()[2:], errmsg)
 
                     sig_actual = ssa.serialize(*ssa.sign(mhd, seckey))
                     self.assertEqual(sig, sig_actual.hex().upper(), errmsg)

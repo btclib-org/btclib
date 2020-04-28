@@ -104,7 +104,7 @@ def _to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
 
 def gen_keys(prvkey: PrvKey = None,
-             ec: Curve = secp256k1) -> Tuple[bytes, bytes]:
+             ec: Curve = secp256k1) -> Tuple[int, int]:
     """Return a private/public key pair.
 
     The public key is the BIP340-Schnorr public key (ec.psize bytes).
@@ -120,7 +120,7 @@ def gen_keys(prvkey: PrvKey = None,
 
     QJ = _mult_jac(q, ec.GJ, ec)
     x_Q = ec._x_aff_from_jac(QJ)
-    return q.to_bytes(ec.psize, 'big'), x_Q.to_bytes(ec.psize, 'big')
+    return q, x_Q
 
 
 def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
