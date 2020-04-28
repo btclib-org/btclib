@@ -138,7 +138,7 @@ from base64 import b64decode, b64encode
 from hashlib import sha256
 from typing import Optional, Tuple
 
-from . import bip32, dsa
+from . import bip32, dsa, der
 from .alias import BMSig, BMSigTuple, PrvKey, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import wif_from_prvkey
@@ -149,6 +149,44 @@ from .secpoint import bytes_from_point
 from .to_prvkey import prvkey_info_from_prvkey
 from .utils import hash160
 from .network import curve_from_network
+
+
+def _validate_sig(rf: int, r: int, s: int) -> None:
+    # check that the BMSig signature is correct
+
+    if rf < 27 or rf > 42:
+        raise ValueError(f"Invalid recovery flag: {rf}")
+    der._validate_sig(r, s, None, secp256k1)
+
+
+def deserialize(sig: BMSig) -> BMSigTuple:
+    """Return the elements of the address-based compact signature.
+
+    The compact signature is [1-byte rf][32-bytes r][32-bytes s]
+    """
+    if isinstance(sig, tuple):
+        rf, r, s = sig
+    else:
+        sig = b64decode(sig)
+        if len(sig) != 65:
+            raise ValueError(
+                f"Wrong signature length: {len(sig)} instead of 65")
+        rf = sig[0]
+        r = int.from_bytes(sig[1:33], byteorder='big')
+        s = int.from_bytes(sig[33:], byteorder='big')
+
+    _validate_sig(rf, r, s)
+    return rf, r, s
+
+
+def serialize(rf: int, r: int, s: int) -> bytes:
+    """Return the address-based compact signature as base64-encoding.
+
+    The compact signature is [1-byte rf][32-bytes r][32-bytes s]
+    """
+    _validate_sig(rf, r, s)
+    sig = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
+    return b64encode(sig)
 
 
 def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
@@ -171,38 +209,6 @@ def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
     address = p2pkh(wif)
 
     return wif, address
-
-
-def serialize(rf: int, r: int, s: int) -> bytes:
-    """Return the address-based compact signature as base64-encoding.
-
-    The compact signature is [1-byte rf][32-bytes r][32-bytes s]
-    """
-    if rf < 27 or rf > 42:
-        raise ValueError(f"Invalid recovery flag: {rf}")
-    dsa._validate_sig(r, s, secp256k1)
-    sig = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
-    return b64encode(sig)
-
-
-def deserialize(sig: BMSig) -> BMSigTuple:
-    """Return the elements of the address-based compact signature.
-
-    The compact signature is [1-byte rf][32-bytes r][32-bytes s]
-    """
-    if isinstance(sig, tuple):
-        rf, r, s = sig
-    else:
-        sig = b64decode(sig)
-        if len(sig) != 65:
-            raise ValueError(
-                f"Wrong signature length: {len(sig)} instead of 65")
-        rf = sig[0]
-        r = int.from_bytes(sig[1:33], byteorder='big')
-        s = int.from_bytes(sig[33:], byteorder='big')
-
-    _validate_sig(rf, r, s)
-    return rf, r, s
 
 
 def _magic_hash(msg: String) -> bytes:
@@ -254,16 +260,14 @@ def sign(msg: String, prvkey: PrvKey,
     return rf, r, s
 
 
-def verify(msg: String, addr: String, sig: BMSig) -> bool:
-    """Verify address-based compact signature for the provided message."""
-
-    # try/except wrapper for the Errors raised by _verify
-    try:
-        _verify(msg, addr, sig)
-    except Exception:
-        return False
+def _to_sig(sig: BMSig) -> BMSigTuple:
+    if isinstance(sig, tuple):
+        rf, r, s = sig
+        _validate_sig(rf, r, s)
     else:
-        return True
+        # it is a base64 serialized signature
+        rf, r, s = deserialize(sig)
+    return rf, r, s
 
 
 def _verify(msg: String, addr: String, sig: BMSig) -> None:
@@ -314,19 +318,13 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
             raise ValueError(m)
 
 
-def _validate_sig(rf: int, r: int, s: int) -> None:
-    # check that the BMSig signature is correct
+def verify(msg: String, addr: String, sig: BMSig) -> bool:
+    """Verify address-based compact signature for the provided message."""
 
-    if rf < 27 or rf > 42:
-        raise ValueError(f"Invalid recovery flag: {rf}")
-    dsa._validate_sig(r, s, secp256k1)
-
-
-def _to_sig(sig: BMSig) -> BMSigTuple:
-    if isinstance(sig, tuple):
-        rf, r, s = sig
-        _validate_sig(rf, r, s)
+    # try/except wrapper for the Errors raised by _verify
+    try:
+        _verify(msg, addr, sig)
+    except Exception:
+        return False
     else:
-        # it is a base64 serialized signature
-        rf, r, s = deserialize(sig)
-    return rf, r, s
+        return True

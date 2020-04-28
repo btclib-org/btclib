@@ -61,7 +61,6 @@
 
 from typing import Optional, Tuple, Union
 
-from . import dsa
 from .alias import Octets
 from .curve import Curve
 from .curves import secp256k1
@@ -75,38 +74,21 @@ DERSigTuple = Tuple[int, int, Optional[bytes]]
 DERSig = Union[DERSigTuple, Octets]
 
 
-def _bytes_from_scalar(scalar: int) -> bytes:
-    # scalar is assumed to be in [1, n-1]
-    elen = scalar.bit_length()
-    esize = elen // 8 + 1  # not a bug: 'highest bit set' padding included here
-    n_bytes = scalar.to_bytes(esize, byteorder='big')
-    return n_bytes
+def _validate_sig(r: int, s: int, sighash: Optional[Octets] = None,
+                  ec: Curve = secp256k1) -> None:
+    # check that the DSA/DER signature is correct
 
+    # Fail if r is not [1, n-1]
+    if not 0 < r < ec.n:
+        raise ValueError(f"r ({hex(r)}) not in [1, n-1]")
 
-def _serialize_scalar(scalar: int) -> bytes:
-    # scalar is assumed to be in [1, n-1]
-    x = _bytes_from_scalar(scalar)
-    xsize = len(x).to_bytes(1, byteorder='big')
-    return b'\x02' + xsize + x
+    # Fail if s is not [1, n-1]
+    if not 0 < s < ec.n:
+        raise ValueError(f"s ({hex(s)}) not in [1, n-1]")
 
-
-def _serialize(r: int, s: int, sighash: Optional[Octets] = None,
-               ec: Curve = secp256k1) -> bytes:
-    """Serialize an ECDSA signature to strict ASN.1 DER representation.
-
-    Trailing sighash is added if provided.
-    """
-
-    # check that it is a valid signature for the given Curve
-    dsa._validate_sig(r, s, ec)
-    result = _serialize_scalar(r)
-    result += _serialize_scalar(s)
-    result = b'\x30' + len(result).to_bytes(1, byteorder='big') + result
-    if sighash is None:
-        return result
-
-    sighash = bytes_from_octets(sighash, 1)
-    return result + sighash
+    if sighash is not None and sighash not in SIGHASHES:
+        m = f"Invalid sighash ({sighash!r})"
+        raise ValueError(m)
 
 
 def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
@@ -117,10 +99,7 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
 
     if isinstance(sig, tuple):
         r, s, sighash = sig
-        _validate_sig(r, s, sighash, ec)
-        return r, s, sighash
     else:
-
         sig = bytes_from_octets(sig)
 
         # 73 bytes for secp256k1 (including sighash)
@@ -192,16 +171,39 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
 
         s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
 
-    # checks that the signature is valid for the given Curve
     _validate_sig(r, s, sighash, ec)
     return r, s, sighash
 
 
-def _validate_sig(r: int, s: int, sighash: Optional[Octets], ec: Curve) -> None:
-    # check that the DER signature is correct
+def _bytes_from_scalar(scalar: int) -> bytes:
+    # scalar is assumed to be in [1, n-1]
+    elen = scalar.bit_length()
+    esize = elen // 8 + 1  # not a bug: 'highest bit set' padding included here
+    n_bytes = scalar.to_bytes(esize, byteorder='big')
+    return n_bytes
 
-    dsa._validate_sig(r, s, ec)
 
-    if sighash is not None and sighash not in SIGHASHES:
-        m = f"Invalid sighash ({sighash!r})"
-        raise ValueError(m)
+def _serialize_scalar(scalar: int) -> bytes:
+    # scalar is assumed to be in [1, n-1]
+    x = _bytes_from_scalar(scalar)
+    xsize = len(x).to_bytes(1, byteorder='big')
+    return b'\x02' + xsize + x
+
+
+def _serialize(r: int, s: int, sighash: Optional[Octets] = None,
+               ec: Curve = secp256k1) -> bytes:
+    """Serialize an ECDSA signature to strict ASN.1 DER representation.
+
+    Trailing sighash is added if provided.
+    """
+
+    # check that it is a valid signature for the given Curve
+    _validate_sig(r, s, sighash, ec)
+    result = _serialize_scalar(r)
+    result += _serialize_scalar(s)
+    result = b'\x30' + len(result).to_bytes(1, byteorder='big') + result
+    if sighash is None:
+        return result
+
+    sighash = bytes_from_octets(sighash, 1)
+    return result + sighash

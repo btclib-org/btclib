@@ -69,38 +69,40 @@ from .utils import bytes_from_octets, int_from_bits
 BIP340PubKey = Union[int, bytes, str, XkeyDict]
 
 
-def _to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
-    """Return a verified-as-valid BIP340 public key as Point tuple.
+def _validate_sig(r: int, s: int, ec: Curve) -> None:
+    # check that the SSA signature is correct
 
-    It supports:
+    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
+    ec.require_p_ThreeModFour()
 
-    - BIP32 extended keys (bytes, string, or XkeyDict)
-    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
-    - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
-    - native tuple
-    """
+    # Fail if r is not a field element, i.e. not a valid x-coordinate
+    ec.y(r)
 
-    # BIP 340 key as integer
-    if isinstance(x_Q, int):
-        y_Q = ec.y_quadratic_residue(x_Q, True)
-        return x_Q, y_Q
+    # Fail if s is not [0, n-1].
+    if not 0 <= s < ec.n:
+        raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
+
+
+def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
+    """Return a BIP340-Schnorr signature as (r, s) tuple."""
+
+    if isinstance(sig, tuple):
+        r, s = sig
     else:
-        try:
-            x_Q = point_from_pubkey(x_Q, ec)[0]
-            y_Q = ec.y_quadratic_residue(x_Q, True)
-            return x_Q, y_Q
-        except Exception:
-            pass
+        sig = bytes_from_octets(sig, ec.psize + ec.nsize)
+        r = int.from_bytes(sig[:ec.psize], byteorder='big')
+        s = int.from_bytes(sig[ec.psize:], byteorder='big')
 
-    # BIP 340 key as bytes or hex-string
-    if isinstance(x_Q, str) or isinstance(x_Q, bytes):
-        Q = bytes_from_octets(x_Q, ec.psize)
-        x_Q = int.from_bytes(Q, 'big')
-        y_Q = ec.y_quadratic_residue(x_Q, True)
-    else:
-        raise ValueError("not a BIP340 public key")
+    _validate_sig(r, s, ec)
+    return r, s
 
-    return x_Q, y_Q
+
+def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
+    """Return a BIP340-Schnorr signature serialization."""
+
+    _validate_sig(x_K, s, ec)
+    sig = x_K.to_bytes(ec.psize, 'big') + s.to_bytes(ec.nsize, 'big')
+    return sig
 
 
 def gen_keys(prvkey: PrvKey = None,
@@ -123,34 +125,6 @@ def gen_keys(prvkey: PrvKey = None,
     return q, x_Q
 
 
-def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
-    """Return a BIP340-Schnorr signature serialization."""
-
-    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
-
-    _validate_sig(x_K, s, ec)
-    sig = x_K.to_bytes(ec.psize, 'big') + s.to_bytes(ec.nsize, 'big')
-    return sig
-
-
-def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
-    """Return a BIP340-Schnorr signature as (r, s) tuple."""
-
-    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
-
-    if isinstance(sig, tuple):
-        r, s = sig
-    else:
-        sig = bytes_from_octets(sig, ec.psize + ec.nsize)
-        r = int.from_bytes(sig[:ec.psize], byteorder='big')
-        s = int.from_bytes(sig[ec.psize:], byteorder='big')
-
-    _validate_sig(r, s, ec)
-    return r, s
-
-
 # This implementation can be sped up by storing the midstate after hashing
 # tag_hash instead of rehashing it all the time.
 def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
@@ -161,19 +135,6 @@ def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
     h2 = hf()
     h2.update(tag_hash + tag_hash + m)
     return h2.digest()
-
-
-def k(m: Octets, prv: PrvKey,
-      ec: Curve = secp256k1, hf: HashF = sha256) -> int:
-    """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
-
-    # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
-
-    # The secret key d: an integer in the range 1..n-1.
-    q = int_from_prvkey(prv, ec)
-
-    return _k(m, q, ec, hf)
 
 
 def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
@@ -197,6 +158,19 @@ def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
         k = int_from_bits(t, ec.nlen)   # candidate k
         if 0 < k < ec.n:                # acceptable value for k
             return k                    # successful candidate
+
+
+def k(m: Octets, prv: PrvKey,
+      ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+    """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
+
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
+
+    # The secret key d: an integer in the range 1..n-1.
+    q = int_from_prvkey(prv, ec)
+
+    return _k(m, q, ec, hf)
 
 
 def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
@@ -255,17 +229,48 @@ def sign(m: Octets, prvkey: PrvKey, k: PrvKey = None,
     return x_K, s
 
 
-def verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
-           ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
-    """Verify the BIP340-Schnorr signature of the provided message."""
+def _to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
+    """Return a verified-as-valid BIP340 public key as Point tuple.
 
-    # try/except wrapper for the Errors raised by _verify
-    try:
-        _verify(m, Q, sig, ec, hf)
-    except Exception:
-        return False
+    It supports:
+
+    - BIP32 extended keys (bytes, string, or XkeyDict)
+    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
+    - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
+    - native tuple
+    """
+
+    # BIP 340 key as integer
+    if isinstance(x_Q, int):
+        y_Q = ec.y_quadratic_residue(x_Q, True)
+        return x_Q, y_Q
     else:
-        return True
+        try:
+            x_Q = point_from_pubkey(x_Q, ec)[0]
+            y_Q = ec.y_quadratic_residue(x_Q, True)
+            return x_Q, y_Q
+        except Exception:
+            pass
+
+    # BIP 340 key as bytes or hex-string
+    if isinstance(x_Q, str) or isinstance(x_Q, bytes):
+        Q = bytes_from_octets(x_Q, ec.psize)
+        x_Q = int.from_bytes(Q, 'big')
+        y_Q = ec.y_quadratic_residue(x_Q, True)
+    else:
+        raise ValueError("not a BIP340 public key")
+
+    return x_Q, y_Q
+
+
+def _to_sig(sig: SSASig, ec: Curve) -> SSASigTuple:
+    if isinstance(sig, tuple):
+        r, s = sig
+        _validate_sig(r, s, ec)
+    else:
+        # it is a serialized signature
+        r, s = deserialize(sig, ec)
+    return r, s
 
 
 def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
@@ -299,25 +304,17 @@ def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
     assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "Signature verification failed"
 
 
-def _validate_sig(r: int, s: int, ec: Curve) -> None:
-    # check that the SSA signature is correct
+def verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
+           ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+    """Verify the BIP340-Schnorr signature of the provided message."""
 
-    # Fail if r is not a field element, i.e. not a valid x-coordinate
-    ec.y(r)
-
-    # Fail if s is not [0, n-1].
-    if not 0 <= s < ec.n:
-        raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
-
-
-def _to_sig(sig: SSASig, ec: Curve) -> SSASigTuple:
-    if isinstance(sig, tuple):
-        r, s = sig
-        _validate_sig(r, s, ec)
+    # try/except wrapper for the Errors raised by _verify
+    try:
+        _verify(m, Q, sig, ec, hf)
+    except Exception:
+        return False
     else:
-        # it is a serialized signature
-        r, s = deserialize(sig, ec)
-    return r, s
+        return True
 
 
 def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
@@ -351,20 +348,6 @@ def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
     q = (s1 - s2) * mod_inv(c2 - c1, ec.n) % ec.n
     k = (s1 + c1 * q) % ec.n
     return q, k
-
-
-def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340PubKey],
-                 sig: Sequence[SSASig],
-                 ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
-    """Batch verification of BIP340-Schnorr signatures."""
-
-    # try/except wrapper for the Errors raised by _batch_verify
-    try:
-        _batch_verify(m, Q, sig, ec, hf)
-    except Exception:
-        return False
-    else:
-        return True
 
 
 def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
@@ -424,3 +407,17 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
 
     valid_sig = TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p
     assert valid_sig, "Signature verification failed"
+
+
+def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340PubKey],
+                 sig: Sequence[SSASig],
+                 ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+    """Batch verification of BIP340-Schnorr signatures."""
+
+    # try/except wrapper for the Errors raised by _batch_verify
+    try:
+        _batch_verify(m, Q, sig, ec, hf)
+    except Exception:
+        return False
+    else:
+        return True

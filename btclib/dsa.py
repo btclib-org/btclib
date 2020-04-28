@@ -34,6 +34,23 @@ from .to_pubkey import point_from_key
 from .utils import int_from_bits
 
 
+def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:
+    "Deserialize a strict ASN.1 DER representation of an ECDSA signature."
+
+    if isinstance(sig, tuple):
+        r, s = sig
+        der._validate_sig(r, s, None, ec)
+        return r, s
+    else:
+        return der._deserialize(sig, ec)[0:2]
+
+
+def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
+    "Serialize an ECDSA signature to strict ASN.1 DER representation."
+
+    return der._serialize(r, s, None, ec)
+
+
 def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1,
              compressed: Optional[bool] = None) -> Tuple[int, Point]:
     """Return a private/public key pair.
@@ -55,30 +72,6 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1,
     return q, Q
 
 
-def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
-    "Serialize an ECDSA signature to strict ASN.1 DER representation."
-
-    # this function is basically just a der._serialize wrapper
-    # to have for dsa the same pattern available for ssa and btcmesg
-    return der._serialize(r, s)
-
-
-def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:
-    "Deserialize a strict ASN.1 DER representation of an ECDSA signature."
-
-    # this function is basically just a der._deserialize wrapper
-    # to have for dsa the same pattern available for ssa and btcmesg
-    if isinstance(sig, tuple):
-        r, s = sig
-        _validate_sig(r, s, ec)
-        return r, s
-    else:
-        return der._deserialize(sig, ec)[0:2]
-
-
-# RFC6979 is used for deterministic nonce
-
-
 def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
 
     if isinstance(msg, str):
@@ -92,6 +85,36 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
     return c
 
 
+def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
+    # Private function for testing purposes: it allows to explore all
+    # possible value of the challenge c (for low-cardinality curves).
+    # It assume that c is in [0, n-1], while q and k are in [1, n-1]
+
+    # Steps numbering follows SEC 1 v.2 section 4.1.3
+
+    KJ = _mult_jac(k, ec.GJ, ec)                  # 1
+
+    # affine x-coordinate of K (field element)
+    K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
+    # mod n makes it a scalar
+    r = K_x % ec.n                                # 2, 3
+    if r == 0:  # r≠0 required as it multiplies the public key
+        raise ValueError("r = 0, failed to sign")
+
+    s = mod_inv(k, ec.n) * (c + r * q) % ec.n       # 6
+    if s == 0:  # s≠0 required as verify will need the inverse of s
+        raise ValueError("s = 0, failed to sign")
+
+    # bitcoin canonical 'low-s' encoding for ECDSA signatures
+    # it removes signature malleability as cause of transaction malleability
+    # see https://github.com/bitcoin/bitcoin/pull/6769
+    if s > ec.n / 2:
+        s = ec.n - s  # s = - s % ec.n
+
+    return r, s
+
+
+# RFC6979 is used for deterministic nonce
 def sign(msg: String, prvkey: PrvKey, k: Optional[PrvKey] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> DSASigTuple:
     """ECDSA signature with canonical low-s encoding.
@@ -127,62 +150,15 @@ def sign(msg: String, prvkey: PrvKey, k: Optional[PrvKey] = None,
     return _sign(c, q, k, ec)
 
 
-def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
-    # Private function for testing purposes: it allows to explore all
-    # possible value of the challenge c (for low-cardinality curves).
-    # It assume that c is in [0, n-1], while q and k are in [1, n-1]
-
-    # Steps numbering follows SEC 1 v.2 section 4.1.3
-
-    KJ = _mult_jac(k, ec.GJ, ec)                  # 1
-
-    # affine x-coordinate of K (field element)
-    K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
-    # mod n makes it a scalar
-    r = K_x % ec.n                                # 2, 3
-    if r == 0:  # r≠0 required as it multiplies the public key
-        raise ValueError("r = 0, failed to sign")
-
-    s = mod_inv(k, ec.n) * (c + r * q) % ec.n       # 6
-    if s == 0:  # s≠0 required as verify will need the inverse of s
-        raise ValueError("s = 0, failed to sign")
-
-    # bitcoin canonical 'low-s' encoding for ECDSA signatures
-    # it removes signature malleability as cause of transaction malleability
-    # see https://github.com/bitcoin/bitcoin/pull/6769
-    if s > ec.n / 2:
-        s = ec.n - s  # s = - s % ec.n
-
-    return r, s
-
-
-def verify(msg: String, P: Key, sig: DSASig,
-           ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
-    """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
-
-    # try/except wrapper for the Errors raised by _verify
-    try:
-        _verify(msg, P, sig, ec, hf)
-    except Exception:
-        return False
+def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:
+    if isinstance(sig, tuple):
+        r, s = sig
+        der._validate_sig(r, s, None, ec)
     else:
-        return True
-
-
-def _verify(msg: String, P: Key, sig: DSASig,
-            ec: Curve, hf: HashF) -> None:
-    # Private function for test/dev purposes
-    # It raises Errors, while verify should always return True or False
-
-    r, s = _to_sig(sig, ec)                      # 1
-
-    c = _challenge(msg, ec, hf)                  # 2, 3
-
-    Q = point_from_key(P, ec)
-    QJ = Q[0], Q[1], 1 if Q[1] else 0
-
-    # second part delegated to helper function
-    _verhlp(c, QJ, r, s, ec)
+        # it is a DER serialized signature
+        # sighash is not needed
+        r, s = deserialize(sig, ec)
+    return r, s
 
 
 def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
@@ -204,27 +180,33 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     assert r == x, "Signature verification failed"  # 8
 
 
-def _validate_sig(r: int, s: int, ec: Curve) -> None:
-    # check that the DSA signature is correct
+def _verify(msg: String, P: Key, sig: DSASig,
+            ec: Curve, hf: HashF) -> None:
+    # Private function for test/dev purposes
+    # It raises Errors, while verify should always return True or False
 
-    # Fail if r is not [1, n-1]
-    if not 0 < r < ec.n:
-        raise ValueError(f"r ({hex(r)}) not in [1, n-1]")
+    r, s = _to_sig(sig, ec)                      # 1
 
-    # Fail if s is not [1, n-1]
-    if not 0 < s < ec.n:
-        raise ValueError(f"s ({hex(s)}) not in [1, n-1]")
+    c = _challenge(msg, ec, hf)                  # 2, 3
+
+    Q = point_from_key(P, ec)
+    QJ = Q[0], Q[1], 1 if Q[1] else 0
+
+    # second part delegated to helper function
+    _verhlp(c, QJ, r, s, ec)
 
 
-def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:
-    if isinstance(sig, tuple):
-        r, s = sig
-        _validate_sig(r, s, ec)
+def verify(msg: String, P: Key, sig: DSASig,
+           ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+    """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
+
+    # try/except wrapper for the Errors raised by _verify
+    try:
+        _verify(msg, P, sig, ec, hf)
+    except Exception:
+        return False
     else:
-        # it is a DER serialized signature
-        # sighash is not needed
-        r, s = deserialize(sig, ec)
-    return r, s
+        return True
 
 
 def recover_pubkeys(msg: String, sig: DSASig,
