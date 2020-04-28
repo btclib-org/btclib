@@ -152,7 +152,6 @@ from .network import curve_from_network
 
 
 def _validate_sig(rf: int, r: int, s: int) -> None:
-    # check that the BMSig signature is correct
 
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
@@ -160,9 +159,11 @@ def _validate_sig(rf: int, r: int, s: int) -> None:
 
 
 def deserialize(sig: BMSig) -> BMSigTuple:
-    """Return the elements of the address-based compact signature.
+    """Return the verified components of the provided BSM signature.
 
-    The compact signature is [1-byte rf][32-bytes r][32-bytes s]
+    The address-based BSM signature can be represented
+    as (rf, r, s) tuple or as base64-encoding of the compact format
+    [1-byte rf][32-bytes r][32-bytes s].
     """
     if isinstance(sig, tuple):
         rf, r, s = sig
@@ -180,9 +181,11 @@ def deserialize(sig: BMSig) -> BMSigTuple:
 
 
 def serialize(rf: int, r: int, s: int) -> bytes:
-    """Return the address-based compact signature as base64-encoding.
+    """Return the BSM address-based signature as base64-encoding.
 
-    The compact signature is [1-byte rf][32-bytes r][32-bytes s]
+    First off, the signature is serialized in the
+    [1-byte rf][32-bytes r][32-bytes s] compact format,
+    then it is base64-encoded.
     """
     _validate_sig(rf, r, s)
     sig = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')

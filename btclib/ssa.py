@@ -70,9 +70,8 @@ BIP340PubKey = Union[int, bytes, str, XkeyDict]
 
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
-    # check that the SSA signature is correct
 
-    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     # Fail if r is not a field element, i.e. not a valid x-coordinate
@@ -84,7 +83,11 @@ def _validate_sig(r: int, s: int, ec: Curve) -> None:
 
 
 def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
-    """Return a BIP340-Schnorr signature as (r, s) tuple."""
+    """Return the verified components of the provided BIP340 signature.
+
+    The BIP340 signature can be represented as (r, s) tuple
+    or as binary [r][s] compact representation.
+    """
 
     if isinstance(sig, tuple):
         r, s = sig
@@ -98,7 +101,7 @@ def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
 
 
 def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
-    """Return a BIP340-Schnorr signature serialization."""
+    "Return the BIP340 signature as [r][s] compact representation."
 
     _validate_sig(x_K, s, ec)
     sig = x_K.to_bytes(ec.psize, 'big') + s.to_bytes(ec.nsize, 'big')
@@ -109,9 +112,9 @@ def gen_keys(prvkey: PrvKey = None,
              ec: Curve = secp256k1) -> Tuple[int, int]:
     """Return a private/public key pair.
 
-    The public key is the BIP340-Schnorr public key (ec.psize bytes).
+    The public key is a BIP340 public key of ec.psize bytes.
     """
-    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     if prvkey is None:
@@ -162,7 +165,7 @@ def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
 
 def k(m: Octets, prv: PrvKey,
       ec: Curve = secp256k1, hf: HashF = sha256) -> int:
-    """Return a BIP340-Schnorr deterministic ephemeral key (nonce)."""
+    """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     # The message m: a hlen array
     m = bytes_from_octets(m, hf().digest_size)
@@ -191,9 +194,9 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
 
 def sign(m: Octets, prvkey: PrvKey, k: PrvKey = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> SSASigTuple:
-    """Sign message according to BIP340-Schnorr signature algorithm."""
+    """Sign message according to BIP340 signature algorithm."""
 
-    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     # The message m: a hlen array
@@ -278,7 +281,7 @@ def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     # The message m: a hlen array
@@ -306,7 +309,7 @@ def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
 
 def verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
            ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
-    """Verify the BIP340-Schnorr signature of the provided message."""
+    """Verify the BIP340 signature of the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
     try:
@@ -354,9 +357,6 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
                   sigs: Sequence[SSASig],
                   ec: Curve, hf: HashF) -> None:
 
-    # BIP340-Schnorr is only defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
-
     batch_size = len(Qs)
     if len(ms) != batch_size:
         errMsg = f"mismatch between number of pubkeys ({batch_size}) "
@@ -369,6 +369,9 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
 
     if batch_size < 2:
         return _verify(ms[0], Qs[0], sigs[0], ec, hf)
+
+    # BIP340 is only defined for curves whose field prime p = 3 % 4
+    ec.require_p_ThreeModFour()
 
     t = 0
     scalars: List[int] = list()
@@ -412,7 +415,7 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
 def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340PubKey],
                  sig: Sequence[SSASig],
                  ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
-    """Batch verification of BIP340-Schnorr signatures."""
+    """Batch verification of BIP340 signatures."""
 
     # try/except wrapper for the Errors raised by _batch_verify
     try:

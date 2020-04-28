@@ -33,25 +33,31 @@ from .to_prvkey import int_from_prvkey
 from .to_pubkey import point_from_key
 from .utils import int_from_bits
 
-# _validate_sig is implemented in the der module
-#
-# deserialize and serialize are basically just wrappers
+# _validate_sig, deserialize and serialize are basically just wrappers
 # for the equivalent functions in the der module
 
 
+def _validate_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
+    return der._validate_sig(r, s, None, ec)
+
+
 def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:
-    "Deserialize a strict ASN.1 DER representation of an ECDSA signature."
+    """Return the verified components of the provided ECDSA signature.
+
+    The ECDSA signature can be represented as (r, s) tuple or
+    as strict ASN.1 DER binary representation.
+    """
 
     if isinstance(sig, tuple):
         r, s = sig
-        der._validate_sig(r, s, None, ec)
+        _validate_sig(r, s, ec)
         return r, s
     else:
         return der._deserialize(sig, ec)[0:2]
 
 
 def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
-    "Serialize an ECDSA signature to strict ASN.1 DER representation."
+    "Return the ECDSA signature as strict ASN.1 DER representation."
 
     return der._serialize(r, s, None, ec)
 
@@ -158,7 +164,7 @@ def sign(msg: String, prvkey: PrvKey, k: Optional[PrvKey] = None,
 def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:
     if isinstance(sig, tuple):
         r, s = sig
-        der._validate_sig(r, s, None, ec)
+        _validate_sig(r, s, ec)
     else:
         # it is a DER serialized signature
         # sighash is not needed
