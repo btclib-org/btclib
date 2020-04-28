@@ -35,7 +35,7 @@ from .utils import int_from_bits
 
 # _validate_sig is implemented in the der module
 #
-# # deserialize and serialize are basically just wrappers
+# deserialize and serialize are basically just wrappers
 # for the equivalent functions in the der module
 
 
