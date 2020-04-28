@@ -33,6 +33,11 @@ from .to_prvkey import int_from_prvkey
 from .to_pubkey import point_from_key
 from .utils import int_from_bits
 
+# _validate_sig is implemented in the der module
+#
+# # deserialize and serialize are basically just wrappers
+# for the equivalent functions in the der module
+
 
 def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:
     "Deserialize a strict ASN.1 DER representation of an ECDSA signature."
