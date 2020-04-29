@@ -102,8 +102,8 @@ def b32address_from_witness(wv: int, wp: Octets, network: str = 'mainnet') -> by
     "Encode a bech32 native SegWit address from the witness."
 
     wp = bytes_from_octets(wp)
-
     _check_witness(wv, wp)
+
     hrp = p2w_prefix_from_network(network)
     return b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
 
