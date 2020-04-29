@@ -61,7 +61,7 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
     else:                                     # uncompressed point
         if bsize != 2 * ec.psize + 1:
             msg = f"wrong byte-size ({bsize}) for a point: it "
-            msg += f"should have be {ec.psize+1} or {2*ec.psize+1}"
+            msg += f"should have been {ec.psize+1} or {2*ec.psize+1}"
             raise ValueError(msg)
         if pubkey[0] != 0x04:
             raise ValueError("not an uncompressed point")
