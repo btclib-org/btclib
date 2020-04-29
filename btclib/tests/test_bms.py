@@ -20,7 +20,6 @@ from btclib.bech32address import p2wpkh
 from btclib.curves import secp256k1 as ec
 from btclib.to_prvkey import prvkey_info_from_prvkey
 from btclib.to_pubkey import pubkey_info_from_prvkey
-from btclib.utils import bytes_from_octets, sha256
 
 
 class TestMessageSign(unittest.TestCase):
