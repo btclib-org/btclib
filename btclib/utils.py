@@ -16,7 +16,7 @@ https://www.secg.org/sec1-v2.pdf
 """
 
 import hashlib
-from typing import Optional
+from typing import Iterable, Optional, Union
 
 from .alias import Octets
 
@@ -25,7 +25,7 @@ from .alias import Octets
 #    return byte_str.hex()
 
 
-def bytes_from_octets(o: Octets, out_size: Optional[int] = None) -> bytes:
+def bytes_from_octets(o: Octets, out_size: Optional[Union[int, Iterable[int]]] = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
     If the input is not a string, then it goes untouched.
@@ -35,7 +35,10 @@ def bytes_from_octets(o: Octets, out_size: Optional[int] = None) -> bytes:
     if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
 
-    if (out_size is None) or (len(o) == out_size):
+    if (out_size is None or
+        isinstance(out_size, int) and len(o) == out_size or
+        isinstance(out_size, Iterable) and len(o) in out_size
+        ):
         return o
 
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"

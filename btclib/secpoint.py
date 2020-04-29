@@ -43,7 +43,7 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
     SEC 1 v.2, section 2.3.4.
     """
 
-    pubkey = bytes_from_octets(pubkey)
+    pubkey = bytes_from_octets(pubkey, (ec.psize + 1, 2 * ec.psize + 1))
 
     bsize = len(pubkey)  # bytes
     if bsize == ec.psize + 1:                 # compressed point
@@ -59,10 +59,6 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
             msg = f"{ec.psize+1} bytes, but not a valid x coordinate {Px}"
             raise ValueError(msg)
     else:                                     # uncompressed point
-        if bsize != 2 * ec.psize + 1:
-            msg = f"wrong byte-size ({bsize}) for a point: it "
-            msg += f"should have been {ec.psize+1} or {2*ec.psize+1}"
-            raise ValueError(msg)
         if pubkey[0] != 0x04:
             raise ValueError("not an uncompressed point")
         Px = int.from_bytes(pubkey[1:ec.psize + 1], byteorder='big')

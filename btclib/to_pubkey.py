@@ -145,16 +145,14 @@ def bytes_from_pubkey(P: PubKey, network: Optional[str] = None,
     ec = curve_from_network(net)
 
     if compressed is None:
-        pubkey = bytes_from_octets(P)
-        size = len(pubkey)
-        if size == ec.psize + 1:
+        pubkey = bytes_from_octets(P, (ec.psize + 1, 2 * ec.psize + 1))
+        compr = False
+        if len(pubkey) == ec.psize + 1:
             compr = True
-        elif size == 2 * ec.psize + 1:
-            compr = False
     else:
         size = ec.psize + 1 if compressed else 2 * ec.psize + 1
-        compr = compressed
         pubkey = bytes_from_octets(P, size)
+        compr = compressed
 
     # verify that it is a valid point
     Q = point_from_octets(pubkey, ec)
