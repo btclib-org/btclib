@@ -125,13 +125,28 @@ class TestScriptPubKey(unittest.TestCase):
 
         # Invalid size: 66 bytes instead of 65
         self.assertRaises(ValueError, p2ms, [pubkey1 + "00", pubkey2], 1)
-        # p2ms([pubkey1+"00", pubkey2], 1)
+        #p2ms([pubkey1 + "00", pubkey2], 1)
 
         # Invalid n (17) in 3-of-17 multisignature
         self.assertRaises(ValueError, p2ms, [pubkey1] * 17, 3)
         # p2ms([pubkey1]*17, 3)
 
-        # FIXME; add invalid key length test
+        # Invalid key length (66) in p2ms
+        badpubkeys = sorted(pubkeys)
+        badpubkeys[0] = badpubkeys[0] + b'\x00'
+        self.assertRaises(ValueError, scriptPubKey_from_payload,
+                          script_type, badpubkeys, m)
+        #scriptPubKey_from_payload(script_type, badpubkeys, m)
+
+        # Invalid key length (66) in p2ms
+        script = encode([m] + sorted(badpubkeys) + [n, 'OP_CHECKMULTISIG'])
+        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
+        # payload_from_scriptPubKey(script)
+
+        # Invalid key in p2ms
+        script = encode([m] + [0, pubkeys[1]] + [n, 'OP_CHECKMULTISIG'])
+        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
+        # payload_from_scriptPubKey(script)
 
         # Invalid m (0) for p2ms script
         self.assertRaises(ValueError, scriptPubKey_from_payload,
@@ -143,8 +158,17 @@ class TestScriptPubKey(unittest.TestCase):
         pubkey1 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
         pubkey2 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
         pubkey3 = "04 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
-        script = [1, pubkey1, pubkey2, pubkey3, 3, 'OP_CHECKMULTISIG']
+        pubkeys = [pubkey1, pubkey2, pubkey3]
+        m = 1
+        n = len(pubkeys)
+        script = [m] + pubkeys + [n, 'OP_CHECKMULTISIG']
         payload_from_scriptPubKey(script)
+        scriptPubKey_from_payload('p2ms', pubkeys, m)
+
+        # Invalid list of Octets for p2sh script
+        self.assertRaises(
+            ValueError, scriptPubKey_from_payload, 'p2sh', pubkeys, 0)
+        # scriptPubKey_from_payload('p2sh', pubkeys, 0)
 
         # Invalid number of keys (0) in m-of-n multisignature
         script = [1, 3, 'OP_CHECKMULTISIG']
