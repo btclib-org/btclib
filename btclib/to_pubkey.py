@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 from . import bip32
 from .alias import Octets, Point, PubKey, String, XkeyDict, Key
@@ -120,6 +120,7 @@ def bytes_from_key(key: Key, network: Optional[str] = None,
     else:
         try:
             P, network = pubkey_info_from_prvkey(key, network, compressed)
+        # FIXME: catch the NotPrvKeyError only
         except Exception:
             return bytes_from_pubkey(key, network, compressed)
 

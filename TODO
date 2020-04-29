@@ -1,4 +1,15 @@
 move to tox
+taproot
+add AuthProxy
+decode transactions
+encode transactions
+PSBT
+descriptors
+miniscript (?)
+block parsing
+block creating (toy mining)
+hash rate extimation
+difficulty adjustment
 
 add wallet infrastructure
 add sign(address, msg) using wallet infrastrucure
