@@ -485,16 +485,6 @@ class TestBIP32(unittest.TestCase):
         self.assertRaises(ValueError, p2pkh, xprv)
         # p2pkh(xprv)
 
-        # xkey is not a public one
-        xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
-        # FIXME: accept also xprv
-        self.assertRaises(ValueError, slip32.address_from_xpub, xprv)
-        # slip32.address_from_xpub(xprv)
-        #self.assertRaises(ValueError, p2wpkh, xprv)
-        # p2wpkh(xprv)
-        #self.assertRaises(ValueError, p2wpkh_p2sh, xprv)
-        # p2wpkh_p2sh(xprv)
-
     def test_exceptions2(self):
         rootxprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
         d = deserialize(rootxprv)

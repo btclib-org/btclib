@@ -16,7 +16,7 @@ from btclib.network import MAIN_xprv, MAIN_yprv, MAIN_zprv
 
 class TestSLIP32(unittest.TestCase):
 
-    def test_slip32(self):
+    def test_slip32_test_vector(self):
         """SLIP32 test vector
 
         https://github.com/satoshilabs/slips/blob/master/slip-0132.md
@@ -72,6 +72,15 @@ class TestSLIP32(unittest.TestCase):
                 self.assertEqual(v[4], address)
                 address = bech32address.p2wpkh(xprv)
                 self.assertEqual(v[4], address)
+
+    def test_slip32(self):
+        # xkey is not a public one
+        xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
+        self.assertRaises(ValueError, slip32.address_from_xpub, xprv)
+        address = slip32.address_from_xkey(xprv)
+        xpub = bip32.xpub_from_xprv(xprv)
+        address2 = slip32.address_from_xpub(xpub)
+        self.assertEqual(address, address2)
 
 
 if __name__ == "__main__":
