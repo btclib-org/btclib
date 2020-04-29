@@ -41,14 +41,20 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
-    try:
-        q, net, _ = prvkey_info_from_prvkey(key)
-    except:
-        pass
-    else:
-        if ec != curve_from_network(net):
-            raise ValueError("Curve mismatch")
+    if isinstance(key, tuple):
+        return point_from_pubkey(key, ec)
+    elif isinstance(key, int):
+        q, _, _ = prvkey_info_from_prvkey(key)
         return mult(q, ec.G, ec)
+    else:
+        try:
+            q, net, _ = prvkey_info_from_prvkey(key)
+        except:
+            pass
+        else:
+            if ec != curve_from_network(net):
+                raise ValueError("Curve mismatch")
+            return mult(q, ec.G, ec)
 
     return point_from_pubkey(key, ec)
 
@@ -107,10 +113,15 @@ def _bytes_from_xpub(xpubd: XkeyDict, network: Optional[str] = None,
 def bytes_from_key(key: Key, network: Optional[str] = None,
                    compressed: Optional[bool] = None) -> Tuple[bytes, str]:
 
-    try:
+    if isinstance(key, tuple):
+        return bytes_from_pubkey(key, network, compressed)
+    elif isinstance(key, int):
         P, network = pubkey_info_from_prvkey(key, network, compressed)
-    except:
-        P = key
+    else:
+        try:
+            P, network = pubkey_info_from_prvkey(key, network, compressed)
+        except Exception:
+            return bytes_from_pubkey(key, network, compressed)
 
     return bytes_from_pubkey(P, network, compressed)
 

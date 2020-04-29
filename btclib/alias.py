@@ -68,9 +68,10 @@ JacPoint = Tuple[int, int, int]
 
 # Infinity point in Jacobian coordinates is INF = (int, int, 0).
 # It can be checked with 'INF[2] == 0'
-# The x and y coordinates are arbitrary: 7, 0
-# are used as because those are what one would obtain
-# from the generic affine to jacobian transformation:
+# The default x and y coordinates are arbitrary:
+# 7, 0 are used because those are what one would obtain
+# from the generic affine to jacobian transformation
+# of the INF Point
 # QJ = Q[0], Q[1], 1 if Q[1] else 0
 INFJ = 7, 0, 0
 
@@ -85,6 +86,7 @@ INFJ = 7, 0, 0
 Path = Union[str, Iterable[int], int, bytes]
 
 
+# TODO make extesions private to bip32 module
 # BIP 32 extended key as a TypedDict
 class XkeyDict(TypedDict):
     version: bytes
@@ -100,20 +102,22 @@ class XkeyDict(TypedDict):
 
 
 # private key inputs:
-# integer -> q: int
-# integer, possibly in bytes representation -> prvkey: Union[int, Octets]
-# BIP32key -> xkey: Union[XkeyDict, String]
-# WIF -> wif: String
+# integer as Union[int, Octets]
+# BIP32key as Union[XkeyDict, String]
+# WIF as String
 #
-# BIP32key and WIF also provide extra network
-# and compressed-pubkey-derivation info
-PrvKey = Union[int, Octets, String, XkeyDict]
+# BIP32key and WIF also provide extra info about
+# network and (un)compressed-pubkey-derivation
+PrvKey = Union[int, bytes, str, XkeyDict]
 
 # public key inputs:
-# ...
-PubKey = Union[Point, XkeyDict, bytes, str]
+# elliptic curve point as Union[Point, Octets]
+# BIP32key as Union[XkeyDict, String]
+PubKey = Union[bytes, str, XkeyDict, Point]
 
-Key = Union[PubKey, PrvKey]
+# public or private key input,
+# usable wherever a PubKey is logically expected
+Key = Union[int, bytes, str, XkeyDict, Point]
 
 # ECDSA signature
 # (r, s)
