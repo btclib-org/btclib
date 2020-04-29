@@ -66,7 +66,7 @@ The library includes:
   wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic
 - Script encoding/decoding
-- nulldata, p2pk, p2pkh, multi-sig, p2sh, p2wpkh, and p2wsh ScriptPubKeys
+- nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 
 A very extensive test suite reproduces results from major official sources
 and [covers 100%](https://coveralls.io/github/btclib-org/btclib)
