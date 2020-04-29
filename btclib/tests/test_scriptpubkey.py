@@ -31,7 +31,7 @@ class TestScriptPubKey(unittest.TestCase):
         script_type = 'p2pk'
 
         # self-consistency
-        pubkey = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+        pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
         script = encode([pubkey, 'OP_CHECKSIG'])
 
         # straight to the scriptPubKey
@@ -46,11 +46,11 @@ class TestScriptPubKey(unittest.TestCase):
         script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
         self.assertEqual(script_type, script_type2)
         self.assertEqual(0, m2)
-        self.assertEqual(pubkey, payload2.hex())
+        self.assertEqual(bytes.fromhex(pubkey).hex(), payload2.hex())
         script_type2, payload2, m2 = payload_from_scriptPubKey(script)
         self.assertEqual(script_type, script_type2)
         self.assertEqual(0, m2)
-        self.assertEqual(pubkey, payload2.hex())
+        self.assertEqual(bytes.fromhex(pubkey).hex(), payload2.hex())
 
         # data -> payload in this case is invertible (no hash functions)
 
@@ -64,8 +64,8 @@ class TestScriptPubKey(unittest.TestCase):
         scriptPubKey = p2pk(pubkey)
         self.assertEqual(scriptPubKey.hex(), script)
 
-        # Invalid size: 33 bytes instead of 65
-        pubkey = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
+        # Invalid size: 34 bytes instead of (33, 65)
+        pubkey = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 14"
         self.assertRaises(ValueError, p2pk, pubkey)
         # p2pk(pubkey)
 

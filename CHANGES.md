@@ -8,6 +8,8 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- P2PK and P2MS now handle also compressed public keys
+- improved size checks for bytes_from_octets
 - entropy.generate_entropy has been renamed as entropy.generate
 - added gen_keys to dsa, ssa, bms, so that now all the standard
   gen_keys, sig, and verify functions are available

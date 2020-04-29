@@ -56,10 +56,7 @@ def scriptPubKey_from_payload(s_type: str,
                     f"Invalid n ({n}) in {m}-of-{n} multisignature")
             script: List[Token] = [m]
             for key in payloads:
-                key = bytes_from_octets(key)
-                if len(key) not in (33, 65):
-                    errmsg = f"Invalid key length ({len(key)}) in p2ms"
-                    raise ValueError(errmsg)
+                key = bytes_from_octets(key, (33, 65))
                 script.append(key)
             script.append(n)
             script.append('OP_CHECKMULTISIG')
@@ -75,7 +72,7 @@ def scriptPubKey_from_payload(s_type: str,
                 raise ValueError(msg)
             script = ['OP_RETURN', payload]
         elif script_type == 'p2pk':
-            payload = bytes_from_octets(payloads, 65)
+            payload = bytes_from_octets(payloads, (33, 65))
             script = [payload, 'OP_CHECKSIG']
         elif script_type == 'p2wsh':
             payload = bytes_from_octets(payloads, 32)
@@ -105,11 +102,11 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, Union[bytes, List[by
         s = bytes_from_octets(script)
 
     l = len(s)
-    if l == 67 and s[0] == 0x41 and s[-1] == 0xAC:  # pk
+    if l == s[0] + 2 and s[0] in (0x41, 0x21) and s[-1] == 0xAC:          # pk
         # p2pk [pubkey, OP_CHECKSIG]
-        # 0x41{65-byte pubkey}AC
+        # 0x41{65-byte pubkey}AC or 0x21{33-byte pubkey}AC
         return 'p2pk', s[1:-1], 0
-    elif s[-1] == 0xAE:                             # ms
+    elif s[-1] == 0xAE:                                                   # ms
         # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
         script = decode(s)
         m = int(script[0])
@@ -128,12 +125,10 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, Union[bytes, List[by
         for pk in script[1:-2]:
             if isinstance(pk, int):
                 raise ValueError(f"Invalid key in p2ms")
-            key = bytes_from_octets(pk)
-            if len(key) not in (33, 65):
-                raise ValueError(f"Invalid key length ({len(key)}) in p2ms")
+            key = bytes_from_octets(pk, (33, 65))
             keys.append(key)
         return 'p2ms', keys, m
-    elif l <= 83 and s[0] == 0x6A:                  # nulldata
+    elif l <= 83 and s[0] == 0x6A:                                   # nulldata
         # nulldata [OP_RETURN, data]
         zeroone = int(l > 77)
         if s[1 + zeroone] != l - 2 - zeroone:
