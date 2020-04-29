@@ -1,6 +1,7 @@
 move to tox
+global network config and global variable
 taproot
-add AuthProxy
+add AuthProxy for full node interaction (blockexplorer fall-back)
 decode transactions
 encode transactions
 PSBT
@@ -28,7 +29,6 @@ optimizations
     https://hal.archives-ouvertes.fr/hal-00932199/document
     https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
     https://eprint.iacr.org/2005/419.pdf
-transaction and block parsing (explorer based with optional full node)
 of a signature: verify or verification ? of a commit: verify or open ?
 better mimic of electrum entropy search, they probably have the words inverted
 BIP44 in address_from...
@@ -42,7 +42,7 @@ Edwards curve (Curve25519)
 
 BLS
 
-wherever a Curve is required, accept also a network str
+wherever a Curve is required, accept also a network str ?
 
 deserialize curves from jason file
 remove signtocontract, adding commit to dsa and ssa
