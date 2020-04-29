@@ -197,6 +197,25 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, payload_from_scriptPubKey, script)
         # payload_from_scriptPubKey(script)
 
+    def test_p2ms_3(self):
+
+        # mixed compressed / uncompressed public keys
+        pubkey1 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+        pubkey2 = "03 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765"
+        pubkey3 = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(
+            pubkey2), bytes.fromhex(pubkey3)]
+        m = 1
+        n = len(pubkeys)
+        script = scriptPubKey_from_payload('p2ms', pubkeys, m)
+        pubkeys.sort()
+        exp_script = encode([m] + pubkeys + [n, 'OP_CHECKMULTISIG'])
+        self.assertEqual(script.hex(), exp_script.hex())
+        script_type, payload, m2 = payload_from_scriptPubKey(script)
+        self.assertEqual(script_type, 'p2ms')
+        self.assertEqual(m, m2)
+        self.assertEqual(pubkeys, payload)
+
     def test_nulldata(self):
 
         script_type = 'nulldata'
