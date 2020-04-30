@@ -94,7 +94,7 @@ def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
     else:
         sig = bytes_from_octets(sig, ec.psize + ec.nsize)
         r = int.from_bytes(sig[:ec.psize], byteorder='big')
-        s = int.from_bytes(sig[ec.psize:], byteorder='big')
+        s = int.from_bytes(sig[ec.nsize:], byteorder='big')
 
     _validate_sig(r, s, ec)
     return r, s
@@ -118,8 +118,8 @@ def gen_keys(prvkey: PrvKey = None,
     ec.require_p_ThreeModFour()
 
     if prvkey is None:
-        # q in the range [1, ec.p-1]
-        q = 1 + secrets.randbelow(ec.p - 1)
+        # q in the range [1, ec.n-1]
+        q = 1 + secrets.randbelow(ec.n - 1)
     else:
         q = int_from_prvkey(prvkey, ec)
 
@@ -156,8 +156,9 @@ def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
     t = q.to_bytes(ec.nsize, 'big') + m
     while True:
         t = _tagged_hash("BIPSchnorrDerive", t, hf)
-        # The following line would introduce a bias
+        # The following lines would introduce a bias
         # k = int.from_bytes(t, 'big') % ec.n
+        # k = int_from_bits(t, ec.nlen) % ec.n
         k = int_from_bits(t, ec.nlen)   # candidate k
         if 0 < k < ec.n:                # acceptable value for k
             return k                    # successful candidate

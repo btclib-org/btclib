@@ -71,14 +71,14 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1,
     """
 
     if prvkey is None:
-        # q in the range [1, ec.p-1]
-        q = 1 + secrets.randbelow(ec.p - 1)
+        # q in the range [1, ec.n-1]
+        q = 1 + secrets.randbelow(ec.n - 1)
     else:
         q = int_from_prvkey(prvkey, ec)
 
     QJ = _mult_jac(q, ec.GJ, ec)
     Q = ec._aff_from_jac(QJ)
-    # q.to_bytes(ec.psize, 'big')
+    # q.to_bytes(ec.nsize, 'big')
     # bytes_from_point(Q, ec, compressed)
     return q, Q
 

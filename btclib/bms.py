@@ -203,8 +203,8 @@ def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
         if network is None:
             network = 'mainnet'
         ec = curve_from_network(network)
-        # q in the range [1, ec.p-1]
-        q = 1 + secrets.randbelow(ec.p - 1)
+        # q in the range [1, ec.n-1]
+        q = 1 + secrets.randbelow(ec.n - 1)
         wif = wif_from_prvkey(q, network, compressed)
     else:
         wif = wif_from_prvkey(prvkey, network, compressed)

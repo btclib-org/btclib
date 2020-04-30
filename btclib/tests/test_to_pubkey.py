@@ -35,7 +35,7 @@ class TestToPubKey(unittest.TestCase):
         xprv_dict = bip32.deserialize(xprv)
         q, network, _ = _prvkey_info_from_xprv(xprv)
         ec = curve_from_network(network)
-        q_bytes = q.to_bytes(ec.psize, 'big')
+        q_bytes = q.to_bytes(ec.nsize, 'big')
         wif1 = wif_from_prvkey(q, network, True)
         wif2 = wif_from_prvkey(q, network, False)
 
@@ -126,7 +126,7 @@ class TestToPubKey(unittest.TestCase):
         xprv_dict = bip32.deserialize(xprv)
         q, network, _ = _prvkey_info_from_xprv(xprv)
         ec = curve_from_network(network)
-        q_bytes = q.to_bytes(ec.psize, 'big')
+        q_bytes = q.to_bytes(ec.nsize, 'big')
         wif1 = wif_from_prvkey(q, network, True)
         wif2 = wif_from_prvkey(q, network, False)
 

@@ -48,25 +48,25 @@ class TestWif(unittest.TestCase):
         #wif_from_prvkey(badq, 'mainnet', True)
 
         # Not a private key WIF: missing leading 0x80
-        payload = b'\x81' + badq.to_bytes(ec.psize, 'big')
+        payload = b'\x81' + badq.to_bytes(ec.nsize, 'big')
         badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
         # prvkey_info_from_prvkey(badwif)
 
         # Not a compressed WIF: missing trailing 0x01
-        payload = b'\x80' + badq.to_bytes(ec.psize, 'big') + b'\x00'
+        payload = b'\x80' + badq.to_bytes(ec.nsize, 'big') + b'\x00'
         badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
         # prvkey_info_from_prvkey(badwif)
 
         # Not a WIF: wrong size (35)
-        payload = b'\x80' + badq.to_bytes(ec.psize, 'big') + b'\x01\x00'
+        payload = b'\x80' + badq.to_bytes(ec.nsize, 'big') + b'\x01\x00'
         badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
         # prvkey_info_from_prvkey(badwif)
 
         # Not a WIF: private key not in (0, n)
-        payload = b'\x80' + badq.to_bytes(ec.psize, 'big')
+        payload = b'\x80' + badq.to_bytes(ec.nsize, 'big')
         badwif = b58encode(payload)
         self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
         # prvkey_info_from_prvkey(badwif)

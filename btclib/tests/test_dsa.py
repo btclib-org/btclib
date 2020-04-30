@@ -89,7 +89,7 @@ class TestDSA(unittest.TestCase):
 
         # 2.1.2 Key Deployment for U
         dU = 971761939728640320549601132085879836204587084162
-        self.assertEqual(format(dU, str(ec.psize) + 'x'),
+        self.assertEqual(format(dU, str(ec.nsize) + 'x'),
                          'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
         QU = mult(dU, ec.G, ec)
         self.assertEqual(QU,
