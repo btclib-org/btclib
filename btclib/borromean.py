@@ -136,8 +136,8 @@ def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
             T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
             R = bytes_from_point(T, ec)
             if j != len(pubk_rings[i]) - 1:
-                e[i][j + 1] = int_from_bits(_hash(m,
-                                                  R, i, j + 1), ec.nlen) % ec.n
+                h = _hash(m, R, i, j + 1)
+                e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n
                 assert e[i][j + 1] != 0, "invalid sig: how did you do that?!?"
             else:
                 e0bytes += R
