@@ -475,6 +475,8 @@ class TestScriptPubKey(unittest.TestCase):
         # scriptPubKey_from_payload("00"*21, 'p2sh')
 
     def test_p2ms_p2sh(self):
+        "BIP67 test vectors https://en.bitcoin.it/wiki/BIP_0067"
+
         test_vectors = [
             [0,
                 ['022df8750480ad5b26950b25c7ba79d3e37d75f640f8e5d9bcd5b150a0f85014da',
