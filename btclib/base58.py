@@ -75,10 +75,10 @@ def _b58encode(v: bytes) -> bytes:
     return result
 
 
-def b58encode(v: Octets) -> bytes:
+def b58encode(v: Octets, in_size: Optional[int] = None) -> bytes:
     """Encode a bytes-like object using Base58Check."""
 
-    v = bytes_from_octets(v)
+    v = bytes_from_octets(v, in_size)
     h256 = hash256(v)
     return _b58encode(v + h256[:4])
 
@@ -92,7 +92,7 @@ def _b58decode_to_int(v: bytes) -> int:
     return i
 
 
-def _b58decode(v: bytes, out_size: Optional[int]) -> bytes:
+def _b58decode(v: bytes) -> bytes:
 
     if any(x not in __ALPHABET for x in v):
         msg = "Base58 string contains invalid characters"
@@ -111,12 +111,7 @@ def _b58decode(v: bytes, out_size: Optional[int]) -> bytes:
         nbytes = (i.bit_length() + 7) // 8
         result = result + i.to_bytes(nbytes, byteorder='big')
 
-    if out_size is None or len(result) == out_size:
-        return result
-
-    m = f"Invalid base58 decoded size: "
-    m += "{len(result)} bytes instead of {out_size}"
-    raise ValueError(m)
+    return result
 
 
 def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
@@ -128,10 +123,7 @@ def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
     if isinstance(v, str):
         v = v.encode("ascii")
 
-    if out_size is not None:
-        out_size += 4
-
-    result = _b58decode(v, out_size)
+    result = _b58decode(v)
     result, checksum = result[:-4], result[-4:]
 
     h256 = hash256(result)
@@ -139,4 +131,9 @@ def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
         m = f"Invalid checksum: '{checksum!r}' instead of '{h256[:4]!r}'"
         raise ValueError(m)
 
-    return result
+    if out_size is None or len(result) == out_size:
+        return result
+
+    m = "Invalid base58 decoded size: "
+    m += f"{len(result)} bytes instead of {out_size}"
+    raise ValueError(m)

@@ -144,7 +144,7 @@ def serialize(d: XkeyDict) -> bytes:
 
     # d['q'] and d['Q'] are just neglected
 
-    return b58encode(t)
+    return b58encode(t, 78)
 
 
 def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
