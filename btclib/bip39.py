@@ -125,7 +125,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
 
 def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
                        verify_checksum=True) -> bytes:
-    """Return seed from mnemonic according to BIP39 standard.
+    """Return the seed from the provided BIP39 mnemonic sentence.
 
     The mnemonic checksum verification can be skipped if needed.
     """
