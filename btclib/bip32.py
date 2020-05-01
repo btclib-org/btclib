@@ -48,52 +48,55 @@ from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, hash160
 
 
-def _check_version_key(v: bytes, k: bytes) -> None:
+def _check_version_key(version: bytes, key: bytes) -> None:
 
-    if v in _XPRV_VERSIONS_ALL:
-        if k[0] != 0:
+    if version in _XPRV_VERSIONS_ALL:
+        if key[0] != 0:
             raise ValueError("prv_version/pubkey mismatch")
-    elif v in _XPUB_VERSIONS_ALL:
-        if k[0] not in (2, 3):
+    elif version in _XPUB_VERSIONS_ALL:
+        if key[0] not in (2, 3):
             raise ValueError("pub_version/prvkey mismatch")
     else:
-        raise ValueError(f"unknown extended key version {v!r}")
+        raise ValueError(f"unknown extended key version {version!r}")
 
 
-def _check_depth_pfp_index(d: int, pfp: bytes, i: bytes) -> None:
+def _check_depth_pfp_index(depth: int, pfp: bytes, i: bytes) -> None:
 
-    if d < 0 or d > 255:
-        raise ValueError(f"Invalid BIP32 depth ({d})")
-    elif d == 0:
+    if depth < 0 or depth > 255:
+        raise ValueError(f"Invalid BIP32 depth ({depth})")
+    elif depth == 0:
         if pfp != b'\x00\x00\x00\x00':
-            m = f"Zero depth with non-zero parent_fingerprint {pfp!r}"
-            raise ValueError(m)
+            msg = f"Zero depth with non-zero parent_fingerprint {pfp!r}"
+            raise ValueError(msg)
         if i != b'\x00\x00\x00\x00':
-            m = f"Zero depth with non-zero index {i!r}"
-            raise ValueError(m)
+            msg = f"Zero depth with non-zero index {i!r}"
+            raise ValueError(msg)
     else:
         if pfp == b'\x00\x00\x00\x00':
-            m = f"Zon-zero depth ({d}) with zero parent_fingerprint {pfp!r}"
-            raise ValueError(m)
+            msg = f"Zon-zero depth ({depth}) "
+            msg += f"with zero parent_fingerprint {pfp!r}"
+            raise ValueError(msg)
 
 
-def deserialize(xkey: Octets) -> XkeyDict:
+def deserialize(xkey: Union[XkeyDict, String]) -> XkeyDict:
 
-    if isinstance(xkey, str):
-        xkey = xkey.strip()
-
-    xkey = b58decode(xkey, 78)
-    d: XkeyDict = {
-        'version': xkey[:4],
-        'depth': xkey[4],
-        'parent_fingerprint': xkey[5:9],
-        'index': xkey[9:13],
-        'chain_code': xkey[13:45],
-        'key': xkey[45:],
-        # extensions
-        'q': 0,   # non zero only if xprv
-        'Q': INF  # non INF only if xpub
-    }
+    if isinstance(xkey, dict):
+        d = copy.copy(xkey)
+    else:
+        if isinstance(xkey, str):
+            xkey = xkey.strip()
+        xkey = b58decode(xkey, 78)
+        d = {
+            'version': xkey[:4],
+            'depth': xkey[4],
+            'parent_fingerprint': xkey[5:9],
+            'index': xkey[9:13],
+            'chain_code': xkey[13:45],
+            'key': xkey[45:],
+            # extensions
+            'q': 0,   # non zero only if xprv
+            'Q': INF  # non INF only if xpub
+        }
 
     _check_version_key(d['version'], d['key'])
     _check_depth_pfp_index(d['depth'], d['parent_fingerprint'], d['index'])
@@ -202,27 +205,28 @@ def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
         raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
 
 
-def xpub_from_xprv(d: Union[XkeyDict, String]) -> bytes:
+def xpub_from_xprv(xprv: Union[XkeyDict, String]) -> bytes:
     """Neutered Derivation (ND).
 
     Derivation of the extended public key corresponding to an extended
     private key (“neutered” as it removes the ability to sign transactions).
     """
 
-    if isinstance(d, dict):
-        d = copy.copy(d)
+    if isinstance(xprv, dict):
+        xprv = copy.copy(xprv)
     else:
-        d = deserialize(d)
+        xprv = deserialize(xprv)
 
-    if d['key'][0] != 0:
-        raise ValueError(f"Not a private key: {serialize(d).decode()}")
+    if xprv['key'][0] != 0:
+        raise ValueError(f"Not a private key: {serialize(xprv).decode()}")
 
-    d['Q'] = mult(d['q'])
-    d['key'] = bytes_from_point(d['Q'])
-    d['q'] = 0
-    d['version'] = _XPUB_VERSIONS_ALL[_XPRV_VERSIONS_ALL.index(d['version'])]
+    xprv['Q'] = mult(xprv['q'])
+    xprv['key'] = bytes_from_point(xprv['Q'])
+    xprv['q'] = 0
+    i = _XPRV_VERSIONS_ALL.index(xprv['version'])
+    xprv['version'] = _XPUB_VERSIONS_ALL[i]
 
-    return serialize(d)
+    return serialize(xprv)
 
 
 def _ckd(d: XkeyDict, index: bytes) -> None:
@@ -285,7 +289,7 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
     return indexes, absolute
 
 
-def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
+def derive(xkey: Union[XkeyDict, String], path: Path) -> bytes:
     """Derive an extended key across a path spanning multiple depth levels.
 
     Derivation is according to:
@@ -300,15 +304,15 @@ def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
 
-    if isinstance(d, dict):
-        d = copy.copy(d)
+    if isinstance(xkey, dict):
+        xkey = copy.copy(xkey)
     else:
-        d = deserialize(d)
+        xkey = deserialize(xkey)
 
     if isinstance(path, str):
         path = path.strip()
         indexes, absolute = _indexes_from_path(path)
-        if absolute and d["depth"] != 0:
+        if absolute and xkey["depth"] != 0:
             msg = "Absolute derivation path for non-root master key"
             raise ValueError(msg)
     elif isinstance(path, int):
@@ -320,14 +324,14 @@ def derive(d: Union[XkeyDict, String], path: Path) -> bytes:
     else:
         indexes = [i.to_bytes(4, byteorder='big') for i in path]
 
-    final_depth = d["depth"] + len(indexes)
+    final_depth = xkey["depth"] + len(indexes)
     if final_depth > 255:
         raise ValueError(f'Derivation path final depth {final_depth}>255')
 
     for index in indexes:
-        _ckd(d, index)
+        _ckd(xkey, index)
 
-    return serialize(d)
+    return serialize(xkey)
 
 
 def crack_prvkey(parent_xpub: Union[XkeyDict, String],
