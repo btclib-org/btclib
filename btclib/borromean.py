@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import random
+import secrets
 from collections import defaultdict
 from hashlib import sha256 as hf  # FIXME: any hf
 from typing import Dict, List, Sequence, Tuple, Union
@@ -19,12 +19,6 @@ from .curves import secp256k1 as ec  # FIXME: any curve
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import int_from_bits
 
-# FIXME: should be urandom, but then tests would be non-deterministic
-random.seed(42)
-
-PubkeyRing = Dict[int, Sequence[Point]]
-SValues = Dict[int, Sequence[int]]
-
 
 def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
     temp = m + R
@@ -32,16 +26,22 @@ def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
     return hf(temp).digest()
 
 
+PubkeyRing = Dict[int, Sequence[Point]]
+
+
 def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
     rings = len(pubk_rings)
-    for i in range(rings):
-        for P in pubk_rings[i]:
+    for pubk_ring in pubk_rings.values():
+        for P in pubk_ring:
             msg += bytes_from_point(P, ec)
     return hf(msg).digest()
 
 
+SValues = Dict[int, List[int]]
+
+
 def sign(msg: String,
-         k: Sequence[int],
+         ks: Sequence[int],
          sign_key_idx: Sequence[int],
          sign_keys: Sequence[int],
          pubk_rings: PubkeyRing) -> Tuple[bytes, SValues]:
@@ -66,35 +66,33 @@ def sign(msg: String,
     e: SValues = defaultdict(list)
     ring_size = len(pubk_rings)
     # step 1
-    for i in range(ring_size):
-        keys_size = len(pubk_rings[i])
+    for i, (pubk_ring, j_star, k) in enumerate(zip(pubk_rings.values(), sign_key_idx, ks)):
+        keys_size = len(pubk_ring)
         s[i] = [0] * keys_size
         e[i] = [0] * keys_size
-        j_star = sign_key_idx[i]
         start_idx = (j_star + 1) % keys_size
-        R = bytes_from_point(mult(k[i]), ec)
+        R = bytes_from_point(mult(k), ec)
         if start_idx != 0:
             for j in range(start_idx, keys_size):
-                s[i][j] = random.getrandbits(256)
+                s[i][j] = secrets.randbits(256)
                 e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
                 assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
-                T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
+                T = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
                 R = bytes_from_point(T, ec)
         e0bytes += R
     e0 = hf(e0bytes).digest()
     # step 2
-    for i in range(ring_size):
+    for i, (j_star, k) in enumerate(zip(sign_key_idx, ks)):
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
         assert 0 < e[i][0] < ec.n, "sign fail: how did you do that?!?"
-        j_star = sign_key_idx[i]
         for j in range(1, j_star + 1):
-            s[i][j - 1] = random.getrandbits(256)
+            s[i][j - 1] = secrets.randbits(256)
             T = double_mult(-e[i][j - 1], pubk_rings[i]
                             [j - 1], s[i][j - 1], ec.G)
             R = bytes_from_point(T, ec)
             e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
             assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
-        s[i][j_star] = k[i] + sign_keys[i] * e[i][j_star]
+        s[i][j_star] = k + sign_keys[i] * e[i][j_star]
     return e0, s
 
 
@@ -124,7 +122,7 @@ def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
 
     ring_size = len(pubk_rings)
     m = _get_msg_format(msg, pubk_rings)
-    e: Dict[int, Sequence[int]] = defaultdict(list)
+    e: SValues = defaultdict(list)
     e0bytes = m
     for i in range(ring_size):
         keys_size = len(pubk_rings[i])
