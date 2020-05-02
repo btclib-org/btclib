@@ -15,7 +15,8 @@ from btclib.base58 import b58decode, b58encode
 from btclib.base58address import (b58address_from_h160,
                                   b58address_from_witness,
                                   h160_from_b58address, p2pkh, p2sh,
-                                  p2wpkh_p2sh, p2wsh_p2sh)
+                                  p2wpkh_p2sh, p2wsh_p2sh,
+                                  has_segwit_prefix)
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh, witness_from_b32address
 from btclib.hashes import hash160_from_pubkey, hash256_from_script
@@ -216,6 +217,14 @@ class TestAddresses(unittest.TestCase):
         b = p2wpkh_p2sh(pubkey)
         self.assertEqual(hash160(b'\x00\x14' + h160),
                          h160_from_b58address(b)[1])
+
+    def test_has_segwit_prefix(self):
+        addr = b'bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a'
+        self.assertTrue(has_segwit_prefix(addr))
+        self.assertTrue(has_segwit_prefix(addr.decode()))
+        addr = b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs'
+        self.assertFalse(has_segwit_prefix(addr))
+        self.assertFalse(has_segwit_prefix(addr.decode()))
 
 
 if __name__ == "__main__":
