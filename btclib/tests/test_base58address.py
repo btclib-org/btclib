@@ -118,15 +118,14 @@ class TestAddresses(unittest.TestCase):
     def test_exceptions(self):
 
         # Invalid base58 address prefix b'\xf5'
-        payload = b'\xf5'
         pubkey = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
-        payload += hash160(pubkey)
+        payload = b'\xf5' + hash160(pubkey)
         invalid_address = b58encode(payload)
         self.assertRaises(ValueError, h160_from_b58address, invalid_address)
         # _h160_from_b58address(invalid_address)
 
         # Invalid SEC pubkey length: 34-bytes
-        self.assertRaises(ValueError, p2pkh, pubkey + '00', True)
+        self.assertRaises(ValueError, p2pkh, pubkey + '00')
         # p2pkh(pubkey+'00')
 
     def test_p2w_p2sh(self):
