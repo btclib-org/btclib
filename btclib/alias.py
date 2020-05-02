@@ -92,38 +92,33 @@ Entropy = Union[BinStr, int, bytes]
 Path = Union[str, Iterable[int], int, bytes]
 
 
-# TODO make extesions private to bip32 module
 # BIP 32 extended key as a TypedDict
-class XkeyDict(TypedDict):
+class BIP32KeyDict(TypedDict):
     version: bytes
     depth: int
     parent_fingerprint: bytes
     index: bytes
     chain_code: bytes
     key: bytes
-    # extensions used to cache intemediate results
-    # in multi-level derivation: do not rely on them elsewhere
-    q: int  # non-zero for private key only
-    Q: Point  # non-Infinity for public key only
 
 
 # private key inputs:
 # integer as Union[int, Octets]
-# BIP32key as Union[XkeyDict, String]
+# BIP32key as Union[BIP32KeyDict, String]
 # WIF as String
 #
 # BIP32key and WIF also provide extra info about
 # network and (un)compressed-pubkey-derivation
-PrvKey = Union[int, bytes, str, XkeyDict]
+PrvKey = Union[int, bytes, str, BIP32KeyDict]
 
 # public key inputs:
 # elliptic curve point as Union[Point, Octets]
-# BIP32key as Union[XkeyDict, String]
-PubKey = Union[bytes, str, XkeyDict, Point]
+# BIP32key as Union[BIP32KeyDict, String]
+PubKey = Union[bytes, str, BIP32KeyDict, Point]
 
 # public or private key input,
 # usable wherever a PubKey is logically expected
-Key = Union[int, bytes, str, XkeyDict, Point]
+Key = Union[int, bytes, str, BIP32KeyDict, Point]
 
 # ECDSA signature
 # (r, s)

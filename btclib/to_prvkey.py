@@ -11,15 +11,13 @@
 from typing import Optional, Tuple, Union
 
 from . import bip32
-from .alias import Octets, String, XkeyDict
+from .alias import BIP32KeyDict, Octets, PrvKey, String
 from .base58 import b58decode
 from .curve import Curve
 from .curves import secp256k1
 from .network import (curve_from_network, network_from_wif_prefix,
                       network_from_xprv)
 from .utils import bytes_from_octets
-
-PrvKey = Union[int, bytes, str, XkeyDict]
 
 
 def _prvkey_info_from_wif(wif: String) -> Tuple[int, str, bool]:
@@ -51,7 +49,7 @@ def _prvkey_info_from_wif(wif: String) -> Tuple[int, str, bool]:
     return q, network, compressed
 
 
-def _prvkey_info_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, str, bool]:
+def _prvkey_info_from_xprv(xprv: Union[BIP32KeyDict, String]) -> Tuple[int, str, bool]:
     "Return (prvkey, compressed, network) info from BIP32xprv."
 
     if not isinstance(xprv, dict):
@@ -61,10 +59,11 @@ def _prvkey_info_from_xprv(xprv: Union[XkeyDict, String]) -> Tuple[int, str, boo
         raise ValueError(m)
 
     network = network_from_xprv(xprv['version'])
-    return xprv['q'], network, True
+    q = int.from_bytes(xprv['key'][1:], byteorder='big')
+    return q, network, True
 
 
-def _prvkey_info_from_xprvwif(xprvwif: Union[XkeyDict, String]) -> Tuple[int, str, bool]:
+def _prvkey_info_from_xprvwif(xprvwif: Union[BIP32KeyDict, String]) -> Tuple[int, str, bool]:
     """Return (prvkey, compressed, network) info from WIF or BIP32xprv.
 
     Support WIF or BIP32 xprv.
@@ -126,7 +125,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     It supports:
 
     - WIF (bytes or string)
-    - BIP32 extended keys (bytes, string, or XkeyDict)
+    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - integer (native int or hex-strin)
     """

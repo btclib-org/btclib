@@ -54,7 +54,7 @@ from hashlib import sha256
 from typing import List, Sequence, Tuple, Union
 
 from .alias import HashF, JacPoint, Octets, Point, PrvKey, SSASig, SSASigTuple
-from .bip32 import XkeyDict
+from .bip32 import BIP32KeyDict
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac, _multi_mult
 from .curves import secp256k1
@@ -66,7 +66,7 @@ from .utils import bytes_from_octets, int_from_bits
 # TODO relax the p_ThreeModFour requirement
 
 
-BIP340PubKey = Union[int, bytes, str, XkeyDict]
+BIP340PubKey = Union[int, bytes, str, BIP32KeyDict]
 
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
@@ -238,7 +238,7 @@ def _to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
     It supports:
 
-    - BIP32 extended keys (bytes, string, or XkeyDict)
+    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
     - native tuple

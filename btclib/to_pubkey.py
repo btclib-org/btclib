@@ -11,7 +11,7 @@
 from typing import Optional, Tuple
 
 from . import bip32
-from .alias import Octets, Point, PubKey, String, XkeyDict, Key
+from .alias import Octets, Point, PubKey, String, BIP32KeyDict, Key
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
@@ -22,7 +22,7 @@ from .to_prvkey import PrvKey, prvkey_info_from_prvkey
 from .utils import bytes_from_octets, hash160
 
 
-def _point_from_xpub(xpubd: XkeyDict, ec: Curve) -> Point:
+def _point_from_xpub(xpubd: BIP32KeyDict, ec: Curve) -> Point:
     if xpubd['key'][0] in (2, 3):
         ec2 = curve_from_xpubversion(xpubd['version'])
         if ec != ec2:
@@ -37,7 +37,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
 
     It supports:
 
-    - BIP32 extended keys (bytes, string, or XkeyDict)
+    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
@@ -64,7 +64,7 @@ def point_from_pubkey(P: PubKey, ec: Curve = secp256k1) -> Point:
 
     It supports:
 
-    - BIP32 extended keys (bytes, string, or XkeyDict)
+    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
@@ -86,9 +86,9 @@ def point_from_pubkey(P: PubKey, ec: Curve = secp256k1) -> Point:
     return point_from_octets(P, ec)
 
 
-def _bytes_from_xpub(xpubd: XkeyDict, network: Optional[str] = None,
+def _bytes_from_xpub(xpubd: BIP32KeyDict, network: Optional[str] = None,
                      compressed: Optional[bool] = None) -> Tuple[bytes, str]:
-    # XkeyDict is always compressed and has information about the network
+    # BIP32KeyDict is always compressed and has information about the network
     # the network, compressed input parameters are passed only for the
     # consistency checks
 
@@ -133,7 +133,7 @@ def bytes_from_pubkey(P: PubKey, network: Optional[str] = None,
 
     It supports:
 
-    - BIP32 extended keys (bytes, string, or XkeyDict)
+    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """

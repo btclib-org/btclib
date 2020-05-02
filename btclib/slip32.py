@@ -15,11 +15,11 @@
 from typing import Union
 
 from . import base58address, bech32address, bip32
-from .alias import String, XkeyDict
+from .alias import String, BIP32KeyDict
 from .network import _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
 
 
-def address_from_xkey(xkey: Union[XkeyDict, String]) -> bytes:
+def address_from_xkey(xkey: Union[BIP32KeyDict, String]) -> bytes:
     """Return the SLIP32 base58/bech32 address.
 
     The address is always derived from the compressed public key,
@@ -34,7 +34,7 @@ def address_from_xkey(xkey: Union[XkeyDict, String]) -> bytes:
     return address_from_xpub(xkey)
 
 
-def address_from_xpub(xpub: Union[XkeyDict, String]) -> bytes:
+def address_from_xpub(xpub: Union[BIP32KeyDict, String]) -> bytes:
     """Return the SLIP32 base58/bech32 address.
 
     The address is always derived from the compressed public key,
