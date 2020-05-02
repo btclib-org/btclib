@@ -4,27 +4,29 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-MM-DD)
 
-## v2020.5 (not released yet)
+## v2020.6 (not released yet)
+
+## v2020.5.3
 
 Major changes includes:
 
-- renamed mxprv_from_bip39_mnemonic and mxprv_from_electrum_mnemonic
-- made entropy the first input parameter of mnemonic_from_entropy
-- P2PK and P2MS now handle also compressed public keys
-- improved size checks for bytes_from_octets
-- entropy.generate_entropy has been renamed as entropy.generate
-- added gen_keys to dsa, ssa, bms, so that now all the standard
-  gen_keys, sig, and verify functions are available
-- Generic public/private Key accepted wherever PubKey is expected
+- Generic public/private key accepted wherever PubKey is expected
   (except for Schnorr where a public key cannot be discriminated as
   different from a private key)
-- Wherever input/output parameters had a
-  'compressed: bool, network: str' sequence, the order has been
+- P2PK and P2MS now handle also compressed public keys
+- added gen_keys to dsa, ssa, bms, so that now all the standard
+  gen_keys, sign, and verify functions are available
+- Wherever an input/output parameter sequence had
+  'compressed: bool, network: str', the order has been
   inverted resulting in 'network: str, compressed: bool'.
   Affected functions: base58address.p2pkh, base58wif.wif_from_prvkey,
   to_prvkey.prvkey_info_from_prvkey, to_pubkey._bytes_from_xpub,
   to_pubkey.bytes_from_key, to_pubkey.pubkey_info_from_prvkey,
   hashes.hash160_from_pubkey, secpoint.bytes_from_point,
+- renamed mxprv_from_bip39_mnemonic and mxprv_from_electrum_mnemonic
+- made entropy the first input parameter of mnemonic_from_entropy
+- improved size checks for bytes_from_octets
+- entropy.generate_entropy has been renamed as entropy.generate
 
 ## v2020.4.21
 
