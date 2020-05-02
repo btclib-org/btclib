@@ -12,12 +12,11 @@
 
 """
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from .alias import Key, Octets, Script, String, Token
 from .hashes import (hash160_from_pubkey, hash160_from_script,
                      hash256_from_script)
-from .network import p2pkh_prefix_from_network, p2sh_prefix_from_network
 from .script import decode, encode
 from .to_pubkey import bytes_from_key
 from .utils import bytes_from_octets
