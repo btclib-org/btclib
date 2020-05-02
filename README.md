@@ -68,9 +68,12 @@ The library includes:
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 
-A very extensive test suite reproduces results from major official sources
-and [covers 100%](https://coveralls.io/github/btclib-org/btclib)
-of the library code base.
+The library is rigorously and extensively tested:
+the test suite
+[covers 100%](https://coveralls.io/github/btclib-org/btclib)
+of the code base
+and
+reproduces results from both informal and major reference sources.
 
 The library development is actively supported by the [Digital Gold Institute](http://dgi.io)
 
