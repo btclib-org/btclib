@@ -15,8 +15,9 @@
 from typing import Union
 
 from . import base58address, bech32address, bip32
-from .alias import String, BIP32KeyDict
-from .network import _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
+from .alias import BIP32KeyDict, String
+from .network import (_P2WPKH_P2SH_PUB_PREFIXES, _P2WPKH_PUB_PREFIXES,
+                      _XPUB_PREFIXES)
 
 
 def address_from_xkey(xkey: Union[BIP32KeyDict, String]) -> bytes:
@@ -54,5 +55,6 @@ def address_from_xpub(xpub: Union[BIP32KeyDict, String]) -> bytes:
         return bech32address.p2wpkh(xpub)
     else:
         # v has been already checked at parsing stage
-        # v must be in _P2WPKH_P2SH_PUB_PREFIXES
+        # so, v must be in _P2WPKH_P2SH_PUB_PREFIXES
+        assert xpub['version'] in _P2WPKH_P2SH_PUB_PREFIXES
         return base58address.p2wpkh_p2sh(xpub)
