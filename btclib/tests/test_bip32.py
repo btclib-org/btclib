@@ -31,13 +31,17 @@ class TestBIP32(unittest.TestCase):
     def test_serialize(self):
         xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         xprv_dict = deserialize(xprv)
+        xprv_dict = deserialize(xprv_dict)
         xpr2 = serialize(xprv_dict)
         self.assertEqual(xpr2, xprv)
 
-        # private key not in [1, n-1]
         inv_key = (ec.n).to_bytes(ec.nsize, 'big')
+        # private key not in [1, n-1]
+        xprv_dict['key'] = b'\x00' + inv_key
+        self.assertRaises(ValueError, deserialize, xprv_dict)
+        # deserialize(xprv_dict)
         decoded_key = b58decode(xprv, 78)
-        xkey = b58encode(decoded_key[:46] + inv_key)
+        xkey = b58encode(decoded_key[:46] + inv_key, 78)
         self.assertRaises(ValueError, deserialize, xkey)
         # deserialize(xkey)
 
@@ -58,21 +62,21 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xdict["chain_code"], decoded_key[13:45])
         self.assertEqual(xdict["key"], decoded_key[45:])
 
-        # zero depth with non-zero parent_fingerprint
-        f2 = b'\x01\x01\x01\x01'
-        invalid_key = b58encode(xprv[:5] + f2 + xprv[9:])
+        # Zero depth with non-zero parent_fingerprint b'\x01\x01\x01\x01'
+        f2 = b'\x00\x00\x00\x0f'
+        invalid_key = b58encode(decoded_key[:5] + f2 + decoded_key[9:], 78)
         self.assertRaises(ValueError, deserialize, invalid_key)
         # deserialize(invalid_key)
 
-        # zero depth with non-zero index
-        i2 = b'\x01\x01\x01\x01'
-        invalid_key = b58encode(xprv[:9] + i2 + xprv[13:])
+        # Zero depth with non-zero index
+        i2 = b'\x00\x00\x00\xff'
+        invalid_key = b58encode(decoded_key[:9] + i2 + decoded_key[13:], 78)
         self.assertRaises(ValueError, deserialize, invalid_key)
         # deserialize(invalid_key)
 
-        # non-zero depth (255) with zero parent_fingerprint
-        d2 = b'ff'
-        invalid_key = b58encode(xprv[:4] + d2 + xprv[5:])
+        # Non-zero depth (255) with zero parent_fingerprint (00000000)
+        d2 = b'\xff'
+        invalid_key = b58encode(decoded_key[:4] + d2 + decoded_key[5:], 78)
         self.assertRaises(ValueError, deserialize, invalid_key)
         # deserialize(invalid_key)
 
@@ -397,14 +401,14 @@ class TestBIP32(unittest.TestCase):
 
         # version/key mismatch in extended parent key
         temp = b58decode(rootxprv)
-        bad_xprv = b58encode(temp[0:45] + b'\x01' + temp[46:])
+        bad_xprv = b58encode(temp[0:45] + b'\x01' + temp[46:], 78)
         self.assertRaises(ValueError, derive, bad_xprv, 1)
         #derive(bad_xprv, 1)
 
         # version/key mismatch in extended parent key
         xpub = xpub_from_xprv(rootxprv)
         temp = b58decode(xpub)
-        bad_xpub = b58encode(temp[0:45] + b'\x00' + temp[46:])
+        bad_xpub = b58encode(temp[0:45] + b'\x00' + temp[46:], 78)
         self.assertRaises(ValueError, derive, bad_xpub, 1)
         #derive(bad_xpub, 1)
 
@@ -458,7 +462,7 @@ class TestBIP32(unittest.TestCase):
         # invalid extended key version
         version = b'\x04\x88\xAD\xE5'
         xkey = version + b'\x00' * 74
-        xkey = b58encode(xkey)
+        xkey = b58encode(xkey, 78)
         self.assertRaises(ValueError, derive, xkey, 0x80000000)
         #derive(xkey, 0x80000000)
 

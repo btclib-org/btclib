@@ -73,7 +73,7 @@ class TestToPrvKey(unittest.TestCase):
         t += xprv_dict['index']
         t += xprv_dict['chain_code']
         t += b'\x00' + qbytes
-        xprv = b58encode(t)
+        xprv = b58encode(t, 78)
         xprv_str = xprv.decode('ascii')
         self.assertRaises(ValueError, int_from_prvkey, xprv)
         self.assertRaises(ValueError, int_from_prvkey, xprv_str)
@@ -99,7 +99,7 @@ class TestToPrvKey(unittest.TestCase):
         t += xprv_dict['index']
         t += xprv_dict['chain_code']
         t += b'\x00' + qbytes
-        xprv = b58encode(t)
+        xprv = b58encode(t, 78)
         xprv_str = xprv.decode('ascii')
         self.assertRaises(ValueError, int_from_prvkey, xprv)
         self.assertRaises(ValueError, int_from_prvkey, xprv_str)
@@ -169,7 +169,6 @@ class TestToPrvKey(unittest.TestCase):
         self.assertRaises(ValueError, prvkey_info_from_prvkey,
                           xprv, 'testnet', True)
         #prvkey_info_from_prvkey(xprv, 'testnet', True)
-
 
 
 if __name__ == "__main__":

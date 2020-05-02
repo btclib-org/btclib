@@ -66,15 +66,15 @@ def _check_depth_pfp_index(depth: int, pfp: bytes, i: bytes) -> None:
         raise ValueError(f"Invalid BIP32 depth ({depth})")
     elif depth == 0:
         if pfp != b'\x00\x00\x00\x00':
-            msg = f"Zero depth with non-zero parent_fingerprint {pfp!r}"
+            msg = f"Zero depth with non-zero parent_fingerprint ({pfp.hex()})"
             raise ValueError(msg)
         if i != b'\x00\x00\x00\x00':
-            msg = f"Zero depth with non-zero index {i!r}"
+            msg = f"Zero depth with non-zero index {i.hex()}"
             raise ValueError(msg)
     else:
         if pfp == b'\x00\x00\x00\x00':
-            msg = f"Zon-zero depth ({depth}) "
-            msg += f"with zero parent_fingerprint {pfp!r}"
+            msg = f"Non-zero depth ({depth}) "
+            msg += f"with zero parent_fingerprint ({pfp.hex()})"
             raise ValueError(msg)
 
 

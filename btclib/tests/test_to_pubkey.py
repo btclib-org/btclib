@@ -109,7 +109,7 @@ class TestToPubKey(unittest.TestCase):
         t += xpub_dict['index']
         t += xpub_dict['chain_code']
         t += Q_compr
-        xpub = b58encode(t)
+        xpub = b58encode(t, 78)
         self.assertRaises(ValueError, point_from_key, xpub, ec)
         xpub_str = xpub.decode('ascii')
         self.assertRaises(ValueError, point_from_key, xpub_str, ec)
@@ -256,7 +256,7 @@ class TestToPubKey(unittest.TestCase):
         t += xpub_dict['index']
         t += xpub_dict['chain_code']
         t += Q_compr
-        xpub = b58encode(t)
+        xpub = b58encode(t, 78)
         self.assertRaises(ValueError, bytes_from_key, xpub)
         xpub_str = xpub.decode('ascii')
         self.assertRaises(ValueError, bytes_from_key, xpub_str)
