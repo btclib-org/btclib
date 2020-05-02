@@ -15,9 +15,9 @@ from btclib import bip32
 from btclib.alias import INF
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey
-from btclib.curves import secp256r1
 from btclib.curvemult import mult
-from btclib.network import curve_from_network
+from btclib.curves import secp256r1
+from btclib.network import NETWORKS
 from btclib.secpoint import bytes_from_point
 from btclib.to_prvkey import _prvkey_info_from_xprv
 from btclib.to_pubkey import (_bytes_from_xpub, bytes_from_key,
@@ -34,7 +34,7 @@ class TestToPubKey(unittest.TestCase):
         xprv_str = xprv.decode('ascii')
         xprv_dict = bip32.deserialize(xprv)
         q, network, _ = _prvkey_info_from_xprv(xprv)
-        ec = curve_from_network(network)
+        ec = NETWORKS[network]['curve']
         q_bytes = q.to_bytes(ec.nsize, 'big')
         wif1 = wif_from_prvkey(q, network, True)
         wif2 = wif_from_prvkey(q, network, False)
@@ -125,7 +125,7 @@ class TestToPubKey(unittest.TestCase):
         xprv_str = xprv.decode('ascii')
         xprv_dict = bip32.deserialize(xprv)
         q, network, _ = _prvkey_info_from_xprv(xprv)
-        ec = curve_from_network(network)
+        ec = NETWORKS[network]['curve']
         q_bytes = q.to_bytes(ec.nsize, 'big')
         wif1 = wif_from_prvkey(q, network, True)
         wif2 = wif_from_prvkey(q, network, False)

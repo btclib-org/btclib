@@ -30,22 +30,22 @@ class TestAddresses(unittest.TestCase):
 
     def test_b58address_from_h160(self):
         addr = b'1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs'
-        prefix, payload, _, _ = h160_from_b58address(addr)
-        self.assertEqual(addr, b58address_from_h160(prefix, payload))
+        prefix, payload, network, _ = h160_from_b58address(addr)
+        self.assertEqual(addr, b58address_from_h160(prefix, payload, network))
 
         addr = b'16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM'
-        prefix, payload, _, _ = h160_from_b58address(addr)
-        self.assertEqual(addr, b58address_from_h160(prefix, payload))
+        prefix, payload, network, _ = h160_from_b58address(addr)
+        self.assertEqual(addr, b58address_from_h160(prefix, payload, network))
 
         addr = b'37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP'
-        prefix, payload, _, _ = h160_from_b58address(addr)
-        self.assertEqual(addr, b58address_from_h160(prefix, payload))
+        prefix, payload, network, _ = h160_from_b58address(addr)
+        self.assertEqual(addr, b58address_from_h160(prefix, payload, network))
 
         # Invalid base58 address prefix b'\xbb'
         bad_prefix = b'\xbb'
         self.assertRaises(ValueError, b58address_from_h160,
-                          bad_prefix, payload)
-        #b58address_from_h160(bad_prefix, payload)
+                          bad_prefix, payload, network)
+        #b58address_from_h160(bad_prefix, payload, network)
 
     def test_p2pkh_from_wif(self):
         seed = b"00" * 32  # better be random

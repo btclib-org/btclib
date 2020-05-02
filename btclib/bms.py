@@ -138,24 +138,24 @@ from base64 import b64decode, b64encode
 from hashlib import sha256
 from typing import Optional, Tuple
 
-from . import bip32, dsa, der
+from . import bip32, dsa
 from .alias import BMSig, BMSigTuple, PrvKey, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import wif_from_prvkey
 from .bech32address import p2wpkh, witness_from_b32address
 from .curvemult import mult
 from .curves import secp256k1
+from .network import NETWORKS
 from .secpoint import bytes_from_point
 from .to_prvkey import prvkey_info_from_prvkey
 from .utils import hash160
-from .network import curve_from_network
 
 
 def _validate_sig(rf: int, r: int, s: int) -> None:
 
     if rf < 27 or rf > 42:
         raise ValueError(f"Invalid recovery flag: {rf}")
-    der._validate_sig(r, s, None, secp256k1)
+    dsa._validate_sig(r, s, secp256k1)
 
 
 def deserialize(sig: BMSig) -> BMSigTuple:
@@ -202,7 +202,7 @@ def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
     if prvkey is None:
         if network is None:
             network = 'mainnet'
-        ec = curve_from_network(network)
+        ec = NETWORKS[network]['curve']
         # q in the range [1, ec.n-1]
         q = 1 + secrets.randbelow(ec.n - 1)
         wif = wif_from_prvkey(q, network, compressed)

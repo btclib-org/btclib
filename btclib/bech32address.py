@@ -47,8 +47,7 @@ from typing import Iterable, List, Optional, Tuple
 from .alias import Key, Octets, Script, String
 from .bech32 import b32decode, b32encode
 from .hashes import hash160_from_pubkey, hash256_from_script
-from .network import network_from_p2w_prefix, p2w_prefix_from_network
-from .script import encode
+from .network import NETWORKS, network_from_key_value
 from .utils import bytes_from_octets
 
 # 0. bech32 facilities
@@ -98,14 +97,17 @@ def _check_witness(witvers: int, witprog: bytes):
 # 2. bech32 address from WitnessProgram and vice versa
 
 
+def _b32address_from_witness(hrp: str, wv: int, wp: Octets) -> bytes:
+    wp = bytes_from_octets(wp)
+    _check_witness(wv, wp)
+    return b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
+
+
 def b32address_from_witness(wv: int, wp: Octets, network: str = 'mainnet') -> bytes:
     "Encode a bech32 native SegWit address from the witness."
 
-    wp = bytes_from_octets(wp)
-    _check_witness(wv, wp)
-
-    hrp = p2w_prefix_from_network(network)
-    return b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
+    hrp = NETWORKS[network]['p2w']
+    return _b32address_from_witness(hrp, wv, wp)
 
 
 def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
@@ -122,7 +124,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     hrp, data = b32decode(b32addr)
 
     # check that it is a known SegWit address type
-    network = network_from_p2w_prefix(hrp)
+    network = network_from_key_value('p2w', hrp)
 
     if len(data) == 0:
         raise ValueError(f"Bech32 address with empty data")

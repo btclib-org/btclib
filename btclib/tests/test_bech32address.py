@@ -43,56 +43,12 @@ with the following modifications:
 import unittest
 
 from btclib.base58address import p2wpkh_p2sh, p2wsh_p2sh
-from btclib.bech32address import b32address_from_witness, p2wpkh, p2wsh, witness_from_b32address
+from btclib.bech32address import (b32address_from_witness, p2wpkh, p2wsh,
+                                  witness_from_b32address)
+from btclib.network import has_segwit_prefix
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.utils import hash160, sha256
-from btclib.network import has_segwit_prefix
-
-VALID_BC_ADDRESS = [
-    ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
-        "0014751e76e8199196d454941c45d1b3a323f1433bd6"],
-    ["bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
-        "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6"],
-    ["BC1SW50QA3JX3S", "6002751e"],
-    ["bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
-        "5210751e76e8199196d454941c45d1b3a323"],
-    [" bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
-        "5210751e76e8199196d454941c45d1b3a323"],
-]
-
-VALID_TB_ADDRESS = [
-    ["tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
-        "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"],
-    ["tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
-        "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433"],
-]
-
-INVALID_ADDRESS = [
-    "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",  # Invalid human-readable part
-    "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",  # Invalid checksum
-    "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",  # Invalid witness version
-    "bc1rw5uspcuh",  # Invalid program length
-    # Invalid program length
-    "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
-    # Invalid program length for witness version 0 (per BIP141)
-    "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
-    "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",  # Mixed case
-    "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",  # zero padding of more than 4 bits
-    # Non-zero padding in 8-to-5 conversion
-    "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-    "bc1gmk9yu",  # Empty data section
-    # 92 chars
-    "bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5"
-]
-
-INVALID_ADDRESS_ENC = [
-    ("MAINNET", 0, 20),
-    ("mainnet", 0, 21),
-    ("mainnet", 17, 32),
-    ("mainnet", 1, 1),
-    ("mainnet", 16, 41),
-]
 
 
 class TestSegwitAddress(unittest.TestCase):
@@ -100,6 +56,25 @@ class TestSegwitAddress(unittest.TestCase):
 
     def test_valid_address(self):
         """Test whether valid addresses decode to the correct output"""
+
+        VALID_BC_ADDRESS = [
+            ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
+                "0014751e76e8199196d454941c45d1b3a323f1433bd6"],
+            ["bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
+                "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6"],
+            ["BC1SW50QA3JX3S", "6002751e"],
+            ["bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
+                "5210751e76e8199196d454941c45d1b3a323"],
+            [" bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
+                "5210751e76e8199196d454941c45d1b3a323"],  # extra leading space
+        ]
+        VALID_TB_ADDRESS = [
+            ["tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
+                "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"],
+            ["tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
+                "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433"],
+        ]
+
         for a, hexscript in VALID_BC_ADDRESS + VALID_TB_ADDRESS:
             self.assertTrue(has_segwit_prefix(a))
             witvers, witprog, network, _ = witness_from_b32address(a)
@@ -110,12 +85,44 @@ class TestSegwitAddress(unittest.TestCase):
 
     def test_invalid_address(self):
         """Test whether invalid addresses fail to decode"""
+
+        INVALID_ADDRESS = [
+            "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",  # Invalid human-readable part
+            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",  # Invalid checksum
+            "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",  # Invalid witness version
+            "bc1rw5uspcuh",  # Invalid program length
+            # Invalid program length
+            "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
+            # Invalid program length for witness version 0 (per BIP141)
+            "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
+            "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",  # Mixed case
+            "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",  # zero padding of more than 4 bits
+            # Non-zero padding in 8-to-5 conversion
+            "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
+            "bc1gmk9yu",  # Empty data section
+            # 92 chars
+            "bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5"
+        ]
+
         for a in INVALID_ADDRESS:
             self.assertRaises(ValueError, witness_from_b32address, a)
 
     def test_invalid_address_enc(self):
         """Test whether address encoding fails on invalid input"""
-        for network, version, length in INVALID_ADDRESS_ENC:
+
+        INVALID_ADDRESS_ENC = [
+            ("MAINNET", 0, 20),
+            ("mainnet", 0, 21),
+            ("mainnet", 17, 32),
+            ("mainnet", 1, 1),
+            ("mainnet", 16, 41),
+        ]
+
+        network, version, length = INVALID_ADDRESS_ENC[0]
+        self.assertRaises(KeyError, b32address_from_witness,
+                          version, [0] * length, network)
+
+        for network, version, length in INVALID_ADDRESS_ENC[1:]:
             self.assertRaises(ValueError, b32address_from_witness,
                               version, [0] * length, network)
 

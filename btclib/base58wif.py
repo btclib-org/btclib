@@ -13,7 +13,7 @@ from typing import Optional
 from .alias import PrvKey
 from .base58 import b58encode
 from .curve import Curve
-from .network import curve_from_network, wif_prefix_from_network
+from .network import NETWORKS
 from .to_pubkey import prvkey_info_from_prvkey
 
 
@@ -22,9 +22,9 @@ def wif_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
     "Return the WIF encoding of a private key."
 
     q, net, compr = prvkey_info_from_prvkey(prvkey, network, compressed)
-    ec = curve_from_network(net)
+    ec = NETWORKS[net]['curve']
 
-    payload = wif_prefix_from_network(net)
+    payload = NETWORKS[net]['wif']
     payload += q.to_bytes(ec.nsize, 'big')
     payload += b'\x01' if compr else b''
     return b58encode(payload)

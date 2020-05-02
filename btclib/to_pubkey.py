@@ -11,14 +11,14 @@
 from typing import Optional, Tuple
 
 from . import bip32
-from .alias import Octets, Point, PubKey, String, BIP32KeyDict, Key
+from .alias import BIP32KeyDict, Key, Octets, Point, PrvKey, PubKey
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
-from .network import (_xpub_versions_from_network, curve_from_network,
+from .network import (NETWORKS, _xpub_versions_from_network,
                       curve_from_xpubversion, network_from_xpub)
 from .secpoint import bytes_from_point, point_from_octets
-from .to_prvkey import PrvKey, prvkey_info_from_prvkey
+from .to_prvkey import prvkey_info_from_prvkey
 from .utils import bytes_from_octets, hash160
 
 
@@ -52,7 +52,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
         except:
             pass
         else:
-            if ec != curve_from_network(net):
+            if ec != NETWORKS[net]['curve']:
                 raise ValueError("Curve mismatch")
             return mult(q, ec.G, ec)
 
@@ -141,7 +141,7 @@ def bytes_from_pubkey(P: PubKey, network: Optional[str] = None,
     if isinstance(P, tuple):
         compr = True if compressed is None else compressed
         net = 'mainnet' if network is None else network
-        ec = curve_from_network(net)
+        ec = NETWORKS[net]['curve']
         return bytes_from_point(P, ec, compr), net
     elif isinstance(P, dict):
         return _bytes_from_xpub(P, network, compressed)
@@ -154,7 +154,7 @@ def bytes_from_pubkey(P: PubKey, network: Optional[str] = None,
             return _bytes_from_xpub(xkey, network, compressed)
 
     net = 'mainnet' if network is None else network
-    ec = curve_from_network(net)
+    ec = NETWORKS[net]['curve']
 
     if compressed is None:
         pubkey = bytes_from_octets(P, (ec.psize + 1, 2 * ec.psize + 1))
@@ -176,7 +176,7 @@ def pubkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
                             compressed: Optional[bool] = None) -> Tuple[bytes, str]:
 
     q, net, compr = prvkey_info_from_prvkey(prvkey, network, compressed)
-    ec = curve_from_network(net)
+    ec = NETWORKS[net]['curve']
     Pub = mult(q, ec.G, ec)
     pubkey = bytes_from_point(Pub, ec, compr)
     return pubkey, net

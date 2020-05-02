@@ -21,9 +21,8 @@ from .bech32address import (_check_witness, b32address_from_witness,
                             witness_from_b32address)
 from .hashes import (hash160_from_pubkey, hash160_from_script,
                      hash256_from_script)
-from .network import (_P2PKH_PREFIXES, _P2SH_PREFIXES, has_segwit_prefix,
-                      network_from_p2pkh_prefix, network_from_p2sh_prefix,
-                      p2pkh_prefix_from_network, p2sh_prefix_from_network)
+from .network import (_P2PKH_PREFIXES, _P2SH_PREFIXES, NETWORKS,
+                      has_segwit_prefix, network_from_key_value)
 from .script import encode
 from .scriptpubkey import payload_from_scriptPubKey, scriptPubKey_from_payload
 from .utils import bytes_from_octets
@@ -33,14 +32,15 @@ from .utils import bytes_from_octets
 
 # 2. base58 address from HASH and vice versa
 
-# TODO accept Octets prefix
 
-
-def b58address_from_h160(prefix: bytes, h160: Octets) -> bytes:
+def b58address_from_h160(prefix: Octets, h160: Octets,
+                         network: str) -> bytes:
     "Encode a base58 address from the payload."
 
-    if prefix not in _P2PKH_PREFIXES + _P2SH_PREFIXES:
-        raise ValueError(f"Invalid base58 address prefix {prefix!r}")
+    prefix = bytes_from_octets(prefix)
+    prefixes = NETWORKS[network]['p2pkh'], NETWORKS[network]['p2sh']
+    if prefix not in prefixes:
+        raise ValueError(f"Invalid {network} base58 address prefix {prefix!r}")
     payload = prefix + bytes_from_octets(h160, 20)
     return b58encode(payload)
 
@@ -54,10 +54,10 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
     payload = b58decode(b58addr, 21)
     prefix = payload[0:1]
     if prefix in _P2PKH_PREFIXES:
-        network = network_from_p2pkh_prefix(prefix)
+        network = network_from_key_value('p2pkh', prefix)
         is_script_hash = False
     elif prefix in _P2SH_PREFIXES:
-        network = network_from_p2sh_prefix(prefix)
+        network = network_from_key_value('p2sh', prefix)
         is_script_hash = True
     else:
         raise ValueError(f"Invalid base58 address prefix {prefix!r}")
@@ -71,15 +71,15 @@ def p2pkh(key: Key, network: Optional[str] = None,
           compressed: Optional[bool] = None) -> bytes:
     "Return the p2pkh base58 address corresponding to a public key."
     h160, network = hash160_from_pubkey(key, network, compressed)
-    prefix = p2pkh_prefix_from_network(network)
-    return b58address_from_h160(prefix, h160)
+    prefix = NETWORKS[network]['p2pkh']
+    return b58address_from_h160(prefix, h160, network)
 
 
 def p2sh(script: Script, network: str = 'mainnet') -> bytes:
     "Return the p2sh base58 address corresponding to a script."
     h160 = hash160_from_script(script)
-    prefix = p2sh_prefix_from_network(network)
-    return b58address_from_h160(prefix, h160)
+    prefix = NETWORKS[network]['p2sh']
+    return b58address_from_h160(prefix, h160, network)
 
 # 2b. base58 address from WitnessProgram
 # it cannot be inverted because of the hash performed by p2sh
@@ -150,11 +150,11 @@ def address_from_scriptPubKey(s: Script, network: str = "mainnet") -> bytes:
         raise ValueError("No address for null data script")
 
     if script_type == 'p2pkh':
-        prefix = p2pkh_prefix_from_network(network)
-        return b58address_from_h160(prefix, payload)
+        prefix = NETWORKS[network]['p2pkh']
+        return b58address_from_h160(prefix, payload, network)
     if script_type == 'p2sh':
-        prefix = p2sh_prefix_from_network(network)
-        return b58address_from_h160(prefix, payload)
+        prefix = NETWORKS[network]['p2sh']
+        return b58address_from_h160(prefix, payload, network)
 
     # 'p2wsh' or 'p2wpkh'
     return b32address_from_witness(0, payload, network)

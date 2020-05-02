@@ -15,8 +15,7 @@ from .alias import BIP32KeyDict, Octets, PrvKey, String
 from .base58 import b58decode
 from .curve import Curve
 from .curves import secp256k1
-from .network import (curve_from_network, network_from_wif_prefix,
-                      network_from_xprv)
+from .network import NETWORKS, network_from_key_value, network_from_xprv
 from .utils import bytes_from_octets
 
 
@@ -28,8 +27,8 @@ def _prvkey_info_from_wif(wif: String) -> Tuple[int, str, bool]:
 
     payload = b58decode(wif)
 
-    network = network_from_wif_prefix(payload[0:1])
-    ec = curve_from_network(network)
+    network = network_from_key_value('wif', payload[0:1])
+    ec = NETWORKS[network]['curve']
 
     if len(payload) == ec.nsize + 2:       # compressed WIF
         compressed = True
@@ -83,7 +82,7 @@ def prvkey_info_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
 
     compr = True if compressed is None else compressed
     net = 'mainnet' if network is None else network
-    ec = curve_from_network(net)
+    ec = NETWORKS[net]['curve']
 
     if isinstance(prvkey, int):
         q = prvkey
@@ -135,7 +134,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     elif isinstance(prvkey, dict):
         q, network, _ = _prvkey_info_from_xprvwif(prvkey)
         # q has been validated on the xprv/wif network
-        ec2 = curve_from_network(network)
+        ec2 = NETWORKS[network]['curve']
         assert ec == ec2, f"ec / network ({network}) mismatch"
         return q
     else:
@@ -145,7 +144,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
             pass
         else:
             # q has been validated on the xprv/wif network
-            ec2 = curve_from_network(network)
+            ec2 = NETWORKS[network]['curve']
             assert ec == ec2, f"ec / network ({network}) mismatch"
             return q
 

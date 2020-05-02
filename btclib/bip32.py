@@ -34,7 +34,7 @@ A BIP32 extended key is 78 bytes:
 
 import copy
 import hmac
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from . import bip39, electrum
 from .alias import INF, BIP32KeyDict, Octets, Path, Point, String
@@ -43,7 +43,7 @@ from .curvemult import mult
 from .curves import secp256k1 as ec
 from .mnemonic import Mnemonic
 from .network import (_NETWORKS, _P2WPKH_PRV_PREFIXES, _XPRV_PREFIXES,
-                      _XPRV_VERSIONS_ALL, _XPUB_VERSIONS_ALL, MAIN_xprv)
+                      _XPRV_VERSIONS_ALL, _XPUB_VERSIONS_ALL, NETWORKS)
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, hash160
 
@@ -171,13 +171,16 @@ def serialize(d: BIP32KeyDict) -> bytes:
     return b58encode(t, 78)
 
 
-def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
+def rootxprv_from_seed(seed: Octets, version: Optional[Octets] = None) -> bytes:
     """Return BIP32 root master extended private key from seed."""
 
     seed = bytes_from_octets(seed)
     hd = hmac.digest(b"Bitcoin seed", seed, "sha512")
     k = b"\x00" + hd[:32]
-    v = bytes_from_octets(version)
+    if version is None:
+        v = NETWORKS['mainnet']['bip32_prv']
+    else:
+        v = bytes_from_octets(version)
     if v not in _XPRV_VERSIONS_ALL:
         raise ValueError(f"unknown extended private key version {v!r}")
 
@@ -194,7 +197,7 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
 
 def xprv_from_bip39_mnemonic(mnemonic: Mnemonic,
                              passphrase: str = "",
-                             version: Octets = MAIN_xprv) -> bytes:
+                             version: Optional[Octets] = None) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = bip39.seed_from_mnemonic(mnemonic, passphrase)

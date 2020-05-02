@@ -17,13 +17,11 @@ from btclib.base58 import b58decode, b58encode
 from btclib.base58address import p2pkh, p2wpkh_p2sh
 from btclib.bech32address import p2wpkh
 from btclib.bip32 import (crack_prvkey, derive, deserialize,
-                          xprv_from_bip39_mnemonic, rootxprv_from_seed,
-                          serialize, xpub_from_xprv)
+                          rootxprv_from_seed, serialize,
+                          xprv_from_bip39_mnemonic, xpub_from_xprv)
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
-from btclib.network import (MAIN_xprv, MAIN_yprv, MAIN_Yprv, MAIN_zprv,
-                            MAIN_Zprv, TEST_tprv, TEST_uprv, TEST_Uprv,
-                            TEST_vprv, TEST_Vprv)
+from btclib.network import NETWORKS
 
 
 class TestBIP32(unittest.TestCase):
@@ -351,7 +349,7 @@ class TestBIP32(unittest.TestCase):
         # bitcoin core derivation style
         rootxprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
 
-        # m/0'/0'/463'
+        # m / 0' / 0' / 463'
         addr1 = b'1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5'
         indexes = [0x80000000, 0x80000000, 0x800001cf]
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
@@ -360,7 +358,7 @@ class TestBIP32(unittest.TestCase):
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)))
         self.assertEqual(addr, addr1)
 
-        # m/0'/0'/267'
+        # m / 0' / 0' / 267'
         addr2 = b'11x2mn59Qy43DjisZWQGRResjyQmgthki'
         indexes = [0x80000000, 0x80000000, 0x8000010b]
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
@@ -420,7 +418,7 @@ class TestBIP32(unittest.TestCase):
         # bitcoin core derivation style
         rootxprv = b'tprv8ZgxMBicQKsPe3g3HwF9xxTLiyc5tNyEtjhBBAk29YA3MTQUqULrmg7aj9qTKNfieuu2HryQ6tGVHse9x7ANFGs3f4HgypMc5nSSoxwf7TK'
 
-        # m/0'/0'/51'
+        # m / 0' / 0' / 51'
         addr1 = b'mfXYCCsvWPgeCv8ZYGqcubpNLYy5nYHbbj'
         indexes = [0x80000000, 0x80000000, 0x80000000 + 51]
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
@@ -429,7 +427,7 @@ class TestBIP32(unittest.TestCase):
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, path)))
         self.assertEqual(addr, addr1)
 
-        # m/0'/1'/150'
+        # m / 0' / 1' / 150'
         addr2 = b'mfaUnRFxVvf55uD1P3zWXpprN1EJcKcGrb'
         indexes = [0x80000000, 0x80000000 + 1, 0x80000000 + 150]
         addr = p2pkh(xpub_from_xprv(derive(rootxprv, indexes)))
@@ -561,7 +559,7 @@ class TestBIP32(unittest.TestCase):
         # p2pkh BIP44
         # m / 44' / coin_type' / account' / change / address_index
         path = "m/44h/1h/0h"
-        version = TEST_tprv
+        version = NETWORKS['testnet']['bip32_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -577,10 +575,10 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'myWcXdNais9ExumnGKnNoJwoihQKfNPG9i'
         self.assertEqual(address, exp_address)
 
-        # legacy segwit (p2wpkh-p2sh)
-        # m / 49'/ coin_type' / account' / change / address_index
+        # legacy segwit (p2wsh-p2sh)
+        # m / 49' / coin_type' / account' / change / address_index
         path = "m/49h/1h/0h"
-        version = TEST_uprv
+        version = NETWORKS['testnet']['slip32_p2wsh_p2sh_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -597,9 +595,9 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(address, exp_address)
 
         # legacy segwit (p2wsh-p2sh)
-        # m / 49'/ coin_type' / account' / change / address_index
+        # m / 49' / coin_type' / account' / change / address_index
         path = "m/49h/1h/0h"
-        version = TEST_Uprv
+        version = NETWORKS['testnet']['slip32_p2wpkh_p2sh_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -607,9 +605,9 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
 
         # native segwit (p2wpkh)
-        # m / 84'/ coin_type' / account' / change / address_index
+        # m / 84' / coin_type' / account' / change / address_index
         path = "m/84h/1h/0h"
-        version = TEST_vprv
+        version = NETWORKS['testnet']['slip32_p2wpkh_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -628,9 +626,9 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(address, exp_address)
 
         # native segwit (p2wsh)
-        # m / 84'/ coin_type' / account' / change / address_index
+        # m / 84' / coin_type' / account' / change / address_index
         path = "m/84h/1h/0h"
-        version = TEST_Vprv
+        version = NETWORKS['testnet']['slip32_p2wsh_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -650,7 +648,7 @@ class TestBIP32(unittest.TestCase):
         # p2pkh BIP44
         # m / 44' / coin_type' / account' / change / address_index
         path = "m/44h/0h/0h"
-        version = MAIN_xprv
+        version = NETWORKS['mainnet']['bip32_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -666,10 +664,10 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'1FhKoffreKHzhtBMVW9NSsg3ZF148JPGoR'
         self.assertEqual(address, exp_address)
 
-        # legacy segwit (p2wpkh-p2sh)
-        # m / 49'/ coin_type' / account' / change / address_index
+        # legacy segwit (p2wsh-p2sh)
+        # m / 49' / coin_type' / account' / change / address_index
         path = "m/49h/0h/0h"
-        version = MAIN_yprv
+        version = NETWORKS['mainnet']['slip32_p2wsh_p2sh_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -685,10 +683,10 @@ class TestBIP32(unittest.TestCase):
         exp_address = b'34FLgkoRYX5Q5fqiZCZDwsK5GpXxmFuLJN'
         self.assertEqual(address, exp_address)
 
-        # legacy segwit (p2wsh-p2sh)
-        # m / 49'/ coin_type' / account' / change / address_index
+        # legacy segwit (p2wpkh-p2sh)
+        # m / 49' / coin_type' / account' / change / address_index
         path = "m/49h/0h/0h"
-        version = MAIN_Yprv
+        version = NETWORKS['mainnet']['slip32_p2wpkh_p2sh_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -696,9 +694,9 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(xpub, exp)
 
         # native segwit (p2wpkh)
-        # m / 84'/ coin_type' / account' / change / address_index
+        # m / 84' / coin_type' / account' / change / address_index
         path = "m/84h/0h/0h"
-        version = MAIN_zprv
+        version = NETWORKS['mainnet']['slip32_p2wpkh_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)
@@ -715,9 +713,9 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(address, exp_address)
 
         # native segwit (p2wsh)
-        # m / 84'/ coin_type' / account' / change / address_index
+        # m / 84' / coin_type' / account' / change / address_index
         path = "m/84h/0h/0h"
-        version = MAIN_Zprv
+        version = NETWORKS['mainnet']['slip32_p2wsh_prv']
         rootprv = rootxprv_from_seed(seed, version)
         xprv = derive(rootprv, path)
         xpub = xpub_from_xprv(xprv)

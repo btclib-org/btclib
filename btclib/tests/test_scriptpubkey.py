@@ -16,7 +16,7 @@ from btclib.base58address import (address_from_scriptPubKey,
                                   b58address_from_witness,
                                   scriptPubKey_from_address)
 from btclib.bech32address import b32address_from_witness
-from btclib.network import p2pkh_prefix_from_network, p2sh_prefix_from_network
+from btclib.network import NETWORKS
 from btclib.script import decode, encode
 from btclib.scriptpubkey import (nulldata, p2ms, p2pk, p2pkh, p2sh, p2wpkh,
                                  p2wsh, payload_from_scriptPubKey,
@@ -386,8 +386,8 @@ class TestScriptPubKey(unittest.TestCase):
         address = base58address.p2pkh(pubkey, network)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
         self.assertEqual(address, address2)
-        prefix = p2pkh_prefix_from_network(network)
-        address2 = b58address_from_h160(prefix, payload)
+        prefix = NETWORKS[network]['p2pkh']
+        address2 = b58address_from_h160(prefix, payload, network)
         self.assertEqual(address, address2)
 
         scriptPubKey2, network2 = scriptPubKey_from_address(address)
@@ -448,8 +448,8 @@ class TestScriptPubKey(unittest.TestCase):
         address = base58address.p2sh(decode(redeem_script), network)
         address2 = address_from_scriptPubKey(scriptPubKey, network)
         self.assertEqual(address, address2)
-        prefix = p2sh_prefix_from_network(network)
-        address2 = b58address_from_h160(prefix, payload)
+        prefix = NETWORKS[network]['p2sh']
+        address2 = b58address_from_h160(prefix, payload, network)
         self.assertEqual(address, address2)
 
         scriptPubKey2, network2 = scriptPubKey_from_address(address)
