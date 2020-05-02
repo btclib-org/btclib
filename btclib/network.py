@@ -102,23 +102,7 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> str:
     raise ValueError(f'No network has {key} = {prefix!r}')
 
 
-def has_segwit_prefix(addr: String) -> bool:
-
-    if isinstance(addr, str):
-        str_addr = addr.strip()
-        str_addr = str_addr.lower()
-    else:
-        str_addr = addr.decode('ascii')
-
-    for net in NETWORKS:
-        if str_addr.startswith(NETWORKS[net]['p2w'] + '1'):
-            return True
-
-    return False
-
-
 _NETWORKS = [net for net in NETWORKS]
-_CURVES = [NETWORKS[net]['curve'] for net in NETWORKS]
 _P2PKH_PREFIXES = [NETWORKS[net]['p2pkh'] for net in NETWORKS]
 _P2SH_PREFIXES = [NETWORKS[net]['p2sh'] for net in NETWORKS]
 
@@ -133,6 +117,20 @@ _P2WPKH_PRV_PREFIXES = [NETWORKS[net]['slip32_p2wpkh_prv'] for net in NETWORKS]
 _P2WPKH_PUB_PREFIXES = [NETWORKS[net]['slip32_p2wpkh_pub'] for net in NETWORKS]
 
 
+def _xpub_versions_from_network(network: str) -> List[bytes]:
+    result = [
+        NETWORKS[network]['bip32_pub'],
+        NETWORKS[network]['slip32_p2wsh_p2sh_pub'],
+        NETWORKS[network]['slip32_p2wpkh_p2sh_pub'],
+        NETWORKS[network]['slip32_p2wpkh_pub'],
+        NETWORKS[network]['slip32_p2wsh_pub'],
+    ]
+    return result
+
+
+# the following provides false match for regtest
+# not a problem as long as it is used for WIF/Base58Address/BIP32xkey
+# where the two networks share same prefixes.
 _XPRV_VERSIONS_MAIN = [
     NETWORKS['mainnet']['bip32_prv'],
     NETWORKS['mainnet']['slip32_p2wsh_p2sh_prv'],
@@ -161,32 +159,12 @@ _XPUB_VERSIONS_TEST = [
     NETWORKS['testnet']['slip32_p2wpkh_pub'],
     NETWORKS['testnet']['slip32_p2wsh_pub'],
 ]
-
-
-_XPRV_VERSIONS = [_XPRV_VERSIONS_MAIN,
-                  _XPRV_VERSIONS_TEST, _XPRV_VERSIONS_TEST]
-_XPUB_VERSIONS = [_XPUB_VERSIONS_MAIN,
-                  _XPUB_VERSIONS_TEST, _XPUB_VERSIONS_TEST]
-
-# it provides false match for regtest
-# not a problem as long as it is used for WIF/Base58Address/BIP32xkey
-# where the two networks share same prefixes.
-_REPEATED_NETWORKS = [_NETWORKS[0]] * 5 + \
-    [_NETWORKS[1]] * 5 + [_NETWORKS[2]] * 5
 _XPRV_VERSIONS_ALL = _XPRV_VERSIONS_MAIN + \
     _XPRV_VERSIONS_TEST + _XPRV_VERSIONS_TEST
 _XPUB_VERSIONS_ALL = _XPUB_VERSIONS_MAIN + \
     _XPUB_VERSIONS_TEST + _XPUB_VERSIONS_TEST
-
-
-def curve_from_xpubversion(xpubversion: bytes) -> Curve:
-    index = _XPUB_VERSIONS_ALL.index(xpubversion)
-    return _CURVES[index]
-
-
-def _xpub_versions_from_network(network: str) -> List[bytes]:
-    index = _NETWORKS.index(network)
-    return _XPUB_VERSIONS[index]
+_REPEATED_NETWORKS = [_NETWORKS[0]] * 5 + \
+    [_NETWORKS[1]] * 5 + [_NETWORKS[2]] * 5
 
 
 def network_from_xprv(xprvversion: bytes) -> str:
@@ -209,3 +187,11 @@ def network_from_xpub(xpubversion: bytes) -> str:
     """
     index = _XPUB_VERSIONS_ALL.index(xpubversion)
     return _REPEATED_NETWORKS[index]
+
+
+_CURVES = [NETWORKS[net]['curve'] for net in NETWORKS]
+
+
+def curve_from_xpubversion(xpubversion: bytes) -> Curve:
+    index = _XPUB_VERSIONS_ALL.index(xpubversion)
+    return _CURVES[index]

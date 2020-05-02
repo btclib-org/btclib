@@ -22,7 +22,7 @@ from .bech32address import (_check_witness, b32address_from_witness,
 from .hashes import (hash160_from_pubkey, hash160_from_script,
                      hash256_from_script)
 from .network import (_P2PKH_PREFIXES, _P2SH_PREFIXES, NETWORKS,
-                      has_segwit_prefix, network_from_key_value)
+                      network_from_key_value)
 from .script import encode
 from .scriptpubkey import payload_from_scriptPubKey, scriptPubKey_from_payload
 from .utils import bytes_from_octets
@@ -116,6 +116,20 @@ def p2wsh_p2sh(wscript: Script, network: str = 'mainnet') -> bytes:
 
 
 ##########################
+
+def has_segwit_prefix(addr: String) -> bool:
+
+    if isinstance(addr, str):
+        str_addr = addr.strip()
+        str_addr = str_addr.lower()
+    else:
+        str_addr = addr.decode('ascii')
+
+    for net in NETWORKS:
+        if str_addr.startswith(NETWORKS[net]['p2w'] + '1'):
+            return True
+
+    return False
 
 
 def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
