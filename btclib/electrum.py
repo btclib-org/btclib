@@ -47,7 +47,7 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> str:
     raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
 
 
-def mnemonic_from_entropy(entropy: Entropy, electrum_version: str = 'segwit',
+def mnemonic_from_entropy(entropy: Entropy, version: str = 'standard',
                           lang: str = "en") -> Mnemonic:
     """Convert input entropy to Electrum versioned mnemonic sentence.
 
@@ -58,11 +58,11 @@ def mnemonic_from_entropy(entropy: Entropy, electrum_version: str = 'segwit',
     leading zeros are considered redundant padding.
     """
 
-    if electrum_version not in _MNEMONIC_VERSIONS:
-        m = f"mnemonic version '{electrum_version}' not in electrum allowed "
+    if version not in _MNEMONIC_VERSIONS:
+        m = f"mnemonic version '{version}' not in electrum allowed "
         m += f"mnemonic versions {list(_MNEMONIC_VERSIONS.keys())}"
         raise ValueError(m)
-    version = _MNEMONIC_VERSIONS[electrum_version]
+    version = _MNEMONIC_VERSIONS[version]
 
     binstr_entropy = binstr_from_entropy(entropy)
     int_entropy = int(binstr_entropy, 2)

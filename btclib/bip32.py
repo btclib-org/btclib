@@ -173,18 +173,18 @@ def rootxprv_from_seed(seed: Octets, version: Octets = MAIN_xprv) -> bytes:
     return serialize(d)
 
 
-def rootxprv_from_bip39mnemonic(mnemonic: Mnemonic,
-                                passphrase: str = "",
-                                version: Octets = MAIN_xprv) -> bytes:
+def xprv_from_bip39_mnemonic(mnemonic: Mnemonic,
+                             passphrase: str = "",
+                             version: Octets = MAIN_xprv) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = bip39.seed_from_mnemonic(mnemonic, passphrase)
     return rootxprv_from_seed(seed, version)
 
 
-def masterxprv_from_electrummnemonic(mnemonic: Mnemonic,
-                                     passphrase: str = "",
-                                     network: str = 'mainnet') -> bytes:
+def xprv_from_electrum_mnemonic(mnemonic: Mnemonic,
+                                passphrase: str = "",
+                                network: str = 'mainnet') -> bytes:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
     Note that for a 'standard' mnemonic the derivation path is "m",

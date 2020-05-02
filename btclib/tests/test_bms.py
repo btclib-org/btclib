@@ -408,7 +408,7 @@ class TestMessageSign(unittest.TestCase):
         dersig = '3144022012ec0c174936c2a46dc657252340b2e6e6dd8c31dd059b6f9f33a90c21af2fba022030e6305b3ccf88009d419bf7651afcfcc0a30898b93ae9de9aa6ac03cf8ec56b'
 
         # pubkey derivation
-        rprv = bip32.rootxprv_from_bip39mnemonic(mnemonic)
+        rprv = bip32.xprv_from_bip39_mnemonic(mnemonic)
         xprv = bip32.derive(rprv, derivation_path)
         xpub = bip32.xpub_from_xprv(xprv)
 
@@ -446,7 +446,7 @@ class TestMessageSign(unittest.TestCase):
         dersig = "3045022100967dac3262b4686e89638c8219c5761017f05cd87a855edf034f4a3ec6b59d3d0220108a4ef9682b71a45979d8c75c393382d9ccb8eb561d73b8c5fc0b87a47e7d27"
 
         # pubkey derivation
-        rprv = bip32.rootxprv_from_bip39mnemonic(mnemonic)
+        rprv = bip32.xprv_from_bip39_mnemonic(mnemonic)
         xprv = bip32.derive(rprv, derivation_path)
         xpub = bip32.xpub_from_xprv(xprv)
 
