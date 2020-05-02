@@ -34,18 +34,16 @@ with e = hash(R||c)) and W.x being known from the signature.
 """
 
 from hashlib import sha256
-from typing import Optional, Tuple, Union
-
-from btclib import bip32
+from typing import Optional, Tuple
 
 from . import dsa, ssa
-from .alias import HashF, Octets, Point, XkeyDict
+from .alias import HashF, Octets, Point, PrvKey
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
 from .rfc6979 import rfc6979
+from .secpoint import bytes_from_point
 from .to_prvkey import int_from_prvkey
-from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, int_from_bits
 
 # commitment receipt
@@ -68,11 +66,8 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     return R, (e + k) % ec.n
 
 
-# TODO accept PrvKey
-def ecdsa_commit_sign(c: Octets, m: Octets,
-                      q: Union[int, bytes, str, XkeyDict],
-                      k: Optional[int] = None,
-                      ec: Curve = secp256k1,
+def ecdsa_commit_sign(c: Octets, m: Octets, q: PrvKey,
+                      k: Optional[int] = None, ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECDSA signature."""
 
@@ -98,11 +93,8 @@ def ecdsa_commit_sign(c: Octets, m: Octets,
     return sig, receipt
 
 
-# TODO accept PrvKey
-def ecssa_commit_sign(c: Octets, m: Octets,
-                      q: Union[int, bytes, str, XkeyDict],
-                      k: Optional[int] = None,
-                      ec: Curve = secp256k1,
+def ecssa_commit_sign(c: Octets, m: Octets, q: PrvKey,
+                      k: Optional[int] = None, ec: Curve = secp256k1,
                       hf: HashF = sha256) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
