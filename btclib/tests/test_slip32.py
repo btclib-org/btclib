@@ -47,7 +47,7 @@ class TestSLIP32(unittest.TestCase):
             ],
         ]
         for v in test_vectors:
-            rxprv = bip32.xprv_from_bip39_mnemonic(mnemonic, '', v[0])
+            rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, '', v[0])
             mxprv = bip32.derive(rxprv, v[1])
             self.assertEqual(v[2], mxprv)
             mxpub = bip32.xpub_from_xprv(mxprv)

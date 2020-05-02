@@ -18,7 +18,7 @@ from btclib.base58address import p2pkh, p2wpkh_p2sh
 from btclib.bech32address import p2wpkh
 from btclib.bip32 import (crack_prvkey, derive, deserialize,
                           rootxprv_from_seed, serialize,
-                          xprv_from_bip39_mnemonic, xpub_from_xprv)
+                          mxprv_from_bip39_mnemonic, xpub_from_xprv)
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
 from btclib.network import NETWORKS
@@ -725,7 +725,7 @@ class TestBIP32(unittest.TestCase):
     def test_rootxprv_from_mnemonic(self):
         mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
         passphrase = ''
-        rootxprv = xprv_from_bip39_mnemonic(mnemonic, passphrase)
+        rootxprv = mxprv_from_bip39_mnemonic(mnemonic, passphrase)
         exp = b'xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1'
         self.assertEqual(rootxprv, exp)
 

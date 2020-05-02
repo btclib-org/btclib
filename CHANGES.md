@@ -8,7 +8,7 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
-- renamed xprv_from_bip39_mnemonic and xprv_from_electrum_mnemonic
+- renamed mxprv_from_bip39_mnemonic and mxprv_from_electrum_mnemonic
 - made entropy the first input parameter of mnemonic_from_entropy
 - P2PK and P2MS now handle also compressed public keys
 - improved size checks for bytes_from_octets
