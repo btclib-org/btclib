@@ -76,6 +76,12 @@ JacPoint = Tuple[int, int, int]
 INFJ = 7, 0, 0
 
 
+# the main internal representation of entropy is binary 0/1 string
+BinStr = str
+# but int or bytes are fine too
+Entropy = Union[BinStr, int, bytes]
+
+
 # BIP 32 derivation path
 # absolute path as "m/44h/0'/1H/0/10" string
 # relative path as "./0/10" string

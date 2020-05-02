@@ -21,8 +21,7 @@ import secrets
 from hashlib import sha256
 from typing import Iterable, List, Optional, Union
 
-BinStr = str  # binary 0/1 string
-Entropy = Union[BinStr, int, bytes]
+from .alias import BinStr, Entropy
 
 _bits = 128, 160, 192, 224, 256
 
@@ -37,6 +36,7 @@ def binstr_from_entropy(entr: Entropy,
 
     In the case of binary 0/1 string and bytes-like
     leading zeros are not considered redundant padding.
+
     In the case of integer, where leading zeros cannot be represented,
     if the bit length is not an allowed value, then the binary 0/1
     string is padded with leading zeros up to the first allowed bit
