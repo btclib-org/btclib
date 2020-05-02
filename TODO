@@ -1,5 +1,5 @@
 move to tox
-global network config and global variable
+network as global variable
 taproot
 add AuthProxy for full node interaction (blockexplorer fall-back)
 decode transactions
