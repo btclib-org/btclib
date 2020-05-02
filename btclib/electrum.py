@@ -23,7 +23,7 @@ from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
                        _indexes_from_mnemonic, _mnemonic_from_indexes)
 
 _MNEMONIC_VERSIONS = {
-    'standard': '01',  # P2PKH and Multisig P2SH wallets
+    'standard': '01',  # P2PKH and P2MS-P2SH wallets
     'segwit': '100',  # P2WPKH and P2WSH wallets
     '2fa': '101',  # Two-factor authenticated wallets
     '2fa_segwit': '102',  # Two-factor authenticated wallets, using segwit
@@ -47,9 +47,9 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> str:
     raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
 
 
-def mnemonic_from_entropy(electrum_version: str, entropy: Entropy,
+def mnemonic_from_entropy(entropy: Entropy, electrum_version: str = 'segwit',
                           lang: str = "en") -> Mnemonic:
-    """Convert input entropy to versioned Electrum mnemonic sentence.
+    """Convert input entropy to Electrum versioned mnemonic sentence.
 
     Input entropy can be expressed as
     binary 0/1 string, bytes-like, or integer.
@@ -86,7 +86,7 @@ def mnemonic_from_entropy(electrum_version: str, entropy: Entropy,
 
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
-    """Convert mnemonic sentence to Electrum versioned entropy."""
+    "Return the entropy from the Electrum versioned mnemonic sentence."
 
     # verify that it is a valid Electrum mnemonic sentence
     _ = version_from_mnemonic(mnemonic)
@@ -96,7 +96,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
 
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:
-    """Return (version, seed) from mnemonic according to Electrum standard."""
+    "Return (version, seed) from the provided Electrum mnemonic."
 
     version = version_from_mnemonic(mnemonic)
 

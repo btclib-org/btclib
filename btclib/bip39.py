@@ -76,7 +76,7 @@ def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
 
 
 def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
-    """Convert input entropy to checksummed BIP39 mnemonic sentence.
+    """Convert input entropy to BIP39 checksummed mnemonic sentence.
 
     Input entropy can be expressed as
     binary 0/1 string, bytes-like, or integer;
@@ -84,6 +84,7 @@ def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
 
     In the case of binary 0/1 string and bytes-like,
     leading zeros are not considered redundant padding.
+
     In the case of integer, where leading zeros cannot be represented,
     if the bit length is not an allowed value, then the binary 0/1
     string is padded with leading zeros up to the next allowed bit
@@ -98,7 +99,7 @@ def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
 
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
-    """Convert mnemonic sentence to entropy, verifying checksum."""
+    "Return the entropy from the BIP39 checksummed mnemonic sentence."
 
     words = len(mnemonic.split())
     if words not in _words:

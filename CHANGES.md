@@ -8,6 +8,7 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- made entropy the first input parameter of mnemonic_from_entropy
 - P2PK and P2MS now handle also compressed public keys
 - improved size checks for bytes_from_octets
 - entropy.generate_entropy has been renamed as entropy.generate
