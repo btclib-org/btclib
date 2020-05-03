@@ -10,6 +10,7 @@ full year, short month, short day (YYYY-MM-DD)
 
 Major changes includes:
 
+- Fixed Schnorr MuSig and Threshold Signature
 - Generic public/private key accepted wherever PubKey is expected
   (except for Schnorr where a public key cannot be discriminated as
   different from a private key)

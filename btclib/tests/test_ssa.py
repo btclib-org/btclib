@@ -380,11 +380,11 @@ class TestSSA(unittest.TestCase):
         Q = A[0]
         if not ec.has_square_y(Q):
             # print('Q has been negated')
-            A[1] = ec.negate(A[1])
-            alpha1 = ec.n - alpha1
-            alpha2 = ec.n - alpha2
-            alpha3 = ec.n - alpha3
-            Q = ec.negate(Q)
+            A[1] = ec.negate(A[1])  # pragma: no cover
+            alpha1 = ec.n - alpha1  # pragma: no cover
+            alpha2 = ec.n - alpha2  # pragma: no cover
+            alpha3 = ec.n - alpha3  # pragma: no cover
+            Q = ec.negate(Q)  # pragma: no cover
 
         # SECOND PHASE: generation of the nonces' pair  ######################
         # Assume signer one and three want to sign
@@ -483,10 +483,10 @@ class TestSSA(unittest.TestCase):
         K = B[0]
         if not ec.has_square_y(K):
             # print('K has been negated')
-            B[1] = ec.negate(B[1])
-            beta1 = ec.n - beta1
-            beta3 = ec.n - beta3
-            K = ec.negate(K)
+            B[1] = ec.negate(B[1])  # pragma: no cover
+            beta1 = ec.n - beta1  # pragma: no cover
+            beta3 = ec.n - beta3  # pragma: no cover
+            K = ec.negate(K)  # pragma: no cover
 
         # PHASE THREE: signature generation ###
 
@@ -576,9 +576,9 @@ class TestSSA(unittest.TestCase):
         Q = ec.add(double_mult(a1, Q1, a2, Q2), mult(a3, Q3))
         if not ec.has_square_y(Q):
             # print("Q has been negated")
-            a1 = ec.n - a1
-            a2 = ec.n - a2
-            a3 = ec.n - a3
+            a1 = ec.n - a1  # pragma: no cover
+            a2 = ec.n - a2  # pragma: no cover
+            a3 = ec.n - a3  # pragma: no cover
 
         # exchange {K_i} (interactive)
 
