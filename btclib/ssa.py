@@ -203,33 +203,29 @@ def sign(m: Octets, prvkey: PrvKey, k: PrvKey = None,
     # The message m: a hlen array
     m = bytes_from_octets(m, hf().digest_size)
 
-    # The secret key d: an integer in the range 1..n-1.
+    # The secret key q: an integer in the range 1..n-1.
     q = int_from_prvkey(prvkey, ec)
     QJ = _mult_jac(q, ec.GJ, ec)
     x_Q = ec._x_aff_from_jac(QJ)
     if not ec.has_square_y(QJ):
         q = ec.n - q
 
-    # Fail if k' = 0.
+    # The nonce k: an integer in the range 1..n-1.
     if k is None:
         k = _k(m, q, ec, hf)
     else:
         k = int_from_prvkey(k, ec)
-
-    # Let K = kG
     KJ = _mult_jac(k, ec.GJ, ec)
     x_K = ec._x_aff_from_jac(KJ)
-    # Let k = k' if jacobi(y_K) = 1, otherwise let k = n - k'.
     if not ec.has_square_y(KJ):
         k = ec.n - k
 
-    # Let c = int(hf(bytes(x_K) || bytes(Q) || m)) mod n.
+    # Let c = int(hf(bytes(x_K) || bytes(x_Q) || m)) mod n.
     c = _challenge(x_K, x_Q, m, ec, hf)
 
     # s=0 is ok: in verification there is no inverse of s
     s = (k + c * q) % ec.n
 
-    # The signature is bytes(x_K || bytes((k + ed) mod n)).
     return x_K, s
 
 
