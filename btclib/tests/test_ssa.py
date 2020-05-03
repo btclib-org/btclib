@@ -590,9 +590,9 @@ class TestSSA(unittest.TestCase):
         # same for all signers
         K = ec.add(ec.add(K1, K2), K3)
         if not ec.has_square_y(K):
-            k1 = ec.n - k1
-            k2 = ec.n - k2
-            k3 = ec.n - k3
+            k1 = ec.n - k1  # pragma: no cover
+            k2 = ec.n - k2  # pragma: no cover
+            k3 = ec.n - k3  # pragma: no cover
         r = K[0]
         e = ssa._challenge(r, Q[0], mhd, ec, hf)
         s1 = (k1 + e * a1 * q1) % ec.n
