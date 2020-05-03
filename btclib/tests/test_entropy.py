@@ -9,13 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import math
-import random
 import secrets
 import unittest
 
 from btclib.entropy import binstr_from_entropy, generate
-
-random.seed(42)
 
 
 class TestEntropy(unittest.TestCase):
@@ -60,7 +57,7 @@ class TestEntropy(unittest.TestCase):
         self.assertEqual(entropy, binstr_entropy)
 
         # the 32 bytes integer has its leftmost bit set to 0
-        int_entropy = random.getrandbits(255)
+        int_entropy = secrets.randbits(255)
         binstr_entropy = binstr_from_entropy(int_entropy)
         self.assertEqual(len(binstr_entropy), 256)
 

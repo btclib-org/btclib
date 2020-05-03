@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import random
+import secrets
 import unittest
 from typing import List
 
@@ -16,8 +16,6 @@ from btclib.alias import INF, INFJ
 from btclib.curve import _mult_aff, _mult_jac
 from btclib.curvemult import double_mult, mult, multi_mult
 from btclib.curves import ec23_31, low_card_curves, secp256k1
-
-random.seed(42)
 
 
 class TestEllipticCurve(unittest.TestCase):
@@ -52,7 +50,7 @@ class TestEllipticCurve(unittest.TestCase):
         k: List[int] = list()
         ksum = 0
         for i in range(11):
-            k.append(random.getrandbits(ec.nlen) % ec.n)
+            k.append(secrets.randbits(ec.nlen) % ec.n)
             ksum += k[i]
 
         P = [ec.G] * len(k)

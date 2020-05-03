@@ -8,38 +8,37 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+import secrets
 import unittest
-import random
+from collections import defaultdict
+from typing import Dict, List
 
-from btclib.curvemult import mult
-from btclib.curves import secp256k1 as ec
-from btclib import borromean
-
-random.seed(42)
+from btclib import borromean, dsa
+from btclib.alias import Point
 
 
 class TestBorromeanRingSignature(unittest.TestCase):
     def test_borromean(self):
-        ring_number = 4
-        ring_dim = [random.randint(1, 4) for ring in range(ring_number)]
-        signing_indexes = [random.randrange(ring_dim[ring])
-                           for ring in range(ring_number)]
-        priv_keys = {}
-        Pub_keys = {}
-        signing_keys = []
-        for i in range(ring_number):
-            priv_keys[i] = [0] * ring_dim[i]
-            Pub_keys[i] = [0] * ring_dim[i]
-            for j in range(ring_dim[i]):
-                priv_keys[i][j] = j + 1
-                Pub_keys[i][j] = mult(priv_keys[i][j], ec.G, ec)
-            signing_keys.append(priv_keys[i][signing_indexes[i]])
+        nring = 4  # FIXME randomize; minimum number of rings?
+        ring_sizes = [1 + secrets.randbelow(7) for _ in range(nring)]
+        sign_key_idx = [secrets.randbelow(size) for size in ring_sizes]
+
+        pubk_rings: Dict[int, List[Point]] = defaultdict(list)
+        sign_keys: List[int] = []
+        for i in range(nring):
+            for j in range(ring_sizes[i]):
+                priv_key, pub_key = dsa.gen_keys()
+                pubk_rings[i].append(pub_key)
+                if j == sign_key_idx[i]:
+                    sign_keys.append(priv_key)
+
         msg = 'Borromean ring signature'
         sig = borromean.sign(msg, list(range(1, 5)),
-                             signing_indexes, signing_keys, Pub_keys)
-        self.assertTrue(borromean.verify(msg, sig[0], sig[1], Pub_keys))
+                             sign_key_idx, sign_keys, pubk_rings)
 
-        self.assertFalse(borromean.verify(0, sig[0], sig[1], Pub_keys))
+        borromean._verify(msg.encode(), sig[0], sig[1], pubk_rings)
+        self.assertTrue(borromean.verify(msg, sig[0], sig[1], pubk_rings))
+        self.assertFalse(borromean.verify(0, sig[0], sig[1], pubk_rings))
 
 
 if __name__ == "__main__":
