@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import csv
-import random
 import secrets
 import unittest
 from hashlib import sha256 as hf
@@ -24,8 +23,6 @@ from btclib.curves import secp256k1 as ec
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
 from btclib.utils import int_from_bits
-
-random.seed(42)
 
 
 class TestSSA(unittest.TestCase):
@@ -94,8 +91,8 @@ class TestSSA(unittest.TestCase):
                 if seckey != '':
                     seckey = bytes.fromhex(seckey)
                     _, pubkey_actual = ssa.gen_keys(seckey)
-                    self.assertEqual(
-                        pubkey, hex(pubkey_actual).upper()[2:], errmsg)
+                    self.assertEqual(pubkey,
+                                     hex(pubkey_actual).upper()[2:], errmsg)
 
                     sig_actual = ssa.serialize(*ssa.sign(mhd, seckey))
                     self.assertEqual(sig, sig_actual.hex().upper(), errmsg)
@@ -133,7 +130,6 @@ class TestSSA(unittest.TestCase):
                         if not e_c.has_square_y(K):
                             k = e_c.n - k
                         x_K = K[0]
-
                         try:
                             c = ssa._challenge(x_K, Q[0], h, e_c, hf)
                         except Exception:
@@ -156,17 +152,17 @@ class TestSSA(unittest.TestCase):
         ms = []
         Qs = []
         sigs = []
-        ms.append(random.getrandbits(hlen).to_bytes(hsize, 'big'))
-        q = random.randint(1, ec.n - 1)
+        ms.append(secrets.randbits(hlen).to_bytes(hsize, 'big'))
+        q = 1 + secrets.randbelow(ec.n - 1)
         # bytes version
         Qs.append(mult(q, ec.G, ec)[0].to_bytes(ec.psize, 'big'))
         sigs.append(ssa.sign(ms[0], q, None, ec, hf))
         # test with only 1 sig
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
         for _ in range(3):
-            mhd = random.getrandbits(hlen).to_bytes(hsize, 'big')
+            mhd = secrets.randbits(hlen).to_bytes(hsize, 'big')
             ms.append(mhd)
-            q = random.randint(1, ec.n - 1)
+            q = 1 + secrets.randbelow(ec.n - 1)
             # Point version
             Qs.append(mult(q, ec.G, ec))
             sigs.append(ssa.sign(mhd, q, None, ec, hf))
@@ -214,140 +210,124 @@ class TestSSA(unittest.TestCase):
         H = second_generator(ec, hf)
         mhd = hf(b'message to sign').digest()
 
-        # FIRST PHASE: key pair generation ###
+        # FIRST PHASE: key pair generation ###################################
 
-        # signer one acting as the dealer
+        # 1.1 signer one acting as the dealer
         commits1: List[Point] = list()
-        q1 = (1 + random.getrandbits(ec.nlen)) % ec.n
-        q1_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
+        q1, _ = ssa.gen_keys()
+        q1_prime, _ = ssa.gen_keys()
         commits1.append(double_mult(q1_prime, H, q1, ec.G))
-
         # sharing polynomials
         f1: List[int] = list()
         f1.append(q1)
         f1_prime: List[int] = list()
         f1_prime.append(q1_prime)
         for i in range(1, m):
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f1.append(temp)
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f1_prime.append(temp)
             commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
-
         # shares of the secret
-        alpha12 = 0  # share of q1 belonging to P2
+        alpha12 = 0  # share of q1 belonging to signer two
         alpha12_prime = 0
-        alpha13 = 0  # share of q1 belonging to P3
+        alpha13 = 0  # share of q1 belonging to signer three
         alpha13_prime = 0
         for i in range(m):
             alpha12 += (f1[i] * pow(2, i)) % ec.n
             alpha12_prime += (f1_prime[i] * pow(2, i)) % ec.n
-
             alpha13 += (f1[i] * pow(3, i)) % ec.n
             alpha13_prime += (f1_prime[i] * pow(3, i)) % ec.n
-
-        # player two verifies consistency of his share
+        # signer two verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(2, i), commits1[i]))
         t = double_mult(alpha12_prime, H, alpha12, ec.G)
-        assert t == RHS, 'player one is cheating'
-
-        # player three verifies consistency of his share
+        assert t == RHS, 'signer one is cheating'
+        # signer three verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
         t = double_mult(alpha13_prime, H, alpha13, ec.G)
-        assert t == RHS, 'player one is cheating'
+        assert t == RHS, 'signer one is cheating'
 
-        # signer two acting as the dealer
+        # 1.2 signer two acting as the dealer
         commits2: List[Point] = list()
-        q2 = (1 + random.getrandbits(ec.nlen)) % ec.n
-        q2_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
+        q2, _ = ssa.gen_keys()
+        q2_prime, _ = ssa.gen_keys()
         commits2.append(double_mult(q2_prime, H, q2, ec.G))
-
         # sharing polynomials
         f2: List[int] = list()
         f2.append(q2)
         f2_prime: List[int] = list()
         f2_prime.append(q2_prime)
         for i in range(1, m):
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f2.append(temp)
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f2_prime.append(temp)
             commits2.append(double_mult(f2_prime[i], H, f2[i], ec.G))
-
         # shares of the secret
-        alpha21 = 0  # share of q2 belonging to P1
+        alpha21 = 0  # share of q2 belonging to signer one
         alpha21_prime = 0
-        alpha23 = 0  # share of q2 belonging to P3
+        alpha23 = 0  # share of q2 belonging to signer three
         alpha23_prime = 0
         for i in range(m):
             alpha21 += (f2[i] * pow(1, i)) % ec.n
             alpha21_prime += (f2_prime[i] * pow(1, i)) % ec.n
-
             alpha23 += (f2[i] * pow(3, i)) % ec.n
             alpha23_prime += (f2_prime[i] * pow(3, i)) % ec.n
-
-        # player one verifies consistency of his share
+        # signer one verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits2[i]))
         t = double_mult(alpha21_prime, H, alpha21, ec.G)
-        assert t == RHS, 'player two is cheating'
-
-        # player three verifies consistency of his share
+        assert t == RHS, 'signer two is cheating'
+        # signer three verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits2[i]))
         t = double_mult(alpha23_prime, H, alpha23, ec.G)
-        assert t == RHS, 'player two is cheating'
+        assert t == RHS, 'signer two is cheating'
 
-        # signer three acting as the dealer
+        # 1.3 signer three acting as the dealer
         commits3: List[Point] = list()
-        q3 = (1 + random.getrandbits(ec.nlen)) % ec.n
-        q3_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
+        q3, _ = ssa.gen_keys()
+        q3_prime, _ = ssa.gen_keys()
         commits3.append(double_mult(q3_prime, H, q3, ec.G))
-
         # sharing polynomials
         f3: List[int] = list()
         f3.append(q3)
         f3_prime: List[int] = list()
         f3_prime.append(q3_prime)
         for i in range(1, m):
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f3.append(temp)
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f3_prime.append(temp)
             commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
-
         # shares of the secret
-        alpha31 = 0  # share of q3 belonging to P1
+        alpha31 = 0  # share of q3 belonging to signer one
         alpha31_prime = 0
-        alpha32 = 0  # share of q3 belonging to P2
+        alpha32 = 0  # share of q3 belonging to signer two
         alpha32_prime = 0
         for i in range(m):
             alpha31 += (f3[i] * pow(1, i)) % ec.n
             alpha31_prime += (f3_prime[i] * pow(1, i)) % ec.n
-
             alpha32 += (f3[i] * pow(2, i)) % ec.n
             alpha32_prime += (f3_prime[i] * pow(2, i)) % ec.n
-
-        # player one verifies consistency of his share
+        # signer one verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
         t = double_mult(alpha31_prime, H, alpha31, ec.G)
-        assert t == RHS, 'player three is cheating'
-
-        # player two verifies consistency of his share
+        assert t == RHS, 'signer three is cheating'
+        # signer two verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(2, i), commits3[i]))
         t = double_mult(alpha32_prime, H, alpha32, ec.G)
-        assert t == RHS, 'player two is cheating'
-
+        assert t == RHS, 'signer three is cheating'
         # shares of the secret key q = q1 + q2 + q3
         alpha1 = (alpha21 + alpha31) % ec.n
         alpha2 = (alpha12 + alpha32) % ec.n
@@ -357,161 +337,156 @@ class TestSSA(unittest.TestCase):
             alpha2 += (f2[i] * pow(2, i)) % ec.n
             alpha3 += (f3[i] * pow(3, i)) % ec.n
 
-        # it's time to recover the public key
+        # 1.4 it's time to recover the public key
+        # each participant i = 1, 2, 3 shares Qi as follows
         # Q = Q1 + Q2 + Q3 = (q1 + q2 + q3) G
         A1: List[Point] = list()
         A2: List[Point] = list()
         A3: List[Point] = list()
-
-        # each participant i = 1, 2, 3 shares Qi as follows
-
-        # he broadcasts these values
         for i in range(m):
             A1.append(mult(f1[i]))
             A2.append(mult(f2[i]))
             A3.append(mult(f3[i]))
-
-        # he checks the others' values
-        # player one
+        # signer one checks others' values
         RHS2 = INF
         RHS3 = INF
         for i in range(m):
             RHS2 = ec.add(RHS2, mult(pow(1, i), A2[i]))
             RHS3 = ec.add(RHS3, mult(pow(1, i), A3[i]))
-        assert mult(alpha21) == RHS2, 'player two is cheating'
-        assert mult(alpha31) == RHS3, 'player three is cheating'
-
-        # player two
+        assert mult(alpha21) == RHS2, 'signer two is cheating'
+        assert mult(alpha31) == RHS3, 'signer three is cheating'
+        # signer two checks others' values
         RHS1 = INF
         RHS3 = INF
         for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(2, i), A1[i]))
             RHS3 = ec.add(RHS3, mult(pow(2, i), A3[i]))
-        assert mult(alpha12) == RHS1, 'player one is cheating'
-        assert mult(alpha32) == RHS3, 'player three is cheating'
-
-        # player three
+        assert mult(alpha12) == RHS1, 'signer one is cheating'
+        assert mult(alpha32) == RHS3, 'signer three is cheating'
+        # signer three checks others' values
         RHS1 = INF
         RHS2 = INF
         for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(3, i), A1[i]))
             RHS2 = ec.add(RHS2, mult(pow(3, i), A2[i]))
-        assert mult(alpha13) == RHS1, 'player one is cheating'
-        assert mult(alpha23) == RHS2, 'player two is cheating'
-
-        A: List[Point] = list()  # commitment at the global sharing polynomial
+        assert mult(alpha13) == RHS1, 'signer one is cheating'
+        assert mult(alpha23) == RHS2, 'signer two is cheating'
+        # commitment at the global sharing polynomial
+        A: List[Point] = list()
         for i in range(m):
             A.append(ec.add(A1[i], ec.add(A2[i], A3[i])))
 
-        Q = A[0]  # aggregated public key
+        # aggregated public key
+        Q = A[0]
+        if not ec.has_square_y(Q):
+            # print('Q has been negated')
+            A[1] = ec.negate(A[1])
+            alpha1 = ec.n - alpha1
+            alpha2 = ec.n - alpha2
+            alpha3 = ec.n - alpha3
+            Q = ec.negate(Q)
 
-        # SECOND PHASE: generation of the nonces' pair ###
-        # This phase follows exactly the key generation procedure
-        # suppose that player one and three want to sign
+        # SECOND PHASE: generation of the nonces' pair  ######################
+        # Assume signer one and three want to sign
 
-        # signer one acting as the dealer
+        # 2.1 signer one acting as the dealer
         commits1: List[Point] = list()
-        k1 = (1 + random.getrandbits(ec.nlen)) % ec.n
-        k1_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
+        k1 = ssa.k(mhd, q1, ec, hf)
+        k1_prime = ssa.k(mhd, q1_prime, ec, hf)
         commits1.append(double_mult(k1_prime, H, k1, ec.G))
-
         # sharing polynomials
         f1: List[int] = list()
         f1.append(k1)
         f1_prime: List[int] = list()
         f1_prime.append(k1_prime)
         for i in range(1, m):
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f1.append(temp)
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f1_prime.append(temp)
             commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
-
         # shares of the secret
-        beta13 = 0  # share of k1 belonging to P3
+        beta13 = 0  # share of k1 belonging to signer three
         beta13_prime = 0
         for i in range(m):
             beta13 += (f1[i] * pow(3, i)) % ec.n
             beta13_prime += (f1_prime[i] * pow(3, i)) % ec.n
-
-        # player three verifies consistency of his share
+        # signer three verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
         t = double_mult(beta13_prime, H, beta13, ec.G)
-        assert t == RHS, 'player one is cheating'
+        assert t == RHS, 'signer one is cheating'
 
-        # signer three acting as the dealer
+        # 2.2 signer three acting as the dealer
         commits3: List[Point] = list()
-        k3 = (1 + random.getrandbits(ec.nlen)) % ec.n
-        k3_prime = (1 + random.getrandbits(ec.nlen)) % ec.n
+        k3 = ssa.k(mhd, q3, ec, hf)
+        k3_prime = ssa.k(mhd, q3_prime, ec, hf)
         commits3.append(double_mult(k3_prime, H, k3, ec.G))
-
         # sharing polynomials
         f3: List[int] = list()
         f3.append(k3)
         f3_prime: List[int] = list()
         f3_prime.append(k3_prime)
         for i in range(1, m):
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f3.append(temp)
-            temp = (1 + random.getrandbits(ec.nlen)) % ec.n
+            temp, _ = ssa.gen_keys()
             f3_prime.append(temp)
             commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
-
         # shares of the secret
-        beta31 = 0  # share of k3 belonging to P1
+        beta31 = 0  # share of k3 belonging to signer one
         beta31_prime = 0
         for i in range(m):
             beta31 += (f3[i] * pow(1, i)) % ec.n
             beta31_prime += (f3_prime[i] * pow(1, i)) % ec.n
-
-        # player one verifies consistency of his share
+        # signer one verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
         t = double_mult(beta31_prime, H, beta31, ec.G)
-        assert t == RHS, 'player three is cheating'
+        assert t == RHS, 'signer three is cheating'
 
-        # shares of the secret nonce
+        # 2.3 shares of the secret nonce
         beta1 = beta31 % ec.n
         beta3 = beta13 % ec.n
         for i in range(m):
             beta1 += (f1[i] * pow(1, i)) % ec.n
             beta3 += (f3[i] * pow(3, i)) % ec.n
 
-        # it's time to recover the public nonce
+        # 2.4 it's time to recover the public nonce
+        # each participant i = 1, 3 shares Qi as follows
         B1: List[Point] = list()
         B3: List[Point] = list()
-
-        # each participant i = 1, 3 shares Qi as follows
-
-        # he broadcasts these values
         for i in range(m):
             B1.append(mult(f1[i]))
             B3.append(mult(f3[i]))
 
-        # he checks the others' values
-        # player one
+        # signer one checks values from signer three
         RHS3 = INF
         for i in range(m):
             RHS3 = ec.add(RHS3, mult(pow(1, i), B3[i]))
-        assert mult(beta31) == RHS3, 'player three is cheating'
+        assert mult(beta31) == RHS3, 'signer three is cheating'
 
-        # player three
+        # signer three checks values from signer one
         RHS1 = INF
         for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(3, i), B1[i]))
-        assert mult(beta13) == RHS1, 'player one is cheating'
+        assert mult(beta13) == RHS1, 'signer one is cheating'
 
-        B: List[Point] = list()  # commitment at the global sharing polynomial
+        # commitment at the global sharing polynomial
+        B: List[Point] = list()
         for i in range(m):
             B.append(ec.add(B1[i], B3[i]))
 
-        K = B[0]  # aggregated public nonce
+        # aggregated public nonce
+        K = B[0]
         if not ec.has_square_y(K):
+            # print('K has been negated')
+            B[1] = ec.negate(B[1])
             beta1 = ec.n - beta1
             beta3 = ec.n - beta3
+            K = ec.negate(K)
 
         # PHASE THREE: signature generation ###
 
@@ -522,35 +497,19 @@ class TestSSA(unittest.TestCase):
 
         # each participant verifies the other partial signatures
 
-        # player one
-        if ec.has_square_y(K):
-            RHS3 = ec.add(K, mult(e, Q))
-            for i in range(1, m):
-                temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i])
-                RHS3 = ec.add(RHS3, temp)
-        else:
-            RHS3 = ec.add(ec.negate(K), mult(e, Q))
-            for i in range(1, m):
-                temp = double_mult(pow(3, i), ec.negate(
-                    B[i]), e * pow(3, i), A[i])
-                RHS3 = ec.add(RHS3, temp)
+        # signer one
+        RHS3 = ec.add(K, mult(e, Q))
+        for i in range(1, m):
+            temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i])
+            RHS3 = ec.add(RHS3, temp)
+        assert mult(gamma3) == RHS3, 'signer three is cheating'
 
-        assert mult(gamma3) == RHS3, 'player three is cheating'
-
-        # player three
-        if ec.has_square_y(K):
-            RHS1 = ec.add(K, mult(e, Q))
-            for i in range(1, m):
-                temp = double_mult(pow(1, i), B[i], e * pow(1, i), A[i])
-                RHS1 = ec.add(RHS1, temp)
-        else:
-            RHS1 = ec.add(ec.negate(K), mult(e, Q))
-            for i in range(1, m):
-                temp = double_mult(pow(1, i), ec.negate(
-                    B[i]), e * pow(1, i), A[i])
-                RHS1 = ec.add(RHS1, temp)
-
-        assert mult(gamma1) == RHS1, 'player two is cheating'
+        # signer three
+        RHS1 = ec.add(K, mult(e, Q))
+        for i in range(1, m):
+            temp = double_mult(pow(1, i), B[i], e * pow(1, i), A[i])
+            RHS1 = ec.add(RHS1, temp)
+        assert mult(gamma1) == RHS1, 'signer one is cheating'
 
         # PHASE FOUR: aggregating the signature ###
         omega1 = 3 * mod_inv(3 - 1, ec.n) % ec.n
@@ -563,7 +522,7 @@ class TestSSA(unittest.TestCase):
 
         # ADDITIONAL PHASE: reconstruction of the private key ###
         secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
-        self.assertEqual((q1 + q2 + q3) % ec.n, secret)
+        self.assertIn((q1 + q2 + q3) % ec.n, (secret, ec.n - secret))
 
     def test_musig(self):
         """testing 3-of-3 MuSig
@@ -578,43 +537,48 @@ class TestSSA(unittest.TestCase):
 
         # the signers private and public keys,
         # including both the curve Point and the BIP340-Schnorr public key
-        q1 = 0x010101
+        q1, x_Q1 = ssa.gen_keys()
         Q1 = mult(q1)
-        Q1_x = Q1[0].to_bytes(ec.psize, 'big')
+        x_Q1 = Q1[0].to_bytes(ec.psize, 'big')
 
-        q2 = 0x020202
+        q2, x_Q2 = ssa.gen_keys()
         Q2 = mult(q2)
-        Q2_x = Q2[0].to_bytes(ec.psize, 'big')
+        x_Q2 = Q2[0].to_bytes(ec.psize, 'big')
 
-        q3 = 0x030303
+        q3, x_Q3 = ssa.gen_keys()
         Q3 = mult(q3)
-        Q3_x = Q3[0].to_bytes(ec.psize, 'big')
+        x_Q3 = Q3[0].to_bytes(ec.psize, 'big')
 
         # ready to sign: nonces and nonce commitments
-        k1 = 1 + secrets.randbelow(ec.n - 1)
+        k1, _ = ssa.gen_keys()
         K1 = mult(k1)
 
-        k2 = 1 + secrets.randbelow(ec.n - 1)
+        k2, _ = ssa.gen_keys()
         K2 = mult(k2)
 
-        k3 = 1 + secrets.randbelow(ec.n - 1)
+        k3, _ = ssa.gen_keys()
         K3 = mult(k3)
 
         # (non interactive) key setup
         # this is MuSig core: the rest is just Schnorr signature additivity
         # 1. lexicographic sorting of public keys
         keys: List[bytes] = list()
-        keys.append(Q1_x)
-        keys.append(Q2_x)
-        keys.append(Q3_x)
+        keys.append(x_Q1)
+        keys.append(x_Q2)
+        keys.append(x_Q3)
         keys.sort()
         # 2. coefficients
         prefix = b''.join(keys)
-        a1 = int_from_bits(hf(prefix + Q1_x).digest(), ec.nlen) % ec.n
-        a2 = int_from_bits(hf(prefix + Q2_x).digest(), ec.nlen) % ec.n
-        a3 = int_from_bits(hf(prefix + Q3_x).digest(), ec.nlen) % ec.n
+        a1 = int_from_bits(hf(prefix + x_Q1).digest(), ec.nlen) % ec.n
+        a2 = int_from_bits(hf(prefix + x_Q2).digest(), ec.nlen) % ec.n
+        a3 = int_from_bits(hf(prefix + x_Q3).digest(), ec.nlen) % ec.n
         # 3. aggregated public key
         Q = ec.add(double_mult(a1, Q1, a2, Q2), mult(a3, Q3))
+        if not ec.has_square_y(Q):
+            # print("Q has been negated")
+            a1 = ec.n - a1
+            a2 = ec.n - a2
+            a3 = ec.n - a3
 
         # exchange {K_i} (interactive)
 
@@ -625,22 +589,14 @@ class TestSSA(unittest.TestCase):
 
         # same for all signers
         K = ec.add(ec.add(K1, K2), K3)
-        r = K[0]
-        e = ssa._challenge(r, Q[0], mhd, ec, hf)
-
-        # first signer
         if not ec.has_square_y(K):
             k1 = ec.n - k1
-        s1 = (k1 + e * a1 * q1) % ec.n
-
-        # second signer
-        if not ec.has_square_y(K):
             k2 = ec.n - k2
-        s2 = (k2 + e * a2 * q2) % ec.n
-
-        # third signer
-        if not ec.has_square_y(K):
             k3 = ec.n - k3
+        r = K[0]
+        e = ssa._challenge(r, Q[0], mhd, ec, hf)
+        s1 = (k1 + e * a1 * q1) % ec.n
+        s2 = (k2 + e * a2 * q2) % ec.n
         s3 = (k3 + e * a3 * q3) % ec.n
 
         # exchange s_i (interactive)
@@ -649,6 +605,7 @@ class TestSSA(unittest.TestCase):
         s = (s1 + s2 + s3) % ec.n
         sig = r, s
         # check signature is valid
+        ssa._verify(mhd, Q, sig, ec, hf)
         self.assertTrue(ssa.verify(mhd, Q, sig))
 
     def test_crack_prvkey(self):
