@@ -34,10 +34,10 @@ A BIP32 extended key is 78 bytes:
 
 import copy
 import hmac
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 from . import bip39, electrum
-from .alias import INF, BIP32KeyDict, Octets, Path, Point, String
+from .alias import INF, BIP32Key, BIP32KeyDict, Octets, Path, Point
 from .base58 import b58decode, b58encode
 from .curvemult import mult
 from .curves import secp256k1 as ec
@@ -85,7 +85,7 @@ def _check_depth_pfp_index(depth: int, pfp: bytes, i: bytes) -> None:
             raise ValueError(msg)
 
 
-def deserialize(xkey: Union[BIP32KeyDict, String]) -> ExtendedBIP32KeyDict:
+def deserialize(xkey: BIP32Key) -> ExtendedBIP32KeyDict:
 
     d: ExtendedBIP32KeyDict
     if isinstance(xkey, dict):
@@ -171,7 +171,8 @@ def serialize(d: BIP32KeyDict) -> bytes:
     return b58encode(t, 78)
 
 
-def rootxprv_from_seed(seed: Octets, version: Optional[Octets] = None) -> bytes:
+def rootxprv_from_seed(seed: Octets,
+                       version: Optional[Octets] = None) -> bytes:
     """Return BIP32 root master extended private key from seed."""
 
     seed = bytes_from_octets(seed)
@@ -227,7 +228,7 @@ def mxprv_from_electrum_mnemonic(mnemonic: Mnemonic,
         raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
 
 
-def xpub_from_xprv(xprv: Union[BIP32KeyDict, String]) -> bytes:
+def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     """Neutered Derivation (ND).
 
     Derivation of the extended public key corresponding to an extended
@@ -312,7 +313,7 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
     return indexes, absolute
 
 
-def derive(xkey: Union[BIP32KeyDict, String], path: Path) -> bytes:
+def derive(xkey: BIP32Key, path: Path) -> bytes:
     """Derive an extended key across a path spanning multiple depth levels.
 
     Derivation is according to:
@@ -354,8 +355,7 @@ def derive(xkey: Union[BIP32KeyDict, String], path: Path) -> bytes:
     return serialize(xkey)
 
 
-def crack_prvkey(parent_xpub: Union[BIP32KeyDict, String],
-                 child_xprv: Union[BIP32KeyDict, String]) -> bytes:
+def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
 
     if isinstance(parent_xpub, dict):
         p = copy.copy(parent_xpub)

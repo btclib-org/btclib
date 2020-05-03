@@ -285,7 +285,7 @@ class TestMessageSign(unittest.TestCase):
         # Invalid recovery flag: 26
         _, r, s = bms.deserialize(exp_sig)
         self.assertRaises(ValueError, bms.serialize, 26, r, s)
-        #bms.serialize(26, r, s)
+        # bms.serialize(26, r, s)
 
         # short exp_sig
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc='
@@ -296,25 +296,25 @@ class TestMessageSign(unittest.TestCase):
         exp_sig = b'GpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU='
         self.assertRaises(ValueError, bms._verify, msg, address, exp_sig)
         self.assertFalse(bms.verify(msg, address, exp_sig))
-        #bms._verify(msg, address, exp_sig)
+        # bms._verify(msg, address, exp_sig)
 
         # Invalid recovery flag: 66
         exp_sig = b'QpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU='
         self.assertRaises(ValueError, bms._verify, msg, address, exp_sig)
         self.assertFalse(bms.verify(msg, address, exp_sig))
-        #bms._verify(msg, address, exp_sig)
+        # bms._verify(msg, address, exp_sig)
 
         # Pubkey mismatch: compressed wif, uncompressed address
         wif = 'Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ'
         address = '19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T'
         self.assertRaises(ValueError, bms.sign, msg, wif, address)
-        #bms.sign(msg, wif, address)
+        # bms.sign(msg, wif, address)
 
         # Pubkey mismatch: uncompressed wif, compressed address
         wif = '5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn'
         address = '1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5'
         self.assertRaises(ValueError, bms.sign, msg, wif, address)
-        #bms.sign(msg, wif, address)
+        # bms.sign(msg, wif, address)
 
         msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
@@ -341,14 +341,14 @@ class TestMessageSign(unittest.TestCase):
         _, r, s = bms.deserialize(exp_sig)
         sig = bms.serialize(39, r, s)
         self.assertRaises(ValueError, bms._verify, msg, p2pkh, sig)
-        #bms._verify(msg, p2pkh, sig)
+        # bms._verify(msg, p2pkh, sig)
 
         # Invalid recovery flag (35) for bech32 address
         exp_sig = b'IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU='
         _, r, s = bms.deserialize(exp_sig)
         sig = bms.serialize(35, r, s)
         self.assertRaises(ValueError, bms._verify, msg, p2wpkh, sig)
-        #bms._verify(msg, p2wpkh, sig)
+        # bms._verify(msg, p2wpkh, sig)
 
     def test_vector_python_bitcoinlib(self):
         """Test python-bitcoinlib test vectors
@@ -383,8 +383,8 @@ class TestMessageSign(unittest.TestCase):
             # while Core/Electrum/btclib use 'low-s' canonical signature
             self.assertLess(s, ec.n - s)
             # this is not true for python-bitcoinlib
-            #self.assertLess(s0, ec.n - s0)
-            #self.assertGreater(s0, ec.n - s0)
+            # self.assertLess(s0, ec.n - s0)
+            # self.assertGreater(s0, ec.n - s0)
 
             # just in case you wonder, here's the malleated signature
             rf += (1 if rf == 31 else -1)
@@ -394,7 +394,8 @@ class TestMessageSign(unittest.TestCase):
             b64sig_malleated = bms.serialize(*tuplesig_malleated)
             self.assertTrue(bms.verify(
                 msg, vector['address'], b64sig_malleated))
-            # of course, it is not equal to the python-bitcoinlib one (different r)
+            # of course,
+            # it is not equal to the python-bitcoinlib one (different r)
             self.assertNotEqual(b64sig_malleated.decode(), vector['signature'])
 
     def test_ledger(self):

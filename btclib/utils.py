@@ -25,7 +25,10 @@ from .alias import Octets
 #    return byte_str.hex()
 
 
-def bytes_from_octets(o: Octets, out_size: Optional[Union[int, Iterable[int]]] = None) -> bytes:
+NoneOneOrMoreInt = Optional[Union[int, Iterable[int]]]
+
+
+def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
     If the input is not a string, then it goes untouched.
@@ -36,8 +39,8 @@ def bytes_from_octets(o: Octets, out_size: Optional[Union[int, Iterable[int]]] =
         o = bytes.fromhex(o)
 
     if (out_size is None or
-        isinstance(out_size, int) and len(o) == out_size or
-        isinstance(out_size, Iterable) and len(o) in out_size
+            isinstance(out_size, int) and len(o) == out_size or
+            isinstance(out_size, Iterable) and len(o) in out_size
         ):
         return o
 

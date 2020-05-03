@@ -57,21 +57,30 @@ class TestSegwitAddress(unittest.TestCase):
         """Test whether valid addresses decode to the correct output"""
 
         VALID_BC_ADDRESS = [
-            ["BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
-                "0014751e76e8199196d454941c45d1b3a323f1433bd6"],
-            ["bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
-                "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6"],
-            ["BC1SW50QA3JX3S", "6002751e"],
-            ["bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
-                "5210751e76e8199196d454941c45d1b3a323"],
-            [" bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
-                "5210751e76e8199196d454941c45d1b3a323"],  # extra leading space
+            [
+                "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
+                "0014751e76e8199196d454941c45d1b3a323f1433bd6"
+            ], [
+                "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
+                "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6"
+            ], [
+                "BC1SW50QA3JX3S", "6002751e"
+            ], [
+                "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
+                "5210751e76e8199196d454941c45d1b3a323"
+            ], [
+                " bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",  # extra leading space
+                "5210751e76e8199196d454941c45d1b3a323"
+            ],
         ]
         VALID_TB_ADDRESS = [
-            ["tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
-                "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"],
-            ["tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
-                "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433"],
+            [
+                "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
+                "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"
+            ], [
+                "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
+                "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433"
+            ],
         ]
 
         for a, hexscript in VALID_BC_ADDRESS + VALID_TB_ADDRESS:
@@ -85,19 +94,26 @@ class TestSegwitAddress(unittest.TestCase):
         """Test whether invalid addresses fail to decode"""
 
         INVALID_ADDRESS = [
-            "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",  # Invalid human-readable part
-            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",  # Invalid checksum
-            "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",  # Invalid witness version
-            "bc1rw5uspcuh",  # Invalid program length
+            # Invalid human-readable part
+            "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
+            # Invalid checksum
+            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
+            # Invalid witness version
+            "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
+            # Invalid program length
+            "bc1rw5uspcuh",
             # Invalid program length
             "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
             # Invalid program length for witness version 0 (per BIP141)
             "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
-            "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",  # Mixed case
-            "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",  # zero padding of more than 4 bits
+            # Mixed case
+            "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
+            # zero padding of more than 4 bits
+            "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
             # Non-zero padding in 8-to-5 conversion
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-            "bc1gmk9yu",  # Empty data section
+            # Empty data section
+            "bc1gmk9yu",
             # 92 chars
             "bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5"
         ]
@@ -135,7 +151,7 @@ class TestSegwitAddress(unittest.TestCase):
         wp = [i for i in wp]  # convert to List[int]
         wp[-1] = -1  # alter the last element with an invalid value
         self.assertRaises(ValueError, b32address_from_witness, wv, wp, network)
-        #b32address_from_witness(wv, wp, network)
+        # b32address_from_witness(wv, wp, network)
 
         # string input
         addr = 'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
@@ -185,12 +201,12 @@ class TestSegwitAddress(unittest.TestCase):
 
         # Wrong pubkey size: 34 instead of 33
         self.assertRaises(ValueError, p2wpkh, pub + '00')
-        #p2wpkh(pub + '00')
+        # p2wpkh(pub + '00')
 
         # Witness program length (21) is not 20
         self.assertRaises(ValueError, b32address_from_witness,
                           0, hash160(pub) + b'\x00')
-        #b32address_from_witness(0, hash160(pub) + b'\x00')
+        # b32address_from_witness(0, hash160(pub) + b'\x00')
 
     def test_hash_from_bech32(self):
         network = "testnet"
@@ -238,7 +254,7 @@ class TestSegwitAddress(unittest.TestCase):
         # witness program length (35) is not 32
         self.assertRaises(ValueError, b32address_from_witness,
                           0, witness_script_bytes[1:])
-        #b32address_from_witness(0, witness_script_bytes)
+        # b32address_from_witness(0, witness_script_bytes)
 
 
 if __name__ == "__main__":

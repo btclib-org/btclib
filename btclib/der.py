@@ -42,7 +42,7 @@
       (not part of the DER signature)
 
     There are 7 bytes of meta-data:
-    
+
     * compound header, compound length,
     * value header, r value length,
     * value header, s value length
@@ -113,8 +113,8 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
             raise ValueError(errmsg)
 
         if sig[0] != 0x30:
-            msg = f"DER signature type must be 0x30 (compound), not {hex(sig[0])}"
-            raise ValueError(msg)
+            raise ValueError(f"DER signature type must be 0x30 (compound), "
+                             "not {hex(sig[0])}")
 
         # sigsize checks
         leftover = sigsize - 2 - sig[1]

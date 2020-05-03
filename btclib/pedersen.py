@@ -50,9 +50,11 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     If the resulting point is not on the curve, keep on
     incrementing hx until a valid curve point (hx, hy) is obtained.
 
-    idea: https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve
+    idea:
+    https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve
 
-    source: https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
+    source:
+    https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
     """
 
     compressed = False
@@ -66,7 +68,7 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
         try:
             hy = ec.y_odd(hx, False)
             isCurvePoint = True
-        except:
+        except Exception:
             hx += 1
     return hx, hy
 
@@ -84,12 +86,13 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     return Q
 
 
-def open(r: int, v: int, C: Point, ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+def open(r: int, v: int, C: Point,
+         ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Open the commitment C and return True if valid."""
 
     # try/except wrapper for the Errors raised by commit
     try:
         P = commit(r, v, ec, hf)
-    except:
+    except Exception:
         return False
     return C == P

@@ -11,12 +11,12 @@
 import secrets
 from collections import defaultdict
 from hashlib import sha256 as hf  # FIXME: any hf
-from typing import Dict, List, Sequence, Tuple, Union
+from typing import Dict, List, Sequence, Tuple
 
 from .alias import Point, String
 from .curvemult import double_mult, mult
 from .curves import secp256k1 as ec  # FIXME: any curve
-from .secpoint import bytes_from_point, point_from_octets
+from .secpoint import bytes_from_point
 from .utils import int_from_bits
 
 
@@ -30,7 +30,6 @@ PubkeyRing = Dict[int, Sequence[Point]]
 
 
 def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
-    rings = len(pubk_rings)
     for pubk_ring in pubk_rings.values():
         for P in pubk_ring:
             msg += bytes_from_point(P, ec)
@@ -47,14 +46,14 @@ def sign(msg: String,
          pubk_rings: PubkeyRing) -> Tuple[bytes, SValues]:
     """Borromean ring signature - signing algorithm
 
-        https://github.com/ElementsProject/borromean-signatures-writeup
-        https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
+    https://github.com/ElementsProject/borromean-signatures-writeup
+    https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
 
-        inputs:
-        - msg: message to be signed (bytes)
-        - sign_key_idx: list of indexes representing each signing key per ring
-        - sign_keys: list containing the whole set of signing keys (one per ring)
-        - pubk_rings: dictionary of sequences representing single rings of pubkeys
+    inputs:
+    - msg: message to be signed (bytes)
+    - sign_key_idx: list of indexes representing each signing key per ring
+    - sign_keys: list containing the whole set of signing keys (one per ring)
+    - pubk_rings: dictionary of sequences representing single rings of pubkeys
     """
 
     if isinstance(msg, str):
@@ -64,9 +63,9 @@ def sign(msg: String,
     e0bytes = m
     s: SValues = defaultdict(list)
     e: SValues = defaultdict(list)
-    ring_size = len(pubk_rings)
     # step 1
-    for i, (pubk_ring, j_star, k) in enumerate(zip(pubk_rings.values(), sign_key_idx, ks)):
+    for i, (pubk_ring, j_star, k) in enumerate(zip(pubk_rings.values(),
+                                                   sign_key_idx, ks)):
         keys_size = len(pubk_ring)
         s[i] = [0] * keys_size
         e[i] = [0] * keys_size

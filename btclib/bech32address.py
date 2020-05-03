@@ -80,16 +80,18 @@ def _convertbits(data: Iterable[int], frombits: int,
 
 
 def _check_witness(witvers: int, witprog: bytes):
-    l = len(witprog)
+    length = len(witprog)
     if witvers == 0:
-        if l not in (20, 32):
-            raise ValueError(f"witness program length ({l}) is not 20 or 32")
+        if length not in (20, 32):
+            raise ValueError(f"witness program length ({length}) "
+                             "is not 20 or 32")
     elif witvers > 16 or witvers < 0:
         msg = f"witness version ({witvers}) not in [0, 16]"
         raise ValueError(msg)
     else:
-        if l < 2 or l > 40:
-            raise ValueError(f"witness program length ({l}) not in [2, 40]")
+        if length < 2 or length > 40:
+            raise ValueError(f"witness program length ({length}) "
+                             "not in [2, 40]")
 
 # 1. Hash/WitnessProgram from pubkey/script
 # imported from the hashes module
@@ -103,7 +105,8 @@ def _b32address_from_witness(hrp: str, wv: int, wp: Octets) -> bytes:
     return b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
 
 
-def b32address_from_witness(wv: int, wp: Octets, network: str = 'mainnet') -> bytes:
+def b32address_from_witness(wv: int, wp: Octets,
+                            network: str = 'mainnet') -> bytes:
     "Encode a bech32 native SegWit address from the witness."
 
     hrp = NETWORKS[network]['p2w']

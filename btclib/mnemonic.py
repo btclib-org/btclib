@@ -17,7 +17,6 @@ better served by the bip39 and electrum module functions.
 """
 
 import math
-from hashlib import pbkdf2_hmac
 from typing import List
 
 from .entropy import BinStr

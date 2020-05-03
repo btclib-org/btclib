@@ -11,12 +11,11 @@
 import unittest
 
 from btclib import bip32, slip32
-from btclib.base58 import b58decode, b58encode
+from btclib.base58 import b58encode
 from btclib.base58address import (b58address_from_h160,
                                   b58address_from_witness,
-                                  h160_from_b58address, p2pkh, p2sh,
-                                  p2wpkh_p2sh, p2wsh_p2sh,
-                                  has_segwit_prefix)
+                                  h160_from_b58address, has_segwit_prefix,
+                                  p2pkh, p2sh, p2wpkh_p2sh, p2wsh_p2sh)
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh, witness_from_b32address
 from btclib.hashes import hash160_from_pubkey, hash256_from_script
@@ -24,7 +23,7 @@ from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.to_prvkey import prvkey_info_from_prvkey
 from btclib.to_pubkey import pubkey_info_from_prvkey
-from btclib.utils import hash160, sha256
+from btclib.utils import hash160
 
 
 class TestAddresses(unittest.TestCase):
@@ -46,7 +45,7 @@ class TestAddresses(unittest.TestCase):
         bad_prefix = b'\xbb'
         self.assertRaises(ValueError, b58address_from_h160,
                           bad_prefix, payload, network)
-        #b58address_from_h160(bad_prefix, payload, network)
+        # b58address_from_h160(bad_prefix, payload, network)
 
     def test_p2pkh_from_wif(self):
         seed = b"00" * 32  # better be random
@@ -146,7 +145,7 @@ class TestAddresses(unittest.TestCase):
         # Invalid witness program length (19)
         self.assertRaises(ValueError, b58address_from_witness,
                           h256script[:-1], network)
-        #b58address_from_witness(h256script[:-1], network)
+        # b58address_from_witness(h256script[:-1], network)
 
     def test_address_from_wif(self):
         # uncompressed mainnet

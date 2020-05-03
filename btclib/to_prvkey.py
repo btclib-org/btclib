@@ -8,10 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 from . import bip32
-from .alias import BIP32KeyDict, Octets, PrvKey, String
+from .alias import BIP32Key, PrvKey, String
 from .base58 import b58decode
 from .curve import Curve
 from .curves import secp256k1
@@ -48,7 +48,7 @@ def _prvkey_info_from_wif(wif: String) -> Tuple[int, str, bool]:
     return q, network, compressed
 
 
-def _prvkey_info_from_xprv(xprv: Union[BIP32KeyDict, String]) -> Tuple[int, str, bool]:
+def _prvkey_info_from_xprv(xprv: BIP32Key) -> Tuple[int, str, bool]:
     "Return (prvkey, compressed, network) info from BIP32xprv."
 
     if not isinstance(xprv, dict):
@@ -62,7 +62,7 @@ def _prvkey_info_from_xprv(xprv: Union[BIP32KeyDict, String]) -> Tuple[int, str,
     return q, network, True
 
 
-def _prvkey_info_from_xprvwif(xprvwif: Union[BIP32KeyDict, String]) -> Tuple[int, str, bool]:
+def _prvkey_info_from_xprvwif(xprvwif: BIP32Key) -> Tuple[int, str, bool]:
     """Return (prvkey, compressed, network) info from WIF or BIP32xprv.
 
     Support WIF or BIP32 xprv.

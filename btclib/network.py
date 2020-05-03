@@ -14,7 +14,6 @@ import copy
 from collections import defaultdict
 from typing import Dict, List, TypedDict, Union
 
-from .alias import String
 from .curve import Curve
 from .curves import secp256k1
 

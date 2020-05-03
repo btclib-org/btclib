@@ -46,7 +46,7 @@ with the following modifications:
 """
 
 
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, List, Tuple
 
 from .alias import String
 

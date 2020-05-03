@@ -116,5 +116,5 @@ def _multi_mult(scalars: Sequence[int], JPoints: Sequence[JacPoint],
         heapq.heappush(x, (-n2, p2))
     np1 = heapq.heappop(x)
     n1, p1 = -np1[0], np1[1]
-    #n1 %= ec.n
+    # n1 %= ec.n
     return _mult_jac(n1, p1, ec)

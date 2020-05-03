@@ -17,7 +17,6 @@ import hmac
 from hashlib import pbkdf2_hmac, sha512
 from typing import Tuple
 
-from . import bip32
 from .entropy import BinStr, Entropy, binstr_from_entropy
 from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
                        _indexes_from_mnemonic, _mnemonic_from_indexes)
@@ -95,7 +94,8 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     return entropy
 
 
-def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:
+def _seed_from_mnemonic(mnemonic: Mnemonic,
+                        passphrase: str) -> Tuple[str, bytes]:
     "Return (version, seed) from the provided Electrum mnemonic."
 
     version = version_from_mnemonic(mnemonic)

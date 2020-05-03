@@ -14,8 +14,7 @@ mypy aliases, documenting also coding imput conventions.
 """
 
 
-from typing import (Any, Callable, Iterable, List, Optional, Tuple, TypedDict,
-                    Union)
+from typing import Any, Callable, Iterable, List, Tuple, TypedDict, Union
 
 # binary octets are eight-bit bytes or hex-string (not text string)
 #
@@ -102,9 +101,11 @@ class BIP32KeyDict(TypedDict):
     key: bytes
 
 
+BIP32Key = Union[BIP32KeyDict, String]
+
 # private key inputs:
 # integer as Union[int, Octets]
-# BIP32key as Union[BIP32KeyDict, String]
+# BIP32key as BIP32Key
 # WIF as String
 #
 # BIP32key and WIF also provide extra info about
@@ -112,8 +113,7 @@ class BIP32KeyDict(TypedDict):
 PrvKey = Union[int, bytes, str, BIP32KeyDict]
 
 # public key inputs:
-# elliptic curve point as Union[Point, Octets]
-# BIP32key as Union[BIP32KeyDict, String]
+# elliptic curve point as Union[Octets, BIP32Key, Point]
 PubKey = Union[bytes, str, BIP32KeyDict, Point]
 
 # public or private key input,

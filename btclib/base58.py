@@ -36,8 +36,7 @@ https://github.com/keis/base58, with the following modifications:
   and decoding ASCII bytes-like objects or ASCII strings to bytes.
 """
 
-from hashlib import sha256
-from typing import Optional, Union
+from typing import Optional
 
 from .alias import Octets, String
 from .utils import bytes_from_octets, hash256

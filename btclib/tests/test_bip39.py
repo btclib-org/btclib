@@ -8,10 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import unittest
-from os import path
 import json
 import secrets
+import unittest
+from os import path
 
 from btclib import bip39
 
@@ -32,12 +32,12 @@ class TestBIP39(unittest.TestCase):
         wrong_mnemonic = mnemonic + " abandon"
         self.assertRaises(
             ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
-        #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
+        # bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # invalid mnemonic checksum
         wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce walnut"
         self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wr_m, lang)
-        #bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
+        # bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # Invalid number of bits (130) for BIP39 entropy; must be in ...
         binstr_entropy = '01' * 65  # 130 bits

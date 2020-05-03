@@ -92,7 +92,10 @@ def scriptPubKey_from_payload(s_type: str,
     return encode(script)
 
 
-def payload_from_scriptPubKey(script: Script) -> Tuple[str, Union[bytes, List[bytes]], int]:
+Payloads = Union[bytes, List[bytes]]
+
+
+def payload_from_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
     "Return (scriptPubKey type, payload, m) from the input script."
 
     if isinstance(script, list):
@@ -100,12 +103,14 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, Union[bytes, List[by
     else:
         s = bytes_from_octets(script)
 
-    l = len(s)
-    if l == s[0] + 2 and s[0] in (0x41, 0x21) and s[-1] == 0xAC:          # pk
+    length = len(s)
+    # p2pk
+    if length == s[0] + 2 and s[0] in (0x41, 0x21) and s[-1] == 0xAC:
         # p2pk [pubkey, OP_CHECKSIG]
         # 0x41{65-byte pubkey}AC or 0x21{33-byte pubkey}AC
         return 'p2pk', s[1:-1], 0
-    elif s[-1] == 0xAE:                                                   # ms
+    # p2ms
+    elif s[-1] == 0xAE:
         # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
         script = decode(s)
         m = int(script[0])
@@ -127,41 +132,44 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, Union[bytes, List[by
             key = bytes_from_octets(pk, (33, 65))
             keys.append(key)
         return 'p2ms', keys, m
-    elif l <= 83 and s[0] == 0x6A:                                   # nulldata
+    # nulldata
+    elif length <= 83 and s[0] == 0x6A:
         # nulldata [OP_RETURN, data]
-        zeroone = int(l > 77)
-        if s[1 + zeroone] != l - 2 - zeroone:
-            errmsg = f"Wrong data lenght ({s[1+zeroone]}) in {l}-bytes "
-            errmsg += f"nulldata script: it should have been {l-2-zeroone}"
-            errmsg += f": {decode(s)}"
-            raise ValueError(errmsg)
-        if l < 77:
+        zeroone = int(length > 77)
+        if s[1 + zeroone] != length - 2 - zeroone:
+            raise ValueError(f"Wrong data lenght ({s[1+zeroone]}) in "
+                             f"{length}-bytes nulldata script: it should "
+                             f"have been {length-2-zeroone}: {decode(s)}")
+        if length < 77:
             # OP_RETURN, data length, data up to 74 bytes max
             # 0x6A{1 byte data-length}{data (0-74 bytes)}
             return 'nulldata', s[2:], 0
-        if l > 77:
+        if length > 77:
             # OP_RETURN, OP_PUSHDATA1, data length, data min 75 bytes up to 80
             # 0x6A4C{1-byte data-length}{data (75-80 bytes)}
             if s[1] != 0x4c:
-                errmsg = f"Missing OP_PUSHDATA1 (0x4c) in {l}-bytes nulldata script"
-                errmsg += f", got {hex(s[1])} instead"
-                errmsg += f": {decode(s)}"
-                raise ValueError(errmsg)
+                raise ValueError(f"Missing OP_PUSHDATA1 (0x4c) in "
+                                 f"{length}-bytes nulldata script, "
+                                 f"got {hex(s[1])} instead: {decode(s)}")
             return 'nulldata', s[3:], 0
         raise ValueError(f"Invalid 77 bytes OP_RETURN script length")
-    elif l == 25 and s[:3] == b'\x76\xa9\x14' and s[-2:] == b'\x88\xac':  # pkh
+    # pkh
+    elif length == 25 and s[:3] == b'\x76\xa9\x14' and s[-2:] == b'\x88\xac':
         # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
         # 0x76A914{20-byte pubkey_hash}88AC
-        return 'p2pkh', s[3:l - 2], 0
-    elif l == 23 and s[:2] == b'\xa9\x14' and s[-1] == 0x87:              # sh
+        return 'p2pkh', s[3:length - 2], 0
+    # sh
+    elif length == 23 and s[:2] == b'\xa9\x14' and s[-1] == 0x87:
         # p2sh [OP_HASH160, script_hash, OP_EQUAL]
         # 0xA914{20-byte script_hash}87
-        return 'p2sh', s[2:l - 1], 0
-    elif l == 22 and s[:2] == b'\x00\x14':                                # wkh
+        return 'p2sh', s[2:length - 1], 0
+    # wkh
+    elif length == 22 and s[:2] == b'\x00\x14':
         # p2wpkh [0, pubkey_hash]
         # 0x0014{20-byte pubkey_hash}
         return 'p2wpkh', s[2:], 0
-    elif l == 34 and s[:2] == b'\x00\x20':                                # wsh
+    # wsh
+    elif length == 34 and s[:2] == b'\x00\x20':
         # p2wsh [0, script_hash]
         # 0x0020{32-byte script_hash}
         return 'p2wsh', s[2:], 0

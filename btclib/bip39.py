@@ -38,7 +38,6 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 
 from hashlib import pbkdf2_hmac, sha256
 
-from .alias import Octets
 from .entropy import BinStr, Entropy, _bits, binstr_from_entropy
 from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
                        _indexes_from_mnemonic, _mnemonic_from_indexes)

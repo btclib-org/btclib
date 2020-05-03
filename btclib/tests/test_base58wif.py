@@ -10,7 +10,6 @@
 
 import unittest
 
-from btclib import bip32
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey
 from btclib.curves import secp256k1 as ec
@@ -22,12 +21,25 @@ class TestWif(unittest.TestCase):
     def test_wif_from_prvkey(self):
         prvkey = '0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'
         test_vectors = [
-            ['KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', 'mainnet', True],
-            ['cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx', 'testnet', True],
-            ['5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ', 'mainnet', False],
-            ['91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2', 'testnet', False],
-            [' KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617', 'mainnet', True],
-            ['KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ', 'mainnet', True]
+            [
+                'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617',
+                'mainnet', True
+            ], [
+                'cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx',
+                'testnet', True
+            ], [
+                '5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ',
+                'mainnet', False
+            ], [
+                '91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2',
+                'testnet', False
+            ], [
+                ' KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617',
+                'mainnet', True
+            ], [
+                'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ',
+                'mainnet', True
+            ]
         ]
         for v in test_vectors:
             wif = wif_from_prvkey(prvkey, v[1], v[2])
@@ -40,12 +52,12 @@ class TestWif(unittest.TestCase):
         # not a 32-bytes private key
         badq = 33 * b'\x02'
         self.assertRaises(ValueError, wif_from_prvkey, badq, 'mainnet', True)
-        #wif_from_prvkey(badq, 'mainnet', True)
+        # wif_from_prvkey(badq, 'mainnet', True)
 
         # private key not in (0, n)
         badq = ec.n
         self.assertRaises(ValueError, wif_from_prvkey, badq, 'mainnet', True)
-        #wif_from_prvkey(badq, 'mainnet', True)
+        # wif_from_prvkey(badq, 'mainnet', True)
 
         # Not a private key WIF: missing leading 0x80
         payload = b'\x81' + badq.to_bytes(ec.nsize, 'big')

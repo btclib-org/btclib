@@ -37,9 +37,6 @@ messages to the set of possible k values) would return.
 
 import hmac
 from hashlib import sha256
-from typing import Union
-
-from btclib import bip32
 
 from .alias import HashF, Octets, PrvKey
 from .curve import Curve

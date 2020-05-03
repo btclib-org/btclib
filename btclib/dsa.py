@@ -19,9 +19,9 @@
 
 import secrets
 from hashlib import sha256
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
-from . import bip32, der
+from . import der
 from .alias import (DSASig, DSASigTuple, HashF, JacPoint, Key, Point, PrvKey,
                     String)
 from .curve import Curve
@@ -130,7 +130,7 @@ def sign(msg: String, prvkey: PrvKey, k: Optional[PrvKey] = None,
          ec: Curve = secp256k1, hf: HashF = sha256) -> DSASigTuple:
     """ECDSA signature with canonical low-s encoding.
 
-    Implemented according to SEC 1 v.2 
+    Implemented according to SEC 1 v.2
     The message m is first processed by hf, yielding the value
 
         mhd = hf(m),
@@ -224,7 +224,8 @@ def recover_pubkeys(msg: String, sig: DSASig,
                     ec: Curve = secp256k1, hf: HashF = sha256) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
-    See also https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    See also:
+    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
 
     c = _challenge(msg, ec, hf)                  # 1.5

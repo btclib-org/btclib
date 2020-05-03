@@ -36,7 +36,7 @@ and the deterministic nonce (with tag 'BIPSchnorrDerive').
 To allow for secure batch verification of multiple signatures,
 BIP340-Schnorr uses a challenge that prevents public key recovery
 from signature: c = TaggedHash('BIPSchnorr', x_k||x_Q||msg).
-    
+
 A custom deterministic algorithm for the ephemeral key (nonce)
 is used for signing, instead of the RFC6979 standard:
 k = TaggedHash('BIPSchnorrDerive', q||msg)

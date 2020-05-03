@@ -11,7 +11,7 @@
 from typing import Optional, Tuple
 
 from . import bip32
-from .alias import BIP32KeyDict, Key, Octets, Point, PrvKey, PubKey
+from .alias import BIP32KeyDict, Key, Point, PrvKey, PubKey
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
@@ -49,7 +49,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     else:
         try:
             q, net, _ = prvkey_info_from_prvkey(key)
-        except:
+        except Exception:
             pass
         else:
             if ec != NETWORKS[net]['curve']:

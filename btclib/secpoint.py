@@ -16,7 +16,8 @@ from .curves import secp256k1
 from .utils import bytes_from_octets
 
 
-def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -> bytes:
+def bytes_from_point(Q: Point, ec: Curve = secp256k1,
+                     compressed: bool = True) -> bytes:
     """Return a point as compressed/uncompressed octet sequence.
 
     Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
@@ -55,7 +56,7 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
         try:
             Py = ec.y_odd(Px, pubkey[0] % 2)  # also check Px validity
             return Px, Py
-        except:
+        except Exception:
             msg = f"{ec.psize+1} bytes, but not a valid x coordinate {Px}"
             raise ValueError(msg)
     else:                                     # uncompressed point

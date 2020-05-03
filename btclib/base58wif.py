@@ -12,7 +12,6 @@ from typing import Optional
 
 from .alias import PrvKey
 from .base58 import b58encode
-from .curve import Curve
 from .network import NETWORKS
 from .to_pubkey import prvkey_info_from_prvkey
 

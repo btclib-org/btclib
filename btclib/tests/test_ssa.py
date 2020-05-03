@@ -47,10 +47,10 @@ class TestSSA(unittest.TestCase):
         self.assertRaises(ValueError, ssa._verify, mhd, x_Q, fssasig, ec, hf)
 
         # y(sG - eP) is not a quadratic residue
-        fq, fQ = ssa.gen_keys(0x2)
+        _, fQ = ssa.gen_keys(0x2)
         self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
 
-        fq, fQ = ssa.gen_keys(0x4)
+        _, fQ = ssa.gen_keys(0x4)
         self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
 
         # not ec.pIsThreeModFour
@@ -60,21 +60,21 @@ class TestSSA(unittest.TestCase):
         # verify: message of wrong size
         wrongmhd = mhd[:-1]
         self.assertRaises(ValueError, ssa._verify, wrongmhd, x_Q, sig, ec, hf)
-        #ssa._verify(wrongmhd, x_Q, sig)
+        # ssa._verify(wrongmhd, x_Q, sig)
 
         # sign: message of wrong size
         self.assertRaises(ValueError, ssa.sign, wrongmhd, q, None)
-        #ssa.sign(wrongmhd, q, None)
+        # ssa.sign(wrongmhd, q, None)
 
         # invalid (zero) challenge e
         self.assertRaises(ValueError, ssa._recover_pubkeys,
                           0, sig[0], sig[1], ec)
-        #ssa._recover_pubkeys(0, sig)
+        # ssa._recover_pubkeys(0, sig)
 
         # not a BIP340 public key
         self.assertRaises(ValueError, ssa._to_bip340_point,
                           ["not", "a BIP340", "public key"])
-        #ssa._to_bip340_point(["not", "a BIP340", "public key"])
+        # ssa._to_bip340_point(["not", "a BIP340", "public key"])
 
     def test_bip340_vectors(self):
         """BIP340 (Schnorr) test vectors
@@ -108,7 +108,7 @@ class TestSSA(unittest.TestCase):
 
     def test_low_cardinality(self):
         """test low-cardinality curves for all msg/key pairs."""
-        # ec.n has to be prime to sign
+        # e_c.n has to be prime to sign
         prime = [11, 13, 17, 19]
 
         # for dsa it is possible to directy iterate on all
@@ -117,36 +117,36 @@ class TestSSA(unittest.TestCase):
         hsize = hf().digest_size
         H = [i.to_bytes(hsize, 'big') for i in range(max(prime) * 4)]
         # only low card curves or it would take forever
-        for ec in low_card_curves:
-            if ec.p in prime:  # only few curves or it would take too long
+        for e_c in low_card_curves:
+            if e_c.p in prime:  # only few curves or it would take too long
                 # BIP340 Schnorr only applies to curve whose prime p = 3 %4
-                if not ec.pIsThreeModFour:
-                    self.assertRaises(ValueError, ssa.sign, H[0], 1, None, ec)
+                if not e_c.pIsThreeModFour:
+                    self.assertRaises(ValueError, ssa.sign, H[0], 1, None, e_c)
                     continue
-                for q in range(1, ec.n):  # all possible private keys
-                    Q = mult(q, ec.G, ec)  # public key
-                    if not ec.has_square_y(Q):
-                        q = ec.n - q
+                for q in range(1, e_c.n):  # all possible private keys
+                    Q = mult(q, e_c.G, e_c)  # public key
+                    if not e_c.has_square_y(Q):
+                        q = e_c.n - q
                     for h in H:  # all possible hashed messages
-                        k = ssa.k(h, q, ec, hf)
-                        K = mult(k, ec.G, ec)
-                        if not ec.has_square_y(K):
-                            k = ec.n - k
+                        k = ssa.k(h, q, e_c, hf)
+                        K = mult(k, e_c.G, e_c)
+                        if not e_c.has_square_y(K):
+                            k = e_c.n - k
                         x_K = K[0]
 
                         try:
-                            c = ssa._challenge(x_K, Q[0], h, ec, hf)
+                            c = ssa._challenge(x_K, Q[0], h, e_c, hf)
                         except Exception:
                             pass
                         else:
-                            s = (k + c * q) % ec.n
-                            sig = ssa.sign(h, q, None, ec)
+                            s = (k + c * q) % e_c.n
+                            sig = ssa.sign(h, q, None, e_c)
                             self.assertEqual((x_K, s), sig)
                             # valid signature must validate
-                            self.assertIsNone(ssa._verify(h, Q, sig, ec, hf))
+                            self.assertIsNone(ssa._verify(h, Q, sig, e_c, hf))
 
                             if c != 0:  # FIXME
-                                x_Q = ssa._recover_pubkeys(c, x_K, s, ec)
+                                x_Q = ssa._recover_pubkeys(c, x_K, s, e_c)
                                 self.assertEqual(Q[0], x_Q)
 
     def test_batch_validation(self):
@@ -180,31 +180,31 @@ class TestSSA(unittest.TestCase):
         self.assertFalse(ssa.batch_verify(ms, Qs, sigs, ec, hf))
         self.assertRaises(AssertionError, ssa._batch_verify,
                           ms, Qs, sigs, ec, hf)
-        #ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        # ssa._batch_verify(ms, Qs, sigs, ec, hf)
         sigs[-1] = sigs[0]  # valid again
 
         # Invalid size: 31 bytes instead of 32
         ms[-1] = ms[0][:-1]
         self.assertRaises(ValueError, ssa._batch_verify, ms, Qs, sigs, ec, hf)
-        #ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        # ssa._batch_verify(ms, Qs, sigs, ec, hf)
         ms[-1] = ms[0]  # valid again
 
         # mismatch between number of pubkeys (5) and number of messages (6)
         ms.append(ms[0])  # add extra message
         self.assertRaises(ValueError, ssa._batch_verify, ms, Qs, sigs, ec, hf)
-        #ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        # ssa._batch_verify(ms, Qs, sigs, ec, hf)
         ms.pop()  # valid again
 
         # mismatch between number of pubkeys (5) and number of signatures (6)
         sigs.append(sigs[0])  # add extra sig
         self.assertRaises(ValueError, ssa._batch_verify, ms, Qs, sigs, ec, hf)
-        #ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        # ssa._batch_verify(ms, Qs, sigs, ec, hf)
         sigs.pop()  # valid again
 
         # field prime p is not equal to 3 (mod 4)
         self.assertRaises(ValueError, ssa._batch_verify,
                           ms, Qs, sigs, secp224k1, hf)
-        #ssa._batch_verify(ms, Qs, sigs, secp224k1, hf)
+        # ssa._batch_verify(ms, Qs, sigs, secp224k1, hf)
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
@@ -214,7 +214,7 @@ class TestSSA(unittest.TestCase):
         H = second_generator(ec, hf)
         mhd = hf(b'message to sign').digest()
 
-        ### FIRST PHASE: key pair generation ###
+        # FIRST PHASE: key pair generation ###
 
         # signer one acting as the dealer
         commits1: List[Point] = list()
@@ -234,7 +234,7 @@ class TestSSA(unittest.TestCase):
             f1_prime.append(temp)
             commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
 
-        # shares of the secret
+        # shares of the secret
         alpha12 = 0  # share of q1 belonging to P2
         alpha12_prime = 0
         alpha13 = 0  # share of q1 belonging to P3
@@ -278,7 +278,7 @@ class TestSSA(unittest.TestCase):
             f2_prime.append(temp)
             commits2.append(double_mult(f2_prime[i], H, f2[i], ec.G))
 
-        # shares of the secret
+        # shares of the secret
         alpha21 = 0  # share of q2 belonging to P1
         alpha21_prime = 0
         alpha23 = 0  # share of q2 belonging to P3
@@ -322,7 +322,7 @@ class TestSSA(unittest.TestCase):
             f3_prime.append(temp)
             commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
 
-        # shares of the secret
+        # shares of the secret
         alpha31 = 0  # share of q3 belonging to P1
         alpha31_prime = 0
         alpha32 = 0  # share of q3 belonging to P2
@@ -357,7 +357,8 @@ class TestSSA(unittest.TestCase):
             alpha2 += (f2[i] * pow(2, i)) % ec.n
             alpha3 += (f3[i] * pow(3, i)) % ec.n
 
-        # it's time to recover the public key Q = Q1 + Q2 + Q3 = (q1 + q2 + q3)G
+        # it's time to recover the public key
+        # Q = Q1 + Q2 + Q3 = (q1 + q2 + q3) G
         A1: List[Point] = list()
         A2: List[Point] = list()
         A3: List[Point] = list()
@@ -404,7 +405,7 @@ class TestSSA(unittest.TestCase):
 
         Q = A[0]  # aggregated public key
 
-        ### SECOND PHASE: generation of the nonces' pair ###
+        # SECOND PHASE: generation of the nonces' pair ###
         # This phase follows exactly the key generation procedure
         # suppose that player one and three want to sign
 
@@ -426,7 +427,7 @@ class TestSSA(unittest.TestCase):
             f1_prime.append(temp)
             commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
 
-        # shares of the secret
+        # shares of the secret
         beta13 = 0  # share of k1 belonging to P3
         beta13_prime = 0
         for i in range(m):
@@ -458,7 +459,7 @@ class TestSSA(unittest.TestCase):
             f3_prime.append(temp)
             commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
 
-        # shares of the secret
+        # shares of the secret
         beta31 = 0  # share of k3 belonging to P1
         beta31_prime = 0
         for i in range(m):
@@ -512,7 +513,7 @@ class TestSSA(unittest.TestCase):
             beta1 = ec.n - beta1
             beta3 = ec.n - beta3
 
-        ### PHASE THREE: signature generation ###
+        # PHASE THREE: signature generation ###
 
         # partial signatures
         e = ssa._challenge(K[0], Q[0], mhd, ec, hf)
@@ -551,7 +552,7 @@ class TestSSA(unittest.TestCase):
 
         assert mult(gamma1) == RHS1, 'player two is cheating'
 
-        ### PHASE FOUR: aggregating the signature ###
+        # PHASE FOUR: aggregating the signature ###
         omega1 = 3 * mod_inv(3 - 1, ec.n) % ec.n
         omega3 = 1 * mod_inv(1 - 3, ec.n) % ec.n
         sigma = (gamma1 * omega1 + gamma3 * omega3) % ec.n
@@ -560,7 +561,7 @@ class TestSSA(unittest.TestCase):
 
         self.assertTrue(ssa.verify(mhd, Q, sig))
 
-        ### ADDITIONAL PHASE: reconstruction of the private key ###
+        # ADDITIONAL PHASE: reconstruction of the private key ###
         secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
         self.assertEqual((q1 + q2 + q3) % ec.n, secret)
 
@@ -658,16 +659,16 @@ class TestSSA(unittest.TestCase):
         msg1 = "Paolo is afraid of ephemeral random numbers"
         msg1 = hf(msg1.encode()).digest()
         sig1 = ssa.sign(msg1, q, k)
-        #print(f'\nmsg1: {msg1.hex().upper()}')
-        #print(f'  r1: {hex(sig1[0]).upper()}')
-        #print(f'  s1: {hex(sig1[1]).upper()}')
+        # print(f'\nmsg1: {msg1.hex().upper()}')
+        # print(f'  r1: {hex(sig1[0]).upper()}')
+        # print(f'  s1: {hex(sig1[1]).upper()}')
 
         msg2 = "and Paolo is right to be afraid"
         msg2 = hf(msg2.encode()).digest()
         sig2 = ssa.sign(msg2, q, k)
-        #print(f'\nmsg2: {msg2.hex().upper()}')
-        #print(f'  r2: {hex(sig2[0]).upper()}')
-        #print(f'  s2: {hex(sig2[1]).upper()}')
+        # print(f'\nmsg2: {msg2.hex().upper()}')
+        # print(f'  r2: {hex(sig2[0]).upper()}')
+        # print(f'  s2: {hex(sig2[1]).upper()}')
 
         qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
         self.assertIn(q, (qc, ec.n - qc))
