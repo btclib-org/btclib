@@ -125,7 +125,7 @@ class TestScriptPubKey(unittest.TestCase):
 
         # Invalid size: 66 bytes instead of 65
         self.assertRaises(ValueError, p2ms, [pubkey1 + "00", pubkey2], 1)
-        #p2ms([pubkey1 + "00", pubkey2], 1)
+        # p2ms([pubkey1 + "00", pubkey2], 1)
 
         # Invalid n (17) in 3-of-17 multisignature
         self.assertRaises(ValueError, p2ms, [pubkey1] * 17, 3)
@@ -136,7 +136,7 @@ class TestScriptPubKey(unittest.TestCase):
         badpubkeys[0] = badpubkeys[0] + b'\x00'
         self.assertRaises(ValueError, scriptPubKey_from_payload,
                           script_type, badpubkeys, m)
-        #scriptPubKey_from_payload(script_type, badpubkeys, m)
+        # scriptPubKey_from_payload(script_type, badpubkeys, m)
 
         # Invalid key length (66) in p2ms
         script = encode([m] + sorted(badpubkeys) + [n, 'OP_CHECKMULTISIG'])

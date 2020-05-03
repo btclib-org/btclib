@@ -153,22 +153,22 @@ class TestToPrvKey(unittest.TestCase):
         # Compressed key provided, uncompressed key requested
         self.assertRaises(ValueError, prvkey_info_from_prvkey,
                           xprvd, 'mainnet', False)
-        #prvkey_info_from_prvkey(xprvd, 'mainnet', False)
+        # prvkey_info_from_prvkey(xprvd, 'mainnet', False)
 
         # Mainnet key provided, testnet key requested
         self.assertRaises(ValueError, prvkey_info_from_prvkey,
                           xprvd, 'testnet', True)
-        #prvkey_info_from_prvkey(xprvd, 'testnet', True)
+        # prvkey_info_from_prvkey(xprvd, 'testnet', True)
 
         # Compression requirement mismatch
         self.assertRaises(ValueError, prvkey_info_from_prvkey,
                           xprv, 'mainnet', False)
-        #prvkey_info_from_prvkey(xprv, 'mainnet', False)
+        # prvkey_info_from_prvkey(xprv, 'mainnet', False)
 
         # Mainnet key provided, testnet key requested
         self.assertRaises(ValueError, prvkey_info_from_prvkey,
                           xprv, 'testnet', True)
-        #prvkey_info_from_prvkey(xprv, 'testnet', True)
+        # prvkey_info_from_prvkey(xprv, 'testnet', True)
 
 
 if __name__ == "__main__":

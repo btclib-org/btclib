@@ -13,7 +13,7 @@ import random
 import secrets
 import unittest
 
-from btclib.entropy import Entropy, binstr_from_entropy, generate
+from btclib.entropy import binstr_from_entropy, generate
 
 random.seed(42)
 
@@ -82,7 +82,7 @@ class TestEntropy(unittest.TestCase):
         self.assertRaises(ValueError, binstr_from_entropy, binstr_entropy)
         # binstr_from_entropy(binstr_entropy)
         self.assertRaises(ValueError, binstr_from_entropy, binstr_entropy, 216)
-        #binstr_from_entropy(binstr_entropy, 216)
+        # binstr_from_entropy(binstr_entropy, 216)
 
         int_entropy = int(binstr_entropy, 2)  # 213 bits
         entropy = binstr_from_entropy(int_entropy, 214)
@@ -98,11 +98,11 @@ class TestEntropy(unittest.TestCase):
 
         bytes_entropy = int_entropy.to_bytes(27, byteorder='big')
         self.assertRaises(ValueError, binstr_from_entropy, bytes_entropy, 214)
-        #binstr_from_entropy(bytes_entropy, 214)
+        # binstr_from_entropy(bytes_entropy, 214)
         entropy = binstr_from_entropy(bytes_entropy, 216)
         self.assertEqual(entropy, binstr_entropy1)
         self.assertRaises(ValueError, binstr_from_entropy, bytes_entropy, 224)
-        #binstr_from_entropy(bytes_entropy, 224)
+        # binstr_from_entropy(bytes_entropy, 224)
 
         invalid_entropy = tuple()
         self.assertRaises(TypeError, binstr_from_entropy, invalid_entropy)
@@ -151,29 +151,29 @@ class TestEntropy(unittest.TestCase):
         # Number of bits (255) must be in (128, 160, 192, 224, 256)
         self.assertRaises(ValueError, generate,
                           bits - 1, dice_base, rolls)
-        #generate(bits-1, dice_base, rolls)
+        # generate(bits-1, dice_base, rolls)
 
         # too few usable [1-16] rolls, missing 2
         rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number - 2)]
         self.assertRaises(ValueError, generate, bits, dice_base, rolls)
-        #generate(bits, dice_base, rolls)
+        # generate(bits, dice_base, rolls)
 
         # too few usable [1-16] rolls, missing 1
         rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
         rolls[1] = base + 1
         self.assertRaises(ValueError, generate, bits, dice_base, rolls)
-        #generate(bits, dice_base, rolls)
+        # generate(bits, dice_base, rolls)
 
         # invalid (21) roll, not in [1-20]
         rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
         rolls[1] = dice_base + 1
         self.assertRaises(ValueError, generate, bits, dice_base, rolls)
-        #generate(bits, dice_base, rolls)
+        # generate(bits, dice_base, rolls)
 
         # Invalid dice base (1): must be >= 2
         rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
         self.assertRaises(ValueError, generate, bits, 1, rolls)
-        #generate(bits, 1, rolls)
+        # generate(bits, 1, rolls)
 
 
 if __name__ == "__main__":

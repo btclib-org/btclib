@@ -13,8 +13,7 @@ from hashlib import sha1, sha224, sha256, sha384, sha512
 
 from btclib import dsa
 from btclib.curvemult import mult
-from btclib.curves import (nistp192, nistp224, nistp256, nistp384, nistp521,
-                           secp256k1)
+from btclib.curves import nistp192, nistp224, nistp256, nistp384, nistp521
 from btclib.rfc6979 import rfc6979
 
 
@@ -29,7 +28,7 @@ class Testrfc6979(unittest.TestCase):
 
         # mismatch between hf digest size and hashed message size
         self.assertRaises(ValueError, rfc6979, msg[:-1], x)
-        #rfc6979(msg[:-1], x)
+        # rfc6979(msg[:-1], x)
 
     def test_rfc6979_example(self):
 

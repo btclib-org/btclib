@@ -22,7 +22,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
 
         entropy = 0x110aaaa03974d093eda670121023cd0772
         eversion = 'standard'
-        # FIXME: is the following mnemonic obtained in Electrum from the above entropy?
+        # FIXME: is the following mnemonic obtained in Electrum
+        # from the above entropy?
         mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball crouch bunker"
         mnemonic2 = electrum.mnemonic_from_entropy(entropy, eversion, lang)
         self.assertEqual(mnemonic, mnemonic2)
@@ -34,20 +35,20 @@ class TestMnemonicDictionaries(unittest.TestCase):
         eversion = 'std'
         self.assertRaises(ValueError, electrum.mnemonic_from_entropy,
                           entropy, eversion, lang)
-        #electrum.mnemonic_from_entropy(entropy, eversion, lang)
+        # electrum.mnemonic_from_entropy(entropy, eversion, lang)
 
         # unknown electrum mnemonic version (00c)
         unknown_version = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
         self.assertRaises(ValueError, electrum.entropy_from_mnemonic,
                           unknown_version, lang)
-        #electrum.entropy_from_mnemonic(unknown_version, lang)
+        # electrum.entropy_from_mnemonic(unknown_version, lang)
 
         passphrase = ''
 
         # unknown electrum mnemonic version (00c)
         self.assertRaises(ValueError, bip32.mxprv_from_electrum_mnemonic,
                           unknown_version, passphrase)
-        #bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
+        # bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
 
         xprv = "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
         xprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
@@ -58,14 +59,14 @@ class TestMnemonicDictionaries(unittest.TestCase):
         # 2fa mnemonic version is not managed yet
         self.assertRaises(ValueError, bip32.mxprv_from_electrum_mnemonic,
                           mnemonic, passphrase)
-        #bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
+        # bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
 
         eversion = '2fa_segwit'
         mnemonic = electrum.mnemonic_from_entropy(entropy, eversion, lang)
         # 2fa_segwit mnemonic version is not managed yet
         self.assertRaises(ValueError, bip32.mxprv_from_electrum_mnemonic,
                           mnemonic, passphrase)
-        #bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
+        # bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
 
     def test_vectors(self):
         file = "electrum_test_vectors.json"

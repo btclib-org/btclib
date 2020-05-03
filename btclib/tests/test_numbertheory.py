@@ -70,7 +70,7 @@ class TestNumberTheory(unittest.TestCase):
                     self.assertRaises(ValueError, mod_sqrt, i, p)
 
     def test_minus_one_quadr_res(self):
-        """Ensure that if p = 3 (mod 4) then p - 1 is not a quadratic residue"""
+        "Ensure that if p = 3 (mod 4) then p - 1 is not a quadratic residue"
         for p in primes:
             if (p % 4) == 3:
                 self.assertRaises(ValueError, mod_sqrt, p - 1, p)

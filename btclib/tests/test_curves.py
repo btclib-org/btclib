@@ -10,11 +10,11 @@
 
 import unittest
 
-from btclib.alias import INF, INFJ, Point
+from btclib.alias import INF, INFJ
 from btclib.curve import Curve, _jac_from_aff
 from btclib.curvemult import mult
-from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
-                           secp160r1, secp256k1, secp256r1, secp384r1)
+from btclib.curves import (all_curves, low_card_curves, secp112r1, secp160r1,
+                           secp256k1)
 from btclib.numbertheory import mod_sqrt
 from btclib.secpoint import bytes_from_point, point_from_octets
 
@@ -42,7 +42,7 @@ class TestEllipticCurve(unittest.TestCase):
         t = ec.sec_bits
         h = ec.h
         self.assertRaises(UserWarning, Curve, p, a, b, G, n, h, 273)
-        #Curve(p, a, b, G, n, h, 273)
+        # Curve(p, a, b, G, n, h, 273)
 
         # not enough bits for required security level
         ec = secp160r1
@@ -54,7 +54,7 @@ class TestEllipticCurve(unittest.TestCase):
         t = ec.sec_bits
         h = ec.h
         self.assertRaises(UserWarning, Curve, p, a, b, G, n, h, 2 * t)
-        #Curve(p, a, b, G, n, h, 2*t)
+        # Curve(p, a, b, G, n, h, 2*t)
 
         # a > p
         self.assertRaises(ValueError, Curve, 11, 12,
@@ -86,7 +86,7 @@ class TestEllipticCurve(unittest.TestCase):
 
         # h not as expected
         self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 7, 1, 0, True)
-        #Curve(11, 2, 7, (6, 9), 7, 1, 0, True)
+        # Curve(11, 2, 7, (6, 9), 7, 1, 0, True)
 
         # n not group order
         self.assertRaises(ValueError, Curve, 11, 2, 7,
@@ -104,7 +104,7 @@ class TestEllipticCurve(unittest.TestCase):
 
         # INF point does not generate a prime order subgroup
         self.assertRaises(ValueError, Curve, 11, 2, 7, INF, 7, 2, 0, False)
-        #Curve(11, 2, 7, INF, 7, 2, 0, False)
+        # Curve(11, 2, 7, INF, 7, 2, 0, False)
 
     def test_all_curves(self):
         for ec in all_curves:
@@ -273,8 +273,9 @@ class TestEllipticCurve(unittest.TestCase):
                 y_even = ec.y_odd(x, False)
                 self.assertTrue(y_even % 2 == 0)
                 # in this case neither or both are quadratic residues
-                self.assertTrue((y_odd in hasRoot and y_even in hasRoot) or
-                                (y_odd not in hasRoot and y_even not in hasRoot))
+                neither = y_odd not in hasRoot and y_even not in hasRoot
+                both = y_odd in hasRoot and y_even in hasRoot
+                self.assertTrue(neither or both)
                 if y_odd in hasRoot:  # both have roots
                     root = mod_sqrt(y_odd, ec.p)
                     self.assertEqual(y_odd, (root * root) % ec.p)

@@ -12,12 +12,10 @@ import random
 import unittest
 from typing import List
 
-from btclib.alias import INF, INFJ, Point
+from btclib.alias import INF, INFJ
 from btclib.curve import _mult_aff, _mult_jac
-from btclib.curvemult import (Curve, _jac_from_aff, double_mult, mult,
-                              multi_mult)
-from btclib.curves import (all_curves, ec23_31, low_card_curves, secp112r1,
-                           secp160r1, secp256k1, secp256r1, secp384r1)
+from btclib.curvemult import double_mult, mult, multi_mult
+from btclib.curves import ec23_31, low_card_curves, secp256k1
 
 random.seed(42)
 
@@ -64,7 +62,7 @@ class TestEllipticCurve(unittest.TestCase):
         # mismatch between scalar length and Points length
         P = [ec.G] * (len(k) - 1)
         self.assertRaises(ValueError, multi_mult, k, P, ec)
-        #multi_mult(k, P, ec)
+        # multi_mult(k, P, ec)
 
 
 if __name__ == "__main__":

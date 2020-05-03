@@ -20,7 +20,8 @@ from btclib.secpoint import point_from_octets
 class TestSecondGenerator(unittest.TestCase):
     def test_second_generator(self):
         """
-        important remark on secp256-zkp prefix for compressed encoding of the second generator:
+        important remarks on secp256-zkp prefix for
+        compressed encoding of the second generator:
         https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
         """
 

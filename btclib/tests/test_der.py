@@ -11,7 +11,7 @@
 import unittest
 
 from btclib.curves import secp256k1 as ec
-from btclib.der import _deserialize, _serialize, _validate_sig
+from btclib.der import _deserialize, _serialize
 
 
 class TestDER(unittest.TestCase):
@@ -113,7 +113,7 @@ class TestDER(unittest.TestCase):
 
         # Invalid sighash type b'\x00'
         self.assertRaises(ValueError, _deserialize, dersig[:-1] + b'\x00')
-        #_deserialize(dersig[:-1] + b'\x00')
+        # _deserialize(dersig[:-1] + b'\x00')
 
 
 if __name__ == "__main__":

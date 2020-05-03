@@ -55,7 +55,7 @@ class TestDSA(unittest.TestCase):
         self.assertFalse(dsa.verify(msg, Q, fdsasig))
         self.assertRaises(ValueError, dsa._verify, msg, Q, fdsasig, ec, hf)
 
-        fq, fQ = dsa.gen_keys()
+        _, fQ = dsa.gen_keys()
         self.assertFalse(dsa.verify(msg, fQ, sig))
 
         # r not in [1, n-1]
@@ -68,15 +68,15 @@ class TestDSA(unittest.TestCase):
 
         # pubkey = INF
         self.assertRaises(ValueError, dsa._verify, msg, INF, sig, ec, hf)
-        #dsa._verify(msg, INF, sig, ec, hf)
+        # dsa._verify(msg, INF, sig, ec, hf)
 
         # private key not in [1, n-1]
         self.assertRaises(ValueError, dsa.sign, msg, 0)
-        #dsa.sign(msg, 0)
+        # dsa.sign(msg, 0)
 
         # ephemeral key not in [1, n-1]
         self.assertRaises(ValueError, dsa.sign, msg, 1, 0)
-        #dsa.sign(msg, 1, 0)
+        # dsa.sign(msg, 1, 0)
 
     def test_gec(self):
         """GEC 2: Test Vectors for SEC 1, section 2
@@ -196,13 +196,13 @@ class TestDSA(unittest.TestCase):
 
         msg1 = "Paolo is afraid of ephemeral random numbers"
         sig1 = dsa.sign(msg1, q, k)
-        #print(f'\nr1: {hex(sig1[0]).upper()}')
-        #print(f's1: {hex(sig1[1]).upper()}')
+        # print(f'\nr1: {hex(sig1[0]).upper()}')
+        # print(f's1: {hex(sig1[1]).upper()}')
 
         msg2 = "and Paolo is right to be afraid"
         sig2 = dsa.sign(msg2, q, k)
-        #print(f'\nr2: {hex(sig2[0]).upper()}')
-        #print(f's2: {hex(sig2[1]).upper()}')
+        # print(f'\nr2: {hex(sig2[0]).upper()}')
+        # print(f's2: {hex(sig2[1]).upper()}')
 
         qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
         self.assertEqual(q, qc)

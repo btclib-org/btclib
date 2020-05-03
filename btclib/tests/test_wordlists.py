@@ -38,7 +38,7 @@ class TestWordLists(unittest.TestCase):
         filename = path.join(path.dirname(__file__),
                              "data", "fakeenglish.txt")
         self.assertRaises(ValueError, _wordlists.load_lang, lang, filename)
-        #_wordlists.load_lang(lang, filename)
+        # _wordlists.load_lang(lang, filename)
 
         # dinamically add a new language
         lang = "en2"

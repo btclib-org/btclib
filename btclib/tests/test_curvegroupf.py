@@ -10,11 +10,9 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from hashlib import sha1
 
-from btclib.curve import CurveGroup, CurveSubGroup, _mult_aff
+from btclib.curve import CurveGroup, _mult_aff
 from btclib.curvegroupf import find_all_points, find_subgroup_points
-from btclib.numbertheory import mod_inv
 
 
 class TestECFunctions(unittest.TestCase):
@@ -73,7 +71,7 @@ class TestECFunctions(unittest.TestCase):
         # p (10007) is too big to count all subgroup points
         G = (2, 3265)
         self.assertRaises(ValueError, find_subgroup_points, ec, G)
-        #find_subgroup_points(ec, G)
+        # find_subgroup_points(ec, G)
 
 
 if __name__ == "__main__":

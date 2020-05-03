@@ -10,7 +10,7 @@
 
 import unittest
 
-from btclib import base58address, bech32address, bip32, bip39, slip32
+from btclib import base58address, bech32address, bip32, slip32
 from btclib.network import NETWORKS
 
 
