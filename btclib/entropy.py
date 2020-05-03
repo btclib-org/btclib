@@ -25,9 +25,10 @@ from .alias import BinStr, Entropy
 
 _bits = 128, 160, 192, 224, 256
 
+OneOrMoreInt = Union[int, Iterable[int]]
 
-def binstr_from_entropy(entr: Entropy,
-                        bits: Union[int, Iterable[int]] = _bits) -> BinStr:
+
+def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
     """Convert the input entropy to binary 0/1 string.
 
     Input entropy can be expressed as
