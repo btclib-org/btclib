@@ -2,9 +2,7 @@
 
 Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
-full year, short month, short day (YYYY-MM-DD)
-
-## v2020.6 (not released yet)
+full year, short month, short day (YYYY-M-D)
 
 ## v2020.5.3
 
