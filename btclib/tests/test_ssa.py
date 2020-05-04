@@ -218,15 +218,11 @@ class TestSSA(unittest.TestCase):
         q1_prime, _ = ssa.gen_keys()
         commits1.append(double_mult(q1_prime, H, q1, ec.G))
         # sharing polynomials
-        f1: List[int] = list()
-        f1.append(q1)
-        f1_prime: List[int] = list()
-        f1_prime.append(q1_prime)
+        f1 = [q1]
+        f1_prime = [q1_prime]
         for i in range(1, m):
-            temp, _ = ssa.gen_keys()
-            f1.append(temp)
-            temp, _ = ssa.gen_keys()
-            f1_prime.append(temp)
+            f1.append(ssa.gen_keys()[0])
+            f1_prime.append(ssa.gen_keys()[0])
             commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
         # shares of the secret
         alpha12 = 0  # share of q1 belonging to signer two
@@ -257,15 +253,11 @@ class TestSSA(unittest.TestCase):
         q2_prime, _ = ssa.gen_keys()
         commits2.append(double_mult(q2_prime, H, q2, ec.G))
         # sharing polynomials
-        f2: List[int] = list()
-        f2.append(q2)
-        f2_prime: List[int] = list()
-        f2_prime.append(q2_prime)
+        f2 = [q2]
+        f2_prime = [q2_prime]
         for i in range(1, m):
-            temp, _ = ssa.gen_keys()
-            f2.append(temp)
-            temp, _ = ssa.gen_keys()
-            f2_prime.append(temp)
+            f2.append(ssa.gen_keys()[0])
+            f2_prime.append(ssa.gen_keys()[0])
             commits2.append(double_mult(f2_prime[i], H, f2[i], ec.G))
         # shares of the secret
         alpha21 = 0  # share of q2 belonging to signer one
@@ -296,15 +288,11 @@ class TestSSA(unittest.TestCase):
         q3_prime, _ = ssa.gen_keys()
         commits3.append(double_mult(q3_prime, H, q3, ec.G))
         # sharing polynomials
-        f3: List[int] = list()
-        f3.append(q3)
-        f3_prime: List[int] = list()
-        f3_prime.append(q3_prime)
+        f3 = [q3]
+        f3_prime = [q3_prime]
         for i in range(1, m):
-            temp, _ = ssa.gen_keys()
-            f3.append(temp)
-            temp, _ = ssa.gen_keys()
-            f3_prime.append(temp)
+            f3.append(ssa.gen_keys()[0])
+            f3_prime.append(ssa.gen_keys()[0])
             commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
         # shares of the secret
         alpha31 = 0  # share of q3 belonging to signer one
@@ -395,15 +383,11 @@ class TestSSA(unittest.TestCase):
         k1_prime = ssa.k(mhd, q1_prime, ec, hf)
         commits1.append(double_mult(k1_prime, H, k1, ec.G))
         # sharing polynomials
-        f1: List[int] = list()
-        f1.append(k1)
-        f1_prime: List[int] = list()
-        f1_prime.append(k1_prime)
+        f1 = [k1]
+        f1_prime = [k1_prime]
         for i in range(1, m):
-            temp, _ = ssa.gen_keys()
-            f1.append(temp)
-            temp, _ = ssa.gen_keys()
-            f1_prime.append(temp)
+            f1.append(ssa.gen_keys()[0])
+            f1_prime.append(ssa.gen_keys()[0])
             commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
         # shares of the secret
         beta13 = 0  # share of k1 belonging to signer three
@@ -424,15 +408,11 @@ class TestSSA(unittest.TestCase):
         k3_prime = ssa.k(mhd, q3_prime, ec, hf)
         commits3.append(double_mult(k3_prime, H, k3, ec.G))
         # sharing polynomials
-        f3: List[int] = list()
-        f3.append(k3)
-        f3_prime: List[int] = list()
-        f3_prime.append(k3_prime)
+        f3 = [k3]
+        f3_prime = [k3_prime]
         for i in range(1, m):
-            temp, _ = ssa.gen_keys()
-            f3.append(temp)
-            temp, _ = ssa.gen_keys()
-            f3_prime.append(temp)
+            f3.append(ssa.gen_keys()[0])
+            f3_prime.append(ssa.gen_keys()[0])
             commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
         # shares of the secret
         beta31 = 0  # share of k3 belonging to signer one
