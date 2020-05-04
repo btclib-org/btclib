@@ -17,9 +17,10 @@ import hmac
 from hashlib import pbkdf2_hmac, sha512
 from typing import Tuple
 
-from .entropy import BinStr, Entropy, binstr_from_entropy
-from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
-                       _indexes_from_mnemonic, _mnemonic_from_indexes)
+from .entropy import (BinStr, Entropy, _entropy_from_indexes,
+                      _indexes_from_entropy, binstr_from_entropy)
+from .mnemonic import (Mnemonic, _indexes_from_mnemonic,
+                       _mnemonic_from_indexes, _wordlists)
 
 _MNEMONIC_VERSIONS = {
     'standard': '01',  # P2PKH and P2MS-P2SH wallets
@@ -65,13 +66,14 @@ def mnemonic_from_entropy(entropy: Entropy, version: str = 'standard',
 
     binstr_entropy = binstr_from_entropy(entropy)
     int_entropy = int(binstr_entropy, 2)
+    base = _wordlists.language_length(lang)
     invalid = True
     while invalid:
         # electrum considers entropy as integer, losing any leading zero
         # so the value of binstr_entropy before the while must be updated
         nbits = int_entropy.bit_length()
         binstr_entropy = binstr_from_entropy(int_entropy, nbits)
-        indexes = _indexes_from_entropy(binstr_entropy, lang)
+        indexes = _indexes_from_entropy(binstr_entropy, base)
         mnemonic = _mnemonic_from_indexes(indexes, lang)
         # version validity check
         s = hmac.new(b"Seed version",
@@ -90,7 +92,8 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     # verify that it is a valid Electrum mnemonic sentence
     _ = version_from_mnemonic(mnemonic)
     indexes = _indexes_from_mnemonic(mnemonic, lang)
-    entropy = _entropy_from_indexes(indexes, lang)
+    base = _wordlists.language_length(lang)
+    entropy = _entropy_from_indexes(indexes, base)
     return entropy
 
 

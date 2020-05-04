@@ -83,9 +83,57 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
     return binstr_entr.zfill(nbits)  # might need padding with leading zeros
 
 
-def generate(bits: int, dice_base: int = 0,
-             rolls: Optional[List[int]] = None, shuffle: bool = True,
-             hash: bool = True, xor: bool = True) -> BinStr:
+def _indexes_from_entropy(entropy: BinStr, base: int) -> List[int]:
+    """Return the digit indexes for the binary 0/1 string entropy.
+
+    Return the list of integer indexes into a digit set,
+    usually a language word-list,
+    for a given entropy.
+
+    Entropy must be represented as binary 0/1 string; leading zeros
+    are not considered redundant padding.
+    """
+
+    bits = len(entropy)
+    int_entropy = int(entropy, 2)
+    indexes = []
+    while int_entropy:
+        int_entropy, index = divmod(int_entropy, base)
+        indexes.append(index)
+
+    # do not lose leading zeros entropy
+    bits_per_digit = int(math.log(base, 2))
+    nwords = math.ceil(bits / bits_per_digit)
+    while len(indexes) < nwords:
+        indexes.append(0)
+
+    return list(reversed(indexes))
+
+
+def _entropy_from_indexes(indexes: List[int], base: int) -> BinStr:
+    """Return the entropy from a list of word-list indexes.
+
+    Return the entropy from a list of integer indexes into
+    a given language word-list.
+    """
+
+    entropy = 0
+    for index in indexes:
+        entropy = entropy * base + index
+
+    binentropy = bin(entropy)[2:]    # remove '0b'
+
+    # do not lose leading zeros entropy
+    bits_per_digit = int(math.log(base, 2))
+    bits = len(indexes) * bits_per_digit
+    binentropy = binentropy.zfill(bits)
+
+    return binentropy
+
+
+def randbinstr(bits: int, dice_base: int = 0,
+               rolls: Optional[List[int]] = None, shuffle: bool = True,
+               hash: bool = True, xor: bool = True) -> BinStr:
     """Return CSPRNG system entropy mixed with exogenous roll-based entropy.
 
     If no exogenous entropy is provided, then entropy generated with the

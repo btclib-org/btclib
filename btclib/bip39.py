@@ -38,9 +38,10 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 
 from hashlib import pbkdf2_hmac, sha256
 
-from .entropy import BinStr, Entropy, _bits, binstr_from_entropy
-from .mnemonic import (Mnemonic, _entropy_from_indexes, _indexes_from_entropy,
-                       _indexes_from_mnemonic, _mnemonic_from_indexes)
+from .entropy import (BinStr, Entropy, _bits, _entropy_from_indexes,
+                      _indexes_from_entropy, binstr_from_entropy)
+from .mnemonic import (Mnemonic, _indexes_from_mnemonic,
+                       _mnemonic_from_indexes, _wordlists)
 
 _words = tuple(b // 32 * 3 for b in _bits)
 
@@ -93,7 +94,8 @@ def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
 
     binstr_entropy = binstr_from_entropy(entropy, _bits)
     checksum = _entropy_checksum(binstr_entropy)
-    indexes = _indexes_from_entropy(binstr_entropy + checksum, lang)
+    base = _wordlists.language_length(lang)
+    indexes = _indexes_from_entropy(binstr_entropy + checksum, base)
     return _mnemonic_from_indexes(indexes, lang)
 
 
@@ -107,7 +109,8 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
         raise ValueError(msg)
 
     indexes = _indexes_from_mnemonic(mnemonic, lang)
-    cs_entropy = _entropy_from_indexes(indexes, lang)
+    base = _wordlists.language_length(lang)
+    cs_entropy = _entropy_from_indexes(indexes, base)
 
     # entropy is only the first part of cs_entropy
     bits = int(len(cs_entropy) * 32 / 33)

@@ -8,7 +8,10 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
-- Nothing so far
+- moved the WordLists class into the mnemonic module
+  and removed the wordlist module
+- moved all entropy functions into the entropy module
+- entropy.generate has been renamed as entropy.randbinstr
 
 ## v2020.5.3
 

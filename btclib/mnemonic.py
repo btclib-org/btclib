@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Functions for entropy conversion from/to mnemonic sentence.
+"""Entropy conversion from/to mnemonic word-list sentence.
 
 Entropy must be represented as binary 0/1 string.
 
@@ -16,40 +16,93 @@ Warning: these functions are not meant for end-users which are
 better served by the bip39 and electrum module functions.
 """
 
-import math
+from os import path
 from typing import List
 
-from .entropy import BinStr
-from .wordlists import _wordlists
+from .utils import ensure_is_power_of_two
 
-Mnemonic = str
+WordList = List[str]
 
 
-def _indexes_from_entropy(entropy: BinStr, lang: str) -> List[int]:
-    """Return the word-list indexes for a given binary 0/1 string entropy.
+class WordLists:
+    """Class for word-lists to be used in entropy/mnemonic conversions.
 
-    Return the list of integer indexes into a language word-list
-    for a given entropy.
+    Word-lists are from:
 
-    Entropy must be represented as binary 0/1 string; leading zeros
-    are not considered redundant padding.
+    * *en*: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
+    * *it*: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
+
+    More word-lists can be added using the load_lang method.
+
+    Word-lists are loaded only if needed and read only once from disk.
     """
 
-    bits = len(entropy)
-    int_entropy = int(entropy, 2)
-    n = _wordlists.language_length(lang)
-    indexes = []
-    while int_entropy:
-        int_entropy, index = divmod(int_entropy, n)
-        indexes.append(index)
+    def __init__(self) -> None:
 
-    # do not lose leading zeros entropy
-    bpw = _wordlists.bits_per_word(lang)
-    nwords = math.ceil(bits / bpw)
-    while len(indexes) < nwords:
-        indexes.append(0)
+        path_to_filename = path.join(path.dirname(__file__), "dictdata")
+        self.language_files = {
+            'en': path.join(path_to_filename, 'english.txt'),
+            'it': path.join(path_to_filename, 'italian.txt')
+        }
+        self.languages = list(self.language_files)
 
-    return list(reversed(indexes))
+        # create dictionaries where each language has empty word-list
+        wordlists: List[List[str]] = [[] for _ in self.languages]
+        self._wordlist = dict(zip(self.languages, wordlists))
+
+        zeros = len(self.languages) * [0]
+        self._bits_per_word = dict(zip(self.languages, zeros))
+        self._language_length = dict(zip(self.languages, zeros))
+
+    def load_lang(self, lang: str, filename: str = None) -> None:
+        """Load/add a language word-list if not loaded/added yet.
+
+        The language file has to be provided for adding new languages
+        beyond those already provided.
+        """
+
+        # a new language, unknown before
+        if lang not in self.languages:
+            if filename is None:
+                raise ValueError(f"missing file for language '{lang}'")
+            else:
+                # initialize the new language
+                self.languages.append(lang)
+                self.language_files[lang] = filename
+                self._wordlist[lang] = []
+                self._bits_per_word[lang] = 0
+                self._language_length[lang] = 0
+
+        # language has not been loaded yet
+        if self._language_length[lang] == 0:
+            with open(self.language_files[lang], 'r') as f:
+                lines = f.readlines()
+            f.closed
+
+            nwords = len(lines)
+            ensure_is_power_of_two(nwords, "wordlist length")
+
+            self._language_length[lang] = nwords
+            # clean up and normalization are missing, but removal of \n
+            self._wordlist[lang] = [line[:-1] for line in lines]
+
+    def wordlist(self, lang: str) -> WordList:
+        """Return the language word-list."""
+
+        self.load_lang(lang)
+        return self._wordlist[lang]
+
+    def language_length(self, lang: str) -> int:
+        """Return the number of words in the language word-list."""
+
+        self.load_lang(lang)
+        return self._language_length[lang]
+
+
+# singleton
+_wordlists = WordLists()
+
+Mnemonic = str
 
 
 def _mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
@@ -78,25 +131,3 @@ def _indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
     wordlist = _wordlists.wordlist(lang)
     indexes = [wordlist.index(w) for w in words]
     return indexes
-
-
-def _entropy_from_indexes(indexes: List[int], lang: str) -> BinStr:
-    """Return the entropy from a list of word-list indexes.
-
-    Return the entropy from a list of integer indexes into
-    a given language word-list.
-    """
-
-    n = _wordlists.language_length(lang)
-    entropy = 0
-    for index in indexes:
-        entropy = entropy * n + index
-
-    binentropy = bin(entropy)[2:]    # remove '0b'
-
-    # do not lose leading zeros entropy
-    bpw = _wordlists.bits_per_word(lang)
-    bits = len(indexes) * bpw
-    binentropy = binentropy.zfill(bits)
-
-    return binentropy
