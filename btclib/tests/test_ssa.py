@@ -518,26 +518,13 @@ class TestSSA(unittest.TestCase):
         # the signers private and public keys,
         # including both the curve Point and the BIP340-Schnorr public key
         q1, x_Q1 = ssa.gen_keys()
-        Q1 = mult(q1)
-        x_Q1 = Q1[0].to_bytes(ec.psize, 'big')
+        x_Q1 = x_Q1.to_bytes(ec.psize, 'big')
 
         q2, x_Q2 = ssa.gen_keys()
-        Q2 = mult(q2)
-        x_Q2 = Q2[0].to_bytes(ec.psize, 'big')
+        x_Q2 = x_Q2.to_bytes(ec.psize, 'big')
 
         q3, x_Q3 = ssa.gen_keys()
-        Q3 = mult(q3)
-        x_Q3 = Q3[0].to_bytes(ec.psize, 'big')
-
-        # ready to sign: nonces and nonce commitments
-        k1, _ = ssa.gen_keys()
-        K1 = mult(k1)
-
-        k2, _ = ssa.gen_keys()
-        K2 = mult(k2)
-
-        k3, _ = ssa.gen_keys()
-        K3 = mult(k3)
+        x_Q3 = x_Q3.to_bytes(ec.psize, 'big')
 
         # (non interactive) key setup
         # this is MuSig core: the rest is just Schnorr signature additivity
@@ -553,6 +540,9 @@ class TestSSA(unittest.TestCase):
         a2 = int_from_bits(hf(prefix + x_Q2).digest(), ec.nlen) % ec.n
         a3 = int_from_bits(hf(prefix + x_Q3).digest(), ec.nlen) % ec.n
         # 3. aggregated public key
+        Q1 = mult(q1)
+        Q2 = mult(q2)
+        Q3 = mult(q3)
         Q = ec.add(double_mult(a1, Q1, a2, Q2), mult(a3, Q3))
         if not ec.has_square_y(Q):
             # print("Q has been negated")
@@ -560,12 +550,21 @@ class TestSSA(unittest.TestCase):
             a2 = ec.n - a2  # pragma: no cover
             a3 = ec.n - a3  # pragma: no cover
 
+        # ready to sign: nonces and nonce commitments
+        k1, _ = ssa.gen_keys()
+        K1 = mult(k1)
+
+        k2, _ = ssa.gen_keys()
+        K2 = mult(k2)
+
+        k3, _ = ssa.gen_keys()
+        K3 = mult(k3)
+
         # exchange {K_i} (interactive)
 
         # computes s_i (non interactive)
-        # WARNING:
-        # the signers must exchange the nonces
-        # commitments {K_i} before sharing {s_i}
+        # WARNING: signers must exchange the nonces commitments {K_i}
+        # before sharing {s_i}
 
         # same for all signers
         K = ec.add(ec.add(K1, K2), K3)
