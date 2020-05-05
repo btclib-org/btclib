@@ -3,13 +3,7 @@
 ## Tests
 
 ```shell
-python -m setup test
-```
-
-or
-
-```shell
-python setup.py test
+python -m unittest discover
 ```
 
 ## Coverage
@@ -17,7 +11,7 @@ python setup.py test
 ```shell
 python -m pip install --upgrade pip setuptools coverage
 
-coverage run --source=btclib setup.py test
+coverage run -m unittest discover
 coverage report -m
 ```
 
