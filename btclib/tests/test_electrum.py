@@ -52,7 +52,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
                           unknown_version, passphrase)
         # bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
 
-        xprv = "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
+        xprv = ("xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWo"
+                "gKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft")
         xprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
         self.assertEqual(xprv2, xprv.encode())
 
