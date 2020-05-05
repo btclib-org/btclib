@@ -1,1 +1,14 @@
-theme: jekyll-theme-midnight
+title: btclib
+description: a python3 library for 'bitcoin cryptography'
+logo: img/btclib-logo-80.jpg
+
+show_downloads: false
+github:
+  repository_url: https://github.com/btclib-org/btclib
+  owner_url: https://github.com/fametrano
+  owner_name: Ferdinando Ametrano
+  zip_url: 
+
+google_analytics:
+
+theme: jekyll-theme-minimal
