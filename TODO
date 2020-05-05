@@ -1,4 +1,4 @@
-move to tox
+move to pytest
 network as global variable
 taproot
 add AuthProxy for full node interaction (blockexplorer fall-back)
