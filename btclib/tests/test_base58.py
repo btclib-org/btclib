@@ -68,17 +68,16 @@ class TestBase58CheckEncoding(unittest.TestCase):
 
     def test_wif(self):
         # https://en.bitcoin.it/wiki/Wallet_import_format
-        prvkey = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+        prv = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 
-        uncompressedKey = b'\x80' + prvkey.to_bytes(32, byteorder='big')
-        uncompressedWIF = b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ'
+        uncompressedKey = b'\x80' + prv.to_bytes(32, byteorder='big')
+        uncomprWIF = b'5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ'
         wif = b58encode(uncompressedKey)
-        self.assertEqual(wif, uncompressedWIF)
-        key = b58decode(uncompressedWIF)
+        self.assertEqual(wif, uncomprWIF)
+        key = b58decode(uncomprWIF)
         self.assertEqual(key, uncompressedKey)
 
-        compressedKey = b'\x80' + \
-            prvkey.to_bytes(32, byteorder='big') + b'\x01'
+        compressedKey = b'\x80' + prv.to_bytes(32, byteorder='big') + b'\x01'
         compressedWIF = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
         wif = b58encode(compressedKey)
         self.assertEqual(wif, compressedWIF)

@@ -19,7 +19,9 @@ from btclib.to_prvkey import prvkey_info_from_prvkey
 class TestWif(unittest.TestCase):
 
     def test_wif_from_prvkey(self):
-        prvkey = '0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'
+        prvkey = (
+            '0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D'
+        )
         test_vectors = [
             [
                 'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617',
