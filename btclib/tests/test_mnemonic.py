@@ -9,13 +9,15 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
+from os import path
 
-from btclib.mnemonic import (_entropy_from_indexes, _indexes_from_entropy,
-                             _indexes_from_mnemonic, _mnemonic_from_indexes)
+from btclib.mnemonic import (_indexes_from_mnemonic, _mnemonic_from_indexes,
+                             _wordlists)
 
 
 class TestMnemonic(unittest.TestCase):
-    def test_1(self):
+
+    def test_mnemonic(self):
         lang = "en"
 
         test_mnemonic = "ozone drill grab fiber curtain grace " \
@@ -28,21 +30,35 @@ class TestMnemonic(unittest.TestCase):
         mnemonic = _mnemonic_from_indexes(test_indexes, lang)
         self.assertEqual(mnemonic, test_mnemonic)
 
-        entropy = _entropy_from_indexes(test_indexes, lang)
-        indexes = _indexes_from_entropy(entropy, lang)
-        self.assertEqual(indexes, test_indexes)
+    def test_wordlist_1(self):
+        lang = "en"
 
-        test_indexes = [0, 0, 2047, 2047, 2047, 2047,
-                        2047, 2047, 2047, 2047, 2047, 0]
-        entropy = _entropy_from_indexes(test_indexes, lang)
-        indexes = _indexes_from_entropy(entropy, lang)
-        self.assertEqual(indexes, test_indexes)
+        d = _wordlists.wordlist(lang)
+        self.assertIsInstance(d, list)
+        self.assertEqual(len(d), 2048)
 
-        test_indexes = [0, 0, 2047, 2047, 2047, 2047,
-                        2047, 2047, 2047, 2047, 2047, 0]
-        entropy = _entropy_from_indexes(test_indexes, lang)
-        indexes = _indexes_from_entropy(entropy, lang)
-        self.assertEqual(indexes, test_indexes)
+        length = _wordlists.language_length(lang)
+        self.assertEqual(length, 2048)
+
+    def test_wordlist_2(self):
+        lang = "fakeen"
+        # missing file for language 'fakeen''
+        self.assertRaises(ValueError, _wordlists.load_lang, lang)
+        # _wordlists.load_lang(lang)
+
+        # dictionary length (must be a power of two
+        filename = path.join(path.dirname(__file__),
+                             "data", "fakeenglish.txt")
+        self.assertRaises(ValueError, _wordlists.load_lang, lang, filename)
+        # _wordlists.load_lang(lang, filename)
+
+        # dinamically add a new language
+        lang = "en2"
+        filename = path.join(path.dirname(__file__),
+                             "data", "english.txt")
+        _wordlists.load_lang(lang, filename)
+        length = _wordlists.language_length(lang)
+        self.assertEqual(length, 2048)
 
 
 if __name__ == "__main__":
