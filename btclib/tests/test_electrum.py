@@ -24,7 +24,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
         eversion = 'standard'
         # FIXME: is the following mnemonic obtained in Electrum
         # from the above entropy?
-        mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball crouch bunker"
+        mnemonic = ("ability awful fetch liberty company spatial "
+                    "panda hat then canal ball crouch bunker")
         mnemonic2 = electrum.mnemonic_from_entropy(entropy, eversion, lang)
         self.assertEqual(mnemonic, mnemonic2)
 
@@ -38,7 +39,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
         # electrum.mnemonic_from_entropy(entropy, eversion, lang)
 
         # unknown electrum mnemonic version (00c)
-        unknown_version = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
+        unknown_version = ("ability awful fetch liberty company spatial "
+                           "panda hat then canal ball cross video")
         self.assertRaises(ValueError, electrum.entropy_from_mnemonic,
                           unknown_version, lang)
         # electrum.entropy_from_mnemonic(unknown_version, lang)
@@ -88,7 +90,7 @@ class TestMnemonicDictionaries(unittest.TestCase):
                     mnemonic, passphrase)
                 self.assertEqual(mxprv2, mxprv.encode())
 
-                eversion = electrum.version_from_mnemonic(mnemonic)
+                eversion, mnemonic = electrum.version_from_mnemonic(mnemonic)
                 entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
                 mnem = electrum.mnemonic_from_entropy(entr, eversion, lang)
                 self.assertEqual(mnem, mnemonic)
@@ -102,13 +104,15 @@ class TestMnemonicDictionaries(unittest.TestCase):
             self.assertEqual(address2, address)
 
         # version 2fa_segwit
-        mnemonic = "slender flight session office noodle hand couple option office wait uniform morning"
-        self.assertEqual(
-            "2fa_segwit", electrum.version_from_mnemonic(mnemonic))
+        mnemonic = ("slender flight session office noodle  hand "
+                    "couple  option office  wait   uniform morning")
+        self.assertEqual("2fa_segwit",
+                         electrum.version_from_mnemonic(mnemonic)[0])
 
         # version 2fa
-        mnemonic = "history recycle company awful donor fold beef nominee hard bleak bracket six"
-        self.assertEqual("2fa", electrum.version_from_mnemonic(mnemonic))
+        mnemonic = ("history recycle company awful donor   fold "
+                    "beef    nominee hard    bleak bracket six")
+        self.assertEqual("2fa", electrum.version_from_mnemonic(mnemonic)[0])
 
 
 if __name__ == "__main__":

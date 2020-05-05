@@ -137,7 +137,8 @@ def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
         entropy_from_mnemonic(mnemonic)
 
     hf_name = 'sha512'
-    password = mnemonic.encode()
+    # clean up mnemonic from spurious whitespaces
+    password = " ".join(mnemonic.split()).encode()
     salt = ('mnemonic' + passphrase).encode()
     iterations = 2048
     dksize = 64
