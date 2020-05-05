@@ -32,17 +32,20 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
     """Convert the input entropy to binary 0/1 string.
 
     Input entropy can be expressed as
-    binary 0/1 string, bytes-like, or integer;
-    by default, it must be 128, 160, 192, 224, or 256 bits.
+    binary 0/1 string, bytes-like, or integer:
+
+    - a string is checked as valid 0/1 binary string of the
+      required bit length, with no padding or manipulation
+    - a byte sequence is checked to be of the required bit length,
+      with no padding or manipulation
+    - an integer is padded with leading zero bits up to the nearest
+      allowed bit length; if the original bit length is longer than
+      the maximum length, then only the leftmost bits are retained.
 
     In the case of binary 0/1 string and bytes-like
     leading zeros are not considered redundant padding.
 
-    In the case of integer, where leading zeros cannot be represented,
-    if the bit length is not an allowed value, then the binary 0/1
-    string is padded with leading zeros up to the first allowed bit
-    length; if the integer bit length is longer than the maximum
-    length, then only the leftmost bits are retained.
+    By default, bit-size must be 128, 160, 192, 224, or 256 bits.
     """
 
     if isinstance(bits, int):
