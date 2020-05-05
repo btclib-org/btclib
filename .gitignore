@@ -111,3 +111,8 @@ ENV/
 .DS_Store
 docs/source/modules.rst
 btclib.prof
+
+_site/
+.sass-cache/
+Gemfile.lock
+~*.docx
