@@ -1,6 +1,6 @@
 title: btclib
 description: A Python library for 'bitcoin cryptography'.
-logo: img/btclib-logo-80.jpg
+logo: assets/img/btclib-logo.jpg
 
 show_downloads: false
 github:
