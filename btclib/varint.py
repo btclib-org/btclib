@@ -46,24 +46,24 @@ def decode(stream: Union[BinaryIO, Octets]) -> int:
         stream = BytesIO(stream)
 
     i = stream.read(1)[0]
-    if i == 0xfd:
+    if i < 0xfd:
+        # one byte integer
+        return i
+    elif i == 0xfd:
         # 0xfd marks the next two bytes as the number
         return int.from_bytes(stream.read(2), byteorder='little')
     elif i == 0xfe:
         # 0xfe marks the next four bytes as the number
         return int.from_bytes(stream.read(4), byteorder='little')
-    elif i == 0xff:
+    else:
         # 0xff marks the next eight bytes as the number
         return int.from_bytes(stream.read(8), byteorder='little')
-    else:
-        # anything else is just the integer
-        return i
 
 
 def encode(i: int) -> bytes:
     '''Return the varint bytes encoding of an integer.'''
 
-    if i <= 0xfc:                  # 1 byte
+    if i < 0xfd:                   # 1 byte
         return bytes([i])
     elif i <= 0xffff:              # 2 bytes
         return b'\xfd' + i.to_bytes(2, byteorder='little')
