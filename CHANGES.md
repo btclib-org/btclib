@@ -8,8 +8,9 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
-- mnemonic phrases are cleaned up from spurious whitespaces
-  before being encoded
+- before encoding mnemonic phrases,
+  redundant spaces, tabs, newlines, returns, formfeeds, etc.
+  are removed from them using " ".join(mnemonic.split())
 - moved the WordLists class into the mnemonic module and
   removed the wordlist module
 - moved all entropy functions into the entropy module
