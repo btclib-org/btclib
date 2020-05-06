@@ -57,7 +57,7 @@ class TestBIP39(unittest.TestCase):
             lang = "en"
             entropy = bytes.fromhex(test_vector[0])
             mnemonic = bip39.mnemonic_from_entropy(entropy, lang)
-            self.assertEqual(mnemonic, test_vector[1])
+            self.assertEqual(mnemonic.split(), test_vector[1].split())
 
             raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
             size = (len(raw_entr) + 7) // 8
