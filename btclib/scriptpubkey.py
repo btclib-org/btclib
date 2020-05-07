@@ -18,7 +18,7 @@ from .alias import Key, Octets, Script, String, Token
 from .hashes import (hash160_from_pubkey, hash160_from_script,
                      hash256_from_script)
 from .script import decode, encode
-from .to_pubkey import bytes_from_key
+from .to_pubkey import pubkeyinfo_from_key
 from .utils import bytes_from_octets
 
 # 1. Hash/WitnessProgram from pubkey/script
@@ -186,7 +186,7 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
 def p2pk(key: Key) -> bytes:
     "Return the p2pk scriptPubKey of the provided pubkey."
 
-    payload, _ = bytes_from_key(key)
+    payload, _ = pubkeyinfo_from_key(key)
     return scriptPubKey_from_payload('p2pk', payload)
 
 
@@ -195,7 +195,7 @@ def p2ms(keys: List[Key], m: int, lexicographic_sort: bool = True,
     "Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."
 
     pk: List[Octets] = [
-        bytes_from_key(p, compressed=compressed)[0] for p in keys]
+        pubkeyinfo_from_key(p, compressed=compressed)[0] for p in keys]
     return scriptPubKey_from_payload('p2ms', pk, m, lexicographic_sort)
 
 

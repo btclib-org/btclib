@@ -91,9 +91,10 @@ NETWORKS['regtest']['p2w'] = 'bcrt'  # bech32address starts with 'bcrt1'
 def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> str:
     """Return network string from (key, value) pair.
 
-    Warning: when used on 'regtest' it returns 'testnet', which is not
-    a problem as long as it is used for WIF/Base58Address/BIP32xkey
-    where the two network share same prefixes.
+    Warning: when used on 'regtest' it mostly returns 'testnet',
+    which is not a problem as long as it is used for
+    WIF/Base58Address/BIP32xkey
+    because the two networks share the same prefixes.
     """
     for net in NETWORKS:
         if NETWORKS[net][key] == prefix:
@@ -116,7 +117,7 @@ _P2WPKH_PRV_PREFIXES = [NETWORKS[net]['slip32_p2wpkh_prv'] for net in NETWORKS]
 _P2WPKH_PUB_PREFIXES = [NETWORKS[net]['slip32_p2wpkh_pub'] for net in NETWORKS]
 
 
-def _xpub_versions_from_network(network: str) -> List[bytes]:
+def xpubversions_from_network(network: str) -> List[bytes]:
     network = network.lower()
     result = [
         NETWORKS[network]['bip32_pub'],
@@ -128,7 +129,7 @@ def _xpub_versions_from_network(network: str) -> List[bytes]:
     return result
 
 
-def _xprv_versions_from_network(network: str) -> List[bytes]:
+def xprvversions_from_network(network: str) -> List[bytes]:
     network = network.lower()
     result = [
         NETWORKS[network]['bip32_prv'],
@@ -179,25 +180,18 @@ _REPEATED_NETWORKS = [_NETWORKS[0]] * 5 + \
     [_NETWORKS[1]] * 5 + [_NETWORKS[2]] * 5
 
 
-def network_from_xprv(xprvversion: bytes) -> str:
-    """Return network string from xprv prefix.
+def network_from_xkeyversion(xprvversion: bytes) -> str:
+    """Return network string from the xkey version prefix.
 
     Warning: when used on 'regtest' it returns 'testnet', which is not
-    a problem as long as it is used for WIF/Base58Address/BIP32xkey
-    where the two network share same prefixes.
+    a problem as long as it is used for WIF/Base58Address/BIP32Key
+    because the two networks share the same prefixes.
     """
-    index = _XPRV_VERSIONS_ALL.index(xprvversion)
-    return _REPEATED_NETWORKS[index]
+    try:
+        index = _XPRV_VERSIONS_ALL.index(xprvversion)
+    except Exception:
+        index = _XPUB_VERSIONS_ALL.index(xprvversion)
 
-
-def network_from_xpub(xpubversion: bytes) -> str:
-    """Return network string from xpub prefix.
-
-    Warning: when used on 'regtest' it returns 'testnet', which is not
-    a problem as long as it is used for WIF/Base58Address/BIP32xkey
-    where the two network share same prefixes.
-    """
-    index = _XPUB_VERSIONS_ALL.index(xpubversion)
     return _REPEATED_NETWORKS[index]
 
 

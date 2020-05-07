@@ -21,8 +21,8 @@ from btclib.bech32address import p2wpkh, witness_from_b32address
 from btclib.hashes import hash160_from_pubkey, hash256_from_script
 from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
-from btclib.to_prvkey import prvkey_info_from_prvkey
-from btclib.to_pubkey import pubkey_info_from_prvkey
+from btclib.to_prvkey import prvkeyinfo_from_prvkey
+from btclib.to_pubkey import pubkeyinfo_from_prvkey
 from btclib.utils import hash160
 
 
@@ -55,7 +55,7 @@ class TestAddresses(unittest.TestCase):
         wif = wif_from_prvkey(xprv)
         self.assertEqual(
             wif, b'KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP')
-        pubkey, _ = pubkey_info_from_prvkey(wif)
+        pubkey, _ = pubkeyinfo_from_prvkey(wif)
         address = p2pkh(pubkey)
         xpub = bip32.xpub_from_xprv(xprv)
         address2 = slip32.address_from_xpub(xpub)
@@ -166,7 +166,7 @@ class TestAddresses(unittest.TestCase):
     def test_address_from_wif(self):
         # uncompressed mainnet
         wif1 = "5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-        pubkey, network = pubkey_info_from_prvkey(wif1)
+        pubkey, network = pubkeyinfo_from_prvkey(wif1)
         b58 = p2pkh(pubkey)
         self.assertEqual(b58, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
         self.assertRaises(ValueError, p2wpkh, pubkey)
@@ -174,7 +174,7 @@ class TestAddresses(unittest.TestCase):
 
         # compressed mainnet
         wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162"
-        pubkey, network = pubkey_info_from_prvkey(wif2)
+        pubkey, network = pubkeyinfo_from_prvkey(wif2)
         b58 = p2pkh(pubkey)
         self.assertEqual(b58, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
         b32 = p2wpkh(pubkey)
@@ -185,12 +185,12 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(hash160(b'\x00\x14' + h160),
                          h160_from_b58address(b)[1])
 
-        self.assertEqual(prvkey_info_from_prvkey(
-            wif1)[0], prvkey_info_from_prvkey(wif2)[0])
+        self.assertEqual(prvkeyinfo_from_prvkey(
+            wif1)[0], prvkeyinfo_from_prvkey(wif2)[0])
 
         # uncompressed testnet
         wif1 = "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2"
-        pubkey, network = pubkey_info_from_prvkey(wif1)
+        pubkey, network = pubkeyinfo_from_prvkey(wif1)
         b58 = p2pkh(pubkey, network, None)
         self.assertEqual(b58, b'mvgbzkCSgKbYgaeG38auUzR7otscEGi8U7')
         self.assertRaises(ValueError, p2wpkh, pubkey)
@@ -198,7 +198,7 @@ class TestAddresses(unittest.TestCase):
 
         # compressed testnet
         wif2 = "cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx"
-        pubkey, network = pubkey_info_from_prvkey(wif2)
+        pubkey, network = pubkeyinfo_from_prvkey(wif2)
         b58 = p2pkh(pubkey, network, None)
         self.assertEqual(b58, b'n1KSZGmQgB8iSZqv6UVhGkCGUbEdw8Lm3Q')
         b32 = p2wpkh(pubkey, network)
@@ -209,12 +209,12 @@ class TestAddresses(unittest.TestCase):
         self.assertEqual(hash160(b'\x00\x14' + h160),
                          h160_from_b58address(b)[1])
 
-        self.assertEqual(prvkey_info_from_prvkey(
-            wif1)[0], prvkey_info_from_prvkey(wif2)[0])
+        self.assertEqual(prvkeyinfo_from_prvkey(
+            wif1)[0], prvkeyinfo_from_prvkey(wif2)[0])
 
         # uncompressed mainnet, trailing/leading spaces in string
         wif1 = "  5J1geo9kcAUSM6GJJmhYRX1eZEjvos9nFyWwPstVziTVueRJYvW"
-        pubkey, network = pubkey_info_from_prvkey(wif1)
+        pubkey, network = pubkeyinfo_from_prvkey(wif1)
         b58 = p2pkh(pubkey)
         self.assertEqual(b58, b'1LPM8SZ4RQDMZymUmVSiSSvrDfj1UZY9ig')
         self.assertRaises(ValueError, p2wpkh, pubkey)
@@ -222,7 +222,7 @@ class TestAddresses(unittest.TestCase):
 
         # compressed mainnet, trailing/leading spaces in string
         wif2 = "Kx621phdUCp6sgEXPSHwhDTrmHeUVrMkm6T95ycJyjyxbDXkr162  "
-        pubkey, network = pubkey_info_from_prvkey(wif2)
+        pubkey, network = pubkeyinfo_from_prvkey(wif2)
         b58 = p2pkh(pubkey)
         self.assertEqual(b58, b'1HJC7kFvXHepkSzdc8RX6khQKkAyntdfkB')
         b32 = p2wpkh(pubkey)

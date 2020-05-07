@@ -147,7 +147,7 @@ from .curvemult import mult
 from .curves import secp256k1
 from .network import NETWORKS
 from .secpoint import bytes_from_point
-from .to_prvkey import prvkey_info_from_prvkey
+from .to_prvkey import prvkeyinfo_from_prvkey
 from .utils import hash160
 
 
@@ -235,7 +235,7 @@ def sign(msg: String, prvkey: PrvKey,
 
     # first sign the message
     magic_msg = _magic_hash(msg)
-    q, network, compressed = prvkey_info_from_prvkey(prvkey)
+    q, network, compressed = prvkeyinfo_from_prvkey(prvkey)
     r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id

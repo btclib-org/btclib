@@ -13,7 +13,7 @@ import unittest
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey
 from btclib.curves import secp256k1 as ec
-from btclib.to_prvkey import prvkey_info_from_prvkey
+from btclib.to_prvkey import prvkeyinfo_from_prvkey
 
 
 class TestWif(unittest.TestCase):
@@ -46,7 +46,7 @@ class TestWif(unittest.TestCase):
         for v in test_vectors:
             wif = wif_from_prvkey(prvkey, v[1], v[2])
             self.assertEqual(v[0].strip(), wif.decode('ascii'))
-            q, network, compressed = prvkey_info_from_prvkey(v[0])
+            q, network, compressed = prvkeyinfo_from_prvkey(v[0])
             self.assertEqual(q, int(prvkey, 16))
             self.assertEqual(network, v[1])
             self.assertEqual(compressed, v[2])
@@ -64,26 +64,26 @@ class TestWif(unittest.TestCase):
         # Not a private key WIF: missing leading 0x80
         payload = b'\x81' + badq.to_bytes(ec.nsize, 'big')
         badwif = b58encode(payload)
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
-        # prvkey_info_from_prvkey(badwif)
+        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, badwif)
+        # prvkeyinfo_from_prvkey(badwif)
 
         # Not a compressed WIF: missing trailing 0x01
         payload = b'\x80' + badq.to_bytes(ec.nsize, 'big') + b'\x00'
         badwif = b58encode(payload)
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
-        # prvkey_info_from_prvkey(badwif)
+        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, badwif)
+        # prvkeyinfo_from_prvkey(badwif)
 
         # Not a WIF: wrong size (35)
         payload = b'\x80' + badq.to_bytes(ec.nsize, 'big') + b'\x01\x00'
         badwif = b58encode(payload)
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
-        # prvkey_info_from_prvkey(badwif)
+        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, badwif)
+        # prvkeyinfo_from_prvkey(badwif)
 
         # Not a WIF: private key not in (0, n)
         payload = b'\x80' + badq.to_bytes(ec.nsize, 'big')
         badwif = b58encode(payload)
-        self.assertRaises(ValueError, prvkey_info_from_prvkey, badwif)
-        # prvkey_info_from_prvkey(badwif)
+        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, badwif)
+        # prvkeyinfo_from_prvkey(badwif)
 
 
 if __name__ == "__main__":

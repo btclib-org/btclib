@@ -8,6 +8,11 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
+- renamed prvkey_info_* as prvkeyinfo_*
+- renamed pubkey_info_* as pubkeyinfo_*
+- renamed bytes_from_key as pubkeyinfo_from_key
+- renamed network_from_xpub as network_from_xkeyversion
+  extending its functionality to xprv too
 - before encoding mnemonic phrases,
   redundant spaces, tabs, newlines, returns, formfeeds, etc.
   are removed from them using " ".join(mnemonic.split())

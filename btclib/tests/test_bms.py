@@ -18,8 +18,8 @@ from btclib.base58address import p2pkh, p2wpkh_p2sh
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh
 from btclib.curves import secp256k1 as ec
-from btclib.to_prvkey import prvkey_info_from_prvkey
-from btclib.to_pubkey import pubkey_info_from_prvkey
+from btclib.to_prvkey import prvkeyinfo_from_prvkey
+from btclib.to_pubkey import pubkeyinfo_from_prvkey
 
 
 class TestMessageSign(unittest.TestCase):
@@ -50,7 +50,7 @@ class TestMessageSign(unittest.TestCase):
         wif1u = wif_from_prvkey(q1, 'mainnet', False)
         self.assertEqual(
             wif1u, b'5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw')
-        pubkey1u, _ = pubkey_info_from_prvkey(wif1u)
+        pubkey1u, _ = pubkeyinfo_from_prvkey(wif1u)
         add1u = base58address.p2pkh(pubkey1u)
         self.assertEqual(add1u, b'1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD')
         sig1u = bms.sign(msg, wif1u)
@@ -63,7 +63,7 @@ class TestMessageSign(unittest.TestCase):
         wif1c = wif_from_prvkey(q1, 'mainnet', True)
         self.assertEqual(
             wif1c, b'L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk')
-        pubkey1c, _ = pubkey_info_from_prvkey(wif1c)
+        pubkey1c, _ = pubkeyinfo_from_prvkey(wif1c)
         add1c = base58address.p2pkh(pubkey1c)
         self.assertEqual(add1c, b'14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY')
         sig1c = bms.sign(msg, wif1c)
@@ -180,7 +180,7 @@ class TestMessageSign(unittest.TestCase):
 
         msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
-        pubkey, _ = pubkey_info_from_prvkey(wif)
+        pubkey, _ = pubkeyinfo_from_prvkey(wif)
         p2pkh = base58address.p2pkh(pubkey)
         p2wpkh = bech32address.p2wpkh(pubkey)
         p2wpkh_p2sh = base58address.p2wpkh_p2sh(pubkey)
@@ -277,7 +277,7 @@ class TestMessageSign(unittest.TestCase):
 
         msg = 'test'
         wif = 'KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu'
-        pubkey, _ = pubkey_info_from_prvkey(wif)
+        pubkey, _ = pubkeyinfo_from_prvkey(wif)
         address = base58address.p2pkh(pubkey)
         exp_sig = b'IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc='
         self.assertTrue(bms.verify(msg, address, exp_sig))
@@ -318,7 +318,7 @@ class TestMessageSign(unittest.TestCase):
 
         msg = 'test'
         wif = 'L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK'
-        pubkey, _ = pubkey_info_from_prvkey(wif)
+        pubkey, _ = pubkeyinfo_from_prvkey(wif)
         p2pkh = base58address.p2pkh(pubkey)
         p2wpkh = bech32address.p2wpkh(pubkey)
         p2wpkh_p2sh = base58address.p2wpkh_p2sh(pubkey)
@@ -488,7 +488,7 @@ class TestMessageSign(unittest.TestCase):
 
         # Compressed WIF
         wif = b'Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C'
-        pubkey, network = pubkey_info_from_prvkey(wif)
+        pubkey, network = pubkeyinfo_from_prvkey(wif)
         address1 = p2pkh(pubkey, network)
         address2 = p2wpkh_p2sh(pubkey, network)
         address3 = p2wpkh(pubkey, network)
@@ -521,9 +521,9 @@ class TestMessageSign(unittest.TestCase):
         self.assertTrue(bms.verify(msg, address3, sig3))
 
         # uncompressed WIF / P2PKH address
-        q, network, _ = prvkey_info_from_prvkey(wif)
+        q, network, _ = prvkeyinfo_from_prvkey(wif)
         wif2 = wif_from_prvkey(q, network, False)
-        pubkey, network = pubkey_info_from_prvkey(wif2)
+        pubkey, network = pubkeyinfo_from_prvkey(wif2)
         address4 = p2pkh(pubkey, network)
 
         # sign with uncompressed P2PKH
