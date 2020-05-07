@@ -18,11 +18,13 @@ from typing import List
 from btclib import ssa
 from btclib.alias import INF, Point
 from btclib.curvemult import double_mult, mult
-from btclib.curves import low_card_curves, secp224k1
+from btclib.curves import secp224k1
 from btclib.curves import secp256k1 as ec
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
 from btclib.utils import int_from_bits
+
+from .test_curves import low_card_curves
 
 
 class TestSSA(unittest.TestCase):

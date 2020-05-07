@@ -170,18 +170,6 @@ __n = 0x01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA5186
 __h = 1
 secp521r1 = Curve(__p, __a, __b, (__Gx, __Gy), __n, __h, 256, True)
 
-# test curves: very low cardinality
-
-ec13_11 = Curve(13, 7, 6, (1, 1), 11, 1, 0, False)
-ec13_19 = Curve(13, 0, 2, (1, 9), 19, 1, 0, False)
-ec17_13 = Curve(17, 6, 8, (0, 12), 13, 2, 0, False)
-ec17_23 = Curve(17, 3, 5, (1, 14), 23, 1, 0, False)
-ec19_13 = Curve(19, 0, 2, (4, 16), 13, 2, 0, False)
-ec19_23 = Curve(19, 2, 9, (0, 16), 23, 1, 0, False)
-ec23_19 = Curve(23, 9, 7, (5, 4), 19, 1, 0, False)
-ec23_31 = Curve(23, 5, 1, (0, 1), 31, 1, 0, False)
-
-
 # FIPS PUB 186-4
 # FEDERAL INFORMATION PROCESSING STANDARDS PUBLICATION
 # Digital Signature Standard (DSS)
@@ -368,12 +356,6 @@ __h = 1
 
 # curve sets
 
-low_card_curves = [ec13_11, ec13_19,  # 13 % 4 = 1; 13 % 8 = 5
-                   ec17_13, ec17_23,  # 17 % 4 = 1; 17 % 8 = 1
-                   ec19_13, ec19_23,  # 19 % 4 = 3; 19 % 8 = 3
-                   ec23_19, ec23_31   # 23 % 4 = 3; 23 % 8 = 7
-                   ]
-
 SEC2V2_curves = [secp192k1, secp192r1,
                  secp224k1, secp224r1,
                  secp256k1, secp256r1,
@@ -389,5 +371,3 @@ NIST_curves = [nistp192, nistp224, nistp256, nistp384, nistp521]
 BP_curves = [
     bpp160r1, bpp192r1, bpp224r1, bpp256r1,
     bpp320r1, bpp384r1, bpp512r1]
-
-all_curves = low_card_curves + SEC2V1_curves + NIST_curves + BP_curves

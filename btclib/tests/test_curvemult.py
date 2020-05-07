@@ -15,7 +15,9 @@ from typing import List
 from btclib.alias import INF, INFJ
 from btclib.curve import _mult_aff, _mult_jac
 from btclib.curvemult import double_mult, mult, multi_mult
-from btclib.curves import ec23_31, low_card_curves, secp256k1
+from btclib.curves import secp256k1
+
+from .test_curves import ec23_31, low_card_curves
 
 
 class TestEllipticCurve(unittest.TestCase):

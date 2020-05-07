@@ -13,9 +13,9 @@ Major changes includes:
 - renamed bytes_from_key as pubkeyinfo_from_key
 - renamed network_from_xpub as network_from_xkeyversion
   extending its functionality to xprv too
-- before encoding mnemonic phrases,
-  redundant spaces, tabs, newlines, returns, formfeeds, etc.
-  are removed from them using " ".join(mnemonic.split())
+- redundant spaces (and also tabs, newlines, returns, formfeeds, etc.)
+  are removed from mnemonic phrases using " ".join(mnemonic.split())
+  before any encoding of the mnemonic
 - moved the WordLists class into the mnemonic module and
   removed the wordlist module
 - moved all entropy functions into the entropy module

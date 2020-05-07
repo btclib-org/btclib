@@ -14,9 +14,11 @@ from hashlib import sha1, sha256
 from btclib import dsa
 from btclib.alias import INF
 from btclib.curvemult import _mult_jac, double_mult, mult
-from btclib.curves import low_card_curves, secp112r2, secp160r1, secp256k1
+from btclib.curves import secp112r2, secp160r1, secp256k1
 from btclib.numbertheory import mod_inv
 from btclib.secpoint import bytes_from_point, point_from_octets
+
+from .test_curves import low_card_curves
 
 ec = secp256k1
 hf = sha256

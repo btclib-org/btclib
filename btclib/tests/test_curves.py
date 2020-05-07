@@ -13,10 +13,27 @@ import unittest
 from btclib.alias import INF, INFJ
 from btclib.curve import Curve, _jac_from_aff
 from btclib.curvemult import mult
-from btclib.curves import (all_curves, low_card_curves, secp112r1, secp160r1,
-                           secp256k1)
+from btclib.curves import (BP_curves, NIST_curves, SEC2V1_curves, secp112r1,
+                           secp160r1, secp256k1)
 from btclib.numbertheory import mod_sqrt
 from btclib.secpoint import bytes_from_point, point_from_octets
+
+# test curves: very low cardinality
+ec13_11 = Curve(13, 7, 6, (1, 1), 11, 1, 0, False)
+ec13_19 = Curve(13, 0, 2, (1, 9), 19, 1, 0, False)
+ec17_13 = Curve(17, 6, 8, (0, 12), 13, 2, 0, False)
+ec17_23 = Curve(17, 3, 5, (1, 14), 23, 1, 0, False)
+ec19_13 = Curve(19, 0, 2, (4, 16), 13, 2, 0, False)
+ec19_23 = Curve(19, 2, 9, (0, 16), 23, 1, 0, False)
+ec23_19 = Curve(23, 9, 7, (5, 4), 19, 1, 0, False)
+ec23_31 = Curve(23, 5, 1, (0, 1), 31, 1, 0, False)
+low_card_curves = [ec13_11, ec13_19,  # 13 % 4 = 1; 13 % 8 = 5
+                   ec17_13, ec17_23,  # 17 % 4 = 1; 17 % 8 = 1
+                   ec19_13, ec19_23,  # 19 % 4 = 3; 19 % 8 = 3
+                   ec23_19, ec23_31   # 23 % 4 = 3; 23 % 8 = 7
+                   ]
+
+all_curves = low_card_curves + SEC2V1_curves + NIST_curves + BP_curves
 
 
 class TestEllipticCurve(unittest.TestCase):
