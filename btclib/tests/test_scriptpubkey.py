@@ -59,13 +59,23 @@ class TestScriptPubKey(unittest.TestCase):
         # address_from_scriptPubKey(scriptPubKey)
 
         # documented test case: https://learnmeabitcoin.com/guide/p2pk
-        pubkey = "04 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
-        script = "4104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac"
+        pubkey = ("04"
+                  "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
+                  "e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
+                  )
+        script = ("41"
+                  "04"
+                  "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
+                  "e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
+                  "ac"
+                  )
         scriptPubKey = p2pk(pubkey)
         self.assertEqual(scriptPubKey.hex(), script)
 
         # Invalid size: 34 bytes instead of (33, 65)
-        pubkey = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 14"
+        pubkey = ("03"
+                  "e1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
+                  "14")
         self.assertRaises(ValueError, p2pk, pubkey)
         # p2pk(pubkey)
 
@@ -74,8 +84,12 @@ class TestScriptPubKey(unittest.TestCase):
         script_type = 'p2ms'
 
         # self-consistency
-        pubkey1 = "04cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaff7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        pubkey2 = "0461cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d76519aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
+        pubkey1 = ("04"
+                   "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+                   "f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4")
+        pubkey2 = ("04"
+                   "61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765"
+                   "19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af")
         pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(pubkey2)]
         m = 1
 

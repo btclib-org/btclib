@@ -116,8 +116,8 @@ class TestDSA(unittest.TestCase):
 
         # see https://twitter.com/pwuille/status/1063582706288586752
         # Satoshi's key
-        P = point_from_octets(
-            "03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c", ec)
+        key = "03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c"
+        P = point_from_octets(key, ec)
 
         u1 = 1
         u2 = 2  # pick them at will

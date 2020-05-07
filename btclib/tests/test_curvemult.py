@@ -30,6 +30,47 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertEqual(INF, _mult_aff(3, INF, ec))
         self.assertEqual(INFJ, _mult_jac(3, INFJ, ec))
 
+    def test_double_mult(self):
+        H = (0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,
+             0x31d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38904)
+        G = secp256k1.G
+
+        # 0*G + 1*H
+        T = double_mult(1, H, 0, G)
+        self.assertEqual(T, H)
+
+        # 0*G + 2*H
+        T = double_mult(2, H, 0, G)
+        self.assertEqual(T, mult(2, H))
+
+        # 0*G + 3*H
+        T = double_mult(3, H, 0, G)
+        self.assertEqual(T, mult(3, H))
+
+        # 1*G + 0*H
+        T = double_mult(0, H, 1, G)
+        self.assertEqual(T, G)
+
+        # 2*G + 0*H
+        T = double_mult(0, H, 2, G)
+        self.assertEqual(T, mult(2, G))
+
+        # 3*G + 0*H
+        T = double_mult(0, H, 3, G)
+        self.assertEqual(T, mult(3, G))
+
+        # 0*G + 5*H
+        T = double_mult(5, H, 0, G)
+        self.assertEqual(T, mult(5, H))
+
+        # 0*G - 5*H
+        T = double_mult(-5, H, 0, G)
+        self.assertEqual(T, mult(-5, H))
+
+        # 1*G - 5*H
+        U = double_mult(-5, H, 1, G)
+        self.assertEqual(U, secp256k1.add(G, T))
+
     def test_shamir(self):
         ec = ec23_31
         for k1 in range(ec.n):

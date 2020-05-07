@@ -12,9 +12,7 @@ import unittest
 from hashlib import sha256, sha384
 
 from btclib import pedersen
-from btclib.curvemult import double_mult, mult
 from btclib.curves import secp256k1, secp256r1, secp384r1
-from btclib.secpoint import point_from_octets
 
 
 class TestSecondGenerator(unittest.TestCase):
@@ -25,83 +23,11 @@ class TestSecondGenerator(unittest.TestCase):
         https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
         """
 
-        ec = secp256k1
-        hf = sha256
+        H = (0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,
+             0x31d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38904)
+        self.assertEqual(H, pedersen.second_generator(secp256k1, sha256))
 
-        H = pedersen.second_generator(ec, hf)
-        self.assertEqual(H, point_from_octets(
-            "02 50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0", ec))
-
-        # 0*G + 1*H
-        T = double_mult(1, H, 0, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0", ec))
-
-        # 0*G + 2*H
-        T = double_mult(2, H, 0, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "03 fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a", ec))
-        T = mult(2, H, ec)
-        self.assertEqual(T, point_from_octets(
-            "03 fad265e0a0178418d006e247204bcf42edb6b92188074c9134704c8686eed37a", ec))
-
-        # 0*G + 3*H
-        T = double_mult(3, H, 0, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 5ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa", ec))
-        T = mult(3, H, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 5ef47fcde840a435e831bbb711d466fc1ee160da3e15437c6c469a3a40daacaa", ec))
-
-        # 1*G+0*H
-        T = double_mult(0, H, 1, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", ec))
-        T = ec.G
-        self.assertEqual(T, point_from_octets(
-            "02 79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", ec))
-
-        # 2*G+0*H
-        T = double_mult(0, H, 2, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", ec))
-        T = mult(2, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", ec))
-
-        # 3*G+0*H
-        T = double_mult(0, H, 3, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9", ec))
-        T = mult(3, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9", ec))
-
-        # 0*G+5*H
-        T = double_mult(5, H, 0, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "03 9e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e", ec))
-        T = mult(5, H, ec)
-        self.assertEqual(T, point_from_octets(
-            "03 9e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e", ec))
-
-        # 0*G-5*H
-        T = double_mult(-5, H, 0, ec.G, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 9e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e", ec))
-        T = mult(-5, H, ec)
-        self.assertEqual(T, point_from_octets(
-            "02 9e431be0851721f9ce35cc0f718fce7d6d970e3ddd796643d71294d7a09b554e", ec))
-
-        # 1*G-5*H
-        U = double_mult(-5, H, 1, ec.G, ec)
-        self.assertEqual(U, point_from_octets(
-            "02 b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a", ec))
-        U = ec.add(ec.G, T)  # reusing previous T value
-        self.assertEqual(U, point_from_octets(
-            "02 b218ddacb34d827c71760e601b41d309bc888cf7e3ab7cc09ec082b645f77e5a", ec))
-
-        H = pedersen.second_generator(secp256r1, hf)
+        H = pedersen.second_generator(secp256r1, sha256)
         H = pedersen.second_generator(secp384r1, sha384)
 
 

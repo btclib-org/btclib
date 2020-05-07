@@ -21,8 +21,9 @@ class TestBIP39(unittest.TestCase):
         lang = "en"
         raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
         mnemonic = bip39.mnemonic_from_entropy(raw_entr, lang)
-        self.assertEqual(
-            mnemonic, "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract")
+        self.assertEqual(mnemonic,
+                         "abandon abandon atom trust ankle walnut "
+                         "oil across awake bunker divorce abstract")
         r = bip39.entropy_from_mnemonic(mnemonic, lang)
         size = (len(r) + 7) // 8
         r = int(r, 2).to_bytes(size, byteorder='big')
@@ -35,7 +36,8 @@ class TestBIP39(unittest.TestCase):
         # bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # invalid mnemonic checksum
-        wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce walnut"
+        wr_m = ("abandon abandon atom  trust  ankle   walnut "
+                "oil     across  awake bunker divorce walnut")
         self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wr_m, lang)
         # bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 

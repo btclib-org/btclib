@@ -61,8 +61,10 @@ class TestSegwitAddress(unittest.TestCase):
                 "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
                 "0014751e76e8199196d454941c45d1b3a323f1433bd6"
             ], [
-                "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
-                "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6"
+                ("bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarva"
+                 "ry0c5xw7k7grplx"),
+                ("5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d"
+                 "454941c45d1b3a323f1433bd6")
             ], [
                 "BC1SW50QA3JX3S", "6002751e"
             ], [
@@ -75,11 +77,15 @@ class TestSegwitAddress(unittest.TestCase):
         ]
         VALID_TB_ADDRESS = [
             [
-                "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
-                "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"
+                ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0s"
+                 "l5k7"),
+                ("00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329"
+                 "604903262")
             ], [
-                "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
-                "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433"
+                ("tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrx"
+                 "h6hy"),
+                ("0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165da"
+                 "b93e86433")
             ],
         ]
 
@@ -103,7 +109,8 @@ class TestSegwitAddress(unittest.TestCase):
             # Invalid program length
             "bc1rw5uspcuh",
             # Invalid program length
-            "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
+            ("bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qe"
+             "jxtdg4y5r3zarvary0c5xw7kw5rljs90"),
             # Invalid program length for witness version 0 (per BIP141)
             "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
             # Mixed case
@@ -115,7 +122,8 @@ class TestSegwitAddress(unittest.TestCase):
             # Empty data section
             "bc1gmk9yu",
             # 92 chars
-            "bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5"
+            ("bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv"
+             "psxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5")
         ]
 
         for a in INVALID_ADDRESS:
@@ -161,7 +169,8 @@ class TestSegwitAddress(unittest.TestCase):
 
     def test_p2wpkh_p2sh(self):
         # https://matthewdowney.github.io/create-segwit-address.html
-        pub = " 03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+        pub = (" 03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76"
+               "276fa69a4eae77f")
 
         address = p2wpkh_p2sh(pub)
         self.assertEqual(address, b'36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g')
@@ -170,7 +179,8 @@ class TestSegwitAddress(unittest.TestCase):
         self.assertEqual(address, b'2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
 
         # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh
-        pub = "02 f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
+        pub = ("02 f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a41"
+               "37d8250531128")
 
         address = p2wpkh_p2sh(pub)
         self.assertEqual(address, b'3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd')
@@ -179,14 +189,16 @@ class TestSegwitAddress(unittest.TestCase):
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
         # leading/trailing spaces should be tolerated
-        pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        pub = (" 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2"
+               "815B16F81798")
         addr = b'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
         self.assertEqual(addr, p2wpkh(pub))
         addr = b'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx'
         self.assertEqual(addr, p2wpkh(pub, 'testnet'))
 
         # http://bitcoinscri.pt/pages/segwit_native_p2wpkh
-        pub = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+        pub = ("02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69"
+               "261b42def7")
         addr = b'bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck'
         self.assertEqual(addr, p2wpkh(pub))
 
@@ -225,7 +237,8 @@ class TestSegwitAddress(unittest.TestCase):
     def test_p2wsh_p2sh(self):
 
         # leading/trailing spaces should be tolerated
-        pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        pub = (" 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2D"
+               "CE28D959F2815B16F81798")
         witness_script = [pub, 'OP_CHECKSIG']
         witness_script_bytes = encode(witness_script)
         p2wsh_p2sh(witness_script_bytes)
@@ -234,7 +247,8 @@ class TestSegwitAddress(unittest.TestCase):
     def test_p2wsh(self):
 
         # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
-        pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+        pub = ("02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D"
+               "959F2815B16F81798")
         witness_script = [pub, 'OP_CHECKSIG']
         witness_script_bytes = encode(witness_script)
 

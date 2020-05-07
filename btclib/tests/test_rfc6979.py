@@ -23,8 +23,8 @@ class Testrfc6979(unittest.TestCase):
         msg = sha256(b'Satoshi Nakamoto').digest()
         x = 0x1
         k = rfc6979(msg, x)
-        expected = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
-        self.assertEqual(k, expected)
+        expK = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
+        self.assertEqual(k, expK)
 
         # mismatch between hf digest size and hashed message size
         self.assertRaises(ValueError, rfc6979, msg[:-1], x)

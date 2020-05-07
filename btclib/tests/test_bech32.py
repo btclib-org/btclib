@@ -46,13 +46,16 @@ from btclib.bech32 import b32decode
 VALID_CHECKSUM = [
     "A12UEL5L",
     "a12uel5l",
-    "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs",
+    ("an83characterlonghumanreadablepartthatcontainsthenumber1andthe"
+     "excludedcharactersbio1tt5tgs"),
     "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
-    "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j",
+    ("11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+     "qqqqqqqqqqqqqqqqqqqqqqqqqc8247j"),
     "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w",
     "?1ezyfcl",
     # the next one would have been invalid with the 90 char limit
-    "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx",
+    ("an84characterslonghumanreadablepartthatcontainsthenumber1and"
+     "theexcludedcharactersbio1569pvx"),
 ]
 
 INVALID_CHECKSUM = [

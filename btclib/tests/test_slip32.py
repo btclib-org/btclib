@@ -21,7 +21,8 @@ class TestSLIP32(unittest.TestCase):
 
         https://github.com/satoshilabs/slips/blob/master/slip-0132.md
         """
-        mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+        mnemonic = ("abandon abandon abandon abandon abandon abandon "
+                    "abandon abandon abandon abandon abandon about")
         kpath = "./0/0"
         test_vectors = [
             [

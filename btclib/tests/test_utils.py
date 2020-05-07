@@ -16,12 +16,16 @@ from btclib.utils import bytes_from_octets, hash160, hash256
 class TestUtils(unittest.TestCase):
 
     def test_utils(self):
-        s_spaces = " 0C 28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D  "
-        b = bytes_from_octets(s_spaces)
+        spaces = (" "
+                  "0C "
+                  "28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
+                  "  "
+                  )
+        b = bytes_from_octets(spaces)
         s = b.hex()  # lower case, no spaces
-        self.assertNotEqual(s, s_spaces)
-        self.assertEqual(hash160(s_spaces), hash160(bytes_from_octets(s)))
-        self.assertEqual(hash256(s_spaces), hash256(bytes_from_octets(s)))
+        self.assertNotEqual(spaces, s)
+        self.assertEqual(hash160(spaces), hash160(s))
+        self.assertEqual(hash256(spaces), hash256(s))
 
 
 if __name__ == "__main__":
