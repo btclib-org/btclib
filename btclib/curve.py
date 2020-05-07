@@ -322,7 +322,7 @@ class Curve(CurveSubGroup):
     "Prime order subgroup of the points of an elliptic curve over Fp."
 
     def __init__(self, p: int, a: int, b: int, G: Point, n: int,
-                 h: int, sec_bits: int, weakness_check: bool = True) -> None:
+                 h: int, weakness_check: bool = True) -> None:
 
         super().__init__(p, a, b, G)
 
@@ -332,20 +332,6 @@ class Curve(CurveSubGroup):
         # elliptic curve cryptography, i.e. half of the number of bits
         # required to express the group order n or, holding Hasse theorem,
         # to express the field prime p
-
-        # 1) check that p has enough bits
-        plen = p.bit_length()
-        if sec_bits != 0:
-            t_range = [56, 64, 80, 96, 112, 128, 160, 192, 256]
-            if sec_bits not in t_range:
-                m = f"required security bits ({sec_bits}) "
-                m += f"not in the allowed range {t_range}"
-                raise UserWarning(m)
-            if plen < sec_bits * 2:
-                m = f"not enough bits in the field prime ({plen}) "
-                m += f"for required security bits {sec_bits}"
-                raise UserWarning(m)
-        self.sec_bits = sec_bits
 
         self.n = n
         self.nlen = n.bit_length()
@@ -373,8 +359,6 @@ class Curve(CurveSubGroup):
         exp_h = int(1 / n + delta / n + p / n)
         if h != exp_h:
             raise ValueError(f"h ({h}) not as expected ({exp_h})")
-        assert sec_bits == 0 or h <= pow(
-            2, sec_bits / 8), f"h ({h}) too big for security bits ({sec_bits})"
         self.h = h
 
         # 8. Check that n ≠ p
@@ -390,13 +374,11 @@ class Curve(CurveSubGroup):
         result = super().__str__()
         result += f"\n n   = {hex(self.n).upper()}"
         result += f"\n h = {self.h}"
-        result += f"\n sec_bits = {self.sec_bits}"
         return result
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
         result += f", {hex(self.n).upper()}"
         result += f", {self.h}"
-        result += f", {self.sec_bits}"
         result += ")"
         return result

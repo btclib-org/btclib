@@ -19,14 +19,14 @@ from btclib.numbertheory import mod_sqrt
 from btclib.secpoint import bytes_from_point, point_from_octets
 
 # test curves: very low cardinality
-ec13_11 = Curve(13, 7, 6, (1, 1), 11, 1, 0, False)
-ec13_19 = Curve(13, 0, 2, (1, 9), 19, 1, 0, False)
-ec17_13 = Curve(17, 6, 8, (0, 12), 13, 2, 0, False)
-ec17_23 = Curve(17, 3, 5, (1, 14), 23, 1, 0, False)
-ec19_13 = Curve(19, 0, 2, (4, 16), 13, 2, 0, False)
-ec19_23 = Curve(19, 2, 9, (0, 16), 23, 1, 0, False)
-ec23_19 = Curve(23, 9, 7, (5, 4), 19, 1, 0, False)
-ec23_31 = Curve(23, 5, 1, (0, 1), 31, 1, 0, False)
+ec13_11 = Curve(13, 7, 6, (1, 1), 11, 1, False)
+ec13_19 = Curve(13, 0, 2, (1, 9), 19, 1, False)
+ec17_13 = Curve(17, 6, 8, (0, 12), 13, 2, False)
+ec17_23 = Curve(17, 3, 5, (1, 14), 23, 1, False)
+ec19_13 = Curve(19, 0, 2, (4, 16), 13, 2, False)
+ec19_23 = Curve(19, 2, 9, (0, 16), 23, 1, False)
+ec23_19 = Curve(23, 9, 7, (5, 4), 19, 1, False)
+ec23_31 = Curve(23, 5, 1, (0, 1), 31, 1, False)
 low_card_curves = [ec13_11, ec13_19,  # 13 % 4 = 1; 13 % 8 = 5
                    ec17_13, ec17_23,  # 17 % 4 = 1; 17 % 8 = 1
                    ec19_13, ec19_23,  # 19 % 4 = 3; 19 % 8 = 3
@@ -39,88 +39,54 @@ all_curves = low_card_curves + SEC2V1_curves + NIST_curves + BP_curves
 class TestEllipticCurve(unittest.TestCase):
     def test_exceptions(self):
         # good
-        Curve(11, 2, 7, (6, 9), 7, 2, 0, False)
+        Curve(11, 2, 7, (6, 9), 7, 2, False)
 
         # p not odd
-        self.assertRaises(ValueError, Curve, 10, 2, 7,
-                          (6, 9), 7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 10, 2, 7, (6, 9), 7, 1, False)
 
         # p not prime
-        self.assertRaises(ValueError, Curve, 15, 2, 7,
-                          (6, 9), 7, 1, 0, False)
-
-        # required security level not in the allowed range
-        ec = secp112r1
-        p = ec.p
-        a = ec._a
-        b = ec._b
-        G = ec.G
-        n = ec.n
-        t = ec.sec_bits
-        h = ec.h
-        self.assertRaises(UserWarning, Curve, p, a, b, G, n, h, 273)
-        # Curve(p, a, b, G, n, h, 273)
-
-        # not enough bits for required security level
-        ec = secp160r1
-        p = ec.p
-        a = ec._a
-        b = ec._b
-        G = ec.G
-        n = ec.n
-        t = ec.sec_bits
-        h = ec.h
-        self.assertRaises(UserWarning, Curve, p, a, b, G, n, h, 2 * t)
-        # Curve(p, a, b, G, n, h, 2*t)
+        self.assertRaises(ValueError, Curve, 15, 2, 7, (6, 9), 7, 1, False)
 
         # a > p
-        self.assertRaises(ValueError, Curve, 11, 12,
-                          7, (6, 9), 13, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 12, 7, (6, 9), 13, 1, False)
 
         # b > p
-        self.assertRaises(ValueError, Curve, 11, 2, 12,
-                          (6, 9), 13, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 12, (6, 9), 13, 1, False)
 
         # zero discriminant
-        self.assertRaises(ValueError, Curve, 11, 7, 7,
-                          (6, 9), 7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 7, 7, (6, 9), 7, 1, False)
 
         # G not Tuple (int, int)
-        self.assertRaises(ValueError, Curve, 11, 2, 7,
-                          (6, 9, 1), 7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9, 1), 7, 1, False)
 
         # G not on curve
-        self.assertRaises(ValueError, Curve, 11, 2, 7,
-                          (7, 9), 7, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7, (7, 9), 7, 1, False)
 
         # n not prime
-        self.assertRaises(ValueError, Curve, 11, 2, 7,
-                          (6, 9), 8, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 8, 1, False)
 
         # n not Hesse
-        self.assertRaises(ValueError, Curve, 11, 2,
-                          7, (6, 9), 71, 1, 0, True)
+        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 71, 1, True)
 
         # h not as expected
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 7, 1, 0, True)
+        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 7, 1, True)
         # Curve(11, 2, 7, (6, 9), 7, 1, 0, True)
 
         # n not group order
-        self.assertRaises(ValueError, Curve, 11, 2, 7,
-                          (6, 9), 13, 1, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 13, 1, False)
 
         # n=p -> weak curve
         # missing
 
         # weak curve
-        self.assertRaises(UserWarning, Curve, 11, 2, 7, (6, 9), 7, 2, 0, True)
+        self.assertRaises(UserWarning, Curve, 11, 2, 7, (6, 9), 7, 2, True)
 
         # x-coordinate not in [0, p-1]
         self.assertRaises(ValueError, secp256k1.y, secp256k1.p)
         # secp256k1.y(secp256k1.p)
 
         # INF point does not generate a prime order subgroup
-        self.assertRaises(ValueError, Curve, 11, 2, 7, INF, 7, 2, 0, False)
+        self.assertRaises(ValueError, Curve, 11, 2, 7, INF, 7, 2, False)
         # Curve(11, 2, 7, INF, 7, 2, 0, False)
 
     def test_all_curves(self):
