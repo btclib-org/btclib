@@ -40,8 +40,7 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
 
     if (out_size is None or
             isinstance(out_size, int) and len(o) == out_size or
-            isinstance(out_size, Iterable) and len(o) in out_size
-        ):
+            isinstance(out_size, Iterable) and len(o) in out_size):
         return o
 
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"

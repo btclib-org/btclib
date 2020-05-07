@@ -277,7 +277,8 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     return keys
 
 
-def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
+def _recover_pubkey(key_id: int, c: int, r: int, s: int,
+                    ec: Curve) -> JacPoint:
     # Private function provided for testing purposes only.
 
     # precomputations

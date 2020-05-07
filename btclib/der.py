@@ -166,7 +166,8 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
 
         # Null bytes at the start of a scalar are not allowed, unless the
         # scalar would otherwise be interpreted as a negative number
-        if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
+        if (sizeS > 1 and sig[sizeR + 6] == 0x00 and
+                not (sig[sizeR + 7] & 0x80)):
             raise ValueError("Invalid null bytes at the start of s")
 
         s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
