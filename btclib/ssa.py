@@ -108,12 +108,8 @@ def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
     return sig
 
 
-def gen_keys(prvkey: PrvKey = None,
-             ec: Curve = secp256k1) -> Tuple[int, int]:
-    """Return a private/public key pair.
-
-    The public key is a BIP340 public key of ec.psize bytes.
-    """
+def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
+    "Return a BIP340 private/public (int, int) key-pair."
     # BIP340 is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 

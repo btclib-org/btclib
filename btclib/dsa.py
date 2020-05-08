@@ -62,13 +62,9 @@ def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
     return der._serialize(r, s, None, ec)
 
 
-def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1,
-             compressed: Optional[bool] = None) -> Tuple[int, Point]:
-    """Return a private/public key pair.
-
-    The public key is the compressed or uncompressed SEC representation
-    of a curve point.
-    """
+def gen_keys(prvkey: PrvKey = None,
+             ec: Curve = secp256k1) -> Tuple[int, Point]:
+    "Return a private/public (int, Point) key-pair."
 
     if prvkey is None:
         # q in the range [1, ec.n-1]

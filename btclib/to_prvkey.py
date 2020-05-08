@@ -19,8 +19,6 @@ from .network import (NETWORKS, network_from_key_value,
                       network_from_xkeyversion, xprvversions_from_network)
 from .utils import bytes_from_octets
 
-# FIXME network
-
 
 def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer.
@@ -31,6 +29,9 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     - BIP32 extended keys (bytes, string, or BIP32KeyDict)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - integer (native int or hex-strin)
+
+    Network and compressed informations from the input key
+    are not used.
     """
 
     if isinstance(prvkey, int):
