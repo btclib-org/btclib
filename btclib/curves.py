@@ -362,9 +362,9 @@ SEC2V2_curves = [secp192k1, secp192r1,
                  secp384r1,
                  secp521r1]
 
-SEC2V1_curves = SEC2V2_curves + [secp112r1, secp112r2,
-                                 secp128r1, secp128r2,
-                                 secp160k1, secp160r1, secp160r2]
+SEC2V1_curves = [secp112r1, secp112r2,
+                 secp128r1, secp128r2,
+                 secp160k1, secp160r1, secp160r2] + SEC2V2_curves
 
 NIST_curves = [nistp192, nistp224, nistp256, nistp384, nistp521]
 
