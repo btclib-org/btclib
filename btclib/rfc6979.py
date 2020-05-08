@@ -45,6 +45,7 @@ from .to_prvkey import int_from_prvkey
 from .utils import bytes_from_octets, int_from_bits
 
 
+# FIXME message string
 def rfc6979(mhd: Octets, prvkey: PrvKey,
             ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""

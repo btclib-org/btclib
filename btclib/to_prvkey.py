@@ -19,6 +19,8 @@ from .network import (NETWORKS, network_from_key_value,
                       network_from_xkeyversion, xprvversions_from_network)
 from .utils import bytes_from_octets
 
+# FIXME network
+
 
 def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer.

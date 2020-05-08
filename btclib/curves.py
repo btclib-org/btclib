@@ -22,7 +22,7 @@
 
 """
 
-# scroll down at the end of the file for 'relevant' code
+# FIXME hexstring in json
 
 import json
 from os import path
