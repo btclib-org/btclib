@@ -64,8 +64,8 @@ from typing import Optional, Tuple, Union
 from .alias import Octets
 from .curve import Curve
 from .curves import secp256k1
-from .utils import bytes_from_octets
 from .script import SIGHASHES
+from .utils import bytes_from_octets
 
 # (r, s, sighash)
 # r and s are the components of a DSASigTuple
