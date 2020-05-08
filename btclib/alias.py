@@ -27,6 +27,9 @@ from typing import Any, Callable, Iterable, List, Tuple, TypedDict, Union
 # etc.
 Octets = Union[bytes, str]
 
+# hex-string or bytes representation of an int
+Integer = Union[bytes, str, int]
+
 # bytes or text string (not hex-string)
 #
 # to convert to bytes, just encode()

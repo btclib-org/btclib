@@ -18,7 +18,7 @@ https://www.secg.org/sec1-v2.pdf
 import hashlib
 from typing import Iterable, Optional, Union
 
-from .alias import Octets
+from .alias import Integer, Octets
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
@@ -45,6 +45,14 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
 
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"
     raise ValueError(m)
+
+
+def int_from_integer(i: Integer) -> int:
+    if isinstance(i, int):
+        return i
+    elif isinstance(i, bytes):
+        return int.from_bytes(i, 'big')
+    return int(i, 16)
 
 
 def int_from_bits(o: Octets, nlen: int) -> int:
