@@ -47,15 +47,15 @@ class TestMnemonic(unittest.TestCase):
         # _wordlists.load_lang(lang)
 
         # dictionary length (must be a power of two
-        filename = path.join(path.dirname(__file__),
-                             "data", "fakeenglish.txt")
+        fname = "fakeenglish.txt"
+        filename = path.join(path.dirname(__file__), "test_data", fname)
         self.assertRaises(ValueError, _wordlists.load_lang, lang, filename)
         # _wordlists.load_lang(lang, filename)
 
         # dinamically add a new language
         lang = "en2"
-        filename = path.join(path.dirname(__file__),
-                             "data", "english.txt")
+        fname = "english.txt"
+        filename = path.join(path.dirname(__file__), "test_data", fname)
         _wordlists.load_lang(lang, filename)
         length = _wordlists.language_length(lang)
         self.assertEqual(length, 2048)

@@ -353,11 +353,11 @@ class TestMessageSign(unittest.TestCase):
     def test_vector_python_bitcoinlib(self):
         """Test python-bitcoinlib test vectors
 
-        https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/data/bms.json
+        https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/test_data/bms.json
         """
 
-        file = "bms.json"
-        filename = path.join(path.dirname(__file__), "data", file)
+        fname = "bms.json"
+        filename = path.join(path.dirname(__file__), "test_data", fname)
         with open(filename, 'r') as f:
             test_vectors = json.load(f)
 

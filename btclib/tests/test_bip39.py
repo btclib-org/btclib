@@ -50,8 +50,8 @@ class TestBIP39(unittest.TestCase):
         """BIP39 test vectors
            https://github.com/trezor/python-mnemonic/blob/master/vectors.json
         """
-        file = "bip39_test_vectors.json"
-        filename = path.join(path.dirname(__file__), "data", file)
+        fname = "bip39_test_vectors.json"
+        filename = path.join(path.dirname(__file__), "test_data", fname)
         with open(filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed

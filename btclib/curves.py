@@ -30,7 +30,7 @@ from typing import Dict
 
 from .curve import Curve
 
-datadir = path.join(path.dirname(__file__), "dictdata")
+datadir = path.join(path.dirname(__file__), "data")
 
 # Elliptic Curve Cryptography (ECC)
 # Brainpool Standard Curves and Curve Generation

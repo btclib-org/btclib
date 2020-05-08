@@ -81,10 +81,9 @@ class TestSSA(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
         """
-        filename = "bip340_test_vectors.csv"
-        path_filename = path.join(path.dirname(__file__),
-                                  "./data/", filename)
-        with open(path_filename, newline='') as csvfile:
+        fname = "bip340_test_vectors.csv"
+        filename = path.join(path.dirname(__file__), "test_data", fname)
+        with open(filename, newline='') as csvfile:
             reader = csv.reader(csvfile)
             # skip column headers while checking that there are 7 columns
             _, _, _, _, _, _, _ = reader.__next__()

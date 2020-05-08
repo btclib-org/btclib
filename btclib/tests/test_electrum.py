@@ -72,8 +72,8 @@ class TestMnemonicDictionaries(unittest.TestCase):
         # bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
 
     def test_vectors(self):
-        file = "electrum_test_vectors.json"
-        filename = path.join(path.dirname(__file__), "data", file)
+        fname = "electrum_test_vectors.json"
+        filename = path.join(path.dirname(__file__), "test_data", fname)
         with open(filename, 'r') as f:
             test_vectors = json.load(f)
         f.closed

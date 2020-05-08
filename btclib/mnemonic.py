@@ -39,7 +39,7 @@ class WordLists:
 
     def __init__(self) -> None:
 
-        path_to_filename = path.join(path.dirname(__file__), "dictdata")
+        path_to_filename = path.join(path.dirname(__file__), "data")
         self.language_files = {
             'en': path.join(path_to_filename, 'english.txt'),
             'it': path.join(path_to_filename, 'italian.txt')

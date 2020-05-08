@@ -334,8 +334,8 @@ class TestBIP32(unittest.TestCase):
 
         https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
         """
-        file = "bip39_test_vectors.json"
-        filename = path.join(path.dirname(__file__), "data", file)
+        fname = "bip39_test_vectors.json"
+        filename = path.join(path.dirname(__file__), "test_data", fname)
         with open(filename, 'r') as f:
             test_vectors = json.load(f)["english"]
         f.closed

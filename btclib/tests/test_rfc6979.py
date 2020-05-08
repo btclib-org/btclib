@@ -46,9 +46,8 @@ class Testrfc6979(unittest.TestCase):
 
     def test_rfc6979_tv(self):
 
-        datadir = path.join(path.dirname(__file__), "data")
-        filename = path.join(datadir, 'rfc6979.json')
-
+        fname = 'rfc6979.json'
+        filename = path.join(path.dirname(__file__), "test_data", fname)
         with open(filename, 'r') as f:
             test_dict = json.load(f)
 
