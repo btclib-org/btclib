@@ -22,8 +22,6 @@
 
 """
 
-# FIXME hexstring in json
-
 import json
 from os import path
 from typing import Dict
