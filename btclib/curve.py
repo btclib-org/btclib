@@ -299,7 +299,7 @@ class CurveSubGroup(CurveGroup):
         # 2. check that xG and yG are integers in the interval [0, p−1]
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p)
         if len(G) != 2:
-            raise ValueError("Generator must a be a tuple[int, int]")
+            raise ValueError("Generator must a be a sequence[int, int]")
         if not self.is_on_curve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = int(G[0]), int(G[1])
