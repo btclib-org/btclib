@@ -22,15 +22,11 @@ from btclib.rfc6979 import rfc6979
 class Testrfc6979(unittest.TestCase):
     def test_rfc6979(self):
         # source: https://bitcointalk.org/index.php?topic=285142.40
-        msg = hashlib.sha256(b'Satoshi Nakamoto').digest()
+        msg = 'Satoshi Nakamoto'
         x = 0x1
         k = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
         k2 = rfc6979(msg, x)
         self.assertEqual(k, k2)
-
-        # mismatch between hf digest size and hashed message size
-        self.assertRaises(ValueError, rfc6979, msg[:-1], x)
-        # rfc6979(msg[:-1], x)
 
     def test_rfc6979_example(self):
 
@@ -44,10 +40,9 @@ class Testrfc6979(unittest.TestCase):
 
         fake_ec = _helper(0x4000000000000000000020108A2E0CC0D99F8A5EF)
         x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272F
-        msg = b'sample'
-        m = hashlib.sha256(msg).digest()
+        msg = 'sample'
         k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
-        self.assertEqual(k, rfc6979(m, x, fake_ec))
+        self.assertEqual(k, rfc6979(msg, x, fake_ec))
 
     def test_rfc6979_tv(self):
 
@@ -63,8 +58,7 @@ class Testrfc6979(unittest.TestCase):
             for x, x_U, y_U, hf, msg, k, r, s in test_vectors:
                 x = int(x, 16)
                 # test RFC6979 implementation
-                m = hashlib.new(hf, msg.encode()).digest()
-                k2 = rfc6979(m, x, ec, eval('hashlib.'+hf))
+                k2 = rfc6979(msg, x, ec, eval('hashlib.'+hf))
                 self.assertEqual(k, hex(k2))
                 # test RFC6979 usage in DSA
                 sig = dsa.sign(msg, x, k2, ec, eval('hashlib.'+hf))

@@ -92,6 +92,7 @@ def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
     h = hf()
     h.update(msg)
     mhd = h.digest()                              # 4
+    # leftmost ec.nlen bits %= ec.n
     c = int_from_bits(mhd, ec.nlen) % ec.n        # 5
     return c
 

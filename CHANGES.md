@@ -8,6 +8,7 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
+- adopted the function signature of dsa.sign for rfc6979.rfc6979 too
 - added CURVES dictionary of all elliptic curves, e.g.:
   from btclib.curves import CURVES; ec = CURVES['secp256k1']
 - renamed prvkey_info_* as prvkeyinfo_*

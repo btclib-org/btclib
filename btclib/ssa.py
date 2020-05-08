@@ -180,7 +180,7 @@ def k(m: Octets, prv: PrvKey,
 def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
 
     # note that only x_Q is needed
-    # if Q is Jacobian Q_y calculation can be avoided
+    # if Q is Jacobian y_Q calculation can be avoided
 
     t = r.to_bytes(ec.psize, 'big')
     t += x_Q.to_bytes(ec.psize, 'big')

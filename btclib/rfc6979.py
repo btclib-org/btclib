@@ -38,24 +38,29 @@ messages to the set of possible k values) would return.
 import hmac
 from hashlib import sha256
 
-from .alias import HashF, Octets, PrvKey
+from .alias import HashF, PrvKey, String
 from .curve import Curve
 from .curves import secp256k1
 from .to_prvkey import int_from_prvkey
-from .utils import bytes_from_octets, int_from_bits
+from .utils import int_from_bits
 
 
-# FIXME message string
-def rfc6979(mhd: Octets, prvkey: PrvKey,
+def rfc6979(msg: String, prvkey: PrvKey,
             ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
-    hsize = hf().digest_size
-    mhd = bytes_from_octets(mhd, hsize)
+    # the following is strictly equivalent to dsa._challenge
+    if isinstance(msg, str):
+        msg = msg.encode()
+    # Steps numbering follows SEC 1 v.2 section 4.1.3
+    h = hf()
+    h.update(msg)
+    mhd = h.digest()                              # 4
+    # leftmost ec.nlen bits %= ec.n
+    c = int_from_bits(mhd, ec.nlen) % ec.n        # 5
 
     q = int_from_prvkey(prvkey, ec)
 
-    c = int_from_bits(mhd, ec.nlen) % ec.n  # leftmost ec.nlen bits %= ec.n
     return _rfc6979(c, q, ec, hf)
 
 
