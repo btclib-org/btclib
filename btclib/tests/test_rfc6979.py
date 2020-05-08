@@ -8,9 +8,9 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import hashlib
 import json
 import unittest
+import hashlib
 from os import path
 
 from btclib import dsa
@@ -25,7 +25,7 @@ class Testrfc6979(unittest.TestCase):
         msg = 'Satoshi Nakamoto'
         x = 0x1
         k = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
-        k2 = rfc6979(msg, x)
+        k2 = rfc6979(msg, x, hf=hashlib.sha256)
         self.assertEqual(k, k2)
 
     def test_rfc6979_example(self):
