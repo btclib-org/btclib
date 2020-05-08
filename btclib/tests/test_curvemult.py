@@ -16,13 +16,14 @@ from btclib.alias import INF, INFJ
 from btclib.curve import _mult_aff, _mult_jac
 from btclib.curvemult import double_mult, mult, multi_mult
 from btclib.curves import secp256k1
+from btclib.tests.test_curves import low_card_curves
 
-from .test_curves import ec23_31, low_card_curves
+ec23_31 = low_card_curves['ec23_31']
 
 
 class TestEllipticCurve(unittest.TestCase):
     def test_mult(self):
-        for ec in low_card_curves:
+        for ec in low_card_curves.values():
             for q in range(ec.n):
                 Q = _mult_aff(q, ec.G, ec)
                 QJ = _mult_jac(q, ec.GJ, ec)

@@ -9,24 +9,26 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import unittest
-from hashlib import sha1, sha256
+from hashlib import sha1
+from hashlib import sha256 as hf
 
 from btclib import dsa
 from btclib.alias import INF
 from btclib.curvemult import _mult_jac, double_mult, mult
-from btclib.curves import secp112r2, secp160r1, secp256k1
+from btclib.curves import CURVES, secp256k1
 from btclib.numbertheory import mod_inv
 from btclib.secpoint import bytes_from_point, point_from_octets
+from btclib.tests.test_curves import low_card_curves
 
-from .test_curves import low_card_curves
-
-ec = secp256k1
-hf = sha256
+secp112r2 = CURVES['secp112r2']
+secp160r1 = CURVES['secp160r1']
 
 
 class TestDSA(unittest.TestCase):
 
     def test_signature(self):
+
+        ec = secp256k1
         q, Q = dsa.gen_keys(0x1)
         msg = 'Satoshi Nakamoto'
         sig = dsa.sign(msg, q)
@@ -116,6 +118,8 @@ class TestDSA(unittest.TestCase):
     def test_forge_hash_sig(self):
         """forging valid hash signatures"""
 
+        ec = secp256k1
+
         # see https://twitter.com/pwuille/status/1063582706288586752
         # Satoshi's key
         key = "03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c"
@@ -145,7 +149,8 @@ class TestDSA(unittest.TestCase):
         # ec.n has to be prime to sign
         prime = [11, 13, 17, 19]
 
-        for ec in low_card_curves:  # only low card or it would take forever
+        # only low card or it would take forever
+        for ec in low_card_curves.values():
             if ec.p in prime:  # only few curves or it would take too long
                 for q in range(1, ec.n):  # all possible private keys
                     PJ = _mult_jac(q, ec.GJ, ec)  # public key
@@ -193,6 +198,8 @@ class TestDSA(unittest.TestCase):
             self.assertTrue(dsa.verify(msg, Q, sig, ec))
 
     def test_crack_prvkey(self):
+        ec = secp256k1
+
         q = 0xDEADBEEF6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
         k = 1010101010101010101
 

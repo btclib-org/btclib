@@ -13,7 +13,7 @@ from hashlib import sha1, sha224, sha256, sha384, sha512
 
 from btclib import dsa
 from btclib.curvemult import mult
-from btclib.curves import nistp192, nistp224, nistp256, nistp384, nistp521
+from btclib.curves import CURVES
 from btclib.rfc6979 import rfc6979
 
 
@@ -50,14 +50,14 @@ class Testrfc6979(unittest.TestCase):
     def test_rfc6979_tv(self):
 
         # source: https://tools.ietf.org/html/rfc6979 section A.2.3
-        ec = nistp192
+        ec = CURVES['nistp192']
         x = 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4
         Ux = 0xAC2C77F529F91689FEA0EA5EFEC7F210D8EEA0B9E047ED56
         Uy = 0x3BC723E57670BD4887EBC732C523063D0A7C957BC97C1C43
         U = mult(x, ec.G, ec)
         self.assertEqual((Ux, Uy), U)
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha1
         msg = b"sample"
         m = hf(msg).digest()
@@ -69,7 +69,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha224
         msg = b"sample"
         m = hf(msg).digest()
@@ -81,7 +81,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha256
         msg = b"sample"
         m = hf(msg).digest()
@@ -93,7 +93,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha384
         msg = b"sample"
         m = hf(msg).digest()
@@ -105,7 +105,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha512
         msg = b"sample"
         m = hf(msg).digest()
@@ -117,7 +117,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha1
         msg = b"test"
         m = hf(msg).digest()
@@ -129,7 +129,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha224
         msg = b"test"
         m = hf(msg).digest()
@@ -141,7 +141,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha256
         msg = b"test"
         m = hf(msg).digest()
@@ -153,7 +153,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha384
         msg = b"test"
         m = hf(msg).digest()
@@ -165,7 +165,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp192
+        ec = CURVES['nistp192']
         hf = sha512
         msg = b"test"
         m = hf(msg).digest()
@@ -178,14 +178,14 @@ class Testrfc6979(unittest.TestCase):
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
         # source: https://tools.ietf.org/html/rfc6979 section A.2.4
-        ec = nistp224
+        ec = CURVES['nistp224']
         x = 0xF220266E1105BFE3083E03EC7A3A654651F45E37167E88600BF257C1
         Ux = 0x00CF08DA5AD719E42707FA431292DEA11244D64FC51610D94B130D6C
         Uy = 0xEEAB6F3DEBE455E3DBF85416F7030CBD94F34F2D6F232C69F3C1385A
         U = mult(x, ec.G, ec)
         self.assertEqual((Ux, Uy), U)
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha1
         msg = b"sample"
         m = hf(msg).digest()
@@ -197,7 +197,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha224
         msg = b"sample"
         m = hf(msg).digest()
@@ -209,7 +209,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha256
         msg = b"sample"
         m = hf(msg).digest()
@@ -221,7 +221,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha384
         msg = b"sample"
         m = hf(msg).digest()
@@ -233,7 +233,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha512
         msg = b"sample"
         m = hf(msg).digest()
@@ -245,7 +245,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha1
         msg = b"test"
         m = hf(msg).digest()
@@ -257,7 +257,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha224
         msg = b"test"
         m = hf(msg).digest()
@@ -269,7 +269,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha256
         msg = b"test"
         m = hf(msg).digest()
@@ -281,7 +281,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha384
         msg = b"test"
         m = hf(msg).digest()
@@ -293,7 +293,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp224
+        ec = CURVES['nistp224']
         hf = sha512
         msg = b"test"
         m = hf(msg).digest()
@@ -306,14 +306,14 @@ class Testrfc6979(unittest.TestCase):
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
         # source: https://tools.ietf.org/html/rfc6979 section A.2.5
-        ec = nistp256
+        ec = CURVES['nistp256']
         x = 0xC9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721
         Ux = 0x60FED4BA255A9D31C961EB74C6356D68C049B8923B61FA6CE669622E60F29FB6
         Uy = 0x7903FE1008B8BC99A41AE9E95628BC64F2F1B20C2D7E9F5177A3C294D4462299
         U = mult(x, ec.G, ec)
         self.assertEqual((Ux, Uy), U)
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha1
         msg = b"sample"
         m = hf(msg).digest()
@@ -325,7 +325,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha224
         msg = b"sample"
         m = hf(msg).digest()
@@ -337,7 +337,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha256
         msg = b"sample"
         m = hf(msg).digest()
@@ -349,7 +349,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha384
         msg = b"sample"
         m = hf(msg).digest()
@@ -361,7 +361,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha512
         msg = b"sample"
         m = hf(msg).digest()
@@ -373,7 +373,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha1
         msg = b"test"
         m = hf(msg).digest()
@@ -385,7 +385,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha224
         msg = b"test"
         m = hf(msg).digest()
@@ -397,7 +397,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha256
         msg = b"test"
         m = hf(msg).digest()
@@ -409,7 +409,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha384
         msg = b"test"
         m = hf(msg).digest()
@@ -421,7 +421,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp256
+        ec = CURVES['nistp256']
         hf = sha512
         msg = b"test"
         m = hf(msg).digest()
@@ -434,14 +434,14 @@ class Testrfc6979(unittest.TestCase):
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
         # source: https://tools.ietf.org/html/rfc6979 section A.2.6
-        ec = nistp384
+        ec = CURVES['nistp384']
         x = 0x6B9D3DAD2E1B8C1C05B19875B6659F4DE23C3B667BF297BA9AA47740787137D896D5724E4C70A825F872C9EA60D2EDF5
         Ux = 0xEC3A4E415B4E19A4568618029F427FA5DA9A8BC4AE92E02E06AAE5286B300C64DEF8F0EA9055866064A254515480BC13
         Uy = 0x8015D9B72D7D57244EA8EF9AC0C621896708A59367F9DFB9F54CA84B3F1C9DB1288B231C3AE0D4FE7344FD2533264720
         U = mult(x, ec.G, ec)
         self.assertEqual((Ux, Uy), U)
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha1
         msg = b"sample"
         m = hf(msg).digest()
@@ -453,7 +453,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha224
         msg = b"sample"
         m = hf(msg).digest()
@@ -465,7 +465,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha256
         msg = b"sample"
         m = hf(msg).digest()
@@ -477,7 +477,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha384
         msg = b"sample"
         m = hf(msg).digest()
@@ -489,7 +489,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha512
         msg = b"sample"
         m = hf(msg).digest()
@@ -501,7 +501,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha1
         msg = b"test"
         m = hf(msg).digest()
@@ -513,7 +513,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha224
         msg = b"test"
         m = hf(msg).digest()
@@ -525,7 +525,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha256
         msg = b"test"
         m = hf(msg).digest()
@@ -537,7 +537,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha384
         msg = b"test"
         m = hf(msg).digest()
@@ -549,7 +549,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp384
+        ec = CURVES['nistp384']
         hf = sha512
         msg = b"test"
         m = hf(msg).digest()
@@ -562,14 +562,14 @@ class Testrfc6979(unittest.TestCase):
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
         # source: https://tools.ietf.org/html/rfc6979 section A.2.7
-        ec = nistp521
+        ec = CURVES['nistp521']
         x = 0x0FAD06DAA62BA3B25D2FB40133DA757205DE67F5BB0018FEE8C86E1B68C7E75CAA896EB32F1F47C70855836A6D16FCC1466F6D8FBEC67DB89EC0C08B0E996B83538
         Ux = 0x1894550D0785932E00EAA23B694F213F8C3121F86DC97A04E5A7167DB4E5BCD371123D46E45DB6B5D5370A7F20FB633155D38FFA16D2BD761DCAC474B9A2F5023A4
         Uy = 0x0493101C962CD4D2FDDF782285E64584139C2F91B47F87FF82354D6630F746A28A0DB25741B5B34A828008B22ACC23F924FAAFBD4D33F81EA66956DFEAA2BFDFCF5
         U = mult(x, ec.G, ec)
         self.assertEqual((Ux, Uy), U)
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha1
         msg = b"sample"
         m = hf(msg).digest()
@@ -581,7 +581,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha224
         msg = b"sample"
         m = hf(msg).digest()
@@ -593,7 +593,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha256
         msg = b"sample"
         m = hf(msg).digest()
@@ -605,7 +605,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha384
         msg = b"sample"
         m = hf(msg).digest()
@@ -617,7 +617,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha512
         msg = b"sample"
         m = hf(msg).digest()
@@ -629,7 +629,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha1
         msg = b"test"
         m = hf(msg).digest()
@@ -641,7 +641,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha224
         msg = b"test"
         m = hf(msg).digest()
@@ -653,7 +653,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha256
         msg = b"test"
         m = hf(msg).digest()
@@ -665,7 +665,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha384
         msg = b"test"
         m = hf(msg).digest()
@@ -677,7 +677,7 @@ class Testrfc6979(unittest.TestCase):
         self.assertEqual(r, sig[0])
         self.assertIn(s, (sig[1], ec.n - sig[1]))
 
-        ec = nistp521
+        ec = CURVES['nistp521']
         hf = sha512
         msg = b"test"
         m = hf(msg).digest()

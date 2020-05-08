@@ -8,6 +8,8 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
+- added CURVES dictionary of all elliptic curves, e.g.:
+  from btclib.curves import CURVES; ec = CURVES['secp256k1']
 - renamed prvkey_info_* as prvkeyinfo_*
 - renamed pubkey_info_* as pubkeyinfo_*
 - renamed bytes_from_key as pubkeyinfo_from_key

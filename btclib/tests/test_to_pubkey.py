@@ -16,13 +16,15 @@ from btclib.alias import INF
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey
 from btclib.curvemult import mult
-from btclib.curves import secp256r1
+from btclib.curves import CURVES
 from btclib.network import NETWORKS
 from btclib.secpoint import bytes_from_point
 from btclib.to_prvkey import _prvkeyinfo_from_xprv
 from btclib.to_pubkey import (_pubkeyinfo_from_xpub, fingerprint,
                               point_from_key, point_from_pubkey,
                               pubkeyinfo_from_key, pubkeyinfo_from_pubkey)
+
+secp256r1 = CURVES['secp256r1']
 
 
 class TestToPubKey(unittest.TestCase):

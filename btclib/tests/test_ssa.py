@@ -18,13 +18,14 @@ from typing import List
 from btclib import ssa
 from btclib.alias import INF, Point
 from btclib.curvemult import double_mult, mult
-from btclib.curves import secp224k1
+from btclib.curves import CURVES
 from btclib.curves import secp256k1 as ec
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
+from btclib.tests.test_curves import low_card_curves
 from btclib.utils import int_from_bits
 
-from .test_curves import low_card_curves
+secp224k1 = CURVES['secp224k1']
 
 
 class TestSSA(unittest.TestCase):
@@ -116,7 +117,7 @@ class TestSSA(unittest.TestCase):
         hsize = hf().digest_size
         H = [i.to_bytes(hsize, 'big') for i in range(max(prime) * 4)]
         # only low card curves or it would take forever
-        for e_c in low_card_curves:
+        for e_c in low_card_curves.values():
             if e_c.p in prime:  # only few curves or it would take too long
                 # BIP340 Schnorr only applies to curve whose prime p = 3 %4
                 if not e_c.pIsThreeModFour:

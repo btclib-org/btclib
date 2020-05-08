@@ -13,8 +13,10 @@ from hashlib import sha1 as hf
 
 from btclib import dh
 from btclib.curvemult import mult
-from btclib.curves import secp160r1 as ec
+from btclib.curves import CURVES
 from btclib.secpoint import bytes_from_point
+
+ec = CURVES['secp160r1']
 
 
 class TestEcdh(unittest.TestCase):

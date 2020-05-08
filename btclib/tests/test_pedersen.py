@@ -12,7 +12,10 @@ import unittest
 from hashlib import sha256, sha384
 
 from btclib import pedersen
-from btclib.curves import secp256k1, secp256r1, secp384r1
+from btclib.curves import CURVES, secp256k1
+
+secp256r1 = CURVES['secp256r1']
+secp384r1 = CURVES['secp384r1']
 
 
 class TestSecondGenerator(unittest.TestCase):
