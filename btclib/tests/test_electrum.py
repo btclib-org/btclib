@@ -76,7 +76,6 @@ class TestMnemonicDictionaries(unittest.TestCase):
         filename = path.join(path.dirname(__file__), "test_data", fname)
         with open(filename, 'r') as f:
             test_vectors = json.load(f)
-        f.closed
 
         lang = "en"
         for test_vector in test_vectors:

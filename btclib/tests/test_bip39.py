@@ -54,7 +54,6 @@ class TestBIP39(unittest.TestCase):
         filename = path.join(path.dirname(__file__), "test_data", fname)
         with open(filename, 'r') as f:
             test_vectors = json.load(f)["english"]
-        f.closed
         for test_vector in test_vectors:
             lang = "en"
             entropy = bytes.fromhex(test_vector[0])

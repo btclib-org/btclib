@@ -77,7 +77,6 @@ class WordLists:
         if self._language_length[lang] == 0:
             with open(self.language_files[lang], 'r') as f:
                 lines = f.readlines()
-            f.closed
 
             nwords = len(lines)
             ensure_is_power_of_two(nwords, "wordlist length")
