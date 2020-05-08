@@ -300,12 +300,12 @@ class CurveSubGroup(CurveGroup):
     def __init__(self, p: Integer, a: Integer, b: Integer, G: Point) -> None:
 
         super().__init__(p, a, b)
-        G = (int_from_integer(G[0]), int_from_integer(G[1]))
 
         # 2. check that xG and yG are integers in the interval [0, p−1]
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p)
         if len(G) != 2:
             raise ValueError("Generator must a be a sequence[int, int]")
+        G = (int_from_integer(G[0]), int_from_integer(G[1]))
         if not self.is_on_curve(G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
         self.G = int(G[0]), int(G[1])

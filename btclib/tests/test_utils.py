@@ -8,9 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+import secrets
 import unittest
 
-from btclib.utils import bytes_from_octets, hash160, hash256
+from btclib.utils import bytes_from_octets, hash160, hash256, int_from_integer
 
 
 class TestUtils(unittest.TestCase):
@@ -26,6 +27,11 @@ class TestUtils(unittest.TestCase):
         self.assertNotEqual(spaces, s)
         self.assertEqual(hash160(spaces), hash160(s))
         self.assertEqual(hash256(spaces), hash256(s))
+
+        i = secrets.randbits(256)
+        self.assertEqual(i, int_from_integer(i))
+        self.assertEqual(i, int_from_integer(i.to_bytes(32, 'big')))
+        self.assertEqual(i, int_from_integer(hex(i)))
 
 
 if __name__ == "__main__":
