@@ -305,10 +305,9 @@ class CurveSubGroup(CurveGroup):
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p)
         if len(G) != 2:
             raise ValueError("Generator must a be a sequence[int, int]")
-        G = (int_from_integer(G[0]), int_from_integer(G[1]))
-        if not self.is_on_curve(G):
+        self.G = (int_from_integer(G[0]), int_from_integer(G[1]))
+        if not self.is_on_curve(self.G):
             raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
-        self.G = int(G[0]), int(G[1])
         self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
 
     def __str__(self) -> str:
