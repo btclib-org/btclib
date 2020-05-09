@@ -18,20 +18,19 @@ secp256r1 = CURVES['secp256r1']
 secp384r1 = CURVES['secp384r1']
 
 
-class TestSecondGenerator(unittest.TestCase):
-    def test_second_generator(self):
-        """
-        important remarks on secp256-zkp prefix for
-        compressed encoding of the second generator:
-        https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
-        """
+def test_second_generator():
+    """
+    important remarks on secp256-zkp prefix for
+    compressed encoding of the second generator:
+    https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
+    """
 
-        H = (0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,
-             0x31d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38904)
-        self.assertEqual(H, pedersen.second_generator(secp256k1, sha256))
+    H = (0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,
+         0x31d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38904)
+    assert H == pedersen.second_generator(secp256k1, sha256)
 
-        H = pedersen.second_generator(secp256r1, sha256)
-        H = pedersen.second_generator(secp384r1, sha384)
+    H = pedersen.second_generator(secp256r1, sha256)
+    H = pedersen.second_generator(secp384r1, sha384)
 
 
 class TestPedersenCommitment(unittest.TestCase):
@@ -55,12 +54,7 @@ class TestPedersenCommitment(unittest.TestCase):
         # Pedersen Commitment is additively homomorphic
         # Commit(r1, v1) + Commit(r2, v2) = Commit(r1+r2, v1+r2)
         R = pedersen.commit(r1 + r2, v1 + v2, ec, hf)
-        self.assertTrue(ec.add(C1, C2), R)
+        self.assertEqual(ec.add(C1, C2), R)
 
         # commit does not open (with catched exception)
         self.assertFalse(pedersen.open((r1, r1), v1, C2, ec, hf))
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover

@@ -26,60 +26,68 @@ class TestSLIP32(unittest.TestCase):
         kpath = "./0/0"
         test_vectors = [
             [
-                NETWORKS['mainnet']['bip32_prv'],
+                NETWORKS["mainnet"]["bip32_prv"],
                 "m / 44h / 0h / 0h",
-                b'xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb',
-                b'xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj',
-                b'1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA'
+                ("xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBn"
+                 "Q6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"),
+                ("xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSW"
+                 "GFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"),
+                "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
             ],
             [
-                NETWORKS['mainnet']['slip32_p2wsh_p2sh_prv'],
+                NETWORKS["mainnet"]["slip32_p2wsh_p2sh_prv"],
                 "m / 49h / 0h / 0h",
-                b'yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQeKTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF',
-                b'ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP',
-                b'37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf'
+                ("yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQe"
+                 "KTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"),
+                ("ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCx"
+                 "oJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"),
+                "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
             ],
             [
-                NETWORKS['mainnet']['slip32_p2wpkh_prv'],
+                NETWORKS["mainnet"]["slip32_p2wpkh_prv"],
                 "m / 84h / 0h / 0h",
-                b'zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE',
-                b'zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs',
-                b'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'
+                ("zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEv"
+                 "BRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"),
+                ("zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3E"
+                 "fH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"),
+                "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
             ],
         ]
-        for v in test_vectors:
-            rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, '', v[0])
-            mxprv = bip32.derive(rxprv, v[1])
-            self.assertEqual(v[2], mxprv)
+        for version, der_path, prv, pub, addr_str in test_vectors:
+            rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "", version)
+            mxprv = bip32.derive(rxprv, der_path)
+            self.assertEqual(prv.encode(), mxprv)
             mxpub = bip32.xpub_from_xprv(mxprv)
-            self.assertEqual(v[3], mxpub)
+            self.assertEqual(pub.encode(), mxpub)
             xpub = bip32.derive(mxpub, kpath)
             address = slip32.address_from_xpub(xpub)
-            self.assertEqual(v[4], address)
+            addr = addr_str.encode()
+            self.assertEqual(addr, address)
             address = slip32.address_from_xkey(xpub)
-            self.assertEqual(v[4], address)
+            self.assertEqual(addr, address)
             xprv = bip32.derive(mxprv, kpath)
             address = slip32.address_from_xkey(xprv)
-            self.assertEqual(v[4], address)
-            if v[0] == NETWORKS['mainnet']['bip32_prv']:
+            self.assertEqual(addr, address)
+            if version == NETWORKS["mainnet"]["bip32_prv"]:
                 address = base58address.p2pkh(xpub)
-                self.assertEqual(v[4], address)
+                self.assertEqual(addr, address)
                 address = base58address.p2pkh(xprv)
-                self.assertEqual(v[4], address)
-            elif v[0] == NETWORKS['mainnet']['slip32_p2wsh_p2sh_prv']:
+                self.assertEqual(addr, address)
+            elif version == NETWORKS["mainnet"]["slip32_p2wsh_p2sh_prv"]:
                 address = base58address.p2wpkh_p2sh(xpub)
-                self.assertEqual(v[4], address)
+                self.assertEqual(addr, address)
                 address = base58address.p2wpkh_p2sh(xprv)
-                self.assertEqual(v[4], address)
-            elif v[0] == NETWORKS['mainnet']['slip32_p2wpkh_prv']:
+                self.assertEqual(addr, address)
+            elif version == NETWORKS["mainnet"]["slip32_p2wpkh_prv"]:
                 address = bech32address.p2wpkh(xpub)
-                self.assertEqual(v[4], address)
+                self.assertEqual(addr, address)
                 address = bech32address.p2wpkh(xprv)
-                self.assertEqual(v[4], address)
+                self.assertEqual(addr, address)
 
     def test_slip32(self):
         # xkey is not a public one
-        xprv = b'xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS'
+        xprv = ("xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cx"
+                "dgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS").encode()
         self.assertRaises(ValueError, slip32.address_from_xpub, xprv)
         address = slip32.address_from_xkey(xprv)
         xpub = bip32.xpub_from_xprv(xprv)

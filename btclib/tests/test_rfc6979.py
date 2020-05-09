@@ -57,21 +57,21 @@ class Testrfc6979(unittest.TestCase):
             for x, x_U, y_U, hf, msg, k, r, s in test_vectors:
                 x = int(x, 16)
                 # test RFC6979 implementation
-                k2 = rfc6979(msg, x, ec, eval('hashlib.'+hf))
+                k2 = rfc6979(msg, x, ec, eval('hashlib.' + hf))
                 self.assertEqual(k, hex(k2))
                 # test RFC6979 usage in DSA
-                sig = dsa.sign(msg, x, k2, ec, eval('hashlib.'+hf))
+                sig = dsa.sign(msg, x, k2, ec, eval('hashlib.' + hf))
                 self.assertEqual(r, hex(sig[0]))
                 self.assertIn(s, (hex(sig[1]), hex(ec.n - sig[1])))
                 # test that RFC6979 is the default nonce for DSA
-                sig = dsa.sign(msg, x, k=None, ec=ec, hf=eval('hashlib.'+hf))
+                sig = dsa.sign(msg, x, k=None, ec=ec, hf=eval('hashlib.' + hf))
                 self.assertEqual(r, hex(sig[0]))
                 self.assertIn(s, (hex(sig[1]), hex(ec.n - sig[1])))
                 # test key-pair coherence
                 U = mult(x, ec.G, ec)
                 self.assertEqual((int(x_U, 16), int(y_U, 16)), U)
                 # test signature validity
-                dsa._verify(msg, U, sig, ec, hf=eval('hashlib.'+hf))
+                dsa._verify(msg, U, sig, ec, hf=eval('hashlib.' + hf))
 
 
 if __name__ == "__main__":

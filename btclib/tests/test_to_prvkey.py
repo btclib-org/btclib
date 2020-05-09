@@ -22,7 +22,8 @@ class TestToPrvKey(unittest.TestCase):
     def test_int_from_prvkey(self):
 
         # BIP32
-        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        xprv = ("xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiC"
+                "hkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi").encode()
         xprv_str = xprv.decode('ascii')
         xprv_dict = bip32.deserialize(xprv)
         # WIF
@@ -105,12 +106,14 @@ class TestToPrvKey(unittest.TestCase):
         self.assertRaises(ValueError, int_from_prvkey, xprv_str)
 
         # pub key
-        xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
+        xpub = ("xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2g"
+                "Z29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8").encode()
         self.assertRaises(ValueError, int_from_prvkey, xpub)
 
     def test_info_from_prvkey(self):
 
-        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        xprv = ("xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiC"
+                "hkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi").encode()
         xprv_str = xprv.decode('ascii')
         xprv_dict = bip32.deserialize(xprv)
         wif = wif_from_prvkey(xprv)
@@ -131,7 +134,8 @@ class TestToPrvKey(unittest.TestCase):
         # prvkeyinfo_from_prvkey(xpub)
 
         # xkey is not a private one
-        xpub = b'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
+        xpub = ("xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2g"
+                "Z29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8").encode()
         self.assertRaises(ValueError, prvkeyinfo_from_prvkey, xpub)
         # prvkeyinfo_from_prvkey(xpub)
 
@@ -148,7 +152,8 @@ class TestToPrvKey(unittest.TestCase):
 
     def test_exceptions(self):
 
-        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        xprv = ("xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiC"
+                "hkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi").encode()
         xprvd = bip32.deserialize(xprv)
 
         # Compressed key provided, uncompressed key requested

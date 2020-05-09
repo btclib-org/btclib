@@ -115,34 +115,6 @@ class TestDSA(unittest.TestCase):
         # 2.1.4 Verifying Operation for V
         self.assertTrue(dsa.verify(msg, QU, sig, ec, hf))
 
-    def test_forge_hash_sig(self):
-        """forging valid hash signatures"""
-
-        ec = secp256k1
-
-        # see https://twitter.com/pwuille/status/1063582706288586752
-        # Satoshi's key
-        key = "03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c"
-        P = point_from_octets(key, ec)
-
-        u1 = 1
-        u2 = 2  # pick them at will
-        R = double_mult(u2, P, u1, ec.G, ec)
-        r = R[0] % ec.n
-        u2inv = mod_inv(u2, ec.n)
-        s = r * u2inv % ec.n
-        e = s * u1 % ec.n
-        dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
-
-        u1 = 1234567890
-        u2 = 987654321  # pick them at will
-        R = double_mult(u2, P, u1, ec.G, ec)
-        r = R[0] % ec.n
-        u2inv = mod_inv(u2, ec.n)
-        s = r * u2inv % ec.n
-        e = s * u1 % ec.n
-        dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
-
     def test_low_cardinality(self):
         """test low-cardinality curves for all msg/key pairs."""
 
@@ -220,6 +192,37 @@ class TestDSA(unittest.TestCase):
         self.assertRaises(ValueError, dsa.crack_prvkey,
                           msg1, sig1, msg2, (16, sig1[1]))
         self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg1, sig1)
+
+
+def test_forge_hash_sig():
+    """forging valid hash signatures"""
+
+    ec = secp256k1
+
+    # see https://twitter.com/pwuille/status/1063582706288586752
+    # Satoshi's key
+    key = "03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c"
+    P = point_from_octets(key, ec)
+
+    # pick u1 and u2 at will
+    u1 = 1
+    u2 = 2
+    R = double_mult(u2, P, u1, ec.G, ec)
+    r = R[0] % ec.n
+    u2inv = mod_inv(u2, ec.n)
+    s = r * u2inv % ec.n
+    e = s * u1 % ec.n
+    dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
+
+    # pick u1 and u2 at will
+    u1 = 1234567890
+    u2 = 987654321
+    R = double_mult(u2, P, u1, ec.G, ec)
+    r = R[0] % ec.n
+    u2inv = mod_inv(u2, ec.n)
+    s = r * u2inv % ec.n
+    e = s * u1 % ec.n
+    dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
 
 
 if __name__ == "__main__":
