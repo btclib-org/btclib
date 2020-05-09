@@ -174,16 +174,16 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
     w = mod_inv(s, ec.n)
     u = c * w % ec.n
-    v = r * w % ec.n                               # 4
+    v = r * w % ec.n                                # 4
     # Let K = u*G + v*Q.
-    KJ = _double_mult(v, QJ, u, ec.GJ, ec)       # 5
+    KJ = _double_mult(v, QJ, u, ec.GJ, ec)          # 5
 
     # Fail if infinite(K).
-    assert KJ[2] != 0, "how did you do that?!?"  # 5
+    assert KJ[2] != 0, "how did you do that?!?"     # 5
 
     # affine x-coordinate of K
     K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
-    x = K_x % ec.n                               # 6, 7
+    x = K_x % ec.n                                  # 6, 7
     # Fail if r ≠ K_x %n.
     assert r == x, "Signature verification failed"  # 8
 
@@ -193,9 +193,9 @@ def _verify(msg: String, P: Key, sig: DSASig,
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    r, s = _to_sig(sig, ec)                      # 1
+    r, s = _to_sig(sig, ec)                         # 1
 
-    c = _challenge(msg, ec, hf)                  # 2, 3
+    c = _challenge(msg, ec, hf)                     # 2, 3
 
     Q = point_from_key(P, ec)
     QJ = Q[0], Q[1], 1 if Q[1] else 0
