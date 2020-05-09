@@ -1,27 +1,38 @@
 # Tests, code coverage, and profiling
 
+## Required packages
+
+```shell
+pip install coverage pytest pytest-cov pytest-xdist
+```
+
 ## Tests
 
-```shell
-python -m unittest discover
-```
-
-## Coverage
+Test execution is distributed across multiple cores,
+with the default number of cores being four:
+change it in tox.ini to your preferences
 
 ```shell
-python -m pip install --upgrade pip setuptools coverage
-
-coverage run -m unittest discover
-coverage report -m
+pytest
 ```
 
-if you prefer to see the report in a webpage, also add:
+## Tests with Coverage
+
+```shell
+pytest --cov=btclib
+```
+
+Coverage results are available as report:
 
 ```shell
 coverage html
 ```
 
-then see htmlcov/index.html
+and/or html report at htmlcov/index.html:
+
+```shell
+coverage html
+```
 
 ## Profile
 

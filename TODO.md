@@ -1,0 +1,38 @@
+- network as global variable
+- synch (ec, hf) according to network
+- taproot
+- add AuthProxy for full node interaction (blockexplorer fall-back)
+- decode transactions
+- encode transactions
+- PSBT
+- descriptors
+- miniscript (?)
+- block parsing
+- block creating (toy mining)
+- hash rate extimation
+- difficulty adjustment
+- add wallet infrastructure
+- add sign(address, msg) using wallet infrastrucure
+- report test vectors from P. Todd's library
+- report trailing/leading blank trimming in Electrum message signing
+- isinstance(entr, bytearray) or isinstance(entr, bytes)
+- revise ansi_x963_kdf
+- optimizations:
+    - https://cryptojedi.org/peter/data/eccss-20130911b.pdf
+    - https://arxiv.org/abs/1801.08589
+    - https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
+    - https://hal.archives-ouvertes.fr/hal-00932199/document
+    - https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
+    - https://eprint.iacr.org/2005/419.pdf
+- of a signature: verify or verification ? of a commit: verify or open ?
+- better mimic of electrum entropy search, they probably have the words inverted
+- BIP44 in address_from...
+- primitives for interactive threshold and musig
+- borromean references
+- generalize ec, hf in borromean
+- Edwards curve (Curve25519)
+- BLS
+- wherever a Curve is required, accept also a network str ?
+- remove signtocontract, adding commit to dsa and ssa
+- e=0 in SSA ? See FIXME
+- compare with test_framework

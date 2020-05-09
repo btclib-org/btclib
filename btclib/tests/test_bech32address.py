@@ -42,6 +42,8 @@ with the following modifications:
 
 import unittest
 
+import pytest
+
 from btclib.base58address import p2wpkh_p2sh, p2wsh_p2sh
 from btclib.bech32address import (b32address_from_witness, p2wpkh, p2wsh,
                                   witness_from_b32address)
@@ -244,31 +246,30 @@ class TestSegwitAddress(unittest.TestCase):
         p2wsh_p2sh(witness_script_bytes)
         p2wsh_p2sh(witness_script_bytes, 'testnet')
 
-    def test_p2wsh(self):
 
-        # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
-        pub = ("02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D"
-               "959F2815B16F81798")
-        witness_script = [pub, 'OP_CHECKSIG']
-        witness_script_bytes = encode(witness_script)
+def test_p2wsh():
 
-        addr = b'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
-        self.assertEqual(addr, p2wsh(witness_script_bytes, 'testnet'))
-        _, wp, _, _ = witness_from_b32address(addr)
-        self.assertEqual(bytes(wp), sha256(witness_script_bytes))
+    # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+    pub = ("02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D"
+           "959F2815B16F81798")
+    witness_script = [pub, 'OP_CHECKSIG']
+    witness_script_bytes = encode(witness_script)
 
-        addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
-        self.assertEqual(addr, p2wsh(witness_script_bytes))
-        _, wp, _, _ = witness_from_b32address(addr)
-        self.assertEqual(bytes(wp), sha256(witness_script_bytes))
+    addr = b'tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7'
+    assert addr == p2wsh(witness_script_bytes, 'testnet')
+    _, wp, _, _ = witness_from_b32address(addr)
+    assert bytes(wp) == sha256(witness_script_bytes)
 
-        self.assertEqual(witness_from_b32address(
-            addr)[1], sha256(witness_script_bytes))
+    addr = b'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
+    assert addr == p2wsh(witness_script_bytes)
+    _, wp, _, _ = witness_from_b32address(addr)
+    assert bytes(wp) == sha256(witness_script_bytes)
 
-        # witness program length (35) is not 32
-        self.assertRaises(ValueError, b32address_from_witness,
-                          0, witness_script_bytes[1:])
-        # b32address_from_witness(0, witness_script_bytes)
+    assert witness_from_b32address(addr)[1] == sha256(witness_script_bytes)
+
+    errMsg = r'witness program length \(35\) is not 20 or 32'
+    with pytest.raises(ValueError, match=errMsg):
+        b32address_from_witness(0, witness_script_bytes)
 
 
 if __name__ == "__main__":

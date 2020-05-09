@@ -37,16 +37,6 @@ class TestBase58CheckEncoding(unittest.TestCase):
         self.assertEqual(_b58encode(_b58decode(
             b'11StV1DL6CwTryKyV')), b'11StV1DL6CwTryKyV')
 
-    def test_integers(self):
-        digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-        for i in range(len(digits)):
-            char = digits[i:i + 1]
-            self.assertEqual(_b58decode_to_int(char), i)
-            self.assertEqual(_b58encode_from_int(i), char)
-        number = 0x111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5
-        self.assertEqual(_b58decode_to_int(digits), number)
-        self.assertEqual(_b58encode_from_int(number), digits[1:])
-
     def test_exceptions(self):
         # int is not hex-string or bytes
         self.assertRaises(TypeError, b58encode, 3)
@@ -88,6 +78,19 @@ class TestBase58CheckEncoding(unittest.TestCase):
         compressedWIF = b'KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617'
         key = b58decode(compressedWIF)
         self.assertEqual(key, compressedKey)
+
+
+def test_integers():
+    digits = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+    for i in range(len(digits)):
+        char = digits[i:i + 1]
+        assert _b58decode_to_int(char) == i
+        assert _b58encode_from_int(i) == char
+    number = ("0111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e4"
+              "8fd66a835e252ada93ff480d6dd43dc62a641155a5")
+    n = int(number, 16)
+    assert _b58decode_to_int(digits) == n
+    assert _b58encode_from_int(n) == digits[1:]
 
 
 if __name__ == "__main__":
