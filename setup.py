@@ -10,6 +10,7 @@ setup(
     url='https://btclib.org',
     license=btclib.__license__,
     author=btclib.__author__,
+    author_email=btclib.__author_email__,
     description="A library for 'bitcoin cryptography'.",
     long_description=longdescription,
     long_description_content_type='text/markdown',
