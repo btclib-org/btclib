@@ -10,53 +10,52 @@
 
 """Strict ASN.1 DER format for ECDSA signature representation.
 
-    The original Bitcoin implementation used OpenSSL to verify
-    ECDSA signatures in ASN.1 DER representation.
-    However, OpenSSL does not do strict validation
-    (e.g. extra padding is ignored) and this changes the transaction
-    hash value, leading to transaction malleability.
-    This was fixed by BIP66, activated on block 363,724.
+The original Bitcoin implementation used OpenSSL to verify
+ECDSA signatures in ASN.1 DER representation.
+However, OpenSSL does not do strict validation
+(e.g. extra padding is ignored) and this changes the transaction
+hash value, leading to transaction malleability.
+This was fixed by BIP66, activated on block 363,724.
 
-    source:
-    https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
+source:
+https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 
-    BIP66 mandates a strict DER format:
+BIP66 mandates a strict DER format:
 
-    Format:
-    [0x30][length][0x02][R-length][R][0x02][S-length][S][sighash]
+Format:
+[0x30][length][0x02][R-length][R][0x02][S-length][S][sighash]
 
-    * 0x30 header byte to indicate compound structure
-    * length: 1-byte length descriptor of the following data,
-      excluding the sighash byte
-    * 0x02 header byte indicating an integer
-    * r-length: 1-byte length descriptor of the r value that follows
-    * r: arbitrary-length big-endian r value.
-      It must use the shortest possible encoding for
-      a positive integers (which means no null bytes at the start,
-      except a single one when the next byte has its highest bit set
-      to avoid being interpreted as a negative number)
-    * 0x02 header byte indicating an integer
-    * s-length: 1-byte length descriptor of the s value that follows
-    * s: arbitrary-length big-endian s value. Same rules as for r apply
-    * sighash: 1-byte value indicating what data is hashed
-      (not part of the DER signature)
+* 0x30 header byte to indicate compound structure
+* length: 1-byte length descriptor of the following data,
+    excluding the sighash byte
+* 0x02 header byte indicating an integer
+* r-length: 1-byte length descriptor of the r value that follows
+* r: arbitrary-length big-endian r value.
+    It must use the shortest possible encoding for
+    a positive integers (which means no null bytes at the start,
+    except a single one when the next byte has its highest bit set
+    to avoid being interpreted as a negative number)
+* 0x02 header byte indicating an integer
+* s-length: 1-byte length descriptor of the s value that follows
+* s: arbitrary-length big-endian s value. Same rules as for r apply
+* sighash: 1-byte value indicating what data is hashed
+    (not part of the DER signature)
 
-    There are 7 bytes of meta-data:
+There are 7 bytes of meta-data:
 
-    * compound header, compound length,
-    * value header, r value length,
-    * value header, s value length
-    * sighash type (optional)
+* compound header, compound length,
+* value header, r value length,
+* value header, s value length
+* sighash type (optional)
 
-    The ECDSA signature (r, s) should be 64 bytes,
-    r and s being 32 bytes integers each;
-    however, integers in DER are signed,
-    so if the value being encoded is greater than 2^128,
-    a 33rd byte is added in front.
-    Bitcoin has a "low s" rule for the s value to be below ec.n,
-    but it is only a standardness rule miners are allowed to ignore.
-    Moreover, no such rule exists for r.
-
+The ECDSA signature (r, s) should be 64 bytes,
+r and s being 32 bytes integers each;
+however, integers in DER are signed,
+so if the value being encoded is greater than 2^128,
+a 33rd byte is added in front.
+Bitcoin has a "low s" rule for the s value to be below ec.n,
+but it is only a standardness rule miners are allowed to ignore.
+Moreover, no such rule exists for r.
 """
 
 from typing import Optional, Tuple, Union

@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # Copyright (c) 2017 Pieter Wuille
 #
@@ -28,15 +28,15 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-
-"""Reference tests for bech32.
+"""Tests for `btclib.bech32` module.
 
 These tests are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-* splitted the original tests.py file in test_bech32.py and test_segwitaddr.py
-* checked for assertRaises instead of assertIsNone
+- splitted the original tests.py file in test_bech32.py
+  and test_bech32address.py
+- checked for raised exceptions instead of assertIsNone
 """
 
 import pytest

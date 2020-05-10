@@ -32,7 +32,6 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 +-----+----+--------+----+
 | 256 |  8 |    264 | 24 |
 +-----+----+--------+----+
-
 """
 
 

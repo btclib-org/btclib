@@ -130,7 +130,6 @@ address.
 https://github.com/bitcoin/bitcoin/pull/524
 
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
-
 """
 
 import secrets
