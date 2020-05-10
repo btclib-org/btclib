@@ -19,16 +19,10 @@ pytest
 ## Tests with Coverage
 
 ```shell
-pytest --cov=btclib
+pytest --cov-report term-missing:skip-covered --cov=btclib
 ```
 
-Coverage results are available as report:
-
-```shell
-coverage html
-```
-
-and/or html report at htmlcov/index.html:
+Coverage results can also be reported as html at htmlcov/index.html:
 
 ```shell
 coverage html

@@ -1,4 +1,25 @@
 include LICENSE
 include *.md
-include requirements.txt
+include *.txt
+include *.yml
+include .isort.cfg
+include tox.ini
+recursive-include _layouts *.html
+recursive-include assets *.jpg
+recursive-include assets *.png
+recursive-include btclib *.csv
+recursive-include btclib *.json
+recursive-include btclib *.md
+recursive-include btclib *.txt
+recursive-include docs *.bat
+recursive-include docs *.py
+recursive-include docs *.rst
+recursive-include docs Makefile
+
 exclude Gemfile
+exclude CNAME
+exclude _config.yml
+recursive-exclude assets *
+recursive-exclude _layouts *
+
+recursive-exclude * __pycache__

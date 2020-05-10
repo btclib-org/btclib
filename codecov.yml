@@ -1,0 +1,3 @@
+# disable PR coverage comment:
+# user can always click the failed coverage check
+# comment: false
