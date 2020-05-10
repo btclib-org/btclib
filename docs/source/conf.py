@@ -23,7 +23,7 @@ copyright = "2017-2020 The btclib developers"
 author = "www.dgi.io"
 
 # The full version, including alpha/beta/rc tags
-release = "2020.5.11"
+release = "2020.6"
 
 
 # -- General configuration ---------------------------------------------------
