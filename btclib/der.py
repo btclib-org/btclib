@@ -74,8 +74,9 @@ DERSigTuple = Tuple[int, int, Optional[bytes]]
 DERSig = Union[DERSigTuple, Octets]
 
 
-def _validate_sig(r: int, s: int, sighash: Optional[Octets] = None,
-                  ec: Curve = secp256k1) -> None:
+def _validate_sig(
+    r: int, s: int, sighash: Optional[Octets] = None, ec: Curve = secp256k1
+) -> None:
     # check that the DSA/DER signature is correct
 
     # Fail if r is not [1, n-1]
@@ -113,15 +114,16 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
             raise ValueError(errmsg)
 
         if sig[0] != 0x30:
-            raise ValueError(f"DER signature type must be 0x30 (compound), "
-                             "not {hex(sig[0])}")
+            raise ValueError(
+                f"DER signature type must be 0x30 (compound), " "not {hex(sig[0])}"
+            )
 
         # sigsize checks
         leftover = sigsize - 2 - sig[1]
-        if leftover == 0:    # no sighash value
+        if leftover == 0:  # no sighash value
             sighash = None
         elif leftover == 1:  # sighash value
-            sighash = sig[sigsize - 1:]
+            sighash = sig[sigsize - 1 :]
         else:
             msg = f"Declared length ({sig[1]}) does not "
             msg += f"match with actual signature size ({sigsize}) +2 or +3"
@@ -132,16 +134,14 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
             raise ValueError("Zero-size integer is not allowed for r")
 
         if 5 + sizeR >= sigsize:
-            raise ValueError(
-                "Size of the s scalar must be inside the signature")
+            raise ValueError("Size of the s scalar must be inside the signature")
 
         sizeS = sig[5 + sizeR]  # size of the s scalar
         if sizeS == 0:
             raise ValueError("Zero-size integer is not allowed for s")
 
         if sigsize - sizeR - sizeS != 6 + leftover:
-            raise ValueError(
-                "Signature size does not match with size of scalars")
+            raise ValueError("Signature size does not match with size of scalars")
 
         # scalar r
         if sig[2] != 0x02:
@@ -155,7 +155,7 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
         if sizeR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
             raise ValueError("Invalid null bytes at the start of r")
 
-        r = int.from_bytes(sig[4:4 + sizeR], byteorder='big')
+        r = int.from_bytes(sig[4 : 4 + sizeR], byteorder="big")
 
         # scalar s (offset=2+sizeR with respect to r)
         if sig[sizeR + 4] != 0x02:
@@ -166,11 +166,10 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
 
         # Null bytes at the start of a scalar are not allowed, unless the
         # scalar would otherwise be interpreted as a negative number
-        if (sizeS > 1 and sig[sizeR + 6] == 0x00 and
-                not (sig[sizeR + 7] & 0x80)):
+        if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
             raise ValueError("Invalid null bytes at the start of s")
 
-        s = int.from_bytes(sig[6 + sizeR:6 + sizeR + sizeS], byteorder='big')
+        s = int.from_bytes(sig[6 + sizeR : 6 + sizeR + sizeS], byteorder="big")
 
     _validate_sig(r, s, sighash, ec)
     return r, s, sighash
@@ -180,19 +179,20 @@ def _bytes_from_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
     elen = scalar.bit_length()
     esize = elen // 8 + 1  # not a bug: 'highest bit set' padding included here
-    n_bytes = scalar.to_bytes(esize, byteorder='big')
+    n_bytes = scalar.to_bytes(esize, byteorder="big")
     return n_bytes
 
 
 def _serialize_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
     x = _bytes_from_scalar(scalar)
-    xsize = len(x).to_bytes(1, byteorder='big')
-    return b'\x02' + xsize + x
+    xsize = len(x).to_bytes(1, byteorder="big")
+    return b"\x02" + xsize + x
 
 
-def _serialize(r: int, s: int, sighash: Optional[Octets] = None,
-               ec: Curve = secp256k1) -> bytes:
+def _serialize(
+    r: int, s: int, sighash: Optional[Octets] = None, ec: Curve = secp256k1
+) -> bytes:
     """Serialize an ECDSA signature to strict ASN.1 DER representation.
 
     Trailing sighash is added if provided.
@@ -202,7 +202,7 @@ def _serialize(r: int, s: int, sighash: Optional[Octets] = None,
     _validate_sig(r, s, sighash, ec)
     result = _serialize_scalar(r)
     result += _serialize_scalar(s)
-    result = b'\x30' + len(result).to_bytes(1, byteorder='big') + result
+    result = b"\x30" + len(result).to_bytes(1, byteorder="big") + result
     if sighash is None:
         return result
 

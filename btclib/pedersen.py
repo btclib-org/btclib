@@ -82,12 +82,11 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
 
     H = second_generator(ec, hf)
     Q = double_mult(v, H, r, ec.G, ec)
-    assert Q[1] != 0, "how did you do that?!?"
+    assert Q[1] != 0, "invalid (INF) key"
     return Q
 
 
-def open(r: int, v: int, C: Point,
-         ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+def open(r: int, v: int, C: Point, ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Open the commitment C and return True if valid."""
 
     # try/except wrapper for the Errors raised by commit

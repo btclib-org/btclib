@@ -38,9 +38,13 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     if isinstance(o, str):  # hex string
         o = bytes.fromhex(o)
 
-    if (out_size is None or
-            isinstance(out_size, int) and len(o) == out_size or
-            isinstance(out_size, Iterable) and len(o) in out_size):
+    if (
+        out_size is None
+        or isinstance(out_size, int)
+        and len(o) == out_size
+        or isinstance(out_size, Iterable)
+        and len(o) in out_size
+    ):
         return o
 
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"
@@ -51,7 +55,7 @@ def int_from_integer(i: Integer) -> int:
     if isinstance(i, int):
         return i
     elif isinstance(i, bytes):
-        return int.from_bytes(i, 'big')
+        return int.from_bytes(i, "big")
     return int(i, 16)
 
 
@@ -73,7 +77,7 @@ def int_from_bits(o: Octets, nlen: int) -> int:
     """
 
     o = bytes_from_octets(o)
-    i = int.from_bytes(o, byteorder='big')
+    i = int.from_bytes(o, byteorder="big")
 
     blen = len(o) * 8  # bits
     n = (blen - nlen) if blen >= nlen else 0
@@ -91,7 +95,7 @@ def hash160(o: Octets) -> bytes:
     """Return RIPEMD160(SHA256(*)) of the input octet sequence."""
 
     t = sha256(o)
-    return hashlib.new('ripemd160', t).digest()
+    return hashlib.new("ripemd160", t).digest()
 
 
 def hash256(o: Octets) -> bytes:
