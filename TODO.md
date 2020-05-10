@@ -1,3 +1,5 @@
+- improve/check MANIFEST.in
+- improve sphinx documentation
 - network as global variable
 - synch (ec, hf) according to network
 - taproot
