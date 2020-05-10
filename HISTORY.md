@@ -8,8 +8,14 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
-- switched to tox testing, moving to pytest testing
-  (discontinuing unittest)
+- noting so far
+
+## v2020.5.10
+
+Major changes includes:
+
+- switched to tox testing, gradually moving to pytest testing
+  (while discontinuing unittest)
 - adopted black formatter and added compatible flake8 and isort
   configurations
 - added Integer as hex-string or bytes representation of an int

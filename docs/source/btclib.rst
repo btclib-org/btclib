@@ -300,14 +300,6 @@ btclib.varint module
    :undoc-members:
    :show-inheritance:
 
-btclib.wordlists module
------------------------
-
-.. automodule:: btclib.wordlists
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 
 Module contents
 ---------------

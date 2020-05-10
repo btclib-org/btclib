@@ -252,14 +252,6 @@ btclib.tests.test\_varint module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_wordlists module
------------------------------------
-
-.. automodule:: btclib.tests.test_wordlists
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 
 Module contents
 ---------------
