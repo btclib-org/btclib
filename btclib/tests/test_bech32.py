@@ -39,63 +39,48 @@ with the following modifications:
 * checked for assertRaises instead of assertIsNone
 """
 
-import unittest
-
+import pytest
 from btclib.bech32 import b32decode
 
 VALID_CHECKSUM = [
     "A12UEL5L",
     "a12uel5l",
-    (
-        "an83characterlonghumanreadablepartthatcontainsthenumber1andthe"
-        "excludedcharactersbio1tt5tgs"
-    ),
+    "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs",
     "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
-    (
-        "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-        "qqqqqqqqqqqqqqqqqqqqqqqqqc8247j"
-    ),
+    "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j",
     "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w",
     "?1ezyfcl",
     # the next one would have been invalid with the 90 char limit
-    (
-        "an84characterslonghumanreadablepartthatcontainsthenumber1and"
-        "theexcludedcharactersbio1569pvx"
-    ),
+    "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx",
 ]
 
 INVALID_CHECKSUM = [
-    " 1nwldj5",  # HRP character out of range
-    "\x7F" + "1axkwrx",  # HRP character out of range
-    "\x80" + "1eym55h",  # HRP character out of range
-    "pzry9x0s0muk",  # No separator character
-    "1pzry9x0s0muk",  # Empty HRP
-    "x1b4n0q5v",  # Invalid data character
-    "li1dgmt3",  # Too short checksum
-    "de1lg7wt\xff",  # Invalid character in checksum
-    "A1G7SGD8",  # checksum calculated with uppercase form of HRP"
-    "10a06t8",  # empty HRP
-    "1qzzfhee",  # empty HRP
+    [" 1nwldj5", r"Empty HRP in bech32 string: *"],
+    ["\x7F" + "1axkwrx", r"ASCII character outside *"],
+    ["\x80" + "1eym55h", r"ASCII character outside *"],
+    ["pzry9x0s0muk", r"Missing HRP in bech32 string: *"],
+    ["1pzry9x0s0muk", r"Empty HRP in bech32 string: *"],
+    ["x1b4n0q5v", r"Invalid data characters in bech32 string: *"],
+    ["li1dgmt3", r"Too short checksum in bech32 string: *"],
+    # Invalid character in checksum
+    ["de1lg7wt\xff", r"ASCII character outside *"],
+    # checksum calculated with uppercase form of HRP
+    ["A1G7SGD8", r"Invalid checksum in bech32 string: *"],
+    ["10a06t8", r"Empty HRP in bech32 string: *"],
+    ["1qzzfhee", r"Empty HRP in bech32 string: *"],
 ]
 
 
-class TestBech32(unittest.TestCase):
-    """Unit test class for bech32 encodings."""
+def test_bechs32_checksum():
+    "Test bech32 checksum."
 
-    def test_valid_checksum(self):
-        """Test validation of valid checksums."""
-        for test in VALID_CHECKSUM:
-            _, _ = b32decode(test)
-            pos = test.rfind("1")
-            test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
-            self.assertRaises(ValueError, b32decode, test)
+    for test in VALID_CHECKSUM:
+        b32decode(test)
+        pos = test.rfind("1")
+        test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
+        with pytest.raises(ValueError):
+            b32decode(test)
 
-    def test_invalid_checksum(self):
-        """Test validation (failure) of invalid checksums."""
-        for test in INVALID_CHECKSUM:
-            self.assertRaises(ValueError, b32decode, test)
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+    for addr, err_msg in INVALID_CHECKSUM:
+        with pytest.raises(ValueError, match=err_msg):
+            b32decode(addr)
