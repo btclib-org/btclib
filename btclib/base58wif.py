@@ -16,14 +16,15 @@ from .network import NETWORKS
 from .to_pubkey import prvkeyinfo_from_prvkey
 
 
-def wif_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
-                    compressed: Optional[bool] = None) -> bytes:
+def wif_from_prvkey(
+    prvkey: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+) -> bytes:
     "Return the WIF encoding of a private key."
 
     q, net, compr = prvkeyinfo_from_prvkey(prvkey, network, compressed)
-    ec = NETWORKS[net]['curve']
+    ec = NETWORKS[net]["curve"]
 
-    payload = NETWORKS[net]['wif']
-    payload += q.to_bytes(ec.nsize, 'big')
-    payload += b'\x01' if compr else b''
+    payload = NETWORKS[net]["wif"]
+    payload += q.to_bytes(ec.nsize, "big")
+    payload += b"\x01" if compr else b""
     return b58encode(payload)

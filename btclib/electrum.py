@@ -17,16 +17,25 @@ import hmac
 from hashlib import pbkdf2_hmac, sha512
 from typing import Tuple
 
-from .entropy import (BinStr, Entropy, _entropy_from_indexes,
-                      _indexes_from_entropy, binstr_from_entropy)
-from .mnemonic import (Mnemonic, _indexes_from_mnemonic,
-                       _mnemonic_from_indexes, _wordlists)
+from .entropy import (
+    BinStr,
+    Entropy,
+    _entropy_from_indexes,
+    _indexes_from_entropy,
+    binstr_from_entropy,
+)
+from .mnemonic import (
+    Mnemonic,
+    _indexes_from_mnemonic,
+    _mnemonic_from_indexes,
+    _wordlists,
+)
 
 _MNEMONIC_VERSIONS = {
-    'standard': '01',  # P2PKH and P2MS-P2SH wallets
-    'segwit': '100',  # P2WPKH and P2WSH wallets
-    '2fa': '101',  # Two-factor authenticated wallets
-    '2fa_segwit': '102',  # Two-factor authenticated wallets, using segwit
+    "standard": "01",  # P2PKH and P2MS-P2SH wallets
+    "segwit": "100",  # P2WPKH and P2WSH wallets
+    "2fa": "101",  # Two-factor authenticated wallets
+    "2fa_segwit": "102",  # Two-factor authenticated wallets, using segwit
 }
 
 
@@ -41,20 +50,21 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> Tuple[str, str]:
     mnemonic = " ".join(mnemonic.split())
     s = hmac.new(b"Seed version", mnemonic.encode(), sha512).hexdigest()
 
-    if s.startswith(_MNEMONIC_VERSIONS['standard']):
-        return 'standard', mnemonic
-    if s.startswith(_MNEMONIC_VERSIONS['segwit']):
-        return 'segwit', mnemonic
-    if s.startswith(_MNEMONIC_VERSIONS['2fa']):
-        return '2fa', mnemonic
-    if s.startswith(_MNEMONIC_VERSIONS['2fa_segwit']):
-        return '2fa_segwit', mnemonic
+    if s.startswith(_MNEMONIC_VERSIONS["standard"]):
+        return "standard", mnemonic
+    if s.startswith(_MNEMONIC_VERSIONS["segwit"]):
+        return "segwit", mnemonic
+    if s.startswith(_MNEMONIC_VERSIONS["2fa"]):
+        return "2fa", mnemonic
+    if s.startswith(_MNEMONIC_VERSIONS["2fa_segwit"]):
+        return "2fa_segwit", mnemonic
 
     raise ValueError(f"unknown electrum mnemonic version ({s[:3]})")
 
 
-def mnemonic_from_entropy(entropy: Entropy, version_str: str = 'standard',
-                          lang: str = "en") -> Mnemonic:
+def mnemonic_from_entropy(
+    entropy: Entropy, version_str: str = "standard", lang: str = "en"
+) -> Mnemonic:
     """Convert input entropy to Electrum versioned mnemonic sentence.
 
     Input entropy can be expressed as
@@ -103,16 +113,15 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     return entropy
 
 
-def _seed_from_mnemonic(mnemonic: Mnemonic,
-                        passphrase: str) -> Tuple[str, bytes]:
+def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:
     "Return (version, seed) from the provided Electrum mnemonic."
 
     # clean up mnemonic from spurious whitespaces
     version, mnemonic = version_from_mnemonic(mnemonic)
 
-    hf_name = 'sha512'
+    hf_name = "sha512"
     password = mnemonic.encode()
-    salt = ('electrum' + passphrase).encode()
+    salt = ("electrum" + passphrase).encode()
     iterations = 2048
     dksize = 64
     return version, pbkdf2_hmac(hf_name, password, salt, iterations, dksize)

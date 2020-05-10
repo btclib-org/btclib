@@ -51,7 +51,7 @@ class CurveGroup:
         plen = p.bit_length()
         self.psize = (plen + 7) // 8
         # must be true to break simmetry using quadratic residue
-        self.pIsThreeModFour = (p % 4 == 3)
+        self.pIsThreeModFour = p % 4 == 3
         self.p = p
 
         # 2. check that a and b are integers in the interval [0, p−1]
@@ -137,7 +137,7 @@ class CurveGroup:
         RZ3 = RZ2 * R[2]
         QZ2 = Q[2] * Q[2]
         QZ3 = QZ2 * Q[2]
-        if Q[0] * RZ2 % self.p == R[0] * QZ2 % self.p:      # same affine x
+        if Q[0] * RZ2 % self.p == R[0] * QZ2 % self.p:  # same affine x
             if Q[1] * RZ3 % self.p == R[1] * QZ3 % self.p:  # point doubling
                 QY2 = Q[1] * Q[1]
                 W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % self.p
@@ -146,7 +146,7 @@ class CurveGroup:
                 Y = (W * (V - X) - 8 * QY2 * QY2) % self.p
                 Z = (2 * Q[1] * Q[2]) % self.p
                 return X, Y, Z
-            else:                                       # opposite points
+            else:  # opposite points
                 return INFJ
         else:
             T = (Q[1] * RZ3) % self.p
@@ -176,7 +176,7 @@ class CurveGroup:
             if R[1] == Q[1]:  # point doubling
                 lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self.p)
                 lam %= self.p
-            else:      # opposite points
+            else:  # opposite points
                 return INF
         else:
             lam = ((R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)) % self.p
@@ -230,7 +230,7 @@ class CurveGroup:
         An Error is raised if not.
         """
         if not self.pIsThreeModFour:
-            m = f'field prime p ({hex(self.p)}) is not equal to 3 (mod 4)'
+            m = f"field prime p ({hex(self.p)}) is not equal to 3 (mod 4)"
             raise ValueError(m)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
@@ -267,14 +267,14 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     # Point is assumed to be on curve
     # m is assumed to have been reduced mod n, if appropriate
 
-    if Q[1] == 0:                  # Infinity point, affine coordinates
-        return INF                 # return Infinity point
-    R = INF                        # initialize as infinity point
-    while m > 0:                   # use binary representation of m
-        if m & 1:                  # if least significant bit is 1
+    if Q[1] == 0:  # Infinity point, affine coordinates
+        return INF  # return Infinity point
+    R = INF  # initialize as infinity point
+    while m > 0:  # use binary representation of m
+        if m & 1:  # if least significant bit is 1
             R = ec._add_aff(R, Q)  # then add current Q
-        m = m >> 1                 # remove the bit just accounted for
-        Q = ec._add_aff(Q, Q)      # double Q for next step
+        m = m >> 1  # remove the bit just accounted for
+        Q = ec._add_aff(Q, Q)  # double Q for next step
     return R
 
 
@@ -283,14 +283,14 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     # Point is assumed to be on curve
     # m is assumed to have been reduced mod n, if appropriate
 
-    if Q[2] == 0:                  # Infinity point in affine coordinates
-        return INFJ                # return Infinity point
-    R = INFJ                       # initialize as infinity point
-    while m > 0:                   # use binary representation of m
-        if m & 1:                  # if least significant bit is 1
+    if Q[2] == 0:  # Infinity point in affine coordinates
+        return INFJ  # return Infinity point
+    R = INFJ  # initialize as infinity point
+    while m > 0:  # use binary representation of m
+        if m & 1:  # if least significant bit is 1
             R = ec._add_jac(R, Q)  # then add current Q
-        m = m >> 1                 # remove the bit just accounted for
-        Q = ec._add_jac(Q, Q)      # double Q for next step
+        m = m >> 1  # remove the bit just accounted for
+        Q = ec._add_jac(Q, Q)  # double Q for next step
     return R
 
 
@@ -326,8 +326,16 @@ class CurveSubGroup(CurveGroup):
 class Curve(CurveSubGroup):
     "Prime order subgroup of the points of an elliptic curve over Fp."
 
-    def __init__(self, p: Integer, a: Integer, b: Integer, G: Point,
-                 n: Integer, h: int, weakness_check: bool = True) -> None:
+    def __init__(
+        self,
+        p: Integer,
+        a: Integer,
+        b: Integer,
+        G: Point,
+        n: Integer,
+        h: int,
+        weakness_check: bool = True,
+    ) -> None:
 
         super().__init__(p, a, b, G)
         n = int_from_integer(n)

@@ -32,9 +32,10 @@ class TestBorromeanRingSignature(unittest.TestCase):
                 if j == sign_key_idx[i]:
                     sign_keys.append(priv_key)
 
-        msg = 'Borromean ring signature'
-        sig = borromean.sign(msg, list(range(1, 5)),
-                             sign_key_idx, sign_keys, pubk_rings)
+        msg = "Borromean ring signature"
+        sig = borromean.sign(
+            msg, list(range(1, 5)), sign_key_idx, sign_keys, pubk_rings
+        )
 
         borromean._verify(msg.encode(), sig[0], sig[1], pubk_rings)
         self.assertTrue(borromean.verify(msg, sig[0], sig[1], pubk_rings))

@@ -14,8 +14,7 @@
 
 from . import base58address, bech32address, bip32
 from .alias import BIP32Key
-from .network import (_P2WPKH_P2SH_PUB_PREFIXES, _P2WPKH_PUB_PREFIXES,
-                      _XPUB_PREFIXES)
+from .network import _P2WPKH_P2SH_PUB_PREFIXES, _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
 
 
 def address_from_xkey(xkey: BIP32Key) -> bytes:
@@ -43,16 +42,16 @@ def address_from_xpub(xpub: BIP32Key) -> bytes:
     if not isinstance(xpub, dict):
         xpub = bip32.deserialize(xpub)
 
-    if xpub['key'][0] not in (2, 3):
+    if xpub["key"][0] not in (2, 3):
         m = f"Not a public key: {bip32.serialize(xpub).decode()}"
         raise ValueError(m)
 
-    if xpub['version'] in _XPUB_PREFIXES:
+    if xpub["version"] in _XPUB_PREFIXES:
         return base58address.p2pkh(xpub)
-    elif xpub['version'] in _P2WPKH_PUB_PREFIXES:
+    elif xpub["version"] in _P2WPKH_PUB_PREFIXES:
         return bech32address.p2wpkh(xpub)
     else:
         # v has been already checked at parsing stage
         # so, v must be in _P2WPKH_P2SH_PUB_PREFIXES
-        assert xpub['version'] in _P2WPKH_P2SH_PUB_PREFIXES
+        assert xpub["version"] in _P2WPKH_P2SH_PUB_PREFIXES
         return base58address.p2wpkh_p2sh(xpub)

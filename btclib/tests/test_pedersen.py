@@ -14,8 +14,8 @@ from hashlib import sha256, sha384
 from btclib import pedersen
 from btclib.curves import CURVES, secp256k1
 
-secp256r1 = CURVES['secp256r1']
-secp384r1 = CURVES['secp384r1']
+secp256r1 = CURVES["secp256r1"]
+secp384r1 = CURVES["secp384r1"]
 
 
 def test_second_generator():
@@ -25,8 +25,10 @@ def test_second_generator():
     https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
     """
 
-    H = (0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,
-         0x31d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38904)
+    H = (
+        0x50929B74C1A04954B78B4B6035E97A5E078A5A0F28EC96D547BFEE9ACE803AC0,
+        0x31D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38904,
+    )
     assert H == pedersen.second_generator(secp256k1, sha256)
 
     H = pedersen.second_generator(secp256r1, sha256)

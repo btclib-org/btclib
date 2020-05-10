@@ -41,7 +41,7 @@ from typing import Optional
 from .alias import Octets, String
 from .utils import bytes_from_octets, hash256
 
-__ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+__ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 __BASE = len(__ALPHABET)
 
 
@@ -50,7 +50,7 @@ def _b58encode_from_int(i: int) -> bytes:
     result = b""
     while i or len(result) == 0:
         i, idx = divmod(i, __BASE)
-        result = __ALPHABET[idx:idx + 1] + result
+        result = __ALPHABET[idx : idx + 1] + result
 
     return result
 
@@ -60,13 +60,13 @@ def _b58encode(v: bytes) -> bytes:
     # preserve leading-0s
     # leading-0s become base58 leading-1s
     nPad = len(v)
-    v = v.lstrip(b'\0')
+    v = v.lstrip(b"\0")
     vlen = len(v)
     nPad -= vlen
     result = __ALPHABET[0:1] * nPad
 
     if vlen:
-        i = int.from_bytes(v, byteorder='big')
+        i = int.from_bytes(v, byteorder="big")
         result += _b58encode_from_int(i)
 
     return result
@@ -101,12 +101,12 @@ def _b58decode(v: bytes) -> bytes:
     v = v.lstrip(__ALPHABET[0:1])
     vlen = len(v)
     nPad -= vlen
-    result = b'\0' * nPad
+    result = b"\0" * nPad
 
     if vlen:
         i = _b58decode_to_int(v)
         nbytes = (i.bit_length() + 7) // 8
-        result = result + i.to_bytes(nbytes, byteorder='big')
+        result = result + i.to_bytes(nbytes, byteorder="big")
 
     return result
 

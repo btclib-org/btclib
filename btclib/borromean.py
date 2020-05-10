@@ -22,7 +22,7 @@ from .utils import int_from_bits
 
 def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
     temp = m + R
-    temp += i.to_bytes(4, byteorder='big') + j.to_bytes(4, byteorder='big')
+    temp += i.to_bytes(4, byteorder="big") + j.to_bytes(4, byteorder="big")
     return hf(temp).digest()
 
 
@@ -39,11 +39,13 @@ def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
 SValues = Dict[int, List[int]]
 
 
-def sign(msg: String,
-         ks: Sequence[int],
-         sign_key_idx: Sequence[int],
-         sign_keys: Sequence[int],
-         pubk_rings: PubkeyRing) -> Tuple[bytes, SValues]:
+def sign(
+    msg: String,
+    ks: Sequence[int],
+    sign_key_idx: Sequence[int],
+    sign_keys: Sequence[int],
+    pubk_rings: PubkeyRing,
+) -> Tuple[bytes, SValues]:
     """Borromean ring signature - signing algorithm
 
     https://github.com/ElementsProject/borromean-signatures-writeup
@@ -64,8 +66,9 @@ def sign(msg: String,
     s: SValues = defaultdict(list)
     e: SValues = defaultdict(list)
     # step 1
-    for i, (pubk_ring, j_star, k) in enumerate(zip(pubk_rings.values(),
-                                                   sign_key_idx, ks)):
+    for i, (pubk_ring, j_star, k) in enumerate(
+        zip(pubk_rings.values(), sign_key_idx, ks)
+    ):
         keys_size = len(pubk_ring)
         s[i] = [0] * keys_size
         e[i] = [0] * keys_size
@@ -86,8 +89,7 @@ def sign(msg: String,
         assert 0 < e[i][0] < ec.n, "sign fail: how did you do that?!?"
         for j in range(1, j_star + 1):
             s[i][j - 1] = secrets.randbits(256)
-            T = double_mult(-e[i][j - 1], pubk_rings[i]
-                            [j - 1], s[i][j - 1], ec.G)
+            T = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G)
             R = bytes_from_point(T, ec)
             e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
             assert 0 < e[i][j] < ec.n, "sign fail: how did you do that?!?"
@@ -128,7 +130,7 @@ def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
         e[i] = [0] * keys_size
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
         assert e[i][0] != 0, "invalid sig: how did you do that?!?"
-        R = b'\0x00'
+        R = b"\0x00"
         for j in range(keys_size):
             T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
             R = bytes_from_point(T, ec)

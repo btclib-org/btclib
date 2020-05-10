@@ -53,8 +53,9 @@ from .utils import bytes_from_octets
 # 0. bech32 facilities
 
 
-def _convertbits(data: Iterable[int], frombits: int,
-                 tobits: int, pad: bool = True) -> List[int]:
+def _convertbits(
+    data: Iterable[int], frombits: int, tobits: int, pad: bool = True
+) -> List[int]:
     "General power-of-2 base conversion."
     acc = 0
     bits = 0
@@ -83,15 +84,14 @@ def _check_witness(witvers: int, witprog: bytes):
     length = len(witprog)
     if witvers == 0:
         if length not in (20, 32):
-            raise ValueError(f"witness program length ({length}) "
-                             "is not 20 or 32")
+            raise ValueError(f"witness program length ({length}) " "is not 20 or 32")
     elif witvers > 16 or witvers < 0:
         msg = f"witness version ({witvers}) not in [0, 16]"
         raise ValueError(msg)
     else:
         if length < 2 or length > 40:
-            raise ValueError(f"witness program length ({length}) "
-                             "not in [2, 40]")
+            raise ValueError(f"witness program length ({length}) " "not in [2, 40]")
+
 
 # 1. Hash/WitnessProgram from pubkey/script
 # imported from the hashes module
@@ -105,11 +105,10 @@ def _b32address_from_witness(hrp: str, wv: int, wp: Octets) -> bytes:
     return b32encode(hrp, [wv] + _convertbits(wp, 8, 5))
 
 
-def b32address_from_witness(wv: int, wp: Octets,
-                            network: str = 'mainnet') -> bytes:
+def b32address_from_witness(wv: int, wp: Octets, network: str = "mainnet") -> bytes:
     "Encode a bech32 native SegWit address from the witness."
 
-    hrp = NETWORKS[network]['p2w']
+    hrp = NETWORKS[network]["p2w"]
     return _b32address_from_witness(hrp, wv, wp)
 
 
@@ -127,7 +126,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     hrp, data = b32decode(b32addr)
 
     # check that it is a known SegWit address type
-    network = network_from_key_value('p2w', hrp)
+    network = network_from_key_value("p2w", hrp)
 
     if len(data) == 0:
         raise ValueError(f"Bech32 address with empty data")
@@ -143,6 +142,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 
     return witvers, bytes(witprog), network, is_script_hash
 
+
 # 1.+2. = 3. bech32 address from pubkey/script
 
 
@@ -153,7 +153,7 @@ def p2wpkh(key: Key, network: Optional[str] = None) -> bytes:
     return b32address_from_witness(0, h160, network)
 
 
-def p2wsh(wscript: Script, network: str = 'mainnet') -> bytes:
+def p2wsh(wscript: Script, network: str = "mainnet") -> bytes:
     "Return the p2wsh bech32 address corresponding to a script."
     h256 = hash256_from_script(wscript)
     return b32address_from_witness(0, h256, network)

@@ -11,19 +11,18 @@
 import unittest
 from os import path
 
-from btclib.mnemonic import (_indexes_from_mnemonic, _mnemonic_from_indexes,
-                             _wordlists)
+from btclib.mnemonic import _indexes_from_mnemonic, _mnemonic_from_indexes, _wordlists
 
 
 class TestMnemonic(unittest.TestCase):
-
     def test_mnemonic(self):
         lang = "en"
 
-        test_mnemonic = "ozone drill grab fiber curtain grace " \
-                        "pudding thank cruise elder eight picnic"
-        test_indexes = [1268, 535, 810, 685, 433, 811,
-                        1385, 1790, 421, 570, 567, 1313]
+        test_mnemonic = (
+            "ozone drill grab fiber curtain grace "
+            "pudding thank cruise elder eight picnic"
+        )
+        test_indexes = [1268, 535, 810, 685, 433, 811, 1385, 1790, 421, 570, 567, 1313]
         indexes = _indexes_from_mnemonic(test_mnemonic, lang)
         self.assertEqual(indexes, test_indexes)
 

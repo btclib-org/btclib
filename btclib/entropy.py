@@ -49,19 +49,19 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
     """
 
     if isinstance(bits, int):
-        bits = (bits, )       # if a single int, make it a tuple
+        bits = (bits,)  # if a single int, make it a tuple
     bits = sorted(set(bits))  # ascending unique sorting of allowed bits
 
     if isinstance(entr, str):
         binstr_entr = entr.strip()
-        if binstr_entr[:2] == '0b':
+        if binstr_entr[:2] == "0b":
             binstr_entr = binstr_entr[2:]
         int(binstr_entr, 2)  # check that entr is a valid binary string
         nbits = len(binstr_entr)
         # no length adjustment
     elif isinstance(entr, bytes):
         nbits = len(entr) * 8
-        int_entr = int.from_bytes(entr, 'big')
+        int_entr = int.from_bytes(entr, "big")
         binstr_entr = bin(int_entr)[2:]  # remove '0b'
         # no length adjustment
     elif isinstance(entr, int):
@@ -71,7 +71,7 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
         nbits = len(binstr_entr)
         if nbits > bits[-1]:
             # only the leftmost bits are retained
-            binstr_entr = binstr_entr[:bits[-1]]
+            binstr_entr = binstr_entr[: bits[-1]]
             nbits = bits[-1]
         elif nbits not in bits:
             # next allowed bit length
@@ -124,7 +124,7 @@ def _entropy_from_indexes(indexes: List[int], base: int) -> BinStr:
     for index in indexes:
         entropy = entropy * base + index
 
-    binentropy = bin(entropy)[2:]    # remove '0b'
+    binentropy = bin(entropy)[2:]  # remove '0b'
 
     # do not lose leading zeros entropy
     bits_per_digit = int(math.log(base, 2))
@@ -134,9 +134,14 @@ def _entropy_from_indexes(indexes: List[int], base: int) -> BinStr:
     return binentropy
 
 
-def randbinstr(bits: int, dice_base: int = 0,
-               rolls: Optional[List[int]] = None, shuffle: bool = True,
-               hash: bool = True, xor: bool = True) -> BinStr:
+def randbinstr(
+    bits: int,
+    dice_base: int = 0,
+    rolls: Optional[List[int]] = None,
+    shuffle: bool = True,
+    hash: bool = True,
+    xor: bool = True,
+) -> BinStr:
     """Return CSPRNG system entropy mixed with exogenous roll-based entropy.
 
     If no exogenous entropy is provided, then entropy generated with the
@@ -195,8 +200,8 @@ def randbinstr(bits: int, dice_base: int = 0,
         if hash:
             if i.bit_length() > 256:
                 i >>= i.bit_length() - 256
-            h256 = sha256(i.to_bytes(32, byteorder='big')).digest()
-            i = int.from_bytes(h256, byteorder='big')
+            h256 = sha256(i.to_bytes(32, byteorder="big")).digest()
+            i = int.from_bytes(h256, byteorder="big")
 
     # XOR the (possibly shuffled and/or hashed) exogenous entropy
     # with CSPRNG system entropy

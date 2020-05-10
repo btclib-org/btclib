@@ -14,11 +14,11 @@ import unittest
 from btclib.utils import bytes_from_octets, hash160, hash256, int_from_integer
 
 int_with_whitespaces = (
-    " 0C 28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D  ")
+    " 0C 28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D  "
+)
 
 
 class TestUtils(unittest.TestCase):
-
     def test_utils(self):
         b = bytes_from_octets(int_with_whitespaces)
         s = b.hex()  # lower case, no spaces
@@ -28,7 +28,7 @@ class TestUtils(unittest.TestCase):
 
         i = secrets.randbits(256)
         self.assertEqual(i, int_from_integer(i))
-        self.assertEqual(i, int_from_integer(i.to_bytes(32, 'big')))
+        self.assertEqual(i, int_from_integer(i.to_bytes(32, "big")))
         self.assertEqual(i, int_from_integer(hex(i)))
 
 

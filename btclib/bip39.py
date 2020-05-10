@@ -38,10 +38,20 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 
 from hashlib import pbkdf2_hmac, sha256
 
-from .entropy import (BinStr, Entropy, _bits, _entropy_from_indexes,
-                      _indexes_from_entropy, binstr_from_entropy)
-from .mnemonic import (Mnemonic, _indexes_from_mnemonic,
-                       _mnemonic_from_indexes, _wordlists)
+from .entropy import (
+    BinStr,
+    Entropy,
+    _bits,
+    _entropy_from_indexes,
+    _indexes_from_entropy,
+    binstr_from_entropy,
+)
+from .mnemonic import (
+    Mnemonic,
+    _indexes_from_mnemonic,
+    _mnemonic_from_indexes,
+    _wordlists,
+)
 
 _words = tuple(b // 32 * 3 for b in _bits)
 
@@ -61,15 +71,15 @@ def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
         msg += f"must be in {_bits}"
         raise ValueError(msg)
     nbytes = (nbits + 7) // 8
-    bytes_entropy = int_entropy.to_bytes(nbytes, 'big')
+    bytes_entropy = int_entropy.to_bytes(nbytes, "big")
 
     # 256-bit checksum
     byteschecksum = sha256(bytes_entropy).digest()
     # integer checksum (leading zeros are lost)
-    intchecksum = int.from_bytes(byteschecksum, 'big')
+    intchecksum = int.from_bytes(byteschecksum, "big")
     # convert checksum to binary '01' string
     checksum = bin(intchecksum)[2:]  # remove '0b'
-    checksum = checksum.zfill(256)   # pad with leading lost zeros
+    checksum = checksum.zfill(256)  # pad with leading lost zeros
     # leftmost bits
     checksum_bits = nbytes // 4
     return checksum[:checksum_bits]
@@ -126,8 +136,9 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     return binstr_entropy
 
 
-def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
-                       verify_checksum=True) -> bytes:
+def seed_from_mnemonic(
+    mnemonic: Mnemonic, passphrase: str, verify_checksum=True
+) -> bytes:
     """Return the seed from the provided BIP39 mnemonic sentence.
 
     The mnemonic checksum verification can be skipped if needed.
@@ -136,10 +147,10 @@ def seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str,
     if verify_checksum:
         entropy_from_mnemonic(mnemonic)
 
-    hf_name = 'sha512'
+    hf_name = "sha512"
     # clean up mnemonic from spurious whitespaces
     password = " ".join(mnemonic.split()).encode()
-    salt = ('mnemonic' + passphrase).encode()
+    salt = ("mnemonic" + passphrase).encode()
     iterations = 2048
     dksize = 64
     return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)

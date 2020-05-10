@@ -93,8 +93,8 @@ def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
         r, s = sig
     else:
         sig = bytes_from_octets(sig, ec.psize + ec.nsize)
-        r = int.from_bytes(sig[:ec.psize], byteorder='big')
-        s = int.from_bytes(sig[ec.nsize:], byteorder='big')
+        r = int.from_bytes(sig[: ec.psize], byteorder="big")
+        s = int.from_bytes(sig[ec.nsize :], byteorder="big")
 
     _validate_sig(r, s, ec)
     return r, s
@@ -104,7 +104,7 @@ def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
     "Return the BIP340 signature as [r][s] compact representation."
 
     _validate_sig(x_K, s, ec)
-    sig = x_K.to_bytes(ec.psize, 'big') + s.to_bytes(ec.nsize, 'big')
+    sig = x_K.to_bytes(ec.psize, "big") + s.to_bytes(ec.nsize, "big")
     return sig
 
 
@@ -149,19 +149,18 @@ def _k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
 
     # the unbiased implementation is provided here,
     # which works also for very-low-cardinality test curves
-    t = q.to_bytes(ec.nsize, 'big') + m
+    t = q.to_bytes(ec.nsize, "big") + m
     while True:
         t = _tagged_hash("BIPSchnorrDerive", t, hf)
         # The following lines would introduce a bias
         # k = int.from_bytes(t, 'big') % ec.n
         # k = int_from_bits(t, ec.nlen) % ec.n
-        k = int_from_bits(t, ec.nlen)   # candidate k
-        if 0 < k < ec.n:                # acceptable value for k
-            return k                    # successful candidate
+        k = int_from_bits(t, ec.nlen)  # candidate k
+        if 0 < k < ec.n:  # acceptable value for k
+            return k  # successful candidate
 
 
-def k(m: Octets, prv: PrvKey,
-      ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def k(m: Octets, prv: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     # The message m: a hlen array
@@ -178,8 +177,8 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
     # note that only x_Q is needed
     # if Q is Jacobian y_Q calculation can be avoided
 
-    t = r.to_bytes(ec.psize, 'big')
-    t += x_Q.to_bytes(ec.psize, 'big')
+    t = r.to_bytes(ec.psize, "big")
+    t += x_Q.to_bytes(ec.psize, "big")
     # m size must have been already checked to be equal to hsize
     t += m
     t = _tagged_hash("BIPSchnorr", t, hf)
@@ -189,8 +188,13 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def sign(m: Octets, prvkey: PrvKey, k: PrvKey = None,
-         ec: Curve = secp256k1, hf: HashF = sha256) -> SSASigTuple:
+def sign(
+    m: Octets,
+    prvkey: PrvKey,
+    k: PrvKey = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> SSASigTuple:
     """Sign message according to BIP340 signature algorithm."""
 
     # BIP340 is only defined for curves whose field prime p = 3 % 4
@@ -251,7 +255,7 @@ def _to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     # BIP 340 key as bytes or hex-string
     if isinstance(x_Q, str) or isinstance(x_Q, bytes):
         Q = bytes_from_octets(x_Q, ec.psize)
-        x_Q = int.from_bytes(Q, 'big')
+        x_Q = int.from_bytes(Q, "big")
         y_Q = ec.y_quadratic_residue(x_Q, True)
     else:
         raise ValueError("not a BIP340 public key")
@@ -269,8 +273,7 @@ def _to_sig(sig: SSASig, ec: Curve) -> SSASigTuple:
     return r, s
 
 
-def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
-            ec: Curve, hf: HashF) -> None:
+def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve, hf: HashF) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -294,14 +297,15 @@ def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
 
     # Fail if infinite(KJ).
     # Fail if jacobi(y_K) ≠ 1.
-    assert ec.has_square_y(KJ), 'y_K is not a quadratic residue'
+    assert ec.has_square_y(KJ), "y_K is not a quadratic residue"
 
     # Fail if x_K ≠ r
     assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "Signature verification failed"
 
 
-def verify(m: Octets, Q: BIP340PubKey, sig: SSASig,
-           ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+def verify(
+    m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve = secp256k1, hf: HashF = sha256
+) -> bool:
     """Verify the BIP340 signature of the provided message."""
 
     # try/except wrapper for the Errors raised by _verify
@@ -324,9 +328,15 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
     return ec._x_aff_from_jac(QJ)
 
 
-def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
-                 Q: BIP340PubKey,
-                 ec: Curve = secp256k1, hf: HashF = sha256) -> Tuple[int, int]:
+def crack_prvkey(
+    m1: Octets,
+    sig1: SSASig,
+    m2: Octets,
+    sig2: SSASig,
+    Q: BIP340PubKey,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[int, int]:
 
     m1 = bytes_from_octets(m1, hf().digest_size)
     r1, s1 = _to_sig(sig1, ec)
@@ -346,9 +356,13 @@ def crack_prvkey(m1: Octets, sig1: SSASig, m2: Octets, sig2: SSASig,
     return q, k
 
 
-def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
-                  sigs: Sequence[SSASig],
-                  ec: Curve, hf: HashF) -> None:
+def _batch_verify(
+    ms: Sequence[Octets],
+    Qs: Sequence[BIP340PubKey],
+    sigs: Sequence[SSASig],
+    ec: Curve,
+    hf: HashF,
+) -> None:
 
     batch_size = len(Qs)
     if len(ms) != batch_size:
@@ -385,7 +399,7 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
         # cryptographic hash (e.g., SHA256) of all inputs of the
         # algorithm, or randomly generated independently for each
         # run of the batch verification algorithm
-        a = (1 if i == 0 else 1 + secrets.randbelow(ec.n - 1))
+        a = 1 if i == 0 else 1 + secrets.randbelow(ec.n - 1)
         scalars.append(a)
         points.append(KJ)
         scalars.append(a * c % ec.n)
@@ -405,9 +419,13 @@ def _batch_verify(ms: Sequence[Octets], Qs: Sequence[BIP340PubKey],
     assert valid_sig, "Signature verification failed"
 
 
-def batch_verify(m: Sequence[Octets], Q: Sequence[BIP340PubKey],
-                 sig: Sequence[SSASig],
-                 ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
+def batch_verify(
+    m: Sequence[Octets],
+    Q: Sequence[BIP340PubKey],
+    sig: Sequence[SSASig],
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> bool:
     """Batch verification of BIP340 signatures."""
 
     # try/except wrapper for the Errors raised by _batch_verify

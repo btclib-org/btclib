@@ -21,28 +21,31 @@ class TestBIP39(unittest.TestCase):
         lang = "en"
         raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
         mnemonic = bip39.mnemonic_from_entropy(raw_entr, lang)
-        self.assertEqual(mnemonic,
-                         "abandon abandon atom trust ankle walnut "
-                         "oil across awake bunker divorce abstract")
+        self.assertEqual(
+            mnemonic,
+            "abandon abandon atom trust ankle walnut "
+            "oil across awake bunker divorce abstract",
+        )
         r = bip39.entropy_from_mnemonic(mnemonic, lang)
         size = (len(r) + 7) // 8
-        r = int(r, 2).to_bytes(size, byteorder='big')
+        r = int(r, 2).to_bytes(size, byteorder="big")
         self.assertEqual(r, raw_entr)
 
         # mnemonic with wrong number of words
         wrong_mnemonic = mnemonic + " abandon"
-        self.assertRaises(
-            ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
+        self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
         # bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # invalid mnemonic checksum
-        wr_m = ("abandon abandon atom  trust  ankle   walnut "
-                "oil     across  awake bunker divorce walnut")
+        wr_m = (
+            "abandon abandon atom  trust  ankle   walnut "
+            "oil     across  awake bunker divorce walnut"
+        )
         self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wr_m, lang)
         # bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
 
         # Invalid number of bits (130) for BIP39 entropy; must be in ...
-        binstr_entropy = '01' * 65  # 130 bits
+        binstr_entropy = "01" * 65  # 130 bits
         self.assertRaises(ValueError, bip39._entropy_checksum, binstr_entropy)
         # bip39._entropy_checksum(binstr_entropy)
 
@@ -52,7 +55,7 @@ class TestBIP39(unittest.TestCase):
         """
         fname = "bip39_test_vectors.json"
         filename = path.join(path.dirname(__file__), "test_data", fname)
-        with open(filename, 'r') as f:
+        with open(filename, "r") as f:
             test_vectors = json.load(f)["english"]
         for test_vector in test_vectors:
             lang = "en"
@@ -62,7 +65,7 @@ class TestBIP39(unittest.TestCase):
 
             raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
             size = (len(raw_entr) + 7) // 8
-            raw_entr = int(raw_entr, 2).to_bytes(size, byteorder='big')
+            raw_entr = int(raw_entr, 2).to_bytes(size, byteorder="big")
             self.assertEqual(raw_entr, entropy)
 
             seed = bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
@@ -73,7 +76,7 @@ class TestBIP39(unittest.TestCase):
 
     def test_zeroleadingbit(self):
         # it should not throw an error
-        bip39.mnemonic_from_entropy(secrets.randbits(127), 'en')
+        bip39.mnemonic_from_entropy(secrets.randbits(127), "en")
 
 
 if __name__ == "__main__":

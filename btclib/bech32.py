@@ -55,11 +55,11 @@ __ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 def _polymod(values: Iterable[int]) -> int:
     """Internal function that computes the bech32 checksum."""
-    generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
+    generator = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
     chk = 1
     for value in values:
         top = chk >> 25
-        chk = (chk & 0x1ffffff) << 5 ^ value
+        chk = (chk & 0x1FFFFFF) << 5 ^ value
         for i in range(5):
             chk ^= generator[i] if ((top >> i) & 1) else 0
     return chk
@@ -81,8 +81,8 @@ def _create_checksum(hrp: str, data: List[int]) -> List[int]:
 def b32encode(hrp: str, data: List[int]) -> bytes:
     """Compute a bech32 string given HRP and data values."""
     combined = data + _create_checksum(hrp, data)
-    s = hrp + '1' + ''.join([__ALPHABET[d] for d in combined])
-    return s.encode('ascii')
+    s = hrp + "1" + "".join([__ALPHABET[d] for d in combined])
+    return s.encode("ascii")
 
 
 def _verify_checksum(hrp: str, data: List[int]) -> bool:
@@ -113,7 +113,7 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
     # if len(bech) > 90:
     #     raise ValueError(f"Bech32 string length ({len(bech)}) > 90")
 
-    pos = bech.rfind('1')  # find the separator between hrp and data
+    pos = bech.rfind("1")  # find the separator between hrp and data
     if pos < 1:
         raise ValueError("Missing HRP in bech32 string")
     if pos + 7 > len(bech):
@@ -121,10 +121,10 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
 
     hrp = bech[:pos]
 
-    if not all(x in __ALPHABET for x in bech[pos + 1:]):
+    if not all(x in __ALPHABET for x in bech[pos + 1 :]):
         msg = "Bech32 string data part contains invalid characters"
         raise ValueError(msg)
-    data = [__ALPHABET.find(x) for x in bech[pos + 1:]]
+    data = [__ALPHABET.find(x) for x in bech[pos + 1 :]]
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]

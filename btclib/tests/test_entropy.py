@@ -12,43 +12,44 @@ import math
 import secrets
 import unittest
 
-from btclib.entropy import (_entropy_from_indexes, _indexes_from_entropy,
-                            binstr_from_entropy, randbinstr)
+from btclib.entropy import (
+    _entropy_from_indexes,
+    _indexes_from_entropy,
+    binstr_from_entropy,
+    randbinstr,
+)
 
 
 class TestEntropy(unittest.TestCase):
     def test_indexes(self):
-        entropy = '0'
+        entropy = "0"
         indexes = _indexes_from_entropy(entropy, 2048)
         self.assertEqual(indexes, [0])
-        entropy = '00000000000'
+        entropy = "00000000000"
         indexes = _indexes_from_entropy(entropy, 2048)
         self.assertEqual(indexes, [0])
-        entropy = '000000000000'
+        entropy = "000000000000"
         indexes = _indexes_from_entropy(entropy, 2048)
         self.assertEqual(indexes, [0, 0])
 
-        test_indexes = [1268, 535, 810, 685, 433, 811,
-                        1385, 1790, 421, 570, 567, 1313]
+        test_indexes = [1268, 535, 810, 685, 433, 811, 1385, 1790, 421, 570, 567, 1313]
 
         entropy = _entropy_from_indexes(test_indexes, 2048)
         indexes = _indexes_from_entropy(entropy, 2048)
         self.assertEqual(indexes, test_indexes)
 
-        test_indexes = [0, 0, 2047, 2047, 2047, 2047,
-                        2047, 2047, 2047, 2047, 2047, 0]
+        test_indexes = [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0]
         entropy = _entropy_from_indexes(test_indexes, 2048)
         indexes = _indexes_from_entropy(entropy, 2048)
         self.assertEqual(indexes, test_indexes)
 
-        test_indexes = [0, 0, 2047, 2047, 2047, 2047,
-                        2047, 2047, 2047, 2047, 2047, 0]
+        test_indexes = [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0]
         entropy = _entropy_from_indexes(test_indexes, 2048)
         indexes = _indexes_from_entropy(entropy, 2048)
         self.assertEqual(indexes, test_indexes)
 
     def test_conversions(self):
-        binstr_entropy = '10101011' * 32
+        binstr_entropy = "10101011" * 32
         entropy = binstr_from_entropy(binstr_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
@@ -59,11 +60,11 @@ class TestEntropy(unittest.TestCase):
         entropy = binstr_from_entropy(bin(int_entropy))
         self.assertEqual(entropy, binstr_entropy)
 
-        bytes_entropy = int_entropy.to_bytes(32, byteorder='big')
+        bytes_entropy = int_entropy.to_bytes(32, byteorder="big")
         entropy = binstr_from_entropy(bytes_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
-        binstr_entropy = '00101011' * 32
+        binstr_entropy = "00101011" * 32
         entropy = binstr_from_entropy(binstr_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
@@ -71,11 +72,11 @@ class TestEntropy(unittest.TestCase):
         entropy = binstr_from_entropy(int_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
-        bytes_entropy = int_entropy.to_bytes(32, byteorder='big')
+        bytes_entropy = int_entropy.to_bytes(32, byteorder="big")
         entropy = binstr_from_entropy(bytes_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
-        binstr_entropy = '00000000' + '10101011' * 31
+        binstr_entropy = "00000000" + "10101011" * 31
         entropy = binstr_from_entropy(binstr_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
@@ -83,7 +84,7 @@ class TestEntropy(unittest.TestCase):
         entropy = binstr_from_entropy(int_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
-        bytes_entropy = int_entropy.to_bytes(32, byteorder='big')
+        bytes_entropy = int_entropy.to_bytes(32, byteorder="big")
         entropy = binstr_from_entropy(bytes_entropy)
         self.assertEqual(entropy, binstr_entropy)
 
@@ -102,7 +103,7 @@ class TestEntropy(unittest.TestCase):
         self.assertEqual(int_entropy, exp_int_entropy)
 
     def test_exceptions(self):
-        binstr_entropy1 = '00011010' * 27  # 216 bits
+        binstr_entropy1 = "00011010" * 27  # 216 bits
         binstr_entropy = binstr_entropy1[2:]  # 214 bits
 
         entropy = binstr_from_entropy(binstr_entropy, 214)
@@ -124,7 +125,7 @@ class TestEntropy(unittest.TestCase):
         self.assertRaises(ValueError, binstr_from_entropy, -1 * int_entropy)
         # binstr_from_entropy(-1*int_entropy)
 
-        bytes_entropy = int_entropy.to_bytes(27, byteorder='big')
+        bytes_entropy = int_entropy.to_bytes(27, byteorder="big")
         self.assertRaises(ValueError, binstr_from_entropy, bytes_entropy, 214)
         # binstr_from_entropy(bytes_entropy, 214)
         entropy = binstr_from_entropy(bytes_entropy, 216)
@@ -144,19 +145,19 @@ class TestEntropy(unittest.TestCase):
 
         rolls = [base for _ in range(roll_number)]
         binstr = randbinstr(bits, dice_base, rolls, False, False, False)
-        self.assertEqual(binstr, '1' * 256)
+        self.assertEqual(binstr, "1" * 256)
 
         rolls = [base for _ in range(2 * roll_number)]
         binstr = randbinstr(bits, dice_base, rolls, False, False, False)
-        self.assertEqual(binstr, '1' * 256)
+        self.assertEqual(binstr, "1" * 256)
 
         rolls = [1 for _ in range(roll_number)]
         binstr = randbinstr(bits, dice_base, rolls, False, False, False)
-        self.assertEqual(binstr, '0' * 256)
+        self.assertEqual(binstr, "0" * 256)
 
         rolls = [1 for _ in range(2 * roll_number)]
         binstr = randbinstr(bits, dice_base, rolls, False, False, False)
-        self.assertEqual(binstr, '0' * 256)
+        self.assertEqual(binstr, "0" * 256)
 
         rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
         binstr = randbinstr(bits, dice_base, rolls)
@@ -177,8 +178,7 @@ class TestEntropy(unittest.TestCase):
         binstr = randbinstr(bits, dice_base, rolls)
 
         # Number of bits (255) must be in (128, 160, 192, 224, 256)
-        self.assertRaises(ValueError, randbinstr,
-                          bits - 1, dice_base, rolls)
+        self.assertRaises(ValueError, randbinstr, bits - 1, dice_base, rolls)
         # randbinstr(bits-1, dice_base, rolls)
 
         # too few usable [1-16] rolls, missing 2

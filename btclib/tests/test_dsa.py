@@ -20,24 +20,24 @@ from btclib.numbertheory import mod_inv
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.tests.test_curves import low_card_curves
 
-secp112r2 = CURVES['secp112r2']
-secp160r1 = CURVES['secp160r1']
+secp112r2 = CURVES["secp112r2"]
+secp160r1 = CURVES["secp160r1"]
 
 
 class TestDSA(unittest.TestCase):
-
     def test_signature(self):
 
         ec = secp256k1
         q, Q = dsa.gen_keys(0x1)
-        msg = 'Satoshi Nakamoto'
+        msg = "Satoshi Nakamoto"
         sig = dsa.sign(msg, q)
         self.assertEqual(sig, dsa.deserialize(sig))
         # https://bitcointalk.org/index.php?topic=285142.40
         # Deterministic Usage of DSA and ECDSA (RFC 6979)
         exp_sig = (
-            0x934b1ea10a4b3c1757e2b0c017d0b6143ce3c9a7e6a4a49860d7a6ab210ee3d8,
-            0x2442ce9d2b916064108014783e923ec36b49743e2ffa1c4496f01a512aafd9e5)
+            0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8,
+            0x2442CE9D2B916064108014783E923EC36B49743E2FFA1C4496F01A512AAFD9E5,
+        )
         r, s = sig
         self.assertEqual(sig[0], exp_sig[0])
         self.assertIn(sig[1], (exp_sig[1], secp256k1.n - exp_sig[1]))
@@ -52,7 +52,7 @@ class TestDSA(unittest.TestCase):
         self.assertTrue(len(keys) == 2)
         self.assertIn(Q, keys)
 
-        fmsg = 'Craig Wright'
+        fmsg = "Craig Wright"
         self.assertFalse(dsa.verify(fmsg, Q, sig))
 
         fdsasig = (sig[0], sig[1], sig[1])
@@ -93,20 +93,28 @@ class TestDSA(unittest.TestCase):
 
         # 2.1.2 Key Deployment for U
         dU = 971761939728640320549601132085879836204587084162
-        self.assertEqual(format(dU, str(ec.nsize) + 'x'),
-                         'aa374ffc3ce144e6b073307972cb6d57b2a4e982')
+        self.assertEqual(
+            format(dU, str(ec.nsize) + "x"), "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
+        )
         QU = mult(dU, ec.G, ec)
-        self.assertEqual(QU,
-                         (466448783855397898016055842232266600516272889280,
-                          1110706324081757720403272427311003102474457754220))
-        self.assertEqual(bytes_from_point(QU, ec).hex(),
-                         '0251b4496fecc406ed0e75a24a3c03206251419dc0')
+        self.assertEqual(
+            QU,
+            (
+                466448783855397898016055842232266600516272889280,
+                1110706324081757720403272427311003102474457754220,
+            ),
+        )
+        self.assertEqual(
+            bytes_from_point(QU, ec).hex(), "0251b4496fecc406ed0e75a24a3c03206251419dc0"
+        )
 
         # 2.1.3 Signing Operation for U
-        msg = b'abc'
+        msg = b"abc"
         k = 702232148019446860144825009548118511996283736794
-        exp_sig = (0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
-                   0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54)
+        exp_sig = (
+            0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
+            0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54,
+        )
         sig = dsa.sign(msg, dU, k, ec, hf)
         r, s = sig
         self.assertEqual(r, exp_sig[0])
@@ -136,8 +144,7 @@ class TestDSA(unittest.TestCase):
                             if s > ec.n / 2:
                                 s = ec.n - s
                             if r == 0 or s == 0:
-                                self.assertRaises(ValueError,
-                                                  dsa._sign, e, q, k, ec)
+                                self.assertRaises(ValueError, dsa._sign, e, q, k, ec)
                                 continue
 
                             sig = dsa._sign(e, q, k, ec)
@@ -146,15 +153,14 @@ class TestDSA(unittest.TestCase):
                             self.assertIsNone(dsa._verhlp(e, PJ, r, s, ec))
 
                             JacobianKeys = dsa._recover_pubkeys(e, r, s, ec)
-                            Qs = [ec._aff_from_jac(key)
-                                  for key in JacobianKeys]
+                            Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
                             self.assertIn(ec._aff_from_jac(PJ), Qs)
 
     def test_pubkey_recovery(self):
         ec = secp112r2
         q = 0x10
         Q = mult(q, ec.G, ec)
-        msg = 'Satoshi Nakamoto'
+        msg = "Satoshi Nakamoto"
         k = None
         sig = dsa.sign(msg, q, k, ec)
         self.assertTrue(dsa.verify(msg, Q, sig, ec))
@@ -189,8 +195,7 @@ class TestDSA(unittest.TestCase):
         self.assertEqual(q, qc)
         self.assertIn(k, (kc, ec.n - kc))
 
-        self.assertRaises(ValueError, dsa.crack_prvkey,
-                          msg1, sig1, msg2, (16, sig1[1]))
+        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]))
         self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg1, sig1)
 
 

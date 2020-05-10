@@ -170,11 +170,10 @@ def deserialize(sig: BMSig) -> BMSigTuple:
     else:
         sig = b64decode(sig)
         if len(sig) != 65:
-            raise ValueError(
-                f"Wrong signature length: {len(sig)} instead of 65")
+            raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
         rf = sig[0]
-        r = int.from_bytes(sig[1:33], byteorder='big')
-        s = int.from_bytes(sig[33:], byteorder='big')
+        r = int.from_bytes(sig[1:33], byteorder="big")
+        s = int.from_bytes(sig[33:], byteorder="big")
 
     _validate_sig(rf, r, s)
     return rf, r, s
@@ -188,12 +187,15 @@ def serialize(rf: int, r: int, s: int) -> bytes:
     then it is base64-encoded.
     """
     _validate_sig(rf, r, s)
-    sig = bytes([rf]) + r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
+    sig = bytes([rf]) + r.to_bytes(32, "big") + s.to_bytes(32, "big")
     return b64encode(sig)
 
 
-def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
-             compressed: Optional[bool] = None) -> Tuple[bytes, bytes]:
+def gen_keys(
+    prvkey: PrvKey = None,
+    network: Optional[str] = None,
+    compressed: Optional[bool] = None,
+) -> Tuple[bytes, bytes]:
     """Return a private/public key pair.
 
     The private key is a WIF, the public key is a base58 P2PKH address.
@@ -201,8 +203,8 @@ def gen_keys(prvkey: PrvKey = None, network: Optional[str] = None,
 
     if prvkey is None:
         if network is None:
-            network = 'mainnet'
-        ec = NETWORKS[network]['curve']
+            network = "mainnet"
+        ec = NETWORKS[network]["curve"]
         # q in the range [1, ec.n-1]
         q = 1 + secrets.randbelow(ec.n - 1)
         wif = wif_from_prvkey(q, network, compressed)
@@ -221,17 +223,16 @@ def _magic_hash(msg: String) -> bytes:
     if isinstance(msg, str):
         msg = msg.encode()
 
-    t = b'\x18Bitcoin Signed Message:\n' + len(msg).to_bytes(1, 'big') + msg
+    t = b"\x18Bitcoin Signed Message:\n" + len(msg).to_bytes(1, "big") + msg
     return sha256(t).digest()
 
 
-def sign(msg: String, prvkey: PrvKey,
-         addr: Optional[String] = None) -> BMSigTuple:
+def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTuple:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
         addr = addr.strip()
-        addr = addr.encode('ascii')
+        addr = addr.encode("ascii")
 
     # first sign the message
     magic_msg = _magic_hash(msg)
@@ -306,15 +307,15 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
     pubkey = bytes_from_point(Q, compressed=compressed)
     if is_b58:
         if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
-            script_pk = b'\x00\x14' + hash160(pubkey)
+            script_pk = b"\x00\x14" + hash160(pubkey)
             assert hash160(script_pk) == h160, "Unmatched p2wpkh-p2sh address"
-        elif rf < 35:                               # P2PKH
+        elif rf < 35:  # P2PKH
             assert hash160(pubkey) == h160, "Unmatched p2pkh address"
         else:
             m = f"Invalid recovery flag ({rf}) for base58 address ({addr!r})"
             raise ValueError(m)
     else:
-        if rf > 38 or (30 < rf and rf < 35):        # P2WPKH
+        if rf > 38 or (30 < rf and rf < 35):  # P2WPKH
             assert hash160(pubkey) == h160, "Unmatched p2wpkh address"
         else:
             m = f"Invalid recovery flag ({rf}) for bech32 address ({addr!r})"

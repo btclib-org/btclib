@@ -15,8 +15,12 @@ from .alias import BIP32Key, PrvKey, String
 from .base58 import b58decode
 from .curve import Curve
 from .curves import secp256k1
-from .network import (NETWORKS, network_from_key_value,
-                      network_from_xkeyversion, xprvversions_from_network)
+from .network import (
+    NETWORKS,
+    network_from_key_value,
+    network_from_xkeyversion,
+    xprvversions_from_network,
+)
 from .utils import bytes_from_octets
 
 
@@ -39,7 +43,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     elif isinstance(prvkey, dict):
         q, network, _ = _prvkeyinfo_from_xprvwif(prvkey)
         # q has been validated on the xprv/wif network
-        ec2 = NETWORKS[network]['curve']
+        ec2 = NETWORKS[network]["curve"]
         assert ec == ec2, f"ec / network ({network}) mismatch"
         return q
     else:
@@ -49,12 +53,12 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
             pass
         else:
             # q has been validated on the xprv/wif network
-            ec2 = NETWORKS[network]['curve']
+            ec2 = NETWORKS[network]["curve"]
             assert ec == ec2, f"ec / network ({network}) mismatch"
             return q
 
         prvkey = bytes_from_octets(prvkey, ec.nsize)
-        q = int.from_bytes(prvkey, 'big')
+        q = int.from_bytes(prvkey, "big")
 
     if not 0 < q < ec.n:
         raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
@@ -65,8 +69,9 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
 PrvKeyInfo = Tuple[int, str, bool]
 
 
-def _prvkeyinfo_from_wif(wif: String, network: Optional[str] = None,
-                         compressed: Optional[bool] = None) -> PrvKeyInfo:
+def _prvkeyinfo_from_wif(
+    wif: String, network: Optional[str] = None, compressed: Optional[bool] = None
+) -> PrvKeyInfo:
     """Return private key tuple(int, compressed, network) from a WIF.
 
     WIF is always compressed and includes network information:
@@ -79,15 +84,15 @@ def _prvkeyinfo_from_wif(wif: String, network: Optional[str] = None,
 
     payload = b58decode(wif)
 
-    network = network_from_key_value('wif', payload[0:1])
-    ec = NETWORKS[network]['curve']
+    network = network_from_key_value("wif", payload[0:1])
+    ec = NETWORKS[network]["curve"]
 
-    if len(payload) == ec.nsize + 2:       # compressed WIF
+    if len(payload) == ec.nsize + 2:  # compressed WIF
         compr = True
-        if payload[-1] != 0x01:            # must have a trailing 0x01
+        if payload[-1] != 0x01:  # must have a trailing 0x01
             raise ValueError("Not a compressed WIF: missing trailing 0x01")
         prvkey = payload[1:-1]
-    elif len(payload) == ec.nsize + 1:     # uncompressed WIF
+    elif len(payload) == ec.nsize + 1:  # uncompressed WIF
         compr = False
         prvkey = payload[1:]
     else:
@@ -96,15 +101,16 @@ def _prvkeyinfo_from_wif(wif: String, network: Optional[str] = None,
     if compressed is not None and compr != compressed:
         raise ValueError("Compression requirement mismatch")
 
-    q = int.from_bytes(prvkey, byteorder='big')
+    q = int.from_bytes(prvkey, byteorder="big")
     if not 0 < q < ec.n:
         raise ValueError(f"Private key {hex(q)} not in [1, n-1]")
 
     return q, network, compr
 
 
-def _prvkeyinfo_from_xprv(xprv: BIP32Key, network: Optional[str] = None,
-                          compressed: Optional[bool] = None) -> PrvKeyInfo:
+def _prvkeyinfo_from_xprv(
+    xprv: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
+) -> PrvKeyInfo:
     """Return prvkey tuple (int, compressed, network) from BIP32 xprv.
 
     BIP32Key is always compressed and includes network information:
@@ -118,25 +124,26 @@ def _prvkeyinfo_from_xprv(xprv: BIP32Key, network: Optional[str] = None,
 
     if not isinstance(xprv, dict):
         xprv = bip32.deserialize(xprv)
-    if xprv['key'][0] != 0:
+    if xprv["key"][0] != 0:
         m = f"Not a private key: {bip32.serialize(xprv).decode()}"
         raise ValueError(m)
 
-    q = int.from_bytes(xprv['key'][1:], byteorder='big')
+    q = int.from_bytes(xprv["key"][1:], byteorder="big")
 
     if network is not None:
         allowed_versions = xprvversions_from_network(network)
-        if xprv['version'] not in allowed_versions:
+        if xprv["version"] not in allowed_versions:
             m = f"Not a key for ({network}): "
             m += f"{bip32.serialize(xprv).decode()}"
             raise ValueError(m)
         return q, network, True
     else:
-        return q, network_from_xkeyversion(xprv['version']), True
+        return q, network_from_xkeyversion(xprv["version"]), True
 
 
-def _prvkeyinfo_from_xprvwif(xprvwif: BIP32Key, network: Optional[str] = None,
-                             compressed: Optional[bool] = None) -> PrvKeyInfo:
+def _prvkeyinfo_from_xprvwif(
+    xprvwif: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
+) -> PrvKeyInfo:
     """Return prvkey tuple (int, compressed, network) from WIF/BIP32.
 
     Support WIF or BIP32 xprv.
@@ -151,12 +158,13 @@ def _prvkeyinfo_from_xprvwif(xprvwif: BIP32Key, network: Optional[str] = None,
     return _prvkeyinfo_from_xprv(xprvwif, network, compressed)
 
 
-def prvkeyinfo_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
-                           compressed: Optional[bool] = None) -> PrvKeyInfo:
+def prvkeyinfo_from_prvkey(
+    prvkey: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+) -> PrvKeyInfo:
 
     compr = True if compressed is None else compressed
-    net = 'mainnet' if network is None else network
-    ec = NETWORKS[net]['curve']
+    net = "mainnet" if network is None else network
+    ec = NETWORKS[net]["curve"]
 
     if isinstance(prvkey, int):
         q = prvkey
@@ -170,7 +178,7 @@ def prvkeyinfo_from_prvkey(prvkey: PrvKey, network: Optional[str] = None,
 
         # it must octets
         prvkey = bytes_from_octets(prvkey, ec.nsize)
-        q = int.from_bytes(prvkey, 'big')
+        q = int.from_bytes(prvkey, "big")
 
     if not 0 < q < ec.n:
         raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")

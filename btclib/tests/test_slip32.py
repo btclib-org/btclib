@@ -15,42 +15,55 @@ from btclib.network import NETWORKS
 
 
 class TestSLIP32(unittest.TestCase):
-
     def test_slip32_test_vector(self):
         """SLIP32 test vector
 
         https://github.com/satoshilabs/slips/blob/master/slip-0132.md
         """
-        mnemonic = ("abandon abandon abandon abandon abandon abandon "
-                    "abandon abandon abandon abandon abandon about")
+        mnemonic = (
+            "abandon abandon abandon abandon abandon abandon "
+            "abandon abandon abandon abandon abandon about"
+        )
         kpath = "./0/0"
         test_vectors = [
             [
                 NETWORKS["mainnet"]["bip32_prv"],
                 "m / 44h / 0h / 0h",
-                ("xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBn"
-                 "Q6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"),
-                ("xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSW"
-                 "GFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"),
-                "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
+                (
+                    "xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBn"
+                    "Q6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
+                ),
+                (
+                    "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSW"
+                    "GFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
+                ),
+                "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
             ],
             [
                 NETWORKS["mainnet"]["slip32_p2wsh_p2sh_prv"],
                 "m / 49h / 0h / 0h",
-                ("yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQe"
-                 "KTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"),
-                ("ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCx"
-                 "oJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"),
-                "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf"
+                (
+                    "yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQe"
+                    "KTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF"
+                ),
+                (
+                    "ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCx"
+                    "oJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"
+                ),
+                "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf",
             ],
             [
                 NETWORKS["mainnet"]["slip32_p2wpkh_prv"],
                 "m / 84h / 0h / 0h",
-                ("zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEv"
-                 "BRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"),
-                ("zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3E"
-                 "fH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"),
-                "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+                (
+                    "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEv"
+                    "BRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
+                ),
+                (
+                    "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3E"
+                    "fH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
+                ),
+                "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
             ],
         ]
         for version, der_path, prv, pub, addr_str in test_vectors:
@@ -86,8 +99,10 @@ class TestSLIP32(unittest.TestCase):
 
     def test_slip32(self):
         # xkey is not a public one
-        xprv = ("xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cx"
-                "dgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS").encode()
+        xprv = (
+            "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cx"
+            "dgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+        ).encode()
         self.assertRaises(ValueError, slip32.address_from_xpub, xprv)
         address = slip32.address_from_xkey(xprv)
         xpub = bip32.xpub_from_xprv(xprv)

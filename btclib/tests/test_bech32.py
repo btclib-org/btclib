@@ -46,16 +46,22 @@ from btclib.bech32 import b32decode
 VALID_CHECKSUM = [
     "A12UEL5L",
     "a12uel5l",
-    ("an83characterlonghumanreadablepartthatcontainsthenumber1andthe"
-     "excludedcharactersbio1tt5tgs"),
+    (
+        "an83characterlonghumanreadablepartthatcontainsthenumber1andthe"
+        "excludedcharactersbio1tt5tgs"
+    ),
     "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
-    ("11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-     "qqqqqqqqqqqqqqqqqqqqqqqqqc8247j"),
+    (
+        "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+        "qqqqqqqqqqqqqqqqqqqqqqqqqc8247j"
+    ),
     "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w",
     "?1ezyfcl",
     # the next one would have been invalid with the 90 char limit
-    ("an84characterslonghumanreadablepartthatcontainsthenumber1and"
-     "theexcludedcharactersbio1569pvx"),
+    (
+        "an84characterslonghumanreadablepartthatcontainsthenumber1and"
+        "theexcludedcharactersbio1569pvx"
+    ),
 ]
 
 INVALID_CHECKSUM = [
@@ -80,9 +86,8 @@ class TestBech32(unittest.TestCase):
         """Test validation of valid checksums."""
         for test in VALID_CHECKSUM:
             _, _ = b32decode(test)
-            pos = test.rfind('1')
-            test = test[:pos + 1] + \
-                chr(ord(test[pos + 1]) ^ 1) + test[pos + 2:]
+            pos = test.rfind("1")
+            test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
             self.assertRaises(ValueError, b32decode, test)
 
     def test_invalid_checksum(self):

@@ -37,7 +37,7 @@ from .utils import bytes_from_octets
 
 
 def decode(stream: Union[BinaryIO, Octets]) -> int:
-    '''Return the variable-length integer read from a stream.'''
+    """Return the variable-length integer read from a stream."""
 
     if isinstance(stream, str):
         stream = bytes_from_octets(stream)
@@ -46,30 +46,30 @@ def decode(stream: Union[BinaryIO, Octets]) -> int:
         stream = BytesIO(stream)
 
     i = stream.read(1)[0]
-    if i < 0xfd:
+    if i < 0xFD:
         # one byte integer
         return i
-    elif i == 0xfd:
+    elif i == 0xFD:
         # 0xfd marks the next two bytes as the number
-        return int.from_bytes(stream.read(2), byteorder='little')
-    elif i == 0xfe:
+        return int.from_bytes(stream.read(2), byteorder="little")
+    elif i == 0xFE:
         # 0xfe marks the next four bytes as the number
-        return int.from_bytes(stream.read(4), byteorder='little')
+        return int.from_bytes(stream.read(4), byteorder="little")
     else:
         # 0xff marks the next eight bytes as the number
-        return int.from_bytes(stream.read(8), byteorder='little')
+        return int.from_bytes(stream.read(8), byteorder="little")
 
 
 def encode(i: int) -> bytes:
-    '''Return the varint bytes encoding of an integer.'''
+    """Return the varint bytes encoding of an integer."""
 
-    if i < 0xfd:                   # 1 byte
+    if i < 0xFD:  # 1 byte
         return bytes([i])
-    elif i <= 0xffff:              # 2 bytes
-        return b'\xfd' + i.to_bytes(2, byteorder='little')
-    elif i <= 0xffffffff:          # 4 bytes
-        return b'\xfe' + i.to_bytes(4, byteorder='little')
-    elif i <= 0xffffffffffffffff:  # 8 bytes
-        return b'\xff' + i.to_bytes(8, byteorder='little')
+    elif i <= 0xFFFF:  # 2 bytes
+        return b"\xfd" + i.to_bytes(2, byteorder="little")
+    elif i <= 0xFFFFFFFF:  # 4 bytes
+        return b"\xfe" + i.to_bytes(4, byteorder="little")
+    elif i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
+        return b"\xff" + i.to_bytes(8, byteorder="little")
     else:
-        raise ValueError(f'integer too large ({hex(i)}) for varint encoding')
+        raise ValueError(f"integer too large ({hex(i)}) for varint encoding")

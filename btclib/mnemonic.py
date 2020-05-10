@@ -41,8 +41,8 @@ class WordLists:
 
         path_to_filename = path.join(path.dirname(__file__), "data")
         self.language_files = {
-            'en': path.join(path_to_filename, 'english.txt'),
-            'it': path.join(path_to_filename, 'italian.txt')
+            "en": path.join(path_to_filename, "english.txt"),
+            "it": path.join(path_to_filename, "italian.txt"),
         }
         self.languages = list(self.language_files)
 
@@ -75,7 +75,7 @@ class WordLists:
 
         # language has not been loaded yet
         if self._language_length[lang] == 0:
-            with open(self.language_files[lang], 'r') as f:
+            with open(self.language_files[lang], "r") as f:
                 lines = f.readlines()
 
             nwords = len(lines)
@@ -116,7 +116,7 @@ def _mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
     for index in indexes:
         word = wordlist[index]
         words.append(word)
-    return ' '.join(words)
+    return " ".join(words)
 
 
 def _indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:

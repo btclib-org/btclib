@@ -14,10 +14,9 @@ from btclib import varint
 
 
 class TestVarInt(unittest.TestCase):
-
     def test_conversion(self):
 
-        i = 0xfc
+        i = 0xFC
         b = varint.encode(i)
         self.assertEqual(len(b), 1)
         self.assertEqual(varint.decode(b), i)
@@ -27,7 +26,7 @@ class TestVarInt(unittest.TestCase):
         self.assertEqual(len(b), 3)
         self.assertEqual(varint.decode(b), i)
 
-        i = 0xffff
+        i = 0xFFFF
         b = varint.encode(i)
         self.assertEqual(len(b), 3)
         self.assertEqual(varint.decode(b), i)
@@ -37,7 +36,7 @@ class TestVarInt(unittest.TestCase):
         self.assertEqual(len(b), 5)
         self.assertEqual(varint.decode(b), i)
 
-        i = 0xffffffff
+        i = 0xFFFFFFFF
         b = varint.encode(i)
         self.assertEqual(len(b), 5)
         self.assertEqual(varint.decode(b), i)
@@ -47,7 +46,7 @@ class TestVarInt(unittest.TestCase):
         self.assertEqual(len(b), 9)
         self.assertEqual(varint.decode(b), i)
 
-        i = 0xffffffffffffffff
+        i = 0xFFFFFFFFFFFFFFFF
         b = varint.encode(i)
         self.assertEqual(len(b), 9)
         self.assertEqual(varint.decode(b), i)
@@ -57,9 +56,9 @@ class TestVarInt(unittest.TestCase):
         self.assertRaises(ValueError, varint.encode, i)
         # varint.encode(i)
 
-        self.assertEqual(varint.decode('6a'), 106)
-        self.assertEqual(varint.decode('fd2602'), 550)
-        self.assertEqual(varint.decode('fe703a0f00'), 998000)
+        self.assertEqual(varint.decode("6a"), 106)
+        self.assertEqual(varint.decode("fd2602"), 550)
+        self.assertEqual(varint.decode("fe703a0f00"), 998000)
 
 
 if __name__ == "__main__":

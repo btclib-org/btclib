@@ -15,7 +15,6 @@ from btclib.curvegroupf import find_all_points, find_subgroup_points
 
 
 class TestECFunctions(unittest.TestCase):
-
     def test_ecf(self):
         ec = CurveGroup(9739, 497, 1768)
 

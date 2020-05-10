@@ -22,8 +22,9 @@ from .utils import hash160, sha256
 _H160Net = Tuple[bytes, str]
 
 
-def hash160_from_pubkey(key: Key, network: Optional[str] = None,
-                        compressed: Optional[bool] = None) -> _H160Net:
+def hash160_from_pubkey(
+    key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
+) -> _H160Net:
     pubkey, network = pubkeyinfo_from_key(key, network, compressed)
     h160 = hash160(pubkey)
     return h160, network

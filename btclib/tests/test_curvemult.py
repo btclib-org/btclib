@@ -18,7 +18,7 @@ from btclib.curvemult import double_mult, mult, multi_mult
 from btclib.curves import secp256k1
 from btclib.tests.test_curves import low_card_curves
 
-ec23_31 = low_card_curves['ec23_31']
+ec23_31 = low_card_curves["ec23_31"]
 
 
 class TestEllipticCurve(unittest.TestCase):
@@ -67,8 +67,10 @@ class TestEllipticCurve(unittest.TestCase):
 
 
 def test_double_mult():
-    H = (0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,
-         0x31d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38904)
+    H = (
+        0x50929B74C1A04954B78B4B6035E97A5E078A5A0F28EC96D547BFEE9ACE803AC0,
+        0x31D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38904,
+    )
     G = secp256k1.G
 
     # 0*G + 1*H

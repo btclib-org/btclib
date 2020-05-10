@@ -42,8 +42,14 @@ from .base58 import b58decode, b58encode
 from .curvemult import mult
 from .curves import secp256k1 as ec
 from .mnemonic import Mnemonic
-from .network import (_NETWORKS, _P2WPKH_PRV_PREFIXES, _XPRV_PREFIXES,
-                      _XPRV_VERSIONS_ALL, _XPUB_VERSIONS_ALL, NETWORKS)
+from .network import (
+    _NETWORKS,
+    _P2WPKH_PRV_PREFIXES,
+    _XPRV_PREFIXES,
+    _XPRV_VERSIONS_ALL,
+    _XPUB_VERSIONS_ALL,
+    NETWORKS,
+)
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, hash160
 
@@ -102,8 +108,8 @@ def deserialize(xkey: BIP32Key) -> ExtendedBIP32KeyDict:
             "chain_code": xkey["chain_code"],
             "key": xkey["key"],
             # extensions
-            "q": 0,   # non zero only if xprv
-            "Q": INF  # non INF only if xpub
+            "q": 0,  # non zero only if xprv
+            "Q": INF,  # non INF only if xpub
         }
     else:
         if isinstance(xkey, str):
@@ -117,8 +123,8 @@ def deserialize(xkey: BIP32Key) -> ExtendedBIP32KeyDict:
             "chain_code": xkey[13:45],
             "key": xkey[45:],
             # extensions
-            "q": 0,   # non zero only if xprv
-            "Q": INF  # non INF only if xpub
+            "q": 0,  # non zero only if xprv
+            "Q": INF,  # non INF only if xpub
         }
 
     _check_version_key(d["version"], d["key"])
@@ -154,8 +160,7 @@ def serialize(d: BIP32KeyDict) -> bytes:
     if len(d["index"]) != 4:
         m = f"Invalid {len(d['index'])}-bytes BIP32 index length"
         raise ValueError(m)
-    _check_depth_pfp_index(d["depth"],
-                           d["parent_fingerprint"], d["index"])
+    _check_depth_pfp_index(d["depth"], d["parent_fingerprint"], d["index"])
     t += d["depth"].to_bytes(1, "big")
     t += d["parent_fingerprint"]
     t += d["index"]
@@ -171,15 +176,14 @@ def serialize(d: BIP32KeyDict) -> bytes:
     return b58encode(t, 78)
 
 
-def rootxprv_from_seed(seed: Octets,
-                       version: Optional[Octets] = None) -> bytes:
+def rootxprv_from_seed(seed: Octets, version: Optional[Octets] = None) -> bytes:
     """Return BIP32 root master extended private key from seed."""
 
     seed = bytes_from_octets(seed)
     hd = hmac.digest(b"Bitcoin seed", seed, "sha512")
     k = b"\x00" + hd[:32]
     if version is None:
-        v = NETWORKS['mainnet']['bip32_prv']
+        v = NETWORKS["mainnet"]["bip32_prv"]
     else:
         v = bytes_from_octets(version)
     if v not in _XPRV_VERSIONS_ALL:
@@ -196,18 +200,18 @@ def rootxprv_from_seed(seed: Octets,
     return serialize(d)
 
 
-def mxprv_from_bip39_mnemonic(mnemonic: Mnemonic,
-                              passphrase: str = "",
-                              version: Optional[Octets] = None) -> bytes:
+def mxprv_from_bip39_mnemonic(
+    mnemonic: Mnemonic, passphrase: str = "", version: Optional[Octets] = None
+) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = bip39.seed_from_mnemonic(mnemonic, passphrase)
     return rootxprv_from_seed(seed, version)
 
 
-def mxprv_from_electrum_mnemonic(mnemonic: Mnemonic,
-                                 passphrase: str = "",
-                                 network: str = "mainnet") -> bytes:
+def mxprv_from_electrum_mnemonic(
+    mnemonic: Mnemonic, passphrase: str = "", network: str = "mainnet"
+) -> bytes:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
     Note that for a "standard" mnemonic the derivation path is "m",
@@ -263,7 +267,7 @@ def _ckd(d: ExtendedBIP32KeyDict, index: bytes) -> None:
         d["index"] = index
         if index[0] >= 0x80:  # hardened derivation
             h = hmac.digest(d["chain_code"], d["key"] + index, "sha512")
-        else:                 # normal derivation
+        else:  # normal derivation
             h = hmac.digest(d["chain_code"], Pbytes + index, "sha512")
         d["chain_code"] = h[32:]
         offset = int.from_bytes(h[:32], byteorder="big")

@@ -45,8 +45,9 @@ from .to_prvkey import int_from_prvkey
 from .utils import int_from_bits
 
 
-def rfc6979(msg: String, prvkey: PrvKey,
-            ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def rfc6979(
+    msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
     # the following is strictly equivalent to dsa._challenge
@@ -55,9 +56,9 @@ def rfc6979(msg: String, prvkey: PrvKey,
     # Steps numbering follows SEC 1 v.2 section 4.1.3
     h = hf()
     h.update(msg)
-    mhd = h.digest()                              # 4
+    mhd = h.digest()  # 4
     # leftmost ec.nlen bits %= ec.n
-    c = int_from_bits(mhd, ec.nlen) % ec.n        # 5
+    c = int_from_bits(mhd, ec.nlen) % ec.n  # 5
 
     q = int_from_prvkey(prvkey, ec)
 
@@ -70,23 +71,23 @@ def _rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
     # c = hf(m)                                            # 3.2.a
 
     # convert the private key q to an octet sequence of size nsize
-    bprv = q.to_bytes(ec.nsize, 'big')
+    bprv = q.to_bytes(ec.nsize, "big")
     # truncate and/or expand c: encoding size is driven by nsize
-    bc = c.to_bytes(ec.nsize, 'big')
+    bc = c.to_bytes(ec.nsize, "big")
     bprvbm = bprv + bc
 
     hsize = hf().digest_size
-    V = b'\x01' * hsize                                    # 3.2.b
-    K = b'\x00' * hsize                                    # 3.2.c
+    V = b"\x01" * hsize  # 3.2.b
+    K = b"\x00" * hsize  # 3.2.c
 
-    K = hmac.new(K, V + b'\x00' + bprvbm, hf).digest()     # 3.2.d
-    V = hmac.new(K, V, hf).digest()                        # 3.2.e
-    K = hmac.new(K, V + b'\x01' + bprvbm, hf).digest()     # 3.2.f
-    V = hmac.new(K, V, hf).digest()                        # 3.2.g
+    K = hmac.new(K, V + b"\x00" + bprvbm, hf).digest()  # 3.2.d
+    V = hmac.new(K, V, hf).digest()  # 3.2.e
+    K = hmac.new(K, V + b"\x01" + bprvbm, hf).digest()  # 3.2.f
+    V = hmac.new(K, V, hf).digest()  # 3.2.g
 
-    while True:                                            # 3.2.h
-        T = b''                                            # 3.2.h.1
-        while len(T) < ec.nsize:                           # 3.2.h.2
+    while True:  # 3.2.h
+        T = b""  # 3.2.h.1
+        while len(T) < ec.nsize:  # 3.2.h.2
             V = hmac.new(K, V, hf).digest()
             T += V
         # The following line would introduce a bias
@@ -97,8 +98,8 @@ def _rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
         # However, if the order n is sufficiently close to 2^hlen,
         # then the bias is not observable: e.g.
         # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
-        k = int_from_bits(T, ec.nlen)   # candidate k           # 3.2.h.3
-        if 0 < k < ec.n:                # acceptable values for k
-            return k                    # successful candidate
-        K = hmac.new(K, V + b'\x00', hf).digest()
+        k = int_from_bits(T, ec.nlen)  # candidate k           # 3.2.h.3
+        if 0 < k < ec.n:  # acceptable values for k
+            return k  # successful candidate
+        K = hmac.new(K, V + b"\x00", hf).digest()
         V = hmac.new(K, V, hf).digest()
