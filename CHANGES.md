@@ -8,6 +8,10 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
+- switched to tox testing, moving to pytest testing
+  (discontinuing unittest)
+- adopted black formatter and added compatible flake8 and isort
+  configurations
 - added Integer as hex-string or bytes representation of an int
 - adopted the function signature of dsa.sign for rfc6979.rfc6979 too
 - added CURVES dictionary of all elliptic curves, e.g.:
