@@ -22,4 +22,4 @@ exclude _config.yml
 recursive-exclude assets *
 recursive-exclude _layouts *
 
-recursive-exclude *.mypy_cache *.json
+recursive-exclude btclib/.mypy_cache *.json
