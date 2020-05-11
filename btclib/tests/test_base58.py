@@ -8,8 +8,9 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import unittest
+"Tests for `btclib.base58` module."
 
+import pytest
 from btclib.base58 import (
     _b58decode,
     _b58decode_to_int,
@@ -20,67 +21,70 @@ from btclib.base58 import (
 )
 
 
-class TestBase58CheckEncoding(unittest.TestCase):
-    def test_empty(self):
-        self.assertEqual(_b58encode(b""), b"")
-        self.assertEqual(_b58decode(_b58encode(b"")), b"")
+def test_empty():
+    assert _b58encode(b"") == b""
+    assert _b58decode(_b58encode(b"")) == b""
 
-    def test_hello_world(self):
-        self.assertEqual(_b58encode(b"hello world"), b"StV1DL6CwTryKyV")
-        self.assertEqual(_b58decode(b"StV1DL6CwTryKyV"), b"hello world")
-        self.assertEqual(_b58decode(_b58encode(b"hello world")), b"hello world")
-        self.assertEqual(_b58encode(_b58decode(b"StV1DL6CwTryKyV")), b"StV1DL6CwTryKyV")
 
-    def test_trailing_zeros(self):
-        self.assertEqual(_b58encode(b"\x00\x00hello world"), b"11StV1DL6CwTryKyV")
-        self.assertEqual(_b58decode(b"11StV1DL6CwTryKyV"), b"\x00\x00hello world")
-        self.assertEqual(
-            _b58decode(_b58encode(b"\0\0hello world")), b"\x00\x00hello world"
-        )
-        self.assertEqual(
-            _b58encode(_b58decode(b"11StV1DL6CwTryKyV")), b"11StV1DL6CwTryKyV"
-        )
+def test_hello_world():
+    assert _b58encode(b"hello world") == b"StV1DL6CwTryKyV"
+    assert _b58decode(b"StV1DL6CwTryKyV") == b"hello world"
+    assert _b58decode(_b58encode(b"hello world")) == b"hello world"
+    assert _b58encode(_b58decode(b"StV1DL6CwTryKyV")) == b"StV1DL6CwTryKyV"
 
-    def test_exceptions(self):
-        # int is not hex-string or bytes
-        self.assertRaises(TypeError, b58encode, 3)
 
-        encoded = b58encode(b"test")
+def test_trailing_zeros():
+    assert _b58encode(b"\x00\x00hello world") == b"11StV1DL6CwTryKyV"
+    assert _b58decode(b"11StV1DL6CwTryKyV") == b"\x00\x00hello world"
+    assert _b58decode(_b58encode(b"\0\0hello world")) == b"\x00\x00hello world"
+    assert _b58encode(_b58decode(b"11StV1DL6CwTryKyV")) == b"11StV1DL6CwTryKyV"
 
-        # unexpected decoded length
-        wrong_length = len(encoded) - 1
-        self.assertRaises(ValueError, b58decode, encoded, wrong_length)
 
-        # checksum is invalid
-        invalidChecksum = encoded[:-4] + b"1111"
-        self.assertRaises(ValueError, b58decode, invalidChecksum, 4)
+def test_exceptions():
 
-        # non-ascii character
-        self.assertRaises(ValueError, b58decode, "hèllo world")
-        # b58decode("hèllo world")
+    err_msg = r"object supporting the buffer API required"
+    with pytest.raises(TypeError, match=err_msg):
+        b58encode(3)
 
-    def test_wif(self):
-        # https://en.bitcoin.it/wiki/Wallet_import_format
-        prv = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+    encoded = b58encode(b"test")
 
-        uncompressedKey = b"\x80" + prv.to_bytes(32, byteorder="big")
-        uncomprWIF = b"5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
-        wif = b58encode(uncompressedKey)
-        self.assertEqual(wif, uncomprWIF)
-        key = b58decode(uncomprWIF)
-        self.assertEqual(key, uncompressedKey)
+    wrong_length = len(encoded) - 1
+    err_msg = r"Invalid base58 decoded size: *"
+    with pytest.raises(ValueError, match=err_msg):
+        b58decode(encoded, wrong_length)
 
-        compressedKey = b"\x80" + prv.to_bytes(32, byteorder="big") + b"\x01"
-        compressedWIF = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-        wif = b58encode(compressedKey)
-        self.assertEqual(wif, compressedWIF)
-        key = b58decode(compressedWIF)
-        self.assertEqual(key, compressedKey)
+    invalidChecksum = encoded[:-4] + b"1111"
+    err_msg = r"Invalid checksum: *"
+    with pytest.raises(ValueError, match=err_msg):
+        b58decode(invalidChecksum, 4)
 
-        # string
-        compressedWIF = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-        key = b58decode(compressedWIF)
-        self.assertEqual(key, compressedKey)
+    err_msg = r"'ascii' codec can't encode character *"
+    with pytest.raises(ValueError, match=err_msg):
+        b58decode("hèllo world")
+
+
+def test_wif():
+    # https://en.bitcoin.it/wiki/Wallet_import_format
+    prv = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+
+    uncompressedKey = b"\x80" + prv.to_bytes(32, byteorder="big")
+    uncomprWIF = b"5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
+    wif = b58encode(uncompressedKey)
+    assert wif == uncomprWIF
+    key = b58decode(uncomprWIF)
+    assert key == uncompressedKey
+
+    compressedKey = b"\x80" + prv.to_bytes(32, byteorder="big") + b"\x01"
+    compressedWIF = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+    wif = b58encode(compressedKey)
+    assert wif == compressedWIF
+    key = b58decode(compressedWIF)
+    assert key == compressedKey
+
+    # string
+    compressedWIF = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+    key = b58decode(compressedWIF)
+    assert key == compressedKey
 
 
 def test_integers():
@@ -96,8 +100,3 @@ def test_integers():
     n = int(number, 16)
     assert _b58decode_to_int(digits) == n
     assert _b58encode_from_int(n) == digits[1:]
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover  # pragma: no cover
