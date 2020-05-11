@@ -33,7 +33,7 @@ class TestEllipticCurve(unittest.TestCase):
         self.assertEqual(INF, _mult_aff(3, INF, ec))
         self.assertEqual(INFJ, _mult_jac(3, INFJ, ec))
 
-    def test_shamir(self):
+    def test_double_mult(self):
         ec = ec23_31
         for k1 in range(ec.n):
             for k2 in range(ec.n):
@@ -47,7 +47,7 @@ class TestEllipticCurve(unittest.TestCase):
                 std = ec.add(mult(k1, ec.G, ec), mult(k2, INF, ec))
                 self.assertEqual(shamir, std)
 
-    def test_boscoster(self):
+    def test_multi_mult(self):
         ec = secp256k1
 
         k: List[int] = list()

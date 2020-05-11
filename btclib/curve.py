@@ -19,7 +19,10 @@ from .utils import int_from_integer
 
 
 def _jac_from_aff(Q: Point) -> JacPoint:
-    # point is assumed to be on curve
+    """Return the Jacobian representation of the affine point.
+
+    The input point is assumed to be on curve.
+    """
     return Q[0], Q[1], 1 if Q[1] else 0
 
 
@@ -263,12 +266,21 @@ class CurveGroup:
 
 
 def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
-    # double & add in affine coordinates, using binary decomposition of m
-    # Point is assumed to be on curve
-    # m is assumed to have been reduced mod n, if appropriate
+    """Scalar multiplication of a curve point in affine coordinates.
 
-    if Q[1] == 0:  # Infinity point, affine coordinates
-        return INF  # return Infinity point
+    This implementation uses 'double & add' algorithm,
+    binary decomposition of m,
+    affine coordinates.
+    It is not constant-time.
+
+    The input point is assumed to be on curve,
+    m is assumed to have been reduced mod n if appropriate
+    (e.g. cyclic groups of order n).
+    """
+
+    # there is not a compelling reason to optimize for INF, even if possible
+    # if Q[1] == 0:  # Infinity point, affine coordinates
+    #     return INF  # return Infinity point
     R = INF  # initialize as infinity point
     while m > 0:  # use binary representation of m
         if m & 1:  # if least significant bit is 1
@@ -279,12 +291,21 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
 
 
 def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
-    # double & add in Jacobian coordinates, using binary decomposition of m
-    # Point is assumed to be on curve
-    # m is assumed to have been reduced mod n, if appropriate
+    """Scalar multiplication of a curve point in Jacobian coordinates.
 
-    if Q[2] == 0:  # Infinity point in affine coordinates
-        return INFJ  # return Infinity point
+    This implementation uses 'double & add' algorithm,
+    binary decomposition of m,
+    affine coordinates.
+    It is not constant-time.
+
+    The input point is assumed to be on curve,
+    m is assumed to have been reduced mod n if appropriate
+    (e.g. cyclic groups of order n).
+    """
+
+    # there is not a compelling reason to optimize for INFJ, even if possible
+    # if Q[2] == 1:  # Infinity point, Jacobian coordinates
+    #     return INFJ  # return Infinity point
     R = INFJ  # initialize as infinity point
     while m > 0:  # use binary representation of m
         if m & 1:  # if least significant bit is 1

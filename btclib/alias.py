@@ -72,7 +72,7 @@ JacPoint = Tuple[int, int, int]
 # It can be checked with 'INF[2] == 0'
 # The default x and y coordinates are arbitrary:
 # 7, 0 are used because those are what one would obtain
-# from the generic affine to jacobian transformation
+# from the generic affine to Jacobian transformation
 # of the INF Point
 # QJ = Q[0], Q[1], 1 if Q[1] else 0
 INFJ = 7, 0, 0
