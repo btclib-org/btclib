@@ -57,8 +57,12 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
             assert ec == ec2, f"ec / network ({network}) mismatch"
             return q
 
-        prvkey = bytes_from_octets(prvkey, ec.nsize)
-        q = int.from_bytes(prvkey, "big")
+        # it must be octets
+        try:
+            prvkey = bytes_from_octets(prvkey, ec.nsize)
+            q = int.from_bytes(prvkey, "big")
+        except Exception:
+            raise ValueError(f"Not a private key: {prvkey}")
 
     if not 0 < q < ec.n:
         raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
@@ -176,9 +180,12 @@ def prvkeyinfo_from_prvkey(
         except Exception:
             pass
 
-        # it must octets
-        prvkey = bytes_from_octets(prvkey, ec.nsize)
-        q = int.from_bytes(prvkey, "big")
+        # it must be octets
+        try:
+            prvkey = bytes_from_octets(prvkey, ec.nsize)
+            q = int.from_bytes(prvkey, "big")
+        except Exception:
+            raise ValueError(f"Not a private key: {prvkey}")
 
     if not 0 < q < ec.n:
         raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")

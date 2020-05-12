@@ -67,22 +67,26 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     return point_from_pubkey(key, ec)
 
 
-def point_from_pubkey(P: PubKey, ec: Curve = secp256k1) -> Point:
+def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
     "Return an elliptic curve point tuple from a public key."
 
-    if isinstance(P, tuple):
-        if ec.is_on_curve(P) and P[1] != 0:
-            return P
-        raise ValueError(f"Not a public key: {P}")
-    elif isinstance(P, dict):
-        return _point_from_xpub(P, ec)
+    if isinstance(pubkey, tuple):
+        if ec.is_on_curve(pubkey) and pubkey[1] != 0:
+            return pubkey
+        raise ValueError(f"Not a valid public key: {pubkey}")
+    elif isinstance(pubkey, dict):
+        return _point_from_xpub(pubkey, ec)
     else:
         try:
-            return _point_from_xpub(P, ec)
+            return _point_from_xpub(pubkey, ec)
         except Exception:
             pass
 
-    return point_from_octets(P, ec)
+    # it must be octets
+    try:
+        return point_from_octets(pubkey, ec)
+    except Exception:
+        raise ValueError(f"Not a public key: {pubkey}")
 
 
 # not used so far, probably useless
@@ -136,19 +140,23 @@ def pubkeyinfo_from_key(
     if isinstance(key, tuple):
         return pubkeyinfo_from_pubkey(key, network, compressed)
     elif isinstance(key, int):
-        P, network = pubkeyinfo_from_prvkey(key, network, compressed)
+        return pubkeyinfo_from_prvkey(key, network, compressed)
     else:
         try:
-            P, network = pubkeyinfo_from_prvkey(key, network, compressed)
+            return pubkeyinfo_from_prvkey(key, network, compressed)
         # FIXME: catch the NotPrvKeyError only
         except Exception:
-            return pubkeyinfo_from_pubkey(key, network, compressed)
+            pass
 
-    return pubkeyinfo_from_pubkey(P, network, compressed)
+    # it must be a pubkey
+    try:
+        return pubkeyinfo_from_pubkey(key, network, compressed)
+    except Exception:
+        raise ValueError(f"Not a public key: {key}")
 
 
 def pubkeyinfo_from_pubkey(
-    P: PubKey, network: Optional[str] = None, compressed: Optional[bool] = None
+    pubkey: PubKey, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PubKeyInfo:
     "Return the pub key tuple (SEC-bytes, network) from a public key."
 
@@ -156,26 +164,29 @@ def pubkeyinfo_from_pubkey(
     net = "mainnet" if network is None else network
     ec = NETWORKS[net]["curve"]
 
-    if isinstance(P, tuple):
-        return bytes_from_point(P, ec, compr), net
-    elif isinstance(P, dict):
-        return _pubkeyinfo_from_xpub(P, network, compressed)
+    if isinstance(pubkey, tuple):
+        return bytes_from_point(pubkey, ec, compr), net
+    elif isinstance(pubkey, dict):
+        return _pubkeyinfo_from_xpub(pubkey, network, compressed)
     else:
         try:
-            return _pubkeyinfo_from_xpub(P, network, compressed)
+            return _pubkeyinfo_from_xpub(pubkey, network, compressed)
         except Exception:
             pass
 
-    # it must octets
-    if compressed is None:
-        pubkey = bytes_from_octets(P, (ec.psize + 1, 2 * ec.psize + 1))
-        compr = False
-        if len(pubkey) == ec.psize + 1:
-            compr = True
-    else:
-        size = ec.psize + 1 if compressed else 2 * ec.psize + 1
-        pubkey = bytes_from_octets(P, size)
-        compr = compressed
+    # it must be octets
+    try:
+        if compressed is None:
+            pubkey = bytes_from_octets(pubkey, (ec.psize + 1, 2 * ec.psize + 1))
+            compr = False
+            if len(pubkey) == ec.psize + 1:
+                compr = True
+        else:
+            size = ec.psize + 1 if compressed else 2 * ec.psize + 1
+            pubkey = bytes_from_octets(pubkey, size)
+            compr = compressed
+    except Exception:
+        raise ValueError("Not a public key")
 
     # verify that it is a valid point
     Q = point_from_octets(pubkey, ec)

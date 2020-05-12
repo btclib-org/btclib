@@ -36,10 +36,7 @@ class TestToPubKey(unittest.TestCase):
     def test_point_from_key(self):
 
         # prvkeys
-        xprv = (
-            "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiC"
-            "hkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        ).encode()
+        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         xprv_str = xprv.decode("ascii")
         xprv_dict = bip32.deserialize(xprv)
         q, network, _ = _prvkeyinfo_from_xprv(xprv)
@@ -121,15 +118,16 @@ class TestToPubKey(unittest.TestCase):
 
         # pubkey input
         self.assertRaises(ValueError, point_from_pubkey, xprv, ec)
+        self.assertRaises(ValueError, point_from_pubkey, xprv_str, ec)
         self.assertRaises(ValueError, point_from_pubkey, xprv_dict, ec)
+        self.assertRaises(ValueError, point_from_pubkey, q, ec)
+        self.assertRaises(ValueError, point_from_pubkey, wif1, ec)
+        self.assertRaises(ValueError, point_from_pubkey, wif2, ec)
 
     def test_pubkeyinfo_from_key(self):
 
         # prvkeys
-        xprv = (
-            "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiC"
-            "hkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        ).encode()
+        xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
         xprv_str = xprv.decode("ascii")
         xprv_dict = bip32.deserialize(xprv)
         q, network, _ = _prvkeyinfo_from_xprv(xprv)
@@ -237,7 +235,7 @@ class TestToPubKey(unittest.TestCase):
         self.assertEqual(pubkeyinfo_from_key(Q, compressed=False)[0], Q_uncompr)
 
         # pubkeyinfo_from_pubkey does not accept prvkey inputs
-        self.assertRaises(TypeError, pubkeyinfo_from_pubkey, q)
+        self.assertRaises(ValueError, pubkeyinfo_from_pubkey, q)
         self.assertRaises(ValueError, pubkeyinfo_from_pubkey, q_bytes)
         self.assertRaises(ValueError, pubkeyinfo_from_pubkey, xprv)
         self.assertRaises(ValueError, pubkeyinfo_from_pubkey, xprv_str)
