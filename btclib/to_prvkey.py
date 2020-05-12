@@ -137,7 +137,7 @@ def _prvkeyinfo_from_xprv(
     if network is not None:
         allowed_versions = xprvversions_from_network(network)
         if xprv["version"] not in allowed_versions:
-            m = f"Not a key for ({network}): "
+            m = f"Not a {network} key: "
             m += f"{bip32.serialize(xprv).decode()}"
             raise ValueError(m)
         return q, network, True
@@ -178,6 +178,7 @@ def prvkeyinfo_from_prvkey(
     else:
         try:
             return _prvkeyinfo_from_xprvwif(prvkey, network, compressed)
+        # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
         except Exception:
             pass
 

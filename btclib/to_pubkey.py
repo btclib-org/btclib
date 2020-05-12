@@ -124,7 +124,7 @@ def _pubkeyinfo_from_xpub(
     if network is not None:
         allowed_versions = xpubversions_from_network(network)
         if xpub["version"] not in allowed_versions:
-            m = f"Not a key for ({network}): "
+            m = f"Not a {network} key: "
             m += f"{bip32.serialize(xpub).decode()}"
             raise ValueError(m)
         return xpub["key"], network
