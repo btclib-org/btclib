@@ -156,6 +156,7 @@ def _prvkeyinfo_from_xprvwif(
     if not isinstance(xprvwif, dict):
         try:
             return _prvkeyinfo_from_wif(xprvwif, network, compressed)
+        # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
         except Exception:
             pass
 

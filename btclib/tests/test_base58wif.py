@@ -8,6 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"Tests for `btclib.base58wif` module."
+
 import pytest
 
 from btclib.base58 import b58encode
@@ -40,33 +42,33 @@ def test_wif_from_prvkey():
 
     payload = b"\x80" + bad_q.to_bytes(ec.nsize, "big")
     badwif = b58encode(payload)
-    with pytest.raises(ValueError, match="Not a private key"):
+    with pytest.raises(ValueError, match=r"Not a private key: .*"):
         prvkeyinfo_from_prvkey(badwif)
 
     # Not a private key: 33 bytes
     bad_q = 33 * b"\x02"
-    with pytest.raises(ValueError, match="Not a private key"):
+    with pytest.raises(ValueError, match=r"Not a private key: .*"):
         wif_from_prvkey(bad_q, "mainnet", True)
     payload = b"\x80" + bad_q
     badwif = b58encode(payload)
-    with pytest.raises(ValueError, match="Not a private key"):
+    with pytest.raises(ValueError, match=r"Not a private key: .*"):
         prvkeyinfo_from_prvkey(badwif)
 
     # Not a WIF: missing leading 0x80
     good_q = 32 * b"\x02"
     payload = b"\x81" + good_q
     badwif = b58encode(payload)
-    with pytest.raises(ValueError, match="Not a private key"):
+    with pytest.raises(ValueError, match=r"Not a private key: .*"):
         prvkeyinfo_from_prvkey(badwif)
 
     # Not a compressed WIF: missing trailing 0x01
     payload = b"\x80" + good_q + b"\x00"
     badwif = b58encode(payload)
-    with pytest.raises(ValueError, match="Not a private key"):
+    with pytest.raises(ValueError, match=r"Not a private key: .*"):
         prvkeyinfo_from_prvkey(badwif)
 
     # Not a WIF: wrong size (35)
     payload = b"\x80" + good_q + b"\x01\x00"
     badwif = b58encode(payload)
-    with pytest.raises(ValueError, match="Not a private key"):
+    with pytest.raises(ValueError, match=r"Not a private key: .*"):
         prvkeyinfo_from_prvkey(badwif)

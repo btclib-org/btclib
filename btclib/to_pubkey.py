@@ -144,7 +144,7 @@ def pubkeyinfo_from_key(
     else:
         try:
             return pubkeyinfo_from_prvkey(key, network, compressed)
-        # FIXME: catch the NotPrvKeyError only
+        # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
         except Exception:
             pass
 

@@ -274,10 +274,7 @@ class TestToPubKey(unittest.TestCase):
         self.assertRaises(ValueError, pubkeyinfo_from_key, xpub_str)
 
     def test_fingerprint(self):
-        xpub = (
-            "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2g"
-            "Z29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
-        ).encode()
+        xpub = b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
         pf = fingerprint(xpub)
         # bytes are used to increase code coverage
         # dict is used to increase code coverage
@@ -289,10 +286,7 @@ class TestToPubKey(unittest.TestCase):
     def test_exceptions(self):
 
         # Not a key for (testnet) network
-        xpub = (
-            "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2g"
-            "Z29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
-        ).encode()
+        xpub = b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
         xpubd = bip32.deserialize(xpub)
         self.assertRaises(ValueError, _pubkeyinfo_from_xpub, xpubd, "testnet", None)
         # _pubkeyinfo_from_xpub(xpubd, 'testnet', None)
@@ -300,10 +294,7 @@ class TestToPubKey(unittest.TestCase):
         self.assertRaises(ValueError, _pubkeyinfo_from_xpub, xpubd, None, False)
         # _pubkeyinfo_from_xpub(xpubd, compressed=False)
 
-        xpub = (
-            "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2g"
-            "Z29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
-        ).encode()
+        xpub = b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
         self.assertRaises(ValueError, point_from_key, xpub, secp256r1)
 
         wif = b"KzyziFNa2m2WC84NDBG2ix3rQXYcKHndvCjTkmJQWuoadpQxmdmu"
