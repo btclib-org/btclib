@@ -100,6 +100,8 @@ for inv_q in (0, ec.n):
     invalid_prv_keys.append(xprv)
     invalid_prv_keys.append(xprv.decode("ascii"))
 
+# xprv with xpub_version and viceversa
+
 # FIXME: fix error messages
 
 
@@ -142,5 +144,5 @@ def test_from_prvkey():
 
     for prv_key in compressed_prv_keys + uncompressed_prv_keys:
         with pytest.raises(ValueError):
-            prvkeyinfo_from_prvkey(prv_key, "testnet")
             prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=True)
+            prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=False)
