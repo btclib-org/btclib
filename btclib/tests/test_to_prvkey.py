@@ -8,178 +8,139 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import unittest
+import pytest
 
 from btclib import bip32
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey
 from btclib.curves import secp256k1 as ec
+from btclib.secpoint import bytes_from_point
 from btclib.to_prvkey import int_from_prvkey, prvkeyinfo_from_prvkey
 
+xprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+xprv_dict = bip32.deserialize(xprv)
+q = xprv_dict["q"]
 
-class TestToPrvKey(unittest.TestCase):
-    def test_int_from_prvkey(self):
+# prv key with no network / compression information
+prv_keys = [
+    xprv_dict["key"][1:],  # bytes
+    xprv_dict["key"][1:].hex(),  # hex-string
+    " " + xprv_dict["key"][1:].hex() + " ",  # hex-string
+    q,
+]
 
-        # BIP32
-        xprv = (
-            "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiC"
-            "hkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        ).encode()
-        xprv_str = xprv.decode("ascii")
-        xprv_dict = bip32.deserialize(xprv)
-        # WIF
-        wif = wif_from_prvkey(xprv)
-        wif_str = wif.decode("ascii")
-        # bytes
-        qbytes = xprv_dict["key"][1:]
-        qhex = qbytes.hex()
-        # int
-        q = xprv_dict["q"]
-        self.assertEqual(q, int_from_prvkey(q))
-        # bytes
-        self.assertEqual(q, int_from_prvkey(qbytes))
-        self.assertRaises(ValueError, int_from_prvkey, b"\x00" + qbytes)
-        self.assertEqual(q, int_from_prvkey(qhex))
-        self.assertEqual(q, int_from_prvkey(" " + qhex + " "))
-        self.assertRaises(ValueError, int_from_prvkey, qhex + "00")
-        # WIF
-        self.assertEqual(q, int_from_prvkey(wif))
-        self.assertRaises(ValueError, int_from_prvkey, wif + b"\x00")
-        self.assertEqual(q, int_from_prvkey(wif_str))
-        self.assertEqual(q, int_from_prvkey(" " + wif_str + " "))
-        # BIP32
-        self.assertEqual(q, int_from_prvkey(xprv))
-        self.assertRaises(ValueError, int_from_prvkey, xprv + b"\x00")
-        self.assertEqual(q, int_from_prvkey(xprv_str))
-        self.assertEqual(q, int_from_prvkey(" " + xprv_str + " "))
-        self.assertEqual(q, int_from_prvkey(xprv_dict))
+compressed_prv_keys = [
+    xprv,  # bytes
+    xprv.decode("ascii"),  # str
+    " " + xprv.decode("ascii") + " ",  # str
+    xprv_dict,  # dict
+    wif_from_prvkey(q),  # compressed wif bytes
+    wif_from_prvkey(q).decode("ascii"),  # compressed wif str
+    " " + wif_from_prvkey(q).decode("ascii") + " ",
+]
 
-        # wrong private key int
-        q = ec.n
-        self.assertRaises(ValueError, int_from_prvkey, q)
-        # bytes
-        qbytes = q.to_bytes(32, byteorder="big")
-        qhex = qbytes.hex()
-        self.assertRaises(ValueError, int_from_prvkey, qbytes)
-        self.assertRaises(ValueError, int_from_prvkey, qhex)
-        # WIF
-        t = b"\x80" + qbytes + b"\x01"
-        wif = b58encode(t)
-        wif_str = wif.decode("ascii")
-        self.assertRaises(ValueError, int_from_prvkey, wif)
-        self.assertRaises(ValueError, int_from_prvkey, wif_str)
-        # BIP32
-        t = xprv_dict["version"]
-        t += xprv_dict["depth"].to_bytes(1, "big")
-        t += xprv_dict["parent_fingerprint"]
-        t += xprv_dict["index"]
-        t += xprv_dict["chain_code"]
-        t += b"\x00" + qbytes
-        xprv = b58encode(t, 78)
-        xprv_str = xprv.decode("ascii")
-        self.assertRaises(ValueError, int_from_prvkey, xprv)
-        self.assertRaises(ValueError, int_from_prvkey, xprv_str)
+uncompressed_prv_keys = [
+    wif_from_prvkey(q, compressed=False),  # uncompressed wif bytes
+    wif_from_prvkey(q, compressed=False).decode("ascii"),  # uncompressed wif str
+    " " + wif_from_prvkey(q, compressed=False).decode("ascii") + " ",
+]
 
-        # wrong private key int
-        q = 0
-        self.assertRaises(ValueError, int_from_prvkey, q)
-        # bytes
-        qbytes = q.to_bytes(32, byteorder="big")
-        qhex = qbytes.hex()
-        self.assertRaises(ValueError, int_from_prvkey, qbytes)
-        self.assertRaises(ValueError, int_from_prvkey, qhex)
-        # WIF
-        t = b"\x80" + qbytes + b"\x01"
-        wif = b58encode(t)
-        wif_str = wif.decode("ascii")
-        self.assertRaises(ValueError, int_from_prvkey, wif)
-        self.assertRaises(ValueError, int_from_prvkey, wif_str)
-        # BIP32
-        t = xprv_dict["version"]
-        t += xprv_dict["depth"].to_bytes(1, "big")
-        t += xprv_dict["parent_fingerprint"]
-        t += xprv_dict["index"]
-        t += xprv_dict["chain_code"]
-        t += b"\x00" + qbytes
-        xprv = b58encode(t, 78)
-        xprv_str = xprv.decode("ascii")
-        self.assertRaises(ValueError, int_from_prvkey, xprv)
-        self.assertRaises(ValueError, int_from_prvkey, xprv_str)
+xpub = b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+xpub_dict = bip32.deserialize(xpub)
+Q = xpub_dict["Q"]
 
-        # pub key
-        xpub = (
-            "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2g"
-            "Z29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
-        ).encode()
-        self.assertRaises(ValueError, int_from_prvkey, xpub)
+compressed_pub_keys = [
+    xpub,  # bytes
+    xpub.decode("ascii"),  # str
+    " " + xpub.decode("ascii") + " ",  # str
+    xpub_dict,  # dict
+    xpub_dict["key"],  # bytes
+    xpub_dict["key"].hex(),  # hex-string
+    " " + xpub_dict["key"].hex() + " ",  # hex-string
+]
 
-    def test_info_from_prvkey(self):
+uncompressed_pub_keys = [
+    bytes_from_point(Q, compressed=False),
+    bytes_from_point(Q, compressed=False).hex(),
+    " " + bytes_from_point(Q, compressed=False).hex() + " ",
+]
 
-        xprv = (
-            "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiC"
-            "hkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        ).encode()
-        xprv_str = xprv.decode("ascii")
-        xprv_dict = bip32.deserialize(xprv)
-        wif = wif_from_prvkey(xprv)
-        wif_str = wif.decode("ascii")
-        ref_tuple = (xprv_dict["q"], "mainnet", True)
+not_a_prv_keys = [Q] + compressed_pub_keys + uncompressed_pub_keys
+not_a_prv_keys += [
+    xprv + b"\x00",
+    xprv.decode("ascii") + "00",
+    xprv_dict["key"][1:] + b"\x00",
+    xprv_dict["key"][1:].hex() + "00",
+    wif_from_prvkey(q) + b"\x00",
+    wif_from_prvkey(q).decode("ascii") + "00",
+    wif_from_prvkey(q, compressed=False) + b"\x00",
+    wif_from_prvkey(q, compressed=False).decode("ascii") + "00",
+    xprv_dict["key"],
+    xprv_dict["key"].hex(),
+    b"\x02" + xprv_dict["key"][1:],
+    "02" + xprv_dict["key"][1:].hex(),
+    "notakey",
+]
 
-        # BIP32
-        self.assertEqual(ref_tuple, prvkeyinfo_from_prvkey(xprv, "mainnet"))
-        self.assertEqual(ref_tuple, prvkeyinfo_from_prvkey(xprv))
-        self.assertEqual(ref_tuple, prvkeyinfo_from_prvkey(xprv_str))
-        self.assertEqual(ref_tuple, prvkeyinfo_from_prvkey(" " + xprv_str + " "))
-        self.assertEqual(ref_tuple, prvkeyinfo_from_prvkey(xprv_dict))
+invalid_prv_keys = []
+for inv_q in (0, ec.n):
+    invalid_prv_keys.append(inv_q)
+    inv_q_bytes = inv_q.to_bytes(32, "big")
+    t = b"\x80" + inv_q_bytes + b"\x01"
+    wif = b58encode(t)
+    invalid_prv_keys.append(wif)
+    invalid_prv_keys.append(wif.decode("ascii"))
+    t = xprv_dict["version"]
+    t += xprv_dict["depth"].to_bytes(1, "big")
+    t += xprv_dict["parent_fingerprint"]
+    t += xprv_dict["index"]
+    t += xprv_dict["chain_code"]
+    t += b"\x00" + inv_q_bytes
+    xprv = b58encode(t, 78)
+    invalid_prv_keys.append(xprv)
+    invalid_prv_keys.append(xprv.decode("ascii"))
 
-        # Invalid decoded size: 6 bytes instead of 82
-        xpub = "notakey"
-        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, xpub)
-        # prvkeyinfo_from_prvkey(xpub)
-
-        # xkey is not a private one
-        xpub = (
-            "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2g"
-            "Z29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
-        ).encode()
-        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, xpub)
-        # prvkeyinfo_from_prvkey(xpub)
-
-        # xkey is not a private one
-        xpub_dict = bip32.deserialize(xpub)
-        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, xpub_dict)
-        # prvkeyinfo_from_prvkey(xpub_dict)
-
-        # WIF keys (bytes or string)
-        self.assertEqual(ref_tuple, prvkeyinfo_from_prvkey(wif))
-        self.assertEqual(ref_tuple, prvkeyinfo_from_prvkey(wif_str))
-        self.assertEqual(ref_tuple, prvkeyinfo_from_prvkey(" " + wif_str + " "))
-
-    def test_exceptions(self):
-
-        xprv = (
-            "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiC"
-            "hkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        ).encode()
-        xprvd = bip32.deserialize(xprv)
-
-        # Compressed key provided, uncompressed key requested
-        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, xprvd, "mainnet", False)
-        # prvkeyinfo_from_prvkey(xprvd, 'mainnet', False)
-
-        # Mainnet key provided, testnet key requested
-        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, xprvd, "testnet", True)
-        # prvkeyinfo_from_prvkey(xprvd, 'testnet', True)
-
-        # Compression requirement mismatch
-        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, xprv, "mainnet", False)
-        # prvkeyinfo_from_prvkey(xprv, 'mainnet', False)
-
-        # Mainnet key provided, testnet key requested
-        self.assertRaises(ValueError, prvkeyinfo_from_prvkey, xprv, "testnet", True)
-        # prvkeyinfo_from_prvkey(xprv, 'testnet', True)
+# FIXME: fix error messages
 
 
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+def test_from_prvkey():
+
+    t = (q, "mainnet", True)
+    for prv_key in prv_keys + compressed_prv_keys:
+        assert q == int_from_prvkey(prv_key)
+        assert t == prvkeyinfo_from_prvkey(prv_key)
+        assert t == prvkeyinfo_from_prvkey(prv_key, "mainnet")
+        assert t == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
+        assert t == prvkeyinfo_from_prvkey(prv_key, compressed=True)
+
+    t = (q, "mainnet", False)
+    for prv_key in uncompressed_prv_keys:
+        assert q == int_from_prvkey(prv_key)
+        assert t == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=False)
+        assert t == prvkeyinfo_from_prvkey(prv_key, compressed=False)
+
+    for prv_key in uncompressed_prv_keys:
+        with pytest.raises(ValueError):
+            prvkeyinfo_from_prvkey(prv_key)
+            prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
+            prvkeyinfo_from_prvkey(prv_key, compressed=True)
+
+    for prv_key in compressed_prv_keys:
+        with pytest.raises(ValueError):
+            prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=False)
+            prvkeyinfo_from_prvkey(prv_key, compressed=False)
+
+    for not_a_prv_key in not_a_prv_keys:
+        with pytest.raises(ValueError):
+            int_from_prvkey(not_a_prv_key)
+            prvkeyinfo_from_prvkey(not_a_prv_key)
+
+    for invalid_prv_key in invalid_prv_keys:
+        with pytest.raises(ValueError):
+            int_from_prvkey(invalid_prv_key)
+            prvkeyinfo_from_prvkey(invalid_prv_key)
+
+    for prv_key in compressed_prv_keys + uncompressed_prv_keys:
+        with pytest.raises(ValueError):
+            prvkeyinfo_from_prvkey(prv_key, "testnet")
+            prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=True)

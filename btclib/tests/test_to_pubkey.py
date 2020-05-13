@@ -285,7 +285,7 @@ class TestToPubKey(unittest.TestCase):
 
     def test_exceptions(self):
 
-        # Not a key for (testnet) network
+        # Not a testnet key
         xpub = b"xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
         xpubd = bip32.deserialize(xpub)
         self.assertRaises(ValueError, _pubkeyinfo_from_xpub, xpubd, "testnet", None)
