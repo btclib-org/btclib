@@ -88,8 +88,11 @@ def _prvkeyinfo_from_wif(
 
     payload = b58decode(wif)
 
-    network = network_from_key_value("wif", payload[0:1])
-    ec = NETWORKS[network]["curve"]
+    net = network_from_key_value("wif", payload[0:1])
+    if network is not None and net != network:
+        raise ValueError(f"Not a {network} wif: {wif}")
+
+    ec = NETWORKS[net]["curve"]
 
     if len(payload) == ec.nsize + 2:  # compressed WIF
         compr = True
@@ -109,7 +112,7 @@ def _prvkeyinfo_from_wif(
     if not 0 < q < ec.n:
         raise ValueError(f"Private key {hex(q)} not in [1, n-1]")
 
-    return q, network, compr
+    return q, net, compr
 
 
 def _prvkeyinfo_from_xprv(
