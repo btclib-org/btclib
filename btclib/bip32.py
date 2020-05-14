@@ -66,9 +66,13 @@ def _check_version_key(version: bytes, key: bytes) -> None:
     if version in _XPRV_VERSIONS_ALL:
         if key[0] != 0:
             raise ValueError("prv_version/pubkey mismatch")
+        q = int.from_bytes(key[1:], byteorder="big")
+        if not 0 < q < ec.n:
+            raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
     elif version in _XPUB_VERSIONS_ALL:
         if key[0] not in (2, 3):
             raise ValueError("pub_version/prvkey mismatch")
+        ec.y(int.from_bytes(key[1:], byteorder="big"))
     else:
         raise ValueError(f"unknown extended key version {version.hex()}")
 
@@ -132,12 +136,9 @@ def deserialize(xkey: BIP32Key) -> ExtendedBIP32KeyDict:
 
     # calculate d["q"] and d["Q"]
     if d["key"][0] == 0:
-        q = int.from_bytes(d["key"][1:], byteorder="big")
-        if not 0 < q < ec.n:
-            raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
-        d["q"] = q
+        d["q"] = int.from_bytes(d["key"][1:], byteorder="big")
         d["Q"] = INF
-    else:  # must be public (already checked by _check_version_key)
+    else:
         d["q"] = 0
         d["Q"] = point_from_octets(d["key"], ec)
 
@@ -170,7 +171,6 @@ def serialize(d: BIP32KeyDict) -> bytes:
         raise ValueError(m)
     t += d["chain_code"]
 
-    # FIXME: it is not really checked
     # already checked in _check_version_key
     t += d["key"]
 
