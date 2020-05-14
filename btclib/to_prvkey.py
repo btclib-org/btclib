@@ -44,7 +44,8 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
         q, network, _ = _prvkeyinfo_from_xprvwif(prvkey)
         # q has been validated on the xprv/wif network
         ec2 = NETWORKS[network]["curve"]
-        assert ec == ec2, f"ec / network ({network}) mismatch"
+        if ec != ec2:
+            raise ValueError(f"ec / network ({network}) mismatch")
         return q
     else:
         try:
@@ -54,7 +55,8 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
         else:
             # q has been validated on the xprv/wif network
             ec2 = NETWORKS[network]["curve"]
-            assert ec == ec2, f"ec / network ({network}) mismatch"
+            if ec != ec2:
+                raise ValueError(f"ec / network ({network}) mismatch")
             return q
 
         # it must be octets
