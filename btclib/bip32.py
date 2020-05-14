@@ -170,6 +170,7 @@ def serialize(d: BIP32KeyDict) -> bytes:
         raise ValueError(m)
     t += d["chain_code"]
 
+    # FIXME: it is not really checked
     # already checked in _check_version_key
     t += d["key"]
 
