@@ -11,10 +11,8 @@
 import pytest
 
 from btclib import bip32
-from btclib.alias import INF
-from btclib.curves import CURVES
 from btclib.secpoint import bytes_from_point
-from btclib.tests.test_to_prvkey import (
+from btclib.tests.test_to_key import (
     Q,
     compressed_prv_keys,
     compressed_pub_keys,
@@ -22,6 +20,8 @@ from btclib.tests.test_to_prvkey import (
     prv_keys,
     uncompressed_prv_keys,
     uncompressed_pub_keys,
+    invalid_pub_keys,
+    not_a_pub_keys,
     xpub,
     xpub_dict,
 )
@@ -32,25 +32,6 @@ from btclib.to_pubkey import (
     pubkeyinfo_from_key,
     pubkeyinfo_from_pubkey,
 )
-
-not_a_pub_keys = [
-    prv_keys,
-    compressed_prv_keys,
-    uncompressed_prv_keys,
-    INF,
-    b"\x02" + INF[0].to_bytes(32, "big"),
-    b"\x04" + INF[0].to_bytes(32, "big") + INF[1].to_bytes(32, "big"),
-    # INF as WIF
-    # INF as xpub
-    # INF as hex-string
-]
-
-invalid_pub_keys = []
-
-# xprv with xpub_version and viceversa
-
-secp256r1 = CURVES["secp256r1"]
-# test wrong curve
 
 # FIXME: fix error messages
 
@@ -85,42 +66,49 @@ def test_from_key():
 
     for pubkey in uncompressed_pub_keys:
         with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(pubkey)
             pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=True)
+        with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(pubkey, compressed=True)
     for key in uncompressed_pub_keys + uncompressed_prv_keys:
         with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(key)
             pubkeyinfo_from_pubkey(key, "mainnet", compressed=True)
+        with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(key, compressed=True)
 
     for pubkey in compressed_pub_keys:
         with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=False)
+        with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(pubkey, compressed=False)
     for key in compressed_pub_keys + compressed_prv_keys:
         with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(key, "mainnet", compressed=False)
+        with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(key, compressed=False)
 
     for not_a_pub_key in not_a_pub_keys:
         with pytest.raises(ValueError):
             point_from_pubkey(not_a_pub_key)
+        with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(not_a_pub_key)
     for not_a_key in not_a_pub_keys:
         with pytest.raises(ValueError):
             point_from_key(not_a_key)
+        with pytest.raises(ValueError):
             pubkeyinfo_from_key(not_a_key)
 
     for invalid_pub_key in invalid_pub_keys:
         with pytest.raises(ValueError):
             point_from_pubkey(invalid_pub_key)
+        with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(invalid_pub_key)
     for invalid_key in invalid_pub_keys + invalid_prv_keys:
         with pytest.raises(ValueError):
             point_from_key(invalid_key)
+        with pytest.raises(ValueError):
             pubkeyinfo_from_key(invalid_key)
 
+    # FIXME
     for pubkey in compressed_pub_keys + uncompressed_pub_keys:
         with pytest.raises(ValueError):
             point_from_pubkey(pubkey, "testnet")
