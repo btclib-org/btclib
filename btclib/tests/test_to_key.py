@@ -84,7 +84,7 @@ uncompressed_prv_keys = (
 
 net_aware_prv_keys = net_aware_compressed_prv_keys + net_aware_uncompressed_prv_keys
 net_unaware_prv_keys = (
-    net_unaware_compressed_prv_keys + net_unaware_uncompressed_prv_keys
+    plain_prv_keys + net_unaware_compressed_prv_keys + net_unaware_uncompressed_prv_keys
 )
 
 Q = mult(q)
@@ -280,31 +280,6 @@ invalid_pub_keys = inf_pub_keys + [
     "invalidpubkey",
 ]
 
-not_a_prv_keys = plain_pub_keys + compressed_pub_keys + uncompressed_pub_keys
-not_a_prv_keys += invalid_prv_keys + invalid_pub_keys
+not_a_prv_keys = invalid_prv_keys + invalid_pub_keys
 
 not_a_pub_keys = invalid_prv_keys + invalid_pub_keys
-
-# test wrong curve and wrong network
-# q in (0, ec.n)
-
-for inv_q in (0, ec.n):
-    invalid_prv_keys.append(inv_q)
-    inv_q_bytes = inv_q.to_bytes(32, "big")
-    t = b"\x80" + inv_q_bytes + b"\x01"
-    wif = b58encode(t)
-    invalid_prv_keys.append(wif)
-    invalid_prv_keys.append(wif.decode("ascii"))
-    t = b"\x80" + inv_q_bytes
-    wif = b58encode(t)
-    invalid_prv_keys.append(wif)
-    invalid_prv_keys.append(wif.decode("ascii"))
-    t = b"\x04\x88\xAD\xE4"
-    t += b"\x00"
-    t += b"\x00\x00\x00\x00"
-    t += b"\x00\x00\x00\x00"
-    t += 32 * b"\x00"
-    t += b"\x00" + inv_q_bytes
-    xprv_temp = b58encode(t, 78)
-    invalid_prv_keys.append(xprv_temp)
-    invalid_prv_keys.append(xprv_temp.decode("ascii"))

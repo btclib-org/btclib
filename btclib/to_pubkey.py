@@ -29,8 +29,12 @@ from .utils import bytes_from_octets, hash160
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     "Return an elliptic curve point tuple from a xpub key."
 
-    if not isinstance(xpub, dict):
+    if isinstance(xpub, dict):
+        # ensure it is a valid BIP32KeyDict
+        bip32.serialize(xpub)
+    else:
         xpub = bip32.deserialize(xpub)
+
     if xpub["key"][0] in (2, 3):
         ec2 = curve_from_xpubversion(xpub["version"])
         if ec != ec2:
@@ -115,8 +119,12 @@ def _pubkeyinfo_from_xpub(
     if not compressed:
         raise ValueError("Uncompressed SEC / compressed BIP32 mismatch")
 
-    if not isinstance(xpub, dict):
+    if isinstance(xpub, dict):
+        # ensure it is a valid BIP32KeyDict
+        bip32.serialize(xpub)
+    else:
         xpub = bip32.deserialize(xpub)
+
     if xpub["key"][0] not in (2, 3):
         m = f"Not a public key: {bip32.serialize(xpub).decode()}"
         raise ValueError(m)
@@ -147,7 +155,7 @@ def pubkeyinfo_from_key(
         except Exception:
             pass
 
-    # it must be a pubkey
+    # it must be a prvkey
     try:
         return pubkeyinfo_from_prvkey(key, network, compressed)
     except Exception:

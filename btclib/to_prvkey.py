@@ -41,7 +41,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     if isinstance(prvkey, int):
         q = prvkey
     elif isinstance(prvkey, dict):
-        q, network, _ = _prvkeyinfo_from_xprvwif(prvkey)
+        q, network, _ = _prvkeyinfo_from_xprv(prvkey)
         # q has been validated on the xprv/wif network
         ec2 = NETWORKS[network]["curve"]
         if ec != ec2:
@@ -131,8 +131,12 @@ def _prvkeyinfo_from_xprv(
     if not compressed:
         raise ValueError("Uncompressed SEC / compressed BIP32 mismatch")
 
-    if not isinstance(xprv, dict):
+    if isinstance(xprv, dict):
+        # ensure it is a valid BIP32KeyDict
+        bip32.serialize(xprv)
+    else:
         xprv = bip32.deserialize(xprv)
+
     if xprv["key"][0] != 0:
         m = f"Not a private key: {bip32.serialize(xprv).decode()}"
         raise ValueError(m)
@@ -147,10 +151,6 @@ def _prvkeyinfo_from_xprv(
         network = network_from_xkeyversion(xprv["version"])
 
     q = int.from_bytes(xprv["key"][1:], byteorder="big")
-    ec = NETWORKS[network]["curve"]
-    if not 0 < q < ec.n:
-        raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
-
     return q, network, True
 
 
