@@ -32,7 +32,7 @@ q_bytes = q.to_bytes(32, byteorder="big")
 q_bytes_hexstring = q_bytes.hex()
 q_bytes_hexstring2 = " " + q_bytes_hexstring + " "
 
-# prv key with no network / compression information
+# prvkeys with no network / compression information
 plain_prv_keys = [
     q,
     q_bytes,
@@ -58,7 +58,6 @@ xprv_dict: BIP32KeyDict = {
 xprv = _serialize(xprv_dict)
 xprv_string = xprv.decode("ascii")
 xprv_string2 = " " + xprv_string + " "
-
 
 net_aware_compressed_prv_keys = [
     wifcompressed,
@@ -89,6 +88,8 @@ net_unaware_prv_keys = (
 
 Q = mult(q)
 
+# pubkeys with no network / compression information
+# but curve aware
 plain_pub_keys = [Q]
 
 Q_compressed = bytes_from_point(Q, compressed=True)
@@ -139,15 +140,45 @@ net_unaware_pub_keys = (
 )
 
 # all bad BIP32 keys
+bad_bip32_keys = []
 # version / key mismatch
-xprv_dict_bad = copy.copy(xpub_dict)
+xprv_dict_bad = copy.copy(xprv_dict)
+xpub_dict_bad = copy.copy(xpub_dict)
 xprv_dict_bad["version"] = b"\x04\x88\xB2\x1E"
-xpub_dict_bad = copy.copy(xprv_dict)
 xpub_dict_bad["version"] = b"\x04\x88\xAD\xE4"
-bad_bip32_keys = [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
-# depth_pfp_index mismatch
+bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
 # key stats with 04
+xprv_dict_bad["key"] = b"\x04" + xprv_dict_bad["key"][1:]
+xpub_dict_bad["key"] = b"\x04" + xprv_dict_bad["key"][1:]
+bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
+# key stats with 01
+xprv_dict_bad["key"] = b"\x01" + xprv_dict_bad["key"][1:]
+xpub_dict_bad["key"] = b"\x01" + xprv_dict_bad["key"][1:]
+bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
+# depth_pfp_index mismatch
+xprv_dict_bad = copy.copy(xprv_dict)
+xpub_dict_bad = copy.copy(xpub_dict)
+xprv_dict_bad["parent_fingerprint"] = b"\x01\x01\x01\x01"
+xpub_dict_bad["parent_fingerprint"] = b"\x01\x01\x01\x01"
+bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
+# depth_pfp_index mismatch
+xprv_dict_bad = copy.copy(xprv_dict)
+xpub_dict_bad = copy.copy(xpub_dict)
+xprv_dict_bad["index"] = b"\x01\x01\x01\x01"
+xpub_dict_bad["index"] = b"\x01\x01\x01\x01"
+bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
+# depth_pfp_index mismatch
+xprv_dict_bad = copy.copy(xprv_dict)
+xpub_dict_bad = copy.copy(xpub_dict)
+xprv_dict_bad["depth"] = 1
+xpub_dict_bad["depth"] = 1
+bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
 # unknown version
+xprv_dict_bad = copy.copy(xprv_dict)
+xpub_dict_bad = copy.copy(xpub_dict)
+xprv_dict_bad["version"] = b"\x01\x01\x01\x01"
+xpub_dict_bad["version"] = b"\x01\x01\x01\x01"
+bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
 
 q_0 = 0
 q_0_bytes = q_0.to_bytes(32, byteorder="big")
@@ -246,39 +277,67 @@ net_aware_inf_prv_keys = (
     net_aware_compressed_inf_prv_keys + net_aware_uncompressed_inf_prv_keys
 )
 net_unaware_inf_prv_keys = (
-    net_unaware_compressed_inf_prv_keys + net_unaware_uncompressed_inf_prv_keys
+    plain_inf_prv_keys
+    + net_unaware_compressed_inf_prv_keys
+    + net_unaware_uncompressed_inf_prv_keys
 )
 
-inf_prv_keys = (
-    plain_inf_prv_keys + net_aware_inf_prv_keys + net_unaware_compressed_inf_prv_keys
-)
+inf_prv_keys = net_aware_inf_prv_keys + net_unaware_compressed_inf_prv_keys
+
+
+INF_compressed = b"\x02" + INF[0].to_bytes(32, "big")
+INF_compressed_hexstring = INF_compressed.hex()
+INF_compressed_hexstring2 = " " + INF_compressed_hexstring + " "
+INF_uncompressed = b"\x04" + INF[0].to_bytes(32, "big") + INF[1].to_bytes(32, "big")
+INF_uncompressed_hexstring = INF_uncompressed.hex()
+INF_uncompressed_hexstring2 = " " + INF_uncompressed_hexstring + " "
+
+INF_xpub_dict: BIP32KeyDict = {
+    "version": b"\x04\x88\xB2\x1E",
+    "depth": xprv_dict["depth"],
+    "parent_fingerprint": xprv_dict["parent_fingerprint"],
+    "index": xprv_dict["index"],
+    "chain_code": xprv_dict["chain_code"],
+    "key": INF_compressed,
+}
+INF_xpub = _serialize(INF_xpub_dict)
+INF_xpub_string = INF_xpub.decode("ascii")
+INF_xpub_string2 = " " + INF_xpub_string + " "
 
 inf_pub_keys = [
     INF,
-    b"\x02" + INF[0].to_bytes(32, "big"),
-    b"\x04" + INF[0].to_bytes(32, "big") + INF[1].to_bytes(32, "big"),
-    # INF as WIF
-    # INF as xpub
-    # INF as hex-string
+    INF_compressed,
+    INF_compressed_hexstring,
+    INF_compressed_hexstring2,
+    INF_uncompressed,
+    INF_uncompressed_hexstring,
+    INF_uncompressed_hexstring2,
+    INF_xpub_dict,
+    INF_xpub,
+    INF_xpub_string,
+    INF_xpub_string2,
 ]
 
-invalid_prv_keys = inf_prv_keys + [
-    wifcompressed + b"\x01",
-    wifcompressed_string + "01",
-    wifuncompressed + b"\x01",
-    wifuncompressed_string + "01",
-    xprv + b"\x00",
-    xprv_string + "00",
-    xprv_dict["key"][1:] + b"\x00",
-    xprv_dict["key"][1:].hex() + "00",
-    xprv_dict["key"],
-    xprv_dict["key"].hex(),
-    "invalidprvkey",
-]
 
-invalid_pub_keys = inf_pub_keys + [
-    "invalidpubkey",
-]
+invalid_prv_keys = (
+    bad_bip32_keys
+    + inf_prv_keys
+    + [
+        wifcompressed + b"\x01",
+        wifcompressed_string + "01",
+        wifuncompressed + b"\x01",
+        wifuncompressed_string + "01",
+        xprv + b"\x00",
+        xprv_string + "00",
+        xprv_dict["key"][1:] + b"\x00",
+        xprv_dict["key"][1:].hex() + "00",
+        xprv_dict["key"],
+        xprv_dict["key"].hex(),
+        "invalidprvkey",
+    ]
+)
+
+invalid_pub_keys = bad_bip32_keys + inf_pub_keys + ["invalidpubkey"]
 
 not_a_prv_keys = invalid_prv_keys + invalid_pub_keys
 
