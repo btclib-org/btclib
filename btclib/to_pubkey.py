@@ -143,16 +143,15 @@ def pubkeyinfo_from_key(
         return pubkeyinfo_from_prvkey(key, network, compressed)
     else:
         try:
-            return pubkeyinfo_from_prvkey(key, network, compressed)
-        # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
+            return pubkeyinfo_from_pubkey(key, network, compressed)
         except Exception:
             pass
 
     # it must be a pubkey
     try:
-        return pubkeyinfo_from_pubkey(key, network, compressed)
+        return pubkeyinfo_from_prvkey(key, network, compressed)
     except Exception:
-        raise ValueError(f"Not a public key: {key}")
+        raise ValueError(f"Not a public (or even private) key: {key}")
 
 
 def pubkeyinfo_from_pubkey(

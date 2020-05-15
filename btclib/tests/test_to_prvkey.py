@@ -14,8 +14,10 @@ from btclib.curves import CURVES
 from btclib.tests.test_to_key import (
     compressed_prv_keys,
     invalid_prv_keys,
+    net_aware_prv_keys,
+    net_unaware_prv_keys,
     not_a_prv_keys,
-    prv_keys,
+    plain_prv_keys,
     q,
     uncompressed_prv_keys,
 )
@@ -26,37 +28,52 @@ from btclib.to_prvkey import int_from_prvkey, prvkeyinfo_from_prvkey
 
 def test_from_prvkey():
 
-    t = (q, "mainnet", True)
-    for prv_key in prv_keys + compressed_prv_keys:
+    t_c = (q, "mainnet", True)
+    t_unc = (q, "mainnet", False)
+    for prv_key in plain_prv_keys:
         assert q == int_from_prvkey(prv_key)
-        assert t == prvkeyinfo_from_prvkey(prv_key)
-        assert t == prvkeyinfo_from_prvkey(prv_key, "mainnet")
-        assert t == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
-        assert t == prvkeyinfo_from_prvkey(prv_key, compressed=True)
-
-    t = (q, "mainnet", False)
-    for prv_key in uncompressed_prv_keys:
-        assert q == int_from_prvkey(prv_key)
-        assert t == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=False)
-        assert t == prvkeyinfo_from_prvkey(prv_key, compressed=False)
-
-    for prv_key in uncompressed_prv_keys:
-        with pytest.raises(ValueError):
-            prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
-        with pytest.raises(ValueError):
-            prvkeyinfo_from_prvkey(prv_key, compressed=True)
-
+        assert t_c == prvkeyinfo_from_prvkey(prv_key)
+        assert t_c == prvkeyinfo_from_prvkey(prv_key, "mainnet")
+        assert t_c == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
+        assert t_c == prvkeyinfo_from_prvkey(prv_key, compressed=True)
+        assert t_unc == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=False)
+        assert t_unc == prvkeyinfo_from_prvkey(prv_key, compressed=False)
     for prv_key in compressed_prv_keys:
+        assert q == int_from_prvkey(prv_key)
+        assert t_c == prvkeyinfo_from_prvkey(prv_key)
+        assert t_c == prvkeyinfo_from_prvkey(prv_key, "mainnet")
+        assert t_c == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
+        assert t_c == prvkeyinfo_from_prvkey(prv_key, compressed=True)
         with pytest.raises(ValueError):
             prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=False)
         with pytest.raises(ValueError):
             prvkeyinfo_from_prvkey(prv_key, compressed=False)
+    for prv_key in uncompressed_prv_keys:
+        assert q == int_from_prvkey(prv_key)
+        assert t_unc == prvkeyinfo_from_prvkey(prv_key)
+        assert t_unc == prvkeyinfo_from_prvkey(prv_key, "mainnet")
+        with pytest.raises(ValueError):
+            prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
+        with pytest.raises(ValueError):
+            prvkeyinfo_from_prvkey(prv_key, compressed=True)
+        assert t_unc == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=False)
+        assert t_unc == prvkeyinfo_from_prvkey(prv_key, compressed=False)
 
-    for not_a_prv_key in not_a_prv_keys:
+    secp256r1 = CURVES["secp256r1"]
+    for prv_key in net_aware_prv_keys:
+        assert q == int_from_prvkey(prv_key)
         with pytest.raises(ValueError):
-            int_from_prvkey(not_a_prv_key)
+            int_from_prvkey(prv_key, secp256r1)
+        assert prvkeyinfo_from_prvkey(prv_key) in (t_c, t_unc)
+        assert prvkeyinfo_from_prvkey(prv_key, "mainnet") in (t_c, t_unc)
         with pytest.raises(ValueError):
-            prvkeyinfo_from_prvkey(not_a_prv_key)
+            prvkeyinfo_from_prvkey(prv_key, "testnet")
+    for prv_key in net_unaware_prv_keys:
+        assert q == int_from_prvkey(prv_key)
+        assert q == int_from_prvkey(prv_key, secp256r1)
+        assert prvkeyinfo_from_prvkey(prv_key) in (t_c, t_unc)
+        assert prvkeyinfo_from_prvkey(prv_key, "mainnet") in (t_c, t_unc)
+        assert prvkeyinfo_from_prvkey(prv_key, "testnet")[1] == "testnet"
 
     for invalid_prv_key in invalid_prv_keys:
         with pytest.raises(ValueError):
@@ -64,11 +81,8 @@ def test_from_prvkey():
         with pytest.raises(ValueError):
             prvkeyinfo_from_prvkey(invalid_prv_key)
 
-    secp256r1 = CURVES["secp256r1"]
-    for prv_key in compressed_prv_keys + uncompressed_prv_keys:
+    for not_a_prv_key in not_a_prv_keys:
         with pytest.raises(ValueError):
-            int_from_prvkey(prv_key, secp256r1)
+            int_from_prvkey(not_a_prv_key)
         with pytest.raises(ValueError):
-            prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=True)
-        with pytest.raises(ValueError):
-            prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=False)
+            prvkeyinfo_from_prvkey(not_a_prv_key)

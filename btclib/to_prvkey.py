@@ -137,17 +137,21 @@ def _prvkeyinfo_from_xprv(
         m = f"Not a private key: {bip32.serialize(xprv).decode()}"
         raise ValueError(m)
 
-    q = int.from_bytes(xprv["key"][1:], byteorder="big")
-
     if network is not None:
         allowed_versions = xprvversions_from_network(network)
         if xprv["version"] not in allowed_versions:
             m = f"Not a {network} key: "
             m += f"{bip32.serialize(xprv).decode()}"
             raise ValueError(m)
-        return q, network, True
     else:
-        return q, network_from_xkeyversion(xprv["version"]), True
+        network = network_from_xkeyversion(xprv["version"])
+
+    q = int.from_bytes(xprv["key"][1:], byteorder="big")
+    ec = NETWORKS[network]["curve"]
+    if not 0 < q < ec.n:
+        raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
+
+    return q, network, True
 
 
 def _prvkeyinfo_from_xprvwif(

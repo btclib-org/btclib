@@ -17,11 +17,16 @@ from btclib.tests.test_to_key import (
     compressed_prv_keys,
     compressed_pub_keys,
     invalid_prv_keys,
-    prv_keys,
+    invalid_pub_keys,
+    net_aware_prv_keys,
+    net_aware_pub_keys,
+    net_unaware_prv_keys,
+    net_unaware_pub_keys,
+    not_a_pub_keys,
+    plain_prv_keys,
+    plain_pub_keys,
     uncompressed_prv_keys,
     uncompressed_pub_keys,
-    invalid_pub_keys,
-    not_a_pub_keys,
     xpub,
     xpub_dict,
 )
@@ -38,92 +43,111 @@ from btclib.to_pubkey import (
 
 def test_from_key():
 
-    t = bytes_from_point(Q, compressed=True), "mainnet"
-    for pubkey in [Q] + compressed_pub_keys:
+    t_c = bytes_from_point(Q, compressed=True), "mainnet"
+    t_unc = bytes_from_point(Q, compressed=False), "mainnet"
+    for pubkey in plain_pub_keys:
         assert Q == point_from_pubkey(pubkey)
-        assert t == pubkeyinfo_from_pubkey(pubkey)
-        assert t == pubkeyinfo_from_pubkey(pubkey, "mainnet")
-        assert t == pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=True)
-        assert t == pubkeyinfo_from_pubkey(pubkey, compressed=True)
-    for key in [Q] + compressed_pub_keys + prv_keys + compressed_prv_keys:
-        assert Q == point_from_key(key)
-        assert t == pubkeyinfo_from_key(key)
-        assert t == pubkeyinfo_from_key(key, "mainnet")
-        assert t == pubkeyinfo_from_key(key, "mainnet", compressed=True)
-        assert t == pubkeyinfo_from_key(key, compressed=True)
-
-    t = bytes_from_point(Q, compressed=False), "mainnet"
-    for pubkey in uncompressed_pub_keys:
-        assert Q == point_from_pubkey(pubkey)
-        assert t == pubkeyinfo_from_pubkey(pubkey)
-        assert t == pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=False)
-        assert t == pubkeyinfo_from_pubkey(pubkey, compressed=False)
-    for key in uncompressed_pub_keys + uncompressed_prv_keys:
-        assert Q == point_from_key(key)
-        assert t == pubkeyinfo_from_key(key)
-        assert t == pubkeyinfo_from_key(key, "mainnet", compressed=False)
-        assert t == pubkeyinfo_from_key(key, compressed=False)
-
-    for pubkey in uncompressed_pub_keys:
-        with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=True)
-        with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(pubkey, compressed=True)
-    for key in uncompressed_pub_keys + uncompressed_prv_keys:
-        with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(key, "mainnet", compressed=True)
-        with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(key, compressed=True)
-
+        assert t_c == pubkeyinfo_from_pubkey(pubkey)
+        assert t_c == pubkeyinfo_from_pubkey(pubkey, "mainnet")
+        assert t_c == pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=True)
+        assert t_c == pubkeyinfo_from_pubkey(pubkey, compressed=True)
+        assert t_unc == pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=False)
+        assert t_unc == pubkeyinfo_from_pubkey(pubkey, compressed=False)
     for pubkey in compressed_pub_keys:
+        assert Q == point_from_pubkey(pubkey)
+        assert t_c == pubkeyinfo_from_pubkey(pubkey)
+        assert t_c == pubkeyinfo_from_pubkey(pubkey, "mainnet")
+        assert t_c == pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=True)
+        assert t_c == pubkeyinfo_from_pubkey(pubkey, compressed=True)
         with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=False)
         with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(pubkey, compressed=False)
-    for key in compressed_pub_keys + compressed_prv_keys:
+    for pubkey in uncompressed_pub_keys:
+        assert Q == point_from_pubkey(pubkey)
+        assert t_unc == pubkeyinfo_from_pubkey(pubkey)
+        assert t_unc == pubkeyinfo_from_pubkey(pubkey, "mainnet")
         with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(key, "mainnet", compressed=False)
+            pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=True)
         with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(key, compressed=False)
-
-    for not_a_pub_key in not_a_pub_keys:
+            pubkeyinfo_from_pubkey(pubkey, compressed=True)
+        assert t_unc == pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=False)
+        assert t_unc == pubkeyinfo_from_pubkey(pubkey, compressed=False)
+    for pubkey in net_aware_pub_keys:
+        assert Q == point_from_pubkey(pubkey)
+        assert pubkeyinfo_from_pubkey(pubkey) in (t_c, t_unc)
+        assert pubkeyinfo_from_pubkey(pubkey, "mainnet") in (t_c, t_unc)
         with pytest.raises(ValueError):
-            point_from_pubkey(not_a_pub_key)
-        with pytest.raises(ValueError):
-            pubkeyinfo_from_pubkey(not_a_pub_key)
-    for not_a_key in not_a_pub_keys:
-        with pytest.raises(ValueError):
-            point_from_key(not_a_key)
-        with pytest.raises(ValueError):
-            pubkeyinfo_from_key(not_a_key)
+            pubkeyinfo_from_pubkey(pubkey, "testnet")
+    for pubkey in net_unaware_pub_keys:
+        assert Q == point_from_pubkey(pubkey)
+        assert pubkeyinfo_from_pubkey(pubkey) in (t_c, t_unc)
+        assert pubkeyinfo_from_pubkey(pubkey, "mainnet") in (t_c, t_unc)
+        assert pubkeyinfo_from_pubkey(pubkey, "testnet")[1] == "testnet"
 
     for invalid_pub_key in invalid_pub_keys:
         with pytest.raises(ValueError):
             point_from_pubkey(invalid_pub_key)
         with pytest.raises(ValueError):
             pubkeyinfo_from_pubkey(invalid_pub_key)
+
+    for not_a_pub_key in not_a_pub_keys:
+        with pytest.raises(ValueError):
+            point_from_pubkey(not_a_pub_key)
+        with pytest.raises(ValueError):
+            pubkeyinfo_from_pubkey(not_a_pub_key)
+
+    for key in plain_pub_keys + plain_prv_keys:
+        assert Q == point_from_key(key)
+        assert t_c == pubkeyinfo_from_key(key)
+        assert t_c == pubkeyinfo_from_key(key, "mainnet")
+        assert t_c == pubkeyinfo_from_key(key, "mainnet", compressed=True)
+        assert t_c == pubkeyinfo_from_key(key, compressed=True)
+        assert t_unc == pubkeyinfo_from_key(key, "mainnet", compressed=False)
+        assert t_unc == pubkeyinfo_from_key(key, compressed=False)
+    for key in compressed_pub_keys + compressed_prv_keys:
+        assert Q == point_from_key(key)
+        assert t_c == pubkeyinfo_from_key(key)
+        assert t_c == pubkeyinfo_from_key(key, "mainnet")
+        assert t_c == pubkeyinfo_from_key(key, "mainnet", compressed=True)
+        assert t_c == pubkeyinfo_from_key(key, compressed=True)
+        with pytest.raises(ValueError):
+            pubkeyinfo_from_key(key, "mainnet", compressed=False)
+        with pytest.raises(ValueError):
+            pubkeyinfo_from_key(key, compressed=False)
+    for key in uncompressed_pub_keys + uncompressed_prv_keys:
+        assert Q == point_from_key(key)
+        assert t_unc == pubkeyinfo_from_key(key)
+        assert t_unc == pubkeyinfo_from_key(key, "mainnet")
+        with pytest.raises(ValueError):
+            pubkeyinfo_from_key(key, "mainnet", compressed=True)
+        with pytest.raises(ValueError):
+            pubkeyinfo_from_key(key, compressed=True)
+        assert t_unc == pubkeyinfo_from_key(key, "mainnet", compressed=False)
+        assert t_unc == pubkeyinfo_from_key(key, compressed=False)
+    for key in net_aware_pub_keys + net_aware_prv_keys:
+        assert Q == point_from_key(key)
+        assert pubkeyinfo_from_key(key) in (t_c, t_unc)
+        assert pubkeyinfo_from_key(key, "mainnet") in (t_c, t_unc)
+        with pytest.raises(ValueError):
+            pubkeyinfo_from_key(key, "testnet")
+    for key in net_unaware_pub_keys + net_unaware_prv_keys:
+        assert Q == point_from_key(key)
+        assert pubkeyinfo_from_key(key) in (t_c, t_unc)
+        assert pubkeyinfo_from_key(key, "mainnet") in (t_c, t_unc)
+        assert pubkeyinfo_from_key(key, "testnet")[1] == "testnet"
+
     for invalid_key in invalid_pub_keys + invalid_prv_keys:
         with pytest.raises(ValueError):
             point_from_key(invalid_key)
         with pytest.raises(ValueError):
             pubkeyinfo_from_key(invalid_key)
 
-    # FIXME
-    for pubkey in compressed_pub_keys + uncompressed_pub_keys:
+    for not_a_key in not_a_pub_keys:
         with pytest.raises(ValueError):
-            point_from_pubkey(pubkey, "testnet")
-            pubkeyinfo_from_pubkey(pubkey, "testnet", compressed=True)
-            pubkeyinfo_from_pubkey(pubkey, "testnet", compressed=False)
-    for key in (
-        compressed_pub_keys
-        + uncompressed_pub_keys
-        + compressed_prv_keys
-        + uncompressed_prv_keys
-    ):
+            point_from_key(not_a_key)
         with pytest.raises(ValueError):
-            point_from_key(key, "testnet")
-            pubkeyinfo_from_key(key, "testnet", compressed=True)
-            pubkeyinfo_from_key(key, "testnet", compressed=False)
+            pubkeyinfo_from_key(not_a_key)
 
 
 def test_fingerprint():
