@@ -67,7 +67,7 @@ def _check_version_key(version: bytes, key: bytes) -> None:
         if key[0] in (2, 3):
             raise ValueError("prv_version/pubkey mismatch")
         if key[0] != 0:
-            raise ValueError(f"Invalid prvkey prefix {key[0:1].hex()}")
+            raise ValueError(f"Invalid private key prefix 0x{key[0:1].hex()}")
         q = int.from_bytes(key[1:], byteorder="big")
         if not 0 < q < ec.n:
             raise ValueError(f"Private key not in 1..n-1: {hex(q)}")
@@ -75,28 +75,28 @@ def _check_version_key(version: bytes, key: bytes) -> None:
         if key[0] == 0:
             raise ValueError("pub_version/prvkey mismatch")
         if key[0] not in (2, 3):
-            raise ValueError(f"Invalid pubkey prefix {key[0:1].hex()}")
+            raise ValueError(f"Invalid public key prefix 0x{key[0:1].hex()}")
         try:
             ec.y(int.from_bytes(key[1:], byteorder="big"))
         except Exception:
-            raise ValueError(f"Invalid pubkey {key.hex()}")
+            raise ValueError(f"Invalid public key 0x{key.hex()}")
     else:
-        raise ValueError(f"Unknown extended key version {version.hex()}")
+        raise ValueError(f"Unknown extended key version 0x{version.hex()}")
 
 
 def _check_depth_pfp_index(depth: int, pfp: bytes, i: bytes) -> None:
 
     if depth < 0 or depth > 255:
-        raise ValueError(f"Invalid BIP32 depth ({depth})")
+        raise ValueError(f"Invalid depth {depth}")
     elif depth == 0:
         if pfp != b"\x00\x00\x00\x00":
-            msg = f"Zero depth with non-zero parent_fingerprint ({pfp.hex()})"
+            msg = f"Zero depth with non-zero parent fingerprint 0x{pfp.hex()}"
             raise ValueError(msg)
         if i != b"\x00\x00\x00\x00":
-            raise ValueError(f"Zero depth with non-zero index {i.hex()}")
+            raise ValueError(f"Zero depth with non-zero index 0x{i.hex()}")
     else:
         if pfp == b"\x00\x00\x00\x00":
-            raise ValueError(f"Zero parent_fingerprint with non-zero depth ({depth})")
+            raise ValueError(f"Zero parent fingerprint with non-zero depth {depth}")
 
 
 def deserialize(xkey: BIP32Key) -> ExtendedBIP32KeyDict:
@@ -152,18 +152,18 @@ def deserialize(xkey: BIP32Key) -> ExtendedBIP32KeyDict:
 def serialize(d: BIP32KeyDict) -> bytes:
 
     if len(d["key"]) != 33:
-        m = f"Invalid {len(d['key'])}-bytes BIP32 key length"
+        m = f"Invalid key length: {len(d['key'])}-bytes"
         raise ValueError(m)
     # version length is checked in _check_version_key
     _check_version_key(d["version"], d["key"])
     t = d["version"]
 
     if len(d["parent_fingerprint"]) != 4:
-        m = f"Invalid {len(d['parent_fingerprint'])}-bytes "
-        m += "BIP32 parent_fingerprint length"
+        m = "Invalid parent fingerprint length: "
+        m += f"{len(d['parent_fingerprint'])}-bytes "
         raise ValueError(m)
     if len(d["index"]) != 4:
-        m = f"Invalid {len(d['index'])}-bytes BIP32 index length"
+        m = f"Invalid index length: {len(d['index'])}-bytes"
         raise ValueError(m)
     _check_depth_pfp_index(d["depth"], d["parent_fingerprint"], d["index"])
     t += d["depth"].to_bytes(1, "big")
@@ -171,7 +171,7 @@ def serialize(d: BIP32KeyDict) -> bytes:
     t += d["index"]
 
     if len(d["chain_code"]) != 32:
-        m = f"Invalid {len(d['chain_code'])}-bytes BIP32 chain_code length"
+        m = f"Invalid chain code length: {len(d['chain_code'])}-bytes"
         raise ValueError(m)
     t += d["chain_code"]
 
@@ -318,7 +318,8 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
         indexes.append(index.to_bytes(4, "big"))
 
     if len(indexes) > 255:
-        raise ValueError(f"Derivation path depth {len(indexes)}>255")
+        msg = f"Derivation path depth greater than 255: {len(indexes)}"
+        raise ValueError(msg)
     return indexes, absolute
 
 
@@ -356,7 +357,8 @@ def derive(xkey: BIP32Key, path: Path) -> bytes:
 
     final_depth = xkey["depth"] + len(indexes)
     if final_depth > 255:
-        raise ValueError(f"Derivation path final depth {final_depth}>255")
+        msg = f"Derivation path final depth greater than 255: {final_depth}"
+        raise ValueError(msg)
 
     for index in indexes:
         _ckd(xkey, index)
@@ -386,15 +388,15 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
 
     # check depth
     if c["depth"] != p["depth"] + 1:
-        raise ValueError("not a parent's child: wrong depth relation")
+        raise ValueError("Not a parent's child: wrong depths")
 
     # check fingerprint
     if c["parent_fingerprint"] != hash160(p["key"])[:4]:
-        raise ValueError("not a parent's child: wrong parent fingerprint")
+        raise ValueError("Not a parent's child: wrong parent fingerprint")
 
     # check normal derivation
     if c["index"][0] >= 0x80:
-        raise ValueError("hardened child derivation")
+        raise ValueError("Hardened child derivation")
 
     p["version"] = c["version"]
 

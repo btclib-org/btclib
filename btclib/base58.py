@@ -125,7 +125,7 @@ def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
 
     h256 = hash256(result)
     if checksum != h256[:4]:
-        m = f"Invalid checksum: '{checksum!r}' instead of '{h256[:4]!r}'"
+        m = f"Invalid checksum: 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
         raise ValueError(m)
 
     if out_size is None or len(result) == out_size:
