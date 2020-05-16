@@ -64,7 +64,7 @@ class WordLists:
         # a new language, unknown before
         if lang not in self.languages:
             if filename is None:
-                raise ValueError(f"missing file for language '{lang}'")
+                raise ValueError(f"Missing file for language '{lang}'")
             else:
                 # initialize the new language
                 self.languages.append(lang)
@@ -79,7 +79,7 @@ class WordLists:
                 lines = f.readlines()
 
             nwords = len(lines)
-            ensure_is_power_of_two(nwords, "wordlist length")
+            ensure_is_power_of_two(nwords, "Invalid wordlist length")
 
             self._language_length[lang] = nwords
             # clean up and normalization are missing, but removal of \n

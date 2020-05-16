@@ -108,4 +108,4 @@ def hash256(o: Octets) -> bytes:
 def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
     # http://www.graphics.stanford.edu/~seander/bithacks.html
     if n & (n - 1) != 0:
-        raise ValueError(f"{var_name} ({n}) must be a power of two")
+        raise ValueError(f"{var_name}: {n} (must be a power of two)")
