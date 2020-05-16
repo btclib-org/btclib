@@ -8,6 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"Tests for `btclib.dsa` module."
+
 import unittest
 from hashlib import sha1
 from hashlib import sha256 as hf

@@ -40,6 +40,7 @@ with the following modifications:
 """
 
 import pytest
+
 from btclib.bech32 import b32decode
 
 VALID_CHECKSUM = [

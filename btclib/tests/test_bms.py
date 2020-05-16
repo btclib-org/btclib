@@ -8,6 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"Tests for `btclib.bms` module."
+
 import json
 import unittest
 from hashlib import sha256 as hf

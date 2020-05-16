@@ -8,6 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"Tests for `btclib.base58address` module."
+
 import unittest
 
 from btclib import bip32, slip32
