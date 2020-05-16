@@ -89,7 +89,7 @@ def mod_sqrt(a: int, p: int) -> int:
         x = pow(a, (p >> 2) + 1, p)
         if x * x % p == a:
             return x
-        raise ValueError(f"{hex(a)} has no root (mod {hex(p)})")
+        raise ValueError(f"No root for {hex(a)} (mod {hex(p)})")
     elif p % 8 == 5:
         # inverse candidate is pow(a, (p + 3) // 8, p)
         x = pow(a, (p >> 3) + 1, p)
@@ -100,13 +100,13 @@ def mod_sqrt(a: int, p: int) -> int:
             x = x * pow(2, p >> 2, p) % p
             if x * x % p == a:
                 return x
-        raise ValueError(f"{hex(a)} has no root (mod {hex(p)})")
+        raise ValueError(f"No root for {hex(a)} (mod {hex(p)})")
     elif a == 0 or p == 2:
         return a
 
     # Check solution existence for odd primes
     if legendre_symbol(a, p) != 1:
-        raise ValueError(f"{hex(a)} has no root (mod {hex(p)})")
+        raise ValueError(f"No root for {hex(a)} (mod {hex(p)})")
 
     # Factor p-1 on the form q * 2^s (with Q odd)
     q, s = p - 1, 0
