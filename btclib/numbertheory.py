@@ -50,7 +50,7 @@ def mod_inv(a: int, m: int) -> int:
     g, x, _ = xgcd(a, m)
     if g == 1:
         return x % m
-    raise ValueError(f"{hex(a)} has no inverse (mod {hex(m)})")
+    raise ValueError(f"No inverse for {hex(a)} mod {hex(m)}")
 
 
 def legendre_symbol(a, p) -> int:

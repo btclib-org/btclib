@@ -72,4 +72,4 @@ def encode(i: int) -> bytes:
     elif i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
         return b"\xff" + i.to_bytes(8, byteorder="little")
     else:
-        raise ValueError(f"integer too large ({hex(i)}) for varint encoding")
+        raise ValueError(f"Integer too big for varint encoding: ({hex(i)})")
