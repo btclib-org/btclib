@@ -12,75 +12,70 @@
 
 import json
 import secrets
-import unittest
 from os import path
+
+import pytest
 
 from btclib import bip39
 
 
-class TestBIP39(unittest.TestCase):
-    def test_bip39(self):
+def test_bip39():
+    lang = "en"
+    mnem = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
+
+    raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
+    mnemonic = bip39.mnemonic_from_entropy(raw_entr, lang)
+    assert mnemonic == mnem
+
+    r = bip39.entropy_from_mnemonic(mnemonic, lang)
+    size = (len(r) + 7) // 8
+    r = int(r, 2).to_bytes(size, byteorder="big")
+    assert r == raw_entr
+
+    wrong_mnemonic = mnemonic + " abandon"
+    err_msg = "Wrong number of words: "
+    with pytest.raises(ValueError, match=err_msg):
+        bip39.entropy_from_mnemonic(wrong_mnemonic, lang)
+
+    wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce oil"
+    err_msg = "Invalid checksum: "
+    with pytest.raises(ValueError, match=err_msg):
+        bip39.entropy_from_mnemonic(wr_m, lang)
+
+    # Invalid number of bits (130) for BIP39 entropy; must be in ...
+    binstr_entropy = "01" * 65  # 130 bits
+    err_msg = "Invalid number of bits for BIP39 entropy: "
+    with pytest.raises(ValueError, match=err_msg):
+        bip39._entropy_checksum(binstr_entropy)
+
+
+def test_vectors():
+    """BIP39 test vectors
+
+    https://github.com/trezor/python-mnemonic/blob/master/vectors.json
+    """
+    fname = "bip39_test_vectors.json"
+    filename = path.join(path.dirname(__file__), "test_data", fname)
+    with open(filename, "r") as f:
+        test_vectors = json.load(f)["english"]
+    for test_vector in test_vectors:
         lang = "en"
-        raw_entr = bytes.fromhex("0000003974d093eda670121023cd0000")
-        mnemonic = bip39.mnemonic_from_entropy(raw_entr, lang)
-        self.assertEqual(
-            mnemonic,
-            "abandon abandon atom trust ankle walnut "
-            "oil across awake bunker divorce abstract",
-        )
-        r = bip39.entropy_from_mnemonic(mnemonic, lang)
-        size = (len(r) + 7) // 8
-        r = int(r, 2).to_bytes(size, byteorder="big")
-        self.assertEqual(r, raw_entr)
+        entropy = bytes.fromhex(test_vector[0])
+        mnemonic = bip39.mnemonic_from_entropy(entropy, lang)
+        assert mnemonic.split() == test_vector[1].split()
 
-        # mnemonic with wrong number of words
-        wrong_mnemonic = mnemonic + " abandon"
-        self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wrong_mnemonic, lang)
-        # bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
+        raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
+        size = (len(raw_entr) + 7) // 8
+        raw_entr = int(raw_entr, 2).to_bytes(size, byteorder="big")
+        assert raw_entr == entropy
 
-        # invalid mnemonic checksum
-        wr_m = (
-            "abandon abandon atom  trust  ankle   walnut "
-            "oil     across  awake bunker divorce walnut"
-        )
-        self.assertRaises(ValueError, bip39.entropy_from_mnemonic, wr_m, lang)
-        # bip39_entropy_from_mnemonic(wrong_mnemonic, lang)
+        seed = bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
+        assert seed == test_vector[2]
 
-        # Invalid number of bits (130) for BIP39 entropy; must be in ...
-        binstr_entropy = "01" * 65  # 130 bits
-        self.assertRaises(ValueError, bip39._entropy_checksum, binstr_entropy)
-        # bip39._entropy_checksum(binstr_entropy)
-
-    def test_vectors(self):
-        """BIP39 test vectors
-           https://github.com/trezor/python-mnemonic/blob/master/vectors.json
-        """
-        fname = "bip39_test_vectors.json"
-        filename = path.join(path.dirname(__file__), "test_data", fname)
-        with open(filename, "r") as f:
-            test_vectors = json.load(f)["english"]
-        for test_vector in test_vectors:
-            lang = "en"
-            entropy = bytes.fromhex(test_vector[0])
-            mnemonic = bip39.mnemonic_from_entropy(entropy, lang)
-            self.assertEqual(mnemonic.split(), test_vector[1].split())
-
-            raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
-            size = (len(raw_entr) + 7) // 8
-            raw_entr = int(raw_entr, 2).to_bytes(size, byteorder="big")
-            self.assertEqual(raw_entr, entropy)
-
-            seed = bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
-            self.assertEqual(seed, test_vector[2])
-
-            # test_vector[3], i.e. the bip32 master private key from seed,
-            # has been tested in bip32, as it does not belong here
-
-    def test_zeroleadingbit(self):
-        # it should not throw an error
-        bip39.mnemonic_from_entropy(secrets.randbits(127), "en")
+        # test_vector[3], i.e. the bip32 master private key from seed,
+        # has been tested in bip32, as it does not belong here
 
 
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+def test_zeroleadingbit():
+    # it should not throw an error
+    bip39.mnemonic_from_entropy(secrets.randbits(127), "en")
