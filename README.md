@@ -1,4 +1,6 @@
 
+# A Python library for 'bitcoin cryptography'
+
 [btclib](https://btclib.org) is a
 Python3 [type annotated](https://docs.python.org/3/library/typing.html)
 library intended for teaching, learning, and using bitcoin,
