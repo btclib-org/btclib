@@ -42,23 +42,23 @@ def test_trailing_zeros():
 
 def test_exceptions():
 
-    err_msg = r"object supporting the buffer API required"
+    err_msg = "object supporting the buffer API required"
     with pytest.raises(TypeError, match=err_msg):
         b58encode(3)
 
     encoded = b58encode(b"test")
 
     wrong_length = len(encoded) - 1
-    err_msg = r"Invalid base58 decoded size: *"
+    err_msg = "Invalid base58 decoded size: "
     with pytest.raises(ValueError, match=err_msg):
         b58decode(encoded, wrong_length)
 
     invalidChecksum = encoded[:-4] + b"1111"
-    err_msg = r"Invalid checksum: *"
+    err_msg = "Invalid checksum: "
     with pytest.raises(ValueError, match=err_msg):
         b58decode(invalidChecksum, 4)
 
-    err_msg = r"'ascii' codec can't encode character *"
+    err_msg = "'ascii' codec can't encode character "
     with pytest.raises(ValueError, match=err_msg):
         b58decode("hèllo world")
 

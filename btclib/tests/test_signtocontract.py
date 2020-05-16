@@ -10,32 +10,25 @@
 
 "Tests for `btclib.signtocontract` module."
 
-import unittest
 from hashlib import sha256
 
 from btclib import dsa, ssa
-from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, verify_commit
 from btclib.curves import secp256k1 as ec
+from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, verify_commit
 
 
-class TestSignToContract(unittest.TestCase):
-    def test_signtocontract(self):
-        m = b"to be signed"
-        c = b"to be committed"
+def test_signtocontract():
+    m = b"to be signed"
+    c = b"to be committed"
 
-        prv, pub = dsa.gen_keys()
-        dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv, None)
-        self.assertIsNone(dsa._verify(m, pub, dsa_sig, ec, sha256))
-        self.assertTrue(verify_commit(c, dsa_receipt))
+    prv, pub = dsa.gen_keys()
+    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv, None)
+    dsa._verify(m, pub, dsa_sig, ec, sha256)
+    assert verify_commit(c, dsa_receipt)
 
-        # 32 bytes message for ECSSA
-        m = sha256(m).digest()
-        prv, pub = ssa.gen_keys()
-        ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv, None)
-        self.assertIsNone(ssa._verify(m, pub, ssa_sig, ec, sha256))
-        self.assertTrue(verify_commit(c, ssa_receipt))
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+    # 32 bytes message for ECSSA
+    m = sha256(m).digest()
+    prv, pub = ssa.gen_keys()
+    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv, None)
+    ssa._verify(m, pub, ssa_sig, ec, sha256)
+    assert verify_commit(c, ssa_receipt)
