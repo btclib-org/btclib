@@ -225,7 +225,7 @@ class CurveGroup:
             return legendre_symbol(Q[1], self.p) == 1
         if len(Q) == 3:
             return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1
-        raise ValueError(f"Not a Point")
+        raise ValueError("Not a Point")
 
     def require_p_ThreeModFour(self) -> None:
         """Require the field prime p to be equal to 3 mod 4.

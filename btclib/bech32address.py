@@ -129,7 +129,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     network = network_from_key_value("p2w", hrp)
 
     if len(data) == 0:
-        raise ValueError(f"Bech32 address with empty data")
+        raise ValueError("Bech32 address with empty data")
 
     witvers = data[0]
     witprog = _convertbits(data[1:], 5, 8, False)

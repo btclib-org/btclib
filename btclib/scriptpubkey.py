@@ -124,7 +124,7 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
         keys: List[bytes] = []
         for pk in script[1:-2]:
             if isinstance(pk, int):
-                raise ValueError(f"Invalid key in p2ms")
+                raise ValueError("Invalid key in p2ms")
             key = bytes_from_octets(pk, (33, 65))
             keys.append(key)
         return "p2ms", keys, m
@@ -152,7 +152,7 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
                     f"got {hex(s[1])} instead: {decode(s)}"
                 )
             return "nulldata", s[3:], 0
-        raise ValueError(f"Invalid 77 bytes OP_RETURN script length")
+        raise ValueError("Invalid 77 bytes OP_RETURN script length")
     # pkh
     elif length == 25 and s[:3] == b"\x76\xa9\x14" and s[-2:] == b"\x88\xac":
         # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]

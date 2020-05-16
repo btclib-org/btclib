@@ -381,8 +381,7 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
     else:
         c = deserialize(child_xprv)
     if c["key"][0] != 0:
-        m = f"Extended child key is not a private key: "
-        m += f"{serialize(c).decode()}"
+        m = f"Extended child key is not a private key: {serialize(c).decode()}"
         raise ValueError(m)
 
     # check depth
