@@ -8,13 +8,17 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"""Test vectors of valid and invalid keys.
+
+Used by `btclib.tests.to_pubkey` and `btclib.tests.to_pubkey` modules.
+"""
+
 import copy
 
 from btclib.alias import INF, BIP32KeyDict
 from btclib.base58 import b58encode
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
-from btclib.secpoint import bytes_from_point
 
 
 def _serialize(d: BIP32KeyDict) -> bytes:
@@ -92,12 +96,17 @@ Q = mult(q)
 # but curve aware
 plain_pub_keys = [Q]
 
-Q_compressed = bytes_from_point(Q, compressed=True)
+x_Q_bytes = Q[0].to_bytes(32, "big")
+Q_compressed = (b"\x03" if (Q[1] & 1) else b"\x02") + x_Q_bytes
 Q_compressed_hexstring = Q_compressed.hex()
 Q_compressed_hexstring2 = " " + Q_compressed_hexstring + " "
-Q_uncompressed = bytes_from_point(Q, compressed=False)
+Q_compressed_hexstring3 = ("03" if (Q[1] & 1) else "02") + " " + x_Q_bytes.hex()
+Q_uncompressed = b"\x04" + x_Q_bytes + Q[1].to_bytes(32, "big")
 Q_uncompressed_hexstring = Q_uncompressed.hex()
 Q_uncompressed_hexstring2 = " " + Q_uncompressed_hexstring + " "
+Q_uncompressed_hexstring3 = (
+    "04 " + x_Q_bytes.hex() + " " + Q[1].to_bytes(32, "big").hex()
+)
 
 xpub_dict: BIP32KeyDict = {
     "version": b"\x04\x88\xB2\x1E",
@@ -122,11 +131,13 @@ net_unaware_compressed_pub_keys = [
     Q_compressed,
     Q_compressed_hexstring,
     Q_compressed_hexstring2,
+    Q_compressed_hexstring3,
 ]
 net_unaware_uncompressed_pub_keys = [
     Q_uncompressed,
     Q_uncompressed_hexstring,
     Q_uncompressed_hexstring2,
+    Q_uncompressed_hexstring3,
 ]
 
 compressed_pub_keys = net_aware_compressed_pub_keys + net_unaware_compressed_pub_keys
@@ -289,12 +300,28 @@ net_unaware_inf_prv_keys = (
 inf_prv_keys = net_aware_inf_prv_keys + net_unaware_compressed_inf_prv_keys
 
 
-INF_compressed = b"\x02" + INF[0].to_bytes(32, "big")
+Q_compressed = (b"\x03" if (Q[1] & 1) else b"\x02") + x_Q_bytes
+Q_compressed_hexstring = Q_compressed.hex()
+Q_compressed_hexstring2 = " " + Q_compressed_hexstring + " "
+Q_compressed_hexstring3 = ("03" if (Q[1] & 1) else "02") + " " + x_Q_bytes.hex()
+Q_uncompressed = b"\x04" + x_Q_bytes + Q[1].to_bytes(32, "big")
+Q_uncompressed_hexstring = Q_uncompressed.hex()
+Q_uncompressed_hexstring2 = " " + Q_uncompressed_hexstring + " "
+Q_uncompressed_hexstring3 = (
+    "04 " + x_Q_bytes.hex() + " " + Q[1].to_bytes(32, "big").hex()
+)
+
+INF_x_bytes = INF[0].to_bytes(32, "big")
+INF_compressed = (b"\x03" if (INF[1] & 1) else b"\x02") + INF_x_bytes
 INF_compressed_hexstring = INF_compressed.hex()
 INF_compressed_hexstring2 = " " + INF_compressed_hexstring + " "
+INF_compressed_hexstring3 = ("03" if (INF[1] & 1) else "02") + " " + INF_x_bytes.hex()
 INF_uncompressed = b"\x04" + INF[0].to_bytes(32, "big") + INF[1].to_bytes(32, "big")
 INF_uncompressed_hexstring = INF_uncompressed.hex()
 INF_uncompressed_hexstring2 = " " + INF_uncompressed_hexstring + " "
+INF_uncompressed_hexstring3 = (
+    "04 " + INF_x_bytes.hex() + " " + INF[1].to_bytes(32, "big").hex()
+)
 
 INF_xpub_dict: BIP32KeyDict = {
     "version": b"\x04\x88\xB2\x1E",
@@ -315,9 +342,11 @@ inf_pub_keys = [
     INF_compressed,
     INF_compressed_hexstring,
     INF_compressed_hexstring2,
+    INF_compressed_hexstring3,
     INF_uncompressed,
     INF_uncompressed_hexstring,
     INF_uncompressed_hexstring2,
+    INF_uncompressed_hexstring3,
     INF_xpub_dict,
     INF_xpub,
     INF_xpub_string,
