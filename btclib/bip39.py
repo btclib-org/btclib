@@ -66,9 +66,8 @@ def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
     nbits = len(binstr_entropy)
     int_entropy = int(binstr_entropy, 2)
     if nbits not in _bits:
-        msg = f"Invalid number of bits ({nbits}) for BIP39 entropy; "
-        msg += f"must be in {_bits}"
-        raise ValueError(msg)
+        m = f"Invalid number of bits for BIP39 entropy: {nbits}; must be in {_bits}"
+        raise ValueError(m)
     nbytes = (nbits + 7) // 8
     bytes_entropy = int_entropy.to_bytes(nbytes, "big")
 
@@ -113,8 +112,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
 
     words = len(mnemonic.split())
     if words not in _words:
-        msg = f"mnemonic with wrong number of words ({words}); "
-        msg += f"expected: {_words}"
+        msg = f"Wrong number of words: ({words}); expected: {_words}"
         raise ValueError(msg)
 
     indexes = _indexes_from_mnemonic(mnemonic, lang)
@@ -128,8 +126,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     # the second part being the checksum, to be verified
     checksum = _entropy_checksum(binstr_entropy)
     if cs_entropy[bits:] != checksum:
-        m = f"invalid mnemonic checksum ({cs_entropy[bits:]}); "
-        m += f"expected: {checksum}"
+        m = f"Invalid checksum: {cs_entropy[bits:]}; expected: {checksum}"
         raise ValueError(m)
 
     return binstr_entropy

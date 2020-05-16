@@ -234,7 +234,7 @@ def mxprv_from_electrum_mnemonic(
         rootxprv = rootxprv_from_seed(seed, xversion)
         return derive(rootxprv, 0x80000000)  # "m/0h"
     else:
-        raise ValueError(f"Unmanaged electrum mnemonic version ({version})")
+        raise ValueError(f"Unmanaged electrum mnemonic version: {version}")
 
 
 def xpub_from_xprv(xprv: BIP32Key) -> bytes:
