@@ -64,17 +64,24 @@ class ExtendedBIP32KeyDict(BIP32KeyDict):
 def _check_version_key(version: bytes, key: bytes) -> None:
 
     if version in _XPRV_VERSIONS_ALL:
-        if key[0] != 0:
+        if key[0] in (2, 3):
             raise ValueError("prv_version/pubkey mismatch")
+        if key[0] != 0:
+            raise ValueError(f"Invalid key {key.hex()}")
         q = int.from_bytes(key[1:], byteorder="big")
         if not 0 < q < ec.n:
-            raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
+            raise ValueError(f"Private key not in 1..n-1: {hex(q)}")
     elif version in _XPUB_VERSIONS_ALL:
-        if key[0] not in (2, 3):
+        if key[0] == 0:
             raise ValueError("pub_version/prvkey mismatch")
-        ec.y(int.from_bytes(key[1:], byteorder="big"))
+        if key[0] not in (2, 3):
+            raise ValueError(f"Invalid key {key.hex()}")
+        try:
+            ec.y(int.from_bytes(key[1:], byteorder="big"))
+        except Exception:
+            raise ValueError(f"Invalid pubkey {key.hex()}")
     else:
-        raise ValueError(f"unknown extended key version {version.hex()}")
+        raise ValueError(f"Unknown extended key version {version.hex()}")
 
 
 def _check_depth_pfp_index(depth: int, pfp: bytes, i: bytes) -> None:
@@ -86,13 +93,10 @@ def _check_depth_pfp_index(depth: int, pfp: bytes, i: bytes) -> None:
             msg = f"Zero depth with non-zero parent_fingerprint ({pfp.hex()})"
             raise ValueError(msg)
         if i != b"\x00\x00\x00\x00":
-            msg = f"Zero depth with non-zero index {i.hex()}"
-            raise ValueError(msg)
+            raise ValueError(f"Zero depth with non-zero index {i.hex()}")
     else:
         if pfp == b"\x00\x00\x00\x00":
-            msg = f"Non-zero depth ({depth}) "
-            msg += f"with zero parent_fingerprint ({pfp.hex()})"
-            raise ValueError(msg)
+            raise ValueError(f"Zero parent_fingerprint with non-zero depth ({depth})")
 
 
 def deserialize(xkey: BIP32Key) -> ExtendedBIP32KeyDict:

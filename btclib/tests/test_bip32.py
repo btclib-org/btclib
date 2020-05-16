@@ -12,6 +12,8 @@ import json
 import unittest
 from os import path
 
+import pytest
+
 from btclib import bip39
 from btclib.base58 import b58decode, b58encode
 from btclib.base58address import p2pkh, p2wpkh_p2sh
@@ -555,6 +557,18 @@ class TestBIP32(unittest.TestCase):
         hardened_child_xprv = derive(parent_xprv, 0x80000000)
         self.assertRaises(ValueError, crack_prvkey, parent_xpub, hardened_child_xprv)
         # crack_prvkey(parent_xpub, hardened_child_xprv)
+
+
+def test_invalid_bip32_xkeys():
+
+    fname = "invalid_bip32_xkeys.json"
+    filename = path.join(path.dirname(__file__), "test_data", fname)
+    with open(filename, "r") as f:
+        test_vectors = json.load(f)
+
+    for xkey, err_msg in test_vectors:
+        with pytest.raises(ValueError, match=err_msg):
+            deserialize(xkey)
 
 
 if __name__ == "__main__":
