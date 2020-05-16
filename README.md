@@ -1,14 +1,4 @@
 
-[![Build Status](https://travis-ci.org/btclib-org/btclib.svg)](https://travis-ci.org/btclib-org/btclib)
-[![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
-[![Coverage Status](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?branch=master)](https://coveralls.io/github/btclib-org/btclib?branch=master)
-[![PyPI status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
-[![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
-[![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
-[![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
-
-* * *
-
 [btclib](https://btclib.org) is a
 Python3 [type annotated](https://docs.python.org/3/library/typing.html)
 library intended for teaching, learning, and using bitcoin,
@@ -22,7 +12,20 @@ it is often refactored for improved clarity,
 without care for backward compatibility; moreover,
 some of its algorithms could be broken using side-channel attacks.
 
+The library is rigorously and extensively tested: the test suite
+[covers 100%](https://coveralls.io/github/btclib-org/btclib)
+of the code base and reproduces results from both informal
+and major reference sources.
+
 * * *
+
+[![Build Status](https://travis-ci.org/btclib-org/btclib.svg)](https://travis-ci.org/btclib-org/btclib)
+[![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
+[![Coverage Status](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?branch=master)](https://coveralls.io/github/btclib-org/btclib?branch=master)
+[![PyPI status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
+[![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
+[![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
 
 btclib does not have external requirements or dependencies;
 to install (and upgrade) it:
@@ -31,10 +34,9 @@ to install (and upgrade) it:
 python -m pip install --upgrade btclib
 ```
 
-The library is rigorously and extensively tested: the test suite
-[covers 100%](https://coveralls.io/github/btclib-org/btclib)
-of the code base and reproduces results from both informal
-and major reference sources. Included features are:
+* * *
+
+Included features are:
 
 - modulo algebra functions (gcd, inverse, legendre symbol, square root)
 - octets / integer / varint / point conversion functions
