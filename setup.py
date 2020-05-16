@@ -23,7 +23,7 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(),
     include_package_data=True,
-    package_data={"btclib": ["data/*", "tests/test_data/*"],},
+    package_data={"btclib": ["data/*", "tests/test_data/*"]},
     test_suite="btclib.tests",
     keywords=(
         "bitcoin cryptography elliptic-curves ecdsa schnorr RFC-6979 "
