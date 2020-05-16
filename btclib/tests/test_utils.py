@@ -8,30 +8,33 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import secrets
-import unittest
+"Tests for `btclib.utils` module."
 
+import secrets
+
+from btclib.tests.test_to_key import (
+    net_unaware_compressed_pub_keys,
+    net_unaware_uncompressed_pub_keys,
+    plain_prv_keys,
+)
 from btclib.utils import bytes_from_octets, hash160, hash256, int_from_integer
 
-int_with_whitespaces = (
-    " 0C 28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D  "
-)
 
-
-class TestUtils(unittest.TestCase):
-    def test_utils(self):
-        b = bytes_from_octets(int_with_whitespaces)
+def test_hash160_hash256():
+    test_vectors = (
+        plain_prv_keys
+        + net_unaware_compressed_pub_keys
+        + net_unaware_uncompressed_pub_keys
+    )
+    for hexstring in test_vectors:
+        b = bytes_from_octets(hexstring)
         s = b.hex()  # lower case, no spaces
-        self.assertNotEqual(int_with_whitespaces, s)
-        self.assertEqual(hash160(int_with_whitespaces), hash160(s))
-        self.assertEqual(hash256(int_with_whitespaces), hash256(s))
-
-        i = secrets.randbits(256)
-        self.assertEqual(i, int_from_integer(i))
-        self.assertEqual(i, int_from_integer(i.to_bytes(32, "big")))
-        self.assertEqual(i, int_from_integer(hex(i)))
+        assert hash160(hexstring) == hash160(s)
+        assert hash256(hexstring) == hash256(s)
 
 
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+def test_int_from_integer():
+    i = secrets.randbits(256)
+    assert i == int_from_integer(i)
+    assert i == int_from_integer(i.to_bytes(32, "big"))
+    assert i == int_from_integer(hex(i))

@@ -8,7 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import unittest
+"Tests for `btclib.pedersen` module."
+
 from hashlib import sha256, sha384
 
 from btclib import pedersen
@@ -35,28 +36,27 @@ def test_second_generator():
     H = pedersen.second_generator(secp384r1, sha384)
 
 
-class TestPedersenCommitment(unittest.TestCase):
-    def test_commitment(self):
+def test_commitment():
 
-        ec = secp256k1
-        hf = sha256
+    ec = secp256k1
+    hf = sha256
 
-        r1 = 0x1
-        v1 = 0x2
-        # r1*G + v1*H
-        C1 = pedersen.commit(r1, v1, ec, hf)
-        self.assertTrue(pedersen.open(r1, v1, C1, ec, hf))
+    r1 = 0x1
+    v1 = 0x2
+    # r1*G + v1*H
+    C1 = pedersen.commit(r1, v1, ec, hf)
+    assert pedersen.open(r1, v1, C1, ec, hf)
 
-        r2 = 0x3
-        v2 = 0x4
-        # r2*G + v2*H
-        C2 = pedersen.commit(r2, v2, ec, hf)
-        self.assertTrue(pedersen.open(r2, v2, C2, ec, hf))
+    r2 = 0x3
+    v2 = 0x4
+    # r2*G + v2*H
+    C2 = pedersen.commit(r2, v2, ec, hf)
+    assert pedersen.open(r2, v2, C2, ec, hf)
 
-        # Pedersen Commitment is additively homomorphic
-        # Commit(r1, v1) + Commit(r2, v2) = Commit(r1+r2, v1+r2)
-        R = pedersen.commit(r1 + r2, v1 + v2, ec, hf)
-        self.assertEqual(ec.add(C1, C2), R)
+    # Pedersen Commitment is additively homomorphic
+    # Commit(r1, v1) + Commit(r2, v2) = Commit(r1+r2, v1+r2)
+    R = pedersen.commit(r1 + r2, v1 + v2, ec, hf)
+    assert ec.add(C1, C2) == R
 
-        # commit does not open (with catched exception)
-        self.assertFalse(pedersen.open((r1, r1), v1, C2, ec, hf))
+    # commit does not open (with catched exception)
+    assert not pedersen.open((r1, r1), v1, C2, ec, hf)

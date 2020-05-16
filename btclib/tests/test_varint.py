@@ -8,59 +8,55 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-import unittest
+"Tests for `btclib.varint` module."
+
+import pytest
 
 from btclib import varint
 
 
-class TestVarInt(unittest.TestCase):
-    def test_conversion(self):
+def test_varint_conversion():
 
-        i = 0xFC
-        b = varint.encode(i)
-        self.assertEqual(len(b), 1)
-        self.assertEqual(varint.decode(b), i)
+    i = 0xFC
+    b = varint.encode(i)
+    assert len(b) == 1
+    assert varint.decode(b) == i
 
-        i += 1
-        b = varint.encode(i)
-        self.assertEqual(len(b), 3)
-        self.assertEqual(varint.decode(b), i)
+    i += 1
+    b = varint.encode(i)
+    assert len(b) == 3
+    assert varint.decode(b) == i
 
-        i = 0xFFFF
-        b = varint.encode(i)
-        self.assertEqual(len(b), 3)
-        self.assertEqual(varint.decode(b), i)
+    i = 0xFFFF
+    b = varint.encode(i)
+    assert len(b) == 3
+    assert varint.decode(b) == i
 
-        i += 1
-        b = varint.encode(i)
-        self.assertEqual(len(b), 5)
-        self.assertEqual(varint.decode(b), i)
+    i += 1
+    b = varint.encode(i)
+    assert len(b) == 5
+    assert varint.decode(b) == i
 
-        i = 0xFFFFFFFF
-        b = varint.encode(i)
-        self.assertEqual(len(b), 5)
-        self.assertEqual(varint.decode(b), i)
+    i = 0xFFFFFFFF
+    b = varint.encode(i)
+    assert len(b) == 5
+    assert varint.decode(b) == i
 
-        i += 1
-        b = varint.encode(i)
-        self.assertEqual(len(b), 9)
-        self.assertEqual(varint.decode(b), i)
+    i += 1
+    b = varint.encode(i)
+    assert len(b) == 9
+    assert varint.decode(b) == i
 
-        i = 0xFFFFFFFFFFFFFFFF
-        b = varint.encode(i)
-        self.assertEqual(len(b), 9)
-        self.assertEqual(varint.decode(b), i)
+    i = 0xFFFFFFFFFFFFFFFF
+    b = varint.encode(i)
+    assert len(b) == 9
+    assert varint.decode(b) == i
 
-        # integer too large (0x10000000000000000) for varint encoding
-        i += 1
-        self.assertRaises(ValueError, varint.encode, i)
-        # varint.encode(i)
+    i += 1
+    err_msg = "Integer too big for varint encoding"
+    with pytest.raises(ValueError, match=err_msg):
+        varint.encode(i)
 
-        self.assertEqual(varint.decode("6a"), 106)
-        self.assertEqual(varint.decode("fd2602"), 550)
-        self.assertEqual(varint.decode("fe703a0f00"), 998000)
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+    assert varint.decode("6a") == 106
+    assert varint.decode("fd2602") == 550
+    assert varint.decode("fe703a0f00") == 998000
