@@ -67,7 +67,7 @@ def _check_version_key(version: bytes, key: bytes) -> None:
         if key[0] in (2, 3):
             raise ValueError("prv_version/pubkey mismatch")
         if key[0] != 0:
-            raise ValueError(f"Invalid key {key.hex()}")
+            raise ValueError(f"Invalid prvkey prefix {key[0:1].hex()}")
         q = int.from_bytes(key[1:], byteorder="big")
         if not 0 < q < ec.n:
             raise ValueError(f"Private key not in 1..n-1: {hex(q)}")
@@ -75,7 +75,7 @@ def _check_version_key(version: bytes, key: bytes) -> None:
         if key[0] == 0:
             raise ValueError("pub_version/prvkey mismatch")
         if key[0] not in (2, 3):
-            raise ValueError(f"Invalid key {key.hex()}")
+            raise ValueError(f"Invalid pubkey prefix {key[0:1].hex()}")
         try:
             ec.y(int.from_bytes(key[1:], byteorder="big"))
         except Exception:
