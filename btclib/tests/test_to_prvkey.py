@@ -13,16 +13,16 @@ import pytest
 from btclib.curves import CURVES
 from btclib.tests.test_to_key import (
     compressed_prv_keys,
+    compressed_pub_keys,
     invalid_prv_keys,
     net_aware_prv_keys,
     net_unaware_prv_keys,
     not_a_prv_keys,
     plain_prv_keys,
+    plain_pub_keys,
     q,
     uncompressed_prv_keys,
-    plain_pub_keys,
     uncompressed_pub_keys,
-    compressed_pub_keys,
 )
 from btclib.to_prvkey import int_from_prvkey, prvkeyinfo_from_prvkey
 

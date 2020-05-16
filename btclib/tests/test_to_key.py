@@ -10,7 +10,7 @@
 
 import copy
 
-from btclib.alias import BIP32KeyDict, INF
+from btclib.alias import INF, BIP32KeyDict
 from btclib.base58 import b58encode
 from btclib.curvemult import mult
 from btclib.curves import secp256k1 as ec
@@ -147,11 +147,11 @@ xpub_dict_bad = copy.copy(xpub_dict)
 xprv_dict_bad["version"] = b"\x04\x88\xB2\x1E"
 xpub_dict_bad["version"] = b"\x04\x88\xAD\xE4"
 bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
-# key stats with 04
+# key starts with 04
 xprv_dict_bad["key"] = b"\x04" + xprv_dict_bad["key"][1:]
 xpub_dict_bad["key"] = b"\x04" + xprv_dict_bad["key"][1:]
 bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
-# key stats with 01
+# key starts with 01
 xprv_dict_bad["key"] = b"\x01" + xprv_dict_bad["key"][1:]
 xpub_dict_bad["key"] = b"\x01" + xprv_dict_bad["key"][1:]
 bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
@@ -179,6 +179,8 @@ xpub_dict_bad = copy.copy(xpub_dict)
 xprv_dict_bad["version"] = b"\x01\x01\x01\x01"
 xpub_dict_bad["version"] = b"\x01\x01\x01\x01"
 bad_bip32_keys += [_serialize(xprv_dict_bad), _serialize(xpub_dict_bad)]
+bad_bip32_keys = [xkey.decode("ascii") for xkey in bad_bip32_keys]
+
 
 q_0 = 0
 q_0_bytes = q_0.to_bytes(32, byteorder="big")
@@ -238,6 +240,8 @@ xprv_n_dict: BIP32KeyDict = {
 xprv_n = _serialize(xprv_n_dict)
 xprv_n_string = xprv_n.decode("ascii")
 xprv_n_string2 = " " + xprv_n_string + " "
+
+bad_bip32_keys += [xprv_0_string, xprv_n_string]
 
 net_aware_compressed_inf_prv_keys = [
     wif_0_compressed,
@@ -303,6 +307,8 @@ INF_xpub_dict: BIP32KeyDict = {
 INF_xpub = _serialize(INF_xpub_dict)
 INF_xpub_string = INF_xpub.decode("ascii")
 INF_xpub_string2 = " " + INF_xpub_string + " "
+
+bad_bip32_keys += [INF_xpub_string]
 
 inf_pub_keys = [
     INF,
