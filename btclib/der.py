@@ -68,27 +68,26 @@ from .utils import bytes_from_octets
 
 # (r, s, sighash)
 # r and s are the components of a DSASigTuple
-DERSigTuple = Tuple[int, int, Optional[bytes]]
+DERSigTuple = Tuple[int, int, Optional[int]]
 # DERSigTuple or DER serialization (bytes or hex-string, with sighash)
 DERSig = Union[DERSigTuple, Octets]
 
 
 def _validate_sig(
-    r: int, s: int, sighash: Optional[Octets] = None, ec: Curve = secp256k1
+    r: int, s: int, sighash: Optional[int] = None, ec: Curve = secp256k1
 ) -> None:
     # check that the DSA/DER signature is correct
 
     # Fail if r is not [1, n-1]
     if not 0 < r < ec.n:
-        raise ValueError(f"r ({hex(r)}) not in [1, n-1]")
+        raise ValueError(f"Scalar r not in 1..n-1: {hex(r)}")
 
     # Fail if s is not [1, n-1]
     if not 0 < s < ec.n:
-        raise ValueError(f"s ({hex(s)}) not in [1, n-1]")
+        raise ValueError(f"Scalar s not in 1..n-1: {hex(r)}")
 
     if sighash is not None and sighash not in SIGHASHES:
-        m = f"Invalid sighash ({sighash!r})"
-        raise ValueError(m)
+        raise ValueError(f"Invalid sighash: {hex(sighash)}")
 
 
 def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
@@ -108,65 +107,66 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
         minsize = 1 * 2 + 6
         sigsize = len(sig)
         if not minsize <= sigsize <= maxsize:
-            errmsg = f"DER signature size ({sigsize}) must be in "
-            errmsg += f"{minsize}, {maxsize}]"
-            raise ValueError(errmsg)
+            m = f"Invalid DER signature size: "
+            m += f"{sigsize}, must be in [{minsize}, {maxsize}]"
+            raise ValueError(m)
 
         if sig[0] != 0x30:
-            raise ValueError(
-                f"DER signature type must be 0x30 (compound), " "not {hex(sig[0])}"
-            )
+            m = f"DER signature type must be 0x30 (compound), not {hex(sig[0])}"
+            raise ValueError(m)
 
         # sigsize checks
         leftover = sigsize - 2 - sig[1]
         if leftover == 0:  # no sighash value
             sighash = None
         elif leftover == 1:  # sighash value
-            sighash = sig[sigsize - 1 :]
+            sighash = sig[-1]
         else:
-            msg = f"Declared length ({sig[1]}) does not "
-            msg += f"match with actual signature size ({sigsize}) +2 or +3"
+            msg = "Declared signature length incompatible with actual length: "
+            msg += f"{sig[1]} + "
+            msg += "{2, 3} is not "
+            msg += f"{sigsize}"
             raise ValueError(msg)
 
         sizeR = sig[3]  # size of the r scalar
         if sizeR == 0:
-            raise ValueError("Zero-size integer is not allowed for r")
+            raise ValueError("Zero-size integer is not allowed for scalar r")
 
         if 5 + sizeR >= sigsize:
-            raise ValueError("Size of the s scalar must be inside the signature")
+            raise ValueError("Size of scalar s does not fit inside the signature")
 
         sizeS = sig[5 + sizeR]  # size of the s scalar
         if sizeS == 0:
-            raise ValueError("Zero-size integer is not allowed for s")
+            raise ValueError("Zero-size integer is not allowed for scalar s")
 
         if sigsize - sizeR - sizeS != 6 + leftover:
             raise ValueError("Signature size does not match with size of scalars")
 
         # scalar r
         if sig[2] != 0x02:
-            raise ValueError("r scalar must be an integer")
+            raise ValueError("Scalar r must be an integer")
 
         if sig[4] & 0x80:
-            raise ValueError("Negative number is not allowed for r")
+            raise ValueError("Negative number not allowed for scalar r")
 
         # Null bytes at the start of a scalar are not allowed, unless the
         # scalar would otherwise be interpreted as a negative number
         if sizeR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
-            raise ValueError("Invalid null bytes at the start of r")
+            raise ValueError("Invalid null bytes at the start of scalar r")
 
         r = int.from_bytes(sig[4 : 4 + sizeR], byteorder="big")
 
         # scalar s (offset=2+sizeR with respect to r)
         if sig[sizeR + 4] != 0x02:
-            raise ValueError("s scalar must be an integer")
+            raise ValueError("Scalar s must be an integer")
 
         if sig[sizeR + 6] & 0x80:
-            raise ValueError("Negative number is not allowed for s")
+            raise ValueError("Negative number not allowed for scalar s")
 
         # Null bytes at the start of a scalar are not allowed, unless the
         # scalar would otherwise be interpreted as a negative number
         if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
-            raise ValueError("Invalid null bytes at the start of s")
+            raise ValueError("Invalid null bytes at the start of scalar s")
 
         s = int.from_bytes(sig[6 + sizeR : 6 + sizeR + sizeS], byteorder="big")
 
@@ -174,23 +174,17 @@ def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
     return r, s, sighash
 
 
-def _bytes_from_scalar(scalar: int) -> bytes:
+def _serialize_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
     elen = scalar.bit_length()
     esize = elen // 8 + 1  # not a bug: 'highest bit set' padding included here
-    n_bytes = scalar.to_bytes(esize, byteorder="big")
-    return n_bytes
-
-
-def _serialize_scalar(scalar: int) -> bytes:
-    # scalar is assumed to be in [1, n-1]
-    x = _bytes_from_scalar(scalar)
+    x = scalar.to_bytes(esize, byteorder="big")
     xsize = len(x).to_bytes(1, byteorder="big")
     return b"\x02" + xsize + x
 
 
 def _serialize(
-    r: int, s: int, sighash: Optional[Octets] = None, ec: Curve = secp256k1
+    r: int, s: int, sighash: Optional[int] = None, ec: Curve = secp256k1
 ) -> bytes:
     """Serialize an ECDSA signature to strict ASN.1 DER representation.
 
@@ -205,5 +199,4 @@ def _serialize(
     if sighash is None:
         return result
 
-    sighash = bytes_from_octets(sighash, 1)
-    return result + sighash
+    return result + sighash.to_bytes(1, "big")
