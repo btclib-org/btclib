@@ -1,4 +1,4 @@
-- improve/check MANIFEST.in
+- enable flake8 max-complexity
 - improve sphinx documentation
 - network as global variable
 - synch (ec, hf) according to network
@@ -17,6 +17,7 @@
 - add sign(address, msg) using wallet infrastrucure
 - report test vectors from P. Todd's library
 - report trailing/leading blank trimming in Electrum message signing
+- report BIP39 whitespaces
 - isinstance(entr, bytearray) or isinstance(entr, bytes)
 - revise ansi_x963_kdf
 - optimizations:
