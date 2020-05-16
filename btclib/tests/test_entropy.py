@@ -44,13 +44,21 @@ def test_indexes():
 
 def test_conversions():
 
-    test_vectors = ["10101011" * 32, "00101011" * 32, "00000000" + "10101011" * 31]
+    test_vectors = [
+        "10101011" * 32,
+        "00101011" * 32,
+        "00000000" + "10101011" * 31,
+    ]
 
     for entr in test_vectors:
         assert binstr_from_entropy(entr) == entr
         assert binstr_from_entropy(int(entr, 2)) == entr
         assert binstr_from_entropy(bin(int(entr, 2))) == entr
         assert binstr_from_entropy(int(entr, 2).to_bytes(32, "big")) == entr
+
+    entr = "10" + "11111111" * 32
+    binary_number = bin(int(entr, 2))
+    assert binstr_from_entropy(binary_number) == binstr_from_entropy(entr[:-2])
 
     # the 32 bytes integer has its leftmost bit set to 0
     entr = secrets.randbits(255)

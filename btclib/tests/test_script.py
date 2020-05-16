@@ -72,6 +72,8 @@ def test_simple():
         script_serialized = serialize(script)
         script3 = deserialize(script_serialized)
         assert script == script3
+        script4 = deserialize(script_serialized.hex())
+        assert script == script4
 
 
 def test_exceptions():
