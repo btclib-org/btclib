@@ -56,9 +56,19 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
         binstr_entr = entr.strip()
         if binstr_entr[:2] == "0b":
             binstr_entr = binstr_entr[2:]
-        int(binstr_entr, 2)  # check that entr is a valid binary string
-        nbits = len(binstr_entr)
-        # no length adjustment
+            int(binstr_entr, 2)  # check that entr is a valid binary string
+            nbits = len(binstr_entr)
+            if nbits > bits[-1]:
+                # only the leftmost bits are retained
+                binstr_entr = binstr_entr[: bits[-1]]
+                nbits = bits[-1]
+            elif nbits not in bits:
+                # next allowed bit length
+                nbits = next(v for i, v in enumerate(bits) if v > nbits)
+        else:
+            int(binstr_entr, 2)  # check that entr is a valid binary string
+            nbits = len(binstr_entr)
+            # no length adjustment
     elif isinstance(entr, bytes):
         nbits = len(entr) * 8
         int_entr = int.from_bytes(entr, "big")
@@ -66,7 +76,7 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
         # no length adjustment
     elif isinstance(entr, int):
         if entr < 0:
-            raise ValueError(f"negative entropy ({entr})")
+            raise ValueError(f"Negative entropy: {entr}")
         binstr_entr = bin(entr)[2:]  # remove '0b'
         nbits = len(binstr_entr)
         if nbits > bits[-1]:
@@ -77,12 +87,12 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
             # next allowed bit length
             nbits = next(v for i, v in enumerate(bits) if v > nbits)
     else:
-        m = "entropy must be binary 0/1 string, bytes-like, or int; "
+        m = "Entropy must be binary 0/1 string, bytes-like, or int; "
         m += f"not '{type(entr).__name__}'"
         raise TypeError(m)
 
     if nbits not in bits:
-        raise ValueError(f"{nbits} bits entropy provided; expected: {bits}")
+        raise ValueError(f"Wrong number of bits: {nbits} is not in {bits}")
     return binstr_entr.zfill(nbits)  # might need padding with leading zeros
 
 
@@ -167,7 +177,7 @@ def randbinstr(
     """
 
     if bits not in _bits:
-        raise ValueError(f"Number of bits ({bits}) must be in {_bits}")
+        raise ValueError(f"Wrong number of bits: {bits}, must be in {_bits}")
 
     i = 0
     # start with the exogenously provided roll-based entropy
@@ -190,10 +200,10 @@ def randbinstr(
                 min_roll_number -= 1
             # reject invalid rolls not in [1-dice_base)]
             elif r < 1 or r > dice_base:
-                msg = f"invalid ({r}) roll, not in [1-{dice_base}]"
+                msg = f"Invalid roll: {r} is not in [1-{dice_base}]"
                 raise ValueError(msg)
         if min_roll_number > 0:
-            msg = f"too few usable [1-{base}] rolls, missing {min_roll_number}"
+            msg = f"Too few rolls in the usable [1-{base}] range, missing {min_roll_number} rolls"
             raise ValueError(msg)
 
         # hash the (possibly shuffled) exogenous entropy
