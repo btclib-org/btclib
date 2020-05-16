@@ -9,43 +9,43 @@
     ],
     [
         "xpub661MyMwAqRbcEYS8w7XLSVeEsBXy79zSzH1J8vCdxAZningWLdN3zgtU6Txnt3siSujt9RCVYsx4qHZGc62TG4McvMGcAUjeuwZdduYEvFn",
-        "Invalid pubkey prefix 04"
+        "Invalid public key prefix 0x04"
     ],
     [
         "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFGpWnsj83BHtEy5Zt8CcDr1UiRXuWCmTQLxEK9vbz5gPstX92JQ",
-        "Invalid prvkey prefix 04"
+        "Invalid private key prefix 0x04"
     ],
     [
         "xpub661MyMwAqRbcEYS8w7XLSVeEsBXy79zSzH1J8vCdxAZningWLdN3zgtU6N8ZMMXctdiCjxTNq964yKkwrkBJJwpzZS4HS2fxvyYUA4q2Xe4",
-        "Invalid pubkey prefix 01"
+        "Invalid public key prefix 0x01"
     ],
     [
         "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD9y5gkZ6Eq3Rjuahrv17fEQ3Qen6J",
-        "Invalid prvkey prefix 01"
+        "Invalid private key prefix 0x01"
     ],
     [
         "xprv9s2SPatNQ9Vc6GTbVMFPFo7jsaZySyzk7L8n2uqKXJen3KUmvQNTuLh3fhZMBoG3G4ZW1N2kZuHEPY53qmbZzCHshoQnNf4GvELZfqTUrcv",
-        "Zero depth with non-zero parent_fingerprint"
+        "Zero depth with non-zero parent fingerprint 0x"
     ],
     [
         "xpub661no6RGEX3uJkY4bNnPcw4URcQTrSibUZ4NqJEw5eBkv7ovTwgiT91XX27VbEXGENhYRCf7hyEbWrR3FewATdCEebj6znwMfQkhRYHRLpJ",
-        "Zero depth with non-zero parent_fingerprint"
+        "Zero depth with non-zero parent fingerprint 0x"
     ],
     [
         "xprv9s21ZrQH4r4TsiLvyLXqM9P7k1K3EYhA1kkD6xuquB5i39AU8KF42acDyL3qsDbU9NmZn6MsGSUYZEsuoePmjzsB3eFKSUEh3Gu1N3cqVUN",
-        "Zero depth with non-zero index"
+        "Zero depth with non-zero index 0x"
     ],
     [
         "xpub661MyMwAuDcm6CRQ5N4qiHKrJ39Xe1R1NyfouMKTTWcguwVcfrZJaNvhpebzGerh7gucBvzEQWRugZDuDXjNDRmXzSZe4c7mnTK97pTvGS8",
-        "Zero depth with non-zero index"
+        "Zero depth with non-zero index 0x"
     ],
     [
         "xprv9tu9RdvJDMiJspz8s5T6PVTr7NcRQRP3gxD6iPfh4mPiGuJAqNZ9Ea9aziKNptLTaB28LkiTWqvg636gvKqKxoVtLSVj2tUDqBzHxUKKS2m",
-        "Zero parent_fingerprint with non-zero depth"
+        "Zero parent fingerprint with non-zero depth"
     ],
     [
         "xpub67tVq9TC3jGc6K4by6z6kdQafQSuot6u4B8hWn5Jd6vh9hdKNusPnNU4r2sXEKbgYVAAkbLpeut3DMSgLDAvSEQFHEp3f2MJaNQRiCpcWj3",
-        "Zero parent_fingerprint with non-zero depth"
+        "Zero parent fingerprint with non-zero depth"
     ],
     [
         "DMwo58pR1QLEFihHiXPVykYB6fJmsTeHvyTp7hRThAtCX8CvYzgPcn8XnmdfHGMQzT7ayAmfo4z3gY5KfbrZWZ6St24UVf2Qgo6oujFktLHdHY4",
@@ -65,6 +65,10 @@
     ],
     [
         "xpub661MyMwAqRbcEYS8w7XLSVeEsBXy79zSzH1J8vCdxAZningWLdN3zgtU6Q5JXayek4PRsn35jii4veMimro1xefsM58PgBMrvdYre8QyULY",
-        "Invalid pubkey 020000000000000000000000000000000000000000000000000000000000000007"
+        "Invalid public key 0x020000000000000000000000000000000000000000000000000000000000000007"
+    ],
+    [
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHL",
+        "Invalid checksum"
     ]
 ]

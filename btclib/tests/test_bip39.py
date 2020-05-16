@@ -58,22 +58,20 @@ def test_vectors():
     filename = path.join(path.dirname(__file__), "test_data", fname)
     with open(filename, "r") as f:
         test_vectors = json.load(f)["english"]
-    for test_vector in test_vectors:
+
+    # test_vector[3], i.e. the bip32 master private key, is tested in bip32
+    for entr, mnemonic, seed, _ in test_vectors:
         lang = "en"
-        entropy = bytes.fromhex(test_vector[0])
-        mnemonic = bip39.mnemonic_from_entropy(entropy, lang)
-        assert mnemonic.split() == test_vector[1].split()
+        entropy = bytes.fromhex(entr)
+        # clean up mnemonic from spurious whitespaces
+        mnemonic = " ".join(mnemonic.split())
+        assert mnemonic == bip39.mnemonic_from_entropy(entropy, lang)
+        assert seed == bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
 
         raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
         size = (len(raw_entr) + 7) // 8
         raw_entr = int(raw_entr, 2).to_bytes(size, byteorder="big")
         assert raw_entr == entropy
-
-        seed = bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
-        assert seed == test_vector[2]
-
-        # test_vector[3], i.e. the bip32 master private key from seed,
-        # has been tested in bip32, as it does not belong here
 
 
 def test_zeroleadingbit():

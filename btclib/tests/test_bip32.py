@@ -29,116 +29,10 @@ from btclib.bip32 import (
     serialize,
     xpub_from_xprv,
 )
-from btclib.curves import secp256k1 as ec
 from btclib.network import NETWORKS
 
 
 class TestBIP32(unittest.TestCase):
-    def test_serialize(self):
-        xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        xprv_dict = deserialize(xprv)
-        xprv_dict = deserialize(xprv_dict)
-        xpr2 = serialize(xprv_dict)
-        self.assertEqual(xpr2.decode(), xprv)
-
-        invalid_key = (ec.n).to_bytes(ec.nsize, "big")
-        # private key not in [1, n-1]
-        xprv_dict["key"] = b"\x00" + invalid_key
-        self.assertRaises(ValueError, deserialize, xprv_dict)
-        # deserialize(xprv_dict)
-        decoded_key = b58decode(xprv, 78)
-        xkey = b58encode(decoded_key[:46] + invalid_key, 78)
-        self.assertRaises(ValueError, deserialize, xkey)
-        # deserialize(xkey)
-
-        xpub = xpub_from_xprv(xprv)
-        xpub2 = xpub_from_xprv(deserialize(xprv))
-        self.assertEqual(xpub, xpub2)
-
-    def test_utils(self):
-        # root key, zero depth
-        xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-        xdict = deserialize(xprv)
-
-        decoded_key = b58decode(xprv, 78)
-        self.assertEqual(xdict["version"], decoded_key[:4])
-        self.assertEqual(xdict["depth"], decoded_key[4])
-        self.assertEqual(xdict["parent_fingerprint"], decoded_key[5:9])
-        self.assertEqual(xdict["index"], decoded_key[9:13])
-        self.assertEqual(xdict["chain_code"], decoded_key[13:45])
-        self.assertEqual(xdict["key"], decoded_key[45:])
-
-        # Zero depth with non-zero parent_fingerprint b"\x01\x01\x01\x01"
-        f2 = b"\x00\x00\x00\x0f"
-        invalid_key = b58encode(decoded_key[:5] + f2 + decoded_key[9:], 78)
-        self.assertRaises(ValueError, deserialize, invalid_key)
-        # deserialize(invalid_key)
-
-        # Zero depth with non-zero index
-        i2 = b"\x00\x00\x00\xff"
-        invalid_key = b58encode(decoded_key[:9] + i2 + decoded_key[13:], 78)
-        self.assertRaises(ValueError, deserialize, invalid_key)
-        # deserialize(invalid_key)
-
-        # Non-zero depth (255) with zero parent_fingerprint (00000000)
-        d2 = b"\xff"
-        invalid_key = b58encode(decoded_key[:4] + d2 + decoded_key[5:], 78)
-        self.assertRaises(ValueError, deserialize, invalid_key)
-        # deserialize(invalid_key)
-
-        child_key = derive(xprv, 0)
-
-        # Derivation path final depth 256>255
-        self.assertRaises(ValueError, derive, child_key, "." + 255 * "/0")
-        # derive(child_key, "."+255*"/0")
-
-        # Empty derivation path
-        self.assertRaises(ValueError, derive, child_key, "")
-        # derive(child_key, "")
-
-        # Invalid derivation path root: ";"
-        self.assertRaises(ValueError, derive, child_key, ";/0")
-        # derive(child_key, ";/0")
-
-        # Derivation path depth 256>255
-        self.assertRaises(ValueError, derive, child_key, "." + 256 * "/0")
-        # derive(child_key, "." + 256*"/0")
-
-        # xkey is not a public one
-        # self.assertRaises(ValueError, p2pkh, xprv)
-        # p2pkh(xprv)
-
-    def test_bip32_vectors(self):
-        """BIP32 test vector 3
-
-        https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
-        """
-        fname = "bip32_test_vectors.json"
-        filename = path.join(path.dirname(__file__), "test_data", fname)
-        with open(filename, "r") as f:
-            test_vectors = json.load(f)
-
-        for seed in test_vectors:
-            mxprv = rootxprv_from_seed(seed)
-            for der_path, xpub, xprv in test_vectors[seed]:
-                self.assertEqual(xprv, derive(mxprv, der_path).decode())
-                self.assertEqual(xpub, xpub_from_xprv(xprv).decode())
-
-    def test_bip39_vectors(self):
-        """BIP32 test vectors from BIP39
-
-        https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
-        """
-        fname = "bip39_test_vectors.json"
-        filename = path.join(path.dirname(__file__), "test_data", fname)
-        with open(filename, "r") as f:
-            test_vectors = json.load(f)["english"]
-
-        for test_vector in test_vectors:
-            seed = test_vector[2]
-            rootxprv = rootxprv_from_seed(seed)
-            self.assertEqual(rootxprv, test_vector[3].encode("ascii"))
-
     def test_mainnet(self):
         # bitcoin core derivation style
         rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
@@ -230,32 +124,12 @@ class TestBIP32(unittest.TestCase):
         self.assertEqual(addr, addr2)
 
     def test_exceptions(self):
-        # valid xprv
-        xprv = "xprv9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
-
-        # invalid index
-        self.assertRaises(ValueError, derive, xprv, "invalid index")
-        # derive(xprv, "invalid index")
-
-        # a 4 bytes int is required, not 3
-        self.assertRaises(ValueError, derive, xprv, "800000")
-        # derive(xprv, "800000")
-
-        # Invalid derivation path root: ""
-        self.assertRaises(ValueError, derive, xprv, "/1")
-        # derive(xprv, "/1")
-
         # invalid checksum
         xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
-        self.assertRaises(ValueError, derive, xprv, 0x80000000)
-        # derive(xprv, 0x80000000)
 
-        # invalid extended key version
-        version = b"\x04\x88\xAD\xE5"
-        xkey = version + b"\x00" * 74
-        xkey = b58encode(xkey, 78)
-        self.assertRaises(ValueError, derive, xkey, 0x80000000)
-        # derive(xkey, 0x80000000)
+        # extended key is not a public one
+        self.assertRaises(ValueError, p2pkh, xprv)
+        # p2pkh(xprv)
 
         # unknown extended key version
         version = b"\x04\x88\xAD\xE5"
@@ -267,77 +141,6 @@ class TestBIP32(unittest.TestCase):
         xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
         self.assertRaises(ValueError, xpub_from_xprv, xpub)
         # xpub_from_xprv(xpub)
-
-        # Absolute derivation path for non-master key
-        self.assertRaises(ValueError, derive, xpub, "m/44h/0h/1h/0/10")
-        # derive(xpub, "m/0/1")
-
-        # empty derivation path
-        self.assertRaises(ValueError, derive, xpub, "")
-        # derive(xpub, "")
-
-        # extended key is not a public one
-        self.assertRaises(ValueError, p2pkh, xprv)
-        # p2pkh(xprv)
-
-    def test_exceptions2(self):
-        rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
-        d = deserialize(rootxprv)
-        self.assertEqual(serialize(d).decode(), rootxprv)
-
-        # invalid 34-bytes key length
-        d["key"] += b"\x00"
-        self.assertRaises(ValueError, serialize, d)
-        # serialize(d)
-
-        # invalid 33-bytes chain_code length
-        d = deserialize(rootxprv)
-        d["chain_code"] += b"\x00"
-        self.assertRaises(ValueError, serialize, d)
-        # serialize(d)
-
-        # invalid 5-bytes parent_fingerprint length
-        d = deserialize(rootxprv)
-        d["parent_fingerprint"] += b"\x00"
-        self.assertRaises(ValueError, serialize, d)
-        # serialize(d)
-
-        # invalid 5-bytes index length
-        d = deserialize(rootxprv)
-        d["index"] += b"\x00"
-        self.assertRaises(ValueError, serialize, d)
-        # serialize(d)
-
-        # invalid depth (256)
-        d = deserialize(rootxprv)
-        d["depth"] = 256
-        self.assertRaises(ValueError, serialize, d)
-        # serialize(d)
-
-        # zero depth with non-zero index b"\x00\x00\x00\x01"
-        d = deserialize(rootxprv)
-        d["index"] = b"\x00\x00\x00\x01"
-        self.assertRaises(ValueError, serialize, d)
-        # serialize(d)
-
-        # zero depth with non-zero parent_fingerprint b"\x00\x00\x00\x01"
-        d = deserialize(rootxprv)
-        d["parent_fingerprint"] = b"\x00\x00\x00\x01"
-        self.assertRaises(ValueError, serialize, d)
-        # serialize(d)
-
-        # non-zero depth (1) with zero parent_fingerprint b"\x00\x00\x00\x00"
-        xprv = deserialize(derive(rootxprv, 1))
-        xprv["parent_fingerprint"] = b"\x00\x00\x00\x00"
-        self.assertRaises(ValueError, serialize, xprv)
-        # serialize(xprv)
-
-        # int too big to convert
-        self.assertRaises(OverflowError, derive, rootxprv, 256 ** 4)
-
-        # Index must be 4-bytes, not 5
-        self.assertRaises(ValueError, derive, rootxprv, b"\x00" * 5)
-        # derive(rootxprv, b"\x00"*5)
 
     def test_testnet_versions(self):
 
@@ -517,60 +320,202 @@ class TestBIP32(unittest.TestCase):
         exp = "Zpub72a8bqjcjNJnMBLrV2EY7XLQbfji28irEZneqYK6w8Zf16sfhr7zDbLsVQficP9j9uzbF6VW1y3ypmeFKf6Dxaw82WvK8WFjcsLyEvMNZjF"
         self.assertEqual(xpub.decode(), exp)
 
-    def test_rootxprv_from_mnemonic(self):
-        mnemonic = (
-            "abandon abandon atom  trust  ankle   walnut  "
-            "oil     across  awake bunker divorce abstract"
-        )
-        passphrase = ""
-        rootxprv = mxprv_from_bip39_mnemonic(mnemonic, passphrase)
-        exp = "xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"
-        self.assertEqual(rootxprv.decode(), exp)
 
-    def test_crack(self):
-        parent_xpub = "xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV"
-        child_xprv = "xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm"
-        parent_xprv = crack_prvkey(parent_xpub, child_xprv)
-        self.assertEqual(xpub_from_xprv(parent_xprv).decode(), parent_xpub)
-        # same check with XKeyDict
-        parent_xprv = crack_prvkey(deserialize(parent_xpub), deserialize(child_xprv))
-        self.assertEqual(xpub_from_xprv(parent_xprv).decode(), parent_xpub)
+def test_deserialize():
+    xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    xprv_dict = deserialize(xprv)
 
-        # extended parent key is not a public one
-        self.assertRaises(ValueError, crack_prvkey, parent_xprv, child_xprv)
-        # crack_prvkey(parent_xprv, child_xprv)
+    decoded_key = b58decode(xprv, 78)
+    assert xprv_dict["version"] == decoded_key[:4]
+    assert xprv_dict["depth"] == decoded_key[4]
+    assert xprv_dict["parent_fingerprint"] == decoded_key[5:9]
+    assert xprv_dict["index"] == decoded_key[9:13]
+    assert xprv_dict["chain_code"] == decoded_key[13:45]
+    assert xprv_dict["key"] == decoded_key[45:]
 
-        # extended child key is not a private one
-        self.assertRaises(ValueError, crack_prvkey, parent_xpub, parent_xpub)
-        # crack_prvkey(parent_xpub, parent_xpub)
+    # no harm in deserializing again an already deserialized key
+    xprv_dict = deserialize(xprv_dict)
+    xpr2 = serialize(xprv_dict)
+    assert xpr2.decode(), xprv
 
-        # wrong child/parent depth relation
-        child_xpub = xpub_from_xprv(child_xprv)
-        self.assertRaises(ValueError, crack_prvkey, child_xpub, child_xprv)
-        # crack_prvkey(child_xpub, child_xprv)
+    xpub = xpub_from_xprv(xprv)
+    xpub2 = xpub_from_xprv(deserialize(xprv))
+    assert xpub == xpub2
 
-        # not a child for the provided parent
-        child0_xprv = derive(parent_xprv, 0)
-        grandchild_xprv = derive(child0_xprv, 0)
-        self.assertRaises(ValueError, crack_prvkey, child_xpub, grandchild_xprv)
-        # crack_prvkey(child_xpub, grandchild_xprv)
 
-        # hardened derivation
-        hardened_child_xprv = derive(parent_xprv, 0x80000000)
-        self.assertRaises(ValueError, crack_prvkey, parent_xpub, hardened_child_xprv)
-        # crack_prvkey(parent_xpub, hardened_child_xprv)
+def test_serialize():
+    rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+    d = deserialize(rootxprv)
+    assert serialize(d).decode() == rootxprv
+
+    d["key"] += b"\x00"
+    errmsg = "Invalid key length: "
+    with pytest.raises(ValueError, match=errmsg):
+        serialize(d)
+
+    d = deserialize(rootxprv)
+    d["depth"] = 256
+    errmsg = "Invalid depth "
+    with pytest.raises(ValueError, match=errmsg):
+        serialize(d)
+
+    d = deserialize(rootxprv)
+    d["parent_fingerprint"] = b"\x00\x00\x00\x01"
+    errmsg = "Zero depth with non-zero parent fingerprint 0x"
+    with pytest.raises(ValueError, match=errmsg):
+        serialize(d)
+
+    d = deserialize(rootxprv)
+    d["index"] = b"\x00\x00\x00\x01"
+    errmsg = "Zero depth with non-zero index 0x"
+    with pytest.raises(ValueError, match=errmsg):
+        serialize(d)
+
+    xprv = deserialize(derive(rootxprv, 1))
+    xprv["parent_fingerprint"] = b"\x00\x00\x00\x00"
+    errmsg = "Zero parent fingerprint with non-zero depth "
+    with pytest.raises(ValueError, match=errmsg):
+        serialize(xprv)
+
+    d = deserialize(rootxprv)
+    d["parent_fingerprint"] += b"\x00"
+    errmsg = "Invalid parent fingerprint length: "
+    with pytest.raises(ValueError, match=errmsg):
+        serialize(d)
+
+    d = deserialize(rootxprv)
+    d["index"] += b"\x00"
+    errmsg = "Invalid index length: "
+    with pytest.raises(ValueError, match=errmsg):
+        serialize(d)
+
+    d = deserialize(rootxprv)
+    d["chain_code"] += b"\x00"
+    errmsg = "Invalid chain code length: "
+    with pytest.raises(ValueError, match=errmsg):
+        serialize(d)
+
+
+data_folder = path.join(path.dirname(__file__), "test_data")
+
+
+def test_bip39_vectors():
+    """BIP32 test vectors from BIP39
+
+    https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+    """
+    filename = path.join(data_folder, "bip39_test_vectors.json")
+    with open(filename, "r") as f:
+        test_vectors = json.load(f)["english"]
+
+    # test_vector[0] and [1], i.e. entropy and mnemonic, are tested in bip39
+    for _, _, seed, key in test_vectors:
+        assert rootxprv_from_seed(seed) == key.encode("ascii")
+
+
+def test_bip32_vectors():
+    """BIP32 test vectors
+
+    https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+    """
+    filename = path.join(data_folder, "bip32_test_vectors.json")
+    with open(filename, "r") as f:
+        test_vectors = json.load(f)
+
+    for seed in test_vectors:
+        mxprv = rootxprv_from_seed(seed)
+        for der_path, xpub, xprv in test_vectors[seed]:
+            assert xprv == derive(mxprv, der_path).decode()
+            assert xpub == xpub_from_xprv(xprv).decode()
 
 
 def test_invalid_bip32_xkeys():
 
-    fname = "invalid_bip32_xkeys.json"
-    filename = path.join(path.dirname(__file__), "test_data", fname)
+    filename = path.join(data_folder, "invalid_bip32_xkeys.json")
     with open(filename, "r") as f:
         test_vectors = json.load(f)
 
     for xkey, err_msg in test_vectors:
         with pytest.raises(ValueError, match=err_msg):
             deserialize(xkey)
+
+
+def test_rootxprv_from_mnemonic():
+    mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
+    rootxprv = mxprv_from_bip39_mnemonic(mnemonic, "")
+    exp = b"xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"
+    assert rootxprv == exp
+
+
+def test_derive():
+    # root key, zero depth
+    rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    xprv = derive(rootmxprv, 0)
+
+    errmsg = "Empty derivation path"
+    for der_path in ("", "/1"):
+        with pytest.raises(ValueError, match=errmsg):
+            derive(xprv, der_path)
+
+    errmsg = "Invalid derivation path root: "
+    for der_path in (";/0", "invalid index", "800000"):
+        with pytest.raises(ValueError, match=errmsg):
+            derive(xprv, der_path)
+
+    errmsg = "Derivation path depth greater than 255: "
+    with pytest.raises(ValueError, match=errmsg):
+        derive(xprv, "." + 256 * "/0")
+
+    errmsg = "Absolute derivation path for non-root master key"
+    with pytest.raises(ValueError, match=errmsg):
+        derive(xprv, "m/44h/0h/1h/0/10")
+
+    errmsg = "Index must be 4-bytes, not "
+    with pytest.raises(ValueError, match=errmsg):
+        derive(xprv, b"\x00" * 5)
+
+    errmsg = "int too big to convert"
+    for index in (256 ** 4, 0x8000000000):
+        with pytest.raises(OverflowError, match=errmsg):
+            derive(xprv, index)
+
+    errmsg = "Derivation path final depth greater than 255: "
+    with pytest.raises(ValueError, match=errmsg):
+        derive(xprv, "." + 255 * "/0")
+
+
+def test_crack():
+    parent_xpub = "xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV"
+    child_xprv = "xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm"
+    parent_xprv = crack_prvkey(parent_xpub, child_xprv)
+    assert xpub_from_xprv(parent_xprv).decode() == parent_xpub
+    # same check with XKeyDict
+    parent_xprv = crack_prvkey(deserialize(parent_xpub), deserialize(child_xprv))
+    assert xpub_from_xprv(parent_xprv).decode() == parent_xpub
+
+    errmsg = "Extended parent key is not a public key: "
+    with pytest.raises(ValueError, match=errmsg):
+        crack_prvkey(parent_xprv, child_xprv)
+
+    errmsg = "Extended child key is not a private key: "
+    with pytest.raises(ValueError, match=errmsg):
+        crack_prvkey(parent_xpub, parent_xpub)
+
+    child_xpub = xpub_from_xprv(child_xprv)
+    errmsg = "Not a parent's child: wrong depths"
+    with pytest.raises(ValueError, match=errmsg):
+        crack_prvkey(child_xpub, child_xprv)
+
+    child0_xprv = derive(parent_xprv, 0)
+    grandchild_xprv = derive(child0_xprv, 0)
+    errmsg = "Not a parent's child: wrong parent fingerprint"
+    with pytest.raises(ValueError, match=errmsg):
+        crack_prvkey(child_xpub, grandchild_xprv)
+
+    hardened_child_xprv = derive(parent_xprv, 0x80000000)
+    errmsg = "Hardened child derivation"
+    with pytest.raises(ValueError, match=errmsg):
+        crack_prvkey(parent_xpub, hardened_child_xprv)
 
 
 if __name__ == "__main__":
