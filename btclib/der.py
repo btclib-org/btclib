@@ -23,29 +23,29 @@ https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 BIP66 mandates a strict DER format:
 
 Format:
-[0x30][length][0x02][R-length][R][0x02][S-length][S][sighash]
+[0x30][data-size] [0x02][r-size][r] [0x02][s-size][s] [sighash]
 
 * 0x30 header byte to indicate compound structure
-* length: 1-byte length descriptor of the following data,
+* data-size: 1-byte size descriptor of the following data,
     excluding the sighash byte
 * 0x02 header byte indicating an integer
-* r-length: 1-byte length descriptor of the r value that follows
-* r: arbitrary-length big-endian r value.
+* r-size: 1-byte size descriptor of the r value that follows
+* r: arbitrary-size big-endian r value.
     It must use the shortest possible encoding for
     a positive integers (which means no null bytes at the start,
     except a single one when the next byte has its highest bit set
     to avoid being interpreted as a negative number)
 * 0x02 header byte indicating an integer
-* s-length: 1-byte length descriptor of the s value that follows
-* s: arbitrary-length big-endian s value. Same rules as for r apply
+* s-size: 1-byte size descriptor of the s value that follows
+* s: arbitrary-size big-endian s value. Same rules as for r apply
 * sighash: 1-byte value indicating what data is hashed
     (not part of the DER signature)
 
 There are 7 bytes of meta-data:
 
-* compound header, compound length,
-* value header, r value length,
-* value header, s value length
+* compound header, compound size,
+* value header, r-value size,
+* value header, s-value size
 * sighash type (optional)
 
 The ECDSA signature (r, s) should be 64 bytes,
@@ -86,89 +86,100 @@ def _validate_sig(
     if not 0 < s < ec.n:
         raise ValueError(f"Scalar s not in 1..n-1: {hex(r)}")
 
-    if sighash is not None and sighash not in SIGHASHES:
+    if sighash not in [None] + SIGHASHES:
         raise ValueError(f"Invalid sighash: {hex(sighash)}")
 
 
-def _deserialize(sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
+def _check_size_and_type(der_sig: DERSig, ec: Curve) -> int:
+
+    der_sig_size = len(der_sig)
+
+    # in the secp256k1 case the DERSig size is
+    # between 8 bytes (without sighash) and 73 (with sighash) bytes
+    #
+    # [0x30][data-size] [0x02][r-size][r] [0x02][s-size][s] [sighash]
+
+    # at least one byte each for r and s ('highest bit set' padding)
+    min_size = 2 + (2 + 1) * 2 + 0
+    # up to 33 bytes each for r and s ('highest bit set' padding)
+    max_size = 2 + (2 + 1 + ec.nsize) * 2 + 1
+    if not min_size <= der_sig_size <= max_size:
+        m = "Invalid DER size: "
+        m += f"{der_sig_size}, must be in [{min_size}, {max_size}]"
+        raise ValueError(m)
+
+    if der_sig[0] != 0x30:
+        m = f"DER type must be 0x30 (compound), not {hex(der_sig[0])}"
+        raise ValueError(m)
+
+    # The declared size der_sig[1] does not include:
+    # 1. der_sig[0] DER type
+    # 2. der_sig[1] itself
+    # 3. der_sig[-1] optional sighash
+    if der_sig_size - der_sig[1] not in (2, 3):
+        msg = "Declared size incompatible with actual size: "
+        msg += f"{der_sig[1]} + "
+        msg += "{2, 3} is not "
+        msg += f"{der_sig_size}"
+        raise ValueError(msg)
+
+    return der_sig_size
+
+
+def _scalar_size(der_sig: DERSig, sighash_size: int, offset: int) -> int:
+
+    der_sig_size = len(der_sig)
+
+    if der_sig[offset - 2] != 0x02:
+        raise ValueError("Scalar must be an integer")
+    size = der_sig[offset - 1]
+
+    if size == 0:
+        raise ValueError("Scalar has size zero")
+
+    if der_sig_size < offset + size + sighash_size:
+        m = f"Size of scalar is too large: {size}"
+        raise ValueError(m)
+
+    if der_sig[offset] & 0x80:
+        raise ValueError("Negative number not allowed for scalar")
+
+    # Null byte at the start of a scalar is not allowed, unless the
+    # scalar would otherwise be interpreted as a negative number
+    if size > 1 and der_sig[offset] == 0x00 and not (der_sig[offset + 1] & 0x80):
+        raise ValueError("Invalid null bytes at the start of scalar")
+
+    return size
+
+
+def _deserialize(der_sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
 
     Return r, s, sighash; sighash is None if not available.
     """
 
-    if isinstance(sig, tuple):
-        r, s, sighash = sig
+    if isinstance(der_sig, tuple):
+        r, s, sighash = der_sig
     else:
-        sig = bytes_from_octets(sig)
 
-        # 73 bytes for secp256k1 (including sighash)
-        maxsize = (ec.nsize + 1) * 2 + 6 + 1
-        # 1 byte for r, 1 bytes for s, excluding sighash
-        minsize = 1 * 2 + 6
-        sigsize = len(sig)
-        if not minsize <= sigsize <= maxsize:
-            m = "Invalid DER signature size: "
-            m += f"{sigsize}, must be in [{minsize}, {maxsize}]"
+        der_sig = bytes_from_octets(der_sig)
+        der_sig_size = _check_size_and_type(der_sig, ec)
+
+        # [0x30][data-size] [0x02][r-size][r] [0x02][s-size][s] [sighash]
+        sighash_size = der_sig_size - 2 - der_sig[1]
+        sighash = der_sig[-1] if sighash_size else None
+
+        offset = 2 + 2
+        r_size = _scalar_size(der_sig, sighash_size, offset)
+        r = int.from_bytes(der_sig[offset : offset + r_size], byteorder="big")
+
+        offset = 2 + 2 + r_size + 2
+        s_size = _scalar_size(der_sig, sighash_size, offset)
+        s = int.from_bytes(der_sig[offset : offset + s_size], byteorder="big")
+
+        if der_sig_size != 2 + 2 + r_size + 2 + s_size + sighash_size:
+            m = "Too big DER size for (r, s): {der_sig_size}"
             raise ValueError(m)
-
-        if sig[0] != 0x30:
-            m = f"DER signature type must be 0x30 (compound), not {hex(sig[0])}"
-            raise ValueError(m)
-
-        # sigsize checks
-        leftover = sigsize - 2 - sig[1]
-        if leftover == 0:  # no sighash value
-            sighash = None
-        elif leftover == 1:  # sighash value
-            sighash = sig[-1]
-        else:
-            msg = "Declared signature length incompatible with actual length: "
-            msg += f"{sig[1]} + "
-            msg += "{2, 3} is not "
-            msg += f"{sigsize}"
-            raise ValueError(msg)
-
-        sizeR = sig[3]  # size of the r scalar
-        if sizeR == 0:
-            raise ValueError("Zero-size integer is not allowed for scalar r")
-
-        if 5 + sizeR >= sigsize:
-            raise ValueError("Size of scalar s does not fit inside the signature")
-
-        sizeS = sig[5 + sizeR]  # size of the s scalar
-        if sizeS == 0:
-            raise ValueError("Zero-size integer is not allowed for scalar s")
-
-        if sigsize - sizeR - sizeS != 6 + leftover:
-            raise ValueError("Signature size does not match with size of scalars")
-
-        # scalar r
-        if sig[2] != 0x02:
-            raise ValueError("Scalar r must be an integer")
-
-        if sig[4] & 0x80:
-            raise ValueError("Negative number not allowed for scalar r")
-
-        # Null bytes at the start of a scalar are not allowed, unless the
-        # scalar would otherwise be interpreted as a negative number
-        if sizeR > 1 and sig[4] == 0x00 and not (sig[5] & 0x80):
-            raise ValueError("Invalid null bytes at the start of scalar r")
-
-        r = int.from_bytes(sig[4 : 4 + sizeR], byteorder="big")
-
-        # scalar s (offset=2+sizeR with respect to r)
-        if sig[sizeR + 4] != 0x02:
-            raise ValueError("Scalar s must be an integer")
-
-        if sig[sizeR + 6] & 0x80:
-            raise ValueError("Negative number not allowed for scalar s")
-
-        # Null bytes at the start of a scalar are not allowed, unless the
-        # scalar would otherwise be interpreted as a negative number
-        if sizeS > 1 and sig[sizeR + 6] == 0x00 and not (sig[sizeR + 7] & 0x80):
-            raise ValueError("Invalid null bytes at the start of scalar s")
-
-        s = int.from_bytes(sig[6 + sizeR : 6 + sizeR + sizeS], byteorder="big")
 
     _validate_sig(r, s, sighash, ec)
     return r, s, sighash
