@@ -12,7 +12,7 @@
 
 import pytest
 
-from btclib.numbertheory import mod_inv, mod_sqrt
+from btclib.numbertheory import mod_inv, mod_sqrt, tonelli
 
 primes = [
     2,
@@ -88,23 +88,41 @@ def test_mod_inv():
 
 def test_mod_sqrt():
     for p in primes[:30]:  # exhaustable only for small p
-        hasRoot = set()
-        hasRoot.add(0)
-        hasRoot.add(1)
+        has_root = set()
+        has_root.add(0)
+        has_root.add(1)
         for i in range(2, p):
-            hasRoot.add(i * i % p)
+            has_root.add(i * i % p)
         for i in range(p):
-            if i in hasRoot:
-                root = mod_sqrt(i, p)
-                assert i == (root * root) % p
-                root = p - root
-                assert i == (root * root) % p
+            if i in has_root:
+                root1 = mod_sqrt(i, p)
+                assert i == (root1 * root1) % p
+                root2 = p - root1
+                assert i == (root2 * root2) % p
                 root = mod_sqrt(i + p, p)
                 assert i == (root * root) % p
+                if p % 4 == 3 or p % 8 == 5:
+                    assert tonelli(i, p) in (root1, root2)
             else:
                 err_msg = "No root for "
                 with pytest.raises(ValueError, match=err_msg):
                     mod_sqrt(i, p)
+
+
+def test_mod_sqrt2():
+    # https://rosettacode.org/wiki/Tonelli-Shanks_algorithm#Python
+    ttest = [
+        (10, 13),
+        (56, 101),
+        (1030, 10009),
+        (44402, 100049),
+        (665820697, 1000000009),
+        (881398088036, 1000000000039),
+        (41660815127637347468140745042827704103445750172002, 10 ** 50 + 577),
+    ]
+    for i, p in ttest:
+        root = tonelli(i, p)
+        assert i == (root * root) % p
 
 
 def test_minus_one_quadr_res():

@@ -83,45 +83,55 @@ def mod_sqrt(a: int, p: int) -> int:
 
     a %= p
 
-    # Simple cases
     if p % 4 == 3:  # secp256k1 case
         # inverse candidate is pow(a, (p + 1) // 4, p)
-        x = pow(a, (p >> 2) + 1, p)
-        if x * x % p == a:
-            return x
-        raise ValueError(f"No root for {hex(a)} (mod {hex(p)})")
+        r = pow(a, (p >> 2) + 1, p)
     elif p % 8 == 5:
         # inverse candidate is pow(a, (p + 3) // 8, p)
-        x = pow(a, (p >> 3) + 1, p)
-        if x * x % p == a:
-            return x
+        r = pow(a, (p >> 3) + 1, p)
+        if r * r % p == a:
+            return r
         else:
-            # inverse candidate
-            x = x * pow(2, p >> 2, p) % p
-            if x * x % p == a:
-                return x
+            # another inverse candidate
+            r = r * pow(2, p >> 2, p) % p
+    else:
+        return tonelli(a, p)
+
+    if r * r % p != a:
         raise ValueError(f"No root for {hex(a)} (mod {hex(p)})")
-    elif a == 0 or p == 2:
+    return r
+
+
+def tonelli(a: int, p: int) -> int:
+    """Return a quadratic residue (mod p) of a; p must be a prime.
+
+    The Tonelli-Shanks algorithm is used.
+
+    https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+    """
+
+    a %= p
+    if a == 0 or p == 2:
         return a
 
-    # Check solution existence for odd primes
+    # Check solution existence for an odd prime p
     if legendre_symbol(a, p) != 1:
         raise ValueError(f"No root for {hex(a)} (mod {hex(p)})")
 
-    # Factor p-1 on the form q * 2^s (with Q odd)
+    # Factor p-1 on the form q * 2^s (with q odd)
     q, s = p - 1, 0
     while q & 1 == 0:
         s += 1
         q >>= 1
+    if s == 1:
+        return pow(a, (p + 1) // 4, p)
 
-    # Select a z which is a quadratic non resudue modulo p
+    # Select a z which is a quadratic non residue modulo p
     z = 1
     while legendre_symbol(z, p) != -1:
         z += 1
     c = pow(z, q, p)
-
-    # Search for a solution
-    x = pow(a, (q + 1) // 2, p)
+    r = pow(a, (q + 1) // 2, p)
     t = pow(a, q, p)
     m = s
     while t != 1:
@@ -134,9 +144,9 @@ def mod_sqrt(a: int, p: int) -> int:
 
         # Update next value to iterate
         b = pow(c, 1 << (m - i - 1), p)
-        x = (x * b) % p
+        r = (r * b) % p
         c = (b * b) % p
         t = (t * c) % p
         m = i
 
-    return x
+    return r
