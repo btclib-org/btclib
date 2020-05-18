@@ -17,6 +17,8 @@ from hashlib import sha256 as hf
 from os import path
 from typing import List
 
+import pytest
+
 from btclib import ssa
 from btclib.alias import INF, Point
 from btclib.curvemult import double_mult, mult
@@ -572,56 +574,59 @@ class TestSSA(unittest.TestCase):
         )
         self.assertRaises(ValueError, ssa.crack_prvkey, msg1, sig1, msg1, sig1, x_Q)
 
-    def test_low_cardinality(self):
-        """test low-cardinality curves for all msg/key pairs."""
-        # e_c.n has to be prime to sign
-        test_curves = [
-            low_card_curves["ec13_11"],
-            low_card_curves["ec13_19"],
-            low_card_curves["ec17_13"],
-            low_card_curves["ec17_23"],
-            low_card_curves["ec19_13"],
-            low_card_curves["ec19_23"],
-            low_card_curves["ec23_19"],
-            low_card_curves["ec23_31"],
-        ]
-        primes = [ec.p for ec in test_curves]
 
-        # for dsa it is possible to directy iterate on all
-        # possible values for e;
-        # for ssa we have to iterate over all possible hash values
-        hsize = hf().digest_size
-        H = [i.to_bytes(hsize, "big") for i in range(max(primes) * 4)]
-        # only low card curves or it would take forever
-        for e_c in test_curves:
-            # BIP340 Schnorr only applies to curve whose prime p = 3 %4
-            if not e_c.pIsThreeModFour:
-                self.assertRaises(ValueError, ssa.sign, H[0], 1, None, e_c)
-                continue
-            for q in range(1, e_c.n):  # all possible private keys
-                Q = mult(q, e_c.G, e_c)  # public key
-                if not e_c.has_square_y(Q):
-                    q = e_c.n - q
-                for h in H:  # all possible hashed messages
-                    k = ssa.k(h, q, e_c, hf)
-                    K = mult(k, e_c.G, e_c)
-                    if not e_c.has_square_y(K):
-                        k = e_c.n - k
-                    x_K = K[0]
-                    try:
-                        c = ssa._challenge(x_K, Q[0], h, e_c, hf)
-                    except Exception:
-                        pass
-                    else:
-                        s = (k + c * q) % e_c.n
-                        sig = ssa.sign(h, q, None, e_c)
-                        assert (x_K, s) == sig
-                        # valid signature must validate
-                        ssa._verify(h, Q, sig, e_c, hf)
+def test_low_cardinality():
+    """test low-cardinality curves for all msg/key pairs."""
+    # e_c.n has to be prime to sign
+    test_curves = [
+        low_card_curves["ec13_11"],
+        low_card_curves["ec13_19"],
+        low_card_curves["ec17_13"],
+        low_card_curves["ec17_23"],
+        low_card_curves["ec19_13"],
+        low_card_curves["ec19_23"],
+        low_card_curves["ec23_19"],
+        low_card_curves["ec23_31"],
+    ]
+    primes = [ec.p for ec in test_curves]
 
-                        if c != 0:  # FIXME
-                            x_Q = ssa._recover_pubkeys(c, x_K, s, e_c)
-                            assert Q[0] == x_Q
+    # for dsa it is possible to directy iterate on all
+    # possible values for e;
+    # for ssa we have to iterate over all possible hash values
+    hsize = hf().digest_size
+    H = [i.to_bytes(hsize, "big") for i in range(max(primes) * 4)]
+    # only low card curves or it would take forever
+    for e_c in test_curves:
+        # BIP340 Schnorr only applies to curve whose prime p = 3 %4
+        if not e_c.pIsThreeModFour:
+            err_msg = "field prime is not equal to 3 mod 4: "
+            with pytest.raises(ValueError, match=err_msg):
+                ssa.sign(H[0], 1, None, e_c)
+            continue
+        for q in range(1, e_c.n):  # all possible private keys
+            Q = mult(q, e_c.G, e_c)  # public key
+            if not e_c.has_square_y(Q):
+                q = e_c.n - q
+            for h in H:  # all possible hashed messages
+                k = ssa.k(h, q, e_c, hf)
+                K = mult(k, e_c.G, e_c)
+                if not e_c.has_square_y(K):
+                    k = e_c.n - k
+                x_K = K[0]
+                try:
+                    c = ssa._challenge(x_K, Q[0], h, e_c, hf)
+                except Exception:
+                    pass
+                else:
+                    s = (k + c * q) % e_c.n
+                    sig = ssa.sign(h, q, None, e_c)
+                    assert (x_K, s) == sig
+                    # valid signature must validate
+                    ssa._verify(h, Q, sig, e_c, hf)
+
+                    if c != 0:  # FIXME
+                        x_Q = ssa._recover_pubkeys(c, x_K, s, e_c)
+                        assert Q[0] == x_Q
 
 
 if __name__ == "__main__":
