@@ -105,11 +105,11 @@ def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
     # mod n makes it a scalar
     r = K_x % ec.n  # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
-        raise ValueError("failed to sign: r = 0")
+        raise RuntimeError("failed to sign: r = 0")
 
     s = mod_inv(k, ec.n) * (c + r * q) % ec.n  # 6
     if s == 0:  # s≠0 required as verify will need the inverse of s
-        raise ValueError("failed to sign: s = 0")
+        raise RuntimeError("failed to sign: s = 0")
 
     # bitcoin canonical 'low-s' encoding for ECDSA signatures
     # it removes signature malleability as cause of transaction malleability

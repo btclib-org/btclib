@@ -200,7 +200,7 @@ def test_low_cardinality():
                         s = ec.n - s
                     if r == 0 or s == 0:
                         err_msg = "failed to sign: "
-                        with pytest.raises(ValueError, match=err_msg):
+                        with pytest.raises(RuntimeError, match=err_msg):
                             dsa._sign(e, q, k, ec)
                         continue
 
