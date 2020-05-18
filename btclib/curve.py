@@ -72,29 +72,49 @@ class CurveGroup:
 
     def __str__(self) -> str:
         result = "Curve"
-        result += f"\n p   = {hex(self.p).upper()}"
-        result += f"\n a   = {hex(self._a).upper()}"
-        result += f"\n b   = {hex(self._b).upper()}"
+        if self.p > 0xFFFFFF:
+            result += f"\n p   = {hex(self.p).upper()}"
+        else:
+            result += f"\n p   = {self.p}"
+
+        if self._a > 0xFFFFFF or self._b > 0xFFFFFF:
+            result += f"\n a   = {hex(self._a).upper()}"
+            result += f"\n b   = {hex(self._b).upper()}"
+        else:
+            result += f"\n a   = {self._a}"
+            result += f"\n b   = {self._b}"
+
         return result
 
     def __repr__(self) -> str:
         result = "Curve("
-        result += f"{hex(self.p).upper()}"
-        result += f", {hex(self._a).upper()}, {hex(self._b).upper()}"
+        if self.p > 0xFFFFFF:
+            result += f"{hex(self.p).upper()}"
+        else:
+            result += f"{self.p}"
+
+        if self._a > 0xFFFFFF or self._b > 0xFFFFFF:
+            result += f", {hex(self._a).upper()}, {hex(self._b).upper()}"
+        else:
+            result += f", {self._a}, {self._b}"
+
         result += ")"
         return result
 
     # methods using p: they could become functions
 
-    def negate(self, Q: Point) -> Point:
-        """Return the opposite point on the curve.
+    def negate(self, Q: Union[Point, JacPoint]) -> Point:
+        """Return the opposite point.
 
-        The input point must be on the curve.
+        The input point is not checked to be on the curve.
         """
-
-        self.require_on_curve(Q)
-        # % self.p is required to account for infinity point, i.e. Q[1]==0
-        return Q[0], (self.p - Q[1]) % self.p
+        if len(Q) == 2:
+            # % self.p is required to account for INF (i.e. Q[1]==0)
+            # so that negate(INF) = INF
+            return Q[0], (self.p - Q[1]) % self.p
+        if len(Q) == 3:
+            return Q[0], (self.p - Q[1]) % self.p, Q[2]
+        raise TypeError("Not a point")
 
     def _aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve
@@ -220,12 +240,15 @@ class CurveGroup:
         return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
 
     def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
-        """Return True if the affine y-coordinate is a square."""
+        """Return True if the affine y-coordinate is a square.
+
+        The input point is not checked to be on the curve.
+        """
         if len(Q) == 2:
             return legendre_symbol(Q[1], self.p) == 1
         if len(Q) == 3:
             return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1
-        raise ValueError("Not a Point")
+        raise TypeError("Not a point")
 
     def require_p_ThreeModFour(self) -> None:
         """Require the field prime p to be equal to 3 mod 4.
@@ -333,13 +356,20 @@ class CurveSubGroup(CurveGroup):
 
     def __str__(self) -> str:
         result = super().__str__()
-        result += f"\n x_G = {hex(self.G[0]).upper()}"
-        result += f"\n y_G = {hex(self.G[1]).upper()}"
+        if self.p > 0xFFFFFF:
+            result += f"\n x_G = {hex(self.G[0]).upper()}"
+            result += f"\n y_G = {hex(self.G[1]).upper()}"
+        else:
+            result += f"\n x_G = {self.G[0]}"
+            result += f"\n y_G = {self.G[1]}"
         return result
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
-        result += f", ({hex(self.G[0]).upper()}, {hex(self.G[1]).upper()})"
+        if self.p > 0xFFFFFF:
+            result += f", ({hex(self.G[0]).upper()}, {hex(self.G[1]).upper()})"
+        else:
+            result += f", ({self.G[0]}, {self.G[1]})"
         result += ")"
         return result
 
@@ -407,13 +437,19 @@ class Curve(CurveSubGroup):
 
     def __str__(self) -> str:
         result = super().__str__()
-        result += f"\n n   = {hex(self.n).upper()}"
+        if self.p > 0xFFFFFF:
+            result += f"\n n   = {hex(self.n).upper()}"
+        else:
+            result += f"\n n   = {self.n}"
         result += f"\n h = {self.h}"
         return result
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
-        result += f", {hex(self.n).upper()}"
+        if self.p > 0xFFFFFF:
+            result += f", {hex(self.n).upper()}"
+        else:
+            result += f", {self.n}"
         result += f", {self.h}"
         result += ")"
         return result
