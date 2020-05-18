@@ -129,34 +129,42 @@ class TestDSA(unittest.TestCase):
         """test low-cardinality curves for all msg/key pairs."""
 
         # ec.n has to be prime to sign
-        prime = [11, 13, 17, 19]
+        test_curves = [
+            low_card_curves["ec13_11"],
+            low_card_curves["ec13_19"],
+            low_card_curves["ec17_13"],
+            low_card_curves["ec17_23"],
+            low_card_curves["ec19_13"],
+            low_card_curves["ec19_23"],
+            # low_card_curves["ec23_19"],
+            low_card_curves["ec23_31"],
+        ]
 
         # only low card or it would take forever
-        for ec in low_card_curves.values():
-            if ec.p in prime:  # only few curves or it would take too long
-                for q in range(1, ec.n):  # all possible private keys
-                    PJ = _mult_jac(q, ec.GJ, ec)  # public key
-                    for e in range(ec.n):  # all possible int from hash
-                        for k in range(1, ec.n):  # all possible ephemeral keys
-                            RJ = _mult_jac(k, ec.GJ, ec)
-                            Rx = (RJ[0] * mod_inv(RJ[2] * RJ[2], ec.p)) % ec.p
-                            r = Rx % ec.n
-                            s = mod_inv(k, ec.n) * (e + q * r) % ec.n
-                            # bitcoin canonical 'low-s' encoding for ECDSA
-                            if s > ec.n / 2:
-                                s = ec.n - s
-                            if r == 0 or s == 0:
-                                self.assertRaises(ValueError, dsa._sign, e, q, k, ec)
-                                continue
+        for ec in test_curves:
+            for q in range(1, ec.n):  # all possible private keys
+                PJ = _mult_jac(q, ec.GJ, ec)  # public key
+                for e in range(ec.n):  # all possible int from hash
+                    for k in range(1, ec.n):  # all possible ephemeral keys
+                        RJ = _mult_jac(k, ec.GJ, ec)
+                        Rx = (RJ[0] * mod_inv(RJ[2] * RJ[2], ec.p)) % ec.p
+                        r = Rx % ec.n
+                        s = mod_inv(k, ec.n) * (e + q * r) % ec.n
+                        # bitcoin canonical 'low-s' encoding for ECDSA
+                        if s > ec.n / 2:
+                            s = ec.n - s
+                        if r == 0 or s == 0:
+                            self.assertRaises(ValueError, dsa._sign, e, q, k, ec)
+                            continue
 
-                            sig = dsa._sign(e, q, k, ec)
-                            self.assertEqual((r, s), sig)
-                            # valid signature must pass verification
-                            self.assertIsNone(dsa._verhlp(e, PJ, r, s, ec))
+                        sig = dsa._sign(e, q, k, ec)
+                        assert (r, s) == sig
+                        # valid signature must pass verification
+                        dsa._verhlp(e, PJ, r, s, ec)
 
-                            JacobianKeys = dsa._recover_pubkeys(e, r, s, ec)
-                            Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
-                            self.assertIn(ec._aff_from_jac(PJ), Qs)
+                        JacobianKeys = dsa._recover_pubkeys(e, r, s, ec)
+                        Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
+                        assert ec._aff_from_jac(PJ) in Qs
 
     def test_pubkey_recovery(self):
         ec = secp112r2

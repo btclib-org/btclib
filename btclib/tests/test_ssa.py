@@ -27,22 +27,21 @@ from btclib.pedersen import second_generator
 from btclib.tests.test_curves import low_card_curves
 from btclib.utils import int_from_bits
 
-secp224k1 = CURVES['secp224k1']
+secp224k1 = CURVES["secp224k1"]
 
 
 class TestSSA(unittest.TestCase):
-
     def test_signature(self):
         """Basic tests"""
 
         q, x_Q = ssa.gen_keys()
-        mhd = hf(b'Satoshi Nakamoto').digest()
+        mhd = hf(b"Satoshi Nakamoto").digest()
         sig = ssa.sign(mhd, q, None)
         self.assertEqual(sig, ssa.deserialize(sig))
         ssa._verify(mhd, x_Q, sig, ec, hf)
         self.assertTrue(ssa.verify(mhd, x_Q, sig))
 
-        fmhd = hf(b'Craig Wright').digest()
+        fmhd = hf(b"Craig Wright").digest()
         self.assertRaises(AssertionError, ssa._verify, fmhd, x_Q, sig, ec, hf)
 
         fssasig = (sig[0], sig[1], sig[1])
@@ -56,8 +55,7 @@ class TestSSA(unittest.TestCase):
         self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
 
         # not ec.pIsThreeModFour
-        self.assertRaises(ValueError, ssa._verify,
-                          mhd, x_Q, sig, secp224k1, hf)
+        self.assertRaises(ValueError, ssa._verify, mhd, x_Q, sig, secp224k1, hf)
 
         # verify: message of wrong size
         wrongmhd = mhd[:-1]
@@ -69,13 +67,13 @@ class TestSSA(unittest.TestCase):
         # ssa.sign(wrongmhd, q, None)
 
         # invalid (zero) challenge e
-        self.assertRaises(ValueError, ssa._recover_pubkeys,
-                          0, sig[0], sig[1], ec)
+        self.assertRaises(ValueError, ssa._recover_pubkeys, 0, sig[0], sig[1], ec)
         # ssa._recover_pubkeys(0, sig)
 
         # not a BIP340 public key
-        self.assertRaises(ValueError, ssa._to_bip340_point,
-                          ["not", "a BIP340", "public key"])
+        self.assertRaises(
+            ValueError, ssa._to_bip340_point, ["not", "a BIP340", "public key"]
+        )
         # ssa._to_bip340_point(["not", "a BIP340", "public key"])
 
     def test_bip340_vectors(self):
@@ -85,23 +83,22 @@ class TestSSA(unittest.TestCase):
         """
         fname = "bip340_test_vectors.csv"
         filename = path.join(path.dirname(__file__), "test_data", fname)
-        with open(filename, newline='') as csvfile:
+        with open(filename, newline="") as csvfile:
             reader = csv.reader(csvfile)
             # skip column headers while checking that there are 7 columns
             _, _, _, _, _, _, _ = reader.__next__()
             for row in reader:
                 (index, seckey, pubkey, mhd, sig, result, comment) = row
                 errmsg = f"Test vector #{int(index)}"
-                if seckey != '':
+                if seckey != "":
                     seckey = bytes.fromhex(seckey)
                     _, pubkey_actual = ssa.gen_keys(seckey)
-                    self.assertEqual(pubkey,
-                                     hex(pubkey_actual).upper()[2:], errmsg)
+                    self.assertEqual(pubkey, hex(pubkey_actual).upper()[2:], errmsg)
 
                     sig_actual = ssa.serialize(*ssa.sign(mhd, seckey))
                     self.assertEqual(sig, sig_actual.hex().upper(), errmsg)
 
-                result = result == 'TRUE'
+                result = result == "TRUE"
                 if comment:
                     errmsg += ": " + comment
                 result_actual = ssa.verify(mhd, pubkey, sig)
@@ -110,44 +107,53 @@ class TestSSA(unittest.TestCase):
     def test_low_cardinality(self):
         """test low-cardinality curves for all msg/key pairs."""
         # e_c.n has to be prime to sign
-        prime = [11, 13, 17, 19]
+        test_curves = [
+            low_card_curves["ec13_11"],
+            low_card_curves["ec13_19"],
+            low_card_curves["ec17_13"],
+            low_card_curves["ec17_23"],
+            low_card_curves["ec19_13"],
+            low_card_curves["ec19_23"],
+            low_card_curves["ec23_19"],
+            low_card_curves["ec23_31"],
+        ]
+        primes = [ec.p for ec in test_curves]
 
         # for dsa it is possible to directy iterate on all
         # possible values for e;
         # for ssa we have to iterate over all possible hash values
         hsize = hf().digest_size
-        H = [i.to_bytes(hsize, 'big') for i in range(max(prime) * 4)]
+        H = [i.to_bytes(hsize, "big") for i in range(max(primes) * 4)]
         # only low card curves or it would take forever
-        for e_c in low_card_curves.values():
-            if e_c.p in prime:  # only few curves or it would take too long
-                # BIP340 Schnorr only applies to curve whose prime p = 3 %4
-                if not e_c.pIsThreeModFour:
-                    self.assertRaises(ValueError, ssa.sign, H[0], 1, None, e_c)
-                    continue
-                for q in range(1, e_c.n):  # all possible private keys
-                    Q = mult(q, e_c.G, e_c)  # public key
-                    if not e_c.has_square_y(Q):
-                        q = e_c.n - q
-                    for h in H:  # all possible hashed messages
-                        k = ssa.k(h, q, e_c, hf)
-                        K = mult(k, e_c.G, e_c)
-                        if not e_c.has_square_y(K):
-                            k = e_c.n - k
-                        x_K = K[0]
-                        try:
-                            c = ssa._challenge(x_K, Q[0], h, e_c, hf)
-                        except Exception:
-                            pass
-                        else:
-                            s = (k + c * q) % e_c.n
-                            sig = ssa.sign(h, q, None, e_c)
-                            self.assertEqual((x_K, s), sig)
-                            # valid signature must validate
-                            self.assertIsNone(ssa._verify(h, Q, sig, e_c, hf))
+        for e_c in test_curves:
+            # BIP340 Schnorr only applies to curve whose prime p = 3 %4
+            if not e_c.pIsThreeModFour:
+                self.assertRaises(ValueError, ssa.sign, H[0], 1, None, e_c)
+                continue
+            for q in range(1, e_c.n):  # all possible private keys
+                Q = mult(q, e_c.G, e_c)  # public key
+                if not e_c.has_square_y(Q):
+                    q = e_c.n - q
+                for h in H:  # all possible hashed messages
+                    k = ssa.k(h, q, e_c, hf)
+                    K = mult(k, e_c.G, e_c)
+                    if not e_c.has_square_y(K):
+                        k = e_c.n - k
+                    x_K = K[0]
+                    try:
+                        c = ssa._challenge(x_K, Q[0], h, e_c, hf)
+                    except Exception:
+                        pass
+                    else:
+                        s = (k + c * q) % e_c.n
+                        sig = ssa.sign(h, q, None, e_c)
+                        assert (x_K, s) == sig
+                        # valid signature must validate
+                        ssa._verify(h, Q, sig, e_c, hf)
 
-                            if c != 0:  # FIXME
-                                x_Q = ssa._recover_pubkeys(c, x_K, s, e_c)
-                                self.assertEqual(Q[0], x_Q)
+                        if c != 0:  # FIXME
+                            x_Q = ssa._recover_pubkeys(c, x_K, s, e_c)
+                            assert Q[0] == x_Q
 
     def test_batch_validation(self):
         hsize = hf().digest_size
@@ -156,15 +162,15 @@ class TestSSA(unittest.TestCase):
         ms = []
         Qs = []
         sigs = []
-        ms.append(secrets.randbits(hlen).to_bytes(hsize, 'big'))
+        ms.append(secrets.randbits(hlen).to_bytes(hsize, "big"))
         q = 1 + secrets.randbelow(ec.n - 1)
         # bytes version
-        Qs.append(mult(q, ec.G, ec)[0].to_bytes(ec.psize, 'big'))
+        Qs.append(mult(q, ec.G, ec)[0].to_bytes(ec.psize, "big"))
         sigs.append(ssa.sign(ms[0], q, None, ec, hf))
         # test with only 1 sig
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
         for _ in range(3):
-            mhd = secrets.randbits(hlen).to_bytes(hsize, 'big')
+            mhd = secrets.randbits(hlen).to_bytes(hsize, "big")
             ms.append(mhd)
             q = 1 + secrets.randbelow(ec.n - 1)
             # Point version
@@ -178,8 +184,7 @@ class TestSSA(unittest.TestCase):
         sigs.append(sigs[1])
         Qs.append(Qs[0])
         self.assertFalse(ssa.batch_verify(ms, Qs, sigs, ec, hf))
-        self.assertRaises(AssertionError, ssa._batch_verify,
-                          ms, Qs, sigs, ec, hf)
+        self.assertRaises(AssertionError, ssa._batch_verify, ms, Qs, sigs, ec, hf)
         # ssa._batch_verify(ms, Qs, sigs, ec, hf)
         sigs[-1] = sigs[0]  # valid again
 
@@ -202,8 +207,7 @@ class TestSSA(unittest.TestCase):
         sigs.pop()  # valid again
 
         # field prime p is not equal to 3 (mod 4)
-        self.assertRaises(ValueError, ssa._batch_verify,
-                          ms, Qs, sigs, secp224k1, hf)
+        self.assertRaises(ValueError, ssa._batch_verify, ms, Qs, sigs, secp224k1, hf)
         # ssa._batch_verify(ms, Qs, sigs, secp224k1, hf)
 
     def test_threshold(self):
@@ -212,7 +216,7 @@ class TestSSA(unittest.TestCase):
         # parameters
         m = 2
         H = second_generator(ec, hf)
-        mhd = hf(b'message to sign').digest()
+        mhd = hf(b"message to sign").digest()
 
         # FIRST PHASE: key pair generation ###################################
 
@@ -243,13 +247,13 @@ class TestSSA(unittest.TestCase):
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(2, i), commits1[i]))
         t = double_mult(alpha12_prime, H, alpha12, ec.G)
-        assert t == RHS, 'signer one is cheating'
+        assert t == RHS, "signer one is cheating"
         # signer three verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
         t = double_mult(alpha13_prime, H, alpha13, ec.G)
-        assert t == RHS, 'signer one is cheating'
+        assert t == RHS, "signer one is cheating"
 
         # 1.2 signer two acting as the dealer
         commits2: List[Point] = list()
@@ -278,13 +282,13 @@ class TestSSA(unittest.TestCase):
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits2[i]))
         t = double_mult(alpha21_prime, H, alpha21, ec.G)
-        assert t == RHS, 'signer two is cheating'
+        assert t == RHS, "signer two is cheating"
         # signer three verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits2[i]))
         t = double_mult(alpha23_prime, H, alpha23, ec.G)
-        assert t == RHS, 'signer two is cheating'
+        assert t == RHS, "signer two is cheating"
 
         # 1.3 signer three acting as the dealer
         commits3: List[Point] = list()
@@ -313,13 +317,13 @@ class TestSSA(unittest.TestCase):
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
         t = double_mult(alpha31_prime, H, alpha31, ec.G)
-        assert t == RHS, 'signer three is cheating'
+        assert t == RHS, "signer three is cheating"
         # signer two verifies consistency of his share
         RHS = INF
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(2, i), commits3[i]))
         t = double_mult(alpha32_prime, H, alpha32, ec.G)
-        assert t == RHS, 'signer three is cheating'
+        assert t == RHS, "signer three is cheating"
         # shares of the secret key q = q1 + q2 + q3
         alpha1 = (alpha21 + alpha31) % ec.n
         alpha2 = (alpha12 + alpha32) % ec.n
@@ -345,24 +349,24 @@ class TestSSA(unittest.TestCase):
         for i in range(m):
             RHS2 = ec.add(RHS2, mult(pow(1, i), A2[i]))
             RHS3 = ec.add(RHS3, mult(pow(1, i), A3[i]))
-        assert mult(alpha21) == RHS2, 'signer two is cheating'
-        assert mult(alpha31) == RHS3, 'signer three is cheating'
+        assert mult(alpha21) == RHS2, "signer two is cheating"
+        assert mult(alpha31) == RHS3, "signer three is cheating"
         # signer two checks others' values
         RHS1 = INF
         RHS3 = INF
         for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(2, i), A1[i]))
             RHS3 = ec.add(RHS3, mult(pow(2, i), A3[i]))
-        assert mult(alpha12) == RHS1, 'signer one is cheating'
-        assert mult(alpha32) == RHS3, 'signer three is cheating'
+        assert mult(alpha12) == RHS1, "signer one is cheating"
+        assert mult(alpha32) == RHS3, "signer three is cheating"
         # signer three checks others' values
         RHS1 = INF
         RHS2 = INF
         for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(3, i), A1[i]))
             RHS2 = ec.add(RHS2, mult(pow(3, i), A2[i]))
-        assert mult(alpha13) == RHS1, 'signer one is cheating'
-        assert mult(alpha23) == RHS2, 'signer two is cheating'
+        assert mult(alpha13) == RHS1, "signer one is cheating"
+        assert mult(alpha23) == RHS2, "signer two is cheating"
         # commitment at the global sharing polynomial
         A: List[Point] = list()
         for i in range(m):
@@ -404,7 +408,7 @@ class TestSSA(unittest.TestCase):
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
         t = double_mult(beta13_prime, H, beta13, ec.G)
-        assert t == RHS, 'signer one is cheating'
+        assert t == RHS, "signer one is cheating"
 
         # 2.2 signer three acting as the dealer
         commits3: List[Point] = list()
@@ -429,7 +433,7 @@ class TestSSA(unittest.TestCase):
         for i in range(m):
             RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
         t = double_mult(beta31_prime, H, beta31, ec.G)
-        assert t == RHS, 'signer three is cheating'
+        assert t == RHS, "signer three is cheating"
 
         # 2.3 shares of the secret nonce
         beta1 = beta31 % ec.n
@@ -450,13 +454,13 @@ class TestSSA(unittest.TestCase):
         RHS3 = INF
         for i in range(m):
             RHS3 = ec.add(RHS3, mult(pow(1, i), B3[i]))
-        assert mult(beta31) == RHS3, 'signer three is cheating'
+        assert mult(beta31) == RHS3, "signer three is cheating"
 
         # signer three checks values from signer one
         RHS1 = INF
         for i in range(m):
             RHS1 = ec.add(RHS1, mult(pow(3, i), B1[i]))
-        assert mult(beta13) == RHS1, 'signer one is cheating'
+        assert mult(beta13) == RHS1, "signer one is cheating"
 
         # commitment at the global sharing polynomial
         B: List[Point] = list()
@@ -486,14 +490,14 @@ class TestSSA(unittest.TestCase):
         for i in range(1, m):
             temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i])
             RHS3 = ec.add(RHS3, temp)
-        assert mult(gamma3) == RHS3, 'signer three is cheating'
+        assert mult(gamma3) == RHS3, "signer three is cheating"
 
         # signer three
         RHS1 = ec.add(K, mult(e, Q))
         for i in range(1, m):
             temp = double_mult(pow(1, i), B[i], e * pow(1, i), A[i])
             RHS1 = ec.add(RHS1, temp)
-        assert mult(gamma1) == RHS1, 'signer one is cheating'
+        assert mult(gamma1) == RHS1, "signer one is cheating"
 
         # PHASE FOUR: aggregating the signature ###
         omega1 = 3 * mod_inv(3 - 1, ec.n) % ec.n
@@ -517,18 +521,18 @@ class TestSSA(unittest.TestCase):
             https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
             https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
         """
-        mhd = hf(b'message to sign').digest()
+        mhd = hf(b"message to sign").digest()
 
         # the signers private and public keys,
         # including both the curve Point and the BIP340-Schnorr public key
         q1, x_Q1 = ssa.gen_keys()
-        x_Q1 = x_Q1.to_bytes(ec.psize, 'big')
+        x_Q1 = x_Q1.to_bytes(ec.psize, "big")
 
         q2, x_Q2 = ssa.gen_keys()
-        x_Q2 = x_Q2.to_bytes(ec.psize, 'big')
+        x_Q2 = x_Q2.to_bytes(ec.psize, "big")
 
         q3, x_Q3 = ssa.gen_keys()
-        x_Q3 = x_Q3.to_bytes(ec.psize, 'big')
+        x_Q3 = x_Q3.to_bytes(ec.psize, "big")
 
         # (non interactive) key setup
         # this is MuSig core: the rest is just Schnorr signature additivity
@@ -539,7 +543,7 @@ class TestSSA(unittest.TestCase):
         keys.append(x_Q3)
         keys.sort()
         # 2. coefficients
-        prefix = b''.join(keys)
+        prefix = b"".join(keys)
         a1 = int_from_bits(hf(prefix + x_Q1).digest(), ec.nlen) % ec.n
         a2 = int_from_bits(hf(prefix + x_Q2).digest(), ec.nlen) % ec.n
         a3 = int_from_bits(hf(prefix + x_Q3).digest(), ec.nlen) % ec.n
@@ -614,10 +618,10 @@ class TestSSA(unittest.TestCase):
         self.assertIn(q, (qc, ec.n - qc))
         self.assertIn(k, (kc, ec.n - kc))
 
-        self.assertRaises(ValueError, ssa.crack_prvkey, msg1,
-                          sig1, msg2, (16, sig1[1]), x_Q)
-        self.assertRaises(ValueError, ssa.crack_prvkey,
-                          msg1, sig1, msg1, sig1, x_Q)
+        self.assertRaises(
+            ValueError, ssa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]), x_Q
+        )
+        self.assertRaises(ValueError, ssa.crack_prvkey, msg1, sig1, msg1, sig1, x_Q)
 
 
 if __name__ == "__main__":
