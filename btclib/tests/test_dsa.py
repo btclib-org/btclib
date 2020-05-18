@@ -170,6 +170,7 @@ class TestDSA(unittest.TestCase):
         self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg1, sig1)
 
 
+@pytest.mark.first
 def test_low_cardinality():
     """test low-cardinality curves for all msg/key pairs."""
 
