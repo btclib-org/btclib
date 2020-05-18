@@ -127,6 +127,48 @@ class TestDSA(unittest.TestCase):
         # 2.1.4 Verifying Operation for V
         self.assertTrue(dsa.verify(msg, QU, sig, ec, hf))
 
+    def test_pubkey_recovery(self):
+        ec = secp112r2
+        q = 0x10
+        Q = mult(q, ec.G, ec)
+        msg = "Satoshi Nakamoto"
+        k = None
+        sig = dsa.sign(msg, q, k, ec)
+        self.assertTrue(dsa.verify(msg, Q, sig, ec))
+        dersig = dsa.serialize(*sig, ec)
+        self.assertTrue(dsa.verify(msg, Q, dersig, ec))
+        r, s = dsa.deserialize(dersig)
+        self.assertEqual((r, s), sig)
+
+        keys = dsa.recover_pubkeys(msg, sig, ec)
+        self.assertEqual(len(keys), 4)
+        self.assertIn(Q, keys)
+        for Q in keys:
+            self.assertTrue(dsa.verify(msg, Q, sig, ec))
+
+    def test_crack_prvkey(self):
+        ec = secp256k1
+
+        q = 0xDEADBEEF6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+        k = 1010101010101010101
+
+        msg1 = "Paolo is afraid of ephemeral random numbers"
+        sig1 = dsa.sign(msg1, q, k)
+        # print(f'\nr1: {hex(sig1[0]).upper()}')
+        # print(f's1: {hex(sig1[1]).upper()}')
+
+        msg2 = "and Paolo is right to be afraid"
+        sig2 = dsa.sign(msg2, q, k)
+        # print(f'\nr2: {hex(sig2[0]).upper()}')
+        # print(f's2: {hex(sig2[1]).upper()}')
+
+        qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
+        self.assertEqual(q, qc)
+        self.assertIn(k, (kc, ec.n - kc))
+
+        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]))
+        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg1, sig1)
+
 
 def test_low_cardinality():
     """test low-cardinality curves for all msg/key pairs."""
@@ -171,48 +213,6 @@ def test_low_cardinality():
                     JacobianKeys = dsa._recover_pubkeys(e, r, s, ec)
                     Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
                     assert ec._aff_from_jac(PJ) in Qs
-
-    def test_pubkey_recovery(self):
-        ec = secp112r2
-        q = 0x10
-        Q = mult(q, ec.G, ec)
-        msg = "Satoshi Nakamoto"
-        k = None
-        sig = dsa.sign(msg, q, k, ec)
-        self.assertTrue(dsa.verify(msg, Q, sig, ec))
-        dersig = dsa.serialize(*sig, ec)
-        self.assertTrue(dsa.verify(msg, Q, dersig, ec))
-        r, s = dsa.deserialize(dersig)
-        self.assertEqual((r, s), sig)
-
-        keys = dsa.recover_pubkeys(msg, sig, ec)
-        self.assertEqual(len(keys), 4)
-        self.assertIn(Q, keys)
-        for Q in keys:
-            self.assertTrue(dsa.verify(msg, Q, sig, ec))
-
-    def test_crack_prvkey(self):
-        ec = secp256k1
-
-        q = 0xDEADBEEF6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-        k = 1010101010101010101
-
-        msg1 = "Paolo is afraid of ephemeral random numbers"
-        sig1 = dsa.sign(msg1, q, k)
-        # print(f'\nr1: {hex(sig1[0]).upper()}')
-        # print(f's1: {hex(sig1[1]).upper()}')
-
-        msg2 = "and Paolo is right to be afraid"
-        sig2 = dsa.sign(msg2, q, k)
-        # print(f'\nr2: {hex(sig2[0]).upper()}')
-        # print(f's2: {hex(sig2[1]).upper()}')
-
-        qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
-        self.assertEqual(q, qc)
-        self.assertIn(k, (kc, ec.n - kc))
-
-        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg2, (16, sig1[1]))
-        self.assertRaises(ValueError, dsa.crack_prvkey, msg1, sig1, msg1, sig1)
 
 
 def test_forge_hash_sig():
