@@ -172,7 +172,7 @@ def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:
     return r, s
 
 
-def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
+def _assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
 
     w = mod_inv(s, ec.n)
@@ -191,7 +191,7 @@ def _verhlp(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     assert r == x, "Signature verification failed"  # 8
 
 
-def _verify(msg: String, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
+def assert_as_valid(msg: String, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -203,7 +203,7 @@ def _verify(msg: String, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
     QJ = Q[0], Q[1], 1 if Q[1] else 0
 
     # second part delegated to helper function
-    _verhlp(c, QJ, r, s, ec)
+    _assert_as_valid(c, QJ, r, s, ec)
 
 
 def verify(
@@ -211,9 +211,9 @@ def verify(
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
-    # try/except wrapper for the Errors raised by _verify
+    # try/except wrapper for the Errors raised by assert_as_valid
     try:
-        _verify(msg, P, sig, ec, hf)
+        assert_as_valid(msg, P, sig, ec, hf)
     except Exception:
         return False
     else:
@@ -260,7 +260,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             # 1.5 has been performed in the recover_pubkeys calling function
             Q1J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
             try:
-                _verhlp(c, Q1J, r, s, ec)  # 1.6.2
+                _assert_as_valid(c, Q1J, r, s, ec)  # 1.6.2
             except Exception:
                 pass
             else:
@@ -268,7 +268,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             KJ = x, ec.p - yodd, 1  # 1.6.3
             Q2J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
             try:
-                _verhlp(c, Q2J, r, s, ec)  # 1.6.2
+                _assert_as_valid(c, Q2J, r, s, ec)  # 1.6.2
             except Exception:
                 pass
             else:
@@ -297,7 +297,7 @@ def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
     KJ = x, y, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pubkeys calling function
     QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-    _verhlp(c, QJ, r, s, ec)  # 1.6.2
+    _assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
     return QJ
 
 

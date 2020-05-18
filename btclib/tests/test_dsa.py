@@ -61,7 +61,7 @@ class TestDSA(unittest.TestCase):
 
         fdsasig = (sig[0], sig[1], sig[1])
         self.assertFalse(dsa.verify(msg, Q, fdsasig))
-        self.assertRaises(ValueError, dsa._verify, msg, Q, fdsasig, ec, hf)
+        self.assertRaises(ValueError, dsa.assert_as_valid, msg, Q, fdsasig, ec, hf)
 
         _, fQ = dsa.gen_keys()
         self.assertFalse(dsa.verify(msg, fQ, sig))
@@ -75,8 +75,8 @@ class TestDSA(unittest.TestCase):
         self.assertFalse(dsa.verify(msg, Q, invalid_dassig))
 
         # pubkey = INF
-        self.assertRaises(ValueError, dsa._verify, msg, INF, sig, ec, hf)
-        # dsa._verify(msg, INF, sig, ec, hf)
+        self.assertRaises(ValueError, dsa.assert_as_valid, msg, INF, sig, ec, hf)
+        # dsa.assert_as_valid(msg, INF, sig, ec, hf)
 
         # private key not in [1, n-1]
         self.assertRaises(ValueError, dsa.sign, msg, 0)
@@ -176,25 +176,25 @@ def test_low_cardinality():
     # ec.n has to be prime to sign
     test_curves = [
         low_card_curves["ec13_11"],
-        low_card_curves["ec13_19"],
-        low_card_curves["ec17_13"],
+        # low_card_curves["ec13_19"],
+        # low_card_curves["ec17_13"],
         low_card_curves["ec17_23"],
         low_card_curves["ec19_13"],
-        low_card_curves["ec19_23"],
+        # low_card_curves["ec19_23"],
         low_card_curves["ec23_19"],
         low_card_curves["ec23_31"],
     ]
 
-    # only low card or it would take forever
+    # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n):  # all possible private keys
-            PJ = _mult_jac(q, ec.GJ, ec)  # public key
-            for e in range(ec.n):  # all possible int from hash
-                for k in range(1, ec.n):  # all possible ephemeral keys
-                    RJ = _mult_jac(k, ec.GJ, ec)
-                    Rx = (RJ[0] * mod_inv(RJ[2] * RJ[2], ec.p)) % ec.p
-                    r = Rx % ec.n
-                    s = mod_inv(k, ec.n) * (e + q * r) % ec.n
+            QJ = _mult_jac(q, ec.GJ, ec)  # public key
+            for k in range(1, ec.n):  # all possible ephemeral keys
+                RJ = _mult_jac(k, ec.GJ, ec)
+                r = ec._x_aff_from_jac(RJ) % ec.n
+                k_inv = mod_inv(k, ec.n)
+                for e in range(ec.n):  # all possible challenges
+                    s = k_inv * (e + q * r) % ec.n
                     # bitcoin canonical 'low-s' encoding for ECDSA
                     if s > ec.n / 2:
                         s = ec.n - s
@@ -207,11 +207,13 @@ def test_low_cardinality():
                     sig = dsa._sign(e, q, k, ec)
                     assert (r, s) == sig
                     # valid signature must pass verification
-                    dsa._verhlp(e, PJ, r, s, ec)
+                    dsa._assert_as_valid(e, QJ, r, s, ec)
 
                     JacobianKeys = dsa._recover_pubkeys(e, r, s, ec)
+                    # FIXME speed this up
                     Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
-                    assert ec._aff_from_jac(PJ) in Qs
+                    assert ec._aff_from_jac(QJ) in Qs
+                    assert len(JacobianKeys) in (2, 4)
 
 
 def test_forge_hash_sig():
@@ -232,7 +234,7 @@ def test_forge_hash_sig():
     u2inv = mod_inv(u2, ec.n)
     s = r * u2inv % ec.n
     e = s * u1 % ec.n
-    dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
+    dsa._assert_as_valid(e, (P[0], P[1], 1), r, s, ec)
 
     # pick u1 and u2 at will
     u1 = 1234567890
@@ -242,7 +244,7 @@ def test_forge_hash_sig():
     u2inv = mod_inv(u2, ec.n)
     s = r * u2inv % ec.n
     e = s * u1 % ec.n
-    dsa._verhlp(e, (P[0], P[1], 1), r, s, ec)
+    dsa._assert_as_valid(e, (P[0], P[1], 1), r, s, ec)
 
 
 if __name__ == "__main__":

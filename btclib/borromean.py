@@ -112,14 +112,14 @@ def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
         msg = msg.encode()
 
     # this is just a try/except wrapper for the Errors
-    # raised by _verify
+    # raised by assert_as_valid
     try:
-        return _verify(msg, e0, s, pubk_rings)
+        return assert_as_valid(msg, e0, s, pubk_rings)
     except Exception:
         return False
 
 
-def _verify(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def assert_as_valid(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
 
     ring_size = len(pubk_rings)
     m = _get_msg_format(msg, pubk_rings)

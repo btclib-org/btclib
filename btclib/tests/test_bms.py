@@ -375,7 +375,7 @@ class TestMessageSign(unittest.TestCase):
             "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615F"
             "G3g9JEOPGVvcfDWIFWrg2exLoVc="
         ).encode()
-        self.assertRaises(ValueError, bms._verify, msg, address, exp_sig)
+        self.assertRaises(ValueError, bms.assert_as_valid, msg, address, exp_sig)
         self.assertFalse(bms.verify(msg, address, exp_sig))
 
         # Invalid recovery flag: 26
@@ -383,18 +383,18 @@ class TestMessageSign(unittest.TestCase):
             "GpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQg"
             "BR4PpI+w2tJdD4v+hxElvAaUSqv2eU="
         ).encode()
-        self.assertRaises(ValueError, bms._verify, msg, address, exp_sig)
+        self.assertRaises(ValueError, bms.assert_as_valid, msg, address, exp_sig)
         self.assertFalse(bms.verify(msg, address, exp_sig))
-        # bms._verify(msg, address, exp_sig)
+        # bms.assert_as_valid(msg, address, exp_sig)
 
         # Invalid recovery flag: 66
         exp_sig = (
             "QpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQg"
             "BR4PpI+w2tJdD4v+hxElvAaUSqv2eU="
         ).encode()
-        self.assertRaises(ValueError, bms._verify, msg, address, exp_sig)
+        self.assertRaises(ValueError, bms.assert_as_valid, msg, address, exp_sig)
         self.assertFalse(bms.verify(msg, address, exp_sig))
-        # bms._verify(msg, address, exp_sig)
+        # bms.assert_as_valid(msg, address, exp_sig)
 
         # Pubkey mismatch: compressed wif, uncompressed address
         wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
@@ -435,8 +435,8 @@ class TestMessageSign(unittest.TestCase):
         ).encode()
         _, r, s = bms.deserialize(exp_sig)
         sig = bms.serialize(39, r, s)
-        self.assertRaises(ValueError, bms._verify, msg, p2pkh, sig)
-        # bms._verify(msg, p2pkh, sig)
+        self.assertRaises(ValueError, bms.assert_as_valid, msg, p2pkh, sig)
+        # bms.assert_as_valid(msg, p2pkh, sig)
 
         # Invalid recovery flag (35) for bech32 address
         exp_sig = (
@@ -445,8 +445,8 @@ class TestMessageSign(unittest.TestCase):
         ).encode()
         _, r, s = bms.deserialize(exp_sig)
         sig = bms.serialize(35, r, s)
-        self.assertRaises(ValueError, bms._verify, msg, p2wpkh, sig)
-        # bms._verify(msg, p2wpkh, sig)
+        self.assertRaises(ValueError, bms.assert_as_valid, msg, p2wpkh, sig)
+        # bms.assert_as_valid(msg, p2wpkh, sig)
 
     def test_vector_python_bitcoinlib(self):
         """Test python-bitcoinlib test vectors
@@ -527,7 +527,7 @@ class TestMessageSign(unittest.TestCase):
         r, s = dsa.deserialize(dersig)
 
         # ECDSA signature verification of the patched dersig
-        dsa._verify(magic_msg, xpub, dersig, ec, hf)
+        dsa.assert_as_valid(magic_msg, xpub, dersig, ec, hf)
         self.assertTrue(dsa.verify(magic_msg, xpub, dersig))
 
         # compressed address
@@ -538,7 +538,7 @@ class TestMessageSign(unittest.TestCase):
         btcmsgsig = (rec_flag, r, s)
 
         # Bitcoin Message Signature verification
-        bms._verify(msg, addr, btcmsgsig)
+        bms.assert_as_valid(msg, addr, btcmsgsig)
         self.assertTrue(bms.verify(msg, addr, btcmsgsig))
         self.assertFalse(bms.verify(magic_msg, addr, btcmsgsig))
 
@@ -569,7 +569,7 @@ class TestMessageSign(unittest.TestCase):
         r, s = dsa.deserialize(dersig)
 
         # ECDSA signature verification of the patched dersig
-        dsa._verify(magic_msg, xpub, dersig, ec, hf)
+        dsa.assert_as_valid(magic_msg, xpub, dersig, ec, hf)
         self.assertTrue(dsa.verify(magic_msg, xpub, dersig))
 
         # compressed address
@@ -580,7 +580,7 @@ class TestMessageSign(unittest.TestCase):
         btcmsgsig = (rec_flag, r, s)
 
         # Bitcoin Message Signature verification
-        bms._verify(msg, addr, btcmsgsig)
+        bms.assert_as_valid(msg, addr, btcmsgsig)
         self.assertTrue(bms.verify(msg, addr, btcmsgsig))
         self.assertFalse(bms.verify(magic_msg, addr, btcmsgsig))
 

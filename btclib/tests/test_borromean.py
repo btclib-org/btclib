@@ -39,7 +39,7 @@ class TestBorromeanRingSignature(unittest.TestCase):
             msg, list(range(1, 5)), sign_key_idx, sign_keys, pubk_rings
         )
 
-        borromean._verify(msg.encode(), sig[0], sig[1], pubk_rings)
+        borromean.assert_as_valid(msg.encode(), sig[0], sig[1], pubk_rings)
         self.assertTrue(borromean.verify(msg, sig[0], sig[1], pubk_rings))
         self.assertFalse(borromean.verify(0, sig[0], sig[1], pubk_rings))
 

@@ -21,9 +21,9 @@ import pytest
 
 from btclib import ssa
 from btclib.alias import INF, Point
-from btclib.curvemult import double_mult, mult
+from btclib.curvemult import double_mult, mult, _mult_jac
 from btclib.curves import CURVES
-from btclib.curves import secp256k1 as ec
+from btclib.curves import secp256k1
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
 from btclib.tests.test_curves import low_card_curves
@@ -36,41 +36,43 @@ class TestSSA(unittest.TestCase):
     def test_signature(self):
         """Basic tests"""
 
+        ec = secp256k1
+
         q, x_Q = ssa.gen_keys()
         mhd = hf(b"Satoshi Nakamoto").digest()
         sig = ssa.sign(mhd, q, None)
         self.assertEqual(sig, ssa.deserialize(sig))
-        ssa._verify(mhd, x_Q, sig, ec, hf)
+        ssa.assert_as_valid(mhd, x_Q, sig, ec, hf)
         self.assertTrue(ssa.verify(mhd, x_Q, sig))
 
         fmhd = hf(b"Craig Wright").digest()
-        self.assertRaises(AssertionError, ssa._verify, fmhd, x_Q, sig, ec, hf)
+        self.assertRaises(AssertionError, ssa.assert_as_valid, fmhd, x_Q, sig, ec, hf)
 
         fssasig = (sig[0], sig[1], sig[1])
-        self.assertRaises(ValueError, ssa._verify, mhd, x_Q, fssasig, ec, hf)
+        self.assertRaises(ValueError, ssa.assert_as_valid, mhd, x_Q, fssasig, ec, hf)
 
         # y(sG - eP) is not a quadratic residue
         _, fQ = ssa.gen_keys(0x2)
-        self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
+        self.assertRaises(AssertionError, ssa.assert_as_valid, mhd, fQ, sig, ec, hf)
 
         _, fQ = ssa.gen_keys(0x4)
-        self.assertRaises(AssertionError, ssa._verify, mhd, fQ, sig, ec, hf)
+        self.assertRaises(AssertionError, ssa.assert_as_valid, mhd, fQ, sig, ec, hf)
 
         # not ec.pIsThreeModFour
-        self.assertRaises(ValueError, ssa._verify, mhd, x_Q, sig, secp224k1, hf)
+        self.assertRaises(ValueError, ssa.assert_as_valid, mhd, x_Q, sig, secp224k1, hf)
 
         # verify: message of wrong size
         wrongmhd = mhd[:-1]
-        self.assertRaises(ValueError, ssa._verify, wrongmhd, x_Q, sig, ec, hf)
-        # ssa._verify(wrongmhd, x_Q, sig)
+        self.assertRaises(ValueError, ssa.assert_as_valid, wrongmhd, x_Q, sig, ec, hf)
+        # ssa.assert_as_valid(wrongmhd, x_Q, sig)
 
         # sign: message of wrong size
         self.assertRaises(ValueError, ssa.sign, wrongmhd, q, None)
         # ssa.sign(wrongmhd, q, None)
 
         # invalid (zero) challenge e
-        self.assertRaises(ValueError, ssa._recover_pubkeys, 0, sig[0], sig[1], ec)
-        # ssa._recover_pubkeys(0, sig)
+        self.assertRaises(ValueError, ssa._recover_pubkey, 0, sig[0], sig[1], ec)
+        # ssa._recover_pubkey(0, sig)
 
         # not a BIP340 public key
         self.assertRaises(
@@ -107,6 +109,9 @@ class TestSSA(unittest.TestCase):
                 self.assertEqual(result, result_actual, errmsg)
 
     def test_batch_validation(self):
+
+        ec = secp256k1
+
         hsize = hf().digest_size
         hlen = hsize * 8
 
@@ -163,6 +168,8 @@ class TestSSA(unittest.TestCase):
 
     def test_threshold(self):
         """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
+
+        ec = secp256k1
 
         # parameters
         m = 2
@@ -472,6 +479,9 @@ class TestSSA(unittest.TestCase):
             https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
             https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
         """
+
+        ec = secp256k1
+
         mhd = hf(b"message to sign").digest()
 
         # the signers private and public keys,
@@ -543,10 +553,13 @@ class TestSSA(unittest.TestCase):
         s = (s1 + s2 + s3) % ec.n
         sig = r, s
         # check signature is valid
-        ssa._verify(mhd, Q, sig, ec, hf)
+        ssa.assert_as_valid(mhd, Q, sig, ec, hf)
         self.assertTrue(ssa.verify(mhd, Q, sig))
 
     def test_crack_prvkey(self):
+
+        ec = secp256k1
+
         q = 0x6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725DEADBEEF
         x_Q = mult(q)[0]
         k = 1010101010101010101
@@ -577,7 +590,8 @@ class TestSSA(unittest.TestCase):
 
 def test_low_cardinality():
     """test low-cardinality curves for all msg/key pairs."""
-    # e_c.n has to be prime to sign
+
+    # ec.n has to be prime to sign
     test_curves = [
         low_card_curves["ec13_11"],
         low_card_curves["ec13_19"],
@@ -592,41 +606,42 @@ def test_low_cardinality():
 
     # for dsa it is possible to directy iterate on all
     # possible values for e;
-    # for ssa we have to iterate over all possible hash values
+    # for ssa we have to iterate over possible hash values
     hsize = hf().digest_size
     H = [i.to_bytes(hsize, "big") for i in range(max(primes) * 4)]
-    # only low card curves or it would take forever
-    for e_c in test_curves:
+
+    # only low cardinality test curves or it would take forever
+    for ec in test_curves:
         # BIP340 Schnorr only applies to curve whose prime p = 3 %4
-        if not e_c.pIsThreeModFour:
+        if not ec.pIsThreeModFour:
             err_msg = "field prime is not equal to 3 mod 4: "
             with pytest.raises(ValueError, match=err_msg):
-                ssa.sign(H[0], 1, None, e_c)
+                ssa.sign(H[0], 1, None, ec)
             continue
-        for q in range(1, e_c.n):  # all possible private keys
-            Q = mult(q, e_c.G, e_c)  # public key
-            if not e_c.has_square_y(Q):
-                q = e_c.n - q
-            for h in H:  # all possible hashed messages
-                k = ssa.k(h, q, e_c, hf)
-                K = mult(k, e_c.G, e_c)
-                if not e_c.has_square_y(K):
-                    k = e_c.n - k
-                x_K = K[0]
+        for q in range(1, ec.n):  # all possible private keys
+            QJ = _mult_jac(q, ec.GJ, ec)  # public key
+            x_Q = ec._x_aff_from_jac(QJ)
+            if not ec.has_square_y(QJ):
+                q = ec.n - q
+                QJ = ec.negate(QJ)
+            for h in H:  # hashed messages
+                k = ssa.k(h, q, ec, hf)
+                KJ = _mult_jac(k, ec.GJ, ec)
+                x_K = ec._x_aff_from_jac(KJ)
+                if not ec.has_square_y(KJ):
+                    k = ec.n - k
                 try:
-                    c = ssa._challenge(x_K, Q[0], h, e_c, hf)
+                    c = ssa._challenge(x_K, x_Q, h, ec, hf)
                 except Exception:
                     pass
                 else:
-                    s = (k + c * q) % e_c.n
-                    sig = ssa.sign(h, q, None, e_c)
+                    s = (k + c * q) % ec.n
+                    sig = ssa.sign(h, q, None, ec)
                     assert (x_K, s) == sig
                     # valid signature must validate
-                    ssa._verify(h, Q, sig, e_c, hf)
+                    ssa._assert_as_valid(c, QJ, x_K, s, ec)
 
-                    if c != 0:  # FIXME
-                        x_Q = ssa._recover_pubkeys(c, x_K, s, e_c)
-                        assert Q[0] == x_Q
+                    assert x_Q == ssa._recover_pubkey(c, x_K, s, ec)
 
 
 if __name__ == "__main__":

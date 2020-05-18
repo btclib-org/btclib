@@ -23,12 +23,12 @@ def test_signtocontract():
 
     prv, pub = dsa.gen_keys()
     dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv, None)
-    dsa._verify(m, pub, dsa_sig, ec, sha256)
+    dsa.assert_as_valid(m, pub, dsa_sig, ec, sha256)
     assert verify_commit(c, dsa_receipt)
 
     # 32 bytes message for ECSSA
     m = sha256(m).digest()
     prv, pub = ssa.gen_keys()
     ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv, None)
-    ssa._verify(m, pub, ssa_sig, ec, sha256)
+    ssa.assert_as_valid(m, pub, ssa_sig, ec, sha256)
     assert verify_commit(c, ssa_receipt)

@@ -71,4 +71,4 @@ def test_rfc6979_tv():
             U = mult(x, ec.G, ec)
             assert (int(x_U, 16), int(y_U, 16)) == U
             # test signature validity
-            dsa._verify(msg, U, sig, ec, hf=eval("hashlib." + hf))
+            dsa.assert_as_valid(msg, U, sig, ec, hf=eval("hashlib." + hf))

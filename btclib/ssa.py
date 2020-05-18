@@ -188,6 +188,13 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
     return c
 
 
+def _sign(x_K: int, c: int, q: int, k: int, ec: Curve) -> SSASigTuple:
+    # s=0 is ok: in verification there is no inverse of s
+    s = (k + c * q) % ec.n
+
+    return x_K, s
+
+
 def sign(
     m: Octets,
     prvkey: PrvKey,
@@ -223,10 +230,7 @@ def sign(
     # Let c = int(hf(bytes(x_K) || bytes(x_Q) || m)) mod n.
     c = _challenge(x_K, x_Q, m, ec, hf)
 
-    # s=0 is ok: in verification there is no inverse of s
-    s = (k + c * q) % ec.n
-
-    return x_K, s
+    return _sign(x_K, c, q, k, ec)
 
 
 def _to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
@@ -273,23 +277,12 @@ def _to_sig(sig: SSASig, ec: Curve) -> SSASigTuple:
     return r, s
 
 
-def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve, hf: HashF) -> None:
+def _assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     # BIP340 is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
-
-    # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
-
-    r, s = _to_sig(sig, ec)
-
-    x_Q, y_Q = _to_bip340_point(Q, ec)
-    QJ = x_Q, y_Q, 1
-
-    # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
-    c = _challenge(r, x_Q, m, ec, hf)
 
     # Let K = sG - eQ.
     # in Jacobian coordinates
@@ -303,21 +296,41 @@ def _verify(m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve, hf: HashF) -> No
     assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "Signature verification failed"
 
 
+def assert_as_valid(
+    m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve, hf: HashF
+) -> None:
+    # Private function for test/dev purposes
+    # It raises Errors, while verify should always return True or False
+
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
+
+    r, s = _to_sig(sig, ec)
+
+    x_Q, y_Q = _to_bip340_point(Q, ec)
+    QJ = x_Q, y_Q, 1
+
+    # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
+    c = _challenge(r, x_Q, m, ec, hf)
+
+    _assert_as_valid(c, QJ, r, s, ec)
+
+
 def verify(
     m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
 
-    # try/except wrapper for the Errors raised by _verify
+    # try/except wrapper for the Errors raised by assert_as_valid
     try:
-        _verify(m, Q, sig, ec, hf)
+        assert_as_valid(m, Q, sig, ec, hf)
     except Exception:
         return False
     else:
         return True
 
 
-def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> int:
+def _recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     # Private function provided for testing purposes only.
 
     KJ = r, ec.y_quadratic_residue(r, True), 1
@@ -375,7 +388,7 @@ def _batch_verify(
         raise ValueError(errMsg)
 
     if batch_size < 2:
-        return _verify(ms[0], Qs[0], sigs[0], ec, hf)
+        return assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)
 
     # BIP340 is only defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()

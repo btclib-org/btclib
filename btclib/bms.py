@@ -273,7 +273,7 @@ def _to_sig(sig: BMSig) -> BMSigTuple:
     return rf, r, s
 
 
-def _verify(msg: String, addr: String, sig: BMSig) -> None:
+def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -324,9 +324,9 @@ def _verify(msg: String, addr: String, sig: BMSig) -> None:
 def verify(msg: String, addr: String, sig: BMSig) -> bool:
     """Verify address-based compact signature for the provided message."""
 
-    # try/except wrapper for the Errors raised by _verify
+    # try/except wrapper for the Errors raised by assert_as_valid
     try:
-        _verify(msg, addr, sig)
+        assert_as_valid(msg, addr, sig)
     except Exception:
         return False
     else:
