@@ -103,7 +103,7 @@ class CurveGroup:
 
     # methods using p: they could become functions
 
-    def negate(self, Q: Union[Point, JacPoint]) -> Point:
+    def negate(self, Q: Union[Point, JacPoint]) -> Union[Point, JacPoint]:
         """Return the opposite point.
 
         The input point is not checked to be on the curve.

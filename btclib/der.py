@@ -86,11 +86,11 @@ def _validate_sig(
     if not 0 < s < ec.n:
         raise ValueError(f"Scalar s not in 1..n-1: {hex(r)}")
 
-    if sighash not in [None] + SIGHASHES:
+    if sighash is not None and sighash not in SIGHASHES:
         raise ValueError(f"Invalid sighash: {hex(sighash)}")
 
 
-def _check_size_and_type(der_sig: DERSig, ec: Curve) -> int:
+def _check_size_and_type(der_sig: bytes, ec: Curve) -> int:
 
     der_sig_size = len(der_sig)
 
@@ -126,7 +126,7 @@ def _check_size_and_type(der_sig: DERSig, ec: Curve) -> int:
     return der_sig_size
 
 
-def _scalar_size(der_sig: DERSig, sighash_size: int, offset: int) -> int:
+def _scalar_size(der_sig: bytes, sighash_size: int, offset: int) -> int:
 
     der_sig_size = len(der_sig)
 
