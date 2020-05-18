@@ -8,12 +8,16 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Entropy conversions from/to binary 0/1 string, bytes-like, and int.
+"""Entropy conversion functions.
 
-Input entropy can be expressed as
-binary 0/1 string, bytes-like, or integer.
+Depending on the function, input entropy can be expressed
+as raw (i.e. binary 0/1 string), bytes, or integer
+and their equivalent representations.
 
-Output entropy is always a binary 0/1 string.
+Leading zeros in raw or bytes entropy
+are never considered redundant padding.
+
+Output entropy is always raw.
 """
 
 import math
@@ -28,14 +32,12 @@ _bits = 128, 160, 192, 224, 256, 512
 
 
 def _indexes_from_entropy(entropy: BinStr, base: int) -> List[int]:
-    """Return the digit indexes for the binary 0/1 string entropy.
+    """Return the digit indexes for the provided raw entropy.
 
     Return the list of integer indexes into a digit set,
     usually a language word-list,
-    for a given entropy.
-
-    Entropy must be represented as binary 0/1 string; leading zeros
-    are not considered redundant padding.
+    for the provided raw (i.e. binary 0/1 string) entropy;
+    leading zeros are not considered redundant padding.
     """
 
     bits = len(entropy)
@@ -55,9 +57,10 @@ def _indexes_from_entropy(entropy: BinStr, base: int) -> List[int]:
 
 
 def _entropy_from_indexes(indexes: List[int], base: int) -> BinStr:
-    """Return the entropy from a list of word-list indexes.
+    """Return the raw entropy from a list of word-list indexes.
 
-    Return the entropy from a list of integer indexes into
+    Return the raw (i.e. binary 0/1 string) entropy
+    from the provided list of integer indexes into
     a given language word-list.
     """
 
@@ -79,17 +82,20 @@ OneOrMoreInt = Union[int, Iterable[int]]
 
 
 def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
-    """Convert the input entropy to binary 0/1 string.
+    """Return raw entropy from the input entropy.
 
     Input entropy can be expressed as:
 
-    - binary 0/1 string
-    - bytes (also represented by a hex-string)
-    - integer (int or string starting with "0b"/"0x")
+    - raw (i.e. binary 0/1 string) entropy
+    - bytes (no hex-string, as they would conflict with
+      raw entropy representation)
+    - integer (int, no string starting with "0b"/"0x")
 
-    In the case of binary 0/1 string and bytes,
+    In the case of raw entropy and bytes,
     entropy is never padded to satisfy the bit-size requirement;
-    instead, an integer is front-padded with zero digits as necessary.
+    instead,
+    integer entropy is front-padded with zeros digits
+    as much as necessary to satisfy the bit-size requirement.
 
     In all cases if more bits than required are provided,
     the leftmost ones are retained.
@@ -98,18 +104,28 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
     """
 
     if isinstance(entr, str):
-        return binstr_from_str(entr, bits)
+        return binstr_from_binstr(entr, bits)
     elif isinstance(entr, bytes):
         return binstr_from_bytes(entr, bits)
     elif isinstance(entr, int):
         return binstr_from_int(entr, bits)
 
-    m = "Entropy must be binary 0/1 string, bytes, or int; "
+    m = "Entropy must be raw binary 0/1 string, bytes, or int; "
     m += f"not '{type(entr).__name__}'"
     raise TypeError(m)
 
 
 def binstr_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinStr:
+    """Return raw entropy from the input Octets entropy.
+
+    Input entropy can be expressed as hex-string or bytes;
+    it is never padded to satisfy the bit-size requirement.
+
+    If more bits than required are provided,
+    the leftmost ones are retained.
+
+    Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
+    """
 
     bytes_entropy = bytes_from_octets(bytes_entropy)
 
@@ -133,12 +149,25 @@ def binstr_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinS
 
 
 def binstr_from_int(int_entropy: int, bits: OneOrMoreInt = _bits) -> BinStr:
-    """Convert the input integer entropy to binary 0/1 string.
+    """Return raw entropy from the input integer entropy.
 
-    The integer is front-padded with zeros as much as necessary
-    to satisfy the bit-size requirement. If the integer provides
-    more bits than required, the leftmost ones are retained.
+    Input entropy can be expressed as int
+    or string starting with "0x"/"0b";
+    it is front-padded with zeros digits
+    as much as necessary to satisfy the bit-size requirement.
+
+    If more bits than required are provided,
+    the leftmost ones are retained.
+
+    Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
+
+    if isinstance(int_entropy, str):
+        int_entropy = int_entropy.strip().lower()
+        if int_entropy[:2] == "0b":
+            int_entropy = int(int_entropy, 2)
+        elif int_entropy[:2] == "0x":
+            int_entropy = int(int_entropy, 16)
 
     if not isinstance(int_entropy, int):
         m = "Entropy must be an int, not "
@@ -166,60 +195,58 @@ def binstr_from_int(int_entropy: int, bits: OneOrMoreInt = _bits) -> BinStr:
     return bin_str.zfill(n_bits)
 
 
-def binstr_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
+def binstr_from_binstr(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
+    """Return raw entropy from the input raw entropy.
+
+    Input entropy must be expressed as raw entropy;
+    it is never padded to satisfy the bit-size requirement.
+
+    If more bits than required are provided,
+    the leftmost ones are retained.
+
+    Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
+    """
 
     if not isinstance(str_entropy, str):
         m = "Entropy must be a str, not "
         m += f"{type(str_entropy).__name__}"
         raise TypeError(m)
-
-    str_entropy = str_entropy.strip()
-    str_entropy = str_entropy.lower()
-
-    if str_entropy[:2] == "0b":
-        return binstr_from_int(int(str_entropy, 2), bits)
-    elif str_entropy[:2] == "0x":
-        return binstr_from_int(int(str_entropy, 16), bits)
-
-    try:
         # check if it is a valid binary string
-        int(str_entropy, 2)
-    except Exception:
-        pass
-    else:
-        # if a single int, make it a tuple
-        if isinstance(bits, int):
-            bits = (bits,)
-        # ascending unique sorting of allowed bits
-        bits = sorted(set(bits))
 
-        n_bits = len(str_entropy)
-        if n_bits > bits[-1]:
-            # only the leftmost bits are retained
-            return str_entropy[: bits[-1]]
-        if n_bits not in bits:
-            m = f"Wrong number of bits: {n_bits} instead of {bits}"
-            raise ValueError(m)
-        return str_entropy
+    int(str_entropy, 2)
 
-    # must be an hex-string
-    return binstr_from_bytes(str_entropy, bits)
+    # if a single int, make it a tuple
+    if isinstance(bits, int):
+        bits = (bits,)
+    # ascending unique sorting of allowed bits
+    bits = sorted(set(bits))
+
+    n_bits = len(str_entropy)
+    if n_bits > bits[-1]:
+        # only the leftmost bits are retained
+        return str_entropy[: bits[-1]]
+    if n_bits not in bits:
+        m = f"Wrong number of bits: {n_bits} instead of {bits}"
+        raise ValueError(m)
+    return str_entropy
 
 
 def binstr_from_rolls(
     bits: int, dice_base: int, rolls: List[int], shuffle: bool = True,
 ) -> BinStr:
-    """Return entropy from dice rolls.
+    """Return raw entropy from the input dice rolls.
 
     Dice rolls are represented by integers in the [1-dice_base] range;
-    anyway, only rolls having value in the [1-base] range are used,
+    there must be enough rolls to satisfy the bit-size requirement.
+
+    Only rolls having value in the [1-base] range are used,
     with base being the highest power of 2 that is lower than the
     dice_base (e.g. for a traditional D6 dice, only rolls having value
     in [1-4] are used; for a D20 dice, only rolls having value in
     [1-16] are used; etc.). Rolls can also be shuffled.
 
-    The dice rolls must supply enough entropy for the required number
-    of bits: the leftmost required number of bits are returned.
+    If more bits than required are provided,
+    the leftmost ones are retained.
     """
 
     if dice_base < 2:
@@ -253,16 +280,16 @@ def binstr_from_rolls(
 def randbinstr(
     bits: int, entropy: Optional[BinStr] = None, hash: bool = True
 ) -> BinStr:
-    """Return CSPRNG system entropy mixed with exogenous entropy.
+    """Return CSPRNG raw entropy XOR-ed with input raw entropy.
 
-    If no exogenous entropy is provided,
-    then entropy generated with the system
-    cryptographically strong pseudo-random number generator (CSPRNG)
-    is returned.
+    If no exogenous raw entropy is provided as input, then entropy
+    is generated with the system
+    cryptographically strong pseudo-random number generator (CSPRNG).
 
-    Instead, if exogenous entropy is provided,
-    then it is XOR-ed with the CSPRNG system entropy,
-    then possibly hashed.
+    Then, this entropy is:
+
+    - XOR-ed with CSPRNG system entropy
+    - possibly hashed (if requested)
     """
 
     if entropy is None:

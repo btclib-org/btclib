@@ -23,7 +23,7 @@ from btclib.entropy import (
     _bits,
     binstr_from_rolls,
     binstr_from_int,
-    binstr_from_str,
+    binstr_from_binstr,
     binstr_from_bytes,
 )
 
@@ -55,53 +55,57 @@ def test_conversions():
         "00000000" + "10101011" * 31,
     ]
 
-    for entr in test_vectors:
-        assert binstr_from_entropy(entr) == entr
-        assert binstr_from_entropy(int(entr, 2)) == entr
-        assert binstr_from_entropy(bin(int(entr, 2))) == entr
-        assert binstr_from_entropy(int(entr, 2).to_bytes(32, "big")) == entr
+    for raw in test_vectors:
+        assert binstr_from_binstr(raw) == raw
+        i = int(raw, 2)
+        assert binstr_from_int(i) == raw
+        assert binstr_from_int(bin(i).upper()) == raw
+        assert binstr_from_int(hex(i).upper()) == raw
+        b = i.to_bytes(32, "big")
+        assert binstr_from_bytes(b) == raw
+        assert binstr_from_bytes(b.hex()) == raw
+
+        assert binstr_from_entropy(raw) == raw
+        assert binstr_from_entropy(i) == raw
+        assert binstr_from_entropy(b) == raw
 
     max_bits = max(_bits)
 
-    entr = "10" + "11111111" * (max_bits // 8)
-    binary_number = bin(int(entr, 2))
-    assert binstr_from_entropy(binary_number) == binstr_from_entropy(entr[:-2])
+    raw = "10" + "11111111" * (max_bits // 8)
+    assert binstr_from_entropy(raw) == binstr_from_entropy(raw[:-2])
 
     # entr integer has its leftmost bit set to 0
-    entr = 1 << max_bits - 1
-    binstr_entropy = binstr_from_entropy(entr)
+    i = 1 << max_bits - 1
+    binstr_entropy = binstr_from_entropy(i)
     assert len(binstr_entropy) == max_bits
 
     # entr integer has its leftmost bit set to 1
-    entr = 1 << max_bits
-    binstr_entropy = binstr_from_entropy(entr)
+    i = 1 << max_bits
+    binstr_entropy = binstr_from_entropy(i)
     assert len(binstr_entropy) == max_bits
 
-    exp_int_entropy = entr >> 1
-    entr = int(binstr_entropy, 2)
-    assert entr == exp_int_entropy
+    exp_i = i >> 1
+    i = int(binstr_entropy, 2)
+    assert i == exp_i
 
     i = secrets.randbits(255)
-    i_bytes = i.to_bytes(32, "big")
-    binstr = binstr_from_int(i)
-    assert int(binstr, 2) == i
-    assert len(binstr) == 256
+    raw = binstr_from_int(i)
+    assert int(raw, 2) == i
+    assert len(raw) == 256
 
-    assert binstr_from_str(binstr) == binstr
-    assert binstr_from_str(hex(i).upper()) == binstr
-    assert binstr_from_str(bin(i).upper()) == binstr
-    assert binstr_from_str(i_bytes.hex()) == binstr
+    assert binstr_from_binstr(raw) == raw
+    assert binstr_from_int(hex(i).upper()) == raw
 
-    assert binstr_from_bytes(i_bytes) == binstr
-    assert binstr_from_bytes(i_bytes.hex()) == binstr
+    b = i.to_bytes(32, "big")
+    assert binstr_from_bytes(b) == raw
 
-    binstr2 = binstr_from_int(i, 255)
-    assert int(binstr2, 2) == i
-    assert len(binstr2) == 255
-    assert binstr_from_str("0" + binstr2) == binstr
-    binstr2 = binstr_from_str(binstr, 128)
-    assert len(binstr2) == 128
-    assert binstr2 == binstr[:128]
+    raw2 = binstr_from_int(i, 255)
+    assert int(raw2, 2) == i
+    assert len(raw2) == 255
+    assert binstr_from_binstr("0" + raw2) == raw
+    raw2 = binstr_from_binstr(raw, 128)
+    assert len(raw2) == 128
+    assert raw2 == raw[:128]
 
 
 def test_exceptions():
@@ -151,7 +155,7 @@ def test_exceptions():
         binstr_from_entropy(bytes_entropy216, 224)
 
     invalid_entropy = tuple()
-    err_msg = "Entropy must be binary 0/1 string, bytes, or int; not 'tuple'"
+    err_msg = "Entropy must be raw binary 0/1 string, bytes, or int; not "
     with pytest.raises(TypeError, match=err_msg):
         binstr_from_entropy(invalid_entropy)
 
@@ -161,7 +165,7 @@ def test_exceptions():
 
     err_msg = "Entropy must be a str, not "
     with pytest.raises(TypeError, match=err_msg):
-        binstr_from_str(3)
+        binstr_from_binstr(3)
 
 
 def test_binstr_from_rolls():
