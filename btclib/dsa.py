@@ -249,7 +249,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested
-    for j in range(ec.h):  # 1
+    for j in range(ec.h + 1):  # 1
         # affine x-coordinate of K (field element)
         x = (r + j * ec.n) % ec.p  # 1.1
         # two possible y-coordinates, i.e. two possible keys for each cycle

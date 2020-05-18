@@ -181,8 +181,7 @@ def test_low_cardinality():
         low_card_curves["ec17_23"],
         low_card_curves["ec19_13"],
         low_card_curves["ec19_23"],
-        # FIXME
-        # low_card_curves["ec23_19"],
+        low_card_curves["ec23_19"],
         low_card_curves["ec23_31"],
     ]
 
