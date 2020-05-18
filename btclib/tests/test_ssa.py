@@ -602,13 +602,6 @@ def test_low_cardinality():
         low_card_curves["ec23_19"],
         low_card_curves["ec23_31"],
     ]
-    primes = [ec.p for ec in test_curves]
-
-    # for dsa it is possible to directy iterate on all
-    # possible values for e;
-    # for ssa we have to iterate over possible hash values
-    hsize = hf().digest_size
-    H = [i.to_bytes(hsize, "big") for i in range(max(primes) * 4)]
 
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
@@ -616,32 +609,31 @@ def test_low_cardinality():
         if not ec.pIsThreeModFour:
             err_msg = "field prime is not equal to 3 mod 4: "
             with pytest.raises(ValueError, match=err_msg):
-                ssa.sign(H[0], 1, None, ec)
+                ssa.sign(32 * b"\x00", 1, None, ec)
             continue
-        for q in range(1, ec.n):  # all possible private keys
+        for q in range(1, ec.n // 2):  # all possible private keys
             QJ = _mult_jac(q, ec.GJ, ec)  # public key
             x_Q = ec._x_aff_from_jac(QJ)
             if not ec.has_square_y(QJ):
                 q = ec.n - q
                 QJ = ec.negate(QJ)
-            for h in H:  # hashed messages
-                k = ssa.k(h, q, ec, hf)
-                KJ = _mult_jac(k, ec.GJ, ec)
-                x_K = ec._x_aff_from_jac(KJ)
-                if not ec.has_square_y(KJ):
+            for k in range(1, ec.n // 2):  # all possible ephemeral keys
+                RJ = _mult_jac(k, ec.GJ, ec)
+                r = ec._x_aff_from_jac(RJ)
+                if not ec.has_square_y(RJ):
                     k = ec.n - k
-                try:
-                    c = ssa._challenge(x_K, x_Q, h, ec, hf)
-                except Exception:
-                    pass
-                else:
-                    s = (k + c * q) % ec.n
-                    sig = ssa.sign(h, q, None, ec)
-                    assert (x_K, s) == sig
-                    # valid signature must validate
-                    ssa._assert_as_valid(c, QJ, x_K, s, ec)
+                for e in range(ec.n):  # all possible challenges
+                    s = (k + e * q) % ec.n
 
-                    assert x_Q == ssa._recover_pubkey(c, x_K, s, ec)
+                    sig = ssa._sign(r, e, q, k, ec)
+                    assert (r, s) == sig
+                    # valid signature must validate
+                    ssa._assert_as_valid(e, QJ, r, s, ec)
+
+                    # if e == 0 then the sig is valid for all {q, Q}
+                    # no public key can be recovered
+                    if e != 0:
+                        assert x_Q == ssa._recover_pubkey(e, r, s, ec)
 
 
 if __name__ == "__main__":

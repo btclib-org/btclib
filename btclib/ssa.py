@@ -183,8 +183,10 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
     t += m
     t = _tagged_hash("BIPSchnorr", t, hf)
     c = int_from_bits(t, ec.nlen) % ec.n
-    if c == 0:
-        raise ValueError("Invalid (zero) challenge")
+    # if c == 0 then private key is removed from the equations,
+    # so the signature is valid for any private/public key pair
+    # if c == 0:
+    #    raise RuntimeError("Invalid zero challenge")
     return c
 
 

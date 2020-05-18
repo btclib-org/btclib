@@ -15,9 +15,6 @@
 - difficulty adjustment
 - add wallet infrastructure
 - add sign(address, msg) using wallet infrastrucure
-- report test vectors from P. Todd's library
-- report trailing/leading blank trimming in Electrum message signing
-- report BIP39 whitespaces
 - isinstance(entr, bytearray) or isinstance(entr, bytes)
 - revise ansi_x963_kdf
 - optimizations:
@@ -37,5 +34,14 @@
 - BLS
 - wherever a Curve is required, accept also a network str ?
 - remove signtocontract, adding commit to dsa and ssa
-- e=0 in SSA ? See FIXME
 - compare with test_framework
+
+- report test vectors from P. Todd's library
+- report trailing/leading blank trimming in Electrum message signing
+- report BIP39 whitespaces
+- SSA: ask about checking e=0
+- SSA: ask about why e=e(k), making impossible to select e, k indipendently
+- SSA: ask about m being 32 bytes
+- SSA: ask about benefit of pIsThreeModFour vs odd or low
+- SSA: ask about benefit of removing 02/03 from pubkey
+- SSA: suggest better k
