@@ -233,7 +233,7 @@ class CurveGroup:
         An Error is raised if not.
         """
         if not self.pIsThreeModFour:
-            m = f"field prime p ({hex(self.p)}) is not equal to 3 (mod 4)"
+            m = f"field prime is not equal to 3 mod 4: {hex(self.p)}"
             raise ValueError(m)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
