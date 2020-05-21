@@ -292,7 +292,7 @@ def randbinstr(
     - possibly hashed (if requested)
     """
 
-    if entropy is None:
+    if entropy is None or entropy == "":
         i = secrets.randbits(bits)
     else:
         if len(entropy) > bits:

@@ -239,7 +239,13 @@ def test_randbinstr():
         bits = 256
         binstr = randbinstr(bits, hash=hash)
         assert len(binstr) == bits
+        binstr2 = randbinstr(bits, "", hash=hash)
+        assert len(binstr2) == bits
+        assert binstr != binstr2
         binstr2 = randbinstr(bits, hash=hash)
+        assert len(binstr2) == bits
+        assert binstr != binstr2
+        binstr2 = randbinstr(bits, "", hash=hash)
         assert len(binstr2) == bits
         assert binstr != binstr2
 
