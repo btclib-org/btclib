@@ -292,7 +292,8 @@ def _assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
     # Fail if infinite(KJ).
     # Fail if jacobi(y_K) ≠ 1.
-    assert ec.has_square_y(KJ), "y_K is not a quadratic residue"
+    if not ec.has_square_y(KJ):
+        raise RuntimeError("y_K is not a quadratic residue")
 
     # Fail if x_K ≠ r
     assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "Signature verification failed"
@@ -334,6 +335,9 @@ def verify(
 
 def _recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     # Private function provided for testing purposes only.
+
+    if c == 0:
+        raise ValueError("invalid zero challenge")
 
     KJ = r, ec.y_quadratic_residue(r, True), 1
 
@@ -428,7 +432,8 @@ def _batch_verify(
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
     precondition = TJ[0] * RHSZ2 % ec.p == RHSJ[0] * TZ2 % ec.p
-    assert precondition, "Signature verification precondition failed"
+    if not precondition:
+        raise ValueError("Signature verification precondition failed")
 
     valid_sig = TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p
     assert valid_sig, "Signature verification failed"
