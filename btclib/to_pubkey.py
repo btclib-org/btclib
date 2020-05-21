@@ -23,7 +23,7 @@ from .network import (
 )
 from .secpoint import bytes_from_point, point_from_octets
 from .to_prvkey import prvkeyinfo_from_prvkey
-from .utils import bytes_from_octets, hash160
+from .utils import bytes_from_octets
 
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
@@ -90,7 +90,7 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
     try:
         return point_from_octets(pubkey, ec)
     except Exception:
-        raise ValueError(f"Not a public key: {pubkey}")
+        raise ValueError(f"Not a public key: {pubkey!r}")
 
 
 # not used so far, probably useless
@@ -159,7 +159,7 @@ def pubkeyinfo_from_key(
     try:
         return pubkeyinfo_from_prvkey(key, network, compressed)
     except Exception:
-        raise ValueError(f"Not a public (or even private) key: {key}")
+        raise ValueError(f"Not a public (or even private) key: {key!r}")
 
 
 def pubkeyinfo_from_pubkey(
@@ -211,14 +211,3 @@ def pubkeyinfo_from_prvkey(
     Pub = mult(q, ec.G, ec)
     pubkey = bytes_from_point(Pub, ec, compr)
     return pubkey, net
-
-
-def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
-    """Return the public key fingerprint from a private/public key.
-
-    The fingerprint is the last four bytes
-    of the compressed public key HASH160.
-    """
-
-    pubkey, _ = pubkeyinfo_from_key(key, network, compressed=True)
-    return hash160(pubkey)[:4]

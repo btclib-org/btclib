@@ -12,7 +12,6 @@
 
 import pytest
 
-from btclib import bip32
 from btclib.curves import CURVES
 from btclib.secpoint import bytes_from_point
 from btclib.tests.test_to_key import (
@@ -38,11 +37,9 @@ from btclib.tests.test_to_key import (
     xprv0_dict,
     xprv_dict,
     xprvn_dict,
-    xpub,
     xpub_dict,
 )
 from btclib.to_pubkey import (
-    fingerprint,
     point_from_key,
     point_from_pubkey,
     pubkeyinfo_from_key,
@@ -216,12 +213,3 @@ def test_from_key():
             point_from_key(not_a_key)
         with pytest.raises(ValueError):
             pubkeyinfo_from_key(not_a_key)
-
-
-def test_fingerprint():
-
-    pf = fingerprint(xpub)
-    # dict is used to increase code coverage
-    child_key = bip32.derive(xpub_dict, b"\x00" * 4)
-    pf2 = bip32.deserialize(child_key)["parent_fingerprint"]
-    assert pf == pf2

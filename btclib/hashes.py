@@ -40,3 +40,14 @@ def hash256_from_script(script: Script) -> bytes:
     if isinstance(script, list):
         script = encode(script)
     return sha256(script)
+
+
+def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
+    """Return the public key fingerprint from a private/public key.
+
+    The fingerprint is the last four bytes
+    of the compressed public key HASH160.
+    """
+
+    pubkey, _ = pubkeyinfo_from_key(key, network, compressed=True)
+    return hash160(pubkey)[:4]
