@@ -23,12 +23,13 @@ Output entropy is always raw.
 import math
 import secrets
 from hashlib import sha512
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 from .alias import BinStr, Entropy, Octets
 from .utils import bytes_from_octets
 
 _bits = 128, 160, 192, 224, 256, 512
+_dice_sides = (4, 6, 8, 12, 20, 24, 30, 48, 60, 120)
 
 
 def _indexes_from_entropy(entropy: BinStr, base: int) -> List[int]:
@@ -231,17 +232,58 @@ def binstr_from_binstr(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
     return str_entropy
 
 
+def collect_rolls(bits: int) -> Tuple[int, List[int]]:
+
+    dice_sides = 0
+    while dice_sides not in _dice_sides:
+        automate = False
+        msg = f"{_dice_sides}"
+        msg = "dice sides " + msg[:-1]
+        msg += ", prefix with 'a' to automate rolls): "
+        dice_sides_str = input(msg)
+        dice_sides_str = dice_sides_str.lower()
+        if dice_sides_str.startswith("a"):
+            automate = True
+            dice_sides_str = dice_sides_str[1:]
+        try:
+            dice_sides = 6 if dice_sides_str == "" else int(dice_sides_str)
+        except Exception:
+            dice_sides = 0
+
+    bits_per_roll = math.floor(math.log2(dice_sides))
+    base = 2 ** bits_per_roll
+    print(f"rolls are used only if in 1..{base}")
+
+    rolls: List[int] = []
+    min_roll_number = math.ceil(bits / bits_per_roll)
+    for i in range(min_roll_number):
+        x = 0
+        while x < 1 or x > base:
+            try:
+                if automate:
+                    x_str = str(1 + secrets.randbelow(dice_sides))
+                else:
+                    x_str = input(f"roll #{i+1}/{min_roll_number}: ")
+                x = int(x_str)
+            except Exception:
+                x = 0
+        rolls.append(x)
+    print(f"collected {min_roll_number} usable D{dice_sides} rolls")
+
+    return dice_sides, rolls
+
+
 def binstr_from_rolls(
-    bits: int, dice_base: int, rolls: List[int], shuffle: bool = True,
+    bits: int, dice_sides: int, rolls: List[int], shuffle: bool = True,
 ) -> BinStr:
     """Return raw entropy from the input dice rolls.
 
-    Dice rolls are represented by integers in the [1-dice_base] range;
+    Dice rolls are represented by integers in the [1-dice_sides] range;
     there must be enough rolls to satisfy the bit-size requirement.
 
     Only rolls having value in the [1-base] range are used,
     with base being the highest power of 2 that is lower than the
-    dice_base (e.g. for a traditional D6 dice, only rolls having value
+    dice_sides (e.g. for a traditional D6 dice, only rolls having value
     in [1-4] are used; for a D20 dice, only rolls having value in
     [1-16] are used; etc.). Rolls can also be shuffled.
 
@@ -249,9 +291,9 @@ def binstr_from_rolls(
     the leftmost ones are retained.
     """
 
-    if dice_base < 2:
-        raise ValueError(f"Invalid dice base: {dice_base}, must be >= 2")
-    bits_per_roll = math.floor(math.log2(dice_base))
+    if dice_sides < 2:
+        raise ValueError(f"Invalid dice base: {dice_sides}, must be >= 2")
+    bits_per_roll = math.floor(math.log2(dice_sides))
     # used base
     base = 2 ** bits_per_roll
 
@@ -266,9 +308,9 @@ def binstr_from_rolls(
             i *= base
             i += r - 1
             min_roll_number -= 1
-        # reject invalid rolls not in [1-dice_base)]
-        elif r < 1 or r > dice_base:
-            msg = f"Invalid roll: {r} is not in [1-{dice_base}]"
+        # reject invalid rolls not in [1-dice_sides)]
+        elif r < 1 or r > dice_sides:
+            msg = f"Invalid roll: {r} is not in [1-{dice_sides}]"
             raise ValueError(msg)
     if min_roll_number > 0:
         msg = f"Too few rolls in the usable [1-{base}] range, missing {min_roll_number} rolls"

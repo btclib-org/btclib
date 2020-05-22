@@ -12,19 +12,22 @@
 
 import math
 import secrets
+from io import StringIO
+from typing import List
 
 import pytest
 
 from btclib.entropy import (
+    _bits,
     _entropy_from_indexes,
     _indexes_from_entropy,
-    binstr_from_entropy,
-    randbinstr,
-    _bits,
-    binstr_from_rolls,
-    binstr_from_int,
     binstr_from_binstr,
     binstr_from_bytes,
+    binstr_from_entropy,
+    binstr_from_int,
+    binstr_from_rolls,
+    collect_rolls,
+    randbinstr,
 )
 
 
@@ -166,6 +169,35 @@ def test_exceptions():
     err_msg = "Entropy must be a str, not "
     with pytest.raises(TypeError, match=err_msg):
         binstr_from_binstr(3)
+
+
+inputs = StringIO("3\npluto\na\n" + "a120\n" + "120\npluto\n" + "64\n" * 43)
+
+
+def test_collect_rolls(monkeypatch):
+
+    monkeypatch.setattr("sys.stdin", inputs)
+
+    # 2 input failures, then "a"
+    dice_sides, dice_rolls = collect_rolls(256)
+    assert dice_sides == 6
+    for i in dice_rolls:
+        assert 0 < i and i < 5
+    assert len(dice_rolls) == 128
+
+    # "a120"
+    dice_sides, dice_rolls = collect_rolls(256)
+    assert dice_sides == 120
+    for i in dice_rolls:
+        assert 0 < i and i < 65
+    assert len(dice_rolls) == 43
+
+    # 43 D120 rolls (plus one input failure)
+    dice_sides, dice_rolls = collect_rolls(256)
+    assert dice_sides == 120
+    for i in dice_rolls:
+        assert 0 < i and i < 65
+    assert len(dice_rolls) == 43
 
 
 def test_binstr_from_rolls():
