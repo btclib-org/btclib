@@ -13,7 +13,6 @@
 import math
 import secrets
 from io import StringIO
-from typing import List
 
 import pytest
 
