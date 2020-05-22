@@ -13,6 +13,7 @@
 import math
 import secrets
 from io import StringIO
+from typing import List
 
 import pytest
 
@@ -170,33 +171,28 @@ def test_exceptions():
         binstr_from_binstr(3)
 
 
-inputs = StringIO("3\npluto\na\n" + "a120\n" + "120\npluto\n" + "64\n" * 43)
+inputs: List[StringIO] = []
+# 2 input failures, then automatic rolls with default D6
+inputs.append(StringIO("3\npluto\na\n"))
+# D120, then 43 automatic rolls
+inputs.append(StringIO("a120\n"))
+# D120, one input failure, then 43 (implausible but valid) non-automatic rolls
+inputs.append(StringIO("120\npluto\n" + "64\n" * 43))
 
 
 def test_collect_rolls(monkeypatch):
 
-    monkeypatch.setattr("sys.stdin", inputs)
-
-    # 2 input failures, then "a"
-    dice_sides, dice_rolls = collect_rolls(256)
-    assert dice_sides == 6
-    for i in dice_rolls:
-        assert 0 < i and i < 5
-    assert len(dice_rolls) == 128
-
-    # "a120"
-    dice_sides, dice_rolls = collect_rolls(256)
-    assert dice_sides == 120
-    for i in dice_rolls:
-        assert 0 < i and i < 65
-    assert len(dice_rolls) == 43
-
-    # 43 D120 rolls (plus one input failure)
-    dice_sides, dice_rolls = collect_rolls(256)
-    assert dice_sides == 120
-    for i in dice_rolls:
-        assert 0 < i and i < 65
-    assert len(dice_rolls) == 43
+    bits = 256
+    for i, sides in enumerate((6, 120, 120)):
+        monkeypatch.setattr("sys.stdin", inputs[i])
+        dice_sides, dice_rolls = collect_rolls(bits)
+        assert dice_sides == sides
+        bits_per_roll = math.floor(math.log2(sides))
+        base = 2 ** bits_per_roll
+        for roll in dice_rolls:
+            assert 0 < roll and roll <= base
+        min_roll_number = math.ceil(bits / bits_per_roll)
+        assert len(dice_rolls) == min_roll_number
 
 
 def test_binstr_from_rolls():
