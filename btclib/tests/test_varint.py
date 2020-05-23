@@ -53,8 +53,7 @@ def test_varint_conversion():
     assert varint.decode(b) == i
 
     i += 1
-    err_msg = "Integer too big for varint encoding"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(ValueError, match="integer too big for varint encoding: "):
         varint.encode(i)
 
     assert varint.decode("6a") == 106

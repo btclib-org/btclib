@@ -59,8 +59,7 @@ primes = [
 
 def test_mod_inv_prime():
     for p in primes:
-        err_msg = "No inverse for 0x0 mod "
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(ValueError, match="No inverse for 0 mod"):
             mod_inv(0, p)
         for a in range(1, min(p, 500)):  # exhausted only for small p
             inv = mod_inv(a, p)

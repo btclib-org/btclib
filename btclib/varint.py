@@ -33,7 +33,7 @@ from io import BytesIO
 from typing import BinaryIO, Union
 
 from .alias import Octets
-from .utils import bytes_from_octets
+from .utils import bytes_from_octets, hex_string
 
 
 def decode(stream: Union[BinaryIO, Octets]) -> int:
@@ -72,4 +72,4 @@ def encode(i: int) -> bytes:
     elif i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
         return b"\xff" + i.to_bytes(8, byteorder="little")
     else:
-        raise ValueError(f"Integer too big for varint encoding: ({hex(i)})")
+        raise ValueError(f"integer too big for varint encoding: '{hex_string(i)}'")

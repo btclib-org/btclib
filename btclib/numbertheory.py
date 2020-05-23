@@ -23,6 +23,8 @@ with the following modifications:
 
 from typing import Tuple
 
+from .utils import hex_string
+
 
 def xgcd(a: int, b: int) -> Tuple[int, int, int]:
     """Return (g, x, y) such that a*x + b*y = g = gcd(x, y).
@@ -50,7 +52,11 @@ def mod_inv(a: int, m: int) -> int:
     g, x, _ = xgcd(a, m)
     if g == 1:
         return x % m
-    raise ValueError(f"No inverse for {hex(a)} mod {hex(m)}")
+    err_msg = "No inverse for "
+    err_msg += f"{hex_string(a)}" if a > 0xFFFFFFFF else f"{a}"
+    err_msg += " mod "
+    err_msg += f"{hex_string(m)}" if m > 0xFFFFFFFF else f"{m}"
+    raise ValueError(err_msg)
 
 
 def legendre_symbol(a, p) -> int:
@@ -98,7 +104,11 @@ def mod_sqrt(a: int, p: int) -> int:
         return tonelli(a, p)
 
     if r * r % p != a:
-        raise ValueError(f"No root for {hex(a)} (mod {hex(p)})")
+        err_msg = "No root for "
+        err_msg += f"'{hex_string(a)}'" if a > 0xFFFFFFFF else f"{a}"
+        err_msg += " mod "
+        err_msg += f"'{hex_string(p)}'" if p > 0xFFFFFFFF else f"{p}"
+        raise ValueError(err_msg)
     return r
 
 
@@ -116,7 +126,11 @@ def tonelli(a: int, p: int) -> int:
 
     # Check solution existence for an odd prime p
     if legendre_symbol(a, p) != 1:
-        raise ValueError(f"No root for {hex(a)} (mod {hex(p)})")
+        err_msg = "No root for "
+        err_msg += f"'{hex_string(a)}'" if a > 0xFFFFFFFF else f"{a}"
+        err_msg += " mod "
+        err_msg += f"'{hex_string(p)}'" if p > 0xFFFFFFFF else f"{p}"
+        raise ValueError(err_msg)
 
     # Factor p-1 on the form q * 2^s (with q odd)
     q, s = p - 1, 0

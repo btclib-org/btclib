@@ -61,7 +61,7 @@ from .curves import secp256k1
 from .numbertheory import mod_inv
 from .to_prvkey import int_from_prvkey
 from .to_pubkey import point_from_pubkey
-from .utils import bytes_from_octets, int_from_bits
+from .utils import bytes_from_octets, hex_string, int_from_bits
 
 # TODO relax the p_ThreeModFour requirement
 
@@ -79,7 +79,9 @@ def _validate_sig(r: int, s: int, ec: Curve) -> None:
 
     # Fail if s is not [0, n-1].
     if not 0 <= s < ec.n:
-        raise ValueError(f"scalar s not in 0..n-1: {hex(s)}")
+        err_msg = "scalar s not in 0..n-1: "
+        err_msg += f"'{hex_string(s)}'" if s > 0xFFFFFFFF else f"{s}"
+        raise ValueError(err_msg)
 
 
 def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:

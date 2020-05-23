@@ -64,7 +64,7 @@ from .alias import Octets
 from .curve import Curve
 from .curves import secp256k1
 from .script import SIGHASHES
-from .utils import bytes_from_octets
+from .utils import bytes_from_octets, hex_string
 
 # (r, s, sighash)
 # r and s are the components of a DSASigTuple
@@ -80,11 +80,15 @@ def _validate_sig(
 
     # Fail if r is not [1, n-1]
     if not 0 < r < ec.n:
-        raise ValueError(f"scalar r not in 1..n-1: {hex(r)}")
+        err_msg = "scalar r not in 1..n-1: "
+        err_msg += f"'{hex_string(r)}'" if r > 0xFFFFFFFF else f"{r}"
+        raise ValueError(err_msg)
 
     # Fail if s is not [1, n-1]
     if not 0 < s < ec.n:
-        raise ValueError(f"scalar s not in 1..n-1: {hex(r)}")
+        err_msg = "scalar s not in 1..n-1: "
+        err_msg += f"'{hex_string(s)}'" if s > 0xFFFFFFFF else f"{s}"
+        raise ValueError(err_msg)
 
     if sighash is not None and sighash not in SIGHASHES:
         raise ValueError(f"Invalid sighash: {hex(sighash)}")
