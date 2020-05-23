@@ -126,7 +126,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     # the second part being the checksum, to be verified
     checksum = _entropy_checksum(binstr_entropy)
     if cs_entropy[bits:] != checksum:
-        m = f"Invalid checksum: {cs_entropy[bits:]}; expected: {checksum}"
+        m = f"invalid checksum: {cs_entropy[bits:]}; expected: {checksum}"
         raise ValueError(m)
 
     return binstr_entropy

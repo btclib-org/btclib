@@ -349,50 +349,44 @@ def test_serialize():
     assert serialize(d).decode() == rootxprv
 
     d["key"] += b"\x00"
-    errmsg = "Invalid key length: "
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="invalid key length: "):
         serialize(d)
 
     d = deserialize(rootxprv)
     d["depth"] = 256
-    errmsg = "Invalid depth "
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="invalid depth "):
         serialize(d)
 
     d = deserialize(rootxprv)
     d["parent_fingerprint"] = b"\x00\x00\x00\x01"
-    errmsg = "Zero depth with non-zero parent fingerprint 0x"
+    errmsg = "zero depth with non-zero parent fingerprint 0x"
     with pytest.raises(ValueError, match=errmsg):
         serialize(d)
 
     d = deserialize(rootxprv)
     d["index"] = b"\x00\x00\x00\x01"
-    errmsg = "Zero depth with non-zero index 0x"
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="zero depth with non-zero index 0x"):
         serialize(d)
 
     xprv = deserialize(derive(rootxprv, 1))
     xprv["parent_fingerprint"] = b"\x00\x00\x00\x00"
-    errmsg = "Zero parent fingerprint with non-zero depth "
+    errmsg = "zero parent fingerprint with non-zero depth "
     with pytest.raises(ValueError, match=errmsg):
         serialize(xprv)
 
     d = deserialize(rootxprv)
     d["parent_fingerprint"] += b"\x00"
-    errmsg = "Invalid parent fingerprint length: "
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="invalid parent fingerprint length: "):
         serialize(d)
 
     d = deserialize(rootxprv)
     d["index"] += b"\x00"
-    errmsg = "Invalid index length: "
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="invalid index length: "):
         serialize(d)
 
     d = deserialize(rootxprv)
     d["chain_code"] += b"\x00"
-    errmsg = "Invalid chain code length: "
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="invalid chain code length: "):
         serialize(d)
 
 
@@ -452,26 +446,22 @@ def test_derive():
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = derive(rootmxprv, b"\x00\x00\x00\x00")
 
-    errmsg = "Empty derivation path"
     for der_path in ("", "/1"):
-        with pytest.raises(ValueError, match=errmsg):
+        with pytest.raises(ValueError, match="empty derivation path"):
             derive(xprv, der_path)
 
-    errmsg = "Invalid derivation path root: "
     for der_path in (";/0", "invalid index", "800000"):
-        with pytest.raises(ValueError, match=errmsg):
+        with pytest.raises(ValueError, match="invalid derivation path root: "):
             derive(xprv, der_path)
 
-    errmsg = "Derivation path depth greater than 255: "
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="derivation path depth greater than 255: "):
         derive(xprv, "." + 256 * "/0")
 
-    errmsg = "Absolute derivation path for non-root master key"
+    errmsg = "absolute derivation path for non-root master key"
     with pytest.raises(ValueError, match=errmsg):
         derive(xprv, "m/44h/0h/1h/0/10")
 
-    errmsg = "Index must be 4-bytes, not "
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="index must be 4-bytes, not "):
         derive(xprv, b"\x00" * 5)
 
     errmsg = "int too big to convert"
@@ -479,7 +469,7 @@ def test_derive():
         with pytest.raises(OverflowError, match=errmsg):
             derive(xprv, index)
 
-    errmsg = "Derivation path final depth greater than 255: "
+    errmsg = "derivation path final depth greater than 255: "
     with pytest.raises(ValueError, match=errmsg):
         derive(xprv, "." + 255 * "/0")
 
@@ -493,28 +483,26 @@ def test_crack():
     parent_xprv = crack_prvkey(deserialize(parent_xpub), deserialize(child_xprv))
     assert xpub_from_xprv(parent_xprv).decode() == parent_xpub
 
-    errmsg = "Extended parent key is not a public key: "
+    errmsg = "extended parent key is not a public key: "
     with pytest.raises(ValueError, match=errmsg):
         crack_prvkey(parent_xprv, child_xprv)
 
-    errmsg = "Extended child key is not a private key: "
+    errmsg = "extended child key is not a private key: "
     with pytest.raises(ValueError, match=errmsg):
         crack_prvkey(parent_xpub, parent_xpub)
 
     child_xpub = xpub_from_xprv(child_xprv)
-    errmsg = "Not a parent's child: wrong depths"
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="not a parent's child: wrong depths"):
         crack_prvkey(child_xpub, child_xprv)
 
     child0_xprv = derive(parent_xprv, 0)
     grandchild_xprv = derive(child0_xprv, 0)
-    errmsg = "Not a parent's child: wrong parent fingerprint"
+    errmsg = "not a parent's child: wrong parent fingerprint"
     with pytest.raises(ValueError, match=errmsg):
         crack_prvkey(child_xpub, grandchild_xprv)
 
     hardened_child_xprv = derive(parent_xprv, 0x80000000)
-    errmsg = "Hardened child derivation"
-    with pytest.raises(ValueError, match=errmsg):
+    with pytest.raises(ValueError, match="hardened child derivation"):
         crack_prvkey(parent_xpub, hardened_child_xprv)
 
 

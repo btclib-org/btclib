@@ -66,7 +66,7 @@ INVALID_CHECKSUM = [
     # Invalid character in checksum
     ["de1lg7wt\xff", r"ASCII character outside *"],
     # checksum calculated with uppercase form of HRP
-    ["A1G7SGD8", r"Invalid checksum in bech32 string: *"],
+    ["A1G7SGD8", r"invalid checksum in bech32 string: *"],
     ["10a06t8", r"Empty HRP in bech32 string: *"],
     ["1qzzfhee", r"Empty HRP in bech32 string: *"],
 ]

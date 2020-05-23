@@ -117,7 +117,7 @@ class TestSegwitAddress(unittest.TestCase):
         INVALID_ADDRESS = [
             # Invalid human-readable part
             "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
-            # Invalid checksum
+            # invalid checksum
             "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
             # Invalid witness version
             "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",

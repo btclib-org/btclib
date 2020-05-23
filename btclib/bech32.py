@@ -128,4 +128,4 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]
-    raise ValueError(f"Invalid checksum in bech32 string: {bech}")
+    raise ValueError(f"invalid checksum in bech32 string: {bech}")

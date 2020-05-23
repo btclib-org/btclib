@@ -38,19 +38,19 @@ def test_mnemonic():
     assert xprv2 == xprv
 
     eversion = "std"
-    with pytest.raises(ValueError, match="Unknown electrum mnemonic version: "):
+    with pytest.raises(ValueError, match="unknown electrum mnemonic version: "):
         electrum.mnemonic_from_entropy(entropy, eversion, lang)
 
     unkn_ver = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
-    with pytest.raises(ValueError, match="Unknown electrum mnemonic version: "):
+    with pytest.raises(ValueError, match="unknown electrum mnemonic version: "):
         electrum.entropy_from_mnemonic(unkn_ver, lang)
 
-    with pytest.raises(ValueError, match="Unknown electrum mnemonic version: "):
+    with pytest.raises(ValueError, match="unknown electrum mnemonic version: "):
         bip32.mxprv_from_electrum_mnemonic(unkn_ver, passphrase)
 
     for eversion in ("2fa", "2fa_segwit"):
         mnemonic = electrum.mnemonic_from_entropy(entropy, eversion, lang)
-        with pytest.raises(ValueError, match="Unmanaged electrum mnemonic version: "):
+        with pytest.raises(ValueError, match="unmanaged electrum mnemonic version: "):
             bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
 
     mnemonic = "slender flight session office noodle hand couple option office wait uniform morning"

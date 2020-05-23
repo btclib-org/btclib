@@ -52,7 +52,7 @@ def test_exceptions():
         b58decode(encoded, wrong_length)
 
     invalidChecksum = encoded[:-4] + b"1111"
-    with pytest.raises(ValueError, match="Invalid checksum: "):
+    with pytest.raises(ValueError, match="invalid checksum: "):
         b58decode(invalidChecksum, 4)
 
     with pytest.raises(ValueError, match="'ascii' codec can't encode character "):

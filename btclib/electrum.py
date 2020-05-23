@@ -59,7 +59,7 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> Tuple[str, str]:
     if s.startswith(_MNEMONIC_VERSIONS["2fa_segwit"]):
         return "2fa_segwit", mnemonic
 
-    m = f"Unknown electrum mnemonic version: '{s[:3]}'; "
+    m = f"unknown electrum mnemonic version: '{s[:3]}'; "
     m += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
     raise ValueError(m)
 
@@ -77,7 +77,7 @@ def mnemonic_from_entropy(
     """
 
     if version_str not in _MNEMONIC_VERSIONS:
-        m = f"Unknown electrum mnemonic version: '{version_str}'; "
+        m = f"unknown electrum mnemonic version: '{version_str}'; "
         m += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
         raise ValueError(m)
     version = _MNEMONIC_VERSIONS[version_str]

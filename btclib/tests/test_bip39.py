@@ -38,7 +38,7 @@ def test_bip39():
         bip39.entropy_from_mnemonic(wrong_mnemonic, lang)
 
     wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce oil"
-    err_msg = "Invalid checksum: "
+    err_msg = "invalid checksum: "
     with pytest.raises(ValueError, match=err_msg):
         bip39.entropy_from_mnemonic(wr_m, lang)
 
