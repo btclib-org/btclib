@@ -61,7 +61,11 @@ def test_hex_string():
     a = bytes.fromhex(a)
     assert hex_string(a) == "01 DEADBEEF 00000000"
 
-    a = "1deadbeef00000000"  # invalid hex-string: odd number of digits
-    err_msg = "non-hexadecimal number found in fromhex"
-    with pytest.raises(ValueError, match=err_msg):
+    # invalid hex-string: odd number of hex digits
+    a = "1deadbeef00000000"
+    with pytest.raises(ValueError, match="non-hexadecimal number found in fromhex"):
+        hex_string(a)
+
+    a = -1
+    with pytest.raises(ValueError, match="negative integer: "):
         hex_string(a)

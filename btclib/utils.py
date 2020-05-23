@@ -100,6 +100,8 @@ def int_from_bits(o: Octets, nlen: int) -> int:
 def int_from_integer(i: Integer) -> int:
 
     if isinstance(i, int):
+        if i < 0:
+            raise ValueError(f"negative integer: {i}")
         return i
     if isinstance(i, str):
         i = i.lower()
@@ -111,21 +113,23 @@ def int_from_integer(i: Integer) -> int:
     return int.from_bytes(i, "big")
 
 
-def hex_string(a: Integer) -> str:
+def hex_string(i: Integer) -> str:
 
-    if isinstance(a, int):
-        a_str = hex(a)[2:]
-    elif isinstance(a, bytes):
-        a_str = a.hex()
-    else:  # must be a string
-        a = a.upper()
-        if a.startswith("0X"):
-            a_str = a[2:]
-        elif a.startswith("0B"):
-            a_str = hex(int(a, 2))[2:]
+    if isinstance(i, int):
+        if i < 0:
+            raise ValueError(f"negative integer: {i}")
+        a_str = hex(i)[2:]
+    elif isinstance(i, bytes):
+        a_str = i.hex()
+    else:  # must be string
+        i = i.upper()
+        if i.startswith("0X"):
+            a_str = i[2:]
+        elif i.startswith("0B"):
+            a_str = hex(int(i, 2))[2:]
         else:
             # check valid hex-string, remove any whitespace
-            a_str = bytes.fromhex(a).hex()
+            a_str = bytes.fromhex(i).hex()
 
     if len(a_str) % 2 != 0:
         a_str = "0" + a_str
