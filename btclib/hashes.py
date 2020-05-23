@@ -25,18 +25,30 @@ _H160Net = Tuple[bytes, str]
 def hash160_from_pubkey(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> _H160Net:
+    """Return (public key HASH160, nettwork) from a private/public key.
+
+    HASH160 is RIPEMD160(SHA256).
+    """
     pubkey, network = pubkeyinfo_from_key(key, network, compressed)
     h160 = hash160(pubkey)
     return h160, network
 
 
 def hash160_from_script(script: Script) -> bytes:
+    """Return the script HASH160 from a private/public key.
+
+    HASH160 is RIPEMD160(SHA256).
+    """
     if isinstance(script, list):
         script = encode(script)
     return hash160(script)
 
 
 def hash256_from_script(script: Script) -> bytes:
+    """Return the script HASH256 from a private/public key.
+
+    HASH256 is SHA256(SHA256).
+    """
     if isinstance(script, list):
         script = encode(script)
     return sha256(script)

@@ -85,21 +85,21 @@ def int_from_bits(o: Octets, nlen: int) -> int:
 
 
 def sha256(o: Octets) -> bytes:
-    """Return SHA256(*) of the input octet sequence."""
+    "Return the SHA256(*) of the input octet sequence."
 
     o = bytes_from_octets(o)
     return hashlib.sha256(o).digest()
 
 
 def hash160(o: Octets) -> bytes:
-    """Return RIPEMD160(SHA256(*)) of the input octet sequence."""
+    "Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."
 
     t = sha256(o)
     return hashlib.new("ripemd160", t).digest()
 
 
 def hash256(o: Octets) -> bytes:
-    """Return SHA256(SHA256(*)) of the input octet sequence."""
+    "Return the SHA256(SHA256(*)) of the input octet sequence."
 
     t = sha256(o)
     return hashlib.sha256(t).digest()
