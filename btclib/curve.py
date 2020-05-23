@@ -15,7 +15,9 @@ from typing import Union
 
 from .alias import INF, INFJ, Integer, JacPoint, Point
 from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
-from .utils import int_from_integer
+from .utils import hex_string, int_from_integer
+
+_HEXTHRESHOLD = 0xFFFFFFFF
 
 
 def _jac_from_aff(Q: Point) -> JacPoint:
@@ -49,7 +51,9 @@ class CurveGroup:
         # 1) check that p is a prime
         # Fermat test will do as _probabilistic_ primality test...
         if p < 2 or p % 2 == 0 or pow(2, p - 1, p) != 1:
-            raise ValueError(f"p ({hex(p)}) is not prime")
+            err_msg = "p is not prime: "
+            err_msg += f"{hex_string(p)}" if p > _HEXTHRESHOLD else f"{p}"
+            raise ValueError(err_msg)
 
         plen = p.bit_length()
         self.psize = (plen + 7) // 8
@@ -58,10 +62,20 @@ class CurveGroup:
         self.p = p
 
         # 2. check that a and b are integers in the interval [0, p−1]
-        if not 0 <= a < p:
-            raise ValueError(f"invalid a ({hex(a)}) for given p ({hex(p)})")
-        if not 0 <= b < p:
-            raise ValueError(f"invalid b ({hex(b)}) for given p ({hex(p)})")
+        if p <= a:
+            err_msg = "p <= a: " + (
+                f"{hex_string(p)} <= {hex_string(a)}"
+                if p > _HEXTHRESHOLD
+                else f"{p} <= {a}"
+            )
+            raise ValueError(err_msg)
+        if p <= b:
+            err_msg = "p <= b: " + (
+                f"{hex_string(p)} <= {hex_string(b)}"
+                if p > _HEXTHRESHOLD
+                else f"{p} <= {b}"
+            )
+            raise ValueError(err_msg)
 
         # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p)
         d = 4 * a * a * a + 27 * b * b
@@ -72,14 +86,14 @@ class CurveGroup:
 
     def __str__(self) -> str:
         result = "Curve"
-        if self.p > 0xFFFFFFFF:
-            result += f"\n p   = {hex(self.p).upper()}"
+        if self.p > _HEXTHRESHOLD:
+            result += f"\n p   = {hex_string(self.p)}"
         else:
             result += f"\n p   = {self.p}"
 
-        if self._a > 0xFFFFFFFF or self._b > 0xFFFFFFFF:
-            result += f"\n a   = {hex(self._a).upper()}"
-            result += f"\n b   = {hex(self._b).upper()}"
+        if self._a > _HEXTHRESHOLD or self._b > _HEXTHRESHOLD:
+            result += f"\n a   = {hex_string(self._a)}"
+            result += f"\n b   = {hex_string(self._b)}"
         else:
             result += f"\n a   = {self._a}"
             result += f"\n b   = {self._b}"
@@ -88,13 +102,13 @@ class CurveGroup:
 
     def __repr__(self) -> str:
         result = "Curve("
-        if self.p > 0xFFFFFFFF:
-            result += f"{hex(self.p).upper()}"
+        if self.p > _HEXTHRESHOLD:
+            result += f"'{hex_string(self.p)}'"
         else:
             result += f"{self.p}"
 
-        if self._a > 0xFFFFFFFF or self._b > 0xFFFFFFFF:
-            result += f", {hex(self._a).upper()}, {hex(self._b).upper()}"
+        if self._a > _HEXTHRESHOLD or self._b > _HEXTHRESHOLD:
+            result += f", '{hex_string(self._a)}', '{hex_string(self._b)}'"
         else:
             result += f", {self._a}, {self._b}"
 
@@ -216,7 +230,9 @@ class CurveGroup:
     def y(self, x: int) -> int:
         """Return the y coordinate from x, as in (x, y)."""
         if not 0 <= x < self.p:
-            raise ValueError(f"x-coordinate not in 0..p-1: {hex(x)}")
+            err_msg = "x-coordinate not in 0..p-1: "
+            err_msg += f"{hex_string(x)}" if x > _HEXTHRESHOLD else f"{x}"
+            raise ValueError(err_msg)
         y2 = self._y2(x)
         # mod_sqrt will raise a ValueError if root does not exist
         return mod_sqrt(y2, self.p)
@@ -236,7 +252,7 @@ class CurveGroup:
         if Q[1] == 0:  # Infinity point in affine coordinates
             return True
         if not 0 < Q[1] < self.p:  # y cannot be zero
-            raise ValueError(f"y-coordinate {hex(Q[1])} not in (0, p)")
+            raise ValueError(f"y-coordinate {hex_string(Q[1])} not in (0, p)")
         return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
 
     def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
@@ -256,7 +272,7 @@ class CurveGroup:
         An Error is raised if not.
         """
         if not self.pIsThreeModFour:
-            m = f"field prime is not equal to 3 mod 4: {hex(self.p)}"
+            m = f"field prime is not equal to 3 mod 4: {hex_string(self.p)}"
             raise ValueError(m)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
@@ -351,14 +367,14 @@ class CurveSubGroup(CurveGroup):
             raise ValueError("Generator must a be a sequence[int, int]")
         self.G = (int_from_integer(G[0]), int_from_integer(G[1]))
         if not self.is_on_curve(self.G):
-            raise ValueError("Generator is not on the 'x^3 + a*x + b' curve")
+            raise ValueError("Generator is not on the curve")
         self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
 
     def __str__(self) -> str:
         result = super().__str__()
-        if self.p > 0xFFFFFFFF:
-            result += f"\n x_G = {hex(self.G[0]).upper()}"
-            result += f"\n y_G = {hex(self.G[1]).upper()}"
+        if self.p > _HEXTHRESHOLD:
+            result += f"\n x_G = {hex_string(self.G[0])}"
+            result += f"\n y_G = {hex_string(self.G[1])}"
         else:
             result += f"\n x_G = {self.G[0]}"
             result += f"\n y_G = {self.G[1]}"
@@ -366,8 +382,8 @@ class CurveSubGroup(CurveGroup):
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
-        if self.p > 0xFFFFFFFF:
-            result += f", ({hex(self.G[0]).upper()}, {hex(self.G[1]).upper()})"
+        if self.p > _HEXTHRESHOLD:
+            result += f", ('{hex_string(self.G[0])}', '{hex_string(self.G[1])}')"
         else:
             result += f", ({self.G[0]}, {self.G[1]})"
         result += ")"
@@ -404,31 +420,37 @@ class Curve(CurveSubGroup):
 
         # 5. Check that n is prime.
         if n < 2 or n % 2 == 0 or pow(2, n - 1, n) != 1:
-            raise ValueError(f"n ({hex(n)}) is not prime")
+            err_msg = "n is not prime: "
+            err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
+            raise ValueError(err_msg)
         delta = int(2 * sqrt(self.p))
         # also check n with Hasse Theorem
         if h < 2:
             if not (self.p + 1 - delta <= n <= self.p + 1 + delta):
-                m = f"n ({hex(n)}) not in [p + 1 - delta, p + 1 + delta]"
-                raise ValueError(m)
+                err_msg = "n not in p+1-delta..p+1+delta: "
+                err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
+                raise ValueError(err_msg)
 
         # 7. Check that G ≠ INF, nG = INF
         if self.G[1] == 0:
-            m = "INF point does not generate a prime order subgroup"
+            m = "INF point cannot be a generator"
             raise ValueError(m)
         Inf = _mult_aff(n, self.G, self)
         if Inf[1] != 0:
-            raise ValueError(f"n ({hex(n)}) is not the group order")
+            err_msg = "n is not the group order: "
+            err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
+            raise ValueError(err_msg)
 
         # 6. Check cofactor
         exp_h = int(1 / n + delta / n + self.p / n)
         if h != exp_h:
-            raise ValueError(f"h ({h}) not as expected ({exp_h})")
+            raise ValueError(f"invalid h: {h}, expected {exp_h}")
         self.h = h
 
         # 8. Check that n ≠ p
-        assert n != p, f"n=p ({hex(n)}) -> weak curve"
+        assert n != p, f"n=p weak curve: {hex_string(n)}"
         #    raise UserWarning("n=p -> weak curve")
+
         if weakness_check:
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100
             for i in range(1, 100):
@@ -437,8 +459,8 @@ class Curve(CurveSubGroup):
 
     def __str__(self) -> str:
         result = super().__str__()
-        if self.p > 0xFFFFFFFF:
-            result += f"\n n   = {hex(self.n).upper()}"
+        if self.n > _HEXTHRESHOLD:
+            result += f"\n n   = {hex_string(self.n)}"
         else:
             result += f"\n n   = {self.n}"
         result += f"\n h = {self.h}"
@@ -446,8 +468,8 @@ class Curve(CurveSubGroup):
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
-        if self.p > 0xFFFFFFFF:
-            result += f", {hex(self.n).upper()}"
+        if self.n > _HEXTHRESHOLD:
+            result += f", '{hex_string(self.n)}'"
         else:
             result += f", {self.n}"
         result += f", {self.h}"

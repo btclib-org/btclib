@@ -42,60 +42,7 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
-class TestEllipticCurve(unittest.TestCase):
-    def test_exceptions(self):
-        # good
-        Curve(11, 2, 7, (6, 9), 7, 2, False)
-
-        # p not odd
-        self.assertRaises(ValueError, Curve, 10, 2, 7, (6, 9), 7, 1, False)
-
-        # p not prime
-        self.assertRaises(ValueError, Curve, 15, 2, 7, (6, 9), 7, 1, False)
-
-        # a > p
-        self.assertRaises(ValueError, Curve, 11, 12, 7, (6, 9), 13, 1, False)
-
-        # b > p
-        self.assertRaises(ValueError, Curve, 11, 2, 12, (6, 9), 13, 1, False)
-
-        # zero discriminant
-        self.assertRaises(ValueError, Curve, 11, 7, 7, (6, 9), 7, 1, False)
-
-        # G not Tuple (int, int)
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9, 1), 7, 1, False)
-
-        # G not on curve
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (7, 9), 7, 1, False)
-
-        # n not prime
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 8, 1, False)
-
-        # n not Hesse
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 71, 1, True)
-
-        # h not as expected
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 7, 1, True)
-        # Curve(11, 2, 7, (6, 9), 7, 1, 0, True)
-
-        # n not group order
-        self.assertRaises(ValueError, Curve, 11, 2, 7, (6, 9), 13, 1, False)
-
-        # n=p -> weak curve
-        # missing
-
-        # weak curve
-        self.assertRaises(UserWarning, Curve, 11, 2, 7, (6, 9), 7, 2, True)
-
-        # x-coordinate not in 0..p-1:
-        ec = CURVES["secp256k1"]
-        self.assertRaises(ValueError, ec.y, ec.p)
-        # secp256k1.y(secp256k1.p)
-
-        # INF point does not generate a prime order subgroup
-        self.assertRaises(ValueError, Curve, 11, 2, 7, INF, 7, 2, False)
-        # Curve(11, 2, 7, INF, 7, 2, 0, False)
-
+class TestEllipticCurves(unittest.TestCase):
     def test_all_curves(self):
         for ec in all_curves.values():
             assert mult(0, ec.G, ec) == INF
