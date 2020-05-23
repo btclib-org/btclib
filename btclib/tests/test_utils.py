@@ -42,11 +42,10 @@ def test_hash160_hash256():
 
 
 def test_int_from_integer():
-    i = secrets.randbits(256)
+    i = secrets.randbits(256 - 4)
     assert i == int_from_integer(i)
     assert i == int_from_integer(i.to_bytes(32, "big"))
     assert i == int_from_integer(hex(i))
-    # assert i == int_from_integer(hex_string(i))
 
 
 def test_hex_string():

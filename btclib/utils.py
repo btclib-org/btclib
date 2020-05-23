@@ -25,6 +25,27 @@ from .alias import Integer, Octets
 #    return byte_str.hex()
 
 
+def sha256(o: Octets) -> bytes:
+    "Return the SHA256(*) of the input octet sequence."
+
+    o = bytes_from_octets(o)
+    return hashlib.sha256(o).digest()
+
+
+def hash160(o: Octets) -> bytes:
+    "Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."
+
+    t = sha256(o)
+    return hashlib.new("ripemd160", t).digest()
+
+
+def hash256(o: Octets) -> bytes:
+    "Return the SHA256(SHA256(*)) of the input octet sequence."
+
+    t = sha256(o)
+    return hashlib.sha256(t).digest()
+
+
 NoneOneOrMoreInt = Optional[Union[int, Iterable[int]]]
 
 
@@ -49,14 +70,6 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
 
     m = f"Invalid size: {len(o)} bytes instead of {out_size}"
     raise ValueError(m)
-
-
-def int_from_integer(i: Integer) -> int:
-    if isinstance(i, int):
-        return i
-    elif isinstance(i, bytes):
-        return int.from_bytes(i, "big")
-    return int(i, 16)
 
 
 def int_from_bits(o: Octets, nlen: int) -> int:
@@ -84,31 +97,12 @@ def int_from_bits(o: Octets, nlen: int) -> int:
     return i >> n
 
 
-def sha256(o: Octets) -> bytes:
-    "Return the SHA256(*) of the input octet sequence."
-
-    o = bytes_from_octets(o)
-    return hashlib.sha256(o).digest()
-
-
-def hash160(o: Octets) -> bytes:
-    "Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."
-
-    t = sha256(o)
-    return hashlib.new("ripemd160", t).digest()
-
-
-def hash256(o: Octets) -> bytes:
-    "Return the SHA256(SHA256(*)) of the input octet sequence."
-
-    t = sha256(o)
-    return hashlib.sha256(t).digest()
-
-
-def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
-    # http://www.graphics.stanford.edu/~seander/bithacks.html
-    if n & (n - 1) != 0:
-        raise ValueError(f"{var_name}: {n} (must be a power of two)")
+def int_from_integer(i: Integer) -> int:
+    if isinstance(i, int):
+        return i
+    elif isinstance(i, bytes):
+        return int.from_bytes(i, "big")
+    return int(i, 16)
 
 
 def hex_string(a: Integer) -> str:
@@ -128,3 +122,9 @@ def hex_string(a: Integer) -> str:
     lresult = [(a_str[max(0, i - 8) : i]) for i in indx]
     result = " ".join(lresult)
     return result.upper()
+
+
+def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
+    # http://www.graphics.stanford.edu/~seander/bithacks.html
+    if n & (n - 1) != 0:
+        raise ValueError(f"{var_name}: {n} (must be a power of two)")
