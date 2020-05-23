@@ -87,7 +87,7 @@ class TestEllipticCurve(unittest.TestCase):
         # weak curve
         self.assertRaises(UserWarning, Curve, 11, 2, 7, (6, 9), 7, 2, True)
 
-        # x-coordinate not in [0, p-1]
+        # x-coordinate not in 0..p-1:
         ec = CURVES["secp256k1"]
         self.assertRaises(ValueError, ec.y, ec.p)
         # secp256k1.y(secp256k1.p)

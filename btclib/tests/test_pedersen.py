@@ -12,6 +12,8 @@
 
 from hashlib import sha256, sha384
 
+import pytest
+
 from btclib import pedersen
 from btclib.curves import CURVES, secp256k1
 
@@ -60,3 +62,6 @@ def test_commitment():
 
     # commit does not open (with catched exception)
     assert not pedersen.open((r1, r1), v1, C2, ec, hf)
+    err_msg = "unsupported operand type"
+    with pytest.raises(TypeError, match=err_msg):
+        pedersen.commit((r1, r1), v1, ec, hf)

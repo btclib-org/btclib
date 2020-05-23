@@ -188,7 +188,7 @@ def _assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
     x = K_x % ec.n  # 6, 7
     # Fail if r ≠ K_x %n.
-    assert r == x, "Signature verification failed"  # 8
+    assert r == x, "signature verification failed"  # 8
 
 
 def assert_as_valid(msg: String, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
@@ -313,9 +313,9 @@ def crack_prvkey(
     r1, s1 = _to_sig(sig1, ec)
     r2, s2 = _to_sig(sig2, ec)
     if r1 != r2:
-        raise ValueError("Not the same r in signatures")
+        raise ValueError("not the same r in signatures")
     if s1 == s2:
-        raise ValueError("Identical signatures")
+        raise ValueError("identical signatures")
 
     c1 = _challenge(m1, ec, hf)
     c2 = _challenge(m2, ec, hf)

@@ -216,7 +216,7 @@ class CurveGroup:
     def y(self, x: int) -> int:
         """Return the y coordinate from x, as in (x, y)."""
         if not 0 <= x < self.p:
-            raise ValueError(f"x-coordinate {hex(x)} not in [0, p-1]")
+            raise ValueError(f"x-coordinate not in 0..p-1: {hex(x)}")
         y2 = self._y2(x)
         # mod_sqrt will raise a ValueError if root does not exist
         return mod_sqrt(y2, self.p)

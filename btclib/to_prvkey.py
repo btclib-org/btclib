@@ -64,10 +64,10 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
             prvkey = bytes_from_octets(prvkey, ec.nsize)
             q = int.from_bytes(prvkey, "big")
         except Exception:
-            raise ValueError(f"Not a private key: {prvkey}")
+            raise ValueError(f"not a private key: {prvkey!r}")
 
     if not 0 < q < ec.n:
-        raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
+        raise ValueError(f"private key not in 1..n-1: {hex(q).upper()}")
 
     return q
 
@@ -92,27 +92,27 @@ def _prvkeyinfo_from_wif(
 
     net = network_from_key_value("wif", payload[0:1])
     if network is not None and net != network:
-        raise ValueError(f"Not a {network} wif: {wif}")
+        raise ValueError(f"not a {network} wif: {wif!r}")
 
     ec = NETWORKS[net]["curve"]
 
     if len(payload) == ec.nsize + 2:  # compressed WIF
         compr = True
         if payload[-1] != 0x01:  # must have a trailing 0x01
-            raise ValueError("Not a compressed WIF: missing trailing 0x01")
+            raise ValueError("not a compressed WIF: missing trailing 0x01")
         prvkey = payload[1:-1]
     elif len(payload) == ec.nsize + 1:  # uncompressed WIF
         compr = False
         prvkey = payload[1:]
     else:
-        raise ValueError(f"Wrong WIF size ({len(payload)})")
+        raise ValueError(f"wrong WIF size: {len(payload)}")
 
     if compressed is not None and compr != compressed:
-        raise ValueError("Compression requirement mismatch")
+        raise ValueError("compression requirement mismatch")
 
     q = int.from_bytes(prvkey, byteorder="big")
     if not 0 < q < ec.n:
-        raise ValueError(f"Private key {hex(q)} not in [1, n-1]")
+        raise ValueError(f"private key {hex(q)} not in [1, n-1]")
 
     return q, net, compr
 
@@ -129,7 +129,7 @@ def _prvkeyinfo_from_xprv(
 
     compressed = True if compressed is None else compressed
     if not compressed:
-        raise ValueError("Uncompressed SEC / compressed BIP32 mismatch")
+        raise ValueError("uncompressed SEC / compressed BIP32 mismatch")
 
     if isinstance(xprv, dict):
         # ensure it is a valid BIP32KeyDict
@@ -138,13 +138,13 @@ def _prvkeyinfo_from_xprv(
         xprv = bip32.deserialize(xprv)
 
     if xprv["key"][0] != 0:
-        m = f"Not a private key: {bip32.serialize(xprv).decode()}"
+        m = f"not a private key: {bip32.serialize(xprv).decode()}"
         raise ValueError(m)
 
     if network is not None:
         allowed_versions = xprvversions_from_network(network)
         if xprv["version"] not in allowed_versions:
-            m = f"Not a {network} key: "
+            m = f"not a {network} key: "
             m += f"{bip32.serialize(xprv).decode()}"
             raise ValueError(m)
     else:
@@ -196,9 +196,9 @@ def prvkeyinfo_from_prvkey(
             prvkey = bytes_from_octets(prvkey, ec.nsize)
             q = int.from_bytes(prvkey, "big")
         except Exception:
-            raise ValueError(f"Not a private key: {prvkey}")
+            raise ValueError(f"not a private key: {prvkey!r}")
 
     if not 0 < q < ec.n:
-        raise ValueError(f"Private key {hex(q).upper()} not in [1, n-1]")
+        raise ValueError(f"private key not in 1..n-1: {hex(q).upper()}")
 
     return q, net, compr

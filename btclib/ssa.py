@@ -79,7 +79,7 @@ def _validate_sig(r: int, s: int, ec: Curve) -> None:
 
     # Fail if s is not [0, n-1].
     if not 0 <= s < ec.n:
-        raise ValueError(f"s ({hex(s)}) not in [0, n-1]")
+        raise ValueError(f"scalar s not in 0..n-1: {hex(s)}")
 
 
 def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
@@ -186,7 +186,7 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
     # if c == 0 then private key is removed from the equations,
     # so the signature is valid for any private/public key pair
     # if c == 0:
-    #    raise RuntimeError("Invalid zero challenge")
+    #    raise RuntimeError("invalid zero challenge")
     return c
 
 
@@ -296,7 +296,7 @@ def _assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
         raise RuntimeError("y_K is not a quadratic residue")
 
     # Fail if x_K ≠ r
-    assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "Signature verification failed"
+    assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "signature verification failed"
 
 
 def assert_as_valid(
@@ -358,15 +358,16 @@ def crack_prvkey(
 ) -> Tuple[int, int]:
 
     m1 = bytes_from_octets(m1, hf().digest_size)
-    r1, s1 = _to_sig(sig1, ec)
     m2 = bytes_from_octets(m2, hf().digest_size)
-    r2, s2 = _to_sig(sig2, ec)
-    x_Q = _to_bip340_point(Q, ec)[0]
 
+    r1, s1 = _to_sig(sig1, ec)
+    r2, s2 = _to_sig(sig2, ec)
     if r1 != r2:
-        raise ValueError("Not the same r in signatures")
+        raise ValueError("not the same r in signatures")
     if s1 == s2:
-        raise ValueError("Identical signatures")
+        raise ValueError("identical signatures")
+
+    x_Q = _to_bip340_point(Q, ec)[0]
 
     c1 = _challenge(r1, x_Q, m1, ec, hf)
     c2 = _challenge(r2, x_Q, m2, ec, hf)
@@ -433,10 +434,10 @@ def _batch_verify(
     TZ2 = TJ[2] * TJ[2]
     precondition = TJ[0] * RHSZ2 % ec.p == RHSJ[0] * TZ2 % ec.p
     if not precondition:
-        raise ValueError("Signature verification precondition failed")
+        raise ValueError("signature verification precondition failed")
 
     valid_sig = TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p
-    assert valid_sig, "Signature verification failed"
+    assert valid_sig, "signature verification failed"
 
 
 def batch_verify(

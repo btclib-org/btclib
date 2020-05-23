@@ -77,7 +77,7 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
     if isinstance(pubkey, tuple):
         if ec.is_on_curve(pubkey) and pubkey[1] != 0:
             return pubkey
-        raise ValueError(f"Not a valid public key: {pubkey}")
+        raise ValueError(f"not a valid public key: {pubkey}")
     elif isinstance(pubkey, dict):
         return _point_from_xpub(pubkey, ec)
     else:

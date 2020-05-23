@@ -80,11 +80,11 @@ def _validate_sig(
 
     # Fail if r is not [1, n-1]
     if not 0 < r < ec.n:
-        raise ValueError(f"Scalar r not in 1..n-1: {hex(r)}")
+        raise ValueError(f"scalar r not in 1..n-1: {hex(r)}")
 
     # Fail if s is not [1, n-1]
     if not 0 < s < ec.n:
-        raise ValueError(f"Scalar s not in 1..n-1: {hex(r)}")
+        raise ValueError(f"scalar s not in 1..n-1: {hex(r)}")
 
     if sighash is not None and sighash not in SIGHASHES:
         raise ValueError(f"Invalid sighash: {hex(sighash)}")
@@ -131,11 +131,11 @@ def _scalar_size(der_sig: bytes, sighash_size: int, offset: int) -> int:
     der_sig_size = len(der_sig)
 
     if der_sig[offset - 2] != 0x02:
-        raise ValueError("Scalar must be an integer")
+        raise ValueError("scalar must be an integer")
     size = der_sig[offset - 1]
 
     if size == 0:
-        raise ValueError("Scalar has size zero")
+        raise ValueError("scalar has size zero")
 
     if der_sig_size < offset + size + sighash_size:
         m = f"Size of scalar is too large: {size}"

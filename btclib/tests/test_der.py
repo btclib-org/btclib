@@ -86,12 +86,12 @@ def test_der_deserialize():
         # r and s scalars
         for offset in (4, 6 + r_size):
             bad_der_sig = der_sig[: offset - 2] + b"\x00" + der_sig[offset - 1 :]
-            err_msg = "Scalar must be an integer"
+            err_msg = "scalar must be an integer"
             with pytest.raises(ValueError, match=err_msg):
                 _deserialize(bad_der_sig)
 
             bad_der_sig = der_sig[: offset - 1] + b"\x00" + der_sig[offset:]
-            err_msg = "Scalar has size zero"
+            err_msg = "scalar has size zero"
             with pytest.raises(ValueError, match=err_msg):
                 _deserialize(bad_der_sig)
 
@@ -128,12 +128,12 @@ def test_der_serialize():
     for sighash in SIGHASHES + [None]:
         for r in (0, ec.n):
             bad_sig = r, sig[1]
-            err_msg = "Scalar r not in 1..n-1: 0x"
+            err_msg = "scalar r not in 1..n-1: 0x"
             with pytest.raises(ValueError, match=err_msg):
                 _serialize(*bad_sig, sighash)
 
         for s in (0, ec.n):
             bad_sig = sig[0], s
-            err_msg = "Scalar s not in 1..n-1: 0x"
+            err_msg = "scalar s not in 1..n-1: 0x"
             with pytest.raises(ValueError, match=err_msg):
                 _serialize(*bad_sig, sighash)

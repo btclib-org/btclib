@@ -35,52 +35,76 @@ def test_signature():
     """Basic tests"""
 
     ec = secp256k1
-
     q, x_Q = ssa.gen_keys(0x1)
     mhd = hf(b"Satoshi Nakamoto").digest()
     sig = ssa.sign(mhd, q, None)
-    assert sig == ssa.deserialize(sig)
     ssa.assert_as_valid(mhd, x_Q, sig, ec, hf)
     assert ssa.verify(mhd, x_Q, sig)
+    assert sig == ssa.deserialize(sig)
 
     fmhd = hf(b"Craig Wright").digest()
-    err_msg = "Signature verification failed"
     assert not ssa.verify(fmhd, x_Q, sig, ec, hf)
+    err_msg = "signature verification failed"
     with pytest.raises(AssertionError, match=err_msg):
         ssa.assert_as_valid(fmhd, x_Q, sig, ec, hf)
 
-    _, fQ = ssa.gen_keys(0x2)
+    _, x_fQ = ssa.gen_keys(0x2)
+    assert not ssa.verify(mhd, x_fQ, sig, ec, hf)
     err_msg = "y_K is not a quadratic residue"
-    assert not ssa.verify(mhd, fQ, sig, ec, hf)
     with pytest.raises(RuntimeError, match=err_msg):
-        ssa.assert_as_valid(mhd, fQ, sig, ec, hf)
+        ssa.assert_as_valid(mhd, x_fQ, sig, ec, hf)
 
-    _, fQ = ssa.gen_keys(0x4)
-    err_msg = "Signature verification failed"
-    assert not ssa.verify(mhd, fQ, sig, ec, hf)
+    _, x_fQ = ssa.gen_keys(0x4)
+    assert not ssa.verify(mhd, x_fQ, sig, ec, hf)
+    err_msg = "signature verification failed"
     with pytest.raises(AssertionError, match=err_msg):
-        ssa.assert_as_valid(mhd, fQ, sig, ec, hf)
+        ssa.assert_as_valid(mhd, x_fQ, sig, ec, hf)
 
-    fssasig = (sig[0], sig[1], sig[1])
-    err_msg = "too many values to unpack "
-    assert not ssa.verify(mhd, fQ, fssasig, ec, hf)
+    err_msg = "not a BIP340 public key"
     with pytest.raises(ValueError, match=err_msg):
-        ssa.assert_as_valid(mhd, x_Q, fssasig, ec, hf)
+        ssa.assert_as_valid(mhd, INF, sig, ec, hf)
 
-    err_msg = "field prime is not equal to 3 mod 4: "
     assert not ssa.verify(mhd, x_Q, sig, secp224k1, hf)
+    err_msg = "field prime is not equal to 3 mod 4: "
     with pytest.raises(ValueError, match=err_msg):
         ssa.assert_as_valid(mhd, x_Q, sig, secp224k1, hf)
 
     wrongmhd = mhd[:-1]
-    err_msg = "Invalid size: 31 bytes instead of 32"
     assert not ssa.verify(wrongmhd, x_Q, sig, ec, hf)
+    err_msg = "Invalid size: 31 bytes instead of 32"
     with pytest.raises(ValueError, match=err_msg):
         ssa.assert_as_valid(wrongmhd, x_Q, sig, ec, hf)
+
+    fssasig = (sig[0], sig[1], sig[1])
+    assert not ssa.verify(mhd, x_fQ, fssasig, ec, hf)
+    err_msg = "too many values to unpack "
+    with pytest.raises(ValueError, match=err_msg):
+        ssa.assert_as_valid(mhd, x_Q, fssasig, ec, hf)
+
+    invalid_sig = ec.p, sig[1]
+    assert not ssa.verify(mhd, x_Q, invalid_sig)
+    err_msg = "x-coordinate not in 0..p-1: "
+    with pytest.raises(ValueError, match=err_msg):
+        ssa.assert_as_valid(mhd, x_Q, invalid_sig, ec, hf)
+
+    invalid_sig = sig[0], ec.p
+    assert not ssa.verify(mhd, x_Q, invalid_sig)
+    err_msg = "scalar s not in 0..n-1: "
+    with pytest.raises(ValueError, match=err_msg):
+        ssa.assert_as_valid(mhd, x_Q, invalid_sig, ec, hf)
 
     err_msg = "Invalid size: 31 bytes instead of 32"
     with pytest.raises(ValueError, match=err_msg):
         ssa.sign(wrongmhd, q, None)
+
+    err_msg = "private key not in 1..n-1: "
+    with pytest.raises(ValueError, match=err_msg):
+        ssa.sign(mhd, 0)
+
+    # ephemeral key not in 1..n-1
+    err_msg = "private key not in 1..n-1: "
+    with pytest.raises(ValueError, match=err_msg):
+        ssa.sign(mhd, 1, 0)
 
     err_msg = "invalid zero challenge"
     with pytest.raises(ValueError, match=err_msg):
@@ -192,9 +216,10 @@ def test_crack_prvkey():
     assert q in (qc, ec.n - qc)
     assert k in (kc, ec.n - kc)
 
-    with pytest.raises(ValueError, match="Not the same r in signatures"):
+    with pytest.raises(ValueError, match="not the same r in signatures"):
         ssa.crack_prvkey(msg1, sig1, msg2, (16, sig1[1]), x_Q)
-    with pytest.raises(ValueError, match="Identical signatures"):
+
+    with pytest.raises(ValueError, match="identical signatures"):
         ssa.crack_prvkey(msg1, sig1, msg1, sig1, x_Q)
 
 
@@ -229,7 +254,7 @@ def test_batch_validation():
     sigs.append(sigs[1])
     Qs.append(Qs[0])
     assert not ssa.batch_verify(ms, Qs, sigs, ec, hf)
-    err_msg = "Signature verification precondition failed"
+    err_msg = "signature verification precondition failed"
     with pytest.raises(ValueError, match=err_msg):
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
     sigs[-1] = sigs[0]  # valid again
