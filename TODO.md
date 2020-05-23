@@ -18,6 +18,7 @@
 - isinstance(entr, bytearray) or isinstance(entr, bytes)
 - revise ansi_x963_kdf
 - optimizations:
+    - https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication
     - https://cryptojedi.org/peter/data/eccss-20130911b.pdf
     - https://arxiv.org/abs/1801.08589
     - https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf

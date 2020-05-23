@@ -42,21 +42,26 @@ def test_hash160_hash256():
 
 
 def test_int_from_integer():
-    i = secrets.randbits(256 - 4)
+    i = secrets.randbits(256 - 8)
     assert i == int_from_integer(i)
+    assert i == int_from_integer(hex(i).upper())
+    assert i == int_from_integer(bin(i).upper())
+    assert i == int_from_integer(hex_string(i))
     assert i == int_from_integer(i.to_bytes(32, "big"))
-    assert i == int_from_integer(hex(i))
 
 
 def test_hex_string():
     a = 34492435054806958080
     assert hex_string(a) == "01 DEADBEEF 00000000"
+    assert hex_string(hex(a).lower()) == "01 DEADBEEF 00000000"
+    assert hex_string(bin(a).lower()) == "01 DEADBEEF 00000000"
+
     a = "01de adbeef00000000"
     assert hex_string(a) == "01 DEADBEEF 00000000"
     a = bytes.fromhex(a)
     assert hex_string(a) == "01 DEADBEEF 00000000"
 
-    a = "1deadbeef00000000"
+    a = "1deadbeef00000000"  # invalid hex-string: odd number of digits
     err_msg = "non-hexadecimal number found in fromhex"
     with pytest.raises(ValueError, match=err_msg):
         hex_string(a)
