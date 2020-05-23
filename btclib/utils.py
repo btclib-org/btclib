@@ -109,3 +109,22 @@ def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
     # http://www.graphics.stanford.edu/~seander/bithacks.html
     if n & (n - 1) != 0:
         raise ValueError(f"{var_name}: {n} (must be a power of two)")
+
+
+def hex_string(a: Integer) -> str:
+
+    if isinstance(a, int):
+        a_str = hex(a)[2:]
+    elif isinstance(a, bytes):
+        a_str = a.hex()
+    else:
+        # check valid hex-string, remove any whitespace
+        a_str = bytes.fromhex(a).hex()
+
+    if len(a_str) % 2 != 0:
+        a_str = "0" + a_str
+
+    indx = list(reversed(range(len(a_str), 0, -8)))
+    lresult = [(a_str[max(0, i - 8) : i]) for i in indx]
+    result = " ".join(lresult)
+    return result.upper()

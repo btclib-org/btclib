@@ -72,12 +72,12 @@ class CurveGroup:
 
     def __str__(self) -> str:
         result = "Curve"
-        if self.p > 0xFFFFFF:
+        if self.p > 0xFFFFFFFF:
             result += f"\n p   = {hex(self.p).upper()}"
         else:
             result += f"\n p   = {self.p}"
 
-        if self._a > 0xFFFFFF or self._b > 0xFFFFFF:
+        if self._a > 0xFFFFFFFF or self._b > 0xFFFFFFFF:
             result += f"\n a   = {hex(self._a).upper()}"
             result += f"\n b   = {hex(self._b).upper()}"
         else:
@@ -88,12 +88,12 @@ class CurveGroup:
 
     def __repr__(self) -> str:
         result = "Curve("
-        if self.p > 0xFFFFFF:
+        if self.p > 0xFFFFFFFF:
             result += f"{hex(self.p).upper()}"
         else:
             result += f"{self.p}"
 
-        if self._a > 0xFFFFFF or self._b > 0xFFFFFF:
+        if self._a > 0xFFFFFFFF or self._b > 0xFFFFFFFF:
             result += f", {hex(self._a).upper()}, {hex(self._b).upper()}"
         else:
             result += f", {self._a}, {self._b}"
@@ -356,7 +356,7 @@ class CurveSubGroup(CurveGroup):
 
     def __str__(self) -> str:
         result = super().__str__()
-        if self.p > 0xFFFFFF:
+        if self.p > 0xFFFFFFFF:
             result += f"\n x_G = {hex(self.G[0]).upper()}"
             result += f"\n y_G = {hex(self.G[1]).upper()}"
         else:
@@ -366,7 +366,7 @@ class CurveSubGroup(CurveGroup):
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
-        if self.p > 0xFFFFFF:
+        if self.p > 0xFFFFFFFF:
             result += f", ({hex(self.G[0]).upper()}, {hex(self.G[1]).upper()})"
         else:
             result += f", ({self.G[0]}, {self.G[1]})"
@@ -437,7 +437,7 @@ class Curve(CurveSubGroup):
 
     def __str__(self) -> str:
         result = super().__str__()
-        if self.p > 0xFFFFFF:
+        if self.p > 0xFFFFFFFF:
             result += f"\n n   = {hex(self.n).upper()}"
         else:
             result += f"\n n   = {self.n}"
@@ -446,7 +446,7 @@ class Curve(CurveSubGroup):
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
-        if self.p > 0xFFFFFF:
+        if self.p > 0xFFFFFFFF:
             result += f", {hex(self.n).upper()}"
         else:
             result += f", {self.n}"

@@ -12,12 +12,20 @@
 
 import secrets
 
+import pytest
+
 from btclib.tests.test_to_key import (
     net_unaware_compressed_pub_keys,
     net_unaware_uncompressed_pub_keys,
     plain_prv_keys,
 )
-from btclib.utils import bytes_from_octets, hash160, hash256, int_from_integer
+from btclib.utils import (
+    bytes_from_octets,
+    hash160,
+    hash256,
+    hex_string,
+    int_from_integer,
+)
 
 
 def test_hash160_hash256():
@@ -38,3 +46,18 @@ def test_int_from_integer():
     assert i == int_from_integer(i)
     assert i == int_from_integer(i.to_bytes(32, "big"))
     assert i == int_from_integer(hex(i))
+    # assert i == int_from_integer(hex_string(i))
+
+
+def test_hex_string():
+    a = 34492435054806958080
+    assert hex_string(a) == "01 DEADBEEF 00000000"
+    a = "01de adbeef00000000"
+    assert hex_string(a) == "01 DEADBEEF 00000000"
+    a = bytes.fromhex(a)
+    assert hex_string(a) == "01 DEADBEEF 00000000"
+
+    a = "1deadbeef00000000"
+    err_msg = "non-hexadecimal number found in fromhex"
+    with pytest.raises(ValueError, match=err_msg):
+        hex_string(a)
