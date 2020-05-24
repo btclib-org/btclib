@@ -11,68 +11,53 @@
 "Tests for `btclib.curvemult` module."
 
 import secrets
-import unittest
-from typing import List
 
-from btclib.alias import INF, INFJ
-from btclib.curve import _mult_aff, _mult_jac
-from btclib.curvemult import double_mult, mult, multi_mult
+import pytest
+
+from btclib.alias import INFJ
+from btclib.curvemult import _double_mult, double_mult, mult, _multi_mult
+from btclib.curve import _mult_jac, _jac_from_aff
 from btclib.curves import secp256k1
 from btclib.tests.test_curves import low_card_curves
+from btclib.pedersen import second_generator
 
 ec23_31 = low_card_curves["ec23_31"]
 
 
-class TestEllipticCurve(unittest.TestCase):
-    def test_mult(self):
-        for ec in low_card_curves.values():
-            for q in range(ec.n):
-                Q = _mult_aff(q, ec.G, ec)
-                QJ = _mult_jac(q, ec.GJ, ec)
-                Q2 = ec._aff_from_jac(QJ)
-                self.assertEqual(Q, Q2)
-        # with last curve
-        self.assertEqual(INF, _mult_aff(3, INF, ec))
-        self.assertEqual(INFJ, _mult_jac(3, INFJ, ec))
+def test_assorted_mult():
+    ec = ec23_31
+    H = second_generator(ec)
+    HJ = _jac_from_aff(H)
+    for k1 in range(1, ec.n):
+        k2 = 1 + secrets.randbelow(ec.n - 1)
+        shamir = _double_mult(k1, ec.GJ, k2, ec.GJ, ec)
+        assert ec._jac_equality(shamir, _mult_jac(k1 + k2, ec.GJ, ec))
+        shamir = _double_mult(k1, INFJ, k2, ec.GJ, ec)
+        assert ec._jac_equality(shamir, _mult_jac(k2, ec.GJ, ec))
+        shamir = _double_mult(k1, ec.GJ, k2, INFJ, ec)
+        assert ec._jac_equality(shamir, _mult_jac(k1, ec.GJ, ec))
 
-    def test_double_mult(self):
-        ec = ec23_31
-        for k1 in range(ec.n):
-            for k2 in range(ec.n):
-                shamir = double_mult(k1, ec.G, k2, ec.G, ec)
-                std = ec.add(mult(k1, ec.G, ec), mult(k2, ec.G, ec))
-                self.assertEqual(shamir, std)
-                shamir = double_mult(k1, INF, k2, ec.G, ec)
-                std = ec.add(mult(k1, INF, ec), mult(k2, ec.G, ec))
-                self.assertEqual(shamir, std)
-                shamir = double_mult(k1, ec.G, k2, INF, ec)
-                std = ec.add(mult(k1, ec.G, ec), mult(k2, INF, ec))
-                self.assertEqual(shamir, std)
+        shamir = _double_mult(k1, ec.GJ, k2, HJ, ec)
+        std = ec._add_jac(_mult_jac(k1, ec.GJ, ec), _mult_jac(k2, HJ, ec))
+        assert ec._jac_equality(std, shamir)
 
-    def test_multi_mult(self):
-        ec = secp256k1
+        k3 = 1 + secrets.randbelow(ec.n - 1)
+        std = ec._add_jac(std, _mult_jac(k3, ec.GJ, ec))
+        boscoster = _multi_mult([k1, k2, k3], [ec.GJ, HJ, ec.GJ], ec)
+        assert ec._jac_equality(std, boscoster)
 
-        k: List[int] = list()
-        ksum = 0
-        for i in range(11):
-            k.append(secrets.randbits(ec.nlen) % ec.n)
-            ksum += k[i]
+        k4 = 1 + secrets.randbelow(ec.n - 1)
+        std = ec._add_jac(std, _mult_jac(k4, HJ, ec))
+        boscoster = _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ, HJ], ec)
+        assert ec._jac_equality(std, boscoster)
 
-        P = [ec.G] * len(k)
-        boscoster = multi_mult(k, P, ec)
-        self.assertEqual(boscoster, mult(ksum, ec.G, ec))
-
-        # mismatch between scalar length and Points length
-        P = [ec.G] * (len(k) - 1)
-        self.assertRaises(ValueError, multi_mult, k, P, ec)
-        # multi_mult(k, P, ec)
+    err_msg = "mismatch between number of scalars and points: "
+    with pytest.raises(ValueError, match=err_msg):
+        _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ], ec)
 
 
-def test_double_mult():
-    H = (
-        0x50929B74C1A04954B78B4B6035E97A5E078A5A0F28EC96D547BFEE9ACE803AC0,
-        0x31D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38904,
-    )
+def test_mult_double_mult():
+    H = second_generator(secp256k1)
     G = secp256k1.G
 
     # 0*G + 1*H
@@ -110,8 +95,3 @@ def test_double_mult():
     # 1*G - 5*H
     U = double_mult(-5, H, 1, G)
     assert U == secp256k1.add(G, T)
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover

@@ -35,23 +35,6 @@ def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
     return ec._aff_from_jac(R)
 
 
-def double_mult(
-    u: Integer, H: Point, v: Integer, Q: Point, ec: Curve = secp256k1
-) -> Point:
-    """Shamir trick for efficient computation of u*H + v*Q"""
-
-    ec.require_on_curve(H)
-    HJ = _jac_from_aff(H)
-
-    ec.require_on_curve(Q)
-    QJ = _jac_from_aff(Q)
-
-    u = int_from_integer(u) % ec.n
-    v = int_from_integer(v) % ec.n
-    R = _double_mult(u, HJ, v, QJ, ec)
-    return ec._aff_from_jac(R)
-
-
 def _double_mult(
     u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup
 ) -> JacPoint:
@@ -60,12 +43,6 @@ def _double_mult(
         raise ValueError(f"negative u: {hex(u)}")
     if v < 0:
         raise ValueError(f"negative v: {hex(v)}")
-
-    if u == 0 or HJ[2] == 0:
-        return _mult_jac(v, QJ, ec)
-
-    if v == 0 or QJ[2] == 0:
-        return _mult_jac(u, HJ, ec)
 
     R = INFJ  # initialize as infinity point
     msb = max(u.bit_length(), v.bit_length())
@@ -83,29 +60,20 @@ def _double_mult(
     return R
 
 
-def multi_mult(
-    scalars: Sequence[Integer], Points: Sequence[Point], ec: Curve = secp256k1
+def double_mult(
+    u: Integer, H: Point, v: Integer, Q: Point, ec: Curve = secp256k1
 ) -> Point:
-    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+    """Shamir trick for efficient computation of u*H + v*Q"""
 
-    Use Bos-Coster's algorithm for efficient computation;
-    the input points must be on the curve.
-    """
+    ec.require_on_curve(H)
+    HJ = _jac_from_aff(H)
 
-    if len(scalars) != len(Points):
-        errMsg = f"mismatch between scalar length ({len(scalars)}) and "
-        errMsg += f"Points length ({len(Points)})"
-        raise ValueError(errMsg)
+    ec.require_on_curve(Q)
+    QJ = _jac_from_aff(Q)
 
-    JPoints: List[JacPoint] = list()
-    ints: List[int] = list()
-    for P, i in zip(Points, scalars):
-        ec.require_on_curve(P)
-        JPoints.append(_jac_from_aff(P))
-        ints.append(int_from_integer(i) % ec.n)
-
-    R = _multi_mult(ints, JPoints, ec)
-
+    u = int_from_integer(u) % ec.n
+    v = int_from_integer(v) % ec.n
+    R = _double_mult(u, HJ, v, QJ, ec)
     return ec._aff_from_jac(R)
 
 
@@ -113,6 +81,11 @@ def _multi_mult(
     scalars: Sequence[int], JPoints: Sequence[JacPoint], ec: CurveGroup
 ) -> JacPoint:
     # source: https://cr.yp.to/badbatch/boscoster2.py
+
+    if len(scalars) != len(JPoints):
+        errMsg = "mismatch between number of scalars and points: "
+        errMsg += f"{len(scalars)} vs {len(JPoints)}"
+        raise ValueError(errMsg)
 
     x = list(zip([-n for n in scalars], JPoints))
     heapq.heapify(x)
@@ -128,5 +101,34 @@ def _multi_mult(
         heapq.heappush(x, (-n2, p2))
     np1 = heapq.heappop(x)
     n1, p1 = -np1[0], np1[1]
+    assert n1 < ec.n, "better to take the mod n"
     # n1 %= ec.n
     return _mult_jac(n1, p1, ec)
+
+
+def multi_mult(
+    scalars: Sequence[Integer], Points: Sequence[Point], ec: Curve = secp256k1
+) -> Point:
+    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+
+    Use Bos-Coster's algorithm for efficient computation.
+    """
+
+    if len(scalars) != len(Points):
+        errMsg = "mismatch between number of scalars and points: "
+        errMsg += f"{len(scalars)} vs {len(Points)}"
+        raise ValueError(errMsg)
+
+    JPoints: List[JacPoint] = list()
+    ints: List[int] = list()
+    for P, i in zip(Points, scalars):
+        ec.require_on_curve(P)
+        JPoints.append(_jac_from_aff(P))
+        i = int_from_integer(i) % ec.n
+        if i == 0:
+            raise ValueError("zero coefficient in Bos-Coster's algorithm")
+        ints.append(i)
+
+    R = _multi_mult(ints, JPoints, ec)
+
+    return ec._aff_from_jac(R)
