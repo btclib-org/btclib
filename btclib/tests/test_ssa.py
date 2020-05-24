@@ -71,7 +71,7 @@ def test_signature():
 
     wrongmhd = mhd[:-1]
     assert not ssa.verify(wrongmhd, x_Q, sig, ec, hf)
-    err_msg = "Invalid size: 31 bytes instead of 32"
+    err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(ValueError, match=err_msg):
         ssa.assert_as_valid(wrongmhd, x_Q, sig, ec, hf)
 
@@ -93,7 +93,7 @@ def test_signature():
     with pytest.raises(ValueError, match=err_msg):
         ssa.assert_as_valid(mhd, x_Q, invalid_sig, ec, hf)
 
-    err_msg = "Invalid size: 31 bytes instead of 32"
+    err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(ValueError, match=err_msg):
         ssa.sign(wrongmhd, q, None)
 
@@ -260,7 +260,7 @@ def test_batch_validation():
     sigs[-1] = sigs[0]  # valid again
 
     ms[-1] = ms[0][:-1]
-    err_msg = "Invalid size: 31 bytes instead of 32"
+    err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(ValueError, match=err_msg):
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
     ms[-1] = ms[0]  # valid again

@@ -104,7 +104,7 @@ def mod_sqrt(a: int, p: int) -> int:
         return tonelli(a, p)
 
     if r * r % p != a:
-        err_msg = "No root for "
+        err_msg = "no root for "
         err_msg += f"'{hex_string(a)}'" if a > 0xFFFFFFFF else f"{a}"
         err_msg += " mod "
         err_msg += f"'{hex_string(p)}'" if p > 0xFFFFFFFF else f"{p}"
@@ -126,7 +126,7 @@ def tonelli(a: int, p: int) -> int:
 
     # Check solution existence for an odd prime p
     if legendre_symbol(a, p) != 1:
-        err_msg = "No root for "
+        err_msg = "no root for "
         err_msg += f"'{hex_string(a)}'" if a > 0xFFFFFFFF else f"{a}"
         err_msg += " mod "
         err_msg += f"'{hex_string(p)}'" if p > 0xFFFFFFFF else f"{p}"

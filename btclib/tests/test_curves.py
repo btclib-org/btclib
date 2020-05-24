@@ -10,18 +10,15 @@
 
 "Tests for `btclib.curves` module."
 
-import unittest
 from typing import Dict
+import secrets
 
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.curve import Curve, _jac_from_aff
-from btclib.curvemult import mult
+from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
 from btclib.curves import CURVES
 from btclib.numbertheory import mod_sqrt
-from btclib.secpoint import bytes_from_point, point_from_octets
-
 
 # FIXME Curve repr should use "dedbeef 00000000", not "0xdedbeef00000000"
 # FIXME test curves when n>p
@@ -47,242 +44,144 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
-class TestEllipticCurves(unittest.TestCase):
-    def test_all_curves(self):
-        for ec in all_curves.values():
-            assert mult(0, ec.G, ec) == INF
-            assert mult(0, ec.G, ec) == INF
+def test_aff_jac_conversions():
+    for ec in all_curves.values():
 
-            assert mult(1, ec.G, ec) == ec.G
-            assert mult(1, ec.G, ec) == ec.G
+        # just a random point, not INF
+        q = 1 + secrets.randbelow(ec.n - 1)
+        Q = _mult_aff(q, ec.G, ec)
+        QJ = _jac_from_aff(Q)
+        checkQ = ec._aff_from_jac(QJ)
+        assert Q == checkQ
+        x_Q = ec._x_aff_from_jac(QJ)
+        assert Q[0] == x_Q
 
-            Gy_odd = ec.y_odd(ec.G[0], True)
-            assert Gy_odd % 2 == 1
-            Gy_even = ec.y_odd(ec.G[0], False)
-            assert Gy_even % 2 == 0
-            self.assertTrue(ec.G[1] in (Gy_odd, Gy_even))
+        checkINF = ec._aff_from_jac(_jac_from_aff(INF))
+        assert INF == checkINF
+        # relevant for BIP340-Schnorr signature verification
+        assert not ec.has_square_y(INF)
+        with pytest.raises(ValueError, match="infinity point has no x-coordinate"):
+            ec._x_aff_from_jac(INFJ)
+        with pytest.raises(TypeError, match="not a point"):
+            ec.has_square_y("notapoint")
 
-            Gbytes = bytes_from_point(ec.G, ec)
-            G2 = point_from_octets(Gbytes, ec)
-            assert ec.G == G2
 
-            Gbytes = bytes_from_point(ec.G, ec, False)
-            G2 = point_from_octets(Gbytes, ec)
-            assert ec.G == G2
+def test_mult_aff_curves():
+    for ec in all_curves.values():
+        assert _mult_aff(0, ec.G, ec) == INF
+        assert _mult_aff(0, INF, ec) == INF
 
-            P = ec.add(INF, ec.G)
-            assert P == ec.G
-            P = ec.add(ec.G, INF)
-            assert P == ec.G
-            P = ec.add(INF, INF)
-            assert P == INF
+        assert _mult_aff(1, INF, ec) == INF
+        assert _mult_aff(1, ec.G, ec) == ec.G
 
-            P = ec.add(ec.G, ec.G)
-            assert P == mult(2, ec.G, ec)
+        P = ec._add_aff(ec.G, ec.G)
+        assert P == _mult_aff(2, ec.G, ec)
+        assert ec.negate(ec.G) == _mult_aff(ec.n - 1, ec.G, ec)
 
-            P = mult(ec.n - 1, ec.G, ec)
-            assert ec.add(P, ec.G) == INF
-            assert mult(ec.n, ec.G, ec) == INF
+        assert _mult_aff(ec.n - 1, INF, ec) == INF
+        P = _mult_aff(ec.n - 1, ec.G, ec)
+        assert ec._add_aff(P, ec.G) == INF
+        assert _mult_aff(ec.n, ec.G, ec) == INF
 
-            assert mult(0, INF, ec) == INF
-            assert mult(1, INF, ec) == INF
-            assert mult(25, INF, ec) == INF
 
-            ec_repr = repr(ec)
-            if ec in low_card_curves.values() or ec.psize < 24:
-                ec_repr = ec_repr[:-1] + ", False)"
-            ec2 = eval(ec_repr)
-            assert str(ec) == str(ec2)
+def test_mult_jac_curves():
+    for ec in all_curves.values():
+        assert _mult_jac(0, ec.GJ, ec) == INFJ
+        assert _mult_jac(0, INFJ, ec) == INFJ
 
-    def test_octets2point(self):
-        for ec in all_curves.values():
-            Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
+        assert _mult_jac(1, INFJ, ec) == INFJ
+        assert _mult_jac(1, ec.GJ, ec) == ec.GJ
 
-            Q_bytes = b"\x03" if Q[1] & 1 else b"\x02"
-            Q_bytes += Q[0].to_bytes(ec.psize, byteorder="big")
-            R = point_from_octets(Q_bytes, ec)
-            assert R == Q
-            assert bytes_from_point(R, ec) == Q_bytes
+        PJ = ec._add_jac(ec.GJ, ec.GJ)
+        assert PJ == _mult_jac(2, ec.GJ, ec)
+        assert ec.negate(ec.G) == ec._aff_from_jac(_mult_jac(ec.n - 1, ec.GJ, ec))
 
-            Q_hex_str = Q_bytes.hex()
-            R = point_from_octets(Q_hex_str, ec)
-            assert R == Q
+        assert _mult_jac(ec.n - 1, INFJ, ec) == INFJ
+        PJ = _mult_jac(ec.n - 1, ec.GJ, ec)
+        assert ec._add_jac(PJ, ec.GJ) == INFJ
+        assert _mult_jac(ec.n, ec.GJ, ec) == INFJ
 
-            Q_bytes = b"\x04" + Q[0].to_bytes(ec.psize, byteorder="big")
-            Q_bytes += Q[1].to_bytes(ec.psize, byteorder="big")
-            R = point_from_octets(Q_bytes, ec)
-            assert R == Q
-            assert bytes_from_point(R, ec, False) == Q_bytes
 
-            Q_hex_str = Q_bytes.hex()
-            R = point_from_octets(Q_hex_str, ec)
-            assert R == Q
+def test_ec_repr():
+    for ec in all_curves.values():
+        ec_repr = repr(ec)
+        if ec in low_card_curves.values() or ec.psize < 24:
+            ec_repr = ec_repr[:-1] + ", False)"
+        ec2 = eval(ec_repr)
+        assert str(ec) == str(ec2)
 
-            # scalar in point multiplication can be int, str, or bytes
-            t = tuple()
-            self.assertRaises(TypeError, mult, t, ec.G, ec)
 
-            # not a compressed point
-            Q_bytes = b"\x01" * (ec.psize + 1)
-            self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
-            # not a point
-            Q_bytes += b"\x01"
-            self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
-            # not an uncompressed point
-            Q_bytes = b"\x01" * 2 * (ec.psize + 1)
-            self.assertRaises(ValueError, point_from_octets, Q_bytes, ec)
+def test_add():
+    for ec in all_curves.values():
 
-        # invalid x coordinate
-        ec = CURVES["secp256k1"]
-        x = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
-        xstr = format(x, "32X")
-        self.assertRaises(ValueError, point_from_octets, "03" + xstr, ec)
-        self.assertRaises(ValueError, point_from_octets, "04" + 2 * xstr, ec)
-        self.assertRaises(ValueError, bytes_from_point, (x, x), ec)
-        self.assertRaises(ValueError, bytes_from_point, (x, x), ec, False)
+        # just a random point, not INF
+        q = 1 + secrets.randbelow(ec.n - 1)
+        Q = _mult_aff(q, ec.G, ec)
+        QJ = _jac_from_aff(Q)
 
-        # Point must be a tuple[int, int]
-        P = x, x, x
-        self.assertRaises(ValueError, ec.is_on_curve, P)
+        # add Q and G
+        R = ec._add_aff(Q, ec.G)
+        RJ = ec._add_jac(QJ, ec.GJ)
+        assert R == ec._aff_from_jac(RJ)
 
-        # y-coordinate not in (0, p)
-        P = x, ec.p + 1
-        self.assertRaises(ValueError, ec.is_on_curve, P)
+        # double Q
+        R = ec._add_aff(Q, Q)
+        RJ = ec._add_jac(QJ, QJ)
+        assert R == ec._aff_from_jac(RJ)
 
-    def test_symmetry(self):
-        """Methods to break simmetry: quadratic residue, odd/even, low/high"""
-        for ec in low_card_curves.values():
 
-            # setup phase
-            # compute quadratic residues
-            hasRoot = set()
-            hasRoot.add(1)
+def test_add_jac():
+    for ec in all_curves.values():
 
-            for i in range(2, ec.p):
-                hasRoot.add(i * i % ec.p)
+        # add G and the infinity point
+        assert ec._add_jac(ec.GJ, INFJ) == ec.GJ
+        assert ec._add_jac(INFJ, ec.GJ) == ec.GJ
+        assert ec._add_jac(INFJ, INFJ) == INFJ
 
-            # test phase
-            Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
-            x = Q[0]
-            if ec.p % 4 == 3:
-                quad_res = ec.y_quadratic_residue(x, True)
-                not_quad_res = ec.y_quadratic_residue(x, False)
-                # in this case only quad_res is a quadratic residue
-                self.assertIn(quad_res, hasRoot)
-                root = mod_sqrt(quad_res, ec.p)
-                assert quad_res == (root * root) % ec.p
-                root = ec.p - root
-                assert quad_res == (root * root) % ec.p
+        # add G and minus G
+        assert ec._add_jac(ec.GJ, ec.negate(ec.GJ)) == INFJ
 
-                self.assertTrue(not_quad_res == ec.p - quad_res)
-                self.assertNotIn(not_quad_res, hasRoot)
-                self.assertRaises(ValueError, mod_sqrt, not_quad_res, ec.p)
 
-                y_odd = ec.y_odd(x, True)
-                self.assertTrue(y_odd in (quad_res, not_quad_res))
-                self.assertTrue(y_odd % 2 == 1)
-                y_even = ec.y_odd(x, False)
-                self.assertTrue(y_even in (quad_res, not_quad_res))
-                self.assertTrue(y_even % 2 == 0)
+def test_add_aff():
+    for ec in all_curves.values():
 
-                y_low = ec.y_low(x, True)
-                self.assertTrue(y_low in (y_odd, y_even))
-                y_high = ec.y_low(x, False)
-                self.assertTrue(y_high in (y_odd, y_even))
-                self.assertTrue(y_low < y_high)
-            else:
-                self.assertTrue(ec.p % 4 == 1)
-                # cannot use y_quadratic_residue in this case
-                self.assertRaises(ValueError, ec.y_quadratic_residue, x, True)
-                self.assertRaises(ValueError, ec.y_quadratic_residue, x, False)
+        # add G and the infinity point
+        assert ec._add_aff(ec.G, INF) == ec.G
+        assert ec._add_aff(INF, ec.G) == ec.G
+        assert ec._add_aff(INF, INF) == INF
 
-                y_odd = ec.y_odd(x, True)
-                self.assertTrue(y_odd % 2 == 1)
-                y_even = ec.y_odd(x, False)
-                self.assertTrue(y_even % 2 == 0)
-                # in this case neither or both are quadratic residues
-                neither = y_odd not in hasRoot and y_even not in hasRoot
-                both = y_odd in hasRoot and y_even in hasRoot
-                self.assertTrue(neither or both)
-                if y_odd in hasRoot:  # both have roots
-                    root = mod_sqrt(y_odd, ec.p)
-                    assert y_odd == (root * root) % ec.p
-                    root = ec.p - root
-                    assert y_odd == (root * root) % ec.p
-                    root = mod_sqrt(y_even, ec.p)
-                    assert y_even == (root * root) % ec.p
-                    root = ec.p - root
-                    assert y_even == (root * root) % ec.p
-                else:
-                    self.assertRaises(ValueError, mod_sqrt, y_odd, ec.p)
-                    self.assertRaises(ValueError, mod_sqrt, y_even, ec.p)
+        # add G and minus G
+        assert ec._add_aff(ec.G, ec.negate(ec.G)) == INF
 
-                y_low = ec.y_low(x, True)
-                self.assertTrue(y_low in (y_odd, y_even))
-                y_high = ec.y_low(x, False)
-                self.assertTrue(y_high in (y_odd, y_even))
-                self.assertTrue(y_low < y_high)
 
-        # with the last curve
-        self.assertRaises(ValueError, ec.y_low, x, 2)
-        self.assertRaises(ValueError, ec.y_odd, x, 2)
-        self.assertRaises(ValueError, ec.y_quadratic_residue, x, 2)
+def test_is_on_curve():
+    for ec in all_curves.values():
 
-    def test_aff_jac_conversions(self):
-        for ec in all_curves.values():
-            Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
-            QJ = _jac_from_aff(Q)
-            checkQ = ec._aff_from_jac(QJ)
-            assert Q == checkQ
-            x = ec._x_aff_from_jac(QJ)
-            assert Q[0] == x
+        # just a random point, not INF
+        q = 1 + secrets.randbelow(ec.n - 1)
+        Q = _mult_aff(q, ec.G, ec)
 
-            checkINF = ec._aff_from_jac(_jac_from_aff(INF))
-            assert INF == checkINF
-            # relevant for BIP340-Schnorr signature verification
-            self.assertFalse(ec.has_square_y(INF))
-            self.assertRaises(ValueError, ec._x_aff_from_jac, INFJ)
-            self.assertRaises(TypeError, ec.has_square_y, "notapoint")
+        P = "not a point"
+        with pytest.raises(ValueError, match="point must be a tuple"):
+            ec.is_on_curve(P)
 
-    def test_add(self):
-        for ec in all_curves.values():
-            Q1 = mult(ec.p, ec.G, ec)  # just a random point, not INF
-            Q1J = _jac_from_aff(Q1)
-
-            # distinct points
-            Q3 = ec._add_aff(Q1, ec.G)
-            Q3J = ec._add_jac(Q1J, ec.GJ)
-            assert Q3 == ec._aff_from_jac(Q3J)
-
-            # point at infinity
-            Q3 = ec._add_aff(ec.G, INF)
-            Q3J = ec._add_jac(ec.GJ, INFJ)
-            assert Q3 == ec._aff_from_jac(Q3J)
-            Q3 = ec._add_aff(INF, ec.G)
-            Q3J = ec._add_jac(INFJ, ec.GJ)
-            assert Q3 == ec._aff_from_jac(Q3J)
-
-            # point doubling
-            Q3 = ec._add_aff(Q1, Q1)
-            Q3J = ec._add_jac(Q1J, Q1J)
-            assert Q3 == ec._aff_from_jac(Q3J)
-
-            # negate points
-            Q1opp = ec.negate(Q1)
-            Q3 = ec._add_aff(Q1, Q1opp)
-            Q3J = ec._add_jac(Q1J, _jac_from_aff(Q1opp))
-            assert Q3 == ec._aff_from_jac(Q3J)
+        P = Q[0], ec.p
+        with pytest.raises(ValueError, match="y-coordinate not in 1..p-1: "):
+            ec.is_on_curve(P)
 
 
 def test_negate():
     for ec in all_curves.values():
-        Q = mult(ec.p, ec.G, ec)  # just a random point, not INF
+
+        # just a random point, not INF
+        q = 1 + secrets.randbelow(ec.n - 1)
+        Q = _mult_aff(q, ec.G, ec)
         minus_Q = ec.negate(Q)
         assert ec.add(Q, minus_Q) == INF
 
         # Jacobian coordinates
         QJ = _jac_from_aff(Q)
-        minus_QJ = _jac_from_aff(minus_Q)
+        minus_QJ = ec.negate(QJ)
         assert ec._add_jac(QJ, minus_QJ) == INFJ
 
         # negate of INF is INF
@@ -293,10 +192,84 @@ def test_negate():
         minus_INFJ = ec.negate(INFJ)
         assert minus_INFJ == INFJ
 
-    with pytest.raises(TypeError, match="Not a point"):
+    with pytest.raises(TypeError, match="not a point"):
         ec.negate("notapoint")
 
 
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+def test_symmetry():
+    """Methods to break simmetry: quadratic residue, odd/even, low/high"""
+    for ec in low_card_curves.values():
+
+        # just a random point, not INF
+        q = 1 + secrets.randbelow(ec.n - 1)
+        Q = _mult_aff(q, ec.G, ec)
+        x_Q = Q[0]
+
+        y_odd = ec.y_odd(x_Q)
+        assert y_odd % 2 == 1
+        y_even = ec.y_odd(x_Q, False)
+        assert y_even % 2 == 0
+        assert y_even == ec.p - y_odd
+
+        y_low = ec.y_low(x_Q)
+        y_high = ec.y_low(x_Q, False)
+        assert y_low < y_high
+        assert y_high == ec.p - y_low
+
+        # compute quadratic residues
+        hasRoot = set()
+        hasRoot.add(1)
+        for i in range(2, ec.p):
+            hasRoot.add(i * i % ec.p)
+
+        if ec.p % 4 == 3:
+            quad_res = ec.y_quadratic_residue(x_Q)
+            not_quad_res = ec.y_quadratic_residue(x_Q, False)
+
+            # in this case only quad_res is a quadratic residue
+            assert quad_res in hasRoot
+            root = mod_sqrt(quad_res, ec.p)
+            assert quad_res == (root * root) % ec.p
+            root = ec.p - root
+            assert quad_res == (root * root) % ec.p
+
+            assert not_quad_res == ec.p - quad_res
+            assert not_quad_res not in hasRoot
+            with pytest.raises(ValueError, match="no root for "):
+                mod_sqrt(not_quad_res, ec.p)
+        else:
+            assert ec.p % 4 == 1
+            # cannot use y_quadratic_residue in this case
+            err_msg = "field prime is not equal to 3 mod 4: "
+            with pytest.raises(ValueError, match=err_msg):
+                ec.y_quadratic_residue(x_Q)
+            with pytest.raises(ValueError, match=err_msg):
+                ec.y_quadratic_residue(x_Q, False)
+
+            # in this case neither or both y_Q are quadratic residues
+            neither = y_odd not in hasRoot and y_even not in hasRoot
+            both = y_odd in hasRoot and y_even in hasRoot
+            assert neither or both
+            if y_odd in hasRoot:  # both have roots
+                root = mod_sqrt(y_odd, ec.p)
+                assert y_odd == (root * root) % ec.p
+                root = ec.p - root
+                assert y_odd == (root * root) % ec.p
+                root = mod_sqrt(y_even, ec.p)
+                assert y_even == (root * root) % ec.p
+                root = ec.p - root
+                assert y_even == (root * root) % ec.p
+            else:
+                err_msg = "no root for "
+                with pytest.raises(ValueError, match=err_msg):
+                    mod_sqrt(y_odd, ec.p)
+                with pytest.raises(ValueError, match=err_msg):
+                    mod_sqrt(y_even, ec.p)
+
+    # with the last curve
+    with pytest.raises(ValueError, match="low1high0 must be bool or 1/0"):
+        ec.y_low(x_Q, 2)
+    with pytest.raises(ValueError, match="odd1even0 must be bool or 1/0"):
+        ec.y_odd(x_Q, 2)
+    with pytest.raises(ValueError, match="quad_res must be bool or 1/0"):
+        ec.y_quadratic_residue(x_Q, 2)

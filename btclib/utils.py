@@ -68,7 +68,7 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     ):
         return o
 
-    m = f"Invalid size: {len(o)} bytes instead of {out_size}"
+    m = f"invalid size: {len(o)} bytes instead of {out_size}"
     raise ValueError(m)
 
 

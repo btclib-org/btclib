@@ -52,7 +52,7 @@ class CurveGroup:
         # Fermat test will do as _probabilistic_ primality test...
         if p < 2 or p % 2 == 0 or pow(2, p - 1, p) != 1:
             err_msg = "p is not prime: "
-            err_msg += f"{hex_string(p)}" if p > _HEXTHRESHOLD else f"{p}"
+            err_msg += f"'{hex_string(p)}'" if p > _HEXTHRESHOLD else f"{p}"
             raise ValueError(err_msg)
 
         plen = p.bit_length()
@@ -66,7 +66,7 @@ class CurveGroup:
             raise ValueError(f"negative a: {a}")
         if p <= a:
             err_msg = "p <= a: " + (
-                f"{hex_string(p)} <= {hex_string(a)}"
+                f"'{hex_string(p)}' <= '{hex_string(a)}'"
                 if p > _HEXTHRESHOLD
                 else f"{p} <= {a}"
             )
@@ -75,7 +75,7 @@ class CurveGroup:
             raise ValueError(f"negative b: {b}")
         if p <= b:
             err_msg = "p <= b: " + (
-                f"{hex_string(p)} <= {hex_string(b)}"
+                f"'{hex_string(p)}' <= '{hex_string(b)}'"
                 if p > _HEXTHRESHOLD
                 else f"{p} <= {b}"
             )
@@ -132,7 +132,7 @@ class CurveGroup:
             return Q[0], (self.p - Q[1]) % self.p
         if len(Q) == 3:
             return Q[0], (self.p - Q[1]) % self.p, Q[2]
-        raise TypeError("Not a point")
+        raise TypeError("not a point")
 
     def _aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve
@@ -147,7 +147,7 @@ class CurveGroup:
     def _x_aff_from_jac(self, Q: JacPoint) -> int:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            raise ValueError("Infinity point has no x-coordinate")
+            raise ValueError("infinity point has no x-coordinate")
         else:
             Z2 = Q[2] * Q[2]
             return (Q[0] * mod_inv(Z2, self.p)) % self.p
@@ -247,16 +247,16 @@ class CurveGroup:
         An Error is raised if not.
         """
         if not self.is_on_curve(Q):
-            raise ValueError("Point not on curve")
+            raise ValueError("point not on curve")
 
     def is_on_curve(self, Q: Point) -> bool:
         """Return True if the point is on the curve."""
         if len(Q) != 2:
-            raise ValueError("Point must be a tuple[int, int]")
+            raise ValueError("point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
             return True
         if not 0 < Q[1] < self.p:  # y cannot be zero
-            raise ValueError(f"y-coordinate {hex_string(Q[1])} not in (0, p)")
+            raise ValueError(f"y-coordinate not in 1..p-1: '{hex_string(Q[1])}'")
         return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
 
     def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
@@ -268,7 +268,7 @@ class CurveGroup:
             return legendre_symbol(Q[1], self.p) == 1
         if len(Q) == 3:
             return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1
-        raise TypeError("Not a point")
+        raise TypeError("not a point")
 
     def require_p_ThreeModFour(self) -> None:
         """Require the field prime p to be equal to 3 mod 4.
@@ -276,7 +276,8 @@ class CurveGroup:
         An Error is raised if not.
         """
         if not self.pIsThreeModFour:
-            m = f"field prime is not equal to 3 mod 4: {hex_string(self.p)}"
+            m = "field prime is not equal to 3 mod 4: "
+            m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
             raise ValueError(m)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria

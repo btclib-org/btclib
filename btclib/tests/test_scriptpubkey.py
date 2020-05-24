@@ -85,7 +85,7 @@ class TestScriptPubKey(unittest.TestCase):
         scriptPubKey = p2pk(pubkey)
         self.assertEqual(scriptPubKey.hex(), script)
 
-        # Invalid size: 34 bytes instead of (33, 65)
+        # invalid size: 34 bytes instead of (33, 65)
         pubkey = (
             "03" "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414" "14"
         )
@@ -174,7 +174,7 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, p2ms, pubkeys, 0)
         # p2ms(pubkeys, 0)
 
-        # Invalid size: 66 bytes instead of 65
+        # invalid size: 66 bytes instead of 65
         self.assertRaises(ValueError, p2ms, [pubkey1 + "00", pubkey2], 1)
         # p2ms([pubkey1 + "00", pubkey2], 1)
 
@@ -491,7 +491,7 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
 
-        # Invalid size: 11 bytes instead of 20
+        # invalid size: 11 bytes instead of 20
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00" * 11, "p2pkh")
         # p2pkh("00"*11)
 
@@ -552,7 +552,7 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertEqual(scriptPubKey2, scriptPubKey)
         self.assertEqual(network2, network)
 
-        # Invalid size: 21 bytes instead of 20
+        # invalid size: 21 bytes instead of 20
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00" * 21, "p2sh")
         # scriptPubKey_from_payload("00"*21, 'p2sh')
 
@@ -761,11 +761,11 @@ class TestScriptPubKey(unittest.TestCase):
 
     def test_exceptions(self):
 
-        # Invalid size: 11 bytes instead of 20
+        # invalid size: 11 bytes instead of 20
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00" * 11, "p2wpkh")
         # scriptPubKey_from_payload("00"*11, 'p2wpkh')
 
-        # Invalid size: 33 bytes instead of 32
+        # invalid size: 33 bytes instead of 32
         self.assertRaises(ValueError, scriptPubKey_from_payload, "00" * 33, "p2wsh")
         # scriptPubKey_from_payload("00"*33, 'p2wsh')
 

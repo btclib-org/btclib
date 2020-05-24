@@ -103,8 +103,7 @@ def test_mod_sqrt():
                 if p % 4 == 3 or p % 8 == 5:
                     assert tonelli(i, p) in (root1, root2)
             else:
-                err_msg = "No root for "
-                with pytest.raises(ValueError, match=err_msg):
+                with pytest.raises(ValueError, match="no root for "):
                     mod_sqrt(i, p)
 
 
@@ -128,8 +127,7 @@ def test_minus_one_quadr_res():
     "Ensure that if p = 3 (mod 4) then p - 1 is not a quadratic residue"
     for p in primes:
         if (p % 4) == 3:
-            err_msg = "No root for "
-            with pytest.raises(ValueError, match=err_msg):
+            with pytest.raises(ValueError, match="no root for "):
                 mod_sqrt(p - 1, p)
         else:
             assert p == 2 or p % 4 == 1, "something is badly broken"

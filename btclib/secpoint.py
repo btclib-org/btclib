@@ -13,7 +13,7 @@
 from .alias import Octets, Point
 from .curve import Curve
 from .curves import secp256k1
-from .utils import bytes_from_octets
+from .utils import bytes_from_octets, hex_string
 
 
 def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -> bytes:
@@ -27,7 +27,7 @@ def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -
     ec.require_on_curve(Q)
 
     if Q[1] == 0:  # infinity point in affine coordinates
-        raise ValueError("No bytes representation for the infinity point")
+        raise ValueError("no bytes representation for infinity point")
 
     bPx = Q[0].to_bytes(ec.psize, byteorder="big")
     if compressed:
@@ -46,26 +46,29 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
     pubkey = bytes_from_octets(pubkey, (ec.psize + 1, 2 * ec.psize + 1))
 
     bsize = len(pubkey)  # bytes
-    if bsize == ec.psize + 1:  # compressed point
-        if pubkey[0] not in (0x02, 0x03):
-            msg = f"{ec.psize+1} bytes, "
-            msg += f"but not a compressed point prefix ({pubkey[0]})"
+    if pubkey[0] in (0x02, 0x03):  # compressed point
+        if bsize != ec.psize + 1:
+            msg = "invalid size for compressed point: "
+            msg += f"{bsize} instead of {ec.psize + 1}"
             raise ValueError(msg)
         Px = int.from_bytes(pubkey[1:], byteorder="big")
         try:
             Py = ec.y_odd(Px, pubkey[0] % 2)  # also check Px validity
             return Px, Py
         except Exception:
-            msg = f"{ec.psize+1} bytes, but not a valid x coordinate {Px}"
+            msg = f"invalid x-coordinate: '{hex_string(Px)}'"
             raise ValueError(msg)
-    else:  # uncompressed point
-        if pubkey[0] != 0x04:
-            raise ValueError("not an uncompressed point")
+    elif pubkey[0] == 0x04:  # uncompressed point
+        if bsize != 2 * ec.psize + 1:
+            msg = "invalid size for uncompressed point: "
+            msg += f"{bsize} instead of {2 * ec.psize + 1}"
+            raise ValueError(msg)
         Px = int.from_bytes(pubkey[1 : ec.psize + 1], byteorder="big")
         P = Px, int.from_bytes(pubkey[ec.psize + 1 :], byteorder="big")
         if P[1] == 0:  # infinity point in affine coordinates
-            raise ValueError("No bytes representation for the infinity point")
+            raise ValueError("no bytes representation for infinity point")
         if ec.is_on_curve(P):
             return P
-        else:
-            raise ValueError(f"point {P} not on curve")
+        raise ValueError(f"point not on curve: {P}")
+    else:
+        raise ValueError(f"not a point: {pubkey!r}")
