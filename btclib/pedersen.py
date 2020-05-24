@@ -70,6 +70,7 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
             isCurvePoint = True
         except Exception:
             hx += 1
+            hx %= ec.p
     return hx, hy
 
 
