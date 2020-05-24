@@ -87,12 +87,18 @@ def _multi_mult(
         errMsg += f"{len(scalars)} vs {len(JPoints)}"
         raise ValueError(errMsg)
 
+    # FIXME
+    # check for negative scalars
     # x = list(zip([-n for n in scalars], JPoints))
     x: List[Tuple[int, JacPoint]] = []
     for n, PJ in zip(scalars, JPoints):
         if n == 0:
             continue
         x.append((-n, PJ))
+
+    if len(x) == 0:
+        return INFJ
+
     heapq.heapify(x)
     while len(x) > 1:
         np1 = heapq.heappop(x)
