@@ -152,6 +152,21 @@ class CurveGroup:
             Z2 = Q[2] * Q[2]
             return (Q[0] * mod_inv(Z2, self.p)) % self.p
 
+    def _jac_equality(self, QJ: JacPoint, PJ: JacPoint) -> bool:
+        """Return True if Jacobian points are equal in affine coordinates.
+
+        The input points are assumed to be on curve.
+        """
+        PJ2 = PJ[2] * PJ[2]
+        QJ2 = QJ[2] * QJ[2]
+        if QJ[0] * PJ2 % self.p != PJ[0] * QJ2 % self.p:
+            return False
+        PJ3 = PJ2 * PJ[2]
+        QJ3 = QJ2 * QJ[2]
+        if QJ[1] * PJ3 % self.p != PJ[1] * QJ3 % self.p:
+            return False
+        return True
+
     # methods using _a, _b, _p
 
     def add(self, Q1: Point, Q2: Point) -> Point:
