@@ -10,13 +10,18 @@
 
 "Tests for `btclib.curve` module."
 
+import secrets
+
 import pytest
 
 from btclib.alias import INF
-from btclib.curve import Curve
+from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
 
 
 def test_exceptions():
+
+    # good curve
+    Curve(13, 0, 2, (1, 9), 19, 1, False)
 
     with pytest.raises(ValueError, match="p is not prime: "):
         Curve(15, 0, 2, (1, 9), 19, 1, False)
@@ -64,7 +69,13 @@ def test_exceptions():
     with pytest.raises(UserWarning, match="weak curve"):
         Curve(11, 2, 7, (6, 9), 7, 2, True)
 
-    # good curve
+
+def test_jac():
+
     ec = Curve(13, 0, 2, (1, 9), 19, 1, False)
-    with pytest.raises(ValueError, match="x-coordinate not in 0..p-1: "):
-        ec.y(ec.p)
+    assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
+
+    q = 1 + secrets.randbelow(ec.n - 1)
+    Q = _mult_aff(q, ec.G, ec)
+    QJ = _mult_jac(q, ec.GJ, ec)
+    assert ec._jac_equality(QJ, _jac_from_aff(Q))
