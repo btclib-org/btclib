@@ -11,7 +11,7 @@
 """Elliptic curve point multiplication functions."""
 
 import heapq
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 from .alias import INFJ, Integer, JacPoint, Point
 from .curve import Curve, CurveGroup, _jac_from_aff, _mult_jac
@@ -40,9 +40,9 @@ def _double_mult(
 ) -> JacPoint:
 
     if u < 0:
-        raise ValueError(f"negative u: {hex(u)}")
+        raise ValueError(f"negative first coefficient: {hex(u)}")
     if v < 0:
-        raise ValueError(f"negative v: {hex(v)}")
+        raise ValueError(f"negative second coefficient: {hex(v)}")
 
     R = INFJ  # initialize as infinity point
     msb = max(u.bit_length(), v.bit_length())
@@ -87,7 +87,12 @@ def _multi_mult(
         errMsg += f"{len(scalars)} vs {len(JPoints)}"
         raise ValueError(errMsg)
 
-    x = list(zip([-n for n in scalars], JPoints))
+    # x = list(zip([-n for n in scalars], JPoints))
+    x: List[Tuple[int, JacPoint]] = []
+    for n, PJ in zip(scalars, JPoints):
+        if n == 0:
+            continue
+        x.append((-n, PJ))
     heapq.heapify(x)
     while len(x) > 1:
         np1 = heapq.heappop(x)
@@ -122,13 +127,12 @@ def multi_mult(
     JPoints: List[JacPoint] = list()
     ints: List[int] = list()
     for P, i in zip(Points, scalars):
-        ec.require_on_curve(P)
-        JPoints.append(_jac_from_aff(P))
         i = int_from_integer(i) % ec.n
         if i == 0:
-            raise ValueError("zero coefficient in Bos-Coster's algorithm")
+            continue
         ints.append(i)
+        ec.require_on_curve(P)
+        JPoints.append(_jac_from_aff(P))
 
     R = _multi_mult(ints, JPoints, ec)
-
     return ec._aff_from_jac(R)

@@ -14,12 +14,12 @@ import secrets
 
 import pytest
 
-from btclib.alias import INFJ
-from btclib.curvemult import _double_mult, double_mult, mult, _multi_mult
-from btclib.curve import _mult_jac, _jac_from_aff
+from btclib.alias import INF, INFJ
+from btclib.curve import _jac_from_aff, _mult_jac
+from btclib.curvemult import _double_mult, _multi_mult, double_mult, mult, multi_mult
 from btclib.curves import secp256k1
-from btclib.tests.test_curves import low_card_curves
 from btclib.pedersen import second_generator
+from btclib.tests.test_curves import low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
 
@@ -28,32 +28,68 @@ def test_assorted_mult():
     ec = ec23_31
     H = second_generator(ec)
     HJ = _jac_from_aff(H)
-    for k1 in range(1, ec.n):
-        k2 = 1 + secrets.randbelow(ec.n - 1)
-        shamir = _double_mult(k1, ec.GJ, k2, ec.GJ, ec)
-        assert ec._jac_equality(shamir, _mult_jac(k1 + k2, ec.GJ, ec))
-        shamir = _double_mult(k1, INFJ, k2, ec.GJ, ec)
-        assert ec._jac_equality(shamir, _mult_jac(k2, ec.GJ, ec))
-        shamir = _double_mult(k1, ec.GJ, k2, INFJ, ec)
-        assert ec._jac_equality(shamir, _mult_jac(k1, ec.GJ, ec))
+    for k1 in range(ec.n):
+        for k2 in range(ec.n):
+            shamir = _double_mult(k1, ec.GJ, k2, ec.GJ, ec)
+            assert ec._jac_equality(shamir, _mult_jac(k1 + k2, ec.GJ, ec))
+            shamir = _double_mult(k1, INFJ, k2, ec.GJ, ec)
+            assert ec._jac_equality(shamir, _mult_jac(k2, ec.GJ, ec))
+            shamir = _double_mult(k1, ec.GJ, k2, INFJ, ec)
+            assert ec._jac_equality(shamir, _mult_jac(k1, ec.GJ, ec))
 
-        shamir = _double_mult(k1, ec.GJ, k2, HJ, ec)
-        std = ec._add_jac(_mult_jac(k1, ec.GJ, ec), _mult_jac(k2, HJ, ec))
-        assert ec._jac_equality(std, shamir)
+            shamir = _double_mult(k1, ec.GJ, k2, HJ, ec)
+            std = ec._add_jac(_mult_jac(k1, ec.GJ, ec), _mult_jac(k2, HJ, ec))
+            assert ec._jac_equality(std, shamir)
 
-        k3 = 1 + secrets.randbelow(ec.n - 1)
-        std = ec._add_jac(std, _mult_jac(k3, ec.GJ, ec))
-        boscoster = _multi_mult([k1, k2, k3], [ec.GJ, HJ, ec.GJ], ec)
-        assert ec._jac_equality(std, boscoster)
+            k3 = 1 + secrets.randbelow(ec.n - 1)
+            std = ec._add_jac(std, _mult_jac(k3, ec.GJ, ec))
+            boscoster = _multi_mult([k1, k2, k3], [ec.GJ, HJ, ec.GJ], ec)
+            assert ec._jac_equality(std, boscoster)
 
-        k4 = 1 + secrets.randbelow(ec.n - 1)
-        std = ec._add_jac(std, _mult_jac(k4, HJ, ec))
-        boscoster = _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ, HJ], ec)
-        assert ec._jac_equality(std, boscoster)
+            k4 = 1 + secrets.randbelow(ec.n - 1)
+            std = ec._add_jac(std, _mult_jac(k4, HJ, ec))
+            boscoster = _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ, HJ], ec)
+            assert ec._jac_equality(std, boscoster)
 
     err_msg = "mismatch between number of scalars and points: "
     with pytest.raises(ValueError, match=err_msg):
         _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ], ec)
+
+    with pytest.raises(ValueError, match="negative first coefficient: "):
+        _double_mult(-5, HJ, 1, ec.GJ, ec)
+    with pytest.raises(ValueError, match="negative second coefficient: "):
+        _double_mult(1, HJ, -5, ec.GJ, ec)
+
+
+def test_assorted_mult2():
+    ec = ec23_31
+    H = second_generator(ec)
+    for k1 in range(ec.n):
+        for k2 in range(ec.n):
+            shamir = double_mult(k1, ec.G, k2, ec.G, ec)
+            assert shamir == mult(k1 + k2, ec.G, ec)
+            shamir = double_mult(k1, INF, k2, ec.G, ec)
+            assert shamir == mult(k2, ec.G, ec)
+            shamir = double_mult(k1, ec.G, k2, INF, ec)
+            assert shamir == mult(k1, ec.G, ec)
+
+            shamir = double_mult(k1, ec.G, k2, H, ec)
+            std = ec._add_aff(mult(k1, ec.G, ec), mult(k2, H, ec))
+            assert std == shamir
+
+            k3 = 1 + secrets.randbelow(ec.n - 1)
+            std = ec._add_aff(std, mult(k3, ec.G, ec))
+            boscoster = multi_mult([k1, k2, k3], [ec.G, H, ec.G], ec)
+            assert std == boscoster
+
+            k4 = 1 + secrets.randbelow(ec.n - 1)
+            std = ec._add_aff(std, mult(k4, H, ec))
+            boscoster = multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G, H], ec)
+            assert std == boscoster
+
+    err_msg = "mismatch between number of scalars and points: "
+    with pytest.raises(ValueError, match=err_msg):
+        multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
 
 
 def test_mult_double_mult():
