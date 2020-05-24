@@ -62,6 +62,8 @@ class CurveGroup:
         self.p = p
 
         # 2. check that a and b are integers in the interval [0, p−1]
+        if a < 0:
+            raise ValueError(f"negative a: {a}")
         if p <= a:
             err_msg = "p <= a: " + (
                 f"{hex_string(p)} <= {hex_string(a)}"
@@ -69,6 +71,8 @@ class CurveGroup:
                 else f"{p} <= {a}"
             )
             raise ValueError(err_msg)
+        if b < 0:
+            raise ValueError(f"negative b: {b}")
         if p <= b:
             err_msg = "p <= b: " + (
                 f"{hex_string(p)} <= {hex_string(b)}"
@@ -317,6 +321,9 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     (e.g. cyclic groups of order n).
     """
 
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
     # there is not a compelling reason to optimize for INF, even if possible
     # if Q[1] == 0:  # Infinity point, affine coordinates
     #     return INF  # return Infinity point
@@ -341,6 +348,9 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     m is assumed to have been reduced mod n if appropriate
     (e.g. cyclic groups of order n).
     """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
 
     # there is not a compelling reason to optimize for INFJ, even if possible
     # if Q[2] == 1:  # Infinity point, Jacobian coordinates

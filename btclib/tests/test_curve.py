@@ -21,13 +21,13 @@ def test_exceptions():
     with pytest.raises(ValueError, match="p is not prime: "):
         Curve(15, 0, 2, (1, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="negative integer: "):
+    with pytest.raises(ValueError, match="negative a: "):
         Curve(13, -1, 2, (1, 9), 19, 1, False)
 
     with pytest.raises(ValueError, match="p <= a: "):
         Curve(13, 13, 2, (1, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="negative integer: "):
+    with pytest.raises(ValueError, match="negative b: "):
         Curve(13, 0, -2, (1, 9), 19, 1, False)
 
     with pytest.raises(ValueError, match="p <= b: "):

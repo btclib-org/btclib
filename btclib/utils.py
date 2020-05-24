@@ -100,8 +100,6 @@ def int_from_bits(o: Octets, nlen: int) -> int:
 def int_from_integer(i: Integer) -> int:
 
     if isinstance(i, int):
-        if i < 0:
-            raise ValueError(f"negative integer: {i}")
         return i
     if isinstance(i, str):
         i = i.lower()
@@ -110,6 +108,8 @@ def int_from_integer(i: Integer) -> int:
         if i.startswith("0b"):
             return int(i, 2)
         i = bytes.fromhex(i)
+    if not isinstance(i, bytes):
+        raise TypeError("not an Integer=Union[int, str, bytes]")
     return int.from_bytes(i, "big")
 
 

@@ -62,6 +62,5 @@ def test_commitment():
 
     # commit does not open (with catched exception)
     assert not pedersen.open((r1, r1), v1, C2, ec, hf)
-    err_msg = "unsupported operand type"
-    with pytest.raises(TypeError, match=err_msg):
+    with pytest.raises(TypeError, match="not an Integer"):
         pedersen.commit((r1, r1), v1, ec, hf)

@@ -112,11 +112,6 @@ def test_gec():
     dU = 971761939728640320549601132085879836204587084162
     assert format(dU, str(ec.nsize) + "x") == "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
 
-    # FIXME mult should accept Integer
-    # FIXME Curve repr should use "dedbeef 00000000", not "0xdedbeef00000000"
-    # FIXME format and support all hex strings as "dedbeef 00000000"
-    # FIXME replace all 0xdeadbeef00000000 numbers with "dedbeef 00000000"
-    # FIXME test curves when n>p
     QU = mult(dU, ec.G, ec)
     assert QU == (
         466448783855397898016055842232266600516272889280,

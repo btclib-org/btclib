@@ -22,6 +22,11 @@ from btclib.curves import CURVES
 from btclib.numbertheory import mod_sqrt
 from btclib.secpoint import bytes_from_point, point_from_octets
 
+
+# FIXME Curve repr should use "dedbeef 00000000", not "0xdedbeef00000000"
+# FIXME test curves when n>p
+
+
 # test curves: very low cardinality
 low_card_curves: Dict[str, Curve] = {}
 # 13 % 4 = 1; 13 % 8 = 5

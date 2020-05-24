@@ -13,12 +13,13 @@
 import heapq
 from typing import List, Sequence
 
-from .alias import INFJ, JacPoint, Point
+from .alias import INFJ, Integer, JacPoint, Point
 from .curve import Curve, CurveGroup, _jac_from_aff, _mult_jac
 from .curves import secp256k1
+from .utils import int_from_integer
 
 
-def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
+def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
     """Point multiplication, implemented using 'double and add'.
 
     Computations use Jacobian coordinates and binary decomposition of m.
@@ -29,12 +30,14 @@ def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
         ec.require_on_curve(Q)
         QJ = _jac_from_aff(Q)
 
-    m %= ec.n
+    m = int_from_integer(m) % ec.n
     R = _mult_jac(m, QJ, ec)
     return ec._aff_from_jac(R)
 
 
-def double_mult(u: int, H: Point, v: int, Q: Point, ec: Curve = secp256k1) -> Point:
+def double_mult(
+    u: Integer, H: Point, v: Integer, Q: Point, ec: Curve = secp256k1
+) -> Point:
     """Shamir trick for efficient computation of u*H + v*Q"""
 
     ec.require_on_curve(H)
@@ -43,8 +46,8 @@ def double_mult(u: int, H: Point, v: int, Q: Point, ec: Curve = secp256k1) -> Po
     ec.require_on_curve(Q)
     QJ = _jac_from_aff(Q)
 
-    u %= ec.n
-    v %= ec.n
+    u = int_from_integer(u) % ec.n
+    v = int_from_integer(v) % ec.n
     R = _double_mult(u, HJ, v, QJ, ec)
     return ec._aff_from_jac(R)
 
@@ -52,6 +55,11 @@ def double_mult(u: int, H: Point, v: int, Q: Point, ec: Curve = secp256k1) -> Po
 def _double_mult(
     u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup
 ) -> JacPoint:
+
+    if u < 0:
+        raise ValueError(f"negative u: {hex(u)}")
+    if v < 0:
+        raise ValueError(f"negative v: {hex(v)}")
 
     if u == 0 or HJ[2] == 0:
         return _mult_jac(v, QJ, ec)
@@ -76,7 +84,7 @@ def _double_mult(
 
 
 def multi_mult(
-    scalars: Sequence[int], Points: Sequence[Point], ec: CurveGroup = secp256k1
+    scalars: Sequence[Integer], Points: Sequence[Point], ec: Curve = secp256k1
 ) -> Point:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
@@ -90,11 +98,13 @@ def multi_mult(
         raise ValueError(errMsg)
 
     JPoints: List[JacPoint] = list()
-    for P in Points:
+    ints: List[int] = list()
+    for P, i in zip(Points, scalars):
         ec.require_on_curve(P)
         JPoints.append(_jac_from_aff(P))
+        ints.append(int_from_integer(i) % ec.n)
 
-    R = _multi_mult(scalars, JPoints, ec)
+    R = _multi_mult(ints, JPoints, ec)
 
     return ec._aff_from_jac(R)
 
