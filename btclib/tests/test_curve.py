@@ -75,7 +75,10 @@ def test_jac():
     ec = Curve(13, 0, 2, (1, 9), 19, 1, False)
     assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
 
-    q = 1 + secrets.randbelow(ec.n - 1)
+    # q in [2, n-1]
+    q = 2 + secrets.randbelow(ec.n - 2)
     Q = _mult_aff(q, ec.G, ec)
     QJ = _mult_jac(q, ec.GJ, ec)
     assert ec._jac_equality(QJ, _jac_from_aff(Q))
+    assert not ec._jac_equality(QJ, ec.negate(QJ))
+    assert not ec._jac_equality(QJ, ec.GJ)
