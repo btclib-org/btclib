@@ -20,6 +20,7 @@ from btclib.alias import INF
 from btclib.curvemult import _mult_jac, double_mult, mult
 from btclib.curves import CURVES, secp256k1
 from btclib.numbertheory import mod_inv
+from btclib.rfc6979 import rfc6979
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.tests.test_curves import low_card_curves
 
@@ -211,13 +212,14 @@ def test_crack_prvkey():
 
     ec = secp256k1
 
-    q = 0xDEADBEEF6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-    k = 1010101010101010101
+    q = 0x17E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
+    k = rfc6979(msg1, q)
     sig1 = dsa.sign(msg1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
+    # reuse same k
     sig2 = dsa.sign(msg2, q, k)
 
     qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)

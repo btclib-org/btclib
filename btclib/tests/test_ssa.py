@@ -200,16 +200,17 @@ def test_crack_prvkey():
 
     ec = secp256k1
 
-    q = 0x6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725DEADBEEF
+    q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
     x_Q = mult(q)[0]
-    k = 1010101010101010101
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
     msg1 = hf(msg1.encode()).digest()
+    k = ssa.k(msg1, q)
     sig1 = ssa.sign(msg1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
     msg2 = hf(msg2.encode()).digest()
+    # reuse same k
     sig2 = ssa.sign(msg2, q, k)
 
     qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
