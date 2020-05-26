@@ -14,12 +14,63 @@ import heapq
 from typing import List, Sequence, Tuple
 
 from .alias import INFJ, Integer, JacPoint, Point
-from .curve import Curve, CurveGroup, _jac_from_aff, _mult_jac
+from .curve import Curve, CurveGroup, _jac_from_aff
 from .curves import secp256k1
 from .utils import int_from_integer
 
 
-def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
+def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication of a curve point in Jacobian coordinates.
+
+    This implementation uses 'double & add' algorithm,
+    binary decomposition of m,
+    jacobian coordinates.
+    It is not constant-time.
+
+    The input point is assumed to be on curve,
+    m is assumed to have been reduced mod n if appropriate
+    (e.g. cyclic groups of order n).
+    """
+
+    if Q == INFJ:  # no need to multiply if Q is 0
+        return Q
+
+    R = INFJ  # initialize as infinity point
+    while m > 0:  # use binary representation of m
+        if m & 1:  # if least significant bit is 1
+            R = ec._unsafe_add_jac(R, Q)  # then add current Q
+        m = m >> 1  # remove the bit just accounted for
+        Q = ec._unsafe_double_jac(Q)  # double Q for next step
+    return R
+
+
+def _constant_time_mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication of a curve point in Jacobian coordinates.
+
+    This implementation uses 'montgomery ladder' algorithm,
+    jacobian coordinates.
+    It is constant-time if the binary size of Q remains the same.
+
+    The input point is assumed to be on curve,
+    m is assumed to have been reduced mod n if appropriate
+    (e.g. cyclic groups of order n).
+    """
+
+    if Q == INFJ:
+        return Q
+
+    R = INFJ  # initialize as infinity point
+    for m in [int(i) for i in bin(m)[2:]]:  # goes through binary digits
+        if m == 0:
+            Q = ec._unsafe_add_jac(R, Q)
+            R = ec._unsafe_double_jac(R)
+        else:
+            R = ec._unsafe_add_jac(R, Q)
+            Q = ec._unsafe_double_jac(Q)
+    return R
+
+
+def mult(m: int, Q: Point = None, ec: Curve = secp256k1) -> Point:
     """Point multiplication, implemented using 'double and add'.
 
     Computations use Jacobian coordinates and binary decomposition of m.

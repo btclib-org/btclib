@@ -221,6 +221,46 @@ class CurveGroup:
             Z = (V * Q[2] * R[2]) % self.p
             return X, Y, Z
 
+    def _unsafe_add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
+        # R and Q must be different
+
+        if Q[2] == 0:  # Infinity point in Jacobian coordinates
+            return R
+        if R[2] == 0:  # Infinity point in Jacobian coordinates
+            return Q
+
+        RZ2 = R[2] * R[2]
+        RZ3 = RZ2 * R[2]
+        QZ2 = Q[2] * Q[2]
+        QZ3 = QZ2 * Q[2]
+        T = (Q[1] * RZ3) % self.p
+        U = (R[1] * QZ3) % self.p
+        W = (U - T) % self.p
+
+        M = (Q[0] * RZ2) % self.p
+        N = (R[0] * QZ2) % self.p
+        V = (N - M) % self.p
+
+        V2 = V * V
+        V3 = V2 * V
+        MV2 = M * V2
+        X = (W * W - V3 - 2 * MV2) % self.p
+        Y = (W * (MV2 - X) - T * V3) % self.p
+        Z = (V * Q[2] * R[2]) % self.p
+        return X, Y, Z
+
+    def _unsafe_double_jac(self, Q: JacPoint) -> JacPoint:
+        # Q must NOT be the infinity point
+
+        QZ2 = Q[2] * Q[2]
+        QY2 = Q[1] * Q[1]
+        W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % self.p
+        V = (4 * Q[0] * QY2) % self.p
+        X = (W * W - 2 * V) % self.p
+        Y = (W * (V - X) - 8 * QY2 * QY2) % self.p
+        Z = (2 * Q[1] * Q[2]) % self.p
+        return X, Y, Z
+
     def _add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
         if R[1] == 0:  # Infinity point in affine coordinates
@@ -349,34 +389,6 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
             R = ec._add_aff(R, Q)  # then add current Q
         m = m >> 1  # remove the bit just accounted for
         Q = ec._add_aff(Q, Q)  # double Q for next step
-    return R
-
-
-def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
-    """Scalar multiplication of a curve point in Jacobian coordinates.
-
-    This implementation uses 'double & add' algorithm,
-    binary decomposition of m,
-    affine coordinates.
-    It is not constant-time.
-
-    The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
-    """
-
-    if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
-
-    # there is not a compelling reason to optimize for INFJ, even if possible
-    # if Q[2] == 1:  # Infinity point, Jacobian coordinates
-    #     return INFJ  # return Infinity point
-    R = INFJ  # initialize as infinity point
-    while m > 0:  # use binary representation of m
-        if m & 1:  # if least significant bit is 1
-            R = ec._add_jac(R, Q)  # then add current Q
-        m = m >> 1  # remove the bit just accounted for
-        Q = ec._add_jac(Q, Q)  # double Q for next step
     return R
 
 
