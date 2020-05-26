@@ -159,7 +159,7 @@ def pubkeyinfo_from_key(
     try:
         return pubkeyinfo_from_prvkey(key, network, compressed)
     except Exception:
-        raise ValueError(f"Not a public (or even private) key: {key!r}")
+        raise ValueError(f"not a public or private key: {key!r}")
 
 
 def pubkeyinfo_from_pubkey(
