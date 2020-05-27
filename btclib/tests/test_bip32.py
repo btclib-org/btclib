@@ -114,25 +114,6 @@ class TestBIP32(unittest.TestCase):
         addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
         self.assertEqual(addr, addr2)
 
-    def test_exceptions(self):
-        # invalid checksum
-        xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
-
-        # extended key is not a public one
-        self.assertRaises(ValueError, p2pkh, xprv)
-        # p2pkh(xprv)
-
-        # unknown extended key version
-        version = b"\x04\x88\xAD\xE5"
-        seed = "5b56c417303faa3fcba7e57400e120a0ca83ec5a4fc9ffba757fbe63fbd77a89a1a3be4c67196f57c39a88b76373733891bfaba16ed27a813ceed498804c0570"
-        self.assertRaises(ValueError, bip32.rootxprv_from_seed, seed, version)
-        # bip32.rootxprv_from_seed(seed, version)
-
-        # extended key is not a private one
-        xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
-        self.assertRaises(ValueError, bip32.xpub_from_xprv, xpub)
-        # bip32.xpub_from_xprv(xpub)
-
     def test_testnet_versions(self):
 
         # data cross-checked with Electrum and
@@ -300,6 +281,29 @@ class TestBIP32(unittest.TestCase):
         xpub = bip32.xpub_from_xprv(xprv)
         exp = "Zpub72a8bqjcjNJnMBLrV2EY7XLQbfji28irEZneqYK6w8Zf16sfhr7zDbLsVQficP9j9uzbF6VW1y3ypmeFKf6Dxaw82WvK8WFjcsLyEvMNZjF"
         self.assertEqual(xpub.decode(), exp)
+
+
+def test_exceptions():
+
+    # invalid checksum
+    xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
+    with pytest.raises(ValueError, match="not a public or private key: "):
+        p2pkh(xprv)
+
+    xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+    with pytest.raises(ValueError, match="not a private key: "):
+        bip32.xpub_from_xprv(xpub)
+
+    version = b"\x04\x88\xAD\xE5"
+    seed = "5b56c417303faa3fcba7e57400e120a0"
+    with pytest.raises(ValueError, match="unknown private key version: "):
+        bip32.rootxprv_from_seed(seed, version)
+
+    with pytest.raises(ValueError, match="too many bits for seed: "):
+        bip32.rootxprv_from_seed(seed * 5)
+
+    with pytest.raises(ValueError, match="too few bits for seed: "):
+        bip32.rootxprv_from_seed(seed[:-2])
 
 
 def test_deserialize():

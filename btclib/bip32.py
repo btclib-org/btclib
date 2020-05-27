@@ -51,7 +51,7 @@ from .network import (
     NETWORKS,
 )
 from .secpoint import bytes_from_point, point_from_octets
-from .utils import bytes_from_octets, hash160
+from .utils import bytes_from_octets, hash160, hex_string
 
 
 class ExtendedBIP32KeyDict(BIP32KeyDict):
@@ -187,15 +187,16 @@ def rootxprv_from_seed(
     """Return BIP32 root master extended private key from seed."""
 
     seed = bytes_from_octets(seed)
-    if len(seed) < 16:  # 128 bits
-        raise ValueError(f"not enough bits for seed: {seed.hex()}")
-    if len(seed) > 64:  # 512 bits
-        raise ValueError(f"too many bits for seed: {seed.hex()}")
+    bitlenght = len(seed) * 8
+    if bitlenght < 128:
+        raise ValueError(f"too few bits for seed: {bitlenght} in '{hex_string(seed)}'")
+    if bitlenght > 512:
+        raise ValueError(f"too many bits for seed: {bitlenght} in '{hex_string(seed)}'")
     hd = hmac.digest(b"Bitcoin seed", seed, "sha512")
     k = b"\x00" + hd[:32]
     v = bytes_from_octets(version, 4)
     if v not in _XPRV_VERSIONS_ALL:
-        raise ValueError(f"unknown extended private key version {v!r}")
+        raise ValueError(f"unknown private key version: {v.hex()}")
 
     d: BIP32KeyDict = {
         "version": v,
