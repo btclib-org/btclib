@@ -32,15 +32,18 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     (e.g. cyclic groups of order n).
     """
 
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
     if Q == INFJ:  # no need to multiply if Q is 0
         return Q
 
     R = INFJ  # initialize as infinity point
     while m > 0:  # use binary representation of m
         if m & 1:  # if least significant bit is 1
-            R = ec._unsafe_add_jac(R, Q)  # then add current Q
+            R = ec._add_jac(R, Q)  # then add current Q
         m = m >> 1  # remove the bit just accounted for
-        Q = ec._unsafe_double_jac(Q)  # double Q for next step
+        Q = ec._double_jac(Q)  # double Q for next step
     return R
 
 
@@ -56,17 +59,20 @@ def _constant_time_mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     (e.g. cyclic groups of order n).
     """
 
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
     if Q == INFJ:
         return Q
 
     R = INFJ  # initialize as infinity point
     for m in [int(i) for i in bin(m)[2:]]:  # goes through binary digits
         if m == 0:
-            Q = ec._unsafe_add_jac(R, Q)
-            R = ec._unsafe_double_jac(R)
+            Q = ec._add_jac(R, Q)
+            R = ec._double_jac(R)
         else:
-            R = ec._unsafe_add_jac(R, Q)
-            Q = ec._unsafe_double_jac(Q)
+            R = ec._add_jac(R, Q)
+            Q = ec._double_jac(Q)
     return R
 
 

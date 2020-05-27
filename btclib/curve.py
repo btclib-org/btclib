@@ -224,15 +224,19 @@ class CurveGroup:
     def _unsafe_add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # R and Q must be different
 
+        RZ2 = R[2] * R[2]
+        RZ3 = RZ2 * R[2]
+        QZ2 = Q[2] * Q[2]
+        QZ3 = QZ2 * Q[2]
+        if Q[0] * RZ2 % self.p == R[0] * QZ2 % self.p:
+            if Q[1] * RZ3 % self.p != R[1] * QZ3 % self.p:
+                return INFJ
+
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return R
         if R[2] == 0:  # Infinity point in Jacobian coordinates
             return Q
 
-        RZ2 = R[2] * R[2]
-        RZ3 = RZ2 * R[2]
-        QZ2 = Q[2] * Q[2]
-        QZ3 = QZ2 * Q[2]
         T = (Q[1] * RZ3) % self.p
         U = (R[1] * QZ3) % self.p
         W = (U - T) % self.p
@@ -249,8 +253,10 @@ class CurveGroup:
         Z = (V * Q[2] * R[2]) % self.p
         return X, Y, Z
 
-    def _unsafe_double_jac(self, Q: JacPoint) -> JacPoint:
-        # Q must NOT be the infinity point
+    def _double_jac(self, Q: JacPoint) -> JacPoint:
+
+        if Q[2] == 0:
+            return INFJ
 
         QZ2 = Q[2] * Q[2]
         QY2 = Q[1] * Q[1]

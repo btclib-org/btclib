@@ -15,7 +15,8 @@ import secrets
 import pytest
 
 from btclib.alias import INF
-from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
+from btclib.curve import Curve, _jac_from_aff, _mult_aff
+from btclib.curvemult import _mult_jac, _constant_time_mult_jac
 
 
 def test_exceptions():
@@ -82,3 +83,7 @@ def test_jac():
     assert ec._jac_equality(QJ, _jac_from_aff(Q))
     assert not ec._jac_equality(QJ, ec.negate(QJ))
     assert not ec._jac_equality(QJ, ec.GJ)
+    QJ2 = _constant_time_mult_jac(q, ec.GJ, ec)
+    assert ec._jac_equality(QJ2, _jac_from_aff(Q))
+    assert not ec._jac_equality(QJ2, ec.negate(QJ2))
+    assert not ec._jac_equality(QJ2, ec.GJ)

@@ -16,7 +16,8 @@ import secrets
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
+from btclib.curve import Curve, _jac_from_aff, _mult_aff
+from btclib.curvemult import _mult_jac, _constant_time_mult_jac
 from btclib.curves import CURVES
 from btclib.numbertheory import mod_sqrt
 
@@ -288,6 +289,9 @@ def test_mult():
         for q in range(ec.n):
             Q = _mult_aff(q, ec.G, ec)
             QJ = _mult_jac(q, ec.GJ, ec)
+            QJ2 = _constant_time_mult_jac(q, ec.GJ, ec)
             assert Q == ec._aff_from_jac(QJ)
+            assert Q == ec._aff_from_jac(QJ2)
         assert INF == _mult_aff(q, INF, ec)
         assert INFJ == _mult_jac(q, INFJ, ec)
+        assert INFJ == _constant_time_mult_jac(q, INFJ, ec)
