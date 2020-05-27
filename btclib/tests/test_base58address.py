@@ -74,7 +74,7 @@ class TestAddresses(unittest.TestCase):
 
     def test_p2pkh_from_pubkey(self):
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
-        pub = "02 " "50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
+        pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
         addr = p2pkh(pub)
         assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
         _, h160, _, _ = h160_from_b58address(addr)
@@ -87,17 +87,13 @@ class TestAddresses(unittest.TestCase):
         assert h160 == hash160(uncompr_pub)
 
         # trailing/leading spaces in string
-        pub = "  02 " "50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
+        pub = "  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
         addr = p2pkh(pub)
         assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
         _, h160, _, _ = h160_from_b58address(addr)
         assert h160 == hash160(pub)
 
-        pub = (
-            "02 "
-            "50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
-            "  "
-        )
+        pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  "
         addr = p2pkh(pub)
         assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
 
@@ -135,9 +131,7 @@ class TestAddresses(unittest.TestCase):
 
     def test_p2w_p2sh(self):
 
-        pubkey = (
-            "03 " "a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-        )
+        pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
         h160pubkey, network = hash160_from_pubkey(pubkey)
         b58addr = p2wpkh_p2sh(pubkey, network)
         b58addr2 = b58address_from_witness(h160pubkey, network)
