@@ -59,8 +59,8 @@ def test_slip32_test_vector():
         ],
     ]
     for version, der_path, prv, pub, addr_str in test_vectors:
-        rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "", version)
-        mxprv = bip32.derive(rxprv, der_path)
+        rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "")
+        mxprv = bip32.derive(rxprv, der_path, version)
         assert prv.encode() == mxprv
         mxpub = bip32.xpub_from_xprv(mxprv)
         assert pub.encode() == mxpub

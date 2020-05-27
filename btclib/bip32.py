@@ -181,16 +181,19 @@ def serialize(d: BIP32KeyDict) -> bytes:
     return b58encode(t, 78)
 
 
-def rootxprv_from_seed(seed: Octets, version: Optional[Octets] = None) -> bytes:
+def rootxprv_from_seed(
+    seed: Octets, version: Octets = NETWORKS["mainnet"]["bip32_prv"]
+) -> bytes:
     """Return BIP32 root master extended private key from seed."""
 
     seed = bytes_from_octets(seed)
+    if len(seed) < 16:  # 128 bits
+        raise ValueError(f"not enough bits for seed: {seed.hex()}")
+    if len(seed) > 64:  # 512 bits
+        raise ValueError(f"too many bits for seed: {seed.hex()}")
     hd = hmac.digest(b"Bitcoin seed", seed, "sha512")
     k = b"\x00" + hd[:32]
-    if version is None:
-        v = NETWORKS["mainnet"]["bip32_prv"]
-    else:
-        v = bytes_from_octets(version)
+    v = bytes_from_octets(version, 4)
     if v not in _XPRV_VERSIONS_ALL:
         raise ValueError(f"unknown extended private key version {v!r}")
 
@@ -206,11 +209,12 @@ def rootxprv_from_seed(seed: Octets, version: Optional[Octets] = None) -> bytes:
 
 
 def mxprv_from_bip39_mnemonic(
-    mnemonic: Mnemonic, passphrase: str = "", version: Optional[Octets] = None
+    mnemonic: Mnemonic, passphrase: str = "", network: str = "mainnet"
 ) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = bip39.seed_from_mnemonic(mnemonic, passphrase)
+    version = NETWORKS[network]["bip32_prv"]
     return rootxprv_from_seed(seed, version)
 
 
@@ -323,7 +327,9 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
     return indexes, absolute
 
 
-def derive(xkey: BIP32Key, path: Path) -> bytes:
+def derive(
+    xkey: BIP32Key, path: Path, forced_version: Optional[Octets] = None
+) -> bytes:
     """Derive an extended key across a path spanning multiple depth levels.
 
     Derivation is according to:
@@ -363,6 +369,9 @@ def derive(xkey: BIP32Key, path: Path) -> bytes:
     for index in indexes:
         _ckd(xkey, index)
 
+    if forced_version is not None:
+        forced_version = bytes_from_octets(forced_version, 4)
+        xkey["version"] = forced_version
     return serialize(xkey)
 
 
