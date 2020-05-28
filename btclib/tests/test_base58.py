@@ -25,6 +25,8 @@ def test_empty():
     assert _b58encode(b"") == b""
     assert _b58decode(_b58encode(b"")) == b""
 
+    assert b58decode(b58encode(b""), 0) == b""
+
 
 def test_hello_world():
     assert _b58encode(b"hello world") == b"StV1DL6CwTryKyV"
@@ -32,12 +34,16 @@ def test_hello_world():
     assert _b58decode(_b58encode(b"hello world")) == b"hello world"
     assert _b58encode(_b58decode(b"StV1DL6CwTryKyV")) == b"StV1DL6CwTryKyV"
 
+    assert b58decode(b58encode(b"hello world"), 11) == b"hello world"
+
 
 def test_trailing_zeros():
     assert _b58encode(b"\x00\x00hello world") == b"11StV1DL6CwTryKyV"
     assert _b58decode(b"11StV1DL6CwTryKyV") == b"\x00\x00hello world"
-    assert _b58decode(_b58encode(b"\0\0hello world")) == b"\x00\x00hello world"
+    assert _b58decode(_b58encode(b"\x00\x00hello world")) == b"\x00\x00hello world"
     assert _b58encode(_b58decode(b"11StV1DL6CwTryKyV")) == b"11StV1DL6CwTryKyV"
+
+    assert b58decode(b58encode(b"\x00\x00hello world")) == b"\x00\x00hello world"
 
 
 def test_exceptions():
@@ -48,7 +54,7 @@ def test_exceptions():
     encoded = b58encode(b"test")
 
     wrong_length = len(encoded) - 1
-    with pytest.raises(ValueError, match="Invalid base58 decoded size: "):
+    with pytest.raises(ValueError, match="invalid decoded size: "):
         b58decode(encoded, wrong_length)
 
     invalidChecksum = encoded[:-4] + b"1111"
@@ -57,6 +63,10 @@ def test_exceptions():
 
     with pytest.raises(ValueError, match="'ascii' codec can't encode character "):
         b58decode("hèllo world")
+
+    err_msg = "not enough bytes for checksum, invalid base58 decoded size: "
+    with pytest.raises(ValueError, match=err_msg):
+        b58decode(_b58encode(b"123"))
 
 
 def test_wif():

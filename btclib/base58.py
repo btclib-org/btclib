@@ -121,8 +121,12 @@ def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
         v = v.encode("ascii")
 
     result = _b58decode(v)
-    result, checksum = result[:-4], result[-4:]
+    if len(result) < 4:
+        m = "not enough bytes for checksum, "
+        m += f"invalid base58 decoded size: {len(result)}"
+        raise ValueError(m)
 
+    result, checksum = result[:-4], result[-4:]
     h256 = hash256(result)
     if checksum != h256[:4]:
         m = f"invalid checksum: 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
@@ -131,6 +135,6 @@ def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
     if out_size is None or len(result) == out_size:
         return result
 
-    m = "Invalid base58 decoded size: "
+    m = "valid checksum, invalid decoded size: "
     m += f"{len(result)} bytes instead of {out_size}"
     raise ValueError(m)
