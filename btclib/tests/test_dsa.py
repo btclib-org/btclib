@@ -170,15 +170,15 @@ def test_low_cardinality():
                     if r == 0 or s == 0:
                         err_msg = "failed to sign: "
                         with pytest.raises(RuntimeError, match=err_msg):
-                            dsa._sign(e, q, k, ec)
+                            dsa.__sign(e, q, k, ec)
                         continue
 
-                    sig = dsa._sign(e, q, k, ec)
+                    sig = dsa.__sign(e, q, k, ec)
                     assert (r, s) == sig
                     # valid signature must pass verification
-                    dsa._assert_as_valid(e, QJ, r, s, ec)
+                    dsa.__assert_as_valid(e, QJ, r, s, ec)
 
-                    JacobianKeys = dsa._recover_pubkeys(e, r, s, ec)
+                    JacobianKeys = dsa.__recover_pubkeys(e, r, s, ec)
                     # FIXME speed this up
                     Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
                     assert ec._aff_from_jac(QJ) in Qs
@@ -251,7 +251,7 @@ def test_forge_hash_sig():
     u2inv = mod_inv(u2, ec.n)
     s = r * u2inv % ec.n
     e = s * u1 % ec.n
-    dsa._assert_as_valid(e, (P[0], P[1], 1), r, s, ec)
+    dsa.__assert_as_valid(e, (P[0], P[1], 1), r, s, ec)
 
     # pick u1 and u2 at will
     u1 = 1234567890
@@ -261,4 +261,4 @@ def test_forge_hash_sig():
     u2inv = mod_inv(u2, ec.n)
     s = r * u2inv % ec.n
     e = s * u1 % ec.n
-    dsa._assert_as_valid(e, (P[0], P[1], 1), r, s, ec)
+    dsa.__assert_as_valid(e, (P[0], P[1], 1), r, s, ec)

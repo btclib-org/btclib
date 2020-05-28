@@ -22,15 +22,26 @@ from hashlib import sha256
 from typing import List, Optional, Tuple
 
 from . import der
-from .alias import DSASig, DSASigTuple, HashF, JacPoint, Key, Point, PrvKey, String
+from .alias import (
+    DSASig,
+    DSASigTuple,
+    HashF,
+    JacPoint,
+    Key,
+    Octets,
+    Point,
+    PrvKey,
+    String,
+)
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac
 from .curves import secp256k1
+from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
-from .rfc6979 import _rfc6979
+from .rfc6979 import __rfc6979
 from .to_prvkey import int_from_prvkey
 from .to_pubkey import point_from_key
-from .utils import int_from_bits
+from .utils import bytes_from_octets, int_from_bits
 
 # _validate_sig, deserialize and serialize are basically just wrappers
 # for the equivalent functions in the der module
@@ -77,21 +88,17 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:
     return q, Q
 
 
-def _challenge(msg: String, ec: Curve, hf: HashF) -> int:
+def _challenge(m: Octets, ec: Curve, hf: HashF) -> int:
 
-    if isinstance(msg, str):
-        msg = msg.encode()
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
 
-    # Steps numbering follows SEC 1 v.2 section 4.1.3
-    h = hf()
-    h.update(msg)
-    mhd = h.digest()  # 4
     # leftmost ec.nlen bits %= ec.n
-    c = int_from_bits(mhd, ec.nlen) % ec.n  # 5
+    c = int_from_bits(m, ec.nlen) % ec.n  # 5
     return c
 
 
-def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
+def __sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and k are in [1, n-1]
@@ -114,13 +121,39 @@ def _sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
     # bitcoin canonical 'low-s' encoding for ECDSA signatures
     # it removes signature malleability as cause of transaction malleability
     # see https://github.com/bitcoin/bitcoin/pull/6769
+    # TODO optional low_s
     if s > ec.n / 2:
         s = ec.n - s  # s = - s % ec.n
 
     return r, s
 
 
-# RFC6979 is used for deterministic nonce
+def _sign(
+    m: Octets,
+    prvkey: PrvKey,
+    k: Optional[PrvKey] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> DSASigTuple:
+
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
+
+    c = _challenge(m, ec, hf)  # 4, 5
+
+    # The secret key q: an integer in the range 1..n-1.
+    # SEC 1 v.2 section 3.2.1
+    q = int_from_prvkey(prvkey, ec)
+
+    if k is None:
+        k = __rfc6979(c, q, ec, hf)  # 1
+    else:
+        k = int_from_prvkey(k, ec)
+
+    # second part delegated to helper function
+    return __sign(c, q, k, ec)
+
+
 def sign(
     msg: String,
     prvkey: PrvKey,
@@ -131,9 +164,9 @@ def sign(
     """ECDSA signature with canonical low-s encoding.
 
     Implemented according to SEC 1 v.2
-    The message m is first processed by hf, yielding the value
+    The message msg is first processed by hf, yielding the value
 
-        mhd = hf(m),
+        m = hf(msg),
 
     a sequence of bits of length *hlen*.
 
@@ -143,22 +176,13 @@ def sign(
     the smallest of *hlen* and *nlen*; however, the ECDSA standard
     supports all combinations of *hlen* and *nlen*.
 
+    RFC6979 is used for deterministic nonce.
+
     See https://tools.ietf.org/html/rfc6979#section-3.2
     """
 
-    c = _challenge(msg, ec, hf)  # 4, 5
-
-    # The secret key q: an integer in the range 1..n-1.
-    # SEC 1 v.2 section 3.2.1
-    q = int_from_prvkey(prvkey, ec)
-
-    if k is None:
-        k = _rfc6979(c, q, ec, hf)  # 1
-    else:
-        k = int_from_prvkey(k, ec)
-
-    # second part delegated to helper function
-    return _sign(c, q, k, ec)
+    m = reduce_to_hlen(msg, hf)
+    return _sign(m, prvkey, k, ec, hf)
 
 
 def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:
@@ -172,7 +196,7 @@ def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:
     return r, s
 
 
-def _assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
+def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
 
     w = mod_inv(s, ec.n)
@@ -191,19 +215,43 @@ def _assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     assert r == x, "signature verification failed"  # 8
 
 
-def assert_as_valid(msg: String, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
+def _assert_as_valid(m: Octets, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     r, s = _to_sig(sig, ec)  # 1
 
-    c = _challenge(msg, ec, hf)  # 2, 3
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
+    c = _challenge(m, ec, hf)  # 2, 3
 
     Q = point_from_key(P, ec)
     QJ = Q[0], Q[1], 1 if Q[1] else 0
 
     # second part delegated to helper function
-    _assert_as_valid(c, QJ, r, s, ec)
+    __assert_as_valid(c, QJ, r, s, ec)
+
+
+def assert_as_valid(msg: String, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
+    # Private function for test/dev purposes
+    # It raises Errors, while verify should always return True or False
+
+    m = reduce_to_hlen(msg, hf)
+    _assert_as_valid(m, P, sig, ec, hf)
+
+
+def _verify(
+    m: Octets, P: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+) -> bool:
+    """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
+
+    # try/except wrapper for the Errors raised by assert_as_valid
+    try:
+        _assert_as_valid(m, P, sig, ec, hf)
+    except Exception:
+        return False
+    else:
+        return True
 
 
 def verify(
@@ -211,13 +259,8 @@ def verify(
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
-    # try/except wrapper for the Errors raised by assert_as_valid
-    try:
-        assert_as_valid(msg, P, sig, ec, hf)
-    except Exception:
-        return False
-    else:
-        return True
+    m = reduce_to_hlen(msg, hf)
+    return _verify(m, P, sig, ec, hf)
 
 
 def recover_pubkeys(
@@ -229,16 +272,32 @@ def recover_pubkeys(
     https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
 
-    c = _challenge(msg, ec, hf)  # 1.5
+    m = reduce_to_hlen(msg, hf)
+    return _recover_pubkeys(m, sig, ec, hf)
+
+
+def _recover_pubkeys(
+    m: Octets, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+) -> List[Point]:
+    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
+
+    See also:
+    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    """
+
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
+
+    c = _challenge(m, ec, hf)  # 1.5
 
     r, s = _to_sig(sig, ec)
 
-    QJs = _recover_pubkeys(c, r, s, ec)
+    QJs = __recover_pubkeys(c, r, s, ec)
     return [ec._aff_from_jac(QJ) for QJ in QJs]
 
 
-# TODO: use _recover_pubkey to avoid code duplication
-def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
+# TODO: use __recover_pubkey to avoid code duplication
+def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     # Private function provided for testing purposes only.
 
     # precomputations
@@ -260,7 +319,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             # 1.5 has been performed in the recover_pubkeys calling function
             Q1J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
             try:
-                _assert_as_valid(c, Q1J, r, s, ec)  # 1.6.2
+                __assert_as_valid(c, Q1J, r, s, ec)  # 1.6.2
             except Exception:
                 pass
             else:
@@ -268,7 +327,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             KJ = x, ec.p - yodd, 1  # 1.6.3
             Q2J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
             try:
-                _assert_as_valid(c, Q2J, r, s, ec)  # 1.6.2
+                __assert_as_valid(c, Q2J, r, s, ec)  # 1.6.2
             except Exception:
                 pass
             else:
@@ -278,7 +337,7 @@ def _recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     return keys
 
 
-def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
+def __recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
     # Private function provided for testing purposes only.
 
     # precomputations
@@ -297,14 +356,14 @@ def _recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
     KJ = x, y, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pubkeys calling function
     QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-    _assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
+    __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
     return QJ
 
 
-def crack_prvkey(
-    m1: String,
+def _crack_prvkey(
+    m1: Octets,
     sig1: DSASig,
-    m2: String,
+    m2: Octets,
     sig2: DSASig,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -317,8 +376,27 @@ def crack_prvkey(
     if s1 == s2:
         raise ValueError("identical signatures")
 
+    # The message m: a hlen array
+    m1 = bytes_from_octets(m1, hf().digest_size)
+    m2 = bytes_from_octets(m2, hf().digest_size)
+
     c1 = _challenge(m1, ec, hf)
     c2 = _challenge(m2, ec, hf)
     k = (c1 - c2) * mod_inv(s1 - s2, ec.n) % ec.n
     q = (s2 * k - c2) * mod_inv(r1, ec.n) % ec.n
     return q, k
+
+
+def crack_prvkey(
+    msg1: String,
+    sig1: DSASig,
+    msg2: String,
+    sig2: DSASig,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[int, int]:
+
+    m1 = reduce_to_hlen(msg1, hf)
+    m2 = reduce_to_hlen(msg2, hf)
+
+    return _crack_prvkey(m1, sig1, m2, sig2, ec, hf)

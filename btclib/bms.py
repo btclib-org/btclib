@@ -223,7 +223,7 @@ def _magic_hash(msg: String) -> bytes:
         msg = msg.encode()
 
     t = b"\x18Bitcoin Signed Message:\n" + len(msg).to_bytes(1, "big") + msg
-    return sha256(t).digest()
+    return sha256(sha256(t).digest()).digest()
 
 
 def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTuple:
@@ -234,13 +234,13 @@ def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTup
         addr = addr.encode("ascii")
 
     # first sign the message
-    magic_msg = _magic_hash(msg)
+    m = _magic_hash(msg)
     q, network, compressed = prvkeyinfo_from_prvkey(prvkey)
-    r, s = dsa.sign(magic_msg, q)
+    r, s = dsa._sign(m, q)
 
     # now calculate the key_id
     # TODO do the match in Jacobian coordinates avoiding mod_inv
-    pubkeys = dsa.recover_pubkeys(magic_msg, (r, s))
+    pubkeys = dsa._recover_pubkeys(m, (r, s))
     Q = mult(q)
     # key_id is in [0, 3]
     # first two bits in rf are reserved for it
@@ -279,7 +279,8 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
 
     rf, r, s = _to_sig(sig)
 
-    magic_msg = _magic_hash(msg)
+    m = _magic_hash(msg)
+    c = dsa._challenge(m, secp256k1, sha256)
     # first two bits in rf are reserved for key_id
     #    key_id = 00;     key_id = 01;     key_id = 10;     key_id = 11
     # 27-27 = 000000;  28-27 = 000001;  29-27 = 000010;  30-27 = 000011
@@ -287,9 +288,8 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     # 35-27 = 001000;  36-27 = 001001;  37-27 = 001010;  38-27 = 001011
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
     key_id = rf - 27 & 0b11
-    c = dsa._challenge(magic_msg, secp256k1, sha256)
 
-    Recovered = dsa._recover_pubkey(key_id, c, r, s, secp256k1)
+    Recovered = dsa.__recover_pubkey(key_id, c, r, s, secp256k1)
     Q = secp256k1._aff_from_jac(Recovered)
 
     try:
@@ -311,14 +311,14 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
         elif rf < 35:  # P2PKH
             assert hash160(pubkey) == h160, "Unmatched p2pkh address"
         else:
-            m = f"Invalid recovery flag ({rf}) for base58 address ({addr!r})"
-            raise ValueError(m)
+            err_msg = f"invalid recovery flag: {rf} (base58 address {addr!r})"
+            raise ValueError(err_msg)
     else:
         if rf > 38 or (30 < rf and rf < 35):  # P2WPKH
             assert hash160(pubkey) == h160, "Unmatched p2wpkh address"
         else:
-            m = f"Invalid recovery flag ({rf}) for bech32 address ({addr!r})"
-            raise ValueError(m)
+            err_msg = f"invalid recovery flag: {rf} (bech32 address {addr!r})"
+            raise ValueError(err_msg)
 
 
 def verify(msg: String, addr: String, sig: BMSig) -> bool:

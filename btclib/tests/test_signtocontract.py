@@ -18,17 +18,15 @@ from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, verify_c
 
 
 def test_signtocontract():
-    m = b"to be signed"
-    c = b"to be committed"
+    m = sha256(b"to be signed").digest()
+    c = sha256(b"to be committed").digest()
 
     prv, pub = dsa.gen_keys()
     dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv, None)
-    dsa.assert_as_valid(m, pub, dsa_sig, ec, sha256)
+    dsa._assert_as_valid(m, pub, dsa_sig, ec, sha256)
     assert verify_commit(c, dsa_receipt)
 
-    # 32 bytes message for ECSSA
-    m = sha256(m).digest()
     prv, pub = ssa.gen_keys()
     ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv, None)
-    ssa.assert_as_valid(m, pub, ssa_sig, ec, sha256)
+    ssa._assert_as_valid(m, pub, ssa_sig, ec, sha256)
     assert verify_commit(c, ssa_receipt)

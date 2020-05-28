@@ -14,7 +14,7 @@
 
 from typing import Optional, Tuple
 
-from .alias import Key, Script
+from .alias import HashF, Key, Script, String
 from .script import encode
 from .to_pubkey import pubkeyinfo_from_key
 from .utils import hash160, sha256
@@ -63,3 +63,14 @@ def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
 
     pubkey, _ = pubkeyinfo_from_key(key, network, compressed=True)
     return hash160(pubkey)[:4]
+
+
+def reduce_to_hlen(msg: String, hf: HashF) -> bytes:
+
+    if isinstance(msg, str):
+        msg = msg.encode()
+
+    # Steps numbering follows SEC 1 v.2 section 4.1.3
+    h = hf()
+    h.update(msg)
+    return h.digest()  # 4
