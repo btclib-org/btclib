@@ -43,7 +43,7 @@ def test_trailing_zeros():
     assert _b58decode(_b58encode(b"\x00\x00hello world")) == b"\x00\x00hello world"
     assert _b58encode(_b58decode(b"11StV1DL6CwTryKyV")) == b"11StV1DL6CwTryKyV"
 
-    assert b58decode(b58encode(b"\x00\x00hello world")) == b"\x00\x00hello world"
+    assert b58decode(b58encode(b"\x00\x00hello world"), 13) == b"\x00\x00hello world"
 
 
 def test_exceptions():
@@ -51,7 +51,8 @@ def test_exceptions():
     with pytest.raises(TypeError, match="object supporting the buffer API required"):
         b58encode(3)
 
-    encoded = b58encode(b"test")
+    encoded = b58encode(b"hello world")
+    b58decode(encoded, 11)
 
     wrong_length = len(encoded) - 1
     with pytest.raises(ValueError, match="invalid decoded size: "):
