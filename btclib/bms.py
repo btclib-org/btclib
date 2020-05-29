@@ -215,7 +215,7 @@ def gen_keys(
     return wif, address
 
 
-def _magic_hash(msg: String) -> bytes:
+def _magic_message(msg: String) -> bytes:
 
     # Electrum does strip leading and trailing spaces;
     # Bitcoin Core does not
@@ -223,7 +223,7 @@ def _magic_hash(msg: String) -> bytes:
         msg = msg.encode()
 
     t = b"\x18Bitcoin Signed Message:\n" + len(msg).to_bytes(1, "big") + msg
-    return sha256(sha256(t).digest()).digest()
+    return sha256(t).digest()
 
 
 def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTuple:
@@ -234,13 +234,13 @@ def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTup
         addr = addr.encode("ascii")
 
     # first sign the message
-    m = _magic_hash(msg)
+    magic_msg = _magic_message(msg)
     q, network, compressed = prvkeyinfo_from_prvkey(prvkey)
-    r, s = dsa._sign(m, q)
+    r, s = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
     # TODO do the match in Jacobian coordinates avoiding mod_inv
-    pubkeys = dsa._recover_pubkeys(m, (r, s))
+    pubkeys = dsa.recover_pubkeys(magic_msg, (r, s))
     Q = mult(q)
     # key_id is in [0, 3]
     # first two bits in rf are reserved for it
@@ -279,8 +279,8 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
 
     rf, r, s = _to_sig(sig)
 
-    m = _magic_hash(msg)
-    c = dsa._challenge(m, secp256k1, sha256)
+    magic_msg = _magic_message(msg)
+    c = dsa.challenge(magic_msg, secp256k1, sha256)
     # first two bits in rf are reserved for key_id
     #    key_id = 00;     key_id = 01;     key_id = 10;     key_id = 11
     # 27-27 = 000000;  28-27 = 000001;  29-27 = 000010;  30-27 = 000011

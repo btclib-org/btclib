@@ -509,7 +509,7 @@ class TestMessageSign(unittest.TestCase):
         xpub = bip32.xpub_from_xprv(xprv)
 
         # the actual message being signed
-        magic_msg = bms._magic_hash(msg)
+        magic_msg = bms._magic_message(msg)
 
         # save key_id and patch dersig
         dersig = bytes.fromhex(dersig)
@@ -519,8 +519,8 @@ class TestMessageSign(unittest.TestCase):
         r, s = dsa.deserialize(dersig)
 
         # ECDSA signature verification of the patched dersig
-        dsa._assert_as_valid(magic_msg, xpub, dersig, ec, hf)
-        assert dsa._verify(magic_msg, xpub, dersig)
+        dsa.assert_as_valid(magic_msg, xpub, dersig, ec, hf)
+        assert dsa.verify(magic_msg, xpub, dersig)
 
         # compressed address
         addr = base58address.p2pkh(xpub)
@@ -551,7 +551,7 @@ class TestMessageSign(unittest.TestCase):
         xpub = bip32.xpub_from_xprv(xprv)
 
         # the actual message being signed
-        magic_msg = bms._magic_hash(msg)
+        magic_msg = bms._magic_message(msg)
 
         # save key_id and patch dersig
         dersig = bytes.fromhex(dersig)
@@ -561,8 +561,8 @@ class TestMessageSign(unittest.TestCase):
         r, s = dsa.deserialize(dersig)
 
         # ECDSA signature verification of the patched dersig
-        dsa._assert_as_valid(magic_msg, xpub, dersig, ec, hf)
-        assert dsa._verify(magic_msg, xpub, dersig)
+        dsa.assert_as_valid(magic_msg, xpub, dersig, ec, hf)
+        assert dsa.verify(magic_msg, xpub, dersig)
 
         # compressed address
         addr = base58address.p2pkh(xpub)
