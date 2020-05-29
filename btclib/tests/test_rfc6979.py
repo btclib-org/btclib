@@ -63,13 +63,13 @@ def test_rfc6979_tv():
             k2 = rfc6979(msg, x, ec, eval("hashlib." + hf))
             assert k == hex(k2)
             # test RFC6979 usage in DSA
-            sig = dsa.sign(msg, x, k2, ec, eval("hashlib." + hf))
+            sig = dsa.sign(msg, x, k2, False, ec, eval("hashlib." + hf))
             assert r == hex(sig[0])
-            assert s in (hex(sig[1]), hex(ec.n - sig[1]))
+            assert s == hex(sig[1])
             # test that RFC6979 is the default nonce for DSA
-            sig = dsa.sign(msg, x, k=None, ec=ec, hf=eval("hashlib." + hf))
+            sig = dsa.sign(msg, x, k=None, low_s=False, ec=ec, hf=eval("hashlib." + hf))
             assert r == hex(sig[0])
-            assert s in (hex(sig[1]), hex(ec.n - sig[1]))
+            assert s == hex(sig[1])
             # test key-pair coherence
             U = mult(x, ec.G, ec)
             assert (int(x_U, 16), int(y_U, 16)) == U

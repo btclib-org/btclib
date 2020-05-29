@@ -84,7 +84,7 @@ def ecdsa_commit_sign(
     # commit
     R, new_k = _tweak(c, k, ec, hf)
     # sign
-    sig = dsa._sign(m, prvkey, new_k, ec, hf)
+    sig = dsa._sign(m, prvkey, new_k, True, ec, hf)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt

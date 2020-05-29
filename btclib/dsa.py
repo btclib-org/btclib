@@ -98,7 +98,7 @@ def _challenge(m: Octets, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def __sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
+def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DSASigTuple:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and k are in [1, n-1]
@@ -122,7 +122,7 @@ def __sign(c: int, q: int, k: int, ec: Curve) -> DSASigTuple:
     # it removes signature malleability as cause of transaction malleability
     # see https://github.com/bitcoin/bitcoin/pull/6769
     # TODO optional low_s
-    if s > ec.n / 2:
+    if low_s and s > ec.n / 2:
         s = ec.n - s  # s = - s % ec.n
 
     return r, s
@@ -132,6 +132,7 @@ def _sign(
     m: Octets,
     prvkey: PrvKey,
     k: Optional[PrvKey] = None,
+    low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> DSASigTuple:
@@ -151,13 +152,14 @@ def _sign(
         k = int_from_prvkey(k, ec)
 
     # second part delegated to helper function
-    return __sign(c, q, k, ec)
+    return __sign(c, q, k, low_s, ec)
 
 
 def sign(
     msg: String,
     prvkey: PrvKey,
     k: Optional[PrvKey] = None,
+    low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> DSASigTuple:
@@ -182,7 +184,7 @@ def sign(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _sign(m, prvkey, k, ec, hf)
+    return _sign(m, prvkey, k, low_s, ec, hf)
 
 
 def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:

@@ -129,10 +129,10 @@ def test_gec():
         0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
         0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54,
     )
-    sig = dsa.sign(msg, dU, k, ec, hf)
+    sig = dsa.sign(msg, dU, k, False, ec, hf)
     r, s = sig
     assert r == exp_sig[0]
-    assert s in (exp_sig[1], ec.n - exp_sig[1])
+    assert s == exp_sig[1]
 
     # 2.1.4 Verifying Operation for V
     assert dsa.verify(msg, QU, sig, ec, hf)
@@ -154,6 +154,7 @@ def test_low_cardinality():
         low_card_curves["ec23_31"],
     ]
 
+    low_s = True
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n):  # all possible private keys
@@ -165,15 +166,15 @@ def test_low_cardinality():
                 for e in range(ec.n):  # all possible challenges
                     s = k_inv * (e + q * r) % ec.n
                     # bitcoin canonical 'low-s' encoding for ECDSA
-                    if s > ec.n / 2:
+                    if low_s and s > ec.n / 2:
                         s = ec.n - s
                     if r == 0 or s == 0:
                         err_msg = "failed to sign: "
                         with pytest.raises(RuntimeError, match=err_msg):
-                            dsa.__sign(e, q, k, ec)
+                            dsa.__sign(e, q, k, low_s, ec)
                         continue
 
-                    sig = dsa.__sign(e, q, k, ec)
+                    sig = dsa.__sign(e, q, k, low_s, ec)
                     assert (r, s) == sig
                     # valid signature must pass verification
                     dsa.__assert_as_valid(e, QJ, r, s, ec)
@@ -194,7 +195,7 @@ def test_pubkey_recovery():
 
     msg = "Satoshi Nakamoto"
     k = None
-    sig = dsa.sign(msg, q, k, ec)
+    sig = dsa.sign(msg, q, k, True, ec)
     assert dsa.verify(msg, Q, sig, ec)
     dersig = dsa.serialize(*sig, ec)
     assert dsa.verify(msg, Q, dersig, ec)
