@@ -176,7 +176,14 @@ def _k(m: Octets, prv: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256) -> int
     return __k(m, q, ec, hf)
 
 
-def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
+def k(msg: String, prv: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+    """Return a BIP340 deterministic ephemeral key (nonce)."""
+
+    m = reduce_to_hlen(msg, hf)
+    return _k(m, prv, ec, hf)
+
+
+def _challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
 
     # The message m: a hlen array
     m = bytes_from_octets(m, hf().digest_size)
@@ -195,6 +202,12 @@ def _challenge(r: int, x_Q: int, m: bytes, ec: Curve, hf: HashF) -> int:
     # if c == 0:
     #    raise RuntimeError("invalid zero challenge")
     return c
+
+
+def challenge(msg: String, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
+
+    m = reduce_to_hlen(msg, hf)
+    return _challenge(m, x_Q, r, ec, hf)
 
 
 def __sign(x_K: int, c: int, q: int, k: int, ec: Curve) -> SSASigTuple:
@@ -237,7 +250,7 @@ def _sign(
         k = ec.n - k
 
     # Let c = int(hf(bytes(x_K) || bytes(x_Q) || m)) mod n.
-    c = _challenge(x_K, x_Q, m, ec, hf)
+    c = _challenge(m, x_Q, x_K, ec, hf)
 
     return __sign(x_K, c, q, k, ec)
 
@@ -347,7 +360,7 @@ def _assert_as_valid(
     QJ = x_Q, y_Q, 1
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
-    c = _challenge(r, x_Q, m, ec, hf)
+    c = _challenge(m, x_Q, r, ec, hf)
 
     __assert_as_valid(c, QJ, r, s, ec)
 
@@ -420,8 +433,8 @@ def _crack_prvkey(
 
     x_Q = _to_bip340_point(Q, ec)[0]
 
-    c1 = _challenge(r1, x_Q, m1, ec, hf)
-    c2 = _challenge(r2, x_Q, m2, ec, hf)
+    c1 = _challenge(m1, x_Q, r1, ec, hf)
+    c2 = _challenge(m2, x_Q, r2, ec, hf)
     q = (s1 - s2) * mod_inv(c2 - c1, ec.n) % ec.n
     k = (s1 + c1 * q) % ec.n
     return q, k
@@ -463,7 +476,7 @@ def _batch_verify(
         x_Q, y_Q = _to_bip340_point(Q, ec)
         QJ = x_Q, y_Q, 1
 
-        c = _challenge(r, x_Q, m, ec, hf)
+        c = _challenge(m, x_Q, r, ec, hf)
 
         # a in [1, n-1]
         # deterministically generated using a CSPRNG seeded by a

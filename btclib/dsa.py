@@ -98,6 +98,12 @@ def _challenge(m: Octets, ec: Curve, hf: HashF) -> int:
     return c
 
 
+def challenge(msg: String, ec: Curve, hf: HashF) -> int:
+
+    m = reduce_to_hlen(msg, hf)
+    return _challenge(m, ec, hf)
+
+
 def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DSASigTuple:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).

@@ -36,75 +36,75 @@ def test_signature():
 
     ec = secp256k1
     q, x_Q = ssa.gen_keys(0x1)
-    mhd = hf(b"Satoshi Nakamoto").digest()
-    sig = ssa._sign(mhd, q, None)
-    ssa._assert_as_valid(mhd, x_Q, sig, ec, hf)
-    assert ssa._verify(mhd, x_Q, sig)
+    m = hf(b"Satoshi Nakamoto").digest()
+    sig = ssa._sign(m, q, None)
+    ssa._assert_as_valid(m, x_Q, sig, ec, hf)
+    assert ssa._verify(m, x_Q, sig)
     assert sig == ssa.deserialize(sig)
 
-    fmhd = hf(b"Craig Wright").digest()
-    assert not ssa._verify(fmhd, x_Q, sig, ec, hf)
+    m_fake = hf(b"Craig Wright").digest()
+    assert not ssa._verify(m_fake, x_Q, sig, ec, hf)
     err_msg = "signature verification failed"
     with pytest.raises(AssertionError, match=err_msg):
-        ssa._assert_as_valid(fmhd, x_Q, sig, ec, hf)
+        ssa._assert_as_valid(m_fake, x_Q, sig, ec, hf)
 
-    _, x_fQ = ssa.gen_keys(0x2)
-    assert not ssa._verify(mhd, x_fQ, sig, ec, hf)
+    _, x_Q_fake = ssa.gen_keys(0x2)
+    assert not ssa._verify(m, x_Q_fake, sig, ec, hf)
     err_msg = "y_K is not a quadratic residue"
     with pytest.raises(RuntimeError, match=err_msg):
-        ssa._assert_as_valid(mhd, x_fQ, sig, ec, hf)
+        ssa._assert_as_valid(m, x_Q_fake, sig, ec, hf)
 
-    _, x_fQ = ssa.gen_keys(0x4)
-    assert not ssa._verify(mhd, x_fQ, sig, ec, hf)
+    _, x_Q_fake = ssa.gen_keys(0x4)
+    assert not ssa._verify(m, x_Q_fake, sig, ec, hf)
     err_msg = "signature verification failed"
     with pytest.raises(AssertionError, match=err_msg):
-        ssa._assert_as_valid(mhd, x_fQ, sig, ec, hf)
+        ssa._assert_as_valid(m, x_Q_fake, sig, ec, hf)
 
     err_msg = "not a BIP340 public key"
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(mhd, INF, sig, ec, hf)
+        ssa._assert_as_valid(m, INF, sig, ec, hf)
 
-    assert not ssa._verify(mhd, x_Q, sig, secp224k1, hf)
+    assert not ssa._verify(m, x_Q, sig, secp224k1, hf)
     err_msg = "field prime is not equal to 3 mod 4: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(mhd, x_Q, sig, secp224k1, hf)
+        ssa._assert_as_valid(m, x_Q, sig, secp224k1, hf)
 
-    wrongmhd = mhd[:-1]
-    assert not ssa._verify(wrongmhd, x_Q, sig, ec, hf)
+    m_fake = m[:-1]
+    assert not ssa._verify(m_fake, x_Q, sig, ec, hf)
     err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(wrongmhd, x_Q, sig, ec, hf)
+        ssa._assert_as_valid(m_fake, x_Q, sig, ec, hf)
 
-    fssasig = (sig[0], sig[1], sig[1])
-    assert not ssa._verify(mhd, x_fQ, fssasig, ec, hf)
+    sig_fake = (sig[0], sig[1], sig[1])
+    assert not ssa._verify(m, x_Q_fake, sig_fake, ec, hf)
     err_msg = "too many values to unpack "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(mhd, x_Q, fssasig, ec, hf)
+        ssa._assert_as_valid(m, x_Q, sig_fake, ec, hf)
 
-    invalid_sig = ec.p, sig[1]
-    assert not ssa._verify(mhd, x_Q, invalid_sig)
+    sig_invalid = ec.p, sig[1]
+    assert not ssa._verify(m, x_Q, sig_invalid)
     err_msg = "x-coordinate not in 0..p-1: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(mhd, x_Q, invalid_sig, ec, hf)
+        ssa._assert_as_valid(m, x_Q, sig_invalid, ec, hf)
 
-    invalid_sig = sig[0], ec.p
-    assert not ssa._verify(mhd, x_Q, invalid_sig)
+    sig_invalid = sig[0], ec.p
+    assert not ssa._verify(m, x_Q, sig_invalid)
     err_msg = "scalar s not in 0..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(mhd, x_Q, invalid_sig, ec, hf)
+        ssa._assert_as_valid(m, x_Q, sig_invalid, ec, hf)
 
     err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(ValueError, match=err_msg):
-        ssa._sign(wrongmhd, q, None)
+        ssa._sign(m_fake, q, None)
 
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._sign(mhd, 0)
+        ssa._sign(m, 0)
 
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._sign(mhd, 1, 0)
+        ssa._sign(m, 1, 0)
 
     err_msg = "invalid zero challenge"
     with pytest.raises(ValueError, match=err_msg):
@@ -127,20 +127,20 @@ def test_bip340_vectors():
         # skip column headers while checking that there are 7 columns
         _, _, _, _, _, _, _ = reader.__next__()
         for row in reader:
-            (index, seckey, pubkey, mhd, sig, result, comment) = row
+            (index, seckey, pubkey, m, sig, result, comment) = row
             err_msg = f"Test vector #{int(index)}"
             if seckey != "":
                 seckey = bytes.fromhex(seckey)
                 _, pubkey_actual = ssa.gen_keys(seckey)
                 assert pubkey == hex(pubkey_actual).upper()[2:], err_msg
 
-                sig_actual = ssa.serialize(*ssa._sign(mhd, seckey))
+                sig_actual = ssa.serialize(*ssa._sign(m, seckey))
                 assert sig == sig_actual.hex().upper(), err_msg
 
             result = result == "TRUE"
             if comment:
                 err_msg += ": " + comment
-            result_actual = ssa._verify(mhd, pubkey, sig)
+            result_actual = ssa._verify(m, pubkey, sig)
             assert result == result_actual, err_msg
 
 
@@ -242,12 +242,12 @@ def test_batch_validation():
     # test with only 1 sig
     ssa._batch_verify(ms, Qs, sigs, ec, hf)
     for _ in range(3):
-        mhd = secrets.randbits(hlen).to_bytes(hsize, "big")
-        ms.append(mhd)
+        m = secrets.randbits(hlen).to_bytes(hsize, "big")
+        ms.append(m)
         q = 1 + secrets.randbelow(ec.n - 1)
         # Point version
         Qs.append(mult(q, ec.G, ec))
-        sigs.append(ssa._sign(mhd, q, None, ec, hf))
+        sigs.append(ssa._sign(m, q, None, ec, hf))
     ssa._batch_verify(ms, Qs, sigs, ec, hf)
     assert ssa.batch_verify(ms, Qs, sigs, ec, hf)
 
@@ -295,7 +295,7 @@ def test_musig():
 
     ec = secp256k1
 
-    mhd = hf(b"message to sign").digest()
+    m = hf(b"message to sign").digest()
 
     # the signers private and public keys,
     # including both the curve Point and the BIP340-Schnorr public key
@@ -355,7 +355,7 @@ def test_musig():
         k2 = ec.n - k2  # pragma: no cover
         k3 = ec.n - k3  # pragma: no cover
     r = K[0]
-    e = ssa._challenge(r, Q[0], mhd, ec, hf)
+    e = ssa._challenge(m, Q[0], r, ec, hf)
     s1 = (k1 + e * a1 * q1) % ec.n
     s2 = (k2 + e * a2 * q2) % ec.n
     s3 = (k3 + e * a3 * q3) % ec.n
@@ -366,8 +366,8 @@ def test_musig():
     s = (s1 + s2 + s3) % ec.n
     sig = r, s
     # check signature is valid
-    ssa._assert_as_valid(mhd, Q, sig, ec, hf)
-    assert ssa._verify(mhd, Q, sig)
+    ssa._assert_as_valid(m, Q, sig, ec, hf)
+    assert ssa._verify(m, Q, sig)
 
 
 def test_threshold():
@@ -378,7 +378,6 @@ def test_threshold():
     # parameters
     m = 2
     H = second_generator(ec, hf)
-    mhd = hf(b"message to sign").digest()
 
     # FIRST PHASE: key pair generation ###################################
 
@@ -547,10 +546,12 @@ def test_threshold():
     # SECOND PHASE: generation of the nonces' pair  ######################
     # Assume signer one and three want to sign
 
+    msg = "message to sign"
+
     # 2.1 signer one acting as the dealer
     commits1: List[Point] = list()
-    k1 = ssa._k(mhd, q1, ec, hf)
-    k1_prime = ssa._k(mhd, q1_prime, ec, hf)
+    k1 = ssa.k(msg, q1, ec, hf)
+    k1_prime = ssa.k(msg, q1_prime, ec, hf)
     commits1.append(double_mult(k1_prime, H, k1, ec.G))
     # sharing polynomials
     f1 = [k1]
@@ -574,8 +575,8 @@ def test_threshold():
 
     # 2.2 signer three acting as the dealer
     commits3: List[Point] = list()
-    k3 = ssa._k(mhd, q3, ec, hf)
-    k3_prime = ssa._k(mhd, q3_prime, ec, hf)
+    k3 = ssa.k(msg, q3, ec, hf)
+    k3_prime = ssa.k(msg, q3_prime, ec, hf)
     commits3.append(double_mult(k3_prime, H, k3, ec.G))
     # sharing polynomials
     f3 = [k3]
@@ -641,7 +642,7 @@ def test_threshold():
     # PHASE THREE: signature generation ###
 
     # partial signatures
-    e = ssa._challenge(K[0], Q[0], mhd, ec, hf)
+    e = ssa.challenge(msg, Q[0], K[0], ec, hf)
     gamma1 = (beta1 + e * alpha1) % ec.n
     gamma3 = (beta3 + e * alpha3) % ec.n
 
@@ -668,7 +669,7 @@ def test_threshold():
 
     sig = K[0], sigma
 
-    assert ssa._verify(mhd, Q, sig)
+    assert ssa.verify(msg, Q, sig)
 
     # ADDITIONAL PHASE: reconstruction of the private key ###
     secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
