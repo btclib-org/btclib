@@ -61,17 +61,17 @@ def decode(stream: Union[BinaryIO, Octets]) -> int:
 
 
 def encode(i: int) -> bytes:
-    """Return the varint bytes encoding of an integer."""
+    "Return the varint bytes encoding of an integer."
 
     if i < 0x00:
         raise ValueError(f"negative integer: {i}")
     elif i < 0xFD:  # 1 byte
         return bytes([i])
     elif i <= 0xFFFF:  # 2 bytes
-        return b"\xfd" + i.to_bytes(2, byteorder="little")
+        return b"\xFD" + i.to_bytes(2, byteorder="little")
     elif i <= 0xFFFFFFFF:  # 4 bytes
-        return b"\xfe" + i.to_bytes(4, byteorder="little")
+        return b"\xFE" + i.to_bytes(4, byteorder="little")
     elif i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
-        return b"\xff" + i.to_bytes(8, byteorder="little")
+        return b"\xFF" + i.to_bytes(8, byteorder="little")
     else:
         raise ValueError(f"integer too big for varint encoding: '{hex_string(i)}'")
