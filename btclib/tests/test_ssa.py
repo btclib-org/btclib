@@ -20,103 +20,99 @@ import pytest
 
 from btclib import ssa
 from btclib.alias import INF, Point
-from btclib.curvemult import double_mult, mult, _mult_jac
+from btclib.curvemult import _mult_jac, double_mult, mult
 from btclib.curves import CURVES
-from btclib.curves import secp256k1
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
 from btclib.tests.test_curves import low_card_curves
 from btclib.utils import int_from_bits
 
-secp224k1 = CURVES["secp224k1"]
-
 
 def test_signature():
-    """Basic tests"""
+    "Base tests"
 
-    ec = secp256k1
-    q, x_Q = ssa.gen_keys(0x1)
-    m = hf(b"Satoshi Nakamoto").digest()
-    sig = ssa._sign(m, q, None)
-    ssa._assert_as_valid(m, x_Q, sig, ec, hf)
-    assert ssa._verify(m, x_Q, sig)
+    ec = CURVES["secp256k1"]
+    q, x_Q = ssa.gen_keys(0x01)
+    msg = "Satoshi Nakamoto"
+    sig = ssa.sign(msg, q)
     assert sig == ssa.deserialize(sig)
 
-    m_fake = hf(b"Craig Wright").digest()
-    assert not ssa._verify(m_fake, x_Q, sig, ec, hf)
+    assert ssa.verify(msg, x_Q, sig)
+    ssa.assert_as_valid(msg, x_Q, sig)
+
+    msg_fake = "Craig Wright"
+    assert not ssa.verify(msg_fake, x_Q, sig)
     err_msg = "signature verification failed"
     with pytest.raises(AssertionError, match=err_msg):
-        ssa._assert_as_valid(m_fake, x_Q, sig, ec, hf)
+        ssa.assert_as_valid(msg_fake, x_Q, sig)
 
-    _, x_Q_fake = ssa.gen_keys(0x2)
-    assert not ssa._verify(m, x_Q_fake, sig, ec, hf)
+    _, x_Q_fake = ssa.gen_keys(0x02)
+    assert not ssa.verify(msg, x_Q_fake, sig)
     err_msg = "y_K is not a quadratic residue"
     with pytest.raises(RuntimeError, match=err_msg):
-        ssa._assert_as_valid(m, x_Q_fake, sig, ec, hf)
+        ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x4)
-    assert not ssa._verify(m, x_Q_fake, sig, ec, hf)
+    assert not ssa.verify(msg, x_Q_fake, sig)
     err_msg = "signature verification failed"
     with pytest.raises(AssertionError, match=err_msg):
-        ssa._assert_as_valid(m, x_Q_fake, sig, ec, hf)
+        ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     err_msg = "not a BIP340 public key"
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(m, INF, sig, ec, hf)
+        ssa.assert_as_valid(msg, INF, sig)
+    with pytest.raises(ValueError, match=err_msg):
+        ssa.point_from_bip340pubkey(INF)
 
-    assert not ssa._verify(m, x_Q, sig, secp224k1, hf)
+    assert not ssa.verify(msg, x_Q, sig, CURVES["secp224k1"], hf)
     err_msg = "field prime is not equal to 3 mod 4: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(m, x_Q, sig, secp224k1, hf)
-
-    m_fake = m[:-1]
-    assert not ssa._verify(m_fake, x_Q, sig, ec, hf)
-    err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(m_fake, x_Q, sig, ec, hf)
+        ssa.assert_as_valid(msg, x_Q, sig, CURVES["secp224k1"], hf)
 
     sig_fake = (sig[0], sig[1], sig[1])
-    assert not ssa._verify(m, x_Q_fake, sig_fake, ec, hf)
+    assert not ssa.verify(msg, x_Q, sig_fake)
     err_msg = "too many values to unpack "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(m, x_Q, sig_fake, ec, hf)
+        ssa.assert_as_valid(msg, x_Q, sig_fake)
 
     sig_invalid = ec.p, sig[1]
-    assert not ssa._verify(m, x_Q, sig_invalid)
+    assert not ssa.verify(msg, x_Q, sig_invalid)
     err_msg = "x-coordinate not in 0..p-1: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(m, x_Q, sig_invalid, ec, hf)
+        ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
     sig_invalid = sig[0], ec.p
-    assert not ssa._verify(m, x_Q, sig_invalid)
+    assert not ssa.verify(msg, x_Q, sig_invalid)
     err_msg = "scalar s not in 0..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._assert_as_valid(m, x_Q, sig_invalid, ec, hf)
+        ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
+    m_fake = b"\x00" * 31
     err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(ValueError, match=err_msg):
-        ssa._sign(m_fake, q, None)
+        ssa._assert_as_valid(m_fake, x_Q, sig)
+
+    with pytest.raises(ValueError, match=err_msg):
+        ssa._sign(m_fake, q)
 
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._sign(m, 0)
+        ssa.sign(msg, 0)
 
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._sign(m, 1, 0)
+        ssa.sign(msg, q, 0)
+    with pytest.raises(ValueError, match=err_msg):
+        ssa.sign(msg, q, ec.n)
 
     err_msg = "invalid zero challenge"
     with pytest.raises(ValueError, match=err_msg):
         ssa.__recover_pubkey(0, sig[0], sig[1], ec)
 
-    err_msg = "not a BIP340 public key"
-    with pytest.raises(ValueError, match=err_msg):
-        ssa.point_from_bip340pubkey(["not", "a BIP340", "public key"])
-
 
 def test_bip340_vectors():
-    """BIP340 (Schnorr) test vectors
+    """BIP340 (Schnorr) test vectors.
 
     https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
     """
@@ -137,15 +133,18 @@ def test_bip340_vectors():
                 sig_actual = ssa.serialize(*ssa._sign(m, seckey))
                 assert sig == sig_actual.hex().upper(), err_msg
 
-            result = result == "TRUE"
             if comment:
                 err_msg += ": " + comment
-            result_actual = ssa._verify(m, pubkey, sig)
-            assert result == result_actual, err_msg
+            # TODO what's worng with xor-ing ?
+            # assert (result == "TRUE") ^ ssa._verify(m, pubkey, sig), err_msg
+            if result == "TRUE":
+                assert ssa._verify(m, pubkey, sig), err_msg
+            else:
+                assert not ssa._verify(m, pubkey, sig), err_msg
 
 
 def test_low_cardinality():
-    """test low-cardinality curves for all msg/key pairs."""
+    "test low-cardinality curves for all msg/key pairs."
 
     # ec.n has to be prime to sign
     test_curves = [
@@ -198,7 +197,7 @@ def test_low_cardinality():
 
 def test_crack_prvkey():
 
-    ec = secp256k1
+    ec = CURVES["secp256k1"]
 
     q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
     x_Q = mult(q)[0]
@@ -226,7 +225,7 @@ def test_crack_prvkey():
 
 def test_batch_validation():
 
-    ec = secp256k1
+    ec = CURVES["secp256k1"]
 
     hsize = hf().digest_size
     hlen = hsize * 8
@@ -280,11 +279,11 @@ def test_batch_validation():
 
     err_msg = "field prime is not equal to 3 mod 4: "
     with pytest.raises(ValueError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, secp224k1, hf)
+        ssa._batch_verify(ms, Qs, sigs, CURVES["secp224k1"], hf)
 
 
 def test_musig():
-    """testing 3-of-3 MuSig
+    """testing 3-of-3 MuSig.
 
         https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
         https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
@@ -293,7 +292,7 @@ def test_musig():
         https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
     """
 
-    ec = secp256k1
+    ec = CURVES["secp256k1"]
 
     m = hf(b"message to sign").digest()
 
@@ -367,13 +366,12 @@ def test_musig():
     sig = r, s
     # check signature is valid
     ssa._assert_as_valid(m, Q, sig, ec, hf)
-    assert ssa._verify(m, Q, sig)
 
 
 def test_threshold():
-    """testing 2-of-3 threshold signature (Pedersen secret sharing)"""
+    "testing 2-of-3 threshold signature (Pedersen secret sharing)"
 
-    ec = secp256k1
+    ec = CURVES["secp256k1"]
 
     # parameters
     m = 2

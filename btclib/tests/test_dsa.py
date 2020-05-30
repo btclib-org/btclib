@@ -11,31 +11,26 @@
 "Tests for `btclib.dsa` module."
 
 from hashlib import sha1
-from hashlib import sha256 as hf
 
 import pytest
 
 from btclib import dsa
 from btclib.alias import INF
 from btclib.curvemult import _mult_jac, double_mult, mult
-from btclib.curves import CURVES, secp256k1
+from btclib.curves import CURVES
 from btclib.numbertheory import mod_inv
 from btclib.rfc6979 import rfc6979
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.tests.test_curves import low_card_curves
 
-secp112r2 = CURVES["secp112r2"]
-secp160r1 = CURVES["secp160r1"]
-
 
 def test_signature():
+    "Base tests"
 
-    ec = secp256k1
+    ec = CURVES["secp256k1"]
     q, Q = dsa.gen_keys(0x1)
     msg = "Satoshi Nakamoto"
     sig = dsa.sign(msg, q)
-    dsa.assert_as_valid(msg, Q, sig, ec, hf)
-    assert dsa.verify(msg, Q, sig)
     assert sig == dsa.deserialize(sig)
 
     # https://bitcointalk.org/index.php?topic=285142.40
@@ -46,49 +41,52 @@ def test_signature():
     )
     r, s = sig
     assert sig[0] == exp_sig[0]
-    assert sig[1] in (exp_sig[1], secp256k1.n - exp_sig[1])
+    assert sig[1] in (exp_sig[1], ec.n - exp_sig[1])
+
+    assert dsa.verify(msg, Q, sig)
+    dsa.assert_as_valid(msg, Q, sig)
 
     # malleability
-    malleated_sig = (r, secp256k1.n - s)
+    malleated_sig = (r, ec.n - s)
     assert dsa.verify(msg, Q, malleated_sig)
 
     keys = dsa.recover_pubkeys(msg, sig)
     assert len(keys) == 2
     assert Q in keys
 
-    fmsg = "Craig Wright"
-    assert not dsa.verify(fmsg, Q, sig)
+    msg_fake = "Craig Wright"
+    assert not dsa.verify(msg_fake, Q, sig)
     err_msg = "signature verification failed"
     with pytest.raises(AssertionError, match=err_msg):
-        dsa.assert_as_valid(fmsg, Q, sig, ec, hf)
+        dsa.assert_as_valid(msg_fake, Q, sig)
 
-    _, fQ = dsa.gen_keys()
-    assert not dsa.verify(msg, fQ, sig)
+    _, Q_fake = dsa.gen_keys()
+    assert not dsa.verify(msg, Q_fake, sig)
     err_msg = "signature verification failed"
     with pytest.raises(AssertionError, match=err_msg):
-        dsa.assert_as_valid(msg, fQ, sig, ec, hf)
+        dsa.assert_as_valid(msg, Q_fake, sig)
 
     err_msg = "not a valid public key: "
     with pytest.raises(ValueError, match=err_msg):
-        dsa.assert_as_valid(msg, INF, sig, ec, hf)
+        dsa.assert_as_valid(msg, INF, sig)
 
-    fdsasig = (sig[0], sig[1], sig[1])
-    assert not dsa.verify(msg, Q, fdsasig)
+    sig_fake = (sig[0], sig[1], sig[1])
+    assert not dsa.verify(msg, Q, sig_fake)
     err_msg = "too many values to unpack "
     with pytest.raises(ValueError, match=err_msg):
-        dsa.assert_as_valid(msg, Q, fdsasig, ec, hf)
+        dsa.assert_as_valid(msg, Q, sig_fake)
 
-    invalid_sig = ec.p, sig[1]
-    assert not dsa.verify(msg, Q, invalid_sig)
+    sig_invalid = ec.p, sig[1]
+    assert not dsa.verify(msg, Q, sig_invalid)
     err_msg = "scalar r not in 1..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        dsa.assert_as_valid(msg, Q, invalid_sig, ec, hf)
+        dsa.assert_as_valid(msg, Q, sig_invalid)
 
-    invalid_sig = sig[0], ec.p
-    assert not dsa.verify(msg, Q, invalid_sig)
+    sig_invalid = sig[0], ec.p
+    assert not dsa.verify(msg, Q, sig_invalid)
     err_msg = "scalar s not in 1..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        dsa.assert_as_valid(msg, Q, invalid_sig, ec, hf)
+        dsa.assert_as_valid(msg, Q, sig_invalid)
 
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(ValueError, match=err_msg):
@@ -97,7 +95,9 @@ def test_signature():
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(ValueError, match=err_msg):
-        dsa.sign(msg, 1, 0)
+        dsa.sign(msg, q, 0)
+    with pytest.raises(ValueError, match=err_msg):
+        dsa.sign(msg, q, ec.n)
 
 
 def test_gec():
@@ -106,7 +106,7 @@ def test_gec():
         http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
     """
     # 2.1.1 Scheme setup
-    ec = secp160r1
+    ec = CURVES["secp160r1"]
     hf = sha1
 
     # 2.1.2 Key Deployment for U
@@ -188,7 +188,7 @@ def test_low_cardinality():
 
 def test_pubkey_recovery():
 
-    ec = secp112r2
+    ec = CURVES["secp112r2"]
 
     q = 0x10
     Q = mult(q, ec.G, ec)
@@ -211,7 +211,7 @@ def test_pubkey_recovery():
 
 def test_crack_prvkey():
 
-    ec = secp256k1
+    ec = CURVES["secp256k1"]
 
     q = 0x17E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
@@ -237,7 +237,7 @@ def test_crack_prvkey():
 def test_forge_hash_sig():
     """forging valid hash signatures"""
 
-    ec = secp256k1
+    ec = CURVES["secp256k1"]
 
     # see https://twitter.com/pwuille/status/1063582706288586752
     # Satoshi's key

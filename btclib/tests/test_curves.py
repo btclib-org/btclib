@@ -239,6 +239,7 @@ def test_symmetry():
         ec.y_quadratic_residue(x_Q, 2)
 
 
+@pytest.mark.second
 def test_mult_aff_curves():
     for ec in all_curves.values():
         assert _mult_aff(0, ec.G, ec) == INF
@@ -252,10 +253,11 @@ def test_mult_aff_curves():
 
         P = _mult_aff(ec.n - 1, ec.G, ec)
         assert ec.negate(ec.G) == P
-
         assert _mult_aff(ec.n - 1, INF, ec) == INF
+
         assert ec._add_aff(P, ec.G) == INF
         assert _mult_aff(ec.n, ec.G, ec) == INF
+        assert _mult_aff(ec.n, INF, ec) == INF
 
         with pytest.raises(ValueError, match="negative m: -0x"):
             _mult_aff(-1, ec.G, ec)

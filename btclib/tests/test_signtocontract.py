@@ -15,6 +15,7 @@ from hashlib import sha256
 from btclib import dsa, ssa
 from btclib.curves import secp256k1 as ec
 from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, verify_commit
+import secrets
 
 
 def test_signtocontract():
@@ -22,11 +23,21 @@ def test_signtocontract():
     c = sha256(b"to be committed").digest()
 
     prv, pub = dsa.gen_keys()
-    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv, None)
+    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv)
+    dsa._assert_as_valid(m, pub, dsa_sig, ec, sha256)
+    assert verify_commit(c, dsa_receipt)
+
+    k = 1 + secrets.randbelow(ec.n - 1)
+    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv, k)
     dsa._assert_as_valid(m, pub, dsa_sig, ec, sha256)
     assert verify_commit(c, dsa_receipt)
 
     prv, pub = ssa.gen_keys()
-    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv, None)
+    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv)
+    ssa._assert_as_valid(m, pub, ssa_sig, ec, sha256)
+    assert verify_commit(c, ssa_receipt)
+
+    k = 1 + secrets.randbelow(ec.n - 1)
+    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv, k)
     ssa._assert_as_valid(m, pub, ssa_sig, ec, sha256)
     assert verify_commit(c, ssa_receipt)
