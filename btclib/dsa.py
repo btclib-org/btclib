@@ -91,7 +91,8 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:
 def _challenge(m: Octets, ec: Curve, hf: HashF) -> int:
 
     # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
 
     # leftmost ec.nlen bits %= ec.n
     c = int_from_bits(m, ec.nlen) % ec.n  # 5
@@ -144,7 +145,8 @@ def _sign(
 ) -> DSASigTuple:
 
     # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
 
     c = _challenge(m, ec, hf)  # 4, 5
 
@@ -229,12 +231,13 @@ def _assert_as_valid(m: Octets, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> No
 
     r, s = _to_sig(sig, ec)  # 1
 
-    # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
-    c = _challenge(m, ec, hf)  # 2, 3
-
     Q = point_from_key(P, ec)
-    QJ = Q[0], Q[1], 1 if Q[1] else 0
+    if Q[1]:
+        QJ = Q[0], Q[1], 1
+    else:
+        raise ValueError("invalid public key: infinity point")
+
+    c = _challenge(m, ec, hf)  # 2, 3
 
     # second part delegated to helper function
     __assert_as_valid(c, QJ, r, s, ec)
@@ -294,7 +297,8 @@ def _recover_pubkeys(
     """
 
     # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
 
     c = _challenge(m, ec, hf)  # 1.5
 
@@ -385,8 +389,9 @@ def _crack_prvkey(
         raise ValueError("identical signatures")
 
     # The message m: a hlen array
-    m1 = bytes_from_octets(m1, hf().digest_size)
-    m2 = bytes_from_octets(m2, hf().digest_size)
+    hlen = hf().digest_size
+    m1 = bytes_from_octets(m1, hlen)
+    m2 = bytes_from_octets(m2, hlen)
 
     c1 = _challenge(m1, ec, hf)
     c2 = _challenge(m2, ec, hf)
