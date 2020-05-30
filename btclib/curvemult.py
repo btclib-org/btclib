@@ -112,7 +112,7 @@ def _multi_mult(
         heapq.heappush(x, (-n2, p2))
     np1 = heapq.heappop(x)
     n1, p1 = -np1[0], np1[1]
-    assert n1 < ec.n, "better to take the mod n"
+    # assert n1 < ec.n, "better to take the mod n"
     # n1 %= ec.n
     return _mult_jac(n1, p1, ec)
 
