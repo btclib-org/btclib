@@ -294,6 +294,16 @@ def test_exceptions():
     with pytest.raises(ValueError, match="not a private key: "):
         bip32.xpub_from_xprv(xpub)
 
+    xpub_dict = bip32.deserialize(xpub)
+    xpub_dict = bip32.deserialize(xpub_dict)
+    xpub_dict["chain_code"] = (xpub_dict["chain_code"])[:-1]
+    with pytest.raises(ValueError, match="invalid chain code length: "):
+        xpub_dict = bip32.deserialize(xpub_dict)
+    xpub_dict = bip32.deserialize(xpub)
+    xpub_dict["chain_code"] = "length is 32 but not a chaincode"
+    with pytest.raises(ValueError, match="invalid chain code"):
+        xpub_dict = bip32.deserialize(xpub_dict)
+
     version = b"\x04\x88\xAD\xE5"
     seed = "5b56c417303faa3fcba7e57400e120a0"
     with pytest.raises(ValueError, match="unknown private key version: "):
