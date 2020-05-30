@@ -231,13 +231,12 @@ def _assert_as_valid(m: Octets, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> No
 
     r, s = _to_sig(sig, ec)  # 1
 
-    Q = point_from_key(P, ec)
-    if Q[1]:
-        QJ = Q[0], Q[1], 1
-    else:
-        raise ValueError("invalid public key: infinity point")
-
+    # The message m: a hlen array
+    m = bytes_from_octets(m, hf().digest_size)
     c = _challenge(m, ec, hf)  # 2, 3
+
+    Q = point_from_key(P, ec)
+    QJ = Q[0], Q[1], 1 if Q[1] else 0
 
     # second part delegated to helper function
     __assert_as_valid(c, QJ, r, s, ec)
