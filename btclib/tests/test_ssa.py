@@ -181,7 +181,7 @@ def test_low_cardinality():
                 for e in range(ec.n):  # all possible challenges
                     s = (k + e * q) % ec.n
 
-                    sig = ssa.__sign(r, e, q, k, ec)
+                    sig = ssa.__sign(e, q, k, r, ec)
                     assert (r, s) == sig
                     # valid signature must validate
                     ssa.__assert_as_valid(e, QJ, r, s, ec)

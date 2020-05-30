@@ -105,7 +105,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
 
-    # BIP340 is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     # Fail if r is not a field element, i.e. not a valid x-coordinate
@@ -146,7 +146,7 @@ def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
 
 def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     "Return a BIP340 private/public (int, int) key-pair."
-    # BIP340 is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     if prvkey is None:
@@ -222,11 +222,7 @@ def det_nonce(
     return _det_nonce(m, prvkey, ec, hf)
 
 
-def _challenge(m: Octets, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
-
-    # The message m: a hlen array
-    hlen = hf().digest_size
-    m = bytes_from_octets(m, hlen)
+def __challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
 
     # note that only x_Q is needed
     # if Q is Jacobian y_Q calculation can be avoided
@@ -244,13 +240,24 @@ def _challenge(m: Octets, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def challenge(msg: String, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
+def _challenge(m: Octets, xQ: BIP340PubKey, r: int, ec: Curve, hf: HashF) -> int:
+
+    # The message m: a hlen array
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
+
+    x_Q, _ = point_from_bip340pubkey(xQ, ec)
+
+    return __challenge(m, x_Q, r, ec, hf)
+
+
+def challenge(msg: String, xQ: BIP340PubKey, r: int, ec: Curve, hf: HashF) -> int:
 
     m = reduce_to_hlen(msg, hf)
-    return _challenge(m, x_Q, r, ec, hf)
+    return _challenge(m, xQ, r, ec, hf)
 
 
-def __sign(x_K: int, c: int, q: int, k: int, ec: Curve) -> SSASigTuple:
+def __sign(c: int, q: int, k: int, x_K: int, ec: Curve) -> SSASigTuple:
     # s=0 is ok: in verification there is no inverse of s
     s = (k + c * q) % ec.n
 
@@ -266,7 +273,7 @@ def _sign(
 ) -> SSASigTuple:
     """Sign message according to BIP340 signature algorithm."""
 
-    # BIP340 is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     # The message m: a hlen array
@@ -282,9 +289,9 @@ def _sign(
         k, x_K = gen_keys(k, ec)
 
     # Let c = int(hf(bytes(x_K) || bytes(x_Q) || m)) mod n.
-    c = _challenge(m, x_Q, x_K, ec, hf)
+    c = __challenge(m, x_Q, x_K, ec, hf)
 
-    return __sign(x_K, c, q, k, ec)
+    return __sign(c, q, k, x_K, ec)
 
 
 def sign(
@@ -327,7 +334,7 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    # BIP340 is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     # Let K = sG - eQ.
@@ -459,7 +466,7 @@ def _batch_verify(
     if batch_size < 2:
         return _assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)
 
-    # BIP340 is only defined for curves whose field prime p = 3 % 4
+    # BIP340 is defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()
 
     t = 0
