@@ -240,7 +240,9 @@ def __challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def _challenge(m: Octets, xQ: BIP340PubKey, r: int, ec: Curve, hf: HashF) -> int:
+def _challenge(
+    m: Octets, xQ: BIP340PubKey, r: int, ec: Curve = secp256k1, hf: HashF = sha256
+) -> int:
 
     # The message m: a hlen array
     hlen = hf().digest_size
@@ -251,7 +253,9 @@ def _challenge(m: Octets, xQ: BIP340PubKey, r: int, ec: Curve, hf: HashF) -> int
     return __challenge(m, x_Q, r, ec, hf)
 
 
-def challenge(msg: String, xQ: BIP340PubKey, r: int, ec: Curve, hf: HashF) -> int:
+def challenge(
+    msg: String, xQ: BIP340PubKey, r: int, ec: Curve = secp256k1, hf: HashF = sha256
+) -> int:
 
     m = reduce_to_hlen(msg, hf)
     return _challenge(m, xQ, r, ec, hf)
@@ -351,7 +355,7 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
 
 def _assert_as_valid(
-    m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve, hf: HashF
+    m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -359,19 +363,15 @@ def _assert_as_valid(
     r, s = _to_sig(sig, ec)
 
     x_Q, y_Q = point_from_bip340pubkey(Q, ec)
-    if y_Q:
-        QJ = x_Q, y_Q, 1
-    else:
-        raise ValueError("invalid public key: infinity point")
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
     c = _challenge(m, x_Q, r, ec, hf)
 
-    __assert_as_valid(c, QJ, r, s, ec)
+    __assert_as_valid(c, (x_Q, y_Q, 1), r, s, ec)
 
 
 def assert_as_valid(
-    msg: String, Q: BIP340PubKey, sig: SSASig, ec: Curve, hf: HashF
+    msg: String, Q: BIP340PubKey, sig: SSASig, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> None:
 
     m = reduce_to_hlen(msg, hf)

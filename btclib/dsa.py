@@ -88,7 +88,7 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:
     return q, Q
 
 
-def _challenge(m: Octets, ec: Curve, hf: HashF) -> int:
+def _challenge(m: Octets, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
 
     # The message m: a hlen array
     hlen = hf().digest_size
@@ -99,7 +99,7 @@ def _challenge(m: Octets, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def challenge(msg: String, ec: Curve, hf: HashF) -> int:
+def challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
 
     m = reduce_to_hlen(msg, hf)
     return _challenge(m, ec, hf)
@@ -225,7 +225,9 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     assert r == x, "signature verification failed"  # 8
 
 
-def _assert_as_valid(m: Octets, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
+def _assert_as_valid(
+    m: Octets, P: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -236,13 +238,15 @@ def _assert_as_valid(m: Octets, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> No
     c = _challenge(m, ec, hf)  # 2, 3
 
     Q = point_from_key(P, ec)
-    QJ = Q[0], Q[1], 1 if Q[1] else 0
+    QJ = Q[0], Q[1], 1
 
     # second part delegated to helper function
     __assert_as_valid(c, QJ, r, s, ec)
 
 
-def assert_as_valid(msg: String, P: Key, sig: DSASig, ec: Curve, hf: HashF) -> None:
+def assert_as_valid(
+    msg: String, P: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
