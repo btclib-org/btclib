@@ -61,7 +61,8 @@ def _rfc6979(
     """Return a deterministic ephemeral key following RFC 6979."""
 
     # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
 
     # leftmost ec.nlen bits %= ec.n
     c = int_from_bits(m, ec.nlen) % ec.n  # 5
