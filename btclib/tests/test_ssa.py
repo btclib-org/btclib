@@ -112,7 +112,7 @@ def test_signature():
 
     err_msg = "not a BIP340 public key"
     with pytest.raises(ValueError, match=err_msg):
-        ssa._to_bip340_point(["not", "a BIP340", "public key"])
+        ssa.point_from_bip340pubkey(["not", "a BIP340", "public key"])
 
 
 def test_bip340_vectors():
@@ -205,7 +205,7 @@ def test_crack_prvkey():
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
     msg1 = hf(msg1.encode()).digest()
-    k = ssa._k(msg1, q)
+    k, _ = ssa._det_nonce(msg1, q)
     sig1 = ssa._sign(msg1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
@@ -550,8 +550,8 @@ def test_threshold():
 
     # 2.1 signer one acting as the dealer
     commits1: List[Point] = list()
-    k1 = ssa.k(msg, q1, ec, hf)
-    k1_prime = ssa.k(msg, q1_prime, ec, hf)
+    k1, _ = ssa.det_nonce(msg, q1, ec, hf)
+    k1_prime, _ = ssa.det_nonce(msg, q1_prime, ec, hf)
     commits1.append(double_mult(k1_prime, H, k1, ec.G))
     # sharing polynomials
     f1 = [k1]
@@ -575,8 +575,8 @@ def test_threshold():
 
     # 2.2 signer three acting as the dealer
     commits3: List[Point] = list()
-    k3 = ssa.k(msg, q3, ec, hf)
-    k3_prime = ssa.k(msg, q3_prime, ec, hf)
+    k3, _ = ssa.det_nonce(msg, q3, ec, hf)
+    k3_prime, _ = ssa.det_nonce(msg, q3_prime, ec, hf)
     commits3.append(double_mult(k3_prime, H, k3, ec.G))
     # sharing polynomials
     f3 = [k3]

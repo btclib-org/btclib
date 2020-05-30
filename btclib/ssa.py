@@ -70,6 +70,39 @@ from .utils import bytes_from_octets, hex_string, int_from_bits
 BIP340PubKey = Union[int, bytes, str, BIP32KeyDict]
 
 
+def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
+    """Return a verified-as-valid BIP340 public key as Point tuple.
+
+    It supports:
+
+    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
+    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
+    - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
+    - native tuple
+    """
+
+    # BIP 340 key as integer
+    if isinstance(x_Q, int):
+        y_Q = ec.y_quadratic_residue(x_Q, True)
+        return x_Q, y_Q
+    else:
+        try:
+            x_Q = point_from_pubkey(x_Q, ec)[0]
+            y_Q = ec.y_quadratic_residue(x_Q, True)
+            return x_Q, y_Q
+        except Exception:
+            pass
+
+    # BIP 340 key as bytes or hex-string
+    if isinstance(x_Q, str) or isinstance(x_Q, bytes):
+        Q = bytes_from_octets(x_Q, ec.psize)
+        x_Q = int.from_bytes(Q, "big")
+        y_Q = ec.y_quadratic_residue(x_Q, True)
+        return x_Q, y_Q
+
+    raise ValueError("not a BIP340 public key")
+
+
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
 
     # BIP340 is only defined for curves whose field prime p = 3 % 4
@@ -117,13 +150,15 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     ec.require_p_ThreeModFour()
 
     if prvkey is None:
-        # q in the range [1, ec.n-1]
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
         q = int_from_prvkey(prvkey, ec)
 
     QJ = _mult_jac(q, ec.GJ, ec)
     x_Q = ec._x_aff_from_jac(QJ)
+    if not ec.has_square_y(QJ):
+        q = ec.n - q
+
     return q, x_Q
 
 
@@ -140,7 +175,7 @@ def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
     return h2.digest()
 
 
-def __k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
+def __det_nonce(m: bytes, q: int, ec: Curve, hf: HashF) -> Tuple[int, int]:
 
     # assume the random oracle model for the hash function,
     # i.e. hash values can be considered uniformly random
@@ -161,32 +196,37 @@ def __k(m: bytes, q: int, ec: Curve, hf: HashF) -> int:
         # k = int_from_bits(t, ec.nlen) % ec.n
         k = int_from_bits(t, ec.nlen)  # candidate k
         if 0 < k < ec.n:  # acceptable value for k
-            return k  # successful candidate
+            return gen_keys(k, ec)  # successful candidate
 
 
-def _k(m: Octets, prv: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def _det_nonce(
+    m: Octets, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+) -> Tuple[int, int]:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
 
-    # The secret key d: an integer in the range 1..n-1.
-    q = int_from_prvkey(prv, ec)
+    q, _ = gen_keys(prvkey, ec)
 
-    return __k(m, q, ec, hf)
+    return __det_nonce(m, q, ec, hf)
 
 
-def k(msg: String, prv: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def det_nonce(
+    msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+) -> Tuple[int, int]:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _k(m, prv, ec, hf)
+    return _det_nonce(m, prvkey, ec, hf)
 
 
-def _challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
+def _challenge(m: Octets, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
 
     # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
 
     # note that only x_Q is needed
     # if Q is Jacobian y_Q calculation can be avoided
@@ -230,24 +270,16 @@ def _sign(
     ec.require_p_ThreeModFour()
 
     # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
 
-    # The secret key q: an integer in the range 1..n-1.
-    q = int_from_prvkey(prvkey, ec)
-    QJ = _mult_jac(q, ec.GJ, ec)
-    x_Q = ec._x_aff_from_jac(QJ)
-    if not ec.has_square_y(QJ):
-        q = ec.n - q
+    q, x_Q = gen_keys(prvkey, ec)
 
     # The nonce k: an integer in the range 1..n-1.
     if k is None:
-        k = __k(m, q, ec, hf)
+        k, x_K = __det_nonce(m, q, ec, hf)
     else:
-        k = int_from_prvkey(k, ec)
-    KJ = _mult_jac(k, ec.GJ, ec)
-    x_K = ec._x_aff_from_jac(KJ)
-    if not ec.has_square_y(KJ):
-        k = ec.n - k
+        k, x_K = gen_keys(k, ec)
 
     # Let c = int(hf(bytes(x_K) || bytes(x_Q) || m)) mod n.
     c = _challenge(m, x_Q, x_K, ec, hf)
@@ -279,40 +311,6 @@ def sign(
 
     m = reduce_to_hlen(msg, hf)
     return _sign(m, prvkey, k, ec, hf)
-
-
-def _to_bip340_point(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
-    """Return a verified-as-valid BIP340 public key as Point tuple.
-
-    It supports:
-
-    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
-    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
-    - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
-    - native tuple
-    """
-
-    # BIP 340 key as integer
-    if isinstance(x_Q, int):
-        y_Q = ec.y_quadratic_residue(x_Q, True)
-        return x_Q, y_Q
-    else:
-        try:
-            x_Q = point_from_pubkey(x_Q, ec)[0]
-            y_Q = ec.y_quadratic_residue(x_Q, True)
-            return x_Q, y_Q
-        except Exception:
-            pass
-
-    # BIP 340 key as bytes or hex-string
-    if isinstance(x_Q, str) or isinstance(x_Q, bytes):
-        Q = bytes_from_octets(x_Q, ec.psize)
-        x_Q = int.from_bytes(Q, "big")
-        y_Q = ec.y_quadratic_residue(x_Q, True)
-    else:
-        raise ValueError("not a BIP340 public key")
-
-    return x_Q, y_Q
 
 
 def _to_sig(sig: SSASig, ec: Curve) -> SSASigTuple:
@@ -351,13 +349,13 @@ def _assert_as_valid(
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    # The message m: a hlen array
-    m = bytes_from_octets(m, hf().digest_size)
-
     r, s = _to_sig(sig, ec)
 
-    x_Q, y_Q = _to_bip340_point(Q, ec)
-    QJ = x_Q, y_Q, 1
+    x_Q, y_Q = point_from_bip340pubkey(Q, ec)
+    if y_Q:
+        QJ = x_Q, y_Q, 1
+    else:
+        raise ValueError("invalid public key: infinity point")
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
     c = _challenge(m, x_Q, r, ec, hf)
@@ -431,7 +429,7 @@ def _crack_prvkey(
     if s1 == s2:
         raise ValueError("identical signatures")
 
-    x_Q = _to_bip340_point(Q, ec)[0]
+    x_Q = point_from_bip340pubkey(Q, ec)[0]
 
     c1 = _challenge(m1, x_Q, r1, ec, hf)
     c2 = _challenge(m2, x_Q, r2, ec, hf)
@@ -473,7 +471,7 @@ def _batch_verify(
         r, s = _to_sig(sig, ec)
         KJ = r, ec.y_quadratic_residue(r, True), 1
 
-        x_Q, y_Q = _to_bip340_point(Q, ec)
+        x_Q, y_Q = point_from_bip340pubkey(Q, ec)
         QJ = x_Q, y_Q, 1
 
         c = _challenge(m, x_Q, r, ec, hf)

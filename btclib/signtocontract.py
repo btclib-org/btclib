@@ -101,9 +101,9 @@ def ecssa_commit_sign(
     """Include a commitment c inside an ECSSA signature."""
 
     if k is None:
-        k = ssa._k(m, prvkey, ec, hf)
+        k, _ = ssa._det_nonce(m, prvkey, ec, hf)
     else:
-        k = int_from_prvkey(k, ec)
+        k, _ = ssa.gen_keys(k, ec)
 
     # commit
     R, new_k = _tweak(c, k, ec, hf)
