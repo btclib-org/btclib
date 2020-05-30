@@ -63,7 +63,9 @@ def decode(stream: Union[BinaryIO, Octets]) -> int:
 def encode(i: int) -> bytes:
     """Return the varint bytes encoding of an integer."""
 
-    if i < 0xFD:  # 1 byte
+    if i < 0x00:
+        raise ValueError(f"negative integer: {i}")
+    elif i < 0xFD:  # 1 byte
         return bytes([i])
     elif i <= 0xFFFF:  # 2 bytes
         return b"\xfd" + i.to_bytes(2, byteorder="little")

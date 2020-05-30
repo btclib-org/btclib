@@ -17,6 +17,20 @@ from btclib import varint
 
 def test_varint_conversion():
 
+    i = -1
+    with pytest.raises(ValueError, match="negative integer: "):
+        varint.encode(i)
+
+    i = 0x00
+    b = varint.encode(i)
+    assert len(b) == 1
+    assert varint.decode(b) == i
+
+    i += 1
+    b = varint.encode(i)
+    assert len(b) == 1
+    assert varint.decode(b) == i
+
     i = 0xFC
     b = varint.encode(i)
     assert len(b) == 1
