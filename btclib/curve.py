@@ -252,9 +252,11 @@ class CurveGroup:
             err_msg = "x-coordinate not in 0..p-1: "
             err_msg += f"{hex_string(x)}" if x > _HEXTHRESHOLD else f"{x}"
             raise ValueError(err_msg)
-        y2 = self._y2(x)
-        # mod_sqrt will raise a ValueError if root does not exist
-        return mod_sqrt(y2, self.p)
+        try:
+            y2 = self._y2(x)
+            return mod_sqrt(y2, self.p)
+        except Exception:
+            raise ValueError("invalid x-coordinate")
 
     def require_on_curve(self, Q: Point) -> None:
         """Require the input curve Point to be on the curve.
@@ -341,8 +343,8 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         raise ValueError(f"negative m: {hex(m)}")
 
     # there is not a compelling reason to optimize for INF, even if possible
-    # if Q[1] == 0:  # Infinity point, affine coordinates
-    #     return INF  # return Infinity point
+    # if Q[1] == 0 or m == 0:  # Infinity point, affine coordinates
+    #    return INF  # return Infinity point
     R = INF  # initialize as infinity point
     while m > 0:  # use binary representation of m
         if m & 1:  # if least significant bit is 1
