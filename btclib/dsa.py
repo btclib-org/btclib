@@ -148,11 +148,11 @@ def _sign(
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
-    c = _challenge(m, ec, hf)  # 4, 5
-
     # The secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
     q = int_from_prvkey(prvkey, ec)
+
+    c = _challenge(m, ec, hf)  # 4, 5
 
     if k is None:
         k = __rfc6979(c, q, ec, hf)  # 1
