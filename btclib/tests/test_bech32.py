@@ -61,7 +61,7 @@ INVALID_CHECKSUM = [
     ["\x80" + "1eym55h", r"ASCII character outside *"],
     ["pzry9x0s0muk", r"Missing HRP in bech32 string: *"],
     ["1pzry9x0s0muk", r"Empty HRP in bech32 string: *"],
-    ["x1b4n0q5v", r"Invalid data characters in bech32 string: *"],
+    ["x1b4n0q5v", r"invalid data characters in bech32 string: *"],
     ["li1dgmt3", r"Too short checksum in bech32 string: *"],
     # Invalid character in checksum
     ["de1lg7wt\xff", r"ASCII character outside *"],

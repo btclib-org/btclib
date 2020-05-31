@@ -292,7 +292,7 @@ def binstr_from_rolls(
     """
 
     if dice_sides < 2:
-        raise ValueError(f"Invalid dice base: {dice_sides}, must be >= 2")
+        raise ValueError(f"invalid dice base: {dice_sides}, must be >= 2")
     bits_per_roll = math.floor(math.log2(dice_sides))
     # used base
     base = 2 ** bits_per_roll
@@ -310,7 +310,7 @@ def binstr_from_rolls(
             min_roll_number -= 1
         # reject invalid rolls not in [1-dice_sides)]
         elif r < 1 or r > dice_sides:
-            msg = f"Invalid roll: {r} is not in [1-{dice_sides}]"
+            msg = f"invalid roll: {r} is not in [1-{dice_sides}]"
             raise ValueError(msg)
     if min_roll_number > 0:
         msg = f"Too few rolls in the usable [1-{base}] range, missing {min_roll_number} rolls"

@@ -91,7 +91,7 @@ def _validate_sig(
         raise ValueError(err_msg)
 
     if sighash is not None and sighash not in SIGHASHES:
-        raise ValueError(f"Invalid sighash: {hex(sighash)}")
+        raise ValueError(f"invalid sighash: {hex(sighash)}")
 
 
 def _check_size_and_type(der_sig: bytes, ec: Curve) -> int:
@@ -108,7 +108,7 @@ def _check_size_and_type(der_sig: bytes, ec: Curve) -> int:
     # up to 33 bytes each for r and s ('highest bit set' padding)
     max_size = 2 + (2 + 1 + ec.nsize) * 2 + 1
     if not min_size <= der_sig_size <= max_size:
-        m = "Invalid DER size: "
+        m = "invalid DER size: "
         m += f"{der_sig_size}, must be in [{min_size}, {max_size}]"
         raise ValueError(m)
 
@@ -151,7 +151,7 @@ def _scalar_size(der_sig: bytes, sighash_size: int, offset: int) -> int:
     # Null byte at the start of a scalar is not allowed, unless the
     # scalar would otherwise be interpreted as a negative number
     if size > 1 and der_sig[offset] == 0x00 and not (der_sig[offset + 1] & 0x80):
-        raise ValueError("Invalid null bytes at the start of scalar")
+        raise ValueError("invalid null bytes at the start of scalar")
 
     return size
 

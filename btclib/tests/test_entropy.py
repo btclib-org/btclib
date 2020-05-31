@@ -251,12 +251,12 @@ def test_binstr_from_rolls():
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     rolls[1] = dice_base + 1
-    err_msg = "Invalid roll: "  # 21 is not in [1-20]
+    err_msg = "invalid roll: "  # 21 is not in [1-20]
     with pytest.raises(ValueError, match=err_msg):
         binstr_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
-    err_msg = "Invalid dice base: "
+    err_msg = "invalid dice base: "
     with pytest.raises(ValueError, match=err_msg):
         binstr_from_rolls(bits, 1, rolls)
 

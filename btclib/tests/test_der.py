@@ -53,7 +53,7 @@ def test_der_deserialize():
         r_size = der_sig[3]
 
         bad_der_sig = b"\x00" * 74
-        err_msg = "Invalid DER size: "
+        err_msg = "invalid DER size: "
         with pytest.raises(ValueError, match=err_msg):
             _deserialize(bad_der_sig)
 
@@ -74,12 +74,12 @@ def test_der_deserialize():
                 _deserialize(bad_der_sig)
 
             bad_der_sig = der_sig[:-1] + b"\x00"
-            err_msg = "Invalid sighash: 0x"
+            err_msg = "invalid sighash: 0x"
             with pytest.raises(ValueError, match=err_msg):
                 _deserialize(bad_der_sig)
         else:
             bad_der_sig = der_sig + b"\x00"
-            err_msg = "Invalid sighash: 0x"
+            err_msg = "invalid sighash: 0x"
             with pytest.raises(ValueError, match=err_msg):
                 _deserialize(bad_der_sig)
 
@@ -106,7 +106,7 @@ def test_der_deserialize():
                 _deserialize(bad_der_sig)
 
             bad_der_sig = der_sig[:offset] + b"\x00\x7f" + der_sig[offset + 2 :]
-            err_msg = "Invalid null bytes at the start of scalar"
+            err_msg = "invalid null bytes at the start of scalar"
             with pytest.raises(ValueError, match=err_msg):
                 _deserialize(bad_der_sig)
 
@@ -121,7 +121,7 @@ def test_der_deserialize():
 def test_der_serialize():
 
     sig = 2 ** 247 - 1, 2 ** 247 - 1
-    err_msg = "Invalid sighash: 0x"
+    err_msg = "invalid sighash: 0x"
     with pytest.raises(ValueError, match=err_msg):
         _serialize(*sig, 0x85)
 

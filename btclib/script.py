@@ -293,7 +293,7 @@ def _op_str(token: str) -> bytes:
     try:
         data = bytes.fromhex(token)
     except Exception:
-        raise ValueError(f"Invalid string token: {token}")
+        raise ValueError(f"invalid string token: {token}")
     return _op_pushdata(data)
 
 

@@ -79,7 +79,7 @@ def test_simple():
 def test_exceptions():
 
     script = [2, 3, "OP_ADD", 5, "OP_VERIF"]
-    err_msg = "Invalid string token: OP_VERIF"
+    err_msg = "invalid string token: OP_VERIF"
     with pytest.raises(ValueError, match=err_msg):
         encode(script)
 

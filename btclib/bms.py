@@ -153,7 +153,7 @@ from .utils import hash160
 def _validate_sig(rf: int, r: int, s: int) -> None:
 
     if rf < 27 or rf > 42:
-        raise ValueError(f"Invalid recovery flag: {rf}")
+        raise ValueError(f"invalid recovery flag: {rf}")
     dsa._validate_sig(r, s, secp256k1)
 
 

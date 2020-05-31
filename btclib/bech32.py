@@ -123,7 +123,7 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
     hrp = bech[:pos]
 
     if not all(x in __ALPHABET for x in bech[pos + 1 :]):
-        raise ValueError(f"Invalid data characters in bech32 string: {bech}")
+        raise ValueError(f"invalid data characters in bech32 string: {bech}")
     data = [__ALPHABET.find(x) for x in bech[pos + 1 :]]
 
     if _verify_checksum(hrp, data):

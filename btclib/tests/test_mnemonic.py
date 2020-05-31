@@ -48,7 +48,7 @@ def test_wordlist_2():
     # dictionary length (must be a power of two
     fname = "fakeenglish.txt"
     filename = path.join(path.dirname(__file__), "test_data", fname)
-    err_msg = "Invalid wordlist length: "
+    err_msg = "invalid wordlist length: "
     with pytest.raises(ValueError, match=err_msg):
         _wordlists.load_lang(lang, filename)
 

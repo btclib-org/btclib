@@ -44,7 +44,7 @@ def test_bip39():
 
     # Invalid number of bits (130) for BIP39 entropy; must be in ...
     binstr_entropy = "01" * 65  # 130 bits
-    err_msg = "Invalid number of bits for BIP39 entropy: "
+    err_msg = "invalid number of bits for BIP39 entropy: "
     with pytest.raises(ValueError, match=err_msg):
         bip39._entropy_checksum(binstr_entropy)
 
