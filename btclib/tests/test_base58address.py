@@ -118,7 +118,7 @@ def test_p2sh():
     _, redeem_script_hash, network2, is_p2sh = h160_from_b58address(addr)
     assert network == network2
     assert is_p2sh
-    assert redeem_script_hash == hash160(script)
+    assert redeem_script_hash == hash160(encode(script))
 
     assert redeem_script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     output_script = ["OP_HASH160", redeem_script_hash.hex(), "OP_EQUAL"]
