@@ -64,7 +64,7 @@ def _convertbits(
     max_acc = (1 << (frombits + tobits - 1)) - 1
     for value in data:
         if value < 0 or (value >> frombits):
-            raise ValueError(f"invalid value {value}")
+            raise ValueError(f"invalid value in _convertbits: {value}")
         acc = ((acc << frombits) | value) & max_acc
         bits += frombits
         while bits >= tobits:
@@ -74,8 +74,10 @@ def _convertbits(
     if pad:
         if bits:
             ret.append((acc << (tobits - bits)) & maxv)
-    elif bits >= frombits or ((acc << (tobits - bits)) & maxv):
-        raise ValueError("failure")
+    elif bits >= frombits:
+        raise ValueError("zero padding of more than 4 bits in 8-to-5 conversion")
+    elif (acc << (tobits - bits)) & maxv:
+        raise ValueError("non-zero padding in 8-to-5 conversion")
 
     return ret
 
@@ -84,13 +86,18 @@ def _check_witness(witvers: int, witprog: bytes):
     length = len(witprog)
     if witvers == 0:
         if length not in (20, 32):
-            raise ValueError(f"witness program length ({length}) " "is not 20 or 32")
-    elif witvers > 16 or witvers < 0:
-        msg = f"witness version ({witvers}) not in [0, 16]"
-        raise ValueError(msg)
+            err_msg = "invalid witness program length for witness version zero: "
+            err_msg += f"{length} instead of 20 or 32"
+            raise ValueError(err_msg)
+    elif witvers < 0 or 16 < witvers:
+        err_msg = "invalid witness version: "
+        err_msg += f"{witvers} not in 0..16"
+        raise ValueError(err_msg)
     else:
-        if length < 2 or length > 40:
-            raise ValueError(f"witness program length ({length}) " "not in [2, 40]")
+        if length < 2 or 40 < length:
+            err_msg = "invalid witness program length for witness version zero: "
+            err_msg += f"{length}, not in 2..40"
+            raise ValueError(err_msg)
 
 
 # 1. Hash/WitnessProgram from pubkey/script
@@ -121,7 +128,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     # the following check was originally in b32decode
     # but it does not pertain there
     if len(b32addr) > 90:
-        raise ValueError(f"Bech32 address length ({len(b32addr)}) > 90")
+        raise ValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
 
     hrp, data = b32decode(b32addr)
 
@@ -129,7 +136,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     network = network_from_key_value("p2w", hrp)
 
     if len(data) == 0:
-        raise ValueError("Bech32 address with empty data")
+        raise ValueError(f"empty data in bech32 address: {b32addr!r}")
 
     witvers = data[0]
     witprog = _convertbits(data[1:], 5, 8, False)

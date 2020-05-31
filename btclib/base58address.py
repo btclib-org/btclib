@@ -92,8 +92,9 @@ def b58address_from_witness(wp: Octets, network: str = "mainnet") -> bytes:
     elif length == 32:
         redeem_script = scriptPubKey_from_payload("p2wsh", wp)
     else:
-        m = f"Invalid witness program length ({len(wp)})"
-        raise ValueError(m)
+        err_msg = "invalid witness program length for witness version zero: "
+        err_msg += f"{length} instead of 20 or 32"
+        raise ValueError(err_msg)
 
     return p2sh(redeem_script, network)
 

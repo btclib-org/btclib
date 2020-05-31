@@ -99,7 +99,7 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> str:
     for net in NETWORKS:
         if NETWORKS[net][key] == prefix:
             return net
-    raise ValueError(f"No network has {key} = {prefix!r}")
+    raise ValueError(f"invalid value for network keyword '{key}': {prefix!r}")
 
 
 _NETWORKS = [net for net in NETWORKS]
