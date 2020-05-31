@@ -46,7 +46,7 @@ from typing import Iterable, List, Optional, Tuple
 
 from .alias import Key, Octets, Script, String
 from .bech32 import b32decode, b32encode
-from .hashes import hash160_from_pubkey, hash256_from_script
+from .hashes import hash160_from_key, hash256_from_script
 from .network import NETWORKS, network_from_key_value
 from .utils import bytes_from_octets
 
@@ -156,7 +156,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 def p2wpkh(key: Key, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh bech32 address corresponding to a public key."
     compressed = True  # needed to force check on pubkey
-    h160, network = hash160_from_pubkey(key, network, compressed)
+    h160, network = hash160_from_key(key, network, compressed)
     return b32address_from_witness(0, h160, network)
 
 

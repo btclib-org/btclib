@@ -22,7 +22,7 @@ from .utils import hash160, sha256
 _H160Net = Tuple[bytes, str]
 
 
-def hash160_from_pubkey(
+def hash160_from_key(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> _H160Net:
     """Return (public key HASH160, nettwork) from a private/public key.

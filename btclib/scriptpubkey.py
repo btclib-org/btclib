@@ -15,14 +15,14 @@
 from typing import List, Optional, Tuple, Union
 
 from .alias import Key, Octets, Script, String, Token
-from .hashes import hash160_from_pubkey, hash160_from_script, hash256_from_script
+from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .script import decode, encode
 from .to_pubkey import pubkeyinfo_from_key
 from .utils import bytes_from_octets
 
 # 1. Hash/WitnessProgram from pubkey/script
 
-# hash160_from_pubkey, hash160_from_script, and hash256_from_script
+# hash160_from_key, hash160_from_script, and hash256_from_script
 # are imported from base58address
 
 
@@ -40,18 +40,18 @@ def scriptPubKey_from_payload(
     script_type = s_type.lower()
 
     if (script_type == "p2ms") ^ (m != 0):
-        errmsg = f"Invalid m ({m}) for {script_type} script"
+        errmsg = f"invalid m ({m}) for {script_type} script"
         raise ValueError(errmsg)
 
     if isinstance(payloads, list):
         if script_type == "p2ms":
             if m < 1 or m > 16:
-                raise ValueError(f"Invalid m ({m}) in m-of-n multisignature")
+                raise ValueError(f"invalid m ({m}) in m-of-n multisignature")
             if lexicographic_sort:
                 payloads = sorted(payloads)
             n = len(payloads)
             if n < m or n > 16:
-                raise ValueError(f"Invalid n ({n}) in {m}-of-{n} multisignature")
+                raise ValueError(f"invalid n ({n}) in {m}-of-{n} multisignature")
             script: List[Token] = [m]
             for key in payloads:
                 key = bytes_from_octets(key, (33, 65))
@@ -59,13 +59,13 @@ def scriptPubKey_from_payload(
             script.append(n)
             script.append("OP_CHECKMULTISIG")
         else:
-            errmsg = f"Invalid list of Octets for {script_type} script"
+            errmsg = f"invalid list of Octets for {script_type} script"
             raise ValueError(errmsg)
     else:
         if script_type == "nulldata":
             payload = bytes_from_octets(payloads)
             if len(payload) > 80:
-                msg = f"Invalid data lenght ({len(payload)} bytes) "
+                msg = f"invalid data lenght ({len(payload)} bytes) "
                 msg += "for nulldata scriptPubKey"
                 raise ValueError(msg)
             script = ["OP_RETURN", payload]
@@ -123,7 +123,7 @@ def payload_from_nulldata_scriptPubKey(script: Script) -> Tuple[str, Payloads, i
                 f"got {hex(s[1])} instead: {decode(s)}"
             )
         return "nulldata", s[3:], 0
-    raise ValueError("Invalid 77 bytes OP_RETURN script length")
+    raise ValueError("invalid 77 bytes OP_RETURN script length")
 
 
 def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
@@ -136,10 +136,10 @@ def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
     script = decode(s)
     m = int(script[0])
     if m < 1 or m > 16:
-        raise ValueError(f"Invalid m ({m}) in {m}-of-n multisignature")
+        raise ValueError(f"invalid m ({m}) in {m}-of-n multisignature")
     n = len(script) - 3
     if n < m or n > 16:
-        raise ValueError(f"Invalid n ({n}) in {m}-of-{n} multisignature")
+        raise ValueError(f"invalid n ({n}) in {m}-of-{n} multisignature")
     if n != int(script[-2]):
         errmsg = f"Keys ({n}) / n ({int(script[-2])}) mismatch "
         errmsg += "in m-of-n multisignature"
@@ -147,7 +147,7 @@ def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
     keys: List[bytes] = []
     for pk in script[1:-2]:
         if isinstance(pk, int):
-            raise ValueError("Invalid key in p2ms")
+            raise ValueError("invalid key in p2ms")
         key = bytes_from_octets(pk, (33, 65))
         keys.append(key)
     return "p2ms", keys, m
@@ -231,7 +231,7 @@ def nulldata(data: String) -> bytes:
 def p2pkh(key: Key, compressed: Optional[bool] = None) -> bytes:
     "Return the p2pkh scriptPubKey of the provided pubkey."
 
-    pubkey_h160, _ = hash160_from_pubkey(key, compressed=compressed)
+    pubkey_h160, _ = hash160_from_key(key, compressed=compressed)
     return scriptPubKey_from_payload("p2pkh", pubkey_h160)
 
 
@@ -245,7 +245,7 @@ def p2sh(script: Script) -> bytes:
 def p2wpkh(key: Key) -> bytes:
     "Return the p2wpkh scriptPubKey of the provided pubkey."
     compressed = True  # needed to force check on pubkey
-    pubkey_h160, _ = hash160_from_pubkey(key, compressed=compressed)
+    pubkey_h160, _ = hash160_from_key(key, compressed=compressed)
     return scriptPubKey_from_payload("p2wpkh", pubkey_h160)
 
 

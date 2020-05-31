@@ -18,7 +18,7 @@ from typing import Optional, Tuple
 from .alias import Key, Octets, Script, String
 from .base58 import b58decode, b58encode
 from .bech32address import b32address_from_witness, witness_from_b32address
-from .hashes import hash160_from_pubkey, hash160_from_script, hash256_from_script
+from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .network import _P2PKH_PREFIXES, _P2SH_PREFIXES, NETWORKS, network_from_key_value
 from .scriptpubkey import payload_from_scriptPubKey, scriptPubKey_from_payload
 from .utils import bytes_from_octets
@@ -35,7 +35,7 @@ def b58address_from_h160(prefix: Octets, h160: Octets, network: str) -> bytes:
     prefix = bytes_from_octets(prefix)
     prefixes = NETWORKS[network]["p2pkh"], NETWORKS[network]["p2sh"]
     if prefix not in prefixes:
-        raise ValueError(f"Invalid {network} base58 address prefix {prefix!r}")
+        raise ValueError(f"invalid {network} base58 address prefix: {prefix!r}")
     payload = prefix + bytes_from_octets(h160, 20)
     return b58encode(payload)
 
@@ -67,7 +67,7 @@ def p2pkh(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> bytes:
     "Return the p2pkh base58 address corresponding to a public key."
-    h160, network = hash160_from_pubkey(key, network, compressed)
+    h160, network = hash160_from_key(key, network, compressed)
     prefix = NETWORKS[network]["p2pkh"]
     return b58address_from_h160(prefix, h160, network)
 
@@ -105,7 +105,7 @@ def b58address_from_witness(wp: Octets, network: str = "mainnet") -> bytes:
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh-p2sh base58 address corresponding to a pubkey."
     compressed = True  # needed to force check on pubkey
-    witprog, network = hash160_from_pubkey(key, network, compressed)
+    witprog, network = hash160_from_key(key, network, compressed)
     return b58address_from_witness(witprog, network)
 
 
