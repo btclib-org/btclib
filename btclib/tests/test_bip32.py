@@ -124,11 +124,6 @@ def test_serialize():
     with pytest.raises(ValueError, match="zero depth with non-zero index 0x"):
         bip32.serialize(d)
 
-    # FIXME: this failure shoud be required
-    # errmsg = "public derivation at depth one level"
-    # with pytest.raises(UserWarning, match=errmsg):
-    #    bip32.deserialize(bip32.derive(rootxprv, 0))
-
     xprv = bip32.deserialize(bip32.derive(rootxprv, 0x80000000))
     xprv["parent_fingerprint"] = b"\x00\x00\x00\x00"
     errmsg = "zero parent fingerprint with non-zero depth "
@@ -219,12 +214,21 @@ def test_derive():
         for der_path, address in test_vectors[rootxprv]:
             assert address == p2pkh(bip32.derive(rootxprv, der_path)).decode()
 
+            b_indexes, _ = bip32._indexes_from_path(der_path)
+            indexes = [int.from_bytes(b_index, "big") for b_index in b_indexes]
+            assert address == p2pkh(bip32.derive(rootxprv, indexes)).decode()
 
-def test_derive2():
+
+def test_derive_exceptions():
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = bip32.derive(rootmxprv, b"\x80\x00\x00\x00")
     xprv = bip32.derive(xprv, ".")
+
+    # FIXME: this failure shoud be required
+    # errmsg = "public derivation at depth one level"
+    # with pytest.raises(UserWarning, match=errmsg):
+    #    bip32.deserialize(bip32.derive(rootmxprv, 0))
 
     for der_path in ("", "/1"):
         with pytest.raises(
@@ -261,14 +265,14 @@ def test_derive2():
     bad_xprv = b58encode(temp[0:45] + b"\x02" + temp[46:], 78)
     errmsg = "invalid private key prefix: "
     with pytest.raises(ValueError, match=errmsg):
-        bip32.derive(bad_xprv, 1)
+        bip32.derive(bad_xprv, 0x80000000)
 
     xpub = bip32.xpub_from_xprv(rootxprv)
     temp = b58decode(xpub)
     bad_xpub = b58encode(temp[0:45] + b"\x00" + temp[46:], 78)
     errmsg = "invalid public key prefix: "
     with pytest.raises(ValueError, match=errmsg):
-        bip32.derive(bad_xpub, 1)
+        bip32.derive(bad_xpub, 0x80000000)
 
     errmsg = "no hardened derivation from public key"
     with pytest.raises(ValueError, match=errmsg):
@@ -280,8 +284,8 @@ def test_derive_from_account():
     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
     rmxprv = bip32.rootxprv_from_seed(seed)
 
-    path = "m / 44 h / 0 h"
-    mxpub = bip32.xpub_from_xprv(bip32.derive(rmxprv, path))
+    der_path = "m / 44 h / 0 h"
+    mxpub = bip32.xpub_from_xprv(bip32.derive(rmxprv, der_path))
 
     test_vectors = [
         [0, 0],
@@ -293,7 +297,7 @@ def test_derive_from_account():
     ]
 
     for branch, index in test_vectors:
-        full_path = path + f"/{branch}/{index}"
+        full_path = der_path + f"/{branch}/{index}"
         addr = p2pkh(bip32.derive(rmxprv, full_path)).decode()
         assert addr == p2pkh(bip32.derive_from_account(mxpub, branch, index)).decode()
 
@@ -309,8 +313,8 @@ def test_derive_from_account():
     with pytest.raises(ValueError, match=errmsg):
         bip32.derive_from_account(mxpub, 0, 0x80000000)
 
-    path = "m / 44 h / 0"
-    mxpub = bip32.xpub_from_xprv(bip32.derive(rmxprv, path))
+    der_path = "m / 44 h / 0"
+    mxpub = bip32.xpub_from_xprv(bip32.derive(rmxprv, der_path))
     errmsg = "public derivation at account level"
     with pytest.raises(UserWarning, match=errmsg):
         bip32.derive_from_account(mxpub, 0, 0)

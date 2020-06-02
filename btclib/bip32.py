@@ -235,9 +235,9 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     return serialize(xkey_dict)
 
 
-def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
+def _indexes_from_path(der_path: str) -> Tuple[List[bytes], bool]:
 
-    steps = [x.strip() for x in path.split("/")]
+    steps = [x.strip() for x in der_path.split("/")]
     if steps[0] in ("m", "M"):
         absolute = True
     elif steps[0] == ".":
@@ -308,23 +308,23 @@ def __ckd(d: _ExtendedBIP32KeyDict, index: bytes) -> None:
 
 
 def _derive(
-    xkey_dict: BIP32KeyDict, path: Path, forced_version: Optional[Octets] = None
+    xkey_dict: BIP32KeyDict, der_path: Path, forced_version: Optional[Octets] = None
 ) -> BIP32KeyDict:
 
-    if isinstance(path, str):
-        path = path.strip()
-        indexes, absolute = _indexes_from_path(path)
+    if isinstance(der_path, str):
+        der_path = der_path.strip()
+        indexes, absolute = _indexes_from_path(der_path)
         if absolute and xkey_dict["depth"] != 0:
             err_msg = "absolute derivation path for non-root master key"
             raise ValueError(err_msg)
-    elif isinstance(path, int):
-        indexes = [path.to_bytes(4, byteorder="big")]
-    elif isinstance(path, bytes):
-        if len(path) != 4:
-            raise ValueError(f"index must be 4-bytes, not {len(path)}")
-        indexes = [path]
-    else:
-        indexes = [i.to_bytes(4, byteorder="big") for i in path]
+    elif isinstance(der_path, int):
+        indexes = [der_path.to_bytes(4, byteorder="big")]
+    elif isinstance(der_path, bytes):
+        if len(der_path) != 4:
+            raise ValueError(f"index must be 4-bytes, not {len(der_path)}")
+        indexes = [der_path]
+    else:  # Iterable[int]
+        indexes = [i.to_bytes(4, byteorder="big") for i in der_path]
 
     final_depth = xkey_dict["depth"] + len(indexes)
     if final_depth > 255:
@@ -335,11 +335,11 @@ def _derive(
         version = xkey_dict["version"]
         fversion = bytes_from_octets(forced_version, 4)
         if version in _XPRV_VERSIONS_ALL and fversion not in _XPRV_VERSIONS_ALL:
-            err_msg = "invalid version for a private key: "
+            err_msg = "invalid non-private version forced on a private key: "
             err_msg += f"{hex_string(fversion)}"
             raise ValueError(err_msg)
         if version in _XPUB_VERSIONS_ALL and fversion not in _XPUB_VERSIONS_ALL:
-            err_msg = "invalid version for a public key: "
+            err_msg = "invalid non-public version forced on a public key: "
             err_msg += f"{hex_string(fversion)}"
             raise ValueError(err_msg)
 
@@ -369,15 +369,15 @@ def _derive(
 
 
 def derive(
-    xkey: BIP32Key, path: Path, forced_version: Optional[Octets] = None
+    xkey: BIP32Key, der_path: Path, forced_version: Optional[Octets] = None
 ) -> bytes:
-    """Derive an extended key across a path spanning multiple depth levels.
+    """Derive a BIP32 key across a path spanning multiple depth levels.
 
     Derivation is according to:
 
-    - absolute path as "m/44h/0'/1H/0/10" string
-    - relative path as "./0/10" string
-    - relative path as iterable integer indexes
+    - absolute derivation path as "m/44h/0'/1H/0/10" string
+    - relative derivation path as "./0/10" string
+    - relative derivation path as iterable integer indexes
     - relative one level child derivation with single integer index
     - relative one level child derivation with single 4-bytes index
 
@@ -385,7 +385,7 @@ def derive(
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
     d = deserialize(xkey)
-    d = _derive(d, path, forced_version)
+    d = _derive(d, der_path, forced_version)
     return serialize(d)
 
 
