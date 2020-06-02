@@ -167,12 +167,22 @@ def deserialize(sig: BMSig) -> BMSigTuple:
     if isinstance(sig, tuple):
         rf, r, s = sig
     else:
-        sig = b64decode(sig)
-        if len(sig) != 65:
-            raise ValueError(f"Wrong signature length: {len(sig)} instead of 65")
-        rf = sig[0]
-        r = int.from_bytes(sig[1:33], byteorder="big")
-        s = int.from_bytes(sig[33:], byteorder="big")
+        if isinstance(sig, str):
+            try:
+                # hex-string of the encoded base64 signature string
+                sig2 = b64decode(bytes.fromhex(sig))
+            except Exception:
+                # not encoded base64 signature string
+                sig2 = b64decode(sig.encode())
+        else:
+            # encoded base64 signature string
+            sig2 = b64decode(sig)
+
+        if len(sig2) != 65:
+            raise ValueError(f"wrong signature length: {len(sig)} instead of 65")
+        rf = sig2[0]
+        r = int.from_bytes(sig2[1:33], byteorder="big")
+        s = int.from_bytes(sig2[33:], byteorder="big")
 
     _validate_sig(rf, r, s)
     return rf, r, s
@@ -258,18 +268,8 @@ def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTup
     elif addr == p2wpkh(pubkey, network):
         rf = key_id + 39
     else:
-        raise ValueError("Mismatch between private key and address")
+        raise ValueError("mismatch between private key and address")
 
-    return rf, r, s
-
-
-def _to_sig(sig: BMSig) -> BMSigTuple:
-    if isinstance(sig, tuple):
-        rf, r, s = sig
-        _validate_sig(rf, r, s)
-    else:
-        # it is a base64 serialized signature
-        rf, r, s = deserialize(sig)
     return rf, r, s
 
 
@@ -277,7 +277,7 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    rf, r, s = _to_sig(sig)
+    rf, r, s = deserialize(sig)
 
     magic_msg = _magic_message(msg)
     c = dsa.challenge(magic_msg, secp256k1, sha256)
@@ -307,15 +307,18 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     if is_b58:
         if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
             script_pk = b"\x00\x14" + hash160(pubkey)
-            assert hash160(script_pk) == h160, "Unmatched p2wpkh-p2sh address"
+            if hash160(script_pk) != h160:
+                raise ValueError(f"wrong p2wpkh-p2sh address: {addr!r}")
         elif rf < 35:  # P2PKH
-            assert hash160(pubkey) == h160, "Unmatched p2pkh address"
+            if hash160(pubkey) != h160:
+                raise ValueError(f"wrong p2pkh address: {addr!r}")
         else:
             err_msg = f"invalid recovery flag: {rf} (base58 address {addr!r})"
             raise ValueError(err_msg)
     else:
         if rf > 38 or (30 < rf and rf < 35):  # P2WPKH
-            assert hash160(pubkey) == h160, "Unmatched p2wpkh address"
+            if hash160(pubkey) != h160:
+                raise ValueError(f"wrong p2wpkh address: {addr!r}")
         else:
             err_msg = f"invalid recovery flag: {rf} (bech32 address {addr!r})"
             raise ValueError(err_msg)
