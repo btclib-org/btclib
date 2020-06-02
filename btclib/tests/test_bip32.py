@@ -274,7 +274,7 @@ def test_derive_exceptions():
     with pytest.raises(ValueError, match=errmsg):
         bip32.derive(bad_xpub, 0x80000000)
 
-    errmsg = "no hardened derivation from public key"
+    errmsg = "hardened derivation from public key"
     with pytest.raises(ValueError, match=errmsg):
         bip32.derive(xpub, 0x80000000)
 

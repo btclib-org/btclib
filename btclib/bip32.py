@@ -294,7 +294,7 @@ def __ckd(d: _ExtendedBIP32KeyDict, index: bytes) -> None:
     # d is a pubkey
     else:
         if index[0] >= 0x80:
-            raise ValueError("no hardened derivation from public key")
+            raise ValueError("hardened derivation from public key")
         d["depth"] += 1
         d["parent_fingerprint"] = hash160(d["key"])[:4]
         d["index"] = index

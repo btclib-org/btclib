@@ -69,26 +69,18 @@ def test_vectors():
         test_vectors = json.load(f)
 
     lang = "en"
-    for test_vector in test_vectors:
-        mnemonic = test_vector[0]
-        passphrase = test_vector[1]
-        mxprv = test_vector[2]
-        mxpub = test_vector[3]
-        address = test_vector[4]  # "./0/0"
-
+    for mnemonic, passphrase, rmxprv, rmxpub, address in test_vectors:
         if mnemonic != "":
             mxprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
-            assert mxprv2 == mxprv.encode()
+            assert mxprv2 == rmxprv.encode()
 
             eversion, mnemonic = electrum.version_from_mnemonic(mnemonic)
             entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
             mnem = electrum.mnemonic_from_entropy(entr, eversion, lang)
             assert mnem == mnemonic
 
-        if mxprv != "":
-            mxpub2 = bip32.xpub_from_xprv(mxprv)
-            assert mxpub2 == mxpub.encode()
+        assert rmxpub.encode() == bip32.xpub_from_xprv(rmxprv)
 
-        xpub = bip32.derive(mxpub, "./0/0")
-        address2 = slip132.address_from_xpub(xpub).decode("ascii")
+        xprv = bip32.derive(rmxprv, "./0h/0")
+        address2 = slip132.address_from_xkey(xprv).decode("ascii")
         assert address2 == address
