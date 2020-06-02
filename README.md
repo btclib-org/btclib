@@ -72,6 +72,10 @@ Included features are:
 - p2wpkh/p2wsh native SegWit addresses and their legacy p2sh-wrapped versions
 - [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
   hierarchical deterministic key chains
+- [SLIP132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md)
+  key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
+  with corresponding mapping to
+  p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, and p2wsh addresses
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic

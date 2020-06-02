@@ -204,10 +204,10 @@ btclib.tests.test\_signtocontract module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_slip32 module
+btclib.tests.test\_slip132 module
 --------------------------------
 
-.. automodule:: btclib.tests.test_slip32
+.. automodule:: btclib.tests.test_slip132
    :members:
    :undoc-members:
    :show-inheritance:

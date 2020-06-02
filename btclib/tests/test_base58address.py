@@ -12,7 +12,7 @@
 
 import pytest
 
-from btclib import bip32, slip32
+from btclib import bip32, slip132
 from btclib.base58 import b58encode
 from btclib.base58address import (
     b58address_from_h160,
@@ -63,7 +63,7 @@ def test_p2pkh_from_wif():
     pubkey, _ = pubkeyinfo_from_prvkey(wif)
     address = p2pkh(pubkey)
     xpub = bip32.xpub_from_xprv(xprv)
-    address2 = slip32.address_from_xpub(xpub)
+    address2 = slip132.address_from_xpub(xpub)
     assert address == address2
 
     err_msg = "not a private key: "

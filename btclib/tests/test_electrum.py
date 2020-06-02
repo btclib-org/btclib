@@ -15,7 +15,7 @@ from os import path
 
 import pytest
 
-from btclib import bip32, electrum, slip32
+from btclib import bip32, electrum, slip132
 
 
 def test_mnemonic():
@@ -90,5 +90,5 @@ def test_vectors():
             assert mxpub2 == mxpub.encode()
 
         xpub = bip32.derive(mxpub, "./0/0")
-        address2 = slip32.address_from_xpub(xpub).decode("ascii")
+        address2 = slip132.address_from_xpub(xpub).decode("ascii")
         assert address2 == address

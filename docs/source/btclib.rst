@@ -252,10 +252,10 @@ btclib.signtocontract module
    :undoc-members:
    :show-inheritance:
 
-btclib.slip32 module
+btclib.slip132 module
 --------------------
 
-.. automodule:: btclib.slip32
+.. automodule:: btclib.slip132
    :members:
    :undoc-members:
    :show-inheritance:
