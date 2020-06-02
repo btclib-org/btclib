@@ -128,9 +128,14 @@ def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
     if isinstance(sig, tuple):
         r, s = sig
     else:
-        sig = bytes_from_octets(sig, ec.psize + ec.nsize)
-        r = int.from_bytes(sig[: ec.psize], byteorder="big")
-        s = int.from_bytes(sig[ec.nsize :], byteorder="big")
+        if isinstance(sig, str):
+            # hex-string of the serialized signature
+            sig2 = bytes.fromhex(sig)
+        else:
+            sig2 = bytes_from_octets(sig, ec.psize + ec.nsize)
+
+        r = int.from_bytes(sig2[: ec.psize], byteorder="big")
+        s = int.from_bytes(sig2[ec.nsize :], byteorder="big")
 
     _validate_sig(r, s, ec)
     return r, s

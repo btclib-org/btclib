@@ -29,16 +29,18 @@ from btclib.utils import int_from_bits
 
 
 def test_signature():
-    "Base tests"
-
     ec = CURVES["secp256k1"]
-    q, x_Q = ssa.gen_keys(0x01)
     msg = "Satoshi Nakamoto"
+
+    q, x_Q = ssa.gen_keys(0x01)
     sig = ssa.sign(msg, q)
+    assert ssa.verify(msg, x_Q, sig)
+
     assert sig == ssa.deserialize(sig)
 
-    assert ssa.verify(msg, x_Q, sig)
     ssa.assert_as_valid(msg, x_Q, sig)
+    ssa.assert_as_valid(msg, x_Q, ssa.serialize(*sig))
+    ssa.assert_as_valid(msg, x_Q, ssa.serialize(*sig).hex())
 
     msg_fake = "Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)

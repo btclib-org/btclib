@@ -25,12 +25,13 @@ from btclib.tests.test_curves import low_card_curves
 
 
 def test_signature():
-    "Base tests"
-
     ec = CURVES["secp256k1"]
-    q, Q = dsa.gen_keys(0x1)
     msg = "Satoshi Nakamoto"
+
+    q, Q = dsa.gen_keys(0x1)
     sig = dsa.sign(msg, q)
+    assert dsa.verify(msg, Q, sig)
+
     assert sig == dsa.deserialize(sig)
 
     # https://bitcointalk.org/index.php?topic=285142.40
@@ -43,8 +44,9 @@ def test_signature():
     assert sig[0] == exp_sig[0]
     assert sig[1] in (exp_sig[1], ec.n - exp_sig[1])
 
-    assert dsa.verify(msg, Q, sig)
     dsa.assert_as_valid(msg, Q, sig)
+    dsa.assert_as_valid(msg, Q, dsa.serialize(*sig))
+    dsa.assert_as_valid(msg, Q, dsa.serialize(*sig).hex())
 
     # malleability
     malleated_sig = (r, ec.n - s)

@@ -165,24 +165,28 @@ def _deserialize(der_sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
     if isinstance(der_sig, tuple):
         r, s, sighash = der_sig
     else:
+        if isinstance(der_sig, str):
+            # hex-string of the DER signature
+            sig = bytes.fromhex(der_sig)
+        else:
+            sig = bytes_from_octets(der_sig)
 
-        der_sig = bytes_from_octets(der_sig)
-        der_sig_size = _check_size_and_type(der_sig, ec)
+        sig_size = _check_size_and_type(sig, ec)
 
         # [0x30][data-size] [0x02][r-size][r] [0x02][s-size][s] [sighash]
-        sighash_size = der_sig_size - 2 - der_sig[1]
-        sighash = der_sig[-1] if sighash_size else None
+        sighash_size = sig_size - 2 - sig[1]
+        sighash = sig[-1] if sighash_size else None
 
         offset = 2 + 2
-        r_size = _scalar_size(der_sig, sighash_size, offset)
-        r = int.from_bytes(der_sig[offset : offset + r_size], byteorder="big")
+        r_size = _scalar_size(sig, sighash_size, offset)
+        r = int.from_bytes(sig[offset : offset + r_size], byteorder="big")
 
         offset = 2 + 2 + r_size + 2
-        s_size = _scalar_size(der_sig, sighash_size, offset)
-        s = int.from_bytes(der_sig[offset : offset + s_size], byteorder="big")
+        s_size = _scalar_size(sig, sighash_size, offset)
+        s = int.from_bytes(sig[offset : offset + s_size], byteorder="big")
 
-        if der_sig_size != 2 + 2 + r_size + 2 + s_size + sighash_size:
-            m = "Too big DER size for (r, s): {der_sig_size}"
+        if sig_size != 2 + 2 + r_size + 2 + s_size + sighash_size:
+            m = "Too big DER size for (r, s): {sig_size}"
             raise ValueError(m)
 
     _validate_sig(r, s, sighash, ec)
