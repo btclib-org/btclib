@@ -83,8 +83,8 @@ def _check_depth_pfp_index(depth: int, pfp: bytes, i: bytes) -> None:
         raise ValueError(f"invalid depth {depth}")
     elif depth == 0:
         if pfp != b"\x00\x00\x00\x00":
-            msg = f"zero depth with non-zero parent fingerprint 0x{pfp.hex()}"
-            raise ValueError(msg)
+            err_msg = f"zero depth with non-zero parent fingerprint 0x{pfp.hex()}"
+            raise ValueError(err_msg)
         if i != b"\x00\x00\x00\x00":
             raise ValueError(f"zero depth with non-zero index 0x{i.hex()}")
     else:
@@ -222,21 +222,21 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     """
 
     if isinstance(xprv, dict):
-        xprv = copy.copy(xprv)
+        xkey_dict = copy.copy(xprv)
     else:
-        xprv = deserialize(xprv)
+        xkey_dict = deserialize(xprv)
 
-    if xprv["key"][0] != 0:
-        raise ValueError(f"not a private key: {serialize(xprv).decode()}")
+    if xkey_dict["key"][0] != 0:
+        raise ValueError(f"not a private key: {serialize(xkey_dict).decode()}")
 
-    i = _XPRV_VERSIONS_ALL.index(xprv["version"])
-    xprv["version"] = _XPUB_VERSIONS_ALL[i]
+    i = _XPRV_VERSIONS_ALL.index(xkey_dict["version"])
+    xkey_dict["version"] = _XPUB_VERSIONS_ALL[i]
 
-    q = int.from_bytes(xprv["key"][1:], byteorder="big")
+    q = int.from_bytes(xkey_dict["key"][1:], byteorder="big")
     Q = mult(q)
-    xprv["key"] = bytes_from_point(Q)
+    xkey_dict["key"] = bytes_from_point(Q)
 
-    return serialize(xprv)
+    return serialize(xkey_dict)
 
 
 def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
@@ -262,8 +262,8 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
         indexes.append(index.to_bytes(4, "big"))
 
     if len(indexes) > 255:
-        msg = f"derivation path depth greater than 255: {len(indexes)}"
-        raise ValueError(msg)
+        err_msg = f"derivation path depth greater than 255: {len(indexes)}"
+        raise ValueError(err_msg)
     return indexes, absolute
 
 
@@ -274,7 +274,11 @@ class _ExtendedBIP32KeyDict(BIP32KeyDict):
     Q: Point  # non-Infinity for public key only
 
 
-def _ckd(d: _ExtendedBIP32KeyDict, index: bytes) -> None:
+def __ckd(d: _ExtendedBIP32KeyDict, index: bytes) -> None:
+
+    # FIXME the following check should be enforced
+    # if d["depth"] == 0 and index[0] < 0x80:
+    #    raise UserWarning("public derivation at depth one level")
 
     # d is a prvkey
     if d["key"][0] == 0:
@@ -307,6 +311,67 @@ def _ckd(d: _ExtendedBIP32KeyDict, index: bytes) -> None:
         d["q"] = 0
 
 
+def _derive(
+    xkey_dict: BIP32KeyDict, path: Path, forced_version: Optional[Octets] = None
+) -> BIP32KeyDict:
+
+    if isinstance(path, str):
+        path = path.strip()
+        indexes, absolute = _indexes_from_path(path)
+        if absolute and xkey_dict["depth"] != 0:
+            err_msg = "absolute derivation path for non-root master key"
+            raise ValueError(err_msg)
+    elif isinstance(path, int):
+        indexes = [path.to_bytes(4, byteorder="big")]
+    elif isinstance(path, bytes):
+        if len(path) != 4:
+            raise ValueError(f"index must be 4-bytes, not {len(path)}")
+        indexes = [path]
+    else:
+        indexes = [i.to_bytes(4, byteorder="big") for i in path]
+
+    final_depth = xkey_dict["depth"] + len(indexes)
+    if final_depth > 255:
+        err_msg = f"derivation path final depth greater than 255: {final_depth}"
+        raise ValueError(err_msg)
+
+    if forced_version is not None:
+        version = xkey_dict["version"]
+        fversion = bytes_from_octets(forced_version, 4)
+        if version in _XPRV_VERSIONS_ALL and fversion not in _XPRV_VERSIONS_ALL:
+            err_msg = "invalid version for a private key: "
+            err_msg += f"{hex_string(fversion)}"
+            raise ValueError(err_msg)
+        if version in _XPUB_VERSIONS_ALL and fversion not in _XPUB_VERSIONS_ALL:
+            err_msg = "invalid version for a public key: "
+            err_msg += f"{hex_string(fversion)}"
+            raise ValueError(err_msg)
+
+    is_prv = xkey_dict["key"][0] == 0
+    # no idea why mypy does complain about the following cleaner line
+    # d = {**xkey_dict, "q": 0, "Q": INF}
+    # so, while waiting for the even better python 3.9
+    # d = xkey_dict | {"q": 0, "Q": INF}
+    # let's make mypy happy with boring code like the following
+    d: _ExtendedBIP32KeyDict = {
+        "version": xkey_dict["version"],
+        "depth": xkey_dict["depth"],
+        "parent_fingerprint": xkey_dict["parent_fingerprint"],
+        "index": xkey_dict["index"],
+        "chain_code": xkey_dict["chain_code"],
+        "key": xkey_dict["key"],
+        # extensions used for caching of intermediate results
+        "q": (int.from_bytes(xkey_dict["key"][1:], byteorder="big") if is_prv else 0),
+        "Q": (INF if is_prv else point_from_octets(xkey_dict["key"], ec)),
+    }
+    for index in indexes:
+        __ckd(d, index)
+    if forced_version is not None:
+        d["version"] = fversion
+
+    return d
+
+
 def derive(
     xkey: BIP32Key, path: Path, forced_version: Optional[Octets] = None
 ) -> bytes:
@@ -323,52 +388,41 @@ def derive(
     Path is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
+    d = deserialize(xkey)
+    d = _derive(d, path, forced_version)
+    return serialize(d)
 
-    xkey = deserialize(xkey)
-    prv = xkey["key"][0] == 0
-    # no idea why mypy does complain about the following cleaner line
-    # d = {**xkey, "q": 0, "Q": INF}
-    # so, while waiting for the even better python 3.9
-    # d = xkey | {"q": 0, "Q": INF}
-    # let's make mypy happy with boring code like the following
-    d: _ExtendedBIP32KeyDict = {
-        "version": xkey["version"],
-        "depth": xkey["depth"],
-        "parent_fingerprint": xkey["parent_fingerprint"],
-        "index": xkey["index"],
-        "chain_code": xkey["chain_code"],
-        "key": xkey["key"],
-        # extensions used for caching of intermediate results
-        "q": (int.from_bytes(xkey["key"][1:], byteorder="big") if prv else 0),
-        "Q": (INF if prv else point_from_octets(xkey["key"], ec)),
-    }
 
-    if isinstance(path, str):
-        path = path.strip()
-        indexes, absolute = _indexes_from_path(path)
-        if absolute and xkey["depth"] != 0:
-            msg = "absolute derivation path for non-root master key"
-            raise ValueError(msg)
-    elif isinstance(path, int):
-        indexes = [path.to_bytes(4, byteorder="big")]
-    elif isinstance(path, bytes):
-        if len(path) != 4:
-            raise ValueError(f"index must be 4-bytes, not {len(path)}")
-        indexes = [path]
-    else:
-        indexes = [i.to_bytes(4, byteorder="big") for i in path]
+def _derive_from_account(
+    d: BIP32KeyDict,
+    branch: int,
+    address_index: int,
+    more_than_two_branches: bool = False,
+) -> BIP32KeyDict:
 
-    final_depth = xkey["depth"] + len(indexes)
-    if final_depth > 255:
-        msg = f"derivation path final depth greater than 255: {final_depth}"
-        raise ValueError(msg)
+    if more_than_two_branches and 0x80000000 <= branch:
+        raise ValueError("invalid private derivation at branch level")
+    elif branch not in (0, 1):
+        raise ValueError(f"invalid branch: {branch} not in (0, 1)")
 
-    for index in indexes:
-        _ckd(d, index)
+    if 0x80000000 <= address_index:
+        raise ValueError("invalid private derivation at address index level")
 
-    if forced_version is not None:
-        forced_version = bytes_from_octets(forced_version, 4)
-        d["version"] = forced_version
+    if d["index"][0] < 0x80:
+        raise UserWarning("public derivation at account level")
+
+    return _derive(d, f"./{branch}/{address_index}")
+
+
+def derive_from_account(
+    account_xkey: BIP32Key,
+    branch: int,
+    address_index: int,
+    more_than_two_branches: bool = False,
+) -> bytes:
+
+    d = deserialize(account_xkey)
+    d = _derive_from_account(d, branch, address_index, more_than_two_branches)
     return serialize(d)
 
 
