@@ -57,18 +57,14 @@ from .utils import bytes_from_octets, hash160, hex_string
 def _check_version_key(version: bytes, key: bytes) -> None:
 
     if version in _XPRV_VERSIONS_ALL:
-        if key[0] in (2, 3):
-            raise ValueError("prv_version/pubkey mismatch")
         if key[0] != 0:
-            raise ValueError(f"invalid private key prefix 0x{key[0:1].hex()}")
+            raise ValueError(f"invalid private key prefix: 0x{key[0:1].hex()}")
         q = int.from_bytes(key[1:], byteorder="big")
         if not 0 < q < ec.n:
             raise ValueError(f"private key not in 1..n-1: {hex(q)}")
     elif version in _XPUB_VERSIONS_ALL:
-        if key[0] == 0:
-            raise ValueError("pub_version/prvkey mismatch")
         if key[0] not in (2, 3):
-            raise ValueError(f"invalid public key prefix 0x{key[0:1].hex()}")
+            raise ValueError(f"invalid public key prefix: 0x{key[0:1].hex()}")
         try:
             ec.y(int.from_bytes(key[1:], byteorder="big"))
         except Exception:
@@ -247,7 +243,7 @@ def _indexes_from_path(path: str) -> Tuple[List[bytes], bool]:
     elif steps[0] == ".":
         absolute = False
     elif steps[0] == "":
-        raise ValueError("empty derivation path")
+        raise ValueError("empty derivation path root: must be m or .")
     else:
         raise ValueError(f"invalid derivation path root: {steps[0]}")
 
@@ -298,7 +294,7 @@ def __ckd(d: _ExtendedBIP32KeyDict, index: bytes) -> None:
     # d is a pubkey
     else:
         if index[0] >= 0x80:
-            raise ValueError("hardened derivation from pubkey is impossible")
+            raise ValueError("no hardened derivation from public key")
         d["depth"] += 1
         d["parent_fingerprint"] = hash160(d["key"])[:4]
         d["index"] = index

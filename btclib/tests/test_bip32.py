@@ -11,247 +11,37 @@
 "Tests for `btclib.bip32` module."
 
 import json
-import unittest
 from os import path
 
 import pytest
 
-from btclib import bip32, bip39
+from btclib import bip32
 from btclib.base58 import b58decode, b58encode
-from btclib.base58address import p2pkh, p2wpkh_p2sh
-from btclib.bech32address import p2wpkh
-from btclib.network import NETWORKS
+from btclib.base58address import p2pkh  # FIXME why it is needed here
 
 
-class TestBIP32(unittest.TestCase):
-    def test_mainnet(self):
-        # bitcoin core derivation style
-        rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+def test_indexes_from_path():
 
-        # m / 0h / 0h / 463h
-        addr1 = b"1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5"
-        indexes = [0x80000000, 0x80000000, 0x800001CF]
-        addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
-        assert addr == addr1
-        path = "m / 0h / 0h / 463h"
-        addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
-        assert addr == addr1
+    test_vectors = [
+        # bitcoin core, account 0, external branch, address_index 463
+        ("m / 0 h / 0 / 463", True, [0x80000000, 0, 463]),
+        (". / 0 h / 0 / 463", False, [0x80000000, 0, 463]),
+        ("m / 0 H / 0 / 463", True, [0x80000000, 0, 463]),
+        (". / 0 H / 0 / 463", False, [0x80000000, 0, 463]),
+        ("m /  0' / 0 / 463", True, [0x80000000, 0, 463]),
+        (". /  0' / 0 / 463", False, [0x80000000, 0, 463]),
+        # bitcoin core, account 0, internal branch, address_index 267
+        ("m / 0 h / 1 / 267", True, [0x80000000, 1, 267]),
+        (". / 0 h / 1 / 267", False, [0x80000000, 1, 267]),
+        ("m / 0 H / 1 / 267", True, [0x80000000, 1, 267]),
+        (". / 0 H / 1 / 267", False, [0x80000000, 1, 267]),
+        ("m /  0' / 1 / 267", True, [0x80000000, 1, 267]),
+        (". /  0' / 1 / 267", False, [0x80000000, 1, 267]),
+    ]
 
-        # m / 0h / 0h / 267h
-        addr2 = b"11x2mn59Qy43DjisZWQGRResjyQmgthki"
-        indexes = [0x80000000, 0x80000000, 0x8000010B]
-        addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
-        assert addr == addr2
-        path = "M / 0H / 0h // 267' / "
-        addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
-        assert addr == addr2
-
-        # version/key mismatch in extended parent key
-        temp = b58decode(rootxprv)
-        bad_xprv = b58encode(temp[0:45] + b"\x01" + temp[46:], 78)
-        self.assertRaises(ValueError, bip32.derive, bad_xprv, 1)
-        # bip32.derive(bad_xprv, 1)
-
-        # version/key mismatch in extended parent key
-        xpub = bip32.xpub_from_xprv(rootxprv)
-        temp = b58decode(xpub)
-        bad_xpub = b58encode(temp[0:45] + b"\x00" + temp[46:], 78)
-        self.assertRaises(ValueError, bip32.derive, bad_xpub, 1)
-        # bip32.derive(bad_xpub, 1)
-
-        # no private/hardened derivation from pubkey
-        self.assertRaises(ValueError, bip32.derive, xpub, 0x80000000)
-        # bip32.derive(xpub, 0x80000000)
-
-    def test_testnet(self):
-        # bitcoin core derivation style
-        rootxprv = "tprv8ZgxMBicQKsPe3g3HwF9xxTLiyc5tNyEtjhBBAk29YA3MTQUqULrmg7aj9qTKNfieuu2HryQ6tGVHse9x7ANFGs3f4HgypMc5nSSoxwf7TK"
-
-        # m / 0h / 0h / 51h
-        addr1 = b"mfXYCCsvWPgeCv8ZYGqcubpNLYy5nYHbbj"
-        indexes = [0x80000000, 0x80000000, 0x80000000 + 51]
-        addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
-        assert addr == addr1
-        path = "m/0h/0h/51h"
-        addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
-        assert addr == addr1
-
-        # m / 0h / 1h / 150h
-        addr2 = b"mfaUnRFxVvf55uD1P3zWXpprN1EJcKcGrb"
-        indexes = [0x80000000, 0x80000000 + 1, 0x80000000 + 150]
-        addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, indexes)))
-        assert addr == addr2
-        path = "m/0h/1h/150h"
-        addr = p2pkh(bip32.xpub_from_xprv(bip32.derive(rootxprv, path)))
-        assert addr == addr2
-
-    def test_testnet_versions(self):
-
-        # data cross-checked with Electrum and
-        # https://jlopp.github.io/xpub-converter/
-
-        # 128 bits
-        raw_entr = bytes.fromhex("6" * 32)
-        # 12 words
-        mnemonic = bip39.mnemonic_from_entropy(raw_entr, "en")
-        rootprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "", "testnet")
-
-        # p2pkh BIP44
-        # m / 44h / coin_type h / account h / change / address_index
-        path = "m/44h/1h/0h"
-        version = NETWORKS["testnet"]["bip32_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "tpubDChqWo2Xi2wNsxyJBE8ipcTJHLKWcqeeNUKBVTpUCNPZkHzHTm3qKAeHqgCou1t8PAY5ZnJ9QDa6zXSZxmjDnhiBpgZ7f6Yv88wEm5HXVbm"
-        assert xpub.decode() == exp
-        # first addresses
-        xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = p2pkh(xpub_ext)
-        exp_address = b"moutHSzeFWViMNEcvBxKzNCMj2kca8MvE1"
-        assert address == exp_address
-        xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = p2pkh(xpub_int)
-        exp_address = b"myWcXdNais9ExumnGKnNoJwoihQKfNPG9i"
-        assert address == exp_address
-
-        # legacy segwit (p2wsh-p2sh)
-        # m / 49 h / coin_type h / account h / change / address_index
-        path = "m / 49 h/1h/0h"
-        version = NETWORKS["testnet"]["slip32_p2wsh_p2sh_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "upub5Dj8j7YrwodV68mt58QmNpSzjqjso2WMXEpLGLSvskKccGuXhCh3dTedkzVLAePA617UyXAg2vdswJXTYjU4qjMJaHU79GJVVJCAiy9ezZ2"
-        assert xpub.decode() == exp
-        # first addresses
-        xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = p2wpkh_p2sh(xpub_ext)
-        exp_address = b"2Mw8tQ6uT6mHhybarVhjgomUhHQJTeV9A2c"
-        assert address == exp_address
-        xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = p2wpkh_p2sh(xpub_int)
-        exp_address = b"2N872CRJ3E1CzWjfixXr3aeC3hkF5Cz4kWb"
-        assert address == exp_address
-
-        # legacy segwit (p2wsh-p2sh)
-        # m / 49 h / coin_type h / account h / change / address_index
-        path = "m / 49 h/1h/0h"
-        version = NETWORKS["testnet"]["slip32_p2wpkh_p2sh_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "Upub5QdDrMHJWmBrWhwG1nskCtnoTdn91PBwqWU1BbiUFXA2ETUSTc5KiaWZZhSoj5c4KUBTr7Anv92P4U9Dqxd1zDTyQkaWYfmVP2U3Js1W5cG"
-        assert xpub.decode() == exp
-
-        # native segwit (p2wpkh)
-        # m / 84 h / coin_type h / account h / change / address_index
-        path = "m / 84 h/1h/0h"
-        version = NETWORKS["testnet"]["slip32_p2wpkh_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "vpub5ZhJmduYY7M5J2qCJgSW7hunX6zJrr5WuNg2kKt321HseZEYxqJc6Zso47aNXQw3Wf3sA8kppbfsxnLheUNXcL3xhzeBHLNp8fTVBN6DnJF"
-        assert xpub.decode() == exp
-        # first addresses
-        xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        # explicit network is required to discriminate from testnet
-        address = p2wpkh(xpub_ext, "regtest")
-        exp_address = b"bcrt1qv8lcnmj09rpdqwgl025h2deygur64z4hqf7me5"
-        assert address == exp_address
-        xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        # explicit network is required to discriminate from testnet
-        address = p2wpkh(xpub_int, "regtest")
-        exp_address = b"bcrt1qqhxvky4y6qkwpvdzqjkdafmj20vs5trmt6y8w5"
-        assert address == exp_address
-
-        # native segwit (p2wsh)
-        # m / 84 h / coin_type h / account h / change / address_index
-        path = "m / 84 h/1h/0h"
-        version = NETWORKS["testnet"]["slip32_p2wsh_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "Vpub5kbPtsdz74uSibzaFLuUwnFbEu2a5Cm7DeKhfb9aPn8HGjoTjEgtBgjirpXr5r9wk87r2ikwhp4P5wxTwhXUkpAdYTkagjqp2PjMmGPBESU"
-        assert xpub.decode() == exp
-
-    def test_mainnet_versions(self):
-
-        # data cross-checked with Electrum and
-        # https://jlopp.github.io/xpub-converter/
-
-        # 128 bits
-        raw_entr = bytes.fromhex("6" * 32)
-        # 12 words
-        mnemonic = bip39.mnemonic_from_entropy(raw_entr, "en")
-        rootprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "", "testnet")
-
-        # p2pkh BIP44
-        # m / 44 h / coin_type h / account h / change / address_index
-        path = "m / 44 h / 0 h / 0 h"
-        version = NETWORKS["mainnet"]["bip32_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "xpub6C3uWu5Go5q62JzJpbjyCLYRGLYvexFeiepZTsYZ6SRexARkNfjG7GKtQVuGR3KHsyKsAwv7Hz3iNucPp6pfHiLvBczyK1j5CtBtpHB3NKx"
-        assert xpub.decode() == exp
-        # first addresses
-        xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = p2pkh(xpub_ext)
-        exp_address = b"1DDKKVHoFWGfctyEEJvrusqq6ipEaieGCq"
-        assert address == exp_address
-        xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = p2pkh(xpub_int)
-        exp_address = b"1FhKoffreKHzhtBMVW9NSsg3ZF148JPGoR"
-        assert address == exp_address
-
-        # legacy segwit (p2wsh-p2sh)
-        # m / 49 h / coin_type h / account h / change / address_index
-        path = "m / 49 h / 0 h / 0 h"
-        version = NETWORKS["mainnet"]["slip32_p2wsh_p2sh_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "ypub6YBGdYufCVeoPVmNXfdrWhaBCXsQoLKNetNmD9bPTrKmnKVmiyU8f1uJqwGdmBb8kbAZpHoYfXQTLbWpkXc4skQDAreeCUXdbX9k8vtiHsN"
-        assert xpub.decode() == exp
-        # first addresses
-        xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = p2wpkh_p2sh(xpub_ext)
-        exp_address = b"3FmNAiTCWe5kPMgc4dtSgEdY8VuaCiJEH8"
-        assert address == exp_address
-        xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = p2wpkh_p2sh(xpub_int)
-        exp_address = b"34FLgkoRYX5Q5fqiZCZDwsK5GpXxmFuLJN"
-        assert address == exp_address
-
-        # legacy segwit (p2wpkh-p2sh)
-        # m / 49 h / coin_type h / account h / change / address_index
-        path = "m / 49 h / 0 h / 0 h"
-        version = NETWORKS["mainnet"]["slip32_p2wpkh_p2sh_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "Ypub6j5Mkne6mTDAp4vkUL6qLmuyvKug1gzxyA2S8QrvqdABQW4gVNrQk8mEeeE7Kcp2z4EYgsofYjnxTm8b3km22EWt1Km3bszdVFRcipc6rXu"
-        assert xpub.decode() == exp
-
-        # native segwit (p2wpkh)
-        # m / 84 h / coin_type h / account h / change / address_index
-        path = "m / 84 h / 0 h / 0 h"
-        version = NETWORKS["mainnet"]["slip32_p2wpkh_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "zpub6qg3Uc1BAQkQvcBUYMmZHSzbsshSon3FvJ8yvH3ZZMjFNvJkwSji8UUwghiF3wvpvSvcNWVP8kfUhc2V2RwGp6pTC3ouj6njj956f26TniN"
-        assert xpub.decode() == exp
-        # first addresses
-        xpub_ext = bip32.derive(xpub, "./0/0")  # external
-        address = p2wpkh(xpub_ext)
-        exp_address = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
-        assert address == exp_address
-        xpub_int = bip32.derive(xpub, "./1/0")  # internal
-        address = p2wpkh(xpub_int)
-        exp_address = b"bc1qy4x03jyl88h2zeg7l287xhv2xrwk4c3ztfpjd2"
-        assert address == exp_address
-
-        # native segwit (p2wsh)
-        # m / 84 h / coin_type h / account h / change / address_index
-        path = "m / 84 h / 0 h / 0 h"
-        version = NETWORKS["mainnet"]["slip32_p2wsh_prv"]
-        xprv = bip32.derive(rootprv, path, version)
-        xpub = bip32.xpub_from_xprv(xprv)
-        exp = "Zpub72a8bqjcjNJnMBLrV2EY7XLQbfji28irEZneqYK6w8Zf16sfhr7zDbLsVQficP9j9uzbF6VW1y3ypmeFKf6Dxaw82WvK8WFjcsLyEvMNZjF"
-        assert xpub.decode() == exp
+    for der_path, absolute, indx in test_vectors:
+        indexes = [i.to_bytes(4, "big") for i in indx]
+        assert (indexes, absolute) == bip32._indexes_from_path(der_path)
 
 
 def test_exceptions():
@@ -396,7 +186,7 @@ def test_bip32_vectors():
 
 def test_invalid_bip32_xkeys():
 
-    filename = path.join(data_folder, "invalid_bip32_xkeys.json")
+    filename = path.join(data_folder, "bip32_invalid_keys.json")
     with open(filename, "r") as f:
         test_vectors = json.load(f)
 
@@ -413,13 +203,33 @@ def test_rootxprv_from_mnemonic():
 
 
 def test_derive():
+
+    test_vectors = {
+        "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS": [
+            ["m / 0 h / 0 h / 463 h", "1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5"],
+            ["M / 0H / 0h // 267' / ", "11x2mn59Qy43DjisZWQGRResjyQmgthki"],
+        ],
+        "tprv8ZgxMBicQKsPe3g3HwF9xxTLiyc5tNyEtjhBBAk29YA3MTQUqULrmg7aj9qTKNfieuu2HryQ6tGVHse9x7ANFGs3f4HgypMc5nSSoxwf7TK": [
+            ["m / 0 h / 0 h / 51 h", "mfXYCCsvWPgeCv8ZYGqcubpNLYy5nYHbbj"],
+            ["m / 0 h / 1 h / 150 h", "mfaUnRFxVvf55uD1P3zWXpprN1EJcKcGrb"],
+        ],
+    }
+
+    for rootxprv in test_vectors:
+        for der_path, address in test_vectors[rootxprv]:
+            assert address == p2pkh(bip32.derive(rootxprv, der_path)).decode()
+
+
+def test_derive2():
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = bip32.derive(rootmxprv, b"\x80\x00\x00\x00")
     xprv = bip32.derive(xprv, ".")
 
     for der_path in ("", "/1"):
-        with pytest.raises(ValueError, match="empty derivation path"):
+        with pytest.raises(
+            ValueError, match="empty derivation path root: must be m or ."
+        ):
             bip32.derive(xprv, der_path)
 
     for der_path in (";/0", "invalid index", "800000"):
@@ -431,7 +241,7 @@ def test_derive():
 
     errmsg = "absolute derivation path for non-root master key"
     with pytest.raises(ValueError, match=errmsg):
-        bip32.derive(xprv, "m/44h/0h/1h/0/10")
+        bip32.derive(xprv, "m / 44 h/0h/1h/0/10")
 
     with pytest.raises(ValueError, match="index must be 4-bytes, not "):
         bip32.derive(xprv, b"\x00" * 5)
@@ -444,6 +254,25 @@ def test_derive():
     errmsg = "derivation path final depth greater than 255: "
     with pytest.raises(ValueError, match=errmsg):
         bip32.derive(xprv, "." + 255 * "/0")
+
+    rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+
+    temp = b58decode(rootxprv)
+    bad_xprv = b58encode(temp[0:45] + b"\x02" + temp[46:], 78)
+    errmsg = "invalid private key prefix: "
+    with pytest.raises(ValueError, match=errmsg):
+        bip32.derive(bad_xprv, 1)
+
+    xpub = bip32.xpub_from_xprv(rootxprv)
+    temp = b58decode(xpub)
+    bad_xpub = b58encode(temp[0:45] + b"\x00" + temp[46:], 78)
+    errmsg = "invalid public key prefix: "
+    with pytest.raises(ValueError, match=errmsg):
+        bip32.derive(bad_xpub, 1)
+
+    errmsg = "no hardened derivation from public key"
+    with pytest.raises(ValueError, match=errmsg):
+        bip32.derive(xpub, 0x80000000)
 
 
 def test_derive_from_account():
@@ -519,8 +348,3 @@ def test_crack():
     hardened_child_xprv = bip32.derive(parent_xprv, 0x80000000)
     with pytest.raises(ValueError, match="hardened child derivation"):
         bip32.crack_prvkey(parent_xpub, hardened_child_xprv)
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
