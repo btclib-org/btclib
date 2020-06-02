@@ -195,17 +195,6 @@ def sign(
     return _sign(m, prvkey, k, low_s, ec, hf)
 
 
-def _to_sig(sig: DSASig, ec: Curve) -> DSASigTuple:
-    if isinstance(sig, tuple):
-        r, s = sig
-        _validate_sig(r, s, ec)
-    else:
-        # it is a DER serialized signature
-        # sighash is not needed
-        r, s = deserialize(sig, ec)
-    return r, s
-
-
 def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
 
@@ -231,7 +220,7 @@ def _assert_as_valid(
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    r, s = _to_sig(sig, ec)  # 1
+    r, s = deserialize(sig, ec)  # 1
 
     # The message m: a hlen array
     m = bytes_from_octets(m, hf().digest_size)
@@ -305,7 +294,7 @@ def _recover_pubkeys(
 
     c = _challenge(m, ec, hf)  # 1.5
 
-    r, s = _to_sig(sig, ec)
+    r, s = deserialize(sig, ec)
 
     QJs = __recover_pubkeys(c, r, s, ec)
     return [ec._aff_from_jac(QJ) for QJ in QJs]
@@ -384,8 +373,8 @@ def _crack_prvkey(
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    r1, s1 = _to_sig(sig1, ec)
-    r2, s2 = _to_sig(sig2, ec)
+    r1, s1 = deserialize(sig1, ec)
+    r2, s2 = deserialize(sig2, ec)
     if r1 != r2:
         raise ValueError("not the same r in signatures")
     if s1 == s2:

@@ -324,16 +324,6 @@ def sign(
     return _sign(m, prvkey, k, ec, hf)
 
 
-def _to_sig(sig: SSASig, ec: Curve) -> SSASigTuple:
-    if isinstance(sig, tuple):
-        r, s = sig
-        _validate_sig(r, s, ec)
-    else:
-        # it is a serialized signature
-        r, s = deserialize(sig, ec)
-    return r, s
-
-
 def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -360,7 +350,7 @@ def _assert_as_valid(
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    r, s = _to_sig(sig, ec)
+    r, s = deserialize(sig, ec)
 
     x_Q, y_Q = point_from_bip340pubkey(Q, ec)
 
@@ -429,8 +419,8 @@ def _crack_prvkey(
     m1 = bytes_from_octets(m1, hf().digest_size)
     m2 = bytes_from_octets(m2, hf().digest_size)
 
-    r1, s1 = _to_sig(sig1, ec)
-    r2, s2 = _to_sig(sig2, ec)
+    r1, s1 = deserialize(sig1, ec)
+    r2, s2 = deserialize(sig2, ec)
     if r1 != r2:
         raise ValueError("not the same r in signatures")
     if s1 == s2:
@@ -475,7 +465,7 @@ def _batch_verify(
     for i, (m, Q, sig) in enumerate(zip(ms, Qs, sigs)):
         m = bytes_from_octets(m, hf().digest_size)
 
-        r, s = _to_sig(sig, ec)
+        r, s = deserialize(sig, ec)
         KJ = r, ec.y_quadratic_residue(r, True), 1
 
         x_Q, y_Q = point_from_bip340pubkey(Q, ec)
