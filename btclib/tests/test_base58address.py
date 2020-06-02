@@ -194,8 +194,7 @@ def test_address_from_wif():
             assert is_script
             assert (hash160(b"\x00\x14" + payload), network) == (payload2, net)
         else:
-            # FIXME: err msg should be "not a compressed public or private key: "
-            err_msg = "not a public or private key: "
+            err_msg = "not a private or compressed public key: "
             with pytest.raises(ValueError, match=err_msg):
                 p2wpkh(wif)
             with pytest.raises(ValueError, match=err_msg):
@@ -219,5 +218,5 @@ def test_exceptions():
     with pytest.raises(ValueError, match="invalid base58 address prefix: "):
         h160_from_b58address(invalid_address)
 
-    with pytest.raises(ValueError, match="not a public or private key: "):
+    with pytest.raises(ValueError, match="not a private or public key: "):
         p2pkh(pubkey + "00")

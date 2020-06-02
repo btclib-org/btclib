@@ -48,7 +48,7 @@ def test_exceptions():
 
     # invalid checksum
     xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
-    with pytest.raises(ValueError, match="not a public or private key: "):
+    with pytest.raises(ValueError, match="not a private or public key: "):
         p2pkh(xprv)
 
     xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"

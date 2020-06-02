@@ -218,11 +218,9 @@ def test_p2wpkh():
     assert bytes(wp) == hash160(pub)
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
-    err_msg = "not a public or private key: "
+    err_msg = "not a private or compressed public key: "
     with pytest.raises(ValueError, match=err_msg):
         p2wpkh(uncompr_pub)
-
-    err_msg = "not a public or private key: "
     with pytest.raises(ValueError, match=err_msg):
         p2wpkh(pub + "00")
 
