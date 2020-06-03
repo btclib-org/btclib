@@ -299,10 +299,8 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
         _, h160, _, is_script_hash = witness_from_b32address(addr)
         is_b58 = False
 
+    compressed = False if rf < 31 else True
     # signature is valid only if the provided address is matched
-    compressed = True
-    if rf < 31:
-        compressed = False
     pubkey = bytes_from_point(Q, compressed=compressed)
     if is_b58:
         if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
