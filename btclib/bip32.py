@@ -263,6 +263,23 @@ def _indexes_from_path(der_path: str) -> Tuple[List[bytes], bool]:
     return indexes, absolute
 
 
+def indexes_from_path(der_path: Path) -> Tuple[List[bytes], bool]:
+    absolute = False
+    if isinstance(der_path, str):
+        der_path = der_path.strip()
+        indexes, absolute = _indexes_from_path(der_path)
+    elif isinstance(der_path, int):
+        indexes = [der_path.to_bytes(4, byteorder="big")]
+    elif isinstance(der_path, bytes):
+        if len(der_path) != 4:
+            raise ValueError(f"index must be 4-bytes, not {len(der_path)}")
+        indexes = [der_path]
+    else:  # Iterable[int]
+        indexes = [i.to_bytes(4, byteorder="big") for i in der_path]
+
+    return indexes, absolute
+
+
 class _ExtendedBIP32KeyDict(BIP32KeyDict):
     # extensions used to cache intemediate results
     # in multi-level derivation: do not rely on them elsewhere
@@ -311,20 +328,11 @@ def _derive(
     xkey_dict: BIP32KeyDict, der_path: Path, forced_version: Optional[Octets] = None
 ) -> BIP32KeyDict:
 
-    if isinstance(der_path, str):
-        der_path = der_path.strip()
-        indexes, absolute = _indexes_from_path(der_path)
-        if absolute and xkey_dict["depth"] != 0:
-            err_msg = "absolute derivation path for non-root master key"
-            raise ValueError(err_msg)
-    elif isinstance(der_path, int):
-        indexes = [der_path.to_bytes(4, byteorder="big")]
-    elif isinstance(der_path, bytes):
-        if len(der_path) != 4:
-            raise ValueError(f"index must be 4-bytes, not {len(der_path)}")
-        indexes = [der_path]
-    else:  # Iterable[int]
-        indexes = [i.to_bytes(4, byteorder="big") for i in der_path]
+    indexes, absolute = indexes_from_path(der_path)
+
+    if absolute and xkey_dict["depth"] != 0:
+        err_msg = "absolute derivation path for non-root master key"
+        raise ValueError(err_msg)
 
     final_depth = xkey_dict["depth"] + len(indexes)
     if final_depth > 255:
