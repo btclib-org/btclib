@@ -280,8 +280,16 @@ def _op_int(token: int) -> bytes:
     # explicit push operation of its bytes encoding
     # FIXME: negative numbers?
     else:
-        nbytes = (token.bit_length() + 7) // 8
-        data = token.to_bytes(nbytes, byteorder="little")
+        v = token
+        # Convert number to bitcoin-specific little endian format
+        # We need v.bit_length() bits, plus a sign bit for every nonzero number.
+        n_bits = v.bit_length() + (v != 0)
+        # The number of bytes for that is:
+        n_bytes = (n_bits + 7) // 8
+        # Convert number to absolute value + sign in top bit.
+        encoded_v = 0 if v == 0 else abs(v) | ((v < 0) << (n_bytes * 8 - 1))
+        # Serialize to bytes
+        data = encoded_v.to_bytes(n_bytes, "little")
         return _op_pushdata(data)
 
 
