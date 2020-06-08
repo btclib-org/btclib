@@ -15,6 +15,7 @@ import pytest
 from btclib.script import (
     OP_CODE_NAMES,
     OP_CODES,
+    _op_int,
     decode,
     deserialize,
     encode,
@@ -111,3 +112,10 @@ def test_nulldata():
     for script in scripts:
         bscript = encode(script)
         assert script == decode(bscript)
+
+
+def test_op_int():
+    i = 127
+    assert len(_op_int(i)) == 2
+    i = 128
+    assert len(_op_int(i)) == 3
