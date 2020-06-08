@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from . import varint
+from typing import TypedDict
 
 
 class Transaction:
@@ -44,9 +45,9 @@ class Transaction:
         trans.output_count = varint.decode(data)
         data = data[len(varint.encode(trans.output_count)) :]
         for x in range(trans.output_count):
-            tx_output = TxOut.from_bytes(data)
+            tx_output = tx_out_deserialize(data)
             trans.tx_outputs.append(tx_output)
-            data = data[len(tx_output.to_bytes()) :]
+            data = data[len(tx_out_serialize(tx_output)) :]
 
         # if trans.witness_flag:
         #     trans.witnesses = TxWitness.from_bytes(data)
@@ -65,7 +66,7 @@ class Transaction:
 
         out += varint.encode(self.output_count)
         for tx_out in self.tx_outputs:
-            out += tx_out.to_bytes()
+            out += tx_out_serialize(tx_out)
         # if self.witness_flag:
         #     out += self.witnesses.to_bytes()
         out += self.lock_time.to_bytes(4, "little")
@@ -104,28 +105,26 @@ class TxIn:
         return out
 
 
-class TxOut:
-    def __init__(self):
-        self.value = 0
-        self.pk_script_length = 0
-        self.pk_script = b""
+class TxOut(TypedDict):
+    value: int = 0
+    pk_script_length: int = 0
+    pk_script: bytes = b""
 
-    @classmethod
-    def from_bytes(cls, data):
-        # if len(data) < 9:
-        #     raise Exception
-        tx_out = cls()
-        tx_out.value = int.from_bytes(data[:8], "little")
-        tx_out.pk_script_length = varint.decode(data[8:])
-        data = data[8 + len(varint.encode(tx_out.pk_script_length)) :]
-        tx_out.pk_script = data[: tx_out.pk_script_length]
-        return tx_out
 
-    def to_bytes(self):
-        out = self.value.to_bytes(8, "little")
-        out += varint.encode(self.pk_script_length)
-        out += self.pk_script
-        return out
+def tx_out_deserialize(data: bytes):
+    tx_out = TxOut()
+    tx_out["value"] = int.from_bytes(data[:8], "little")
+    tx_out["pk_script_length"] = varint.decode(data[8:])
+    data = data[8 + len(varint.encode(tx_out["pk_script_length"])) :]
+    tx_out["pk_script"] = data[: tx_out["pk_script_length"]]
+    return tx_out
+
+
+def tx_out_serialize(tx_out: TxOut):
+    out = tx_out["value"].to_bytes(8, "little")
+    out += varint.encode(tx_out["pk_script_length"])
+    out += tx_out["pk_script"]
+    return out
 
 
 # class TxWitness:
