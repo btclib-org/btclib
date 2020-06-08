@@ -9,68 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from . import varint
-from typing import TypedDict
-
-
-class Transaction:
-    def __init__(self):
-        self.version = 0
-        self.witness_flag = False
-        self.input_count = 0
-        self.tx_inputs = []
-        self.output_count = 0
-        self.tx_outputs = []
-        self.witnesses = []
-        self.lock_time = 0
-
-    @classmethod
-    def from_bytes(cls, data):
-        # if len(data) < 60:
-        #     raise Exception
-        trans = cls()
-        trans.version = int.from_bytes(data[0:4], "little")
-        if False:  # data[4:6] == b"\x01\x00":
-            trans.witness_flag = True
-            data = data[6:]
-        else:
-            data = data[4:]
-
-        trans.input_count = varint.decode(data)
-        data = data[len(varint.encode(trans.input_count)) :]
-        for x in range(trans.input_count):
-            tx_input = tx_in_deserialize(data)
-            trans.tx_inputs.append(tx_input)
-            data = data[len(tx_in_serialize(tx_input)) :]
-
-        trans.output_count = varint.decode(data)
-        data = data[len(varint.encode(trans.output_count)) :]
-        for x in range(trans.output_count):
-            tx_output = tx_out_deserialize(data)
-            trans.tx_outputs.append(tx_output)
-            data = data[len(tx_out_serialize(tx_output)) :]
-
-        # if trans.witness_flag:
-        #     trans.witnesses = TxWitness.from_bytes(data)
-        #     data = data[len(trans.witnesses.to_bytes()) :]
-
-        trans.lock_time = int.from_bytes(data[:4], "little")
-        return trans
-
-    def to_bytes(self):
-        out = self.version.to_bytes(4, "little")
-        # if self.witness_flag:
-        #     out += b"\x00\x01"
-        out += varint.encode(self.input_count)
-        for tx_in in self.tx_inputs:
-            out += tx_in_serialize(tx_in)
-
-        out += varint.encode(self.output_count)
-        for tx_out in self.tx_outputs:
-            out += tx_out_serialize(tx_out)
-        # if self.witness_flag:
-        #     out += self.witnesses.to_bytes()
-        out += self.lock_time.to_bytes(4, "little")
-        return out
+from typing import TypedDict, List
 
 
 class TxIn(TypedDict):
@@ -122,6 +61,71 @@ def tx_out_serialize(tx_out: TxOut):
     out = tx_out["value"].to_bytes(8, "little")
     out += varint.encode(tx_out["pk_script_length"])
     out += tx_out["pk_script"]
+    return out
+
+
+class Transaction(TypedDict):
+    version: int = 0
+    witness_flag: bool = False
+    input_count: int = 0
+    tx_inputs: List[TxIn] = []
+    output_count: int = 0
+    tx_outputs: List[TxOut] = []
+    witnesses = []  # TODO
+    lock_time: int = 0
+
+
+def transaction_deserialize(data: bytes):
+    # if len(data) < 60:
+    #     raise Exception
+    tx = Transaction()
+    tx["version"] = int.from_bytes(data[0:4], "little")
+    if False:  # data[4:6] == b"\x01\x00":
+        tx["witness_flag"] = True
+        data = data[6:]
+    else:
+        data = data[4:]
+
+    # not sure why these lines are mandatory
+    tx["tx_inputs"] = []
+    tx["tx_outputs"] = []
+
+    tx["input_count"] = varint.decode(data)
+    data = data[len(varint.encode(tx["input_count"])) :]
+    for x in range(tx["input_count"]):
+        tx_input = tx_in_deserialize(data)
+        tx["tx_inputs"].append(tx_input)
+        data = data[len(tx_in_serialize(tx_input)) :]
+
+    tx["output_count"] = varint.decode(data)
+    data = data[len(varint.encode(tx["output_count"])) :]
+    for x in range(tx["output_count"]):
+        tx_output = tx_out_deserialize(data)
+        tx["tx_outputs"].append(tx_output)
+        data = data[len(tx_out_serialize(tx_output)) :]
+
+    # if trans.witness_flag:
+    #     trans.witnesses = TxWitness.from_bytes(data)
+    #     data = data[len(trans.witnesses.to_bytes()) :]
+
+    tx["lock_time"] = int.from_bytes(data[:4], "little")
+    return tx
+
+
+def transaction_serialize(tx: Transaction):
+    out = tx["version"].to_bytes(4, "little")
+    # if self.witness_flag:
+    #     out += b"\x00\x01"
+    out += varint.encode(tx["input_count"])
+    for tx_in in tx["tx_inputs"]:
+        out += tx_in_serialize(tx_in)
+
+    out += varint.encode(tx["output_count"])
+    for tx_out in tx["tx_outputs"]:
+        out += tx_out_serialize(tx_out)
+    # if self.witness_flag:
+    #     out += self.witnesses.to_bytes()
+    out += tx["lock_time"].to_bytes(4, "little")
     return out
 
 
