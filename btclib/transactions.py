@@ -10,6 +10,7 @@
 
 from . import varint, script
 from typing import TypedDict, List
+from hashlib import sha256
 
 
 class TxIn(TypedDict):
@@ -22,7 +23,7 @@ class TxIn(TypedDict):
 
 def tx_in_deserialize(data: bytes):
     tx_in = TxIn()
-    tx_in["previous_output_hash"] = data[:32]
+    tx_in["txid"] = data[:32][::-1].hex()
     tx_in["vout"] = int.from_bytes(data[32:36], "little")
 
     script_length = varint.decode(data[36:])
@@ -36,7 +37,7 @@ def tx_in_deserialize(data: bytes):
 
 
 def tx_in_serialize(tx_in: TxIn):
-    out = tx_in["previous_output_hash"]
+    out = bytes.fromhex(tx_in["txid"])[::-1]
     out += tx_in["vout"].to_bytes(4, "little")
     script_bytes = script.encode(tx_in["scriptSig"])
     out += varint.encode(len(script_bytes))
@@ -69,6 +70,7 @@ def tx_out_serialize(tx_out: TxOut):
 
 
 class Transaction(TypedDict):
+    txid: str = ""
     version: int = 0
     locktime: int = 0
     vin: List[TxIn] = []
@@ -112,16 +114,22 @@ def transaction_deserialize(data: bytes):
             for i in range(witness_count):
                 witness_len = varint.decode(data)
                 data = data[len(varint.encode(witness_len)) :]
-                tx["vin"][x]["txinwitness"].append(data[:witness_len])
+                tx["vin"][x]["txinwitness"].append(data[:witness_len].hex())
                 data = data[witness_len:]
 
     tx["locktime"] = int.from_bytes(data[:4], "little")
+
+    tx["txid"] = (
+        sha256(sha256(transaction_serialize(tx, False)).digest()).digest()[::-1].hex()
+    )
+    tx["hash"] = sha256(sha256(transaction_serialize(tx)).digest()).digest()[::-1].hex()
+
     return tx
 
 
-def transaction_serialize(tx: Transaction):
+def transaction_serialize(tx: Transaction, include_witness=True):
     out = tx["version"].to_bytes(4, "little")
-    if tx["witness_flag"]:
+    if tx["witness_flag"] and include_witness:
         out += b"\x00\x01"
     out += varint.encode(len(tx["vin"]))
     for tx_in in tx["vin"]:
@@ -130,13 +138,16 @@ def transaction_serialize(tx: Transaction):
     out += varint.encode(len(tx["vout"]))
     for tx_out in tx["vout"]:
         out += tx_out_serialize(tx_out)
-    if tx["witness_flag"]:
+    if tx["witness_flag"] and include_witness:
         for x in range(len(tx["vin"])):
             witness_count = len(tx["vin"][x]["txinwitness"])
             out += varint.encode(witness_count)
             for i in range(witness_count):
-                witness_len = len(tx["vin"][x]["txinwitness"][i])
+
+                # we have to count bytes, not hex
+                witness_len = len(tx["vin"][x]["txinwitness"][i]) // 2
+
                 out += varint.encode(witness_len)
-                out += tx["vin"][x]["txinwitness"][i]
+                out += bytes.fromhex(tx["vin"][x]["txinwitness"][i])
     out += tx["locktime"].to_bytes(4, "little")
     return out
