@@ -10,12 +10,7 @@
 
 "Tests for `btclib.to_pubkey` module."
 
-import pytest
-
 from btclib.transactions import (
-    Transaction,
-    TxIn,
-    TxOut,
     tx_out_serialize,
     tx_out_deserialize,
     tx_in_serialize,
