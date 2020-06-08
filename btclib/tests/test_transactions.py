@@ -31,8 +31,8 @@ def test_coinbase_1():
     tx_out = tx_out_deserialize(block_1_coinbase_output_bytes)
     tx = transaction_deserialize(block_1_coinbase_bytes)
 
-    assert tx["tx_inputs"][0]["signature_script"] == tx_in["signature_script"]
-    assert tx["tx_outputs"][0]["pk_script"] == tx_out["pk_script"]
+    assert tx["vin"][0]["signature_script"] == tx_in["signature_script"]
+    assert tx["vout"][0]["pk_script"] == tx_out["pk_script"]
 
     assert transaction_serialize(tx) == block_1_coinbase_bytes
     assert tx_in_serialize(tx_in) == block_1_coinbase_input_bytes
@@ -45,10 +45,10 @@ def test_wiki_transaction():
 
     tx = transaction_deserialize(tx_bytes)
 
-    assert tx["input_count"] == 1
-    assert tx["output_count"] == 2
-    assert tx["tx_outputs"][0]["value"] == 5000000
-    assert tx["tx_outputs"][1]["value"] == 3354000000
+    assert len(tx["vin"]) == 1
+    assert len(tx["vout"]) == 2
+    assert tx["vout"][0]["value"] == 5000000
+    assert tx["vout"][1]["value"] == 3354000000
 
 
 # 4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c
@@ -60,9 +60,9 @@ def test_single_witness():
 
     assert transaction_serialize(tx) == tx_bytes
 
-    assert tx["input_count"] == 1
-    assert tx["output_count"] == 2
-    assert tx["lock_time"] == 0
+    assert len(tx["vin"]) == 1
+    assert len(tx["vout"]) == 2
+    assert tx["locktime"] == 0
 
 
 # a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c
@@ -74,6 +74,6 @@ def test_double_witness():
 
     assert transaction_serialize(tx) == tx_bytes
 
-    assert tx["input_count"] == 2
-    assert tx["output_count"] == 2
-    assert tx["lock_time"] == 0
+    assert len(tx["vin"]) == 2
+    assert len(tx["vout"]) == 2
+    assert tx["locktime"] == 0
