@@ -31,7 +31,7 @@ def test_coinbase_1():
     tx_out = tx_out_deserialize(block_1_coinbase_output_bytes)
     tx = transaction_deserialize(block_1_coinbase_bytes)
 
-    assert tx["vin"][0]["signature_script"] == tx_in["signature_script"]
+    assert tx["vin"][0]["scriptSig"] == tx_in["scriptSig"]
     assert tx["vout"][0]["pk_script"] == tx_out["pk_script"]
 
     assert transaction_serialize(tx) == block_1_coinbase_bytes
