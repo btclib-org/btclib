@@ -20,6 +20,8 @@ from btclib.transactions import (
     tx_out_deserialize,
     tx_in_serialize,
     tx_in_deserialize,
+    transaction_serialize,
+    transaction_deserialize,
 )
 
 
@@ -32,12 +34,12 @@ def test_coinbase_1():
 
     tx_in = tx_in_deserialize(block_1_coinbase_input_bytes)
     tx_out = tx_out_deserialize(block_1_coinbase_output_bytes)
-    tx = Transaction.from_bytes(block_1_coinbase_bytes)
+    tx = transaction_deserialize(block_1_coinbase_bytes)
 
-    assert tx.tx_inputs[0]["signature_script"] == tx_in["signature_script"]
-    assert tx.tx_outputs[0]["pk_script"] == tx_out["pk_script"]
+    assert tx["tx_inputs"][0]["signature_script"] == tx_in["signature_script"]
+    assert tx["tx_outputs"][0]["pk_script"] == tx_out["pk_script"]
 
-    assert tx.to_bytes() == block_1_coinbase_bytes
+    assert transaction_serialize(tx) == block_1_coinbase_bytes
     assert tx_in_serialize(tx_in) == block_1_coinbase_input_bytes
     assert tx_out_serialize(tx_out) == block_1_coinbase_output_bytes
 
@@ -46,7 +48,7 @@ def test_coinbase_1():
 def test_wiki_transaction():
     tx_bytes = b'\x01\x00\x00\x00\x01m\xbd\xdb\x08[\x1d\x8a\xf7Q\x84\xf0\xbc\x01\xfa\xd5\x8d\x12f\xe9\xb6;P\x88\x19\x90\xe4\xb4\rj\xee6)\x00\x00\x00\x00\x8bH0E\x02!\x00\xf3X\x1e\x19r\xae\x8a\xc7\xc76zz%;\xc1\x13R#\xad\xb9\xa4h\xbb:Y#?E\xbcW\x83\x80\x02 Y\xaf\x01\xca\x17\xd0\x0eA\x83z\x1dX\xe9z\xa3\x1b\xaeXN\xde\xc2\x8d5\xbd\x96\x926\x90\x91;\xae\x9a\x01A\x04\x9c\x02\xbf\xc9~\xf26\xcem\x8f\xe5\xd9@\x13\xc7!\xe9\x15\x98*\xcd+\x12\xb6]\x9b}Y\xe2\n\x84 \x05\xf8\xfcN\x02S.\x87=7\xb9o\t\xd6\xd4Q\x1a\xda\x8f\x14\x04/FaJLp\xc0\xf1K\xef\xf5\xff\xff\xff\xff\x02@KL\x00\x00\x00\x00\x00\x19v\xa9\x14\x1a\xa0\xcd\x1c\xbe\xa6\xe7E\x8az\xba\xd5\x12\xa9\xd9\xea\x1a\xfb"^\x88\xac\x80\xfa\xe9\xc7\x00\x00\x00\x00\x19v\xa9\x14\x0e\xab[\xeaCj\x04\x84\xcf\xab\x12H^\xfd\xa0\xb7\x8bN\xccR\x88\xac\x00\x00\x00\x00'
 
-    tx = Transaction.from_bytes(tx_bytes)
+    tx = transaction_deserialize(tx_bytes)
 
-    assert tx.input_count == 1
-    assert tx.output_count == 2
+    assert tx["input_count"] == 1
+    assert tx["output_count"] == 2
