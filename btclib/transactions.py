@@ -38,9 +38,9 @@ class Transaction:
         trans.input_count = varint.decode(data)
         data = data[len(varint.encode(trans.input_count)) :]
         for x in range(trans.input_count):
-            tx_input = TxIn.from_bytes(data)
+            tx_input = tx_in_deserialize(data)
             trans.tx_inputs.append(tx_input)
-            data = data[len(tx_input.to_bytes()) :]
+            data = data[len(tx_in_serialize(tx_input)) :]
 
         trans.output_count = varint.decode(data)
         data = data[len(varint.encode(trans.output_count)) :]
@@ -62,7 +62,7 @@ class Transaction:
         #     out += b"\x00\x01"
         out += varint.encode(self.input_count)
         for tx_in in self.tx_inputs:
-            out += tx_in.to_bytes()
+            out += tx_in_serialize(tx_in)
 
         out += varint.encode(self.output_count)
         for tx_out in self.tx_outputs:
@@ -73,36 +73,34 @@ class Transaction:
         return out
 
 
-class TxIn:
-    def __init__(self):
-        self.previous_output_hash = b""
-        self.previous_output_index = 4294967295
-        self.script_length = 0
-        self.signature_script = b""
-        self.sequence = 4294967295
+class TxIn(TypedDict):
+    previous_output_hash: bytes = b""
+    previous_output_index: int = 4294967295
+    script_length: int = 0
+    signature_script: bytes = 0
+    sequence: int = 4294967295
 
-    @classmethod
-    def from_bytes(cls, data):
-        # if len(data) < 41:
-        #     raise Exception
-        tx_in = cls()
-        tx_in.previous_output_hash = data[:32]
-        tx_in.previous_output_index = int.from_bytes(data[32:36], "little")
-        tx_in.script_length = varint.decode(data[36:])
-        data = data[36 + len(varint.encode(tx_in.script_length)) :]
-        tx_in.signature_script = data[: tx_in.script_length]
-        tx_in.sequence = int.from_bytes(
-            data[tx_in.script_length : tx_in.script_length + 4], "little"
-        )
-        return tx_in
 
-    def to_bytes(self):
-        out = self.previous_output_hash
-        out += self.previous_output_index.to_bytes(4, "little")
-        out += varint.encode(self.script_length)
-        out += self.signature_script
-        out += self.sequence.to_bytes(4, "little")
-        return out
+def tx_in_deserialize(data: bytes):
+    tx_in = TxIn()
+    tx_in["previous_output_hash"] = data[:32]
+    tx_in["previous_output_index"] = int.from_bytes(data[32:36], "little")
+    tx_in["script_length"] = varint.decode(data[36:])
+    data = data[36 + len(varint.encode(tx_in["script_length"])) :]
+    tx_in["signature_script"] = data[: tx_in["script_length"]]
+    tx_in["sequence"] = int.from_bytes(
+        data[tx_in["script_length"] : tx_in["script_length"] + 4], "little"
+    )
+    return tx_in
+
+
+def tx_in_serialize(tx_in: TxIn):
+    out = tx_in["previous_output_hash"]
+    out += tx_in["previous_output_index"].to_bytes(4, "little")
+    out += varint.encode(tx_in["script_length"])
+    out += tx_in["signature_script"]
+    out += tx_in["sequence"].to_bytes(4, "little")
+    return out
 
 
 class TxOut(TypedDict):

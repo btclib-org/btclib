@@ -18,6 +18,8 @@ from btclib.transactions import (
     TxOut,
     tx_out_serialize,
     tx_out_deserialize,
+    tx_in_serialize,
+    tx_in_deserialize,
 )
 
 
@@ -28,15 +30,15 @@ def test_coinbase_1():
 
     block_1_coinbase_output_bytes = b'\x00\xf2\x05*\x01\x00\x00\x00CA\x04\x96\xb58\xe8SQ\x9crj,\x91\xe6\x1e\xc1\x16\x00\xae\x13\x90\x81:b|f\xfb\x8b\xe7\x94{\xe6<R\xdau\x897\x95\x15\xd4\xe0\xa6\x04\xf8\x14\x17\x81\xe6"\x94r\x11f\xbfb\x1es\xa8,\xbf#B\xc8X\xee\xac'
 
-    tx_in = TxIn.from_bytes(block_1_coinbase_input_bytes)
+    tx_in = tx_in_deserialize(block_1_coinbase_input_bytes)
     tx_out = tx_out_deserialize(block_1_coinbase_output_bytes)
     tx = Transaction.from_bytes(block_1_coinbase_bytes)
 
-    assert tx.tx_inputs[0].signature_script == tx_in.signature_script
+    assert tx.tx_inputs[0]["signature_script"] == tx_in["signature_script"]
     assert tx.tx_outputs[0]["pk_script"] == tx_out["pk_script"]
 
     assert tx.to_bytes() == block_1_coinbase_bytes
-    assert tx_in.to_bytes() == block_1_coinbase_input_bytes
+    assert tx_in_serialize(tx_in) == block_1_coinbase_input_bytes
     assert tx_out_serialize(tx_out) == block_1_coinbase_output_bytes
 
 
