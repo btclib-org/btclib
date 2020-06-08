@@ -13,10 +13,9 @@ from typing import TypedDict, List
 
 
 class TxIn(TypedDict):
-    previous_output_hash: bytes = b""
-    previous_output_index: int = 4294967295
-    script_length: int = 0
-    signature_script: bytes = 0
+    txid: bytes = b""
+    vout: int = 4294967295
+    scriptSig: bytes = 0
     sequence: int = 4294967295
     txinwitness: List[bytes] = []
 
@@ -24,24 +23,24 @@ class TxIn(TypedDict):
 def tx_in_deserialize(data: bytes):
     tx_in = TxIn()
     tx_in["previous_output_hash"] = data[:32]
-    tx_in["previous_output_index"] = int.from_bytes(data[32:36], "little")
+    tx_in["vout"] = int.from_bytes(data[32:36], "little")
 
-    tx_in["script_length"] = varint.decode(data[36:])
-    data = data[36 + len(varint.encode(tx_in["script_length"])) :]
-    tx_in["signature_script"] = script.decode(data[: tx_in["script_length"]])
-
-    tx_in["sequence"] = int.from_bytes(
-        data[tx_in["script_length"] : tx_in["script_length"] + 4], "little"
-    )
+    script_length = varint.decode(data[36:])
+    data = data[36 + len(varint.encode(script_length)) :]
+    tx_in["scriptSig"] = script.decode(data[:script_length])
     tx_in["txinwitness"] = []
+    tx_in["sequence"] = int.from_bytes(
+        data[script_length : script_length + 4], "little"
+    )
     return tx_in
 
 
 def tx_in_serialize(tx_in: TxIn):
     out = tx_in["previous_output_hash"]
-    out += tx_in["previous_output_index"].to_bytes(4, "little")
-    out += varint.encode(tx_in["script_length"])
-    out += script.encode(tx_in["signature_script"])
+    out += tx_in["vout"].to_bytes(4, "little")
+    script_bytes = script.encode(tx_in["scriptSig"])
+    out += varint.encode(len(script_bytes))
+    out += script_bytes
     out += tx_in["sequence"].to_bytes(4, "little")
     return out
 
@@ -49,22 +48,23 @@ def tx_in_serialize(tx_in: TxIn):
 class TxOut(TypedDict):
     value: int = 0
     pk_script_length: int = 0
-    pk_script: bytes = b""
+    scriptPubKey: bytes = b""
 
 
 def tx_out_deserialize(data: bytes):
     tx_out = TxOut()
     tx_out["value"] = int.from_bytes(data[:8], "little")
-    tx_out["pk_script_length"] = varint.decode(data[8:])
-    data = data[8 + len(varint.encode(tx_out["pk_script_length"])) :]
-    tx_out["pk_script"] = data[: tx_out["pk_script_length"]]
+    script_length = varint.decode(data[8:])
+    data = data[8 + len(varint.encode(script_length)) :]
+    tx_out["scriptPubKey"] = script.decode(data[:script_length])
     return tx_out
 
 
 def tx_out_serialize(tx_out: TxOut):
     out = tx_out["value"].to_bytes(8, "little")
-    out += varint.encode(tx_out["pk_script_length"])
-    out += tx_out["pk_script"]
+    script_bytes = script.encode(tx_out["scriptPubKey"])
+    out += varint.encode(len(script_bytes))
+    out += script_bytes
     return out
 
 
