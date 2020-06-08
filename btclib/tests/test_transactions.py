@@ -47,6 +47,8 @@ def test_wiki_transaction():
 
     assert tx["input_count"] == 1
     assert tx["output_count"] == 2
+    assert tx["tx_outputs"][0]["value"] == 5000000
+    assert tx["tx_outputs"][1]["value"] == 3354000000
 
 
 # 4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c
@@ -56,9 +58,11 @@ def test_single_witness():
 
     tx = transaction_deserialize(tx_bytes)
 
+    assert transaction_serialize(tx) == tx_bytes
+
+    assert tx["input_count"] == 1
     assert tx["output_count"] == 2
     assert tx["lock_time"] == 0
-    assert transaction_serialize(tx) == tx_bytes
 
 
 # a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c
@@ -68,5 +72,8 @@ def test_double_witness():
 
     tx = transaction_deserialize(tx_bytes)
 
-    assert tx["lock_time"] == 0
     assert transaction_serialize(tx) == tx_bytes
+
+    assert tx["input_count"] == 2
+    assert tx["output_count"] == 2
+    assert tx["lock_time"] == 0
