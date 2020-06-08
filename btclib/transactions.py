@@ -18,6 +18,7 @@ class TxIn(TypedDict):
     script_length: int = 0
     signature_script: bytes = 0
     sequence: int = 4294967295
+    witnesses: List[bytes] = []
 
 
 def tx_in_deserialize(data: bytes):
@@ -30,6 +31,7 @@ def tx_in_deserialize(data: bytes):
     tx_in["sequence"] = int.from_bytes(
         data[tx_in["script_length"] : tx_in["script_length"] + 4], "little"
     )
+    tx_in["witnesses"] = []
     return tx_in
 
 
@@ -71,7 +73,6 @@ class Transaction(TypedDict):
     tx_inputs: List[TxIn] = []
     output_count: int = 0
     tx_outputs: List[TxOut] = []
-    witnesses = []  # TODO
     lock_time: int = 0
 
 
@@ -79,14 +80,14 @@ def transaction_deserialize(data: bytes):
     # if len(data) < 60:
     #     raise Exception
     tx = Transaction()
+    tx["witness_flag"] = False
     tx["version"] = int.from_bytes(data[0:4], "little")
-    if False:  # data[4:6] == b"\x01\x00":
+    if data[4:6] == b"\x00\x01":
         tx["witness_flag"] = True
         data = data[6:]
     else:
         data = data[4:]
 
-    # not sure why these lines are mandatory
     tx["tx_inputs"] = []
     tx["tx_outputs"] = []
 
@@ -104,9 +105,15 @@ def transaction_deserialize(data: bytes):
         tx["tx_outputs"].append(tx_output)
         data = data[len(tx_out_serialize(tx_output)) :]
 
-    # if trans.witness_flag:
-    #     trans.witnesses = TxWitness.from_bytes(data)
-    #     data = data[len(trans.witnesses.to_bytes()) :]
+    if tx["witness_flag"]:
+        for x in range(tx["input_count"]):
+            witness_count = varint.decode(data)
+            data = data[len(varint.encode(witness_count)) :]
+            for i in range(witness_count):
+                witness_len = varint.decode(data)
+                data = data[len(varint.encode(witness_len)) :]
+                tx["tx_inputs"][x]["witnesses"].append(data[:witness_len])
+                data = data[witness_len:]
 
     tx["lock_time"] = int.from_bytes(data[:4], "little")
     return tx
@@ -114,8 +121,8 @@ def transaction_deserialize(data: bytes):
 
 def transaction_serialize(tx: Transaction):
     out = tx["version"].to_bytes(4, "little")
-    # if self.witness_flag:
-    #     out += b"\x00\x01"
+    if tx["witness_flag"]:
+        out += b"\x00\x01"
     out += varint.encode(tx["input_count"])
     for tx_in in tx["tx_inputs"]:
         out += tx_in_serialize(tx_in)
@@ -123,34 +130,13 @@ def transaction_serialize(tx: Transaction):
     out += varint.encode(tx["output_count"])
     for tx_out in tx["tx_outputs"]:
         out += tx_out_serialize(tx_out)
-    # if self.witness_flag:
-    #     out += self.witnesses.to_bytes()
+    if tx["witness_flag"]:
+        for x in range(tx["input_count"]):
+            witness_count = len(tx["tx_inputs"][x]["witnesses"])
+            out += varint.encode(witness_count)
+            for i in range(witness_count):
+                witness_len = len(tx["tx_inputs"][x]["witnesses"][i])
+                out += varint.encode(witness_len)
+                out += tx["tx_inputs"][x]["witnesses"][i]
     out += tx["lock_time"].to_bytes(4, "little")
     return out
-
-
-# class TxWitness:
-#     def __init__(self):
-#         self.count = 0
-#         self.witnesses = []
-#
-#     @classmethod
-#     def from_bytes(cls, data):
-#         if len(data) < 41:
-#             raise Exception
-#         tx_witness = cls()
-#         tx_witness.count = varint.decode(data[:4])
-#         data = data[len(varint.encode(tx_witness.count)) :]
-#
-#         for x in range(tx_witness.count):
-#             witness_len = varint.decode(data)
-#             data = data[len(varint.encode(witness_len)) :]
-#             tx_witness.witnesses.append(data[:witness_len])
-#
-#         return tx_witness
-#
-#     def to_bytes(self):
-#         out = varint.encode(self.count)
-#         for witness in self.witnesses:
-#             out += varint.encode(len(witness)) + witness
-#         return out
