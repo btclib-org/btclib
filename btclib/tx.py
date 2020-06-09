@@ -8,12 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import TypedDict, List
+from typing import List, TypedDict
 
-from . import varint, tx_in, tx_out
+from . import tx_in, tx_out, varint
+from .alias import Octets
 from .tx_in import TxIn
 from .tx_out import TxOut
-from .utils import hash256
+from .utils import bytes_from_octets, hash256
 
 
 class Tx(TypedDict):
@@ -24,9 +25,11 @@ class Tx(TypedDict):
     witness_flag: bool
 
 
-def deserialize(data: bytes):
+def deserialize(data: Octets):
     # if len(data) < 60:
     #     raise Exception
+
+    data = bytes_from_octets(data)
 
     version = int.from_bytes(data[:4], "little")
     data = data[4:]

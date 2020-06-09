@@ -11,7 +11,8 @@
 from typing import List, TypedDict
 
 from . import script, varint
-from .alias import Token
+from .alias import Octets, Token
+from .utils import bytes_from_octets
 
 
 class TxIn(TypedDict):
@@ -22,7 +23,9 @@ class TxIn(TypedDict):
     txinwitness: List[str]
 
 
-def deserialize(data: bytes) -> TxIn:
+def deserialize(data: Octets) -> TxIn:
+
+    data = bytes_from_octets(data)
 
     txid = data[:32][::-1].hex()
     vout = int.from_bytes(data[32:36], "little")
