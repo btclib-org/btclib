@@ -9,71 +9,72 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from typing import TypedDict, List
-from hashlib import sha256
 
 from . import varint, tx_in, tx_out
 from .tx_in import TxIn
 from .tx_out import TxOut
+from .utils import hash256
 
 
-class Transaction(TypedDict):
-    txid: str = ""
-    hash: str = ""
-    version: int = 0
-    locktime: int = 0
-    vin: List[TxIn] = []
-    vout: List[TxOut] = []
-    witness_flag: bool = False
+class Tx(TypedDict):
+    version: int
+    locktime: int
+    vin: List[TxIn]
+    vout: List[TxOut]
+    witness_flag: bool
 
 
 def deserialize(data: bytes):
     # if len(data) < 60:
     #     raise Exception
-    tx = Transaction()
-    tx["witness_flag"] = False
-    tx["version"] = int.from_bytes(data[0:4], "little")
-    if data[4:6] == b"\x00\x01":
-        tx["witness_flag"] = True
-        data = data[6:]
-    else:
-        data = data[4:]
 
-    tx["vin"] = []
-    tx["vout"] = []
+    version = int.from_bytes(data[:4], "little")
+    data = data[4:]
+
+    witness_flag = False
+    if data[:2] == b"\x00\x01":
+        witness_flag = True
+        data = data[2:]
 
     input_count = varint.decode(data)
     data = data[len(varint.encode(input_count)) :]
+    vin: List[TxIn] = []
     for x in range(input_count):
         tx_input = tx_in.deserialize(data)
-        tx["vin"].append(tx_input)
+        vin.append(tx_input)
         data = data[len(tx_in.serialize(tx_input)) :]
 
     output_count = varint.decode(data)
     data = data[len(varint.encode(output_count)) :]
+    vout: List[TxOut] = []
     for x in range(output_count):
         tx_output = tx_out.deserialize(data)
-        tx["vout"].append(tx_output)
+        vout.append(tx_output)
         data = data[len(tx_out.serialize(tx_output)) :]
 
-    if tx["witness_flag"]:
+    if witness_flag:
         for x in range(input_count):
             witness_count = varint.decode(data)
             data = data[len(varint.encode(witness_count)) :]
-            for i in range(witness_count):
+            for _ in range(witness_count):
                 witness_len = varint.decode(data)
                 data = data[len(varint.encode(witness_len)) :]
-                tx["vin"][x]["txinwitness"].append(data[:witness_len].hex())
+                vin[x]["txinwitness"].append(data[:witness_len].hex())
                 data = data[witness_len:]
 
-    tx["locktime"] = int.from_bytes(data[:4], "little")
+    locktime = int.from_bytes(data[:4], "little")
 
-    tx["txid"] = sha256(sha256(serialize(tx, False)).digest()).digest()[::-1].hex()
-    tx["hash"] = sha256(sha256(serialize(tx)).digest()).digest()[::-1].hex()
-
+    tx: Tx = {
+        "version": version,
+        "locktime": locktime,
+        "vin": vin,
+        "vout": vout,
+        "witness_flag": witness_flag,
+    }
     return tx
 
 
-def serialize(tx: Transaction, include_witness=True):
+def serialize(tx: Tx, include_witness=True):
     out = tx["version"].to_bytes(4, "little")
     if tx["witness_flag"] and include_witness:
         out += b"\x00\x01"
@@ -97,3 +98,11 @@ def serialize(tx: Transaction, include_witness=True):
                 out += bytes.fromhex(tx["vin"][x]["txinwitness"][i])
     out += tx["locktime"].to_bytes(4, "little")
     return out
+
+
+def txid(tx: Tx):
+    return hash256(serialize(tx, False))[::-1].hex()
+
+
+def hash_value(tx: Tx):
+    return hash256(serialize(tx))[::-1].hex()
