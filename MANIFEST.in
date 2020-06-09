@@ -11,6 +11,7 @@ recursive-include btclib *.csv
 recursive-include btclib *.json
 recursive-include btclib *.md
 recursive-include btclib *.txt
+recursive-include btclib *.bin
 recursive-include docs *.bat
 recursive-include docs *.py
 recursive-include docs *.rst

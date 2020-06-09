@@ -10,24 +10,15 @@
 
 "Tests for `btclib.blocks` module."
 
-import pytest
 import os
 
-from btclib.blocks import (
-    Block,
-    BlockHeader,
-    serialize_block,
-    deserialize_block,
-    serialize_block_header,
-    deserialize_block_header,
-    generate_merkle_root,
-)
+from btclib.blocks import serialize_block, deserialize_block, generate_merkle_root
 
 
 # actually second block in chain, first obtainable from other nodes
 def test_block_1():
 
-    fname = "block_1"
+    fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
 
@@ -46,7 +37,7 @@ def test_block_1():
 # first block with a transaction
 def test_block_170():
 
-    fname = "block_170"
+    fname = "block_170.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
     block = deserialize_block(block_bytes)
@@ -63,7 +54,7 @@ def test_block_170():
 
 def test_block_200000():
 
-    fname = "block_200000"
+    fname = "block_200000.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
 
@@ -77,7 +68,7 @@ def test_block_200000():
 # first block with segwit transaction
 # def test_block_481824():
 #
-#     fname = "block_481824"
+#     fname = "block_481824.bin"
 #     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
 #     block_bytes = open(filename, "rb").read()
 #
@@ -92,7 +83,7 @@ def test_block_200000():
 
 # def test_only_79_bytes():
 #
-#     fname = "block_1"
+#     fname = "block_1.bin"
 #     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
 #     header_bytes = open(filename, "rb").read()
 #     header_bytes = header_bytes[:79]
@@ -107,7 +98,7 @@ def test_block_200000():
 #
 # def test_varint_error():
 #
-#     fname = "block_1"
+#     fname = "block_1.bin"
 #     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
 #     block_bytes = open(filename, "rb").read()
 #     block_bytes = block_bytes[:80] + b"\xff"
