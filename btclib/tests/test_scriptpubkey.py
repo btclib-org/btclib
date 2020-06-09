@@ -345,8 +345,10 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, payload_from_scriptPubKey, script)
         # payload_from_scriptPubKey(script)
 
+        assert len(encode(["OP_RETURN", b"\x00" * 75])) == 77
+        assert len(encode(["OP_RETURN", b"\x00" * 76])) == 79
         # Invalid 78 bytes OP_RETURN script length
-        script = b"\x6A" + b"\x4B" * 77
+        script = encode(["OP_RETURN", b"\x00" * 76])[:-1]
         self.assertRaises(ValueError, payload_from_scriptPubKey, script)
         # payload_from_scriptPubKey(script)
 
