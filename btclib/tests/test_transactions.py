@@ -31,6 +31,8 @@ def test_coinbase_1():
     assert tx_in.serialize(transaction_in) == block_1_coinbase_input_bytes
     assert tx_out.serialize(transaction_out) == block_1_coinbase_output_bytes
 
+    assert isinstance(transaction["vin"][0]["scriptSig"], bytes)
+
 
 # https://en.bitcoin.it/wiki/Protocol_documentation#tx
 def test_wiki_transaction():
