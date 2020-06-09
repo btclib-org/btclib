@@ -19,7 +19,7 @@ class TxIn(TypedDict):
     vout: int
     scriptSig: List[Token]
     sequence: int
-    txinwitness: List[bytes]
+    txinwitness: List[str]
 
 
 def deserialize(data: bytes) -> TxIn:
@@ -30,7 +30,7 @@ def deserialize(data: bytes) -> TxIn:
     data = data[36 + len(varint.encode(script_length)) :]
     scriptSig = script.decode(data[:script_length])
     sequence = int.from_bytes(data[script_length : script_length + 4], "little")
-    txinwitness: List[bytes] = []
+    txinwitness: List[str] = []
 
     tx_in: TxIn = {
         "txid": txid,
