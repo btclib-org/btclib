@@ -102,20 +102,20 @@ def payload_from_nulldata_scriptPubKey(script: Script) -> Tuple[str, Payloads, i
     length = len(s)
 
     # nulldata [OP_RETURN, data]
-    zeroone = int(length > 77)
-    if s[1 + zeroone] != length - 2 - zeroone:
+    zero_or_one = int(length > 78)
+    if s[1 + zero_or_one] != length - 2 - zero_or_one:
         raise ValueError(
-            f"Wrong data lenght ({s[1+zeroone]}) in "
+            f"Wrong data lenght ({s[1+zero_or_one]}) in "
             f"{length}-bytes nulldata script: it should "
-            f"have been {length-2-zeroone}: {decode(s)}"
+            f"have been {length-2-zero_or_one}: {decode(s)}"
         )
-    if length < 77:
-        # OP_RETURN, data length, data up to 74 bytes max
-        # 0x6A{1 byte data-length}{data (0-74 bytes)}
+    if length < 78:
+        # OP_RETURN, data length, data up to 75 bytes max
+        # 0x6A{1 byte data-length}{data (0-75 bytes)}
         return "nulldata", s[2:], 0
-    if length > 77:
-        # OP_RETURN, OP_PUSHDATA1, data length, data min 75 bytes up to 80
-        # 0x6A4C{1-byte data-length}{data (75-80 bytes)}
+    if length > 78:
+        # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
+        # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
         if s[1] != 0x4C:
             raise ValueError(
                 f"Missing OP_PUSHDATA1 (0x4c) in "
@@ -123,7 +123,7 @@ def payload_from_nulldata_scriptPubKey(script: Script) -> Tuple[str, Payloads, i
                 f"got {hex(s[1])} instead: {decode(s)}"
             )
         return "nulldata", s[3:], 0
-    raise ValueError("invalid 77 bytes OP_RETURN script length")
+    raise ValueError("invalid 78 bytes OP_RETURN script length")
 
 
 def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:

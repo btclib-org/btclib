@@ -16,6 +16,7 @@ from btclib.script import (
     OP_CODE_NAMES,
     OP_CODES,
     _op_int,
+    _op_pushdata,
     decode,
     deserialize,
     encode,
@@ -90,7 +91,7 @@ def test_exceptions():
         encode(script)
 
     script = ["1f" * 521, "OP_DROP"]
-    err_msg = "Cannot push 521 bytes on the stack"
+    err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(ValueError, match=err_msg):
         encode(script)
 
@@ -98,7 +99,7 @@ def test_exceptions():
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
     script = decode(script_bytes)
     # but it cannot be encoded
-    err_msg = "Cannot push 521 bytes on the stack"
+    err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(ValueError, match=err_msg):
         encode(script)
 
@@ -115,7 +116,26 @@ def test_nulldata():
 
 
 def test_op_int():
-    i = 127
+    i = 0b01111111
     assert len(_op_int(i)) == 2
-    i = 128
+    i = 0b11111111
     assert len(_op_int(i)) == 3
+
+    i = 0b0111111111111111
+    assert len(_op_int(i)) == 3
+    i = 0b1111111111111111
+    assert len(_op_int(i)) == 4
+
+
+def test_op_pushdata():
+    length = 75
+    b = "00" * length
+    assert len(_op_pushdata(b)) == length + 1
+    b = "00" * (length + 1)
+    assert len(_op_pushdata(b)) == (length + 1) + 2
+
+    length = 255
+    b = "00" * length
+    assert len(_op_pushdata(b)) == length + 2
+    b = "00" * (length + 1)
+    assert len(_op_pushdata(b)) == (length + 1) + 3
