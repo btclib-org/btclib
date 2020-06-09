@@ -239,20 +239,25 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
         automate = False
         msg = f"{_dice_sides}"
         msg = "dice sides " + msg[:-1]
-        msg += ", prefix with 'a' to automate rolls): "
+        msg += "; prefix with 'a' to automate rolls, hit enter for 'a6'): "
         dice_sides_str = input(msg)
         dice_sides_str = dice_sides_str.lower()
-        if dice_sides_str.startswith("a"):
+        if dice_sides_str == "" or dice_sides_str == "a":
             automate = True
-            dice_sides_str = dice_sides_str[1:]
-        try:
-            dice_sides = 6 if dice_sides_str == "" else int(dice_sides_str)
-        except Exception:
-            dice_sides = 0
+            dice_sides = 6
+        else:
+            if dice_sides_str.startswith("a"):
+                automate = True
+                dice_sides_str = dice_sides_str[1:]
+            try:
+                dice_sides = int(dice_sides_str)
+            except Exception:
+                dice_sides = 0
 
     bits_per_roll = math.floor(math.log2(dice_sides))
     base = 2 ** bits_per_roll
-    print(f"rolls are used only if in 1..{base}")
+    if not automate:
+        print(f"rolls are used only if in 1..{base}")
 
     rolls: List[int] = []
     min_roll_number = math.ceil(bits / bits_per_roll)
