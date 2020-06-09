@@ -141,40 +141,18 @@ def xprvversions_from_network(network: str) -> List[bytes]:
     return result
 
 
-# the following provides false match for regtest
-# not a problem as long as it is used for WIF/Base58Address/BIP32xkey
-# where the two networks share same prefixes.
-_XPRV_VERSIONS_MAIN = [
-    NETWORKS["mainnet"]["bip32_prv"],
-    NETWORKS["mainnet"]["slip132_p2wsh_p2sh_prv"],
-    NETWORKS["mainnet"]["slip132_p2wpkh_p2sh_prv"],
-    NETWORKS["mainnet"]["slip132_p2wpkh_prv"],
-    NETWORKS["mainnet"]["slip132_p2wsh_prv"],
-]
-_XPRV_VERSIONS_TEST = [
-    NETWORKS["testnet"]["bip32_prv"],
-    NETWORKS["testnet"]["slip132_p2wsh_p2sh_prv"],
-    NETWORKS["testnet"]["slip132_p2wpkh_p2sh_prv"],
-    NETWORKS["testnet"]["slip132_p2wpkh_prv"],
-    NETWORKS["testnet"]["slip132_p2wsh_prv"],
-]
-_XPUB_VERSIONS_MAIN = [
-    NETWORKS["mainnet"]["bip32_pub"],
-    NETWORKS["mainnet"]["slip132_p2wsh_p2sh_pub"],
-    NETWORKS["mainnet"]["slip132_p2wpkh_p2sh_pub"],
-    NETWORKS["mainnet"]["slip132_p2wpkh_pub"],
-    NETWORKS["mainnet"]["slip132_p2wsh_pub"],
-]
-_XPUB_VERSIONS_TEST = [
-    NETWORKS["testnet"]["bip32_pub"],
-    NETWORKS["testnet"]["slip132_p2wsh_p2sh_pub"],
-    NETWORKS["testnet"]["slip132_p2wpkh_p2sh_pub"],
-    NETWORKS["testnet"]["slip132_p2wpkh_pub"],
-    NETWORKS["testnet"]["slip132_p2wsh_pub"],
-]
-_XPRV_VERSIONS_ALL = _XPRV_VERSIONS_MAIN + _XPRV_VERSIONS_TEST + _XPRV_VERSIONS_TEST
-_XPUB_VERSIONS_ALL = _XPUB_VERSIONS_MAIN + _XPUB_VERSIONS_TEST + _XPUB_VERSIONS_TEST
-_REPEATED_NETWORKS = [_NETWORKS[0]] * 5 + [_NETWORKS[1]] * 5 + [_NETWORKS[2]] * 5
+_XPRV_VERSIONS_ALL = (
+    xprvversions_from_network("mainnet") + xprvversions_from_network("testnet") * 2
+)
+_XPUB_VERSIONS_ALL = (
+    xpubversions_from_network("mainnet") + xpubversions_from_network("testnet") * 2
+)
+n_versions = len(xprvversions_from_network("mainnet"))
+_REPEATED_NETWORKS = (
+    [_NETWORKS[0]] * n_versions
+    + [_NETWORKS[1]] * n_versions
+    + [_NETWORKS[2]] * n_versions
+)
 
 
 def network_from_xkeyversion(xkeyversion: bytes) -> str:

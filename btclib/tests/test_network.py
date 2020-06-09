@@ -10,22 +10,20 @@
 
 "Tests for `btclib.network` module."
 
-from btclib.network import curve_from_xkeyversion, NETWORKS
+from btclib.network import (
+    NETWORKS,
+    curve_from_xkeyversion,
+    network_from_xkeyversion,
+    xprvversions_from_network,
+    xpubversions_from_network,
+)
 
 
 def test_curve_from_xkeyversion():
     for net in NETWORKS:
-        all_versions = (
-            NETWORKS[net]["bip32_prv"],
-            NETWORKS[net]["slip132_p2wsh_p2sh_prv"],
-            NETWORKS[net]["slip132_p2wpkh_p2sh_prv"],
-            NETWORKS[net]["slip132_p2wpkh_prv"],
-            NETWORKS[net]["slip132_p2wsh_prv"],
-            NETWORKS[net]["bip32_pub"],
-            NETWORKS[net]["slip132_p2wsh_p2sh_pub"],
-            NETWORKS[net]["slip132_p2wpkh_p2sh_pub"],
-            NETWORKS[net]["slip132_p2wpkh_pub"],
-            NETWORKS[net]["slip132_p2wsh_pub"],
-        )
+        all_versions = xpubversions_from_network(net) + xprvversions_from_network(net)
         for version in all_versions:
+            # unfortunately 'regtest' shares same versions with 'testnet'
+            if net != "regtest":
+                assert net == network_from_xkeyversion(version)
             assert NETWORKS[net]["curve"] == curve_from_xkeyversion(version)
