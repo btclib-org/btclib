@@ -29,22 +29,22 @@ class BlockHeader(TypedDict):
 
 def deserialize_block_header(data: bytes):
     header = BlockHeader()
-    header.version = int.from_bytes(data[0:4], "little")
-    header.prev_block = data[4:36]
-    header.merkleroot = data[36:68]
-    header.timestamp = int.from_bytes(data[68:72], "little")
-    header.bits = int.from_bytes(data[72:76], "little")
-    header.nonce = int.from_bytes(data[76:80], "little")
+    header["version"] = int.from_bytes(data[0:4], "little")
+    header["previousblockhash"] = data[4:36][::-1].hex()
+    header["merkleroot"] = data[36:68][::-1].hex()
+    header["timestamp"] = int.from_bytes(data[68:72], "little")
+    header["bits"] = int.from_bytes(data[72:76], "little")
+    header["nonce"] = int.from_bytes(data[76:80], "little")
     return header
 
 
 def serialize_block_header(header: BlockHeader):
-    out = header.version.to_bytes(4, "little")
-    out += bytes.fromhex(header.previousblockhash)
-    out += bytes.fromhex(header.merkleroot)
-    out += header.timestamp.to_bytes(4, "little")
-    out += header.bits.to_bytes(4, "little")
-    out += header.nonce.to_bytes(4, "little")
+    out = header["version"].to_bytes(4, "little")
+    out += bytes.fromhex(header["previousblockhash"])[::-1]
+    out += bytes.fromhex(header["merkleroot"])[::-1]
+    out += header["timestamp"].to_bytes(4, "little")
+    out += header["bits"].to_bytes(4, "little")
+    out += header["nonce"].to_bytes(4, "little")
     return out
 
 
@@ -63,7 +63,7 @@ def deserialize_block(data: bytes):
     for x in range(transaction_count):
         transaction = transaction_deserialize(data)
         block["transactions"].append(transaction)
-        data = data[len(transaction_serialize(transaction))]
+        data = data[len(transaction_serialize(transaction)) :]
 
     return block
 
