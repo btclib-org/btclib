@@ -8,10 +8,14 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import TypedDict
+from typing import TypedDict, List
 
-from transactions import Transaction, TxIn, TxOut
-import varint
+from btclib.transactions import (
+    Transaction,
+    transaction_deserialize,
+    transaction_serialize,
+)
+from . import varint
 
 
 class BlockHeader(TypedDict):
@@ -44,34 +48,29 @@ def serialize_block_header(header: BlockHeader):
     return out
 
 
-# class Block:
-#     def __init__(self):
-#         self.header = BlockHeader()
-#         self.transaction_count = 0
-#         self.transactions = []
-#
-#     @classmethod
-#     def from_bytes(cls, data):
-#         if len(data) < 81:
-#             raise Exception("Too little data")
-#         block = cls()
-#         block.header = BlockHeader.from_bytes(data[:80])
-#         if varint.byte_size(data[80:]) + 80 > len(data):  # not enough bytes
-#             raise Exception("Too little data")
-#         else:
-#             block.transaction_count = varint.decode(data[80:])
-#
-#         data = data[80 + varint.byte_size(data[80:]) :]
-#         for x in range(block.transaction_count):
-#             transaction = Transaction.from_bytes(data)
-#             block.transactions.append(transaction)
-#             data = data[len(transaction.to_bytes()) :]
-#
-#         return block
-#
-#     def to_bytes(self):
-#         out = self.header.to_bytes()
-#         out += varint.encode(self.transaction_count)
-#         for transaction in self.transactions:
-#             out += transaction.to_bytes()
-#         return out
+class Block(TypedDict):
+    header: BlockHeader
+    transactions: List[Transaction] = []
+
+
+def deserialize_block(data: bytes):
+    block = Block()
+    block["header"] = deserialize_block_header(data[:80])
+    data = data[80:]
+    transaction_count = varint.decode(data)
+    data = data[len(varint.encode(transaction_count)) :]
+    block["transactions"] = []
+    for x in range(transaction_count):
+        transaction = transaction_deserialize(data)
+        block["transactions"].append(transaction)
+        data = data[len(transaction_serialize(transaction))]
+
+    return block
+
+
+def serialize_block(block: Block):
+    out = serialize_block_header(block["header"])
+    out += varint.encode(len(block["transactions"]))
+    for tx in block["transactions"]:
+        out += transaction_serialize(tx)
+    return out
