@@ -177,7 +177,7 @@ _XPUB_VERSIONS_ALL = _XPUB_VERSIONS_MAIN + _XPUB_VERSIONS_TEST + _XPUB_VERSIONS_
 _REPEATED_NETWORKS = [_NETWORKS[0]] * 5 + [_NETWORKS[1]] * 5 + [_NETWORKS[2]] * 5
 
 
-def network_from_xkeyversion(xprvversion: bytes) -> str:
+def network_from_xkeyversion(xkeyversion: bytes) -> str:
     """Return network string from the xkey version prefix.
 
     Warning: when used on 'regtest' it returns 'testnet', which is not
@@ -185,16 +185,13 @@ def network_from_xkeyversion(xprvversion: bytes) -> str:
     because the two networks share the same prefixes.
     """
     try:
-        index = _XPRV_VERSIONS_ALL.index(xprvversion)
+        index = _XPRV_VERSIONS_ALL.index(xkeyversion)
     except Exception:
-        index = _XPUB_VERSIONS_ALL.index(xprvversion)
+        index = _XPUB_VERSIONS_ALL.index(xkeyversion)
 
     return _REPEATED_NETWORKS[index]
 
 
-_CURVES = [NETWORKS[net]["curve"] for net in NETWORKS]
-
-
-def curve_from_xpubversion(xpubversion: bytes) -> Curve:
-    index = _XPUB_VERSIONS_ALL.index(xpubversion)
-    return _CURVES[index]
+def curve_from_xkeyversion(xkeyversion: bytes) -> Curve:
+    network = network_from_xkeyversion(xkeyversion)
+    return NETWORKS[network]["curve"]
