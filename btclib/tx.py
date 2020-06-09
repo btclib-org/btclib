@@ -8,6 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"""Bitcoin Transaction.
+
+https://en.bitcoin.it/wiki/Transaction
+https://learnmeabitcoin.com/guide/coinbase-transaction
+https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
+"""
+
 from typing import List, TypedDict
 
 from . import tx_in, tx_out, varint
