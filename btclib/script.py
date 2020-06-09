@@ -251,7 +251,7 @@ def _op_pushdata(data: Octets) -> bytes:
     data = bytes_from_octets(data)
     r = b""
     length = len(data)
-    if length < 75:  # 1-byte-length
+    if length <= 75:  # 1-byte-length
         r += length.to_bytes(1, byteorder="little")
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
         r += OP_CODES["OP_PUSHDATA1"]
@@ -369,7 +369,15 @@ def decode(script: Octets) -> List[Token]:
             r.append(data.hex().upper())
         else:
             # OP_CODE
-            r.append(OP_CODE_NAMES[i])
+            if i not in OP_CODE_NAMES.keys():  # malformed script(probablty coinbase)
+                r.append(OP_CODE_NAMES[179])
+                # r.append(i.to_bytes(1, "little").hex())
+                # r.append(str(i))
+                # OP_CODES[i] = i.to_bytes(1, "little")
+            else:
+                r.append(OP_CODE_NAMES[i])
+
+            # r.append(OP_CODE_NAMES[i])
 
     return r
 

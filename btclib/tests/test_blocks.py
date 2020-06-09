@@ -66,19 +66,21 @@ def test_block_200000():
 
 
 # first block with segwit transaction
-# def test_block_481824():
-#
-#     fname = "block_481824.bin"
-#     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
-#     block_bytes = open(filename, "rb").read()
-#
-#     block = deserialize_block(block_bytes)
-#     assert len(block["transactions"]) == 1866
-#
-#     header = block["header"]
-#     assert header["timestamp"] == 1503539857  # 2017-08-24 03:57:37 GMT+2
-#
-#     assert serialize_block(block) == block_bytes
+def test_block_481824():
+
+    fname = "block_481824.bin"
+    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    block_bytes = open(filename, "rb").read()
+
+    block = deserialize_block(block_bytes)
+    assert len(block["transactions"]) == 1866
+
+    header = block["header"]
+    assert header["timestamp"] == 1503539857  # 2017-08-24 03:57:37 GMT+2
+
+    assert serialize_block(block) == block_bytes
+
+    assert generate_merkle_root(block["transactions"]) == block["header"]["merkleroot"]
 
 
 # def test_only_79_bytes():

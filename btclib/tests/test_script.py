@@ -105,10 +105,7 @@ def test_exceptions():
 
 def test_nulldata():
 
-    scripts = [
-        ["OP_RETURN", "11" * 79],
-        ["OP_RETURN", "00" * 79],
-    ]
+    scripts = [["OP_RETURN", "11" * 79], ["OP_RETURN", "00" * 79]]
     for script in scripts:
         bscript = encode(script)
         assert script == decode(bscript)
@@ -119,3 +116,8 @@ def test_op_int():
     assert len(_op_int(i)) == 2
     i = 128
     assert len(_op_int(i)) == 3
+
+
+def test_encoding():
+    script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
+    assert encode(decode(script_bytes)) == script_bytes
