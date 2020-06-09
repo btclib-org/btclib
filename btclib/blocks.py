@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from typing import TypedDict, List
+from hashlib import sha256
 
 from btclib.transactions import (
     Transaction,
@@ -35,6 +36,9 @@ def deserialize_block_header(data: bytes):
     header["timestamp"] = int.from_bytes(data[68:72], "little")
     header["bits"] = int.from_bytes(data[72:76], "little")
     header["nonce"] = int.from_bytes(data[76:80], "little")
+    header["hash"] = (
+        sha256(sha256(serialize_block_header(header)).digest()).digest()[::-1].hex()
+    )
     return header
 
 
@@ -51,6 +55,20 @@ def serialize_block_header(header: BlockHeader):
 class Block(TypedDict):
     header: BlockHeader
     transactions: List[Transaction] = []
+
+
+def generate_merkle_root(transactions: List[Transaction]):
+    hashes = [bytes.fromhex(tx["txid"])[::-1] for tx in transactions]
+    hashes_buffer = []
+    while len(hashes) != 1:
+        if len(hashes) % 2 != 0:
+            hashes.append(hashes[-1])
+        for x in range(len(hashes) // 2):
+            hashes_buffer.append(
+                sha256(sha256(hashes[2 * x] + hashes[2 * x + 1]).digest()).digest()
+            )
+        hashes = hashes_buffer[:]
+    return hashes[0]
 
 
 def deserialize_block(data: bytes):
