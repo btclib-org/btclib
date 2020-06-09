@@ -8,36 +8,41 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import TypedDict, List
+from typing import List, TypedDict
 
-from . import varint, script
-from .alias import Script
+from . import script, varint
+from .alias import Token
 
 
 class TxIn(TypedDict):
-    txid: str = ""
-    vout: int = 4294967295
-    scriptSig: Script
-    sequence: int = 4294967295
-    txinwitness: List[bytes] = []
+    txid: str
+    vout: int
+    scriptSig: List[Token]
+    sequence: int
+    txinwitness: List[bytes]
 
 
-def deserialize(data: bytes):
-    tx_in = TxIn()
-    tx_in["txid"] = data[:32][::-1].hex()
-    tx_in["vout"] = int.from_bytes(data[32:36], "little")
+def deserialize(data: bytes) -> TxIn:
 
+    txid = data[:32][::-1].hex()
+    vout = int.from_bytes(data[32:36], "little")
     script_length = varint.decode(data[36:])
     data = data[36 + len(varint.encode(script_length)) :]
-    tx_in["scriptSig"] = script.decode(data[:script_length])
-    tx_in["txinwitness"] = []
-    tx_in["sequence"] = int.from_bytes(
-        data[script_length : script_length + 4], "little"
-    )
+    scriptSig = script.decode(data[:script_length])
+    sequence = int.from_bytes(data[script_length : script_length + 4], "little")
+    txinwitness: List[bytes] = []
+
+    tx_in: TxIn = {
+        "txid": txid,
+        "vout": vout,
+        "scriptSig": scriptSig,
+        "sequence": sequence,
+        "txinwitness": txinwitness,
+    }
     return tx_in
 
 
-def serialize(tx_in: TxIn):
+def serialize(tx_in: TxIn) -> bytes:
     out = bytes.fromhex(tx_in["txid"])[::-1]
     out += tx_in["vout"].to_bytes(4, "little")
     script_bytes = script.encode(tx_in["scriptSig"])
