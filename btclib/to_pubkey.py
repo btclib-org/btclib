@@ -17,7 +17,7 @@ from .curvemult import mult
 from .curves import secp256k1
 from .network import (
     NETWORKS,
-    curve_from_xpubversion,
+    curve_from_xkeyversion,
     network_from_xkeyversion,
     xpubversions_from_network,
 )
@@ -36,7 +36,7 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
         xpub = bip32.deserialize(xpub)
 
     if xpub["key"][0] in (2, 3):
-        ec2 = curve_from_xpubversion(xpub["version"])
+        ec2 = curve_from_xkeyversion(xpub["version"])
         if ec != ec2:
             raise ValueError(f"ec/xpub version ({xpub['version'].hex()}) mismatch")
         return point_from_octets(xpub["key"], ec)
