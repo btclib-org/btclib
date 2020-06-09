@@ -68,7 +68,8 @@ def generate_merkle_root(transactions: List[Transaction]):
                 sha256(sha256(hashes[2 * x] + hashes[2 * x + 1]).digest()).digest()
             )
         hashes = hashes_buffer[:]
-    return hashes[0]
+        hashes_buffer = []
+    return hashes[0][::-1].hex()
 
 
 def deserialize_block(data: bytes):
