@@ -32,7 +32,7 @@ class Tx(TypedDict):
     witness_flag: bool
 
 
-def deserialize(data: Octets):
+def deserialize(data: Octets) -> Tx:
     # if len(data) < 60:
     #     raise Exception
 
@@ -80,7 +80,7 @@ def deserialize(data: Octets):
     return tx
 
 
-def serialize(tx: Tx, include_witness=True):
+def serialize(tx: Tx, include_witness: bool = True) -> bytes:
     out = tx["version"].to_bytes(4, "little")
     if tx["witness_flag"] and include_witness:
         out += b"\x00\x01"
@@ -101,9 +101,9 @@ def serialize(tx: Tx, include_witness=True):
     return out
 
 
-def txid(tx: Tx):
+def txid(tx: Tx) -> str:
     return hash256(serialize(tx, False))[::-1].hex()
 
 
-def hash_value(tx: Tx):
+def hash_value(tx: Tx) -> str:
     return hash256(serialize(tx))[::-1].hex()
