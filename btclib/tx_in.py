@@ -11,7 +11,8 @@
 from typing import List, TypedDict
 
 from . import script, varint
-from .alias import Token
+from .alias import Octets, Token
+from .utils import bytes_from_octets
 
 
 class TxIn(TypedDict):
@@ -22,7 +23,9 @@ class TxIn(TypedDict):
     txinwitness: List[str]
 
 
-def deserialize(data: bytes) -> TxIn:
+def deserialize(data: Octets) -> TxIn:
+
+    data = bytes_from_octets(data)
 
     txid = data[:32][::-1].hex()
     vout = int.from_bytes(data[32:36], "little")
@@ -57,4 +60,35 @@ def serialize(tx_in: TxIn) -> bytes:
     out += varint.encode(len(script_bytes))
     out += script_bytes
     out += tx_in["sequence"].to_bytes(4, "little")
+    return out
+
+
+def witness_deserialize(data: Octets) -> List[str]:
+
+    data = bytes_from_octets(data)
+
+    witness: List[str] = []
+
+    witness_count = varint.decode(data)
+    data = data[len(varint.encode(witness_count)) :]
+    for _ in range(witness_count):
+        witness_len = varint.decode(data)
+        data = data[len(varint.encode(witness_len)) :]
+        witness.append(data[:witness_len].hex())
+        data = data[witness_len:]
+
+    return witness
+
+
+def witness_serialize(witness: List[str]) -> bytes:
+
+    out = b""
+
+    witness_count = len(witness)
+    out += varint.encode(witness_count)
+    for i in range(witness_count):
+        witness_bytes = bytes.fromhex(witness[i])
+        out += varint.encode(len(witness_bytes))
+        out += witness_bytes
+
     return out

@@ -11,7 +11,8 @@
 from typing import List, TypedDict
 
 from . import script, varint
-from .alias import Token
+from .alias import Octets, Token
+from .utils import bytes_from_octets
 
 
 class TxOut(TypedDict):
@@ -19,7 +20,10 @@ class TxOut(TypedDict):
     scriptPubKey: List[Token]
 
 
-def deserialize(data: bytes) -> TxOut:
+def deserialize(data: Octets) -> TxOut:
+
+    data = bytes_from_octets(data)
+
     value = int.from_bytes(data[:8], "little")
     script_length = varint.decode(data[8:])
     data = data[8 + len(varint.encode(script_length)) :]
