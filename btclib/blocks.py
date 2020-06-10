@@ -11,12 +11,9 @@
 from typing import TypedDict, List
 from hashlib import sha256
 
-from btclib.transactions import (
-    Transaction,
-    transaction_deserialize,
-    transaction_serialize,
-)
+from . import tx, tx_in, tx_out
 from . import varint
+from .utils import hash256
 
 
 class BlockHeader(TypedDict):
@@ -36,9 +33,7 @@ def deserialize_block_header(data: bytes):
     header["timestamp"] = int.from_bytes(data[68:72], "little")
     header["bits"] = int.from_bytes(data[72:76], "little")
     header["nonce"] = int.from_bytes(data[76:80], "little")
-    header["hash"] = (
-        sha256(sha256(serialize_block_header(header)).digest()).digest()[::-1].hex()
-    )
+    header["hash"] = hash256(serialize_block_header(header))[::-1].hex()
     return header
 
 
@@ -54,11 +49,11 @@ def serialize_block_header(header: BlockHeader):
 
 class Block(TypedDict):
     header: BlockHeader
-    transactions: List[Transaction] = []
+    transactions: List[tx.Tx] = []
 
 
-def generate_merkle_root(transactions: List[Transaction]):
-    hashes = [bytes.fromhex(tx["txid"])[::-1] for tx in transactions]
+def generate_merkle_root(transactions: List[tx.Tx]):
+    hashes = [bytes.fromhex(tx.txid(transaction))[::-1] for transaction in transactions]
     hashes_buffer = []
     while len(hashes) != 1:
         if len(hashes) % 2 != 0:
@@ -80,9 +75,9 @@ def deserialize_block(data: bytes):
     data = data[len(varint.encode(transaction_count)) :]
     block["transactions"] = []
     for x in range(transaction_count):
-        transaction = transaction_deserialize(data)
+        transaction = tx.deserialize(data)
         block["transactions"].append(transaction)
-        data = data[len(transaction_serialize(transaction)) :]
+        data = data[len(tx.serialize(transaction)) :]
 
     return block
 
@@ -90,6 +85,6 @@ def deserialize_block(data: bytes):
 def serialize_block(block: Block):
     out = serialize_block_header(block["header"])
     out += varint.encode(len(block["transactions"]))
-    for tx in block["transactions"]:
-        out += transaction_serialize(tx)
+    for transaction in block["transactions"]:
+        out += tx.serialize(transaction)
     return out
