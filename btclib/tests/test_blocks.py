@@ -81,6 +81,7 @@ def test_block_200000():
 
 
 # first block with segwit transaction
+# this block has NO witness data (as seen by legacy nodes)
 def test_block_481824():
 
     fname = "block_481824.bin"
@@ -100,6 +101,32 @@ def test_block_481824():
     assert generate_merkle_root(block["transactions"]) == header["merkleroot"]
     assert header["bits"] == 0x18013CE9
     assert header["nonce"] == 0x2254FF22
+
+    assert block["transactions"][0]["vin"][0]["txinwitness"] == []
+
+
+# this block has witness data
+def test_block_481824_complete():
+
+    fname = "block_481824_complete.bin"
+    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    block_bytes = open(filename, "rb").read()
+
+    block = deserialize_block(block_bytes)
+    assert len(block["transactions"]) == 1866
+    assert serialize_block(block) == block_bytes
+
+    header = block["header"]
+    assert header["time"] == 1503539857  # 2017-08-24 03:57:37 GMT+2
+    assert (
+        header["merkleroot"]
+        == "6438250cad442b982801ae6994edb8a9ec63c0a0ba117779fbe7ef7f07cad140"
+    )
+    assert generate_merkle_root(block["transactions"]) == header["merkleroot"]
+    assert header["bits"] == 0x18013CE9
+    assert header["nonce"] == 0x2254FF22
+
+    assert block["transactions"][0]["vin"][0]["txinwitness"] != []
 
 
 # def test_only_79_bytes():
