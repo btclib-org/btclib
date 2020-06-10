@@ -42,12 +42,14 @@ def test_hash160_hash256():
 
 
 def test_int_from_integer():
-    i = secrets.randbits(256 - 8)
-    assert i == int_from_integer(i)
-    assert i == int_from_integer(hex(i).upper())
-    assert i == int_from_integer(bin(i).upper())
-    assert i == int_from_integer(hex_string(i))
-    assert i == int_from_integer(i.to_bytes(32, "big"))
+    for i in (
+        secrets.randbits(256 - 8),
+        0x0B6CA75B7D3076C561958CCED813797F6D2275C7F42F3856D007D587769A90,
+    ):
+        assert i == int_from_integer(i)
+        assert i == int_from_integer(hex(i).upper())
+        assert i == int_from_integer(hex_string(i))
+        assert i == int_from_integer(i.to_bytes(32, "big"))
 
 
 def test_hex_string():

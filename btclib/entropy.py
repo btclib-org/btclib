@@ -329,8 +329,8 @@ def randbinstr(
 ) -> BinStr:
     """Return CSPRNG raw entropy XOR-ed with input raw entropy.
 
-    If no exogenous raw entropy is provided as input, then entropy
-    is generated with the system
+    The input raw entropy is used as initialization value;
+    if not provided, then entropy is generated with the system
     cryptographically strong pseudo-random number generator (CSPRNG).
 
     Then, this entropy is:

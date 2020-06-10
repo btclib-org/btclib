@@ -105,8 +105,6 @@ def int_from_integer(i: Integer) -> int:
         i = i.lower()
         if i.startswith("0x"):
             return int(i, 16)
-        if i.startswith("0b"):
-            return int(i, 2)
         i = bytes.fromhex(i)
     if not isinstance(i, bytes):
         raise TypeError("not an Integer=Union[int, str, bytes]")

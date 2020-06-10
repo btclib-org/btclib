@@ -345,8 +345,10 @@ class TestScriptPubKey(unittest.TestCase):
         self.assertRaises(ValueError, payload_from_scriptPubKey, script)
         # payload_from_scriptPubKey(script)
 
-        # Invalid 77 bytes OP_RETURN script length
-        script = b"\x6A" + b"\x4B" * 76
+        assert len(encode(["OP_RETURN", b"\x00" * 75])) == 77
+        assert len(encode(["OP_RETURN", b"\x00" * 76])) == 79
+        # Invalid 78 bytes OP_RETURN script length
+        script = encode(["OP_RETURN", b"\x00" * 76])[:-1]
         self.assertRaises(ValueError, payload_from_scriptPubKey, script)
         # payload_from_scriptPubKey(script)
 
@@ -616,7 +618,7 @@ def test_nulldata2():
 
     # max length case
     byte = b"\x00"
-    for length in (0, 1, 16, 17, 74, 75, 80):
+    for length in (0, 1, 16, 17, 74, 75, 76, 77, 78, 79, 80):
         payload = byte * length
         script = encode(["OP_RETURN", payload]).hex()
 
