@@ -33,6 +33,12 @@ def test_coinbase_1():
 
     assert isinstance(transaction["vin"][0]["scriptSig"], bytes)
 
+    assert (
+        tx.txid(transaction)
+        == "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
+    )
+    assert tx.txid(transaction) == tx.hash_value(transaction)
+
 
 # https://en.bitcoin.it/wiki/Protocol_documentation#tx
 def test_wiki_transaction():
@@ -44,6 +50,8 @@ def test_wiki_transaction():
     assert len(transaction["vout"]) == 2
     assert transaction["vout"][0]["value"] == 5000000
     assert transaction["vout"][1]["value"] == 3354000000
+
+    assert tx.txid(transaction) == tx.hash_value(transaction)
 
 
 # 4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c
@@ -58,6 +66,15 @@ def test_single_witness():
     assert len(transaction["vout"]) == 2
     assert transaction["locktime"] == 0
 
+    assert (
+        tx.txid(transaction)
+        == "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
+    )
+    assert (
+        tx.hash_value(transaction)
+        == "d39eb3e3954be4bdc0b3be2d980124b1e1e11fb414b886b52939b07d95a58a8f"
+    )
+
 
 # a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c
 def test_double_witness():
@@ -70,3 +87,12 @@ def test_double_witness():
     assert len(transaction["vin"]) == 2
     assert len(transaction["vout"]) == 2
     assert transaction["locktime"] == 0
+
+    assert (
+        tx.txid(transaction)
+        == "a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c"
+    )
+    assert (
+        tx.hash_value(transaction)
+        == "0936cb8dba90e11345b9c05f457f139ddce4a5329701af4708b2cf4a02d75adb"
+    )

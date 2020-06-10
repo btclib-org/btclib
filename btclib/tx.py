@@ -49,7 +49,7 @@ def deserialize(data: Octets):
     input_count = varint.decode(data)
     data = data[len(varint.encode(input_count)) :]
     vin: List[TxIn] = []
-    for x in range(input_count):
+    for _ in range(input_count):
         tx_input = tx_in.deserialize(data)
         vin.append(tx_input)
         data = data[len(tx_in.serialize(tx_input)) :]
@@ -57,20 +57,16 @@ def deserialize(data: Octets):
     output_count = varint.decode(data)
     data = data[len(varint.encode(output_count)) :]
     vout: List[TxOut] = []
-    for x in range(output_count):
+    for _ in range(output_count):
         tx_output = tx_out.deserialize(data)
         vout.append(tx_output)
         data = data[len(tx_out.serialize(tx_output)) :]
 
     if witness_flag:
-        for x in range(input_count):
-            witness_count = varint.decode(data)
-            data = data[len(varint.encode(witness_count)) :]
-            for _ in range(witness_count):
-                witness_len = varint.decode(data)
-                data = data[len(varint.encode(witness_len)) :]
-                vin[x]["txinwitness"].append(data[:witness_len].hex())
-                data = data[witness_len:]
+        for tx_input in vin:
+            witness = tx_in.witness_deserialize(data)
+            data = data[len(tx_in.witness_serialize(witness)) :]
+            tx_input["txinwitness"] = witness
 
     locktime = int.from_bytes(data[:4], "little")
 
@@ -88,6 +84,7 @@ def serialize(tx: Tx, include_witness=True):
     out = tx["version"].to_bytes(4, "little")
     if tx["witness_flag"] and include_witness:
         out += b"\x00\x01"
+
     out += varint.encode(len(tx["vin"]))
     for tx_input in tx["vin"]:
         out += tx_in.serialize(tx_input)
@@ -95,17 +92,11 @@ def serialize(tx: Tx, include_witness=True):
     out += varint.encode(len(tx["vout"]))
     for tx_output in tx["vout"]:
         out += tx_out.serialize(tx_output)
+
     if tx["witness_flag"] and include_witness:
-        for x in range(len(tx["vin"])):
-            witness_count = len(tx["vin"][x]["txinwitness"])
-            out += varint.encode(witness_count)
-            for i in range(witness_count):
+        for tx_input in tx["vin"]:
+            out += tx_in.witness_serialize(tx_input["txinwitness"])
 
-                # we have to count bytes, not hex
-                witness_len = len(tx["vin"][x]["txinwitness"][i]) // 2
-
-                out += varint.encode(witness_len)
-                out += bytes.fromhex(tx["vin"][x]["txinwitness"][i])
     out += tx["locktime"].to_bytes(4, "little")
     return out
 
