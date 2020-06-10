@@ -369,15 +369,7 @@ def decode(script: Octets) -> List[Token]:
             r.append(data.hex().upper())
         else:
             # OP_CODE
-            if i not in OP_CODE_NAMES.keys():  # malformed script(probablty coinbase)
-                r.append(OP_CODE_NAMES[179])
-                # r.append(i.to_bytes(1, "little").hex())
-                # r.append(str(i))
-                # OP_CODES[i] = i.to_bytes(1, "little")
-            else:
-                r.append(OP_CODE_NAMES[i])
-
-            # r.append(OP_CODE_NAMES[i])
+            r.append(OP_CODE_NAMES[i])
 
     return r
 

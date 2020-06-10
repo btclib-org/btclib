@@ -27,7 +27,7 @@ def test_block_1():
     assert len(block["transactions"]) == 1
 
     header = block["header"]
-    assert header["timestamp"] == 1231469665  # 2009-01-09 03:54:25 GMT+1
+    assert header["time"] == 1231469665  # 2009-01-09 03:54:25 GMT+1
 
     assert serialize_block(block) == block_bytes
 
@@ -45,7 +45,7 @@ def test_block_170():
     assert len(block["transactions"]) == 2
 
     header = block["header"]
-    assert header["timestamp"] == 1231731025  # 2009-01-12 04:30:25 GMT+1
+    assert header["time"] == 1231731025  # 2009-01-12 04:30:25 GMT+1
 
     assert serialize_block(block) == block_bytes
 
@@ -76,7 +76,7 @@ def test_block_481824():
     assert len(block["transactions"]) == 1866
 
     header = block["header"]
-    assert header["timestamp"] == 1503539857  # 2017-08-24 03:57:37 GMT+2
+    assert header["time"] == 1503539857  # 2017-08-24 03:57:37 GMT+2
 
     assert serialize_block(block) == block_bytes
 
