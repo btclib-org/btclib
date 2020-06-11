@@ -49,7 +49,13 @@ def deserialize(data: Octets, coinbase: bool = False) -> TxIn:
         "sequence": sequence,
         "txinwitness": txinwitness,
     }
-    return tx_in
+
+    if coinbase or validate(
+        tx_in
+    ):  # the block is responsible of validating the coinbase
+        return tx_in
+    else:
+        raise Exception("Invalid transaction input")
 
 
 def serialize(tx_in: TxIn) -> bytes:
@@ -91,3 +97,7 @@ def witness_serialize(witness: List[str]) -> bytes:
         out += witness_bytes
 
     return out
+
+
+def validate(tx_in: TxIn) -> bool:
+    return True

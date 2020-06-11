@@ -77,7 +77,11 @@ def deserialize(data: Octets, coinbase: bool = False) -> Tx:
         "vout": vout,
         "witness_flag": witness_flag,
     }
-    return tx
+
+    if coinbase or validate(tx):  # the block is responsible of validating the coinbase
+        return tx
+    else:
+        raise Exception("Invalid transaction")
 
 
 def serialize(tx: Tx, include_witness: bool = True) -> bytes:
@@ -107,3 +111,7 @@ def txid(tx: Tx) -> str:
 
 def hash_value(tx: Tx) -> str:
     return hash256(serialize(tx))[::-1].hex()
+
+
+def validate(tx: Tx) -> bool:
+    return True
