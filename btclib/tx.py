@@ -32,7 +32,7 @@ class Tx(TypedDict):
     witness_flag: bool
 
 
-def deserialize(data: Octets) -> Tx:
+def deserialize(data: Octets, coinbase: bool = False) -> Tx:
     # if len(data) < 60:
     #     raise Exception
 
@@ -50,7 +50,7 @@ def deserialize(data: Octets) -> Tx:
     data = data[len(varint.encode(input_count)) :]
     vin: List[TxIn] = []
     for _ in range(input_count):
-        tx_input = tx_in.deserialize(data)
+        tx_input = tx_in.deserialize(data, coinbase)
         vin.append(tx_input)
         data = data[len(tx_in.serialize(tx_input)) :]
 
