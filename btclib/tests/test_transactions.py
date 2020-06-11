@@ -20,9 +20,9 @@ def test_coinbase_1():
 
     block_1_coinbase_output_bytes = b'\x00\xf2\x05*\x01\x00\x00\x00CA\x04\x96\xb58\xe8SQ\x9crj,\x91\xe6\x1e\xc1\x16\x00\xae\x13\x90\x81:b|f\xfb\x8b\xe7\x94{\xe6<R\xdau\x897\x95\x15\xd4\xe0\xa6\x04\xf8\x14\x17\x81\xe6"\x94r\x11f\xbfb\x1es\xa8,\xbf#B\xc8X\xee\xac'
 
-    transaction_in = tx_in.deserialize(block_1_coinbase_input_bytes)
+    transaction_in = tx_in.deserialize(block_1_coinbase_input_bytes, True)
     transaction_out = tx_out.deserialize(block_1_coinbase_output_bytes)
-    transaction = tx.deserialize(block_1_coinbase_bytes)
+    transaction = tx.deserialize(block_1_coinbase_bytes, True)
 
     assert transaction["vin"][0]["scriptSig"] == transaction_in["scriptSig"]
     assert transaction["vout"][0]["scriptPubKey"] == transaction_out["scriptPubKey"]
@@ -31,7 +31,7 @@ def test_coinbase_1():
     assert tx_in.serialize(transaction_in) == block_1_coinbase_input_bytes
     assert tx_out.serialize(transaction_out) == block_1_coinbase_output_bytes
 
-    assert isinstance(transaction["vin"][0]["scriptSig"], bytes)
+    assert transaction["vin"][0]["scriptSig"] == []
 
     assert (
         tx.txid(transaction)
