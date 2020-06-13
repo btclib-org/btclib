@@ -32,7 +32,7 @@ class Tx(TypedDict):
     witness_flag: bool
 
 
-def deserialize(data: Octets, coinbase: bool = False) -> Tx:
+def deserialize(data: Octets) -> Tx:
     # if len(data) < 60:
     #     raise Exception
 
@@ -50,7 +50,7 @@ def deserialize(data: Octets, coinbase: bool = False) -> Tx:
     data = data[len(varint.encode(input_count)) :]
     vin: List[TxIn] = []
     for _ in range(input_count):
-        tx_input = tx_in.deserialize(data, coinbase)
+        tx_input = tx_in.deserialize(data)
         vin.append(tx_input)
         data = data[len(tx_in.serialize(tx_input)) :]
 
@@ -78,10 +78,8 @@ def deserialize(data: Octets, coinbase: bool = False) -> Tx:
         "witness_flag": witness_flag,
     }
 
-    if coinbase or validate(tx):  # the block is responsible of validating the coinbase
-        return tx
-    else:
-        raise Exception("Invalid transaction")
+    assert_valid(tx)
+    return tx
 
 
 def serialize(tx: Tx, include_witness: bool = True) -> bytes:
@@ -113,5 +111,5 @@ def hash_value(tx: Tx) -> str:
     return hash256(serialize(tx))[::-1].hex()
 
 
-def validate(tx: Tx) -> bool:
-    return True
+def assert_valid(tx: Tx) -> None:
+    pass

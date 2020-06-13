@@ -24,18 +24,24 @@ class TxIn(TypedDict):
     txinwitness: List[str]
 
 
-def deserialize(data: Octets, coinbase: bool = False) -> TxIn:
+def deserialize(data: Octets) -> TxIn:
 
     data = bytes_from_octets(data)
 
     txid = data[:32][::-1].hex()
     vout = int.from_bytes(data[32:36], "little")
+    is_coinbase = False
+    if txid == "00" * 32 and vout == 256 ** 4 - 1:
+        is_coinbase = True
+
     script_length = varint.decode(data[36:])
     data = data[36 + len(varint.encode(script_length)) :]
 
-    scriptSigHex = data[:script_length].hex()
-    scriptSig = []
-    if not coinbase:
+    scriptSig: List[Token] = []
+    scriptSigHex = ""
+    if is_coinbase:
+        scriptSigHex = data[:script_length].hex()
+    else:
         scriptSig = script.decode(data[:script_length])
 
     sequence = int.from_bytes(data[script_length : script_length + 4], "little")
@@ -50,12 +56,8 @@ def deserialize(data: Octets, coinbase: bool = False) -> TxIn:
         "txinwitness": txinwitness,
     }
 
-    if coinbase or validate(
-        tx_in
-    ):  # the block is responsible of validating the coinbase
-        return tx_in
-    else:
-        raise Exception("Invalid transaction input")
+    assert_valid(tx_in)
+    return tx_in
 
 
 def serialize(tx_in: TxIn) -> bytes:
@@ -99,5 +101,7 @@ def witness_serialize(witness: List[str]) -> bytes:
     return out
 
 
-def validate(tx_in: TxIn) -> bool:
-    return True
+def assert_valid(tx_in: TxIn) -> None:
+    null_txid = "00" * 32
+    null_vout = 256 ** 4 - 1
+    assert (tx_in["txid"] == null_txid) ^ (tx_in["vout"] == null_vout), "invalid tx_in"

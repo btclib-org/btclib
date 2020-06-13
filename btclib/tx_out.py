@@ -16,7 +16,7 @@ from .utils import bytes_from_octets
 
 
 class TxOut(TypedDict):
-    value: int
+    value: int  # satoshis
     scriptPubKey: List[Token]
 
 
@@ -31,10 +31,8 @@ def deserialize(data: Octets) -> TxOut:
 
     tx_out: TxOut = {"value": value, "scriptPubKey": scriptPubKey}
 
-    if validate(tx_out):
-        return tx_out
-    else:
-        raise Exception("Invalid transaction output")
+    assert_valid(tx_out)
+    return tx_out
 
 
 def serialize(tx_out: TxOut) -> bytes:
@@ -45,5 +43,12 @@ def serialize(tx_out: TxOut) -> bytes:
     return out
 
 
-def validate(tx_out: TxOut) -> bool:
-    return True
+def assert_valid(tx_out: TxOut) -> None:
+    if tx_out["value"] < 0:
+        raise ValueError(f"negative value: {tx_out['value']}")
+    # FIXME max satoshis
+    if 21 * 10 ** 14 < tx_out["value"]:
+        raise ValueError(f"value too high: {tx_out['value']}")
+
+    if len(tx_out["scriptPubKey"]) == 0:
+        raise ValueError(f"empty scriptPubKey: {tx_out['scriptPubKey']}")
