@@ -63,7 +63,10 @@ def deserialize(data: Octets) -> TxIn:
 def serialize(tx_in: TxIn) -> bytes:
     out = bytes.fromhex(tx_in["txid"])[::-1]
     out += tx_in["vout"].to_bytes(4, "little")
-    script_bytes = bytes.fromhex(tx_in["scriptSigHex"])
+    if tx_in["txid"] == "00" * 32 and tx_in["vout"] == 256 ** 4 - 1:
+        script_bytes = bytes.fromhex(tx_in["scriptSigHex"])
+    else:
+        script_bytes = script.encode(tx_in["scriptSig"])
     out += varint.encode(len(script_bytes))
     out += script_bytes
     out += tx_in["sequence"].to_bytes(4, "little")

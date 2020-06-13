@@ -10,6 +10,8 @@
 
 "Tests for `btclib.tx` module."
 
+import pytest
+
 from btclib import tx, tx_in, tx_out
 
 
@@ -96,3 +98,55 @@ def test_double_witness():
         tx.hash_value(transaction)
         == "0936cb8dba90e11345b9c05f457f139ddce4a5329701af4708b2cf4a02d75adb"
     )
+
+
+def test_invalid_tx_in():
+    transaction_input: tx_in.TxIn = {
+        "txid": "00" * 31 + "01",
+        "vout": 256 ** 4 - 1,
+        "scriptSig": [],
+        "scriptSigHex": "",
+        "sequence": 1,
+        "txinwitness": [],
+    }
+
+    with pytest.raises(ValueError):
+        tx_in.assert_valid(transaction_input)
+
+
+def test_invalid_tx_in2():
+    transaction_input: tx_in.TxIn = {
+        "txid": "00" * 32,
+        "vout": 0,
+        "scriptSig": [],
+        "scriptSigHex": "",
+        "sequence": 1,
+        "txinwitness": [],
+    }
+
+    with pytest.raises(ValueError):
+        tx_in.assert_valid(transaction_input)
+
+
+def test_invalid_tx_out():
+    transaction_output: tx_out.TxOut = {"value": -1, "scriptPubKey": ["OP_RETURN"]}
+
+    with pytest.raises(ValueError):
+        tx_out.assert_valid(transaction_output)
+
+
+def test_invalid_tx_out2():
+    transaction_output: tx_out.TxOut = {
+        "value": 2099999997690001,
+        "scriptPubKey": ["OP_RETURN"],
+    }
+
+    with pytest.raises(ValueError):
+        tx_out.assert_valid(transaction_output)
+
+
+def test_invalid_tx_out3():
+    transaction_output: tx_out.TxOut = {"value": 1, "scriptPubKey": []}
+
+    with pytest.raises(ValueError):
+        tx_out.assert_valid(transaction_output)

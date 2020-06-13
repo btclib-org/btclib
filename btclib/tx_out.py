@@ -46,8 +46,8 @@ def serialize(tx_out: TxOut) -> bytes:
 def assert_valid(tx_out: TxOut) -> None:
     if tx_out["value"] < 0:
         raise ValueError(f"negative value: {tx_out['value']}")
-    # FIXME max satoshis
-    if 21 * 10 ** 14 < tx_out["value"]:
+
+    if 2099999997690000 < tx_out["value"]:
         raise ValueError(f"value too high: {tx_out['value']}")
 
     if len(tx_out["scriptPubKey"]) == 0:
