@@ -19,7 +19,7 @@ from btclib.network import (
 )
 
 
-def test_curve_from_xkeyversion():
+def test_curve_from_xkeyversion() -> None:
     for net in NETWORKS:
         all_versions = xpubversions_from_network(net) + xprvversions_from_network(net)
         for version in all_versions:

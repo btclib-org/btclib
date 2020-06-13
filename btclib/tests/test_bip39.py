@@ -19,7 +19,7 @@ import pytest
 from btclib import bip39
 
 
-def test_bip39():
+def test_bip39() -> None:
     lang = "en"
     mnem = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
 
@@ -49,7 +49,7 @@ def test_bip39():
         bip39._entropy_checksum(binstr_entropy)
 
 
-def test_vectors():
+def test_vectors() -> None:
     """BIP39 test vectors
 
     https://github.com/trezor/python-mnemonic/blob/master/vectors.json
@@ -74,6 +74,6 @@ def test_vectors():
         assert raw_entr == entropy
 
 
-def test_zeroleadingbit():
+def test_zeroleadingbit() -> None:
     # it should not throw an error
     bip39.mnemonic_from_entropy(secrets.randbits(127), "en")

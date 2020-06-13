@@ -22,7 +22,7 @@ from btclib.curves import CURVES
 from btclib.rfc6979 import rfc6979
 
 
-def test_rfc6979():
+def test_rfc6979() -> None:
     # source: https://bitcointalk.org/index.php?topic=285142.40
     msg = "Satoshi Nakamoto"
     x = 0x1
@@ -31,7 +31,7 @@ def test_rfc6979():
     assert k == k2
 
 
-def test_rfc6979_example():
+def test_rfc6979_example() -> None:
     class _helper:
         def __init__(self, n: int) -> None:
             self.n = n
@@ -47,7 +47,7 @@ def test_rfc6979_example():
 
 
 @pytest.mark.third
-def test_rfc6979_tv():
+def test_rfc6979_tv() -> None:
 
     fname = "rfc6979.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)

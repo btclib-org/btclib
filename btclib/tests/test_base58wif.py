@@ -18,7 +18,7 @@ from btclib.curves import secp256k1 as ec
 from btclib.to_prvkey import prvkeyinfo_from_prvkey
 
 
-def test_wif_from_prvkey():
+def test_wif_from_prvkey() -> None:
     prvkey = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
     test_vectors = [
         ["KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True],

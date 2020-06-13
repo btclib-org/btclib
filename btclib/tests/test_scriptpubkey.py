@@ -589,7 +589,7 @@ class TestScriptPubKey(unittest.TestCase):
         # scriptPubKey_from_address(addr)
 
 
-def test_p2ms_3():
+def test_p2ms_3() -> None:
 
     # mixed compressed / uncompressed public keys
     pubkey1 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
@@ -612,7 +612,7 @@ def test_p2ms_3():
     assert pubkeys == payload
 
 
-def test_nulldata2():
+def test_nulldata2() -> None:
 
     script_type = "nulldata"
 
@@ -636,7 +636,7 @@ def test_nulldata2():
         assert payload.hex() == payload2.hex()
 
 
-def test_p2ms_p2sh():
+def test_p2ms_p2sh() -> None:
     "BIP67 test vectors https://en.bitcoin.it/wiki/BIP_0067"
 
     data_folder = path.join(path.dirname(__file__), "test_data")
@@ -664,7 +664,7 @@ def test_p2ms_p2sh():
         assert m2 == m, errmsg
 
 
-def test_CLT():
+def test_CLT() -> None:
 
     network = "mainnet"
 

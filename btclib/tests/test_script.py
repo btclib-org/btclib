@@ -24,7 +24,7 @@ from btclib.script import (
 )
 
 
-def test_operators():
+def test_operators() -> None:
     for i in OP_CODE_NAMES.keys():
         b = OP_CODES[OP_CODE_NAMES[i]]
         assert i == b[0]
@@ -50,7 +50,7 @@ def test_operators():
         assert i in OP_CODE_NAMES.keys()
 
 
-def test_simple():
+def test_simple() -> None:
     script_list = [
         [2, 3, "OP_ADD", 5, "OP_EQUAL"],
         ["1ADD", "OP_1ADD", "1ADE", "OP_EQUAL"],
@@ -78,7 +78,7 @@ def test_simple():
         assert script == script4
 
 
-def test_exceptions():
+def test_exceptions() -> None:
 
     script = [2, 3, "OP_ADD", 5, "OP_VERIF"]
     err_msg = "invalid string token: OP_VERIF"
@@ -104,7 +104,7 @@ def test_exceptions():
         encode(script)
 
 
-def test_nulldata():
+def test_nulldata() -> None:
 
     scripts = [
         ["OP_RETURN", "11" * 79],
@@ -115,7 +115,7 @@ def test_nulldata():
         assert script == decode(bscript)
 
 
-def test_op_int():
+def test_op_int() -> None:
     i = 0b01111111
     assert len(_op_int(i)) == 2
     i = 0b11111111
@@ -127,7 +127,7 @@ def test_op_int():
     assert len(_op_int(i)) == 4
 
 
-def test_op_pushdata():
+def test_op_pushdata() -> None:
     length = 75
     b = "00" * length
     assert len(_op_pushdata(b)) == length + 1

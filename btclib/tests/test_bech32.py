@@ -72,7 +72,7 @@ INVALID_CHECKSUM = [
 ]
 
 
-def test_bechs32_checksum():
+def test_bechs32_checksum() -> None:
     "Test bech32 checksum."
 
     for test in VALID_CHECKSUM:

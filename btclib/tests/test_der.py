@@ -17,7 +17,7 @@ from btclib.der import _deserialize, _serialize
 from btclib.script import SIGHASHES
 
 
-def test_der_size():
+def test_der_size() -> None:
 
     sig8 = 1, 1
     sig72 = ec.n - 1, ec.n - 1
@@ -41,7 +41,7 @@ def test_der_size():
     assert (r, s, sighash) == _deserialize((r, s, sighash))
 
 
-def test_der_deserialize():
+def test_der_deserialize() -> None:
 
     err_msg = "non-hexadecimal number found "
     with pytest.raises(ValueError, match=err_msg):
@@ -118,7 +118,7 @@ def test_der_deserialize():
             _deserialize(bad_der_sig)
 
 
-def test_der_serialize():
+def test_der_serialize() -> None:
 
     sig = 2 ** 247 - 1, 2 ** 247 - 1
     err_msg = "invalid sighash: 0x"

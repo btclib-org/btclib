@@ -13,7 +13,7 @@
 from btclib import amount
 
 
-def test_amount_conversion():
+def test_amount_conversion() -> None:
     v1 = 1.1
     v2 = 2.2
     vtot = v1 + v2

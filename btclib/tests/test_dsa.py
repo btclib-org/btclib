@@ -24,7 +24,7 @@ from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.tests.test_curves import low_card_curves
 
 
-def test_signature():
+def test_signature() -> None:
     ec = CURVES["secp256k1"]
     msg = "Satoshi Nakamoto"
 
@@ -102,7 +102,7 @@ def test_signature():
         dsa.sign(msg, q, ec.n)
 
 
-def test_gec():
+def test_gec() -> None:
     """GEC 2: Test Vectors for SEC 1, section 2
 
         http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
@@ -141,7 +141,7 @@ def test_gec():
 
 
 @pytest.mark.first
-def test_low_cardinality():
+def test_low_cardinality() -> None:
     """test low-cardinality curves for all msg/key pairs."""
 
     # ec.n has to be prime to sign
@@ -188,7 +188,7 @@ def test_low_cardinality():
                     assert len(JacobianKeys) in (2, 4)
 
 
-def test_pubkey_recovery():
+def test_pubkey_recovery() -> None:
 
     ec = CURVES["secp112r2"]
 
@@ -211,7 +211,7 @@ def test_pubkey_recovery():
         assert dsa.verify(msg, Q, sig, ec)
 
 
-def test_crack_prvkey():
+def test_crack_prvkey() -> None:
 
     ec = CURVES["secp256k1"]
 
@@ -236,7 +236,7 @@ def test_crack_prvkey():
         dsa.crack_prvkey(msg1, sig1, msg1, sig1)
 
 
-def test_forge_hash_sig():
+def test_forge_hash_sig() -> None:
     """forging valid hash signatures"""
 
     ec = CURVES["secp256k1"]

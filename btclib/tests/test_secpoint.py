@@ -39,7 +39,7 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
-def test_octets2point():
+def test_octets2point() -> None:
     for ec in all_curves.values():
 
         Gbytes = bytes_from_point(ec.G, ec)

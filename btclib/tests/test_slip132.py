@@ -16,7 +16,7 @@ from btclib import base58address, bech32address, bip32, bip39, slip132
 from btclib.network import NETWORKS
 
 
-def test_slip132():
+def test_slip132() -> None:
     # xkey is not a public one
     xprv = b"xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
     err_msg = "not a public key: "
@@ -28,7 +28,7 @@ def test_slip132():
     assert address == address2
 
 
-def test_slip132_test_vector():
+def test_slip132_test_vector() -> None:
     """SLIP132 test vector
 
     https://github.com/satoshilabs/slips/blob/master/slip-0132.md
@@ -90,7 +90,7 @@ def test_slip132_test_vector():
             assert addr == address
 
 
-def test_addresses():
+def test_addresses() -> None:
 
     # data cross-checked with Electrum and
     # https://jlopp.github.io/xpub-converter/

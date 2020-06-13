@@ -18,7 +18,7 @@ import pytest
 from btclib import bip32, electrum, slip132
 
 
-def test_mnemonic():
+def test_mnemonic() -> None:
     lang = "en"
 
     entropy = 0x110AAAA03974D093EDA670121023CD0772
@@ -62,7 +62,7 @@ def test_mnemonic():
     assert "2fa" == electrum.version_from_mnemonic(mnemonic)[0]
 
 
-def test_vectors():
+def test_vectors() -> None:
     fname = "electrum_test_vectors.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
     with open(filename, "r") as f:

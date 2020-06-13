@@ -28,7 +28,7 @@ from btclib.utils import (
 )
 
 
-def test_hash160_hash256():
+def test_hash160_hash256() -> None:
     test_vectors = (
         plain_prv_keys
         + net_unaware_compressed_pub_keys
@@ -41,7 +41,7 @@ def test_hash160_hash256():
         assert hash256(hexstring) == hash256(s)
 
 
-def test_int_from_integer():
+def test_int_from_integer() -> None:
     for i in (
         secrets.randbits(256 - 8),
         0x0B6CA75B7D3076C561958CCED813797F6D2275C7F42F3856D007D587769A90,
@@ -52,21 +52,21 @@ def test_int_from_integer():
         assert i == int_from_integer(i.to_bytes(32, "big"))
 
 
-def test_hex_string():
+def test_hex_string() -> None:
     a = 34492435054806958080
     assert hex_string(a) == "01 DEADBEEF 00000000"
     assert hex_string(hex(a).lower()) == "01 DEADBEEF 00000000"
     assert hex_string(bin(a).lower()) == "01 DEADBEEF 00000000"
 
-    a = "01de adbeef00000000"
-    assert hex_string(a) == "01 DEADBEEF 00000000"
-    a = bytes.fromhex(a)
-    assert hex_string(a) == "01 DEADBEEF 00000000"
+    a_str = "01de adbeef00000000"
+    assert hex_string(a_str) == "01 DEADBEEF 00000000"
+    a_bytes = bytes.fromhex(a_str)
+    assert hex_string(a_bytes) == "01 DEADBEEF 00000000"
 
     # invalid hex-string: odd number of hex digits
-    a = "1deadbeef00000000"
+    a_str = "1deadbeef00000000"
     with pytest.raises(ValueError, match="non-hexadecimal number found in fromhex"):
-        hex_string(a)
+        hex_string(a_str)
 
     a = -1
     with pytest.raises(ValueError, match="negative integer: "):

@@ -20,7 +20,7 @@ from btclib.secpoint import bytes_from_point
 ec = CURVES["secp160r1"]
 
 
-def test_ecdh():
+def test_ecdh() -> None:
     size = 20
 
     dU = 0x1
@@ -33,7 +33,7 @@ def test_ecdh():
     assert keyingdataU == keyingdataV
 
 
-def test_key_deployment():
+def test_key_deployment() -> None:
     """GEC 2: Test Vectors for SEC 1, section 4.1
 
     http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf

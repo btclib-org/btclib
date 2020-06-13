@@ -34,7 +34,7 @@ from btclib.to_pubkey import pubkeyinfo_from_prvkey
 from btclib.utils import hash160
 
 
-def test_b58address_from_h160():
+def test_b58address_from_h160() -> None:
     addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
     prefix, payload, network, _ = h160_from_b58address(addr)
     assert addr == b58address_from_h160(prefix, payload, network)
@@ -53,7 +53,7 @@ def test_b58address_from_h160():
         b58address_from_h160(bad_prefix, payload, network)
 
 
-def test_p2pkh_from_wif():
+def test_p2pkh_from_wif() -> None:
     seed = b"00" * 32  # better be a documented test case
     rxprv = bip32.rootxprv_from_seed(seed)
     path = "m/0h/0h/12"
@@ -71,7 +71,7 @@ def test_p2pkh_from_wif():
         wif_from_prvkey(xpub)
 
 
-def test_p2pkh_from_pubkey():
+def test_p2pkh_from_pubkey() -> None:
     # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
     pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     addr = p2pkh(pub)
@@ -97,7 +97,7 @@ def test_p2pkh_from_pubkey():
     assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
 
 
-def test_p2sh():
+def test_p2sh() -> None:
     # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
     script = [
         "OP_2DUP",
@@ -129,7 +129,7 @@ def test_p2sh():
     assert redeem_script_hash == h160
 
 
-def test_p2w_p2sh():
+def test_p2w_p2sh() -> None:
 
     pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     h160pubkey, network = hash160_from_key(pubkey)
@@ -148,7 +148,7 @@ def test_p2w_p2sh():
         b58address_from_witness(h256script[:-1], network)
 
 
-def test_address_from_wif():
+def test_address_from_wif() -> None:
 
     q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
@@ -201,7 +201,7 @@ def test_address_from_wif():
                 p2wpkh_p2sh(wif)
 
 
-def test_has_segwit_prefix():
+def test_has_segwit_prefix() -> None:
     addr = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
     assert has_segwit_prefix(addr)
     assert has_segwit_prefix(addr.decode())
@@ -210,7 +210,7 @@ def test_has_segwit_prefix():
     assert not has_segwit_prefix(addr.decode())
 
 
-def test_exceptions():
+def test_exceptions() -> None:
 
     pubkey = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     payload = b"\xf5" + hash160(pubkey)
