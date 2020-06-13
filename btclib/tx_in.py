@@ -104,4 +104,5 @@ def witness_serialize(witness: List[str]) -> bytes:
 def assert_valid(tx_in: TxIn) -> None:
     null_txid = "00" * 32
     null_vout = 256 ** 4 - 1
-    assert (tx_in["txid"] == null_txid) ^ (tx_in["vout"] == null_vout), "invalid tx_in"
+    if (tx_in["txid"] == null_txid) ^ (tx_in["vout"] == null_vout):
+        raise ValueError("invalid tx_in")
