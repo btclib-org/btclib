@@ -43,6 +43,12 @@ def test_indexes_from_path() -> None:
         indexes = [i.to_bytes(4, "big") for i in indx]
         assert (indexes, absolute) == bip32._indexes_from_path(der_path)
 
+    with pytest.raises(OverflowError, match="can't convert negative int to unsigned"):
+        bip32._indexes_from_path("m/1/2/-3/4")
+
+    with pytest.raises(ValueError, match="negative index in derivation path: "):
+        bip32._indexes_from_path("m/1/2/-3h/4")
+
 
 def test_exceptions() -> None:
 

@@ -251,8 +251,11 @@ def _indexes_from_path(der_path: str) -> Tuple[List[bytes], bool]:
     for step in steps[1:]:
         if step == "":  # extra slash
             continue
-        elif step[-1] in ("'", "H", "h"):
-            index = int(step[:-1]) + 0x80000000
+        if step[-1] in ("'", "H", "h"):
+            index = int(step[:-1])
+            if index < 0:
+                raise ValueError(f"negative index in derivation path: {der_path}")
+            index += 0x80000000
         else:
             index = int(step)
         indexes.append(index.to_bytes(4, "big"))
