@@ -8,9 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+from typing import List
+
 from . import tx, tx_out, script
 from .utils import hash256
-from typing import List
+from .alias import Script
 
 # from .scriptpubkey import payload_from_scriptPubKey
 
@@ -80,7 +82,7 @@ def _get_witness_sighash(
 
 
 # FIXME: remove OP_CODESEPARATOR only if exectued
-def _get_witness_scriptCodes(scriptPubKey):
+def _get_witness_scriptCodes(scriptPubKey: Script):
     if scriptPubKey[0] == 0 and len(scriptPubKey) == 2:  # simple p2wpkh #FIXME
         pubkeyhash = scriptPubKey[1]
         scriptCodes = [f"1976a914{pubkeyhash}88ac"]
