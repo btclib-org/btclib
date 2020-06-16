@@ -44,7 +44,7 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
-def test_aff_jac_conversions():
+def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -65,7 +65,7 @@ def test_aff_jac_conversions():
             ec.has_square_y("notapoint")
 
 
-def test_add_aff():
+def test_add_aff() -> None:
     for ec in all_curves.values():
 
         # add G and the infinity point
@@ -77,7 +77,7 @@ def test_add_aff():
         assert ec._add_aff(ec.G, ec.negate(ec.G)) == INF
 
 
-def test_add_jac():
+def test_add_jac() -> None:
     for ec in all_curves.values():
 
         # add G and the infinity point
@@ -89,7 +89,7 @@ def test_add_jac():
         assert ec._add_jac(ec.GJ, ec.negate(ec.GJ)) == INFJ
 
 
-def test_add():
+def test_add() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -108,7 +108,7 @@ def test_add():
         assert R == ec._aff_from_jac(RJ)
 
 
-def test_ec_repr():
+def test_ec_repr() -> None:
     for ec in all_curves.values():
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.psize < 24:
@@ -117,7 +117,7 @@ def test_ec_repr():
         assert str(ec) == str(ec2)
 
 
-def test_is_on_curve():
+def test_is_on_curve() -> None:
     for ec in all_curves.values():
 
         P = "not a point"
@@ -134,7 +134,7 @@ def test_is_on_curve():
             ec.is_on_curve((Q[0], ec.p))
 
 
-def test_negate():
+def test_negate() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -160,7 +160,7 @@ def test_negate():
         ec.negate("notapoint")
 
 
-def test_symmetry():
+def test_symmetry() -> None:
     """Methods to break simmetry: quadratic residue, odd/even, low/high"""
     for ec in low_card_curves.values():
 
@@ -240,7 +240,7 @@ def test_symmetry():
 
 
 @pytest.mark.second
-def test_mult_aff_curves():
+def test_mult_aff_curves() -> None:
     for ec in all_curves.values():
         assert _mult_aff(0, ec.G, ec) == INF
         assert _mult_aff(0, INF, ec) == INF
@@ -263,7 +263,7 @@ def test_mult_aff_curves():
             _mult_aff(-1, ec.G, ec)
 
 
-def test_mult_jac_curves():
+def test_mult_jac_curves() -> None:
     for ec in all_curves.values():
         assert _mult_jac(0, ec.GJ, ec) == INFJ
         assert _mult_jac(0, INFJ, ec) == INFJ
@@ -285,7 +285,7 @@ def test_mult_jac_curves():
             _mult_jac(-1, ec.GJ, ec)
 
 
-def test_mult():
+def test_mult() -> None:
     for ec in low_card_curves.values():
         for q in range(ec.n):
             Q = _mult_aff(q, ec.G, ec)

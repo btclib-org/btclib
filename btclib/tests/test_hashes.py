@@ -14,7 +14,7 @@ from btclib import bip32
 from btclib.hashes import fingerprint
 
 
-def test_fingerprint():
+def test_fingerprint() -> None:
 
     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
     xprv = bip32.rootxprv_from_seed(seed)

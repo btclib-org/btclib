@@ -54,7 +54,7 @@ from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.utils import hash160, sha256
 
 
-def test_valid_address():
+def test_valid_address() -> None:
     """Test whether valid addresses decode to the correct output"""
 
     VALID_BC_ADDRESS = [
@@ -95,7 +95,7 @@ def test_valid_address():
         assert a.lower().strip() == address.decode("ascii")
 
 
-def test_invalid_address():
+def test_invalid_address() -> None:
     """Test whether invalid addresses fail to decode"""
 
     INVALID_ADDRESS = [
@@ -141,7 +141,7 @@ def test_invalid_address():
             witness_from_b32address(a)
 
 
-def test_invalid_address_enc():
+def test_invalid_address_enc() -> None:
     """Test whether address encoding fails on invalid input"""
 
     INVALID_ADDRESS_ENC = [
@@ -166,7 +166,7 @@ def test_invalid_address_enc():
             b32address_from_witness(version, [0] * length, network)
 
 
-def test_b32address_from_witness():
+def test_b32address_from_witness() -> None:
 
     # self-consistency
     addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
@@ -185,7 +185,7 @@ def test_b32address_from_witness():
     assert b32address_from_witness(wv, wp, network) == addr.encode()
 
 
-def test_p2wpkh_p2sh():
+def test_p2wpkh_p2sh() -> None:
     # https://matthewdowney.github.io/create-segwit-address.html
     pub = " 03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     address = p2wpkh_p2sh(pub)
@@ -199,7 +199,7 @@ def test_p2wpkh_p2sh():
     assert address == b"3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd"
 
 
-def test_p2wpkh():
+def test_p2wpkh() -> None:
 
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     # leading/trailing spaces should be tolerated
@@ -229,7 +229,7 @@ def test_p2wpkh():
         b32address_from_witness(0, hash160(pub) + b"\x00")
 
 
-def test_hash_from_bech32():
+def test_hash_from_bech32() -> None:
     network = "testnet"
     wv = 0
     wp = 20 * b"\x05"
@@ -245,7 +245,7 @@ def test_hash_from_bech32():
         witness_from_b32address(addr)
 
 
-def test_p2wsh_p2sh():
+def test_p2wsh_p2sh() -> None:
 
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
@@ -255,7 +255,7 @@ def test_p2wsh_p2sh():
     p2wsh_p2sh(witness_script_bytes, "testnet")
 
 
-def test_p2wsh():
+def test_p2wsh() -> None:
 
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"

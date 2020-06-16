@@ -18,7 +18,7 @@ from btclib.alias import INF
 from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
 
 
-def test_exceptions():
+def test_exceptions() -> None:
 
     # good curve
     Curve(13, 0, 2, (1, 9), 19, 1, False)
@@ -70,7 +70,7 @@ def test_exceptions():
         Curve(11, 2, 7, (6, 9), 7, 2, True)
 
 
-def test_jac():
+def test_jac() -> None:
 
     ec = Curve(13, 0, 2, (1, 9), 19, 1, False)
     assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))

@@ -16,7 +16,7 @@ from btclib.curve import CurveGroup, _mult_aff
 from btclib.curvegroupf import find_all_points, find_subgroup_points
 
 
-def test_ecf():
+def test_ecf() -> None:
     ec = CurveGroup(9739, 497, 1768)
 
     # challenge = 'Point Negation'
@@ -61,7 +61,7 @@ def test_ecf():
     # print(f"{challenge}: {s}")
 
 
-def test_ecf_exceptions():
+def test_ecf_exceptions() -> None:
     ec = CurveGroup(10007, 497, 1768)
 
     with pytest.raises(ValueError, match="p is too big to count all group points: "):

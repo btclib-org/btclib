@@ -18,7 +18,7 @@ from btclib import borromean, dsa
 from btclib.alias import Point
 
 
-def test_borromean():
+def test_borromean() -> None:
     nring = 4  # FIXME randomize; minimum number of rings?
     ring_sizes = [1 + secrets.randbelow(7) for _ in range(nring)]
     sign_key_idx = [secrets.randbelow(size) for size in ring_sizes]

@@ -20,7 +20,7 @@ from btclib.base58 import b58decode, b58encode
 from btclib.base58address import p2pkh  # FIXME why it is needed here
 
 
-def test_indexes_from_path():
+def test_indexes_from_path() -> None:
 
     test_vectors = [
         # bitcoin core, account 0, external branch, address_index 463
@@ -43,8 +43,14 @@ def test_indexes_from_path():
         indexes = [i.to_bytes(4, "big") for i in indx]
         assert (indexes, absolute) == bip32._indexes_from_path(der_path)
 
+    with pytest.raises(OverflowError, match="can't convert negative int to unsigned"):
+        bip32._indexes_from_path("m/1/2/-3/4")
 
-def test_exceptions():
+    with pytest.raises(ValueError, match="negative index in derivation path: "):
+        bip32._indexes_from_path("m/1/2/-3h/4")
+
+
+def test_exceptions() -> None:
 
     # invalid checksum
     xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
@@ -77,7 +83,7 @@ def test_exceptions():
         bip32.rootxprv_from_seed(seed[:-2])
 
 
-def test_deserialize():
+def test_deserialize() -> None:
     xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv_dict = bip32.deserialize(xprv)
 
@@ -99,7 +105,7 @@ def test_deserialize():
     assert xpub == xpub2
 
 
-def test_serialize():
+def test_serialize() -> None:
     rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
     d = bip32.deserialize(rootxprv)
     assert bip32.serialize(d).decode() == rootxprv
@@ -149,7 +155,7 @@ def test_serialize():
 data_folder = path.join(path.dirname(__file__), "test_data")
 
 
-def test_bip39_vectors():
+def test_bip39_vectors() -> None:
     """BIP32 test vectors from BIP39
 
     https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
@@ -163,7 +169,7 @@ def test_bip39_vectors():
         assert bip32.rootxprv_from_seed(seed) == key.encode("ascii")
 
 
-def test_bip32_vectors():
+def test_bip32_vectors() -> None:
     """BIP32 test vectors
 
     https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
@@ -179,7 +185,7 @@ def test_bip32_vectors():
             assert xpub == bip32.xpub_from_xprv(xprv).decode()
 
 
-def test_invalid_bip32_xkeys():
+def test_invalid_bip32_xkeys() -> None:
 
     filename = path.join(data_folder, "bip32_invalid_keys.json")
     with open(filename, "r") as f:
@@ -190,14 +196,14 @@ def test_invalid_bip32_xkeys():
             bip32.deserialize(xkey)
 
 
-def test_rootxprv_from_mnemonic():
+def test_rootxprv_from_mnemonic() -> None:
     mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
     rootxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "")
     exp = b"xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"
     assert rootxprv == exp
 
 
-def test_derive():
+def test_derive() -> None:
 
     test_vectors = {
         "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS": [
@@ -219,7 +225,7 @@ def test_derive():
             assert address == p2pkh(bip32.derive(rootxprv, indexes)).decode()
 
 
-def test_derive_exceptions():
+def test_derive_exceptions() -> None:
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = bip32.derive(rootmxprv, b"\x80\x00\x00\x00")
@@ -279,7 +285,7 @@ def test_derive_exceptions():
         bip32.derive(xpub, 0x80000000)
 
 
-def test_derive_from_account():
+def test_derive_from_account() -> None:
 
     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
     rmxprv = bip32.rootxprv_from_seed(seed)
@@ -320,7 +326,7 @@ def test_derive_from_account():
         bip32.derive_from_account(mxpub, 0, 0)
 
 
-def test_crack():
+def test_crack() -> None:
     parent_xpub = "xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV"
     child_xprv = "xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm"
     parent_xprv = bip32.crack_prvkey(parent_xpub, child_xprv)

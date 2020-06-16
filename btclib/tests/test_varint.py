@@ -15,7 +15,7 @@ import pytest
 from btclib import varint
 
 
-def test_varint_conversion():
+def test_varint_conversion() -> None:
 
     i = -1
     with pytest.raises(ValueError, match="negative integer: "):

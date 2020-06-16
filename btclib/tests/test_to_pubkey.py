@@ -49,7 +49,7 @@ from btclib.to_pubkey import (
 # FIXME: fix error messages
 
 
-def test_from_key():
+def test_from_key() -> None:
 
     secp256r1 = CURVES["secp256r1"]
     m_c = bytes_from_point(Q, compressed=True), "mainnet"

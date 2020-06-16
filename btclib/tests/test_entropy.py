@@ -31,7 +31,7 @@ from btclib.entropy import (
 )
 
 
-def test_indexes():
+def test_indexes() -> None:
     for entropy in ("0", "00000000000"):
         indexes = _indexes_from_entropy(entropy, 2048)
         assert indexes == [0]
@@ -50,7 +50,7 @@ def test_indexes():
         assert indexes == indx
 
 
-def test_conversions():
+def test_conversions() -> None:
 
     test_vectors = [
         "10101011" * 32,
@@ -111,7 +111,7 @@ def test_conversions():
     assert raw2 == raw[:128]
 
 
-def test_exceptions():
+def test_exceptions() -> None:
     binstr_entropy216 = "00011010" * 27  # 216 bits
     binstr_entropy214 = binstr_entropy216[:-2]  # 214 bits
 
@@ -195,7 +195,7 @@ def test_collect_rolls(monkeypatch):
         assert len(dice_rolls) == min_roll_number
 
 
-def test_binstr_from_rolls():
+def test_binstr_from_rolls() -> None:
     bits = 256
     dice_base = 20
     bits_per_roll = math.floor(math.log2(dice_base))
@@ -261,7 +261,7 @@ def test_binstr_from_rolls():
         binstr_from_rolls(bits, 1, rolls)
 
 
-def test_randbinstr():
+def test_randbinstr() -> None:
     for hash in (True, False):
         bits = 256
         binstr = randbinstr(bits, hash=hash)

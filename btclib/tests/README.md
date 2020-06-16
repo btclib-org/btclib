@@ -10,7 +10,7 @@ pip install coverage pytest pytest-cov pytest-xdist
 
 Test execution is distributed across multiple cores,
 with the default number of cores being four:
-change it in tox.ini to your preferences
+this can be changed in setup.cfg
 
 ```shell
 pytest

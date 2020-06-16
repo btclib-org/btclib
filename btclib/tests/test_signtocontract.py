@@ -18,7 +18,7 @@ from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, verify_c
 import secrets
 
 
-def test_signtocontract():
+def test_signtocontract() -> None:
     m = sha256(b"to be signed").digest()
     c = sha256(b"to be committed").digest()
 

@@ -28,7 +28,7 @@ from btclib.tests.test_curves import low_card_curves
 from btclib.utils import int_from_bits
 
 
-def test_signature():
+def test_signature() -> None:
     ec = CURVES["secp256k1"]
     msg = "Satoshi Nakamoto"
 
@@ -113,7 +113,7 @@ def test_signature():
         ssa.__recover_pubkey(0, sig[0], sig[1], ec)
 
 
-def test_bip340_vectors():
+def test_bip340_vectors() -> None:
     """BIP340 (Schnorr) test vectors.
 
     https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
@@ -145,7 +145,7 @@ def test_bip340_vectors():
                 assert not ssa._verify(m, pubkey, sig), err_msg
 
 
-def test_low_cardinality():
+def test_low_cardinality() -> None:
     "test low-cardinality curves for all msg/key pairs."
 
     # ec.n has to be prime to sign
@@ -197,7 +197,7 @@ def test_low_cardinality():
                         assert x_Q == ssa.__recover_pubkey(e, r, s, ec)
 
 
-def test_crack_prvkey():
+def test_crack_prvkey() -> None:
 
     ec = CURVES["secp256k1"]
 
@@ -225,7 +225,7 @@ def test_crack_prvkey():
         ssa._crack_prvkey(msg1, sig1, msg1, sig1, x_Q)
 
 
-def test_batch_validation():
+def test_batch_validation() -> None:
 
     ec = CURVES["secp256k1"]
 
@@ -284,7 +284,7 @@ def test_batch_validation():
         ssa._batch_verify(ms, Qs, sigs, CURVES["secp224k1"], hf)
 
 
-def test_musig():
+def test_musig() -> None:
     """testing 3-of-3 MuSig.
 
         https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
@@ -370,7 +370,7 @@ def test_musig():
     ssa._assert_as_valid(m, Q, sig, ec, hf)
 
 
-def test_threshold():
+def test_threshold() -> None:
     "testing 2-of-3 threshold signature (Pedersen secret sharing)"
 
     ec = CURVES["secp256k1"]
