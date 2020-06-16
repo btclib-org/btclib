@@ -15,12 +15,12 @@ https://learnmeabitcoin.com/guide/coinbase-transaction
 https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
 """
 
-from typing import List, TypeVar
+from typing import List, TypeVar, Type
 from dataclasses import dataclass
 
-from . import tx_in, tx_out, varint
+from . import varint
 from .alias import Octets
-from .tx_in import TxIn
+from .tx_in import TxIn, witness_serialize, witness_deserialize
 from .tx_out import TxOut
 from .utils import bytes_from_octets, hash256
 
@@ -36,7 +36,7 @@ class Tx:
     witness_flag: bool
 
     @classmethod
-    def deserialize(cls, data: Octets) -> _Tx:
+    def deserialize(cls: Type[_Tx], data: Octets) -> _Tx:
 
         data = bytes_from_octets(data)
 
@@ -52,27 +52,27 @@ class Tx:
         data = data[len(varint.encode(input_count)) :]
         vin: List[TxIn] = []
         for _ in range(input_count):
-            tx_input = tx_in.deserialize(data)
+            tx_input = TxIn.deserialize(data)
             vin.append(tx_input)
-            data = data[len(tx_in.serialize(tx_input)) :]
+            data = data[len(tx_input.serialize()) :]
 
         output_count = varint.decode(data)
         data = data[len(varint.encode(output_count)) :]
         vout: List[TxOut] = []
         for _ in range(output_count):
-            tx_output = tx_out.deserialize(data)
+            tx_output = TxOut.deserialize(data)
             vout.append(tx_output)
-            data = data[len(tx_out.serialize(tx_output)) :]
+            data = data[len(tx_output.serialize()) :]
 
         if witness_flag:
             for tx_input in vin:
-                witness = tx_in.witness_deserialize(data)
-                data = data[len(tx_in.witness_serialize(witness)) :]
-                tx_input["txinwitness"] = witness
+                witness = witness_deserialize(data)
+                data = data[len(witness_serialize(witness)) :]
+                tx_input.txinwitness = witness
 
         locktime = int.from_bytes(data[:4], "little")
 
-        tx: Tx = cls(
+        tx = cls(
             version=version,
             locktime=locktime,
             vin=vin,
@@ -90,15 +90,15 @@ class Tx:
 
         out += varint.encode(len(self.vin))
         for tx_input in self.vin:
-            out += tx_in.serialize(tx_input)
+            out += tx_input.serialize()
 
         out += varint.encode(len(self.vout))
         for tx_output in self.vout:
-            out += tx_out.serialize(tx_output)
+            out += tx_output.serialize()
 
         if self.witness_flag and include_witness:
             for tx_input in self.vin:
-                out += tx_in.witness_serialize(tx_input["txinwitness"])
+                out += witness_serialize(tx_input.txinwitness)
 
         out += self.locktime.to_bytes(4, "little")
         return out

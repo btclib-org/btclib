@@ -22,18 +22,18 @@ def test_coinbase_1():
 
     block_1_coinbase_output_bytes = b'\x00\xf2\x05*\x01\x00\x00\x00CA\x04\x96\xb58\xe8SQ\x9crj,\x91\xe6\x1e\xc1\x16\x00\xae\x13\x90\x81:b|f\xfb\x8b\xe7\x94{\xe6<R\xdau\x897\x95\x15\xd4\xe0\xa6\x04\xf8\x14\x17\x81\xe6"\x94r\x11f\xbfb\x1es\xa8,\xbf#B\xc8X\xee\xac'
 
-    transaction_in = tx_in.deserialize(block_1_coinbase_input_bytes)
-    transaction_out = tx_out.deserialize(block_1_coinbase_output_bytes)
+    transaction_in = tx_in.TxIn.deserialize(block_1_coinbase_input_bytes)
+    transaction_out = tx_out.TxOut.deserialize(block_1_coinbase_output_bytes)
     transaction = tx.Tx.deserialize(block_1_coinbase_bytes)
 
-    assert transaction.vin[0]["scriptSig"] == transaction_in["scriptSig"]
-    assert transaction.vout[0]["scriptPubKey"] == transaction_out["scriptPubKey"]
+    assert transaction.vin[0].scriptSig == transaction_in.scriptSig
+    assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
 
     assert transaction.serialize() == block_1_coinbase_bytes
-    assert tx_in.serialize(transaction_in) == block_1_coinbase_input_bytes
-    assert tx_out.serialize(transaction_out) == block_1_coinbase_output_bytes
+    assert transaction_in.serialize() == block_1_coinbase_input_bytes
+    assert transaction_out.serialize() == block_1_coinbase_output_bytes
 
-    assert transaction.vin[0]["scriptSig"] == []
+    assert transaction.vin[0].scriptSig == []
 
     assert (
         transaction.txid
@@ -50,8 +50,8 @@ def test_wiki_transaction():
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
-    assert transaction.vout[0]["value"] == 5000000
-    assert transaction.vout[1]["value"] == 3354000000
+    assert transaction.vout[0].value == 5000000
+    assert transaction.vout[1].value == 3354000000
 
     assert transaction.txid == transaction.hash_value
 
@@ -101,52 +101,51 @@ def test_double_witness():
 
 
 def test_invalid_tx_in():
-    transaction_input: tx_in.TxIn = {
-        "txid": "00" * 31 + "01",
-        "vout": 256 ** 4 - 1,
-        "scriptSig": [],
-        "scriptSigHex": "",
-        "sequence": 1,
-        "txinwitness": [],
-    }
+    transaction_input = tx_in.TxIn(
+        txid="00" * 31 + "01",
+        vout=256 ** 4 - 1,
+        scriptSig=[],
+        scriptSigHex="",
+        sequence=1,
+        txinwitness=[],
+    )
 
     with pytest.raises(ValueError):
-        tx_in.assert_valid(transaction_input)
+        transaction_input.assert_valid()
 
 
 def test_invalid_tx_in2():
-    transaction_input: tx_in.TxIn = {
-        "txid": "00" * 32,
-        "vout": 0,
-        "scriptSig": [],
-        "scriptSigHex": "",
-        "sequence": 1,
-        "txinwitness": [],
-    }
+    transaction_input = tx_in.TxIn(
+        txid="00" * 32,
+        vout=0,
+        scriptSig=[],
+        scriptSigHex="",
+        sequence=1,
+        txinwitness=[],
+    )
 
     with pytest.raises(ValueError):
-        tx_in.assert_valid(transaction_input)
+        transaction_input.assert_valid()
 
 
 def test_invalid_tx_out():
-    transaction_output: tx_out.TxOut = {"value": -1, "scriptPubKey": ["OP_RETURN"]}
+    transaction_output = tx_out.TxOut(value=-1, scriptPubKey=["OP_RETURN"])
 
     with pytest.raises(ValueError):
-        tx_out.assert_valid(transaction_output)
+        transaction_output.assert_valid()
 
 
 def test_invalid_tx_out2():
-    transaction_output: tx_out.TxOut = {
-        "value": 2099999997690001,
-        "scriptPubKey": ["OP_RETURN"],
-    }
+    transaction_output = tx_out.TxOut(
+        value=2099999997690001, scriptPubKey=["OP_RETURN"],
+    )
 
     with pytest.raises(ValueError):
-        tx_out.assert_valid(transaction_output)
+        transaction_output.assert_valid()
 
 
 def test_invalid_tx_out3():
-    transaction_output: tx_out.TxOut = {"value": 1, "scriptPubKey": []}
+    transaction_output = tx_out.TxOut(value=1, scriptPubKey=[])
 
     with pytest.raises(ValueError):
-        tx_out.assert_valid(transaction_output)
+        transaction_output.assert_valid()
