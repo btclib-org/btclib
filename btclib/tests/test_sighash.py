@@ -66,7 +66,6 @@ def test_native_p2wsh():
     transaction.vin[1].txinwitness = [
         "21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac"
     ]
-    transaction.witness_flag = True
 
     previous_txout = tx.TxOut(
         value=49,
@@ -99,7 +98,6 @@ def test_native_p2wsh_2():
     transaction.vin[1].txinwitness = [
         "5163ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
     ]
-    transaction.witness_flag = True
 
     previous_txout_1 = tx_out.TxOut(
         value=0.16777215,
