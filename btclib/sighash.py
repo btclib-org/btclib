@@ -11,22 +11,21 @@
 from typing import List
 
 from . import tx, tx_out, script
-from .utils import hash256
-from .alias import Script
-
-# from .scriptpubkey import payload_from_scriptPubKey
+from .utils import hash256, bytes_from_octets
+from .alias import Script, Octets
 
 
-def _get_witness_sighash(
+# https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
+def SegwitV0SignatureHash(
+    scriptCode: Octets,
     transaction: tx.Tx,
     input_index: int,
-    scriptCode: str,
-    value: float,
-    sighash_type: int,
+    hashtype: int,
+    amount: float,
 ) -> bytes:
     nVersion = transaction.version.to_bytes(4, "little")
 
-    sighash_type: str = sighash_type.to_bytes(4, "little").hex()
+    sighash_type: str = hashtype.to_bytes(4, "little").hex()
     if sighash_type[0] != "8":
         hashPrevouts = b""
         for vin in transaction.vin:
@@ -57,9 +56,9 @@ def _get_witness_sighash(
     outpoint = bytes.fromhex(transaction.vin[input_index].txid)[::-1]
     outpoint += transaction.vin[input_index].vout.to_bytes(4, "little")
 
-    scriptCode = bytes.fromhex(scriptCode)
+    scriptCode = bytes_from_octets(scriptCode)
 
-    value_spent = (int(value * 10 ** 8)).to_bytes(8, "little")
+    value_spent = (amount).to_bytes(8, "little")
     nSequence = transaction.vin[input_index].sequence.to_bytes(4, "little")
 
     nLocktime = transaction.locktime.to_bytes(4, "little")
@@ -132,8 +131,8 @@ def get_sighash(
         sighash: List[bytes] = []
         for scriptCode in scriptCodes:
             sighash.append(
-                _get_witness_sighash(
-                    transaction, input_index, scriptCode, value, sighash_type
+                SegwitV0SignatureHash(
+                    scriptCode, transaction, input_index, sighash_type, value,
                 )
             )
         return sighash

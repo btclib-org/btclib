@@ -21,7 +21,7 @@ def test_native_p2wpkh():
     )
 
     previous_txout = tx_out.TxOut(
-        value=6,
+        value=600000000,
         scriptPubKey=script.decode("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
     )
 
@@ -47,7 +47,7 @@ def test_wrapped_p2wpkh():
     )
 
     previous_txout = tx_out.TxOut(
-        value=10,
+        value=1000000000,
         scriptPubKey=script.decode("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"),
     )
 
@@ -68,7 +68,7 @@ def test_native_p2wsh():
     ]
 
     previous_txout = tx.TxOut(
-        value=49,
+        value=4900000000,
         scriptPubKey=script.decode(
             "00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0"
         ),
@@ -100,7 +100,7 @@ def test_native_p2wsh_2():
     ]
 
     previous_txout_1 = tx_out.TxOut(
-        value=0.16777215,
+        value=16777215,
         scriptPubKey=script.decode(
             "0020ba468eea561b26301e4cf69fa34bde4ad60c81e70f059f045ca9a79931004a4d"
         ),
@@ -115,7 +115,7 @@ def test_native_p2wsh_2():
     print(sighash[1].hex())
 
     previous_txout_2 = tx.TxOut(
-        value=0.16777215,
+        value=16777215,
         scriptPubKey=script.decode(
             "0020d9bbfbe56af7c4b7f960a70d7ea107156913d9e5a26b0a71429df5e097ca6537"
         ),
@@ -141,7 +141,7 @@ def test_wrapped_p2wsh():
     ]
 
     previous_txout = tx_out.TxOut(
-        value=9.87654321,
+        value=987654321,
         scriptPubKey=script.decode(
             "0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54"
         ),
