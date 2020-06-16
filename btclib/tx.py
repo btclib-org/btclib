@@ -33,7 +33,6 @@ class Tx:
     locktime: int
     vin: List[TxIn]
     vout: List[TxOut]
-    witness_flag: bool
 
     @classmethod
     def deserialize(cls: Type[_Tx], data: Octets) -> _Tx:
@@ -72,35 +71,34 @@ class Tx:
 
         locktime = int.from_bytes(data[:4], "little")
 
-        tx = cls(
-            version=version,
-            locktime=locktime,
-            vin=vin,
-            vout=vout,
-            witness_flag=witness_flag,
-        )
+        tx = cls(version=version, locktime=locktime, vin=vin, vout=vout)
 
         tx.assert_valid()
         return tx
 
     def serialize(self, include_witness: bool = True) -> bytes:
         out = self.version.to_bytes(4, "little")
-        if self.witness_flag and include_witness:
-            out += b"\x00\x01"
 
+        witness_flag = False
         out += varint.encode(len(self.vin))
         for tx_input in self.vin:
             out += tx_input.serialize()
+            if tx_input.txinwitness != []:
+                witness_flag = True
 
         out += varint.encode(len(self.vout))
         for tx_output in self.vout:
             out += tx_output.serialize()
 
-        if self.witness_flag and include_witness:
+        if witness_flag and include_witness:
             for tx_input in self.vin:
                 out += witness_serialize(tx_input.txinwitness)
 
         out += self.locktime.to_bytes(4, "little")
+
+        if witness_flag and include_witness:
+            out = out[:4] + b"\x00\x01" + out[4:]
+
         return out
 
     @property
