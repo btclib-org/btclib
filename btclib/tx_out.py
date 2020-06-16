@@ -8,42 +8,49 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import List, TypedDict
+from typing import List, TypeVar, Type
+from dataclasses import dataclass
 
 from . import script, varint
 from .alias import Octets, Token
 from .utils import bytes_from_octets
 
+_TxOut = TypeVar("_TxOut", bound="TxOut")
 
-class TxOut(TypedDict):
-    value: int
+
+@dataclass
+class TxOut:
+    value: int  # satoshis
     scriptPubKey: List[Token]
 
+    @classmethod
+    def deserialize(cls: Type[_TxOut], data: Octets) -> _TxOut:
 
-def deserialize(data: Octets) -> TxOut:
+        data = bytes_from_octets(data)
 
-    data = bytes_from_octets(data)
+        value = int.from_bytes(data[:8], "little")
+        script_length = varint.decode(data[8:])
+        data = data[8 + len(varint.encode(script_length)) :]
+        scriptPubKey = script.decode(data[:script_length])
 
-    value = int.from_bytes(data[:8], "little")
-    script_length = varint.decode(data[8:])
-    data = data[8 + len(varint.encode(script_length)) :]
-    scriptPubKey = script.decode(data[:script_length])
+        tx_out = cls(value=value, scriptPubKey=scriptPubKey)
 
-    tx_out: TxOut = {"value": value, "scriptPubKey": scriptPubKey}
-
-    if validate(tx_out):
+        tx_out.assert_valid()
         return tx_out
-    else:
-        raise Exception("Invalid transaction output")
 
+    def serialize(self) -> bytes:
+        out = self.value.to_bytes(8, "little")
+        script_bytes = script.encode(self.scriptPubKey)
+        out += varint.encode(len(script_bytes))
+        out += script_bytes
+        return out
 
-def serialize(tx_out: TxOut) -> bytes:
-    out = tx_out["value"].to_bytes(8, "little")
-    script_bytes = script.encode(tx_out["scriptPubKey"])
-    out += varint.encode(len(script_bytes))
-    out += script_bytes
-    return out
+    def assert_valid(self) -> None:
+        if self.value < 0:
+            raise ValueError(f"negative value: {self.value}")
 
+        if 2099999997690000 < self.value:
+            raise ValueError(f"value too high: {self.value}")
 
-def validate(tx_out: TxOut) -> bool:
-    return True
+        if len(self.scriptPubKey) == 0:
+            raise ValueError(f"empty scriptPubKey: {self.scriptPubKey}")

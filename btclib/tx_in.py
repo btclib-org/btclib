@@ -8,14 +8,18 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import List, TypedDict
+from typing import List, TypeVar, Type
+from dataclasses import dataclass
 
 from . import script, varint
 from .alias import Octets, Token
 from .utils import bytes_from_octets
 
+_TxIn = TypeVar("_TxIn", bound="TxIn")
 
-class TxIn(TypedDict):
+
+@dataclass
+class TxIn:
     txid: str
     vout: int
     scriptSig: List[Token]
@@ -23,49 +27,59 @@ class TxIn(TypedDict):
     sequence: int
     txinwitness: List[str]
 
+    @classmethod
+    def deserialize(cls: Type[_TxIn], data: Octets) -> _TxIn:
 
-def deserialize(data: Octets, coinbase: bool = False) -> TxIn:
+        data = bytes_from_octets(data)
 
-    data = bytes_from_octets(data)
+        txid = data[:32][::-1].hex()
+        vout = int.from_bytes(data[32:36], "little")
+        is_coinbase = False
+        if txid == "00" * 32 and vout == 256 ** 4 - 1:
+            is_coinbase = True
 
-    txid = data[:32][::-1].hex()
-    vout = int.from_bytes(data[32:36], "little")
-    script_length = varint.decode(data[36:])
-    data = data[36 + len(varint.encode(script_length)) :]
+        script_length = varint.decode(data[36:])
+        data = data[36 + len(varint.encode(script_length)) :]
 
-    scriptSigHex = data[:script_length].hex()
-    scriptSig = []
-    if not coinbase:
-        scriptSig = script.decode(data[:script_length])
+        scriptSig: List[Token] = []
+        scriptSigHex = ""
+        if is_coinbase:
+            scriptSigHex = data[:script_length].hex()
+        else:
+            scriptSig = script.decode(data[:script_length])
 
-    sequence = int.from_bytes(data[script_length : script_length + 4], "little")
-    txinwitness: List[str] = []
+        sequence = int.from_bytes(data[script_length : script_length + 4], "little")
+        txinwitness: List[str] = []
 
-    tx_in: TxIn = {
-        "txid": txid,
-        "vout": vout,
-        "scriptSig": scriptSig,
-        "scriptSigHex": scriptSigHex,
-        "sequence": sequence,
-        "txinwitness": txinwitness,
-    }
+        tx_in = cls(
+            txid=txid,
+            vout=vout,
+            scriptSig=scriptSig,
+            scriptSigHex=scriptSigHex,
+            sequence=sequence,
+            txinwitness=txinwitness,
+        )
 
-    if coinbase or validate(
-        tx_in
-    ):  # the block is responsible of validating the coinbase
+        tx_in.assert_valid()
         return tx_in
-    else:
-        raise Exception("Invalid transaction input")
 
+    def serialize(self) -> bytes:
+        out = bytes.fromhex(self.txid)[::-1]
+        out += self.vout.to_bytes(4, "little")
+        if self.txid == "00" * 32 and self.vout == 256 ** 4 - 1:
+            script_bytes = bytes.fromhex(self.scriptSigHex)
+        else:
+            script_bytes = script.encode(self.scriptSig)
+        out += varint.encode(len(script_bytes))
+        out += script_bytes
+        out += self.sequence.to_bytes(4, "little")
+        return out
 
-def serialize(tx_in: TxIn) -> bytes:
-    out = bytes.fromhex(tx_in["txid"])[::-1]
-    out += tx_in["vout"].to_bytes(4, "little")
-    script_bytes = bytes.fromhex(tx_in["scriptSigHex"])
-    out += varint.encode(len(script_bytes))
-    out += script_bytes
-    out += tx_in["sequence"].to_bytes(4, "little")
-    return out
+    def assert_valid(self) -> None:
+        null_txid = "00" * 32
+        null_vout = 256 ** 4 - 1
+        if (self.txid == null_txid) ^ (self.vout == null_vout):
+            raise ValueError("invalid tx_in")
 
 
 def witness_deserialize(data: Octets) -> List[str]:
@@ -97,7 +111,3 @@ def witness_serialize(witness: List[str]) -> bytes:
         out += witness_bytes
 
     return out
-
-
-def validate(tx_in: TxIn) -> bool:
-    return True

@@ -15,103 +15,99 @@ https://learnmeabitcoin.com/guide/coinbase-transaction
 https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
 """
 
-from typing import List, TypedDict
+from typing import List, TypeVar, Type
+from dataclasses import dataclass
 
-from . import tx_in, tx_out, varint
+from . import varint
 from .alias import Octets
-from .tx_in import TxIn
+from .tx_in import TxIn, witness_serialize, witness_deserialize
 from .tx_out import TxOut
 from .utils import bytes_from_octets, hash256
 
+_Tx = TypeVar("_Tx", bound="Tx")
 
-class Tx(TypedDict):
+
+@dataclass
+class Tx:
     version: int
     locktime: int
     vin: List[TxIn]
     vout: List[TxOut]
-    witness_flag: bool
 
+    @classmethod
+    def deserialize(cls: Type[_Tx], data: Octets) -> _Tx:
 
-def deserialize(data: Octets, coinbase: bool = False) -> Tx:
-    # if len(data) < 60:
-    #     raise Exception
+        data = bytes_from_octets(data)
 
-    data = bytes_from_octets(data)
+        version = int.from_bytes(data[:4], "little")
+        data = data[4:]
 
-    version = int.from_bytes(data[:4], "little")
-    data = data[4:]
+        witness_flag = False
+        if data[:2] == b"\x00\x01":
+            witness_flag = True
+            data = data[2:]
 
-    witness_flag = False
-    if data[:2] == b"\x00\x01":
-        witness_flag = True
-        data = data[2:]
+        input_count = varint.decode(data)
+        data = data[len(varint.encode(input_count)) :]
+        vin: List[TxIn] = []
+        for _ in range(input_count):
+            tx_input = TxIn.deserialize(data)
+            vin.append(tx_input)
+            data = data[len(tx_input.serialize()) :]
 
-    input_count = varint.decode(data)
-    data = data[len(varint.encode(input_count)) :]
-    vin: List[TxIn] = []
-    for _ in range(input_count):
-        tx_input = tx_in.deserialize(data, coinbase)
-        vin.append(tx_input)
-        data = data[len(tx_in.serialize(tx_input)) :]
+        output_count = varint.decode(data)
+        data = data[len(varint.encode(output_count)) :]
+        vout: List[TxOut] = []
+        for _ in range(output_count):
+            tx_output = TxOut.deserialize(data)
+            vout.append(tx_output)
+            data = data[len(tx_output.serialize()) :]
 
-    output_count = varint.decode(data)
-    data = data[len(varint.encode(output_count)) :]
-    vout: List[TxOut] = []
-    for _ in range(output_count):
-        tx_output = tx_out.deserialize(data)
-        vout.append(tx_output)
-        data = data[len(tx_out.serialize(tx_output)) :]
+        if witness_flag:
+            for tx_input in vin:
+                witness = witness_deserialize(data)
+                data = data[len(witness_serialize(witness)) :]
+                tx_input.txinwitness = witness
 
-    if witness_flag:
-        for tx_input in vin:
-            witness = tx_in.witness_deserialize(data)
-            data = data[len(tx_in.witness_serialize(witness)) :]
-            tx_input["txinwitness"] = witness
+        locktime = int.from_bytes(data[:4], "little")
 
-    locktime = int.from_bytes(data[:4], "little")
+        tx = cls(version=version, locktime=locktime, vin=vin, vout=vout)
 
-    tx: Tx = {
-        "version": version,
-        "locktime": locktime,
-        "vin": vin,
-        "vout": vout,
-        "witness_flag": witness_flag,
-    }
-
-    if coinbase or validate(tx):  # the block is responsible of validating the coinbase
+        tx.assert_valid()
         return tx
-    else:
-        raise Exception("Invalid transaction")
 
+    def serialize(self, include_witness: bool = True) -> bytes:
+        out = self.version.to_bytes(4, "little")
 
-def serialize(tx: Tx, include_witness: bool = True) -> bytes:
-    out = tx["version"].to_bytes(4, "little")
-    if tx["witness_flag"] and include_witness:
-        out += b"\x00\x01"
+        witness_flag = False
+        out += varint.encode(len(self.vin))
+        for tx_input in self.vin:
+            out += tx_input.serialize()
+            if tx_input.txinwitness != []:
+                witness_flag = True
 
-    out += varint.encode(len(tx["vin"]))
-    for tx_input in tx["vin"]:
-        out += tx_in.serialize(tx_input)
+        out += varint.encode(len(self.vout))
+        for tx_output in self.vout:
+            out += tx_output.serialize()
 
-    out += varint.encode(len(tx["vout"]))
-    for tx_output in tx["vout"]:
-        out += tx_out.serialize(tx_output)
+        if witness_flag and include_witness:
+            for tx_input in self.vin:
+                out += witness_serialize(tx_input.txinwitness)
 
-    if tx["witness_flag"] and include_witness:
-        for tx_input in tx["vin"]:
-            out += tx_in.witness_serialize(tx_input["txinwitness"])
+        out += self.locktime.to_bytes(4, "little")
 
-    out += tx["locktime"].to_bytes(4, "little")
-    return out
+        if witness_flag and include_witness:
+            out = out[:4] + b"\x00\x01" + out[4:]
 
+        return out
 
-def txid(tx: Tx) -> str:
-    return hash256(serialize(tx, False))[::-1].hex()
+    @property
+    def txid(self) -> str:
+        return hash256(self.serialize(False))[::-1].hex()
 
+    @property
+    def hash_value(self) -> str:
+        return hash256(self.serialize())[::-1].hex()
 
-def hash_value(tx: Tx) -> str:
-    return hash256(serialize(tx))[::-1].hex()
-
-
-def validate(tx: Tx) -> bool:
-    return True
+    def assert_valid(self) -> None:
+        pass
