@@ -13,7 +13,8 @@ from typing import List, Any, Dict, Tuple, Type, TypeVar
 from base64 import b64decode, b64encode
 
 from .tx import Tx
-from . import varint
+from .tx_out import TxOut
+from . import varint, script
 
 
 _PSbt = TypeVar("_PSbt", bound="Psbt")
@@ -21,9 +22,6 @@ _PSbt = TypeVar("_PSbt", bound="Psbt")
 
 @dataclass
 class Psbt:
-    # global_maps: List[List[Pair]]
-    # input_maps: List[List[Pair]]
-    # output_maps: List[List[Pair]]
     global_map: Dict
     input_maps: List[Dict]
     output_maps: List[Dict]
@@ -40,25 +38,35 @@ class Psbt:
         data = data[5:]
 
         global_map, data = deserialize_map(data)
+        global_map = decode_global_map(global_map)
 
-        assert b"\x00" in global_map.keys(), "Malformed psbt: missing unigned tx"
+        assert "tx" in global_map.keys(), "Malformed psbt: missing unigned tx"
 
-        input_len = len(Tx.deserialize(global_map[b"\x00"]).vin)
-        output_len = len(Tx.deserialize(global_map[b"\x00"]).vout)
+        input_len = len(global_map["tx"].vin)
+        output_len = len(global_map["tx"].vout)
 
         input_maps = []
         for i in range(input_len):
             input_map, data = deserialize_map(data)
+            input_map = decode_input_map(input_map)
             input_maps.append(input_map)
 
         output_maps = []
         for i in range(output_len):
             output_map, data = deserialize_map(data)
+            output_map = decode_output_map(output_map)
             output_maps.append(output_map)
 
-        return cls(
+        psbt = cls(
             global_map=global_map, input_maps=input_maps, output_maps=output_maps
         )
+
+        psbt.assert_valid()
+
+        return psbt
+
+    def assert_valid(self):
+        pass
 
 
 def deserialize_map(data: bytes) -> Tuple[Dict, bytes]:
@@ -80,3 +88,71 @@ def deserialize_map(data: bytes) -> Tuple[Dict, bytes]:
         data = data[value_len:]
         assert key not in partial_map.keys(), "Malformed psbt: duplicate keys"
         partial_map[key] = value
+
+
+def decode_global_map(global_map: Dict) -> Dict:
+    out_map = {}
+    for key, value in global_map.items():
+        if key == b"\x00":
+            out_map["tx"] = Tx.deserialize(value)
+        elif key[0] == 0x01:  # TODO
+            assert len(key) == 33 + 1
+            pass  # TODO
+        elif key[0] == 0xFB:
+            assert len(value) == 32
+            out_map["version"] = int.from_bytes(value, "little")
+        elif key[0] == 0xFC:
+            pass  # proprietary use
+        else:
+            raise KeyError("Invalid key type")
+    return out_map
+
+
+def decode_input_map(input_map: Dict) -> Dict:
+    out_map = {}
+    for key, value in input_map.items():
+        if key == b"\x00":
+            out_map["non_witness_utxo"] = Tx.deserialize(value)
+        elif key == b"\x01":
+            out_map["witness_utxo"] = TxOut.deserialize(value)
+        elif key[0] == 0x02:
+            assert len(key) == 33 + 1
+            out_map["partial_sig"] = value.hex()
+        elif key == b"\x03":
+            assert len(value) == 4
+            out_map["sighash_type"] = int.from_bytes(value, "little")
+        elif key == b"\x04":
+            out_map["redeem_script"] = script.decode(value)
+        elif key == b"\x05":
+            out_map["witness_script"] = script.decode(value)
+        elif key[0] == 0x06:
+            assert len(key) == 33 + 1
+            pass  # TODO
+        elif key == b"\x07":
+            out_map["scriptSig"] = script.decode(value)
+        elif key == b"\x08":
+            out_map["scriptWitenss"] = script.decode(value)
+        elif key == b"\x09":
+            pass  # TODO
+        elif key[0] == 0xFC:
+            pass  # proprietary use
+        else:
+            raise KeyError("Invalid key type")
+    return out_map
+
+
+def decode_output_map(output_map: Dict) -> Dict:
+    out_map = {}
+    for key, value in output_map.items():
+        if key == b"\x00":
+            out_map["redeem_script"] = script.decode(value)
+        elif key == b"\x01":
+            out_map["witness_script"] = script.decode(value)
+        elif key[0] == 0x02:
+            assert len(key) == 33 + 1
+            pass  # TODO
+        elif key[0] == 0xFC:
+            pass  # proprietary use
+        else:
+            raise KeyError("Invalid key type")
+    return out_map
