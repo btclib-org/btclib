@@ -122,7 +122,7 @@ def test_op_int() -> None:
     i = 0b1111111111111111
     assert len(_op_int(i)) == 4
 
-    
+
 def test_op_pushdata() -> None:
     length = 75
     b = "00" * length
@@ -135,8 +135,8 @@ def test_op_pushdata() -> None:
     assert len(_op_pushdata(b)) == length + 2
     b = "00" * (length + 1)
     assert len(_op_pushdata(b)) == (length + 1) + 3
-    
-    
+
+
 def test_encoding():
     script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
     assert encode(decode(script_bytes)) == script_bytes

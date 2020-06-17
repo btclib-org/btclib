@@ -8,14 +8,18 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import TypedDict, List
-from hashlib import sha256
+from typing import List, Type, TypeVar
 
+from dataclasses import dataclass
+from .alias import Octets
 from . import varint, tx
-from .utils import hash256
+from .utils import hash256, bytes_from_octets
+
+_BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
 
-class BlockHeader(TypedDict):
+@dataclass
+class BlockHeader:
     version: int
     previousblockhash: str
     merkleroot: str
@@ -23,104 +27,101 @@ class BlockHeader(TypedDict):
     bits: int
     nonce: int
 
+    @classmethod
+    def deserialize(cls: Type[_BlockHeader], data: Octets) -> _BlockHeader:
 
-def deserialize_block_header(data: bytes) -> BlockHeader:
-    version = int.from_bytes(data[0:4], "little")
-    previousblockhash = data[4:36][::-1].hex()
-    merkleroot = data[36:68][::-1].hex()
-    timestamp = int.from_bytes(data[68:72], "little")
-    bits = int.from_bytes(data[72:76], "little")
-    nonce = int.from_bytes(data[76:80], "little")
+        data = bytes_from_octets(data)
 
-    header: BlockHeader = {
-        "version": version,
-        "previousblockhash": previousblockhash,
-        "merkleroot": merkleroot,
-        "time": timestamp,
-        "bits": bits,
-        "nonce": nonce,
-    }
+        version = int.from_bytes(data[0:4], "little")
+        previousblockhash = data[4:36][::-1].hex()
+        merkleroot = data[36:68][::-1].hex()
+        timestamp = int.from_bytes(data[68:72], "little")
+        bits = int.from_bytes(data[72:76], "little")
+        nonce = int.from_bytes(data[76:80], "little")
 
-    return header
+        header = cls(
+            version=version,
+            previousblockhash=previousblockhash,
+            merkleroot=merkleroot,
+            time=timestamp,
+            bits=bits,
+            nonce=nonce,
+        )
+
+        return header
+
+    def serialize(self) -> bytes:
+        out = self.version.to_bytes(4, "little")
+        out += bytes.fromhex(self.previousblockhash)[::-1]
+        out += bytes.fromhex(self.merkleroot)[::-1]
+        out += self.time.to_bytes(4, "little")
+        out += self.bits.to_bytes(4, "little")
+        out += self.nonce.to_bytes(4, "little")
+        return out
+
+    @property
+    def hash(self) -> str:
+        return hash256(self.serialize())[::-1].hex()
+
+    def assert_valid(self) -> None:
+        pass
 
 
-def serialize_block_header(header: BlockHeader) -> bytes:
-    out = header["version"].to_bytes(4, "little")
-    out += bytes.fromhex(header["previousblockhash"])[::-1]
-    out += bytes.fromhex(header["merkleroot"])[::-1]
-    out += header["time"].to_bytes(4, "little")
-    out += header["bits"].to_bytes(4, "little")
-    out += header["nonce"].to_bytes(4, "little")
-    return out
+_Block = TypeVar("_Block", bound="Block")
 
 
-def block_header_hash(header: BlockHeader):
-    return hash256(serialize_block_header(header))[::-1].hex()
-
-
-class Block(TypedDict):
+@dataclass
+class Block:
     header: BlockHeader
     transactions: List[tx.Tx]
 
+    @classmethod
+    def deserialize(cls: Type[_Block], data: Octets) -> _Block:
 
-def deserialize_block(data: bytes) -> Block:
-    header = deserialize_block_header(data[:80])
+        data = bytes_from_octets(data)
 
-    data = data[80:]
-    transaction_count = varint.decode(data)
-    data = data[len(varint.encode(transaction_count)) :]
-    transactions: List[tx.Tx] = []
-    coinbase = tx.deserialize(data, True)
-    transactions.append(coinbase)
-    data = data[len(tx.serialize(coinbase)) :]
-    for x in range(transaction_count - 1):
-        transaction = tx.deserialize(data)
-        transactions.append(transaction)
-        data = data[len(tx.serialize(transaction)) :]
+        header = BlockHeader.deserialize(data[:80])
 
-    block: Block = {"header": header, "transactions": transactions}
-    if validate_block(block):
+        data = data[80:]
+        transaction_count = varint.decode(data)
+        data = data[len(varint.encode(transaction_count)) :]
+        transactions: List[tx.Tx] = []
+        coinbase = tx.Tx.deserialize(data)
+        transactions.append(coinbase)
+        data = data[len(coinbase.serialize()) :]
+        for x in range(transaction_count - 1):
+            transaction = tx.Tx.deserialize(data)
+            transactions.append(transaction)
+            data = data[len(transaction.serialize()) :]
+
+        block = cls(header=header, transactions=transactions)
+
+        block.assert_valid()
+
         return block
-    else:
-        raise Exception("Invalid block")
 
+    def serialize(self) -> bytes:
+        out = self.header.serialize()
+        out += varint.encode(len(self.transactions))
+        for transaction in self.transactions:
+            out += transaction.serialize()
+        return out
 
-def serialize_block(block: Block) -> bytes:
-    out = serialize_block_header(block["header"])
-    out += varint.encode(len(block["transactions"]))
-    for transaction in block["transactions"]:
-        out += tx.serialize(transaction)
-    return out
-
-
-def validate_block(block: Block) -> bool:
-    for transaction in block["transactions"][1:]:
-        if not tx.validate(transaction):
-            return False
-    if not _validate_block_header(block["header"]):
-        return False
-    if (
-        not _generate_merkle_root(block["transactions"])
-        == block["header"]["merkleroot"]
-    ):
-        return False
-    return True
-
-
-def _validate_block_header(block: BlockHeader) -> bool:
-    return True
+    def assert_valid(self) -> None:
+        for transaction in self.transactions[1:]:
+            transaction.assert_valid()
+        self.header.assert_valid()
+        assert _generate_merkle_root(self.transactions) == self.header.merkleroot
 
 
 def _generate_merkle_root(transactions: List[tx.Tx]) -> str:
-    hashes = [bytes.fromhex(tx.txid(transaction))[::-1] for transaction in transactions]
+    hashes = [bytes.fromhex(transaction.txid)[::-1] for transaction in transactions]
     hashes_buffer = []
     while len(hashes) != 1:
         if len(hashes) % 2 != 0:
             hashes.append(hashes[-1])
         for x in range(len(hashes) // 2):
-            hashes_buffer.append(
-                sha256(sha256(hashes[2 * x] + hashes[2 * x + 1]).digest()).digest()
-            )
+            hashes_buffer.append(hash256(hashes[2 * x] + hashes[2 * x + 1]))
         hashes = hashes_buffer[:]
         hashes_buffer = []
     return hashes[0][::-1].hex()
