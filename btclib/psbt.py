@@ -10,11 +10,10 @@
 
 from dataclasses import dataclass
 from typing import List, Any, Dict, Tuple, Type, TypeVar
-from .alias import Octets
-from .utils import bytes_from_octets
-from . import varint
+from base64 import b64decode, b64encode
 
 from .tx import Tx
+from . import varint
 
 
 _PSbt = TypeVar("_PSbt", bound="Psbt")
@@ -30,16 +29,19 @@ class Psbt:
     output_maps: List[Dict]
 
     @classmethod
-    def deserialize(cls: Type[_PSbt], data: Octets) -> _PSbt:
-        data = bytes_from_octets(data)
+    def deserialize(cls: Type[_PSbt], data: str) -> _PSbt:
+        data = b64decode(data)
 
         magic_bytes = data[:5]
-        if magic_bytes != bytes.fromhex("70736274ff"):
-            raise Exception()
+        assert magic_bytes == bytes.fromhex(
+            "70736274ff"
+        ), "Malformed psbt: missing magic bytes"
 
         data = data[5:]
 
         global_map, data = deserialize_map(data)
+
+        assert b"\x00" in global_map.keys(), "Malformed psbt: missing unigned tx"
 
         input_len = len(Tx.deserialize(global_map[b"\x00"]).vin)
         output_len = len(Tx.deserialize(global_map[b"\x00"]).vout)
@@ -60,8 +62,14 @@ class Psbt:
 
 
 def deserialize_map(data: bytes) -> Tuple[Dict, bytes]:
+    assert len(data) != 0, "Malformed psbt: at least a map is missing"
     partial_map = {}
     while True:
+        if len(data) == 0:
+            return partial_map, data
+        if data[0] == 0:
+            data = data[1:]
+            return partial_map, data
         key_len = varint.decode(data)
         data = data[len(varint.encode(key_len)) :]
         key = data[:key_len]
@@ -70,7 +78,5 @@ def deserialize_map(data: bytes) -> Tuple[Dict, bytes]:
         data = data[len(varint.encode(value_len)) :]
         value = data[:value_len]
         data = data[value_len:]
+        assert key not in partial_map.keys(), "Malformed psbt: duplicate keys"
         partial_map[key] = value
-        if data[0] == 0:
-            data = data[1:]
-            return partial_map, data
