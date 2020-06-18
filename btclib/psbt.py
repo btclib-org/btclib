@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass
-from typing import List, Any, Dict, Tuple, Type, TypeVar, Optional
+from typing import List, Dict, Tuple, Type, TypeVar, Optional
 from base64 import b64decode, b64encode
 
 from .tx import Tx
@@ -56,8 +56,19 @@ class PsbtGlobalMap:
 
         return out
 
+    def serialize(self) -> bytes:
+        out = b"\x01\x00"
+        tx = self.tx.serialize()
+        out += varint.encode(len(tx)) + tx
+        if self.xpub:
+            pass
+        if self.version:
+            pass
+        return out
+
     def assert_valid(self) -> None:
-        pass
+        for vin in self.tx.vin:
+            assert vin.scriptSig == []
 
 
 _PsbtInputMap = TypeVar("_PsbtInputMap", bound="PsbtInputMap")
@@ -67,7 +78,7 @@ _PsbtInputMap = TypeVar("_PsbtInputMap", bound="PsbtInputMap")
 class PsbtInputMap:
     non_witness_utxo: Optional[Tx] = None
     witness_utxo: Optional[TxOut] = None
-    partial_sig: Optional[str] = None
+    partial_sig: Optional[Dict[str, str]] = None
     sighash_type: Optional[int] = None
     redeem_script: Optional[Script] = None
     witness_script: Optional[Script] = None
@@ -88,7 +99,7 @@ class PsbtInputMap:
                 out_map["witness_utxo"] = TxOut.deserialize(value)
             elif key[0] == 0x02:
                 assert len(key) == 33 + 1
-                out_map["partial_sig"] = value.hex()
+                out_map["partial_sig"] = {"pubkey": key[1:], "signature": value.hex()}
             elif key == b"\x03":
                 assert len(value) == 4
                 out_map["sighash_type"] = int.from_bytes(value, "little")
@@ -119,6 +130,40 @@ class PsbtInputMap:
 
         out.assert_valid()
 
+        return out
+
+    def serialize(self) -> bytes:
+        out = b""
+        if self.non_witness_utxo:
+            out += b"\x01\x00"
+            utxo = self.non_witness_utxo.serialize()
+            out += varint.encode(len(utxo)) + utxo
+        if self.witness_utxo:
+            out += b"\x01\x01"
+            utxo = self.witness_utxo.serialize()
+            out += varint.encode(len(utxo)) + utxo
+        if self.partial_sig:
+            pass
+        if self.sighash_type:
+            out += b"\x01\x03\x04"
+            out += self.sighash_type.to_bytes(4, "little")
+        if self.redeem_script:
+            out += b"\x01\x04"
+            out += script.serialize(self.redeem_script)
+        if self.witness_script:
+            pass
+        if self.bip32_derivation:
+            pass
+        if self.scriptSig:
+            out += b"\x01\x07"
+            out += script.serialize(self.scriptSig)
+        if self.scriptWitenss:
+            out += b"\x01\x08"
+            out += script.deserialize(self.scriptWitenss)
+        if self.por_commitment:
+            out += b"\x01\x09"
+            c = bytes.fromhex(self.por_commitment)
+            out += varint.encode(len(c)) + c
         return out
 
     def assert_valid(self) -> None:
@@ -161,7 +206,10 @@ class PsbtOutputMap:
 
         out.assert_valid()
 
-        return out_map
+        return out
+
+    def serialize(self) -> bytes:
+        return b""
 
     def assert_valid(self) -> None:
         pass
@@ -213,18 +261,29 @@ class Psbt:
 
         return psbt
 
+    def serialize(self) -> bytes:
+        out = bytes.fromhex("70736274ff")
+        out += self.global_map.serialize() + b"\x00"
+        for input_map in self.input_maps:
+            out += input_map.serialize() + b"\x00"
+        for output_map in self.output_maps:
+            out += output_map.serialize() + b"\x00"
+        return b64encode(out).decode()
+
     def assert_valid(self) -> None:
-        tx = self.global_map.tx
-        for vin in tx.vin:
-            assert vin.scriptSig == []
+        self.global_map.assert_valid()
+        for input_map in self.input_maps:
+            input_map.assert_valid()
+        for output_map in self.output_maps:
+            output_map.assert_valid()
 
 
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
     assert len(data) != 0, "Malformed psbt: at least a map is missing"
     partial_map: Dict[bytes, bytes] = {}
     while True:
-        if len(data) == 0:
-            return partial_map, data
+        # if len(data) == 0:
+        #     return partial_map, data
         if data[0] == 0:
             data = data[1:]
             return partial_map, data
