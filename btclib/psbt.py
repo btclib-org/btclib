@@ -22,9 +22,9 @@ _PSbt = TypeVar("_PSbt", bound="Psbt")
 
 @dataclass
 class Psbt:
-    global_map: Dict
-    input_maps: List[Dict]
-    output_maps: List[Dict]
+    global_map: Dict[str, Any]
+    input_maps: List[Dict[str, Any]]
+    output_maps: List[Dict[str, Any]]
 
     @classmethod
     def deserialize(cls: Type[_PSbt], data: str) -> _PSbt:
@@ -65,13 +65,15 @@ class Psbt:
 
         return psbt
 
-    def assert_valid(self):
-        pass
+    def assert_valid(self) -> None:
+        tx = self.global_map["tx"]
+        for vin in tx.vin:
+            assert vin.scriptSig == []
 
 
-def deserialize_map(data: bytes) -> Tuple[Dict, bytes]:
+def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
     assert len(data) != 0, "Malformed psbt: at least a map is missing"
-    partial_map = {}
+    partial_map: Dict[bytes, bytes] = {}
     while True:
         if len(data) == 0:
             return partial_map, data
@@ -90,14 +92,19 @@ def deserialize_map(data: bytes) -> Tuple[Dict, bytes]:
         partial_map[key] = value
 
 
-def decode_global_map(global_map: Dict) -> Dict:
+def decode_global_map(global_map: Dict[bytes, bytes]) -> Dict[str, Any]:
     out_map = {}
     for key, value in global_map.items():
         if key == b"\x00":
             out_map["tx"] = Tx.deserialize(value)
         elif key[0] == 0x01:  # TODO
-            assert len(key) == 33 + 1
-            pass  # TODO
+            assert len(key) == 78 + 1
+            assert len(value) % 4 == 0
+            out_map["xpub"] = {
+                "xpub": key[1:],
+                "fingerprint": value[4:].hex(),
+                "derivation_path": value[4:],
+            }
         elif key[0] == 0xFB:
             assert len(value) == 32
             out_map["version"] = int.from_bytes(value, "little")
@@ -108,7 +115,7 @@ def decode_global_map(global_map: Dict) -> Dict:
     return out_map
 
 
-def decode_input_map(input_map: Dict) -> Dict:
+def decode_input_map(input_map: Dict[bytes, bytes]) -> Dict[str, Any]:
     out_map = {}
     for key, value in input_map.items():
         if key == b"\x00":
@@ -127,13 +134,18 @@ def decode_input_map(input_map: Dict) -> Dict:
             out_map["witness_script"] = script.decode(value)
         elif key[0] == 0x06:
             assert len(key) == 33 + 1
-            pass  # TODO
+            assert len(value) % 4 == 0
+            out_map["bip32_derivation"] = {
+                "xpub": key[1:],
+                "fingerprint": value[4:].hex(),
+                "derivation_path": value[4:],
+            }
         elif key == b"\x07":
             out_map["scriptSig"] = script.decode(value)
         elif key == b"\x08":
             out_map["scriptWitenss"] = script.decode(value)
         elif key == b"\x09":
-            pass  # TODO
+            out_map["por_commitment"] = value  # TODO: bip127
         elif key[0] == 0xFC:
             pass  # proprietary use
         else:
@@ -141,7 +153,7 @@ def decode_input_map(input_map: Dict) -> Dict:
     return out_map
 
 
-def decode_output_map(output_map: Dict) -> Dict:
+def decode_output_map(output_map: Dict[bytes, bytes]) -> Dict[str, Any]:
     out_map = {}
     for key, value in output_map.items():
         if key == b"\x00":
@@ -150,7 +162,12 @@ def decode_output_map(output_map: Dict) -> Dict:
             out_map["witness_script"] = script.decode(value)
         elif key[0] == 0x02:
             assert len(key) == 33 + 1
-            pass  # TODO
+            assert len(value) % 4 == 0
+            out_map["bip32_derivation"] = {
+                "xpub": key[1:],
+                "fingerprint": value[4:].hex(),
+                "derivation_path": value[4:],
+            }
         elif key[0] == 0xFC:
             pass  # proprietary use
         else:
