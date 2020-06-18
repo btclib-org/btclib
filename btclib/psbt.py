@@ -9,12 +9,162 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass
-from typing import List, Any, Dict, Tuple, Type, TypeVar
+from typing import List, Any, Dict, Tuple, Type, TypeVar, Optional
 from base64 import b64decode, b64encode
 
 from .tx import Tx
 from .tx_out import TxOut
+from .alias import Script
 from . import varint, script
+
+_PsbtGlobalMap = TypeVar("_PsbtGlobalMap", bound="PsbtGlobalMap")
+
+
+@dataclass
+class PsbtGlobalMap:
+    tx: Tx
+    xpub: Optional[Dict[str, str]] = None
+    version: int = 0
+
+    @classmethod
+    def decode(
+        cls: Type[_PsbtGlobalMap], global_map: Dict[bytes, bytes]
+    ) -> _PsbtGlobalMap:
+        out_map = {}
+        for key, value in global_map.items():
+            if key == b"\x00":
+                out_map["tx"] = Tx.deserialize(value)
+            elif key[0] == 0x01:  # TODO
+                assert len(key) == 78 + 1
+                assert len(value) % 4 == 0
+                out_map["xpub"] = {
+                    "xpub": key[1:].hex(),
+                    "fingerprint": value[4:].hex(),
+                    "derivation_path": value[4:].hex(),
+                }
+            elif key[0] == 0xFB:
+                assert len(value) == 32
+                out_map["version"] = int.from_bytes(value, "little")
+            elif key[0] == 0xFC:
+                pass  # proprietary use
+            else:
+                raise KeyError("Invalid key type")
+
+        out = cls(**out_map)
+
+        out.assert_valid()
+
+        return out
+
+    def assert_valid(self) -> None:
+        pass
+
+
+_PsbtInputMap = TypeVar("_PsbtInputMap", bound="PsbtInputMap")
+
+
+@dataclass
+class PsbtInputMap:
+    non_witness_utxo: Optional[Tx] = None
+    witness_utxo: Optional[TxOut] = None
+    partial_sig: Optional[str] = None
+    sighash_type: Optional[int] = None
+    redeem_script: Optional[Script] = None
+    witness_script: Optional[Script] = None
+    bip32_derivation: Optional[Dict[str, str]] = None
+    scriptSig: Optional[Script] = None
+    scriptWitenss: Optional[Script] = None
+    por_commitment: Optional[str] = None
+
+    @classmethod
+    def decode(
+        cls: Type[_PsbtInputMap], input_map: Dict[bytes, bytes]
+    ) -> _PsbtInputMap:
+        out_map = {}
+        for key, value in input_map.items():
+            if key == b"\x00":
+                out_map["non_witness_utxo"] = Tx.deserialize(value)
+            elif key == b"\x01":
+                out_map["witness_utxo"] = TxOut.deserialize(value)
+            elif key[0] == 0x02:
+                assert len(key) == 33 + 1
+                out_map["partial_sig"] = value.hex()
+            elif key == b"\x03":
+                assert len(value) == 4
+                out_map["sighash_type"] = int.from_bytes(value, "little")
+            elif key == b"\x04":
+                out_map["redeem_script"] = script.decode(value)
+            elif key == b"\x05":
+                out_map["witness_script"] = script.decode(value)
+            elif key[0] == 0x06:
+                assert len(key) == 33 + 1
+                assert len(value) % 4 == 0
+                out_map["bip32_derivation"] = {
+                    "xpub": key[1:].hex(),
+                    "fingerprint": value[4:].hex(),
+                    "derivation_path": value[4:].hex(),
+                }
+            elif key == b"\x07":
+                out_map["scriptSig"] = script.decode(value)
+            elif key == b"\x08":
+                out_map["scriptWitenss"] = script.decode(value)
+            elif key == b"\x09":
+                out_map["por_commitment"] = value.hex()  # TODO: bip127
+            elif key[0] == 0xFC:
+                pass  # proprietary use
+            else:
+                raise KeyError("Invalid key type")
+
+        out = cls(**out_map)
+
+        out.assert_valid()
+
+        return out
+
+    def assert_valid(self) -> None:
+        pass
+
+
+_PsbtOutputMap = TypeVar("_PsbtOutputMap", bound="PsbtOutputMap")
+
+
+@dataclass
+class PsbtOutputMap:
+    redeem_script: Optional[Script] = None
+    witness_script: Optional[Script] = None
+    bip32_derivation: Optional[Dict[str, str]] = None
+
+    @classmethod
+    def decode(
+        cls: Type[_PsbtOutputMap], output_map: Dict[bytes, bytes]
+    ) -> _PsbtOutputMap:
+        out_map = {}
+        for key, value in output_map.items():
+            if key == b"\x00":
+                out_map["redeem_script"] = script.decode(value)
+            elif key == b"\x01":
+                out_map["witness_script"] = script.decode(value)
+            elif key[0] == 0x02:
+                assert len(key) == 33 + 1
+                assert len(value) % 4 == 0
+                out_map["bip32_derivation"] = {
+                    "xpub": key[1:].hex(),
+                    "fingerprint": value[4:].hex(),
+                    "derivation_path": value[4:].hex(),
+                }
+            elif key[0] == 0xFC:
+                pass  # proprietary use
+            else:
+                raise KeyError("Invalid key type")
+
+        out = cls(**out_map)
+
+        out.assert_valid()
+
+        return out_map
+
+    def assert_valid(self) -> None:
+        pass
 
 
 _PSbt = TypeVar("_PSbt", bound="Psbt")
@@ -22,9 +172,9 @@ _PSbt = TypeVar("_PSbt", bound="Psbt")
 
 @dataclass
 class Psbt:
-    global_map: Dict[str, Any]
-    input_maps: List[Dict[str, Any]]
-    output_maps: List[Dict[str, Any]]
+    global_map: PsbtGlobalMap
+    input_maps: List[PsbtInputMap]
+    output_maps: List[PsbtOutputMap]
 
     @classmethod
     def deserialize(cls: Type[_PSbt], data: str) -> _PSbt:
@@ -38,23 +188,21 @@ class Psbt:
         data = data[5:]
 
         global_map, data = deserialize_map(data)
-        global_map = decode_global_map(global_map)
+        global_map = PsbtGlobalMap.decode(global_map)
 
-        assert "tx" in global_map.keys(), "Malformed psbt: missing unigned tx"
-
-        input_len = len(global_map["tx"].vin)
-        output_len = len(global_map["tx"].vout)
+        input_len = len(global_map.tx.vin)
+        output_len = len(global_map.tx.vout)
 
         input_maps = []
         for i in range(input_len):
             input_map, data = deserialize_map(data)
-            input_map = decode_input_map(input_map)
+            input_map = PsbtInputMap.decode(input_map)
             input_maps.append(input_map)
 
         output_maps = []
         for i in range(output_len):
             output_map, data = deserialize_map(data)
-            output_map = decode_output_map(output_map)
+            output_map = PsbtOutputMap.decode(output_map)
             output_maps.append(output_map)
 
         psbt = cls(
@@ -66,7 +214,7 @@ class Psbt:
         return psbt
 
     def assert_valid(self) -> None:
-        tx = self.global_map["tx"]
+        tx = self.global_map.tx
         for vin in tx.vin:
             assert vin.scriptSig == []
 
@@ -90,86 +238,3 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         data = data[value_len:]
         assert key not in partial_map.keys(), "Malformed psbt: duplicate keys"
         partial_map[key] = value
-
-
-def decode_global_map(global_map: Dict[bytes, bytes]) -> Dict[str, Any]:
-    out_map = {}
-    for key, value in global_map.items():
-        if key == b"\x00":
-            out_map["tx"] = Tx.deserialize(value)
-        elif key[0] == 0x01:  # TODO
-            assert len(key) == 78 + 1
-            assert len(value) % 4 == 0
-            out_map["xpub"] = {
-                "xpub": key[1:],
-                "fingerprint": value[4:].hex(),
-                "derivation_path": value[4:],
-            }
-        elif key[0] == 0xFB:
-            assert len(value) == 32
-            out_map["version"] = int.from_bytes(value, "little")
-        elif key[0] == 0xFC:
-            pass  # proprietary use
-        else:
-            raise KeyError("Invalid key type")
-    return out_map
-
-
-def decode_input_map(input_map: Dict[bytes, bytes]) -> Dict[str, Any]:
-    out_map = {}
-    for key, value in input_map.items():
-        if key == b"\x00":
-            out_map["non_witness_utxo"] = Tx.deserialize(value)
-        elif key == b"\x01":
-            out_map["witness_utxo"] = TxOut.deserialize(value)
-        elif key[0] == 0x02:
-            assert len(key) == 33 + 1
-            out_map["partial_sig"] = value.hex()
-        elif key == b"\x03":
-            assert len(value) == 4
-            out_map["sighash_type"] = int.from_bytes(value, "little")
-        elif key == b"\x04":
-            out_map["redeem_script"] = script.decode(value)
-        elif key == b"\x05":
-            out_map["witness_script"] = script.decode(value)
-        elif key[0] == 0x06:
-            assert len(key) == 33 + 1
-            assert len(value) % 4 == 0
-            out_map["bip32_derivation"] = {
-                "xpub": key[1:],
-                "fingerprint": value[4:].hex(),
-                "derivation_path": value[4:],
-            }
-        elif key == b"\x07":
-            out_map["scriptSig"] = script.decode(value)
-        elif key == b"\x08":
-            out_map["scriptWitenss"] = script.decode(value)
-        elif key == b"\x09":
-            out_map["por_commitment"] = value  # TODO: bip127
-        elif key[0] == 0xFC:
-            pass  # proprietary use
-        else:
-            raise KeyError("Invalid key type")
-    return out_map
-
-
-def decode_output_map(output_map: Dict[bytes, bytes]) -> Dict[str, Any]:
-    out_map = {}
-    for key, value in output_map.items():
-        if key == b"\x00":
-            out_map["redeem_script"] = script.decode(value)
-        elif key == b"\x01":
-            out_map["witness_script"] = script.decode(value)
-        elif key[0] == 0x02:
-            assert len(key) == 33 + 1
-            assert len(value) % 4 == 0
-            out_map["bip32_derivation"] = {
-                "xpub": key[1:],
-                "fingerprint": value[4:].hex(),
-                "derivation_path": value[4:],
-            }
-        elif key[0] == 0xFC:
-            pass  # proprietary use
-        else:
-            raise KeyError("Invalid key type")
-    return out_map
