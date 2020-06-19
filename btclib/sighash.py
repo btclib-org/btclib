@@ -105,7 +105,7 @@ def get_sighash(
     sighash_type: int,
 ) -> List[bytes]:
 
-    value = previous_output.value
+    value = previous_output.nValue
 
     scriptPubKey = previous_output.scriptPubKey
     if len(scriptPubKey) == 3:

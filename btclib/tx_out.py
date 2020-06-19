@@ -20,7 +20,7 @@ _TxOut = TypeVar("_TxOut", bound="TxOut")
 
 @dataclass
 class TxOut:
-    value: int  # satoshis
+    nValue: int  # satoshis
     scriptPubKey: List[Token]
 
     @classmethod
@@ -28,29 +28,29 @@ class TxOut:
 
         data = bytes_from_octets(data)
 
-        value = int.from_bytes(data[:8], "little")
+        nValue = int.from_bytes(data[:8], "little")
         script_length = varint.decode(data[8:])
         data = data[8 + len(varint.encode(script_length)) :]
         scriptPubKey = script.decode(data[:script_length])
 
-        tx_out = cls(value=value, scriptPubKey=scriptPubKey)
+        tx_out = cls(nValue=nValue, scriptPubKey=scriptPubKey)
 
         tx_out.assert_valid()
         return tx_out
 
     def serialize(self) -> bytes:
-        out = self.value.to_bytes(8, "little")
+        out = self.nValue.to_bytes(8, "little")
         script_bytes = script.encode(self.scriptPubKey)
         out += varint.encode(len(script_bytes))
         out += script_bytes
         return out
 
     def assert_valid(self) -> None:
-        if self.value < 0:
-            raise ValueError(f"negative value: {self.value}")
+        if self.nValue < 0:
+            raise ValueError(f"negative value: {self.nValue}")
 
-        if 2099999997690000 < self.value:
-            raise ValueError(f"value too high: {self.value}")
+        if 2099999997690000 < self.nValue:
+            raise ValueError(f"value too high: {self.nValue}")
 
         if len(self.scriptPubKey) == 0:
             raise ValueError(f"empty scriptPubKey: {self.scriptPubKey}")

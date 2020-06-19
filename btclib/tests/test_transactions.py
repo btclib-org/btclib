@@ -54,8 +54,8 @@ def test_wiki_transaction():
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
-    assert transaction.vout[0].value == 5000000
-    assert transaction.vout[1].value == 3354000000
+    assert transaction.vout[0].nValue == 5000000
+    assert transaction.vout[1].nValue == 3354000000
 
     assert transaction.txid == transaction.hash
 
@@ -141,7 +141,7 @@ def test_invalid_tx_in2():
 
 
 def test_invalid_tx_out():
-    transaction_output = tx_out.TxOut(value=-1, scriptPubKey=["OP_RETURN"])
+    transaction_output = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
 
     with pytest.raises(ValueError):
         transaction_output.assert_valid()
@@ -149,7 +149,7 @@ def test_invalid_tx_out():
 
 def test_invalid_tx_out2():
     transaction_output = tx_out.TxOut(
-        value=2099999997690001, scriptPubKey=["OP_RETURN"]
+        nValue=2099999997690001, scriptPubKey=["OP_RETURN"]
     )
 
     with pytest.raises(ValueError):
@@ -157,7 +157,7 @@ def test_invalid_tx_out2():
 
 
 def test_invalid_tx_out3():
-    transaction_output = tx_out.TxOut(value=1, scriptPubKey=[])
+    transaction_output = tx_out.TxOut(nValue=1, scriptPubKey=[])
 
     with pytest.raises(ValueError):
         transaction_output.assert_valid()
