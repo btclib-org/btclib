@@ -17,6 +17,7 @@ https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coin
 
 from typing import List, TypeVar, Type
 from dataclasses import dataclass
+from math import ceil
 
 from . import varint
 from .alias import Octets
@@ -106,8 +107,20 @@ class Tx:
         return hash256(self.serialize(False))[::-1].hex()
 
     @property
-    def hash_value(self) -> str:
+    def hash(self) -> str:
         return hash256(self.serialize())[::-1].hex()
+
+    @property
+    def size(self) -> int:
+        return len(self.serialize())
+
+    @property
+    def weight(self) -> int:
+        return len(self.serialize(False)) * 3 + len(self.serialize())
+
+    @property
+    def vsize(self) -> int:
+        return ceil(self.weight / 4)
 
     def assert_valid(self) -> None:
         pass
