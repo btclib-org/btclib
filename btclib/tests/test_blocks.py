@@ -40,6 +40,9 @@ def test_block_1():
         == "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048"
     )
 
+    assert block.size == 215
+    assert block.weight == 536
+
 
 # first block with a transaction
 def test_block_170():
@@ -66,6 +69,9 @@ def test_block_170():
         == "00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee"
     )
 
+    assert block.size == 490
+    assert block.weight == 1636
+
 
 def test_block_200000():
 
@@ -90,6 +96,9 @@ def test_block_200000():
         header.hash
         == "000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf"
     )
+
+    assert block.size == 247533
+    assert block.weight == 989800
 
 
 # first block with segwit transaction
@@ -147,6 +156,9 @@ def test_block_481824_complete():
     )
 
     assert block.transactions[0].vin[0].txinwitness != []
+
+    assert block.size == 989323
+    assert block.weight == 3954548
 
 
 # def test_only_79_bytes():

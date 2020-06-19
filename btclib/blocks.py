@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from typing import List, Type, TypeVar
+from math import ceil
 
 from dataclasses import dataclass
 from .alias import Octets
@@ -100,12 +101,30 @@ class Block:
 
         return block
 
-    def serialize(self) -> bytes:
+    def serialize(self, include_witness: bool = True) -> bytes:
         out = self.header.serialize()
         out += varint.encode(len(self.transactions))
         for transaction in self.transactions:
-            out += transaction.serialize()
+            out += transaction.serialize(include_witness)
         return out
+
+    @property
+    def size(self) -> int:
+        return len(self.serialize())
+
+    @property
+    def weight(self) -> int:
+        weight = 0
+        for t in self.transactions:
+            weight += t.weight
+        return weight
+
+    # @property
+    # def vsize(self) -> int:
+    #     vsize = 0
+    #     for t in self.transactions:
+    #         vsize += t.vsize
+    #     return ceil(vsize / 1000)
 
     def assert_valid(self) -> None:
         for transaction in self.transactions[1:]:
