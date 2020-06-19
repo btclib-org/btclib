@@ -15,16 +15,43 @@ from . import script, varint
 from .alias import Octets, Token
 from .utils import bytes_from_octets
 
+_OutPoint = TypeVar("_OutPoint", bound="OutPoint")
+
+
+@dataclass
+class OutPoint:
+    hash: str
+    n: int
+
+    @classmethod
+    def deserialize(cls: Type[_OutPoint], data: Octets) -> _OutPoint:
+        data = bytes_from_octets(data)
+        hash = data[:32][::-1].hex()
+        n = int.from_bytes(data[32:36], "little")
+        point = cls(hash, n)
+        return point
+
+    def serialize(self) -> bytes:
+        out = bytes.fromhex(self.hash)[::-1]
+        out += self.n.to_bytes(4, "little")
+        return out
+
+    def assert_valid(self) -> None:
+        null_txid = "00" * 32
+        null_vout = 256 ** 4 - 1
+        if (self.hash == null_txid) ^ (self.n == null_vout):
+            raise ValueError("invalid tx_in")
+
+
 _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 
 @dataclass
 class TxIn:
-    txid: str
-    vout: int
+    prevout: OutPoint
     scriptSig: List[Token]
     scriptSigHex: str
-    sequence: int
+    nSequence: int
     txinwitness: List[str]
 
     @classmethod
@@ -32,10 +59,10 @@ class TxIn:
 
         data = bytes_from_octets(data)
 
-        txid = data[:32][::-1].hex()
-        vout = int.from_bytes(data[32:36], "little")
+        prevout = OutPoint.deserialize(data)
+
         is_coinbase = False
-        if txid == "00" * 32 and vout == 256 ** 4 - 1:
+        if prevout.hash == "00" * 32 and prevout.n == 256 ** 4 - 1:
             is_coinbase = True
 
         script_length = varint.decode(data[36:])
@@ -48,15 +75,14 @@ class TxIn:
         else:
             scriptSig = script.decode(data[:script_length])
 
-        sequence = int.from_bytes(data[script_length : script_length + 4], "little")
+        nSequence = int.from_bytes(data[script_length : script_length + 4], "little")
         txinwitness: List[str] = []
 
         tx_in = cls(
-            txid=txid,
-            vout=vout,
+            prevout=prevout,
             scriptSig=scriptSig,
             scriptSigHex=scriptSigHex,
-            sequence=sequence,
+            nSequence=nSequence,
             txinwitness=txinwitness,
         )
 
@@ -64,22 +90,18 @@ class TxIn:
         return tx_in
 
     def serialize(self) -> bytes:
-        out = bytes.fromhex(self.txid)[::-1]
-        out += self.vout.to_bytes(4, "little")
-        if self.txid == "00" * 32 and self.vout == 256 ** 4 - 1:
+        out = self.prevout.serialize()
+        if self.prevout.hash == "00" * 32 and self.prevout.n == 256 ** 4 - 1:
             script_bytes = bytes.fromhex(self.scriptSigHex)
         else:
             script_bytes = script.encode(self.scriptSig)
         out += varint.encode(len(script_bytes))
         out += script_bytes
-        out += self.sequence.to_bytes(4, "little")
+        out += self.nSequence.to_bytes(4, "little")
         return out
 
     def assert_valid(self) -> None:
-        null_txid = "00" * 32
-        null_vout = 256 ** 4 - 1
-        if (self.txid == null_txid) ^ (self.vout == null_vout):
-            raise ValueError("invalid tx_in")
+        self.prevout.assert_valid()
 
 
 def witness_deserialize(data: Octets) -> List[str]:

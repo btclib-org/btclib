@@ -66,7 +66,7 @@ def test_single_witness():
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
-    assert transaction.locktime == 0
+    assert transaction.nLockTime == 0
 
     assert (
         transaction.txid
@@ -88,7 +88,7 @@ def test_double_witness():
 
     assert len(transaction.vin) == 2
     assert len(transaction.vout) == 2
-    assert transaction.locktime == 0
+    assert transaction.nLockTime == 0
 
     assert (
         transaction.txid
@@ -102,11 +102,10 @@ def test_double_witness():
 
 def test_invalid_tx_in():
     transaction_input = tx_in.TxIn(
-        txid="00" * 31 + "01",
-        vout=256 ** 4 - 1,
+        prevout=tx_in.OutPoint("00" * 31 + "01", 256 ** 4 - 1),
         scriptSig=[],
         scriptSigHex="",
-        sequence=1,
+        nSequence=1,
         txinwitness=[],
     )
 
@@ -116,11 +115,10 @@ def test_invalid_tx_in():
 
 def test_invalid_tx_in2():
     transaction_input = tx_in.TxIn(
-        txid="00" * 32,
-        vout=0,
+        prevout=tx_in.OutPoint("00" * 32, 0),
         scriptSig=[],
         scriptSigHex="",
-        sequence=1,
+        nSequence=1,
         txinwitness=[],
     )
 
@@ -137,7 +135,7 @@ def test_invalid_tx_out():
 
 def test_invalid_tx_out2():
     transaction_output = tx_out.TxOut(
-        value=2099999997690001, scriptPubKey=["OP_RETURN"],
+        value=2099999997690001, scriptPubKey=["OP_RETURN"]
     )
 
     with pytest.raises(ValueError):
