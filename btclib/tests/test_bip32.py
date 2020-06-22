@@ -23,14 +23,14 @@ from btclib.base58address import p2pkh  # FIXME why it is needed here
 def test_indexes_from_path() -> None:
 
     test_vectors = [
-        # bitcoin core, account 0, external branch, address_index 463
+        # account 0, external branch, address_index 463
         ("m / 0 h / 0 / 463", True, [0x80000000, 0, 463]),
         (". / 0 h / 0 / 463", False, [0x80000000, 0, 463]),
         ("m / 0 H / 0 / 463", True, [0x80000000, 0, 463]),
         (". / 0 H / 0 / 463", False, [0x80000000, 0, 463]),
         ("m /  0' / 0 / 463", True, [0x80000000, 0, 463]),
         (". /  0' / 0 / 463", False, [0x80000000, 0, 463]),
-        # bitcoin core, account 0, internal branch, address_index 267
+        # account 0, internal branch, address_index 267
         ("m / 0 h / 1 / 267", True, [0x80000000, 1, 267]),
         (". / 0 h / 1 / 267", False, [0x80000000, 1, 267]),
         ("m / 0 H / 1 / 267", True, [0x80000000, 1, 267]),
