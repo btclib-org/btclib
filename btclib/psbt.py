@@ -11,6 +11,7 @@
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Type, TypeVar, Optional
 from base64 import b64decode, b64encode
+from copy import deepcopy
 
 from .tx import Tx
 from .tx_in import witness_serialize, witness_deserialize
@@ -30,7 +31,7 @@ class PsbtInput:
     sighash: Optional[int] = 0
     redeem_script: Optional[Script] = None
     witness_script: Optional[Script] = None
-    hd_keypaths: Optional[Dict[str, str]] = None
+    hd_keypaths: Optional[List[Dict[str, str]]] = None
     final_script_sig: Optional[Script] = None
     final_script_witness: Optional[Script] = None
     por_commitment: Optional[str] = None
@@ -337,3 +338,90 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         data = data[value_len:]
         assert key not in partial_map.keys(), "Malformed psbt: duplicate keys"
         partial_map[key] = value
+
+
+def psbt_from_tx(tx: Tx) -> Psbt:
+    tx = deepcopy(tx)
+    for input in tx.vin:
+        input.scriptSig = []
+        input.txinwitness = []
+    inputs = [PsbtInput() for _ in tx.vin]
+    outputs = [PsbtOutput() for _ in tx.vout]
+    return Psbt(tx=tx, inputs=inputs, outputs=outputs)
+
+
+def _combine_inputs(inputs: List[PsbtInput]) -> PsbtInput:
+    out = PsbtInput()
+    for psbt_in in inputs:
+        for key in psbt_in.__dict__:
+
+            if isinstance(getattr(psbt_in, key), dict):
+                if getattr(out, key):
+                    getattr(out, key).update(getattr(psbt_in, key))
+                else:
+                    setattr(out, key, getattr(psbt_in, key))
+
+            elif isinstance(getattr(psbt_in, key), list):
+                if getattr(out, key):
+                    for x in getattr(psbt_in, key):
+                        if x not in getattr(out, key):
+                            getattr(out, key).append(x)
+                else:
+                    setattr(out, key, getattr(psbt_in, key))
+
+            elif getattr(psbt_in, key):
+                if getattr(out, key):
+                    assert getattr(psbt_in, key) == getattr(out, key), key
+                else:
+                    setattr(out, key, getattr(psbt_in, key))
+    out.assert_valid()
+    return out
+
+
+def _combine_outputs(outputs: List[PsbtOutput]) -> PsbtOutput:
+    out = PsbtOutput()
+    for psbt_out in outputs:
+        for key in psbt_out.__dict__:
+
+            if isinstance(getattr(psbt_out, key), dict):
+                if getattr(out, key):
+                    getattr(out, key).update(getattr(psbt_out, key))
+                else:
+                    setattr(out, key, getattr(psbt_out, key))
+
+            elif isinstance(getattr(psbt_out, key), list):
+                if getattr(out, key):
+                    for x in getattr(psbt_out, key):
+                        if x not in getattr(out, key):
+                            getattr(out, key).append(x)
+                else:
+                    setattr(out, key, getattr(psbt_out, key))
+
+            elif getattr(psbt_out, key):
+                if getattr(out, key):
+                    assert getattr(psbt_out, key) == getattr(out, key), key
+                else:
+                    setattr(out, key, getattr(psbt_out, key))
+    out.assert_valid()
+    return out
+
+
+def combine_psbts(psbts: List[Psbt]) -> Psbt:
+    psbt = psbts[0]
+    txid = psbts[0].tx.txid
+    for psbt in psbts[1:]:
+        assert psbt.tx.txid == txid
+
+    inputs = [
+        _combine_inputs([psbt.inputs[x] for psbt in psbts])
+        for x in range(len(psbt.inputs))
+    ]
+    psbt.inputs = inputs
+
+    outputs = [
+        _combine_outputs([psbt.outputs[x] for psbt in psbts])
+        for x in range(len(psbt.outputs))
+    ]
+    psbt.outputs = outputs
+
+    return psbt
