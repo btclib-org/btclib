@@ -13,6 +13,7 @@ from typing import List, Dict, Tuple, Type, TypeVar, Optional
 from base64 import b64decode, b64encode
 
 from .tx import Tx
+from .tx_in import witness_serialize, witness_deserialize
 from .tx_out import TxOut
 from .alias import Script
 from . import varint, script
@@ -40,20 +41,26 @@ class PsbtInput:
         out_map = {}
         out_map["partial_sigs"] = {}
         out_map["hd_keypaths"] = []
+        out_map["unknown"] = {}
         for key, value in input_map.items():
-            if key == b"\x00":
+            if key[0] == 0x00:
+                assert len(key) == 1
                 out_map["non_witness_utxo"] = Tx.deserialize(value)
-            elif key == b"\x01":
+            elif key[0] == 0x01:
+                assert len(key) == 1
                 out_map["witness_utxo"] = TxOut.deserialize(value)
             elif key[0] == 0x02:
                 assert len(key) == 33 + 1
                 out_map["partial_sigs"][key[1:].hex()] = value.hex()
-            elif key == b"\x03":
+            elif key[0] == 0x03:
+                assert len(key) == 1
                 assert len(value) == 4
                 out_map["sighash"] = int.from_bytes(value, "little")
-            elif key == b"\x04":
+            elif key[0] == 0x04:
+                assert len(key) == 1
                 out_map["redeem_script"] = script.decode(value)
-            elif key == b"\x05":
+            elif key[0] == 0x05:
+                assert len(key) == 1
                 out_map["witness_script"] = script.decode(value)
             elif key[0] == 0x06:
                 assert len(key) == 33 + 1
@@ -65,16 +72,20 @@ class PsbtInput:
                         "derivation_path": value[4:].hex(),
                     }
                 )
-            elif key == b"\x07":
+            elif key[0] == 0x07:
+                assert len(key) == 1
                 out_map["final_script_sig"] = script.decode(value)
-            elif key == b"\x08":
-                out_map["final_script_witness"] = script.decode(value)
-            elif key == b"\x09":
+            elif key[0] == 0x08:
+                assert len(key) == 1
+                out_map["final_script_witness"] = witness_deserialize(value)
+                pass
+            elif key[0] == 0x09:
+                assert len(key) == 1
                 out_map["por_commitment"] = value.hex()  # TODO: bip127
             elif key[0] == 0xFC:
                 pass  # proprietary use
-            else:
-                raise KeyError("Invalid key type")
+            else:  # unkown keys
+                out_map["unknown"][key.hex()] = value.hex()
 
         out = cls(**out_map)
 
@@ -95,7 +106,7 @@ class PsbtInput:
         if self.partial_sigs:
             for key, value in self.partial_sigs.items():
                 out += b"\x22\x02" + bytes.fromhex(key)
-                out += varint.encode(len(value)) + bytes.fromhex(value)
+                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         if self.sighash:
             out += b"\x01\x03\x04"
             out += self.sighash.to_bytes(4, "little")
@@ -115,13 +126,15 @@ class PsbtInput:
             out += b"\x01\x07"
             out += script.serialize(self.final_script_sig)
         if self.final_script_witness:
-            pass
-            # out += b"\x01\x08"
-            # out += script.deserialize(self.final_script_witness)
+            out += witness_serialize(self.final_script_witness)
         if self.por_commitment:
             out += b"\x01\x09"
             c = bytes.fromhex(self.por_commitment)
             out += varint.encode(len(c)) + c
+        if self.unknown:
+            for key, value in self.unknown.items():
+                out += varint.encode(len(key) // 2) + bytes.fromhex(key)
+                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         return out
 
     def assert_valid(self) -> None:
@@ -142,10 +155,13 @@ class PsbtOutput:
     def decode(cls: Type[_PsbtOutput], output_map: Dict[bytes, bytes]) -> _PsbtOutput:
         out_map = {}
         out_map["hd_keypaths"] = []
+        out_map["unknown"] = {}
         for key, value in output_map.items():
-            if key == b"\x00":
+            if key[0] == 0x00:
+                assert len(key) == 1
                 out_map["redeem_script"] = script.decode(value)
-            elif key == b"\x01":
+            if key[0] == 0x01:
+                assert len(key) == 1
                 out_map["witness_script"] = script.decode(value)
             elif key[0] == 0x02:
                 assert len(key) == 33 + 1
@@ -159,8 +175,8 @@ class PsbtOutput:
                 )
             elif key[0] == 0xFC:
                 pass  # proprietary use
-            else:
-                raise KeyError("Invalid key type")
+            else:  # unkown keys
+                out_map["unknown"][key.hex()] = value.hex()
 
         out = cls(**out_map)
 
@@ -182,6 +198,10 @@ class PsbtOutput:
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes.fromhex(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
+        if self.unknown:
+            for key, value in self.unknown.items():
+                out += varint.encode(len(key) // 2) + bytes.fromhex(key)
+                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         return out
 
     def assert_valid(self) -> None:
@@ -211,11 +231,12 @@ class Psbt:
 
         global_map, data = deserialize_map(data)
         version = 0
-        xpub = None
+        # xpub = None
         hd_keypaths = []
         unknown = {}
         for key, value in global_map.items():
-            if key == b"\x00":
+            if key[0] == 0x00:
+                assert len(key) == 1
                 tx = Tx.deserialize(value)
             elif key[0] == 0x01:  # TODO
                 assert len(key) == 78 + 1
@@ -228,12 +249,12 @@ class Psbt:
                     }
                 )
             elif key[0] == 0xFB:
-                assert len(value) == 32
+                assert len(value) == 4
                 version = int.from_bytes(value, "little")
             elif key[0] == 0xFC:
                 pass  # proprietary use
-            else:
-                raise KeyError("Invalid key type")
+            else:  # unkown keys
+                unknown[key.hex()] = value.hex()
 
         input_len = len(tx.vin)
         output_len = len(tx.vout)
@@ -275,7 +296,12 @@ class Psbt:
                 keypath += bytes.fromhex(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
         if self.version:
-            pass
+            out += b"\x01\xfb\x04"
+            out += self.version.to_bytes(4, "little")
+        if self.unknown:
+            for key, value in self.unknown.items():
+                out += varint.encode(len(key) // 2) + bytes.fromhex(key)
+                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         out += b"\x00"
         for input_map in self.inputs:
             out += input_map.serialize() + b"\x00"
@@ -296,8 +322,8 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
     assert len(data) != 0, "Malformed psbt: at least a map is missing"
     partial_map: Dict[bytes, bytes] = {}
     while True:
-        if len(data) == 0:
-            return partial_map, data
+        # if len(data) == 0:
+        #     return partial_map, data
         if data[0] == 0:
             data = data[1:]
             return partial_map, data
