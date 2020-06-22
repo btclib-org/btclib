@@ -8,24 +8,33 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import List
+from typing import List, Union
 
 from . import tx, tx_out, script, varint
 from .utils import hash256, bytes_from_octets
 from .alias import Script, Octets
+from .scriptpubkey import payload_from_scriptPubKey
+
+
+# workaround to handle CTransactions
+def get_bytes(a: Union[int, Octets]) -> bytes:
+
+    if isinstance(a, int):
+        return int.to_bytes(a, 32, "big")
+    else:
+        return bytes.fromhex(a)
 
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
 def SegwitV0SignatureHash(
     scriptCode: Octets, transaction: tx.Tx, input_index: int, hashtype: int, amount: int
 ) -> bytes:
-    nVersion = transaction.nVersion.to_bytes(4, "little")
 
     hashtype_hex: str = hashtype.to_bytes(4, "little").hex()
     if hashtype_hex[0] != "8":
         hashPrevouts = b""
         for vin in transaction.vin:
-            hashPrevouts += bytes.fromhex(vin.prevout.hash)[::-1]
+            hashPrevouts += get_bytes(vin.prevout.hash)[::-1]
             hashPrevouts += vin.prevout.n.to_bytes(4, "little")
         hashPrevouts = hash256(hashPrevouts)
     else:
@@ -49,30 +58,22 @@ def SegwitV0SignatureHash(
     else:
         hashOutputs = b"\x00" * 32
 
-    outpoint = bytes.fromhex(transaction.vin[input_index].prevout.hash)[::-1]
+    scriptCode = bytes_from_octets(scriptCode)
+
+    outpoint = get_bytes(transaction.vin[input_index].prevout.hash)[::-1]
     outpoint += transaction.vin[input_index].prevout.n.to_bytes(4, "little")
 
-    scriptCode = bytes_from_octets(scriptCode)
-    scriptCode = varint.encode(len(scriptCode)) + scriptCode
+    preimage = transaction.nVersion.to_bytes(4, "little")
+    preimage += hashPrevouts
+    preimage += hashSequence
+    preimage += outpoint
+    preimage += varint.encode(len(scriptCode)) + scriptCode
+    preimage += (amount).to_bytes(8, "little")  # value
+    preimage += transaction.vin[input_index].nSequence.to_bytes(4, "little")
+    preimage += hashOutputs
+    preimage += transaction.nLockTime.to_bytes(4, "little")
+    preimage += bytes.fromhex(hashtype_hex)
 
-    value_spent = (amount).to_bytes(8, "little")
-    nSequence = transaction.vin[input_index].nSequence.to_bytes(4, "little")
-
-    nLocktime = transaction.nLockTime.to_bytes(4, "little")
-    hashtype_b = bytes.fromhex(hashtype_hex)
-
-    preimage = (
-        nVersion
-        + hashPrevouts
-        + hashSequence
-        + outpoint
-        + scriptCode
-        + value_spent
-        + nSequence
-        + hashOutputs
-        + nLocktime
-        + hashtype_b
-    )
     sig_hash = hash256(preimage)
     return sig_hash
 
@@ -82,6 +83,7 @@ def _get_witness_scriptCodes(scriptPubKey: Script) -> List[str]:
     scriptCodes: List[str] = []
     if scriptPubKey[0] == 0 and len(scriptPubKey) == 2:  # simple p2wpkh #FIXME
         pubkeyhash = scriptPubKey[1]
+        assert isinstance(pubkeyhash, str)
         scriptCodes.append(f"76a914{pubkeyhash}88ac")
     else:
         current_script: Script = []
@@ -108,23 +110,19 @@ def get_sighash(
     value = previous_output.nValue
 
     scriptPubKey = previous_output.scriptPubKey
-    if len(scriptPubKey) == 3:
-        if scriptPubKey[0] == "OP_HASH160" and scriptPubKey[2] == "OP_EQUAL":
-            if len(scriptPubKey[1]) != 20 * 2:
-                raise ValueError("Invalid script hash len")
-            else:
-                scriptPubKey = transaction.vin[input_index].scriptSig
+    script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+    if script_type == "p2sh":
+        scriptPubKey = transaction.vin[input_index].scriptSig
 
     if len(scriptPubKey) == 2 and scriptPubKey[0] == 0:  # is segwit
-        if len(scriptPubKey[1]) == 20 * 2:  # p2wpkh
+        script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+        if script_type == "p2wpkh":
             scriptCodes = _get_witness_scriptCodes(scriptPubKey)
-        elif len(scriptPubKey[1]) == 32 * 2:  # p2wsh
+        elif script_type == "p2wsh":
             # the real script is contained in the witness
             scriptCodes = _get_witness_scriptCodes(
                 script.decode(transaction.vin[input_index].txinwitness[-1])
             )
-        else:
-            raise ValueError("Invalid witness program")
         sighash: List[bytes] = []
         for scriptCode in scriptCodes:
             sighash.append(
