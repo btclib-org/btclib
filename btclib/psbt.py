@@ -35,6 +35,7 @@ class PsbtInput:
     final_script_sig: List[Token] = field(default_factory=list)
     final_script_witness: List[str] = field(default_factory=list)
     por_commitment: Optional[str] = None
+    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
@@ -43,6 +44,7 @@ class PsbtInput:
         out_map["partial_sigs"] = {}
         out_map["hd_keypaths"] = []
         out_map["unknown"] = {}
+        out_map["proprietary"] = {}
         for key, value in input_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
@@ -83,8 +85,12 @@ class PsbtInput:
             elif key[0] == 0x09:
                 assert len(key) == 1
                 out_map["por_commitment"] = value.hex()  # TODO: bip127
-            elif key[0] == 0xFC:
-                pass  # proprietary use
+            elif key[0] == 0xFC:  # proprietary use
+                prefix = varint.decode(key[1:])
+                if prefix not in out_map["proprietary"].keys():
+                    out_map["proprietary"][prefix] = {}
+                key = key[1 + len(varint.encode(prefix)) :]
+                out_map["proprietary"][prefix][key.hex()] = value.hex()
             else:  # unkown keys
                 out_map["unknown"][key.hex()] = value.hex()
 
@@ -134,6 +140,12 @@ class PsbtInput:
             out += b"\x01\x09"
             c = bytes.fromhex(self.por_commitment)
             out += varint.encode(len(c)) + c
+        if self.proprietary:
+            for (owner, dictionary) in self.proprietary.items():
+                for key, value in dictionary.items():
+                    key_bytes = b"\xfc" + varint.encode(owner) + bytes.fromhex(key)
+                    out += varint.encode(len(key_bytes)) + key_bytes
+                    out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         if self.unknown:
             for key, value in self.unknown.items():
                 out += varint.encode(len(key) // 2) + bytes.fromhex(key)
@@ -152,6 +164,7 @@ class PsbtOutput:
     redeem_script: List[Token] = field(default_factory=list)
     witness_script: List[Token] = field(default_factory=list)
     hd_keypaths: List[Dict[str, str]] = field(default_factory=list)
+    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
@@ -159,6 +172,7 @@ class PsbtOutput:
         out_map = {}
         out_map["hd_keypaths"] = []
         out_map["unknown"] = {}
+        out_map["proprietary"] = {}
         for key, value in output_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
@@ -176,8 +190,12 @@ class PsbtOutput:
                         "derivation_path": value[4:].hex(),
                     }
                 )
-            elif key[0] == 0xFC:
-                pass  # proprietary use
+            elif key[0] == 0xFC:  # proprietary use
+                prefix = varint.decode(key[1:])
+                if prefix not in out_map["proprietary"].keys():
+                    out_map["proprietary"][prefix] = {}
+                key = key[1 + len(varint.encode(prefix)) :]
+                out_map["proprietary"][prefix][key.hex()] = value.hex()
             else:  # unkown keys
                 out_map["unknown"][key.hex()] = value.hex()
 
@@ -201,6 +219,12 @@ class PsbtOutput:
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes.fromhex(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
+        if self.proprietary:
+            for (owner, dictionary) in self.proprietary.items():
+                for key, value in dictionary.items():
+                    key_bytes = b"\xfc" + varint.encode(owner) + bytes.fromhex(key)
+                    out += varint.encode(len(key_bytes)) + key_bytes
+                    out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         if self.unknown:
             for key, value in self.unknown.items():
                 out += varint.encode(len(key) // 2) + bytes.fromhex(key)
@@ -221,6 +245,7 @@ class Psbt:
     outputs: List[PsbtOutput]
     version: Optional[int] = 0
     hd_keypaths: List[Dict[str, str]] = field(default_factory=list)
+    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
@@ -236,6 +261,7 @@ class Psbt:
         version = 0
         # xpub = None
         hd_keypaths = []
+        proprietary = {}
         unknown = {}
         for key, value in global_map.items():
             if key[0] == 0x00:
@@ -255,7 +281,11 @@ class Psbt:
                 assert len(value) == 4
                 version = int.from_bytes(value, "little")
             elif key[0] == 0xFC:
-                pass  # proprietary use
+                prefix = varint.decode(key[1:])
+                if prefix not in proprietary.keys():
+                    proprietary[prefix] = {}
+                key = key[1 + len(varint.encode(prefix)) :]
+                proprietary[prefix][key.hex()] = value.hex()
             else:  # unkown keys
                 unknown[key.hex()] = value.hex()
 
@@ -280,6 +310,7 @@ class Psbt:
             outputs=outputs,
             version=version,
             hd_keypaths=hd_keypaths,
+            proprietary=proprietary,
             unknown=unknown,
         )
 
@@ -301,6 +332,12 @@ class Psbt:
         if self.version:
             out += b"\x01\xfb\x04"
             out += self.version.to_bytes(4, "little")
+        if self.proprietary:
+            for (owner, dictionary) in self.proprietary.items():
+                for key, value in dictionary.items():
+                    key_bytes = b"\xfc" + varint.encode(owner) + bytes.fromhex(key)
+                    out += varint.encode(len(key_bytes)) + key_bytes
+                    out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         if self.unknown:
             for key, value in self.unknown.items():
                 out += varint.encode(len(key) // 2) + bytes.fromhex(key)
