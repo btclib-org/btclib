@@ -380,7 +380,7 @@ def _combine(maps: List[Union[PsbtInput, PsbtOutput]]) -> Union[PsbtOutput, Psbt
 
 
 def combine_psbts(psbts: List[Psbt]) -> Psbt:
-    psbt = psbts[0]
+    final_psbt = psbts[0]
     txid = psbts[0].tx.txid
     for psbt in psbts[1:]:
         assert psbt.tx.txid == txid
@@ -393,9 +393,15 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
     outputs = [
         _combine([psbt.outputs[x] for psbt in psbts]) for x in range(len(psbt.outputs))
     ]
-    psbt.outputs = outputs
+    final_psbt.outputs = outputs
 
-    return psbt
+    for psbt in psbts:
+        if getattr(final_psbt, "unknown"):
+            getattr(final_psbt, "unknown").update(getattr(psbt, "unknown"))
+        else:
+            setattr(final_psbt, "unknown", getattr(psbt, "unknown"))
+
+    return final_psbt
 
 
 def finalize_psbt(psbt: Psbt) -> Psbt:
