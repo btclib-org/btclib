@@ -8,15 +8,15 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import dataclass
-from typing import List, Dict, Tuple, Type, TypeVar, Optional
+from dataclasses import dataclass, field
+from typing import List, Dict, Tuple, Type, TypeVar, Optional, Union
 from base64 import b64decode, b64encode
 from copy import deepcopy
 
 from .tx import Tx
 from .tx_in import witness_serialize, witness_deserialize
 from .tx_out import TxOut
-from .alias import Script
+from .alias import Token
 from . import varint, script
 
 
@@ -27,15 +27,15 @@ _PsbtInput = TypeVar("_PsbtInput", bound="PsbtInput")
 class PsbtInput:
     non_witness_utxo: Optional[Tx] = None
     witness_utxo: Optional[TxOut] = None
-    partial_sigs: Optional[Dict[str, str]] = None
+    partial_sigs: Dict[str, str] = field(default_factory=dict)
     sighash: Optional[int] = 0
-    redeem_script: Optional[Script] = None
-    witness_script: Optional[Script] = None
-    hd_keypaths: Optional[List[Dict[str, str]]] = None
-    final_script_sig: Optional[Script] = None
-    final_script_witness: Optional[Script] = None
+    redeem_script: List[Token] = field(default_factory=list)
+    witness_script: List[Token] = field(default_factory=list)
+    hd_keypaths: List[Dict[str, str]] = field(default_factory=list)
+    final_script_sig: List[Token] = field(default_factory=list)
+    final_script_witness: List[str] = field(default_factory=list)
     por_commitment: Optional[str] = None
-    unknown: Optional[Dict[str, str]] = None
+    unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def decode(cls: Type[_PsbtInput], input_map: Dict[bytes, bytes]) -> _PsbtInput:
@@ -127,8 +127,10 @@ class PsbtInput:
             out += b"\x01\x07"
             out += script.serialize(self.final_script_sig)
         if self.final_script_witness:
-            out += witness_serialize(self.final_script_witness)
-        if self.por_commitment:
+            out += b"\x01\x08"
+            wit = witness_serialize(self.final_script_witness)
+            out += varint.encode(len(wit)) + wit
+        if self.por_commitment:  # TODO
             out += b"\x01\x09"
             c = bytes.fromhex(self.por_commitment)
             out += varint.encode(len(c)) + c
@@ -147,10 +149,10 @@ _PsbtOutput = TypeVar("_PsbtOutput", bound="PsbtOutput")
 
 @dataclass
 class PsbtOutput:
-    redeem_script: Optional[Script] = None
-    witness_script: Optional[Script] = None
-    hd_keypaths: Optional[Dict[str, str]] = None
-    unknown: Optional[Dict[str, str]] = None
+    redeem_script: List[Token] = field(default_factory=list)
+    witness_script: List[Token] = field(default_factory=list)
+    hd_keypaths: List[Dict[str, str]] = field(default_factory=list)
+    unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def decode(cls: Type[_PsbtOutput], output_map: Dict[bytes, bytes]) -> _PsbtOutput:
@@ -161,7 +163,7 @@ class PsbtOutput:
             if key[0] == 0x00:
                 assert len(key) == 1
                 out_map["redeem_script"] = script.decode(value)
-            if key[0] == 0x01:
+            elif key[0] == 0x01:
                 assert len(key) == 1
                 out_map["witness_script"] = script.decode(value)
             elif key[0] == 0x02:
@@ -218,8 +220,8 @@ class Psbt:
     inputs: List[PsbtInput]
     outputs: List[PsbtOutput]
     version: Optional[int] = 0
-    hd_keypaths: Optional[List[Dict[str, str]]] = None
-    unknown: Optional[Dict[str, str]] = None
+    hd_keypaths: List[Dict[str, str]] = field(default_factory=list)
+    unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def deserialize(cls: Type[_PSbt], string: str) -> _PSbt:
@@ -313,6 +315,7 @@ class Psbt:
     def assert_valid(self) -> None:
         for vin in self.tx.vin:
             assert vin.scriptSig == []
+            assert vin.txinwitness == []
         for input_map in self.inputs:
             input_map.assert_valid()
         for output_map in self.outputs:
@@ -323,8 +326,6 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
     assert len(data) != 0, "Malformed psbt: at least a map is missing"
     partial_map: Dict[bytes, bytes] = {}
     while True:
-        # if len(data) == 0:
-        #     return partial_map, data
         if data[0] == 0:
             data = data[1:]
             return partial_map, data
@@ -347,61 +348,33 @@ def psbt_from_tx(tx: Tx) -> Psbt:
         input.txinwitness = []
     inputs = [PsbtInput() for _ in tx.vin]
     outputs = [PsbtOutput() for _ in tx.vout]
-    return Psbt(tx=tx, inputs=inputs, outputs=outputs)
+    return Psbt(tx=tx, inputs=inputs, outputs=outputs, unknown={})
 
 
-def _combine_inputs(inputs: List[PsbtInput]) -> PsbtInput:
-    out = PsbtInput()
-    for psbt_in in inputs:
-        for key in psbt_in.__dict__:
+def _combine(maps: List[Union[PsbtInput, PsbtOutput]]) -> Union[PsbtOutput, PsbtInput]:
+    out = maps[0]
+    for psbt_map in maps[1:]:
+        for key in psbt_map.__dict__:
 
-            if isinstance(getattr(psbt_in, key), dict):
+            if isinstance(getattr(psbt_map, key), dict):
                 if getattr(out, key):
-                    getattr(out, key).update(getattr(psbt_in, key))
+                    getattr(out, key).update(getattr(psbt_map, key))
                 else:
-                    setattr(out, key, getattr(psbt_in, key))
+                    setattr(out, key, getattr(psbt_map, key))
 
-            elif isinstance(getattr(psbt_in, key), list):
+            elif isinstance(getattr(psbt_map, key), list):
                 if getattr(out, key):
-                    for x in getattr(psbt_in, key):
+                    for x in getattr(psbt_map, key):
                         if x not in getattr(out, key):
                             getattr(out, key).append(x)
                 else:
-                    setattr(out, key, getattr(psbt_in, key))
+                    setattr(out, key, getattr(psbt_map, key))
 
-            elif getattr(psbt_in, key):
+            elif getattr(psbt_map, key):
                 if getattr(out, key):
-                    assert getattr(psbt_in, key) == getattr(out, key), key
+                    assert getattr(psbt_map, key) == getattr(out, key), key
                 else:
-                    setattr(out, key, getattr(psbt_in, key))
-    out.assert_valid()
-    return out
-
-
-def _combine_outputs(outputs: List[PsbtOutput]) -> PsbtOutput:
-    out = PsbtOutput()
-    for psbt_out in outputs:
-        for key in psbt_out.__dict__:
-
-            if isinstance(getattr(psbt_out, key), dict):
-                if getattr(out, key):
-                    getattr(out, key).update(getattr(psbt_out, key))
-                else:
-                    setattr(out, key, getattr(psbt_out, key))
-
-            elif isinstance(getattr(psbt_out, key), list):
-                if getattr(out, key):
-                    for x in getattr(psbt_out, key):
-                        if x not in getattr(out, key):
-                            getattr(out, key).append(x)
-                else:
-                    setattr(out, key, getattr(psbt_out, key))
-
-            elif getattr(psbt_out, key):
-                if getattr(out, key):
-                    assert getattr(psbt_out, key) == getattr(out, key), key
-                else:
-                    setattr(out, key, getattr(psbt_out, key))
+                    setattr(out, key, getattr(psbt_map, key))
     out.assert_valid()
     return out
 
@@ -413,15 +386,54 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
         assert psbt.tx.txid == txid
 
     inputs = [
-        _combine_inputs([psbt.inputs[x] for psbt in psbts])
-        for x in range(len(psbt.inputs))
+        _combine([psbt.inputs[x] for psbt in psbts]) for x in range(len(psbt.inputs))
     ]
     psbt.inputs = inputs
 
     outputs = [
-        _combine_outputs([psbt.outputs[x] for psbt in psbts])
-        for x in range(len(psbt.outputs))
+        _combine([psbt.outputs[x] for psbt in psbts]) for x in range(len(psbt.outputs))
     ]
     psbt.outputs = outputs
 
     return psbt
+
+
+def finalize_psbt(psbt: Psbt) -> Psbt:
+    psbt = deepcopy(psbt)
+    for psbt_in in psbt.inputs:
+        assert psbt_in.partial_sigs
+        if psbt_in.witness_script:
+            psbt_in.final_script_sig = [
+                script.encode(psbt_in.redeem_script).hex().upper()
+            ]
+            psbt_in.final_script_witness = list(psbt_in.partial_sigs.values())
+            psbt_in.final_script_witness += [
+                script.encode(psbt_in.witness_script).hex()
+            ]
+            if len(psbt_in.partial_sigs) > 1:
+                psbt_in.final_script_witness = [""] + psbt_in.final_script_witness
+        else:
+            psbt_in.final_script_sig = [
+                a.upper() for a in list(psbt_in.partial_sigs.values())
+            ]
+            psbt_in.final_script_sig += [
+                script.encode(psbt_in.redeem_script).hex().upper()
+            ]
+            if len(psbt_in.partial_sigs) > 1:
+                psbt_in.final_script_sig = [0] + psbt_in.final_script_sig
+        psbt_in.partial_sigs = {}
+        psbt_in.sighash = 0
+        psbt_in.redeem_script = []
+        psbt_in.witness_script = []
+        psbt_in.hd_keypaths = []
+        psbt_in.por_commitment = None
+    return psbt
+
+
+def extract_tx(psbt: Psbt) -> Tx:
+    tx = psbt.tx
+    for i, vin in enumerate(tx.vin):
+        vin.scriptSig = psbt.inputs[i].final_script_sig
+        if psbt.inputs[i].final_script_witness:
+            vin.txinwitness = psbt.inputs[i].final_script_witness
+    return tx
