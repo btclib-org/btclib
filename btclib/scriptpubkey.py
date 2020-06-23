@@ -35,7 +35,21 @@ def scriptPubKey_from_payload(
     m: int = 0,
     lexicographic_sort: bool = True,
 ) -> bytes:
-    "Return the requested scriptPubKey for the provided payload."
+    """Return the requested scriptPubKey for the provided payload.
+
+    Multi-signature payloads can be lexicographically sorted.
+    BIP67 endorses key sorting according to compressed key
+    representation: this implementation is BIP67 compliant.
+
+    Note that sorting uncompressed keys (leading 0x04 byte) results
+    in a different order than sorting the same keys in compressed
+    (leading 0x02 or 0x03 bytes) representation.
+    This implementation sorts uncompressed key according to their
+    uncompressed representation, i.e. 04 leading byte being equal
+    according to the point x-coordinate
+
+    https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
+    """
 
     script_type = s_type.lower()
 
@@ -48,6 +62,7 @@ def scriptPubKey_from_payload(
             if m < 1 or m > 16:
                 raise ValueError(f"invalid m ({m}) in m-of-n multisignature")
             if lexicographic_sort:
+                # BIP67 compliant
                 payloads = sorted(payloads)
             n = len(payloads)
             if n < m or n > 16:
