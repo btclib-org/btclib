@@ -385,17 +385,31 @@ class Psbt:
         for output_map in self.outputs:
             output_map.assert_valid()
 
+    def assert_signable(self) -> None:
+
         for i, tx_in in enumerate(self.tx.vin):
+
             if self.inputs[i].non_witness_utxo:
                 txid = tx_in.prevout.hash
                 assert self.inputs[i].non_witness_utxo.txid == txid
-                scriptPubKey = (
-                    self.inputs[i].non_witness_utxo.vout[tx_in.prevout.n].scriptPubKey
-                )
-            elif self.inputs[i].witness_utxo:
+
+            if self.inputs[i].witness_utxo:
                 scriptPubKey = self.inputs[i].witness_utxo.scriptPubKey
+                script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+                if script_type == "p2sh":
+                    scriptPubKey = self.inputs[i].redeem_script
+                script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+                assert script_type in ["p2wpkh", "p2wsh"]
 
             if self.inputs[i].redeem_script:
+                if self.inputs[i].non_witness_utxo:
+                    scriptPubKey = (
+                        self.inputs[i]
+                        .non_witness_utxo.vout[tx_in.prevout.n]
+                        .scriptPubKey
+                    )
+                elif self.inputs[i].witness_utxo:
+                    scriptPubKey = self.inputs[i].witness_utxo.scriptPubKey
                 hash = hash160(script.encode(self.inputs[i].redeem_script))
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
@@ -412,12 +426,7 @@ class Psbt:
                     scriptPubKey = self.inputs[i].redeem_script
 
                 hash = sha256(script.encode(self.inputs[i].witness_script))
-                assert hash == payload_from_scriptPubKey(scriptPubKey)[1], (
-                    self.inputs[i].witness_script,
-                    hash,
-                    scriptPubKey,
-                    payload_from_scriptPubKey(scriptPubKey),
-                )
+                assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
 
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:

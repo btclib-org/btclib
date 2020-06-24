@@ -123,4 +123,9 @@ class Tx:
         return ceil(self.weight / 4)
 
     def assert_valid(self) -> None:
-        pass
+        assert self.vin
+        for tx_in in self.vin:
+            tx_in.assert_valid()
+        assert self.vout
+        for tx_out in self.vout:
+            tx_out.assert_valid()
