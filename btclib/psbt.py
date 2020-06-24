@@ -17,6 +17,8 @@ from .tx import Tx
 from .tx_in import witness_serialize, witness_deserialize
 from .tx_out import TxOut
 from .alias import Token
+from .utils import hash160, sha256
+from .scriptpubkey import payload_from_scriptPubKey
 from . import varint, script
 
 
@@ -383,6 +385,40 @@ class Psbt:
         for output_map in self.outputs:
             output_map.assert_valid()
 
+        for i, tx_in in enumerate(self.tx.vin):
+            if self.inputs[i].non_witness_utxo:
+                txid = tx_in.prevout.hash
+                assert self.inputs[i].non_witness_utxo.txid == txid
+                scriptPubKey = (
+                    self.inputs[i].non_witness_utxo.vout[tx_in.prevout.n].scriptPubKey
+                )
+            elif self.inputs[i].witness_utxo:
+                scriptPubKey = self.inputs[i].witness_utxo.scriptPubKey
+
+            if self.inputs[i].redeem_script:
+                hash = hash160(script.encode(self.inputs[i].redeem_script))
+                assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
+
+            if self.inputs[i].witness_script:
+                if self.inputs[i].non_witness_utxo:
+                    scriptPubKey = (
+                        self.inputs[i]
+                        .non_witness_utxo.vout[tx_in.prevout.n]
+                        .scriptPubKey
+                    )
+                elif self.inputs[i].witness_utxo:
+                    scriptPubKey = self.inputs[i].witness_utxo.scriptPubKey
+                if self.inputs[i].redeem_script:
+                    scriptPubKey = self.inputs[i].redeem_script
+
+                hash = sha256(script.encode(self.inputs[i].witness_script))
+                assert hash == payload_from_scriptPubKey(scriptPubKey)[1], (
+                    self.inputs[i].witness_script,
+                    hash,
+                    scriptPubKey,
+                    payload_from_scriptPubKey(scriptPubKey),
+                )
+
 
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
     assert len(data) != 0, "Malformed psbt: at least a map is missing"
@@ -413,7 +449,9 @@ def psbt_from_tx(tx: Tx) -> Psbt:
     return Psbt(tx=tx, inputs=inputs, outputs=outputs, unknown={})
 
 
-def _combine(maps: List[Union[PsbtInput, PsbtOutput]]) -> Union[PsbtOutput, PsbtInput]:
+def _combine(
+    maps: Union[List[PsbtInput], List[PsbtOutput]]
+) -> Union[PsbtOutput, PsbtInput]:
     out = maps[0]
     for psbt_map in maps[1:]:
         for key in psbt_map.__dict__:
@@ -458,10 +496,10 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
     final_psbt.outputs = outputs
 
     for psbt in psbts:
-        if getattr(final_psbt, "unknown"):
-            getattr(final_psbt, "unknown").update(getattr(psbt, "unknown"))
+        if final_psbt.unknown:
+            final_psbt.unknown.update(psbt.unknown)
         else:
-            setattr(final_psbt, "unknown", getattr(psbt, "unknown"))
+            final_psbt.unknown = psbt.unknown
 
     return final_psbt
 
