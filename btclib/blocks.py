@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from typing import List, Type, TypeVar
-from math import ceil
 
 from dataclasses import dataclass
 from .alias import Octets

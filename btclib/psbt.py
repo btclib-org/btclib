@@ -40,35 +40,42 @@ class PsbtInput:
 
     @classmethod
     def decode(cls: Type[_PsbtInput], input_map: Dict[bytes, bytes]) -> _PsbtInput:
-        out_map = {}
-        out_map["partial_sigs"] = {}
-        out_map["hd_keypaths"] = []
-        out_map["unknown"] = {}
-        out_map["proprietary"] = {}
+        non_witness_utxo = None
+        witness_utxo = None
+        partial_sigs = {}
+        sighash = 0
+        redeem_script = []
+        witness_script = []
+        hd_keypaths = []
+        final_script_sig = []
+        final_script_witness = []
+        por_commitment = None
+        proprietary: Dict[int, Dict[str, str]] = {}
+        unknown = {}
         for key, value in input_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
-                out_map["non_witness_utxo"] = Tx.deserialize(value)
+                non_witness_utxo = Tx.deserialize(value)
             elif key[0] == 0x01:
                 assert len(key) == 1
-                out_map["witness_utxo"] = TxOut.deserialize(value)
+                witness_utxo = TxOut.deserialize(value)
             elif key[0] == 0x02:
                 assert len(key) == 33 + 1
-                out_map["partial_sigs"][key[1:].hex()] = value.hex()
+                partial_sigs[key[1:].hex()] = value.hex()
             elif key[0] == 0x03:
                 assert len(key) == 1
                 assert len(value) == 4
-                out_map["sighash"] = int.from_bytes(value, "little")
+                sighash = int.from_bytes(value, "little")
             elif key[0] == 0x04:
                 assert len(key) == 1
-                out_map["redeem_script"] = script.decode(value)
+                redeem_script = script.decode(value)
             elif key[0] == 0x05:
                 assert len(key) == 1
-                out_map["witness_script"] = script.decode(value)
+                witness_script = script.decode(value)
             elif key[0] == 0x06:
                 assert len(key) == 33 + 1
                 assert len(value) % 4 == 0
-                out_map["hd_keypaths"].append(
+                hd_keypaths.append(
                     {
                         "xpub": key[1:].hex(),
                         "fingerprint": value[:4].hex(),
@@ -77,24 +84,37 @@ class PsbtInput:
                 )
             elif key[0] == 0x07:
                 assert len(key) == 1
-                out_map["final_script_sig"] = script.decode(value)
+                final_script_sig = script.decode(value)
             elif key[0] == 0x08:
                 assert len(key) == 1
-                out_map["final_script_witness"] = witness_deserialize(value)
+                final_script_witness = witness_deserialize(value)
                 pass
             elif key[0] == 0x09:
                 assert len(key) == 1
-                out_map["por_commitment"] = value.hex()  # TODO: bip127
+                por_commitment = value.hex()  # TODO: bip127
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
-                if prefix not in out_map["proprietary"].keys():
-                    out_map["proprietary"][prefix] = {}
+                if prefix not in proprietary.keys():
+                    proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                out_map["proprietary"][prefix][key.hex()] = value.hex()
+                proprietary[prefix][key.hex()] = value.hex()
             else:  # unkown keys
-                out_map["unknown"][key.hex()] = value.hex()
+                unknown[key.hex()] = value.hex()
 
-        out = cls(**out_map)
+        out = cls(
+            non_witness_utxo=non_witness_utxo,
+            witness_utxo=witness_utxo,
+            partial_sigs=partial_sigs,
+            sighash=sighash,
+            redeem_script=redeem_script,
+            witness_script=witness_script,
+            hd_keypaths=hd_keypaths,
+            final_script_sig=final_script_sig,
+            final_script_witness=final_script_witness,
+            por_commitment=por_commitment,
+            proprietary=proprietary,
+            unknown=unknown,
+        )
 
         out.assert_valid()
 
@@ -169,21 +189,22 @@ class PsbtOutput:
 
     @classmethod
     def decode(cls: Type[_PsbtOutput], output_map: Dict[bytes, bytes]) -> _PsbtOutput:
-        out_map = {}
-        out_map["hd_keypaths"] = []
-        out_map["unknown"] = {}
-        out_map["proprietary"] = {}
+        redeem_script = []
+        witness_script = []
+        hd_keypaths = []
+        proprietary: Dict[int, Dict[str, str]] = {}
+        unknown = {}
         for key, value in output_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
-                out_map["redeem_script"] = script.decode(value)
+                redeem_script = script.decode(value)
             elif key[0] == 0x01:
                 assert len(key) == 1
-                out_map["witness_script"] = script.decode(value)
+                witness_script = script.decode(value)
             elif key[0] == 0x02:
                 assert len(key) == 33 + 1
                 assert len(value) % 4 == 0
-                out_map["hd_keypaths"].append(
+                hd_keypaths.append(
                     {
                         "xpub": key[1:].hex(),
                         "fingerprint": value[:4].hex(),
@@ -192,14 +213,20 @@ class PsbtOutput:
                 )
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
-                if prefix not in out_map["proprietary"].keys():
-                    out_map["proprietary"][prefix] = {}
+                if prefix not in proprietary.keys():
+                    proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                out_map["proprietary"][prefix][key.hex()] = value.hex()
+                proprietary[prefix][key.hex()] = value.hex()
             else:  # unkown keys
-                out_map["unknown"][key.hex()] = value.hex()
+                unknown[key.hex()] = value.hex()
 
-        out = cls(**out_map)
+        out = cls(
+            redeem_script=redeem_script,
+            witness_script=witness_script,
+            hd_keypaths=hd_keypaths,
+            proprietary=proprietary,
+            unknown=unknown,
+        )
 
         out.assert_valid()
 
@@ -261,7 +288,7 @@ class Psbt:
         version = 0
         # xpub = None
         hd_keypaths = []
-        proprietary = {}
+        proprietary: Dict[int, Dict[str, str]] = {}
         unknown = {}
         for key, value in global_map.items():
             if key[0] == 0x00:
@@ -295,14 +322,12 @@ class Psbt:
         inputs = []
         for i in range(input_len):
             input_map, data = deserialize_map(data)
-            input_map = PsbtInput.decode(input_map)
-            inputs.append(input_map)
+            inputs.append(PsbtInput.decode(input_map))
 
         outputs = []
         for i in range(output_len):
             output_map, data = deserialize_map(data)
-            output_map = PsbtOutput.decode(output_map)
-            outputs.append(output_map)
+            outputs.append(PsbtOutput.decode(output_map))
 
         psbt = cls(
             tx=tx,

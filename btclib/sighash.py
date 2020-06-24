@@ -12,7 +12,7 @@ from typing import List, Union
 
 from . import tx, tx_out, script, varint
 from .utils import hash256, bytes_from_octets
-from .alias import Script, Octets
+from .alias import Script, Octets, Token
 from .scriptpubkey import payload_from_scriptPubKey
 
 
@@ -79,14 +79,18 @@ def SegwitV0SignatureHash(
 
 
 # FIXME: remove OP_CODESEPARATOR only if exectued
-def _get_witness_scriptCodes(scriptPubKey: Script) -> List[str]:
+def _get_witness_v0_scriptCodes(scriptPubKey: Script) -> List[str]:
     scriptCodes: List[str] = []
-    if scriptPubKey[0] == 0 and len(scriptPubKey) == 2:  # simple p2wpkh #FIXME
+    try:
+        script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+    except ValueError:
+        script_type = "unknown"
+    if script_type == "p2wpkh":  # simple p2wpkh
         pubkeyhash = scriptPubKey[1]
         assert isinstance(pubkeyhash, str)
         scriptCodes.append(f"76a914{pubkeyhash}88ac")
     else:
-        current_script: Script = []
+        current_script: List[Token] = []
         for token in scriptPubKey[::-1]:
             if token == "OP_CODESEPARATOR":
                 scriptCodes.append(script.encode(current_script[::-1]).hex())
@@ -117,10 +121,10 @@ def get_sighash(
     if len(scriptPubKey) == 2 and scriptPubKey[0] == 0:  # is segwit
         script_type = payload_from_scriptPubKey(scriptPubKey)[0]
         if script_type == "p2wpkh":
-            scriptCodes = _get_witness_scriptCodes(scriptPubKey)
+            scriptCodes = _get_witness_v0_scriptCodes(scriptPubKey)
         elif script_type == "p2wsh":
             # the real script is contained in the witness
-            scriptCodes = _get_witness_scriptCodes(
+            scriptCodes = _get_witness_v0_scriptCodes(
                 script.decode(transaction.vin[input_index].txinwitness[-1])
             )
         sighash: List[bytes] = []
