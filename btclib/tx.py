@@ -17,6 +17,7 @@ https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coin
 
 from typing import List, TypeVar, Type
 from dataclasses import dataclass
+from math import ceil
 
 from . import varint
 from .alias import Octets
@@ -29,8 +30,8 @@ _Tx = TypeVar("_Tx", bound="Tx")
 
 @dataclass
 class Tx:
-    version: int
-    locktime: int
+    nVersion: int
+    nLockTime: int
     vin: List[TxIn]
     vout: List[TxOut]
 
@@ -39,7 +40,7 @@ class Tx:
 
         data = bytes_from_octets(data)
 
-        version = int.from_bytes(data[:4], "little")
+        nVersion = int.from_bytes(data[:4], "little")
         data = data[4:]
 
         witness_flag = False
@@ -69,15 +70,15 @@ class Tx:
                 data = data[len(witness_serialize(witness)) :]
                 tx_input.txinwitness = witness
 
-        locktime = int.from_bytes(data[:4], "little")
+        nLockTime = int.from_bytes(data[:4], "little")
 
-        tx = cls(version=version, locktime=locktime, vin=vin, vout=vout)
+        tx = cls(nVersion=nVersion, nLockTime=nLockTime, vin=vin, vout=vout)
 
         tx.assert_valid()
         return tx
 
     def serialize(self, include_witness: bool = True) -> bytes:
-        out = self.version.to_bytes(4, "little")
+        out = self.nVersion.to_bytes(4, "little")
 
         witness_flag = False
         out += varint.encode(len(self.vin))
@@ -94,7 +95,7 @@ class Tx:
             for tx_input in self.vin:
                 out += witness_serialize(tx_input.txinwitness)
 
-        out += self.locktime.to_bytes(4, "little")
+        out += self.nLockTime.to_bytes(4, "little")
 
         if witness_flag and include_witness:
             out = out[:4] + b"\x00\x01" + out[4:]
@@ -106,8 +107,20 @@ class Tx:
         return hash256(self.serialize(False))[::-1].hex()
 
     @property
-    def hash_value(self) -> str:
+    def hash(self) -> str:
         return hash256(self.serialize())[::-1].hex()
+
+    @property
+    def size(self) -> int:
+        return len(self.serialize())
+
+    @property
+    def weight(self) -> int:
+        return len(self.serialize(False)) * 3 + len(self.serialize())
+
+    @property
+    def vsize(self) -> int:
+        return ceil(self.weight / 4)
 
     def assert_valid(self) -> None:
         pass

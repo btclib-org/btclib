@@ -16,11 +16,10 @@ from btclib import tx, tx_in, tx_out
 
 
 def test_coinbase_1():
-    block_1_coinbase_bytes = b'\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff\xff\xff\x07\x04\xff\xff\x00\x1d\x01\x04\xff\xff\xff\xff\x01\x00\xf2\x05*\x01\x00\x00\x00CA\x04\x96\xb58\xe8SQ\x9crj,\x91\xe6\x1e\xc1\x16\x00\xae\x13\x90\x81:b|f\xfb\x8b\xe7\x94{\xe6<R\xdau\x897\x95\x15\xd4\xe0\xa6\x04\xf8\x14\x17\x81\xe6"\x94r\x11f\xbfb\x1es\xa8,\xbf#B\xc8X\xee\xac\x00\x00\x00\x00'
 
-    block_1_coinbase_input_bytes = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff\xff\xff\x07\x04\xff\xff\x00\x1d\x01\x04\xff\xff\xff\xff"
-
-    block_1_coinbase_output_bytes = b'\x00\xf2\x05*\x01\x00\x00\x00CA\x04\x96\xb58\xe8SQ\x9crj,\x91\xe6\x1e\xc1\x16\x00\xae\x13\x90\x81:b|f\xfb\x8b\xe7\x94{\xe6<R\xdau\x897\x95\x15\xd4\xe0\xa6\x04\xf8\x14\x17\x81\xe6"\x94r\x11f\xbfb\x1es\xa8,\xbf#B\xc8X\xee\xac'
+    block_1_coinbase_bytes = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"
+    block_1_coinbase_input_bytes = "0000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff"
+    block_1_coinbase_output_bytes = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
 
     transaction_in = tx_in.TxIn.deserialize(block_1_coinbase_input_bytes)
     transaction_out = tx_out.TxOut.deserialize(block_1_coinbase_output_bytes)
@@ -29,9 +28,9 @@ def test_coinbase_1():
     assert transaction.vin[0].scriptSig == transaction_in.scriptSig
     assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
 
-    assert transaction.serialize() == block_1_coinbase_bytes
-    assert transaction_in.serialize() == block_1_coinbase_input_bytes
-    assert transaction_out.serialize() == block_1_coinbase_output_bytes
+    assert transaction.serialize().hex() == block_1_coinbase_bytes
+    assert transaction_in.serialize().hex() == block_1_coinbase_input_bytes
+    assert transaction_out.serialize().hex() == block_1_coinbase_output_bytes
 
     assert transaction.vin[0].scriptSig == []
 
@@ -39,21 +38,28 @@ def test_coinbase_1():
         transaction.txid
         == "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
     )
-    assert transaction.txid == transaction.hash_value
+    assert transaction.txid == transaction.hash
+
+    assert transaction.size == 134
+    assert transaction.weight == 536
+    assert transaction.vsize == transaction.size
 
 
 # https://en.bitcoin.it/wiki/Protocol_documentation#tx
 def test_wiki_transaction():
-    tx_bytes = b'\x01\x00\x00\x00\x01m\xbd\xdb\x08[\x1d\x8a\xf7Q\x84\xf0\xbc\x01\xfa\xd5\x8d\x12f\xe9\xb6;P\x88\x19\x90\xe4\xb4\rj\xee6)\x00\x00\x00\x00\x8bH0E\x02!\x00\xf3X\x1e\x19r\xae\x8a\xc7\xc76zz%;\xc1\x13R#\xad\xb9\xa4h\xbb:Y#?E\xbcW\x83\x80\x02 Y\xaf\x01\xca\x17\xd0\x0eA\x83z\x1dX\xe9z\xa3\x1b\xaeXN\xde\xc2\x8d5\xbd\x96\x926\x90\x91;\xae\x9a\x01A\x04\x9c\x02\xbf\xc9~\xf26\xcem\x8f\xe5\xd9@\x13\xc7!\xe9\x15\x98*\xcd+\x12\xb6]\x9b}Y\xe2\n\x84 \x05\xf8\xfcN\x02S.\x87=7\xb9o\t\xd6\xd4Q\x1a\xda\x8f\x14\x04/FaJLp\xc0\xf1K\xef\xf5\xff\xff\xff\xff\x02@KL\x00\x00\x00\x00\x00\x19v\xa9\x14\x1a\xa0\xcd\x1c\xbe\xa6\xe7E\x8az\xba\xd5\x12\xa9\xd9\xea\x1a\xfb"^\x88\xac\x80\xfa\xe9\xc7\x00\x00\x00\x00\x19v\xa9\x14\x0e\xab[\xeaCj\x04\x84\xcf\xab\x12H^\xfd\xa0\xb7\x8bN\xccR\x88\xac\x00\x00\x00\x00'
+    tx_bytes = "01000000016dbddb085b1d8af75184f0bc01fad58d1266e9b63b50881990e4b40d6aee3629000000008b483045022100f3581e1972ae8ac7c7367a7a253bc1135223adb9a468bb3a59233f45bc578380022059af01ca17d00e41837a1d58e97aa31bae584edec28d35bd96923690913bae9a0141049c02bfc97ef236ce6d8fe5d94013c721e915982acd2b12b65d9b7d59e20a842005f8fc4e02532e873d37b96f09d6d4511ada8f14042f46614a4c70c0f14beff5ffffffff02404b4c00000000001976a9141aa0cd1cbea6e7458a7abad512a9d9ea1afb225e88ac80fae9c7000000001976a9140eab5bea436a0484cfab12485efda0b78b4ecc5288ac00000000"
 
     transaction = tx.Tx.deserialize(tx_bytes)
+    assert transaction.serialize().hex() == tx_bytes
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
-    assert transaction.vout[0].value == 5000000
-    assert transaction.vout[1].value == 3354000000
+    assert transaction.vout[0].nValue == 5000000
+    assert transaction.vout[1].nValue == 3354000000
 
-    assert transaction.txid == transaction.hash_value
+    assert transaction.txid == transaction.hash
+
+    assert transaction.vsize == transaction.size
 
 
 # 4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c
@@ -66,16 +72,20 @@ def test_single_witness():
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
-    assert transaction.locktime == 0
+    assert transaction.nLockTime == 0
 
     assert (
         transaction.txid
         == "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
     )
     assert (
-        transaction.hash_value
+        transaction.hash
         == "d39eb3e3954be4bdc0b3be2d980124b1e1e11fb414b886b52939b07d95a58a8f"
     )
+
+    assert transaction.size == 380
+    assert transaction.weight == 758
+    assert transaction.vsize == 190
 
 
 # a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c
@@ -88,25 +98,28 @@ def test_double_witness():
 
     assert len(transaction.vin) == 2
     assert len(transaction.vout) == 2
-    assert transaction.locktime == 0
+    assert transaction.nLockTime == 0
 
     assert (
         transaction.txid
         == "a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c"
     )
     assert (
-        transaction.hash_value
+        transaction.hash
         == "0936cb8dba90e11345b9c05f457f139ddce4a5329701af4708b2cf4a02d75adb"
     )
+
+    assert transaction.size == 421
+    assert transaction.weight == 1033
+    assert transaction.vsize == 259
 
 
 def test_invalid_tx_in():
     transaction_input = tx_in.TxIn(
-        txid="00" * 31 + "01",
-        vout=256 ** 4 - 1,
+        prevout=tx_in.OutPoint("00" * 31 + "01", 256 ** 4 - 1),
         scriptSig=[],
         scriptSigHex="",
-        sequence=1,
+        nSequence=1,
         txinwitness=[],
     )
 
@@ -116,11 +129,10 @@ def test_invalid_tx_in():
 
 def test_invalid_tx_in2():
     transaction_input = tx_in.TxIn(
-        txid="00" * 32,
-        vout=0,
+        prevout=tx_in.OutPoint("00" * 32, 0),
         scriptSig=[],
         scriptSigHex="",
-        sequence=1,
+        nSequence=1,
         txinwitness=[],
     )
 
@@ -129,7 +141,7 @@ def test_invalid_tx_in2():
 
 
 def test_invalid_tx_out():
-    transaction_output = tx_out.TxOut(value=-1, scriptPubKey=["OP_RETURN"])
+    transaction_output = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
 
     with pytest.raises(ValueError):
         transaction_output.assert_valid()
@@ -137,7 +149,7 @@ def test_invalid_tx_out():
 
 def test_invalid_tx_out2():
     transaction_output = tx_out.TxOut(
-        value=2099999997690001, scriptPubKey=["OP_RETURN"],
+        nValue=2099999997690001, scriptPubKey=["OP_RETURN"]
     )
 
     with pytest.raises(ValueError):
@@ -145,7 +157,7 @@ def test_invalid_tx_out2():
 
 
 def test_invalid_tx_out3():
-    transaction_output = tx_out.TxOut(value=1, scriptPubKey=[])
+    transaction_output = tx_out.TxOut(nValue=1, scriptPubKey=[])
 
     with pytest.raises(ValueError):
         transaction_output.assert_valid()
