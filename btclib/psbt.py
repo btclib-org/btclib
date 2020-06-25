@@ -22,6 +22,36 @@ from .scriptpubkey import payload_from_scriptPubKey
 from . import varint, script
 
 
+# maybe integrate in bip32?
+def decode_der_path(path: bytes) -> str:
+    out = "m"
+    assert len(path) % 4 == 0
+    for x in range(len(path) // 4):
+        out += "/"
+        index = int.from_bytes(path[4 * x : 4 * (x + 1)], "little")
+        if index >= 0x80000000:
+            out += str(index - 0x80000000) + "h"
+        else:
+            out += str(index)
+    return out
+
+
+def encode_der_path(path: str) -> bytes:
+    indexes = path.split("/")
+    assert indexes[0] == "m"
+    indexes = indexes[1:]
+    out = b""
+    for index in indexes:
+        hardened = False
+        if index[-1] == "h":
+            index = index[:-1]
+            hardened = True
+        index_int = int(index)
+        index_int += 0x80000000 if hardened else 0
+        out += index_int.to_bytes(4, "little")
+    return out
+
+
 _PsbtInput = TypeVar("_PsbtInput", bound="PsbtInput")
 
 
@@ -79,7 +109,7 @@ class PsbtInput:
                 assert len(value) % 4 == 0
                 hd_keypaths[key[1:].hex()] = {
                     "fingerprint": value[:4].hex(),
-                    "derivation_path": value[4:].hex(),
+                    "derivation_path": decode_der_path(value[4:]),
                 }
             elif key[0] == 0x07:
                 assert len(key) == 1
@@ -146,7 +176,7 @@ class PsbtInput:
             for xpub, hd_keypath in self.hd_keypaths.items():
                 out += b"\x22\x06" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += bytes.fromhex(hd_keypath["derivation_path"])
+                keypath += encode_der_path(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
         if self.final_script_sig:
             out += b"\x01\x07"
@@ -205,7 +235,7 @@ class PsbtOutput:
                 assert len(value) % 4 == 0
                 hd_keypaths[key[1:].hex()] = {
                     "fingerprint": value[:4].hex(),
-                    "derivation_path": value[4:].hex(),
+                    "derivation_path": decode_der_path(value[4:]),
                 }
 
             elif key[0] == 0xFC:  # proprietary use
@@ -241,7 +271,7 @@ class PsbtOutput:
             for xpub, hd_keypath in self.hd_keypaths.items():
                 out += b"\x22\x02" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += bytes.fromhex(hd_keypath["derivation_path"])
+                keypath += encode_der_path(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
@@ -295,7 +325,7 @@ class Psbt:
                 assert len(value) % 4 == 0
                 hd_keypaths[key[1:].hex()] = {
                     "fingerprint": value[:4].hex(),
-                    "derivation_path": value[4:].hex(),
+                    "derivation_path": decode_der_path(value[4:]),
                 }
             elif key[0] == 0xFB:
                 assert len(value) == 4
@@ -345,7 +375,7 @@ class Psbt:
             for xpub, hd_keypath in self.hd_keypaths.items():
                 out += b"\x4f\x01" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += bytes.fromhex(hd_keypath["derivation_path"])
+                keypath += encode_der_path(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
         if self.version:
             out += b"\x01\xfb\x04"
