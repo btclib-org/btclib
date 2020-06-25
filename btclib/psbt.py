@@ -33,7 +33,7 @@ class PsbtInput:
     sighash: Optional[int] = 0
     redeem_script: List[Token] = field(default_factory=list)
     witness_script: List[Token] = field(default_factory=list)
-    hd_keypaths: List[Dict[str, str]] = field(default_factory=list)
+    hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
     final_script_sig: List[Token] = field(default_factory=list)
     final_script_witness: List[str] = field(default_factory=list)
     por_commitment: Optional[str] = None
@@ -48,7 +48,7 @@ class PsbtInput:
         sighash = 0
         redeem_script = []
         witness_script = []
-        hd_keypaths = []
+        hd_keypaths = {}
         final_script_sig = []
         final_script_witness = []
         por_commitment = None
@@ -77,13 +77,10 @@ class PsbtInput:
             elif key[0] == 0x06:
                 assert len(key) == 33 + 1
                 assert len(value) % 4 == 0
-                hd_keypaths.append(
-                    {
-                        "xpub": key[1:].hex(),
-                        "fingerprint": value[:4].hex(),
-                        "derivation_path": value[4:].hex(),
-                    }
-                )
+                hd_keypaths[key[1:].hex()] = {
+                    "fingerprint": value[:4].hex(),
+                    "derivation_path": value[4:].hex(),
+                }
             elif key[0] == 0x07:
                 assert len(key) == 1
                 final_script_sig = script.decode(value)
@@ -146,8 +143,8 @@ class PsbtInput:
             out += b"\x01\x05"
             out += script.serialize(self.witness_script)
         if self.hd_keypaths:
-            for hd_keypath in self.hd_keypaths:
-                out += b"\x22\x06" + bytes.fromhex(hd_keypath["xpub"])
+            for xpub, hd_keypath in self.hd_keypaths.items():
+                out += b"\x22\x06" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes.fromhex(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
@@ -185,7 +182,7 @@ _PsbtOutput = TypeVar("_PsbtOutput", bound="PsbtOutput")
 class PsbtOutput:
     redeem_script: List[Token] = field(default_factory=list)
     witness_script: List[Token] = field(default_factory=list)
-    hd_keypaths: List[Dict[str, str]] = field(default_factory=list)
+    hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
@@ -193,7 +190,7 @@ class PsbtOutput:
     def decode(cls: Type[_PsbtOutput], output_map: Dict[bytes, bytes]) -> _PsbtOutput:
         redeem_script = []
         witness_script = []
-        hd_keypaths = []
+        hd_keypaths = {}
         proprietary: Dict[int, Dict[str, str]] = {}
         unknown = {}
         for key, value in output_map.items():
@@ -206,13 +203,11 @@ class PsbtOutput:
             elif key[0] == 0x02:
                 assert len(key) == 33 + 1
                 assert len(value) % 4 == 0
-                hd_keypaths.append(
-                    {
-                        "xpub": key[1:].hex(),
-                        "fingerprint": value[:4].hex(),
-                        "derivation_path": value[4:].hex(),
-                    }
-                )
+                hd_keypaths[key[1:].hex()] = {
+                    "fingerprint": value[:4].hex(),
+                    "derivation_path": value[4:].hex(),
+                }
+
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
                 if prefix not in proprietary.keys():
@@ -243,8 +238,8 @@ class PsbtOutput:
             out += b"\x01\x01"
             out += script.serialize(self.witness_script)
         if self.hd_keypaths:
-            for hd_keypath in self.hd_keypaths:
-                out += b"\x22\x02" + bytes.fromhex(hd_keypath["xpub"])
+            for xpub, hd_keypath in self.hd_keypaths.items():
+                out += b"\x22\x02" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes.fromhex(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
@@ -273,7 +268,7 @@ class Psbt:
     inputs: List[PsbtInput]
     outputs: List[PsbtOutput]
     version: Optional[int] = 0
-    hd_keypaths: List[Dict[str, str]] = field(default_factory=list)
+    hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
@@ -288,8 +283,7 @@ class Psbt:
 
         global_map, data = deserialize_map(data)
         version = 0
-        # xpub = None
-        hd_keypaths = []
+        hd_keypaths = {}
         proprietary: Dict[int, Dict[str, str]] = {}
         unknown = {}
         for key, value in global_map.items():
@@ -299,13 +293,10 @@ class Psbt:
             elif key[0] == 0x01:  # TODO
                 assert len(key) == 78 + 1
                 assert len(value) % 4 == 0
-                hd_keypaths.append(
-                    {
-                        "xpub": key[1:].hex(),
-                        "fingerprint": value[:4].hex(),
-                        "derivation_path": value[4:].hex(),
-                    }
-                )
+                hd_keypaths[key[1:].hex()] = {
+                    "fingerprint": value[:4].hex(),
+                    "derivation_path": value[4:].hex(),
+                }
             elif key[0] == 0xFB:
                 assert len(value) == 4
                 version = int.from_bytes(value, "little")
@@ -351,8 +342,8 @@ class Psbt:
         tx = self.tx.serialize()
         out += varint.encode(len(tx)) + tx
         if self.hd_keypaths:
-            for hd_keypath in self.hd_keypaths:
-                out += b"\x4f\x01" + bytes.fromhex(hd_keypath["xpub"])
+            for xpub, hd_keypath in self.hd_keypaths.items():
+                out += b"\x4f\x01" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes.fromhex(hd_keypath["derivation_path"])
                 out += varint.encode(len(keypath)) + keypath
@@ -471,14 +462,6 @@ def _combine(
                 else:
                     setattr(out, key, getattr(psbt_map, key))
 
-            elif isinstance(getattr(psbt_map, key), list):
-                if getattr(out, key):
-                    for x in getattr(psbt_map, key):
-                        if x not in getattr(out, key):
-                            getattr(out, key).append(x)
-                else:
-                    setattr(out, key, getattr(psbt_map, key))
-
             elif getattr(psbt_map, key):
                 if getattr(out, key):
                     assert getattr(psbt_map, key) == getattr(out, key), key
@@ -540,7 +523,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         psbt_in.sighash = 0
         psbt_in.redeem_script = []
         psbt_in.witness_script = []
-        psbt_in.hd_keypaths = []
+        psbt_in.hd_keypaths = {}
         psbt_in.por_commitment = None
     return psbt
 

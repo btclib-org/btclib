@@ -329,8 +329,14 @@ def test_additional_combination():
     partial_psbt_1 = Psbt.deserialize(psbt_string)
     partial_psbt_2 = Psbt.deserialize(psbt_string)
 
-    partial_psbt_1.inputs[1].hd_keypaths = [partial_psbt_1.inputs[1].hd_keypaths[0]]
-    partial_psbt_2.inputs[1].hd_keypaths = [partial_psbt_2.inputs[1].hd_keypaths[1]]
+    partial_psbt_2.inputs[1].hd_keypaths = dict(
+        list(partial_psbt_1.inputs[1].hd_keypaths.items())[:1]
+    )
+
+    partial_psbt_2.inputs[1].hd_keypaths = dict(
+        list(partial_psbt_1.inputs[1].hd_keypaths.items())[1:]
+    )
+
     psbt = combine_psbts([partial_psbt_1, partial_psbt_2])
     assert psbt.serialize() == psbt_string
 
