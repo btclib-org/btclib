@@ -8,18 +8,15 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Optional, Tuple
+from typing import Tuple
 
-from .alias import Key, Octets, Script, String
-from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
-from .network import _P2PKH_PREFIXES, _P2SH_PREFIXES, NETWORKS, network_from_key_value
-from .scriptpubkey import payload_from_scriptPubKey, scriptPubKey_from_payload
-from .utils import bytes_from_octets
-
-from .base58address import h160_from_b58address, b58address_from_h160
+from .alias import Script, String
+from .base58address import b58address_from_h160, h160_from_b58address
 from .bech32address import b32address_from_witness, witness_from_b32address
-from .tx_out import TxOut
+from .network import NETWORKS
 from .script import decode
+from .scriptpubkey import payload_from_scriptPubKey, scriptPubKey_from_payload
+from .tx_out import TxOut
 
 
 def has_segwit_prefix(addr: String) -> bool:
