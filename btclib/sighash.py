@@ -10,10 +10,19 @@
 
 from typing import List, Union
 
-from . import tx, tx_out, script, varint
-from .utils import hash256, bytes_from_octets
-from .alias import Script, Octets, Token
+from . import script, tx, tx_out, varint
+from .alias import Octets, Script, Token
 from .scriptpubkey import payload_from_scriptPubKey
+from .utils import bytes_from_octets, hash256
+
+
+# workaround to handle CTransactions
+def get_bytes(a: Union[int, str]) -> bytes:
+
+    if isinstance(a, int):
+        return int.to_bytes(a, 32, "big")
+    else:
+        return bytes.fromhex(a)
 
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
@@ -25,7 +34,7 @@ def SegwitV0SignatureHash(
     if hashtype_hex[0] != "8":
         hashPrevouts = b""
         for vin in transaction.vin:
-            hashPrevouts += bytes.fromhex(vin.prevout.hash)[::-1]
+            hashPrevouts += get_bytes(vin.prevout.hash)[::-1]
             hashPrevouts += vin.prevout.n.to_bytes(4, "little")
         hashPrevouts = hash256(hashPrevouts)
     else:
@@ -51,7 +60,7 @@ def SegwitV0SignatureHash(
 
     scriptCode = bytes_from_octets(scriptCode)
 
-    outpoint = bytes.fromhex(transaction.vin[input_index].prevout.hash)[::-1]
+    outpoint = get_bytes(transaction.vin[input_index].prevout.hash)[::-1]
     outpoint += transaction.vin[input_index].prevout.n.to_bytes(4, "little")
 
     preimage = transaction.nVersion.to_bytes(4, "little")
