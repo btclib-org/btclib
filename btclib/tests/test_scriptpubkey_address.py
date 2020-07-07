@@ -8,6 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"Tests for `btclib.scriptpubkey_address` module"
+
 from btclib.scriptpubkey_address import (
     has_segwit_prefix,
     tx_out_from_address,
