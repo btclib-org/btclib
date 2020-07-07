@@ -16,9 +16,10 @@ https://www.secg.org/sec1-v2.pdf
 """
 
 import hashlib
-from typing import Iterable, Optional, Union
+from io import BytesIO
+from typing import BinaryIO, Iterable, Optional, Union
 
-from .alias import Integer, Octets
+from .alias import BinaryData, Integer, Octets
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
@@ -70,6 +71,20 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
 
     m = f"invalid size: {len(o)} bytes instead of {out_size}"
     raise ValueError(m)
+
+
+def binaryio_from_binarydata(stream: BinaryData) -> BinaryIO:
+    """Return a BinaryIO stream object Octets.
+
+    If the input is not Octets (i.e. string or bytes),
+    then it goes untouched.
+    """
+
+    if isinstance(stream, str):  # hex string
+        stream = bytes_from_octets(stream)
+    if isinstance(stream, bytes):
+        stream = BytesIO(stream)
+    return stream
 
 
 def int_from_bits(o: Octets, nlen: int) -> int:
