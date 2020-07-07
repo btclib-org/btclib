@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.psbt` module."
+"Tests for `btclib.psbt` module"
 
 from btclib.psbt import Psbt, psbt_from_tx, combine_psbts, finalize_psbt, extract_tx
 from btclib.tx_in import TxIn, OutPoint

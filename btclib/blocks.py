@@ -118,13 +118,6 @@ class Block:
             weight += t.weight
         return weight
 
-    # @property
-    # def vsize(self) -> int:
-    #     vsize = 0
-    #     for t in self.transactions:
-    #         vsize += t.vsize
-    #     return ceil(vsize / 1000)
-
     def assert_valid(self) -> None:
         for transaction in self.transactions[1:]:
             transaction.assert_valid()

@@ -8,6 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"""Partially Signed Bitcoin Transaction.
+
+https://en.bitcoin.it/wiki/BIP_0174
+"""
+
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Type, TypeVar, Optional, Union
 from base64 import b64decode, b64encode
@@ -410,12 +415,17 @@ class Psbt:
 
         for i, tx_in in enumerate(self.tx.vin):
 
-            if self.inputs[i].non_witness_utxo:
-                txid = tx_in.prevout.hash
-                assert self.inputs[i].non_witness_utxo.txid == txid
+            non_witness_utxo = self.inputs[i].non_witness_utxo
+            witness_utxo = self.inputs[i].witness_utxo
 
-            if self.inputs[i].witness_utxo:
-                scriptPubKey = self.inputs[i].witness_utxo.scriptPubKey
+            if non_witness_utxo:
+                txid = tx_in.prevout.hash
+                assert isinstance(non_witness_utxo, Tx)
+                assert non_witness_utxo.txid == txid
+
+            if witness_utxo:
+                assert isinstance(witness_utxo, TxOut)
+                scriptPubKey = witness_utxo.scriptPubKey
                 script_type = payload_from_scriptPubKey(scriptPubKey)[0]
                 if script_type == "p2sh":
                     scriptPubKey = self.inputs[i].redeem_script
@@ -423,26 +433,18 @@ class Psbt:
                 assert script_type in ["p2wpkh", "p2wsh"]
 
             if self.inputs[i].redeem_script:
-                if self.inputs[i].non_witness_utxo:
-                    scriptPubKey = (
-                        self.inputs[i]
-                        .non_witness_utxo.vout[tx_in.prevout.n]
-                        .scriptPubKey
-                    )
-                elif self.inputs[i].witness_utxo:
-                    scriptPubKey = self.inputs[i].witness_utxo.scriptPubKey
+                if non_witness_utxo:
+                    scriptPubKey = non_witness_utxo.vout[tx_in.prevout.n].scriptPubKey
+                elif witness_utxo:
+                    scriptPubKey = witness_utxo.scriptPubKey
                 hash = hash160(script.encode(self.inputs[i].redeem_script))
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
             if self.inputs[i].witness_script:
-                if self.inputs[i].non_witness_utxo:
-                    scriptPubKey = (
-                        self.inputs[i]
-                        .non_witness_utxo.vout[tx_in.prevout.n]
-                        .scriptPubKey
-                    )
-                elif self.inputs[i].witness_utxo:
-                    scriptPubKey = self.inputs[i].witness_utxo.scriptPubKey
+                if non_witness_utxo:
+                    scriptPubKey = non_witness_utxo.vout[tx_in.prevout.n].scriptPubKey
+                elif witness_utxo:
+                    scriptPubKey = witness_utxo.scriptPubKey
                 if self.inputs[i].redeem_script:
                     scriptPubKey = self.inputs[i].redeem_script
 
@@ -479,26 +481,23 @@ def psbt_from_tx(tx: Tx) -> Psbt:
     return Psbt(tx=tx, inputs=inputs, outputs=outputs, unknown={})
 
 
-def _combine(
-    maps: Union[List[PsbtInput], List[PsbtOutput]]
-) -> Union[PsbtOutput, PsbtInput]:
-    out = maps[0]
-    for psbt_map in maps[1:]:
-        for key in psbt_map.__dict__:
-
-            if isinstance(getattr(psbt_map, key), dict):
-                if getattr(out, key):
-                    getattr(out, key).update(getattr(psbt_map, key))
-                else:
-                    setattr(out, key, getattr(psbt_map, key))
-
-            elif getattr(psbt_map, key):
-                if getattr(out, key):
-                    assert getattr(psbt_map, key) == getattr(out, key), key
-                else:
-                    setattr(out, key, getattr(psbt_map, key))
-    out.assert_valid()
-    return out
+def _combine_field(
+    psbt_map: Union[PsbtInput, PsbtOutput, Psbt],
+    out: Union[PsbtInput, PsbtOutput, Psbt],
+    key: str,
+) -> None:
+    item: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(psbt_map, key)
+    a: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(out, key)
+    if isinstance(item, dict):
+        if a and isinstance(a, dict):
+            a.update(item)
+        else:
+            setattr(out, key, item)
+    elif item:
+        if a:
+            assert item == a, key
+        else:
+            setattr(out, key, item)
 
 
 def combine_psbts(psbts: List[Psbt]) -> Psbt:
@@ -507,21 +506,34 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
     for psbt in psbts[1:]:
         assert psbt.tx.txid == txid
 
-    inputs = [
-        _combine([psbt.inputs[x] for psbt in psbts]) for x in range(len(psbt.inputs))
-    ]
-    psbt.inputs = inputs
+    for psbt in psbts[1:]:
 
-    outputs = [
-        _combine([psbt.outputs[x] for psbt in psbts]) for x in range(len(psbt.outputs))
-    ]
-    final_psbt.outputs = outputs
+        for x in range(len(final_psbt.inputs)):
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "non_witness_utxo")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "witness_utxo")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "partial_sigs")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "sighash")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "redeem_script")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "witness_script")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "hd_keypaths")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "final_script_sig")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "final_script_witness")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "por_commitment")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "proprietary")
+            _combine_field(psbt.inputs[x], final_psbt.inputs[x], "unknown")
 
-    for psbt in psbts:
-        if final_psbt.unknown:
-            final_psbt.unknown.update(psbt.unknown)
-        else:
-            final_psbt.unknown = psbt.unknown
+        for y in range(len(final_psbt.outputs)):
+            _combine_field(psbt.outputs[x], final_psbt.outputs[x], "redeem_script")
+            _combine_field(psbt.outputs[x], final_psbt.outputs[x], "witness_script")
+            _combine_field(psbt.outputs[x], final_psbt.outputs[x], "hd_keypaths")
+            _combine_field(psbt.outputs[x], final_psbt.outputs[x], "proprietary")
+            _combine_field(psbt.outputs[x], final_psbt.outputs[x], "unknown")
+
+        _combine_field(psbt, final_psbt, "tx")
+        _combine_field(psbt, final_psbt, "version")
+        _combine_field(psbt, final_psbt, "hd_keypaths")
+        _combine_field(psbt, final_psbt, "proprietary")
+        _combine_field(psbt, final_psbt, "unknown")
 
     return final_psbt
 
@@ -548,7 +560,9 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
                 script.encode(psbt_in.redeem_script).hex().upper()
             ]
             if len(psbt_in.partial_sigs) > 1:
-                psbt_in.final_script_sig = [0] + psbt_in.final_script_sig
+                # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
+                dummy_element: List[Token] = [0]
+                psbt_in.final_script_sig = dummy_element + psbt_in.final_script_sig
         psbt_in.partial_sigs = {}
         psbt_in.sighash = 0
         psbt_in.redeem_script = []
