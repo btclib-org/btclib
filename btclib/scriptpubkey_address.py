@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+
+# Copyright (C) 2020 The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
+from typing import Optional, Tuple
+
+from .alias import Key, Octets, Script, String
+from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
+from .network import _P2PKH_PREFIXES, _P2SH_PREFIXES, NETWORKS, network_from_key_value
+from .scriptpubkey import payload_from_scriptPubKey, scriptPubKey_from_payload
+from .utils import bytes_from_octets
+
+from .base58address import h160_from_b58address, b58address_from_h160
+from .bech32address import b32address_from_witness, witness_from_b32address
+from .tx_out import TxOut
+from .script import decode
+
+
+def has_segwit_prefix(addr: String) -> bool:
+
+    if isinstance(addr, str):
+        str_addr = addr.strip()
+        str_addr = str_addr.lower()
+    else:
+        str_addr = addr.decode("ascii")
+
+    for net in NETWORKS:
+        if str_addr.startswith(NETWORKS[net]["p2w"] + "1"):
+            return True
+
+    return False
+
+
+def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
+    "Return (scriptPubKey, network) from the input bech32/base58 address"
+
+    if has_segwit_prefix(addr):
+        # also check witness validity
+        wv, wp, network, is_script_hash = witness_from_b32address(addr)
+        if wv != 0:
+            raise ValueError(f"Unmanaged witness version ({wv})")
+        if is_script_hash:
+            return scriptPubKey_from_payload("p2wsh", wp), network
+        else:
+            return scriptPubKey_from_payload("p2wpkh", wp), network
+    else:
+        _, h160, network, is_p2sh = h160_from_b58address(addr)
+        if is_p2sh:
+            return scriptPubKey_from_payload("p2sh", h160), network
+        else:
+            return scriptPubKey_from_payload("p2pkh", h160), network
+
+
+def address_from_scriptPubKey(s: Script, network: str = "mainnet") -> bytes:
+    "Return the bech32/base58 address from the input scriptPubKey."
+
+    script_type, payload, m = payload_from_scriptPubKey(s)
+    if script_type == "p2pk":
+        raise ValueError("No address for p2pk script")
+    if script_type == "p2ms" or isinstance(payload, list) or m != 0:
+        raise ValueError("No address for p2ms script")
+    if script_type == "nulldata":
+        raise ValueError("No address for null data script")
+
+    if script_type == "p2pkh":
+        prefix = NETWORKS[network]["p2pkh"]
+        return b58address_from_h160(prefix, payload, network)
+    if script_type == "p2sh":
+        prefix = NETWORKS[network]["p2sh"]
+        return b58address_from_h160(prefix, payload, network)
+
+    # 'p2wsh' or 'p2wpkh'
+    return b32address_from_witness(0, payload, network)
+
+
+def tx_out_from_address(address: str, value: int) -> TxOut:
+    scriptPubKey = scriptPubKey_from_address(address)[0]
+    tx_out = TxOut(value, decode(scriptPubKey))
+    return tx_out
+
+
+def address_from_tx_out(tx_out: TxOut) -> str:
+    scriptPubKey = tx_out.scriptPubKey
+    address = address_from_scriptPubKey(scriptPubKey)
+    return address.decode("ascii")

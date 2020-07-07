@@ -18,7 +18,6 @@ from btclib.base58address import (
     b58address_from_h160,
     b58address_from_witness,
     h160_from_b58address,
-    has_segwit_prefix,
     p2pkh,
     p2sh,
     p2wpkh_p2sh,
@@ -199,15 +198,6 @@ def test_address_from_wif() -> None:
                 p2wpkh(wif)
             with pytest.raises(ValueError, match=err_msg):
                 p2wpkh_p2sh(wif)
-
-
-def test_has_segwit_prefix() -> None:
-    addr = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
-    assert has_segwit_prefix(addr)
-    assert has_segwit_prefix(addr.decode())
-    addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    assert not has_segwit_prefix(addr)
-    assert not has_segwit_prefix(addr.decode())
 
 
 def test_exceptions() -> None:
