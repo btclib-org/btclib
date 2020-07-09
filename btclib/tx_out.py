@@ -12,8 +12,8 @@ from typing import List, TypeVar, Type
 from dataclasses import dataclass
 
 from . import script, varint
-from .alias import Octets, Token
-from .utils import bytes_from_octets
+from .alias import Token, BinaryData
+from .utils import binaryio_from_binarydata
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")
 
@@ -24,17 +24,12 @@ class TxOut:
     scriptPubKey: List[Token]
 
     @classmethod
-    def deserialize(cls: Type[_TxOut], data: Octets) -> _TxOut:
-
-        data = bytes_from_octets(data)
-
-        nValue = int.from_bytes(data[:8], "little")
-        script_length = varint.decode(data[8:])
-        data = data[8 + len(varint.encode(script_length)) :]
-        scriptPubKey = script.decode(data[:script_length])
-
+    def deserialize(cls: Type[_TxOut], data: BinaryData) -> _TxOut:
+        stream = binaryio_from_binarydata(data)
+        nValue = int.from_bytes(stream.read(8), "little")
+        script_length = varint.decode(stream)
+        scriptPubKey = script.decode(stream.read(script_length))
         tx_out = cls(nValue=nValue, scriptPubKey=scriptPubKey)
-
         tx_out.assert_valid()
         return tx_out
 
@@ -48,9 +43,7 @@ class TxOut:
     def assert_valid(self) -> None:
         if self.nValue < 0:
             raise ValueError(f"negative value: {self.nValue}")
-
         if 2099999997690000 < self.nValue:
             raise ValueError(f"value too high: {self.nValue}")
-
         if len(self.scriptPubKey) == 0:
             raise ValueError(f"empty scriptPubKey: {self.scriptPubKey}")

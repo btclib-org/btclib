@@ -12,8 +12,8 @@ from typing import List, TypeVar, Type
 from dataclasses import dataclass
 
 from . import script, varint
-from .alias import Octets, Token
-from .utils import bytes_from_octets
+from .alias import BinaryData, Token
+from .utils import binaryio_from_binarydata
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
@@ -24,10 +24,10 @@ class OutPoint:
     n: int
 
     @classmethod
-    def deserialize(cls: Type[_OutPoint], data: Octets) -> _OutPoint:
-        data = bytes_from_octets(data)
-        hash = data[:32][::-1].hex()
-        n = int.from_bytes(data[32:36], "little")
+    def deserialize(cls: Type[_OutPoint], data: BinaryData) -> _OutPoint:
+        data = binaryio_from_binarydata(data)
+        hash = data.read(32)[::-1].hex()
+        n = int.from_bytes(data.read(4), "little")
         point = cls(hash, n)
         return point
 
@@ -55,29 +55,21 @@ class TxIn:
     txinwitness: List[str]
 
     @classmethod
-    def deserialize(cls: Type[_TxIn], data: Octets) -> _TxIn:
-
-        data = bytes_from_octets(data)
-
-        prevout = OutPoint.deserialize(data)
-
+    def deserialize(cls: Type[_TxIn], data: BinaryData) -> _TxIn:
+        stream = binaryio_from_binarydata(data)
+        prevout = OutPoint.deserialize(stream)
         is_coinbase = False
         if prevout.hash == "00" * 32 and prevout.n == 256 ** 4 - 1:
             is_coinbase = True
-
-        script_length = varint.decode(data[36:])
-        data = data[36 + len(varint.encode(script_length)) :]
-
+        script_length = varint.decode(stream)
         scriptSig: List[Token] = []
         scriptSigHex = ""
         if is_coinbase:
-            scriptSigHex = data[:script_length].hex()
+            scriptSigHex = stream.read(script_length).hex()
         else:
-            scriptSig = script.decode(data[:script_length])
-
-        nSequence = int.from_bytes(data[script_length : script_length + 4], "little")
+            scriptSig = script.decode(stream.read(script_length))
+        nSequence = int.from_bytes(stream.read(4), "little")
         txinwitness: List[str] = []
-
         tx_in = cls(
             prevout=prevout,
             scriptSig=scriptSig,
@@ -85,7 +77,6 @@ class TxIn:
             nSequence=nSequence,
             txinwitness=txinwitness,
         )
-
         tx_in.assert_valid()
         return tx_in
 
@@ -104,32 +95,22 @@ class TxIn:
         self.prevout.assert_valid()
 
 
-def witness_deserialize(data: Octets) -> List[str]:
-
-    data = bytes_from_octets(data)
-
+def witness_deserialize(data: BinaryData) -> List[str]:
+    stream = binaryio_from_binarydata(data)
     witness: List[str] = []
-
-    witness_count = varint.decode(data)
-    data = data[len(varint.encode(witness_count)) :]
+    witness_count = varint.decode(stream)
     for _ in range(witness_count):
-        witness_len = varint.decode(data)
-        data = data[len(varint.encode(witness_len)) :]
-        witness.append(data[:witness_len].hex())
-        data = data[witness_len:]
-
+        witness_len = varint.decode(stream)
+        witness.append(stream.read(witness_len).hex())
     return witness
 
 
 def witness_serialize(witness: List[str]) -> bytes:
-
     out = b""
-
     witness_count = len(witness)
     out += varint.encode(witness_count)
     for i in range(witness_count):
         witness_bytes = bytes.fromhex(witness[i])
         out += varint.encode(len(witness_bytes))
         out += witness_bytes
-
     return out
