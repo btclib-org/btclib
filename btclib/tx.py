@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from math import ceil
 
 from . import varint
-from .alias import Octets
+from .alias import Octets, BinaryData
 from .tx_in import TxIn, witness_serialize, witness_deserialize
 from .tx_out import TxOut
 from .utils import binaryio_from_binarydata, bytes_from_octets, hash256
@@ -36,15 +36,14 @@ class Tx:
     vout: List[TxOut]
 
     @classmethod
-    def deserialize(cls: Type[_Tx], data: Octets) -> _Tx:
-        data = bytes_from_octets(data)
-        nVersion = int.from_bytes(data[:4], "little")
-        data = data[4:]
-        witness_flag = False
-        if data[:2] == b"\x00\x01":
-            witness_flag = True
-            data = data[2:]
+    def deserialize(cls: Type[_Tx], data: BinaryData) -> _Tx:
         stream = binaryio_from_binarydata(data)
+        nVersion = int.from_bytes(stream.read(4), "little")
+        view = stream.getvalue()
+        witness_flag = False
+        if view[stream.tell() : stream.tell() + 2] == b"\x00\x01":
+            witness_flag = True
+            stream.read(2)
         input_count = varint.decode(stream)
         vin: List[TxIn] = []
         for _ in range(input_count):

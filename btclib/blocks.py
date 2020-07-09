@@ -11,9 +11,9 @@
 from typing import List, Type, TypeVar
 
 from dataclasses import dataclass
-from .alias import Octets
+from .alias import Octets, BinaryData
 from . import varint, tx
-from .utils import hash256, bytes_from_octets
+from .utils import hash256, bytes_from_octets, binaryio_from_binarydata
 
 _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
@@ -28,17 +28,14 @@ class BlockHeader:
     nonce: int
 
     @classmethod
-    def deserialize(cls: Type[_BlockHeader], data: Octets) -> _BlockHeader:
-
-        data = bytes_from_octets(data)
-
-        version = int.from_bytes(data[0:4], "little")
-        previousblockhash = data[4:36][::-1].hex()
-        merkleroot = data[36:68][::-1].hex()
-        timestamp = int.from_bytes(data[68:72], "little")
-        bits = int.from_bytes(data[72:76], "little")
-        nonce = int.from_bytes(data[76:80], "little")
-
+    def deserialize(cls: Type[_BlockHeader], data: BinaryData) -> _BlockHeader:
+        stream = binaryio_from_binarydata(data)
+        version = int.from_bytes(stream.read(4), "little")
+        previousblockhash = stream.read(32)[::-1].hex()
+        merkleroot = stream.read(32)[::-1].hex()
+        timestamp = int.from_bytes(stream.read(4), "little")
+        bits = int.from_bytes(stream.read(4), "little")
+        nonce = int.from_bytes(stream.read(4), "little")
         header = cls(
             version=version,
             previousblockhash=previousblockhash,
@@ -47,7 +44,7 @@ class BlockHeader:
             bits=bits,
             nonce=nonce,
         )
-
+        header.assert_valid()
         return header
 
     def serialize(self) -> bytes:
@@ -76,28 +73,18 @@ class Block:
     transactions: List[tx.Tx]
 
     @classmethod
-    def deserialize(cls: Type[_Block], data: Octets) -> _Block:
-
-        data = bytes_from_octets(data)
-
-        header = BlockHeader.deserialize(data[:80])
-
-        data = data[80:]
-        transaction_count = varint.decode(data)
-        data = data[len(varint.encode(transaction_count)) :]
+    def deserialize(cls: Type[_Block], data: BinaryData) -> _Block:
+        stream = binaryio_from_binarydata(data)
+        header = BlockHeader.deserialize(stream)
+        transaction_count = varint.decode(stream)
         transactions: List[tx.Tx] = []
-        coinbase = tx.Tx.deserialize(data)
+        coinbase = tx.Tx.deserialize(stream)
         transactions.append(coinbase)
-        data = data[len(coinbase.serialize()) :]
         for x in range(transaction_count - 1):
-            transaction = tx.Tx.deserialize(data)
+            transaction = tx.Tx.deserialize(stream)
             transactions.append(transaction)
-            data = data[len(transaction.serialize()) :]
-
         block = cls(header=header, transactions=transactions)
-
         block.assert_valid()
-
         return block
 
     def serialize(self, include_witness: bool = True) -> bytes:
