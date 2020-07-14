@@ -8,11 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import List, TypeVar, Type
 from dataclasses import dataclass
+from typing import List, Type, TypeVar
 
 from . import script, varint
-from .alias import Token, BinaryData
+from .alias import BinaryData, Token
 from .utils import binaryio_from_binarydata
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")

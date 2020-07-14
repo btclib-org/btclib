@@ -15,15 +15,15 @@ https://learnmeabitcoin.com/guide/coinbase-transaction
 https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
 """
 
-from typing import List, TypeVar, Type
 from dataclasses import dataclass
 from math import ceil
+from typing import List, Type, TypeVar
 
 from . import varint
-from .alias import Octets, BinaryData
-from .tx_in import TxIn, witness_serialize, witness_deserialize
+from .alias import BinaryData
+from .tx_in import TxIn, witness_deserialize, witness_serialize
 from .tx_out import TxOut
-from .utils import binaryio_from_binarydata, bytes_from_octets, hash256
+from .utils import binaryio_from_binarydata, hash256
 
 _Tx = TypeVar("_Tx", bound="Tx")
 

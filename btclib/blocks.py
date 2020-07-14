@@ -8,12 +8,12 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+from dataclasses import dataclass
 from typing import List, Type, TypeVar
 
-from dataclasses import dataclass
-from .alias import Octets, BinaryData
-from . import varint, tx
-from .utils import hash256, bytes_from_octets, binaryio_from_binarydata
+from . import tx, varint
+from .alias import BinaryData
+from .utils import binaryio_from_binarydata, hash256
 
 _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
