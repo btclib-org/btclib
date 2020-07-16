@@ -24,7 +24,7 @@ class BlockHeader:
     previousblockhash: str
     merkleroot: str
     time: int
-    bits: int
+    bits: bytes
     nonce: int
 
     @classmethod
@@ -34,7 +34,7 @@ class BlockHeader:
         previousblockhash = stream.read(32)[::-1].hex()
         merkleroot = stream.read(32)[::-1].hex()
         timestamp = int.from_bytes(stream.read(4), "little")
-        bits = int.from_bytes(stream.read(4), "little")
+        bits = stream.read(4)[::-1]
         nonce = int.from_bytes(stream.read(4), "little")
         header = cls(
             version=version,
@@ -52,7 +52,7 @@ class BlockHeader:
         out += bytes.fromhex(self.previousblockhash)[::-1]
         out += bytes.fromhex(self.merkleroot)[::-1]
         out += self.time.to_bytes(4, "little")
-        out += self.bits.to_bytes(4, "little")
+        out += self.bits[::-1]
         out += self.nonce.to_bytes(4, "little")
         return out
 
@@ -61,7 +61,13 @@ class BlockHeader:
         return hash256(self.serialize())[::-1].hex()
 
     def assert_valid(self) -> None:
-        pass
+        if not 1 <= self.version <= 0xFFFFFFFF:
+            raise ValueError("Invalid block header version")
+        if len(self.previousblockhash) != 64:
+            raise ValueError("Invalid block previous hash length")
+        target = int.from_bytes(self.bits[-3:], "little") * 256 ** (self.bits[0] - 3)
+        if int.from_bytes(bytes.fromhex(self.hash), "big") > target:
+            raise ValueError("Invalid nonce")
 
 
 _Block = TypeVar("_Block", bound="Block")
@@ -108,8 +114,11 @@ class Block:
     def assert_valid(self) -> None:
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
+        if not _generate_merkle_root(self.transactions) == self.header.merkleroot:
+            raise ValueError(
+                "The block merkle root is not the merkle root of the block transactions"
+            )
         self.header.assert_valid()
-        assert _generate_merkle_root(self.transactions) == self.header.merkleroot
 
 
 def _generate_merkle_root(transactions: List[tx.Tx]) -> str:
