@@ -226,6 +226,18 @@ def test_invalid_block_previoushash_length():
         block.assert_valid()
 
 
+def test_invalid_block_merkleroot_length():
+    fname = "block_1.bin"
+    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    block_bytes = open(filename, "rb").read()
+    block = Block.deserialize(block_bytes)
+
+    block.header.merkleroot = "00" * 31
+    err_msg = "Invalid block merkle root length"
+    with pytest.raises(ValueError, match=err_msg):
+        block.header.assert_valid()
+
+
 def test_invalid_nonce():
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)

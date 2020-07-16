@@ -65,6 +65,8 @@ class BlockHeader:
             raise ValueError("Invalid block header version")
         if len(self.previousblockhash) != 64:
             raise ValueError("Invalid block previous hash length")
+        if len(self.merkleroot) != 64:
+            raise ValueError("Invalid block merkle root length")
         target = int.from_bytes(self.bits[-3:], "little") * 256 ** (self.bits[0] - 3)
         if int.from_bytes(bytes.fromhex(self.hash), "big") > target:
             raise ValueError("Invalid nonce")
