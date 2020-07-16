@@ -161,3 +161,24 @@ def test_invalid_tx_out3():
 
     with pytest.raises(ValueError):
         transaction_output.assert_valid()
+
+
+def test_missing_tx_in():
+    transaction = tx.Tx(0, 0, [], [])
+    err_msg = "A transaction must have at least one input"
+    with pytest.raises(ValueError, match=err_msg):
+        transaction.assert_valid()
+
+
+def test_missing_tx_out():
+    transaction_input = tx_in.TxIn(
+        prevout=tx_in.OutPoint("ff" * 32, 0),
+        scriptSig=[],
+        scriptSigHex="",
+        nSequence=1,
+        txinwitness=[],
+    )
+    transaction = tx.Tx(0, 0, [transaction_input], [])
+    err_msg = "A transaction must have at least one output"
+    with pytest.raises(ValueError, match=err_msg):
+        transaction.assert_valid()

@@ -103,9 +103,11 @@ class Tx:
         return ceil(self.weight / 4)
 
     def assert_valid(self) -> None:
-        assert self.vin
+        if not self.vin:
+            raise ValueError("A transaction must have at least one input")
         for tx_in in self.vin:
             tx_in.assert_valid()
-        assert self.vout
+        if not self.vout:
+            raise ValueError("A transaction must have at least one output")
         for tx_out in self.vout:
             tx_out.assert_valid()
