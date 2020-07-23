@@ -121,29 +121,18 @@ def get_sighash(
     if len(scriptPubKey) == 2 and scriptPubKey[0] == 0:  # is segwit
         script_type = payload_from_scriptPubKey(scriptPubKey)[0]
         if script_type == "p2wpkh":
-            scriptCodes = _get_witness_v0_scriptCodes(scriptPubKey)
+            scriptCode = _get_witness_v0_scriptCodes(scriptPubKey)[0]
         elif script_type == "p2wsh":
             # the real script is contained in the witness
-            scriptCodes = _get_witness_v0_scriptCodes(
+            scriptCode = _get_witness_v0_scriptCodes(
                 script.decode(transaction.vin[input_index].txinwitness[-1])
-            )
-        sighash: List[bytes] = []
-        for scriptCode in scriptCodes:
-            sighash.append(
-                SegwitV0SignatureHash(
-                    bytes.fromhex(scriptCode),
-                    transaction,
-                    input_index,
-                    sighash_type,
-                    value,
-                )
-            )
+            )[0]
+        sighash = SegwitV0SignatureHash(
+            bytes.fromhex(scriptCode), transaction, input_index, sighash_type, value
+        )
+
         return sighash
     raise RuntimeError("Does not yet support legacy transactions")
-
-    # else:
-    #     scriptCode = _get_witness_scriptCode(scriptPubKey)
-    #     sighash = _get_witness_sighash(transaction, input_index, scriptCode, value)
 
 
 # def sign(
