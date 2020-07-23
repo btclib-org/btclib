@@ -73,7 +73,7 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     raise ValueError(m)
 
 
-def binaryio_from_binarydata(stream: BinaryData) -> BinaryIO:
+def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
     """Return a BinaryIO stream object Octets.
 
     If the input is not Octets (i.e. string or bytes),
@@ -84,6 +84,8 @@ def binaryio_from_binarydata(stream: BinaryData) -> BinaryIO:
         stream = bytes_from_octets(stream)
     if isinstance(stream, bytes):
         stream = BytesIO(stream)
+    elif isinstance(stream, BinaryIO):
+        stream = BytesIO(stream.read())
     return stream
 
 

@@ -13,7 +13,7 @@ from typing import List, Type, TypeVar
 
 from . import script, varint
 from .alias import BinaryData, Token
-from .utils import binaryio_from_binarydata
+from .utils import bytesio_from_binarydata
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")
 
@@ -25,7 +25,7 @@ class TxOut:
 
     @classmethod
     def deserialize(cls: Type[_TxOut], data: BinaryData) -> _TxOut:
-        stream = binaryio_from_binarydata(data)
+        stream = bytesio_from_binarydata(data)
         nValue = int.from_bytes(stream.read(8), "little")
         script_length = varint.decode(stream)
         scriptPubKey = script.decode(stream.read(script_length))

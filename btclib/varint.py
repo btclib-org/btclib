@@ -30,13 +30,13 @@ Up to 0xfc, a varint is just 1 byte; however, if the integer is greater than
 """
 
 from .alias import BinaryData
-from .utils import binaryio_from_binarydata, hex_string
+from .utils import bytesio_from_binarydata, hex_string
 
 
 def decode(stream: BinaryData) -> int:
     """Return the variable-length integer read from a stream."""
 
-    stream = binaryio_from_binarydata(stream)
+    stream = bytesio_from_binarydata(stream)
 
     i = stream.read(1)[0]
     if i < 0xFD:

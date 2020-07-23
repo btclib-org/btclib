@@ -23,7 +23,7 @@ from . import varint
 from .alias import BinaryData
 from .tx_in import TxIn, witness_deserialize, witness_serialize
 from .tx_out import TxOut
-from .utils import binaryio_from_binarydata, hash256
+from .utils import bytesio_from_binarydata, hash256
 
 _Tx = TypeVar("_Tx", bound="Tx")
 
@@ -37,7 +37,7 @@ class Tx:
 
     @classmethod
     def deserialize(cls: Type[_Tx], data: BinaryData) -> _Tx:
-        stream = binaryio_from_binarydata(data)
+        stream = bytesio_from_binarydata(data)
         nVersion = int.from_bytes(stream.read(4), "little")
         view: bytes = stream.getvalue()
         witness_flag = False

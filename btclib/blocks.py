@@ -13,7 +13,7 @@ from typing import List, Type, TypeVar
 
 from . import tx, varint
 from .alias import BinaryData
-from .utils import binaryio_from_binarydata, hash256
+from .utils import bytesio_from_binarydata, hash256
 
 _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
@@ -29,7 +29,7 @@ class BlockHeader:
 
     @classmethod
     def deserialize(cls: Type[_BlockHeader], data: BinaryData) -> _BlockHeader:
-        stream = binaryio_from_binarydata(data)
+        stream = bytesio_from_binarydata(data)
         version = int.from_bytes(stream.read(4), "little")
         previousblockhash = stream.read(32)[::-1].hex()
         merkleroot = stream.read(32)[::-1].hex()
@@ -84,7 +84,7 @@ class Block:
 
     @classmethod
     def deserialize(cls: Type[_Block], data: BinaryData) -> _Block:
-        stream = binaryio_from_binarydata(data)
+        stream = bytesio_from_binarydata(data)
         header = BlockHeader.deserialize(stream)
         transaction_count = varint.decode(stream)
         transactions: List[tx.Tx] = []

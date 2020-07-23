@@ -68,7 +68,7 @@ def SegwitV0SignatureHash(
     preimage += hashSequence
     preimage += outpoint
     preimage += varint.encode(len(scriptCode)) + scriptCode
-    preimage += (amount).to_bytes(8, "little")  # value
+    preimage += amount.to_bytes(8, "little")  # value
     preimage += transaction.vin[input_index].nSequence.to_bytes(4, "little")
     preimage += hashOutputs
     preimage += transaction.nLockTime.to_bytes(4, "little")
@@ -139,6 +139,7 @@ def get_sighash(
                 )
             )
         return sighash
+    raise RuntimeError("Does not yet support legacy transactions")
 
     # else:
     #     scriptCode = _get_witness_scriptCode(scriptPubKey)
