@@ -18,7 +18,7 @@ import pytest
 
 
 # actually second block in chain, first obtainable from other nodes
-def test_block_1():
+def test_block_1() -> None:
 
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
@@ -47,7 +47,7 @@ def test_block_1():
 
 
 # first block with a transaction
-def test_block_170():
+def test_block_170() -> None:
 
     fname = "block_170.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
@@ -75,7 +75,7 @@ def test_block_170():
     assert block.weight == 1636
 
 
-def test_block_200000():
+def test_block_200000() -> None:
 
     fname = "block_200000.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
@@ -105,7 +105,7 @@ def test_block_200000():
 
 # first block with segwit transaction
 # this block has NO witness data (as seen by legacy nodes)
-def test_block_481824():
+def test_block_481824() -> None:
 
     fname = "block_481824.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
@@ -133,7 +133,7 @@ def test_block_481824():
 
 
 # this block has witness data
-def test_block_481824_complete():
+def test_block_481824_complete() -> None:
 
     fname = "block_481824_complete.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
@@ -163,7 +163,7 @@ def test_block_481824_complete():
     assert block.weight == 3954548
 
 
-def test_only_79_bytes():
+def test_only_79_bytes() -> None:
 
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
@@ -174,7 +174,7 @@ def test_only_79_bytes():
         BlockHeader.deserialize(header_bytes)
 
 
-def test_varint_error():
+def test_varint_error() -> None:
 
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
@@ -185,7 +185,7 @@ def test_varint_error():
         Block.deserialize(block_bytes)
 
 
-def test_invalid_merkleroot():
+def test_invalid_merkleroot() -> None:
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
@@ -197,7 +197,7 @@ def test_invalid_merkleroot():
         block.assert_valid()
 
 
-def test_invalid_block_version():
+def test_invalid_block_version() -> None:
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
@@ -214,7 +214,7 @@ def test_invalid_block_version():
         block.assert_valid()
 
 
-def test_invalid_block_previoushash_length():
+def test_invalid_block_previoushash_length() -> None:
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
@@ -226,7 +226,7 @@ def test_invalid_block_previoushash_length():
         block.assert_valid()
 
 
-def test_invalid_block_merkleroot_length():
+def test_invalid_block_merkleroot_length() -> None:
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
@@ -238,7 +238,7 @@ def test_invalid_block_merkleroot_length():
         block.header.assert_valid()
 
 
-def test_invalid_nonce():
+def test_invalid_nonce() -> None:
     fname = "block_1.bin"
     filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()

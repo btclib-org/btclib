@@ -39,7 +39,7 @@ class Tx:
     def deserialize(cls: Type[_Tx], data: BinaryData) -> _Tx:
         stream = binaryio_from_binarydata(data)
         nVersion = int.from_bytes(stream.read(4), "little")
-        view = stream.getvalue()
+        view: bytes = stream.getvalue()
         witness_flag = False
         if view[stream.tell() : stream.tell() + 2] == b"\x00\x01":
             witness_flag = True
