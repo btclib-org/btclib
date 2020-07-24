@@ -144,7 +144,7 @@ def multi_mult(
     return ec._aff_from_jac(R)
 
 
-def _constant_time_mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_jac_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses 'montgomery ladder' algorithm,
     jacobian coordinates.
@@ -169,3 +169,22 @@ def _constant_time_mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
             R = ec._add_jac(R, Q)
             Q = ec._add_jac(Q, Q)
     return R
+
+
+def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
+    """Point multiplication, implemented using 'montgomery ladder' algorithm to run in constant time. 
+    This can be beneficial when timing  measurements are exposed to an attacker performing a side-channel attack. 
+    This algorithm has in effect the same speed as the double-and-add approach except that it computes the same number 
+    of point additions and doubles regardless of the value of the multiplicand m.
+
+    Computations use Jacobian coordinates and binary decomposition of m.
+    """
+    if Q is None:
+        QJ = ec.GJ
+    else:
+        ec.require_on_curve(Q)
+        QJ = _jac_from_aff(Q)
+
+    m = int_from_integer(m) % ec.n
+    R = _mult_jac_mont_ladder(m, QJ, ec)
+    return ec._aff_from_jac(R)
