@@ -164,8 +164,8 @@ def _constant_time_mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     for m in [int(i) for i in bin(m)[2:]]:  # goes through binary digits
         if m == 0:
             Q = ec._add_jac(R, Q)
-            R = _double_jac(R, ec)
+            R = ec._add_jac(R, R)
         else:
             R = ec._add_jac(R, Q)
-            Q = _double_jac(Q, ec)
+            Q = ec._add_jac(Q, Q)
     return R
