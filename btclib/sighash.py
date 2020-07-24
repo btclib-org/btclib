@@ -109,7 +109,7 @@ def get_sighash(
     previous_output: tx_out.TxOut,
     input_index: int,
     sighash_type: int,
-) -> List[bytes]:
+) -> bytes:
 
     value = previous_output.nValue
 
