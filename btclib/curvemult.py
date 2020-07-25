@@ -172,9 +172,10 @@ def _mult_jac_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
 
 def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
-    """Point multiplication, implemented using 'montgomery ladder' algorithm to run in constant time. 
+    """
+    Point multiplication, implemented using 'montgomery ladder' algorithm to run in constant time. 
     This can be beneficial when timing  measurements are exposed to an attacker performing a side-channel attack. 
-    This algorithm has in effect the same speed as the double-and-add approach except that it computes the same number 
+    This algorithm has the same speed as the double-and-add approach except that it computes the same number 
     of point additions and doubles regardless of the value of the multiplicand m.
 
     Computations use Jacobian coordinates and binary decomposition of m.
@@ -188,3 +189,37 @@ def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Poin
     m = int_from_integer(m) % ec.n
     R = _mult_jac_mont_ladder(m, QJ, ec)
     return ec._aff_from_jac(R)
+
+
+def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication of a curve point in Jacobian coordinates.
+    This implementation uses the same idea of "double and add" algorithm,
+    but with the scalar radix 3.
+    It is not constant time.
+    The input point is assumed to be on curve,
+    m is assumed to have been reduced mod n if appropriate
+    (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    if Q == INFJ:
+        return Q
+
+    # Precomputational work
+    Q0 = INFJ
+    Q1 = Q
+    Q2 = ec._add_jac(Q1, Q)
+
+    """
+    Fare array T con Q0, Q1, Q2
+    Pongo
+    R = T[ultima cifra a sinstra nella rapp mod 3 di m]
+    for i = [penultima cifra a sintra...] down to 0
+    R = 3R
+    R = R + T[i]
+    End for
+
+    """
+    return R
