@@ -234,14 +234,18 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     T[2] = 2Q
     
     """
+    T = []
     T[0] = INFJ
-    for i = 1 to 2:
+    for i in range(1, 2):
         T[i] = ec._add_jac(T[i - 1], Q)
 
     M = numberToBase(m, 3)
 
     R = T[M[-1]]
 
-    for i = 1 to
+    for m in [int(i) for i in (m, 3)]:  # Non sicuro che lavori correttamente
+        R2 = ec._add_jac(R, R)
+        R = ec._add_jac(R2, R)
+        R = ec._add_jac(R, T[i])
 
     return R
