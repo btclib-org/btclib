@@ -191,6 +191,16 @@ def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Poin
     return ec._aff_from_jac(R)
 
 
+def numberToBase(n, b):
+    if n == 0:
+        return [0]
+    digits = []
+    while n:
+        digits.append(int(n % b))
+        n //= b
+    return digits[::-1]
+
+
 def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses the same idea of "double and add" algorithm,
@@ -207,11 +217,6 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if Q == INFJ:
         return Q
 
-    # Precomputational work
-    Q0 = INFJ
-    Q1 = Q
-    Q2 = ec._add_jac(Q1, Q)
-
     """
     Fare array T con Q0, Q1, Q2
     Pongo
@@ -222,4 +227,21 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     End for
 
     """
+
+    """ Precomputational work, it should look like
+    T[0] = INFJ
+    T[1] = Q
+    T[2] = 2Q
+    
+    """
+    T[0] = INFJ
+    for i = 1 to 2:
+        T[i] = ec._add_jac(T[i - 1], Q)
+
+    M = numberToBase(m, 3)
+
+    R = T[M[-1]]
+
+    for i = 1 to
+
     return R
