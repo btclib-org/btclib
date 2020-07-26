@@ -46,7 +46,7 @@ def test_1():
                 _mult_jac(-1, ec.GJ, ec)
 
 
-def test_2():
+def test_mont_ladder():
     for x in range(50):
         for ec in low_card_curves.values():
             assert _mult_jac_mont_ladder(0, ec.GJ, ec) == INFJ
