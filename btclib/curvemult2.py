@@ -116,11 +116,52 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     M = numberToBase(m, 3)
 
-    R = T[M[-1]]
+    R = T[M[0]]
 
+    """
     for m in [int(i) for i in (m, 3)]:  # Non sicuro che lavori correttamente
         R2 = ec._add_jac(R, R)
         R = ec._add_jac(R2, R)
         R = ec._add_jac(R, T[i])
+    """
+
+    for i in range(1, len(M) - 1):
+        R2 = ec._add_jac(R, R)
+        R = ec._add_jac(R2, R)
+        R = ec._add_jac(R, T[M[i]])
+
+    return R
+
+
+def _mult_jac_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
+    """Scalar multiplication of a curve point in Jacobian coordinates.
+    This implementation uses the same method called "fixed window"
+    It is not constant time.
+    Usually use w=4 or w=5
+    The input point is assumed to be on curve,
+    m is assumed to have been reduced mod n if appropriate
+    (e.g. cyclic groups of order n).
+    """
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    if Q == INFJ:
+        return Q
+
+    b = pow(2, w)
+
+    T = []
+    T[0] = INFJ
+    for i in range(1, b - 1):
+        T[i] = ec._add_jac(T[i - 1], Q)
+
+    M = numberToBase(m, b)
+
+    R = T[M[0]]
+
+    for i in range(1, len(M) - 1):
+        for j in range(1, w):
+            R = ec._add_jac(R, R)
+        R = ec._add_jac(R, T[M[i]])
 
     return R
