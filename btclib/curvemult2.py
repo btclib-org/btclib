@@ -103,12 +103,6 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     """
 
-    """ Precomputational work, it should look like
-    T[0] = INFJ
-    T[1] = Q
-    T[2] = 2Q
-    
-    """
     T = []
     T[0] = INFJ
     for i in range(1, 2):
@@ -119,7 +113,7 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     R = T[M[0]]
 
     """
-    for m in [int(i) for i in (m, 3)]:  # Non sicuro che lavori correttamente
+    for m in [int(i) for i in (m, 3)]:  
         R2 = ec._add_jac(R, R)
         R = ec._add_jac(R2, R)
         R = ec._add_jac(R, T[i])
