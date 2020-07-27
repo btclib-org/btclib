@@ -127,11 +127,27 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R
 
 
-def _mult_jac_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
+def mult_base_3(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
+    """Point multiplication, implemented using 'double and add' but changing the scalar radix to 3.
+
+    Computations use Jacobian coordinates and decomposition of m basis 3.
+    """
+    if Q is None:
+        QJ = ec.GJ
+    else:
+        ec.require_on_curve(Q)
+        QJ = _jac_from_aff(Q)
+
+    m = int_from_integer(m) % ec.n
+    R = _mult_jac_base_3(m, QJ, ec)
+    return ec._aff_from_jac(R)
+
+
+def _mult_jac_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses the same method called "fixed window"
     It is not constant time.
-    Usually use w=4 or w=5
+    For about 256-bit scalars choose w=4 or w=5
     The input point is assumed to be on curve,
     m is assumed to have been reduced mod n if appropriate
     (e.g. cyclic groups of order n).
@@ -159,3 +175,24 @@ def _mult_jac_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPo
         R = ec._add_jac(R, T[M[i]])
 
     return R
+
+
+def mult_fixed_window(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
+    """Point multiplication, implemented using 'fixed window' method.
+
+    Computations use Jacobian coordinates and decomposition of m on basis 2^w.
+    """
+
+    if Q is None:
+        QJ = ec.GJ
+    else:
+        ec.require_on_curve(Q)
+        QJ = _jac_from_aff(Q)
+
+    m = int_from_integer(m) % ec.n
+    w = int_from_integer(w)
+    R = _mult_jac_fixed_window(m, w, QJ, ec)
+    return ec._aff_from_jac(R)
+
+
+# Sliding window ??
