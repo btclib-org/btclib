@@ -198,6 +198,8 @@ def mult_fixed_window(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp2
 
 
 def mods(m: int, w: int) -> int:
+    # Signed modulo function
+
     w2 = pow(2, w)  # cannot name it 2w
     M = m % w2
     if M >= (w2 / 2):
@@ -217,37 +219,60 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
+    if m == 0:
+        return INFJ
+
     if Q == INFJ:
         return Q
 
+    if w <= 0:
+        raise ValueError(f"w must be strictly positive")
+
     i = 0
 
-    p = []
-
+    M: List[int] = []
     while (m > 0):
         if (m % 2) == 1:
-            p[i] = mods(m, w)
-            d = d - p[i]
+            M.append(mods(m, w))
+            m = m - M[i]
         else:
-            p[i] = 0
-        d = d / 2
+            M.append(0)
+        m = m / 2
         i = i + 1
 
     b = pow(2, w)
 
     # The values of even points must be cancelled
-    T = []
-    T[0] = INFJ
-    for i in range(1, b - 1):
-        T[i] = ec._add_jac(T[i - 1], Q)
-    for i in range(1 - b, -1):
-        T[i] = ec.negate(T[-i])
+    T: List[JacPoint] = []
+    T.append(INFJ)
+    for t in range(1, b):
+        T.insert(t, ec._add_jac(T[t - 1], Q))
+    for t in range(1 - b, 0, -1):
+        T.insert(t, ec.negate(T[-t]))
 
     R = INFJ
 
-    for j in range(i - 1, 0):
+    for j in range(i - 1, -1, -1):
         R = ec._add_jac(R, R)
-        if p[j] != 0:
-            R = ec._add_jac(R, T[p[j]])
+        if M[j] != 0:
+            R = ec._add_jac(R, T[M[j]])
 
     return R
+
+
+def mult_w_NAF(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
+    """Point multiplication, implemented using 'fixed window' method.
+
+    Computations use Jacobian coordinates and decomposition of m on basis 2^w.
+    """
+
+    if Q is None:
+        QJ = ec.GJ
+    else:
+        ec.require_on_curve(Q)
+        QJ = _jac_from_aff(Q)
+
+    m = int_from_integer(m) % ec.n
+    w = int_from_integer(w)
+    R = _mult_jac_w_NAF(m, w, QJ, ec)
+    return ec._aff_from_jac(R)
