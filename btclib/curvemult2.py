@@ -14,7 +14,7 @@ import heapq
 from typing import List, Sequence, Tuple
 
 from .alias import INFJ, Integer, JacPoint, Point
-from .curve import Curve, CurveGroup, _jac_from_aff, _mult_jac, negate
+from .curve import Curve, CurveGroup, _jac_from_aff, _mult_jac
 from .curves import secp256k1
 from .utils import int_from_integer
 
@@ -67,6 +67,8 @@ def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Poin
 
 
 def numberToBase(n, b):
+    "Returns a list of the digits of n written in basis b"
+
     if n == 0:
         return [0]
     digits = []
@@ -103,23 +105,16 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     """
 
-    T = []
-    T[0] = INFJ
-    for i in range(1, 2):
-        T[i] = ec._add_jac(T[i - 1], Q)
+    T: List[JacPoint] = []
+    T.append(INFJ)
+    for i in range(1, 3):
+        T.append(ec._add_jac(T[i - 1], Q))
 
     M = numberToBase(m, 3)
 
     R = T[M[0]]
 
-    """
-    for m in [int(i) for i in (m, 3)]:  
-        R2 = ec._add_jac(R, R)
-        R = ec._add_jac(R2, R)
-        R = ec._add_jac(R, T[i])
-    """
-
-    for i in range(1, len(M) - 1):
+    for i in range(1, len(M)):
         R2 = ec._add_jac(R, R)
         R = ec._add_jac(R2, R)
         R = ec._add_jac(R, T[M[i]])
@@ -158,19 +153,23 @@ def _mult_jac_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPo
     if Q == INFJ:
         return Q
 
+    # Forse bisognerebbe modificarlo per renderlo ok anche per w=0
+    if w <= 0:
+        raise ValueError(f"w must be strictly positive")
+
     b = pow(2, w)
 
-    T = []
-    T[0] = INFJ
-    for i in range(1, b - 1):
-        T[i] = ec._add_jac(T[i - 1], Q)
+    T: List[JacPoint] = []
+    T.append(INFJ)
+    for i in range(1, b):
+        T.append(ec._add_jac(T[i - 1], Q))
 
     M = numberToBase(m, b)
 
     R = T[M[0]]
 
-    for i in range(1, len(M) - 1):
-        for j in range(1, w):
+    for i in range(1, len(M)):
+        for j in range(w):
             R = ec._add_jac(R, R)
         R = ec._add_jac(R, T[M[i]])
 
@@ -242,7 +241,7 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     for i in range(1, b - 1):
         T[i] = ec._add_jac(T[i - 1], Q)
     for i in range(1 - b, -1):
-        T[i] = negate(ec, T[-i])
+        T[i] = ec.negate(T[-i])
 
     R = INFJ
 
