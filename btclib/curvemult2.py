@@ -247,15 +247,18 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     T.append(INFJ)
     for t in range(1, b):
         T.insert(t, ec._add_jac(T[t - 1], Q))
-    for t in range(1 - b, 0, -1):
-        T.insert(t, ec.negate(T[-t]))
+    for t in range(b, (2 * b) - 1):
+        T.insert(t, ec.negate(T[t + 1 - b]))
 
     R = INFJ
 
     for j in range(i - 1, -1, -1):
         R = ec._add_jac(R, R)
         if M[j] != 0:
-            R = ec._add_jac(R, T[M[j]])
+            if M[j] > 0:
+                R = ec._add_jac(R, T[M[j]])
+            else:
+                R = ec._add_jac(R, T[b - 1 - M[j]])
 
     return R
 
