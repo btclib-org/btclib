@@ -194,20 +194,19 @@ def mult_fixed_window(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp2
     return ec._aff_from_jac(R)
 
 
-# Sliding window ??
-
-
 def mods(m: int, w: int) -> int:
     # Signed modulo function
 
     w2 = pow(2, w)  # cannot name it 2w
     M = m % w2
-    if M >= (w2 / 2):
+    z = w2
+    if M >= (z / 2):
         return M - w2
     else:
         return M
 
 
+# it does NOT work
 def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses the same method called "w-ary non-adjacent form" (wNAF)
@@ -240,21 +239,23 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         m = m / 2
         i = i + 1
 
+    p = i
+
     b = pow(2, w)
 
     # The values of even points must be cancelled
     T: List[JacPoint] = []
     T.append(INFJ)
-    for t in range(1, b):
-        #T.insert(t, ec._add_jac(T[t - 1], Q))
-        T.append(ec._add_jac(T[t - 1], Q))
-    for t in range(b, (2 * b) - 1):
-        #T.insert(t, ec.negate(T[t + 1 - b]))
-        T.append(ec.negate(T[t + 1 - b]))
+    for i in range(1, b):
+        #T.insert(i, ec._add_jac(T[i - 1], Q))
+        T.append(ec._add_jac(T[i - 1], Q))
+    for i in range(b, (2 * b) - 1):
+        #T.insert(i, ec.negate(T[i + 1 - b]))
+        T.append(ec.negate(T[i + 1 - b]))
 
     R = INFJ
 
-    for j in range(i - 1, -1, -1):
+    for j in range(p - 1, -1, -1):
         R = ec._add_jac(R, R)
         if M[j] != 0:
             if M[j] > 0:
@@ -266,7 +267,7 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
 
 def mult_w_NAF(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
-    """Point multiplication, implemented using 'fixed window' method.
+    """Point multiplication, implemented using 'w-NAF' method.
 
     Computations use Jacobian coordinates and decomposition of m on basis 2^w.
     """
