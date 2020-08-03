@@ -116,9 +116,9 @@ def test_mult_jac_fixed_window():
                     _mult_jac_fixed_window(-1, k, ec.GJ, ec)
 
 
-# it does NOT work
+# it does NOT work for k=1
 def test_mult_jac_w_NAF():
-    for k in range(2, 6):
+    for k in range(2, 10):
         for x in range(50):
             for ec in low_card_curves.values():
                 assert _mult_jac_w_NAF(0, k, ec.GJ, ec) == INFJ

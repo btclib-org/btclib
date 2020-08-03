@@ -199,18 +199,26 @@ def mods(m: int, w: int) -> int:
 
     w2 = pow(2, w)  # cannot name it 2w
     M = m % w2
-    z = w2
-    if M >= (z / 2):
+    if M >= (w2 / 2):
         return M - w2
     else:
         return M
 
 
-# it does NOT work
+"""
+Need minor changes:
+1. does not work for w=1, however the fact the function in NOT meant to be used for w=1
+2. The list precomputated stores all the values of jQ for j in (-2^w, 2^w), however just the odd values are later used
+
+"""
+
+
 def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses the same method called "w-ary non-adjacent form" (wNAF)
-    Not always resistent against cache-timing attacks
+    we make use of the fact that point subtraction is as easy as point addition to perform fewer operations compared to sliding-window
+    In fact, on Weierstrass curves, known P, -P can be computed on the fly.
+
     The input point is assumed to be on curve,
     m is assumed to have been reduced mod n if appropriate
     (e.g. cyclic groups of order n).
@@ -236,21 +244,19 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
             m = m - M[i]
         else:
             M.append(0)
-        m = m / 2
+        m = m // 2
         i = i + 1
 
     p = i
 
     b = pow(2, w)
 
-    # The values of even points must be cancelled
+    # The values of even points must be cancelled, still need to be fixed
     T: List[JacPoint] = []
     T.append(INFJ)
     for i in range(1, b):
-        #T.insert(i, ec._add_jac(T[i - 1], Q))
         T.append(ec._add_jac(T[i - 1], Q))
     for i in range(b, (2 * b) - 1):
-        #T.insert(i, ec.negate(T[i + 1 - b]))
         T.append(ec.negate(T[i + 1 - b]))
 
     R = INFJ
@@ -259,8 +265,10 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         R = ec._add_jac(R, R)
         if M[j] != 0:
             if M[j] > 0:
+                # It adds the element in position j, which is jQ
                 R = ec._add_jac(R, T[M[j]])
             else:
+                # In this case it adds the opposite of the element in position j, ie -jQ
                 R = ec._add_jac(R, T[b - 1 - M[j]])
 
     return R
