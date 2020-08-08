@@ -74,9 +74,9 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
 
 
 def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
-    """Return a BinaryIO stream object Octets.
+    """Return a BytesIO stream object from BinaryIO or Octets.
 
-    If the input is not Octets (i.e. string or bytes),
+    If the input is not Octets (i.e. str or bytes) or BinaryIO,
     then it goes untouched.
     """
 
