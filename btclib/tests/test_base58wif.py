@@ -10,7 +10,9 @@
 
 "Tests for `btclib.base58wif` module."
 
-import pytest
+from typing import List, Tuple
+
+import pytest  # type: ignore
 
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey
@@ -20,13 +22,13 @@ from btclib.to_prvkey import prvkeyinfo_from_prvkey
 
 def test_wif_from_prvkey() -> None:
     prvkey = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
-    test_vectors = [
-        ["KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True],
-        ["cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx", "testnet", True],
-        ["5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ", "mainnet", False],
-        ["91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2", "testnet", False],
-        [" KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True],
-        ["KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ", "mainnet", True],
+    test_vectors: List[Tuple[str, str, bool]] = [
+        ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True),
+        ("cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx", "testnet", True),
+        ("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ", "mainnet", False),
+        ("91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2", "testnet", False),
+        (" KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True),
+        ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ", "mainnet", True),
     ]
     for v in test_vectors:
         wif = wif_from_prvkey(prvkey, v[1], v[2])
@@ -37,11 +39,11 @@ def test_wif_from_prvkey() -> None:
         assert network == v[1]
         assert compressed == v[2]
 
-    bad_q = ec.n
+    bad_q = ec.n.to_bytes(ec.nsize, "big")
     with pytest.raises(ValueError, match="private key not in 1..n-1: "):
         wif_from_prvkey(bad_q, "mainnet", True)
 
-    payload = b"\x80" + bad_q.to_bytes(ec.nsize, "big")
+    payload = b"\x80" + bad_q
     badwif = b58encode(payload)
     with pytest.raises(ValueError, match="not a private key: "):
         prvkeyinfo_from_prvkey(badwif)

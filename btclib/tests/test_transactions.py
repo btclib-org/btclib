@@ -10,7 +10,7 @@
 
 "Tests for `btclib.tx` module."
 
-import pytest
+import pytest  # type: ignore
 
 from btclib import tx, tx_in, tx_out
 

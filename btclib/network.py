@@ -97,7 +97,8 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> str:
     because the two networks share the same prefixes.
     """
     for net in NETWORKS:
-        if NETWORKS[net][key] == prefix:
+        # FIXME: do not ignore
+        if NETWORKS[net][key] == prefix:  # type: ignore
             return net
     raise ValueError(f"invalid value for network keyword '{key}': {prefix!r}")
 

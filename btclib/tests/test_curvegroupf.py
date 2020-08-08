@@ -10,7 +10,7 @@
 
 "Tests for `btclib.curvegroupf` module."
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.curve import CurveGroup, _mult_aff
 from btclib.curvegroupf import find_all_points, find_subgroup_points

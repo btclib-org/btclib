@@ -10,7 +10,7 @@
 
 "Tests for `btclib.to_pubkey` module."
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.curves import CURVES
 from btclib.secpoint import bytes_from_point

@@ -19,7 +19,7 @@ from .alias import Key, Octets, Script, String
 from .base58 import b58decode, b58encode
 from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .network import _P2PKH_PREFIXES, _P2SH_PREFIXES, NETWORKS, network_from_key_value
-from .scriptpubkey import payload_from_scriptPubKey, scriptPubKey_from_payload
+from .scriptpubkey import scriptPubKey_from_payload
 from .utils import bytes_from_octets
 
 # 1. Hash/WitnessProgram from pubkey/script

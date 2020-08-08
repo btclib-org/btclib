@@ -12,9 +12,9 @@
 
 import os
 
-from btclib.blocks import Block, BlockHeader
+import pytest  # type: ignore
 
-import pytest
+from btclib.blocks import Block, BlockHeader
 
 
 # actually second block in chain, first obtainable from other nodes

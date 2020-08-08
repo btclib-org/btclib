@@ -13,7 +13,7 @@
 import json
 from os import path
 
-import pytest
+import pytest  # type: ignore
 
 from btclib import bip32
 from btclib.base58 import b58decode, b58encode
@@ -67,7 +67,7 @@ def test_exceptions() -> None:
     with pytest.raises(ValueError, match="invalid chain code length: "):
         xpub_dict = bip32.deserialize(xpub_dict)
     xpub_dict = bip32.deserialize(xpub)
-    xpub_dict["chain_code"] = "length is 32 but not a chaincode"
+    xpub_dict["chain_code"] = "length is 32 but not a chaincode"  # type: ignore
     with pytest.raises(ValueError, match="invalid chain code"):
         xpub_dict = bip32.deserialize(xpub_dict)
 

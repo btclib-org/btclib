@@ -10,13 +10,13 @@
 
 "Tests for `btclib.psbt` module"
 
-from btclib.psbt import Psbt, psbt_from_tx, combine_psbts, finalize_psbt, extract_tx
-from btclib.tx_in import TxIn, OutPoint
-from btclib.tx_out import TxOut
-from btclib.tx import Tx
-from btclib.script import decode
+import pytest  # type: ignore
 
-import pytest
+from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, psbt_from_tx
+from btclib.script import decode
+from btclib.tx import Tx
+from btclib.tx_in import OutPoint, TxIn
+from btclib.tx_out import TxOut
 
 
 # test_vector at https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki

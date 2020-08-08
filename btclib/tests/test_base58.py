@@ -10,7 +10,8 @@
 
 "Tests for `btclib.base58` module."
 
-import pytest
+import pytest  # type: ignore
+
 from btclib.base58 import (
     _b58decode,
     _b58decode_to_int,
@@ -49,7 +50,7 @@ def test_trailing_zeros() -> None:
 def test_exceptions() -> None:
 
     with pytest.raises(TypeError, match="object supporting the buffer API required"):
-        b58encode(3)
+        b58encode(3)  # type: ignore
 
     encoded = b58encode(b"hello world")
     b58decode(encoded, 11)

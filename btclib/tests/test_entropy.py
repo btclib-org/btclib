@@ -15,7 +15,7 @@ import secrets
 from io import StringIO
 from typing import List
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.entropy import (
     _bits,
@@ -157,18 +157,17 @@ def test_exceptions() -> None:
     with pytest.raises(ValueError, match=err_msg):
         binstr_from_entropy(bytes_entropy216, 224)
 
-    invalid_entropy = tuple()
     err_msg = "Entropy must be raw binary 0/1 string, bytes, or int; not "
     with pytest.raises(TypeError, match=err_msg):
-        binstr_from_entropy(invalid_entropy)
+        binstr_from_entropy(tuple())  # type: ignore
 
     err_msg = "Entropy must be an int, not "
     with pytest.raises(TypeError, match=err_msg):
-        binstr_from_int("not an int")
+        binstr_from_int("not an int")  # type: ignore
 
     err_msg = "Entropy must be a str, not "
     with pytest.raises(TypeError, match=err_msg):
-        binstr_from_binstr(3)
+        binstr_from_binstr(3)  # type: ignore
 
 
 inputs: List[StringIO] = []

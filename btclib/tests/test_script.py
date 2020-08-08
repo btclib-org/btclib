@@ -10,8 +10,11 @@
 
 "Tests for `btclib.script` module."
 
-import pytest
+from typing import List
 
+import pytest  # type: ignore
+
+from btclib.alias import Token
 from btclib.script import (
     OP_CODE_NAMES,
     OP_CODES,
@@ -51,7 +54,7 @@ def test_operators() -> None:
 
 
 def test_simple() -> None:
-    script_list = [
+    script_list: List[List[Token]] = [
         [2, 3, "OP_ADD", 5, "OP_EQUAL"],
         ["1ADD", "OP_1ADD", "1ADE", "OP_EQUAL"],
         [hex(26)[2:].upper(), -1, "OP_ADD", hex(26)[2:].upper(), "OP_EQUAL"],
@@ -80,15 +83,14 @@ def test_simple() -> None:
 
 def test_exceptions() -> None:
 
-    script = [2, 3, "OP_ADD", 5, "OP_VERIF"]
+    script: List[Token] = [2, 3, "OP_ADD", 5, "OP_VERIF"]
     err_msg = "invalid string token: OP_VERIF"
     with pytest.raises(ValueError, match=err_msg):
         encode(script)
 
-    script = [2, 3, "OP_ADD", 5, encode]
     err_msg = "Unmanaged <class 'function'> token type"
     with pytest.raises(ValueError, match=err_msg):
-        encode(script)
+        encode([2, 3, "OP_ADD", 5, encode])  # type: ignore
 
     script = ["1f" * 521, "OP_DROP"]
     err_msg = "Too many bytes for OP_PUSHDATA: "
@@ -106,7 +108,7 @@ def test_exceptions() -> None:
 
 def test_nulldata() -> None:
 
-    scripts = [["OP_RETURN", "11" * 79], ["OP_RETURN", "00" * 79]]
+    scripts: List[List[Token]] = [["OP_RETURN", "11" * 79], ["OP_RETURN", "00" * 79]]
     for script in scripts:
         bscript = encode(script)
         assert script == decode(bscript)

@@ -149,7 +149,7 @@ def binstr_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinS
     return binstr_from_int(int_entropy, n_bits)
 
 
-def binstr_from_int(int_entropy: int, bits: OneOrMoreInt = _bits) -> BinStr:
+def binstr_from_int(int_entropy: Union[int, str], bits: OneOrMoreInt = _bits) -> BinStr:
     """Return raw entropy from the input integer entropy.
 
     Input entropy can be expressed as int

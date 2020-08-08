@@ -12,9 +12,10 @@
 
 import json
 import secrets
+from math import ceil
 from os import path
 
-import pytest
+import pytest  # type: ignore
 
 from btclib import bip39
 
@@ -28,9 +29,8 @@ def test_bip39() -> None:
     assert mnemonic == mnem
 
     r = bip39.entropy_from_mnemonic(mnemonic, lang)
-    size = (len(r) + 7) // 8
-    r = int(r, 2).to_bytes(size, byteorder="big")
-    assert r == raw_entr
+    size = ceil(len(r) / 8)
+    assert raw_entr == int(r, 2).to_bytes(size, byteorder="big")
 
     wrong_mnemonic = mnemonic + " abandon"
     err_msg = "Wrong number of words: "
@@ -70,8 +70,7 @@ def test_vectors() -> None:
 
         raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
         size = (len(raw_entr) + 7) // 8
-        raw_entr = int(raw_entr, 2).to_bytes(size, byteorder="big")
-        assert raw_entr == entropy
+        assert entropy == int(raw_entr, 2).to_bytes(size, byteorder="big")
 
 
 def test_zeroleadingbit() -> None:

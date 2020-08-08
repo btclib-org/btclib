@@ -12,7 +12,7 @@
 
 from hashlib import sha1
 
-import pytest
+import pytest  # type: ignore
 
 from btclib import dsa
 from btclib.alias import INF
@@ -73,10 +73,10 @@ def test_signature() -> None:
         dsa.assert_as_valid(msg, INF, sig)
 
     sig_fake = (sig[0], sig[1], sig[1])
-    assert not dsa.verify(msg, Q, sig_fake)
+    assert not dsa.verify(msg, Q, sig_fake)  # type: ignore
     err_msg = "too many values to unpack "
     with pytest.raises(ValueError, match=err_msg):
-        dsa.assert_as_valid(msg, Q, sig_fake)
+        dsa.assert_as_valid(msg, Q, sig_fake)  # type: ignore
 
     sig_invalid = ec.p, sig[1]
     assert not dsa.verify(msg, Q, sig_invalid)
