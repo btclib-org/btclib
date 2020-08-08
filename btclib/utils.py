@@ -134,7 +134,7 @@ def int_from_integer(i: Integer) -> int:
     if isinstance(i, int):
         return i
     if isinstance(i, str):
-        i = i.lower()
+        i = i.strip().lower()
         if i.startswith("0x") or i.startswith("-0x"):
             return int(i, 16)
         i = bytes.fromhex(i)
