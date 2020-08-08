@@ -4,6 +4,7 @@ include *.txt
 include *.yml
 include .isort.cfg
 include tox.ini
+include mypy.ini
 recursive-include _layouts *.html
 recursive-include assets *.jpg
 recursive-include assets *.png
