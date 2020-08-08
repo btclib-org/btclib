@@ -48,6 +48,7 @@ def test_int_from_integer() -> None:
     ):
         assert i == int_from_integer(i)
         assert i == int_from_integer(hex(i).upper())
+        assert -i == int_from_integer(hex(-i).upper())
         assert i == int_from_integer(hex_string(i))
         assert i == int_from_integer(i.to_bytes(32, "big"))
 
@@ -56,7 +57,6 @@ def test_hex_string() -> None:
     a = 34492435054806958080
     assert hex_string(a) == "01 DEADBEEF 00000000"
     assert hex_string(hex(a).lower()) == "01 DEADBEEF 00000000"
-    assert hex_string(bin(a).lower()) == "01 DEADBEEF 00000000"
 
     a_str = "01de adbeef00000000"
     assert hex_string(a_str) == "01 DEADBEEF 00000000"
