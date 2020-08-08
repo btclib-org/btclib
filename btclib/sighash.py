@@ -78,7 +78,7 @@ def SegwitV0SignatureHash(
     return sig_hash
 
 
-# FIXME: remove OP_CODESEPARATOR only if exectued
+# FIXME: remove OP_CODESEPARATOR only if executed
 def _get_witness_v0_scriptCodes(scriptPubKey: Script) -> List[str]:
     scriptCodes: List[str] = []
     try:
@@ -98,10 +98,6 @@ def _get_witness_v0_scriptCodes(scriptPubKey: Script) -> List[str]:
         scriptCodes.append(script.encode(current_script[::-1]).hex())
         scriptCodes = scriptCodes[::-1]
     return scriptCodes
-
-
-# def _get_sighash():
-#     pass
 
 
 def get_sighash(
