@@ -24,7 +24,7 @@ from typing import List
 
 from . import varint
 from .alias import BinaryData, Octets, Token
-from .utils import binaryio_from_binarydata, bytes_from_octets
+from .utils import bytesio_from_binarydata, bytes_from_octets
 
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
@@ -383,7 +383,7 @@ def serialize(script: List[Token]) -> bytes:
 
 def deserialize(stream: BinaryData) -> List[Token]:
 
-    stream = binaryio_from_binarydata(stream)
+    stream = bytesio_from_binarydata(stream)
 
     length = varint.decode(stream)
     script = stream.read(length)

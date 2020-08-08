@@ -13,7 +13,7 @@ from typing import List, Type, TypeVar
 
 from . import script, varint
 from .alias import BinaryData, Token
-from .utils import binaryio_from_binarydata
+from .utils import bytesio_from_binarydata
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
@@ -25,7 +25,7 @@ class OutPoint:
 
     @classmethod
     def deserialize(cls: Type[_OutPoint], data: BinaryData) -> _OutPoint:
-        data = binaryio_from_binarydata(data)
+        data = bytesio_from_binarydata(data)
         hash = data.read(32)[::-1].hex()
         n = int.from_bytes(data.read(4), "little")
         point = cls(hash, n)
@@ -56,7 +56,7 @@ class TxIn:
 
     @classmethod
     def deserialize(cls: Type[_TxIn], data: BinaryData) -> _TxIn:
-        stream = binaryio_from_binarydata(data)
+        stream = bytesio_from_binarydata(data)
         prevout = OutPoint.deserialize(stream)
         is_coinbase = False
         if prevout.hash == "00" * 32 and prevout.n == 256 ** 4 - 1:
@@ -96,7 +96,7 @@ class TxIn:
 
 
 def witness_deserialize(data: BinaryData) -> List[str]:
-    stream = binaryio_from_binarydata(data)
+    stream = bytesio_from_binarydata(data)
     witness: List[str] = []
     witness_count = varint.decode(stream)
     for _ in range(witness_count):

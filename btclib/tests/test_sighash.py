@@ -12,7 +12,11 @@
 
 # test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 from btclib import tx, tx_out, script
-from btclib.sighash import get_sighash
+from btclib.sighash import (
+    get_sighash,
+    _get_witness_v0_scriptCodes,
+    SegwitV0SignatureHash,
+)
 
 
 def test_native_p2wpkh():
@@ -25,17 +29,12 @@ def test_native_p2wpkh():
         scriptPubKey=script.decode("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
     )
 
-    sighash = get_sighash(transaction, previous_txout, 1, 1)[0]
+    sighash = get_sighash(transaction, previous_txout, 1, 0x01)
 
     assert (
         sighash.hex()
         == "c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670"
     )
-
-    # prvkey = 0x619C335025C7F4012E556C2A58B2506E30B8511B53ADE95EA316FD8C3286FEB9
-    # signature = "304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12fb1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02de67eebee"
-    #
-    # assert dsa._verify(sighash, prvkey, signature)
 
 
 def test_wrapped_p2wpkh():
@@ -51,7 +50,7 @@ def test_wrapped_p2wpkh():
         scriptPubKey=script.decode("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"),
     )
 
-    sighash = get_sighash(transaction, previous_txout, 0, 1)[0]
+    sighash = get_sighash(transaction, previous_txout, 0, 0x01)
 
     assert (
         sighash.hex()
@@ -74,20 +73,25 @@ def test_native_p2wsh():
         ),
     )
 
-    sighash = get_sighash(transaction, previous_txout, 1, 3)
+    sighash = get_sighash(transaction, previous_txout, 1, 0x03)
 
     assert (
-        sighash[0].hex()
+        sighash.hex()
         == "82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391"
     )
 
+    script_code = _get_witness_v0_scriptCodes(
+        script.decode(transaction.vin[1].txinwitness[-1])
+    )[1]
+    sighash = SegwitV0SignatureHash(
+        script_code, transaction, 1, 0x03, previous_txout.nValue
+    )
     assert (
-        sighash[1].hex()
+        sighash.hex()
         == "fef7bd749cce710c5c052bd796df1af0d935e59cea63736268bcbe2d2134fc47"
     )
 
 
-# FIXME
 def test_native_p2wsh_2():
     transaction = tx.Tx.deserialize(
         "0100000002e9b542c5176808107ff1df906f46bb1f2583b16112b95ee5380665ba7fcfc0010000000000ffffffff80e68831516392fcd100d186b3c2c7b95c80b53c77e77c35ba03a66b429a2a1b0000000000ffffffff0280969800000000001976a914de4b231626ef508c9a74a8517e6783c0546d6b2888ac80969800000000001976a9146648a8cd4531e1ec47f35916de8e259237294d1e88ac00000000"
@@ -107,12 +111,9 @@ def test_native_p2wsh_2():
     )
     sighash = get_sighash(transaction, previous_txout_1, 0, 0x83)
     assert (
-        sighash[0].hex()
+        sighash.hex()
         == "e9071e75e25b8a1e298a72f0d2e9f4f95a0f5cdf86a533cda597eb402ed13b3a"
     )
-
-    print(sighash[0].hex())
-    print(sighash[1].hex())
 
     previous_txout_2 = tx.TxOut(
         nValue=16777215,
@@ -120,15 +121,17 @@ def test_native_p2wsh_2():
             "0020d9bbfbe56af7c4b7f960a70d7ea107156913d9e5a26b0a71429df5e097ca6537"
         ),
     )
-    sighash = get_sighash(transaction, previous_txout_2, 1, 0x83)
+
+    script_code = _get_witness_v0_scriptCodes(
+        script.decode(transaction.vin[1].txinwitness[-1])
+    )[1]
+    sighash = SegwitV0SignatureHash(
+        script_code, transaction, 1, 0x83, previous_txout_2.nValue
+    )
     assert (
-        sighash[1].hex()
+        sighash.hex()
         == "cd72f1f1a433ee9df816857fad88d8ebd97e09a75cd481583eb841c330275e54"
     )
-    print(sighash[0].hex())
-    print(sighash[1].hex())
-
-    # assert False
 
 
 def test_wrapped_p2wsh():
@@ -148,31 +151,31 @@ def test_wrapped_p2wsh():
     )
 
     assert (
-        get_sighash(transaction, previous_txout, 0, 0x01)[0].hex()
+        get_sighash(transaction, previous_txout, 0, 0x01).hex()
         == "185c0be5263dce5b4bb50a047973c1b6272bfbd0103a89444597dc40b248ee7c"
     )
 
     assert (
-        get_sighash(transaction, previous_txout, 0, 0x02)[0].hex()
+        get_sighash(transaction, previous_txout, 0, 0x02).hex()
         == "e9733bc60ea13c95c6527066bb975a2ff29a925e80aa14c213f686cbae5d2f36"
     )
 
     assert (
-        get_sighash(transaction, previous_txout, 0, 0x03)[0].hex()
+        get_sighash(transaction, previous_txout, 0, 0x03).hex()
         == "1e1f1c303dc025bd664acb72e583e933fae4cff9148bf78c157d1e8f78530aea"
     )
 
     assert (
-        get_sighash(transaction, previous_txout, 0, 0x81)[0].hex()
+        get_sighash(transaction, previous_txout, 0, 0x81).hex()
         == "2a67f03e63a6a422125878b40b82da593be8d4efaafe88ee528af6e5a9955c6e"
     )
 
     assert (
-        get_sighash(transaction, previous_txout, 0, 0x82)[0].hex()
+        get_sighash(transaction, previous_txout, 0, 0x82).hex()
         == "781ba15f3779d5542ce8ecb5c18716733a5ee42a6f51488ec96154934e2c890a"
     )
 
     assert (
-        get_sighash(transaction, previous_txout, 0, 0x83)[0].hex()
+        get_sighash(transaction, previous_txout, 0, 0x83).hex()
         == "511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b"
     )

@@ -68,7 +68,7 @@ def SegwitV0SignatureHash(
     preimage += hashSequence
     preimage += outpoint
     preimage += varint.encode(len(scriptCode)) + scriptCode
-    preimage += (amount).to_bytes(8, "little")  # value
+    preimage += amount.to_bytes(8, "little")  # value
     preimage += transaction.vin[input_index].nSequence.to_bytes(4, "little")
     preimage += hashOutputs
     preimage += transaction.nLockTime.to_bytes(4, "little")
@@ -105,7 +105,7 @@ def get_sighash(
     previous_output: tx_out.TxOut,
     input_index: int,
     sighash_type: int,
-) -> List[bytes]:
+) -> bytes:
 
     value = previous_output.nValue
 
@@ -117,28 +117,18 @@ def get_sighash(
     if len(scriptPubKey) == 2 and scriptPubKey[0] == 0:  # is segwit
         script_type = payload_from_scriptPubKey(scriptPubKey)[0]
         if script_type == "p2wpkh":
-            scriptCodes = _get_witness_v0_scriptCodes(scriptPubKey)
+            scriptCode = _get_witness_v0_scriptCodes(scriptPubKey)[0]
         elif script_type == "p2wsh":
             # the real script is contained in the witness
-            scriptCodes = _get_witness_v0_scriptCodes(
+            scriptCode = _get_witness_v0_scriptCodes(
                 script.decode(transaction.vin[input_index].txinwitness[-1])
-            )
-        sighash: List[bytes] = []
-        for scriptCode in scriptCodes:
-            sighash.append(
-                SegwitV0SignatureHash(
-                    bytes.fromhex(scriptCode),
-                    transaction,
-                    input_index,
-                    sighash_type,
-                    value,
-                )
-            )
-        return sighash
+            )[0]
+        sighash = SegwitV0SignatureHash(
+            bytes.fromhex(scriptCode), transaction, input_index, sighash_type, value
+        )
 
-    # else:
-    #     scriptCode = _get_witness_scriptCode(scriptPubKey)
-    #     sighash = _get_witness_sighash(transaction, input_index, scriptCode, value)
+        return sighash
+    raise RuntimeError("Does not yet support legacy transactions")
 
 
 # def sign(
