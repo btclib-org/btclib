@@ -10,7 +10,7 @@
 
 """Elliptic curve classes."""
 
-from math import sqrt
+from math import ceil, sqrt
 from typing import Union
 
 from .alias import INF, INFJ, Integer, JacPoint, Point
@@ -56,7 +56,8 @@ class CurveGroup:
             raise ValueError(err_msg)
 
         plen = p.bit_length()
-        self.psize = (plen + 7) // 8
+        # byte-lenght
+        self.psize = ceil(plen / 8)
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = p % 4 == 3
         self.p = p
