@@ -67,21 +67,15 @@ def test_der_deserialize() -> None:
         with pytest.raises(ValueError, match=err_msg):
             _deserialize(bad_der_sig)
 
-        if sighash:
-            bad_der_sig = der_sig + b"\x01"
-            err_msg = "Declared size incompatible with actual size: "
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
+        bad_der_sig = der_sig + b"\x01"
+        err_msg = "Declared size incompatible with actual size: "
+        with pytest.raises(ValueError, match=err_msg):
+            _deserialize(bad_der_sig)
 
-            bad_der_sig = der_sig[:-1] + b"\x00"
-            err_msg = "invalid sighash: 0x"
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
-        else:
-            bad_der_sig = der_sig + b"\x00"
-            err_msg = "invalid sighash: 0x"
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
+        bad_der_sig = der_sig[:-1] + b"\x00"
+        err_msg = "invalid sighash: 0x"
+        with pytest.raises(ValueError, match=err_msg):
+            _deserialize(bad_der_sig)
 
         # r and s scalars
         for offset in (4, 6 + r_size):

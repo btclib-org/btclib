@@ -142,7 +142,7 @@ class CurveGroup:
         # so that negate(INF) = INF
         if len(Q) == 3:
             return Q[0], (self.p - Q[1]) % self.p, Q[2]
-        raise TypeError("not a point")
+        raise TypeError("not a Jacobian point")
 
     def _aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve

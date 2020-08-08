@@ -82,3 +82,6 @@ def test_jac() -> None:
     assert ec._jac_equality(QJ, _jac_from_aff(Q))
     assert not ec._jac_equality(QJ, ec.negate_jac(QJ))
     assert not ec._jac_equality(QJ, ec.GJ)
+
+    with pytest.raises(TypeError, match="not a Jacobian point"):
+        ec.negate_jac(ec.G)  # type: ignore
