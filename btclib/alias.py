@@ -14,7 +14,16 @@ mypy aliases, documenting also coding imput conventions.
 """
 
 
-from typing import Any, BinaryIO, Callable, Iterable, List, Tuple, TypedDict, Union
+from typing import (
+    Any,
+    BinaryIO,
+    Callable,
+    Iterable,
+    List,
+    Tuple,
+    TypedDict,
+    Union,
+)
 
 # binary octets are eight-bit bytes or hex-string (not text string)
 #

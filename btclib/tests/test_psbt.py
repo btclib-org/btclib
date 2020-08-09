@@ -12,7 +12,13 @@
 
 import pytest  # type: ignore
 
-from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, psbt_from_tx
+from btclib.psbt import (
+    Psbt,
+    combine_psbts,
+    extract_tx,
+    finalize_psbt,
+    psbt_from_tx,
+)
 from btclib.script import decode
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
