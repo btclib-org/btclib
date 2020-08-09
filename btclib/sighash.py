@@ -18,11 +18,7 @@ from .utils import bytes_from_octets, hash256
 
 # workaround to handle CTransactions
 def get_bytes(a: Union[int, str]) -> bytes:
-
-    if isinstance(a, int):
-        return int.to_bytes(a, 32, "big")
-    else:
-        return bytes.fromhex(a)
+    return int.to_bytes(a, 32, "big") if isinstance(a, int) else bytes.fromhex(a)
 
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
@@ -128,7 +124,7 @@ def get_sighash(
         )
 
         return sighash
-    raise RuntimeError("Does not yet support legacy transactions")
+    raise RuntimeError("Legacy transactions not supported yet")
 
 
 # def sign(
