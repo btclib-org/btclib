@@ -37,4 +37,5 @@ def test_borromean() -> None:
 
     borromean.assert_as_valid(msg.encode(), sig[0], sig[1], pubk_rings)
     assert borromean.verify(msg, sig[0], sig[1], pubk_rings)
-    assert not borromean.verify(0, sig[0], sig[1], pubk_rings)
+    assert not borromean.verify("another message", sig[0], sig[1], pubk_rings)
+    assert not borromean.verify(0, sig[0], sig[1], pubk_rings)  # type: ignore

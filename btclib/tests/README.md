@@ -28,6 +28,14 @@ Coverage results can also be reported as html at htmlcov/index.html:
 coverage html
 ```
 
+## Test with tox
+
+The ultimate comprehensive way of running the tests is to use tox
+
+```shell
+tox
+```
+
 ## Profile
 
 ```shell

@@ -10,10 +10,10 @@
 
 "Tests for `btclib.curves` module."
 
-from typing import Dict
 import secrets
+from typing import Dict
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.alias import INF, INFJ
 from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
@@ -62,7 +62,7 @@ def test_aff_jac_conversions() -> None:
         with pytest.raises(ValueError, match="infinity point has no x-coordinate"):
             ec._x_aff_from_jac(INFJ)
         with pytest.raises(TypeError, match="not a point"):
-            ec.has_square_y("notapoint")
+            ec.has_square_y("notapoint")  # type: ignore
 
 
 def test_add_aff() -> None:
@@ -86,7 +86,7 @@ def test_add_jac() -> None:
         assert ec._add_jac(INFJ, INFJ) == INFJ
 
         # add G and minus G
-        assert ec._add_jac(ec.GJ, ec.negate(ec.GJ)) == INFJ
+        assert ec._add_jac(ec.GJ, ec.negate_jac(ec.GJ)) == INFJ
 
 
 def test_add() -> None:
@@ -120,9 +120,8 @@ def test_ec_repr() -> None:
 def test_is_on_curve() -> None:
     for ec in all_curves.values():
 
-        P = "not a point"
         with pytest.raises(ValueError, match="point must be a tuple"):
-            ec.is_on_curve(P)
+            ec.is_on_curve("not a point")  # type: ignore
 
         with pytest.raises(ValueError, match="x-coordinate not in 0..p-1: "):
             ec.y(ec.p)
@@ -145,7 +144,7 @@ def test_negate() -> None:
 
         # Jacobian coordinates
         QJ = _jac_from_aff(Q)
-        minus_QJ = ec.negate(QJ)
+        minus_QJ = ec.negate_jac(QJ)
         assert ec._add_jac(QJ, minus_QJ) == INFJ
 
         # negate of INF is INF
@@ -153,11 +152,11 @@ def test_negate() -> None:
         assert minus_INF == INF
 
         # negate of INFJ is INFJ
-        minus_INFJ = ec.negate(INFJ)
+        minus_INFJ = ec.negate_jac(INFJ)
         assert minus_INFJ == INFJ
 
     with pytest.raises(TypeError, match="not a point"):
-        ec.negate("notapoint")
+        ec.negate("notapoint")  # type: ignore
 
 
 def test_symmetry() -> None:
@@ -275,7 +274,7 @@ def test_mult_jac_curves() -> None:
         assert PJ == _mult_jac(2, ec.GJ, ec)
 
         PJ = _mult_jac(ec.n - 1, ec.GJ, ec)
-        assert ec._jac_equality(ec.negate(ec.GJ), PJ)
+        assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
 
         assert _mult_jac(ec.n - 1, INFJ, ec) == INFJ
         assert ec._add_jac(PJ, ec.GJ) == INFJ

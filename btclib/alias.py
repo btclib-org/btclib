@@ -14,7 +14,7 @@ mypy aliases, documenting also coding imput conventions.
 """
 
 
-from typing import Any, Callable, Iterable, List, Tuple, TypedDict, Union
+from typing import Any, BinaryIO, Callable, Iterable, List, Tuple, TypedDict, Union
 
 # binary octets are eight-bit bytes or hex-string (not text string)
 #
@@ -26,6 +26,10 @@ from typing import Any, Callable, Iterable, List, Tuple, TypedDict, Union
 # msgsig (Bitcoin message compact signature serialization, 65 bytes),
 # etc.
 Octets = Union[bytes, str]
+
+# binary data, usually to be cosumed as byte stream,
+# but possibily provided as Octets too
+BinaryData = Union[BinaryIO, Octets]
 
 # hex-string or bytes representation of an int
 # Integer = Union[Octets, int]

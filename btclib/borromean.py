@@ -26,7 +26,7 @@ def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
     return hf(temp).digest()
 
 
-PubkeyRing = Dict[int, Sequence[Point]]
+PubkeyRing = Dict[int, List[Point]]
 
 
 def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:

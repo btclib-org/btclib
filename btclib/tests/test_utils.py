@@ -12,7 +12,7 @@
 
 import secrets
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.tests.test_to_key import (
     net_unaware_compressed_pub_keys,
@@ -47,7 +47,8 @@ def test_int_from_integer() -> None:
         0x0B6CA75B7D3076C561958CCED813797F6D2275C7F42F3856D007D587769A90,
     ):
         assert i == int_from_integer(i)
-        assert i == int_from_integer(hex(i).upper())
+        assert i == int_from_integer(" " + hex(i).upper())
+        assert -i == int_from_integer(hex(-i).upper() + " ")
         assert i == int_from_integer(hex_string(i))
         assert i == int_from_integer(i.to_bytes(32, "big"))
 
@@ -56,7 +57,6 @@ def test_hex_string() -> None:
     a = 34492435054806958080
     assert hex_string(a) == "01 DEADBEEF 00000000"
     assert hex_string(hex(a).lower()) == "01 DEADBEEF 00000000"
-    assert hex_string(bin(a).lower()) == "01 DEADBEEF 00000000"
 
     a_str = "01de adbeef00000000"
     assert hex_string(a_str) == "01 DEADBEEF 00000000"

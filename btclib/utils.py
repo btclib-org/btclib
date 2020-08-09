@@ -16,9 +16,10 @@ https://www.secg.org/sec1-v2.pdf
 """
 
 import hashlib
-from typing import Iterable, Optional, Union
+from io import BytesIO
+from typing import BinaryIO, Iterable, Optional, Union
 
-from .alias import Integer, Octets
+from .alias import BinaryData, Integer, Octets
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
@@ -72,6 +73,22 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     raise ValueError(m)
 
 
+def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
+    """Return a BytesIO stream object from BinaryIO or Octets.
+
+    If the input is not Octets (i.e. str or bytes) or BinaryIO,
+    then it goes untouched.
+    """
+
+    if isinstance(stream, str):  # hex string
+        stream = bytes_from_octets(stream)
+    if isinstance(stream, bytes):
+        stream = BytesIO(stream)
+    elif isinstance(stream, BinaryIO):
+        stream = BytesIO(stream.read())
+    return stream
+
+
 def int_from_bits(o: Octets, nlen: int) -> int:
     """Return the leftmost nlen bits.
 
@@ -98,12 +115,27 @@ def int_from_bits(o: Octets, nlen: int) -> int:
 
 
 def int_from_integer(i: Integer) -> int:
+    """Return an int from many possible integer representations.
+
+    Allowed integer representations are:
+
+    * 3735928559
+    * -3735928559
+    * "0xdeadbeef"
+    * "-0xdeadbeef"
+    * "deadbeef"
+    * b'\xde\xad\xbe\xef'
+
+    The binary representation is not allowed because there is no way to
+    discriminate it from a valid hex-string
+    (e.g. "0b11011110101011011011111011101111").
+    """
 
     if isinstance(i, int):
         return i
     if isinstance(i, str):
-        i = i.lower()
-        if i.startswith("0x"):
+        i = i.strip().lower()
+        if i.startswith("0x") or i.startswith("-0x"):
             return int(i, 16)
         i = bytes.fromhex(i)
     if not isinstance(i, bytes):
@@ -112,23 +144,18 @@ def int_from_integer(i: Integer) -> int:
 
 
 def hex_string(i: Integer) -> str:
+    """Return a hex-string from many positive integer representations.
 
-    if isinstance(i, int):
-        if i < 0:
-            raise ValueError(f"negative integer: {i}")
-        a_str = hex(i)[2:]
-    elif isinstance(i, bytes):
-        a_str = i.hex()
-    else:  # must be string
-        i = i.upper()
-        if i.startswith("0X"):
-            a_str = i[2:]
-        elif i.startswith("0B"):
-            a_str = hex(int(i, 2))[2:]
-        else:
-            # check valid hex-string, remove any whitespace
-            a_str = bytes.fromhex(i).hex()
+    Negative integers are not allowed.
 
+    The resulting hex-string has an even number of hex-digits and
+    includes a space every four bytes (i.e. every eight hex-digits).
+    """
+
+    a = int_from_integer(i)
+    if a < 0:
+        raise ValueError(f"negative integer: {a}")
+    a_str = hex(a)[2:]
     if len(a_str) % 2 != 0:
         a_str = "0" + a_str
 

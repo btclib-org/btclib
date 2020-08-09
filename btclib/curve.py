@@ -10,7 +10,7 @@
 
 """Elliptic curve classes."""
 
-from math import sqrt
+from math import ceil, sqrt
 from typing import Union
 
 from .alias import INF, INFJ, Integer, JacPoint, Point
@@ -56,7 +56,8 @@ class CurveGroup:
             raise ValueError(err_msg)
 
         plen = p.bit_length()
-        self.psize = (plen + 7) // 8
+        # byte-lenght
+        self.psize = ceil(plen / 8)
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = p % 4 == 3
         self.p = p
@@ -121,18 +122,27 @@ class CurveGroup:
 
     # methods using p: they could become functions
 
-    def negate(self, Q: Union[Point, JacPoint]) -> Union[Point, JacPoint]:
+    def negate(self, Q: Point) -> Point:
         """Return the opposite point.
 
         The input point is not checked to be on the curve.
         """
+        # % self.p is required to account for INF (i.e. Q[1]==0)
+        # so that negate(INF) = INF
         if len(Q) == 2:
-            # % self.p is required to account for INF (i.e. Q[1]==0)
-            # so that negate(INF) = INF
             return Q[0], (self.p - Q[1]) % self.p
+        raise TypeError("not a point")
+
+    def negate_jac(self, Q: JacPoint) -> JacPoint:
+        """Return the opposite Jacobian point.
+
+        The input point is not checked to be on the curve.
+        """
+        # % self.p is required to account for INF (i.e. Q[1]==0)
+        # so that negate(INF) = INF
         if len(Q) == 3:
             return Q[0], (self.p - Q[1]) % self.p, Q[2]
-        raise TypeError("not a point")
+        raise TypeError("not a Jacobian point")
 
     def _aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve
@@ -284,7 +294,8 @@ class CurveGroup:
         if len(Q) == 2:
             return legendre_symbol(Q[1], self.p) == 1
         if len(Q) == 3:
-            return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1
+            # FIXME: do not ignore
+            return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1  # type: ignore
         raise TypeError("not a point")
 
     def require_p_ThreeModFour(self) -> None:

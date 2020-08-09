@@ -12,7 +12,7 @@
 
 from hashlib import sha256, sha384
 
-import pytest
+import pytest  # type: ignore
 
 from btclib import pedersen
 from btclib.curves import CURVES, secp256k1
@@ -61,6 +61,6 @@ def test_commitment() -> None:
     assert ec.add(C1, C2) == R
 
     # commit does not open (with catched exception)
-    assert not pedersen.open((r1, r1), v1, C2, ec, hf)
+    assert not pedersen.open((r1, r1), v1, C2, ec, hf)  # type: ignore
     with pytest.raises(TypeError, match="not an Integer"):
-        pedersen.commit((r1, r1), v1, ec, hf)
+        pedersen.commit((r1, r1), v1, ec, hf)  # type: ignore

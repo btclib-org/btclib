@@ -15,12 +15,7 @@ import unittest
 from os import path
 
 from btclib import base58address, bech32address
-from btclib.base58address import (
-    address_from_scriptPubKey,
-    b58address_from_h160,
-    b58address_from_witness,
-    scriptPubKey_from_address,
-)
+from btclib.base58address import b58address_from_h160, b58address_from_witness
 from btclib.bech32address import b32address_from_witness
 from btclib.network import NETWORKS
 from btclib.script import decode, encode
@@ -34,6 +29,10 @@ from btclib.scriptpubkey import (
     p2wsh,
     payload_from_scriptPubKey,
     scriptPubKey_from_payload,
+)
+from btclib.scriptpubkey_address import (
+    address_from_scriptPubKey,
+    scriptPubKey_from_address,
 )
 from btclib.utils import hash160, sha256
 

@@ -13,7 +13,7 @@
 import secrets
 from typing import Dict
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.curve import Curve, _mult_aff
 from btclib.curves import CURVES
@@ -74,10 +74,9 @@ def test_octets2point() -> None:
         R = point_from_octets(Q_hex_str, ec)
         assert R == Q
 
-        t = tuple()
         err_msg = "'<' not supported between instances of 'tuple' and 'int'"
         with pytest.raises(TypeError, match=err_msg):
-            _mult_aff(t, ec.G, ec)
+            _mult_aff(tuple(), ec.G, ec)  # type: ignore
 
         Q_bytes = b"\x01" + b"\x01" * ec.psize
         with pytest.raises(ValueError, match="not a point: "):

@@ -10,7 +10,7 @@
 
 "Tests for `btclib.numbertheory` module."
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.numbertheory import mod_inv, mod_sqrt, tonelli
 

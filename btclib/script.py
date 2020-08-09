@@ -20,11 +20,11 @@ Scripts are represented by List[Token], where Token = Union[int, str, bytes]:
 """
 
 from io import BytesIO
-from typing import BinaryIO, List, Union
+from typing import List
 
 from . import varint
-from .alias import Octets, Token
-from .utils import bytes_from_octets
+from .alias import BinaryData, Octets, Token
+from .utils import bytesio_from_binarydata, bytes_from_octets
 
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
@@ -381,13 +381,9 @@ def serialize(script: List[Token]) -> bytes:
     return varint.encode(length) + r
 
 
-def deserialize(stream: Union[BinaryIO, Octets]) -> List[Token]:
+def deserialize(stream: BinaryData) -> List[Token]:
 
-    if isinstance(stream, str):
-        stream = bytes_from_octets(stream)
-
-    if isinstance(stream, bytes):
-        stream = BytesIO(stream)
+    stream = bytesio_from_binarydata(stream)
 
     length = varint.decode(stream)
     script = stream.read(length)

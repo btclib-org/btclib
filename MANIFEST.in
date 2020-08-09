@@ -4,6 +4,7 @@ include *.txt
 include *.yml
 include .isort.cfg
 include tox.ini
+include mypy.ini
 recursive-include _layouts *.html
 recursive-include assets *.jpg
 recursive-include assets *.png
@@ -11,6 +12,7 @@ recursive-include btclib *.csv
 recursive-include btclib *.json
 recursive-include btclib *.md
 recursive-include btclib *.txt
+recursive-include btclib *.bin
 recursive-include docs *.bat
 recursive-include docs *.py
 recursive-include docs *.rst

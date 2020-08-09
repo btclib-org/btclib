@@ -10,7 +10,7 @@
 
 "Tests for `btclib.der` module."
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.curves import secp256k1 as ec
 from btclib.der import _deserialize, _serialize
@@ -27,15 +27,15 @@ def test_der_size() -> None:
     sig69 = 2 ** 255 - 1, 2 ** 247 - 1
     sig68 = 2 ** 247 - 1, 2 ** 247 - 1
     sigs = [sig8, sig72, sig71, sig70, sig70b, sig69, sig68]
-    lenghts = [8, 72, 71, 70, 70, 69, 68]
+    lenghts = [8, 72, 71, 70, 70, 69, 68]  # not including SIGHASHES
 
     for lenght, sig in zip(lenghts, sigs):
-        for sighash in SIGHASHES + [None]:
+        for sighash in SIGHASHES:
             der_sig = _serialize(*sig, sighash)
             r, s, sighash2 = _deserialize(der_sig)
             assert sig == (r, s)
             assert sighash == sighash2
-            assert len(der_sig) == lenght + 0 if sighash is None else 1
+            assert len(der_sig) == lenght + 1
 
     # with the last one only...
     assert (r, s, sighash) == _deserialize((r, s, sighash))
@@ -48,7 +48,7 @@ def test_der_deserialize() -> None:
         _deserialize("not a sig")
 
     sig = 2 ** 255 - 1, 2 ** 247 - 1
-    for sighash in SIGHASHES + [None]:
+    for sighash in SIGHASHES:
         der_sig = _serialize(*sig, sighash)
         r_size = der_sig[3]
 
@@ -67,21 +67,15 @@ def test_der_deserialize() -> None:
         with pytest.raises(ValueError, match=err_msg):
             _deserialize(bad_der_sig)
 
-        if sighash:
-            bad_der_sig = der_sig + b"\x01"
-            err_msg = "Declared size incompatible with actual size: "
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
+        bad_der_sig = der_sig + b"\x01"
+        err_msg = "Declared size incompatible with actual size: "
+        with pytest.raises(ValueError, match=err_msg):
+            _deserialize(bad_der_sig)
 
-            bad_der_sig = der_sig[:-1] + b"\x00"
-            err_msg = "invalid sighash: 0x"
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
-        else:
-            bad_der_sig = der_sig + b"\x00"
-            err_msg = "invalid sighash: 0x"
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
+        bad_der_sig = der_sig[:-1] + b"\x00"
+        err_msg = "invalid sighash: 0x"
+        with pytest.raises(ValueError, match=err_msg):
+            _deserialize(bad_der_sig)
 
         # r and s scalars
         for offset in (4, 6 + r_size):
@@ -125,7 +119,7 @@ def test_der_serialize() -> None:
     with pytest.raises(ValueError, match=err_msg):
         _serialize(*sig, 0x85)
 
-    for sighash in SIGHASHES + [None]:
+    for sighash in SIGHASHES:
         for r in (0, ec.n):
             bad_sig = r, sig[1]
             err_msg = "scalar r not in 1..n-1: "

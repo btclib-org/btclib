@@ -14,7 +14,7 @@ import json
 from hashlib import sha256 as hf
 from os import path
 
-import pytest
+import pytest  # type: ignore
 
 from btclib import base58address, bech32address, bip32, bms, dsa
 from btclib.base58address import p2pkh, p2wpkh_p2sh
@@ -55,14 +55,14 @@ def test_exceptions() -> None:
 
     # compressed wif, uncompressed address
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
-    address = "19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T"
+    address = b"19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T"
     err_msg = "mismatch between private key and address"
     with pytest.raises(ValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
     # uncompressed wif, compressed address
     wif = "5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn"
-    address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
+    address = b"1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
     err_msg = "not a private or compressed public key for mainnet: "
     # FIXME puzzling error message
     with pytest.raises(ValueError, match=err_msg):
@@ -532,7 +532,7 @@ def test_ledger() -> None:
     # non-standard leading 31 in DER serialization
     derivation_path = "m/1"
     msg = b"\xfb\xa3\x1f\x8cd\x85\xe29#K\xb3{\xfd\xa7<?\x95oL\xee\x19\xb2'oh\xa7]\xd9A\xfeU\xd8"
-    dersig = "3144022012ec0c174936c2a46dc657252340b2e6e6dd8c31dd059b6f9f33a90c21af2fba022030e6305b3ccf88009d419bf7651afcfcc0a30898b93ae9de9aa6ac03cf8ec56b"
+    dersig_hex_str = "3144022012ec0c174936c2a46dc657252340b2e6e6dd8c31dd059b6f9f33a90c21af2fba022030e6305b3ccf88009d419bf7651afcfcc0a30898b93ae9de9aa6ac03cf8ec56b"
 
     # pubkey derivation
     rprv = bip32.mxprv_from_bip39_mnemonic(mnemonic)
@@ -542,7 +542,7 @@ def test_ledger() -> None:
     magic_msg = bms._magic_message(msg)
 
     # save key_id and patch dersig
-    dersig = bytes.fromhex(dersig)
+    dersig = bytes.fromhex(dersig_hex_str)
     key_id = dersig[0]
     dersig = b"\x30" + dersig[1:]
 
@@ -568,18 +568,18 @@ def test_ledger() -> None:
 
     # standard leading 30 in DER serialization
     derivation_path = "m/0/0"
-    msg = "hello world"
-    dersig = "3045022100967dac3262b4686e89638c8219c5761017f05cd87a855edf034f4a3ec6b59d3d0220108a4ef9682b71a45979d8c75c393382d9ccb8eb561d73b8c5fc0b87a47e7d27"
+    msg_str = "hello world"
+    dersig_hex_str = "3045022100967dac3262b4686e89638c8219c5761017f05cd87a855edf034f4a3ec6b59d3d0220108a4ef9682b71a45979d8c75c393382d9ccb8eb561d73b8c5fc0b87a47e7d27"
 
     # pubkey derivation
     rprv = bip32.mxprv_from_bip39_mnemonic(mnemonic)
     xprv = bip32.derive(rprv, derivation_path)
 
     # the actual message being signed
-    magic_msg = bms._magic_message(msg)
+    magic_msg = bms._magic_message(msg_str)
 
     # save key_id and patch dersig
-    dersig = bytes.fromhex(dersig)
+    dersig = bytes.fromhex(dersig_hex_str)
     key_id = dersig[0]
     dersig = b"\x30" + dersig[1:]
 
@@ -597,6 +597,6 @@ def test_ledger() -> None:
     btcmsgsig = (rec_flag, r, s)
 
     # Bitcoin Message Signature verification
-    bms.assert_as_valid(msg, addr, btcmsgsig)
-    assert bms.verify(msg, addr, btcmsgsig)
+    bms.assert_as_valid(msg_str, addr, btcmsgsig)
+    assert bms.verify(msg_str, addr, btcmsgsig)
     assert not bms.verify(magic_msg, addr, btcmsgsig)

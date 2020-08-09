@@ -12,7 +12,7 @@
 
 import secrets
 
-import pytest
+import pytest  # type: ignore
 
 from btclib.alias import INF, INFJ
 from btclib.curve import _jac_from_aff, _mult_jac

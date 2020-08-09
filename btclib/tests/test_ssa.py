@@ -16,7 +16,7 @@ from hashlib import sha256 as hf
 from os import path
 from typing import List
 
-import pytest
+import pytest  # type: ignore
 
 from btclib import ssa
 from btclib.alias import INF, Point
@@ -62,9 +62,9 @@ def test_signature() -> None:
 
     err_msg = "not a BIP340 public key"
     with pytest.raises(ValueError, match=err_msg):
-        ssa.assert_as_valid(msg, INF, sig)
+        ssa.assert_as_valid(msg, INF, sig)  # type: ignore
     with pytest.raises(ValueError, match=err_msg):
-        ssa.point_from_bip340pubkey(INF)
+        ssa.point_from_bip340pubkey(INF)  # type: ignore
 
     assert not ssa.verify(msg, x_Q, sig, CURVES["secp224k1"], hf)
     err_msg = "field prime is not equal to 3 mod 4: "
@@ -72,10 +72,10 @@ def test_signature() -> None:
         ssa.assert_as_valid(msg, x_Q, sig, CURVES["secp224k1"], hf)
 
     sig_fake = (sig[0], sig[1], sig[1])
-    assert not ssa.verify(msg, x_Q, sig_fake)
+    assert not ssa.verify(msg, x_Q, sig_fake)  # type: ignore
     err_msg = "too many values to unpack "
     with pytest.raises(ValueError, match=err_msg):
-        ssa.assert_as_valid(msg, x_Q, sig_fake)
+        ssa.assert_as_valid(msg, x_Q, sig_fake)  # type: ignore
 
     sig_invalid = ec.p, sig[1]
     assert not ssa.verify(msg, x_Q, sig_invalid)
@@ -128,7 +128,6 @@ def test_bip340_vectors() -> None:
             (index, seckey, pubkey, m, sig, result, comment) = row
             err_msg = f"Test vector #{int(index)}"
             if seckey != "":
-                seckey = bytes.fromhex(seckey)
                 _, pubkey_actual = ssa.gen_keys(seckey)
                 assert pubkey == hex(pubkey_actual).upper()[2:], err_msg
 
@@ -173,7 +172,7 @@ def test_low_cardinality() -> None:
             x_Q = ec._x_aff_from_jac(QJ)
             if not ec.has_square_y(QJ):
                 q = ec.n - q
-                QJ = ec.negate(QJ)
+                QJ = ec.negate_jac(QJ)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
                 RJ = _mult_jac(k, ec.GJ, ec)
                 r = ec._x_aff_from_jac(RJ)
@@ -204,13 +203,13 @@ def test_crack_prvkey() -> None:
     q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
     x_Q = mult(q)[0]
 
-    msg1 = "Paolo is afraid of ephemeral random numbers"
-    msg1 = hf(msg1.encode()).digest()
+    msg1_str = "Paolo is afraid of ephemeral random numbers"
+    msg1 = hf(msg1_str.encode()).digest()
     k, _ = ssa._det_nonce(msg1, q)
     sig1 = ssa._sign(msg1, q, k)
 
-    msg2 = "and Paolo is right to be afraid"
-    msg2 = hf(msg2.encode()).digest()
+    msg2_str = "and Paolo is right to be afraid"
+    msg2 = hf(msg2_str.encode()).digest()
     # reuse same k
     sig2 = ssa._sign(msg2, q, k)
 
@@ -238,7 +237,7 @@ def test_batch_validation() -> None:
     ms.append(secrets.randbits(hlen).to_bytes(hsize, "big"))
     q = 1 + secrets.randbelow(ec.n - 1)
     # bytes version
-    Qs.append(mult(q, ec.G, ec)[0].to_bytes(ec.psize, "big"))
+    Qs.append(mult(q, ec.G, ec)[0])
     sigs.append(ssa._sign(ms[0], q, None, ec, hf))
     # test with only 1 sig
     ssa._batch_verify(ms, Qs, sigs, ec, hf)
@@ -247,7 +246,7 @@ def test_batch_validation() -> None:
         ms.append(m)
         q = 1 + secrets.randbelow(ec.n - 1)
         # Point version
-        Qs.append(mult(q, ec.G, ec))
+        Qs.append(mult(q, ec.G, ec)[0])
         sigs.append(ssa._sign(m, q, None, ec, hf))
     ssa._batch_verify(ms, Qs, sigs, ec, hf)
     assert ssa.batch_verify(ms, Qs, sigs, ec, hf)
@@ -300,14 +299,14 @@ def test_musig() -> None:
 
     # the signers private and public keys,
     # including both the curve Point and the BIP340-Schnorr public key
-    q1, x_Q1 = ssa.gen_keys()
-    x_Q1 = x_Q1.to_bytes(ec.psize, "big")
+    q1, x_Q1_int = ssa.gen_keys()
+    x_Q1 = x_Q1_int.to_bytes(ec.psize, "big")
 
-    q2, x_Q2 = ssa.gen_keys()
-    x_Q2 = x_Q2.to_bytes(ec.psize, "big")
+    q2, x_Q2_int = ssa.gen_keys()
+    x_Q2 = x_Q2_int.to_bytes(ec.psize, "big")
 
-    q3, x_Q3 = ssa.gen_keys()
-    x_Q3 = x_Q3.to_bytes(ec.psize, "big")
+    q3, x_Q3_int = ssa.gen_keys()
+    x_Q3 = x_Q3_int.to_bytes(ec.psize, "big")
 
     # (non interactive) key setup
     # this is MuSig core: the rest is just Schnorr signature additivity
@@ -367,7 +366,7 @@ def test_musig() -> None:
     s = (s1 + s2 + s3) % ec.n
     sig = r, s
     # check signature is valid
-    ssa._assert_as_valid(m, Q, sig, ec, hf)
+    ssa._assert_as_valid(m, Q[0], sig, ec, hf)
 
 
 def test_threshold() -> None:
@@ -549,7 +548,7 @@ def test_threshold() -> None:
     msg = "message to sign"
 
     # 2.1 signer one acting as the dealer
-    commits1: List[Point] = list()
+    commits1 = []
     k1, _ = ssa.det_nonce(msg, q1, ec, hf)
     k1_prime, _ = ssa.det_nonce(msg, q1_prime, ec, hf)
     commits1.append(double_mult(k1_prime, H, k1, ec.G))
@@ -574,7 +573,7 @@ def test_threshold() -> None:
     assert t == RHS, "signer one is cheating"
 
     # 2.2 signer three acting as the dealer
-    commits3: List[Point] = list()
+    commits3 = []
     k3, _ = ssa.det_nonce(msg, q3, ec, hf)
     k3_prime, _ = ssa.det_nonce(msg, q3_prime, ec, hf)
     commits3.append(double_mult(k3_prime, H, k3, ec.G))
@@ -669,7 +668,7 @@ def test_threshold() -> None:
 
     sig = K[0], sigma
 
-    assert ssa.verify(msg, Q, sig)
+    assert ssa.verify(msg, Q[0], sig)
 
     # ADDITIONAL PHASE: reconstruction of the private key ###
     secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
