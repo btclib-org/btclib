@@ -15,7 +15,11 @@ https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 
 from . import base58address, bech32address, bip32
 from .alias import BIP32Key
-from .network import _P2WPKH_P2SH_PUB_PREFIXES, _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
+from .network import (
+    _P2WPKH_P2SH_PUB_PREFIXES,
+    _P2WPKH_PUB_PREFIXES,
+    _XPUB_PREFIXES,
+)
 
 
 def address_from_xkey(xkey: BIP32Key) -> bytes:

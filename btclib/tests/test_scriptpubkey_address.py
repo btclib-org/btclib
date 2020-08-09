@@ -11,9 +11,9 @@
 "Tests for `btclib.scriptpubkey_address` module"
 
 from btclib.scriptpubkey_address import (
+    address_from_tx_out,
     has_segwit_prefix,
     tx_out_from_address,
-    address_from_tx_out,
 )
 
 

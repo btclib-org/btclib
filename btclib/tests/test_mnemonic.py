@@ -14,7 +14,11 @@ from os import path
 
 import pytest  # type: ignore
 
-from btclib.mnemonic import _indexes_from_mnemonic, _mnemonic_from_indexes, _wordlists
+from btclib.mnemonic import (
+    _indexes_from_mnemonic,
+    _mnemonic_from_indexes,
+    _wordlists,
+)
 
 
 def test_mnemonic() -> None:

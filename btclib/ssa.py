@@ -53,7 +53,16 @@ import secrets
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
-from .alias import HashF, JacPoint, Octets, Point, PrvKey, SSASig, SSASigTuple, String
+from .alias import (
+    HashF,
+    JacPoint,
+    Octets,
+    Point,
+    PrvKey,
+    SSASig,
+    SSASigTuple,
+    String,
+)
 from .bip32 import BIP32KeyDict
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac, _multi_mult

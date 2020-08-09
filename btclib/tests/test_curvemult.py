@@ -16,7 +16,13 @@ import pytest  # type: ignore
 
 from btclib.alias import INF, INFJ
 from btclib.curve import _jac_from_aff, _mult_jac
-from btclib.curvemult import _double_mult, _multi_mult, double_mult, mult, multi_mult
+from btclib.curvemult import (
+    _double_mult,
+    _multi_mult,
+    double_mult,
+    mult,
+    multi_mult,
+)
 from btclib.curves import secp256k1
 from btclib.pedersen import second_generator
 from btclib.tests.test_curves import low_card_curves

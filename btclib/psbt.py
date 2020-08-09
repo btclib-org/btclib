@@ -13,18 +13,18 @@
 https://en.bitcoin.it/wiki/BIP_0174
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Type, TypeVar, Optional, Union
 from base64 import b64decode, b64encode
 from copy import deepcopy
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-from .tx import Tx
-from .tx_in import witness_serialize, witness_deserialize
-from .tx_out import TxOut
+from . import script, varint
 from .alias import Token
-from .utils import hash160, sha256
 from .scriptpubkey import payload_from_scriptPubKey
-from . import varint, script
+from .tx import Tx
+from .tx_in import witness_deserialize, witness_serialize
+from .tx_out import TxOut
+from .utils import hash160, sha256
 
 
 # maybe integrate in bip32?

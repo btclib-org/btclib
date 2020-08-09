@@ -24,7 +24,7 @@ from typing import List
 
 from . import varint
 from .alias import BinaryData, Octets, Token
-from .utils import bytesio_from_binarydata, bytes_from_octets
+from .utils import bytes_from_octets, bytesio_from_binarydata
 
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2

@@ -15,7 +15,11 @@ from hashlib import sha256
 
 from btclib import dsa, ssa
 from btclib.curves import secp256k1 as ec
-from btclib.signtocontract import ecdsa_commit_sign, ecssa_commit_sign, verify_commit
+from btclib.signtocontract import (
+    ecdsa_commit_sign,
+    ecssa_commit_sign,
+    verify_commit,
+)
 
 
 def test_signtocontract() -> None:

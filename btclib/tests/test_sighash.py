@@ -11,11 +11,11 @@
 "Tests for `btclib.sighash` module."
 
 # test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-from btclib import tx, tx_out, script
+from btclib import script, tx, tx_out
 from btclib.sighash import (
-    get_sighash,
-    _get_witness_v0_scriptCodes,
     SegwitV0SignatureHash,
+    _get_witness_v0_scriptCodes,
+    get_sighash,
 )
 
 
