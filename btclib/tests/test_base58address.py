@@ -49,9 +49,9 @@ def test_b58address_from_h160() -> None:
     prefix, payload, network, _ = h160_from_b58address(addr)
     assert addr == b58address_from_h160(prefix, payload, network)
 
-    bad_prefix = b"\xbb"
     err_msg = "invalid mainnet base58 address prefix: "
     with pytest.raises(ValueError, match=err_msg):
+        bad_prefix = b"\xbb"
         b58address_from_h160(bad_prefix, payload, network)
 
 

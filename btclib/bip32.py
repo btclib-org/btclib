@@ -217,11 +217,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     private key (“neutered” as it removes the ability to sign transactions).
     """
 
-    if isinstance(xprv, dict):
-        xkey_dict = copy.copy(xprv)
-    else:
-        xkey_dict = deserialize(xprv)
-
+    xkey_dict = copy.copy(xprv) if isinstance(xprv, dict) else deserialize(xprv)
     if xkey_dict["key"][0] != 0:
         raise ValueError(f"not a private key: {serialize(xkey_dict).decode()}")
 
@@ -407,12 +403,12 @@ def _derive_from_account(
     more_than_two_branches: bool = False,
 ) -> BIP32KeyDict:
 
-    if more_than_two_branches and 0x80000000 <= branch:
+    if more_than_two_branches and branch >= 0x80000000:
         raise ValueError("invalid private derivation at branch level")
     elif branch not in (0, 1):
         raise ValueError(f"invalid branch: {branch} not in (0, 1)")
 
-    if 0x80000000 <= address_index:
+    if address_index >= 0x80000000:
         raise ValueError("invalid private derivation at address index level")
 
     if d["index"][0] < 0x80:
@@ -445,10 +441,7 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
         m += f"{serialize(p).decode()}"
         raise ValueError(m)
 
-    if isinstance(child_xprv, dict):
-        c = child_xprv
-    else:
-        c = deserialize(child_xprv)
+    c = child_xprv if isinstance(child_xprv, dict) else deserialize(child_xprv)
     if c["key"][0] != 0:
         m = f"extended child key is not a private key: {serialize(c).decode()}"
         raise ValueError(m)

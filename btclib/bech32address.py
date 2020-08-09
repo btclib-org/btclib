@@ -89,12 +89,12 @@ def _check_witness(witvers: int, witprog: bytes):
             err_msg = "invalid witness program length for witness version zero: "
             err_msg += f"{length} instead of 20 or 32"
             raise ValueError(err_msg)
-    elif witvers < 0 or 16 < witvers:
+    elif witvers < 0 or witvers > 16:
         err_msg = "invalid witness version: "
         err_msg += f"{witvers} not in 0..16"
         raise ValueError(err_msg)
     else:
-        if length < 2 or 40 < length:
+        if length < 2 or length > 40:
             err_msg = "invalid witness program length for witness version zero: "
             err_msg += f"{length}, not in 2..40"
             raise ValueError(err_msg)
@@ -142,11 +142,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     witprog = _convertbits(data[1:], 5, 8, False)
     _check_witness(witvers, bytes(witprog))
 
-    if witvers == 0 and len(witprog) == 20:
-        is_script_hash = False
-    else:
-        is_script_hash = True
-
+    is_script_hash = False if witvers == 0 and len(witprog) == 20 else True
     return witvers, bytes(witprog), network, is_script_hash
 
 

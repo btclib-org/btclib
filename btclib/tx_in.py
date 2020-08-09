@@ -28,8 +28,7 @@ class OutPoint:
         data = bytesio_from_binarydata(data)
         hash = data.read(32)[::-1].hex()
         n = int.from_bytes(data.read(4), "little")
-        point = cls(hash, n)
-        return point
+        return cls(hash, n)
 
     def serialize(self) -> bytes:
         out = bytes.fromhex(self.hash)[::-1]

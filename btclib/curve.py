@@ -107,11 +107,7 @@ class CurveGroup:
 
     def __repr__(self) -> str:
         result = "Curve("
-        if self.p > _HEXTHRESHOLD:
-            result += f"'{hex_string(self.p)}'"
-        else:
-            result += f"{self.p}"
-
+        result += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
         if self._a > _HEXTHRESHOLD or self._b > _HEXTHRESHOLD:
             result += f", '{hex_string(self._a)}', '{hex_string(self._b)}'"
         else:
@@ -173,9 +169,7 @@ class CurveGroup:
             return False
         PJ3 = PJ2 * PJ[2]
         QJ3 = QJ2 * QJ[2]
-        if QJ[1] * PJ3 % self.p != PJ[1] * QJ3 % self.p:
-            return False
-        return True
+        return QJ[1] * PJ3 % self.p == PJ[1] * QJ3 % self.p
 
     # methods using _a, _b, _p
 
@@ -254,7 +248,7 @@ class CurveGroup:
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to keep this method private
-        return ((x * x + self._a) * x + self._b) % self.p
+        return ((x**2 + self._a) * x + self._b) % self.p
 
     def y(self, x: int) -> int:
         """Return the y coordinate from x, as in (x, y)."""

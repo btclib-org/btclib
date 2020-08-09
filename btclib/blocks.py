@@ -90,7 +90,7 @@ class Block:
         transactions: List[tx.Tx] = []
         coinbase = tx.Tx.deserialize(stream)
         transactions.append(coinbase)
-        for x in range(transaction_count - 1):
+        for _ in range(transaction_count - 1):
             transaction = tx.Tx.deserialize(stream)
             transactions.append(transaction)
         block = cls(header=header, transactions=transactions)
@@ -110,15 +110,12 @@ class Block:
 
     @property
     def weight(self) -> int:
-        weight = 0
-        for t in self.transactions:
-            weight += t.weight
-        return weight
+        return sum(t.weight for t in self.transactions)
 
     def assert_valid(self) -> None:
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
-        if not _generate_merkle_root(self.transactions) == self.header.merkleroot:
+        if _generate_merkle_root(self.transactions) != self.header.merkleroot:
             raise ValueError(
                 "The block merkle root is not the merkle root of the block transactions"
             )

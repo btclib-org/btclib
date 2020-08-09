@@ -87,9 +87,7 @@ def test_mod_inv() -> None:
 
 def test_mod_sqrt() -> None:
     for p in primes[:30]:  # exhaustable only for small p
-        has_root = set()
-        has_root.add(0)
-        has_root.add(1)
+        has_root = {0, 1}
         for i in range(2, p):
             has_root.add(i * i % p)
         for i in range(p):

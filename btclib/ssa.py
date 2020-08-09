@@ -145,8 +145,7 @@ def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
     "Return the BIP340 signature as [r][s] compact representation."
 
     _validate_sig(x_K, s, ec)
-    sig = x_K.to_bytes(ec.psize, "big") + s.to_bytes(ec.nsize, "big")
-    return sig
+    return x_K.to_bytes(ec.psize, "big") + s.to_bytes(ec.nsize, "big")
 
 
 def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
@@ -237,12 +236,11 @@ def __challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
     # m size must have been already checked to be equal to hsize
     t += m
     t = _tagged_hash("BIPSchnorr", t, hf)
-    c = int_from_bits(t, ec.nlen) % ec.n
     # if c == 0 then private key is removed from the equations,
     # so the signature is valid for any private/public key pair
     # if c == 0:
     #    raise RuntimeError("invalid zero challenge")
-    return c
+    return int_from_bits(t, ec.nlen) % ec.n
 
 
 def _challenge(
@@ -292,11 +290,7 @@ def _sign(
     q, x_Q = gen_keys(prvkey, ec)
 
     # The nonce k: an integer in the range 1..n-1.
-    if k is None:
-        k, x_K = __det_nonce(m, q, ec, hf)
-    else:
-        k, x_K = gen_keys(k, ec)
-
+    k, x_K = __det_nonce(m, q, ec, hf) if k is None else gen_keys(k, ec)
     # Let c = int(hf(bytes(x_K) || bytes(x_Q) || m)) mod n.
     c = __challenge(m, x_Q, x_K, ec, hf)
 

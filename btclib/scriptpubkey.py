@@ -109,11 +109,7 @@ Payloads = Union[bytes, List[bytes]]
 
 
 def payload_from_nulldata_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
-    if isinstance(script, list):
-        s = encode(script)
-    else:
-        s = bytes_from_octets(script)
-
+    s = encode(script) if isinstance(script, list) else bytes_from_octets(script)
     length = len(s)
 
     # nulldata [OP_RETURN, data]
@@ -142,11 +138,7 @@ def payload_from_nulldata_scriptPubKey(script: Script) -> Tuple[str, Payloads, i
 
 
 def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
-    if isinstance(script, list):
-        s = encode(script)
-    else:
-        s = bytes_from_octets(script)
-
+    s = encode(script) if isinstance(script, list) else bytes_from_octets(script)
     # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
     script = decode(s)
     m = int(script[0])
@@ -171,11 +163,7 @@ def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
 def payload_from_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
     "Return (scriptPubKey type, payload, m) from the input script."
 
-    if isinstance(script, list):
-        s = encode(script)
-    else:
-        s = bytes_from_octets(script)
-
+    s = encode(script) if isinstance(script, list) else bytes_from_octets(script)
     length = len(s)
 
     # p2pk [pubkey, OP_CHECKSIG]

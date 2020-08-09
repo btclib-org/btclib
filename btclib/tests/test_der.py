@@ -120,9 +120,9 @@ def test_der_serialize() -> None:
         _serialize(*sig, 0x85)
 
     for sighash in SIGHASHES:
+        err_msg = "scalar r not in 1..n-1: "
         for r in (0, ec.n):
             bad_sig = r, sig[1]
-            err_msg = "scalar r not in 1..n-1: "
             with pytest.raises(ValueError, match=err_msg):
                 _serialize(*bad_sig, sighash)
 
