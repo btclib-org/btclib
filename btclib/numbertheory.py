@@ -151,7 +151,7 @@ def tonelli(a: int, p: int) -> int:
     while t != 1:
         # Find the lowest i such that t^(2^i) = 1
         t2i = t
-        for _ in range(1, m):
+        for i in range(1, m):
             t2i = t2i * t2i % p
             if t2i == 1:
                 break
