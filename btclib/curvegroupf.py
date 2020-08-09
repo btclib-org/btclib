@@ -26,7 +26,7 @@ def find_all_points(ec: CurveGroup) -> List[Point]:
     Very unsofisticated walk-through approach,
     for didactical sake only.
     """
-    if 10000 < ec.p:
+    if ec.p > 10000:
         m = f"p is too big to count all group points: {ec.p}"
         raise ValueError(m)
 
@@ -50,7 +50,7 @@ def find_subgroup_points(ec: CurveGroup, G: Point) -> List[Point]:
     Very unsofisticated walk-through approach,
     for didactical sake only.
     """
-    if 10000 < ec.p:
+    if ec.p > 10000:
         m = f"p is too big to count all subgroup points: {ec.p}"
         raise ValueError(m)
 

@@ -180,8 +180,7 @@ def test_symmetry() -> None:
         assert y_high == ec.p - y_low
 
         # compute quadratic residues
-        hasRoot = set()
-        hasRoot.add(1)
+        hasRoot = {1}
         for i in range(2, ec.p):
             hasRoot.add(i * i % ec.p)
 

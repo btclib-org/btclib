@@ -27,11 +27,7 @@ def has_segwit_prefix(addr: String) -> bool:
     else:
         str_addr = addr.decode("ascii")
 
-    for net in NETWORKS:
-        if str_addr.startswith(NETWORKS[net]["p2w"] + "1"):
-            return True
-
-    return False
+    return any(str_addr.startswith(NETWORKS[net]["p2w"] + "1") for net in NETWORKS)
 
 
 def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
@@ -78,8 +74,7 @@ def address_from_scriptPubKey(s: Script, network: str = "mainnet") -> bytes:
 
 def tx_out_from_address(address: str, value: int) -> TxOut:
     scriptPubKey = scriptPubKey_from_address(address)[0]
-    tx_out = TxOut(value, decode(scriptPubKey))
-    return tx_out
+    return TxOut(value, decode(scriptPubKey))
 
 
 def address_from_tx_out(tx_out: TxOut) -> str:

@@ -74,8 +74,7 @@ def _create_checksum(hrp: str, data: List[int]) -> List[int]:
     """Compute the checksum values given HRP and data."""
     values = _hrp_expand(hrp) + data
     polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ 1
-    checksum = [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
-    return checksum
+    return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
 def b32encode(hrp: str, data: List[int]) -> bytes:

@@ -96,7 +96,7 @@ def _multi_mult(
             continue
         x.append((-n, PJ))
 
-    if len(x) == 0:
+    if not x:
         return INFJ
 
     heapq.heapify(x)

@@ -34,10 +34,7 @@ def decode_der_path(path: bytes) -> str:
     for x in range(len(path) // 4):
         out += "/"
         index = int.from_bytes(path[4 * x : 4 * (x + 1)], "little")
-        if index >= 0x80000000:
-            out += str(index - 0x80000000) + "h"
-        else:
-            out += str(index)
+        out += str(index - 0x80000000) + "h" if index >= 0x80000000 else str(index)
     return out
 
 
@@ -122,7 +119,6 @@ class PsbtInput:
             elif key[0] == 0x08:
                 assert len(key) == 1
                 final_script_witness = witness_deserialize(value)
-                pass
             elif key[0] == 0x09:
                 assert len(key) == 1
                 por_commitment = value.hex()  # TODO: bip127
@@ -348,7 +344,7 @@ class Psbt:
         output_len = len(tx.vout)
 
         inputs = []
-        for i in range(input_len):
+        for _ in range(input_len):
             input_map, data = deserialize_map(data)
             inputs.append(PsbtInput.decode(input_map))
 
@@ -488,16 +484,12 @@ def _combine_field(
 ) -> None:
     item: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(psbt_map, key)
     a: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(out, key)
-    if isinstance(item, dict):
-        if a and isinstance(a, dict):
-            a.update(item)
-        else:
-            setattr(out, key, item)
+    if isinstance(item, dict) and a and isinstance(a, dict):
+        a.update(item)
+    elif isinstance(item, dict) or item and not a:
+        setattr(out, key, item)
     elif item:
-        if a:
-            assert item == a, key
-        else:
-            setattr(out, key, item)
+        assert item == a, key
 
 
 def combine_psbts(psbts: List[Psbt]) -> Psbt:
@@ -522,7 +514,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
             _combine_field(psbt.inputs[x], final_psbt.inputs[x], "proprietary")
             _combine_field(psbt.inputs[x], final_psbt.inputs[x], "unknown")
 
-        for y in range(len(final_psbt.outputs)):
+        for _ in final_psbt.outputs:
             _combine_field(psbt.outputs[x], final_psbt.outputs[x], "redeem_script")
             _combine_field(psbt.outputs[x], final_psbt.outputs[x], "witness_script")
             _combine_field(psbt.outputs[x], final_psbt.outputs[x], "hd_keypaths")

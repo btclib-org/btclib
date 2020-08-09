@@ -67,7 +67,7 @@ def test_ecf_exceptions() -> None:
     with pytest.raises(ValueError, match="p is too big to count all group points: "):
         find_all_points(ec)
 
-    # p (10007) is too big to count all subgroup points
-    G = (2, 3265)
     with pytest.raises(ValueError, match="p is too big to count all subgroup points: "):
+        # p (10007) is too big to count all subgroup points
+        G = (2, 3265)
         find_subgroup_points(ec, G)

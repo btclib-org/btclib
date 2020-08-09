@@ -44,7 +44,7 @@ def SegwitV0SignatureHash(
     else:
         hashSequence = b"\x00" * 32
 
-    if not hashtype_hex[1] == "2" and not hashtype_hex[1] == "3":
+    if hashtype_hex[1] != "2" and hashtype_hex[1] != "3":
         hashOutputs = b""
         for vout in transaction.vout:
             hashOutputs += vout.serialize()
@@ -70,8 +70,7 @@ def SegwitV0SignatureHash(
     preimage += transaction.nLockTime.to_bytes(4, "little")
     preimage += bytes.fromhex(hashtype_hex)
 
-    sig_hash = hash256(preimage)
-    return sig_hash
+    return hash256(preimage)
 
 
 # FIXME: remove OP_CODESEPARATOR only if executed
@@ -119,11 +118,9 @@ def get_sighash(
             scriptCode = _get_witness_v0_scriptCodes(
                 script.decode(transaction.vin[input_index].txinwitness[-1])
             )[0]
-        sighash = SegwitV0SignatureHash(
+        return SegwitV0SignatureHash(
             bytes.fromhex(scriptCode), transaction, input_index, sighash_type, value
         )
-
-        return sighash
     raise RuntimeError("Legacy transactions not supported yet")
 
 

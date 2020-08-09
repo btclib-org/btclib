@@ -111,8 +111,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
 
     indexes = _indexes_from_mnemonic(mnemonic, lang)
     base = _wordlists.language_length(lang)
-    entropy = _entropy_from_indexes(indexes, base)
-    return entropy
+    return _entropy_from_indexes(indexes, base)
 
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:
