@@ -10,7 +10,7 @@
 
 "Tests for `btclib.base58` module."
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.base58 import (
     _b58decode,

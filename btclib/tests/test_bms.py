@@ -14,7 +14,7 @@ import json
 from hashlib import sha256 as hf
 from os import path
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import base58address, bech32address, bip32, bms, dsa
 from btclib.base58address import p2pkh, p2wpkh_p2sh

@@ -13,7 +13,7 @@
 import secrets
 from typing import Dict
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.alias import INF, INFJ
 from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac

@@ -14,7 +14,7 @@ import hashlib
 import json
 from os import path
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import dsa
 from btclib.curvemult import mult

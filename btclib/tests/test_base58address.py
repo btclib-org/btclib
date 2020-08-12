@@ -12,7 +12,7 @@
 
 from typing import List, Tuple
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import bip32, slip132
 from btclib.alias import Token

@@ -13,7 +13,7 @@
 import json
 from os import path
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import bip32, electrum, slip132
 

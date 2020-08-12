@@ -10,7 +10,7 @@
 
 "Tests for `btclib.varint` module."
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import varint
 

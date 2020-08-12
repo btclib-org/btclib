@@ -10,7 +10,7 @@
 
 "Tests for `btclib.der` module."
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.curves import secp256k1 as ec
 from btclib.der import _deserialize, _serialize

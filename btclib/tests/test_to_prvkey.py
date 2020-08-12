@@ -10,7 +10,7 @@
 
 "Tests for `btclib.to_prvkey` module."
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.curves import CURVES
 from btclib.tests.test_to_key import (

@@ -12,7 +12,7 @@
 
 from typing import List, Tuple
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import base58address, bech32address, bip32, bip39, slip132
 from btclib.network import NETWORKS

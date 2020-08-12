@@ -10,7 +10,7 @@
 
 "Tests for `btclib.psbt` module"
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, psbt_from_tx
 from btclib.script import decode

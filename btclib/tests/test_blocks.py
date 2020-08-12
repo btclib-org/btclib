@@ -12,7 +12,7 @@
 
 import os
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.blocks import Block, BlockHeader
 

@@ -16,7 +16,7 @@ from hashlib import sha256 as hf
 from os import path
 from typing import List
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import ssa
 from btclib.alias import INF, Point

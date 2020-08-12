@@ -15,7 +15,7 @@ import secrets
 from math import ceil
 from os import path
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import bip39
 
