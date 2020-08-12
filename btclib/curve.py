@@ -248,7 +248,7 @@ class CurveGroup:
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to keep this method private
-        return ((x**2 + self._a) * x + self._b) % self.p
+        return ((x ** 2 + self._a) * x + self._b) % self.p
 
     def y(self, x: int) -> int:
         """Return the y coordinate from x, as in (x, y)."""
