@@ -12,7 +12,7 @@
 
 import secrets
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.tests.test_to_key import (
     net_unaware_compressed_pub_keys,

@@ -13,7 +13,7 @@
 import secrets
 from typing import Dict
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.curve import Curve, _mult_aff
 from btclib.curves import CURVES

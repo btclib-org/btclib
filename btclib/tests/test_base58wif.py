@@ -12,7 +12,7 @@
 
 from typing import List, Tuple
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey

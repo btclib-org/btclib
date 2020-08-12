@@ -39,7 +39,7 @@ with the following modifications:
 - checked for raised exceptions instead of assertIsNone
 """
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.bech32 import b32decode
 

@@ -10,7 +10,7 @@
 
 "Tests for `btclib.psbt` module"
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.psbt import (
     Psbt,

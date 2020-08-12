@@ -12,7 +12,7 @@
 
 from hashlib import sha256, sha384
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import pedersen
 from btclib.curves import CURVES, secp256k1

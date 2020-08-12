@@ -12,7 +12,7 @@
 
 from hashlib import sha1
 
-import pytest  # type: ignore
+import pytest
 
 from btclib import dsa
 from btclib.alias import INF

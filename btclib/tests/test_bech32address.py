@@ -42,7 +42,7 @@ with the following modifications:
 
 from typing import List, Tuple
 
-import pytest  # type: ignore
+import pytest
 
 from btclib.alias import Token
 from btclib.base58address import p2wpkh_p2sh, p2wsh_p2sh
