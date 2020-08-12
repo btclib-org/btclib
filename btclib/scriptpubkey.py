@@ -23,7 +23,7 @@ from .utils import bytes_from_octets
 # 1. Hash/WitnessProgram from pubkey/script
 
 # hash160_from_key, hash160_from_script, and hash256_from_script
-# are imported from base58address
+# are imported from hashes.py
 
 
 # 2. scriptPubKey from Hash/WitnessProgram and vice versa
@@ -217,7 +217,7 @@ def p2ms(
     lexicographic_sort: bool = True,
     compressed: Optional[bool] = None,
 ) -> bytes:
-    "Return the m-of-n multi-sig scriptPubKey of the provided pubkeys."
+    "Return the m-of-n multi-sig scriptPubKey of the provided keys."
 
     pk: List[Octets] = [pubkeyinfo_from_key(p, compressed=compressed)[0] for p in keys]
     return scriptPubKey_from_payload("p2ms", pk, m, lexicographic_sort)
@@ -232,7 +232,7 @@ def nulldata(data: String) -> bytes:
 
 
 def p2pkh(key: Key, compressed: Optional[bool] = None) -> bytes:
-    "Return the p2pkh scriptPubKey of the provided pubkey."
+    "Return the p2pkh scriptPubKey of the provided key."
 
     pubkey_h160, _ = hash160_from_key(key, compressed=compressed)
     return scriptPubKey_from_payload("p2pkh", pubkey_h160)
@@ -246,9 +246,12 @@ def p2sh(script: Script) -> bytes:
 
 
 def p2wpkh(key: Key) -> bytes:
-    "Return the p2wpkh scriptPubKey of the provided pubkey."
-    compressed = True  # needed to force check on pubkey
-    pubkey_h160, _ = hash160_from_key(key, compressed=compressed)
+    """Return the p2wpkh scriptPubKey of the provided key.
+
+    If the provided key is a public one, it must be compressed.
+    """
+
+    pubkey_h160, _ = hash160_from_key(key, compressed=True)
     return scriptPubKey_from_payload("p2wpkh", pubkey_h160)
 
 
