@@ -21,12 +21,7 @@ from .tx_out import TxOut
 
 def has_segwit_prefix(addr: String) -> bool:
 
-    if isinstance(addr, str):
-        str_addr = addr.strip()
-        str_addr = str_addr.lower()
-    else:
-        str_addr = addr.decode("ascii")
-
+    str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
     return any(str_addr.startswith(NETWORKS[net]["p2w"] + "1") for net in NETWORKS)
 
 
