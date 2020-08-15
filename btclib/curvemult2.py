@@ -194,6 +194,44 @@ def mult_fixed_window(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp2
     return ec._aff_from_jac(R)
 
 
+def _mult_jac_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication of a curve point in Jacobian coordinates.
+    This implementation uses the method called "sliding window". 
+    It has the benefit that the pre-computation stage is roughly half as complex as the normal windowed method .
+    It is not constant time.
+    For 256-bit scalars choose w=4 or w=5
+    The input point is assumed to be on curve,
+    m is assumed to have been reduced mod n if appropriate
+    (e.g. cyclic groups of order n).
+    """
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    if Q == INFJ:
+        return Q
+
+    if w <= 0:
+        raise ValueError(f"w must be strictly positive")
+
+    b = pow(2, w)
+
+    T: List[JacPoint] = []
+    T.append(INFJ)
+    for i in range(1, b):
+        T.append(ec._add_jac(T[i - 1], Q))
+
+    M = numberToBase(m, b)
+
+    R = T[M[0]]
+
+    for i in range(1, len(M)):
+        for j in range(w):
+            R = ec._add_jac(R, R)
+        R = ec._add_jac(R, T[M[i]])
+
+    return R
+
+
 def mods(m: int, w: int) -> int:
     # Signed modulo function
     """
