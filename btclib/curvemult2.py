@@ -81,7 +81,7 @@ def numberToBase(n, b):
 def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses the same idea of "double and add" algorithm,
-    but with the scalar radix 3.
+    but with scalar radix 3.
     It is not constant time.
     The input point is assumed to be on curve,
     m is assumed to have been reduced mod n if appropriate
@@ -142,7 +142,7 @@ def _mult_jac_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPo
     """Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses the method called "fixed window"
     It is not constant time.
-    For about 256-bit scalars choose w=4 or w=5
+    For 256-bit scalars choose w=4 or w=5
     The input point is assumed to be on curve,
     m is assumed to have been reduced mod n if appropriate
     (e.g. cyclic groups of order n).
@@ -196,8 +196,12 @@ def mult_fixed_window(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp2
 
 def mods(m: int, w: int) -> int:
     # Signed modulo function
+    """
+    Need minor changes:
+    mods does not work for w=1, since it always gives back 0. However the function in NOT really meant to be used for w=1
+    """
 
-    w2 = pow(2, w)  # cannot name it 2w
+    w2 = pow(2, w)
     M = m % w2
     if M >= (w2 / 2):
         return M - w2
@@ -207,7 +211,6 @@ def mods(m: int, w: int) -> int:
 
 """
 Need minor changes:
-1. does not work for w=1, however the fact the function in NOT meant to be used for w=1
 2. The list precomputated stores all the values of jQ for j in (-2^w, 2^w), however just the odd values are later used
 
 """
@@ -251,7 +254,7 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     b = pow(2, w)
 
-    # The values of even points must be cancelled, still need to be fixed
+    # The values of even points must be cancelled
     T: List[JacPoint] = []
     T.append(INFJ)
     for i in range(1, b):
