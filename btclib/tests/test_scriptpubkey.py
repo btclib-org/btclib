@@ -11,8 +11,9 @@
 "Tests for `btclib.scriptpubkey` module."
 
 import json
-import unittest
 from os import path
+
+import pytest
 
 from btclib import base58address, bech32address
 from btclib.base58address import b58address_from_h160, b58address_from_witness
@@ -37,555 +38,459 @@ from btclib.scriptpubkey_address import (
 from btclib.utils import hash160, sha256
 
 
-class TestScriptPubKey(unittest.TestCase):
-    def test_p2pk(self):
+def test_nulldata() -> None:
 
-        script_type = "p2pk"
+    # self-consistency
+    string = "time-stamped data"
+    payload = string.encode()
+    scriptPubKey = encode(["OP_RETURN", payload])
+    assert scriptPubKey == nulldata(string)
 
-        # self-consistency
-        pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
-        script = encode([pubkey, "OP_CHECKSIG"]).hex()
+    # to the scriptPubKey in two steps (through payload)
+    script_type = "nulldata"
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
 
-        # straight to the scriptPubKey
-        scriptPubKey = p2pk(pubkey)
-        assert scriptPubKey.hex() == script
+    # back from the scriptPubKey to the payload
+    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
-        # to the scriptPubKey in two steps (through payload)
-        scriptPubKey = scriptPubKey_from_payload(script_type, pubkey)
-        assert scriptPubKey.hex() == script
+    # data -> payload in this case is invertible (no hash functions)
+    assert payload.decode() == string
 
-        # back from the scriptPubKey to the payload
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert bytes.fromhex(pubkey).hex() == payload2.hex()
-        script_type2, payload2, m2 = payload_from_scriptPubKey(script)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert bytes.fromhex(pubkey).hex() == payload2.hex()
+    err_msg = "no address for null data script"
+    with pytest.raises(ValueError, match=err_msg):
+        address_from_scriptPubKey(scriptPubKey)
 
-        # data -> payload in this case is invertible (no hash functions)
+    # documented test cases: https://learnmeabitcoin.com/guide/nulldata
+    string = "hello world"
+    payload = string.encode()
+    assert payload.hex() == "68656c6c6f20776f726c64"  # pylint: disable=no-member
+    scriptPubKey = b"\x6a\x0b" + payload
+    assert scriptPubKey == nulldata(string)
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
+    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
-        # No address for p2pk script
-        self.assertRaises(ValueError, address_from_scriptPubKey, scriptPubKey)
-        # address_from_scriptPubKey(scriptPubKey)
+    # documented test cases: https://learnmeabitcoin.com/guide/nulldata
+    string = "charley loves heidi"
+    payload = string.encode()
+    assert (
+        payload.hex()  # pylint: disable=no-member
+        == "636861726c6579206c6f766573206865696469"
+    )
+    scriptPubKey = b"\x6a\x13" + payload
+    assert scriptPubKey == nulldata(string)
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
+    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
-        # documented test case: https://learnmeabitcoin.com/guide/p2pk
-        pubkey = (
-            "04"
-            "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
-            "e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
-        )
-        script = "41" + pubkey + "ac"
-        scriptPubKey = p2pk(pubkey)
-        assert scriptPubKey.hex() == script
+    # documented test cases: https://learnmeabitcoin.com/guide/nulldata
+    string = "家族も友達もみんなが笑顔の毎日がほしい"
+    payload = string.encode()
+    assert (
+        payload.hex()  # pylint: disable=no-member
+        == "e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184"
+    )
+    scriptPubKey = b"\x6a\x39" + payload
+    assert scriptPubKey == nulldata(string)
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
+    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
-        # invalid size: 34 bytes instead of (33, 65)
-        # fmt: off
-        pubkey = (
-            "03"
-            "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
-            "14"
-        )
-        # fmt: on
-        self.assertRaises(ValueError, p2pk, pubkey)
-        # p2pk(pubkey)
 
-    def test_p2ms(self):
+def test_nulldata2() -> None:
 
-        script_type = "p2ms"
+    script_type = "nulldata"
 
-        # self-consistency
-        pubkey1 = (
-            "04"
-            "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
-            "f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        )
-        pubkey2 = (
-            "04"
-            "61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765"
-            "19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
-        )
-        pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(pubkey2)]
-        m = 1
-
-        # straight to the scriptPubKey
-        scriptPubKey = p2ms(pubkeys, m)
-        n = len(pubkeys)
-        script = encode([m] + sorted(pubkeys) + [n, "OP_CHECKMULTISIG"]).hex()
-        assert scriptPubKey.hex() == script
-
-        # to the scriptPubKey in two steps (through payload)
-        scriptPubKey = scriptPubKey_from_payload(script_type, pubkeys, m)
-        assert scriptPubKey.hex() == script
-
-        # back from the scriptPubKey to the payload
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert m == m2
-        assert sorted(pubkeys) == payload2
-        script_type2, payload2, m2 = payload_from_scriptPubKey(script)
-        assert script_type == script_type2
-        assert m == m2
-        assert sorted(pubkeys) == payload2
-
-        # data -> payload in this case is invertible (no hash functions)
-
-        # No address for p2ms script
-        self.assertRaises(ValueError, address_from_scriptPubKey, scriptPubKey)
-        # address_from_scriptPubKey(scriptPubKey)
-
-        # documented test case: https://learnmeabitcoin.com/guide/p2ms
-        pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(pubkey2)]
-        m = 1
-        n = 2
-        # fmt: off
-        script = (
-            "51"         # OP_1
-            "41"         # canonical 65-bytes push
-            + pubkey1 +  # noqa E148
-            "41"         # canonical 65-bytes push
-            + pubkey2 +  # noqa E148
-            "52"         # OP_2
-            "ae"         # OP_CHECKMULTISIG
-        )
-        # fmt: on
-        scriptPubKey = p2ms(pubkeys, 1, lexicographic_sort=False)
-        assert scriptPubKey.hex() == script
-
-        # Impossible m>n 3-of-2 multisignature
-        self.assertRaises(ValueError, p2ms, pubkeys, 3)
-        # p2ms(pubkeys, 3)
-
-        # Invalid m (0) for p2ms script
-        self.assertRaises(ValueError, p2ms, pubkeys, 0)
-        # p2ms(pubkeys, 0)
-
-        # invalid size: 66 bytes instead of 65
-        self.assertRaises(ValueError, p2ms, [pubkey1 + "00", pubkey2], 1)
-        # p2ms([pubkey1 + "00", pubkey2], 1)
-
-        # Invalid n (17) in 3-of-17 multisignature
-        self.assertRaises(ValueError, p2ms, [pubkey1] * 17, 3)
-        # p2ms([pubkey1]*17, 3)
-
-        # Invalid key length (66) in p2ms
-        badpubkeys = sorted(pubkeys)
-        badpubkeys[0] = badpubkeys[0] + b"\x00"
-        self.assertRaises(
-            ValueError, scriptPubKey_from_payload, script_type, badpubkeys, m
-        )
-        # scriptPubKey_from_payload(script_type, badpubkeys, m)
-
-        # Invalid key length (66) in p2ms
-        script = encode([m] + sorted(badpubkeys) + [n, "OP_CHECKMULTISIG"])
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
-
-        # Invalid key in p2ms
-        script = encode([m] + [0, pubkeys[1]] + [n, "OP_CHECKMULTISIG"])
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
-
-        # Invalid m (0) for p2ms script
-        self.assertRaises(
-            ValueError, scriptPubKey_from_payload, script_type, pubkeys, 17
-        )
-        # scriptPubKey_from_payload(script_type, pubkeys, 17)
-
-    def test_p2ms_2(self):
-
-        pubkey1 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        pubkey2 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
-        pubkey3 = "04 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
-        pubkeys = [pubkey1, pubkey2, pubkey3]
-        m = 1
-        n = len(pubkeys)
-        script = [m] + pubkeys + [n, "OP_CHECKMULTISIG"]
-        payload_from_scriptPubKey(script)
-        scriptPubKey_from_payload("p2ms", pubkeys, m)
-
-        # Invalid list of Octets for p2sh script
-        self.assertRaises(ValueError, scriptPubKey_from_payload, "p2sh", pubkeys, 0)
-        # scriptPubKey_from_payload('p2sh', pubkeys, 0)
-
-        # Invalid number of keys (0) in m-of-n multisignature
-        script = [1, 3, "OP_CHECKMULTISIG"]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
-
-        # Keys (2) / n (3) mismatch in m-of-n multisignature
-        script = [1, pubkey1, pubkey2, 3, "OP_CHECKMULTISIG"]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
-
-        # Impossible 3-of-2 multisignature
-        script = [3, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
-
-        # Invalid m (0) in 0-of-2 multisignature
-        script = [0, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
-
-        # 133-th byte in 1-of-3 multisignature payload is 0x40,
-        # it should have been 0x41
-        script = [1, pubkey1, pubkey2, pubkey3, 3, "OP_CHECKMULTISIG"]
-        bscript = encode(script)
-        script = bscript[:133] + b"\x40" + bscript[134:]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
-
-    def test_nulldata(self):
-
-        script_type = "nulldata"
-
-        # self-consistency
-        string = "time-stamped data"
-        payload = string.encode()
-        script = encode(["OP_RETURN", payload]).hex()
-
-        # straight to the scriptPubKey
-        scriptPubKey = nulldata(string)
-        assert scriptPubKey.hex() == script
-
-        # to the scriptPubKey in two steps (through payload)
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
+    # max length case
+    byte = b"\x00"
+    for length in (0, 1, 16, 17, 74, 75, 76, 77, 78, 79, 80):
+        payload = byte * length
+        scriptPubKey = encode(["OP_RETURN", payload])
+        assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
 
         # back from the scriptPubKey to the payload
         script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
         assert script_type == script_type2
         assert 0 == m2
         assert payload.hex() == payload2.hex()
-        script_type2, payload2, m2 = payload_from_scriptPubKey(script)
+        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(scriptPubKey))
         assert script_type == script_type2
         assert 0 == m2
         assert payload.hex() == payload2.hex()
 
-        # data -> payload in this case is invertible (no hash functions)
-        assert payload.decode() == string
 
-        # No address for null data script
-        self.assertRaises(ValueError, address_from_scriptPubKey, scriptPubKey)
-        # address_from_scriptPubKey(scriptPubKey)
+def test_nulldata3() -> None:
 
-        # documented test cases: https://learnmeabitcoin.com/guide/nulldata
-        string = "hello world"
-        payload = string.encode().hex()
-        assert payload == "68656c6c6f20776f726c64"
-        script = "6a0b" + payload
-        scriptPubKey = nulldata(string)
-        assert scriptPubKey.hex() == script
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload == payload2.hex()
-
-        # documented test cases: https://learnmeabitcoin.com/guide/nulldata
-        string = "charley loves heidi"
-        payload = string.encode().hex()
-        assert payload == "636861726c6579206c6f766573206865696469"
-        script = "6a13" + payload
-        scriptPubKey = nulldata(string)
-        assert scriptPubKey.hex() == script
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload == payload2.hex()
-
-        # documented test cases: https://learnmeabitcoin.com/guide/nulldata
-        string = "家族も友達もみんなが笑顔の毎日がほしい"
-        payload = string.encode().hex()
-        assert (
-            payload
-            == "e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184"
-        )
-        script = "6a39" + payload
-        scriptPubKey = nulldata(string)
-        assert scriptPubKey.hex() == script
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload == payload2.hex()
-
-    def test_nulldata3(self):
-
-        # Invalid data lenght (81 bytes) for nulldata scriptPubKey
+    err_msg = "invalid nulldata script lenght: "
+    with pytest.raises(ValueError, match=err_msg):
         payload = "00" * 81
-        self.assertRaises(ValueError, scriptPubKey_from_payload, "nulldata", payload)
-        # scriptPubKey_from_payload('nulldata', payload)
+        scriptPubKey_from_payload("nulldata", payload)
 
-        # Wrong data lenght (32) in 35-bytes nulldata script:
-        # it should have been 33
-        script = encode(["OP_RETURN", b"\x00" * 33])
-        script = script[:1] + b"\x20" + script[2:]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
+    # wrong data lenght: 32 in 35-bytes nulldata script;
+    # it should have been 33
+    scriptPubKey = encode(["OP_RETURN", b"\x00" * 33])
+    scriptPubKey = scriptPubKey[:1] + b"\x20" + scriptPubKey[2:]
+    err_msg = "wrong data lenght: "
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
 
-        # Wrong data lenght (32) in 83-bytes nulldata script:
-        # it should have been 80
-        script = encode(["OP_RETURN", b"\x00" * 80])
-        script = script[:2] + b"\x20" + script[3:]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
+    # wrong data lenght: 32 in 83-bytes nulldata script;
+    # it should have been 80
+    scriptPubKey = encode(["OP_RETURN", b"\x00" * 80])
+    scriptPubKey = scriptPubKey[:2] + b"\x20" + scriptPubKey[3:]
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
 
-        # Missing OP_PUSHDATA1 (0x4c) in 83-bytes nulldata script,
-        # got 0x20 instead
-        script = encode(["OP_RETURN", b"\x00" * 80])
-        script = script[:1] + b"\x20" + script[2:]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
+    # missing OP_PUSHDATA1 (0x4c) in 83-bytes nulldata script,
+    # got 0x20 instead
+    scriptPubKey = encode(["OP_RETURN", b"\x00" * 80])
+    scriptPubKey = scriptPubKey[:1] + b"\x20" + scriptPubKey[2:]
+    err_msg = "missing OP_PUSHDATA1 "
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
 
-        assert len(encode(["OP_RETURN", b"\x00" * 75])) == 77
-        assert len(encode(["OP_RETURN", b"\x00" * 76])) == 79
-        # Invalid 78 bytes OP_RETURN script length
-        script = encode(["OP_RETURN", b"\x00" * 76])[:-1]
-        self.assertRaises(ValueError, payload_from_scriptPubKey, script)
-        # payload_from_scriptPubKey(script)
+    assert len(encode(["OP_RETURN", b"\x00" * 75])) == 77
+    assert len(encode(["OP_RETURN", b"\x00" * 76])) == 79
+    scriptPubKey = encode(["OP_RETURN", b"\x00" * 76])[:-1]
+    err_msg = "invalid 78 bytes nulldata script length"
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
 
-    def test_p2pkh(self):
 
-        script_type = "p2pkh"
+def test_p2pk() -> None:
 
-        # self-consistency
-        pubkey = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
-        payload = hash160(pubkey)
-        script = encode(
-            ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
-        ).hex()
+    # self-consistency
+    pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+    scriptPubKey = encode([pubkey, "OP_CHECKSIG"])
+    assert scriptPubKey == p2pk(pubkey)
 
-        # straight to the scriptPubKey
-        scriptPubKey = p2pkh(pubkey)
-        assert scriptPubKey.hex() == script
+    # to the scriptPubKey in two steps (through payload)
+    script_type = "p2pk"
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, pubkey)
 
-        # to the scriptPubKey in two steps (through payload)
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
+    # back from the scriptPubKey to the payload
+    assert (script_type, bytes.fromhex(pubkey), 0) == payload_from_scriptPubKey(
+        scriptPubKey
+    )
 
-        # back from the scriptPubKey to the payload
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
-        script_type2, payload2, m2 = payload_from_scriptPubKey(script)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
+    err_msg = "no address for p2pk script"
+    with pytest.raises(ValueError, match=err_msg):
+        address_from_scriptPubKey(scriptPubKey)
 
-        # data -> payload is not invertible (hash functions)
+    # documented test case: https://learnmeabitcoin.com/guide/p2pk
+    pubkey = (
+        "04"
+        "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
+        "e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
+    )
+    scriptPubKey = "41" + pubkey + "ac"
+    assert scriptPubKey == p2pk(pubkey).hex()
 
-        # address
-        network = "mainnet"
-        address = base58address.p2pkh(pubkey, network)
-        address2 = address_from_scriptPubKey(scriptPubKey, network)
-        assert address == address2
-        prefix = NETWORKS[network]["p2pkh"]
-        address2 = b58address_from_h160(prefix, payload, network)
-        assert address == address2
+    # invalid size: 34 bytes instead of (33, 65)
+    pubkey = (  # fmt: off
+        "03" "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414" "14"
+    )  # fmt: on
+    err_msg = "not a private or public key: "
+    with pytest.raises(ValueError, match=err_msg):
+        p2pk(pubkey)
 
-        scriptPubKey2, network2 = scriptPubKey_from_address(address)
-        assert scriptPubKey2 == scriptPubKey
-        assert network2 == network
 
-        # documented test case: https://learnmeabitcoin.com/guide/p2pkh
-        payload = "12ab8dc588ca9d5787dde7eb29569da63c3a238c"
-        script = "76a914" + payload + "88ac"
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
-        network = "mainnet"
-        address = b"12higDjoCCNXSA95xZMWUdPvXNmkAduhWv"
-        address2 = address_from_scriptPubKey(scriptPubKey, network)
-        assert address == address2
-        scriptPubKey2, network2 = scriptPubKey_from_address(address)
-        assert scriptPubKey2 == scriptPubKey
-        assert network2 == network
+def test_p2pkh() -> None:
 
-        # invalid size: 11 bytes instead of 20
-        self.assertRaises(ValueError, scriptPubKey_from_payload, "00" * 11, "p2pkh")
-        # p2pkh("00"*11)
+    # self-consistency
+    pubkey = (
+        "04 "
+        "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+        "f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+    )
+    payload = hash160(pubkey)
+    scriptPubKey = encode(
+        ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+    )
+    assert scriptPubKey == p2pkh(pubkey)
 
-    def test_p2sh(self):
+    # to the scriptPubKey in two steps (through payload)
+    script_type = "p2pkh"
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
 
-        script_type = "p2sh"
+    # back from the scriptPubKey to the payload
+    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
-        # self-consistency
-        pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
-        pubkey_hash = hash160(pubkey)
-        redeem_script = scriptPubKey_from_payload("p2pkh", pubkey_hash)
-        payload = hash160(redeem_script)
-        script = encode(["OP_HASH160", payload, "OP_EQUAL"]).hex()
+    # base58 address
+    network = "mainnet"
+    address = base58address.p2pkh(pubkey, network)
+    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    prefix = NETWORKS[network]["p2pkh"]
+    assert address == b58address_from_h160(prefix, payload, network)
 
-        # straight to the scriptPubKey
-        scriptPubKey = p2sh(redeem_script)
-        assert scriptPubKey.hex() == script
+    # back from the address to the scriptPubKey
+    assert (scriptPubKey, network) == scriptPubKey_from_address(address)
 
-        # to the scriptPubKey in two steps (through payload)
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
+    # documented test case: https://learnmeabitcoin.com/guide/p2pkh
+    payload = "12ab8dc588ca9d5787dde7eb29569da63c3a238c"
+    scriptPubKey = "76a914" + payload + "88ac"
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload).hex()
+    address = b"12higDjoCCNXSA95xZMWUdPvXNmkAduhWv"
+    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    assert (bytes.fromhex(scriptPubKey), network) == scriptPubKey_from_address(address)
 
-        # back from the scriptPubKey to the payload
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
-        script_type2, payload2, m2 = payload_from_scriptPubKey(script)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
+    # invalid size: 11 bytes instead of 20
+    err_msg = "invalid size: "
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_payload(script_type, "00" * 11)
 
-        # data -> payload is not invertible (hash functions)
 
-        # address
-        network = "mainnet"
-        address = base58address.p2sh(decode(redeem_script), network)
-        address2 = address_from_scriptPubKey(scriptPubKey, network)
-        assert address == address2
-        prefix = NETWORKS[network]["p2sh"]
-        address2 = b58address_from_h160(prefix, payload, network)
-        assert address == address2
+def test_p2wpkh() -> None:
 
-        scriptPubKey2, network2 = scriptPubKey_from_address(address)
-        assert scriptPubKey2 == scriptPubKey
-        assert network2 == network
+    # self-consistency
+    pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+    payload = hash160(pubkey)
+    scriptPubKey = encode([0, payload])
+    assert scriptPubKey == p2wpkh(pubkey)
 
-        # documented test case: https://learnmeabitcoin.com/guide/p2sh
-        payload = "748284390f9e263a4b766a75d0633c50426eb875"
-        script = "a914" + payload + "87"
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
-        network = "mainnet"
-        address = b"3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V"
-        address2 = address_from_scriptPubKey(scriptPubKey, network)
-        assert address == address2
-        scriptPubKey2, network2 = scriptPubKey_from_address(address)
-        assert scriptPubKey2 == scriptPubKey
-        assert network2 == network
+    # to the scriptPubKey in two steps (through payload)
+    script_type = "p2wpkh"
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
 
-        # invalid size: 21 bytes instead of 20
-        self.assertRaises(ValueError, scriptPubKey_from_payload, "00" * 21, "p2sh")
-        # scriptPubKey_from_payload("00"*21, 'p2sh')
+    # back from the scriptPubKey to the payload
+    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
-    def test_p2wpkh(self):
+    # bech32 address
+    network = "mainnet"
+    address = bech32address.p2wpkh(pubkey, network)
+    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    wit_ver = 0
+    assert address == b32address_from_witness(wit_ver, payload, network)
 
-        script_type = "p2wpkh"
+    # back from the address to the scriptPubKey
+    assert (scriptPubKey, network) == scriptPubKey_from_address(address)
 
-        # self-consistency
-        pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
-        payload = hash160(pubkey)
-        script = encode([0, payload]).hex()
+    # p2sh-wrapped base58 address
+    address = base58address.p2wpkh_p2sh(pubkey, network)
+    assert address == b58address_from_witness(payload, network)
 
-        # straight to the scriptPubKey
-        scriptPubKey = p2wpkh(pubkey)
-        assert scriptPubKey.hex() == script
 
-        # to the scriptPubKey in two steps (through payload)
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
+def test_p2sh() -> None:
 
-        # back from the scriptPubKey to the payload
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
-        script_type2, payload2, m2 = payload_from_scriptPubKey(script)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
+    # self-consistency
+    pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+    pubkey_hash = hash160(pubkey)
+    redeem_script = scriptPubKey_from_payload("p2pkh", pubkey_hash)
+    payload = hash160(redeem_script)
+    scriptPubKey = encode(["OP_HASH160", payload, "OP_EQUAL"])
+    assert scriptPubKey == p2sh(redeem_script)
 
-        # data -> payload is not invertible (hash functions)
+    # to the scriptPubKey in two steps (through payload)
+    script_type = "p2sh"
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
 
-        # bech32 address
-        network = "mainnet"
-        address = bech32address.p2wpkh(pubkey, network)
-        address2 = address_from_scriptPubKey(scriptPubKey, network)
-        assert address == address2
-        address2 = b32address_from_witness(0, payload, network)
-        assert address == address2
+    # back from the scriptPubKey to the payload
+    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
-        scriptPubKey2, network2 = scriptPubKey_from_address(address)
-        assert scriptPubKey2, scriptPubKey
-        assert network2 == network
+    # base58 address
+    network = "mainnet"
+    address = base58address.p2sh(decode(redeem_script), network)
+    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    prefix = NETWORKS[network]["p2sh"]
+    assert address == b58address_from_h160(prefix, payload, network)
 
-        # p2sh-wrapped base58 address
-        address = base58address.p2wpkh_p2sh(pubkey, network)
-        address2 = b58address_from_witness(payload, network)
-        assert address == address2
+    # back from the address to the scriptPubKey
+    assert (scriptPubKey, network) == scriptPubKey_from_address(address)
 
-    def test_p2wsh(self):
+    # documented test case: https://learnmeabitcoin.com/guide/p2sh
+    payload = "748284390f9e263a4b766a75d0633c50426eb875"
+    scriptPubKey = "a914" + payload + "87"
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload).hex()
+    address = b"3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V"
+    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    assert (bytes.fromhex(scriptPubKey), network) == scriptPubKey_from_address(address)
 
-        script_type = "p2wsh"
+    # invalid size: 21 bytes instead of 20
+    err_msg = "invalid size: "
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_payload(
+            script_type, "00" * 21,
+        )
 
-        # self-consistency
-        pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
-        pubkey_hash = hash160(pubkey)
-        redeem_script = scriptPubKey_from_payload("p2pkh", pubkey_hash)
-        payload = sha256(redeem_script)
-        script = encode([0, payload]).hex()
 
-        # straight to the scriptPubKey
-        scriptPubKey = p2wsh(decode(redeem_script))
-        assert scriptPubKey.hex() == script
+def test_p2wsh() -> None:
 
-        # to the scriptPubKey in two steps (through payload)
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
+    # self-consistency
+    pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+    pubkey_hash = hash160(pubkey)
+    redeem_script = scriptPubKey_from_payload("p2pkh", pubkey_hash)
+    payload = sha256(redeem_script)
+    scriptPubKey = encode([0, payload])
+    assert scriptPubKey == p2wsh(decode(redeem_script))
 
-        # back from the scriptPubKey to the payload
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
-        script_type2, payload2, m2 = payload_from_scriptPubKey(script)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
+    # to the scriptPubKey in two steps (through payload)
+    script_type = "p2wsh"
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, payload)
 
-        # data -> payload is not invertible (hash functions)
+    # back from the scriptPubKey to the payload
+    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
-        # bech32 address
-        network = "mainnet"
-        address = bech32address.p2wsh(redeem_script, network)
-        address2 = address_from_scriptPubKey(scriptPubKey, network)
-        assert address == address2
-        address2 = b32address_from_witness(0, payload, network)
-        assert address == address2
+    # bech32 address
+    network = "mainnet"
+    address = bech32address.p2wsh(redeem_script, network)
+    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    wit_ver = 0
+    assert address == b32address_from_witness(wit_ver, payload, network)
 
-        scriptPubKey2, network2 = scriptPubKey_from_address(address)
-        assert scriptPubKey2 == scriptPubKey
-        assert network2 == network
+    # back from the address to the scriptPubKey
+    assert (scriptPubKey, network) == scriptPubKey_from_address(address)
 
-        # p2sh-wrapped base58 address
-        address = base58address.p2wsh_p2sh(redeem_script, network)
-        address2 = b58address_from_witness(payload, network)
-        assert address == address2
+    # p2sh-wrapped base58 address
+    address = base58address.p2wsh_p2sh(redeem_script, network)
+    assert address == b58address_from_witness(payload, network)
 
-    def test_exceptions(self):
 
-        # invalid size: 11 bytes instead of 20
-        self.assertRaises(ValueError, scriptPubKey_from_payload, "00" * 11, "p2wpkh")
-        # scriptPubKey_from_payload("00"*11, 'p2wpkh')
+def test_exceptions() -> None:
 
-        # invalid size: 33 bytes instead of 32
-        self.assertRaises(ValueError, scriptPubKey_from_payload, "00" * 33, "p2wsh")
-        # scriptPubKey_from_payload("00"*33, 'p2wsh')
+    # invalid size: 11 bytes instead of 20
+    err_msg = "invalid size: "
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_payload("p2wpkh", "00" * 11)
 
-        # Unknown script
-        script = [16, 20 * b"\x00"]
-        self.assertRaises(ValueError, address_from_scriptPubKey, script)
-        # address_from_scriptPubKey(script)
+    # invalid size: 33 bytes instead of 32
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_payload("p2wsh", "00" * 33)
 
-        # Unhandled witness version (16)
-        addr = b32address_from_witness(16, 20 * b"\x00")
-        self.assertRaises(ValueError, scriptPubKey_from_address, addr)
-        # scriptPubKey_from_address(addr)
+    err_msg = "unknown script: "
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey = [16, 20 * b"\x00"]
+        address_from_scriptPubKey(scriptPubKey)
+
+    # Unhandled witness version (16)
+    err_msg = "unmanaged witness version: "
+    address = b32address_from_witness(16, 20 * b"\x00")
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_address(address)
+
+
+def test_p2ms() -> None:
+
+    script_type = "p2ms"
+
+    # self-consistency
+    pubkey1 = (
+        "04"
+        "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+        "f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+    )
+    pubkey2 = (
+        "04"
+        "61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765"
+        "19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
+    )
+    pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(pubkey2)]
+    m = 1
+
+    # straight to the scriptPubKey
+    payload = sorted(pubkeys)
+    n = len(pubkeys)
+    scriptPubKey = encode([m] + payload + [n, "OP_CHECKMULTISIG"])
+    assert scriptPubKey == p2ms(pubkeys, m)
+
+    # to the scriptPubKey in two steps (through payload)
+    assert scriptPubKey == scriptPubKey_from_payload(script_type, pubkeys, m)
+
+    # back from the scriptPubKey to the payload
+    assert (script_type, payload, m) == payload_from_scriptPubKey(scriptPubKey)
+
+    err_msg = "no address for p2ms script"
+    with pytest.raises(ValueError, match=err_msg):
+        address_from_scriptPubKey(scriptPubKey)
+
+    # documented test case: https://learnmeabitcoin.com/guide/p2ms
+    pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(pubkey2)]
+    m = 1
+    n = 2
+    scriptPubKey = (  # fmt: off
+        "51"  # OP_1
+        "41"  # canonical 65-bytes push
+        + pubkey1
+        + "41"  # noqa E148  # canonical 65-bytes push
+        + pubkey2
+        + "52"  # noqa E148  # OP_2
+        "ae"  # OP_CHECKMULTISIG
+    )  # fmt: on
+    assert scriptPubKey == p2ms(pubkeys, 1, lexicographic_sort=False).hex()
+
+    err_msg = "number-of-pubkeys < m in "
+    with pytest.raises(ValueError, match=err_msg):
+        p2ms(pubkeys, 3)
+
+    err_msg = "invalid m for p2ms script: "
+    with pytest.raises(ValueError, match=err_msg):
+        p2ms(pubkeys, 0)
+
+    err_msg = "not a private or public key: "
+    with pytest.raises(ValueError, match=err_msg):
+        p2ms([pubkey1 + "00", pubkey2], 1)
+
+    err_msg = "too many pubkeys in m-of-n multisignature: "
+    with pytest.raises(ValueError, match=err_msg):
+        p2ms([pubkey1] * 17, 3)
+
+    err_msg = "invalid size: "
+    badpubkeys = sorted(pubkeys)
+    badpubkeys[0] = badpubkeys[0] + b"\x00"
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_payload(script_type, badpubkeys, m)
+
+    scriptPubKey = encode([m] + sorted(badpubkeys) + [n, "OP_CHECKMULTISIG"])
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
+
+    err_msg = "invalid key in p2ms"
+    scriptPubKey = encode([m] + [0, pubkeys[1]] + [n, "OP_CHECKMULTISIG"])
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
+
+    err_msg = "invalid m in m-of-n multisignature: "
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_payload(script_type, pubkeys, 17)
+
+
+def test_p2ms_2() -> None:
+
+    pubkey1 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+    pubkey2 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
+    pubkey3 = "04 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
+    pubkeys = [pubkey1, pubkey2, pubkey3]
+    m = 1
+    n = len(pubkeys)
+    scriptPubKey = [m] + pubkeys + [n, "OP_CHECKMULTISIG"]
+    payload_from_scriptPubKey(scriptPubKey)
+    scriptPubKey_from_payload("p2ms", pubkeys, m)
+
+    err_msg = "invalid list of Octets for p2sh script"
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_payload("p2sh", pubkeys, 0)
+
+    err_msg = "invalid number of pubkeys in "
+    scriptPubKey = [1, 3, "OP_CHECKMULTISIG"]
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
+
+    err_msg = "wrong number of pubkeys in "
+    scriptPubKey = [1, pubkey1, pubkey2, 3, "OP_CHECKMULTISIG"]
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
+
+    err_msg = "invalid number of pubkeys in "
+    scriptPubKey = [3, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
+
+    err_msg = "invalid m in m-of-n multisignature: "
+    scriptPubKey = [0, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
+
+    scriptPubKey = encode([1, pubkey1, pubkey2, pubkey3, 3, "OP_CHECKMULTISIG"])
+    scriptPubKey = scriptPubKey[:133] + b"\x40" + scriptPubKey[134:]
+    err_msg = "wrong number of pubkeys in "
+    with pytest.raises(ValueError, match=err_msg):
+        payload_from_scriptPubKey(scriptPubKey)
 
 
 def test_p2ms_3() -> None:
@@ -601,38 +506,14 @@ def test_p2ms_3() -> None:
     ]
     m = 1
     n = len(pubkeys)
-    script = scriptPubKey_from_payload("p2ms", pubkeys, m)
+    scriptPubKey = scriptPubKey_from_payload("p2ms", pubkeys, m)
     pubkeys.sort()
     exp_script = encode([m] + pubkeys + [n, "OP_CHECKMULTISIG"])
-    assert script.hex() == exp_script.hex()
-    script_type, payload, m2 = payload_from_scriptPubKey(script)
+    assert scriptPubKey.hex() == exp_script.hex()
+    script_type, payload, m2 = payload_from_scriptPubKey(scriptPubKey)
     assert script_type == "p2ms"
     assert m == m2
     assert pubkeys == payload
-
-
-def test_nulldata2() -> None:
-
-    script_type = "nulldata"
-
-    # max length case
-    byte = b"\x00"
-    for length in (0, 1, 16, 17, 74, 75, 76, 77, 78, 79, 80):
-        payload = byte * length
-        script = encode(["OP_RETURN", payload]).hex()
-
-        scriptPubKey = scriptPubKey_from_payload(script_type, payload)
-        assert scriptPubKey.hex() == script
-
-        # back from the scriptPubKey to the payload
-        script_type2, payload2, m2 = payload_from_scriptPubKey(scriptPubKey)
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
-        script_type2, payload2, m2 = payload_from_scriptPubKey(decode(script))
-        assert script_type == script_type2
-        assert 0 == m2
-        assert payload.hex() == payload2.hex()
 
 
 def test_p2ms_p2sh() -> None:
@@ -648,15 +529,15 @@ def test_p2ms_p2sh() -> None:
     for i in test_vectors:
         keys, address = test_vectors[i]
         errmsg = f"Test vector #{int(i)}"
-        script = p2ms(keys, m)
-        addr = base58address.p2sh(script)
+        scriptPubKey = p2ms(keys, m)
+        addr = base58address.p2sh(scriptPubKey)
         assert addr.decode() == address, errmsg
 
-        script = scriptPubKey_from_payload("p2ms", keys, m)
-        addr = base58address.p2sh(script)
+        scriptPubKey = scriptPubKey_from_payload("p2ms", keys, m)
+        addr = base58address.p2sh(scriptPubKey)
         assert addr.decode() == address, errmsg
 
-        script_type, payload, m2 = payload_from_scriptPubKey(script)
+        script_type, payload, m2 = payload_from_scriptPubKey(scriptPubKey)
         assert script_type == "p2ms", errmsg
         for key, k in zip(sorted(keys), payload):
             assert key == k.hex(), errmsg
@@ -682,20 +563,12 @@ def test_CLT() -> None:
     )
     # fmt: on
     payload = sha256(redeem_script)
-    script = "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708"
-
-    scriptPubKey = p2wsh(redeem_script)
-    assert scriptPubKey.hex() == script
-    scriptPubKey = scriptPubKey_from_payload("p2wsh", payload)
-    assert scriptPubKey.hex() == script
+    scriptPubKey = (
+        "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708"
+    )
+    assert scriptPubKey == p2wsh(redeem_script).hex()
+    assert scriptPubKey == scriptPubKey_from_payload("p2wsh", payload).hex()
 
     address = b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
-    address2 = address_from_scriptPubKey(scriptPubKey, network)
-    assert address == address2
-    address2 = b32address_from_witness(0, payload, network)
-    assert address == address2
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    assert address == b32address_from_witness(0, payload, network)

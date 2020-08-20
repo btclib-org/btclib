@@ -54,19 +54,23 @@ def scriptPubKey_from_payload(
     script_type = s_type.lower()
 
     if (script_type == "p2ms") ^ (m != 0):
-        errmsg = f"invalid m ({m}) for {script_type} script"
+        errmsg = f"invalid m for {script_type} script: {m}"
         raise ValueError(errmsg)
 
     if isinstance(payloads, list):
         if script_type == "p2ms":
             if m < 1 or m > 16:
-                raise ValueError(f"invalid m ({m}) in m-of-n multisignature")
+                raise ValueError(f"invalid m in m-of-n multisignature: {m}")
             if lexicographic_sort:
                 # BIP67 compliant
                 payloads = sorted(payloads)
             n = len(payloads)
-            if n < m or n > 16:
-                raise ValueError(f"invalid n ({n}) in {m}-of-{n} multisignature")
+            if n < m:
+                raise ValueError(
+                    f"number-of-pubkeys < m in {m}-of-n multisignature: {n}"
+                )
+            if n > 16:
+                raise ValueError(f"too many pubkeys in m-of-n multisignature: {n}")
             script: List[Token] = [m]
             for key in payloads:
                 key = bytes_from_octets(key, (33, 65))
@@ -80,9 +84,8 @@ def scriptPubKey_from_payload(
         if script_type == "nulldata":
             payload = bytes_from_octets(payloads)
             if len(payload) > 80:
-                msg = f"invalid data lenght ({len(payload)} bytes) "
-                msg += "for nulldata scriptPubKey"
-                raise ValueError(msg)
+                err_msg = f"invalid nulldata script lenght: {len(payload)} bytes "
+                raise ValueError(err_msg)
             script = ["OP_RETURN", payload]
         elif script_type == "p2pk":
             payload = bytes_from_octets(payloads, (33, 65))
@@ -100,7 +103,7 @@ def scriptPubKey_from_payload(
             payload = bytes_from_octets(payloads, 20)
             script = [0, payload]
         else:
-            raise ValueError(f"Unknown script type: {script_type}")
+            raise ValueError(f"unknown script type: {script_type}")
 
     return encode(script)
 
@@ -116,8 +119,8 @@ def payload_from_nulldata_scriptPubKey(script: Script) -> Tuple[str, Payloads, i
     zero_or_one = int(length > 78)
     if s[1 + zero_or_one] != length - 2 - zero_or_one:
         raise ValueError(
-            f"Wrong data lenght ({s[1+zero_or_one]}) in "
-            f"{length}-bytes nulldata script: it should "
+            f"wrong data lenght: {s[1+zero_or_one]} "
+            f"in {length}-bytes nulldata script; it should "
             f"have been {length-2-zero_or_one}: {decode(s)}"
         )
     if length < 78:
@@ -129,12 +132,12 @@ def payload_from_nulldata_scriptPubKey(script: Script) -> Tuple[str, Payloads, i
         # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
         if s[1] != 0x4C:
             raise ValueError(
-                f"Missing OP_PUSHDATA1 (0x4c) in "
+                f"missing OP_PUSHDATA1 (0x4c) in "
                 f"{length}-bytes nulldata script, "
                 f"got {hex(s[1])} instead: {decode(s)}"
             )
         return "nulldata", s[3:], 0
-    raise ValueError("invalid 78 bytes OP_RETURN script length")
+    raise ValueError("invalid 78 bytes nulldata script length")
 
 
 def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
@@ -143,14 +146,14 @@ def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
     script = decode(s)
     m = int(script[0])
     if m < 1 or m > 16:
-        raise ValueError(f"invalid m ({m}) in {m}-of-n multisignature")
+        raise ValueError(f"invalid m in m-of-n multisignature: {m}")
     n = len(script) - 3
     if n < m or n > 16:
-        raise ValueError(f"invalid n ({n}) in {m}-of-{n} multisignature")
+        raise ValueError(f"invalid number of pubkeys in {m}-of-n multisignature: {n}")
     if n != int(script[-2]):
-        errmsg = f"Keys ({n}) / n ({int(script[-2])}) mismatch "
-        errmsg += "in m-of-n multisignature"
-        raise ValueError(errmsg)
+        err_msg = "wrong number of pubkeys "
+        err_msg += f"in {m}-of-{int(script[-2])} multisignature: {n}"
+        raise ValueError(err_msg)
     keys: List[bytes] = []
     for pk in script[1:-2]:
         if isinstance(pk, int):
@@ -194,11 +197,11 @@ def payload_from_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
         return "p2wsh", s[2:], 0
     # Unknow script
     else:
-        errmsg = f"Unknown {len(s)}-bytes script"
-        errmsg += f", starts with {s[:3].hex()}"
-        errmsg += f", ends with {s[-2:].hex()}"
-        errmsg += f": {decode(s)}"
-        raise ValueError(errmsg)
+        err_msg = f"unknown script: {len(s)}-bytes length"
+        err_msg += f", starts with {s[:3].hex()}"
+        err_msg += f", ends with {s[-2:].hex()}"
+        err_msg += f": {decode(s)}"
+        raise ValueError(err_msg)
 
 
 # 1.+2. = 3. scriptPubKey from pubkey/script

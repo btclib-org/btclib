@@ -32,7 +32,7 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
         # also check witness validity
         wv, wp, network, is_script_hash = witness_from_b32address(addr)
         if wv != 0:
-            raise ValueError(f"Unmanaged witness version ({wv})")
+            raise ValueError(f"unmanaged witness version: {wv}")
         if is_script_hash:
             return scriptPubKey_from_payload("p2wsh", wp), network
         else:
@@ -50,11 +50,11 @@ def address_from_scriptPubKey(s: Script, network: str = "mainnet") -> bytes:
 
     script_type, payload, m = payload_from_scriptPubKey(s)
     if script_type == "p2pk":
-        raise ValueError("No address for p2pk script")
+        raise ValueError("no address for p2pk script")
     if script_type == "p2ms" or isinstance(payload, list) or m != 0:
-        raise ValueError("No address for p2ms script")
+        raise ValueError("no address for p2ms script")
     if script_type == "nulldata":
-        raise ValueError("No address for null data script")
+        raise ValueError("no address for null data script")
 
     if script_type == "p2pkh":
         prefix = NETWORKS[network]["p2pkh"]
