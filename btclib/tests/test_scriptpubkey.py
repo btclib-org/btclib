@@ -353,6 +353,10 @@ def test_exceptions() -> None:
     with pytest.raises(ValueError, match=err_msg):
         scriptPubKey_from_payload("p2wsh", "00" * 33)
 
+    err_msg = "unknown script type: "
+    with pytest.raises(ValueError, match=err_msg):
+        scriptPubKey_from_payload("p2unkn", "00" * 32)
+
     err_msg = "unknown script: "
     with pytest.raises(ValueError, match=err_msg):
         scriptPubKey = [16, 20 * b"\x00"]

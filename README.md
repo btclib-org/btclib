@@ -86,3 +86,9 @@ Included features are:
 - [Electrum](https://electrum.org/#home) standard for mnemonic
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, and p2wsh ScriptPubKeys
+- BlockHeader and Block data classes
+- OutPoint, TxIn, TxOut, and TX data classes
+- segwit_v0_sighash
+- [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
+  partially signed bitcoin transactions (PSBT):
+  PsbtIn, PbstOut, and Psbt data classes

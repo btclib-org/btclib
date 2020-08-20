@@ -54,11 +54,11 @@ def encode_der_path(path: str) -> bytes:
     return out
 
 
-_PsbtInput = TypeVar("_PsbtInput", bound="PsbtInput")
+_PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
 
 
 @dataclass
-class PsbtInput:
+class PsbtIn:
     non_witness_utxo: Optional[Tx] = None
     witness_utxo: Optional[TxOut] = None
     partial_sigs: Dict[str, str] = field(default_factory=dict)
@@ -73,7 +73,7 @@ class PsbtInput:
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def decode(cls: Type[_PsbtInput], input_map: Dict[bytes, bytes]) -> _PsbtInput:
+    def decode(cls: Type[_PsbtIn], input_map: Dict[bytes, bytes]) -> _PsbtIn:
         non_witness_utxo = None
         witness_utxo = None
         partial_sigs = {}
@@ -206,11 +206,11 @@ class PsbtInput:
         pass
 
 
-_PsbtOutput = TypeVar("_PsbtOutput", bound="PsbtOutput")
+_PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
 
 @dataclass
-class PsbtOutput:
+class PsbtOut:
     redeem_script: List[Token] = field(default_factory=list)
     witness_script: List[Token] = field(default_factory=list)
     hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
@@ -218,7 +218,7 @@ class PsbtOutput:
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def decode(cls: Type[_PsbtOutput], output_map: Dict[bytes, bytes]) -> _PsbtOutput:
+    def decode(cls: Type[_PsbtOut], output_map: Dict[bytes, bytes]) -> _PsbtOut:
         redeem_script = []
         witness_script = []
         hd_keypaths = {}
@@ -296,8 +296,8 @@ _PSbt = TypeVar("_PSbt", bound="Psbt")
 @dataclass
 class Psbt:
     tx: Tx
-    inputs: List[PsbtInput]
-    outputs: List[PsbtOutput]
+    inputs: List[PsbtIn]
+    outputs: List[PsbtOut]
     version: Optional[int] = 0
     hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
@@ -346,12 +346,12 @@ class Psbt:
         inputs = []
         for _ in range(input_len):
             input_map, data = deserialize_map(data)
-            inputs.append(PsbtInput.decode(input_map))
+            inputs.append(PsbtIn.decode(input_map))
 
         outputs = []
         for i in range(output_len):
             output_map, data = deserialize_map(data)
-            outputs.append(PsbtOutput.decode(output_map))
+            outputs.append(PsbtOut.decode(output_map))
 
         psbt = cls(
             tx=tx,
@@ -472,15 +472,13 @@ def psbt_from_tx(tx: Tx) -> Psbt:
     for input in tx.vin:
         input.scriptSig = []
         input.txinwitness = []
-    inputs = [PsbtInput() for _ in tx.vin]
-    outputs = [PsbtOutput() for _ in tx.vout]
+    inputs = [PsbtIn() for _ in tx.vin]
+    outputs = [PsbtOut() for _ in tx.vout]
     return Psbt(tx=tx, inputs=inputs, outputs=outputs, unknown={})
 
 
 def _combine_field(
-    psbt_map: Union[PsbtInput, PsbtOutput, Psbt],
-    out: Union[PsbtInput, PsbtOutput, Psbt],
-    key: str,
+    psbt_map: Union[PsbtIn, PsbtOut, Psbt], out: Union[PsbtIn, PsbtOut, Psbt], key: str,
 ) -> None:
     item: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(psbt_map, key)
     a: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(out, key)

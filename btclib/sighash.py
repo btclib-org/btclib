@@ -17,12 +17,12 @@ from .utils import bytes_from_octets, hash256
 
 
 # workaround to handle CTransactions
-def get_bytes(a: Union[int, str]) -> bytes:
+def _get_bytes(a: Union[int, str]) -> bytes:
     return int.to_bytes(a, 32, "big") if isinstance(a, int) else bytes.fromhex(a)
 
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
-def SegwitV0SignatureHash(
+def segwit_v0_sighash(
     scriptCode: Octets, transaction: tx.Tx, input_index: int, hashtype: int, amount: int
 ) -> bytes:
 
@@ -30,7 +30,7 @@ def SegwitV0SignatureHash(
     if hashtype_hex[0] != "8":
         hashPrevouts = b""
         for vin in transaction.vin:
-            hashPrevouts += get_bytes(vin.prevout.hash)[::-1]
+            hashPrevouts += _get_bytes(vin.prevout.hash)[::-1]
             hashPrevouts += vin.prevout.n.to_bytes(4, "little")
         hashPrevouts = hash256(hashPrevouts)
     else:
@@ -56,7 +56,7 @@ def SegwitV0SignatureHash(
 
     scriptCode = bytes_from_octets(scriptCode)
 
-    outpoint = get_bytes(transaction.vin[input_index].prevout.hash)[::-1]
+    outpoint = _get_bytes(transaction.vin[input_index].prevout.hash)[::-1]
     outpoint += transaction.vin[input_index].prevout.n.to_bytes(4, "little")
 
     preimage = transaction.nVersion.to_bytes(4, "little")
@@ -118,10 +118,10 @@ def get_sighash(
             scriptCode = _get_witness_v0_scriptCodes(
                 script.decode(transaction.vin[input_index].txinwitness[-1])
             )[0]
-        return SegwitV0SignatureHash(
+        return segwit_v0_sighash(
             bytes.fromhex(scriptCode), transaction, input_index, sighash_type, value
         )
-    raise RuntimeError("Legacy transactions not supported yet")
+    raise RuntimeError("legacy transactions not supported yet")
 
 
 # def sign(

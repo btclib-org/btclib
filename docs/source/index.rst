@@ -54,6 +54,11 @@ The library includes:
 * Electrum standard for mnemonic
 * Script encoding/decoding
 * nulldata, p2pk, p2pkh, multi-sig, p2sh, p2wpkh, and p2wsh ScriptPubKeys
+* BlockHeader and Block data classes
+* OutPoint, TxIn, TxOut, and TX data classes
+* segwit_v0_sighash
+* BIP174 partially signed bitcoin transactions (PSBT):
+  PsbtIn, PbstOut, and Psbt data classes
 
 A very extensive test suite reproduces results from major official sources
 and covers 100%

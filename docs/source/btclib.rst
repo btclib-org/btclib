@@ -84,6 +84,14 @@ btclib.bip39 module
    :undoc-members:
    :show-inheritance:
 
+btclib.blocks module
+--------------------
+
+.. automodule:: btclib.blocks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.bms module
 -----------------
 
@@ -212,6 +220,14 @@ btclib.pedersen module
    :undoc-members:
    :show-inheritance:
 
+btclib.psbt module
+------------------
+
+.. automodule:: btclib.psbt
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.rfc6979 module
 ---------------------
 
@@ -236,10 +252,26 @@ btclib.scriptpubkey module
    :undoc-members:
    :show-inheritance:
 
+btclib.scriptpubkey\_address module
+-----------------------------------
+
+.. automodule:: btclib.scriptpubkey_address
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.secpoint module
 ----------------------
 
 .. automodule:: btclib.secpoint
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.sighash module
+---------------------
+
+.. automodule:: btclib.sighash
    :members:
    :undoc-members:
    :show-inheritance:
@@ -253,7 +285,7 @@ btclib.signtocontract module
    :show-inheritance:
 
 btclib.slip132 module
---------------------
+---------------------
 
 .. automodule:: btclib.slip132
    :members:
@@ -284,6 +316,30 @@ btclib.to\_pubkey module
    :undoc-members:
    :show-inheritance:
 
+btclib.tx module
+----------------
+
+.. automodule:: btclib.tx
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tx\_in module
+--------------------
+
+.. automodule:: btclib.tx_in
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tx\_out module
+---------------------
+
+.. automodule:: btclib.tx_out
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.utils module
 -------------------
 
@@ -299,7 +355,6 @@ btclib.varint module
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Module contents
 ---------------

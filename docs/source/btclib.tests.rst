@@ -68,6 +68,14 @@ btclib.tests.test\_bip39 module
    :undoc-members:
    :show-inheritance:
 
+btclib.tests.test\_blocks module
+--------------------------------
+
+.. automodule:: btclib.tests.test_blocks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.tests.test\_bms module
 -----------------------------
 
@@ -80,6 +88,14 @@ btclib.tests.test\_borromean module
 -----------------------------------
 
 .. automodule:: btclib.tests.test_borromean
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_curve module
+-------------------------------
+
+.. automodule:: btclib.tests.test_curve
    :members:
    :undoc-members:
    :show-inheritance:
@@ -148,10 +164,26 @@ btclib.tests.test\_entropy module
    :undoc-members:
    :show-inheritance:
 
+btclib.tests.test\_hashes module
+--------------------------------
+
+.. automodule:: btclib.tests.test_hashes
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.tests.test\_mnemonic module
 ----------------------------------
 
 .. automodule:: btclib.tests.test_mnemonic
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_network module
+---------------------------------
+
+.. automodule:: btclib.tests.test_network
    :members:
    :undoc-members:
    :show-inheritance:
@@ -168,6 +200,14 @@ btclib.tests.test\_pedersen module
 ----------------------------------
 
 .. automodule:: btclib.tests.test_pedersen
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_psbt module
+------------------------------
+
+.. automodule:: btclib.tests.test_psbt
    :members:
    :undoc-members:
    :show-inheritance:
@@ -196,6 +236,30 @@ btclib.tests.test\_scriptpubkey module
    :undoc-members:
    :show-inheritance:
 
+btclib.tests.test\_scriptpubkey\_address module
+-----------------------------------------------
+
+.. automodule:: btclib.tests.test_scriptpubkey_address
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_secpoint module
+----------------------------------
+
+.. automodule:: btclib.tests.test_secpoint
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_sighash module
+---------------------------------
+
+.. automodule:: btclib.tests.test_sighash
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.tests.test\_signtocontract module
 ----------------------------------------
 
@@ -205,7 +269,7 @@ btclib.tests.test\_signtocontract module
    :show-inheritance:
 
 btclib.tests.test\_slip132 module
---------------------------------
+---------------------------------
 
 .. automodule:: btclib.tests.test_slip132
    :members:
@@ -216,6 +280,14 @@ btclib.tests.test\_ssa module
 -----------------------------
 
 .. automodule:: btclib.tests.test_ssa
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_to\_key module
+---------------------------------
+
+.. automodule:: btclib.tests.test_to_key
    :members:
    :undoc-members:
    :show-inheritance:
@@ -236,6 +308,14 @@ btclib.tests.test\_to\_pubkey module
    :undoc-members:
    :show-inheritance:
 
+btclib.tests.test\_transactions module
+--------------------------------------
+
+.. automodule:: btclib.tests.test_transactions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.tests.test\_utils module
 -------------------------------
 
@@ -251,7 +331,6 @@ btclib.tests.test\_varint module
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Module contents
 ---------------

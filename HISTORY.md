@@ -4,11 +4,17 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
-## v2020.6 (current master, in development, not released yet)
+## v2020.8.20
 
 Major changes includes:
 
-- nothing so far
+- added BlockHeader and Block data classes
+- added OutPoint, TxIn, TxOut, and TX data classes
+- added segwit_v0_sighash
+- added PsbtIn, PbstOut, and Psbt data classes for
+  partially signed bitcoin transactions (BIP174)
+- moved from unitest to pytest, including revision
+  of error messages and tests' logic
 
 ## v2020.5.11
 

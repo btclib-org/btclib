@@ -68,7 +68,7 @@ Explicitly, the recovery flag value is:
 where:
 
 - key_id is the index in the [0, 3] range identifying which of the
-  recovered public keys is the one associated to the address;
+  recovered public keys is the one associated to the address
 - compressed indicates if the address is the hash of the compressed
   public key representation
 - 27 identify a P2PKH address, which is the only kind of address
@@ -77,7 +77,7 @@ where:
   addresses, Electrum also check for P2WPKH-P2SH and P2WPKH
   (SegWit always uses compressed public keys);
   BIP137 (Trezor) uses, instead, 35 and 39 instead of 27
-  for P2WPKH-P2SH and P2WPKH (respectively).
+  for P2WPKH-P2SH and P2WPKH (respectively)
 
 +------+-----+-----------------------------------------------------+
 |  rec | key |                                                     |
