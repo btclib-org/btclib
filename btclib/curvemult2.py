@@ -10,7 +10,6 @@
 
 """Several Elliptic curve point multiplication functions."""
 
-import heapq
 from typing import List, Sequence, Tuple
 
 from .alias import INFJ, Integer, JacPoint, Point
@@ -67,7 +66,7 @@ def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Poin
 
 
 def numberToBase(n, b):
-    "Returns a list of the digits of n written in basis b"
+    # Returns the list of the digits of n written in basis b
 
     if n == 0:
         return [0]
@@ -80,8 +79,7 @@ def numberToBase(n, b):
 
 def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
-    This implementation uses the same idea of "double and add" algorithm,
-    but with scalar radix 3.
+    This implementation uses the same idea of "double and add" algorithm, but with scalar radix 3.
     It is not constant time.
     The input point is assumed to be on curve,
     m is assumed to have been reduced mod n if appropriate
@@ -93,17 +91,6 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     if Q == INFJ:
         return Q
-
-    """
-    Fare array T con Q0, Q1, Q2
-    Pongo
-    R = T[ultima cifra a sinstra nella rapp mod 3 di m]
-    for i = [penultima cifra a sintra...] down to 0
-    R = 3R
-    R = R + T[i]
-    End for
-
-    """
 
     T: List[JacPoint] = []
     T.append(INFJ)
@@ -153,8 +140,8 @@ def _mult_jac_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPo
     if Q == INFJ:
         return Q
 
-    # Forse bisognerebbe modificarlo per renderlo ok anche per w=0
     if w <= 0:
+        # the number cannot be written in basis 1
         raise ValueError(f"w must be strictly positive")
 
     b = pow(2, w)
@@ -205,6 +192,7 @@ def _mult_jac_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> Jac
     m is assumed to have been reduced mod n if appropriate
     (e.g. cyclic groups of order n).
     """
+
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
