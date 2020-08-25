@@ -54,7 +54,9 @@ from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
 from .alias import (
+    BIP32Key,
     HashF,
+    Integer,
     JacPoint,
     Octets,
     Point,
@@ -63,7 +65,6 @@ from .alias import (
     SSASigTuple,
     String,
 )
-from .bip32 import BIP32KeyDict
 from .curve import Curve
 from .curvemult import _double_mult, _mult_jac, _multi_mult
 from .curves import secp256k1
@@ -75,8 +76,11 @@ from .utils import bytes_from_octets, hex_string, int_from_bits
 
 # TODO relax the p_ThreeModFour requirement
 
-
-BIP340PubKey = Union[int, bytes, str, BIP32KeyDict]
+# hex-string or bytes representation of an int
+# 33 or 65 bytes or hex-string
+# BIP32Key as dict or String
+# tuple Point
+BIP340PubKey = Union[Integer, Octets, BIP32Key, Point]
 
 
 def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
@@ -95,6 +99,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
         y_Q = ec.y_quadratic_residue(x_Q, True)
         return x_Q, y_Q
     else:
+        # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
         try:
             x_Q = point_from_pubkey(x_Q, ec)[0]
             y_Q = ec.y_quadratic_residue(x_Q, True)

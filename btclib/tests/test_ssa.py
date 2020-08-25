@@ -18,12 +18,13 @@ from typing import List
 
 import pytest
 
-from btclib import ssa
+from btclib import bip32, ssa
 from btclib.alias import INF, Point
 from btclib.curvemult import _mult_jac, double_mult, mult
 from btclib.curves import CURVES
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
+from btclib.secpoint import bytes_from_point
 from btclib.tests.test_curves import low_card_curves
 from btclib.utils import int_from_bits
 
@@ -142,6 +143,40 @@ def test_bip340_vectors() -> None:
                 assert ssa._verify(m, pubkey, sig), err_msg
             else:
                 assert not ssa._verify(m, pubkey, sig), err_msg
+
+
+def test_point_from_bip340pubkey() -> None:
+
+    q, x_Q = ssa.gen_keys()
+    P = mult(q)
+    # Integer (int)
+    assert ssa.point_from_bip340pubkey(x_Q) == P
+    # Integer (bytes)
+    assert ssa.point_from_bip340pubkey(x_Q.to_bytes(32, byteorder="big")) == P
+    # Integer (hex-str)
+    assert ssa.point_from_bip340pubkey(x_Q.to_bytes(32, byteorder="big").hex()) == P
+    # tuple Point
+    assert ssa.point_from_bip340pubkey(P) == P
+    # 33 bytes
+    assert ssa.point_from_bip340pubkey(bytes_from_point(P)) == P
+    # 33 bytes hex-string
+    assert ssa.point_from_bip340pubkey(bytes_from_point(P).hex()) == P
+    # 65 bytes
+    assert ssa.point_from_bip340pubkey(bytes_from_point(P, compressed=False)) == P
+    # 65 bytes hex-string
+    assert ssa.point_from_bip340pubkey(bytes_from_point(P, compressed=False).hex()) == P
+
+    xpub_dict = bip32.deserialize(
+        "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+    )
+    xpub_dict["key"] = bytes_from_point(P)
+    # BIP32KeyDict
+    assert ssa.point_from_bip340pubkey(xpub_dict) == P
+    # BIP32Key encoded str
+    xpub = bip32.serialize(xpub_dict)
+    assert ssa.point_from_bip340pubkey(xpub) == P
+    # BIP32Key str
+    assert ssa.point_from_bip340pubkey(xpub.decode()) == P
 
 
 def test_low_cardinality() -> None:
