@@ -98,7 +98,7 @@ def test_deserialize() -> None:
     # no harm in deserializing again an already deserialized key
     xprv_dict = bip32.deserialize(xprv_dict)
     xpr2 = bip32.serialize(xprv_dict)
-    assert xpr2.decode(), xprv
+    assert xpr2.decode() == xprv
 
     xpub = bip32.xpub_from_xprv(xprv)
     xpub2 = bip32.xpub_from_xprv(bip32.deserialize(xprv))
