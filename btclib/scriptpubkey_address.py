@@ -45,14 +45,14 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
             return scriptPubKey_from_payload("p2pkh", h160), network
 
 
-def address_from_scriptPubKey(s: Script, network: str = "mainnet") -> bytes:
-    "Return the bech32/base58 address from the input scriptPubKey."
+def address_from_scriptPubKey(scriptPubKey: Script, network: str = "mainnet") -> bytes:
+    "Return the bech32/base58 address from a scriptPubKey."
 
-    script_type, payload, m = payload_from_scriptPubKey(s)
+    script_type, payload, m = payload_from_scriptPubKey(scriptPubKey)
     if script_type == "p2pk":
-        raise ValueError("no address for p2pk script")
+        raise ValueError("no address for p2pk scriptPubKey")
     if script_type == "p2ms" or isinstance(payload, list) or m != 0:
-        raise ValueError("no address for p2ms script")
+        raise ValueError("no address for p2ms scriptPubKey")
     if script_type == "nulldata":
         raise ValueError("no address for null data script")
 

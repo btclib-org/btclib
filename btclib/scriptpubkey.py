@@ -20,7 +20,7 @@ from .script import decode, encode
 from .to_pubkey import pubkeyinfo_from_key
 from .utils import bytes_from_octets
 
-# 1. Hash/WitnessProgram from pubkey/script
+# 1. Hash/WitnessProgram from pubkey/scriptPubKey
 
 # hash160_from_key, hash160_from_script, and hash256_from_script
 # are imported from hashes.py
@@ -54,7 +54,7 @@ def scriptPubKey_from_payload(
     script_type = s_type.lower()
 
     if (script_type == "p2ms") ^ (m != 0):
-        errmsg = f"invalid m for {script_type} script: {m}"
+        errmsg = f"invalid m for {script_type} scriptPubKey: {m}"
         raise ValueError(errmsg)
 
     if isinstance(payloads, list):
@@ -71,14 +71,14 @@ def scriptPubKey_from_payload(
                 )
             if n > 16:
                 raise ValueError(f"too many pubkeys in m-of-n multisignature: {n}")
-            script: List[Token] = [m]
+            scriptPubKey: List[Token] = [m]
             for key in payloads:
                 key = bytes_from_octets(key, (33, 65))
-                script.append(key)
-            script.append(n)
-            script.append("OP_CHECKMULTISIG")
+                scriptPubKey.append(key)
+            scriptPubKey.append(n)
+            scriptPubKey.append("OP_CHECKMULTISIG")
         else:
-            errmsg = f"invalid list of Octets for {script_type} script"
+            errmsg = f"invalid list of Octets for {script_type} scriptPubKey"
             raise ValueError(errmsg)
     else:
         if script_type == "nulldata":
@@ -86,76 +86,91 @@ def scriptPubKey_from_payload(
             if len(payload) > 80:
                 err_msg = f"invalid nulldata script lenght: {len(payload)} bytes "
                 raise ValueError(err_msg)
-            script = ["OP_RETURN", payload]
+            scriptPubKey = ["OP_RETURN", payload]
         elif script_type == "p2pk":
             payload = bytes_from_octets(payloads, (33, 65))
-            script = [payload, "OP_CHECKSIG"]
+            scriptPubKey = [payload, "OP_CHECKSIG"]
         elif script_type == "p2wsh":
             payload = bytes_from_octets(payloads, 32)
-            script = [0, payload]
+            scriptPubKey = [0, payload]
         elif script_type == "p2pkh":
             payload = bytes_from_octets(payloads, 20)
-            script = ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+            scriptPubKey = [
+                "OP_DUP",
+                "OP_HASH160",
+                payload,
+                "OP_EQUALVERIFY",
+                "OP_CHECKSIG",
+            ]
         elif script_type == "p2sh":
             payload = bytes_from_octets(payloads, 20)
-            script = ["OP_HASH160", payload, "OP_EQUAL"]
+            scriptPubKey = ["OP_HASH160", payload, "OP_EQUAL"]
         elif script_type == "p2wpkh":
             payload = bytes_from_octets(payloads, 20)
-            script = [0, payload]
+            scriptPubKey = [0, payload]
         else:
-            raise ValueError(f"unknown script type: {script_type}")
+            raise ValueError(f"unknown scriptPubKey type: {script_type}")
 
-    return encode(script)
+    return encode(scriptPubKey)
 
 
 Payloads = Union[bytes, List[bytes]]
 
 
-def payload_from_nulldata_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
-    s = encode(script) if isinstance(script, list) else bytes_from_octets(script)
-    length = len(s)
+def payload_from_nulldata_scriptPubKey(
+    scriptPubKey: Script,
+) -> Tuple[str, Payloads, int]:
+    scriptPubKey = (
+        encode(scriptPubKey)
+        if isinstance(scriptPubKey, list)
+        else bytes_from_octets(scriptPubKey)
+    )
+    length = len(scriptPubKey)
 
     # nulldata [OP_RETURN, data]
     zero_or_one = int(length > 78)
-    if s[1 + zero_or_one] != length - 2 - zero_or_one:
+    if scriptPubKey[1 + zero_or_one] != length - 2 - zero_or_one:
         raise ValueError(
-            f"wrong data lenght: {s[1+zero_or_one]} "
+            f"wrong data lenght: {scriptPubKey[1+zero_or_one]} "
             f"in {length}-bytes nulldata script; it should "
-            f"have been {length-2-zero_or_one}: {decode(s)}"
+            f"have been {length-2-zero_or_one}: {decode(scriptPubKey)}"
         )
     if length < 78:
         # OP_RETURN, data length, data up to 75 bytes max
         # 0x6A{1 byte data-length}{data (0-75 bytes)}
-        return "nulldata", s[2:], 0
+        return "nulldata", scriptPubKey[2:], 0
     if length > 78:
         # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
         # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
-        if s[1] != 0x4C:
+        if scriptPubKey[1] != 0x4C:
             raise ValueError(
-                f"missing OP_PUSHDATA1 (0x4c) in "
-                f"{length}-bytes nulldata script, "
-                f"got {hex(s[1])} instead: {decode(s)}"
+                f"missing OP_PUSHDATA1 (0x4c) in {length}-bytes nulldata script, "
+                f"got {hex(scriptPubKey[1])} instead: {decode(scriptPubKey)}"
             )
-        return "nulldata", s[3:], 0
+        return "nulldata", scriptPubKey[3:], 0
     raise ValueError("invalid 78 bytes nulldata script length")
 
 
-def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
-    s = encode(script) if isinstance(script, list) else bytes_from_octets(script)
+def payload_from_pms_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]:
+    scriptPubKey = (
+        encode(scriptPubKey)
+        if isinstance(scriptPubKey, list)
+        else bytes_from_octets(scriptPubKey)
+    )
     # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
-    script = decode(s)
-    m = int(script[0])
+    scriptPubKey = decode(scriptPubKey)
+    m = int(scriptPubKey[0])
     if m < 1 or m > 16:
         raise ValueError(f"invalid m in m-of-n multisignature: {m}")
-    n = len(script) - 3
+    n = len(scriptPubKey) - 3
     if n < m or n > 16:
         raise ValueError(f"invalid number of pubkeys in {m}-of-n multisignature: {n}")
-    if n != int(script[-2]):
+    if n != int(scriptPubKey[-2]):
         err_msg = "wrong number of pubkeys "
-        err_msg += f"in {m}-of-{int(script[-2])} multisignature: {n}"
+        err_msg += f"in {m}-of-{int(scriptPubKey[-2])} multisignature: {n}"
         raise ValueError(err_msg)
     keys: List[bytes] = []
-    for pk in script[1:-2]:
+    for pk in scriptPubKey[1:-2]:
         if isinstance(pk, int):
             raise ValueError("invalid key in p2ms")
         key = bytes_from_octets(pk, (33, 65))
@@ -163,45 +178,57 @@ def payload_from_pms_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
     return "p2ms", keys, m
 
 
-def payload_from_scriptPubKey(script: Script) -> Tuple[str, Payloads, int]:
-    "Return (scriptPubKey type, payload, m) from the input script."
+def payload_from_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]:
+    "Return (scriptPubKey type, payload, m) from the input scriptPubKey."
 
-    s = encode(script) if isinstance(script, list) else bytes_from_octets(script)
-    length = len(s)
+    scriptPubKey = (
+        encode(scriptPubKey)
+        if isinstance(scriptPubKey, list)
+        else bytes_from_octets(scriptPubKey)
+    )
+    length = len(scriptPubKey)
 
     # p2pk [pubkey, OP_CHECKSIG]
     # 0x41{65-byte pubkey}AC or 0x21{33-byte pubkey}AC
-    if length == s[0] + 2 and s[0] in (0x41, 0x21) and s[-1] == 0xAC:
-        return "p2pk", s[1:-1], 0
+    if (
+        length == scriptPubKey[0] + 2
+        and scriptPubKey[0] in (0x41, 0x21)
+        and scriptPubKey[-1] == 0xAC
+    ):
+        return "p2pk", scriptPubKey[1:-1], 0
     # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
-    elif s[-1] == 0xAE:
-        return payload_from_pms_scriptPubKey(script)
+    elif scriptPubKey[-1] == 0xAE:
+        return payload_from_pms_scriptPubKey(scriptPubKey)
     # nulldata [OP_RETURN, data]
-    elif length <= 83 and s[0] == 0x6A:
-        return payload_from_nulldata_scriptPubKey(script)
+    elif length <= 83 and scriptPubKey[0] == 0x6A:
+        return payload_from_nulldata_scriptPubKey(scriptPubKey)
     # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
     # 0x76A914{20-byte pubkey_hash}88AC
-    elif length == 25 and s[:3] == b"\x76\xa9\x14" and s[-2:] == b"\x88\xac":
-        return "p2pkh", s[3 : length - 2], 0
+    elif (
+        length == 25
+        and scriptPubKey[:3] == b"\x76\xa9\x14"
+        and scriptPubKey[-2:] == b"\x88\xac"
+    ):
+        return "p2pkh", scriptPubKey[3 : length - 2], 0
     # p2sh [OP_HASH160, script_hash, OP_EQUAL]
     # 0xA914{20-byte script_hash}87
-    elif length == 23 and s[:2] == b"\xa9\x14" and s[-1] == 0x87:
-        return "p2sh", s[2 : length - 1], 0
+    elif length == 23 and scriptPubKey[:2] == b"\xa9\x14" and scriptPubKey[-1] == 0x87:
+        return "p2sh", scriptPubKey[2 : length - 1], 0
     # p2wpkh [0, pubkey_hash]
     # 0x0014{20-byte pubkey_hash}
-    elif length == 22 and s[:2] == b"\x00\x14":
-        return "p2wpkh", s[2:], 0
+    elif length == 22 and scriptPubKey[:2] == b"\x00\x14":
+        return "p2wpkh", scriptPubKey[2:], 0
     # p2wsh [0, script_hash]
     # 0x0020{32-byte script_hash}
-    elif length == 34 and s[:2] == b"\x00\x20":
-        return "p2wsh", s[2:], 0
-    # Unknow script
+    elif length == 34 and scriptPubKey[:2] == b"\x00\x20":
+        return "p2wsh", scriptPubKey[2:], 0
+    # Unknow scriptPubKey
     else:
-        err_msg = f"unknown script: {len(s)}-bytes length"
-        err_msg += f", starts with {s[:3].hex()}"
-        err_msg += f", ends with {s[-2:].hex()}"
-        err_msg += f": {decode(s)}"
-        raise ValueError(err_msg)
+        raise ValueError(
+            f"unknown scriptPubKey: {len(scriptPubKey)}-bytes length"
+            f"; starts with {scriptPubKey[:3].hex()}"
+            f", ends with {scriptPubKey[-2:].hex()}: {decode(scriptPubKey)}"
+        )
 
 
 # 1.+2. = 3. scriptPubKey from pubkey/script
@@ -241,10 +268,10 @@ def p2pkh(key: Key, compressed: Optional[bool] = None) -> bytes:
     return scriptPubKey_from_payload("p2pkh", pubkey_h160)
 
 
-def p2sh(script: Script) -> bytes:
-    "Return the p2sh scriptPubKey of the provided script."
+def p2sh(redeem_script: Script) -> bytes:
+    "Return the p2sh scriptPubKey of the provided redeem script."
 
-    script_h160 = hash160_from_script(script)
+    script_h160 = hash160_from_script(redeem_script)
     return scriptPubKey_from_payload("p2sh", script_h160)
 
 
@@ -258,8 +285,8 @@ def p2wpkh(key: Key) -> bytes:
     return scriptPubKey_from_payload("p2wpkh", pubkey_h160)
 
 
-def p2wsh(wscript: Script) -> bytes:
-    "Return the p2wsh scriptPubKey of the provided script."
+def p2wsh(redeem_script: Script) -> bytes:
+    "Return the p2wsh scriptPubKey of the provided redeem script."
 
-    script_h256 = hash256_from_script(wscript)
+    script_h256 = hash256_from_script(redeem_script)
     return scriptPubKey_from_payload("p2wsh", script_h256)

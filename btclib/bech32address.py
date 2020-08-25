@@ -100,7 +100,7 @@ def _check_witness(witvers: int, witprog: bytes):
             raise ValueError(err_msg)
 
 
-# 1. Hash/WitnessProgram from pubkey/script
+# 1. Hash/WitnessProgram from pubkey/scriptPubKey
 # imported from the hashes module
 
 # 2. bech32 address from WitnessProgram and vice versa
@@ -146,7 +146,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     return witvers, bytes(witprog), network, is_script_hash
 
 
-# 1.+2. = 3. bech32 address from pubkey/script
+# 1.+2. = 3. bech32 address from pubkey/scriptPubKey
 
 
 def p2wpkh(key: Key, network: Optional[str] = None) -> bytes:
@@ -156,7 +156,7 @@ def p2wpkh(key: Key, network: Optional[str] = None) -> bytes:
     return b32address_from_witness(0, h160, network)
 
 
-def p2wsh(wscript: Script, network: str = "mainnet") -> bytes:
-    "Return the p2wsh bech32 address corresponding to a script."
-    h256 = hash256_from_script(wscript)
+def p2wsh(scriptPubKey: Script, network: str = "mainnet") -> bytes:
+    "Return the p2wsh bech32 address corresponding to a scriptPubKey."
+    h256 = hash256_from_script(scriptPubKey)
     return b32address_from_witness(0, h256, network)

@@ -12,9 +12,9 @@
 
 import pytest
 
+from btclib import script
 from btclib.curves import secp256k1 as ec
 from btclib.der import _deserialize, _serialize
-from btclib.script import SIGHASHES
 
 
 def test_der_size() -> None:
@@ -27,10 +27,10 @@ def test_der_size() -> None:
     sig69 = 2 ** 255 - 1, 2 ** 247 - 1
     sig68 = 2 ** 247 - 1, 2 ** 247 - 1
     sigs = [sig8, sig72, sig71, sig70, sig70b, sig69, sig68]
-    lenghts = [8, 72, 71, 70, 70, 69, 68]  # not including SIGHASHES
+    lenghts = [8, 72, 71, 70, 70, 69, 68]  # not including script.SIGHASHES
 
     for lenght, sig in zip(lenghts, sigs):
-        for sighash in SIGHASHES:
+        for sighash in script.SIGHASHES:
             der_sig = _serialize(*sig, sighash)
             r, s, sighash2 = _deserialize(der_sig)
             assert sig == (r, s)
@@ -48,7 +48,7 @@ def test_der_deserialize() -> None:
         _deserialize("not a sig")
 
     sig = 2 ** 255 - 1, 2 ** 247 - 1
-    for sighash in SIGHASHES:
+    for sighash in script.SIGHASHES:
         der_sig = _serialize(*sig, sighash)
         r_size = der_sig[3]
 
@@ -119,7 +119,7 @@ def test_der_serialize() -> None:
     with pytest.raises(ValueError, match=err_msg):
         _serialize(*sig, 0x85)
 
-    for sighash in SIGHASHES:
+    for sighash in script.SIGHASHES:
         err_msg = "scalar r not in 1..n-1: "
         for r in (0, ec.n):
             bad_sig = r, sig[1]

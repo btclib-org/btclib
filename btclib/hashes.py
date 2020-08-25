@@ -34,24 +34,24 @@ def hash160_from_key(
     return h160, network
 
 
-def hash160_from_script(script: Script) -> bytes:
-    """Return the script HASH160 from a private/public key.
+def hash160_from_script(scriptPubKey: Script) -> bytes:
+    """Return the scriptPubKey HASH160 from a private/public key.
 
     HASH160 is RIPEMD160(SHA256).
     """
-    if isinstance(script, list):
-        script = encode(script)
-    return hash160(script)
+    if isinstance(scriptPubKey, list):
+        scriptPubKey = encode(scriptPubKey)
+    return hash160(scriptPubKey)
 
 
-def hash256_from_script(script: Script) -> bytes:
-    """Return the script HASH256 from a private/public key.
+def hash256_from_script(scriptPubKey: Script) -> bytes:
+    """Return the scriptPubKey HASH256 from a private/public key.
 
     HASH256 is SHA256(SHA256).
     """
-    if isinstance(script, list):
-        script = encode(script)
-    return sha256(script)
+    if isinstance(scriptPubKey, list):
+        scriptPubKey = encode(scriptPubKey)
+    return sha256(scriptPubKey)
 
 
 def fingerprint(key: Key, network: Optional[str] = None) -> bytes:

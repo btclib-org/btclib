@@ -27,7 +27,7 @@ from .network import (
 from .scriptpubkey import scriptPubKey_from_payload
 from .utils import bytes_from_octets
 
-# 1. Hash/WitnessProgram from pubkey/script
+# 1. Hash/WitnessProgram from pubkey/scriptPubKey
 # imported from the hashes module
 
 # 2. base58 address from HASH and vice versa
@@ -64,7 +64,7 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
     return prefix, payload[1:], network, is_script_hash
 
 
-# 1.+2. = 3. base58 address from pubkey/script
+# 1.+2. = 3. base58 address from pubkey/scriptPubKey
 
 
 def p2pkh(
@@ -76,9 +76,9 @@ def p2pkh(
     return b58address_from_h160(prefix, h160, network)
 
 
-def p2sh(script: Script, network: str = "mainnet") -> bytes:
-    "Return the p2sh base58 address corresponding to a script."
-    h160 = hash160_from_script(script)
+def p2sh(scriptPubKey: Script, network: str = "mainnet") -> bytes:
+    "Return the p2sh base58 address corresponding to a scriptPubKey."
+    h160 = hash160_from_script(scriptPubKey)
     prefix = NETWORKS[network]["p2sh"]
     return b58address_from_h160(prefix, h160, network)
 
@@ -103,7 +103,7 @@ def b58address_from_witness(wp: Octets, network: str = "mainnet") -> bytes:
     return p2sh(redeem_script, network)
 
 
-# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pubkey/script
+# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pubkey/scriptPubKey
 
 
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> bytes:
@@ -113,7 +113,7 @@ def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> bytes:
     return b58address_from_witness(witprog, network)
 
 
-def p2wsh_p2sh(wscript: Script, network: str = "mainnet") -> bytes:
-    "Return the p2wsh-p2sh base58 address corresponding to a script."
-    witprog = hash256_from_script(wscript)
+def p2wsh_p2sh(reedem_script: Script, network: str = "mainnet") -> bytes:
+    "Return the p2wsh-p2sh base58 address corresponding to a reedem script."
+    witprog = hash256_from_script(reedem_script)
     return b58address_from_witness(witprog, network)

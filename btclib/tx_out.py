@@ -35,6 +35,7 @@ class TxOut:
 
     def serialize(self) -> bytes:
         out = self.nValue.to_bytes(8, "little")
+        # FIXME: use script.serialize instead
         script_bytes = script.encode(self.scriptPubKey)
         out += varint.encode(len(script_bytes))
         out += script_bytes
