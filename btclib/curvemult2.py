@@ -194,6 +194,7 @@ def mult_fixed_window(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp2
     return ec._aff_from_jac(R)
 
 
+# Need some modifies to make it more elegant
 def _mult_jac_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses the method called "sliding window". 
@@ -213,23 +214,68 @@ def _mult_jac_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> Jac
     if w <= 0:
         raise ValueError(f"w must be strictly positive")
 
-    b = pow(2, w)
+    k = w - 1
+    p = pow(2, k)
+
+    P = Q
+    for z in range(k):
+        P = ec._add_jac(P, P)
 
     T: List[JacPoint] = []
-    T.append(INFJ)
-    for i in range(1, b):
+    T.append(P)
+    for i in range(1, p):
         T.append(ec._add_jac(T[i - 1], Q))
 
-    M = numberToBase(m, b)
+    M = numberToBase(m, 2)
 
-    R = T[M[0]]
+    R = INFJ
 
-    for i in range(1, len(M)):
-        for j in range(w):
+    i = 0
+    while i < len(M):
+        if M[i] == 0:
             R = ec._add_jac(R, R)
-        R = ec._add_jac(R, T[M[i]])
+            i += 1
+        else:
+            if (len(M) - i) < w:
+                j = len(M) - i
+            else:
+                j = w
 
+            t = M[i]
+            for a in range(1, j):
+                t = 2 * t + M[i + a]
+
+            if j < w:
+                for b in range(i, (i + j)):
+                    R = ec._add_jac(R, R)
+                    if M[b] == 1:
+                        R = ec._add_jac(R, Q)
+                return R
+
+            else:
+                for c in range(w):
+                    R = ec._add_jac(R, R)
+                R = ec._add_jac(R, T[t - p])
+                i += j
     return R
+
+
+def mult_sliding_window(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
+    """Point multiplication, implemented using 'sliding window' method.
+
+    Computations use Jacobian coordinates and decomposition of m on basis 2.
+    """
+
+    if Q is None:
+        QJ = ec.GJ
+    else:
+        ec.require_on_curve(Q)
+        QJ = _jac_from_aff(Q)
+
+    m = int_from_integer(m) % ec.n
+    w = int_from_integer(w)
+    R = _mult_jac_sliding_window(m, w, QJ, ec)
+    return ec._aff_from_jac(R)
 
 
 def mods(m: int, w: int) -> int:
