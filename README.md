@@ -25,7 +25,7 @@ some of its algorithms could be broken using side-channel attacks.
 [![Code style: black](https://img.shields.io/badge/code%20style-black-%231674b1.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/imports-isort-%231674b1)](https://timothycrosley.github.io/isort/)
 [![Linted with flake8](https://img.shields.io/badge/lint-flake8-%231674b1)](https://flake8.pycqa.org/en/latest/)
-[![Checked with mypy](https://img.shields.io/badge/type--check-mypy-%231674b1)](https://mypy-lang.org/)
+[![Checked with mypy](https://img.shields.io/badge/type--check-mypy-%231674b1)](http://mypy-lang.org/)
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![Build Status](https://travis-ci.org/btclib-org/btclib.svg)](https://travis-ci.org/btclib-org/btclib)
 [![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
