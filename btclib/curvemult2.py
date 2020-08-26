@@ -8,7 +8,15 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Several Elliptic curve point multiplication functions."""
+"""Several Elliptic curve point multiplication functions:
+    - Montgomery Ladder
+    - Scalar multiplication on basis 3
+    - Fixed window
+    - Sliding window
+    - w-ary non-adjacent form (wNAF)
+
+    For the references see mainly https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication
+"""
 
 from typing import List, Sequence, Tuple
 
@@ -47,9 +55,9 @@ def _mult_jac_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
 def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
     """
-    Point multiplication, implemented using 'montgomery ladder' algorithm to run in constant time. 
-    This can be beneficial when timing  measurements are exposed to an attacker performing a side-channel attack. 
-    This algorithm has the same speed as the double-and-add approach except that it computes the same number 
+    Point multiplication, implemented using 'montgomery ladder' algorithm to run in constant time.
+    This can be beneficial when timing  measurements are exposed to an attacker performing a side-channel attack.
+    This algorithm has the same speed as the double-and-add approach except that it computes the same number
     of point additions and doubles regardless of the value of the multiplicand m.
 
     Computations use Jacobian coordinates and binary decomposition of m.
@@ -140,8 +148,8 @@ def _mult_jac_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPo
     if Q == INFJ:
         return Q
 
+    # a number cannot be written in basis 1 (ie w=0)
     if w <= 0:
-        # the number cannot be written in basis 1
         raise ValueError(f"w must be strictly positive")
 
     b = pow(2, w)
@@ -184,7 +192,7 @@ def mult_fixed_window(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp2
 # Need some modifies to make it more elegant
 def _mult_jac_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
-    This implementation uses the method called "sliding window". 
+    This implementation uses the method called "sliding window".
     It has the benefit that the pre-computation stage is roughly half as complex as the normal windowed method .
     It is not constant time.
     For 256-bit scalars choose w=4 or w=5
@@ -270,7 +278,8 @@ def mods(m: int, w: int) -> int:
     # Signed modulo function
     """
     Need minor changes:
-    mods does not work for w=1, since it always gives back 0. However the function in NOT really meant to be used for w=1
+    mods does NOT work for w=1, since it always gives back 0. However the function in NOT really meant to be used for w=1
+    For w=1 it always gives back -1 and enters an infinte loop
     """
 
     w2 = pow(2, w)
@@ -279,13 +288,6 @@ def mods(m: int, w: int) -> int:
         return M - w2
     else:
         return M
-
-
-"""
-Need minor changes:
-2. The list precomputated stores all the values of jQ for j in (-2^w, 2^w), however just the odd values are later used
-
-"""
 
 
 def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -326,13 +328,14 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     b = pow(2, w)
 
-    # The values of even points must be cancelled
+    Q2 = ec._add_jac(Q, Q)
+
     T: List[JacPoint] = []
-    T.append(INFJ)
-    for i in range(1, b):
-        T.append(ec._add_jac(T[i - 1], Q))
-    for i in range(b, (2 * b) - 1):
-        T.append(ec.negate(T[i + 1 - b]))
+    T.append(Q)
+    for i in range(1, (b // 2)):
+        T.append(ec._add_jac(T[i - 1], Q2))
+    for i in range((b // 2), b):
+        T.append(ec.negate(T[i - (b // 2)]))
 
     R = INFJ
 
@@ -340,11 +343,11 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         R = ec._add_jac(R, R)
         if M[j] != 0:
             if M[j] > 0:
-                # It adds the element in position j, which is jQ
-                R = ec._add_jac(R, T[M[j]])
+                # It adds the element jQ
+                R = ec._add_jac(R, T[(M[j] - 1) // 2])
             else:
-                # In this case it adds the opposite of the element in position j, ie -jQ
-                R = ec._add_jac(R, T[b - 1 - M[j]])
+                # In this case it adds the opposite, ie -jQ
+                R = ec._add_jac(R, T[(b // 2) - ((M[j] + 1) // 2)])
 
     return R
 
