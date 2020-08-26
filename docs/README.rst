@@ -2,7 +2,7 @@ Generate btclib documentation with Sphinx
 =========================================
 
 Sphinx is a powerful documentation generator that
-has many great features for writing technical documentation including:
+has many great features for writing technical documentation.
 
 Quick start
 -----------

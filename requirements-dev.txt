@@ -1,3 +1,5 @@
+# packages required to develop, build, and test btclib
+
 check-manifest
 # If your project uses README.rst, uncomment the following:
 # readme_renderer

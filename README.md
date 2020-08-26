@@ -41,6 +41,13 @@ to install (and/or upgrade) it:
 python -m pip install --upgrade btclib
 ```
 
+Some dev tools are required to develop and test btclib;
+they can be installed with:
+
+```shell
+python -m pip install --upgrade -r requirements-dev.txt
+```
+
 * * *
 
 Included features are:
