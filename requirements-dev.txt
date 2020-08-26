@@ -9,6 +9,6 @@ flake8
 mypy
 sphinx
 coverage
-pytest
+pytest > 6
 pytest-xdist
 pytest-cov
