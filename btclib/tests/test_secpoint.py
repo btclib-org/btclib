@@ -39,6 +39,7 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
+@pytest.mark.third
 def test_octets2point() -> None:
     for ec in all_curves.values():
 

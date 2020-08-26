@@ -44,6 +44,7 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
+@pytest.mark.seventh
 def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
@@ -89,6 +90,7 @@ def test_add_jac() -> None:
         assert ec._add_jac(ec.GJ, ec.negate_jac(ec.GJ)) == INFJ
 
 
+@pytest.mark.eighth
 def test_add() -> None:
     for ec in all_curves.values():
 
@@ -108,6 +110,7 @@ def test_add() -> None:
         assert R == ec._aff_from_jac(RJ)
 
 
+@pytest.mark.fourth
 def test_ec_repr() -> None:
     for ec in all_curves.values():
         ec_repr = repr(ec)
@@ -117,6 +120,7 @@ def test_ec_repr() -> None:
         assert str(ec) == str(ec2)
 
 
+@pytest.mark.sixth
 def test_is_on_curve() -> None:
     for ec in all_curves.values():
 
@@ -237,7 +241,7 @@ def test_symmetry() -> None:
         ec.y_quadratic_residue(x_Q, 2)
 
 
-@pytest.mark.second
+@pytest.mark.fifth
 def test_mult_aff_curves() -> None:
     for ec in all_curves.values():
         assert _mult_aff(0, ec.G, ec) == INF
