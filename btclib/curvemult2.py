@@ -278,7 +278,7 @@ def mods(m: int, w: int) -> int:
     # Signed modulo function
     """
     Need minor changes:
-    mods does NOT work for w=1, since it always gives back 0. However the function in NOT really meant to be used for w=1
+    mods does NOT work for w=1. However the function in NOT really meant to be used for w=1
     For w=1 it always gives back -1 and enters an infinte loop
     """
 
