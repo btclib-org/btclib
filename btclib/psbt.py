@@ -478,7 +478,7 @@ def psbt_from_tx(tx: Tx) -> Psbt:
 
 
 def _combine_field(
-    psbt_map: Union[PsbtIn, PsbtOut, Psbt], out: Union[PsbtIn, PsbtOut, Psbt], key: str,
+    psbt_map: Union[PsbtIn, PsbtOut, Psbt], out: Union[PsbtIn, PsbtOut, Psbt], key: str
 ) -> None:
     item: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(psbt_map, key)
     a: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(out, key)

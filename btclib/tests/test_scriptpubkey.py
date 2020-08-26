@@ -300,9 +300,7 @@ def test_p2sh() -> None:
     # invalid size: 21 bytes instead of 20
     err_msg = "invalid size: "
     with pytest.raises(ValueError, match=err_msg):
-        scriptPubKey_from_payload(
-            script_type, "00" * 21,
-        )
+        scriptPubKey_from_payload(script_type, "00" * 21)
 
 
 def test_p2wsh() -> None:

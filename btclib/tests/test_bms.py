@@ -273,7 +273,8 @@ def test_msgsign_p2pkh() -> None:
     assert not bms.verify(msg, add1c, sig1u)
     assert not bms.verify(msg, add1u, sig1c)
 
-    rf, r, s, = sig1c
+    rf, r, s = sig1c
+
     sig1c_malleated_rf = bms.serialize(rf + 1, r, s)
     assert not bms.verify(msg, add1c, sig1c_malleated_rf)
     sig1c_malleated_s = bms.serialize(rf, r, ec.n - s)

@@ -279,7 +279,7 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
 
 
 def binstr_from_rolls(
-    bits: int, dice_sides: int, rolls: List[int], shuffle: bool = True,
+    bits: int, dice_sides: int, rolls: List[int], shuffle: bool = True
 ) -> BinStr:
     """Return raw entropy from the input dice rolls.
 
