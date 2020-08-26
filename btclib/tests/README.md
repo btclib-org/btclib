@@ -2,21 +2,28 @@
 
 ## Required packages
 
+btclib has no required packages, but btclib tests do:
+consider installing the required packages in a dedicated virtual environment.
+
 ```shell
-pip install coverage pytest pytest-cov pytest-xdist
+pip install -r requirements-dev.txt
 ```
 
-## Tests
+## Test
 
 Test execution is distributed across multiple cores,
-with the default number of cores being four:
+with the default number of cores being eight:
 this can be changed in setup.cfg
 
+The ultimate comprehensive way of running the tests is to use tox:
+
 ```shell
-pytest
+tox
 ```
 
-## Tests with Coverage
+If you want to contribute to btclib, please ensure that tox succeeds.
+
+Alternatively, one can run pytest with coverage
 
 ```shell
 pytest --cov-report term-missing:skip-covered --cov=btclib
@@ -28,12 +35,10 @@ Coverage results can also be reported as html at htmlcov/index.html:
 coverage html
 ```
 
-## Test with tox
-
-The ultimate comprehensive way of running the tests is to use tox
+Finally, the fastest test execution can be accomplished running pytest only
 
 ```shell
-tox
+pytest
 ```
 
 ## Profile
