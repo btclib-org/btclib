@@ -19,7 +19,6 @@ Scripts are represented by List[Token], where Token = Union[int, str, bytes]:
 * bytes are for data (but integers are often casted to int)
 """
 
-from io import BytesIO
 from typing import List
 
 from . import varint
@@ -319,20 +318,18 @@ def encode(script: List[Token]) -> bytes:
     return r
 
 
-def decode(script: Octets) -> List[Token]:
+def decode(stream: BinaryData) -> List[Token]:
 
-    script = bytes_from_octets(script)
-
+    s = bytesio_from_binarydata(stream)
     # initialize the result list
     r: List[Token] = []
-
-    length = len(script)
-    s = BytesIO(script)  # TODO: avoid unnecessary streamification
-    counter = 0
-    while counter < length:
-        # get one byte and convert it to an integer
-        i = s.read(1)[0]
-        counter += 1
+    while True:
+        # get one byte
+        t = s.read(1)
+        if not t:
+            break
+        # convert it to an integer
+        i = t[0]
         if i == 0:
             # numeric value 0 (OP_0)
             # r.append(OP_CODE_NAMES[i])
@@ -347,25 +344,21 @@ def decode(script: Octets) -> List[Token]:
         elif i < 76:
             # 1-byte-data-length | data
             data = s.read(i)
-            counter += i
             r.append(data.hex().upper())
         elif i == 76:
             # OP_PUSHDATA1 | 1-byte-data-length | data
             data_length = int.from_bytes(s.read(1), byteorder="little")
             data = s.read(data_length)
-            counter += 1 + data_length
             r.append(data.hex().upper())
         elif i == 77:
             # OP_PUSHDATA2 | 2-byte-data-length | data
             data_length = int.from_bytes(s.read(2), byteorder="little")
             data = s.read(data_length)
-            counter += 2 + data_length
             r.append(data.hex().upper())
         elif i == 78:
             # OP_PUSHDATA4 | 4-byte-data-length | data
             data_length = int.from_bytes(s.read(4), byteorder="little")
             data = s.read(data_length)
-            counter += 4 + data_length
             r.append(data.hex().upper())
         else:
             # OP_CODE
