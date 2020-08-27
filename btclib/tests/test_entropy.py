@@ -31,7 +31,7 @@ from btclib.entropy import (
 )
 
 
-def test_indexes():
+def test_indexes() -> None:
     for entropy in ("0", "00000000000"):
         indexes = _indexes_from_entropy(entropy, 2048)
         assert indexes == [0]
@@ -50,7 +50,7 @@ def test_indexes():
         assert indexes == indx
 
 
-def test_conversions():
+def test_conversions() -> None:
 
     test_vectors = [
         "10101011" * 32,
@@ -111,7 +111,7 @@ def test_conversions():
     assert raw2 == raw[:128]
 
 
-def test_exceptions():
+def test_exceptions() -> None:
     binstr_entropy216 = "00011010" * 27  # 216 bits
     binstr_entropy214 = binstr_entropy216[:-2]  # 214 bits
 
@@ -157,18 +157,17 @@ def test_exceptions():
     with pytest.raises(ValueError, match=err_msg):
         binstr_from_entropy(bytes_entropy216, 224)
 
-    invalid_entropy = tuple()
     err_msg = "Entropy must be raw binary 0/1 string, bytes, or int; not "
     with pytest.raises(TypeError, match=err_msg):
-        binstr_from_entropy(invalid_entropy)
+        binstr_from_entropy(tuple())  # type: ignore
 
     err_msg = "Entropy must be an int, not "
     with pytest.raises(TypeError, match=err_msg):
-        binstr_from_int("not an int")
+        binstr_from_int("not an int")  # type: ignore
 
     err_msg = "Entropy must be a str, not "
     with pytest.raises(TypeError, match=err_msg):
-        binstr_from_binstr(3)
+        binstr_from_binstr(3)  # type: ignore
 
 
 inputs: List[StringIO] = []
@@ -190,12 +189,12 @@ def test_collect_rolls(monkeypatch):
         bits_per_roll = math.floor(math.log2(sides))
         base = 2 ** bits_per_roll
         for roll in dice_rolls:
-            assert 0 < roll and roll <= base
+            assert roll > 0 and roll <= base
         min_roll_number = math.ceil(bits / bits_per_roll)
         assert len(dice_rolls) == min_roll_number
 
 
-def test_binstr_from_rolls():
+def test_binstr_from_rolls() -> None:
     bits = 256
     dice_base = 20
     bits_per_roll = math.floor(math.log2(dice_base))
@@ -251,17 +250,17 @@ def test_binstr_from_rolls():
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     rolls[1] = dice_base + 1
-    err_msg = "Invalid roll: "  # 21 is not in [1-20]
+    err_msg = "invalid roll: "  # 21 is not in [1-20]
     with pytest.raises(ValueError, match=err_msg):
         binstr_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
-    err_msg = "Invalid dice base: "
+    err_msg = "invalid dice base: "
     with pytest.raises(ValueError, match=err_msg):
         binstr_from_rolls(bits, 1, rolls)
 
 
-def test_randbinstr():
+def test_randbinstr() -> None:
     for hash in (True, False):
         bits = 256
         binstr = randbinstr(bits, hash=hash)

@@ -22,7 +22,7 @@ from btclib.curves import CURVES
 from btclib.rfc6979 import rfc6979
 
 
-def test_rfc6979():
+def test_rfc6979() -> None:
     # source: https://bitcointalk.org/index.php?topic=285142.40
     msg = "Satoshi Nakamoto"
     x = 0x1
@@ -31,7 +31,7 @@ def test_rfc6979():
     assert k == k2
 
 
-def test_rfc6979_example():
+def test_rfc6979_example() -> None:
     class _helper:
         def __init__(self, n: int) -> None:
             self.n = n
@@ -43,11 +43,11 @@ def test_rfc6979_example():
     x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272F
     msg = "sample"
     k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
-    assert k == rfc6979(msg, x, fake_ec)
+    assert k == rfc6979(msg, x, fake_ec)  # type: ignore
 
 
 @pytest.mark.second
-def test_rfc6979_tv():
+def test_rfc6979_tv() -> None:
 
     fname = "rfc6979.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
@@ -63,13 +63,13 @@ def test_rfc6979_tv():
             k2 = rfc6979(msg, x, ec, eval("hashlib." + hf))
             assert k == hex(k2)
             # test RFC6979 usage in DSA
-            sig = dsa.sign(msg, x, k2, ec, eval("hashlib." + hf))
+            sig = dsa.sign(msg, x, k2, False, ec, eval("hashlib." + hf))
             assert r == hex(sig[0])
-            assert s in (hex(sig[1]), hex(ec.n - sig[1]))
+            assert s == hex(sig[1])
             # test that RFC6979 is the default nonce for DSA
-            sig = dsa.sign(msg, x, k=None, ec=ec, hf=eval("hashlib." + hf))
+            sig = dsa.sign(msg, x, k=None, low_s=False, ec=ec, hf=eval("hashlib." + hf))
             assert r == hex(sig[0])
-            assert s in (hex(sig[1]), hex(ec.n - sig[1]))
+            assert s == hex(sig[1])
             # test key-pair coherence
             U = mult(x, ec.G, ec)
             assert (int(x_U, 16), int(y_U, 16)) == U

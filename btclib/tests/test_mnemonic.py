@@ -14,10 +14,14 @@ from os import path
 
 import pytest
 
-from btclib.mnemonic import _indexes_from_mnemonic, _mnemonic_from_indexes, _wordlists
+from btclib.mnemonic import (
+    _indexes_from_mnemonic,
+    _mnemonic_from_indexes,
+    _wordlists,
+)
 
 
-def test_mnemonic():
+def test_mnemonic() -> None:
     lang = "en"
     mnem = (
         "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
@@ -29,7 +33,7 @@ def test_mnemonic():
     assert mnemonic == mnem
 
 
-def test_wordlist_1():
+def test_wordlist_1() -> None:
     lang = "en"
     d = _wordlists.wordlist(lang)
     assert isinstance(d, list)
@@ -38,7 +42,7 @@ def test_wordlist_1():
     assert length == 2048
 
 
-def test_wordlist_2():
+def test_wordlist_2() -> None:
     lang = "fakeen"
     # missing file for language 'fakeen''
     err_msg = "Missing file for language 'fakeen'"
@@ -48,7 +52,7 @@ def test_wordlist_2():
     # dictionary length (must be a power of two
     fname = "fakeenglish.txt"
     filename = path.join(path.dirname(__file__), "test_data", fname)
-    err_msg = "Invalid wordlist length: "
+    err_msg = "invalid wordlist length: "
     with pytest.raises(ValueError, match=err_msg):
         _wordlists.load_lang(lang, filename)
 

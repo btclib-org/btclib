@@ -21,7 +21,7 @@ secp256r1 = CURVES["secp256r1"]
 secp384r1 = CURVES["secp384r1"]
 
 
-def test_second_generator():
+def test_second_generator() -> None:
     """
     important remarks on secp256-zkp prefix for
     compressed encoding of the second generator:
@@ -38,7 +38,7 @@ def test_second_generator():
     H = pedersen.second_generator(secp384r1, sha384)
 
 
-def test_commitment():
+def test_commitment() -> None:
 
     ec = secp256k1
     hf = sha256
@@ -61,6 +61,6 @@ def test_commitment():
     assert ec.add(C1, C2) == R
 
     # commit does not open (with catched exception)
-    assert not pedersen.open((r1, r1), v1, C2, ec, hf)
+    assert not pedersen.open((r1, r1), v1, C2, ec, hf)  # type: ignore
     with pytest.raises(TypeError, match="not an Integer"):
-        pedersen.commit((r1, r1), v1, ec, hf)
+        pedersen.commit((r1, r1), v1, ec, hf)  # type: ignore

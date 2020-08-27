@@ -21,19 +21,31 @@ some of its algorithms could be broken using side-channel attacks.
 
 * * *
 
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-%231674b1.svg)](https://github.com/psf/black)
+[![Imports: isort](https://img.shields.io/badge/imports-isort-%231674b1)](https://timothycrosley.github.io/isort/)
+[![Linted with flake8](https://img.shields.io/badge/lint-flake8-%231674b1)](https://flake8.pycqa.org/en/latest/)
+[![Checked with mypy](https://img.shields.io/badge/type--check-mypy-%231674b1)](http://mypy-lang.org/)
+[![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![Build Status](https://travis-ci.org/btclib-org/btclib.svg)](https://travis-ci.org/btclib-org/btclib)
 [![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
 [![Coverage Status](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?branch=master)](https://coveralls.io/github/btclib-org/btclib?branch=master)
 [![PyPI status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
-[![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
-[![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
+[![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib)
 
 btclib does not have external requirements or dependencies;
 to install (and/or upgrade) it:
 
 ```shell
-python -m pip install --upgrade btclib
+pip install --upgrade btclib
+```
+
+Some dev tools are required to develop and test btclib;
+they can be installed with:
+
+```shell
+pip install --upgrade -r requirements-dev.txt
 ```
 
 * * *
@@ -72,8 +84,18 @@ Included features are:
 - p2wpkh/p2wsh native SegWit addresses and their legacy p2sh-wrapped versions
 - [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
   hierarchical deterministic key chains
+- [SLIP132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md)
+  key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
+  with corresponding mapping to
+  p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, and p2wsh addresses
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, and p2wsh ScriptPubKeys
+- BlockHeader and Block data classes
+- OutPoint, TxIn, TxOut, and TX data classes
+- segwit_v0_sighash
+- [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
+  partially signed bitcoin transactions (PSBT):
+  PsbtIn, PbstOut, and Psbt data classes

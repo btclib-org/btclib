@@ -46,7 +46,7 @@ from typing import Iterable, List, Optional, Tuple
 
 from .alias import Key, Octets, Script, String
 from .bech32 import b32decode, b32encode
-from .hashes import hash160_from_pubkey, hash256_from_script
+from .hashes import hash160_from_key, hash256_from_script
 from .network import NETWORKS, network_from_key_value
 from .utils import bytes_from_octets
 
@@ -64,7 +64,7 @@ def _convertbits(
     max_acc = (1 << (frombits + tobits - 1)) - 1
     for value in data:
         if value < 0 or (value >> frombits):
-            raise ValueError(f"invalid value {value}")
+            raise ValueError(f"invalid value in _convertbits: {value}")
         acc = ((acc << frombits) | value) & max_acc
         bits += frombits
         while bits >= tobits:
@@ -74,8 +74,10 @@ def _convertbits(
     if pad:
         if bits:
             ret.append((acc << (tobits - bits)) & maxv)
-    elif bits >= frombits or ((acc << (tobits - bits)) & maxv):
-        raise ValueError("failure")
+    elif bits >= frombits:
+        raise ValueError("zero padding of more than 4 bits in 8-to-5 conversion")
+    elif (acc << (tobits - bits)) & maxv:
+        raise ValueError("non-zero padding in 8-to-5 conversion")
 
     return ret
 
@@ -84,16 +86,21 @@ def _check_witness(witvers: int, witprog: bytes):
     length = len(witprog)
     if witvers == 0:
         if length not in (20, 32):
-            raise ValueError(f"witness program length ({length}) " "is not 20 or 32")
-    elif witvers > 16 or witvers < 0:
-        msg = f"witness version ({witvers}) not in [0, 16]"
-        raise ValueError(msg)
+            err_msg = "invalid witness program length for witness version zero: "
+            err_msg += f"{length} instead of 20 or 32"
+            raise ValueError(err_msg)
+    elif witvers < 0 or witvers > 16:
+        err_msg = "invalid witness version: "
+        err_msg += f"{witvers} not in 0..16"
+        raise ValueError(err_msg)
     else:
         if length < 2 or length > 40:
-            raise ValueError(f"witness program length ({length}) " "not in [2, 40]")
+            err_msg = "invalid witness program length for witness version zero: "
+            err_msg += f"{length}, not in 2..40"
+            raise ValueError(err_msg)
 
 
-# 1. Hash/WitnessProgram from pubkey/script
+# 1. Hash/WitnessProgram from pubkey/scriptPubKey
 # imported from the hashes module
 
 # 2. bech32 address from WitnessProgram and vice versa
@@ -121,7 +128,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     # the following check was originally in b32decode
     # but it does not pertain there
     if len(b32addr) > 90:
-        raise ValueError(f"Bech32 address length ({len(b32addr)}) > 90")
+        raise ValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
 
     hrp, data = b32decode(b32addr)
 
@@ -129,31 +136,27 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     network = network_from_key_value("p2w", hrp)
 
     if len(data) == 0:
-        raise ValueError("Bech32 address with empty data")
+        raise ValueError(f"empty data in bech32 address: {b32addr!r}")
 
     witvers = data[0]
     witprog = _convertbits(data[1:], 5, 8, False)
     _check_witness(witvers, bytes(witprog))
 
-    if witvers == 0 and len(witprog) == 20:
-        is_script_hash = False
-    else:
-        is_script_hash = True
-
+    is_script_hash = False if witvers == 0 and len(witprog) == 20 else True
     return witvers, bytes(witprog), network, is_script_hash
 
 
-# 1.+2. = 3. bech32 address from pubkey/script
+# 1.+2. = 3. bech32 address from pubkey/scriptPubKey
 
 
 def p2wpkh(key: Key, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh bech32 address corresponding to a public key."
     compressed = True  # needed to force check on pubkey
-    h160, network = hash160_from_pubkey(key, network, compressed)
+    h160, network = hash160_from_key(key, network, compressed)
     return b32address_from_witness(0, h160, network)
 
 
-def p2wsh(wscript: Script, network: str = "mainnet") -> bytes:
-    "Return the p2wsh bech32 address corresponding to a script."
-    h256 = hash256_from_script(wscript)
+def p2wsh(scriptPubKey: Script, network: str = "mainnet") -> bytes:
+    "Return the p2wsh bech32 address corresponding to a scriptPubKey."
+    h256 = hash256_from_script(scriptPubKey)
     return b32address_from_witness(0, h256, network)

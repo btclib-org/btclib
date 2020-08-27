@@ -2,7 +2,7 @@ Generate btclib documentation with Sphinx
 =========================================
 
 Sphinx is a powerful documentation generator that
-has many great features for writing technical documentation including:
+has many great features for writing technical documentation.
 
 Quick start
 -----------
@@ -11,7 +11,7 @@ Assuming you have Python already, `install Sphinx`_:
 
 .. sourcecode:: bash
 
-    $ python -m pip install --upgrade sphinx
+    $ pip install --upgrade sphinx
 
 
 Move into the btclib directory and autogenerate docs:

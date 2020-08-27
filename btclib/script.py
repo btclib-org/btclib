@@ -20,11 +20,11 @@ Scripts are represented by List[Token], where Token = Union[int, str, bytes]:
 """
 
 from io import BytesIO
-from typing import BinaryIO, List, Union
+from typing import List
 
 from . import varint
-from .alias import Octets, Token
-from .utils import bytes_from_octets
+from .alias import BinaryData, Octets, Token
+from .utils import bytes_from_octets, bytesio_from_binarydata
 
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
@@ -251,7 +251,7 @@ def _op_pushdata(data: Octets) -> bytes:
     data = bytes_from_octets(data)
     r = b""
     length = len(data)
-    if length < 75:  # 1-byte-length
+    if length < 76:  # 1-byte-length
         r += length.to_bytes(1, byteorder="little")
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
         r += OP_CODES["OP_PUSHDATA1"]
@@ -264,7 +264,7 @@ def _op_pushdata(data: Octets) -> bytes:
         # there is no need to use OP_PUSHDATA4
         # r += OP_CODES['OP_PUSHDATA4']
         # r += length.to_bytes(4, byteorder='little')
-        raise ValueError(f"Cannot push {length} bytes on the stack")
+        raise ValueError(f"Too many bytes for OP_PUSHDATA: {length}")
     r += data
     return r
 
@@ -280,8 +280,16 @@ def _op_int(token: int) -> bytes:
     # explicit push operation of its bytes encoding
     # FIXME: negative numbers?
     else:
-        nbytes = (token.bit_length() + 7) // 8
-        data = token.to_bytes(nbytes, byteorder="little")
+        v = token
+        # Convert number to bitcoin-specific little endian format
+        # We need v.bit_length() bits, plus a sign bit for every nonzero number.
+        n_bits = v.bit_length() + (v != 0)
+        # The number of bytes for that is:
+        n_bytes = (n_bits + 7) // 8
+        # Convert number to absolute value + sign in top bit.
+        encoded_v = 0 if v == 0 else abs(v) | ((v < 0) << (n_bytes * 8 - 1))
+        # Serialize to bytes
+        data = encoded_v.to_bytes(n_bytes, "little")
         return _op_pushdata(data)
 
 
@@ -293,7 +301,7 @@ def _op_str(token: str) -> bytes:
     try:
         data = bytes.fromhex(token)
     except Exception:
-        raise ValueError(f"Invalid string token: {token}")
+        raise ValueError(f"invalid string token: {token}")
     return _op_pushdata(data)
 
 
@@ -373,13 +381,9 @@ def serialize(script: List[Token]) -> bytes:
     return varint.encode(length) + r
 
 
-def deserialize(stream: Union[BinaryIO, Octets]) -> List[Token]:
+def deserialize(stream: BinaryData) -> List[Token]:
 
-    if isinstance(stream, str):
-        stream = bytes_from_octets(stream)
-
-    if isinstance(stream, bytes):
-        stream = BytesIO(stream)
+    stream = bytesio_from_binarydata(stream)
 
     length = varint.decode(stream)
     script = stream.read(length)

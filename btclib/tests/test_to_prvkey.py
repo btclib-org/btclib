@@ -40,7 +40,7 @@ from btclib.to_prvkey import int_from_prvkey, prvkeyinfo_from_prvkey
 # FIXME: fix error messages
 
 
-def test_from_prvkey():
+def test_from_prvkey() -> None:
 
     secp256r1 = CURVES["secp256r1"]
     m_c = (q, "mainnet", True)

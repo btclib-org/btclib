@@ -57,7 +57,7 @@ primes = [
 ]
 
 
-def test_mod_inv_prime():
+def test_mod_inv_prime() -> None:
     for p in primes:
         with pytest.raises(ValueError, match="No inverse for 0 mod"):
             mod_inv(0, p)
@@ -68,7 +68,7 @@ def test_mod_inv_prime():
             assert a * inv % p == 1
 
 
-def test_mod_inv():
+def test_mod_inv() -> None:
     max_m = 100
     for m in range(2, max_m):
         nums = list(range(m))
@@ -85,11 +85,9 @@ def test_mod_inv():
                     mod_inv(a, m)
 
 
-def test_mod_sqrt():
+def test_mod_sqrt() -> None:
     for p in primes[:30]:  # exhaustable only for small p
-        has_root = set()
-        has_root.add(0)
-        has_root.add(1)
+        has_root = {0, 1}
         for i in range(2, p):
             has_root.add(i * i % p)
         for i in range(p):
@@ -107,7 +105,7 @@ def test_mod_sqrt():
                     mod_sqrt(i, p)
 
 
-def test_mod_sqrt2():
+def test_mod_sqrt2() -> None:
     # https://rosettacode.org/wiki/Tonelli-Shanks_algorithm#Python
     ttest = [
         (10, 13),
@@ -123,7 +121,7 @@ def test_mod_sqrt2():
         assert i == (root * root) % p
 
 
-def test_minus_one_quadr_res():
+def test_minus_one_quadr_res() -> None:
     "Ensure that if p = 3 (mod 4) then p - 1 is not a quadratic residue"
     for p in primes:
         if (p % 4) == 3:

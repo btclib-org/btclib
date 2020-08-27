@@ -17,7 +17,7 @@ from .curvemult import mult
 from .curves import secp256k1
 from .network import (
     NETWORKS,
-    curve_from_xpubversion,
+    curve_from_xkeyversion,
     network_from_xkeyversion,
     xpubversions_from_network,
 )
@@ -36,7 +36,7 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
         xpub = bip32.deserialize(xpub)
 
     if xpub["key"][0] in (2, 3):
-        ec2 = curve_from_xpubversion(xpub["version"])
+        ec2 = curve_from_xkeyversion(xpub["version"])
         if ec != ec2:
             raise ValueError(f"ec/xpub version ({xpub['version'].hex()}) mismatch")
         return point_from_octets(xpub["key"], ec)
@@ -159,7 +159,14 @@ def pubkeyinfo_from_key(
     try:
         return pubkeyinfo_from_prvkey(key, network, compressed)
     except Exception:
-        raise ValueError(f"Not a public (or even private) key: {key!r}")
+        err_msg = "not a private or"
+        if compressed is not None:
+            err_msg += " compressed" if compressed else " uncompressed"
+        err_msg += " public key"
+        if network is not None:
+            err_msg += f" for {network}"
+        err_msg += f": {key!r}"
+        raise ValueError(err_msg)
 
 
 def pubkeyinfo_from_pubkey(

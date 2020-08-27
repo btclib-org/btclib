@@ -10,7 +10,7 @@
 
 """Elliptic curve classes."""
 
-from math import sqrt
+from math import ceil, sqrt
 from typing import Union
 
 from .alias import INF, INFJ, Integer, JacPoint, Point
@@ -56,7 +56,8 @@ class CurveGroup:
             raise ValueError(err_msg)
 
         plen = p.bit_length()
-        self.psize = (plen + 7) // 8
+        # byte-lenght
+        self.psize = ceil(plen / 8)
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = p % 4 == 3
         self.p = p
@@ -106,11 +107,7 @@ class CurveGroup:
 
     def __repr__(self) -> str:
         result = "Curve("
-        if self.p > _HEXTHRESHOLD:
-            result += f"'{hex_string(self.p)}'"
-        else:
-            result += f"{self.p}"
-
+        result += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
         if self._a > _HEXTHRESHOLD or self._b > _HEXTHRESHOLD:
             result += f", '{hex_string(self._a)}', '{hex_string(self._b)}'"
         else:
@@ -121,18 +118,27 @@ class CurveGroup:
 
     # methods using p: they could become functions
 
-    def negate(self, Q: Union[Point, JacPoint]) -> Union[Point, JacPoint]:
+    def negate(self, Q: Point) -> Point:
         """Return the opposite point.
 
         The input point is not checked to be on the curve.
         """
+        # % self.p is required to account for INF (i.e. Q[1]==0)
+        # so that negate(INF) = INF
         if len(Q) == 2:
-            # % self.p is required to account for INF (i.e. Q[1]==0)
-            # so that negate(INF) = INF
             return Q[0], (self.p - Q[1]) % self.p
+        raise TypeError("not a point")
+
+    def negate_jac(self, Q: JacPoint) -> JacPoint:
+        """Return the opposite Jacobian point.
+
+        The input point is not checked to be on the curve.
+        """
+        # % self.p is required to account for INF (i.e. Q[1]==0)
+        # so that negate(INF) = INF
         if len(Q) == 3:
             return Q[0], (self.p - Q[1]) % self.p, Q[2]
-        raise TypeError("not a point")
+        raise TypeError("not a Jacobian point")
 
     def _aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve
@@ -163,9 +169,7 @@ class CurveGroup:
             return False
         PJ3 = PJ2 * PJ[2]
         QJ3 = QJ2 * QJ[2]
-        if QJ[1] * PJ3 % self.p != PJ[1] * QJ3 % self.p:
-            return False
-        return True
+        return QJ[1] * PJ3 % self.p == PJ[1] * QJ3 % self.p
 
     # methods using _a, _b, _p
 
@@ -244,7 +248,7 @@ class CurveGroup:
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to keep this method private
-        return ((x * x + self._a) * x + self._b) % self.p
+        return ((x ** 2 + self._a) * x + self._b) % self.p
 
     def y(self, x: int) -> int:
         """Return the y coordinate from x, as in (x, y)."""
@@ -252,9 +256,11 @@ class CurveGroup:
             err_msg = "x-coordinate not in 0..p-1: "
             err_msg += f"{hex_string(x)}" if x > _HEXTHRESHOLD else f"{x}"
             raise ValueError(err_msg)
-        y2 = self._y2(x)
-        # mod_sqrt will raise a ValueError if root does not exist
-        return mod_sqrt(y2, self.p)
+        try:
+            y2 = self._y2(x)
+            return mod_sqrt(y2, self.p)
+        except Exception:
+            raise ValueError("invalid x-coordinate")
 
     def require_on_curve(self, Q: Point) -> None:
         """Require the input curve Point to be on the curve.
@@ -282,7 +288,8 @@ class CurveGroup:
         if len(Q) == 2:
             return legendre_symbol(Q[1], self.p) == 1
         if len(Q) == 3:
-            return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1
+            # FIXME: do not ignore
+            return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1  # type: ignore
         raise TypeError("not a point")
 
     def require_p_ThreeModFour(self) -> None:
@@ -341,8 +348,8 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         raise ValueError(f"negative m: {hex(m)}")
 
     # there is not a compelling reason to optimize for INF, even if possible
-    # if Q[1] == 0:  # Infinity point, affine coordinates
-    #     return INF  # return Infinity point
+    # if Q[1] == 0 or m == 0:  # Infinity point, affine coordinates
+    #    return INF  # return Infinity point
     R = INF  # initialize as infinity point
     while m > 0:  # use binary representation of m
         if m & 1:  # if least significant bit is 1

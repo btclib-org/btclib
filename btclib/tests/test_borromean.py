@@ -11,7 +11,6 @@
 "Tests for `btclib.borromean` module."
 
 import secrets
-import unittest
 from collections import defaultdict
 from typing import Dict, List
 
@@ -19,31 +18,24 @@ from btclib import borromean, dsa
 from btclib.alias import Point
 
 
-class TestBorromeanRingSignature(unittest.TestCase):
-    def test_borromean(self):
-        nring = 4  # FIXME randomize; minimum number of rings?
-        ring_sizes = [1 + secrets.randbelow(7) for _ in range(nring)]
-        sign_key_idx = [secrets.randbelow(size) for size in ring_sizes]
+def test_borromean() -> None:
+    nring = 4  # FIXME randomize; minimum number of rings?
+    ring_sizes = [1 + secrets.randbelow(7) for _ in range(nring)]
+    sign_key_idx = [secrets.randbelow(size) for size in ring_sizes]
 
-        pubk_rings: Dict[int, List[Point]] = defaultdict(list)
-        sign_keys: List[int] = []
-        for i in range(nring):
-            for j in range(ring_sizes[i]):
-                priv_key, pub_key = dsa.gen_keys()
-                pubk_rings[i].append(pub_key)
-                if j == sign_key_idx[i]:
-                    sign_keys.append(priv_key)
+    pubk_rings: Dict[int, List[Point]] = defaultdict(list)
+    sign_keys: List[int] = []
+    for i in range(nring):
+        for j in range(ring_sizes[i]):
+            priv_key, pub_key = dsa.gen_keys()
+            pubk_rings[i].append(pub_key)
+            if j == sign_key_idx[i]:
+                sign_keys.append(priv_key)
 
-        msg = "Borromean ring signature"
-        sig = borromean.sign(
-            msg, list(range(1, 5)), sign_key_idx, sign_keys, pubk_rings
-        )
+    msg = "Borromean ring signature"
+    sig = borromean.sign(msg, list(range(1, 5)), sign_key_idx, sign_keys, pubk_rings)
 
-        borromean.assert_as_valid(msg.encode(), sig[0], sig[1], pubk_rings)
-        self.assertTrue(borromean.verify(msg, sig[0], sig[1], pubk_rings))
-        self.assertFalse(borromean.verify(0, sig[0], sig[1], pubk_rings))
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover
+    borromean.assert_as_valid(msg.encode(), sig[0], sig[1], pubk_rings)
+    assert borromean.verify(msg, sig[0], sig[1], pubk_rings)
+    assert not borromean.verify("another message", sig[0], sig[1], pubk_rings)
+    assert not borromean.verify(0, sig[0], sig[1], pubk_rings)  # type: ignore

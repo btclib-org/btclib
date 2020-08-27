@@ -1,0 +1,14 @@
+# packages required to develop, build, and test btclib
+
+check-manifest
+# If your project uses README.rst, uncomment the following:
+# readme_renderer
+isort
+black
+flake8
+mypy
+sphinx
+coverage
+pytest > 6
+pytest-xdist
+pytest-cov

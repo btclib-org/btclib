@@ -10,28 +10,24 @@
 
 "Tests for `btclib.script` module."
 
+from typing import List
+
 import pytest
 
-from btclib.script import (
-    OP_CODE_NAMES,
-    OP_CODES,
-    decode,
-    deserialize,
-    encode,
-    serialize,
-)
+from btclib import script
+from btclib.alias import Token
 
 
-def test_operators():
-    for i in OP_CODE_NAMES.keys():
-        b = OP_CODES[OP_CODE_NAMES[i]]
+def test_operators() -> None:
+    for i in script.OP_CODE_NAMES.keys():
+        b = script.OP_CODES[script.OP_CODE_NAMES[i]]
         assert i == b[0]
-    for name in OP_CODES.keys():
+    for name in script.OP_CODES.keys():
         # skip duplicated
         if name in ("OP_FALSE", "OP_TRUE", "OP_NOP2", "OP_NOP3"):
             continue
-        i = OP_CODES[name][0]
-        assert name == OP_CODE_NAMES[i]
+        i = script.OP_CODES[name][0]
+        assert name == script.OP_CODE_NAMES[i]
     for i in range(76, 186):
         # skip disabled 'splice' opcodes
         if i in (126, 127, 128, 129):
@@ -45,11 +41,11 @@ def test_operators():
         # skip 'reserved' opcodes
         if i in (80, 98, 101, 102, 137, 138):
             continue
-        assert i in OP_CODE_NAMES.keys()
+        assert i in script.OP_CODE_NAMES.keys()
 
 
-def test_simple():
-    script_list = [
+def test_simple() -> None:
+    script_list: List[List[Token]] = [
         [2, 3, "OP_ADD", 5, "OP_EQUAL"],
         ["1ADD", "OP_1ADD", "1ADE", "OP_EQUAL"],
         [hex(26)[2:].upper(), -1, "OP_ADD", hex(26)[2:].upper(), "OP_EQUAL"],
@@ -63,51 +59,73 @@ def test_simple():
         ["1F" * 250, "OP_DROP"],
         ["1F" * 520, "OP_DROP"],
     ]
-    for script in script_list:
-        script_bytes = encode(script)
-        script2 = decode(script_bytes)
-        assert script == script2
-        script_bytes2 = encode(script2)
-        assert script_bytes == script_bytes2
-        script_serialized = serialize(script)
-        script3 = deserialize(script_serialized)
-        assert script == script3
-        script4 = deserialize(script_serialized.hex())
-        assert script == script4
+    for scriptPubKey in script_list:
+        assert scriptPubKey == script.decode(script.encode(scriptPubKey))
+        assert scriptPubKey == script.decode(script.encode(scriptPubKey).hex())
+        assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey))
+        assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey).hex())
 
 
-def test_exceptions():
+def test_exceptions() -> None:
 
-    script = [2, 3, "OP_ADD", 5, "OP_VERIF"]
-    err_msg = "Invalid string token: OP_VERIF"
+    scriptPubKey: List[Token] = [2, 3, "OP_ADD", 5, "OP_VERIF"]
+    err_msg = "invalid string token: OP_VERIF"
     with pytest.raises(ValueError, match=err_msg):
-        encode(script)
+        script.encode(scriptPubKey)
 
-    script = [2, 3, "OP_ADD", 5, encode]
     err_msg = "Unmanaged <class 'function'> token type"
     with pytest.raises(ValueError, match=err_msg):
-        encode(script)
+        script.encode([2, 3, "OP_ADD", 5, script.encode])  # type: ignore
 
-    script = ["1f" * 521, "OP_DROP"]
-    err_msg = "Cannot push 521 bytes on the stack"
+    scriptPubKey = ["1f" * 521, "OP_DROP"]
+    err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(ValueError, match=err_msg):
-        encode(script)
+        script.encode(scriptPubKey)
 
-    # A script with OP_PUSHDATA4 can be decoded
+    # A scriptPubKey with OP_PUSHDATA4 can be decoded
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
-    script = decode(script_bytes)
+    scriptPubKey = script.decode(script_bytes)
     # but it cannot be encoded
-    err_msg = "Cannot push 521 bytes on the stack"
+    err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(ValueError, match=err_msg):
-        encode(script)
+        script.encode(scriptPubKey)
 
 
-def test_nulldata():
+def test_nulldata() -> None:
 
-    scripts = [
-        ["OP_RETURN", "11" * 79],
-        ["OP_RETURN", "00" * 79],
-    ]
-    for script in scripts:
-        bscript = encode(script)
-        assert script == decode(bscript)
+    scripts: List[List[Token]] = [["OP_RETURN", "11" * 79], ["OP_RETURN", "00" * 79]]
+    for scriptPubKey in scripts:
+        assert scriptPubKey == script.decode(script.encode(scriptPubKey))
+        assert scriptPubKey == script.decode(script.encode(scriptPubKey).hex())
+        assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey))
+        assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey).hex())
+
+
+def test_op_int() -> None:
+    i = 0b01111111
+    assert len(script._op_int(i)) == 2
+    i = 0b11111111
+    assert len(script._op_int(i)) == 3
+    i = 0b0111111111111111
+    assert len(script._op_int(i)) == 3
+    i = 0b1111111111111111
+    assert len(script._op_int(i)) == 4
+
+
+def test_op_pushdata() -> None:
+    length = 75
+    b = "00" * length
+    assert len(script._op_pushdata(b)) == length + 1
+    b = "00" * (length + 1)
+    assert len(script._op_pushdata(b)) == (length + 1) + 2
+
+    length = 255
+    b = "00" * length
+    assert len(script._op_pushdata(b)) == length + 2
+    b = "00" * (length + 1)
+    assert len(script._op_pushdata(b)) == (length + 1) + 3
+
+
+def test_encoding():
+    script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
+    assert script.encode(script.decode(script_bytes)) == script_bytes

@@ -12,12 +12,12 @@
 
 import pytest
 
+from btclib import script
 from btclib.curves import secp256k1 as ec
 from btclib.der import _deserialize, _serialize
-from btclib.script import SIGHASHES
 
 
-def test_der_size():
+def test_der_size() -> None:
 
     sig8 = 1, 1
     sig72 = ec.n - 1, ec.n - 1
@@ -27,33 +27,33 @@ def test_der_size():
     sig69 = 2 ** 255 - 1, 2 ** 247 - 1
     sig68 = 2 ** 247 - 1, 2 ** 247 - 1
     sigs = [sig8, sig72, sig71, sig70, sig70b, sig69, sig68]
-    lenghts = [8, 72, 71, 70, 70, 69, 68]
+    lenghts = [8, 72, 71, 70, 70, 69, 68]  # not including script.SIGHASHES
 
     for lenght, sig in zip(lenghts, sigs):
-        for sighash in SIGHASHES + [None]:
+        for sighash in script.SIGHASHES:
             der_sig = _serialize(*sig, sighash)
             r, s, sighash2 = _deserialize(der_sig)
             assert sig == (r, s)
             assert sighash == sighash2
-            assert len(der_sig) == lenght + 0 if sighash is None else 1
+            assert len(der_sig) == lenght + 1
 
     # with the last one only...
     assert (r, s, sighash) == _deserialize((r, s, sighash))
 
 
-def test_der_deserialize():
+def test_der_deserialize() -> None:
 
     err_msg = "non-hexadecimal number found "
     with pytest.raises(ValueError, match=err_msg):
         _deserialize("not a sig")
 
     sig = 2 ** 255 - 1, 2 ** 247 - 1
-    for sighash in SIGHASHES + [None]:
+    for sighash in script.SIGHASHES:
         der_sig = _serialize(*sig, sighash)
         r_size = der_sig[3]
 
         bad_der_sig = b"\x00" * 74
-        err_msg = "Invalid DER size: "
+        err_msg = "invalid DER size: "
         with pytest.raises(ValueError, match=err_msg):
             _deserialize(bad_der_sig)
 
@@ -67,21 +67,15 @@ def test_der_deserialize():
         with pytest.raises(ValueError, match=err_msg):
             _deserialize(bad_der_sig)
 
-        if sighash:
-            bad_der_sig = der_sig + b"\x01"
-            err_msg = "Declared size incompatible with actual size: "
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
+        bad_der_sig = der_sig + b"\x01"
+        err_msg = "Declared size incompatible with actual size: "
+        with pytest.raises(ValueError, match=err_msg):
+            _deserialize(bad_der_sig)
 
-            bad_der_sig = der_sig[:-1] + b"\x00"
-            err_msg = "Invalid sighash: 0x"
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
-        else:
-            bad_der_sig = der_sig + b"\x00"
-            err_msg = "Invalid sighash: 0x"
-            with pytest.raises(ValueError, match=err_msg):
-                _deserialize(bad_der_sig)
+        bad_der_sig = der_sig[:-1] + b"\x00"
+        err_msg = "invalid sighash: 0x"
+        with pytest.raises(ValueError, match=err_msg):
+            _deserialize(bad_der_sig)
 
         # r and s scalars
         for offset in (4, 6 + r_size):
@@ -106,7 +100,7 @@ def test_der_deserialize():
                 _deserialize(bad_der_sig)
 
             bad_der_sig = der_sig[:offset] + b"\x00\x7f" + der_sig[offset + 2 :]
-            err_msg = "Invalid null bytes at the start of scalar"
+            err_msg = "invalid null bytes at the start of scalar"
             with pytest.raises(ValueError, match=err_msg):
                 _deserialize(bad_der_sig)
 
@@ -118,17 +112,17 @@ def test_der_deserialize():
             _deserialize(bad_der_sig)
 
 
-def test_der_serialize():
+def test_der_serialize() -> None:
 
     sig = 2 ** 247 - 1, 2 ** 247 - 1
-    err_msg = "Invalid sighash: 0x"
+    err_msg = "invalid sighash: 0x"
     with pytest.raises(ValueError, match=err_msg):
         _serialize(*sig, 0x85)
 
-    for sighash in SIGHASHES + [None]:
+    for sighash in script.SIGHASHES:
+        err_msg = "scalar r not in 1..n-1: "
         for r in (0, ec.n):
             bad_sig = r, sig[1]
-            err_msg = "scalar r not in 1..n-1: "
             with pytest.raises(ValueError, match=err_msg):
                 _serialize(*bad_sig, sighash)
 

@@ -40,232 +40,230 @@ with the following modifications:
 - checked for raised exceptions instead of assertIsNone
 """
 
-import unittest
+from typing import List, Tuple
 
 import pytest
 
+from btclib import script
+from btclib.alias import Token
 from btclib.base58address import p2wpkh_p2sh, p2wsh_p2sh
 from btclib.bech32address import (
+    _convertbits,
     b32address_from_witness,
     p2wpkh,
     p2wsh,
     witness_from_b32address,
 )
-from btclib.script import encode
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.utils import hash160, sha256
 
 
-class TestSegwitAddress(unittest.TestCase):
-    """Unit test class for SegWit addressess."""
+def test_valid_address() -> None:
+    """Test whether valid addresses decode to the correct output"""
 
-    def test_valid_address(self):
-        """Test whether valid addresses decode to the correct output"""
+    VALID_BC_ADDRESS: List[Tuple[str, str]] = [
+        (
+            "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
+            "0014751e76e8199196d454941c45d1b3a323f1433bd6",
+        ),
+        (
+            "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
+            "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6",
+        ),
+        ("BC1SW50QA3JX3S", "6002751e"),
+        (
+            "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
+            "5210751e76e8199196d454941c45d1b3a323",
+        ),
+        (
+            " bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",  # extra leading space
+            "5210751e76e8199196d454941c45d1b3a323",
+        ),
+    ]
+    VALID_TB_ADDRESS: List[Tuple[str, str]] = [
+        (
+            "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
+            "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262",
+        ),
+        (
+            "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
+            "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433",
+        ),
+    ]
 
-        VALID_BC_ADDRESS = [
-            [
-                "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
-                "0014751e76e8199196d454941c45d1b3a323f1433bd6",
-            ],
-            [
-                (
-                    "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarva"
-                    "ry0c5xw7k7grplx"
-                ),
-                (
-                    "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d"
-                    "454941c45d1b3a323f1433bd6"
-                ),
-            ],
-            ["BC1SW50QA3JX3S", "6002751e"],
-            [
-                "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
-                "5210751e76e8199196d454941c45d1b3a323",
-            ],
-            [
-                " bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",  # extra leading space
-                "5210751e76e8199196d454941c45d1b3a323",
-            ],
-        ]
-        VALID_TB_ADDRESS = [
-            [
-                ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0s" "l5k7"),
-                (
-                    "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329"
-                    "604903262"
-                ),
-            ],
-            [
-                ("tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrx" "h6hy"),
-                (
-                    "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165da"
-                    "b93e86433"
-                ),
-            ],
-        ]
+    for a, hexscript in VALID_BC_ADDRESS + VALID_TB_ADDRESS:
+        witvers, witprog, network, _ = witness_from_b32address(a)
+        scriptPubKey: List[Token] = [witvers, witprog]
+        assert script.encode(scriptPubKey).hex() == hexscript
+        address = b32address_from_witness(witvers, witprog, network)
+        assert a.lower().strip() == address.decode("ascii")
 
-        for a, hexscript in VALID_BC_ADDRESS + VALID_TB_ADDRESS:
-            witvers, witprog, network, _ = witness_from_b32address(a)
-            script_pubkey = [witvers, witprog]
-            self.assertEqual(encode(script_pubkey).hex(), hexscript)
-            address = b32address_from_witness(witvers, witprog, network)
-            self.assertEqual(a.lower().strip(), address.decode("ascii"))
 
-    def test_invalid_address(self):
-        """Test whether invalid addresses fail to decode"""
+def test_invalid_address() -> None:
+    """Test whether invalid addresses fail to decode"""
 
-        INVALID_ADDRESS = [
-            # Invalid human-readable part
+    INVALID_ADDRESS: List[Tuple[str, str]] = [
+        (
             "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
-            # invalid checksum
+            "invalid value for network keyword 'p2w': ",
+        ),
+        (
             "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
-            # Invalid witness version
-            "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
-            # Invalid program length
-            "bc1rw5uspcuh",
-            # Invalid program length
-            (
-                "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qe"
-                "jxtdg4y5r3zarvary0c5xw7kw5rljs90"
-            ),
-            # Invalid program length for witness version 0 (per BIP141)
+            "invalid checksum in bech32 string: ",
+        ),
+        ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", "invalid witness version: "),
+        ("bc1rw5uspcuh", "invalid witness program length for witness version zero: "),
+        (
+            "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
+            "invalid witness program length for witness version zero: ",
+        ),
+        (
             "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
-            # Mixed case
+            "invalid witness program length for witness version zero: ",
+        ),
+        (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
-            # zero padding of more than 4 bits
+            "mixed case in bech32 string: ",
+        ),
+        (
             "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
-            # Non-zero padding in 8-to-5 conversion
+            "zero padding of more than 4 bits in 8-to-5 conversion",
+        ),
+        (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-            # Empty data section
-            "bc1gmk9yu",
-            # 92 chars
-            (
-                "bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv"
-                "psxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5"
-            ),
-        ]
+            "non-zero padding in 8-to-5 conversion",
+        ),
+        ("bc1gmk9yu", "empty data in bech32 address: "),
+        (
+            "bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5",
+            "invalid bech32 address length: ",
+        ),
+    ]
 
-        for a in INVALID_ADDRESS:
-            self.assertRaises(ValueError, witness_from_b32address, a)
-
-    def test_invalid_address_enc(self):
-        """Test whether address encoding fails on invalid input"""
-
-        INVALID_ADDRESS_ENC = [
-            ("MAINNET", 0, 20),
-            ("mainnet", 0, 21),
-            ("mainnet", 17, 32),
-            ("mainnet", 1, 1),
-            ("mainnet", 16, 41),
-        ]
-
-        network, version, length = INVALID_ADDRESS_ENC[0]
-        self.assertRaises(
-            KeyError, b32address_from_witness, version, [0] * length, network
-        )
-
-        for network, version, length in INVALID_ADDRESS_ENC[1:]:
-            self.assertRaises(
-                ValueError, b32address_from_witness, version, [0] * length, network
-            )
-
-    def test_b32address_from_witness(self):
-
-        # self-consistency
-        addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-        wv, wp, network, _ = witness_from_b32address(addr)
-        self.assertEqual(b32address_from_witness(wv, wp, network), addr)
-
-        # invalid value -1
-        wp = [i for i in wp]  # convert to List[int]
-        wp[-1] = -1  # alter the last element with an invalid value
-        self.assertRaises(ValueError, b32address_from_witness, wv, wp, network)
-        # b32address_from_witness(wv, wp, network)
-
-        # string input
-        addr = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-        wv, wp, network, _ = witness_from_b32address(addr)
-        self.assertEqual(b32address_from_witness(wv, wp, network), addr.encode())
-
-    def test_p2wpkh_p2sh(self):
-        # https://matthewdowney.github.io/create-segwit-address.html
-        pub = " 03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76" "276fa69a4eae77f"
-
-        address = p2wpkh_p2sh(pub)
-        self.assertEqual(address, b"36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g")
-
-        address = p2wpkh_p2sh(pub, "testnet")
-        self.assertEqual(address, b"2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2")
-
-        # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh
-        pub = "02 f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a41" "37d8250531128"
-
-        address = p2wpkh_p2sh(pub)
-        self.assertEqual(address, b"3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd")
-
-    def test_p2wpkh(self):
-
-        # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
-        # leading/trailing spaces should be tolerated
-        pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2" "815B16F81798"
-        addr = b"bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
-        self.assertEqual(addr, p2wpkh(pub))
-        addr = b"tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
-        self.assertEqual(addr, p2wpkh(pub, "testnet"))
-
-        # http://bitcoinscri.pt/pages/segwit_native_p2wpkh
-        pub = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69" "261b42def7"
-        addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-        self.assertEqual(addr, p2wpkh(pub))
-
-        _, wp, _, _ = witness_from_b32address(addr)
-        self.assertEqual(bytes(wp), hash160(pub))
-
-        # Wrong size (65-bytes) for compressed SEC key
-        uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
-        self.assertRaises(ValueError, p2wpkh, uncompr_pub)
-        # p2wpkh(uncompr_pub)
-
-        # Wrong pubkey size: 34 instead of 33
-        self.assertRaises(ValueError, p2wpkh, pub + "00")
-        # p2wpkh(pub + '00')
-
-        # Witness program length (21) is not 20
-        self.assertRaises(
-            ValueError, b32address_from_witness, 0, hash160(pub) + b"\x00"
-        )
-        # b32address_from_witness(0, hash160(pub) + b'\x00')
-
-    def test_hash_from_bech32(self):
-        network = "testnet"
-        wv = 0
-        wp = 20 * b"\x05"
-        addr = b32address_from_witness(wv, wp, network)
-        _, wp2, n2, _ = witness_from_b32address(addr)
-        self.assertEqual(n2, network)
-        self.assertEqual(wp2, wp)
-
-        # witness program length (21) is not 20 or 32
-        addr = "tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
-        self.assertRaises(ValueError, witness_from_b32address, addr)
-        # witness_from_b32address(addr)
-
-    def test_p2wsh_p2sh(self):
-
-        # leading/trailing spaces should be tolerated
-        pub = " 0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2D" "CE28D959F2815B16F81798"
-        witness_script = [pub, "OP_CHECKSIG"]
-        witness_script_bytes = encode(witness_script)
-        p2wsh_p2sh(witness_script_bytes)
-        p2wsh_p2sh(witness_script_bytes, "testnet")
+    for a, err_msg in INVALID_ADDRESS:
+        with pytest.raises(ValueError, match=err_msg):
+            witness_from_b32address(a)
 
 
-def test_p2wsh():
+def test_invalid_address_enc() -> None:
+    """Test whether address encoding fails on invalid input"""
+
+    INVALID_ADDRESS_ENC: List[Tuple[str, int, int, str]] = [
+        ("MAINNET", 0, 20, "'MAINNET'"),
+        ("mainnet", 0, 21, "invalid witness program length for witness version zero: "),
+        ("mainnet", 17, 32, "invalid witness version: "),
+        ("mainnet", 1, 1, "invalid witness program length for witness version zero: "),
+        (
+            "mainnet",
+            16,
+            41,
+            "invalid witness program length for witness version zero: ",
+        ),
+    ]
+
+    network, version, length, err_msg = INVALID_ADDRESS_ENC[0]
+    with pytest.raises(KeyError, match=err_msg):
+        b32address_from_witness(version, "00" * length, network)
+
+    for network, version, length, err_msg in INVALID_ADDRESS_ENC[1:]:
+        with pytest.raises(ValueError, match=err_msg):
+            b32address_from_witness(version, "00" * length, network)
+
+
+def test_b32address_from_witness() -> None:
+
+    # self-consistency
+    addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
+    wv, wp, network, _ = witness_from_b32address(addr)
+    assert b32address_from_witness(wv, wp, network) == addr
+
+    # string input
+    addr_str = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
+    wv, wp, network, _ = witness_from_b32address(addr_str)
+    assert b32address_from_witness(wv, wp, network) == addr_str.encode()
+
+    wp_ints = [i for i in wp]
+    wp_ints[0] = -1
+    with pytest.raises(ValueError, match="invalid value in _convertbits: "):
+        _convertbits(wp_ints, 8, 5)
+
+
+def test_p2wpkh_p2sh() -> None:
+    # https://matthewdowney.github.io/create-segwit-address.html
+    pub = " 03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+    address = p2wpkh_p2sh(pub)
+    assert address == b"36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g"
+    address = p2wpkh_p2sh(pub, "testnet")
+    assert address == b"2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2"
+
+    # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh
+    pub = "02 f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
+    address = p2wpkh_p2sh(pub)
+    assert address == b"3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd"
+
+
+def test_p2wpkh() -> None:
 
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
-    pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D" "959F2815B16F81798"
-    witness_script = [pub, "OP_CHECKSIG"]
-    witness_script_bytes = encode(witness_script)
+    # leading/trailing spaces should be tolerated
+    pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+    addr = b"bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+    assert addr == p2wpkh(pub)
+    addr = b"tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
+    assert addr == p2wpkh(pub, "testnet")
+
+    # http://bitcoinscri.pt/pages/segwit_native_p2wpkh
+    pub = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
+    addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
+    assert addr == p2wpkh(pub)
+
+    _, wp, _, _ = witness_from_b32address(addr)
+    assert bytes(wp) == hash160(pub)
+
+    uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
+    err_msg = "not a private or compressed public key: "
+    with pytest.raises(ValueError, match=err_msg):
+        p2wpkh(uncompr_pub)
+    with pytest.raises(ValueError, match=err_msg):
+        p2wpkh(pub + "00")
+
+    err_msg = "invalid witness program length for witness version zero: "
+    with pytest.raises(ValueError, match=err_msg):
+        b32address_from_witness(0, hash160(pub) + b"\x00")
+
+
+def test_hash_from_bech32() -> None:
+    network = "testnet"
+    wv = 0
+    wp = 20 * b"\x05"
+    addr = b32address_from_witness(wv, wp, network)
+    _, wp2, n2, _ = witness_from_b32address(addr)
+    assert n2 == network
+    assert wp2 == wp
+
+    # witness program length (21) is not 20 or 32
+    addr = b"tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
+    err_msg = "invalid witness program length for witness version zero: "
+    with pytest.raises(ValueError, match=err_msg):
+        witness_from_b32address(addr)
+
+
+def test_p2wsh_p2sh() -> None:
+
+    # leading/trailing spaces should be tolerated
+    pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+    scriptPubKey: List[Token] = [pub, "OP_CHECKSIG"]
+    witness_script_bytes = script.encode(scriptPubKey)
+    p2wsh_p2sh(witness_script_bytes)
+    p2wsh_p2sh(witness_script_bytes, "testnet")
+
+
+def test_p2wsh() -> None:
+
+    # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+    pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+    scriptPubKey: List[Token] = [pub, "OP_CHECKSIG"]
+    witness_script_bytes = script.encode(scriptPubKey)
 
     addr = b"tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
     assert addr == p2wsh(witness_script_bytes, "testnet")
@@ -279,11 +277,6 @@ def test_p2wsh():
 
     assert witness_from_b32address(addr)[1] == sha256(witness_script_bytes)
 
-    errMsg = r"witness program length \(35\) is not 20 or 32"
-    with pytest.raises(ValueError, match=errMsg):
+    err_msg = "invalid witness program length for witness version zero: "
+    with pytest.raises(ValueError, match=err_msg):
         b32address_from_witness(0, witness_script_bytes)
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    unittest.main()  # pragma: no cover

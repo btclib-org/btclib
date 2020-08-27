@@ -38,11 +38,12 @@ messages to the set of possible k values) would return.
 import hmac
 from hashlib import sha256
 
-from .alias import HashF, PrvKey, String
+from .alias import HashF, Octets, PrvKey, String
 from .curve import Curve
 from .curves import secp256k1
+from .hashes import reduce_to_hlen
 from .to_prvkey import int_from_prvkey
-from .utils import int_from_bits
+from .utils import bytes_from_octets, int_from_bits
 
 
 def rfc6979(
@@ -50,22 +51,28 @@ def rfc6979(
 ) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
-    # the following is strictly equivalent to dsa._challenge
-    if isinstance(msg, str):
-        msg = msg.encode()
-    # Steps numbering follows SEC 1 v.2 section 4.1.3
-    h = hf()
-    h.update(msg)
-    mhd = h.digest()  # 4
+    m = reduce_to_hlen(msg, hf)
+    return _rfc6979(m, prvkey, ec, hf)
+
+
+def _rfc6979(
+    m: Octets, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+) -> int:
+    """Return a deterministic ephemeral key following RFC 6979."""
+
+    # The message m: a hlen array
+    hlen = hf().digest_size
+    m = bytes_from_octets(m, hlen)
+
     # leftmost ec.nlen bits %= ec.n
-    c = int_from_bits(mhd, ec.nlen) % ec.n  # 5
+    c = int_from_bits(m, ec.nlen) % ec.n  # 5
 
     q = int_from_prvkey(prvkey, ec)
 
-    return _rfc6979(c, q, ec, hf)
+    return __rfc6979(c, q, ec, hf)
 
 
-def _rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
+def __rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
 
     # c = hf(m)                                            # 3.2.a

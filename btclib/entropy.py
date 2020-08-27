@@ -149,7 +149,7 @@ def binstr_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinS
     return binstr_from_int(int_entropy, n_bits)
 
 
-def binstr_from_int(int_entropy: int, bits: OneOrMoreInt = _bits) -> BinStr:
+def binstr_from_int(int_entropy: Union[int, str], bits: OneOrMoreInt = _bits) -> BinStr:
     """Return raw entropy from the input integer entropy.
 
     Input entropy can be expressed as int
@@ -239,20 +239,25 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
         automate = False
         msg = f"{_dice_sides}"
         msg = "dice sides " + msg[:-1]
-        msg += ", prefix with 'a' to automate rolls): "
+        msg += "; prefix with 'a' to automate rolls, hit enter for 'a6'): "
         dice_sides_str = input(msg)
         dice_sides_str = dice_sides_str.lower()
-        if dice_sides_str.startswith("a"):
+        if dice_sides_str in ["", "a"]:
             automate = True
-            dice_sides_str = dice_sides_str[1:]
-        try:
-            dice_sides = 6 if dice_sides_str == "" else int(dice_sides_str)
-        except Exception:
-            dice_sides = 0
+            dice_sides = 6
+        else:
+            if dice_sides_str.startswith("a"):
+                automate = True
+                dice_sides_str = dice_sides_str[1:]
+            try:
+                dice_sides = int(dice_sides_str)
+            except Exception:
+                dice_sides = 0
 
     bits_per_roll = math.floor(math.log2(dice_sides))
     base = 2 ** bits_per_roll
-    print(f"rolls are used only if in 1..{base}")
+    if not automate:
+        print(f"rolls are used only if in 1..{base}")
 
     rolls: List[int] = []
     min_roll_number = math.ceil(bits / bits_per_roll)
@@ -274,7 +279,7 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
 
 
 def binstr_from_rolls(
-    bits: int, dice_sides: int, rolls: List[int], shuffle: bool = True,
+    bits: int, dice_sides: int, rolls: List[int], shuffle: bool = True
 ) -> BinStr:
     """Return raw entropy from the input dice rolls.
 
@@ -292,7 +297,7 @@ def binstr_from_rolls(
     """
 
     if dice_sides < 2:
-        raise ValueError(f"Invalid dice base: {dice_sides}, must be >= 2")
+        raise ValueError(f"invalid dice base: {dice_sides}, must be >= 2")
     bits_per_roll = math.floor(math.log2(dice_sides))
     # used base
     base = 2 ** bits_per_roll
@@ -310,7 +315,7 @@ def binstr_from_rolls(
             min_roll_number -= 1
         # reject invalid rolls not in [1-dice_sides)]
         elif r < 1 or r > dice_sides:
-            msg = f"Invalid roll: {r} is not in [1-{dice_sides}]"
+            msg = f"invalid roll: {r} is not in [1-{dice_sides}]"
             raise ValueError(msg)
     if min_roll_number > 0:
         msg = f"Too few rolls in the usable [1-{base}] range, missing {min_roll_number} rolls"
@@ -324,8 +329,8 @@ def randbinstr(
 ) -> BinStr:
     """Return CSPRNG raw entropy XOR-ed with input raw entropy.
 
-    If no exogenous raw entropy is provided as input, then entropy
-    is generated with the system
+    The input raw entropy is used as initialization value;
+    if not provided, then entropy is generated with the system
     cryptographically strong pseudo-random number generator (CSPRNG).
 
     Then, this entropy is:

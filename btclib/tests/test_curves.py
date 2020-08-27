@@ -10,8 +10,8 @@
 
 "Tests for `btclib.curves` module."
 
-from typing import Dict
 import secrets
+from typing import Dict
 
 import pytest
 
@@ -44,7 +44,8 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
-def test_aff_jac_conversions():
+@pytest.mark.seventh
+def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -62,10 +63,10 @@ def test_aff_jac_conversions():
         with pytest.raises(ValueError, match="infinity point has no x-coordinate"):
             ec._x_aff_from_jac(INFJ)
         with pytest.raises(TypeError, match="not a point"):
-            ec.has_square_y("notapoint")
+            ec.has_square_y("notapoint")  # type: ignore
 
 
-def test_add_aff():
+def test_add_aff() -> None:
     for ec in all_curves.values():
 
         # add G and the infinity point
@@ -77,7 +78,7 @@ def test_add_aff():
         assert ec._add_aff(ec.G, ec.negate(ec.G)) == INF
 
 
-def test_add_jac():
+def test_add_jac() -> None:
     for ec in all_curves.values():
 
         # add G and the infinity point
@@ -86,10 +87,11 @@ def test_add_jac():
         assert ec._add_jac(INFJ, INFJ) == INFJ
 
         # add G and minus G
-        assert ec._add_jac(ec.GJ, ec.negate(ec.GJ)) == INFJ
+        assert ec._add_jac(ec.GJ, ec.negate_jac(ec.GJ)) == INFJ
 
 
-def test_add():
+@pytest.mark.eighth
+def test_add() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -108,7 +110,8 @@ def test_add():
         assert R == ec._aff_from_jac(RJ)
 
 
-def test_ec_repr():
+@pytest.mark.fourth
+def test_ec_repr() -> None:
     for ec in all_curves.values():
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.psize < 24:
@@ -117,12 +120,12 @@ def test_ec_repr():
         assert str(ec) == str(ec2)
 
 
-def test_is_on_curve():
+@pytest.mark.sixth
+def test_is_on_curve() -> None:
     for ec in all_curves.values():
 
-        P = "not a point"
         with pytest.raises(ValueError, match="point must be a tuple"):
-            ec.is_on_curve(P)
+            ec.is_on_curve("not a point")  # type: ignore
 
         with pytest.raises(ValueError, match="x-coordinate not in 0..p-1: "):
             ec.y(ec.p)
@@ -134,7 +137,7 @@ def test_is_on_curve():
             ec.is_on_curve((Q[0], ec.p))
 
 
-def test_negate():
+def test_negate() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -145,7 +148,7 @@ def test_negate():
 
         # Jacobian coordinates
         QJ = _jac_from_aff(Q)
-        minus_QJ = ec.negate(QJ)
+        minus_QJ = ec.negate_jac(QJ)
         assert ec._add_jac(QJ, minus_QJ) == INFJ
 
         # negate of INF is INF
@@ -153,14 +156,14 @@ def test_negate():
         assert minus_INF == INF
 
         # negate of INFJ is INFJ
-        minus_INFJ = ec.negate(INFJ)
+        minus_INFJ = ec.negate_jac(INFJ)
         assert minus_INFJ == INFJ
 
     with pytest.raises(TypeError, match="not a point"):
-        ec.negate("notapoint")
+        ec.negate("notapoint")  # type: ignore
 
 
-def test_symmetry():
+def test_symmetry() -> None:
     """Methods to break simmetry: quadratic residue, odd/even, low/high"""
     for ec in low_card_curves.values():
 
@@ -181,8 +184,7 @@ def test_symmetry():
         assert y_high == ec.p - y_low
 
         # compute quadratic residues
-        hasRoot = set()
-        hasRoot.add(1)
+        hasRoot = {1}
         for i in range(2, ec.p):
             hasRoot.add(i * i % ec.p)
 
@@ -239,7 +241,8 @@ def test_symmetry():
         ec.y_quadratic_residue(x_Q, 2)
 
 
-def test_mult_aff_curves():
+@pytest.mark.fifth
+def test_mult_aff_curves() -> None:
     for ec in all_curves.values():
         assert _mult_aff(0, ec.G, ec) == INF
         assert _mult_aff(0, INF, ec) == INF
@@ -252,16 +255,17 @@ def test_mult_aff_curves():
 
         P = _mult_aff(ec.n - 1, ec.G, ec)
         assert ec.negate(ec.G) == P
-
         assert _mult_aff(ec.n - 1, INF, ec) == INF
+
         assert ec._add_aff(P, ec.G) == INF
         assert _mult_aff(ec.n, ec.G, ec) == INF
+        assert _mult_aff(ec.n, INF, ec) == INF
 
         with pytest.raises(ValueError, match="negative m: -0x"):
             _mult_aff(-1, ec.G, ec)
 
 
-def test_mult_jac_curves():
+def test_mult_jac_curves() -> None:
     for ec in all_curves.values():
         assert _mult_jac(0, ec.GJ, ec) == INFJ
         assert _mult_jac(0, INFJ, ec) == INFJ
@@ -273,7 +277,7 @@ def test_mult_jac_curves():
         assert PJ == _mult_jac(2, ec.GJ, ec)
 
         PJ = _mult_jac(ec.n - 1, ec.GJ, ec)
-        assert ec._jac_equality(ec.negate(ec.GJ), PJ)
+        assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
 
         assert _mult_jac(ec.n - 1, INFJ, ec) == INFJ
         assert ec._add_jac(PJ, ec.GJ) == INFJ
@@ -283,7 +287,7 @@ def test_mult_jac_curves():
             _mult_jac(-1, ec.GJ, ec)
 
 
-def test_mult():
+def test_mult() -> None:
     for ec in low_card_curves.values():
         for q in range(ec.n):
             Q = _mult_aff(q, ec.G, ec)

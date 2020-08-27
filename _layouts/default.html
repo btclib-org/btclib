@@ -19,7 +19,7 @@
             <h1><a href="{{ "/" | absolute_url }}">{{ site.title | default: site.github.repository_name }}</a></h1>
 
             {% if site.logo %}
-            <img src="{{site.logo | relative_url}}" alt="Logo" />
+            <img img height="80" src="{{site.logo | relative_url}}" alt="Logo" />
             {% endif %}
 
             <p>{{ site.description | default: site.github.project_tagline }}</p>
@@ -54,16 +54,17 @@
         </section>
         <footer>
             {% if site.github.is_project_page %}
-            <p>btclib is maintained by <a href="{{ site.github.owner_url }}">{{ site.github.owner_name }}</a></p>
+            <p>Maintained by <a href="{{ site.github.owner_url }}">{{ site.github.owner_name }}</a></p>
             {% endif %}
-            <p>The library development is actively supported by our sponsors:
+            <p>Development is supported by:
             </p>
             <p>
-                <a href="https://checksig.io"><img src="https://checksig.io/img/logo/cs-tagline-logo.png"
+                <a href="https://checksig.io"><img width="80" src="https://checksig.io/img/logo/cs-tagline-logo.png"
                         alt="CheckSig" /></a>
             </p>
             <p>
-                <a href="https://dgi.io"><img src="https://dgi.io/img/logo/dgi-tagline-logo.png" alt="CheckSig" /></a>
+                <a href="https://dgi.io"><img height="80" src="https://dgi.io/img/logo/dgi-tagline-logo.png"
+                        alt="Digital Gold Institute" /></a>
             </p>
         </footer>
     </div>

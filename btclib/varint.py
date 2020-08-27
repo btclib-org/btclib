@@ -29,21 +29,14 @@ Up to 0xfc, a varint is just 1 byte; however, if the integer is greater than
 * prefix 0xff markes the next eight bytes as the number.
 """
 
-from io import BytesIO
-from typing import BinaryIO, Union
-
-from .alias import Octets
-from .utils import bytes_from_octets, hex_string
+from .alias import BinaryData
+from .utils import bytesio_from_binarydata, hex_string
 
 
-def decode(stream: Union[BinaryIO, Octets]) -> int:
+def decode(stream: BinaryData) -> int:
     """Return the variable-length integer read from a stream."""
 
-    if isinstance(stream, str):
-        stream = bytes_from_octets(stream)
-
-    if isinstance(stream, bytes):
-        stream = BytesIO(stream)
+    stream = bytesio_from_binarydata(stream)
 
     i = stream.read(1)[0]
     if i < 0xFD:
@@ -61,15 +54,17 @@ def decode(stream: Union[BinaryIO, Octets]) -> int:
 
 
 def encode(i: int) -> bytes:
-    """Return the varint bytes encoding of an integer."""
+    "Return the varint bytes encoding of an integer."
 
-    if i < 0xFD:  # 1 byte
+    if i < 0x00:
+        raise ValueError(f"negative integer: {i}")
+    elif i < 0xFD:  # 1 byte
         return bytes([i])
     elif i <= 0xFFFF:  # 2 bytes
-        return b"\xfd" + i.to_bytes(2, byteorder="little")
+        return b"\xFD" + i.to_bytes(2, byteorder="little")
     elif i <= 0xFFFFFFFF:  # 4 bytes
-        return b"\xfe" + i.to_bytes(4, byteorder="little")
+        return b"\xFE" + i.to_bytes(4, byteorder="little")
     elif i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
-        return b"\xff" + i.to_bytes(8, byteorder="little")
+        return b"\xFF" + i.to_bytes(8, byteorder="little")
     else:
         raise ValueError(f"integer too big for varint encoding: '{hex_string(i)}'")

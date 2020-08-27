@@ -11,6 +11,7 @@
 "Tests for `btclib.base58` module."
 
 import pytest
+
 from btclib.base58 import (
     _b58decode,
     _b58decode_to_int,
@@ -21,34 +22,41 @@ from btclib.base58 import (
 )
 
 
-def test_empty():
+def test_empty() -> None:
     assert _b58encode(b"") == b""
     assert _b58decode(_b58encode(b"")) == b""
 
+    assert b58decode(b58encode(b""), 0) == b""
 
-def test_hello_world():
+
+def test_hello_world() -> None:
     assert _b58encode(b"hello world") == b"StV1DL6CwTryKyV"
     assert _b58decode(b"StV1DL6CwTryKyV") == b"hello world"
     assert _b58decode(_b58encode(b"hello world")) == b"hello world"
     assert _b58encode(_b58decode(b"StV1DL6CwTryKyV")) == b"StV1DL6CwTryKyV"
 
+    assert b58decode(b58encode(b"hello world"), 11) == b"hello world"
 
-def test_trailing_zeros():
+
+def test_trailing_zeros() -> None:
     assert _b58encode(b"\x00\x00hello world") == b"11StV1DL6CwTryKyV"
     assert _b58decode(b"11StV1DL6CwTryKyV") == b"\x00\x00hello world"
-    assert _b58decode(_b58encode(b"\0\0hello world")) == b"\x00\x00hello world"
+    assert _b58decode(_b58encode(b"\x00\x00hello world")) == b"\x00\x00hello world"
     assert _b58encode(_b58decode(b"11StV1DL6CwTryKyV")) == b"11StV1DL6CwTryKyV"
 
+    assert b58decode(b58encode(b"\x00\x00hello world"), 13) == b"\x00\x00hello world"
 
-def test_exceptions():
+
+def test_exceptions() -> None:
 
     with pytest.raises(TypeError, match="object supporting the buffer API required"):
-        b58encode(3)
+        b58encode(3)  # type: ignore
 
-    encoded = b58encode(b"test")
+    encoded = b58encode(b"hello world")
+    b58decode(encoded, 11)
 
     wrong_length = len(encoded) - 1
-    with pytest.raises(ValueError, match="Invalid base58 decoded size: "):
+    with pytest.raises(ValueError, match="invalid decoded size: "):
         b58decode(encoded, wrong_length)
 
     invalidChecksum = encoded[:-4] + b"1111"
@@ -58,8 +66,12 @@ def test_exceptions():
     with pytest.raises(ValueError, match="'ascii' codec can't encode character "):
         b58decode("hèllo world")
 
+    err_msg = "not enough bytes for checksum, invalid base58 decoded size: "
+    with pytest.raises(ValueError, match=err_msg):
+        b58decode(_b58encode(b"123"))
 
-def test_wif():
+
+def test_wif() -> None:
     # https://en.bitcoin.it/wiki/Wallet_import_format
     prv = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 
@@ -83,7 +95,7 @@ def test_wif():
     assert key == compressedKey
 
 
-def test_integers():
+def test_integers() -> None:
     digits = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     for i in range(len(digits)):
         char = digits[i : i + 1]

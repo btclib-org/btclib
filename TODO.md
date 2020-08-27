@@ -47,3 +47,6 @@
 - SSA: ask about benefit of pIsThreeModFour vs odd or low
 - SSA: ask about benefit of removing 02/03 from pubkey
 - SSA: suggest better k
+
+
+revise y_odd: why int as second parameter? why not bool?

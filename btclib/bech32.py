@@ -74,8 +74,7 @@ def _create_checksum(hrp: str, data: List[int]) -> List[int]:
     """Compute the checksum values given HRP and data."""
     values = _hrp_expand(hrp) + data
     polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ 1
-    checksum = [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
-    return checksum
+    return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
 def b32encode(hrp: str, data: List[int]) -> bytes:
@@ -99,10 +98,10 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
 
-    if any(ord(x) < 48 or ord(x) > 122 for x in bech):
+    if any(ord(x) < 48 or 122 < ord(x) for x in bech):
         raise ValueError(f"ASCII character outside [48-122] in bech32 string: {bech}")
     if bech.lower() != bech and bech.upper() != bech:
-        raise ValueError(f"Mixed case in bech32 string: {bech}")
+        raise ValueError(f"mixed case in bech32 string: {bech}")
     bech = bech.lower()
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
@@ -123,7 +122,7 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
     hrp = bech[:pos]
 
     if not all(x in __ALPHABET for x in bech[pos + 1 :]):
-        raise ValueError(f"Invalid data characters in bech32 string: {bech}")
+        raise ValueError(f"invalid data characters in bech32 string: {bech}")
     data = [__ALPHABET.find(x) for x in bech[pos + 1 :]]
 
     if _verify_checksum(hrp, data):

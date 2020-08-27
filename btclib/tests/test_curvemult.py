@@ -16,7 +16,13 @@ import pytest
 
 from btclib.alias import INF, INFJ
 from btclib.curve import _jac_from_aff, _mult_jac
-from btclib.curvemult import _double_mult, _multi_mult, double_mult, mult, multi_mult
+from btclib.curvemult import (
+    _double_mult,
+    _multi_mult,
+    double_mult,
+    mult,
+    multi_mult,
+)
 from btclib.curves import secp256k1
 from btclib.pedersen import second_generator
 from btclib.tests.test_curves import low_card_curves
@@ -24,7 +30,7 @@ from btclib.tests.test_curves import low_card_curves
 ec23_31 = low_card_curves["ec23_31"]
 
 
-def test_assorted_mult():
+def test_assorted_mult() -> None:
     ec = ec23_31
     H = second_generator(ec)
     HJ = _jac_from_aff(H)
@@ -72,7 +78,7 @@ def test_assorted_mult():
         _double_mult(1, HJ, -5, ec.GJ, ec)
 
 
-def test_assorted_mult2():
+def test_assorted_mult2() -> None:
     ec = ec23_31
     H = second_generator(ec)
     for k1 in range(-ec.n + 1, ec.n):
@@ -114,7 +120,7 @@ def test_assorted_mult2():
         multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
 
 
-def test_mult_double_mult():
+def test_mult_double_mult() -> None:
     H = second_generator(secp256k1)
     G = secp256k1.G
 

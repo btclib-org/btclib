@@ -79,7 +79,7 @@ class WordLists:
                 lines = f.readlines()
 
             nwords = len(lines)
-            ensure_is_power_of_two(nwords, "Invalid wordlist length")
+            ensure_is_power_of_two(nwords, "invalid wordlist length")
 
             self._language_length[lang] = nwords
             # clean up and normalization are missing, but removal of \n
@@ -128,5 +128,4 @@ def _indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
 
     words = mnemonic.split()
     wordlist = _wordlists.wordlist(lang)
-    indexes = [wordlist.index(w) for w in words]
-    return indexes
+    return [wordlist.index(w) for w in words]

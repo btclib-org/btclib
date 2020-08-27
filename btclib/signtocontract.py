@@ -41,7 +41,7 @@ from .alias import HashF, Octets, Point, PrvKey
 from .curve import Curve
 from .curvemult import mult
 from .curves import secp256k1
-from .rfc6979 import rfc6979
+from .rfc6979 import _rfc6979
 from .secpoint import bytes_from_point
 from .to_prvkey import int_from_prvkey
 from .utils import bytes_from_octets, int_from_bits
@@ -58,7 +58,7 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     - tweaked private key k + hash(kG||c)
     """
 
-    c = bytes_from_octets(c)
+    c = bytes_from_octets(c, hf().digest_size)
     R = mult(k, ec.G, ec)
     h = hf()
     h.update(bytes_from_point(R, ec) + c)
@@ -69,30 +69,18 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
 def ecdsa_commit_sign(
     c: Octets,
     m: Octets,
-    q: PrvKey,
-    k: Optional[int] = None,
+    prvkey: PrvKey,
+    k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECDSA signature."""
 
-    c = bytes_from_octets(c)
-    m = bytes_from_octets(m)
-    q = int_from_prvkey(q, ec)
-
-    if k is None:
-        h = hf()
-        h.update(m)
-        k = rfc6979(h.digest(), q, ec, hf)
-
-    h = hf()
-    h.update(c)
-    ch = h.digest()
-
+    k = _rfc6979(m, prvkey, ec, hf) if k is None else int_from_prvkey(k, ec)
     # commit
-    R, new_k = _tweak(ch, k, ec, hf)
+    R, new_k = _tweak(c, k, ec, hf)
     # sign
-    sig = dsa.sign(m, q, new_k, ec, hf)
+    sig = dsa._sign(m, prvkey, new_k, True, ec, hf)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
@@ -101,28 +89,22 @@ def ecdsa_commit_sign(
 def ecssa_commit_sign(
     c: Octets,
     m: Octets,
-    q: PrvKey,
-    k: Optional[int] = None,
+    prvkey: PrvKey,
+    k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
-    c = bytes_from_octets(c)
-    m = bytes_from_octets(m)
-    q = int_from_prvkey(q, ec)
-
     if k is None:
-        k = ssa.k(m, q, ec, hf)
-
-    h = hf()
-    h.update(c)
-    ch = h.digest()
+        k, _ = ssa._det_nonce(m, prvkey, ec, hf)
+    else:
+        k, _ = ssa.gen_keys(k, ec)
 
     # commit
-    R, new_k = _tweak(ch, k, ec, hf)
+    R, new_k = _tweak(c, k, ec, hf)
     # sign
-    sig = ssa.sign(m, q, new_k, ec, hf)
+    sig = ssa._sign(m, prvkey, new_k, ec, hf)
     # commit receipt
     receipt = sig[0], R
     return sig, receipt
@@ -136,7 +118,7 @@ def verify_commit(
 ) -> bool:
     """Open the commitment c inside an EC DSA/SSA signature."""
 
-    c = bytes_from_octets(c)
+    c = bytes_from_octets(c, hf().digest_size)
 
     # FIXME: verify the signature
 
@@ -148,10 +130,7 @@ def verify_commit(
     # verify R is a good point?
 
     h = hf()
-    h.update(c)
-    ch = h.digest()
-    h = hf()
-    h.update(bytes_from_point(R, ec) + ch)
+    h.update(bytes_from_point(R, ec) + c)
     e = h.digest()
     e = int_from_bits(e, ec.nlen) % ec.n
     W = ec.add(R, mult(e, ec.G, ec))

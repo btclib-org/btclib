@@ -39,7 +39,8 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
-def test_octets2point():
+@pytest.mark.third
+def test_octets2point() -> None:
     for ec in all_curves.values():
 
         Gbytes = bytes_from_point(ec.G, ec)
@@ -74,10 +75,9 @@ def test_octets2point():
         R = point_from_octets(Q_hex_str, ec)
         assert R == Q
 
-        t = tuple()
         err_msg = "'<' not supported between instances of 'tuple' and 'int'"
         with pytest.raises(TypeError, match=err_msg):
-            _mult_aff(t, ec.G, ec)
+            _mult_aff(tuple(), ec.G, ec)  # type: ignore
 
         Q_bytes = b"\x01" + b"\x01" * ec.psize
         with pytest.raises(ValueError, match="not a point: "):

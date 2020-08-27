@@ -18,7 +18,7 @@ from btclib.alias import INF
 from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
 
 
-def test_exceptions():
+def test_exceptions() -> None:
 
     # good curve
     Curve(13, 0, 2, (1, 9), 19, 1, False)
@@ -43,7 +43,7 @@ def test_exceptions():
 
     err_msg = "Generator must a be a sequence\\[int, int\\]"
     with pytest.raises(ValueError, match=err_msg):
-        Curve(13, 0, 2, (1, 9, 1), 19, 1, False)
+        Curve(13, 0, 2, (1, 9, 1), 19, 1, False)  # type: ignore
 
     with pytest.raises(ValueError, match="Generator is not on the curve"):
         Curve(13, 0, 2, (2, 9), 19, 1, False)
@@ -70,7 +70,7 @@ def test_exceptions():
         Curve(11, 2, 7, (6, 9), 7, 2, True)
 
 
-def test_jac():
+def test_jac() -> None:
 
     ec = Curve(13, 0, 2, (1, 9), 19, 1, False)
     assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
@@ -80,5 +80,8 @@ def test_jac():
     Q = _mult_aff(q, ec.G, ec)
     QJ = _mult_jac(q, ec.GJ, ec)
     assert ec._jac_equality(QJ, _jac_from_aff(Q))
-    assert not ec._jac_equality(QJ, ec.negate(QJ))
+    assert not ec._jac_equality(QJ, ec.negate_jac(QJ))
     assert not ec._jac_equality(QJ, ec.GJ)
+
+    with pytest.raises(TypeError, match="not a Jacobian point"):
+        ec.negate_jac(ec.G)  # type: ignore

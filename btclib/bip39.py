@@ -66,7 +66,7 @@ def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
     nbits = len(binstr_entropy)
     int_entropy = int(binstr_entropy, 2)
     if nbits not in _bits:
-        m = f"Invalid number of bits for BIP39 entropy: {nbits}; must be in {_bits}"
+        m = f"invalid number of bits for BIP39 entropy: {nbits}; must be in {_bits}"
         raise ValueError(m)
     nbytes = (nbits + 7) // 8
     bytes_entropy = int_entropy.to_bytes(nbytes, "big")

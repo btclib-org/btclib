@@ -8,17 +8,22 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""SLIP32 address.
+"""SLIP132 address.
 
+https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
 
 from . import base58address, bech32address, bip32
 from .alias import BIP32Key
-from .network import _P2WPKH_P2SH_PUB_PREFIXES, _P2WPKH_PUB_PREFIXES, _XPUB_PREFIXES
+from .network import (
+    _P2WPKH_P2SH_PUB_PREFIXES,
+    _P2WPKH_PUB_PREFIXES,
+    _XPUB_PREFIXES,
+)
 
 
 def address_from_xkey(xkey: BIP32Key) -> bytes:
-    """Return the SLIP32 base58/bech32 address.
+    """Return the SLIP132 base58/bech32 address.
 
     The address is always derived from the compressed public key,
     as this is the default public key representation in BIP32.
@@ -33,7 +38,7 @@ def address_from_xkey(xkey: BIP32Key) -> bytes:
 
 
 def address_from_xpub(xpub: BIP32Key) -> bytes:
-    """Return the SLIP32 base58/bech32 address.
+    """Return the SLIP132 base58/bech32 address.
 
     The address is always derived from the compressed public key,
     as this is the default public key representation in BIP32.
@@ -43,7 +48,7 @@ def address_from_xpub(xpub: BIP32Key) -> bytes:
         xpub = bip32.deserialize(xpub)
 
     if xpub["key"][0] not in (2, 3):
-        m = f"Not a public key: {bip32.serialize(xpub).decode()}"
+        m = f"not a public key: {bip32.serialize(xpub).decode()}"
         raise ValueError(m)
 
     if xpub["version"] in _XPUB_PREFIXES:

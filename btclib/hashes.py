@@ -14,7 +14,7 @@
 
 from typing import Optional, Tuple
 
-from .alias import Key, Script
+from .alias import HashF, Key, Script, String
 from .script import encode
 from .to_pubkey import pubkeyinfo_from_key
 from .utils import hash160, sha256
@@ -22,7 +22,7 @@ from .utils import hash160, sha256
 _H160Net = Tuple[bytes, str]
 
 
-def hash160_from_pubkey(
+def hash160_from_key(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> _H160Net:
     """Return (public key HASH160, nettwork) from a private/public key.
@@ -34,24 +34,24 @@ def hash160_from_pubkey(
     return h160, network
 
 
-def hash160_from_script(script: Script) -> bytes:
-    """Return the script HASH160 from a private/public key.
+def hash160_from_script(scriptPubKey: Script) -> bytes:
+    """Return the scriptPubKey HASH160 from a private/public key.
 
     HASH160 is RIPEMD160(SHA256).
     """
-    if isinstance(script, list):
-        script = encode(script)
-    return hash160(script)
+    if isinstance(scriptPubKey, list):
+        scriptPubKey = encode(scriptPubKey)
+    return hash160(scriptPubKey)
 
 
-def hash256_from_script(script: Script) -> bytes:
-    """Return the script HASH256 from a private/public key.
+def hash256_from_script(scriptPubKey: Script) -> bytes:
+    """Return the scriptPubKey HASH256 from a private/public key.
 
     HASH256 is SHA256(SHA256).
     """
-    if isinstance(script, list):
-        script = encode(script)
-    return sha256(script)
+    if isinstance(scriptPubKey, list):
+        scriptPubKey = encode(scriptPubKey)
+    return sha256(scriptPubKey)
 
 
 def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
@@ -63,3 +63,14 @@ def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
 
     pubkey, _ = pubkeyinfo_from_key(key, network, compressed=True)
     return hash160(pubkey)[:4]
+
+
+def reduce_to_hlen(msg: String, hf: HashF) -> bytes:
+
+    if isinstance(msg, str):
+        msg = msg.encode()
+
+    # Steps numbering follows SEC 1 v.2 section 4.1.3
+    h = hf()
+    h.update(msg)
+    return h.digest()  # 4
