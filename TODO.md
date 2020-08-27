@@ -1,4 +1,6 @@
 - use https://github.com/lidatong/dataclasses-json
+- do not ignore errors in mypy.ini
+  ignore_errors = True
 - enable flake8 max-complexity
 - improve sphinx documentation
 - network as global variable
