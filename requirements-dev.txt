@@ -12,3 +12,4 @@ coverage
 pytest > 6
 pytest-xdist
 pytest-cov
+tox
