@@ -17,7 +17,7 @@ https://www.secg.org/sec1-v2.pdf
 
 import hashlib
 from io import BytesIO
-from typing import BinaryIO, Iterable, Optional, Union
+from typing import Iterable, Optional, Union
 
 from .alias import BinaryData, Integer, Octets
 
@@ -76,16 +76,16 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
 def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
     """Return a BytesIO stream object from BinaryIO or Octets.
 
-    If the input is not Octets (i.e. str or bytes) or BinaryIO,
+    If the input is not Octets (i.e. str or bytes),
     then it goes untouched.
     """
 
     if isinstance(stream, str):  # hex string
         stream = bytes_from_octets(stream)
+
     if isinstance(stream, bytes):
         stream = BytesIO(stream)
-    elif isinstance(stream, BinaryIO):
-        stream = BytesIO(stream.read())
+
     return stream
 
 
