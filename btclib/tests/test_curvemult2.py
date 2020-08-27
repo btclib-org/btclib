@@ -23,29 +23,6 @@ from btclib.tests.test_curves import low_card_curves
 ec23_31 = low_card_curves["ec23_31"]
 
 
-def test_1():
-    for x in range(50):
-        for ec in low_card_curves.values():
-            assert _mult_jac(0, ec.GJ, ec) == INFJ
-            assert _mult_jac(0, INFJ, ec) == INFJ
-
-            assert _mult_jac(1, INFJ, ec) == INFJ
-            assert _mult_jac(1, ec.GJ, ec) == ec.GJ
-
-            PJ = ec._add_jac(ec.GJ, ec.GJ)
-            assert PJ == _mult_jac(2, ec.GJ, ec)
-
-            PJ = _mult_jac(ec.n - 1, ec.GJ, ec)
-            assert ec._jac_equality(ec.negate(ec.GJ), PJ)
-
-            assert _mult_jac(ec.n - 1, INFJ, ec) == INFJ
-            assert ec._add_jac(PJ, ec.GJ) == INFJ
-            assert _mult_jac(ec.n, ec.GJ, ec) == INFJ
-
-            with pytest.raises(ValueError, match="negative m: -0x"):
-                _mult_jac(-1, ec.GJ, ec)
-
-
 def test_mont_ladder():
     for x in range(50):
         for ec in low_card_curves.values():
