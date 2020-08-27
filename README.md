@@ -38,14 +38,14 @@ btclib does not have external requirements or dependencies;
 to install (and/or upgrade) it:
 
 ```shell
-python -m pip install --upgrade btclib
+pip install --upgrade btclib
 ```
 
 Some dev tools are required to develop and test btclib;
 they can be installed with:
 
 ```shell
-python -m pip install --upgrade -r requirements-dev.txt
+pip install --upgrade -r requirements-dev.txt
 ```
 
 * * *

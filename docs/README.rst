@@ -11,7 +11,7 @@ Assuming you have Python already, `install Sphinx`_:
 
 .. sourcecode:: bash
 
-    $ python -m pip install --upgrade sphinx
+    $ pip install --upgrade sphinx
 
 
 Move into the btclib directory and autogenerate docs:
