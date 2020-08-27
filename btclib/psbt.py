@@ -349,7 +349,7 @@ class Psbt:
             inputs.append(PsbtIn.decode(input_map))
 
         outputs = []
-        for i in range(output_len):
+        for _ in range(output_len):
             output_map, data = deserialize_map(data)
             outputs.append(PsbtOut.decode(output_map))
 
