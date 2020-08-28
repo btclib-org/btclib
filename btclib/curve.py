@@ -340,8 +340,8 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     It is not constant-time.
 
     The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
 
     if m < 0:
@@ -364,12 +364,12 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     This implementation uses 'double & add' algorithm,
     binary decomposition of m,
-    affine coordinates.
+    Jacobian coordinates.
     It is not constant-time.
 
     The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
 
     if m < 0:

@@ -72,6 +72,10 @@ def test_assorted_mult() -> None:
     with pytest.raises(ValueError, match=err_msg):
         _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ], ec)
 
+    err_msg = "negative coefficient: "
+    with pytest.raises(ValueError, match=err_msg):
+        _multi_mult([k1, k2, -k3], [ec.GJ, HJ, ec.GJ], ec)
+
     with pytest.raises(ValueError, match="negative first coefficient: "):
         _double_mult(-5, HJ, 1, ec.GJ, ec)
     with pytest.raises(ValueError, match="negative second coefficient: "):

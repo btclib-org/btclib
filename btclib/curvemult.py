@@ -20,10 +20,7 @@ from .utils import int_from_integer
 
 
 def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
-    """Point multiplication, implemented using 'double and add'.
-
-    Computations use Jacobian coordinates and binary decomposition of m.
-    """
+    "Elliptic curve scalar multiplication."
     if Q is None:
         QJ = ec.GJ
     else:
@@ -38,6 +35,12 @@ def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
 def _double_mult(
     u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup
 ) -> JacPoint:
+    """Shamir trick for efficient computation of u*H + v*Q.
+
+    The input points are assumed to be on curve,
+    the u and v coefficients are assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
 
     if u < 0:
         raise ValueError(f"negative first coefficient: {hex(u)}")
@@ -63,7 +66,7 @@ def _double_mult(
 def double_mult(
     u: Integer, H: Point, v: Integer, Q: Point, ec: Curve = secp256k1
 ) -> Point:
-    """Shamir trick for efficient computation of u*H + v*Q"""
+    "Shamir trick for efficient computation of u*H + v*Q."
 
     ec.require_on_curve(H)
     HJ = _jac_from_aff(H)
@@ -80,6 +83,14 @@ def double_mult(
 def _multi_mult(
     scalars: Sequence[int], JPoints: Sequence[JacPoint], ec: CurveGroup
 ) -> JacPoint:
+    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+
+    Use Bos-Coster's algorithm for efficient computation.
+
+    The input points are assumed to be on curve,
+    the scalar coefficients are assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
     # source: https://cr.yp.to/badbatch/boscoster2.py
 
     if len(scalars) != len(JPoints):
@@ -87,13 +98,13 @@ def _multi_mult(
         errMsg += f"{len(scalars)} vs {len(JPoints)}"
         raise ValueError(errMsg)
 
-    # FIXME
-    # check for negative scalars
     # x = list(zip([-n for n in scalars], JPoints))
     x: List[Tuple[int, JacPoint]] = []
     for n, PJ in zip(scalars, JPoints):
-        if n == 0:
+        if n == 0:  # mandatory check to avoid infinite loop
             continue
+        if n < 0:
+            raise ValueError(f"negative coefficient: {hex(n)}")
         x.append((-n, PJ))
 
     if not x:
@@ -134,7 +145,7 @@ def multi_mult(
     ints: List[int] = list()
     for P, i in zip(Points, scalars):
         i = int_from_integer(i) % ec.n
-        if i == 0:
+        if i == 0:  # early optimization, even if not strictly necessary
             continue
         ints.append(i)
         ec.require_on_curve(P)
