@@ -43,7 +43,7 @@ from .curves import secp256k1
 from .utils import int_from_integer
 
 
-def _double_jac(Q: JacPoint, ec: CurveGroup = secp256k1) -> JacPoint:
+def _double_jac(Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     QZ2 = Q[2] * Q[2]
     QY2 = Q[1] * Q[1]
@@ -61,9 +61,10 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses "montgomery ladder" algorithm,
     It is constant-time if the binary size of Q remains the same.
+
     The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
 
     if m < 0:
@@ -83,7 +84,7 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
     """Point multiplication, implemented using "montgomery ladder" algorithm to run in constant time.
 
-    This can be beneficial when timing  measurements are exposed to an attacker performing a side-channel attack.
+    This can be beneficial when timing measurements are exposed to an attacker performing a side-channel attack.
     This algorithm has the same speed as the double-and-add approach except that it computes the same number
     of point additions and doubles regardless of the value of the multiplicand m.
 
@@ -117,9 +118,10 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     This implementation uses the same idea of "double and add" algorithm, but with scalar radix 3.
     It is not constant time.
+
     The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
 
     if m < 0:
@@ -164,9 +166,10 @@ def _mult_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     This implementation uses the method called "fixed window"
     It is not constant time.
     For 256-bit scalars choose w=4 or w=5
+
     The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
@@ -222,9 +225,10 @@ def _mult_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoin
     It has the benefit that the pre-computation stage is roughly half as complex as the normal windowed method .
     It is not constant time.
     For 256-bit scalars choose w=4 or w=5
+
     The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
 
     if m < 0:
@@ -323,8 +327,8 @@ def _mult_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     In fact, on Weierstrass curves, known P, -P can be computed on the fly.
 
     The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
