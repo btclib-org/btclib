@@ -82,11 +82,10 @@ class TxIn:
     def serialize(self) -> bytes:
         out = self.prevout.serialize()
         if self.prevout.hash == "00" * 32 and self.prevout.n == 256 ** 4 - 1:
-            script_bytes = bytes.fromhex(self.scriptSigHex)
+            out += varint.encode(len(self.scriptSigHex) // 2)
+            out += bytes.fromhex(self.scriptSigHex)
         else:
-            script_bytes = script.encode(self.scriptSig)
-        out += varint.encode(len(script_bytes))
-        out += script_bytes
+            out += script.serialize(self.scriptSig)
         out += self.nSequence.to_bytes(4, "little")
         return out
 

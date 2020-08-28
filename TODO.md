@@ -1,15 +1,14 @@
+- use https://github.com/lidatong/dataclasses-json
+- do not ignore errors in mypy.ini
+  ignore_errors = True
 - enable flake8 max-complexity
 - improve sphinx documentation
 - network as global variable
 - synch (ec, hf) according to network
 - taproot
 - add AuthProxy for full node interaction (blockexplorer fall-back)
-- decode transactions
-- encode transactions
-- PSBT
 - descriptors
 - miniscript (?)
-- block parsing
 - block creating (toy mining)
 - hash rate extimation
 - difficulty adjustment
