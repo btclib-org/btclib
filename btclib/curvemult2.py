@@ -38,7 +38,7 @@ TODO:
 from typing import List
 
 from .alias import INFJ, Integer, JacPoint, Point
-from .curve import CurveGroup, Curve, _jac_from_aff
+from .curve import Curve, CurveGroup, _jac_from_aff
 from .curves import secp256k1
 from .utils import int_from_integer
 
