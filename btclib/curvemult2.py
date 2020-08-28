@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2020 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -24,29 +24,26 @@ References:
 
 TODO:
     - Computational cost of the different multiplications
-    - Add double function to make it clear the difference between sum and dubling for computational cost
     - New alghoritms at the state-of-art:
         -https://hal.archives-ouvertes.fr/hal-00932199/document
         -https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
         -1-s2.0-S1071579704000395-main
     - Elegance in the code
-    - Solve the small problem with wNAF and w=1
+    - Solve problem with wNAF and w=1
     - Multi_mult algorithm: why does it work?
+    - Check _double_jac function
 """
 
 
 from typing import List
 
 from .alias import INFJ, Integer, JacPoint, Point
-from .curve import Curve, _jac_from_aff
+from .curve import CurveGroup, Curve, _jac_from_aff
 from .curves import secp256k1
 from .utils import int_from_integer
 
 
-def _double_jac(Q: JacPoint, ec: Curve = secp256k1) -> JacPoint:
-
-    if Q[2] == 0:
-        return INFJ
+def _double_jac(Q: JacPoint, ec: CurveGroup = secp256k1) -> JacPoint:
 
     QZ2 = Q[2] * Q[2]
     QY2 = Q[1] * Q[1]
@@ -58,11 +55,11 @@ def _double_jac(Q: JacPoint, ec: Curve = secp256k1) -> JacPoint:
     return X, Y, Z
 
 
-def _mult_jac_mont_ladder(m: int, Q: JacPoint, ec: Curve) -> JacPoint:
-    """Scalar multiplication of a curve point in Jacobian coordinates.
+def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication in Jacobian coordinates using "montgomery ladder"
 
+    Scalar multiplication of a curve point in Jacobian coordinates.
     This implementation uses "montgomery ladder" algorithm,
-    jacobian coordinates.
     It is constant-time if the binary size of Q remains the same.
     The input point is assumed to be on curve,
     m is assumed to have been reduced mod n if appropriate
@@ -71,9 +68,6 @@ def _mult_jac_mont_ladder(m: int, Q: JacPoint, ec: Curve) -> JacPoint:
 
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
-
-    if Q == INFJ:
-        return Q
 
     R = INFJ  # initialize as infinity point
     for m in [int(i) for i in bin(m)[2:]]:  # goes through binary digits
@@ -102,12 +96,12 @@ def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Poin
         QJ = _jac_from_aff(Q)
 
     m = int_from_integer(m) % ec.n
-    R = _mult_jac_mont_ladder(m, QJ, ec)
+    R = _mult_mont_ladder(m, QJ, ec)
     return ec._aff_from_jac(R)
 
 
-def numberToBase(n, b):
-    # Returns the list of the digits of n written in basis b
+def convert_number_to_base(n: int, b: int) -> List[int]:
+    """Returns the list of the digits of n written in basis b"""
 
     if n == 0:
         return [0]
@@ -118,8 +112,9 @@ def numberToBase(n, b):
     return digits[::-1]
 
 
-def _mult_jac_base_3(m: int, Q: JacPoint, ec: Curve) -> JacPoint:
-    """Scalar multiplication of a curve point in Jacobian coordinates.
+def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication in Jacobian coordinates using base 3.
+
     This implementation uses the same idea of "double and add" algorithm, but with scalar radix 3.
     It is not constant time.
     The input point is assumed to be on curve,
@@ -130,15 +125,12 @@ def _mult_jac_base_3(m: int, Q: JacPoint, ec: Curve) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    if Q == INFJ:
-        return Q
-
     T: List[JacPoint] = []
     T.append(INFJ)
     for i in range(1, 3):
         T.append(ec._add_jac(T[i - 1], Q))
 
-    M = numberToBase(m, 3)
+    M = convert_number_to_base(m, 3)
 
     R = T[M[0]]
 
@@ -162,12 +154,13 @@ def mult_base_3(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
         QJ = _jac_from_aff(Q)
 
     m = int_from_integer(m) % ec.n
-    R = _mult_jac_base_3(m, QJ, ec)
+    R = _mult_base_3(m, QJ, ec)
     return ec._aff_from_jac(R)
 
 
-def _mult_jac_fixed_window(m: int, w: int, Q: JacPoint, ec: Curve) -> JacPoint:
-    """Scalar multiplication of a curve point in Jacobian coordinates.
+def _mult_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication in Jacobian coordinates using "fixed window".
+
     This implementation uses the method called "fixed window"
     It is not constant time.
     For 256-bit scalars choose w=4 or w=5
@@ -177,9 +170,6 @@ def _mult_jac_fixed_window(m: int, w: int, Q: JacPoint, ec: Curve) -> JacPoint:
     """
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
-
-    if Q == INFJ:
-        return Q
 
     # a number cannot be written in basis 1 (ie w=0)
     if w <= 0:
@@ -192,7 +182,7 @@ def _mult_jac_fixed_window(m: int, w: int, Q: JacPoint, ec: Curve) -> JacPoint:
     for i in range(1, b):
         T.append(ec._add_jac(T[i - 1], Q))
 
-    M = numberToBase(m, b)
+    M = convert_number_to_base(m, b)
 
     R = T[M[0]]
 
@@ -220,13 +210,14 @@ def mult_fixed_window(
 
     m = int_from_integer(m) % ec.n
     w = int_from_integer(w)
-    R = _mult_jac_fixed_window(m, w, QJ, ec)
+    R = _mult_fixed_window(m, w, QJ, ec)
     return ec._aff_from_jac(R)
 
 
 # Need some modifies to make it more elegant
-def _mult_jac_sliding_window(m: int, w: int, Q: JacPoint, ec: Curve) -> JacPoint:
-    """Scalar multiplication of a curve point in Jacobian coordinates.
+def _mult_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication in Jacobian coordinates using "sliding window".
+
     This implementation uses the method called "sliding window".
     It has the benefit that the pre-computation stage is roughly half as complex as the normal windowed method .
     It is not constant time.
@@ -238,9 +229,6 @@ def _mult_jac_sliding_window(m: int, w: int, Q: JacPoint, ec: Curve) -> JacPoint
 
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
-
-    if Q == INFJ:
-        return Q
 
     if w <= 0:
         raise ValueError(f"non positive w: {w}")
@@ -257,7 +245,7 @@ def _mult_jac_sliding_window(m: int, w: int, Q: JacPoint, ec: Curve) -> JacPoint
     for i in range(1, p):
         T.append(ec._add_jac(T[i - 1], Q))
 
-    M = numberToBase(m, 2)
+    M = convert_number_to_base(m, 2)
 
     R = INFJ
 
@@ -307,14 +295,14 @@ def mult_sliding_window(
 
     m = int_from_integer(m) % ec.n
     w = int_from_integer(w)
-    R = _mult_jac_sliding_window(m, w, QJ, ec)
+    R = _mult_sliding_window(m, w, QJ, ec)
     return ec._aff_from_jac(R)
 
 
 def mods(m: int, w: int) -> int:
-    # Signed modulo function
-    """
-    Need minor changes:
+    """Signed modulo function
+
+    FIXME:
     mods does NOT work for w=1. However the function in NOT really meant to be used for w=1
     For w=1 it always gives back -1 and enters an infinte loop
     """
@@ -327,8 +315,9 @@ def mods(m: int, w: int) -> int:
         return M
 
 
-def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: Curve) -> JacPoint:
-    """Scalar multiplication of a curve point in Jacobian coordinates.
+def _mult_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication in Jacobian coordinates using wNAF.
+
     This implementation uses the same method called "w-ary non-adjacent form" (wNAF)
     we make use of the fact that point subtraction is as easy as point addition to perform fewer operations compared to sliding-window
     In fact, on Weierstrass curves, known P, -P can be computed on the fly.
@@ -340,14 +329,12 @@ def _mult_jac_w_NAF(m: int, w: int, Q: JacPoint, ec: Curve) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    if m == 0:
-        return INFJ
-
-    if Q == INFJ:
-        return Q
-
     if w <= 0:
         raise ValueError(f"non positive w: {w}")
+
+    # This exception must be kept to satisfy while loop on line 344
+    if m == 0:
+        return INFJ
 
     i = 0
 
@@ -403,5 +390,5 @@ def mult_w_NAF(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp256k1) -
 
     m = int_from_integer(m) % ec.n
     w = int_from_integer(w)
-    R = _mult_jac_w_NAF(m, w, QJ, ec)
+    R = _mult_w_NAF(m, w, QJ, ec)
     return ec._aff_from_jac(R)
