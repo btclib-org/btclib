@@ -347,21 +347,22 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # use binary representation of m
-    # if least significant bit is 1, then add Q
-    R = Q if m & 1 else INF
+    # R[0] is the (running) result, R[1] = R[0] + Q is an ancillary variable
+    R = [INF, Q]
+    # if least significant bit of m is 1, then add Q to the running result
+    R[0] = R[m & 1]
     # remove the bit just accounted for
     m = m >> 1
-    while m > 0:  # use binary representation of m
+    while m > 0:
         # the doubling part of 'double & add'
         Q = ec._add_aff(Q, Q)
         # the 'add' part is always computed,
         # even if unnecessary, to be constant-time
-        T = ec._add_aff(R, Q)
-        # 'add' only if least significant bit is 1
-        R = T if m & 1 else R
+        R[1] = ec._add_aff(R[0], Q)
+        # 'add' to the running result only if least significant bit of m is 1
+        R[0] = R[m & 1]
         m = m >> 1
-    return R
+    return R[0]
 
 
 def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -380,9 +381,10 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # use binary representation of m
-    # if least significant bit is 1, then add Q
-    R = Q if m & 1 else INFJ
+    # R[0] is the (running) result, R[1] = R[0] + Q is an ancillary variable
+    R = [INFJ, Q]
+    # if least significant bit of m is 1, then add Q to the running result
+    R[0] = R[m & 1]
     # remove the bit just accounted for
     m = m >> 1
     while m > 0:
@@ -390,11 +392,11 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         Q = ec._add_jac(Q, Q)
         # the 'add' part is always computed,
         # even if unnecessary, to be constant-time
-        T = ec._add_jac(R, Q)
-        # 'add' only if least significant bit is 1
-        R = T if m & 1 else R
+        R[1] = ec._add_jac(R[0], Q)
+        # 'add' to the running result only if least significant bit of m is 1
+        R[0] = R[m & 1]
         m = m >> 1
-    return R
+    return R[0]
 
 
 class CurveSubGroup(CurveGroup):
