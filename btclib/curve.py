@@ -13,10 +13,8 @@
 from math import sqrt
 
 from .alias import Integer, Point
-from .curvegroup import CurveGroup, _mult_aff
+from .curvegroup import _HEXTHRESHOLD, CurveGroup, _mult_aff
 from .utils import hex_string, int_from_integer
-
-_HEXTHRESHOLD = 0xFFFFFFFF
 
 
 class CurveSubGroup(CurveGroup):
