@@ -43,7 +43,7 @@ def _double_mult(
 
     Strauss algorithm consists of a single 'double & add' loop
     for the parallel calculation of u*H and v*Q,
-    efficiently using a single 'doubling' for both scalar multiplication.
+    efficiently using a single 'doubling' for both scalar multiplications.
 
     The Shamir trick adds the precomputation of H+Q,
     which is to be added in the loop when the binary digits
