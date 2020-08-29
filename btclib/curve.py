@@ -339,9 +339,6 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     'right-to-left' binary decomposition of the m coefficient,
     affine coordinates.
 
-    It is insecure for a secret scalar m as it is not constant-time:
-    the number of addition depends on the binary decomposition of m.
-
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
@@ -350,15 +347,20 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # there is not a compelling reason to optimize for INF, even if possible
-    # if Q[1] == 0 or m == 0:  # Infinity point, affine coordinates
-    #    return INF  # return Infinity point
-    R = INF  # initialize as infinity point
+    # use binary representation of m
+    # if least significant bit is 1, then add Q
+    R = Q if m & 1 else INF
+    # remove the bit just accounted for
+    m = m >> 1
     while m > 0:  # use binary representation of m
-        if m & 1:  # if least significant bit is 1
-            R = ec._add_aff(R, Q)  # then add current Q
-        m = m >> 1  # remove the bit just accounted for
-        Q = ec._add_aff(Q, Q)  # double Q for next step
+        # the doubling part of 'double & add'
+        Q = ec._add_aff(Q, Q)
+        # the 'add' part is always computed,
+        # even if unnecessary, to be constant-time
+        T = ec._add_aff(R, Q)
+        # 'add' only if least significant bit is 1
+        R = T if m & 1 else R
+        m = m >> 1
     return R
 
 
@@ -370,9 +372,6 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     'right-to-left' binary decomposition of the m coefficient,
     Jacobian coordinates.
 
-    It is insecure for a secret scalar m as it is not constant-time:
-    the number of addition depends on the binary decomposition of m.
-
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
@@ -381,15 +380,20 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # there is not a compelling reason to optimize for INFJ, even if possible
-    # if Q[2] == 1:  # Infinity point, Jacobian coordinates
-    #     return INFJ  # return Infinity point
-    R = INFJ  # initialize as infinity point
-    while m > 0:  # use binary representation of m
-        if m & 1:  # if least significant bit is 1
-            R = ec._add_jac(R, Q)  # then add current Q
-        m = m >> 1  # remove the bit just accounted for
-        Q = ec._add_jac(Q, Q)  # double Q for next step
+    # use binary representation of m
+    # if least significant bit is 1, then add Q
+    R = Q if m & 1 else INFJ
+    # remove the bit just accounted for
+    m = m >> 1
+    while m > 0:
+        # the doubling part of 'double & add'
+        Q = ec._add_jac(Q, Q)
+        # the 'add' part is always computed,
+        # even if unnecessary, to be constant-time
+        T = ec._add_jac(R, Q)
+        # 'add' only if least significant bit is 1
+        R = T if m & 1 else R
+        m = m >> 1
     return R
 
 
