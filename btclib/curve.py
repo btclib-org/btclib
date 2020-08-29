@@ -347,19 +347,18 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # R[0] is the (running) result, R[1] = R[0] + Q is an ancillary variable
+    # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
     R = [INF, Q]
-    # if least significant bit of m is 1, then add Q to the running result
+    # if least significant bit of m is 1, then add Q to R[0]
     R[0] = R[m & 1]
     # remove the bit just accounted for
     m = m >> 1
     while m > 0:
         # the doubling part of 'double & add'
         Q = ec._add_aff(Q, Q)
-        # the 'add' part is always computed,
-        # even if unnecessary, to be constant-time
+        # always perform the 'add', even if useless, to be constant-time
         R[1] = ec._add_aff(R[0], Q)
-        # 'add' to the running result only if least significant bit of m is 1
+        # 'add' it to R[0] only if least significant bit of m is 1
         R[0] = R[m & 1]
         m = m >> 1
     return R[0]
@@ -381,19 +380,18 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # R[0] is the (running) result, R[1] = R[0] + Q is an ancillary variable
+    # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
     R = [INFJ, Q]
-    # if least significant bit of m is 1, then add Q to the running result
+    # if least significant bit of m is 1, then add Q to R[0]
     R[0] = R[m & 1]
     # remove the bit just accounted for
     m = m >> 1
     while m > 0:
         # the doubling part of 'double & add'
         Q = ec._add_jac(Q, Q)
-        # the 'add' part is always computed,
-        # even if unnecessary, to be constant-time
+        # always perform the 'add', even if useless, to be constant-time
         R[1] = ec._add_jac(R[0], Q)
-        # 'add' to the running result only if least significant bit of m is 1
+        # 'add' it to R[0] only if least significant bit of m is 1
         R[0] = R[m & 1]
         m = m >> 1
     return R[0]
