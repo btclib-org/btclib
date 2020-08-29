@@ -62,7 +62,7 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     This implementation uses "montgomery ladder" algorithm,
     It is constant-time if the binary size of Q remains the same.
 
-    The input point is assumed to be on curve,
+    The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
@@ -119,7 +119,7 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     This implementation uses the same idea of "double and add" algorithm, but with scalar radix 3.
     It is not constant time.
 
-    The input point is assumed to be on curve,
+    The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
@@ -167,7 +167,7 @@ def _mult_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     It is not constant time.
     For 256-bit scalars choose w=4 or w=5
 
-    The input point is assumed to be on curve,
+    The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
@@ -226,7 +226,7 @@ def _mult_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoin
     It is not constant time.
     For 256-bit scalars choose w=4 or w=5
 
-    The input point is assumed to be on curve,
+    The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
@@ -326,7 +326,7 @@ def _mult_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     we make use of the fact that point subtraction is as easy as point addition to perform fewer operations compared to sliding-window
     In fact, on Weierstrass curves, known P, -P can be computed on the fly.
 
-    The input point is assumed to be on curve,
+    The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """

@@ -334,12 +334,15 @@ class CurveGroup:
 def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
-    This implementation uses 'double & add' algorithm,
-    binary decomposition of m,
+    This implementation uses
+    'double & add' algorithm,
+    'right-to-left' binary decomposition of the m coefficient,
     affine coordinates.
-    It is not constant-time.
 
-    The input point is assumed to be on curve,
+    It is insecure for a secret scalar m as it is not constant-time:
+    the number of addition depends on the binary decomposition of m.
+
+    The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
@@ -362,12 +365,15 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
 def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
 
-    This implementation uses 'double & add' algorithm,
-    binary decomposition of m,
+    This implementation uses
+    'double & add' algorithm,
+    'right-to-left' binary decomposition of the m coefficient,
     Jacobian coordinates.
-    It is not constant-time.
 
-    The input point is assumed to be on curve,
+    It is insecure for a secret scalar m as it is not constant-time:
+    the number of addition depends on the binary decomposition of m.
+
+    The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
