@@ -334,57 +334,67 @@ class CurveGroup:
 def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
-    This implementation uses 'double & add' algorithm,
-    binary decomposition of m,
+    This implementation uses
+    'double & add' algorithm,
+    'right-to-left' binary decomposition of the m coefficient,
     affine coordinates.
-    It is not constant-time.
 
-    The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
 
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # there is not a compelling reason to optimize for INF, even if possible
-    # if Q[1] == 0 or m == 0:  # Infinity point, affine coordinates
-    #    return INF  # return Infinity point
-    R = INF  # initialize as infinity point
-    while m > 0:  # use binary representation of m
-        if m & 1:  # if least significant bit is 1
-            R = ec._add_aff(R, Q)  # then add current Q
-        m = m >> 1  # remove the bit just accounted for
-        Q = ec._add_aff(Q, Q)  # double Q for next step
-    return R
+    # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
+    R = [INF, Q]
+    # if least significant bit of m is 1, then add Q to R[0]
+    R[0] = R[m & 1]
+    # remove the bit just accounted for
+    m = m >> 1
+    while m > 0:
+        # the doubling part of 'double & add'
+        Q = ec._add_aff(Q, Q)
+        # always perform the 'add', even if useless, to be constant-time
+        R[1] = ec._add_aff(R[0], Q)
+        # 'add' it to R[0] only if least significant bit of m is 1
+        R[0] = R[m & 1]
+        m = m >> 1
+    return R[0]
 
 
 def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
 
-    This implementation uses 'double & add' algorithm,
-    binary decomposition of m,
-    affine coordinates.
-    It is not constant-time.
+    This implementation uses
+    'double & add' algorithm,
+    'right-to-left' binary decomposition of the m coefficient,
+    Jacobian coordinates.
 
-    The input point is assumed to be on curve,
-    m is assumed to have been reduced mod n if appropriate
-    (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
     """
 
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # there is not a compelling reason to optimize for INFJ, even if possible
-    # if Q[2] == 1:  # Infinity point, Jacobian coordinates
-    #     return INFJ  # return Infinity point
-    R = INFJ  # initialize as infinity point
-    while m > 0:  # use binary representation of m
-        if m & 1:  # if least significant bit is 1
-            R = ec._add_jac(R, Q)  # then add current Q
-        m = m >> 1  # remove the bit just accounted for
-        Q = ec._add_jac(Q, Q)  # double Q for next step
-    return R
+    # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
+    R = [INFJ, Q]
+    # if least significant bit of m is 1, then add Q to R[0]
+    R[0] = R[m & 1]
+    # remove the bit just accounted for
+    m = m >> 1
+    while m > 0:
+        # the doubling part of 'double & add'
+        Q = ec._add_jac(Q, Q)
+        # always perform the 'add', even if useless, to be constant-time
+        R[1] = ec._add_jac(R[0], Q)
+        # 'add' it to R[0] only if least significant bit of m is 1
+        R[0] = R[m & 1]
+        m = m >> 1
+    return R[0]
 
 
 class CurveSubGroup(CurveGroup):
