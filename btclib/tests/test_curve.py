@@ -15,7 +15,8 @@ import secrets
 import pytest
 
 from btclib.alias import INF
-from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
+from btclib.curve import Curve
+from btclib.curvegroup import _jac_from_aff, _mult_aff, _mult_jac
 
 
 def test_exceptions() -> None:
