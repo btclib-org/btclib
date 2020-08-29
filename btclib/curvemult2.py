@@ -336,7 +336,7 @@ def _mult_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if w <= 0:
         raise ValueError(f"non positive w: {w}")
 
-    # This exception must be kept to satisfy while loop on line 344
+    # This exception must be kept to satisfy the following while loop
     if m == 0:
         return INFJ
 
