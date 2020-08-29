@@ -36,7 +36,7 @@ def _double_mult(
     u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup
 ) -> JacPoint:
     """Double scalar multiplication (u*H + v*Q).
-     
+
     This implementation uses the Shamir-Strauss algorithm,
     'left-to-right' binary decomposition of the u and v coefficients,
     Jacobian coordinates.
@@ -77,14 +77,14 @@ def _double_mult(
         R[0] = ec._add_jac(R[0], R[0])
         # always perform the 'add', even if useless, to be constant-time
         # 'add' it to R[0] only if appropriate
-        R[i==0] = ec._add_jac(R[0], t[i])
+        R[i == 0] = ec._add_jac(R[0], t[i])
     return R[0]
 
 
 def double_mult(
     u: Integer, H: Point, v: Integer, Q: Point, ec: Curve = secp256k1
 ) -> Point:
-    "Shamir trick for efficient computation of u*H + v*Q."
+    "Double scalar multiplication (u*H + v*Q)."
 
     ec.require_on_curve(H)
     HJ = _jac_from_aff(H)
