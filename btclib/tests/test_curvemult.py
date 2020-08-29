@@ -15,7 +15,7 @@ import secrets
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.curve import _jac_from_aff, _mult_jac
+from btclib.curvegroup import _jac_from_aff, _mult_jac
 from btclib.curvemult import (
     _double_mult,
     _multi_mult,

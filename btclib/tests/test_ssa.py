@@ -20,7 +20,8 @@ import pytest
 
 from btclib import bip32, ssa
 from btclib.alias import INF, Point
-from btclib.curvemult import _mult_jac, double_mult, mult
+from btclib.curvegroup import _mult_jac
+from btclib.curvemult import double_mult, mult
 from btclib.curves import CURVES
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator

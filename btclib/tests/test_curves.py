@@ -16,7 +16,8 @@ from typing import Dict
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.curve import Curve, _jac_from_aff, _mult_aff, _mult_jac
+from btclib.curve import Curve
+from btclib.curvegroup import _jac_from_aff, _mult_aff, _mult_jac
 from btclib.curves import CURVES
 from btclib.numbertheory import mod_sqrt
 
