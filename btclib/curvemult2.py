@@ -31,7 +31,6 @@ TODO:
     - Elegance in the code
     - Solve problem with wNAF and w=1
     - Multi_mult algorithm: why does it work?
-    - Check _double_jac function
 """
 
 
@@ -42,18 +41,6 @@ from .curve import Curve
 from .curvegroup import CurveGroup, _jac_from_aff
 from .curves import secp256k1
 from .utils import int_from_integer
-
-
-def _double_jac(Q: JacPoint, ec: CurveGroup) -> JacPoint:
-
-    QZ2 = Q[2] * Q[2]
-    QY2 = Q[1] * Q[1]
-    W = (3 * Q[0] * Q[0] + ec._a * QZ2 * QZ2) % ec.p
-    V = (4 * Q[0] * QY2) % ec.p
-    X = (W * W - 2 * V) % ec.p
-    Y = (W * (V - X) - 8 * QY2 * QY2) % ec.p
-    Z = (2 * Q[1] * Q[2]) % ec.p
-    return X, Y, Z
 
 
 def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -75,10 +62,10 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     for m in [int(i) for i in bin(m)[2:]]:  # goes through binary digits
         if m == 0:
             Q = ec._add_jac(R, Q)
-            R = _double_jac(R, ec)
+            R = ec._double_jac(R)
         else:
             R = ec._add_jac(R, Q)
-            Q = _double_jac(Q, ec)
+            Q = ec._double_jac(Q)
     return R
 
 
@@ -138,7 +125,7 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     R = T[M[0]]
 
     for i in range(1, len(M)):
-        R2 = _double_jac(R, ec)
+        R2 = ec._double_jac(R)
         R = ec._add_jac(R2, R)
         R = ec._add_jac(R, T[M[i]])
 
@@ -192,7 +179,7 @@ def _mult_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     for i in range(1, len(M)):
         for _ in range(w):
-            R = _double_jac(R, ec)
+            R = ec._double_jac(R)
         R = ec._add_jac(R, T[M[i]])
 
     return R
@@ -243,7 +230,7 @@ def _mult_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoin
 
     P = Q
     for _ in range(k):
-        P = _double_jac(P, ec)
+        P = ec._double_jac(P)
 
     T: List[JacPoint] = []
     T.append(P)
@@ -257,7 +244,7 @@ def _mult_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoin
     i = 0
     while i < len(M):
         if M[i] == 0:
-            R = _double_jac(R, ec)
+            R = ec._double_jac(R)
             i += 1
         else:
             if (len(M) - i) < w:
@@ -271,14 +258,14 @@ def _mult_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoin
 
             if j < w:
                 for b in range(i, (i + j)):
-                    R = _double_jac(R, ec)
+                    R = ec._double_jac(R)
                     if M[b] == 1:
                         R = ec._add_jac(R, Q)
                 return R
 
             else:
                 for _ in range(w):
-                    R = _double_jac(R, ec)
+                    R = ec._double_jac(R)
                 R = ec._add_jac(R, T[t - p])
                 i += j
     return R
@@ -357,7 +344,7 @@ def _mult_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     b = pow(2, w)
 
-    Q2 = _double_jac(Q, ec)
+    Q2 = ec._double_jac(Q)
 
     T: List[JacPoint] = []
     T.append(Q)
@@ -369,7 +356,7 @@ def _mult_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     R = INFJ
 
     for j in range(p - 1, -1, -1):
-        R = _double_jac(R, ec)
+        R = ec._double_jac(R)
         if M[j] != 0:
             if M[j] > 0:
                 # It adds the element jQ
