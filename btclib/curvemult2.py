@@ -36,19 +36,45 @@ TODO:
 
 from typing import List
 
-from .alias import INFJ, Integer, JacPoint, Point
-from .curve import Curve
-from .curvegroup import CurveGroup, _jac_from_aff
-from .curves import secp256k1
-from .utils import int_from_integer
+from .alias import INFJ, JacPoint
+from .curvegroup import CurveGroup
+
+
+def convert_number_to_base(n: int, b: int) -> List[int]:
+    """Returns the list of the digits of n written in basis b"""
+
+    if n == 0:
+        return [0]
+    digits = []
+    while n:
+        digits.append(int(n % b))
+        n //= b
+    return digits[::-1]
+
+
+def mods(m: int, w: int) -> int:
+    """Signed modulo function
+
+    FIXME:
+    mods does NOT work for w=1. However the function in NOT really meant to be used for w=1
+    For w=1 it always gives back -1 and enters an infinte loop
+    """
+
+    w2 = pow(2, w)
+    M = m % w2
+    if M >= (w2 / 2):
+        return M - w2
+    else:
+        return M
 
 
 def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
-    """Scalar multiplication in Jacobian coordinates using "montgomery ladder"
+    """Scalar multiplication using 'Montgomery ladder' algorithm.
 
-    Scalar multiplication of a curve point in Jacobian coordinates.
-    This implementation uses "montgomery ladder" algorithm,
-    It is constant-time if the binary size of Q remains the same.
+    This implementation uses
+    'Montgomery ladder' algorithm,
+    'left-to-right' binary decomposition of the m coefficient,
+    Jacobian coordinates.
 
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
@@ -67,38 +93,6 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
             R = ec._add_jac(R, Q)
             Q = ec._double_jac(Q)
     return R
-
-
-def mult_mont_ladder(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
-    """Point multiplication, implemented using "montgomery ladder" algorithm to run in constant time.
-
-    This can be beneficial when timing measurements are exposed to an attacker performing a side-channel attack.
-    This algorithm has the same speed as the double-and-add approach except that it computes the same number
-    of point additions and doubles regardless of the value of the multiplicand m.
-
-    Computations use Jacobian coordinates and binary decomposition of m.
-    """
-    if Q is None:
-        QJ = ec.GJ
-    else:
-        ec.require_on_curve(Q)
-        QJ = _jac_from_aff(Q)
-
-    m = int_from_integer(m) % ec.n
-    R = _mult_mont_ladder(m, QJ, ec)
-    return ec._aff_from_jac(R)
-
-
-def convert_number_to_base(n: int, b: int) -> List[int]:
-    """Returns the list of the digits of n written in basis b"""
-
-    if n == 0:
-        return [0]
-    digits = []
-    while n:
-        digits.append(int(n % b))
-        n //= b
-    return digits[::-1]
 
 
 def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -130,22 +124,6 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         R = ec._add_jac(R, T[M[i]])
 
     return R
-
-
-def mult_base_3(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
-    """Point multiplication, implemented using "double and add" but changing the scalar radix to 3.
-
-    Computations use Jacobian coordinates and decomposition of m basis 3.
-    """
-    if Q is None:
-        QJ = ec.GJ
-    else:
-        ec.require_on_curve(Q)
-        QJ = _jac_from_aff(Q)
-
-    m = int_from_integer(m) % ec.n
-    R = _mult_base_3(m, QJ, ec)
-    return ec._aff_from_jac(R)
 
 
 def _mult_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -185,27 +163,6 @@ def _mult_fixed_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R
 
 
-def mult_fixed_window(
-    m: Integer, w: Integer, Q: Point = None, ec: Curve = secp256k1
-) -> Point:
-    """Point multiplication, implemented using "fixed window" method.
-
-    Computations use Jacobian coordinates and decomposition of m on basis 2^w.
-    """
-
-    if Q is None:
-        QJ = ec.GJ
-    else:
-        ec.require_on_curve(Q)
-        QJ = _jac_from_aff(Q)
-
-    m = int_from_integer(m) % ec.n
-    w = int_from_integer(w)
-    R = _mult_fixed_window(m, w, QJ, ec)
-    return ec._aff_from_jac(R)
-
-
-# Need some modifies to make it more elegant
 def _mult_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication in Jacobian coordinates using "sliding window".
 
@@ -271,42 +228,6 @@ def _mult_sliding_window(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoin
     return R
 
 
-def mult_sliding_window(
-    m: Integer, w: Integer, Q: Point = None, ec: Curve = secp256k1
-) -> Point:
-    """Point multiplication, implemented using "sliding window" method.
-
-    Computations use Jacobian coordinates and decomposition of m on basis 2.
-    """
-
-    if Q is None:
-        QJ = ec.GJ
-    else:
-        ec.require_on_curve(Q)
-        QJ = _jac_from_aff(Q)
-
-    m = int_from_integer(m) % ec.n
-    w = int_from_integer(w)
-    R = _mult_sliding_window(m, w, QJ, ec)
-    return ec._aff_from_jac(R)
-
-
-def mods(m: int, w: int) -> int:
-    """Signed modulo function
-
-    FIXME:
-    mods does NOT work for w=1. However the function in NOT really meant to be used for w=1
-    For w=1 it always gives back -1 and enters an infinte loop
-    """
-
-    w2 = pow(2, w)
-    M = m % w2
-    if M >= (w2 / 2):
-        return M - w2
-    else:
-        return M
-
-
 def _mult_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication in Jacobian coordinates using wNAF.
 
@@ -366,21 +287,3 @@ def _mult_w_NAF(m: int, w: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
                 R = ec._add_jac(R, T[(b // 2) - ((M[j] + 1) // 2)])
 
     return R
-
-
-def mult_w_NAF(m: Integer, w: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
-    """Point multiplication, implemented using "w-NAF" method.
-
-    Computations use Jacobian coordinates and decomposition of m on basis 2^w.
-    """
-
-    if Q is None:
-        QJ = ec.GJ
-    else:
-        ec.require_on_curve(Q)
-        QJ = _jac_from_aff(Q)
-
-    m = int_from_integer(m) % ec.n
-    w = int_from_integer(w)
-    R = _mult_w_NAF(m, w, QJ, ec)
-    return ec._aff_from_jac(R)
