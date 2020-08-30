@@ -75,6 +75,10 @@ def test_add_aff() -> None:
         assert ec._add_aff(INF, ec.G) == ec.G
         assert ec._add_aff(INF, INF) == INF
 
+        # double G
+        G2 = ec._add_aff(ec.G, ec.G)
+        assert G2 == ec._double_aff(ec.G)
+
         # add G and minus G
         assert ec._add_aff(ec.G, ec.negate(ec.G)) == INF
 
@@ -87,12 +91,16 @@ def test_add_jac() -> None:
         assert ec._add_jac(INFJ, ec.GJ) == ec.GJ
         assert ec._add_jac(INFJ, INFJ) == INFJ
 
+        # double G
+        GJ2 = ec._add_jac(ec.GJ, ec.GJ)
+        assert GJ2 == ec._double_jac(ec.GJ)
+
         # add G and minus G
         assert ec._add_jac(ec.GJ, ec.negate_jac(ec.GJ)) == INFJ
 
 
 @pytest.mark.eighth
-def test_add() -> None:
+def test_add_double_aff_jac() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -106,9 +114,11 @@ def test_add() -> None:
         assert R == ec._aff_from_jac(RJ)
 
         # double Q
-        R = ec._add_aff(Q, Q)
-        RJ = ec._add_jac(QJ, QJ)
+        R = ec._double_aff(Q)
+        RJ = ec._double_jac(QJ)
         assert R == ec._aff_from_jac(RJ)
+        assert R == ec._add_aff(Q, Q)
+        assert RJ == ec._add_jac(QJ, QJ)
 
 
 @pytest.mark.fourth
