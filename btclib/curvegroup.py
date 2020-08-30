@@ -195,19 +195,25 @@ class CurveGroup:
     def _add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
 
+        # FIXME it would be better if INFJ was not a special case
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return R
         if R[2] == 0:  # Infinity point in Jacobian coordinates
             return Q
 
         RZ2 = R[2] * R[2]
+        RZ3 = RZ2 * R[2]
         QZ2 = Q[2] * Q[2]
+        QZ3 = QZ2 * Q[2]
+
         M = (Q[0] * RZ2) % self.p
         N = (R[0] * QZ2) % self.p
+
+        T = (Q[1] * RZ3) % self.p
+        U = (R[1] * QZ3) % self.p
+
         if M == N:  # same affine x
-            RZ3 = RZ2 * R[2]
-            QZ3 = QZ2 * Q[2]
-            if Q[1] * RZ3 % self.p == R[1] * QZ3 % self.p:  # point doubling
+            if T == U:  # point doubling
                 QY2 = Q[1] * Q[1]
                 W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % self.p
                 V = (4 * Q[0] * QY2) % self.p
@@ -215,33 +221,20 @@ class CurveGroup:
                 Y = (W * (V - X) - 8 * QY2 * QY2) % self.p
                 Z = (2 * Q[1] * Q[2]) % self.p
                 return X, Y, Z
-            else:  # opposite points
-                return INFJ
-        else:
-            RZ3 = RZ2 * R[2]
-            QZ3 = QZ2 * Q[2]
 
-            T = (Q[1] * RZ3) % self.p
-            U = (R[1] * QZ3) % self.p
-            W = (U - T) % self.p
+        W = (U - T) % self.p
+        V = (N - M) % self.p
 
-            V = (N - M) % self.p
-
-            V2 = V * V
-            V3 = V2 * V
-            MV2 = M * V2
-            X = (W * W - V3 - 2 * MV2) % self.p
-            Y = (W * (MV2 - X) - T * V3) % self.p
-            Z = (V * Q[2] * R[2]) % self.p
-            return X, Y, Z
+        V2 = V * V
+        V3 = V2 * V
+        MV2 = M * V2
+        X = (W * W - V3 - 2 * MV2) % self.p
+        Y = (W * (MV2 - X) - T * V3) % self.p
+        Z = (V * Q[2] * R[2]) % self.p
+        return X, Y, Z
 
     def _double_jac(self, Q: JacPoint) -> JacPoint:
         # point is assumed to be on curve
-
-        # TODO test (x, 0) affine point
-        # Infinity point in Jacobian coordinates
-        if Q[2] == 0:
-            return INFJ
 
         QZ2 = Q[2] * Q[2]
         QY2 = Q[1] * Q[1]
@@ -254,6 +247,8 @@ class CurveGroup:
 
     def _add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
+
+        # FIXME it would be better if INF was not a special case
         if R[1] == 0:  # Infinity point in affine coordinates
             return Q
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -261,12 +256,10 @@ class CurveGroup:
 
         if R[0] == Q[0]:
             if R[1] == Q[1]:  # point doubling
-                lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self.p)
-                lam %= self.p
+                return self._double_aff(R)
             else:  # opposite points
                 return INF
-        else:
-            lam = ((R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)) % self.p
+        lam = ((R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)) % self.p
         x = (lam * lam - Q[0] - R[0]) % self.p
         y = (lam * (Q[0] - x) - Q[1]) % self.p
         return x, y
@@ -277,8 +270,7 @@ class CurveGroup:
         if Q[1] == 0:  # Infinity point in affine coordinates
             return INF
 
-        lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self.p)
-        lam %= self.p
+        lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self.p) % self.p
         x = (lam * lam - Q[0] - Q[0]) % self.p
         y = (lam * (Q[0] - x) - Q[1]) % self.p
         return x, y
@@ -397,7 +389,7 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         Q = ec._double_aff(Q)
         # always perform the 'add', even if useless, to be constant-time
         R[1] = ec._add_aff(R[0], Q)
-        # 'add' it to R[0] only if least significant bit of m is 1
+        # if least significant bit of m is 1, then add Q to R[0]
         R[0] = R[m & 1]
         m = m >> 1
     return R[0]
@@ -430,7 +422,7 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         Q = ec._double_jac(Q)
         # always perform the 'add', even if useless, to be constant-time
         R[1] = ec._add_jac(R[0], Q)
-        # 'add' it to R[0] only if least significant bit of m is 1
+        # if least significant bit of m is 1, then add Q to R[0]
         R[0] = R[m & 1]
         m = m >> 1
     return R[0]
