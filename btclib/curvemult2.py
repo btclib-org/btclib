@@ -54,8 +54,9 @@ def mods(m: int, w: int) -> int:
     """Signed modulo function.
 
     FIXME:
-    mods does NOT work for w=1. However the function in NOT really meant to be used for w=1
-    For w=1 it always gives back -1 and enters an infinte loop
+    mods does NOT work for w=1.
+    However the function in NOT really meant to be used for w=1
+    For w=1 it always gives back -1 and enters an infinite loop
     """
 
     w2 = pow(2, w)
@@ -108,18 +109,16 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    base = 3
-    M = convert_number_to_base(m, base)
-
-    T = [INFJ]
-    for i in range(1, base):
-        T.append(ec._add_jac(T[i - 1], Q))
-
-    R = T[M[0]]
-    for i in range(1, len(M)):
+    digits = convert_number_to_base(m, 3)
+    T = [INFJ, Q, ec._double_jac(Q)]
+    R = T[digits[0]]
+    for i in digits[1:]:
+        # 'triple'
         R2 = ec._double_jac(R)
-        R = ec._add_jac(R2, R)
-        R = ec._add_jac(R, T[M[i]])
+        R3 = ec._add_jac(R2, R)
+        # and 'add'
+        R = ec._add_jac(R3, T[i])
+        # FIXME: this require no INFJ optimization in _add_jac
     return R
 
 
@@ -142,17 +141,19 @@ def _mult_fixed_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
         raise ValueError(f"non positive w: {w}")
 
     base = pow(2, w)
-    M = convert_number_to_base(m, base)
-
-    T = [INFJ]
-    for i in range(1, base):
+    digits = convert_number_to_base(m, base)
+    T = [INFJ, Q]
+    for i in range(2, base):
         T.append(ec._add_jac(T[i - 1], Q))
 
-    R = T[M[0]]
-    for i in range(1, len(M)):
+    R = T[digits[0]]
+    for i in digits[1:]:
+        # multiple 'double'
         for _ in range(w):
             R = ec._double_jac(R)
-        R = ec._add_jac(R, T[M[i]])
+        # and 'add'
+        R = ec._add_jac(R, T[i])
+        # FIXME: this require no INFJ optimization in _add_jac
     return R
 
 
@@ -187,25 +188,24 @@ def _mult_sliding_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoin
     for i in range(1, p):
         T.append(ec._add_jac(T[i - 1], Q))
 
-    M = convert_number_to_base(m, 2)
+    digits = convert_number_to_base(m, 2)
 
     R = INFJ
     i = 0
-    while i < len(M):
-        if M[i] == 0:
+    while i < len(digits):
+        if digits[i] == 0:
             R = ec._double_jac(R)
             i += 1
         else:
-            j = len(M) - i if (len(M) - i) < w else w
-
-            t = M[i]
+            j = len(digits) - i if (len(digits) - i) < w else w
+            t = digits[i]
             for a in range(1, j):
-                t = 2 * t + M[i + a]
+                t = 2 * t + digits[i + a]
 
             if j < w:
                 for b in range(i, (i + j)):
                     R = ec._double_jac(R)
-                    if M[b] == 1:
+                    if digits[b] == 1:
                         R = ec._add_jac(R, Q)
                 return R
             else:
