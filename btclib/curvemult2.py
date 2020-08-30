@@ -71,6 +71,9 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     'left-to-right' binary decomposition of the m coefficient,
     Jacobian coordinates.
 
+    It is constant-time and resistant to the FLUSH+RELOAD attack,
+    as it prevents branch prediction avoiding any if.
+
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
@@ -79,15 +82,12 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    R = INFJ  # initialize as infinity point
-    for m in [int(i) for i in bin(m)[2:]]:  # goes through binary digits
-        if m == 0:
-            Q = ec._add_jac(R, Q)
-            R = ec._double_jac(R)
-        else:
-            R = ec._add_jac(R, Q)
-            Q = ec._double_jac(Q)
-    return R
+    # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
+    R = [INFJ, Q]
+    for i in [int(i) for i in bin(m)[2:]]:
+        R[not i] = ec._add_jac(R[i], R[not i])
+        R[i] = ec._double_jac(R[i])
+    return R[0]
 
 
 def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
