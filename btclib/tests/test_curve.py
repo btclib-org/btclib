@@ -71,7 +71,7 @@ def test_exceptions() -> None:
         Curve(11, 2, 7, (6, 9), 7, 2, True)
 
 
-def test_jac() -> None:
+def test_jac_equality() -> None:
 
     ec = Curve(13, 0, 2, (1, 9), 19, 1, False)
     assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
@@ -83,6 +83,3 @@ def test_jac() -> None:
     assert ec._jac_equality(QJ, _jac_from_aff(Q))
     assert not ec._jac_equality(QJ, ec.negate_jac(QJ))
     assert not ec._jac_equality(QJ, ec.GJ)
-
-    with pytest.raises(TypeError, match="not a Jacobian point"):
-        ec.negate_jac(ec.G)  # type: ignore
