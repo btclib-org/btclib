@@ -417,16 +417,15 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
     R = [INFJ, Q]
     # if least significant bit of m is 1, then add Q to R[0]
-    R[0] = R[m & 1]
+    R[not (m & 1)] = Q
     # remove the bit just accounted for
     m >>= 1
     while m > 0:
         # the doubling part of 'double & add'
         Q = ec._double_jac(Q)
         # always perform the 'add', even if useless, to be constant-time
-        R[1] = ec._add_jac(R[0], Q)
         # if least significant bit of m is 1, then add Q to R[0]
-        R[0] = R[m & 1]
+        R[not (m & 1)] = ec._add_jac(R[0], Q)
         m >>= 1
     return R[0]
 
@@ -459,24 +458,24 @@ def _double_mult(
         raise ValueError(f"negative second coefficient: {hex(v)}")
 
     # at each step one of the following points will be added
-    t = [INFJ, HJ, QJ, ec._add_jac(HJ, QJ)]
-    # which one depends on index
+    T = [INFJ, HJ, QJ, ec._add_jac(HJ, QJ)]
+    # which one depends on binary digit for that step
     ui = bin(u)[2:]
     vi = bin(v)[2:].zfill(len(ui))
     ui = ui.zfill(len(vi))
-    index = [int(j) + 2 * int(k) for j, k in zip(ui, vi)]
-    # R[0] is the running result, R[1] = R[0] + t[*] is an ancillary variable
-    R = [t[index[0]], INFJ]
-    # change t[0] to any value ≠ INFJ,
+    digits = [int(j) + 2 * int(k) for j, k in zip(ui, vi)]
+    # R[0] is the running result, R[1] = R[0] + T[*] is an ancillary variable
+    R = [T[digits[0]], INFJ]
+    # change T[0] to any value ≠ INFJ,
     # to avoid any _add_jac optimization for INFJ:
-    # in any case t[0] will never be added to R[0]
-    t[0] = HJ
-    for i in index[1:]:
+    # in any case T[0] will never be added to R[0]
+    T[0] = HJ
+    for i in digits[1:]:
         # the doubling part of 'double & add'
         R[0] = ec._double_jac(R[0])
         # always perform the 'add', even if useless, to be constant-time
         # 'add' it to R[0] only if appropriate
-        R[i == 0] = ec._add_jac(R[0], t[i])
+        R[i == 0] = ec._add_jac(R[0], T[i])
     return R[0]
 
 
