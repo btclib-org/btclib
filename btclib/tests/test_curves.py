@@ -161,7 +161,10 @@ def test_negate() -> None:
         assert minus_INFJ == INFJ
 
     with pytest.raises(TypeError, match="not a point"):
-        ec.negate("notapoint")  # type: ignore
+        ec.negate(ec.GJ)  # type: ignore
+
+    with pytest.raises(TypeError, match="not a Jacobian point"):
+        ec.negate_jac(ec.G)  # type: ignore
 
 
 def test_symmetry() -> None:

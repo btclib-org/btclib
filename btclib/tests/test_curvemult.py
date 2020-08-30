@@ -124,7 +124,7 @@ def test_assorted_mult2() -> None:
         multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
 
 
-def test_mult_double_mult() -> None:
+def test_double_mult() -> None:
     H = second_generator(secp256k1)
     G = secp256k1.G
 
