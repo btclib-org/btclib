@@ -40,28 +40,39 @@ def test_assorted_mult() -> None:
             K2J = _mult_jac(k2, HJ, ec)
 
             shamir = _double_mult(k1, ec.GJ, k2, ec.GJ, ec)
+            assert ec.is_on_curve(ec._aff_from_jac(shamir))
             assert ec._jac_equality(shamir, _mult_jac(k1 + k2, ec.GJ, ec))
 
             shamir = _double_mult(k1, INFJ, k2, HJ, ec)
+            assert ec.is_on_curve(ec._aff_from_jac(shamir))
             assert ec._jac_equality(shamir, K2J)
+
             shamir = _double_mult(k1, ec.GJ, k2, INFJ, ec)
+            assert ec.is_on_curve(ec._aff_from_jac(shamir))
             assert ec._jac_equality(shamir, K1J)
 
             shamir = _double_mult(k1, ec.GJ, k2, HJ, ec)
+            assert ec.is_on_curve(ec._aff_from_jac(shamir))
             K1JK2J = ec._add_jac(K1J, K2J)
             assert ec._jac_equality(K1JK2J, shamir)
 
             k3 = 1 + secrets.randbelow(ec.n - 1)
             K3J = _mult_jac(k3, ec.GJ, ec)
             K1JK2JK3J = ec._add_jac(K1JK2J, K3J)
+            assert ec.is_on_curve(ec._aff_from_jac(K1JK2JK3J))
             boscoster = _multi_mult([k1, k2, k3], [ec.GJ, HJ, ec.GJ], ec)
+            assert ec.is_on_curve(ec._aff_from_jac(boscoster))
+            assert ec._aff_from_jac(K1JK2JK3J) == ec._aff_from_jac(boscoster), k3
             assert ec._jac_equality(K1JK2JK3J, boscoster)
 
             k4 = 1 + secrets.randbelow(ec.n - 1)
             K4J = _mult_jac(k4, HJ, ec)
             K1JK2JK3JK4J = ec._add_jac(K1JK2JK3J, K4J)
+            assert ec.is_on_curve(ec._aff_from_jac(K1JK2JK3JK4J))
             points = [ec.GJ, HJ, ec.GJ, HJ]
             boscoster = _multi_mult([k1, k2, k3, k4], points, ec)
+            assert ec.is_on_curve(ec._aff_from_jac(boscoster))
+            assert ec._aff_from_jac(K1JK2JK3JK4J) == ec._aff_from_jac(boscoster), k4
             assert ec._jac_equality(K1JK2JK3JK4J, boscoster)
             assert ec._jac_equality(K1JK2JK3J, _multi_mult([k1, k2, k3, 0], points, ec))
             assert ec._jac_equality(K1JK2J, _multi_mult([k1, k2, 0, 0], points, ec))
@@ -94,26 +105,34 @@ def test_assorted_mult2() -> None:
             assert shamir == mult(k1 + k2, ec.G, ec)
 
             shamir = double_mult(k1, INF, k2, H, ec)
+            assert ec.is_on_curve(shamir)
             assert shamir == K2
+
             shamir = double_mult(k1, ec.G, k2, INF, ec)
+            assert ec.is_on_curve(shamir)
             assert shamir == K1
 
             shamir = double_mult(k1, ec.G, k2, H, ec)
+            assert ec.is_on_curve(shamir)
             K1K2 = ec.add(K1, K2)
             assert K1K2 == shamir
 
             k3 = 1 + secrets.randbelow(ec.n - 1)
             K3 = mult(k3, ec.G, ec)
             K1K2K3 = ec.add(K1K2, K3)
+            assert ec.is_on_curve(K1K2K3)
             boscoster = multi_mult([k1, k2, k3], [ec.G, H, ec.G], ec)
-            assert K1K2K3 == boscoster
+            assert ec.is_on_curve(boscoster)
+            assert K1K2K3 == boscoster, k3
 
             k4 = 1 + secrets.randbelow(ec.n - 1)
             K4 = mult(k4, H, ec)
             K1K2K3K4 = ec.add(K1K2K3, K4)
+            assert ec.is_on_curve(K1K2K3K4)
             points = [ec.G, H, ec.G, H]
             boscoster = multi_mult([k1, k2, k3, k4], points, ec)
-            assert K1K2K3K4 == boscoster
+            assert ec.is_on_curve(boscoster)
+            assert K1K2K3K4 == boscoster, k4
             assert K1K2K3 == multi_mult([k1, k2, k3, 0], points, ec)
             assert K1K2 == multi_mult([k1, k2, 0, 0], points, ec)
             assert K1 == multi_mult([k1, 0, 0, 0], points, ec)

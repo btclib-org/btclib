@@ -195,12 +195,6 @@ class CurveGroup:
     def _add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
 
-        # FIXME it would be better if INFJ was not a special case
-        if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            return R
-        if R[2] == 0:  # Infinity point in Jacobian coordinates
-            return Q
-
         RZ2 = R[2] * R[2]
         RZ3 = RZ2 * R[2]
         QZ2 = Q[2] * Q[2]
@@ -221,6 +215,12 @@ class CurveGroup:
                 Y = W * (V - X) - 8 * QY2 * QY2
                 Z = 2 * Q[1] * Q[2]
                 return X % self.p, Y % self.p, Z % self.p
+
+        # FIXME it would be better if INFJ was not a special case
+        if Q[2] == 0:  # Infinity point in Jacobian coordinates
+            return R
+        if R[2] == 0:  # Infinity point in Jacobian coordinates
+            return Q
 
         W = U - T
         V = N - M
