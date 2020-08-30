@@ -320,8 +320,9 @@ def test_mult() -> None:
     for ec in low_card_curves.values():
         for q in range(ec.n):
             Q = _mult_aff(q, ec.G, ec)
-            assert ec.is_on_curve(Q)
+            assert ec.is_on_curve(Q), f"{q}, {ec}"
             QJ = _mult_jac(q, ec.GJ, ec)
-            assert Q == ec._aff_from_jac(QJ)
-        assert INF == _mult_aff(q, INF, ec)
-        assert ec._jac_equality(INFJ, _mult_jac(q, INFJ, ec))
+            assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
+            assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
+        assert INF == _mult_aff(q, INF, ec), f"{q}, {ec}"
+        assert ec._jac_equality(INFJ, _mult_jac(q, INFJ, ec)), f"{q}, {ec}"

@@ -206,6 +206,7 @@ class CurveGroup:
         T = Q[1] * RZ3
         U = R[1] * QZ3
 
+        # FIXME: it would be better if doubling was not a special case
         if M % self.p == N % self.p:  # same affine x
             if T % self.p == U % self.p:  # point doubling
                 QY2 = Q[1] * Q[1]
@@ -216,7 +217,7 @@ class CurveGroup:
                 Z = 2 * Q[1] * Q[2]
                 return X % self.p, Y % self.p, Z % self.p
 
-        # FIXME it would be better if INFJ was not a special case
+        # FIXME: it would be better if INFJ was not a special case
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return R
         if R[2] == 0:  # Infinity point in Jacobian coordinates
@@ -259,6 +260,7 @@ class CurveGroup:
                 return self._double_aff(R)
             else:  # opposite points
                 return INF
+
         lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)
         x = lam * lam - Q[0] - R[0]
         y = lam * (Q[0] - x) - Q[1]
