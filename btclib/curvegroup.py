@@ -217,7 +217,7 @@ class CurveGroup:
                 Z = 2 * Q[1] * Q[2]
                 return X % self.p, Y % self.p, Z % self.p
 
-        # FIXME: it would be better if INFJ was not a special case
+        # FIXME: it would be better if INFJ handling was not a special case
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return R
         if R[2] == 0:  # Infinity point in Jacobian coordinates
@@ -249,12 +249,13 @@ class CurveGroup:
     def _add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
 
-        # FIXME it would be better if INF was not a special case
+        # FIXME: it would be better if INF handling was not a special case
         if R[1] == 0:  # Infinity point in affine coordinates
             return Q
         if Q[1] == 0:  # Infinity point in affine coordinates
             return R
 
+        # FIXME: it would be better if doubling was checked before INF handling
         if R[0] == Q[0]:
             if R[1] == Q[1]:  # point doubling
                 return self._double_aff(R)
