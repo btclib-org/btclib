@@ -386,7 +386,7 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     # if least significant bit of m is 1, then add Q to R[0]
     R[0] = R[m & 1]
     # remove the bit just accounted for
-    m = m >> 1
+    m >>= 1
     while m > 0:
         # the doubling part of 'double & add'
         Q = ec._double_aff(Q)
@@ -394,7 +394,7 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         R[1] = ec._add_aff(R[0], Q)
         # if least significant bit of m is 1, then add Q to R[0]
         R[0] = R[m & 1]
-        m = m >> 1
+        m >>= 1
     return R[0]
 
 
@@ -419,7 +419,7 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     # if least significant bit of m is 1, then add Q to R[0]
     R[0] = R[m & 1]
     # remove the bit just accounted for
-    m = m >> 1
+    m >>= 1
     while m > 0:
         # the doubling part of 'double & add'
         Q = ec._double_jac(Q)
@@ -427,7 +427,7 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         R[1] = ec._add_jac(R[0], Q)
         # if least significant bit of m is 1, then add Q to R[0]
         R[0] = R[m & 1]
-        m = m >> 1
+        m >>= 1
     return R[0]
 
 
