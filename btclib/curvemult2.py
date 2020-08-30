@@ -44,7 +44,7 @@ def convert_number_to_base(i: int, base: int) -> List[int]:
     "Return the digits of an integer in the requested base."
 
     digits: List[int] = []
-    while i or len(digits) == 0:
+    while i or not digits:
         i, idx = divmod(i, base)
         digits.append(idx)
     return digits[::-1]
@@ -244,11 +244,11 @@ def _mult_w_NAF(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
     while m > 0:
         if (m % 2) == 1:
             M.append(mods(m, w))
-            m = m - M[i]
+            m -= M[i]
         else:
             M.append(0)
-        m = m // 2
-        i = i + 1
+        m //= 2
+        i += 1
 
     p = i
 
