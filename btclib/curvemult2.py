@@ -111,8 +111,7 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     base = 3
     M = convert_number_to_base(m, base)
 
-    T: List[JacPoint] = []
-    T.append(INFJ)
+    T = [INFJ]
     for i in range(1, base):
         T.append(ec._add_jac(T[i - 1], Q))
 
@@ -145,8 +144,7 @@ def _mult_fixed_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
     base = pow(2, w)
     M = convert_number_to_base(m, base)
 
-    T: List[JacPoint] = []
-    T.append(INFJ)
+    T = [INFJ]
     for i in range(1, base):
         T.append(ec._add_jac(T[i - 1], Q))
 
@@ -185,15 +183,13 @@ def _mult_sliding_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoin
     for _ in range(k):
         P = ec._double_jac(P)
 
-    T: List[JacPoint] = []
-    T.append(P)
+    T = [P]
     for i in range(1, p):
         T.append(ec._add_jac(T[i - 1], Q))
 
     M = convert_number_to_base(m, 2)
 
     R = INFJ
-
     i = 0
     while i < len(M):
         if M[i] == 0:
@@ -259,9 +255,7 @@ def _mult_w_NAF(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
     b = pow(2, w)
 
     Q2 = ec._double_jac(Q)
-
-    T: List[JacPoint] = []
-    T.append(Q)
+    T = [Q]
     for i in range(1, (b // 2)):
         T.append(ec._add_jac(T[i - 1], Q2))
     for i in range((b // 2), b):
