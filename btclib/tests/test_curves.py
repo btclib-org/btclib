@@ -133,7 +133,7 @@ def test_add_double_aff_jac() -> None:
         RJ = ec._double_jac(QJ)
         assert R == ec._aff_from_jac(RJ)
         assert R == ec._add_aff(Q, Q)
-        assert RJ == ec._add_jac(QJ, QJ)
+        assert ec._jac_equality(RJ, ec._add_jac(QJ, QJ))
 
 
 @pytest.mark.fourth
