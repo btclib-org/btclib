@@ -153,9 +153,9 @@ class CurveGroup:
             return INF
         else:
             Z2 = Q[2] * Q[2]
-            x = (Q[0] * mod_inv(Z2, self.p)) % self.p
-            y = (Q[1] * mod_inv(Z2 * Q[2], self.p)) % self.p
-            return x, y
+            x = Q[0] * mod_inv(Z2, self.p)
+            y = Q[1] * mod_inv(Z2 * Q[2], self.p)
+            return x % self.p, y % self.p
 
     def _x_aff_from_jac(self, Q: JacPoint) -> int:
         # point is assumed to be on curve
@@ -206,44 +206,44 @@ class CurveGroup:
         QZ2 = Q[2] * Q[2]
         QZ3 = QZ2 * Q[2]
 
-        M = (Q[0] * RZ2) % self.p
-        N = (R[0] * QZ2) % self.p
+        M = Q[0] * RZ2
+        N = R[0] * QZ2
 
-        T = (Q[1] * RZ3) % self.p
-        U = (R[1] * QZ3) % self.p
+        T = Q[1] * RZ3
+        U = R[1] * QZ3
 
-        if M == N:  # same affine x
-            if T == U:  # point doubling
+        if M % self.p == N % self.p:  # same affine x
+            if T % self.p == U % self.p:  # point doubling
                 QY2 = Q[1] * Q[1]
-                W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % self.p
-                V = (4 * Q[0] * QY2) % self.p
-                X = (W * W - 2 * V) % self.p
-                Y = (W * (V - X) - 8 * QY2 * QY2) % self.p
-                Z = (2 * Q[1] * Q[2]) % self.p
-                return X, Y, Z
+                W = 3 * Q[0] * Q[0] + self._a * QZ2 * QZ2
+                V = 4 * Q[0] * QY2
+                X = W * W - 2 * V
+                Y = W * (V - X) - 8 * QY2 * QY2
+                Z = 2 * Q[1] * Q[2]
+                return X % self.p, Y % self.p, Z % self.p
 
-        W = (U - T) % self.p
-        V = (N - M) % self.p
+        W = U - T
+        V = N - M
 
         V2 = V * V
         V3 = V2 * V
         MV2 = M * V2
-        X = (W * W - V3 - 2 * MV2) % self.p
-        Y = (W * (MV2 - X) - T * V3) % self.p
-        Z = (V * Q[2] * R[2]) % self.p
-        return X, Y, Z
+        X = W * W - V3 - 2 * MV2
+        Y = W * (MV2 - X) - T * V3
+        Z = V * Q[2] * R[2]
+        return X % self.p, Y % self.p, Z % self.p
 
     def _double_jac(self, Q: JacPoint) -> JacPoint:
         # point is assumed to be on curve
 
         QZ2 = Q[2] * Q[2]
         QY2 = Q[1] * Q[1]
-        W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % self.p
-        V = (4 * Q[0] * QY2) % self.p
-        X = (W * W - 2 * V) % self.p
-        Y = (W * (V - X) - 8 * QY2 * QY2) % self.p
-        Z = (2 * Q[1] * Q[2]) % self.p
-        return X, Y, Z
+        W = 3 * Q[0] * Q[0] + self._a * QZ2 * QZ2
+        V = 4 * Q[0] * QY2
+        X = W * W - 2 * V
+        Y = W * (V - X) - 8 * QY2 * QY2
+        Z = 2 * Q[1] * Q[2]
+        return X % self.p, Y % self.p, Z % self.p
 
     def _add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
@@ -259,10 +259,10 @@ class CurveGroup:
                 return self._double_aff(R)
             else:  # opposite points
                 return INF
-        lam = ((R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)) % self.p
-        x = (lam * lam - Q[0] - R[0]) % self.p
-        y = (lam * (Q[0] - x) - Q[1]) % self.p
-        return x, y
+        lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)
+        x = lam * lam - Q[0] - R[0]
+        y = lam * (Q[0] - x) - Q[1]
+        return x % self.p, y % self.p
 
     def _double_aff(self, Q: Point) -> Point:
         # point is assumed to be on curve
@@ -270,10 +270,10 @@ class CurveGroup:
         if Q[1] == 0:  # Infinity point in affine coordinates
             return INF
 
-        lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self.p) % self.p
-        x = (lam * lam - Q[0] - Q[0]) % self.p
-        y = (lam * (Q[0] - x) - Q[1]) % self.p
-        return x, y
+        lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], self.p)
+        x = lam * lam - Q[0] - Q[0]
+        y = lam * (Q[0] - x) - Q[1]
+        return x % self.p, y % self.p
 
     def _y2(self, x: int) -> int:
         # skipping a crucial check here:
