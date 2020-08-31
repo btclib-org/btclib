@@ -21,6 +21,7 @@ References:
     - https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication
     - https://cryptojedi.org/peter/data/eccss-20130911b.pdf
     - https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
+    - https://cr.yp.to/bib/2003/joye-ladder.pdf
 
 TODO:
     - Computational cost of the different multiplications
@@ -76,6 +77,7 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     Jacobian coordinates.
 
     It is constant-time and resistant to the FLUSH+RELOAD attack,
+    (see https://eprint.iacr.org/2014/140.pdf)
     as it prevents branch prediction avoiding any if.
 
     The input point is assumed to be on curve and
@@ -86,7 +88,7 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
+    # R[0] is the running resultR[1] = R[0] + Q is an ancillary variable
     R = [INFJ, Q]
     for i in [int(i) for i in bin(m)[2:]]:
         R[not i] = ec._add_jac(R[i], R[not i])
@@ -112,8 +114,9 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    digits = convert_number_to_base(m, 3)
+    # at each step one of the points in T will be added
     T = [INFJ, Q, ec._double_jac(Q)]
+    digits = convert_number_to_base(m, 3)
     R = T[digits[0]]
     for i in digits[1:]:
         # 'triple'
@@ -144,11 +147,11 @@ def _mult_fixed_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
         raise ValueError(f"non positive w: {w}")
 
     base = pow(2, w)
-    digits = convert_number_to_base(m, base)
+    # at each step one of the points in T will be added
     T = [INFJ, Q]
     for i in range(2, base):
         T.append(ec._add_jac(T[i - 1], Q))
-
+    digits = convert_number_to_base(m, base)
     R = T[digits[0]]
     for i in digits[1:]:
         # multiple 'double'
@@ -187,6 +190,7 @@ def _mult_sliding_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoin
     for _ in range(k):
         P = ec._double_jac(P)
 
+    # at each step one of the points in T will be added
     T = [P]
     for i in range(1, p):
         T.append(ec._add_jac(T[i - 1], Q))
