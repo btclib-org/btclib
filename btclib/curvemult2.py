@@ -68,6 +68,20 @@ def mods(m: int, w: int) -> int:
     return M - w2 if M >= (w2 / 2) else M
 
 
+def precomputed_list(Q: JacPoint, base: int, ec: CurveGroup) -> List[JacPoint]:
+    "Return precomputed values of kQ for k in (0, base)"
+
+    k = base // 2
+    T = [INFJ, Q]
+    for i in (1, k):
+        T.append(ec._double_jac(T[i]))
+        T.append(ec._add_jac(T[2 * i], Q))
+
+    """if base % 2 == 1:
+        T.append(ec._double_jac(T[k]) """
+    return T
+
+
 def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using 'Montgomery ladder' algorithm.
 
