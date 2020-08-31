@@ -503,8 +503,8 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using ternary decomposition of the scalar.
 
     This implementation uses
-    'double & add' algorithm,
-    'left-to-right' biternaryary decomposition of the m coefficient,
+    'triple & add' algorithm,
+    'left-to-right' ternary decomposition of the m coefficient,
     Jacobian coordinates.
 
     The input point is assumed to be on curve and
@@ -534,8 +534,12 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 def _mult_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 5) -> JacPoint:
     """Scalar multiplication using "fixed window".
 
-    It is not constant time.
-    For 256-bit scalars choose w=4 or w=5.
+    This implementation uses
+    'multiple-double & add' algorithm,
+    'left-to-right' window decomposition of the m coefficient,
+    Jacobian coordinates.
+
+    For 256-bit scalars it is suggested to choose w=4 or w=5.
 
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
