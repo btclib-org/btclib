@@ -195,6 +195,11 @@ class CurveGroup:
     def _add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
 
+        # to have this funtion constant time,
+        # Q or R equal to INFJ is not handled has a special case here
+        # but it taken care of at the end,
+        # after having performed all calculation, even if useless
+
         RZ2 = R[2] * R[2]
         RZ3 = RZ2 * R[2]
         QZ2 = Q[2] * Q[2]
@@ -217,22 +222,30 @@ class CurveGroup:
                 Z = 2 * Q[1] * Q[2]
                 return X % self.p, Y % self.p, Z % self.p
 
-        # FIXME: it would be better if INFJ handling was not a special case
-        if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            return R
-        if R[2] == 0:  # Infinity point in Jacobian coordinates
-            return Q
-
         W = U - T
         V = N - M
 
         V2 = V * V
         V3 = V2 * V
         MV2 = M * V2
-        X = W * W - V3 - 2 * MV2
-        Y = W * (MV2 - X) - T * V3
-        Z = V * Q[2] * R[2]
-        return X % self.p, Y % self.p, Z % self.p
+
+        X = (W * W - V3 - 2 * MV2) % self.p
+        Y = (W * (MV2 - X) - T * V3) % self.p
+        Z = (V * Q[2] * R[2]) % self.p
+
+        # Z is zero if Q or R are equal to INFJ,
+        # so (X, Y, Z) is INFJ instead of being R or Q (respectively)
+        # let's fix it
+
+        # possible return values are:
+        ret_values = [(X, Y, Z), R, Q, INFJ]
+        #      Q==INFJ  +    R==INFJ  * 2
+        #            0  +          0  * 2 = 0 → (X, Y, Z)
+        #            1  +          0  * 2 = 1 → R
+        #            0  +          1  * 2 = 2 → Q
+        #            1  +          1  * 2 = 3 → INFJ
+        i = (Q[2] == 0) + (R[2] == 0) * 2
+        return ret_values[i]
 
     def _double_jac(self, Q: JacPoint) -> JacPoint:
         # point is assumed to be on curve
@@ -466,18 +479,14 @@ def _double_mult(
     ui = ui.zfill(len(vi))
     digits = [int(j) + 2 * int(k) for j, k in zip(ui, vi)]
     # R[0] is the running result, R[1] = R[0] + T[*] is an ancillary variable
-    R = [T[digits[0]], INFJ]
-    # change T[0] to any value ≠ INFJ,
-    # to avoid any _add_jac optimization for INFJ:
-    # in any case T[0] will never be added to R[0]
-    T[0] = HJ
+    R = T[digits[0]]
     for i in digits[1:]:
         # the doubling part of 'double & add'
-        R[0] = ec._double_jac(R[0])
+        R = ec._double_jac(R)
         # always perform the 'add', even if useless, to be constant-time
         # 'add' it to R[0] only if appropriate
-        R[i == 0] = ec._add_jac(R[0], T[i])
-    return R[0]
+        R = ec._add_jac(R, T[i])
+    return R
 
 
 def _multi_mult(

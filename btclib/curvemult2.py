@@ -104,8 +104,6 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     'left-to-right' biternaryary decomposition of the m coefficient,
     Jacobian coordinates.
 
-    TODO: make it constant-time.
-
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
@@ -124,7 +122,6 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         R3 = ec._add_jac(R2, R)
         # and 'add'
         R = ec._add_jac(R3, T[i])
-        # FIXME: this require no INFJ optimization in _add_jac
     return R
 
 
@@ -159,7 +156,6 @@ def _mult_fixed_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
             R = ec._double_jac(R)
         # and 'add'
         R = ec._add_jac(R, T[i])
-        # FIXME: this require no INFJ optimization in _add_jac
     return R
 
 
