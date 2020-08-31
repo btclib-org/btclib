@@ -68,17 +68,24 @@ def mods(m: int, w: int) -> int:
     return M - w2 if M >= (w2 / 2) else M
 
 
-def precomputed_list(Q: JacPoint, base: int, ec: CurveGroup) -> List[JacPoint]:
-    "Return precomputed values of kQ for k in (0, base)"
+def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
+    "Return {k_i * Q} for k_i in {0, ..., size-1)"
 
-    k = base // 2
-    T = [INFJ, Q]
-    for i in (1, k):
-        T.append(ec._double_jac(T[i]))
-        T.append(ec._add_jac(T[2 * i], Q))
+    if size < 2:
+        raise ValueError(f"size too low: {size}")
+    if size == 2:
+        return [INFJ, Q]
 
-    """if base % 2 == 1:
-        T.append(ec._double_jac(T[k]) """
+    k, odd = divmod(size, 2)
+
+    T = [INFJ, Q, ec._double_jac(Q)]
+    for i in range(2, k * 2, 2):
+        T.append(ec._add_jac(T[i], Q))
+        T.append(ec._double_jac(T[(i + 2) // 2]))
+
+    if not odd:
+        T.append(ec._add_jac(T[i], Q))
+
     return T
 
 
@@ -127,8 +134,11 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         raise ValueError(f"negative m: {hex(m)}")
 
     # at each step one of the points in T will be added
+    # T = multiples(Q, 3, ec)
     T = [INFJ, Q, ec._double_jac(Q)]
+
     digits = convert_number_to_base(m, 3)
+
     R = T[digits[0]]
     for i in digits[1:]:
         # 'triple'
@@ -158,11 +168,12 @@ def _mult_fixed_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
         raise ValueError(f"non positive w: {w}")
 
     base = pow(2, w)
+
     # at each step one of the points in T will be added
-    T = [INFJ, Q]
-    for i in range(2, base):
-        T.append(ec._add_jac(T[i - 1], Q))
+    T = multiples(Q, base, ec)
+
     digits = convert_number_to_base(m, base)
+
     R = T[digits[0]]
     for i in digits[1:]:
         # multiple 'double'
@@ -196,11 +207,10 @@ def _mult_sliding_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoin
     k = w - 1
     p = pow(2, k)
 
+    # at each step one of the points in T will be added
     P = Q
     for _ in range(k):
         P = ec._double_jac(P)
-
-    # at each step one of the points in T will be added
     T = [P]
     for i in range(1, p):
         T.append(ec._add_jac(T[i - 1], Q))
