@@ -28,6 +28,9 @@ TODO:
         -https://hal.archives-ouvertes.fr/hal-00932199/document
         -https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
         -1-s2.0-S1071579704000395-main
+        -https://crypto.stackexchange.com/questions/58506/what-is-the-curve-type-of-secp256k1
+    - Constant time alghortims:
+        -https://eprint.iacr.org/2011/338.pdf
     - Elegance in the code
     - Solve problem with wNAF and w=1
     - Multi_mult algorithm: why does it work?
