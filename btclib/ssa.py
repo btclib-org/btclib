@@ -66,7 +66,7 @@ from .alias import (
     String,
 )
 from .curve import Curve
-from .curvemult import _double_mult, _mult_jac, _multi_mult
+from .curvemult import _double_mult, _mult_fixed_window, _multi_mult
 from .curves import secp256k1
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
@@ -172,7 +172,7 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     else:
         q = int_from_prvkey(prvkey, ec)
 
-    QJ = _mult_jac(q, ec.GJ, ec)
+    QJ = _mult_fixed_window(q, ec.GJ, ec)
     x_Q = ec._x_aff_from_jac(QJ)
     if not ec.has_square_y(QJ):
         q = ec.n - q
@@ -498,7 +498,7 @@ def _batch_verify(
         points.append(QJ)
         t += a * s
 
-    TJ = _mult_jac(t, ec.GJ, ec)
+    TJ = _mult_fixed_window(t, ec.GJ, ec)
     RHSJ = _multi_mult(scalars, points, ec)
 
     # return T == RHS, checked in Jacobian coordinates

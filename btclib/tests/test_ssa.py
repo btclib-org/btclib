@@ -20,7 +20,7 @@ import pytest
 
 from btclib import bip32, ssa
 from btclib.alias import INF, Point
-from btclib.curvegroup import _mult_jac
+from btclib.curvegroup import _mult_fixed_window
 from btclib.curvemult import double_mult, mult
 from btclib.curves import CURVES
 from btclib.numbertheory import mod_inv
@@ -204,13 +204,13 @@ def test_low_cardinality() -> None:
                 ssa._sign(32 * b"\x00", 1, None, ec)
             continue
         for q in range(1, ec.n // 2):  # all possible private keys
-            QJ = _mult_jac(q, ec.GJ, ec)  # public key
+            QJ = _mult_fixed_window(q, ec.GJ, ec)  # public key
             x_Q = ec._x_aff_from_jac(QJ)
             if not ec.has_square_y(QJ):
                 q = ec.n - q
                 QJ = ec.negate_jac(QJ)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
-                RJ = _mult_jac(k, ec.GJ, ec)
+                RJ = _mult_fixed_window(k, ec.GJ, ec)
                 r = ec._x_aff_from_jac(RJ)
                 if not ec.has_square_y(RJ):
                     k = ec.n - k

@@ -15,7 +15,8 @@ from typing import Dict
 
 import pytest
 
-from btclib.curve import Curve, _mult_aff
+from btclib.curve import Curve
+from btclib.curvemult import mult
 from btclib.curves import CURVES
 from btclib.secpoint import bytes_from_point, point_from_octets
 
@@ -39,7 +40,6 @@ all_curves.update(low_card_curves)
 all_curves.update(CURVES)
 
 
-@pytest.mark.third
 def test_octets2point() -> None:
     for ec in all_curves.values():
 
@@ -53,7 +53,7 @@ def test_octets2point() -> None:
 
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
-        Q = _mult_aff(q, ec.G, ec)
+        Q = mult(q, ec.G, ec)
 
         Q_bytes = b"\x03" if Q[1] & 1 else b"\x02"
         Q_bytes += Q[0].to_bytes(ec.psize, byteorder="big")
@@ -74,10 +74,6 @@ def test_octets2point() -> None:
         Q_hex_str = Q_bytes.hex()
         R = point_from_octets(Q_hex_str, ec)
         assert R == Q
-
-        err_msg = "'<' not supported between instances of 'tuple' and 'int'"
-        with pytest.raises(TypeError, match=err_msg):
-            _mult_aff(tuple(), ec.G, ec)  # type: ignore
 
         Q_bytes = b"\x01" + b"\x01" * ec.psize
         with pytest.raises(ValueError, match="not a point: "):

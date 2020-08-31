@@ -41,17 +41,7 @@ TODO:
 from typing import List
 
 from .alias import INFJ, JacPoint
-from .curvegroup import CurveGroup
-
-
-def convert_number_to_base(i: int, base: int) -> List[int]:
-    "Return the digits of an integer in the requested base."
-
-    digits: List[int] = []
-    while i or not digits:
-        i, idx = divmod(i, base)
-        digits.append(idx)
-    return digits[::-1]
+from .curvegroup import CurveGroup, convert_number_to_base
 
 
 def mods(m: int, w: int) -> int:
@@ -68,123 +58,7 @@ def mods(m: int, w: int) -> int:
     return M - w2 if M >= (w2 / 2) else M
 
 
-def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
-    "Return {k_i * Q} for k_i in {0, ..., size-1)"
-
-    if size < 2:
-        raise ValueError(f"size too low: {size}")
-    if size == 2:
-        return [INFJ, Q]
-
-    k, odd = divmod(size, 2)
-
-    T = [INFJ, Q, ec._double_jac(Q)]
-    for i in range(2, k * 2, 2):
-        T.append(ec._add_jac(T[i], Q))
-        T.append(ec._double_jac(T[(i + 2) // 2]))
-
-    if not odd:
-        T.append(ec._add_jac(T[i], Q))
-
-    return T
-
-
-def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
-    """Scalar multiplication using 'Montgomery ladder' algorithm.
-
-    This implementation uses
-    'Montgomery ladder' algorithm,
-    'left-to-right' binary decomposition of the m coefficient,
-    Jacobian coordinates.
-
-    It is constant-time and resistant to the FLUSH+RELOAD attack,
-    (see https://eprint.iacr.org/2014/140.pdf)
-    as it prevents branch prediction avoiding any if.
-
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
-    """
-
-    if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
-
-    # R[0] is the running resultR[1] = R[0] + Q is an ancillary variable
-    R = [INFJ, Q]
-    for i in [int(i) for i in bin(m)[2:]]:
-        R[not i] = ec._add_jac(R[i], R[not i])
-        R[i] = ec._double_jac(R[i])
-    return R[0]
-
-
-def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
-    """Scalar multiplication using ternary decomposition of the scalar.
-
-    This implementation uses
-    'double & add' algorithm,
-    'left-to-right' biternaryary decomposition of the m coefficient,
-    Jacobian coordinates.
-
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
-    """
-
-    if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
-
-    # at each step one of the points in T will be added
-    # T = multiples(Q, 3, ec)
-    T = [INFJ, Q, ec._double_jac(Q)]
-
-    digits = convert_number_to_base(m, 3)
-
-    R = T[digits[0]]
-    for i in digits[1:]:
-        # 'triple'
-        R2 = ec._double_jac(R)
-        R3 = ec._add_jac(R2, R)
-        # and 'add'
-        R = ec._add_jac(R3, T[i])
-    return R
-
-
-def _mult_fixed_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
-    """Scalar multiplication using "fixed window".
-
-    It is not constant time.
-    For 256-bit scalars choose w=4 or w=5.
-
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
-    """
-
-    if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
-
-    # a number cannot be written in basis 1 (ie w=0)
-    if w <= 0:
-        raise ValueError(f"non positive w: {w}")
-
-    base = pow(2, w)
-
-    # at each step one of the points in T will be added
-    T = multiples(Q, base, ec)
-
-    digits = convert_number_to_base(m, base)
-
-    R = T[digits[0]]
-    for i in digits[1:]:
-        # multiple 'double'
-        for _ in range(w):
-            R = ec._double_jac(R)
-        # and 'add'
-        R = ec._add_jac(R, T[i])
-    return R
-
-
-def _mult_sliding_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
+def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     """Scalar multiplication using "sliding window".
 
     It has the benefit that the pre-computation stage
@@ -243,7 +117,7 @@ def _mult_sliding_window(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoin
     return R
 
 
-def _mult_w_NAF(m: int, Q: JacPoint, w: int, ec: CurveGroup) -> JacPoint:
+def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     """Scalar multiplication in Jacobian coordinates using wNAF.
 
     This implementation uses the same method called "w-ary non-adjacent form" (wNAF)

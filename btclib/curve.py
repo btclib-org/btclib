@@ -13,7 +13,7 @@
 from math import sqrt
 
 from .alias import Integer, Point
-from .curvegroup import _HEXTHRESHOLD, CurveGroup, _mult_aff
+from .curvegroup import _HEXTHRESHOLD, CurveGroup, _mult_fixed_window
 from .utils import hex_string, int_from_integer
 
 
@@ -98,8 +98,8 @@ class Curve(CurveSubGroup):
         if self.G[1] == 0:
             m = "INF point cannot be a generator"
             raise ValueError(m)
-        Inf = _mult_aff(n, self.G, self)
-        if Inf[1] != 0:
+        InfJ = _mult_fixed_window(n, self.GJ, self)
+        if InfJ[2] != 0:
             err_msg = "n is not the group order: "
             err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
             raise ValueError(err_msg)

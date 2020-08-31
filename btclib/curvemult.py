@@ -14,7 +14,12 @@ from typing import List, Sequence
 
 from .alias import Integer, JacPoint, Point
 from .curve import Curve
-from .curvegroup import _double_mult, _jac_from_aff, _mult_jac, _multi_mult
+from .curvegroup import (
+    _double_mult,
+    _jac_from_aff,
+    _mult_fixed_window,
+    _multi_mult,
+)
 from .curves import secp256k1
 from .utils import int_from_integer
 
@@ -28,7 +33,7 @@ def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
         QJ = _jac_from_aff(Q)
 
     m = int_from_integer(m) % ec.n
-    R = _mult_jac(m, QJ, ec)
+    R = _mult_fixed_window(m, QJ, ec)
     return ec._aff_from_jac(R)
 
 
