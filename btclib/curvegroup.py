@@ -16,6 +16,7 @@ the cyclic subgroup class of prime order Curve,
 see the btclib.curve module.
 """
 
+import functools
 import heapq
 from math import ceil
 from typing import List, Sequence, Tuple, Union
@@ -443,6 +444,8 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R[0]
 
 
+# least recently used cache
+@functools.lru_cache()
 def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
     "Return {k_i * Q} for k_i in {0, ..., size-1)"
 
@@ -516,8 +519,7 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         raise ValueError(f"negative m: {hex(m)}")
 
     # at each step one of the points in T will be added
-    # T = multiples(Q, 3, ec)
-    T = [INFJ, Q, ec._double_jac(Q)]
+    T = multiples(Q, 3, ec)
 
     digits = convert_number_to_base(m, 3)
 
