@@ -13,8 +13,7 @@ from typing import Optional, Tuple
 from . import bip32
 from .alias import BIP32Key, PrvKey, String
 from .base58 import b58decode
-from .curve import Curve
-from .curves import secp256k1
+from .curve import Curve, secp256k1
 from .network import (
     NETWORKS,
     network_from_key_value,

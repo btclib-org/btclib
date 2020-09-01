@@ -16,8 +16,10 @@ import pytest
 
 from btclib.base58 import b58encode
 from btclib.base58wif import wif_from_prvkey
-from btclib.curves import secp256k1 as ec
+from btclib.curve import secp256k1
 from btclib.to_prvkey import prvkeyinfo_from_prvkey
+
+ec = secp256k1
 
 
 def test_wif_from_prvkey() -> None:

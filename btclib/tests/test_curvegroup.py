@@ -8,16 +8,18 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.curvemult` module."
+"Tests for `btclib.curvegroup` module."
 
 import secrets
 
 import pytest
 
 from btclib.alias import INF, INFJ
+from btclib.curve import secp256k1
 from btclib.curvegroup import (
     _double_mult,
     _jac_from_aff,
+    _mult,
     _mult_aff,
     _mult_base_3,
     _mult_fixed_window,
@@ -26,10 +28,8 @@ from btclib.curvegroup import (
     _multi_mult,
     multiples,
 )
-from btclib.curvemult import double_mult, mult, multi_mult
-from btclib.curves import secp256k1
 from btclib.pedersen import second_generator
-from btclib.tests.test_curves import all_curves, low_card_curves
+from btclib.tests.test_curve import all_curves, low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
 
@@ -179,7 +179,7 @@ def test_mult_fixed_window() -> None:
 
 
 @pytest.mark.fifth
-def test_assorted_mult() -> None:
+def test_assorted_jac_mult() -> None:
     ec = ec23_31
     H = second_generator(ec)
     HJ = _jac_from_aff(H)
@@ -242,124 +242,6 @@ def test_assorted_mult() -> None:
         _double_mult(1, HJ, -5, ec.GJ, ec)
 
 
-@pytest.mark.fourth
-def test_assorted_mult2() -> None:
-    ec = ec23_31
-    H = second_generator(ec)
-    for k1 in range(-ec.n + 1, ec.n):
-        K1 = mult(k1, ec.G, ec)
-        for k2 in range(ec.n):
-            K2 = mult(k2, H, ec)
-
-            shamir = double_mult(k1, ec.G, k2, ec.G, ec)
-            assert shamir == mult(k1 + k2, ec.G, ec)
-
-            shamir = double_mult(k1, INF, k2, H, ec)
-            assert ec.is_on_curve(shamir)
-            assert shamir == K2
-
-            shamir = double_mult(k1, ec.G, k2, INF, ec)
-            assert ec.is_on_curve(shamir)
-            assert shamir == K1
-
-            shamir = double_mult(k1, ec.G, k2, H, ec)
-            assert ec.is_on_curve(shamir)
-            K1K2 = ec.add(K1, K2)
-            assert K1K2 == shamir
-
-            k3 = 1 + secrets.randbelow(ec.n - 1)
-            K3 = mult(k3, ec.G, ec)
-            K1K2K3 = ec.add(K1K2, K3)
-            assert ec.is_on_curve(K1K2K3)
-            boscoster = multi_mult([k1, k2, k3], [ec.G, H, ec.G], ec)
-            assert ec.is_on_curve(boscoster)
-            assert K1K2K3 == boscoster, k3
-
-            k4 = 1 + secrets.randbelow(ec.n - 1)
-            K4 = mult(k4, H, ec)
-            K1K2K3K4 = ec.add(K1K2K3, K4)
-            assert ec.is_on_curve(K1K2K3K4)
-            points = [ec.G, H, ec.G, H]
-            boscoster = multi_mult([k1, k2, k3, k4], points, ec)
-            assert ec.is_on_curve(boscoster)
-            assert K1K2K3K4 == boscoster, k4
-            assert K1K2K3 == multi_mult([k1, k2, k3, 0], points, ec)
-            assert K1K2 == multi_mult([k1, k2, 0, 0], points, ec)
-            assert K1 == multi_mult([k1, 0, 0, 0], points, ec)
-            assert INF == multi_mult([0, 0, 0, 0], points, ec)
-
-    err_msg = "mismatch between number of scalars and points: "
-    with pytest.raises(ValueError, match=err_msg):
-        multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
-
-
-def test_double_mult() -> None:
-    H = second_generator(secp256k1)
-    G = secp256k1.G
-
-    # 0*G + 1*H
-    T = double_mult(1, H, 0, G)
-    assert T == H
-    T = multi_mult([1, 0], [H, G])
-    assert T == H
-
-    # 0*G + 2*H
-    exp = mult(2, H)
-    T = double_mult(2, H, 0, G)
-    assert T == exp
-    T = multi_mult([2, 0], [H, G])
-    assert T == exp
-
-    # 0*G + 3*H
-    exp = mult(3, H)
-    T = double_mult(3, H, 0, G)
-    assert T == exp
-    T = multi_mult([3, 0], [H, G])
-    assert T == exp
-
-    # 1*G + 0*H
-    T = double_mult(0, H, 1, G)
-    assert T == G
-    T = multi_mult([0, 1], [H, G])
-    assert T == G
-
-    # 2*G + 0*H
-    exp = mult(2, G)
-    T = double_mult(0, H, 2, G)
-    assert T == exp
-    T = multi_mult([0, 2], [H, G])
-    assert T == exp
-
-    # 3*G + 0*H
-    exp = mult(3, G)
-    T = double_mult(0, H, 3, G)
-    assert T == exp
-    T = multi_mult([0, 3], [H, G])
-    assert T == exp
-
-    # 0*G + 5*H
-    exp = mult(5, H)
-    T = double_mult(5, H, 0, G)
-    assert T == exp
-    T = multi_mult([5, 0], [H, G])
-    assert T == exp
-
-    # 0*G - 5*H
-    exp = mult(-5, H)
-    T = double_mult(-5, H, 0, G)
-    assert T == exp
-    T = multi_mult([-5, 0], [H, G])
-    assert T == exp
-
-    # 1*G - 5*H
-    exp = secp256k1.add(G, T)
-    T = double_mult(-5, H, 1, G)
-    assert T == exp
-    # FIXME
-    # T = multi_mult([-5, 1], [H, G])
-    # assert T == exp
-
-
 def test_multiples() -> None:
 
     ec = secp256k1
@@ -410,3 +292,17 @@ def test_multiples() -> None:
     M = multiples(ec.GJ, 10, ec)
     assert len(M) == 10
     assert M == T
+
+
+def test_jac_equality() -> None:
+
+    ec = ec23_31
+    assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
+
+    # q in [2, n-1], as the difference with ec.GJ is checked below
+    q = 2 + secrets.randbelow(ec.n - 2)
+    Q = _mult_aff(q, ec.G, ec)
+    QJ = _mult(q, ec.GJ, ec)
+    assert ec._jac_equality(QJ, _jac_from_aff(Q))
+    assert not ec._jac_equality(QJ, ec.negate_jac(QJ))
+    assert not ec._jac_equality(QJ, ec.GJ)

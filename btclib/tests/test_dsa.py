@@ -16,12 +16,12 @@ import pytest
 
 from btclib import dsa
 from btclib.alias import INF
-from btclib.curvemult import _mult_fixed_window, double_mult, mult
-from btclib.curves import CURVES
+from btclib.curve import CURVES, double_mult, mult
+from btclib.curvegroup import _mult
 from btclib.numbertheory import mod_inv
 from btclib.rfc6979 import rfc6979
 from btclib.secpoint import bytes_from_point, point_from_octets
-from btclib.tests.test_curves import low_card_curves
+from btclib.tests.test_curve import low_card_curves
 
 
 def test_signature() -> None:
@@ -160,9 +160,9 @@ def test_low_cardinality() -> None:
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n):  # all possible private keys
-            QJ = _mult_fixed_window(q, ec.GJ, ec)  # public key
+            QJ = _mult(q, ec.GJ, ec)  # public key
             for k in range(1, ec.n):  # all possible ephemeral keys
-                RJ = _mult_fixed_window(k, ec.GJ, ec)
+                RJ = _mult(k, ec.GJ, ec)
                 r = ec._x_aff_from_jac(RJ) % ec.n
                 k_inv = mod_inv(k, ec.n)
                 for e in range(ec.n):  # all possible challenges

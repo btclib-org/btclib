@@ -13,8 +13,7 @@
 from hashlib import sha1 as hf
 
 from btclib import dh
-from btclib.curvemult import mult
-from btclib.curves import CURVES
+from btclib.curve import CURVES, mult
 from btclib.secpoint import bytes_from_point
 
 ec = CURVES["secp160r1"]

@@ -33,7 +33,7 @@ Major changes includes:
 - added Integer as hex-string or bytes representation of an int
 - adopted the function signature of dsa.sign for rfc6979.rfc6979 too
 - added CURVES dictionary of all elliptic curves, e.g.:
-  from btclib.curves import CURVES; ec = CURVES['secp256k1']
+  from btclib.curve import CURVES; ec = CURVES['secp256k1']
 - renamed prvkey_info_* as prvkeyinfo_*
 - renamed pubkey_info_* as pubkeyinfo_*
 - renamed bytes_from_key as pubkeyinfo_from_key

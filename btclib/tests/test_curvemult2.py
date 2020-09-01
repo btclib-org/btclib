@@ -14,7 +14,7 @@ import pytest
 from btclib.alias import INFJ
 from btclib.curvegroup import _mult_fixed_window
 from btclib.curvemult2 import _mult_sliding_window, _mult_w_NAF
-from btclib.tests.test_curves import low_card_curves
+from btclib.tests.test_curve import low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
 

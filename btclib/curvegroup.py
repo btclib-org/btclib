@@ -570,6 +570,9 @@ def _mult_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 5) -> JacPo
     return R
 
 
+_mult = _mult_fixed_window
+
+
 def _double_mult(
     u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup
 ) -> JacPoint:
@@ -661,4 +664,4 @@ def _multi_mult(
     n1, p1 = -np1[0], np1[1]
     # assert n1 < ec.n, "better to take the mod n"
     # n1 %= ec.n
-    return _mult_fixed_window(n1, p1, ec)
+    return _mult(n1, p1, ec)

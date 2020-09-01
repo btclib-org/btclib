@@ -8,12 +8,22 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Elliptic curve classes."""
+"""Elliptic curve classes and functions."""
 
+import json
 from math import sqrt
+from os import path
+from typing import Dict, List, Sequence
 
-from .alias import Integer, Point
-from .curvegroup import _HEXTHRESHOLD, CurveGroup, _mult_fixed_window
+from .alias import Integer, JacPoint, Point
+from .curvegroup import (
+    _HEXTHRESHOLD,
+    CurveGroup,
+    _double_mult,
+    _jac_from_aff,
+    _mult,
+    _multi_mult,
+)
 from .utils import hex_string, int_from_integer
 
 
@@ -98,7 +108,7 @@ class Curve(CurveSubGroup):
         if self.G[1] == 0:
             m = "INF point cannot be a generator"
             raise ValueError(m)
-        InfJ = _mult_fixed_window(n, self.GJ, self)
+        InfJ = _mult(n, self.GJ, self)
         if InfJ[2] != 0:
             err_msg = "n is not the group order: "
             err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
@@ -138,3 +148,112 @@ class Curve(CurveSubGroup):
         result += f", {self.h}"
         result += ")"
         return result
+
+
+datadir = path.join(path.dirname(__file__), "data")
+
+# Elliptic Curve Cryptography (ECC)
+# Brainpool Standard Curves and Curve Generation
+# https://tools.ietf.org/html/rfc5639
+filename = path.join(datadir, "ec_Brainpool.json")
+with open(filename, "r") as f:
+    Brainpool_params2 = json.load(f)
+Brainpool: Dict[str, Curve] = {}
+for ec_name in Brainpool_params2:
+    Brainpool[ec_name] = Curve(*Brainpool_params2[ec_name])
+
+
+# FIPS PUB 186-4
+# FEDERAL INFORMATION PROCESSING STANDARDS PUBLICATION
+# Digital Signature Standard (DSS)
+# https://oag.ca.gov/sites/all/files/agweb/pdfs/erds1/fips_pub_07_2013.pdf
+filename = path.join(datadir, "ec_NIST.json")
+with open(filename, "r") as f:
+    NIST_params2 = json.load(f)
+NIST: Dict[str, Curve] = {}
+for ec_name in NIST_params2:
+    NIST[ec_name] = Curve(*NIST_params2[ec_name])
+
+
+# SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
+# http://www.secg.org/SEC2-Ver-1.0.pdf
+filename = path.join(datadir, "ec_SEC2v1_insecure.json")
+with open(filename, "r") as f:
+    SEC2v1_params2 = json.load(f)
+SEC2v1: Dict[str, Curve] = {}
+for ec_name in SEC2v1_params2:
+    SEC2v1[ec_name] = Curve(*SEC2v1_params2[ec_name])
+
+
+# curves included in both SEC 2 v.1 and SEC 2 v.2
+# http://www.secg.org/sec2-v2.pdf
+filename = path.join(datadir, "ec_SEC2v2.json")
+with open(filename, "r") as f:
+    SEC2v2_params2 = json.load(f)
+SEC2v2: Dict[str, Curve] = {}
+for ec_name in SEC2v2_params2:
+    SEC2v2[ec_name] = Curve(*SEC2v2_params2[ec_name])
+    SEC2v1[ec_name] = Curve(*SEC2v2_params2[ec_name])
+
+CURVES = SEC2v1
+CURVES.update(NIST)
+CURVES.update(Brainpool)
+
+secp256k1 = CURVES["secp256k1"]
+
+
+def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
+    "Elliptic curve scalar multiplication."
+    if Q is None:
+        QJ = ec.GJ
+    else:
+        ec.require_on_curve(Q)
+        QJ = _jac_from_aff(Q)
+
+    m = int_from_integer(m) % ec.n
+    R = _mult(m, QJ, ec)
+    return ec._aff_from_jac(R)
+
+
+def double_mult(
+    u: Integer, H: Point, v: Integer, Q: Point, ec: Curve = secp256k1
+) -> Point:
+    "Double scalar multiplication (u*H + v*Q)."
+
+    ec.require_on_curve(H)
+    HJ = _jac_from_aff(H)
+
+    ec.require_on_curve(Q)
+    QJ = _jac_from_aff(Q)
+
+    u = int_from_integer(u) % ec.n
+    v = int_from_integer(v) % ec.n
+    R = _double_mult(u, HJ, v, QJ, ec)
+    return ec._aff_from_jac(R)
+
+
+def multi_mult(
+    scalars: Sequence[Integer], Points: Sequence[Point], ec: Curve = secp256k1
+) -> Point:
+    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+
+    Use Bos-Coster's algorithm for efficient computation.
+    """
+
+    if len(scalars) != len(Points):
+        errMsg = "mismatch between number of scalars and points: "
+        errMsg += f"{len(scalars)} vs {len(Points)}"
+        raise ValueError(errMsg)
+
+    JPoints: List[JacPoint] = list()
+    ints: List[int] = list()
+    for P, i in zip(Points, scalars):
+        i = int_from_integer(i) % ec.n
+        if i == 0:  # early optimization, even if not strictly necessary
+            continue
+        ints.append(i)
+        ec.require_on_curve(P)
+        JPoints.append(_jac_from_aff(P))
+
+    R = _multi_mult(ints, JPoints, ec)
+    return ec._aff_from_jac(R)

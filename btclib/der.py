@@ -61,8 +61,7 @@ Moreover, no such rule exists for r.
 from typing import Optional, Tuple, Union
 
 from .alias import Octets
-from .curve import Curve
-from .curves import secp256k1
+from .curve import Curve, secp256k1
 from .script import SIGHASHES
 from .utils import bytes_from_octets, hex_string
 

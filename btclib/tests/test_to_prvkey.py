@@ -12,7 +12,7 @@
 
 import pytest
 
-from btclib.curves import CURVES
+from btclib.curve import CURVES
 from btclib.tests.test_to_key import (
     INF,
     INF_xpub_dict,

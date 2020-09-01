@@ -13,8 +13,10 @@
 import pytest
 
 from btclib import script
-from btclib.curves import secp256k1 as ec
+from btclib.curve import secp256k1
 from btclib.der import _deserialize, _serialize
+
+ec = secp256k1
 
 
 def test_der_size() -> None:
