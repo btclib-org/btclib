@@ -7,13 +7,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.curvemult2` module."
+"Tests for `btclib.curvegroup2` module."
 
 import pytest
 
 from btclib.alias import INFJ
-from btclib.curvegroup import _mult_fixed_window
-from btclib.curvemult2 import _mult_sliding_window, _mult_w_NAF
+from btclib.curvegroup import _mult
+from btclib.curvegroup2 import _mult_sliding_window, _mult_w_NAF
 from btclib.tests.test_curve import low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
@@ -48,7 +48,7 @@ def test_mult_sliding_window() -> None:
     for w in range(1, 10):
         for k1 in range(ec.n):
             K1 = _mult_sliding_window(k1, ec.GJ, ec, w)
-            assert ec._jac_equality(K1, _mult_fixed_window(k1, ec.GJ, ec))
+            assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
 
 
 def test_mult_w_NAF() -> None:
@@ -81,4 +81,4 @@ def test_mult_w_NAF() -> None:
     for w in range(2, 10):
         for k1 in range(ec.n):
             K1 = _mult_w_NAF(k1, ec.GJ, ec, w)
-            assert ec._jac_equality(K1, _mult_fixed_window(k1, ec.GJ, ec))
+            assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
