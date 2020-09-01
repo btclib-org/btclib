@@ -20,8 +20,10 @@ from btclib import base58address, bech32address, bip32, bms, dsa
 from btclib.base58address import p2pkh, p2wpkh_p2sh
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh
-from btclib.curves import secp256k1 as ec
+from btclib.curve import secp256k1
 from btclib.to_prvkey import prvkeyinfo_from_prvkey
+
+ec = secp256k1
 
 
 def test_exceptions() -> None:

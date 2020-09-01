@@ -14,8 +14,7 @@ import copy
 from collections import defaultdict
 from typing import Dict, List, TypedDict, Union
 
-from .curve import Curve
-from .curves import secp256k1
+from .curve import Curve, secp256k1
 
 
 class Network(TypedDict):

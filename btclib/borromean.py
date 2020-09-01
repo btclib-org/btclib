@@ -14,10 +14,11 @@ from hashlib import sha256 as hf  # FIXME: any hf
 from typing import Dict, List, Sequence, Tuple
 
 from .alias import Point, String
-from .curvemult import double_mult, mult
-from .curves import secp256k1 as ec  # FIXME: any curve
+from .curve import double_mult, mult, secp256k1
 from .secpoint import bytes_from_point
 from .utils import int_from_bits
+
+ec = secp256k1  # FIXME: any curve
 
 
 def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:

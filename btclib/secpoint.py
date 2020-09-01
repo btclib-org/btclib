@@ -11,8 +11,7 @@
 """SEC compressed/uncompressed point representation."""
 
 from .alias import Octets, Point
-from .curve import Curve
-from .curves import secp256k1
+from .curve import Curve, secp256k1
 from .utils import bytes_from_octets, hex_string
 
 

@@ -19,8 +19,9 @@ from typing import List, Union
 
 from btclib.alias import INF, BIP32KeyDict
 from btclib.base58 import b58encode
-from btclib.curvemult import mult
-from btclib.curves import secp256k1 as ec
+from btclib.curve import mult, secp256k1
+
+ec = secp256k1
 
 
 def _serialize(d: BIP32KeyDict) -> bytes:

@@ -12,9 +12,7 @@ from typing import Optional, Tuple
 
 from . import bip32
 from .alias import BIP32Key, Key, Point, PrvKey, PubKey
-from .curve import Curve
-from .curvemult import mult
-from .curves import secp256k1
+from .curve import Curve, mult, secp256k1
 from .network import (
     NETWORKS,
     curve_from_xkeyversion,

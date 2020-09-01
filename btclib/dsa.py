@@ -33,9 +33,8 @@ from .alias import (
     PrvKey,
     String,
 )
-from .curve import Curve
-from .curvemult import _double_mult, _mult_jac
-from .curves import secp256k1
+from .curve import Curve, secp256k1
+from .curvegroup import _double_mult, _mult_jac
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
 from .rfc6979 import __rfc6979

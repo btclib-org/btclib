@@ -15,8 +15,8 @@ from typing import Dict
 
 import pytest
 
-from btclib.curve import Curve, _mult_aff
-from btclib.curves import CURVES
+from btclib.curve import CURVES, Curve
+from btclib.curvegroup import _mult_aff
 from btclib.secpoint import bytes_from_point, point_from_octets
 
 # test curves: very low cardinality

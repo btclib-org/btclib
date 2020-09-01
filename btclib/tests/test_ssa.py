@@ -20,13 +20,12 @@ import pytest
 
 from btclib import bip32, ssa
 from btclib.alias import INF, Point
+from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult_jac
-from btclib.curvemult import double_mult, mult
-from btclib.curves import CURVES
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
 from btclib.secpoint import bytes_from_point
-from btclib.tests.test_curves import low_card_curves
+from btclib.tests.test_curve import low_card_curves
 from btclib.utils import int_from_bits
 
 

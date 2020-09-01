@@ -33,9 +33,7 @@ the discrete logarithm of H with respect to G must be unknown.
 from hashlib import sha256
 
 from .alias import HashF, Point
-from .curve import Curve
-from .curvemult import double_mult
-from .curves import secp256k1
+from .curve import Curve, double_mult, secp256k1
 from .secpoint import bytes_from_point
 from .utils import int_from_bits
 

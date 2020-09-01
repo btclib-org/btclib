@@ -17,8 +17,7 @@ from os import path
 import pytest
 
 from btclib import dsa
-from btclib.curvemult import mult
-from btclib.curves import CURVES
+from btclib.curve import CURVES, mult
 from btclib.rfc6979 import rfc6979
 
 

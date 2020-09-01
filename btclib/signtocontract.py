@@ -38,9 +38,7 @@ from typing import Optional, Tuple
 
 from . import dsa, ssa
 from .alias import HashF, Octets, Point, PrvKey
-from .curve import Curve
-from .curvemult import mult
-from .curves import secp256k1
+from .curve import Curve, mult, secp256k1
 from .rfc6979 import _rfc6979
 from .secpoint import bytes_from_point
 from .to_prvkey import int_from_prvkey

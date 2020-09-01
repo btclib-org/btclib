@@ -16,12 +16,12 @@ import pytest
 
 from btclib import dsa
 from btclib.alias import INF
-from btclib.curvemult import _mult_jac, double_mult, mult
-from btclib.curves import CURVES
+from btclib.curve import CURVES, double_mult, mult
+from btclib.curvegroup import _mult_jac
 from btclib.numbertheory import mod_inv
 from btclib.rfc6979 import rfc6979
 from btclib.secpoint import bytes_from_point, point_from_octets
-from btclib.tests.test_curves import low_card_curves
+from btclib.tests.test_curve import low_card_curves
 
 
 def test_signature() -> None:

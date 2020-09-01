@@ -65,9 +65,8 @@ from .alias import (
     SSASigTuple,
     String,
 )
-from .curve import Curve
-from .curvemult import _double_mult, _mult_jac, _multi_mult
-from .curves import secp256k1
+from .curve import Curve, secp256k1
+from .curvegroup import _double_mult, _mult_jac, _multi_mult
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
 from .to_prvkey import int_from_prvkey

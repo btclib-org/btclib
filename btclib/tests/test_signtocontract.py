@@ -14,12 +14,14 @@ import secrets
 from hashlib import sha256
 
 from btclib import dsa, ssa
-from btclib.curves import secp256k1 as ec
+from btclib.curve import secp256k1
 from btclib.signtocontract import (
     ecdsa_commit_sign,
     ecssa_commit_sign,
     verify_commit,
 )
+
+ec = secp256k1
 
 
 def test_signtocontract() -> None:

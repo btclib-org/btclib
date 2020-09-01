@@ -12,7 +12,8 @@
 
 import pytest
 
-from btclib.curve import CurveGroup, _mult_aff
+from btclib.curve import CurveGroup
+from btclib.curvegroup import _mult_aff
 from btclib.curvegroupf import find_all_points, find_subgroup_points
 
 

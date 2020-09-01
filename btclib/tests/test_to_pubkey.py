@@ -12,7 +12,7 @@
 
 import pytest
 
-from btclib.curves import CURVES
+from btclib.curve import CURVES
 from btclib.secpoint import bytes_from_point
 from btclib.tests.test_to_key import (
     INF,

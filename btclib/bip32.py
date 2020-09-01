@@ -39,8 +39,7 @@ from typing import List, Optional, Tuple
 from . import bip39, electrum
 from .alias import INF, BIP32Key, BIP32KeyDict, Octets, Path, Point
 from .base58 import b58decode, b58encode
-from .curvemult import mult
-from .curves import secp256k1 as ec
+from .curve import mult, secp256k1
 from .mnemonic import Mnemonic
 from .network import (
     _NETWORKS,
@@ -52,6 +51,8 @@ from .network import (
 )
 from .secpoint import bytes_from_point, point_from_octets
 from .utils import bytes_from_octets, hash160, hex_string
+
+ec = secp256k1
 
 
 def _check_version_key(version: bytes, key: bytes) -> None:
