@@ -58,7 +58,7 @@ def mods(m: int, w: int) -> int:
     return M - w2 if M >= (w2 / 2) else M
 
 
-def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
+def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """Scalar multiplication using "sliding window".
 
     It has the benefit that the pre-computation stage
@@ -117,7 +117,7 @@ def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoin
     return R
 
 
-def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
+def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """Scalar multiplication in Jacobian coordinates using wNAF.
 
     This implementation uses the same method called "w-ary non-adjacent form" (wNAF)
