@@ -17,6 +17,7 @@ import pytest
 from btclib.alias import INF, INFJ
 from btclib.curve import secp256k1
 from btclib.curvegroup import (
+    _MAX_W,
     _double_mult,
     _jac_from_aff,
     _mult,
@@ -26,6 +27,7 @@ from btclib.curvegroup import (
     _mult_jac,
     _mult_mont_ladder,
     _multi_mult,
+    cached_multiples,
     multiples,
 )
 from btclib.pedersen import second_generator
@@ -153,7 +155,7 @@ def test_mult_base_3() -> None:
 
 
 def test_mult_fixed_window() -> None:
-    for w in range(1, 10):  # Actually it makes use of w=4 or w=5, only to check
+    for w in range(1, _MAX_W):
         for ec in low_card_curves.values():
             assert ec._jac_equality(_mult_fixed_window(0, ec.GJ, ec, w), INFJ)
             assert ec._jac_equality(_mult_fixed_window(0, INFJ, ec, w), INFJ)
@@ -247,6 +249,13 @@ def test_assorted_jac_mult() -> None:
         _double_mult(-5, HJ, 1, ec.GJ, ec)
     with pytest.raises(ValueError, match="negative second coefficient: "):
         _double_mult(1, HJ, -5, ec.GJ, ec)
+
+
+def test_cached_multiples() -> None:
+
+    ec = secp256k1
+    M = cached_multiples(ec.GJ, ec)
+    assert len(M) == 2 ** _MAX_W
 
 
 def test_multiples() -> None:

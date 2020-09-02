@@ -444,8 +444,6 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R[0]
 
 
-# least recently used cache
-@functools.lru_cache()
 def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
     "Return {k_i * Q} for k_i in {0, ..., size-1)"
 
@@ -461,6 +459,19 @@ def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
     if odd:
         T.append(ec._double_jac(T[(size - 1) // 2]))
 
+    return T
+
+
+_MAX_W = 5
+
+
+@functools.lru_cache()  # least recently used cache
+def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
+
+    T = [INFJ, Q]
+    for i in range(3, 2 ** _MAX_W, 2):
+        T.append(ec._double_jac(T[(i - 1) // 2]))
+        T.append(ec._add_jac(T[-1], Q))
     return T
 
 
@@ -519,7 +530,9 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         raise ValueError(f"negative m: {hex(m)}")
 
     # at each step one of the points in T will be added
-    T = multiples(Q, 3, ec)
+    T = [INFJ, Q, ec._double_jac(Q)]
+    # T = multiples(Q, 3, ec)
+    # T = cached_multiples(Q, ec)
 
     digits = convert_number_to_base(m, 3)
 
@@ -533,7 +546,7 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R
 
 
-def _mult_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 5) -> JacPoint:
+def _mult_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """Scalar multiplication using "fixed window".
 
     This implementation uses
@@ -555,12 +568,11 @@ def _mult_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 5) -> JacPo
     if w <= 0:
         raise ValueError(f"non positive w: {w}")
 
-    base = pow(2, w)
-
     # at each step one of the points in T will be added
-    T = multiples(Q, base, ec)
+    T = cached_multiples(Q, ec)
+    # T = multiples(Q, 2 ** w, ec)
 
-    digits = convert_number_to_base(m, base)
+    digits = convert_number_to_base(m, 2 ** w)
 
     R = T[digits[0]]
     for i in digits[1:]:
