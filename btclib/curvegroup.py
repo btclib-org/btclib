@@ -546,7 +546,9 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R
 
 
-def _mult_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
+def _mult_fixed_window(
+    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4, cached: bool = False
+) -> JacPoint:
     """Scalar multiplication using "fixed window".
 
     This implementation uses
@@ -569,8 +571,13 @@ def _mult_fixed_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPo
         raise ValueError(f"non positive w: {w}")
 
     # at each step one of the points in T will be added
-    T = cached_multiples(Q, ec)
+    # T = cached_multiples(Q, ec)
     # T = multiples(Q, 2 ** w, ec)
+
+    if cached:
+        T = cached_multiples(Q, ec)
+    else:
+        T = multiples(Q, 2 ** w, ec)
 
     digits = convert_number_to_base(m, 2 ** w)
 
