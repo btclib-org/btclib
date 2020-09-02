@@ -20,7 +20,7 @@ ec23_31 = low_card_curves["ec23_31"]
 
 
 def test_mult_sliding_window() -> None:
-    for w in range(1, 10):  # Actually it makes use of w=4 or w=5, only to check
+    for w in range(1, 6):
         for ec in low_card_curves.values():
             assert ec._jac_equality(_mult_sliding_window(0, ec.GJ, ec, w), INFJ)
             assert ec._jac_equality(_mult_sliding_window(0, INFJ, ec, w), INFJ)
@@ -53,7 +53,7 @@ def test_mult_sliding_window() -> None:
 
 def test_mult_w_NAF() -> None:
     # it does NOT work for w=1
-    for w in range(2, 10):
+    for w in range(2, 6):
         for ec in low_card_curves.values():
             assert ec._jac_equality(_mult_w_NAF(0, ec.GJ, ec, w), INFJ)
             assert ec._jac_equality(_mult_w_NAF(0, INFJ, ec, w), INFJ)
