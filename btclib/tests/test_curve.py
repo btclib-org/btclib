@@ -17,7 +17,7 @@ import pytest
 
 from btclib.alias import INF, INFJ
 from btclib.curve import CURVES, Curve, double_mult, mult, multi_mult, secp256k1
-from btclib.curvegroup import _jac_from_aff, _mult_aff
+from btclib.curvegroup import _jac_from_aff
 from btclib.numbertheory import mod_sqrt
 from btclib.pedersen import second_generator
 
@@ -100,13 +100,12 @@ def test_exceptions() -> None:
         Curve(11, 2, 7, (6, 9), 7, 2, True)
 
 
-@pytest.mark.seventh
 def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
-        Q = _mult_aff(q, ec.G, ec)
+        Q = mult(q, ec.G, ec)
         QJ = _jac_from_aff(Q)
         assert Q == ec._aff_from_jac(QJ)
         x_Q = ec._x_aff_from_jac(QJ)
@@ -168,14 +167,13 @@ def test_add_double_jac() -> None:
         assert ec._jac_equality(ec._add_jac(INFJ, ec.negate_jac(INFJ)), INFJ)
 
 
-@pytest.mark.eighth
 def test_add_double_aff_jac() -> None:
     "Test consistency between affine and Jacobian add/double methods."
     for ec in all_curves.values():
 
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
-        Q = _mult_aff(q, ec.G, ec)
+        Q = mult(q, ec.G, ec)
         QJ = _jac_from_aff(Q)
 
         # add Q and G
@@ -213,7 +211,7 @@ def test_is_on_curve() -> None:
 
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
-        Q = _mult_aff(q, ec.G, ec)
+        Q = mult(q, ec.G, ec)
         with pytest.raises(ValueError, match="y-coordinate not in 1..p-1: "):
             ec.is_on_curve((Q[0], ec.p))
 
@@ -223,7 +221,7 @@ def test_negate() -> None:
 
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
-        Q = _mult_aff(q, ec.G, ec)
+        Q = mult(q, ec.G, ec)
         minus_Q = ec.negate(Q)
         assert ec.add(Q, minus_Q) == INF
 
@@ -253,7 +251,7 @@ def test_symmetry() -> None:
 
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
-        Q = _mult_aff(q, ec.G, ec)
+        Q = mult(q, ec.G, ec)
         x_Q = Q[0]
 
         y_odd = ec.y_odd(x_Q)
