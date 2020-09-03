@@ -34,7 +34,7 @@ from .alias import (
     String,
 )
 from .curve import Curve, secp256k1
-from .curvegroup import _double_mult, _mult_jac
+from .curvegroup import _double_mult, _mult
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
 from .rfc6979 import __rfc6979
@@ -80,7 +80,7 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:
     else:
         q = int_from_prvkey(prvkey, ec)
 
-    QJ = _mult_jac(q, ec.GJ, ec)
+    QJ = _mult(q, ec.GJ, ec)
     Q = ec._aff_from_jac(QJ)
     # q.to_bytes(ec.nsize, 'big')
     # bytes_from_point(Q, ec, compressed)
@@ -111,7 +111,7 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DSASigTuple:
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
-    KJ = _mult_jac(k, ec.GJ, ec)  # 1
+    KJ = _mult(k, ec.GJ, ec)  # 1
 
     # affine x-coordinate of K (field element)
     K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
