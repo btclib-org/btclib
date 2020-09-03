@@ -153,7 +153,6 @@ def test_jac_equality() -> None:
     assert not ec._jac_equality(QJ, ec.GJ)
 
 
-@pytest.mark.seventh
 def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
@@ -221,7 +220,6 @@ def test_add_double_jac() -> None:
         assert ec._jac_equality(ec._add_jac(INFJ, ec.negate_jac(INFJ)), INFJ)
 
 
-@pytest.mark.eighth
 def test_add_double_aff_jac() -> None:
     "Test consistency between affine and Jacobian add/double methods."
     for ec in all_curves.values():
