@@ -187,7 +187,6 @@ def test_add_double_aff_jac() -> None:
         assert ec._jac_equality(RJ, ec._add_jac(QJ, QJ))
 
 
-@pytest.mark.fourth
 def test_ec_repr() -> None:
     for ec in all_curves.values():
         ec_repr = repr(ec)
@@ -197,7 +196,6 @@ def test_ec_repr() -> None:
         assert str(ec) == str(ec2)
 
 
-@pytest.mark.sixth
 def test_is_on_curve() -> None:
     for ec in all_curves.values():
 

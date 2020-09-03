@@ -31,7 +31,7 @@ from btclib.tests.test_curve import all_curves, low_card_curves
 ec23_31 = low_card_curves["ec23_31"]
 
 
-@pytest.mark.fifth
+@pytest.mark.third
 def test_mult_aff() -> None:
     for ec in all_curves.values():
         assert _mult_aff(0, ec.G, ec) == INF
@@ -154,6 +154,7 @@ def test_jac_equality() -> None:
     assert not ec._jac_equality(QJ, ec.GJ)
 
 
+@pytest.mark.fourth
 def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
@@ -221,6 +222,7 @@ def test_add_double_jac() -> None:
         assert ec._jac_equality(ec._add_jac(INFJ, ec.negate_jac(INFJ)), INFJ)
 
 
+@pytest.mark.fifth
 def test_add_double_aff_jac() -> None:
     "Test consistency between affine and Jacobian add/double methods."
     for ec in all_curves.values():
@@ -243,7 +245,6 @@ def test_add_double_aff_jac() -> None:
         assert ec._jac_equality(RJ, ec._add_jac(QJ, QJ))
 
 
-@pytest.mark.fourth
 def test_ec_repr() -> None:
     for ec in all_curves.values():
         ec_repr = repr(ec)
@@ -253,7 +254,6 @@ def test_ec_repr() -> None:
         assert str(ec) == str(ec2)
 
 
-@pytest.mark.sixth
 def test_is_on_curve() -> None:
     for ec in all_curves.values():
 
