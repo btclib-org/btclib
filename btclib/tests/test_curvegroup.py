@@ -56,7 +56,7 @@ def test_mult_aff() -> None:
         assert _mult_aff(ec.n, ec.G, ec) == INF
         assert _mult_aff(ec.n, INF, ec) == INF
 
-        with pytest.raises(ValueError, match="negative m:"):
+        with pytest.raises(ValueError, match="negative m: "):
             _mult_aff(-1, ec.G, ec)
 
     for ec in low_card_curves.values():
@@ -89,7 +89,7 @@ def test_mult_jac() -> None:
         assert ec._jac_equality(_mult_jac(ec.n, ec.GJ, ec), INFJ)
         assert ec._jac_equality(_mult_jac(ec.n, INFJ, ec), INFJ)
 
-        with pytest.raises(ValueError, match="negative m:"):
+        with pytest.raises(ValueError, match="negative m: "):
             _mult_jac(-1, ec.GJ, ec)
 
     ec = ec23_31
@@ -251,6 +251,20 @@ def test_assorted_jac_mult() -> None:
         _double_mult(1, HJ, -5, ec.GJ, ec)
 
 
+def test_jac_equality() -> None:
+
+    ec = ec23_31
+    assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
+
+    # q in [2, n-1], as the difference with ec.GJ is checked below
+    q = 2 + secrets.randbelow(ec.n - 2)
+    Q = _mult_aff(q, ec.G, ec)
+    QJ = _mult(q, ec.GJ, ec)
+    assert ec._jac_equality(QJ, _jac_from_aff(Q))
+    assert not ec._jac_equality(QJ, ec.negate_jac(QJ))
+    assert not ec._jac_equality(QJ, ec.GJ)
+
+
 def test_cached_multiples() -> None:
 
     ec = secp256k1
@@ -308,17 +322,3 @@ def test_multiples() -> None:
     M = multiples(ec.GJ, 10, ec)
     assert len(M) == 10
     assert M == T
-
-
-def test_jac_equality() -> None:
-
-    ec = ec23_31
-    assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
-
-    # q in [2, n-1], as the difference with ec.GJ is checked below
-    q = 2 + secrets.randbelow(ec.n - 2)
-    Q = _mult_aff(q, ec.G, ec)
-    QJ = _mult(q, ec.GJ, ec)
-    assert ec._jac_equality(QJ, _jac_from_aff(Q))
-    assert not ec._jac_equality(QJ, ec.negate_jac(QJ))
-    assert not ec._jac_equality(QJ, ec.GJ)
