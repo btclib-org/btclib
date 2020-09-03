@@ -19,6 +19,7 @@ from btclib.curve import Curve
 from btclib.curvegroup import (
     _double_mult,
     _jac_from_aff,
+    _mult,
     _mult_aff,
     _mult_jac,
     _multi_mult,
@@ -67,8 +68,8 @@ def test_mult_jac() -> None:
 
         PJ = _mult_jac(ec.n - 1, ec.GJ, ec)
         assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
-
         assert ec._jac_equality(_mult_jac(ec.n - 1, INFJ, ec), INFJ)
+
         assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
         assert ec._jac_equality(_mult_jac(ec.n, ec.GJ, ec), INFJ)
 
@@ -81,13 +82,13 @@ def test_assorted_jac_mult() -> None:
     H = second_generator(ec)
     HJ = _jac_from_aff(H)
     for k1 in range(ec.n):
-        K1J = _mult_jac(k1, ec.GJ, ec)
+        K1J = _mult(k1, ec.GJ, ec)
         for k2 in range(ec.n):
-            K2J = _mult_jac(k2, HJ, ec)
+            K2J = _mult(k2, HJ, ec)
 
             shamir = _double_mult(k1, ec.GJ, k2, ec.GJ, ec)
             assert ec.is_on_curve(ec._aff_from_jac(shamir))
-            assert ec._jac_equality(shamir, _mult_jac(k1 + k2, ec.GJ, ec))
+            assert ec._jac_equality(shamir, _mult(k1 + k2, ec.GJ, ec))
 
             shamir = _double_mult(k1, INFJ, k2, HJ, ec)
             assert ec.is_on_curve(ec._aff_from_jac(shamir))
@@ -103,7 +104,7 @@ def test_assorted_jac_mult() -> None:
             assert ec._jac_equality(K1JK2J, shamir)
 
             k3 = 1 + secrets.randbelow(ec.n - 1)
-            K3J = _mult_jac(k3, ec.GJ, ec)
+            K3J = _mult(k3, ec.GJ, ec)
             K1JK2JK3J = ec._add_jac(K1JK2J, K3J)
             assert ec.is_on_curve(ec._aff_from_jac(K1JK2JK3J))
             boscoster = _multi_mult([k1, k2, k3], [ec.GJ, HJ, ec.GJ], ec)
@@ -112,7 +113,7 @@ def test_assorted_jac_mult() -> None:
             assert ec._jac_equality(K1JK2JK3J, boscoster)
 
             k4 = 1 + secrets.randbelow(ec.n - 1)
-            K4J = _mult_jac(k4, HJ, ec)
+            K4J = _mult(k4, HJ, ec)
             K1JK2JK3JK4J = ec._add_jac(K1JK2JK3J, K4J)
             assert ec.is_on_curve(ec._aff_from_jac(K1JK2JK3JK4J))
             points = [ec.GJ, HJ, ec.GJ, HJ]
@@ -144,10 +145,10 @@ def test_jac_equality() -> None:
     ec = Curve(13, 0, 2, (1, 9), 19, 1, False)
     assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
 
-    # q in [2, n-1]
+    # q in [2, n-1], as the difference with ec.GJ is checked below
     q = 2 + secrets.randbelow(ec.n - 2)
     Q = _mult_aff(q, ec.G, ec)
-    QJ = _mult_jac(q, ec.GJ, ec)
+    QJ = _mult(q, ec.GJ, ec)
     assert ec._jac_equality(QJ, _jac_from_aff(Q))
     assert not ec._jac_equality(QJ, ec.negate_jac(QJ))
     assert not ec._jac_equality(QJ, ec.GJ)
@@ -381,8 +382,8 @@ def test_mult() -> None:
         for q in range(ec.n):
             Q = _mult_aff(q, ec.G, ec)
             assert ec.is_on_curve(Q), f"{q}, {ec}"
-            QJ = _mult_jac(q, ec.GJ, ec)
+            QJ = _mult(q, ec.GJ, ec)
             assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
             assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
         assert INF == _mult_aff(q, INF, ec), f"{q}, {ec}"
-        assert ec._jac_equality(INFJ, _mult_jac(q, INFJ, ec)), f"{q}, {ec}"
+        assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
