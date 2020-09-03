@@ -574,10 +574,7 @@ def _mult_fixed_window(
     # T = cached_multiples(Q, ec)
     # T = multiples(Q, 2 ** w, ec)
 
-    if cached:
-        T = cached_multiples(Q, ec)
-    else:
-        T = multiples(Q, 2 ** w, ec)
+    T = cached_multiples(Q, ec) if cached else multiples(Q, 2 ** w, ec)
 
     digits = convert_number_to_base(m, 2 ** w)
 
