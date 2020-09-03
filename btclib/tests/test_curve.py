@@ -24,7 +24,6 @@ from btclib.pedersen import second_generator
 # FIXME Curve repr should use "dedbeef 00000000", not "0xdedbeef00000000"
 # FIXME test curves when n>p
 
-
 # test curves: very low cardinality
 low_card_curves: Dict[str, Curve] = {}
 # 13 % 4 = 1; 13 % 8 = 5
@@ -43,7 +42,6 @@ low_card_curves["ec23_31"] = Curve(23, 5, 1, (0, 1), 31, 1, False)
 all_curves: Dict[str, Curve] = {}
 all_curves.update(low_card_curves)
 all_curves.update(CURVES)
-
 
 ec23_31 = low_card_curves["ec23_31"]
 
