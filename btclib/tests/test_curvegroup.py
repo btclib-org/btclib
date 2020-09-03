@@ -36,65 +36,6 @@ from btclib.tests.test_curve import all_curves, low_card_curves
 ec23_31 = low_card_curves["ec23_31"]
 
 
-def test_cached_multiples() -> None:
-
-    ec = secp256k1
-    M = cached_multiples(ec.GJ, ec)
-    assert len(M) == 2 ** _MAX_W
-
-
-def test_multiples() -> None:
-
-    ec = secp256k1
-    with pytest.raises(ValueError, match="size too low: "):
-        multiples(ec.GJ, 1, ec)
-
-    T = [INFJ, ec.GJ]
-    M = multiples(ec.GJ, 2, ec)
-    assert len(M) == 2
-    assert M == T
-
-    T.append(ec._double_jac(ec.GJ))
-    M = multiples(ec.GJ, 3, ec)
-    assert len(M) == 3
-    assert M == T
-
-    T.append(ec._add_jac(T[-1], ec.GJ))
-    M = multiples(ec.GJ, 4, ec)
-    assert len(M) == 4
-    assert M == T
-
-    T.append(ec._double_jac(T[2]))
-    M = multiples(ec.GJ, 5, ec)
-    assert len(M) == 5
-    assert M == T
-
-    T.append(ec._add_jac(T[-1], ec.GJ))
-    M = multiples(ec.GJ, 6, ec)
-    assert len(M) == 6
-    assert M == T
-
-    T.append(ec._double_jac(T[3]))
-    M = multiples(ec.GJ, 7, ec)
-    assert len(M) == 7
-    assert M == T
-
-    T.append(ec._add_jac(T[-1], ec.GJ))
-    M = multiples(ec.GJ, 8, ec)
-    assert len(M) == 8
-    assert M == T
-
-    T.append(ec._double_jac(T[4]))
-    M = multiples(ec.GJ, 9, ec)
-    assert len(M) == 9
-    assert M == T
-
-    T.append(ec._add_jac(T[-1], ec.GJ))
-    M = multiples(ec.GJ, 10, ec)
-    assert len(M) == 10
-    assert M == T
-
-
 @pytest.mark.second
 def test_mult_aff() -> None:
     for ec in all_curves.values():
@@ -211,6 +152,65 @@ def test_mult_base_3() -> None:
     for k1 in range(ec.n):
         K1 = _mult_base_3(k1, ec.GJ, ec)
         assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
+
+
+def test_cached_multiples() -> None:
+
+    ec = secp256k1
+    M = cached_multiples(ec.GJ, ec)
+    assert len(M) == 2 ** _MAX_W
+
+
+def test_multiples() -> None:
+
+    ec = secp256k1
+    with pytest.raises(ValueError, match="size too low: "):
+        multiples(ec.GJ, 1, ec)
+
+    T = [INFJ, ec.GJ]
+    M = multiples(ec.GJ, 2, ec)
+    assert len(M) == 2
+    assert M == T
+
+    T.append(ec._double_jac(ec.GJ))
+    M = multiples(ec.GJ, 3, ec)
+    assert len(M) == 3
+    assert M == T
+
+    T.append(ec._add_jac(T[-1], ec.GJ))
+    M = multiples(ec.GJ, 4, ec)
+    assert len(M) == 4
+    assert M == T
+
+    T.append(ec._double_jac(T[2]))
+    M = multiples(ec.GJ, 5, ec)
+    assert len(M) == 5
+    assert M == T
+
+    T.append(ec._add_jac(T[-1], ec.GJ))
+    M = multiples(ec.GJ, 6, ec)
+    assert len(M) == 6
+    assert M == T
+
+    T.append(ec._double_jac(T[3]))
+    M = multiples(ec.GJ, 7, ec)
+    assert len(M) == 7
+    assert M == T
+
+    T.append(ec._add_jac(T[-1], ec.GJ))
+    M = multiples(ec.GJ, 8, ec)
+    assert len(M) == 8
+    assert M == T
+
+    T.append(ec._double_jac(T[4]))
+    M = multiples(ec.GJ, 9, ec)
+    assert len(M) == 9
+    assert M == T
+
+    T.append(ec._add_jac(T[-1], ec.GJ))
+    M = multiples(ec.GJ, 10, ec)
+    assert len(M) == 10
+    assert M == T
 
 
 def test_mult_fixed_window() -> None:
