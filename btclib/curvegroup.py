@@ -475,6 +475,24 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
     return T
 
 
+@functools.lru_cache()
+def new_cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[List[JacPoint]]:
+    """FIXME:
+    Change 65 with the exponent of 2^w, where 2^w is the number of points of the curvegroup
+    """
+    T = []
+    K = Q
+    for _ in range(65):
+        sublist = [INFJ, K]
+        for j in range(3, 2 ** 4, 2):
+            sublist.append(ec._double_jac(sublist[(j - 1) // 2]))
+            sublist.append(ec._add_jac(sublist[-1], K))
+        K = ec._double_jac(sublist[8])
+        T.append(sublist)
+
+    return T
+
+
 def convert_number_to_base(i: int, base: int) -> List[int]:
     "Return the digits of an integer in the requested base."
 
@@ -589,6 +607,43 @@ def _mult_fixed_window(
 
 
 _mult = _mult_fixed_window
+
+
+def _mult_fixed_window_cached(
+    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4, cached: bool = False
+) -> JacPoint:
+    """Scalar multiplication using "fixed window" & cached values.
+
+    This implementation uses
+    'multiple-double & add' algorithm,
+    'right-to-left' window decomposition of the m coefficient,
+    Jacobian coordinates.
+
+    For 256-bit scalars it is suggested to choose w=4.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    # a number cannot be written in basis 1 (ie w=0)
+    if w <= 0:
+        raise ValueError(f"non positive w: {w}")
+
+    T = new_cached_multiples(Q, ec)
+
+    digits = convert_number_to_base(m, 2 ** w)
+
+    R = T[0][digits[-1]]
+    j = 1
+    for i in (len(digits) - 2, -1, -1):
+        # only 'add'
+        R = ec._add_jac(R, T[j][digits[i]])
+        j += 1
+    return R
 
 
 def _double_mult(
