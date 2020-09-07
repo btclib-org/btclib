@@ -476,7 +476,7 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 
 
 @functools.lru_cache()
-def new_cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[List[JacPoint]]:
+def cached_multiples_fixwind(Q: JacPoint, ec: CurveGroup) -> List[List[JacPoint]]:
     """FIXME:
     Change 65 with the exponent of 2^w, where 2^w is the number of points of the curvegroup
     """
@@ -610,16 +610,17 @@ _mult = _mult_fixed_window
 
 
 def _mult_fixed_window_cached(
-    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4, cached: bool = False
+    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4
 ) -> JacPoint:
     """Scalar multiplication using "fixed window" & cached values.
 
     This implementation uses
     'multiple-double & add' algorithm,
-    'right-to-left' window decomposition of the m coefficient,
+    'left-to-right' window decomposition of the m coefficient,
     Jacobian coordinates.
 
     For 256-bit scalars it is suggested to choose w=4.
+    Thanks to the pre-computed values, it just need addictions
 
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n
@@ -633,16 +634,18 @@ def _mult_fixed_window_cached(
     if w <= 0:
         raise ValueError(f"non positive w: {w}")
 
-    T = new_cached_multiples(Q, ec)
+    T = cached_multiples_fixwind(Q, ec)
 
     digits = convert_number_to_base(m, 2 ** w)
 
-    R = T[0][digits[-1]]
-    j = 1
-    for i in (len(digits) - 2, -1, -1):
+    k = len(digits) - 1
+
+    R = T[k][digits[0]]
+
+    for i in range(1, len(digits)):
+        k -= 1
         # only 'add'
-        R = ec._add_jac(R, T[j][digits[i]])
-        j += 1
+        R = ec._add_jac(R, T[k][digits[i]])
     return R
 
 

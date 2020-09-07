@@ -24,6 +24,7 @@ from btclib.curvegroup import (
     _mult_aff,
     _mult_base_3,
     _mult_fixed_window,
+    _mult_fixed_window_cached,
     _mult_jac,
     _mult_mont_ladder,
     _multi_mult,
@@ -244,6 +245,37 @@ def test_mult_fixed_window() -> None:
         for k1 in range(ec.n):
             K1 = _mult_fixed_window(k1, ec.GJ, ec, w)
             assert ec._jac_equality(K1, _mult_jac(k1, ec.GJ, ec))
+
+
+def test_mult_fixed_window_cached() -> None:
+    for ec in low_card_curves.values():
+        assert ec._jac_equality(_mult_fixed_window_cached(0, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_fixed_window_cached(0, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(_mult_fixed_window_cached(1, INFJ, ec), INFJ)
+        assert ec._jac_equality(_mult_fixed_window_cached(1, ec.GJ, ec), ec.GJ)
+
+        PJ = _mult_fixed_window_cached(2, ec.GJ, ec)
+        assert ec._jac_equality(PJ, ec._add_jac(ec.GJ, ec.GJ))
+
+        PJ = _mult_fixed_window_cached(ec.n - 1, ec.GJ, ec)
+        assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
+        assert ec._jac_equality(_mult_fixed_window_cached(ec.n - 1, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
+        assert ec._jac_equality(_mult_fixed_window_cached(ec.n, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
+
+        with pytest.raises(ValueError, match="negative m: "):
+            _mult_fixed_window_cached(-1, ec.GJ, ec)
+
+        with pytest.raises(ValueError, match="non positive w: "):
+            _mult_fixed_window_cached(1, ec.GJ, ec, -1)
+
+    ec = ec23_31
+    for k1 in range(ec.n):
+        K1 = _mult_fixed_window_cached(k1, ec.GJ, ec)
+        assert ec._jac_equality(K1, _mult_jac(k1, ec.GJ, ec))
 
 
 def test_assorted_jac_mult() -> None:
