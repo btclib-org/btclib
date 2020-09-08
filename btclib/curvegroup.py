@@ -379,6 +379,60 @@ class CurveGroup:
         return root if legendre == quad_res else self.p - root
 
 
+def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
+    """Scalar multiplication of a curve point in affine coordinates.
+
+    This implementation uses
+    a recursive function,
+    affine coordinates.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    if m == 0:
+        return INF
+
+    if m == 1:
+        return Q
+
+    if (m % 2) == 1:
+        return ec._add_aff(Q, _mult_recursive_aff((m - 1), Q, ec))
+    else:
+        return _mult_recursive_aff((m // 2), ec._double_aff(Q), ec)
+
+
+def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication of a curve point in affine coordinates.
+
+    This implementation uses
+    a recursive function,
+    jacobian coordinates.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    if m == 0:
+        return INFJ
+
+    if m == 1:
+        return Q
+
+    if (m % 2) == 1:
+        return ec._add_jac(Q, _mult_recursive_jac((m - 1), Q, ec))
+    else:
+        return _mult_recursive_jac((m // 2), ec._double_jac(Q), ec)
+
+
 def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
@@ -478,7 +532,7 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 @functools.lru_cache()
 def cached_multiples_fixwind(Q: JacPoint, ec: CurveGroup) -> List[List[JacPoint]]:
     """FIXME:
-    Change 65 with the exponent of 2^w, where 2^w is the number of points of the curvegroup
+    Change 65 with w/4, where 2^w is the number of points of the curvegroup
     """
     T = []
     K = Q
@@ -620,7 +674,7 @@ def _mult_fixed_window_cached(
     Jacobian coordinates.
 
     For 256-bit scalars it is suggested to choose w=4.
-    Thanks to the pre-computed values, it just need addictions
+    Thanks to the pre-computed values, it just needs addictions.
 
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n

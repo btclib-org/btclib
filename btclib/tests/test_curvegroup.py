@@ -27,6 +27,8 @@ from btclib.curvegroup import (
     _mult_fixed_window_cached,
     _mult_jac,
     _mult_mont_ladder,
+    _mult_recursive_aff,
+    _mult_recursive_jac,
     _multi_mult,
     cached_multiples,
     multiples,
@@ -35,6 +37,67 @@ from btclib.pedersen import second_generator
 from btclib.tests.test_curve import all_curves, low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
+
+
+def test_mult_recursive_aff() -> None:
+    for ec in all_curves.values():
+        assert _mult_recursive_aff(0, ec.G, ec) == INF
+        assert _mult_recursive_aff(0, INF, ec) == INF
+
+        assert _mult_recursive_aff(1, INF, ec) == INF
+        assert _mult_aff(1, ec.G, ec) == ec.G
+
+        P = ec._add_aff(ec.G, ec.G)
+        assert P == _mult_recursive_aff(2, ec.G, ec)
+
+        P = _mult_recursive_aff(ec.n - 1, ec.G, ec)
+        assert ec.negate(ec.G) == P
+        assert _mult_recursive_aff(ec.n - 1, INF, ec) == INF
+
+        assert ec._add_aff(P, ec.G) == INF
+        assert _mult_recursive_aff(ec.n, ec.G, ec) == INF
+        assert _mult_recursive_aff(ec.n, INF, ec) == INF
+
+        with pytest.raises(ValueError, match="negative m: "):
+            _mult_recursive_aff(-1, ec.G, ec)
+
+    for ec in low_card_curves.values():
+        for q in range(ec.n):
+            Q = _mult_recursive_aff(q, ec.G, ec)
+            assert ec.is_on_curve(Q), f"{q}, {ec}"
+            QJ = _mult(q, ec.GJ, ec)
+            assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
+            assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
+        assert INF == _mult_recursive_aff(q, INF, ec), f"{q}, {ec}"
+        assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
+
+
+def test_mult_recursive_jac() -> None:
+    for ec in all_curves.values():
+        assert ec._jac_equality(_mult_recursive_jac(0, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_recursive_jac(0, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(_mult_recursive_jac(1, INFJ, ec), INFJ)
+        assert ec._jac_equality(_mult_recursive_jac(1, ec.GJ, ec), ec.GJ)
+
+        PJ = ec._add_jac(ec.GJ, ec.GJ)
+        assert ec._jac_equality(PJ, _mult_recursive_jac(2, ec.GJ, ec))
+
+        PJ = _mult_recursive_jac(ec.n - 1, ec.GJ, ec)
+        assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
+        assert ec._jac_equality(_mult_recursive_jac(ec.n - 1, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
+        assert ec._jac_equality(_mult_recursive_jac(ec.n, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_recursive_jac(ec.n, INFJ, ec), INFJ)
+
+        with pytest.raises(ValueError, match="negative m: "):
+            _mult_recursive_jac(-1, ec.GJ, ec)
+
+    ec = ec23_31
+    for k1 in range(ec.n):
+        K1 = _mult_recursive_jac(k1, ec.GJ, ec)
+        assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
 
 
 @pytest.mark.second
