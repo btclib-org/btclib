@@ -397,9 +397,6 @@ def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     if m == 0:
         return INF
 
-    if m == 1:
-        return Q
-
     if (m % 2) == 1:
         return ec._add_aff(Q, _mult_recursive_aff((m - 1), Q, ec))
     else:
@@ -423,9 +420,6 @@ def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     if m == 0:
         return INFJ
-
-    if m == 1:
-        return Q
 
     if (m % 2) == 1:
         return ec._add_jac(Q, _mult_recursive_jac((m - 1), Q, ec))
