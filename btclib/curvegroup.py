@@ -531,10 +531,12 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 
 @functools.lru_cache()
 def cached_multiples_fixwind(Q: JacPoint, ec: CurveGroup) -> List[List[JacPoint]]:
-
+    """FIXME:
+    Change 65 with w//4+2, where 2^w is the number of points
+    """
     T = []
     K = Q
-    for _ in range((ec.psize // 4) + 2):
+    for _ in range(65):
         sublist = [INFJ, K]
         for j in range(3, 2 ** 4, 2):
             sublist.append(ec._double_jac(sublist[(j - 1) // 2]))
