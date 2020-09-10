@@ -383,7 +383,7 @@ def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses
-    a recursive function,
+    a recursive version of 'double & add',
     affine coordinates.
 
     The input point is assumed to be on curve and
@@ -407,7 +407,7 @@ def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses
-    a recursive function,
+    a recursive version of 'double & add',
     jacobian coordinates.
 
     The input point is assumed to be on curve and
@@ -526,7 +526,7 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 @functools.lru_cache()
 def cached_multiples_fixwind(Q: JacPoint, ec: CurveGroup) -> List[List[JacPoint]]:
     """FIXME:
-    Change 65 with w/4, where 2^w is the number of points of the curvegroup
+    Change 65 with w//4+2, where 2^w is the number of points
     """
     T = []
     K = Q
