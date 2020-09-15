@@ -52,8 +52,7 @@ def test_mult_sliding_window() -> None:
 
 
 def test_mult_w_NAF() -> None:
-    # it does NOT work for w=1
-    for w in range(2, 6):
+    for w in range(1, 6):
         for ec in low_card_curves.values():
             assert ec._jac_equality(_mult_w_NAF(0, ec.GJ, ec, w), INFJ)
             assert ec._jac_equality(_mult_w_NAF(0, INFJ, ec, w), INFJ)

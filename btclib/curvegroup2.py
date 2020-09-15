@@ -45,13 +45,7 @@ from .curvegroup import CurveGroup, convert_number_to_base
 
 
 def mods(m: int, w: int) -> int:
-    """Signed modulo function.
-
-    FIXME:
-    mods does NOT work for w=1.
-    However the function in NOT really meant to be used for w=1
-    For w=1 it always gives back -1 and enters an infinite loop
-    """
+    "Signed modulo function."
 
     w2 = pow(2, w)
     M = m % w2
@@ -144,7 +138,12 @@ def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     M: List[int] = []
     while m > 0:
         if (m % 2) == 1:
-            M.append(mods(m, w))
+            if w == 1:
+                # Computing binary NAF of m
+                M.append(2 - (m % 4))
+            else:
+                # Computing wNAF of m
+                M.append(mods(m, w))
             m -= M[i]
         else:
             M.append(0)
