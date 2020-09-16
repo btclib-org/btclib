@@ -32,8 +32,6 @@ TODO:
         -https://crypto.stackexchange.com/questions/58506/what-is-the-curve-type-of-secp256k1
     - Constant time alghortims:
         -https://eprint.iacr.org/2011/338.pdf
-    - Elegance in the code
-    - Solve problem with wNAF and w=1
     - Multi_mult algorithm: why does it work?
 """
 
@@ -50,6 +48,42 @@ def mods(m: int, w: int) -> int:
     w2 = pow(2, w)
     M = m % w2
     return M - w2 if M >= (w2 / 2) else M
+
+
+def wNAF_of_m(m: int, w: int) -> List[int]:
+    """wNAF (width-w Non-adjacent form) of number m
+
+    Given an integer m, wNAF is a method of rapresentation
+    with powers of 2, where the coefficients are odd or 0,
+    and where at most one of any w consecutive digits is nonzero.
+    It has the following propreties:
+    - m has a unique width-w NAF.
+    -The length of wNAF(m) is at most one more than the length of the binary
+    representation of k.
+    -The average density of nonzero digits is approximately 1/(w + 1).
+
+    For complete reference see:
+    D. Hankerson, 'Guide to Elliptic Curve Cryptography' chapter 3
+    """
+
+    i = 0
+
+    M: List[int] = []
+    while m > 0:
+        if (m % 2) == 1:
+            if w == 1:
+                # Computing binary NAF of m
+                M.append(2 - (m % 4))
+            else:
+                # Computing wNAF of m
+                M.append(mods(m, w))
+            m -= M[i]
+        else:
+            M.append(0)
+        m //= 2
+        i += 1
+
+    return M
 
 
 def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
@@ -129,28 +163,9 @@ def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     if w <= 0:
         raise ValueError(f"non positive w: {w}")
 
-    # This exception must be kept to satisfy the following while loop
-    if m == 0:
-        return INFJ
+    M = wNAF_of_m(m, w)
 
-    i = 0
-
-    M: List[int] = []
-    while m > 0:
-        if (m % 2) == 1:
-            if w == 1:
-                # Computing binary NAF of m
-                M.append(2 - (m % 4))
-            else:
-                # Computing wNAF of m
-                M.append(mods(m, w))
-            m -= M[i]
-        else:
-            M.append(0)
-        m //= 2
-        i += 1
-
-    p = i
+    p = len(M)
 
     b = pow(2, w)
 
