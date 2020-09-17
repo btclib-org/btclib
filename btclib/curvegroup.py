@@ -686,7 +686,7 @@ def _mult_fixed_window_cached(
     if w <= 0:
         raise ValueError(f"non positive w: {w}")
 
-    T = cached_multiples_fixwind(Q, ec)
+    T = cached_multiples_fixwind(Q, ec, w)
 
     digits = convert_number_to_base(m, 2 ** w)
 
