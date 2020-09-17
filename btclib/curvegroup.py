@@ -524,19 +524,22 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 
 
 @functools.lru_cache()
-def cached_multiples_fixwind(Q: JacPoint, ec: CurveGroup) -> List[List[JacPoint]]:
+def cached_multiples_fixwind(
+    Q: JacPoint, ec: CurveGroup, w: int = 4
+) -> List[List[JacPoint]]:
     """Made to precompute values for _mult_fixed_window_cached.
     Do not use it for other functions.
+    Made to be used for w=4, do not use w.
     """
 
     T = []
     K = Q
-    for _ in range(ec.psize * 2 + 1):
+    for _ in range((ec.psize * 8) // w + 1):
         sublist = [INFJ, K]
-        for j in range(3, 2 ** 4, 2):
+        for j in range(3, 2 ** w, 2):
             sublist.append(ec._double_jac(sublist[(j - 1) // 2]))
             sublist.append(ec._add_jac(sublist[-1], K))
-        K = ec._double_jac(sublist[8])
+        K = ec._double_jac(sublist[2 ** (w - 1)])
         T.append(sublist)
 
     return T
