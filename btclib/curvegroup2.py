@@ -171,10 +171,10 @@ def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
 
     Q2 = ec._double_jac(Q)
     T = [Q]
-    for i in range(1, (b // 2)):
+    for i in range(1, (b // 4)):
         T.append(ec._add_jac(T[i - 1], Q2))
-    for i in range((b // 2), b):
-        T.append(ec.negate_jac(T[i - (b // 2)]))
+    for i in range((b // 4), (b // 2)):
+        T.append(ec.negate_jac(T[i - (b // 4)]))
 
     R = INFJ
     for j in range(p - 1, -1, -1):
@@ -185,5 +185,9 @@ def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
                 R = ec._add_jac(R, T[(M[j] - 1) // 2])
             else:
                 # In this case it adds the opposite, ie -jQ
-                R = ec._add_jac(R, T[(b // 2) - ((M[j] + 1) // 2)])
+                if w != 1:
+                    R = ec._add_jac(R, T[(b // 4) - ((M[j] + 1) // 2)])
+                else:
+                    # Case w=1 must be studied on its own for now
+                    R = R = ec._add_jac(R, T[1])
     return R

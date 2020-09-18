@@ -77,7 +77,7 @@ def test_mult_w_NAF() -> None:
                 _mult_w_NAF(1, ec.GJ, ec, -w)
 
     ec = ec23_31
-    for w in range(2, 10):
+    for w in range(1, 10):
         for k1 in range(ec.n):
             K1 = _mult_w_NAF(k1, ec.GJ, ec, w)
             assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
