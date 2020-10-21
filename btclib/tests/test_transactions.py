@@ -9,10 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 "Tests for `btclib.tx` module."
+from typing import List
 
 import pytest
 
 from btclib import tx, tx_in, tx_out
+from btclib.alias import String
 
 
 def test_coinbase_1() -> None:
@@ -93,6 +95,31 @@ def test_double_witness() -> None:
     tx_bytes = "01000000000102322d4f05c3a4f78e97deda01bd8fc5ff96777b62c8f2daa72b02b70fa1e3e1051600000017160014e123a5263695be634abf3ad3456b4bf15f09cc6afffffffffdfee6e881f12d80cbcd6dc54c3fe390670678ebd26c3ae2dd129f41882e3efc25000000171600145946c8c3def6c79859f01b34ad537e7053cf8e73ffffffff02c763ac050000000017a9145ffd6df9bd06dedb43e7b72675388cbfc883d2098727eb180a000000001976a9145f9e96f739198f65d249ea2a0336e9aa5aa0c7ed88ac024830450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01210334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e160247304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf90121030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d731400000000"
 
     transaction = tx.Tx.deserialize(tx_bytes)
+
+    assert transaction.serialize().hex() == tx_bytes
+
+    # Test witnesses as bytes
+
+    witness1: List[String] = [
+        bytes.fromhex(
+            "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01"
+        ),
+        bytes.fromhex(
+            "0334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e16"
+        ),
+    ]
+
+    witness2: List[String] = [
+        bytes.fromhex(
+            "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901"
+        ),
+        bytes.fromhex(
+            "030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d7314"
+        ),
+    ]
+
+    transaction.vin[0].txinwitness = witness1
+    transaction.vin[1].txinwitness = witness2
 
     assert transaction.serialize().hex() == tx_bytes
 
