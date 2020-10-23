@@ -79,13 +79,8 @@ def test_hex_string() -> None:
 
 def test_printable() -> None:
     test: List[Token] = [0, b"\xaa\xbb", "ok"]
-    check: List[Printable] = [0, "aabb", "ok"]
-    assert token_or_string_to_printable(test) == check
 
-    token1 = "ok"
-    token2 = b"\xaa\xbb"
-    token3 = 10
-
-    assert token_or_string_to_hex_string(token1) == "ok"
-    assert token_or_string_to_hex_string(token2) == "aabb"
-    assert token_or_string_to_hex_string(token3) == "10"
+    assert token_or_string_to_printable(test) == [0, "aabb", "ok"]
+    assert token_or_string_to_hex_string("ok") == "ok"
+    assert token_or_string_to_hex_string(b"\xaa\xbb") == "aabb"
+    assert token_or_string_to_hex_string(10) == "10"

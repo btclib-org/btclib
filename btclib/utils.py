@@ -180,7 +180,7 @@ def token_or_string_to_hex_string(val: Union[Token, String]) -> str:
     if isinstance(val, bytes):
         return val.hex()
 
-    if isinstance(val, int):
+    elif isinstance(val, int):
         return str(val)
 
     return val
