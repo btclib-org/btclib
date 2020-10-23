@@ -15,7 +15,7 @@ from typing import List
 
 import pytest
 
-from btclib.alias import Printable, Token
+from btclib.alias import Token
 from btclib.tests.test_to_key import (
     net_unaware_compressed_pub_keys,
     net_unaware_uncompressed_pub_keys,
