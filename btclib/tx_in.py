@@ -8,16 +8,19 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Type, TypeVar
+
+from dataclasses_json import config, dataclass_json
 
 from . import script, varint
 from .alias import BinaryData, String, Token
-from .utils import bytesio_from_binarydata
+from .utils import bytesio_from_binarydata, token_or_string_to_printable
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 
+@dataclass_json
 @dataclass
 class OutPoint:
     hash: str
@@ -45,13 +48,18 @@ class OutPoint:
 _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 
+@dataclass_json
 @dataclass
 class TxIn:
     prevout: OutPoint
-    scriptSig: List[Token]
+    scriptSig: List[Token] = field(
+        metadata=config(encoder=token_or_string_to_printable)
+    )
     scriptSigHex: str
     nSequence: int
-    txinwitness: List[String]
+    txinwitness: List[String] = field(
+        metadata=config(encoder=token_or_string_to_printable)
+    )
 
     @classmethod
     def deserialize(cls: Type[_TxIn], data: BinaryData) -> _TxIn:

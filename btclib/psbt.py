@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from struct import unpack
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import config, dataclass_json
 
 from . import der, script, varint
 from .alias import Fingerprint, Path, PubKey, String, Token
@@ -30,7 +30,12 @@ from .secpoint import bytes_from_point
 from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
 from .tx_out import TxOut
-from .utils import hash160, sha256
+from .utils import (
+    hash160,
+    sha256,
+    token_or_string_to_hex_string,
+    token_or_string_to_printable,
+)
 
 
 # maybe integrate in bip32?
@@ -60,7 +65,7 @@ def encode_der_path(path: str) -> bytes:
     return out
 
 
-def _pubkey_to_string(key: PubKey) -> str:
+def _pubkey_to_hex_string(key: PubKey) -> str:
     if isinstance(key, tuple):
         return bytes_from_point(key).hex()
     elif isinstance(key, dict):
@@ -71,18 +76,11 @@ def _pubkey_to_string(key: PubKey) -> str:
     return key.hex()
 
 
-def _fingerprint_to_string(fingerprint: Fingerprint) -> str:
+def _fingerprint_to_hex_string(fingerprint: Fingerprint) -> str:
     if isinstance(fingerprint, str):
         return fingerprint
     else:
         return fingerprint.hex()
-
-
-def _str_to_string(val: String):
-    if isinstance(val, bytes):
-        return val.hex()
-
-    return val
 
 
 @dataclass_json
@@ -92,12 +90,12 @@ class HdKeypaths:
 
     def add_hd_path(self, key: PubKey, fingerprint: Fingerprint, path: Path) -> None:
 
-        fingerprint_str = _fingerprint_to_string(fingerprint)
+        fingerprint_str = _fingerprint_to_hex_string(fingerprint)
         indexes, _ = indexes_from_path(path)
 
         # TODO: indexes_from_path return indexes as big endian. Why?
         path_str = decode_der_path(b"".join(indexes), "big")
-        key_str = _pubkey_to_string(key)
+        key_str = _pubkey_to_hex_string(key)
 
         self.hd_keypaths[key_str] = {
             "fingerprint": fingerprint_str,
@@ -105,7 +103,7 @@ class HdKeypaths:
         }
 
     def get_hd_path_entry(self, key: PubKey) -> Tuple[str, str]:
-        entry = self.hd_keypaths[_pubkey_to_string(key)]
+        entry = self.hd_keypaths[_pubkey_to_hex_string(key)]
         return entry["fingerprint"], entry["derivation_path"]
 
 
@@ -115,14 +113,14 @@ class PartialSigs:
     sigs: Dict[str, str] = field(default_factory=dict)
 
     def add_sig(self, key: PubKey, sig: DERSig):
-        key_str = _pubkey_to_string(key)
+        key_str = _pubkey_to_hex_string(key)
         r, s, sighash = der._deserialize(sig)
         sig_str = der._serialize(r, s, sighash).hex()
 
         self.sigs[key_str] = sig_str
 
     def get_sig(self, key: PubKey) -> str:
-        return self.sigs[_pubkey_to_string(key)]
+        return self.sigs[_pubkey_to_hex_string(key)]
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -135,11 +133,19 @@ class PsbtIn:
     witness_utxo: Optional[TxOut] = None
     partial_sigs: PartialSigs = field(default_factory=PartialSigs)
     sighash: Optional[int] = 0
-    redeem_script: List[Token] = field(default_factory=list)
-    witness_script: List[Token] = field(default_factory=list)
+    redeem_script: List[Token] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
+    witness_script: List[Token] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
     hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
-    final_script_sig: List[Token] = field(default_factory=list)
-    final_script_witness: List[String] = field(default_factory=list)
+    final_script_sig: List[Token] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
+    final_script_witness: List[String] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
     por_commitment: Optional[str] = None
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
@@ -278,10 +284,12 @@ class PsbtIn:
         pass
 
     def add_unknown_entry(self, key: String, val: String):
-        self.unknown[_str_to_string(key)] = _str_to_string(val)
+        self.unknown[
+            token_or_string_to_hex_string(key)
+        ] = token_or_string_to_hex_string(val)
 
     def get_unknown_entry(self, key: String) -> str:
-        return self.unknown[_str_to_string(key)]
+        return self.unknown[token_or_string_to_hex_string(key)]
 
 
 _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
@@ -290,8 +298,12 @@ _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 @dataclass_json
 @dataclass
 class PsbtOut:
-    redeem_script: List[Token] = field(default_factory=list)
-    witness_script: List[Token] = field(default_factory=list)
+    redeem_script: List[Token] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
+    witness_script: List[Token] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
     hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
@@ -368,10 +380,12 @@ class PsbtOut:
         pass
 
     def add_unknown_entry(self, key: String, val: String):
-        self.unknown[_str_to_string(key)] = _str_to_string(val)
+        self.unknown[
+            token_or_string_to_hex_string(key)
+        ] = token_or_string_to_hex_string(val)
 
     def get_unknown_entry(self, key: String) -> str:
-        return self.unknown[_str_to_string(key)]
+        return self.unknown[token_or_string_to_hex_string(key)]
 
 
 _PSbt = TypeVar("_PSbt", bound="Psbt")
@@ -533,10 +547,12 @@ class Psbt:
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
     def add_unknown_entry(self, key: String, val: String):
-        self.unknown[_str_to_string(key)] = _str_to_string(val)
+        self.unknown[
+            token_or_string_to_hex_string(key)
+        ] = token_or_string_to_hex_string(val)
 
     def get_unknown_entry(self, key: String) -> str:
-        return self.unknown[_str_to_string(key)]
+        return self.unknown[token_or_string_to_hex_string(key)]
 
 
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:

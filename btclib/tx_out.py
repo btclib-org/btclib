@@ -8,20 +8,25 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Type, TypeVar
+
+from dataclasses_json import config, dataclass_json
 
 from . import script, varint
 from .alias import BinaryData, Token
-from .utils import bytesio_from_binarydata
+from .utils import bytesio_from_binarydata, token_or_string_to_printable
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")
 
 
+@dataclass_json
 @dataclass
 class TxOut:
     nValue: int  # satoshis
-    scriptPubKey: List[Token]
+    scriptPubKey: List[Token] = field(
+        metadata=config(encoder=token_or_string_to_printable)
+    )
 
     @classmethod
     def deserialize(cls: Type[_TxOut], data: BinaryData) -> _TxOut:
