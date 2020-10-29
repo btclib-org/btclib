@@ -16,7 +16,6 @@ https://en.bitcoin.it/wiki/BIP_0174
 from base64 import b64decode, b64encode
 from copy import deepcopy
 from dataclasses import dataclass, field
-from struct import unpack
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 
 from dataclasses_json import config, dataclass_json
@@ -189,7 +188,12 @@ class PsbtIn:
                 assert len(value) % 4 == 0
                 path = value[4:]
                 hd_keypaths.add_hd_path(
-                    key[1:], value[:4], unpack("<" + "I" * int((len(path) / 4)), path)
+                    key[1:],
+                    value[:4],
+                    [
+                        int.from_bytes(path[i : i + 4], "little")
+                        for i in range(0, len(path), 4)
+                    ],
                 )
             elif key[0] == 0x07:
                 assert len(key) == 1
@@ -327,7 +331,12 @@ class PsbtOut:
                 assert len(value) % 4 == 0
                 path = value[4:]
                 hd_keypaths.add_hd_path(
-                    key[1:], value[:4], unpack("<" + "I" * int((len(path) / 4)), path)
+                    key[1:],
+                    value[:4],
+                    [
+                        int.from_bytes(path[i : i + 4], "little")
+                        for i in range(0, len(path), 4)
+                    ],
                 )
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
@@ -425,7 +434,12 @@ class Psbt:
                 assert len(value) % 4 == 0
                 path = value[4:]
                 hd_keypaths.add_hd_path(
-                    key[1:], value[:4], unpack("<" + "I" * int((len(path) / 4)), path)
+                    key[1:],
+                    value[:4],
+                    [
+                        int.from_bytes(path[i : i + 4], "little")
+                        for i in range(0, len(path), 4)
+                    ],
                 )
             elif key[0] == 0xFB:
                 assert len(value) == 4
