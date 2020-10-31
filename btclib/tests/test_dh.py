@@ -27,10 +27,10 @@ def test_ecdh() -> None:
     a, A = dsa.gen_keys()  # Alice
     b, B = dsa.gen_keys()  # Bob
 
-    # Alice calculates the shared secret using Bob's public key
+    # Alice computes the shared secret using Bob's public key
     shared_secret_a = mult(a, B)
 
-    # Bob calculates the shared secret using Alice's public key
+    # Bob computes the shared secret using Alice's public key
     shared_secret_b = mult(b, A)
 
     assert shared_secret_a == shared_secret_b
@@ -239,5 +239,4 @@ def test_capv() -> None:
             hf,
             None if shared_info is None else bytes.fromhex(shared_info),
         )
-        result_exp = bytes.fromhex(key_data)
-        assert result == result_exp
+        assert result == bytes.fromhex(key_data)
