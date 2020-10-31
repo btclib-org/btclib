@@ -179,7 +179,6 @@ def token_or_string_to_hex_string(val: Union[Token, String]) -> str:
     """
     if isinstance(val, bytes):
         return val.hex()
-
     elif isinstance(val, int):
         return str(val)
 
@@ -189,14 +188,5 @@ def token_or_string_to_hex_string(val: Union[Token, String]) -> str:
 def token_or_string_to_printable(
     val: Union[List[Token], List[String]]
 ) -> List[Printable]:
-    """Check if something in the list is not printable and convert it to hex string."""
 
-    res: List[Printable] = []
-
-    for v in val:
-        if isinstance(v, bytes):
-            res.append(v.hex())
-        else:
-            res.append(v)
-
-    return res
+    return [v.hex() if isinstance(v, bytes) else v for v in val]
