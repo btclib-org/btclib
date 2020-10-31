@@ -11,7 +11,7 @@
 from typing import List, Union
 
 from . import script, tx, tx_out, varint
-from .alias import Octets, Script, Token
+from .alias import Octets, Script, ScriptToken
 from .scriptpubkey import payload_from_scriptPubKey
 from .utils import bytes_from_octets, hash256
 
@@ -85,7 +85,7 @@ def _get_witness_v0_scriptCodes(scriptPubKey: Script) -> List[str]:
         assert isinstance(pubkeyhash, str)
         scriptCodes.append(f"76a914{pubkeyhash}88ac")
     else:
-        current_script: List[Token] = []
+        current_script: List[ScriptToken] = []
         for token in scriptPubKey[::-1]:
             if token == "OP_CODESEPARATOR":
                 scriptCodes.append(script.encode(current_script[::-1]).hex())

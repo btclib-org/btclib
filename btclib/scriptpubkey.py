@@ -14,7 +14,7 @@
 
 from typing import List, Optional, Tuple, Union
 
-from .alias import Octets, Script, String, Token
+from .alias import Octets, Script, ScriptToken, String
 from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .script import decode, encode
 from .to_pubkey import Key, pubkeyinfo_from_key
@@ -71,7 +71,7 @@ def scriptPubKey_from_payload(
                 )
             if n > 16:
                 raise ValueError(f"too many pubkeys in m-of-n multisignature: {n}")
-            scriptPubKey: List[Token] = [m]
+            scriptPubKey: List[ScriptToken] = [m]
             for key in payloads:
                 key = bytes_from_octets(key, (33, 65))
                 scriptPubKey.append(key)

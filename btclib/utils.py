@@ -19,7 +19,7 @@ import hashlib
 from io import BytesIO
 from typing import Iterable, List, Optional, Union
 
-from .alias import BinaryData, Integer, Octets, Printable, String, Token
+from .alias import BinaryData, Integer, Octets, Printable, ScriptToken, String
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
@@ -171,8 +171,8 @@ def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
         raise ValueError(f"{var_name}: {n} (must be a power of two)")
 
 
-def token_or_string_to_hex_string(val: Union[Token, String]) -> str:
-    """Return a readable string from a Token or a String object.
+def token_or_string_to_hex_string(val: Union[ScriptToken, String]) -> str:
+    """Return a readable string from a ScriptToken or a String object.
 
     If val are bytes a hex string is returned.
     If val is an int his string representation is returned.
@@ -186,7 +186,7 @@ def token_or_string_to_hex_string(val: Union[Token, String]) -> str:
 
 
 def token_or_string_to_printable(
-    val: Union[List[Token], List[String]]
+    val: Union[List[ScriptToken], List[String]]
 ) -> List[Printable]:
 
     return [v.hex() if isinstance(v, bytes) else v for v in val]

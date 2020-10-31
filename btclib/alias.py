@@ -118,12 +118,12 @@ SSASig = Union[SSASigTuple, Octets]
 # other integers are bytes encoded (require push operation)
 # ascii str are for opcodes (e.g. 'OP_HASH160')
 # Octets are for data to be pushed
-Token = Union[int, str, bytes]
+ScriptToken = Union[int, str, bytes]
 
-# Bitcoin script expressed as List[Token]
+# Bitcoin script expressed as List[ScriptToken]
 # e.g. [OP_HASH160, script_h160, OP_EQUAL]
 # or Octets of its byte-encoded representation
-Script = Union[Octets, List[Token]]
+Script = Union[Octets, List[ScriptToken]]
 
 # A fingerprint is represented as 4 bytes or his string representation
 Fingerprint = Union[str, bytes]

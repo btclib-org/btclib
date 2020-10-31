@@ -15,7 +15,7 @@ from typing import List
 
 import pytest
 
-from btclib.alias import Token
+from btclib.alias import ScriptToken
 from btclib.tests.test_to_key import (
     net_unaware_compressed_pub_keys,
     net_unaware_uncompressed_pub_keys,
@@ -78,7 +78,7 @@ def test_hex_string() -> None:
 
 
 def test_printable() -> None:
-    test: List[Token] = [0, b"\xaa\xbb", "ok"]
+    test: List[ScriptToken] = [0, b"\xaa\xbb", "ok"]
 
     assert token_or_string_to_printable(test) == [0, "aabb", "ok"]
     assert token_or_string_to_hex_string("ok") == "ok"

@@ -14,7 +14,7 @@ from typing import List, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varint
-from .alias import BinaryData, String, Token
+from .alias import BinaryData, ScriptToken, String
 from .utils import bytesio_from_binarydata, token_or_string_to_printable
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
@@ -50,7 +50,7 @@ _TxIn = TypeVar("_TxIn", bound="TxIn")
 @dataclass
 class TxIn(DataClassJsonMixin):
     prevout: OutPoint
-    scriptSig: List[Token] = field(
+    scriptSig: List[ScriptToken] = field(
         metadata=config(encoder=token_or_string_to_printable)
     )
     scriptSigHex: str
@@ -67,7 +67,7 @@ class TxIn(DataClassJsonMixin):
         if prevout.hash == "00" * 32 and prevout.n == 256 ** 4 - 1:
             is_coinbase = True
         script_length = varint.decode(stream)
-        scriptSig: List[Token] = []
+        scriptSig: List[ScriptToken] = []
         scriptSigHex = ""
         if is_coinbase:
             scriptSigHex = stream.read(script_length).hex()

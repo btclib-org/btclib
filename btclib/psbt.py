@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import der, script, varint
-from .alias import Fingerprint, String, Token
+from .alias import Fingerprint, ScriptToken, String
 from .bip32 import BIP32KeyData, BIP32Path, indexes_from_path
 from .der import DERSig
 from .scriptpubkey import payload_from_scriptPubKey
@@ -132,14 +132,14 @@ class PsbtIn(DataClassJsonMixin):
     witness_utxo: Optional[TxOut] = None
     partial_sigs: PartialSigs = field(default_factory=PartialSigs)
     sighash: Optional[int] = 0
-    redeem_script: List[Token] = field(
+    redeem_script: List[ScriptToken] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
-    witness_script: List[Token] = field(
+    witness_script: List[ScriptToken] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
     hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
-    final_script_sig: List[Token] = field(
+    final_script_sig: List[ScriptToken] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
     final_script_witness: List[String] = field(
@@ -301,10 +301,10 @@ _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
 @dataclass
 class PsbtOut(DataClassJsonMixin):
-    redeem_script: List[Token] = field(
+    redeem_script: List[ScriptToken] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
-    witness_script: List[Token] = field(
+    witness_script: List[ScriptToken] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
     hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
@@ -678,7 +678,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             ]
             if len(psbt_in.partial_sigs.sigs) > 1:
                 # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-                dummy_element: List[Token] = [0]
+                dummy_element: List[ScriptToken] = [0]
                 psbt_in.final_script_sig = dummy_element + psbt_in.final_script_sig
         psbt_in.partial_sigs = PartialSigs()
         psbt_in.sighash = 0
