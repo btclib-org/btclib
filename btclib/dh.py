@@ -20,51 +20,55 @@ function to use.
 """
 
 from hashlib import sha256
-from typing import Any, Callable
+from math import ceil
+from typing import Optional
 
 from .alias import HashF, Point
 from .curve import Curve, mult, secp256k1
 
-KDF = Callable[[bytes, int, Curve, HashF], Any]
 
-
-def ansi_x963_kdf(
-    z: bytes, size: int, ec: Curve = secp256k1, hf: HashF = sha256
+def ansi_x9_63_kdf(
+    z: bytes, size: int, hf: HashF, shared_info: Optional[bytes]
 ) -> bytes:
-    """Return keying data according to ANS-X9.63-KDF.
+    """Return keying data according to ANSI-X9.63-KDF.
 
     Return a keying data octet sequence of the requested size according
-    to ANS-X9.63-KDF specifications for the key derivation function.
+    to ANSI-X9.63-KDF specifications for the key derivation function.
 
     http://www.secg.org/sec1-v2.pdf, section 3.6.1
     """
     hsize = hf().digest_size
-    assert size < hsize * (2 ** 32 - 1), "invalid"
-    counter = 1
-    counter_bytes = counter.to_bytes(4, byteorder="big")
+    max_size = hsize * (2 ** 32 - 1)
+    if size > max_size:
+        raise ValueError(f"cannot derive a key larger than {max_size} bytes")
     K_temp = []
-    for i in range((size + 1) // hsize):
+    for counter in range(1, ceil(size / hsize) + 1):
         h = hf()
-        h.update(z + counter_bytes)
+        hash_input = (
+            z
+            + counter.to_bytes(4, byteorder="big")
+            + (b"" if shared_info is None else shared_info)
+        )
+        h.update(hash_input)
         K_temp.append(h.digest())
-        counter += 1
-        counter_bytes = counter.to_bytes(4, byteorder="big")
-        i += 1
-    K_bytes = b"".join(K_temp[i] for i in range(size // hsize))
-    K = int.from_bytes(K_bytes, byteorder="big") >> (size - hsize)
-    return K.to_bytes(ec.psize, "big")
+    return b"".join(K_temp)[:size]
 
 
 def diffie_hellman(
-    kdf: KDF, dU: int, QV: Point, size: int, ec: Curve = secp256k1, hf: HashF = sha256
+    dU: int,
+    QV: Point,
+    size: int,
+    shared_info: Optional[bytes] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> bytes:
     """Diffie-Hellman elliptic curve key agreement scheme.
 
     http://www.secg.org/sec1-v2.pdf, section 6.1
     """
 
-    P = mult(dU, QV, ec)
-    assert P[1] != 0, "invalid (INF) key"
-    shared_secret = P[0]  # shared secret field element
-    z = shared_secret.to_bytes(ec.psize, "big")
-    return kdf(z, size, ec, hf)
+    shared_secret_point = mult(dU, QV, ec)
+    assert shared_secret_point[1] != 0, "invalid (INF) key"
+    shared_secret_field_element = shared_secret_point[0]
+    z = shared_secret_field_element.to_bytes(ec.psize, "big")
+    return ansi_x9_63_kdf(z, size, hf, shared_info)
