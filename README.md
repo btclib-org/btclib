@@ -34,18 +34,45 @@ some of its algorithms could be broken using side-channel attacks.
 [![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
 [![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib)
 
-To install (and/or upgrade) btclib:
+To install (and/or upgrade) btclib and its requirements:
 
-```shell
-pip install --upgrade btclib
-```
+    pip install --upgrade -r requirements.txt
+    pip install --upgrade btclib
 
-Some dev tools are required to develop and test btclib;
+You might want to install btclib and its requirements into a
+python virtual environment; e.g. from the root folder:
+
+Bash shell
+
+    python -m venv venv
+    source venv/bin/activate
+    pip install --upgrade -r requirements.txt
+    pip install --upgrade btclib
+
+Windows CMD or PowerShell:
+
+    python -m venv venv
+    .\venv\Scripts\activate
+    pip install --upgrade -r requirements.txt
+    pip install --upgrade btclib
+
+Windows Git bash shell:
+
+    python -m venv venv
+    cd ./venv/Scripts
+    . activate
+    cd ../..
+    pip install --upgrade -r requirements.txt
+    pip install --upgrade btclib
+
+Some development tools are required to develop and test btclib;
 they can be installed with:
 
-```shell
-pip install --upgrade -r requirements-dev.txt
-```
+    pip install --upgrade -r requirements-dev.txt
+
+Developers might also consider to install btclib in editable way:
+
+    pip install --upgrade -e ./
 
 * * *
 
