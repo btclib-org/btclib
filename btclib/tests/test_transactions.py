@@ -17,24 +17,23 @@ from btclib import tx, tx_in, tx_out
 from btclib.alias import String
 
 
-def test_coinbase_1() -> None:
+def test_block_1() -> None:
 
-    block_1_coinbase_bytes = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"
-    block_1_coinbase_input_bytes = "0000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff"
-    block_1_coinbase_output_bytes = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
+    coinbase = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"
+    transaction = tx.Tx.deserialize(coinbase)
+    assert transaction.serialize().hex() == coinbase
 
-    transaction_in = tx_in.TxIn.deserialize(block_1_coinbase_input_bytes)
-    transaction_out = tx_out.TxOut.deserialize(block_1_coinbase_output_bytes)
-    transaction = tx.Tx.deserialize(block_1_coinbase_bytes)
+    coinbase_inp = "0000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff"
+    transaction_in = tx_in.TxIn.deserialize(coinbase_inp)
+    assert transaction_in.serialize().hex() == coinbase_inp
+
+    coinbase_out = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
+    transaction_out = tx_out.TxOut.deserialize(coinbase_out)
+    assert transaction_out.serialize().hex() == coinbase_out
 
     assert transaction.vin[0].scriptSig == transaction_in.scriptSig
-    assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
-
-    assert transaction.serialize().hex() == block_1_coinbase_bytes
-    assert transaction_in.serialize().hex() == block_1_coinbase_input_bytes
-    assert transaction_out.serialize().hex() == block_1_coinbase_output_bytes
-
     assert transaction.vin[0].scriptSig == []
+    assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
 
     assert (
         transaction.txid
@@ -143,7 +142,7 @@ def test_double_witness() -> None:
 
 def test_invalid_tx_in() -> None:
     tx_in1 = tx_in.TxIn(
-        prevout=tx_in.OutPoint("00" * 31 + "01", 256 ** 4 - 1),
+        prevout=tx_in.OutPoint("00" * 31 + "01", 0xFFFFFFFF),
         scriptSig=[],
         scriptSigHex="",
         nSequence=1,
@@ -166,7 +165,15 @@ def test_invalid_tx_in() -> None:
         txinwitness=[],
     )
 
-    for transaction_input in (tx_in1, tx_in2, tx_in3):
+    tx_in4 = tx_in.TxIn(
+        prevout=tx_in.OutPoint("deadbeef" * 7, 18),
+        scriptSig=[],
+        scriptSigHex="",
+        nSequence=1,
+        txinwitness=[],
+    )
+
+    for transaction_input in (tx_in1, tx_in2, tx_in3, tx_in4):
         with pytest.raises(ValueError):
             transaction_input.assert_valid()
 

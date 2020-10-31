@@ -206,14 +206,14 @@ def test_creation():
         OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
         [],
         "",
-        256 ** 4 - 1,
+        0xFFFFFFFF,
         [],
     )
     input_2 = TxIn(
         OutPoint("1dea7cd05979072a3578cab271c02244ea8a090bbb46aa680a65ecd027048d83", 1),
         [],
         "",
-        256 ** 4 - 1,
+        0xFFFFFFFF,
         [],
     )
     output_1 = TxOut(
@@ -312,7 +312,7 @@ def test_output_scripts_serialization():
         OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
         [],
         "",
-        256 ** 4 - 1,
+        0xFFFFFFFF,
         [],
     )
     output_1 = TxOut(
@@ -392,7 +392,7 @@ def test_valid_sign_2():
         OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
         [],
         "",
-        256 ** 4 - 1,
+        0xFFFFFFFF,
         [],
     )
     transaction = Tx(0, 2, vin=[transaction_input], vout=[psbt.inputs[0].witness_utxo])

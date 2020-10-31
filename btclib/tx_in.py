@@ -49,12 +49,14 @@ class OutPoint(DataClassJsonMixin):
         return out
 
     def assert_valid(self) -> None:
-        null_txid = "00" * 32
-        null_vout = 256 ** 4 - 1
-        if (self.hash == null_txid) ^ (self.n == null_vout):
-            raise ValueError("invalid OutPoint")
+        if len(self.hash) != 64:
+            m = f"invalid OutPoint tx_id lenght: {len(self.hash)}"
+            m += " bytes instead of 64"
+            raise ValueError(m)
         if self.n < 0 or self.n > 0xFFFFFFFF:
-            raise ValueError("invalid OutPoint n")
+            raise ValueError(f"invalid OutPoint n: {self.n}")
+        if (self.hash == "00" * 32) ^ (self.n == 0xFFFFFFFF):
+            raise ValueError("invalid OutPoint")
 
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
@@ -79,7 +81,7 @@ class TxIn(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
         prevout = OutPoint.deserialize(stream)
         is_coinbase = False
-        if prevout.hash == "00" * 32 and prevout.n == 256 ** 4 - 1:
+        if prevout.hash == "00" * 32 and prevout.n == 0xFFFFFFFF:
             is_coinbase = True
         script_length = varint.decode(stream)
         scriptSig: List[ScriptToken] = []
@@ -108,7 +110,7 @@ class TxIn(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.prevout.serialize()
-        if self.prevout.hash == "00" * 32 and self.prevout.n == 256 ** 4 - 1:
+        if self.prevout.hash == "00" * 32 and self.prevout.n == 0xFFFFFFFF:
             out += varint.encode(len(self.scriptSigHex) // 2)
             out += bytes.fromhex(self.scriptSigHex)
         else:
