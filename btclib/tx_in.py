@@ -26,13 +26,24 @@ class OutPoint(DataClassJsonMixin):
     n: int
 
     @classmethod
-    def deserialize(cls: Type[_OutPoint], data: BinaryData) -> _OutPoint:
+    def deserialize(
+        cls: Type[_OutPoint], data: BinaryData, assert_valid: bool = True
+    ) -> _OutPoint:
+        # TODO could/should we check that all data is consumed
         data = bytesio_from_binarydata(data)
         hash = data.read(32)[::-1].hex()
         n = int.from_bytes(data.read(4), "little")
-        return cls(hash, n)
 
-    def serialize(self) -> bytes:
+        result = cls(hash, n)
+        if assert_valid:
+            result.assert_valid()
+        return result
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = bytes.fromhex(self.hash)[::-1]
         out += self.n.to_bytes(4, "little")
         return out
@@ -41,7 +52,9 @@ class OutPoint(DataClassJsonMixin):
         null_txid = "00" * 32
         null_vout = 256 ** 4 - 1
         if (self.hash == null_txid) ^ (self.n == null_vout):
-            raise ValueError("invalid tx_in")
+            raise ValueError("invalid OutPoint")
+        if self.n < 0 or self.n > 0xFFFFFFFF:
+            raise ValueError("invalid OutPoint n")
 
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
@@ -60,7 +73,9 @@ class TxIn(DataClassJsonMixin):
     )
 
     @classmethod
-    def deserialize(cls: Type[_TxIn], data: BinaryData) -> _TxIn:
+    def deserialize(
+        cls: Type[_TxIn], data: BinaryData, assert_valid: bool = True
+    ) -> _TxIn:
         stream = bytesio_from_binarydata(data)
         prevout = OutPoint.deserialize(stream)
         is_coinbase = False
@@ -75,6 +90,7 @@ class TxIn(DataClassJsonMixin):
             scriptSig = script.decode(stream.read(script_length))
         nSequence = int.from_bytes(stream.read(4), "little")
         txinwitness: List[String] = []
+
         tx_in = cls(
             prevout=prevout,
             scriptSig=scriptSig,
@@ -82,10 +98,15 @@ class TxIn(DataClassJsonMixin):
             nSequence=nSequence,
             txinwitness=txinwitness,
         )
-        tx_in.assert_valid()
+        if assert_valid:
+            tx_in.assert_valid()
         return tx_in
 
-    def serialize(self) -> bytes:
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = self.prevout.serialize()
         if self.prevout.hash == "00" * 32 and self.prevout.n == 256 ** 4 - 1:
             out += varint.encode(len(self.scriptSigHex) // 2)

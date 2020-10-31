@@ -142,7 +142,7 @@ def test_double_witness() -> None:
 
 
 def test_invalid_tx_in() -> None:
-    transaction_input = tx_in.TxIn(
+    tx_in1 = tx_in.TxIn(
         prevout=tx_in.OutPoint("00" * 31 + "01", 256 ** 4 - 1),
         scriptSig=[],
         scriptSigHex="",
@@ -150,12 +150,7 @@ def test_invalid_tx_in() -> None:
         txinwitness=[],
     )
 
-    with pytest.raises(ValueError):
-        transaction_input.assert_valid()
-
-
-def test_invalid_tx_in2() -> None:
-    transaction_input = tx_in.TxIn(
+    tx_in2 = tx_in.TxIn(
         prevout=tx_in.OutPoint("00" * 32, 0),
         scriptSig=[],
         scriptSigHex="",
@@ -163,41 +158,30 @@ def test_invalid_tx_in2() -> None:
         txinwitness=[],
     )
 
-    with pytest.raises(ValueError):
-        transaction_input.assert_valid()
+    tx_in3 = tx_in.TxIn(
+        prevout=tx_in.OutPoint("deadbeef" * 8, -1),
+        scriptSig=[],
+        scriptSigHex="",
+        nSequence=1,
+        txinwitness=[],
+    )
+
+    for transaction_input in (tx_in1, tx_in2, tx_in3):
+        with pytest.raises(ValueError):
+            transaction_input.assert_valid()
 
 
 def test_invalid_tx_out() -> None:
-    transaction_output = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
+    tx_out1 = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
+    tx_out2 = tx_out.TxOut(nValue=2099999997690001, scriptPubKey=["OP_RETURN"])
+    tx_out3 = tx_out.TxOut(nValue=1, scriptPubKey=[])
 
-    with pytest.raises(ValueError):
-        transaction_output.assert_valid()
-
-
-def test_invalid_tx_out2() -> None:
-    transaction_output = tx_out.TxOut(
-        nValue=2099999997690001, scriptPubKey=["OP_RETURN"]
-    )
-
-    with pytest.raises(ValueError):
-        transaction_output.assert_valid()
+    for transaction_output in (tx_out1, tx_out2, tx_out3):
+        with pytest.raises(ValueError):
+            transaction_output.assert_valid()
 
 
-def test_invalid_tx_out3() -> None:
-    transaction_output = tx_out.TxOut(nValue=1, scriptPubKey=[])
-
-    with pytest.raises(ValueError):
-        transaction_output.assert_valid()
-
-
-def test_missing_tx_in() -> None:
-    transaction = tx.Tx(0, 0, [], [])
-    err_msg = "A transaction must have at least one input"
-    with pytest.raises(ValueError, match=err_msg):
-        transaction.assert_valid()
-
-
-def test_missing_tx_out() -> None:
+def test_invalid_tx() -> None:
     transaction_input = tx_in.TxIn(
         prevout=tx_in.OutPoint("ff" * 32, 0),
         scriptSig=[],
@@ -205,7 +189,9 @@ def test_missing_tx_out() -> None:
         nSequence=1,
         txinwitness=[],
     )
-    transaction = tx.Tx(0, 0, [transaction_input], [])
-    err_msg = "A transaction must have at least one output"
-    with pytest.raises(ValueError, match=err_msg):
-        transaction.assert_valid()
+    tx1 = tx.Tx(0, 0, [transaction_input], [])
+    tx2 = tx.Tx(0, 0, [], [])
+    err_msg = "A transaction must have at least one "
+    for transaction in (tx1, tx2):
+        with pytest.raises(ValueError, match=err_msg):
+            transaction.assert_valid()

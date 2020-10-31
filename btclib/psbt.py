@@ -150,7 +150,9 @@ class PsbtIn(DataClassJsonMixin):
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def decode(cls: Type[_PsbtIn], input_map: Dict[bytes, bytes]) -> _PsbtIn:
+    def deserialize(
+        cls: Type[_PsbtIn], input_map: Dict[bytes, bytes], assert_valid: bool = True
+    ) -> _PsbtIn:
         non_witness_utxo = None
         witness_utxo = None
         partial_sigs = PartialSigs()
@@ -227,12 +229,15 @@ class PsbtIn(DataClassJsonMixin):
             proprietary=proprietary,
             unknown=unknown,
         )
-
-        out.assert_valid()
-
+        if assert_valid:
+            out.assert_valid()
         return out
 
-    def serialize(self) -> bytes:
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = b""
         if self.non_witness_utxo:
             out += b"\x01\x00"
@@ -312,7 +317,9 @@ class PsbtOut(DataClassJsonMixin):
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def decode(cls: Type[_PsbtOut], output_map: Dict[bytes, bytes]) -> _PsbtOut:
+    def deserialize(
+        cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], assert_valid: bool = True
+    ) -> _PsbtOut:
         redeem_script = []
         witness_script = []
         hd_keypaths = HdKeypaths()
@@ -353,12 +360,15 @@ class PsbtOut(DataClassJsonMixin):
             proprietary=proprietary,
             unknown=unknown,
         )
-
-        out.assert_valid()
-
+        if assert_valid:
+            out.assert_valid()
         return out
 
-    def serialize(self) -> bytes:
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = b""
         if self.redeem_script:
             out += b"\x01\x00"
@@ -410,7 +420,7 @@ class Psbt(DataClassJsonMixin):
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def deserialize(cls: Type[_PSbt], string: str) -> _PSbt:
+    def deserialize(cls: Type[_PSbt], string: str, assert_valid: bool = True) -> _PSbt:
         data = b64decode(string)
 
         magic_bytes = data[:5]
@@ -457,12 +467,12 @@ class Psbt(DataClassJsonMixin):
         inputs = []
         for _ in range(input_len):
             input_map, data = deserialize_map(data)
-            inputs.append(PsbtIn.decode(input_map))
+            inputs.append(PsbtIn.deserialize(input_map))
 
         outputs = []
         for _ in range(output_len):
             output_map, data = deserialize_map(data)
-            outputs.append(PsbtOut.decode(output_map))
+            outputs.append(PsbtOut.deserialize(output_map))
 
         psbt = cls(
             tx=tx,
@@ -473,12 +483,15 @@ class Psbt(DataClassJsonMixin):
             proprietary=proprietary,
             unknown=unknown,
         )
-
-        psbt.assert_valid()
-
+        if assert_valid:
+            psbt.assert_valid()
         return psbt
 
-    def serialize(self) -> str:
+    def serialize(self, assert_valid: bool = True) -> str:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = bytes.fromhex("70736274ff")
         out += b"\x01\x00"
         tx = self.tx.serialize()

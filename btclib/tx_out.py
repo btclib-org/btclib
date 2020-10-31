@@ -28,24 +28,32 @@ class TxOut(DataClassJsonMixin):
     )
 
     @classmethod
-    def deserialize(cls: Type[_TxOut], data: BinaryData) -> _TxOut:
+    def deserialize(
+        cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
+    ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
         nValue = int.from_bytes(stream.read(8), "little")
         script_length = varint.decode(stream)
         scriptPubKey = script.decode(stream.read(script_length))
+
         tx_out = cls(nValue=nValue, scriptPubKey=scriptPubKey)
-        tx_out.assert_valid()
+        if assert_valid:
+            tx_out.assert_valid()
         return tx_out
 
-    def serialize(self) -> bytes:
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = self.nValue.to_bytes(8, "little")
         out += script.serialize(self.scriptPubKey)
         return out
 
     def assert_valid(self) -> None:
         if self.nValue < 0:
-            raise ValueError(f"negative value: {self.nValue}")
+            raise ValueError(f"negative nValue: {self.nValue}")
         if self.nValue > 2099999997690000:
-            raise ValueError(f"value too high: {self.nValue}")
+            raise ValueError(f"nValue too high: {self.nValue}")
         if len(self.scriptPubKey) == 0:
-            raise ValueError(f"empty scriptPubKey: {self.scriptPubKey}")
+            raise ValueError("empty scriptPubKey")
