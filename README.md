@@ -34,8 +34,7 @@ some of its algorithms could be broken using side-channel attacks.
 [![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
 [![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib)
 
-btclib does not have external requirements or dependencies;
-to install (and/or upgrade) it:
+To install (and/or upgrade) btclib:
 
 ```shell
 pip install --upgrade btclib
