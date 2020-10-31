@@ -44,7 +44,7 @@ def segwit_v0_sighash(
     else:
         hashSequence = b"\x00" * 32
 
-    if hashtype_hex[1] != "2" and hashtype_hex[1] != "3":
+    if hashtype_hex[1] not in ("2", "3"):
         hashOutputs = b""
         for vout in transaction.vout:
             hashOutputs += vout.serialize()

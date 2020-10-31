@@ -297,11 +297,11 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
         _, h160, _, is_script_hash = witness_from_b32address(addr)
         is_b58 = False
 
-    compressed = False if rf < 31 else True
+    compressed = rf >= 31
     # signature is valid only if the provided address is matched
     pubkey = bytes_from_point(Q, compressed=compressed)
     if is_b58:
-        if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
+        if is_script_hash and rf > 30 and rf < 39:  # P2WPKH-P2SH
             script_pk = b"\x00\x14" + hash160(pubkey)
             if hash160(script_pk) != h160:
                 raise ValueError(f"wrong p2wpkh-p2sh address: {addr!r}")
