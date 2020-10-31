@@ -396,3 +396,23 @@ def test_crack() -> None:
     hardened_child_xprv = derive(parent_xprv, 0x80000000)
     with pytest.raises(ValueError, match="hardened child derivation"):
         crack_prvkey(parent_xpub, hardened_child_xprv)
+
+
+def test_dataclasses_json() -> None:
+    xkey = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+
+    # dataclass
+    xkey_data = BIP32KeyData.deserialize(xkey)
+    assert isinstance(xkey_data, BIP32KeyData)
+
+    # dict
+    d = xkey_data.to_dict()
+    assert isinstance(d, dict)
+    print(d)
+    # BIP32KeyData.from_dict(d)
+
+    # str
+    j = xkey_data.to_json()
+    assert isinstance(j, str)
+    print(j)
+    # BIP32KeyData.from_json(j)

@@ -11,7 +11,7 @@
 from dataclasses import dataclass, field
 from typing import List, Type, TypeVar
 
-from dataclasses_json import config, dataclass_json
+from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varint
 from .alias import BinaryData, Token
@@ -20,9 +20,8 @@ from .utils import bytesio_from_binarydata, token_or_string_to_printable
 _TxOut = TypeVar("_TxOut", bound="TxOut")
 
 
-@dataclass_json
 @dataclass
-class TxOut:
+class TxOut(DataClassJsonMixin):
     nValue: int  # satoshis
     scriptPubKey: List[Token] = field(
         metadata=config(encoder=token_or_string_to_printable)

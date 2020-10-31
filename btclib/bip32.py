@@ -37,7 +37,7 @@ import hmac
 from dataclasses import dataclass
 from typing import Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import DataClassJsonMixin
 
 from . import bip39, electrum
 from .alias import INF, Octets, Point, String
@@ -61,9 +61,8 @@ ec = secp256k1
 _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
 
 
-@dataclass_json
 @dataclass
-class BIP32KeyData:
+class BIP32KeyData(DataClassJsonMixin):
     version: bytes
     depth: int
     parent_fingerprint: bytes

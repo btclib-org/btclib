@@ -11,7 +11,7 @@
 from dataclasses import dataclass, field
 from typing import List, Type, TypeVar
 
-from dataclasses_json import config, dataclass_json
+from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varint
 from .alias import BinaryData, String, Token
@@ -20,9 +20,8 @@ from .utils import bytesio_from_binarydata, token_or_string_to_printable
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 
-@dataclass_json
 @dataclass
-class OutPoint:
+class OutPoint(DataClassJsonMixin):
     hash: str
     n: int
 
@@ -48,9 +47,8 @@ class OutPoint:
 _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 
-@dataclass_json
 @dataclass
-class TxIn:
+class TxIn(DataClassJsonMixin):
     prevout: OutPoint
     scriptSig: List[Token] = field(
         metadata=config(encoder=token_or_string_to_printable)

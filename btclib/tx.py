@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from math import ceil
 from typing import List, Type, TypeVar
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import DataClassJsonMixin
 
 from . import varint
 from .alias import BinaryData
@@ -30,9 +30,8 @@ from .utils import bytesio_from_binarydata, hash256
 _Tx = TypeVar("_Tx", bound="Tx")
 
 
-@dataclass_json
 @dataclass
-class Tx:
+class Tx(DataClassJsonMixin):
     nVersion: int
     nLockTime: int
     vin: List[TxIn]

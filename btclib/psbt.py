@@ -18,7 +18,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 
-from dataclasses_json import config, dataclass_json
+from dataclasses_json import DataClassJsonMixin, config
 
 from . import der, script, varint
 from .alias import Fingerprint, String, Token
@@ -83,9 +83,8 @@ def _fingerprint_to_hex_string(fingerprint: Fingerprint) -> str:
         return fingerprint.hex()
 
 
-@dataclass_json
 @dataclass
-class HdKeypaths:
+class HdKeypaths(DataClassJsonMixin):
     hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
     def add_hd_path(
@@ -109,9 +108,8 @@ class HdKeypaths:
         return entry["fingerprint"], entry["derivation_path"]
 
 
-@dataclass_json
 @dataclass
-class PartialSigs:
+class PartialSigs(DataClassJsonMixin):
     sigs: Dict[str, str] = field(default_factory=dict)
 
     def add_sig(self, key: PubKey, sig: DERSig):
@@ -128,9 +126,8 @@ class PartialSigs:
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
 
 
-@dataclass_json
 @dataclass
-class PsbtIn:
+class PsbtIn(DataClassJsonMixin):
     non_witness_utxo: Optional[Tx] = None
     witness_utxo: Optional[TxOut] = None
     partial_sigs: PartialSigs = field(default_factory=PartialSigs)
@@ -302,9 +299,8 @@ class PsbtIn:
 _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
 
-@dataclass_json
 @dataclass
-class PsbtOut:
+class PsbtOut(DataClassJsonMixin):
     redeem_script: List[Token] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
@@ -403,9 +399,8 @@ class PsbtOut:
 _PSbt = TypeVar("_PSbt", bound="Psbt")
 
 
-@dataclass_json
 @dataclass
-class Psbt:
+class Psbt(DataClassJsonMixin):
     tx: Tx
     inputs: List[PsbtIn]
     outputs: List[PsbtOut]

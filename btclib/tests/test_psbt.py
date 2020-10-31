@@ -525,7 +525,7 @@ def test_hd_paths():
     assert psbt.serialize() == psbt_check_string
 
     # test json properties
-    psbt = psbt.from_json(psbt.to_json(indent=True))
+    assert psbt == Psbt.from_json(psbt.to_json(indent=True))
 
     assert psbt.inputs[0].hd_keypaths.get_hd_path_entry(pk2_tuple) == (
         fingerprint2_bytes.hex(),
