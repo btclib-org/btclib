@@ -13,3 +13,5 @@ pytest > 6
 pytest-xdist
 pytest-cov
 tox
+pip
+pytest
