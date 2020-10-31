@@ -17,9 +17,9 @@ https://www.secg.org/sec1-v2.pdf
 
 import hashlib
 from io import BytesIO
-from typing import Iterable, Optional, Union
+from typing import Iterable, List, Optional, Union
 
-from .alias import BinaryData, Integer, Octets
+from .alias import BinaryData, Integer, Octets, Printable, String, Token
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
@@ -169,3 +169,34 @@ def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
     # http://www.graphics.stanford.edu/~seander/bithacks.html
     if n & (n - 1) != 0:
         raise ValueError(f"{var_name}: {n} (must be a power of two)")
+
+
+def token_or_string_to_hex_string(val: Union[Token, String]) -> str:
+    """Return a readable string from a Token or a String object.
+
+    If val are bytes a hex string is returned.
+    If val is an int his string representation is returned.
+    """
+    if isinstance(val, bytes):
+        return val.hex()
+
+    elif isinstance(val, int):
+        return str(val)
+
+    return val
+
+
+def token_or_string_to_printable(
+    val: Union[List[Token], List[String]]
+) -> List[Printable]:
+    """Check if something in the list is not printable and convert it to hex string."""
+
+    res: List[Printable] = []
+
+    for v in val:
+        if isinstance(v, bytes):
+            res.append(v.hex())
+        else:
+            res.append(v)
+
+    return res

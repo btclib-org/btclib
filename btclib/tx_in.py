@@ -8,16 +8,19 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Type, TypeVar
 
+from dataclasses_json import config, dataclass_json
+
 from . import script, varint
-from .alias import BinaryData, Token
-from .utils import bytesio_from_binarydata
+from .alias import BinaryData, String, Token
+from .utils import bytesio_from_binarydata, token_or_string_to_printable
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 
+@dataclass_json
 @dataclass
 class OutPoint:
     hash: str
@@ -45,13 +48,18 @@ class OutPoint:
 _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 
+@dataclass_json
 @dataclass
 class TxIn:
     prevout: OutPoint
-    scriptSig: List[Token]
+    scriptSig: List[Token] = field(
+        metadata=config(encoder=token_or_string_to_printable)
+    )
     scriptSigHex: str
     nSequence: int
-    txinwitness: List[str]
+    txinwitness: List[String] = field(
+        metadata=config(encoder=token_or_string_to_printable)
+    )
 
     @classmethod
     def deserialize(cls: Type[_TxIn], data: BinaryData) -> _TxIn:
@@ -68,7 +76,7 @@ class TxIn:
         else:
             scriptSig = script.decode(stream.read(script_length))
         nSequence = int.from_bytes(stream.read(4), "little")
-        txinwitness: List[str] = []
+        txinwitness: List[String] = []
         tx_in = cls(
             prevout=prevout,
             scriptSig=scriptSig,
@@ -93,9 +101,9 @@ class TxIn:
         self.prevout.assert_valid()
 
 
-def witness_deserialize(data: BinaryData) -> List[str]:
+def witness_deserialize(data: BinaryData) -> List[String]:
     stream = bytesio_from_binarydata(data)
-    witness: List[str] = []
+    witness: List[String] = []
     witness_count = varint.decode(stream)
     for _ in range(witness_count):
         witness_len = varint.decode(stream)
@@ -103,12 +111,19 @@ def witness_deserialize(data: BinaryData) -> List[str]:
     return witness
 
 
-def witness_serialize(witness: List[str]) -> bytes:
+def witness_serialize(witness: List[String]) -> bytes:
+    witness_str = []
+    for token in witness:
+        if isinstance(token, bytes):
+            witness_str.append(token.hex())
+        else:
+            witness_str.append(token)
+
     out = b""
-    witness_count = len(witness)
+    witness_count = len(witness_str)
     out += varint.encode(witness_count)
     for i in range(witness_count):
-        witness_bytes = bytes.fromhex(witness[i])
+        witness_bytes = bytes.fromhex(witness_str[i])
         out += varint.encode(len(witness_bytes))
         out += witness_bytes
     return out

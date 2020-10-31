@@ -163,3 +163,9 @@ Token = Union[int, str, bytes]
 # e.g. [OP_HASH160, script_h160, OP_EQUAL]
 # or Octets of its byte-encoded representation
 Script = Union[Octets, List[Token]]
+
+# A fingerprint is represented as 4 bytes or his string representation
+Fingerprint = Union[str, bytes]
+
+# Object that can be textually saved without any conversion
+Printable = Union[int, str]

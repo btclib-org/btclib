@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from math import ceil
 from typing import List, Type, TypeVar
 
+from dataclasses_json import dataclass_json
+
 from . import varint
 from .alias import BinaryData
 from .tx_in import TxIn, witness_deserialize, witness_serialize
@@ -28,6 +30,7 @@ from .utils import bytesio_from_binarydata, hash256
 _Tx = TypeVar("_Tx", bound="Tx")
 
 
+@dataclass_json
 @dataclass
 class Tx:
     nVersion: int
