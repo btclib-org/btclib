@@ -34,10 +34,10 @@ A BIP32 extended key is 78 bytes:
 
 import copy
 import hmac
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
-from dataclasses_json import DataClassJsonMixin
+from dataclasses_json import DataClassJsonMixin, config
 
 from . import bip39, electrum
 from .alias import INF, Octets, Point, String
@@ -63,12 +63,22 @@ _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
 
 @dataclass
 class BIP32KeyData(DataClassJsonMixin):
-    version: bytes
+    version: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
     depth: int
-    parent_fingerprint: bytes
-    index: bytes
-    chain_code: bytes
-    key: bytes
+    parent_fingerprint: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    index: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    chain_code: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    key: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
 
     def assert_valid(self) -> None:
 

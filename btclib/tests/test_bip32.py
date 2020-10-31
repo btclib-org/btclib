@@ -408,11 +408,9 @@ def test_dataclasses_json() -> None:
     # dict
     d = xkey_data.to_dict()
     assert isinstance(d, dict)
-    print(d)
-    # BIP32KeyData.from_dict(d)
+    assert xkey_data == BIP32KeyData.from_dict(d)
 
     # str
-    j = xkey_data.to_json()
+    j = xkey_data.to_json(indent=True)
     assert isinstance(j, str)
-    print(j)
-    # BIP32KeyData.from_json(j)
+    assert xkey_data == BIP32KeyData.from_json(j)
