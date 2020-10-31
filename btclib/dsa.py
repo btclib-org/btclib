@@ -22,24 +22,14 @@ from hashlib import sha256
 from typing import List, Optional, Tuple
 
 from . import der
-from .alias import (
-    DSASig,
-    DSASigTuple,
-    HashF,
-    JacPoint,
-    Key,
-    Octets,
-    Point,
-    PrvKey,
-    String,
-)
+from .alias import DSASig, DSASigTuple, HashF, JacPoint, Octets, Point, String
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
 from .rfc6979 import __rfc6979
-from .to_prvkey import int_from_prvkey
-from .to_pubkey import point_from_key
+from .to_prvkey import PrvKey, int_from_prvkey
+from .to_pubkey import Key, point_from_key
 from .utils import bytes_from_octets, int_from_bits
 
 # _validate_sig, deserialize and serialize are basically just wrappers

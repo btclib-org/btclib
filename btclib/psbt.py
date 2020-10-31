@@ -21,11 +21,12 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 from dataclasses_json import config, dataclass_json
 
 from . import der, script, varint
-from .alias import Fingerprint, Path, PubKey, String, Token
-from .bip32 import indexes_from_path
+from .alias import Fingerprint, String, Token
+from .bip32 import BIP32KeyData, BIP32Path, indexes_from_path
 from .der import DERSig
 from .scriptpubkey import payload_from_scriptPubKey
 from .secpoint import bytes_from_point
+from .to_pubkey import PubKey
 from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
 from .tx_out import TxOut
@@ -64,15 +65,15 @@ def encode_der_path(path: str) -> bytes:
     return out
 
 
-def _pubkey_to_hex_string(key: PubKey) -> str:
-    if isinstance(key, tuple):
-        return bytes_from_point(key).hex()
-    elif isinstance(key, dict):
-        return key["key"].hex()
-    elif isinstance(key, str):
-        return key
+def _pubkey_to_hex_string(pubkey: PubKey) -> str:
+    if isinstance(pubkey, tuple):
+        return bytes_from_point(pubkey).hex()
+    elif isinstance(pubkey, BIP32KeyData):
+        return (pubkey.key).hex()
+    elif isinstance(pubkey, str):
+        return pubkey
 
-    return key.hex()
+    return pubkey.hex()
 
 
 def _fingerprint_to_hex_string(fingerprint: Fingerprint) -> str:
@@ -87,7 +88,9 @@ def _fingerprint_to_hex_string(fingerprint: Fingerprint) -> str:
 class HdKeypaths:
     hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
-    def add_hd_path(self, key: PubKey, fingerprint: Fingerprint, path: Path) -> None:
+    def add_hd_path(
+        self, key: PubKey, fingerprint: Fingerprint, path: BIP32Path
+    ) -> None:
 
         fingerprint_str = _fingerprint_to_hex_string(fingerprint)
         indexes, _ = indexes_from_path(path)
@@ -509,7 +512,7 @@ class Psbt:
             out += input_map.serialize() + b"\x00"
         for output_map in self.outputs:
             out += output_map.serialize() + b"\x00"
-        return b64encode(out).decode()
+        return b64encode(out).decode("ascii")
 
     def assert_valid(self) -> None:
         for vin in self.tx.vin:

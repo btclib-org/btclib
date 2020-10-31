@@ -14,10 +14,10 @@
 
 from typing import List, Optional, Tuple, Union
 
-from .alias import Key, Octets, Script, String, Token
+from .alias import Octets, Script, String, Token
 from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .script import decode, encode
-from .to_pubkey import pubkeyinfo_from_key
+from .to_pubkey import Key, pubkeyinfo_from_key
 from .utils import bytes_from_octets
 
 # 1. Hash/WitnessProgram from pubkey/scriptPubKey

@@ -54,22 +54,21 @@ from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
 from .alias import (
-    BIP32Key,
     HashF,
     Integer,
     JacPoint,
     Octets,
     Point,
-    PrvKey,
     SSASig,
     SSASigTuple,
     String,
 )
+from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult, _multi_mult
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
-from .to_prvkey import int_from_prvkey
+from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import point_from_pubkey
 from .utils import bytes_from_octets, hex_string, int_from_bits
 
@@ -87,7 +86,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
     It supports:
 
-    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
+    - BIP32 extended keys (bytes, string, or BIP32KeyData)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
     - native tuple

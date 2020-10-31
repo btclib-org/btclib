@@ -13,7 +13,7 @@
 import pytest
 
 from btclib import script
-from btclib.alias import BIP32KeyDict
+from btclib.bip32 import BIP32KeyData
 from btclib.psbt import (
     HdKeypaths,
     Psbt,
@@ -455,14 +455,14 @@ def test_sig_type3():
     psbt = Psbt.deserialize(psbt_template)
 
     pk1_str = "03572f9af6aebd7a6764264e17abdc4fc80cf359c11f81cbbe4ecf7a2c234a5f8f"
-    pk1_dict: BIP32KeyDict = {
-        "version": 2,
-        "depth": 0,
-        "parent_fingerprint": b"\x00\x00\x00\x00",
-        "index": b"\x00\x00\x00\x00",
-        "chain_code": None,
-        "key": bytes.fromhex(pk1_str),
-    }
+    pk1_data = BIP32KeyData(
+        version=2,
+        depth=0,
+        parent_fingerprint=b"\x00\x00\x00\x00",
+        index=b"\x00\x00\x00\x00",
+        chain_code=None,
+        key=bytes.fromhex(pk1_str),
+    )
 
     sig1_tuple = (
         102184014305069174140402327859402177641508830985455155304631976296151081222302,
@@ -470,7 +470,7 @@ def test_sig_type3():
         1,
     )
 
-    psbt.inputs[0].partial_sigs.add_sig(pk1_dict, sig1_tuple)
+    psbt.inputs[0].partial_sigs.add_sig(pk1_data, sig1_tuple)
     assert psbt.serialize() == psbt_check_string
 
 
@@ -494,16 +494,16 @@ def test_hd_paths():
     fingerprint2_bytes = b"\x3e\x90\xe0\x65"
     path2_indexes = [0x8000002C, 0x80000000, 0, 0]
 
-    pk3_dict: BIP32KeyDict = {
-        "version": 2,
-        "depth": 0,
-        "parent_fingerprint": b"\x00\x00\x00\x00",
-        "index": b"\x00\x00\x00\x00",
-        "chain_code": None,
-        "key": bytes.fromhex(
+    pk3_data = BIP32KeyData(
+        version=2,
+        depth=0,
+        parent_fingerprint=b"\x00\x00\x00\x00",
+        index=b"\x00\x00\x00\x00",
+        chain_code=None,
+        key=bytes.fromhex(
             "032a18a62029214947f51f65ef5cbd3dd009046cb1a1fc29a1ea1919370ff0e902"
         ),
-    }
+    )
 
     fingerprint3_str = "b77dea4c"
     path3_str = "m/44H/0h/0/0"
@@ -518,7 +518,7 @@ def test_hd_paths():
 
     psbt.inputs[0].hd_keypaths.add_hd_path(pk1_str, fingerprint1_str, path1_str)
     psbt.inputs[0].hd_keypaths.add_hd_path(pk2_tuple, fingerprint2_bytes, path2_indexes)
-    psbt.inputs[0].hd_keypaths.add_hd_path(pk3_dict, fingerprint3_str, path3_str)
+    psbt.inputs[0].hd_keypaths.add_hd_path(pk3_data, fingerprint3_str, path3_str)
     psbt.inputs[0].hd_keypaths.add_hd_path(pk4_bytes, fingerprint4_bytes, path4_str)
     psbt.inputs[0].hd_keypaths.add_hd_path(pk5_str, fingerprint5_str, path5_str)
 

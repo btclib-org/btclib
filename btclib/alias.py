@@ -14,7 +14,7 @@ mypy aliases, documenting also coding imput conventions.
 """
 
 from io import BytesIO
-from typing import Any, Callable, Iterable, List, Tuple, TypedDict, Union
+from typing import Any, Callable, List, Tuple, Union
 
 # binary octets are eight-bit bytes or hex-string (not text string)
 #
@@ -88,45 +88,6 @@ BinStr = str
 # but int or bytes are fine too
 Entropy = Union[BinStr, int, bytes]
 
-
-# BIP 32 derivation path
-# absolute path as "m/44h/0'/1H/0/10" string
-# relative path as "./0/10" string
-# relative path as sequence of integer indexes
-# relative one level child derivation with single 4-bytes index
-# relative one level child derivation with single integer index
-# TODO: allow also Iterable[bytes], while making mypy happy
-Path = Union[str, Iterable[int], int, bytes]
-
-
-# BIP 32 extended key as a TypedDict
-class BIP32KeyDict(TypedDict):
-    version: bytes
-    depth: int
-    parent_fingerprint: bytes
-    index: bytes
-    chain_code: bytes
-    key: bytes
-
-
-BIP32Key = Union[BIP32KeyDict, String]
-
-# private key inputs:
-# integer as Union[int, Octets]
-# BIP32key as BIP32Key
-# WIF as String
-#
-# BIP32key and WIF also provide extra info about
-# network and (un)compressed-pubkey-derivation
-PrvKey = Union[int, bytes, str, BIP32KeyDict]
-
-# public key inputs:
-# elliptic curve point as Union[Octets, BIP32Key, Point]
-PubKey = Union[bytes, str, BIP32KeyDict, Point]
-
-# public or private key input,
-# usable wherever a PubKey is logically expected
-Key = Union[int, bytes, str, BIP32KeyDict, Point]
 
 # ECDSA signature
 # (r, s)

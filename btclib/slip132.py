@@ -14,7 +14,7 @@ https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
 
 from . import base58address, bech32address, bip32
-from .alias import BIP32Key
+from .bip32 import BIP32Key, BIP32KeyData
 from .network import (
     _P2WPKH_P2SH_PUB_PREFIXES,
     _P2WPKH_PUB_PREFIXES,
@@ -44,19 +44,19 @@ def address_from_xpub(xpub: BIP32Key) -> bytes:
     as this is the default public key representation in BIP32.
     """
 
-    if not isinstance(xpub, dict):
-        xpub = bip32.deserialize(xpub)
+    if not isinstance(xpub, BIP32KeyData):
+        xpub = BIP32KeyData.deserialize(xpub)
 
-    if xpub["key"][0] not in (2, 3):
-        m = f"not a public key: {bip32.serialize(xpub).decode()}"
+    if xpub.key[0] not in (2, 3):
+        m = f"not a public key: {xpub.serialize().decode('ascii')}"
         raise ValueError(m)
 
-    if xpub["version"] in _XPUB_PREFIXES:
+    if xpub.version in _XPUB_PREFIXES:
         return base58address.p2pkh(xpub)
-    elif xpub["version"] in _P2WPKH_PUB_PREFIXES:
+    elif xpub.version in _P2WPKH_PUB_PREFIXES:
         return bech32address.p2wpkh(xpub)
     else:
         # v has been already checked at parsing stage
         # so, v must be in _P2WPKH_P2SH_PUB_PREFIXES
-        assert xpub["version"] in _P2WPKH_P2SH_PUB_PREFIXES
+        assert xpub.version in _P2WPKH_P2SH_PUB_PREFIXES
         return base58address.p2wpkh_p2sh(xpub)

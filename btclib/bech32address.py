@@ -44,10 +44,11 @@ with the following modifications:
 
 from typing import Iterable, List, Optional, Tuple
 
-from .alias import Key, Octets, Script, String
+from .alias import Octets, Script, String
 from .bech32 import b32decode, b32encode
 from .hashes import hash160_from_key, hash256_from_script
 from .network import NETWORKS, network_from_key_value
+from .to_pubkey import Key
 from .utils import bytes_from_octets
 
 # 0. bech32 facilities

@@ -11,28 +11,18 @@
 """Test vectors of valid and invalid keys.
 
 Used by `btclib.tests.to_pubkey` and `btclib.tests.to_pubkey` modules.
-Test vectors do include str only: no int, point tuble, or BIP32KeyDict.
+Test vectors do include str only: no int, point tuble, or BIP32KeyData.
 """
 
 import copy
 from typing import List, Union
 
-from btclib.alias import INF, BIP32KeyDict
+from btclib.alias import INF
 from btclib.base58 import b58encode
+from btclib.bip32 import BIP32KeyData
 from btclib.curve import mult, secp256k1
 
 ec = secp256k1
-
-
-def _serialize(d: BIP32KeyDict) -> bytes:
-    t = d["version"]
-    t += d["depth"].to_bytes(1, "big")
-    t += d["parent_fingerprint"]
-    t += d["index"]
-    t += d["chain_code"]
-    t += d["key"]
-    return b58encode(t, 78)
-
 
 q = 12
 q_bytes = q.to_bytes(32, byteorder="big")
@@ -52,15 +42,15 @@ wif_uncompressed = b58encode(b"\x80" + q_bytes)
 wif_uncompressed_string = wif_uncompressed.decode("ascii")
 wif_uncompressed_string2 = " " + wif_uncompressed_string + " "
 
-xprv_dict: BIP32KeyDict = {
-    "version": b"\x04\x88\xAD\xE4",
-    "depth": 0,
-    "parent_fingerprint": b"\x00\x00\x00\x00",
-    "index": b"\x00\x00\x00\x00",
-    "chain_code": 32 * b"\x00",
-    "key": b"\x00" + q_bytes,
-}
-xprv = _serialize(xprv_dict)
+xprv_data = BIP32KeyData(
+    version=b"\x04\x88\xAD\xE4",
+    depth=0,
+    parent_fingerprint=b"\x00\x00\x00\x00",
+    index=b"\x00\x00\x00\x00",
+    chain_code=32 * b"\x00",
+    key=b"\x00" + q_bytes,
+)
+xprv = xprv_data.serialize(False)
 xprv_string = xprv.decode("ascii")
 xprv_string2 = " " + xprv_string + " "
 
@@ -105,15 +95,15 @@ Q_uncompressed_hexstring3 = (
     "04 " + x_Q_bytes.hex() + " " + Q[1].to_bytes(32, "big").hex()
 )
 
-xpub_dict: BIP32KeyDict = {
-    "version": b"\x04\x88\xB2\x1E",
-    "depth": xprv_dict["depth"],
-    "parent_fingerprint": xprv_dict["parent_fingerprint"],
-    "index": xprv_dict["index"],
-    "chain_code": xprv_dict["chain_code"],
-    "key": Q_compressed,
-}
-xpub = _serialize(xpub_dict)
+xpub_data = BIP32KeyData(
+    version=b"\x04\x88\xB2\x1E",
+    depth=xprv_data.depth,
+    parent_fingerprint=xprv_data.parent_fingerprint,
+    index=xprv_data.index,
+    chain_code=xprv_data.chain_code,
+    key=Q_compressed,
+)
+xpub = xpub_data.serialize(False)
 xpub_string = xpub.decode("ascii")
 xpub_string2 = " " + xpub_string + " "
 
@@ -146,63 +136,63 @@ net_unaware_pub_keys = (
 # all bad BIP32 keys
 bad_bip32_keys: List[Union[bytes, str]] = []
 # version / key mismatch
-xprv_dict_bad = copy.copy(xprv_dict)
-xpub_dict_bad = copy.copy(xpub_dict)
-xprv_dict_bad["version"] = b"\x04\x88\xB2\x1E"
-xpub_dict_bad["version"] = b"\x04\x88\xAD\xE4"
+xprv_data_bad = copy.copy(xprv_data)
+xpub_data_bad = copy.copy(xpub_data)
+xprv_data_bad.version = b"\x04\x88\xB2\x1E"
+xpub_data_bad.version = b"\x04\x88\xAD\xE4"
 bad_bip32_keys += [
-    _serialize(xprv_dict_bad).decode("ascii"),
-    _serialize(xpub_dict_bad).decode("ascii"),
+    xprv_data_bad.serialize(False).decode("ascii"),
+    xpub_data_bad.serialize(False).decode("ascii"),
 ]
 # key starts with 04
-xprv_dict_bad["key"] = b"\x04" + xprv_dict_bad["key"][1:]
-xpub_dict_bad["key"] = b"\x04" + xprv_dict_bad["key"][1:]
+xprv_data_bad.key = b"\x04" + xprv_data_bad.key[1:]
+xpub_data_bad.key = b"\x04" + xprv_data_bad.key[1:]
 bad_bip32_keys += [
-    _serialize(xprv_dict_bad).decode("ascii"),
-    _serialize(xpub_dict_bad).decode("ascii"),
+    xprv_data_bad.serialize(False).decode("ascii"),
+    xpub_data_bad.serialize(False).decode("ascii"),
 ]
 # key starts with 01
-xprv_dict_bad["key"] = b"\x01" + xprv_dict_bad["key"][1:]
-xpub_dict_bad["key"] = b"\x01" + xprv_dict_bad["key"][1:]
+xprv_data_bad.key = b"\x01" + xprv_data_bad.key[1:]
+xpub_data_bad.key = b"\x01" + xprv_data_bad.key[1:]
 bad_bip32_keys += [
-    _serialize(xprv_dict_bad).decode("ascii"),
-    _serialize(xpub_dict_bad).decode("ascii"),
+    xprv_data_bad.serialize(False).decode("ascii"),
+    xpub_data_bad.serialize(False).decode("ascii"),
 ]
 # depth_pfp_index mismatch
-xprv_dict_bad = copy.copy(xprv_dict)
-xpub_dict_bad = copy.copy(xpub_dict)
-xprv_dict_bad["parent_fingerprint"] = b"\x01\x01\x01\x01"
-xpub_dict_bad["parent_fingerprint"] = b"\x01\x01\x01\x01"
+xprv_data_bad = copy.copy(xprv_data)
+xpub_data_bad = copy.copy(xpub_data)
+xprv_data_bad.parent_fingerprint = b"\x01\x01\x01\x01"
+xpub_data_bad.parent_fingerprint = b"\x01\x01\x01\x01"
 bad_bip32_keys += [
-    _serialize(xprv_dict_bad).decode("ascii"),
-    _serialize(xpub_dict_bad).decode("ascii"),
+    xprv_data_bad.serialize(False).decode("ascii"),
+    xpub_data_bad.serialize(False).decode("ascii"),
 ]
 # depth_pfp_index mismatch
-xprv_dict_bad = copy.copy(xprv_dict)
-xpub_dict_bad = copy.copy(xpub_dict)
-xprv_dict_bad["index"] = b"\x01\x01\x01\x01"
-xpub_dict_bad["index"] = b"\x01\x01\x01\x01"
+xprv_data_bad = copy.copy(xprv_data)
+xpub_data_bad = copy.copy(xpub_data)
+xprv_data_bad.index = b"\x01\x01\x01\x01"
+xpub_data_bad.index = b"\x01\x01\x01\x01"
 bad_bip32_keys += [
-    _serialize(xprv_dict_bad).decode("ascii"),
-    _serialize(xpub_dict_bad).decode("ascii"),
+    xprv_data_bad.serialize(False).decode("ascii"),
+    xpub_data_bad.serialize(False).decode("ascii"),
 ]
 # depth_pfp_index mismatch
-xprv_dict_bad = copy.copy(xprv_dict)
-xpub_dict_bad = copy.copy(xpub_dict)
-xprv_dict_bad["depth"] = 1
-xpub_dict_bad["depth"] = 1
+xprv_data_bad = copy.copy(xprv_data)
+xpub_data_bad = copy.copy(xpub_data)
+xprv_data_bad.depth = 1
+xpub_data_bad.depth = 1
 bad_bip32_keys += [
-    _serialize(xprv_dict_bad).decode("ascii"),
-    _serialize(xpub_dict_bad).decode("ascii"),
+    xprv_data_bad.serialize(False).decode("ascii"),
+    xpub_data_bad.serialize(False).decode("ascii"),
 ]
 # unknown version
-xprv_dict_bad = copy.copy(xprv_dict)
-xpub_dict_bad = copy.copy(xpub_dict)
-xprv_dict_bad["version"] = b"\x01\x01\x01\x01"
-xpub_dict_bad["version"] = b"\x01\x01\x01\x01"
+xprv_data_bad = copy.copy(xprv_data)
+xpub_data_bad = copy.copy(xpub_data)
+xprv_data_bad.version = b"\x01\x01\x01\x01"
+xpub_data_bad.version = b"\x01\x01\x01\x01"
 bad_bip32_keys += [
-    _serialize(xprv_dict_bad).decode("ascii"),
-    _serialize(xpub_dict_bad).decode("ascii"),
+    xprv_data_bad.serialize(False).decode("ascii"),
+    xpub_data_bad.serialize(False).decode("ascii"),
 ]
 
 
@@ -237,27 +227,27 @@ wif_n_uncompressed = b58encode(b"\x80" + qn_bytes)
 wif_n_uncompressed_string = wif_n_uncompressed.decode("ascii")
 wif_n_uncompressed_string2 = " " + wif_n_uncompressed_string + " "
 
-xprv0_dict: BIP32KeyDict = {
-    "version": b"\x04\x88\xAD\xE4",
-    "depth": 0,
-    "parent_fingerprint": b"\x00\x00\x00\x00",
-    "index": b"\x00\x00\x00\x00",
-    "chain_code": 32 * b"\x00",
-    "key": b"\x00" + q0_bytes,
-}
-xprv0 = _serialize(xprv0_dict)
+xprv0_data = BIP32KeyData(
+    version=b"\x04\x88\xAD\xE4",
+    depth=0,
+    parent_fingerprint=b"\x00\x00\x00\x00",
+    index=b"\x00\x00\x00\x00",
+    chain_code=32 * b"\x00",
+    key=b"\x00" + q0_bytes,
+)
+xprv0 = xprv0_data.serialize(False)
 xprv0_string = xprv0.decode("ascii")
 xprv0_string2 = " " + xprv0_string + " "
 
-xprvn_dict: BIP32KeyDict = {
-    "version": b"\x04\x88\xAD\xE4",
-    "depth": 0,
-    "parent_fingerprint": b"\x00\x00\x00\x00",
-    "index": b"\x00\x00\x00\x00",
-    "chain_code": 32 * b"\x00",
-    "key": b"\x00" + qn_bytes,
-}
-xprvn = _serialize(xprvn_dict)
+xprvn_data = BIP32KeyData(
+    version=b"\x04\x88\xAD\xE4",
+    depth=0,
+    parent_fingerprint=b"\x00\x00\x00\x00",
+    index=b"\x00\x00\x00\x00",
+    chain_code=32 * b"\x00",
+    key=b"\x00" + qn_bytes,
+)
+xprvn = xprvn_data.serialize(False)
 xprvn_string = xprvn.decode("ascii")
 xprvn_string2 = " " + xprvn_string + " "
 
@@ -326,15 +316,15 @@ INF_uncompressed_hexstring3 = (
     "04 " + INF_x_bytes.hex() + " " + INF[1].to_bytes(32, "big").hex()
 )
 
-INF_xpub_dict: BIP32KeyDict = {
-    "version": b"\x04\x88\xB2\x1E",
-    "depth": xprv_dict["depth"],
-    "parent_fingerprint": xprv_dict["parent_fingerprint"],
-    "index": xprv_dict["index"],
-    "chain_code": xprv_dict["chain_code"],
-    "key": INF_compressed,
-}
-INF_xpub = _serialize(INF_xpub_dict)
+INF_xpub_data = BIP32KeyData(
+    version=b"\x04\x88\xB2\x1E",
+    depth=xprv_data.depth,
+    parent_fingerprint=xprv_data.parent_fingerprint,
+    index=xprv_data.index,
+    chain_code=xprv_data.chain_code,
+    key=INF_compressed,
+)
+INF_xpub = INF_xpub_data.serialize(False)
 INF_xpub_string = INF_xpub.decode("ascii")
 INF_xpub_string2 = " " + INF_xpub_string + " "
 
@@ -359,10 +349,10 @@ invalid_prv_keys: List[Union[bytes, str]] = (
         wif_compressed_string + "01",
         wif_uncompressed_string + "01",
         xprv_string + "00",
-        xprv_dict["key"][1:] + b"\x00",
-        xprv_dict["key"][1:].hex() + "00",
-        xprv_dict["key"],
-        xprv_dict["key"].hex(),
+        xprv_data.key[1:] + b"\x00",
+        xprv_data.key[1:].hex() + "00",
+        xprv_data.key,
+        xprv_data.key.hex(),
         "invalidprvkey",
     ]
 )

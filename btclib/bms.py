@@ -137,14 +137,14 @@ from hashlib import sha256
 from typing import Optional, Tuple
 
 from . import dsa
-from .alias import BMSig, BMSigTuple, PrvKey, String
+from .alias import BMSig, BMSigTuple, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import wif_from_prvkey
 from .bech32address import p2wpkh, witness_from_b32address
 from .curve import mult, secp256k1
 from .network import NETWORKS
 from .secpoint import bytes_from_point
-from .to_prvkey import prvkeyinfo_from_prvkey
+from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
 from .utils import hash160
 
 

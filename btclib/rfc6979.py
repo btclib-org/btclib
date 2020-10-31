@@ -38,10 +38,10 @@ messages to the set of possible k values) would return.
 import hmac
 from hashlib import sha256
 
-from .alias import HashF, Octets, PrvKey, String
+from .alias import HashF, Octets, String
 from .curve import Curve, secp256k1
 from .hashes import reduce_to_hlen
-from .to_prvkey import int_from_prvkey
+from .to_prvkey import PrvKey, int_from_prvkey
 from .utils import bytes_from_octets, int_from_bits
 
 
