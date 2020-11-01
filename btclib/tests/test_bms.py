@@ -102,7 +102,6 @@ def test_exceptions() -> None:
         bms.assert_as_valid(msg, p2wpkh, sig)
 
 
-@pytest.mark.sixth
 def test_one_prvkey_multiple_addresses() -> None:
 
     msg = "Paolo is afraid of ephemeral random numbers"

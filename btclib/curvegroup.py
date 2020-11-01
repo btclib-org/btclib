@@ -16,6 +16,7 @@ the cyclic subgroup class of prime order Curve,
 see the btclib.curve module.
 """
 
+import functools
 import heapq
 from math import ceil
 from typing import List, Sequence, Tuple, Union
@@ -378,6 +379,54 @@ class CurveGroup:
         return root if legendre == quad_res else self.p - root
 
 
+def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
+    """Scalar multiplication of a curve point in affine coordinates.
+
+    This implementation uses
+    a recursive version of 'double & add',
+    affine coordinates.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    if m == 0:
+        return INF
+
+    if (m % 2) == 1:
+        return ec._add_aff(Q, _mult_recursive_aff((m - 1), Q, ec))
+    else:
+        return _mult_recursive_aff((m // 2), ec._double_aff(Q), ec)
+
+
+def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication of a curve point in affine coordinates.
+
+    This implementation uses
+    a recursive version of 'double & add',
+    jacobian coordinates.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    if m == 0:
+        return INFJ
+
+    if (m % 2) == 1:
+        return ec._add_jac(Q, _mult_recursive_jac((m - 1), Q, ec))
+    else:
+        return _mult_recursive_jac((m // 2), ec._double_jac(Q), ec)
+
+
 def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
@@ -443,7 +492,213 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R[0]
 
 
-_mult = _mult_jac
+def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
+    "Return {k_i * Q} for k_i in {0, ..., size-1)"
+
+    if size < 2:
+        raise ValueError(f"size too low: {size}")
+
+    k, odd = divmod(size, 2)
+    T = [INFJ, Q]
+    for i in range(3, k * 2, 2):
+        T.append(ec._double_jac(T[(i - 1) // 2]))
+        T.append(ec._add_jac(T[-1], Q))
+
+    if odd:
+        T.append(ec._double_jac(T[(size - 1) // 2]))
+
+    return T
+
+
+_MAX_W = 5
+
+
+@functools.lru_cache()  # least recently used cache
+def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
+
+    T = [INFJ, Q]
+    for i in range(3, 2 ** _MAX_W, 2):
+        T.append(ec._double_jac(T[(i - 1) // 2]))
+        T.append(ec._add_jac(T[-1], Q))
+    return T
+
+
+@functools.lru_cache()
+def cached_multiples_fixwind(
+    Q: JacPoint, ec: CurveGroup, w: int = 4
+) -> List[List[JacPoint]]:
+    """Made to precompute values for _mult_fixed_window_cached.
+    Do not use it for other functions.
+    Made to be used for w=4, do not use w.
+    """
+
+    T = []
+    K = Q
+    for _ in range((ec.psize * 8) // w + 1):
+        sublist = [INFJ, K]
+        for j in range(3, 2 ** w, 2):
+            sublist.append(ec._double_jac(sublist[(j - 1) // 2]))
+            sublist.append(ec._add_jac(sublist[-1], K))
+        K = ec._double_jac(sublist[2 ** (w - 1)])
+        T.append(sublist)
+
+    return T
+
+
+def convert_number_to_base(i: int, base: int) -> List[int]:
+    "Return the digits of an integer in the requested base."
+
+    digits: List[int] = []
+    while i or not digits:
+        i, idx = divmod(i, base)
+        digits.append(idx)
+    return digits[::-1]
+
+
+def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication using 'Montgomery ladder' algorithm.
+
+    This implementation uses
+    'Montgomery ladder' algorithm,
+    'left-to-right' binary decomposition of the m coefficient,
+    Jacobian coordinates.
+
+    It is constant-time and resistant to the FLUSH+RELOAD attack,
+    (see https://eprint.iacr.org/2014/140.pdf)
+    as it prevents branch prediction avoiding any if.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    # R[0] is the running resultR[1] = R[0] + Q is an ancillary variable
+    R = [INFJ, Q]
+    for i in [int(i) for i in bin(m)[2:]]:
+        R[not i] = ec._add_jac(R[i], R[not i])
+        R[i] = ec._double_jac(R[i])
+    return R[0]
+
+
+def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Scalar multiplication using ternary decomposition of the scalar.
+
+    This implementation uses
+    'triple & add' algorithm,
+    'left-to-right' ternary decomposition of the m coefficient,
+    Jacobian coordinates.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    # at each step one of the points in T will be added
+    T = [INFJ, Q, ec._double_jac(Q)]
+    # T = multiples(Q, 3, ec)
+    # T = cached_multiples(Q, ec)
+
+    digits = convert_number_to_base(m, 3)
+
+    R = T[digits[0]]
+    for i in digits[1:]:
+        # 'triple'
+        R2 = ec._double_jac(R)
+        R3 = ec._add_jac(R2, R)
+        # and 'add'
+        R = ec._add_jac(R3, T[i])
+    return R
+
+
+def _mult_fixed_window(
+    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4, cached: bool = False
+) -> JacPoint:
+    """Scalar multiplication using "fixed window".
+
+    This implementation uses
+    'multiple-double & add' algorithm,
+    'left-to-right' window decomposition of the m coefficient,
+    Jacobian coordinates.
+
+    For 256-bit scalars it is suggested to choose w=4 or w=5.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    # a number cannot be written in basis 1 (ie w=0)
+    if w <= 0:
+        raise ValueError(f"non positive w: {w}")
+
+    # at each step one of the points in T will be added
+    # T = cached_multiples(Q, ec)
+    # T = multiples(Q, 2 ** w, ec)
+
+    T = cached_multiples(Q, ec) if cached else multiples(Q, 2 ** w, ec)
+
+    digits = convert_number_to_base(m, 2 ** w)
+
+    R = T[digits[0]]
+    for i in digits[1:]:
+        # multiple 'double'
+        for _ in range(w):
+            R = ec._double_jac(R)
+        # and 'add'
+        R = ec._add_jac(R, T[i])
+    return R
+
+
+_mult = _mult_fixed_window
+
+
+def _mult_fixed_window_cached(
+    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4
+) -> JacPoint:
+    """Scalar multiplication using "fixed window" & cached values.
+
+    This implementation uses
+    'multiple-double & add' algorithm,
+    'left-to-right' window decomposition of the m coefficient,
+    Jacobian coordinates.
+
+    For 256-bit scalars it is suggested to choose w=4.
+    Thanks to the pre-computed values, it just needs addictions.
+
+    The input point is assumed to be on curve and
+    the m coefficient is assumed to have been reduced mod n
+    if appropriate (e.g. cyclic groups of order n).
+    """
+
+    if m < 0:
+        raise ValueError(f"negative m: {hex(m)}")
+
+    # a number cannot be written in basis 1 (ie w=0)
+    if w <= 0:
+        raise ValueError(f"non positive w: {w}")
+
+    T = cached_multiples_fixwind(Q, ec, w)
+
+    digits = convert_number_to_base(m, 2 ** w)
+
+    k = len(digits) - 1
+
+    R = T[k][digits[0]]
+
+    for i in range(1, len(digits)):
+        k -= 1
+        # only 'add'
+        R = ec._add_jac(R, T[k][digits[i]])
+    return R
 
 
 def _double_mult(

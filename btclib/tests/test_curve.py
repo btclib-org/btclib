@@ -319,7 +319,8 @@ def test_symmetry() -> None:
         ec.y_quadratic_residue(x_Q, 2)
 
 
-def test_assorted_mult2() -> None:
+@pytest.mark.fifth
+def test_assorted_mult() -> None:
     ec = ec23_31
     H = second_generator(ec)
     for k1 in range(-ec.n + 1, ec.n):

@@ -15,14 +15,23 @@ import secrets
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.curve import Curve
+from btclib.curve import secp256k1
 from btclib.curvegroup import (
+    _MAX_W,
     _double_mult,
     _jac_from_aff,
     _mult,
     _mult_aff,
+    _mult_base_3,
+    _mult_fixed_window,
+    _mult_fixed_window_cached,
     _mult_jac,
+    _mult_mont_ladder,
+    _mult_recursive_aff,
+    _mult_recursive_jac,
     _multi_mult,
+    cached_multiples,
+    multiples,
 )
 from btclib.pedersen import second_generator
 from btclib.tests.test_curve import all_curves, low_card_curves
@@ -31,6 +40,68 @@ ec23_31 = low_card_curves["ec23_31"]
 
 
 @pytest.mark.third
+def test_mult_recursive_aff() -> None:
+    for ec in all_curves.values():
+        assert _mult_recursive_aff(0, ec.G, ec) == INF
+        assert _mult_recursive_aff(0, INF, ec) == INF
+
+        assert _mult_recursive_aff(1, INF, ec) == INF
+        assert _mult_aff(1, ec.G, ec) == ec.G
+
+        P = ec._add_aff(ec.G, ec.G)
+        assert P == _mult_recursive_aff(2, ec.G, ec)
+
+        P = _mult_recursive_aff(ec.n - 1, ec.G, ec)
+        assert ec.negate(ec.G) == P
+        assert _mult_recursive_aff(ec.n - 1, INF, ec) == INF
+
+        assert ec._add_aff(P, ec.G) == INF
+        assert _mult_recursive_aff(ec.n, ec.G, ec) == INF
+        assert _mult_recursive_aff(ec.n, INF, ec) == INF
+
+        with pytest.raises(ValueError, match="negative m: "):
+            _mult_recursive_aff(-1, ec.G, ec)
+
+    for ec in low_card_curves.values():
+        for q in range(ec.n):
+            Q = _mult_recursive_aff(q, ec.G, ec)
+            assert ec.is_on_curve(Q), f"{q}, {ec}"
+            QJ = _mult(q, ec.GJ, ec)
+            assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
+            assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
+        assert INF == _mult_recursive_aff(q, INF, ec), f"{q}, {ec}"
+        assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
+
+
+def test_mult_recursive_jac() -> None:
+    for ec in all_curves.values():
+        assert ec._jac_equality(_mult_recursive_jac(0, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_recursive_jac(0, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(_mult_recursive_jac(1, INFJ, ec), INFJ)
+        assert ec._jac_equality(_mult_recursive_jac(1, ec.GJ, ec), ec.GJ)
+
+        PJ = ec._add_jac(ec.GJ, ec.GJ)
+        assert ec._jac_equality(PJ, _mult_recursive_jac(2, ec.GJ, ec))
+
+        PJ = _mult_recursive_jac(ec.n - 1, ec.GJ, ec)
+        assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
+        assert ec._jac_equality(_mult_recursive_jac(ec.n - 1, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
+        assert ec._jac_equality(_mult_recursive_jac(ec.n, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_recursive_jac(ec.n, INFJ, ec), INFJ)
+
+        with pytest.raises(ValueError, match="negative m: "):
+            _mult_recursive_jac(-1, ec.GJ, ec)
+
+    ec = ec23_31
+    for k1 in range(ec.n):
+        K1 = _mult_recursive_jac(k1, ec.GJ, ec)
+        assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
+
+
+@pytest.mark.second
 def test_mult_aff() -> None:
     for ec in all_curves.values():
         assert _mult_aff(0, ec.G, ec) == INF
@@ -53,7 +124,18 @@ def test_mult_aff() -> None:
         with pytest.raises(ValueError, match="negative m: "):
             _mult_aff(-1, ec.G, ec)
 
+    for ec in low_card_curves.values():
+        for q in range(ec.n):
+            Q = _mult_aff(q, ec.G, ec)
+            assert ec.is_on_curve(Q), f"{q}, {ec}"
+            QJ = _mult(q, ec.GJ, ec)
+            assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
+            assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
+        assert INF == _mult_aff(q, INF, ec), f"{q}, {ec}"
+        assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
+
+@pytest.mark.sixth
 def test_mult_jac() -> None:
     for ec in all_curves.values():
         assert ec._jac_equality(_mult_jac(0, ec.GJ, ec), INFJ)
@@ -71,9 +153,196 @@ def test_mult_jac() -> None:
 
         assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
         assert ec._jac_equality(_mult_jac(ec.n, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_jac(ec.n, INFJ, ec), INFJ)
 
         with pytest.raises(ValueError, match="negative m: "):
             _mult_jac(-1, ec.GJ, ec)
+
+    ec = ec23_31
+    for k1 in range(ec.n):
+        K1 = _mult_jac(k1, ec.GJ, ec)
+        assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
+
+
+def test_mont_ladder() -> None:
+    for ec in low_card_curves.values():
+        assert ec._jac_equality(_mult_mont_ladder(0, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_mont_ladder(0, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(_mult_mont_ladder(1, INFJ, ec), INFJ)
+        assert ec._jac_equality(_mult_mont_ladder(1, ec.GJ, ec), ec.GJ)
+
+        PJ = _mult_mont_ladder(2, ec.GJ, ec)
+        assert ec._jac_equality(PJ, ec._add_jac(ec.GJ, ec.GJ))
+
+        PJ = _mult_mont_ladder(ec.n - 1, ec.GJ, ec)
+        assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
+        assert ec._jac_equality(_mult_mont_ladder(ec.n - 1, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
+        assert ec._jac_equality(_mult_mont_ladder(ec.n, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
+
+        with pytest.raises(ValueError, match="negative m: "):
+            _mult_mont_ladder(-1, ec.GJ, ec)
+
+    ec = ec23_31
+    for k1 in range(ec.n):
+        K1 = _mult_mont_ladder(k1, ec.GJ, ec)
+        assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
+
+
+def test_mult_base_3() -> None:
+    for ec in low_card_curves.values():
+        assert ec._jac_equality(_mult_base_3(0, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_base_3(0, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(_mult_base_3(1, INFJ, ec), INFJ)
+        assert ec._jac_equality(_mult_base_3(1, ec.GJ, ec), ec.GJ)
+
+        PJ = _mult_base_3(2, ec.GJ, ec)
+        assert ec._jac_equality(PJ, ec._add_jac(ec.GJ, ec.GJ))
+
+        PJ = _mult_base_3(ec.n - 1, ec.GJ, ec)
+        assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
+        assert ec._jac_equality(_mult_base_3(ec.n - 1, INFJ, ec), INFJ)
+
+        assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
+        assert ec._jac_equality(_mult_base_3(ec.n, ec.GJ, ec), INFJ)
+        assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
+
+        with pytest.raises(ValueError, match="negative m: "):
+            _mult_base_3(-1, ec.GJ, ec)
+
+    ec = ec23_31
+    for k1 in range(ec.n):
+        K1 = _mult_base_3(k1, ec.GJ, ec)
+        assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
+
+
+def test_cached_multiples() -> None:
+
+    ec = secp256k1
+    M = cached_multiples(ec.GJ, ec)
+    assert len(M) == 2 ** _MAX_W
+
+
+def test_multiples() -> None:
+
+    ec = secp256k1
+    with pytest.raises(ValueError, match="size too low: "):
+        multiples(ec.GJ, 1, ec)
+
+    T = [INFJ, ec.GJ]
+    M = multiples(ec.GJ, 2, ec)
+    assert len(M) == 2
+    assert M == T
+
+    T.append(ec._double_jac(ec.GJ))
+    M = multiples(ec.GJ, 3, ec)
+    assert len(M) == 3
+    assert M == T
+
+    T.append(ec._add_jac(T[-1], ec.GJ))
+    M = multiples(ec.GJ, 4, ec)
+    assert len(M) == 4
+    assert M == T
+
+    T.append(ec._double_jac(T[2]))
+    M = multiples(ec.GJ, 5, ec)
+    assert len(M) == 5
+    assert M == T
+
+    T.append(ec._add_jac(T[-1], ec.GJ))
+    M = multiples(ec.GJ, 6, ec)
+    assert len(M) == 6
+    assert M == T
+
+    T.append(ec._double_jac(T[3]))
+    M = multiples(ec.GJ, 7, ec)
+    assert len(M) == 7
+    assert M == T
+
+    T.append(ec._add_jac(T[-1], ec.GJ))
+    M = multiples(ec.GJ, 8, ec)
+    assert len(M) == 8
+    assert M == T
+
+    T.append(ec._double_jac(T[4]))
+    M = multiples(ec.GJ, 9, ec)
+    assert len(M) == 9
+    assert M == T
+
+    T.append(ec._add_jac(T[-1], ec.GJ))
+    M = multiples(ec.GJ, 10, ec)
+    assert len(M) == 10
+    assert M == T
+
+
+def test_mult_fixed_window() -> None:
+    for w in range(1, _MAX_W):
+        for ec in low_card_curves.values():
+            assert ec._jac_equality(_mult_fixed_window(0, ec.GJ, ec, w), INFJ)
+            assert ec._jac_equality(_mult_fixed_window(0, INFJ, ec, w), INFJ)
+
+            assert ec._jac_equality(_mult_fixed_window(1, INFJ, ec, w), INFJ)
+            assert ec._jac_equality(_mult_fixed_window(1, ec.GJ, ec, w), ec.GJ)
+
+            PJ = _mult_fixed_window(2, ec.GJ, ec, w)
+            assert ec._jac_equality(PJ, ec._add_jac(ec.GJ, ec.GJ))
+
+            PJ = _mult_fixed_window(ec.n - 1, ec.GJ, ec, w)
+            assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
+            assert ec._jac_equality(_mult_fixed_window(ec.n - 1, INFJ, ec, w), INFJ)
+
+            assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
+            assert ec._jac_equality(_mult_fixed_window(ec.n, ec.GJ, ec, w), INFJ)
+            assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
+
+            with pytest.raises(ValueError, match="negative m: "):
+                _mult_fixed_window(-1, ec.GJ, ec, w)
+
+            with pytest.raises(ValueError, match="non positive w: "):
+                _mult_fixed_window(1, ec.GJ, ec, -w)
+
+    ec = ec23_31
+    for w in range(1, 10):
+        for k1 in range(ec.n):
+            K1 = _mult_fixed_window(k1, ec.GJ, ec, w)
+            assert ec._jac_equality(K1, _mult_jac(k1, ec.GJ, ec))
+
+
+def test_mult_fixed_window_cached() -> None:
+    for w in range(1, _MAX_W):
+        for ec in low_card_curves.values():
+            assert ec._jac_equality(_mult_fixed_window_cached(0, ec.GJ, ec), INFJ)
+            assert ec._jac_equality(_mult_fixed_window_cached(0, INFJ, ec), INFJ)
+
+            assert ec._jac_equality(_mult_fixed_window_cached(1, INFJ, ec), INFJ)
+            assert ec._jac_equality(_mult_fixed_window_cached(1, ec.GJ, ec), ec.GJ)
+
+            PJ = _mult_fixed_window_cached(2, ec.GJ, ec)
+            assert ec._jac_equality(PJ, ec._add_jac(ec.GJ, ec.GJ))
+
+            PJ = _mult_fixed_window_cached(ec.n - 1, ec.GJ, ec)
+            assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
+            assert ec._jac_equality(_mult_fixed_window_cached(ec.n - 1, INFJ, ec), INFJ)
+
+            assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
+            assert ec._jac_equality(_mult_fixed_window_cached(ec.n, ec.GJ, ec), INFJ)
+            assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
+
+            with pytest.raises(ValueError, match="negative m: "):
+                _mult_fixed_window_cached(-1, ec.GJ, ec)
+
+            with pytest.raises(ValueError, match="non positive w: "):
+                _mult_fixed_window_cached(1, ec.GJ, ec, -1)
+
+    ec = ec23_31
+    for w in range(1, 10):
+        for k1 in range(ec.n):
+            K1 = _mult_fixed_window_cached(k1, ec.GJ, ec, w)
+            assert ec._jac_equality(K1, _mult_jac(k1, ec.GJ, ec))
 
 
 def test_assorted_jac_mult() -> None:
@@ -141,7 +410,7 @@ def test_assorted_jac_mult() -> None:
 
 def test_jac_equality() -> None:
 
-    ec = Curve(13, 0, 2, (1, 9), 19, 1, False)
+    ec = ec23_31
     assert ec._jac_equality(ec.GJ, _jac_from_aff(ec.G))
 
     # q in [2, n-1], as the difference with ec.GJ is checked below
@@ -151,15 +420,3 @@ def test_jac_equality() -> None:
     assert ec._jac_equality(QJ, _jac_from_aff(Q))
     assert not ec._jac_equality(QJ, ec.negate_jac(QJ))
     assert not ec._jac_equality(QJ, ec.GJ)
-
-
-def test_mult() -> None:
-    for ec in low_card_curves.values():
-        for q in range(ec.n):
-            Q = _mult_aff(q, ec.G, ec)
-            assert ec.is_on_curve(Q), f"{q}, {ec}"
-            QJ = _mult(q, ec.GJ, ec)
-            assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
-            assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
-        assert INF == _mult_aff(q, INF, ec), f"{q}, {ec}"
-        assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"

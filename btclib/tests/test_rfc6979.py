@@ -45,7 +45,7 @@ def test_rfc6979_example() -> None:
     assert k == rfc6979(msg, x, fake_ec)  # type: ignore
 
 
-@pytest.mark.second
+@pytest.mark.fourth
 def test_rfc6979_tv() -> None:
 
     fname = "rfc6979.json"
