@@ -133,6 +133,7 @@ def test_block_481824() -> None:
 
 
 # this block has witness data
+@pytest.mark.seventh
 def test_block_481824_complete() -> None:
 
     fname = "block_481824_complete.bin"

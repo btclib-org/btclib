@@ -101,7 +101,7 @@ def test_mult_recursive_jac() -> None:
         assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
 
 
-@pytest.mark.second
+@pytest.mark.fourth
 def test_mult_aff() -> None:
     for ec in all_curves.values():
         assert _mult_aff(0, ec.G, ec) == INF
@@ -135,7 +135,6 @@ def test_mult_aff() -> None:
         assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
 
-@pytest.mark.sixth
 def test_mult_jac() -> None:
     for ec in all_curves.values():
         assert ec._jac_equality(_mult_jac(0, ec.GJ, ec), INFJ)
