@@ -15,7 +15,7 @@ from typing import List, Tuple
 import pytest
 
 from btclib import bip32, script, slip132
-from btclib.alias import Token
+from btclib.alias import ScriptToken
 from btclib.base58 import b58encode
 from btclib.base58address import (
     b58address_from_h160,
@@ -100,7 +100,7 @@ def test_p2pkh_from_pubkey() -> None:
 
 def test_p2sh() -> None:
     # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
-    scriptPubKey: List[Token] = [
+    scriptPubKey: List[ScriptToken] = [
         "OP_2DUP",
         "OP_EQUAL",
         "OP_NOT",
@@ -122,7 +122,11 @@ def test_p2sh() -> None:
     assert redeem_script_hash == hash160(script.encode(scriptPubKey))
 
     assert redeem_script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
-    output_script: List[Token] = ["OP_HASH160", redeem_script_hash.hex(), "OP_EQUAL"]
+    output_script: List[ScriptToken] = [
+        "OP_HASH160",
+        redeem_script_hash.hex(),
+        "OP_EQUAL",
+    ]
     script.encode(output_script)
 
     # address with trailing/leading spaces
@@ -142,7 +146,7 @@ def test_p2w_p2sh() -> None:
     b58addr2 = b58address_from_witness(h160pubkey, network)
     assert b58addr2 == b58addr
 
-    scriptPubKey: List[Token] = [
+    scriptPubKey: List[ScriptToken] = [
         "OP_DUP",
         "OP_HASH160",
         h160pubkey,

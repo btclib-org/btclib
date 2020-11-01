@@ -15,3 +15,5 @@ pytest-xdist
 pytest-cov
 pytest-ordering
 tox
+pip
+pylint

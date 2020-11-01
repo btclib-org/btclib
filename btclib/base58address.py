@@ -15,7 +15,7 @@ Base58 encoding of public keys and scripts as addresses.
 
 from typing import Optional, Tuple
 
-from .alias import Key, Octets, Script, String
+from .alias import Octets, Script, String
 from .base58 import b58decode, b58encode
 from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .network import (
@@ -25,6 +25,7 @@ from .network import (
     network_from_key_value,
 )
 from .scriptpubkey import scriptPubKey_from_payload
+from .to_pubkey import Key
 from .utils import bytes_from_octets
 
 # 1. Hash/WitnessProgram from pubkey/scriptPubKey

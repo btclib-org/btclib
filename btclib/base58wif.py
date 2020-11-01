@@ -10,10 +10,9 @@
 
 from typing import Optional
 
-from .alias import PrvKey
 from .base58 import b58encode
 from .network import NETWORKS
-from .to_pubkey import prvkeyinfo_from_prvkey
+from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
 
 
 def wif_from_prvkey(

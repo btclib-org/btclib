@@ -10,15 +10,15 @@
 
 "Tests for `btclib.hashes` module."
 
-from btclib import bip32
+from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
 from btclib.hashes import fingerprint
 
 
 def test_fingerprint() -> None:
 
     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
-    xprv = bip32.rootxprv_from_seed(seed)
+    xprv = rootxprv_from_seed(seed)
     pf = fingerprint(xprv)  # xprv is automatically converted to xpub
-    child_key = bip32.derive(xprv, 0x80000000)
-    pf2 = bip32.deserialize(child_key)["parent_fingerprint"]
+    child_key = derive(xprv, 0x80000000)
+    pf2 = BIP32KeyData.deserialize(child_key).parent_fingerprint
     assert pf == pf2

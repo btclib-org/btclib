@@ -8,10 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
-from . import bip32
-from .alias import BIP32Key, Key, Point, PrvKey, PubKey
+from .alias import Point
+from .bip32 import BIP32Key, BIP32KeyData
 from .curve import Curve, mult, secp256k1
 from .network import (
     NETWORKS,
@@ -20,25 +20,33 @@ from .network import (
     xpubversions_from_network,
 )
 from .secpoint import bytes_from_point, point_from_octets
-from .to_prvkey import prvkeyinfo_from_prvkey
+from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
 from .utils import bytes_from_octets
+
+# public key inputs:
+# elliptic curve point as Union[Octets, BIP32Key, Point]
+PubKey = Union[bytes, str, BIP32KeyData, Point]
+
+# public or private key input,
+# usable wherever a PubKey is logically expected
+Key = Union[int, bytes, str, BIP32KeyData, Point]
 
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     "Return an elliptic curve point tuple from a xpub key."
 
-    if isinstance(xpub, dict):
-        # ensure it is a valid BIP32KeyDict
-        bip32.serialize(xpub)
+    if isinstance(xpub, BIP32KeyData):
+        # ensure it is a valid BIP32KeyData
+        xpub.serialize()
     else:
-        xpub = bip32.deserialize(xpub)
+        xpub = BIP32KeyData.deserialize(xpub)
 
-    if xpub["key"][0] in (2, 3):
-        ec2 = curve_from_xkeyversion(xpub["version"])
+    if xpub.key[0] in (2, 3):
+        ec2 = curve_from_xkeyversion(xpub.version)
         if ec != ec2:
-            raise ValueError(f"ec/xpub version ({xpub['version'].hex()}) mismatch")
-        return point_from_octets(xpub["key"], ec)
-    raise ValueError(f"Not a public key: {xpub['key'].hex()}")
+            raise ValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
+        return point_from_octets(xpub.key, ec)
+    raise ValueError(f"Not a public key: {xpub.key.hex()}")
 
 
 def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
@@ -46,7 +54,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
 
     It supports:
 
-    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
+    - BIP32 extended keys (bytes, string, or BIP32KeyData)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
@@ -76,7 +84,7 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
         if ec.is_on_curve(pubkey) and pubkey[1] != 0:
             return pubkey
         raise ValueError(f"not a valid public key: {pubkey}")
-    elif isinstance(pubkey, dict):
+    elif isinstance(pubkey, BIP32KeyData):
         return _point_from_xpub(pubkey, ec)
     else:
         try:
@@ -117,25 +125,25 @@ def _pubkeyinfo_from_xpub(
     if not compressed:
         raise ValueError("Uncompressed SEC / compressed BIP32 mismatch")
 
-    if isinstance(xpub, dict):
-        # ensure it is a valid BIP32KeyDict
-        bip32.serialize(xpub)
+    if isinstance(xpub, BIP32KeyData):
+        # ensure it is a valid BIP32KeyData
+        xpub.serialize()
     else:
-        xpub = bip32.deserialize(xpub)
+        xpub = BIP32KeyData.deserialize(xpub)
 
-    if xpub["key"][0] not in (2, 3):
-        m = f"Not a public key: {bip32.serialize(xpub).decode()}"
+    if xpub.key[0] not in (2, 3):
+        m = f"Not a public key: {xpub.serialize().decode('ascii')}"
         raise ValueError(m)
 
     if network is not None:
         allowed_versions = xpubversions_from_network(network)
-        if xpub["version"] not in allowed_versions:
+        if xpub.version not in allowed_versions:
             m = f"Not a {network} key: "
-            m += f"{bip32.serialize(xpub).decode()}"
+            m += f"{xpub.serialize().decode('ascii')}"
             raise ValueError(m)
-        return xpub["key"], network
+        return xpub.key, network
     else:
-        return xpub["key"], network_from_xkeyversion(xpub["version"])
+        return xpub.key, network_from_xkeyversion(xpub.version)
 
 
 def pubkeyinfo_from_key(
@@ -178,7 +186,7 @@ def pubkeyinfo_from_pubkey(
 
     if isinstance(pubkey, tuple):
         return bytes_from_point(pubkey, ec, compr), net
-    elif isinstance(pubkey, dict):
+    elif isinstance(pubkey, BIP32KeyData):
         return _pubkeyinfo_from_xpub(pubkey, network, compressed)
     else:
         try:

@@ -16,24 +16,35 @@ https://en.bitcoin.it/wiki/BIP_0174
 from base64 import b64decode, b64encode
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 
-from . import script, varint
-from .alias import Token
+from dataclasses_json import DataClassJsonMixin, config
+
+from . import der, script, varint
+from .alias import Fingerprint, ScriptToken, String
+from .bip32 import BIP32KeyData, BIP32Path, indexes_from_path
+from .der import DERSig
 from .scriptpubkey import payload_from_scriptPubKey
+from .secpoint import bytes_from_point
+from .to_pubkey import PubKey
 from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
 from .tx_out import TxOut
-from .utils import hash160, sha256
+from .utils import (
+    hash160,
+    sha256,
+    token_or_string_to_hex_string,
+    token_or_string_to_printable,
+)
 
 
 # maybe integrate in bip32?
-def decode_der_path(path: bytes) -> str:
+def decode_der_path(path: bytes, source_endian: str = "little") -> str:
     out = "m"
     assert len(path) % 4 == 0
     for x in range(len(path) // 4):
         out += "/"
-        index = int.from_bytes(path[4 * x : 4 * (x + 1)], "little")
+        index = int.from_bytes(path[4 * x : 4 * (x + 1)], source_endian)
         out += str(index - 0x80000000) + "h" if index >= 0x80000000 else str(index)
     return out
 
@@ -54,33 +65,101 @@ def encode_der_path(path: str) -> bytes:
     return out
 
 
+def _pubkey_to_hex_string(pubkey: PubKey) -> str:
+    if isinstance(pubkey, tuple):
+        return bytes_from_point(pubkey).hex()
+    elif isinstance(pubkey, BIP32KeyData):
+        return (pubkey.key).hex()
+    elif isinstance(pubkey, str):
+        return pubkey
+
+    return pubkey.hex()
+
+
+def _fingerprint_to_hex_string(fingerprint: Fingerprint) -> str:
+    if isinstance(fingerprint, str):
+        return fingerprint
+    else:
+        return fingerprint.hex()
+
+
+@dataclass
+class HdKeypaths(DataClassJsonMixin):
+    hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
+
+    def add_hd_path(
+        self, key: PubKey, fingerprint: Fingerprint, path: BIP32Path
+    ) -> None:
+
+        fingerprint_str = _fingerprint_to_hex_string(fingerprint)
+        indexes, _ = indexes_from_path(path)
+
+        # TODO: indexes_from_path return indexes as big endian. Why?
+        path_str = decode_der_path(b"".join(indexes), "big")
+        key_str = _pubkey_to_hex_string(key)
+
+        self.hd_keypaths[key_str] = {
+            "fingerprint": fingerprint_str,
+            "derivation_path": path_str,
+        }
+
+    def get_hd_path_entry(self, key: PubKey) -> Tuple[str, str]:
+        entry = self.hd_keypaths[_pubkey_to_hex_string(key)]
+        return entry["fingerprint"], entry["derivation_path"]
+
+
+@dataclass
+class PartialSigs(DataClassJsonMixin):
+    sigs: Dict[str, str] = field(default_factory=dict)
+
+    def add_sig(self, key: PubKey, sig: DERSig):
+        key_str = _pubkey_to_hex_string(key)
+        r, s, sighash = der._deserialize(sig)
+        sig_str = der._serialize(r, s, sighash).hex()
+
+        self.sigs[key_str] = sig_str
+
+    def get_sig(self, key: PubKey) -> str:
+        return self.sigs[_pubkey_to_hex_string(key)]
+
+
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
 
 
 @dataclass
-class PsbtIn:
+class PsbtIn(DataClassJsonMixin):
     non_witness_utxo: Optional[Tx] = None
     witness_utxo: Optional[TxOut] = None
-    partial_sigs: Dict[str, str] = field(default_factory=dict)
+    partial_sigs: PartialSigs = field(default_factory=PartialSigs)
     sighash: Optional[int] = 0
-    redeem_script: List[Token] = field(default_factory=list)
-    witness_script: List[Token] = field(default_factory=list)
-    hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    final_script_sig: List[Token] = field(default_factory=list)
-    final_script_witness: List[str] = field(default_factory=list)
+    redeem_script: List[ScriptToken] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
+    witness_script: List[ScriptToken] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
+    hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
+    final_script_sig: List[ScriptToken] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
+    final_script_witness: List[String] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
     por_commitment: Optional[str] = None
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def decode(cls: Type[_PsbtIn], input_map: Dict[bytes, bytes]) -> _PsbtIn:
+    def deserialize(
+        cls: Type[_PsbtIn], input_map: Dict[bytes, bytes], assert_valid: bool = True
+    ) -> _PsbtIn:
         non_witness_utxo = None
         witness_utxo = None
-        partial_sigs = {}
+        partial_sigs = PartialSigs()
         sighash = 0
         redeem_script = []
         witness_script = []
-        hd_keypaths = {}
+        hd_keypaths = HdKeypaths()
         final_script_sig = []
         final_script_witness = []
         por_commitment = None
@@ -95,7 +174,7 @@ class PsbtIn:
                 witness_utxo = TxOut.deserialize(value)
             elif key[0] == 0x02:
                 assert len(key) == 33 + 1
-                partial_sigs[key[1:].hex()] = value.hex()
+                partial_sigs.add_sig(key[1:], value)
             elif key[0] == 0x03:
                 assert len(key) == 1
                 assert len(value) == 4
@@ -109,10 +188,15 @@ class PsbtIn:
             elif key[0] == 0x06:
                 assert len(key) == 33 + 1
                 assert len(value) % 4 == 0
-                hd_keypaths[key[1:].hex()] = {
-                    "fingerprint": value[:4].hex(),
-                    "derivation_path": decode_der_path(value[4:]),
-                }
+                path = value[4:]
+                hd_keypaths.add_hd_path(
+                    key[1:],
+                    value[:4],
+                    [
+                        int.from_bytes(path[i : i + 4], "little")
+                        for i in range(0, len(path), 4)
+                    ],
+                )
             elif key[0] == 0x07:
                 assert len(key) == 1
                 final_script_sig = script.decode(value)
@@ -145,12 +229,15 @@ class PsbtIn:
             proprietary=proprietary,
             unknown=unknown,
         )
-
-        out.assert_valid()
-
+        if assert_valid:
+            out.assert_valid()
         return out
 
-    def serialize(self) -> bytes:
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = b""
         if self.non_witness_utxo:
             out += b"\x01\x00"
@@ -161,7 +248,7 @@ class PsbtIn:
             utxo = self.witness_utxo.serialize()
             out += varint.encode(len(utxo)) + utxo
         if self.partial_sigs:
-            for key, value in self.partial_sigs.items():
+            for key, value in self.partial_sigs.sigs.items():
                 out += b"\x22\x02" + bytes.fromhex(key)
                 out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         if self.sighash:
@@ -174,7 +261,7 @@ class PsbtIn:
             out += b"\x01\x05"
             out += script.serialize(self.witness_script)
         if self.hd_keypaths:
-            for xpub, hd_keypath in self.hd_keypaths.items():
+            for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
                 out += b"\x22\x06" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += encode_der_path(hd_keypath["derivation_path"])
@@ -205,23 +292,37 @@ class PsbtIn:
     def assert_valid(self) -> None:
         pass
 
+    def add_unknown_entry(self, key: String, val: String):
+        self.unknown[
+            token_or_string_to_hex_string(key)
+        ] = token_or_string_to_hex_string(val)
+
+    def get_unknown_entry(self, key: String) -> str:
+        return self.unknown[token_or_string_to_hex_string(key)]
+
 
 _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
 
 @dataclass
-class PsbtOut:
-    redeem_script: List[Token] = field(default_factory=list)
-    witness_script: List[Token] = field(default_factory=list)
-    hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
+class PsbtOut(DataClassJsonMixin):
+    redeem_script: List[ScriptToken] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
+    witness_script: List[ScriptToken] = field(
+        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    )
+    hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def decode(cls: Type[_PsbtOut], output_map: Dict[bytes, bytes]) -> _PsbtOut:
+    def deserialize(
+        cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], assert_valid: bool = True
+    ) -> _PsbtOut:
         redeem_script = []
         witness_script = []
-        hd_keypaths = {}
+        hd_keypaths = HdKeypaths()
         proprietary: Dict[int, Dict[str, str]] = {}
         unknown = {}
         for key, value in output_map.items():
@@ -234,11 +335,15 @@ class PsbtOut:
             elif key[0] == 0x02:
                 assert len(key) == 33 + 1
                 assert len(value) % 4 == 0
-                hd_keypaths[key[1:].hex()] = {
-                    "fingerprint": value[:4].hex(),
-                    "derivation_path": decode_der_path(value[4:]),
-                }
-
+                path = value[4:]
+                hd_keypaths.add_hd_path(
+                    key[1:],
+                    value[:4],
+                    [
+                        int.from_bytes(path[i : i + 4], "little")
+                        for i in range(0, len(path), 4)
+                    ],
+                )
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
                 if prefix not in proprietary.keys():
@@ -255,12 +360,15 @@ class PsbtOut:
             proprietary=proprietary,
             unknown=unknown,
         )
-
-        out.assert_valid()
-
+        if assert_valid:
+            out.assert_valid()
         return out
 
-    def serialize(self) -> bytes:
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = b""
         if self.redeem_script:
             out += b"\x01\x00"
@@ -269,7 +377,7 @@ class PsbtOut:
             out += b"\x01\x01"
             out += script.serialize(self.witness_script)
         if self.hd_keypaths:
-            for xpub, hd_keypath in self.hd_keypaths.items():
+            for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
                 out += b"\x22\x02" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += encode_der_path(hd_keypath["derivation_path"])
@@ -289,22 +397,30 @@ class PsbtOut:
     def assert_valid(self) -> None:
         pass
 
+    def add_unknown_entry(self, key: String, val: String):
+        self.unknown[
+            token_or_string_to_hex_string(key)
+        ] = token_or_string_to_hex_string(val)
+
+    def get_unknown_entry(self, key: String) -> str:
+        return self.unknown[token_or_string_to_hex_string(key)]
+
 
 _PSbt = TypeVar("_PSbt", bound="Psbt")
 
 
 @dataclass
-class Psbt:
+class Psbt(DataClassJsonMixin):
     tx: Tx
     inputs: List[PsbtIn]
     outputs: List[PsbtOut]
     version: Optional[int] = 0
-    hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
+    hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def deserialize(cls: Type[_PSbt], string: str) -> _PSbt:
+    def deserialize(cls: Type[_PSbt], string: str, assert_valid: bool = True) -> _PSbt:
         data = b64decode(string)
 
         magic_bytes = data[:5]
@@ -314,7 +430,7 @@ class Psbt:
 
         global_map, data = deserialize_map(data)
         version = 0
-        hd_keypaths = {}
+        hd_keypaths = HdKeypaths()
         proprietary: Dict[int, Dict[str, str]] = {}
         unknown = {}
         for key, value in global_map.items():
@@ -324,10 +440,15 @@ class Psbt:
             elif key[0] == 0x01:  # TODO
                 assert len(key) == 78 + 1
                 assert len(value) % 4 == 0
-                hd_keypaths[key[1:].hex()] = {
-                    "fingerprint": value[:4].hex(),
-                    "derivation_path": decode_der_path(value[4:]),
-                }
+                path = value[4:]
+                hd_keypaths.add_hd_path(
+                    key[1:],
+                    value[:4],
+                    [
+                        int.from_bytes(path[i : i + 4], "little")
+                        for i in range(0, len(path), 4)
+                    ],
+                )
             elif key[0] == 0xFB:
                 assert len(value) == 4
                 version = int.from_bytes(value, "little")
@@ -346,12 +467,12 @@ class Psbt:
         inputs = []
         for _ in range(input_len):
             input_map, data = deserialize_map(data)
-            inputs.append(PsbtIn.decode(input_map))
+            inputs.append(PsbtIn.deserialize(input_map))
 
         outputs = []
         for _ in range(output_len):
             output_map, data = deserialize_map(data)
-            outputs.append(PsbtOut.decode(output_map))
+            outputs.append(PsbtOut.deserialize(output_map))
 
         psbt = cls(
             tx=tx,
@@ -362,18 +483,21 @@ class Psbt:
             proprietary=proprietary,
             unknown=unknown,
         )
-
-        psbt.assert_valid()
-
+        if assert_valid:
+            psbt.assert_valid()
         return psbt
 
-    def serialize(self) -> str:
+    def serialize(self, assert_valid: bool = True) -> str:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = bytes.fromhex("70736274ff")
         out += b"\x01\x00"
         tx = self.tx.serialize()
         out += varint.encode(len(tx)) + tx
         if self.hd_keypaths:
-            for xpub, hd_keypath in self.hd_keypaths.items():
+            for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
                 out += b"\x4f\x01" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += encode_der_path(hd_keypath["derivation_path"])
@@ -396,7 +520,7 @@ class Psbt:
             out += input_map.serialize() + b"\x00"
         for output_map in self.outputs:
             out += output_map.serialize() + b"\x00"
-        return b64encode(out).decode()
+        return b64encode(out).decode("ascii")
 
     def assert_valid(self) -> None:
         for vin in self.tx.vin:
@@ -447,6 +571,14 @@ class Psbt:
                 hash = sha256(script.encode(self.inputs[i].witness_script))
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
+    def add_unknown_entry(self, key: String, val: String):
+        self.unknown[
+            token_or_string_to_hex_string(key)
+        ] = token_or_string_to_hex_string(val)
+
+    def get_unknown_entry(self, key: String) -> str:
+        return self.unknown[token_or_string_to_hex_string(key)]
+
 
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
     assert len(data) != 0, "Malformed psbt: at least a map is missing"
@@ -480,12 +612,18 @@ def psbt_from_tx(tx: Tx) -> Psbt:
 def _combine_field(
     psbt_map: Union[PsbtIn, PsbtOut, Psbt], out: Union[PsbtIn, PsbtOut, Psbt], key: str
 ) -> None:
-    item: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(psbt_map, key)
-    a: Union[Union[int, Tx, TxOut], Dict[str, str]] = getattr(out, key)
+    item: Union[Union[int, Tx, TxOut, PartialSigs], Dict[str, str]] = getattr(
+        psbt_map, key
+    )
+    a: Union[Union[int, Tx, TxOut, PartialSigs], Dict[str, str]] = getattr(out, key)
     if isinstance(item, dict) and a and isinstance(a, dict):
         a.update(item)
     elif isinstance(item, dict) or item and not a:
         setattr(out, key, item)
+    elif isinstance(item, PartialSigs) and isinstance(a, PartialSigs):
+        a.sigs.update(item.sigs)
+    elif isinstance(item, HdKeypaths) and isinstance(a, HdKeypaths):
+        a.hd_keypaths.update(item.hd_keypaths)
     elif item:
         assert item == a, key
 
@@ -536,28 +674,30 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             psbt_in.final_script_sig = [
                 script.encode(psbt_in.redeem_script).hex().upper()
             ]
-            psbt_in.final_script_witness = list(psbt_in.partial_sigs.values())
+            psbt_in.final_script_witness = list(psbt_in.partial_sigs.sigs.values())
             psbt_in.final_script_witness += [
                 script.encode(psbt_in.witness_script).hex()
             ]
-            if len(psbt_in.partial_sigs) > 1:
-                psbt_in.final_script_witness = [""] + psbt_in.final_script_witness
+            if len(psbt_in.partial_sigs.sigs) > 1:
+                psbt_in.final_script_witness = [
+                    cast(String, "")
+                ] + psbt_in.final_script_witness
         else:
             psbt_in.final_script_sig = [
-                a.upper() for a in list(psbt_in.partial_sigs.values())
+                a.upper() for a in list(psbt_in.partial_sigs.sigs.values())
             ]
             psbt_in.final_script_sig += [
                 script.encode(psbt_in.redeem_script).hex().upper()
             ]
-            if len(psbt_in.partial_sigs) > 1:
+            if len(psbt_in.partial_sigs.sigs) > 1:
                 # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-                dummy_element: List[Token] = [0]
+                dummy_element: List[ScriptToken] = [0]
                 psbt_in.final_script_sig = dummy_element + psbt_in.final_script_sig
-        psbt_in.partial_sigs = {}
+        psbt_in.partial_sigs = PartialSigs()
         psbt_in.sighash = 0
         psbt_in.redeem_script = []
         psbt_in.witness_script = []
-        psbt_in.hd_keypaths = {}
+        psbt_in.hd_keypaths = HdKeypaths()
         psbt_in.por_commitment = None
     return psbt
 

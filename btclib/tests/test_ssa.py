@@ -18,8 +18,9 @@ from typing import List
 
 import pytest
 
-from btclib import bip32, ssa
+from btclib import ssa
 from btclib.alias import INF, Point
+from btclib.bip32 import BIP32KeyData
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
 from btclib.numbertheory import mod_inv
@@ -166,17 +167,17 @@ def test_point_from_bip340pubkey() -> None:
     # 65 bytes hex-string
     assert ssa.point_from_bip340pubkey(bytes_from_point(P, compressed=False).hex()) == P
 
-    xpub_dict = bip32.deserialize(
+    xpub_data = BIP32KeyData.deserialize(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     )
-    xpub_dict["key"] = bytes_from_point(P)
-    # BIP32KeyDict
-    assert ssa.point_from_bip340pubkey(xpub_dict) == P
+    xpub_data.key = bytes_from_point(P)
+    # BIP32KeyData
+    assert ssa.point_from_bip340pubkey(xpub_data) == P
     # BIP32Key encoded str
-    xpub = bip32.serialize(xpub_dict)
+    xpub = xpub_data.serialize()
     assert ssa.point_from_bip340pubkey(xpub) == P
     # BIP32Key str
-    assert ssa.point_from_bip340pubkey(xpub.decode()) == P
+    assert ssa.point_from_bip340pubkey(xpub.decode("ascii")) == P
 
 
 def test_low_cardinality() -> None:

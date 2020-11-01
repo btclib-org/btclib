@@ -1,1 +1,2 @@
-# btclib does not have external requirements or dependencies
+dataclasses_json
+

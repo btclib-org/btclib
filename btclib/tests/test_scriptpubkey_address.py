@@ -20,10 +20,10 @@ from btclib.scriptpubkey_address import (
 def test_has_segwit_prefix() -> None:
     addr = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
     assert has_segwit_prefix(addr)
-    assert has_segwit_prefix(addr.decode())
+    assert has_segwit_prefix(addr.decode("ascii"))
     addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
     assert not has_segwit_prefix(addr)
-    assert not has_segwit_prefix(addr.decode())
+    assert not has_segwit_prefix(addr.decode("ascii"))
 
 
 def test_address() -> None:

@@ -37,11 +37,11 @@ from hashlib import sha256
 from typing import Optional, Tuple
 
 from . import dsa, ssa
-from .alias import HashF, Octets, Point, PrvKey
+from .alias import HashF, Octets, Point
 from .curve import Curve, mult, secp256k1
 from .rfc6979 import _rfc6979
 from .secpoint import bytes_from_point
-from .to_prvkey import int_from_prvkey
+from .to_prvkey import PrvKey, int_from_prvkey
 from .utils import bytes_from_octets, int_from_bits
 
 # commitment receipt

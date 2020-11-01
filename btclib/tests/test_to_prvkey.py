@@ -15,7 +15,7 @@ import pytest
 from btclib.curve import CURVES
 from btclib.tests.test_to_key import (
     INF,
-    INF_xpub_dict,
+    INF_xpub_data,
     Q,
     compressed_prv_keys,
     compressed_pub_keys,
@@ -30,10 +30,10 @@ from btclib.tests.test_to_key import (
     qn,
     uncompressed_prv_keys,
     uncompressed_pub_keys,
-    xprv0_dict,
-    xprv_dict,
-    xprvn_dict,
-    xpub_dict,
+    xprv0_data,
+    xprv_data,
+    xprvn_data,
+    xpub_data,
 )
 from btclib.to_prvkey import int_from_prvkey, prvkeyinfo_from_prvkey
 
@@ -60,7 +60,7 @@ def test_from_prvkey() -> None:
         assert t_c == prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=True)
         assert t_unc == prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=False)
 
-    for prv_key in [xprv_dict] + compressed_prv_keys:
+    for prv_key in [xprv_data] + compressed_prv_keys:
         assert q == int_from_prvkey(prv_key)
         with pytest.raises(ValueError):
             int_from_prvkey(prv_key, secp256r1)
@@ -98,7 +98,7 @@ def test_from_prvkey() -> None:
         with pytest.raises(ValueError):
             prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=False)
 
-    for prv_key in [xprv_dict] + net_aware_prv_keys:
+    for prv_key in [xprv_data] + net_aware_prv_keys:
         assert q == int_from_prvkey(prv_key)
         with pytest.raises(ValueError):
             int_from_prvkey(prv_key, secp256r1)
@@ -114,19 +114,19 @@ def test_from_prvkey() -> None:
         assert prvkeyinfo_from_prvkey(prv_key, "mainnet") in (m_c, m_unc)
         assert prvkeyinfo_from_prvkey(prv_key, "testnet") in (t_c, t_unc)
 
-    for invalid_prv_key in [q0, qn, xprv0_dict, xprvn_dict] + invalid_prv_keys:
+    for invalid_prv_key in [q0, qn, xprv0_data, xprvn_data] + invalid_prv_keys:
         with pytest.raises(ValueError):
             int_from_prvkey(invalid_prv_key)
         with pytest.raises(ValueError):
             prvkeyinfo_from_prvkey(invalid_prv_key)
 
     for not_a_prv_key in (
-        [q0, qn, xprv0_dict, xprvn_dict]
-        + [INF, INF_xpub_dict]
+        [q0, qn, xprv0_data, xprvn_data]
+        + [INF, INF_xpub_data]
         + not_a_prv_keys
         + [Q]
         + plain_pub_keys
-        + [xpub_dict]
+        + [xpub_data]
         + compressed_pub_keys
         + uncompressed_pub_keys
     ):

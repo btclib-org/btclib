@@ -34,10 +34,13 @@ A BIP32 extended key is 78 bytes:
 
 import copy
 import hmac
-from typing import List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Iterable, List, Optional, Tuple, Type, TypeVar, Union
+
+from dataclasses_json import DataClassJsonMixin, config
 
 from . import bip39, electrum
-from .alias import INF, BIP32Key, BIP32KeyDict, Octets, Path, Point
+from .alias import INF, Octets, Point, String
 from .base58 import b58decode, b58encode
 from .curve import mult, secp256k1
 from .mnemonic import Mnemonic
@@ -55,99 +58,136 @@ from .utils import bytes_from_octets, hash160, hex_string
 ec = secp256k1
 
 
-def _check_version_key(version: bytes, key: bytes) -> None:
-
-    if version in _XPRV_VERSIONS_ALL:
-        if key[0] != 0:
-            raise ValueError(f"invalid private key prefix: 0x{key[0:1].hex()}")
-        q = int.from_bytes(key[1:], byteorder="big")
-        if not 0 < q < ec.n:
-            raise ValueError(f"private key not in 1..n-1: {hex(q)}")
-    elif version in _XPUB_VERSIONS_ALL:
-        if key[0] not in (2, 3):
-            raise ValueError(f"invalid public key prefix: 0x{key[0:1].hex()}")
-        try:
-            ec.y(int.from_bytes(key[1:], byteorder="big"))
-        except Exception:
-            raise ValueError(f"invalid public key 0x{key.hex()}")
-    else:
-        raise ValueError(f"unknown extended key version 0x{version.hex()}")
+_BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
 
 
-def _check_depth_pfp_index(depth: int, pfp: bytes, i: bytes) -> None:
+@dataclass
+class BIP32KeyData(DataClassJsonMixin):
+    version: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    depth: int
+    parent_fingerprint: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    index: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    chain_code: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    key: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
 
-    if depth < 0 or depth > 255:
-        raise ValueError(f"invalid depth {depth}")
-    elif depth == 0:
-        if pfp != b"\x00\x00\x00\x00":
-            err_msg = f"zero depth with non-zero parent fingerprint 0x{pfp.hex()}"
-            raise ValueError(err_msg)
-        if i != b"\x00\x00\x00\x00":
-            raise ValueError(f"zero depth with non-zero index 0x{i.hex()}")
-    else:
-        if pfp == b"\x00\x00\x00\x00":
-            raise ValueError(f"zero parent fingerprint with non-zero depth {depth}")
+    def assert_valid(self) -> None:
 
+        if not isinstance(self.version, bytes):
+            raise ValueError("version is not an instance of bytes")
+        if len(self.version) != 4:
+            m = "invalid version length: "
+            m += f"{len(self.version)} bytes"
+            m += " instead of 4"
+            raise ValueError(m)
 
-def deserialize(xkey: BIP32Key) -> BIP32KeyDict:
+        if not isinstance(self.depth, int):
+            raise ValueError("depth is not an instance of int")
+        if self.depth < 0 or self.depth > 255:
+            raise ValueError(f"invalid depth: {self.depth}")
 
-    d: BIP32KeyDict
-    if isinstance(xkey, dict):
-        d = copy.copy(xkey)
-        length = len(d["chain_code"])
-        if length != 32:
-            raise ValueError(f"invalid chain code length: {length}")
-        if not isinstance(d["chain_code"], bytes):
-            raise ValueError("invalid chain code")
-    else:
+        if not isinstance(self.parent_fingerprint, bytes):
+            raise ValueError("parent fingerprint is not an instance of bytes")
+        if len(self.parent_fingerprint) != 4:
+            m = "invalid parent fingerprint length: "
+            m += f"{len(self.parent_fingerprint)} bytes"
+            m += " instead of 4"
+            raise ValueError(m)
+
+        if not isinstance(self.index, bytes):
+            raise ValueError("index is not an instance of bytes")
+        if len(self.index) != 4:
+            m = "invalid index length: "
+            m += f"{len(self.index)} bytes"
+            m += " instead of 4"
+            raise ValueError(m)
+
+        if not isinstance(self.chain_code, bytes):
+            raise ValueError("chain code is not an instance of bytes")
+        if len(self.chain_code) != 32:
+            m = "invalid chain code length: "
+            m += f"{len(self.chain_code)} bytes"
+            m += " instead of 32"
+            raise ValueError(m)
+
+        if not isinstance(self.key, bytes):
+            raise ValueError("key is not an instance of bytes")
+        if len(self.key) != 33:
+            m = "invalid key length: "
+            m += f"{len(self.key)} bytes"
+            m += " instead of 33"
+            raise ValueError(m)
+
+        if self.version in _XPRV_VERSIONS_ALL:
+            if self.key[0] != 0:
+                raise ValueError(f"invalid private key prefix: 0x{self.key[0:1].hex()}")
+            q = int.from_bytes(self.key[1:], byteorder="big")
+            if not 0 < q < ec.n:
+                raise ValueError(f"private key not in 1..n-1: {hex(q)}")
+        elif self.version in _XPUB_VERSIONS_ALL:
+            if self.key[0] not in (2, 3):
+                raise ValueError(f"invalid public key prefix: 0x{self.key[0:1].hex()}")
+            try:
+                ec.y(int.from_bytes(self.key[1:], byteorder="big"))
+            except Exception:
+                raise ValueError(f"invalid public key 0x{self.key.hex()}")
+        else:
+            raise ValueError(f"unknown extended key version 0x{self.version.hex()}")
+
+        if self.depth == 0:
+            if self.parent_fingerprint != b"\x00\x00\x00\x00":
+                m = f"zero depth with non-zero parent fingerprint 0x{self.parent_fingerprint.hex()}"
+                raise ValueError(m)
+            if self.index != b"\x00\x00\x00\x00":
+                raise ValueError(f"zero depth with non-zero index 0x{self.index.hex()}")
+        else:
+            if self.parent_fingerprint == b"\x00\x00\x00\x00":
+                m = f"zero parent fingerprint with non-zero depth {self.depth}"
+                raise ValueError(m)
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        t = self.version
+        t += self.depth.to_bytes(1, "big")
+        t += self.parent_fingerprint
+        t += self.index
+        t += self.chain_code
+        t += self.key
+        return b58encode(t, 78)
+
+    @classmethod
+    def deserialize(
+        cls: Type[_BIP32KeyData], xkey: String, assert_valid: bool = True
+    ) -> _BIP32KeyData:
+
         if isinstance(xkey, str):
             xkey = xkey.strip()
         xkey = b58decode(xkey, 78)
-        d = {
-            "version": xkey[:4],
-            "depth": xkey[4],
-            "parent_fingerprint": xkey[5:9],
-            "index": xkey[9:13],
-            "chain_code": xkey[13:45],
-            "key": xkey[45:],
-        }
 
-    _check_version_key(d["version"], d["key"])
-    _check_depth_pfp_index(d["depth"], d["parent_fingerprint"], d["index"])
+        key_data = cls(
+            version=xkey[:4],
+            depth=xkey[4],
+            parent_fingerprint=xkey[5:9],
+            index=xkey[9:13],
+            chain_code=xkey[13:45],
+            key=xkey[45:],
+        )
+        if assert_valid:
+            key_data.assert_valid()
 
-    return d
-
-
-def serialize(d: BIP32KeyDict) -> bytes:
-
-    if len(d["key"]) != 33:
-        m = f"invalid key length: {len(d['key'])}-bytes"
-        raise ValueError(m)
-    # version length is checked in _check_version_key
-    _check_version_key(d["version"], d["key"])
-    t = d["version"]
-
-    if len(d["parent_fingerprint"]) != 4:
-        m = "invalid parent fingerprint length: "
-        m += f"{len(d['parent_fingerprint'])}-bytes "
-        raise ValueError(m)
-    if len(d["index"]) != 4:
-        m = f"invalid index length: {len(d['index'])}-bytes"
-        raise ValueError(m)
-    _check_depth_pfp_index(d["depth"], d["parent_fingerprint"], d["index"])
-    t += d["depth"].to_bytes(1, "big")
-    t += d["parent_fingerprint"]
-    t += d["index"]
-
-    if len(d["chain_code"]) != 32:
-        m = f"invalid chain code length: {len(d['chain_code'])}-bytes"
-        raise ValueError(m)
-    t += d["chain_code"]
-
-    # already checked in _check_version_key
-    t += d["key"]
-
-    return b58encode(t, 78)
+        return key_data
 
 
 def rootxprv_from_seed(
@@ -167,15 +207,15 @@ def rootxprv_from_seed(
     if v not in _XPRV_VERSIONS_ALL:
         raise ValueError(f"unknown private key version: {v.hex()}")
 
-    d: BIP32KeyDict = {
-        "version": v,
-        "depth": 0,
-        "parent_fingerprint": b"\x00\x00\x00\x00",
-        "index": b"\x00\x00\x00\x00",
-        "chain_code": hd[32:],
-        "key": k,
-    }
-    return serialize(d)
+    key_data = BIP32KeyData(
+        version=v,
+        depth=0,
+        parent_fingerprint=b"\x00\x00\x00\x00",
+        index=b"\x00\x00\x00\x00",
+        chain_code=hd[32:],
+        key=k,
+    )
+    return key_data.serialize()
 
 
 def mxprv_from_bip39_mnemonic(
@@ -211,6 +251,9 @@ def mxprv_from_electrum_mnemonic(
         raise ValueError(f"unmanaged electrum mnemonic version: {version}")
 
 
+BIP32Key = Union[BIP32KeyData, String]
+
+
 def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     """Neutered Derivation (ND).
 
@@ -218,18 +261,22 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     private key (“neutered” as it removes the ability to sign transactions).
     """
 
-    xkey_dict = copy.copy(xprv) if isinstance(xprv, dict) else deserialize(xprv)
-    if xkey_dict["key"][0] != 0:
-        raise ValueError(f"not a private key: {serialize(xkey_dict).decode()}")
+    xkey_data = (
+        copy.copy(xprv)
+        if isinstance(xprv, BIP32KeyData)
+        else BIP32KeyData.deserialize(xprv)
+    )
+    if xkey_data.key[0] != 0:
+        raise ValueError(f"not a private key: {xkey_data.serialize().decode('ascii')}")
 
-    i = _XPRV_VERSIONS_ALL.index(xkey_dict["version"])
-    xkey_dict["version"] = _XPUB_VERSIONS_ALL[i]
+    i = _XPRV_VERSIONS_ALL.index(xkey_data.version)
+    xkey_data.version = _XPUB_VERSIONS_ALL[i]
 
-    q = int.from_bytes(xkey_dict["key"][1:], byteorder="big")
+    q = int.from_bytes(xkey_data.key[1:], byteorder="big")
     Q = mult(q)
-    xkey_dict["key"] = bytes_from_point(Q)
+    xkey_data.key = bytes_from_point(Q)
 
-    return serialize(xkey_dict)
+    return xkey_data.serialize()
 
 
 def _indexes_from_path(der_path: str) -> Tuple[List[bytes], bool]:
@@ -263,7 +310,17 @@ def _indexes_from_path(der_path: str) -> Tuple[List[bytes], bool]:
     return indexes, absolute
 
 
-def indexes_from_path(der_path: Path) -> Tuple[List[bytes], bool]:
+# BIP 32 derivation path
+# absolute path as "m/44h/0'/1H/0/10" string
+# relative path as "./0/10" string
+# relative path as sequence of integer indexes
+# relative one level child derivation with single 4-bytes index
+# relative one level child derivation with single integer index
+# TODO: allow also Iterable[bytes], while making mypy happy
+BIP32Path = Union[str, Iterable[int], int, bytes]
+
+
+def indexes_from_path(der_path: BIP32Path) -> Tuple[List[bytes], bool]:
     absolute = False
     if isinstance(der_path, str):
         der_path = der_path.strip()
@@ -280,67 +337,70 @@ def indexes_from_path(der_path: Path) -> Tuple[List[bytes], bool]:
     return indexes, absolute
 
 
-class _ExtendedBIP32KeyDict(BIP32KeyDict):
+@dataclass
+class _ExtendedBIP32KeyData(BIP32KeyData):
     # extensions used to cache intemediate results
     # in multi-level derivation: do not rely on them elsewhere
-    q: int  # non-zero for private key only
-    Q: Point  # non-Infinity for public key only
+    q: int = 0  # non-zero for private key only
+    Q: Point = INF  # non-Infinity for public key only
 
 
-def __ckd(d: _ExtendedBIP32KeyDict, index: bytes) -> None:
+def __ckd(key_data: _ExtendedBIP32KeyData, index: bytes) -> None:
 
     # FIXME the following check should be enforced
-    # if d["depth"] == 0 and index[0] < 0x80:
+    # if key_data.depth == 0 and index[0] < 0x80:
     #    raise UserWarning("public derivation at depth one level")
 
-    # d is a prvkey
-    if d["key"][0] == 0:
-        d["depth"] += 1
-        Pbytes = bytes_from_point(mult(d["q"]))
-        d["parent_fingerprint"] = hash160(Pbytes)[:4]
-        d["index"] = index
+    # key_data is a prvkey
+    if key_data.key[0] == 0:
+        key_data.depth += 1
+        Pbytes = bytes_from_point(mult(key_data.q))
+        key_data.parent_fingerprint = hash160(Pbytes)[:4]
+        key_data.index = index
         if index[0] >= 0x80:  # hardened derivation
-            h = hmac.digest(d["chain_code"], d["key"] + index, "sha512")
+            h = hmac.digest(key_data.chain_code, key_data.key + index, "sha512")
         else:  # normal derivation
-            h = hmac.digest(d["chain_code"], Pbytes + index, "sha512")
-        d["chain_code"] = h[32:]
+            h = hmac.digest(key_data.chain_code, Pbytes + index, "sha512")
+        key_data.chain_code = h[32:]
         offset = int.from_bytes(h[:32], byteorder="big")
-        d["q"] = (d["q"] + offset) % ec.n
-        d["key"] = b"\x00" + d["q"].to_bytes(32, "big")
-        d["Q"] = INF
-    # d is a pubkey
+        key_data.q = (key_data.q + offset) % ec.n
+        key_data.key = b"\x00" + key_data.q.to_bytes(32, "big")
+        key_data.Q = INF
+    # key_data is a pubkey
     else:
         if index[0] >= 0x80:
             raise ValueError("hardened derivation from public key")
-        d["depth"] += 1
-        d["parent_fingerprint"] = hash160(d["key"])[:4]
-        d["index"] = index
-        h = hmac.digest(d["chain_code"], d["key"] + index, "sha512")
-        d["chain_code"] = h[32:]
+        key_data.depth += 1
+        key_data.parent_fingerprint = hash160(key_data.key)[:4]
+        key_data.index = index
+        h = hmac.digest(key_data.chain_code, key_data.key + index, "sha512")
+        key_data.chain_code = h[32:]
         offset = int.from_bytes(h[:32], byteorder="big")
         Offset = mult(offset)
-        d["Q"] = ec.add(d["Q"], Offset)
-        d["key"] = bytes_from_point(d["Q"])
-        d["q"] = 0
+        key_data.Q = ec.add(key_data.Q, Offset)
+        key_data.key = bytes_from_point(key_data.Q)
+        key_data.q = 0
 
 
 def _derive(
-    xkey_dict: BIP32KeyDict, der_path: Path, forced_version: Optional[Octets] = None
-) -> BIP32KeyDict:
+    xkey_data: BIP32KeyData,
+    der_path: BIP32Path,
+    forced_version: Optional[Octets] = None,
+) -> BIP32KeyData:
 
     indexes, absolute = indexes_from_path(der_path)
 
-    if absolute and xkey_dict["depth"] != 0:
+    if absolute and xkey_data.depth != 0:
         err_msg = "absolute derivation path for non-root master key"
         raise ValueError(err_msg)
 
-    final_depth = xkey_dict["depth"] + len(indexes)
+    final_depth = xkey_data.depth + len(indexes)
     if final_depth > 255:
         err_msg = f"derivation path final depth greater than 255: {final_depth}"
         raise ValueError(err_msg)
 
     if forced_version is not None:
-        version = xkey_dict["version"]
+        version = xkey_data.version
         fversion = bytes_from_octets(forced_version, 4)
         if version in _XPRV_VERSIONS_ALL and fversion not in _XPRV_VERSIONS_ALL:
             err_msg = "invalid non-private version forced on a private key: "
@@ -351,33 +411,29 @@ def _derive(
             err_msg += f"{hex_string(fversion)}"
             raise ValueError(err_msg)
 
-    is_prv = xkey_dict["key"][0] == 0
-    # no idea why mypy does complain about the following cleaner line
-    # d = {**xkey_dict, "q": 0, "Q": INF}
-    # so, while waiting for the even better python 3.9
-    # d = xkey_dict | {"q": 0, "Q": INF}
-    # let's make mypy happy with boring code like the following
-    d: _ExtendedBIP32KeyDict = {
-        "version": xkey_dict["version"],
-        "depth": xkey_dict["depth"],
-        "parent_fingerprint": xkey_dict["parent_fingerprint"],
-        "index": xkey_dict["index"],
-        "chain_code": xkey_dict["chain_code"],
-        "key": xkey_dict["key"],
-        # extensions used for caching of intermediate results
-        "q": (int.from_bytes(xkey_dict["key"][1:], byteorder="big") if is_prv else 0),
-        "Q": (INF if is_prv else point_from_octets(xkey_dict["key"], ec)),
-    }
+    is_prv = xkey_data.key[0] == 0
+    q = int.from_bytes(xkey_data.key[1:], byteorder="big") if is_prv else 0
+    Q = INF if is_prv else point_from_octets(xkey_data.key, ec)
+    key_data = _ExtendedBIP32KeyData(
+        version=xkey_data.version,
+        depth=xkey_data.depth,
+        parent_fingerprint=xkey_data.parent_fingerprint,
+        index=xkey_data.index,
+        chain_code=xkey_data.chain_code,
+        key=xkey_data.key,
+        q=q,
+        Q=Q,
+    )
     for index in indexes:
-        __ckd(d, index)
+        __ckd(key_data, index)
     if forced_version is not None:
-        d["version"] = fversion
+        key_data.version = fversion
 
-    return d
+    return key_data
 
 
 def derive(
-    xkey: BIP32Key, der_path: Path, forced_version: Optional[Octets] = None
+    xkey: BIP32Key, der_path: BIP32Path, forced_version: Optional[Octets] = None
 ) -> bytes:
     """Derive a BIP32 key across a path spanning multiple depth levels.
 
@@ -389,20 +445,24 @@ def derive(
     - relative one level child derivation with single integer index
     - relative one level child derivation with single 4-bytes index
 
-    Path is case/blank/extra-slash insensitive
+    BIP32Path is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
-    d = deserialize(xkey)
-    d = _derive(d, der_path, forced_version)
-    return serialize(d)
+    key_data = (
+        copy.copy(xkey)
+        if isinstance(xkey, BIP32KeyData)
+        else BIP32KeyData.deserialize(xkey)
+    )
+    key_data = _derive(key_data, der_path, forced_version)
+    return key_data.serialize()
 
 
 def _derive_from_account(
-    d: BIP32KeyDict,
+    key_data: BIP32KeyData,
     branch: int,
     address_index: int,
     more_than_two_branches: bool = False,
-) -> BIP32KeyDict:
+) -> BIP32KeyData:
 
     if more_than_two_branches and branch >= 0x80000000:
         raise ValueError("invalid private derivation at branch level")
@@ -412,10 +472,10 @@ def _derive_from_account(
     if address_index >= 0x80000000:
         raise ValueError("invalid private derivation at address index level")
 
-    if d["index"][0] < 0x80:
+    if key_data.index[0] < 0x80:
         raise UserWarning("public derivation at account level")
 
-    return _derive(d, f"./{branch}/{address_index}")
+    return _derive(key_data, f"./{branch}/{address_index}")
 
 
 def derive_from_account(
@@ -425,46 +485,56 @@ def derive_from_account(
     more_than_two_branches: bool = False,
 ) -> bytes:
 
-    d = deserialize(account_xkey)
-    d = _derive_from_account(d, branch, address_index, more_than_two_branches)
-    return serialize(d)
+    key_data = (
+        copy.copy(account_xkey)
+        if isinstance(account_xkey, BIP32KeyData)
+        else BIP32KeyData.deserialize(account_xkey)
+    )
+    key_data = _derive_from_account(
+        key_data, branch, address_index, more_than_two_branches
+    )
+    return key_data.serialize()
 
 
 def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
 
-    if isinstance(parent_xpub, dict):
+    if isinstance(parent_xpub, BIP32KeyData):
         p = copy.copy(parent_xpub)
     else:
-        p = deserialize(parent_xpub)
+        p = BIP32KeyData.deserialize(parent_xpub)
 
-    if p["key"][0] not in (2, 3):
+    if p.key[0] not in (2, 3):
         m = "extended parent key is not a public key: "
-        m += f"{serialize(p).decode()}"
+        m += f"{p.serialize().decode('ascii')}"
         raise ValueError(m)
 
-    c = child_xprv if isinstance(child_xprv, dict) else deserialize(child_xprv)
-    if c["key"][0] != 0:
-        m = f"extended child key is not a private key: {serialize(c).decode()}"
+    c = (
+        child_xprv
+        if isinstance(child_xprv, BIP32KeyData)
+        else BIP32KeyData.deserialize(child_xprv)
+    )
+    if c.key[0] != 0:
+        m = f"extended child key is not a private key: {c.serialize().decode('ascii')}"
         raise ValueError(m)
 
     # check depth
-    if c["depth"] != p["depth"] + 1:
+    if c.depth != p.depth + 1:
         raise ValueError("not a parent's child: wrong depths")
 
     # check fingerprint
-    if c["parent_fingerprint"] != hash160(p["key"])[:4]:
+    if c.parent_fingerprint != hash160(p.key)[:4]:
         raise ValueError("not a parent's child: wrong parent fingerprint")
 
     # check normal derivation
-    if c["index"][0] >= 0x80:
+    if c.index[0] >= 0x80:
         raise ValueError("hardened child derivation")
 
-    p["version"] = c["version"]
+    p.version = c.version
 
-    h = hmac.digest(p["chain_code"], p["key"] + c["index"], "sha512")
-    child_q = int.from_bytes(c["key"][1:], byteorder="big")
+    h = hmac.digest(p.chain_code, p.key + c.index, "sha512")
+    child_q = int.from_bytes(c.key[1:], byteorder="big")
     offset = int.from_bytes(h[:32], byteorder="big")
     parent_q = (child_q - offset) % ec.n
-    p["key"] = b"\x00" + parent_q.to_bytes(32, byteorder="big")
+    p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big")
 
-    return serialize(p)
+    return p.serialize()

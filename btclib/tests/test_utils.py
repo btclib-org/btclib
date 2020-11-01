@@ -11,9 +11,11 @@
 "Tests for `btclib.utils` module."
 
 import secrets
+from typing import List
 
 import pytest
 
+from btclib.alias import ScriptToken
 from btclib.tests.test_to_key import (
     net_unaware_compressed_pub_keys,
     net_unaware_uncompressed_pub_keys,
@@ -25,6 +27,8 @@ from btclib.utils import (
     hash256,
     hex_string,
     int_from_integer,
+    token_or_string_to_hex_string,
+    token_or_string_to_printable,
 )
 
 
@@ -71,3 +75,12 @@ def test_hex_string() -> None:
     a = -1
     with pytest.raises(ValueError, match="negative integer: "):
         hex_string(a)
+
+
+def test_printable() -> None:
+    test: List[ScriptToken] = [0, b"\xaa\xbb", "ok"]
+
+    assert token_or_string_to_printable(test) == [0, "aabb", "ok"]
+    assert token_or_string_to_hex_string("ok") == "ok"
+    assert token_or_string_to_hex_string(b"\xaa\xbb") == "aabb"
+    assert token_or_string_to_hex_string(10) == "10"

@@ -137,14 +137,14 @@ from hashlib import sha256
 from typing import Optional, Tuple
 
 from . import dsa
-from .alias import BMSig, BMSigTuple, PrvKey, String
+from .alias import BMSig, BMSigTuple, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import wif_from_prvkey
 from .bech32address import p2wpkh, witness_from_b32address
 from .curve import mult, secp256k1
 from .network import NETWORKS
 from .secpoint import bytes_from_point
-from .to_prvkey import prvkeyinfo_from_prvkey
+from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
 from .utils import hash160
 
 
@@ -297,11 +297,11 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
         _, h160, _, is_script_hash = witness_from_b32address(addr)
         is_b58 = False
 
-    compressed = False if rf < 31 else True
+    compressed = rf >= 31
     # signature is valid only if the provided address is matched
     pubkey = bytes_from_point(Q, compressed=compressed)
     if is_b58:
-        if is_script_hash and 30 < rf and rf < 39:  # P2WPKH-P2SH
+        if is_script_hash and rf > 30 and rf < 39:  # P2WPKH-P2SH
             script_pk = b"\x00\x14" + hash160(pubkey)
             if hash160(script_pk) != h160:
                 raise ValueError(f"wrong p2wpkh-p2sh address: {addr!r}")

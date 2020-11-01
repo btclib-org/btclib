@@ -14,9 +14,9 @@
 
 from typing import Optional, Tuple
 
-from .alias import HashF, Key, Script, String
+from .alias import HashF, Script, String
 from .script import encode
-from .to_pubkey import pubkeyinfo_from_key
+from .to_pubkey import Key, pubkeyinfo_from_key
 from .utils import hash160, sha256
 
 _H160Net = Tuple[bytes, str]

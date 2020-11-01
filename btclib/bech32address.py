@@ -44,10 +44,11 @@ with the following modifications:
 
 from typing import Iterable, List, Optional, Tuple
 
-from .alias import Key, Octets, Script, String
+from .alias import Octets, Script, String
 from .bech32 import b32decode, b32encode
 from .hashes import hash160_from_key, hash256_from_script
 from .network import NETWORKS, network_from_key_value
+from .to_pubkey import Key
 from .utils import bytes_from_octets
 
 # 0. bech32 facilities
@@ -142,7 +143,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     witprog = _convertbits(data[1:], 5, 8, False)
     _check_witness(witvers, bytes(witprog))
 
-    is_script_hash = False if witvers == 0 and len(witprog) == 20 else True
+    is_script_hash = witvers != 0 or len(witprog) != 20
     return witvers, bytes(witprog), network, is_script_hash
 
 

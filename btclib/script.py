@@ -12,7 +12,7 @@
 
 https://en.bitcoin.it/wiki/Script
 
-Scripts are represented by List[Token], where Token = Union[int, str, bytes]:
+Scripts are represented by List[ScriptToken], where ScriptToken = Union[int, str, bytes]:
 
 * int [-1, 16] are shorcuts for 'OP_1NEGATE', 'OP_0' - 'OP_16'
 * str are for opcodes (e.g. 'OP_HASH160') or hexstring data
@@ -22,7 +22,7 @@ Scripts are represented by List[Token], where Token = Union[int, str, bytes]:
 from typing import List
 
 from . import varint
-from .alias import BinaryData, Octets, Token
+from .alias import BinaryData, Octets, ScriptToken
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
 SIGHASH_ALL = 1
@@ -304,7 +304,7 @@ def _op_str(token: str) -> bytes:
     return _op_pushdata(data)
 
 
-def encode(script: List[Token]) -> bytes:
+def encode(script: List[ScriptToken]) -> bytes:
     r = b""
     for token in script:
         if isinstance(token, int):
@@ -318,11 +318,11 @@ def encode(script: List[Token]) -> bytes:
     return r
 
 
-def decode(stream: BinaryData) -> List[Token]:
+def decode(stream: BinaryData) -> List[ScriptToken]:
 
     s = bytesio_from_binarydata(stream)
     # initialize the result list
-    r: List[Token] = []
+    r: List[ScriptToken] = []
     while True:
         # get one byte
         t = s.read(1)
@@ -367,14 +367,14 @@ def decode(stream: BinaryData) -> List[Token]:
     return r
 
 
-def serialize(script: List[Token]) -> bytes:
+def serialize(script: List[ScriptToken]) -> bytes:
     r = encode(script)
     # prepend length as varint
     length = len(r)
     return varint.encode(length) + r
 
 
-def deserialize(stream: BinaryData) -> List[Token]:
+def deserialize(stream: BinaryData) -> List[ScriptToken]:
 
     stream = bytesio_from_binarydata(stream)
 

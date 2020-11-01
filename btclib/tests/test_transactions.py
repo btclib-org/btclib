@@ -9,30 +9,31 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 "Tests for `btclib.tx` module."
+from typing import List
 
 import pytest
 
 from btclib import tx, tx_in, tx_out
+from btclib.alias import String
 
 
-def test_coinbase_1() -> None:
+def test_block_1() -> None:
 
-    block_1_coinbase_bytes = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"
-    block_1_coinbase_input_bytes = "0000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff"
-    block_1_coinbase_output_bytes = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
+    coinbase = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"
+    transaction = tx.Tx.deserialize(coinbase)
+    assert transaction.serialize().hex() == coinbase
 
-    transaction_in = tx_in.TxIn.deserialize(block_1_coinbase_input_bytes)
-    transaction_out = tx_out.TxOut.deserialize(block_1_coinbase_output_bytes)
-    transaction = tx.Tx.deserialize(block_1_coinbase_bytes)
+    coinbase_inp = "0000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff"
+    transaction_in = tx_in.TxIn.deserialize(coinbase_inp)
+    assert transaction_in.serialize().hex() == coinbase_inp
+
+    coinbase_out = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
+    transaction_out = tx_out.TxOut.deserialize(coinbase_out)
+    assert transaction_out.serialize().hex() == coinbase_out
 
     assert transaction.vin[0].scriptSig == transaction_in.scriptSig
-    assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
-
-    assert transaction.serialize().hex() == block_1_coinbase_bytes
-    assert transaction_in.serialize().hex() == block_1_coinbase_input_bytes
-    assert transaction_out.serialize().hex() == block_1_coinbase_output_bytes
-
     assert transaction.vin[0].scriptSig == []
+    assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
 
     assert (
         transaction.txid
@@ -96,6 +97,31 @@ def test_double_witness() -> None:
 
     assert transaction.serialize().hex() == tx_bytes
 
+    # Test witnesses as bytes
+
+    witness1: List[String] = [
+        bytes.fromhex(
+            "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01"
+        ),
+        bytes.fromhex(
+            "0334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e16"
+        ),
+    ]
+
+    witness2: List[String] = [
+        bytes.fromhex(
+            "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901"
+        ),
+        bytes.fromhex(
+            "030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d7314"
+        ),
+    ]
+
+    transaction.vin[0].txinwitness = witness1
+    transaction.vin[1].txinwitness = witness2
+
+    assert transaction.serialize().hex() == tx_bytes
+
     assert len(transaction.vin) == 2
     assert len(transaction.vout) == 2
     assert transaction.nLockTime == 0
@@ -115,20 +141,15 @@ def test_double_witness() -> None:
 
 
 def test_invalid_tx_in() -> None:
-    transaction_input = tx_in.TxIn(
-        prevout=tx_in.OutPoint("00" * 31 + "01", 256 ** 4 - 1),
+    tx_in1 = tx_in.TxIn(
+        prevout=tx_in.OutPoint("00" * 31 + "01", 0xFFFFFFFF),
         scriptSig=[],
         scriptSigHex="",
         nSequence=1,
         txinwitness=[],
     )
 
-    with pytest.raises(ValueError):
-        transaction_input.assert_valid()
-
-
-def test_invalid_tx_in2() -> None:
-    transaction_input = tx_in.TxIn(
+    tx_in2 = tx_in.TxIn(
         prevout=tx_in.OutPoint("00" * 32, 0),
         scriptSig=[],
         scriptSigHex="",
@@ -136,41 +157,38 @@ def test_invalid_tx_in2() -> None:
         txinwitness=[],
     )
 
-    with pytest.raises(ValueError):
-        transaction_input.assert_valid()
+    tx_in3 = tx_in.TxIn(
+        prevout=tx_in.OutPoint("deadbeef" * 8, -1),
+        scriptSig=[],
+        scriptSigHex="",
+        nSequence=1,
+        txinwitness=[],
+    )
+
+    tx_in4 = tx_in.TxIn(
+        prevout=tx_in.OutPoint("deadbeef" * 7, 18),
+        scriptSig=[],
+        scriptSigHex="",
+        nSequence=1,
+        txinwitness=[],
+    )
+
+    for transaction_input in (tx_in1, tx_in2, tx_in3, tx_in4):
+        with pytest.raises(ValueError):
+            transaction_input.assert_valid()
 
 
 def test_invalid_tx_out() -> None:
-    transaction_output = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
+    tx_out1 = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
+    tx_out2 = tx_out.TxOut(nValue=2099999997690001, scriptPubKey=["OP_RETURN"])
+    tx_out3 = tx_out.TxOut(nValue=1, scriptPubKey=[])
 
-    with pytest.raises(ValueError):
-        transaction_output.assert_valid()
-
-
-def test_invalid_tx_out2() -> None:
-    transaction_output = tx_out.TxOut(
-        nValue=2099999997690001, scriptPubKey=["OP_RETURN"]
-    )
-
-    with pytest.raises(ValueError):
-        transaction_output.assert_valid()
+    for transaction_output in (tx_out1, tx_out2, tx_out3):
+        with pytest.raises(ValueError):
+            transaction_output.assert_valid()
 
 
-def test_invalid_tx_out3() -> None:
-    transaction_output = tx_out.TxOut(nValue=1, scriptPubKey=[])
-
-    with pytest.raises(ValueError):
-        transaction_output.assert_valid()
-
-
-def test_missing_tx_in() -> None:
-    transaction = tx.Tx(0, 0, [], [])
-    err_msg = "A transaction must have at least one input"
-    with pytest.raises(ValueError, match=err_msg):
-        transaction.assert_valid()
-
-
-def test_missing_tx_out() -> None:
+def test_invalid_tx() -> None:
     transaction_input = tx_in.TxIn(
         prevout=tx_in.OutPoint("ff" * 32, 0),
         scriptSig=[],
@@ -178,7 +196,9 @@ def test_missing_tx_out() -> None:
         nSequence=1,
         txinwitness=[],
     )
-    transaction = tx.Tx(0, 0, [transaction_input], [])
-    err_msg = "A transaction must have at least one output"
-    with pytest.raises(ValueError, match=err_msg):
-        transaction.assert_valid()
+    tx1 = tx.Tx(0, 0, [transaction_input], [])
+    tx2 = tx.Tx(0, 0, [], [])
+    err_msg = "A transaction must have at least one "
+    for transaction in (tx1, tx2):
+        with pytest.raises(ValueError, match=err_msg):
+            transaction.assert_valid()

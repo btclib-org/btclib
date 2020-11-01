@@ -15,7 +15,7 @@ from typing import List
 import pytest
 
 from btclib import script
-from btclib.alias import Token
+from btclib.alias import ScriptToken
 
 
 def test_operators() -> None:
@@ -45,7 +45,7 @@ def test_operators() -> None:
 
 
 def test_simple() -> None:
-    script_list: List[List[Token]] = [
+    script_list: List[List[ScriptToken]] = [
         [2, 3, "OP_ADD", 5, "OP_EQUAL"],
         ["1ADD", "OP_1ADD", "1ADE", "OP_EQUAL"],
         [hex(26)[2:].upper(), -1, "OP_ADD", hex(26)[2:].upper(), "OP_EQUAL"],
@@ -68,7 +68,7 @@ def test_simple() -> None:
 
 def test_exceptions() -> None:
 
-    scriptPubKey: List[Token] = [2, 3, "OP_ADD", 5, "OP_VERIF"]
+    scriptPubKey: List[ScriptToken] = [2, 3, "OP_ADD", 5, "OP_VERIF"]
     err_msg = "invalid string token: OP_VERIF"
     with pytest.raises(ValueError, match=err_msg):
         script.encode(scriptPubKey)
@@ -93,7 +93,10 @@ def test_exceptions() -> None:
 
 def test_nulldata() -> None:
 
-    scripts: List[List[Token]] = [["OP_RETURN", "11" * 79], ["OP_RETURN", "00" * 79]]
+    scripts: List[List[ScriptToken]] = [
+        ["OP_RETURN", "11" * 79],
+        ["OP_RETURN", "00" * 79],
+    ]
     for scriptPubKey in scripts:
         assert scriptPubKey == script.decode(script.encode(scriptPubKey))
         assert scriptPubKey == script.decode(script.encode(scriptPubKey).hex())

@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from math import ceil
 from typing import List, Type, TypeVar
 
+from dataclasses_json import DataClassJsonMixin
+
 from . import varint
 from .alias import BinaryData
 from .tx_in import TxIn, witness_deserialize, witness_serialize
@@ -29,14 +31,14 @@ _Tx = TypeVar("_Tx", bound="Tx")
 
 
 @dataclass
-class Tx:
+class Tx(DataClassJsonMixin):
     nVersion: int
     nLockTime: int
     vin: List[TxIn]
     vout: List[TxOut]
 
     @classmethod
-    def deserialize(cls: Type[_Tx], data: BinaryData) -> _Tx:
+    def deserialize(cls: Type[_Tx], data: BinaryData, assert_valid: bool = True) -> _Tx:
         stream = bytesio_from_binarydata(data)
         nVersion = int.from_bytes(stream.read(4), "little")
         view: bytes = stream.getvalue()
@@ -59,11 +61,19 @@ class Tx:
                 witness = witness_deserialize(stream)
                 tx_input.txinwitness = witness
         nLockTime = int.from_bytes(stream.read(4), "little")
+
         tx = cls(nVersion=nVersion, nLockTime=nLockTime, vin=vin, vout=vout)
-        tx.assert_valid()
+        if assert_valid:
+            tx.assert_valid()
         return tx
 
-    def serialize(self, include_witness: bool = True) -> bytes:
+    def serialize(
+        self, include_witness: bool = True, assert_valid: bool = True
+    ) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
         out = self.nVersion.to_bytes(4, "little")
         witness_flag = False
         out += varint.encode(len(self.vin))
@@ -111,3 +121,5 @@ class Tx:
             raise ValueError("A transaction must have at least one output")
         for tx_out in self.vout:
             tx_out.assert_valid()
+
+        # TODO check nVersion and nLockTime

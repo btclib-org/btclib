@@ -14,7 +14,7 @@ mypy aliases, documenting also coding imput conventions.
 """
 
 from io import BytesIO
-from typing import Any, Callable, Iterable, List, Tuple, TypedDict, Union
+from typing import Any, Callable, List, Tuple, Union
 
 # binary octets are eight-bit bytes or hex-string (not text string)
 #
@@ -89,45 +89,6 @@ BinStr = str
 Entropy = Union[BinStr, int, bytes]
 
 
-# BIP 32 derivation path
-# absolute path as "m/44h/0'/1H/0/10" string
-# relative path as "./0/10" string
-# relative path as sequence of integer indexes
-# relative one level child derivation with single 4-bytes index
-# relative one level child derivation with single integer index
-# TODO: allow also Iterable[bytes], while making mypy happy
-Path = Union[str, Iterable[int], int, bytes]
-
-
-# BIP 32 extended key as a TypedDict
-class BIP32KeyDict(TypedDict):
-    version: bytes
-    depth: int
-    parent_fingerprint: bytes
-    index: bytes
-    chain_code: bytes
-    key: bytes
-
-
-BIP32Key = Union[BIP32KeyDict, String]
-
-# private key inputs:
-# integer as Union[int, Octets]
-# BIP32key as BIP32Key
-# WIF as String
-#
-# BIP32key and WIF also provide extra info about
-# network and (un)compressed-pubkey-derivation
-PrvKey = Union[int, bytes, str, BIP32KeyDict]
-
-# public key inputs:
-# elliptic curve point as Union[Octets, BIP32Key, Point]
-PubKey = Union[bytes, str, BIP32KeyDict, Point]
-
-# public or private key input,
-# usable wherever a PubKey is logically expected
-Key = Union[int, bytes, str, BIP32KeyDict, Point]
-
 # ECDSA signature
 # (r, s)
 # both r and s are scalar: 0 < r < ec.n, 0 < s < ec.n
@@ -157,9 +118,15 @@ SSASig = Union[SSASigTuple, Octets]
 # other integers are bytes encoded (require push operation)
 # ascii str are for opcodes (e.g. 'OP_HASH160')
 # Octets are for data to be pushed
-Token = Union[int, str, bytes]
+ScriptToken = Union[int, str, bytes]
 
-# Bitcoin script expressed as List[Token]
+# Bitcoin script expressed as List[ScriptToken]
 # e.g. [OP_HASH160, script_h160, OP_EQUAL]
 # or Octets of its byte-encoded representation
-Script = Union[Octets, List[Token]]
+Script = Union[Octets, List[ScriptToken]]
+
+# A fingerprint is represented as 4 bytes or his string representation
+Fingerprint = Union[str, bytes]
+
+# Object that can be textually saved without any conversion
+Printable = Union[int, str]

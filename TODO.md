@@ -15,7 +15,6 @@
 - add wallet infrastructure
 - add sign(address, msg) using wallet infrastrucure
 - isinstance(entr, bytearray) or isinstance(entr, bytes)
-- revise ansi_x963_kdf
 - optimizations:
     - https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication
     - https://cryptojedi.org/peter/data/eccss-20130911b.pdf

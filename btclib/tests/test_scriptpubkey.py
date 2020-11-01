@@ -53,7 +53,7 @@ def test_nulldata() -> None:
     assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
 
     # data -> payload in this case is invertible (no hash functions)
-    assert payload.decode() == string
+    assert payload.decode("ascii") == string
 
     err_msg = "no address for null data script"
     with pytest.raises(ValueError, match=err_msg):
@@ -528,11 +528,11 @@ def test_p2ms_p2sh() -> None:
         errmsg = f"Test vector #{int(i)}"
         scriptPubKey = p2ms(keys, m)
         addr = base58address.p2sh(scriptPubKey)
-        assert addr.decode() == address, errmsg
+        assert addr.decode("ascii") == address, errmsg
 
         scriptPubKey = scriptPubKey_from_payload("p2ms", keys, m)
         addr = base58address.p2sh(scriptPubKey)
-        assert addr.decode() == address, errmsg
+        assert addr.decode("ascii") == address, errmsg
 
         script_type, payload, m2 = payload_from_scriptPubKey(scriptPubKey)
         assert script_type == "p2ms", errmsg

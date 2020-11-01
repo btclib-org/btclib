@@ -10,9 +10,9 @@
 
 from typing import Optional, Tuple
 
-from . import bip32
-from .alias import BIP32Key, PrvKey, String
+from .alias import String, Union
 from .base58 import b58decode
+from .bip32 import BIP32Key, BIP32KeyData
 from .curve import Curve, secp256k1
 from .network import (
     NETWORKS,
@@ -22,6 +22,15 @@ from .network import (
 )
 from .utils import bytes_from_octets
 
+# private key inputs:
+# integer as Union[int, Octets]
+# BIP32key as BIP32Key
+# WIF as String
+#
+# BIP32key and WIF also provide extra info about
+# network and (un)compressed-pubkey-derivation
+PrvKey = Union[int, bytes, str, BIP32KeyData]
+
 
 def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer.
@@ -29,7 +38,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     It supports:
 
     - WIF (bytes or string)
-    - BIP32 extended keys (bytes, string, or BIP32KeyDict)
+    - BIP32 extended keys (bytes, string, or BIP32KeyData)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - integer (native int or hex-strin)
 
@@ -39,7 +48,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
 
     if isinstance(prvkey, int):
         q = prvkey
-    elif isinstance(prvkey, dict):
+    elif isinstance(prvkey, BIP32KeyData):
         q, network, _ = _prvkeyinfo_from_xprv(prvkey)
         # q has been validated on the xprv/wif network
         ec2 = NETWORKS[network]["curve"]
@@ -130,26 +139,26 @@ def _prvkeyinfo_from_xprv(
     if not compressed:
         raise ValueError("uncompressed SEC / compressed BIP32 mismatch")
 
-    if isinstance(xprv, dict):
-        # ensure it is a valid BIP32KeyDict
-        bip32.serialize(xprv)
+    if isinstance(xprv, BIP32KeyData):
+        # ensure it is a valid BIP32KeyData
+        xprv.serialize()
     else:
-        xprv = bip32.deserialize(xprv)
+        xprv = BIP32KeyData.deserialize(xprv)
 
-    if xprv["key"][0] != 0:
-        m = f"not a private key: {bip32.serialize(xprv).decode()}"
+    if xprv.key[0] != 0:
+        m = f"not a private key: {xprv.serialize().decode('ascii')}"
         raise ValueError(m)
 
     if network is not None:
         allowed_versions = xprvversions_from_network(network)
-        if xprv["version"] not in allowed_versions:
+        if xprv.version not in allowed_versions:
             m = f"not a {network} key: "
-            m += f"{bip32.serialize(xprv).decode()}"
+            m += f"{xprv.serialize().decode('ascii')}"
             raise ValueError(m)
     else:
-        network = network_from_xkeyversion(xprv["version"])
+        network = network_from_xkeyversion(xprv.version)
 
-    q = int.from_bytes(xprv["key"][1:], byteorder="big")
+    q = int.from_bytes(xprv.key[1:], byteorder="big")
     return q, network, True
 
 
@@ -161,7 +170,7 @@ def _prvkeyinfo_from_xprvwif(
     Support WIF or BIP32 xprv.
     """
 
-    if not isinstance(xprvwif, dict):
+    if not isinstance(xprvwif, BIP32KeyData):
         try:
             return _prvkeyinfo_from_wif(xprvwif, network, compressed)
         # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
@@ -181,7 +190,7 @@ def prvkeyinfo_from_prvkey(
 
     if isinstance(prvkey, int):
         q = prvkey
-    elif isinstance(prvkey, dict):
+    elif isinstance(prvkey, BIP32KeyData):
         return _prvkeyinfo_from_xprv(prvkey, network, compressed)
     else:
         try:
