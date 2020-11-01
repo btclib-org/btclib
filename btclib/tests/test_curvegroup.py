@@ -39,6 +39,7 @@ from btclib.tests.test_curve import all_curves, low_card_curves
 ec23_31 = low_card_curves["ec23_31"]
 
 
+@pytest.mark.third
 def test_mult_recursive_aff() -> None:
     for ec in all_curves.values():
         assert _mult_recursive_aff(0, ec.G, ec) == INF
@@ -134,6 +135,7 @@ def test_mult_aff() -> None:
         assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
 
+@pytest.mark.sixth
 def test_mult_jac() -> None:
     for ec in all_curves.values():
         assert ec._jac_equality(_mult_jac(0, ec.GJ, ec), INFJ)
