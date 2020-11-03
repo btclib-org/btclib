@@ -13,7 +13,7 @@ from typing import List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import script, varint
+from . import script
 from .alias import BinaryData, ScriptToken
 from .utils import bytesio_from_binarydata, token_or_string_to_printable
 
@@ -32,9 +32,10 @@ class TxOut(DataClassJsonMixin):
         cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
+        # 8 bytes, little endian, interpreted as int
         nValue = int.from_bytes(stream.read(8), "little")
-        script_length = varint.decode(stream)
-        scriptPubKey = script.decode(stream.read(script_length))
+
+        scriptPubKey = script.deserialize(stream)
 
         tx_out = cls(nValue=nValue, scriptPubKey=scriptPubKey)
         if assert_valid:
@@ -51,9 +52,10 @@ class TxOut(DataClassJsonMixin):
         return out
 
     def assert_valid(self) -> None:
+        # must be a 8-bytes int
         if self.nValue < 0:
             raise ValueError(f"negative nValue: {self.nValue}")
-        if self.nValue > 2099999997690000:
-            raise ValueError(f"nValue too high: {self.nValue}")
+        if self.nValue > 0xFFFFFFFFFFFFFFFF:
+            raise ValueError(f"nValue too high: {hex(self.nValue)}")
         if len(self.scriptPubKey) == 0:
             raise ValueError("empty scriptPubKey")
