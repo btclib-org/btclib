@@ -55,12 +55,12 @@ def test_b58address_from_h160() -> None:
 
 
 def test_p2pkh_from_wif() -> None:
-    seed = b"00" * 32  # better be a documented test case
+    seed = b"\x00" * 32  # better be a documented test case
     rxprv = bip32.rootxprv_from_seed(seed)
     path = "m/0h/0h/12"
     xprv = bip32.derive(rxprv, path)
     wif = wif_from_prvkey(xprv)
-    assert wif == b"KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP"
+    assert wif == b"L2L1dqRmkmVtwStNf5wg8nnGaRn3buoQr721XShM4VwDbTcn9bpm"
     pubkey, _ = pubkeyinfo_from_prvkey(wif)
     address = p2pkh(pubkey)
     xpub = bip32.xpub_from_xprv(xprv)
