@@ -369,9 +369,8 @@ def decode(stream: BinaryData) -> List[ScriptToken]:
 
 def serialize(script: List[ScriptToken]) -> bytes:
     r = encode(script)
-    # prepend length as varint
-    length = len(r)
-    return varint.encode(length) + r
+    # prepend length encoded as varint
+    return varint.encode(len(r)) + r
 
 
 def deserialize(stream: BinaryData) -> List[ScriptToken]:
