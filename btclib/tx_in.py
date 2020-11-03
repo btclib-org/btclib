@@ -15,7 +15,11 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varint
 from .alias import BinaryData, ScriptToken, String
-from .utils import bytesio_from_binarydata, token_or_string_to_printable
+from .utils import (
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    token_or_string_to_printable,
+)
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
@@ -29,10 +33,14 @@ class OutPoint(DataClassJsonMixin):
     def deserialize(
         cls: Type[_OutPoint], data: BinaryData, assert_valid: bool = True
     ) -> _OutPoint:
-        # TODO could/should we check that all data is consumed
+        "Return an OutPoint from the first 36 bytes of the provided data."
+
         data = bytesio_from_binarydata(data)
+        # 32 bytes, little endian
         hash = data.read(32)[::-1].hex()
+        # 4 bytes, little endian, interpreted as int
         n = int.from_bytes(data.read(4), "little")
+        # TODO could/should we check that all data is consumed
 
         result = cls(hash, n)
         if assert_valid:
@@ -40,6 +48,7 @@ class OutPoint(DataClassJsonMixin):
         return result
 
     def serialize(self, assert_valid: bool = True) -> bytes:
+        "Return the 36 bytes serialization of the OutPoint."
 
         if assert_valid:
             self.assert_valid()
@@ -49,12 +58,15 @@ class OutPoint(DataClassJsonMixin):
         return out
 
     def assert_valid(self) -> None:
+        # must be a 32 bytes
         if len(self.hash) != 64:
-            m = f"invalid OutPoint tx_id lenght: {len(self.hash)}"
-            m += " bytes instead of 64"
+            m = f"invalid OutPoint hash: {len(self.hash)}"
+            m += " instead of 32 bytes"
             raise ValueError(m)
+        # must be a 4-bytes int
         if self.n < 0 or self.n > 0xFFFFFFFF:
             raise ValueError(f"invalid OutPoint n: {self.n}")
+        #
         if (self.hash == "00" * 32) ^ (self.n == 0xFFFFFFFF):
             raise ValueError("invalid OutPoint")
 
@@ -80,9 +92,7 @@ class TxIn(DataClassJsonMixin):
     ) -> _TxIn:
         stream = bytesio_from_binarydata(data)
         prevout = OutPoint.deserialize(stream)
-        is_coinbase = False
-        if prevout.hash == "00" * 32 and prevout.n == 0xFFFFFFFF:
-            is_coinbase = True
+        is_coinbase = prevout.hash == "00" * 32 and prevout.n == 0xFFFFFFFF
         script_length = varint.decode(stream)
         scriptSig: List[ScriptToken] = []
         scriptSigHex = ""
@@ -90,6 +100,7 @@ class TxIn(DataClassJsonMixin):
             scriptSigHex = stream.read(script_length).hex()
         else:
             scriptSig = script.decode(stream.read(script_length))
+        # 4 bytes, little endian, interpreted as int
         nSequence = int.from_bytes(stream.read(4), "little")
         txinwitness: List[String] = []
 
