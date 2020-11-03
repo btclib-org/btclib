@@ -485,8 +485,8 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     while m > 0:
         # the doubling part of 'double & add'
         Q = ec._double_jac(Q)
-        # always perform the 'add', even if useless, to be constant-time
-        # if least significant bit of m is 1, then add Q to R[0]
+        # always perform the addition, even if useless, to be constant-time
+        # but use it as R[0] only if least significant bit of m is 1
         R[not (m & 1)] = ec._add_jac(R[0], Q)
         m >>= 1
     return R[0]
@@ -658,9 +658,6 @@ def _mult_fixed_window(
     return R
 
 
-_mult = _mult_fixed_window
-
-
 def _mult_fixed_window_cached(
     m: int, Q: JacPoint, ec: CurveGroup, w: int = 4
 ) -> JacPoint:
@@ -699,6 +696,9 @@ def _mult_fixed_window_cached(
         # only 'add'
         R = ec._add_jac(R, T[k][digits[i]])
     return R
+
+
+_mult = _mult_fixed_window
 
 
 def _double_mult(
