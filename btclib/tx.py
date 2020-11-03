@@ -46,20 +46,17 @@ class Tx(DataClassJsonMixin):
         if view[stream.tell() : stream.tell() + 2] == b"\x00\x01":
             witness_flag = True
             stream.read(2)
+
         input_count = varint.decode(stream)
-        vin: List[TxIn] = []
-        for _ in range(input_count):
-            tx_input = TxIn.deserialize(stream)
-            vin.append(tx_input)
+        vin = [TxIn.deserialize(stream) for _ in range(input_count)]
+
         output_count = varint.decode(stream)
-        vout: List[TxOut] = []
-        for _ in range(output_count):
-            tx_output = TxOut.deserialize(stream)
-            vout.append(tx_output)
+        vout = [TxOut.deserialize(stream) for _ in range(output_count)]
+
         if witness_flag:
             for tx_input in vin:
-                witness = witness_deserialize(stream)
-                tx_input.txinwitness = witness
+                tx_input.txinwitness = witness_deserialize(stream)
+
         nLockTime = int.from_bytes(stream.read(4), "little")
 
         tx = cls(nVersion=nVersion, nLockTime=nLockTime, vin=vin, vout=vout)

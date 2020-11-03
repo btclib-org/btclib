@@ -15,11 +15,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varint
 from .alias import BinaryData, ScriptToken, String
-from .utils import (
-    bytes_from_octets,
-    bytesio_from_binarydata,
-    token_or_string_to_printable,
-)
+from .utils import bytesio_from_binarydata, token_or_string_to_printable
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
