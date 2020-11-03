@@ -326,7 +326,7 @@ def test_output_scripts_serialization():
             0,
         ),
         [],
-        "",
+        b"",
         0xFFFFFFFF,
         [],
     )

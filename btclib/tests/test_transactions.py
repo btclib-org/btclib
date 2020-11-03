@@ -147,7 +147,11 @@ def test_invalid_outpoint() -> None:
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x01" * 32, -1)
-    with pytest.raises(ValueError, match="invalid OutPoint n: "):
+    with pytest.raises(ValueError, match="negative OutPoint n: "):
+        op.assert_valid()
+
+    op = tx_in.OutPoint(b"\x01" * 32, 0xFFFFFFFF + 1)
+    with pytest.raises(ValueError, match="OutPoint n too high: "):
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF)
@@ -160,20 +164,26 @@ def test_invalid_outpoint() -> None:
 
 
 def test_invalid_tx_out() -> None:
-    tx_out1 = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
-    tx_out2 = tx_out.TxOut(nValue=2099999997690001, scriptPubKey=["OP_RETURN"])
-    tx_out3 = tx_out.TxOut(nValue=1, scriptPubKey=[])
+    transaction_output = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
+    with pytest.raises(ValueError, match="negative nValue: "):
+        transaction_output.assert_valid()
 
-    for transaction_output in (tx_out1, tx_out2, tx_out3):
-        with pytest.raises(ValueError):
-            transaction_output.assert_valid()
+    transaction_output = tx_out.TxOut(
+        nValue=0xFFFFFFFFFFFFFFFF + 1, scriptPubKey=["OP_RETURN"]
+    )
+    with pytest.raises(ValueError, match="nValue too high: "):
+        transaction_output.assert_valid()
+
+    transaction_output = tx_out.TxOut(nValue=1, scriptPubKey=[])
+    with pytest.raises(ValueError, match="empty scriptPubKey"):
+        transaction_output.assert_valid()
 
 
 def test_invalid_tx() -> None:
     transaction_input = tx_in.TxIn(
         prevout=tx_in.OutPoint(b"\xff" * 32, 0),
         scriptSig=[],
-        scriptSigHex="",
+        scriptSigHex=b"",
         nSequence=1,
         txinwitness=[],
     )

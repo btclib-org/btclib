@@ -67,11 +67,28 @@ class OutPoint(DataClassJsonMixin):
             m += " instead of 32 bytes"
             raise ValueError(m)
         # must be a 4-bytes int
-        if self.n < 0 or self.n > 0xFFFFFFFF:
-            raise ValueError(f"invalid OutPoint n: {self.n}")
-        #
+        if self.n < 0:
+            raise ValueError(f"negative OutPoint n: {self.n}")
+        if self.n > 0xFFFFFFFF:
+            raise ValueError(f"OutPoint n too high: {hex(self.n)}")
+        # not a coinbase, not a regular OutPoint
         if (self.hash == b"\x00" * 32) ^ (self.n == 0xFFFFFFFF):
             raise ValueError("invalid OutPoint")
+
+
+def deserialize_varbytes(data: BinaryData) -> bytes:
+    "Deserialize a variable-length byte sequence."
+
+    stream = bytesio_from_binarydata(data)
+    length = varint.decode(stream)
+    return stream.read(length)
+
+
+def serialize_varbytes(data: bytes) -> bytes:
+    "Serialize a variable-length byte sequence."
+
+    # prepend data length encoded as varint
+    return varint.encode(len(data)) + data
 
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
@@ -83,7 +100,9 @@ class TxIn(DataClassJsonMixin):
     scriptSig: List[ScriptToken] = field(
         metadata=config(encoder=token_or_string_to_printable)
     )
-    scriptSigHex: str
+    scriptSigHex: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
     nSequence: int
     txinwitness: List[String] = field(
         metadata=config(encoder=token_or_string_to_printable)
@@ -93,25 +112,27 @@ class TxIn(DataClassJsonMixin):
     def deserialize(
         cls: Type[_TxIn], data: BinaryData, assert_valid: bool = True
     ) -> _TxIn:
+
         stream = bytesio_from_binarydata(data)
+
         prevout = OutPoint.deserialize(stream)
-        script_length = varint.decode(stream)
+
         scriptSig: List[ScriptToken] = []
-        scriptSigHex = ""
+        scriptSigHex = b""
         if prevout.is_coinbase:
-            scriptSigHex = stream.read(script_length).hex()
+            scriptSigHex = deserialize_varbytes(stream)
         else:
-            scriptSig = script.decode(stream.read(script_length))
+            scriptSig = script.deserialize(stream)
+
         # 4 bytes, little endian, interpreted as int
         nSequence = int.from_bytes(stream.read(4), "little")
-        txinwitness: List[String] = []
 
         tx_in = cls(
             prevout=prevout,
             scriptSig=scriptSig,
             scriptSigHex=scriptSigHex,
             nSequence=nSequence,
-            txinwitness=txinwitness,
+            txinwitness=[],
         )
         if assert_valid:
             tx_in.assert_valid()
@@ -124,8 +145,7 @@ class TxIn(DataClassJsonMixin):
 
         out = self.prevout.serialize()
         if self.prevout.is_coinbase:
-            out += varint.encode(len(self.scriptSigHex) // 2)
-            out += bytes.fromhex(self.scriptSigHex)
+            out += serialize_varbytes(self.scriptSigHex)
         else:
             out += script.serialize(self.scriptSig)
         out += self.nSequence.to_bytes(4, "little")
@@ -137,12 +157,8 @@ class TxIn(DataClassJsonMixin):
 
 def witness_deserialize(data: BinaryData) -> List[String]:
     stream = bytesio_from_binarydata(data)
-    witness: List[String] = []
     witness_count = varint.decode(stream)
-    for _ in range(witness_count):
-        witness_len = varint.decode(stream)
-        witness.append(stream.read(witness_len).hex())
-    return witness
+    return [deserialize_varbytes(stream).hex() for _ in range(witness_count)]
 
 
 def witness_serialize(witness: List[String]) -> bytes:
@@ -158,6 +174,5 @@ def witness_serialize(witness: List[String]) -> bytes:
     out += varint.encode(witness_count)
     for i in range(witness_count):
         witness_bytes = bytes.fromhex(witness_str[i])
-        out += varint.encode(len(witness_bytes))
-        out += witness_bytes
+        out += serialize_varbytes(witness_bytes)
     return out
