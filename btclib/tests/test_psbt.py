@@ -203,14 +203,24 @@ def test_invalid_sign_4():
 
 def test_creation():
     input_1 = TxIn(
-        OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
+        OutPoint(
+            bytes.fromhex(
+                "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858"
+            ),
+            0,
+        ),
         [],
         "",
         0xFFFFFFFF,
         [],
     )
     input_2 = TxIn(
-        OutPoint("1dea7cd05979072a3578cab271c02244ea8a090bbb46aa680a65ecd027048d83", 1),
+        OutPoint(
+            bytes.fromhex(
+                "1dea7cd05979072a3578cab271c02244ea8a090bbb46aa680a65ecd027048d83"
+            ),
+            1,
+        ),
         [],
         "",
         0xFFFFFFFF,
@@ -309,7 +319,12 @@ def test_por_commitment_serialization():
 
 def test_output_scripts_serialization():
     input_1 = TxIn(
-        OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
+        OutPoint(
+            bytes.fromhex(
+                "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858"
+            ),
+            0,
+        ),
         [],
         "",
         0xFFFFFFFF,
@@ -389,7 +404,12 @@ def test_valid_sign_2():
     psbt_string = "cHNidP8BAFUCAAAAASeaIyOl37UfxF8iD6WLD8E+HjNCeSqF1+Ns1jM7XLw5AAAAAAD/////AaBa6gsAAAAAGXapFP/pwAYQl8w7Y28ssEYPpPxCfStFiKwAAAAAAAEBIJVe6gsAAAAAF6kUY0UgD2jRieGtwN8cTRbqjxTA2+uHIgIDsTQcy6doO2r08SOM1ul+cWfVafrEfx5I1HVBhENVvUZGMEMCIAQktY7/qqaU4VWepck7v9SokGQiQFXN8HC2dxRpRC0HAh9cjrD+plFtYLisszrWTt5g6Hhb+zqpS5m9+GFR25qaAQEEIgAgdx/RitRZZm3Unz1WTj28QvTIR3TjYK2haBao7UiNVoEBBUdSIQOxNBzLp2g7avTxI4zW6X5xZ9Vp+sR/HkjUdUGEQ1W9RiED3lXR4drIBeP4pYwfv5uUwC89uq/hJ/78pJlfJvggg71SriIGA7E0HMunaDtq9PEjjNbpfnFn1Wn6xH8eSNR1QYRDVb1GELSmumcAAACAAAAAgAQAAIAiBgPeVdHh2sgF4/iljB+/m5TALz26r+En/vykmV8m+CCDvRC0prpnAAAAgAAAAIAFAACAAAA="
     psbt = Psbt.deserialize(psbt_string)
     transaction_input = TxIn(
-        OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
+        OutPoint(
+            bytes.fromhex(
+                "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858"
+            ),
+            0,
+        ),
         [],
         "",
         0xFFFFFFFF,

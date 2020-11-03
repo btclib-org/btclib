@@ -141,41 +141,46 @@ def test_double_witness() -> None:
 
 
 def test_invalid_tx_in() -> None:
-    tx_in1 = tx_in.TxIn(
-        prevout=tx_in.OutPoint("00" * 31 + "01", 0xFFFFFFFF),
+
+    transaction_input = tx_in.TxIn(
+        prevout=tx_in.OutPoint(b"\x01" * 31, 18),
         scriptSig=[],
         scriptSigHex="",
         nSequence=1,
         txinwitness=[],
     )
+    with pytest.raises(ValueError, match="invalid OutPoint hash: "):
+        transaction_input.assert_valid()
 
-    tx_in2 = tx_in.TxIn(
-        prevout=tx_in.OutPoint("00" * 32, 0),
+    transaction_input = tx_in.TxIn(
+        prevout=tx_in.OutPoint(b"\x01" * 32, -1),
         scriptSig=[],
         scriptSigHex="",
         nSequence=1,
         txinwitness=[],
     )
+    with pytest.raises(ValueError, match="invalid OutPoint n: "):
+        transaction_input.assert_valid()
 
-    tx_in3 = tx_in.TxIn(
-        prevout=tx_in.OutPoint("deadbeef" * 8, -1),
+    transaction_input = tx_in.TxIn(
+        prevout=tx_in.OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF),
         scriptSig=[],
         scriptSigHex="",
         nSequence=1,
         txinwitness=[],
     )
+    with pytest.raises(ValueError, match="invalid OutPoint"):
+        transaction_input.assert_valid()
 
-    tx_in4 = tx_in.TxIn(
-        prevout=tx_in.OutPoint("deadbeef" * 7, 18),
+    transaction_input = tx_in.TxIn(
+        prevout=tx_in.OutPoint(b"\x00" * 32, 0),
         scriptSig=[],
         scriptSigHex="",
         nSequence=1,
         txinwitness=[],
     )
-
-    for transaction_input in (tx_in1, tx_in2, tx_in3, tx_in4):
-        with pytest.raises(ValueError):
-            transaction_input.assert_valid()
+    with pytest.raises(ValueError, match="invalid OutPoint"):
+        transaction_input.assert_valid()
 
 
 def test_invalid_tx_out() -> None:
@@ -190,7 +195,7 @@ def test_invalid_tx_out() -> None:
 
 def test_invalid_tx() -> None:
     transaction_input = tx_in.TxIn(
-        prevout=tx_in.OutPoint("ff" * 32, 0),
+        prevout=tx_in.OutPoint(b"\xff" * 32, 0),
         scriptSig=[],
         scriptSigHex="",
         nSequence=1,

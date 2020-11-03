@@ -17,8 +17,8 @@ from .utils import bytes_from_octets, hash256
 
 
 # workaround to handle CTransactions
-def _get_bytes(a: Union[int, str]) -> bytes:
-    return int.to_bytes(a, 32, "big") if isinstance(a, int) else bytes.fromhex(a)
+def _get_bytes(a: Union[int, bytes]) -> bytes:
+    return int.to_bytes(a, 32, "big") if isinstance(a, int) else a
 
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673

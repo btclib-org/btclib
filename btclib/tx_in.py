@@ -22,7 +22,9 @@ _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 @dataclass
 class OutPoint(DataClassJsonMixin):
-    hash: str
+    hash: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
     n: int
 
     @classmethod
@@ -33,10 +35,9 @@ class OutPoint(DataClassJsonMixin):
 
         data = bytesio_from_binarydata(data)
         # 32 bytes, little endian
-        hash = data.read(32)[::-1].hex()
+        hash = data.read(32)[::-1]
         # 4 bytes, little endian, interpreted as int
         n = int.from_bytes(data.read(4), "little")
-        # TODO could/should we check that all data is consumed
 
         result = cls(hash, n)
         if assert_valid:
@@ -49,13 +50,19 @@ class OutPoint(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = bytes.fromhex(self.hash)[::-1]
+        # 32 bytes, little endian
+        out = self.hash[::-1]
+        # 4 bytes, little endian
         out += self.n.to_bytes(4, "little")
         return out
 
+    @property
+    def is_coinbase(self) -> bool:
+        return (self.hash == b"\x00" * 32) and (self.n == 0xFFFFFFFF)
+
     def assert_valid(self) -> None:
         # must be a 32 bytes
-        if len(self.hash) != 64:
+        if len(self.hash) != 32:
             m = f"invalid OutPoint hash: {len(self.hash)}"
             m += " instead of 32 bytes"
             raise ValueError(m)
@@ -63,7 +70,7 @@ class OutPoint(DataClassJsonMixin):
         if self.n < 0 or self.n > 0xFFFFFFFF:
             raise ValueError(f"invalid OutPoint n: {self.n}")
         #
-        if (self.hash == "00" * 32) ^ (self.n == 0xFFFFFFFF):
+        if (self.hash == b"\x00" * 32) ^ (self.n == 0xFFFFFFFF):
             raise ValueError("invalid OutPoint")
 
 
@@ -88,11 +95,10 @@ class TxIn(DataClassJsonMixin):
     ) -> _TxIn:
         stream = bytesio_from_binarydata(data)
         prevout = OutPoint.deserialize(stream)
-        is_coinbase = prevout.hash == "00" * 32 and prevout.n == 0xFFFFFFFF
         script_length = varint.decode(stream)
         scriptSig: List[ScriptToken] = []
         scriptSigHex = ""
-        if is_coinbase:
+        if prevout.is_coinbase:
             scriptSigHex = stream.read(script_length).hex()
         else:
             scriptSig = script.decode(stream.read(script_length))
@@ -117,7 +123,7 @@ class TxIn(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.prevout.serialize()
-        if self.prevout.hash == "00" * 32 and self.prevout.n == 0xFFFFFFFF:
+        if self.prevout.is_coinbase:
             out += varint.encode(len(self.scriptSigHex) // 2)
             out += bytes.fromhex(self.scriptSigHex)
         else:
