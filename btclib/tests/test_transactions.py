@@ -140,47 +140,23 @@ def test_double_witness() -> None:
     assert transaction.vsize == 259
 
 
-def test_invalid_tx_in() -> None:
+def test_invalid_outpoint() -> None:
 
-    transaction_input = tx_in.TxIn(
-        prevout=tx_in.OutPoint(b"\x01" * 31, 18),
-        scriptSig=[],
-        scriptSigHex="",
-        nSequence=1,
-        txinwitness=[],
-    )
+    op = tx_in.OutPoint(b"\x01" * 31, 18)
     with pytest.raises(ValueError, match="invalid OutPoint hash: "):
-        transaction_input.assert_valid()
+        op.assert_valid()
 
-    transaction_input = tx_in.TxIn(
-        prevout=tx_in.OutPoint(b"\x01" * 32, -1),
-        scriptSig=[],
-        scriptSigHex="",
-        nSequence=1,
-        txinwitness=[],
-    )
+    op = tx_in.OutPoint(b"\x01" * 32, -1)
     with pytest.raises(ValueError, match="invalid OutPoint n: "):
-        transaction_input.assert_valid()
+        op.assert_valid()
 
-    transaction_input = tx_in.TxIn(
-        prevout=tx_in.OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF),
-        scriptSig=[],
-        scriptSigHex="",
-        nSequence=1,
-        txinwitness=[],
-    )
+    op = tx_in.OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF)
     with pytest.raises(ValueError, match="invalid OutPoint"):
-        transaction_input.assert_valid()
+        op.assert_valid()
 
-    transaction_input = tx_in.TxIn(
-        prevout=tx_in.OutPoint(b"\x00" * 32, 0),
-        scriptSig=[],
-        scriptSigHex="",
-        nSequence=1,
-        txinwitness=[],
-    )
+    op = tx_in.OutPoint(b"\x00" * 32, 0)
     with pytest.raises(ValueError, match="invalid OutPoint"):
-        transaction_input.assert_valid()
+        op.assert_valid()
 
 
 def test_invalid_tx_out() -> None:
