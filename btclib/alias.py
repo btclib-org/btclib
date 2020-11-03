@@ -16,16 +16,48 @@ mypy aliases, documenting also coding imput conventions.
 from io import BytesIO
 from typing import Any, Callable, List, Tuple, Union
 
-# binary octets are eight-bit bytes or hex-string (not text string)
+# Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
-# use bytes_from_octets to properly convert to bytes
+# hex-strings are strings that can be converted to bytes using bytes.fromhex,
+# e.g.:
+# "deadbeef"
+# "dead beef"
+# "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+# "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+# "02cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
 #
-# used for serialized script, h160 (20 bytes), h256 (32 bytes),
-# bip32version (4 bytes), sighash (1 byte),
-# dersig (DER serialization of ECDSA signature),
-# msgsig (Bitcoin message compact signature serialization, 65 bytes),
+# use btclib.utils.bytes_from_octets to convert Octets to bytes
+#
+# Octets are used for serialized script, h160 (20 bytes), h256 (32 bytes),
+# BIP32 version (4 bytes), sighash (1 byte),
+# DSASig (DER serialization of ECDSA signature),
+# BMSig (Bitcoin message compact signature serialization, 65 bytes),
 # etc.
 Octets = Union[bytes, str]
+
+# bytes or text string (not hex-string)
+#
+# this is for string that can be
+# converted to bytes using encode()
+# e.g. a message to be signed
+#    if isinstance(msg, str):
+#        msg = msg.encode()
+#
+# or 'ascii' strings like addresses (base58 or bech32),
+# WIFs, or BIP32 keys:
+# "37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
+# "KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP"
+# "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+# "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
+#
+# In almost all cases (but messages to be signed)
+# leading/trailing blanks should always be stripped
+#     if isinstance(b58addr, str):
+#         b58addr = b58addr.strip()
+#
+# In those cases often there is no need to encode() to bytes
+# as b58decode/b32decode/etc. will take care of that
+String = Union[bytes, str]
 
 # binary data, usually to be cosumed as byte stream,
 # but possibily provided as Octets too
@@ -35,28 +67,9 @@ BinaryData = Union[BytesIO, Octets]
 # Integer = Union[Octets, int]
 Integer = Union[bytes, str, int]
 
-# bytes or text string (not hex-string)
-#
-# to convert to bytes, just encode()
-# e.g. in order to sign a message
-#    if isinstance(msg, str):
-#        msg = msg.encode()
-#
-# in many cases (e.g. b58addr, b32addr, wif, bip32key)
-# leading/trailing blanks can be stripped
-# if isinstance(b58addr, str):
-#     b58addr = b58addr.strip()
-#
-# in those cases often there is no need to encode() to bytes
-# as b58decode/b32decode/etc. will take care of that
-# also those string are 'ascii', a subset of 'utf-8'
-String = Union[bytes, str]
-
-
 # Hash digest constructor: it may be any name suitable to hashlib.new()
 HashF = Callable[[], Any]
 # HashF = Callable[[Any], Any]
-
 
 # Elliptic curve point in affine coordinates.
 # Warning: to make Point a NamedTuple would slow down the code
@@ -68,7 +81,6 @@ Point = Tuple[int, int]
 # The x-coordinate is arbitrary: 7 is preferred
 # because it is not a field element in secp256k1
 INF = 7, 0
-
 
 # Elliptic curve point in Jacobian coordinates.
 JacPoint = Tuple[int, int, int]
@@ -82,12 +94,10 @@ JacPoint = Tuple[int, int, int]
 # QJ = Q[0], Q[1], 1 if Q[1] else 0
 INFJ = 7, 0, 0
 
-
 # the main internal representation of entropy is binary 0/1 string
 BinStr = str
 # but int or bytes are fine too
 Entropy = Union[BinStr, int, bytes]
-
 
 # ECDSA signature
 # (r, s)
@@ -96,13 +106,11 @@ DSASigTuple = Tuple[int, int]
 # DSASigTuple or DER serialization (bytes or hex-string, no sighash)
 DSASig = Union[DSASigTuple, Octets]
 
-
 # Bitcoin message signature
 # (rf, r, s), where r and s are the components of a DSASigTuple
 BMSigTuple = Tuple[int, int, int]
 # BMSigTuple or base64 65-bytes serialization (bytes or hex-string)
 BMSig = Union[BMSigTuple, Octets]
-
 
 # BIP340-Schnorr signature
 # (r, s)
