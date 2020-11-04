@@ -169,7 +169,7 @@ def test_invalid_tx_out() -> None:
         transaction_output.assert_valid()
 
     transaction_output = tx_out.TxOut(
-        nValue=0xFFFFFFFFFFFFFFFF + 1, scriptPubKey=["OP_RETURN"]
+        nValue=tx_out.MAX_SATOSHI + 1, scriptPubKey=["OP_RETURN"]
     )
     with pytest.raises(ValueError, match="nValue too high: "):
         transaction_output.assert_valid()

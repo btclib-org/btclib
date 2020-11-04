@@ -17,6 +17,8 @@ from . import script
 from .alias import BinaryData, ScriptToken
 from .utils import bytesio_from_binarydata, token_or_string_to_printable
 
+MAX_SATOSHI = 2_099_999_997_690_000
+
 _TxOut = TypeVar("_TxOut", bound="TxOut")
 
 
@@ -55,7 +57,7 @@ class TxOut(DataClassJsonMixin):
         # must be a 8-bytes int
         if self.nValue < 0:
             raise ValueError(f"negative nValue: {self.nValue}")
-        if self.nValue > 0xFFFFFFFFFFFFFFFF:
+        if self.nValue > MAX_SATOSHI:
             raise ValueError(f"nValue too high: {hex(self.nValue)}")
         if len(self.scriptPubKey) == 0:
             raise ValueError("empty scriptPubKey")
