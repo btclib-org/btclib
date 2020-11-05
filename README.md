@@ -36,8 +36,8 @@ some of its algorithms could be broken using side-channel attacks.
 
 To install (and/or upgrade) btclib and its requirements:
 
-    pip install --upgrade -r requirements.txt
-    pip install --upgrade btclib
+    python -m pip install --upgrade -r requirements.txt
+    python -m pip install --upgrade btclib
 
 You might want to install btclib and its requirements into a
 python virtual environment; e.g. from the root folder:
@@ -68,11 +68,11 @@ Windows Git bash shell:
 Some development tools are required to develop and test btclib;
 they can be installed with:
 
-    pip install --upgrade -r requirements-dev.txt
+    python -m pip install --upgrade -r requirements-dev.txt
 
 Developers might also consider to install btclib in editable way:
 
-    pip install --upgrade -e ./
+    python -m pip install --upgrade -e ./
 
 * * *
 
