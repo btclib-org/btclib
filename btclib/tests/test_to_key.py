@@ -43,7 +43,7 @@ wif_uncompressed_string = wif_uncompressed.decode("ascii")
 wif_uncompressed_string2 = " " + wif_uncompressed_string + " "
 
 xprv_data = BIP32KeyData(
-    version=b"\x04\x88\xAD\xE4",
+    version=bytes.fromhex("04 88 ad e4"),
     depth=0,
     parent_fingerprint=bytes.fromhex("00000000"),
     index=0,
@@ -96,7 +96,7 @@ Q_uncompressed_hexstring3 = (
 )
 
 xpub_data = BIP32KeyData(
-    version=b"\x04\x88\xB2\x1E",
+    version=bytes.fromhex("04 88 b2 1e"),
     depth=xprv_data.depth,
     parent_fingerprint=xprv_data.parent_fingerprint,
     index=xprv_data.index,
@@ -138,8 +138,8 @@ bad_bip32_keys: List[Union[bytes, str]] = []
 # version / key mismatch
 xprv_data_bad = copy.copy(xprv_data)
 xpub_data_bad = copy.copy(xpub_data)
-xprv_data_bad.version = b"\x04\x88\xB2\x1E"
-xpub_data_bad.version = b"\x04\x88\xAD\xE4"
+xprv_data_bad.version = bytes.fromhex("04 88 b2 1e")
+xpub_data_bad.version = bytes.fromhex("04 88 ad e4")
 bad_bip32_keys += [
     xprv_data_bad.serialize(False).decode("ascii"),
     xpub_data_bad.serialize(False).decode("ascii"),
@@ -227,7 +227,7 @@ wif_n_uncompressed_string = wif_n_uncompressed.decode("ascii")
 wif_n_uncompressed_string2 = " " + wif_n_uncompressed_string + " "
 
 xprv0_data = BIP32KeyData(
-    version=b"\x04\x88\xAD\xE4",
+    version=bytes.fromhex("04 88 ad e4"),
     depth=0,
     parent_fingerprint=bytes.fromhex("00000000"),
     index=0,
@@ -239,7 +239,7 @@ xprv0_string = xprv0.decode("ascii")
 xprv0_string2 = " " + xprv0_string + " "
 
 xprvn_data = BIP32KeyData(
-    version=b"\x04\x88\xAD\xE4",
+    version=bytes.fromhex("04 88 ad e4"),
     depth=0,
     parent_fingerprint=bytes.fromhex("00000000"),
     index=0,
@@ -316,7 +316,7 @@ INF_uncompressed_hexstring3 = (
 )
 
 INF_xpub_data = BIP32KeyData(
-    version=b"\x04\x88\xB2\x1E",
+    version=bytes.fromhex("04 88 b2 1e"),
     depth=xprv_data.depth,
     parent_fingerprint=xprv_data.parent_fingerprint,
     index=xprv_data.index,

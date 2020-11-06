@@ -44,20 +44,20 @@ NETWORKS["mainnet"] = {
     "p2sh": b"\x05",  # base58address starts with '3'
     "p2w": "bc",  # bech32address starts with 'bc1'
     # slip132 "m / 44h / 0h" p2pkh or p2sh
-    "bip32_prv": b"\x04\x88\xAD\xE4",  # xprv
-    "bip32_pub": b"\x04\x88\xB2\x1E",  # xpub
+    "bip32_prv": bytes.fromhex("04 88 ad e4"),  # xprv
+    "bip32_pub": bytes.fromhex("04 88 b2 1e"),  # xpub
     # slip132 "m / 49h / 0h" p2wpkh-p2sh (p2sh-wrapped legacy-segwit p2wpkh)
-    "slip132_p2wpkh_p2sh_prv": b"\x04\x9D\x78\x78",  # yprv
-    "slip132_p2wpkh_p2sh_pub": b"\x04\x9D\x7C\xB2",  # ypub
+    "slip132_p2wpkh_p2sh_prv": bytes.fromhex("04 9d 78 78"),  # yprv
+    "slip132_p2wpkh_p2sh_pub": bytes.fromhex("04 9d 7c b2"),  # ypub
     # slip132 p2wsh-p2sh (p2sh-wrapped legacy-segwit p2wsh)
-    "slip132_p2wsh_p2sh_prv": b"\x02\x95\xB0\x05",  # Yprv
-    "slip132_p2wsh_p2sh_pub": b"\x02\x95\xB4\x3F",  # Ypub
+    "slip132_p2wsh_p2sh_prv": bytes.fromhex("02 95 b0 05"),  # Yprv
+    "slip132_p2wsh_p2sh_pub": bytes.fromhex("02 95 b4 3f"),  # Ypub
     # slip132 "m / 84h / 0h" p2wpkh (native-segwit p2wpkh)
-    "slip132_p2wpkh_prv": b"\x04\xB2\x43\x0C",  # zprv
-    "slip132_p2wpkh_pub": b"\x04\xB2\x47\x46",  # zpub
+    "slip132_p2wpkh_prv": bytes.fromhex(" 04 b2 43 0c"),  # zprv
+    "slip132_p2wpkh_pub": bytes.fromhex(" 04 b2 47 46"),  # zpub
     # slip132 p2wsh (native-segwit p2wsh)
-    "slip132_p2wsh_prv": b"\x02\xAA\x7A\x99",  # Zprv
-    "slip132_p2wsh_pub": b"\x02\xAA\x7E\xD3",  # Zpub
+    "slip132_p2wsh_prv": bytes.fromhex(" 02 aa 7a 99"),  # Zprv
+    "slip132_p2wsh_pub": bytes.fromhex(" 02 aa 7e d3"),  # Zpub
 }
 
 NETWORKS["testnet"] = {
@@ -67,20 +67,20 @@ NETWORKS["testnet"] = {
     "p2sh": b"\xc4",  # base58address starts with '2'
     "p2w": "tb",  # bech32address starts with 'tb1'
     # slip132 "m / 44h / 1h" p2pkh or p2sh
-    "bip32_prv": b"\x04\x35\x83\x94",  # tprv
-    "bip32_pub": b"\x04\x35\x87\xCF",  # tpub
+    "bip32_prv": bytes.fromhex("04 35 83 94"),  # tprv
+    "bip32_pub": bytes.fromhex("04 35 87 cf"),  # tpub
     # slip132 "m / 49h / 1h" p2wpkh-p2sh (p2sh-wrapped-segwit)
-    "slip132_p2wpkh_p2sh_prv": b"\x04\x4A\x4E\x28",  # uprv
-    "slip132_p2wpkh_p2sh_pub": b"\x04\x4A\x52\x62",  # upub
+    "slip132_p2wpkh_p2sh_prv": bytes.fromhex("04 4a 4e 28"),  # uprv
+    "slip132_p2wpkh_p2sh_pub": bytes.fromhex("04 4a 52 62"),  # upub
     # slip132 p2wsh-p2sh (p2sh-wrapped-segwit)
-    "slip132_p2wsh_p2sh_prv": b"\x02\x42\x85\xB5",  # Uprv
-    "slip132_p2wsh_p2sh_pub": b"\x02\x42\x89\xEF",  # Upub
+    "slip132_p2wsh_p2sh_prv": bytes.fromhex("02 42 85 b5"),  # Uprv
+    "slip132_p2wsh_p2sh_pub": bytes.fromhex("02 42 89 ef"),  # Upub
     # slip132 "m / 84h / 1h" p2wpkh (native-segwit)
-    "slip132_p2wpkh_prv": b"\x04\x5F\x18\xBC",  # vprv
-    "slip132_p2wpkh_pub": b"\x04\x5F\x1C\xF6",  # vpub
+    "slip132_p2wpkh_prv": bytes.fromhex("04 5f 18 bc"),  # vprv
+    "slip132_p2wpkh_pub": bytes.fromhex("04 5f 1c f6"),  # vpub
     # slip132 p2wsh (native-segwit)
-    "slip132_p2wsh_prv": b"\x02\x57\x50\x48",  # Vprv
-    "slip132_p2wsh_pub": b"\x02\x57\x54\x83",  # Vpub
+    "slip132_p2wsh_prv": bytes.fromhex("02 57 50 48"),  # Vprv
+    "slip132_p2wsh_pub": bytes.fromhex("02 57 54 83"),  # Vpub
 }
 
 NETWORKS["regtest"] = copy.copy(NETWORKS["testnet"])
