@@ -22,7 +22,13 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import der, script, varint
 from .alias import Fingerprint, ScriptToken, String
-from .bip32 import BIP32KeyData, BIP32Path, indexes_from_bip32_path
+from .bip32 import (
+    BIP32KeyData,
+    BIP32Path,
+    bytes_from_bip32_path,
+    indexes_from_bip32_path,
+    str_from_bip32_path,
+)
 from .der import DERSig
 from .scriptpubkey import payload_from_scriptPubKey
 from .secpoint import bytes_from_point
@@ -36,33 +42,6 @@ from .utils import (
     token_or_string_to_hex_string,
     token_or_string_to_printable,
 )
-
-
-# maybe integrate in bip32?
-def decode_der_path(path: bytes, source_endian: str = "little") -> str:
-    out = "m"
-    assert len(path) % 4 == 0
-    for x in range(len(path) // 4):
-        out += "/"
-        index = int.from_bytes(path[4 * x : 4 * (x + 1)], source_endian)
-        out += str(index - 0x80000000) + "h" if index >= 0x80000000 else str(index)
-    return out
-
-
-def encode_der_path(path: str) -> bytes:
-    indexes = path.split("/")
-    assert indexes[0] == "m"
-    indexes = indexes[1:]
-    out = b""
-    for index in indexes:
-        hardened = False
-        if index[-1] == "h":
-            index = index[:-1]
-            hardened = True
-        index_int = int(index)
-        index_int += 0x80000000 if hardened else 0
-        out += index_int.to_bytes(4, "little")
-    return out
 
 
 def _pubkey_to_hex_string(pubkey: PubKey) -> str:
@@ -95,7 +74,7 @@ class HdKeypaths(DataClassJsonMixin):
         indexes = indexes_from_bip32_path(path)
         idx = [index.to_bytes(4, "big") for index in indexes]
 
-        path_str = decode_der_path(b"".join(idx), "big")
+        path_str = str_from_bip32_path(b"".join(idx), "big")
         key_str = _pubkey_to_hex_string(key)
 
         self.hd_keypaths[key_str] = {
@@ -264,7 +243,9 @@ class PsbtIn(DataClassJsonMixin):
             for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
                 out += b"\x22\x06" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += encode_der_path(hd_keypath["derivation_path"])
+                keypath += bytes_from_bip32_path(
+                    hd_keypath["derivation_path"], "little"
+                )
                 out += varint.encode(len(keypath)) + keypath
         if self.final_script_sig:
             out += b"\x01\x07"
@@ -380,7 +361,9 @@ class PsbtOut(DataClassJsonMixin):
             for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
                 out += b"\x22\x02" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += encode_der_path(hd_keypath["derivation_path"])
+                keypath += bytes_from_bip32_path(
+                    hd_keypath["derivation_path"], "little"
+                )
                 out += varint.encode(len(keypath)) + keypath
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
@@ -500,7 +483,9 @@ class Psbt(DataClassJsonMixin):
             for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
                 out += b"\x4f\x01" + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += encode_der_path(hd_keypath["derivation_path"])
+                keypath += bytes_from_bip32_path(
+                    hd_keypath["derivation_path"], "little"
+                )
                 out += varint.encode(len(keypath)) + keypath
         if self.version:
             out += b"\x01\xfb\x04"
