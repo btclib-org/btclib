@@ -21,12 +21,11 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import der, script, varint
-from .alias import Fingerprint, ScriptToken, String
+from .alias import Octets, ScriptToken, String
 from .bip32 import (
     BIP32KeyData,
     BIP32Path,
     bytes_from_bip32_path,
-    indexes_from_bip32_path,
     str_from_bip32_path,
 )
 from .der import DERSig
@@ -37,6 +36,7 @@ from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
 from .tx_out import TxOut
 from .utils import (
+    bytes_from_octets,
     hash160,
     sha256,
     token_or_string_to_hex_string,
@@ -55,35 +55,24 @@ def _pubkey_to_hex_string(pubkey: PubKey) -> str:
     return pubkey.hex()
 
 
-def _fingerprint_to_hex_string(fingerprint: Fingerprint) -> str:
-    if isinstance(fingerprint, str):
-        return fingerprint
-    else:
-        return fingerprint.hex()
-
-
 @dataclass
 class HdKeypaths(DataClassJsonMixin):
     hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
-    def add_hd_path(
-        self, key: PubKey, fingerprint: Fingerprint, path: BIP32Path
-    ) -> None:
+    def add_hd_path(self, key: PubKey, fingerprint: Octets, path: BIP32Path) -> None:
 
-        fingerprint_str = _fingerprint_to_hex_string(fingerprint)
-        indexes = indexes_from_bip32_path(path)
-        idx = [index.to_bytes(4, "big") for index in indexes]
-
-        path_str = str_from_bip32_path(b"".join(idx), "big")
         key_str = _pubkey_to_hex_string(key)
-
+        # assert key_str == pubkeyinfo_from_key(key)[0].hex()
+        fingerprint_str = bytes_from_octets(fingerprint, 4).hex()
+        path_str = str_from_bip32_path(path, "little")
         self.hd_keypaths[key_str] = {
             "fingerprint": fingerprint_str,
             "derivation_path": path_str,
         }
 
     def get_hd_path_entry(self, key: PubKey) -> Tuple[str, str]:
-        entry = self.hd_keypaths[_pubkey_to_hex_string(key)]
+        key_str = _pubkey_to_hex_string(key)
+        entry = self.hd_keypaths[key_str]
         return entry["fingerprint"], entry["derivation_path"]
 
 
@@ -99,7 +88,8 @@ class PartialSigs(DataClassJsonMixin):
         self.sigs[key_str] = sig_str
 
     def get_sig(self, key: PubKey) -> str:
-        return self.sigs[_pubkey_to_hex_string(key)]
+        key_str = _pubkey_to_hex_string(key)
+        return self.sigs[key_str]
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -165,17 +155,9 @@ class PsbtIn(DataClassJsonMixin):
                 assert len(key) == 1
                 witness_script = script.decode(value)
             elif key[0] == 0x06:
-                assert len(key) == 33 + 1
-                assert len(value) % 4 == 0
-                path = value[4:]
-                hd_keypaths.add_hd_path(
-                    key[1:],
-                    value[:4],
-                    [
-                        int.from_bytes(path[i : i + 4], "little")
-                        for i in range(0, len(path), 4)
-                    ],
-                )
+                if len(key) != 33 + 1:
+                    raise ValueError(f"invalid key lenght: {len(key)-1}")
+                hd_keypaths.add_hd_path(key[1:], value[:4], value[4:])
             elif key[0] == 0x07:
                 assert len(key) == 1
                 final_script_sig = script.decode(value)
@@ -314,17 +296,9 @@ class PsbtOut(DataClassJsonMixin):
                 assert len(key) == 1
                 witness_script = script.decode(value)
             elif key[0] == 0x02:
-                assert len(key) == 33 + 1
-                assert len(value) % 4 == 0
-                path = value[4:]
-                hd_keypaths.add_hd_path(
-                    key[1:],
-                    value[:4],
-                    [
-                        int.from_bytes(path[i : i + 4], "little")
-                        for i in range(0, len(path), 4)
-                    ],
-                )
+                if len(key) != 33 + 1:
+                    raise ValueError(f"invalid key lenght: {len(key)-1}")
+                hd_keypaths.add_hd_path(key[1:], value[:4], value[4:])
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
                 if prefix not in proprietary.keys():
@@ -420,18 +394,11 @@ class Psbt(DataClassJsonMixin):
             if key[0] == 0x00:
                 assert len(key) == 1
                 tx = Tx.deserialize(value)
-            elif key[0] == 0x01:  # TODO
-                assert len(key) == 78 + 1
-                assert len(value) % 4 == 0
-                path = value[4:]
-                hd_keypaths.add_hd_path(
-                    key[1:],
-                    value[:4],
-                    [
-                        int.from_bytes(path[i : i + 4], "little")
-                        for i in range(0, len(path), 4)
-                    ],
-                )
+            elif key[0] == 0x01:
+                # TODO add test case
+                # why extended key here?
+                assert len(key) == 78 + 1, f"invalid key lenght: {len(key)-1}"
+                hd_keypaths.add_hd_path(key[1:], value[:4], value[4:])
             elif key[0] == 0xFB:
                 assert len(value) == 4
                 version = int.from_bytes(value, "little")

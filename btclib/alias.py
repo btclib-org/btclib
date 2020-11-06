@@ -133,8 +133,5 @@ ScriptToken = Union[int, str, bytes]
 # or Octets of its byte-encoded representation
 Script = Union[Octets, List[ScriptToken]]
 
-# A fingerprint is represented as 4 bytes or his string representation
-Fingerprint = Union[str, bytes]
-
 # Object that can be textually saved without any conversion
 Printable = Union[int, str]
