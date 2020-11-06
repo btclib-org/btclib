@@ -140,8 +140,7 @@ def _prvkeyinfo_from_xprv(
         raise ValueError("uncompressed SEC / compressed BIP32 mismatch")
 
     if isinstance(xprv, BIP32KeyData):
-        # ensure it is a valid BIP32KeyData
-        xprv.serialize()
+        xprv.assert_valid()
     else:
         xprv = BIP32KeyData.deserialize(xprv)
 

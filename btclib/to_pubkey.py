@@ -36,8 +36,7 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     "Return an elliptic curve point tuple from a xpub key."
 
     if isinstance(xpub, BIP32KeyData):
-        # ensure it is a valid BIP32KeyData
-        xpub.serialize()
+        xpub.assert_valid()
     else:
         xpub = BIP32KeyData.deserialize(xpub)
 
@@ -126,8 +125,7 @@ def _pubkeyinfo_from_xpub(
         raise ValueError("Uncompressed SEC / compressed BIP32 mismatch")
 
     if isinstance(xpub, BIP32KeyData):
-        # ensure it is a valid BIP32KeyData
-        xpub.serialize()
+        xpub.assert_valid()
     else:
         xpub = BIP32KeyData.deserialize(xpub)
 
