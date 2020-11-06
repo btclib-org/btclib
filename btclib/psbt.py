@@ -92,7 +92,7 @@ class HdKeypaths(DataClassJsonMixin):
     ) -> None:
 
         fingerprint_str = _fingerprint_to_hex_string(fingerprint)
-        indexes, _ = indexes_from_bip32_path(path)
+        indexes = indexes_from_bip32_path(path)
         idx = [index.to_bytes(4, "big") for index in indexes]
 
         path_str = decode_der_path(b"".join(idx), "big")

@@ -36,7 +36,7 @@ def test_slip132_test_vector() -> None:
     https://github.com/satoshilabs/slips/blob/master/slip-0132.md
     """
     mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-    kpath = "./0/0"
+    kpath = "m/0/0"
     test_vectors: List[Tuple[bytes, str, str, str, str]] = [
         (
             NETWORKS["mainnet"]["bip32_prv"],
@@ -176,7 +176,7 @@ def test_addresses() -> None:
             bip32.derive(rootprv, der_path, pub_version)
 
         # just changing the public version with no derivation does work
-        bip32.derive(mxpub, ".", pub_version)
+        bip32.derive(mxpub, "m", pub_version)
         err_msg = "invalid non-public version forced on a public key: "
         with pytest.raises(ValueError, match=err_msg):
-            bip32.derive(mxpub, ".", version)
+            bip32.derive(mxpub, "m", version)

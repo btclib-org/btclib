@@ -20,11 +20,14 @@ from btclib.base58address import p2pkh  # FIXME why it is needed here
 from btclib.bip32 import (
     BIP32KeyData,
     _indexes_from_bip32_path_str,
+    bytes_from_bip32_path,
     crack_prvkey,
     derive,
     derive_from_account,
+    indexes_from_bip32_path,
     mxprv_from_bip39_mnemonic,
     rootxprv_from_seed,
+    str_from_bip32_path,
     xpub_from_xprv,
 )
 
@@ -33,23 +36,33 @@ def test_indexes_from_bip32_path_str() -> None:
 
     test_vectors = [
         # account 0, external branch, address_index 463
-        ("m / 0 h / 0 / 463", True, [0x80000000, 0, 463]),
-        (". / 0 h / 0 / 463", False, [0x80000000, 0, 463]),
-        ("m / 0 H / 0 / 463", True, [0x80000000, 0, 463]),
-        (". / 0 H / 0 / 463", False, [0x80000000, 0, 463]),
-        ("m /  0' / 0 / 463", True, [0x80000000, 0, 463]),
-        (". /  0' / 0 / 463", False, [0x80000000, 0, 463]),
+        ("m / 0 h / 0 / 463", [0x80000000, 0, 463]),
+        ("m / 0 H / 0 / 463", [0x80000000, 0, 463]),
+        ("m // 0' / 0 / 463", [0x80000000, 0, 463]),
         # account 0, internal branch, address_index 267
-        ("m / 0 h / 1 / 267", True, [0x80000000, 1, 267]),
-        (". / 0 h / 1 / 267", False, [0x80000000, 1, 267]),
-        ("m / 0 H / 1 / 267", True, [0x80000000, 1, 267]),
-        (". / 0 H / 1 / 267", False, [0x80000000, 1, 267]),
-        ("m /  0' / 1 / 267", True, [0x80000000, 1, 267]),
-        (". /  0' / 1 / 267", False, [0x80000000, 1, 267]),
+        ("m / 0 h / 1 / 267", [0x80000000, 1, 267]),
+        ("m / 0 H / 1 / 267", [0x80000000, 1, 267]),
+        ("m // 0' / 1 / 267", [0x80000000, 1, 267]),
     ]
 
-    for der_path, absolute, indexes in test_vectors:
-        assert (indexes, absolute) == _indexes_from_bip32_path_str(der_path)
+    for bip32_path_str, bip32_path_ints in test_vectors:
+        assert bip32_path_ints == _indexes_from_bip32_path_str(bip32_path_str)
+
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_str, "big")
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_str, "little")
+
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_ints, "big")
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_ints, "little")
+
+        bip32_path_bytes = bytes_from_bip32_path(bip32_path_ints, "big")
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_bytes, "big")
+        bip32_path_bytes = bytes_from_bip32_path(bip32_path_ints, "little")
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_bytes, "little")
+        assert bip32_path_ints != indexes_from_bip32_path(bip32_path_bytes, "big")
+
+        bip32_path_str = str_from_bip32_path(bip32_path_str, "little")
+        assert bip32_path_str == str_from_bip32_path(bip32_path_ints, "little")
+        assert bip32_path_str == str_from_bip32_path(bip32_path_bytes, "little")
 
     with pytest.raises(ValueError, match="negative index: "):
         _indexes_from_bip32_path_str("m/1/2/-3h/4")
@@ -270,15 +283,17 @@ def test_derive() -> None:
         for der_path, address in value:
             assert address == p2pkh(derive(rootxprv, der_path)).decode("ascii")
 
-            indexes, _ = _indexes_from_bip32_path_str(der_path)
+            indexes = _indexes_from_bip32_path_str(der_path)
             assert address == p2pkh(derive(rootxprv, indexes)).decode("ascii")
+
+    assert derive(rootxprv, "m").decode("ascii") == rootxprv
 
 
 def test_derive_exceptions() -> None:
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-    xprv = derive(rootmxprv, b"\x80\x00\x00\x00")
-    xprv = derive(xprv, ".")
+    xprv = derive(rootmxprv, bytes.fromhex("80000000"))
+    xprv = derive(xprv, "m")
 
     # FIXME: this failure shoud be required
     # err_msg = "public derivation at depth one level"
@@ -286,7 +301,7 @@ def test_derive_exceptions() -> None:
     #    BIP32KeyData.deserialize(derive(rootmxprv, 0))
 
     for der_path in ("", "/1"):
-        with pytest.raises(ValueError, match="empty root: must be m or ."):
+        with pytest.raises(ValueError, match="invalid root: "):
             derive(xprv, der_path)
 
     for der_path in (";/0", "invalid index", "800000"):
@@ -294,13 +309,9 @@ def test_derive_exceptions() -> None:
             derive(xprv, der_path)
 
     with pytest.raises(ValueError, match="depth greater than 255: "):
-        derive(xprv, "." + 256 * "/0")
+        derive(xprv, "m" + 256 * "/0")
 
-    err_msg = "absolute for non-root master key"
-    with pytest.raises(ValueError, match=err_msg):
-        derive(xprv, "m / 44 h/0h/1h/0/10")
-
-    with pytest.raises(ValueError, match="index must be 4-bytes, not "):
+    with pytest.raises(ValueError, match="index is not a multiple of 4-bytes: "):
         derive(xprv, b"\x00" * 5)
 
     err_msg = "int too big to convert"
@@ -310,7 +321,7 @@ def test_derive_exceptions() -> None:
 
     err_msg = "final depth greater than 255: "
     with pytest.raises(ValueError, match=err_msg):
-        derive(xprv, "." + 255 * "/0")
+        derive(xprv, "m" + 255 * "/0")
 
     rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
 

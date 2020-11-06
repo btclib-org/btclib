@@ -35,7 +35,7 @@ A BIP32 extended key is 78 bytes:
 import copy
 import hmac
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Iterable, List, Optional, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
@@ -277,16 +277,10 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     return xkey_data.serialize()
 
 
-def _indexes_from_bip32_path_str(der_path: str) -> Tuple[List[int], bool]:
+def _indexes_from_bip32_path_str(der_path: str) -> List[int]:
 
     steps = [x.strip() for x in der_path.split("/")]
-    if steps[0] in ("m", "M"):
-        absolute = True
-    elif steps[0] == ".":
-        absolute = False
-    elif steps[0] == "":
-        raise ValueError("empty root: must be m or .")
-    else:
+    if steps[0] not in ("m", "M"):
         raise ValueError(f"invalid root: {steps[0]}")
 
     indexes: List[int] = list()
@@ -311,35 +305,50 @@ def _indexes_from_bip32_path_str(der_path: str) -> Tuple[List[int], bool]:
     if len(indexes) > 255:
         err_msg = f"depth greater than 255: {len(indexes)}"
         raise ValueError(err_msg)
-    return indexes, absolute
+    return indexes
 
 
 # BIP 32 derivation path
-# absolute path as "m/44h/0'/1H/0/10" string
-# relative path as "./0/10" string
-# relative path as sequence of integer indexes
-# relative one level child derivation with single 4-bytes index
-# relative one level child derivation with single integer index
-# TODO: allow also Iterable[bytes], while making mypy happy
+# "m/44h/0'/1H/0/10" string
+# sequence of integer indexes (even a single int)
+# bytes (multiples of 4-bytes index)
 BIP32Path = Union[str, Iterable[int], int, bytes]
 
 
-def indexes_from_bip32_path(
-    der_path: BIP32Path, byteorder: str = "big"
-) -> Tuple[List[int], bool]:
+def str_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> str:
+    indexes = indexes_from_bip32_path(der_path, byteorder)
+    result = "m"
+    for i in indexes:
+        result += "/"
+        result += str(i) if i < 0x80000000 else (str(i - 0x80000000) + "h")
+    return result
 
-    absolute = False
+
+def bytes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> bytes:
+    indexes = indexes_from_bip32_path(der_path, byteorder)
+    result = [i.to_bytes(4, byteorder) for i in indexes]
+    return b"".join(result)
+
+
+def indexes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> List[int]:
+
     if isinstance(der_path, str):
         return _indexes_from_bip32_path_str(der_path)
-    elif isinstance(der_path, int):
-        return [der_path], absolute
-    elif isinstance(der_path, bytes):
-        if len(der_path) != 4:
-            raise ValueError(f"index must be 4-bytes, not {len(der_path)}")
-        return [int.from_bytes(der_path, "big")], absolute
+
+    if isinstance(der_path, int):
+        return [der_path]
+
+    if isinstance(der_path, bytes):
+        if len(der_path) % 4 != 0:
+            m = f"index is not a multiple of 4-bytes: {len(der_path)}"
+            raise ValueError(m)
+        return [
+            int.from_bytes(der_path[4 * n : 4 * (n + 1)], byteorder)
+            for n in range(len(der_path) // 4)
+        ]
 
     # Iterable[int]
-    return [int(i) for i in der_path], absolute
+    return [int(i) for i in der_path]
 
 
 @dataclass
@@ -399,11 +408,7 @@ def _derive(
     forced_version: Optional[Octets] = None,
 ) -> BIP32KeyData:
 
-    indexes, absolute = indexes_from_bip32_path(der_path)
-
-    if absolute and xkey_data.depth != 0:
-        err_msg = "absolute for non-root master key"
-        raise ValueError(err_msg)
+    indexes = indexes_from_bip32_path(der_path)
 
     final_depth = xkey_data.depth + len(indexes)
     if final_depth > 255:
@@ -448,13 +453,12 @@ def derive(
 ) -> bytes:
     """Derive a BIP32 key across a path spanning multiple depth levels.
 
-    Derivation is according to:
+    Valid BIP32Path examples:
 
-    - absolute derivation path as "m/44h/0'/1H/0/10" string
-    - relative derivation path as "./0/10" string
-    - relative derivation path as iterable integer indexes
-    - relative one level child derivation with single integer index
-    - relative one level child derivation with single 4-bytes index
+    - string like "m/44h/0'/1H/0/10"
+    - iterable integer indexes
+    - one single integer index
+    - bytes in multiples of the 4-bytes index
 
     BIP32Path is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
@@ -486,7 +490,7 @@ def _derive_from_account(
     if key_data.index < 0x80000000:
         raise UserWarning("public derivation at account level")
 
-    return _derive(key_data, f"./{branch}/{address_index}")
+    return _derive(key_data, f"m/{branch}/{address_index}")
 
 
 def derive_from_account(
