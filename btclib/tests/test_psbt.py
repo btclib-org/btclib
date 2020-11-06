@@ -478,8 +478,8 @@ def test_sig_type3():
     pk1_data = BIP32KeyData(
         version=2,
         depth=0,
-        parent_fingerprint=b"\x00\x00\x00\x00",
-        index=b"\x00\x00\x00\x00",
+        parent_fingerprint=bytes.fromhex("00000000"),
+        index=0,
         chain_code=None,
         key=bytes.fromhex(pk1_str),
     )
@@ -517,8 +517,8 @@ def test_hd_paths():
     pk3_data = BIP32KeyData(
         version=2,
         depth=0,
-        parent_fingerprint=b"\x00\x00\x00\x00",
-        index=b"\x00\x00\x00\x00",
+        parent_fingerprint=bytes.fromhex("00000000"),
+        index=0,
         chain_code=None,
         key=bytes.fromhex(
             "032a18a62029214947f51f65ef5cbd3dd009046cb1a1fc29a1ea1919370ff0e902"

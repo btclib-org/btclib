@@ -22,7 +22,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import der, script, varint
 from .alias import Fingerprint, ScriptToken, String
-from .bip32 import BIP32KeyData, BIP32Path, indexes_from_path
+from .bip32 import BIP32KeyData, BIP32Path, indexes_from_bip32_path
 from .der import DERSig
 from .scriptpubkey import payload_from_scriptPubKey
 from .secpoint import bytes_from_point
@@ -92,10 +92,10 @@ class HdKeypaths(DataClassJsonMixin):
     ) -> None:
 
         fingerprint_str = _fingerprint_to_hex_string(fingerprint)
-        indexes, _ = indexes_from_path(path)
+        indexes, _ = indexes_from_bip32_path(path)
+        idx = [index.to_bytes(4, "big") for index in indexes]
 
-        # TODO: indexes_from_path return indexes as big endian. Why?
-        path_str = decode_der_path(b"".join(indexes), "big")
+        path_str = decode_der_path(b"".join(idx), "big")
         key_str = _pubkey_to_hex_string(key)
 
         self.hd_keypaths[key_str] = {

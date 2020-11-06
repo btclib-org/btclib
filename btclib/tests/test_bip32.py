@@ -19,7 +19,7 @@ from btclib.base58 import b58decode, b58encode
 from btclib.base58address import p2pkh  # FIXME why it is needed here
 from btclib.bip32 import (
     BIP32KeyData,
-    _indexes_from_path,
+    _indexes_from_bip32_path_str,
     crack_prvkey,
     derive,
     derive_from_account,
@@ -29,7 +29,7 @@ from btclib.bip32 import (
 )
 
 
-def test_indexes_from_path() -> None:
+def test_indexes_from_bip32_path_str() -> None:
 
     test_vectors = [
         # account 0, external branch, address_index 463
@@ -48,15 +48,22 @@ def test_indexes_from_path() -> None:
         (". /  0' / 1 / 267", False, [0x80000000, 1, 267]),
     ]
 
-    for der_path, absolute, indx in test_vectors:
-        indexes = [i.to_bytes(4, "big") for i in indx]
-        assert (indexes, absolute) == _indexes_from_path(der_path)
+    for der_path, absolute, indexes in test_vectors:
+        assert (indexes, absolute) == _indexes_from_bip32_path_str(der_path)
 
-    with pytest.raises(OverflowError, match="can't convert negative int to unsigned"):
-        _indexes_from_path("m/1/2/-3/4")
+    with pytest.raises(ValueError, match="negative index: "):
+        _indexes_from_bip32_path_str("m/1/2/-3h/4")
 
-    with pytest.raises(ValueError, match="negative index in derivation path: "):
-        _indexes_from_path("m/1/2/-3h/4")
+    with pytest.raises(ValueError, match="negative index: "):
+        _indexes_from_bip32_path_str("m/1/2/-3/4")
+
+    i = 0x80000000
+
+    with pytest.raises(ValueError, match="index too high: "):
+        _indexes_from_bip32_path_str("m/1/2/" + str(i) + "/4")
+
+    with pytest.raises(ValueError, match="index too high: "):
+        _indexes_from_bip32_path_str("m/1/2/" + str(i) + "h/4")
 
 
 def test_exceptions() -> None:
@@ -124,8 +131,13 @@ def test_assert_valid() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
-    xkey_data.index = (xkey_data.index)[:-1]
-    with pytest.raises(ValueError, match="invalid index length: "):
+    xkey_data.index = -1
+    with pytest.raises(ValueError, match="negative index: "):
+        xkey_data.assert_valid()
+
+    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data.index = 0xFFFFFFFF + 1
+    with pytest.raises(ValueError, match="index too high: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
@@ -160,12 +172,12 @@ def test_assert_valid() -> None:
         xkey_data.serialize()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
-    xkey_data.index = b"\x00\x00\x00\x01"
-    with pytest.raises(ValueError, match="zero depth with non-zero index 0x"):
+    xkey_data.index = 1
+    with pytest.raises(ValueError, match="zero depth with non-zero index: "):
         xkey_data.serialize()
 
     xprv = BIP32KeyData.deserialize(derive(xkey, 0x80000000))
-    xprv.parent_fingerprint = b"\x00\x00\x00\x00"
+    xprv.parent_fingerprint = bytes.fromhex("00000000")
     err_msg = "zero parent fingerprint with non-zero depth "
     with pytest.raises(ValueError, match=err_msg):
         xprv.serialize()
@@ -179,7 +191,7 @@ def test_serialization() -> None:
     assert xkey_data.version == decoded_key[:4]
     assert xkey_data.depth == decoded_key[4]
     assert xkey_data.parent_fingerprint == decoded_key[5:9]
-    assert xkey_data.index == decoded_key[9:13]
+    assert xkey_data.index == int.from_bytes(decoded_key[9:13], "big")
     assert xkey_data.chain_code == decoded_key[13:45]
     assert xkey_data.key == decoded_key[45:]
 
@@ -258,8 +270,7 @@ def test_derive() -> None:
         for der_path, address in value:
             assert address == p2pkh(derive(rootxprv, der_path)).decode("ascii")
 
-            b_indexes, _ = _indexes_from_path(der_path)
-            indexes = [int.from_bytes(b_index, "big") for b_index in b_indexes]
+            indexes, _ = _indexes_from_bip32_path_str(der_path)
             assert address == p2pkh(derive(rootxprv, indexes)).decode("ascii")
 
 
@@ -275,19 +286,17 @@ def test_derive_exceptions() -> None:
     #    BIP32KeyData.deserialize(derive(rootmxprv, 0))
 
     for der_path in ("", "/1"):
-        with pytest.raises(
-            ValueError, match="empty derivation path root: must be m or ."
-        ):
+        with pytest.raises(ValueError, match="empty root: must be m or ."):
             derive(xprv, der_path)
 
     for der_path in (";/0", "invalid index", "800000"):
-        with pytest.raises(ValueError, match="invalid derivation path root: "):
+        with pytest.raises(ValueError, match="invalid root: "):
             derive(xprv, der_path)
 
-    with pytest.raises(ValueError, match="derivation path depth greater than 255: "):
+    with pytest.raises(ValueError, match="depth greater than 255: "):
         derive(xprv, "." + 256 * "/0")
 
-    err_msg = "absolute derivation path for non-root master key"
+    err_msg = "absolute for non-root master key"
     with pytest.raises(ValueError, match=err_msg):
         derive(xprv, "m / 44 h/0h/1h/0/10")
 
@@ -299,7 +308,7 @@ def test_derive_exceptions() -> None:
         with pytest.raises(OverflowError, match=err_msg):
             derive(xprv, index)
 
-    err_msg = "derivation path final depth greater than 255: "
+    err_msg = "final depth greater than 255: "
     with pytest.raises(ValueError, match=err_msg):
         derive(xprv, "." + 255 * "/0")
 

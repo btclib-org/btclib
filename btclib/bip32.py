@@ -70,9 +70,8 @@ class BIP32KeyData(DataClassJsonMixin):
     parent_fingerprint: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    index: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
+    # index is an int, not bytes, to avoid any byteorder ambiguity
+    index: int
     chain_code: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
@@ -103,13 +102,12 @@ class BIP32KeyData(DataClassJsonMixin):
             m += " instead of 4"
             raise ValueError(m)
 
-        if not isinstance(self.index, bytes):
+        if not isinstance(self.index, int):
             raise ValueError("index is not an instance of bytes")
-        if len(self.index) != 4:
-            m = "invalid index length: "
-            m += f"{len(self.index)} bytes"
-            m += " instead of 4"
-            raise ValueError(m)
+        if self.index < 0:
+            raise ValueError(f"negative index: {self.index}")
+        if self.index > 0xFFFFFFFF:
+            raise ValueError(f"index too high: {self.index}")
 
         if not isinstance(self.chain_code, bytes):
             raise ValueError("chain code is not an instance of bytes")
@@ -144,13 +142,13 @@ class BIP32KeyData(DataClassJsonMixin):
             raise ValueError(f"unknown extended key version 0x{self.version.hex()}")
 
         if self.depth == 0:
-            if self.parent_fingerprint != b"\x00\x00\x00\x00":
+            if self.parent_fingerprint != bytes.fromhex("00000000"):
                 m = f"zero depth with non-zero parent fingerprint 0x{self.parent_fingerprint.hex()}"
                 raise ValueError(m)
-            if self.index != b"\x00\x00\x00\x00":
-                raise ValueError(f"zero depth with non-zero index 0x{self.index.hex()}")
+            if self.index != 0:
+                raise ValueError(f"zero depth with non-zero index: {self.index}")
         else:
-            if self.parent_fingerprint == b"\x00\x00\x00\x00":
+            if self.parent_fingerprint == bytes.fromhex("00000000"):
                 m = f"zero parent fingerprint with non-zero depth {self.depth}"
                 raise ValueError(m)
 
@@ -162,7 +160,7 @@ class BIP32KeyData(DataClassJsonMixin):
         t = self.version
         t += self.depth.to_bytes(1, "big")
         t += self.parent_fingerprint
-        t += self.index
+        t += self.index.to_bytes(4, "big")
         t += self.chain_code
         t += self.key
         return b58encode(t, 78)
@@ -180,7 +178,7 @@ class BIP32KeyData(DataClassJsonMixin):
             version=xkey[:4],
             depth=xkey[4],
             parent_fingerprint=xkey[5:9],
-            index=xkey[9:13],
+            index=int.from_bytes(xkey[9:13], "big"),
             chain_code=xkey[13:45],
             key=xkey[45:],
         )
@@ -210,8 +208,8 @@ def rootxprv_from_seed(
     key_data = BIP32KeyData(
         version=v,
         depth=0,
-        parent_fingerprint=b"\x00\x00\x00\x00",
-        index=b"\x00\x00\x00\x00",
+        parent_fingerprint=bytes.fromhex("00000000"),
+        index=0,
         chain_code=hd[32:],
         key=k,
     )
@@ -279,7 +277,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     return xkey_data.serialize()
 
 
-def _indexes_from_path(der_path: str) -> Tuple[List[bytes], bool]:
+def _indexes_from_bip32_path_str(der_path: str) -> Tuple[List[int], bool]:
 
     steps = [x.strip() for x in der_path.split("/")]
     if steps[0] in ("m", "M"):
@@ -287,25 +285,31 @@ def _indexes_from_path(der_path: str) -> Tuple[List[bytes], bool]:
     elif steps[0] == ".":
         absolute = False
     elif steps[0] == "":
-        raise ValueError("empty derivation path root: must be m or .")
+        raise ValueError("empty root: must be m or .")
     else:
-        raise ValueError(f"invalid derivation path root: {steps[0]}")
+        raise ValueError(f"invalid root: {steps[0]}")
 
-    indexes: List[bytes] = list()
+    indexes: List[int] = list()
     for step in steps[1:]:
         if step == "":  # extra slash
             continue
+
+        hardened = False
         if step[-1] in ("'", "H", "h"):
-            index = int(step[:-1])
-            if index < 0:
-                raise ValueError(f"negative index in derivation path: {der_path}")
-            index += 0x80000000
-        else:
-            index = int(step)
-        indexes.append(index.to_bytes(4, "big"))
+            step = step[:-1]
+            hardened = True
+
+        index = int(step)
+        if index < 0:
+            raise ValueError(f"negative index: {index}")
+        if index >= 0x80000000:
+            raise ValueError(f"index too high: {index}")
+        index += 0x80000000 if hardened else 0
+
+        indexes.append(index)
 
     if len(indexes) > 255:
-        err_msg = f"derivation path depth greater than 255: {len(indexes)}"
+        err_msg = f"depth greater than 255: {len(indexes)}"
         raise ValueError(err_msg)
     return indexes, absolute
 
@@ -320,21 +324,22 @@ def _indexes_from_path(der_path: str) -> Tuple[List[bytes], bool]:
 BIP32Path = Union[str, Iterable[int], int, bytes]
 
 
-def indexes_from_path(der_path: BIP32Path) -> Tuple[List[bytes], bool]:
+def indexes_from_bip32_path(
+    der_path: BIP32Path, byteorder: str = "big"
+) -> Tuple[List[int], bool]:
+
     absolute = False
     if isinstance(der_path, str):
-        der_path = der_path.strip()
-        indexes, absolute = _indexes_from_path(der_path)
+        return _indexes_from_bip32_path_str(der_path)
     elif isinstance(der_path, int):
-        indexes = [der_path.to_bytes(4, byteorder="big")]
+        return [der_path], absolute
     elif isinstance(der_path, bytes):
         if len(der_path) != 4:
             raise ValueError(f"index must be 4-bytes, not {len(der_path)}")
-        indexes = [der_path]
-    else:  # Iterable[int]
-        indexes = [i.to_bytes(4, byteorder="big") for i in der_path]
+        return [int.from_bytes(der_path, "big")], absolute
 
-    return indexes, absolute
+    # Iterable[int]
+    return [int(i) for i in der_path], absolute
 
 
 @dataclass
@@ -345,7 +350,7 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
     Q: Point = INF  # non-Infinity for public key only
 
 
-def __ckd(key_data: _ExtendedBIP32KeyData, index: bytes) -> None:
+def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
 
     # FIXME the following check should be enforced
     # if key_data.depth == 0 and index[0] < 0x80:
@@ -357,10 +362,14 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: bytes) -> None:
         Pbytes = bytes_from_point(mult(key_data.q))
         key_data.parent_fingerprint = hash160(Pbytes)[:4]
         key_data.index = index
-        if index[0] >= 0x80:  # hardened derivation
-            h = hmac.digest(key_data.chain_code, key_data.key + index, "sha512")
+        if index >= 0x80000000:  # hardened derivation
+            h = hmac.digest(
+                key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
+            )
         else:  # normal derivation
-            h = hmac.digest(key_data.chain_code, Pbytes + index, "sha512")
+            h = hmac.digest(
+                key_data.chain_code, Pbytes + index.to_bytes(4, "big"), "sha512"
+            )
         key_data.chain_code = h[32:]
         offset = int.from_bytes(h[:32], byteorder="big")
         key_data.q = (key_data.q + offset) % ec.n
@@ -368,12 +377,14 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: bytes) -> None:
         key_data.Q = INF
     # key_data is a pubkey
     else:
-        if index[0] >= 0x80:
+        if index >= 0x80000000:
             raise ValueError("hardened derivation from public key")
         key_data.depth += 1
         key_data.parent_fingerprint = hash160(key_data.key)[:4]
         key_data.index = index
-        h = hmac.digest(key_data.chain_code, key_data.key + index, "sha512")
+        h = hmac.digest(
+            key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
+        )
         key_data.chain_code = h[32:]
         offset = int.from_bytes(h[:32], byteorder="big")
         Offset = mult(offset)
@@ -388,15 +399,15 @@ def _derive(
     forced_version: Optional[Octets] = None,
 ) -> BIP32KeyData:
 
-    indexes, absolute = indexes_from_path(der_path)
+    indexes, absolute = indexes_from_bip32_path(der_path)
 
     if absolute and xkey_data.depth != 0:
-        err_msg = "absolute derivation path for non-root master key"
+        err_msg = "absolute for non-root master key"
         raise ValueError(err_msg)
 
     final_depth = xkey_data.depth + len(indexes)
     if final_depth > 255:
-        err_msg = f"derivation path final depth greater than 255: {final_depth}"
+        err_msg = f"final depth greater than 255: {final_depth}"
         raise ValueError(err_msg)
 
     if forced_version is not None:
@@ -472,7 +483,7 @@ def _derive_from_account(
     if address_index >= 0x80000000:
         raise ValueError("invalid private derivation at address index level")
 
-    if key_data.index[0] < 0x80:
+    if key_data.index < 0x80000000:
         raise UserWarning("public derivation at account level")
 
     return _derive(key_data, f"./{branch}/{address_index}")
@@ -526,12 +537,12 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
         raise ValueError("not a parent's child: wrong parent fingerprint")
 
     # check normal derivation
-    if c.index[0] >= 0x80:
+    if c.index >= 0x80000000:
         raise ValueError("hardened child derivation")
 
     p.version = c.version
 
-    h = hmac.digest(p.chain_code, p.key + c.index, "sha512")
+    h = hmac.digest(p.chain_code, p.key + c.index.to_bytes(4, "big"), "sha512")
     child_q = int.from_bytes(c.key[1:], byteorder="big")
     offset = int.from_bytes(h[:32], byteorder="big")
     parent_q = (child_q - offset) % ec.n

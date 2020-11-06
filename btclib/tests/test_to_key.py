@@ -45,8 +45,8 @@ wif_uncompressed_string2 = " " + wif_uncompressed_string + " "
 xprv_data = BIP32KeyData(
     version=b"\x04\x88\xAD\xE4",
     depth=0,
-    parent_fingerprint=b"\x00\x00\x00\x00",
-    index=b"\x00\x00\x00\x00",
+    parent_fingerprint=bytes.fromhex("00000000"),
+    index=0,
     chain_code=32 * b"\x00",
     key=b"\x00" + q_bytes,
 )
@@ -170,8 +170,7 @@ bad_bip32_keys += [
 # depth_pfp_index mismatch
 xprv_data_bad = copy.copy(xprv_data)
 xpub_data_bad = copy.copy(xpub_data)
-xprv_data_bad.index = b"\x01\x01\x01\x01"
-xpub_data_bad.index = b"\x01\x01\x01\x01"
+xprv_data_bad.index = xpub_data_bad.index = 101
 bad_bip32_keys += [
     xprv_data_bad.serialize(False).decode("ascii"),
     xpub_data_bad.serialize(False).decode("ascii"),
@@ -230,8 +229,8 @@ wif_n_uncompressed_string2 = " " + wif_n_uncompressed_string + " "
 xprv0_data = BIP32KeyData(
     version=b"\x04\x88\xAD\xE4",
     depth=0,
-    parent_fingerprint=b"\x00\x00\x00\x00",
-    index=b"\x00\x00\x00\x00",
+    parent_fingerprint=bytes.fromhex("00000000"),
+    index=0,
     chain_code=32 * b"\x00",
     key=b"\x00" + q0_bytes,
 )
@@ -242,8 +241,8 @@ xprv0_string2 = " " + xprv0_string + " "
 xprvn_data = BIP32KeyData(
     version=b"\x04\x88\xAD\xE4",
     depth=0,
-    parent_fingerprint=b"\x00\x00\x00\x00",
-    index=b"\x00\x00\x00\x00",
+    parent_fingerprint=bytes.fromhex("00000000"),
+    index=0,
     chain_code=32 * b"\x00",
     key=b"\x00" + qn_bytes,
 )
