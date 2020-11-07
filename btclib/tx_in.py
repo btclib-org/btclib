@@ -23,9 +23,10 @@ _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 @dataclass
 class OutPoint(DataClassJsonMixin):
     hash: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=b"\x00" * 32,
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    n: int
+    n: int = 0xFFFFFFFF
 
     @classmethod
     def deserialize(

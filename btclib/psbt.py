@@ -63,15 +63,20 @@ class HdKeyPaths(DataClassJsonMixin):
 
         key_str = _pubkey_to_hex_string(key)
         # assert key_str == pubkeyinfo_from_key(key)[0].hex()
+
         fingerprint_str = bytes_from_octets(fingerprint, 4).hex()
         path_str = str_from_bip32_path(path, "little")
+
         self.hd_keypaths[key_str] = {
             "fingerprint": fingerprint_str,
             "derivation_path": path_str,
         }
 
     def get_hd_keypath(self, key: PubKey) -> Tuple[str, str]:
+
+        # key_str = pubkeyinfo_from_key(key)[0].hex()
         key_str = _pubkey_to_hex_string(key)
+
         entry = self.hd_keypaths[key_str]
         return entry["fingerprint"], entry["derivation_path"]
 
@@ -81,14 +86,20 @@ class PartialSigs(DataClassJsonMixin):
     sigs: Dict[str, str] = field(default_factory=dict)
 
     def add_sig(self, key: PubKey, sig: DERSig):
+
+        # key_str = pubkeyinfo_from_key(key)[0].hex()
         key_str = _pubkey_to_hex_string(key)
+
         r, s, sighash = der._deserialize(sig)
         sig_str = der._serialize(r, s, sighash).hex()
 
         self.sigs[key_str] = sig_str
 
     def get_sig(self, key: PubKey) -> str:
+
+        # key_str = pubkeyinfo_from_key(key)[0].hex()
         key_str = _pubkey_to_hex_string(key)
+
         return self.sigs[key_str]
 
 
@@ -133,7 +144,7 @@ class PsbtIn(DataClassJsonMixin):
         final_script_witness = []
         por_commitment = None
         proprietary: Dict[int, Dict[str, str]] = {}
-        unknown = {}
+        unknown: Dict[str, str] = {}
         for key, value in input_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
@@ -255,13 +266,17 @@ class PsbtIn(DataClassJsonMixin):
     def assert_valid(self) -> None:
         pass
 
-    def add_unknown_entry(self, key: String, val: String):
-        self.unknown[
-            token_or_string_to_hex_string(key)
-        ] = token_or_string_to_hex_string(val)
+    def add_unknown(self, key: String, val: Octets):
 
-    def get_unknown_entry(self, key: String) -> str:
-        return self.unknown[token_or_string_to_hex_string(key)]
+        key_str = token_or_string_to_hex_string(key)
+
+        self.unknown[key_str] = bytes_from_octets(val).hex()
+
+    def get_unknown(self, key: String) -> str:
+
+        key_str = token_or_string_to_hex_string(key)
+
+        return self.unknown[key_str]
 
 
 _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
@@ -287,7 +302,7 @@ class PsbtOut(DataClassJsonMixin):
         witness_script = []
         hd_keypaths = HdKeyPaths()
         proprietary: Dict[int, Dict[str, str]] = {}
-        unknown = {}
+        unknown: Dict[str, str] = {}
         for key, value in output_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
@@ -354,13 +369,17 @@ class PsbtOut(DataClassJsonMixin):
     def assert_valid(self) -> None:
         pass
 
-    def add_unknown_entry(self, key: String, val: String):
-        self.unknown[
-            token_or_string_to_hex_string(key)
-        ] = token_or_string_to_hex_string(val)
+    def add_unknown(self, key: String, val: Octets):
 
-    def get_unknown_entry(self, key: String) -> str:
-        return self.unknown[token_or_string_to_hex_string(key)]
+        key_str = token_or_string_to_hex_string(key)
+
+        self.unknown[key_str] = bytes_from_octets(val).hex()
+
+    def get_unknown(self, key: String) -> str:
+
+        key_str = token_or_string_to_hex_string(key)
+
+        return self.unknown[key_str]
 
 
 _PSbt = TypeVar("_PSbt", bound="Psbt")
@@ -389,7 +408,7 @@ class Psbt(DataClassJsonMixin):
         version = 0
         hd_keypaths = HdKeyPaths()
         proprietary: Dict[int, Dict[str, str]] = {}
-        unknown = {}
+        unknown: Dict[str, str] = {}
         for key, value in global_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
@@ -523,13 +542,17 @@ class Psbt(DataClassJsonMixin):
                 hash = sha256(script.encode(self.inputs[i].witness_script))
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
-    def add_unknown_entry(self, key: String, val: String):
-        self.unknown[
-            token_or_string_to_hex_string(key)
-        ] = token_or_string_to_hex_string(val)
+    def add_unknown(self, key: String, val: Octets):
 
-    def get_unknown_entry(self, key: String) -> str:
-        return self.unknown[token_or_string_to_hex_string(key)]
+        key_str = token_or_string_to_hex_string(key)
+
+        self.unknown[key_str] = bytes_from_octets(val).hex()
+
+    def get_unknown(self, key: String) -> str:
+
+        key_str = token_or_string_to_hex_string(key)
+
+        return self.unknown[key_str]
 
 
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
@@ -564,10 +587,8 @@ def psbt_from_tx(tx: Tx) -> Psbt:
 def _combine_field(
     psbt_map: Union[PsbtIn, PsbtOut, Psbt], out: Union[PsbtIn, PsbtOut, Psbt], key: str
 ) -> None:
-    item: Union[Union[int, Tx, TxOut, PartialSigs], Dict[str, str]] = getattr(
-        psbt_map, key
-    )
-    a: Union[Union[int, Tx, TxOut, PartialSigs], Dict[str, str]] = getattr(out, key)
+    item = getattr(psbt_map, key)
+    a = getattr(out, key)
     if isinstance(item, dict) and a and isinstance(a, dict):
         a.update(item)
     elif isinstance(item, dict) or item and not a:
@@ -621,7 +642,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
 def finalize_psbt(psbt: Psbt) -> Psbt:
     psbt = deepcopy(psbt)
     for psbt_in in psbt.inputs:
-        assert psbt_in.partial_sigs
+        assert psbt_in.partial_sigs, "Missing signatures"
         if psbt_in.witness_script:
             psbt_in.final_script_sig = [
                 script.encode(psbt_in.redeem_script).hex().upper()
@@ -641,8 +662,8 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             psbt_in.final_script_sig += [
                 script.encode(psbt_in.redeem_script).hex().upper()
             ]
+            # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
             if len(psbt_in.partial_sigs.sigs) > 1:
-                # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
                 dummy_element: List[ScriptToken] = [0]
                 psbt_in.final_script_sig = dummy_element + psbt_in.final_script_sig
         psbt_in.partial_sigs = PartialSigs()
