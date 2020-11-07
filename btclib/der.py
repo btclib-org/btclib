@@ -214,7 +214,4 @@ def _serialize(
     result = _serialize_scalar(r)
     result += _serialize_scalar(s)
     result = b"\x30" + len(result).to_bytes(1, byteorder="big") + result
-    if sighash is None:
-        return result
-
-    return result + sighash.to_bytes(1, "big")
+    return result if sighash is None else (result + sighash.to_bytes(1, "big"))
