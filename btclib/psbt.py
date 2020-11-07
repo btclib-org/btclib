@@ -29,6 +29,7 @@ from .bip32 import (
     str_from_bip32_path,
 )
 from .der import DERSig
+from .script import SIGHASHES
 from .scriptpubkey import payload_from_scriptPubKey
 from .secpoint import bytes_from_point
 from .to_pubkey import PubKey
@@ -79,6 +80,9 @@ class HdKeyPaths(DataClassJsonMixin):
         entry = self.hd_keypaths[key_str]
         return entry["fingerprint"], entry["derivation_path"]
 
+    def assert_valid(self) -> None:
+        pass
+
 
 @dataclass
 class PartialSigs(DataClassJsonMixin):
@@ -101,6 +105,9 @@ class PartialSigs(DataClassJsonMixin):
 
         return self.sigs[key_str]
 
+    def assert_valid(self) -> None:
+        pass
+
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
 
@@ -110,7 +117,7 @@ class PsbtIn(DataClassJsonMixin):
     non_witness_utxo: Optional[Tx] = None
     witness_utxo: Optional[TxOut] = None
     partial_sigs: PartialSigs = field(default_factory=PartialSigs)
-    sighash: Optional[int] = 0
+    sighash: Optional[int] = None
     redeem_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
@@ -135,45 +142,45 @@ class PsbtIn(DataClassJsonMixin):
     ) -> _PsbtIn:
         psbt_in = cls()
         for key, value in input_map.items():
-            if key[0] == 0x00:
+            if key[0] == 0x00:  # non_witness_utxo
                 assert len(key) == 1
                 psbt_in.non_witness_utxo = Tx.deserialize(value)
-            elif key[0] == 0x01:
+            elif key[0] == 0x01:  # witness_utxo
                 assert len(key) == 1
                 psbt_in.witness_utxo = TxOut.deserialize(value)
-            elif key[0] == 0x02:
+            elif key[0] == 0x02:  # partial_sigs
                 assert len(key) == 33 + 1
                 psbt_in.partial_sigs.add_sig(key[1:], value)
-            elif key[0] == 0x03:
+            elif key[0] == 0x03:  # sighash
                 assert len(key) == 1
                 assert len(value) == 4
                 psbt_in.sighash = int.from_bytes(value, "little")
-            elif key[0] == 0x04:
+            elif key[0] == 0x04:  # redeem_script
                 assert len(key) == 1
                 psbt_in.redeem_script = value
-            elif key[0] == 0x05:
+            elif key[0] == 0x05:  # witness_script
                 assert len(key) == 1
                 psbt_in.witness_script = value
-            elif key[0] == 0x06:
+            elif key[0] == 0x06:  # hd_keypaths
                 if len(key) != 33 + 1:
                     raise ValueError(f"invalid key lenght: {len(key)-1}")
                 psbt_in.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
-            elif key[0] == 0x07:
+            elif key[0] == 0x07:  # final_script_sig
                 assert len(key) == 1
                 psbt_in.final_script_sig = value
-            elif key[0] == 0x08:
+            elif key[0] == 0x08:  # final_script_witness
                 assert len(key) == 1
                 psbt_in.final_script_witness = witness_deserialize(value)
-            elif key[0] == 0x09:
+            elif key[0] == 0x09:  # por_commitment
                 assert len(key) == 1
                 psbt_in.por_commitment = value.hex()  # TODO: bip127
-            elif key[0] == 0xFC:  # proprietary use
+            elif key[0] == 0xFC:  # proprietary
                 prefix = varint.decode(key[1:])
                 if prefix not in psbt_in.proprietary.keys():
                     psbt_in.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 psbt_in.proprietary[prefix][key.hex()] = value
-            else:  # unkown keys
+            else:  # unknown keys
                 psbt_in.unknown[key.hex()] = value
 
         if assert_valid:
@@ -239,7 +246,22 @@ class PsbtIn(DataClassJsonMixin):
         return out
 
     def assert_valid(self) -> None:
-        pass
+        if self.non_witness_utxo is not None:
+            self.non_witness_utxo.assert_valid()
+        if self.witness_utxo is not None:
+            self.witness_utxo.assert_valid()
+        self.partial_sigs.assert_valid()
+        if self.sighash is not None:
+            assert self.sighash in SIGHASHES, f"invalid sighash: {self.sighash}"
+        assert isinstance(self.redeem_script, bytes)
+        assert isinstance(self.witness_script, bytes)
+        self.hd_keypaths.assert_valid()
+        assert isinstance(self.final_script_sig, bytes)
+        assert isinstance(self.final_script_witness, list)
+        if self.por_commitment is not None:
+            assert isinstance(self.por_commitment, str)
+        assert isinstance(self.proprietary, dict)
+        assert isinstance(self.unknown, dict)
 
     def add_unknown(self, key: String, val: Octets):
 
@@ -291,7 +313,7 @@ class PsbtOut(DataClassJsonMixin):
                     psbt_out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 psbt_out.proprietary[prefix][key.hex()] = value
-            else:  # unkown keys
+            else:  # unknown keys
                 psbt_out.unknown[key.hex()] = value
 
         if assert_valid:
@@ -353,7 +375,7 @@ _PSBT_MAGIC_BYTES = b"psbt\xff"
 
 @dataclass
 class Psbt(DataClassJsonMixin):
-    tx: Tx
+    tx: Tx = field(default=Tx())
     inputs: List[PsbtIn] = field(default_factory=list)
     outputs: List[PsbtOut] = field(default_factory=list)
     version: Optional[int] = 0
@@ -367,52 +389,40 @@ class Psbt(DataClassJsonMixin):
 
         assert data[:5] == _PSBT_MAGIC_BYTES, "Malformed psbt: missing magic bytes"
 
-        version = 0
-        hd_keypaths = HdKeyPaths()
-        proprietary: Dict[int, Dict[str, bytes]] = {}
-        unknown: Dict[str, bytes] = {}
+        psbt = cls()
 
         global_map, data = deserialize_map(data[5:])
         for key, value in global_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
-                tx = Tx.deserialize(value)
+                psbt.tx = Tx.deserialize(value)
             elif key[0] == 0x01:
                 # TODO add test case
                 # why extended key here?
                 assert len(key) == 78 + 1, f"invalid key lenght: {len(key)-1}"
-                hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
+                psbt.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0xFB:
                 assert len(value) == 4
-                version = int.from_bytes(value, "little")
+                psbt.version = int.from_bytes(value, "little")
             elif key[0] == 0xFC:
                 prefix = varint.decode(key[1:])
-                if prefix not in proprietary.keys():
-                    proprietary[prefix] = {}
+                if prefix not in psbt.proprietary.keys():
+                    psbt.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                proprietary[prefix][key.hex()] = value
-            else:  # unkown keys
-                unknown[key.hex()] = value
+                psbt.proprietary[prefix][key.hex()] = value
+            else:  # unknown keys
+                psbt.unknown[key.hex()] = value
 
-        inputs = []
-        for _ in range(len(tx.vin)):
+        psbt.inputs = []
+        for _ in range(len(psbt.tx.vin)):
             input_map, data = deserialize_map(data)
-            inputs.append(PsbtIn.deserialize(input_map))
+            psbt.inputs.append(PsbtIn.deserialize(input_map))
 
-        outputs = []
-        for _ in range(len(tx.vout)):
+        psbt.outputs = []
+        for _ in range(len(psbt.tx.vout)):
             output_map, data = deserialize_map(data)
-            outputs.append(PsbtOut.deserialize(output_map))
+            psbt.outputs.append(PsbtOut.deserialize(output_map))
 
-        psbt = cls(
-            tx=tx,
-            inputs=inputs,
-            outputs=outputs,
-            version=version,
-            hd_keypaths=hd_keypaths,
-            proprietary=proprietary,
-            unknown=unknown,
-        )
         if assert_valid:
             psbt.assert_valid()
         return psbt
@@ -456,6 +466,7 @@ class Psbt(DataClassJsonMixin):
         return b64encode(out).decode("ascii")
 
     def assert_valid(self) -> None:
+        self.tx.assert_valid()
         for vin in self.tx.vin:
             assert vin.scriptSig == b""
             assert vin.txinwitness == []
@@ -543,7 +554,7 @@ def psbt_from_tx(tx: Tx) -> Psbt:
         input.txinwitness = []
     inputs = [PsbtIn() for _ in tx.vin]
     outputs = [PsbtOut() for _ in tx.vout]
-    return Psbt(tx=tx, inputs=inputs, outputs=outputs, unknown={})
+    return Psbt(tx=tx, inputs=inputs, outputs=outputs)
 
 
 def _combine_field(
@@ -618,7 +629,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             psbt_in.final_script_sig += b"".join(psbt_in.partial_sigs.sigs.values())
             psbt_in.final_script_sig += psbt_in.redeem_script
         psbt_in.partial_sigs = PartialSigs()
-        psbt_in.sighash = 0
+        psbt_in.sighash = None
         psbt_in.redeem_script = b""
         psbt_in.witness_script = b""
         psbt_in.hd_keypaths = HdKeyPaths()
