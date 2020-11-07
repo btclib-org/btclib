@@ -140,52 +140,52 @@ class PsbtIn(DataClassJsonMixin):
     def deserialize(
         cls: Type[_PsbtIn], input_map: Dict[bytes, bytes], assert_valid: bool = True
     ) -> _PsbtIn:
-        psbt_in = cls()
+        out = cls()
         for key, value in input_map.items():
             if key[0] == 0x00:  # non_witness_utxo
                 assert len(key) == 1
-                psbt_in.non_witness_utxo = Tx.deserialize(value)
+                out.non_witness_utxo = Tx.deserialize(value)
             elif key[0] == 0x01:  # witness_utxo
                 assert len(key) == 1
-                psbt_in.witness_utxo = TxOut.deserialize(value)
+                out.witness_utxo = TxOut.deserialize(value)
             elif key[0] == 0x02:  # partial_sigs
                 assert len(key) == 33 + 1
-                psbt_in.partial_sigs.add_sig(key[1:], value)
+                out.partial_sigs.add_sig(key[1:], value)
             elif key[0] == 0x03:  # sighash
                 assert len(key) == 1
                 assert len(value) == 4
-                psbt_in.sighash = int.from_bytes(value, "little")
+                out.sighash = int.from_bytes(value, "little")
             elif key[0] == 0x04:  # redeem_script
                 assert len(key) == 1
-                psbt_in.redeem_script = value
+                out.redeem_script = value
             elif key[0] == 0x05:  # witness_script
                 assert len(key) == 1
-                psbt_in.witness_script = value
+                out.witness_script = value
             elif key[0] == 0x06:  # hd_keypaths
                 if len(key) != 33 + 1:
                     raise ValueError(f"invalid key lenght: {len(key)-1}")
-                psbt_in.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
+                out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0x07:  # final_script_sig
                 assert len(key) == 1
-                psbt_in.final_script_sig = value
+                out.final_script_sig = value
             elif key[0] == 0x08:  # final_script_witness
                 assert len(key) == 1
-                psbt_in.final_script_witness = witness_deserialize(value)
+                out.final_script_witness = witness_deserialize(value)
             elif key[0] == 0x09:  # por_commitment
                 assert len(key) == 1
-                psbt_in.por_commitment = value.hex()  # TODO: bip127
+                out.por_commitment = value.hex()  # TODO: bip127
             elif key[0] == 0xFC:  # proprietary
                 prefix = varint.decode(key[1:])
-                if prefix not in psbt_in.proprietary.keys():
-                    psbt_in.proprietary[prefix] = {}
+                if prefix not in out.proprietary.keys():
+                    out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                psbt_in.proprietary[prefix][key.hex()] = value
+                out.proprietary[prefix][key.hex()] = value
             else:  # unknown keys
-                psbt_in.unknown[key.hex()] = value
+                out.unknown[key.hex()] = value
 
         if assert_valid:
-            psbt_in.assert_valid()
-        return psbt_in
+            out.assert_valid()
+        return out
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
@@ -295,30 +295,30 @@ class PsbtOut(DataClassJsonMixin):
     def deserialize(
         cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], assert_valid: bool = True
     ) -> _PsbtOut:
-        psbt_out = cls()
+        out = cls()
         for key, value in output_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
-                psbt_out.redeem_script = value
+                out.redeem_script = value
             elif key[0] == 0x01:
                 assert len(key) == 1
-                psbt_out.witness_script = value
+                out.witness_script = value
             elif key[0] == 0x02:
                 if len(key) != 33 + 1:
                     raise ValueError(f"invalid key lenght: {len(key)-1}")
-                psbt_out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
+                out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
-                if prefix not in psbt_out.proprietary.keys():
-                    psbt_out.proprietary[prefix] = {}
+                if prefix not in out.proprietary.keys():
+                    out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                psbt_out.proprietary[prefix][key.hex()] = value
+                out.proprietary[prefix][key.hex()] = value
             else:  # unknown keys
-                psbt_out.unknown[key.hex()] = value
+                out.unknown[key.hex()] = value
 
         if assert_valid:
-            psbt_out.assert_valid()
-        return psbt_out
+            out.assert_valid()
+        return out
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
@@ -389,43 +389,43 @@ class Psbt(DataClassJsonMixin):
 
         assert data[:5] == _PSBT_MAGIC_BYTES, "Malformed psbt: missing magic bytes"
 
-        psbt = cls()
+        out = cls()
 
         global_map, data = deserialize_map(data[5:])
         for key, value in global_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
-                psbt.tx = Tx.deserialize(value)
+                out.tx = Tx.deserialize(value)
             elif key[0] == 0x01:
                 # TODO add test case
                 # why extended key here?
                 assert len(key) == 78 + 1, f"invalid key lenght: {len(key)-1}"
-                psbt.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
+                out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0xFB:
                 assert len(value) == 4
-                psbt.version = int.from_bytes(value, "little")
+                out.version = int.from_bytes(value, "little")
             elif key[0] == 0xFC:
                 prefix = varint.decode(key[1:])
-                if prefix not in psbt.proprietary.keys():
-                    psbt.proprietary[prefix] = {}
+                if prefix not in out.proprietary.keys():
+                    out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                psbt.proprietary[prefix][key.hex()] = value
+                out.proprietary[prefix][key.hex()] = value
             else:  # unknown keys
-                psbt.unknown[key.hex()] = value
+                out.unknown[key.hex()] = value
 
-        psbt.inputs = []
-        for _ in range(len(psbt.tx.vin)):
+        out.inputs = []
+        for _ in range(len(out.tx.vin)):
             input_map, data = deserialize_map(data)
-            psbt.inputs.append(PsbtIn.deserialize(input_map))
+            out.inputs.append(PsbtIn.deserialize(input_map))
 
-        psbt.outputs = []
-        for _ in range(len(psbt.tx.vout)):
+        out.outputs = []
+        for _ in range(len(out.tx.vout)):
             output_map, data = deserialize_map(data)
-            psbt.outputs.append(PsbtOut.deserialize(output_map))
+            out.outputs.append(PsbtOut.deserialize(output_map))
 
         if assert_valid:
-            psbt.assert_valid()
-        return psbt
+            out.assert_valid()
+        return out
 
     def serialize(self, assert_valid: bool = True) -> str:
 
