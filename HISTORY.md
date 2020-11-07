@@ -8,7 +8,7 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
-- introduced HdKeypaths, PartialSigs, PsbtIn, PsbtOut,
+- introduced HdKeyPaths, PartialSigs, PsbtIn, PsbtOut,
   and Psbt data classes and their associated helper functions
 - refactored Diffie-Hellman and ANSI-X9.63-KDF
 - introduced dataclasses_json as requirement, used to

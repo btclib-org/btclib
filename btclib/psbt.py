@@ -56,10 +56,10 @@ def _pubkey_to_hex_string(pubkey: PubKey) -> str:
 
 
 @dataclass
-class HdKeypaths(DataClassJsonMixin):
+class HdKeyPaths(DataClassJsonMixin):
     hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
-    def add_hd_path(self, key: PubKey, fingerprint: Octets, path: BIP32Path) -> None:
+    def add_hd_keypath(self, key: PubKey, fingerprint: Octets, path: BIP32Path) -> None:
 
         key_str = _pubkey_to_hex_string(key)
         # assert key_str == pubkeyinfo_from_key(key)[0].hex()
@@ -70,7 +70,7 @@ class HdKeypaths(DataClassJsonMixin):
             "derivation_path": path_str,
         }
 
-    def get_hd_path_entry(self, key: PubKey) -> Tuple[str, str]:
+    def get_hd_keypath(self, key: PubKey) -> Tuple[str, str]:
         key_str = _pubkey_to_hex_string(key)
         entry = self.hd_keypaths[key_str]
         return entry["fingerprint"], entry["derivation_path"]
@@ -107,7 +107,7 @@ class PsbtIn(DataClassJsonMixin):
     witness_script: List[ScriptToken] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
-    hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
+    hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
     final_script_sig: List[ScriptToken] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
@@ -128,7 +128,7 @@ class PsbtIn(DataClassJsonMixin):
         sighash = 0
         redeem_script = []
         witness_script = []
-        hd_keypaths = HdKeypaths()
+        hd_keypaths = HdKeyPaths()
         final_script_sig = []
         final_script_witness = []
         por_commitment = None
@@ -157,7 +157,7 @@ class PsbtIn(DataClassJsonMixin):
             elif key[0] == 0x06:
                 if len(key) != 33 + 1:
                     raise ValueError(f"invalid key lenght: {len(key)-1}")
-                hd_keypaths.add_hd_path(key[1:], value[:4], value[4:])
+                hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0x07:
                 assert len(key) == 1
                 final_script_sig = script.decode(value)
@@ -275,7 +275,7 @@ class PsbtOut(DataClassJsonMixin):
     witness_script: List[ScriptToken] = field(
         default_factory=list, metadata=config(encoder=token_or_string_to_printable)
     )
-    hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
+    hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
@@ -285,7 +285,7 @@ class PsbtOut(DataClassJsonMixin):
     ) -> _PsbtOut:
         redeem_script = []
         witness_script = []
-        hd_keypaths = HdKeypaths()
+        hd_keypaths = HdKeyPaths()
         proprietary: Dict[int, Dict[str, str]] = {}
         unknown = {}
         for key, value in output_map.items():
@@ -298,7 +298,7 @@ class PsbtOut(DataClassJsonMixin):
             elif key[0] == 0x02:
                 if len(key) != 33 + 1:
                     raise ValueError(f"invalid key lenght: {len(key)-1}")
-                hd_keypaths.add_hd_path(key[1:], value[:4], value[4:])
+                hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
                 if prefix not in proprietary.keys():
@@ -372,7 +372,7 @@ class Psbt(DataClassJsonMixin):
     inputs: List[PsbtIn]
     outputs: List[PsbtOut]
     version: Optional[int] = 0
-    hd_keypaths: HdKeypaths = field(default_factory=HdKeypaths)
+    hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[str, str] = field(default_factory=dict)
 
@@ -387,7 +387,7 @@ class Psbt(DataClassJsonMixin):
 
         global_map, data = deserialize_map(data)
         version = 0
-        hd_keypaths = HdKeypaths()
+        hd_keypaths = HdKeyPaths()
         proprietary: Dict[int, Dict[str, str]] = {}
         unknown = {}
         for key, value in global_map.items():
@@ -398,7 +398,7 @@ class Psbt(DataClassJsonMixin):
                 # TODO add test case
                 # why extended key here?
                 assert len(key) == 78 + 1, f"invalid key lenght: {len(key)-1}"
-                hd_keypaths.add_hd_path(key[1:], value[:4], value[4:])
+                hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0xFB:
                 assert len(value) == 4
                 version = int.from_bytes(value, "little")
@@ -574,7 +574,7 @@ def _combine_field(
         setattr(out, key, item)
     elif isinstance(item, PartialSigs) and isinstance(a, PartialSigs):
         a.sigs.update(item.sigs)
-    elif isinstance(item, HdKeypaths) and isinstance(a, HdKeypaths):
+    elif isinstance(item, HdKeyPaths) and isinstance(a, HdKeyPaths):
         a.hd_keypaths.update(item.hd_keypaths)
     elif item:
         assert item == a, key
@@ -649,7 +649,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         psbt_in.sighash = 0
         psbt_in.redeem_script = []
         psbt_in.witness_script = []
-        psbt_in.hd_keypaths = HdKeypaths()
+        psbt_in.hd_keypaths = HdKeyPaths()
         psbt_in.por_commitment = None
     return psbt
 

@@ -15,7 +15,7 @@ import pytest
 from btclib import script
 from btclib.bip32 import BIP32KeyData
 from btclib.psbt import (
-    HdKeypaths,
+    HdKeyPaths,
     Psbt,
     combine_psbts,
     extract_tx,
@@ -272,6 +272,13 @@ def test_extraction():
     assert tx.serialize().hex() == tx_string
 
 
+def test_psbt_serialization():
+    # this is a finalized Psbt
+    psbt_string = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAABB9oARzBEAiB0AYrUGACXuHMyPAAVcgs2hMyBI4kQSOfbzZtVrWecmQIgc9Npt0Dj61Pc76M4I8gHBRTKVafdlUTxV8FnkTJhEYwBSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAUdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSrgABASAAwusLAAAAABepFLf1+vQOPUClpFmx2zU18rcvqSHohwEHIyIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQjaBABHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwFHMEQCIGX0W6WZi1mif/4ae+0BavHx+Q1Us6qPdFCqX1aiUQO9AiB/ckcDrR7blmgLKEtW1P/LiPf7dZ6rvgiqMPKbhROD0gFHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4AIgIDqaTDf1mW06ol26xrVwrwZQOUSSlCRgs1R1Ptnuylh3EQ2QxqTwAAAIAAAACABAAAgAAiAgJ/Y5l1fS7/VaE2rQLGhLGDi2VW5fG2s0KCqUtrUAUQlhDZDGpPAAAAgAAAAIAFAACAAA=="
+    psbt = Psbt.deserialize(psbt_string)
+    assert psbt.serialize() == psbt_string
+
+
 def test_lexicographic_ordering():
     combined_psbt_string = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAKDwECAwQFBgcICQ8BAgMEBQYHCAkKCwwNDg8KDwECAwQFBgcIEA8BAgMEBQYHCAkKCwwNDg8ACg8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PCg8BAgMEBQYHCBAPAQIDBAUGBwgJCgsMDQ4PAAoPAQIDBAUGBwgJDwECAwQFBgcICQoLDA0ODwoPAQIDBAUGBwgQDwECAwQFBgcICQoLDA0ODwA="
     psbt1 = Psbt.deserialize(
@@ -425,7 +432,7 @@ def test_der():
     psbt_string = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
     psbt = Psbt.deserialize(psbt_string)
     assert (
-        psbt.outputs[1].hd_keypaths.get_hd_path_entry(
+        psbt.outputs[1].hd_keypaths.get_hd_keypath(
             "027f6399757d2eff55a136ad02c684b1838b6556e5f1b6b34282a94b6b50051096"
         )[1]
         == "m/0h/0h/5h"
@@ -480,7 +487,7 @@ def test_sig_type3():
         depth=0,
         parent_fingerprint=bytes.fromhex("00 00 00 00"),
         index=0,
-        chain_code=bytes.fromhex(32 * "00"),
+        chain_code=bytes.fromhex("00" * 32),
         key=bytes.fromhex(pk1_str),
     )
 
@@ -496,61 +503,86 @@ def test_sig_type3():
 
 def test_hd_paths():
     psbt_check_string = "cHNidP8BAIkCAAAAARnxViCzMlE50R7BLfUK9Em7JRSithDHx6/HqzxOPb/lAAAAAAD9////AiChBwAAAAAAIgAg6OYWyJlTxF3xOZM+ZJnQYcC6um0klfv3rZqVkbDWaKVBiAMAAAAAACIAIFXAXQ7M7bSsf6IR0Zt+mWvjNRtOX1dbUyA7QN7x3rJVAAAAAAABASuFKwsAAAAAACIAIGxMhA6S1FFxsrccUutx1Wu6+ijbCMDqwETnode6/M9vIgIDVy+a9q69emdkJk4Xq9xPyAzzWcEfgcu+Ts96LCNKX49IMEUCIQDh6ho/n3kEkusYgQ8OSeZQszl/kfpKOAwGSeMUSUMAngIgLDbfAC4tGyEdoCVrRGsnVB4zDEb9k4a1mhYbSQLoVMsBIgYCOOOQQx1Uydk9h38Rd98Gj/dMemSmLtsUC3tlt004+5QUpFwW+ywAAIAAAACAAAAAAAAAAAAiBgJ6RK62ZrlAXMGL4dJOG61AdvTYSrSYvJu7XE37wIolbBQ+kOBlLAAAgAAAAIAAAAAAAAAAACIGAyoYpiApIUlH9R9l71y9PdAJBGyxofwpoeoZGTcP8OkCFLd96kwsAACAAAAAgAAAAAAAAAAAIgYDVy+a9q69emdkJk4Xq9xPyAzzWcEfgcu+Ts96LCNKX48UOIHNZywAAIAAAACAAAAAAAAAAAAiBgP8xVUHZvsvdflS4U8rKZT1vopnW1W8RSXAqOTGeY3RFxRS5uGZLAAAgAAAAIAAAAAAAAAAAAAAAA=="
-
     psbt = Psbt.deserialize(psbt_check_string)
 
-    psbt.inputs[0].hd_keypaths = HdKeypaths()
+    psbt.inputs[0].hd_keypaths = HdKeyPaths()
     assert psbt.serialize() != psbt_check_string
+
+    bip32_str_path = "m/44h/0h/0/0"
 
     pk1_str = "02 38e390431d54c9d93d877f1177df068ff74c7a64a62edb140b7b65b74d38fb94"
     fingerprint1_str = "a45c16fb"
-    path1_str = "m/44'/0'/0/0"
-    psbt.inputs[0].hd_keypaths.add_hd_path(pk1_str, fingerprint1_str, path1_str)
+    psbt.inputs[0].hd_keypaths.add_hd_keypath(pk1_str, fingerprint1_str, bip32_str_path)
+    assert psbt.inputs[0].hd_keypaths.get_hd_keypath(pk1_str) == (
+        fingerprint1_str,
+        bip32_str_path,
+    )
 
     pk2_tuple = (
         55303518948956126257715543378820412488467496206714732453652294290762118079852,
         94239533235813337047676626617971636063945929248279744743514887733238097548810,
     )
-    fingerprint2_bytes = bytes.fromhex("3e 90 e0 65")
-    path2_indexes = [0x8000002C, 0x80000000, 0, 0]
-    psbt.inputs[0].hd_keypaths.add_hd_path(pk2_tuple, fingerprint2_bytes, path2_indexes)
-    assert psbt.inputs[0].hd_keypaths.get_hd_path_entry(pk2_tuple) == (
+    fingerprint2_bytes = bytes.fromhex("3e90e065")
+    psbt.inputs[0].hd_keypaths.add_hd_keypath(
+        pk2_tuple, fingerprint2_bytes, bip32_str_path
+    )
+    assert psbt.inputs[0].hd_keypaths.get_hd_keypath(pk2_tuple) == (
         fingerprint2_bytes.hex(),
-        "m/44h/0h/0/0",
+        bip32_str_path,
     )
 
     pk3_data = BIP32KeyData(
-        version=bytes.fromhex("04 88 b2 1e"),
+        version=bytes.fromhex("0488B21E"),
         depth=0,
-        parent_fingerprint=bytes.fromhex("00 00 00 00"),
+        parent_fingerprint=bytes.fromhex("00000000"),
         index=0,
-        chain_code=bytes.fromhex(32 * "00"),
+        chain_code=bytes.fromhex("00" * 32),
         key=bytes.fromhex(
             "03 2a18a62029214947f51f65ef5cbd3dd009046cb1a1fc29a1ea1919370ff0e902"
         ),
     )
     fingerprint3_str = "b77dea4c"
-    path3_str = "m/44H/0h/0/0"
-    psbt.inputs[0].hd_keypaths.add_hd_path(pk3_data, fingerprint3_str, path3_str)
+    psbt.inputs[0].hd_keypaths.add_hd_keypath(
+        pk3_data, fingerprint3_str, bip32_str_path
+    )
+    assert psbt.inputs[0].hd_keypaths.get_hd_keypath(pk3_data) == (
+        fingerprint3_str,
+        bip32_str_path,
+    )
 
+    # little endian
+    bip32_bytes_path = bytes.fromhex("2C000080 00000080 00000000 00000000")
     pk4_bytes = bytes.fromhex(
         "03 572f9af6aebd7a6764264e17abdc4fc80cf359c11f81cbbe4ecf7a2c234a5f8f"
     )
-    fingerprint4_bytes = bytes.fromhex("38 81 cd 67")
-    path4_str = "m/44'/0'/0/0"
-    psbt.inputs[0].hd_keypaths.add_hd_path(pk4_bytes, fingerprint4_bytes, path4_str)
+    fingerprint4_bytes = bytes.fromhex("3881cd67")
+    psbt.inputs[0].hd_keypaths.add_hd_keypath(
+        pk4_bytes, fingerprint4_bytes, bip32_bytes_path
+    )
+    assert psbt.inputs[0].hd_keypaths.get_hd_keypath(pk4_bytes) == (
+        fingerprint4_bytes.hex(),
+        bip32_str_path,
+    )
 
+    bip32_int_path = [0x8000002C, 0x80000000, 0, 0]
     pk5_str = "03 fcc5550766fb2f75f952e14f2b2994f5be8a675b55bc4525c0a8e4c6798dd117"
     fingerprint5_str = "52e6e199"
-    path5_str = "m/44'/0H/0/0"
-    psbt.inputs[0].hd_keypaths.add_hd_path(pk5_str, fingerprint5_str, path5_str)
+    psbt.inputs[0].hd_keypaths.add_hd_keypath(pk5_str, fingerprint5_str, bip32_int_path)
+    assert psbt.inputs[0].hd_keypaths.get_hd_keypath(pk5_str) == (
+        fingerprint5_str,
+        bip32_str_path,
+    )
 
     assert psbt.serialize() == psbt_check_string
 
-    # test json properties
-    assert psbt == Psbt.from_json(psbt.to_json(indent=True))
 
-    assert psbt.serialize() == psbt_check_string
+def test_psbt_json():
+    psbt_str = "cHNidP8BAIkCAAAAARnxViCzMlE50R7BLfUK9Em7JRSithDHx6/HqzxOPb/lAAAAAAD9////AiChBwAAAAAAIgAg6OYWyJlTxF3xOZM+ZJnQYcC6um0klfv3rZqVkbDWaKVBiAMAAAAAACIAIFXAXQ7M7bSsf6IR0Zt+mWvjNRtOX1dbUyA7QN7x3rJVAAAAAAABASuFKwsAAAAAACIAIGxMhA6S1FFxsrccUutx1Wu6+ijbCMDqwETnode6/M9vIgIDVy+a9q69emdkJk4Xq9xPyAzzWcEfgcu+Ts96LCNKX49IMEUCIQDh6ho/n3kEkusYgQ8OSeZQszl/kfpKOAwGSeMUSUMAngIgLDbfAC4tGyEdoCVrRGsnVB4zDEb9k4a1mhYbSQLoVMsBIgYCOOOQQx1Uydk9h38Rd98Gj/dMemSmLtsUC3tlt004+5QUpFwW+ywAAIAAAACAAAAAAAAAAAAiBgJ6RK62ZrlAXMGL4dJOG61AdvTYSrSYvJu7XE37wIolbBQ+kOBlLAAAgAAAAIAAAAAAAAAAACIGAyoYpiApIUlH9R9l71y9PdAJBGyxofwpoeoZGTcP8OkCFLd96kwsAACAAAAAgAAAAAAAAAAAIgYDVy+a9q69emdkJk4Xq9xPyAzzWcEfgcu+Ts96LCNKX48UOIHNZywAAIAAAACAAAAAAAAAAAAiBgP8xVUHZvsvdflS4U8rKZT1vopnW1W8RSXAqOTGeY3RFxRS5uGZLAAAgAAAAIAAAAAAAAAAAAAAAA=="
+    psbt = Psbt.deserialize(psbt_str)
+
+    temp = psbt.to_json()
+    psbt2 = Psbt.from_json(temp)
+    assert psbt == psbt2
 
 
 def test_proprietary_types():
