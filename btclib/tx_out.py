@@ -9,13 +9,13 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass, field
-from typing import List, Type, TypeVar
+from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import script
-from .alias import BinaryData, ScriptToken
-from .utils import bytesio_from_binarydata, token_or_string_to_printable
+from . import varint
+from .alias import BinaryData
+from .utils import bytesio_from_binarydata
 
 MAX_SATOSHI = 2_099_999_997_690_000
 
@@ -25,8 +25,8 @@ _TxOut = TypeVar("_TxOut", bound="TxOut")
 @dataclass
 class TxOut(DataClassJsonMixin):
     nValue: int  # satoshis
-    scriptPubKey: List[ScriptToken] = field(
-        metadata=config(encoder=token_or_string_to_printable)
+    scriptPubKey: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
 
     @classmethod
@@ -37,7 +37,7 @@ class TxOut(DataClassJsonMixin):
         # 8 bytes, little endian, interpreted as int
         nValue = int.from_bytes(stream.read(8), "little")
 
-        scriptPubKey = script.deserialize(stream)
+        scriptPubKey = stream.read(varint.decode(stream))
 
         tx_out = cls(nValue=nValue, scriptPubKey=scriptPubKey)
         if assert_valid:
@@ -50,7 +50,7 @@ class TxOut(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.nValue.to_bytes(8, "little")
-        out += script.serialize(self.scriptPubKey)
+        out += varint.encode(len(self.scriptPubKey)) + self.scriptPubKey
         return out
 
     def assert_valid(self) -> None:

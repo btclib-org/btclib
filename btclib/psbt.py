@@ -16,12 +16,12 @@ https://en.bitcoin.it/wiki/BIP_0174
 from base64 import b64decode, b64encode
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
+from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import der, script, varint
-from .alias import Octets, ScriptToken, String
+from . import der, varint
+from .alias import Octets, String
 from .bip32 import (
     BIP32KeyData,
     BIP32Path,
@@ -40,7 +40,6 @@ from .utils import (
     hash160,
     sha256,
     token_or_string_to_hex_string,
-    token_or_string_to_printable,
 )
 
 
@@ -83,7 +82,7 @@ class HdKeyPaths(DataClassJsonMixin):
 
 @dataclass
 class PartialSigs(DataClassJsonMixin):
-    sigs: Dict[str, str] = field(default_factory=dict)
+    sigs: Dict[str, bytes] = field(default_factory=dict)
 
     def add_sig(self, key: PubKey, sig: DERSig):
 
@@ -91,11 +90,11 @@ class PartialSigs(DataClassJsonMixin):
         key_str = _pubkey_to_hex_string(key)
 
         r, s, sighash = der._deserialize(sig)
-        sig_str = der._serialize(r, s, sighash).hex()
+        sig_str = der._serialize(r, s, sighash)
 
         self.sigs[key_str] = sig_str
 
-    def get_sig(self, key: PubKey) -> str:
+    def get_sig(self, key: PubKey) -> bytes:
 
         # key_str = pubkeyinfo_from_key(key)[0].hex()
         key_str = _pubkey_to_hex_string(key)
@@ -112,22 +111,23 @@ class PsbtIn(DataClassJsonMixin):
     witness_utxo: Optional[TxOut] = None
     partial_sigs: PartialSigs = field(default_factory=PartialSigs)
     sighash: Optional[int] = 0
-    redeem_script: List[ScriptToken] = field(
-        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    redeem_script: bytes = field(
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    witness_script: List[ScriptToken] = field(
-        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    witness_script: bytes = field(
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
-    final_script_sig: List[ScriptToken] = field(
-        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    final_script_sig: bytes = field(
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    final_script_witness: List[String] = field(
-        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    final_script_witness: List[bytes] = field(
+        default_factory=list,
+        metadata=config(encoder=lambda val: [v.hex() for v in val]),
     )
     por_commitment: Optional[str] = None
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
-    unknown: Dict[str, str] = field(default_factory=dict)
+    proprietary: Dict[int, Dict[str, bytes]] = field(default_factory=dict)
+    unknown: Dict[str, bytes] = field(default_factory=dict)
 
     @classmethod
     def deserialize(
@@ -137,14 +137,14 @@ class PsbtIn(DataClassJsonMixin):
         witness_utxo = None
         partial_sigs = PartialSigs()
         sighash = 0
-        redeem_script = []
-        witness_script = []
+        redeem_script = b""
+        witness_script = b""
         hd_keypaths = HdKeyPaths()
-        final_script_sig = []
-        final_script_witness = []
+        final_script_sig = b""
+        final_script_witness: List[bytes] = []
         por_commitment = None
-        proprietary: Dict[int, Dict[str, str]] = {}
-        unknown: Dict[str, str] = {}
+        proprietary: Dict[int, Dict[str, bytes]] = {}
+        unknown: Dict[str, bytes] = {}
         for key, value in input_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
@@ -161,17 +161,17 @@ class PsbtIn(DataClassJsonMixin):
                 sighash = int.from_bytes(value, "little")
             elif key[0] == 0x04:
                 assert len(key) == 1
-                redeem_script = script.decode(value)
+                redeem_script = value
             elif key[0] == 0x05:
                 assert len(key) == 1
-                witness_script = script.decode(value)
+                witness_script = value
             elif key[0] == 0x06:
                 if len(key) != 33 + 1:
                     raise ValueError(f"invalid key lenght: {len(key)-1}")
                 hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0x07:
                 assert len(key) == 1
-                final_script_sig = script.decode(value)
+                final_script_sig = value
             elif key[0] == 0x08:
                 assert len(key) == 1
                 final_script_witness = witness_deserialize(value)
@@ -183,9 +183,9 @@ class PsbtIn(DataClassJsonMixin):
                 if prefix not in proprietary.keys():
                     proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                proprietary[prefix][key.hex()] = value.hex()
+                proprietary[prefix][key.hex()] = value
             else:  # unkown keys
-                unknown[key.hex()] = value.hex()
+                unknown[key.hex()] = value
 
         out = cls(
             non_witness_utxo=non_witness_utxo,
@@ -222,16 +222,16 @@ class PsbtIn(DataClassJsonMixin):
         if self.partial_sigs:
             for key, value in self.partial_sigs.sigs.items():
                 out += b"\x22\x02" + bytes.fromhex(key)
-                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
+                out += varint.encode(len(value)) + value
         if self.sighash:
             out += b"\x01\x03\x04"
             out += self.sighash.to_bytes(4, "little")
         if self.redeem_script:
             out += b"\x01\x04"
-            out += script.serialize(self.redeem_script)
+            out += varint.encode(len(self.redeem_script)) + self.redeem_script
         if self.witness_script:
             out += b"\x01\x05"
-            out += script.serialize(self.witness_script)
+            out += varint.encode(len(self.witness_script)) + self.witness_script
         if self.hd_keypaths:
             for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
                 out += b"\x22\x06" + bytes.fromhex(xpub)
@@ -242,10 +242,11 @@ class PsbtIn(DataClassJsonMixin):
                 out += varint.encode(len(keypath)) + keypath
         if self.final_script_sig:
             out += b"\x01\x07"
-            out += script.serialize(self.final_script_sig)
+            out += varint.encode(len(self.final_script_sig)) + self.final_script_sig
         if self.final_script_witness:
             out += b"\x01\x08"
             wit = witness_serialize(self.final_script_witness)
+            # TODO: clarify why varint.encode(len(wit)) again
             out += varint.encode(len(wit)) + wit
         if self.por_commitment:  # TODO
             out += b"\x01\x09"
@@ -253,14 +254,14 @@ class PsbtIn(DataClassJsonMixin):
             out += varint.encode(len(c)) + c
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
-                for key, value in dictionary.items():
+                for key, value2 in dictionary.items():
                     key_bytes = b"\xfc" + varint.encode(owner) + bytes.fromhex(key)
                     out += varint.encode(len(key_bytes)) + key_bytes
-                    out += varint.encode(len(value) // 2) + bytes.fromhex(value)
+                    out += varint.encode(len(value2)) + value2
         if self.unknown:
-            for key, value in self.unknown.items():
+            for key, value2 in self.unknown.items():
                 out += varint.encode(len(key) // 2) + bytes.fromhex(key)
-                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
+                out += varint.encode(len(value2)) + value2
         return out
 
     def assert_valid(self) -> None:
@@ -270,9 +271,9 @@ class PsbtIn(DataClassJsonMixin):
 
         key_str = token_or_string_to_hex_string(key)
 
-        self.unknown[key_str] = bytes_from_octets(val).hex()
+        self.unknown[key_str] = bytes_from_octets(val)
 
-    def get_unknown(self, key: String) -> str:
+    def get_unknown(self, key: String) -> bytes:
 
         key_str = token_or_string_to_hex_string(key)
 
@@ -284,32 +285,32 @@ _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
 @dataclass
 class PsbtOut(DataClassJsonMixin):
-    redeem_script: List[ScriptToken] = field(
-        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    redeem_script: bytes = field(
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    witness_script: List[ScriptToken] = field(
-        default_factory=list, metadata=config(encoder=token_or_string_to_printable)
+    witness_script: bytes = field(
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
-    unknown: Dict[str, str] = field(default_factory=dict)
+    proprietary: Dict[int, Dict[str, bytes]] = field(default_factory=dict)
+    unknown: Dict[str, bytes] = field(default_factory=dict)
 
     @classmethod
     def deserialize(
         cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], assert_valid: bool = True
     ) -> _PsbtOut:
-        redeem_script = []
-        witness_script = []
+        redeem_script = b""
+        witness_script = b""
         hd_keypaths = HdKeyPaths()
-        proprietary: Dict[int, Dict[str, str]] = {}
-        unknown: Dict[str, str] = {}
+        proprietary: Dict[int, Dict[str, bytes]] = {}
+        unknown: Dict[str, bytes] = {}
         for key, value in output_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
-                redeem_script = script.decode(value)
+                redeem_script = value
             elif key[0] == 0x01:
                 assert len(key) == 1
-                witness_script = script.decode(value)
+                witness_script = value
             elif key[0] == 0x02:
                 if len(key) != 33 + 1:
                     raise ValueError(f"invalid key lenght: {len(key)-1}")
@@ -319,9 +320,9 @@ class PsbtOut(DataClassJsonMixin):
                 if prefix not in proprietary.keys():
                     proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                proprietary[prefix][key.hex()] = value.hex()
+                proprietary[prefix][key.hex()] = value
             else:  # unkown keys
-                unknown[key.hex()] = value.hex()
+                unknown[key.hex()] = value
 
         out = cls(
             redeem_script=redeem_script,
@@ -342,10 +343,10 @@ class PsbtOut(DataClassJsonMixin):
         out = b""
         if self.redeem_script:
             out += b"\x01\x00"
-            out += script.serialize(self.redeem_script)
+            out += varint.encode(len(self.redeem_script)) + self.redeem_script
         if self.witness_script:
             out += b"\x01\x01"
-            out += script.serialize(self.witness_script)
+            out += varint.encode(len(self.witness_script)) + self.witness_script
         if self.hd_keypaths:
             for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
                 out += b"\x22\x02" + bytes.fromhex(xpub)
@@ -359,11 +360,11 @@ class PsbtOut(DataClassJsonMixin):
                 for key, value in dictionary.items():
                     key_bytes = b"\xfc" + varint.encode(owner) + bytes.fromhex(key)
                     out += varint.encode(len(key_bytes)) + key_bytes
-                    out += varint.encode(len(value) // 2) + bytes.fromhex(value)
+                    out += varint.encode(len(value)) + value
         if self.unknown:
             for key, value in self.unknown.items():
                 out += varint.encode(len(key) // 2) + bytes.fromhex(key)
-                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
+                out += varint.encode(len(value)) + value
         return out
 
     def assert_valid(self) -> None:
@@ -373,9 +374,9 @@ class PsbtOut(DataClassJsonMixin):
 
         key_str = token_or_string_to_hex_string(key)
 
-        self.unknown[key_str] = bytes_from_octets(val).hex()
+        self.unknown[key_str] = bytes_from_octets(val)
 
-    def get_unknown(self, key: String) -> str:
+    def get_unknown(self, key: String) -> bytes:
 
         key_str = token_or_string_to_hex_string(key)
 
@@ -392,8 +393,8 @@ class Psbt(DataClassJsonMixin):
     outputs: List[PsbtOut]
     version: Optional[int] = 0
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
-    unknown: Dict[str, str] = field(default_factory=dict)
+    proprietary: Dict[int, Dict[str, bytes]] = field(default_factory=dict)
+    unknown: Dict[str, bytes] = field(default_factory=dict)
 
     @classmethod
     def deserialize(cls: Type[_PSbt], string: str, assert_valid: bool = True) -> _PSbt:
@@ -407,8 +408,8 @@ class Psbt(DataClassJsonMixin):
         global_map, data = deserialize_map(data)
         version = 0
         hd_keypaths = HdKeyPaths()
-        proprietary: Dict[int, Dict[str, str]] = {}
-        unknown: Dict[str, str] = {}
+        proprietary: Dict[int, Dict[str, bytes]] = {}
+        unknown: Dict[str, bytes] = {}
         for key, value in global_map.items():
             if key[0] == 0x00:
                 assert len(key) == 1
@@ -426,9 +427,9 @@ class Psbt(DataClassJsonMixin):
                 if prefix not in proprietary.keys():
                     proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                proprietary[prefix][key.hex()] = value.hex()
+                proprietary[prefix][key.hex()] = value
             else:  # unkown keys
-                unknown[key.hex()] = value.hex()
+                unknown[key.hex()] = value
 
         input_len = len(tx.vin)
         output_len = len(tx.vout)
@@ -481,11 +482,11 @@ class Psbt(DataClassJsonMixin):
                 for key, value in dictionary.items():
                     key_bytes = b"\xfc" + varint.encode(owner) + bytes.fromhex(key)
                     out += varint.encode(len(key_bytes)) + key_bytes
-                    out += varint.encode(len(value) // 2) + bytes.fromhex(value)
+                    out += varint.encode(len(value)) + value
         if self.unknown:
             for key, value in self.unknown.items():
                 out += varint.encode(len(key) // 2) + bytes.fromhex(key)
-                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
+                out += varint.encode(len(value)) + value
         out += b"\x00"
         for input_map in self.inputs:
             out += input_map.serialize() + b"\x00"
@@ -495,7 +496,7 @@ class Psbt(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         for vin in self.tx.vin:
-            assert vin.scriptSig == []
+            assert vin.scriptSig == b""
             assert vin.txinwitness == []
         for input_map in self.inputs:
             input_map.assert_valid()
@@ -528,7 +529,7 @@ class Psbt(DataClassJsonMixin):
                     scriptPubKey = non_witness_utxo.vout[tx_in.prevout.n].scriptPubKey
                 elif witness_utxo:
                     scriptPubKey = witness_utxo.scriptPubKey
-                hash = hash160(script.encode(self.inputs[i].redeem_script))
+                hash = hash160(self.inputs[i].redeem_script)
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
             if self.inputs[i].witness_script:
@@ -539,16 +540,16 @@ class Psbt(DataClassJsonMixin):
                 if self.inputs[i].redeem_script:
                     scriptPubKey = self.inputs[i].redeem_script
 
-                hash = sha256(script.encode(self.inputs[i].witness_script))
+                hash = sha256(self.inputs[i].witness_script)
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
     def add_unknown(self, key: String, val: Octets):
 
         key_str = token_or_string_to_hex_string(key)
 
-        self.unknown[key_str] = bytes_from_octets(val).hex()
+        self.unknown[key_str] = bytes_from_octets(val)
 
-    def get_unknown(self, key: String) -> str:
+    def get_unknown(self, key: String) -> bytes:
 
         key_str = token_or_string_to_hex_string(key)
 
@@ -577,7 +578,7 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
 def psbt_from_tx(tx: Tx) -> Psbt:
     tx = deepcopy(tx)
     for input in tx.vin:
-        input.scriptSig = []
+        input.scriptSig = b""
         input.txinwitness = []
     inputs = [PsbtIn() for _ in tx.vin]
     outputs = [PsbtOut() for _ in tx.vout]
@@ -644,32 +645,21 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     for psbt_in in psbt.inputs:
         assert psbt_in.partial_sigs, "Missing signatures"
         if psbt_in.witness_script:
-            psbt_in.final_script_sig = [
-                script.encode(psbt_in.redeem_script).hex().upper()
-            ]
-            psbt_in.final_script_witness = list(psbt_in.partial_sigs.sigs.values())
-            psbt_in.final_script_witness += [
-                script.encode(psbt_in.witness_script).hex()
-            ]
+            psbt_in.final_script_sig = psbt_in.redeem_script
             if len(psbt_in.partial_sigs.sigs) > 1:
-                psbt_in.final_script_witness = [
-                    cast(String, "")
-                ] + psbt_in.final_script_witness
+                psbt_in.final_script_witness = [b""]
+            psbt_in.final_script_witness += psbt_in.partial_sigs.sigs.values()
+            psbt_in.final_script_witness += [psbt_in.witness_script]
         else:
-            psbt_in.final_script_sig = [
-                a.upper() for a in list(psbt_in.partial_sigs.sigs.values())
-            ]
-            psbt_in.final_script_sig += [
-                script.encode(psbt_in.redeem_script).hex().upper()
-            ]
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
             if len(psbt_in.partial_sigs.sigs) > 1:
-                dummy_element: List[ScriptToken] = [0]
-                psbt_in.final_script_sig = dummy_element + psbt_in.final_script_sig
+                psbt_in.final_script_sig = b"\x00"
+            psbt_in.final_script_sig += b"".join(psbt_in.partial_sigs.sigs.values())
+            psbt_in.final_script_sig += psbt_in.redeem_script
         psbt_in.partial_sigs = PartialSigs()
         psbt_in.sighash = 0
-        psbt_in.redeem_script = []
-        psbt_in.witness_script = []
+        psbt_in.redeem_script = b""
+        psbt_in.witness_script = b""
         psbt_in.hd_keypaths = HdKeyPaths()
         psbt_in.por_commitment = None
     return psbt

@@ -12,7 +12,6 @@
 
 import pytest
 
-from btclib import script
 from btclib.bip32 import BIP32KeyData
 from btclib.psbt import (
     HdKeyPaths,
@@ -209,8 +208,7 @@ def test_creation():
             ),
             0,
         ),
-        [],
-        "",
+        b"",
         0xFFFFFFFF,
         [],
     )
@@ -221,16 +219,15 @@ def test_creation():
             ),
             1,
         ),
-        [],
-        "",
+        b"",
         0xFFFFFFFF,
         [],
     )
     output_1 = TxOut(
-        149990000, script.decode("0014d85c2b71d0060b09c9886aeb815e50991dda124d")
+        149990000, bytes.fromhex("0014d85c2b71d0060b09c9886aeb815e50991dda124d")
     )
     output_2 = TxOut(
-        100000000, script.decode("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
+        100000000, bytes.fromhex("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
     )
     transaction = Tx(2, 0, [input_1, input_2], [output_1, output_2])
     psbt = psbt_from_tx(transaction)
@@ -305,14 +302,14 @@ def test_explicit_version():
 def test_global_unknown():
     psbt_string = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
     psbt = Psbt.deserialize(psbt_string)
-    psbt.add_unknown("ff010203", bytes.fromhex("1234567890"))
+    psbt.add_unknown("ff010203", "1234567890")
     assert Psbt.deserialize(psbt.serialize()) == psbt
 
 
 def test_output_unknown():
     psbt_string = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
     psbt = Psbt.deserialize(psbt_string)
-    psbt.outputs[0].unknown["ff010203"] = "1234567890"
+    psbt.outputs[0].unknown["ff010203"] = bytes.fromhex("1234567890")
     assert Psbt.deserialize(psbt.serialize()) == psbt
 
 
@@ -332,27 +329,25 @@ def test_output_scripts_serialization():
             ),
             0,
         ),
-        [],
         b"",
         0xFFFFFFFF,
         [],
     )
     output_1 = TxOut(
-        149990000, script.decode("a914256b3a9ae8145e5094329537dd4d7a25dbc9452087")
+        149990000, bytes.fromhex("a914256b3a9ae8145e5094329537dd4d7a25dbc9452087")
     )
     output_2 = TxOut(
-        100000000, script.decode("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
+        100000000, bytes.fromhex("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
     )
     transaction = Tx(2, 0, [input_1], [output_1, output_2])
 
     psbt = psbt_from_tx(transaction)
 
     # p2sh-p2wsh
-    psbt.outputs[0].redeem_script = [
-        0,
-        "3BD89EE628E6EB745F99DF1E4AEF64A0DAA814850DAA509F30C0F472E0563C7A",
-    ]
-    psbt.outputs[0].witness_script = script.decode(
+    psbt.outputs[0].redeem_script = bytes.fromhex(
+        "003BD89EE628E6EB745F99DF1E4AEF64A0DAA814850DAA509F30C0F472E0563C7A"
+    )
+    psbt.outputs[0].witness_script = bytes.fromhex(
         "522103dcea327ff7b2b4449413d9dc24cef0cc9e7864bad9d6291f3f1a04b639422c312103a2c5199b333adfaed4fea7ab65485b9e23a6cb317ddae7e8c1f2bd673414bdd352ae"
     )
 
@@ -394,9 +389,9 @@ def test_proprietary():
     psbt_string = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
     psbt = Psbt.deserialize(psbt_string)
 
-    psbt.inputs[0].proprietary = {300: {"00ff": "00ff"}}
-    psbt.outputs[1].proprietary = {300: {"ff00": "ff00"}}
-    psbt.proprietary = {300: {"aaaa": "bbbb"}}
+    psbt.inputs[0].proprietary = {300: {"00ff": b"\x00\xff"}}
+    psbt.outputs[1].proprietary = {300: {"ff00": b"\xff\x00"}}
+    psbt.proprietary = {300: {"aaaa": b"\xbb\xbb"}}
 
     assert Psbt.deserialize(psbt.serialize()) == psbt
 
@@ -417,8 +412,7 @@ def test_valid_sign_2():
             ),
             0,
         ),
-        [],
-        "",
+        b"",
         0xFFFFFFFF,
         [],
     )
@@ -451,7 +445,7 @@ def test_sig_type1():
 
     psbt.inputs[0].partial_sigs.add_sig(pk1_str, sig1_str)
     assert psbt.serialize() == psbt_check_string
-    assert psbt.inputs[0].partial_sigs.get_sig(pk1_str) == sig1_str
+    assert psbt.inputs[0].partial_sigs.get_sig(pk1_str).hex() == sig1_str
 
 
 def test_sig_type2():
@@ -597,6 +591,6 @@ def test_proprietary_types():
     psbt.outputs[0].add_unknown("abcd", bytes.fromhex("1234"))
 
     assert psbt.serialize() == psbt_check
-    assert psbt.get_unknown(bytes.fromhex("abcd")) == "123456"
-    assert psbt.inputs[0].get_unknown("abcd") == "123456"
-    assert psbt.outputs[0].get_unknown(bytes.fromhex("abcd")) == "1234"
+    assert psbt.get_unknown("abcd").hex() == "123456"
+    assert psbt.inputs[0].get_unknown("abcd").hex() == "123456"
+    assert psbt.outputs[0].get_unknown("abcd").hex() == "1234"

@@ -14,7 +14,6 @@ from typing import List
 import pytest
 
 from btclib import tx, tx_in, tx_out
-from btclib.alias import String
 
 
 def test_genesis_block() -> None:
@@ -33,7 +32,6 @@ def test_genesis_block() -> None:
     assert transaction_out.serialize().hex() == coinbase_out
 
     assert transaction.vin[0].scriptSig == transaction_in.scriptSig
-    assert transaction.vin[0].scriptSig == []
     assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
 
     assert (
@@ -100,7 +98,7 @@ def test_double_witness() -> None:
 
     # Test witnesses as bytes
 
-    witness1: List[String] = [
+    witness1: List[bytes] = [
         bytes.fromhex(
             "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01"
         ),
@@ -109,7 +107,7 @@ def test_double_witness() -> None:
         ),
     ]
 
-    witness2: List[String] = [
+    witness2: List[bytes] = [
         bytes.fromhex(
             "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901"
         ),
@@ -165,17 +163,20 @@ def test_invalid_outpoint() -> None:
 
 
 def test_invalid_tx_out() -> None:
-    transaction_output = tx_out.TxOut(nValue=-1, scriptPubKey=["OP_RETURN"])
+    transaction_output = tx_out.TxOut(
+        nValue=-1, scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64")
+    )
     with pytest.raises(ValueError, match="negative nValue: "):
         transaction_output.assert_valid()
 
     transaction_output = tx_out.TxOut(
-        nValue=tx_out.MAX_SATOSHI + 1, scriptPubKey=["OP_RETURN"]
+        nValue=tx_out.MAX_SATOSHI + 1,
+        scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64"),
     )
     with pytest.raises(ValueError, match="nValue too high: "):
         transaction_output.assert_valid()
 
-    transaction_output = tx_out.TxOut(nValue=1, scriptPubKey=[])
+    transaction_output = tx_out.TxOut(nValue=1, scriptPubKey=b"")
     with pytest.raises(ValueError, match="empty scriptPubKey"):
         transaction_output.assert_valid()
 
@@ -183,8 +184,7 @@ def test_invalid_tx_out() -> None:
 def test_invalid_tx() -> None:
     transaction_input = tx_in.TxIn(
         prevout=tx_in.OutPoint(b"\xff" * 32, 0),
-        scriptSig=[],
-        scriptSigHex=b"",
+        scriptSig=b"",
         nSequence=1,
         txinwitness=[],
     )
