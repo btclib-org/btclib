@@ -15,7 +15,7 @@ https://learnmeabitcoin.com/guide/coinbase-transaction
 https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import ceil
 from typing import List, Type, TypeVar
 
@@ -32,15 +32,17 @@ _Tx = TypeVar("_Tx", bound="Tx")
 
 @dataclass
 class Tx(DataClassJsonMixin):
-    nVersion: int
-    nLockTime: int
-    vin: List[TxIn]
-    vout: List[TxOut]
+    nVersion: int = 0
+    nLockTime: int = 0
+    vin: List[TxIn] = field(default_factory=list)
+    vout: List[TxOut] = field(default_factory=list)
 
     @classmethod
     def deserialize(cls: Type[_Tx], data: BinaryData, assert_valid: bool = True) -> _Tx:
         stream = bytesio_from_binarydata(data)
-        nVersion = int.from_bytes(stream.read(4), "little")
+
+        tx = cls()
+        tx.nVersion = int.from_bytes(stream.read(4), "little")
         view: bytes = stream.getvalue()
         witness_flag = False
         if view[stream.tell() : stream.tell() + 2] == b"\x00\x01":
@@ -48,18 +50,17 @@ class Tx(DataClassJsonMixin):
             stream.read(2)
 
         input_count = varint.decode(stream)
-        vin = [TxIn.deserialize(stream) for _ in range(input_count)]
+        tx.vin = [TxIn.deserialize(stream) for _ in range(input_count)]
 
         output_count = varint.decode(stream)
-        vout = [TxOut.deserialize(stream) for _ in range(output_count)]
+        tx.vout = [TxOut.deserialize(stream) for _ in range(output_count)]
 
         if witness_flag:
-            for tx_input in vin:
+            for tx_input in tx.vin:
                 tx_input.txinwitness = witness_deserialize(stream)
 
-        nLockTime = int.from_bytes(stream.read(4), "little")
+        tx.nLockTime = int.from_bytes(stream.read(4), "little")
 
-        tx = cls(nVersion=nVersion, nLockTime=nLockTime, vin=vin, vout=vout)
         if assert_valid:
             tx.assert_valid()
         return tx
