@@ -14,13 +14,13 @@ import pytest
 
 from btclib.bip32 import BIP32KeyData
 from btclib.psbt import (
-    HdKeyPaths,
     Psbt,
     combine_psbts,
     extract_tx,
     finalize_psbt,
     psbt_from_tx,
 )
+from btclib.psbt_out import HdKeyPaths
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
