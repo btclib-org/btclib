@@ -134,10 +134,10 @@ https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
 import secrets
 from base64 import b64decode, b64encode
 from hashlib import sha256
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from . import dsa
-from .alias import BMSig, BMSigTuple, String
+from .alias import Octets, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import wif_from_prvkey
 from .bech32address import p2wpkh, witness_from_b32address
@@ -155,7 +155,14 @@ def _validate_sig(rf: int, r: int, s: int) -> None:
     dsa._validate_sig(r, s, secp256k1)
 
 
-def deserialize(sig: BMSig) -> BMSigTuple:
+# Bitcoin message signature
+# (rf, r, s), where r and s are the components of a DSASigTuple
+BMSigTuple = Tuple[int, int, int]
+# BMSigTuple or base64 65-bytes serialization (bytes or hex-string)
+BMSig = Union[BMSigTuple, Octets]
+
+
+def decode(sig: BMSig) -> BMSigTuple:
     """Return the verified components of the provided BSM signature.
 
     The address-based BSM signature can be represented
@@ -186,7 +193,7 @@ def deserialize(sig: BMSig) -> BMSigTuple:
     return rf, r, s
 
 
-def serialize(rf: int, r: int, s: int) -> bytes:
+def encode(rf: int, r: int, s: int) -> bytes:
     """Return the BSM address-based signature as base64-encoding.
 
     First off, the signature is serialized in the
@@ -275,7 +282,7 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    rf, r, s = deserialize(sig)
+    rf, r, s = decode(sig)
 
     magic_msg = _magic_message(msg)
     c = dsa.challenge(magic_msg, secp256k1, sha256)

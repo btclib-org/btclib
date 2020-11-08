@@ -106,12 +106,6 @@ DSASigTuple = Tuple[int, int]
 # DSASigTuple or DER serialization (bytes or hex-string, no sighash)
 DSASig = Union[DSASigTuple, Octets]
 
-# Bitcoin message signature
-# (rf, r, s), where r and s are the components of a DSASigTuple
-BMSigTuple = Tuple[int, int, int]
-# BMSigTuple or base64 65-bytes serialization (bytes or hex-string)
-BMSig = Union[BMSigTuple, Octets]
-
 # BIP340-Schnorr signature
 # (r, s)
 # r is a _field_element_, 0 <= r < ec.p
