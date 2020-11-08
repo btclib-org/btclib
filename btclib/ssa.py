@@ -106,7 +106,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
             pass
 
     # BIP 340 key as bytes or hex-string
-    if isinstance(x_Q, str) or isinstance(x_Q, bytes):
+    if isinstance(x_Q, (str, bytes)):
         Q = bytes_from_octets(x_Q, ec.psize)
         x_Q = int.from_bytes(Q, "big")
         y_Q = ec.y_quadratic_residue(x_Q, True)
