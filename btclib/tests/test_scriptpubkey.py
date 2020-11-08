@@ -113,20 +113,20 @@ def test_nulldata2() -> None:
 
 def test_nulldata3() -> None:
 
-    err_msg = "invalid nulldata script lenght: "
+    err_msg = "invalid nulldata script length: "
     with pytest.raises(ValueError, match=err_msg):
         payload = "00" * 81
         scriptPubKey_from_payload("nulldata", payload)
 
-    # wrong data lenght: 32 in 35-bytes nulldata script;
+    # wrong data length: 32 in 35-bytes nulldata script;
     # it should have been 33
     scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 33])
     scriptPubKey = scriptPubKey[:1] + b"\x20" + scriptPubKey[2:]
-    err_msg = "wrong data lenght: "
+    err_msg = "wrong data length: "
     with pytest.raises(ValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
-    # wrong data lenght: 32 in 83-bytes nulldata script;
+    # wrong data length: 32 in 83-bytes nulldata script;
     # it should have been 80
     scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 80])
     scriptPubKey = scriptPubKey[:2] + b"\x20" + scriptPubKey[3:]

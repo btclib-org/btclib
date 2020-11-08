@@ -167,7 +167,7 @@ class PsbtIn(DataClassJsonMixin):
                 witness_script = script.deserialize(value)
             elif key[0] == 0x06:
                 if len(key) != 33 + 1:
-                    raise ValueError(f"invalid key lenght: {len(key)-1}")
+                    raise ValueError(f"invalid key length: {len(key)-1}")
                 hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0x07:
                 assert len(key) == 1
@@ -315,7 +315,7 @@ class PsbtOut(DataClassJsonMixin):
                 witness_script = script.deserialize(value)
             elif key[0] == 0x02:
                 if len(key) != 33 + 1:
-                    raise ValueError(f"invalid key lenght: {len(key)-1}")
+                    raise ValueError(f"invalid key length: {len(key)-1}")
                 hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0xFC:  # proprietary use
                 prefix = varint.decode(key[1:])
@@ -421,7 +421,7 @@ class Psbt(DataClassJsonMixin):
             elif key[0] == 0x01:
                 # TODO add test case
                 # why extended key here?
-                assert len(key) == 78 + 1, f"invalid key lenght: {len(key)-1}"
+                assert len(key) == 78 + 1, f"invalid key length: {len(key)-1}"
                 hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0] == 0xFB:
                 assert len(value) == 4
