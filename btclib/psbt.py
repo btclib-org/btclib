@@ -81,12 +81,12 @@ class Psbt(DataClassJsonMixin):
                 out.unknown[key.hex()] = value
 
         out.inputs = []
-        for _ in range(len(out.tx.vin)):
+        for _ in out.tx.vin:
             input_map, data = deserialize_map(data)
             out.inputs.append(PsbtIn.deserialize(input_map))
 
         out.outputs = []
-        for _ in range(len(out.tx.vout)):
+        for _ in out.tx.vout:
             output_map, data = deserialize_map(data)
             out.outputs.append(PsbtOut.deserialize(output_map))
 
