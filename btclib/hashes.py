@@ -15,7 +15,7 @@
 from typing import Optional, Tuple
 
 from .alias import HashF, Script, String
-from .script import encode
+from .script import serialize
 from .to_pubkey import Key, pubkeyinfo_from_key
 from .utils import hash160, sha256
 
@@ -40,7 +40,7 @@ def hash160_from_script(scriptPubKey: Script) -> bytes:
     HASH160 is RIPEMD160(SHA256).
     """
     if isinstance(scriptPubKey, list):
-        scriptPubKey = encode(scriptPubKey)
+        scriptPubKey = serialize(scriptPubKey)
     return hash160(scriptPubKey)
 
 
@@ -50,7 +50,7 @@ def hash256_from_script(scriptPubKey: Script) -> bytes:
     HASH256 is SHA256(SHA256).
     """
     if isinstance(scriptPubKey, list):
-        scriptPubKey = encode(scriptPubKey)
+        scriptPubKey = serialize(scriptPubKey)
     return sha256(scriptPubKey)
 
 

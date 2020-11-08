@@ -26,7 +26,7 @@ def test_native_p2wpkh():
 
     previous_txout = tx_out.TxOut(
         nValue=600000000,
-        scriptPubKey=script.decode("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
+        scriptPubKey=script.deserialize("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
     )
 
     sighash = get_sighash(transaction, previous_txout, 1, 0x01)
@@ -41,13 +41,15 @@ def test_wrapped_p2wpkh():
     transaction = tx.Tx.deserialize(
         "0100000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a54770100000000feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac92040000"
     )
-    transaction.vin[0].scriptSig = script.decode(
+    transaction.vin[0].scriptSig = script.deserialize(
         "001479091972186c449eb1ded22b78e40d009bdf0089"
     )
 
     previous_txout = tx_out.TxOut(
         nValue=1000000000,
-        scriptPubKey=script.decode("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"),
+        scriptPubKey=script.deserialize(
+            "a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"
+        ),
     )
 
     sighash = get_sighash(transaction, previous_txout, 0, 0x01)
@@ -68,7 +70,7 @@ def test_native_p2wsh():
 
     previous_txout = tx.TxOut(
         nValue=4900000000,
-        scriptPubKey=script.decode(
+        scriptPubKey=script.deserialize(
             "00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0"
         ),
     )
@@ -81,7 +83,7 @@ def test_native_p2wsh():
     )
 
     script_code = _get_witness_v0_scriptCodes(
-        script.decode(transaction.vin[1].txinwitness[-1])
+        script.deserialize(transaction.vin[1].txinwitness[-1])
     )[1]
     sighash = segwit_v0_sighash(
         script_code, transaction, 1, 0x03, previous_txout.nValue
@@ -105,7 +107,7 @@ def test_native_p2wsh_2():
 
     previous_txout_1 = tx_out.TxOut(
         nValue=16777215,
-        scriptPubKey=script.decode(
+        scriptPubKey=script.deserialize(
             "0020ba468eea561b26301e4cf69fa34bde4ad60c81e70f059f045ca9a79931004a4d"
         ),
     )
@@ -117,13 +119,13 @@ def test_native_p2wsh_2():
 
     previous_txout_2 = tx.TxOut(
         nValue=16777215,
-        scriptPubKey=script.decode(
+        scriptPubKey=script.deserialize(
             "0020d9bbfbe56af7c4b7f960a70d7ea107156913d9e5a26b0a71429df5e097ca6537"
         ),
     )
 
     script_code = _get_witness_v0_scriptCodes(
-        script.decode(transaction.vin[1].txinwitness[-1])
+        script.deserialize(transaction.vin[1].txinwitness[-1])
     )[1]
     sighash = segwit_v0_sighash(
         script_code, transaction, 1, 0x83, previous_txout_2.nValue
@@ -145,7 +147,7 @@ def test_wrapped_p2wsh():
 
     previous_txout = tx_out.TxOut(
         nValue=987654321,
-        scriptPubKey=script.decode(
+        scriptPubKey=script.deserialize(
             "0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54"
         ),
     )

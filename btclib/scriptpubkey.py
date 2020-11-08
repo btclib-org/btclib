@@ -16,7 +16,7 @@ from typing import List, Optional, Tuple, Union
 
 from .alias import Octets, Script, ScriptToken, String
 from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
-from .script import decode, encode
+from .script import deserialize, serialize
 from .to_pubkey import Key, pubkeyinfo_from_key
 from .utils import bytes_from_octets
 
@@ -111,7 +111,7 @@ def scriptPubKey_from_payload(
         else:
             raise ValueError(f"unknown scriptPubKey type: {script_type}")
 
-    return encode(scriptPubKey)
+    return serialize(scriptPubKey)
 
 
 Payloads = Union[bytes, List[bytes]]
@@ -121,7 +121,7 @@ def payload_from_nulldata_scriptPubKey(
     scriptPubKey: Script,
 ) -> Tuple[str, Payloads, int]:
     scriptPubKey = (
-        encode(scriptPubKey)
+        serialize(scriptPubKey)
         if isinstance(scriptPubKey, list)
         else bytes_from_octets(scriptPubKey)
     )
@@ -133,7 +133,7 @@ def payload_from_nulldata_scriptPubKey(
         raise ValueError(
             f"wrong data lenght: {scriptPubKey[1+zero_or_one]} "
             f"in {length}-bytes nulldata script; it should "
-            f"have been {length-2-zero_or_one}: {decode(scriptPubKey)}"
+            f"have been {length-2-zero_or_one}: {deserialize(scriptPubKey)}"
         )
     if length < 78:
         # OP_RETURN, data length, data up to 75 bytes max
@@ -145,7 +145,7 @@ def payload_from_nulldata_scriptPubKey(
         if scriptPubKey[1] != 0x4C:
             raise ValueError(
                 f"missing OP_PUSHDATA1 (0x4c) in {length}-bytes nulldata script, "
-                f"got {hex(scriptPubKey[1])} instead: {decode(scriptPubKey)}"
+                f"got {hex(scriptPubKey[1])} instead: {deserialize(scriptPubKey)}"
             )
         return "nulldata", scriptPubKey[3:], 0
     raise ValueError("invalid 78 bytes nulldata script length")
@@ -153,12 +153,12 @@ def payload_from_nulldata_scriptPubKey(
 
 def payload_from_pms_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]:
     scriptPubKey = (
-        encode(scriptPubKey)
+        serialize(scriptPubKey)
         if isinstance(scriptPubKey, list)
         else bytes_from_octets(scriptPubKey)
     )
     # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
-    scriptPubKey = decode(scriptPubKey)
+    scriptPubKey = deserialize(scriptPubKey)
     m = int(scriptPubKey[0])
     if m < 1 or m > 16:
         raise ValueError(f"invalid m in m-of-n multisignature: {m}")
@@ -182,7 +182,7 @@ def payload_from_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]
     "Return (scriptPubKey type, payload, m) from the input scriptPubKey."
 
     scriptPubKey = (
-        encode(scriptPubKey)
+        serialize(scriptPubKey)
         if isinstance(scriptPubKey, list)
         else bytes_from_octets(scriptPubKey)
     )
@@ -227,7 +227,7 @@ def payload_from_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]
         raise ValueError(
             f"unknown scriptPubKey: {len(scriptPubKey)}-bytes length"
             f"; starts with {scriptPubKey[:3].hex()}"
-            f", ends with {scriptPubKey[-2:].hex()}: {decode(scriptPubKey)}"
+            f", ends with {scriptPubKey[-2:].hex()}: {deserialize(scriptPubKey)}"
         )
 
 

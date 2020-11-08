@@ -21,7 +21,6 @@ Scripts are represented by List[ScriptToken], where ScriptToken = Union[int, str
 
 from typing import List
 
-from . import varint
 from .alias import BinaryData, Octets, ScriptToken
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -304,7 +303,7 @@ def _op_str(token: str) -> bytes:
     return _op_pushdata(data)
 
 
-def encode(script: List[ScriptToken]) -> bytes:
+def serialize(script: List[ScriptToken]) -> bytes:
     r = b""
     for token in script:
         if isinstance(token, int):
@@ -318,7 +317,7 @@ def encode(script: List[ScriptToken]) -> bytes:
     return r
 
 
-def decode(stream: BinaryData) -> List[ScriptToken]:
+def deserialize(stream: BinaryData) -> List[ScriptToken]:
 
     s = bytesio_from_binarydata(stream)
     # initialize the result list
@@ -365,18 +364,3 @@ def decode(stream: BinaryData) -> List[ScriptToken]:
             r.append(OP_CODE_NAMES[i])
 
     return r
-
-
-def serialize(script: List[ScriptToken]) -> bytes:
-    r = encode(script)
-    # prepend length encoded as varint
-    return varint.encode(len(r)) + r
-
-
-def deserialize(stream: BinaryData) -> List[ScriptToken]:
-
-    stream = bytesio_from_binarydata(stream)
-
-    length = varint.decode(stream)
-    script = stream.read(length)
-    return decode(script)

@@ -60,8 +60,6 @@ def test_simple() -> None:
         ["1F" * 520, "OP_DROP"],
     ]
     for scriptPubKey in script_list:
-        assert scriptPubKey == script.decode(script.encode(scriptPubKey))
-        assert scriptPubKey == script.decode(script.encode(scriptPubKey).hex())
         assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey))
         assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey).hex())
 
@@ -71,24 +69,24 @@ def test_exceptions() -> None:
     scriptPubKey: List[ScriptToken] = [2, 3, "OP_ADD", 5, "OP_VERIF"]
     err_msg = "invalid string token: OP_VERIF"
     with pytest.raises(ValueError, match=err_msg):
-        script.encode(scriptPubKey)
+        script.serialize(scriptPubKey)
 
     err_msg = "Unmanaged <class 'function'> token type"
     with pytest.raises(ValueError, match=err_msg):
-        script.encode([2, 3, "OP_ADD", 5, script.encode])  # type: ignore
+        script.serialize([2, 3, "OP_ADD", 5, script.serialize])  # type: ignore
 
     scriptPubKey = ["1f" * 521, "OP_DROP"]
     err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(ValueError, match=err_msg):
-        script.encode(scriptPubKey)
+        script.serialize(scriptPubKey)
 
     # A scriptPubKey with OP_PUSHDATA4 can be decoded
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
-    scriptPubKey = script.decode(script_bytes)
+    scriptPubKey = script.deserialize(script_bytes)
     # but it cannot be encoded
     err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(ValueError, match=err_msg):
-        script.encode(scriptPubKey)
+        script.serialize(scriptPubKey)
 
 
 def test_nulldata() -> None:
@@ -98,8 +96,6 @@ def test_nulldata() -> None:
         ["OP_RETURN", "00" * 79],
     ]
     for scriptPubKey in scripts:
-        assert scriptPubKey == script.decode(script.encode(scriptPubKey))
-        assert scriptPubKey == script.decode(script.encode(scriptPubKey).hex())
         assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey))
         assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey).hex())
 
@@ -131,4 +127,4 @@ def test_op_pushdata() -> None:
 
 def test_encoding():
     script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
-    assert script.encode(script.decode(script_bytes)) == script_bytes
+    assert script.serialize(script.deserialize(script_bytes)) == script_bytes

@@ -39,8 +39,8 @@ class PartialSigs(DataClassJsonMixin):
         # key_str = pubkeyinfo_from_key(key)[0].hex()
         key_str = _pubkey_to_hex_string(key)
 
-        r, s, sighash = der._deserialize(sig)
-        sig_str = der._serialize(r, s, sighash)
+        r, s, sighash = der.deserialize(sig)
+        sig_str = der.serialize(r, s, sighash)
 
         self.sigs[key_str] = sig_str
 

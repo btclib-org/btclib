@@ -52,13 +52,13 @@ def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:
         _validate_sig(r, s, ec)
         return r, s
     else:
-        return der._deserialize(sig, ec)[0:2]
+        return der.deserialize(sig, ec)[0:2]
 
 
 def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
     "Return the ECDSA signature as strict ASN.1 DER representation."
 
-    return der._serialize(r, s, None, ec)
+    return der.serialize(r, s, None, ec)
 
 
 def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:

@@ -155,7 +155,7 @@ def _scalar_size(der_sig: bytes, sighash_size: int, offset: int) -> int:
     return size
 
 
-def _deserialize(der_sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
+def deserialize(der_sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
     """Deserialize a strict ASN.1 DER representation of an ECDSA signature.
 
     Return r, s, sighash; sighash is None if not available.
@@ -201,7 +201,7 @@ def _serialize_scalar(scalar: int) -> bytes:
     return b"\x02" + xsize + x
 
 
-def _serialize(
+def serialize(
     r: int, s: int, sighash: Optional[int] = None, ec: Curve = secp256k1
 ) -> bytes:
     """Serialize an ECDSA signature to strict ASN.1 DER representation.

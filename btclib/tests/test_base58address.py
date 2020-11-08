@@ -110,7 +110,7 @@ def test_p2sh() -> None:
         "OP_SHA1",
         "OP_EQUAL",
     ]
-    assert script.encode(scriptPubKey).hex() == "6e879169a77ca787"
+    assert script.serialize(scriptPubKey).hex() == "6e879169a77ca787"
 
     network = "mainnet"
     addr = p2sh(scriptPubKey, network)
@@ -119,7 +119,7 @@ def test_p2sh() -> None:
     _, redeem_script_hash, network2, is_script_hash = h160_from_b58address(addr)
     assert network == network2
     assert is_script_hash
-    assert redeem_script_hash == hash160(script.encode(scriptPubKey))
+    assert redeem_script_hash == hash160(script.serialize(scriptPubKey))
 
     assert redeem_script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     output_script: List[ScriptToken] = [
@@ -127,7 +127,7 @@ def test_p2sh() -> None:
         redeem_script_hash.hex(),
         "OP_EQUAL",
     ]
-    script.encode(output_script)
+    script.serialize(output_script)
 
     # address with trailing/leading spaces
     _, h160, network2, is_script_hash = h160_from_b58address(
