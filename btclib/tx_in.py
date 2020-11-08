@@ -123,7 +123,7 @@ class TxIn(DataClassJsonMixin):
         if prevout.is_coinbase:
             scriptSigHex = deserialize_varbytes(stream)
         else:
-            scriptSig = script.deserialize(stream)
+            scriptSig = script.deserialize(stream.read(varint.decode(stream)))
 
         # 4 bytes, little endian, interpreted as int
         nSequence = int.from_bytes(stream.read(4), "little")
@@ -148,7 +148,8 @@ class TxIn(DataClassJsonMixin):
         if self.prevout.is_coinbase:
             out += serialize_varbytes(self.scriptSigHex)
         else:
-            out += script.serialize(self.scriptSig)
+            s = script.serialize(self.scriptSig)
+            out += varint.encode(len(s)) + s
         out += self.nSequence.to_bytes(4, "little")
         return out
 

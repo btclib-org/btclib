@@ -88,9 +88,9 @@ def _get_witness_v0_scriptCodes(scriptPubKey: Script) -> List[str]:
         current_script: List[ScriptToken] = []
         for token in scriptPubKey[::-1]:
             if token == "OP_CODESEPARATOR":
-                scriptCodes.append(script.encode(current_script[::-1]).hex())
+                scriptCodes.append(script.serialize(current_script[::-1]).hex())
             current_script.append(token)
-        scriptCodes.append(script.encode(current_script[::-1]).hex())
+        scriptCodes.append(script.serialize(current_script[::-1]).hex())
         scriptCodes = scriptCodes[::-1]
     return scriptCodes
 
@@ -116,7 +116,7 @@ def get_sighash(
         elif script_type == "p2wsh":
             # the real script is contained in the witness
             scriptCode = _get_witness_v0_scriptCodes(
-                script.decode(transaction.vin[input_index].txinwitness[-1])
+                script.deserialize(transaction.vin[input_index].txinwitness[-1])
             )[0]
         return segwit_v0_sighash(
             bytes.fromhex(scriptCode), transaction, input_index, sighash_type, value

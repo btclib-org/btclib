@@ -227,10 +227,10 @@ def test_creation():
         [],
     )
     output_1 = TxOut(
-        149990000, script.decode("0014d85c2b71d0060b09c9886aeb815e50991dda124d")
+        149990000, script.deserialize("0014d85c2b71d0060b09c9886aeb815e50991dda124d")
     )
     output_2 = TxOut(
-        100000000, script.decode("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
+        100000000, script.deserialize("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
     )
     transaction = Tx(2, 0, [input_1, input_2], [output_1, output_2])
     psbt = psbt_from_tx(transaction)
@@ -338,10 +338,10 @@ def test_output_scripts_serialization():
         [],
     )
     output_1 = TxOut(
-        149990000, script.decode("a914256b3a9ae8145e5094329537dd4d7a25dbc9452087")
+        149990000, script.deserialize("a914256b3a9ae8145e5094329537dd4d7a25dbc9452087")
     )
     output_2 = TxOut(
-        100000000, script.decode("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
+        100000000, script.deserialize("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
     )
     transaction = Tx(2, 0, [input_1], [output_1, output_2])
 
@@ -352,7 +352,7 @@ def test_output_scripts_serialization():
         0,
         "3BD89EE628E6EB745F99DF1E4AEF64A0DAA814850DAA509F30C0F472E0563C7A",
     ]
-    psbt.outputs[0].witness_script = script.decode(
+    psbt.outputs[0].witness_script = script.deserialize(
         "522103dcea327ff7b2b4449413d9dc24cef0cc9e7864bad9d6291f3f1a04b639422c312103a2c5199b333adfaed4fea7ab65485b9e23a6cb317ddae7e8c1f2bd673414bdd352ae"
     )
 
