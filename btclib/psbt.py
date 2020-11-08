@@ -37,7 +37,14 @@ from .utils import (
 
 _PSbt = TypeVar("_PSbt", bound="Psbt")
 
-_PSBT_MAGIC_BYTES = b"psbt\xff"
+_PSBT_MAGIC_BYTES = b"psbt"
+_PSBT_SEPARATOR = b"\xff"
+_PSBT_DELIMITER = b"\x00"
+
+_PSBT_UNSIGNED_TX = b"\x00"
+_PSBT_XPUB = b"\x01"
+_PSBT_VERSION = b"\xfb"
+_PSBT_PROPRIETARY = b"\xfc"
 
 
 @dataclass
@@ -51,27 +58,28 @@ class Psbt(DataClassJsonMixin):
     unknown: Dict[str, bytes] = field(default_factory=dict)
 
     @classmethod
-    def deserialize(cls: Type[_PSbt], string: str, assert_valid: bool = True) -> _PSbt:
-        data = b64decode(string)
+    def deserialize(cls: Type[_PSbt], data: bytes, assert_valid: bool = True) -> _PSbt:
 
-        assert data[:5] == _PSBT_MAGIC_BYTES, "Malformed psbt: missing magic bytes"
+        assert data[:4] == _PSBT_MAGIC_BYTES, "malformed psbt: missing magic bytes"
+        assert data[4:5] == _PSBT_SEPARATOR, "malformed psbt: missing separator"
 
         out = cls()
 
         global_map, data = deserialize_map(data[5:])
         for key, value in global_map.items():
-            if key[0] == 0x00:
-                assert len(key) == 1
-                out.tx = Tx.deserialize(value)
-            elif key[0] == 0x01:
+            if key[0:1] == _PSBT_UNSIGNED_TX:
+                assert len(key) == 1, f"invalid key lentgh: {len(key)}"
+                assert not out.tx.nVersion, "duplicated transaction"
+                out.tx = Tx.deserialize(value)  # legacy trensaction
+            elif key[0:1] == _PSBT_XPUB:
                 # TODO add test case
                 # why extended key here?
-                assert len(key) == 78 + 1, f"invalid key lenght: {len(key)-1}"
+                assert len(key) == 78 + 1, f"invalid key lenght: {len(key)}"
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
-            elif key[0] == 0xFB:
-                assert len(value) == 4
+            elif key[0:1] == _PSBT_VERSION:
+                assert len(value) == 4, f"invalid key lentgh: {len(key)}"
                 out.version = int.from_bytes(value, "little")
-            elif key[0] == 0xFC:
+            elif key[0:1] == _PSBT_PROPRIETARY:
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.keys():
                     out.proprietary[prefix] = {}
@@ -80,12 +88,10 @@ class Psbt(DataClassJsonMixin):
             else:  # unknown keys
                 out.unknown[key.hex()] = value
 
-        out.inputs = []
+        assert out.tx.nVersion, "missing transaction"
         for _ in out.tx.vin:
             input_map, data = deserialize_map(data)
             out.inputs.append(PsbtIn.deserialize(input_map))
-
-        out.outputs = []
         for _ in out.tx.vout:
             output_map, data = deserialize_map(data)
             out.outputs.append(PsbtOut.deserialize(output_map))
@@ -94,12 +100,17 @@ class Psbt(DataClassJsonMixin):
             out.assert_valid()
         return out
 
-    def serialize(self, assert_valid: bool = True) -> str:
+    @classmethod
+    def decode(cls: Type[_PSbt], string: str, assert_valid: bool = True) -> _PSbt:
+        data = b64decode(string)
+        return cls.deserialize(data, assert_valid)
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
 
         if assert_valid:
             self.assert_valid()
 
-        out = _PSBT_MAGIC_BYTES
+        out = _PSBT_MAGIC_BYTES + _PSBT_SEPARATOR
 
         out += b"\x01\x00"
         tx = self.tx.serialize()
@@ -130,6 +141,10 @@ class Psbt(DataClassJsonMixin):
             out += input_map.serialize() + b"\x00"
         for output_map in self.outputs:
             out += output_map.serialize() + b"\x00"
+        return out
+
+    def encode(self, assert_valid: bool = True) -> str:
+        out = self.serialize(assert_valid)
         return b64encode(out).decode("ascii")
 
     def assert_valid(self) -> None:
