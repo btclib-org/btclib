@@ -60,32 +60,36 @@ class Psbt(DataClassJsonMixin):
     @classmethod
     def deserialize(cls: Type[_PSbt], data: bytes, assert_valid: bool = True) -> _PSbt:
 
+        out = cls()
+
         assert data[:4] == _PSBT_MAGIC_BYTES, "malformed psbt: missing magic bytes"
         assert data[4:5] == _PSBT_SEPARATOR, "malformed psbt: missing separator"
-
-        out = cls()
 
         global_map, data = deserialize_map(data[5:])
         for key, value in global_map.items():
             if key[0:1] == _PSBT_UNSIGNED_TX:
-                assert len(key) == 1, f"invalid key lentgh: {len(key)}"
+                assert len(key) == 1, f"invalid key length: {len(key)}"
                 assert not out.tx.nVersion, "duplicated transaction"
                 out.tx = Tx.deserialize(value)  # legacy trensaction
             elif key[0:1] == _PSBT_XPUB:
-                # TODO add test case
+                # TODO duplicated?
                 # why extended key here?
-                assert len(key) == 78 + 1, f"invalid key lenght: {len(key)}"
+                assert len(key) == 78 + 1, f"invalid key length: {len(key)}"
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == _PSBT_VERSION:
-                assert len(value) == 4, f"invalid key lentgh: {len(key)}"
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert not out.version, "duplicated version"
+                assert len(value) == 4, f"invalid version length: {len(value)}"
                 out.version = int.from_bytes(value, "little")
             elif key[0:1] == _PSBT_PROPRIETARY:
+                # TODO duplicated?
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.keys():
                     out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 out.proprietary[prefix][key.hex()] = value
             else:  # unknown keys
+                # TODO duplicated?
                 out.unknown[key.hex()] = value
 
         assert out.tx.nVersion, "missing transaction"
@@ -112,7 +116,7 @@ class Psbt(DataClassJsonMixin):
 
         out = _PSBT_MAGIC_BYTES + _PSBT_SEPARATOR
 
-        out += b"\x01\x00"
+        out += b"\x01" + _PSBT_UNSIGNED_TX
         tx = self.tx.serialize()
         out += varint.encode(len(tx)) + tx
         if self.hd_keypaths:
@@ -124,19 +128,22 @@ class Psbt(DataClassJsonMixin):
                 )
                 out += varint.encode(len(keypath)) + keypath
         if self.version:
-            out += b"\x01\xfb\x04"
-            out += self.version.to_bytes(4, "little")
+            out += b"\x01" + _PSBT_VERSION
+            out += b"\x04" + self.version.to_bytes(4, "little")
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
                 for key, value in dictionary.items():
-                    key_bytes = b"\xfc" + varint.encode(owner) + bytes.fromhex(key)
+                    key_bytes = (
+                        _PSBT_PROPRIETARY + varint.encode(owner) + bytes.fromhex(key)
+                    )
                     out += varint.encode(len(key_bytes)) + key_bytes
                     out += varint.encode(len(value)) + value
         if self.unknown:
             for key, value in self.unknown.items():
                 out += varint.encode(len(key) // 2) + bytes.fromhex(key)
                 out += varint.encode(len(value)) + value
-        out += b"\x00"
+
+        out += _PSBT_DELIMITER
         for input_map in self.inputs:
             out += input_map.serialize() + b"\x00"
         for output_map in self.outputs:
@@ -148,14 +155,29 @@ class Psbt(DataClassJsonMixin):
         return b64encode(out).decode("ascii")
 
     def assert_valid(self) -> None:
+        "Assert logical self-consistency."
+
         self.tx.assert_valid()
+        assert len(self.tx.vin) == len(
+            self.inputs
+        ), "mismatched number of tx.vin and psbt_in"
         for vin in self.tx.vin:
             assert vin.scriptSig == b""
             assert vin.txinwitness == []
-        for input_map in self.inputs:
-            input_map.assert_valid()
-        for output_map in self.outputs:
-            output_map.assert_valid()
+        assert len(self.tx.vout) == len(
+            self.outputs
+        ), "mismatched number of tx.vout and psbt_out"
+
+        for psbt_in in self.inputs:
+            psbt_in.assert_valid()
+
+        for psbt_out in self.outputs:
+            psbt_out.assert_valid()
+
+        # TODO: validate version
+        # TODO: validate hd_keypaths
+        # TODO: validate proprietary
+        # TODO: validate unknown
 
     def assert_signable(self) -> None:
 

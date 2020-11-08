@@ -29,6 +29,18 @@ from .tx_in import witness_deserialize, witness_serialize
 from .tx_out import TxOut
 from .utils import bytes_from_octets, token_or_string_to_hex_string
 
+_PSBTIN_NON_WITNESS_UTXO = b"\x00"
+_PSBTIN_WITNESS_UTXO = b"\x01"
+_PSBTIN_PARTIAL_SIG = b"\x02"
+_PSBTIN_SIGHASH_TYPE = b"\x03"
+_PSBTIN_REDEEM_SCRIPT = b"\x04"
+_PSBTIN_WITNESS_SCRIPT = b"\x05"
+_PSBTIN_BIP32_DERIVATION = b"\x06"
+_PSBTIN_FINAL_SCRIPTSIG = b"\x07"
+_PSBTIN_FINAL_SCRIPTWITNESS = b"\x08"
+_PSBTIN_POR_COMMITMENT = b"\x09"
+_PSBTIN_PROPRIETARY = b"\xfc"
+
 
 @dataclass
 class PartialSigs(DataClassJsonMixin):
@@ -88,45 +100,54 @@ class PsbtIn(DataClassJsonMixin):
     ) -> _PsbtIn:
         out = cls()
         for key, value in input_map.items():
-            if key[0] == 0x00:  # non_witness_utxo
-                assert len(key) == 1
+            if key[0:1] == _PSBTIN_NON_WITNESS_UTXO:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert out.non_witness_utxo is None, "duplicated non_witness_utxo"
                 out.non_witness_utxo = Tx.deserialize(value)
-            elif key[0] == 0x01:  # witness_utxo
-                assert len(key) == 1
+            elif key[0:1] == _PSBTIN_WITNESS_UTXO:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert out.witness_utxo is None, "duplicated witness_utxo"
                 out.witness_utxo = TxOut.deserialize(value)
-            elif key[0] == 0x02:  # partial_sigs
-                assert len(key) == 33 + 1
+            elif key[0:1] == _PSBTIN_PARTIAL_SIG:
+                assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
                 out.partial_sigs.add_sig(key[1:], value)
-            elif key[0] == 0x03:  # sighash
-                assert len(key) == 1
+            elif key[0:1] == _PSBTIN_SIGHASH_TYPE:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert out.sighash is None, "duplicated sighash"
                 assert len(value) == 4
                 out.sighash = int.from_bytes(value, "little")
-            elif key[0] == 0x04:  # redeem_script
-                assert len(key) == 1
+            elif key[0:1] == _PSBTIN_REDEEM_SCRIPT:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert out.redeem_script == b"", "duplicated redeem_script"
                 out.redeem_script = value
-            elif key[0] == 0x05:  # witness_script
-                assert len(key) == 1
+            elif key[0:1] == _PSBTIN_WITNESS_SCRIPT:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert out.witness_script == b"", "duplicated witness_script"
                 out.witness_script = value
-            elif key[0] == 0x06:  # hd_keypaths
-                if len(key) != 33 + 1:
-                    raise ValueError(f"invalid key lenght: {len(key)-1}")
+            elif key[0:1] == _PSBTIN_BIP32_DERIVATION:  # hd_keypaths
+                assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
+                # TODO: duplicated?
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
-            elif key[0] == 0x07:  # final_script_sig
-                assert len(key) == 1
+            elif key[0:1] == _PSBTIN_FINAL_SCRIPTSIG:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert out.final_script_sig == b"", "duplicated final_script_sig"
                 out.final_script_sig = value
-            elif key[0] == 0x08:  # final_script_witness
-                assert len(key) == 1
+            elif key[0:1] == _PSBTIN_FINAL_SCRIPTWITNESS:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert not out.final_script_witness, "duplicated final_script_witness"
                 out.final_script_witness = witness_deserialize(value)
-            elif key[0] == 0x09:  # por_commitment
-                assert len(key) == 1
+            elif key[0:1] == _PSBTIN_POR_COMMITMENT:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
                 out.por_commitment = value.hex()  # TODO: bip127
-            elif key[0] == 0xFC:  # proprietary
+            elif key[0:1] == _PSBTIN_PROPRIETARY:
+                # TODO: duplicated?
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.keys():
                     out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 out.proprietary[prefix][key.hex()] = value
             else:  # unknown keys
+                # TODO: duplicated?
                 out.unknown[key.hex()] = value
 
         if assert_valid:
@@ -139,50 +160,54 @@ class PsbtIn(DataClassJsonMixin):
             self.assert_valid()
 
         out = b""
+
         if self.non_witness_utxo:
-            out += b"\x01\x00"
+            out += b"\x01" + _PSBTIN_NON_WITNESS_UTXO
             utxo = self.non_witness_utxo.serialize()
             out += varint.encode(len(utxo)) + utxo
-        if self.witness_utxo:
-            out += b"\x01\x01"
+        elif self.witness_utxo:
+            out += b"\x01" + _PSBTIN_WITNESS_UTXO
             utxo = self.witness_utxo.serialize()
             out += varint.encode(len(utxo)) + utxo
+
         if self.partial_sigs:
             for key, value in self.partial_sigs.sigs.items():
-                out += b"\x22\x02" + bytes.fromhex(key)
+                out += b"\x22" + _PSBTIN_PARTIAL_SIG + bytes.fromhex(key)
                 out += varint.encode(len(value)) + value
         if self.sighash:
-            out += b"\x01\x03"
+            out += b"\x01" + _PSBTIN_SIGHASH_TYPE
             out += b"\x04" + self.sighash.to_bytes(4, "little")
         if self.redeem_script:
-            out += b"\x01\x04"
+            out += b"\x01" + _PSBTIN_REDEEM_SCRIPT
             out += varint.encode(len(self.redeem_script)) + self.redeem_script
         if self.witness_script:
-            out += b"\x01\x05"
+            out += b"\x01" + _PSBTIN_WITNESS_SCRIPT
             out += varint.encode(len(self.witness_script)) + self.witness_script
         if self.hd_keypaths:
             for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
-                out += b"\x22\x06" + bytes.fromhex(xpub)
+                out += b"\x22" + _PSBTIN_BIP32_DERIVATION + bytes.fromhex(xpub)
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes_from_bip32_path(
                     hd_keypath["derivation_path"], "little"
                 )
                 out += varint.encode(len(keypath)) + keypath
         if self.final_script_sig:
-            out += b"\x01\x07"
+            out += b"\x01" + _PSBTIN_FINAL_SCRIPTSIG
             out += varint.encode(len(self.final_script_sig)) + self.final_script_sig
         if self.final_script_witness:
-            out += b"\x01\x08"
+            out += b"\x01" + _PSBTIN_FINAL_SCRIPTWITNESS
             wit = witness_serialize(self.final_script_witness)
             out += varint.encode(len(wit)) + wit
-        if self.por_commitment:  # TODO
-            out += b"\x01\x09"
+        if self.por_commitment:
+            out += b"\x01" + _PSBTIN_POR_COMMITMENT
             c = bytes.fromhex(self.por_commitment)
             out += varint.encode(len(c)) + c
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
                 for key, value2 in dictionary.items():
-                    key_bytes = b"\xfc" + varint.encode(owner) + bytes.fromhex(key)
+                    key_bytes = (
+                        _PSBTIN_PROPRIETARY + varint.encode(owner) + bytes.fromhex(key)
+                    )
                     out += varint.encode(len(key_bytes)) + key_bytes
                     out += varint.encode(len(value2)) + value2
         if self.unknown:
@@ -194,8 +219,14 @@ class PsbtIn(DataClassJsonMixin):
     def assert_valid(self) -> None:
         if self.non_witness_utxo is not None:
             self.non_witness_utxo.assert_valid()
+            assert (
+                self.witness_utxo is None
+            ), "both non_witness_utxo and witness_utxo are defined"
         if self.witness_utxo is not None:
             self.witness_utxo.assert_valid()
+            assert (
+                self.non_witness_utxo is None
+            ), "both non_witness_utxo and witness_utxo are defined"
         self.partial_sigs.assert_valid()
         if self.sighash is not None:
             assert self.sighash in SIGHASHES, f"invalid sighash: {self.sighash}"
