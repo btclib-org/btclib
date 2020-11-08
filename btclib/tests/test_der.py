@@ -31,13 +31,13 @@ def test_der_size() -> None:
     sigs = [sig8, sig72, sig71, sig70, sig70b, sig69, sig68]
     lenghts = [8, 72, 71, 70, 70, 69, 68]  # not including SIGHASHES
 
-    for lenght, sig in zip(lenghts, sigs):
+    for length, sig in zip(lenghts, sigs):
         for sighash in SIGHASHES:
             der_sig = serialize(*sig, sighash)
             r, s, sighash2 = deserialize(der_sig)
             assert sig == (r, s)
             assert sighash == sighash2
-            assert len(der_sig) == lenght + 1
+            assert len(der_sig) == length + 1
 
     # with the last one only...
     assert (r, s, sighash) == deserialize((r, s, sighash))

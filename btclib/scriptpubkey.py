@@ -84,7 +84,7 @@ def scriptPubKey_from_payload(
         if script_type == "nulldata":
             payload = bytes_from_octets(payloads)
             if len(payload) > 80:
-                err_msg = f"invalid nulldata script lenght: {len(payload)} bytes "
+                err_msg = f"invalid nulldata script length: {len(payload)} bytes "
                 raise ValueError(err_msg)
             scriptPubKey = ["OP_RETURN", payload]
         elif script_type == "p2pk":
@@ -131,7 +131,7 @@ def payload_from_nulldata_scriptPubKey(
     zero_or_one = int(length > 78)
     if scriptPubKey[1 + zero_or_one] != length - 2 - zero_or_one:
         raise ValueError(
-            f"wrong data lenght: {scriptPubKey[1+zero_or_one]} "
+            f"wrong data length: {scriptPubKey[1+zero_or_one]} "
             f"in {length}-bytes nulldata script; it should "
             f"have been {length-2-zero_or_one}: {deserialize(scriptPubKey)}"
         )

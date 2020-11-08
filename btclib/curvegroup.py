@@ -64,7 +64,7 @@ class CurveGroup:
             raise ValueError(err_msg)
 
         plen = p.bit_length()
-        # byte-lenght
+        # byte-length
         self.psize = ceil(plen / 8)
         # must be true to break simmetry using quadratic residue
         self.pIsThreeModFour = p % 4 == 3
