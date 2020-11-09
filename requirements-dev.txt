@@ -17,3 +17,8 @@ pytest-ordering
 pytest-xdist
 sphinx
 tox
+
+# only needed to package releases
+setuptools
+wheel
+twine

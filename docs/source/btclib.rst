@@ -116,26 +116,26 @@ btclib.curve module
    :undoc-members:
    :show-inheritance:
 
+btclib.curvegroup module
+------------------------
+
+.. automodule:: btclib.curvegroup
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.curvegroup2 module
+-------------------------
+
+.. automodule:: btclib.curvegroup2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.curvegroupf module
 -------------------------
 
 .. automodule:: btclib.curvegroupf
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.curvemult module
------------------------
-
-.. automodule:: btclib.curvemult
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.curves module
---------------------
-
-.. automodule:: btclib.curves
    :members:
    :undoc-members:
    :show-inheritance:
@@ -224,6 +224,22 @@ btclib.psbt module
 ------------------
 
 .. automodule:: btclib.psbt
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.psbt\_in module
+----------------------
+
+.. automodule:: btclib.psbt_in
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.psbt\_out module
+-----------------------
+
+.. automodule:: btclib.psbt_out
    :members:
    :undoc-members:
    :show-inheritance:

@@ -4,15 +4,33 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
-## v2020.9 (current master, in development, not released yet)
+## v2020.12 (current master, in development, not released yet)
 
 Major changes includes:
 
-- introduced HdKeyPaths, PartialSigs, PsbtIn, PsbtOut,
-  and Psbt data classes and their associated helper functions
-- refactored Diffie-Hellman and ANSI-X9.63-KDF
+-  nothing relevant yet
+
+## v2020.11.9
+
+Major changes includes:
+
+- removed TypedDict in favor of dataclass;
+  this also restored the ability of using btclib with python 3.7
 - introduced dataclasses_json as requirement, used to
-  serialize to file json representation of dataclasses
+  serialize to file the json representation of dataclasses
+- Network is now a dataclass
+- bip32: BIP32KeyData is now a dataclass instead of dict
+- bip32: added str_from_bip32_path and bytes_from_bip32_path
+- bip3: made bip32 index an int (not bytes) to avoid byteorder ambiguity
+- Block: fixed bug in difficulty calculation
+- introduced first beta version of HdKeyPaths, PartialSigs, PsbtIn,
+  PsbtOut, and Psbt data classes and their associated helper functions
+- refactored Diffie-Hellman and ANSI-X9.63-KDF
+- introduced assorted elliptic curve point multiplication
+  algorithms
+- script: renamed Token as ScriptToken
+- pytest: enforced pytest > 6
+- pytest: using as many processes as the available CPU cores
 
 ## v2020.8.21
 

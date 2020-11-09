@@ -100,26 +100,26 @@ btclib.tests.test\_curve module
    :undoc-members:
    :show-inheritance:
 
+btclib.tests.test\_curvegroup module
+------------------------------------
+
+.. automodule:: btclib.tests.test_curvegroup
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_curvegroup2 module
+-------------------------------------
+
+.. automodule:: btclib.tests.test_curvegroup2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.tests.test\_curvegroupf module
 -------------------------------------
 
 .. automodule:: btclib.tests.test_curvegroupf
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.tests.test\_curvemult module
------------------------------------
-
-.. automodule:: btclib.tests.test_curvemult
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.tests.test\_curves module
---------------------------------
-
-.. automodule:: btclib.tests.test_curves
    :members:
    :undoc-members:
    :show-inheritance:
