@@ -10,6 +10,8 @@
 
 "Tests for `btclib.network` module."
 
+import pytest
+
 from btclib.network import (
     NETWORKS,
     curve_from_xkeyversion,
@@ -27,3 +29,12 @@ def test_curve_from_xkeyversion() -> None:
             if net != "regtest":
                 assert net == network_from_xkeyversion(version)
             assert NETWORKS[net].curve == curve_from_xkeyversion(version)
+
+
+def test_space_and_caps() -> None:
+    net = " MainNet "
+    assert xpubversions_from_network(net), f"unknown network: {net}"
+
+    with pytest.raises(KeyError):
+        net = " MainNet2 "
+        xpubversions_from_network(net)

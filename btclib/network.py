@@ -145,7 +145,7 @@ _P2WPKH_PUB_PREFIXES = [NETWORKS[net].slip132_p2wpkh_pub for net in NETWORKS]
 
 
 def xpubversions_from_network(network: str) -> List[bytes]:
-    network = network.lower()
+    network = network.strip().lower()
     return [
         NETWORKS[network].bip32_pub,
         NETWORKS[network].slip132_p2wsh_p2sh_pub,
@@ -156,7 +156,7 @@ def xpubversions_from_network(network: str) -> List[bytes]:
 
 
 def xprvversions_from_network(network: str) -> List[bytes]:
-    network = network.lower()
+    network = network.strip().lower()
     return [
         NETWORKS[network].bip32_prv,
         NETWORKS[network].slip132_p2wsh_p2sh_prv,
