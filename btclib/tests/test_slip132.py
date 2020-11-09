@@ -39,21 +39,21 @@ def test_slip132_test_vector() -> None:
     kpath = "m/0/0"
     test_vectors: List[Tuple[bytes, str, str, str, str]] = [
         (
-            NETWORKS["mainnet"]["bip32_prv"],
+            NETWORKS["mainnet"].bip32_prv,
             "m / 44h / 0h / 0h",
             "xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb",
             "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj",
             "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
         ),
         (
-            NETWORKS["mainnet"]["slip132_p2wpkh_p2sh_prv"],
+            NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv,
             "m / 49h / 0h / 0h",
             "yprvAHwhK6RbpuS3dgCYHM5jc2ZvEKd7Bi61u9FVhYMpgMSuZS613T1xxQeKTffhrHY79hZ5PsskBjcc6C2V7DrnsMsNaGDaWev3GLRQRgV7hxF",
             "ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP",
             "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf",
         ),
         (
-            NETWORKS["mainnet"]["slip132_p2wpkh_prv"],
+            NETWORKS["mainnet"].slip132_p2wpkh_prv,
             "m / 84h / 0h / 0h",
             "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE",
             "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
@@ -75,17 +75,17 @@ def test_slip132_test_vector() -> None:
         xprv = bip32.derive(mxprv, kpath)
         address = slip132.address_from_xkey(xprv)
         assert addr == address
-        if version == NETWORKS["mainnet"]["bip32_prv"]:
+        if version == NETWORKS["mainnet"].bip32_prv:
             address = base58address.p2pkh(xpub)
             assert addr == address
             address = base58address.p2pkh(xprv)
             assert addr == address
-        elif version == NETWORKS["mainnet"]["slip132_p2wpkh_p2sh_prv"]:
+        elif version == NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv:
             address = base58address.p2wpkh_p2sh(xpub)
             assert addr == address
             address = base58address.p2wpkh_p2sh(xprv)
             assert addr == address
-        elif version == NETWORKS["mainnet"]["slip132_p2wpkh_prv"]:
+        elif version == NETWORKS["mainnet"].slip132_p2wpkh_prv:
             address = bech32address.p2wpkh(xpub)
             assert addr == address
             address = bech32address.p2wpkh(xprv)
@@ -164,13 +164,12 @@ def test_addresses() -> None:
         network = "testnet" if der_path_elements[2] == "1h" else "mainnet"
         rootprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "", network)
 
-        # FIXME: do not ignore
-        version = NETWORKS[network][addr_type]  # type: ignore
+        version = getattr(NETWORKS[network], addr_type)
         xprv = bip32.derive(rootprv, der_path, version)
         assert mxpub.encode() == bip32.xpub_from_xprv(xprv)
 
         # a non-private version cannot be forced on a private key
-        pub_version = NETWORKS[network]["bip32_pub"]
+        pub_version = NETWORKS[network].bip32_pub
         err_msg = "invalid non-private version forced on a private key: "
         with pytest.raises(ValueError, match=err_msg):
             bip32.derive(rootprv, der_path, pub_version)

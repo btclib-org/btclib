@@ -51,7 +51,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     elif isinstance(prvkey, BIP32KeyData):
         q, network, _ = _prvkeyinfo_from_xprv(prvkey)
         # q has been validated on the xprv/wif network
-        ec2 = NETWORKS[network]["curve"]
+        ec2 = NETWORKS[network].curve
         if ec != ec2:
             raise ValueError(f"ec / network ({network}) mismatch")
         return q
@@ -62,7 +62,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
             pass
         else:
             # q has been validated on the xprv/wif network
-            ec2 = NETWORKS[network]["curve"]
+            ec2 = NETWORKS[network].curve
             if ec != ec2:
                 raise ValueError(f"ec / network ({network}) mismatch")
             return q
@@ -102,7 +102,7 @@ def _prvkeyinfo_from_wif(
     if network is not None and net != network:
         raise ValueError(f"not a {network} wif: {wif!r}")
 
-    ec = NETWORKS[net]["curve"]
+    ec = NETWORKS[net].curve
 
     if len(payload) == ec.nsize + 2:  # compressed WIF
         compr = True
@@ -185,7 +185,7 @@ def prvkeyinfo_from_prvkey(
 
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
-    ec = NETWORKS[net]["curve"]
+    ec = NETWORKS[net].curve
 
     if isinstance(prvkey, int):
         q = prvkey

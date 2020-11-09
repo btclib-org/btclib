@@ -22,7 +22,7 @@ from .tx_out import TxOut
 def has_segwit_prefix(addr: String) -> bool:
 
     str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
-    return any(str_addr.startswith(NETWORKS[net]["p2w"] + "1") for net in NETWORKS)
+    return any(str_addr.startswith(NETWORKS[net].p2w + "1") for net in NETWORKS)
 
 
 def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
@@ -57,10 +57,10 @@ def address_from_scriptPubKey(scriptPubKey: Script, network: str = "mainnet") ->
         raise ValueError("no address for null data script")
 
     if script_type == "p2pkh":
-        prefix = NETWORKS[network]["p2pkh"]
+        prefix = NETWORKS[network].p2pkh
         return b58address_from_h160(prefix, payload, network)
     if script_type == "p2sh":
-        prefix = NETWORKS[network]["p2sh"]
+        prefix = NETWORKS[network].p2sh
         return b58address_from_h160(prefix, payload, network)
 
     # 'p2wsh' or 'p2wpkh'

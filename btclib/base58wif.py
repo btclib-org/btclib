@@ -21,9 +21,9 @@ def wif_from_prvkey(
     "Return the WIF encoding of a private key."
 
     q, net, compr = prvkeyinfo_from_prvkey(prvkey, network, compressed)
-    ec = NETWORKS[net]["curve"]
+    ec = NETWORKS[net].curve
 
-    payload = NETWORKS[net]["wif"]
+    payload = NETWORKS[net].wif
     payload += q.to_bytes(ec.nsize, "big")
     payload += b"\x01" if compr else b""
     return b58encode(payload)

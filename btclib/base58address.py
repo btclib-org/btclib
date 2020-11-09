@@ -38,7 +38,7 @@ def b58address_from_h160(prefix: Octets, h160: Octets, network: str) -> bytes:
     "Encode a base58 address from the payload."
 
     prefix = bytes_from_octets(prefix)
-    prefixes = NETWORKS[network]["p2pkh"], NETWORKS[network]["p2sh"]
+    prefixes = NETWORKS[network].p2pkh, NETWORKS[network].p2sh
     if prefix not in prefixes:
         raise ValueError(f"invalid {network} base58 address prefix: {prefix!r}")
     payload = prefix + bytes_from_octets(h160, 20)
@@ -73,14 +73,14 @@ def p2pkh(
 ) -> bytes:
     "Return the p2pkh base58 address corresponding to a public key."
     h160, network = hash160_from_key(key, network, compressed)
-    prefix = NETWORKS[network]["p2pkh"]
+    prefix = NETWORKS[network].p2pkh
     return b58address_from_h160(prefix, h160, network)
 
 
 def p2sh(scriptPubKey: Script, network: str = "mainnet") -> bytes:
     "Return the p2sh base58 address corresponding to a scriptPubKey."
     h160 = hash160_from_script(scriptPubKey)
-    prefix = NETWORKS[network]["p2sh"]
+    prefix = NETWORKS[network].p2sh
     return b58address_from_h160(prefix, h160, network)
 
 
