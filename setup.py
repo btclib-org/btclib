@@ -31,9 +31,10 @@ setup(
         "bip32 bip39 electrum base58 bech32 segwit message-signing "
         "bip340"
     ),
-    python_requires=">=3.8",
+    python_requires=">=3.7",
     classifiers=[
         "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Development Status :: 4 - Beta",
