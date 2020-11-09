@@ -19,9 +19,19 @@ Major changes includes:
 - introduced dataclasses_json as requirement, used to
   serialize to file the json representation of dataclasses
 - Network is now a dataclass
-- bip32: BIP32KeyData is now a dataclass instead of dict
+- bip32: BIP32KeyData is now a dataclass instead of dict, its data member
+  have to be accessed accordingly. Consequently, where previously it was
+  bip32.deserialize(xkey), now it is bip32.BIP32KeyData.deserialize(xkey)
 - bip32: added str_from_bip32_path and bytes_from_bip32_path
-- bip3: made bip32 index an int (not bytes) to avoid byteorder ambiguity
+- bip3: made bip32 index an int (not bytes) to avoid byteorder ambiguity.
+  Consequently, where previously it was xkey_dict["index"][0] < 0x80,
+  now it is xkey_dict.index < 0x80000000
+- bip32: local "./" derivation, opposed to absolute "m/" derivation,
+  is not available anymore
+- bip32: indexes_from_bip32_path now returns List[int] instead of
+  Tuple[List[bytes], bool] losing the "absolute derivation" bool
+- bms: serialize/deserialize have been renamed encode/decode as they
+  include the base64 (de)encoding, not jut the plain (de)serialization 
 - Block: fixed bug in difficulty calculation
 - introduced first beta version of HdKeyPaths, PartialSigs, PsbtIn,
   PsbtOut, and Psbt data classes and their associated helper functions
@@ -29,6 +39,11 @@ Major changes includes:
 - introduced assorted elliptic curve point multiplication
   algorithms
 - script: renamed Token as ScriptToken
+- script: encode/decode have been renamed as serialize/deserialize
+  as they were not encoding at all; the previous serialize/deserialize
+  which had varint(len()) before serialized data are not available anymore
+- alias: few definitions have moved in their relevant modules from which
+  they can be imported
 - pytest: enforced pytest > 6
 - pytest: using as many processes as the available CPU cores
 

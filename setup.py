@@ -26,6 +26,7 @@ setup(
     include_package_data=True,
     package_data={"btclib": ["data/*", "tests/test_data/*", "py.typed"]},
     test_suite="btclib.tests",
+    install_requires=["dataclasses_json"],
     keywords=(
         "bitcoin cryptography elliptic-curves ecdsa schnorr RFC-6979 "
         "bip32 bip39 electrum base58 bech32 segwit message-signing "

@@ -99,7 +99,7 @@ python virtual environment; e.g. from the root folder:
 Bash shell
 
     python -m venv venv
-    source venv/bin/activate
+    source ./venv/bin/activate
     pip install --upgrade -r requirements.txt
     pip install --upgrade btclib
 
