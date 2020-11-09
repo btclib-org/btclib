@@ -112,7 +112,7 @@ def mod_sqrt(a: int, p: int) -> int:
     return r
 
 
-def tonelli(a: int, p: int) -> int:  # sourcery skip: for-index-underscore
+def tonelli(a: int, p: int) -> int:
     """Return a quadratic residue (mod p) of a; p must be a prime.
 
     The Tonelli-Shanks algorithm is used.
