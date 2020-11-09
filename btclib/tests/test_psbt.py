@@ -256,6 +256,7 @@ def test_finalization():
     )
     finalized_psbt = finalize_psbt(psbt)
 
+    assert Psbt.decode(finalized_psbt_string).encode() == finalized_psbt_string
     assert finalized_psbt.encode() == finalized_psbt_string
     assert finalized_psbt == Psbt.decode(finalized_psbt_string)
 
