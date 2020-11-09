@@ -320,22 +320,17 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     psbt = deepcopy(psbt)
     for psbt_in in psbt.inputs:
         assert psbt_in.partial_sigs, "missing signatures"
+        sigs = psbt_in.partial_sigs.sigs.values()
+        multi_sig = len(sigs) > 1
         if psbt_in.witness_script:
             psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
-
-            psbt_in.final_script_witness = (
-                [b""] if len(psbt_in.partial_sigs.sigs) > 1 else []
-            )
-            psbt_in.final_script_witness += psbt_in.partial_sigs.sigs.values()
+            psbt_in.final_script_witness = [b""] if multi_sig else []
+            psbt_in.final_script_witness += sigs
             psbt_in.final_script_witness += [psbt_in.witness_script]
         else:
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-            final_script_sig: List[ScriptToken] = (
-                [0] if len(psbt_in.partial_sigs.sigs) > 1 else []
-            )
-            final_script_sig += [
-                a.hex() for a in list(psbt_in.partial_sigs.sigs.values())
-            ]
+            final_script_sig: List[ScriptToken] = [0] if multi_sig else []
+            final_script_sig += [sig.hex() for sig in sigs]
             final_script_sig += [psbt_in.redeem_script.hex()]
             psbt_in.final_script_sig = script.serialize(final_script_sig)
         psbt_in.partial_sigs = PartialSigs()
