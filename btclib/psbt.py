@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin
 
-from . import varint
+from . import varint, script
 from .alias import Octets, String
 from .bip32 import bytes_from_bip32_path
 from .psbt_in import PartialSigs, PsbtIn
@@ -321,17 +321,21 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     for psbt_in in psbt.inputs:
         assert psbt_in.partial_sigs, "Missing signatures"
         if psbt_in.witness_script:
-            psbt_in.final_script_sig = psbt_in.redeem_script
+            psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
             if len(psbt_in.partial_sigs.sigs) > 1:
                 psbt_in.final_script_witness = [b""]
             psbt_in.final_script_witness += psbt_in.partial_sigs.sigs.values()
             psbt_in.final_script_witness += [psbt_in.witness_script]
         else:
+            psbt_in.final_script_sig = [
+                a.hex().upper() for a in list(psbt_in.partial_sigs.sigs.values())
+            ]
+            psbt_in.final_script_sig += [psbt_in.redeem_script.hex()]
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
             if len(psbt_in.partial_sigs.sigs) > 1:
-                psbt_in.final_script_sig = b"\x00"
-            psbt_in.final_script_sig += b"".join(psbt_in.partial_sigs.sigs.values())
-            psbt_in.final_script_sig += psbt_in.redeem_script
+                dummy_element = [0]
+                psbt_in.final_script_sig = dummy_element + psbt_in.final_script_sig
+            psbt_in.final_script_sig = script.serialize(psbt_in.final_script_sig)
         psbt_in.partial_sigs = PartialSigs()
         psbt_in.sighash = None
         psbt_in.redeem_script = b""
