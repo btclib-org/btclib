@@ -69,7 +69,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
         except Exception:
             pass
         else:
-            if ec != NETWORKS[net]["curve"]:
+            if ec != NETWORKS[net].curve:
                 raise ValueError("Curve mismatch")
             return mult(q, ec.G, ec)
 
@@ -180,7 +180,7 @@ def pubkeyinfo_from_pubkey(
 
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
-    ec = NETWORKS[net]["curve"]
+    ec = NETWORKS[net].curve
 
     if isinstance(pubkey, tuple):
         return bytes_from_point(pubkey, ec, compr), net
@@ -218,7 +218,7 @@ def pubkeyinfo_from_prvkey(
     "Return the pub key tuple (SEC-bytes, network) from a private key."
 
     q, net, compr = prvkeyinfo_from_prvkey(prvkey, network, compressed)
-    ec = NETWORKS[net]["curve"]
+    ec = NETWORKS[net].curve
     Pub = mult(q, ec.G, ec)
     pubkey = bytes_from_point(Pub, ec, compr)
     return pubkey, net

@@ -116,7 +116,7 @@ def _b32address_from_witness(hrp: str, wv: int, wp: Octets) -> bytes:
 def b32address_from_witness(wv: int, wp: Octets, network: str = "mainnet") -> bytes:
     "Encode a bech32 native SegWit address from the witness."
 
-    hrp = NETWORKS[network]["p2w"]
+    hrp = NETWORKS[network].p2w
     return _b32address_from_witness(hrp, wv, wp)
 
 

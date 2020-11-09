@@ -212,7 +212,7 @@ def test_p2pkh() -> None:
     network = "mainnet"
     address = base58address.p2pkh(pubkey, network)
     assert address == address_from_scriptPubKey(scriptPubKey, network)
-    prefix = NETWORKS[network]["p2pkh"]
+    prefix = NETWORKS[network].p2pkh
     assert address == b58address_from_h160(prefix, payload, network)
 
     # back from the address to the scriptPubKey
@@ -283,7 +283,7 @@ def test_p2sh() -> None:
     network = "mainnet"
     address = base58address.p2sh(script.deserialize(redeem_script), network)
     assert address == address_from_scriptPubKey(scriptPubKey, network)
-    prefix = NETWORKS[network]["p2sh"]
+    prefix = NETWORKS[network].p2sh
     assert address == b58address_from_h160(prefix, payload, network)
 
     # back from the address to the scriptPubKey

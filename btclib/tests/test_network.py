@@ -26,4 +26,4 @@ def test_curve_from_xkeyversion() -> None:
             # unfortunately 'regtest' shares same versions with 'testnet'
             if net != "regtest":
                 assert net == network_from_xkeyversion(version)
-            assert NETWORKS[net]["curve"] == curve_from_xkeyversion(version)
+            assert NETWORKS[net].curve == curve_from_xkeyversion(version)

@@ -189,7 +189,7 @@ class BIP32KeyData(DataClassJsonMixin):
 
 
 def rootxprv_from_seed(
-    seed: Octets, version: Octets = NETWORKS["mainnet"]["bip32_prv"]
+    seed: Octets, version: Octets = NETWORKS["mainnet"].bip32_prv
 ) -> bytes:
     """Return BIP32 root master extended private key from seed."""
 
@@ -222,7 +222,7 @@ def mxprv_from_bip39_mnemonic(
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = bip39.seed_from_mnemonic(mnemonic, passphrase)
-    version = NETWORKS[network]["bip32_prv"]
+    version = NETWORKS[network].bip32_prv
     return rootxprv_from_seed(seed, version)
 
 
