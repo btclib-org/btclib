@@ -88,26 +88,23 @@ Included features are:
 
 * * *
 
-To install (and/or upgrade) btclib and its requirements:
+To install (and/or upgrade) btclib:
 
-    python -m pip install --upgrade -r requirements.txt
     python -m pip install --upgrade btclib
 
-You might want to install btclib and its requirements into a
+You might want to install btclib into a
 python virtual environment; e.g. from the root folder:
 
 Bash shell
 
     python -m venv venv
     source ./venv/bin/activate
-    pip install --upgrade -r requirements.txt
     pip install --upgrade btclib
 
 Windows CMD or PowerShell:
 
     python -m venv venv
     .\venv\Scripts\activate
-    pip install --upgrade -r requirements.txt
     pip install --upgrade btclib
 
 Windows Git bash shell:
@@ -116,7 +113,6 @@ Windows Git bash shell:
     cd ./venv/Scripts
     . activate
     cd ../..
-    pip install --upgrade -r requirements.txt
     pip install --upgrade btclib
 
 Some development tools are required to develop and test btclib;
