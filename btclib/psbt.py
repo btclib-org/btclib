@@ -240,7 +240,7 @@ class Psbt(DataClassJsonMixin):
 
 
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
-    assert len(data) != 0, "Malformed psbt: at least a map is missing"
+    assert len(data) != 0, "malformed psbt: at least a map is missing"
     partial_map: Dict[bytes, bytes] = {}
     while True:
         if data[0] == 0:
@@ -254,7 +254,7 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         data = data[len(varint.encode(value_len)) :]
         value = data[:value_len]
         data = data[value_len:]
-        assert key not in partial_map.keys(), "Malformed psbt: duplicate keys"
+        assert key not in partial_map, f"duplicated psbt map: {key.hex()}"
         partial_map[key] = value
 
 
