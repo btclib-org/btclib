@@ -10,7 +10,7 @@
 
 "Tests for `btclib.blocks` module."
 
-import os
+from os import path
 
 import pytest
 
@@ -21,7 +21,7 @@ from btclib.blocks import Block, BlockHeader
 def test_block_1() -> None:
 
     fname = "block_1.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
 
     block = Block.deserialize(block_bytes)
@@ -50,7 +50,7 @@ def test_block_1() -> None:
 def test_block_170() -> None:
 
     fname = "block_170.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
 
     block = Block.deserialize(block_bytes)
@@ -78,7 +78,7 @@ def test_block_170() -> None:
 def test_block_200000() -> None:
 
     fname = "block_200000.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
 
     block = Block.deserialize(block_bytes)
@@ -108,7 +108,7 @@ def test_block_200000() -> None:
 def test_block_481824() -> None:
 
     fname = "block_481824.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
 
     block = Block.deserialize(block_bytes)
@@ -137,7 +137,7 @@ def test_block_481824() -> None:
 def test_block_481824_complete() -> None:
 
     fname = "block_481824_complete.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
 
     block = Block.deserialize(block_bytes)
@@ -167,7 +167,7 @@ def test_block_481824_complete() -> None:
 def test_only_79_bytes() -> None:
 
     fname = "block_1.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     header_bytes = open(filename, "rb").read()
     header_bytes = header_bytes[:70]
 
@@ -178,7 +178,7 @@ def test_only_79_bytes() -> None:
 def test_varint_error() -> None:
 
     fname = "block_1.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
     block_bytes = block_bytes[:80] + b"\xff"
 
@@ -188,7 +188,7 @@ def test_varint_error() -> None:
 
 def test_invalid_merkleroot() -> None:
     fname = "block_1.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
     block = Block.deserialize(block_bytes)
     block.header.merkleroot = "00" * 32
@@ -200,7 +200,7 @@ def test_invalid_merkleroot() -> None:
 
 def test_invalid_block_version() -> None:
     fname = "block_1.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
     block = Block.deserialize(block_bytes)
 
@@ -217,7 +217,7 @@ def test_invalid_block_version() -> None:
 
 def test_invalid_block_previoushash_length() -> None:
     fname = "block_1.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
     block = Block.deserialize(block_bytes)
 
@@ -229,7 +229,7 @@ def test_invalid_block_previoushash_length() -> None:
 
 def test_invalid_block_merkleroot_length() -> None:
     fname = "block_1.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
     block = Block.deserialize(block_bytes)
 
@@ -241,7 +241,7 @@ def test_invalid_block_merkleroot_length() -> None:
 
 def test_invalid_nonce() -> None:
     fname = "block_1.bin"
-    filename = os.path.join(os.path.dirname(__file__), "test_data", fname)
+    filename = path.join(path.dirname(__file__), "test_data", fname)
     block_bytes = open(filename, "rb").read()
     block = Block.deserialize(block_bytes)
 
@@ -249,3 +249,51 @@ def test_invalid_nonce() -> None:
     err_msg = "Invalid nonce"
     with pytest.raises(ValueError, match=err_msg):
         block.assert_valid()
+
+
+def test_dataclasses_json_dict() -> None:
+
+    fname = "block_481824.bin"
+    filename = path.join(path.dirname(__file__), "test_data", fname)
+    block = open(filename, "rb").read()
+
+    # dataclass
+    block_data = Block.deserialize(block)
+    assert isinstance(block_data, Block)
+
+    # str
+    block_str = block_data.to_json()
+    assert isinstance(block_str, str)
+    assert block_data == Block.from_json(block_str)
+
+    # dict
+    block_dict = block_data.to_dict()
+    assert isinstance(block_dict, dict)
+    assert block_data == Block.from_dict(block_dict)
+
+    import json
+
+    datadir = path.join(path.dirname(__file__), "generated_files")
+    filename = path.join(datadir, "block_481824.json")
+    with open(filename, "w") as f:
+        json.dump(block_dict, f, indent=True)
+
+    block_header = block_data.header.serialize()
+
+    # dataclass
+    block_header_data = BlockHeader.deserialize(block_header)
+    assert isinstance(block_header_data, BlockHeader)
+
+    # str
+    block_header_s = block_header_data.to_json()
+    assert isinstance(block_header_s, str)
+    assert block_header_data == BlockHeader.from_json(block_header_s)
+
+    # dict
+    block_header_d = block_header_data.to_dict()
+    assert isinstance(block_header_d, dict)
+    assert block_header_data == BlockHeader.from_dict(block_header_d)
+
+    filename = path.join(datadir, "block_header_481824.json")
+    with open(filename, "w") as f:
+        json.dump(block_header_d, f, indent=True)

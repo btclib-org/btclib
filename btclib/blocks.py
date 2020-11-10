@@ -8,8 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Type, TypeVar
+
+from dataclasses_json import DataClassJsonMixin, config
 
 from . import tx, varint
 from .alias import BinaryData
@@ -19,16 +21,20 @@ _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
 
 @dataclass
-class BlockHeader:
+class BlockHeader(DataClassJsonMixin):
     version: int
     previousblockhash: str
     merkleroot: str
     time: int
-    bits: bytes
+    bits: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
+    )
     nonce: int
 
     @classmethod
-    def deserialize(cls: Type[_BlockHeader], data: BinaryData) -> _BlockHeader:
+    def deserialize(
+        cls: Type[_BlockHeader], data: BinaryData, assert_valid: bool = True
+    ) -> _BlockHeader:
         stream = bytesio_from_binarydata(data)
         version = int.from_bytes(stream.read(4), "little")
         previousblockhash = stream.read(32)[::-1].hex()
@@ -44,21 +50,24 @@ class BlockHeader:
             bits=bits,
             nonce=nonce,
         )
-        header.assert_valid()
+
+        if assert_valid:
+            header.assert_valid()
         return header
 
-    def serialize(self) -> bytes:
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
         out = self.version.to_bytes(4, "little")
         out += bytes.fromhex(self.previousblockhash)[::-1]
         out += bytes.fromhex(self.merkleroot)[::-1]
         out += self.time.to_bytes(4, "little")
         out += self.bits[::-1]
         out += self.nonce.to_bytes(4, "little")
-        return out
 
-    @property
-    def hash(self) -> str:
-        return hash256(self.serialize())[::-1].hex()
+        # TODO: fix recursion
+        # if assert_valid:
+        #     self.assert_valid()
+        return out
 
     def assert_valid(self) -> None:
         if not 1 <= self.version <= 0xFFFFFFFF:
@@ -73,17 +82,23 @@ class BlockHeader:
         if int(self.hash, 16) > target:
             raise ValueError("Invalid nonce")
 
+    @property
+    def hash(self) -> str:
+        return hash256(self.serialize())[::-1].hex()
+
 
 _Block = TypeVar("_Block", bound="Block")
 
 
 @dataclass
-class Block:
+class Block(DataClassJsonMixin):
     header: BlockHeader
     transactions: List[tx.Tx]
 
     @classmethod
-    def deserialize(cls: Type[_Block], data: BinaryData) -> _Block:
+    def deserialize(
+        cls: Type[_Block], data: BinaryData, assert_valid: bool = True
+    ) -> _Block:
         stream = bytesio_from_binarydata(data)
         header = BlockHeader.deserialize(stream)
         transaction_count = varint.decode(stream)
@@ -94,23 +109,22 @@ class Block:
             transaction = tx.Tx.deserialize(stream)
             transactions.append(transaction)
         block = cls(header=header, transactions=transactions)
-        block.assert_valid()
+
+        if assert_valid:
+            block.assert_valid()
         return block
 
-    def serialize(self, include_witness: bool = True) -> bytes:
+    def serialize(
+        self, include_witness: bool = True, assert_valid: bool = True
+    ) -> bytes:
         out = self.header.serialize()
         out += varint.encode(len(self.transactions))
         for transaction in self.transactions:
             out += transaction.serialize(include_witness)
+
+        if assert_valid:
+            self.assert_valid()
         return out
-
-    @property
-    def size(self) -> int:
-        return len(self.serialize())
-
-    @property
-    def weight(self) -> int:
-        return sum(t.weight for t in self.transactions)
 
     def assert_valid(self) -> None:
         for transaction in self.transactions[1:]:
@@ -120,6 +134,15 @@ class Block:
                 "The block merkle root is not the merkle root of the block transactions"
             )
         self.header.assert_valid()
+
+    @property
+    def size(self) -> int:
+        return len(self.serialize())
+
+    @property
+    def weight(self) -> int:
+        self.assert_valid()
+        return sum(t.weight for t in self.transactions)
 
 
 def _generate_merkle_root(transactions: List[tx.Tx]) -> str:
