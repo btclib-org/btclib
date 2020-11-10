@@ -444,16 +444,16 @@ def test_dataclasses_json_dict() -> None:
     assert isinstance(xkey_data, BIP32KeyData)
 
     # str
-    s = xkey_data.to_json()
-    assert isinstance(s, str)
-    assert xkey_data == BIP32KeyData.from_json(s)
+    xkey_json_str = xkey_data.to_json()
+    assert isinstance(xkey_json_str, str)
+    assert xkey_data == BIP32KeyData.from_json(xkey_json_str)
 
     # dict
-    d = xkey_data.to_dict()
-    assert isinstance(d, dict)
-    assert xkey_data == BIP32KeyData.from_dict(d)
+    xkey_dict = xkey_data.to_dict()
+    assert isinstance(xkey_dict, dict)
+    assert xkey_data == BIP32KeyData.from_dict(xkey_dict)
 
     datadir = path.join(path.dirname(__file__), "generated_files")
     filename = path.join(datadir, "xkey.json")
     with open(filename, "w") as f:
-        json.dump(d, f, indent=True)
+        json.dump(xkey_dict, f, indent=True)

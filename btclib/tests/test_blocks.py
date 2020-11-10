@@ -262,9 +262,9 @@ def test_dataclasses_json_dict() -> None:
     assert isinstance(block_data, Block)
 
     # str
-    block_str = block_data.to_json()
-    assert isinstance(block_str, str)
-    assert block_data == Block.from_json(block_str)
+    block_json_str = block_data.to_json()
+    assert isinstance(block_json_str, str)
+    assert block_data == Block.from_json(block_json_str)
 
     # dict
     block_dict = block_data.to_dict()
