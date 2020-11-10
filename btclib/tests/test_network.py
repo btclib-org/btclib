@@ -14,6 +14,7 @@ import pytest
 
 from btclib.network import (
     NETWORKS,
+    Network,
     curve_from_xkeyversion,
     network_from_xkeyversion,
     xprvversions_from_network,
@@ -38,3 +39,15 @@ def test_space_and_caps() -> None:
     with pytest.raises(KeyError):
         net = " MainNet2 "
         xpubversions_from_network(net)
+
+
+def test_numbers_of_networks() -> None:
+    assert len(NETWORKS) == 3
+
+
+def test_json_dict() -> None:
+    for net in NETWORKS.values():
+        net2 = Network.from_json(net.to_json())
+        assert net2 == net
+        net2 = Network.from_dict(net.to_dict())
+        assert net2 == net

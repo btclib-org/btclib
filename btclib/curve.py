@@ -13,7 +13,7 @@
 import json
 from math import sqrt
 from os import path
-from typing import Dict, List, Sequence, Optional
+from typing import Dict, List, Optional, Sequence
 
 from .alias import Integer, JacPoint, Point
 from .curvegroup import (

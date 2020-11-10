@@ -1,4 +1,3 @@
-- use https://github.com/lidatong/dataclasses-json
 - do not ignore errors in mypy.ini
   ignore_errors = True
 - enable flake8 max-complexity
@@ -9,7 +8,7 @@
 - add AuthProxy for full node interaction (blockexplorer fall-back)
 - descriptors
 - miniscript (?)
-- block creating (toy mining)
+- block creation (toy mining)
 - hash rate extimation
 - difficulty adjustment
 - add wallet infrastructure
