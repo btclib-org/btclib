@@ -10,13 +10,13 @@
 
 """Partially Signed Bitcoin Transaction.
 
-https://en.bitcoin.it/wiki/BIP_0174
+https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from base64 import b64decode, b64encode
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Dict, List, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin
 
@@ -24,7 +24,7 @@ from . import script, varint
 from .alias import Octets, ScriptToken, String
 from .bip32 import bytes_from_bip32_path
 from .psbt_in import PartialSigs, PsbtIn
-from .psbt_out import _PSBT_PROPRIETARY, HdKeyPaths, PsbtOut
+from .psbt_out import HdKeyPaths, PsbtOut
 from .scriptpubkey import payload_from_scriptPubKey
 from .tx import Tx
 from .tx_out import TxOut
@@ -35,15 +35,16 @@ from .utils import (
     token_or_string_to_hex_string,
 )
 
-_PSbt = TypeVar("_PSbt", bound="Psbt")
+_Psbt = TypeVar("_Psbt", bound="Psbt")
 
-_PSBT_MAGIC_BYTES = b"psbt"
-_PSBT_SEPARATOR = b"\xff"
-_PSBT_DELIMITER = b"\x00"
+PSBT_MAGIC_BYTES = b"psbt"
+PSBT_SEPARATOR = b"\xff"
+PSBT_DELIMITER = b"\x00"
 
-_PSBT_UNSIGNED_TX = b"\x00"
-_PSBT_XPUB = b"\x01"
-_PSBT_VERSION = b"\xfb"
+PSBT_GLOBAL_UNSIGNED_TX = b"\x00"
+PSBT_GLOBAL_XPUB = b"\x01"
+PSBT_GLOBAL_VERSION = b"\xfb"
+PSBT_GLOBAL_PROPRIETARY = b"\xfc"
 
 
 @dataclass
@@ -51,36 +52,36 @@ class Psbt(DataClassJsonMixin):
     tx: Tx = field(default=Tx())
     inputs: List[PsbtIn] = field(default_factory=list)
     outputs: List[PsbtOut] = field(default_factory=list)
-    version: Optional[int] = 0
+    version: int = 0
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
     proprietary: Dict[int, Dict[str, bytes]] = field(default_factory=dict)
     unknown: Dict[str, bytes] = field(default_factory=dict)
 
     @classmethod
-    def deserialize(cls: Type[_PSbt], data: bytes, assert_valid: bool = True) -> _PSbt:
+    def deserialize(cls: Type[_Psbt], data: bytes, assert_valid: bool = True) -> _Psbt:
 
         out = cls()
 
-        assert data[:4] == _PSBT_MAGIC_BYTES, "malformed psbt: missing magic bytes"
-        assert data[4:5] == _PSBT_SEPARATOR, "malformed psbt: missing separator"
+        assert data[:4] == PSBT_MAGIC_BYTES, "malformed psbt: missing magic bytes"
+        assert data[4:5] == PSBT_SEPARATOR, "malformed psbt: missing separator"
 
         global_map, data = deserialize_map(data[5:])
         for key, value in global_map.items():
-            if key[0:1] == _PSBT_UNSIGNED_TX:
+            if key[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 assert not out.tx.nVersion, "duplicated transaction"
                 out.tx = Tx.deserialize(value)  # legacy trensaction
-            elif key[0:1] == _PSBT_VERSION:
+            elif key[0:1] == PSBT_GLOBAL_VERSION:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 assert not out.version, "duplicated version"
                 assert len(value) == 4, f"invalid version length: {len(value)}"
                 out.version = int.from_bytes(value, "little")
-            elif key[0:1] == _PSBT_XPUB:  # hd_keypaths
+            elif key[0:1] == PSBT_GLOBAL_XPUB:
                 # why extended key here?
                 assert len(key) == 78 + 1, f"invalid key length: {len(key)}"
                 # TODO: assert not duplicated?
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
-            elif key[0:1] == _PSBT_PROPRIETARY:
+            elif key[0:1] == PSBT_GLOBAL_PROPRIETARY:
                 # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.keys():
@@ -108,17 +109,17 @@ class Psbt(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = _PSBT_MAGIC_BYTES + _PSBT_SEPARATOR
+        out = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
 
-        out += b"\x01" + _PSBT_UNSIGNED_TX
+        out += b"\x01" + PSBT_GLOBAL_UNSIGNED_TX
         tx = self.tx.serialize()
         out += varint.encode(len(tx)) + tx
         if self.version:
-            out += b"\x01" + _PSBT_VERSION
+            out += b"\x01" + PSBT_GLOBAL_VERSION
             out += b"\x04" + self.version.to_bytes(4, "little")
         if self.hd_keypaths:
             for pubkey, hd_keypath in self.hd_keypaths.hd_keypaths.items():
-                pubkey_bytes = _PSBT_XPUB + bytes.fromhex(pubkey)
+                pubkey_bytes = PSBT_GLOBAL_XPUB + bytes.fromhex(pubkey)
                 out += varint.encode(len(pubkey_bytes)) + pubkey_bytes
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes_from_bip32_path(
@@ -129,7 +130,9 @@ class Psbt(DataClassJsonMixin):
             for (owner, dictionary) in self.proprietary.items():
                 for key, value in dictionary.items():
                     key_bytes = (
-                        _PSBT_PROPRIETARY + varint.encode(owner) + bytes.fromhex(key)
+                        PSBT_GLOBAL_PROPRIETARY
+                        + varint.encode(owner)
+                        + bytes.fromhex(key)
                     )
                     out += varint.encode(len(key_bytes)) + key_bytes
                     out += varint.encode(len(value)) + value
@@ -138,7 +141,7 @@ class Psbt(DataClassJsonMixin):
                 out += varint.encode(len(key2) // 2) + bytes.fromhex(key2)
                 out += varint.encode(len(value2)) + value2
 
-        out += _PSBT_DELIMITER
+        out += PSBT_DELIMITER
         for input_map in self.inputs:
             out += input_map.serialize() + b"\x00"
         for output_map in self.outputs:
@@ -146,7 +149,7 @@ class Psbt(DataClassJsonMixin):
         return out
 
     @classmethod
-    def decode(cls: Type[_PSbt], string: str, assert_valid: bool = True) -> _PSbt:
+    def decode(cls: Type[_Psbt], string: str, assert_valid: bool = True) -> _Psbt:
         data = b64decode(string)
         return cls.deserialize(data, assert_valid)
 
@@ -174,7 +177,11 @@ class Psbt(DataClassJsonMixin):
         for psbt_out in self.outputs:
             psbt_out.assert_valid()
 
-        # TODO: validate version
+        # must be a 4-bytes int
+        assert 0 <= self.version <= 0xFFFFFFFF
+        # actually must be zero
+        assert self.version == 0
+
         # TODO: validate hd_keypaths
         # TODO: validate proprietary
         # TODO: validate unknown
