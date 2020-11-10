@@ -51,3 +51,11 @@ def test_dataclasses_json_dict() -> None:
         assert net2 == net
         net2 = Network.from_dict(net.to_dict())
         assert net2 == net
+
+    import json
+    from os import path
+
+    datadir = path.join(path.dirname(__file__), "generated_files")
+    filename = path.join(datadir, "mainnet.json")
+    with open(filename, "w") as f:
+        json.dump(NETWORKS["mainnet"].to_dict(), f, indent=True)

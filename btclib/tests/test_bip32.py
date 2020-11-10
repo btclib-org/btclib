@@ -453,7 +453,7 @@ def test_dataclasses_json_dict() -> None:
     assert isinstance(d, dict)
     assert xkey_data == BIP32KeyData.from_dict(d)
 
-    # datadir = path.join(path.dirname(__file__), "..", "data")
-    # filename = path.join(datadir, "xkey.json")
-    # with open(filename, "w") as f:
-    #     json.dump(d, f, indent=True)
+    datadir = path.join(path.dirname(__file__), "generated_files")
+    filename = path.join(datadir, "xkey.json")
+    with open(filename, "w") as f:
+        json.dump(d, f, indent=True)
