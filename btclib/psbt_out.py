@@ -74,7 +74,7 @@ class HdKeyPaths(DataClassJsonMixin):
 _PSBTOUT_REDEEM_SCRIPT = b"\x00"
 _PSBTOUT_WITNESS_SCRIPT = b"\x01"
 _PSBTOUT_BIP32_DERIVATION = b"\x02"
-_PSBTOUT_PROPRIETARY = b"\xfc"
+_PSBT_PROPRIETARY = b"\xfc"
 
 _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
@@ -107,16 +107,17 @@ class PsbtOut(DataClassJsonMixin):
                 out.witness_script = value
             elif key[0:1] == _PSBTOUT_BIP32_DERIVATION:  # hd_keypaths
                 assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
-                # TODO: duplicated?
+                # TODO: assert not duplicated?
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
-            elif key[0:1] == _PSBTOUT_PROPRIETARY:
+            elif key[0:1] == _PSBT_PROPRIETARY:
+                # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.keys():
                     out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 out.proprietary[prefix][key.hex()] = value
             else:  # unknown keys
-                # TODO: duplicated?
+                # TODO: assert not duplicated?
                 out.unknown[key.hex()] = value
 
         if assert_valid:
@@ -137,8 +138,9 @@ class PsbtOut(DataClassJsonMixin):
             out += b"\x01" + _PSBTOUT_WITNESS_SCRIPT
             out += varint.encode(len(self.witness_script)) + self.witness_script
         if self.hd_keypaths:
-            for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
-                out += b"\x22" + _PSBTOUT_BIP32_DERIVATION + bytes.fromhex(xpub)
+            for pubkey, hd_keypath in self.hd_keypaths.hd_keypaths.items():
+                pubkey_bytes = _PSBTOUT_BIP32_DERIVATION + bytes.fromhex(pubkey)
+                out += varint.encode(len(pubkey_bytes)) + pubkey_bytes
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes_from_bip32_path(
                     hd_keypath["derivation_path"], "little"
@@ -148,14 +150,15 @@ class PsbtOut(DataClassJsonMixin):
             for (owner, dictionary) in self.proprietary.items():
                 for key, value in dictionary.items():
                     key_bytes = (
-                        _PSBTOUT_PROPRIETARY + varint.encode(owner) + bytes.fromhex(key)
+                        _PSBT_PROPRIETARY + varint.encode(owner) + bytes.fromhex(key)
                     )
                     out += varint.encode(len(key_bytes)) + key_bytes
                     out += varint.encode(len(value)) + value
         if self.unknown:
-            for key, value in self.unknown.items():
-                out += varint.encode(len(key) // 2) + bytes.fromhex(key)
-                out += varint.encode(len(value)) + value
+            for key2, value2 in self.unknown.items():
+                out += varint.encode(len(key2) // 2) + bytes.fromhex(key2)
+                out += varint.encode(len(value2)) + value2
+
         return out
 
     def assert_valid(self) -> None:

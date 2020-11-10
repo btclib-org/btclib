@@ -21,7 +21,7 @@ from dataclasses_json import DataClassJsonMixin, config
 from . import der, varint
 from .alias import Octets, String
 from .bip32 import bytes_from_bip32_path
-from .psbt_out import HdKeyPaths, _pubkey_to_hex_string
+from .psbt_out import _PSBT_PROPRIETARY, HdKeyPaths, _pubkey_to_hex_string
 from .script import SIGHASHES
 from .to_pubkey import PubKey
 from .tx import Tx
@@ -39,7 +39,6 @@ _PSBTIN_BIP32_DERIVATION = b"\x06"
 _PSBTIN_FINAL_SCRIPTSIG = b"\x07"
 _PSBTIN_FINAL_SCRIPTWITNESS = b"\x08"
 _PSBTIN_POR_COMMITMENT = b"\x09"
-_PSBTIN_PROPRIETARY = b"\xfc"
 
 
 @dataclass
@@ -116,18 +115,6 @@ class PsbtIn(DataClassJsonMixin):
                 assert out.sighash is None, "duplicated sighash"
                 assert len(value) == 4
                 out.sighash = int.from_bytes(value, "little")
-            elif key[0:1] == _PSBTIN_REDEEM_SCRIPT:
-                assert len(key) == 1, f"invalid key length: {len(key)}"
-                assert out.redeem_script == b"", "duplicated redeem_script"
-                out.redeem_script = value
-            elif key[0:1] == _PSBTIN_WITNESS_SCRIPT:
-                assert len(key) == 1, f"invalid key length: {len(key)}"
-                assert out.witness_script == b"", "duplicated witness_script"
-                out.witness_script = value
-            elif key[0:1] == _PSBTIN_BIP32_DERIVATION:  # hd_keypaths
-                assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
-                # TODO: duplicated?
-                out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == _PSBTIN_FINAL_SCRIPTSIG:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 assert out.final_script_sig == b"", "duplicated final_script_sig"
@@ -139,15 +126,27 @@ class PsbtIn(DataClassJsonMixin):
             elif key[0:1] == _PSBTIN_POR_COMMITMENT:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 out.por_commitment = value.hex()  # TODO: bip127
-            elif key[0:1] == _PSBTIN_PROPRIETARY:
-                # TODO: duplicated?
+            elif key[0:1] == _PSBTIN_REDEEM_SCRIPT:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert out.redeem_script == b"", "duplicated redeem_script"
+                out.redeem_script = value
+            elif key[0:1] == _PSBTIN_WITNESS_SCRIPT:
+                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert out.witness_script == b"", "duplicated witness_script"
+                out.witness_script = value
+            elif key[0:1] == _PSBTIN_BIP32_DERIVATION:  # hd_keypaths
+                assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
+                # TODO: assert not duplicated?
+                out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
+            elif key[0:1] == _PSBT_PROPRIETARY:
+                # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.keys():
                     out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 out.proprietary[prefix][key.hex()] = value
             else:  # unknown keys
-                # TODO: duplicated?
+                # TODO: assert not duplicated?
                 out.unknown[key.hex()] = value
 
         if assert_valid:
@@ -183,14 +182,6 @@ class PsbtIn(DataClassJsonMixin):
         if self.witness_script:
             out += b"\x01" + _PSBTIN_WITNESS_SCRIPT
             out += varint.encode(len(self.witness_script)) + self.witness_script
-        if self.hd_keypaths:
-            for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
-                out += b"\x22" + _PSBTIN_BIP32_DERIVATION + bytes.fromhex(xpub)
-                keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += bytes_from_bip32_path(
-                    hd_keypath["derivation_path"], "little"
-                )
-                out += varint.encode(len(keypath)) + keypath
         if self.final_script_sig:
             out += b"\x01" + _PSBTIN_FINAL_SCRIPTSIG
             out += varint.encode(len(self.final_script_sig)) + self.final_script_sig
@@ -202,18 +193,28 @@ class PsbtIn(DataClassJsonMixin):
             out += b"\x01" + _PSBTIN_POR_COMMITMENT
             c = bytes.fromhex(self.por_commitment)
             out += varint.encode(len(c)) + c
+        if self.hd_keypaths:
+            for pubkey, hd_keypath in self.hd_keypaths.hd_keypaths.items():
+                pubkey_bytes = _PSBTIN_BIP32_DERIVATION + bytes.fromhex(pubkey)
+                out += varint.encode(len(pubkey_bytes)) + pubkey_bytes
+                keypath = bytes.fromhex(hd_keypath["fingerprint"])
+                keypath += bytes_from_bip32_path(
+                    hd_keypath["derivation_path"], "little"
+                )
+                out += varint.encode(len(keypath)) + keypath
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
-                for key, value2 in dictionary.items():
+                for key, value in dictionary.items():
                     key_bytes = (
-                        _PSBTIN_PROPRIETARY + varint.encode(owner) + bytes.fromhex(key)
+                        _PSBT_PROPRIETARY + varint.encode(owner) + bytes.fromhex(key)
                     )
                     out += varint.encode(len(key_bytes)) + key_bytes
-                    out += varint.encode(len(value2)) + value2
+                    out += varint.encode(len(value)) + value
         if self.unknown:
-            for key, value2 in self.unknown.items():
-                out += varint.encode(len(key) // 2) + bytes.fromhex(key)
+            for key2, value2 in self.unknown.items():
+                out += varint.encode(len(key2) // 2) + bytes.fromhex(key2)
                 out += varint.encode(len(value2)) + value2
+
         return out
 
     def assert_valid(self) -> None:

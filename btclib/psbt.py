@@ -24,7 +24,7 @@ from . import script, varint
 from .alias import Octets, ScriptToken, String
 from .bip32 import bytes_from_bip32_path
 from .psbt_in import PartialSigs, PsbtIn
-from .psbt_out import HdKeyPaths, PsbtOut
+from .psbt_out import _PSBT_PROPRIETARY, HdKeyPaths, PsbtOut
 from .scriptpubkey import payload_from_scriptPubKey
 from .tx import Tx
 from .tx_out import TxOut
@@ -44,7 +44,6 @@ _PSBT_DELIMITER = b"\x00"
 _PSBT_UNSIGNED_TX = b"\x00"
 _PSBT_XPUB = b"\x01"
 _PSBT_VERSION = b"\xfb"
-_PSBT_PROPRIETARY = b"\xfc"
 
 
 @dataclass
@@ -71,25 +70,25 @@ class Psbt(DataClassJsonMixin):
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 assert not out.tx.nVersion, "duplicated transaction"
                 out.tx = Tx.deserialize(value)  # legacy trensaction
-            elif key[0:1] == _PSBT_XPUB:
-                # TODO duplicated?
-                # why extended key here?
-                assert len(key) == 78 + 1, f"invalid key length: {len(key)}"
-                out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == _PSBT_VERSION:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 assert not out.version, "duplicated version"
                 assert len(value) == 4, f"invalid version length: {len(value)}"
                 out.version = int.from_bytes(value, "little")
+            elif key[0:1] == _PSBT_XPUB:  # hd_keypaths
+                # why extended key here?
+                assert len(key) == 78 + 1, f"invalid key length: {len(key)}"
+                # TODO: assert not duplicated?
+                out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == _PSBT_PROPRIETARY:
-                # TODO duplicated?
+                # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.keys():
                     out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 out.proprietary[prefix][key.hex()] = value
             else:  # unknown keys
-                # TODO duplicated?
+                # TODO: assert not duplicated?
                 out.unknown[key.hex()] = value
 
         assert out.tx.nVersion, "missing transaction"
@@ -104,11 +103,6 @@ class Psbt(DataClassJsonMixin):
             out.assert_valid()
         return out
 
-    @classmethod
-    def decode(cls: Type[_PSbt], string: str, assert_valid: bool = True) -> _PSbt:
-        data = b64decode(string)
-        return cls.deserialize(data, assert_valid)
-
     def serialize(self, assert_valid: bool = True) -> bytes:
 
         if assert_valid:
@@ -119,17 +113,18 @@ class Psbt(DataClassJsonMixin):
         out += b"\x01" + _PSBT_UNSIGNED_TX
         tx = self.tx.serialize()
         out += varint.encode(len(tx)) + tx
+        if self.version:
+            out += b"\x01" + _PSBT_VERSION
+            out += b"\x04" + self.version.to_bytes(4, "little")
         if self.hd_keypaths:
-            for xpub, hd_keypath in self.hd_keypaths.hd_keypaths.items():
-                out += b"\x4f\x01" + bytes.fromhex(xpub)
+            for pubkey, hd_keypath in self.hd_keypaths.hd_keypaths.items():
+                pubkey_bytes = _PSBT_XPUB + bytes.fromhex(pubkey)
+                out += varint.encode(len(pubkey_bytes)) + pubkey_bytes
                 keypath = bytes.fromhex(hd_keypath["fingerprint"])
                 keypath += bytes_from_bip32_path(
                     hd_keypath["derivation_path"], "little"
                 )
                 out += varint.encode(len(keypath)) + keypath
-        if self.version:
-            out += b"\x01" + _PSBT_VERSION
-            out += b"\x04" + self.version.to_bytes(4, "little")
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
                 for key, value in dictionary.items():
@@ -139,9 +134,9 @@ class Psbt(DataClassJsonMixin):
                     out += varint.encode(len(key_bytes)) + key_bytes
                     out += varint.encode(len(value)) + value
         if self.unknown:
-            for key, value in self.unknown.items():
-                out += varint.encode(len(key) // 2) + bytes.fromhex(key)
-                out += varint.encode(len(value)) + value
+            for key2, value2 in self.unknown.items():
+                out += varint.encode(len(key2) // 2) + bytes.fromhex(key2)
+                out += varint.encode(len(value2)) + value2
 
         out += _PSBT_DELIMITER
         for input_map in self.inputs:
@@ -149,6 +144,11 @@ class Psbt(DataClassJsonMixin):
         for output_map in self.outputs:
             out += output_map.serialize() + b"\x00"
         return out
+
+    @classmethod
+    def decode(cls: Type[_PSbt], string: str, assert_valid: bool = True) -> _PSbt:
+        data = b64decode(string)
+        return cls.deserialize(data, assert_valid)
 
     def encode(self, assert_valid: bool = True) -> str:
         out = self.serialize(assert_valid)
