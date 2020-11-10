@@ -572,14 +572,30 @@ def test_hd_paths():
     assert psbt.encode() == psbt_check_string
 
 
-def test_psbt_json():
-    psbt_str = "cHNidP8BAIkCAAAAARnxViCzMlE50R7BLfUK9Em7JRSithDHx6/HqzxOPb/lAAAAAAD9////AiChBwAAAAAAIgAg6OYWyJlTxF3xOZM+ZJnQYcC6um0klfv3rZqVkbDWaKVBiAMAAAAAACIAIFXAXQ7M7bSsf6IR0Zt+mWvjNRtOX1dbUyA7QN7x3rJVAAAAAAABASuFKwsAAAAAACIAIGxMhA6S1FFxsrccUutx1Wu6+ijbCMDqwETnode6/M9vIgIDVy+a9q69emdkJk4Xq9xPyAzzWcEfgcu+Ts96LCNKX49IMEUCIQDh6ho/n3kEkusYgQ8OSeZQszl/kfpKOAwGSeMUSUMAngIgLDbfAC4tGyEdoCVrRGsnVB4zDEb9k4a1mhYbSQLoVMsBIgYCOOOQQx1Uydk9h38Rd98Gj/dMemSmLtsUC3tlt004+5QUpFwW+ywAAIAAAACAAAAAAAAAAAAiBgJ6RK62ZrlAXMGL4dJOG61AdvTYSrSYvJu7XE37wIolbBQ+kOBlLAAAgAAAAIAAAAAAAAAAACIGAyoYpiApIUlH9R9l71y9PdAJBGyxofwpoeoZGTcP8OkCFLd96kwsAACAAAAAgAAAAAAAAAAAIgYDVy+a9q69emdkJk4Xq9xPyAzzWcEfgcu+Ts96LCNKX48UOIHNZywAAIAAAACAAAAAAAAAAAAiBgP8xVUHZvsvdflS4U8rKZT1vopnW1W8RSXAqOTGeY3RFxRS5uGZLAAAgAAAAIAAAAAAAAAAAAAAAA=="
-    psbt = Psbt.decode(psbt_str)
+def test_dataclasses_json_dict():
+    psbt_encoded = "cHNidP8BAIkCAAAAARnxViCzMlE50R7BLfUK9Em7JRSithDHx6/HqzxOPb/lAAAAAAD9////AiChBwAAAAAAIgAg6OYWyJlTxF3xOZM+ZJnQYcC6um0klfv3rZqVkbDWaKVBiAMAAAAAACIAIFXAXQ7M7bSsf6IR0Zt+mWvjNRtOX1dbUyA7QN7x3rJVAAAAAAABASuFKwsAAAAAACIAIGxMhA6S1FFxsrccUutx1Wu6+ijbCMDqwETnode6/M9vIgIDVy+a9q69emdkJk4Xq9xPyAzzWcEfgcu+Ts96LCNKX49IMEUCIQDh6ho/n3kEkusYgQ8OSeZQszl/kfpKOAwGSeMUSUMAngIgLDbfAC4tGyEdoCVrRGsnVB4zDEb9k4a1mhYbSQLoVMsBIgYCOOOQQx1Uydk9h38Rd98Gj/dMemSmLtsUC3tlt004+5QUpFwW+ywAAIAAAACAAAAAAAAAAAAiBgJ6RK62ZrlAXMGL4dJOG61AdvTYSrSYvJu7XE37wIolbBQ+kOBlLAAAgAAAAIAAAAAAAAAAACIGAyoYpiApIUlH9R9l71y9PdAJBGyxofwpoeoZGTcP8OkCFLd96kwsAACAAAAAgAAAAAAAAAAAIgYDVy+a9q69emdkJk4Xq9xPyAzzWcEfgcu+Ts96LCNKX48UOIHNZywAAIAAAACAAAAAAAAAAAAiBgP8xVUHZvsvdflS4U8rKZT1vopnW1W8RSXAqOTGeY3RFxRS5uGZLAAAgAAAAIAAAAAAAAAAAAAAAA=="
 
-    psbt.to_json()
-    # need to solve dataclass to json for Dict[str, bytes]
-    # psbt2 = Psbt.from_json(psbt.to_json())
-    # assert psbt == psbt2
+    # dataclass
+    psbt_data = Psbt.decode(psbt_encoded)
+    assert isinstance(psbt_data, Psbt)
+
+    # str
+    psbt_json_str = psbt_data.to_json()
+    assert isinstance(psbt_json_str, str)
+    # assert psbt_data == Psbt.from_json(psbt_json_str)
+
+    # dict
+    psbt_dict = psbt_data.to_dict()
+    assert isinstance(psbt_dict, dict)
+    #  assert psbt_data == Psbt.from_dict(psbt_dict)
+
+    # import json
+    # from os import path
+
+    # datadir = path.join(path.dirname(__file__), "generated_files")
+    # filename = path.join(datadir, "psbt.json")
+    # with open(filename, "w") as f:
+    #     json.dump(psbt_dict, f, indent=True)
 
 
 def test_proprietary_types():
