@@ -45,7 +45,7 @@ def test_numbers_of_networks() -> None:
     assert len(NETWORKS) == 3
 
 
-def test_json_dict() -> None:
+def test_dataclasses_json_dict() -> None:
     for net in NETWORKS.values():
         net2 = Network.from_json(net.to_json())
         assert net2 == net
