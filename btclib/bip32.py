@@ -58,6 +58,35 @@ from .utils import bytes_from_octets, hash160, hex_string
 ec = secp256k1
 
 
+def _index_int_from_str(s: str) -> int:
+
+    s.strip().lower()
+    hardened = False
+    if s[-1] in ("'", "h"):
+        s = s[:-1]
+        hardened = True
+
+    index = int(s)
+    if index < 0:
+        raise ValueError(f"negative index: {index}")
+    if index >= 0x80000000:
+        raise ValueError(f"index too high: {index}")
+    return index + (0x80000000 if hardened else 0)
+
+
+def _str_from_index_int(i: int) -> str:
+
+    if i < 0:
+        raise ValueError(f"negative index: {i}")
+    if i >= 0xFFFFFFFF:
+        raise ValueError(f"index too high: {i}")
+    hardened = i >= 0x80000000
+    if hardened:
+        i -= 0x80000000
+
+    return str(i) + ("h" if hardened else "")
+
+
 _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
 
 
@@ -71,13 +100,50 @@ class BIP32KeyData(DataClassJsonMixin):
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     # index is an int, not bytes, to avoid any byteorder ambiguity
-    index: int
+    index: int = field(
+        metadata=config(encoder=_str_from_index_int, decoder=_index_int_from_str)
+    )
     chain_code: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     key: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
+
+    @classmethod
+    def deserialize(
+        cls: Type[_BIP32KeyData], xkey: String, assert_valid: bool = True
+    ) -> _BIP32KeyData:
+
+        if isinstance(xkey, str):
+            xkey = xkey.strip()
+        xkey = b58decode(xkey, 78)
+
+        key_data = cls(
+            version=xkey[:4],
+            depth=xkey[4],
+            parent_fingerprint=xkey[5:9],
+            index=int.from_bytes(xkey[9:13], "big"),
+            chain_code=xkey[13:45],
+            key=xkey[45:],
+        )
+        if assert_valid:
+            key_data.assert_valid()
+
+        return key_data
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        t = self.version
+        t += self.depth.to_bytes(1, "big")
+        t += self.parent_fingerprint
+        t += self.index.to_bytes(4, "big")
+        t += self.chain_code
+        t += self.key
+        return b58encode(t, 78)
 
     def assert_valid(self) -> None:
 
@@ -152,40 +218,10 @@ class BIP32KeyData(DataClassJsonMixin):
                 m = f"zero parent fingerprint with non-zero depth {self.depth}"
                 raise ValueError(m)
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
-
-        if assert_valid:
-            self.assert_valid()
-
-        t = self.version
-        t += self.depth.to_bytes(1, "big")
-        t += self.parent_fingerprint
-        t += self.index.to_bytes(4, "big")
-        t += self.chain_code
-        t += self.key
-        return b58encode(t, 78)
-
-    @classmethod
-    def deserialize(
-        cls: Type[_BIP32KeyData], xkey: String, assert_valid: bool = True
-    ) -> _BIP32KeyData:
-
-        if isinstance(xkey, str):
-            xkey = xkey.strip()
-        xkey = b58decode(xkey, 78)
-
-        key_data = cls(
-            version=xkey[:4],
-            depth=xkey[4],
-            parent_fingerprint=xkey[5:9],
-            index=int.from_bytes(xkey[9:13], "big"),
-            chain_code=xkey[13:45],
-            key=xkey[45:],
-        )
-        if assert_valid:
-            key_data.assert_valid()
-
-        return key_data
+    @property
+    def is_hardened(self) -> bool:
+        self.assert_valid()
+        return self.index >= 0x80000000
 
 
 def rootxprv_from_seed(
@@ -279,28 +315,11 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
 
 def _indexes_from_bip32_path_str(der_path: str) -> List[int]:
 
-    steps = [x.strip() for x in der_path.split("/")]
-    if steps[0] not in ("m", "M"):
+    steps = [x.strip().lower() for x in der_path.split("/")]
+    if steps[0] != "m":
         raise ValueError(f"invalid root: {steps[0]}")
 
-    indexes: List[int] = list()
-    for step in steps[1:]:
-        if step == "":  # extra slash
-            continue
-
-        hardened = False
-        if step[-1] in ("'", "H", "h"):
-            step = step[:-1]
-            hardened = True
-
-        index = int(step)
-        if index < 0:
-            raise ValueError(f"negative index: {index}")
-        if index >= 0x80000000:
-            raise ValueError(f"index too high: {index}")
-        index += 0x80000000 if hardened else 0
-
-        indexes.append(index)
+    indexes = [_index_int_from_str(s) for s in steps[1:] if s != ""]
 
     if len(indexes) > 255:
         err_msg = f"depth greater than 255: {len(indexes)}"
@@ -317,11 +336,8 @@ BIP32Path = Union[str, Iterable[int], int, bytes]
 
 def str_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> str:
     indexes = indexes_from_bip32_path(der_path, byteorder)
-    result = "m"
-    for i in indexes:
-        result += "/"
-        result += str(i) if i < 0x80000000 else (str(i - 0x80000000) + "h")
-    return result
+    result = "/".join([_str_from_index_int(i) for i in indexes])
+    return "m/" + result if indexes else "m"
 
 
 def bytes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> bytes:
@@ -371,7 +387,7 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
         Pbytes = bytes_from_point(mult(key_data.q))
         key_data.parent_fingerprint = hash160(Pbytes)[:4]
         key_data.index = index
-        if index >= 0x80000000:  # hardened derivation
+        if key_data.is_hardened:
             h = hmac.digest(
                 key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
             )
@@ -386,11 +402,11 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
         key_data.Q = INF
     # key_data is a pubkey
     else:
-        if index >= 0x80000000:
-            raise ValueError("hardened derivation from public key")
         key_data.depth += 1
         key_data.parent_fingerprint = hash160(key_data.key)[:4]
         key_data.index = index
+        if key_data.is_hardened:
+            raise ValueError("hardened derivation from public key")
         h = hmac.digest(
             key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
         )
@@ -487,7 +503,7 @@ def _derive_from_account(
     if address_index >= 0x80000000:
         raise ValueError("invalid private derivation at address index level")
 
-    if key_data.index < 0x80000000:
+    if not key_data.is_hardened:
         raise UserWarning("public derivation at account level")
 
     return _derive(key_data, f"m/{branch}/{address_index}")
@@ -540,8 +556,7 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
     if c.parent_fingerprint != hash160(p.key)[:4]:
         raise ValueError("not a parent's child: wrong parent fingerprint")
 
-    # check normal derivation
-    if c.index >= 0x80000000:
+    if c.is_hardened:
         raise ValueError("hardened child derivation")
 
     p.version = c.version

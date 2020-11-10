@@ -19,7 +19,9 @@ from btclib.base58 import b58decode, b58encode
 from btclib.base58address import p2pkh  # FIXME why it is needed here
 from btclib.bip32 import (
     BIP32KeyData,
+    _index_int_from_str,
     _indexes_from_bip32_path_str,
+    _str_from_index_int,
     bytes_from_bip32_path,
     crack_prvkey,
     derive,
@@ -314,9 +316,8 @@ def test_derive_exceptions() -> None:
     with pytest.raises(ValueError, match="index is not a multiple of 4-bytes: "):
         derive(xprv, b"\x00" * 5)
 
-    err_msg = "int too big to convert"
     for index in (256 ** 4, 0x8000000000):
-        with pytest.raises(OverflowError, match=err_msg):
+        with pytest.raises(ValueError, match="index too high: "):
             derive(xprv, index)
 
     err_msg = "final depth greater than 255: "
@@ -418,19 +419,41 @@ def test_crack() -> None:
         crack_prvkey(parent_xpub, hardened_child_xprv)
 
 
-def test_dataclasses_json() -> None:
-    xkey = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+def test_index_int_to_from_str() -> None:
+
+    for i in (0, 1, 0x80000000 - 1, 0x80000000, 0xFFFFFFFF - 1):
+        assert i == _index_int_from_str(_str_from_index_int(i))
+
+    for i in (-1, 0xFFFFFFFF):
+        with pytest.raises(ValueError):
+            _str_from_index_int(i)
+
+    for s in ("-1", "-1h", str(0x80000000) + "h", str(0xFFFFFFFF)):
+        with pytest.raises(ValueError):
+            _index_int_from_str(s)
+
+
+def test_dataclasses_json_dict() -> None:
+    xkey = derive(
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
+        "m/0h",
+    )
 
     # dataclass
     xkey_data = BIP32KeyData.deserialize(xkey)
     assert isinstance(xkey_data, BIP32KeyData)
+
+    # str
+    s = xkey_data.to_json()
+    assert isinstance(s, str)
+    assert xkey_data == BIP32KeyData.from_json(s)
 
     # dict
     d = xkey_data.to_dict()
     assert isinstance(d, dict)
     assert xkey_data == BIP32KeyData.from_dict(d)
 
-    # str
-    j = xkey_data.to_json(indent=True)
-    assert isinstance(j, str)
-    assert xkey_data == BIP32KeyData.from_json(j)
+    # datadir = path.join(path.dirname(__file__), "..", "data")
+    # filename = path.join(datadir, "xkey.json")
+    # with open(filename, "w") as f:
+    #     json.dump(d, f, indent=True)
