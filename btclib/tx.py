@@ -104,10 +104,14 @@ class Tx(DataClassJsonMixin):
 
     @property
     def weight(self) -> int:
-        return len(self.serialize(False)) * 3 + len(self.serialize())
+        # check for assert_valid only once
+        a = len(self.serialize(include_witness=False, assert_valid=True)) * 3
+        b = len(self.serialize(include_witness=True, assert_valid=False))
+        return a + b
 
     @property
     def vsize(self) -> int:
+        self.assert_valid()
         return ceil(self.weight / 4)
 
     def assert_valid(self) -> None:
