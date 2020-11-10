@@ -292,8 +292,7 @@ def _op_int(token: int) -> bytes:
 
 
 def _op_str(token: str) -> bytes:
-    token = token.strip()
-    token = token.upper()
+    token = token.strip().upper()
     if token in OP_CODES:
         return OP_CODES[token]
     try:
