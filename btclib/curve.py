@@ -13,7 +13,7 @@
 import json
 from math import sqrt
 from os import path
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Optional
 
 from .alias import Integer, JacPoint, Point
 from .curvegroup import (
@@ -75,6 +75,7 @@ class Curve(CurveSubGroup):
         n: Integer,
         h: int,
         weakness_check: bool = True,
+        name: Optional[str] = None,
     ) -> None:
 
         super().__init__(p, a, b, G)
@@ -130,6 +131,8 @@ class Curve(CurveSubGroup):
                 if pow(self.p, i, n) == 1:
                     raise UserWarning("weak curve")
 
+        self.name = name
+
     def __str__(self) -> str:
         result = super().__str__()
         if self.n > _HEXTHRESHOLD:
@@ -160,7 +163,7 @@ with open(filename, "r") as f:
     Brainpool_params2 = json.load(f)
 Brainpool: Dict[str, Curve] = {}
 for ec_name in Brainpool_params2:
-    Brainpool[ec_name] = Curve(*Brainpool_params2[ec_name])
+    Brainpool[ec_name] = Curve(*Brainpool_params2[ec_name] + [True, ec_name])
 
 
 # FIPS PUB 186-4
@@ -172,7 +175,7 @@ with open(filename, "r") as f:
     NIST_params2 = json.load(f)
 NIST: Dict[str, Curve] = {}
 for ec_name in NIST_params2:
-    NIST[ec_name] = Curve(*NIST_params2[ec_name])
+    NIST[ec_name] = Curve(*NIST_params2[ec_name] + [True, ec_name])
 
 
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
@@ -182,7 +185,7 @@ with open(filename, "r") as f:
     SEC2v1_params2 = json.load(f)
 SEC2v1: Dict[str, Curve] = {}
 for ec_name in SEC2v1_params2:
-    SEC2v1[ec_name] = Curve(*SEC2v1_params2[ec_name])
+    SEC2v1[ec_name] = Curve(*SEC2v1_params2[ec_name] + [True, ec_name])
 
 
 # curves included in both SEC 2 v.1 and SEC 2 v.2
@@ -192,8 +195,8 @@ with open(filename, "r") as f:
     SEC2v2_params2 = json.load(f)
 SEC2v2: Dict[str, Curve] = {}
 for ec_name in SEC2v2_params2:
-    SEC2v2[ec_name] = Curve(*SEC2v2_params2[ec_name])
-    SEC2v1[ec_name] = Curve(*SEC2v2_params2[ec_name])
+    SEC2v2[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
+    SEC2v1[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
 
 CURVES = SEC2v1
 CURVES.update(NIST)
