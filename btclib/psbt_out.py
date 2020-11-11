@@ -47,19 +47,21 @@ _HdKeyPaths = TypeVar("_HdKeyPaths", bound="HdKeyPaths")
 
 @dataclass
 class HdKeyPaths(DataClassJsonMixin):
-    hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
+    bip32_derivs: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
-    def add_hd_keypath(self, key: PubKey, fingerprint: Octets, path: BIP32Path) -> None:
+    def add_hd_keypath(
+        self, key: PubKey, master_fingerprint: Octets, path: BIP32Path
+    ) -> None:
 
         key_str = _pubkey_to_hex_string(key)
         # assert key_str == pubkeyinfo_from_key(key)[0].hex()
 
-        fingerprint_str = bytes_from_octets(fingerprint, 4).hex()
+        fingerprint_str = bytes_from_octets(master_fingerprint, 4).hex()
         path_str = str_from_bip32_path(path, "little")
 
-        self.hd_keypaths[key_str] = {
-            "fingerprint": fingerprint_str,
-            "derivation_path": path_str,
+        self.bip32_derivs[key_str] = {
+            "master_fingerprint": fingerprint_str,
+            "path": path_str,
         }
 
     def get_hd_keypath(self, key: PubKey) -> Tuple[str, str]:
@@ -67,8 +69,8 @@ class HdKeyPaths(DataClassJsonMixin):
         # key_str = pubkeyinfo_from_key(key)[0].hex()
         key_str = _pubkey_to_hex_string(key)
 
-        entry = self.hd_keypaths[key_str]
-        return entry["fingerprint"], entry["derivation_path"]
+        entry = self.bip32_derivs[key_str]
+        return entry["master_fingerprint"], entry["path"]
 
     def serialize(self, marker: bytes, assert_valid: bool = True) -> bytes:
 
@@ -76,11 +78,11 @@ class HdKeyPaths(DataClassJsonMixin):
             self.assert_valid()
 
         out = b""
-        for pubkey, hd_keypath in self.hd_keypaths.items():
+        for pubkey, hd_keypath in self.bip32_derivs.items():
             pubkey_bytes = marker + bytes.fromhex(pubkey)
             out += varint.encode(len(pubkey_bytes)) + pubkey_bytes
-            keypath = bytes.fromhex(hd_keypath["fingerprint"])
-            keypath += bytes_from_bip32_path(hd_keypath["derivation_path"], "little")
+            keypath = bytes.fromhex(hd_keypath["master_fingerprint"])
+            keypath += bytes_from_bip32_path(hd_keypath["path"], "little")
             out += varint.encode(len(keypath)) + keypath
 
         return out
@@ -176,7 +178,7 @@ class PsbtOut(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
+    bip32_derivs: HdKeyPaths = field(default_factory=HdKeyPaths)
     proprietary: ProprietaryData = field(default_factory=ProprietaryData)
     unknown: UnknownData = field(default_factory=UnknownData)
 
@@ -194,7 +196,7 @@ class PsbtOut(DataClassJsonMixin):
                 out.witness_script = value
             elif key[0:1] == PSBT_OUT_BIP32_DERIVATION:
                 assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
-                out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
+                out.bip32_derivs.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == PSBT_OUT_PROPRIETARY:
                 out.proprietary = ProprietaryData.deserialize(key, value, False)
             else:  # unknown keys
@@ -218,8 +220,8 @@ class PsbtOut(DataClassJsonMixin):
         if self.witness_script:
             out += b"\x01" + PSBT_OUT_WITNESS_SCRIPT
             out += varint.encode(len(self.witness_script)) + self.witness_script
-        if self.hd_keypaths.hd_keypaths:
-            out += self.hd_keypaths.serialize(PSBT_OUT_BIP32_DERIVATION, assert_valid)
+        if self.bip32_derivs.bip32_derivs:
+            out += self.bip32_derivs.serialize(PSBT_OUT_BIP32_DERIVATION, assert_valid)
         if self.proprietary.data:
             out += self.proprietary.serialize(PSBT_OUT_PROPRIETARY, assert_valid)
         if self.unknown.data:
@@ -228,6 +230,6 @@ class PsbtOut(DataClassJsonMixin):
         return out
 
     def assert_valid(self) -> None:
-        self.hd_keypaths.assert_valid()
+        self.bip32_derivs.assert_valid()
         self.proprietary.assert_valid()
         self.unknown.assert_valid()
