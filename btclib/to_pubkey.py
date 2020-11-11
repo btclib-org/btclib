@@ -133,15 +133,16 @@ def _pubkeyinfo_from_xpub(
         m = f"Not a public key: {xpub.serialize().decode('ascii')}"
         raise ValueError(m)
 
-    if network is not None:
-        allowed_versions = xpubversions_from_network(network)
-        if xpub.version not in allowed_versions:
-            m = f"Not a {network} key: "
-            m += f"{xpub.serialize().decode('ascii')}"
-            raise ValueError(m)
-        return xpub.key, network
-    else:
+    if network is None:
         return xpub.key, network_from_xkeyversion(xpub.version)
+
+    allowed_versions = xpubversions_from_network(network)
+    if xpub.version not in allowed_versions:
+        m = f"Not a {network} key: "
+        m += f"{xpub.serialize().decode('ascii')}"
+        raise ValueError(m)
+
+    return xpub.key, network
 
 
 def pubkeyinfo_from_key(

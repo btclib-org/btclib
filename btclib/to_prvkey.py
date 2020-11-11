@@ -148,14 +148,14 @@ def _prvkeyinfo_from_xprv(
         m = f"not a private key: {xprv.serialize().decode('ascii')}"
         raise ValueError(m)
 
-    if network is not None:
-        allowed_versions = xprvversions_from_network(network)
-        if xprv.version not in allowed_versions:
-            m = f"not a {network} key: "
-            m += f"{xprv.serialize().decode('ascii')}"
-            raise ValueError(m)
-    else:
+    if network is None:
         network = network_from_xkeyversion(xprv.version)
+
+    allowed_versions = xprvversions_from_network(network)
+    if xprv.version not in allowed_versions:
+        m = f"not a {network} key: "
+        m += f"{xprv.serialize().decode('ascii')}"
+        raise ValueError(m)
 
     q = int.from_bytes(xprv.key[1:], byteorder="big")
     return q, network, True
