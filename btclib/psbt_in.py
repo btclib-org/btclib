@@ -18,11 +18,10 @@ from typing import Dict, List, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import der, varint
+from . import dsa, varint
 from .bip32 import bytes_from_bip32_path
-from .psbt_out import HdKeyPaths, _pubkey_to_hex_string
+from .psbt_out import HdKeyPaths
 from .script import SIGHASHES
-from .to_pubkey import PubKey
 from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
 from .tx_out import TxOut
@@ -49,25 +48,12 @@ PSBT_IN_PROPRIETARY = b"\xfc"
 class PartialSigs(DataClassJsonMixin):
     sigs: Dict[str, str] = field(default_factory=dict)
 
-    def add_sig(self, key: PubKey, sig: der.DERSig):
-
-        # key_str = pubkeyinfo_from_key(key)[0].hex()
-        key_str = _pubkey_to_hex_string(key)
-
-        r, s, sighash = der.deserialize(sig)
-        sig_str = der.serialize(r, s, sighash).hex()
-
-        self.sigs[key_str] = sig_str
-
-    def get_sig(self, key: PubKey) -> bytes:
-
-        # key_str = pubkeyinfo_from_key(key)[0].hex()
-        key_str = _pubkey_to_hex_string(key)
-
-        return bytes.fromhex(self.sigs[key_str])
-
     def assert_valid(self) -> None:
-        pass
+        for pubkey, sig in self.sigs.items():
+            # TODO: verify that pubkey is a valid secp256k1 Point
+            # in compressed SEC representation
+            assert len(bytes.fromhex(pubkey)) == 33
+            assert dsa.deserialize(sig)
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -113,7 +99,7 @@ class PsbtIn(DataClassJsonMixin):
                 out.witness_utxo = TxOut.deserialize(value)
             elif key[0:1] == PSBT_IN_PARTIAL_SIG:
                 assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
-                out.partial_sigs.add_sig(key[1:], value)
+                out.partial_sigs.sigs[key[1:].hex()] = value.hex()
             elif key[0:1] == PSBT_IN_SIGHASH_TYPE:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 assert out.sighash is None, "duplicated sighash"
