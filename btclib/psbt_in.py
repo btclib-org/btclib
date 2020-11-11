@@ -19,7 +19,6 @@ from typing import Dict, List, Optional, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import der, varint
-from .alias import Octets, String
 from .bip32 import bytes_from_bip32_path
 from .psbt_out import HdKeyPaths, _pubkey_to_hex_string
 from .script import SIGHASHES
@@ -27,7 +26,6 @@ from .to_pubkey import PubKey
 from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
 from .tx_out import TxOut
-from .utils import bytes_from_octets, token_or_string_to_hex_string
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
@@ -96,8 +94,8 @@ class PsbtIn(DataClassJsonMixin):
         metadata=config(encoder=lambda val: [v.hex() for v in val]),
     )
     por_commitment: Optional[str] = None
-    proprietary: Dict[int, Dict[str, bytes]] = field(default_factory=dict)
-    unknown: Dict[str, bytes] = field(default_factory=dict)
+    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
+    unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def deserialize(
@@ -150,10 +148,10 @@ class PsbtIn(DataClassJsonMixin):
                 if prefix not in out.proprietary.keys():
                     out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                out.proprietary[prefix][key.hex()] = value
+                out.proprietary[prefix][key.hex()] = value.hex()
             else:  # unknown keys
                 # TODO: assert not duplicated?
-                out.unknown[key.hex()] = value
+                out.unknown[key.hex()] = value.hex()
 
         if assert_valid:
             out.assert_valid()
@@ -210,16 +208,18 @@ class PsbtIn(DataClassJsonMixin):
                 out += varint.encode(len(keypath)) + keypath
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
-                for key, value in dictionary.items():
+                for key_p, value_p in dictionary.items():
                     key_bytes = (
-                        PSBT_IN_PROPRIETARY + varint.encode(owner) + bytes.fromhex(key)
+                        PSBT_IN_PROPRIETARY
+                        + varint.encode(owner)
+                        + bytes.fromhex(key_p)
                     )
                     out += varint.encode(len(key_bytes)) + key_bytes
-                    out += varint.encode(len(value)) + value
+                    out += varint.encode(len(value_p) // 2) + bytes.fromhex(value_p)
         if self.unknown:
-            for key2, value2 in self.unknown.items():
-                out += varint.encode(len(key2) // 2) + bytes.fromhex(key2)
-                out += varint.encode(len(value2)) + value2
+            for key_u, value_u in self.unknown.items():
+                out += varint.encode(len(key_u) // 2) + bytes.fromhex(key_u)
+                out += varint.encode(len(value_u) // 2) + bytes.fromhex(value_u)
 
         return out
 
@@ -240,15 +240,3 @@ class PsbtIn(DataClassJsonMixin):
             assert self.por_commitment.encode("utf-8")
         assert isinstance(self.proprietary, dict)
         assert isinstance(self.unknown, dict)
-
-    def add_unknown(self, key: String, val: Octets):
-
-        key_str = token_or_string_to_hex_string(key)
-
-        self.unknown[key_str] = bytes_from_octets(val)
-
-    def get_unknown(self, key: String) -> bytes:
-
-        key_str = token_or_string_to_hex_string(key)
-
-        return self.unknown[key_str]

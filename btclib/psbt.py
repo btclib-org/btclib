@@ -21,19 +21,14 @@ from typing import Dict, List, Tuple, Type, TypeVar, Union
 from dataclasses_json import DataClassJsonMixin
 
 from . import script, varint
-from .alias import Octets, ScriptToken, String
+from .alias import ScriptToken
 from .bip32 import bytes_from_bip32_path
 from .psbt_in import PartialSigs, PsbtIn
 from .psbt_out import HdKeyPaths, PsbtOut
 from .scriptpubkey import payload_from_scriptPubKey
 from .tx import Tx
 from .tx_out import TxOut
-from .utils import (
-    bytes_from_octets,
-    hash160,
-    sha256,
-    token_or_string_to_hex_string,
-)
+from .utils import hash160, sha256
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
 
@@ -54,8 +49,8 @@ class Psbt(DataClassJsonMixin):
     outputs: List[PsbtOut] = field(default_factory=list)
     version: int = 0
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
-    proprietary: Dict[int, Dict[str, bytes]] = field(default_factory=dict)
-    unknown: Dict[str, bytes] = field(default_factory=dict)
+    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
+    unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def deserialize(cls: Type[_Psbt], data: bytes, assert_valid: bool = True) -> _Psbt:
@@ -87,10 +82,10 @@ class Psbt(DataClassJsonMixin):
                 if prefix not in out.proprietary.keys():
                     out.proprietary[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                out.proprietary[prefix][key.hex()] = value
+                out.proprietary[prefix][key.hex()] = value.hex()
             else:  # unknown keys
                 # TODO: assert not duplicated?
-                out.unknown[key.hex()] = value
+                out.unknown[key.hex()] = value.hex()
 
         assert out.tx.nVersion, "missing transaction"
         for _ in out.tx.vin:
@@ -128,18 +123,18 @@ class Psbt(DataClassJsonMixin):
                 out += varint.encode(len(keypath)) + keypath
         if self.proprietary:
             for (owner, dictionary) in self.proprietary.items():
-                for key, value in dictionary.items():
+                for key_p, value_p in dictionary.items():
                     key_bytes = (
                         PSBT_GLOBAL_PROPRIETARY
                         + varint.encode(owner)
-                        + bytes.fromhex(key)
+                        + bytes.fromhex(key_p)
                     )
                     out += varint.encode(len(key_bytes)) + key_bytes
-                    out += varint.encode(len(value)) + value
+                    out += varint.encode(len(value_p) // 2) + bytes.fromhex(value_p)
         if self.unknown:
-            for key2, value2 in self.unknown.items():
-                out += varint.encode(len(key2) // 2) + bytes.fromhex(key2)
-                out += varint.encode(len(value2)) + value2
+            for key_u, value_u in self.unknown.items():
+                out += varint.encode(len(key_u) // 2) + bytes.fromhex(key_u)
+                out += varint.encode(len(value_u) // 2) + bytes.fromhex(value_u)
 
         out += PSBT_DELIMITER
         for input_map in self.inputs:
@@ -225,18 +220,6 @@ class Psbt(DataClassJsonMixin):
 
                 hash = sha256(self.inputs[i].witness_script)
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
-
-    def add_unknown(self, key: String, val: Octets):
-
-        key_str = token_or_string_to_hex_string(key)
-
-        self.unknown[key_str] = bytes_from_octets(val)
-
-    def get_unknown(self, key: String) -> bytes:
-
-        key_str = token_or_string_to_hex_string(key)
-
-        return self.unknown[key_str]
 
 
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
