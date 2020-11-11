@@ -154,11 +154,10 @@ class PsbtIn(DataClassJsonMixin):
             out += b"\x01" + PSBT_IN_NON_WITNESS_UTXO
             utxo = self.non_witness_utxo.serialize()
             out += varint.encode(len(utxo)) + utxo
-        elif self.witness_utxo:
+        if self.witness_utxo:
             out += b"\x01" + PSBT_IN_WITNESS_UTXO
             utxo = self.witness_utxo.serialize()
             out += varint.encode(len(utxo)) + utxo
-
         if self.partial_sigs:
             for key, value in self.partial_sigs.sigs.items():
                 out += b"\x22" + PSBT_IN_PARTIAL_SIG + bytes.fromhex(key)
