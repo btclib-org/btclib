@@ -89,7 +89,7 @@ class Psbt(DataClassJsonMixin):
                 )
             elif key[0:1] == PSBT_GLOBAL_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
-            else:  # unknown keys
+            else:  # unknown
                 out.unknown[key.hex()] = value.hex()
 
         assert out.tx.version, "missing transaction"
@@ -162,7 +162,7 @@ class Psbt(DataClassJsonMixin):
 
         # must be a 4-bytes int
         assert 0 <= self.version <= 0xFFFFFFFF
-        # actually must be zero
+        # actually the only version that is currently handled is zero
         assert self.version == 0
 
         _assert_valid_bip32_derivs(self.bip32_derivs)
@@ -214,6 +214,7 @@ class Psbt(DataClassJsonMixin):
                 assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
 
 
+# FIXME: use stream, not repeated bytes slicing
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
     assert len(data) != 0, "malformed psbt: at least a map is missing"
     partial_map: Dict[bytes, bytes] = {}
@@ -258,7 +259,7 @@ def _combine_field(
             a.update(item)
         elif isinstance(item, list):
             # TODO: fails for final_script_witness
-            additional_elements = [i for i in item if (i not in a)]
+            additional_elements = [i for i in item if i not in a]
             a += additional_elements
 
 

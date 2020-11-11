@@ -19,7 +19,16 @@ from typing import Dict, List, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import varint
-from .bip32 import bytes_from_bip32_path, str_from_bip32_path
+from .bip32 import (
+    bytes_from_bip32_path,
+    indexes_from_bip32_path,
+    str_from_bip32_path,
+)
+
+# from .to_pubkey import point_from_pubkey
+
+
+# def _deserialize_proprietary(key: bytes, value: bytes) -> List[Dict[str, str]]:
 
 
 def _serialize_bip32_derivs(bip32_derivs: List[Dict[str, str]], marker: bytes) -> bytes:
@@ -31,23 +40,26 @@ def _serialize_bip32_derivs(bip32_derivs: List[Dict[str, str]], marker: bytes) -
         keypath = bytes.fromhex(d["master_fingerprint"])
         keypath += bytes_from_bip32_path(d["path"], "little")
         out += varint.encode(len(keypath)) + keypath
-
     return out
 
 
 def _assert_valid_bip32_derivs(bip32_derivs: List[Dict[str, str]]) -> None:
-    pass
+
+    for d in bip32_derivs:
+        # FIXME
+        # point_from_pubkey(d["pubkey"])
+        assert len(bytes.fromhex(d["master_fingerprint"])) == 4
+        indexes_from_bip32_path(d["path"], "little")
 
 
 def _deserialize_proprietary(key: bytes, value: bytes) -> Dict[int, Dict[str, str]]:
-    out: Dict[int, Dict[str, str]] = {}
 
+    out: Dict[int, Dict[str, str]] = {}
     prefix = varint.decode(key[1:])
     if prefix not in out:
         out[prefix] = {}
     key = key[1 + len(varint.encode(prefix)) :]
     out[prefix][key.hex()] = value.hex()
-
     return out
 
 
@@ -62,27 +74,31 @@ def _serialize_proprietary(
             out += varint.encode(len(key_bytes)) + key_bytes
             t = bytes.fromhex(value_p)
             out += varint.encode(len(t)) + t
-
     return out
 
 
 def _assert_valid_proprietary(proprietary: Dict[int, Dict[str, str]]) -> None:
-    pass
+
+    for i, d in proprietary.items():
+        assert isinstance(i, int)
+        for key, value in d.items():
+            assert bytes.fromhex(key)
+            assert bytes.fromhex(value)
 
 
 def _serialize_unknown(data: Dict[str, str]) -> bytes:
 
     out = b""
-    for key_u, value_u in data.items():
-        t = bytes.fromhex(key_u)
+    for key, value in data.items():
+        t = bytes.fromhex(key)
         out += varint.encode(len(t)) + t
-        t = bytes.fromhex(value_u)
+        t = bytes.fromhex(value)
         out += varint.encode(len(t)) + t
-
     return out
 
 
 def _assert_valid_unknown(data: Dict[str, str]) -> None:
+
     for key, value in data.items():
         assert bytes.fromhex(key)
         assert bytes.fromhex(value)
@@ -131,7 +147,7 @@ class PsbtOut(DataClassJsonMixin):
                 )
             elif key[0:1] == PSBT_OUT_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
-            else:  # unknown keys
+            else:  # unknown
                 out.unknown[key.hex()] = value.hex()
 
         if assert_valid:
@@ -142,7 +158,6 @@ class PsbtOut(DataClassJsonMixin):
 
         if assert_valid:
             self.assert_valid()
-            assert_valid = False
 
         out = b""
 
