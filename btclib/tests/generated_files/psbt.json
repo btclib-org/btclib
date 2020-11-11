@@ -86,7 +86,9 @@
    "final_script_witness": [],
    "por_commitment": null,
    "proprietary": {},
-   "unknown": {}
+   "unknown": {
+    "data": {}
+   }
   },
   {
    "non_witness_utxo": null,
@@ -119,7 +121,9 @@
    "final_script_witness": [],
    "por_commitment": null,
    "proprietary": {},
-   "unknown": {}
+   "unknown": {
+    "data": {}
+   }
   }
  ],
  "outputs": [
@@ -135,7 +139,9 @@
     }
    },
    "proprietary": {},
-   "unknown": {}
+   "unknown": {
+    "data": {}
+   }
   },
   {
    "redeem_script": "",
@@ -149,7 +155,9 @@
     }
    },
    "proprietary": {},
-   "unknown": {}
+   "unknown": {
+    "data": {}
+   }
   }
  ],
  "version": 0,
@@ -157,5 +165,7 @@
   "hd_keypaths": {}
  },
  "proprietary": {},
- "unknown": {}
+ "unknown": {
+  "data": {}
+ }
 }

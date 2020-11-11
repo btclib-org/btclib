@@ -71,6 +71,18 @@ class HdKeyPaths(DataClassJsonMixin):
         pass
 
 
+@dataclass
+class UnknownData(DataClassJsonMixin):
+    data: Dict[str, str] = field(default_factory=dict)
+
+    def assert_valid(self) -> None:
+        for key, value in self.data.items():
+            # TODO: verify that pubkey is a valid secp256k1 Point
+            # in compressed SEC representation
+            assert bytes.fromhex(key)
+            assert bytes.fromhex(value)
+
+
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
 PSBT_OUT_WITNESS_SCRIPT = b"\x01"
 PSBT_OUT_BIP32_DERIVATION = b"\x02"
@@ -89,7 +101,7 @@ class PsbtOut(DataClassJsonMixin):
     )
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
-    unknown: Dict[str, str] = field(default_factory=dict)
+    unknown: UnknownData = field(default_factory=UnknownData)
 
     @classmethod
     def deserialize(
@@ -118,7 +130,7 @@ class PsbtOut(DataClassJsonMixin):
                 out.proprietary[prefix][key.hex()] = value.hex()
             else:  # unknown keys
                 # TODO: assert not duplicated?
-                out.unknown[key.hex()] = value.hex()
+                out.unknown.data[key.hex()] = value.hex()
 
         if assert_valid:
             out.assert_valid()
@@ -158,7 +170,7 @@ class PsbtOut(DataClassJsonMixin):
                     t = bytes.fromhex(value_p)
                     out += varint.encode(len(t)) + t
         if self.unknown:
-            for key_u, value_u in self.unknown.items():
+            for key_u, value_u in self.unknown.data.items():
                 t = bytes.fromhex(key_u)
                 out += varint.encode(len(t)) + t
                 t = bytes.fromhex(value_u)
@@ -167,4 +179,6 @@ class PsbtOut(DataClassJsonMixin):
         return out
 
     def assert_valid(self) -> None:
-        pass
+        self.hd_keypaths.assert_valid()
+        assert isinstance(self.proprietary, dict)
+        self.unknown.assert_valid()

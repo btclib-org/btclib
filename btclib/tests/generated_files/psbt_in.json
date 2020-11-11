@@ -50,5 +50,7 @@
  "final_script_witness": [],
  "por_commitment": null,
  "proprietary": {},
- "unknown": {}
+ "unknown": {
+  "data": {}
+ }
 }

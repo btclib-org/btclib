@@ -23,7 +23,7 @@ from dataclasses_json import DataClassJsonMixin
 from . import script, varint
 from .alias import ScriptToken
 from .bip32 import bytes_from_bip32_path
-from .psbt_in import PartialSigs, PsbtIn
+from .psbt_in import PartialSigs, PsbtIn, UnknownData
 from .psbt_out import HdKeyPaths, PsbtOut
 from .scriptpubkey import payload_from_scriptPubKey
 from .tx import Tx
@@ -50,7 +50,7 @@ class Psbt(DataClassJsonMixin):
     version: int = 0
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
-    unknown: Dict[str, str] = field(default_factory=dict)
+    unknown: UnknownData = field(default_factory=UnknownData)
 
     @classmethod
     def deserialize(cls: Type[_Psbt], data: bytes, assert_valid: bool = True) -> _Psbt:
@@ -85,7 +85,7 @@ class Psbt(DataClassJsonMixin):
                 out.proprietary[prefix][key.hex()] = value.hex()
             else:  # unknown keys
                 # TODO: assert not duplicated?
-                out.unknown[key.hex()] = value.hex()
+                out.unknown.data[key.hex()] = value.hex()
 
         assert out.tx.nVersion, "missing transaction"
         for _ in out.tx.vin:
@@ -133,7 +133,7 @@ class Psbt(DataClassJsonMixin):
                     t = bytes.fromhex(value_p)
                     out += varint.encode(len(t)) + t
         if self.unknown:
-            for key_u, value_u in self.unknown.items():
+            for key_u, value_u in self.unknown.data.items():
                 t = bytes.fromhex(key_u)
                 out += varint.encode(len(t)) + t
                 t = bytes.fromhex(value_u)
@@ -180,9 +180,9 @@ class Psbt(DataClassJsonMixin):
         # actually must be zero
         assert self.version == 0
 
-        # TODO: validate hd_keypaths
-        # TODO: validate proprietary
-        # TODO: validate unknown
+        self.hd_keypaths.assert_valid()
+        assert isinstance(self.proprietary, dict)
+        self.unknown.assert_valid()
 
     def assert_signable(self) -> None:
 
@@ -267,6 +267,8 @@ def _combine_field(
         a.sigs.update(item.sigs)
     elif isinstance(item, HdKeyPaths) and isinstance(a, HdKeyPaths):
         a.hd_keypaths.update(item.hd_keypaths)
+    elif isinstance(item, UnknownData) and isinstance(a, UnknownData):
+        a.data.update(item.data)
     elif item:
         assert item == a, key
 

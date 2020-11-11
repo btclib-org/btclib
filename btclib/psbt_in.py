@@ -20,7 +20,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import dsa, varint
 from .bip32 import bytes_from_bip32_path
-from .psbt_out import HdKeyPaths
+from .psbt_out import HdKeyPaths, UnknownData
 from .script import SIGHASHES
 from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
@@ -81,7 +81,7 @@ class PsbtIn(DataClassJsonMixin):
     )
     por_commitment: Optional[str] = None
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
-    unknown: Dict[str, str] = field(default_factory=dict)
+    unknown: UnknownData = field(default_factory=UnknownData)
 
     @classmethod
     def deserialize(
@@ -137,7 +137,7 @@ class PsbtIn(DataClassJsonMixin):
                 out.proprietary[prefix][key.hex()] = value.hex()
             else:  # unknown keys
                 # TODO: assert not duplicated?
-                out.unknown[key.hex()] = value.hex()
+                out.unknown.data[key.hex()] = value.hex()
 
         if assert_valid:
             out.assert_valid()
@@ -204,7 +204,7 @@ class PsbtIn(DataClassJsonMixin):
                     t = bytes.fromhex(value_p)
                     out += varint.encode(len(t)) + t
         if self.unknown:
-            for key_u, value_u in self.unknown.items():
+            for key_u, value_u in self.unknown.data.items():
                 t = bytes.fromhex(key_u)
                 out += varint.encode(len(t)) + t
                 t = bytes.fromhex(value_u)
@@ -227,5 +227,6 @@ class PsbtIn(DataClassJsonMixin):
         assert isinstance(self.final_script_witness, list)
         if self.por_commitment is not None:
             assert self.por_commitment.encode("utf-8")
+
         assert isinstance(self.proprietary, dict)
-        assert isinstance(self.unknown, dict)
+        self.unknown.assert_valid()
