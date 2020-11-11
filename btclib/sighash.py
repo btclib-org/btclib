@@ -30,8 +30,8 @@ def segwit_v0_sighash(
     if hashtype_hex[0] != "8":
         hashPrevouts = b""
         for vin in transaction.vin:
-            hashPrevouts += _get_bytes(vin.prevout.hash)[::-1]
-            hashPrevouts += vin.prevout.n.to_bytes(4, "little")
+            hashPrevouts += _get_bytes(vin.prevout.txid)[::-1]
+            hashPrevouts += vin.prevout.vout.to_bytes(4, "little")
         hashPrevouts = hash256(hashPrevouts)
     else:
         hashPrevouts = b"\x00" * 32
@@ -39,7 +39,7 @@ def segwit_v0_sighash(
     if hashtype_hex[1] == "1" and hashtype_hex[0] != "8":
         hashSequence = b""
         for vin in transaction.vin:
-            hashSequence += vin.nSequence.to_bytes(4, "little")
+            hashSequence += vin.sequence.to_bytes(4, "little")
         hashSequence = hash256(hashSequence)
     else:
         hashSequence = b"\x00" * 32
@@ -56,18 +56,18 @@ def segwit_v0_sighash(
 
     scriptCode = bytes_from_octets(scriptCode)
 
-    outpoint = _get_bytes(transaction.vin[input_index].prevout.hash)[::-1]
-    outpoint += transaction.vin[input_index].prevout.n.to_bytes(4, "little")
+    outpoint = _get_bytes(transaction.vin[input_index].prevout.txid)[::-1]
+    outpoint += transaction.vin[input_index].prevout.vout.to_bytes(4, "little")
 
-    preimage = transaction.nVersion.to_bytes(4, "little")
+    preimage = transaction.version.to_bytes(4, "little")
     preimage += hashPrevouts
     preimage += hashSequence
     preimage += outpoint
     preimage += varint.encode(len(scriptCode)) + scriptCode
     preimage += amount.to_bytes(8, "little")  # value
-    preimage += transaction.vin[input_index].nSequence.to_bytes(4, "little")
+    preimage += transaction.vin[input_index].sequence.to_bytes(4, "little")
     preimage += hashOutputs
-    preimage += transaction.nLockTime.to_bytes(4, "little")
+    preimage += transaction.locktime.to_bytes(4, "little")
     preimage += bytes.fromhex(hashtype_hex)
 
     return hash256(preimage)
@@ -102,7 +102,7 @@ def get_sighash(
     sighash_type: int,
 ) -> bytes:
 
-    value = previous_output.nValue
+    value = previous_output.value
 
     scriptPubKey = previous_output.scriptPubKey
     script_type = payload_from_scriptPubKey(scriptPubKey)[0]

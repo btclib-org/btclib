@@ -32,8 +32,8 @@ _Tx = TypeVar("_Tx", bound="Tx")
 
 @dataclass
 class Tx(DataClassJsonMixin):
-    nVersion: int = 0
-    nLockTime: int = 0
+    version: int = 0
+    locktime: int = 0
     vin: List[TxIn] = field(default_factory=list)
     vout: List[TxOut] = field(default_factory=list)
 
@@ -42,7 +42,7 @@ class Tx(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
 
         tx = cls()
-        tx.nVersion = int.from_bytes(stream.read(4), "little")
+        tx.version = int.from_bytes(stream.read(4), "little")
         view: bytes = stream.getvalue()
         witness_flag = False
         if view[stream.tell() : stream.tell() + 2] == b"\x00\x01":
@@ -59,7 +59,7 @@ class Tx(DataClassJsonMixin):
             for tx_input in tx.vin:
                 tx_input.txinwitness = witness_deserialize(stream)
 
-        tx.nLockTime = int.from_bytes(stream.read(4), "little")
+        tx.locktime = int.from_bytes(stream.read(4), "little")
 
         if assert_valid:
             tx.assert_valid()
@@ -72,7 +72,7 @@ class Tx(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.nVersion.to_bytes(4, "little")
+        out = self.version.to_bytes(4, "little")
         witness_flag = False
         out += varint.encode(len(self.vin))
         for tx_input in self.vin:
@@ -85,7 +85,7 @@ class Tx(DataClassJsonMixin):
         if witness_flag and include_witness:
             for tx_input in self.vin:
                 out += witness_serialize(tx_input.txinwitness)
-        out += self.nLockTime.to_bytes(4, "little")
+        out += self.locktime.to_bytes(4, "little")
         if witness_flag and include_witness:
             out = out[:4] + b"\x00\x01" + out[4:]
         return out
@@ -124,4 +124,4 @@ class Tx(DataClassJsonMixin):
         for tx_out in self.vout:
             tx_out.assert_valid()
 
-        # TODO check nVersion and nLockTime
+        # TODO check version and locktime

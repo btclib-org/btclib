@@ -25,7 +25,7 @@ def test_native_p2wpkh():
     )
 
     previous_txout = tx_out.TxOut(
-        nValue=600000000,
+        value=600000000,
         scriptPubKey=script.deserialize("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
     )
 
@@ -46,7 +46,7 @@ def test_wrapped_p2wpkh():
     )
 
     previous_txout = tx_out.TxOut(
-        nValue=1000000000,
+        value=1000000000,
         scriptPubKey=script.deserialize(
             "a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"
         ),
@@ -69,7 +69,7 @@ def test_native_p2wsh():
     ]
 
     previous_txout = tx.TxOut(
-        nValue=4900000000,
+        value=4900000000,
         scriptPubKey=script.deserialize(
             "00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0"
         ),
@@ -85,9 +85,7 @@ def test_native_p2wsh():
     script_code = _get_witness_v0_scriptCodes(
         script.deserialize(transaction.vin[1].txinwitness[-1])
     )[1]
-    sighash = segwit_v0_sighash(
-        script_code, transaction, 1, 0x03, previous_txout.nValue
-    )
+    sighash = segwit_v0_sighash(script_code, transaction, 1, 0x03, previous_txout.value)
     assert (
         sighash.hex()
         == "fef7bd749cce710c5c052bd796df1af0d935e59cea63736268bcbe2d2134fc47"
@@ -106,7 +104,7 @@ def test_native_p2wsh_2():
     ]
 
     previous_txout_1 = tx_out.TxOut(
-        nValue=16777215,
+        value=16777215,
         scriptPubKey=script.deserialize(
             "0020ba468eea561b26301e4cf69fa34bde4ad60c81e70f059f045ca9a79931004a4d"
         ),
@@ -118,7 +116,7 @@ def test_native_p2wsh_2():
     )
 
     previous_txout_2 = tx.TxOut(
-        nValue=16777215,
+        value=16777215,
         scriptPubKey=script.deserialize(
             "0020d9bbfbe56af7c4b7f960a70d7ea107156913d9e5a26b0a71429df5e097ca6537"
         ),
@@ -128,7 +126,7 @@ def test_native_p2wsh_2():
         script.deserialize(transaction.vin[1].txinwitness[-1])
     )[1]
     sighash = segwit_v0_sighash(
-        script_code, transaction, 1, 0x83, previous_txout_2.nValue
+        script_code, transaction, 1, 0x83, previous_txout_2.value
     )
     assert (
         sighash.hex()
@@ -146,7 +144,7 @@ def test_wrapped_p2wsh():
     ]
 
     previous_txout = tx_out.TxOut(
-        nValue=987654321,
+        value=987654321,
         scriptPubKey=script.deserialize(
             "0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54"
         ),

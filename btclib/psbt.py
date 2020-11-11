@@ -76,7 +76,7 @@ class Psbt(DataClassJsonMixin):
             else:  # unknown keys
                 out.unknown.data[key.hex()] = value.hex()
 
-        assert out.tx.nVersion, "missing transaction"
+        assert out.tx.version, "missing transaction"
         for _ in out.tx.vin:
             input_map, data = deserialize_map(data)
             out.inputs.append(PsbtIn.deserialize(input_map))
@@ -161,7 +161,7 @@ class Psbt(DataClassJsonMixin):
             witness_utxo = self.inputs[i].witness_utxo
 
             if non_witness_utxo:
-                txid = tx_in.prevout.hash
+                txid = tx_in.prevout.txid
                 assert isinstance(non_witness_utxo, Tx)
                 assert non_witness_utxo.txid == txid
 
@@ -176,7 +176,9 @@ class Psbt(DataClassJsonMixin):
 
             if self.inputs[i].redeem_script:
                 if non_witness_utxo:
-                    scriptPubKey = non_witness_utxo.vout[tx_in.prevout.n].scriptPubKey
+                    scriptPubKey = non_witness_utxo.vout[
+                        tx_in.prevout.vout
+                    ].scriptPubKey
                 elif witness_utxo:
                     scriptPubKey = witness_utxo.scriptPubKey
                 hash = hash160(self.inputs[i].redeem_script)
@@ -184,7 +186,9 @@ class Psbt(DataClassJsonMixin):
 
             if self.inputs[i].witness_script:
                 if non_witness_utxo:
-                    scriptPubKey = non_witness_utxo.vout[tx_in.prevout.n].scriptPubKey
+                    scriptPubKey = non_witness_utxo.vout[
+                        tx_in.prevout.vout
+                    ].scriptPubKey
                 elif witness_utxo:
                     scriptPubKey = witness_utxo.scriptPubKey
                 if self.inputs[i].redeem_script:

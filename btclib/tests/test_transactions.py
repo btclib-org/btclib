@@ -54,8 +54,8 @@ def test_wiki_transaction() -> None:
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
-    assert transaction.vout[0].nValue == 5000000
-    assert transaction.vout[1].nValue == 3354000000
+    assert transaction.vout[0].value == 5000000
+    assert transaction.vout[1].value == 3354000000
 
     assert transaction.txid == transaction.hash
 
@@ -72,7 +72,7 @@ def test_single_witness() -> None:
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
-    assert transaction.nLockTime == 0
+    assert transaction.locktime == 0
 
     assert (
         transaction.txid
@@ -123,7 +123,7 @@ def test_double_witness() -> None:
 
     assert len(transaction.vin) == 2
     assert len(transaction.vout) == 2
-    assert transaction.nLockTime == 0
+    assert transaction.locktime == 0
 
     assert (
         transaction.txid
@@ -142,15 +142,15 @@ def test_double_witness() -> None:
 def test_invalid_outpoint() -> None:
 
     op = tx_in.OutPoint(b"\x01" * 31, 18)
-    with pytest.raises(ValueError, match="invalid OutPoint hash: "):
+    with pytest.raises(ValueError, match="invalid OutPoint txid: "):
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x01" * 32, -1)
-    with pytest.raises(ValueError, match="negative OutPoint n: "):
+    with pytest.raises(ValueError, match="negative OutPoint vout: "):
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x01" * 32, 0xFFFFFFFF + 1)
-    with pytest.raises(ValueError, match="OutPoint n too high: "):
+    with pytest.raises(ValueError, match="OutPoint vout too high: "):
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF)
@@ -164,19 +164,19 @@ def test_invalid_outpoint() -> None:
 
 def test_invalid_tx_out() -> None:
     transaction_output = tx_out.TxOut(
-        nValue=-1, scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64")
+        value=-1, scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64")
     )
-    with pytest.raises(ValueError, match="negative nValue: "):
+    with pytest.raises(ValueError, match="negative value: "):
         transaction_output.assert_valid()
 
     transaction_output = tx_out.TxOut(
-        nValue=tx_out.MAX_SATOSHI + 1,
+        value=tx_out.MAX_SATOSHI + 1,
         scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64"),
     )
-    with pytest.raises(ValueError, match="nValue too high: "):
+    with pytest.raises(ValueError, match="value too high: "):
         transaction_output.assert_valid()
 
-    transaction_output = tx_out.TxOut(nValue=1, scriptPubKey=b"")
+    transaction_output = tx_out.TxOut(value=1, scriptPubKey=b"")
     with pytest.raises(ValueError, match="empty scriptPubKey"):
         transaction_output.assert_valid()
 
@@ -185,7 +185,7 @@ def test_invalid_tx() -> None:
     transaction_input = tx_in.TxIn(
         prevout=tx_in.OutPoint(b"\xff" * 32, 0),
         scriptSig=b"",
-        nSequence=1,
+        sequence=1,
         txinwitness=[],
     )
     tx1 = tx.Tx(0, 0, [transaction_input], [])

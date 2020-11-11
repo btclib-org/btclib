@@ -22,11 +22,11 @@ _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 @dataclass
 class OutPoint(DataClassJsonMixin):
-    hash: bytes = field(
+    txid: bytes = field(
         default=b"\x00" * 32,
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    n: int = 0xFFFFFFFF
+    vout: int = 0xFFFFFFFF
 
     @classmethod
     def deserialize(
@@ -36,11 +36,11 @@ class OutPoint(DataClassJsonMixin):
 
         data = bytesio_from_binarydata(data)
         # 32 bytes, little endian
-        hash = data.read(32)[::-1]
+        txid = data.read(32)[::-1]
         # 4 bytes, little endian, interpreted as int
-        n = int.from_bytes(data.read(4), "little")
+        vout = int.from_bytes(data.read(4), "little")
 
-        result = cls(hash, n)
+        result = cls(txid, vout)
         if assert_valid:
             result.assert_valid()
         return result
@@ -52,29 +52,29 @@ class OutPoint(DataClassJsonMixin):
             self.assert_valid()
 
         # 32 bytes, little endian
-        out = self.hash[::-1]
+        out = self.txid[::-1]
         # 4 bytes, little endian
-        out += self.n.to_bytes(4, "little")
+        out += self.vout.to_bytes(4, "little")
         return out
 
     @property
     def is_coinbase(self) -> bool:
         self.assert_valid()
-        return (self.hash == b"\x00" * 32) and (self.n == 0xFFFFFFFF)
+        return (self.txid == b"\x00" * 32) and (self.vout == 0xFFFFFFFF)
 
     def assert_valid(self) -> None:
         # must be a 32 bytes
-        if len(self.hash) != 32:
-            m = f"invalid OutPoint hash: {len(self.hash)}"
+        if len(self.txid) != 32:
+            m = f"invalid OutPoint txid: {len(self.txid)}"
             m += " instead of 32 bytes"
             raise ValueError(m)
         # must be a 4-bytes int
-        if self.n < 0:
-            raise ValueError(f"negative OutPoint n: {self.n}")
-        if self.n > 0xFFFFFFFF:
-            raise ValueError(f"OutPoint n too high: {hex(self.n)}")
+        if self.vout < 0:
+            raise ValueError(f"negative OutPoint vout: {self.vout}")
+        if self.vout > 0xFFFFFFFF:
+            raise ValueError(f"OutPoint vout too high: {hex(self.vout)}")
         # not a coinbase, not a regular OutPoint
-        if (self.hash == b"\x00" * 32) ^ (self.n == 0xFFFFFFFF):
+        if (self.txid == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
             raise ValueError("invalid OutPoint")
 
 
@@ -84,10 +84,11 @@ _TxIn = TypeVar("_TxIn", bound="TxIn")
 @dataclass
 class TxIn(DataClassJsonMixin):
     prevout: OutPoint
+    # TODO make it { "asm": "", "hex": "" }
     scriptSig: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    nSequence: int
+    sequence: int
     txinwitness: List[bytes] = field(
         metadata=config(encoder=lambda val: [v.hex() for v in val])
     )
@@ -104,12 +105,12 @@ class TxIn(DataClassJsonMixin):
         scriptSig = stream.read(varint.decode(stream))
 
         # 4 bytes, little endian, interpreted as int
-        nSequence = int.from_bytes(stream.read(4), "little")
+        sequence = int.from_bytes(stream.read(4), "little")
 
         tx_in = cls(
             prevout=prevout,
             scriptSig=scriptSig,
-            nSequence=nSequence,
+            sequence=sequence,
             txinwitness=[],
         )
         if assert_valid:
@@ -123,7 +124,7 @@ class TxIn(DataClassJsonMixin):
 
         out = self.prevout.serialize()
         out += varint.encode(len(self.scriptSig)) + self.scriptSig
-        out += self.nSequence.to_bytes(4, "little")
+        out += self.sequence.to_bytes(4, "little")
         return out
 
     def assert_valid(self) -> None:

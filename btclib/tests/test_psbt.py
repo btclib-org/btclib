@@ -425,7 +425,7 @@ def test_valid_sign_2():
         [],
     )
     transaction = Tx(0, 2, vin=[transaction_input], vout=[psbt.inputs[0].witness_utxo])
-    psbt.tx.vin[0].prevout.hash = transaction.txid
+    psbt.tx.vin[0].prevout.txid = transaction.txid
     psbt.inputs[0].non_witness_utxo = transaction
     psbt.assert_signable()
 
@@ -581,15 +581,15 @@ def test_dataclasses_json_dict():
 
     filename = path.join(datadir, "psbt_in.json")
     with open(filename, "w") as f:
-        json.dump(psbt_in_dict, f, indent=True)
+        json.dump(psbt_in_dict, f, indent=4)
 
     filename = path.join(datadir, "psbt_out.json")
     with open(filename, "w") as f:
-        json.dump(psbt_out_dict, f, indent=True)
+        json.dump(psbt_out_dict, f, indent=4)
 
     filename = path.join(datadir, "psbt.json")
     with open(filename, "w") as f:
-        json.dump(psbt_dict, f, indent=True)
+        json.dump(psbt_dict, f, indent=4)
 
 
 def test_proprietary_types():

@@ -18,13 +18,31 @@ from .alias import BinaryData
 from .utils import bytesio_from_binarydata
 
 MAX_SATOSHI = 2_099_999_997_690_000
+SAT_PER_COIN = 100_000_000
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")
 
 
 @dataclass
 class TxOut(DataClassJsonMixin):
-    nValue: int  # satoshis
+    # FIXME make it BTC, not sat
+    # value: int = field(
+    #    metadata=config(
+    #        encoder=lambda v: str(v / SAT_PER_COIN),
+    #        decoder=lambda v: int(float(v) * SAT_PER_COIN),
+    #    )
+    # )
+    value: int  # satoshis
+    # FIXME: make it
+    # "scriptPubKey": {
+    #    "asm": "0 d85c2b71d0060b09c9886aeb815e50991dda124d",
+    #    "hex": "0014d85c2b71d0060b09c9886aeb815e50991dda124d",
+    #    "reqSigs": 1,
+    #    "type": "witness_v0_keyhash",
+    #    "addresses": [
+    #        "bc1qmpwzkuwsqc9snjvgdt4czhjsnywa5yjdgwyw6k"
+    #    ]
+    # }
     scriptPubKey: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
@@ -35,11 +53,11 @@ class TxOut(DataClassJsonMixin):
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
         # 8 bytes, little endian, interpreted as int
-        nValue = int.from_bytes(stream.read(8), "little")
+        value = int.from_bytes(stream.read(8), "little")
 
         scriptPubKey = stream.read(varint.decode(stream))
 
-        tx_out = cls(nValue=nValue, scriptPubKey=scriptPubKey)
+        tx_out = cls(value=value, scriptPubKey=scriptPubKey)
         if assert_valid:
             tx_out.assert_valid()
         return tx_out
@@ -49,15 +67,15 @@ class TxOut(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.nValue.to_bytes(8, "little")
+        out = self.value.to_bytes(8, "little")
         out += varint.encode(len(self.scriptPubKey)) + self.scriptPubKey
         return out
 
     def assert_valid(self) -> None:
         # must be a 8-bytes int
-        if self.nValue < 0:
-            raise ValueError(f"negative nValue: {self.nValue}")
-        if self.nValue > MAX_SATOSHI:
-            raise ValueError(f"nValue too high: {hex(self.nValue)}")
+        if self.value < 0:
+            raise ValueError(f"negative value: {self.value}")
+        if self.value > MAX_SATOSHI:
+            raise ValueError(f"value too high: {hex(self.value)}")
         if len(self.scriptPubKey) == 0:
             raise ValueError("empty scriptPubKey")
