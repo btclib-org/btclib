@@ -10,12 +10,14 @@
 
 "Tests for `btclib.blocks` module."
 
+import json
 from os import path
 
 import pytest
 
 from btclib.blocks import Block, BlockHeader
 
+datadir = path.join(path.dirname(__file__), "generated_files")
 
 # actually second block in chain, first obtainable from other nodes
 def test_block_1() -> None:
@@ -261,22 +263,18 @@ def test_dataclasses_json_dict() -> None:
     block_data = Block.deserialize(block)
     assert isinstance(block_data, Block)
 
+    # dict
+    block_dict = block_data.to_dict()
+    assert isinstance(block_dict, dict)
+    filename = path.join(datadir, "block_481824.json")
+    with open(filename, "w") as f:
+        json.dump(block_dict, f, indent=True)
+    assert block_data == Block.from_dict(block_dict)
+
     # str
     block_json_str = block_data.to_json()
     assert isinstance(block_json_str, str)
     assert block_data == Block.from_json(block_json_str)
-
-    # dict
-    block_dict = block_data.to_dict()
-    assert isinstance(block_dict, dict)
-    assert block_data == Block.from_dict(block_dict)
-
-    import json
-
-    datadir = path.join(path.dirname(__file__), "generated_files")
-    filename = path.join(datadir, "block_481824.json")
-    with open(filename, "w") as f:
-        json.dump(block_dict, f, indent=True)
 
     block_header = block_data.header.serialize()
 
@@ -284,16 +282,15 @@ def test_dataclasses_json_dict() -> None:
     block_header_data = BlockHeader.deserialize(block_header)
     assert isinstance(block_header_data, BlockHeader)
 
+    # dict
+    block_header_d = block_header_data.to_dict()
+    assert isinstance(block_header_d, dict)
+    filename = path.join(datadir, "block_header_481824.json")
+    with open(filename, "w") as f:
+        json.dump(block_header_d, f, indent=True)
+    assert block_header_data == BlockHeader.from_dict(block_header_d)
+
     # str
     block_header_s = block_header_data.to_json()
     assert isinstance(block_header_s, str)
     assert block_header_data == BlockHeader.from_json(block_header_s)
-
-    # dict
-    block_header_d = block_header_data.to_dict()
-    assert isinstance(block_header_d, dict)
-    assert block_header_data == BlockHeader.from_dict(block_header_d)
-
-    filename = path.join(datadir, "block_header_481824.json")
-    with open(filename, "w") as f:
-        json.dump(block_header_d, f, indent=True)

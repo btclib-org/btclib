@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
@@ -25,7 +26,12 @@ class BlockHeader(DataClassJsonMixin):
     version: int
     previousblockhash: str
     merkleroot: str
-    time: int
+    time: int = field(  # TODO: fix tzinfo=timezone.utc
+        metadata=config(
+            encoder=lambda t: datetime.fromtimestamp(t).isoformat(),
+            decoder=lambda t: datetime.fromisoformat(t).timestamp(),
+        ),
+    )
     bits: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
