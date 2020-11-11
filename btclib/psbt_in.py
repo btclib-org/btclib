@@ -47,7 +47,7 @@ PSBT_IN_PROPRIETARY = b"\xfc"
 
 @dataclass
 class PartialSigs(DataClassJsonMixin):
-    sigs: Dict[str, bytes] = field(default_factory=dict)
+    sigs: Dict[str, str] = field(default_factory=dict)
 
     def add_sig(self, key: PubKey, sig: der.DERSig):
 
@@ -55,7 +55,7 @@ class PartialSigs(DataClassJsonMixin):
         key_str = _pubkey_to_hex_string(key)
 
         r, s, sighash = der.deserialize(sig)
-        sig_str = der.serialize(r, s, sighash)
+        sig_str = der.serialize(r, s, sighash).hex()
 
         self.sigs[key_str] = sig_str
 
@@ -64,7 +64,7 @@ class PartialSigs(DataClassJsonMixin):
         # key_str = pubkeyinfo_from_key(key)[0].hex()
         key_str = _pubkey_to_hex_string(key)
 
-        return self.sigs[key_str]
+        return bytes.fromhex(self.sigs[key_str])
 
     def assert_valid(self) -> None:
         pass
@@ -176,7 +176,7 @@ class PsbtIn(DataClassJsonMixin):
         if self.partial_sigs:
             for key, value in self.partial_sigs.sigs.items():
                 out += b"\x22" + PSBT_IN_PARTIAL_SIG + bytes.fromhex(key)
-                out += varint.encode(len(value)) + value
+                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
         if self.sighash:
             out += b"\x01" + PSBT_IN_SIGHASH_TYPE
             out += b"\x04" + self.sighash.to_bytes(4, "little")

@@ -595,7 +595,7 @@ def test_dataclasses_json_dict():
     # str
     psbt_in_json_str = psbt_in_data.to_json()
     assert isinstance(psbt_in_json_str, str)
-    # assert psbt_in_data == PsbtIn.from_json(psbt_in_json_str)
+    assert psbt_in_data == PsbtIn.from_json(psbt_in_json_str)
 
     psbt_out_json_str = psbt_out_data.to_json()
     assert isinstance(psbt_out_json_str, str)
@@ -603,12 +603,12 @@ def test_dataclasses_json_dict():
 
     psbt_json_str = psbt_data.to_json()
     assert isinstance(psbt_json_str, str)
-    # assert psbt_data == Psbt.from_json(psbt_json_str)
+    assert psbt_data == Psbt.from_json(psbt_json_str)
 
     # dict
     psbt_in_dict = psbt_in_data.to_dict()
     assert isinstance(psbt_in_dict, dict)
-    #  assert psbt_in_data == PsbtIn.from_dict(psbt_in_dict)
+    assert psbt_in_data == PsbtIn.from_dict(psbt_in_dict)
 
     psbt_out_dict = psbt_out_data.to_dict()
     assert isinstance(psbt_out_dict, dict)
@@ -616,7 +616,7 @@ def test_dataclasses_json_dict():
 
     psbt_dict = psbt_data.to_dict()
     assert isinstance(psbt_dict, dict)
-    #  assert psbt_data == Psbt.from_dict(psbt_dict)
+    assert psbt_data == Psbt.from_dict(psbt_dict)
 
     import json
     from os import path
@@ -624,16 +624,16 @@ def test_dataclasses_json_dict():
     datadir = path.join(path.dirname(__file__), "generated_files")
 
     filename = path.join(datadir, "psbt_in.json")
-    # with open(filename, "w") as f:
-    #     json.dump(psbt_in_dict, f, indent=True)
+    with open(filename, "w") as f:
+        json.dump(psbt_in_dict, f, indent=True)
 
     filename = path.join(datadir, "psbt_out.json")
     with open(filename, "w") as f:
         json.dump(psbt_out_dict, f, indent=True)
 
     filename = path.join(datadir, "psbt.json")
-    # with open(filename, "w") as f:
-    #    json.dump(psbt_dict, f, indent=True)
+    with open(filename, "w") as f:
+        json.dump(psbt_dict, f, indent=True)
 
 
 def test_proprietary_types():

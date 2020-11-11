@@ -315,12 +315,12 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         if psbt_in.witness_script:
             psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
             psbt_in.final_script_witness = [b""] if multi_sig else []
-            psbt_in.final_script_witness += sigs
+            psbt_in.final_script_witness += [bytes.fromhex(sig) for sig in sigs]
             psbt_in.final_script_witness += [psbt_in.witness_script]
         else:
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
             final_script_sig: List[ScriptToken] = [0] if multi_sig else []
-            final_script_sig += [sig.hex() for sig in sigs]
+            final_script_sig += sigs
             final_script_sig += [psbt_in.redeem_script.hex()]
             psbt_in.final_script_sig = script.serialize(final_script_sig)
         psbt_in.partial_sigs = PartialSigs()
