@@ -22,7 +22,6 @@ from dataclasses_json import DataClassJsonMixin
 
 from . import script, varint
 from .alias import ScriptToken
-from .bip32 import bytes_from_bip32_path
 from .psbt_in import PartialSigs, PsbtIn
 from .psbt_out import HdKeyPaths, ProprietaryData, PsbtOut, UnknownData
 from .scriptpubkey import payload_from_scriptPubKey
@@ -64,27 +63,21 @@ class Psbt(DataClassJsonMixin):
         for key, value in global_map.items():
             if key[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
-                assert not out.tx.nVersion, "duplicated transaction"
                 out.tx = Tx.deserialize(value)  # legacy trensaction
             elif key[0:1] == PSBT_GLOBAL_VERSION:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
-                assert not out.version, "duplicated version"
                 assert len(value) == 4, f"invalid version length: {len(value)}"
                 out.version = int.from_bytes(value, "little")
             elif key[0:1] == PSBT_GLOBAL_XPUB:
-                # why extended key here?
                 assert len(key) == 78 + 1, f"invalid key length: {len(key)}"
-                # TODO: assert not duplicated?
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == PSBT_GLOBAL_PROPRIETARY:
-                # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.data:
                     out.proprietary.data[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 out.proprietary.data[prefix][key.hex()] = value.hex()
             else:  # unknown keys
-                # TODO: assert not duplicated?
                 out.unknown.data[key.hex()] = value.hex()
 
         assert out.tx.nVersion, "missing transaction"
@@ -112,32 +105,12 @@ class Psbt(DataClassJsonMixin):
         if self.version:
             out += b"\x01" + PSBT_GLOBAL_VERSION
             out += b"\x04" + self.version.to_bytes(4, "little")
-        if self.hd_keypaths:
-            for pubkey, hd_keypath in self.hd_keypaths.hd_keypaths.items():
-                pubkey_bytes = PSBT_GLOBAL_XPUB + bytes.fromhex(pubkey)
-                out += varint.encode(len(pubkey_bytes)) + pubkey_bytes
-                keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += bytes_from_bip32_path(
-                    hd_keypath["derivation_path"], "little"
-                )
-                out += varint.encode(len(keypath)) + keypath
-        if self.proprietary:
-            for (owner, dictionary) in self.proprietary.data.items():
-                for key_p, value_p in dictionary.items():
-                    key_bytes = (
-                        PSBT_GLOBAL_PROPRIETARY
-                        + varint.encode(owner)
-                        + bytes.fromhex(key_p)
-                    )
-                    out += varint.encode(len(key_bytes)) + key_bytes
-                    t = bytes.fromhex(value_p)
-                    out += varint.encode(len(t)) + t
-        if self.unknown:
-            for key_u, value_u in self.unknown.data.items():
-                t = bytes.fromhex(key_u)
-                out += varint.encode(len(t)) + t
-                t = bytes.fromhex(value_u)
-                out += varint.encode(len(t)) + t
+        if self.hd_keypaths.hd_keypaths:
+            out += self.hd_keypaths.serialize(PSBT_GLOBAL_XPUB, assert_valid)
+        if self.proprietary.data:
+            out += self.proprietary.serialize(PSBT_GLOBAL_PROPRIETARY, assert_valid)
+        if self.unknown.data:
+            out += self.unknown.serialize(assert_valid)
 
         out += PSBT_DELIMITER
         for input_map in self.inputs:

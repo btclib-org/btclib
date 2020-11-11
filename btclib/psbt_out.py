@@ -42,6 +42,9 @@ def _pubkey_to_hex_string(pubkey: PubKey) -> str:
     return pubkey.hex()
 
 
+_HdKeyPaths = TypeVar("_HdKeyPaths", bound="HdKeyPaths")
+
+
 @dataclass
 class HdKeyPaths(DataClassJsonMixin):
     hd_keypaths: Dict[str, Dict[str, str]] = field(default_factory=dict)
@@ -67,21 +70,97 @@ class HdKeyPaths(DataClassJsonMixin):
         entry = self.hd_keypaths[key_str]
         return entry["fingerprint"], entry["derivation_path"]
 
+    @classmethod
+    def deserialize(cls: Type[_HdKeyPaths], assert_valid: bool = True) -> _HdKeyPaths:
+        out = cls()
+
+        if assert_valid:
+            out.assert_valid()
+        return out
+
+    def serialize(self, marker: bytes, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        out = b""
+        for pubkey, hd_keypath in self.hd_keypaths.items():
+            pubkey_bytes = marker + bytes.fromhex(pubkey)
+            out += varint.encode(len(pubkey_bytes)) + pubkey_bytes
+            keypath = bytes.fromhex(hd_keypath["fingerprint"])
+            keypath += bytes_from_bip32_path(hd_keypath["derivation_path"], "little")
+            out += varint.encode(len(keypath)) + keypath
+
+        return out
+
     def assert_valid(self) -> None:
         pass
+
+
+_ProprietaryData = TypeVar("_ProprietaryData", bound="ProprietaryData")
 
 
 @dataclass
 class ProprietaryData(DataClassJsonMixin):
     data: Dict[int, Dict[str, str]] = field(default_factory=dict)
 
+    @classmethod
+    def deserialize(
+        cls: Type[_ProprietaryData], assert_valid: bool = True
+    ) -> _ProprietaryData:
+        out = cls()
+
+        if assert_valid:
+            out.assert_valid()
+        return out
+
+    def serialize(self, marker: bytes, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        out = b""
+        for (owner, dictionary) in self.data.items():
+            for key_p, value_p in dictionary.items():
+                key_bytes = marker + varint.encode(owner) + bytes.fromhex(key_p)
+                out += varint.encode(len(key_bytes)) + key_bytes
+                t = bytes.fromhex(value_p)
+                out += varint.encode(len(t)) + t
+
+        return out
+
     def assert_valid(self) -> None:
         pass
+
+
+_UnknownData = TypeVar("_UnknownData", bound="UnknownData")
 
 
 @dataclass
 class UnknownData(DataClassJsonMixin):
     data: Dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def deserialize(cls: Type[_UnknownData], assert_valid: bool = True) -> _UnknownData:
+        out = cls()
+
+        if assert_valid:
+            out.assert_valid()
+        return out
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        out = b""
+        for key_u, value_u in self.data.items():
+            t = bytes.fromhex(key_u)
+            out += varint.encode(len(t)) + t
+            t = bytes.fromhex(value_u)
+            out += varint.encode(len(t)) + t
+
+        return out
 
     def assert_valid(self) -> None:
         for key, value in self.data.items():
@@ -119,25 +198,20 @@ class PsbtOut(DataClassJsonMixin):
         for key, value in output_map.items():
             if key[0:1] == PSBT_OUT_REDEEM_SCRIPT:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
-                assert out.redeem_script == b"", "duplicated redeem_script"
                 out.redeem_script = value
             elif key[0:1] == PSBT_OUT_WITNESS_SCRIPT:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
-                assert out.witness_script == b"", "duplicated witness_script"
                 out.witness_script = value
             elif key[0:1] == PSBT_OUT_BIP32_DERIVATION:
                 assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
-                # TODO: assert not duplicated?
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == PSBT_OUT_PROPRIETARY:
-                # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
                 if prefix not in out.proprietary.data:
                     out.proprietary.data[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
                 out.proprietary.data[prefix][key.hex()] = value.hex()
             else:  # unknown keys
-                # TODO: assert not duplicated?
                 out.unknown.data[key.hex()] = value.hex()
 
         if assert_valid:
@@ -148,6 +222,7 @@ class PsbtOut(DataClassJsonMixin):
 
         if assert_valid:
             self.assert_valid()
+            assert_valid = False
 
         out = b""
 
@@ -157,32 +232,12 @@ class PsbtOut(DataClassJsonMixin):
         if self.witness_script:
             out += b"\x01" + PSBT_OUT_WITNESS_SCRIPT
             out += varint.encode(len(self.witness_script)) + self.witness_script
-        if self.hd_keypaths:
-            for pubkey, hd_keypath in self.hd_keypaths.hd_keypaths.items():
-                pubkey_bytes = PSBT_OUT_BIP32_DERIVATION + bytes.fromhex(pubkey)
-                out += varint.encode(len(pubkey_bytes)) + pubkey_bytes
-                keypath = bytes.fromhex(hd_keypath["fingerprint"])
-                keypath += bytes_from_bip32_path(
-                    hd_keypath["derivation_path"], "little"
-                )
-                out += varint.encode(len(keypath)) + keypath
-        if self.proprietary:
-            for (owner, dictionary) in self.proprietary.data.items():
-                for key_p, value_p in dictionary.items():
-                    key_bytes = (
-                        PSBT_OUT_PROPRIETARY
-                        + varint.encode(owner)
-                        + bytes.fromhex(key_p)
-                    )
-                    out += varint.encode(len(key_bytes)) + key_bytes
-                    t = bytes.fromhex(value_p)
-                    out += varint.encode(len(t)) + t
-        if self.unknown:
-            for key_u, value_u in self.unknown.data.items():
-                t = bytes.fromhex(key_u)
-                out += varint.encode(len(t)) + t
-                t = bytes.fromhex(value_u)
-                out += varint.encode(len(t)) + t
+        if self.hd_keypaths.hd_keypaths:
+            out += self.hd_keypaths.serialize(PSBT_OUT_BIP32_DERIVATION, assert_valid)
+        if self.proprietary.data:
+            out += self.proprietary.serialize(PSBT_OUT_PROPRIETARY, assert_valid)
+        if self.unknown.data:
+            out += self.unknown.serialize(assert_valid)
 
         return out
 
