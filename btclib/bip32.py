@@ -74,17 +74,14 @@ def _index_int_from_str(s: str) -> int:
     return index + (0x80000000 if hardened else 0)
 
 
-def _str_from_index_int(i: int) -> str:
+def _str_from_index_int(i: int, hardening: str = "'") -> str:
 
-    if i < 0:
-        raise ValueError(f"negative index: {i}")
-    if i >= 0xFFFFFFFF:
-        raise ValueError(f"index too high: {i}")
-    hardened = i >= 0x80000000
-    if hardened:
-        i -= 0x80000000
-
-    return str(i) + ("h" if hardened else "")
+    if not (0 <= i < 0xFFFFFFFF):
+        raise ValueError(f"invalid index: {i}")
+    if i < 0x80000000:
+        return str(i)
+    assert hardening in ("'", "h", "H"), f"invalid hardening symbol {hardening}"
+    return str(i - 0x80000000) + hardening
 
 
 _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
@@ -334,9 +331,11 @@ def _indexes_from_bip32_path_str(der_path: str) -> List[int]:
 BIP32Path = Union[str, Iterable[int], int, bytes]
 
 
-def str_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> str:
+def str_from_bip32_path(
+    der_path: BIP32Path, byteorder: str = "big", hardening_symbol: str = "'"
+) -> str:
     indexes = indexes_from_bip32_path(der_path, byteorder)
-    result = "/".join([_str_from_index_int(i) for i in indexes])
+    result = "/".join([_str_from_index_int(i, hardening_symbol) for i in indexes])
     return "m/" + result if indexes else "m"
 
 

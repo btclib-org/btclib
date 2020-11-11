@@ -66,10 +66,10 @@ def test_indexes_from_bip32_path_str() -> None:
         assert bip32_path_str == str_from_bip32_path(bip32_path_ints, "little")
         assert bip32_path_str == str_from_bip32_path(bip32_path_bytes, "little")
 
-    with pytest.raises(ValueError, match="negative index: "):
+    with pytest.raises(ValueError, match="invalid index: "):
         _indexes_from_bip32_path_str("m/1/2/-3h/4")
 
-    with pytest.raises(ValueError, match="negative index: "):
+    with pytest.raises(ValueError, match="invalid index: "):
         _indexes_from_bip32_path_str("m/1/2/-3/4")
 
     i = 0x80000000
@@ -147,7 +147,7 @@ def test_assert_valid() -> None:
 
     xkey_data = BIP32KeyData.deserialize(xkey)
     xkey_data.index = -1
-    with pytest.raises(ValueError, match="negative index: "):
+    with pytest.raises(ValueError, match="invalid index: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
