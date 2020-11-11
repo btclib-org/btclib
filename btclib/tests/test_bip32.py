@@ -74,10 +74,10 @@ def test_indexes_from_bip32_path_str() -> None:
 
     i = 0x80000000
 
-    with pytest.raises(ValueError, match="index too high: "):
+    with pytest.raises(ValueError, match="invalid index: "):
         _indexes_from_bip32_path_str("m/1/2/" + str(i) + "/4")
 
-    with pytest.raises(ValueError, match="index too high: "):
+    with pytest.raises(ValueError, match="invalid index: "):
         _indexes_from_bip32_path_str("m/1/2/" + str(i) + "h/4")
 
 
@@ -152,7 +152,7 @@ def test_assert_valid() -> None:
 
     xkey_data = BIP32KeyData.deserialize(xkey)
     xkey_data.index = 0xFFFFFFFF + 1
-    with pytest.raises(ValueError, match="index too high: "):
+    with pytest.raises(ValueError, match="invalid index: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
@@ -317,7 +317,7 @@ def test_derive_exceptions() -> None:
         derive(xprv, b"\x00" * 5)
 
     for index in (256 ** 4, 0x8000000000):
-        with pytest.raises(ValueError, match="index too high: "):
+        with pytest.raises(ValueError, match="invalid index: "):
             derive(xprv, index)
 
     err_msg = "final depth greater than 255: "
@@ -421,14 +421,14 @@ def test_crack() -> None:
 
 def test_index_int_to_from_str() -> None:
 
-    for i in (0, 1, 0x80000000 - 1, 0x80000000, 0xFFFFFFFF - 1):
+    for i in (0, 1, 0x80000000 - 1, 0x80000000, 0xFFFFFFFF):
         assert i == _index_int_from_str(_str_from_index_int(i))
 
-    for i in (-1, 0xFFFFFFFF):
+    for i in (-1, 0xFFFFFFFF + 1):
         with pytest.raises(ValueError):
             _str_from_index_int(i)
 
-    for s in ("-1", "-1h", str(0x80000000) + "h", str(0xFFFFFFFF)):
+    for s in ("-1", "-1h", str(0x80000000) + "h", str(0xFFFFFFFF + 1)):
         with pytest.raises(ValueError):
             _index_int_from_str(s)
 

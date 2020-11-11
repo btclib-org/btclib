@@ -67,16 +67,14 @@ def _index_int_from_str(s: str) -> int:
         hardened = True
 
     index = int(s)
-    if index < 0:
-        raise ValueError(f"negative index: {index}")
-    if index >= 0x80000000:
-        raise ValueError(f"index too high: {index}")
+    if not (0 <= index < 0x80000000):
+        raise ValueError(f"invalid index: {index}")
     return index + (0x80000000 if hardened else 0)
 
 
 def _str_from_index_int(i: int, hardening: str = "'") -> str:
 
-    if not (0 <= i < 0xFFFFFFFF):
+    if not (0 <= i <= 0xFFFFFFFF):
         raise ValueError(f"invalid index: {i}")
     if i < 0x80000000:
         return str(i)
@@ -167,10 +165,8 @@ class BIP32KeyData(DataClassJsonMixin):
 
         if not isinstance(self.index, int):
             raise ValueError("index is not an instance of bytes")
-        if self.index < 0:
-            raise ValueError(f"negative index: {self.index}")
-        if self.index > 0xFFFFFFFF:
-            raise ValueError(f"index too high: {self.index}")
+        if not (0 <= self.index <= 0xFFFFFFFF):
+            raise ValueError(f"invalid index: {self.index}")
 
         if not isinstance(self.chain_code, bytes):
             raise ValueError("chain code is not an instance of bytes")
