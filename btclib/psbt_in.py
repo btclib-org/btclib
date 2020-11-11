@@ -161,7 +161,8 @@ class PsbtIn(DataClassJsonMixin):
         if self.partial_sigs:
             for key, value in self.partial_sigs.sigs.items():
                 out += b"\x22" + PSBT_IN_PARTIAL_SIG + bytes.fromhex(key)
-                out += varint.encode(len(value) // 2) + bytes.fromhex(value)
+                t = bytes.fromhex(value)
+                out += varint.encode(len(t)) + t
         if self.sighash:
             out += b"\x01" + PSBT_IN_SIGHASH_TYPE
             out += b"\x04" + self.sighash.to_bytes(4, "little")
@@ -200,11 +201,14 @@ class PsbtIn(DataClassJsonMixin):
                         + bytes.fromhex(key_p)
                     )
                     out += varint.encode(len(key_bytes)) + key_bytes
-                    out += varint.encode(len(value_p) // 2) + bytes.fromhex(value_p)
+                    t = bytes.fromhex(value_p)
+                    out += varint.encode(len(t)) + t
         if self.unknown:
             for key_u, value_u in self.unknown.items():
-                out += varint.encode(len(key_u) // 2) + bytes.fromhex(key_u)
-                out += varint.encode(len(value_u) // 2) + bytes.fromhex(value_u)
+                t = bytes.fromhex(key_u)
+                out += varint.encode(len(t)) + t
+                t = bytes.fromhex(value_u)
+                out += varint.encode(len(t)) + t
 
         return out
 

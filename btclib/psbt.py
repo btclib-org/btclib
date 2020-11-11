@@ -130,11 +130,14 @@ class Psbt(DataClassJsonMixin):
                         + bytes.fromhex(key_p)
                     )
                     out += varint.encode(len(key_bytes)) + key_bytes
-                    out += varint.encode(len(value_p) // 2) + bytes.fromhex(value_p)
+                    t = bytes.fromhex(value_p)
+                    out += varint.encode(len(t)) + t
         if self.unknown:
             for key_u, value_u in self.unknown.items():
-                out += varint.encode(len(key_u) // 2) + bytes.fromhex(key_u)
-                out += varint.encode(len(value_u) // 2) + bytes.fromhex(value_u)
+                t = bytes.fromhex(key_u)
+                out += varint.encode(len(t)) + t
+                t = bytes.fromhex(value_u)
+                out += varint.encode(len(t)) + t
 
         out += PSBT_DELIMITER
         for input_map in self.inputs:
