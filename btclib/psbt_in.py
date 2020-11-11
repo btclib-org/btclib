@@ -20,7 +20,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import dsa, varint
 from .bip32 import bytes_from_bip32_path
-from .psbt_out import HdKeyPaths, UnknownData
+from .psbt_out import HdKeyPaths, ProprietaryData, UnknownData
 from .script import SIGHASHES
 from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
@@ -80,7 +80,7 @@ class PsbtIn(DataClassJsonMixin):
         metadata=config(encoder=lambda val: [v.hex() for v in val]),
     )
     por_commitment: Optional[str] = None
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
+    proprietary: ProprietaryData = field(default_factory=ProprietaryData)
     unknown: UnknownData = field(default_factory=UnknownData)
 
     @classmethod
@@ -131,10 +131,10 @@ class PsbtIn(DataClassJsonMixin):
             elif key[0:1] == PSBT_IN_PROPRIETARY:
                 # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
-                if prefix not in out.proprietary.keys():
-                    out.proprietary[prefix] = {}
+                if prefix not in out.proprietary.data:
+                    out.proprietary.data[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                out.proprietary[prefix][key.hex()] = value.hex()
+                out.proprietary.data[prefix][key.hex()] = value.hex()
             else:  # unknown keys
                 # TODO: assert not duplicated?
                 out.unknown.data[key.hex()] = value.hex()
@@ -193,7 +193,7 @@ class PsbtIn(DataClassJsonMixin):
                 )
                 out += varint.encode(len(keypath)) + keypath
         if self.proprietary:
-            for (owner, dictionary) in self.proprietary.items():
+            for (owner, dictionary) in self.proprietary.data.items():
                 for key_p, value_p in dictionary.items():
                     key_bytes = (
                         PSBT_IN_PROPRIETARY
@@ -228,5 +228,5 @@ class PsbtIn(DataClassJsonMixin):
         if self.por_commitment is not None:
             assert self.por_commitment.encode("utf-8")
 
-        assert isinstance(self.proprietary, dict)
+        self.proprietary.assert_valid()
         self.unknown.assert_valid()

@@ -9,7 +9,9 @@
    }
   }
  },
- "proprietary": {},
+ "proprietary": {
+  "data": {}
+ },
  "unknown": {
   "data": {}
  }

@@ -85,7 +85,9 @@
    "final_script_sig": "",
    "final_script_witness": [],
    "por_commitment": null,
-   "proprietary": {},
+   "proprietary": {
+    "data": {}
+   },
    "unknown": {
     "data": {}
    }
@@ -120,7 +122,9 @@
    "final_script_sig": "",
    "final_script_witness": [],
    "por_commitment": null,
-   "proprietary": {},
+   "proprietary": {
+    "data": {}
+   },
    "unknown": {
     "data": {}
    }
@@ -138,7 +142,9 @@
      }
     }
    },
-   "proprietary": {},
+   "proprietary": {
+    "data": {}
+   },
    "unknown": {
     "data": {}
    }
@@ -154,7 +160,9 @@
      }
     }
    },
-   "proprietary": {},
+   "proprietary": {
+    "data": {}
+   },
    "unknown": {
     "data": {}
    }
@@ -164,7 +172,9 @@
  "hd_keypaths": {
   "hd_keypaths": {}
  },
- "proprietary": {},
+ "proprietary": {
+  "data": {}
+ },
  "unknown": {
   "data": {}
  }

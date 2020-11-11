@@ -23,8 +23,8 @@ from dataclasses_json import DataClassJsonMixin
 from . import script, varint
 from .alias import ScriptToken
 from .bip32 import bytes_from_bip32_path
-from .psbt_in import PartialSigs, PsbtIn, UnknownData
-from .psbt_out import HdKeyPaths, PsbtOut
+from .psbt_in import PartialSigs, PsbtIn
+from .psbt_out import HdKeyPaths, ProprietaryData, PsbtOut, UnknownData
 from .scriptpubkey import payload_from_scriptPubKey
 from .tx import Tx
 from .tx_out import TxOut
@@ -49,7 +49,7 @@ class Psbt(DataClassJsonMixin):
     outputs: List[PsbtOut] = field(default_factory=list)
     version: int = 0
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
+    proprietary: ProprietaryData = field(default_factory=ProprietaryData)
     unknown: UnknownData = field(default_factory=UnknownData)
 
     @classmethod
@@ -79,10 +79,10 @@ class Psbt(DataClassJsonMixin):
             elif key[0:1] == PSBT_GLOBAL_PROPRIETARY:
                 # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
-                if prefix not in out.proprietary.keys():
-                    out.proprietary[prefix] = {}
+                if prefix not in out.proprietary.data:
+                    out.proprietary.data[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                out.proprietary[prefix][key.hex()] = value.hex()
+                out.proprietary.data[prefix][key.hex()] = value.hex()
             else:  # unknown keys
                 # TODO: assert not duplicated?
                 out.unknown.data[key.hex()] = value.hex()
@@ -122,7 +122,7 @@ class Psbt(DataClassJsonMixin):
                 )
                 out += varint.encode(len(keypath)) + keypath
         if self.proprietary:
-            for (owner, dictionary) in self.proprietary.items():
+            for (owner, dictionary) in self.proprietary.data.items():
                 for key_p, value_p in dictionary.items():
                     key_bytes = (
                         PSBT_GLOBAL_PROPRIETARY
@@ -181,7 +181,7 @@ class Psbt(DataClassJsonMixin):
         assert self.version == 0
 
         self.hd_keypaths.assert_valid()
-        assert isinstance(self.proprietary, dict)
+        self.proprietary.assert_valid()
         self.unknown.assert_valid()
 
     def assert_signable(self) -> None:
@@ -259,15 +259,15 @@ def _combine_field(
 ) -> None:
     item = getattr(psbt_map, key)
     a = getattr(out, key)
-    if isinstance(item, dict) and a and isinstance(a, dict):
-        a.update(item)
-    elif isinstance(item, dict) or item and not a:
+    if isinstance(item, dict) or item and not a:
         setattr(out, key, item)
     elif isinstance(item, PartialSigs) and isinstance(a, PartialSigs):
         a.sigs.update(item.sigs)
     elif isinstance(item, HdKeyPaths) and isinstance(a, HdKeyPaths):
         a.hd_keypaths.update(item.hd_keypaths)
     elif isinstance(item, UnknownData) and isinstance(a, UnknownData):
+        a.data.update(item.data)
+    elif isinstance(item, ProprietaryData) and isinstance(a, ProprietaryData):
         a.data.update(item.data)
     elif item:
         assert item == a, key

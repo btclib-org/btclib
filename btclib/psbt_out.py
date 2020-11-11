@@ -72,6 +72,14 @@ class HdKeyPaths(DataClassJsonMixin):
 
 
 @dataclass
+class ProprietaryData(DataClassJsonMixin):
+    data: Dict[int, Dict[str, str]] = field(default_factory=dict)
+
+    def assert_valid(self) -> None:
+        pass
+
+
+@dataclass
 class UnknownData(DataClassJsonMixin):
     data: Dict[str, str] = field(default_factory=dict)
 
@@ -100,7 +108,7 @@ class PsbtOut(DataClassJsonMixin):
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     hd_keypaths: HdKeyPaths = field(default_factory=HdKeyPaths)
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
+    proprietary: ProprietaryData = field(default_factory=ProprietaryData)
     unknown: UnknownData = field(default_factory=UnknownData)
 
     @classmethod
@@ -124,10 +132,10 @@ class PsbtOut(DataClassJsonMixin):
             elif key[0:1] == PSBT_OUT_PROPRIETARY:
                 # TODO: assert not duplicated?
                 prefix = varint.decode(key[1:])
-                if prefix not in out.proprietary.keys():
-                    out.proprietary[prefix] = {}
+                if prefix not in out.proprietary.data:
+                    out.proprietary.data[prefix] = {}
                 key = key[1 + len(varint.encode(prefix)) :]
-                out.proprietary[prefix][key.hex()] = value.hex()
+                out.proprietary.data[prefix][key.hex()] = value.hex()
             else:  # unknown keys
                 # TODO: assert not duplicated?
                 out.unknown.data[key.hex()] = value.hex()
@@ -159,7 +167,7 @@ class PsbtOut(DataClassJsonMixin):
                 )
                 out += varint.encode(len(keypath)) + keypath
         if self.proprietary:
-            for (owner, dictionary) in self.proprietary.items():
+            for (owner, dictionary) in self.proprietary.data.items():
                 for key_p, value_p in dictionary.items():
                     key_bytes = (
                         PSBT_OUT_PROPRIETARY
@@ -180,5 +188,5 @@ class PsbtOut(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         self.hd_keypaths.assert_valid()
-        assert isinstance(self.proprietary, dict)
+        self.proprietary.assert_valid()
         self.unknown.assert_valid()
