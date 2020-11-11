@@ -19,6 +19,7 @@ from btclib.blocks import Block, BlockHeader
 
 datadir = path.join(path.dirname(__file__), "generated_files")
 
+
 # actually second block in chain, first obtainable from other nodes
 def test_block_1() -> None:
 
