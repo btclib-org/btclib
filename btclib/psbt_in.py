@@ -120,11 +120,7 @@ class PsbtIn(DataClassJsonMixin):
                 assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == PSBT_IN_PROPRIETARY:
-                prefix = varint.decode(key[1:])
-                if prefix not in out.proprietary.data:
-                    out.proprietary.data[prefix] = {}
-                key = key[1 + len(varint.encode(prefix)) :]
-                out.proprietary.data[prefix][key.hex()] = value.hex()
+                out.proprietary = ProprietaryData.deserialize(key, value, False)
             else:  # unknown keys
                 out.unknown.data[key.hex()] = value.hex()
 

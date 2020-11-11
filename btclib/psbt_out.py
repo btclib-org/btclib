@@ -70,14 +70,6 @@ class HdKeyPaths(DataClassJsonMixin):
         entry = self.hd_keypaths[key_str]
         return entry["fingerprint"], entry["derivation_path"]
 
-    @classmethod
-    def deserialize(cls: Type[_HdKeyPaths], assert_valid: bool = True) -> _HdKeyPaths:
-        out = cls()
-
-        if assert_valid:
-            out.assert_valid()
-        return out
-
     def serialize(self, marker: bytes, assert_valid: bool = True) -> bytes:
 
         if assert_valid:
@@ -106,9 +98,15 @@ class ProprietaryData(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_ProprietaryData], assert_valid: bool = True
+        cls: Type[_ProprietaryData], key: bytes, value: bytes, assert_valid: bool = True
     ) -> _ProprietaryData:
         out = cls()
+
+        prefix = varint.decode(key[1:])
+        if prefix not in out.data:
+            out.data[prefix] = {}
+        key = key[1 + len(varint.encode(prefix)) :]
+        out.data[prefix][key.hex()] = value.hex()
 
         if assert_valid:
             out.assert_valid()
@@ -139,14 +137,6 @@ _UnknownData = TypeVar("_UnknownData", bound="UnknownData")
 @dataclass
 class UnknownData(DataClassJsonMixin):
     data: Dict[str, str] = field(default_factory=dict)
-
-    @classmethod
-    def deserialize(cls: Type[_UnknownData], assert_valid: bool = True) -> _UnknownData:
-        out = cls()
-
-        if assert_valid:
-            out.assert_valid()
-        return out
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
@@ -206,11 +196,7 @@ class PsbtOut(DataClassJsonMixin):
                 assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
                 out.hd_keypaths.add_hd_keypath(key[1:], value[:4], value[4:])
             elif key[0:1] == PSBT_OUT_PROPRIETARY:
-                prefix = varint.decode(key[1:])
-                if prefix not in out.proprietary.data:
-                    out.proprietary.data[prefix] = {}
-                key = key[1 + len(varint.encode(prefix)) :]
-                out.proprietary.data[prefix][key.hex()] = value.hex()
+                out.proprietary = ProprietaryData.deserialize(key, value, False)
             else:  # unknown keys
                 out.unknown.data[key.hex()] = value.hex()
 
