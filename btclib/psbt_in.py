@@ -10,7 +10,7 @@
 
 """Partially Signed Bitcoin Transaction Input.
 
-https://en.bitcoin.it/wiki/BIP_0174
+https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass, field
@@ -19,7 +19,16 @@ from typing import Dict, List, Optional, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import dsa, varint
-from .psbt_out import HdKeyPaths, ProprietaryData, UnknownData
+from .bip32 import str_from_bip32_path
+from .psbt_out import (
+    _assert_valid_bip32_derivs,
+    _assert_valid_proprietary,
+    _assert_valid_unknown,
+    _deserialize_proprietary,
+    _serialize_bip32_derivs,
+    _serialize_proprietary,
+    _serialize_unknown,
+)
 from .script import SIGHASHES
 from .tx import Tx
 from .tx_in import witness_deserialize, witness_serialize
@@ -43,16 +52,12 @@ PSBT_IN_POR_COMMITMENT = b"\x09"
 PSBT_IN_PROPRIETARY = b"\xfc"
 
 
-@dataclass
-class PartialSigs(DataClassJsonMixin):
-    partial_signatures: Dict[str, str] = field(default_factory=dict)
-
-    def assert_valid(self) -> None:
-        for pubkey, sig in self.partial_signatures.items():
-            # TODO: verify that pubkey is a valid secp256k1 Point
-            # in compressed SEC representation
-            assert len(bytes.fromhex(pubkey)) == 33
-            assert dsa.deserialize(sig)
+def _assert_valid_partial_signatures(partial_signatures: Dict[str, str]) -> None:
+    for pubkey, sig in partial_signatures.items():
+        # TODO: verify that pubkey is a valid secp256k1 Point
+        # in compressed SEC representation
+        assert len(bytes.fromhex(pubkey)) in (33, 65)
+        assert dsa.deserialize(sig)
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -62,7 +67,7 @@ _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
 class PsbtIn(DataClassJsonMixin):
     non_witness_utxo: Optional[Tx] = None
     witness_utxo: Optional[TxOut] = None
-    partial_signatures: PartialSigs = field(default_factory=PartialSigs)
+    partial_signatures: Dict[str, str] = field(default_factory=dict)
     sighash: Optional[int] = None
     redeem_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
@@ -70,7 +75,7 @@ class PsbtIn(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    bip32_derivs: HdKeyPaths = field(default_factory=HdKeyPaths)
+    bip32_derivs: List[Dict[str, str]] = field(default_factory=list)
     final_script_sig: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
@@ -79,8 +84,8 @@ class PsbtIn(DataClassJsonMixin):
         metadata=config(encoder=lambda val: [v.hex() for v in val]),
     )
     por_commitment: Optional[str] = None
-    proprietary: ProprietaryData = field(default_factory=ProprietaryData)
-    unknown: UnknownData = field(default_factory=UnknownData)
+    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
+    unknown: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def deserialize(
@@ -95,8 +100,8 @@ class PsbtIn(DataClassJsonMixin):
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 out.witness_utxo = TxOut.deserialize(value)
             elif key[0:1] == PSBT_IN_PARTIAL_SIG:
-                assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
-                out.partial_signatures.partial_signatures[key[1:].hex()] = value.hex()
+                assert len(key) in (34, 66), f"invalid pubkey length: {len(key)-1}"
+                out.partial_signatures[key[1:].hex()] = value.hex()
             elif key[0:1] == PSBT_IN_SIGHASH_TYPE:
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 assert len(value) == 4
@@ -117,12 +122,18 @@ class PsbtIn(DataClassJsonMixin):
                 assert len(key) == 1, f"invalid key length: {len(key)}"
                 out.witness_script = value
             elif key[0:1] == PSBT_IN_BIP32_DERIVATION:
-                assert len(key) == 33 + 1, f"invalid key length: {len(key)}"
-                out.bip32_derivs.add_hd_keypath(key[1:], value[:4], value[4:])
+                assert len(key) in (34, 66), f"invalid pubkey length: {len(key)-1}"
+                out.bip32_derivs.append(
+                    {
+                        "pubkey": key[1:].hex(),
+                        "master_fingerprint": value[:4].hex(),
+                        "path": str_from_bip32_path(value[4:], "little"),
+                    }
+                )
             elif key[0:1] == PSBT_IN_PROPRIETARY:
-                out.proprietary = ProprietaryData.deserialize(key, value, False)
+                out.proprietary = _deserialize_proprietary(key, value)
             else:  # unknown keys
-                out.unknown.data[key.hex()] = value.hex()
+                out.unknown[key.hex()] = value.hex()
 
         if assert_valid:
             out.assert_valid()
@@ -144,7 +155,7 @@ class PsbtIn(DataClassJsonMixin):
             utxo = self.witness_utxo.serialize()
             out += varint.encode(len(utxo)) + utxo
         if self.partial_signatures:
-            for key, value in self.partial_signatures.partial_signatures.items():
+            for key, value in self.partial_signatures.items():
                 out += b"\x22" + PSBT_IN_PARTIAL_SIG + bytes.fromhex(key)
                 t = bytes.fromhex(value)
                 out += varint.encode(len(t)) + t
@@ -168,12 +179,12 @@ class PsbtIn(DataClassJsonMixin):
             out += b"\x01" + PSBT_IN_POR_COMMITMENT
             c = self.por_commitment.encode("utf-8")
             out += varint.encode(len(c)) + c
-        if self.bip32_derivs.bip32_derivs:
-            out += self.bip32_derivs.serialize(PSBT_IN_BIP32_DERIVATION, assert_valid)
-        if self.proprietary.data:
-            out += self.proprietary.serialize(PSBT_IN_PROPRIETARY, assert_valid)
-        if self.unknown.data:
-            out += self.unknown.serialize(assert_valid)
+        if self.bip32_derivs:
+            out += _serialize_bip32_derivs(self.bip32_derivs, PSBT_IN_BIP32_DERIVATION)
+        if self.proprietary:
+            out += _serialize_proprietary(self.proprietary, PSBT_IN_PROPRIETARY)
+        if self.unknown:
+            out += _serialize_unknown(self.unknown)
 
         return out
 
@@ -182,16 +193,16 @@ class PsbtIn(DataClassJsonMixin):
             self.non_witness_utxo.assert_valid()
         if self.witness_utxo is not None:
             self.witness_utxo.assert_valid()
-        self.partial_signatures.assert_valid()
+        _assert_valid_partial_signatures(self.partial_signatures)
         if self.sighash is not None:
             assert self.sighash in SIGHASHES, f"invalid sighash: {self.sighash}"
         assert isinstance(self.redeem_script, bytes)
         assert isinstance(self.witness_script, bytes)
-        self.bip32_derivs.assert_valid()
+        _assert_valid_bip32_derivs(self.bip32_derivs)
         assert isinstance(self.final_script_sig, bytes)
         assert isinstance(self.final_script_witness, list)
         if self.por_commitment is not None:
             assert self.por_commitment.encode("utf-8")
 
-        self.proprietary.assert_valid()
-        self.unknown.assert_valid()
+        _assert_valid_proprietary(self.proprietary)
+        _assert_valid_unknown(self.unknown)
