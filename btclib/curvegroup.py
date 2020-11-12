@@ -152,19 +152,19 @@ class CurveGroup:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return INF
-        else:
-            Z2 = Q[2] * Q[2]
-            x = Q[0] * mod_inv(Z2, self.p)
-            y = Q[1] * mod_inv(Z2 * Q[2], self.p)
-            return x % self.p, y % self.p
+
+        Z2 = Q[2] * Q[2]
+        x = Q[0] * mod_inv(Z2, self.p)
+        y = Q[1] * mod_inv(Z2 * Q[2], self.p)
+        return x % self.p, y % self.p
 
     def _x_aff_from_jac(self, Q: JacPoint) -> int:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             raise ValueError("infinity point has no x-coordinate")
-        else:
-            Z2 = Q[2] * Q[2]
-            return (Q[0] * mod_inv(Z2, self.p)) % self.p
+
+        Z2 = Q[2] * Q[2]
+        return (Q[0] * mod_inv(Z2, self.p)) % self.p
 
     def _jac_equality(self, QJ: JacPoint, PJ: JacPoint) -> bool:
         """Return True if Jacobian points are equal in affine coordinates.
@@ -175,6 +175,7 @@ class CurveGroup:
         QJ2 = QJ[2] * QJ[2]
         if QJ[0] * PJ2 % self.p != PJ[0] * QJ2 % self.p:
             return False
+
         PJ3 = PJ2 * PJ[2]
         QJ3 = QJ2 * QJ[2]
         return QJ[1] * PJ3 % self.p == PJ[1] * QJ3 % self.p
@@ -273,8 +274,8 @@ class CurveGroup:
         if R[0] == Q[0]:
             if R[1] == Q[1]:  # point doubling
                 return self._double_aff(R)
-            else:  # opposite points
-                return INF
+            # opposite points
+            return INF
 
         lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)
         x = lam * lam - Q[0] - R[0]
@@ -397,10 +398,10 @@ def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     if m == 0:
         return INF
 
-    if (m % 2) == 1:
+    if m % 2 == 1:
         return ec._add_aff(Q, _mult_recursive_aff((m - 1), Q, ec))
-    else:
-        return _mult_recursive_aff((m // 2), ec._double_aff(Q), ec)
+
+    return _mult_recursive_aff((m // 2), ec._double_aff(Q), ec)
 
 
 def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -421,10 +422,10 @@ def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     if m == 0:
         return INFJ
 
-    if (m % 2) == 1:
+    if m % 2 == 1:
         return ec._add_jac(Q, _mult_recursive_jac((m - 1), Q, ec))
-    else:
-        return _mult_recursive_jac((m // 2), ec._double_jac(Q), ec)
+
+    return _mult_recursive_jac((m // 2), ec._double_jac(Q), ec)
 
 
 def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
