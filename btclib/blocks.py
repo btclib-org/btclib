@@ -88,6 +88,8 @@ class BlockHeader(DataClassJsonMixin):
         if int(self.hash, 16) > target:
             raise ValueError("Invalid nonce")
 
+    # TODO: add difficulty and target properties
+
     @property
     def hash(self) -> str:
         return hash256(self.serialize())[::-1].hex()
@@ -133,6 +135,7 @@ class Block(DataClassJsonMixin):
         return out
 
     def assert_valid(self) -> None:
+        assert self.transactions[0].vin[0].prevout.is_coinbase
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
         if _generate_merkle_root(self.transactions) != self.header.merkleroot:
