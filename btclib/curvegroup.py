@@ -180,7 +180,7 @@ class CurveGroup:
         QJ3 = QJ2 * QJ[2]
         return QJ[1] * PJ3 % self.p == PJ[1] * QJ3 % self.p
 
-    # methods using _a, _b, _p
+    # methods using _a, _b, p
 
     def add(self, Q1: Point, Q2: Point) -> Point:
         """Return the sum of two points.

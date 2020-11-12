@@ -137,8 +137,7 @@ def binstr_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinS
     bits = sorted(set(bits))
 
     n_bits = len(bytes_entropy) * 8
-    if n_bits > bits[-1]:
-        n_bits = bits[-1]
+    n_bits = min(n_bits, bits[-1])
 
     if n_bits not in bits:
         m = f"Wrong number of bits: {n_bits} instead of {bits}"

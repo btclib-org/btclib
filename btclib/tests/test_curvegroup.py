@@ -312,7 +312,7 @@ def test_mult_fixed_window() -> None:
 
 
 def test_mult_fixed_window_cached() -> None:
-    for w in range(1, _MAX_W):
+    for _ in range(1, _MAX_W):
         for ec in low_card_curves.values():
             assert ec._jac_equality(_mult_fixed_window_cached(0, ec.GJ, ec), INFJ)
             assert ec._jac_equality(_mult_fixed_window_cached(0, INFJ, ec), INFJ)

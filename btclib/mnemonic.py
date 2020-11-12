@@ -65,13 +65,12 @@ class WordLists:
         if lang not in self.languages:
             if filename is None:
                 raise ValueError(f"Missing file for language '{lang}'")
-            else:
-                # initialize the new language
-                self.languages.append(lang)
-                self.language_files[lang] = filename
-                self._wordlist[lang] = []
-                self._bits_per_word[lang] = 0
-                self._language_length[lang] = 0
+            # initialize the new language
+            self.languages.append(lang)
+            self.language_files[lang] = filename
+            self._wordlist[lang] = []
+            self._bits_per_word[lang] = 0
+            self._language_length[lang] = 0
 
         # language has not been loaded yet
         if self._language_length[lang] == 0:

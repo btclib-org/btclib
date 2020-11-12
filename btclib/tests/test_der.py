@@ -128,8 +128,8 @@ def test_derserialize() -> None:
             with pytest.raises(ValueError, match=err_msg):
                 serialize(*bad_sig, sighash)
 
+        err_msg = "scalar s not in 1..n-1: "
         for s in (0, ec.n):
             bad_sig = sig[0], s
-            err_msg = "scalar s not in 1..n-1: "
             with pytest.raises(ValueError, match=err_msg):
                 serialize(*bad_sig, sighash)

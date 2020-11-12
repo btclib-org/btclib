@@ -47,12 +47,12 @@ def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:
     as strict ASN.1 DER binary representation.
     """
 
-    if isinstance(sig, tuple):
-        r, s = sig
-        _validate_sig(r, s, ec)
-        return r, s
-    else:
+    if not isinstance(sig, tuple):
         return der.deserialize(sig, ec)[0:2]
+
+    r, s = sig
+    _validate_sig(*sig, ec)
+    return r, s
 
 
 def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
