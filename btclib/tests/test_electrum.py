@@ -54,12 +54,12 @@ def test_mnemonic() -> None:
             bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
 
     mnemonic = "slender flight session office noodle hand couple option office wait uniform morning"
-    assert "2fa_segwit" == electrum.version_from_mnemonic(mnemonic)[0]
+    assert electrum.version_from_mnemonic(mnemonic)[0] == "2fa_segwit"
 
     mnemonic = (
         "history recycle company awful donor fold beef nominee hard bleak bracket six"
     )
-    assert "2fa" == electrum.version_from_mnemonic(mnemonic)[0]
+    assert electrum.version_from_mnemonic(mnemonic)[0] == "2fa"
 
 
 def test_vectors() -> None:
