@@ -14,8 +14,6 @@
 [![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
 [![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib)
 
-* * *
-
 [btclib](https://btclib.org) is a
 Python3 [type annotated](https://docs.python.org/3/library/typing.html)
 library intended for teaching, learning, and using bitcoin,
