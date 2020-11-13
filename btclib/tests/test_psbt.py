@@ -10,6 +10,9 @@
 
 "Tests for `btclib.psbt` module"
 
+import json
+from os import path
+
 import pytest
 
 from btclib.psbt import (
@@ -485,22 +488,19 @@ def test_dataclasses_json_dict():
     assert isinstance(psbt_dict, dict)
     assert psbt_data == Psbt.from_dict(psbt_dict)
 
-    import json
-    from os import path
-
     datadir = path.join(path.dirname(__file__), "generated_files")
 
     filename = path.join(datadir, "psbt_in.json")
-    with open(filename, "w") as f:
-        json.dump(psbt_in_dict, f, indent=4)
+    with open(filename, "w") as file_:
+        json.dump(psbt_in_dict, file_, indent=4)
 
     filename = path.join(datadir, "psbt_out.json")
-    with open(filename, "w") as f:
-        json.dump(psbt_out_dict, f, indent=4)
+    with open(filename, "w") as file_:
+        json.dump(psbt_out_dict, file_, indent=4)
 
     filename = path.join(datadir, "psbt.json")
-    with open(filename, "w") as f:
-        json.dump(psbt_dict, f, indent=4)
+    with open(filename, "w") as file_:
+        json.dump(psbt_dict, file_, indent=4)
 
 
 # proprietary or unknown ?!?
