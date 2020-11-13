@@ -60,18 +60,17 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
 
     if isinstance(key, tuple):
         return point_from_pubkey(key, ec)
-    elif isinstance(key, int):
+    if isinstance(key, int):
         q, _, _ = prvkeyinfo_from_prvkey(key)
         return mult(q, ec.G, ec)
+    try:
+        q, net, _ = prvkeyinfo_from_prvkey(key)
+    except Exception:
+        pass
     else:
-        try:
-            q, net, _ = prvkeyinfo_from_prvkey(key)
-        except Exception:
-            pass
-        else:
-            if ec != NETWORKS[net].curve:
-                raise ValueError("Curve mismatch")
-            return mult(q, ec.G, ec)
+        if ec != NETWORKS[net].curve:
+            raise ValueError("Curve mismatch")
+        return mult(q, ec.G, ec)
 
     return point_from_pubkey(key, ec)
 
@@ -83,13 +82,12 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
         if ec.is_on_curve(pubkey) and pubkey[1] != 0:
             return pubkey
         raise ValueError(f"not a valid public key: {pubkey}")
-    elif isinstance(pubkey, BIP32KeyData):
+    if isinstance(pubkey, BIP32KeyData):
         return _point_from_xpub(pubkey, ec)
-    else:
-        try:
-            return _point_from_xpub(pubkey, ec)
-        except Exception:
-            pass
+    try:
+        return _point_from_xpub(pubkey, ec)
+    except Exception:
+        pass
 
     # it must be octets
     try:
@@ -152,13 +150,12 @@ def pubkeyinfo_from_key(
 
     if isinstance(key, tuple):
         return pubkeyinfo_from_pubkey(key, network, compressed)
-    elif isinstance(key, int):
+    if isinstance(key, int):
         return pubkeyinfo_from_prvkey(key, network, compressed)
-    else:
-        try:
-            return pubkeyinfo_from_pubkey(key, network, compressed)
-        except Exception:
-            pass
+    try:
+        return pubkeyinfo_from_pubkey(key, network, compressed)
+    except Exception:
+        pass
 
     # it must be a prvkey
     try:
@@ -185,13 +182,12 @@ def pubkeyinfo_from_pubkey(
 
     if isinstance(pubkey, tuple):
         return bytes_from_point(pubkey, ec, compr), net
-    elif isinstance(pubkey, BIP32KeyData):
+    if isinstance(pubkey, BIP32KeyData):
         return _pubkeyinfo_from_xpub(pubkey, network, compressed)
-    else:
-        try:
-            return _pubkeyinfo_from_xpub(pubkey, network, compressed)
-        except Exception:
-            pass
+    try:
+        return _pubkeyinfo_from_xpub(pubkey, network, compressed)
+    except Exception:
+        pass
 
     # it must be octets
     try:

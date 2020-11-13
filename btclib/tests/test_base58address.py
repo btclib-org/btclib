@@ -100,7 +100,7 @@ def test_p2pkh_from_pubkey() -> None:
 
 def test_p2sh() -> None:
     # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
-    scriptPubKey: List[ScriptToken] = [
+    script_pubkey: List[ScriptToken] = [
         "OP_2DUP",
         "OP_EQUAL",
         "OP_NOT",
@@ -110,16 +110,16 @@ def test_p2sh() -> None:
         "OP_SHA1",
         "OP_EQUAL",
     ]
-    assert script.serialize(scriptPubKey).hex() == "6e879169a77ca787"
+    assert script.serialize(script_pubkey).hex() == "6e879169a77ca787"
 
     network = "mainnet"
-    addr = p2sh(scriptPubKey, network)
+    addr = p2sh(script_pubkey, network)
     assert addr == b"37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
 
     _, redeem_script_hash, network2, is_script_hash = h160_from_b58address(addr)
     assert network == network2
     assert is_script_hash
-    assert redeem_script_hash == hash160(script.serialize(scriptPubKey))
+    assert redeem_script_hash == hash160(script.serialize(script_pubkey))
 
     assert redeem_script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     output_script: List[ScriptToken] = [
@@ -146,15 +146,15 @@ def test_p2w_p2sh() -> None:
     b58addr2 = b58address_from_witness(h160pubkey, network)
     assert b58addr2 == b58addr
 
-    scriptPubKey: List[ScriptToken] = [
+    script_pubkey: List[ScriptToken] = [
         "OP_DUP",
         "OP_HASH160",
         h160pubkey,
         "OP_EQUALVERIFY",
         "OP_CHECKSIG",
     ]
-    h256script = hash256_from_script(scriptPubKey)
-    b58addr = p2wsh_p2sh(scriptPubKey, network)
+    h256script = hash256_from_script(script_pubkey)
+    b58addr = p2wsh_p2sh(script_pubkey, network)
     b58addr2 = b58address_from_witness(h256script, network)
     assert b58addr2 == b58addr
 

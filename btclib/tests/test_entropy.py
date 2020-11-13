@@ -189,7 +189,7 @@ def test_collect_rolls(monkeypatch):
         bits_per_roll = math.floor(math.log2(sides))
         base = 2 ** bits_per_roll
         for roll in dice_rolls:
-            assert roll > 0 and roll <= base
+            assert 0 < roll <= base
         min_roll_number = math.ceil(bits / bits_per_roll)
         assert len(dice_rolls) == min_roll_number
 

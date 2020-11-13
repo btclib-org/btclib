@@ -197,14 +197,14 @@ def payload_from_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]
     ):
         return "p2pk", scriptPubKey[1:-1], 0
     # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
-    elif scriptPubKey[-1] == 0xAE:
+    if scriptPubKey[-1] == 0xAE:
         return payload_from_pms_scriptPubKey(scriptPubKey)
     # nulldata [OP_RETURN, data]
-    elif length <= 83 and scriptPubKey[0] == 0x6A:
+    if length <= 83 and scriptPubKey[0] == 0x6A:
         return payload_from_nulldata_scriptPubKey(scriptPubKey)
     # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
     # 0x76A914{20-byte pubkey_hash}88AC
-    elif (
+    if (
         length == 25
         and scriptPubKey[:3] == b"\x76\xa9\x14"
         and scriptPubKey[-2:] == b"\x88\xac"
@@ -212,23 +212,22 @@ def payload_from_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]
         return "p2pkh", scriptPubKey[3 : length - 2], 0
     # p2sh [OP_HASH160, script_hash, OP_EQUAL]
     # 0xA914{20-byte script_hash}87
-    elif length == 23 and scriptPubKey[:2] == b"\xa9\x14" and scriptPubKey[-1] == 0x87:
+    if length == 23 and scriptPubKey[:2] == b"\xa9\x14" and scriptPubKey[-1] == 0x87:
         return "p2sh", scriptPubKey[2 : length - 1], 0
     # p2wpkh [0, pubkey_hash]
     # 0x0014{20-byte pubkey_hash}
-    elif length == 22 and scriptPubKey[:2] == b"\x00\x14":
+    if length == 22 and scriptPubKey[:2] == b"\x00\x14":
         return "p2wpkh", scriptPubKey[2:], 0
     # p2wsh [0, script_hash]
     # 0x0020{32-byte script_hash}
-    elif length == 34 and scriptPubKey[:2] == b"\x00\x20":
+    if length == 34 and scriptPubKey[:2] == b"\x00\x20":
         return "p2wsh", scriptPubKey[2:], 0
     # Unknow scriptPubKey
-    else:
-        raise ValueError(
-            f"unknown scriptPubKey: {len(scriptPubKey)}-bytes length"
-            f"; starts with {scriptPubKey[:3].hex()}"
-            f", ends with {scriptPubKey[-2:].hex()}: {deserialize(scriptPubKey)}"
-        )
+    raise ValueError(
+        f"unknown scriptPubKey: {len(scriptPubKey)}-bytes length"
+        f"; starts with {scriptPubKey[:3].hex()}"
+        f", ends with {scriptPubKey[-2:].hex()}: {deserialize(scriptPubKey)}"
+    )
 
 
 # 1.+2. = 3. scriptPubKey from pubkey/script

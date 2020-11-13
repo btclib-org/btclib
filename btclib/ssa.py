@@ -465,7 +465,8 @@ def _batch_verify(
         raise ValueError(errMsg)
 
     if batch_size < 2:
-        return _assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)
+        _assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)
+        return
 
     # BIP340 is defined for curves whose field prime p = 3 % 4
     ec.require_p_ThreeModFour()

@@ -72,18 +72,18 @@ def test_exceptions() -> None:
 
     msg = "test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
-    p2pkh = base58address.p2pkh(wif)
-    p2wpkh = bech32address.p2wpkh(wif)
-    p2wpkh_p2sh = base58address.p2wpkh_p2sh(wif)
+    b58_p2pkh = base58address.p2pkh(wif)
+    b58_p2wpkh = bech32address.p2wpkh(wif)
+    b58_p2wpkh_p2sh = base58address.p2wpkh_p2sh(wif)
 
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     err_msg = "mismatch between private key and address"
     with pytest.raises(ValueError, match=err_msg):
-        bms.sign(msg, wif, p2pkh)
+        bms.sign(msg, wif, b58_p2pkh)
     with pytest.raises(ValueError, match=err_msg):
-        bms.sign(msg, wif, p2wpkh)
+        bms.sign(msg, wif, b58_p2wpkh)
     with pytest.raises(ValueError, match=err_msg):
-        bms.sign(msg, wif, p2wpkh_p2sh)
+        bms.sign(msg, wif, b58_p2wpkh_p2sh)
 
     # Invalid recovery flag (39) for base58 address
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
@@ -91,7 +91,7 @@ def test_exceptions() -> None:
     sig = bms.encode(39, r, s)
     err_msg = "invalid recovery flag: "
     with pytest.raises(ValueError, match=err_msg):
-        bms.assert_as_valid(msg, p2pkh, sig)
+        bms.assert_as_valid(msg, b58_p2pkh, sig)
 
     # Invalid recovery flag (35) for bech32 address
     exp_sig = "IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
@@ -99,7 +99,7 @@ def test_exceptions() -> None:
     sig = bms.encode(35, r, s)
     err_msg = "invalid recovery flag: "
     with pytest.raises(ValueError, match=err_msg):
-        bms.assert_as_valid(msg, p2wpkh, sig)
+        bms.assert_as_valid(msg, b58_p2wpkh, sig)
 
 
 @pytest.mark.sixth

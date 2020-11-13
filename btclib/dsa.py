@@ -390,7 +390,7 @@ def crack_prvkey(
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    m1 = reduce_to_hlen(msg1, hf)
-    m2 = reduce_to_hlen(msg2, hf)
+    reduced_msg1 = reduce_to_hlen(msg1, hf)
+    reduced_msg2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prvkey(m1, sig1, m2, sig2, ec, hf)
+    return _crack_prvkey(reduced_msg1, sig1, reduced_msg2, sig2, ec, hf)
