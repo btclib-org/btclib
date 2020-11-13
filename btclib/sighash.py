@@ -10,10 +10,10 @@
 
 from typing import List, Union
 
-from . import script, tx, tx_out, varint
+from . import script, tx, tx_out, varbytes
 from .alias import Octets, Script, ScriptToken
 from .scriptpubkey import payload_from_scriptPubKey
-from .utils import bytes_from_octets, hash256
+from .utils import hash256
 
 
 # workaround to handle CTransactions
@@ -54,8 +54,6 @@ def segwit_v0_sighash(
     else:
         hashOutputs = b"\x00" * 32
 
-    scriptCode = bytes_from_octets(scriptCode)
-
     outpoint = _get_bytes(transaction.vin[input_index].prevout.txid)[::-1]
     outpoint += transaction.vin[input_index].prevout.vout.to_bytes(4, "little")
 
@@ -63,7 +61,7 @@ def segwit_v0_sighash(
     preimage += hashPrevouts
     preimage += hashSequence
     preimage += outpoint
-    preimage += varint.encode(len(scriptCode)) + scriptCode
+    preimage += varbytes.encode(scriptCode)
     preimage += amount.to_bytes(8, "little")  # value
     preimage += transaction.vin[input_index].sequence.to_bytes(4, "little")
     preimage += hashOutputs

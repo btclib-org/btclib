@@ -18,7 +18,7 @@ from typing import Dict, List, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import dsa, secpoint, varbytes, varint
+from . import dsa, secpoint, varbytes
 from .bip32 import str_from_bip32_path
 from .psbt_out import (
     _assert_valid_bip32_derivs,
@@ -148,12 +148,10 @@ class PsbtIn(DataClassJsonMixin):
 
         if self.non_witness_utxo:
             out += b"\x01" + PSBT_IN_NON_WITNESS_UTXO
-            utxo = self.non_witness_utxo.serialize()
-            out += varint.encode(len(utxo)) + utxo
+            out += varbytes.encode(self.non_witness_utxo.serialize())
         if self.witness_utxo:
             out += b"\x01" + PSBT_IN_WITNESS_UTXO
-            utxo = self.witness_utxo.serialize()
-            out += varint.encode(len(utxo)) + utxo
+            out += varbytes.encode(self.witness_utxo.serialize())
         if self.partial_signatures:
             for key, value in self.partial_signatures.items():
                 out += varbytes.encode(PSBT_IN_PARTIAL_SIG + bytes.fromhex(key))
@@ -169,11 +167,11 @@ class PsbtIn(DataClassJsonMixin):
             out += varbytes.encode(self.witness_script)
         if self.final_script_sig:
             out += b"\x01" + PSBT_IN_FINAL_SCRIPTSIG
-            out += varint.encode(len(self.final_script_sig)) + self.final_script_sig
+            out += varbytes.encode(self.final_script_sig)
         if self.final_script_witness:
             out += b"\x01" + PSBT_IN_FINAL_SCRIPTWITNESS
             wit = witness_serialize(self.final_script_witness)
-            out += varint.encode(len(wit)) + wit
+            out += varbytes.encode(wit)
         if self.por_commitment:
             out += b"\x01" + PSBT_IN_POR_COMMITMENT
             out += varbytes.encode(self.por_commitment.encode("utf-8"))

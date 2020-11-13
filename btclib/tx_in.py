@@ -13,7 +13,7 @@ from typing import List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varint
+from . import varbytes, varint
 from .alias import BinaryData
 from .utils import bytesio_from_binarydata
 
@@ -102,7 +102,7 @@ class TxIn(DataClassJsonMixin):
 
         prevout = OutPoint.deserialize(stream)
 
-        scriptSig = stream.read(varint.decode(stream))
+        scriptSig = varbytes.decode(stream)
 
         # 4 bytes, little endian, interpreted as int
         sequence = int.from_bytes(stream.read(4), "little")
@@ -123,7 +123,7 @@ class TxIn(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.prevout.serialize()
-        out += varint.encode(len(self.scriptSig)) + self.scriptSig
+        out += varbytes.encode(self.scriptSig)
         out += self.sequence.to_bytes(4, "little")
         return out
 
@@ -135,9 +135,9 @@ class TxIn(DataClassJsonMixin):
 def witness_deserialize(data: BinaryData) -> List[bytes]:
     stream = bytesio_from_binarydata(data)
     n = varint.decode(stream)
-    return [stream.read(varint.decode(stream)) for _ in range(n)]
+    return [varbytes.decode(stream) for _ in range(n)]
 
 
 def witness_serialize(witness: List[bytes]) -> bytes:
     out = varint.encode(len(witness))
-    return out + b"".join([(varint.encode(len(w)) + w) for w in witness])
+    return out + b"".join([varbytes.encode(w) for w in witness])

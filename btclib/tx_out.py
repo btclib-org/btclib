@@ -13,7 +13,7 @@ from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varint
+from . import varbytes
 from .alias import BinaryData
 from .utils import bytesio_from_binarydata
 
@@ -55,7 +55,7 @@ class TxOut(DataClassJsonMixin):
         # 8 bytes, little endian, interpreted as int
         value = int.from_bytes(stream.read(8), "little")
 
-        scriptPubKey = stream.read(varint.decode(stream))
+        scriptPubKey = varbytes.decode(stream)
 
         tx_out = cls(value=value, scriptPubKey=scriptPubKey)
         if assert_valid:
@@ -68,7 +68,7 @@ class TxOut(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.value.to_bytes(8, "little")
-        out += varint.encode(len(self.scriptPubKey)) + self.scriptPubKey
+        out += varbytes.encode(self.scriptPubKey)
         return out
 
     def assert_valid(self) -> None:
