@@ -97,9 +97,8 @@ def mod_sqrt(a: int, p: int) -> int:
         r = pow(a, (p >> 3) + 1, p)
         if r * r % p == a:
             return r
-        else:
-            # another inverse candidate
-            r = r * pow(2, p >> 2, p) % p
+        # another inverse candidate
+        r = r * pow(2, p >> 2, p) % p
     else:
         return tonelli(a, p)
 

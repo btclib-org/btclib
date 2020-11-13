@@ -270,25 +270,25 @@ def _op_pushdata(data: Octets) -> bytes:
 def _op_int(token: int) -> bytes:
     # Short 1-byte opcodes exist
     # to push numbers in [-1, 16]
-    if token >= 0 and token <= 16:
+    if 0 <= token <= 16:
         return OP_CODES["OP_" + str(token)]
-    elif token == -1:
+    if token == -1:
         return OP_CODES["OP_1NEGATE"]
     # Pushing any other number requires an
     # explicit push operation of its bytes encoding
     # FIXME: negative numbers?
-    else:
-        v = token
-        # Convert number to bitcoin-specific little endian format
-        # We need v.bit_length() bits, plus a sign bit for every nonzero number.
-        n_bits = v.bit_length() + (v != 0)
-        # The number of bytes for that is:
-        n_bytes = (n_bits + 7) // 8
-        # Convert number to absolute value + sign in top bit.
-        encoded_v = 0 if v == 0 else abs(v) | ((v < 0) << (n_bytes * 8 - 1))
-        # Serialize to bytes
-        data = encoded_v.to_bytes(n_bytes, "little")
-        return _op_pushdata(data)
+
+    v = token
+    # Convert number to bitcoin-specific little endian format
+    # We need v.bit_length() bits, plus a sign bit for every nonzero number.
+    n_bits = v.bit_length() + (v != 0)
+    # The number of bytes for that is:
+    n_bytes = (n_bits + 7) // 8
+    # Convert number to absolute value + sign in top bit.
+    encoded_v = 0 if v == 0 else abs(v) | ((v < 0) << (n_bytes * 8 - 1))
+    # Serialize to bytes
+    data = encoded_v.to_bytes(n_bytes, "little")
+    return _op_pushdata(data)
 
 
 def _op_str(token: str) -> bytes:
@@ -335,7 +335,7 @@ def deserialize(stream: BinaryData) -> List[ScriptToken]:
         elif i == 79:
             # numeric value -1 (OP_1NEGATE)
             r.append(-1)
-        elif i > 80 and i < 97:
+        elif 80 < i < 97:
             # numeric values 1-16 (OP_1-OP_16)
             # r.append(OP_CODE_NAMES[i])
             r.append(i - 80)

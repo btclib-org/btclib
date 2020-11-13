@@ -179,9 +179,7 @@ def test_p2pk() -> None:
     assert scriptPubKey == p2pk(pubkey).hex()
 
     # invalid size: 34 bytes instead of (33, 65)
-    pubkey = (  # fmt: off
-        "03" "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414" "14"
-    )  # fmt: on
+    pubkey = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 14"
     err_msg = "not a private or public key: "
     with pytest.raises(ValueError, match=err_msg):
         p2pk(pubkey)

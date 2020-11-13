@@ -179,9 +179,8 @@ def token_or_string_to_hex_string(val: Union[ScriptToken, String]) -> str:
     """
     if isinstance(val, bytes):
         return val.hex()
-    elif isinstance(val, int):
+    if isinstance(val, int):
         return str(val)
-
     return val
 
 

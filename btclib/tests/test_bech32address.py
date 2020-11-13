@@ -182,7 +182,7 @@ def test_b32address_from_witness() -> None:
     wv, wp, network, _ = witness_from_b32address(addr_str)
     assert b32address_from_witness(wv, wp, network) == addr_str.encode()
 
-    wp_ints = [i for i in wp]
+    wp_ints = list(wp)
     wp_ints[0] = -1
     with pytest.raises(ValueError, match="invalid value in _convertbits: "):
         _convertbits(wp_ints, 8, 5)

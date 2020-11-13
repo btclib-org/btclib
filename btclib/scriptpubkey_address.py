@@ -34,14 +34,12 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
             raise ValueError(f"unmanaged witness version: {wv}")
         if is_script_hash:
             return script_pubkey_from_payload("p2wsh", wp), network
-        else:
-            return script_pubkey_from_payload("p2wpkh", wp), network
+        return script_pubkey_from_payload("p2wpkh", wp), network
     else:
         _, h160, network, is_p2sh = h160_from_b58address(addr)
         if is_p2sh:
             return script_pubkey_from_payload("p2sh", h160), network
-        else:
-            return script_pubkey_from_payload("p2pkh", h160), network
+        return script_pubkey_from_payload("p2pkh", h160), network
 
 
 def address_from_scriptPubKey(scriptPubKey: Script, network: str = "mainnet") -> bytes:

@@ -67,7 +67,7 @@ def _index_int_from_str(s: str) -> int:
         hardened = True
 
     index = int(s)
-    if not (0 <= index < 0x80000000):
+    if not 0 <= index < 0x80000000:
         raise ValueError(f"invalid index: {index}")
     return index + (0x80000000 if hardened else 0)
 
@@ -270,12 +270,11 @@ def mxprv_from_electrum_mnemonic(
     if version == "standard":
         xversion = _XPRV_PREFIXES[network_index]
         return rootxprv_from_seed(seed, xversion)
-    elif version == "segwit":
+    if version == "segwit":
         xversion = _P2WPKH_PRV_PREFIXES[network_index]
         rootxprv = rootxprv_from_seed(seed, xversion)
         return derive(rootxprv, 0x80000000)  # "m/0h"
-    else:
-        raise ValueError(f"unmanaged electrum mnemonic version: {version}")
+    raise ValueError(f"unmanaged electrum mnemonic version: {version}")
 
 
 BIP32Key = Union[BIP32KeyData, String]
@@ -492,12 +491,10 @@ def _derive_from_account(
 
     if more_than_two_branches and branch >= 0x80000000:
         raise ValueError("invalid private derivation at branch level")
-    elif branch not in (0, 1):
+    if branch not in (0, 1):
         raise ValueError(f"invalid branch: {branch} not in (0, 1)")
-
     if address_index >= 0x80000000:
         raise ValueError("invalid private derivation at address index level")
-
     if not key_data.is_hardened:
         raise UserWarning("public derivation at account level")
 
