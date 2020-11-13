@@ -66,10 +66,10 @@ def test_vectors() -> None:
     fname = "electrum_test_vectors.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
     with open(filename, "r") as file_:
-        test_vectors = json.load(file_)
+        electrum_test_vectors = json.load(file_)
 
     lang = "en"
-    for mnemonic, passphrase, rmxprv, rmxpub, address in test_vectors:
+    for (mnemonic, passphrase, rmxprv, rmxpub, address) in electrum_test_vectors:
         if mnemonic != "":
             mxprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
             assert mxprv2 == rmxprv.encode()
