@@ -94,13 +94,12 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> str:
     WIF/Base58Address/BIP32xkey
     because the two networks share the same prefixes.
     """
-    for net in NETWORKS:
-        if getattr(NETWORKS[net], key) == prefix:
-            return net
+    for network in NETWORKS:
+        if getattr(NETWORKS[network], key) == prefix:
+            return network
     raise ValueError(f"invalid value for network keyword '{key}': {prefix!r}")
 
 
-_NETWORKS = [net for net in NETWORKS]
 _P2PKH_PREFIXES = [NETWORKS[net].p2pkh for net in NETWORKS]
 _P2SH_PREFIXES = [NETWORKS[net].p2sh for net in NETWORKS]
 
@@ -142,6 +141,7 @@ _XPUB_VERSIONS_ALL = (
     xpubversions_from_network("mainnet") + xpubversions_from_network("testnet") * 2
 )
 n_versions = len(xprvversions_from_network("mainnet"))
+_NETWORKS = [net for net in NETWORKS]
 _REPEATED_NETWORKS = (
     [_NETWORKS[0]] * n_versions
     + [_NETWORKS[1]] * n_versions

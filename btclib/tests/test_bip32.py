@@ -226,8 +226,8 @@ def test_bip39_vectors() -> None:
     https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
     """
     filename = path.join(data_folder, "bip39_test_vectors.json")
-    with open(filename, "r") as f:
-        test_vectors = json.load(f)["english"]
+    with open(filename, "r") as file_:
+        test_vectors = json.load(file_)["english"]
 
     # test_vector[0] and [1], i.e. entropy and mnemonic, are tested in bip39
     for _, _, seed, key in test_vectors:
@@ -240,8 +240,8 @@ def test_bip32_vectors() -> None:
     https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
     """
     filename = path.join(data_folder, "bip32_test_vectors.json")
-    with open(filename, "r") as f:
-        test_vectors = json.load(f)
+    with open(filename, "r") as file_:
+        test_vectors = json.load(file_)
 
     for seed in test_vectors:
         mxprv = rootxprv_from_seed(seed)
@@ -253,8 +253,8 @@ def test_bip32_vectors() -> None:
 def test_invalid_bip32_xkeys() -> None:
 
     filename = path.join(data_folder, "bip32_invalid_keys.json")
-    with open(filename, "r") as f:
-        test_vectors = json.load(f)
+    with open(filename, "r") as file_:
+        test_vectors = json.load(file_)
 
     for xkey, err_msg in test_vectors:
         with pytest.raises(ValueError, match=err_msg):

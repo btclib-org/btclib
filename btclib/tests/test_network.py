@@ -10,6 +10,9 @@
 
 "Tests for `btclib.network` module."
 
+import json
+from os import path
+
 import pytest
 
 from btclib.network import (
@@ -51,9 +54,6 @@ def test_dataclasses_json_dict() -> None:
         assert net2 == net
         net2 = Network.from_dict(net.to_dict())
         assert net2 == net
-
-    import json
-    from os import path
 
     datadir = path.join(path.dirname(__file__), "generated_files")
     filename = path.join(datadir, "mainnet.json")

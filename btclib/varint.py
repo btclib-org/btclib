@@ -42,15 +42,14 @@ def decode(stream: BinaryData) -> int:
     if i < 0xFD:
         # one byte integer
         return i
-    elif i == 0xFD:
+    if i == 0xFD:
         # 0xfd marks the next two bytes as the number
         return int.from_bytes(stream.read(2), byteorder="little")
-    elif i == 0xFE:
+    if i == 0xFE:
         # 0xfe marks the next four bytes as the number
         return int.from_bytes(stream.read(4), byteorder="little")
-    else:
-        # 0xff marks the next eight bytes as the number
-        return int.from_bytes(stream.read(8), byteorder="little")
+    # 0xff marks the next eight bytes as the number
+    return int.from_bytes(stream.read(8), byteorder="little")
 
 
 def encode(i: int) -> bytes:
@@ -58,13 +57,12 @@ def encode(i: int) -> bytes:
 
     if i < 0x00:
         raise ValueError(f"negative integer: {i}")
-    elif i < 0xFD:  # 1 byte
+    if i < 0xFD:  # 1 byte
         return bytes([i])
-    elif i <= 0xFFFF:  # 2 bytes
+    if i <= 0xFFFF:  # 2 bytes
         return b"\xFD" + i.to_bytes(2, byteorder="little")
-    elif i <= 0xFFFFFFFF:  # 4 bytes
+    if i <= 0xFFFFFFFF:  # 4 bytes
         return b"\xFE" + i.to_bytes(4, byteorder="little")
-    elif i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
+    if i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
         return b"\xFF" + i.to_bytes(8, byteorder="little")
-    else:
-        raise ValueError(f"integer too big for varint encoding: '{hex_string(i)}'")
+    raise ValueError(f"integer too big for varint encoding: '{hex_string(i)}'")

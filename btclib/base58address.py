@@ -24,7 +24,7 @@ from .network import (
     NETWORKS,
     network_from_key_value,
 )
-from .scriptpubkey import scriptPubKey_from_payload
+from .scriptpubkey import script_pubkey_from_payload
 from .to_pubkey import Key
 from .utils import bytes_from_octets
 
@@ -93,9 +93,9 @@ def b58address_from_witness(wp: Octets, network: str = "mainnet") -> bytes:
 
     length = len(wp)
     if length == 20:
-        redeem_script = scriptPubKey_from_payload("p2wpkh", wp)
+        redeem_script = script_pubkey_from_payload("p2wpkh", wp)
     elif length == 32:
-        redeem_script = scriptPubKey_from_payload("p2wsh", wp)
+        redeem_script = script_pubkey_from_payload("p2wsh", wp)
     else:
         err_msg = "invalid witness program length for witness version zero: "
         err_msg += f"{length} instead of 20 or 32"

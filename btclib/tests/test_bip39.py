@@ -56,12 +56,12 @@ def test_vectors() -> None:
     """
     fname = "bip39_test_vectors.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
-    with open(filename, "r") as f:
-        test_vectors = json.load(f)["english"]
+    with open(filename, "r") as file_:
+        bip39_test_vectors = json.load(file_)["english"]
 
     lang = "en"
     # test_vector[3], i.e. the bip32 master private key, is tested in bip32
-    for entr, mnemonic, seed, _ in test_vectors:
+    for entr, mnemonic, seed, _ in bip39_test_vectors:
         entropy = bytes.fromhex(entr)
         # clean up mnemonic from spurious whitespaces
         mnemonic = " ".join(mnemonic.split())

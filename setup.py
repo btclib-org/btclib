@@ -2,8 +2,8 @@ from setuptools import find_packages, setup  # type: ignore
 
 import btclib
 
-with open("README.md", "r") as fh:
-    longdescription = fh.read()
+with open("README.md", "r") as file_:
+    longdescription = file_.read()
 
 setup(
     name=btclib.name,

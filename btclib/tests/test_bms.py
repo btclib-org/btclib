@@ -488,8 +488,8 @@ def test_vector_python_bitcoinlib() -> None:
 
     fname = "bms.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
-    with open(filename, "r") as f:
-        test_vectors = json.load(f)
+    with open(filename, "r") as file_:
+        test_vectors = json.load(file_)
 
     for vector in test_vectors[:5]:
         msg = vector["address"]

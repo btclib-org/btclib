@@ -50,8 +50,8 @@ def test_rfc6979_tv() -> None:
 
     fname = "rfc6979.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
-    with open(filename, "r") as f:
-        test_dict = json.load(f)
+    with open(filename, "r") as file_:
+        test_dict = json.load(file_)
 
     for ec_name in test_dict:
         ec = CURVES[ec_name]

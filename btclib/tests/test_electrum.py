@@ -65,8 +65,8 @@ def test_mnemonic() -> None:
 def test_vectors() -> None:
     fname = "electrum_test_vectors.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
-    with open(filename, "r") as f:
-        test_vectors = json.load(f)
+    with open(filename, "r") as file_:
+        test_vectors = json.load(file_)
 
     lang = "en"
     for mnemonic, passphrase, rmxprv, rmxpub, address in test_vectors:

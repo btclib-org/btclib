@@ -14,7 +14,7 @@ from .alias import Script, String
 from .base58address import b58address_from_h160, h160_from_b58address
 from .bech32address import b32address_from_witness, witness_from_b32address
 from .network import NETWORKS
-from .scriptpubkey import payload_from_scriptPubKey, scriptPubKey_from_payload
+from .scriptpubkey import payload_from_scriptPubKey, script_pubkey_from_payload
 from .tx_out import TxOut
 
 
@@ -33,15 +33,15 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
         if wv != 0:
             raise ValueError(f"unmanaged witness version: {wv}")
         if is_script_hash:
-            return scriptPubKey_from_payload("p2wsh", wp), network
+            return script_pubkey_from_payload("p2wsh", wp), network
         else:
-            return scriptPubKey_from_payload("p2wpkh", wp), network
+            return script_pubkey_from_payload("p2wpkh", wp), network
     else:
         _, h160, network, is_p2sh = h160_from_b58address(addr)
         if is_p2sh:
-            return scriptPubKey_from_payload("p2sh", h160), network
+            return script_pubkey_from_payload("p2sh", h160), network
         else:
-            return scriptPubKey_from_payload("p2pkh", h160), network
+            return script_pubkey_from_payload("p2pkh", h160), network
 
 
 def address_from_scriptPubKey(scriptPubKey: Script, network: str = "mainnet") -> bytes:

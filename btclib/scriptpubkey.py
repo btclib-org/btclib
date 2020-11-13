@@ -29,7 +29,7 @@ from .utils import bytes_from_octets
 # 2. scriptPubKey from Hash/WitnessProgram and vice versa
 
 
-def scriptPubKey_from_payload(
+def script_pubkey_from_payload(
     s_type: str,
     payloads: Union[Octets, List[Octets]],
     m: int = 0,
@@ -117,7 +117,7 @@ def scriptPubKey_from_payload(
 Payloads = Union[bytes, List[bytes]]
 
 
-def payload_from_nulldata_scriptPubKey(
+def payload_from_nulldata_script_pubkey(
     scriptPubKey: Script,
 ) -> Tuple[str, Payloads, int]:
     scriptPubKey = (
@@ -201,7 +201,7 @@ def payload_from_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]
         return payload_from_pms_scriptPubKey(scriptPubKey)
     # nulldata [OP_RETURN, data]
     if length <= 83 and scriptPubKey[0] == 0x6A:
-        return payload_from_nulldata_scriptPubKey(scriptPubKey)
+        return payload_from_nulldata_script_pubkey(scriptPubKey)
     # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
     # 0x76A914{20-byte pubkey_hash}88AC
     if (
@@ -237,7 +237,7 @@ def p2pk(key: Key) -> bytes:
     "Return the p2pk scriptPubKey of the provided pubkey."
 
     payload, _ = pubkeyinfo_from_key(key)
-    return scriptPubKey_from_payload("p2pk", payload)
+    return script_pubkey_from_payload("p2pk", payload)
 
 
 def p2ms(
@@ -249,7 +249,7 @@ def p2ms(
     "Return the m-of-n multi-sig scriptPubKey of the provided keys."
 
     pk: List[Octets] = [pubkeyinfo_from_key(p, compressed=compressed)[0] for p in keys]
-    return scriptPubKey_from_payload("p2ms", pk, m, lexicographic_sort)
+    return script_pubkey_from_payload("p2ms", pk, m, lexicographic_sort)
 
 
 def nulldata(data: String) -> bytes:
@@ -257,21 +257,21 @@ def nulldata(data: String) -> bytes:
 
     if isinstance(data, str):
         data = data.encode()
-    return scriptPubKey_from_payload("nulldata", data)
+    return script_pubkey_from_payload("nulldata", data)
 
 
 def p2pkh(key: Key, compressed: Optional[bool] = None) -> bytes:
     "Return the p2pkh scriptPubKey of the provided key."
 
     pubkey_h160, _ = hash160_from_key(key, compressed=compressed)
-    return scriptPubKey_from_payload("p2pkh", pubkey_h160)
+    return script_pubkey_from_payload("p2pkh", pubkey_h160)
 
 
 def p2sh(redeem_script: Script) -> bytes:
     "Return the p2sh scriptPubKey of the provided redeem script."
 
     script_h160 = hash160_from_script(redeem_script)
-    return scriptPubKey_from_payload("p2sh", script_h160)
+    return script_pubkey_from_payload("p2sh", script_h160)
 
 
 def p2wpkh(key: Key) -> bytes:
@@ -281,11 +281,11 @@ def p2wpkh(key: Key) -> bytes:
     """
 
     pubkey_h160, _ = hash160_from_key(key, compressed=True)
-    return scriptPubKey_from_payload("p2wpkh", pubkey_h160)
+    return script_pubkey_from_payload("p2wpkh", pubkey_h160)
 
 
 def p2wsh(redeem_script: Script) -> bytes:
     "Return the p2wsh scriptPubKey of the provided redeem script."
 
     script_h256 = hash256_from_script(redeem_script)
-    return scriptPubKey_from_payload("p2wsh", script_h256)
+    return script_pubkey_from_payload("p2wsh", script_h256)
