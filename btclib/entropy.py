@@ -250,7 +250,7 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
                 dice_sides_str = dice_sides_str[1:]
             try:
                 dice_sides = int(dice_sides_str)
-            except Exception:
+            except ValueError:
                 dice_sides = 0
 
     bits_per_roll = math.floor(math.log2(dice_sides))
@@ -261,17 +261,17 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
     rolls: List[int] = []
     min_roll_number = math.ceil(bits / bits_per_roll)
     for i in range(min_roll_number):
-        x = 0
-        while x < 1 or x > base:
+        roll = 0
+        while not 0 < roll <= base:
             try:
                 if automate:
-                    x_str = str(1 + secrets.randbelow(dice_sides))
+                    roll_str = str(1 + secrets.randbelow(dice_sides))
                 else:
-                    x_str = input(f"roll #{i+1}/{min_roll_number}: ")
-                x = int(x_str)
-            except Exception:
-                x = 0
-        rolls.append(x)
+                    roll_str = input(f"roll #{i+1}/{min_roll_number}: ")
+                roll = int(roll_str)
+            except ValueError:
+                roll = 0
+        rolls.append(roll)
     print(f"collected {min_roll_number} usable D{dice_sides} rolls")
 
     return dice_sides, rolls
@@ -306,25 +306,26 @@ def binstr_from_rolls(
 
     min_roll_number = math.ceil(bits / bits_per_roll)
     i = 0
-    for r in rolls:
+    for roll in rolls:
         # collect only usable rolls in [1-base)]
-        if 0 < r and r <= base:
+        if 0 < roll <= base:
             i *= base
-            i += r - 1
+            i += roll - 1
             min_roll_number -= 1
         # reject invalid rolls not in [1-dice_sides)]
-        elif r < 1 or r > dice_sides:
-            msg = f"invalid roll: {r} is not in [1-{dice_sides}]"
+        elif not 0 < roll <= dice_sides:
+            msg = f"invalid roll: {roll} is not in [1-{dice_sides}]"
             raise ValueError(msg)
     if min_roll_number > 0:
-        msg = f"Too few rolls in the usable [1-{base}] range, missing {min_roll_number} rolls"
+        msg = f"Too few rolls in the usable [1-{base}] range"
+        msg += f", missing {min_roll_number} rolls"
         raise ValueError(msg)
 
     return binstr_from_int(i, bits)
 
 
 def randbinstr(
-    bits: int, entropy: Optional[BinStr] = None, hash: bool = True
+    bits: int, entropy: Optional[BinStr] = None, to_be_hashed: bool = True
 ) -> BinStr:
     """Return CSPRNG raw entropy XOR-ed with input raw entropy.
 
@@ -350,7 +351,7 @@ def randbinstr(
     i ^= secrets.randbits(bits)
 
     # hash the current entropy
-    if hash:
+    if to_be_hashed:
         hf = sha512()
         max_bits = hf.digest_size * 8
         if bits > max_bits:

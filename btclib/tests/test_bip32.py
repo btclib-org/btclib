@@ -455,5 +455,5 @@ def test_dataclasses_json_dict() -> None:
 
     datadir = path.join(path.dirname(__file__), "generated_files")
     filename = path.join(datadir, "xkey.json")
-    with open(filename, "w") as f:
-        json.dump(xkey_dict, f, indent=4)
+    with open(filename, "w") as file_:
+        json.dump(xkey_dict, file_, indent=4)

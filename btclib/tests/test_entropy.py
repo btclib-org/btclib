@@ -39,12 +39,12 @@ def test_indexes() -> None:
     indexes = _indexes_from_entropy(entropy, 2048)
     assert indexes == [0, 0]
 
-    test_indexes = [
+    test_vector = [
         [1268, 535, 810, 685, 433, 811, 1385, 1790, 421, 570, 567, 1313],
         [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0],
         [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0],
     ]
-    for indx in test_indexes:
+    for indx in test_vector:
         entropy = _entropy_from_indexes(indx, 2048)
         indexes = _indexes_from_entropy(entropy, 2048)
         assert indexes == indx
@@ -261,31 +261,31 @@ def test_binstr_from_rolls() -> None:
 
 
 def test_randbinstr() -> None:
-    for hash in (True, False):
+    for to_be_hashed in (True, False):
         bits = 256
-        binstr = randbinstr(bits, hash=hash)
+        binstr = randbinstr(bits, to_be_hashed=to_be_hashed)
         assert len(binstr) == bits
-        binstr2 = randbinstr(bits, "", hash=hash)
+        binstr2 = randbinstr(bits, "", to_be_hashed=to_be_hashed)
         assert len(binstr2) == bits
         assert binstr != binstr2
-        binstr2 = randbinstr(bits, hash=hash)
+        binstr2 = randbinstr(bits, to_be_hashed=to_be_hashed)
         assert len(binstr2) == bits
         assert binstr != binstr2
-        binstr2 = randbinstr(bits, "", hash=hash)
+        binstr2 = randbinstr(bits, "", to_be_hashed=to_be_hashed)
         assert len(binstr2) == bits
         assert binstr != binstr2
 
         bits = 512
-        binstr = randbinstr(bits, hash=hash)
+        binstr = randbinstr(bits, to_be_hashed=to_be_hashed)
         assert len(binstr) == bits
-        binstr2 = randbinstr(bits, binstr, hash=hash)
+        binstr2 = randbinstr(bits, binstr, to_be_hashed=to_be_hashed)
         assert len(binstr2) == bits
         assert binstr != binstr2
 
-        binstr2 = randbinstr(256, binstr, hash=hash)
+        binstr2 = randbinstr(256, binstr, to_be_hashed=to_be_hashed)
         assert len(binstr2) == 256
 
-    binstr = randbinstr(1024, hash=False)
+    binstr = randbinstr(1024, to_be_hashed=False)
     assert len(binstr) == 1024
     err_msg = "Too many bits required: "
     with pytest.raises(ValueError, match=err_msg):
