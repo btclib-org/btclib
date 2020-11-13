@@ -106,9 +106,9 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
 
     if isinstance(entr, str):
         return binstr_from_binstr(entr, bits)
-    elif isinstance(entr, bytes):
+    if isinstance(entr, bytes):
         return binstr_from_bytes(entr, bits)
-    elif isinstance(entr, int):
+    if isinstance(entr, int):
         return binstr_from_int(entr, bits)
 
     m = "Entropy must be raw binary 0/1 string, bytes, or int; "

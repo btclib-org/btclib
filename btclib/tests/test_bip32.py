@@ -288,7 +288,7 @@ def test_derive() -> None:
             indexes = _indexes_from_bip32_path_str(der_path)
             assert address == p2pkh(derive(rootxprv, indexes)).decode("ascii")
 
-    assert derive(rootxprv, "m").decode("ascii") == rootxprv
+        assert derive(rootxprv, "m").decode("ascii") == rootxprv
 
 
 def test_derive_exceptions() -> None:

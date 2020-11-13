@@ -74,7 +74,7 @@ def _index_int_from_str(s: str) -> int:
 
 def _str_from_index_int(i: int, hardening: str = "'") -> str:
 
-    if not (0 <= i <= 0xFFFFFFFF):
+    if not 0 <= i <= 0xFFFFFFFF:
         raise ValueError(f"invalid index: {i}")
     if i < 0x80000000:
         return str(i)
@@ -165,7 +165,7 @@ class BIP32KeyData(DataClassJsonMixin):
 
         if not isinstance(self.index, int):
             raise ValueError("index is not an instance of bytes")
-        if not (0 <= self.index <= 0xFFFFFFFF):
+        if not 0 <= self.index <= 0xFFFFFFFF:
             raise ValueError(f"invalid index: {self.index}")
 
         if not isinstance(self.chain_code, bytes):

@@ -19,10 +19,10 @@ from btclib.alias import ScriptToken
 
 
 def test_operators() -> None:
-    for i in script.OP_CODE_NAMES.keys():
+    for i in script.OP_CODE_NAMES:
         b = script.OP_CODES[script.OP_CODE_NAMES[i]]
         assert i == b[0]
-    for name in script.OP_CODES.keys():
+    for name in script.OP_CODES:
         # skip duplicated
         if name in ("OP_FALSE", "OP_TRUE", "OP_NOP2", "OP_NOP3"):
             continue

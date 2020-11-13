@@ -480,7 +480,7 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
     R = [INFJ, Q]
     # if least significant bit of m is 1, then add Q to R[0]
-    R[not (m & 1)] = Q
+    R[not m & 1] = Q
     # remove the bit just accounted for
     m >>= 1
     while m > 0:
@@ -488,7 +488,7 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         Q = ec._double_jac(Q)
         # always perform the addition, even if useless, to be constant-time
         # but use it as R[0] only if least significant bit of m is 1
-        R[not (m & 1)] = ec._add_jac(R[0], Q)
+        R[not m & 1] = ec._add_jac(R[0], Q)
         m >>= 1
     return R[0]
 

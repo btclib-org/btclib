@@ -16,6 +16,7 @@ https://www.secg.org/sec1-v2.pdf
 """
 
 import hashlib
+from collections.abc import Iterable as IterableCollection
 from io import BytesIO
 from typing import Iterable, List, Optional, Union
 
@@ -64,7 +65,7 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
         out_size is None
         or isinstance(out_size, int)
         and len(o) == out_size
-        or isinstance(out_size, Iterable)
+        or isinstance(out_size, IterableCollection)
         and len(o) in out_size
     ):
         return o

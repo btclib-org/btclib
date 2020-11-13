@@ -61,7 +61,8 @@ class BlockHeader(DataClassJsonMixin):
             header.assert_valid()
         return header
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    # def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self) -> bytes:
 
         out = self.version.to_bytes(4, "little")
         out += bytes.fromhex(self.previousblockhash)[::-1]

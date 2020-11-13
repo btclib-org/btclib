@@ -234,11 +234,11 @@ def test_negate() -> None:
         minus_INFJ = ec.negate_jac(INFJ)
         assert ec._jac_equality(minus_INFJ, INFJ)
 
-    with pytest.raises(TypeError, match="not a point"):
-        ec.negate(ec.GJ)  # type: ignore
+        with pytest.raises(TypeError, match="not a point"):
+            ec.negate(ec.GJ)  # type: ignore
 
-    with pytest.raises(TypeError, match="not a Jacobian point"):
-        ec.negate_jac(ec.G)  # type: ignore
+        with pytest.raises(TypeError, match="not a Jacobian point"):
+            ec.negate_jac(ec.G)  # type: ignore
 
 
 def test_symmetry() -> None:
@@ -310,13 +310,12 @@ def test_symmetry() -> None:
                 with pytest.raises(ValueError, match=err_msg):
                     mod_sqrt(y_even, ec.p)
 
-    # with the last curve
-    with pytest.raises(ValueError, match="low1high0 must be bool or 1/0"):
-        ec.y_low(x_Q, 2)
-    with pytest.raises(ValueError, match="odd1even0 must be bool or 1/0"):
-        ec.y_odd(x_Q, 2)
-    with pytest.raises(ValueError, match="quad_res must be bool or 1/0"):
-        ec.y_quadratic_residue(x_Q, 2)
+        with pytest.raises(ValueError, match="low1high0 must be bool or 1/0"):
+            ec.y_low(x_Q, 2)
+        with pytest.raises(ValueError, match="odd1even0 must be bool or 1/0"):
+            ec.y_odd(x_Q, 2)
+        with pytest.raises(ValueError, match="quad_res must be bool or 1/0"):
+            ec.y_quadratic_residue(x_Q, 2)
 
 
 @pytest.mark.fifth

@@ -241,8 +241,6 @@ def test_signature() -> None:
     bms.assert_as_valid(msg, addr, exp_sig)
     # encoded base64 signature string
     bms.assert_as_valid(msg, addr, exp_sig.encode())
-    # hex-string of the encoded base64 signature string
-    bms.assert_as_valid(msg, addr, exp_sig.encode().hex())
 
 
 def test_msgsign_p2pkh() -> None:
@@ -386,37 +384,37 @@ def test_segwit() -> None:
 
     msg = "test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
-    p2pkh = base58address.p2pkh(wif)
-    p2wpkh = bech32address.p2wpkh(wif)
-    p2wpkh_p2sh = base58address.p2wpkh_p2sh(wif)
+    b58_p2pkh = base58address.p2pkh(wif)
+    b58_p2wpkh = bech32address.p2wpkh(wif)
+    b58_p2wpkh_p2sh = base58address.p2wpkh_p2sh(wif)
 
     # p2pkh base58 address (Core, Electrum, BIP137)
     exp_sig = "IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
-    assert bms.verify(msg, p2pkh, exp_sig)
+    assert bms.verify(msg, b58_p2pkh, exp_sig)
     sig = bms.sign(msg, wif)  # no address: p2pkh assumed
-    assert bms.verify(msg, p2pkh, sig)
+    assert bms.verify(msg, b58_p2pkh, sig)
     assert bms.encode(*sig) == exp_sig.encode()
 
     # p2wpkh-p2sh base58 address (Electrum)
-    assert bms.verify(msg, p2wpkh_p2sh, sig)
+    assert bms.verify(msg, b58_p2wpkh_p2sh, sig)
 
     # p2wpkh bech32 address (Electrum)
-    assert bms.verify(msg, p2wpkh, sig)
+    assert bms.verify(msg, b58_p2wpkh, sig)
 
     # p2wpkh-p2sh base58 address (BIP137)
     # different first letter in sig because of different rf
     exp_sig = "JBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
-    assert bms.verify(msg, p2wpkh_p2sh, exp_sig)
-    sig = bms.sign(msg, wif, p2wpkh_p2sh)
-    assert bms.verify(msg, p2wpkh_p2sh, sig)
+    assert bms.verify(msg, b58_p2wpkh_p2sh, exp_sig)
+    sig = bms.sign(msg, wif, b58_p2wpkh_p2sh)
+    assert bms.verify(msg, b58_p2wpkh_p2sh, sig)
     assert bms.encode(*sig) == exp_sig.encode()
 
     # p2wpkh bech32 address (BIP137)
     # different first letter in sig because of different rf
     exp_sig = "KBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
-    assert bms.verify(msg, p2wpkh, exp_sig)
-    sig = bms.sign(msg, wif, p2wpkh)
-    assert bms.verify(msg, p2wpkh, sig)
+    assert bms.verify(msg, b58_p2wpkh, exp_sig)
+    sig = bms.sign(msg, wif, b58_p2wpkh)
+    assert bms.verify(msg, b58_p2wpkh, sig)
     assert bms.encode(*sig) == exp_sig.encode()
 
 

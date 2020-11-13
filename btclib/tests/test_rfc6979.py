@@ -31,7 +31,7 @@ def test_rfc6979() -> None:
 
 
 def test_rfc6979_example() -> None:
-    class _helper:
+    class _helper:  # pylint: disable=too-few-public-methods
         def __init__(self, n: int) -> None:
             self.n = n
             self.nlen = n.bit_length()

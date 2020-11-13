@@ -53,10 +53,10 @@ def address_from_xpub(xpub: BIP32Key) -> bytes:
 
     if xpub.version in _XPUB_PREFIXES:
         return base58address.p2pkh(xpub)
-    elif xpub.version in _P2WPKH_PUB_PREFIXES:
+    if xpub.version in _P2WPKH_PUB_PREFIXES:
         return bech32address.p2wpkh(xpub)
-    else:
-        # v has been already checked at parsing stage
-        # so, v must be in _P2WPKH_P2SH_PUB_PREFIXES
-        assert xpub.version in _P2WPKH_P2SH_PUB_PREFIXES
-        return base58address.p2wpkh_p2sh(xpub)
+
+    # v has been already checked at parsing stage
+    # so, v must be in _P2WPKH_P2SH_PUB_PREFIXES
+    assert xpub.version in _P2WPKH_P2SH_PUB_PREFIXES
+    return base58address.p2wpkh_p2sh(xpub)

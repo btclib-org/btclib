@@ -99,7 +99,7 @@ class Curve(CurveSubGroup):
             raise ValueError(err_msg)
         delta = int(2 * sqrt(self.p))
         # also check n with Hasse Theorem
-        if h < 2 and not (self.p + 1 - delta <= n <= self.p + 1 + delta):
+        if h < 2 and not self.p + 1 - delta <= n <= self.p + 1 + delta:
             err_msg = "n not in p+1-delta..p+1+delta: "
             err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
             raise ValueError(err_msg)

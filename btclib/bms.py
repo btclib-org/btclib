@@ -308,7 +308,7 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     # signature is valid only if the provided address is matched
     pubkey = bytes_from_point(Q, compressed=compressed)
     if is_b58:
-        if is_script_hash and rf > 30 and rf < 39:  # P2WPKH-P2SH
+        if is_script_hash and 30 < rf < 39:  # P2WPKH-P2SH
             script_pk = b"\x00\x14" + hash160(pubkey)
             if hash160(script_pk) != h160:
                 raise ValueError(f"wrong p2wpkh-p2sh address: {addr!r}")
@@ -319,7 +319,7 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
             err_msg = f"invalid recovery flag: {rf} (base58 address {addr!r})"
             raise ValueError(err_msg)
     else:
-        if rf > 38 or rf > 30 and rf < 35:  # P2WPKH
+        if rf > 38 or 30 < rf < 35:  # P2WPKH
             if hash160(pubkey) != h160:
                 raise ValueError(f"wrong p2wpkh address: {addr!r}")
         else:

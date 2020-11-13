@@ -149,7 +149,7 @@ def _scalar_size(der_sig: bytes, sighash_size: int, offset: int) -> int:
 
     # Null byte at the start of a scalar is not allowed, unless the
     # scalar would otherwise be interpreted as a negative number
-    if size > 1 and der_sig[offset] == 0x00 and not (der_sig[offset + 1] & 0x80):
+    if size > 1 and der_sig[offset] == 0x00 and not der_sig[offset + 1] & 0x80:
         raise ValueError("invalid null bytes at the start of scalar")
 
     return size

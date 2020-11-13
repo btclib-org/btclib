@@ -96,14 +96,14 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     if isinstance(x_Q, int):
         y_Q = ec.y_quadratic_residue(x_Q, True)
         return x_Q, y_Q
-    else:
-        # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
-        try:
-            x_Q = point_from_pubkey(x_Q, ec)[0]
-            y_Q = ec.y_quadratic_residue(x_Q, True)
-            return x_Q, y_Q
-        except Exception:
-            pass
+
+    # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
+    try:
+        x_Q = point_from_pubkey(x_Q, ec)[0]
+        y_Q = ec.y_quadratic_residue(x_Q, True)
+        return x_Q, y_Q
+    except Exception:
+        pass
 
     # BIP 340 key as bytes or hex-string
     if isinstance(x_Q, (str, bytes)):

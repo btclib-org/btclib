@@ -140,11 +140,11 @@ def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> Jac
                     if digits[b] == 1:
                         R = ec._add_jac(R, Q)
                 return R
-            else:
-                for _ in range(w):
-                    R = ec._double_jac(R)
-                R = ec._add_jac(R, T[t - p])
-                i += j
+            for _ in range(w):
+                R = ec._double_jac(R)
+            R = ec._add_jac(R, T[t - p])
+            i += j
+
     return R
 
 
@@ -159,9 +159,8 @@ def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     'right-to-left' method.
-    """
 
-    """FIXME:
+    FIXME:
     - Make it constant time (if necessary)
     - Try to avoid exception in negation for w=1
     """
