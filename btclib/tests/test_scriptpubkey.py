@@ -541,7 +541,7 @@ def test_p2ms_p2sh() -> None:
         assert m2 == m, errmsg
 
 
-def test_CLT() -> None:
+def test_non_standard_script() -> None:
 
     network = "mainnet"
 

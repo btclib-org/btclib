@@ -77,9 +77,9 @@ def p2pkh(
     return b58address_from_h160(prefix, h160, network)
 
 
-def p2sh(scriptPubKey: Script, network: str = "mainnet") -> bytes:
+def p2sh(script_pubkey: Script, network: str = "mainnet") -> bytes:
     "Return the p2sh base58 address corresponding to a scriptPubKey."
-    h160 = hash160_from_script(scriptPubKey)
+    h160 = hash160_from_script(script_pubkey)
     prefix = NETWORKS[network].p2sh
     return b58address_from_h160(prefix, h160, network)
 
@@ -88,14 +88,14 @@ def p2sh(scriptPubKey: Script, network: str = "mainnet") -> bytes:
 # it cannot be inverted because of the hash performed by p2sh
 
 
-def b58address_from_witness(wp: Octets, network: str = "mainnet") -> bytes:
+def b58address_from_witness(witness_program: Octets, network: str = "mainnet") -> bytes:
     "Encode a legacy base58 p2sh-wrapped SegWit address."
 
-    length = len(wp)
+    length = len(witness_program)
     if length == 20:
-        redeem_script = script_pubkey_from_payload("p2wpkh", wp)
+        redeem_script = script_pubkey_from_payload("p2wpkh", witness_program)
     elif length == 32:
-        redeem_script = script_pubkey_from_payload("p2wsh", wp)
+        redeem_script = script_pubkey_from_payload("p2wsh", witness_program)
     else:
         err_msg = "invalid witness program length for witness version zero: "
         err_msg += f"{length} instead of 20 or 32"

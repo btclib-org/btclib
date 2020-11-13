@@ -141,7 +141,7 @@ _XPUB_VERSIONS_ALL = (
     xpubversions_from_network("mainnet") + xpubversions_from_network("testnet") * 2
 )
 n_versions = len(xprvversions_from_network("mainnet"))
-_NETWORKS = [net for net in NETWORKS]
+_NETWORKS = list(NETWORKS.keys())
 _REPEATED_NETWORKS = (
     [_NETWORKS[0]] * n_versions
     + [_NETWORKS[1]] * n_versions
