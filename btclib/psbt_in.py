@@ -18,7 +18,7 @@ from typing import Dict, List, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import dsa, secpoint, varint
+from . import dsa, secpoint, varbytes, varint
 from .bip32 import str_from_bip32_path
 from .psbt_out import (
     _assert_valid_bip32_derivs,
@@ -156,19 +156,17 @@ class PsbtIn(DataClassJsonMixin):
             out += varint.encode(len(utxo)) + utxo
         if self.partial_signatures:
             for key, value in self.partial_signatures.items():
-                t = PSBT_IN_PARTIAL_SIG + bytes.fromhex(key)
-                out += varint.encode(len(t)) + t
-                t = bytes.fromhex(value)
-                out += varint.encode(len(t)) + t
+                out += varbytes.encode(PSBT_IN_PARTIAL_SIG + bytes.fromhex(key))
+                out += varbytes.encode(value)
         if self.sighash:
             out += b"\x01" + PSBT_IN_SIGHASH_TYPE
             out += b"\x04" + self.sighash.to_bytes(4, "little")
         if self.redeem_script:
             out += b"\x01" + PSBT_IN_REDEEM_SCRIPT
-            out += varint.encode(len(self.redeem_script)) + self.redeem_script
+            out += varbytes.encode(self.redeem_script)
         if self.witness_script:
             out += b"\x01" + PSBT_IN_WITNESS_SCRIPT
-            out += varint.encode(len(self.witness_script)) + self.witness_script
+            out += varbytes.encode(self.witness_script)
         if self.final_script_sig:
             out += b"\x01" + PSBT_IN_FINAL_SCRIPTSIG
             out += varint.encode(len(self.final_script_sig)) + self.final_script_sig
@@ -178,8 +176,7 @@ class PsbtIn(DataClassJsonMixin):
             out += varint.encode(len(wit)) + wit
         if self.por_commitment:
             out += b"\x01" + PSBT_IN_POR_COMMITMENT
-            c = self.por_commitment.encode("utf-8")
-            out += varint.encode(len(c)) + c
+            out += varbytes.encode(self.por_commitment.encode("utf-8"))
         if self.bip32_derivs:
             out += _serialize_bip32_derivs(self.bip32_derivs, PSBT_IN_BIP32_DERIVATION)
         if self.proprietary:

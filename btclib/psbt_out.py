@@ -18,7 +18,7 @@ from typing import Dict, List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varint
+from . import varbytes, varint
 from .bip32 import (
     bytes_from_bip32_path,
     indexes_from_bip32_path,
@@ -34,22 +34,22 @@ from .bip32 import (
 def _serialize_bip32_derivs(bip32_derivs: List[Dict[str, str]], marker: bytes) -> bytes:
 
     out = b""
-    for d in bip32_derivs:
-        pubkey = marker + bytes.fromhex(d["pubkey"])
-        out += varint.encode(len(pubkey)) + pubkey
-        keypath = bytes.fromhex(d["master_fingerprint"])
-        keypath += bytes_from_bip32_path(d["path"], "little")
-        out += varint.encode(len(keypath)) + keypath
+    for hd_keypath in bip32_derivs:
+        pubkey = marker + bytes.fromhex(hd_keypath["pubkey"])
+        out += varbytes.encode(pubkey)
+        keypath = bytes.fromhex(hd_keypath["master_fingerprint"])
+        keypath += bytes_from_bip32_path(hd_keypath["path"], "little")
+        out += varbytes.encode(keypath)
     return out
 
 
 def _assert_valid_bip32_derivs(bip32_derivs: List[Dict[str, str]]) -> None:
 
-    for d in bip32_derivs:
+    for hd_keypath in bip32_derivs:
         # FIXME
-        # point_from_pubkey(d["pubkey"])
-        assert len(bytes.fromhex(d["master_fingerprint"])) == 4
-        indexes_from_bip32_path(d["path"], "little")
+        # point_from_pubkey(hd_keypath["pubkey"])
+        assert len(bytes.fromhex(hd_keypath["master_fingerprint"])) == 4
+        indexes_from_bip32_path(hd_keypath["path"], "little")
 
 
 def _deserialize_proprietary(key: bytes, value: bytes) -> Dict[int, Dict[str, str]]:
@@ -70,30 +70,26 @@ def _serialize_proprietary(
     out = b""
     for (owner, dictionary) in proprietary.items():
         for key_p, value_p in dictionary.items():
-            key_bytes = marker + varint.encode(owner) + bytes.fromhex(key_p)
-            out += varint.encode(len(key_bytes)) + key_bytes
-            t = bytes.fromhex(value_p)
-            out += varint.encode(len(t)) + t
+            out += varbytes.encode(marker + varint.encode(owner) + bytes.fromhex(key_p))
+            out += varbytes.encode(value_p)
     return out
 
 
 def _assert_valid_proprietary(proprietary: Dict[int, Dict[str, str]]) -> None:
 
-    for i, d in proprietary.items():
-        assert isinstance(i, int)
-        for key, value in d.items():
-            assert bytes.fromhex(key)
-            assert bytes.fromhex(value)
+    for key, value in proprietary.items():
+        assert isinstance(key, int)
+        for inner_key, inner_value in value.items():
+            assert bytes.fromhex(inner_key)
+            assert bytes.fromhex(inner_value)
 
 
 def _serialize_unknown(data: Dict[str, str]) -> bytes:
 
     out = b""
     for key, value in data.items():
-        t = bytes.fromhex(key)
-        out += varint.encode(len(t)) + t
-        t = bytes.fromhex(value)
-        out += varint.encode(len(t)) + t
+        out += varbytes.encode(key)
+        out += varbytes.encode(value)
     return out
 
 
@@ -163,10 +159,10 @@ class PsbtOut(DataClassJsonMixin):
 
         if self.redeem_script:
             out += b"\x01" + PSBT_OUT_REDEEM_SCRIPT
-            out += varint.encode(len(self.redeem_script)) + self.redeem_script
+            out += varbytes.encode(self.redeem_script)
         if self.witness_script:
             out += b"\x01" + PSBT_OUT_WITNESS_SCRIPT
-            out += varint.encode(len(self.witness_script)) + self.witness_script
+            out += varbytes.encode(self.witness_script)
         if self.bip32_derivs:
             out += _serialize_bip32_derivs(self.bip32_derivs, PSBT_OUT_BIP32_DERIVATION)
         if self.proprietary:

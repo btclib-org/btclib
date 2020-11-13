@@ -20,7 +20,7 @@ from typing import Dict, List, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin
 
-from . import script, varint
+from . import script, varbytes, varint
 from .alias import ScriptToken
 from .bip32 import str_from_bip32_path
 from .psbt_in import PsbtIn
@@ -112,8 +112,7 @@ class Psbt(DataClassJsonMixin):
         out = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
 
         out += b"\x01" + PSBT_GLOBAL_UNSIGNED_TX
-        tx = self.tx.serialize()
-        out += varint.encode(len(tx)) + tx
+        out += varbytes.encode(self.tx.serialize())
         if self.version:
             out += b"\x01" + PSBT_GLOBAL_VERSION
             out += b"\x04" + self.version.to_bytes(4, "little")
@@ -183,35 +182,35 @@ class Psbt(DataClassJsonMixin):
 
             if witness_utxo:
                 assert isinstance(witness_utxo, TxOut)
-                scriptPubKey = witness_utxo.scriptPubKey
-                script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+                script_pubkey = witness_utxo.scriptPubKey
+                script_type = payload_from_scriptPubKey(script_pubkey)[0]
                 if script_type == "p2sh":
-                    scriptPubKey = self.inputs[i].redeem_script
-                script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+                    script_pubkey = self.inputs[i].redeem_script
+                script_type = payload_from_scriptPubKey(script_pubkey)[0]
                 assert script_type in ["p2wpkh", "p2wsh"]
 
             if self.inputs[i].redeem_script:
                 if non_witness_utxo:
-                    scriptPubKey = non_witness_utxo.vout[
+                    script_pubkey = non_witness_utxo.vout[
                         tx_in.prevout.vout
                     ].scriptPubKey
                 elif witness_utxo:
-                    scriptPubKey = witness_utxo.scriptPubKey
-                hash = hash160(self.inputs[i].redeem_script)
-                assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
+                    script_pubkey = witness_utxo.scriptPubKey
+                hash_ = hash160(self.inputs[i].redeem_script)
+                assert hash_ == payload_from_scriptPubKey(script_pubkey)[1]
 
             if self.inputs[i].witness_script:
                 if non_witness_utxo:
-                    scriptPubKey = non_witness_utxo.vout[
+                    script_pubkey = non_witness_utxo.vout[
                         tx_in.prevout.vout
                     ].scriptPubKey
                 elif witness_utxo:
-                    scriptPubKey = witness_utxo.scriptPubKey
+                    script_pubkey = witness_utxo.scriptPubKey
                 if self.inputs[i].redeem_script:
-                    scriptPubKey = self.inputs[i].redeem_script
+                    script_pubkey = self.inputs[i].redeem_script
 
-                hash = sha256(self.inputs[i].witness_script)
-                assert hash == payload_from_scriptPubKey(scriptPubKey)[1]
+                hash_ = sha256(self.inputs[i].witness_script)
+                assert hash_ == payload_from_scriptPubKey(script_pubkey)[1]
 
 
 # FIXME: use stream, not repeated bytes slicing
@@ -236,9 +235,9 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
 
 def psbt_from_tx(tx: Tx) -> Psbt:
     tx = deepcopy(tx)
-    for input in tx.vin:
-        input.scriptSig = b""
-        input.txinwitness = []
+    for inp in tx.vin:
+        inp.scriptSig = b""
+        inp.txinwitness = []
     inputs = [PsbtIn() for _ in tx.vin]
     outputs = [PsbtOut() for _ in tx.vout]
     return Psbt(tx=tx, inputs=inputs, outputs=outputs)
@@ -251,16 +250,16 @@ def _combine_field(
     item = getattr(psbt_map, key)
     if not item:
         return
-    a = getattr(out, key)
-    if not a:
+    attr = getattr(out, key)
+    if not attr:
         setattr(out, key, item)
-    elif a != item:
+    elif attr != item:
         if isinstance(item, dict):
-            a.update(item)
+            attr.update(item)
         elif isinstance(item, list):
             # TODO: fails for final_script_witness
-            additional_elements = [i for i in item if i not in a]
-            a += additional_elements
+            additional_elements = [i for i in item if i not in attr]
+            attr += additional_elements
 
 
 def combine_psbts(psbts: List[Psbt]) -> Psbt:
