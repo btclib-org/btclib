@@ -81,7 +81,10 @@ class PsbtIn(DataClassJsonMixin):
     )
     final_script_witness: List[bytes] = field(
         default_factory=list,
-        metadata=config(encoder=lambda val: [v.hex() for v in val]),
+        metadata=config(
+            encoder=lambda val: [v.hex() for v in val],
+            decoder=lambda val: [bytes.fromhex(v) for v in val],
+        ),
     )
     por_commitment: Optional[str] = None
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)

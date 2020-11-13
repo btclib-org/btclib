@@ -530,3 +530,13 @@ def test_proprietary_types() -> None:
     assert psbt.unknown["abcd"] == "123456"
     assert psbt.inputs[0].unknown["abcd"] == "123456"
     assert psbt.outputs[0].unknown["abcd"] == "1234"
+
+
+def test_final_script_witness() -> None:
+
+    datadir = path.join(path.dirname(__file__), "test_data")
+    filename = path.join(datadir, "psbt_final_script_witness.json")
+    with open(filename, "r") as file_:
+        psbt_dict2 = json.load(file_)
+    assert isinstance(psbt_dict2, dict)
+    Psbt.from_dict(psbt_dict2)

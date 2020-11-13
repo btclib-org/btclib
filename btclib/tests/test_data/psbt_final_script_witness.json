@@ -1,0 +1,92 @@
+{
+    "tx": {
+        "version": 2,
+        "locktime": 0,
+        "vin": [
+            {
+                "prevout": {
+                    "txid": "462fd6be5503772aab31b41a6eb10fc5a692546ec39251d15e2d49ef335a8630",
+                    "vout": 1
+                },
+                "scriptSig": "",
+                "sequence": 0,
+                "txinwitness": []
+            }
+        ],
+        "vout": [
+            {
+                "value": 12297770,
+                "scriptPubKey": "00208004656cfb584971a8fab835ee275b9f10746b216c4386381d7687a89ab8f517"
+            }
+        ]
+    },
+    "inputs": [
+        {
+            "non_witness_utxo": null,
+            "witness_utxo": {
+                "value": 12300000,
+                "scriptPubKey": "00202d5d8e0cefe5be795a042e319a77a9707791624d3dc9f6a7b69af5cb6a36efb6"
+            },
+            "partial_signatures": {},
+            "sighash": null,
+            "redeem_script": "",
+            "witness_script": "63532102ccb438a1d9fae7aaff5c058949f0768d4fa24671f1c43643f194098316a854752102f3448accdbf6e648ff8c9c591797b57ebfbd7bab0e2a4fcaeba686f9a9df58e121033a1229e67ad80e37234edafda3fc9dc02a2e5d70e7d861c11c94515d178edaf52103519b8d8f86813e07852728d31338f1d1d772865bf4792aa87d6f1ceb1e348fcd2103cd36dabe3dfd4e473a5a62a97a40b2e6bb47bb502bcf13163c91262f0604a06855ae67029000b27552210219d79d15338a4596b2a5dc88d191e0ae85fbfdd30802a18b3c3ff0d1c1c7c6f121025dedb64d7e5046f62b506ae9ec391ab15e70acb8d3d98c5527a481526a25d4f62103cee6fe19333a1b2e11e424bb106dfe4bc61daa273badb1de86c19dbc9037cdcd53ae68",
+            "bip32_derivs": [
+                {
+                    "pubkey": "02ccb438a1d9fae7aaff5c058949f0768d4fa24671f1c43643f194098316a85475",
+                    "master_fingerprint": "26a8bbf0",
+                    "path": "m/44'/1'/0'/0/0"
+                },
+                {
+                    "pubkey": "02f3448accdbf6e648ff8c9c591797b57ebfbd7bab0e2a4fcaeba686f9a9df58e1",
+                    "master_fingerprint": "66fc0520",
+                    "path": "m/44'/1'/0'/0/0"
+                },
+                {
+                    "pubkey": "033a1229e67ad80e37234edafda3fc9dc02a2e5d70e7d861c11c94515d178edaf5",
+                    "master_fingerprint": "195e17fa",
+                    "path": "m/44'/1'/0'/0/0"
+                },
+                {
+                    "pubkey": "03519b8d8f86813e07852728d31338f1d1d772865bf4792aa87d6f1ceb1e348fcd",
+                    "master_fingerprint": "10a954a7",
+                    "path": "m/44'/1'/0'/0/0"
+                },
+                {
+                    "pubkey": "03cd36dabe3dfd4e473a5a62a97a40b2e6bb47bb502bcf13163c91262f0604a068",
+                    "master_fingerprint": "3f8755f6",
+                    "path": "m/44'/1'/0'/0/0"
+                }
+            ],
+            "final_script_sig": "",
+            "final_script_witness": [
+                "",
+                "3045022100a2c452a28dc58984d809e445bc9429d2e5023eafc6b070e64655928034409b7e022071de7f967b0f2e3e99d636b6e5497197cd2d4dbea81c8b42f8f0a9a8709987b701",
+                "3045022100cace5cc666336fd9b620f5853d0e344da3bf2face0ac28c968240a635efe71ea022000c8bf8aafeab9c62a0815efcbc11890a742d0baee9be652b316060be54dde7501",
+                "304402202ed13a2a660020e030c40a49378c507e86ec73d05c59b045b8502126630a03e3022051b6160547ac9604cc30ecfbdab66545783182b8ea30ceac657366ccea08575b01",
+                "01",
+                "63532102ccb438a1d9fae7aaff5c058949f0768d4fa24671f1c43643f194098316a854752102f3448accdbf6e648ff8c9c591797b57ebfbd7bab0e2a4fcaeba686f9a9df58e121033a1229e67ad80e37234edafda3fc9dc02a2e5d70e7d861c11c94515d178edaf52103519b8d8f86813e07852728d31338f1d1d772865bf4792aa87d6f1ceb1e348fcd2103cd36dabe3dfd4e473a5a62a97a40b2e6bb47bb502bcf13163c91262f0604a06855ae67029000b27552210219d79d15338a4596b2a5dc88d191e0ae85fbfdd30802a18b3c3ff0d1c1c7c6f121025dedb64d7e5046f62b506ae9ec391ab15e70acb8d3d98c5527a481526a25d4f62103cee6fe19333a1b2e11e424bb106dfe4bc61daa273badb1de86c19dbc9037cdcd53ae68"
+            ],
+            "por_commitment": null,
+            "proprietary": {},
+            "unknown": {}
+        }
+    ],
+    "outputs": [
+        {
+            "redeem_script": "",
+            "witness_script": "",
+            "bip32_derivs": [],
+            "proprietary": {},
+            "unknown": {}
+        }
+    ],
+    "version": 0,
+    "bip32_derivs": [],
+    "proprietary": {
+        "2": {
+            "6373": "034630440220727e252456f64fe246f0e67431ce34e97834cb74145ffdacdcc686cfee8d4463022029853feed9a3e12aef3437aa0a3f43187da0beca724528e7eed9b163e6b8ceab46304402205b6852822c1a9d1d8021cd696288dddaf0d20d0ccd2ff58cc57e988faa5821e702203727df2dc0d0cb71d82c6b4bf0c5aa729b4aa49f8b2c3a799de5e3e835de6b22473045022100fa3a9546464c08ac5de62c04ca865ce1f0c747d42dfc74ffecea6edf8b08701002202292ae6e3c8c70757a4edc1f93d8a4b2bec94fd1182f45a3c9e50676efd6c37c"
+        }
+    },
+    "unknown": {}
+}
