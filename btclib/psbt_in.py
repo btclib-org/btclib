@@ -28,8 +28,8 @@ from .psbt_out import (
     _serialize_bip32_derivs,
     _serialize_proprietary,
     _serialize_unknown,
-    dict_bytes_bytes_decode,
-    dict_bytes_bytes_encode,
+    decode_dict_bytes_bytes,
+    encode_dict_bytes_bytes,
 )
 from .script import SIGHASHES
 from .tx import Tx
@@ -72,7 +72,7 @@ class PsbtIn(DataClassJsonMixin):
     partial_signatures: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
-            encoder=dict_bytes_bytes_encode, decoder=dict_bytes_bytes_decode
+            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
         ),
     )
     sighash: Optional[int] = None
@@ -98,7 +98,7 @@ class PsbtIn(DataClassJsonMixin):
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
-            encoder=dict_bytes_bytes_encode, decoder=dict_bytes_bytes_decode
+            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
         ),
     )
 

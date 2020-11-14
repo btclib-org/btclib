@@ -26,11 +26,11 @@ from .bip32 import (
 )
 
 
-def dict_bytes_bytes_encode(d: Dict[bytes, bytes]) -> Dict[str, str]:
+def encode_dict_bytes_bytes(d: Dict[bytes, bytes]) -> Dict[str, str]:
     return {k.hex(): v.hex() for (k, v) in d.items()}
 
 
-def dict_bytes_bytes_decode(d: Dict[str, str]) -> Dict[bytes, bytes]:
+def decode_dict_bytes_bytes(d: Dict[str, str]) -> Dict[bytes, bytes]:
     return {bytes.fromhex(k): bytes.fromhex(v) for (k, v) in d.items()}
 
 
@@ -124,7 +124,7 @@ class PsbtOut(DataClassJsonMixin):
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
-            encoder=dict_bytes_bytes_encode, decoder=dict_bytes_bytes_decode
+            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
         ),
     )
 
