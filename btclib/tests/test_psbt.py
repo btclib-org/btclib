@@ -460,63 +460,70 @@ def test_dataclasses_json_dict() -> None:
     psbt_data = Psbt.decode(psbt_encoded)
     assert isinstance(psbt_data, Psbt)
 
-    psbt_in_data = psbt_data.inputs[0]
-    assert isinstance(psbt_in_data, PsbtIn)
-
     psbt_out_data = psbt_data.outputs[0]
     assert isinstance(psbt_out_data, PsbtOut)
 
-    # str
-    psbt_in_json_str = psbt_in_data.to_json()
-    assert isinstance(psbt_in_json_str, str)
-    assert psbt_in_data == PsbtIn.from_json(psbt_in_json_str)
-
-    psbt_out_json_str = psbt_out_data.to_json()
-    assert isinstance(psbt_out_json_str, str)
-    assert psbt_out_data == PsbtOut.from_json(psbt_out_json_str)
-
-    psbt_json_str = psbt_data.to_json()
-    assert isinstance(psbt_json_str, str)
-    assert psbt_data == Psbt.from_json(psbt_json_str)
+    psbt_in_data = psbt_data.inputs[0]
+    assert isinstance(psbt_in_data, PsbtIn)
 
     datadir = path.join(path.dirname(__file__), "generated_files")
 
-    # dict
-    psbt_in_dict = psbt_in_data.to_dict()
-    assert isinstance(psbt_in_dict, dict)
-    assert psbt_in_data == PsbtIn.from_dict(psbt_in_dict)
-
-    filename = path.join(datadir, "psbt_in.json")
-    with open(filename, "w") as file_:
-        json.dump(psbt_in_dict, file_, indent=4)
-    with open(filename, "r") as file_:
-        psbt_in_dict2 = json.load(file_)
-    assert isinstance(psbt_in_dict2, dict)
-    assert psbt_in_dict == psbt_in_dict2
-
+    # PsbtOut to dict and file
     psbt_out_dict = psbt_out_data.to_dict()
     assert isinstance(psbt_out_dict, dict)
-    assert psbt_out_data == PsbtOut.from_dict(psbt_out_dict)
-
     filename = path.join(datadir, "psbt_out.json")
     with open(filename, "w") as file_:
         json.dump(psbt_out_dict, file_, indent=4)
+
+    # PsbtOut from dict and file
+    assert psbt_out_data == PsbtOut.from_dict(psbt_out_dict)
     with open(filename, "r") as file_:
         psbt_out_dict2 = json.load(file_)
     assert isinstance(psbt_out_dict2, dict)
     assert psbt_out_dict == psbt_out_dict2
 
+    # PsbtIn to dict and file
+    psbt_in_dict = psbt_in_data.to_dict()
+    assert isinstance(psbt_in_dict, dict)
+    filename = path.join(datadir, "psbt_in.json")
+    with open(filename, "w") as file_:
+        json.dump(psbt_in_dict, file_, indent=4)
+
+    # PsbtIn from dict and file
+    assert psbt_in_data == PsbtIn.from_dict(psbt_in_dict)
+    with open(filename, "r") as file_:
+        psbt_in_dict2 = json.load(file_)
+    assert isinstance(psbt_in_dict2, dict)
+    assert psbt_in_dict == psbt_in_dict2
+
+    # Psbt to dict and file
     psbt_dict = psbt_data.to_dict()
     assert isinstance(psbt_dict, dict)
-    assert psbt_data == Psbt.from_dict(psbt_dict)
-
     filename = path.join(datadir, "psbt.json")
     with open(filename, "w") as file_:
         json.dump(psbt_dict, file_, indent=4)
+
+    # Psbt from dict and file
+    assert psbt_data == Psbt.from_dict(psbt_dict)
     with open(filename, "r") as file_:
         psbt_dict2 = json.load(file_)
     assert isinstance(psbt_dict2, dict)
     assert psbt_dict == psbt_dict2
+
+    # PsbtOut to str
+    psbt_out_json_str = psbt_out_data.to_json()
+    assert isinstance(psbt_out_json_str, str)
+    assert psbt_out_data == PsbtOut.from_json(psbt_out_json_str)
+
+    # PsbtIn to str
+    psbt_in_json_str = psbt_in_data.to_json()
+    assert isinstance(psbt_in_json_str, str)
+    assert psbt_in_data == PsbtIn.from_json(psbt_in_json_str)
+
+    # Psbt to str
+    psbt_json_str = psbt_data.to_json()
+    assert isinstance(psbt_json_str, str)
+    assert psbt_data == Psbt.from_json(psbt_json_str)
 
 
 def test_final_script_witness() -> None:
@@ -527,3 +534,15 @@ def test_final_script_witness() -> None:
         psbt_dict2 = json.load(file_)
     assert isinstance(psbt_dict2, dict)
     Psbt.from_dict(psbt_dict2)
+
+
+def test_serialize() -> None:
+    # from creator example
+    psbt_encoded = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="
+    psbt_serialized = bytes.fromhex(
+        "70736274ff01009a020000000258e87a21b56daf0c23be8e7070456c336f7cbaa5c8757924f545887bb2abdd750000000000ffffffff838d0427d0ec650a68aa46bb0b098aea4422c071b2ca78352a077959d07cea1d0100000000ffffffff0270aaf00800000000160014d85c2b71d0060b09c9886aeb815e50991dda124d00e1f5050000000016001400aea9a2e5f0f876a588df5546e8742d1d87008f000000000000000000"
+    )
+    psbt = Psbt.decode(psbt_encoded)
+    assert psbt == Psbt.deserialize(psbt_serialized)
+    assert psbt_serialized == psbt.serialize()
+    assert psbt_encoded == psbt.encode()
