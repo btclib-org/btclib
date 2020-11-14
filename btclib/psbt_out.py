@@ -87,13 +87,9 @@ def _assert_valid_proprietary(proprietary: Dict[int, Dict[str, str]]) -> None:
             assert bytes.fromhex(inner_value)
 
 
-def _serialize_unknown(data: Dict[bytes, bytes]) -> bytes:
+def _serialize_dict_bytes_bytes(d: Dict[bytes, bytes], m=bytes) -> bytes:
 
-    out = b""
-    for key, value in data.items():
-        out += varbytes.encode(key)
-        out += varbytes.encode(value)
-    return out
+    return b"".join([varbytes.encode(m + k) + varbytes.encode(v) for k, v in d.items()])
 
 
 def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
@@ -176,7 +172,7 @@ class PsbtOut(DataClassJsonMixin):
         if self.proprietary:
             out += _serialize_proprietary(self.proprietary, PSBT_OUT_PROPRIETARY)
         if self.unknown:
-            out += _serialize_unknown(self.unknown)
+            out += _serialize_dict_bytes_bytes(self.unknown, b"")
 
         return out
 

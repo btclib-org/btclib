@@ -31,8 +31,8 @@ from .psbt_out import (
     _assert_valid_unknown,
     _deserialize_proprietary,
     _serialize_bip32_derivs,
+    _serialize_dict_bytes_bytes,
     _serialize_proprietary,
-    _serialize_unknown,
     decode_dict_bytes_bytes,
     encode_dict_bytes_bytes,
 )
@@ -128,7 +128,7 @@ class Psbt(DataClassJsonMixin):
         if self.proprietary:
             out += _serialize_proprietary(self.proprietary, PSBT_GLOBAL_PROPRIETARY)
         if self.unknown:
-            out += _serialize_unknown(self.unknown)
+            out += _serialize_dict_bytes_bytes(self.unknown, b"")
 
         out += PSBT_DELIMITER
         for input_map in self.inputs:
