@@ -14,12 +14,16 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Type, TypeVar
+from typing import Dict, List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import varbytes, varint
-from .bip32 import indexes_from_bip32_path
+from .bip32 import (
+    bytes_from_bip32_path,
+    indexes_from_bip32_path,
+    str_from_bip32_path,
+)
 
 
 def encode_dict_bytes_bytes(d: Dict[bytes, bytes]) -> Dict[str, str]:
@@ -28,6 +32,29 @@ def encode_dict_bytes_bytes(d: Dict[bytes, bytes]) -> Dict[str, str]:
 
 def decode_dict_bytes_bytes(d: Dict[str, str]) -> Dict[bytes, bytes]:
     return {bytes.fromhex(k): bytes.fromhex(v) for k, v in d.items()}
+
+
+def encode_bip32_derivs(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
+
+    result: List[Dict[str, str]] = []
+    for k, v in d.items():
+        d_str_str: Dict[str, str] = {
+            "pubkey": k.hex(),
+            "master_fingerprint": v[:4].hex(),
+            "path": str_from_bip32_path(v[4:], "little"),
+        }
+        result.append(d_str_str)
+    return result
+
+
+def decode_bip32_derivs(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
+
+    d2: Dict[bytes, bytes] = {}
+    for d in list_of_dict:
+        v = bytes.fromhex(d["master_fingerprint"])
+        v += bytes_from_bip32_path(d["path"], "little")
+        d2[bytes.fromhex(d["pubkey"])] = v
+    return d2
 
 
 def _assert_valid_bip32_derivs(bip32_derivs: Dict[bytes, bytes]) -> None:
@@ -100,9 +127,7 @@ class PsbtOut(DataClassJsonMixin):
     )
     bip32_derivs: Dict[bytes, bytes] = field(
         default_factory=dict,
-        metadata=config(
-            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
-        ),
+        metadata=config(encoder=encode_bip32_derivs, decoder=decode_bip32_derivs),
     )
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(

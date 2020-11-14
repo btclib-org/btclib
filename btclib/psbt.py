@@ -31,7 +31,9 @@ from .psbt_out import (
     _deserialize_proprietary,
     _serialize_dict_bytes_bytes,
     _serialize_proprietary,
+    decode_bip32_derivs,
     decode_dict_bytes_bytes,
+    encode_bip32_derivs,
     encode_dict_bytes_bytes,
 )
 from .scriptpubkey import payload_from_scriptPubKey
@@ -59,9 +61,7 @@ class Psbt(DataClassJsonMixin):
     version: int = 0
     bip32_derivs: Dict[bytes, bytes] = field(
         default_factory=dict,
-        metadata=config(
-            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
-        ),
+        metadata=config(encoder=encode_bip32_derivs, decoder=decode_bip32_derivs),
     )
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(

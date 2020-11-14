@@ -26,7 +26,9 @@ from .psbt_out import (
     _deserialize_proprietary,
     _serialize_dict_bytes_bytes,
     _serialize_proprietary,
+    decode_bip32_derivs,
     decode_dict_bytes_bytes,
+    encode_bip32_derivs,
     encode_dict_bytes_bytes,
 )
 from .script import SIGHASHES
@@ -82,9 +84,7 @@ class PsbtIn(DataClassJsonMixin):
     )
     bip32_derivs: Dict[bytes, bytes] = field(
         default_factory=dict,
-        metadata=config(
-            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
-        ),
+        metadata=config(encoder=encode_bip32_derivs, decoder=decode_bip32_derivs),
     )
     final_script_sig: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
