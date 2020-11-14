@@ -72,10 +72,7 @@ class PsbtIn(DataClassJsonMixin):
     partial_signatures: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
-            encoder=lambda d: {k.hex(): v.hex() for (k, v) in d.items()},
-            decoder=lambda d: {
-                bytes.fromhex(k): bytes.fromhex(v) for (k, v) in d.items()
-            },
+            encoder=dict_bytes_bytes_encode, decoder=dict_bytes_bytes_decode
         ),
     )
     sighash: Optional[int] = None

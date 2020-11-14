@@ -308,10 +308,10 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
 def _indexes_from_bip32_path_str(der_path: str) -> List[int]:
 
     steps = [x.strip().lower() for x in der_path.split("/")]
-    if steps[0] != "m":
-        raise ValueError(f"invalid root: {steps[0]}")
+    if steps[0] == "m":
+        steps = steps[1:]
 
-    indexes = [_index_int_from_str(s) for s in steps[1:] if s != ""]
+    indexes = [_index_int_from_str(s) for s in steps if s != ""]
 
     if len(indexes) > 255:
         err_msg = f"depth greater than 255: {len(indexes)}"

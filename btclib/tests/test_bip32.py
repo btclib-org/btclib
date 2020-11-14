@@ -297,17 +297,12 @@ def test_derive_exceptions() -> None:
     xprv = derive(rootmxprv, bytes.fromhex("80000000"))
     xprv = derive(xprv, "m")
 
-    # FIXME: this failure shoud be required
-    # err_msg = "public derivation at depth one level"
-    # with pytest.raises(UserWarning, match=err_msg):
-    #    BIP32KeyData.deserialize(derive(rootmxprv, 0))
+    for der_path in ("", "/1", "800000"):
+        derive(xprv, der_path)
 
-    for der_path in ("", "/1"):
-        with pytest.raises(ValueError, match="invalid root: "):
-            derive(xprv, der_path)
-
-    for der_path in (";/0", "invalid index", "800000"):
-        with pytest.raises(ValueError, match="invalid root: "):
+    err_msg = "invalid literal for int"
+    for der_path in (";/0", "invalid index"):
+        with pytest.raises(ValueError, match=err_msg):
             derive(xprv, der_path)
 
     with pytest.raises(ValueError, match="depth greater than 255: "):
