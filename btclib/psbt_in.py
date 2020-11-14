@@ -26,8 +26,8 @@ from .psbt_out import (
     _assert_valid_unknown,
     _deserialize_proprietary,
     _serialize_bip32_derivs,
-    _serialize_proprietary,
     _serialize_dict_bytes_bytes,
+    _serialize_proprietary,
     decode_dict_bytes_bytes,
     encode_dict_bytes_bytes,
 )
