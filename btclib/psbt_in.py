@@ -168,9 +168,9 @@ class PsbtIn(DataClassJsonMixin):
             out += b"\x01" + PSBT_IN_WITNESS_UTXO
             out += varbytes.encode(self.witness_utxo.serialize())
         if self.partial_signatures:
-            for key, value in self.partial_signatures.items():
-                out += varbytes.encode(PSBT_IN_PARTIAL_SIG + key)
-                out += varbytes.encode(value)
+            out += _serialize_dict_bytes_bytes(
+                self.partial_signatures, PSBT_IN_PARTIAL_SIG
+            )
         if self.sighash:
             out += b"\x01" + PSBT_IN_SIGHASH_TYPE
             out += b"\x04" + self.sighash.to_bytes(4, "little")
