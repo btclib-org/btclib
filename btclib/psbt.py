@@ -22,7 +22,6 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varbytes, varint
 from .alias import ScriptToken
-from .bip32 import str_from_bip32_path
 from .psbt_in import PsbtIn
 from .psbt_out import (
     PsbtOut,
@@ -30,7 +29,6 @@ from .psbt_out import (
     _assert_valid_proprietary,
     _assert_valid_unknown,
     _deserialize_proprietary,
-    _serialize_bip32_derivs,
     _serialize_dict_bytes_bytes,
     _serialize_proprietary,
     decode_dict_bytes_bytes,
@@ -59,7 +57,12 @@ class Psbt(DataClassJsonMixin):
     inputs: List[PsbtIn] = field(default_factory=list)
     outputs: List[PsbtOut] = field(default_factory=list)
     version: int = 0
-    bip32_derivs: List[Dict[str, str]] = field(default_factory=list)
+    bip32_derivs: Dict[bytes, bytes] = field(
+        default_factory=dict,
+        metadata=config(
+            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
+        ),
+    )
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
@@ -87,13 +90,7 @@ class Psbt(DataClassJsonMixin):
                 out.version = int.from_bytes(value, "little")
             elif key[0:1] == PSBT_GLOBAL_XPUB:
                 assert len(key) == 78 + 1, f"invalid xpub length: {len(key)-1}"
-                out.bip32_derivs.append(
-                    {
-                        "pubkey": key[1:].hex(),
-                        "master_fingerprint": value[:4].hex(),
-                        "path": str_from_bip32_path(value[4:], "little"),
-                    }
-                )
+                out.bip32_derivs[key[1:]] = value
             elif key[0:1] == PSBT_GLOBAL_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
             else:  # unknown
@@ -124,7 +121,7 @@ class Psbt(DataClassJsonMixin):
             out += b"\x01" + PSBT_GLOBAL_VERSION
             out += b"\x04" + self.version.to_bytes(4, "little")
         if self.bip32_derivs:
-            out += _serialize_bip32_derivs(self.bip32_derivs, PSBT_GLOBAL_XPUB)
+            out += _serialize_dict_bytes_bytes(self.bip32_derivs, PSBT_GLOBAL_XPUB)
         if self.proprietary:
             out += _serialize_proprietary(self.proprietary, PSBT_GLOBAL_PROPRIETARY)
         if self.unknown:
@@ -328,7 +325,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         psbt_in.sighash = None
         psbt_in.redeem_script = b""
         psbt_in.witness_script = b""
-        psbt_in.bip32_derivs = []
+        psbt_in.bip32_derivs = {}
         psbt_in.por_commitment = None
     return psbt
 

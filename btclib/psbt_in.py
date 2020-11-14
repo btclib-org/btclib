@@ -19,13 +19,11 @@ from typing import Dict, List, Optional, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import dsa, secpoint, varbytes
-from .bip32 import str_from_bip32_path
 from .psbt_out import (
     _assert_valid_bip32_derivs,
     _assert_valid_proprietary,
     _assert_valid_unknown,
     _deserialize_proprietary,
-    _serialize_bip32_derivs,
     _serialize_dict_bytes_bytes,
     _serialize_proprietary,
     decode_dict_bytes_bytes,
@@ -82,7 +80,12 @@ class PsbtIn(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    bip32_derivs: List[Dict[str, str]] = field(default_factory=list)
+    bip32_derivs: Dict[bytes, bytes] = field(
+        default_factory=dict,
+        metadata=config(
+            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
+        ),
+    )
     final_script_sig: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
@@ -138,13 +141,7 @@ class PsbtIn(DataClassJsonMixin):
                 out.witness_script = value
             elif key[0:1] == PSBT_IN_BIP32_DERIVATION:
                 assert len(key) in (34, 66), f"invalid pubkey length: {len(key)-1}"
-                out.bip32_derivs.append(
-                    {
-                        "pubkey": key[1:].hex(),
-                        "master_fingerprint": value[:4].hex(),
-                        "path": str_from_bip32_path(value[4:], "little"),
-                    }
-                )
+                out.bip32_derivs[key[1:]] = value
             elif key[0:1] == PSBT_IN_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
             else:  # unknown
@@ -191,7 +188,9 @@ class PsbtIn(DataClassJsonMixin):
             out += b"\x01" + PSBT_IN_POR_COMMITMENT
             out += varbytes.encode(self.por_commitment.encode("utf-8"))
         if self.bip32_derivs:
-            out += _serialize_bip32_derivs(self.bip32_derivs, PSBT_IN_BIP32_DERIVATION)
+            out += _serialize_dict_bytes_bytes(
+                self.bip32_derivs, PSBT_IN_BIP32_DERIVATION
+            )
         if self.proprietary:
             out += _serialize_proprietary(self.proprietary, PSBT_IN_PROPRIETARY)
         if self.unknown:

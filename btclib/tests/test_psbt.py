@@ -370,11 +370,16 @@ def test_additional_combination() -> None:
     psbt_1 = Psbt.decode(psbt_string)
     psbt_2 = Psbt.decode(psbt_string)
 
-    assert len(psbt_1.inputs[1].bip32_derivs) > 1
+    # split the bip32_derivs dict in half
+    d = psbt_1.inputs[1].bip32_derivs
+    assert len(d) > 1
+    i = len(d) // 2
+    ll = list(d.items())
 
-    psbt_2.inputs[1].bip32_derivs = psbt_1.inputs[1].bip32_derivs[1:]
-
-    psbt_1.inputs[1].bip32_derivs = psbt_1.inputs[1].bip32_derivs[:1]
+    # first half
+    psbt_1.inputs[1].bip32_derivs = dict(ll[:i])
+    # second half
+    psbt_2.inputs[1].bip32_derivs = dict(ll[i:])
 
     psbt = combine_psbts([psbt_1, psbt_2])
     assert psbt.encode() == psbt_string

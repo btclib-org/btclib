@@ -14,16 +14,12 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Type, TypeVar
+from typing import Dict, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import varbytes, varint
-from .bip32 import (
-    bytes_from_bip32_path,
-    indexes_from_bip32_path,
-    str_from_bip32_path,
-)
+from .bip32 import indexes_from_bip32_path
 
 
 def encode_dict_bytes_bytes(d: Dict[bytes, bytes]) -> Dict[str, str]:
@@ -34,25 +30,12 @@ def decode_dict_bytes_bytes(d: Dict[str, str]) -> Dict[bytes, bytes]:
     return {bytes.fromhex(k): bytes.fromhex(v) for k, v in d.items()}
 
 
-def _serialize_bip32_derivs(bip32_derivs: List[Dict[str, str]], marker: bytes) -> bytes:
+def _assert_valid_bip32_derivs(bip32_derivs: Dict[bytes, bytes]) -> None:
 
-    out = b""
-    for hd_keypath in bip32_derivs:
-        pubkey = marker + bytes.fromhex(hd_keypath["pubkey"])
-        out += varbytes.encode(pubkey)
-        keypath = bytes.fromhex(hd_keypath["master_fingerprint"])
-        keypath += bytes_from_bip32_path(hd_keypath["path"], "little")
-        out += varbytes.encode(keypath)
-    return out
-
-
-def _assert_valid_bip32_derivs(bip32_derivs: List[Dict[str, str]]) -> None:
-
-    for hd_keypath in bip32_derivs:
+    for _, v in bip32_derivs.items():
         # FIXME
-        # point_from_pubkey(hd_keypath["pubkey"])
-        assert len(bytes.fromhex(hd_keypath["master_fingerprint"])) == 4
-        indexes_from_bip32_path(hd_keypath["path"], "little")
+        # point_from_pubkey(k)
+        indexes_from_bip32_path(v, "little")
 
 
 def _deserialize_proprietary(key: bytes, value: bytes) -> Dict[int, Dict[str, str]]:
@@ -115,7 +98,12 @@ class PsbtOut(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    bip32_derivs: List[Dict[str, str]] = field(default_factory=list)
+    bip32_derivs: Dict[bytes, bytes] = field(
+        default_factory=dict,
+        metadata=config(
+            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
+        ),
+    )
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
@@ -138,13 +126,7 @@ class PsbtOut(DataClassJsonMixin):
                 out.witness_script = value
             elif key[0:1] == PSBT_OUT_BIP32_DERIVATION:
                 assert len(key) in (34, 66), f"invalid pubkey length: {len(key)-1}"
-                out.bip32_derivs.append(
-                    {
-                        "pubkey": key[1:].hex(),
-                        "master_fingerprint": value[:4].hex(),
-                        "path": str_from_bip32_path(value[4:], "little"),
-                    }
-                )
+                out.bip32_derivs[key[1:]] = value
             elif key[0:1] == PSBT_OUT_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
             else:  # unknown
@@ -168,7 +150,9 @@ class PsbtOut(DataClassJsonMixin):
             out += b"\x01" + PSBT_OUT_WITNESS_SCRIPT
             out += varbytes.encode(self.witness_script)
         if self.bip32_derivs:
-            out += _serialize_bip32_derivs(self.bip32_derivs, PSBT_OUT_BIP32_DERIVATION)
+            out += _serialize_dict_bytes_bytes(
+                self.bip32_derivs, PSBT_OUT_BIP32_DERIVATION
+            )
         if self.proprietary:
             out += _serialize_proprietary(self.proprietary, PSBT_OUT_PROPRIETARY)
         if self.unknown:

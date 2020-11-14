@@ -32,18 +32,10 @@
     "sighash": 1,
     "redeem_script": "5221029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f2102dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d752ae",
     "witness_script": "",
-    "bip32_derivs": [
-        {
-            "pubkey": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
-            "master_fingerprint": "d90c6a4f",
-            "path": "m/0'/0'/0'"
-        },
-        {
-            "pubkey": "02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7",
-            "master_fingerprint": "d90c6a4f",
-            "path": "m/0'/0'/1'"
-        }
-    ],
+    "bip32_derivs": {
+        "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f": "d90c6a4f000000800000008000000080",
+        "02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7": "d90c6a4f000000800000008001000080"
+    },
     "final_script_sig": "",
     "final_script_witness": [],
     "por_commitment": null,
