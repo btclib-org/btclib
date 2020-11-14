@@ -10,7 +10,7 @@
 
 "Tests for `btclib.psbt_out` module"
 
-from typing import Dict, List, Sequence
+from typing import Dict, List
 
 from btclib.psbt_out import (
     PSBT_OUT_BIP32_DERIVATION,
@@ -20,8 +20,7 @@ from btclib.psbt_out import (
     decode_dict_bytes_bytes,
     encode_bip32_derivs,
     encode_dict_bytes_bytes,
-    serialize_bip32_derivs,
-    serialize_dict_bytes_bytes,
+    _serialize_dict_bytes_bytes,
 )
 
 
@@ -39,12 +38,12 @@ def test_bip32_derivs() -> None:
             "path": "m/0'/0'/1'",
         },
     ]
-    decoded_data: Dict[bytes, Sequence[int]] = decode_bip32_derivs(data)
+    decoded_data: Dict[bytes, bytes] = decode_bip32_derivs(data)
     assert data == encode_bip32_derivs(decoded_data)
 
     _assert_valid_bip32_derivs(decoded_data)
 
-    serialize_bip32_derivs(decoded_data, PSBT_OUT_BIP32_DERIVATION)
+    _serialize_dict_bytes_bytes(decoded_data, PSBT_OUT_BIP32_DERIVATION)
     # TODO: check deserialization
 
 
@@ -59,5 +58,5 @@ def test_unknown() -> None:
 
     _assert_valid_unknown(decoded_data)
 
-    serialize_dict_bytes_bytes(decoded_data, b"")
+    _serialize_dict_bytes_bytes(decoded_data, b"")
     # TODO: check deserialization
