@@ -35,7 +35,7 @@ def test_genesis_block() -> None:
     assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
 
     assert (
-        transaction.txid
+        transaction.txid.hex()
         == "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
     )
     assert transaction.txid == transaction.hash
@@ -75,11 +75,11 @@ def test_single_witness() -> None:
     assert transaction.locktime == 0
 
     assert (
-        transaction.txid
+        transaction.txid.hex()
         == "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
     )
     assert (
-        transaction.hash
+        transaction.hash.hex()
         == "d39eb3e3954be4bdc0b3be2d980124b1e1e11fb414b886b52939b07d95a58a8f"
     )
 
@@ -126,11 +126,11 @@ def test_double_witness() -> None:
     assert transaction.locktime == 0
 
     assert (
-        transaction.txid
+        transaction.txid.hex()
         == "a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c"
     )
     assert (
-        transaction.hash
+        transaction.hash.hex()
         == "0936cb8dba90e11345b9c05f457f139ddce4a5329701af4708b2cf4a02d75adb"
     )
 

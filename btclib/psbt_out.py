@@ -84,7 +84,7 @@ def _assert_valid_proprietary(proprietary: Dict[int, Dict[str, str]]) -> None:
             assert bytes.fromhex(inner_value)
 
 
-def _serialize_unknown(data: Dict[str, str]) -> bytes:
+def _serialize_unknown(data: Dict[bytes, bytes]) -> bytes:
 
     out = b""
     for key, value in data.items():
@@ -93,11 +93,11 @@ def _serialize_unknown(data: Dict[str, str]) -> bytes:
     return out
 
 
-def _assert_valid_unknown(data: Dict[str, str]) -> None:
+def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
 
     for key, value in data.items():
-        assert bytes.fromhex(key)
-        assert bytes.fromhex(value)
+        assert isinstance(key, bytes)
+        assert isinstance(value, bytes)
 
 
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
@@ -106,6 +106,17 @@ PSBT_OUT_BIP32_DERIVATION = b"\x02"
 PSBT_OUT_PROPRIETARY = b"\xfc"
 
 _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
+
+List_Dict_str_str = List[Dict[str, str]]
+Dict_int_Dict_str_str = Dict[int, Dict[str, str]]
+
+
+def dict_bytes_bytes_encode(d: Dict[bytes, bytes]) -> Dict[str, str]:
+    return {k.hex(): v.hex() for (k, v) in d.items()}
+
+
+def dict_bytes_bytes_decode(d: Dict[str, str]) -> Dict[bytes, bytes]:
+    return {bytes.fromhex(k): bytes.fromhex(v) for (k, v) in d.items()}
 
 
 @dataclass
@@ -118,7 +129,12 @@ class PsbtOut(DataClassJsonMixin):
     )
     bip32_derivs: List[Dict[str, str]] = field(default_factory=list)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
-    unknown: Dict[str, str] = field(default_factory=dict)
+    unknown: Dict[bytes, bytes] = field(
+        default_factory=dict,
+        metadata=config(
+            encoder=dict_bytes_bytes_encode, decoder=dict_bytes_bytes_decode
+        ),
+    )
 
     @classmethod
     def deserialize(
@@ -144,7 +160,7 @@ class PsbtOut(DataClassJsonMixin):
             elif key[0:1] == PSBT_OUT_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
             else:  # unknown
-                out.unknown[key.hex()] = value.hex()
+                out.unknown[key] = value
 
         if assert_valid:
             out.assert_valid()

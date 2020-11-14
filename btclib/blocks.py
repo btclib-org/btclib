@@ -156,7 +156,7 @@ class Block(DataClassJsonMixin):
 
 
 def _generate_merkle_root(transactions: List[tx.Tx]) -> str:
-    hashes = [bytes.fromhex(transaction.txid)[::-1] for transaction in transactions]
+    hashes = [transaction.txid[::-1] for transaction in transactions]
     hashes_buffer = []
     while len(hashes) != 1:
         if len(hashes) % 2 != 0:

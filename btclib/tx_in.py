@@ -90,7 +90,10 @@ class TxIn(DataClassJsonMixin):
     )
     sequence: int
     txinwitness: List[bytes] = field(
-        metadata=config(encoder=lambda val: [v.hex() for v in val])
+        metadata=config(
+            encoder=lambda val: [v.hex() for v in val],
+            decoder=lambda val: [bytes.fromhex(v) for v in val],
+        )
     )
 
     @classmethod

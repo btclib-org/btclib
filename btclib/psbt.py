@@ -18,7 +18,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type, TypeVar, Union
 
-from dataclasses_json import DataClassJsonMixin
+from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varbytes, varint
 from .alias import ScriptToken
@@ -33,6 +33,8 @@ from .psbt_out import (
     _serialize_bip32_derivs,
     _serialize_proprietary,
     _serialize_unknown,
+    dict_bytes_bytes_decode,
+    dict_bytes_bytes_encode,
 )
 from .scriptpubkey import payload_from_scriptPubKey
 from .tx import Tx
@@ -59,7 +61,12 @@ class Psbt(DataClassJsonMixin):
     version: int = 0
     bip32_derivs: List[Dict[str, str]] = field(default_factory=list)
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
-    unknown: Dict[str, str] = field(default_factory=dict)
+    unknown: Dict[bytes, bytes] = field(
+        default_factory=dict,
+        metadata=config(
+            encoder=dict_bytes_bytes_encode, decoder=dict_bytes_bytes_decode
+        ),
+    )
 
     @classmethod
     def deserialize(cls: Type[_Psbt], data: bytes, assert_valid: bool = True) -> _Psbt:
@@ -90,7 +97,7 @@ class Psbt(DataClassJsonMixin):
             elif key[0:1] == PSBT_GLOBAL_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
             else:  # unknown
-                out.unknown[key.hex()] = value.hex()
+                out.unknown[key] = value
 
         assert out.tx.version, "missing transaction"
         for _ in out.tx.vin:
@@ -309,12 +316,12 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         if psbt_in.witness_script:
             psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
             psbt_in.final_script_witness = [b""] if multi_sig else []
-            psbt_in.final_script_witness += [bytes.fromhex(sig) for sig in sigs]
+            psbt_in.final_script_witness += sigs
             psbt_in.final_script_witness += [psbt_in.witness_script]
         else:
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
             final_script_sig: List[ScriptToken] = [0] if multi_sig else []
-            final_script_sig += sigs
+            final_script_sig += [sig.hex() for sig in sigs]
             final_script_sig += [psbt_in.redeem_script.hex()]
             psbt_in.final_script_sig = script.serialize(final_script_sig)
         psbt_in.partial_signatures = {}
