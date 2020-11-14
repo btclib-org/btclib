@@ -25,10 +25,13 @@ from .bip32 import (
     str_from_bip32_path,
 )
 
-# from .to_pubkey import point_from_pubkey
+
+def dict_bytes_bytes_encode(d: Dict[bytes, bytes]) -> Dict[str, str]:
+    return {k.hex(): v.hex() for (k, v) in d.items()}
 
 
-# def _deserialize_proprietary(key: bytes, value: bytes) -> List[Dict[str, str]]:
+def dict_bytes_bytes_decode(d: Dict[str, str]) -> Dict[bytes, bytes]:
+    return {bytes.fromhex(k): bytes.fromhex(v) for (k, v) in d.items()}
 
 
 def _serialize_bip32_derivs(bip32_derivs: List[Dict[str, str]], marker: bytes) -> bytes:
@@ -106,17 +109,6 @@ PSBT_OUT_BIP32_DERIVATION = b"\x02"
 PSBT_OUT_PROPRIETARY = b"\xfc"
 
 _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
-
-List_Dict_str_str = List[Dict[str, str]]
-Dict_int_Dict_str_str = Dict[int, Dict[str, str]]
-
-
-def dict_bytes_bytes_encode(d: Dict[bytes, bytes]) -> Dict[str, str]:
-    return {k.hex(): v.hex() for (k, v) in d.items()}
-
-
-def dict_bytes_bytes_decode(d: Dict[str, str]) -> Dict[bytes, bytes]:
-    return {bytes.fromhex(k): bytes.fromhex(v) for (k, v) in d.items()}
 
 
 @dataclass
