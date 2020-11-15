@@ -457,3 +457,15 @@ def test_dataclasses_json_dict() -> None:
     filename = path.join(datadir, "xkey.json")
     with open(filename, "w") as file_:
         json.dump(xkey_dict, file_, indent=4)
+
+
+def test_bips_pr905() -> None:
+    "https://github.com/bitcoin/bips/pull/905"
+
+    seed = "57fb1e450b8afb95c62afbcd49e4100d6790e0822b8905608679180ac34ca0bd45bf7ccc6c5f5218236d0eb93afc78bd117b9f02a6b7df258ea182dfaef5aad7"
+    xroot = rootxprv_from_seed(seed)
+    der_path = "m/44H/60H/0H"
+    xprv = b"xprv9yqXG1Cns3YEQi6fsCJ7NGV5sHPiyZcbgLVst61dbLYyn7qy1G9aFtRmaYp481ounqnVf9Go2ymQ4gmxZLEwYSRhU868aDk4ZxzGvqHJVhe"
+    assert derive(xroot, der_path) == xprv
+    xpub = b"xpub6CpsfWjghR6XdCB8yDq7jQRpRKEDP2LT3ZRUgURF9g5xevB7YoTpogkFRqq5nQtVSN8YCMZo2CD8u4zCaxRv85ctCWmzEi9gQ5DBhBFaTNo"
+    assert xpub_from_xprv(xprv) == xpub
