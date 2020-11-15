@@ -15,6 +15,7 @@ from os import path
 
 import pytest
 
+from btclib.exceptions import BTClibValueError
 from btclib.psbt import (
     Psbt,
     combine_psbts,
@@ -423,12 +424,12 @@ def test_vectors_bip174() -> None:
             Psbt.decode(test_vector["encoded psbt"])
         assert test_vector["error message"] in str(
             excinfo.value
-        ), f"Case {i+1}: {test_vector['description']}\n{excinfo.value}"
+        ), f"invalid case {i+1}: {test_vector['description']}\n{excinfo.value}"
 
     for i, test_vector in enumerate(test_vectors["valid psbts"]):
         try:
             psbt_decoded = Psbt.decode(test_vector["encoded psbt"])
         except Exception as e:  # pragma: no cover # pylint: disable=broad-except
-            print(f"Case {i+1}: {test_vector['description']}")  # pragma: no cover
+            print(f"valid case {i+1}: {test_vector['description']}")  # pragma: no cover
             raise e  # pragma: no cover
         assert test_vector["encoded psbt"] == Psbt.encode(psbt_decoded)
