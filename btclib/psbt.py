@@ -260,10 +260,10 @@ def _combine_field(
     elif attr != item:
         if isinstance(item, dict):
             attr.update(item)
-        elif isinstance(item, list):
-            # TODO: fails for final_script_witness
-            additional_elements = [i for i in item if i not in attr]
-            attr += additional_elements
+        # TODO: fails for final_script_witness
+        # elif isinstance(item, list):
+        #     additional_elements = [i for i in item if i not in attr]
+        #     attr += additional_elements
 
 
 def combine_psbts(psbts: List[Psbt]) -> Psbt:
