@@ -75,6 +75,7 @@ disable=invalid-name,  # C0103
         eval-used,  # W0123
         broad-except,  # W0703
         raise-missing-from,  # W0707
+        unsubscriptable-object,  # E1136 python3.9-only pylint bug
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
