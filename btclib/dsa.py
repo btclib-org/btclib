@@ -195,6 +195,7 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     KJ = _double_mult(v, QJ, u, ec.GJ, ec)  # 5
 
     # Fail if infinite(K).
+    # edge case that cannot be reproduced in the test suite
     assert KJ[2] != 0, "invalid (INF) key"  # 5
 
     # affine x-coordinate of K

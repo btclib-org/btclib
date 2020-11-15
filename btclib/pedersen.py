@@ -82,6 +82,7 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
 
     H = second_generator(ec, hf)
     Q = double_mult(v, H, r, ec.G, ec)
+    # edge case that cannot be reproduced in the test suite
     assert Q[1] != 0, "invalid (INF) key"
     return Q
 

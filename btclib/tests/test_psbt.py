@@ -29,6 +29,42 @@ from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
 
+# first tests are part of the official BIP174 test vectors
+
+
+def test_vectors_bip174() -> None:
+    "Test https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki"
+
+    data_folder = path.join(path.dirname(__file__), "test_data")
+    filename = path.join(data_folder, "bip174_test_vectors.json")
+    with open(filename, "r") as file_:
+        # json.dump(test_vectors, f, indent=4)
+        test_vectors = json.load(file_)
+
+    for i, test_vector in enumerate(test_vectors["invalid psbts"]):
+        with pytest.raises(BTClibValueError) as excinfo:
+            Psbt.decode(test_vector["encoded psbt"])
+        assert test_vector["error message"] in str(
+            excinfo.value
+        ), f"invalid case {i+1}: {test_vector['description']}\n{excinfo.value}"
+
+    for i, test_vector in enumerate(test_vectors["valid psbts"]):
+        try:
+            psbt_decoded = Psbt.decode(test_vector["encoded psbt"])
+        except Exception as e:  # pragma: no cover # pylint: disable=broad-except
+            print(f"valid case {i+1}: {test_vector['description']}")  # pragma: no cover
+            raise e  # pragma: no cover
+        assert test_vector["encoded psbt"] == Psbt.encode(psbt_decoded)
+
+    for i, test_vector in enumerate(test_vectors["signer check failures"]):
+        psbt_decoded = Psbt.decode(test_vector["encoded psbt"])
+        with pytest.raises(BTClibValueError) as excinfo:
+            psbt_decoded.assert_signable()
+        assert test_vector["error message"] in str(
+            excinfo.value
+        ), f"signer check failure {i+1}: {test_vector['description']}\n{excinfo.value}"
+        assert test_vector["encoded psbt"] == Psbt.encode(psbt_decoded)
+
 
 def test_creation() -> None:
     output_1 = TxOut(
@@ -123,7 +159,7 @@ def test_lexicographic_ordering() -> None:
     assert combined_psbt == Psbt.decode(combined_psbt_string)
 
 
-# not part of the official test vector
+# not part of the official BIP174 test vector
 
 
 def test_psbt_serialization() -> None:
@@ -388,37 +424,3 @@ def test_serialize() -> None:
     assert psbt == Psbt.deserialize(psbt_serialized)
     assert psbt_serialized == psbt.serialize()
     assert psbt_encoded == psbt.encode()
-
-
-def test_vectors_bip174() -> None:
-    "Test https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki"
-
-    data_folder = path.join(path.dirname(__file__), "test_data")
-    filename = path.join(data_folder, "bip174_test_vectors.json")
-    with open(filename, "r") as file_:
-        # json.dump(test_vectors, f, indent=4)
-        test_vectors = json.load(file_)
-
-    for i, test_vector in enumerate(test_vectors["invalid psbts"]):
-        with pytest.raises(BTClibValueError) as excinfo:
-            Psbt.decode(test_vector["encoded psbt"])
-        assert test_vector["error message"] in str(
-            excinfo.value
-        ), f"invalid case {i+1}: {test_vector['description']}\n{excinfo.value}"
-
-    for i, test_vector in enumerate(test_vectors["valid psbts"]):
-        try:
-            psbt_decoded = Psbt.decode(test_vector["encoded psbt"])
-        except Exception as e:  # pragma: no cover # pylint: disable=broad-except
-            print(f"valid case {i+1}: {test_vector['description']}")  # pragma: no cover
-            raise e  # pragma: no cover
-        assert test_vector["encoded psbt"] == Psbt.encode(psbt_decoded)
-
-    for i, test_vector in enumerate(test_vectors["signer check failures"]):
-        psbt_decoded = Psbt.decode(test_vector["encoded psbt"])
-        with pytest.raises(BTClibValueError) as excinfo:
-            psbt_decoded.assert_signable()
-        assert test_vector["error message"] in str(
-            excinfo.value
-        ), f"signer check failure {i+1}: {test_vector['description']}\n{excinfo.value}"
-        assert test_vector["encoded psbt"] == Psbt.encode(psbt_decoded)

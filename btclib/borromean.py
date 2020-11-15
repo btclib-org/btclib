@@ -81,6 +81,7 @@ def sign(
             for j in range(start_idx, keys_size):
                 s[i][j] = secrets.randbits(256)
                 e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
+                # edge case that cannot be reproduced in the test suite
                 assert 0 < e[i][j] < ec.n, "implausibile signature failure"
                 T = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
                 R = bytes_from_point(T, ec)
@@ -89,12 +90,14 @@ def sign(
     # step 2
     for i, (j_star, k) in enumerate(zip(sign_key_idx, ks)):
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
+        # edge case that cannot be reproduced in the test suite
         assert 0 < e[i][0] < ec.n, "implausibile signature failure"
         for j in range(1, j_star + 1):
             s[i][j - 1] = secrets.randbits(256)
             T = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G)
             R = bytes_from_point(T, ec)
             e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
+            # edge case that cannot be reproduced in the test suite
             assert 0 < e[i][j] < ec.n, "implausibile signature failure"
         s[i][j_star] = k + sign_keys[i] * e[i][j_star]
     return e0, s
@@ -132,6 +135,7 @@ def assert_as_valid(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -
         keys_size = len(pubk_rings[i])
         e[i] = [0] * keys_size
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
+        # edge case that cannot be reproduced in the test suite
         assert e[i][0] != 0, "implausibile signature failure"
         R = b"\0x00"
         for j in range(keys_size):
@@ -140,6 +144,7 @@ def assert_as_valid(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -
             if j != len(pubk_rings[i]) - 1:
                 h = _hash(m, R, i, j + 1)
                 e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n
+                # edge case that cannot be reproduced in the test suite
                 assert e[i][j + 1] != 0, "implausibile signature failure"
             else:
                 e0bytes += R
