@@ -22,6 +22,7 @@ Scripts are represented by List[ScriptToken], where ScriptToken = Union[int, str
 from typing import List
 
 from .alias import BinaryData, Octets, ScriptToken
+from .exceptions import BTClibValueError
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
 SIGHASH_ALL = 1
@@ -262,7 +263,7 @@ def _op_pushdata(data: Octets) -> bytes:
         # there is no need to use OP_PUSHDATA4
         # r += OP_CODES['OP_PUSHDATA4']
         # r += length.to_bytes(4, byteorder='little')
-        raise ValueError(f"Too many bytes for OP_PUSHDATA: {length}")
+        raise BTClibValueError(f"Too many bytes for OP_PUSHDATA: {length}")
     r += data
     return r
 
@@ -298,7 +299,7 @@ def _op_str(token: str) -> bytes:
     try:
         data = bytes.fromhex(token)
     except Exception:
-        raise ValueError(f"invalid string token: {token}")
+        raise BTClibValueError(f"invalid string token: {token}")
     return _op_pushdata(data)
 
 
@@ -312,7 +313,7 @@ def serialize(script: List[ScriptToken]) -> bytes:
         elif isinstance(token, bytes):
             r += _op_pushdata(token)
         else:
-            raise ValueError(f"Unmanaged {type(token)} token type")
+            raise BTClibValueError(f"Unmanaged {type(token)} token type")
     return r
 
 

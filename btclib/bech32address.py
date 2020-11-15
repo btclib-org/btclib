@@ -46,6 +46,7 @@ from typing import Iterable, List, Optional, Tuple
 
 from .alias import Octets, Script, String
 from .bech32 import b32decode, b32encode
+from .exceptions import BTClibValueError
 from .hashes import hash160_from_key, hash256_from_script
 from .network import NETWORKS, network_from_key_value
 from .to_pubkey import Key
@@ -65,7 +66,7 @@ def _convertbits(
     max_acc = (1 << (frombits + tobits - 1)) - 1
     for value in data:
         if value < 0 or (value >> frombits):
-            raise ValueError(f"invalid value in _convertbits: {value}")
+            raise BTClibValueError(f"invalid value in _convertbits: {value}")
         acc = ((acc << frombits) | value) & max_acc
         bits += frombits
         while bits >= tobits:
@@ -76,9 +77,9 @@ def _convertbits(
         if bits:
             ret.append((acc << (tobits - bits)) & maxv)
     elif bits >= frombits:
-        raise ValueError("zero padding of more than 4 bits in 8-to-5 conversion")
+        raise BTClibValueError("zero padding of more than 4 bits in 8-to-5 conversion")
     elif (acc << (tobits - bits)) & maxv:
-        raise ValueError("non-zero padding in 8-to-5 conversion")
+        raise BTClibValueError("non-zero padding in 8-to-5 conversion")
 
     return ret
 
@@ -89,16 +90,16 @@ def _check_witness(witvers: int, witprog: bytes):
         if length not in (20, 32):
             err_msg = "invalid witness program length for witness version zero: "
             err_msg += f"{length} instead of 20 or 32"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
     elif witvers < 0 or witvers > 16:
         err_msg = "invalid witness version: "
         err_msg += f"{witvers} not in 0..16"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
     else:
         if length < 2 or length > 40:
             err_msg = "invalid witness program length for witness version zero: "
             err_msg += f"{length}, not in 2..40"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
 
 # 1. Hash/WitnessProgram from pubkey/scriptPubKey
@@ -129,7 +130,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     # the following check was originally in b32decode
     # but it does not pertain there
     if len(b32addr) > 90:
-        raise ValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
+        raise BTClibValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
 
     hrp, data = b32decode(b32addr)
 
@@ -137,7 +138,7 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     network = network_from_key_value("p2w", hrp)
 
     if len(data) == 0:
-        raise ValueError(f"empty data in bech32 address: {b32addr!r}")
+        raise BTClibValueError(f"empty data in bech32 address: {b32addr!r}")
 
     witvers = data[0]
     witprog = _convertbits(data[1:], 5, 8, False)

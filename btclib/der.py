@@ -62,6 +62,7 @@ from typing import Optional, Tuple, Union
 
 from .alias import Octets
 from .curve import Curve, secp256k1
+from .exceptions import BTClibValueError
 from .script import SIGHASHES
 from .utils import bytes_from_octets, hex_string
 
@@ -81,16 +82,16 @@ def _validate_sig(
     if not 0 < r < ec.n:
         err_msg = "scalar r not in 1..n-1: "
         err_msg += f"'{hex_string(r)}'" if r > 0xFFFFFFFF else f"{r}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
     # Fail if s is not [1, n-1]
     if not 0 < s < ec.n:
         err_msg = "scalar s not in 1..n-1: "
         err_msg += f"'{hex_string(s)}'" if s > 0xFFFFFFFF else f"{s}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
     if sighash is not None and sighash not in SIGHASHES:
-        raise ValueError(f"invalid sighash: {hex(sighash)}")
+        raise BTClibValueError(f"invalid sighash: {hex(sighash)}")
 
 
 def _check_size_and_type(der_sig: bytes, ec: Curve) -> int:
@@ -109,11 +110,11 @@ def _check_size_and_type(der_sig: bytes, ec: Curve) -> int:
     if not min_size <= der_sig_size <= max_size:
         m = "invalid DER size: "
         m += f"{der_sig_size}, must be in [{min_size}, {max_size}]"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     if der_sig[0] != 0x30:
         m = f"DER type must be 0x30 (compound), not {hex(der_sig[0])}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     # The declared size der_sig[1] does not include:
     # 1. der_sig[0] DER type
@@ -124,7 +125,7 @@ def _check_size_and_type(der_sig: bytes, ec: Curve) -> int:
         msg += f"{der_sig[1]} + "
         msg += "{2, 3} is not "
         msg += f"{der_sig_size}"
-        raise ValueError(msg)
+        raise BTClibValueError(msg)
 
     return der_sig_size
 
@@ -134,23 +135,23 @@ def _scalar_size(der_sig: bytes, sighash_size: int, offset: int) -> int:
     der_sig_size = len(der_sig)
 
     if der_sig[offset - 2] != 0x02:
-        raise ValueError("scalar must be an integer")
+        raise BTClibValueError("scalar must be an integer")
     size = der_sig[offset - 1]
 
     if size == 0:
-        raise ValueError("scalar has size zero")
+        raise BTClibValueError("scalar has size zero")
 
     if der_sig_size < offset + size + sighash_size:
         m = f"Size of scalar is too large: {size}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     if der_sig[offset] & 0x80:
-        raise ValueError("Negative number not allowed for scalar")
+        raise BTClibValueError("Negative number not allowed for scalar")
 
     # Null byte at the start of a scalar is not allowed, unless the
     # scalar would otherwise be interpreted as a negative number
     if size > 1 and der_sig[offset] == 0x00 and not der_sig[offset + 1] & 0x80:
-        raise ValueError("invalid null bytes at the start of scalar")
+        raise BTClibValueError("invalid null bytes at the start of scalar")
 
     return size
 
@@ -186,7 +187,7 @@ def deserialize(der_sig: DERSig, ec: Curve = secp256k1) -> DERSigTuple:
 
         if sig_size != 2 + 2 + r_size + 2 + s_size + sighash_size:
             m = "Too big DER size for (r, s): {sig_size}"
-            raise ValueError(m)
+            raise BTClibValueError(m)
 
     _validate_sig(r, s, sighash, ec)
     return r, s, sighash

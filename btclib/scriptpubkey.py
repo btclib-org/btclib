@@ -15,6 +15,7 @@
 from typing import List, Optional, Tuple, Union
 
 from .alias import Octets, Script, ScriptToken, String
+from .exceptions import BTClibValueError
 from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .script import deserialize, serialize
 from .to_pubkey import Key, pubkeyinfo_from_key
@@ -55,22 +56,24 @@ def script_pubkey_from_payload(
 
     if (script_type == "p2ms") ^ (m != 0):
         errmsg = f"invalid m for {script_type} scriptPubKey: {m}"
-        raise ValueError(errmsg)
+        raise BTClibValueError(errmsg)
 
     if isinstance(payloads, list):
         if script_type == "p2ms":
             if m < 1 or m > 16:
-                raise ValueError(f"invalid m in m-of-n multisignature: {m}")
+                raise BTClibValueError(f"invalid m in m-of-n multisignature: {m}")
             if lexicographic_sort:
                 # BIP67 compliant
                 payloads = sorted(payloads)
             n = len(payloads)
             if n < m:
-                raise ValueError(
+                raise BTClibValueError(
                     f"number-of-pubkeys < m in {m}-of-n multisignature: {n}"
                 )
             if n > 16:
-                raise ValueError(f"too many pubkeys in m-of-n multisignature: {n}")
+                raise BTClibValueError(
+                    f"too many pubkeys in m-of-n multisignature: {n}"
+                )
             scriptPubKey: List[ScriptToken] = [m]
             for key in payloads:
                 key = bytes_from_octets(key, (33, 65))
@@ -79,13 +82,13 @@ def script_pubkey_from_payload(
             scriptPubKey.append("OP_CHECKMULTISIG")
         else:
             errmsg = f"invalid list of Octets for {script_type} scriptPubKey"
-            raise ValueError(errmsg)
+            raise BTClibValueError(errmsg)
     else:
         if script_type == "nulldata":
             payload = bytes_from_octets(payloads)
             if len(payload) > 80:
                 err_msg = f"invalid nulldata script length: {len(payload)} bytes "
-                raise ValueError(err_msg)
+                raise BTClibValueError(err_msg)
             scriptPubKey = ["OP_RETURN", payload]
         elif script_type == "p2pk":
             payload = bytes_from_octets(payloads, (33, 65))
@@ -109,7 +112,7 @@ def script_pubkey_from_payload(
             payload = bytes_from_octets(payloads, 20)
             scriptPubKey = [0, payload]
         else:
-            raise ValueError(f"unknown scriptPubKey type: {script_type}")
+            raise BTClibValueError(f"unknown scriptPubKey type: {script_type}")
 
     return serialize(scriptPubKey)
 
@@ -130,7 +133,7 @@ def payload_from_nulldata_script_pubkey(
     # nulldata [OP_RETURN, data]
     zero_or_one = int(length > 78)
     if scriptPubKey[1 + zero_or_one] != length - 2 - zero_or_one:
-        raise ValueError(
+        raise BTClibValueError(
             f"wrong data length: {scriptPubKey[1+zero_or_one]} "
             f"in {length}-bytes nulldata script; it should "
             f"have been {length-2-zero_or_one}: {deserialize(scriptPubKey)}"
@@ -143,12 +146,12 @@ def payload_from_nulldata_script_pubkey(
         # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
         # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
         if scriptPubKey[1] != 0x4C:
-            raise ValueError(
+            raise BTClibValueError(
                 f"missing OP_PUSHDATA1 (0x4c) in {length}-bytes nulldata script, "
                 f"got {hex(scriptPubKey[1])} instead: {deserialize(scriptPubKey)}"
             )
         return "nulldata", scriptPubKey[3:], 0
-    raise ValueError("invalid 78 bytes nulldata script length")
+    raise BTClibValueError("invalid 78 bytes nulldata script length")
 
 
 def payload_from_pms_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]:
@@ -161,18 +164,20 @@ def payload_from_pms_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, 
     scriptPubKey = deserialize(scriptPubKey)
     m = int(scriptPubKey[0])
     if m < 1 or m > 16:
-        raise ValueError(f"invalid m in m-of-n multisignature: {m}")
+        raise BTClibValueError(f"invalid m in m-of-n multisignature: {m}")
     n = len(scriptPubKey) - 3
     if n < m or n > 16:
-        raise ValueError(f"invalid number of pubkeys in {m}-of-n multisignature: {n}")
+        raise BTClibValueError(
+            f"invalid number of pubkeys in {m}-of-n multisignature: {n}"
+        )
     if n != int(scriptPubKey[-2]):
         err_msg = "wrong number of pubkeys "
         err_msg += f"in {m}-of-{int(scriptPubKey[-2])} multisignature: {n}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
     keys: List[bytes] = []
     for pk in scriptPubKey[1:-2]:
         if isinstance(pk, int):
-            raise ValueError("invalid key in p2ms")
+            raise BTClibValueError("invalid key in p2ms")
         key = bytes_from_octets(pk, (33, 65))
         keys.append(key)
     return "p2ms", keys, m
@@ -223,7 +228,7 @@ def payload_from_scriptPubKey(scriptPubKey: Script) -> Tuple[str, Payloads, int]
     if length == 34 and scriptPubKey[:2] == b"\x00\x20":
         return "p2wsh", scriptPubKey[2:], 0
     # Unknow scriptPubKey
-    raise ValueError(
+    raise BTClibValueError(
         f"unknown scriptPubKey: {len(scriptPubKey)}-bytes length"
         f"; starts with {scriptPubKey[:3].hex()}"
         f", ends with {scriptPubKey[-2:].hex()}: {deserialize(scriptPubKey)}"

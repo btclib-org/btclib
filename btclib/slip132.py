@@ -15,6 +15,7 @@ https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 
 from . import base58address, bech32address, bip32
 from .bip32 import BIP32Key, BIP32KeyData
+from .exceptions import BTClibValueError
 from .network import (
     _P2WPKH_P2SH_PUB_PREFIXES,
     _P2WPKH_PUB_PREFIXES,
@@ -49,7 +50,7 @@ def address_from_xpub(xpub: BIP32Key) -> bytes:
 
     if xpub.key[0] not in (2, 3):
         m = f"not a public key: {xpub.serialize().decode('ascii')}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     if xpub.version in _XPUB_PREFIXES:
         return base58address.p2pkh(xpub)

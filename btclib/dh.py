@@ -25,6 +25,7 @@ from typing import Optional
 
 from .alias import HashF, Point
 from .curve import Curve, mult, secp256k1
+from .exceptions import BTClibValueError
 
 
 def ansi_x9_63_kdf(
@@ -40,7 +41,7 @@ def ansi_x9_63_kdf(
     hsize = hf().digest_size
     max_size = hsize * (2 ** 32 - 1)
     if size > max_size:
-        raise ValueError(f"cannot derive a key larger than {max_size} bytes")
+        raise BTClibValueError(f"cannot derive a key larger than {max_size} bytes")
     K_temp = []
     for counter in range(1, ceil(size / hsize) + 1):
         h = hf()

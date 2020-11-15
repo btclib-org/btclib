@@ -24,6 +24,7 @@ from .curvegroup import (
     _mult,
     _multi_mult,
 )
+from .exceptions import BTClibValueError
 from .utils import hex_string, int_from_integer
 
 
@@ -37,10 +38,10 @@ class CurveSubGroup(CurveGroup):
         # 2. check that xG and yG are integers in the interval [0, p−1]
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p)
         if len(G) != 2:
-            raise ValueError("Generator must a be a sequence[int, int]")
+            raise BTClibValueError("Generator must a be a sequence[int, int]")
         self.G = (int_from_integer(G[0]), int_from_integer(G[1]))
         if not self.is_on_curve(self.G):
-            raise ValueError("Generator is not on the curve")
+            raise BTClibValueError("Generator is not on the curve")
         self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
 
     def __str__(self) -> str:
@@ -96,28 +97,28 @@ class Curve(CurveSubGroup):
         if n < 2 or n % 2 == 0 or pow(2, n - 1, n) != 1:
             err_msg = "n is not prime: "
             err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
         delta = int(2 * sqrt(self.p))
         # also check n with Hasse Theorem
         if h < 2 and not self.p + 1 - delta <= n <= self.p + 1 + delta:
             err_msg = "n not in p+1-delta..p+1+delta: "
             err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
         # 7. Check that G ≠ INF, nG = INF
         if self.G[1] == 0:
             m = "INF point cannot be a generator"
-            raise ValueError(m)
+            raise BTClibValueError(m)
         InfJ = _mult(n, self.GJ, self)
         if InfJ[2] != 0:
             err_msg = "n is not the group order: "
             err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
         # 6. Check cofactor
         exp_h = int(1 / n + delta / n + self.p / n)
         if h != exp_h:
-            raise ValueError(f"invalid h: {h}, expected {exp_h}")
+            raise BTClibValueError(f"invalid h: {h}, expected {exp_h}")
         self.h = h
 
         # 8. Check that n ≠ p
@@ -245,7 +246,7 @@ def multi_mult(
     if len(scalars) != len(Points):
         errMsg = "mismatch between number of scalars and points: "
         errMsg += f"{len(scalars)} vs {len(Points)}"
-        raise ValueError(errMsg)
+        raise BTClibValueError(errMsg)
 
     JPoints: List[JacPoint] = []
     ints: List[int] = []

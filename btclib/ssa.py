@@ -66,6 +66,7 @@ from .alias import (
 from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult, _multi_mult
+from .exceptions import BTClibRuntimeError, BTClibValueError
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
 from .to_prvkey import PrvKey, int_from_prvkey
@@ -112,7 +113,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
         y_Q = ec.y_quadratic_residue(x_Q, True)
         return x_Q, y_Q
 
-    raise ValueError("not a BIP340 public key")
+    raise BTClibValueError("not a BIP340 public key")
 
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
@@ -127,7 +128,7 @@ def _validate_sig(r: int, s: int, ec: Curve) -> None:
     if not 0 <= s < ec.n:
         err_msg = "scalar s not in 0..n-1: "
         err_msg += f"'{hex_string(s)}'" if s > 0xFFFFFFFF else f"{s}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
 
 def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
@@ -251,7 +252,7 @@ def __challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
     # if c == 0 then private key is removed from the equations,
     # so the signature is valid for any private/public key pair
     # if c == 0:
-    #    raise RuntimeError("invalid zero challenge")
+    #    raise BTClibRuntimeError("invalid zero challenge")
     return int_from_bits(t, ec.nlen) % ec.n
 
 
@@ -349,7 +350,7 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Fail if infinite(KJ).
     # Fail if jacobi(y_K) ≠ 1.
     if not ec.has_square_y(KJ):
-        raise RuntimeError("y_K is not a quadratic residue")
+        raise BTClibRuntimeError("y_K is not a quadratic residue")
 
     # Fail if x_K ≠ r
     assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "signature verification failed"
@@ -406,7 +407,7 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     # Private function provided for testing purposes only.
 
     if c == 0:
-        raise ValueError("invalid zero challenge")
+        raise BTClibValueError("invalid zero challenge")
 
     KJ = r, ec.y_quadratic_residue(r, True), 1
 
@@ -433,9 +434,9 @@ def _crack_prvkey(
     r1, s1 = deserialize(sig1, ec)
     r2, s2 = deserialize(sig2, ec)
     if r1 != r2:
-        raise ValueError("not the same r in signatures")
+        raise BTClibValueError("not the same r in signatures")
     if s1 == s2:
-        raise ValueError("identical signatures")
+        raise BTClibValueError("identical signatures")
 
     x_Q = point_from_bip340pubkey(Q, ec)[0]
 
@@ -458,11 +459,11 @@ def _batch_verify(
     if len(ms) != batch_size:
         errMsg = f"mismatch between number of pubkeys ({batch_size}) "
         errMsg += f"and number of messages ({len(ms)})"
-        raise ValueError(errMsg)
+        raise BTClibValueError(errMsg)
     if len(sigs) != batch_size:
         errMsg = f"mismatch between number of pubkeys ({batch_size}) "
         errMsg += f"and number of signatures ({len(sigs)})"
-        raise ValueError(errMsg)
+        raise BTClibValueError(errMsg)
 
     if batch_size < 2:
         _assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)
@@ -505,7 +506,7 @@ def _batch_verify(
     TZ2 = TJ[2] * TJ[2]
     precondition = TJ[0] * RHSZ2 % ec.p == RHSJ[0] * TZ2 % ec.p
     if not precondition:
-        raise ValueError("signature verification precondition failed")
+        raise BTClibValueError("signature verification precondition failed")
 
     valid_sig = TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p
     assert valid_sig, "signature verification failed"

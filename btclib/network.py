@@ -20,6 +20,7 @@ from typing import Dict, List, Union
 from dataclasses_json import DataClassJsonMixin, config
 
 from .curve import CURVES, Curve
+from .exceptions import BTClibValueError
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> str:
     for network in NETWORKS:
         if getattr(NETWORKS[network], key) == prefix:
             return network
-    raise ValueError(f"invalid value for network keyword '{key}': {prefix!r}")
+    raise BTClibValueError(f"invalid value for network keyword '{key}': {prefix!r}")
 
 
 _P2PKH_PREFIXES = [NETWORKS[net].p2pkh for net in NETWORKS]

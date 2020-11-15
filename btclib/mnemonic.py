@@ -19,6 +19,7 @@ better served by the bip39 and electrum module functions.
 from os import path
 from typing import List
 
+from .exceptions import BTClibValueError
 from .utils import ensure_is_power_of_two
 
 WordList = List[str]
@@ -64,7 +65,7 @@ class WordLists:
         # a new language, unknown before
         if lang not in self.languages:
             if filename is None:
-                raise ValueError(f"Missing file for language '{lang}'")
+                raise BTClibValueError(f"Missing file for language '{lang}'")
             # initialize the new language
             self.languages.append(lang)
             self.language_files[lang] = filename

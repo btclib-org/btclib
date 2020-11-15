@@ -23,6 +23,7 @@ with the following modifications:
 
 from typing import Tuple
 
+from .exceptions import BTClibValueError
 from .utils import hex_string
 
 
@@ -56,7 +57,7 @@ def mod_inv(a: int, m: int) -> int:
     err_msg += f"{hex_string(a)}" if a > 0xFFFFFFFF else f"{a}"
     err_msg += " mod "
     err_msg += f"{hex_string(m)}" if m > 0xFFFFFFFF else f"{m}"
-    raise ValueError(err_msg)
+    raise BTClibValueError(err_msg)
 
 
 def legendre_symbol(a, p) -> int:
@@ -107,7 +108,7 @@ def mod_sqrt(a: int, p: int) -> int:
         err_msg += f"'{hex_string(a)}'" if a > 0xFFFFFFFF else f"{a}"
         err_msg += " mod "
         err_msg += f"'{hex_string(p)}'" if p > 0xFFFFFFFF else f"{p}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
     return r
 
 
@@ -129,7 +130,7 @@ def tonelli(a: int, p: int) -> int:
         err_msg += f"'{hex_string(a)}'" if a > 0xFFFFFFFF else f"{a}"
         err_msg += " mod "
         err_msg += f"'{hex_string(p)}'" if p > 0xFFFFFFFF else f"{p}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
     # Factor p-1 on the form q * 2^s (with q odd)
     q, s = p - 1, 0

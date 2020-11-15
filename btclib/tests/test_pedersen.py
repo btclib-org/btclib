@@ -16,6 +16,7 @@ import pytest
 
 from btclib import pedersen
 from btclib.curve import CURVES, secp256k1
+from btclib.exceptions import BTClibTypeError
 
 secp256r1 = CURVES["secp256r1"]
 secp384r1 = CURVES["secp384r1"]
@@ -62,5 +63,5 @@ def test_commitment() -> None:
 
     # commit does not verify (with catched exception)
     assert not pedersen.verify((r1, r1), v1, C2, ec, hf)  # type: ignore
-    with pytest.raises(TypeError, match="not an Integer"):
+    with pytest.raises(BTClibTypeError, match="not an Integer"):
         pedersen.commit((r1, r1), v1, ec, hf)  # type: ignore

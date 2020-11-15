@@ -24,6 +24,7 @@ from .entropy import (
     _indexes_from_entropy,
     binstr_from_entropy,
 )
+from .exceptions import BTClibValueError
 from .mnemonic import (
     Mnemonic,
     _indexes_from_mnemonic,
@@ -61,7 +62,7 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> Tuple[str, str]:
 
     m = f"unknown electrum mnemonic version: '{s[:3]}'; "
     m += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
-    raise ValueError(m)
+    raise BTClibValueError(m)
 
 
 def mnemonic_from_entropy(
@@ -79,7 +80,7 @@ def mnemonic_from_entropy(
     if version_str not in _MNEMONIC_VERSIONS:
         m = f"unknown electrum mnemonic version: '{version_str}'; "
         m += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
     version = _MNEMONIC_VERSIONS[version_str]
 
     binstr_entropy = binstr_from_entropy(entropy)

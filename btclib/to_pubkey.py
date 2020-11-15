@@ -13,6 +13,7 @@ from typing import Optional, Tuple, Union
 from .alias import Point
 from .bip32 import BIP32Key, BIP32KeyData
 from .curve import Curve, mult, secp256k1
+from .exceptions import BTClibValueError
 from .network import (
     NETWORKS,
     curve_from_xkeyversion,
@@ -43,9 +44,9 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     if xpub.key[0] in (2, 3):
         ec2 = curve_from_xkeyversion(xpub.version)
         if ec != ec2:
-            raise ValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
+            raise BTClibValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
         return point_from_octets(xpub.key, ec)
-    raise ValueError(f"Not a public key: {xpub.key.hex()}")
+    raise BTClibValueError(f"Not a public key: {xpub.key.hex()}")
 
 
 def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
@@ -69,7 +70,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
         pass
     else:
         if ec != NETWORKS[net].curve:
-            raise ValueError("Curve mismatch")
+            raise BTClibValueError("Curve mismatch")
         return mult(q, ec.G, ec)
 
     return point_from_pubkey(key, ec)
@@ -81,7 +82,7 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
     if isinstance(pubkey, tuple):
         if ec.is_on_curve(pubkey) and pubkey[1] != 0:
             return pubkey
-        raise ValueError(f"not a valid public key: {pubkey}")
+        raise BTClibValueError(f"not a valid public key: {pubkey}")
     if isinstance(pubkey, BIP32KeyData):
         return _point_from_xpub(pubkey, ec)
     try:
@@ -93,7 +94,7 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
     try:
         return point_from_octets(pubkey, ec)
     except Exception:
-        raise ValueError(f"Not a public key: {pubkey!r}")
+        raise BTClibValueError(f"Not a public key: {pubkey!r}")
 
 
 # not used so far, probably useless
@@ -120,7 +121,7 @@ def _pubkeyinfo_from_xpub(
 
     compressed = True if compressed is None else compressed
     if not compressed:
-        raise ValueError("Uncompressed SEC / compressed BIP32 mismatch")
+        raise BTClibValueError("Uncompressed SEC / compressed BIP32 mismatch")
 
     if isinstance(xpub, BIP32KeyData):
         xpub.assert_valid()
@@ -129,7 +130,7 @@ def _pubkeyinfo_from_xpub(
 
     if xpub.key[0] not in (2, 3):
         m = f"Not a public key: {xpub.serialize().decode('ascii')}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     if network is None:
         return xpub.key, network_from_xkeyversion(xpub.version)
@@ -138,7 +139,7 @@ def _pubkeyinfo_from_xpub(
     if xpub.version not in allowed_versions:
         m = f"Not a {network} key: "
         m += f"{xpub.serialize().decode('ascii')}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     return xpub.key, network
 
@@ -168,7 +169,7 @@ def pubkeyinfo_from_key(
         if network is not None:
             err_msg += f" for {network}"
         err_msg += f": {key!r}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
 
 def pubkeyinfo_from_pubkey(
@@ -201,7 +202,7 @@ def pubkeyinfo_from_pubkey(
             pubkey = bytes_from_octets(pubkey, size)
             compr = compressed
     except Exception:
-        raise ValueError("Not a public key")
+        raise BTClibValueError("Not a public key")
 
     # verify that it is a valid point
     Q = point_from_octets(pubkey, ec)

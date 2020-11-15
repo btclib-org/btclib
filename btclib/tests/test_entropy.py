@@ -29,6 +29,7 @@ from btclib.entropy import (
     collect_rolls,
     randbinstr,
 )
+from btclib.exceptions import BTClibTypeError
 
 
 def test_indexes() -> None:
@@ -158,15 +159,15 @@ def test_exceptions() -> None:
         binstr_from_entropy(bytes_entropy216, 224)
 
     err_msg = "Entropy must be raw binary 0/1 string, bytes, or int; not "
-    with pytest.raises(TypeError, match=err_msg):
+    with pytest.raises(BTClibTypeError, match=err_msg):
         binstr_from_entropy(tuple())  # type: ignore
 
     err_msg = "Entropy must be an int, not "
-    with pytest.raises(TypeError, match=err_msg):
+    with pytest.raises(BTClibTypeError, match=err_msg):
         binstr_from_int("not an int")  # type: ignore
 
     err_msg = "Entropy must be a str, not "
-    with pytest.raises(TypeError, match=err_msg):
+    with pytest.raises(BTClibTypeError, match=err_msg):
         binstr_from_binstr(3)  # type: ignore
 
 

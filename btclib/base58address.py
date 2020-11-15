@@ -17,6 +17,7 @@ from typing import Optional, Tuple
 
 from .alias import Octets, Script, String
 from .base58 import b58decode, b58encode
+from .exceptions import BTClibValueError
 from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .network import (
     _P2PKH_PREFIXES,
@@ -40,7 +41,7 @@ def b58address_from_h160(prefix: Octets, h160: Octets, network: str) -> bytes:
     prefix = bytes_from_octets(prefix)
     prefixes = NETWORKS[network].p2pkh, NETWORKS[network].p2sh
     if prefix not in prefixes:
-        raise ValueError(f"invalid {network} base58 address prefix: {prefix!r}")
+        raise BTClibValueError(f"invalid {network} base58 address prefix: {prefix!r}")
     payload = prefix + bytes_from_octets(h160, 20)
     return b58encode(payload)
 
@@ -60,7 +61,7 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
         network = network_from_key_value("p2sh", prefix)
         is_script_hash = True
     else:
-        raise ValueError(f"invalid base58 address prefix: 0x{prefix.hex()}")
+        raise BTClibValueError(f"invalid base58 address prefix: 0x{prefix.hex()}")
 
     return prefix, payload[1:], network, is_script_hash
 
@@ -99,7 +100,7 @@ def b58address_from_witness(witness_program: Octets, network: str = "mainnet") -
     else:
         err_msg = "invalid witness program length for witness version zero: "
         err_msg += f"{length} instead of 20 or 32"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
     return p2sh(redeem_script, network)
 

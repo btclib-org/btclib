@@ -30,6 +30,7 @@ Up to 0xfc, a varint is just 1 byte; however, if the integer is greater than
 """
 
 from .alias import BinaryData
+from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata, hex_string
 
 
@@ -56,7 +57,7 @@ def encode(i: int) -> bytes:
     "Return the varint bytes encoding of an integer."
 
     if i < 0x00:
-        raise ValueError(f"negative integer: {i}")
+        raise BTClibValueError(f"negative integer: {i}")
     if i < 0xFD:  # 1 byte
         return bytes([i])
     if i <= 0xFFFF:  # 2 bytes
@@ -65,4 +66,4 @@ def encode(i: int) -> bytes:
         return b"\xFE" + i.to_bytes(4, byteorder="little")
     if i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
         return b"\xFF" + i.to_bytes(8, byteorder="little")
-    raise ValueError(f"integer too big for varint encoding: '{hex_string(i)}'")
+    raise BTClibValueError(f"integer too big for varint encoding: '{hex_string(i)}'")

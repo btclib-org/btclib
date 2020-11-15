@@ -13,6 +13,7 @@ from typing import Tuple
 from .alias import Script, String
 from .base58address import b58address_from_h160, h160_from_b58address
 from .bech32address import b32address_from_witness, witness_from_b32address
+from .exceptions import BTClibValueError
 from .network import NETWORKS
 from .scriptpubkey import payload_from_scriptPubKey, script_pubkey_from_payload
 from .tx_out import TxOut
@@ -31,7 +32,7 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
         # also check witness validity
         wv, wp, network, is_script_hash = witness_from_b32address(addr)
         if wv != 0:
-            raise ValueError(f"unmanaged witness version: {wv}")
+            raise BTClibValueError(f"unmanaged witness version: {wv}")
         if is_script_hash:
             return script_pubkey_from_payload("p2wsh", wp), network
         return script_pubkey_from_payload("p2wpkh", wp), network
@@ -47,11 +48,11 @@ def address_from_scriptPubKey(scriptPubKey: Script, network: str = "mainnet") ->
 
     script_type, payload, m = payload_from_scriptPubKey(scriptPubKey)
     if script_type == "p2pk":
-        raise ValueError("no address for p2pk scriptPubKey")
+        raise BTClibValueError("no address for p2pk scriptPubKey")
     if script_type == "p2ms" or isinstance(payload, list) or m != 0:
-        raise ValueError("no address for p2ms scriptPubKey")
+        raise BTClibValueError("no address for p2ms scriptPubKey")
     if script_type == "nulldata":
-        raise ValueError("no address for null data script")
+        raise BTClibValueError("no address for null data script")
 
     if script_type == "p2pkh":
         prefix = NETWORKS[network].p2pkh

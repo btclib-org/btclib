@@ -16,6 +16,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import tx, varint
 from .alias import BinaryData
+from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata, hash256
 
 _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
@@ -78,16 +79,16 @@ class BlockHeader(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         if not 1 <= self.version <= 0xFFFFFFFF:
-            raise ValueError("Invalid block header version")
+            raise BTClibValueError("Invalid block header version")
         if len(self.previousblockhash) != 64:
-            raise ValueError("Invalid block previous hash length")
+            raise BTClibValueError("Invalid block previous hash length")
         if len(self.merkleroot) != 64:
-            raise ValueError("Invalid block merkle root length")
+            raise BTClibValueError("Invalid block merkle root length")
         target = int.from_bytes(self.bits[-3:], "big")
         exp: int = pow(256, (self.bits[0] - 3))
         target *= exp
         if int(self.hash, 16) > target:
-            raise ValueError("Invalid nonce")
+            raise BTClibValueError("Invalid nonce")
 
     # TODO: add difficulty and target properties
 
@@ -140,7 +141,7 @@ class Block(DataClassJsonMixin):
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
         if _generate_merkle_root(self.transactions) != self.header.merkleroot:
-            raise ValueError(
+            raise BTClibValueError(
                 "The block merkle root is not the merkle root of the block transactions"
             )
         self.header.assert_valid()

@@ -22,6 +22,7 @@ from math import ceil
 from typing import List, Sequence, Tuple, Union
 
 from .alias import INF, INFJ, Integer, JacPoint, Point
+from .exceptions import BTClibTypeError, BTClibValueError
 from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
 from .utils import hex_string, int_from_integer
 
@@ -61,7 +62,7 @@ class CurveGroup:
         if p < 2 or p % 2 == 0 or pow(2, p - 1, p) != 1:
             err_msg = "p is not prime: "
             err_msg += f"'{hex_string(p)}'" if p > _HEXTHRESHOLD else f"{p}"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
         plen = p.bit_length()
         # byte-length
@@ -72,28 +73,28 @@ class CurveGroup:
 
         # 2. check that a and b are integers in the interval [0, p−1]
         if a < 0:
-            raise ValueError(f"negative a: {a}")
+            raise BTClibValueError(f"negative a: {a}")
         if p <= a:
             err_msg = "p <= a: " + (
                 f"'{hex_string(p)}' <= '{hex_string(a)}'"
                 if p > _HEXTHRESHOLD
                 else f"{p} <= {a}"
             )
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
         if b < 0:
-            raise ValueError(f"negative b: {b}")
+            raise BTClibValueError(f"negative b: {b}")
         if p <= b:
             err_msg = "p <= b: " + (
                 f"'{hex_string(p)}' <= '{hex_string(b)}'"
                 if p > _HEXTHRESHOLD
                 else f"{p} <= {b}"
             )
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
         # 3. Check that 4*a^3 + 27*b^2 ≠ 0 (mod p)
         d = 4 * a * a * a + 27 * b * b
         if d % p == 0:
-            raise ValueError("zero discriminant")
+            raise BTClibValueError("zero discriminant")
         self._a = a
         self._b = b
 
@@ -135,7 +136,7 @@ class CurveGroup:
         # so that negate(INF) = INF
         if len(Q) == 2:
             return Q[0], (self.p - Q[1]) % self.p
-        raise TypeError("not a point")
+        raise BTClibTypeError("not a point")
 
     def negate_jac(self, Q: JacPoint) -> JacPoint:
         """Return the opposite Jacobian point.
@@ -146,7 +147,7 @@ class CurveGroup:
         # so that negate(INF) = INF
         if len(Q) == 3:
             return Q[0], (self.p - Q[1]) % self.p, Q[2]
-        raise TypeError("not a Jacobian point")
+        raise BTClibTypeError("not a Jacobian point")
 
     def _aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve
@@ -161,7 +162,7 @@ class CurveGroup:
     def _x_aff_from_jac(self, Q: JacPoint) -> int:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            raise ValueError("infinity point has no x-coordinate")
+            raise BTClibValueError("infinity point has no x-coordinate")
 
         Z2 = Q[2] * Q[2]
         return (Q[0] * mod_inv(Z2, self.p)) % self.p
@@ -304,12 +305,12 @@ class CurveGroup:
         if not 0 <= x < self.p:
             err_msg = "x-coordinate not in 0..p-1: "
             err_msg += f"{hex_string(x)}" if x > _HEXTHRESHOLD else f"{x}"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
         try:
             y2 = self._y2(x)
             return mod_sqrt(y2, self.p)
         except Exception:
-            raise ValueError("invalid x-coordinate")
+            raise BTClibValueError("invalid x-coordinate")
 
     def require_on_curve(self, Q: Point) -> None:
         """Require the input curve Point to be on the curve.
@@ -317,16 +318,16 @@ class CurveGroup:
         An Error is raised if not.
         """
         if not self.is_on_curve(Q):
-            raise ValueError("point not on curve")
+            raise BTClibValueError("point not on curve")
 
     def is_on_curve(self, Q: Point) -> bool:
         """Return True if the point is on the curve."""
         if len(Q) != 2:
-            raise ValueError("point must be a tuple[int, int]")
+            raise BTClibValueError("point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
             return True
         if not 0 < Q[1] < self.p:  # y cannot be zero
-            raise ValueError(f"y-coordinate not in 1..p-1: '{hex_string(Q[1])}'")
+            raise BTClibValueError(f"y-coordinate not in 1..p-1: '{hex_string(Q[1])}'")
         return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
 
     def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
@@ -339,7 +340,7 @@ class CurveGroup:
         if len(Q) == 3:
             # FIXME: do not ignore
             return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1  # type: ignore
-        raise TypeError("not a point")
+        raise BTClibTypeError("not a point")
 
     def require_p_ThreeModFour(self) -> None:
         """Require the field prime p to be equal to 3 mod 4.
@@ -349,14 +350,14 @@ class CurveGroup:
         if not self.pIsThreeModFour:
             m = "field prime is not equal to 3 mod 4: "
             m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
-            raise ValueError(m)
+            raise BTClibValueError(m)
 
     # break the y simmetry: even/odd, low/high, or quadratic residue criteria
 
     def y_odd(self, x: int, odd1even0: int = 1) -> int:
         """Return the odd/even affine y-coordinate associated to x."""
         if odd1even0 not in (0, 1):
-            raise ValueError("odd1even0 must be bool or 1/0")
+            raise BTClibValueError("odd1even0 must be bool or 1/0")
         root = self.y(x)
         # switch even/odd root as needed (XORing the conditions)
         return root if root % 2 == odd1even0 else self.p - root
@@ -364,7 +365,7 @@ class CurveGroup:
     def y_low(self, x: int, low1high0: int = 1) -> int:
         """Return the low/high affine y-coordinate associated to x."""
         if low1high0 not in (0, 1):
-            raise ValueError("low1high0 must be bool or 1/0")
+            raise BTClibValueError("low1high0 must be bool or 1/0")
         root = self.y(x)
         # switch low/high root as needed (XORing the conditions)
         return root if (self.p // 2 >= root) == low1high0 else self.p - root
@@ -372,7 +373,7 @@ class CurveGroup:
     def y_quadratic_residue(self, x: int, quad_res: int = 1) -> int:
         """Return the quadratic residue affine y-coordinate."""
         if quad_res not in (0, 1):
-            raise ValueError("quad_res must be bool or 1/0")
+            raise BTClibValueError("quad_res must be bool or 1/0")
         self.require_p_ThreeModFour()
         root = self.y(x)
         # switch to quadratic residue root as needed
@@ -393,7 +394,7 @@ def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     if m == 0:
         return INF
@@ -417,7 +418,7 @@ def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     if m == 0:
         return INFJ
@@ -442,7 +443,7 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
     R = [INF, Q]
@@ -475,7 +476,7 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     # R[0] is the running result, R[1] = R[0] + Q is an ancillary variable
     R = [INFJ, Q]
@@ -497,7 +498,7 @@ def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
     "Return {k_i * Q} for k_i in {0, ..., size-1)"
 
     if size < 2:
-        raise ValueError(f"size too low: {size}")
+        raise BTClibValueError(f"size too low: {size}")
 
     k, odd = divmod(size, 2)
     T = [INFJ, Q]
@@ -574,7 +575,7 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     # R[0] is the running resultR[1] = R[0] + Q is an ancillary variable
     R = [INFJ, Q]
@@ -598,7 +599,7 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     # at each step one of the points in T will be added
     T = [INFJ, Q, ec._double_jac(Q)]
@@ -635,11 +636,11 @@ def _mult_fixed_window(
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     # a number cannot be written in basis 1 (ie w=0)
     if w <= 0:
-        raise ValueError(f"non positive w: {w}")
+        raise BTClibValueError(f"non positive w: {w}")
 
     # at each step one of the points in T will be added
     # T = cached_multiples(Q, ec)
@@ -678,11 +679,11 @@ def _mult_fixed_window_cached(
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     # a number cannot be written in basis 1 (ie w=0)
     if w <= 0:
-        raise ValueError(f"non positive w: {w}")
+        raise BTClibValueError(f"non positive w: {w}")
 
     T = cached_multiples_fixwind(Q, ec, w)
 
@@ -726,9 +727,9 @@ def _double_mult(
     """
 
     if u < 0:
-        raise ValueError(f"negative first coefficient: {hex(u)}")
+        raise BTClibValueError(f"negative first coefficient: {hex(u)}")
     if v < 0:
-        raise ValueError(f"negative second coefficient: {hex(v)}")
+        raise BTClibValueError(f"negative second coefficient: {hex(v)}")
 
     # at each step one of the following points will be added
     T = [INFJ, HJ, QJ, ec._add_jac(HJ, QJ)]
@@ -764,7 +765,7 @@ def _multi_mult(
     if len(scalars) != len(JPoints):
         errMsg = "mismatch between number of scalars and points: "
         errMsg += f"{len(scalars)} vs {len(JPoints)}"
-        raise ValueError(errMsg)
+        raise BTClibValueError(errMsg)
 
     # x = list(zip([-n for n in scalars], JPoints))
     x: List[Tuple[int, JacPoint]] = []
@@ -772,7 +773,7 @@ def _multi_mult(
         if n == 0:  # mandatory check to avoid infinite loop
             continue
         if n < 0:
-            raise ValueError(f"negative coefficient: {hex(n)}")
+            raise BTClibValueError(f"negative coefficient: {hex(n)}")
         x.append((-n, PJ))
 
     if not x:

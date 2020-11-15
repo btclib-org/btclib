@@ -15,6 +15,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import varbytes, varint
 from .alias import BinaryData
+from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
@@ -67,15 +68,15 @@ class OutPoint(DataClassJsonMixin):
         if len(self.txid) != 32:
             m = f"invalid OutPoint txid: {len(self.txid)}"
             m += " instead of 32 bytes"
-            raise ValueError(m)
+            raise BTClibValueError(m)
         # must be a 4-bytes int
         if self.vout < 0:
-            raise ValueError(f"negative OutPoint vout: {self.vout}")
+            raise BTClibValueError(f"negative OutPoint vout: {self.vout}")
         if self.vout > 0xFFFFFFFF:
-            raise ValueError(f"OutPoint vout too high: {hex(self.vout)}")
+            raise BTClibValueError(f"OutPoint vout too high: {hex(self.vout)}")
         # not a coinbase, not a regular OutPoint
         if (self.txid == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
-            raise ValueError("invalid OutPoint")
+            raise BTClibValueError("invalid OutPoint")
 
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")

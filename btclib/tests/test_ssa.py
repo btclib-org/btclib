@@ -23,6 +23,7 @@ from btclib.alias import INF, Point
 from btclib.bip32 import BIP32KeyData
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
+from btclib.exceptions import BTClibRuntimeError
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
 from btclib.secpoint import bytes_from_point
@@ -53,7 +54,7 @@ def test_signature() -> None:
     _, x_Q_fake = ssa.gen_keys(0x02)
     assert not ssa.verify(msg, x_Q_fake, sig)
     err_msg = "y_K is not a quadratic residue"
-    with pytest.raises(RuntimeError, match=err_msg):
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x4)

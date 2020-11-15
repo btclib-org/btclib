@@ -15,6 +15,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import varbytes
 from .alias import BinaryData
+from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata
 
 MAX_SATOSHI = 2_099_999_997_690_000
@@ -74,8 +75,8 @@ class TxOut(DataClassJsonMixin):
     def assert_valid(self) -> None:
         # must be a 8-bytes int
         if self.value < 0:
-            raise ValueError(f"negative value: {self.value}")
+            raise BTClibValueError(f"negative value: {self.value}")
         if self.value > MAX_SATOSHI:
-            raise ValueError(f"value too high: {hex(self.value)}")
+            raise BTClibValueError(f"value too high: {hex(self.value)}")
         if len(self.scriptPubKey) == 0:
-            raise ValueError("empty scriptPubKey")
+            raise BTClibValueError("empty scriptPubKey")

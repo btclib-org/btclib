@@ -43,6 +43,7 @@ from typing import List
 
 from .alias import INFJ, JacPoint
 from .curvegroup import CurveGroup, convert_number_to_base
+from .exceptions import BTClibValueError
 
 
 def mods(m: int, w: int) -> int:
@@ -103,11 +104,11 @@ def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> Jac
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     # a number cannot be written in basis 1 (ie w=0)
     if w <= 0:
-        raise ValueError(f"non positive w: {w}")
+        raise BTClibValueError(f"non positive w: {w}")
 
     k = w - 1
     p = pow(2, k)
@@ -166,11 +167,11 @@ def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """
 
     if m < 0:
-        raise ValueError(f"negative m: {hex(m)}")
+        raise BTClibValueError(f"negative m: {hex(m)}")
 
     # a number cannot be written in basis 1 (ie w=0)
     if w <= 0:
-        raise ValueError(f"non positive w: {w}")
+        raise BTClibValueError(f"non positive w: {w}")
 
     M = wNAF_of_m(m, w)
 

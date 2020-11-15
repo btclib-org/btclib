@@ -142,6 +142,7 @@ from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import wif_from_prvkey
 from .bech32address import p2wpkh, witness_from_b32address
 from .curve import mult, secp256k1
+from .exceptions import BTClibValueError
 from .network import NETWORKS
 from .secpoint import bytes_from_point
 from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
@@ -151,7 +152,7 @@ from .utils import hash160
 def _validate_sig(rf: int, r: int, s: int) -> None:
 
     if rf < 27 or rf > 42:
-        raise ValueError(f"invalid recovery flag: {rf}")
+        raise BTClibValueError(f"invalid recovery flag: {rf}")
     dsa._validate_sig(r, s, secp256k1)
 
 
@@ -184,7 +185,7 @@ def decode(sig: BMSig) -> BMSigTuple:
             sig2 = b64decode(sig)
 
         if len(sig2) != 65:
-            raise ValueError(f"wrong signature length: {len(sig)} instead of 65")
+            raise BTClibValueError(f"wrong signature length: {len(sig)} instead of 65")
         rf = sig2[0]
         r = int.from_bytes(sig2[1:33], byteorder="big")
         s = int.from_bytes(sig2[33:], byteorder="big")
@@ -273,7 +274,7 @@ def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTup
     elif addr == p2wpkh(pubkey, network):
         rf = key_id + 39
     else:
-        raise ValueError("mismatch between private key and address")
+        raise BTClibValueError("mismatch between private key and address")
 
     return rf, r, s
 
@@ -311,20 +312,20 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
         if is_script_hash and 30 < rf < 39:  # P2WPKH-P2SH
             script_pk = b"\x00\x14" + hash160(pubkey)
             if hash160(script_pk) != h160:
-                raise ValueError(f"wrong p2wpkh-p2sh address: {addr!r}")
+                raise BTClibValueError(f"wrong p2wpkh-p2sh address: {addr!r}")
         elif rf < 35:  # P2PKH
             if hash160(pubkey) != h160:
-                raise ValueError(f"wrong p2pkh address: {addr!r}")
+                raise BTClibValueError(f"wrong p2pkh address: {addr!r}")
         else:
             err_msg = f"invalid recovery flag: {rf} (base58 address {addr!r})"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
     else:
         if rf > 38 or 30 < rf < 35:  # P2WPKH
             if hash160(pubkey) != h160:
-                raise ValueError(f"wrong p2wpkh address: {addr!r}")
+                raise BTClibValueError(f"wrong p2wpkh address: {addr!r}")
         else:
             err_msg = f"invalid recovery flag: {rf} (bech32 address {addr!r})"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
 
 def verify(msg: String, addr: String, sig: BMSig) -> bool:

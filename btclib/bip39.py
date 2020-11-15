@@ -45,6 +45,7 @@ from .entropy import (
     _indexes_from_entropy,
     binstr_from_entropy,
 )
+from .exceptions import BTClibValueError
 from .mnemonic import (
     Mnemonic,
     _indexes_from_mnemonic,
@@ -67,7 +68,7 @@ def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
     int_entropy = int(binstr_entropy, 2)
     if nbits not in _bits:
         m = f"invalid number of bits for BIP39 entropy: {nbits}; must be in {_bits}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
     nbytes = (nbits + 7) // 8
     bytes_entropy = int_entropy.to_bytes(nbytes, "big")
 
@@ -113,7 +114,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     words = len(mnemonic.split())
     if words not in _words:
         msg = f"Wrong number of words: ({words}); expected: {_words}"
-        raise ValueError(msg)
+        raise BTClibValueError(msg)
 
     indexes = _indexes_from_mnemonic(mnemonic, lang)
     base = _wordlists.language_length(lang)
@@ -127,7 +128,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     checksum = _entropy_checksum(binstr_entropy)
     if cs_entropy[bits:] != checksum:
         m = f"invalid checksum: {cs_entropy[bits:]}; expected: {checksum}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     return binstr_entropy
 

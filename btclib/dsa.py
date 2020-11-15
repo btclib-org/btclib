@@ -25,6 +25,7 @@ from . import der
 from .alias import DSASig, DSASigTuple, HashF, JacPoint, Octets, Point, String
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult
+from .exceptions import BTClibRuntimeError, BTClibValueError
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
 from .rfc6979 import __rfc6979
@@ -108,11 +109,11 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DSASigTuple:
     # mod n makes it a scalar
     r = K_x % ec.n  # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
-        raise RuntimeError("failed to sign: r = 0")
+        raise BTClibRuntimeError("failed to sign: r = 0")
 
     s = mod_inv(k, ec.n) * (c + r * q) % ec.n  # 6
     if s == 0:  # s≠0 required as verify will need the inverse of s
-        raise RuntimeError("failed to sign: s = 0")
+        raise BTClibRuntimeError("failed to sign: s = 0")
 
     # bitcoin canonical 'low-s' encoding for ECDSA signatures
     # it removes signature malleability as cause of transaction malleability
@@ -365,9 +366,9 @@ def _crack_prvkey(
     r1, s1 = deserialize(sig1, ec)
     r2, s2 = deserialize(sig2, ec)
     if r1 != r2:
-        raise ValueError("not the same r in signatures")
+        raise BTClibValueError("not the same r in signatures")
     if s1 == s2:
-        raise ValueError("identical signatures")
+        raise BTClibValueError("identical signatures")
 
     # The message m: a hlen array
     hlen = hf().digest_size

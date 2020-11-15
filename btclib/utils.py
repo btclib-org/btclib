@@ -21,6 +21,7 @@ from io import BytesIO
 from typing import Iterable, List, Optional, Union
 
 from .alias import BinaryData, Integer, Octets, Printable, ScriptToken, String
+from .exceptions import BTClibTypeError, BTClibValueError
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
@@ -71,7 +72,7 @@ def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
         return o
 
     m = f"invalid size: {len(o)} bytes instead of {out_size}"
-    raise ValueError(m)
+    raise BTClibValueError(m)
 
 
 def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
@@ -140,7 +141,7 @@ def int_from_integer(i: Integer) -> int:
             return int(i, 16)
         i = bytes.fromhex(i)
     if not isinstance(i, bytes):
-        raise TypeError("not an Integer=Union[int, str, bytes]")
+        raise BTClibTypeError("not an Integer=Union[int, str, bytes]")
     return int.from_bytes(i, "big")
 
 
@@ -155,7 +156,7 @@ def hex_string(i: Integer) -> str:
 
     a = int_from_integer(i)
     if a < 0:
-        raise ValueError(f"negative integer: {a}")
+        raise BTClibValueError(f"negative integer: {a}")
     a_str = hex(a)[2:]
     if len(a_str) % 2 != 0:
         a_str = "0" + a_str
@@ -169,7 +170,7 @@ def hex_string(i: Integer) -> str:
 def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
     # http://www.graphics.stanford.edu/~seander/bithacks.html
     if n & (n - 1) != 0:
-        raise ValueError(f"{var_name}: {n} (must be a power of two)")
+        raise BTClibValueError(f"{var_name}: {n} (must be a power of two)")
 
 
 def token_or_string_to_hex_string(val: Union[ScriptToken, String]) -> str:

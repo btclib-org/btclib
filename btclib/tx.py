@@ -23,6 +23,7 @@ from dataclasses_json import DataClassJsonMixin
 
 from . import varint
 from .alias import BinaryData
+from .exceptions import BTClibValueError
 from .tx_in import TxIn, witness_deserialize, witness_serialize
 from .tx_out import TxOut
 from .utils import bytesio_from_binarydata, hash256
@@ -116,11 +117,11 @@ class Tx(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         if not self.vin:
-            raise ValueError("A transaction must have at least one input")
+            raise BTClibValueError("A transaction must have at least one input")
         for tx_in in self.vin:
             tx_in.assert_valid()
         if not self.vout:
-            raise ValueError("A transaction must have at least one output")
+            raise BTClibValueError("A transaction must have at least one output")
         for tx_out in self.vout:
             tx_out.assert_valid()
 

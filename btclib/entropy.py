@@ -26,6 +26,7 @@ from hashlib import sha512
 from typing import Iterable, List, Optional, Tuple, Union
 
 from .alias import BinStr, Entropy, Octets
+from .exceptions import BTClibTypeError, BTClibValueError
 from .utils import bytes_from_octets
 
 _bits = 128, 160, 192, 224, 256, 512
@@ -113,7 +114,7 @@ def binstr_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
 
     m = "Entropy must be raw binary 0/1 string, bytes, or int; "
     m += f"not '{type(entr).__name__}'"
-    raise TypeError(m)
+    raise BTClibTypeError(m)
 
 
 def binstr_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinStr:
@@ -141,7 +142,7 @@ def binstr_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinS
 
     if n_bits not in bits:
         m = f"Wrong number of bits: {n_bits} instead of {bits}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     int_entropy = int.from_bytes(bytes_entropy, "big")
     # only the leftmost bits will be retained
@@ -172,10 +173,10 @@ def binstr_from_int(int_entropy: Union[int, str], bits: OneOrMoreInt = _bits) ->
     if not isinstance(int_entropy, int):
         m = "Entropy must be an int, not "
         m += f"{type(int_entropy).__name__}"
-        raise TypeError(m)
+        raise BTClibTypeError(m)
 
     if int_entropy < 0:
-        raise ValueError(f"Negative entropy: {int_entropy}")
+        raise BTClibValueError(f"Negative entropy: {int_entropy}")
 
     # if a single int, make it a tuple
     if isinstance(bits, int):
@@ -210,7 +211,7 @@ def binstr_from_binstr(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
     if not isinstance(str_entropy, str):
         m = "Entropy must be a str, not "
         m += f"{type(str_entropy).__name__}"
-        raise TypeError(m)
+        raise BTClibTypeError(m)
         # check if it is a valid binary string
 
     int(str_entropy, 2)
@@ -227,7 +228,7 @@ def binstr_from_binstr(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
         return str_entropy[: bits[-1]]
     if n_bits not in bits:
         m = f"Wrong number of bits: {n_bits} instead of {bits}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
     return str_entropy
 
 
@@ -296,7 +297,7 @@ def binstr_from_rolls(
     """
 
     if dice_sides < 2:
-        raise ValueError(f"invalid dice base: {dice_sides}, must be >= 2")
+        raise BTClibValueError(f"invalid dice base: {dice_sides}, must be >= 2")
     bits_per_roll = math.floor(math.log2(dice_sides))
     # used base
     base = 2 ** bits_per_roll
@@ -315,11 +316,11 @@ def binstr_from_rolls(
         # reject invalid rolls not in [1-dice_sides)]
         elif not 0 < roll <= dice_sides:
             msg = f"invalid roll: {roll} is not in [1-{dice_sides}]"
-            raise ValueError(msg)
+            raise BTClibValueError(msg)
     if min_roll_number > 0:
         msg = f"Too few rolls in the usable [1-{base}] range"
         msg += f", missing {min_roll_number} rolls"
-        raise ValueError(msg)
+        raise BTClibValueError(msg)
 
     return binstr_from_int(i, bits)
 
@@ -356,7 +357,7 @@ def randbinstr(
         max_bits = hf.digest_size * 8
         if bits > max_bits:
             m = f"Too many bits required: {bits}, max is {max_bits}"
-            raise ValueError(m)
+            raise BTClibValueError(m)
         n_bytes = math.ceil(i.bit_length() / 8)
         h512 = sha512(i.to_bytes(n_bytes, byteorder="big")).digest()
         i = int.from_bytes(h512, byteorder="big")

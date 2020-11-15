@@ -18,6 +18,7 @@ import pytest
 from btclib.alias import INF, INFJ
 from btclib.curve import CURVES, Curve, double_mult, mult, multi_mult, secp256k1
 from btclib.curvegroup import _jac_from_aff
+from btclib.exceptions import BTClibTypeError
 from btclib.numbertheory import mod_sqrt
 from btclib.pedersen import second_generator
 
@@ -115,7 +116,7 @@ def test_aff_jac_conversions() -> None:
         assert not ec.has_square_y(INF)
         with pytest.raises(ValueError, match="infinity point has no x-coordinate"):
             ec._x_aff_from_jac(INFJ)
-        with pytest.raises(TypeError, match="not a point"):
+        with pytest.raises(BTClibTypeError, match="not a point"):
             ec.has_square_y("notapoint")  # type: ignore
 
 
@@ -234,10 +235,10 @@ def test_negate() -> None:
         minus_INFJ = ec.negate_jac(INFJ)
         assert ec._jac_equality(minus_INFJ, INFJ)
 
-        with pytest.raises(TypeError, match="not a point"):
+        with pytest.raises(BTClibTypeError, match="not a point"):
             ec.negate(ec.GJ)  # type: ignore
 
-        with pytest.raises(TypeError, match="not a Jacobian point"):
+        with pytest.raises(BTClibTypeError, match="not a Jacobian point"):
             ec.negate_jac(ec.G)  # type: ignore
 
 

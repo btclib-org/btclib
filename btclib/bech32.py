@@ -49,6 +49,7 @@ with the following modifications:
 from typing import Iterable, List, Tuple
 
 from .alias import String
+from .exceptions import BTClibValueError
 
 __ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
@@ -99,9 +100,11 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
         bech = bech.decode("ascii")
 
     if not all(47 < ord(x) < 123 for x in bech):
-        raise ValueError(f"ASCII character outside [48-122] in bech32 string: {bech}")
+        raise BTClibValueError(
+            f"ASCII character outside [48-122] in bech32 string: {bech}"
+        )
     if bech.lower() != bech and bech.upper() != bech:
-        raise ValueError(f"mixed case in bech32 string: {bech}")
+        raise BTClibValueError(f"mixed case in bech32 string: {bech}")
     bech = bech.lower()
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
@@ -109,22 +112,22 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
     # not here at bech32 level.
     # e.g. Lightning Network uses bech32 without such limitation
     # if len(bech) > 90:
-    #     raise ValueError(f"Bech32 string length ({len(bech)}) > 90")
+    #     raise BTClibValueError(f"Bech32 string length ({len(bech)}) > 90")
 
     pos = bech.rfind("1")  # find the separator between hrp and data
     if pos == -1:
-        raise ValueError(f"Missing HRP in bech32 string: {bech}")
+        raise BTClibValueError(f"Missing HRP in bech32 string: {bech}")
     if pos == 0:
-        raise ValueError(f"Empty HRP in bech32 string: {bech}")
+        raise BTClibValueError(f"Empty HRP in bech32 string: {bech}")
     if pos + 7 > len(bech):
-        raise ValueError(f"Too short checksum in bech32 string: {bech}")
+        raise BTClibValueError(f"Too short checksum in bech32 string: {bech}")
 
     hrp = bech[:pos]
 
     if any(x not in __ALPHABET for x in bech[pos + 1 :]):
-        raise ValueError(f"invalid data characters in bech32 string: {bech}")
+        raise BTClibValueError(f"invalid data characters in bech32 string: {bech}")
     data = [__ALPHABET.find(x) for x in bech[pos + 1 :]]
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]
-    raise ValueError(f"invalid checksum in bech32 string: {bech}")
+    raise BTClibValueError(f"invalid checksum in bech32 string: {bech}")

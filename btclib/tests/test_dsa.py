@@ -18,6 +18,7 @@ from btclib import dsa
 from btclib.alias import INF
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
+from btclib.exceptions import BTClibRuntimeError
 from btclib.numbertheory import mod_inv
 from btclib.rfc6979 import rfc6979
 from btclib.secpoint import bytes_from_point, point_from_octets
@@ -172,7 +173,7 @@ def test_low_cardinality() -> None:
                         s = ec.n - s
                     if r == 0 or s == 0:
                         err_msg = "failed to sign: "
-                        with pytest.raises(RuntimeError, match=err_msg):
+                        with pytest.raises(BTClibRuntimeError, match=err_msg):
                             dsa.__sign(e, q, k, low_s, ec)
                         continue
 

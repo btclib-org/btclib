@@ -43,6 +43,7 @@ from . import bip39, electrum
 from .alias import INF, Octets, Point, String
 from .base58 import b58decode, b58encode
 from .curve import mult, secp256k1
+from .exceptions import BTClibValueError
 from .mnemonic import Mnemonic
 from .network import (
     _NETWORKS,
@@ -68,14 +69,14 @@ def _index_int_from_str(s: str) -> int:
 
     index = int(s)
     if not 0 <= index < 0x80000000:
-        raise ValueError(f"invalid index: {index}")
+        raise BTClibValueError(f"invalid index: {index}")
     return index + (0x80000000 if hardened else 0)
 
 
 def _str_from_index_int(i: int, hardening: str = "'") -> str:
 
     if not 0 <= i <= 0xFFFFFFFF:
-        raise ValueError(f"invalid index: {i}")
+        raise BTClibValueError(f"invalid index: {i}")
     if i < 0x80000000:
         return str(i)
     assert hardening in ("'", "h", "H"), f"invalid hardening symbol {hardening}"
@@ -143,74 +144,78 @@ class BIP32KeyData(DataClassJsonMixin):
     def assert_valid(self) -> None:
 
         if not isinstance(self.version, bytes):
-            raise ValueError("version is not an instance of bytes")
+            raise BTClibValueError("version is not an instance of bytes")
         if len(self.version) != 4:
             err_msg = "invalid version length: "
             err_msg += f"{len(self.version)} bytes"
             err_msg += " instead of 4"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
         if not isinstance(self.depth, int):
-            raise ValueError("depth is not an instance of int")
+            raise BTClibValueError("depth is not an instance of int")
         if self.depth < 0 or self.depth > 255:
-            raise ValueError(f"invalid depth: {self.depth}")
+            raise BTClibValueError(f"invalid depth: {self.depth}")
 
         if not isinstance(self.parent_fingerprint, bytes):
-            raise ValueError("parent fingerprint is not an instance of bytes")
+            raise BTClibValueError("parent fingerprint is not an instance of bytes")
         if len(self.parent_fingerprint) != 4:
             err_msg = "invalid parent fingerprint length: "
             err_msg += f"{len(self.parent_fingerprint)} bytes"
             err_msg += " instead of 4"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
         if not isinstance(self.index, int):
-            raise ValueError("index is not an instance of bytes")
+            raise BTClibValueError("index is not an instance of bytes")
         if not 0 <= self.index <= 0xFFFFFFFF:
-            raise ValueError(f"invalid index: {self.index}")
+            raise BTClibValueError(f"invalid index: {self.index}")
 
         if not isinstance(self.chain_code, bytes):
-            raise ValueError("chain code is not an instance of bytes")
+            raise BTClibValueError("chain code is not an instance of bytes")
         if len(self.chain_code) != 32:
             err_msg = "invalid chain code length: "
             err_msg += f"{len(self.chain_code)} bytes"
             err_msg += " instead of 32"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
         if not isinstance(self.key, bytes):
-            raise ValueError("key is not an instance of bytes")
+            raise BTClibValueError("key is not an instance of bytes")
         if len(self.key) != 33:
             err_msg = "invalid key length: "
             err_msg += f"{len(self.key)} bytes"
             err_msg += " instead of 33"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
         if self.version in _XPRV_VERSIONS_ALL:
             if self.key[0] != 0:
-                raise ValueError(f"invalid private key prefix: 0x{self.key[0:1].hex()}")
+                raise BTClibValueError(
+                    f"invalid private key prefix: 0x{self.key[0:1].hex()}"
+                )
             q = int.from_bytes(self.key[1:], byteorder="big")
             if not 0 < q < ec.n:
-                raise ValueError(f"invalid private key not in 1..n-1: {hex(q)}")
+                raise BTClibValueError(f"invalid private key not in 1..n-1: {hex(q)}")
         elif self.version in _XPUB_VERSIONS_ALL:
             if self.key[0] not in (2, 3):
                 err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[0:1].hex()}"
-                raise ValueError(err_msg)
+                raise BTClibValueError(err_msg)
             try:
                 ec.y(int.from_bytes(self.key[1:], byteorder="big"))
             except Exception:
-                raise ValueError(f"invalid public key: 0x{self.key.hex()}")
+                raise BTClibValueError(f"invalid public key: 0x{self.key.hex()}")
         else:
-            raise ValueError(f"unknown extended key version: 0x{self.version.hex()}")
+            raise BTClibValueError(
+                f"unknown extended key version: 0x{self.version.hex()}"
+            )
 
         if self.depth == 0:
             if self.parent_fingerprint != bytes.fromhex("00000000"):
                 err_msg = f"zero depth with non-zero parent fingerprint: 0x{self.parent_fingerprint.hex()}"
-                raise ValueError(err_msg)
+                raise BTClibValueError(err_msg)
             if self.index != 0:
-                raise ValueError(f"zero depth with non-zero index: {self.index}")
+                raise BTClibValueError(f"zero depth with non-zero index: {self.index}")
         else:
             if self.parent_fingerprint == bytes.fromhex("00000000"):
                 err_msg = f"zero parent fingerprint with non-zero depth: {self.depth}"
-                raise ValueError(err_msg)
+                raise BTClibValueError(err_msg)
 
     @property
     def is_hardened(self) -> bool:
@@ -226,14 +231,18 @@ def rootxprv_from_seed(
     seed = bytes_from_octets(seed)
     bitlenght = len(seed) * 8
     if bitlenght < 128:
-        raise ValueError(f"too few bits for seed: {bitlenght} in '{hex_string(seed)}'")
+        raise BTClibValueError(
+            f"too few bits for seed: {bitlenght} in '{hex_string(seed)}'"
+        )
     if bitlenght > 512:
-        raise ValueError(f"too many bits for seed: {bitlenght} in '{hex_string(seed)}'")
+        raise BTClibValueError(
+            f"too many bits for seed: {bitlenght} in '{hex_string(seed)}'"
+        )
     hd = hmac.digest(b"Bitcoin seed", seed, "sha512")
     k = b"\x00" + hd[:32]
     v = bytes_from_octets(version, 4)
     if v not in _XPRV_VERSIONS_ALL:
-        raise ValueError(f"unknown private key version: {v.hex()}")
+        raise BTClibValueError(f"unknown private key version: {v.hex()}")
 
     key_data = BIP32KeyData(
         version=v,
@@ -275,7 +284,7 @@ def mxprv_from_electrum_mnemonic(
         xversion = _P2WPKH_PRV_PREFIXES[network_index]
         rootxprv = rootxprv_from_seed(seed, xversion)
         return derive(rootxprv, 0x80000000)  # "m/0h"
-    raise ValueError(f"unmanaged electrum mnemonic version: {version}")
+    raise BTClibValueError(f"unmanaged electrum mnemonic version: {version}")
 
 
 BIP32Key = Union[BIP32KeyData, String]
@@ -294,7 +303,9 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
         else BIP32KeyData.deserialize(xprv)
     )
     if xkey_data.key[0] != 0:
-        raise ValueError(f"not a private key: {xkey_data.serialize().decode('ascii')}")
+        raise BTClibValueError(
+            f"not a private key: {xkey_data.serialize().decode('ascii')}"
+        )
 
     i = _XPRV_VERSIONS_ALL.index(xkey_data.version)
     xkey_data.version = _XPUB_VERSIONS_ALL[i]
@@ -316,7 +327,7 @@ def _indexes_from_bip32_path_str(der_path: str) -> List[int]:
 
     if len(indexes) > 255:
         err_msg = f"depth greater than 255: {len(indexes)}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
     return indexes
 
 
@@ -352,7 +363,7 @@ def indexes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> List
     if isinstance(der_path, bytes):
         if len(der_path) % 4 != 0:
             err_msg = f"index is not a multiple of 4-bytes: {len(der_path)}"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
         return [
             int.from_bytes(der_path[4 * n : 4 * (n + 1)], byteorder)
             for n in range(len(der_path) // 4)
@@ -401,7 +412,7 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
         key_data.parent_fingerprint = hash160(key_data.key)[:4]
         key_data.index = index
         if key_data.is_hardened:
-            raise ValueError("invalid hardened derivation from public key")
+            raise BTClibValueError("invalid hardened derivation from public key")
         h = hmac.digest(
             key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
         )
@@ -424,7 +435,7 @@ def _derive(
     final_depth = xkey_data.depth + len(indexes)
     if final_depth > 255:
         err_msg = f"final depth greater than 255: {final_depth}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
     if forced_version is not None:
         version = xkey_data.version
@@ -432,11 +443,11 @@ def _derive(
         if version in _XPRV_VERSIONS_ALL and fversion not in _XPRV_VERSIONS_ALL:
             err_msg = "invalid non-private version forced on a private key: "
             err_msg += f"{hex_string(fversion)}"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
         if version in _XPUB_VERSIONS_ALL and fversion not in _XPUB_VERSIONS_ALL:
             err_msg = "invalid non-public version forced on a public key: "
             err_msg += f"{hex_string(fversion)}"
-            raise ValueError(err_msg)
+            raise BTClibValueError(err_msg)
 
     is_prv = xkey_data.key[0] == 0
     q = int.from_bytes(xkey_data.key[1:], byteorder="big") if is_prv else 0
@@ -491,11 +502,11 @@ def _derive_from_account(
 ) -> BIP32KeyData:
 
     if more_than_two_branches and branch >= 0x80000000:
-        raise ValueError("invalid private derivation at branch level")
+        raise BTClibValueError("invalid private derivation at branch level")
     if branch not in (0, 1):
-        raise ValueError(f"invalid branch: {branch} not in (0, 1)")
+        raise BTClibValueError(f"invalid branch: {branch} not in (0, 1)")
     if address_index >= 0x80000000:
-        raise ValueError("invalid private derivation at address index level")
+        raise BTClibValueError("invalid private derivation at address index level")
     if not key_data.is_hardened:
         raise UserWarning("invalid public derivation at account level")
 
@@ -530,7 +541,7 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
     if p.key[0] not in (2, 3):
         err_msg = "extended parent key is not a public key: "
         err_msg += f"{p.serialize().decode('ascii')}"
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
     c = (
         child_xprv
@@ -541,18 +552,18 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
         err_msg = (
             f"extended child key is not a private key: {c.serialize().decode('ascii')}"
         )
-        raise ValueError(err_msg)
+        raise BTClibValueError(err_msg)
 
     # check depth
     if c.depth != p.depth + 1:
-        raise ValueError("not a parent's child: wrong depths")
+        raise BTClibValueError("not a parent's child: wrong depths")
 
     # check fingerprint
     if c.parent_fingerprint != hash160(p.key)[:4]:
-        raise ValueError("not a parent's child: wrong parent fingerprint")
+        raise BTClibValueError("not a parent's child: wrong parent fingerprint")
 
     if c.is_hardened:
-        raise ValueError("hardened child derivation")
+        raise BTClibValueError("hardened child derivation")
 
     p.version = c.version
 

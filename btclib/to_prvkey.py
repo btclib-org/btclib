@@ -14,6 +14,7 @@ from .alias import String, Union
 from .base58 import b58decode
 from .bip32 import BIP32Key, BIP32KeyData
 from .curve import Curve, secp256k1
+from .exceptions import BTClibValueError
 from .network import (
     NETWORKS,
     network_from_key_value,
@@ -53,7 +54,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
         # q has been validated on the xprv/wif network
         ec2 = NETWORKS[network].curve
         if ec != ec2:
-            raise ValueError(f"ec / network ({network}) mismatch")
+            raise BTClibValueError(f"ec / network ({network}) mismatch")
         return q
     else:
         try:
@@ -64,7 +65,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
             # q has been validated on the xprv/wif network
             ec2 = NETWORKS[network].curve
             if ec != ec2:
-                raise ValueError(f"ec / network ({network}) mismatch")
+                raise BTClibValueError(f"ec / network ({network}) mismatch")
             return q
 
         # it must be octets
@@ -72,10 +73,10 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
             prvkey = bytes_from_octets(prvkey, ec.nsize)
             q = int.from_bytes(prvkey, "big")
         except Exception:
-            raise ValueError(f"not a private key: {prvkey!r}")
+            raise BTClibValueError(f"not a private key: {prvkey!r}")
 
     if not 0 < q < ec.n:
-        raise ValueError(f"private key not in 1..n-1: {hex(q).upper()}")
+        raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")
 
     return q
 
@@ -100,27 +101,27 @@ def _prvkeyinfo_from_wif(
 
     net = network_from_key_value("wif", payload[0:1])
     if network is not None and net != network:
-        raise ValueError(f"not a {network} wif: {wif!r}")
+        raise BTClibValueError(f"not a {network} wif: {wif!r}")
 
     ec = NETWORKS[net].curve
 
     if len(payload) == ec.nsize + 2:  # compressed WIF
         compr = True
         if payload[-1] != 0x01:  # must have a trailing 0x01
-            raise ValueError("not a compressed WIF: missing trailing 0x01")
+            raise BTClibValueError("not a compressed WIF: missing trailing 0x01")
         prvkey = payload[1:-1]
     elif len(payload) == ec.nsize + 1:  # uncompressed WIF
         compr = False
         prvkey = payload[1:]
     else:
-        raise ValueError(f"wrong WIF size: {len(payload)}")
+        raise BTClibValueError(f"wrong WIF size: {len(payload)}")
 
     if compressed is not None and compr != compressed:
-        raise ValueError("compression requirement mismatch")
+        raise BTClibValueError("compression requirement mismatch")
 
     q = int.from_bytes(prvkey, byteorder="big")
     if not 0 < q < ec.n:
-        raise ValueError(f"private key {hex(q)} not in [1, n-1]")
+        raise BTClibValueError(f"private key {hex(q)} not in [1, n-1]")
 
     return q, net, compr
 
@@ -137,7 +138,7 @@ def _prvkeyinfo_from_xprv(
 
     compressed = True if compressed is None else compressed
     if not compressed:
-        raise ValueError("uncompressed SEC / compressed BIP32 mismatch")
+        raise BTClibValueError("uncompressed SEC / compressed BIP32 mismatch")
 
     if isinstance(xprv, BIP32KeyData):
         xprv.assert_valid()
@@ -146,7 +147,7 @@ def _prvkeyinfo_from_xprv(
 
     if xprv.key[0] != 0:
         m = f"not a private key: {xprv.serialize().decode('ascii')}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     if network is None:
         network = network_from_xkeyversion(xprv.version)
@@ -155,7 +156,7 @@ def _prvkeyinfo_from_xprv(
     if xprv.version not in allowed_versions:
         m = f"not a {network} key: "
         m += f"{xprv.serialize().decode('ascii')}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     q = int.from_bytes(xprv.key[1:], byteorder="big")
     return q, network, True
@@ -203,9 +204,9 @@ def prvkeyinfo_from_prvkey(
             prvkey = bytes_from_octets(prvkey, ec.nsize)
             q = int.from_bytes(prvkey, "big")
         except Exception:
-            raise ValueError(f"not a private key: {prvkey!r}")
+            raise BTClibValueError(f"not a private key: {prvkey!r}")
 
     if not 0 < q < ec.n:
-        raise ValueError(f"private key not in 1..n-1: {hex(q).upper()}")
+        raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")
 
     return q, net, compr

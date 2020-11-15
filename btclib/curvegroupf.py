@@ -18,6 +18,7 @@ from typing import List
 
 from .alias import INF, Point
 from .curve import CurveGroup
+from .exceptions import BTClibValueError
 
 
 def find_all_points(ec: CurveGroup) -> List[Point]:
@@ -28,7 +29,7 @@ def find_all_points(ec: CurveGroup) -> List[Point]:
     """
     if ec.p > 10000:
         m = f"p is too big to count all group points: {ec.p}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     points: List[Point] = [INF]
     for x in range(ec.p):
@@ -52,7 +53,7 @@ def find_subgroup_points(ec: CurveGroup, G: Point) -> List[Point]:
     """
     if ec.p > 10000:
         m = f"p is too big to count all subgroup points: {ec.p}"
-        raise ValueError(m)
+        raise BTClibValueError(m)
 
     points: List[Point] = [G]
     while points[-1] != INF:

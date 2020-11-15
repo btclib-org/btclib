@@ -12,6 +12,7 @@ from typing import List, Union
 
 from . import script, tx, tx_out, varbytes
 from .alias import Octets, Script, ScriptToken
+from .exceptions import BTClibRuntimeError
 from .scriptpubkey import payload_from_scriptPubKey
 from .utils import hash256
 
@@ -119,7 +120,7 @@ def get_sighash(
         return segwit_v0_sighash(
             bytes.fromhex(scriptCode), transaction, input_index, sighash_type, value
         )
-    raise RuntimeError("legacy transactions not supported yet")
+    raise BTClibRuntimeError("legacy transactions not supported yet")
 
 
 # def sign(
