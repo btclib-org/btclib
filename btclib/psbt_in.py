@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import dsa, secpoint, varbytes
+from .exceptions import BTClibValueError
 from .psbt_out import (
     _assert_valid_bip32_derivs,
     _assert_valid_proprietary,
@@ -59,7 +60,8 @@ def _assert_valid_partial_signatures(partial_signatures: Dict[bytes, bytes]) -> 
     for pubkey, sig in partial_signatures.items():
         # pubkey must be a valid secp256k1 Point in SEC representation
         secpoint.point_from_octets(pubkey)
-        assert dsa.deserialize(sig), "invalid signature in partial_signatures"
+        if not dsa.deserialize(sig):
+            raise BTClibValueError("invalid signature in partial_signatures")
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -112,57 +114,62 @@ class PsbtIn(DataClassJsonMixin):
         out = cls()
         for key, value in input_map.items():
             if key[0:1] == PSBT_IN_NON_WITNESS_UTXO:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_IN_NON_WITNESS_UTXO key length: {len(key)}"
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_IN_NON_WITNESS_UTXO key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
                 out.non_witness_utxo = Tx.deserialize(value)
             elif key[0:1] == PSBT_IN_WITNESS_UTXO:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_IN_WITNESS_UTXO key length: {len(key)}"
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_IN_WITNESS_UTXO key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
                 out.witness_utxo = TxOut.deserialize(value)
             elif key[0:1] == PSBT_IN_PARTIAL_SIG:
-                assert len(key) in (
-                    34,
-                    66,
-                ), f"invalid PSBT_IN_PARTIAL_SIG SEC pubkey length: {len(key)-1}"
+                if len(key) not in (34, 66):
+                    err_msg = "invalid PSBT_IN_PARTIAL_SIG SEC pubkey length"
+                    err_msg += f": {len(key)-1} instead of (33, 65)"
+                    raise BTClibValueError(err_msg)
                 out.partial_signatures[key[1:]] = value
             elif key[0:1] == PSBT_IN_SIGHASH_TYPE:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_IN_SIGHASH_TYPE key length: {len(key)}"
-                assert len(value) == 4, "invalid value length in PSBT_IN_SIGHASH_TYPE"
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_IN_SIGHASH_TYPE key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
+                if len(value) != 4:
+                    raise BTClibValueError(
+                        "invalid value length in PSBT_IN_SIGHASH_TYPE"
+                    )
                 out.sighash = int.from_bytes(value, "little")
             elif key[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_IN_FINAL_SCRIPTSIG key length: {len(key)}"
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_IN_FINAL_SCRIPTSIG key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
                 out.final_script_sig = value
             elif key[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_IN_FINAL_SCRIPTWITNESS key length: {len(key)}"
+                if len(key) != 1:
+                    err_msg = (
+                        f"invalid PSBT_IN_FINAL_SCRIPTWITNESS key length: {len(key)}"
+                    )
+                    raise BTClibValueError(err_msg)
                 out.final_script_witness = witness_deserialize(value)
             elif key[0:1] == PSBT_IN_POR_COMMITMENT:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_IN_POR_COMMITMENT key length: {len(key)}"
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_IN_POR_COMMITMENT key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
                 out.por_commitment = value.decode("utf-8")  # TODO: see bip127
             elif key[0:1] == PSBT_IN_REDEEM_SCRIPT:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_IN_REDEEM_SCRIPT key length: {len(key)}"
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_IN_REDEEM_SCRIPT key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
                 out.redeem_script = value
             elif key[0:1] == PSBT_IN_WITNESS_SCRIPT:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_IN_WITNESS_SCRIPT key length: {len(key)}"
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_IN_WITNESS_SCRIPT key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
                 out.witness_script = value
             elif key[0:1] == PSBT_IN_BIP32_DERIVATION:
-                assert len(key) in (
-                    34,
-                    66,
-                ), f"invalid PSBT_IN_BIP32_DERIVATION pubkey length: {len(key)-1}"
+                if len(key) not in (34, 66):
+                    err_msg = "invalid PSBT_IN_BIP32_DERIVATION pubkey length"
+                    err_msg += f": {len(key)-1} instead of (33, 65)"
+                    raise BTClibValueError(err_msg)
                 out.bip32_derivs[key[1:]] = value
             elif key[0:1] == PSBT_IN_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
@@ -227,18 +234,26 @@ class PsbtIn(DataClassJsonMixin):
         if self.witness_utxo is not None:
             self.witness_utxo.assert_valid()
 
-        if self.sighash is not None:
-            assert self.sighash in SIGHASHES, f"invalid sighash: {self.sighash}"
+        if self.sighash is not None and self.sighash not in SIGHASHES:
+            err_msg = f"invalid sighash: {self.sighash}"
+            raise BTClibValueError(err_msg)
 
-        assert isinstance(self.redeem_script, bytes), "invalid redeem_script"
-        assert isinstance(self.witness_script, bytes), "invalid witness_script"
-        assert isinstance(self.final_script_sig, bytes), "invalid final_script_sig"
-        assert isinstance(
-            self.final_script_witness, list
-        ), "invalid final_script_witness"
+        if not isinstance(self.redeem_script, bytes):
+            err_msg = "invalid redeem_script"
+            raise BTClibValueError(err_msg)
+        if not isinstance(self.witness_script, bytes):
+            err_msg = "invalid witness_script"
+            raise BTClibValueError(err_msg)
+        if not isinstance(self.final_script_sig, bytes):
+            err_msg = "invalid final_script_sig"
+            raise BTClibValueError(err_msg)
+        if not isinstance(self.final_script_witness, list):
+            err_msg = "invalid final_script_witness"
+            raise BTClibValueError(err_msg)
 
-        if self.por_commitment is not None:
-            assert self.por_commitment.encode("utf-8"), "invalid por_commitment"
+        if self.por_commitment is not None and not self.por_commitment.encode("utf-8"):
+            err_msg = "invalid por_commitment"
+            raise BTClibValueError(err_msg)
 
         _assert_valid_partial_signatures(self.partial_signatures)
         _assert_valid_bip32_derivs(self.bip32_derivs)
