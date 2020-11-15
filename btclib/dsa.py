@@ -297,7 +297,7 @@ def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     r1 = mod_inv(r, ec.n)
     r1s = r1 * s % ec.n
     r1e = -r1 * c % ec.n
-    keys: List[JacPoint] = list()
+    keys: List[JacPoint] = []
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
     # then both x=r and x=r+ec.n must be tested

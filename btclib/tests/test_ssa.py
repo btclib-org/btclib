@@ -347,7 +347,7 @@ def test_musig() -> None:
     # (non interactive) key setup
     # this is MuSig core: the rest is just Schnorr signature additivity
     # 1. lexicographic sorting of public keys
-    keys: List[bytes] = list()
+    keys: List[bytes] = []
     keys.append(x_Q1)
     keys.append(x_Q2)
     keys.append(x_Q3)
@@ -417,7 +417,7 @@ def test_threshold() -> None:
     # FIRST PHASE: key pair generation ###################################
 
     # 1.1 signer one acting as the dealer
-    commits1: List[Point] = list()
+    commits1: List[Point] = []
     q1, _ = ssa.gen_keys()
     q1_prime, _ = ssa.gen_keys()
     commits1.append(double_mult(q1_prime, H, q1, ec.G))
@@ -452,7 +452,7 @@ def test_threshold() -> None:
     assert t == RHS, "signer one is cheating"
 
     # 1.2 signer two acting as the dealer
-    commits2: List[Point] = list()
+    commits2: List[Point] = []
     q2, _ = ssa.gen_keys()
     q2_prime, _ = ssa.gen_keys()
     commits2.append(double_mult(q2_prime, H, q2, ec.G))
@@ -487,7 +487,7 @@ def test_threshold() -> None:
     assert t == RHS, "signer two is cheating"
 
     # 1.3 signer three acting as the dealer
-    commits3: List[Point] = list()
+    commits3: List[Point] = []
     q3, _ = ssa.gen_keys()
     q3_prime, _ = ssa.gen_keys()
     commits3.append(double_mult(q3_prime, H, q3, ec.G))
@@ -532,9 +532,9 @@ def test_threshold() -> None:
     # 1.4 it's time to recover the public key
     # each participant i = 1, 2, 3 shares Qi as follows
     # Q = Q1 + Q2 + Q3 = (q1 + q2 + q3) G
-    A1: List[Point] = list()
-    A2: List[Point] = list()
-    A3: List[Point] = list()
+    A1: List[Point] = []
+    A2: List[Point] = []
+    A3: List[Point] = []
     for i in range(m):
         A1.append(mult(f1[i]))
         A2.append(mult(f2[i]))
@@ -564,7 +564,7 @@ def test_threshold() -> None:
     assert mult(alpha13) == RHS1, "signer one is cheating"
     assert mult(alpha23) == RHS2, "signer two is cheating"
     # commitment at the global sharing polynomial
-    A: List[Point] = list()
+    A: List[Point] = []
     for i in range(m):
         A.append(ec.add(A1[i], ec.add(A2[i], A3[i])))
 
@@ -642,8 +642,8 @@ def test_threshold() -> None:
 
     # 2.4 it's time to recover the public nonce
     # each participant i = 1, 3 shares Qi as follows
-    B1: List[Point] = list()
-    B3: List[Point] = list()
+    B1: List[Point] = []
+    B3: List[Point] = []
     for i in range(m):
         B1.append(mult(f1[i]))
         B3.append(mult(f3[i]))
@@ -661,7 +661,7 @@ def test_threshold() -> None:
     assert mult(beta13) == RHS1, "signer one is cheating"
 
     # commitment at the global sharing polynomial
-    B: List[Point] = list()
+    B: List[Point] = []
     for i in range(m):
         B.append(ec.add(B1[i], B3[i]))
 

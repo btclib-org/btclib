@@ -247,8 +247,8 @@ def multi_mult(
         errMsg += f"{len(scalars)} vs {len(Points)}"
         raise ValueError(errMsg)
 
-    JPoints: List[JacPoint] = list()
-    ints: List[int] = list()
+    JPoints: List[JacPoint] = []
+    ints: List[int] = []
     for P, i in zip(Points, scalars):
         i = int_from_integer(i) % ec.n
         if i == 0:  # early optimization, even if not strictly necessary

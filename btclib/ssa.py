@@ -472,8 +472,8 @@ def _batch_verify(
     ec.require_p_ThreeModFour()
 
     t = 0
-    scalars: List[int] = list()
-    points: List[JacPoint] = list()
+    scalars: List[int] = []
+    points: List[JacPoint] = []
     for i, (m, Q, sig) in enumerate(zip(ms, Qs, sigs)):
         m = bytes_from_octets(m, hf().digest_size)
 
