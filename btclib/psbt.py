@@ -82,10 +82,14 @@ class Psbt(DataClassJsonMixin):
         global_map, data = deserialize_map(data[5:])
         for key, value in global_map.items():
             if key[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert (
+                    len(key) == 1
+                ), f"invalid PSBT_GLOBAL_UNSIGNED_TX key length: {len(key)}"
                 out.tx = Tx.deserialize(value)  # legacy trensaction
             elif key[0:1] == PSBT_GLOBAL_VERSION:
-                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert (
+                    len(key) == 1
+                ), f"invalid PSBT_GLOBAL_VERSION key length: {len(key)}"
                 assert len(value) == 4, f"invalid version length: {len(value)}"
                 out.version = int.from_bytes(value, "little")
             elif key[0:1] == PSBT_GLOBAL_XPUB:
@@ -151,8 +155,8 @@ class Psbt(DataClassJsonMixin):
             self.inputs
         ), "mismatched number of tx.vin and psbt_in"
         for vin in self.tx.vin:
-            assert vin.scriptSig == b""
-            assert vin.txinwitness == []
+            assert vin.scriptSig == b"", "non empty scriptSig"
+            assert vin.txinwitness == [], "non empty txinwitness"
         assert len(self.tx.vout) == len(
             self.outputs
         ), "mismatched number of tx.vout and psbt_out"
@@ -164,9 +168,9 @@ class Psbt(DataClassJsonMixin):
             psbt_out.assert_valid()
 
         # must be a 4-bytes int
-        assert 0 <= self.version <= 0xFFFFFFFF
+        assert 0 <= self.version <= 0xFFFFFFFF, f"invalid version: {self.version}"
         # actually the only version that is currently handled is zero
-        assert self.version == 0
+        assert self.version == 0, f"non zero version: {self.version}"
 
         _assert_valid_bip32_derivs(self.bip32_derivs)
         _assert_valid_proprietary(self.proprietary)
@@ -181,17 +185,22 @@ class Psbt(DataClassJsonMixin):
 
             if non_witness_utxo:
                 txid = tx_in.prevout.txid
-                assert isinstance(non_witness_utxo, Tx)
-                assert non_witness_utxo.txid == txid
+                assert isinstance(non_witness_utxo, Tx), "non_witness_utxo is not a Tx"
+                assert (
+                    non_witness_utxo.txid == txid
+                ), f"invalid non_witness_utxo txid: {non_witness_utxo.txid.hex()}"
 
             if witness_utxo:
-                assert isinstance(witness_utxo, TxOut)
+                assert isinstance(witness_utxo, TxOut), "witness_utxo is not a TxOut"
                 script_pubkey = witness_utxo.scriptPubKey
                 script_type = payload_from_scriptPubKey(script_pubkey)[0]
                 if script_type == "p2sh":
                     script_pubkey = self.inputs[i].redeem_script
                 script_type = payload_from_scriptPubKey(script_pubkey)[0]
-                assert script_type in ["p2wpkh", "p2wsh"]
+                assert script_type in [
+                    "p2wpkh",
+                    "p2wsh",
+                ], "script not it ('p2wpkh', 'p2wsh')"
 
             if self.inputs[i].redeem_script:
                 if non_witness_utxo:
@@ -201,7 +210,9 @@ class Psbt(DataClassJsonMixin):
                 elif witness_utxo:
                     script_pubkey = witness_utxo.scriptPubKey
                 hash_ = hash160(self.inputs[i].redeem_script)
-                assert hash_ == payload_from_scriptPubKey(script_pubkey)[1]
+                assert (
+                    hash_ == payload_from_scriptPubKey(script_pubkey)[1]
+                ), "invalid redeem script hash"
 
             if self.inputs[i].witness_script:
                 if non_witness_utxo:
@@ -214,7 +225,9 @@ class Psbt(DataClassJsonMixin):
                     script_pubkey = self.inputs[i].redeem_script
 
                 hash_ = sha256(self.inputs[i].witness_script)
-                assert hash_ == payload_from_scriptPubKey(script_pubkey)[1]
+                assert (
+                    hash_ == payload_from_scriptPubKey(script_pubkey)[1]
+                ), "invalid witness script hash"
 
 
 # FIXME: use stream, not repeated bytes slicing
@@ -233,7 +246,7 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         data = data[len(varint.encode(value_len)) :]
         value = data[:value_len]
         data = data[value_len:]
-        assert key not in partial_map, f"duplicated psbt map: {key.hex()}"
+        assert key not in partial_map, f"duplicated key in psbt map: 0x{key.hex()}"
         partial_map[key] = value
 
 
@@ -270,7 +283,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
     final_psbt = psbts[0]
     txid = psbts[0].tx.txid
     for psbt in psbts[1:]:
-        assert psbt.tx.txid == txid
+        assert psbt.tx.txid == txid, f"invalid psbt.tx.txid: {psbt.tx.txid.hex()}"
 
     for psbt in psbts[1:]:
 

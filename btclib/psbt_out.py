@@ -91,10 +91,10 @@ def _serialize_proprietary(
 def _assert_valid_proprietary(proprietary: Dict[int, Dict[str, str]]) -> None:
 
     for key, value in proprietary.items():
-        assert isinstance(key, int)
+        assert isinstance(key, int), "invalid key in proprietary"
         for inner_key, inner_value in value.items():
-            assert bytes.fromhex(inner_key)
-            assert bytes.fromhex(inner_value)
+            assert bytes.fromhex(inner_key), "invalid inner key in proprietary"
+            assert bytes.fromhex(inner_value), "invalid inner value in proprietary"
 
 
 def _serialize_dict_bytes_bytes(d: Dict[bytes, bytes], m=bytes) -> bytes:
@@ -105,8 +105,8 @@ def _serialize_dict_bytes_bytes(d: Dict[bytes, bytes], m=bytes) -> bytes:
 def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
 
     for key, value in data.items():
-        assert isinstance(key, bytes)
-        assert isinstance(value, bytes)
+        assert isinstance(key, bytes), "invalid key in unknown"
+        assert isinstance(value, bytes), "invalid value in unknown"
 
 
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
@@ -144,13 +144,20 @@ class PsbtOut(DataClassJsonMixin):
         out = cls()
         for key, value in output_map.items():
             if key[0:1] == PSBT_OUT_REDEEM_SCRIPT:
-                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert (
+                    len(key) == 1
+                ), f"invalid PSBT_OUT_REDEEM_SCRIPT key length: {len(key)}"
                 out.redeem_script = value
             elif key[0:1] == PSBT_OUT_WITNESS_SCRIPT:
-                assert len(key) == 1, f"invalid key length: {len(key)}"
+                assert (
+                    len(key) == 1
+                ), f"invalid PSBT_OUT_WITNESS_SCRIPT key length: {len(key)}"
                 out.witness_script = value
             elif key[0:1] == PSBT_OUT_BIP32_DERIVATION:
-                assert len(key) in (34, 66), f"invalid pubkey length: {len(key)-1}"
+                assert len(key) in (
+                    34,
+                    66,
+                ), f"invalid PSBT_OUT_BIP32_DERIVATION pubkey length: {len(key)-1}"
                 out.bip32_derivs[key[1:]] = value
             elif key[0:1] == PSBT_OUT_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
