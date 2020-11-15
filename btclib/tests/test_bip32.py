@@ -11,6 +11,7 @@
 "Tests for `btclib.bip32` module."
 
 import json
+import re
 from os import path
 
 import pytest
@@ -181,8 +182,8 @@ def test_assert_valid() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
-    xkey_data.parent_fingerprint = b"\x00\x00\x00\x01"
-    err_msg = "zero depth with non-zero parent fingerprint 0x"
+    xkey_data.parent_fingerprint = bytes.fromhex("deadbeef")
+    err_msg = "zero depth with non-zero parent fingerprint: "
     with pytest.raises(ValueError, match=err_msg):
         xkey_data.serialize()
 
@@ -193,7 +194,7 @@ def test_assert_valid() -> None:
 
     xprv = BIP32KeyData.deserialize(derive(xkey, 0x80000000))
     xprv.parent_fingerprint = bytes.fromhex("00000000")
-    err_msg = "zero parent fingerprint with non-zero depth "
+    err_msg = "zero parent fingerprint with non-zero depth: "
     with pytest.raises(ValueError, match=err_msg):
         xprv.serialize()
 
@@ -257,7 +258,7 @@ def test_invalid_bip32_xkeys() -> None:
         test_vectors = json.load(file_)
 
     for xkey, err_msg in test_vectors:
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(ValueError, match=re.escape(err_msg)):
             BIP32KeyData.deserialize(xkey)
 
 
@@ -330,7 +331,7 @@ def test_derive_exceptions() -> None:
     xpub = xpub_from_xprv(rootxprv)
     temp = b58decode(xpub)
     bad_xpub = b58encode(temp[0:45] + b"\x00" + temp[46:], 78)
-    err_msg = "invalid public key prefix: "
+    err_msg = r"invalid public key prefix not in \(0x02, 0x03\): "
     with pytest.raises(ValueError, match=err_msg):
         derive(bad_xpub, 0x80000000)
 
@@ -452,3 +453,15 @@ def test_dataclasses_json_dict() -> None:
     filename = path.join(datadir, "xkey.json")
     with open(filename, "w") as file_:
         json.dump(xkey_dict, file_, indent=4)
+
+
+def test_bips_pr905() -> None:
+    "https://github.com/bitcoin/bips/pull/905"
+
+    seed = "57fb1e450b8afb95c62afbcd49e4100d6790e0822b8905608679180ac34ca0bd45bf7ccc6c5f5218236d0eb93afc78bd117b9f02a6b7df258ea182dfaef5aad7"
+    xroot = rootxprv_from_seed(seed)
+    der_path = "m/44H/60H/0H"
+    xprv = b"xprv9yqXG1Cns3YEQi6fsCJ7NGV5sHPiyZcbgLVst61dbLYyn7qy1G9aFtRmaYp481ounqnVf9Go2ymQ4gmxZLEwYSRhU868aDk4ZxzGvqHJVhe"
+    assert derive(xroot, der_path) == xprv
+    xpub = b"xpub6CpsfWjghR6XdCB8yDq7jQRpRKEDP2LT3ZRUgURF9g5xevB7YoTpogkFRqq5nQtVSN8YCMZo2CD8u4zCaxRv85ctCWmzEi9gQ5DBhBFaTNo"
+    assert xpub_from_xprv(xprv) == xpub

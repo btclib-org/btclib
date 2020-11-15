@@ -145,10 +145,10 @@ class BIP32KeyData(DataClassJsonMixin):
         if not isinstance(self.version, bytes):
             raise ValueError("version is not an instance of bytes")
         if len(self.version) != 4:
-            m = "invalid version length: "
-            m += f"{len(self.version)} bytes"
-            m += " instead of 4"
-            raise ValueError(m)
+            err_msg = "invalid version length: "
+            err_msg += f"{len(self.version)} bytes"
+            err_msg += " instead of 4"
+            raise ValueError(err_msg)
 
         if not isinstance(self.depth, int):
             raise ValueError("depth is not an instance of int")
@@ -158,10 +158,10 @@ class BIP32KeyData(DataClassJsonMixin):
         if not isinstance(self.parent_fingerprint, bytes):
             raise ValueError("parent fingerprint is not an instance of bytes")
         if len(self.parent_fingerprint) != 4:
-            m = "invalid parent fingerprint length: "
-            m += f"{len(self.parent_fingerprint)} bytes"
-            m += " instead of 4"
-            raise ValueError(m)
+            err_msg = "invalid parent fingerprint length: "
+            err_msg += f"{len(self.parent_fingerprint)} bytes"
+            err_msg += " instead of 4"
+            raise ValueError(err_msg)
 
         if not isinstance(self.index, int):
             raise ValueError("index is not an instance of bytes")
@@ -171,45 +171,46 @@ class BIP32KeyData(DataClassJsonMixin):
         if not isinstance(self.chain_code, bytes):
             raise ValueError("chain code is not an instance of bytes")
         if len(self.chain_code) != 32:
-            m = "invalid chain code length: "
-            m += f"{len(self.chain_code)} bytes"
-            m += " instead of 32"
-            raise ValueError(m)
+            err_msg = "invalid chain code length: "
+            err_msg += f"{len(self.chain_code)} bytes"
+            err_msg += " instead of 32"
+            raise ValueError(err_msg)
 
         if not isinstance(self.key, bytes):
             raise ValueError("key is not an instance of bytes")
         if len(self.key) != 33:
-            m = "invalid key length: "
-            m += f"{len(self.key)} bytes"
-            m += " instead of 33"
-            raise ValueError(m)
+            err_msg = "invalid key length: "
+            err_msg += f"{len(self.key)} bytes"
+            err_msg += " instead of 33"
+            raise ValueError(err_msg)
 
         if self.version in _XPRV_VERSIONS_ALL:
             if self.key[0] != 0:
                 raise ValueError(f"invalid private key prefix: 0x{self.key[0:1].hex()}")
             q = int.from_bytes(self.key[1:], byteorder="big")
             if not 0 < q < ec.n:
-                raise ValueError(f"private key not in 1..n-1: {hex(q)}")
+                raise ValueError(f"invalid private key not in 1..n-1: {hex(q)}")
         elif self.version in _XPUB_VERSIONS_ALL:
             if self.key[0] not in (2, 3):
-                raise ValueError(f"invalid public key prefix: 0x{self.key[0:1].hex()}")
+                err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[0:1].hex()}"
+                raise ValueError(err_msg)
             try:
                 ec.y(int.from_bytes(self.key[1:], byteorder="big"))
             except Exception:
-                raise ValueError(f"invalid public key 0x{self.key.hex()}")
+                raise ValueError(f"invalid public key: 0x{self.key.hex()}")
         else:
-            raise ValueError(f"unknown extended key version 0x{self.version.hex()}")
+            raise ValueError(f"unknown extended key version: 0x{self.version.hex()}")
 
         if self.depth == 0:
             if self.parent_fingerprint != bytes.fromhex("00000000"):
-                m = f"zero depth with non-zero parent fingerprint 0x{self.parent_fingerprint.hex()}"
-                raise ValueError(m)
+                err_msg = f"zero depth with non-zero parent fingerprint: 0x{self.parent_fingerprint.hex()}"
+                raise ValueError(err_msg)
             if self.index != 0:
                 raise ValueError(f"zero depth with non-zero index: {self.index}")
         else:
             if self.parent_fingerprint == bytes.fromhex("00000000"):
-                m = f"zero parent fingerprint with non-zero depth {self.depth}"
-                raise ValueError(m)
+                err_msg = f"zero parent fingerprint with non-zero depth: {self.depth}"
+                raise ValueError(err_msg)
 
     @property
     def is_hardened(self) -> bool:
@@ -350,8 +351,8 @@ def indexes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> List
 
     if isinstance(der_path, bytes):
         if len(der_path) % 4 != 0:
-            m = f"index is not a multiple of 4-bytes: {len(der_path)}"
-            raise ValueError(m)
+            err_msg = f"index is not a multiple of 4-bytes: {len(der_path)}"
+            raise ValueError(err_msg)
         return [
             int.from_bytes(der_path[4 * n : 4 * (n + 1)], byteorder)
             for n in range(len(der_path) // 4)
@@ -400,7 +401,7 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
         key_data.parent_fingerprint = hash160(key_data.key)[:4]
         key_data.index = index
         if key_data.is_hardened:
-            raise ValueError("hardened derivation from public key")
+            raise ValueError("invalid hardened derivation from public key")
         h = hmac.digest(
             key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
         )
@@ -496,7 +497,7 @@ def _derive_from_account(
     if address_index >= 0x80000000:
         raise ValueError("invalid private derivation at address index level")
     if not key_data.is_hardened:
-        raise UserWarning("public derivation at account level")
+        raise UserWarning("invalid public derivation at account level")
 
     return _derive(key_data, f"m/{branch}/{address_index}")
 
@@ -527,9 +528,9 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
         p = BIP32KeyData.deserialize(parent_xpub)
 
     if p.key[0] not in (2, 3):
-        m = "extended parent key is not a public key: "
-        m += f"{p.serialize().decode('ascii')}"
-        raise ValueError(m)
+        err_msg = "extended parent key is not a public key: "
+        err_msg += f"{p.serialize().decode('ascii')}"
+        raise ValueError(err_msg)
 
     c = (
         child_xprv
@@ -537,8 +538,10 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
         else BIP32KeyData.deserialize(child_xprv)
     )
     if c.key[0] != 0:
-        m = f"extended child key is not a private key: {c.serialize().decode('ascii')}"
-        raise ValueError(m)
+        err_msg = (
+            f"extended child key is not a private key: {c.serialize().decode('ascii')}"
+        )
+        raise ValueError(err_msg)
 
     # check depth
     if c.depth != p.depth + 1:
