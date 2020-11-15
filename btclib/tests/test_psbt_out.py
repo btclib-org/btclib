@@ -16,11 +16,11 @@ from btclib.psbt_out import (
     PSBT_OUT_BIP32_DERIVATION,
     _assert_valid_bip32_derivs,
     _assert_valid_unknown,
+    _serialize_dict_bytes_bytes,
     decode_bip32_derivs,
     decode_dict_bytes_bytes,
     encode_bip32_derivs,
     encode_dict_bytes_bytes,
-    _serialize_dict_bytes_bytes,
 )
 
 
