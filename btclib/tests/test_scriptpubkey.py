@@ -525,7 +525,7 @@ def test_p2ms_p2sh() -> None:
     m = 2
     for i in test_vectors:
         keys, address = test_vectors[i]
-        errmsg = f"Test vector #{int(i)}"
+        errmsg = f"Test vector #{i}"
         scriptPubKey = p2ms(keys, m)
         addr = base58address.p2sh(scriptPubKey)
         assert addr.decode("ascii") == address, errmsg
