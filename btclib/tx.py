@@ -91,12 +91,12 @@ class Tx(DataClassJsonMixin):
         return out
 
     @property
-    def txid(self) -> str:
-        return hash256(self.serialize(False))[::-1].hex()
+    def txid(self) -> bytes:
+        return hash256(self.serialize(False))[::-1]
 
     @property
-    def hash(self) -> str:
-        return hash256(self.serialize())[::-1].hex()
+    def hash(self) -> bytes:
+        return hash256(self.serialize())[::-1]
 
     @property
     def size(self) -> int:
