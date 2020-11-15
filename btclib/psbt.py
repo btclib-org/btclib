@@ -22,6 +22,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varbytes, varint
 from .alias import ScriptToken
+from .exceptions import BTClibValueError
 from .psbt_in import PsbtIn
 from .psbt_out import (
     PsbtOut,
@@ -76,31 +77,38 @@ class Psbt(DataClassJsonMixin):
 
         out = cls()
 
-        assert data[:4] == PSBT_MAGIC_BYTES, "malformed psbt: missing magic bytes"
-        assert data[4:5] == PSBT_SEPARATOR, "malformed psbt: missing separator"
+        if data[:4] != PSBT_MAGIC_BYTES:
+            raise BTClibValueError("malformed psbt: missing magic bytes")
+        if data[4:5] != PSBT_SEPARATOR:
+            raise BTClibValueError("malformed psbt: missing separator")
 
         global_map, data = deserialize_map(data[5:])
         for key, value in global_map.items():
             if key[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_GLOBAL_UNSIGNED_TX key length: {len(key)}"
-                out.tx = Tx.deserialize(value)  # legacy trensaction
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_GLOBAL_UNSIGNED_TX key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
+                out.tx = Tx.deserialize(value)  # legacy transaction
             elif key[0:1] == PSBT_GLOBAL_VERSION:
-                assert (
-                    len(key) == 1
-                ), f"invalid PSBT_GLOBAL_VERSION key length: {len(key)}"
-                assert len(value) == 4, f"invalid version length: {len(value)}"
+                if len(key) != 1:
+                    err_msg = f"invalid PSBT_GLOBAL_VERSION key length: {len(key)}"
+                    raise BTClibValueError(err_msg)
+                if len(value) != 4:
+                    raise BTClibValueError(f"invalid version length: {len(value)}")
                 out.version = int.from_bytes(value, "little")
             elif key[0:1] == PSBT_GLOBAL_XPUB:
-                assert len(key) == 78 + 1, f"invalid xpub length: {len(key)-1}"
+                if len(key) != 79:
+                    err_msg = "invalid PSBT_GLOBAL_XPUB xpub length"
+                    err_msg += f": {len(key)-1} instead of 78"
+                    raise BTClibValueError(err_msg)
                 out.bip32_derivs[key[1:]] = value
             elif key[0:1] == PSBT_GLOBAL_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(key, value)
             else:  # unknown
                 out.unknown[key] = value
 
-        assert out.tx.version, "missing transaction"
+        if not out.tx.version:
+            raise BTClibValueError("missing transaction")
         for _ in out.tx.vin:
             input_map, data = deserialize_map(data)
             out.inputs.append(PsbtIn.deserialize(input_map))
@@ -151,15 +159,15 @@ class Psbt(DataClassJsonMixin):
         "Assert logical self-consistency."
 
         self.tx.assert_valid()
-        assert len(self.tx.vin) == len(
-            self.inputs
-        ), "mismatched number of tx.vin and psbt_in"
+        if len(self.tx.vin) != len(self.inputs):
+            raise BTClibValueError("mismatched number of tx.vin and psbt_in")
         for vin in self.tx.vin:
-            assert vin.scriptSig == b"", "non empty scriptSig"
-            assert vin.txinwitness == [], "non empty txinwitness"
-        assert len(self.tx.vout) == len(
-            self.outputs
-        ), "mismatched number of tx.vout and psbt_out"
+            if vin.scriptSig != b"":
+                raise BTClibValueError("non empty scriptSig")
+            if vin.txinwitness != []:
+                raise BTClibValueError("non empty txinwitness")
+        if len(self.tx.vout) != len(self.outputs):
+            raise BTClibValueError("mismatched number of tx.vout and psbt_out")
 
         for psbt_in in self.inputs:
             psbt_in.assert_valid()
@@ -168,9 +176,11 @@ class Psbt(DataClassJsonMixin):
             psbt_out.assert_valid()
 
         # must be a 4-bytes int
-        assert 0 <= self.version <= 0xFFFFFFFF, f"invalid version: {self.version}"
+        if not 0 <= self.version <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid version: {self.version}")
         # actually the only version that is currently handled is zero
-        assert self.version == 0, f"non zero version: {self.version}"
+        if self.version != 0:
+            raise BTClibValueError(f"invalid non-zero version: {self.version}")
 
         _assert_valid_bip32_derivs(self.bip32_derivs)
         _assert_valid_proprietary(self.proprietary)
@@ -185,22 +195,23 @@ class Psbt(DataClassJsonMixin):
 
             if non_witness_utxo:
                 txid = tx_in.prevout.txid
-                assert isinstance(non_witness_utxo, Tx), "non_witness_utxo is not a Tx"
-                assert (
-                    non_witness_utxo.txid == txid
-                ), f"invalid non_witness_utxo txid: {non_witness_utxo.txid.hex()}"
+                if not isinstance(non_witness_utxo, Tx):
+                    raise BTClibValueError("non_witness_utxo is not a Tx")
+                if non_witness_utxo.txid != txid:
+                    err_msg = "invalid non_witness_utxo txid"
+                    err_msg += f": {non_witness_utxo.txid.hex()}"
+                    raise BTClibValueError(err_msg)
 
             if witness_utxo:
-                assert isinstance(witness_utxo, TxOut), "witness_utxo is not a TxOut"
+                if not isinstance(witness_utxo, TxOut):
+                    raise BTClibValueError("witness_utxo is not a TxOut")
                 script_pubkey = witness_utxo.scriptPubKey
                 script_type = payload_from_scriptPubKey(script_pubkey)[0]
                 if script_type == "p2sh":
                     script_pubkey = self.inputs[i].redeem_script
                 script_type = payload_from_scriptPubKey(script_pubkey)[0]
-                assert script_type in [
-                    "p2wpkh",
-                    "p2wsh",
-                ], "script not it ('p2wpkh', 'p2wsh')"
+                if script_type not in ("p2wpkh", "p2wsh"):
+                    raise BTClibValueError("script type not it ('p2wpkh', 'p2wsh')")
 
             if self.inputs[i].redeem_script:
                 if non_witness_utxo:
@@ -210,9 +221,8 @@ class Psbt(DataClassJsonMixin):
                 elif witness_utxo:
                     script_pubkey = witness_utxo.scriptPubKey
                 hash_ = hash160(self.inputs[i].redeem_script)
-                assert (
-                    hash_ == payload_from_scriptPubKey(script_pubkey)[1]
-                ), "invalid redeem script hash"
+                if hash_ != payload_from_scriptPubKey(script_pubkey)[1]:
+                    raise BTClibValueError("invalid redeem script hash")
 
             if self.inputs[i].witness_script:
                 if non_witness_utxo:
@@ -225,14 +235,14 @@ class Psbt(DataClassJsonMixin):
                     script_pubkey = self.inputs[i].redeem_script
 
                 hash_ = sha256(self.inputs[i].witness_script)
-                assert (
-                    hash_ == payload_from_scriptPubKey(script_pubkey)[1]
-                ), "invalid witness script hash"
+                if hash_ != payload_from_scriptPubKey(script_pubkey)[1]:
+                    raise BTClibValueError("invalid witness script hash")
 
 
 # FIXME: use stream, not repeated bytes slicing
 def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
-    assert len(data) != 0, "malformed psbt: at least a map is missing"
+    if len(data) == 0:
+        raise BTClibValueError("malformed psbt: at least a map is missing")
     partial_map: Dict[bytes, bytes] = {}
     while True:
         if data[0] == 0:
@@ -246,7 +256,8 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         data = data[len(varint.encode(value_len)) :]
         value = data[:value_len]
         data = data[value_len:]
-        assert key not in partial_map, f"duplicated key in psbt map: 0x{key.hex()}"
+        if key in partial_map:
+            raise BTClibValueError(f"duplicated key in psbt map: 0x{key.hex()}")
         partial_map[key] = value
 
 
@@ -283,7 +294,8 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
     final_psbt = psbts[0]
     txid = psbts[0].tx.txid
     for psbt in psbts[1:]:
-        assert psbt.tx.txid == txid, f"invalid psbt.tx.txid: {psbt.tx.txid.hex()}"
+        if psbt.tx.txid != txid:
+            raise BTClibValueError(f"invalid psbt.tx.txid: {psbt.tx.txid.hex()}")
 
     for psbt in psbts[1:]:
 
@@ -320,7 +332,8 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
 def finalize_psbt(psbt: Psbt) -> Psbt:
     psbt = deepcopy(psbt)
     for psbt_in in psbt.inputs:
-        assert psbt_in.partial_signatures, "missing signatures"
+        if not psbt_in.partial_signatures:
+            raise BTClibValueError("missing signatures")
         sigs = psbt_in.partial_signatures.values()
         multi_sig = len(sigs) > 1
         if psbt_in.witness_script:

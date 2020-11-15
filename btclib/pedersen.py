@@ -89,7 +89,8 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
 def verify(r: int, v: int, C: Point, ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
     """Open the commitment C and return True if valid."""
 
-    # try/except wrapper for the Errors raised by commit
+    # all kind of Exceptions are catched because
+    # verify must always return a bool
     try:
         P = commit(r, v, ec, hf)
     except Exception:  # pylint: disable=broad-except

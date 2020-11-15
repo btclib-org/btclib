@@ -114,8 +114,8 @@ def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     if isinstance(msg, str):
         msg = msg.encode()
 
-    # this is just a try/except wrapper for the Errors
-    # raised by assert_as_valid
+    # all kind of Exceptions are catched because
+    # verify must always return a bool
     try:
         return assert_as_valid(msg, e0, s, pubk_rings)
     except Exception:  # pylint: disable=broad-except

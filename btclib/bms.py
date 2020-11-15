@@ -331,7 +331,8 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
 def verify(msg: String, addr: String, sig: BMSig) -> bool:
     """Verify address-based compact signature for the provided message."""
 
-    # try/except wrapper for the Errors raised by assert_as_valid
+    # all kind of Exceptions are catched because
+    # verify must always return a bool
     try:
         assert_as_valid(msg, addr, sig)
     except Exception:  # pylint: disable=broad-except

@@ -386,7 +386,8 @@ def _verify(
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
 
-    # try/except wrapper for the Errors raised by _assert_as_valid
+    # all kind of Exceptions are catched because
+    # verify must always return a bool
     try:
         _assert_as_valid(m, Q, sig, ec, hf)
     except Exception:  # pylint: disable=broad-except
@@ -523,7 +524,8 @@ def batch_verify(
 ) -> bool:
     """Batch verification of BIP340 signatures."""
 
-    # try/except wrapper for the Errors raised by _batch_verify
+    # all kind of Exceptions are catched because
+    # verify must always return a bool
     try:
         _batch_verify(m, Q, sig, ec, hf)
     except Exception:  # pylint: disable=broad-except

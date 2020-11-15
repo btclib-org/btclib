@@ -239,7 +239,8 @@ def _verify(
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
-    # try/except wrapper for the Errors raised by assert_as_valid
+    # all kind of Exceptions are catched because
+    # verify must always return a bool
     try:
         _assert_as_valid(m, P, sig, ec, hf)
     except Exception:  # pylint: disable=broad-except
