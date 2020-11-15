@@ -284,6 +284,7 @@ def test_valid_sign_2() -> None:
         sequence=0xFFFFFFFF,
         txinwitness=[],
     )
+    assert psbt.inputs[0].witness_utxo is not None
     transaction = Tx(0, 2, vin=[transaction_input], vout=[psbt.inputs[0].witness_utxo])
     psbt.tx.vin[0].prevout.txid = transaction.txid
     psbt.inputs[0].non_witness_utxo = transaction
