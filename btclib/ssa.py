@@ -353,7 +353,8 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
         raise BTClibRuntimeError("y_K is not a quadratic residue")
 
     # Fail if x_K ≠ r
-    assert KJ[0] == KJ[2] * KJ[2] * r % ec.p, "signature verification failed"
+    if KJ[0] != KJ[2] * KJ[2] * r % ec.p:
+        raise BTClibRuntimeError("signature verification failed")
 
 
 def _assert_as_valid(
@@ -413,7 +414,7 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
 
     e1 = mod_inv(c, ec.n)
     QJ = _double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
-    assert QJ[2] != 0, "how did you do that?!?"
+    assert QJ[2] != 0, "invalid (INF) key"
     return ec._x_aff_from_jac(QJ)
 
 
@@ -506,10 +507,11 @@ def _batch_verify(
     TZ2 = TJ[2] * TJ[2]
     precondition = TJ[0] * RHSZ2 % ec.p == RHSJ[0] * TZ2 % ec.p
     if not precondition:
-        raise BTClibValueError("signature verification precondition failed")
+        raise BTClibRuntimeError("signature verification precondition failed")
 
-    valid_sig = TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p
-    assert valid_sig, "signature verification failed"
+    if TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p:
+        return
+    raise BTClibRuntimeError("signature verification failed")  # pragma: no cover
 
 
 def batch_verify(

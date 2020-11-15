@@ -56,8 +56,8 @@ def address_from_xpub(xpub: BIP32Key) -> bytes:
         return base58address.p2pkh(xpub)
     if xpub.version in _P2WPKH_PUB_PREFIXES:
         return bech32address.p2wpkh(xpub)
+    if xpub.version in _P2WPKH_P2SH_PUB_PREFIXES:
+        return base58address.p2wpkh_p2sh(xpub)
 
-    # v has been already checked at parsing stage
-    # so, v must be in _P2WPKH_P2SH_PUB_PREFIXES
-    assert xpub.version in _P2WPKH_P2SH_PUB_PREFIXES
-    return base58address.p2wpkh_p2sh(xpub)
+    err_msg = f"unknown xpub version: {xpub.version.hex()}"  # pragma: no cover
+    raise BTClibValueError(err_msg)  # pragma: no cover

@@ -137,13 +137,15 @@ class Block(DataClassJsonMixin):
         return out
 
     def assert_valid(self) -> None:
-        assert self.transactions[0].vin[0].prevout.is_coinbase
+        if not self.transactions[0].vin[0].prevout.is_coinbase:
+            raise BTClibValueError("first transaction is not a coinbase")
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
-        if _generate_merkle_root(self.transactions) != self.header.merkleroot:
-            raise BTClibValueError(
-                "The block merkle root is not the merkle root of the block transactions"
-            )
+        merkel_root = _generate_merkle_root(self.transactions)
+        if merkel_root != self.header.merkleroot:
+            err_msg = f"invalid Merkle root: {self.header.merkleroot}"
+            err_msg += f" instead of: {merkel_root}"
+            raise BTClibValueError(err_msg)
         self.header.assert_valid()
 
     @property

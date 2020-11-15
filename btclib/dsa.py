@@ -195,13 +195,14 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     KJ = _double_mult(v, QJ, u, ec.GJ, ec)  # 5
 
     # Fail if infinite(K).
-    assert KJ[2] != 0, "how did you do that?!?"  # 5
+    assert KJ[2] != 0, "invalid (INF) key"  # 5
 
     # affine x-coordinate of K
     K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
     x = K_x % ec.n  # 6, 7
     # Fail if r ≠ K_x %n.
-    assert r == x, "signature verification failed"  # 8
+    if r != x:  # 8
+        raise BTClibRuntimeError("signature verification failed")
 
 
 def _assert_as_valid(

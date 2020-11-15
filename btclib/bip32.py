@@ -79,7 +79,8 @@ def _str_from_index_int(i: int, hardening: str = "'") -> str:
         raise BTClibValueError(f"invalid index: {i}")
     if i < 0x80000000:
         return str(i)
-    assert hardening in ("'", "h", "H"), f"invalid hardening symbol {hardening}"
+    if hardening not in ("'", "h", "H"):
+        raise BTClibValueError(f"invalid hardening symbol {hardening}")
     return str(i - 0x80000000) + hardening
 
 

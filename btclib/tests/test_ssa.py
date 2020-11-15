@@ -48,7 +48,7 @@ def test_signature() -> None:
     msg_fake = "Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
     err_msg = "signature verification failed"
-    with pytest.raises(AssertionError, match=err_msg):
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg_fake, x_Q, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x02)
@@ -60,7 +60,7 @@ def test_signature() -> None:
     _, x_Q_fake = ssa.gen_keys(0x4)
     assert not ssa.verify(msg, x_Q_fake, sig)
     err_msg = "signature verification failed"
-    with pytest.raises(AssertionError, match=err_msg):
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     err_msg = "not a BIP340 public key"

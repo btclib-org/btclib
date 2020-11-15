@@ -196,7 +196,7 @@ def test_invalid_merkleroot() -> None:
     block = Block.deserialize(block_bytes)
     block.header.merkleroot = "00" * 32
 
-    err_msg = "The block merkle root is not the merkle root of the block transactions"
+    err_msg = "invalid Merkle root: "
     with pytest.raises(ValueError, match=err_msg):
         block.assert_valid()
 

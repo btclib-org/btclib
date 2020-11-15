@@ -60,13 +60,13 @@ def test_signature() -> None:
     msg_fake = "Craig Wright"
     assert not dsa.verify(msg_fake, Q, sig)
     err_msg = "signature verification failed"
-    with pytest.raises(AssertionError, match=err_msg):
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa.assert_as_valid(msg_fake, Q, sig)
 
     _, Q_fake = dsa.gen_keys()
     assert not dsa.verify(msg, Q_fake, sig)
     err_msg = "signature verification failed"
-    with pytest.raises(AssertionError, match=err_msg):
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa.assert_as_valid(msg, Q_fake, sig)
 
     err_msg = "not a valid public key: "
