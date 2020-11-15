@@ -32,7 +32,7 @@ def address_from_xkey(xkey: BIP32Key) -> bytes:
 
     try:
         xkey = bip32.xpub_from_xprv(xkey)
-    except Exception:
+    except BTClibValueError:
         pass
 
     return address_from_xpub(xkey)

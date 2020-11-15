@@ -73,7 +73,6 @@ disable=invalid-name,  # C0103
         protected-access,  # W0212
         fixme,  # W0511
         eval-used,  # W0123
-        broad-except,  # W0703
         raise-missing-from,  # W0707
         unsubscriptable-object,  # E1136 python3.9-only pylint bug
 

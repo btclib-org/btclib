@@ -428,7 +428,7 @@ def test_vectors_bip174() -> None:
     for i, test_vector in enumerate(test_vectors["valid psbts"]):
         try:
             psbt_decoded = Psbt.decode(test_vector["encoded psbt"])
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover # pylint: disable=broad-except
             print(f"Case {i+1}: {test_vector['description']}")  # pragma: no cover
             raise e  # pragma: no cover
         assert test_vector["encoded psbt"] == Psbt.encode(psbt_decoded)

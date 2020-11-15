@@ -159,7 +159,7 @@ def network_from_xkeyversion(xkeyversion: bytes) -> str:
     """
     try:
         index = _XPRV_VERSIONS_ALL.index(xkeyversion)
-    except Exception:
+    except ValueError:
         index = _XPUB_VERSIONS_ALL.index(xkeyversion)
 
     return _REPEATED_NETWORKS[index]

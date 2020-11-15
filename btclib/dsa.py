@@ -242,7 +242,7 @@ def _verify(
     # try/except wrapper for the Errors raised by assert_as_valid
     try:
         _assert_as_valid(m, P, sig, ec, hf)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         return False
     else:
         return True
@@ -315,7 +315,7 @@ def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             Q1J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
             try:
                 __assert_as_valid(c, Q1J, r, s, ec)  # 1.6.2
-            except Exception:
+            except (BTClibValueError, BTClibRuntimeError):
                 pass
             else:
                 keys.append(Q1J)  # 1.6.2
@@ -323,11 +323,11 @@ def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             Q2J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
             try:
                 __assert_as_valid(c, Q2J, r, s, ec)  # 1.6.2
-            except Exception:
+            except (BTClibValueError, BTClibRuntimeError):
                 pass
             else:
                 keys.append(Q2J)  # 1.6.2
-        except Exception:  # K is not a curve point
+        except (BTClibValueError, BTClibRuntimeError):  # K is not a curve point
             pass
     return keys
 

@@ -35,7 +35,7 @@ def find_all_points(ec: CurveGroup) -> List[Point]:
     for x in range(ec.p):
         try:
             y = ec.y(x)
-        except Exception:
+        except BTClibValueError:
             continue
 
         points.append((x, y))

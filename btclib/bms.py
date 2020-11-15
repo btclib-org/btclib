@@ -177,7 +177,7 @@ def decode(sig: BMSig) -> BMSigTuple:
             try:
                 # hex-string of the encoded base64 signature string
                 sig2 = b64decode(bytes.fromhex(sig))
-            except Exception:
+            except ValueError:
                 # not encoded base64 signature string
                 sig2 = b64decode(sig.encode())
         else:
@@ -301,7 +301,7 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     try:
         _, h160, _, is_script_hash = h160_from_b58address(addr)
         is_b58 = True
-    except Exception:
+    except BTClibValueError:
         _, h160, _, is_script_hash = witness_from_b32address(addr)
         is_b58 = False
 
@@ -334,7 +334,7 @@ def verify(msg: String, addr: String, sig: BMSig) -> bool:
     # try/except wrapper for the Errors raised by assert_as_valid
     try:
         assert_as_valid(msg, addr, sig)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         return False
     else:
         return True

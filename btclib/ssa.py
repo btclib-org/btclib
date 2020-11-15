@@ -103,7 +103,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
         x_Q = point_from_pubkey(x_Q, ec)[0]
         y_Q = ec.y_quadratic_residue(x_Q, True)
         return x_Q, y_Q
-    except Exception:
+    except BTClibValueError:
         pass
 
     # BIP 340 key as bytes or hex-string
@@ -389,7 +389,7 @@ def _verify(
     # try/except wrapper for the Errors raised by _assert_as_valid
     try:
         _assert_as_valid(m, Q, sig, ec, hf)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         return False
     else:
         return True
@@ -526,7 +526,7 @@ def batch_verify(
     # try/except wrapper for the Errors raised by _batch_verify
     try:
         _batch_verify(m, Q, sig, ec, hf)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         return False
     else:
         return True

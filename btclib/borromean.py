@@ -118,7 +118,7 @@ def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     # raised by assert_as_valid
     try:
         return assert_as_valid(msg, e0, s, pubk_rings)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         return False
 
 

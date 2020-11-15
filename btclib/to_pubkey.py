@@ -46,7 +46,7 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
         if ec != ec2:
             raise BTClibValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
         return point_from_octets(xpub.key, ec)
-    raise BTClibValueError(f"Not a public key: {xpub.key.hex()}")
+    raise BTClibValueError(f"not a public key: {xpub.key.hex()}")
 
 
 def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
@@ -66,7 +66,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
         return mult(q, ec.G, ec)
     try:
         q, net, _ = prvkeyinfo_from_prvkey(key)
-    except Exception:
+    except BTClibValueError:
         pass
     else:
         if ec != NETWORKS[net].curve:
@@ -87,14 +87,14 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
         return _point_from_xpub(pubkey, ec)
     try:
         return _point_from_xpub(pubkey, ec)
-    except Exception:
+    except (TypeError, BTClibValueError):
         pass
 
     # it must be octets
     try:
         return point_from_octets(pubkey, ec)
-    except Exception:
-        raise BTClibValueError(f"Not a public key: {pubkey!r}")
+    except (TypeError, ValueError):
+        raise BTClibValueError(f"not a public key: {pubkey!r}")
 
 
 # not used so far, probably useless
@@ -129,7 +129,7 @@ def _pubkeyinfo_from_xpub(
         xpub = BIP32KeyData.deserialize(xpub)
 
     if xpub.key[0] not in (2, 3):
-        m = f"Not a public key: {xpub.serialize().decode('ascii')}"
+        m = f"not a public key: {xpub.serialize().decode('ascii')}"
         raise BTClibValueError(m)
 
     if network is None:
@@ -155,13 +155,13 @@ def pubkeyinfo_from_key(
         return pubkeyinfo_from_prvkey(key, network, compressed)
     try:
         return pubkeyinfo_from_pubkey(key, network, compressed)
-    except Exception:
+    except BTClibValueError:
         pass
 
     # it must be a prvkey
     try:
         return pubkeyinfo_from_prvkey(key, network, compressed)
-    except Exception:
+    except BTClibValueError:
         err_msg = "not a private or"
         if compressed is not None:
             err_msg += " compressed" if compressed else " uncompressed"
@@ -187,7 +187,7 @@ def pubkeyinfo_from_pubkey(
         return _pubkeyinfo_from_xpub(pubkey, network, compressed)
     try:
         return _pubkeyinfo_from_xpub(pubkey, network, compressed)
-    except Exception:
+    except (TypeError, BTClibValueError):
         pass
 
     # it must be octets
@@ -201,8 +201,8 @@ def pubkeyinfo_from_pubkey(
             size = ec.psize + 1 if compressed else 2 * ec.psize + 1
             pubkey = bytes_from_octets(pubkey, size)
             compr = compressed
-    except Exception:
-        raise BTClibValueError("Not a public key")
+    except (TypeError, ValueError):
+        raise BTClibValueError("not a public key")
 
     # verify that it is a valid point
     Q = point_from_octets(pubkey, ec)

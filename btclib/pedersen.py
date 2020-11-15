@@ -34,6 +34,7 @@ from hashlib import sha256
 
 from .alias import HashF, Point
 from .curve import Curve, double_mult, secp256k1
+from .exceptions import BTClibValueError
 from .secpoint import bytes_from_point
 from .utils import int_from_bits
 
@@ -66,7 +67,7 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
         try:
             hy = ec.y_odd(hx, False)
             isCurvePoint = True
-        except Exception:
+        except BTClibValueError:
             hx += 1
             hx %= ec.p
     return hx, hy
@@ -91,6 +92,6 @@ def verify(r: int, v: int, C: Point, ec: Curve = secp256k1, hf: HashF = sha256) 
     # try/except wrapper for the Errors raised by commit
     try:
         P = commit(r, v, ec, hf)
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         return False
     return C == P

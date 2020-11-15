@@ -59,7 +59,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     else:
         try:
             q, network, _ = _prvkeyinfo_from_xprvwif(prvkey)
-        except Exception:
+        except ValueError:
             pass
         else:
             # q has been validated on the xprv/wif network
@@ -72,7 +72,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
         try:
             prvkey = bytes_from_octets(prvkey, ec.nsize)
             q = int.from_bytes(prvkey, "big")
-        except Exception:
+        except ValueError:
             raise BTClibValueError(f"not a private key: {prvkey!r}")
 
     if not 0 < q < ec.n:
@@ -174,7 +174,7 @@ def _prvkeyinfo_from_xprvwif(
         try:
             return _prvkeyinfo_from_wif(xprvwif, network, compressed)
         # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
-        except Exception:
+        except BTClibValueError:
             pass
 
     return _prvkeyinfo_from_xprv(xprvwif, network, compressed)
@@ -196,14 +196,14 @@ def prvkeyinfo_from_prvkey(
         try:
             return _prvkeyinfo_from_xprvwif(prvkey, network, compressed)
         # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
-        except Exception:
+        except ValueError:
             pass
 
         # it must be octets
         try:
             prvkey = bytes_from_octets(prvkey, ec.nsize)
             q = int.from_bytes(prvkey, "big")
-        except Exception:
+        except ValueError:
             raise BTClibValueError(f"not a private key: {prvkey!r}")
 
     if not 0 < q < ec.n:

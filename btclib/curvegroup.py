@@ -309,7 +309,7 @@ class CurveGroup:
         try:
             y2 = self._y2(x)
             return mod_sqrt(y2, self.p)
-        except Exception:
+        except BTClibValueError:
             raise BTClibValueError("invalid x-coordinate")
 
     def require_on_curve(self, Q: Point) -> None:

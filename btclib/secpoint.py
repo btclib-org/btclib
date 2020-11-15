@@ -55,7 +55,7 @@ def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
         try:
             Py = ec.y_odd(Px, pubkey[0] % 2)  # also check Px validity
             return Px, Py
-        except Exception:
+        except BTClibValueError:
             msg = f"invalid x-coordinate: '{hex_string(Px)}'"
             raise BTClibValueError(msg)
     elif pubkey[0] == 0x04:  # uncompressed point
