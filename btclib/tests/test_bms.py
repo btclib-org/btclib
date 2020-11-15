@@ -21,6 +21,7 @@ from btclib.base58address import p2pkh, p2wpkh_p2sh
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh
 from btclib.curve import secp256k1
+from btclib.exceptions import BTClibValueError
 from btclib.to_prvkey import prvkeyinfo_from_prvkey
 
 ec = secp256k1
@@ -36,22 +37,22 @@ def test_exceptions() -> None:
 
     _, r, s = bms.decode(exp_sig)
     err_msg = "invalid recovery flag: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.encode(26, r, s)
 
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc="
     err_msg = "wrong signature length: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, address, exp_sig)
     assert not bms.verify(msg, address, exp_sig)
 
     exp_sig = "GpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU="
     err_msg = "invalid recovery flag: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, address, exp_sig)
     assert not bms.verify(msg, address, exp_sig)
     exp_sig = "QpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU="
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, address, exp_sig)
     assert not bms.verify(msg, address, exp_sig)
 
@@ -59,7 +60,7 @@ def test_exceptions() -> None:
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     address = b"19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T"
     err_msg = "mismatch between private key and address"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
     # uncompressed wif, compressed address
@@ -67,7 +68,7 @@ def test_exceptions() -> None:
     address = b"1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
     err_msg = "not a private or compressed public key for mainnet: "
     # FIXME puzzling error message
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
     msg = "test"
@@ -78,11 +79,11 @@ def test_exceptions() -> None:
 
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     err_msg = "mismatch between private key and address"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, b58_p2pkh)
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, b58_p2wpkh)
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, b58_p2wpkh_p2sh)
 
     # Invalid recovery flag (39) for base58 address
@@ -90,7 +91,7 @@ def test_exceptions() -> None:
     _, r, s = bms.decode(exp_sig)
     sig = bms.encode(39, r, s)
     err_msg = "invalid recovery flag: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, b58_p2pkh, sig)
 
     # Invalid recovery flag (35) for bech32 address
@@ -98,7 +99,7 @@ def test_exceptions() -> None:
     _, r, s = bms.decode(exp_sig)
     sig = bms.encode(35, r, s)
     err_msg = "invalid recovery flag: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, b58_p2wpkh, sig)
 
 
@@ -142,25 +143,25 @@ def test_one_prvkey_multiple_addresses() -> None:
     # sign with p2wpkh_p2sh address (BIP137)
     sig2 = bms.sign(msg, wif, addr_p2wpkh_p2sh)
     # False for Bitcoin Core
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, addr_p2pkh_compressed, sig2)
     assert not bms.verify(msg, addr_p2pkh_compressed, sig2)
     # True for BIP137 p2wpkh_p2sh
     bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig2)
     assert bms.verify(msg, addr_p2wpkh_p2sh, sig2)
     # False for BIP137 p2wpkh
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, addr_p2wpkh, sig2)
     assert not bms.verify(msg, addr_p2wpkh, sig2)
 
     # sign with p2wpkh address (BIP137)
     sig3 = bms.sign(msg, wif, addr_p2wpkh)
     # False for Bitcoin Core
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, addr_p2pkh_compressed, sig3)
     assert not bms.verify(msg, addr_p2pkh_compressed, sig3)
     # False for BIP137 p2wpkh_p2sh
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig3)
     assert not bms.verify(msg, addr_p2wpkh_p2sh, sig3)
     # True for BIP137 p2wpkh
@@ -175,17 +176,17 @@ def test_one_prvkey_multiple_addresses() -> None:
     # sign with uncompressed p2pkh
     sig4 = bms.sign(msg, wif2, addr_p2pkh_uncompressed)
     # False for Bitcoin Core compressed p2pkh
-    with pytest.raises(ValueError, match="wrong p2pkh address: "):
+    with pytest.raises(BTClibValueError, match="wrong p2pkh address: "):
         bms.assert_as_valid(msg, addr_p2pkh_compressed, sig4)
     assert not bms.verify(msg, addr_p2pkh_compressed, sig4)
     # False for BIP137 p2wpkh_p2sh
     # FIXME: puzzling error message
     # it should have been "wrong p2wpkh-p2sh address: "
-    with pytest.raises(ValueError, match="wrong p2pkh address: "):
+    with pytest.raises(BTClibValueError, match="wrong p2pkh address: "):
         bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig4)
     assert not bms.verify(msg, addr_p2wpkh_p2sh, sig4)
     # False for BIP137 p2wpkh
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, addr_p2wpkh, sig4)
     assert not bms.verify(msg, addr_p2wpkh, sig4)
     # True for Bitcoin Core uncompressed p2pkh
@@ -199,25 +200,25 @@ def test_one_prvkey_multiple_addresses() -> None:
     addr_p2wpkh = p2wpkh(wif3)
 
     # False for Bitcoin Core compressed p2pkh
-    with pytest.raises(ValueError, match="wrong p2pkh address: "):
+    with pytest.raises(BTClibValueError, match="wrong p2pkh address: "):
         bms.assert_as_valid(msg, addr_p2pkh_compressed, sig1)
     assert not bms.verify(msg, addr_p2pkh_compressed, sig1)
     # False for BIP137 p2wpkh_p2sh
-    with pytest.raises(ValueError, match="wrong p2wpkh-p2sh address: "):
+    with pytest.raises(BTClibValueError, match="wrong p2wpkh-p2sh address: "):
         bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig1)
     assert not bms.verify(msg, addr_p2wpkh_p2sh, sig1)
     # False for BIP137 p2wpkh
-    with pytest.raises(ValueError, match="wrong p2wpkh address: "):
+    with pytest.raises(BTClibValueError, match="wrong p2wpkh address: "):
         bms.assert_as_valid(msg, addr_p2wpkh, sig1)
     assert not bms.verify(msg, addr_p2wpkh, sig1)
 
     # FIXME: puzzling error message
     err_msg = "not a private or compressed public key for mainnet: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif2, addr_p2pkh_compressed)
 
     err_msg = "mismatch between private key and address"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, addr_p2pkh_uncompressed)
 
 

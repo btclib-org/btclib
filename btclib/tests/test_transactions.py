@@ -14,6 +14,7 @@ from typing import List
 import pytest
 
 from btclib import tx, tx_in, tx_out
+from btclib.exceptions import BTClibValueError
 
 
 def test_genesis_block() -> None:
@@ -137,23 +138,23 @@ def test_double_witness() -> None:
 def test_invalid_outpoint() -> None:
 
     op = tx_in.OutPoint(b"\x01" * 31, 18)
-    with pytest.raises(ValueError, match="invalid OutPoint txid: "):
+    with pytest.raises(BTClibValueError, match="invalid OutPoint txid: "):
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x01" * 32, -1)
-    with pytest.raises(ValueError, match="negative OutPoint vout: "):
+    with pytest.raises(BTClibValueError, match="negative OutPoint vout: "):
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x01" * 32, 0xFFFFFFFF + 1)
-    with pytest.raises(ValueError, match="OutPoint vout too high: "):
+    with pytest.raises(BTClibValueError, match="OutPoint vout too high: "):
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF)
-    with pytest.raises(ValueError, match="invalid OutPoint"):
+    with pytest.raises(BTClibValueError, match="invalid OutPoint"):
         op.assert_valid()
 
     op = tx_in.OutPoint(b"\x00" * 32, 0)
-    with pytest.raises(ValueError, match="invalid OutPoint"):
+    with pytest.raises(BTClibValueError, match="invalid OutPoint"):
         op.assert_valid()
 
 
@@ -161,18 +162,18 @@ def test_invalid_tx_out() -> None:
     transaction_output = tx_out.TxOut(
         value=-1, scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64")
     )
-    with pytest.raises(ValueError, match="negative value: "):
+    with pytest.raises(BTClibValueError, match="negative value: "):
         transaction_output.assert_valid()
 
     transaction_output = tx_out.TxOut(
         value=tx_out.MAX_SATOSHI + 1,
         scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64"),
     )
-    with pytest.raises(ValueError, match="value too high: "):
+    with pytest.raises(BTClibValueError, match="value too high: "):
         transaction_output.assert_valid()
 
     transaction_output = tx_out.TxOut(value=1, scriptPubKey=b"")
-    with pytest.raises(ValueError, match="empty scriptPubKey"):
+    with pytest.raises(BTClibValueError, match="empty scriptPubKey"):
         transaction_output.assert_valid()
 
 
@@ -187,5 +188,5 @@ def test_invalid_tx() -> None:
     tx2 = tx.Tx(0, 0, [], [])
     err_msg = "A transaction must have at least one "
     for transaction in (tx1, tx2):
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=err_msg):
             transaction.assert_valid()

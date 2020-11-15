@@ -16,6 +16,7 @@ from typing import Dict
 import pytest
 
 from btclib.curve import CURVES, Curve, mult
+from btclib.exceptions import BTClibValueError
 from btclib.secpoint import bytes_from_point, point_from_octets
 
 # test curves: very low cardinality
@@ -74,34 +75,40 @@ def test_octets2point() -> None:
         assert R == Q
 
         Q_bytes = b"\x01" + b"\x01" * ec.psize
-        with pytest.raises(ValueError, match="not a point: "):
+        with pytest.raises(BTClibValueError, match="not a point: "):
             point_from_octets(Q_bytes, ec)
 
         Q_bytes = b"\x01" + b"\x01" * 2 * ec.psize
-        with pytest.raises(ValueError, match="not a point: "):
+        with pytest.raises(BTClibValueError, match="not a point: "):
             point_from_octets(Q_bytes, ec)
 
         Q_bytes = b"\x04" + b"\x01" * ec.psize
-        with pytest.raises(ValueError, match="invalid size for uncompressed point: "):
+        with pytest.raises(
+            BTClibValueError, match="invalid size for uncompressed point: "
+        ):
             point_from_octets(Q_bytes, ec)
 
         Q_bytes = b"\x02" + b"\x01" * 2 * ec.psize
-        with pytest.raises(ValueError, match="invalid size for compressed point: "):
+        with pytest.raises(
+            BTClibValueError, match="invalid size for compressed point: "
+        ):
             point_from_octets(Q_bytes, ec)
 
         Q_bytes = b"\x03" + b"\x01" * 2 * ec.psize
-        with pytest.raises(ValueError, match="invalid size for compressed point: "):
+        with pytest.raises(
+            BTClibValueError, match="invalid size for compressed point: "
+        ):
             point_from_octets(Q_bytes, ec)
 
     # invalid x_Q coordinate
     ec = CURVES["secp256k1"]
     x_Q = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
     xstr = format(x_Q, "32X")
-    with pytest.raises(ValueError, match="invalid x-coordinate: "):
+    with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
         point_from_octets("03" + xstr, ec)
-    with pytest.raises(ValueError, match="point not on curve: "):
+    with pytest.raises(BTClibValueError, match="point not on curve: "):
         point_from_octets("04" + 2 * xstr, ec)
-    with pytest.raises(ValueError, match="point not on curve"):
+    with pytest.raises(BTClibValueError, match="point not on curve"):
         bytes_from_point((x_Q, x_Q), ec)
-    with pytest.raises(ValueError, match="point not on curve"):
+    with pytest.raises(BTClibValueError, match="point not on curve"):
         bytes_from_point((x_Q, x_Q), ec, False)

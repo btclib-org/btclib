@@ -13,12 +13,13 @@
 import pytest
 
 from btclib import varint
+from btclib.exceptions import BTClibValueError
 
 
 def test_varint_conversion() -> None:
 
     i = -1
-    with pytest.raises(ValueError, match="negative integer: "):
+    with pytest.raises(BTClibValueError, match="negative integer: "):
         varint.encode(i)
 
     i = 0x00
@@ -67,7 +68,7 @@ def test_varint_conversion() -> None:
     assert varint.decode(b) == i
 
     i += 1
-    with pytest.raises(ValueError, match="integer too big for varint encoding: "):
+    with pytest.raises(BTClibValueError, match="integer too big for varint encoding: "):
         varint.encode(i)
 
     assert varint.decode("6a") == 106

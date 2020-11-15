@@ -29,7 +29,7 @@ from btclib.entropy import (
     collect_rolls,
     randbinstr,
 )
-from btclib.exceptions import BTClibTypeError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_indexes() -> None:
@@ -121,12 +121,12 @@ def test_exceptions() -> None:
 
     # 214 is not in [128, 160, 192, 224, 256, 512]
     err_msg = "Wrong number of bits: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_entropy(binstr_entropy214)
 
     # 214 is not in [216]
     err_msg = "Wrong number of bits: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_entropy(binstr_entropy214, 216)
 
     int_entropy211 = int(binstr_entropy214, 2)  # 211 bits
@@ -144,7 +144,7 @@ def test_exceptions() -> None:
     assert int(entropy, 2) == int_entropy211
 
     err_msg = "Negative entropy: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_entropy(-1 * int_entropy211)
 
     bytes_entropy216 = int_entropy211.to_bytes(27, byteorder="big")
@@ -155,7 +155,7 @@ def test_exceptions() -> None:
     assert entropy != binstr_entropy216
 
     err_msg = "Wrong number of bits: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_entropy(bytes_entropy216, 224)
 
     err_msg = "Entropy must be raw binary 0/1 string, bytes, or int; not "
@@ -240,24 +240,24 @@ def test_binstr_from_rolls() -> None:
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number - 2)]
     err_msg = "Too few rolls in the usable "  # [1-16] range, missing 2 rolls
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     rolls[1] = base + 1
     err_msg = "Too few rolls in the usable "  # [1-16] range, missing 1 rolls
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     rolls[1] = dice_base + 1
     err_msg = "invalid roll: "  # 21 is not in [1-20]
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     err_msg = "invalid dice base: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_rolls(bits, 1, rolls)
 
 
@@ -289,5 +289,5 @@ def test_randbinstr() -> None:
     binstr = randbinstr(1024, to_be_hashed=False)
     assert len(binstr) == 1024
     err_msg = "Too many bits required: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         randbinstr(1024)

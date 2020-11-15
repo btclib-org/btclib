@@ -18,7 +18,7 @@ from btclib import dsa
 from btclib.alias import INF
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
-from btclib.exceptions import BTClibRuntimeError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.numbertheory import mod_inv
 from btclib.rfc6979 import rfc6979
 from btclib.secpoint import bytes_from_point, point_from_octets
@@ -70,7 +70,7 @@ def test_signature() -> None:
         dsa.assert_as_valid(msg, Q_fake, sig)
 
     err_msg = "not a valid public key: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, INF, sig)
 
     sig_fake = (sig[0], sig[1], sig[1])
@@ -82,24 +82,24 @@ def test_signature() -> None:
     sig_invalid = ec.p, sig[1]
     assert not dsa.verify(msg, Q, sig_invalid)
     err_msg = "scalar r not in 1..n-1: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, Q, sig_invalid)
 
     sig_invalid = sig[0], ec.p
     assert not dsa.verify(msg, Q, sig_invalid)
     err_msg = "scalar s not in 1..n-1: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, Q, sig_invalid)
 
     err_msg = "private key not in 1..n-1: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign(msg, 0)
 
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign(msg, q, 0)
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign(msg, q, ec.n)
 
 
@@ -230,10 +230,10 @@ def test_crack_prvkey() -> None:
     assert q == qc
     assert k in (kc, ec.n - kc)
 
-    with pytest.raises(ValueError, match="not the same r in signatures"):
+    with pytest.raises(BTClibValueError, match="not the same r in signatures"):
         dsa.crack_prvkey(msg1, sig1, msg2, (16, sig1[1]))
 
-    with pytest.raises(ValueError, match="identical signatures"):
+    with pytest.raises(BTClibValueError, match="identical signatures"):
         dsa.crack_prvkey(msg1, sig1, msg1, sig1)
 
 

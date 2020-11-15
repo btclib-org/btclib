@@ -18,6 +18,7 @@ import pytest
 from btclib import base58address, bech32address, script
 from btclib.base58address import b58address_from_h160, b58address_from_witness
 from btclib.bech32address import b32address_from_witness
+from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.scriptpubkey import (
     nulldata,
@@ -56,7 +57,7 @@ def test_nulldata() -> None:
     assert payload.decode("ascii") == string
 
     err_msg = "no address for null data script"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         address_from_scriptPubKey(scriptPubKey)
 
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
@@ -114,7 +115,7 @@ def test_nulldata2() -> None:
 def test_nulldata3() -> None:
 
     err_msg = "invalid nulldata script length: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload = "00" * 81
         script_pubkey_from_payload("nulldata", payload)
 
@@ -123,14 +124,14 @@ def test_nulldata3() -> None:
     scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 33])
     scriptPubKey = scriptPubKey[:1] + b"\x20" + scriptPubKey[2:]
     err_msg = "wrong data length: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     # wrong data length: 32 in 83-bytes nulldata script;
     # it should have been 80
     scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 80])
     scriptPubKey = scriptPubKey[:2] + b"\x20" + scriptPubKey[3:]
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     # missing OP_PUSHDATA1 (0x4c) in 83-bytes nulldata script,
@@ -138,14 +139,14 @@ def test_nulldata3() -> None:
     scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 80])
     scriptPubKey = scriptPubKey[:1] + b"\x20" + scriptPubKey[2:]
     err_msg = "missing OP_PUSHDATA1 "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     assert len(script.serialize(["OP_RETURN", b"\x00" * 75])) == 77
     assert len(script.serialize(["OP_RETURN", b"\x00" * 76])) == 79
     scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 76])[:-1]
     err_msg = "invalid 78 bytes nulldata script length"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
 
@@ -166,7 +167,7 @@ def test_p2pk() -> None:
     )
 
     err_msg = "no address for p2pk scriptPubKey"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         address_from_scriptPubKey(scriptPubKey)
 
     # documented test case: https://learnmeabitcoin.com/guide/p2pk
@@ -181,7 +182,7 @@ def test_p2pk() -> None:
     # invalid size: 34 bytes instead of (33, 65)
     pubkey = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 14"
     err_msg = "not a private or public key: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         p2pk(pubkey)
 
 
@@ -226,7 +227,7 @@ def test_p2pkh() -> None:
 
     # invalid size: 11 bytes instead of 20
     err_msg = "invalid size: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload(script_type, "00" * 11)
 
 
@@ -297,7 +298,7 @@ def test_p2sh() -> None:
 
     # invalid size: 21 bytes instead of 20
     err_msg = "invalid size: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload(script_type, "00" * 21)
 
 
@@ -337,26 +338,26 @@ def test_exceptions() -> None:
 
     # invalid size: 11 bytes instead of 20
     err_msg = "invalid size: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2wpkh", "00" * 11)
 
     # invalid size: 33 bytes instead of 32
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2wsh", "00" * 33)
 
     err_msg = "unknown scriptPubKey type: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2unkn", "00" * 32)
 
     err_msg = "unknown scriptPubKey: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         scriptPubKey = [16, 20 * b"\x00"]
         address_from_scriptPubKey(scriptPubKey)
 
     # Unhandled witness version (16)
     err_msg = "unmanaged witness version: "
     address = b32address_from_witness(16, 20 * b"\x00")
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         scriptPubKey_from_address(address)
 
 
@@ -391,7 +392,7 @@ def test_p2ms() -> None:
     assert (script_type, payload, m) == payload_from_scriptPubKey(scriptPubKey)
 
     err_msg = "no address for p2ms scriptPubKey"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         address_from_scriptPubKey(scriptPubKey)
 
     # documented test case: https://learnmeabitcoin.com/guide/p2ms
@@ -410,38 +411,38 @@ def test_p2ms() -> None:
     assert scriptPubKey == p2ms(pubkeys, 1, lexicographic_sort=False).hex()
 
     err_msg = "number-of-pubkeys < m in "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(pubkeys, 3)
 
     err_msg = "invalid m for p2ms scriptPubKey: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(pubkeys, 0)
 
     err_msg = "not a private or public key: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         p2ms([pubkey1 + "00", pubkey2], 1)
 
     err_msg = "too many pubkeys in m-of-n multisignature: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         p2ms([pubkey1] * 17, 3)
 
     err_msg = "invalid size: "
     badpubkeys = sorted(pubkeys)
     badpubkeys[0] = badpubkeys[0] + b"\x00"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload(script_type, badpubkeys, m)
 
     scriptPubKey = script.serialize([m] + sorted(badpubkeys) + [n, "OP_CHECKMULTISIG"])
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     err_msg = "invalid key in p2ms"
     scriptPubKey = script.serialize([m] + [0, pubkeys[1]] + [n, "OP_CHECKMULTISIG"])
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     err_msg = "invalid m in m-of-n multisignature: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload(script_type, pubkeys, 17)
 
 
@@ -458,27 +459,27 @@ def test_p2ms_2() -> None:
     script_pubkey_from_payload("p2ms", pubkeys, m)
 
     err_msg = "invalid list of Octets for p2sh scriptPubKey"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2sh", pubkeys, 0)
 
     err_msg = "invalid number of pubkeys in "
     scriptPubKey = [1, 3, "OP_CHECKMULTISIG"]
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     err_msg = "wrong number of pubkeys in "
     scriptPubKey = [1, pubkey1, pubkey2, 3, "OP_CHECKMULTISIG"]
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     err_msg = "invalid number of pubkeys in "
     scriptPubKey = [3, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     err_msg = "invalid m in m-of-n multisignature: "
     scriptPubKey = [0, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
     scriptPubKey = script.serialize(
@@ -486,7 +487,7 @@ def test_p2ms_2() -> None:
     )
     scriptPubKey = scriptPubKey[:133] + b"\x40" + scriptPubKey[134:]
     err_msg = "wrong number of pubkeys in "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         payload_from_scriptPubKey(scriptPubKey)
 
 

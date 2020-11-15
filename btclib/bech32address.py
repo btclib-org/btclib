@@ -35,7 +35,7 @@ with the following modifications:
 
 * moved bech32 stuff into bech32.py
 * type annotated python3
-* avoided returning None or (None, None), throwing ValueError instead
+* avoided returning None or (None, None), throwing Exceptions instead
 * detailed error messages and exteded safety checks
 * check that bech32 addresses are not longer than 90 characters
   (as this is not enforced by bech32.b32decode anymore)

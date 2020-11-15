@@ -13,6 +13,7 @@
 import pytest
 
 from btclib.curve import CURVES
+from btclib.exceptions import BTClibValueError
 from btclib.tests.test_to_key import (
     INF,
     INF_xpub_data,
@@ -62,49 +63,49 @@ def test_from_prvkey() -> None:
 
     for prv_key in [xprv_data] + compressed_prv_keys:
         assert q == int_from_prvkey(prv_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             int_from_prvkey(prv_key, secp256r1)
         assert m_c == prvkeyinfo_from_prvkey(prv_key)
         assert m_c == prvkeyinfo_from_prvkey(prv_key, "mainnet")
         assert m_c == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
         assert m_c == prvkeyinfo_from_prvkey(prv_key, compressed=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, compressed=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "testnet")
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=False)
 
     for prv_key in uncompressed_prv_keys:
         assert q == int_from_prvkey(prv_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             int_from_prvkey(prv_key, secp256r1)
         assert m_unc == prvkeyinfo_from_prvkey(prv_key)
         assert m_unc == prvkeyinfo_from_prvkey(prv_key, "mainnet")
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, compressed=True)
         assert m_unc == prvkeyinfo_from_prvkey(prv_key, "mainnet", compressed=False)
         assert m_unc == prvkeyinfo_from_prvkey(prv_key, compressed=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "testnet")
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "testnet", compressed=False)
 
     for prv_key in [xprv_data] + net_aware_prv_keys:
         assert q == int_from_prvkey(prv_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             int_from_prvkey(prv_key, secp256r1)
         assert prvkeyinfo_from_prvkey(prv_key) in (m_c, m_unc)
         assert prvkeyinfo_from_prvkey(prv_key, "mainnet") in (m_c, m_unc)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(prv_key, "testnet")
 
     for prv_key in [q] + net_unaware_prv_keys:
@@ -115,9 +116,9 @@ def test_from_prvkey() -> None:
         assert prvkeyinfo_from_prvkey(prv_key, "testnet") in (t_c, t_unc)
 
     for invalid_prv_key in [q0, qn, xprv0_data, xprvn_data] + invalid_prv_keys:
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             int_from_prvkey(invalid_prv_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(invalid_prv_key)
 
     for not_a_prv_key in (
@@ -130,7 +131,7 @@ def test_from_prvkey() -> None:
         + compressed_pub_keys
         + uncompressed_pub_keys
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             int_from_prvkey(not_a_prv_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             prvkeyinfo_from_prvkey(not_a_prv_key)

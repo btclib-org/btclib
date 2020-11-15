@@ -16,6 +16,7 @@ import pytest
 
 from btclib import script
 from btclib.alias import ScriptToken
+from btclib.exceptions import BTClibValueError
 
 
 def test_operators() -> None:
@@ -68,16 +69,16 @@ def test_exceptions() -> None:
 
     scriptPubKey: List[ScriptToken] = [2, 3, "OP_ADD", 5, "OP_VERIF"]
     err_msg = "invalid string token: OP_VERIF"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script.serialize(scriptPubKey)
 
     err_msg = "Unmanaged <class 'function'> token type"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script.serialize([2, 3, "OP_ADD", 5, script.serialize])  # type: ignore
 
     scriptPubKey = ["1f" * 521, "OP_DROP"]
     err_msg = "Too many bytes for OP_PUSHDATA: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script.serialize(scriptPubKey)
 
     # A scriptPubKey with OP_PUSHDATA4 can be decoded
@@ -85,7 +86,7 @@ def test_exceptions() -> None:
     scriptPubKey = script.deserialize(script_bytes)
     # but it cannot be encoded
     err_msg = "Too many bytes for OP_PUSHDATA: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         script.serialize(scriptPubKey)
 
 

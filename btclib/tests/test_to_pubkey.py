@@ -13,6 +13,7 @@
 import pytest
 
 from btclib.curve import CURVES
+from btclib.exceptions import BTClibValueError
 from btclib.secpoint import bytes_from_point
 from btclib.tests.test_to_key import (
     INF,
@@ -58,7 +59,7 @@ def test_from_key() -> None:
     t_unc = bytes_from_point(Q, compressed=False), "testnet"
     for pubkey in [Q] + plain_pub_keys:
         assert Q == point_from_pubkey(pubkey)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_pubkey(pubkey, secp256r1)
         assert m_c == pubkeyinfo_from_pubkey(pubkey)
         assert m_c == pubkeyinfo_from_pubkey(pubkey, "mainnet")
@@ -72,55 +73,55 @@ def test_from_key() -> None:
 
     for pubkey in [xpub_data] + compressed_pub_keys:
         assert Q == point_from_pubkey(pubkey)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_pubkey(pubkey, secp256r1)
         assert m_c == pubkeyinfo_from_pubkey(pubkey)
         assert m_c == pubkeyinfo_from_pubkey(pubkey, "mainnet")
         assert m_c == pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=True)
         assert m_c == pubkeyinfo_from_pubkey(pubkey, compressed=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(pubkey, compressed=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(pubkey, "testnet", compressed=False)
 
     for pubkey in uncompressed_pub_keys:
         assert Q == point_from_pubkey(pubkey)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_pubkey(pubkey, secp256r1)
         assert m_unc == pubkeyinfo_from_pubkey(pubkey)
         assert m_unc == pubkeyinfo_from_pubkey(pubkey, "mainnet")
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(pubkey, compressed=True)
         assert m_unc == pubkeyinfo_from_pubkey(pubkey, "mainnet", compressed=False)
         assert m_unc == pubkeyinfo_from_pubkey(pubkey, compressed=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(pubkey, "testnet", compressed=True)
 
     for pubkey in [xpub_data] + net_aware_pub_keys:
         assert Q == point_from_pubkey(pubkey)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_pubkey(pubkey, secp256r1)
         assert pubkeyinfo_from_pubkey(pubkey) in (m_c, m_unc)
         assert pubkeyinfo_from_pubkey(pubkey, "mainnet") in (m_c, m_unc)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(pubkey, "testnet")
 
     for pubkey in net_unaware_pub_keys:
         assert Q == point_from_pubkey(pubkey)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_pubkey(pubkey, secp256r1)
         assert pubkeyinfo_from_pubkey(pubkey) in (m_c, m_unc)
         assert pubkeyinfo_from_pubkey(pubkey, "mainnet") in (m_c, m_unc)
         assert pubkeyinfo_from_pubkey(pubkey, "testnet") in (t_c, t_unc)
 
     for invalid_pub_key in [INF, INF_xpub_data] + invalid_pub_keys:
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_pubkey(invalid_pub_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(invalid_pub_key)
 
     for not_a_pub_key in (
@@ -132,9 +133,9 @@ def test_from_key() -> None:
         + compressed_prv_keys
         + uncompressed_prv_keys
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_pubkey(not_a_pub_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_pubkey(not_a_pub_key)
 
     for key in [Q] + plain_pub_keys + [q] + plain_prv_keys:
@@ -151,37 +152,37 @@ def test_from_key() -> None:
 
     for key in compressed_pub_keys + [xpub_data, xprv_data] + compressed_prv_keys:
         assert Q == point_from_key(key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_key(key, secp256r1)
         assert m_c == pubkeyinfo_from_key(key)
         assert m_c == pubkeyinfo_from_key(key, "mainnet")
         assert m_c == pubkeyinfo_from_key(key, "mainnet", compressed=True)
         assert m_c == pubkeyinfo_from_key(key, compressed=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_key(key, "mainnet", compressed=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_key(key, compressed=False)
 
     for key in uncompressed_pub_keys + uncompressed_prv_keys:
         assert Q == point_from_key(key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_key(key, secp256r1)
         assert m_unc == pubkeyinfo_from_key(key)
         assert m_unc == pubkeyinfo_from_key(key, "mainnet")
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_key(key, "mainnet", compressed=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_key(key, compressed=True)
         assert m_unc == pubkeyinfo_from_key(key, "mainnet", compressed=False)
         assert m_unc == pubkeyinfo_from_key(key, compressed=False)
 
     for key in net_aware_pub_keys + [xpub_data, xprv_data] + net_aware_prv_keys:
         assert Q == point_from_key(key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_key(key, secp256r1)
         assert pubkeyinfo_from_key(key) in (m_c, m_unc)
         assert pubkeyinfo_from_key(key, "mainnet") in (m_c, m_unc)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_key(key, "testnet")
 
     for key in [q] + net_unaware_prv_keys + net_unaware_pub_keys:
@@ -196,9 +197,9 @@ def test_from_key() -> None:
         + [q0, qn, xprv0_data, xprvn_data]
         + invalid_prv_keys
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_key(invalid_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_key(invalid_key)
 
     for not_a_key in [
@@ -209,7 +210,7 @@ def test_from_key() -> None:
         INF,
         INF_xpub_data,
     ] + not_a_pub_keys:
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             point_from_key(not_a_key)
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             pubkeyinfo_from_key(not_a_key)

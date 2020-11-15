@@ -33,6 +33,7 @@ from btclib.curvegroup import (
     cached_multiples,
     multiples,
 )
+from btclib.exceptions import BTClibValueError
 from btclib.pedersen import second_generator
 from btclib.tests.test_curve import all_curves, low_card_curves
 
@@ -59,7 +60,7 @@ def test_mult_recursive_aff() -> None:
         assert _mult_recursive_aff(ec.n, ec.G, ec) == INF
         assert _mult_recursive_aff(ec.n, INF, ec) == INF
 
-        with pytest.raises(ValueError, match="negative m: "):
+        with pytest.raises(BTClibValueError, match="negative m: "):
             _mult_recursive_aff(-1, ec.G, ec)
 
     for ec in low_card_curves.values():
@@ -92,7 +93,7 @@ def test_mult_recursive_jac() -> None:
         assert ec._jac_equality(_mult_recursive_jac(ec.n, ec.GJ, ec), INFJ)
         assert ec._jac_equality(_mult_recursive_jac(ec.n, INFJ, ec), INFJ)
 
-        with pytest.raises(ValueError, match="negative m: "):
+        with pytest.raises(BTClibValueError, match="negative m: "):
             _mult_recursive_jac(-1, ec.GJ, ec)
 
     ec = ec23_31
@@ -121,7 +122,7 @@ def test_mult_aff() -> None:
         assert _mult_aff(ec.n, ec.G, ec) == INF
         assert _mult_aff(ec.n, INF, ec) == INF
 
-        with pytest.raises(ValueError, match="negative m: "):
+        with pytest.raises(BTClibValueError, match="negative m: "):
             _mult_aff(-1, ec.G, ec)
 
     for ec in low_card_curves.values():
@@ -154,7 +155,7 @@ def test_mult_jac() -> None:
         assert ec._jac_equality(_mult_jac(ec.n, ec.GJ, ec), INFJ)
         assert ec._jac_equality(_mult_jac(ec.n, INFJ, ec), INFJ)
 
-        with pytest.raises(ValueError, match="negative m: "):
+        with pytest.raises(BTClibValueError, match="negative m: "):
             _mult_jac(-1, ec.GJ, ec)
 
     ec = ec23_31
@@ -182,7 +183,7 @@ def test_mont_ladder() -> None:
         assert ec._jac_equality(_mult_mont_ladder(ec.n, ec.GJ, ec), INFJ)
         assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
 
-        with pytest.raises(ValueError, match="negative m: "):
+        with pytest.raises(BTClibValueError, match="negative m: "):
             _mult_mont_ladder(-1, ec.GJ, ec)
 
     ec = ec23_31
@@ -210,7 +211,7 @@ def test_mult_base_3() -> None:
         assert ec._jac_equality(_mult_base_3(ec.n, ec.GJ, ec), INFJ)
         assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
 
-        with pytest.raises(ValueError, match="negative m: "):
+        with pytest.raises(BTClibValueError, match="negative m: "):
             _mult_base_3(-1, ec.GJ, ec)
 
     ec = ec23_31
@@ -229,7 +230,7 @@ def test_cached_multiples() -> None:
 def test_multiples() -> None:
 
     ec = secp256k1
-    with pytest.raises(ValueError, match="size too low: "):
+    with pytest.raises(BTClibValueError, match="size too low: "):
         multiples(ec.GJ, 1, ec)
 
     T = [INFJ, ec.GJ]
@@ -298,10 +299,10 @@ def test_mult_fixed_window() -> None:
             assert ec._jac_equality(_mult_fixed_window(ec.n, ec.GJ, ec, w), INFJ)
             assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
 
-            with pytest.raises(ValueError, match="negative m: "):
+            with pytest.raises(BTClibValueError, match="negative m: "):
                 _mult_fixed_window(-1, ec.GJ, ec, w)
 
-            with pytest.raises(ValueError, match="non positive w: "):
+            with pytest.raises(BTClibValueError, match="non positive w: "):
                 _mult_fixed_window(1, ec.GJ, ec, -w)
 
     ec = ec23_31
@@ -331,10 +332,10 @@ def test_mult_fixed_window_cached() -> None:
             assert ec._jac_equality(_mult_fixed_window_cached(ec.n, ec.GJ, ec), INFJ)
             assert ec._jac_equality(_mult_mont_ladder(ec.n, INFJ, ec), INFJ)
 
-            with pytest.raises(ValueError, match="negative m: "):
+            with pytest.raises(BTClibValueError, match="negative m: "):
                 _mult_fixed_window_cached(-1, ec.GJ, ec)
 
-            with pytest.raises(ValueError, match="non positive w: "):
+            with pytest.raises(BTClibValueError, match="non positive w: "):
                 _mult_fixed_window_cached(1, ec.GJ, ec, -1)
 
     ec = ec23_31
@@ -394,16 +395,16 @@ def test_assorted_jac_mult() -> None:
             assert ec._jac_equality(INFJ, _multi_mult([0, 0, 0, 0], points, ec))
 
     err_msg = "mismatch between number of scalars and points: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ], ec)
 
     err_msg = "negative coefficient: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         _multi_mult([k1, k2, -k3], [ec.GJ, HJ, ec.GJ], ec)
 
-    with pytest.raises(ValueError, match="negative first coefficient: "):
+    with pytest.raises(BTClibValueError, match="negative first coefficient: "):
         _double_mult(-5, HJ, 1, ec.GJ, ec)
-    with pytest.raises(ValueError, match="negative second coefficient: "):
+    with pytest.raises(BTClibValueError, match="negative second coefficient: "):
         _double_mult(1, HJ, -5, ec.GJ, ec)
 
 

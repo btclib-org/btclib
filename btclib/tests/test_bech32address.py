@@ -54,6 +54,7 @@ from btclib.bech32address import (
     p2wsh,
     witness_from_b32address,
 )
+from btclib.exceptions import BTClibValueError
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.utils import hash160, sha256
 
@@ -141,7 +142,7 @@ def test_invalid_address() -> None:
     ]
 
     for a, err_msg in INVALID_ADDRESS:
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=err_msg):
             witness_from_b32address(a)
 
 
@@ -166,7 +167,7 @@ def test_invalid_address_enc() -> None:
         b32address_from_witness(version, "00" * length, network)
 
     for network, version, length, err_msg in INVALID_ADDRESS_ENC[1:]:
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=err_msg):
             b32address_from_witness(version, "00" * length, network)
 
 
@@ -184,7 +185,7 @@ def test_b32address_from_witness() -> None:
 
     wp_ints = list(wp)
     wp_ints[0] = -1
-    with pytest.raises(ValueError, match="invalid value in _convertbits: "):
+    with pytest.raises(BTClibValueError, match="invalid value in _convertbits: "):
         _convertbits(wp_ints, 8, 5)
 
 
@@ -222,13 +223,13 @@ def test_p2wpkh() -> None:
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
     err_msg = "not a private or compressed public key: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         p2wpkh(uncompr_pub)
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         p2wpkh(pub + "00")
 
     err_msg = "invalid witness program length for witness version zero: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         b32address_from_witness(0, hash160(pub) + b"\x00")
 
 
@@ -244,7 +245,7 @@ def test_hash_from_bech32() -> None:
     # witness program length (21) is not 20 or 32
     addr = b"tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
     err_msg = "invalid witness program length for witness version zero: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         witness_from_b32address(addr)
 
 
@@ -278,5 +279,5 @@ def test_p2wsh() -> None:
     assert witness_from_b32address(addr)[1] == sha256(witness_script_bytes)
 
     err_msg = "invalid witness program length for witness version zero: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         b32address_from_witness(0, witness_script_bytes)

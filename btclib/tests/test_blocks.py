@@ -16,6 +16,7 @@ from os import path
 import pytest
 
 from btclib.blocks import Block, BlockHeader
+from btclib.exceptions import BTClibValueError
 
 datadir = path.join(path.dirname(__file__), "generated_files")
 
@@ -197,7 +198,7 @@ def test_invalid_merkleroot() -> None:
     block.header.merkleroot = "00" * 32
 
     err_msg = "invalid Merkle root: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
 
 
@@ -210,11 +211,11 @@ def test_invalid_block_version() -> None:
     err_msg = "Invalid block header version"
 
     block.header.version = 0
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
 
     block.header.version = 0xFFFFFFFF + 1
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
 
 
@@ -226,7 +227,7 @@ def test_invalid_block_previoushash_length() -> None:
 
     block.header.previousblockhash = "00" * 31
     err_msg = "Invalid block previous hash length"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
 
 
@@ -238,7 +239,7 @@ def test_invalid_block_merkleroot_length() -> None:
 
     block.header.merkleroot = "00" * 31
     err_msg = "Invalid block merkle root length"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         block.header.assert_valid()
 
 
@@ -250,7 +251,7 @@ def test_invalid_nonce() -> None:
 
     block.header.nonce = 0
     err_msg = "Invalid nonce"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
 
 

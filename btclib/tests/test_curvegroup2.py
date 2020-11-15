@@ -14,6 +14,7 @@ import pytest
 from btclib.alias import INFJ
 from btclib.curvegroup import _mult
 from btclib.curvegroup2 import _mult_sliding_window, _mult_w_NAF
+from btclib.exceptions import BTClibValueError
 from btclib.tests.test_curve import low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
@@ -38,10 +39,10 @@ def test_mult_sliding_window() -> None:
             assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
             assert ec._jac_equality(_mult_sliding_window(ec.n, ec.GJ, ec, w), INFJ)
 
-            with pytest.raises(ValueError, match="negative m: "):
+            with pytest.raises(BTClibValueError, match="negative m: "):
                 _mult_sliding_window(-1, ec.GJ, ec, w)
 
-            with pytest.raises(ValueError, match="non positive w: "):
+            with pytest.raises(BTClibValueError, match="non positive w: "):
                 _mult_sliding_window(1, ec.GJ, ec, -w)
 
     ec = ec23_31
@@ -70,10 +71,10 @@ def test_mult_w_NAF() -> None:
             assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
             assert ec._jac_equality(_mult_w_NAF(ec.n, ec.GJ, ec, w), INFJ)
 
-            with pytest.raises(ValueError, match="negative m: "):
+            with pytest.raises(BTClibValueError, match="negative m: "):
                 _mult_w_NAF(-1, ec.GJ, ec, w)
 
-            with pytest.raises(ValueError, match="non positive w: "):
+            with pytest.raises(BTClibValueError, match="non positive w: "):
                 _mult_w_NAF(1, ec.GJ, ec, -w)
 
     ec = ec23_31

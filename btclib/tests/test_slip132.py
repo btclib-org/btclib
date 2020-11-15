@@ -15,6 +15,7 @@ from typing import List, Tuple
 import pytest
 
 from btclib import base58address, bech32address, bip32, bip39, slip132
+from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 
 
@@ -22,7 +23,7 @@ def test_slip132() -> None:
     # xkey is not a public one
     xprv = b"xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
     err_msg = "not a public key: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         slip132.address_from_xpub(xprv)
     address = slip132.address_from_xkey(xprv)
     xpub = bip32.xpub_from_xprv(xprv)
@@ -171,11 +172,11 @@ def test_addresses() -> None:
         # a non-private version cannot be forced on a private key
         pub_version = NETWORKS[network].bip32_pub
         err_msg = "invalid non-private version forced on a private key: "
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=err_msg):
             bip32.derive(rootprv, der_path, pub_version)
 
         # just changing the public version with no derivation does work
         bip32.derive(mxpub, "m", pub_version)
         err_msg = "invalid non-public version forced on a public key: "
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=err_msg):
             bip32.derive(mxpub, "m", version)

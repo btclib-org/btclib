@@ -18,6 +18,7 @@ from os import path
 import pytest
 
 from btclib import bip39
+from btclib.exceptions import BTClibValueError
 
 
 def test_bip39() -> None:
@@ -34,16 +35,16 @@ def test_bip39() -> None:
 
     wrong_mnemonic = mnemonic + " abandon"
     err_msg = "Wrong number of words: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bip39.entropy_from_mnemonic(wrong_mnemonic, lang)
 
     err_msg = "invalid checksum: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce oil"
         bip39.entropy_from_mnemonic(wr_m, lang)
 
     err_msg = "invalid number of bits for BIP39 entropy: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         # Invalid number of bits (130) for BIP39 entropy; must be in ...
         binstr_entropy = "01" * 65  # 130 bits
         bip39._entropy_checksum(binstr_entropy)

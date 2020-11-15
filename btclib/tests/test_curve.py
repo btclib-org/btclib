@@ -18,7 +18,7 @@ import pytest
 from btclib.alias import INF, INFJ
 from btclib.curve import CURVES, Curve, double_mult, mult, multi_mult, secp256k1
 from btclib.curvegroup import _jac_from_aff
-from btclib.exceptions import BTClibTypeError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.numbertheory import mod_sqrt
 from btclib.pedersen import second_generator
 
@@ -52,44 +52,44 @@ def test_exceptions() -> None:
     # good curve
     Curve(13, 0, 2, (1, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="p is not prime: "):
+    with pytest.raises(BTClibValueError, match="p is not prime: "):
         Curve(15, 0, 2, (1, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="negative a: "):
+    with pytest.raises(BTClibValueError, match="negative a: "):
         Curve(13, -1, 2, (1, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="p <= a: "):
+    with pytest.raises(BTClibValueError, match="p <= a: "):
         Curve(13, 13, 2, (1, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="negative b: "):
+    with pytest.raises(BTClibValueError, match="negative b: "):
         Curve(13, 0, -2, (1, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="p <= b: "):
+    with pytest.raises(BTClibValueError, match="p <= b: "):
         Curve(13, 0, 13, (1, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="zero discriminant"):
+    with pytest.raises(BTClibValueError, match="zero discriminant"):
         Curve(11, 7, 7, (1, 9), 19, 1, False)
 
     err_msg = "Generator must a be a sequence\\[int, int\\]"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         Curve(13, 0, 2, (1, 9, 1), 19, 1, False)  # type: ignore
 
-    with pytest.raises(ValueError, match="Generator is not on the curve"):
+    with pytest.raises(BTClibValueError, match="Generator is not on the curve"):
         Curve(13, 0, 2, (2, 9), 19, 1, False)
 
-    with pytest.raises(ValueError, match="n is not prime: "):
+    with pytest.raises(BTClibValueError, match="n is not prime: "):
         Curve(13, 0, 2, (1, 9), 20, 1, False)
 
-    with pytest.raises(ValueError, match="n not in "):
+    with pytest.raises(BTClibValueError, match="n not in "):
         Curve(13, 0, 2, (1, 9), 71, 1, False)
 
-    with pytest.raises(ValueError, match="INF point cannot be a generator"):
+    with pytest.raises(BTClibValueError, match="INF point cannot be a generator"):
         Curve(13, 0, 2, INF, 19, 1, False)
 
-    with pytest.raises(ValueError, match="n is not the group order: "):
+    with pytest.raises(BTClibValueError, match="n is not the group order: "):
         Curve(13, 0, 2, (1, 9), 17, 1, False)
 
-    with pytest.raises(ValueError, match="invalid h: "):
+    with pytest.raises(BTClibValueError, match="invalid h: "):
         Curve(13, 0, 2, (1, 9), 19, 2, False)
 
     # n=p -> weak curve
@@ -114,7 +114,9 @@ def test_aff_jac_conversions() -> None:
 
         # relevant for BIP340-Schnorr signature verification
         assert not ec.has_square_y(INF)
-        with pytest.raises(ValueError, match="infinity point has no x-coordinate"):
+        with pytest.raises(
+            BTClibValueError, match="infinity point has no x-coordinate"
+        ):
             ec._x_aff_from_jac(INFJ)
         with pytest.raises(BTClibTypeError, match="not a point"):
             ec.has_square_y("notapoint")  # type: ignore
@@ -200,16 +202,16 @@ def test_ec_repr() -> None:
 def test_is_on_curve() -> None:
     for ec in all_curves.values():
 
-        with pytest.raises(ValueError, match="point must be a tuple"):
+        with pytest.raises(BTClibValueError, match="point must be a tuple"):
             ec.is_on_curve("not a point")  # type: ignore
 
-        with pytest.raises(ValueError, match="x-coordinate not in 0..p-1: "):
+        with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1: "):
             ec.y(ec.p)
 
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
         Q = mult(q, ec.G, ec)
-        with pytest.raises(ValueError, match="y-coordinate not in 1..p-1: "):
+        with pytest.raises(BTClibValueError, match="y-coordinate not in 1..p-1: "):
             ec.is_on_curve((Q[0], ec.p))
 
 
@@ -280,15 +282,15 @@ def test_symmetry() -> None:
 
             assert not_quad_res == ec.p - quad_res
             assert not_quad_res not in hasRoot
-            with pytest.raises(ValueError, match="no root for "):
+            with pytest.raises(BTClibValueError, match="no root for "):
                 mod_sqrt(not_quad_res, ec.p)
         else:
             assert ec.p % 4 == 1
             # cannot use y_quadratic_residue in this case
             err_msg = "field prime is not equal to 3 mod 4: "
-            with pytest.raises(ValueError, match=err_msg):
+            with pytest.raises(BTClibValueError, match=err_msg):
                 ec.y_quadratic_residue(x_Q)
-            with pytest.raises(ValueError, match=err_msg):
+            with pytest.raises(BTClibValueError, match=err_msg):
                 ec.y_quadratic_residue(x_Q, False)
 
             # in this case neither or both y_Q are quadratic residues
@@ -306,16 +308,16 @@ def test_symmetry() -> None:
                 assert y_even == (root * root) % ec.p
             else:
                 err_msg = "no root for "
-                with pytest.raises(ValueError, match=err_msg):
+                with pytest.raises(BTClibValueError, match=err_msg):
                     mod_sqrt(y_odd, ec.p)
-                with pytest.raises(ValueError, match=err_msg):
+                with pytest.raises(BTClibValueError, match=err_msg):
                     mod_sqrt(y_even, ec.p)
 
-        with pytest.raises(ValueError, match="low1high0 must be bool or 1/0"):
+        with pytest.raises(BTClibValueError, match="low1high0 must be bool or 1/0"):
             ec.y_low(x_Q, 2)
-        with pytest.raises(ValueError, match="odd1even0 must be bool or 1/0"):
+        with pytest.raises(BTClibValueError, match="odd1even0 must be bool or 1/0"):
             ec.y_odd(x_Q, 2)
-        with pytest.raises(ValueError, match="quad_res must be bool or 1/0"):
+        with pytest.raises(BTClibValueError, match="quad_res must be bool or 1/0"):
             ec.y_quadratic_residue(x_Q, 2)
 
 
@@ -366,7 +368,7 @@ def test_assorted_mult() -> None:
             assert INF == multi_mult([0, 0, 0, 0], points, ec)
 
     err_msg = "mismatch between number of scalars and points: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
 
 

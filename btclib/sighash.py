@@ -77,7 +77,7 @@ def _get_witness_v0_scriptCodes(scriptPubKey: Script) -> List[str]:
     scriptCodes: List[str] = []
     try:
         script_type = payload_from_scriptPubKey(scriptPubKey)[0]
-    except ValueError:
+    except BTClibValueError:
         script_type = "unknown"
     if script_type == "p2wpkh":  # simple p2wpkh
         pubkeyhash = scriptPubKey[1]

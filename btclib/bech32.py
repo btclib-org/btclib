@@ -37,7 +37,7 @@ with the following modifications:
 
 * splitted the original segwit_addr.py file in bech32.py and segwitaddress.py
 * type annotated python3
-* avoided returning (None, None), throwing ValueError instead
+* avoided returning (None, None), throwing Exceptions instead
 * removed the 90-chars limit for bech32 string, enforced by segwitaddr instead
 * detailed error messages
 * interface mimics the native python3 base64 interface, i.e.

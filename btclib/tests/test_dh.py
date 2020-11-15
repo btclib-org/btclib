@@ -17,6 +17,7 @@ import pytest
 from btclib import dsa
 from btclib.curve import CURVES, mult
 from btclib.dh import ansi_x9_63_kdf, diffie_hellman
+from btclib.exceptions import BTClibValueError
 from btclib.secpoint import bytes_from_point
 
 
@@ -55,7 +56,7 @@ def test_ecdh() -> None:
 
     max_size = hsize * (2 ** 32 - 1)
     size = max_size + 1
-    with pytest.raises(ValueError, match="cannot derive a key larger than "):
+    with pytest.raises(BTClibValueError, match="cannot derive a key larger than "):
         ansi_x9_63_kdf(z, size, hf, None)
 
 

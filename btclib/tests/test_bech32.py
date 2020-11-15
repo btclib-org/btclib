@@ -42,6 +42,7 @@ with the following modifications:
 import pytest
 
 from btclib.bech32 import b32decode
+from btclib.exceptions import BTClibValueError
 
 VALID_CHECKSUM = [
     "A12UEL5L",
@@ -79,9 +80,9 @@ def test_bechs32_checksum() -> None:
         b32decode(test)
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
-        with pytest.raises(ValueError):
+        with pytest.raises(BTClibValueError):
             b32decode(test)
 
     for addr, err_msg in INVALID_CHECKSUM:
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=err_msg):
             b32decode(addr)

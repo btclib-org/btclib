@@ -12,6 +12,7 @@
 
 import pytest
 
+from btclib.exceptions import BTClibValueError
 from btclib.numbertheory import mod_inv, mod_sqrt, tonelli
 
 primes = [
@@ -59,7 +60,7 @@ primes = [
 
 def test_mod_inv_prime() -> None:
     for p in primes:
-        with pytest.raises(ValueError, match="No inverse for 0 mod"):
+        with pytest.raises(BTClibValueError, match="No inverse for 0 mod"):
             mod_inv(0, p)
         for a in range(1, min(p, 500)):  # exhausted only for small p
             inv = mod_inv(a, p)
@@ -81,7 +82,7 @@ def test_mod_inv() -> None:
                 assert a * inv % m == 1
             else:
                 err_msg = "No inverse for "
-                with pytest.raises(ValueError, match=err_msg):
+                with pytest.raises(BTClibValueError, match=err_msg):
                     mod_inv(a, m)
 
 
@@ -101,7 +102,7 @@ def test_mod_sqrt() -> None:
                 if p % 4 == 3 or p % 8 == 5:
                     assert tonelli(i, p) in (root1, root2)
             else:
-                with pytest.raises(ValueError, match="no root for "):
+                with pytest.raises(BTClibValueError, match="no root for "):
                     mod_sqrt(i, p)
 
 
@@ -125,7 +126,7 @@ def test_minus_one_quadr_res() -> None:
     "Ensure that if p = 3 (mod 4) then p - 1 is not a quadratic residue"
     for p in primes:
         if (p % 4) == 3:
-            with pytest.raises(ValueError, match="no root for "):
+            with pytest.raises(BTClibValueError, match="no root for "):
                 mod_sqrt(p - 1, p)
         else:
             assert p == 2 or p % 4 == 1, "something is badly broken"

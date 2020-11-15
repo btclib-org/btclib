@@ -20,6 +20,7 @@ from btclib.base58 import (
     b58decode,
     b58encode,
 )
+from btclib.exceptions import BTClibValueError
 
 
 def test_empty() -> None:
@@ -56,18 +57,19 @@ def test_exceptions() -> None:
     b58decode(encoded, 11)
 
     wrong_length = len(encoded) - 1
-    with pytest.raises(ValueError, match="invalid decoded size: "):
+    with pytest.raises(BTClibValueError, match="invalid decoded size: "):
         b58decode(encoded, wrong_length)
 
     invalidChecksum = encoded[:-4] + b"1111"
-    with pytest.raises(ValueError, match="invalid checksum: "):
+    with pytest.raises(BTClibValueError, match="invalid checksum: "):
         b58decode(invalidChecksum, 4)
 
-    with pytest.raises(ValueError, match="'ascii' codec can't encode character "):
+    err_msg = "'ascii' codec can't encode character "
+    with pytest.raises(UnicodeEncodeError, match=err_msg):
         b58decode("hèllo world")
 
     err_msg = "not enough bytes for checksum, invalid base58 decoded size: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         b58decode(_b58encode(b"123"))
 
 

@@ -16,6 +16,7 @@ from typing import List
 import pytest
 
 from btclib.alias import ScriptToken
+from btclib.exceptions import BTClibValueError
 from btclib.tests.test_to_key import (
     net_unaware_compressed_pub_keys,
     net_unaware_uncompressed_pub_keys,
@@ -73,7 +74,7 @@ def test_hex_string() -> None:
         hex_string(a_str)
 
     a = -1
-    with pytest.raises(ValueError, match="negative integer: "):
+    with pytest.raises(BTClibValueError, match="negative integer: "):
         hex_string(a)
 
 

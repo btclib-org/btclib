@@ -23,7 +23,7 @@ from btclib.alias import INF, Point
 from btclib.bip32 import BIP32KeyData
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
-from btclib.exceptions import BTClibRuntimeError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
 from btclib.secpoint import bytes_from_point
@@ -64,14 +64,14 @@ def test_signature() -> None:
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     err_msg = "not a BIP340 public key"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, INF, sig)  # type: ignore
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.point_from_bip340pubkey(INF)  # type: ignore
 
     assert not ssa.verify(msg, x_Q, sig, CURVES["secp224k1"], hf)
     err_msg = "field prime is not equal to 3 mod 4: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig, CURVES["secp224k1"], hf)
 
     sig_fake = (sig[0], sig[1], sig[1])
@@ -83,36 +83,36 @@ def test_signature() -> None:
     sig_invalid = ec.p, sig[1]
     assert not ssa.verify(msg, x_Q, sig_invalid)
     err_msg = "x-coordinate not in 0..p-1: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
     sig_invalid = sig[0], ec.p
     assert not ssa.verify(msg, x_Q, sig_invalid)
     err_msg = "scalar s not in 0..n-1: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
     m_fake = b"\x00" * 31
     err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa._assert_as_valid(m_fake, x_Q, sig)
 
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa._sign(m_fake, q)
 
     err_msg = "private key not in 1..n-1: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign(msg, 0)
 
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign(msg, q, 0)
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign(msg, q, ec.n)
 
     err_msg = "invalid zero challenge"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.__recover_pubkey(0, sig[0], sig[1], ec)
 
 
@@ -201,7 +201,7 @@ def test_low_cardinality() -> None:
         # BIP340 Schnorr only applies to curve whose prime p = 3 %4
         if not ec.pIsThreeModFour:
             err_msg = "field prime is not equal to 3 mod 4: "
-            with pytest.raises(ValueError, match=err_msg):
+            with pytest.raises(BTClibValueError, match=err_msg):
                 ssa._sign(32 * b"\x00", 1, None, ec)
             continue
         for q in range(1, ec.n // 2):  # all possible private keys
@@ -227,7 +227,7 @@ def test_low_cardinality() -> None:
                     # no public key can be recovered
                     if e == 0:
                         err_msg = "invalid zero challenge"
-                        with pytest.raises(ValueError, match=err_msg):
+                        with pytest.raises(BTClibValueError, match=err_msg):
                             ssa.__recover_pubkey(e, r, s, ec)
                     else:
                         assert x_Q == ssa.__recover_pubkey(e, r, s, ec)
@@ -254,10 +254,10 @@ def test_crack_prvkey() -> None:
     assert q in (qc, ec.n - qc)
     assert k in (kc, ec.n - kc)
 
-    with pytest.raises(ValueError, match="not the same r in signatures"):
+    with pytest.raises(BTClibValueError, match="not the same r in signatures"):
         ssa._crack_prvkey(msg1, sig1, msg2, (16, sig1[1]), x_Q)
 
-    with pytest.raises(ValueError, match="identical signatures"):
+    with pytest.raises(BTClibValueError, match="identical signatures"):
         ssa._crack_prvkey(msg1, sig1, msg1, sig1, x_Q)
 
 
@@ -293,30 +293,30 @@ def test_batch_validation() -> None:
     Qs.append(Qs[0])
     assert not ssa.batch_verify(ms, Qs, sigs, ec, hf)
     err_msg = "signature verification precondition failed"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
     sigs[-1] = sigs[0]  # valid again
 
     ms[-1] = ms[0][:-1]
     err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
     ms[-1] = ms[0]  # valid again
 
     ms.append(ms[0])  # add extra message
     err_msg = "mismatch between number of pubkeys "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
     ms.pop()  # valid again
 
     sigs.append(sigs[0])  # add extra sig
     err_msg = "mismatch between number of pubkeys "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
     sigs.pop()  # valid again
 
     err_msg = "field prime is not equal to 3 mod 4: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa._batch_verify(ms, Qs, sigs, CURVES["secp224k1"], hf)
 
 

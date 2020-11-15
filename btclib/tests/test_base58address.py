@@ -28,6 +28,7 @@ from btclib.base58address import (
 )
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh, witness_from_b32address
+from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key, hash256_from_script
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.to_prvkey import prvkeyinfo_from_prvkey
@@ -49,7 +50,7 @@ def test_b58address_from_h160() -> None:
     assert addr == b58address_from_h160(prefix, payload, network)
 
     err_msg = "invalid mainnet base58 address prefix: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         bad_prefix = b"\xbb"
         b58address_from_h160(bad_prefix, payload, network)
 
@@ -68,7 +69,7 @@ def test_p2pkh_from_wif() -> None:
     assert address == address2
 
     err_msg = "not a private key: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         wif_from_prvkey(xpub)
 
 
@@ -159,7 +160,7 @@ def test_p2w_p2sh() -> None:
     assert b58addr2 == b58addr
 
     err_msg = "invalid witness program length for witness version zero: "
-    with pytest.raises(ValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         b58address_from_witness(h256script[:-1], network)
 
 
@@ -210,9 +211,9 @@ def test_address_from_wif() -> None:
             assert (hash160(b"\x00\x14" + payload), network) == (payload2, net)
         else:
             err_msg = "not a private or compressed public key: "
-            with pytest.raises(ValueError, match=err_msg):
+            with pytest.raises(BTClibValueError, match=err_msg):
                 p2wpkh(wif)  # type: ignore
-            with pytest.raises(ValueError, match=err_msg):
+            with pytest.raises(BTClibValueError, match=err_msg):
                 p2wpkh_p2sh(wif)  # type: ignore
 
 
@@ -221,8 +222,8 @@ def test_exceptions() -> None:
     pubkey = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     payload = b"\xf5" + hash160(pubkey)
     invalid_address = b58encode(payload)
-    with pytest.raises(ValueError, match="invalid base58 address prefix: "):
+    with pytest.raises(BTClibValueError, match="invalid base58 address prefix: "):
         h160_from_b58address(invalid_address)
 
-    with pytest.raises(ValueError, match="not a private or public key: "):
+    with pytest.raises(BTClibValueError, match="not a private or public key: "):
         p2pkh(pubkey + "00")
