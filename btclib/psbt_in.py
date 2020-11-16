@@ -29,6 +29,8 @@ from .psbt_out import (
     _serialize_proprietary,
     decode_bip32_derivs,
     decode_dict_bytes_bytes,
+    deserialize_redeem_script,
+    deserialize_witness_script,
     encode_bip32_derivs,
     encode_dict_bytes_bytes,
 )
@@ -56,6 +58,7 @@ PSBT_IN_PROPRIETARY = b"\xfc"
 
 
 def _assert_valid_partial_signatures(partial_signatures: Dict[bytes, bytes]) -> None:
+    "Raise an exception if the dataclass element is not valid."
 
     for pubkey, sig in partial_signatures.items():
         # pubkey must be a valid secp256k1 Point in SEC representation
@@ -156,15 +159,9 @@ class PsbtIn(DataClassJsonMixin):
                     raise BTClibValueError(err_msg)
                 out.por_commitment = value.decode("utf-8")  # TODO: see bip127
             elif key[0:1] == PSBT_IN_REDEEM_SCRIPT:
-                if len(key) != 1:
-                    err_msg = f"invalid PSBT_IN_REDEEM_SCRIPT key length: {len(key)}"
-                    raise BTClibValueError(err_msg)
-                out.redeem_script = value
+                out.redeem_script = deserialize_redeem_script(key, value)
             elif key[0:1] == PSBT_IN_WITNESS_SCRIPT:
-                if len(key) != 1:
-                    err_msg = f"invalid PSBT_IN_WITNESS_SCRIPT key length: {len(key)}"
-                    raise BTClibValueError(err_msg)
-                out.witness_script = value
+                out.witness_script = deserialize_witness_script(key, value)
             elif key[0:1] == PSBT_IN_BIP32_DERIVATION:
                 if len(key) not in (34, 66):
                     err_msg = "invalid PSBT_IN_BIP32_DERIVATION pubkey length"
