@@ -15,12 +15,12 @@ from typing import Dict, List
 from btclib.psbt_out import (
     PSBT_OUT_BIP32_DERIVATION,
     _assert_valid_bip32_derivs,
-    _assert_valid_unknown,
+    _assert_valid_dict_bytes_bytes,
+    _decode_bip32_derivs,
+    _decode_dict_bytes_bytes,
+    _encode_bip32_derivs,
+    _encode_dict_bytes_bytes,
     _serialize_dict_bytes_bytes,
-    decode_bip32_derivs,
-    decode_dict_bytes_bytes,
-    encode_bip32_derivs,
-    encode_dict_bytes_bytes,
 )
 
 
@@ -38,12 +38,12 @@ def test_bip32_derivs() -> None:
             "path": "m/0'/0'/1'",
         },
     ]
-    decoded_data: Dict[bytes, bytes] = decode_bip32_derivs(data)
-    assert data == encode_bip32_derivs(decoded_data)
+    decoded_data: Dict[bytes, bytes] = _decode_bip32_derivs(data)
+    assert data == _encode_bip32_derivs(decoded_data)
 
     _assert_valid_bip32_derivs(decoded_data)
 
-    _serialize_dict_bytes_bytes(decoded_data, PSBT_OUT_BIP32_DERIVATION)
+    _serialize_dict_bytes_bytes(PSBT_OUT_BIP32_DERIVATION, decoded_data)
     # TODO: check deserialization
 
 
@@ -53,10 +53,10 @@ def test_unknown() -> None:
         "baad": "deadbeef",
         "abadbabe": "cafebabe",
     }
-    decoded_data: Dict[bytes, bytes] = decode_dict_bytes_bytes(data)
-    assert data == encode_dict_bytes_bytes(decoded_data)
+    decoded_data: Dict[bytes, bytes] = _decode_dict_bytes_bytes(data)
+    assert data == _encode_dict_bytes_bytes(decoded_data)
 
-    _assert_valid_unknown(decoded_data)
+    _assert_valid_dict_bytes_bytes(decoded_data, "unknown")
 
-    _serialize_dict_bytes_bytes(decoded_data, b"")
+    _serialize_dict_bytes_bytes(b"", decoded_data)
     # TODO: check deserialization

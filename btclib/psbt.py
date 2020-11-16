@@ -20,22 +20,24 @@ from typing import Dict, List, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import script, varbytes, varint
+from . import script, varint
 from .alias import ScriptToken
 from .exceptions import BTClibValueError
-from .psbt_in import PsbtIn
+from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
     PsbtOut,
     _assert_valid_bip32_derivs,
+    _assert_valid_dict_bytes_bytes,
     _assert_valid_proprietary,
-    _assert_valid_unknown,
+    _decode_bip32_derivs,
+    _decode_dict_bytes_bytes,
+    _deserialize_bip32_derivs,
     _deserialize_proprietary,
+    _encode_bip32_derivs,
+    _encode_dict_bytes_bytes,
+    _serialize_bytes,
     _serialize_dict_bytes_bytes,
     _serialize_proprietary,
-    decode_bip32_derivs,
-    decode_dict_bytes_bytes,
-    encode_bip32_derivs,
-    encode_dict_bytes_bytes,
 )
 from .scriptpubkey import payload_from_scriptPubKey
 from .tx import Tx
@@ -54,6 +56,16 @@ PSBT_GLOBAL_VERSION = b"\xfb"
 PSBT_GLOBAL_PROPRIETARY = b"\xfc"
 
 
+def _assert_valid_version(version: int) -> None:
+
+    # must be a 4-bytes int
+    if not 0 <= version <= 0xFFFFFFFF:
+        raise BTClibValueError(f"invalid version: {version}")
+    # actually the only version that is currently handled is zero
+    if version != 0:
+        raise BTClibValueError(f"invalid non-zero version: {version}")
+
+
 @dataclass
 class Psbt(DataClassJsonMixin):
     tx: Tx = field(default=Tx())
@@ -62,13 +74,13 @@ class Psbt(DataClassJsonMixin):
     version: int = 0
     bip32_derivs: Dict[bytes, bytes] = field(
         default_factory=dict,
-        metadata=config(encoder=encode_bip32_derivs, decoder=decode_bip32_derivs),
+        metadata=config(encoder=_encode_bip32_derivs, decoder=_decode_bip32_derivs),
     )
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
-            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
+            encoder=_encode_dict_bytes_bytes, decoder=_decode_dict_bytes_bytes
         ),
     )
 
@@ -83,29 +95,20 @@ class Psbt(DataClassJsonMixin):
             raise BTClibValueError("malformed psbt: missing separator")
 
         global_map, data = deserialize_map(data[5:])
-        for key, value in global_map.items():
-            if key[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                if len(key) != 1:
-                    err_msg = f"invalid PSBT_GLOBAL_UNSIGNED_TX key length: {len(key)}"
-                    raise BTClibValueError(err_msg)
-                out.tx = Tx.deserialize(value)  # legacy transaction
-            elif key[0:1] == PSBT_GLOBAL_VERSION:
-                if len(key) != 1:
-                    err_msg = f"invalid PSBT_GLOBAL_VERSION key length: {len(key)}"
-                    raise BTClibValueError(err_msg)
-                if len(value) != 4:
-                    raise BTClibValueError(f"invalid version length: {len(value)}")
-                out.version = int.from_bytes(value, "little")
-            elif key[0:1] == PSBT_GLOBAL_XPUB:
-                if len(key) != 79:
-                    err_msg = "invalid PSBT_GLOBAL_XPUB xpub length"
-                    err_msg += f": {len(key)-1} instead of 78"
-                    raise BTClibValueError(err_msg)
-                out.bip32_derivs[key[1:]] = value
-            elif key[0:1] == PSBT_GLOBAL_PROPRIETARY:
-                out.proprietary = _deserialize_proprietary(key, value)
+        for k, v in global_map.items():
+            if k[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
+                # legacy transaction
+                out.tx = _deserialize_tx(k, v, "global unsigned tx")
+            elif k[0:1] == PSBT_GLOBAL_VERSION:
+                out.version = _deserialize_int(k, v, "global version")
+            elif k[0:1] == PSBT_GLOBAL_XPUB:
+                out.bip32_derivs.update(
+                    _deserialize_bip32_derivs(k, v, "Psbt BIP32 xkey")
+                )
+            elif k[0:1] == PSBT_GLOBAL_PROPRIETARY:
+                out.proprietary = _deserialize_proprietary(k, v)
             else:  # unknown
-                out.unknown[key] = value
+                out.unknown[k] = v
 
         if not out.tx.version:
             raise BTClibValueError("missing transaction")
@@ -127,17 +130,17 @@ class Psbt(DataClassJsonMixin):
 
         out = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
 
-        out += b"\x01" + PSBT_GLOBAL_UNSIGNED_TX
-        out += varbytes.encode(self.tx.serialize())
+        temp = self.tx.serialize()
+        out += _serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
         if self.version:
-            out += b"\x01" + PSBT_GLOBAL_VERSION
-            out += b"\x04" + self.version.to_bytes(4, "little")
+            temp = self.version.to_bytes(4, "little")
+            out += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
         if self.bip32_derivs:
-            out += _serialize_dict_bytes_bytes(self.bip32_derivs, PSBT_GLOBAL_XPUB)
+            out += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.bip32_derivs)
         if self.proprietary:
-            out += _serialize_proprietary(self.proprietary, PSBT_GLOBAL_PROPRIETARY)
+            out += _serialize_proprietary(PSBT_GLOBAL_PROPRIETARY, self.proprietary)
         if self.unknown:
-            out += _serialize_dict_bytes_bytes(self.unknown, b"")
+            out += _serialize_dict_bytes_bytes(b"", self.unknown)
 
         out += PSBT_DELIMITER
         for input_map in self.inputs:
@@ -159,6 +162,12 @@ class Psbt(DataClassJsonMixin):
         "Assert logical self-consistency."
 
         self.tx.assert_valid()
+
+        _assert_valid_version(self.version)
+        _assert_valid_bip32_derivs(self.bip32_derivs)
+        _assert_valid_proprietary(self.proprietary)
+        _assert_valid_dict_bytes_bytes(self.unknown, "unknown")
+
         if len(self.tx.vin) != len(self.inputs):
             raise BTClibValueError("mismatched number of tx.vin and psbt_in")
         for vin in self.tx.vin:
@@ -174,17 +183,6 @@ class Psbt(DataClassJsonMixin):
 
         for psbt_out in self.outputs:
             psbt_out.assert_valid()
-
-        # must be a 4-bytes int
-        if not 0 <= self.version <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid version: {self.version}")
-        # actually the only version that is currently handled is zero
-        if self.version != 0:
-            raise BTClibValueError(f"invalid non-zero version: {self.version}")
-
-        _assert_valid_bip32_derivs(self.bip32_derivs)
-        _assert_valid_proprietary(self.proprietary)
-        _assert_valid_unknown(self.unknown)
 
     def assert_signable(self) -> None:
 

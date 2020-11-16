@@ -27,51 +27,61 @@ from .bip32 import (
 from .exceptions import BTClibValueError
 
 
-def encode_dict_bytes_bytes(d: Dict[bytes, bytes]) -> Dict[str, str]:
+def _encode_dict_bytes_bytes(d: Dict[bytes, bytes]) -> Dict[str, str]:
     "Return the json representation of the dataclass element."
     return {k.hex(): v.hex() for k, v in d.items()}
 
 
-def decode_dict_bytes_bytes(d: Dict[str, str]) -> Dict[bytes, bytes]:
+def _decode_dict_bytes_bytes(d: Dict[str, str]) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
     return {bytes.fromhex(k): bytes.fromhex(v) for k, v in d.items()}
 
 
-def _serialize_dict_bytes_bytes(d: Dict[bytes, bytes], m: bytes) -> bytes:
+def _serialize_dict_bytes_bytes(type_: bytes, d: Dict[bytes, bytes]) -> bytes:
     "Return the binary representation of the dataclass element."
 
-    return b"".join([varbytes.encode(m + k) + varbytes.encode(v) for k, v in d.items()])
+    return b"".join(
+        [varbytes.encode(type_ + k) + varbytes.encode(v) for k, v in d.items()]
+    )
 
 
-def deserialize_redeem_script(k: bytes, v: bytes) -> bytes:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) != 1:
-        err_msg = f"invalid redeem script key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return v
-
-
-def deserialize_witness_script(k: bytes, v: bytes) -> bytes:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) != 1:
-        err_msg = f"invalid witness script key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return v
-
-
-def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
+def _assert_valid_dict_bytes_bytes(data: Dict[bytes, bytes], type_: str) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     for key, value in data.items():
         if not isinstance(key, bytes):
-            raise BTClibValueError("invalid key in unknown")
+            raise BTClibValueError(f"invalid key in {type_}")
         if not isinstance(value, bytes):
-            raise BTClibValueError("invalid value in unknown")
+            raise BTClibValueError(f"invalid value in {type_}")
 
 
-def encode_bip32_derivs(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
+def _serialize_bytes(type_: bytes, value: bytes) -> bytes:
+    "Return the binary representation of the dataclass element."
+    return varbytes.encode(type_) + varbytes.encode(value)
+
+
+def _deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
+    "Return the dataclass element from its binary representation."
+
+    if len(k) != 1:
+        err_msg = f"invalid {type_} key length: {len(k)}"
+        raise BTClibValueError(err_msg)
+    return v
+
+
+def _assert_valid_redeem_script(redeem_script: bytes) -> None:
+    "Raise an exception if the dataclass element is not valid."
+    if not isinstance(redeem_script, bytes):
+        raise BTClibValueError("invalid redeem script")
+
+
+def _assert_valid_witness_script(witness_script: bytes) -> None:
+    "Raise an exception if the dataclass element is not valid."
+    if not isinstance(witness_script, bytes):
+        raise BTClibValueError("invalid witness script")
+
+
+def _encode_bip32_derivs(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     "Return the json representation of the dataclass element."
 
     result: List[Dict[str, str]] = []
@@ -85,7 +95,7 @@ def encode_bip32_derivs(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     return result
 
 
-def decode_bip32_derivs(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
+def _decode_bip32_derivs(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
 
     d2: Dict[bytes, bytes] = {}
@@ -94,6 +104,17 @@ def decode_bip32_derivs(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes
         v += bytes_from_bip32_path(d["path"], "little")
         d2[bytes.fromhex(d["pubkey"])] = v
     return d2
+
+
+def _deserialize_bip32_derivs(k: bytes, v: bytes, type_: str) -> Dict[bytes, bytes]:
+    "Return the dataclass element from its binary representation."
+
+    allowed_lengths = (78,) if type_ == "Psbt BIP32 xkey" else (33, 65)
+    if len(k) - 1 not in allowed_lengths:
+        err_msg = f"invalid {type_} length"
+        err_msg += f": {len(k)-1} instead of {allowed_lengths}"
+        raise BTClibValueError(err_msg)
+    return {k[1:]: v}
 
 
 def _assert_valid_bip32_derivs(bip32_derivs: Dict[bytes, bytes]) -> None:
@@ -106,14 +127,14 @@ def _assert_valid_bip32_derivs(bip32_derivs: Dict[bytes, bytes]) -> None:
 
 
 def _serialize_proprietary(
-    proprietary: Dict[int, Dict[str, str]], marker: bytes
+    type_: bytes, proprietary: Dict[int, Dict[str, str]]
 ) -> bytes:
     "Return the binary representation of the dataclass element."
 
     out = b""
     for (owner, dictionary) in proprietary.items():
         for key_p, value_p in dictionary.items():
-            out += varbytes.encode(marker + varint.encode(owner) + bytes.fromhex(key_p))
+            out += varbytes.encode(type_ + varint.encode(owner) + bytes.fromhex(key_p))
             out += varbytes.encode(value_p)
     return out
 
@@ -161,13 +182,13 @@ class PsbtOut(DataClassJsonMixin):
     )
     bip32_derivs: Dict[bytes, bytes] = field(
         default_factory=dict,
-        metadata=config(encoder=encode_bip32_derivs, decoder=decode_bip32_derivs),
+        metadata=config(encoder=_encode_bip32_derivs, decoder=_decode_bip32_derivs),
     )
     proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
-            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
+            encoder=_encode_dict_bytes_bytes, decoder=_decode_dict_bytes_bytes
         ),
     )
 
@@ -178,15 +199,13 @@ class PsbtOut(DataClassJsonMixin):
         out = cls()
         for k, v in output_map.items():
             if k[0:1] == PSBT_OUT_REDEEM_SCRIPT:
-                out.redeem_script = deserialize_redeem_script(k, v)
+                out.redeem_script = _deserialize_bytes(k, v, "redeem script")
             elif k[0:1] == PSBT_OUT_WITNESS_SCRIPT:
-                out.witness_script = deserialize_witness_script(k, v)
+                out.witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[0:1] == PSBT_OUT_BIP32_DERIVATION:
-                if len(k) not in (34, 66):
-                    err_msg = "invalid PSBT_OUT_BIP32_DERIVATION pubkey length"
-                    err_msg += f": {len(k)-1} instead of (33, 65)"
-                    raise BTClibValueError(err_msg)
-                out.bip32_derivs[k[1:]] = v
+                out.bip32_derivs.update(
+                    _deserialize_bip32_derivs(k, v, "PsbtOut BIP32 pubkey")
+                )
             elif k[0:1] == PSBT_OUT_PROPRIETARY:
                 out.proprietary = _deserialize_proprietary(k, v)
             else:  # unknown
@@ -204,23 +223,24 @@ class PsbtOut(DataClassJsonMixin):
         out = b""
 
         if self.redeem_script:
-            out += b"\x01" + PSBT_OUT_REDEEM_SCRIPT
-            out += varbytes.encode(self.redeem_script)
+            out += _serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
         if self.witness_script:
-            out += b"\x01" + PSBT_OUT_WITNESS_SCRIPT
-            out += varbytes.encode(self.witness_script)
+            out += _serialize_bytes(PSBT_OUT_WITNESS_SCRIPT, self.witness_script)
         if self.bip32_derivs:
             out += _serialize_dict_bytes_bytes(
-                self.bip32_derivs, PSBT_OUT_BIP32_DERIVATION
+                PSBT_OUT_BIP32_DERIVATION, self.bip32_derivs
             )
         if self.proprietary:
-            out += _serialize_proprietary(self.proprietary, PSBT_OUT_PROPRIETARY)
+            out += _serialize_proprietary(PSBT_OUT_PROPRIETARY, self.proprietary)
         if self.unknown:
-            out += _serialize_dict_bytes_bytes(self.unknown, b"")
+            out += _serialize_dict_bytes_bytes(b"", self.unknown)
 
         return out
 
     def assert_valid(self) -> None:
+        "Assert logical self-consistency."
+        _assert_valid_redeem_script(self.redeem_script)
+        _assert_valid_witness_script(self.witness_script)
         _assert_valid_bip32_derivs(self.bip32_derivs)
         _assert_valid_proprietary(self.proprietary)
-        _assert_valid_unknown(self.unknown)
+        _assert_valid_dict_bytes_bytes(self.unknown, "unknown")
