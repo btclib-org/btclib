@@ -82,8 +82,6 @@
             ],
             "final_script_sig": "",
             "final_script_witness": [],
-            "por_commitment": null,
-            "proprietary": {},
             "unknown": {}
         },
         {
@@ -113,8 +111,6 @@
             ],
             "final_script_sig": "",
             "final_script_witness": [],
-            "por_commitment": null,
-            "proprietary": {},
             "unknown": {}
         }
     ],
@@ -129,7 +125,6 @@
                     "path": "m/0'/0'/4'"
                 }
             ],
-            "proprietary": {},
             "unknown": {}
         },
         {
@@ -142,12 +137,10 @@
                     "path": "m/0'/0'/5'"
                 }
             ],
-            "proprietary": {},
             "unknown": {}
         }
     ],
     "version": 0,
     "bip32_derivs": [],
-    "proprietary": {},
     "unknown": {}
 }

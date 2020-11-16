@@ -18,7 +18,7 @@ from typing import Dict, List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varbytes, varint
+from . import varbytes
 from .bip32 import (
     bytes_from_bip32_path,
     indexes_from_bip32_path,
@@ -126,48 +126,9 @@ def _assert_valid_bip32_derivs(bip32_derivs: Dict[bytes, bytes]) -> None:
         indexes_from_bip32_path(v, "little")
 
 
-def _serialize_proprietary(
-    type_: bytes, proprietary: Dict[int, Dict[str, str]]
-) -> bytes:
-    "Return the binary representation of the dataclass element."
-
-    out = b""
-    for (owner, dictionary) in proprietary.items():
-        for key_p, value_p in dictionary.items():
-            out += varbytes.encode(type_ + varint.encode(owner) + bytes.fromhex(key_p))
-            out += varbytes.encode(value_p)
-    return out
-
-
-def _deserialize_proprietary(key: bytes, value: bytes) -> Dict[int, Dict[str, str]]:
-    "Return the dataclass element from its binary representation."
-
-    out: Dict[int, Dict[str, str]] = {}
-    prefix = varint.decode(key[1:])
-    if prefix not in out:
-        out[prefix] = {}
-    key = key[1 + len(varint.encode(prefix)) :]
-    out[prefix][key.hex()] = value.hex()
-    return out
-
-
-def _assert_valid_proprietary(proprietary: Dict[int, Dict[str, str]]) -> None:
-    "Raise an exception if the dataclass element is not valid."
-
-    for key, value in proprietary.items():
-        if not isinstance(key, int):
-            raise BTClibValueError("invalid key in proprietary")
-        for inner_key, inner_value in value.items():
-            if not bytes.fromhex(inner_key):
-                raise BTClibValueError("invalid inner key in proprietary")
-            if not bytes.fromhex(inner_value):
-                raise BTClibValueError("invalid inner value in proprietary")
-
-
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
 PSBT_OUT_WITNESS_SCRIPT = b"\x01"
 PSBT_OUT_BIP32_DERIVATION = b"\x02"
-PSBT_OUT_PROPRIETARY = b"\xfc"
 
 _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
@@ -184,7 +145,6 @@ class PsbtOut(DataClassJsonMixin):
         default_factory=dict,
         metadata=config(encoder=_encode_bip32_derivs, decoder=_decode_bip32_derivs),
     )
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
@@ -206,8 +166,6 @@ class PsbtOut(DataClassJsonMixin):
                 out.bip32_derivs.update(
                     _deserialize_bip32_derivs(k, v, "PsbtOut BIP32 pubkey")
                 )
-            elif k[0:1] == PSBT_OUT_PROPRIETARY:
-                out.proprietary = _deserialize_proprietary(k, v)
             else:  # unknown
                 out.unknown[k] = v
 
@@ -230,8 +188,6 @@ class PsbtOut(DataClassJsonMixin):
             out += _serialize_dict_bytes_bytes(
                 PSBT_OUT_BIP32_DERIVATION, self.bip32_derivs
             )
-        if self.proprietary:
-            out += _serialize_proprietary(PSBT_OUT_PROPRIETARY, self.proprietary)
         if self.unknown:
             out += _serialize_dict_bytes_bytes(b"", self.unknown)
 
@@ -242,5 +198,4 @@ class PsbtOut(DataClassJsonMixin):
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
         _assert_valid_bip32_derivs(self.bip32_derivs)
-        _assert_valid_proprietary(self.proprietary)
         _assert_valid_dict_bytes_bytes(self.unknown, "unknown")
