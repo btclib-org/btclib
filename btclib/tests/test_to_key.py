@@ -175,15 +175,6 @@ bad_bip32_keys += [
     xprv_data_bad.serialize(False).decode("ascii"),
     xpub_data_bad.serialize(False).decode("ascii"),
 ]
-# depth_pfp_index mismatch
-xprv_data_bad = copy.copy(xprv_data)
-xpub_data_bad = copy.copy(xpub_data)
-xprv_data_bad.depth = 1
-xpub_data_bad.depth = 1
-bad_bip32_keys += [
-    xprv_data_bad.serialize(False).decode("ascii"),
-    xpub_data_bad.serialize(False).decode("ascii"),
-]
 # unknown version
 xprv_data_bad = copy.copy(xprv_data)
 xpub_data_bad = copy.copy(xpub_data)

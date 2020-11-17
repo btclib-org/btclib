@@ -195,12 +195,6 @@ def test_assert_valid() -> None:
     with pytest.raises(BTClibValueError, match="zero depth with non-zero index: "):
         xkey_data.serialize()
 
-    xprv = BIP32KeyData.deserialize(derive(xkey, 0x80000000))
-    xprv.parent_fingerprint = bytes.fromhex("00000000")
-    err_msg = "zero parent fingerprint with non-zero depth: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        xprv.serialize()
-
 
 def test_serialization() -> None:
     xkey = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"

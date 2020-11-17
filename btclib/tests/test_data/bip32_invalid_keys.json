@@ -40,14 +40,6 @@
         "zero depth with non-zero index: 16843009"
     ],
     [
-        "xprv9tu9RdvJDMiJspz8s5T6PVTr7NcRQRP3gxD6iPfh4mPiGuJAqNZ9Ea9aziKNptLTaB28LkiTWqvg636gvKqKxoVtLSVj2tUDqBzHxUKKS2m",
-        "zero parent fingerprint with non-zero depth: 1"
-    ],
-    [
-        "xpub67tVq9TC3jGc6K4by6z6kdQafQSuot6u4B8hWn5Jd6vh9hdKNusPnNU4r2sXEKbgYVAAkbLpeut3DMSgLDAvSEQFHEp3f2MJaNQRiCpcWj3",
-        "zero parent fingerprint with non-zero depth: 1"
-    ],
-    [
         "DMwo58pR1QLEFihHiXPVykYB6fJmsTeHvyTp7hRThAtCX8CvYzgPcn8XnmdfHGMQzT7ayAmfo4z3gY5KfbrZWZ6St24UVf2Qgo6oujFktLHdHY4",
         "unknown extended key version: 0x01010101"
     ],
