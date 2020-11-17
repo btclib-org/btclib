@@ -425,6 +425,9 @@ def test_index_int_to_from_str() -> None:
         with pytest.raises(BTClibValueError):
             _index_int_from_str(s)
 
+    with pytest.raises(BTClibValueError, match="invalid hardening symbol: "):
+        _str_from_index_int(0x80000000, "hardened")
+
 
 def test_dataclasses_json_dict() -> None:
     xkey = derive(
