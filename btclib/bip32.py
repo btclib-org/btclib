@@ -213,10 +213,6 @@ class BIP32KeyData(DataClassJsonMixin):
                 raise BTClibValueError(err_msg)
             if self.index != 0:
                 raise BTClibValueError(f"zero depth with non-zero index: {self.index}")
-        else:
-            if self.parent_fingerprint == bytes.fromhex("00000000"):
-                err_msg = f"zero parent fingerprint with non-zero depth: {self.depth}"
-                raise BTClibValueError(err_msg)
 
     @property
     def is_hardened(self) -> bool:
