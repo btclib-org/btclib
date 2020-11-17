@@ -123,8 +123,9 @@ class Curve(CurveSubGroup):
 
         # 8. Check that n ≠ p
         if n == p:
-            raise BTClibValueError(f"n=p weak curve: {hex_string(n)}")
-        #    raise UserWarning("n=p -> weak curve")
+            raise BTClibValueError(
+                f"n=p weak curve: {hex_string(n)}"
+            )  # pragma: no cover
 
         if weakness_check:
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100
