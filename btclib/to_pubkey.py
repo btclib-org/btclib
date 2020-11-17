@@ -93,8 +93,8 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
     # it must be octets
     try:
         return point_from_octets(pubkey, ec)
-    except (TypeError, ValueError):
-        raise BTClibValueError(f"not a public key: {pubkey!r}")
+    except (TypeError, ValueError) as e:
+        raise BTClibValueError(f"not a public key: {pubkey!r}") from e
 
 
 # not used so far, probably useless
@@ -161,7 +161,7 @@ def pubkeyinfo_from_key(
     # it must be a prvkey
     try:
         return pubkeyinfo_from_prvkey(key, network, compressed)
-    except BTClibValueError:
+    except BTClibValueError as e:
         err_msg = "not a private or"
         if compressed is not None:
             err_msg += " compressed" if compressed else " uncompressed"
@@ -169,7 +169,7 @@ def pubkeyinfo_from_key(
         if network is not None:
             err_msg += f" for {network}"
         err_msg += f": {key!r}"
-        raise BTClibValueError(err_msg)
+        raise BTClibValueError(err_msg) from e
 
 
 def pubkeyinfo_from_pubkey(
@@ -201,8 +201,9 @@ def pubkeyinfo_from_pubkey(
             size = ec.psize + 1 if compressed else 2 * ec.psize + 1
             pubkey = bytes_from_octets(pubkey, size)
             compr = compressed
-    except (TypeError, ValueError):
-        raise BTClibValueError("not a public key")
+    except (TypeError, ValueError) as e:
+        err_msg = f"not a public key: {pubkey!r}"
+        raise BTClibValueError(err_msg) from e
 
     # verify that it is a valid point
     Q = point_from_octets(pubkey, ec)

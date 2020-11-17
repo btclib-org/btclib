@@ -298,8 +298,8 @@ def _op_str(token: str) -> bytes:
         return OP_CODES[token]
     try:
         data = bytes.fromhex(token)
-    except ValueError:
-        raise BTClibValueError(f"invalid string token: {token}")
+    except ValueError as e:
+        raise BTClibValueError(f"invalid string token: {token}") from e
     return _op_pushdata(data)
 
 

@@ -200,8 +200,9 @@ class BIP32KeyData(DataClassJsonMixin):
                 raise BTClibValueError(err_msg)
             try:
                 ec.y(int.from_bytes(self.key[1:], byteorder="big"))
-            except BTClibValueError:
-                raise BTClibValueError(f"invalid public key: 0x{self.key.hex()}")
+            except BTClibValueError as e:
+                err_msg = f"invalid public key: 0x{self.key.hex()}"
+                raise BTClibValueError(err_msg) from e
         else:
             raise BTClibValueError(
                 f"unknown extended key version: 0x{self.version.hex()}"

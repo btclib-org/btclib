@@ -72,8 +72,8 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
         try:
             prvkey = bytes_from_octets(prvkey, ec.nsize)
             q = int.from_bytes(prvkey, "big")
-        except ValueError:
-            raise BTClibValueError(f"not a private key: {prvkey!r}")
+        except ValueError as e:
+            raise BTClibValueError(f"not a private key: {prvkey!r}") from e
 
     if not 0 < q < ec.n:
         raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")
@@ -203,8 +203,8 @@ def prvkeyinfo_from_prvkey(
         try:
             prvkey = bytes_from_octets(prvkey, ec.nsize)
             q = int.from_bytes(prvkey, "big")
-        except ValueError:
-            raise BTClibValueError(f"not a private key: {prvkey!r}")
+        except ValueError as e:
+            raise BTClibValueError(f"not a private key: {prvkey!r}") from e
 
     if not 0 < q < ec.n:
         raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")
