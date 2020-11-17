@@ -15,7 +15,7 @@ from typing import Dict, List
 from btclib.psbt_out import (
     PSBT_OUT_BIP32_DERIVATION,
     _assert_valid_bip32_derivs,
-    _assert_valid_dict_bytes_bytes,
+    _assert_valid_unknown,
     _decode_bip32_derivs,
     _decode_dict_bytes_bytes,
     _encode_bip32_derivs,
@@ -56,7 +56,7 @@ def test_unknown() -> None:
     decoded_data: Dict[bytes, bytes] = _decode_dict_bytes_bytes(data)
     assert data == _encode_dict_bytes_bytes(decoded_data)
 
-    _assert_valid_dict_bytes_bytes(decoded_data, "unknown")
+    _assert_valid_unknown(decoded_data)
 
     _serialize_dict_bytes_bytes(b"", decoded_data)
     # TODO: check deserialization

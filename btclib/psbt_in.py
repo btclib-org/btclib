@@ -22,9 +22,9 @@ from . import dsa, secpoint
 from .exceptions import BTClibValueError
 from .psbt_out import (
     _assert_valid_bip32_derivs,
-    _assert_valid_dict_bytes_bytes,
     _assert_valid_proprietary,
     _assert_valid_redeem_script,
+    _assert_valid_unknown,
     _assert_valid_witness_script,
     _decode_bip32_derivs,
     _decode_dict_bytes_bytes,
@@ -296,4 +296,4 @@ class PsbtIn(DataClassJsonMixin):
         _assert_valid_partial_signatures(self.partial_signatures)
         _assert_valid_bip32_derivs(self.bip32_derivs)
         _assert_valid_proprietary(self.proprietary)
-        _assert_valid_dict_bytes_bytes(self.unknown, "unknown")
+        _assert_valid_unknown(self.unknown)

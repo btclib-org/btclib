@@ -27,8 +27,8 @@ from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
     PsbtOut,
     _assert_valid_bip32_derivs,
-    _assert_valid_dict_bytes_bytes,
     _assert_valid_proprietary,
+    _assert_valid_unknown,
     _decode_bip32_derivs,
     _decode_dict_bytes_bytes,
     _deserialize_bip32_derivs,
@@ -166,7 +166,7 @@ class Psbt(DataClassJsonMixin):
         _assert_valid_version(self.version)
         _assert_valid_bip32_derivs(self.bip32_derivs)
         _assert_valid_proprietary(self.proprietary)
-        _assert_valid_dict_bytes_bytes(self.unknown, "unknown")
+        _assert_valid_unknown(self.unknown)
 
         if len(self.tx.vin) != len(self.inputs):
             raise BTClibValueError("mismatched number of tx.vin and psbt_in")

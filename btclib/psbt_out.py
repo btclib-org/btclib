@@ -45,16 +45,6 @@ def _serialize_dict_bytes_bytes(type_: bytes, d: Dict[bytes, bytes]) -> bytes:
     )
 
 
-def _assert_valid_dict_bytes_bytes(data: Dict[bytes, bytes], type_: str) -> None:
-    "Raise an exception if the dataclass element is not valid."
-
-    for key, value in data.items():
-        if not isinstance(key, bytes):
-            raise BTClibValueError(f"invalid key in {type_}")
-        if not isinstance(value, bytes):
-            raise BTClibValueError(f"invalid value in {type_}")
-
-
 def _serialize_bytes(type_: bytes, value: bytes) -> bytes:
     "Return the binary representation of the dataclass element."
     return varbytes.encode(type_) + varbytes.encode(value)
@@ -164,6 +154,16 @@ def _assert_valid_proprietary(proprietary: Dict[int, Dict[str, str]]) -> None:
                 raise BTClibValueError("invalid inner value in proprietary")
 
 
+def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
+    "Raise an exception if the dataclass element is not valid."
+
+    for key, value in data.items():
+        if not isinstance(key, bytes):
+            raise BTClibValueError("invalid key in unknown")
+        if not isinstance(value, bytes):
+            raise BTClibValueError("invalid value in unknown")
+
+
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
 PSBT_OUT_WITNESS_SCRIPT = b"\x01"
 PSBT_OUT_BIP32_DERIVATION = b"\x02"
@@ -243,4 +243,4 @@ class PsbtOut(DataClassJsonMixin):
         _assert_valid_witness_script(self.witness_script)
         _assert_valid_bip32_derivs(self.bip32_derivs)
         _assert_valid_proprietary(self.proprietary)
-        _assert_valid_dict_bytes_bytes(self.unknown, "unknown")
+        _assert_valid_unknown(self.unknown)
