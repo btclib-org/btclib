@@ -34,6 +34,7 @@ from btclib.bip32 import (
     xpub_from_xprv,
 )
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import fingerprint
 
 
 def test_indexes_from_bip32_path_str() -> None:
@@ -462,3 +463,16 @@ def test_bips_pr905() -> None:
     assert derive(xroot, der_path) == xprv
     xpub = b"xpub6CpsfWjghR6XdCB8yDq7jQRpRKEDP2LT3ZRUgURF9g5xevB7YoTpogkFRqq5nQtVSN8YCMZo2CD8u4zCaxRv85ctCWmzEi9gQ5DBhBFaTNo"
     assert xpub_from_xprv(xprv) == xpub
+
+
+def test_zero_pfp_with_non_zero_depth() -> None:
+
+    seed = "850fe4b298983256f2e9c009c8398a25b35fa3689b39112c561c771b1d7f493d"
+    xprv = rootxprv_from_seed(seed)
+    xprv = derive(xprv, "m/1")
+    xkey_data = BIP32KeyData.deserialize(xprv)
+    assert xkey_data.parent_fingerprint == b"\x00\x00\x00\x00"
+    assert xkey_data.parent_fingerprint == 1
+    xpub = xpub_from_xprv(xprv)
+    derive(xprv, 0)
+    derive(xpub, 0)
