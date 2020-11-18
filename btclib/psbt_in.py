@@ -123,7 +123,7 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> List[bytes]:
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
     if not isinstance(final_script_sig, bytes):
-        raise BTClibValueError("invalid final scriptSig")
+        raise BTClibValueError("invalid final script_sig")
 
 
 def _assert_valid_final_script_witness(final_script_witness: List[bytes]) -> None:
@@ -219,7 +219,7 @@ class PsbtIn(DataClassJsonMixin):
             elif k[0:1] == PSBT_IN_SIGHASH_TYPE:
                 out.sighash = _deserialize_int(k, v, "sighash")
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                out.final_script_sig = _deserialize_bytes(k, v, "final scriptSig")
+                out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
                 out.final_script_witness = _deserialize_final_script_witness(k, v)
             elif k[0:1] == PSBT_IN_POR_COMMITMENT:

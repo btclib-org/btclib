@@ -86,8 +86,10 @@ _TxIn = TypeVar("_TxIn", bound="TxIn")
 class TxIn(DataClassJsonMixin):
     prevout: OutPoint
     # TODO make it { "asm": "", "hex": "" }
-    scriptSig: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    script_sig: bytes = field(
+        metadata=config(
+            field_name="scriptSig", encoder=lambda v: v.hex(), decoder=bytes.fromhex
+        )
     )
     sequence: int
     txinwitness: List[bytes] = field(
@@ -106,14 +108,14 @@ class TxIn(DataClassJsonMixin):
 
         prevout = OutPoint.deserialize(stream)
 
-        scriptSig = varbytes.decode(stream)
+        script_sig = varbytes.decode(stream)
 
         # 4 bytes, little endian, interpreted as int
         sequence = int.from_bytes(stream.read(4), "little")
 
         tx_in = cls(
             prevout=prevout,
-            scriptSig=scriptSig,
+            script_sig=script_sig,
             sequence=sequence,
             txinwitness=[],
         )
@@ -127,13 +129,13 @@ class TxIn(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.prevout.serialize()
-        out += varbytes.encode(self.scriptSig)
+        out += varbytes.encode(self.script_sig)
         out += self.sequence.to_bytes(4, "little")
         return out
 
     def assert_valid(self) -> None:
         self.prevout.assert_valid()
-        # TODO: empty scriptSig is valid (add non-regression test)
+        # TODO: empty script_sig is valid (add non-regression test)
 
 
 def witness_deserialize(data: BinaryData) -> List[bytes]:

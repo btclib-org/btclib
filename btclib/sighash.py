@@ -13,7 +13,7 @@ from typing import List, Union
 from . import script, tx, tx_out, varbytes
 from .alias import Octets, Script, ScriptToken
 from .exceptions import BTClibRuntimeError, BTClibValueError
-from .scriptpubkey import payload_from_scriptPubKey
+from .scriptpubkey import payload_from_script_pubkey
 from .utils import hash256
 
 
@@ -73,20 +73,20 @@ def segwit_v0_sighash(
 
 
 # FIXME: remove OP_CODESEPARATOR only if executed
-def _get_witness_v0_scriptCodes(scriptPubKey: Script) -> List[str]:
+def _get_witness_v0_scriptCodes(script_pubkey: Script) -> List[str]:
     scriptCodes: List[str] = []
     try:
-        script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+        script_type = payload_from_script_pubkey(script_pubkey)[0]
     except BTClibValueError:
         script_type = "unknown"
     if script_type == "p2wpkh":  # simple p2wpkh
-        pubkeyhash = scriptPubKey[1]
+        pubkeyhash = script_pubkey[1]
         if not isinstance(pubkeyhash, str):
             raise BTClibValueError("not a string")
         scriptCodes.append(f"76a914{pubkeyhash}88ac")
     else:
         current_script: List[ScriptToken] = []
-        for token in scriptPubKey[::-1]:
+        for token in script_pubkey[::-1]:
             if token == "OP_CODESEPARATOR":
                 scriptCodes.append(script.serialize(current_script[::-1]).hex())
             current_script.append(token)
@@ -104,15 +104,15 @@ def get_sighash(
 
     value = previous_output.value
 
-    scriptPubKey = previous_output.scriptPubKey
-    script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+    script_pubkey = previous_output.script_pubkey
+    script_type = payload_from_script_pubkey(script_pubkey)[0]
     if script_type == "p2sh":
-        scriptPubKey = transaction.vin[input_index].scriptSig
+        script_pubkey = transaction.vin[input_index].script_sig
 
-    if len(scriptPubKey) == 2 and scriptPubKey[0] == 0:  # is segwit
-        script_type = payload_from_scriptPubKey(scriptPubKey)[0]
+    if len(script_pubkey) == 2 and script_pubkey[0] == 0:  # is segwit
+        script_type = payload_from_script_pubkey(script_pubkey)[0]
         if script_type == "p2wpkh":
-            scriptCode = _get_witness_v0_scriptCodes(scriptPubKey)[0]
+            scriptCode = _get_witness_v0_scriptCodes(script_pubkey)[0]
         elif script_type == "p2wsh":
             # the real script is contained in the witness
             scriptCode = _get_witness_v0_scriptCodes(
