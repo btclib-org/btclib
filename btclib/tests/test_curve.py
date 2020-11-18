@@ -195,7 +195,7 @@ def test_ec_repr() -> None:
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.psize < 24:
             ec_repr = ec_repr[:-1] + ", False)"
-        ec2 = eval(ec_repr)
+        ec2 = eval(ec_repr)  # pylint: disable=eval-used
         assert str(ec) == str(ec2)
 
 

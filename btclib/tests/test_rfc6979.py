@@ -59,18 +59,18 @@ def test_rfc6979_tv() -> None:
         for x, x_U, y_U, hf, msg, k, r, s in test_vectors:
             x = int(x, 16)
             # test RFC6979 implementation
-            k2 = rfc6979(msg, x, ec, eval("hashlib." + hf))
+            k2 = rfc6979(msg, x, ec, getattr(hashlib, hf))
             assert k == hex(k2)
             # test RFC6979 usage in DSA
-            sig = dsa.sign(msg, x, k2, False, ec, eval("hashlib." + hf))
+            sig = dsa.sign(msg, x, k2, low_s=False, ec=ec, hf=getattr(hashlib, hf))
             assert r == hex(sig[0])
             assert s == hex(sig[1])
             # test that RFC6979 is the default nonce for DSA
-            sig = dsa.sign(msg, x, k=None, low_s=False, ec=ec, hf=eval("hashlib." + hf))
+            sig = dsa.sign(msg, x, None, low_s=False, ec=ec, hf=getattr(hashlib, hf))
             assert r == hex(sig[0])
             assert s == hex(sig[1])
             # test key-pair coherence
             U = mult(x, ec.G, ec)
             assert (int(x_U, 16), int(y_U, 16)) == U
             # test signature validity
-            dsa.assert_as_valid(msg, U, sig, ec, hf=eval("hashlib." + hf))
+            dsa.assert_as_valid(msg, U, sig, ec, getattr(hashlib, hf))
