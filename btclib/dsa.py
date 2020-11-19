@@ -311,7 +311,7 @@ def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
         # two possible y-coordinates, i.e. two possible keys for each cycle
         try:
             # even root first for bitcoin message signing compatibility
-            yodd = ec.y_odd(x, False)
+            yodd = ec.y_even(x)
             KJ = x, yodd, 1  # 1.2, 1.3, and 1.4
             # 1.5 has been performed in the recover_pubkeys calling function
             Q1J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
@@ -349,7 +349,8 @@ def __recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint
 
     # even root first for Bitcoin Core compatibility
     i = key_id & 0b01
-    y = ec.y_odd(x, i)
+    y_even = ec.y_even(x)
+    y = ec.p - y_even if i else y_even
     KJ = x, y, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pubkeys calling function
     QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1

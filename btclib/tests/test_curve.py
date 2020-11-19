@@ -253,16 +253,8 @@ def test_symmetry() -> None:
         Q = mult(q, ec.G, ec)
         x_Q = Q[0]
 
-        y_odd = ec.y_odd(x_Q)
-        assert y_odd % 2 == 1
-        y_even = ec.y_odd(x_Q, False)
-        assert y_even % 2 == 0
-        assert y_even == ec.p - y_odd
-
-        y_low = ec.y_low(x_Q)
-        y_high = ec.y_low(x_Q, False)
-        assert y_low < y_high
-        assert y_high == ec.p - y_low
+        assert not ec.y_even(x_Q) % 2
+        assert ec.y_low(x_Q) <= ec.p // 2
 
         # compute quadratic residues
         hasRoot = {1}
@@ -271,7 +263,6 @@ def test_symmetry() -> None:
 
         if ec.p % 4 == 3:
             quad_res = ec.y_quadratic_residue(x_Q)
-            not_quad_res = ec.y_quadratic_residue(x_Q, False)
 
             # in this case only quad_res is a quadratic residue
             assert quad_res in hasRoot
@@ -280,19 +271,18 @@ def test_symmetry() -> None:
             root = ec.p - root
             assert quad_res == (root * root) % ec.p
 
-            assert not_quad_res == ec.p - quad_res
-            assert not_quad_res not in hasRoot
+            assert ec.p - quad_res not in hasRoot
             with pytest.raises(BTClibValueError, match="no root for "):
-                mod_sqrt(not_quad_res, ec.p)
+                mod_sqrt(ec.p - quad_res, ec.p)
         else:
             assert ec.p % 4 == 1
             # cannot use y_quadratic_residue in this case
             err_msg = "field prime is not equal to 3 mod 4: "
             with pytest.raises(BTClibValueError, match=err_msg):
                 ec.y_quadratic_residue(x_Q)
-            with pytest.raises(BTClibValueError, match=err_msg):
-                ec.y_quadratic_residue(x_Q, False)
 
+            y_even = ec.y_even(x_Q)
+            y_odd = ec.p - y_even
             # in this case neither or both y_Q are quadratic residues
             neither = y_odd not in hasRoot and y_even not in hasRoot
             both = y_odd in hasRoot and y_even in hasRoot
@@ -312,13 +302,6 @@ def test_symmetry() -> None:
                     mod_sqrt(y_odd, ec.p)
                 with pytest.raises(BTClibValueError, match=err_msg):
                     mod_sqrt(y_even, ec.p)
-
-        with pytest.raises(BTClibValueError, match="low1high0 must be bool or 1/0"):
-            ec.y_low(x_Q, 2)
-        with pytest.raises(BTClibValueError, match="odd1even0 must be bool or 1/0"):
-            ec.y_odd(x_Q, 2)
-        with pytest.raises(BTClibValueError, match="quad_res must be bool or 1/0"):
-            ec.y_quadratic_residue(x_Q, 2)
 
 
 @pytest.mark.fifth

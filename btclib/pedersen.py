@@ -65,7 +65,7 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     isCurvePoint = False
     while not isCurvePoint:
         try:
-            hy = ec.y_odd(hx, False)
+            hy = ec.y_even(hx)
             isCurvePoint = True
         except BTClibValueError:
             hx += 1

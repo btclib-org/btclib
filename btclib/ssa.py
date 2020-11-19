@@ -95,13 +95,13 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
     # BIP 340 key as integer
     if isinstance(x_Q, int):
-        y_Q = ec.y_quadratic_residue(x_Q, True)
+        y_Q = ec.y_quadratic_residue(x_Q)
         return x_Q, y_Q
 
     # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
     try:
         x_Q = point_from_pubkey(x_Q, ec)[0]
-        y_Q = ec.y_quadratic_residue(x_Q, True)
+        y_Q = ec.y_quadratic_residue(x_Q)
         return x_Q, y_Q
     except BTClibValueError:
         pass
@@ -110,7 +110,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     if isinstance(x_Q, (str, bytes)):
         Q = bytes_from_octets(x_Q, ec.psize)
         x_Q = int.from_bytes(Q, "big")
-        y_Q = ec.y_quadratic_residue(x_Q, True)
+        y_Q = ec.y_quadratic_residue(x_Q)
         return x_Q, y_Q
 
     raise BTClibValueError("not a BIP340 public key")
@@ -411,7 +411,7 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     if c == 0:
         raise BTClibValueError("invalid zero challenge")
 
-    KJ = r, ec.y_quadratic_residue(r, True), 1
+    KJ = r, ec.y_quadratic_residue(r), 1
 
     e1 = mod_inv(c, ec.n)
     QJ = _double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
@@ -482,7 +482,7 @@ def _batch_verify(
         m = bytes_from_octets(m, hf().digest_size)
 
         r, s = deserialize(sig, ec)
-        KJ = r, ec.y_quadratic_residue(r, True), 1
+        KJ = r, ec.y_quadratic_residue(r), 1
 
         x_Q, y_Q = point_from_bip340pubkey(Q, ec)
         QJ = x_Q, y_Q, 1

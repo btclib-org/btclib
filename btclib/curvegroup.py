@@ -354,33 +354,25 @@ class CurveGroup:
             m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
             raise BTClibValueError(m)
 
-    # break the y simmetry: even/odd, low/high, or quadratic residue criteria
+    #  y simmetry tiebreaker criteria: even/odd, low/high, or quadratic residue
 
-    def y_odd(self, x: int, odd1even0: int = 1) -> int:
+    def y_even(self, x: int) -> int:
         """Return the odd/even affine y-coordinate associated to x."""
-        if odd1even0 not in (0, 1):
-            raise BTClibValueError("odd1even0 must be bool or 1/0")
         root = self.y(x)
         # switch even/odd root as needed (XORing the conditions)
-        return root if root % 2 == odd1even0 else self.p - root
+        return self.p - root if root % 2 else root
 
-    def y_low(self, x: int, low1high0: int = 1) -> int:
+    def y_low(self, x: int) -> int:
         """Return the low/high affine y-coordinate associated to x."""
-        if low1high0 not in (0, 1):
-            raise BTClibValueError("low1high0 must be bool or 1/0")
         root = self.y(x)
-        # switch low/high root as needed (XORing the conditions)
-        return root if (self.p // 2 >= root) == low1high0 else self.p - root
+        return root if root <= self.p // 2 else self.p - root
 
-    def y_quadratic_residue(self, x: int, quad_res: int = 1) -> int:
+    def y_quadratic_residue(self, x: int) -> int:
         """Return the quadratic residue affine y-coordinate."""
-        if quad_res not in (0, 1):
-            raise BTClibValueError("quad_res must be bool or 1/0")
         self.require_p_ThreeModFour()
         root = self.y(x)
-        # switch to quadratic residue root as needed
         legendre = legendre_symbol(root, self.p)
-        return root if legendre == quad_res else self.p - root
+        return root if legendre else self.p - root
 
 
 def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
