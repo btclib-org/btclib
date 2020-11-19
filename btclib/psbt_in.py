@@ -123,7 +123,7 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> List[bytes]:
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
     if not isinstance(final_script_sig, bytes):
-        raise BTClibValueError("invalid final scriptSig")
+        raise BTClibValueError("invalid final script_sig")
 
 
 def _assert_valid_final_script_witness(final_script_witness: List[bytes]) -> None:
@@ -153,10 +153,18 @@ def _assert_valid_partial_signatures(partial_signatures: Dict[bytes, bytes]) -> 
     "Raise an exception if the dataclass element is not valid."
 
     for pubkey, sig in partial_signatures.items():
-        # pubkey must be a valid secp256k1 Point in SEC representation
-        secpoint.point_from_octets(pubkey)
-        if not dsa.deserialize(sig):
-            raise BTClibValueError("invalid signature in partial_signatures")
+        try:
+            # pubkey must be a valid secp256k1 Point in SEC representation
+            secpoint.point_from_octets(pubkey)
+        except BTClibValueError as e:
+            err_msg = "invalid partial signature pubkey: {pubkey!r}"
+            raise BTClibValueError(err_msg) from e
+        try:
+            dsa.deserialize(sig)
+        except BTClibValueError as e:
+            err_msg = f"invalid partial signature: {sig!r}"
+            raise BTClibValueError(err_msg) from e
+        # TODO should we check that pubkey is recoverable from sig?
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -219,7 +227,7 @@ class PsbtIn(DataClassJsonMixin):
             elif k[0:1] == PSBT_IN_SIGHASH_TYPE:
                 out.sighash = _deserialize_int(k, v, "sighash")
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                out.final_script_sig = _deserialize_bytes(k, v, "final scriptSig")
+                out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
                 out.final_script_witness = _deserialize_final_script_witness(k, v)
             elif k[0:1] == PSBT_IN_POR_COMMITMENT:

@@ -175,6 +175,7 @@ class Psbt(DataClassJsonMixin):
                 raise BTClibValueError("non empty scriptSig")
             if vin.txinwitness != []:
                 raise BTClibValueError("non empty txinwitness")
+
         if len(self.tx.vout) != len(self.outputs):
             raise BTClibValueError("mismatched number of tx.vout and psbt_out")
 
@@ -193,8 +194,6 @@ class Psbt(DataClassJsonMixin):
 
             if non_witness_utxo:
                 txid = tx_in.prevout.txid
-                if not isinstance(non_witness_utxo, Tx):
-                    raise BTClibValueError("non_witness_utxo is not a Tx")
                 if non_witness_utxo.txid != txid:
                     err_msg = "invalid non_witness_utxo txid"
                     err_msg += f": {non_witness_utxo.txid.hex()}"
@@ -293,7 +292,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
     txid = psbts[0].tx.txid
     for psbt in psbts[1:]:
         if psbt.tx.txid != txid:
-            raise BTClibValueError(f"invalid psbt.tx.txid: {psbt.tx.txid.hex()}")
+            raise BTClibValueError(f"mismatched psbt.tx.txid: {psbt.tx.txid.hex()}")
 
     for psbt in psbts[1:]:
 
