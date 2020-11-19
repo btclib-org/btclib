@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Type, TypeVar
+from typing import Dict, List, Tuple, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
@@ -25,6 +25,7 @@ from .bip32 import (
     str_from_bip32_path,
 )
 from .exceptions import BTClibValueError
+from .utils import bytes_from_octets
 
 
 def _encode_dict_bytes_bytes(d: Dict[bytes, bytes]) -> Dict[str, str]:
@@ -85,15 +86,18 @@ def _encode_bip32_derivs(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     return result
 
 
+def _decode_bip32_deriv(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
+    v = bytes_from_octets(new_element["master_fingerprint"], 4)
+    v += bytes_from_bip32_path(new_element["path"], "little")
+    # TODO: check the SEC / XPUB key
+    k = bytes_from_octets(new_element["pubkey"])
+    return k, v
+
+
 def _decode_bip32_derivs(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
 
-    d2: Dict[bytes, bytes] = {}
-    for d in list_of_dict:
-        v = bytes.fromhex(d["master_fingerprint"])
-        v += bytes_from_bip32_path(d["path"], "little")
-        d2[bytes.fromhex(d["pubkey"])] = v
-    return d2
+    return dict([_decode_bip32_deriv(item) for item in list_of_dict])
 
 
 def _deserialize_bip32_derivs(k: bytes, v: bytes, type_: str) -> Dict[bytes, bytes]:
