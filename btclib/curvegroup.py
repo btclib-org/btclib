@@ -354,7 +354,7 @@ class CurveGroup:
             m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
             raise BTClibValueError(m)
 
-    #  y simmetry tiebreaker criteria: even/odd, low/high, or quadratic residue
+    #  y-simmetry tiebreaker criteria: even/odd, low/high, or quadratic residue
 
     def y_even(self, x: int) -> int:
         """Return the odd/even affine y-coordinate associated to x."""
