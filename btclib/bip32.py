@@ -236,7 +236,7 @@ def rootxprv_from_seed(
         raise BTClibValueError(
             f"too many bits for seed: {bitlenght} in '{hex_string(seed)}'"
         )
-    hd = hmac.digest(b"Bitcoin seed", seed, "sha512")
+    hd = hmac.new(b"Bitcoin seed", seed, "sha512").digest()
     k = b"\x00" + hd[:32]
     v = bytes_from_octets(version, 4)
     if v not in _XPRV_VERSIONS_ALL:
@@ -392,13 +392,13 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
         key_data.parent_fingerprint = hash160(Pbytes)[:4]
         key_data.index = index
         if key_data.is_hardened:
-            h = hmac.digest(
+            h = hmac.new(
                 key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
-            )
+            ).digest()
         else:  # normal derivation
-            h = hmac.digest(
+            h = hmac.new(
                 key_data.chain_code, Pbytes + index.to_bytes(4, "big"), "sha512"
-            )
+            ).digest()
         key_data.chain_code = h[32:]
         offset = int.from_bytes(h[:32], byteorder="big")
         key_data.q = (key_data.q + offset) % ec.n
@@ -411,9 +411,9 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
         key_data.index = index
         if key_data.is_hardened:
             raise BTClibValueError("invalid hardened derivation from public key")
-        h = hmac.digest(
+        h = hmac.new(
             key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
-        )
+        ).digest()
         key_data.chain_code = h[32:]
         offset = int.from_bytes(h[:32], byteorder="big")
         Offset = mult(offset)
@@ -565,7 +565,7 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
 
     p.version = c.version
 
-    h = hmac.digest(p.chain_code, p.key + c.index.to_bytes(4, "big"), "sha512")
+    h = hmac.new(p.chain_code, p.key + c.index.to_bytes(4, "big"), "sha512").digest()
     child_q = int.from_bytes(c.key[1:], byteorder="big")
     offset = int.from_bytes(h[:32], byteorder="big")
     parent_q = (child_q - offset) % ec.n
