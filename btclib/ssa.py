@@ -67,13 +67,12 @@ from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult, _multi_mult
 from .exceptions import BTClibRuntimeError, BTClibValueError
-from .hashes import reduce_to_hlen
+from .hashes import reduce_to_hlen, _tagged_hash
 from .numbertheory import mod_inv
 from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import point_from_pubkey
 from .utils import bytes_from_octets, hex_string, int_from_bits
 
-# TODO relax the p_ThreeModFour requirement
 
 # hex-string or bytes representation of an int
 # 33 or 65 bytes or hex-string
@@ -171,19 +170,6 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     return q, x_Q
 
 
-# TODO move to hashes
-# This implementation can be sped up by storing the midstate after hashing
-# tag_hash instead of rehashing it all the time.
-def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
-    t = tag.encode()
-    h1 = hf()
-    h1.update(t)
-    tag_hash = h1.digest()
-    h2 = hf()
-    h2.update(tag_hash + tag_hash + m)
-    return h2.digest()
-
-
 def __det_nonce(
     m: bytes, q: int, Q: int, a: bytes, ec: Curve, hf: HashF
 ) -> Tuple[int, int]:
@@ -231,7 +217,7 @@ def _det_nonce(
     q, Q = gen_keys(prvkey, ec)
 
     # the auxiliary random component
-    a = secrets.token_bytes(32) if aux is None else bytes_from_octets(aux)
+    a = secrets.token_bytes(hlen) if aux is None else bytes_from_octets(aux)
 
     return __det_nonce(m, q, Q, a, ec, hf)
 
@@ -311,7 +297,7 @@ def _sign(
 
     # the nonce k: an integer in the range 1..n-1.
     if k is None:
-        k, x_K = __det_nonce(m, q, x_Q, secrets.token_bytes(32), ec, hf)
+        k, x_K = __det_nonce(m, q, x_Q, secrets.token_bytes(hlen), ec, hf)
     else:
         k, x_K = gen_keys(k, ec)
 
