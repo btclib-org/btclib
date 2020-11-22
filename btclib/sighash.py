@@ -8,6 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+from copy import deepcopy
 from typing import List, Union
 
 from . import script, tx, tx_out, varbytes
@@ -15,7 +16,6 @@ from .alias import ScriptToken
 from .exceptions import BTClibValueError
 from .scriptpubkey import payload_from_scriptPubKey
 from .utils import hash256
-from copy import deepcopy
 
 
 # workaround to handle CTransactions
@@ -123,7 +123,6 @@ def _get_legacy_scriptCodes(scriptPubKey: bytes) -> List[bytes]:
 
 # FIXME: remove OP_CODESEPARATOR only if executed
 def _get_witness_v0_scriptCodes(scriptPubKey: bytes) -> List[bytes]:
-    scriptCodes: List[bytes] = []
     try:
         script_type = payload_from_scriptPubKey(script.deserialize(scriptPubKey))[0]
     except BTClibValueError:
@@ -132,16 +131,15 @@ def _get_witness_v0_scriptCodes(scriptPubKey: bytes) -> List[bytes]:
         pubkeyhash = script.deserialize(scriptPubKey)[1]
         if not isinstance(pubkeyhash, str):
             raise BTClibValueError("not a string")
-        scriptCodes.append(bytes.fromhex(f"76a914{pubkeyhash}88ac"))
-    else:
-        current_script: List[ScriptToken] = []
-        for token in script.deserialize(scriptPubKey)[::-1]:
-            if token == "OP_CODESEPARATOR":
-                scriptCodes.append(script.serialize(current_script[::-1]))
-            current_script.append(token)
-        scriptCodes.append(script.serialize(current_script[::-1]))
-        scriptCodes = scriptCodes[::-1]
-    return scriptCodes
+        return [bytes.fromhex(f"76a914{pubkeyhash}88ac")]
+    scriptCodes: List[bytes] = []
+    current_script: List[ScriptToken] = []
+    for token in script.deserialize(scriptPubKey)[::-1]:
+        if token == "OP_CODESEPARATOR":
+            scriptCodes.append(script.serialize(current_script[::-1]))
+        current_script.append(token)
+    scriptCodes.append(script.serialize(current_script[::-1]))
+    return scriptCodes[::-1]
 
 
 def get_sighash(
@@ -174,6 +172,5 @@ def get_sighash(
         return segwit_v0_sighash(
             scriptCode, transaction, input_index, sighash_type, value
         )
-    else:
-        scriptCode = _get_legacy_scriptCodes(scriptPubKey)[0]
-        return legacy_sighash(scriptCode, transaction, input_index, sighash_type)
+    scriptCode = _get_legacy_scriptCodes(scriptPubKey)[0]
+    return legacy_sighash(scriptCode, transaction, input_index, sighash_type)

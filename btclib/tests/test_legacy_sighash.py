@@ -10,19 +10,20 @@
 
 "Tests for `btclib.sighash` module."
 
+import json
+import os
+
 # test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-from btclib import script, dsa
-from btclib.tx_in import TxIn, OutPoint
-from btclib.tx_out import TxOut
+from btclib import dsa, script
+from btclib.sighash import _get_legacy_scriptCodes, get_sighash, legacy_sighash
 from btclib.tx import Tx
-from btclib.sighash import get_sighash, legacy_sighash, _get_legacy_scriptCodes
+from btclib.tx_in import OutPoint, TxIn
+from btclib.tx_out import TxOut
 
 # from btclib.curve import mult
 # from btclib.secpoint import bytes_from_point
 # from btclib.script import deserialize
 
-import json
-import os
 
 # block 170
 def test_first_transaction():
@@ -208,7 +209,6 @@ def test_sighash_json():
         if hashType < 0:
             hashType = 0xFFFFFFFF + 1 + hashType
         tx = Tx.deserialize(raw_transaction)
-        script = raw_script
         sighash = bytes.fromhex(sighash)[::-1].hex()
-        scriptCode = _get_legacy_scriptCodes(script)[0]
+        scriptCode = _get_legacy_scriptCodes(raw_script)[0]
         assert sighash == legacy_sighash(scriptCode, tx, input_index, hashType).hex()
