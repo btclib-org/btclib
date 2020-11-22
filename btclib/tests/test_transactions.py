@@ -172,10 +172,6 @@ def test_invalid_tx_out() -> None:
     with pytest.raises(BTClibValueError, match="value too high: "):
         transaction_output.assert_valid()
 
-    transaction_output = tx_out.TxOut(value=1, scriptPubKey=b"")
-    with pytest.raises(BTClibValueError, match="empty scriptPubKey"):
-        transaction_output.assert_valid()
-
 
 def test_invalid_tx() -> None:
     transaction_input = tx_in.TxIn(
