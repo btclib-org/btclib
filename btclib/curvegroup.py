@@ -19,7 +19,7 @@ see the btclib.curve module.
 import functools
 import heapq
 from math import ceil
-from typing import List, Sequence, Tuple, Union
+from typing import List, Sequence, Tuple
 
 from .alias import INF, INFJ, Integer, JacPoint, Point
 from .exceptions import BTClibTypeError, BTClibValueError
@@ -339,28 +339,6 @@ class CurveGroup:
         if not 0 < Q[1] < self.p:  # y cannot be zero
             raise BTClibValueError(f"y-coordinate not in 1..p-1: '{hex_string(Q[1])}'")
         return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
-
-    def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
-        """Return True if the affine y-coordinate is a square.
-
-        The input point is not checked to be on the curve.
-        """
-        if len(Q) == 2:
-            return legendre_symbol(Q[1], self.p) == 1
-        if len(Q) == 3:
-            # FIXME: do not ignore
-            return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1  # type: ignore
-        raise BTClibTypeError("not a point")
-
-    def require_p_ThreeModFour(self) -> None:
-        """Require the field prime p to be equal to 3 mod 4.
-
-        An Error is raised if not.
-        """
-        if not self.pIsThreeModFour:
-            m = "field prime is not equal to 3 mod 4: "
-            m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
-            raise BTClibValueError(m)
 
     #  y-simmetry tiebreaker criteria: even/odd, low/high, or quadratic residue
 
