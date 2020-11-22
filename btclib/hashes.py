@@ -71,18 +71,24 @@ def reduce_to_hlen(msg: String, hf: HashF = hashlib.sha256) -> bytes:
     if isinstance(msg, str):
         msg = msg.encode()
 
-    # Steps numbering follows SEC 1 v.2 section 4.1.3
+    # Step 4 of SEC 1 v.2 section 4.1.3
     h = hf()
     h.update(msg)
-    return h.digest()  # 4
+    return h.digest()
 
 
-# This implementation could be sped up by storing the midstate
-def tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
+def tagged_hash(tag: str, msg: String, hf: HashF = hashlib.sha256) -> bytes:
+
     t = tag.encode()
     h1 = hf()
     h1.update(t)
     tag_hash = h1.digest()
+
     h2 = hf()
-    h2.update(tag_hash + tag_hash + m)
+    h2.update(tag_hash + tag_hash)
+
+    # it could be sped up by storing the above midstate
+    if isinstance(msg, str):
+        msg = msg.encode()
+    h2.update(msg)
     return h2.digest()
