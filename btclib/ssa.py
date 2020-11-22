@@ -462,8 +462,8 @@ def _assert_batch_as_valid(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[SSASig],
-    ec: Curve,
-    hf: HashF,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> None:
 
     batch_size = len(Qs)
@@ -526,8 +526,8 @@ def assert_batch_as_valid(
     ms: Sequence[String],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[SSASig],
-    ec: Curve,
-    hf: HashF,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> None:
 
     ms = [reduce_to_hlen(m, hf) for m in ms]
@@ -538,8 +538,8 @@ def _batch_verify(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[SSASig],
-    ec: Curve,
-    hf: HashF,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> bool:
 
     # all kind of Exceptions are catched because
