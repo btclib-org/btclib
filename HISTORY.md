@@ -53,7 +53,7 @@ Major changes includes:
 
 - added BlockHeader and Block data classes
 - added OutPoint, TxIn, TxOut, and TX data classes
-- added segwit_v0_sighash
+- added segwit_v0 sighash
 - added PsbtIn, PbstOut, and Psbt data classes for
   partially signed bitcoin transactions (BIP174)
 - moved from unitest to pytest, including revision

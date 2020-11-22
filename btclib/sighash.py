@@ -23,7 +23,7 @@ def _get_bytes(a: Union[int, bytes]) -> bytes:
     return int.to_bytes(a, 32, "big") if isinstance(a, int) else a
 
 
-def legacy_sighash(
+def legacy(
     scriptCode: bytes, transaction: tx.Tx, input_index: int, hashtype: int
 ) -> bytes:
     new_tx = deepcopy(transaction)
@@ -59,7 +59,7 @@ def legacy_sighash(
 
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
-def segwit_v0_sighash(
+def segwit_v0(
     scriptCode: bytes, transaction: tx.Tx, input_index: int, hashtype: int, amount: int
 ) -> bytes:
 
@@ -168,8 +168,6 @@ def get_sighash(
             scriptCode = _get_witness_v0_scriptCodes(
                 transaction.vin[input_index].txinwitness[-1]
             )[0]
-        return segwit_v0_sighash(
-            scriptCode, transaction, input_index, sighash_type, value
-        )
+        return segwit_v0(scriptCode, transaction, input_index, sighash_type, value)
     scriptCode = _get_legacy_scriptCodes(scriptPubKey)[0]
-    return legacy_sighash(scriptCode, transaction, input_index, sighash_type)
+    return legacy(scriptCode, transaction, input_index, sighash_type)

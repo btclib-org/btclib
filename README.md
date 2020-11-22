@@ -78,7 +78,7 @@ Included features are:
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 - BlockHeader and Block data classes
 - OutPoint, TxIn, TxOut, and TX data classes
-- segwit_v0_sighash
+- legacy and segwit_v0 sighash
 - [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
   partially signed bitcoin transactions (PSBT):
   PsbtIn, PbstOut, and Psbt data classes

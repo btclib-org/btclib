@@ -17,7 +17,7 @@ import json
 from os import path
 
 from btclib import dsa, script
-from btclib.sighash import _get_legacy_scriptCodes, get_sighash, legacy_sighash
+from btclib.sighash import _get_legacy_scriptCodes, get_sighash, legacy
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
@@ -203,7 +203,7 @@ def test_sighashsingle_bug():
 
 
 def test_sighash_json():
-    fname = "legacy_sighash.json"
+    fname = "sighash_legacy.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
     with open(filename, "r") as file_:
         data = json.load(file_)
@@ -213,6 +213,6 @@ def test_sighash_json():
         tx = Tx.deserialize(raw_transaction)
         if hashType < 0:
             hashType = 0xFFFFFFFF + 1 + hashType
-        actual_sighash = legacy_sighash(scriptCode, tx, input_index, hashType)
+        actual_sighash = legacy(scriptCode, tx, input_index, hashType)
         expected_sighash = bytes.fromhex(sighash)[::-1]
         assert expected_sighash == actual_sighash
