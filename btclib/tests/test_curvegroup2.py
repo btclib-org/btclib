@@ -108,7 +108,3 @@ def test_mult_endomorphism_secp256k1() -> None:
 
     with pytest.raises(ValueError, match="negative m: "):
         _mult_endomorphism_secp256k1(-1, ec.GJ, ec)
-
-    for k1 in range(ec.n):
-        K1 = _mult_endomorphism_secp256k1(k1, ec.GJ, ec)
-        assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
