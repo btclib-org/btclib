@@ -73,7 +73,6 @@ from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import point_from_pubkey
 from .utils import bytes_from_octets, hex_string, int_from_bits
 
-
 # hex-string or bytes representation of an int
 # 33 or 65 bytes or hex-string
 # BIP32Key as dict or String
