@@ -4,7 +4,7 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
-## v2020.11.22
+## v2020.11.23
 
 Major changes includes:
 
@@ -12,7 +12,7 @@ Major changes includes:
   as per the latest changes in bitcoin core
 - refactored PsbtIn, PsbtOut, and Psbt
 - added legacy sighash
-- made btclib compatible with python 3.7
+- made btclib compatible with python 3.6
 - ssa.det_nonce now returns an int
 - moved tagged_hash from ssa into hashes module
 - added CurveGroup._y_aff_from_jac and removed unused methods
