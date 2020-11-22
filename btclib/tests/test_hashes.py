@@ -11,7 +11,7 @@
 "Tests for `btclib.hashes` module."
 
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
-from btclib.hashes import fingerprint
+from btclib.hashes import fingerprint, tagged_hash
 
 
 def test_fingerprint() -> None:
@@ -22,3 +22,10 @@ def test_fingerprint() -> None:
     child_key = derive(xprv, 0x80000000)
     pf2 = BIP32KeyData.deserialize(child_key).parent_fingerprint
     assert pf == pf2
+
+
+def test_tagged_hash() -> None:
+
+    s = "deadbeef"
+    b = s.encode()
+    assert tagged_hash("btclib", s) == tagged_hash("btclib", b)
