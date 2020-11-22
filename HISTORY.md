@@ -1,6 +1,7 @@
 # Release notes
 
 Notable changes to the codebase are documented here.
+
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
@@ -10,7 +11,7 @@ Major changes includes:
 
 - fixed ssa batch verification functions' logic
 
-## v2020.12
+## v2020.11.23
 
 Major changes includes:
 
