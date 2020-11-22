@@ -109,17 +109,16 @@ def test_aff_jac_conversions() -> None:
         assert Q == ec._aff_from_jac(QJ)
         x_Q = ec._x_aff_from_jac(QJ)
         assert Q[0] == x_Q
+        y_Q = ec._y_aff_from_jac(QJ)
+        assert Q[1] == y_Q
 
         assert INF == ec._aff_from_jac(_jac_from_aff(INF))
 
-        # relevant for BIP340-Schnorr signature verification
-        assert not ec.has_square_y(INF)
-        with pytest.raises(
-            BTClibValueError, match="infinity point has no x-coordinate"
-        ):
+        with pytest.raises(BTClibValueError, match="INF has no x-coordinate"):
             ec._x_aff_from_jac(INFJ)
-        with pytest.raises(BTClibTypeError, match="not a point"):
-            ec.has_square_y("notapoint")  # type: ignore
+
+        with pytest.raises(BTClibValueError, match="INF has no y-coordinate"):
+            ec._y_aff_from_jac(INFJ)
 
 
 def test_add_double_aff() -> None:
@@ -245,7 +244,7 @@ def test_negate() -> None:
 
 
 def test_symmetry() -> None:
-    """Methods to break simmetry: quadratic residue, odd/even, low/high"""
+    "Methods to break simmetry: quadratic residue, even/odd, low/high."
     for ec in low_card_curves.values():
 
         # just a random point, not INF
@@ -302,6 +301,13 @@ def test_symmetry() -> None:
                     mod_sqrt(y_odd, ec.p)
                 with pytest.raises(BTClibValueError, match=err_msg):
                     mod_sqrt(y_even, ec.p)
+
+    with pytest.raises(BTClibValueError):
+        secp256k1.y_even(INF[0])
+    with pytest.raises(BTClibValueError):
+        secp256k1.y_low(INF[0])
+    with pytest.raises(BTClibValueError):
+        secp256k1.y_quadratic_residue(INF[0])
 
 
 @pytest.mark.fifth

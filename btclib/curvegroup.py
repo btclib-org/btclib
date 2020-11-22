@@ -162,10 +162,18 @@ class CurveGroup:
     def _x_aff_from_jac(self, Q: JacPoint) -> int:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            raise BTClibValueError("infinity point has no x-coordinate")
+            raise BTClibValueError("INF has no x-coordinate")
 
         Z2 = Q[2] * Q[2]
         return (Q[0] * mod_inv(Z2, self.p)) % self.p
+
+    def _y_aff_from_jac(self, Q: JacPoint) -> int:
+        # point is assumed to be on curve
+        if Q[2] == 0:  # Infinity point in Jacobian coordinates
+            raise BTClibValueError("INF has no y-coordinate")
+
+        Z2 = Q[2] * Q[2]
+        return (Q[1] * mod_inv(Z2 * Q[2], self.p)) % self.p
 
     def _jac_equality(self, QJ: JacPoint, PJ: JacPoint) -> bool:
         """Return True if Jacobian points are equal in affine coordinates.
@@ -369,7 +377,11 @@ class CurveGroup:
 
     def y_quadratic_residue(self, x: int) -> int:
         """Return the quadratic residue affine y-coordinate."""
-        self.require_p_ThreeModFour()
+
+        if not self.pIsThreeModFour:
+            m = "field prime is not equal to 3 mod 4: "
+            m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
+            raise BTClibValueError(m)
         root = self.y(x)
         legendre = legendre_symbol(root, self.p)
         return root if legendre else self.p - root
