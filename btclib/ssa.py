@@ -467,6 +467,9 @@ def _batch_verify(
 ) -> None:
 
     batch_size = len(Qs)
+    if batch_size == 0:
+        raise BTClibValueError("no signatures provided")
+
     if len(ms) != batch_size:
         errMsg = f"mismatch between number of pubkeys ({batch_size}) "
         errMsg += f"and number of messages ({len(ms)})"
@@ -476,9 +479,9 @@ def _batch_verify(
         errMsg += f"and number of signatures ({len(sigs)})"
         raise BTClibValueError(errMsg)
 
-    if batch_size < 2:
+    if batch_size == 1:
         _assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)
-        return
+        return None
 
     t = 0
     scalars: List[int] = []
@@ -517,7 +520,7 @@ def _batch_verify(
         raise BTClibRuntimeError("signature verification precondition failed")
 
     if TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p:
-        return
+        return None
     raise BTClibRuntimeError("signature verification failed")  # pragma: no cover
 
 
@@ -536,5 +539,5 @@ def batch_verify(
         _batch_verify(m, Q, sig, ec, hf)
     except Exception:  # pylint: disable=broad-except
         return False
-    else:
-        return True
+
+    return True

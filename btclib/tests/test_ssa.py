@@ -310,6 +310,10 @@ def test_batch_validation() -> None:
         ssa._batch_verify(ms, Qs, sigs, ec, hf)
     sigs.pop()  # valid again
 
+    err_msg = "no signatures provided"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ssa._batch_verify([], [], [], ec, hf)
+
 
 def test_musig() -> None:
     """testing 3-of-3 MuSig.
