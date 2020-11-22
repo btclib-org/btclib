@@ -232,8 +232,8 @@ def test_crack_prvkey() -> None:
 
     qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
     assert q in (qc, ec.n - qc)
-    assert k in (kc, ec.n - kc)
     assert q == qc
+    assert k in (kc, ec.n - kc)
     # assert k == kc
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):

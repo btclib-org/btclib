@@ -236,16 +236,16 @@ def test_crack_prvkey() -> None:
     q, x_Q = ssa.gen_keys()
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
-    m1 = reduce_to_hlen(msg1, hf)
+    m1 = reduce_to_hlen(msg1)
     k = ssa._det_nonce(m1, q)
     sig1 = ssa._sign(m1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
-    m2 = reduce_to_hlen(msg2, hf)
+    m2 = reduce_to_hlen(msg2)
     # reuse same k
     sig2 = ssa._sign(m2, q, k)
 
-    qc, kc = ssa._crack_prvkey(m1, sig1, m2, sig2, x_Q)
+    qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
     assert q == qc
     assert k in (kc, ec.n - kc)
 

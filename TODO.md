@@ -42,3 +42,6 @@
 - SSA: ask about why e=e(k), making impossible to select e, k indipendently
 - SSA: ask about benefit of removing 02/03 from pubkey
 - SSA: suggest better k
+
+- fix bug in dsa.crack
+- compare of dsa._rfc6979 and ssa._det_nonce

@@ -411,7 +411,6 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     return ec._x_aff_from_jac(QJ)
 
 
-# FIXME add crack_prvkey
 def _crack_prvkey(
     m1: Octets,
     sig1: SSASig,
@@ -441,6 +440,22 @@ def _crack_prvkey(
     q, _ = gen_keys(q)
     k, _ = gen_keys(k)
     return q, k
+
+
+def crack_prvkey(
+    msg1: String,
+    sig1: SSASig,
+    msg2: String,
+    sig2: SSASig,
+    Q: BIP340PubKey,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[int, int]:
+
+    m1 = reduce_to_hlen(msg1, hf)
+    m2 = reduce_to_hlen(msg2, hf)
+
+    return _crack_prvkey(m1, sig1, m2, sig2, Q, ec, hf)
 
 
 def _batch_verify(
