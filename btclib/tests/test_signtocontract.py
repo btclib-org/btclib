@@ -24,7 +24,7 @@ from btclib.signtocontract import (
 ec = secp256k1
 
 
-def test_signtocontract() -> None:
+def test_sign_to_contract_dsa() -> None:
     m = sha256(b"to be signed").digest()
     c = sha256(b"to be committed").digest()
 
@@ -37,6 +37,11 @@ def test_signtocontract() -> None:
     dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prvkey, k)
     dsa._assert_as_valid(m, pubkey, dsa_sig, ec, sha256)
     assert verify_commit(c, dsa_receipt)
+
+
+def test_sign_to_contract_ssa() -> None:
+    m = sha256(b"to be signed").digest()
+    c = sha256(b"to be committed").digest()
 
     prvkey, pub = ssa.gen_keys()
     ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prvkey)
