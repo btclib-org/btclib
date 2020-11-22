@@ -133,17 +133,24 @@ def _sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> DSASigTuple:
+    """Sign a hlen bytes message according to ECDSA signature algorithm.
 
-    # The message m: a hlen array
+    If the deterministic nonce is not provided,
+    the RFC6979 specification is used.
+    """
+
+    # the message m: a hlen array
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
-    # The secret key q: an integer in the range 1..n-1.
+    # the secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
     q = int_from_prvkey(prvkey, ec)
 
+    # the challenge
     c = _challenge(m, ec, hf)  # 4, 5
 
+    # the nonce k: an integer in the range 1..n-1.
     if k is None:
         k = __rfc6979(c, q, ec, hf)  # 1
     else:
@@ -156,7 +163,6 @@ def _sign(
 def sign(
     msg: String,
     prvkey: PrvKey,
-    k: Optional[PrvKey] = None,
     low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -182,7 +188,7 @@ def sign(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _sign(m, prvkey, k, low_s, ec, hf)
+    return _sign(m, prvkey, None, low_s, ec, hf)
 
 
 def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
@@ -395,7 +401,7 @@ def crack_prvkey(
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    reduced_msg1 = reduce_to_hlen(msg1, hf)
-    reduced_msg2 = reduce_to_hlen(msg2, hf)
+    m1 = reduce_to_hlen(msg1, hf)
+    m2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prvkey(reduced_msg1, sig1, reduced_msg2, sig2, ec, hf)
+    return _crack_prvkey(m1, sig1, m2, sig2, ec, hf)
