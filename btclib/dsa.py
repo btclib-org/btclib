@@ -167,7 +167,7 @@ def sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> DSASigTuple:
-    """ECDSA signature with canonical low-s encoding.
+    """ECDSA signature with canonical low-s preference.
 
     Implemented according to SEC 1 v.2
     The message msg is first processed by hf, yielding the value
