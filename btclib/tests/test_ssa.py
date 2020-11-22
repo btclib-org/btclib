@@ -130,7 +130,7 @@ def test_bip340_vectors() -> None:
                     _, pubkey_actual = ssa.gen_keys(seckey)
                     assert pubkey == hex(pubkey_actual).upper()[2:], err_msg
 
-                    k, _ = ssa._det_nonce(m, seckey, aux_rand)
+                    k = ssa._det_nonce(m, seckey, aux_rand)
                     sig_actual = ssa._sign(m, seckey, k)
                     ssa._assert_as_valid(m, pubkey, sig_actual)
                     assert ssa.deserialize(sig) == sig_actual, err_msg
@@ -237,7 +237,7 @@ def test_crack_prvkey() -> None:
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
     m1 = reduce_to_hlen(msg1, hf)
-    k, _ = ssa._det_nonce(m1, q)
+    k = ssa._det_nonce(m1, q)
     sig1 = ssa._sign(m1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
@@ -577,8 +577,8 @@ def test_threshold() -> None:
 
     # 2.1 signer one acting as the dealer
     commits1 = []
-    k1, _ = ssa.det_nonce(msg, q1, ec, hf)
-    k1_prime, _ = ssa.det_nonce(msg, q1_prime, ec, hf)
+    k1 = ssa.det_nonce(msg, q1, ec, hf)
+    k1_prime = ssa.det_nonce(msg, q1_prime, ec, hf)
     commits1.append(double_mult(k1_prime, H, k1, ec.G))
     # sharing polynomials
     f1 = [k1]
@@ -602,8 +602,8 @@ def test_threshold() -> None:
 
     # 2.2 signer three acting as the dealer
     commits3 = []
-    k3, _ = ssa.det_nonce(msg, q3, ec, hf)
-    k3_prime, _ = ssa.det_nonce(msg, q3_prime, ec, hf)
+    k3 = ssa.det_nonce(msg, q3, ec, hf)
+    k3_prime = ssa.det_nonce(msg, q3_prime, ec, hf)
     commits3.append(double_mult(k3_prime, H, k3, ec.G))
     # sharing polynomials
     f3 = [k3]

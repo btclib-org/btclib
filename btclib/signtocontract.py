@@ -95,10 +95,7 @@ def ecssa_commit_sign(
 ) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
-    if k is None:
-        k, _ = ssa._det_nonce(m, prvkey, None, ec, hf)
-    else:
-        k, _ = ssa.gen_keys(k, ec)
+    k = ssa._det_nonce(m, prvkey, None, ec, hf) if k is None else int_from_prvkey(k, ec)
 
     # commit
     R, new_k = _tweak(c, k, ec, hf)

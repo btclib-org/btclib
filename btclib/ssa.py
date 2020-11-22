@@ -170,9 +170,7 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     return q, x_Q
 
 
-def __det_nonce(
-    m: bytes, q: int, Q: int, a: bytes, ec: Curve, hf: HashF
-) -> Tuple[int, int]:
+def __det_nonce(m: bytes, q: int, Q: int, a: bytes, ec: Curve, hf: HashF) -> int:
 
     # assume the random oracle model for the hash function,
     # i.e. hash values can be considered uniformly random
@@ -186,11 +184,13 @@ def __det_nonce(
     # the unbiased implementation is provided here,
     # which works also for very-low-cardinality test curves
 
-    t = tagged_hash("BIP0340/aux", a, hf)
-    xor = q ^ int.from_bytes(t, "big")
+    randomizer = tagged_hash("BIP0340/aux", a, hf)
+    xor = q ^ int.from_bytes(randomizer, "big")
     max_len = max(ec.nsize, hf().digest_size)
     t = xor.to_bytes(max_len, "big")
+
     t += Q.to_bytes(ec.psize, "big") + m
+
     while True:
         t = tagged_hash("BIP0340/nonce", t, hf)
         # The following lines would introduce a bias
@@ -198,7 +198,7 @@ def __det_nonce(
         # k = int_from_bits(t, ec.nlen) % ec.n
         k = int_from_bits(t, ec.nlen)  # candidate k
         if 0 < k < ec.n:  # acceptable value for k
-            return gen_keys(k, ec)  # successful candidate
+            return k  # successful candidate
 
 
 def _det_nonce(
@@ -207,7 +207,7 @@ def _det_nonce(
     aux: Optional[Octets] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[int, int]:
+) -> int:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     # the message m: a hlen array
@@ -223,11 +223,8 @@ def _det_nonce(
 
 
 def det_nonce(
-    msg: String,
-    prvkey: PrvKey,
-    ec: Curve = secp256k1,
-    hf: HashF = sha256,
-) -> Tuple[int, int]:
+    msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+) -> int:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     m = reduce_to_hlen(msg, hf)
@@ -297,9 +294,9 @@ def _sign(
 
     # the nonce k: an integer in the range 1..n-1.
     if k is None:
-        k, x_K = __det_nonce(m, q, x_Q, secrets.token_bytes(hlen), ec, hf)
-    else:
-        k, x_K = gen_keys(k, ec)
+        k = __det_nonce(m, q, x_Q, secrets.token_bytes(hlen), ec, hf)
+
+    k, x_K = gen_keys(k, ec)
 
     # the challenge
     c = __challenge(m, x_Q, x_K, ec, hf)
