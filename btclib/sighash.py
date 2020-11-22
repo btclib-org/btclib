@@ -117,8 +117,7 @@ def _get_legacy_scriptCodes(scriptPubKey: bytes) -> List[bytes]:
         else:
             current_script.append(token)
     scriptCodes.append(script.serialize(current_script[::-1]))
-    scriptCodes = scriptCodes[::-1]
-    return scriptCodes
+    return scriptCodes[::-1]
 
 
 # FIXME: remove OP_CODESEPARATOR only if executed
