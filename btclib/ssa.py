@@ -67,7 +67,7 @@ from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult, _multi_mult
 from .exceptions import BTClibRuntimeError, BTClibValueError
-from .hashes import reduce_to_hlen, _tagged_hash
+from .hashes import reduce_to_hlen, tagged_hash
 from .numbertheory import mod_inv
 from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import point_from_pubkey
@@ -186,13 +186,13 @@ def __det_nonce(
     # the unbiased implementation is provided here,
     # which works also for very-low-cardinality test curves
 
-    t = _tagged_hash("BIP0340/aux", a, hf)
+    t = tagged_hash("BIP0340/aux", a, hf)
     xor = q ^ int.from_bytes(t, "big")
     max_len = max(ec.nsize, hf().digest_size)
     t = xor.to_bytes(max_len, "big")
     t += Q.to_bytes(ec.psize, "big") + m
     while True:
-        t = _tagged_hash("BIP0340/nonce", t, hf)
+        t = tagged_hash("BIP0340/nonce", t, hf)
         # The following lines would introduce a bias
         # k = int.from_bytes(t, 'big') % ec.n
         # k = int_from_bits(t, ec.nlen) % ec.n
@@ -239,7 +239,7 @@ def __challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
     t = r.to_bytes(ec.psize, "big")
     t += x_Q.to_bytes(ec.psize, "big")
     t += m
-    t = _tagged_hash("BIP0340/challenge", t, hf)
+    t = tagged_hash("BIP0340/challenge", t, hf)
     # if c == 0 then private key is removed from the equations,
     # so the signature is valid for any private/public key pair
     # if c == 0:

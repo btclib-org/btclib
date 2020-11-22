@@ -78,7 +78,7 @@ def reduce_to_hlen(msg: String, hf: HashF = hashlib.sha256) -> bytes:
 
 
 # This implementation could be sped up by storing the midstate
-def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
+def tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
     t = tag.encode()
     h1 = hf()
     h1.update(t)
