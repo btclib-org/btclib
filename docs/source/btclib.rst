@@ -180,6 +180,14 @@ btclib.entropy module
    :undoc-members:
    :show-inheritance:
 
+btclib.exceptions module
+------------------------
+
+.. automodule:: btclib.exceptions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.hashes module
 --------------------
 
@@ -360,6 +368,14 @@ btclib.utils module
 -------------------
 
 .. automodule:: btclib.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.varbytes module
+----------------------
+
+.. automodule:: btclib.varbytes
    :members:
    :undoc-members:
    :show-inheritance:
