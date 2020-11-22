@@ -381,10 +381,6 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
 
 def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
 
-    # FIXME the following check should be enforced
-    # if key_data.depth == 0 and index[0] < 0x80:
-    #    raise UserWarning("public derivation at depth one level")
-
     # key_data is a prvkey
     if key_data.key[0] == 0:
         key_data.depth += 1

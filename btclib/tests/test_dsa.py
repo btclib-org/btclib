@@ -218,6 +218,7 @@ def test_crack_prvkey() -> None:
 
     ec = CURVES["secp256k1"]
 
+    # FIXME: make it random
     q = 0x17E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
