@@ -8,12 +8,14 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.sighash` module."
+"""Tests for `btclib.sighash` module.
+
+test vector from https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+"""
 
 import json
-import os
+from os import path
 
-# test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 from btclib import dsa, script
 from btclib.sighash import _get_legacy_scriptCodes, get_sighash, legacy_sighash
 from btclib.tx import Tx
@@ -201,14 +203,16 @@ def test_sighashsingle_bug():
 
 
 def test_sighash_json():
-    path = os.path.join(os.path.dirname(__file__), "test_data", "sighash_legacy.json")
-    with open(path) as f:
-        data = json.load(f)
-    data = data[1:]
+    fname = "sighash_legacy.json"
+    filename = path.join(path.dirname(__file__), "test_data", fname)
+    with open(filename, "r") as file_:
+        data = json.load(file_)
+    data = data[1:]  # skip column headers
     for raw_transaction, raw_script, input_index, hashType, sighash in data:
+        scriptCode = _get_legacy_scriptCodes(raw_script)[0]
+        tx = Tx.deserialize(raw_transaction)
         if hashType < 0:
             hashType = 0xFFFFFFFF + 1 + hashType
-        tx = Tx.deserialize(raw_transaction)
-        sighash = bytes.fromhex(sighash)[::-1].hex()
-        scriptCode = _get_legacy_scriptCodes(raw_script)[0]
-        assert sighash == legacy_sighash(scriptCode, tx, input_index, hashType).hex()
+        actual_sighash = legacy_sighash(scriptCode, tx, input_index, hashType)
+        expected_sighash = bytes.fromhex(sighash)[::-1]
+        assert expected_sighash == actual_sighash
