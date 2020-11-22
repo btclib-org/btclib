@@ -18,7 +18,8 @@ import pytest
 
 from btclib import dsa
 from btclib.curve import CURVES, mult
-from btclib.rfc6979 import rfc6979
+from btclib.hashes import reduce_to_hlen
+from btclib.rfc6979 import _rfc6979, rfc6979
 
 
 def test_rfc6979() -> None:
@@ -58,19 +59,20 @@ def test_rfc6979_tv() -> None:
         test_vectors = test_dict[ec_name]
         for x, x_U, y_U, hf, msg, k, r, s in test_vectors:
             x = int(x, 16)
+            m = reduce_to_hlen(msg, hf=getattr(hashlib, hf))
             # test RFC6979 implementation
-            k2 = rfc6979(msg, x, ec, getattr(hashlib, hf))
+            k2 = _rfc6979(m, x, ec, getattr(hashlib, hf))
             assert k == hex(k2)
             # test RFC6979 usage in DSA
-            sig = dsa.sign(msg, x, k2, low_s=False, ec=ec, hf=getattr(hashlib, hf))
+            sig = dsa._sign(m, x, k2, low_s=False, ec=ec, hf=getattr(hashlib, hf))
             assert r == hex(sig[0])
             assert s == hex(sig[1])
             # test that RFC6979 is the default nonce for DSA
-            sig = dsa.sign(msg, x, None, low_s=False, ec=ec, hf=getattr(hashlib, hf))
+            sig = dsa._sign(m, x, None, low_s=False, ec=ec, hf=getattr(hashlib, hf))
             assert r == hex(sig[0])
             assert s == hex(sig[1])
             # test key-pair coherence
             U = mult(x, ec.G, ec)
-            assert (int(x_U, 16), int(y_U, 16)) == U
+            assert int(x_U, 16), int(y_U, 16) == U
             # test signature validity
             dsa.assert_as_valid(msg, U, sig, ec, getattr(hashlib, hf))
