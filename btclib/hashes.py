@@ -12,6 +12,7 @@
 
 """
 
+import hashlib
 from typing import Optional, Tuple
 
 from .alias import HashF, Script, String
@@ -19,12 +20,12 @@ from .script import serialize
 from .to_pubkey import Key, pubkeyinfo_from_key
 from .utils import hash160, sha256
 
-_H160Net = Tuple[bytes, str]
+_H160_NET = Tuple[bytes, str]
 
 
 def hash160_from_key(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> _H160Net:
+) -> _H160_NET:
     """Return (public key HASH160, nettwork) from a private/public key.
 
     HASH160 is RIPEMD160(SHA256).
@@ -65,7 +66,7 @@ def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
     return hash160(pubkey)[:4]
 
 
-def reduce_to_hlen(msg: String, hf: HashF) -> bytes:
+def reduce_to_hlen(msg: String, hf: HashF = hashlib.sha256) -> bytes:
 
     if isinstance(msg, str):
         msg = msg.encode()

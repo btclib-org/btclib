@@ -10,7 +10,7 @@
 
 "Tests for `btclib.dsa` module."
 
-from hashlib import sha1, sha256
+from hashlib import sha1
 
 import pytest
 
@@ -99,9 +99,9 @@ def test_signature() -> None:
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._sign(reduce_to_hlen(msg, sha256), q, 0)
+        dsa._sign(reduce_to_hlen(msg), q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._sign(reduce_to_hlen(msg, sha256), q, ec.n)
+        dsa._sign(reduce_to_hlen(msg), q, ec.n)
 
 
 def test_gec() -> None:
@@ -221,12 +221,12 @@ def test_crack_prvkey() -> None:
     q = 0x17E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
-    m1 = reduce_to_hlen(msg1, sha256)
+    m1 = reduce_to_hlen(msg1)
     k = _rfc6979(m1, q)
     sig1 = dsa._sign(m1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
-    m2 = reduce_to_hlen(msg2, sha256)
+    m2 = reduce_to_hlen(msg2)
     # reuse same k
     sig2 = dsa._sign(m2, q, k)
 
