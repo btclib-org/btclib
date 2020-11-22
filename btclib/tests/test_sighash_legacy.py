@@ -201,7 +201,7 @@ def test_sighashsingle_bug():
 
 
 def test_sighash_json():
-    path = os.path.join(os.path.dirname(__file__), "test_data", "legacy_sighash.json")
+    path = os.path.join(os.path.dirname(__file__), "test_data", "sighash_legacy.json")
     with open(path) as f:
         data = json.load(f)
     data = data[1:]
