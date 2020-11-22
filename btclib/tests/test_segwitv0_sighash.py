@@ -11,16 +11,15 @@
 "Tests for `btclib.sighash` module."
 
 # test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-from btclib import script
-
-# from btclib.tx_in import TxIn, OutPoint
-from btclib.tx_out import TxOut
-from btclib.tx import Tx
 from btclib.sighash import (
     _get_witness_v0_scriptCodes,
     get_sighash,
     segwit_v0_sighash,
 )
+from btclib.tx import Tx
+
+# from btclib.tx_in import TxIn, OutPoint
+from btclib.tx_out import TxOut
 
 
 def test_native_p2wpkh():
