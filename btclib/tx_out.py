@@ -78,5 +78,3 @@ class TxOut(DataClassJsonMixin):
             raise BTClibValueError(f"negative value: {self.value}")
         if self.value > MAX_SATOSHI:
             raise BTClibValueError(f"value too high: {hex(self.value)}")
-        if len(self.scriptPubKey) == 0:
-            raise BTClibValueError("empty scriptPubKey")
