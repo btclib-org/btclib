@@ -458,7 +458,7 @@ def crack_prvkey(
     return _crack_prvkey(m1, sig1, m2, sig2, Q, ec, hf)
 
 
-def _batch_verify(
+def _assert_batch_as_valid(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[SSASig],
@@ -515,29 +515,51 @@ def _batch_verify(
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
-    precondition = TJ[0] * RHSZ2 % ec.p == RHSJ[0] * TZ2 % ec.p
-    if not precondition:
-        raise BTClibRuntimeError("signature verification precondition failed")
+    if (TJ[0] * RHSZ2 % ec.p != RHSJ[0] * TZ2 % ec.p) or (
+        TJ[1] * RHSZ2 * RHSJ[2] % ec.p != RHSJ[1] * TZ2 * TJ[2] % ec.p
+    ):
+        raise BTClibRuntimeError("signature verification failed")
+    return None
 
-    if TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p:
-        return None
-    raise BTClibRuntimeError("signature verification failed")  # pragma: no cover
+
+def assert_batch_as_valid(
+    ms: Sequence[String],
+    Qs: Sequence[BIP340PubKey],
+    sigs: Sequence[SSASig],
+    ec: Curve,
+    hf: HashF,
+) -> None:
+
+    ms = [reduce_to_hlen(m, hf) for m in ms]
+    return _assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+
+
+def _batch_verify(
+    ms: Sequence[Octets],
+    Qs: Sequence[BIP340PubKey],
+    sigs: Sequence[SSASig],
+    ec: Curve,
+    hf: HashF,
+) -> bool:
+
+    # all kind of Exceptions are catched because
+    # verify must always return a bool
+    try:
+        _assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    except Exception:  # pylint: disable=broad-except
+        return False
+
+    return True
 
 
 def batch_verify(
-    m: Sequence[Octets],
-    Q: Sequence[BIP340PubKey],
-    sig: Sequence[SSASig],
+    ms: Sequence[String],
+    Qs: Sequence[BIP340PubKey],
+    sigs: Sequence[SSASig],
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> bool:
     """Batch verification of BIP340 signatures."""
 
-    # all kind of Exceptions are catched because
-    # verify must always return a bool
-    try:
-        _batch_verify(m, Q, sig, ec, hf)
-    except Exception:  # pylint: disable=broad-except
-        return False
-
-    return True
+    ms = [reduce_to_hlen(m, hf) for m in ms]
+    return _batch_verify(ms, Qs, sigs, ec, hf)

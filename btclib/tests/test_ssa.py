@@ -19,7 +19,7 @@ from typing import List
 import pytest
 
 from btclib import ssa
-from btclib.alias import INF, Point
+from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
@@ -260,59 +260,63 @@ def test_batch_validation() -> None:
 
     ec = CURVES["secp256k1"]
 
-    hsize = hf().digest_size
-    hlen = hsize * 8
+    ms: List[String] = []
+    Qs: List[int] = []
+    sigs: List[ssa.SSASig] = []
+    err_msg = "no signatures provided"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ssa.assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    assert not ssa.batch_verify(ms, Qs, sigs, ec, hf)
 
-    ms = []
-    Qs = []
-    sigs = []
+    hsize = hf().digest_size
+    hlen = hsize * 4  # invalid as Octets, valid as String
     ms.append(secrets.randbits(hlen).to_bytes(hsize, "big"))
     q = 1 + secrets.randbelow(ec.n - 1)
     # bytes version
     Qs.append(mult(q, ec.G, ec)[0])
-    sigs.append(ssa._sign(ms[0], q, None, ec, hf))
+    sigs.append(ssa.sign(ms[0], q, ec, hf))
     # test with only 1 sig
-    ssa._batch_verify(ms, Qs, sigs, ec, hf)
+    ssa.assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    assert ssa.batch_verify(ms, Qs, sigs, ec, hf)
     for _ in range(3):
         m = secrets.randbits(hlen).to_bytes(hsize, "big")
         ms.append(m)
         q = 1 + secrets.randbelow(ec.n - 1)
         # Point version
         Qs.append(mult(q, ec.G, ec)[0])
-        sigs.append(ssa._sign(m, q, None, ec, hf))
-    ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        sigs.append(ssa.sign(m, q, ec, hf))
+    ssa.assert_batch_as_valid(ms, Qs, sigs, ec, hf)
     assert ssa.batch_verify(ms, Qs, sigs, ec, hf)
 
     ms.append(ms[0])
     sigs.append(sigs[1])
     Qs.append(Qs[0])
-    assert not ssa.batch_verify(ms, Qs, sigs, ec, hf)
-    err_msg = "signature verification precondition failed"
+    err_msg = "signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        ssa.assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    assert not ssa.batch_verify(ms, Qs, sigs, ec, hf)
     sigs[-1] = sigs[0]  # valid again
-
-    ms[-1] = ms[0][:-1]
-    err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, ec, hf)
-    ms[-1] = ms[0]  # valid again
 
     ms.append(ms[0])  # add extra message
     err_msg = "mismatch between number of pubkeys "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        ssa.assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    assert not ssa.batch_verify(ms, Qs, sigs, ec, hf)
     ms.pop()  # valid again
 
     sigs.append(sigs[0])  # add extra sig
     err_msg = "mismatch between number of pubkeys "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        ssa.assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    assert not ssa.batch_verify(ms, Qs, sigs, ec, hf)
     sigs.pop()  # valid again
 
-    err_msg = "no signatures provided"
+    ms = [reduce_to_hlen(m, hf) for m in ms]
+    ms[0] = ms[0][:-1]
+    err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._batch_verify([], [], [], ec, hf)
+        ssa._assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    assert not ssa._batch_verify(ms, Qs, sigs, ec, hf)
 
 
 def test_musig() -> None:
