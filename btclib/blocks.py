@@ -8,6 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Type, TypeVar
@@ -18,6 +19,13 @@ from . import tx, varint
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata, hash256
+
+if sys.version_info.minor == 6:  # python 3.6
+    from backports.datetime_fromisoformat import (  # pylint: disable=import-error
+        MonkeyPatch,
+    )
+
+    MonkeyPatch.patch_fromisoformat()
 
 _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
@@ -30,7 +38,7 @@ class BlockHeader(DataClassJsonMixin):
     time: int = field(  # TODO: fix tzinfo=timezone.utc
         metadata=config(
             encoder=lambda t: datetime.fromtimestamp(t).isoformat(),
-            decoder=lambda t: datetime.fromisoformat(t).timestamp(),
+            decoder=lambda t: datetime.fromisoformat(t).timestamp(),  # type: ignore
         ),
     )
     bits: bytes = field(
