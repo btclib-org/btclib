@@ -8,7 +8,7 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
-- nothing relevant yet
+- fixed ssa batch verification functions' logic
 
 ## v2020.12
 
