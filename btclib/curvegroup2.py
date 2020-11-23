@@ -42,7 +42,7 @@ TODO:
 
 
 from math import ceil
-from typing import List
+from typing import List, Tuple
 
 from .alias import INFJ, JacPoint
 from .curvegroup import CurveGroup, _double_mult, convert_number_to_base
@@ -91,48 +91,6 @@ def wNAF_of_m(m: int, w: int) -> List[int]:
         i += 1
 
     return M
-
-
-# Values for the efficient endomorphism multiplication
-# see D. Hankerson, 'Guide to Elliptic Curve Cryptography' chapter 3.5
-lam = 0x5363AD4CC05C30E0A5261C028812645A122E22EA20816678DF02967C1B23BD72
-beta = 0x7AE96A2B657C07106E64479EAC3434E99CF0497512F58995C1396C28719501EE
-
-
-def values_for_mult_decomposer(ec: CurveGroup) -> List[int]:
-    """Values for balanced length-two representation of a multiplier m, for
-    point multiplication with efficiently computable endomorphisms. These are the values for
-    secp256k1. For reference and direct calculation see
-    https://medium.com/@CoinExChain/acceleration-of-ecdsa-verification-with-endomorphism-mapping-of-secp256k1-126e77a51dba"""
-
-    a1 = 0x3086D221A7D46BCDE86C90E49284EB15 % ec.p
-    b1 = -0xE4437ED6010E88286F547FA90ABFE4C3 % ec.p
-    a2 = 0x114CA50F7A8E2F3F657C1108D9D44CFD8 % ec.p
-    b2 = 0x3086D221A7D46BCDE86C90E49284EB15 % ec.p
-
-    return [a1, a2, b1, b2]
-
-
-def multiplier_decomposer(m: int, ec: CurveGroup) -> List[int]:
-    """Decompose m in two integers m1 e m2 so that mP = m1*P + m2*lambda*P, , for
-    point multiplication with efficiently computable endomorphisms. Based on alghoritm 3.74 of
-    D. Hankerson, 'Guide to Elliptic Curve Cryptography' and the values computed for secp256k1"""
-
-    T = values_for_mult_decomposer(ec)
-    a1 = T[0]
-    a2 = T[1]
-    b1 = T[2]
-    b2 = T[3]
-
-    m %= ec.p
-
-    c1 = ceil(b2 * m / ec.p)
-    c2 = ceil((-1) * b1 * m / ec.p)
-
-    m1 = m - (a1 * c1) - (a2 * c2)
-    m2 = -(c1 * b1) - (c2 * b2)
-
-    return [m1, m2]
 
 
 def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
@@ -248,19 +206,49 @@ def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     return R
 
 
-def _mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
-    "Scalar multiplication in Jacobian coordinates using efficient endomorphism."
+def multiplier_decomposer(m: int, ec: CurveGroup) -> Tuple[int, int]:
+    """Decompose m in two integers m1 e m2 so that mP = m1*P + m2*lambda*P.
 
-    # FIXME: Change double mult (?) with alghoritm 3.77
+    Used for point multiplication with efficiently computable endomorphisms.
+
+    Based on alghoritm 3.74 of
+    D. Hankerson, 'Guide to Elliptic Curve Cryptography'.
+    Values computed for secp256k1.
+    """
 
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
-    T = multiplier_decomposer(m, ec)
+    m %= ec.p
 
-    m1 = T[0] % ec.p
-    m2 = T[1] % ec.p
+    # balanced length-two representation of a multiplier m.
+    # values for secp256k1.
+    # https://medium.com/@CoinExChain/acceleration-of-ecdsa-verification-with-endomorphism-mapping-of-secp256k1-126e77a51dba
+    a1 = 0x3086D221A7D46BCDE86C90E49284EB15 % ec.p
+    b1 = -0xE4437ED6010E88286F547FA90ABFE4C3 % ec.p
+    a2 = 0x114CA50F7A8E2F3F657C1108D9D44CFD8 % ec.p
+    b2 = 0x3086D221A7D46BCDE86C90E49284EB15 % ec.p
+
+    c1 = ceil(b2 * m / ec.p)
+    c2 = ceil((-1) * b1 * m / ec.p)
+
+    m1 = m - (a1 * c1) - (a2 * c2)
+    m2 = -(c1 * b1) - (c2 * b2)
+
+    return m1 % ec.p, m2 % ec.p
+
+
+def _mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    "Scalar multiplication in Jacobian coordinates using efficient endomorphism."
+
+    m1, m2 = multiplier_decomposer(m, ec)
+
+    # Values for the efficient endomorphism multiplication
+    # see D. Hankerson, 'Guide to Elliptic Curve Cryptography' chapter 3.5
+    # lam = 0x5363AD4CC05C30E0A5261C028812645A122E22EA20816678DF02967C1B23BD72
+    beta = 0x7AE96A2B657C07106E64479EAC3434E99CF0497512F58995C1396C28719501EE
 
     K = ((Q[0] * beta) % ec.p), Q[1], Q[2]  # K = lambda*Q, direct calculation
 
+    # FIXME: Change double mult (?) with alghoritm 3.77
     return _double_mult(m1, Q, m2, K, ec)
