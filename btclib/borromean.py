@@ -34,8 +34,8 @@ PubkeyRing = Dict[int, List[Point]]
 
 def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
     for pubk_ring in pubk_rings.values():
-        for P in pubk_ring:
-            msg += bytes_from_point(P, ec)
+        for Q in pubk_ring:
+            msg += bytes_from_point(Q, ec)
     return hf(msg).digest()
 
 

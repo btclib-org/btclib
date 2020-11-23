@@ -59,9 +59,9 @@ def test_int_from_integer() -> None:
 
 
 def test_hex_string() -> None:
-    a = 34492435054806958080
-    assert hex_string(a) == "01 DEADBEEF 00000000"
-    assert hex_string(hex(a).lower()) == "01 DEADBEEF 00000000"
+    int_ = 34492435054806958080
+    assert hex_string(int_) == "01 DEADBEEF 00000000"
+    assert hex_string(hex(int_).lower()) == "01 DEADBEEF 00000000"
 
     a_str = "01de adbeef00000000"
     assert hex_string(a_str) == "01 DEADBEEF 00000000"
@@ -73,9 +73,9 @@ def test_hex_string() -> None:
     with pytest.raises(ValueError, match="non-hexadecimal number found in fromhex"):
         hex_string(a_str)
 
-    a = -1
+    int_ = -1
     with pytest.raises(BTClibValueError, match="negative integer: "):
-        hex_string(a)
+        hex_string(int_)
 
 
 def test_printable() -> None:

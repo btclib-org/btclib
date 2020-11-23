@@ -81,12 +81,12 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     return q
 
 
-PrvKeyInfo = Tuple[int, str, bool]
+PrvkeyInfo = Tuple[int, str, bool]
 
 
 def _prvkeyinfo_from_wif(
     wif: String, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> PrvKeyInfo:
+) -> PrvkeyInfo:
     """Return private key tuple(int, compressed, network) from a WIF.
 
     WIF is always compressed and includes network information:
@@ -128,7 +128,7 @@ def _prvkeyinfo_from_wif(
 
 def _prvkeyinfo_from_xprv(
     xprv: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> PrvKeyInfo:
+) -> PrvkeyInfo:
     """Return prvkey tuple (int, compressed, network) from BIP32 xprv.
 
     BIP32Key is always compressed and includes network information:
@@ -164,7 +164,7 @@ def _prvkeyinfo_from_xprv(
 
 def _prvkeyinfo_from_xprvwif(
     xprvwif: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> PrvKeyInfo:
+) -> PrvkeyInfo:
     """Return prvkey tuple (int, compressed, network) from WIF/BIP32.
 
     Support WIF or BIP32 xprv.
@@ -182,7 +182,7 @@ def _prvkeyinfo_from_xprvwif(
 
 def prvkeyinfo_from_prvkey(
     prvkey: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> PrvKeyInfo:
+) -> PrvkeyInfo:
 
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network

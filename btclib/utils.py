@@ -28,50 +28,50 @@ from .exceptions import BTClibTypeError, BTClibValueError
 #    return byte_str.hex()
 
 
-def sha256(o: Octets) -> bytes:
+def sha256(octets: Octets) -> bytes:
     "Return the SHA256(*) of the input octet sequence."
 
-    o = bytes_from_octets(o)
-    return hashlib.sha256(o).digest()
+    octets = bytes_from_octets(octets)
+    return hashlib.sha256(octets).digest()
 
 
-def hash160(o: Octets) -> bytes:
+def hash160(octets: Octets) -> bytes:
     "Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."
 
-    t = sha256(o)
+    t = sha256(octets)
     return hashlib.new("ripemd160", t).digest()
 
 
-def hash256(o: Octets) -> bytes:
+def hash256(octets: Octets) -> bytes:
     "Return the SHA256(SHA256(*)) of the input octet sequence."
 
-    t = sha256(o)
+    t = sha256(octets)
     return hashlib.sha256(t).digest()
 
 
 NoneOneOrMoreInt = Optional[Union[int, Iterable[int]]]
 
 
-def bytes_from_octets(o: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
+def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
     If the input is not a string, then it goes untouched.
     Optionally, it also ensures required output size.
     """
 
-    if isinstance(o, str):  # hex string
-        o = bytes.fromhex(o)
+    if isinstance(octets, str):  # hex string
+        octets = bytes.fromhex(octets)
 
     if (
         out_size is None
         or isinstance(out_size, int)
-        and len(o) == out_size
+        and len(octets) == out_size
         or isinstance(out_size, IterableCollection)
-        and len(o) in out_size
+        and len(octets) in out_size
     ):
-        return o
+        return octets
 
-    m = f"invalid size: {len(o)} bytes instead of {out_size}"
+    m = f"invalid size: {len(octets)} bytes instead of {out_size}"
     raise BTClibValueError(m)
 
 
@@ -91,7 +91,7 @@ def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
     return stream
 
 
-def int_from_bits(o: Octets, nlen: int) -> int:
+def int_from_bits(octets: Octets, nlen: int) -> int:
     """Return the leftmost nlen bits.
 
     Take as input a sequence of blen bits and calculate a
@@ -108,10 +108,10 @@ def int_from_bits(o: Octets, nlen: int) -> int:
     See https://tools.ietf.org/html/rfc6979#section-2.3.5.
     """
 
-    o = bytes_from_octets(o)
-    i = int.from_bytes(o, byteorder="big")
+    octets = bytes_from_octets(octets)
+    i = int.from_bytes(octets, byteorder="big")
 
-    blen = len(o) * 8  # bits
+    blen = len(octets) * 8  # bits
     n = (blen - nlen) if blen >= nlen else 0
     return i >> n
 
@@ -154,10 +154,10 @@ def hex_string(i: Integer) -> str:
     includes a space every four bytes (i.e. every eight hex-digits).
     """
 
-    a = int_from_integer(i)
-    if a < 0:
-        raise BTClibValueError(f"negative integer: {a}")
-    a_str = hex(a)[2:]
+    int_ = int_from_integer(i)
+    if int_ < 0:
+        raise BTClibValueError(f"negative integer: {int_}")
+    a_str = hex(int_)[2:]
     if len(a_str) % 2 != 0:
         a_str = "0" + a_str
 

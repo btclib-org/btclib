@@ -106,12 +106,12 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
 #    return mult(q, ec.G, ec)
 
 
-PubKeyInfo = Tuple[bytes, str]
+PubkeyInfo = Tuple[bytes, str]
 
 
 def _pubkeyinfo_from_xpub(
     xpub: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> PubKeyInfo:
+) -> PubkeyInfo:
     """Return the pubkey tuple (SEC-bytes, network) from a BIP32 xpub.
 
     BIP32Key is always compressed and includes network information:
@@ -146,7 +146,7 @@ def _pubkeyinfo_from_xpub(
 
 def pubkeyinfo_from_key(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> PubKeyInfo:
+) -> PubkeyInfo:
     "Return the pub key tuple (SEC-bytes, network) from a pub/prv key."
 
     if isinstance(key, tuple):
@@ -174,7 +174,7 @@ def pubkeyinfo_from_key(
 
 def pubkeyinfo_from_pubkey(
     pubkey: PubKey, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> PubKeyInfo:
+) -> PubkeyInfo:
     "Return the pub key tuple (SEC-bytes, network) from a public key."
 
     compr = True if compressed is None else compressed
@@ -213,11 +213,10 @@ def pubkeyinfo_from_pubkey(
 
 def pubkeyinfo_from_prvkey(
     prvkey: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> PubKeyInfo:
+) -> PubkeyInfo:
     "Return the pub key tuple (SEC-bytes, network) from a private key."
 
     q, net, compr = prvkeyinfo_from_prvkey(prvkey, network, compressed)
     ec = NETWORKS[net].curve
-    Pub = mult(q, ec.G, ec)
-    pubkey = bytes_from_point(Pub, ec, compr)
-    return pubkey, net
+    pubkey = mult(q, ec.G, ec)
+    return bytes_from_point(pubkey, ec, compr), net

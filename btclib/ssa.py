@@ -412,31 +412,31 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
 
 
 def _crack_prvkey(
-    m1: Octets,
+    m_1: Octets,
     sig1: SSASig,
-    m2: Octets,
+    m_2: Octets,
     sig2: SSASig,
     Q: BIP340PubKey,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    m1 = bytes_from_octets(m1, hf().digest_size)
-    m2 = bytes_from_octets(m2, hf().digest_size)
+    m_1 = bytes_from_octets(m_1, hf().digest_size)
+    m_2 = bytes_from_octets(m_2, hf().digest_size)
 
-    r1, s1 = deserialize(sig1, ec)
-    r2, s2 = deserialize(sig2, ec)
-    if r1 != r2:
+    r_1, s_1 = deserialize(sig1, ec)
+    r_2, s_2 = deserialize(sig2, ec)
+    if r_1 != r_2:
         raise BTClibValueError("not the same r in signatures")
-    if s1 == s2:
+    if s_1 == s_2:
         raise BTClibValueError("identical signatures")
 
     x_Q = point_from_bip340pubkey(Q, ec)[0]
 
-    c1 = _challenge(m1, x_Q, r1, ec, hf)
-    c2 = _challenge(m2, x_Q, r2, ec, hf)
-    q = (s1 - s2) * mod_inv(c2 - c1, ec.n) % ec.n
-    k = (s1 + c1 * q) % ec.n
+    c_1 = _challenge(m_1, x_Q, r_1, ec, hf)
+    c_2 = _challenge(m_2, x_Q, r_2, ec, hf)
+    q = (s_1 - s_2) * mod_inv(c_2 - c_1, ec.n) % ec.n
+    k = (s_1 + c_1 * q) % ec.n
     q, _ = gen_keys(q)
     k, _ = gen_keys(k)
     return q, k
@@ -452,10 +452,10 @@ def crack_prvkey(
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    m1 = reduce_to_hlen(msg1, hf)
-    m2 = reduce_to_hlen(msg2, hf)
+    m_1 = reduce_to_hlen(msg1, hf)
+    m_2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prvkey(m1, sig1, m2, sig2, Q, ec, hf)
+    return _crack_prvkey(m_1, sig1, m_2, sig2, Q, ec, hf)
 
 
 def _assert_batch_as_valid(
@@ -471,13 +471,13 @@ def _assert_batch_as_valid(
         raise BTClibValueError("no signatures provided")
 
     if len(ms) != batch_size:
-        errMsg = f"mismatch between number of pubkeys ({batch_size}) "
-        errMsg += f"and number of messages ({len(ms)})"
-        raise BTClibValueError(errMsg)
+        err_msg = f"mismatch between number of pubkeys ({batch_size}) "
+        err_msg += f"and number of messages ({len(ms)})"
+        raise BTClibValueError(err_msg)
     if len(sigs) != batch_size:
-        errMsg = f"mismatch between number of pubkeys ({batch_size}) "
-        errMsg += f"and number of signatures ({len(sigs)})"
-        raise BTClibValueError(errMsg)
+        err_msg = f"mismatch between number of pubkeys ({batch_size}) "
+        err_msg += f"and number of signatures ({len(sigs)})"
+        raise BTClibValueError(err_msg)
 
     if batch_size == 1:
         _assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)

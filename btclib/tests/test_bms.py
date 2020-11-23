@@ -505,8 +505,8 @@ def test_vector_python_bitcoinlib() -> None:
         # python-bitcoinlib does not use RFC6979 deterministic nonce
         # as proved by different r compared to Core/Electrum/btclib
         rf, r, s = tuplesig
-        _, r0, _ = bms.decode(vector["signature"])
-        assert r != r0
+        _, r_0, _ = bms.decode(vector["signature"])
+        assert r != r_0
 
         # while Core/Electrum/btclib use "low-s" canonical signature
         assert s < ec.n - s

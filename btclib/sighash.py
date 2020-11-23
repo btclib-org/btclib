@@ -82,14 +82,14 @@ def segwit_v0(
         hash_seq = b"\x00" * 32
 
     if hashtype_hex[1] not in ("2", "3"):
-        hashOutputs = b""
+        hash_outputs = b""
         for vout in transaction.vout:
-            hashOutputs += vout.serialize()
-        hashOutputs = hash256(hashOutputs)
+            hash_outputs += vout.serialize()
+        hash_outputs = hash256(hash_outputs)
     elif hashtype_hex[1] == "3" and input_index < len(transaction.vout):
-        hashOutputs = hash256(transaction.vout[input_index].serialize())
+        hash_outputs = hash256(transaction.vout[input_index].serialize())
     else:
-        hashOutputs = b"\x00" * 32
+        hash_outputs = b"\x00" * 32
 
     outpoint = _get_bytes(transaction.vin[input_index].prevout.txid)[::-1]
     outpoint += transaction.vin[input_index].prevout.vout.to_bytes(4, "little")
@@ -101,7 +101,7 @@ def segwit_v0(
     preimage += varbytes.encode(script_code)
     preimage += amount.to_bytes(8, "little")  # value
     preimage += transaction.vin[input_index].sequence.to_bytes(4, "little")
-    preimage += hashOutputs
+    preimage += hash_outputs
     preimage += transaction.locktime.to_bytes(4, "little")
     preimage += bytes.fromhex(hashtype_hex)
 

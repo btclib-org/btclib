@@ -42,12 +42,12 @@ all_curves.update(CURVES)
 def test_octets2point() -> None:
     for ec in all_curves.values():
 
-        Gbytes = bytes_from_point(ec.G, ec)
-        G2 = point_from_octets(Gbytes, ec)
+        G_bytes = bytes_from_point(ec.G, ec)
+        G2 = point_from_octets(G_bytes, ec)
         assert ec.G == G2
 
-        Gbytes = bytes_from_point(ec.G, ec, False)
-        G2 = point_from_octets(Gbytes, ec)
+        G_bytes = bytes_from_point(ec.G, ec, False)
+        G2 = point_from_octets(G_bytes, ec)
         assert ec.G == G2
 
         # just a random point, not INF

@@ -68,7 +68,7 @@ class CurveGroup:
         # byte-length
         self.psize = ceil(plen / 8)
         # must be true to break simmetry using quadratic residue
-        self.pIsThreeModFour = p % 4 == 3
+        self.p_is_3_mod_4 = p % 4 == 3
         self.p = p
 
         # 2. check that a and b are integers in the interval [0, p−1]
@@ -356,7 +356,7 @@ class CurveGroup:
     def y_quadratic_residue(self, x: int) -> int:
         """Return the quadratic residue affine y-coordinate."""
 
-        if not self.pIsThreeModFour:
+        if not self.p_is_3_mod_4:
             m = "field prime is not equal to 3 mod 4: "
             m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
             raise BTClibValueError(m)
@@ -734,7 +734,7 @@ def _double_mult(
 
 
 def _multi_mult(
-    scalars: Sequence[int], JPoints: Sequence[JacPoint], ec: CurveGroup
+    scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup
 ) -> JacPoint:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
@@ -746,14 +746,14 @@ def _multi_mult(
     """
     # source: https://cr.yp.to/badbatch/boscoster2.py
 
-    if len(scalars) != len(JPoints):
-        errMsg = "mismatch between number of scalars and points: "
-        errMsg += f"{len(scalars)} vs {len(JPoints)}"
-        raise BTClibValueError(errMsg)
+    if len(scalars) != len(jac_points):
+        err_msg = "mismatch between number of scalars and points: "
+        err_msg += f"{len(scalars)} vs {len(jac_points)}"
+        raise BTClibValueError(err_msg)
 
-    # x = list(zip([-n for n in scalars], JPoints))
+    # x = list(zip([-n for n in scalars], jac_points))
     x: List[Tuple[int, JacPoint]] = []
-    for n, PJ in zip(scalars, JPoints):
+    for n, PJ in zip(scalars, jac_points):
         if n == 0:  # mandatory check to avoid infinite loop
             continue
         if n < 0:
@@ -767,15 +767,15 @@ def _multi_mult(
     while len(x) > 1:
         np1 = heapq.heappop(x)
         np2 = heapq.heappop(x)
-        n1, p1 = -np1[0], np1[1]
-        n2, p2 = -np2[0], np2[1]
-        p2 = ec._add_jac(p1, p2)
-        n1 -= n2
-        if n1 > 0:
-            heapq.heappush(x, (-n1, p1))
-        heapq.heappush(x, (-n2, p2))
+        n_1, p_1 = -np1[0], np1[1]
+        n_2, p_2 = -np2[0], np2[1]
+        p_2 = ec._add_jac(p_1, p_2)
+        n_1 -= n_2
+        if n_1 > 0:
+            heapq.heappush(x, (-n_1, p_1))
+        heapq.heappush(x, (-n_2, p_2))
     np1 = heapq.heappop(x)
-    n1, p1 = -np1[0], np1[1]
-    # assert n1 < ec.n, "better to take the mod n"
-    # n1 %= ec.n
-    return _mult(n1, p1, ec)
+    n_1, p_1 = -np1[0], np1[1]
+    # assert n_1 < ec.n, "better to take the mod n"
+    # n_1 %= ec.n
+    return _mult(n_1, p_1, ec)

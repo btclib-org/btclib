@@ -184,11 +184,11 @@ def test_low_cardinality() -> None:
                     # valid signature must pass verification
                     dsa.__assert_as_valid(e, QJ, r, s, ec)
 
-                    JacobianKeys = dsa.__recover_pubkeys(e, r, s, ec)
+                    jacobian_keys = dsa.__recover_pubkeys(e, r, s, ec)
                     # FIXME speed this up
-                    Qs = [ec._aff_from_jac(key) for key in JacobianKeys]
+                    Qs = [ec._aff_from_jac(key) for key in jacobian_keys]
                     assert ec._aff_from_jac(QJ) in Qs
-                    assert len(JacobianKeys) in (2, 4)
+                    assert len(jacobian_keys) in (2, 4)
 
 
 def test_pubkey_recovery() -> None:
@@ -222,14 +222,14 @@ def test_crack_prvkey() -> None:
     q = 0x17E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
-    m1 = reduce_to_hlen(msg1)
-    k = _rfc6979(m1, q)
-    sig1 = dsa._sign(m1, q, k)
+    m_1 = reduce_to_hlen(msg1)
+    k = _rfc6979(m_1, q)
+    sig1 = dsa._sign(m_1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
-    m2 = reduce_to_hlen(msg2)
+    m_2 = reduce_to_hlen(msg2)
     # reuse same k
-    sig2 = dsa._sign(m2, q, k)
+    sig2 = dsa._sign(m_2, q, k)
 
     qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
     assert q in (qc, ec.n - qc)
@@ -252,24 +252,24 @@ def test_forge_hash_sig() -> None:
     # see https://twitter.com/pwuille/status/1063582706288586752
     # Satoshi's key
     key = "03 11db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5c"
-    P = point_from_octets(key, ec)
+    Q = point_from_octets(key, ec)
 
     # pick u1 and u2 at will
     u1 = 1
     u2 = 2
-    R = double_mult(u2, P, u1, ec.G, ec)
+    R = double_mult(u2, Q, u1, ec.G, ec)
     r = R[0] % ec.n
     u2inv = mod_inv(u2, ec.n)
     s = r * u2inv % ec.n
     e = s * u1 % ec.n
-    dsa.__assert_as_valid(e, (P[0], P[1], 1), r, s, ec)
+    dsa.__assert_as_valid(e, (Q[0], Q[1], 1), r, s, ec)
 
     # pick u1 and u2 at will
     u1 = 1234567890
     u2 = 987654321
-    R = double_mult(u2, P, u1, ec.G, ec)
+    R = double_mult(u2, Q, u1, ec.G, ec)
     r = R[0] % ec.n
     u2inv = mod_inv(u2, ec.n)
     s = r * u2inv % ec.n
     e = s * u1 % ec.n
-    dsa.__assert_as_valid(e, (P[0], P[1], 1), r, s, ec)
+    dsa.__assert_as_valid(e, (Q[0], Q[1], 1), r, s, ec)

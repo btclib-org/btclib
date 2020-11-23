@@ -45,32 +45,32 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     Second (with respect to G) Nothing-Up-My-Sleeve (NUMS)
     elliptic curve generator.
 
-    The hash of G is coerced it to a point (hx, hy).
+    The hash of G is coerced it to a point (x_H, y_H).
     If the resulting point is not on the curve, keep on
-    incrementing hx until a valid curve point (hx, hy) is obtained.
+    incrementing x_H until a valid curve point (x_H, y_H) is obtained.
 
     idea:
     https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve
 
     source:
-    https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
+    https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.hash_
     """
 
     compressed = False
     G_bytes = bytes_from_point(ec.G, ec, compressed)
-    h = hf()
-    h.update(G_bytes)
-    hd = h.digest()
-    hx = int_from_bits(hd, ec.nlen) % ec.n
-    isCurvePoint = False
-    while not isCurvePoint:
+    hash_ = hf()
+    hash_.update(G_bytes)
+    hash_digest = hash_.digest()
+    x_H = int_from_bits(hash_digest, ec.nlen) % ec.n
+    is_curve_point = False
+    while not is_curve_point:
         try:
-            hy = ec.y_even(hx)
-            isCurvePoint = True
+            y_H = ec.y_even(x_H)
+            is_curve_point = True
         except BTClibValueError:
-            hx += 1
-            hx %= ec.p
-    return hx, hy
+            x_H += 1
+            x_H %= ec.p
+    return x_H, y_H
 
 
 def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
@@ -93,7 +93,7 @@ def verify(r: int, v: int, C: Point, ec: Curve = secp256k1, hf: HashF = sha256) 
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        P = commit(r, v, ec, hf)
+        Q = commit(r, v, ec, hf)
     except Exception:  # pylint: disable=broad-except
         return False
-    return C == P
+    return C == Q

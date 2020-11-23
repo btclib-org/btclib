@@ -29,7 +29,7 @@ TODO:
     - New alghoritms at the state-of-art:
         -https://hal.archives-ouvertes.fr/hal-00932199/document
         -https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
-        -1-s2.0-S1071579704000395-main
+        -1-s_2.0-S1071579704000395-main
         -https://crypto.stackexchange.com/questions/58506/what-is-the-curve-type-of-secp256k1
     - Multi_mult algorithm: why does it work?
     - Peter Dettman's field inverses and square roots using a sliding window over blocks of 1s

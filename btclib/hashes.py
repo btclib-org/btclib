@@ -20,12 +20,12 @@ from .script import serialize
 from .to_pubkey import Key, pubkeyinfo_from_key
 from .utils import hash160, sha256
 
-_H160_NET = Tuple[bytes, str]
+H160_Net = Tuple[bytes, str]
 
 
 def hash160_from_key(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> _H160_NET:
+) -> H160_Net:
     """Return (public key HASH160, nettwork) from a private/public key.
 
     HASH160 is RIPEMD160(SHA256).

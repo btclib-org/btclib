@@ -104,10 +104,10 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DSASigTuple:
 
     KJ = _mult(k, ec.GJ, ec)  # 1
 
-    # affine x-coordinate of K (field element)
-    K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
+    # affine x_K-coordinate of K (field element)
+    x_K = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
     # mod n makes it a scalar
-    r = K_x % ec.n  # 2, 3
+    r = x_K % ec.n  # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
         raise BTClibRuntimeError("failed to sign: r = 0")
 
@@ -204,16 +204,15 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # edge case that cannot be reproduced in the test suite
     assert KJ[2] != 0, "invalid (INF) key"  # 5
 
-    # affine x-coordinate of K
-    K_x = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
-    x = K_x % ec.n  # 6, 7
-    # Fail if r ≠ K_x %n.
-    if r != x:  # 8
+    # affine x_K-coordinate of K
+    x_K = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
+    # Fail if r ≠ x_K %n.
+    if r != x_K % ec.n:  # 6, 7, 8
         raise BTClibRuntimeError("signature verification failed")
 
 
 def _assert_as_valid(
-    m: Octets, P: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets, key: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -224,7 +223,7 @@ def _assert_as_valid(
     m = bytes_from_octets(m, hf().digest_size)
     c = _challenge(m, ec, hf)  # 2, 3
 
-    Q = point_from_key(P, ec)
+    Q = point_from_key(key, ec)
     QJ = Q[0], Q[1], 1
 
     # second part delegated to helper function
@@ -232,24 +231,24 @@ def _assert_as_valid(
 
 
 def assert_as_valid(
-    msg: String, P: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, key: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     m = reduce_to_hlen(msg, hf)
-    _assert_as_valid(m, P, sig, ec, hf)
+    _assert_as_valid(m, key, sig, ec, hf)
 
 
 def _verify(
-    m: Octets, P: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets, key: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        _assert_as_valid(m, P, sig, ec, hf)
+        _assert_as_valid(m, key, sig, ec, hf)
     except Exception:  # pylint: disable=broad-except
         return False
     else:
@@ -257,12 +256,12 @@ def _verify(
 
 
 def verify(
-    msg: String, P: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, key: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _verify(m, P, sig, ec, hf)
+    return _verify(m, key, sig, ec, hf)
 
 
 def recover_pubkeys(
@@ -304,37 +303,37 @@ def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     # Private function provided for testing purposes only.
 
     # precomputations
-    r1 = mod_inv(r, ec.n)
-    r1s = r1 * s % ec.n
-    r1e = -r1 * c % ec.n
+    r_1 = mod_inv(r, ec.n)
+    r1s = r_1 * s % ec.n
+    r1e = -r_1 * c % ec.n
     keys: List[JacPoint] = []
     # r = K[0] % ec.n
-    # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
-    # then both x=r and x=r+ec.n must be tested
-    for j in range(ec.h + 1):  # 1
-        # affine x-coordinate of K (field element)
-        x = (r + j * ec.n) % ec.p  # 1.1
-        # two possible y-coordinates, i.e. two possible keys for each cycle
+    # if ec.n < K[0] < ec.p (likely when cofactor ec.cofactor > 1)
+    # then both x_K=r and x_K=r+ec.n must be tested
+    for j in range(ec.cofactor + 1):  # 1
+        # affine x_K-coordinate of K (field element)
+        x_K = (r + j * ec.n) % ec.p  # 1.1
+        # two possible y_K-coordinates, i.e. two possible keys for each cycle
         try:
             # even root first for bitcoin message signing compatibility
-            yodd = ec.y_even(x)
-            KJ = x, yodd, 1  # 1.2, 1.3, and 1.4
+            yodd = ec.y_even(x_K)
+            KJ = x_K, yodd, 1  # 1.2, 1.3, and 1.4
             # 1.5 has been performed in the recover_pubkeys calling function
-            Q1J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
+            QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
             try:
-                __assert_as_valid(c, Q1J, r, s, ec)  # 1.6.2
+                __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
             except (BTClibValueError, BTClibRuntimeError):
                 pass
             else:
-                keys.append(Q1J)  # 1.6.2
-            KJ = x, ec.p - yodd, 1  # 1.6.3
-            Q2J = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
+                keys.append(QJ)  # 1.6.2
+            KJ = x_K, ec.p - yodd, 1  # 1.6.3
+            QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
             try:
-                __assert_as_valid(c, Q2J, r, s, ec)  # 1.6.2
+                __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
             except (BTClibValueError, BTClibRuntimeError):
                 pass
             else:
-                keys.append(Q2J)  # 1.6.2
+                keys.append(QJ)  # 1.6.2
         except (BTClibValueError, BTClibRuntimeError):  # K is not a curve point
             pass
     return keys
@@ -344,20 +343,20 @@ def __recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint
     # Private function provided for testing purposes only.
 
     # precomputations
-    r1 = mod_inv(r, ec.n)
-    r1s = r1 * s % ec.n
-    r1e = -r1 * c % ec.n
+    r_1 = mod_inv(r, ec.n)
+    r1s = r_1 * s % ec.n
+    r1e = -r_1 * c % ec.n
     # r = K[0] % ec.n
-    # if ec.n < K[0] < ec.p (likely when cofactor ec.h > 1)
-    # then both x=r and x=r+ec.n must be tested
+    # if ec.n < K[0] < ec.p (likely when cofactor ec.cofactor > 1)
+    # then both x_K=r and x_K=r+ec.n must be tested
     j = key_id & 0b110  # allow for key_id in [0, 7]
-    x = (r + j * ec.n) % ec.p  # 1.1
+    x_K = (r + j * ec.n) % ec.p  # 1.1
 
     # even root first for Bitcoin Core compatibility
     i = key_id & 0b01
-    y_even = ec.y_even(x)
-    y = ec.p - y_even if i else y_even
-    KJ = x, y, 1  # 1.2, 1.3, and 1.4
+    y_even = ec.y_even(x_K)
+    y_K = ec.p - y_even if i else y_even
+    KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pubkeys calling function
     QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
     __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
@@ -365,30 +364,30 @@ def __recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint
 
 
 def _crack_prvkey(
-    m1: Octets,
+    m_1: Octets,
     sig1: DSASig,
-    m2: Octets,
+    m_2: Octets,
     sig2: DSASig,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    r1, s1 = deserialize(sig1, ec)
-    r2, s2 = deserialize(sig2, ec)
-    if r1 != r2:
+    r_1, s_1 = deserialize(sig1, ec)
+    r_2, s_2 = deserialize(sig2, ec)
+    if r_1 != r_2:
         raise BTClibValueError("not the same r in signatures")
-    if s1 == s2:
+    if s_1 == s_2:
         raise BTClibValueError("identical signatures")
 
     # The message m: a hlen array
     hlen = hf().digest_size
-    m1 = bytes_from_octets(m1, hlen)
-    m2 = bytes_from_octets(m2, hlen)
+    m_1 = bytes_from_octets(m_1, hlen)
+    m_2 = bytes_from_octets(m_2, hlen)
 
-    c1 = _challenge(m1, ec, hf)
-    c2 = _challenge(m2, ec, hf)
-    k = (c1 - c2) * mod_inv(s1 - s2, ec.n) % ec.n
-    q = (s2 * k - c2) * mod_inv(r1, ec.n) % ec.n
+    c_1 = _challenge(m_1, ec, hf)
+    c_2 = _challenge(m_2, ec, hf)
+    k = (c_1 - c_2) * mod_inv(s_1 - s_2, ec.n) % ec.n
+    q = (s_2 * k - c_2) * mod_inv(r_1, ec.n) % ec.n
     return q, k
 
 
@@ -401,7 +400,7 @@ def crack_prvkey(
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    m1 = reduce_to_hlen(msg1, hf)
-    m2 = reduce_to_hlen(msg2, hf)
+    m_1 = reduce_to_hlen(msg1, hf)
+    m_2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prvkey(m1, sig1, m2, sig2, ec, hf)
+    return _crack_prvkey(m_1, sig1, m_2, sig2, ec, hf)

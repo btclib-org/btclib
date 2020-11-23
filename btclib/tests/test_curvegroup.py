@@ -49,14 +49,14 @@ def test_mult_recursive_aff() -> None:
         assert _mult_recursive_aff(1, INF, ec) == INF
         assert _mult_aff(1, ec.G, ec) == ec.G
 
-        P = ec._add_aff(ec.G, ec.G)
-        assert P == _mult_recursive_aff(2, ec.G, ec)
+        Q = ec._add_aff(ec.G, ec.G)
+        assert Q == _mult_recursive_aff(2, ec.G, ec)
 
-        P = _mult_recursive_aff(ec.n - 1, ec.G, ec)
-        assert ec.negate(ec.G) == P
+        Q = _mult_recursive_aff(ec.n - 1, ec.G, ec)
+        assert ec.negate(ec.G) == Q
         assert _mult_recursive_aff(ec.n - 1, INF, ec) == INF
 
-        assert ec._add_aff(P, ec.G) == INF
+        assert ec._add_aff(Q, ec.G) == INF
         assert _mult_recursive_aff(ec.n, ec.G, ec) == INF
         assert _mult_recursive_aff(ec.n, INF, ec) == INF
 
@@ -111,14 +111,14 @@ def test_mult_aff() -> None:
         assert _mult_aff(1, INF, ec) == INF
         assert _mult_aff(1, ec.G, ec) == ec.G
 
-        P = ec._add_aff(ec.G, ec.G)
-        assert P == _mult_aff(2, ec.G, ec)
+        Q = ec._add_aff(ec.G, ec.G)
+        assert Q == _mult_aff(2, ec.G, ec)
 
-        P = _mult_aff(ec.n - 1, ec.G, ec)
-        assert ec.negate(ec.G) == P
+        Q = _mult_aff(ec.n - 1, ec.G, ec)
+        assert ec.negate(ec.G) == Q
         assert _mult_aff(ec.n - 1, INF, ec) == INF
 
-        assert ec._add_aff(P, ec.G) == INF
+        assert ec._add_aff(Q, ec.G) == INF
         assert _mult_aff(ec.n, ec.G, ec) == INF
         assert _mult_aff(ec.n, INF, ec) == INF
 

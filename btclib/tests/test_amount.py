@@ -19,9 +19,9 @@ def test_amount_conversion() -> None:
     vtot = v1 + v2
     # _NOT_ equal !!
     assert vtot != 3.3
-    s1 = amount.sat_from_float(v1)
-    s2 = amount.sat_from_float(v2)
-    stot = s1 + s2
+    s_1 = amount.sat_from_float(v1)
+    s_2 = amount.sat_from_float(v2)
+    stot = s_1 + s_2
     assert stot == 330000000
     vtot = amount.float_from_sat(stot)
     # equal !!

@@ -88,7 +88,7 @@ def _check_witness(witvers: int, witprog: bytes):
     length = len(witprog)
     if witvers == 0:
         if length not in (20, 32):
-            err_msg = "invalid witness program length for witness version zero: "
+            err_msg = "invalid witness program length for witness v0: "
             err_msg += f"{length} instead of 20 or 32"
             raise BTClibValueError(err_msg)
     elif witvers < 0 or witvers > 16:
@@ -97,7 +97,7 @@ def _check_witness(witvers: int, witprog: bytes):
         raise BTClibValueError(err_msg)
     else:
         if length < 2 or length > 40:
-            err_msg = "invalid witness program length for witness version zero: "
+            err_msg = "invalid witness program length for witness v0: "
             err_msg += f"{length}, not in 2..40"
             raise BTClibValueError(err_msg)
 

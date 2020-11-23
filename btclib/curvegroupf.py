@@ -57,7 +57,7 @@ def find_subgroup_points(ec: CurveGroup, G: Point) -> List[Point]:
 
     points: List[Point] = [G]
     while points[-1] != INF:
-        P = ec.add(points[-1], G)
-        points.append(P)
+        Q = ec.add(points[-1], G)
+        points.append(Q)
 
     return points

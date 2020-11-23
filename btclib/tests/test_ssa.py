@@ -152,35 +152,35 @@ def test_bip340_vectors() -> None:
 def test_point_from_bip340pubkey() -> None:
 
     q, x_Q = ssa.gen_keys()
-    P = mult(q)
+    Q = mult(q)
     # Integer (int)
-    assert ssa.point_from_bip340pubkey(x_Q) == P
+    assert ssa.point_from_bip340pubkey(x_Q) == Q
     # Integer (bytes)
-    assert ssa.point_from_bip340pubkey(x_Q.to_bytes(32, byteorder="big")) == P
+    assert ssa.point_from_bip340pubkey(x_Q.to_bytes(32, byteorder="big")) == Q
     # Integer (hex-str)
-    assert ssa.point_from_bip340pubkey(x_Q.to_bytes(32, byteorder="big").hex()) == P
+    assert ssa.point_from_bip340pubkey(x_Q.to_bytes(32, byteorder="big").hex()) == Q
     # tuple Point
-    assert ssa.point_from_bip340pubkey(P) == P
+    assert ssa.point_from_bip340pubkey(Q) == Q
     # 33 bytes
-    assert ssa.point_from_bip340pubkey(bytes_from_point(P)) == P
+    assert ssa.point_from_bip340pubkey(bytes_from_point(Q)) == Q
     # 33 bytes hex-string
-    assert ssa.point_from_bip340pubkey(bytes_from_point(P).hex()) == P
+    assert ssa.point_from_bip340pubkey(bytes_from_point(Q).hex()) == Q
     # 65 bytes
-    assert ssa.point_from_bip340pubkey(bytes_from_point(P, compressed=False)) == P
+    assert ssa.point_from_bip340pubkey(bytes_from_point(Q, compressed=False)) == Q
     # 65 bytes hex-string
-    assert ssa.point_from_bip340pubkey(bytes_from_point(P, compressed=False).hex()) == P
+    assert ssa.point_from_bip340pubkey(bytes_from_point(Q, compressed=False).hex()) == Q
 
     xpub_data = BIP32KeyData.deserialize(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     )
-    xpub_data.key = bytes_from_point(P)
+    xpub_data.key = bytes_from_point(Q)
     # BIP32KeyData
-    assert ssa.point_from_bip340pubkey(xpub_data) == P
+    assert ssa.point_from_bip340pubkey(xpub_data) == Q
     # BIP32Key encoded str
     xpub = xpub_data.serialize()
-    assert ssa.point_from_bip340pubkey(xpub) == P
+    assert ssa.point_from_bip340pubkey(xpub) == Q
     # BIP32Key str
-    assert ssa.point_from_bip340pubkey(xpub.decode("ascii")) == P
+    assert ssa.point_from_bip340pubkey(xpub.decode("ascii")) == Q
 
 
 def test_low_cardinality() -> None:
@@ -236,24 +236,24 @@ def test_crack_prvkey() -> None:
     q, x_Q = ssa.gen_keys()
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
-    m1 = reduce_to_hlen(msg1)
-    k = ssa._det_nonce(m1, q)
-    sig1 = ssa._sign(m1, q, k)
+    m_1 = reduce_to_hlen(msg1)
+    k = ssa._det_nonce(m_1, q)
+    sig1 = ssa._sign(m_1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
-    m2 = reduce_to_hlen(msg2)
+    m_2 = reduce_to_hlen(msg2)
     # reuse same k
-    sig2 = ssa._sign(m2, q, k)
+    sig2 = ssa._sign(m_2, q, k)
 
     qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
     assert q == qc
     assert k in (kc, ec.n - kc)
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        ssa._crack_prvkey(m1, sig1, m2, (16, sig1[1]), x_Q)
+        ssa._crack_prvkey(m_1, sig1, m_2, (16, sig1[1]), x_Q)
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
-        ssa._crack_prvkey(m1, sig1, m1, sig1, x_Q)
+        ssa._crack_prvkey(m_1, sig1, m_1, sig1, x_Q)
 
 
 def test_batch_validation() -> None:
@@ -388,14 +388,14 @@ def test_musig() -> None:
         k3 = ec.n - k3  # pragma: no cover
     r = K[0]
     e = ssa._challenge(m, Q[0], r, ec, hf)
-    s1 = (k1 + e * a1 * q1) % ec.n
-    s2 = (k2 + e * a2 * q2) % ec.n
+    s_1 = (k1 + e * a1 * q1) % ec.n
+    s_2 = (k2 + e * a2 * q2) % ec.n
     s3 = (k3 + e * a3 * q3) % ec.n
 
     # exchange s_i (interactive)
 
     # finalize signature (non interactive)
-    s = (s1 + s2 + s3) % ec.n
+    s = (s_1 + s_2 + s3) % ec.n
     sig = r, s
     # check signature is valid
     ssa._assert_as_valid(m, Q[0], sig, ec, hf)

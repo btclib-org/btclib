@@ -159,7 +159,7 @@ def test_p2w_p2sh() -> None:
     b58addr2 = b58address_from_witness(h256script, network)
     assert b58addr2 == b58addr
 
-    err_msg = "invalid witness program length for witness version zero: "
+    err_msg = "invalid witness program length for witness v0: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b58address_from_witness(h256script[:-1], network)
 

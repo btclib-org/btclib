@@ -44,24 +44,24 @@ def test_commitment() -> None:
     ec = secp256k1
     hf = sha256
 
-    r1 = 0x1
+    r_1 = 0x1
     v1 = 0x2
-    # r1*G + v1*H
-    C1 = pedersen.commit(r1, v1, ec, hf)
-    assert pedersen.verify(r1, v1, C1, ec, hf)
+    # r_1*G + v1*H
+    C1 = pedersen.commit(r_1, v1, ec, hf)
+    assert pedersen.verify(r_1, v1, C1, ec, hf)
 
-    r2 = 0x3
+    r_2 = 0x3
     v2 = 0x4
-    # r2*G + v2*H
-    C2 = pedersen.commit(r2, v2, ec, hf)
-    assert pedersen.verify(r2, v2, C2, ec, hf)
+    # r_2*G + v2*H
+    C2 = pedersen.commit(r_2, v2, ec, hf)
+    assert pedersen.verify(r_2, v2, C2, ec, hf)
 
     # Pedersen Commitment is additively homomorphic
-    # Commit(r1, v1) + Commit(r2, v2) = Commit(r1+r2, v1+r2)
-    R = pedersen.commit(r1 + r2, v1 + v2, ec, hf)
+    # Commit(r_1, v1) + Commit(r_2, v2) = Commit(r_1+r_2, v1+r_2)
+    R = pedersen.commit(r_1 + r_2, v1 + v2, ec, hf)
     assert ec.add(C1, C2) == R
 
     # commit does not verify (with catched exception)
-    assert not pedersen.verify((r1, r1), v1, C2, ec, hf)  # type: ignore
+    assert not pedersen.verify((r_1, r_1), v1, C2, ec, hf)  # type: ignore
     with pytest.raises(BTClibTypeError, match="not an Integer"):
-        pedersen.commit((r1, r1), v1, ec, hf)  # type: ignore
+        pedersen.commit((r_1, r_1), v1, ec, hf)  # type: ignore

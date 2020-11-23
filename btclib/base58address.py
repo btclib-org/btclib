@@ -98,7 +98,7 @@ def b58address_from_witness(witness_program: Octets, network: str = "mainnet") -
     elif length == 32:
         redeem_script = script_pubkey_from_payload("p2wsh", witness_program)
     else:
-        err_msg = "invalid witness program length for witness version zero: "
+        err_msg = "invalid witness program length for witness v0: "
         err_msg += f"{length} instead of 20 or 32"
         raise BTClibValueError(err_msg)
 

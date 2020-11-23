@@ -295,8 +295,8 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
     key_id = rf - 27 & 0b11
 
-    Recovered = dsa.__recover_pubkey(key_id, c, r, s, secp256k1)
-    Q = secp256k1._aff_from_jac(Recovered)
+    recovered_pubkey = dsa.__recover_pubkey(key_id, c, r, s, secp256k1)
+    Q = secp256k1._aff_from_jac(recovered_pubkey)
 
     try:
         _, h160, _, is_script_hash = h160_from_b58address(addr)

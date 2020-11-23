@@ -512,9 +512,9 @@ def test_p2ms_3() -> None:
     pubkeys.sort()
     exp_script = script.serialize([m] + pubkeys + [n, "OP_CHECKMULTISIG"])
     assert script_pubkey.hex() == exp_script.hex()
-    script_type, payload, m2 = payload_from_script_pubkey(script_pubkey)
+    script_type, payload, m_2 = payload_from_script_pubkey(script_pubkey)
     assert script_type == "p2ms"
-    assert m == m2
+    assert m == m_2
     assert pubkeys == payload
 
 
@@ -539,11 +539,11 @@ def test_p2ms_p2sh() -> None:
         addr = base58address.p2sh(script_pubkey)
         assert addr.decode("ascii") == address, errmsg
 
-        script_type, payload, m2 = payload_from_script_pubkey(script_pubkey)
+        script_type, payload, m_2 = payload_from_script_pubkey(script_pubkey)
         assert script_type == "p2ms", errmsg
         for key, k in zip(sorted(keys), payload):
             assert key == k.hex(), errmsg
-        assert m2 == m, errmsg
+        assert m_2 == m, errmsg
 
 
 def test_non_standard_script() -> None:

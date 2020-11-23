@@ -109,17 +109,17 @@ class Curve(CurveSubGroup):
         if self.G[1] == 0:
             m = "INF point cannot be a generator"
             raise BTClibValueError(m)
-        InfJ = _mult(n, self.GJ, self)
-        if InfJ[2] != 0:
+        jac_inf = _mult(n, self.GJ, self)
+        if jac_inf[2] != 0:
             err_msg = "n is not the group order: "
             err_msg += f"{hex_string(n)}" if n > _HEXTHRESHOLD else f"{n}"
             raise BTClibValueError(err_msg)
 
         # 6. Check cofactor
-        exp_h = int(1 / n + delta / n + self.p / n)
-        if h != exp_h:
-            raise BTClibValueError(f"invalid h: {h}, expected {exp_h}")
-        self.h = h
+        exp_cofactor = int(1 / n + delta / n + self.p / n)
+        if h != exp_cofactor:
+            raise BTClibValueError(f"invalid h: {h}, expected {exp_cofactor}")
+        self.cofactor = h
 
         # 8. Check that n ≠ p
         if n == p:
@@ -141,7 +141,7 @@ class Curve(CurveSubGroup):
             result += f"\n n   = {hex_string(self.n)}"
         else:
             result += f"\n n   = {self.n}"
-        result += f"\n h = {self.h}"
+        result += f"\n h = {self.cofactor}"
         return result
 
     def __repr__(self) -> str:
@@ -150,7 +150,7 @@ class Curve(CurveSubGroup):
             result += f", '{hex_string(self.n)}'"
         else:
             result += f", {self.n}"
-        result += f", {self.h}"
+        result += f", {self.cofactor}"
         result += ")"
         return result
 
@@ -238,27 +238,27 @@ def double_mult(
 
 
 def multi_mult(
-    scalars: Sequence[Integer], Points: Sequence[Point], ec: Curve = secp256k1
+    scalars: Sequence[Integer], points: Sequence[Point], ec: Curve = secp256k1
 ) -> Point:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
     Use Bos-Coster's algorithm for efficient computation.
     """
 
-    if len(scalars) != len(Points):
-        errMsg = "mismatch between number of scalars and points: "
-        errMsg += f"{len(scalars)} vs {len(Points)}"
-        raise BTClibValueError(errMsg)
+    if len(scalars) != len(points):
+        err_msg = "mismatch between number of scalars and points: "
+        err_msg += f"{len(scalars)} vs {len(points)}"
+        raise BTClibValueError(err_msg)
 
-    JPoints: List[JacPoint] = []
+    jac_points: List[JacPoint] = []
     ints: List[int] = []
-    for P, i in zip(Points, scalars):
+    for Q, i in zip(points, scalars):
         i = int_from_integer(i) % ec.n
         if i == 0:  # early optimization, even if not strictly necessary
             continue
         ints.append(i)
-        ec.require_on_curve(P)
-        JPoints.append(_jac_from_aff(P))
+        ec.require_on_curve(Q)
+        jac_points.append(_jac_from_aff(Q))
 
-    R = _multi_mult(ints, JPoints, ec)
+    R = _multi_mult(ints, jac_points, ec)
     return ec._aff_from_jac(R)

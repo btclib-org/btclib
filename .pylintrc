@@ -351,9 +351,13 @@ function-naming-style=snake_case
 #function-rgx=
 
 # Good variable names which should always be accepted, separated by a comma.
-good-names=c, e, i, j, k, m, n, p, q, r, s, t, u, v,
-           Q, K, R,
-           QJ, KJ, RJ,
+good-names=c, e, i, j, k, m, n, p, q, r, s, t, u, v, w,
+           G, H, Q, K, R,
+           x_G, x_H, x_Q, x_K, x_R,
+           y_G, y_H, y_Q, y_K, y_R,
+           GJ, HJ, QJ, KJ, RJ,
+           QJs, KJs, RJs,
+           G_bytes, H_bytes, Q_bytes, K_bytes, R_bytes,
            rf, hf, ec,
            tx,
            _
