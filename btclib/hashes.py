@@ -36,20 +36,15 @@ def hash160_from_key(
 
 
 def hash160_from_script(script_pubkey: Script) -> bytes:
-    """Return the scriptPubKey HASH160 from a private/public key.
+    "Return the RIPEMD160(SHA256) of the script_pubkey."
 
-    HASH160 is RIPEMD160(SHA256).
-    """
     if isinstance(script_pubkey, list):
         script_pubkey = serialize(script_pubkey)
     return hash160(script_pubkey)
 
 
 def hash256_from_script(script_pubkey: Script) -> bytes:
-    """Return the scriptPubKey HASH256 from a private/public key.
-
-    HASH256 is SHA256(SHA256).
-    """
+    "Return the SHA256(SHA256) of the script_pubkey."
     if isinstance(script_pubkey, list):
         script_pubkey = serialize(script_pubkey)
     return sha256(script_pubkey)

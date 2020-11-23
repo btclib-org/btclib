@@ -32,8 +32,8 @@ def test_genesis_block() -> None:
     transaction_out = tx_out.TxOut.deserialize(coinbase_out)
     assert transaction_out.serialize().hex() == coinbase_out
 
-    assert transaction.vin[0].scriptSig == transaction_in.scriptSig
-    assert transaction.vout[0].scriptPubKey == transaction_out.scriptPubKey
+    assert transaction.vin[0].script_sig == transaction_in.script_sig
+    assert transaction.vout[0].script_pubkey == transaction_out.script_pubkey
 
     assert transaction.txid == bytes.fromhex(
         "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
@@ -160,14 +160,14 @@ def test_invalid_outpoint() -> None:
 
 def test_invalid_tx_out() -> None:
     transaction_output = tx_out.TxOut(
-        value=-1, scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64")
+        value=-1, script_pubkey=bytes.fromhex("6a0b68656c6c6f20776f726c64")
     )
     with pytest.raises(BTClibValueError, match="negative value: "):
         transaction_output.assert_valid()
 
     transaction_output = tx_out.TxOut(
         value=tx_out.MAX_SATOSHI + 1,
-        scriptPubKey=bytes.fromhex("6a0b68656c6c6f20776f726c64"),
+        script_pubkey=bytes.fromhex("6a0b68656c6c6f20776f726c64"),
     )
     with pytest.raises(BTClibValueError, match="value too high: "):
         transaction_output.assert_valid()
@@ -176,7 +176,7 @@ def test_invalid_tx_out() -> None:
 def test_invalid_tx() -> None:
     transaction_input = tx_in.TxIn(
         prevout=tx_in.OutPoint(b"\xff" * 32, 0),
-        scriptSig=b"",
+        script_sig=b"",
         sequence=1,
         txinwitness=[],
     )

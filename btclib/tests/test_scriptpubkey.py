@@ -28,12 +28,12 @@ from btclib.scriptpubkey import (
     p2sh,
     p2wpkh,
     p2wsh,
-    payload_from_scriptPubKey,
+    payload_from_script_pubkey,
     script_pubkey_from_payload,
 )
 from btclib.scriptpubkey_address import (
-    address_from_scriptPubKey,
-    scriptPubKey_from_address,
+    address_from_script_pubkey,
+    script_pubkey_from_address,
 )
 from btclib.utils import hash160, sha256
 
@@ -43,31 +43,31 @@ def test_nulldata() -> None:
     # self-consistency
     string = "time-stamped data"
     payload = string.encode()
-    scriptPubKey = script.serialize(["OP_RETURN", payload])
-    assert scriptPubKey == nulldata(string)
+    script_pubkey = script.serialize(["OP_RETURN", payload])
+    assert script_pubkey == nulldata(string)
 
-    # to the scriptPubKey in two steps (through payload)
+    # to the script_pubkey in two steps (through payload)
     script_type = "nulldata"
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload)
 
-    # back from the scriptPubKey to the payload
-    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
+    # back from the script_pubkey to the payload
+    assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
 
     # data -> payload in this case is invertible (no hash functions)
     assert payload.decode("ascii") == string
 
     err_msg = "no address for null data script"
     with pytest.raises(BTClibValueError, match=err_msg):
-        address_from_scriptPubKey(scriptPubKey)
+        address_from_script_pubkey(script_pubkey)
 
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
     string = "hello world"
     payload = string.encode()
     assert payload.hex() == "68656c6c6f20776f726c64"  # pylint: disable=no-member
-    scriptPubKey = b"\x6a\x0b" + payload
-    assert scriptPubKey == nulldata(string)
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
-    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
+    script_pubkey = b"\x6a\x0b" + payload
+    assert script_pubkey == nulldata(string)
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload)
+    assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
 
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
     string = "charley loves heidi"
@@ -76,10 +76,10 @@ def test_nulldata() -> None:
         payload.hex()  # pylint: disable=no-member
         == "636861726c6579206c6f766573206865696469"
     )
-    scriptPubKey = b"\x6a\x13" + payload
-    assert scriptPubKey == nulldata(string)
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
-    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
+    script_pubkey = b"\x6a\x13" + payload
+    assert script_pubkey == nulldata(string)
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload)
+    assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
 
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
     string = "家族も友達もみんなが笑顔の毎日がほしい"
@@ -88,10 +88,10 @@ def test_nulldata() -> None:
         payload.hex()  # pylint: disable=no-member
         == "e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184"
     )
-    scriptPubKey = b"\x6a\x39" + payload
-    assert scriptPubKey == nulldata(string)
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
-    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
+    script_pubkey = b"\x6a\x39" + payload
+    assert script_pubkey == nulldata(string)
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload)
+    assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
 
 
 def test_nulldata2() -> None:
@@ -102,13 +102,13 @@ def test_nulldata2() -> None:
     byte = b"\x00"
     for length in (0, 1, 16, 17, 74, 75, 76, 77, 78, 79, 80):
         payload = byte * length
-        scriptPubKey = script.serialize(["OP_RETURN", payload])
-        assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
+        script_pubkey = script.serialize(["OP_RETURN", payload])
+        assert script_pubkey == script_pubkey_from_payload(script_type, payload)
 
-        # back from the scriptPubKey to the payload
-        assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
-        assert (script_type, payload, 0) == payload_from_scriptPubKey(
-            script.deserialize(scriptPubKey)
+        # back from the script_pubkey to the payload
+        assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
+        assert (script_type, payload, 0) == payload_from_script_pubkey(
+            script.deserialize(script_pubkey)
         )
 
 
@@ -121,54 +121,54 @@ def test_nulldata3() -> None:
 
     # wrong data length: 32 in 35-bytes nulldata script;
     # it should have been 33
-    scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 33])
-    scriptPubKey = scriptPubKey[:1] + b"\x20" + scriptPubKey[2:]
+    script_pubkey = script.serialize(["OP_RETURN", b"\x00" * 33])
+    script_pubkey = script_pubkey[:1] + b"\x20" + script_pubkey[2:]
     err_msg = "wrong data length: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
     # wrong data length: 32 in 83-bytes nulldata script;
     # it should have been 80
-    scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 80])
-    scriptPubKey = scriptPubKey[:2] + b"\x20" + scriptPubKey[3:]
+    script_pubkey = script.serialize(["OP_RETURN", b"\x00" * 80])
+    script_pubkey = script_pubkey[:2] + b"\x20" + script_pubkey[3:]
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
     # missing OP_PUSHDATA1 (0x4c) in 83-bytes nulldata script,
     # got 0x20 instead
-    scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 80])
-    scriptPubKey = scriptPubKey[:1] + b"\x20" + scriptPubKey[2:]
+    script_pubkey = script.serialize(["OP_RETURN", b"\x00" * 80])
+    script_pubkey = script_pubkey[:1] + b"\x20" + script_pubkey[2:]
     err_msg = "missing OP_PUSHDATA1 "
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
     assert len(script.serialize(["OP_RETURN", b"\x00" * 75])) == 77
     assert len(script.serialize(["OP_RETURN", b"\x00" * 76])) == 79
-    scriptPubKey = script.serialize(["OP_RETURN", b"\x00" * 76])[:-1]
+    script_pubkey = script.serialize(["OP_RETURN", b"\x00" * 76])[:-1]
     err_msg = "invalid 78 bytes nulldata script length"
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
 
 def test_p2pk() -> None:
 
     # self-consistency
     pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
-    scriptPubKey = script.serialize([pubkey, "OP_CHECKSIG"])
-    assert scriptPubKey == p2pk(pubkey)
+    script_pubkey = script.serialize([pubkey, "OP_CHECKSIG"])
+    assert script_pubkey == p2pk(pubkey)
 
-    # to the scriptPubKey in two steps (through payload)
+    # to the script_pubkey in two steps (through payload)
     script_type = "p2pk"
-    assert scriptPubKey == script_pubkey_from_payload(script_type, pubkey)
+    assert script_pubkey == script_pubkey_from_payload(script_type, pubkey)
 
-    # back from the scriptPubKey to the payload
-    assert (script_type, bytes.fromhex(pubkey), 0) == payload_from_scriptPubKey(
-        scriptPubKey
+    # back from the script_pubkey to the payload
+    assert (script_type, bytes.fromhex(pubkey), 0) == payload_from_script_pubkey(
+        script_pubkey
     )
 
-    err_msg = "no address for p2pk scriptPubKey"
+    err_msg = "no address for p2pk script_pubkey"
     with pytest.raises(BTClibValueError, match=err_msg):
-        address_from_scriptPubKey(scriptPubKey)
+        address_from_script_pubkey(script_pubkey)
 
     # documented test case: https://learnmeabitcoin.com/guide/p2pk
     pubkey = (
@@ -176,8 +176,8 @@ def test_p2pk() -> None:
         "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
         "e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
     )
-    scriptPubKey = "41" + pubkey + "ac"
-    assert scriptPubKey == p2pk(pubkey).hex()
+    script_pubkey = "41" + pubkey + "ac"
+    assert script_pubkey == p2pk(pubkey).hex()
 
     # invalid size: 34 bytes instead of (33, 65)
     pubkey = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 14"
@@ -195,35 +195,37 @@ def test_p2pkh() -> None:
         "f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     )
     payload = hash160(pubkey)
-    scriptPubKey = script.serialize(
+    script_pubkey = script.serialize(
         ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
     )
-    assert scriptPubKey == p2pkh(pubkey)
+    assert script_pubkey == p2pkh(pubkey)
 
-    # to the scriptPubKey in two steps (through payload)
+    # to the script_pubkey in two steps (through payload)
     script_type = "p2pkh"
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload)
 
-    # back from the scriptPubKey to the payload
-    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
+    # back from the script_pubkey to the payload
+    assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
 
     # base58 address
     network = "mainnet"
     address = base58address.p2pkh(pubkey, network)
-    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    assert address == address_from_script_pubkey(script_pubkey, network)
     prefix = NETWORKS[network].p2pkh
     assert address == b58address_from_h160(prefix, payload, network)
 
-    # back from the address to the scriptPubKey
-    assert (scriptPubKey, network) == scriptPubKey_from_address(address)
+    # back from the address to the script_pubkey
+    assert (script_pubkey, network) == script_pubkey_from_address(address)
 
     # documented test case: https://learnmeabitcoin.com/guide/p2pkh
     payload = "12ab8dc588ca9d5787dde7eb29569da63c3a238c"
-    scriptPubKey = "76a914" + payload + "88ac"
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload).hex()
+    script_pubkey = "76a914" + payload + "88ac"
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload).hex()
     address = b"12higDjoCCNXSA95xZMWUdPvXNmkAduhWv"
-    assert address == address_from_scriptPubKey(scriptPubKey, network)
-    assert (bytes.fromhex(scriptPubKey), network) == scriptPubKey_from_address(address)
+    assert address == address_from_script_pubkey(script_pubkey, network)
+    assert (bytes.fromhex(script_pubkey), network) == script_pubkey_from_address(
+        address
+    )
 
     # invalid size: 11 bytes instead of 20
     err_msg = "invalid size: "
@@ -236,25 +238,25 @@ def test_p2wpkh() -> None:
     # self-consistency
     pubkey = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     payload = hash160(pubkey)
-    scriptPubKey = script.serialize([0, payload])
-    assert scriptPubKey == p2wpkh(pubkey)
+    script_pubkey = script.serialize([0, payload])
+    assert script_pubkey == p2wpkh(pubkey)
 
-    # to the scriptPubKey in two steps (through payload)
+    # to the script_pubkey in two steps (through payload)
     script_type = "p2wpkh"
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload)
 
-    # back from the scriptPubKey to the payload
-    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
+    # back from the script_pubkey to the payload
+    assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
 
     # bech32 address
     network = "mainnet"
     address = bech32address.p2wpkh(pubkey, network)
-    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    assert address == address_from_script_pubkey(script_pubkey, network)
     wit_ver = 0
     assert address == b32address_from_witness(wit_ver, payload, network)
 
-    # back from the address to the scriptPubKey
-    assert (scriptPubKey, network) == scriptPubKey_from_address(address)
+    # back from the address to the script_pubkey
+    assert (script_pubkey, network) == script_pubkey_from_address(address)
 
     # p2sh-wrapped base58 address
     address = base58address.p2wpkh_p2sh(pubkey, network)
@@ -268,33 +270,35 @@ def test_p2sh() -> None:
     pubkey_hash = hash160(pubkey)
     redeem_script = script_pubkey_from_payload("p2pkh", pubkey_hash)
     payload = hash160(redeem_script)
-    scriptPubKey = script.serialize(["OP_HASH160", payload, "OP_EQUAL"])
-    assert scriptPubKey == p2sh(redeem_script)
+    script_pubkey = script.serialize(["OP_HASH160", payload, "OP_EQUAL"])
+    assert script_pubkey == p2sh(redeem_script)
 
-    # to the scriptPubKey in two steps (through payload)
+    # to the script_pubkey in two steps (through payload)
     script_type = "p2sh"
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload)
 
-    # back from the scriptPubKey to the payload
-    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
+    # back from the script_pubkey to the payload
+    assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
 
     # base58 address
     network = "mainnet"
     address = base58address.p2sh(script.deserialize(redeem_script), network)
-    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    assert address == address_from_script_pubkey(script_pubkey, network)
     prefix = NETWORKS[network].p2sh
     assert address == b58address_from_h160(prefix, payload, network)
 
-    # back from the address to the scriptPubKey
-    assert (scriptPubKey, network) == scriptPubKey_from_address(address)
+    # back from the address to the script_pubkey
+    assert (script_pubkey, network) == script_pubkey_from_address(address)
 
     # documented test case: https://learnmeabitcoin.com/guide/p2sh
     payload = "748284390f9e263a4b766a75d0633c50426eb875"
-    scriptPubKey = "a914" + payload + "87"
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload).hex()
+    script_pubkey = "a914" + payload + "87"
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload).hex()
     address = b"3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V"
-    assert address == address_from_scriptPubKey(scriptPubKey, network)
-    assert (bytes.fromhex(scriptPubKey), network) == scriptPubKey_from_address(address)
+    assert address == address_from_script_pubkey(script_pubkey, network)
+    assert (bytes.fromhex(script_pubkey), network) == script_pubkey_from_address(
+        address
+    )
 
     # invalid size: 21 bytes instead of 20
     err_msg = "invalid size: "
@@ -309,25 +313,25 @@ def test_p2wsh() -> None:
     pubkey_hash = hash160(pubkey)
     redeem_script = script_pubkey_from_payload("p2pkh", pubkey_hash)
     payload = sha256(redeem_script)
-    scriptPubKey = script.serialize([0, payload])
-    assert scriptPubKey == p2wsh(script.deserialize(redeem_script))
+    script_pubkey = script.serialize([0, payload])
+    assert script_pubkey == p2wsh(script.deserialize(redeem_script))
 
-    # to the scriptPubKey in two steps (through payload)
+    # to the script_pubkey in two steps (through payload)
     script_type = "p2wsh"
-    assert scriptPubKey == script_pubkey_from_payload(script_type, payload)
+    assert script_pubkey == script_pubkey_from_payload(script_type, payload)
 
-    # back from the scriptPubKey to the payload
-    assert (script_type, payload, 0) == payload_from_scriptPubKey(scriptPubKey)
+    # back from the script_pubkey to the payload
+    assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
 
     # bech32 address
     network = "mainnet"
     address = bech32address.p2wsh(redeem_script, network)
-    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    assert address == address_from_script_pubkey(script_pubkey, network)
     wit_ver = 0
     assert address == b32address_from_witness(wit_ver, payload, network)
 
-    # back from the address to the scriptPubKey
-    assert (scriptPubKey, network) == scriptPubKey_from_address(address)
+    # back from the address to the script_pubkey
+    assert (script_pubkey, network) == script_pubkey_from_address(address)
 
     # p2sh-wrapped base58 address
     address = base58address.p2wsh_p2sh(redeem_script, network)
@@ -345,20 +349,20 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2wsh", "00" * 33)
 
-    err_msg = "unknown scriptPubKey type: "
+    err_msg = "unknown script_pubkey type: "
     with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2unkn", "00" * 32)
 
-    err_msg = "unknown scriptPubKey: "
+    err_msg = "unknown script_pubkey: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        scriptPubKey = [16, 20 * b"\x00"]
-        address_from_scriptPubKey(scriptPubKey)
+        script_pubkey = [16, 20 * b"\x00"]
+        address_from_script_pubkey(script_pubkey)
 
     # Unhandled witness version (16)
     err_msg = "unmanaged witness version: "
     address = b32address_from_witness(16, 20 * b"\x00")
     with pytest.raises(BTClibValueError, match=err_msg):
-        scriptPubKey_from_address(address)
+        script_pubkey_from_address(address)
 
 
 def test_p2ms() -> None:
@@ -379,27 +383,27 @@ def test_p2ms() -> None:
     pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(pubkey2)]
     m = 1
 
-    # straight to the scriptPubKey
+    # straight to the script_pubkey
     payload = sorted(pubkeys)
     n = len(pubkeys)
-    scriptPubKey = script.serialize([m] + payload + [n, "OP_CHECKMULTISIG"])
-    assert scriptPubKey == p2ms(pubkeys, m)
+    script_pubkey = script.serialize([m] + payload + [n, "OP_CHECKMULTISIG"])
+    assert script_pubkey == p2ms(pubkeys, m)
 
-    # to the scriptPubKey in two steps (through payload)
-    assert scriptPubKey == script_pubkey_from_payload(script_type, pubkeys, m)
+    # to the script_pubkey in two steps (through payload)
+    assert script_pubkey == script_pubkey_from_payload(script_type, pubkeys, m)
 
-    # back from the scriptPubKey to the payload
-    assert (script_type, payload, m) == payload_from_scriptPubKey(scriptPubKey)
+    # back from the script_pubkey to the payload
+    assert (script_type, payload, m) == payload_from_script_pubkey(script_pubkey)
 
-    err_msg = "no address for p2ms scriptPubKey"
+    err_msg = "no address for p2ms script_pubkey"
     with pytest.raises(BTClibValueError, match=err_msg):
-        address_from_scriptPubKey(scriptPubKey)
+        address_from_script_pubkey(script_pubkey)
 
     # documented test case: https://learnmeabitcoin.com/guide/p2ms
     pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(pubkey2)]
     m = 1
     n = 2
-    scriptPubKey = (  # fmt: off
+    script_pubkey = (  # fmt: off
         "51"  # OP_1
         "41"  # canonical 65-bytes push
         + pubkey1
@@ -408,13 +412,13 @@ def test_p2ms() -> None:
         + "52"  # noqa E148  # OP_2
         "ae"  # OP_CHECKMULTISIG
     )  # fmt: on
-    assert scriptPubKey == p2ms(pubkeys, 1, lexicographic_sort=False).hex()
+    assert script_pubkey == p2ms(pubkeys, 1, lexicographic_sort=False).hex()
 
     err_msg = "number-of-pubkeys < m in "
     with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(pubkeys, 3)
 
-    err_msg = "invalid m for p2ms scriptPubKey: "
+    err_msg = "invalid m for p2ms script_pubkey: "
     with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(pubkeys, 0)
 
@@ -432,14 +436,14 @@ def test_p2ms() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload(script_type, badpubkeys, m)
 
-    scriptPubKey = script.serialize([m] + sorted(badpubkeys) + [n, "OP_CHECKMULTISIG"])
+    script_pubkey = script.serialize([m] + sorted(badpubkeys) + [n, "OP_CHECKMULTISIG"])
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
     err_msg = "invalid key in p2ms"
-    scriptPubKey = script.serialize([m] + [0, pubkeys[1]] + [n, "OP_CHECKMULTISIG"])
+    script_pubkey = script.serialize([m] + [0, pubkeys[1]] + [n, "OP_CHECKMULTISIG"])
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
     err_msg = "invalid m in m-of-n multisignature: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -454,41 +458,41 @@ def test_p2ms_2() -> None:
     pubkeys = [pubkey1, pubkey2, pubkey3]
     m = 1
     n = len(pubkeys)
-    scriptPubKey = [m] + pubkeys + [n, "OP_CHECKMULTISIG"]
-    payload_from_scriptPubKey(scriptPubKey)
+    script_pubkey = [m] + pubkeys + [n, "OP_CHECKMULTISIG"]
+    payload_from_script_pubkey(script_pubkey)
     script_pubkey_from_payload("p2ms", pubkeys, m)
 
-    err_msg = "invalid list of Octets for p2sh scriptPubKey"
+    err_msg = "invalid list of Octets for p2sh script_pubkey"
     with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2sh", pubkeys, 0)
 
     err_msg = "invalid number of pubkeys in "
-    scriptPubKey = [1, 3, "OP_CHECKMULTISIG"]
+    script_pubkey = [1, 3, "OP_CHECKMULTISIG"]
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
     err_msg = "wrong number of pubkeys in "
-    scriptPubKey = [1, pubkey1, pubkey2, 3, "OP_CHECKMULTISIG"]
+    script_pubkey = [1, pubkey1, pubkey2, 3, "OP_CHECKMULTISIG"]
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
     err_msg = "invalid number of pubkeys in "
-    scriptPubKey = [3, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
+    script_pubkey = [3, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
     err_msg = "invalid m in m-of-n multisignature: "
-    scriptPubKey = [0, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
+    script_pubkey = [0, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
-    scriptPubKey = script.serialize(
+    script_pubkey = script.serialize(
         [1, pubkey1, pubkey2, pubkey3, 3, "OP_CHECKMULTISIG"]
     )
-    scriptPubKey = scriptPubKey[:133] + b"\x40" + scriptPubKey[134:]
+    script_pubkey = script_pubkey[:133] + b"\x40" + script_pubkey[134:]
     err_msg = "wrong number of pubkeys in "
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_scriptPubKey(scriptPubKey)
+        payload_from_script_pubkey(script_pubkey)
 
 
 def test_p2ms_3() -> None:
@@ -504,11 +508,11 @@ def test_p2ms_3() -> None:
     ]
     m = 1
     n = len(pubkeys)
-    scriptPubKey = script_pubkey_from_payload("p2ms", pubkeys, m)
+    script_pubkey = script_pubkey_from_payload("p2ms", pubkeys, m)
     pubkeys.sort()
     exp_script = script.serialize([m] + pubkeys + [n, "OP_CHECKMULTISIG"])
-    assert scriptPubKey.hex() == exp_script.hex()
-    script_type, payload, m2 = payload_from_scriptPubKey(scriptPubKey)
+    assert script_pubkey.hex() == exp_script.hex()
+    script_type, payload, m2 = payload_from_script_pubkey(script_pubkey)
     assert script_type == "p2ms"
     assert m == m2
     assert pubkeys == payload
@@ -527,15 +531,15 @@ def test_p2ms_p2sh() -> None:
     for i in test_vectors:
         keys, address = test_vectors[i]
         errmsg = f"Test vector #{i}"
-        scriptPubKey = p2ms(keys, m)
-        addr = base58address.p2sh(scriptPubKey)
+        script_pubkey = p2ms(keys, m)
+        addr = base58address.p2sh(script_pubkey)
         assert addr.decode("ascii") == address, errmsg
 
-        scriptPubKey = script_pubkey_from_payload("p2ms", keys, m)
-        addr = base58address.p2sh(scriptPubKey)
+        script_pubkey = script_pubkey_from_payload("p2ms", keys, m)
+        addr = base58address.p2sh(script_pubkey)
         assert addr.decode("ascii") == address, errmsg
 
-        script_type, payload, m2 = payload_from_scriptPubKey(scriptPubKey)
+        script_type, payload, m2 = payload_from_script_pubkey(script_pubkey)
         assert script_type == "p2ms", errmsg
         for key, k in zip(sorted(keys), payload):
             assert key == k.hex(), errmsg
@@ -561,12 +565,12 @@ def test_non_standard_script() -> None:
     )
     # fmt: on
     payload = sha256(redeem_script)
-    scriptPubKey = (
+    script_pubkey = (
         "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708"
     )
-    assert scriptPubKey == p2wsh(redeem_script).hex()
-    assert scriptPubKey == script_pubkey_from_payload("p2wsh", payload).hex()
+    assert script_pubkey == p2wsh(redeem_script).hex()
+    assert script_pubkey == script_pubkey_from_payload("p2wsh", payload).hex()
 
     address = b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
-    assert address == address_from_scriptPubKey(scriptPubKey, network)
+    assert address == address_from_script_pubkey(script_pubkey, network)
     assert address == b32address_from_witness(0, payload, network)

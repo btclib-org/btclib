@@ -60,34 +60,36 @@ def test_simple() -> None:
         ["1F" * 250, "OP_DROP"],
         ["1F" * 520, "OP_DROP"],
     ]
-    for scriptPubKey in script_list:
-        assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey))
-        assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey).hex())
+    for script_pubkey in script_list:
+        assert script_pubkey == script.deserialize(script.serialize(script_pubkey))
+        assert script_pubkey == script.deserialize(
+            script.serialize(script_pubkey).hex()
+        )
 
 
 def test_exceptions() -> None:
 
-    scriptPubKey: List[ScriptToken] = [2, 3, "OP_ADD", 5, "OP_RETURN_244"]
+    script_pubkey: List[ScriptToken] = [2, 3, "OP_ADD", 5, "OP_RETURN_244"]
     err_msg = "invalid string token: OP_RETURN_244"
     with pytest.raises(BTClibValueError, match=err_msg):
-        script.serialize(scriptPubKey)
+        script.serialize(script_pubkey)
 
     err_msg = "Unmanaged <class 'function'> token type"
     with pytest.raises(BTClibValueError, match=err_msg):
         script.serialize([2, 3, "OP_ADD", 5, script.serialize])  # type: ignore
 
-    scriptPubKey = ["1f" * 521, "OP_DROP"]
+    script_pubkey = ["1f" * 521, "OP_DROP"]
     err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        script.serialize(scriptPubKey)
+        script.serialize(script_pubkey)
 
-    # A scriptPubKey with OP_PUSHDATA4 can be decoded
+    # A script_pubkey with OP_PUSHDATA4 can be decoded
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
-    scriptPubKey = script.deserialize(script_bytes)
+    script_pubkey = script.deserialize(script_bytes)
     # but it cannot be encoded
     err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        script.serialize(scriptPubKey)
+        script.serialize(script_pubkey)
 
 
 def test_nulldata() -> None:
@@ -96,9 +98,11 @@ def test_nulldata() -> None:
         ["OP_RETURN", "11" * 79],
         ["OP_RETURN", "00" * 79],
     ]
-    for scriptPubKey in scripts:
-        assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey))
-        assert scriptPubKey == script.deserialize(script.serialize(scriptPubKey).hex())
+    for script_pubkey in scripts:
+        assert script_pubkey == script.deserialize(script.serialize(script_pubkey))
+        assert script_pubkey == script.deserialize(
+            script.serialize(script_pubkey).hex()
+        )
 
 
 def test_op_int() -> None:

@@ -29,7 +29,7 @@ from .scriptpubkey import script_pubkey_from_payload
 from .to_pubkey import Key
 from .utils import bytes_from_octets
 
-# 1. Hash/WitnessProgram from pubkey/scriptPubKey
+# 1. Hash/WitnessProgram from pubkey/script_pubkey
 # imported from the hashes module
 
 # 2. base58 address from HASH and vice versa
@@ -66,7 +66,7 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
     return prefix, payload[1:], network, is_script_hash
 
 
-# 1.+2. = 3. base58 address from pubkey/scriptPubKey
+# 1.+2. = 3. base58 address from pubkey/script_pubkey
 
 
 def p2pkh(
@@ -79,7 +79,7 @@ def p2pkh(
 
 
 def p2sh(script_pubkey: Script, network: str = "mainnet") -> bytes:
-    "Return the p2sh base58 address corresponding to a scriptPubKey."
+    "Return the p2sh base58 address corresponding to a script_pubkey."
     h160 = hash160_from_script(script_pubkey)
     prefix = NETWORKS[network].p2sh
     return b58address_from_h160(prefix, h160, network)
@@ -105,7 +105,7 @@ def b58address_from_witness(witness_program: Octets, network: str = "mainnet") -
     return p2sh(redeem_script, network)
 
 
-# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pubkey/scriptPubKey
+# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pubkey/script_pubkey
 
 
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> bytes:

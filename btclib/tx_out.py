@@ -35,7 +35,7 @@ class TxOut(DataClassJsonMixin):
     # )
     value: int  # satoshis
     # FIXME: make it
-    # "scriptPubKey": {
+    # "script_pubkey": {
     #    "asm": "0 d85c2b71d0060b09c9886aeb815e50991dda124d",
     #    "hex": "0014d85c2b71d0060b09c9886aeb815e50991dda124d",
     #    "reqSigs": 1,
@@ -44,8 +44,10 @@ class TxOut(DataClassJsonMixin):
     #        "bc1qmpwzkuwsqc9snjvgdt4czhjsnywa5yjdgwyw6k"
     #    ]
     # }
-    scriptPubKey: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    script_pubkey: bytes = field(
+        metadata=config(
+            field_name="scriptPubKey", encoder=lambda v: v.hex(), decoder=bytes.fromhex
+        )
     )
 
     @classmethod
@@ -56,9 +58,9 @@ class TxOut(DataClassJsonMixin):
         # 8 bytes, little endian, interpreted as int
         value = int.from_bytes(stream.read(8), "little")
 
-        scriptPubKey = varbytes.decode(stream)
+        script_pubkey = varbytes.decode(stream)
 
-        tx_out = cls(value=value, scriptPubKey=scriptPubKey)
+        tx_out = cls(value=value, script_pubkey=script_pubkey)
         if assert_valid:
             tx_out.assert_valid()
         return tx_out
@@ -69,7 +71,7 @@ class TxOut(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.value.to_bytes(8, "little")
-        out += varbytes.encode(self.scriptPubKey)
+        out += varbytes.encode(self.script_pubkey)
         return out
 
     def assert_valid(self) -> None:

@@ -277,7 +277,7 @@ def test_valid_sign_2() -> None:
             ),
             0,
         ),
-        scriptSig=b"",
+        script_sig=b"",
         sequence=0xFFFFFFFF,
         txinwitness=[],
     )

@@ -15,7 +15,7 @@ from .base58address import b58address_from_h160, h160_from_b58address
 from .bech32address import b32address_from_witness, witness_from_b32address
 from .exceptions import BTClibValueError
 from .network import NETWORKS
-from .scriptpubkey import payload_from_scriptPubKey, script_pubkey_from_payload
+from .scriptpubkey import payload_from_script_pubkey, script_pubkey_from_payload
 from .tx_out import TxOut
 
 
@@ -25,8 +25,8 @@ def has_segwit_prefix(addr: String) -> bool:
     return any(str_addr.startswith(NETWORKS[net].p2w + "1") for net in NETWORKS)
 
 
-def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
-    "Return (scriptPubKey, network) from the input bech32/base58 address"
+def script_pubkey_from_address(addr: String) -> Tuple[bytes, str]:
+    "Return (script_pubkey, network) from the input bech32/base58 address"
 
     if has_segwit_prefix(addr):
         # also check witness validity
@@ -43,14 +43,16 @@ def scriptPubKey_from_address(addr: String) -> Tuple[bytes, str]:
     return script_pubkey_from_payload("p2pkh", h160), network
 
 
-def address_from_scriptPubKey(scriptPubKey: Script, network: str = "mainnet") -> bytes:
-    "Return the bech32/base58 address from a scriptPubKey."
+def address_from_script_pubkey(
+    script_pubkey: Script, network: str = "mainnet"
+) -> bytes:
+    "Return the bech32/base58 address from a script_pubkey."
 
-    script_type, payload, m = payload_from_scriptPubKey(scriptPubKey)
+    script_type, payload, m = payload_from_script_pubkey(script_pubkey)
     if script_type == "p2pk":
-        raise BTClibValueError("no address for p2pk scriptPubKey")
+        raise BTClibValueError("no address for p2pk script_pubkey")
     if script_type == "p2ms" or isinstance(payload, list) or m != 0:
-        raise BTClibValueError("no address for p2ms scriptPubKey")
+        raise BTClibValueError("no address for p2ms script_pubkey")
     if script_type == "nulldata":
         raise BTClibValueError("no address for null data script")
 
@@ -66,11 +68,11 @@ def address_from_scriptPubKey(scriptPubKey: Script, network: str = "mainnet") ->
 
 
 def tx_out_from_address(address: str, value: int) -> TxOut:
-    scriptPubKey = scriptPubKey_from_address(address)[0]
-    return TxOut(value, scriptPubKey)
+    script_pubkey = script_pubkey_from_address(address)[0]
+    return TxOut(value, script_pubkey)
 
 
 def address_from_tx_out(tx_out: TxOut) -> str:
-    scriptPubKey = tx_out.scriptPubKey
-    address = address_from_scriptPubKey(scriptPubKey)
+    script_pubkey = tx_out.script_pubkey
+    address = address_from_script_pubkey(script_pubkey)
     return address.decode("ascii")
