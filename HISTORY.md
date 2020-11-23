@@ -9,6 +9,7 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
+- added secp256k1 point multiplication based on efficient endomorphism
 - fixed ssa batch verification functions' logic
 - enforced snake_case convention for 'script_pubkey' and 'script_sig'
   variable names
