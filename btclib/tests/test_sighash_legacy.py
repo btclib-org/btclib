@@ -52,7 +52,7 @@ def test_first_transaction():
 def test_legacy_p2pkh():
     pubkey = "04280c8f66bf2ccaeb3f60a19ad4a06365f8bd6178aab0e709df2173df8f553366549aec336aae8742a84702b6c7c3052d89f5d76d535ec3716e72187956351613"
     signature = "3045022100ea43c4800d1a860ec89b5273898a146cfb01d34ff4c364d24a110c480d0e3f7502201c82735577f932f1ca8e1c54bf653e0f8e74e408fe83666bc85cac4472ec950801"
-    scriptSig = [signature, pubkey]
+    script_sig = [signature, pubkey]
     previous_txout = TxOut(
         value=1051173696,
         script_pubkey=script.serialize(
@@ -76,7 +76,7 @@ def test_legacy_p2pkh():
                     ),
                     1,
                 ),
-                scriptSig,
+                script_sig,
                 0xFFFFFFFF,
                 [],
             )
@@ -101,7 +101,7 @@ def test_p2pk():
     pubkey = "0479BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
     signature = "304402200A5C6163F07B8D3B013C4D1D6DBA25E780B39658D79BA37AF7057A3B7F15FFA102201FD9B4EAA9943F734928B99A83592C2E7BF342EA2680F6A2BB705167966B742001"
     script_pubkey = script.serialize([pubkey, "OP_CHECKSIG"])
-    scriptSig = script.serialize([signature])
+    script_sig = script.serialize([signature])
 
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
@@ -115,7 +115,7 @@ def test_p2pk():
     receiving_tx = Tx(
         1,
         0,
-        vin=[TxIn(OutPoint(founding_tx.txid, 0), scriptSig, 0xFFFFFFFF, [])],
+        vin=[TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
         vout=[TxOut(0, b"")],
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x01)
@@ -134,7 +134,7 @@ def test_p2pkh():
             "OP_CHECKSIG",
         ]
     )
-    scriptSig = script.serialize([signature, pubkey])
+    script_sig = script.serialize([signature, pubkey])
 
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
@@ -148,7 +148,7 @@ def test_p2pkh():
     receiving_tx = Tx(
         1,
         0,
-        vin=[TxIn(OutPoint(founding_tx.txid, 0), scriptSig, 0xFFFFFFFF, [])],
+        vin=[TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
         vout=[TxOut(0, b"")],
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x01)
@@ -159,7 +159,7 @@ def test_p2pk_anyonecanpay():
     pubkey = "048282263212c609d9ea2a6e3e172de238d8c39cabd5ac1ca10646e23fd5f5150811f8a8098557dfe45e8256e830b60ace62d613ac2f7b17bed31b6eaff6e26caf"
     signature = "304402204710a85181663b32d25c70ec2bbd14adff5ddfff6cb50d09e155ef5f541fc86c0220056b0cc949be9386ecc5f6c2ac0493269031dbb185781db90171b54ac127790281"
     script_pubkey = script.serialize([pubkey, "OP_CHECKSIG"])
-    scriptSig = script.serialize([signature])
+    script_sig = script.serialize([signature])
 
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
@@ -173,7 +173,7 @@ def test_p2pk_anyonecanpay():
     receiving_tx = Tx(
         1,
         0,
-        vin=[TxIn(OutPoint(founding_tx.txid, 0), scriptSig, 0xFFFFFFFF, [])],
+        vin=[TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
         vout=[TxOut(0, b"")],
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x81)

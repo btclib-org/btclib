@@ -10,6 +10,8 @@ full year, short month, short day (YYYY-M-D)
 Major changes includes:
 
 - fixed ssa batch verification functions' logic
+- enforced snake_case convention for 'script_pubkey' and 'script_sig'
+  variable names
 
 ## v2020.11.23
 
