@@ -12,8 +12,13 @@
 import pytest
 
 from btclib.alias import INFJ
+from btclib.curve import secp256k1
 from btclib.curvegroup import _mult
-from btclib.curvegroup2 import _mult_sliding_window, _mult_w_NAF
+from btclib.curvegroup2 import (
+    _mult_endomorphism_secp256k1,
+    _mult_sliding_window,
+    _mult_w_NAF,
+)
 from btclib.exceptions import BTClibValueError
 from btclib.tests.test_curve import low_card_curves
 
@@ -82,3 +87,25 @@ def test_mult_w_NAF() -> None:
         for k1 in range(ec.n):
             K1 = _mult_w_NAF(k1, ec.GJ, ec, w)
             assert ec._jac_equality(K1, _mult(k1, ec.GJ, ec))
+
+
+def test_mult_endomorphism_secp256k1() -> None:
+    ec = secp256k1
+    assert ec._jac_equality(_mult_endomorphism_secp256k1(0, ec.GJ, ec), INFJ)
+    assert ec._jac_equality(_mult_endomorphism_secp256k1(0, INFJ, ec), INFJ)
+
+    assert ec._jac_equality(_mult_endomorphism_secp256k1(1, INFJ, ec), INFJ)
+    assert ec._jac_equality(_mult_endomorphism_secp256k1(1, ec.GJ, ec), ec.GJ)
+
+    PJ = _mult_endomorphism_secp256k1(2, ec.GJ, ec)
+    assert ec._jac_equality(PJ, ec._add_jac(ec.GJ, ec.GJ))
+
+    PJ = _mult_endomorphism_secp256k1(ec.n - 1, ec.GJ, ec)
+    assert ec._jac_equality(ec.negate_jac(ec.GJ), PJ)
+
+    assert ec._jac_equality(_mult_endomorphism_secp256k1(ec.n - 1, INFJ, ec), INFJ)
+    assert ec._jac_equality(ec._add_jac(PJ, ec.GJ), INFJ)
+    assert ec._jac_equality(_mult_endomorphism_secp256k1(ec.n, ec.GJ, ec), INFJ)
+
+    with pytest.raises(ValueError, match="negative m: "):
+        _mult_endomorphism_secp256k1(-1, ec.GJ, ec)
