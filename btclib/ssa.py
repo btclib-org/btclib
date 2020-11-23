@@ -67,13 +67,11 @@ from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult, _multi_mult
 from .exceptions import BTClibRuntimeError, BTClibValueError
-from .hashes import reduce_to_hlen
+from .hashes import reduce_to_hlen, tagged_hash
 from .numbertheory import mod_inv
 from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import point_from_pubkey
 from .utils import bytes_from_octets, hex_string, int_from_bits
-
-# TODO relax the p_ThreeModFour requirement
 
 # hex-string or bytes representation of an int
 # 33 or 65 bytes or hex-string
@@ -95,14 +93,12 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
     # BIP 340 key as integer
     if isinstance(x_Q, int):
-        y_Q = ec.y_quadratic_residue(x_Q, True)
-        return x_Q, y_Q
+        return x_Q, ec.y_even(x_Q)
 
     # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
     try:
         x_Q = point_from_pubkey(x_Q, ec)[0]
-        y_Q = ec.y_quadratic_residue(x_Q, True)
-        return x_Q, y_Q
+        return x_Q, ec.y_even(x_Q)
     except BTClibValueError:
         pass
 
@@ -110,16 +106,12 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     if isinstance(x_Q, (str, bytes)):
         Q = bytes_from_octets(x_Q, ec.psize)
         x_Q = int.from_bytes(Q, "big")
-        y_Q = ec.y_quadratic_residue(x_Q, True)
-        return x_Q, y_Q
+        return x_Q, ec.y_even(x_Q)
 
     raise BTClibValueError("not a BIP340 public key")
 
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:
-
-    # BIP340 is defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
 
     # Fail if r is not a field element, i.e. not a valid x-coordinate
     ec.y(r)
@@ -163,8 +155,6 @@ def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
 
 def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     "Return a BIP340 private/public (int, int) key-pair."
-    # BIP340 is defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
 
     if prvkey is None:
         q = 1 + secrets.randbelow(ec.n - 1)
@@ -172,27 +162,14 @@ def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
         q = int_from_prvkey(prvkey, ec)
 
     QJ = _mult(q, ec.GJ, ec)
-    x_Q = ec._x_aff_from_jac(QJ)
-    if not ec.has_square_y(QJ):
+    x_Q, y_Q = ec._aff_from_jac(QJ)
+    if y_Q % 2:
         q = ec.n - q
 
     return q, x_Q
 
 
-# TODO move to hashes
-# This implementation can be sped up by storing the midstate after hashing
-# tag_hash instead of rehashing it all the time.
-def _tagged_hash(tag: str, m: bytes, hf: HashF) -> bytes:
-    t = tag.encode()
-    h1 = hf()
-    h1.update(t)
-    tag_hash = h1.digest()
-    h2 = hf()
-    h2.update(tag_hash + tag_hash + m)
-    return h2.digest()
-
-
-def __det_nonce(m: bytes, q: int, ec: Curve, hf: HashF) -> Tuple[int, int]:
+def __det_nonce(m: bytes, q: int, Q: int, a: bytes, ec: Curve, hf: HashF) -> int:
 
     # assume the random oracle model for the hash function,
     # i.e. hash values can be considered uniformly random
@@ -202,53 +179,63 @@ def __det_nonce(m: bytes, q: int, ec: Curve, hf: HashF) -> Tuple[int, int]:
     # However, if the order n is sufficiently close to 2^hlen,
     # then the bias is not observable:
     # e.g. for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
-
+    #
     # the unbiased implementation is provided here,
     # which works also for very-low-cardinality test curves
-    t = q.to_bytes(ec.nsize, "big") + m
+
+    randomizer = tagged_hash("BIP0340/aux", a, hf)
+    xor = q ^ int.from_bytes(randomizer, "big")
+    max_len = max(ec.nsize, hf().digest_size)
+    t = xor.to_bytes(max_len, "big")
+
+    t += Q.to_bytes(ec.psize, "big") + m
+
     while True:
-        t = _tagged_hash("BIPSchnorrDerive", t, hf)
+        t = tagged_hash("BIP0340/nonce", t, hf)
         # The following lines would introduce a bias
         # k = int.from_bytes(t, 'big') % ec.n
         # k = int_from_bits(t, ec.nlen) % ec.n
         k = int_from_bits(t, ec.nlen)  # candidate k
         if 0 < k < ec.n:  # acceptable value for k
-            return gen_keys(k, ec)  # successful candidate
+            return k  # successful candidate
 
 
 def _det_nonce(
-    m: Octets, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
-) -> Tuple[int, int]:
+    m: Octets,
+    prvkey: PrvKey,
+    aux: Optional[Octets] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> int:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
-    # The message m: a hlen array
+    # the message m: a hlen array
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
-    q, _ = gen_keys(prvkey, ec)
+    q, Q = gen_keys(prvkey, ec)
 
-    return __det_nonce(m, q, ec, hf)
+    # the auxiliary random component
+    a = secrets.token_bytes(hlen) if aux is None else bytes_from_octets(aux)
+
+    return __det_nonce(m, q, Q, a, ec, hf)
 
 
 def det_nonce(
     msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
-) -> Tuple[int, int]:
+) -> int:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _det_nonce(m, prvkey, ec, hf)
+    return _det_nonce(m, prvkey, None, ec, hf)
 
 
 def __challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
 
-    # note that only x_Q is needed
-    # if Q is Jacobian y_Q calculation can be avoided
-
     t = r.to_bytes(ec.psize, "big")
     t += x_Q.to_bytes(ec.psize, "big")
-    # m size must have been already checked to be equal to hsize
     t += m
-    t = _tagged_hash("BIPSchnorr", t, hf)
+    t = tagged_hash("BIP0340/challenge", t, hf)
     # if c == 0 then private key is removed from the equations,
     # so the signature is valid for any private/public key pair
     # if c == 0:
@@ -260,7 +247,7 @@ def _challenge(
     m: Octets, xQ: BIP340PubKey, r: int, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> int:
 
-    # The message m: a hlen array
+    # the message m: a hlen array
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
@@ -291,20 +278,26 @@ def _sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> SSASigTuple:
-    """Sign message according to BIP340 signature algorithm."""
+    """Sign a hlen bytes message according to BIP340 signature algorithm.
 
-    # BIP340 is defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
+    If the deterministic nonce is not provided,
+    the BIP340 specification (not RFC6979) is used.
+    """
 
-    # The message m: a hlen array
+    # the message m: a hlen array
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
+    # private and public keys
     q, x_Q = gen_keys(prvkey, ec)
 
-    # The nonce k: an integer in the range 1..n-1.
-    k, x_K = __det_nonce(m, q, ec, hf) if k is None else gen_keys(k, ec)
-    # Let c = int(hf(bytes(x_K) || bytes(x_Q) || m)) mod n.
+    # the nonce k: an integer in the range 1..n-1.
+    if k is None:
+        k = __det_nonce(m, q, x_Q, secrets.token_bytes(hlen), ec, hf)
+
+    k, x_K = gen_keys(k, ec)
+
+    # the challenge
     c = __challenge(m, x_Q, x_K, ec, hf)
 
     return __sign(c, q, k, x_K, ec)
@@ -313,7 +306,6 @@ def _sign(
 def sign(
     msg: String,
     prvkey: PrvKey,
-    k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> SSASigTuple:
@@ -330,27 +322,26 @@ def sign(
     since the overall security of the signature scheme will depend on
     the smallest of *hlen* and *nlen*; however, ECSSA
     supports all combinations of *hlen* and *nlen*.
+
+    The BIP340 deterministic nonce (not RFC6979) is used.
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _sign(m, prvkey, k, ec, hf)
+    return _sign(m, prvkey, None, ec, hf)
 
 
 def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    # BIP340 is defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
-
     # Let K = sG - eQ.
     # in Jacobian coordinates
     KJ = _double_mult(ec.n - c, QJ, s, ec.GJ, ec)
 
     # Fail if infinite(KJ).
-    # Fail if jacobi(y_K) ≠ 1.
-    if not ec.has_square_y(KJ):
-        raise BTClibRuntimeError("y_K is not a quadratic residue")
+    # Fail if y_K is odd.
+    if ec._y_aff_from_jac(KJ) % 2:
+        raise BTClibRuntimeError("y_K is odd")
 
     # Fail if x_K ≠ r
     if KJ[0] != KJ[2] * KJ[2] * r % ec.p:
@@ -411,7 +402,7 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     if c == 0:
         raise BTClibValueError("invalid zero challenge")
 
-    KJ = r, ec.y_quadratic_residue(r, True), 1
+    KJ = r, ec.y_even(r), 1
 
     e1 = mod_inv(c, ec.n)
     QJ = _double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
@@ -420,7 +411,6 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     return ec._x_aff_from_jac(QJ)
 
 
-# FIXME add crack_prvkey
 def _crack_prvkey(
     m1: Octets,
     sig1: SSASig,
@@ -447,18 +437,39 @@ def _crack_prvkey(
     c2 = _challenge(m2, x_Q, r2, ec, hf)
     q = (s1 - s2) * mod_inv(c2 - c1, ec.n) % ec.n
     k = (s1 + c1 * q) % ec.n
+    q, _ = gen_keys(q)
+    k, _ = gen_keys(k)
     return q, k
 
 
-def _batch_verify(
+def crack_prvkey(
+    msg1: String,
+    sig1: SSASig,
+    msg2: String,
+    sig2: SSASig,
+    Q: BIP340PubKey,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[int, int]:
+
+    m1 = reduce_to_hlen(msg1, hf)
+    m2 = reduce_to_hlen(msg2, hf)
+
+    return _crack_prvkey(m1, sig1, m2, sig2, Q, ec, hf)
+
+
+def _assert_batch_as_valid(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[SSASig],
-    ec: Curve,
-    hf: HashF,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> None:
 
     batch_size = len(Qs)
+    if batch_size == 0:
+        raise BTClibValueError("no signatures provided")
+
     if len(ms) != batch_size:
         errMsg = f"mismatch between number of pubkeys ({batch_size}) "
         errMsg += f"and number of messages ({len(ms)})"
@@ -468,12 +479,9 @@ def _batch_verify(
         errMsg += f"and number of signatures ({len(sigs)})"
         raise BTClibValueError(errMsg)
 
-    if batch_size < 2:
+    if batch_size == 1:
         _assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)
-        return
-
-    # BIP340 is defined for curves whose field prime p = 3 % 4
-    ec.require_p_ThreeModFour()
+        return None
 
     t = 0
     scalars: List[int] = []
@@ -482,7 +490,7 @@ def _batch_verify(
         m = bytes_from_octets(m, hf().digest_size)
 
         r, s = deserialize(sig, ec)
-        KJ = r, ec.y_quadratic_residue(r, True), 1
+        KJ = r, ec.y_even(r), 1
 
         x_Q, y_Q = point_from_bip340pubkey(Q, ec)
         QJ = x_Q, y_Q, 1
@@ -507,29 +515,51 @@ def _batch_verify(
     # return T == RHS, checked in Jacobian coordinates
     RHSZ2 = RHSJ[2] * RHSJ[2]
     TZ2 = TJ[2] * TJ[2]
-    precondition = TJ[0] * RHSZ2 % ec.p == RHSJ[0] * TZ2 % ec.p
-    if not precondition:
-        raise BTClibRuntimeError("signature verification precondition failed")
+    if (TJ[0] * RHSZ2 % ec.p != RHSJ[0] * TZ2 % ec.p) or (
+        TJ[1] * RHSZ2 * RHSJ[2] % ec.p != RHSJ[1] * TZ2 * TJ[2] % ec.p
+    ):
+        raise BTClibRuntimeError("signature verification failed")
+    return None
 
-    if TJ[1] * RHSZ2 * RHSJ[2] % ec.p == RHSJ[1] * TZ2 * TJ[2] % ec.p:
-        return
-    raise BTClibRuntimeError("signature verification failed")  # pragma: no cover
+
+def assert_batch_as_valid(
+    ms: Sequence[String],
+    Qs: Sequence[BIP340PubKey],
+    sigs: Sequence[SSASig],
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> None:
+
+    ms = [reduce_to_hlen(m, hf) for m in ms]
+    return _assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+
+
+def _batch_verify(
+    ms: Sequence[Octets],
+    Qs: Sequence[BIP340PubKey],
+    sigs: Sequence[SSASig],
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> bool:
+
+    # all kind of Exceptions are catched because
+    # verify must always return a bool
+    try:
+        _assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    except Exception:  # pylint: disable=broad-except
+        return False
+
+    return True
 
 
 def batch_verify(
-    m: Sequence[Octets],
-    Q: Sequence[BIP340PubKey],
-    sig: Sequence[SSASig],
+    ms: Sequence[String],
+    Qs: Sequence[BIP340PubKey],
+    sigs: Sequence[SSASig],
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> bool:
     """Batch verification of BIP340 signatures."""
 
-    # all kind of Exceptions are catched because
-    # verify must always return a bool
-    try:
-        _batch_verify(m, Q, sig, ec, hf)
-    except Exception:  # pylint: disable=broad-except
-        return False
-    else:
-        return True
+    ms = [reduce_to_hlen(m, hf) for m in ms]
+    return _batch_verify(ms, Qs, sigs, ec, hf)

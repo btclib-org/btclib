@@ -22,7 +22,6 @@ from . import dsa, secpoint
 from .exceptions import BTClibValueError
 from .psbt_out import (
     _assert_valid_bip32_derivs,
-    _assert_valid_proprietary,
     _assert_valid_redeem_script,
     _assert_valid_unknown,
     _assert_valid_witness_script,
@@ -30,12 +29,10 @@ from .psbt_out import (
     _decode_dict_bytes_bytes,
     _deserialize_bip32_derivs,
     _deserialize_bytes,
-    _deserialize_proprietary,
     _encode_bip32_derivs,
     _encode_dict_bytes_bytes,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
-    _serialize_proprietary,
 )
 from .script import SIGHASHES
 from .tx import Tx
@@ -51,13 +48,16 @@ PSBT_IN_WITNESS_SCRIPT = b"\x05"
 PSBT_IN_BIP32_DERIVATION = b"\x06"
 PSBT_IN_FINAL_SCRIPTSIG = b"\x07"
 PSBT_IN_FINAL_SCRIPTWITNESS = b"\x08"
-PSBT_IN_POR_COMMITMENT = b"\x09"
 # TODO: add support for the following
 # PSBT_IN_RIPEMD160 = b"\0x0a"
 # PSBT_IN_SHA256 = b"\0x0b"
 # PSBT_IN_HASH160 = b"\0x0c"
 # PSBT_IN_HASH256 = b"\0x0d"
-PSBT_IN_PROPRIETARY = b"\xfc"
+
+# 0xfc is reserved for proprietary
+# explicit code support for proprietary (and por) is unnecessary
+# see https://github.com/bitcoin/bips/pull/1038
+# PSBT_IN_PROPRIETARY = b"\xfc"
 
 
 def _deserialize_tx(k: bytes, v: bytes, type_: str) -> Tx:
@@ -135,28 +135,22 @@ def _assert_valid_final_script_witness(final_script_witness: List[bytes]) -> Non
             raise BTClibValueError(err_msg)
 
 
-def _deserialize_por_commitment(k: bytes, v: bytes) -> str:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) != 1:
-        err_msg = f"invalid Proof-of-Reserve commitment key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return v.decode("utf-8")  # TODO: see bip127
-
-
-def _assert_valid_por_commitment(por_commitment: Optional[str]) -> None:
-    if por_commitment is not None and not por_commitment.encode("utf-8"):
-        raise BTClibValueError("invalid Proof-of-Reserves commitment")
-
-
 def _assert_valid_partial_signatures(partial_signatures: Dict[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     for pubkey, sig in partial_signatures.items():
-        # pubkey must be a valid secp256k1 Point in SEC representation
-        secpoint.point_from_octets(pubkey)
-        if not dsa.deserialize(sig):
-            raise BTClibValueError("invalid signature in partial_signatures")
+        try:
+            # pubkey must be a valid secp256k1 Point in SEC representation
+            secpoint.point_from_octets(pubkey)
+        except BTClibValueError as e:
+            err_msg = "invalid partial signature pubkey: {pubkey!r}"
+            raise BTClibValueError(err_msg) from e
+        try:
+            dsa.deserialize(sig)
+        except BTClibValueError as e:
+            err_msg = f"invalid partial signature: {sig!r}"
+            raise BTClibValueError(err_msg) from e
+        # TODO should we check that pubkey is recoverable from sig?
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -195,8 +189,6 @@ class PsbtIn(DataClassJsonMixin):
             decoder=lambda val: [bytes.fromhex(v) for v in val],
         ),
     )
-    por_commitment: Optional[str] = None
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
@@ -222,8 +214,6 @@ class PsbtIn(DataClassJsonMixin):
                 out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
                 out.final_script_witness = _deserialize_final_script_witness(k, v)
-            elif k[0:1] == PSBT_IN_POR_COMMITMENT:
-                out.por_commitment = _deserialize_por_commitment(k, v)
             elif k[0:1] == PSBT_IN_REDEEM_SCRIPT:
                 out.redeem_script = _deserialize_bytes(k, v, "redeem script")
             elif k[0:1] == PSBT_IN_WITNESS_SCRIPT:
@@ -232,8 +222,6 @@ class PsbtIn(DataClassJsonMixin):
                 out.bip32_derivs.update(
                     _deserialize_bip32_derivs(k, v, "PsbtIn BIP32 pubkey")
                 )
-            elif k[0:1] == PSBT_IN_PROPRIETARY:
-                out.proprietary = _deserialize_proprietary(k, v)
             else:  # unknown
                 out.unknown[k] = v
 
@@ -269,15 +257,10 @@ class PsbtIn(DataClassJsonMixin):
         if self.final_script_witness:
             temp = witness_serialize(self.final_script_witness)
             out += _serialize_bytes(PSBT_IN_FINAL_SCRIPTWITNESS, temp)
-        if self.por_commitment:
-            temp = self.por_commitment.encode("utf-8")
-            out += _serialize_bytes(PSBT_IN_POR_COMMITMENT, temp)
         if self.bip32_derivs:
             out += _serialize_dict_bytes_bytes(
                 PSBT_IN_BIP32_DERIVATION, self.bip32_derivs
             )
-        if self.proprietary:
-            out += _serialize_proprietary(PSBT_IN_PROPRIETARY, self.proprietary)
         if self.unknown:
             out += _serialize_dict_bytes_bytes(b"", self.unknown)
 
@@ -292,8 +275,6 @@ class PsbtIn(DataClassJsonMixin):
         _assert_valid_witness_script(self.witness_script)
         _assert_valid_final_script_sig(self.final_script_sig)
         _assert_valid_final_script_witness(self.final_script_witness)
-        _assert_valid_por_commitment(self.por_commitment)
         _assert_valid_partial_signatures(self.partial_signatures)
         _assert_valid_bip32_derivs(self.bip32_derivs)
-        _assert_valid_proprietary(self.proprietary)
         _assert_valid_unknown(self.unknown)

@@ -1,6 +1,7 @@
 # Release notes
 
 Notable changes to the codebase are documented here.
+
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
@@ -8,7 +9,24 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
--  nothing relevant yet
+- fixed ssa batch verification functions' logic
+
+## v2020.11.23
+
+Major changes includes:
+
+- updated BIP340 (Schnorr signature) implementation
+  as per the latest changes in bitcoin core
+- refactored PsbtIn, PsbtOut, and Psbt
+- added legacy sighash
+- made btclib compatible with python 3.6
+- ssa.det_nonce now returns an int
+- moved tagged_hash from ssa into hashes module
+- added CurveGroup._y_aff_from_jac and removed unused methods
+- discontinued y_odd in favor of y_even as y-simmetry tiebreaker criterium
+- removed nonce input from dsa.sign and ssa.sign (only available from _sign functions)
+- cleaned up Exception handling, avoided bare/broad except
+- introduced btclib Exceptions that can be discriminated from regular Exceptions
 
 ## v2020.11.10
 
@@ -53,7 +71,7 @@ Major changes includes:
 
 - added BlockHeader and Block data classes
 - added OutPoint, TxIn, TxOut, and TX data classes
-- added segwit_v0_sighash
+- added segwit_v0 sighash
 - added PsbtIn, PbstOut, and Psbt data classes for
   partially signed bitcoin transactions (BIP174)
 - moved from unitest to pytest, including revision

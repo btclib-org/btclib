@@ -40,10 +40,7 @@
 - report BIP39 whitespaces
 - SSA: ask about checking e=0
 - SSA: ask about why e=e(k), making impossible to select e, k indipendently
-- SSA: ask about m being 32 bytes
-- SSA: ask about benefit of pIsThreeModFour vs odd or low
 - SSA: ask about benefit of removing 02/03 from pubkey
 - SSA: suggest better k
 
-
-revise y_odd: why int as second parameter? why not bool?
+- compare of dsa._rfc6979 and ssa._det_nonce

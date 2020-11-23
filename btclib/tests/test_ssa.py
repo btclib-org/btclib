@@ -19,11 +19,12 @@ from typing import List
 import pytest
 
 from btclib import ssa
-from btclib.alias import INF, Point
+from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.hashes import reduce_to_hlen
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
 from btclib.secpoint import bytes_from_point
@@ -37,6 +38,7 @@ def test_signature() -> None:
 
     q, x_Q = ssa.gen_keys(0x01)
     sig = ssa.sign(msg, q)
+    ssa.assert_as_valid(msg, x_Q, sig)
     assert ssa.verify(msg, x_Q, sig)
 
     assert sig == ssa.deserialize(sig)
@@ -47,19 +49,17 @@ def test_signature() -> None:
 
     msg_fake = "Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
-    err_msg = "signature verification failed"
+    err_msg = r"y_K is odd|signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg_fake, x_Q, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x02)
     assert not ssa.verify(msg, x_Q_fake, sig)
-    err_msg = "y_K is not a quadratic residue"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x4)
     assert not ssa.verify(msg, x_Q_fake, sig)
-    err_msg = "signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
@@ -68,11 +68,6 @@ def test_signature() -> None:
         ssa.assert_as_valid(msg, INF, sig)  # type: ignore
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.point_from_bip340pubkey(INF)  # type: ignore
-
-    assert not ssa.verify(msg, x_Q, sig, CURVES["secp224k1"], hf)
-    err_msg = "field prime is not equal to 3 mod 4: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.assert_as_valid(msg, x_Q, sig, CURVES["secp224k1"], hf)
 
     sig_fake = (sig[0], sig[1], sig[1])
     assert not ssa.verify(msg, x_Q, sig_fake)  # type: ignore
@@ -107,9 +102,9 @@ def test_signature() -> None:
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.sign(msg, q, 0)
+        ssa._sign(reduce_to_hlen(msg, hf), q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.sign(msg, q, ec.n)
+        ssa._sign(reduce_to_hlen(msg, hf), q, ec.n)
 
     err_msg = "invalid zero challenge"
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -126,25 +121,32 @@ def test_bip340_vectors() -> None:
     with open(filename, newline="") as csvfile:
         reader = csv.reader(csvfile)
         # skip column headers while checking that there are 7 columns
-        _, _, _, _, _, _, _ = reader.__next__()
+        _, _, _, _, _, _, _, _ = reader.__next__()
         for row in reader:
-            (index, seckey, pubkey, m, sig, result, comment) = row
+            (index, seckey, pubkey, aux_rand, m, sig, result, comment) = row
             err_msg = f"Test vector #{int(index)}"
-            if seckey != "":
-                _, pubkey_actual = ssa.gen_keys(seckey)
-                assert pubkey == hex(pubkey_actual).upper()[2:], err_msg
+            try:
+                if seckey != "":
+                    _, pubkey_actual = ssa.gen_keys(seckey)
+                    assert pubkey == hex(pubkey_actual).upper()[2:], err_msg
 
-                sig_actual = ssa.serialize(*ssa._sign(m, seckey))
-                assert sig == sig_actual.hex().upper(), err_msg
+                    k = ssa._det_nonce(m, seckey, aux_rand)
+                    sig_actual = ssa._sign(m, seckey, k)
+                    ssa._assert_as_valid(m, pubkey, sig_actual)
+                    assert ssa.deserialize(sig) == sig_actual, err_msg
 
-            if comment:
-                err_msg += ": " + comment
-            # TODO what's worng with xor-ing ?
-            # assert (result == "TRUE") ^ ssa._verify(m, pubkey, sig), err_msg
-            if result == "TRUE":
-                assert ssa._verify(m, pubkey, sig), err_msg
-            else:
-                assert not ssa._verify(m, pubkey, sig), err_msg
+                if comment:
+                    err_msg += ": " + comment
+                # TODO what's wrong with xor-ing ?
+                # assert (result == "TRUE") ^ ssa._verify(m, pubkey, sig), err_msg
+                if result == "TRUE":
+                    ssa._assert_as_valid(m, pubkey, sig)
+                    assert ssa._verify(m, pubkey, sig), err_msg
+                else:
+                    assert not ssa._verify(m, pubkey, sig), err_msg
+            except Exception as e:  # pragma: no cover # pylint: disable=broad-except
+                print(err_msg)  # pragma: no cover
+                raise e  # pragma: no cover
 
 
 def test_point_from_bip340pubkey() -> None:
@@ -198,22 +200,16 @@ def test_low_cardinality() -> None:
 
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
-        # BIP340 Schnorr only applies to curve whose prime p = 3 %4
-        if not ec.pIsThreeModFour:
-            err_msg = "field prime is not equal to 3 mod 4: "
-            with pytest.raises(BTClibValueError, match=err_msg):
-                ssa._sign(32 * b"\x00", 1, None, ec)
-            continue
         for q in range(1, ec.n // 2):  # all possible private keys
             QJ = _mult(q, ec.GJ, ec)  # public key
-            x_Q = ec._x_aff_from_jac(QJ)
-            if not ec.has_square_y(QJ):
+            x_Q, y_Q = ec._aff_from_jac(QJ)
+            if y_Q % 2:
                 q = ec.n - q
                 QJ = ec.negate_jac(QJ)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
                 RJ = _mult(k, ec.GJ, ec)
-                r = ec._x_aff_from_jac(RJ)
-                if not ec.has_square_y(RJ):
+                r, ry = ec._aff_from_jac(RJ)
+                if ry % 2:
                     k = ec.n - k
                 for e in range(ec.n):  # all possible challenges
                     s = (k + e * q) % ec.n
@@ -237,87 +233,86 @@ def test_crack_prvkey() -> None:
 
     ec = CURVES["secp256k1"]
 
-    q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
-    x_Q = mult(q)[0]
+    q, x_Q = ssa.gen_keys()
 
-    msg1_str = "Paolo is afraid of ephemeral random numbers"
-    msg1 = hf(msg1_str.encode()).digest()
-    k, _ = ssa._det_nonce(msg1, q)
-    sig1 = ssa._sign(msg1, q, k)
+    msg1 = "Paolo is afraid of ephemeral random numbers"
+    m1 = reduce_to_hlen(msg1)
+    k = ssa._det_nonce(m1, q)
+    sig1 = ssa._sign(m1, q, k)
 
-    msg2_str = "and Paolo is right to be afraid"
-    msg2 = hf(msg2_str.encode()).digest()
+    msg2 = "and Paolo is right to be afraid"
+    m2 = reduce_to_hlen(msg2)
     # reuse same k
-    sig2 = ssa._sign(msg2, q, k)
+    sig2 = ssa._sign(m2, q, k)
 
-    qc, kc = ssa._crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
-    assert q in (qc, ec.n - qc)
+    qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
+    assert q == qc
     assert k in (kc, ec.n - kc)
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        ssa._crack_prvkey(msg1, sig1, msg2, (16, sig1[1]), x_Q)
+        ssa._crack_prvkey(m1, sig1, m2, (16, sig1[1]), x_Q)
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
-        ssa._crack_prvkey(msg1, sig1, msg1, sig1, x_Q)
+        ssa._crack_prvkey(m1, sig1, m1, sig1, x_Q)
 
 
 def test_batch_validation() -> None:
 
-    ec = CURVES["secp256k1"]
+    ms: List[String] = []
+    Qs: List[int] = []
+    sigs: List[ssa.SSASig] = []
+    err_msg = "no signatures provided"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ssa.assert_batch_as_valid(ms, Qs, sigs)
+    assert not ssa.batch_verify(ms, Qs, sigs)
 
-    hsize = hf().digest_size
-    hlen = hsize * 8
-
-    ms = []
-    Qs = []
-    sigs = []
-    ms.append(secrets.randbits(hlen).to_bytes(hsize, "big"))
-    q = 1 + secrets.randbelow(ec.n - 1)
-    # bytes version
-    Qs.append(mult(q, ec.G, ec)[0])
-    sigs.append(ssa._sign(ms[0], q, None, ec, hf))
+    # valid size for String input to sign, not for Octets input to _sign
+    msg_size = 16
+    ms.append(secrets.token_bytes(msg_size))
+    q, Q = ssa.gen_keys()
+    Qs.append(Q)
+    sigs.append(ssa.sign(ms[0], q))
     # test with only 1 sig
-    ssa._batch_verify(ms, Qs, sigs, ec, hf)
+    ssa.assert_batch_as_valid(ms, Qs, sigs)
+    assert ssa.batch_verify(ms, Qs, sigs)
     for _ in range(3):
-        m = secrets.randbits(hlen).to_bytes(hsize, "big")
+        m = secrets.token_bytes(msg_size)
         ms.append(m)
-        q = 1 + secrets.randbelow(ec.n - 1)
-        # Point version
-        Qs.append(mult(q, ec.G, ec)[0])
-        sigs.append(ssa._sign(m, q, None, ec, hf))
-    ssa._batch_verify(ms, Qs, sigs, ec, hf)
-    assert ssa.batch_verify(ms, Qs, sigs, ec, hf)
+        q, Q = ssa.gen_keys()
+        Qs.append(Q)
+        sigs.append(ssa.sign(m, q))
+    ssa.assert_batch_as_valid(ms, Qs, sigs)
+    assert ssa.batch_verify(ms, Qs, sigs)
 
     ms.append(ms[0])
     sigs.append(sigs[1])
     Qs.append(Qs[0])
-    assert not ssa.batch_verify(ms, Qs, sigs, ec, hf)
-    err_msg = "signature verification precondition failed"
+    err_msg = "signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        ssa.assert_batch_as_valid(ms, Qs, sigs)
+    assert not ssa.batch_verify(ms, Qs, sigs)
     sigs[-1] = sigs[0]  # valid again
-
-    ms[-1] = ms[0][:-1]
-    err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, ec, hf)
-    ms[-1] = ms[0]  # valid again
 
     ms.append(ms[0])  # add extra message
     err_msg = "mismatch between number of pubkeys "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        ssa.assert_batch_as_valid(ms, Qs, sigs)
+    assert not ssa.batch_verify(ms, Qs, sigs)
     ms.pop()  # valid again
 
     sigs.append(sigs[0])  # add extra sig
     err_msg = "mismatch between number of pubkeys "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, ec, hf)
+        ssa.assert_batch_as_valid(ms, Qs, sigs)
+    assert not ssa.batch_verify(ms, Qs, sigs)
     sigs.pop()  # valid again
 
-    err_msg = "field prime is not equal to 3 mod 4: "
+    ms = [reduce_to_hlen(m, hf) for m in ms]
+    ms[0] = ms[0][:-1]
+    err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._batch_verify(ms, Qs, sigs, CURVES["secp224k1"], hf)
+        ssa._assert_batch_as_valid(ms, Qs, sigs)
+    assert not ssa._batch_verify(ms, Qs, sigs)
 
 
 def test_musig() -> None:
@@ -363,7 +358,7 @@ def test_musig() -> None:
     Q2 = mult(q2)
     Q3 = mult(q3)
     Q = ec.add(double_mult(a1, Q1, a2, Q2), mult(a3, Q3))
-    if not ec.has_square_y(Q):
+    if Q[1] % 2:
         # print("Q has been negated")
         a1 = ec.n - a1  # pragma: no cover
         a2 = ec.n - a2  # pragma: no cover
@@ -387,7 +382,7 @@ def test_musig() -> None:
 
     # same for all signers
     K = ec.add(ec.add(K1, K2), K3)
-    if not ec.has_square_y(K):
+    if K[1] % 2:
         k1 = ec.n - k1  # pragma: no cover
         k2 = ec.n - k2  # pragma: no cover
         k3 = ec.n - k3  # pragma: no cover
@@ -413,7 +408,7 @@ def test_threshold() -> None:
 
     # parameters
     m = 2
-    H = second_generator(ec, hf)
+    H = second_generator(ec)
 
     # FIRST PHASE: key pair generation ###################################
 
@@ -571,7 +566,7 @@ def test_threshold() -> None:
 
     # aggregated public key
     Q = A[0]
-    if not ec.has_square_y(Q):
+    if Q[1] % 2:
         # print('Q has been negated')
         A[1] = ec.negate(A[1])  # pragma: no cover
         alpha1 = ec.n - alpha1  # pragma: no cover
@@ -586,8 +581,8 @@ def test_threshold() -> None:
 
     # 2.1 signer one acting as the dealer
     commits1 = []
-    k1, _ = ssa.det_nonce(msg, q1, ec, hf)
-    k1_prime, _ = ssa.det_nonce(msg, q1_prime, ec, hf)
+    k1 = ssa.det_nonce(msg, q1, ec, hf)
+    k1_prime = ssa.det_nonce(msg, q1_prime, ec, hf)
     commits1.append(double_mult(k1_prime, H, k1, ec.G))
     # sharing polynomials
     f1 = [k1]
@@ -611,8 +606,8 @@ def test_threshold() -> None:
 
     # 2.2 signer three acting as the dealer
     commits3 = []
-    k3, _ = ssa.det_nonce(msg, q3, ec, hf)
-    k3_prime, _ = ssa.det_nonce(msg, q3_prime, ec, hf)
+    k3 = ssa.det_nonce(msg, q3, ec, hf)
+    k3_prime = ssa.det_nonce(msg, q3_prime, ec, hf)
     commits3.append(double_mult(k3_prime, H, k3, ec.G))
     # sharing polynomials
     f3 = [k3]
@@ -668,7 +663,7 @@ def test_threshold() -> None:
 
     # aggregated public nonce
     K = B[0]
-    if not ec.has_square_y(K):
+    if K[1] % 2:
         # print('K has been negated')
         B[1] = ec.negate(B[1])  # pragma: no cover
         beta1 = ec.n - beta1  # pragma: no cover

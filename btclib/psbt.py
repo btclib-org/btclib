@@ -27,17 +27,14 @@ from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
     PsbtOut,
     _assert_valid_bip32_derivs,
-    _assert_valid_proprietary,
     _assert_valid_unknown,
     _decode_bip32_derivs,
     _decode_dict_bytes_bytes,
     _deserialize_bip32_derivs,
-    _deserialize_proprietary,
     _encode_bip32_derivs,
     _encode_dict_bytes_bytes,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
-    _serialize_proprietary,
 )
 from .scriptpubkey import payload_from_script_pubkey
 from .tx import Tx
@@ -53,7 +50,10 @@ PSBT_DELIMITER = b"\x00"
 PSBT_GLOBAL_UNSIGNED_TX = b"\x00"
 PSBT_GLOBAL_XPUB = b"\x01"
 PSBT_GLOBAL_VERSION = b"\xfb"
-PSBT_GLOBAL_PROPRIETARY = b"\xfc"
+# 0xfc is reserved for proprietary
+# explicit code support for proprietary (and por) is unnecessary
+# see https://github.com/bitcoin/bips/pull/1038
+# PSBT_GLOBAL_PROPRIETARY = b"\xfc"
 
 
 def _assert_valid_version(version: int) -> None:
@@ -76,7 +76,6 @@ class Psbt(DataClassJsonMixin):
         default_factory=dict,
         metadata=config(encoder=_encode_bip32_derivs, decoder=_decode_bip32_derivs),
     )
-    proprietary: Dict[int, Dict[str, str]] = field(default_factory=dict)
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
@@ -105,8 +104,6 @@ class Psbt(DataClassJsonMixin):
                 out.bip32_derivs.update(
                     _deserialize_bip32_derivs(k, v, "Psbt BIP32 xkey")
                 )
-            elif k[0:1] == PSBT_GLOBAL_PROPRIETARY:
-                out.proprietary = _deserialize_proprietary(k, v)
             else:  # unknown
                 out.unknown[k] = v
 
@@ -137,8 +134,6 @@ class Psbt(DataClassJsonMixin):
             out += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
         if self.bip32_derivs:
             out += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.bip32_derivs)
-        if self.proprietary:
-            out += _serialize_proprietary(PSBT_GLOBAL_PROPRIETARY, self.proprietary)
         if self.unknown:
             out += _serialize_dict_bytes_bytes(b"", self.unknown)
 
@@ -165,7 +160,6 @@ class Psbt(DataClassJsonMixin):
 
         _assert_valid_version(self.version)
         _assert_valid_bip32_derivs(self.bip32_derivs)
-        _assert_valid_proprietary(self.proprietary)
         _assert_valid_unknown(self.unknown)
 
         if len(self.tx.vin) != len(self.inputs):
@@ -175,6 +169,7 @@ class Psbt(DataClassJsonMixin):
                 raise BTClibValueError("non empty script_sig")
             if vin.txinwitness != []:
                 raise BTClibValueError("non empty txinwitness")
+
         if len(self.tx.vout) != len(self.outputs):
             raise BTClibValueError("mismatched number of tx.vout and psbt_out")
 
@@ -193,8 +188,6 @@ class Psbt(DataClassJsonMixin):
 
             if non_witness_utxo:
                 txid = tx_in.prevout.txid
-                if not isinstance(non_witness_utxo, Tx):
-                    raise BTClibValueError("non_witness_utxo is not a Tx")
                 if non_witness_utxo.txid != txid:
                     err_msg = "invalid non_witness_utxo txid"
                     err_msg += f": {non_witness_utxo.txid.hex()}"
@@ -293,7 +286,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
     txid = psbts[0].tx.txid
     for psbt in psbts[1:]:
         if psbt.tx.txid != txid:
-            raise BTClibValueError(f"invalid psbt.tx.txid: {psbt.tx.txid.hex()}")
+            raise BTClibValueError(f"mismatched psbt.tx.txid: {psbt.tx.txid.hex()}")
 
     for psbt in psbts[1:]:
 
@@ -307,21 +300,17 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
             _combine_field(psbt.inputs[i], inp, "bip32_derivs")
             _combine_field(psbt.inputs[i], inp, "final_script_sig")
             _combine_field(psbt.inputs[i], inp, "final_script_witness")
-            _combine_field(psbt.inputs[i], inp, "por_commitment")
-            _combine_field(psbt.inputs[i], inp, "proprietary")
             _combine_field(psbt.inputs[i], inp, "unknown")
 
         for i, out in enumerate(final_psbt.outputs):
             _combine_field(psbt.outputs[i], out, "redeem_script")
             _combine_field(psbt.outputs[i], out, "witness_script")
             _combine_field(psbt.outputs[i], out, "bip32_derivs")
-            _combine_field(psbt.outputs[i], out, "proprietary")
             _combine_field(psbt.outputs[i], out, "unknown")
 
         _combine_field(psbt, final_psbt, "tx")
         _combine_field(psbt, final_psbt, "version")
         _combine_field(psbt, final_psbt, "bip32_derivs")
-        _combine_field(psbt, final_psbt, "proprietary")
         _combine_field(psbt, final_psbt, "unknown")
 
     return final_psbt
@@ -350,7 +339,6 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         psbt_in.redeem_script = b""
         psbt_in.witness_script = b""
         psbt_in.bip32_derivs = {}
-        psbt_in.por_commitment = None
     return psbt
 
 

@@ -19,7 +19,7 @@ see the btclib.curve module.
 import functools
 import heapq
 from math import ceil
-from typing import List, Sequence, Tuple, Union
+from typing import List, Sequence, Tuple
 
 from .alias import INF, INFJ, Integer, JacPoint, Point
 from .exceptions import BTClibTypeError, BTClibValueError
@@ -162,10 +162,18 @@ class CurveGroup:
     def _x_aff_from_jac(self, Q: JacPoint) -> int:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
-            raise BTClibValueError("infinity point has no x-coordinate")
+            raise BTClibValueError("INF has no x-coordinate")
 
         Z2 = Q[2] * Q[2]
         return (Q[0] * mod_inv(Z2, self.p)) % self.p
+
+    def _y_aff_from_jac(self, Q: JacPoint) -> int:
+        # point is assumed to be on curve
+        if Q[2] == 0:  # Infinity point in Jacobian coordinates
+            raise BTClibValueError("INF has no y-coordinate")
+
+        Z2 = Q[2] * Q[2]
+        return (Q[1] * mod_inv(Z2 * Q[2], self.p)) % self.p
 
     def _jac_equality(self, QJ: JacPoint, PJ: JacPoint) -> bool:
         """Return True if Jacobian points are equal in affine coordinates.
@@ -332,55 +340,29 @@ class CurveGroup:
             raise BTClibValueError(f"y-coordinate not in 1..p-1: '{hex_string(Q[1])}'")
         return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
 
-    def has_square_y(self, Q: Union[Point, JacPoint]) -> bool:
-        """Return True if the affine y-coordinate is a square.
+    #  y-simmetry tiebreaker criteria: even/odd, low/high, or quadratic residue
 
-        The input point is not checked to be on the curve.
-        """
-        if len(Q) == 2:
-            return legendre_symbol(Q[1], self.p) == 1
-        if len(Q) == 3:
-            # FIXME: do not ignore
-            return legendre_symbol(Q[1] * Q[2] % self.p, self.p) == 1  # type: ignore
-        raise BTClibTypeError("not a point")
+    def y_even(self, x: int) -> int:
+        """Return the odd/even affine y-coordinate associated to x."""
+        root = self.y(x)
+        # switch even/odd root as needed (XORing the conditions)
+        return self.p - root if root % 2 else root
 
-    def require_p_ThreeModFour(self) -> None:
-        """Require the field prime p to be equal to 3 mod 4.
+    def y_low(self, x: int) -> int:
+        """Return the low/high affine y-coordinate associated to x."""
+        root = self.y(x)
+        return root if root <= self.p // 2 else self.p - root
 
-        An Error is raised if not.
-        """
+    def y_quadratic_residue(self, x: int) -> int:
+        """Return the quadratic residue affine y-coordinate."""
+
         if not self.pIsThreeModFour:
             m = "field prime is not equal to 3 mod 4: "
             m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
             raise BTClibValueError(m)
-
-    # break the y simmetry: even/odd, low/high, or quadratic residue criteria
-
-    def y_odd(self, x: int, odd1even0: int = 1) -> int:
-        """Return the odd/even affine y-coordinate associated to x."""
-        if odd1even0 not in (0, 1):
-            raise BTClibValueError("odd1even0 must be bool or 1/0")
         root = self.y(x)
-        # switch even/odd root as needed (XORing the conditions)
-        return root if root % 2 == odd1even0 else self.p - root
-
-    def y_low(self, x: int, low1high0: int = 1) -> int:
-        """Return the low/high affine y-coordinate associated to x."""
-        if low1high0 not in (0, 1):
-            raise BTClibValueError("low1high0 must be bool or 1/0")
-        root = self.y(x)
-        # switch low/high root as needed (XORing the conditions)
-        return root if (self.p // 2 >= root) == low1high0 else self.p - root
-
-    def y_quadratic_residue(self, x: int, quad_res: int = 1) -> int:
-        """Return the quadratic residue affine y-coordinate."""
-        if quad_res not in (0, 1):
-            raise BTClibValueError("quad_res must be bool or 1/0")
-        self.require_p_ThreeModFour()
-        root = self.y(x)
-        # switch to quadratic residue root as needed
         legendre = legendre_symbol(root, self.p)
-        return root if legendre == quad_res else self.p - root
+        return root if legendre else self.p - root
 
 
 def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:

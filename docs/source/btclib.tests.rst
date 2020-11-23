@@ -212,6 +212,14 @@ btclib.tests.test\_psbt module
    :undoc-members:
    :show-inheritance:
 
+btclib.tests.test\_psbt\_out module
+-----------------------------------
+
+.. automodule:: btclib.tests.test_psbt_out
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.tests.test\_rfc6979 module
 ---------------------------------
 
@@ -252,10 +260,18 @@ btclib.tests.test\_secpoint module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_sighash module
----------------------------------
+btclib.tests.test\_sighash\_legacy module
+-----------------------------------------
 
-.. automodule:: btclib.tests.test_sighash
+.. automodule:: btclib.tests.test_sighash_legacy
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_sighash\_segwitv0 module
+-------------------------------------------
+
+.. automodule:: btclib.tests.test_sighash_segwitv0
    :members:
    :undoc-members:
    :show-inheritance:

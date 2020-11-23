@@ -26,15 +26,20 @@ setup(
     include_package_data=True,
     package_data={"btclib": ["data/*", "tests/test_data/*", "py.typed"]},
     test_suite="btclib.tests",
-    install_requires=["dataclasses_json"],
+    install_requires=[
+        "backports-datetime-fromisoformat>=1.0.0; python_version<'3.7'",
+        "dataclasses>=0.8; python_version<'3.7'",
+        "dataclasses_json",
+    ],
     keywords=(
         "bitcoin cryptography elliptic-curves ecdsa schnorr RFC-6979 "
         "bip32 bip39 electrum base58 bech32 segwit message-signing "
         "bip340"
     ),
-    python_requires=">=3.7",
+    python_requires=">=3.6",
     classifiers=[
         "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",

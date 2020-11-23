@@ -8,11 +8,12 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+from copy import deepcopy
 from typing import List, Union
 
 from . import script, tx, tx_out, varbytes
-from .alias import Octets, Script, ScriptToken
-from .exceptions import BTClibRuntimeError, BTClibValueError
+from .alias import ScriptToken
+from .exceptions import BTClibValueError
 from .scriptpubkey import payload_from_script_pubkey
 from .utils import hash256
 
@@ -22,9 +23,44 @@ def _get_bytes(a: Union[int, bytes]) -> bytes:
     return int.to_bytes(a, 32, "big") if isinstance(a, int) else a
 
 
+def legacy(
+    scriptCode: bytes, transaction: tx.Tx, input_index: int, hashtype: int
+) -> bytes:
+    new_tx = deepcopy(transaction)
+    for txin in new_tx.vin:
+        txin.script_sig = b""
+    # TODO: delete sig from scriptCode (even if non standard)
+    new_tx.vin[input_index].script_sig = scriptCode
+    if hashtype & 31 == 0x02:
+        new_tx.vout = []
+        for i, txin in enumerate(new_tx.vin):
+            if i != input_index:
+                txin.sequence = 0
+
+    if hashtype & 31 == 0x03:
+        # sighash single bug
+        if input_index >= len(new_tx.vout):
+            return (256 ** 31).to_bytes(32, "big")
+        new_tx.vout = new_tx.vout[: input_index + 1]
+        for txout in new_tx.vout[:-1]:
+            txout.script_pubkey = b""
+            txout.value = 256 ** 8 - 1
+        for i, txin in enumerate(new_tx.vin):
+            if i != input_index:
+                txin.sequence = 0
+
+    if hashtype & 0x80:
+        new_tx.vin = [new_tx.vin[input_index]]
+
+    preimage = new_tx.serialize(assert_valid=False)
+    preimage += hashtype.to_bytes(4, "little")
+
+    return hash256(preimage)
+
+
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
-def segwit_v0_sighash(
-    scriptCode: Octets, transaction: tx.Tx, input_index: int, hashtype: int, amount: int
+def segwit_v0(
+    scriptCode: bytes, transaction: tx.Tx, input_index: int, hashtype: int, amount: int
 ) -> bytes:
 
     hashtype_hex: str = hashtype.to_bytes(4, "little").hex()
@@ -72,27 +108,37 @@ def segwit_v0_sighash(
     return hash256(preimage)
 
 
+def _get_legacy_scriptCodes(script_pubkey: bytes) -> List[bytes]:
+    scriptCodes: List[bytes] = []
+    current_script: List[ScriptToken] = []
+    for token in script.deserialize(script_pubkey)[::-1]:
+        if token == "OP_CODESEPARATOR":
+            scriptCodes.append(script.serialize(current_script[::-1]))
+        else:
+            current_script.append(token)
+    scriptCodes.append(script.serialize(current_script[::-1]))
+    return scriptCodes[::-1]
+
+
 # FIXME: remove OP_CODESEPARATOR only if executed
-def _get_witness_v0_scriptCodes(script_pubkey: Script) -> List[str]:
-    scriptCodes: List[str] = []
+def _get_witness_v0_scriptCodes(script_pubkey: bytes) -> List[bytes]:
     try:
-        script_type = payload_from_script_pubkey(script_pubkey)[0]
+        script_type = payload_from_script_pubkey(script.deserialize(script_pubkey))[0]
     except BTClibValueError:
         script_type = "unknown"
     if script_type == "p2wpkh":  # simple p2wpkh
-        pubkeyhash = script_pubkey[1]
+        pubkeyhash = script.deserialize(script_pubkey)[1]
         if not isinstance(pubkeyhash, str):
             raise BTClibValueError("not a string")
-        scriptCodes.append(f"76a914{pubkeyhash}88ac")
-    else:
-        current_script: List[ScriptToken] = []
-        for token in script_pubkey[::-1]:
-            if token == "OP_CODESEPARATOR":
-                scriptCodes.append(script.serialize(current_script[::-1]).hex())
-            current_script.append(token)
-        scriptCodes.append(script.serialize(current_script[::-1]).hex())
-        scriptCodes = scriptCodes[::-1]
-    return scriptCodes
+        return [bytes.fromhex(f"76a914{pubkeyhash}88ac")]
+    scriptCodes: List[bytes] = []
+    current_script: List[ScriptToken] = []
+    for token in script.deserialize(script_pubkey)[::-1]:
+        if token == "OP_CODESEPARATOR":
+            scriptCodes.append(script.serialize(current_script[::-1]))
+        current_script.append(token)
+    scriptCodes.append(script.serialize(current_script[::-1]))
+    return scriptCodes[::-1]
 
 
 def get_sighash(
@@ -105,33 +151,23 @@ def get_sighash(
     value = previous_output.value
 
     script_pubkey = previous_output.script_pubkey
-    script_type = payload_from_script_pubkey(script_pubkey)[0]
-    if script_type == "p2sh":
-        script_pubkey = transaction.vin[input_index].script_sig
+    try:
+        script_type = payload_from_script_pubkey(script_pubkey)[0]
+        if script_type == "p2sh":
+            script_pubkey = transaction.vin[input_index].script_sig
+    except BTClibValueError:
+        script_type = "unknown"
 
-    if len(script_pubkey) == 2 and script_pubkey[0] == 0:  # is segwit
+    list_script = script.deserialize(script_pubkey)
+    if len(list_script) == 2 and list_script[0] == 0:  # is segwit
         script_type = payload_from_script_pubkey(script_pubkey)[0]
         if script_type == "p2wpkh":
             scriptCode = _get_witness_v0_scriptCodes(script_pubkey)[0]
         elif script_type == "p2wsh":
             # the real script is contained in the witness
             scriptCode = _get_witness_v0_scriptCodes(
-                script.deserialize(transaction.vin[input_index].txinwitness[-1])
+                transaction.vin[input_index].txinwitness[-1]
             )[0]
-        return segwit_v0_sighash(
-            bytes.fromhex(scriptCode), transaction, input_index, sighash_type, value
-        )
-    raise BTClibRuntimeError("legacy transactions not supported yet")
-
-
-# def sign(
-#     transaction: tx.Tx,
-#     previous_output: tx.TxOut,
-#     input_index: int,
-#     prvkey: int,
-#     sighash_type: int,
-# ) -> str:
-#     sighash = get_sighash(transaction, previous_output, input_index, sighash_type)
-#     signature = dsa.serialize(*dsa._sign(sighash, prvkey))
-#     signature += sighash_type.to_bytes(1, "little")
-#     return signature.hex()
+        return segwit_v0(scriptCode, transaction, input_index, sighash_type, value)
+    scriptCode = _get_legacy_scriptCodes(script_pubkey)[0]
+    return legacy(scriptCode, transaction, input_index, sighash_type)

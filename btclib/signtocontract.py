@@ -56,12 +56,13 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     - tweaked private key k + hash(kG||c)
     """
 
-    c = bytes_from_octets(c, hf().digest_size)
     R = mult(k, ec.G, ec)
+    r = bytes_from_point(R, ec)
+    c = bytes_from_octets(c, hf().digest_size)
     h = hf()
-    h.update(bytes_from_point(R, ec) + c)
-    e = int.from_bytes(h.digest(), byteorder="big")
-    return R, (e + k) % ec.n
+    h.update(r + c)
+    tweak = int.from_bytes(h.digest(), byteorder="big")
+    return R, (k + tweak) % ec.n
 
 
 def ecdsa_commit_sign(
@@ -94,10 +95,7 @@ def ecssa_commit_sign(
 ) -> Tuple[Tuple[int, int], Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
-    if k is None:
-        k, _ = ssa._det_nonce(m, prvkey, ec, hf)
-    else:
-        k, _ = ssa.gen_keys(k, ec)
+    k = ssa._det_nonce(m, prvkey, None, ec, hf) if k is None else int_from_prvkey(k, ec)
 
     # commit
     R, new_k = _tweak(c, k, ec, hf)

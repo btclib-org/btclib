@@ -77,12 +77,12 @@ class Tx(DataClassJsonMixin):
         witness_flag = False
         out += varint.encode(len(self.vin))
         for tx_input in self.vin:
-            out += tx_input.serialize()
+            out += tx_input.serialize(assert_valid=assert_valid)
             if tx_input.txinwitness != []:
                 witness_flag = True
         out += varint.encode(len(self.vout))
         for tx_output in self.vout:
-            out += tx_output.serialize()
+            out += tx_output.serialize(assert_valid=assert_valid)
         if witness_flag and include_witness:
             for tx_input in self.vin:
                 out += witness_serialize(tx_input.txinwitness)

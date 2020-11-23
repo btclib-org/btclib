@@ -19,8 +19,9 @@ from btclib.alias import INF
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.hashes import reduce_to_hlen
 from btclib.numbertheory import mod_inv
-from btclib.rfc6979 import rfc6979
+from btclib.rfc6979 import _rfc6979
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.tests.test_curve import low_card_curves
 
@@ -98,9 +99,9 @@ def test_signature() -> None:
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa.sign(msg, q, 0)
+        dsa._sign(reduce_to_hlen(msg), q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa.sign(msg, q, ec.n)
+        dsa._sign(reduce_to_hlen(msg), q, ec.n)
 
 
 def test_gec() -> None:
@@ -132,7 +133,8 @@ def test_gec() -> None:
         0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
         0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54,
     )
-    sig = dsa.sign(msg, dU, k, False, ec, hf)
+    low_s = False
+    sig = dsa._sign(reduce_to_hlen(msg, hf), dU, k, low_s, ec, hf)
     r, s = sig
     assert r == exp_sig[0]
     assert s == exp_sig[1]
@@ -197,8 +199,8 @@ def test_pubkey_recovery() -> None:
     Q = mult(q, ec.G, ec)
 
     msg = "Satoshi Nakamoto"
-    k = None
-    sig = dsa.sign(msg, q, k, True, ec)
+    low_s = True
+    sig = dsa.sign(msg, q, low_s, ec)
     assert dsa.verify(msg, Q, sig, ec)
     dersig = dsa.serialize(*sig, ec)
     assert dsa.verify(msg, Q, dersig, ec)
@@ -216,19 +218,24 @@ def test_crack_prvkey() -> None:
 
     ec = CURVES["secp256k1"]
 
+    # FIXME: make it random
     q = 0x17E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
-    k = rfc6979(msg1, q)
-    sig1 = dsa.sign(msg1, q, k)
+    m1 = reduce_to_hlen(msg1)
+    k = _rfc6979(m1, q)
+    sig1 = dsa._sign(m1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
+    m2 = reduce_to_hlen(msg2)
     # reuse same k
-    sig2 = dsa.sign(msg2, q, k)
+    sig2 = dsa._sign(m2, q, k)
 
     qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
+    assert q in (qc, ec.n - qc)
     assert q == qc
     assert k in (kc, ec.n - kc)
+    # assert k == kc
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
         dsa.crack_prvkey(msg1, sig1, msg2, (16, sig1[1]))

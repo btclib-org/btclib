@@ -109,17 +109,16 @@ def test_aff_jac_conversions() -> None:
         assert Q == ec._aff_from_jac(QJ)
         x_Q = ec._x_aff_from_jac(QJ)
         assert Q[0] == x_Q
+        y_Q = ec._y_aff_from_jac(QJ)
+        assert Q[1] == y_Q
 
         assert INF == ec._aff_from_jac(_jac_from_aff(INF))
 
-        # relevant for BIP340-Schnorr signature verification
-        assert not ec.has_square_y(INF)
-        with pytest.raises(
-            BTClibValueError, match="infinity point has no x-coordinate"
-        ):
+        with pytest.raises(BTClibValueError, match="INF has no x-coordinate"):
             ec._x_aff_from_jac(INFJ)
-        with pytest.raises(BTClibTypeError, match="not a point"):
-            ec.has_square_y("notapoint")  # type: ignore
+
+        with pytest.raises(BTClibValueError, match="INF has no y-coordinate"):
+            ec._y_aff_from_jac(INFJ)
 
 
 def test_add_double_aff() -> None:
@@ -245,7 +244,7 @@ def test_negate() -> None:
 
 
 def test_symmetry() -> None:
-    """Methods to break simmetry: quadratic residue, odd/even, low/high"""
+    "Methods to break simmetry: quadratic residue, even/odd, low/high."
     for ec in low_card_curves.values():
 
         # just a random point, not INF
@@ -253,16 +252,8 @@ def test_symmetry() -> None:
         Q = mult(q, ec.G, ec)
         x_Q = Q[0]
 
-        y_odd = ec.y_odd(x_Q)
-        assert y_odd % 2 == 1
-        y_even = ec.y_odd(x_Q, False)
-        assert y_even % 2 == 0
-        assert y_even == ec.p - y_odd
-
-        y_low = ec.y_low(x_Q)
-        y_high = ec.y_low(x_Q, False)
-        assert y_low < y_high
-        assert y_high == ec.p - y_low
+        assert not ec.y_even(x_Q) % 2
+        assert ec.y_low(x_Q) <= ec.p // 2
 
         # compute quadratic residues
         hasRoot = {1}
@@ -271,7 +262,6 @@ def test_symmetry() -> None:
 
         if ec.p % 4 == 3:
             quad_res = ec.y_quadratic_residue(x_Q)
-            not_quad_res = ec.y_quadratic_residue(x_Q, False)
 
             # in this case only quad_res is a quadratic residue
             assert quad_res in hasRoot
@@ -280,19 +270,18 @@ def test_symmetry() -> None:
             root = ec.p - root
             assert quad_res == (root * root) % ec.p
 
-            assert not_quad_res == ec.p - quad_res
-            assert not_quad_res not in hasRoot
+            assert ec.p - quad_res not in hasRoot
             with pytest.raises(BTClibValueError, match="no root for "):
-                mod_sqrt(not_quad_res, ec.p)
+                mod_sqrt(ec.p - quad_res, ec.p)
         else:
             assert ec.p % 4 == 1
             # cannot use y_quadratic_residue in this case
             err_msg = "field prime is not equal to 3 mod 4: "
             with pytest.raises(BTClibValueError, match=err_msg):
                 ec.y_quadratic_residue(x_Q)
-            with pytest.raises(BTClibValueError, match=err_msg):
-                ec.y_quadratic_residue(x_Q, False)
 
+            y_even = ec.y_even(x_Q)
+            y_odd = ec.p - y_even
             # in this case neither or both y_Q are quadratic residues
             neither = y_odd not in hasRoot and y_even not in hasRoot
             both = y_odd in hasRoot and y_even in hasRoot
@@ -313,12 +302,12 @@ def test_symmetry() -> None:
                 with pytest.raises(BTClibValueError, match=err_msg):
                     mod_sqrt(y_even, ec.p)
 
-        with pytest.raises(BTClibValueError, match="low1high0 must be bool or 1/0"):
-            ec.y_low(x_Q, 2)
-        with pytest.raises(BTClibValueError, match="odd1even0 must be bool or 1/0"):
-            ec.y_odd(x_Q, 2)
-        with pytest.raises(BTClibValueError, match="quad_res must be bool or 1/0"):
-            ec.y_quadratic_residue(x_Q, 2)
+    with pytest.raises(BTClibValueError):
+        secp256k1.y_even(INF[0])
+    with pytest.raises(BTClibValueError):
+        secp256k1.y_low(INF[0])
+    with pytest.raises(BTClibValueError):
+        secp256k1.y_quadratic_residue(INF[0])
 
 
 @pytest.mark.fifth

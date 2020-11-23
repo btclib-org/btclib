@@ -48,9 +48,12 @@ from .utils import bytes_from_octets, int_from_bits
 def rfc6979(
     msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> int:
-    """Return a deterministic ephemeral key following RFC 6979."""
+    """Return a deterministic ephemeral key following RFC 6979.
 
-    m = reduce_to_hlen(msg, hf)
+    see https://tools.ietf.org/html/rfc6979 section 3.2
+    """
+
+    m = reduce_to_hlen(msg, hf)  # 3.2.a
     return _rfc6979(m, prvkey, ec, hf)
 
 
@@ -73,8 +76,6 @@ def _rfc6979(
 
 def __rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
-
-    # c = hf(m)                                            # 3.2.a
 
     # convert the private key q to an octet sequence of size nsize
     bprv = q.to_bytes(ec.nsize, "big")
