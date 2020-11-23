@@ -17,7 +17,7 @@ import json
 from os import path
 
 from btclib import dsa, script
-from btclib.sighash import _get_legacy_scriptCodes, get_sighash, legacy
+from btclib.sighash import _get_legacy_script_codes, get_sighash, legacy
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
@@ -209,10 +209,10 @@ def test_sighash_json():
         data = json.load(file_)
     data = data[1:]  # skip column headers
     for raw_transaction, raw_script, input_index, hashType, sighash in data:
-        scriptCode = _get_legacy_scriptCodes(raw_script)[0]
+        script_code = _get_legacy_script_codes(raw_script)[0]
         tx = Tx.deserialize(raw_transaction)
         if hashType < 0:
             hashType = 0xFFFFFFFF + 1 + hashType
-        actual_sighash = legacy(scriptCode, tx, input_index, hashType)
+        actual_sighash = legacy(script_code, tx, input_index, hashType)
         expected_sighash = bytes.fromhex(sighash)[::-1]
         assert expected_sighash == actual_sighash

@@ -60,9 +60,9 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid decoded size: "):
         b58decode(encoded, wrong_length)
 
-    invalidChecksum = encoded[:-4] + b"1111"
+    invalid_checksum = encoded[:-4] + b"1111"
     with pytest.raises(BTClibValueError, match="invalid checksum: "):
-        b58decode(invalidChecksum, 4)
+        b58decode(invalid_checksum, 4)
 
     err_msg = "'ascii' codec can't encode character "
     with pytest.raises(UnicodeEncodeError, match=err_msg):
@@ -77,23 +77,23 @@ def test_wif() -> None:
     # https://en.bitcoin.it/wiki/Wallet_import_format
     prv = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 
-    uncompressedKey = b"\x80" + prv.to_bytes(32, byteorder="big")
-    uncomprWIF = b"5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
-    wif = b58encode(uncompressedKey)
-    assert wif == uncomprWIF
-    key = b58decode(uncomprWIF)
-    assert key == uncompressedKey
+    uncompressed_key = b"\x80" + prv.to_bytes(32, byteorder="big")
+    uncompressed_wif = b"5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
+    wif = b58encode(uncompressed_key)
+    assert wif == uncompressed_wif
+    key = b58decode(uncompressed_wif)
+    assert key == uncompressed_key
 
     compressedKey = b"\x80" + prv.to_bytes(32, byteorder="big") + b"\x01"
-    compressedWIF = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+    compressed_wif = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
     wif = b58encode(compressedKey)
-    assert wif == compressedWIF
-    key = b58decode(compressedWIF)
+    assert wif == compressed_wif
+    key = b58decode(compressed_wif)
     assert key == compressedKey
 
     # string
-    compressedWIF = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-    key = b58decode(compressedWIF)
+    compressed_wif = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+    key = b58decode(compressed_wif)
     assert key == compressedKey
 
 
