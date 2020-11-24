@@ -16,7 +16,7 @@ from os import path
 import pytest
 
 from btclib import der, dsa, secpoint
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.psbt import (
     PSBT_DELIMITER,
     PSBT_SEPARATOR,
@@ -412,22 +412,22 @@ def test_exceptions() -> None:
 
     psbt = Psbt.decode(psbt_encoded)
     psbt.outputs[0].redeem_script = "bad script"  # type: ignore
-    with pytest.raises(BTClibValueError, match="invalid redeem script"):
+    with pytest.raises(BTClibTypeError, match="invalid redeem script"):
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)
     psbt.inputs[0].witness_script = "bad script"  # type: ignore
-    with pytest.raises(BTClibValueError, match="invalid witness script"):
+    with pytest.raises(BTClibTypeError, match="invalid witness script"):
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)
     psbt.outputs[0].unknown = {"bad key": b""}  # type: ignore
-    with pytest.raises(BTClibValueError, match="invalid key in unknown"):
+    with pytest.raises(BTClibTypeError, match="invalid key in unknown"):
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)
     psbt.outputs[0].unknown = {b"deadbeef": "bad value"}  # type: ignore
-    with pytest.raises(BTClibValueError, match="invalid value in unknown"):
+    with pytest.raises(BTClibTypeError, match="invalid value in unknown"):
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)
@@ -437,17 +437,17 @@ def test_exceptions() -> None:
 
     psbt = Psbt.decode(psbt_encoded)
     psbt.inputs[0].final_script_sig = "bad script"  # type: ignore
-    with pytest.raises(BTClibValueError, match="invalid final script_sig"):
+    with pytest.raises(BTClibTypeError, match="invalid final script_sig"):
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)
     psbt.inputs[0].final_script_witness = "bad script"  # type: ignore
-    with pytest.raises(BTClibValueError, match="invalid final script witness"):
+    with pytest.raises(BTClibTypeError, match="invalid final script witness"):
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)
     psbt.inputs[0].final_script_witness = [b"", ""]  # type: ignore
-    with pytest.raises(BTClibValueError, match="invalid final script witness"):
+    with pytest.raises(BTClibTypeError, match="invalid final script witness"):
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)

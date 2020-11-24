@@ -13,7 +13,7 @@ from typing import List, Union
 
 from . import script, tx, tx_out, varbytes
 from .alias import ScriptToken
-from .exceptions import BTClibValueError
+from .exceptions import BTClibTypeError, BTClibValueError
 from .scriptpubkey import payload_from_script_pubkey
 from .utils import hash256
 
@@ -129,7 +129,7 @@ def _get_witness_v0_script_codes(script_pubkey: bytes) -> List[bytes]:
     if script_type == "p2wpkh":  # simple p2wpkh
         pubkeyhash = script.deserialize(script_pubkey)[1]
         if not isinstance(pubkeyhash, str):
-            raise BTClibValueError("not a string")
+            raise BTClibTypeError("not a string")
         return [bytes.fromhex(f"76a914{pubkeyhash}88ac")]
     script_codes: List[bytes] = []
     current_script: List[ScriptToken] = []

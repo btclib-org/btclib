@@ -50,9 +50,6 @@ def test_trailing_zeros() -> None:
 
 def test_exceptions() -> None:
 
-    with pytest.raises(TypeError, match="object supporting the buffer API required"):
-        b58encode(3)  # type: ignore
-
     encoded = b58encode(b"hello world")
     b58decode(encoded, 11)
 

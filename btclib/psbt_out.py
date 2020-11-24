@@ -24,7 +24,7 @@ from .bip32 import (
     indexes_from_bip32_path,
     str_from_bip32_path,
 )
-from .exceptions import BTClibValueError
+from .exceptions import BTClibTypeError, BTClibValueError
 from .utils import bytes_from_octets
 
 
@@ -63,13 +63,13 @@ def _deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
 def _assert_valid_redeem_script(redeem_script: bytes) -> None:
     "Raise an exception if the dataclass element is not valid."
     if not isinstance(redeem_script, bytes):
-        raise BTClibValueError("invalid redeem script")
+        raise BTClibTypeError("invalid redeem script")
 
 
 def _assert_valid_witness_script(witness_script: bytes) -> None:
     "Raise an exception if the dataclass element is not valid."
     if not isinstance(witness_script, bytes):
-        raise BTClibValueError("invalid witness script")
+        raise BTClibTypeError("invalid witness script")
 
 
 def _encode_bip32_derivs(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
@@ -125,9 +125,9 @@ def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
 
     for key, value in data.items():
         if not isinstance(key, bytes):
-            raise BTClibValueError("invalid key in unknown")
+            raise BTClibTypeError("invalid key in unknown")
         if not isinstance(value, bytes):
-            raise BTClibValueError("invalid value in unknown")
+            raise BTClibTypeError("invalid value in unknown")
 
 
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"

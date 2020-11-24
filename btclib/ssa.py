@@ -66,7 +66,7 @@ from .alias import (
 from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult, _multi_mult
-from .exceptions import BTClibRuntimeError, BTClibValueError
+from .exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from .hashes import reduce_to_hlen, tagged_hash
 from .numbertheory import mod_inv
 from .to_prvkey import PrvKey, int_from_prvkey
@@ -108,7 +108,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
         x_Q = int.from_bytes(Q, "big")
         return x_Q, ec.y_even(x_Q)
 
-    raise BTClibValueError("not a BIP340 public key")
+    raise BTClibTypeError("not a BIP340 public key")
 
 
 def _validate_sig(r: int, s: int, ec: Curve) -> None:

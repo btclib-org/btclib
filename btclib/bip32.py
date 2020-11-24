@@ -43,7 +43,7 @@ from . import bip39, electrum
 from .alias import INF, Octets, Point, String
 from .base58 import b58decode, b58encode
 from .curve import mult, secp256k1
-from .exceptions import BTClibValueError
+from .exceptions import BTClibTypeError, BTClibValueError
 from .mnemonic import Mnemonic
 from .network import (
     _NETWORKS,
@@ -145,7 +145,7 @@ class BIP32KeyData(DataClassJsonMixin):
     def assert_valid(self) -> None:
 
         if not isinstance(self.version, bytes):
-            raise BTClibValueError("version is not an instance of bytes")
+            raise BTClibTypeError("version is not an instance of bytes")
         if len(self.version) != 4:
             err_msg = "invalid version length: "
             err_msg += f"{len(self.version)} bytes"
@@ -153,12 +153,12 @@ class BIP32KeyData(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
         if not isinstance(self.depth, int):
-            raise BTClibValueError("depth is not an instance of int")
+            raise BTClibTypeError("depth is not an instance of int")
         if self.depth < 0 or self.depth > 255:
             raise BTClibValueError(f"invalid depth: {self.depth}")
 
         if not isinstance(self.parent_fingerprint, bytes):
-            raise BTClibValueError("parent fingerprint is not an instance of bytes")
+            raise BTClibTypeError("parent fingerprint is not an instance of bytes")
         if len(self.parent_fingerprint) != 4:
             err_msg = "invalid parent fingerprint length: "
             err_msg += f"{len(self.parent_fingerprint)} bytes"
@@ -166,12 +166,12 @@ class BIP32KeyData(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
         if not isinstance(self.index, int):
-            raise BTClibValueError("index is not an instance of bytes")
+            raise BTClibTypeError("index is not an instance of bytes")
         if not 0 <= self.index <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid index: {self.index}")
 
         if not isinstance(self.chain_code, bytes):
-            raise BTClibValueError("chain code is not an instance of bytes")
+            raise BTClibTypeError("chain code is not an instance of bytes")
         if len(self.chain_code) != 32:
             err_msg = "invalid chain code length: "
             err_msg += f"{len(self.chain_code)} bytes"
@@ -179,7 +179,7 @@ class BIP32KeyData(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
         if not isinstance(self.key, bytes):
-            raise BTClibValueError("key is not an instance of bytes")
+            raise BTClibTypeError("key is not an instance of bytes")
         if len(self.key) != 33:
             err_msg = "invalid key length: "
             err_msg += f"{len(self.key)} bytes"

@@ -23,7 +23,11 @@ from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+)
 from btclib.hashes import reduce_to_hlen
 from btclib.numbertheory import mod_inv
 from btclib.pedersen import second_generator
@@ -64,16 +68,13 @@ def test_signature() -> None:
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     err_msg = "not a BIP340 public key"
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibTypeError, match=err_msg):
         ssa.assert_as_valid(msg, INF, sig)  # type: ignore
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibTypeError, match=err_msg):
         ssa.point_from_bip340pubkey(INF)  # type: ignore
 
-    sig_fake = (sig[0], sig[1], sig[1])
+    sig_fake = sig[0], sig[1], sig[1]
     assert not ssa.verify(msg, x_Q, sig_fake)  # type: ignore
-    err_msg = "too many values to unpack "
-    with pytest.raises(ValueError, match=err_msg):
-        ssa.assert_as_valid(msg, x_Q, sig_fake)  # type: ignore
 
     sig_invalid = ec.p, sig[1]
     assert not ssa.verify(msg, x_Q, sig_invalid)

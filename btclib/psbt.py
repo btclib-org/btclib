@@ -22,7 +22,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, varint
 from .alias import ScriptToken
-from .exceptions import BTClibValueError
+from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
     PsbtOut,
@@ -195,7 +195,7 @@ class Psbt(DataClassJsonMixin):
 
             if witness_utxo:
                 if not isinstance(witness_utxo, TxOut):
-                    raise BTClibValueError("witness_utxo is not a TxOut")
+                    raise BTClibTypeError("witness_utxo is not a TxOut")
                 script_pubkey = witness_utxo.script_pubkey
                 script_type = payload_from_script_pubkey(script_pubkey)[0]
                 if script_type == "p2sh":

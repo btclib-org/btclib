@@ -16,7 +16,7 @@ import pytest
 
 from btclib import script
 from btclib.alias import ScriptToken
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_operators() -> None:
@@ -75,7 +75,7 @@ def test_exceptions() -> None:
         script.serialize(script_pubkey)
 
     err_msg = "Unmanaged <class 'function'> token type"
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibTypeError, match=err_msg):
         script.serialize([2, 3, "OP_ADD", 5, script.serialize])  # type: ignore
 
     script_pubkey = ["1f" * 521, "OP_DROP"]

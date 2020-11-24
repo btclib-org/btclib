@@ -22,7 +22,7 @@ Scripts are represented by List[ScriptToken], where ScriptToken = Union[int, str
 from typing import List
 
 from .alias import BinaryData, Octets, ScriptToken
-from .exceptions import BTClibValueError
+from .exceptions import BTClibTypeError, BTClibValueError
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
 SIGHASH_ALL = 1
@@ -325,7 +325,7 @@ def serialize(script: List[ScriptToken]) -> bytes:
         elif isinstance(token, bytes):
             r += _op_pushdata(token)
         else:
-            raise BTClibValueError(f"Unmanaged {type(token)} token type")
+            raise BTClibTypeError(f"Unmanaged {type(token)} token type")
     return r
 
 

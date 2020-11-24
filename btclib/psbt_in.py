@@ -19,7 +19,7 @@ from typing import Dict, List, Optional, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import dsa, secpoint
-from .exceptions import BTClibValueError
+from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_out import (
     _assert_valid_bip32_derivs,
     _assert_valid_redeem_script,
@@ -123,16 +123,16 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> List[bytes]:
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
     if not isinstance(final_script_sig, bytes):
-        raise BTClibValueError("invalid final script_sig")
+        raise BTClibTypeError("invalid final script_sig")
 
 
 def _assert_valid_final_script_witness(final_script_witness: List[bytes]) -> None:
     err_msg = "invalid final script witness"
     if not isinstance(final_script_witness, list):
-        raise BTClibValueError(err_msg)
+        raise BTClibTypeError(err_msg)
     for b in final_script_witness:
         if not isinstance(b, bytes):
-            raise BTClibValueError(err_msg)
+            raise BTClibTypeError(err_msg)
 
 
 def _assert_valid_partial_signatures(partial_signatures: Dict[bytes, bytes]) -> None:

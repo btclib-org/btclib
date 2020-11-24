@@ -74,11 +74,8 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, INF, sig)
 
-    sig_fake = (sig[0], sig[1], sig[1])
+    sig_fake = sig[0], sig[1], sig[1]
     assert not dsa.verify(msg, Q, sig_fake)  # type: ignore
-    err_msg = "too many values to unpack "
-    with pytest.raises(ValueError, match=err_msg):
-        dsa.assert_as_valid(msg, Q, sig_fake)  # type: ignore
 
     sig_invalid = ec.p, sig[1]
     assert not dsa.verify(msg, Q, sig_invalid)

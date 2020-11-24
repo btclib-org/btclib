@@ -33,7 +33,7 @@ from btclib.bip32 import (
     str_from_bip32_path,
     xpub_from_xprv,
 )
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_indexes_from_bip32_path_str() -> None:
@@ -117,7 +117,7 @@ def test_assert_valid() -> None:
 
     xkey_data = BIP32KeyData.deserialize(xkey)
     xkey_data.version = "1234"  # type: ignore
-    with pytest.raises(BTClibValueError, match="version is not an instance of bytes"):
+    with pytest.raises(BTClibTypeError, match="version is not an instance of bytes"):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
@@ -132,7 +132,7 @@ def test_assert_valid() -> None:
 
     xkey_data = BIP32KeyData.deserialize(xkey)
     xkey_data.depth = "1"  # type: ignore
-    with pytest.raises(BTClibValueError, match="depth is not an instance of int"):
+    with pytest.raises(BTClibTypeError, match="depth is not an instance of int"):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
@@ -143,7 +143,7 @@ def test_assert_valid() -> None:
     xkey_data = BIP32KeyData.deserialize(xkey)
     xkey_data.parent_fingerprint = "1234"  # type: ignore
     with pytest.raises(
-        BTClibValueError, match="parent fingerprint is not an instance of bytes"
+        BTClibTypeError, match="parent fingerprint is not an instance of bytes"
     ):
         xkey_data.assert_valid()
 
@@ -159,7 +159,7 @@ def test_assert_valid() -> None:
 
     xkey_data = BIP32KeyData.deserialize(xkey)
     xkey_data.index = "1234"  # type: ignore
-    with pytest.raises(BTClibValueError, match="index is not an instance of bytes"):
+    with pytest.raises(BTClibTypeError, match="index is not an instance of bytes"):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
@@ -169,9 +169,7 @@ def test_assert_valid() -> None:
 
     xkey_data = BIP32KeyData.deserialize(xkey)
     xkey_data.chain_code = "length is 32 but not a chaincode"  # type: ignore
-    with pytest.raises(
-        BTClibValueError, match="chain code is not an instance of bytes"
-    ):
+    with pytest.raises(BTClibTypeError, match="chain code is not an instance of bytes"):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
@@ -181,7 +179,7 @@ def test_assert_valid() -> None:
 
     xkey_data = BIP32KeyData.deserialize(xkey)
     xkey_data.key = "length is 33, but not a key"  # type: ignore
-    with pytest.raises(BTClibValueError, match="key is not an instance of bytes"):
+    with pytest.raises(BTClibTypeError, match="key is not an instance of bytes"):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.deserialize(xkey)
