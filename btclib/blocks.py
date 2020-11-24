@@ -10,7 +10,7 @@
 
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
@@ -53,7 +53,9 @@ class BlockHeader(DataClassJsonMixin):
         version = int.from_bytes(stream.read(4), "little")
         previousblockhash = stream.read(32)[::-1].hex()
         merkleroot = stream.read(32)[::-1].hex()
-        timestamp = datetime.fromtimestamp(int.from_bytes(stream.read(4), "little"))
+        timestamp = datetime.fromtimestamp(
+            int.from_bytes(stream.read(4), "little"), timezone.utc
+        )
         bits = stream.read(4)[::-1]
         nonce = int.from_bytes(stream.read(4), "little")
         header = cls(

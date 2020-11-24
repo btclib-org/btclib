@@ -11,7 +11,7 @@
 "Tests for `btclib.blocks` module."
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from os import path
 
 import pytest
@@ -34,7 +34,7 @@ def test_block_1() -> None:
     assert block.serialize() == block_bytes
 
     header = block.header
-    assert header.time == datetime(2009, 1, 9, 3, 54, 25)
+    assert header.time == datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc)
     assert (
         header.merkleroot
         == "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
@@ -63,7 +63,7 @@ def test_block_170() -> None:
     assert block.serialize() == block_bytes
 
     header = block.header
-    assert header.time == datetime(2009, 1, 12, 4, 30, 25)
+    assert header.time == datetime(2009, 1, 12, 3, 30, 25, tzinfo=timezone.utc)
     assert (
         header.merkleroot
         == "7dac2c5666815c17a3b36427de37bb9d2e2c5ccec3f8633eb91a4205cb4c10ff"
@@ -91,7 +91,7 @@ def test_block_200000() -> None:
     assert block.serialize() == block_bytes
 
     header = block.header
-    assert header.time == datetime(2012, 9, 22, 12, 45, 59)
+    assert header.time == datetime(2012, 9, 22, 10, 45, 59, tzinfo=timezone.utc)
     assert (
         header.merkleroot
         == "a08f8101f50fd9c9b3e5252aff4c1c1bd668f878fffaf3d0dbddeb029c307e88"
@@ -121,7 +121,7 @@ def test_block_481824() -> None:
     assert block.serialize() == block_bytes
 
     header = block.header
-    assert header.time == datetime(2017, 8, 24, 3, 57, 37)
+    assert header.time == datetime(2017, 8, 24, 1, 57, 37, tzinfo=timezone.utc)
     assert (
         header.merkleroot
         == "6438250cad442b982801ae6994edb8a9ec63c0a0ba117779fbe7ef7f07cad140"
@@ -150,7 +150,7 @@ def test_block_481824_complete() -> None:
     assert block.serialize() == block_bytes
 
     header = block.header
-    assert header.time == datetime(2017, 8, 24, 3, 57, 37)
+    assert header.time == datetime(2017, 8, 24, 1, 57, 37, tzinfo=timezone.utc)
     assert (
         header.merkleroot
         == "6438250cad442b982801ae6994edb8a9ec63c0a0ba117779fbe7ef7f07cad140"
