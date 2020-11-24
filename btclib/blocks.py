@@ -35,10 +35,9 @@ class BlockHeader(DataClassJsonMixin):
     version: int
     previousblockhash: str
     merkleroot: str
-    time: int = field(  # TODO: fix tzinfo=timezone.utc
+    time: datetime = field(
         metadata=config(
-            encoder=lambda t: datetime.fromtimestamp(t).isoformat(),
-            decoder=lambda t: datetime.fromisoformat(t).timestamp(),  # type: ignore
+            encoder=datetime.isoformat, decoder=datetime.fromisoformat  # type: ignore
         ),
     )
     bits: bytes = field(
@@ -54,7 +53,7 @@ class BlockHeader(DataClassJsonMixin):
         version = int.from_bytes(stream.read(4), "little")
         previousblockhash = stream.read(32)[::-1].hex()
         merkleroot = stream.read(32)[::-1].hex()
-        timestamp = int.from_bytes(stream.read(4), "little")
+        timestamp = datetime.fromtimestamp(int.from_bytes(stream.read(4), "little"))
         bits = stream.read(4)[::-1]
         nonce = int.from_bytes(stream.read(4), "little")
         header = cls(
@@ -76,7 +75,7 @@ class BlockHeader(DataClassJsonMixin):
         out = self.version.to_bytes(4, "little")
         out += bytes.fromhex(self.previousblockhash)[::-1]
         out += bytes.fromhex(self.merkleroot)[::-1]
-        out += self.time.to_bytes(4, "little")
+        out += int(self.time.timestamp()).to_bytes(4, "little")
         out += self.bits[::-1]
         out += self.nonce.to_bytes(4, "little")
 
