@@ -53,16 +53,7 @@ import secrets
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Union
 
-from .alias import (
-    HashF,
-    Integer,
-    JacPoint,
-    Octets,
-    Point,
-    SSASig,
-    SSASigTuple,
-    String,
-)
+from .alias import HashF, Integer, JacPoint, Octets, Point, String
 from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult, _multi_mult
@@ -72,6 +63,15 @@ from .numbertheory import mod_inv
 from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import point_from_pubkey
 from .utils import bytes_from_octets, hex_string, int_from_bits
+
+# BIP340-Schnorr signature
+# (r, s)
+# r is a _field_element_, 0 <= r < ec.p
+# s is a scalar, 0 <= s < ec.n (yes, for BIP340-Schnorr it can be zero)
+# (p is the field prime, n is the curve order)
+SSASigTuple = Tuple[int, int]
+# SSASigTuple or BIP340-Schnorr 64-bytes serialization (bytes or hex-string)
+SSASig = Union[SSASigTuple, Octets]
 
 # hex-string or bytes representation of an int
 # 33 or 65 bytes or hex-string

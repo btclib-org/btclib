@@ -19,10 +19,10 @@
 
 import secrets
 from hashlib import sha256
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from . import der
-from .alias import DSASig, DSASigTuple, HashF, JacPoint, Octets, Point, String
+from .alias import HashF, JacPoint, Octets, Point, String
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult
 from .exceptions import BTClibRuntimeError, BTClibValueError
@@ -32,6 +32,14 @@ from .rfc6979 import __rfc6979
 from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import Key, point_from_key
 from .utils import bytes_from_octets, int_from_bits
+
+# ECDSA signature
+# (r, s)
+# both r and s are scalar: 0 < r < ec.n, 0 < s < ec.n
+DSASigTuple = Tuple[int, int]
+# DSASigTuple or DER serialization (bytes or hex-string, no sighash)
+DSASig = Union[DSASigTuple, Octets]
+
 
 # _validate_sig, deserialize and serialize are basically just wrappers
 # for the equivalent functions in the der module
@@ -118,7 +126,6 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DSASigTuple:
     # bitcoin canonical 'low-s' encoding for ECDSA signatures
     # it removes signature malleability as cause of transaction malleability
     # see https://github.com/bitcoin/bitcoin/pull/6769
-    # TODO optional low_s
     if low_s and s > ec.n / 2:
         s = ec.n - s  # s = - s % ec.n
 
@@ -379,13 +386,13 @@ def _crack_prvkey(
     if s_1 == s_2:
         raise BTClibValueError("identical signatures")
 
-    # The message m: a hlen array
     hlen = hf().digest_size
     m_1 = bytes_from_octets(m_1, hlen)
     m_2 = bytes_from_octets(m_2, hlen)
 
     c_1 = _challenge(m_1, ec, hf)
     c_2 = _challenge(m_2, ec, hf)
+
     k = (c_1 - c_2) * mod_inv(s_1 - s_2, ec.n) % ec.n
     q = (s_2 * k - c_2) * mod_inv(r_1, ec.n) % ec.n
     return q, k

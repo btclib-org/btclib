@@ -10,6 +10,7 @@
 
 "Tests for `btclib.dsa` module."
 
+import secrets
 from hashlib import sha1
 
 import pytest
@@ -21,7 +22,6 @@ from btclib.curvegroup import _mult
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.numbertheory import mod_inv
-from btclib.rfc6979 import _rfc6979
 from btclib.secpoint import bytes_from_point, point_from_octets
 from btclib.tests.test_curve import low_card_curves
 
@@ -215,24 +215,24 @@ def test_crack_prvkey() -> None:
 
     ec = CURVES["secp256k1"]
 
-    # FIXME: make it random
-    q = 0x17E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
+    q, _ = dsa.gen_keys()
+    k = 1 + secrets.randbelow(ec.n - 1)
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
     m_1 = reduce_to_hlen(msg1)
-    k = _rfc6979(m_1, q)
     sig1 = dsa._sign(m_1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
     m_2 = reduce_to_hlen(msg2)
-    # reuse same k
     sig2 = dsa._sign(m_2, q, k)
 
     qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
-    assert q in (qc, ec.n - qc)
-    assert q == qc
-    assert k in (kc, ec.n - kc)
-    # assert k == kc
+
+    #  if the low_s convention has changed only one of s1 and s2
+    sig2 = sig2[0], ec.n - sig2[1]
+    qc2, kc2 = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
+
+    assert (q == qc and k in (kc, ec.n - kc)) or (q == qc2 and k in (kc2, ec.n - kc2))
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
         dsa.crack_prvkey(msg1, sig1, msg2, (16, sig1[1]))

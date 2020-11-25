@@ -99,22 +99,6 @@ BinStr = str
 # but int or bytes are fine too
 Entropy = Union[BinStr, int, bytes]
 
-# ECDSA signature
-# (r, s)
-# both r and s are scalar: 0 < r < ec.n, 0 < s < ec.n
-DSASigTuple = Tuple[int, int]
-# DSASigTuple or DER serialization (bytes or hex-string, no sighash)
-DSASig = Union[DSASigTuple, Octets]
-
-# BIP340-Schnorr signature
-# (r, s)
-# r is a _field_element_, 0 <= r < ec.p
-# s is a scalar, 0 <= s < ec.n (yes, for BIP340-Schnorr it can be zero)
-# (p is the field prime, n is the curve order)
-SSASigTuple = Tuple[int, int]
-# SSASigTuple or BIP340-Schnorr 64-bytes serialization (bytes or hex-string)
-SSASig = Union[SSASigTuple, Octets]
-
 # the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
 # the integer -1 is a shorcut for 'OP_1NEGATE'
 # other integers are bytes encoded (require push operation)
