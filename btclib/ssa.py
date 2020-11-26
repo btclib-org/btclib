@@ -153,6 +153,25 @@ def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
     return x_K.to_bytes(ec.psize, "big") + s.to_bytes(ec.nsize, "big")
 
 
+def gen_keys_(
+    prvkey: PrvKey = None, ec: Curve = secp256k1
+) -> Tuple[int, int, JacPoint]:
+    "Return a BIP340 private/public (int, JacPoint) key-pair."
+
+    if prvkey is None:
+        q = 1 + secrets.randbelow(ec.n - 1)
+    else:
+        q = int_from_prvkey(prvkey, ec)
+
+    QJ = _mult(q, ec.GJ, ec)
+    x_Q, y_Q = ec._aff_from_jac(QJ)
+    if y_Q % 2:
+        q = ec.n - q
+        QJ = ec.negate_jac(QJ)
+
+    return q, x_Q, QJ
+
+
 def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     "Return a BIP340 private/public (int, int) key-pair."
 
@@ -230,45 +249,60 @@ def det_nonce(
     return _det_nonce(m, prvkey, None, ec, hf)
 
 
-def __challenge(m: bytes, x_Q: int, r: int, ec: Curve, hf: HashF) -> int:
+def __challenge(m: bytes, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
 
-    t = r.to_bytes(ec.psize, "big")
+    t = x_K.to_bytes(ec.psize, "big")
     t += x_Q.to_bytes(ec.psize, "big")
     t += m
     t = tagged_hash("BIP0340/challenge", t, hf)
-    # if c == 0 then private key is removed from the equations,
-    # so the signature is valid for any private/public key pair
-    # if c == 0:
-    #    raise BTClibRuntimeError("invalid zero challenge")
-    return int_from_bits(t, ec.nlen) % ec.n
+    c = int_from_bits(t, ec.nlen) % ec.n
+    if c == 0:
+        raise BTClibRuntimeError("invalid zero challenge")  # pragma: no cover
+    return c
 
 
 def _challenge(
-    m: Octets, xQ: BIP340PubKey, r: int, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets,
+    Q: BIP340PubKey,
+    K: BIP340PubKey,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> int:
 
     # the message m: a hlen array
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
-    x_Q, _ = point_from_bip340pubkey(xQ, ec)
+    x_Q, _ = point_from_bip340pubkey(Q, ec)
+    x_K, _ = point_from_bip340pubkey(K, ec)
 
-    return __challenge(m, x_Q, r, ec, hf)
+    return __challenge(m, x_Q, x_K, ec, hf)
 
 
 def challenge(
-    msg: String, xQ: BIP340PubKey, r: int, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String,
+    Q: BIP340PubKey,
+    K: BIP340PubKey,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> int:
 
     m = reduce_to_hlen(msg, hf)
-    return _challenge(m, xQ, r, ec, hf)
+    return _challenge(m, Q, K, ec, hf)
 
 
-def __sign(c: int, q: int, k: int, x_K: int, ec: Curve) -> SSASigTuple:
+def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> SSASigTuple:
+    # Private function for testing purposes: it allows to explore all
+    # possible value of the challenge c (for low-cardinality curves).
+    # It assume that c is in [1, n-1], while q and k are in [1, n-1]
+
+    if c == 0:  # c≠0 required as it multiplies the private key
+        raise BTClibRuntimeError("invalid zero challenge")
+
     # s=0 is ok: in verification there is no inverse of s
     s = (k + c * q) % ec.n
 
-    return x_K, s
+    return r, s
 
 
 def _sign(
@@ -400,7 +434,7 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     # Private function provided for testing purposes only.
 
     if c == 0:
-        raise BTClibValueError("invalid zero challenge")
+        raise BTClibRuntimeError("invalid zero challenge")
 
     KJ = r, ec.y_even(r), 1
 

@@ -22,7 +22,6 @@ from btclib import ssa
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curve import CURVES, double_mult, mult
-from btclib.curvegroup import _mult
 from btclib.exceptions import (
     BTClibRuntimeError,
     BTClibTypeError,
@@ -108,7 +107,7 @@ def test_signature() -> None:
         ssa._sign(reduce_to_hlen(msg, hf), q, ec.n)
 
     err_msg = "invalid zero challenge"
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.__recover_pubkey(0, sig[0], sig[1], ec)
 
 
@@ -202,32 +201,33 @@ def test_low_cardinality() -> None:
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
-            QJ = _mult(q, ec.GJ, ec)  # public key
-            x_Q, y_Q = ec._aff_from_jac(QJ)
-            if y_Q % 2:
-                q = ec.n - q
-                QJ = ec.negate_jac(QJ)
+            q, x_Q, QJ = ssa.gen_keys_(q, ec)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
-                RJ = _mult(k, ec.GJ, ec)
-                r, ry = ec._aff_from_jac(RJ)
-                if ry % 2:
-                    k = ec.n - k
+                k, r = ssa.gen_keys(k, ec)
                 for e in range(ec.n):  # all possible challenges
                     s = (k + e * q) % ec.n
 
-                    sig = ssa.__sign(e, q, k, r, ec)
-                    assert (r, s) == sig
-                    # valid signature must validate
-                    ssa.__assert_as_valid(e, QJ, r, s, ec)
-
-                    # if e == 0 then the sig is valid for all {q, Q}
-                    # no public key can be recovered
                     if e == 0:
                         err_msg = "invalid zero challenge"
-                        with pytest.raises(BTClibValueError, match=err_msg):
+                        with pytest.raises(BTClibRuntimeError, match=err_msg):
+                            ssa.__sign(e, q, k, r, ec)
+                        # no public key can be recovered
+                        with pytest.raises(BTClibRuntimeError, match=err_msg):
                             ssa.__recover_pubkey(e, r, s, ec)
+
+                        # if e == 0 then the sig is always valid
+                        ssa.__assert_as_valid(e, QJ, r, s, ec)
+                        #  for all {q, Q}
+                        _, _, new_QJ = ssa.gen_keys_(None, ec)
+                        ssa.__assert_as_valid(e, new_QJ, r, s, ec)
                     else:
+                        sig = ssa.__sign(e, q, k, r, ec)
+                        # recover pubkey
                         assert x_Q == ssa.__recover_pubkey(e, r, s, ec)
+
+                        assert (r, s) == sig
+                        # valid signature must validate
+                        ssa.__assert_as_valid(e, QJ, r, s, ec)
 
 
 def test_crack_prvkey() -> None:
