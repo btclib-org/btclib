@@ -174,18 +174,17 @@ def test_low_cardinality() -> None:
                         err_msg = "failed to sign: "
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
                             dsa.__sign(e, q, k, low_s, ec)
-                        continue
+                    else:
+                        sig = dsa.__sign(e, q, k, low_s, ec)
+                        assert (r, s) == sig
+                        # valid signature must pass verification
+                        dsa.__assert_as_valid(e, QJ, r, s, ec)
 
-                    sig = dsa.__sign(e, q, k, low_s, ec)
-                    assert (r, s) == sig
-                    # valid signature must pass verification
-                    dsa.__assert_as_valid(e, QJ, r, s, ec)
-
-                    jacobian_keys = dsa.__recover_pubkeys(e, r, s, ec)
-                    # FIXME speed this up
-                    Qs = [ec._aff_from_jac(key) for key in jacobian_keys]
-                    assert ec._aff_from_jac(QJ) in Qs
-                    assert len(jacobian_keys) in (2, 4)
+                        jacobian_keys = dsa.__recover_pubkeys(e, r, s, ec)
+                        # FIXME speed this up
+                        Qs = [ec._aff_from_jac(key) for key in jacobian_keys]
+                        assert ec._aff_from_jac(QJ) in Qs
+                        assert len(jacobian_keys) in (2, 4)
 
 
 def test_pubkey_recovery() -> None:
