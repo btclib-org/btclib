@@ -62,12 +62,12 @@ def test_slip132_test_vector() -> None:
         ),
     ]
     for version, der_path, prv, pub, addr_str in test_vectors:
-        addr = addr_str.encode()
+        addr = addr_str.encode("ascii")
         rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "")
         mxprv = bip32.derive(rxprv, der_path, version)
-        assert prv.encode() == mxprv
+        assert prv.encode("ascii") == mxprv
         mxpub = bip32.xpub_from_xprv(mxprv)
-        assert pub.encode() == mxpub
+        assert pub.encode("ascii") == mxpub
         xpub = bip32.derive(mxpub, kpath)
         address = slip132.address_from_xpub(xpub)
         assert addr == address
@@ -167,7 +167,7 @@ def test_addresses() -> None:
 
         version = getattr(NETWORKS[network], addr_type)
         xprv = bip32.derive(rootprv, der_path, version)
-        assert mxpub.encode() == bip32.xpub_from_xprv(xprv)
+        assert mxpub.encode("ascii") == bip32.xpub_from_xprv(xprv)
 
         # a non-private version cannot be forced on a private key
         pub_version = NETWORKS[network].bip32_pub

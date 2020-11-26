@@ -195,10 +195,10 @@ def test_address_from_wif() -> None:
         ),
     ]
     for compressed, network, wif, address in test_cases:
-        assert wif.encode() == wif_from_prvkey(q, network, compressed)
+        assert wif.encode("ascii") == wif_from_prvkey(q, network, compressed)
         assert prvkeyinfo_from_prvkey(wif) == (q, network, compressed)
         b58 = p2pkh(wif)
-        assert b58 == address.encode()
+        assert b58 == address.encode("ascii")
         _, payload, net, is_script = h160_from_b58address(b58)
         assert net == network
         assert not is_script

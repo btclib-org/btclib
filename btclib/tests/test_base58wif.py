@@ -35,7 +35,6 @@ def test_wif_from_prvkey() -> None:
     ]
     for v in test_vectors:
         wif = wif_from_prvkey(prvkey, v[1], v[2])
-        # FIXME clarify decode("ascii") and encode("ascii") everywhere
         assert v[0].strip() == wif.decode("ascii")
         q, network, compressed = prvkeyinfo_from_prvkey(v[0])
         assert q == int(prvkey, 16)

@@ -176,7 +176,7 @@ def test_b32address_from_witness() -> None:
     # string input
     addr_str = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
     wv, wp, network, _ = witness_from_b32address(addr_str)
-    assert b32address_from_witness(wv, wp, network) == addr_str.encode()
+    assert b32address_from_witness(wv, wp, network) == addr_str.encode("ascii")
 
     wp_ints = list(wp)
     wp_ints[0] = -1

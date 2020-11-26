@@ -75,14 +75,14 @@ def test_vectors() -> None:
     for mnemonic, passphrase, rmxprv, rmxpub, address in electrum_test_vectors:
         if mnemonic != "":
             mxprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
-            assert mxprv2 == rmxprv.encode()
+            assert mxprv2 == rmxprv.encode("ascii")
 
             eversion, mnemonic = electrum.version_from_mnemonic(mnemonic)
             entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
             mnem = electrum.mnemonic_from_entropy(entr, eversion, lang)
             assert mnem == mnemonic
 
-        assert rmxpub.encode() == bip32.xpub_from_xprv(rmxprv)
+        assert rmxpub.encode("ascii") == bip32.xpub_from_xprv(rmxprv)
 
         xprv = bip32.derive(rmxprv, "m/0h/0")
         address2 = slip132.address_from_xkey(xprv).decode("ascii")
