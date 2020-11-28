@@ -307,8 +307,8 @@ def test_derive_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="index is not a multiple of 4-bytes: "):
         derive(xprv, b"\x00" * 5)
 
-    for index in (256 ** 4, 0x8000000000):
-        with pytest.raises(BTClibValueError, match="invalid index: "):
+    for index in (2 ** 32, 0x8000000000):
+        with pytest.raises(OverflowError, match="int too big to convert"):
             derive(xprv, index)
 
     err_msg = "final depth greater than 255: "

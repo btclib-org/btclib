@@ -60,7 +60,6 @@ class OutPoint(DataClassJsonMixin):
 
     @property
     def is_coinbase(self) -> bool:
-        self.assert_valid()
         return (self.txid == b"\x00" * 32) and (self.vout == 0xFFFFFFFF)
 
     def assert_valid(self) -> None:

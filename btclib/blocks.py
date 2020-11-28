@@ -183,11 +183,10 @@ class Block(DataClassJsonMixin):
 
     @property
     def size(self) -> int:
-        return len(self.serialize())
+        return len(self.serialize(assert_valid=False))
 
     @property
     def weight(self) -> int:
-        self.assert_valid()
         return sum(t.weight for t in self.transactions)
 
     # TODO: implement vsize

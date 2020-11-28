@@ -97,22 +97,20 @@ class Tx(DataClassJsonMixin):
 
     @property
     def hash(self) -> bytes:
-        return hash256(self.serialize())[::-1]
+        return hash256(self.serialize(assert_valid=False))[::-1]
 
     @property
     def size(self) -> int:
-        return len(self.serialize())
+        return len(self.serialize(assert_valid=False))
 
     @property
     def weight(self) -> int:
-        # check for assert_valid only once
-        a = len(self.serialize(include_witness=False, assert_valid=True)) * 3
+        a = len(self.serialize(include_witness=False, assert_valid=False)) * 3
         b = len(self.serialize(include_witness=True, assert_valid=False))
         return a + b
 
     @property
     def vsize(self) -> int:
-        self.assert_valid()
         return ceil(self.weight / 4)
 
     def assert_valid(self) -> None:

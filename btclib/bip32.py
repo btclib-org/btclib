@@ -217,7 +217,6 @@ class BIP32KeyData(DataClassJsonMixin):
 
     @property
     def is_hardened(self) -> bool:
-        self.assert_valid()
         return self.index >= 0x80000000
 
 
