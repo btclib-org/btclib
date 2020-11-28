@@ -93,7 +93,7 @@ class Tx(DataClassJsonMixin):
 
     @property
     def txid(self) -> bytes:
-        return hash256(self.serialize(False))[::-1]
+        return hash256(self.serialize(include_witness=False, assert_valid=False))[::-1]
 
     @property
     def hash(self) -> bytes:
