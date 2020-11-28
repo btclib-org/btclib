@@ -1,5 +1,7 @@
 {
     "curve": "secp256k1",
+    "magic_bytes": "d9b4bef9",
+    "genesis_block": "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
     "wif": "80",
     "p2pkh": "00",
     "p2sh": "05",

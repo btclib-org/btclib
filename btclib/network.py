@@ -12,7 +12,6 @@
 
 
 import json
-from collections import defaultdict
 from dataclasses import dataclass, field
 from os import path
 from typing import Dict, List, Union
@@ -27,6 +26,12 @@ from .exceptions import BTClibValueError
 class Network(DataClassJsonMixin):
     curve: Curve = field(
         metadata=config(encoder=lambda v: v.name, decoder=lambda v: CURVES[v])
+    )
+    magic_bytes: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    genesis_block: bytes = field(
+        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     # base58wif starts with 'K' or 'L' if compressed else '5'
     wif: bytes = field(
@@ -79,7 +84,7 @@ class Network(DataClassJsonMixin):
     )
 
 
-NETWORKS: Dict[str, Network] = defaultdict()
+NETWORKS: Dict[str, Network] = {}
 datadir = path.join(path.dirname(__file__), "data")
 for net in ("mainnet", "testnet", "regtest"):
     filename = path.join(datadir, net + ".json")

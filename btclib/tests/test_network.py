@@ -49,13 +49,13 @@ def test_numbers_of_networks() -> None:
 
 
 def test_dataclasses_json_dict() -> None:
-    for net in NETWORKS.values():
+    for network_name, net in NETWORKS.items():
         net2 = Network.from_json(net.to_json())
         assert net2 == net
         net2 = Network.from_dict(net.to_dict())
         assert net2 == net
 
-    datadir = path.join(path.dirname(__file__), "generated_files")
-    filename = path.join(datadir, "mainnet.json")
-    with open(filename, "w") as file_:
-        json.dump(NETWORKS["mainnet"].to_dict(), file_, indent=4)
+        datadir = path.join(path.dirname(__file__), "generated_files")
+        filename = path.join(datadir, network_name + ".json")
+        with open(filename, "w") as file_:
+            json.dump(NETWORKS[network_name].to_dict(), file_, indent=4)
