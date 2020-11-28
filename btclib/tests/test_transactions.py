@@ -184,8 +184,8 @@ def test_invalid_tx() -> None:
         sequence=1,
         txinwitness=[],
     )
-    tx1 = Tx(0, 0, [transaction_input], [])
-    tx2 = Tx(0, 0, [], [])
+    tx1 = Tx(0, [transaction_input], [], 0)
+    tx2 = Tx(0, [], [], 0)
     err_msg = "transaction must have at least one "
     for transaction in (tx1, tx2):
         with pytest.raises(BTClibValueError, match=err_msg):

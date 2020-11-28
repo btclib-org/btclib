@@ -35,9 +35,9 @@ _Tx = TypeVar("_Tx", bound="Tx")
 @dataclass
 class Tx(DataClassJsonMixin):
     version: int = 0
-    locktime: int = 0
     vin: List[TxIn] = field(default_factory=list)
     vout: List[TxOut] = field(default_factory=list)
+    locktime: int = 0
     # private data member used only for to_dict
     # use the corresponding public properties instead
     _txid: bytes = field(
@@ -105,7 +105,7 @@ class Tx(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
 
-        # TODO check version and locktime
+        # TODO check version
 
         if not self.vin:
             raise BTClibValueError("transaction must have at least one input")
@@ -115,6 +115,8 @@ class Tx(DataClassJsonMixin):
             raise BTClibValueError("transaction must have at least one output")
         for tx_out in self.vout:
             tx_out.assert_valid()
+
+        # TODO check locktime
 
         self._set_properties()
 
@@ -128,7 +130,7 @@ class Tx(DataClassJsonMixin):
         out += varint.encode(len(self.vin))
         for tx_input in self.vin:
             out += tx_input.serialize(assert_valid=assert_valid)
-            if tx_input.txinwitness != []:
+            if tx_input.txinwitness:
                 witness_flag = True
         out += varint.encode(len(self.vout))
         for tx_output in self.vout:

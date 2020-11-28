@@ -53,45 +53,31 @@ def test_legacy_p2pkh():
     pubkey = "04280c8f66bf2ccaeb3f60a19ad4a06365f8bd6178aab0e709df2173df8f553366549aec336aae8742a84702b6c7c3052d89f5d76d535ec3716e72187956351613"
     signature = "3045022100ea43c4800d1a860ec89b5273898a146cfb01d34ff4c364d24a110c480d0e3f7502201c82735577f932f1ca8e1c54bf653e0f8e74e408fe83666bc85cac4472ec950801"
     script_sig = [signature, pubkey]
-    previous_txout = TxOut(
-        value=1051173696,
-        script_pubkey=script.serialize(
-            [
-                "OP_DUP",
-                "OP_HASH160",
-                "82ac30f58baf99ec9d14e6181eee076f4e27f69c",
-                "OP_EQUALVERIFY",
-                "OP_CHECKSIG",
-            ]
+    out_point = OutPoint(
+        bytes.fromhex(
+            "d8343a35ba951684f2969eafe833d9e6fe436557b9707ae76802875952e860fc"
         ),
-    )
-    tx = Tx(
         1,
-        0,
-        vin=[
-            TxIn(
-                OutPoint(
-                    bytes.fromhex(
-                        "d8343a35ba951684f2969eafe833d9e6fe436557b9707ae76802875952e860fc"
-                    ),
-                    1,
-                ),
-                script_sig,
-                0xFFFFFFFF,
-                [],
-            )
-        ],
-        vout=[
-            TxOut(
-                2017682,
-                bytes.fromhex("76a91413bd20236d0da56492c325dce289b4da35b4b5bd88ac"),
-            ),
-            TxOut(
-                1049154982,
-                bytes.fromhex("76a914da169b45781ca210f8c11617ba66bd843da76b1688ac"),
-            ),
-        ],
     )
+    tx_in = TxIn(out_point, script_sig, 0xFFFFFFFF, [])
+    tx_out1 = TxOut(
+        2017682, bytes.fromhex("76a91413bd20236d0da56492c325dce289b4da35b4b5bd88ac")
+    )
+    tx_out2 = TxOut(
+        1049154982, bytes.fromhex("76a914da169b45781ca210f8c11617ba66bd843da76b1688ac")
+    )
+    tx = Tx(1, [tx_in], [tx_out1, tx_out2], 0)
+
+    script_pubkey = script.serialize(
+        [
+            "OP_DUP",
+            "OP_HASH160",
+            "82ac30f58baf99ec9d14e6181eee076f4e27f69c",
+            "OP_EQUALVERIFY",
+            "OP_CHECKSIG",
+        ]
+    )
+    previous_txout = TxOut(1051173696, script_pubkey)
     sighash = get_sighash(tx, previous_txout, 0, 0x01)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
 
@@ -106,17 +92,15 @@ def test_p2pk():
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
         1,
+        [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF, [])],
+        [TxOut(0, script_pubkey)],
         0,
-        vin=[
-            TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF, [])
-        ],
-        vout=[TxOut(0, script_pubkey)],
     )
     receiving_tx = Tx(
         1,
+        [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
+        [TxOut(0, b"")],
         0,
-        vin=[TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
-        vout=[TxOut(0, b"")],
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x01)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
@@ -139,17 +123,15 @@ def test_p2pkh():
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
         1,
+        [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF, [])],
+        [TxOut(0, script_pubkey)],
         0,
-        vin=[
-            TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF, [])
-        ],
-        vout=[TxOut(0, script_pubkey)],
     )
     receiving_tx = Tx(
         1,
+        [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
+        [TxOut(0, b"")],
         0,
-        vin=[TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
-        vout=[TxOut(0, b"")],
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x01)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
@@ -164,17 +146,15 @@ def test_p2pk_anyonecanpay():
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
         1,
+        [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF, [])],
+        [TxOut(0, script_pubkey)],
         0,
-        vin=[
-            TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF, [])
-        ],
-        vout=[TxOut(0, script_pubkey)],
     )
     receiving_tx = Tx(
         1,
+        [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
+        [TxOut(0, b"")],
         0,
-        vin=[TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF, [])],
-        vout=[TxOut(0, b"")],
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x81)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])

@@ -1,7 +1,6 @@
 {
     "tx": {
         "version": 2,
-        "locktime": 0,
         "vin": [
             {
                 "prevout": {
@@ -32,6 +31,7 @@
                 "scriptPubKey": "001400aea9a2e5f0f876a588df5546e8742d1d87008f"
             }
         ],
+        "locktime": 0,
         "txid": "82efd652d7ab1197f01a5f4d9a30cb4c68bb79ab6fec58dfa1bf112291d1617b",
         "size": 154,
         "weight": 616,
@@ -41,7 +41,6 @@
         {
             "non_witness_utxo": {
                 "version": 2,
-                "locktime": 101,
                 "vin": [
                     {
                         "prevout": {
@@ -63,6 +62,7 @@
                         "scriptPubKey": "a91429ca74f8a08f81999428185c97b5d852e4063f6187"
                     }
                 ],
+                "locktime": 101,
                 "txid": "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858",
                 "size": 187,
                 "weight": 748,

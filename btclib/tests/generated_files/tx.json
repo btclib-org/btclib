@@ -1,6 +1,5 @@
 {
     "version": 1,
-    "locktime": 0,
     "vin": [
         {
             "prevout": {
@@ -37,6 +36,7 @@
             "scriptPubKey": "76a9145f9e96f739198f65d249ea2a0336e9aa5aa0c7ed88ac"
         }
     ],
+    "locktime": 0,
     "txid": "a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c",
     "size": 421,
     "weight": 1033,
