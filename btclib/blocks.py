@@ -20,7 +20,7 @@ from . import varint
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .tx import Tx
-from .utils import bytesio_from_binarydata, hash256, hex_string
+from .utils import bytesio_from_binarydata, hash256, hex_string, merkle_root
 
 if sys.version_info.minor == 6:  # python 3.6
     import backports.datetime_fromisoformat  # pylint: disable=import-error  # pragma: no cover
@@ -200,19 +200,6 @@ class BlockHeader(DataClassJsonMixin):
         return header
 
 
-def merkle_root(transactions: List[Tx]) -> bytes:
-    hashes = [transaction.txid[::-1] for transaction in transactions]
-    hashes_buffer = []
-    while len(hashes) != 1:
-        if len(hashes) % 2 != 0:
-            hashes.append(hashes[-1])
-        for i in range(len(hashes) // 2):
-            hashes_buffer.append(hash256(hashes[2 * i] + hashes[2 * i + 1]))
-        hashes = hashes_buffer[:]
-        hashes_buffer = []
-    return hashes[0][::-1]
-
-
 _Block = TypeVar("_Block", bound="Block")
 
 
@@ -238,7 +225,11 @@ class Block(DataClassJsonMixin):
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
 
-        merkle_root_ = merkle_root(self.transactions)
+        data = [
+            tx.serialize(include_witness=False, assert_valid=False)
+            for tx in self.transactions
+        ]
+        merkle_root_ = merkle_root(data, hash256)[::-1]
         if merkle_root_ != self.header.merkle_root:
             err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
             err_msg += f" instead of: {merkle_root_.hex()}"
