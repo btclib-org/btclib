@@ -206,9 +206,7 @@ class Block(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
 
-        self.header.assert_valid()
-
-        if not self.transactions[0].vin[0].prevout.is_coinbase:
+        if not self.transactions[0].vin[0].prevout.is_coinbase():
             raise BTClibValueError("first transaction is not a coinbase")
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
@@ -218,6 +216,8 @@ class Block(DataClassJsonMixin):
             err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
             err_msg += f" instead of: {merkle_root_.hex()}"
             raise BTClibValueError(err_msg)
+
+        self.header.assert_valid()
 
     def serialize(
         self, include_witness: bool = True, assert_valid: bool = True

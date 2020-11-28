@@ -50,6 +50,22 @@ class TxOut(DataClassJsonMixin):
         )
     )
 
+    def assert_valid(self) -> None:
+        # must be a 8-bytes int
+        if self.value < 0:
+            raise BTClibValueError(f"negative value: {self.value}")
+        if self.value > MAX_SATOSHI:
+            raise BTClibValueError(f"value too high: {hex(self.value)}")
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        out = self.value.to_bytes(8, "little")
+        out += varbytes.encode(self.script_pubkey)
+        return out
+
     @classmethod
     def deserialize(
         cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
@@ -64,19 +80,3 @@ class TxOut(DataClassJsonMixin):
         if assert_valid:
             tx_out.assert_valid()
         return tx_out
-
-    def serialize(self, assert_valid: bool = True) -> bytes:
-
-        if assert_valid:
-            self.assert_valid()
-
-        out = self.value.to_bytes(8, "little")
-        out += varbytes.encode(self.script_pubkey)
-        return out
-
-    def assert_valid(self) -> None:
-        # must be a 8-bytes int
-        if self.value < 0:
-            raise BTClibValueError(f"negative value: {self.value}")
-        if self.value > MAX_SATOSHI:
-            raise BTClibValueError(f"value too high: {hex(self.value)}")

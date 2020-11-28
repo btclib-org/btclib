@@ -83,76 +83,6 @@ class Psbt(DataClassJsonMixin):
         ),
     )
 
-    @classmethod
-    def deserialize(cls: Type[_Psbt], data: bytes, assert_valid: bool = True) -> _Psbt:
-
-        out = cls()
-
-        if data[:4] != PSBT_MAGIC_BYTES:
-            raise BTClibValueError("malformed psbt: missing magic bytes")
-        if data[4:5] != PSBT_SEPARATOR:
-            raise BTClibValueError("malformed psbt: missing separator")
-
-        global_map, data = deserialize_map(data[5:])
-        for k, v in global_map.items():
-            if k[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                # legacy transaction
-                out.tx = _deserialize_tx(k, v, "global unsigned tx")
-            elif k[0:1] == PSBT_GLOBAL_VERSION:
-                out.version = _deserialize_int(k, v, "global version")
-            elif k[0:1] == PSBT_GLOBAL_XPUB:
-                out.bip32_derivs.update(
-                    _deserialize_bip32_derivs(k, v, "Psbt BIP32 xkey")
-                )
-            else:  # unknown
-                out.unknown[k] = v
-
-        if not out.tx.version:
-            raise BTClibValueError("missing transaction")
-        for _ in out.tx.vin:
-            input_map, data = deserialize_map(data)
-            out.inputs.append(PsbtIn.deserialize(input_map))
-        for _ in out.tx.vout:
-            output_map, data = deserialize_map(data)
-            out.outputs.append(PsbtOut.deserialize(output_map))
-
-        if assert_valid:
-            out.assert_valid()
-        return out
-
-    def serialize(self, assert_valid: bool = True) -> bytes:
-
-        if assert_valid:
-            self.assert_valid()
-
-        out = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
-
-        temp = self.tx.serialize()
-        out += _serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
-        if self.version:
-            temp = self.version.to_bytes(4, "little")
-            out += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
-        if self.bip32_derivs:
-            out += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.bip32_derivs)
-        if self.unknown:
-            out += _serialize_dict_bytes_bytes(b"", self.unknown)
-
-        out += PSBT_DELIMITER
-        for input_map in self.inputs:
-            out += input_map.serialize() + b"\x00"
-        for output_map in self.outputs:
-            out += output_map.serialize() + b"\x00"
-        return out
-
-    @classmethod
-    def decode(cls: Type[_Psbt], string: str, assert_valid: bool = True) -> _Psbt:
-        data = b64decode(string)
-        return cls.deserialize(data, assert_valid)
-
-    def encode(self, assert_valid: bool = True) -> str:
-        out = self.serialize(assert_valid)
-        return b64encode(out).decode("ascii")
-
     def assert_valid(self) -> None:
         "Assert logical self-consistency."
 
@@ -228,6 +158,76 @@ class Psbt(DataClassJsonMixin):
                 hash_ = sha256(self.inputs[i].witness_script)
                 if hash_ != payload_from_script_pubkey(script_pubkey)[1]:
                     raise BTClibValueError("invalid witness script hash")
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        out = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
+
+        temp = self.tx.serialize()
+        out += _serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
+        if self.version:
+            temp = self.version.to_bytes(4, "little")
+            out += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
+        if self.bip32_derivs:
+            out += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.bip32_derivs)
+        if self.unknown:
+            out += _serialize_dict_bytes_bytes(b"", self.unknown)
+
+        out += PSBT_DELIMITER
+        for input_map in self.inputs:
+            out += input_map.serialize() + b"\x00"
+        for output_map in self.outputs:
+            out += output_map.serialize() + b"\x00"
+        return out
+
+    @classmethod
+    def deserialize(cls: Type[_Psbt], data: bytes, assert_valid: bool = True) -> _Psbt:
+
+        out = cls()
+
+        if data[:4] != PSBT_MAGIC_BYTES:
+            raise BTClibValueError("malformed psbt: missing magic bytes")
+        if data[4:5] != PSBT_SEPARATOR:
+            raise BTClibValueError("malformed psbt: missing separator")
+
+        global_map, data = deserialize_map(data[5:])
+        for k, v in global_map.items():
+            if k[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
+                # legacy transaction
+                out.tx = _deserialize_tx(k, v, "global unsigned tx")
+            elif k[0:1] == PSBT_GLOBAL_VERSION:
+                out.version = _deserialize_int(k, v, "global version")
+            elif k[0:1] == PSBT_GLOBAL_XPUB:
+                out.bip32_derivs.update(
+                    _deserialize_bip32_derivs(k, v, "Psbt BIP32 xkey")
+                )
+            else:  # unknown
+                out.unknown[k] = v
+
+        if not out.tx.version:
+            raise BTClibValueError("missing transaction")
+        for _ in out.tx.vin:
+            input_map, data = deserialize_map(data)
+            out.inputs.append(PsbtIn.deserialize(input_map))
+        for _ in out.tx.vout:
+            output_map, data = deserialize_map(data)
+            out.outputs.append(PsbtOut.deserialize(output_map))
+
+        if assert_valid:
+            out.assert_valid()
+        return out
+
+    def encode(self, assert_valid: bool = True) -> str:
+        out = self.serialize(assert_valid)
+        return b64encode(out).decode("ascii")
+
+    @classmethod
+    def decode(cls: Type[_Psbt], string: str, assert_valid: bool = True) -> _Psbt:
+        data = b64decode(string)
+        return cls.deserialize(data, assert_valid)
 
 
 # FIXME: use stream, not repeated bytes slicing

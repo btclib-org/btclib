@@ -29,36 +29,6 @@ class OutPoint(DataClassJsonMixin):
     )
     vout: int = 0xFFFFFFFF
 
-    @classmethod
-    def deserialize(
-        cls: Type[_OutPoint], data: BinaryData, assert_valid: bool = True
-    ) -> _OutPoint:
-        "Return an OutPoint from the first 36 bytes of the provided data."
-
-        data = bytesio_from_binarydata(data)
-        # 32 bytes, little endian
-        txid = data.read(32)[::-1]
-        # 4 bytes, little endian, interpreted as int
-        vout = int.from_bytes(data.read(4), "little")
-
-        result = cls(txid, vout)
-        if assert_valid:
-            result.assert_valid()
-        return result
-
-    def serialize(self, assert_valid: bool = True) -> bytes:
-        "Return the 36 bytes serialization of the OutPoint."
-
-        if assert_valid:
-            self.assert_valid()
-
-        # 32 bytes, little endian
-        out = self.txid[::-1]
-        # 4 bytes, little endian
-        out += self.vout.to_bytes(4, "little")
-        return out
-
-    @property
     def is_coinbase(self) -> bool:
         return (self.txid == b"\x00" * 32) and (self.vout == 0xFFFFFFFF)
 
@@ -76,6 +46,35 @@ class OutPoint(DataClassJsonMixin):
         # not a coinbase, not a regular OutPoint
         if (self.txid == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
             raise BTClibValueError("invalid OutPoint")
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+        "Return the 36 bytes serialization of the OutPoint."
+
+        if assert_valid:
+            self.assert_valid()
+
+        # 32 bytes, little endian
+        out = self.txid[::-1]
+        # 4 bytes, little endian
+        out += self.vout.to_bytes(4, "little")
+        return out
+
+    @classmethod
+    def deserialize(
+        cls: Type[_OutPoint], data: BinaryData, assert_valid: bool = True
+    ) -> _OutPoint:
+        "Return an OutPoint from the first 36 bytes of the provided data."
+
+        data = bytesio_from_binarydata(data)
+        # 32 bytes, little endian
+        txid = data.read(32)[::-1]
+        # 4 bytes, little endian, interpreted as int
+        vout = int.from_bytes(data.read(4), "little")
+
+        result = cls(txid, vout)
+        if assert_valid:
+            result.assert_valid()
+        return result
 
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
@@ -97,6 +96,20 @@ class TxIn(DataClassJsonMixin):
             decoder=lambda val: [bytes.fromhex(v) for v in val],
         )
     )
+
+    def assert_valid(self) -> None:
+        self.prevout.assert_valid()
+        # TODO: empty script_sig is valid (add non-regression test)
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        out = self.prevout.serialize()
+        out += varbytes.encode(self.script_sig)
+        out += self.sequence.to_bytes(4, "little")
+        return out
 
     @classmethod
     def deserialize(
@@ -121,20 +134,6 @@ class TxIn(DataClassJsonMixin):
         if assert_valid:
             tx_in.assert_valid()
         return tx_in
-
-    def serialize(self, assert_valid: bool = True) -> bytes:
-
-        if assert_valid:
-            self.assert_valid()
-
-        out = self.prevout.serialize()
-        out += varbytes.encode(self.script_sig)
-        out += self.sequence.to_bytes(4, "little")
-        return out
-
-    def assert_valid(self) -> None:
-        self.prevout.assert_valid()
-        # TODO: empty script_sig is valid (add non-regression test)
 
 
 def witness_deserialize(data: BinaryData) -> List[bytes]:

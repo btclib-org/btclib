@@ -38,59 +38,6 @@ class Tx(DataClassJsonMixin):
     vin: List[TxIn] = field(default_factory=list)
     vout: List[TxOut] = field(default_factory=list)
 
-    @classmethod
-    def deserialize(cls: Type[_Tx], data: BinaryData, assert_valid: bool = True) -> _Tx:
-        stream = bytesio_from_binarydata(data)
-
-        tx = cls()
-        tx.version = int.from_bytes(stream.read(4), "little")
-        view: bytes = stream.getvalue()
-        witness_flag = False
-        if view[stream.tell() : stream.tell() + 2] == b"\x00\x01":
-            witness_flag = True
-            stream.read(2)
-
-        input_count = varint.decode(stream)
-        tx.vin = [TxIn.deserialize(stream) for _ in range(input_count)]
-
-        output_count = varint.decode(stream)
-        tx.vout = [TxOut.deserialize(stream) for _ in range(output_count)]
-
-        if witness_flag:
-            for tx_input in tx.vin:
-                tx_input.txinwitness = witness_deserialize(stream)
-
-        tx.locktime = int.from_bytes(stream.read(4), "little")
-
-        if assert_valid:
-            tx.assert_valid()
-        return tx
-
-    def serialize(
-        self, include_witness: bool = True, assert_valid: bool = True
-    ) -> bytes:
-
-        if assert_valid:
-            self.assert_valid()
-
-        out = self.version.to_bytes(4, "little")
-        witness_flag = False
-        out += varint.encode(len(self.vin))
-        for tx_input in self.vin:
-            out += tx_input.serialize(assert_valid=assert_valid)
-            if tx_input.txinwitness != []:
-                witness_flag = True
-        out += varint.encode(len(self.vout))
-        for tx_output in self.vout:
-            out += tx_output.serialize(assert_valid=assert_valid)
-        if witness_flag and include_witness:
-            for tx_input in self.vin:
-                out += witness_serialize(tx_input.txinwitness)
-        out += self.locktime.to_bytes(4, "little")
-        if witness_flag and include_witness:
-            out = out[:4] + b"\x00\x01" + out[4:]
-        return out
-
     @property
     def txid(self) -> bytes:
         return hash256(self.serialize(include_witness=False, assert_valid=False))[::-1]
@@ -124,3 +71,56 @@ class Tx(DataClassJsonMixin):
             tx_out.assert_valid()
 
         # TODO check version and locktime
+
+    def serialize(
+        self, include_witness: bool = True, assert_valid: bool = True
+    ) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        out = self.version.to_bytes(4, "little")
+        witness_flag = False
+        out += varint.encode(len(self.vin))
+        for tx_input in self.vin:
+            out += tx_input.serialize(assert_valid=assert_valid)
+            if tx_input.txinwitness != []:
+                witness_flag = True
+        out += varint.encode(len(self.vout))
+        for tx_output in self.vout:
+            out += tx_output.serialize(assert_valid=assert_valid)
+        if witness_flag and include_witness:
+            for tx_input in self.vin:
+                out += witness_serialize(tx_input.txinwitness)
+        out += self.locktime.to_bytes(4, "little")
+        if witness_flag and include_witness:
+            out = out[:4] + b"\x00\x01" + out[4:]
+        return out
+
+    @classmethod
+    def deserialize(cls: Type[_Tx], data: BinaryData, assert_valid: bool = True) -> _Tx:
+        stream = bytesio_from_binarydata(data)
+
+        tx = cls()
+        tx.version = int.from_bytes(stream.read(4), "little")
+        view: bytes = stream.getvalue()
+        witness_flag = False
+        if view[stream.tell() : stream.tell() + 2] == b"\x00\x01":
+            witness_flag = True
+            stream.read(2)
+
+        input_count = varint.decode(stream)
+        tx.vin = [TxIn.deserialize(stream) for _ in range(input_count)]
+
+        output_count = varint.decode(stream)
+        tx.vout = [TxOut.deserialize(stream) for _ in range(output_count)]
+
+        if witness_flag:
+            for tx_input in tx.vin:
+                tx_input.txinwitness = witness_deserialize(stream)
+
+        tx.locktime = int.from_bytes(stream.read(4), "little")
+
+        if assert_valid:
+            tx.assert_valid()
+        return tx

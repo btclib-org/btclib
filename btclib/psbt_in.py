@@ -196,38 +196,18 @@ class PsbtIn(DataClassJsonMixin):
         ),
     )
 
-    @classmethod
-    def deserialize(
-        cls: Type[_PsbtIn], input_map: Dict[bytes, bytes], assert_valid: bool = True
-    ) -> _PsbtIn:
-        out = cls()
-        for k, v in input_map.items():
-            if k[0:1] == PSBT_IN_NON_WITNESS_UTXO:
-                out.non_witness_utxo = _deserialize_tx(k, v, "non-witness utxo")
-            elif k[0:1] == PSBT_IN_WITNESS_UTXO:
-                out.witness_utxo = _deserialize_witness_utxo(k, v)
-            elif k[0:1] == PSBT_IN_PARTIAL_SIG:
-                out.partial_signatures.update(_deserialize_partial_signatures(k, v))
-            elif k[0:1] == PSBT_IN_SIGHASH_TYPE:
-                out.sighash = _deserialize_int(k, v, "sighash")
-            elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
-            elif k[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
-                out.final_script_witness = _deserialize_final_script_witness(k, v)
-            elif k[0:1] == PSBT_IN_REDEEM_SCRIPT:
-                out.redeem_script = _deserialize_bytes(k, v, "redeem script")
-            elif k[0:1] == PSBT_IN_WITNESS_SCRIPT:
-                out.witness_script = _deserialize_bytes(k, v, "witness script")
-            elif k[0:1] == PSBT_IN_BIP32_DERIVATION:
-                out.bip32_derivs.update(
-                    _deserialize_bip32_derivs(k, v, "PsbtIn BIP32 pubkey")
-                )
-            else:  # unknown
-                out.unknown[k] = v
-
-        if assert_valid:
-            out.assert_valid()
-        return out
+    def assert_valid(self) -> None:
+        "Assert logical self-consistency."
+        _assert_valid_tx(self.non_witness_utxo)
+        _assert_valid_witness_utxo(self.witness_utxo)
+        _assert_valid_sighash(self.sighash)
+        _assert_valid_redeem_script(self.redeem_script)
+        _assert_valid_witness_script(self.witness_script)
+        _assert_valid_final_script_sig(self.final_script_sig)
+        _assert_valid_final_script_witness(self.final_script_witness)
+        _assert_valid_partial_signatures(self.partial_signatures)
+        _assert_valid_bip32_derivs(self.bip32_derivs)
+        _assert_valid_unknown(self.unknown)
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
@@ -266,15 +246,35 @@ class PsbtIn(DataClassJsonMixin):
 
         return out
 
-    def assert_valid(self) -> None:
-        "Assert logical self-consistency."
-        _assert_valid_tx(self.non_witness_utxo)
-        _assert_valid_witness_utxo(self.witness_utxo)
-        _assert_valid_sighash(self.sighash)
-        _assert_valid_redeem_script(self.redeem_script)
-        _assert_valid_witness_script(self.witness_script)
-        _assert_valid_final_script_sig(self.final_script_sig)
-        _assert_valid_final_script_witness(self.final_script_witness)
-        _assert_valid_partial_signatures(self.partial_signatures)
-        _assert_valid_bip32_derivs(self.bip32_derivs)
-        _assert_valid_unknown(self.unknown)
+    @classmethod
+    def deserialize(
+        cls: Type[_PsbtIn], input_map: Dict[bytes, bytes], assert_valid: bool = True
+    ) -> _PsbtIn:
+        out = cls()
+        for k, v in input_map.items():
+            if k[0:1] == PSBT_IN_NON_WITNESS_UTXO:
+                out.non_witness_utxo = _deserialize_tx(k, v, "non-witness utxo")
+            elif k[0:1] == PSBT_IN_WITNESS_UTXO:
+                out.witness_utxo = _deserialize_witness_utxo(k, v)
+            elif k[0:1] == PSBT_IN_PARTIAL_SIG:
+                out.partial_signatures.update(_deserialize_partial_signatures(k, v))
+            elif k[0:1] == PSBT_IN_SIGHASH_TYPE:
+                out.sighash = _deserialize_int(k, v, "sighash")
+            elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
+                out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
+            elif k[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
+                out.final_script_witness = _deserialize_final_script_witness(k, v)
+            elif k[0:1] == PSBT_IN_REDEEM_SCRIPT:
+                out.redeem_script = _deserialize_bytes(k, v, "redeem script")
+            elif k[0:1] == PSBT_IN_WITNESS_SCRIPT:
+                out.witness_script = _deserialize_bytes(k, v, "witness script")
+            elif k[0:1] == PSBT_IN_BIP32_DERIVATION:
+                out.bip32_derivs.update(
+                    _deserialize_bip32_derivs(k, v, "PsbtIn BIP32 pubkey")
+                )
+            else:  # unknown
+                out.unknown[k] = v
+
+        if assert_valid:
+            out.assert_valid()
+        return out
