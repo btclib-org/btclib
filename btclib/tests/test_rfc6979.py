@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.rfc6979` module."
+"Tests for the `btclib.rfc6979` module."
 
 import hashlib
 import json

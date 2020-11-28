@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.sighash` module."
+"Tests for the `btclib.sighash` module."
 
 # test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 from btclib.sighash import _get_witness_v0_script_codes, get_sighash, segwit_v0

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.base58wif` module."
+"Tests for the `btclib.base58wif` module."
 
 from typing import List, Tuple
 

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.to_prvkey` module."
+"Tests for the `btclib.to_prvkey` module."
 
 import pytest
 

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.hashes` module."
+"Tests for the `btclib.hashes` module."
 
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
 from btclib.hashes import fingerprint, tagged_hash

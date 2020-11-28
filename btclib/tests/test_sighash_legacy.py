@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Tests for `btclib.sighash` module.
+"""Tests for the `btclib.sighash` module.
 
 test vector from https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """

@@ -29,7 +29,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 
-"""Tests for `btclib.bech32address` module.
+"""Tests for the `btclib.bech32address` module.
 
 Some of these tests are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,

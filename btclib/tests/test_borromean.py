@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for `btclib.borromean` module."
+"Tests for the `btclib.borromean` module."
 
 import secrets
 from collections import defaultdict

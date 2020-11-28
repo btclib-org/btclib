@@ -28,7 +28,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Tests for `btclib.bech32` module.
+"""Tests for the `btclib.bech32` module.
 
 These tests are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
