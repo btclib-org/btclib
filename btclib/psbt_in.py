@@ -217,7 +217,7 @@ class PsbtIn(DataClassJsonMixin):
         out = b""
 
         if self.non_witness_utxo:
-            temp = self.non_witness_utxo.serialize()
+            temp = self.non_witness_utxo.serialize(include_witness=True)
             out += _serialize_bytes(PSBT_IN_NON_WITNESS_UTXO, temp)
         if self.witness_utxo:
             out += _serialize_bytes(PSBT_IN_WITNESS_UTXO, self.witness_utxo.serialize())

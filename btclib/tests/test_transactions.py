@@ -21,7 +21,7 @@ def test_genesis_block() -> None:
 
     coinbase = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"
     transaction = tx.Tx.deserialize(coinbase)
-    assert transaction.serialize().hex() == coinbase
+    assert transaction.serialize(include_witness=True).hex() == coinbase
 
     coinbase_inp = "0000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff"
     transaction_in = tx_in.TxIn.deserialize(coinbase_inp)
@@ -50,7 +50,7 @@ def test_wiki_transaction() -> None:
     tx_bytes = "01000000016dbddb085b1d8af75184f0bc01fad58d1266e9b63b50881990e4b40d6aee3629000000008b483045022100f3581e1972ae8ac7c7367a7a253bc1135223adb9a468bb3a59233f45bc578380022059af01ca17d00e41837a1d58e97aa31bae584edec28d35bd96923690913bae9a0141049c02bfc97ef236ce6d8fe5d94013c721e915982acd2b12b65d9b7d59e20a842005f8fc4e02532e873d37b96f09d6d4511ada8f14042f46614a4c70c0f14beff5ffffffff02404b4c00000000001976a9141aa0cd1cbea6e7458a7abad512a9d9ea1afb225e88ac80fae9c7000000001976a9140eab5bea436a0484cfab12485efda0b78b4ecc5288ac00000000"
 
     transaction = tx.Tx.deserialize(tx_bytes)
-    assert transaction.serialize().hex() == tx_bytes
+    assert transaction.serialize(include_witness=True).hex() == tx_bytes
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
@@ -68,7 +68,7 @@ def test_single_witness() -> None:
 
     transaction = tx.Tx.deserialize(tx_bytes)
 
-    assert transaction.serialize().hex() == tx_bytes
+    assert transaction.serialize(include_witness=True).hex() == tx_bytes
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
@@ -92,7 +92,7 @@ def test_double_witness() -> None:
 
     transaction = tx.Tx.deserialize(tx_bytes)
 
-    assert transaction.serialize().hex() == tx_bytes
+    assert transaction.serialize(include_witness=True).hex() == tx_bytes
 
     # Test witnesses as bytes
 
@@ -117,7 +117,7 @@ def test_double_witness() -> None:
     transaction.vin[0].txinwitness = witness1
     transaction.vin[1].txinwitness = witness2
 
-    assert transaction.serialize().hex() == tx_bytes
+    assert transaction.serialize(include_witness=True).hex() == tx_bytes
 
     assert len(transaction.vin) == 2
     assert len(transaction.vout) == 2

@@ -52,7 +52,7 @@ def legacy(
     if hashtype & 0x80:
         new_tx.vin = [new_tx.vin[input_index]]
 
-    preimage = new_tx.serialize(assert_valid=False)
+    preimage = new_tx.serialize(include_witness=True, assert_valid=False)
     preimage += hashtype.to_bytes(4, "little")
 
     return hash256(preimage)

@@ -44,11 +44,11 @@ class Tx(DataClassJsonMixin):
 
     @property
     def hash(self) -> bytes:
-        return hash256(self.serialize(assert_valid=False))[::-1]
+        return hash256(self.serialize(include_witness=True, assert_valid=False))[::-1]
 
     @property
     def size(self) -> int:
-        return len(self.serialize(assert_valid=False))
+        return len(self.serialize(include_witness=True, assert_valid=False))
 
     @property
     def weight(self) -> int:
@@ -72,9 +72,7 @@ class Tx(DataClassJsonMixin):
 
         # TODO check version and locktime
 
-    def serialize(
-        self, include_witness: bool = True, assert_valid: bool = True
-    ) -> bytes:
+    def serialize(self, include_witness: bool, assert_valid: bool = True) -> bytes:
 
         if assert_valid:
             self.assert_valid()

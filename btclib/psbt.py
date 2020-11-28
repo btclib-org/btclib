@@ -166,7 +166,7 @@ class Psbt(DataClassJsonMixin):
 
         out = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
 
-        temp = self.tx.serialize()
+        temp = self.tx.serialize(include_witness=True)
         out += _serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
         if self.version:
             temp = self.version.to_bytes(4, "little")
