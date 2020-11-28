@@ -18,6 +18,7 @@ import pytest
 
 from btclib.blocks import Block, BlockHeader
 from btclib.exceptions import BTClibValueError
+from btclib.network import NETWORKS
 
 datadir = path.join(path.dirname(__file__), "generated_files")
 
@@ -34,10 +35,12 @@ def test_block_1() -> None:
     assert len(block.transactions) == 1
     assert block.serialize() == block_bytes
 
+    assert block.size == 215
+    assert block.weight == 536
+
     header = block.header
     assert header.version == 1
-    prev_block = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
-    assert header.previous_block_hash.hex() == prev_block
+    assert header.previous_block_hash == NETWORKS["mainnet"].genesis_block
     merkle_root = "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
     assert header.merkle_root.hex() == merkle_root
     timestamp = datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc)
@@ -48,9 +51,6 @@ def test_block_1() -> None:
     hash_ = "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048"
     assert header.hash.hex() == hash_
     assert header.difficulty == 1
-
-    assert block.size == 215
-    assert block.weight == 536
 
 
 def test_exceptions() -> None:
@@ -78,30 +78,26 @@ def test_exceptions() -> None:
     header_bytes = block_bytes[:80]
 
     header = BlockHeader.deserialize(header_bytes)
-    err_msg = "invalid version: "
     header.version = 0
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="invalid version: "):
         header.assert_valid()
     header.version = 0x7FFFFFFF + 1
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="invalid version: "):
         header.assert_valid()
 
     header = BlockHeader.deserialize(header_bytes)
     header.previous_block_hash = b"\xff" * 33
-    err_msg = "invalid previous block hash: "
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="invalid previous block hash: "):
         header.assert_valid()
 
     header = BlockHeader.deserialize(header_bytes)
     header.merkle_root = b"\xff" * 33
-    err_msg = "invalid merkle root: "
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
         header.assert_valid()
 
     header = BlockHeader.deserialize(header_bytes)
     header.bits = b"\xff" * 5
-    err_msg = "invalid bits: "
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="invalid bits: "):
         header.assert_valid()
 
     header = BlockHeader.deserialize(header_bytes)
@@ -113,14 +109,12 @@ def test_exceptions() -> None:
 
     header = BlockHeader.deserialize(header_bytes)
     header.nonce = 0
-    err_msg = "invalid nonce: "
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="invalid nonce: "):
         header.assert_valid()
 
     header = BlockHeader.deserialize(header_bytes)
     header.nonce += 1
-    err_msg = "not enough work: "
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
         header.assert_valid()
 
 
@@ -135,6 +129,9 @@ def test_block_170() -> None:
     block = Block.deserialize(block_bytes)
     assert len(block.transactions) == 2
     assert block.serialize() == block_bytes
+
+    assert block.size == 490
+    assert block.weight == 1636
 
     header = block.header
     assert header.version == 1
@@ -151,9 +148,6 @@ def test_block_170() -> None:
     assert header.hash.hex() == hash_
     assert header.difficulty == 1
 
-    assert block.size == 490
-    assert block.weight == 1636
-
 
 def test_block_200000() -> None:
 
@@ -165,6 +159,9 @@ def test_block_200000() -> None:
     block = Block.deserialize(block_bytes)
     assert len(block.transactions) == 388
     assert block.serialize() == block_bytes
+
+    assert block.size == 247533
+    assert block.weight == 989800
 
     header = block.header
     assert header.version == 2
@@ -179,9 +176,6 @@ def test_block_200000() -> None:
     hash_ = "000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf"
     assert header.hash.hex() == hash_
     assert 0 <= header.difficulty - 2_864_140 < 1
-
-    assert block.size == 247533
-    assert block.weight == 989800
 
     block.transactions.pop()
     err_msg = "invalid merkle root: "

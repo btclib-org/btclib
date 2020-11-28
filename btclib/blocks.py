@@ -26,64 +26,89 @@ if sys.version_info.minor == 6:  # python 3.6
 
     backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()  # pragma: no cover
 
+
 _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
 
 @dataclass
 class BlockHeader(DataClassJsonMixin):
+    # 4 bytes, signed little endian int
     version: int = 0
+    # 32 bytes, reversed
     previous_block_hash: bytes = field(
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
+    # 32 bytes, reversed
     merkle_root: bytes = field(
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
+    # 4 bytes, unsigned little endian int, then converted to datetime
     time: datetime = field(
         default=datetime.fromtimestamp(0),
         metadata=config(
             encoder=datetime.isoformat, decoder=datetime.fromisoformat  # type: ignore
         ),
     )
+    # 4 bytes, reversed
     bits: bytes = field(
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
+    # 4 bytes, little endian int
     nonce: int = 0
 
-    @classmethod
-    def deserialize(
-        cls: Type[_BlockHeader], data: BinaryData, assert_valid: bool = True
-    ) -> _BlockHeader:
-        stream = bytesio_from_binarydata(data)
+    @property
+    def hash(self) -> bytes:
+        "Return the reversed 32 bytes hash256 of the BlockHeader."
+        s = self.serialize(assert_valid=False)
+        hash256_ = hash256(s)
+        return hash256_[::-1]
 
-        header = cls()
-        header.version = int.from_bytes(stream.read(4), "little", signed=True)
-        header.previous_block_hash = stream.read(32)[::-1]
-        header.merkle_root = stream.read(32)[::-1]
-        t = int.from_bytes(stream.read(4), "little")
-        header.time = datetime.fromtimestamp(t, timezone.utc)
-        header.bits = stream.read(4)[::-1]
-        header.nonce = int.from_bytes(stream.read(4), "little")
+    @property
+    def target(self) -> bytes:
+        """Return the BlockHeader proof-of-work target.
 
-        if assert_valid:
-            header.assert_valid()
-        return header
+        The target aabbcc * 256^dd is represented
+        in scientific notation by the 4 bytes bits 0xaabbccdd
+        """
+        # significand (also known as mantissa or coefficient)
+        significand = int.from_bytes(self.bits[1:], "big")
+        # power term, also called characteristics
+        power_term = pow(256, (self.bits[0] - 3))
+        return (significand * power_term).to_bytes(32, "big")
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    @property
+    def difficulty(self) -> float:
+        """Return the BlockHeader difficulty.
 
-        if assert_valid:
-            self.assert_valid()
+        Difficulty is the ratio of the genesis block target
+        over the BlockHeader target.
 
-        out = self.version.to_bytes(4, "little", signed=True)
-        out += self.previous_block_hash[::-1]
-        out += self.merkle_root[::-1]
-        out += int(self.time.timestamp()).to_bytes(4, "little")
-        out += self.bits[::-1]
-        out += self.nonce.to_bytes(4, "little")
+        It represents the average number of hash function evaluations
+        required to satisfy the BlockHeader target,
+        expressed as multiple of the genesis block difficulty used as unit.
 
-        return out
+        The difficulty of the genesis block is 2^32 (4*2^30),
+        i.e. 4 GigaHash function evaluations.
+        """
+        # genesis block target
+        genesis_significand = 0x00FFFF
+        genesis_exponent = 0x1D
+        # significand ratio
+        significand = genesis_significand / int.from_bytes(self.bits[1:], "big")
+        # power term ratio
+        power_term = pow(256, genesis_exponent - self.bits[0])
+        return significand * power_term
+
+    def assert_valid_pow(self) -> None:
+        "Assert whether the BlockHeader provides a valid proof-of-work."
+
+        if self.hash >= self.target:
+            err_msg = f"invalid proof-of-work: {self.hash.hex()}"
+            err_msg += f" >= {self.target.hex()}"
+            raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:
         if not 0 < self.version <= 0x7FFFFFFF:
@@ -110,27 +135,55 @@ class BlockHeader(DataClassJsonMixin):
         if not 0 < self.nonce <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid nonce: {hex(self.nonce)}")
 
-        hash_ = int.from_bytes(self.hash, "big")
-        if self.target <= hash_:
-            err_msg = f"not enough work: {hex(hash_)}"
-            err_msg += f" (target is: {hex(self.target)})"
-            raise BTClibValueError(err_msg)
+        self.assert_valid_pow()
 
-    @property
-    def target(self) -> int:
-        return int.from_bytes(self.bits[1:], "big") * pow(256, (self.bits[0] - 3))
+    def serialize(self, assert_valid: bool = True) -> bytes:
+        "Return a BlockHeader binary serialization."
 
-    @property
-    def difficulty(self) -> float:
-        # mantissa ratio
-        m = 0x00FFFF / int.from_bytes(self.bits[1:], "big")
-        # exponent difference
-        t = 26 - (self.bits[0] - 3)
-        return m * pow(256, t)
+        if assert_valid:
+            self.assert_valid()
 
-    @property
-    def hash(self) -> bytes:
-        return hash256(self.serialize(assert_valid=False))[::-1]
+        out = self.version.to_bytes(4, "little", signed=True)
+        out += self.previous_block_hash[::-1]
+        out += self.merkle_root[::-1]
+        out += int(self.time.timestamp()).to_bytes(4, "little")
+        out += self.bits[::-1]
+        out += self.nonce.to_bytes(4, "little")
+
+        return out
+
+    @classmethod
+    def deserialize(
+        cls: Type[_BlockHeader], data: BinaryData, assert_valid: bool = True
+    ) -> _BlockHeader:
+        "Return a BlockHeader by parsing 80 bytes from a byte stream."
+        stream = bytesio_from_binarydata(data)
+
+        header = cls()
+        header.version = int.from_bytes(stream.read(4), "little", signed=True)
+        header.previous_block_hash = stream.read(32)[::-1]
+        header.merkle_root = stream.read(32)[::-1]
+        t = int.from_bytes(stream.read(4), "little")
+        header.time = datetime.fromtimestamp(t, timezone.utc)
+        header.bits = stream.read(4)[::-1]
+        header.nonce = int.from_bytes(stream.read(4), "little")
+
+        if assert_valid:
+            header.assert_valid()
+        return header
+
+
+def merkle_root(transactions: List[Tx]) -> bytes:
+    hashes = [transaction.txid[::-1] for transaction in transactions]
+    hashes_buffer = []
+    while len(hashes) != 1:
+        if len(hashes) % 2 != 0:
+            hashes.append(hashes[-1])
+        for i in range(len(hashes) // 2):
+            hashes_buffer.append(hash256(hashes[2 * i] + hashes[2 * i + 1]))
+        hashes = hashes_buffer[:]
+        hashes_buffer = []
+    return hashes[0][::-1]
 
 
 _Block = TypeVar("_Block", bound="Block")
@@ -140,6 +193,41 @@ _Block = TypeVar("_Block", bound="Block")
 class Block(DataClassJsonMixin):
     header: BlockHeader = field(default=BlockHeader())
     transactions: List[Tx] = field(default_factory=list)
+
+    @property
+    def size(self) -> int:
+        return len(self.serialize(assert_valid=False))
+
+    @property
+    def weight(self) -> int:
+        return sum(t.weight for t in self.transactions)
+
+    # TODO: implement vsize
+
+    def assert_valid(self) -> None:
+
+        self.header.assert_valid()
+
+        if not self.transactions[0].vin[0].prevout.is_coinbase:
+            raise BTClibValueError("first transaction is not a coinbase")
+        for transaction in self.transactions[1:]:
+            transaction.assert_valid()
+
+        merkle_root_ = merkle_root(self.transactions)
+        if merkle_root_ != self.header.merkle_root:
+            err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
+            err_msg += f" instead of: {merkle_root_.hex()}"
+            raise BTClibValueError(err_msg)
+
+    def serialize(
+        self, include_witness: bool = True, assert_valid: bool = True
+    ) -> bytes:
+        if assert_valid:
+            self.assert_valid()
+
+        out = self.header.serialize()
+        out += varint.encode(len(self.transactions))
+        return out + b"".join([t.serialize(include_witness) for t in self.transactions])
 
     @classmethod
     def deserialize(
@@ -155,51 +243,3 @@ class Block(DataClassJsonMixin):
         if assert_valid:
             block.assert_valid()
         return block
-
-    def serialize(
-        self, include_witness: bool = True, assert_valid: bool = True
-    ) -> bytes:
-        if assert_valid:
-            self.assert_valid()
-
-        out = self.header.serialize()
-        out += varint.encode(len(self.transactions))
-        return out + b"".join([t.serialize(include_witness) for t in self.transactions])
-
-    def assert_valid(self) -> None:
-
-        self.header.assert_valid()
-
-        if not self.transactions[0].vin[0].prevout.is_coinbase:
-            raise BTClibValueError("first transaction is not a coinbase")
-        for transaction in self.transactions[1:]:
-            transaction.assert_valid()
-
-        merkel_root = _generate_merkle_root(self.transactions)
-        if merkel_root != self.header.merkle_root:
-            err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
-            err_msg += f" instead of: {merkel_root.hex()}"
-            raise BTClibValueError(err_msg)
-
-    @property
-    def size(self) -> int:
-        return len(self.serialize(assert_valid=False))
-
-    @property
-    def weight(self) -> int:
-        return sum(t.weight for t in self.transactions)
-
-    # TODO: implement vsize
-
-
-def _generate_merkle_root(transactions: List[Tx]) -> bytes:
-    hashes = [transaction.txid[::-1] for transaction in transactions]
-    hashes_buffer = []
-    while len(hashes) != 1:
-        if len(hashes) % 2 != 0:
-            hashes.append(hashes[-1])
-        for i in range(len(hashes) // 2):
-            hashes_buffer.append(hash256(hashes[2 * i] + hashes[2 * i + 1]))
-        hashes = hashes_buffer[:]
-        hashes_buffer = []
-    return hashes[0][::-1]
