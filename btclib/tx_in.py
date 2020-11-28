@@ -27,7 +27,9 @@ class OutPoint(DataClassJsonMixin):
         default=b"\x00" * 32,
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    vout: int = 0xFFFFFFFF
+    # 4 bytes, unsigned little endian
+    vout: int = -1
+    # add value and script_pubkey when tx fetcher will be available
 
     def is_coinbase(self) -> bool:
         return (self.txid == b"\x00" * 32) and (self.vout == 0xFFFFFFFF)
@@ -66,15 +68,16 @@ class OutPoint(DataClassJsonMixin):
         "Return an OutPoint from the first 36 bytes of the provided data."
 
         data = bytesio_from_binarydata(data)
-        # 32 bytes, little endian
-        txid = data.read(32)[::-1]
-        # 4 bytes, little endian, interpreted as int
-        vout = int.from_bytes(data.read(4), "little")
 
-        result = cls(txid, vout)
+        outpoint = cls()
+        # 32 bytes, little endian
+        outpoint.txid = data.read(32)[::-1]
+        # 4 bytes, little endian, interpreted as int
+        outpoint.vout = int.from_bytes(data.read(4), "little")
+
         if assert_valid:
-            result.assert_valid()
-        return result
+            outpoint.assert_valid()
+        return outpoint
 
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
@@ -82,24 +85,29 @@ _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 @dataclass
 class TxIn(DataClassJsonMixin):
-    prevout: OutPoint
+    prevout: OutPoint = field(default=OutPoint())
     # TODO make it { "asm": "", "hex": "" }
     script_sig: bytes = field(
+        default=b"",
         metadata=config(
             field_name="scriptSig", encoder=lambda v: v.hex(), decoder=bytes.fromhex
-        )
+        ),
     )
-    sequence: int
+    # 4 bytes, unsigned little endian
+    sequence: int = -1
     txinwitness: List[bytes] = field(
+        default_factory=list,
         metadata=config(
             encoder=lambda val: [v.hex() for v in val],
             decoder=lambda val: [bytes.fromhex(v) for v in val],
-        )
+        ),
     )
 
     def assert_valid(self) -> None:
         self.prevout.assert_valid()
         # TODO: empty script_sig is valid (add non-regression test)
+        # TODO: test sequence
+        # TODO: test txinwitness
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
@@ -118,19 +126,12 @@ class TxIn(DataClassJsonMixin):
 
         stream = bytesio_from_binarydata(data)
 
-        prevout = OutPoint.deserialize(stream)
-
-        script_sig = varbytes.decode(stream)
-
+        tx_in = cls()
+        tx_in.prevout = OutPoint.deserialize(stream)
+        tx_in.script_sig = varbytes.decode(stream)
         # 4 bytes, little endian, interpreted as int
-        sequence = int.from_bytes(stream.read(4), "little")
+        tx_in.sequence = int.from_bytes(stream.read(4), "little")
 
-        tx_in = cls(
-            prevout=prevout,
-            script_sig=script_sig,
-            sequence=sequence,
-            txinwitness=[],
-        )
         if assert_valid:
             tx_in.assert_valid()
         return tx_in
