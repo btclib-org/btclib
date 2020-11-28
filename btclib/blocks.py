@@ -33,7 +33,7 @@ _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
 @dataclass
 class BlockHeader(DataClassJsonMixin):
-    # 4 bytes, signed little endian int
+    # 4 bytes, signed little endian
     version: int = 0
     # 32 bytes, reversed
     previous_block_hash: bytes = field(
@@ -45,7 +45,7 @@ class BlockHeader(DataClassJsonMixin):
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    # 4 bytes, unsigned little endian int, then converted to datetime
+    # 4 bytes, unsigned little endian, then converted to datetime
     time: datetime = field(
         default=datetime.fromtimestamp(0),
         metadata=config(
@@ -57,7 +57,7 @@ class BlockHeader(DataClassJsonMixin):
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    # 4 bytes, little endian int
+    # 4 bytes, unsigned little endian
     nonce: int = 0
     # private data member used only for to_dict
     # use the corresponding public properties instead
