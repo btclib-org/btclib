@@ -164,29 +164,29 @@ class Psbt(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
+        psbt_bin = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
 
         temp = self.tx.serialize(include_witness=True)
-        out += _serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
+        psbt_bin += _serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
         if self.version:
             temp = self.version.to_bytes(4, "little")
-            out += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
+            psbt_bin += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
         if self.bip32_derivs:
-            out += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.bip32_derivs)
+            psbt_bin += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.bip32_derivs)
         if self.unknown:
-            out += _serialize_dict_bytes_bytes(b"", self.unknown)
+            psbt_bin += _serialize_dict_bytes_bytes(b"", self.unknown)
 
-        out += PSBT_DELIMITER
+        psbt_bin += PSBT_DELIMITER
         for input_map in self.inputs:
-            out += input_map.serialize() + b"\x00"
+            psbt_bin += input_map.serialize() + b"\x00"
         for output_map in self.outputs:
-            out += output_map.serialize() + b"\x00"
-        return out
+            psbt_bin += output_map.serialize() + b"\x00"
+        return psbt_bin
 
     @classmethod
     def deserialize(cls: Type[_Psbt], data: bytes, assert_valid: bool = True) -> _Psbt:
 
-        out = cls()
+        psbt = cls()
 
         if data[:4] != PSBT_MAGIC_BYTES:
             raise BTClibValueError("malformed psbt: missing magic bytes")
@@ -197,32 +197,32 @@ class Psbt(DataClassJsonMixin):
         for k, v in global_map.items():
             if k[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 # legacy transaction
-                out.tx = _deserialize_tx(k, v, "global unsigned tx")
+                psbt.tx = _deserialize_tx(k, v, "global unsigned tx")
             elif k[0:1] == PSBT_GLOBAL_VERSION:
-                out.version = _deserialize_int(k, v, "global version")
+                psbt.version = _deserialize_int(k, v, "global version")
             elif k[0:1] == PSBT_GLOBAL_XPUB:
-                out.bip32_derivs.update(
+                psbt.bip32_derivs.update(
                     _deserialize_bip32_derivs(k, v, "Psbt BIP32 xkey")
                 )
             else:  # unknown
-                out.unknown[k] = v
+                psbt.unknown[k] = v
 
-        if not out.tx.version:
+        if not psbt.tx.version:
             raise BTClibValueError("missing transaction")
-        for _ in out.tx.vin:
+        for _ in psbt.tx.vin:
             input_map, data = deserialize_map(data)
-            out.inputs.append(PsbtIn.deserialize(input_map))
-        for _ in out.tx.vout:
+            psbt.inputs.append(PsbtIn.deserialize(input_map))
+        for _ in psbt.tx.vout:
             output_map, data = deserialize_map(data)
-            out.outputs.append(PsbtOut.deserialize(output_map))
+            psbt.outputs.append(PsbtOut.deserialize(output_map))
 
         if assert_valid:
-            out.assert_valid()
-        return out
+            psbt.assert_valid()
+        return psbt
 
     def encode(self, assert_valid: bool = True) -> str:
-        out = self.serialize(assert_valid)
-        return b64encode(out).decode("ascii")
+        psbt_bin = self.serialize(assert_valid)
+        return b64encode(psbt_bin).decode("ascii")
 
     @classmethod
     def decode(cls: Type[_Psbt], string: str, assert_valid: bool = True) -> _Psbt:
