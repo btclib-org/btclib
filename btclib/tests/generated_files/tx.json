@@ -8,10 +8,12 @@
             },
             "scriptSig": "160014e123a5263695be634abf3ad3456b4bf15f09cc6a",
             "sequence": 4294967295,
-            "txinwitness": [
-                "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01",
-                "0334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e16"
-            ]
+            "witness": {
+                "items": [
+                    "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01",
+                    "0334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e16"
+                ]
+            }
         },
         {
             "prevout": {
@@ -20,10 +22,12 @@
             },
             "scriptSig": "1600145946c8c3def6c79859f01b34ad537e7053cf8e73",
             "sequence": 4294967295,
-            "txinwitness": [
-                "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901",
-                "030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d7314"
-            ]
+            "witness": {
+                "items": [
+                    "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901",
+                    "030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d7314"
+                ]
+            }
         }
     ],
     "vout": [

@@ -9,14 +9,15 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass, field
-from typing import List, Type, TypeVar
+from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varbytes, varint
+from . import varbytes
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata
+from .witness import Witness
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
@@ -95,19 +96,13 @@ class TxIn(DataClassJsonMixin):
     )
     # 4 bytes, unsigned little endian
     sequence: int = -1
-    txinwitness: List[bytes] = field(
-        default_factory=list,
-        metadata=config(
-            encoder=lambda val: [v.hex() for v in val],
-            decoder=lambda val: [bytes.fromhex(v) for v in val],
-        ),
-    )
+    witness: Witness = Witness()
 
     def assert_valid(self) -> None:
         self.prevout.assert_valid()
         # TODO: empty script_sig is valid (add non-regression test)
         # TODO: test sequence
-        # TODO: test txinwitness
+        self.witness.assert_valid()
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
@@ -135,14 +130,3 @@ class TxIn(DataClassJsonMixin):
         if assert_valid:
             tx_in.assert_valid()
         return tx_in
-
-
-def witness_deserialize(data: BinaryData) -> List[bytes]:
-    stream = bytesio_from_binarydata(data)
-    n = varint.decode(stream)
-    return [varbytes.decode(stream) for _ in range(n)]
-
-
-def witness_serialize(witness: List[bytes]) -> bytes:
-    out = varint.encode(len(witness))
-    return out + b"".join([varbytes.encode(w) for w in witness])

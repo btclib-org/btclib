@@ -13,9 +13,8 @@
 # test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 from btclib.sighash import _get_witness_v0_script_codes, get_sighash, segwit_v0
 from btclib.tx import Tx
-
-# from btclib.tx_in import TxIn, OutPoint
 from btclib.tx_out import TxOut
+from btclib.witness import Witness
 
 
 def test_native_p2wpkh():
@@ -61,11 +60,11 @@ def test_native_p2wsh():
     transaction = Tx.deserialize(
         "0100000002fe3dc9208094f3ffd12645477b3dc56f60ec4fa8e6f5d67c565d1c6b9216b36e0000000000ffffffff0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f80000000000ffffffff0100f2052a010000001976a914a30741f8145e5acadf23f751864167f32e0963f788ac00000000"
     )
-    transaction.vin[1].txinwitness = [
-        bytes.fromhex(
+    transaction.vin[1].witness = Witness(
+        [
             "21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac"
-        )
-    ]
+        ]
+    )
 
     previous_txout = TxOut(
         value=4900000000,
@@ -81,7 +80,7 @@ def test_native_p2wsh():
         == "82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391"
     )
 
-    script_code = _get_witness_v0_script_codes(transaction.vin[1].txinwitness[-1])[1]
+    script_code = _get_witness_v0_script_codes(transaction.vin[1].witness.items[-1])[1]
     sighash = segwit_v0(script_code, transaction, 1, 0x03, previous_txout.value)
     assert (
         sighash.hex()
@@ -93,16 +92,16 @@ def test_native_p2wsh_2():
     transaction = Tx.deserialize(
         "0100000002e9b542c5176808107ff1df906f46bb1f2583b16112b95ee5380665ba7fcfc0010000000000ffffffff80e68831516392fcd100d186b3c2c7b95c80b53c77e77c35ba03a66b429a2a1b0000000000ffffffff0280969800000000001976a914de4b231626ef508c9a74a8517e6783c0546d6b2888ac80969800000000001976a9146648a8cd4531e1ec47f35916de8e259237294d1e88ac00000000"
     )
-    transaction.vin[0].txinwitness = [
-        bytes.fromhex(
+    transaction.vin[0].witness = Witness(
+        [
             "0063ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
-        )
-    ]
-    transaction.vin[1].txinwitness = [
-        bytes.fromhex(
+        ]
+    )
+    transaction.vin[1].witness = Witness(
+        [
             "5163ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
-        )
-    ]
+        ]
+    )
 
     previous_txout_1 = TxOut(
         value=16777215,
@@ -123,7 +122,7 @@ def test_native_p2wsh_2():
         ),
     )
 
-    script_code = _get_witness_v0_script_codes(transaction.vin[1].txinwitness[-1])[1]
+    script_code = _get_witness_v0_script_codes(transaction.vin[1].witness.items[-1])[1]
     sighash = segwit_v0(script_code, transaction, 1, 0x83, previous_txout_2.value)
     assert (
         sighash.hex()
@@ -136,11 +135,11 @@ def test_wrapped_p2wsh():
     transaction = Tx.deserialize(
         "010000000136641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e0100000000ffffffff0200e9a435000000001976a914389ffce9cd9ae88dcc0631e88a821ffdbe9bfe2688acc0832f05000000001976a9147480a33f950689af511e6e84c138dbbd3c3ee41588ac00000000"
     )
-    transaction.vin[0].txinwitness = [
-        bytes.fromhex(
+    transaction.vin[0].witness = Witness(
+        [
             "56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae"
-        )
-    ]
+        ]
+    )
 
     previous_txout = TxOut(
         value=987654321,

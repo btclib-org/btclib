@@ -9,7 +9,9 @@
                 },
                 "scriptSig": "473044022058f6fc7c6a33e1b31548d481c826c015bd30135aad42cd67790dab66d2ad243b02204a1ced2604c6735b6393e5b41691dd78b00f0c5942fb9f751856faa938157dba01",
                 "sequence": 4294967294,
-                "txinwitness": []
+                "witness": {
+                    "items": []
+                }
             }
         ],
         "vout": [
@@ -49,6 +51,8 @@
         }
     ],
     "final_script_sig": "",
-    "final_script_witness": [],
+    "final_script_witness": {
+        "items": []
+    },
     "unknown": {}
 }

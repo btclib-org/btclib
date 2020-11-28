@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Type, TypeVar
+from typing import Dict, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
@@ -36,8 +36,8 @@ from .psbt_out import (
 )
 from .script import SIGHASHES
 from .tx import Tx
-from .tx_in import witness_deserialize, witness_serialize
 from .tx_out import TxOut
+from .witness import Witness
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
@@ -112,27 +112,18 @@ def _assert_valid_sighash(sighash: Optional[int]) -> None:
         raise BTClibValueError(f"invalid sighash: {sighash}")
 
 
-def _deserialize_final_script_witness(k: bytes, v: bytes) -> List[bytes]:
+def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
     "Return the dataclass element from its binary representation."
 
     if len(k) != 1:
         err_msg = f"invalid final script witness key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return witness_deserialize(v)
+    return Witness().deserialize(v)
 
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
     if not isinstance(final_script_sig, bytes):
         raise BTClibTypeError("invalid final script_sig")
-
-
-def _assert_valid_final_script_witness(final_script_witness: List[bytes]) -> None:
-    err_msg = "invalid final script witness"
-    if not isinstance(final_script_witness, list):
-        raise BTClibTypeError(err_msg)
-    for b in final_script_witness:
-        if not isinstance(b, bytes):
-            raise BTClibTypeError(err_msg)
 
 
 def _assert_valid_partial_signatures(partial_signatures: Dict[bytes, bytes]) -> None:
@@ -182,13 +173,7 @@ class PsbtIn(DataClassJsonMixin):
     final_script_sig: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    final_script_witness: List[bytes] = field(
-        default_factory=list,
-        metadata=config(
-            encoder=lambda val: [v.hex() for v in val],
-            decoder=lambda val: [bytes.fromhex(v) for v in val],
-        ),
-    )
+    final_script_witness: Witness = Witness()
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
@@ -204,7 +189,7 @@ class PsbtIn(DataClassJsonMixin):
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
         _assert_valid_final_script_sig(self.final_script_sig)
-        _assert_valid_final_script_witness(self.final_script_witness)
+        self.final_script_witness.assert_valid()
         _assert_valid_partial_signatures(self.partial_signatures)
         _assert_valid_bip32_derivs(self.bip32_derivs)
         _assert_valid_unknown(self.unknown)
@@ -235,7 +220,7 @@ class PsbtIn(DataClassJsonMixin):
         if self.final_script_sig:
             out += _serialize_bytes(PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig)
         if self.final_script_witness:
-            temp = witness_serialize(self.final_script_witness)
+            temp = self.final_script_witness.serialize()
             out += _serialize_bytes(PSBT_IN_FINAL_SCRIPTWITNESS, temp)
         if self.bip32_derivs:
             out += _serialize_dict_bytes_bytes(

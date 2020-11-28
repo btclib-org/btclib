@@ -217,11 +217,11 @@ def test_block_481824() -> None:
         assert 0 <= header.difficulty - 888_171_856_257 < 1
 
         if i:  # segwit nodes see the witness data
-            assert block.transactions[0].vin[0].txinwitness
+            assert block.transactions[0].vin[0].witness
             assert block.size == 989_323
             assert block.weight == 3_954_548
         else:  # legacy nodes see NO witness data
-            assert not block.transactions[0].vin[0].txinwitness
+            assert not block.transactions[0].vin[0].witness
 
 
 def test_dataclasses_json_dict() -> None:

@@ -12,7 +12,7 @@ from copy import deepcopy
 from typing import List, Union
 
 from . import script, tx, tx_out, varbytes
-from .alias import ScriptToken
+from .alias import Octets, ScriptToken
 from .exceptions import BTClibTypeError, BTClibValueError
 from .scriptpubkey import payload_from_script_pubkey
 from .utils import hash256
@@ -121,7 +121,7 @@ def _get_legacy_script_codes(script_pubkey: bytes) -> List[bytes]:
 
 
 # FIXME: remove OP_CODESEPARATOR only if executed
-def _get_witness_v0_script_codes(script_pubkey: bytes) -> List[bytes]:
+def _get_witness_v0_script_codes(script_pubkey: Octets) -> List[bytes]:
     try:
         script_type = payload_from_script_pubkey(script.deserialize(script_pubkey))[0]
     except BTClibValueError:
@@ -166,8 +166,9 @@ def get_sighash(
         elif script_type == "p2wsh":
             # the real script is contained in the witness
             script_code = _get_witness_v0_script_codes(
-                transaction.vin[input_index].txinwitness[-1]
+                transaction.vin[input_index].witness.items[-1]
             )[0]
         return segwit_v0(script_code, transaction, input_index, sighash_type, value)
+
     script_code = _get_legacy_script_codes(script_pubkey)[0]
     return legacy(script_code, transaction, input_index, sighash_type)

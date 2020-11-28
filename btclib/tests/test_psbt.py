@@ -31,6 +31,7 @@ from btclib.psbt_out import PsbtOut
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
+from btclib.witness import Witness
 
 # first tests are part of the official BIP174 test vectors
 
@@ -88,7 +89,6 @@ def test_creation() -> None:
         ),
         b"",
         0xFFFFFFFF,
-        [],
     )
     input_2 = TxIn(
         OutPoint(
@@ -99,7 +99,6 @@ def test_creation() -> None:
         ),
         b"",
         0xFFFFFFFF,
-        [],
     )
     transaction = Tx(2, [input_1, input_2], [output_1, output_2], 0)
     psbt = psbt_from_tx(transaction)
@@ -217,7 +216,6 @@ def test_output_scripts_serialization() -> None:
         ),
         b"",
         0xFFFFFFFF,
-        [],
     )
     output_1 = TxOut(
         149990000, bytes.fromhex("a914256b3a9ae8145e5094329537dd4d7a25dbc9452087")
@@ -279,7 +277,6 @@ def test_valid_sign_2() -> None:
         ),
         script_sig=b"",
         sequence=0xFFFFFFFF,
-        txinwitness=[],
     )
     assert psbt.inputs[0].witness_utxo is not None
     transaction = Tx(0, [transaction_input], [psbt.inputs[0].witness_utxo], 2)
@@ -441,16 +438,6 @@ def test_exceptions() -> None:
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)
-    psbt.inputs[0].final_script_witness = "bad script"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid final script witness"):
-        psbt.serialize()
-
-    psbt = Psbt.decode(psbt_encoded)
-    psbt.inputs[0].final_script_witness = [b"", ""]  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid final script witness"):
-        psbt.serialize()
-
-    psbt = Psbt.decode(psbt_encoded)
     _, Q = dsa.gen_keys()
     pubkey = secpoint.bytes_from_point(Q)
     r = s = int.from_bytes(bytes.fromhex("FF" * 32), "big")
@@ -494,8 +481,8 @@ def test_exceptions() -> None:
         psbt.serialize()
 
     psbt = Psbt.decode(psbt_encoded)
-    psbt.tx.vin[0].txinwitness = [b""]
-    err_msg = "non empty txinwitness"
+    psbt.tx.vin[0].witness = Witness([b""])
+    err_msg = "non empty witness"
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()

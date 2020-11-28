@@ -40,6 +40,7 @@ from .scriptpubkey import payload_from_script_pubkey
 from .tx import Tx
 from .tx_out import TxOut
 from .utils import hash160, sha256
+from .witness import Witness
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
 
@@ -97,8 +98,8 @@ class Psbt(DataClassJsonMixin):
         for vin in self.tx.vin:
             if vin.script_sig != b"":
                 raise BTClibValueError("non empty script_sig")
-            if vin.txinwitness != []:
-                raise BTClibValueError("non empty txinwitness")
+            if vin.witness != Witness():
+                raise BTClibValueError("non empty witness")
 
         if len(self.tx.vout) != len(self.outputs):
             raise BTClibValueError("mismatched number of tx.vout and psbt_out")
@@ -256,7 +257,7 @@ def psbt_from_tx(tx: Tx) -> Psbt:
     tx = deepcopy(tx)
     for inp in tx.vin:
         inp.script_sig = b""
-        inp.txinwitness = []
+        inp.witness = Witness()
     inputs = [PsbtIn() for _ in tx.vin]
     outputs = [PsbtOut() for _ in tx.vout]
     return Psbt(tx=tx, inputs=inputs, outputs=outputs)
@@ -325,9 +326,9 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         multi_sig = len(sigs) > 1
         if psbt_in.witness_script:
             psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
-            psbt_in.final_script_witness = [b""] if multi_sig else []
-            psbt_in.final_script_witness += sigs
-            psbt_in.final_script_witness += [psbt_in.witness_script]
+            psbt_in.final_script_witness = Witness([b""]) if multi_sig else Witness()
+            psbt_in.final_script_witness.items += sigs
+            psbt_in.final_script_witness.items += [psbt_in.witness_script]
         else:
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
             final_script_sig: List[ScriptToken] = [0] if multi_sig else []
@@ -347,5 +348,5 @@ def extract_tx(psbt: Psbt) -> Tx:
     for i, vin in enumerate(tx.vin):
         vin.script_sig = psbt.inputs[i].final_script_sig
         if psbt.inputs[i].final_script_witness:
-            vin.txinwitness = psbt.inputs[i].final_script_witness
+            vin.witness = psbt.inputs[i].final_script_witness
     return tx

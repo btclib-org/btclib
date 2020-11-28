@@ -9,9 +9,9 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 "Tests for `btclib.tx` module."
+
 import json
 from os import path
-from typing import List
 
 import pytest
 
@@ -19,6 +19,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import MAX_SATOSHI, TxOut
+from btclib.witness import Witness
 
 
 def test_genesis_block() -> None:
@@ -100,26 +101,22 @@ def test_double_witness() -> None:
 
     # Test witnesses as bytes
 
-    witness1: List[bytes] = [
-        bytes.fromhex(
-            "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01"
-        ),
-        bytes.fromhex(
-            "0334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e16"
-        ),
-    ]
+    witness1 = Witness(
+        [
+            "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01",
+            "0334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e16",
+        ]
+    )
 
-    witness2: List[bytes] = [
-        bytes.fromhex(
-            "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901"
-        ),
-        bytes.fromhex(
-            "030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d7314"
-        ),
-    ]
+    witness2 = Witness(
+        [
+            "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901",
+            "030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d7314",
+        ]
+    )
 
-    transaction.vin[0].txinwitness = witness1
-    transaction.vin[1].txinwitness = witness2
+    transaction.vin[0].witness = witness1
+    transaction.vin[1].witness = witness2
 
     assert transaction.serialize(include_witness=True).hex() == tx_bytes
 
@@ -178,12 +175,7 @@ def test_invalid_tx_out() -> None:
 
 
 def test_invalid_tx() -> None:
-    transaction_input = TxIn(
-        prevout=OutPoint(b"\xff" * 32, 0),
-        script_sig=b"",
-        sequence=1,
-        txinwitness=[],
-    )
+    transaction_input = TxIn(OutPoint(b"\xff" * 32, 0), b"", 1)
     tx1 = Tx(0, [transaction_input], [], 0)
     tx2 = Tx(0, [], [], 0)
     err_msg = "transaction must have at least one "

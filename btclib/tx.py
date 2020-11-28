@@ -25,9 +25,10 @@ from dataclasses_json.core import Json
 from . import varint
 from .alias import BinaryData
 from .exceptions import BTClibValueError
-from .tx_in import TxIn, witness_deserialize, witness_serialize
+from .tx_in import TxIn
 from .tx_out import TxOut
 from .utils import bytesio_from_binarydata, hash256
+from .witness import Witness
 
 _Tx = TypeVar("_Tx", bound="Tx")
 
@@ -130,14 +131,14 @@ class Tx(DataClassJsonMixin):
         out += varint.encode(len(self.vin))
         for tx_input in self.vin:
             out += tx_input.serialize(assert_valid=assert_valid)
-            if tx_input.txinwitness:
+            if tx_input.witness:
                 witness_flag = True
         out += varint.encode(len(self.vout))
         for tx_output in self.vout:
             out += tx_output.serialize(assert_valid=assert_valid)
         if witness_flag and include_witness:
             for tx_input in self.vin:
-                out += witness_serialize(tx_input.txinwitness)
+                out += tx_input.witness.serialize()
         out += self.locktime.to_bytes(4, "little")
         if witness_flag and include_witness:
             out = out[:4] + b"\x00\x01" + out[4:]
@@ -163,7 +164,7 @@ class Tx(DataClassJsonMixin):
 
         if witness_flag:
             for tx_input in tx.vin:
-                tx_input.txinwitness = witness_deserialize(stream)
+                tx_input.witness = Witness().deserialize(stream)
 
         tx.locktime = int.from_bytes(stream.read(4), "little")
 
