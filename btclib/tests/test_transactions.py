@@ -9,6 +9,8 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 "Tests for `btclib.tx` module."
+import json
+from os import path
 from typing import List
 
 import pytest
@@ -40,7 +42,7 @@ def test_genesis_block() -> None:
     assert transaction.txid == bytes.fromhex(
         "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
     )
-    assert transaction.txid == transaction.hash
+    assert transaction.txid == transaction.hash()
 
     assert transaction.size == 134
     assert transaction.weight == 536
@@ -59,7 +61,7 @@ def test_wiki_transaction() -> None:
     assert transaction.vout[0].value == 5000000
     assert transaction.vout[1].value == 3354000000
 
-    assert transaction.txid == transaction.hash
+    assert transaction.txid == transaction.hash()
 
     assert transaction.vsize == transaction.size
 
@@ -79,7 +81,7 @@ def test_single_witness() -> None:
     assert transaction.txid == bytes.fromhex(
         "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
     )
-    assert transaction.hash == bytes.fromhex(
+    assert transaction.hash() == bytes.fromhex(
         "d39eb3e3954be4bdc0b3be2d980124b1e1e11fb414b886b52939b07d95a58a8f"
     )
 
@@ -128,7 +130,7 @@ def test_double_witness() -> None:
     assert transaction.txid == bytes.fromhex(
         "a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c"
     )
-    assert transaction.hash == bytes.fromhex(
+    assert transaction.hash() == bytes.fromhex(
         "0936cb8dba90e11345b9c05f457f139ddce4a5329701af4708b2cf4a02d75adb"
     )
 
@@ -188,3 +190,27 @@ def test_invalid_tx() -> None:
     for transaction in (tx1, tx2):
         with pytest.raises(BTClibValueError, match=err_msg):
             transaction.assert_valid()
+
+
+def test_dataclasses_json_dict() -> None:
+    tx_bytes = "01000000000102322d4f05c3a4f78e97deda01bd8fc5ff96777b62c8f2daa72b02b70fa1e3e1051600000017160014e123a5263695be634abf3ad3456b4bf15f09cc6afffffffffdfee6e881f12d80cbcd6dc54c3fe390670678ebd26c3ae2dd129f41882e3efc25000000171600145946c8c3def6c79859f01b34ad537e7053cf8e73ffffffff02c763ac050000000017a9145ffd6df9bd06dedb43e7b72675388cbfc883d2098727eb180a000000001976a9145f9e96f739198f65d249ea2a0336e9aa5aa0c7ed88ac024830450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01210334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e160247304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf90121030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d731400000000"
+
+    # dataclass
+    tx_data = Tx.deserialize(tx_bytes)
+    assert isinstance(tx_data, Tx)
+
+    # Tx to/from dict
+    tx_dict = tx_data.to_dict()
+    assert isinstance(tx_dict, dict)
+    assert tx_data == Tx.from_dict(tx_dict)
+
+    datadir = path.join(path.dirname(__file__), "generated_files")
+
+    # Tx dict to/from dict file
+    filename = path.join(datadir, "tx.json")
+    with open(filename, "w") as file_:
+        json.dump(tx_dict, file_, indent=4)
+    with open(filename, "r") as file_:
+        tx_dict2 = json.load(file_)
+    assert isinstance(tx_dict2, dict)
+    assert tx_dict == tx_dict2

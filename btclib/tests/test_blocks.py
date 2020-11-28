@@ -49,7 +49,7 @@ def test_block_1() -> None:
     assert header.nonce == 0x9962E301
 
     hash_ = "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048"
-    assert header.hash.hex() == hash_
+    assert header.hash().hex() == hash_
     assert header.difficulty == 1
 
 
@@ -145,7 +145,7 @@ def test_block_170() -> None:
     assert header.nonce == 0x709E3E28
 
     hash_ = "00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee"
-    assert header.hash.hex() == hash_
+    assert header.hash().hex() == hash_
     assert header.difficulty == 1
 
 
@@ -174,7 +174,7 @@ def test_block_200000() -> None:
     assert header.nonce == 0xF7D8D840
 
     hash_ = "000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf"
-    assert header.hash.hex() == hash_
+    assert header.hash().hex() == hash_
     assert 0 <= header.difficulty - 2_864_140 < 1
 
     block.transactions.pop()
@@ -213,7 +213,7 @@ def test_block_481824() -> None:
         assert header.nonce == 0x2254FF22
 
         hash_ = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
-        assert header.hash.hex() == hash_
+        assert header.hash().hex() == hash_
         assert 0 <= header.difficulty - 888_171_856_257 < 1
 
         if i:  # segwit nodes see the witness data

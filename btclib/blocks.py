@@ -11,9 +11,10 @@
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Type, TypeVar
+from typing import Dict, List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
+from dataclasses_json.core import Json
 
 from . import varint
 from .alias import BinaryData
@@ -58,13 +59,32 @@ class BlockHeader(DataClassJsonMixin):
     )
     # 4 bytes, little endian int
     nonce: int = 0
+    # private data member used only for to_dict
+    # use the corresponding public properties instead
+    _target: bytes = field(
+        default=b"",
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(
+            encoder=lambda v: v.hex(), decoder=bytes.fromhex, field_name="target"
+        ),
+    )
+    _difficulty: float = field(
+        default=-1.0,
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="difficulty"),
+    )
 
-    @property
-    def hash(self) -> bytes:
-        "Return the reversed 32 bytes hash256 of the BlockHeader."
-        s = self.serialize(assert_valid=False)
-        hash256_ = hash256(s)
-        return hash256_[::-1]
+    def _set_properties(self) -> None:
+        self._target = self.target
+        self._difficulty = self.difficulty
+
+    def to_dict(self, encode_json=False) -> Dict[str, Json]:
+        self._set_properties()
+        return super().to_dict(encode_json)
 
     @property
     def target(self) -> bytes:
@@ -102,11 +122,17 @@ class BlockHeader(DataClassJsonMixin):
         power_term = pow(256, genesis_exponent - self.bits[0])
         return significand * power_term
 
+    def hash(self) -> bytes:
+        "Return the reversed 32 bytes hash256 of the BlockHeader."
+        s = self.serialize(assert_valid=False)
+        hash256_ = hash256(s)
+        return hash256_[::-1]
+
     def assert_valid_pow(self) -> None:
         "Assert whether the BlockHeader provides a valid proof-of-work."
 
-        if self.hash >= self.target:
-            err_msg = f"invalid proof-of-work: {self.hash.hex()}"
+        if self.hash() >= self.target:
+            err_msg = f"invalid proof-of-work: {self.hash().hex()}"
             err_msg += f" >= {self.target.hex()}"
             raise BTClibValueError(err_msg)
 
@@ -135,6 +161,7 @@ class BlockHeader(DataClassJsonMixin):
         if not 0 < self.nonce <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid nonce: {hex(self.nonce)}")
 
+        self._set_properties()
         self.assert_valid_pow()
 
     def serialize(self, assert_valid: bool = True) -> bytes:
