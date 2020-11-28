@@ -24,6 +24,7 @@ _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 @dataclass
 class OutPoint(DataClassJsonMixin):
+    # 32 bytes, little endian
     txid: bytes = field(
         default=b"\x00" * 32,
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
@@ -111,7 +112,7 @@ class TxIn(DataClassJsonMixin):
 
         out = self.prevout.serialize()
         out += varbytes.encode(self.script_sig)
-        out += self.sequence.to_bytes(4, "little")
+        out += self.sequence.to_bytes(4, byteorder="little", signed=False)
         return out
 
     @classmethod
@@ -119,13 +120,12 @@ class TxIn(DataClassJsonMixin):
         cls: Type[_TxIn], data: BinaryData, assert_valid: bool = True
     ) -> _TxIn:
 
-        stream = bytesio_from_binarydata(data)
+        s = bytesio_from_binarydata(data)
 
         tx_in = cls()
-        tx_in.prevout = OutPoint.deserialize(stream)
-        tx_in.script_sig = varbytes.decode(stream)
-        # 4 bytes, little endian, interpreted as int
-        tx_in.sequence = int.from_bytes(stream.read(4), "little")
+        tx_in.prevout = OutPoint.deserialize(s)
+        tx_in.script_sig = varbytes.decode(s)
+        tx_in.sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
 
         if assert_valid:
             tx_in.assert_valid()

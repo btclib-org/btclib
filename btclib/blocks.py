@@ -33,26 +33,26 @@ _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 
 @dataclass
 class BlockHeader(DataClassJsonMixin):
-    # 4 bytes, signed little endian
+    # 4 bytes, _signed_ little endian
     version: int = 0
-    # 32 bytes, reversed
+    # 32 bytes, little endian
     previous_block_hash: bytes = field(
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    # 32 bytes, reversed
+    # 32 bytes, little endian
     merkle_root: bytes = field(
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    # 4 bytes, unsigned little endian, then converted to datetime
+    # 4 bytes, unsigned little endian
     time: datetime = field(
         default=datetime.fromtimestamp(0),
         metadata=config(
             encoder=datetime.isoformat, decoder=datetime.fromisoformat  # type: ignore
         ),
     )
-    # 4 bytes, reversed
+    # 4 bytes, little endian
     bits: bytes = field(
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
@@ -170,12 +170,12 @@ class BlockHeader(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.version.to_bytes(4, "little", signed=True)
+        out = self.version.to_bytes(4, byteorder="little", signed=True)
         out += self.previous_block_hash[::-1]
         out += self.merkle_root[::-1]
-        out += int(self.time.timestamp()).to_bytes(4, "little")
+        out += int(self.time.timestamp()).to_bytes(4, byteorder="little", signed=False)
         out += self.bits[::-1]
-        out += self.nonce.to_bytes(4, "little")
+        out += self.nonce.to_bytes(4, byteorder="little", signed=False)
 
         return out
 
@@ -187,13 +187,13 @@ class BlockHeader(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
 
         header = cls()
-        header.version = int.from_bytes(stream.read(4), "little", signed=True)
+        header.version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
         header.previous_block_hash = stream.read(32)[::-1]
         header.merkle_root = stream.read(32)[::-1]
-        t = int.from_bytes(stream.read(4), "little")
+        t = int.from_bytes(stream.read(4), byteorder="little", signed=False)
         header.time = datetime.fromtimestamp(t, timezone.utc)
         header.bits = stream.read(4)[::-1]
-        header.nonce = int.from_bytes(stream.read(4), "little")
+        header.nonce = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         if assert_valid:
             header.assert_valid()

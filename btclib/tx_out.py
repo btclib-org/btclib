@@ -33,7 +33,8 @@ class TxOut(DataClassJsonMixin):
     #        decoder=lambda v: int(float(v) * SAT_PER_COIN),
     #    )
     # )
-    value: int  # satoshis
+    # 8 bytes, unsigned little endian
+    value: int = -1  # satoshis
     # FIXME: make it
     # "script_pubkey": {
     #    "asm": "0 d85c2b71d0060b09c9886aeb815e50991dda124d",
@@ -45,13 +46,15 @@ class TxOut(DataClassJsonMixin):
     #    ]
     # }
     script_pubkey: bytes = field(
+        default=b"",
         metadata=config(
-            field_name="scriptPubKey", encoder=lambda v: v.hex(), decoder=bytes.fromhex
-        )
+            field_name="scriptPubKey",
+            encoder=lambda v: v.hex(),
+            decoder=bytes.fromhex,
+        ),
     )
 
     def assert_valid(self) -> None:
-        # must be a 8-bytes int
         if self.value < 0:
             raise BTClibValueError(f"negative value: {self.value}")
         if self.value > MAX_SATOSHI:
@@ -62,7 +65,7 @@ class TxOut(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.value.to_bytes(8, "little")
+        out = self.value.to_bytes(8, byteorder="little", signed=False)
         out += varbytes.encode(self.script_pubkey)
         return out
 
@@ -71,12 +74,10 @@ class TxOut(DataClassJsonMixin):
         cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
-        # 8 bytes, little endian, interpreted as int
-        value = int.from_bytes(stream.read(8), "little")
+        tx_out = cls()
+        tx_out.value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
+        tx_out.script_pubkey = varbytes.decode(stream)
 
-        script_pubkey = varbytes.decode(stream)
-
-        tx_out = cls(value=value, script_pubkey=script_pubkey)
         if assert_valid:
             tx_out.assert_valid()
         return tx_out
