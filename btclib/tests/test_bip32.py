@@ -16,7 +16,7 @@ from os import path
 
 import pytest
 
-from btclib.base58 import b58decode, b58encode
+from btclib import base58
 from btclib.base58address import p2pkh  # FIXME why it is needed here
 from btclib.bip32 import (
     BIP32KeyData,
@@ -110,95 +110,95 @@ def test_assert_valid() -> None:
 
     xkey = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.version = (xkey_data.version)[:-1]
     with pytest.raises(BTClibValueError, match="invalid version length: "):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.version = "1234"  # type: ignore
     with pytest.raises(BTClibTypeError, match="version is not an instance of bytes"):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.depth = -1
     with pytest.raises(BTClibValueError, match="invalid depth: "):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.depth = 256
     with pytest.raises(BTClibValueError, match="invalid depth: "):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.depth = "1"  # type: ignore
     with pytest.raises(BTClibTypeError, match="depth is not an instance of int"):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.parent_fingerprint = (xkey_data.parent_fingerprint)[:-1]
     with pytest.raises(BTClibValueError, match="invalid parent fingerprint length: "):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.parent_fingerprint = "1234"  # type: ignore
     with pytest.raises(
         BTClibTypeError, match="parent fingerprint is not an instance of bytes"
     ):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.index = -1
     with pytest.raises(BTClibValueError, match="invalid index: "):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.index = 0xFFFFFFFF + 1
     with pytest.raises(BTClibValueError, match="invalid index: "):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.index = "1234"  # type: ignore
     with pytest.raises(BTClibTypeError, match="index is not an instance of bytes"):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.chain_code = (xkey_data.chain_code)[:-1]
     with pytest.raises(BTClibValueError, match="invalid chain code length: "):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.chain_code = "length is 32 but not a chaincode"  # type: ignore
     with pytest.raises(BTClibTypeError, match="chain code is not an instance of bytes"):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.key = (xkey_data.key)[:-1]
     with pytest.raises(BTClibValueError, match="invalid key length: "):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.key = "length is 33, but not a key"  # type: ignore
     with pytest.raises(BTClibTypeError, match="key is not an instance of bytes"):
         xkey_data.assert_valid()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.parent_fingerprint = bytes.fromhex("deadbeef")
     err_msg = "zero depth with non-zero parent fingerprint: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        xkey_data.serialize()
+        xkey_data.b58encode()
 
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.index = 1
     with pytest.raises(BTClibValueError, match="zero depth with non-zero index: "):
-        xkey_data.serialize()
+        xkey_data.b58encode()
 
 
 def test_serialization() -> None:
     xkey = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
 
-    decoded_key = b58decode(xkey, 78)
+    decoded_key = base58.b58decode(xkey, 78)
     assert xkey_data.version == decoded_key[:4]
     assert xkey_data.depth == decoded_key[4]
     assert xkey_data.parent_fingerprint == decoded_key[5:9]
@@ -206,7 +206,7 @@ def test_serialization() -> None:
     assert xkey_data.chain_code == decoded_key[13:45]
     assert xkey_data.key == decoded_key[45:]
 
-    assert xkey_data.serialize().decode("ascii") == xkey
+    assert xkey_data.b58encode().decode("ascii") == xkey
 
     xpub = xpub_from_xprv(xkey)
     xpub2 = xpub_from_xprv(xkey_data)
@@ -254,7 +254,7 @@ def test_invalid_bip32_xkeys() -> None:
 
     for xkey, err_msg in test_vectors:
         with pytest.raises(BTClibValueError, match=re.escape(err_msg)):
-            BIP32KeyData.deserialize(xkey)
+            BIP32KeyData.b58decode(xkey)
 
 
 def test_rootxprv_from_mnemonic() -> None:
@@ -317,15 +317,15 @@ def test_derive_exceptions() -> None:
 
     rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
 
-    temp = b58decode(rootxprv)
-    bad_xprv = b58encode(temp[0:45] + b"\x02" + temp[46:], 78)
+    temp = base58.b58decode(rootxprv)
+    bad_xprv = base58.b58encode(temp[0:45] + b"\x02" + temp[46:], 78)
     err_msg = "invalid private key prefix: "
     with pytest.raises(BTClibValueError, match=err_msg):
         derive(bad_xprv, 0x80000000)
 
     xpub = xpub_from_xprv(rootxprv)
-    temp = b58decode(xpub)
-    bad_xpub = b58encode(temp[0:45] + b"\x00" + temp[46:], 78)
+    temp = base58.b58decode(xpub)
+    bad_xpub = base58.b58encode(temp[0:45] + b"\x00" + temp[46:], 78)
     err_msg = r"invalid public key prefix not in \(0x02, 0x03\): "
     with pytest.raises(BTClibValueError, match=err_msg):
         derive(bad_xpub, 0x80000000)
@@ -383,7 +383,7 @@ def test_crack() -> None:
     assert xpub_from_xprv(parent_xprv).decode("ascii") == parent_xpub
     # same check with XKeyDict
     parent_xprv = crack_prvkey(
-        BIP32KeyData.deserialize(parent_xpub), BIP32KeyData.deserialize(child_xprv)
+        BIP32KeyData.b58decode(parent_xpub), BIP32KeyData.b58decode(child_xprv)
     )
     assert xpub_from_xprv(parent_xprv).decode("ascii") == parent_xpub
 
@@ -434,7 +434,7 @@ def test_dataclasses_json_dict() -> None:
     )
 
     # dataclass
-    xkey_data = BIP32KeyData.deserialize(xkey)
+    xkey_data = BIP32KeyData.b58decode(xkey)
     assert isinstance(xkey_data, BIP32KeyData)
 
     # str

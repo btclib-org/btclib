@@ -170,14 +170,14 @@ def test_point_from_bip340pubkey() -> None:
     # 65 bytes hex-string
     assert ssa.point_from_bip340pubkey(bytes_from_point(Q, compressed=False).hex()) == Q
 
-    xpub_data = BIP32KeyData.deserialize(
+    xpub_data = BIP32KeyData.b58decode(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     )
     xpub_data.key = bytes_from_point(Q)
     # BIP32KeyData
     assert ssa.point_from_bip340pubkey(xpub_data) == Q
     # BIP32Key encoded str
-    xpub = xpub_data.serialize()
+    xpub = xpub_data.b58encode()
     assert ssa.point_from_bip340pubkey(xpub) == Q
     # BIP32Key str
     assert ssa.point_from_bip340pubkey(xpub.decode("ascii")) == Q

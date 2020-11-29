@@ -50,7 +50,7 @@ xprv_data = BIP32KeyData(
     chain_code=32 * b"\x00",
     key=b"\x00" + q_bytes,
 )
-xprv = xprv_data.serialize(False)
+xprv = xprv_data.b58encode(False)
 xprv_string = xprv.decode("ascii")
 xprv_string2 = " " + xprv_string + " "
 
@@ -103,7 +103,7 @@ xpub_data = BIP32KeyData(
     chain_code=xprv_data.chain_code,
     key=Q_compressed,
 )
-xpub = xpub_data.serialize(False)
+xpub = xpub_data.b58encode(False)
 xpub_string = xpub.decode("ascii")
 xpub_string2 = " " + xpub_string + " "
 
@@ -141,22 +141,22 @@ xpub_data_bad = copy.copy(xpub_data)
 xprv_data_bad.version = bytes.fromhex("04 88 b2 1e")
 xpub_data_bad.version = bytes.fromhex("04 88 ad e4")
 bad_bip32_keys += [
-    xprv_data_bad.serialize(False).decode("ascii"),
-    xpub_data_bad.serialize(False).decode("ascii"),
+    xprv_data_bad.b58encode(False).decode("ascii"),
+    xpub_data_bad.b58encode(False).decode("ascii"),
 ]
 # key starts with 04
 xprv_data_bad.key = b"\x04" + xprv_data_bad.key[1:]
 xpub_data_bad.key = b"\x04" + xprv_data_bad.key[1:]
 bad_bip32_keys += [
-    xprv_data_bad.serialize(False).decode("ascii"),
-    xpub_data_bad.serialize(False).decode("ascii"),
+    xprv_data_bad.b58encode(False).decode("ascii"),
+    xpub_data_bad.b58encode(False).decode("ascii"),
 ]
 # key starts with 01
 xprv_data_bad.key = b"\x01" + xprv_data_bad.key[1:]
 xpub_data_bad.key = b"\x01" + xprv_data_bad.key[1:]
 bad_bip32_keys += [
-    xprv_data_bad.serialize(False).decode("ascii"),
-    xpub_data_bad.serialize(False).decode("ascii"),
+    xprv_data_bad.b58encode(False).decode("ascii"),
+    xpub_data_bad.b58encode(False).decode("ascii"),
 ]
 # depth_pfp_index mismatch
 xprv_data_bad = copy.copy(xprv_data)
@@ -164,16 +164,16 @@ xpub_data_bad = copy.copy(xpub_data)
 xprv_data_bad.parent_fingerprint = b"\x01\x01\x01\x01"
 xpub_data_bad.parent_fingerprint = b"\x01\x01\x01\x01"
 bad_bip32_keys += [
-    xprv_data_bad.serialize(False).decode("ascii"),
-    xpub_data_bad.serialize(False).decode("ascii"),
+    xprv_data_bad.b58encode(False).decode("ascii"),
+    xpub_data_bad.b58encode(False).decode("ascii"),
 ]
 # depth_pfp_index mismatch
 xprv_data_bad = copy.copy(xprv_data)
 xpub_data_bad = copy.copy(xpub_data)
 xprv_data_bad.index = xpub_data_bad.index = 101
 bad_bip32_keys += [
-    xprv_data_bad.serialize(False).decode("ascii"),
-    xpub_data_bad.serialize(False).decode("ascii"),
+    xprv_data_bad.b58encode(False).decode("ascii"),
+    xpub_data_bad.b58encode(False).decode("ascii"),
 ]
 # unknown version
 xprv_data_bad = copy.copy(xprv_data)
@@ -181,8 +181,8 @@ xpub_data_bad = copy.copy(xpub_data)
 xprv_data_bad.version = b"\x01\x01\x01\x01"
 xpub_data_bad.version = b"\x01\x01\x01\x01"
 bad_bip32_keys += [
-    xprv_data_bad.serialize(False).decode("ascii"),
-    xpub_data_bad.serialize(False).decode("ascii"),
+    xprv_data_bad.b58encode(False).decode("ascii"),
+    xpub_data_bad.b58encode(False).decode("ascii"),
 ]
 
 
@@ -225,7 +225,7 @@ xprv0_data = BIP32KeyData(
     chain_code=32 * b"\x00",
     key=b"\x00" + q0_bytes,
 )
-xprv0 = xprv0_data.serialize(False)
+xprv0 = xprv0_data.b58encode(False)
 xprv0_string = xprv0.decode("ascii")
 xprv0_string2 = " " + xprv0_string + " "
 
@@ -237,7 +237,7 @@ xprvn_data = BIP32KeyData(
     chain_code=32 * b"\x00",
     key=b"\x00" + qn_bytes,
 )
-xprvn = xprvn_data.serialize(False)
+xprvn = xprvn_data.b58encode(False)
 xprvn_string = xprvn.decode("ascii")
 xprvn_string2 = " " + xprvn_string + " "
 
@@ -314,7 +314,7 @@ INF_xpub_data = BIP32KeyData(
     chain_code=xprv_data.chain_code,
     key=INF_compressed,
 )
-INF_xpub = INF_xpub_data.serialize(False)
+INF_xpub = INF_xpub_data.b58encode(False)
 INF_xpub_string = INF_xpub.decode("ascii")
 INF_xpub_string2 = " " + INF_xpub_string + " "
 

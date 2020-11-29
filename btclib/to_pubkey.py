@@ -39,7 +39,7 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     if isinstance(xpub, BIP32KeyData):
         xpub.assert_valid()
     else:
-        xpub = BIP32KeyData.deserialize(xpub)
+        xpub = BIP32KeyData.b58decode(xpub)
 
     if xpub.key[0] in (2, 3):
         ec2 = curve_from_xkeyversion(xpub.version)
@@ -126,10 +126,10 @@ def _pubkeyinfo_from_xpub(
     if isinstance(xpub, BIP32KeyData):
         xpub.assert_valid()
     else:
-        xpub = BIP32KeyData.deserialize(xpub)
+        xpub = BIP32KeyData.b58decode(xpub)
 
     if xpub.key[0] not in (2, 3):
-        m = f"not a public key: {xpub.serialize().decode('ascii')}"
+        m = f"not a public key: {xpub.b58encode().decode('ascii')}"
         raise BTClibValueError(m)
 
     if network is None:
@@ -138,7 +138,7 @@ def _pubkeyinfo_from_xpub(
     allowed_versions = xpubversions_from_network(network)
     if xpub.version not in allowed_versions:
         m = f"Not a {network} key: "
-        m += f"{xpub.serialize().decode('ascii')}"
+        m += f"{xpub.b58encode().decode('ascii')}"
         raise BTClibValueError(m)
 
     return xpub.key, network

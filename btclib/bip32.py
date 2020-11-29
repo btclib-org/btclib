@@ -39,9 +39,8 @@ from typing import Iterable, List, Optional, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import bip39, electrum
+from . import base58, bip39, electrum
 from .alias import INF, Octets, Point, String
-from .base58 import b58decode, b58encode
 from .curve import mult, secp256k1
 from .exceptions import BTClibTypeError, BTClibValueError
 from .mnemonic import Mnemonic
@@ -183,7 +182,7 @@ class BIP32KeyData(DataClassJsonMixin):
             if self.index != 0:
                 raise BTClibValueError(f"zero depth with non-zero index: {self.index}")
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def b58encode(self, assert_valid: bool = True) -> bytes:
 
         if assert_valid:
             self.assert_valid()
@@ -194,16 +193,16 @@ class BIP32KeyData(DataClassJsonMixin):
         t += self.index.to_bytes(4, "big")
         t += self.chain_code
         t += self.key
-        return b58encode(t, 78)
+        return base58.b58encode(t, 78)
 
     @classmethod
-    def deserialize(
+    def b58decode(
         cls: Type[_BIP32KeyData], xkey: String, assert_valid: bool = True
     ) -> _BIP32KeyData:
 
         if isinstance(xkey, str):
             xkey = xkey.strip()
-        xkey = b58decode(xkey, 78)
+        xkey = base58.b58decode(xkey, 78)
 
         key_data = cls(
             version=xkey[:4],
@@ -248,7 +247,7 @@ def rootxprv_from_seed(
         chain_code=hmac_[32:],
         key=k,
     )
-    return key_data.serialize()
+    return key_data.b58encode()
 
 
 def mxprv_from_bip39_mnemonic(
@@ -296,11 +295,11 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     xkey_data = (
         copy.copy(xprv)
         if isinstance(xprv, BIP32KeyData)
-        else BIP32KeyData.deserialize(xprv)
+        else BIP32KeyData.b58decode(xprv)
     )
     if xkey_data.key[0] != 0:
         raise BTClibValueError(
-            f"not a private key: {xkey_data.serialize().decode('ascii')}"
+            f"not a private key: {xkey_data.b58encode().decode('ascii')}"
         )
 
     i = _XPRV_VERSIONS_ALL.index(xkey_data.version)
@@ -310,7 +309,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     Q = mult(q)
     xkey_data.key = bytes_from_point(Q)
 
-    return xkey_data.serialize()
+    return xkey_data.b58encode()
 
 
 def _indexes_from_bip32_path_str(der_path: str) -> List[int]:
@@ -475,10 +474,10 @@ def derive(
     key_data = (
         copy.copy(xkey)
         if isinstance(xkey, BIP32KeyData)
-        else BIP32KeyData.deserialize(xkey)
+        else BIP32KeyData.b58decode(xkey)
     )
     key_data = _derive(key_data, der_path, forced_version)
-    return key_data.serialize()
+    return key_data.b58encode()
 
 
 def _derive_from_account(
@@ -510,12 +509,12 @@ def derive_from_account(
     key_data = (
         copy.copy(account_xkey)
         if isinstance(account_xkey, BIP32KeyData)
-        else BIP32KeyData.deserialize(account_xkey)
+        else BIP32KeyData.b58decode(account_xkey)
     )
     key_data = _derive_from_account(
         key_data, branch, address_index, more_than_two_branches
     )
-    return key_data.serialize()
+    return key_data.b58encode()
 
 
 def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
@@ -523,21 +522,21 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
     if isinstance(parent_xpub, BIP32KeyData):
         p = copy.copy(parent_xpub)
     else:
-        p = BIP32KeyData.deserialize(parent_xpub)
+        p = BIP32KeyData.b58decode(parent_xpub)
 
     if p.key[0] not in (2, 3):
         err_msg = "extended parent key is not a public key: "
-        err_msg += f"{p.serialize().decode('ascii')}"
+        err_msg += f"{p.b58encode().decode('ascii')}"
         raise BTClibValueError(err_msg)
 
     c = (
         child_xprv
         if isinstance(child_xprv, BIP32KeyData)
-        else BIP32KeyData.deserialize(child_xprv)
+        else BIP32KeyData.b58decode(child_xprv)
     )
     if c.key[0] != 0:
         err_msg = (
-            f"extended child key is not a private key: {c.serialize().decode('ascii')}"
+            f"extended child key is not a private key: {c.b58encode().decode('ascii')}"
         )
         raise BTClibValueError(err_msg)
 
@@ -562,4 +561,4 @@ def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
     parent_q = (child_q - offset) % ec.n
     p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big")
 
-    return p.serialize()
+    return p.b58encode()

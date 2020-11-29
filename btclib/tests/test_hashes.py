@@ -20,7 +20,7 @@ def test_fingerprint() -> None:
     xprv = rootxprv_from_seed(seed)
     pf = fingerprint(xprv)  # xprv is automatically converted to xpub
     child_key = derive(xprv, 0x80000000)
-    pf2 = BIP32KeyData.deserialize(child_key).parent_fingerprint
+    pf2 = BIP32KeyData.b58decode(child_key).parent_fingerprint
     assert pf == pf2
 
 
