@@ -178,7 +178,7 @@ class Tx(DataClassJsonMixin):
 
         if segwit:
             for tx_in in tx.vin:
-                tx_in.witness = Witness().deserialize(stream)
+                tx_in.witness = Witness.deserialize(stream)
 
         tx.locktime = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 

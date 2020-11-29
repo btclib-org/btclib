@@ -32,7 +32,7 @@ def test_serialization() -> None:
     ]
     witness = Witness(items)
     witness_bin = witness.serialize()
-    assert Witness().deserialize(witness_bin) == witness
+    assert Witness.deserialize(witness_bin) == witness
 
 
 def test_exceptions() -> None:
