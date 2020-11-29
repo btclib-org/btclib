@@ -40,7 +40,7 @@ from typing import Iterable, List, Optional, Type, TypeVar, Union
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import base58, bip39, electrum
-from .alias import INF, Octets, Point, String
+from .alias import INF, BinaryData, Octets, Point, String
 from .curve import mult, secp256k1
 from .exceptions import BTClibTypeError, BTClibValueError
 from .mnemonic import Mnemonic
@@ -53,7 +53,12 @@ from .network import (
     NETWORKS,
 )
 from .secpoint import bytes_from_point, point_from_octets
-from .utils import bytes_from_octets, hash160, hex_string
+from .utils import (
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    hash160,
+    hex_string,
+)
 
 ec = secp256k1
 
@@ -89,21 +94,22 @@ _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
 @dataclass
 class BIP32KeyData(DataClassJsonMixin):
     version: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    depth: int
+    depth: int = -1
     parent_fingerprint: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     # index is an int, not bytes, to avoid any byteorder ambiguity
     index: int = field(
-        metadata=config(encoder=_str_from_index_int, decoder=_index_int_from_str)
+        default=-1,
+        metadata=config(encoder=_str_from_index_int, decoder=_index_int_from_str),
     )
     chain_code: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     key: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
 
     def is_hardened(self) -> bool:
@@ -182,40 +188,51 @@ class BIP32KeyData(DataClassJsonMixin):
             if self.index != 0:
                 raise BTClibValueError(f"zero depth with non-zero index: {self.index}")
 
-    def b58encode(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, assert_valid: bool = True) -> bytes:
 
         if assert_valid:
             self.assert_valid()
 
-        t = self.version
-        t += self.depth.to_bytes(1, "big")
-        t += self.parent_fingerprint
-        t += self.index.to_bytes(4, "big")
-        t += self.chain_code
-        t += self.key
-        return base58.b58encode(t, 78)
+        xkey_bin = self.version
+        xkey_bin += self.depth.to_bytes(1, "big")
+        xkey_bin += self.parent_fingerprint
+        xkey_bin += self.index.to_bytes(4, "big")
+        xkey_bin += self.chain_code
+        xkey_bin += self.key
+        return xkey_bin
+
+    @classmethod
+    def deserialize(
+        cls: Type[_BIP32KeyData], xkey_bin: BinaryData, assert_valid: bool = True
+    ) -> _BIP32KeyData:
+
+        stream = bytesio_from_binarydata(xkey_bin)
+        xkey = cls()
+
+        xkey.version = stream.read(4)
+        xkey.depth = int.from_bytes(stream.read(1), byteorder="big")
+        xkey.parent_fingerprint = stream.read(4)
+        xkey.index = int.from_bytes(stream.read(4), byteorder="big")
+        xkey.chain_code = stream.read(32)
+        xkey.key = stream.read(33)
+
+        if assert_valid:
+            xkey.assert_valid()
+
+        return xkey
+
+    def b58encode(self, assert_valid: bool = True) -> bytes:
+        xkey_bin = self.serialize(assert_valid)
+        return base58.b58encode(xkey_bin, 78)
 
     @classmethod
     def b58decode(
-        cls: Type[_BIP32KeyData], xkey: String, assert_valid: bool = True
+        cls: Type[_BIP32KeyData], xkey_str: String, assert_valid: bool = True
     ) -> _BIP32KeyData:
-
-        if isinstance(xkey, str):
-            xkey = xkey.strip()
-        xkey = base58.b58decode(xkey, 78)
-
-        key_data = cls(
-            version=xkey[:4],
-            depth=xkey[4],
-            parent_fingerprint=xkey[5:9],
-            index=int.from_bytes(xkey[9:13], "big"),
-            chain_code=xkey[13:45],
-            key=xkey[45:],
-        )
-        if assert_valid:
-            key_data.assert_valid()
-
-        return key_data
+        if isinstance(xkey_str, str):
+            xkey_str = xkey_str.strip()
+        xkey_decoded = base58.b58decode(xkey_str, 78)
+        return cls.deserialize(xkey_decoded, assert_valid)
 
 
 def rootxprv_from_seed(
