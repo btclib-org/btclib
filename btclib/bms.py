@@ -131,8 +131,8 @@ https://github.com/bitcoin/bitcoin/pull/524
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
 """
 
+import base64
 import secrets
-from base64 import b64decode, b64encode
 from hashlib import sha256
 from typing import Optional, Tuple, Union
 
@@ -163,7 +163,7 @@ BMSigTuple = Tuple[int, int, int]
 BMSig = Union[BMSigTuple, Octets]
 
 
-def decode(sig: BMSig) -> BMSigTuple:
+def b64decode(sig: BMSig) -> BMSigTuple:
     """Return the verified components of the provided BSM signature.
 
     The address-based BSM signature can be represented
@@ -176,13 +176,13 @@ def decode(sig: BMSig) -> BMSigTuple:
         if isinstance(sig, str):
             try:
                 # hex-string of the encoded base64 signature string
-                sig2 = b64decode(bytes.fromhex(sig))
+                sig2 = base64.b64decode(bytes.fromhex(sig))
             except ValueError:
                 # not encoded base64 signature string
-                sig2 = b64decode(sig.encode())
+                sig2 = base64.b64decode(sig.encode())
         else:
             # encoded base64 signature string
-            sig2 = b64decode(sig)
+            sig2 = base64.b64decode(sig)
 
         if len(sig2) != 65:
             raise BTClibValueError(f"wrong signature length: {len(sig)} instead of 65")
@@ -194,7 +194,7 @@ def decode(sig: BMSig) -> BMSigTuple:
     return rf, r, s
 
 
-def encode(rf: int, r: int, s: int) -> bytes:
+def b64encode(rf: int, r: int, s: int) -> bytes:
     """Return the BSM address-based signature as base64-encoding.
 
     First off, the signature is serialized in the
@@ -203,7 +203,7 @@ def encode(rf: int, r: int, s: int) -> bytes:
     """
     _validate_sig(rf, r, s)
     sig = bytes([rf]) + r.to_bytes(32, "big") + s.to_bytes(32, "big")
-    return b64encode(sig)
+    return base64.b64encode(sig)
 
 
 def gen_keys(
@@ -283,7 +283,7 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    rf, r, s = decode(sig)
+    rf, r, s = b64decode(sig)
 
     magic_msg = _magic_message(msg)
     c = dsa.challenge(magic_msg, secp256k1, sha256)
