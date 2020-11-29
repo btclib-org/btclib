@@ -30,12 +30,12 @@ def test_sign_to_contract_dsa() -> None:
 
     prvkey, pubkey = dsa.gen_keys()
     dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prvkey)
-    dsa._assert_as_valid(m, pubkey, dsa_sig, ec, sha256)
+    dsa._assert_as_valid(m, pubkey, dsa_sig, sha256)
     assert verify_commit(c, dsa_receipt)
 
     k = 1 + secrets.randbelow(ec.n - 1)
     dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prvkey, k)
-    dsa._assert_as_valid(m, pubkey, dsa_sig, ec, sha256)
+    dsa._assert_as_valid(m, pubkey, dsa_sig, sha256)
     assert verify_commit(c, dsa_receipt)
 
 

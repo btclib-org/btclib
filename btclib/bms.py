@@ -133,77 +133,105 @@ https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
 
 import base64
 import secrets
+from dataclasses import InitVar, dataclass
 from hashlib import sha256
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Type, TypeVar, Union
+
+from dataclasses_json import DataClassJsonMixin
 
 from . import dsa
-from .alias import Octets, String
+from .alias import BinaryData, String
 from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
 from .base58wif import wif_from_prvkey
 from .bech32address import p2wpkh, witness_from_b32address
 from .curve import mult, secp256k1
+from .der import DerSig
 from .exceptions import BTClibValueError
 from .network import NETWORKS
 from .secpoint import bytes_from_point
 from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
-from .utils import hash160
+from .utils import bytesio_from_binarydata, hash160
+
+_BMSSig = TypeVar("_BMSSig", bound="BMSSig")
+_EXPECTED_DECODED_LENGHT = 65
 
 
-def _validate_sig(rf: int, r: int, s: int) -> None:
+@dataclass
+class BMSSig(DataClassJsonMixin):
+    # 1 byte
+    rf: int = 0
+    dsa_sig: DerSig = DerSig(ec=secp256k1, check_validity=False)
+    check_validity: InitVar[bool] = True
 
-    if rf < 27 or rf > 42:
-        raise BTClibValueError(f"invalid recovery flag: {rf}")
-    dsa._validate_sig(r, s, secp256k1)
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
+    def assert_valid(self) -> None:
+        if self.rf < 27 or self.rf > 42:
+            raise BTClibValueError(f"invalid recovery flag: {self.rf}")
+        self.dsa_sig.assert_valid()
+        if self.dsa_sig.ec != secp256k1:
+            raise BTClibValueError(f"invalid curve: {self.dsa_sig.ec.name}")
 
-# Bitcoin message signature
-# (rf, r, s), where r and s are the components of a DSASigTuple
-BMSigTuple = Tuple[int, int, int]
-# BMSigTuple or base64 65-bytes serialization (bytes or hex-string)
-BMSig = Union[BMSigTuple, Octets]
+    def serialize(self, assert_valid: bool = True) -> bytes:
 
+        if assert_valid:
+            self.assert_valid()
 
-def b64decode(sig: BMSig) -> BMSigTuple:
-    """Return the verified components of the provided BSM signature.
+        # [1-byte recovery flag][32-bytes r][32-bytes s]
+        out = self.rf.to_bytes(1, "big")
+        nsize = self.dsa_sig.ec.nsize
+        out += self.dsa_sig.r.to_bytes(nsize, "big")
+        out += self.dsa_sig.s.to_bytes(nsize, "big")
+        return out
 
-    The address-based BSM signature can be represented
-    as (rf, r, s) tuple or as base64-encoding of the compact format
-    [1-byte rf][32-bytes r][32-bytes s].
-    """
-    if isinstance(sig, tuple):
-        rf, r, s = sig
-    else:
-        if isinstance(sig, str):
-            try:
-                # hex-string of the encoded base64 signature string
-                sig2 = base64.b64decode(bytes.fromhex(sig))
-            except ValueError:
-                # not encoded base64 signature string
-                sig2 = base64.b64decode(sig.encode("ascii"))
-        else:
-            # encoded base64 signature string
-            sig2 = base64.b64decode(sig)
+    @classmethod
+    def deserialize(
+        cls: Type[_BMSSig], data: BinaryData, assert_valid: bool = True
+    ) -> _BMSSig:
 
-        if len(sig2) != 65:
-            raise BTClibValueError(f"wrong signature length: {len(sig)} instead of 65")
-        rf = sig2[0]
-        r = int.from_bytes(sig2[1:33], byteorder="big")
-        s = int.from_bytes(sig2[33:], byteorder="big")
+        stream = bytesio_from_binarydata(data)
+        sig = cls(check_validity=False)
 
-    _validate_sig(rf, r, s)
-    return rf, r, s
+        sig.rf = int.from_bytes(stream.read(1), "big")
 
+        nsize = sig.dsa_sig.ec.nsize
+        sig.dsa_sig.r = int.from_bytes(stream.read(nsize), "big")
+        sig.dsa_sig.s = int.from_bytes(stream.read(nsize), "big")
 
-def b64encode(rf: int, r: int, s: int) -> bytes:
-    """Return the BSM address-based signature as base64-encoding.
+        if assert_valid:
+            sig.assert_valid()
+        return sig
 
-    First off, the signature is serialized in the
-    [1-byte rf][32-bytes r][32-bytes s] compact format,
-    then it is base64-encoded.
-    """
-    _validate_sig(rf, r, s)
-    sig = bytes([rf]) + r.to_bytes(32, "big") + s.to_bytes(32, "big")
-    return base64.b64encode(sig)
+    def b64encode(self, assert_valid: bool = True) -> bytes:
+        """Return the BMS address-based signature as base64-encoding.
+
+        First off, the signature is serialized in the
+        [1-byte rf][32-bytes r][32-bytes s] compact format,
+        then it is base64-encoded.
+        """
+        data_binary = self.serialize(assert_valid)
+        return base64.b64encode(data_binary)
+
+    @classmethod
+    def b64decode(
+        cls: Type[_BMSSig], data_str: String, assert_valid: bool = True
+    ) -> _BMSSig:
+        """Return the verified components of the provided BMS signature.
+
+        The address-based BMS signature can be represented
+        as (rf, r, s) tuple or as base64-encoding of the compact format
+        [1-byte rf][32-bytes r][32-bytes s].
+        """
+        if isinstance(data_str, str):
+            data_str = data_str.strip()
+        data_decoded = base64.b64decode(data_str)
+        if assert_valid and len(data_decoded) != _EXPECTED_DECODED_LENGHT:
+            err_msg = f"invalid decoded length: {len(data_decoded)}"
+            err_msg += f" instead of {_EXPECTED_DECODED_LENGHT}"
+            raise BTClibValueError(err_msg)
+        return cls.deserialize(data_decoded, assert_valid)
 
 
 def gen_keys(
@@ -242,7 +270,7 @@ def _magic_message(msg: String) -> bytes:
     return sha256(t).digest()
 
 
-def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTuple:
+def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSSig:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -252,11 +280,11 @@ def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTup
     # first sign the message
     magic_msg = _magic_message(msg)
     q, network, compressed = prvkeyinfo_from_prvkey(prvkey)
-    r, s = dsa.sign(magic_msg, q)
+    dsa_sig = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
     # TODO do the match in Jacobian coordinates avoiding mod_inv
-    pubkeys = dsa.recover_pubkeys(magic_msg, (r, s))
+    pubkeys = dsa.recover_pubkeys(magic_msg, dsa_sig)
     Q = mult(q)
     # key_id is in [0, 3]
     # first two bits in rf are reserved for it
@@ -276,14 +304,17 @@ def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSigTup
     else:
         raise BTClibValueError("mismatch between private key and address")
 
-    return rf, r, s
+    return BMSSig(rf, dsa_sig)
 
 
-def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
+def assert_as_valid(msg: String, addr: String, sig: Union[BMSSig, String]) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    rf, r, s = b64decode(sig)
+    if not isinstance(sig, BMSSig):
+        sig = BMSSig.b64decode(sig)
+    else:
+        sig.assert_valid()  # 1
 
     magic_msg = _magic_message(msg)
     c = dsa.challenge(magic_msg, secp256k1, sha256)
@@ -293,9 +324,11 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
     # 31-27 = 000100;  32-27 = 000101;  33-27 = 000110;  34-27 = 000111
     # 35-27 = 001000;  36-27 = 001001;  37-27 = 001010;  38-27 = 001011
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
-    key_id = rf - 27 & 0b11
+    key_id = sig.rf - 27 & 0b11
 
-    recovered_pubkey = dsa.__recover_pubkey(key_id, c, r, s, secp256k1)
+    recovered_pubkey = dsa.__recover_pubkey(
+        key_id, c, sig.dsa_sig.r, sig.dsa_sig.s, sig.dsa_sig.ec
+    )
     Q = secp256k1._aff_from_jac(recovered_pubkey)
 
     try:
@@ -305,30 +338,30 @@ def assert_as_valid(msg: String, addr: String, sig: BMSig) -> None:
         _, h160, _, is_script_hash = witness_from_b32address(addr)
         is_b58 = False
 
-    compressed = rf >= 31
+    compressed = sig.rf >= 31
     # signature is valid only if the provided address is matched
     pubkey = bytes_from_point(Q, compressed=compressed)
     if is_b58:
-        if is_script_hash and 30 < rf < 39:  # P2WPKH-P2SH
+        if is_script_hash and 30 < sig.rf < 39:  # P2WPKH-P2SH
             script_pk = b"\x00\x14" + hash160(pubkey)
             if hash160(script_pk) != h160:
                 raise BTClibValueError(f"wrong p2wpkh-p2sh address: {addr!r}")
-        elif rf < 35:  # P2PKH
+        elif sig.rf < 35:  # P2PKH
             if hash160(pubkey) != h160:
                 raise BTClibValueError(f"wrong p2pkh address: {addr!r}")
         else:
-            err_msg = f"invalid recovery flag: {rf} (base58 address {addr!r})"
+            err_msg = f"invalid recovery flag: {sig.rf} (base58 address {addr!r})"
             raise BTClibValueError(err_msg)
     else:
-        if rf > 38 or 30 < rf < 35:  # P2WPKH
+        if sig.rf > 38 or 30 < sig.rf < 35:  # P2WPKH
             if hash160(pubkey) != h160:
                 raise BTClibValueError(f"wrong p2wpkh address: {addr!r}")
         else:
-            err_msg = f"invalid recovery flag: {rf} (bech32 address {addr!r})"
+            err_msg = f"invalid recovery flag: {sig.rf} (bech32 address {addr!r})"
             raise BTClibValueError(err_msg)
 
 
-def verify(msg: String, addr: String, sig: BMSig) -> bool:
+def verify(msg: String, addr: String, sig: Union[BMSSig, String]) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # all kind of Exceptions are catched because

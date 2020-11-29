@@ -18,7 +18,8 @@ from typing import Dict, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import dsa, secpoint
+from . import secpoint
+from .der import DerSig
 from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_out import (
     _assert_valid_bip32_derivs,
@@ -118,7 +119,7 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
     if len(k) != 1:
         err_msg = f"invalid final script witness key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return Witness().deserialize(v)
+    return Witness.deserialize(v)
 
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
@@ -137,7 +138,7 @@ def _assert_valid_partial_signatures(partial_signatures: Dict[bytes, bytes]) -> 
             err_msg = "invalid partial signature pubkey: {pubkey!r}"
             raise BTClibValueError(err_msg) from e
         try:
-            dsa.deserialize(sig)
+            DerSig.deserialize(sig)
         except BTClibValueError as e:
             err_msg = f"invalid partial signature: {sig!r}"
             raise BTClibValueError(err_msg) from e

@@ -62,17 +62,17 @@ def test_rfc6979_tv() -> None:
             m = reduce_to_hlen(msg, hf=getattr(hashlib, hf))
             # test RFC6979 implementation
             k2 = _rfc6979(m, x, ec, getattr(hashlib, hf))
-            assert k == hex(k2)
+            assert int(k, 16) == k2
             # test RFC6979 usage in DSA
             sig = dsa._sign(m, x, k2, low_s=False, ec=ec, hf=getattr(hashlib, hf))
-            assert r == hex(sig[0])
-            assert s == hex(sig[1])
+            assert int(r, 16) == sig.r
+            assert int(s, 16) == sig.s
             # test that RFC6979 is the default nonce for DSA
             sig = dsa._sign(m, x, None, low_s=False, ec=ec, hf=getattr(hashlib, hf))
-            assert r == hex(sig[0])
-            assert s == hex(sig[1])
+            assert int(r, 16) == sig.r
+            assert int(s, 16) == sig.s
             # test key-pair coherence
             U = mult(x, ec.G, ec)
             assert int(x_U, 16), int(y_U, 16) == U
             # test signature validity
-            dsa.assert_as_valid(msg, U, sig, ec, getattr(hashlib, hf))
+            dsa.assert_as_valid(msg, U, sig, getattr(hashlib, hf))

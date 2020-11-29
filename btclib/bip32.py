@@ -89,6 +89,7 @@ def _str_from_index_int(i: int, hardening: str = "'") -> str:
 
 
 _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
+_EXPECTED_DECODED_LENGHT = 78
 
 
 @dataclass
@@ -222,17 +223,21 @@ class BIP32KeyData(DataClassJsonMixin):
         return xkey
 
     def b58encode(self, assert_valid: bool = True) -> bytes:
-        xkey_bin = self.serialize(assert_valid)
-        return base58.b58encode(xkey_bin, 78)
+        data_binary = self.serialize(assert_valid)
+        return base58.b58encode(data_binary)
 
     @classmethod
     def b58decode(
-        cls: Type[_BIP32KeyData], xkey_str: String, assert_valid: bool = True
+        cls: Type[_BIP32KeyData], data_str: String, assert_valid: bool = True
     ) -> _BIP32KeyData:
-        if isinstance(xkey_str, str):
-            xkey_str = xkey_str.strip()
-        xkey_decoded = base58.b58decode(xkey_str, 78)
-        return cls.deserialize(xkey_decoded, assert_valid)
+        if isinstance(data_str, str):
+            data_str = data_str.strip()
+        data_decoded = base58.b58decode(data_str)
+        if assert_valid and len(data_decoded) != _EXPECTED_DECODED_LENGHT:
+            err_msg = f"invalid decoded length: {len(data_decoded)}"
+            err_msg += f" instead of {_EXPECTED_DECODED_LENGHT}"
+            raise BTClibValueError(err_msg)
+        return cls.deserialize(data_decoded, assert_valid)
 
 
 def rootxprv_from_seed(

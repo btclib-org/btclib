@@ -13,8 +13,8 @@
 import pytest
 
 from btclib.curve import secp256k1
-from btclib.der import deserialize, serialize
-from btclib.exceptions import BTClibValueError
+from btclib.der import DerSig, SighashDerSig
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.script import SIGHASHES
 
 ec = secp256k1
@@ -33,104 +33,103 @@ def test_der_size() -> None:
     lenghts = [8, 72, 71, 70, 70, 69, 68]  # not including SIGHASHES
 
     for length, sig in zip(lenghts, sigs):
+        dsa_sig = DerSig(*sig)
+        assert sig[0] == dsa_sig.r
+        assert sig[1] == dsa_sig.s
+        assert ec == dsa_sig.ec
+        dsa_sig_bin = dsa_sig.serialize()
+        assert len(dsa_sig_bin) == length
+        assert dsa_sig == DerSig.deserialize(dsa_sig_bin)
         for sighash in SIGHASHES:
-            der_sig = serialize(*sig, sighash)
-            r, s, sighash2 = deserialize(der_sig)
-            assert sig == (r, s)
-            assert sighash == sighash2
-            assert len(der_sig) == length + 1
-
-    # with the last one only...
-    assert (r, s, sighash) == deserialize((r, s, sighash))
+            der_sig = SighashDerSig(dsa_sig, sighash)
+            assert dsa_sig == der_sig.dsa_sig
+            assert sighash == der_sig.sighash
+            der_sig_bin = der_sig.serialize()
+            assert len(der_sig_bin) == length + 1
+            assert der_sig == SighashDerSig.deserialize(der_sig_bin)
 
 
 def test_der_deserialize() -> None:
 
     err_msg = "non-hexadecimal number found "
     with pytest.raises(ValueError, match=err_msg):
-        deserialize("not a sig")
+        DerSig.deserialize("not a sig")
 
-    sig = 2 ** 255 - 1, 2 ** 247 - 1
+    dsa_sig = DerSig(2 ** 255 - 1, 2 ** 247 - 1)
     for sighash in SIGHASHES:
-        der_sig = serialize(*sig, sighash)
-        r_size = der_sig[3]
+        der_sig_bin = SighashDerSig(dsa_sig, sighash=sighash).serialize()
+        r_size = der_sig_bin[3]
 
-        bad_der_sig = b"\x00" * 74
-        err_msg = "invalid DER size: "
+        bad_der_sig_bin = b"\x31" + der_sig_bin[1:]
+        err_msg = "invalid DER type: "
         with pytest.raises(BTClibValueError, match=err_msg):
-            deserialize(bad_der_sig)
+            SighashDerSig.deserialize(bad_der_sig_bin)
 
-        bad_der_sig = b"\x31" + der_sig[1:]
-        err_msg = "DER type must be 0x30 "
-        with pytest.raises(BTClibValueError, match=err_msg):
-            deserialize(bad_der_sig)
+        bad_der_sig_bin = der_sig_bin[:1] + b"\x41" + der_sig_bin[2:]
+        err_msg = "not enough binary data"
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            SighashDerSig.deserialize(bad_der_sig_bin)
 
-        bad_der_sig = der_sig[:1] + b"\x41" + der_sig[2:]
-        err_msg = "Declared size incompatible with actual size: "
-        with pytest.raises(BTClibValueError, match=err_msg):
-            deserialize(bad_der_sig)
-
-        bad_der_sig = der_sig + b"\x01"
-        err_msg = "Declared size incompatible with actual size: "
-        with pytest.raises(BTClibValueError, match=err_msg):
-            deserialize(bad_der_sig)
-
-        bad_der_sig = der_sig[:-1] + b"\x00"
+        bad_der_sig_bin = der_sig_bin[:-1] + b"\x00"
         err_msg = "invalid sighash: 0x"
         with pytest.raises(BTClibValueError, match=err_msg):
-            deserialize(bad_der_sig)
+            SighashDerSig.deserialize(bad_der_sig_bin)
 
         # r and s scalars
         for offset in (4, 6 + r_size):
-            bad_der_sig = der_sig[: offset - 2] + b"\x00" + der_sig[offset - 1 :]
-            err_msg = "scalar must be an integer"
+            bad_der_sig_bin = (
+                der_sig_bin[: offset - 2] + b"\x00" + der_sig_bin[offset - 1 :]
+            )
+            err_msg = "invalid value header: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                deserialize(bad_der_sig)
+                SighashDerSig.deserialize(bad_der_sig_bin)
 
-            bad_der_sig = der_sig[: offset - 1] + b"\x00" + der_sig[offset:]
-            err_msg = "scalar has size zero"
+            bad_der_sig_bin = der_sig_bin[: offset - 1] + b"\x00" + der_sig_bin[offset:]
+            err_msg = "zero size"
+            with pytest.raises(BTClibRuntimeError, match=err_msg):
+                SighashDerSig.deserialize(bad_der_sig_bin)
+
+            bad_der_sig_bin = der_sig_bin[: offset - 1] + b"\x80" + der_sig_bin[offset:]
+            err_msg = "not enough binary data"
+            with pytest.raises(BTClibRuntimeError, match=err_msg):
+                SighashDerSig.deserialize(bad_der_sig_bin)
+
+            bad_der_sig_bin = der_sig_bin[:offset] + b"\x80" + der_sig_bin[offset + 1 :]
+            err_msg = " not in 1..n-1: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                deserialize(bad_der_sig)
+                SighashDerSig.deserialize(bad_der_sig_bin)
 
-            bad_der_sig = der_sig[: offset - 1] + b"\x80" + der_sig[offset:]
-            err_msg = "Size of scalar is too large: "
+            bad_der_sig_bin = (
+                der_sig_bin[:offset] + b"\x00\x7f" + der_sig_bin[offset + 2 :]
+            )
+            err_msg = "invalid null byte at the start of scalar"
             with pytest.raises(BTClibValueError, match=err_msg):
-                deserialize(bad_der_sig)
+                SighashDerSig.deserialize(bad_der_sig_bin)
 
-            bad_der_sig = der_sig[:offset] + b"\x80" + der_sig[offset + 1 :]
-            err_msg = "Negative number not allowed for scalar"
-            with pytest.raises(BTClibValueError, match=err_msg):
-                deserialize(bad_der_sig)
-
-            bad_der_sig = der_sig[:offset] + b"\x00\x7f" + der_sig[offset + 2 :]
-            err_msg = "invalid null bytes at the start of scalar"
-            with pytest.raises(BTClibValueError, match=err_msg):
-                deserialize(bad_der_sig)
-
-        data_size = der_sig[1]
+        data_size = der_sig_bin[1]
         malleated_size = (data_size + 1).to_bytes(1, byteorder="big")
-        bad_der_sig = der_sig[:1] + malleated_size + der_sig[2:] + b"\x01"
-        err_msg = "Too big DER size for "
+        bad_der_sig_bin = der_sig_bin[:1] + malleated_size + der_sig_bin[2:] + b"\x01"
+        err_msg = "invalid DER size"
         with pytest.raises(BTClibValueError, match=err_msg):
-            deserialize(bad_der_sig)
+            SighashDerSig.deserialize(bad_der_sig_bin)
 
 
 def test_derserialize() -> None:
 
-    sig = 2 ** 247 - 1, 2 ** 247 - 1
+    dsa_sig = DerSig(2 ** 247 - 1, 2 ** 247 - 1)
     err_msg = "invalid sighash: 0x"
     with pytest.raises(BTClibValueError, match=err_msg):
-        serialize(*sig, 0x85)
+        SighashDerSig(dsa_sig, sighash=0x85)
 
     for sighash in SIGHASHES:
         err_msg = "scalar r not in 1..n-1: "
-        for r in (0, ec.n):
-            bad_sig = r, sig[1]
+        for bad_r in (0, ec.n):
+            bad_dsa_sig = DerSig(bad_r, dsa_sig.s, check_validity=False)
             with pytest.raises(BTClibValueError, match=err_msg):
-                serialize(*bad_sig, sighash)
+                SighashDerSig(bad_dsa_sig, sighash=sighash)
 
         err_msg = "scalar s not in 1..n-1: "
-        for s in (0, ec.n):
-            bad_sig = sig[0], s
+        for bad_s in (0, ec.n):
+            bad_dsa_sig = DerSig(dsa_sig.r, bad_s, check_validity=False)
             with pytest.raises(BTClibValueError, match=err_msg):
-                serialize(*bad_sig, sighash)
+                SighashDerSig(bad_dsa_sig, sighash=sighash)

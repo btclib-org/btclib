@@ -21,10 +21,10 @@ import secrets
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
-from . import der
 from .alias import HashF, JacPoint, Octets, Point, String
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult
+from .der import DerSig
 from .exceptions import BTClibRuntimeError, BTClibValueError
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
@@ -32,42 +32,6 @@ from .rfc6979 import __rfc6979
 from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import Key, point_from_key
 from .utils import bytes_from_octets, int_from_bits
-
-# ECDSA signature
-# (r, s)
-# both r and s are scalar: 0 < r < ec.n, 0 < s < ec.n
-DSASigTuple = Tuple[int, int]
-# DSASigTuple or DER serialization (bytes or hex-string, no sighash)
-DSASig = Union[DSASigTuple, Octets]
-
-
-# _validate_sig, deserialize and serialize are basically just wrappers
-# for the equivalent functions in the der module
-
-
-def _validate_sig(r: int, s: int, ec: Curve = secp256k1) -> None:
-    return der._validate_sig(r, s, None, ec)
-
-
-def deserialize(sig: DSASig, ec: Curve = secp256k1) -> DSASigTuple:
-    """Return the verified components of the provided ECDSA signature.
-
-    The ECDSA signature can be represented as (r, s) tuple or
-    as strict ASN.1 DER binary representation.
-    """
-
-    if not isinstance(sig, tuple):
-        return der.deserialize(sig, ec)[0:2]
-
-    r, s = sig
-    _validate_sig(*sig, ec)
-    return r, s
-
-
-def serialize(r: int, s: int, ec: Curve = secp256k1) -> bytes:
-    "Return the ECDSA signature as strict ASN.1 DER representation."
-
-    return der.serialize(r, s, None, ec)
 
 
 def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:
@@ -103,7 +67,7 @@ def challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     return _challenge(m, ec, hf)
 
 
-def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DSASigTuple:
+def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DerSig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and k are in [1, n-1]
@@ -129,7 +93,7 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DSASigTuple:
     if low_s and s > ec.n / 2:
         s = ec.n - s  # s = - s % ec.n
 
-    return r, s
+    return DerSig(r, s, ec)
 
 
 def _sign(
@@ -139,7 +103,7 @@ def _sign(
     low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> DSASigTuple:
+) -> DerSig:
     """Sign a hlen bytes message according to ECDSA signature algorithm.
 
     If the deterministic nonce is not provided,
@@ -173,7 +137,7 @@ def sign(
     low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> DSASigTuple:
+) -> DerSig:
     """ECDSA signature with canonical low-s preference.
 
     Implemented according to SEC 1 v.2
@@ -219,43 +183,46 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
 
 def _assert_as_valid(
-    m: Octets, key: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets, key: Key, sig: Union[DerSig, Octets], hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    r, s = deserialize(sig, ec)  # 1
+    if not isinstance(sig, DerSig):
+        sig = DerSig.deserialize(sig)
+    else:
+        sig.assert_valid()  # 1
 
     # The message m: a hlen array
     m = bytes_from_octets(m, hf().digest_size)
-    c = _challenge(m, ec, hf)  # 2, 3
+    c = _challenge(m, sig.ec, hf)  # 2, 3
 
-    Q = point_from_key(key, ec)
+    Q = point_from_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
 
     # second part delegated to helper function
-    __assert_as_valid(c, QJ, r, s, ec)
+    __assert_as_valid(c, QJ, sig.r, sig.s, sig.ec)
 
 
 def assert_as_valid(
-    msg: String, key: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, key: Key, sig: Union[DerSig, Octets], hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     m = reduce_to_hlen(msg, hf)
-    _assert_as_valid(m, key, sig, ec, hf)
+    _assert_as_valid(m, key, sig, hf)
 
 
 def _verify(
-    m: Octets, key: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets, key: Key, sig: Union[DerSig, Octets], hf: HashF = sha256
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        _assert_as_valid(m, key, sig, ec, hf)
+        _assert_as_valid(m, key, sig, hf)
     except Exception:  # pylint: disable=broad-except
         return False
     else:
@@ -263,16 +230,16 @@ def _verify(
 
 
 def verify(
-    msg: String, key: Key, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, key: Key, sig: Union[DerSig, Octets], hf: HashF = sha256
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _verify(m, key, sig, ec, hf)
+    return _verify(m, key, sig, hf)
 
 
 def recover_pubkeys(
-    msg: String, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, sig: Union[DerSig, Octets], hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
@@ -281,28 +248,31 @@ def recover_pubkeys(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _recover_pubkeys(m, sig, ec, hf)
+    return _recover_pubkeys(m, sig, hf)
 
 
 def _recover_pubkeys(
-    m: Octets, sig: DSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets, sig: Union[DerSig, Octets], hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also:
     https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
+
+    if not isinstance(sig, DerSig):
+        sig = DerSig.deserialize(sig)
+    else:
+        sig.assert_valid()  # 1
 
     # The message m: a hlen array
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
-    c = _challenge(m, ec, hf)  # 1.5
+    c = _challenge(m, sig.ec, hf)  # 1.5
 
-    r, s = deserialize(sig, ec)
-
-    QJs = __recover_pubkeys(c, r, s, ec)
-    return [ec._aff_from_jac(QJ) for QJ in QJs]
+    QJs = __recover_pubkeys(c, sig.r, sig.s, sig.ec)
+    return [sig.ec._aff_from_jac(QJ) for QJ in QJs]
 
 
 # TODO: use __recover_pubkey to avoid code duplication
@@ -372,18 +342,28 @@ def __recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint
 
 def _crack_prvkey(
     m_1: Octets,
-    sig1: DSASig,
+    sig1: Union[DerSig, Octets],
     m_2: Octets,
-    sig2: DSASig,
-    ec: Curve = secp256k1,
+    sig2: Union[DerSig, Octets],
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    r_1, s_1 = deserialize(sig1, ec)
-    r_2, s_2 = deserialize(sig2, ec)
-    if r_1 != r_2:
+    if not isinstance(sig1, DerSig):
+        sig1 = DerSig.deserialize(sig1)
+    else:
+        sig1.assert_valid()  # 1
+
+    if not isinstance(sig2, DerSig):
+        sig2 = DerSig.deserialize(sig2)
+    else:
+        sig2.assert_valid()  # 1
+
+    ec = sig2.ec
+    if sig1.ec != ec:
+        raise BTClibValueError("not the same curve in signatures")
+    if sig1.r != sig2.r:
         raise BTClibValueError("not the same r in signatures")
-    if s_1 == s_2:
+    if sig1.s == sig2.s:
         raise BTClibValueError("identical signatures")
 
     hlen = hf().digest_size
@@ -393,21 +373,20 @@ def _crack_prvkey(
     c_1 = _challenge(m_1, ec, hf)
     c_2 = _challenge(m_2, ec, hf)
 
-    k = (c_1 - c_2) * mod_inv(s_1 - s_2, ec.n) % ec.n
-    q = (s_2 * k - c_2) * mod_inv(r_1, ec.n) % ec.n
+    k = (c_1 - c_2) * mod_inv(sig1.s - sig2.s, ec.n) % ec.n
+    q = (sig2.s * k - c_2) * mod_inv(sig1.r, ec.n) % ec.n
     return q, k
 
 
 def crack_prvkey(
     msg1: String,
-    sig1: DSASig,
+    sig1: Union[DerSig, Octets],
     msg2: String,
-    sig2: DSASig,
-    ec: Curve = secp256k1,
+    sig2: Union[DerSig, Octets],
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
     m_1 = reduce_to_hlen(msg1, hf)
     m_2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prvkey(m_1, sig1, m_2, sig2, ec, hf)
+    return _crack_prvkey(m_1, sig1, m_2, sig2, hf)

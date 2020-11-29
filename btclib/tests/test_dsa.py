@@ -19,6 +19,7 @@ from btclib import dsa
 from btclib.alias import INF
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
+from btclib.der import DerSig
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.numbertheory import mod_inv
@@ -27,14 +28,12 @@ from btclib.tests.test_curve import low_card_curves
 
 
 def test_signature() -> None:
-    ec = CURVES["secp256k1"]
     msg = "Satoshi Nakamoto"
 
     q, Q = dsa.gen_keys(0x1)
     sig = dsa.sign(msg, q)
+    dsa.assert_as_valid(msg, Q, sig)
     assert dsa.verify(msg, Q, sig)
-
-    assert sig == dsa.deserialize(sig)
 
     # https://bitcointalk.org/index.php?topic=285142.40
     # Deterministic Usage of DSA and ECDSA (RFC 6979)
@@ -42,16 +41,11 @@ def test_signature() -> None:
         0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8,
         0x2442CE9D2B916064108014783E923EC36B49743E2FFA1C4496F01A512AAFD9E5,
     )
-    r, s = sig
-    assert sig[0] == exp_sig[0]
-    assert sig[1] in (exp_sig[1], ec.n - exp_sig[1])
-
-    dsa.assert_as_valid(msg, Q, sig)
-    dsa.assert_as_valid(msg, Q, dsa.serialize(*sig))
-    dsa.assert_as_valid(msg, Q, dsa.serialize(*sig).hex())
+    assert sig.r == exp_sig[0]
+    assert sig.s in (exp_sig[1], sig.ec.n - exp_sig[1])
 
     # malleability
-    malleated_sig = (r, ec.n - s)
+    malleated_sig = DerSig(sig.r, sig.ec.n - sig.s)
     assert dsa.verify(msg, Q, malleated_sig)
 
     keys = dsa.recover_pubkeys(msg, sig)
@@ -74,16 +68,13 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, INF, sig)
 
-    sig_fake = sig[0], sig[1], sig[1]
-    assert not dsa.verify(msg, Q, sig_fake)  # type: ignore
-
-    sig_invalid = ec.p, sig[1]
+    sig_invalid = DerSig(sig.ec.p, sig.s, check_validity=False)
     assert not dsa.verify(msg, Q, sig_invalid)
     err_msg = "scalar r not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, Q, sig_invalid)
 
-    sig_invalid = sig[0], ec.p
+    sig_invalid = DerSig(sig.r, sig.ec.p, check_validity=False)
     assert not dsa.verify(msg, Q, sig_invalid)
     err_msg = "scalar s not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -98,7 +89,7 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa._sign(reduce_to_hlen(msg), q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._sign(reduce_to_hlen(msg), q, ec.n)
+        dsa._sign(reduce_to_hlen(msg), q, sig.ec.n)
 
 
 def test_gec() -> None:
@@ -112,9 +103,8 @@ def test_gec() -> None:
 
     # 2.1.2 Key Deployment for U
     dU = 971761939728640320549601132085879836204587084162
+    dU, QU = dsa.gen_keys(dU, ec)
     assert format(dU, str(ec.nsize) + "x") == "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
-
-    QU = mult(dU, ec.G, ec)
     assert QU == (
         466448783855397898016055842232266600516272889280,
         1110706324081757720403272427311003102474457754220,
@@ -132,12 +122,13 @@ def test_gec() -> None:
     )
     low_s = False
     sig = dsa._sign(reduce_to_hlen(msg, hf), dU, k, low_s, ec, hf)
-    r, s = sig
-    assert r == exp_sig[0]
-    assert s == exp_sig[1]
+    assert sig.r == exp_sig[0]
+    assert sig.s == exp_sig[1]
+    assert sig.ec == ec
 
     # 2.1.4 Verifying Operation for V
-    assert dsa.verify(msg, QU, sig, ec, hf)
+    dsa.assert_as_valid(msg, QU, sig, hf)
+    assert dsa.verify(msg, QU, sig, hf)
 
 
 @pytest.mark.first
@@ -176,7 +167,9 @@ def test_low_cardinality() -> None:
                             dsa.__sign(e, q, k, low_s, ec)
                     else:
                         sig = dsa.__sign(e, q, k, low_s, ec)
-                        assert (r, s) == sig
+                        assert r == sig.r
+                        assert s == sig.s
+                        assert ec == sig.ec
                         # valid signature must pass verification
                         dsa.__assert_as_valid(e, QJ, r, s, ec)
 
@@ -197,17 +190,14 @@ def test_pubkey_recovery() -> None:
     msg = "Satoshi Nakamoto"
     low_s = True
     sig = dsa.sign(msg, q, low_s, ec)
-    assert dsa.verify(msg, Q, sig, ec)
-    dersig = dsa.serialize(*sig, ec)
-    assert dsa.verify(msg, Q, dersig, ec)
-    r, s = dsa.deserialize(dersig)
-    assert (r, s) == sig
+    dsa.assert_as_valid(msg, Q, sig)
+    assert dsa.verify(msg, Q, sig)
 
-    keys = dsa.recover_pubkeys(msg, sig, ec)
+    keys = dsa.recover_pubkeys(msg, sig)
     assert len(keys) == 4
     assert Q in keys
     for Q in keys:
-        assert dsa.verify(msg, Q, sig, ec)
+        assert dsa.verify(msg, Q, sig)
 
 
 def test_crack_prvkey() -> None:
@@ -228,13 +218,13 @@ def test_crack_prvkey() -> None:
     qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
 
     #  if the low_s convention has changed only one of s1 and s2
-    sig2 = sig2[0], ec.n - sig2[1]
+    sig2 = DerSig(sig2.r, ec.n - sig2.s)
     qc2, kc2 = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
 
     assert (q == qc and k in (kc, ec.n - kc)) or (q == qc2 and k in (kc2, ec.n - kc2))
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        dsa.crack_prvkey(msg1, sig1, msg2, (16, sig1[1]))
+        dsa.crack_prvkey(msg1, sig1, msg2, DerSig(16, sig1.s))
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
         dsa.crack_prvkey(msg1, sig1, msg1, sig1)
