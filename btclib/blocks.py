@@ -11,12 +11,13 @@
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Type, TypeVar
+from math import ceil
+from typing import Dict, List, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 from dataclasses_json.core import Json
 
-from . import varint
+from . import varbytes, varint
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .tx import Tx
@@ -207,6 +208,46 @@ _Block = TypeVar("_Block", bound="Block")
 class Block(DataClassJsonMixin):
     header: BlockHeader = field(default=BlockHeader())
     transactions: List[Tx] = field(default_factory=list)
+    # private data member used only for to_dict
+    # use the corresponding public properties instead
+    _size: int = field(
+        default=-1,
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="size"),
+    )
+    _weight: int = field(
+        default=-1,
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="weight"),
+    )
+    _vsize: int = field(
+        default=-1,
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="vsize"),
+    )
+    _height: Optional[int] = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="height"),
+    )
+
+    def _set_properties(self) -> None:
+        self._size = self.size
+        self._weight = self.weight
+        self._vsize = self.vsize
+        self._height = self.height
+
+    def to_dict(self, encode_json=False) -> Dict[str, Json]:
+        self._set_properties()
+        return super().to_dict(encode_json)
 
     @property
     def size(self) -> int:
@@ -216,7 +257,34 @@ class Block(DataClassJsonMixin):
     def weight(self) -> int:
         return sum(t.weight for t in self.transactions)
 
-    # TODO: implement vsize
+    @property
+    def vsize(self) -> int:
+        return ceil(self.weight / 4)
+
+    @property
+    def height(self) -> Optional[int]:
+        """Return the height committed into the coinbase script_sig.
+
+        Version 2 blocks commit block height into the coinbase script_sig.
+
+        https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
+
+        Block 227,835 (2013-03-24 15:49:13 GMT) was the last version 1 block.
+        """
+        if not self.transactions[0].is_coinbase():
+            raise BTClibValueError("first transaction is not a coinbase")
+        if self.header.version == 1:
+            return None
+
+        # Height is "serialized CScript": first byte is number of bytes,
+        # followed by the signed little-endian representation of the height
+        # (genesis block is height zero).
+        coinbase_script = self.transactions[0].vin[0].script_sig
+        height_ = varbytes.decode(coinbase_script)
+        return int.from_bytes(height_, byteorder="little", signed=True)
+
+    def segwit(self) -> bool:
+        return any(tx.segwit() for tx in self.transactions)
 
     def assert_valid(self) -> None:
 
@@ -236,6 +304,8 @@ class Block(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
         self.header.assert_valid()
+
+        self._set_properties()
 
     def serialize(
         self, include_witness: bool = True, assert_valid: bool = True

@@ -33,10 +33,11 @@ def test_block_1() -> None:
 
     block = Block.deserialize(block_bytes)
     assert len(block.transactions) == 1
-    assert block.serialize() == block_bytes
-
     assert block.size == 215
     assert block.weight == 536
+    assert block.height is None
+    assert not block.segwit()
+    assert block.serialize() == block_bytes
 
     header = block.header
     assert header.version == 1
@@ -128,10 +129,11 @@ def test_block_170() -> None:
 
     block = Block.deserialize(block_bytes)
     assert len(block.transactions) == 2
-    assert block.serialize() == block_bytes
-
     assert block.size == 490
     assert block.weight == 1636
+    assert block.height is None
+    assert not block.segwit()
+    assert block.serialize() == block_bytes
 
     header = block.header
     assert header.version == 1
@@ -158,10 +160,11 @@ def test_block_200000() -> None:
 
     block = Block.deserialize(block_bytes)
     assert len(block.transactions) == 388
+    assert block.size == 247_533
+    assert block.weight == 989_800
+    assert block.height == 200_000
+    assert not block.segwit()
     assert block.serialize() == block_bytes
-
-    assert block.size == 247533
-    assert block.weight == 989800
 
     header = block.header
     assert header.version == 2
@@ -186,6 +189,8 @@ def test_block_200000() -> None:
     err_msg = "first transaction is not a coinbase"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        _ = block.height
 
 
 @pytest.mark.seventh
@@ -199,6 +204,7 @@ def test_block_481824() -> None:
 
         block = Block.deserialize(block_bytes)
         assert len(block.transactions) == 1866
+        assert block.height == 481_824
         assert block.serialize() == block_bytes
 
         header = block.header
@@ -217,11 +223,15 @@ def test_block_481824() -> None:
         assert 0 <= header.difficulty - 888_171_856_257 < 1
 
         if i:  # segwit nodes see the witness data
-            assert block.transactions[0].vin[0].witness
+            assert block.segwit()
             assert block.size == 989_323
             assert block.weight == 3_954_548
+            assert block.vsize == 988_637
         else:  # legacy nodes see NO witness data
-            assert not block.transactions[0].vin[0].witness
+            assert not block.segwit()
+            assert block.size == 988_519
+            assert block.weight == 3_953_744
+            assert block.vsize == 988_436
 
 
 def test_dataclasses_json_dict() -> None:
