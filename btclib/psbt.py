@@ -13,7 +13,7 @@
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
-from base64 import b64decode, b64encode
+import base64
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type, TypeVar, Union
@@ -221,13 +221,13 @@ class Psbt(DataClassJsonMixin):
             psbt.assert_valid()
         return psbt
 
-    def encode(self, assert_valid: bool = True) -> str:
+    def b64encode(self, assert_valid: bool = True) -> str:
         psbt_bin = self.serialize(assert_valid)
-        return b64encode(psbt_bin).decode("ascii")
+        return base64.b64encode(psbt_bin).decode("ascii")
 
     @classmethod
-    def decode(cls: Type[_Psbt], string: str, assert_valid: bool = True) -> _Psbt:
-        data = b64decode(string)
+    def b64decode(cls: Type[_Psbt], string: str, assert_valid: bool = True) -> _Psbt:
+        data = base64.b64decode(string)
         return cls.deserialize(data, assert_valid)
 
 

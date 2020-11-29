@@ -179,7 +179,7 @@ def b64decode(sig: BMSig) -> BMSigTuple:
                 sig2 = base64.b64decode(bytes.fromhex(sig))
             except ValueError:
                 # not encoded base64 signature string
-                sig2 = base64.b64decode(sig.encode())
+                sig2 = base64.b64decode(sig.encode("ascii"))
         else:
             # encoded base64 signature string
             sig2 = base64.b64decode(sig)
