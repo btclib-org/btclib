@@ -144,9 +144,9 @@ class Tx(DataClassJsonMixin):
 
         out = self.version.to_bytes(4, byteorder="little", signed=False)
         out += _SEGWIT_MARKER if segwit else b""
-        out += varint.encode(len(self.vin))
+        out += varint.serialize(len(self.vin))
         out += b"".join(tx_in.serialize(assert_valid) for tx_in in self.vin)
-        out += varint.encode(len(self.vout))
+        out += varint.serialize(len(self.vout))
         out += b"".join(tx_out.serialize(assert_valid) for tx_out in self.vout)
         if segwit:
             out += b"".join(tx_in.witness.serialize(assert_valid) for tx_in in self.vin)
@@ -170,10 +170,10 @@ class Tx(DataClassJsonMixin):
             whence = 1  # current position
             stream.seek(-2, whence)
 
-        n = varint.decode(stream)
+        n = varint.deserialize(stream)
         tx.vin = [TxIn.deserialize(stream) for _ in range(n)]
 
-        n = varint.decode(stream)
+        n = varint.deserialize(stream)
         tx.vout = [TxOut.deserialize(stream) for _ in range(n)]
 
         if segwit:

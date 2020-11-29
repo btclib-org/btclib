@@ -20,57 +20,57 @@ def test_varint_conversion() -> None:
 
     i = -1
     with pytest.raises(BTClibValueError, match="negative integer: "):
-        varint.encode(i)
+        varint.serialize(i)
 
     i = 0x00
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 1
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i += 1
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 1
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i = 0xFC
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 1
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i += 1
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 3
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i = 0xFFFF
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 3
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i += 1
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 5
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i = 0xFFFFFFFF
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 5
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i += 1
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 9
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i = 0xFFFFFFFFFFFFFFFF
-    b = varint.encode(i)
+    b = varint.serialize(i)
     assert len(b) == 9
-    assert varint.decode(b) == i
+    assert varint.deserialize(b) == i
 
     i += 1
     with pytest.raises(BTClibValueError, match="integer too big for varint encoding: "):
-        varint.encode(i)
+        varint.serialize(i)
 
-    assert varint.decode("6a") == 106
-    assert varint.decode("fd2602") == 550
-    assert varint.decode("fe703a0f00") == 998000
+    assert varint.deserialize("6a") == 106
+    assert varint.deserialize("fd2602") == 550
+    assert varint.deserialize("fe703a0f00") == 998000

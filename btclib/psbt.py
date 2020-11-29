@@ -240,12 +240,12 @@ def deserialize_map(data: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         if data[0] == 0:
             data = data[1:]
             return partial_map, data
-        key_len = varint.decode(data)
-        data = data[len(varint.encode(key_len)) :]
+        key_len = varint.deserialize(data)
+        data = data[len(varint.serialize(key_len)) :]
         key = data[:key_len]
         data = data[key_len:]
-        value_len = varint.decode(data)
-        data = data[len(varint.encode(value_len)) :]
+        value_len = varint.deserialize(data)
+        data = data[len(varint.serialize(value_len)) :]
         value = data[:value_len]
         data = data[value_len:]
         if key in partial_map:

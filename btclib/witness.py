@@ -45,8 +45,8 @@ class Witness(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = varint.encode(len(self.items))
-        return out + b"".join([varbytes.encode(w) for w in self.items])
+        out = varint.serialize(len(self.items))
+        return out + b"".join([varbytes.serialize(w) for w in self.items])
 
     @classmethod
     def deserialize(
@@ -57,8 +57,8 @@ class Witness(DataClassJsonMixin):
         data = bytesio_from_binarydata(data)
 
         witness = cls()
-        n = varint.decode(data)
-        witness.items = [varbytes.decode(data) for _ in range(n)]
+        n = varint.deserialize(data)
+        witness.items = [varbytes.deserialize(data) for _ in range(n)]
 
         if assert_valid:
             witness.assert_valid()

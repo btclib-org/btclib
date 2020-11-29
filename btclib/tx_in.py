@@ -114,7 +114,7 @@ class TxIn(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.prevout.serialize()
-        out += varbytes.encode(self.script_sig)
+        out += varbytes.serialize(self.script_sig)
         out += self.sequence.to_bytes(4, byteorder="little", signed=False)
         return out
 
@@ -127,7 +127,7 @@ class TxIn(DataClassJsonMixin):
 
         tx_in = cls()
         tx_in.prevout = OutPoint.deserialize(s)
-        tx_in.script_sig = varbytes.decode(s)
+        tx_in.script_sig = varbytes.deserialize(s)
         tx_in.sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
 
         if assert_valid:

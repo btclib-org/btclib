@@ -98,7 +98,7 @@ def segwit_v0(
     preimage += hash_prevouts
     preimage += hash_seq
     preimage += outpoint
-    preimage += varbytes.encode(script_code)
+    preimage += varbytes.serialize(script_code)
     preimage += amount.to_bytes(8, "little")  # value
     preimage += transaction.vin[input_index].sequence.to_bytes(4, "little")
     preimage += hash_outputs

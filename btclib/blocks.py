@@ -280,7 +280,7 @@ class Block(DataClassJsonMixin):
         # followed by the signed little-endian representation of the height
         # (genesis block is height zero).
         coinbase_script = self.transactions[0].vin[0].script_sig
-        height_ = varbytes.decode(coinbase_script)
+        height_ = varbytes.deserialize(coinbase_script)
         return int.from_bytes(height_, byteorder="little", signed=True)
 
     def segwit(self) -> bool:
@@ -314,7 +314,7 @@ class Block(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.header.serialize()
-        out += varint.encode(len(self.transactions))
+        out += varint.serialize(len(self.transactions))
         return out + b"".join([t.serialize(include_witness) for t in self.transactions])
 
     @classmethod
@@ -325,7 +325,7 @@ class Block(DataClassJsonMixin):
 
         block = cls()
         block.header = BlockHeader.deserialize(stream)
-        n = varint.decode(stream)
+        n = varint.deserialize(stream)
         block.transactions = [Tx.deserialize(stream) for _ in range(n)]
 
         if assert_valid:

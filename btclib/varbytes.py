@@ -15,16 +15,16 @@ from .alias import BinaryData, Octets
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
 
-def decode(stream: BinaryData) -> bytes:
+def deserialize(stream: BinaryData) -> bytes:
     """Return the variable-length octets read from a stream."""
 
     stream = bytesio_from_binarydata(stream)
-    i = varint.decode(stream)
+    i = varint.deserialize(stream)
     return stream.read(i)
 
 
-def encode(octets: Octets) -> bytes:
+def serialize(octets: Octets) -> bytes:
     "Return the varint(len(octets)) + octets encoding of octets."
 
     bytes_ = bytes_from_octets(octets)
-    return varint.encode(len(bytes_)) + bytes_
+    return varint.serialize(len(bytes_)) + bytes_

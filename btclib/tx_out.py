@@ -66,7 +66,7 @@ class TxOut(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.value.to_bytes(8, byteorder="little", signed=False)
-        out += varbytes.encode(self.script_pubkey)
+        out += varbytes.serialize(self.script_pubkey)
         return out
 
     @classmethod
@@ -76,7 +76,7 @@ class TxOut(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
         tx_out = cls()
         tx_out.value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
-        tx_out.script_pubkey = varbytes.decode(stream)
+        tx_out.script_pubkey = varbytes.deserialize(stream)
 
         if assert_valid:
             tx_out.assert_valid()

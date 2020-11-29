@@ -42,13 +42,13 @@ def _serialize_dict_bytes_bytes(type_: bytes, d: Dict[bytes, bytes]) -> bytes:
     "Return the binary representation of the dataclass element."
 
     return b"".join(
-        [varbytes.encode(type_ + k) + varbytes.encode(v) for k, v in d.items()]
+        [varbytes.serialize(type_ + k) + varbytes.serialize(v) for k, v in d.items()]
     )
 
 
 def _serialize_bytes(type_: bytes, value: bytes) -> bytes:
     "Return the binary representation of the dataclass element."
-    return varbytes.encode(type_) + varbytes.encode(value)
+    return varbytes.serialize(type_) + varbytes.serialize(value)
 
 
 def _deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:

@@ -34,7 +34,7 @@ from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata, hex_string
 
 
-def decode(stream: BinaryData) -> int:
+def deserialize(stream: BinaryData) -> int:
     """Return the variable-length integer read from a stream."""
 
     stream = bytesio_from_binarydata(stream)
@@ -53,7 +53,7 @@ def decode(stream: BinaryData) -> int:
     return int.from_bytes(stream.read(8), byteorder="little")
 
 
-def encode(i: int) -> bytes:
+def serialize(i: int) -> bytes:
     "Return the varint bytes encoding of an integer."
 
     if i < 0x00:
