@@ -12,6 +12,7 @@
 
 from . import varint
 from .alias import BinaryData, Octets
+from .exceptions import BTClibRuntimeError
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
 
@@ -20,11 +21,14 @@ def deserialize(stream: BinaryData) -> bytes:
 
     stream = bytesio_from_binarydata(stream)
     i = varint.deserialize(stream)
-    return stream.read(i)
+    result = stream.read(i)
+    if len(result) != i:
+        raise BTClibRuntimeError("not enough binary data")
+    return result
 
 
 def serialize(octets: Octets) -> bytes:
-    "Return the varint(len(octets)) + octets encoding of octets."
+    "Return the varint(len(octets)) + octets serialization of octets."
 
     bytes_ = bytes_from_octets(octets)
     return varint.serialize(len(bytes_)) + bytes_
