@@ -30,14 +30,18 @@ from .tx_out import TxOut
 from .utils import bytesio_from_binarydata, hash256
 from .witness import Witness
 
+_SEGWIT_MARKER = b"\x00\x01"
+
 _Tx = TypeVar("_Tx", bound="Tx")
 
 
 @dataclass
 class Tx(DataClassJsonMixin):
+    # 4 bytes, unsigned little endian
     version: int = 0
     vin: List[TxIn] = field(default_factory=list)
     vout: List[TxOut] = field(default_factory=list)
+    # 4 bytes, unsigned little endian
     locktime: int = 0
     # private data member used only for to_dict
     # use the corresponding public properties instead
@@ -71,6 +75,7 @@ class Tx(DataClassJsonMixin):
         compare=False,
         metadata=config(field_name="vsize"),
     )
+    # TODO: add fee when a tx fecther will be available
 
     def _set_properties(self) -> None:
         self._txid = self.txid
@@ -84,7 +89,8 @@ class Tx(DataClassJsonMixin):
 
     @property
     def txid(self) -> bytes:
-        hash256_ = hash256(self.serialize(include_witness=False, assert_valid=False))
+        serialized_ = self.serialize(include_witness=False, assert_valid=False)
+        hash256_ = hash256(serialized_)
         return hash256_[::-1]
 
     @property
@@ -102,7 +108,15 @@ class Tx(DataClassJsonMixin):
         return ceil(self.weight / 4)
 
     def hash(self) -> bytes:
-        return hash256(self.serialize(include_witness=True, assert_valid=False))[::-1]
+        serialized_ = self.serialize(include_witness=True, assert_valid=False)
+        hash256_ = hash256(serialized_)
+        return hash256_[::-1]
+
+    def segwit(self) -> bool:
+        return any(tx_in.witness for tx_in in self.vin)
+
+    def is_coinbase(self) -> bool:
+        return len(self.vin) == 1 and self.vin[0].is_coinbase()
 
     def assert_valid(self) -> None:
 
@@ -126,47 +140,47 @@ class Tx(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.version.to_bytes(4, "little")
-        witness_flag = False
+        segwit = include_witness and self.segwit()
+
+        out = self.version.to_bytes(4, byteorder="little", signed=False)
+        out += _SEGWIT_MARKER if segwit else b""
         out += varint.encode(len(self.vin))
-        for tx_input in self.vin:
-            out += tx_input.serialize(assert_valid=assert_valid)
-            if tx_input.witness:
-                witness_flag = True
+        out += b"".join(tx_in.serialize(assert_valid) for tx_in in self.vin)
         out += varint.encode(len(self.vout))
-        for tx_output in self.vout:
-            out += tx_output.serialize(assert_valid=assert_valid)
-        if witness_flag and include_witness:
-            for tx_input in self.vin:
-                out += tx_input.witness.serialize()
-        out += self.locktime.to_bytes(4, "little")
-        if witness_flag and include_witness:
-            out = out[:4] + b"\x00\x01" + out[4:]
+        out += b"".join(tx_out.serialize(assert_valid) for tx_out in self.vout)
+        if segwit:
+            out += b"".join(tx_in.witness.serialize(assert_valid) for tx_in in self.vin)
+        out += self.locktime.to_bytes(4, byteorder="little", signed=False)
+
         return out
 
     @classmethod
     def deserialize(cls: Type[_Tx], data: BinaryData, assert_valid: bool = True) -> _Tx:
+
         stream = bytesio_from_binarydata(data)
 
         tx = cls()
-        tx.version = int.from_bytes(stream.read(4), "little")
-        view: bytes = stream.getvalue()
-        witness_flag = False
-        if view[stream.tell() : stream.tell() + 2] == b"\x00\x01":
-            witness_flag = True
-            stream.read(2)
 
-        input_count = varint.decode(stream)
-        tx.vin = [TxIn.deserialize(stream) for _ in range(input_count)]
+        tx.version = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
-        output_count = varint.decode(stream)
-        tx.vout = [TxOut.deserialize(stream) for _ in range(output_count)]
+        segwit = stream.read(2) == _SEGWIT_MARKER
+        if not segwit:
+            # Change stream position
+            # Seek to byte offset relative to position indicated by whence
+            whence = 1  # current position
+            stream.seek(-2, whence)
 
-        if witness_flag:
-            for tx_input in tx.vin:
-                tx_input.witness = Witness().deserialize(stream)
+        n = varint.decode(stream)
+        tx.vin = [TxIn.deserialize(stream) for _ in range(n)]
 
-        tx.locktime = int.from_bytes(stream.read(4), "little")
+        n = varint.decode(stream)
+        tx.vout = [TxOut.deserialize(stream) for _ in range(n)]
+
+        if segwit:
+            for tx_in in tx.vin:
+                tx_in.witness = Witness().deserialize(stream)
+
+        tx.locktime = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         if assert_valid:
             tx.assert_valid()
