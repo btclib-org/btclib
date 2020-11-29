@@ -99,6 +99,9 @@ class TxIn(DataClassJsonMixin):
     sequence: int = -1
     witness: Witness = Witness()
 
+    def is_coinbase(self) -> bool:
+        return self.prevout.is_coinbase()
+
     def assert_valid(self) -> None:
         self.prevout.assert_valid()
         # TODO: empty script_sig is valid (add non-regression test)
