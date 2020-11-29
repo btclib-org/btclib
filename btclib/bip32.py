@@ -205,6 +205,7 @@ class BIP32KeyData(DataClassJsonMixin):
     def deserialize(
         cls: Type[_BIP32KeyData], xkey_bin: BinaryData, assert_valid: bool = True
     ) -> _BIP32KeyData:
+        "Return a BIP32KeyData by parsing 73 bytes from binary data."
 
         stream = bytesio_from_binarydata(xkey_bin)
         xkey = cls()
@@ -218,7 +219,6 @@ class BIP32KeyData(DataClassJsonMixin):
 
         if assert_valid:
             xkey.assert_valid()
-
         return xkey
 
     def b58encode(self, assert_valid: bool = True) -> bytes:

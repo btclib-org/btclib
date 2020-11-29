@@ -184,10 +184,11 @@ class BlockHeader(DataClassJsonMixin):
     def deserialize(
         cls: Type[_BlockHeader], data: BinaryData, assert_valid: bool = True
     ) -> _BlockHeader:
-        "Return a BlockHeader by parsing 80 bytes from a byte stream."
-        stream = bytesio_from_binarydata(data)
+        "Return a BlockHeader by parsing 80 bytes from binary data."
 
+        stream = bytesio_from_binarydata(data)
         header = cls()
+
         header.version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
         header.previous_block_hash = stream.read(32)[::-1]
         header.merkle_root = stream.read(32)[::-1]
@@ -321,9 +322,11 @@ class Block(DataClassJsonMixin):
     def deserialize(
         cls: Type[_Block], data: BinaryData, assert_valid: bool = True
     ) -> _Block:
-        stream = bytesio_from_binarydata(data)
+        "Return a Block by parsing binary data."
 
+        stream = bytesio_from_binarydata(data)
         block = cls()
+
         block.header = BlockHeader.deserialize(stream)
         n = varint.deserialize(stream)
         block.transactions = [Tx.deserialize(stream) for _ in range(n)]

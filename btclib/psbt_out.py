@@ -192,6 +192,9 @@ class PsbtOut(DataClassJsonMixin):
     def deserialize(
         cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], assert_valid: bool = True
     ) -> _PsbtOut:
+        "Return a PsbtOut by parsing binary data."
+
+        # FIX deserialize must use BinaryData
         out = cls()
         for k, v in output_map.items():
             if k[0:1] == PSBT_OUT_REDEEM_SCRIPT:

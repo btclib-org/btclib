@@ -156,9 +156,9 @@ class Tx(DataClassJsonMixin):
 
     @classmethod
     def deserialize(cls: Type[_Tx], data: BinaryData, assert_valid: bool = True) -> _Tx:
+        "Return a Tx by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
-
         tx = cls()
 
         tx.version = int.from_bytes(stream.read(4), byteorder="little", signed=False)

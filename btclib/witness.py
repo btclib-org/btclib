@@ -52,11 +52,11 @@ class Witness(DataClassJsonMixin):
     def deserialize(
         cls: Type[_Witness], data: BinaryData, assert_valid: bool = True
     ) -> _Witness:
-        "Return a Witness from the provided data."
+        "Return a Witness by parsing binary data."
 
         data = bytesio_from_binarydata(data)
-
         witness = cls()
+
         n = varint.deserialize(data)
         witness.items = [varbytes.deserialize(data) for _ in range(n)]
 

@@ -188,6 +188,7 @@ class Psbt(DataClassJsonMixin):
     def deserialize(
         cls: Type[_Psbt], psbt_bin: Octets, assert_valid: bool = True
     ) -> _Psbt:
+        "Return a Psbt by parsing binary data."
 
         # FIXME: psbt_bin should be BinaryData
         # stream = bytesio_from_binarydata(psbt_bin)
@@ -226,7 +227,6 @@ class Psbt(DataClassJsonMixin):
 
         if assert_valid:
             psbt.assert_valid()
-
         return psbt
 
     def b64encode(self, assert_valid: bool = True) -> bytes:

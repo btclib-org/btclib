@@ -235,6 +235,9 @@ class PsbtIn(DataClassJsonMixin):
     def deserialize(
         cls: Type[_PsbtIn], input_map: Dict[bytes, bytes], assert_valid: bool = True
     ) -> _PsbtIn:
+        "Return a PsbtIn by parsing binary data."
+
+        # FIX deserialize must use BinaryData
         out = cls()
         for k, v in input_map.items():
             if k[0:1] == PSBT_IN_NON_WITNESS_UTXO:
