@@ -220,7 +220,7 @@ class Block(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
 
-        if not self.transactions[0].vin[0].prevout.is_coinbase():
+        if not self.transactions[0].is_coinbase():
             raise BTClibValueError("first transaction is not a coinbase")
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
