@@ -49,7 +49,7 @@ Octets = Union[bytes, str]
 # "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
 # "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
 #
-# also BMSSig (Bitcoin message compact signature serialization),
+# also BmsSig (Bitcoin message compact signature serialization),
 #
 # In almost all cases (but messages to be signed)
 # leading/trailing blanks should always be stripped

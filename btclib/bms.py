@@ -152,12 +152,12 @@ from .secpoint import bytes_from_point
 from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
 from .utils import bytesio_from_binarydata, hash160
 
-_BMSSig = TypeVar("_BMSSig", bound="BMSSig")
+_BMSSig = TypeVar("_BMSSig", bound="BmsSig")
 _EXPECTED_DECODED_LENGHT = 65
 
 
 @dataclass
-class BMSSig(DataClassJsonMixin):
+class BmsSig(DataClassJsonMixin):
     # 1 byte
     rf: int = 0
     dsa_sig: DerSig = DerSig(ec=secp256k1, check_validity=False)
@@ -270,7 +270,7 @@ def _magic_message(msg: String) -> bytes:
     return sha256(t).digest()
 
 
-def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSSig:
+def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BmsSig:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -304,15 +304,15 @@ def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> BMSSig:
     else:
         raise BTClibValueError("mismatch between private key and address")
 
-    return BMSSig(rf, dsa_sig)
+    return BmsSig(rf, dsa_sig)
 
 
-def assert_as_valid(msg: String, addr: String, sig: Union[BMSSig, String]) -> None:
+def assert_as_valid(msg: String, addr: String, sig: Union[BmsSig, String]) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    if not isinstance(sig, BMSSig):
-        sig = BMSSig.b64decode(sig)
+    if not isinstance(sig, BmsSig):
+        sig = BmsSig.b64decode(sig)
     else:
         sig.assert_valid()  # 1
 
@@ -361,7 +361,7 @@ def assert_as_valid(msg: String, addr: String, sig: Union[BMSSig, String]) -> No
             raise BTClibValueError(err_msg)
 
 
-def verify(msg: String, addr: String, sig: Union[BMSSig, String]) -> bool:
+def verify(msg: String, addr: String, sig: Union[BmsSig, String]) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # all kind of Exceptions are catched because
