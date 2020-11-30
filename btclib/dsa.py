@@ -24,7 +24,7 @@ from typing import List, Optional, Tuple, Union
 from .alias import HashF, JacPoint, Octets, Point, String
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult
-from .der import DerSig
+from .der import Sig
 from .exceptions import BTClibRuntimeError, BTClibValueError
 from .hashes import reduce_to_hlen
 from .numbertheory import mod_inv
@@ -67,7 +67,7 @@ def challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     return _challenge(m, ec, hf)
 
 
-def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DerSig:
+def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and k are in [1, n-1]
@@ -93,7 +93,7 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> DerSig:
     if low_s and s > ec.n / 2:
         s = ec.n - s  # s = - s % ec.n
 
-    return DerSig(r, s, ec)
+    return Sig(r, s, ec)
 
 
 def _sign(
@@ -103,7 +103,7 @@ def _sign(
     low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> DerSig:
+) -> Sig:
     """Sign a hlen bytes message according to ECDSA signature algorithm.
 
     If the deterministic nonce is not provided,
@@ -137,7 +137,7 @@ def sign(
     low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> DerSig:
+) -> Sig:
     """ECDSA signature with canonical low-s preference.
 
     Implemented according to SEC 1 v.2
@@ -185,13 +185,13 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
 
 def _assert_as_valid(
-    m: Octets, key: Key, sig: Union[DerSig, Octets], hf: HashF = sha256
+    m: Octets, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    if not isinstance(sig, DerSig):
-        sig = DerSig.deserialize(sig)
+    if not isinstance(sig, Sig):
+        sig = Sig.deserialize(sig)
     else:
         sig.assert_valid()  # 1
 
@@ -207,7 +207,7 @@ def _assert_as_valid(
 
 
 def assert_as_valid(
-    msg: String, key: Key, sig: Union[DerSig, Octets], hf: HashF = sha256
+    msg: String, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -216,9 +216,7 @@ def assert_as_valid(
     _assert_as_valid(m, key, sig, hf)
 
 
-def _verify(
-    m: Octets, key: Key, sig: Union[DerSig, Octets], hf: HashF = sha256
-) -> bool:
+def _verify(m: Octets, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # all kind of Exceptions are catched because
@@ -231,9 +229,7 @@ def _verify(
         return True
 
 
-def verify(
-    msg: String, key: Key, sig: Union[DerSig, Octets], hf: HashF = sha256
-) -> bool:
+def verify(msg: String, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     m = reduce_to_hlen(msg, hf)
@@ -241,7 +237,7 @@ def verify(
 
 
 def recover_pubkeys(
-    msg: String, sig: Union[DerSig, Octets], hf: HashF = sha256
+    msg: String, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
@@ -254,7 +250,7 @@ def recover_pubkeys(
 
 
 def _recover_pubkeys(
-    m: Octets, sig: Union[DerSig, Octets], hf: HashF = sha256
+    m: Octets, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
@@ -262,8 +258,8 @@ def _recover_pubkeys(
     https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
 
-    if not isinstance(sig, DerSig):
-        sig = DerSig.deserialize(sig)
+    if not isinstance(sig, Sig):
+        sig = Sig.deserialize(sig)
     else:
         sig.assert_valid()  # 1
 
@@ -344,19 +340,19 @@ def __recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint
 
 def _crack_prvkey(
     m_1: Octets,
-    sig1: Union[DerSig, Octets],
+    sig1: Union[Sig, Octets],
     m_2: Octets,
-    sig2: Union[DerSig, Octets],
+    sig2: Union[Sig, Octets],
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    if not isinstance(sig1, DerSig):
-        sig1 = DerSig.deserialize(sig1)
+    if not isinstance(sig1, Sig):
+        sig1 = Sig.deserialize(sig1)
     else:
         sig1.assert_valid()  # 1
 
-    if not isinstance(sig2, DerSig):
-        sig2 = DerSig.deserialize(sig2)
+    if not isinstance(sig2, Sig):
+        sig2 = Sig.deserialize(sig2)
     else:
         sig2.assert_valid()  # 1
 
@@ -382,9 +378,9 @@ def _crack_prvkey(
 
 def crack_prvkey(
     msg1: String,
-    sig1: Union[DerSig, Octets],
+    sig1: Union[Sig, Octets],
     msg2: String,
-    sig2: Union[DerSig, Octets],
+    sig2: Union[Sig, Octets],
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 

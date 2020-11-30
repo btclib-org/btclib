@@ -42,7 +42,8 @@ def test_signature() -> None:
     sig = ssa.sign(msg, q)
     ssa.assert_as_valid(msg, x_Q, sig)
     assert ssa.verify(msg, x_Q, sig)
-    assert sig == ssa.SsaSig.deserialize(sig.serialize())
+    assert sig == ssa.Sig.deserialize(sig.serialize())
+    assert sig == ssa.Sig.deserialize(sig.serialize().hex())
 
     msg_fake = "Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
@@ -66,13 +67,13 @@ def test_signature() -> None:
     with pytest.raises(BTClibTypeError, match=err_msg):
         ssa.point_from_bip340pubkey(INF)  # type: ignore
 
-    sig_invalid = ssa.SsaSig(sig.ec.p, sig.s, check_validity=False)
+    sig_invalid = ssa.Sig(sig.ec.p, sig.s, check_validity=False)
     assert not ssa.verify(msg, x_Q, sig_invalid)
     err_msg = "x-coordinate not in 0..p-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
-    sig_invalid = ssa.SsaSig(sig.r, sig.ec.p, check_validity=False)
+    sig_invalid = ssa.Sig(sig.r, sig.ec.p, check_validity=False)
     assert not ssa.verify(msg, x_Q, sig_invalid)
     err_msg = "scalar s not in 0..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -124,7 +125,7 @@ def test_bip340_vectors() -> None:
                     k = ssa._det_nonce(m, seckey, aux_rand)
                     sig_actual = ssa._sign(m, seckey, k)
                     ssa._assert_as_valid(m, pubkey, sig_actual)
-                    assert ssa.SsaSig.deserialize(sig) == sig_actual, err_msg
+                    assert ssa.Sig.deserialize(sig) == sig_actual, err_msg
 
                 if comment:
                     err_msg += ": " + comment
@@ -216,7 +217,7 @@ def test_low_cardinality() -> None:
                         # recover pubkey
                         assert x_Q == ssa.__recover_pubkey(e, r, s, ec)
 
-                        assert ssa.SsaSig(r, s, ec) == sig
+                        assert ssa.Sig(r, s, ec) == sig
                         # valid signature must validate
                         ssa.__assert_as_valid(e, QJ, r, s, ec)
 
@@ -251,7 +252,7 @@ def test_batch_validation() -> None:
 
     ms: List[String] = []
     Qs: List[int] = []
-    sigs: List[ssa.SsaSig] = []
+    sigs: List[ssa.Sig] = []
     err_msg = "no signatures provided"
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_batch_as_valid(ms, Qs, sigs)
@@ -387,7 +388,7 @@ def test_musig() -> None:
 
     # finalize signature (non interactive)
     s = (s_1 + s_2 + s3) % ec.n
-    sig = ssa.SsaSig(r, s, ec)
+    sig = ssa.Sig(r, s, ec)
     # check signature is valid
     ssa._assert_as_valid(m, Q[0], sig, hf)
 
@@ -689,7 +690,7 @@ def test_threshold() -> None:
     omega3 = 1 * mod_inv(1 - 3, ec.n) % ec.n
     sigma = (gamma1 * omega1 + gamma3 * omega3) % ec.n
 
-    sig = ssa.SsaSig(K[0], sigma, ec)
+    sig = ssa.Sig(K[0], sigma, ec)
 
     assert ssa.verify(msg, Q[0], sig)
 

@@ -20,7 +20,6 @@ from btclib import base58address, bech32address, bip32, bms, dsa
 from btclib.base58address import p2pkh, p2wpkh_p2sh
 from btclib.base58wif import wif_from_prvkey
 from btclib.bech32address import p2wpkh
-from btclib.bms import BmsSig
 from btclib.curve import secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.to_prvkey import prvkeyinfo_from_prvkey
@@ -35,8 +34,10 @@ def test_signature() -> None:
     sig = bms.sign(msg, wif)
     bms.assert_as_valid(msg, addr, sig)
     assert bms.verify(msg, addr, sig)
-    assert sig == BmsSig.deserialize(sig.serialize())
-    assert sig == BmsSig.b64decode(sig.b64encode())
+    assert sig == bms.Sig.deserialize(sig.serialize())
+    assert sig == bms.Sig.deserialize(sig.serialize().hex())
+    assert sig == bms.Sig.b64decode(sig.b64encode())
+    assert sig == bms.Sig.b64decode(sig.b64encode().decode("ascii"))
 
     # sig taken from (Electrum and) Bitcoin Core
     wif, addr = bms.gen_keys("5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw")
@@ -58,7 +59,7 @@ def test_exceptions() -> None:
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
     assert bms.verify(msg, address, exp_sig)
 
-    bms_sig = BmsSig.b64decode(exp_sig)
+    bms_sig = bms.Sig.b64decode(exp_sig)
     bms_sig.rf = 26
     err_msg = "invalid recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -112,7 +113,7 @@ def test_exceptions() -> None:
 
     # Invalid recovery flag (39) for base58 address
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
-    bms_sig = BmsSig.b64decode(exp_sig)
+    bms_sig = bms.Sig.b64decode(exp_sig)
     bms_sig.rf = 39
     sig_encoded = bms_sig.b64encode(assert_valid=False)
     err_msg = "invalid recovery flag: "
@@ -121,7 +122,7 @@ def test_exceptions() -> None:
 
     # Invalid recovery flag (35) for bech32 address
     exp_sig = "IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
-    bms_sig = BmsSig.b64decode(exp_sig)
+    bms_sig = bms.Sig.b64decode(exp_sig)
     bms_sig.rf = 35
     err_msg = "invalid recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -508,7 +509,7 @@ def test_vector_python_bitcoinlib() -> None:
 
         # python-bitcoinlib does not use RFC6979 deterministic nonce
         # as proved by different r compared to Core/Electrum/btclib
-        test_vector_sig = BmsSig.b64decode(vector["signature"])
+        test_vector_sig = bms.Sig.b64decode(vector["signature"])
         assert bsm_sig.dsa_sig.r != test_vector_sig.dsa_sig.r
 
         # while Core/Electrum/btclib use "low-s" canonical signature
@@ -550,7 +551,7 @@ def test_ledger() -> None:
     # save key_id and patch dersig
     dersig = bytes.fromhex(dersig_hex_str)
     key_id = dersig[0]
-    dsa_sig = dsa.DerSig.deserialize(b"\x30" + dersig[1:])
+    dsa_sig = dsa.Sig.deserialize(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
     dsa.assert_as_valid(magic_msg, xprv, dsa_sig, hf)
@@ -561,7 +562,7 @@ def test_ledger() -> None:
 
     # equivalent Bitcoin Message Signature
     rec_flag = 27 + 4 + (key_id & 0x01)
-    bms_sig = bms.BmsSig(rec_flag, dsa_sig)
+    bms_sig = bms.Sig(rec_flag, dsa_sig)
 
     # Bitcoin Message Signature verification
     bms.assert_as_valid(msg, addr, bms_sig)
@@ -585,7 +586,7 @@ def test_ledger() -> None:
     # save key_id and patch dersig
     dersig = bytes.fromhex(dersig_hex_str)
     key_id = dersig[0]
-    dsa_sig = dsa.DerSig.deserialize(b"\x30" + dersig[1:])
+    dsa_sig = dsa.Sig.deserialize(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
     dsa.assert_as_valid(magic_msg, xprv, dsa_sig, hf)
@@ -596,7 +597,7 @@ def test_ledger() -> None:
 
     # equivalent Bitcoin Message Signature
     rec_flag = 27 + 4 + (key_id & 0x01)
-    bms_sig = bms.BmsSig(rec_flag, dsa_sig)
+    bms_sig = bms.Sig(rec_flag, dsa_sig)
 
     # Bitcoin Message Signature verification
     bms.assert_as_valid(msg_str, addr, bms_sig)

@@ -68,13 +68,11 @@ from . import varbytes
 from .alias import BinaryData
 from .curve import Curve, secp256k1
 from .exceptions import BTClibValueError
-from .script import SIGHASHES
 from .utils import bytesio_from_binarydata, hex_string
 
 _DER_SCALAR_MARKER = b"\x02"
 _DER_SIG_MARKER = b"\x30"
-_DER_SIG = TypeVar("_DER_SIG", bound="DerSig")
-_SIGHASH_DER_SIG = TypeVar("_SIGHASH_DER_SIG", bound="SighashDerSig")
+_DER_SIG = TypeVar("_DER_SIG", bound="Sig")
 
 
 def _serialize_scalar(scalar: int) -> bytes:
@@ -101,7 +99,7 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
 
 
 @dataclass
-class DerSig(DataClassJsonMixin):
+class Sig(DataClassJsonMixin):
     # 32 bytes
     r: int = field(
         default=-1, metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
@@ -150,7 +148,7 @@ class DerSig(DataClassJsonMixin):
     def deserialize(
         cls: Type[_DER_SIG], data: BinaryData, assert_valid: bool = True
     ) -> _DER_SIG:
-        """Return a DerSig by parsing binary data.
+        """Return a Sig by parsing binary data.
 
         Deserialize a strict ASN.1 DER representation of an ECDSA signature.
         """
@@ -178,60 +176,6 @@ class DerSig(DataClassJsonMixin):
         if sig_data_substream.read(1) != b"":
             err_msg = "invalid DER size"
             raise BTClibValueError(err_msg)
-
-        if assert_valid:
-            sig.assert_valid()
-        return sig
-
-
-@dataclass
-class SighashDerSig(DataClassJsonMixin):
-    dsa_sig: DerSig = DerSig(check_validity=False)
-    # 1 byte
-    sighash: int = field(
-        default=-1,
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
-    )
-    check_validity: InitVar[bool] = True
-
-    def __post_init__(self, check_validity: bool) -> None:
-        if check_validity:
-            self.assert_valid()
-
-    def assert_valid(self) -> None:
-        self.dsa_sig.assert_valid()
-        if self.sighash not in SIGHASHES:
-            raise BTClibValueError(f"invalid sighash: {hex(self.sighash)}")
-
-    def serialize(self, assert_valid: bool = True) -> bytes:
-        """Serialize an ECDSA signature to strict ASN.1 DER representation.
-
-        Trailing sighash is added if provided.
-        """
-
-        if assert_valid:
-            self.assert_valid()
-
-        out = self.dsa_sig.serialize(assert_valid)
-        out += self.sighash.to_bytes(1, "big")
-        return out
-
-    @classmethod
-    def deserialize(
-        cls: Type[_SIGHASH_DER_SIG], data: BinaryData, assert_valid: bool = True
-    ) -> _SIGHASH_DER_SIG:
-        """Return a DerSig by parsing binary data.
-
-        Deserialize a strict ASN.1 DER representation of an ECDSA signature.
-        """
-
-        stream = bytesio_from_binarydata(data)
-        sig = cls(check_validity=False)
-
-        # [0x30] [data-size][0x02][r-size][r][0x02][s-size][s] [sighash]
-        sig.dsa_sig = DerSig.deserialize(stream)
-        # [sighash]
-        sig.sighash = int.from_bytes(stream.read(1), "big")
 
         if assert_valid:
             sig.assert_valid()

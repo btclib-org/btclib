@@ -30,7 +30,8 @@ from typing import Any, Callable, List, Tuple, Union
 #
 # Octets are used for serialized script, h160 (20 bytes), h256 (32 bytes),
 # BIP32 version (4 bytes), sighash (1 byte),
-# DerSig (DER serialization of ECDSA signature),
+# dsa.Sig (DER serialization of ECDSA signature),
+# ssa.Sig (BIP340 serialization of Schnorr signature)
 # etc.
 Octets = Union[bytes, str]
 
@@ -49,7 +50,7 @@ Octets = Union[bytes, str]
 # "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
 # "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
 #
-# also BmsSig (Bitcoin message compact signature serialization),
+# also bms.Sig (Bitcoin message compact signature serialization),
 #
 # In almost all cases (but messages to be signed)
 # leading/trailing blanks should always be stripped

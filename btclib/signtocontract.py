@@ -39,7 +39,6 @@ from typing import Optional, Tuple
 from . import dsa, ssa
 from .alias import HashF, Octets, Point
 from .curve import Curve, mult, secp256k1
-from .der import DerSig
 from .rfc6979 import _rfc6979
 from .secpoint import bytes_from_point
 from .to_prvkey import PrvKey, int_from_prvkey
@@ -73,7 +72,7 @@ def ecdsa_commit_sign(
     k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[DerSig, Receipt]:
+) -> Tuple[dsa.Sig, Receipt]:
     """Include a commitment c inside an ECDSA signature."""
 
     k = _rfc6979(m, prvkey, ec, hf) if k is None else int_from_prvkey(k, ec)
@@ -93,7 +92,7 @@ def ecssa_commit_sign(
     k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[ssa.SsaSig, Receipt]:
+) -> Tuple[ssa.Sig, Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
     k = ssa._det_nonce(m, prvkey, None, ec, hf) if k is None else int_from_prvkey(k, ec)

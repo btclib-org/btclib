@@ -72,11 +72,11 @@ from .utils import (
     int_from_bits,
 )
 
-_SSA_SIG = TypeVar("_SSA_SIG", bound="SsaSig")
+_SSA_SIG = TypeVar("_SSA_SIG", bound="Sig")
 
 
 @dataclass
-class SsaSig(DataClassJsonMixin):
+class Sig(DataClassJsonMixin):
     """BIP340-Schnorr signature.
 
     r is a _field_element_, 0 <= r < ec.p
@@ -129,10 +129,6 @@ class SsaSig(DataClassJsonMixin):
     def deserialize(
         cls: Type[_SSA_SIG], data: BinaryData, assert_valid: bool = True
     ) -> _SSA_SIG:
-        """Return a DerSig by parsing binary data.
-
-        Deserialize a strict ASN.1 DER representation of an ECDSA signature.
-        """
 
         stream = bytesio_from_binarydata(data)
         sig = cls(check_validity=False)
@@ -321,7 +317,7 @@ def challenge(
     return _challenge(m, Q, K, ec, hf)
 
 
-def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> SsaSig:
+def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [1, n-1], while q and k are in [1, n-1]
@@ -332,7 +328,7 @@ def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> SsaSig:
     # s=0 is ok: in verification there is no inverse of s
     s = (k + c * q) % ec.n
 
-    return SsaSig(r, s, ec)
+    return Sig(r, s, ec)
 
 
 def _sign(
@@ -341,7 +337,7 @@ def _sign(
     k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> SsaSig:
+) -> Sig:
     """Sign a hlen bytes message according to BIP340 signature algorithm.
 
     If the deterministic nonce is not provided,
@@ -367,9 +363,7 @@ def _sign(
     return __sign(c, q, k, x_K, ec)
 
 
-def sign(
-    msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
-) -> SsaSig:
+def sign(msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256) -> Sig:
     """Sign message according to BIP340 signature algorithm.
 
     The message msg is first processed by hf, yielding the value
@@ -410,13 +404,13 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
 
 def _assert_as_valid(
-    m: Octets, Q: BIP340PubKey, sig: Union[SsaSig, Octets], hf: HashF = sha256
+    m: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    if not isinstance(sig, SsaSig):
-        sig = SsaSig.deserialize(sig)
+    if not isinstance(sig, Sig):
+        sig = Sig.deserialize(sig)
     else:
         sig.assert_valid()  # 1
 
@@ -429,7 +423,7 @@ def _assert_as_valid(
 
 
 def assert_as_valid(
-    msg: String, Q: BIP340PubKey, sig: Union[SsaSig, Octets], hf: HashF = sha256
+    msg: String, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> None:
 
     m = reduce_to_hlen(msg, hf)
@@ -437,7 +431,7 @@ def assert_as_valid(
 
 
 def _verify(
-    m: Octets, Q: BIP340PubKey, sig: Union[SsaSig, Octets], hf: HashF = sha256
+    m: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
 
@@ -452,7 +446,7 @@ def _verify(
 
 
 def verify(
-    msg: String, Q: BIP340PubKey, sig: Union[SsaSig, Octets], hf: HashF = sha256
+    msg: String, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
@@ -479,20 +473,20 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
 
 def _crack_prvkey(
     m_1: Octets,
-    sig1: Union[SsaSig, Octets],
+    sig1: Union[Sig, Octets],
     m_2: Octets,
-    sig2: Union[SsaSig, Octets],
+    sig2: Union[Sig, Octets],
     Q: BIP340PubKey,
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    if not isinstance(sig1, SsaSig):
-        sig1 = SsaSig.deserialize(sig1)
+    if not isinstance(sig1, Sig):
+        sig1 = Sig.deserialize(sig1)
     else:
         sig1.assert_valid()  # 1
 
-    if not isinstance(sig2, SsaSig):
-        sig2 = SsaSig.deserialize(sig2)
+    if not isinstance(sig2, Sig):
+        sig2 = Sig.deserialize(sig2)
     else:
         sig2.assert_valid()  # 1
 
@@ -521,9 +515,9 @@ def _crack_prvkey(
 
 def crack_prvkey(
     msg1: String,
-    sig1: Union[SsaSig, Octets],
+    sig1: Union[Sig, Octets],
     msg2: String,
-    sig2: Union[SsaSig, Octets],
+    sig2: Union[Sig, Octets],
     Q: BIP340PubKey,
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
@@ -537,7 +531,7 @@ def crack_prvkey(
 def _assert_batch_as_valid(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
-    sigs: Sequence[SsaSig],
+    sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> None:
 
@@ -602,7 +596,7 @@ def _assert_batch_as_valid(
 def assert_batch_as_valid(
     ms: Sequence[String],
     Qs: Sequence[BIP340PubKey],
-    sigs: Sequence[SsaSig],
+    sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> None:
 
@@ -613,7 +607,7 @@ def assert_batch_as_valid(
 def _batch_verify(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
-    sigs: Sequence[SsaSig],
+    sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> bool:
 
@@ -630,7 +624,7 @@ def _batch_verify(
 def batch_verify(
     ms: Sequence[String],
     Qs: Sequence[BIP340PubKey],
-    sigs: Sequence[SsaSig],
+    sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> bool:
     """Batch verification of BIP340 signatures."""

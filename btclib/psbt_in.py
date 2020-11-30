@@ -18,8 +18,7 @@ from typing import Dict, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import secpoint
-from .der import DerSig
+from . import dsa, secpoint
 from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_out import (
     _assert_valid_bip32_derivs,
@@ -138,7 +137,7 @@ def _assert_valid_partial_signatures(partial_signatures: Dict[bytes, bytes]) -> 
             err_msg = "invalid partial signature pubkey: {pubkey!r}"
             raise BTClibValueError(err_msg) from e
         try:
-            DerSig.deserialize(sig)
+            dsa.Sig.deserialize(sig)
         except BTClibValueError as e:
             err_msg = f"invalid partial signature: {sig!r}"
             raise BTClibValueError(err_msg) from e

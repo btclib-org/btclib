@@ -19,7 +19,6 @@ from btclib import dsa
 from btclib.alias import INF
 from btclib.curve import CURVES, double_mult, mult
 from btclib.curvegroup import _mult
-from btclib.der import DerSig
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.numbertheory import mod_inv
@@ -34,7 +33,8 @@ def test_signature() -> None:
     sig = dsa.sign(msg, q)
     dsa.assert_as_valid(msg, Q, sig)
     assert dsa.verify(msg, Q, sig)
-    assert sig == DerSig.deserialize(sig.serialize())
+    assert sig == dsa.Sig.deserialize(sig.serialize())
+    assert sig == dsa.Sig.deserialize(sig.serialize().hex())
 
     # https://bitcointalk.org/index.php?topic=285142.40
     # Deterministic Usage of DSA and ECDSA (RFC 6979)
@@ -46,7 +46,7 @@ def test_signature() -> None:
     assert sig.s in (exp_sig[1], sig.ec.n - exp_sig[1])
 
     # malleability
-    malleated_sig = DerSig(sig.r, sig.ec.n - sig.s)
+    malleated_sig = dsa.Sig(sig.r, sig.ec.n - sig.s)
     assert dsa.verify(msg, Q, malleated_sig)
 
     keys = dsa.recover_pubkeys(msg, sig)
@@ -69,13 +69,13 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, INF, sig)
 
-    sig_invalid = DerSig(sig.ec.p, sig.s, check_validity=False)
+    sig_invalid = dsa.Sig(sig.ec.p, sig.s, check_validity=False)
     assert not dsa.verify(msg, Q, sig_invalid)
     err_msg = "scalar r not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, Q, sig_invalid)
 
-    sig_invalid = DerSig(sig.r, sig.ec.p, check_validity=False)
+    sig_invalid = dsa.Sig(sig.r, sig.ec.p, check_validity=False)
     assert not dsa.verify(msg, Q, sig_invalid)
     err_msg = "scalar s not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -219,13 +219,13 @@ def test_crack_prvkey() -> None:
     qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
 
     #  if the low_s convention has changed only one of s1 and s2
-    sig2 = DerSig(sig2.r, ec.n - sig2.s)
+    sig2 = dsa.Sig(sig2.r, ec.n - sig2.s)
     qc2, kc2 = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
 
     assert (q == qc and k in (kc, ec.n - kc)) or (q == qc2 and k in (kc2, ec.n - kc2))
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        dsa.crack_prvkey(msg1, sig1, msg2, DerSig(16, sig1.s))
+        dsa.crack_prvkey(msg1, sig1, msg2, dsa.Sig(16, sig1.s))
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
         dsa.crack_prvkey(msg1, sig1, msg1, sig1)
