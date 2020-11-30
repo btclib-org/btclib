@@ -60,7 +60,7 @@ Moreover, no such rule exists for r.
 
 from dataclasses import InitVar, dataclass, field
 from io import BytesIO
-from typing import Optional, Type, TypeVar
+from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
@@ -188,8 +188,8 @@ class DerSig(DataClassJsonMixin):
 class SighashDerSig(DataClassJsonMixin):
     dsa_sig: DerSig = DerSig(check_validity=False)
     # 1 byte
-    sighash: Optional[int] = field(
-        default=None,
+    sighash: int = field(
+        default=-1,
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
     check_validity: InitVar[bool] = True
@@ -200,7 +200,7 @@ class SighashDerSig(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         self.dsa_sig.assert_valid()
-        if self.sighash is not None and self.sighash not in SIGHASHES:
+        if self.sighash not in SIGHASHES:
             raise BTClibValueError(f"invalid sighash: {hex(self.sighash)}")
 
     def serialize(self, assert_valid: bool = True) -> bytes:
@@ -213,7 +213,7 @@ class SighashDerSig(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.dsa_sig.serialize(assert_valid)
-        out += b"" if self.sighash is None else self.sighash.to_bytes(1, "big")
+        out += self.sighash.to_bytes(1, "big")
         return out
 
     @classmethod
