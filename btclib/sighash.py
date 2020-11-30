@@ -15,12 +15,14 @@ from . import script, tx, tx_out, varbytes
 from .alias import Octets, ScriptToken
 from .exceptions import BTClibTypeError, BTClibValueError
 from .scriptpubkey import payload_from_script_pubkey
-from .utils import hash256
+from .utils import bytes_from_octets, hash256
 
 
 # workaround to handle CTransactions
-def _get_bytes(a: Union[int, bytes]) -> bytes:
-    return int.to_bytes(a, 32, "big") if isinstance(a, int) else a
+def _get_bytes(a: Union[int, Octets]) -> bytes:
+    if isinstance(a, int):
+        return int.to_bytes(a, 32, "big")
+    return bytes_from_octets(a, 32)
 
 
 def legacy(
@@ -108,7 +110,7 @@ def segwit_v0(
     return hash256(preimage)
 
 
-def _get_legacy_script_codes(script_pubkey: bytes) -> List[bytes]:
+def _get_legacy_script_codes(script_pubkey: Octets) -> List[bytes]:
     script_codes: List[bytes] = []
     current_script: List[ScriptToken] = []
     for token in script.deserialize(script_pubkey)[::-1]:

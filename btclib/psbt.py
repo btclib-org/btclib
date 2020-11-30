@@ -117,6 +117,8 @@ class Psbt(DataClassJsonMixin):
 
     def assert_signable(self) -> None:
 
+        self.assert_valid()
+
         for i, tx_in in enumerate(self.tx.vin):
 
             non_witness_utxo = self.inputs[i].non_witness_utxo
