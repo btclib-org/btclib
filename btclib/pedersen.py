@@ -34,7 +34,7 @@ from hashlib import sha256
 
 from .alias import HashF, Point
 from .curve import Curve, double_mult, secp256k1
-from .exceptions import BTClibValueError
+from .exceptions import BTClibRuntimeError, BTClibValueError
 from .secpoint import bytes_from_point
 from .utils import int_from_bits
 
@@ -83,7 +83,9 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     H = second_generator(ec, hf)
     Q = double_mult(v, H, r, ec.G, ec)
     # edge case that cannot be reproduced in the test suite
-    assert Q[1] != 0, "invalid (INF) key"
+    if Q[1] == 0:
+        err_msg = "invalid (INF) key"  # pragma: no cover
+        raise BTClibRuntimeError(err_msg)  # pragma: no cover
     return Q
 
 

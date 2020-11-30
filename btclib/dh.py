@@ -25,7 +25,7 @@ from typing import Optional
 
 from .alias import HashF, Point
 from .curve import Curve, mult, secp256k1
-from .exceptions import BTClibValueError
+from .exceptions import BTClibRuntimeError, BTClibValueError
 
 
 def ansi_x9_63_kdf(
@@ -70,7 +70,9 @@ def diffie_hellman(
 
     shared_secret_point = mult(dU, QV, ec)
     # edge case that cannot be reproduced in the test suite
-    assert shared_secret_point[1] != 0, "invalid (INF) key"
+    if shared_secret_point[1] == 0:
+        err_msg = "invalid (INF) key"  # pragma: no cover
+        raise BTClibRuntimeError(err_msg)  # pragma: no cover
     shared_secret_field_element = shared_secret_point[0]
     z = shared_secret_field_element.to_bytes(ec.psize, "big")
     return ansi_x9_63_kdf(z, size, hf, shared_info)

@@ -471,7 +471,9 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     e1 = mod_inv(c, ec.n)
     QJ = _double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
     # edge case that cannot be reproduced in the test suite
-    assert QJ[2] != 0, "invalid (INF) key"
+    if QJ[2] == 0:
+        err_msg = "invalid (INF) key"  # pragma: no cover
+        raise BTClibRuntimeError(err_msg)  # pragma: no cover
     return ec._x_aff_from_jac(QJ)
 
 

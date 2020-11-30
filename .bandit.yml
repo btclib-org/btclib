@@ -1,0 +1,9 @@
+# not dangerous in Python >= 3.5
+# https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b309-httpsconnection
+# B309 : httpsconnection
+
+# not dangerous in Python 3
+# https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b322-input
+# B322 : input
+
+skips: [B309, B322]

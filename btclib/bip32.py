@@ -277,7 +277,7 @@ def rootxprv_from_seed(
     return key_data.b58encode()
 
 
-def mxprv_from_bip39_mnemonic(
+def mxprv_from_bip39_mnemonic(  # nosec
     mnemonic: Mnemonic, passphrase: str = "", network: str = "mainnet"
 ) -> bytes:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
@@ -287,7 +287,7 @@ def mxprv_from_bip39_mnemonic(
     return rootxprv_from_seed(seed, version)
 
 
-def mxprv_from_electrum_mnemonic(
+def mxprv_from_electrum_mnemonic(  # nosec
     mnemonic: Mnemonic, passphrase: str = "", network: str = "mainnet"
 ) -> bytes:
     """Return BIP32 master extended private key from Electrum mnemonic.

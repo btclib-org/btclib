@@ -173,7 +173,9 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
     # Fail if infinite(K).
     # edge case that cannot be reproduced in the test suite
-    assert KJ[2] != 0, "invalid (INF) key"  # 5
+    if KJ[2] == 0:  # 5
+        err_msg = "invalid (INF) key"  # pragma: no cover
+        raise BTClibRuntimeError(err_msg)  # pragma: no cover
 
     # affine x_K-coordinate of K
     x_K = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p

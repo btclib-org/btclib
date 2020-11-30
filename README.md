@@ -7,6 +7,7 @@
 [![Linted with flake8](https://img.shields.io/badge/lint-flake8-%231674b1)](https://flake8.pycqa.org)
 [![Linted with pylint](https://img.shields.io/badge/lint-pylint-%231674b1)](https://pylint.pycqa.org)
 [![Checked with mypy](https://img.shields.io/badge/type--check-mypy-%231674b1)](http://mypy-lang.org/)
+[![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![Build Status](https://travis-ci.org/btclib-org/btclib.svg)](https://travis-ci.org/btclib-org/btclib)
 [![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
