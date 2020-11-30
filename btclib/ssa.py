@@ -50,10 +50,13 @@ For sepcp256k1 the resulting signature size is 64 bytes.
 """
 
 import secrets
+from dataclasses import InitVar, dataclass, field
 from hashlib import sha256
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Type, TypeVar, Union
 
-from .alias import HashF, Integer, JacPoint, Octets, Point, String
+from dataclasses_json import DataClassJsonMixin, config
+
+from .alias import BinaryData, HashF, Integer, JacPoint, Octets, Point, String
 from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
 from .curvegroup import _double_mult, _mult, _multi_mult
@@ -62,16 +65,85 @@ from .hashes import reduce_to_hlen, tagged_hash
 from .numbertheory import mod_inv
 from .to_prvkey import PrvKey, int_from_prvkey
 from .to_pubkey import point_from_pubkey
-from .utils import bytes_from_octets, hex_string, int_from_bits
+from .utils import (
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    hex_string,
+    int_from_bits,
+)
 
-# BIP340-Schnorr signature
-# (r, s)
-# r is a _field_element_, 0 <= r < ec.p
-# s is a scalar, 0 <= s < ec.n (yes, for BIP340-Schnorr it can be zero)
-# (p is the field prime, n is the curve order)
-SSASigTuple = Tuple[int, int]
-# SSASigTuple or BIP340-Schnorr 64-bytes serialization (bytes or hex-string)
-SSASig = Union[SSASigTuple, Octets]
+_SSA_SIG = TypeVar("_SSA_SIG", bound="SsaSig")
+
+
+@dataclass
+class SsaSig(DataClassJsonMixin):
+    """BIP340-Schnorr signature.
+
+    r is a _field_element_, 0 <= r < ec.p
+    s is a scalar, 0 <= s < ec.n (yes, for BIP340-Schnorr it can be zero)
+    (p is the field prime, n is the curve order)
+    """
+
+    # 32 bytes
+    r: int = field(
+        default=-1, metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    # 32 bytes
+    s: int = field(
+        default=-1, metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+    )
+    ec: Curve = field(
+        default=secp256k1,
+        metadata=config(encoder=lambda v: v.name(), decoder=bytes.fromhex),
+    )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+        # Fail if r is not a field element, i.e. not a valid x-coordinate
+        self.ec.y(self.r)
+
+        # Fail if s is not [0, n-1].
+        if not 0 <= self.s < self.ec.n:
+            err_msg = "scalar s not in 0..n-1: "
+            err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
+            raise BTClibValueError(err_msg)
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+        """Serialize an ECDSA signature to strict ASN.1 DER representation.
+
+        Trailing sighash is added if provided.
+        """
+
+        if assert_valid:
+            self.assert_valid()
+
+        out = self.r.to_bytes(self.ec.psize, "big")
+        out += self.s.to_bytes(self.ec.nsize, "big")
+        return out
+
+    @classmethod
+    def deserialize(
+        cls: Type[_SSA_SIG], data: BinaryData, assert_valid: bool = True
+    ) -> _SSA_SIG:
+        """Return a DerSig by parsing binary data.
+
+        Deserialize a strict ASN.1 DER representation of an ECDSA signature.
+        """
+
+        stream = bytesio_from_binarydata(data)
+        sig = cls(check_validity=False)
+
+        sig.r = int.from_bytes(stream.read(sig.ec.psize), "big")
+        sig.s = int.from_bytes(stream.read(sig.ec.nsize), "big")
+
+        if assert_valid:
+            sig.assert_valid()
+        return sig
+
 
 # hex-string or bytes representation of an int
 # 33 or 65 bytes or hex-string
@@ -109,48 +181,6 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
         return x_Q, ec.y_even(x_Q)
 
     raise BTClibTypeError("not a BIP340 public key")
-
-
-def _validate_sig(r: int, s: int, ec: Curve) -> None:
-
-    # Fail if r is not a field element, i.e. not a valid x-coordinate
-    ec.y(r)
-
-    # Fail if s is not [0, n-1].
-    if not 0 <= s < ec.n:
-        err_msg = "scalar s not in 0..n-1: "
-        err_msg += f"'{hex_string(s)}'" if s > 0xFFFFFFFF else f"{s}"
-        raise BTClibValueError(err_msg)
-
-
-def deserialize(sig: SSASig, ec: Curve = secp256k1) -> SSASigTuple:
-    """Return the verified components of the provided BIP340 signature.
-
-    The BIP340 signature can be represented as (r, s) tuple
-    or as binary [r][s] compact representation.
-    """
-
-    if isinstance(sig, tuple):
-        r, s = sig
-    else:
-        if isinstance(sig, str):
-            # hex-string of the serialized signature
-            sig2 = bytes.fromhex(sig)
-        else:
-            sig2 = bytes_from_octets(sig, ec.psize + ec.nsize)
-
-        r = int.from_bytes(sig2[: ec.psize], byteorder="big")
-        s = int.from_bytes(sig2[ec.nsize :], byteorder="big")
-
-    _validate_sig(r, s, ec)
-    return r, s
-
-
-def serialize(x_K: int, s: int, ec: Curve = secp256k1) -> bytes:
-    "Return the BIP340 signature as [r][s] compact representation."
-
-    _validate_sig(x_K, s, ec)
-    return x_K.to_bytes(ec.psize, "big") + s.to_bytes(ec.nsize, "big")
 
 
 def gen_keys_(
@@ -291,7 +321,7 @@ def challenge(
     return _challenge(m, Q, K, ec, hf)
 
 
-def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> SSASigTuple:
+def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> SsaSig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [1, n-1], while q and k are in [1, n-1]
@@ -302,7 +332,7 @@ def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> SSASigTuple:
     # s=0 is ok: in verification there is no inverse of s
     s = (k + c * q) % ec.n
 
-    return r, s
+    return SsaSig(r, s, ec)
 
 
 def _sign(
@@ -311,7 +341,7 @@ def _sign(
     k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> SSASigTuple:
+) -> SsaSig:
     """Sign a hlen bytes message according to BIP340 signature algorithm.
 
     If the deterministic nonce is not provided,
@@ -338,11 +368,8 @@ def _sign(
 
 
 def sign(
-    msg: String,
-    prvkey: PrvKey,
-    ec: Curve = secp256k1,
-    hf: HashF = sha256,
-) -> SSASigTuple:
+    msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+) -> SsaSig:
     """Sign message according to BIP340 signature algorithm.
 
     The message msg is first processed by hf, yielding the value
@@ -383,38 +410,41 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
 
 def _assert_as_valid(
-    m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets, Q: BIP340PubKey, sig: Union[SsaSig, Octets], hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    r, s = deserialize(sig, ec)
+    if not isinstance(sig, SsaSig):
+        sig = SsaSig.deserialize(sig)
+    else:
+        sig.assert_valid()  # 1
 
-    x_Q, y_Q = point_from_bip340pubkey(Q, ec)
+    x_Q, y_Q = point_from_bip340pubkey(Q, sig.ec)
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
-    c = _challenge(m, x_Q, r, ec, hf)
+    c = _challenge(m, x_Q, sig.r, sig.ec, hf)
 
-    __assert_as_valid(c, (x_Q, y_Q, 1), r, s, ec)
+    __assert_as_valid(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec)
 
 
 def assert_as_valid(
-    msg: String, Q: BIP340PubKey, sig: SSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, Q: BIP340PubKey, sig: Union[SsaSig, Octets], hf: HashF = sha256
 ) -> None:
 
     m = reduce_to_hlen(msg, hf)
-    _assert_as_valid(m, Q, sig, ec, hf)
+    _assert_as_valid(m, Q, sig, hf)
 
 
 def _verify(
-    m: Octets, Q: BIP340PubKey, sig: SSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets, Q: BIP340PubKey, sig: Union[SsaSig, Octets], hf: HashF = sha256
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        _assert_as_valid(m, Q, sig, ec, hf)
+        _assert_as_valid(m, Q, sig, hf)
     except Exception:  # pylint: disable=broad-except
         return False
     else:
@@ -422,12 +452,12 @@ def _verify(
 
 
 def verify(
-    msg: String, Q: BIP340PubKey, sig: SSASig, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, Q: BIP340PubKey, sig: Union[SsaSig, Octets], hf: HashF = sha256
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _verify(m, Q, sig, ec, hf)
+    return _verify(m, Q, sig, hf)
 
 
 def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
@@ -447,30 +477,41 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
 
 def _crack_prvkey(
     m_1: Octets,
-    sig1: SSASig,
+    sig1: Union[SsaSig, Octets],
     m_2: Octets,
-    sig2: SSASig,
+    sig2: Union[SsaSig, Octets],
     Q: BIP340PubKey,
-    ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    m_1 = bytes_from_octets(m_1, hf().digest_size)
-    m_2 = bytes_from_octets(m_2, hf().digest_size)
+    if not isinstance(sig1, SsaSig):
+        sig1 = SsaSig.deserialize(sig1)
+    else:
+        sig1.assert_valid()  # 1
 
-    r_1, s_1 = deserialize(sig1, ec)
-    r_2, s_2 = deserialize(sig2, ec)
-    if r_1 != r_2:
+    if not isinstance(sig2, SsaSig):
+        sig2 = SsaSig.deserialize(sig2)
+    else:
+        sig2.assert_valid()  # 1
+
+    ec = sig2.ec
+    if sig1.ec != ec:
+        raise BTClibValueError("not the same curve in signatures")
+    if sig1.r != sig2.r:
         raise BTClibValueError("not the same r in signatures")
-    if s_1 == s_2:
+    if sig1.s == sig2.s:
         raise BTClibValueError("identical signatures")
+
+    hlen = hf().digest_size
+    m_1 = bytes_from_octets(m_1, hlen)
+    m_2 = bytes_from_octets(m_2, hlen)
 
     x_Q = point_from_bip340pubkey(Q, ec)[0]
 
-    c_1 = _challenge(m_1, x_Q, r_1, ec, hf)
-    c_2 = _challenge(m_2, x_Q, r_2, ec, hf)
-    q = (s_1 - s_2) * mod_inv(c_2 - c_1, ec.n) % ec.n
-    k = (s_1 + c_1 * q) % ec.n
+    c_1 = _challenge(m_1, x_Q, sig1.r, ec, hf)
+    c_2 = _challenge(m_2, x_Q, sig2.r, ec, hf)
+    q = (sig1.s - sig2.s) * mod_inv(c_2 - c_1, ec.n) % ec.n
+    k = (sig1.s + c_1 * q) % ec.n
     q, _ = gen_keys(q)
     k, _ = gen_keys(k)
     return q, k
@@ -478,25 +519,23 @@ def _crack_prvkey(
 
 def crack_prvkey(
     msg1: String,
-    sig1: SSASig,
+    sig1: Union[SsaSig, Octets],
     msg2: String,
-    sig2: SSASig,
+    sig2: Union[SsaSig, Octets],
     Q: BIP340PubKey,
-    ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
     m_1 = reduce_to_hlen(msg1, hf)
     m_2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prvkey(m_1, sig1, m_2, sig2, Q, ec, hf)
+    return _crack_prvkey(m_1, sig1, m_2, sig2, Q, hf)
 
 
 def _assert_batch_as_valid(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
-    sigs: Sequence[SSASig],
-    ec: Curve = secp256k1,
+    sigs: Sequence[SsaSig],
     hf: HashF = sha256,
 ) -> None:
 
@@ -514,22 +553,24 @@ def _assert_batch_as_valid(
         raise BTClibValueError(err_msg)
 
     if batch_size == 1:
-        _assert_as_valid(ms[0], Qs[0], sigs[0], ec, hf)
+        _assert_as_valid(ms[0], Qs[0], sigs[0], hf)
         return None
 
+    ec = sigs[0].ec
+    if any(sig.ec != ec for sig in sigs):
+        raise BTClibValueError("not the same curve for all sigs")
     t = 0
     scalars: List[int] = []
     points: List[JacPoint] = []
     for i, (m, Q, sig) in enumerate(zip(ms, Qs, sigs)):
         m = bytes_from_octets(m, hf().digest_size)
 
-        r, s = deserialize(sig, ec)
-        KJ = r, ec.y_even(r), 1
+        KJ = sig.r, ec.y_even(sig.r), 1
 
         x_Q, y_Q = point_from_bip340pubkey(Q, ec)
         QJ = x_Q, y_Q, 1
 
-        c = _challenge(m, x_Q, r, ec, hf)
+        c = _challenge(m, x_Q, sig.r, ec, hf)
 
         # a in [1, n-1]
         # deterministically generated using a CSPRNG seeded by a
@@ -541,7 +582,7 @@ def _assert_batch_as_valid(
         points.append(KJ)
         scalars.append(a * c % ec.n)
         points.append(QJ)
-        t += a * s
+        t += a * sig.s
 
     TJ = _mult(t, ec.GJ, ec)
     RHSJ = _multi_mult(scalars, points, ec)
@@ -559,27 +600,25 @@ def _assert_batch_as_valid(
 def assert_batch_as_valid(
     ms: Sequence[String],
     Qs: Sequence[BIP340PubKey],
-    sigs: Sequence[SSASig],
-    ec: Curve = secp256k1,
+    sigs: Sequence[SsaSig],
     hf: HashF = sha256,
 ) -> None:
 
     ms = [reduce_to_hlen(m, hf) for m in ms]
-    return _assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+    return _assert_batch_as_valid(ms, Qs, sigs, hf)
 
 
 def _batch_verify(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
-    sigs: Sequence[SSASig],
-    ec: Curve = secp256k1,
+    sigs: Sequence[SsaSig],
     hf: HashF = sha256,
 ) -> bool:
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        _assert_batch_as_valid(ms, Qs, sigs, ec, hf)
+        _assert_batch_as_valid(ms, Qs, sigs, hf)
     except Exception:  # pylint: disable=broad-except
         return False
 
@@ -589,11 +628,10 @@ def _batch_verify(
 def batch_verify(
     ms: Sequence[String],
     Qs: Sequence[BIP340PubKey],
-    sigs: Sequence[SSASig],
-    ec: Curve = secp256k1,
+    sigs: Sequence[SsaSig],
     hf: HashF = sha256,
 ) -> bool:
     """Batch verification of BIP340 signatures."""
 
     ms = [reduce_to_hlen(m, hf) for m in ms]
-    return _batch_verify(ms, Qs, sigs, ec, hf)
+    return _batch_verify(ms, Qs, sigs, hf)

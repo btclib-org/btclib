@@ -67,7 +67,7 @@ from dataclasses_json import DataClassJsonMixin, config
 from . import varbytes
 from .alias import BinaryData
 from .curve import Curve, secp256k1
-from .exceptions import BTClibTypeError, BTClibValueError
+from .exceptions import BTClibValueError
 from .script import SIGHASHES
 from .utils import bytesio_from_binarydata, hex_string
 
@@ -132,9 +132,6 @@ class DerSig(DataClassJsonMixin):
             err_msg = "scalar s not in 1..n-1: "
             err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
             raise BTClibValueError(err_msg)
-
-        if not isinstance(self.ec, Curve):
-            raise BTClibTypeError("ec is not a Curve")
 
     def serialize(self, assert_valid: bool = True) -> bytes:
         """Serialize an ECDSA signature to strict ASN.1 DER representation.

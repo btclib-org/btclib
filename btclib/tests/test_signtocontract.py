@@ -45,10 +45,10 @@ def test_sign_to_contract_ssa() -> None:
 
     prvkey, pub = ssa.gen_keys()
     ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prvkey)
-    ssa._assert_as_valid(m, pub, ssa_sig, ec, sha256)
+    ssa._assert_as_valid(m, pub, ssa_sig, sha256)
     assert verify_commit(c, ssa_receipt)
 
     k = 1 + secrets.randbelow(ec.n - 1)
     ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prvkey, k)
-    ssa._assert_as_valid(m, pub, ssa_sig, ec, sha256)
+    ssa._assert_as_valid(m, pub, ssa_sig, sha256)
     assert verify_commit(c, ssa_receipt)

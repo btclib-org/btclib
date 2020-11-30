@@ -28,6 +28,28 @@ from btclib.to_prvkey import prvkeyinfo_from_prvkey
 ec = secp256k1
 
 
+def test_signature() -> None:
+    msg = "test message"
+
+    wif, addr = bms.gen_keys()
+    sig = bms.sign(msg, wif)
+    bms.assert_as_valid(msg, addr, sig)
+    assert bms.verify(msg, addr, sig)
+    assert sig == BMSSig.deserialize(sig.serialize())
+    assert sig == BMSSig.b64decode(sig.b64encode())
+
+    # sig taken from (Electrum and) Bitcoin Core
+    wif, addr = bms.gen_keys("5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw")
+    sig = bms.sign(msg, wif)
+    bms.assert_as_valid(msg, addr, sig)
+    assert bms.verify(msg, addr, sig)
+    exp_sig = b"G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
+    assert sig.b64encode() == exp_sig
+
+    bms.assert_as_valid(msg, addr, exp_sig)
+    bms.assert_as_valid(msg, addr, exp_sig.decode())
+
+
 def test_exceptions() -> None:
 
     msg = "test"
@@ -223,28 +245,6 @@ def test_one_prvkey_multiple_addresses() -> None:
     err_msg = "mismatch between private key and address"
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, addr_p2pkh_uncompressed)
-
-
-def test_signature() -> None:
-    msg = "test message"
-
-    wif, addr = bms.gen_keys()
-    sig = bms.sign(msg, wif)
-    bms.assert_as_valid(msg, addr, sig)
-    assert bms.verify(msg, addr, sig)
-    assert sig == BMSSig.deserialize(sig.serialize())
-    assert sig == BMSSig.b64decode(sig.b64encode())
-
-    # sig taken from (Electrum and) Bitcoin Core
-    wif, addr = bms.gen_keys("5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw")
-    sig = bms.sign(msg, wif)
-    bms.assert_as_valid(msg, addr, sig)
-    assert bms.verify(msg, addr, sig)
-    exp_sig = b"G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
-    assert sig.b64encode() == exp_sig
-
-    bms.assert_as_valid(msg, addr, exp_sig)
-    bms.assert_as_valid(msg, addr, exp_sig.decode())
 
 
 def test_msgsign_p2pkh() -> None:

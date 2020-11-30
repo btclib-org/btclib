@@ -93,7 +93,7 @@ def ecssa_commit_sign(
     k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[Tuple[int, int], Receipt]:
+) -> Tuple[ssa.SsaSig, Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
     k = ssa._det_nonce(m, prvkey, None, ec, hf) if k is None else int_from_prvkey(k, ec)
@@ -103,7 +103,7 @@ def ecssa_commit_sign(
     # sign
     sig = ssa._sign(m, prvkey, new_k, ec, hf)
     # commit receipt
-    receipt = sig[0], R
+    receipt = sig.r, R
     return sig, receipt
 
 

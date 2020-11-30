@@ -36,19 +36,13 @@ from btclib.utils import int_from_bits
 
 
 def test_signature() -> None:
-    ec = CURVES["secp256k1"]
     msg = "Satoshi Nakamoto"
 
     q, x_Q = ssa.gen_keys(0x01)
     sig = ssa.sign(msg, q)
     ssa.assert_as_valid(msg, x_Q, sig)
     assert ssa.verify(msg, x_Q, sig)
-
-    assert sig == ssa.deserialize(sig)
-
-    ssa.assert_as_valid(msg, x_Q, sig)
-    ssa.assert_as_valid(msg, x_Q, ssa.serialize(*sig))
-    ssa.assert_as_valid(msg, x_Q, ssa.serialize(*sig).hex())
+    assert sig == ssa.SsaSig.deserialize(sig.serialize())
 
     msg_fake = "Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
@@ -72,16 +66,13 @@ def test_signature() -> None:
     with pytest.raises(BTClibTypeError, match=err_msg):
         ssa.point_from_bip340pubkey(INF)  # type: ignore
 
-    sig_fake = sig[0], sig[1], sig[1]
-    assert not ssa.verify(msg, x_Q, sig_fake)  # type: ignore
-
-    sig_invalid = ec.p, sig[1]
+    sig_invalid = ssa.SsaSig(sig.ec.p, sig.s, check_validity=False)
     assert not ssa.verify(msg, x_Q, sig_invalid)
     err_msg = "x-coordinate not in 0..p-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
-    sig_invalid = sig[0], ec.p
+    sig_invalid = ssa.SsaSig(sig.r, sig.ec.p, check_validity=False)
     assert not ssa.verify(msg, x_Q, sig_invalid)
     err_msg = "scalar s not in 0..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -104,11 +95,11 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa._sign(reduce_to_hlen(msg, hf), q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._sign(reduce_to_hlen(msg, hf), q, ec.n)
+        ssa._sign(reduce_to_hlen(msg, hf), q, sig.ec.n)
 
     err_msg = "invalid zero challenge"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        ssa.__recover_pubkey(0, sig[0], sig[1], ec)
+        ssa.__recover_pubkey(0, sig.r, sig.s, sig.ec)
 
 
 def test_bip340_vectors() -> None:
@@ -133,7 +124,7 @@ def test_bip340_vectors() -> None:
                     k = ssa._det_nonce(m, seckey, aux_rand)
                     sig_actual = ssa._sign(m, seckey, k)
                     ssa._assert_as_valid(m, pubkey, sig_actual)
-                    assert ssa.deserialize(sig) == sig_actual, err_msg
+                    assert ssa.SsaSig.deserialize(sig) == sig_actual, err_msg
 
                 if comment:
                     err_msg += ": " + comment
@@ -225,14 +216,12 @@ def test_low_cardinality() -> None:
                         # recover pubkey
                         assert x_Q == ssa.__recover_pubkey(e, r, s, ec)
 
-                        assert (r, s) == sig
+                        assert ssa.SsaSig(r, s, ec) == sig
                         # valid signature must validate
                         ssa.__assert_as_valid(e, QJ, r, s, ec)
 
 
 def test_crack_prvkey() -> None:
-
-    ec = CURVES["secp256k1"]
 
     q, x_Q = ssa.gen_keys()
 
@@ -248,10 +237,11 @@ def test_crack_prvkey() -> None:
 
     qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
     assert q == qc
-    assert k in (kc, ec.n - kc)
+    assert k in (kc, sig1.ec.n - kc)
 
+    sig2.r = 16
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        ssa._crack_prvkey(m_1, sig1, m_2, (16, sig1[1]), x_Q)
+        ssa._crack_prvkey(m_1, sig1, m_2, sig2, x_Q)
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
         ssa._crack_prvkey(m_1, sig1, m_1, sig1, x_Q)
@@ -261,7 +251,7 @@ def test_batch_validation() -> None:
 
     ms: List[String] = []
     Qs: List[int] = []
-    sigs: List[ssa.SSASig] = []
+    sigs: List[ssa.SsaSig] = []
     err_msg = "no signatures provided"
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_batch_as_valid(ms, Qs, sigs)
@@ -397,9 +387,9 @@ def test_musig() -> None:
 
     # finalize signature (non interactive)
     s = (s_1 + s_2 + s3) % ec.n
-    sig = r, s
+    sig = ssa.SsaSig(r, s, ec)
     # check signature is valid
-    ssa._assert_as_valid(m, Q[0], sig, ec, hf)
+    ssa._assert_as_valid(m, Q[0], sig, hf)
 
 
 def test_threshold() -> None:
@@ -699,7 +689,7 @@ def test_threshold() -> None:
     omega3 = 1 * mod_inv(1 - 3, ec.n) % ec.n
     sigma = (gamma1 * omega1 + gamma3 * omega3) % ec.n
 
-    sig = K[0], sigma
+    sig = ssa.SsaSig(K[0], sigma, ec)
 
     assert ssa.verify(msg, Q[0], sig)
 
