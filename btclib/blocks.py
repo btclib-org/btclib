@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 import sys
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timezone
 from math import ceil
 from typing import Dict, List, Optional, Type, TypeVar
@@ -78,6 +78,11 @@ class BlockHeader(DataClassJsonMixin):
         compare=False,
         metadata=config(field_name="difficulty"),
     )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def _set_properties(self) -> None:
         self._target = self.target
@@ -187,7 +192,7 @@ class BlockHeader(DataClassJsonMixin):
         "Return a BlockHeader by parsing 80 bytes from binary data."
 
         stream = bytesio_from_binarydata(data)
-        header = cls()
+        header = cls(check_validity=False)
 
         header.version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
         header.previous_block_hash = stream.read(32)[::-1]
@@ -207,7 +212,7 @@ _Block = TypeVar("_Block", bound="Block")
 
 @dataclass
 class Block(DataClassJsonMixin):
-    header: BlockHeader = field(default=BlockHeader())
+    header: BlockHeader = BlockHeader(check_validity=False)
     transactions: List[Tx] = field(default_factory=list)
     # private data member used only for to_dict
     # use the corresponding public properties instead
@@ -239,6 +244,11 @@ class Block(DataClassJsonMixin):
         compare=False,
         metadata=config(field_name="height"),
     )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def _set_properties(self) -> None:
         self._size = self.size
@@ -325,7 +335,7 @@ class Block(DataClassJsonMixin):
         "Return a Block by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
-        block = cls()
+        block = cls(check_validity=False)
 
         block.header = BlockHeader.deserialize(stream)
         n = varint.deserialize(stream)

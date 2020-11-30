@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
@@ -30,6 +30,11 @@ class Witness(DataClassJsonMixin):
             decoder=lambda val: [bytes.fromhex(v).hex() for v in val],
         ),
     )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def __len__(self):
         return len(self.items)
@@ -40,7 +45,7 @@ class Witness(DataClassJsonMixin):
         self.items = [bytes_from_octets(octets).hex() for octets in self.items]
 
     def serialize(self, assert_valid: bool = True) -> bytes:
-        "Return the 36 bytes serialization of the Witness."
+        "Return the serialization of the Witness."
 
         if assert_valid:
             self.assert_valid()
@@ -55,7 +60,7 @@ class Witness(DataClassJsonMixin):
         "Return a Witness by parsing binary data."
 
         data = bytesio_from_binarydata(data)
-        witness = cls()
+        witness = cls(check_validity=False)
 
         n = varint.deserialize(data)
         witness.items = [varbytes.deserialize(data) for _ in range(n)]

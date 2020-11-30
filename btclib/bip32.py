@@ -34,7 +34,7 @@ A BIP32 extended key is 78 bytes:
 
 import copy
 import hmac
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import Iterable, List, Optional, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
@@ -112,6 +112,11 @@ class BIP32KeyData(DataClassJsonMixin):
     key: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def is_hardened(self) -> bool:
         return self.index >= 0x80000000
@@ -209,7 +214,7 @@ class BIP32KeyData(DataClassJsonMixin):
         "Return a BIP32KeyData by parsing 73 bytes from binary data."
 
         stream = bytesio_from_binarydata(xkey_bin)
-        xkey = cls()
+        xkey = cls(check_validity=False)
 
         xkey.version = stream.read(4)
         xkey.depth = int.from_bytes(stream.read(1), byteorder="big")

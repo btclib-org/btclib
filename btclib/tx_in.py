@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
@@ -32,6 +32,11 @@ class OutPoint(DataClassJsonMixin):
     # 4 bytes, unsigned little endian
     vout: int = -1
     # add value and script_pubkey when tx fetcher will be available
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def is_coinbase(self) -> bool:
         return (self.txid == b"\x00" * 32) and (self.vout == 0xFFFFFFFF)
@@ -71,7 +76,7 @@ class OutPoint(DataClassJsonMixin):
 
         data = bytesio_from_binarydata(data)
 
-        outpoint = cls()
+        outpoint = cls(check_validity=False)
         # 32 bytes, little endian
         outpoint.txid = data.read(32)[::-1]
         # 4 bytes, little endian, interpreted as int
@@ -87,7 +92,7 @@ _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 @dataclass
 class TxIn(DataClassJsonMixin):
-    prevout: OutPoint = field(default=OutPoint())
+    prevout: OutPoint = OutPoint(check_validity=False)
     # TODO make it { "asm": "", "hex": "" }
     script_sig: bytes = field(
         default=b"",
@@ -97,7 +102,12 @@ class TxIn(DataClassJsonMixin):
     )
     # 4 bytes, unsigned little endian
     sequence: int = -1
-    witness: Witness = Witness()
+    witness: Witness = Witness(check_validity=False)
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def is_coinbase(self) -> bool:
         return self.prevout.is_coinbase()
@@ -125,7 +135,7 @@ class TxIn(DataClassJsonMixin):
 
         s = bytesio_from_binarydata(data)
 
-        tx_in = cls()
+        tx_in = cls(check_validity=False)
         tx_in.prevout = OutPoint.deserialize(s)
         tx_in.script_sig = varbytes.deserialize(s)
         tx_in.sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)

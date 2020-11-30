@@ -224,6 +224,7 @@ xprv0_data = BIP32KeyData(
     index=0,
     chain_code=32 * b"\x00",
     key=b"\x00" + q0_bytes,
+    check_validity=False,
 )
 xprv0 = xprv0_data.b58encode(False)
 xprv0_string = xprv0.decode("ascii")
@@ -236,6 +237,7 @@ xprvn_data = BIP32KeyData(
     index=0,
     chain_code=32 * b"\x00",
     key=b"\x00" + qn_bytes,
+    check_validity=False,
 )
 xprvn = xprvn_data.b58encode(False)
 xprvn_string = xprvn.decode("ascii")
@@ -313,6 +315,7 @@ INF_xpub_data = BIP32KeyData(
     index=xprv_data.index,
     chain_code=xprv_data.chain_code,
     key=INF_compressed,
+    check_validity=False,
 )
 INF_xpub = INF_xpub_data.b58encode(False)
 INF_xpub_string = INF_xpub.decode("ascii")

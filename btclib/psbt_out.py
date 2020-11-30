@@ -13,7 +13,7 @@
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import Dict, List, Tuple, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
@@ -160,6 +160,11 @@ class PsbtOut(DataClassJsonMixin):
             encoder=_encode_dict_bytes_bytes, decoder=_decode_dict_bytes_bytes
         ),
     )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def assert_valid(self) -> None:
         "Assert logical self-consistency."
@@ -195,7 +200,7 @@ class PsbtOut(DataClassJsonMixin):
         "Return a PsbtOut by parsing binary data."
 
         # FIX deserialize must use BinaryData
-        out = cls()
+        out = cls(check_validity=False)
         for k, v in output_map.items():
             if k[0:1] == PSBT_OUT_REDEEM_SCRIPT:
                 out.redeem_script = _deserialize_bytes(k, v, "redeem script")

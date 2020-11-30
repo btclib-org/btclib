@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
@@ -53,6 +53,11 @@ class TxOut(DataClassJsonMixin):
             decoder=bytes.fromhex,
         ),
     )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def assert_valid(self) -> None:
         if self.value < 0:
@@ -74,7 +79,7 @@ class TxOut(DataClassJsonMixin):
         cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
-        tx_out = cls()
+        tx_out = cls(check_validity=False)
         tx_out.value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         tx_out.script_pubkey = varbytes.deserialize(stream)
 

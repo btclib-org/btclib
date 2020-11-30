@@ -15,7 +15,7 @@ https://learnmeabitcoin.com/guide/coinbase-transaction
 https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
 """
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from math import ceil
 from typing import Dict, List, Type, TypeVar
 
@@ -75,7 +75,12 @@ class Tx(DataClassJsonMixin):
         compare=False,
         metadata=config(field_name="vsize"),
     )
-    # TODO: add fee when a tx fecther will be available
+    # TODO: add fee when a tx fetcher will be available
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def _set_properties(self) -> None:
         self._txid = self.txid
@@ -159,7 +164,7 @@ class Tx(DataClassJsonMixin):
         "Return a Tx by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
-        tx = cls()
+        tx = cls(check_validity=False)
 
         tx.version = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 

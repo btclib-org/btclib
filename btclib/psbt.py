@@ -15,7 +15,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 import base64
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import Dict, List, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
@@ -69,7 +69,7 @@ def _assert_valid_version(version: int) -> None:
 
 @dataclass
 class Psbt(DataClassJsonMixin):
-    tx: Tx = field(default=Tx())
+    tx: Tx = Tx(check_validity=False)
     inputs: List[PsbtIn] = field(default_factory=list)
     outputs: List[PsbtOut] = field(default_factory=list)
     version: int = 0
@@ -83,6 +83,11 @@ class Psbt(DataClassJsonMixin):
             encoder=_encode_dict_bytes_bytes, decoder=_decode_dict_bytes_bytes
         ),
     )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
 
     def assert_valid(self) -> None:
         "Assert logical self-consistency."
@@ -195,7 +200,7 @@ class Psbt(DataClassJsonMixin):
         # and the deserialization should happen reading the stream
         # not slicing bytes
         psbt_bin = bytes_from_octets(psbt_bin)
-        psbt = cls()
+        psbt = cls(check_validity=False)
 
         if psbt_bin[:4] != PSBT_MAGIC_BYTES:
             raise BTClibValueError("malformed psbt: missing magic bytes")

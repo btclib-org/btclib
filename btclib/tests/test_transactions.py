@@ -138,30 +138,32 @@ def test_double_witness() -> None:
 
 def test_invalid_outpoint() -> None:
 
-    op = OutPoint(b"\x01" * 31, 18)
+    op = OutPoint(b"\x01" * 31, 18, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint txid: "):
         op.assert_valid()
 
-    op = OutPoint(b"\x01" * 32, -1)
+    op = OutPoint(b"\x01" * 32, -1, check_validity=False)
     with pytest.raises(BTClibValueError, match="negative OutPoint vout: "):
         op.assert_valid()
 
-    op = OutPoint(b"\x01" * 32, 0xFFFFFFFF + 1)
+    op = OutPoint(b"\x01" * 32, 0xFFFFFFFF + 1, check_validity=False)
     with pytest.raises(BTClibValueError, match="OutPoint vout too high: "):
         op.assert_valid()
 
-    op = OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF)
+    op = OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint"):
         op.assert_valid()
 
-    op = OutPoint(b"\x00" * 32, 0)
+    op = OutPoint(b"\x00" * 32, 0, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint"):
         op.assert_valid()
 
 
 def test_invalid_tx_out() -> None:
     transaction_output = TxOut(
-        value=-1, script_pubkey=bytes.fromhex("6a0b68656c6c6f20776f726c64")
+        value=-1,
+        script_pubkey=bytes.fromhex("6a0b68656c6c6f20776f726c64"),
+        check_validity=False,
     )
     with pytest.raises(BTClibValueError, match="negative value: "):
         transaction_output.assert_valid()
@@ -169,6 +171,7 @@ def test_invalid_tx_out() -> None:
     transaction_output = TxOut(
         value=MAX_SATOSHI + 1,
         script_pubkey=bytes.fromhex("6a0b68656c6c6f20776f726c64"),
+        check_validity=False,
     )
     with pytest.raises(BTClibValueError, match="value too high: "):
         transaction_output.assert_valid()
@@ -176,8 +179,8 @@ def test_invalid_tx_out() -> None:
 
 def test_invalid_tx() -> None:
     transaction_input = TxIn(OutPoint(b"\xff" * 32, 0), b"", 1)
-    tx1 = Tx(0, [transaction_input], [], 0)
-    tx2 = Tx(0, [], [], 0)
+    tx1 = Tx(0, [transaction_input], [], 0, check_validity=False)
+    tx2 = Tx(0, [], [], 0, check_validity=False)
     err_msg = "transaction must have at least one "
     for transaction in (tx1, tx2):
         with pytest.raises(BTClibValueError, match=err_msg):

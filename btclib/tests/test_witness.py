@@ -36,11 +36,11 @@ def test_serialization() -> None:
 
 
 def test_exceptions() -> None:
-    witness = Witness("bad script")  # type: ignore
+    witness = Witness("bad script", check_validity=False)  # type: ignore
     with pytest.raises(BTClibTypeError, match="invalid witness"):
         witness.assert_valid()
 
-    witness = Witness([b"", "", (32, 33)])  # type: ignore
+    witness = Witness([b"", "", (32, 33)], check_validity=False)  # type: ignore
     with pytest.raises(AttributeError, match="has no attribute 'hex'"):
         witness.assert_valid()
 
