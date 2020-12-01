@@ -28,7 +28,7 @@ from .utils import bytes_from_octets, bytesio_from_binarydata
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
 SIGHASH_SINGLE = 3
-SIGHASH_ANYONECANPAY = 0x80
+SIGHASH_ANYONECANPAY = 0b10000000
 
 SIGHASHES = [
     SIGHASH_ALL,

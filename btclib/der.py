@@ -23,11 +23,10 @@ https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
 BIP66 mandates a strict DER format:
 
 Format:
-[0x30] [data-size][0x02][r-size][r][0x02][s-size][s] [sighash]
+[0x30] [data-size][0x02][r-size][r][0x02][s-size][s]
 
 * 0x30 header byte to indicate compound structure
-* data-size: 1-byte size descriptor of the following data,
-    excluding the sighash byte
+* data-size: 1-byte size descriptor of the following data
 * 0x02 header byte indicating an integer
 * r-size: 1-byte size descriptor of the r value that follows
 * r: arbitrary-size big-endian r value.
@@ -38,15 +37,12 @@ Format:
 * 0x02 header byte indicating an integer
 * s-size: 1-byte size descriptor of the s value that follows
 * s: arbitrary-size big-endian s value. Same rules as for r apply
-* sighash: 1-byte value indicating what data is hashed
-    (not part of the DER signature)
 
 There are 7 bytes of meta-data:
 
 * compound header, compound size,
 * value header, r-value size,
 * value header, s-value size
-* sighash type (optional)
 
 The ECDSA signature (r, s) should be 64 bytes,
 r and s being 32 bytes integers each;
@@ -132,10 +128,7 @@ class Sig(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
     def serialize(self, assert_valid: bool = True) -> bytes:
-        """Serialize an ECDSA signature to strict ASN.1 DER representation.
-
-        Trailing sighash is added if provided.
-        """
+        "Serialize an ECDSA signature to strict ASN.1 DER representation"
 
         if assert_valid:
             self.assert_valid()
@@ -156,14 +149,14 @@ class Sig(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
         sig = cls(check_validity=False)
 
-        # [0x30] [data-size][0x02][r-size][r][0x02][s-size][s] [sighash]
+        # [0x30] [data-size][0x02][r-size][r][0x02][s-size][s]
         marker = stream.read(1)
         if marker != _DER_SIG_MARKER:
             err_msg = f"invalid DER type: {marker.hex()}"
             err_msg += f", instead of {_DER_SIG_MARKER.hex()} (compound header)"
             raise BTClibValueError(err_msg)
 
-        # [data-size][0x02][r-size][r][0x02][s-size][s] [sighash]
+        # [data-size][0x02][r-size][r][0x02][s-size][s]
         sig_data = varbytes.deserialize(stream, forbid_zero_size=True)
 
         # [0x02][r-size][r][0x02][s-size][s]

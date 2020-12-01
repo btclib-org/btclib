@@ -113,10 +113,6 @@ class Sig(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
     def serialize(self, assert_valid: bool = True) -> bytes:
-        """Serialize an ECDSA signature to strict ASN.1 DER representation.
-
-        Trailing sighash is added if provided.
-        """
 
         if assert_valid:
             self.assert_valid()

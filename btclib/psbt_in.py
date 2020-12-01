@@ -108,7 +108,7 @@ def _deserialize_int(k: bytes, v: bytes, type_: str) -> int:
 
 
 def _assert_valid_sighash(sighash: Optional[int]) -> None:
-    if sighash is not None and sighash not in SIGHASHES:
+    if sighash not in [None, *SIGHASHES]:
         raise BTClibValueError(f"invalid sighash: {sighash}")
 
 
