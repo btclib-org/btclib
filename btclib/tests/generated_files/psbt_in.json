@@ -1,6 +1,12 @@
 {
     "non_witness_utxo": {
+        "txid": "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858",
+        "hash": "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858",
         "version": 2,
+        "size": 187,
+        "vsize": 187,
+        "weight": 748,
+        "locktime": 101,
         "vin": [
             {
                 "prevout": {
@@ -23,12 +29,7 @@
                 "value": 4949996240,
                 "scriptPubKey": "a91429ca74f8a08f81999428185c97b5d852e4063f6187"
             }
-        ],
-        "locktime": 101,
-        "txid": "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858",
-        "size": 187,
-        "weight": 748,
-        "vsize": 187
+        ]
     },
     "witness_utxo": null,
     "partial_signatures": {

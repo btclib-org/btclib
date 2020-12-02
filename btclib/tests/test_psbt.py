@@ -104,7 +104,7 @@ def test_creation() -> None:
         b"",
         0xFFFFFFFF,
     )
-    transaction = Tx(2, [input_1, input_2], [output_1, output_2], 0)
+    transaction = Tx(2, 0, [input_1, input_2], [output_1, output_2])
     psbt_from_tx_ = Psbt(transaction)
     assert psbt_from_tx_ == psbt
 
@@ -232,7 +232,7 @@ def test_output_scripts_serialization() -> None:
     output_2 = TxOut(
         100000000, bytes.fromhex("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
     )
-    transaction = Tx(2, [input_1], [output_1, output_2], 0)
+    transaction = Tx(2, 0, [input_1], [output_1, output_2])
 
     psbt = Psbt(transaction)
 
@@ -294,7 +294,7 @@ def test_valid_sign_2() -> None:
         sequence=0xFFFFFFFF,
     )
     assert psbt.inputs[0].witness_utxo is not None
-    transaction = Tx(0, [transaction_input], [psbt.inputs[0].witness_utxo], 2)
+    transaction = Tx(0, 2, [transaction_input], [psbt.inputs[0].witness_utxo])
     psbt.tx.vin[0].prevout.txid = transaction.txid
     psbt.inputs[0].non_witness_utxo = transaction
     psbt.assert_signable()

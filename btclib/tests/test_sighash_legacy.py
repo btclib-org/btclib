@@ -66,7 +66,7 @@ def test_legacy_p2pkh():
     tx_out2 = TxOut(
         1049154982, bytes.fromhex("76a914da169b45781ca210f8c11617ba66bd843da76b1688ac")
     )
-    tx = Tx(1, [tx_in], [tx_out1, tx_out2], 0)
+    tx = Tx(1, 0, [tx_in], [tx_out1, tx_out2])
 
     script_pubkey = script.serialize(
         [
@@ -92,15 +92,15 @@ def test_p2pk():
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
         1,
+        0,
         [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF)],
         [TxOut(0, script_pubkey)],
-        0,
     )
     receiving_tx = Tx(
         1,
+        0,
         [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
-        0,
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x01)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
@@ -123,15 +123,15 @@ def test_p2pkh():
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
         1,
+        0,
         [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF)],
         [TxOut(0, script_pubkey)],
-        0,
     )
     receiving_tx = Tx(
         1,
+        0,
         [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
-        0,
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x01)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
@@ -146,15 +146,15 @@ def test_p2pk_anyonecanpay():
     founding_tx_script = script.serialize([0, 0])
     founding_tx = Tx(
         1,
+        0,
         [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF)],
         [TxOut(0, script_pubkey)],
-        0,
     )
     receiving_tx = Tx(
         1,
+        0,
         [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
-        0,
     )
     sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x81)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])

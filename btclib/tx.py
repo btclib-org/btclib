@@ -37,13 +37,7 @@ _Tx = TypeVar("_Tx", bound="Tx")
 
 @dataclass
 class Tx(DataClassJsonMixin):
-    # 4 bytes, unsigned little endian
-    version: int = 0
-    vin: List[TxIn] = field(default_factory=list)
-    vout: List[TxOut] = field(default_factory=list)
-    # 4 bytes, unsigned little endian
-    locktime: int = 0
-    # private data member used only for to_dict
+    # private data members are used only for to_dict
     # use the corresponding public properties instead
     _txid: bytes = field(
         default=b"",
@@ -54,19 +48,23 @@ class Tx(DataClassJsonMixin):
             encoder=lambda v: v.hex(), decoder=bytes.fromhex, field_name="txid"
         ),
     )
+    _hash: bytes = field(
+        default=b"",
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(
+            encoder=lambda v: v.hex(), decoder=bytes.fromhex, field_name="hash"
+        ),
+    )
+    # 4 bytes, unsigned little endian
+    version: int = 0
     _size: int = field(
         default=-1,
         init=False,
         repr=False,
         compare=False,
         metadata=config(field_name="size"),
-    )
-    _weight: int = field(
-        default=-1,
-        init=False,
-        repr=False,
-        compare=False,
-        metadata=config(field_name="weight"),
     )
     _vsize: int = field(
         default=-1,
@@ -75,6 +73,17 @@ class Tx(DataClassJsonMixin):
         compare=False,
         metadata=config(field_name="vsize"),
     )
+    _weight: int = field(
+        default=-1,
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="weight"),
+    )
+    # 4 bytes, unsigned little endian
+    locktime: int = 0
+    vin: List[TxIn] = field(default_factory=list)
+    vout: List[TxOut] = field(default_factory=list)
     # TODO: add fee when a tx fetcher will be available
     check_validity: InitVar[bool] = True
 
@@ -84,6 +93,7 @@ class Tx(DataClassJsonMixin):
 
     def _set_properties(self) -> None:
         self._txid = self.txid
+        self._hash = self.hash
         self._size = self.size
         self._weight = self.weight
         self._vsize = self.vsize
@@ -95,6 +105,12 @@ class Tx(DataClassJsonMixin):
     @property
     def txid(self) -> bytes:
         serialized_ = self.serialize(include_witness=False, assert_valid=False)
+        hash256_ = hash256(serialized_)
+        return hash256_[::-1]
+
+    @property
+    def hash(self) -> bytes:
+        serialized_ = self.serialize(include_witness=True, assert_valid=False)
         hash256_ = hash256(serialized_)
         return hash256_[::-1]
 
@@ -111,11 +127,6 @@ class Tx(DataClassJsonMixin):
     @property
     def vsize(self) -> int:
         return ceil(self.weight / 4)
-
-    def hash(self) -> bytes:
-        serialized_ = self.serialize(include_witness=True, assert_valid=False)
-        hash256_ = hash256(serialized_)
-        return hash256_[::-1]
 
     def segwit(self) -> bool:
         return any(tx_in.witness for tx_in in self.vin)
