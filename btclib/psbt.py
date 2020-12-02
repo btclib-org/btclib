@@ -86,17 +86,26 @@ class Psbt(DataClassJsonMixin):
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:
+        # PSBT Creator must create an unsigned transaction and
+        # place it in the PSBT.
+        if self.tx:
+            if self.tx.vin:
+                for inp in self.tx.vin:
+                    inp.script_sig = b""
+                    inp.witness = Witness()
+                if not self.inputs:
+                    self.inputs = [PsbtIn() for _ in self.tx.vin]
+            if self.tx.vout and not self.outputs:
+                self.outputs = [PsbtOut() for _ in self.tx.vout]
+
         if check_validity:
             self.assert_valid()
 
     def assert_valid(self) -> None:
         "Assert logical self-consistency."
 
+        # tx must have at least one input and one output
         self.tx.assert_valid()
-
-        _assert_valid_version(self.version)
-        _assert_valid_bip32_derivs(self.bip32_derivs)
-        _assert_valid_unknown(self.unknown)
 
         if len(self.tx.vin) != len(self.inputs):
             raise BTClibValueError("mismatched number of tx.vin and psbt_in")
@@ -114,6 +123,10 @@ class Psbt(DataClassJsonMixin):
 
         for psbt_out in self.outputs:
             psbt_out.assert_valid()
+
+        _assert_valid_version(self.version)
+        _assert_valid_bip32_derivs(self.bip32_derivs)
+        _assert_valid_unknown(self.unknown)
 
     def assert_signable(self) -> None:
 
@@ -272,16 +285,6 @@ def deserialize_map(psbt_bin: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         partial_map[key] = value
 
 
-def psbt_from_tx(tx: Tx) -> Psbt:
-    tx = deepcopy(tx)
-    for inp in tx.vin:
-        inp.script_sig = b""
-        inp.witness = Witness()
-    inputs = [PsbtIn() for _ in tx.vin]
-    outputs = [PsbtOut() for _ in tx.vout]
-    return Psbt(tx=tx, inputs=inputs, outputs=outputs)
-
-
 def _combine_field(
     psbt_map: Union[PsbtIn, PsbtOut, Psbt], out: Union[PsbtIn, PsbtOut, Psbt], key: str
 ) -> None:
@@ -362,10 +365,12 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     return psbt
 
 
-def extract_tx(psbt: Psbt) -> Tx:
+def extract_tx(psbt: Psbt, assert_valid=True) -> Tx:
+    if assert_valid:
+        psbt.assert_valid()
     tx = psbt.tx
-    for i, vin in enumerate(tx.vin):
-        vin.script_sig = psbt.inputs[i].final_script_sig
-        if psbt.inputs[i].final_script_witness:
-            vin.witness = psbt.inputs[i].final_script_witness
+    for tx_vin, psbt_input in zip(tx.vin, psbt.inputs):
+        tx_vin.script_sig = psbt_input.final_script_sig
+        if psbt_input.final_script_witness:
+            tx_vin.witness = psbt_input.final_script_witness
     return tx
