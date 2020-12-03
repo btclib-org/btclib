@@ -69,11 +69,6 @@ def _deserialize_tx(k: bytes, v: bytes, type_: str) -> Tx:
     return Tx.deserialize(v)
 
 
-def _assert_valid_tx(tx_: Optional[Tx]) -> None:
-    if tx_ is not None:
-        tx_.assert_valid()
-
-
 def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
     "Return the dataclass element from its binary representation."
 
@@ -81,11 +76,6 @@ def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
         err_msg = f"invalid witness-utxo key length: {len(k)}"
         raise BTClibValueError(err_msg)
     return TxOut.deserialize(v)
-
-
-def _assert_valid_witness_utxo(witness_utxo: Optional[TxOut]) -> None:
-    if witness_utxo is not None:
-        witness_utxo.assert_valid()
 
 
 def _deserialize_partial_signatures(k: bytes, v: bytes) -> Dict[bytes, bytes]:
@@ -185,10 +175,16 @@ class PsbtIn(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         "Assert logical self-consistency."
-        _assert_valid_tx(self.non_witness_utxo)
-        _assert_valid_witness_utxo(self.witness_utxo)
+
+        if self.non_witness_utxo:
+            self.non_witness_utxo.assert_valid()
+
+        if self.witness_utxo:
+            self.witness_utxo.assert_valid()
+
         if self.sighash_type:
             assert_valid_sighash_type(self.sighash_type)
+
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
         _assert_valid_final_script_sig(self.final_script_sig)
