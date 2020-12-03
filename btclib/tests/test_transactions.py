@@ -77,7 +77,7 @@ def test_single_witness() -> None:
 
     assert len(transaction.vin) == 1
     assert len(transaction.vout) == 2
-    assert transaction.locktime == 0
+    assert transaction.lock_time == 0
 
     assert transaction.txid == bytes.fromhex(
         "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
@@ -122,7 +122,7 @@ def test_double_witness() -> None:
 
     assert len(transaction.vin) == 2
     assert len(transaction.vout) == 2
-    assert transaction.locktime == 0
+    assert transaction.lock_time == 0
 
     assert transaction.txid == bytes.fromhex(
         "a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c"

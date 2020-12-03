@@ -81,11 +81,24 @@ class Tx(DataClassJsonMixin):
         metadata=config(field_name="weight"),
     )
     # 4 bytes, unsigned little endian
-    locktime: int = 0
+    lock_time: int = field(
+        default=0,
+        metadata=config(field_name="locktime"),
+    )
     vin: List[TxIn] = field(default_factory=list)
     vout: List[TxOut] = field(default_factory=list)
     # TODO: add fee when a tx fetcher will be available
     check_validity: InitVar[bool] = True
+
+    @property
+    def nVersion(self) -> int:
+        "Return the nVersion int for compatibility with CTransaction."
+        return self.version
+
+    @property
+    def nLockTime(self) -> int:
+        "Return the nLockTime int for compatibility with CTransaction."
+        return self.lock_time
 
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
@@ -147,7 +160,7 @@ class Tx(DataClassJsonMixin):
         for tx_out in self.vout:
             tx_out.assert_valid()
 
-        # TODO check locktime
+        # TODO check lock_time
 
         self._set_properties()
 
@@ -166,7 +179,7 @@ class Tx(DataClassJsonMixin):
         out += b"".join(tx_out.serialize(assert_valid) for tx_out in self.vout)
         if segwit:
             out += b"".join(tx_in.witness.serialize(assert_valid) for tx_in in self.vin)
-        out += self.locktime.to_bytes(4, byteorder="little", signed=False)
+        out += self.lock_time.to_bytes(4, byteorder="little", signed=False)
 
         return out
 
@@ -196,7 +209,7 @@ class Tx(DataClassJsonMixin):
             for tx_in in tx.vin:
                 tx_in.witness = Witness.deserialize(stream)
 
-        tx.locktime = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        tx.lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         if assert_valid:
             tx.assert_valid()

@@ -125,7 +125,7 @@ def test_psbt_combination() -> None:
     assert combined_psbt == psbt
 
     # get the wrong txid
-    psbt1.tx.locktime = psbt1.tx.locktime ^ 12345678
+    psbt1.tx.lock_time = psbt1.tx.lock_time ^ 12345678
     err_msg = "mismatched psbt.tx.txid: "
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -144,7 +144,7 @@ def test_finalize() -> None:
     # FIXME: why does the following fail?
     # assert finalized_psbt == psbt
 
-    to_be_finalized_psbt.inputs[0].partial_signatures = {}
+    to_be_finalized_psbt.inputs[0].partial_sigs = {}
     err_msg = "missing signatures"
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -255,16 +255,16 @@ def test_additional_combination() -> None:
     psbt_1 = Psbt.b64decode(psbt_str)
     psbt_2 = Psbt.b64decode(psbt_str)
 
-    # split the bip32_derivs dict in half
-    d = psbt_1.inputs[1].bip32_derivs
+    # split the hd_keypaths dict in half
+    d = psbt_1.inputs[1].hd_keypaths
     assert len(d) > 1
     i = len(d) // 2
     ll = list(d.items())
 
     # first half
-    psbt_1.inputs[1].bip32_derivs = dict(ll[:i])
+    psbt_1.inputs[1].hd_keypaths = dict(ll[:i])
     # second half
-    psbt_2.inputs[1].bip32_derivs = dict(ll[i:])
+    psbt_2.inputs[1].hd_keypaths = dict(ll[i:])
 
     combined_psbt = combine_psbts([psbt_1, psbt_2])
     assert combined_psbt == psbt
@@ -317,9 +317,9 @@ def test_sig_type1() -> None:
     sig1 = bytes.fromhex(
         "3045022100e1ea1a3f9f790492eb18810f0e49e650b3397f91fa4a380c0649e3144943009e02202c36df002e2d1b211da0256b446b27541e330c46fd9386b59a161b4902e854cb01"
     )
-    psbt.inputs[0].partial_signatures[pk1] = sig1
+    psbt.inputs[0].partial_sigs[pk1] = sig1
     assert psbt == psbt_check
-    assert psbt.inputs[0].partial_signatures[pk1] == sig1
+    assert psbt.inputs[0].partial_sigs[pk1] == sig1
 
 
 # TODO: add test case with non_witness_utxo and witness_utxo
@@ -464,12 +464,12 @@ def test_exceptions() -> None:
     sig_bytes = der._serialize_scalar(r)
     sig_bytes += der._serialize_scalar(s)
     sig_bytes = b"\x30" + len(sig_bytes).to_bytes(1, byteorder="big") + sig_bytes
-    psbt.inputs[0].partial_signatures = {pubkey: sig_bytes}
+    psbt.inputs[0].partial_sigs = {pubkey: sig_bytes}
     with pytest.raises(BTClibValueError, match="invalid partial signature: "):
         psbt.serialize()
 
     pubkey = bytes.fromhex("02" + 31 * "00" + "07")
-    psbt.inputs[0].partial_signatures = {pubkey: sig_bytes}
+    psbt.inputs[0].partial_sigs = {pubkey: sig_bytes}
     with pytest.raises(BTClibValueError, match="invalid partial signature pubkey: "):
         psbt.serialize()
 

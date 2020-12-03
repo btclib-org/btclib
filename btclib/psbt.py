@@ -26,13 +26,13 @@ from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
     PsbtOut,
-    _assert_valid_bip32_derivs,
+    _assert_valid_hd_keypaths,
     _assert_valid_unknown,
-    _decode_bip32_derivs,
     _decode_dict_bytes_bytes,
-    _deserialize_bip32_derivs,
-    _encode_bip32_derivs,
+    _decode_hd_keypaths,
+    _deserialize_hd_keypaths,
     _encode_dict_bytes_bytes,
+    _encode_hd_keypaths,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
 )
@@ -73,9 +73,13 @@ class Psbt(DataClassJsonMixin):
     inputs: List[PsbtIn] = field(default_factory=list)
     outputs: List[PsbtOut] = field(default_factory=list)
     version: int = 0
-    bip32_derivs: Dict[bytes, bytes] = field(
+    hd_keypaths: Dict[bytes, bytes] = field(
         default_factory=dict,
-        metadata=config(encoder=_encode_bip32_derivs, decoder=_decode_bip32_derivs),
+        metadata=config(
+            field_name="bip32_derivs",
+            encoder=_encode_hd_keypaths,
+            decoder=_decode_hd_keypaths,
+        ),
     )
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
@@ -125,7 +129,7 @@ class Psbt(DataClassJsonMixin):
             psbt_out.assert_valid()
 
         _assert_valid_version(self.version)
-        _assert_valid_bip32_derivs(self.bip32_derivs)
+        _assert_valid_hd_keypaths(self.hd_keypaths)
         _assert_valid_unknown(self.unknown)
 
     def assert_signable(self) -> None:
@@ -192,8 +196,8 @@ class Psbt(DataClassJsonMixin):
         if self.version:
             temp = self.version.to_bytes(4, "little")
             psbt_bin += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
-        if self.bip32_derivs:
-            psbt_bin += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.bip32_derivs)
+        if self.hd_keypaths:
+            psbt_bin += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.hd_keypaths)
         if self.unknown:
             psbt_bin += _serialize_dict_bytes_bytes(b"", self.unknown)
 
@@ -230,8 +234,8 @@ class Psbt(DataClassJsonMixin):
             elif k[0:1] == PSBT_GLOBAL_VERSION:
                 psbt.version = _deserialize_int(k, v, "global version")
             elif k[0:1] == PSBT_GLOBAL_XPUB:
-                psbt.bip32_derivs.update(
-                    _deserialize_bip32_derivs(k, v, "Psbt BIP32 xkey")
+                psbt.hd_keypaths.update(
+                    _deserialize_hd_keypaths(k, v, "Psbt BIP32 xkey")
                 )
             else:  # unknown
                 psbt.unknown[k] = v
@@ -316,11 +320,11 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
         for i, inp in enumerate(final_psbt.inputs):
             _combine_field(psbt.inputs[i], inp, "non_witness_utxo")
             _combine_field(psbt.inputs[i], inp, "witness_utxo")
-            _combine_field(psbt.inputs[i], inp, "partial_signatures")
+            _combine_field(psbt.inputs[i], inp, "partial_sigs")
             _combine_field(psbt.inputs[i], inp, "sighash_type")
             _combine_field(psbt.inputs[i], inp, "redeem_script")
             _combine_field(psbt.inputs[i], inp, "witness_script")
-            _combine_field(psbt.inputs[i], inp, "bip32_derivs")
+            _combine_field(psbt.inputs[i], inp, "hd_keypaths")
             _combine_field(psbt.inputs[i], inp, "final_script_sig")
             _combine_field(psbt.inputs[i], inp, "final_script_witness")
             _combine_field(psbt.inputs[i], inp, "unknown")
@@ -328,12 +332,12 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
         for i, out in enumerate(final_psbt.outputs):
             _combine_field(psbt.outputs[i], out, "redeem_script")
             _combine_field(psbt.outputs[i], out, "witness_script")
-            _combine_field(psbt.outputs[i], out, "bip32_derivs")
+            _combine_field(psbt.outputs[i], out, "hd_keypaths")
             _combine_field(psbt.outputs[i], out, "unknown")
 
         _combine_field(psbt, final_psbt, "tx")
         _combine_field(psbt, final_psbt, "version")
-        _combine_field(psbt, final_psbt, "bip32_derivs")
+        _combine_field(psbt, final_psbt, "hd_keypaths")
         _combine_field(psbt, final_psbt, "unknown")
 
     return final_psbt
@@ -361,9 +365,9 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     # TODO: finalizers must fail to finalize inputs
     # which have signatures that do not match the specified sighash type
     for psbt_in in psbt.inputs:
-        if not psbt_in.partial_signatures:
+        if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")
-        sigs = psbt_in.partial_signatures.values()
+        sigs = psbt_in.partial_sigs.values()
         multi_sig = len(sigs) > 1
         if psbt_in.witness_script:
             psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
@@ -376,11 +380,11 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             final_script_sig += [sig.hex() for sig in sigs]
             final_script_sig += [psbt_in.redeem_script.hex()]
             psbt_in.final_script_sig = script.serialize(final_script_sig)
-        psbt_in.partial_signatures = {}
+        psbt_in.partial_sigs = {}
         psbt_in.sighash_type = None
         psbt_in.redeem_script = b""
         psbt_in.witness_script = b""
-        psbt_in.bip32_derivs = {}
+        psbt_in.hd_keypaths = {}
     return psbt
 
 

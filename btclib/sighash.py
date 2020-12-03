@@ -136,7 +136,7 @@ def segwit_v0(
     preimage += amount.to_bytes(8, "little")  # value
     preimage += transaction.vin[input_index].sequence.to_bytes(4, "little")
     preimage += hash_outputs
-    preimage += transaction.locktime.to_bytes(4, "little")
+    preimage += transaction.lock_time.to_bytes(4, "little")
     preimage += bytes.fromhex(hashtype_hex)
 
     return hash256(preimage)
