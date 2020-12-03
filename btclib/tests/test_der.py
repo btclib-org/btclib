@@ -52,7 +52,7 @@ def test_der_deserialize() -> None:
     r_size = sig_bin[3]
 
     bad_sig_bin = b"\x31" + sig_bin[1:]
-    err_msg = "invalid DER type: "
+    err_msg = "invalid compound header: "
     with pytest.raises(BTClibValueError, match=err_msg):
         Sig.deserialize(bad_sig_bin)
 
@@ -91,7 +91,7 @@ def test_der_deserialize() -> None:
     data_size = sig_bin[1]
     malleated_size = (data_size + 1).to_bytes(1, byteorder="big")
     bad_sig_bin = sig_bin[:1] + malleated_size + sig_bin[2:] + b"\x01"
-    err_msg = "invalid DER size"
+    err_msg = "invalid DER sequence length"
     with pytest.raises(BTClibValueError, match=err_msg):
         Sig.deserialize(bad_sig_bin)
 
