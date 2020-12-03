@@ -34,7 +34,7 @@ from .psbt_out import (
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
 )
-from .script import SIGHASHES
+from .sighash import assert_valid_sighash_type
 from .tx import Tx
 from .tx_out import TxOut
 from .witness import Witness
@@ -107,11 +107,6 @@ def _deserialize_int(k: bytes, v: bytes, type_: str) -> int:
     return int.from_bytes(v, "little")
 
 
-def _assert_valid_sighash(sighash: Optional[int]) -> None:
-    if sighash not in [None, *SIGHASHES]:
-        raise BTClibValueError(f"invalid sighash: {sighash}")
-
-
 def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
     "Return the dataclass element from its binary representation."
 
@@ -159,7 +154,9 @@ class PsbtIn(DataClassJsonMixin):
             encoder=_encode_dict_bytes_bytes, decoder=_decode_dict_bytes_bytes
         ),
     )
-    sighash: Optional[int] = None
+    sighash_type: Optional[int] = field(
+        default=None, metadata=config(field_name="sighash")
+    )
     redeem_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
@@ -190,7 +187,8 @@ class PsbtIn(DataClassJsonMixin):
         "Assert logical self-consistency."
         _assert_valid_tx(self.non_witness_utxo)
         _assert_valid_witness_utxo(self.witness_utxo)
-        _assert_valid_sighash(self.sighash)
+        if self.sighash_type:
+            assert_valid_sighash_type(self.sighash_type)
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
         _assert_valid_final_script_sig(self.final_script_sig)
@@ -215,8 +213,8 @@ class PsbtIn(DataClassJsonMixin):
             out += _serialize_dict_bytes_bytes(
                 PSBT_IN_PARTIAL_SIG, self.partial_signatures
             )
-        if self.sighash:
-            temp = self.sighash.to_bytes(4, "little")
+        if self.sighash_type:
+            temp = self.sighash_type.to_bytes(4, "little")
             out += _serialize_bytes(PSBT_IN_SIGHASH_TYPE, temp)
         if self.redeem_script:
             out += _serialize_bytes(PSBT_IN_REDEEM_SCRIPT, self.redeem_script)
@@ -252,7 +250,7 @@ class PsbtIn(DataClassJsonMixin):
             elif k[0:1] == PSBT_IN_PARTIAL_SIG:
                 out.partial_signatures.update(_deserialize_partial_signatures(k, v))
             elif k[0:1] == PSBT_IN_SIGHASH_TYPE:
-                out.sighash = _deserialize_int(k, v, "sighash")
+                out.sighash_type = _deserialize_int(k, v, "sighash type")
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
                 out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:

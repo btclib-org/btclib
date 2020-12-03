@@ -8,6 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"""Signatures of transaction hashes (sighash) and sighash types.
+
+https://medium.com/@bitaps.com/exploring-bitcoin-signature-hash-types-15427766f0a9
+https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sighash
+https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
+"""
+
 from copy import deepcopy
 from typing import List, Union
 
@@ -16,6 +23,27 @@ from .alias import Octets, ScriptToken
 from .exceptions import BTClibTypeError, BTClibValueError
 from .scriptpubkey import payload_from_script_pubkey
 from .utils import bytes_from_octets, hash256
+
+_FIRST_SIX_BITS = 0b111111
+
+SIGHASH_ALL = 1
+SIGHASH_NONE = 2
+SIGHASH_SINGLE = 3
+SIGHASH_ANYONECANPAY = 0b10000000
+
+SIGHASH_TYPES = [
+    SIGHASH_ALL,
+    SIGHASH_NONE,
+    SIGHASH_SINGLE,
+    SIGHASH_ANYONECANPAY & SIGHASH_ALL,
+    SIGHASH_ANYONECANPAY & SIGHASH_NONE,
+    SIGHASH_ANYONECANPAY & SIGHASH_SINGLE,
+]
+
+
+def assert_valid_sighash_type(sighash_type: int) -> None:
+    if sighash_type not in SIGHASH_TYPES:
+        raise BTClibValueError(f"invalid sighash type: {hex(sighash_type)}")
 
 
 # workaround to handle CTransactions

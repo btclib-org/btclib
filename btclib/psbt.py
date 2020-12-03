@@ -317,7 +317,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
             _combine_field(psbt.inputs[i], inp, "non_witness_utxo")
             _combine_field(psbt.inputs[i], inp, "witness_utxo")
             _combine_field(psbt.inputs[i], inp, "partial_signatures")
-            _combine_field(psbt.inputs[i], inp, "sighash")
+            _combine_field(psbt.inputs[i], inp, "sighash_type")
             _combine_field(psbt.inputs[i], inp, "redeem_script")
             _combine_field(psbt.inputs[i], inp, "witness_script")
             _combine_field(psbt.inputs[i], inp, "bip32_derivs")
@@ -340,7 +340,26 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
 
 
 def finalize_psbt(psbt: Psbt) -> Psbt:
+    """Finalize the Psbt.
+
+    The Input Finalizer must only accept a PSBT.
+
+    For each input, the Input Finalizer determines
+    if the input has enough data to pass validation.
+    If it does, it must construct the
+    0x07 Finalized scriptSig and
+    0x08 Finalized scriptWitness
+    and place them into the input key-value map.
+
+    All other data except the UTXO and unknown fields
+    in the input key-value map should be cleared from the PSBT.
+    The UTXO should be kept to allow Transaction Extractors
+    to verify the final network serialized transaction.
+    """
     psbt = deepcopy(psbt)
+    psbt.assert_valid()
+    # TODO: finalizers must fail to finalize inputs
+    # which have signatures that do not match the specified sighash type
     for psbt_in in psbt.inputs:
         if not psbt_in.partial_signatures:
             raise BTClibValueError("missing signatures")
@@ -358,16 +377,37 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             final_script_sig += [psbt_in.redeem_script.hex()]
             psbt_in.final_script_sig = script.serialize(final_script_sig)
         psbt_in.partial_signatures = {}
-        psbt_in.sighash = None
+        psbt_in.sighash_type = None
         psbt_in.redeem_script = b""
         psbt_in.witness_script = b""
         psbt_in.bip32_derivs = {}
     return psbt
 
 
-def extract_tx(psbt: Psbt, assert_valid=True) -> Tx:
-    if assert_valid:
-        psbt.assert_valid()
+def extract_tx(psbt: Psbt) -> Tx:
+    """Extract the Tx fro the Psbt
+
+    The Transaction Extractor must only accept a PSBT.
+    It checks whether all inputs have complete scriptSigs
+    and scriptWitnesses by checking for the presence of
+    0x07 Finalized scriptSig and 0x08 Finalized scriptWitness typed records.
+
+    If they do, the Transaction Extractor should construct
+    complete scriptSigs and scriptWitnesses and encode them
+    into network serialized transactions.
+    Otherwise the Extractor must not modify the PSBT.
+
+    The Extractor should produce a fully valid,
+    network serialized transaction if all inputs are complete.
+
+    The Transaction Extractor does not need to know
+    how to interpret scripts in order to extract
+    the network serialized transaction.
+    However it may be able to in order to validate
+    the network serialized transaction at the same time.
+    """
+
+    psbt.assert_valid()
     tx = psbt.tx
     for tx_vin, psbt_input in zip(tx.vin, psbt.inputs):
         tx_vin.script_sig = psbt_input.final_script_sig

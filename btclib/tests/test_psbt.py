@@ -448,8 +448,8 @@ def test_exceptions() -> None:
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.inputs[0].sighash = 101
-    with pytest.raises(BTClibValueError, match="invalid sighash: "):
+    psbt.inputs[0].sighash_type = 101
+    with pytest.raises(BTClibValueError, match="invalid sighash type: "):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
