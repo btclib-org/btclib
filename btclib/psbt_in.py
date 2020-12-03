@@ -134,8 +134,6 @@ _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
 
 @dataclass
 class PsbtIn(DataClassJsonMixin):
-    # FIXME remove Optional in favor of Tx()
-    # to make it equivalent to Psbt.tx
     non_witness_utxo: Optional[Tx] = None
     witness_utxo: Optional[TxOut] = None
     partial_sigs: Dict[bytes, bytes] = field(
