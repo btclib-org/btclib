@@ -189,12 +189,15 @@ class PsbtOut(DataClassJsonMixin):
 
         if self.redeem_script:
             out += _serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
+
         if self.witness_script:
             out += _serialize_bytes(PSBT_OUT_WITNESS_SCRIPT, self.witness_script)
+
         if self.hd_keypaths:
             out += _serialize_dict_bytes_bytes(
                 PSBT_OUT_BIP32_DERIVATION, self.hd_keypaths
             )
+
         if self.unknown:
             out += _serialize_dict_bytes_bytes(b"", self.unknown)
 
