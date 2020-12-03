@@ -17,7 +17,14 @@ import json
 from os import path
 
 from btclib import dsa, script
-from btclib.sighash import _get_legacy_script_codes, get_sighash, legacy
+from btclib.sighash import (
+    ALL,
+    ANYONECANPAY,
+    SINGLE,
+    _get_legacy_script_codes,
+    legacy,
+    sighash_from_prev_out,
+)
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
@@ -38,7 +45,7 @@ def test_first_transaction():
             "410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac"
         ),
     )
-    sighash = get_sighash(transaction, previous_txout, 0, 0x01)
+    sighash = sighash_from_prev_out(previous_txout, transaction, 0, ALL)
     assert (
         sighash.hex()
         == "7a05c6145f10101e9d6325494245adf1297d80f8f38d4d576d57cdba220bcb19"
@@ -78,7 +85,7 @@ def test_legacy_p2pkh():
         ]
     )
     previous_txout = TxOut(1051173696, script_pubkey)
-    sighash = get_sighash(tx, previous_txout, 0, 0x01)
+    sighash = sighash_from_prev_out(previous_txout, tx, 0, ALL)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
 
 
@@ -90,7 +97,7 @@ def test_p2pk():
     script_sig = script.serialize([signature])
 
     founding_tx_script = script.serialize([0, 0])
-    founding_tx = Tx(
+    funding_tx = Tx(
         1,
         0,
         [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF)],
@@ -99,10 +106,10 @@ def test_p2pk():
     receiving_tx = Tx(
         1,
         0,
-        [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
+        [TxIn(OutPoint(funding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
-    sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x01)
+    sighash = sighash_from_prev_out(funding_tx.vout[0], receiving_tx, 0, ALL)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
 
 
@@ -121,7 +128,7 @@ def test_p2pkh():
     script_sig = script.serialize([signature, pubkey])
 
     founding_tx_script = script.serialize([0, 0])
-    founding_tx = Tx(
+    funding_tx = Tx(
         1,
         0,
         [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF)],
@@ -130,10 +137,10 @@ def test_p2pkh():
     receiving_tx = Tx(
         1,
         0,
-        [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
+        [TxIn(OutPoint(funding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
-    sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x01)
+    sighash = sighash_from_prev_out(funding_tx.vout[0], receiving_tx, 0, ALL)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
 
 
@@ -144,7 +151,7 @@ def test_p2pk_anyonecanpay():
     script_sig = script.serialize([signature])
 
     founding_tx_script = script.serialize([0, 0])
-    founding_tx = Tx(
+    funding_tx = Tx(
         1,
         0,
         [TxIn(OutPoint(b"\x00" * 32, 0xFFFFFFFF), founding_tx_script, 0xFFFFFFFF)],
@@ -153,10 +160,12 @@ def test_p2pk_anyonecanpay():
     receiving_tx = Tx(
         1,
         0,
-        [TxIn(OutPoint(founding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
+        [TxIn(OutPoint(funding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
-    sighash = get_sighash(receiving_tx, founding_tx.vout[0], 0, 0x81)
+    sighash = sighash_from_prev_out(
+        funding_tx.vout[0], receiving_tx, 0, ANYONECANPAY | ALL
+    )
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
 
 
@@ -178,12 +187,12 @@ def test_sighashsingle_bug():
     tx = Tx.deserialize(
         "01000000020002000000000000000000000000000000000000000000000000000000000000000000000151ffffffff0001000000000000000000000000000000000000000000000000000000000000000000006b483045022100c9cdd08798a28af9d1baf44a6c77bcc7e279f47dc487c8c899911bc48feaffcc0220503c5c50ae3998a733263c5c0f7061b483e2b56c4c41b456e7d2f5a78a74c077032102d5c25adb51b61339d2b05315791e21bbe80ea470a49db0135720983c905aace0ffffffff010000000000000000015100000000"
     )
-    sighash = get_sighash(tx, previous_txout, 1, 0x03)
+    sighash = sighash_from_prev_out(previous_txout, tx, 1, SINGLE)
     assert dsa._verify(sighash, bytes.fromhex(pubkey), bytes.fromhex(signature)[:-1])
 
 
-def test_sighash_json():
-    fname = "sighash_legacy.json"
+def test_test_vectors():
+    fname = "sighash_legacy_test_vectors.json"
     filename = path.join(path.dirname(__file__), "test_data", fname)
     with open(filename, "r") as file_:
         data = json.load(file_)

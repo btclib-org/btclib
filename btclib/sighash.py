@@ -24,20 +24,20 @@ from .exceptions import BTClibTypeError, BTClibValueError
 from .scriptpubkey import payload_from_script_pubkey
 from .utils import bytes_from_octets, hash256
 
-_FIRST_SIX_BITS = 0b111111
+_FIRST_FIVE_BITS = 0b11111
 
-SIGHASH_ALL = 1
-SIGHASH_NONE = 2
-SIGHASH_SINGLE = 3
-SIGHASH_ANYONECANPAY = 0b10000000
+ALL = 1
+NONE = 2
+SINGLE = 3
+ANYONECANPAY = 0b10000000
 
 SIGHASH_TYPES = [
-    SIGHASH_ALL,
-    SIGHASH_NONE,
-    SIGHASH_SINGLE,
-    SIGHASH_ANYONECANPAY & SIGHASH_ALL,
-    SIGHASH_ANYONECANPAY & SIGHASH_NONE,
-    SIGHASH_ANYONECANPAY & SIGHASH_SINGLE,
+    ALL,
+    NONE,
+    SINGLE,
+    ANYONECANPAY & ALL,
+    ANYONECANPAY & NONE,
+    ANYONECANPAY & SINGLE,
 ]
 
 
@@ -54,20 +54,20 @@ def _get_bytes(a: Union[int, Octets]) -> bytes:
 
 
 def legacy(
-    script_code: bytes, transaction: tx.Tx, input_index: int, hashtype: int
+    script_code: bytes, transaction: tx.Tx, input_index: int, sighash_type: int
 ) -> bytes:
     new_tx = deepcopy(transaction)
     for txin in new_tx.vin:
         txin.script_sig = b""
     # TODO: delete sig from script_code (even if non standard)
     new_tx.vin[input_index].script_sig = script_code
-    if hashtype & 31 == 0x02:
+    if sighash_type & _FIRST_FIVE_BITS == NONE:
         new_tx.vout = []
         for i, txin in enumerate(new_tx.vin):
             if i != input_index:
                 txin.sequence = 0
 
-    if hashtype & 31 == 0x03:
+    if sighash_type & _FIRST_FIVE_BITS == SINGLE:
         # sighash single bug
         if input_index >= len(new_tx.vout):
             return (256 ** 31).to_bytes(32, "big")
@@ -79,21 +79,25 @@ def legacy(
             if i != input_index:
                 txin.sequence = 0
 
-    if hashtype & 0x80:
+    if sighash_type & 0x80:
         new_tx.vin = [new_tx.vin[input_index]]
 
     preimage = new_tx.serialize(include_witness=True, assert_valid=False)
-    preimage += hashtype.to_bytes(4, "little")
+    preimage += sighash_type.to_bytes(4, "little")
 
     return hash256(preimage)
 
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
 def segwit_v0(
-    script_code: bytes, transaction: tx.Tx, input_index: int, hashtype: int, amount: int
+    script_code: bytes,
+    transaction: tx.Tx,
+    input_index: int,
+    sighash_type: int,
+    amount: int,
 ) -> bytes:
 
-    hashtype_hex: str = hashtype.to_bytes(4, "little").hex()
+    hashtype_hex: str = sighash_type.to_bytes(4, "little").hex()
     if hashtype_hex[0] != "8":
         hash_prevouts = b""
         for vin in transaction.vin:
@@ -171,26 +175,24 @@ def _get_witness_v0_script_codes(script_pubkey: Octets) -> List[bytes]:
     return script_codes[::-1]
 
 
-def get_sighash(
-    transaction: tx.Tx,
+def sighash_from_prev_out(
     previous_output: tx_out.TxOut,
+    transaction: tx.Tx,
     input_index: int,
     sighash_type: int,
 ) -> bytes:
-
-    value = previous_output.value
 
     script_pubkey = previous_output.script_pubkey
     try:
         script_type = payload_from_script_pubkey(script_pubkey)[0]
         if script_type == "p2sh":
             script_pubkey = transaction.vin[input_index].script_sig
+            script_type = payload_from_script_pubkey(script_pubkey)[0]
     except BTClibValueError:
         script_type = "unknown"
 
     list_script = script.deserialize(script_pubkey)
     if len(list_script) == 2 and list_script[0] == 0:  # is segwit
-        script_type = payload_from_script_pubkey(script_pubkey)[0]
         if script_type == "p2wpkh":
             script_code = _get_witness_v0_script_codes(script_pubkey)[0]
         elif script_type == "p2wsh":
@@ -198,6 +200,8 @@ def get_sighash(
             script_code = _get_witness_v0_script_codes(
                 transaction.vin[input_index].witness.items[-1]
             )[0]
+
+        value = previous_output.value
         return segwit_v0(script_code, transaction, input_index, sighash_type, value)
 
     script_code = _get_legacy_script_codes(script_pubkey)[0]
