@@ -31,7 +31,7 @@ def test_genesis_block() -> None:
     coinbase_inp = "0000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff"
     transaction_in = TxIn.deserialize(coinbase_inp)
     assert transaction_in.serialize().hex() == coinbase_inp
-    assert transaction_in.prevout.is_coinbase
+    assert transaction_in.prev_out.is_coinbase
 
     coinbase_out = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
     transaction_out = TxOut.deserialize(coinbase_out)

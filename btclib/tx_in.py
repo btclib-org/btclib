@@ -34,6 +34,16 @@ class OutPoint(DataClassJsonMixin):
     # add value and script_pubkey when tx fetcher will be available
     check_validity: InitVar[bool] = True
 
+    @property
+    def hash(self) -> int:
+        "Return the hash int for compatibility with COutPoint."
+        return int.from_bytes(self.txid, "little", signed=False)
+
+    @property
+    def n(self) -> int:
+        "Return the n int for compatibility with COutPoint."
+        return self.vout
+
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
             self.assert_valid()
@@ -92,7 +102,7 @@ _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 @dataclass
 class TxIn(DataClassJsonMixin):
-    prevout: OutPoint = OutPoint(check_validity=False)
+    prev_out: OutPoint = OutPoint(check_validity=False)
     # TODO make it { "asm": "", "hex": "" }
     script_sig: bytes = field(
         default=b"",
@@ -105,15 +115,25 @@ class TxIn(DataClassJsonMixin):
     witness: Witness = Witness(check_validity=False)
     check_validity: InitVar[bool] = True
 
+    @property
+    def scriptSig(self) -> bytes:
+        "Return the scriptSig bytes for compatibility with CTxIn."
+        return self.script_sig
+
+    @property
+    def nSequence(self) -> int:
+        "Return the nSequence int for compatibility with CTxIn."
+        return self.sequence
+
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
             self.assert_valid()
 
     def is_coinbase(self) -> bool:
-        return self.prevout.is_coinbase()
+        return self.prev_out.is_coinbase()
 
     def assert_valid(self) -> None:
-        self.prevout.assert_valid()
+        self.prev_out.assert_valid()
         # TODO: empty script_sig is valid (add non-regression test)
         # TODO: test sequence
         self.witness.assert_valid()
@@ -123,7 +143,7 @@ class TxIn(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.prevout.serialize()
+        out = self.prev_out.serialize()
         out += varbytes.serialize(self.script_sig)
         out += self.sequence.to_bytes(4, byteorder="little", signed=False)
         return out
@@ -136,7 +156,7 @@ class TxIn(DataClassJsonMixin):
         s = bytesio_from_binarydata(data)
 
         tx_in = cls(check_validity=False)
-        tx_in.prevout = OutPoint.deserialize(s)
+        tx_in.prev_out = OutPoint.deserialize(s)
         tx_in.script_sig = varbytes.deserialize(s)
         tx_in.sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
 

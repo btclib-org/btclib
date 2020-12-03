@@ -138,7 +138,7 @@ class Psbt(DataClassJsonMixin):
             witness_utxo = self.inputs[i].witness_utxo
 
             if non_witness_utxo:
-                txid = tx_in.prevout.txid
+                txid = tx_in.prev_out.txid
                 if non_witness_utxo.txid != txid:
                     err_msg = "invalid non_witness_utxo txid"
                     err_msg += f": {non_witness_utxo.txid.hex()}"
@@ -158,7 +158,7 @@ class Psbt(DataClassJsonMixin):
             if self.inputs[i].redeem_script:
                 if non_witness_utxo:
                     script_pubkey = non_witness_utxo.vout[
-                        tx_in.prevout.vout
+                        tx_in.prev_out.vout
                     ].script_pubkey
                 elif witness_utxo:
                     script_pubkey = witness_utxo.script_pubkey
@@ -169,7 +169,7 @@ class Psbt(DataClassJsonMixin):
             if self.inputs[i].witness_script:
                 if non_witness_utxo:
                     script_pubkey = non_witness_utxo.vout[
-                        tx_in.prevout.vout
+                        tx_in.prev_out.vout
                     ].script_pubkey
                 elif witness_utxo:
                     script_pubkey = witness_utxo.script_pubkey
@@ -368,8 +368,8 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         if psbt_in.witness_script:
             psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
             psbt_in.final_script_witness = Witness([b""]) if multi_sig else Witness()
-            psbt_in.final_script_witness.items += sigs
-            psbt_in.final_script_witness.items += [psbt_in.witness_script]
+            psbt_in.final_script_witness.stack += sigs
+            psbt_in.final_script_witness.stack += [psbt_in.witness_script]
         else:
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
             final_script_sig: List[ScriptToken] = [0] if multi_sig else []

@@ -55,6 +55,16 @@ class TxOut(DataClassJsonMixin):
     )
     check_validity: InitVar[bool] = True
 
+    @property
+    def scriptPubKey(self) -> bytes:
+        "Return the scriptPubKey bytes for compatibility with CTxOut."
+        return self.script_pubkey
+
+    @property
+    def nValue(self) -> int:
+        "Return the nValue int for compatibility with CTxOut."
+        return self.value
+
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
             self.assert_valid()

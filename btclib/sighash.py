@@ -99,13 +99,13 @@ def segwit_v0(
 
     hashtype_hex: str = sighash_type.to_bytes(4, "little").hex()
     if hashtype_hex[0] != "8":
-        hash_prevouts = b""
+        hash_prev_outs = b""
         for vin in transaction.vin:
-            hash_prevouts += _get_bytes(vin.prevout.txid)[::-1]
-            hash_prevouts += vin.prevout.vout.to_bytes(4, "little")
-        hash_prevouts = hash256(hash_prevouts)
+            hash_prev_outs += _get_bytes(vin.prev_out.txid)[::-1]
+            hash_prev_outs += vin.prev_out.vout.to_bytes(4, "little")
+        hash_prev_outs = hash256(hash_prev_outs)
     else:
-        hash_prevouts = b"\x00" * 32
+        hash_prev_outs = b"\x00" * 32
 
     if hashtype_hex[1] == "1" and hashtype_hex[0] != "8":
         hash_seq = b""
@@ -125,11 +125,11 @@ def segwit_v0(
     else:
         hash_outputs = b"\x00" * 32
 
-    outpoint = _get_bytes(transaction.vin[input_index].prevout.txid)[::-1]
-    outpoint += transaction.vin[input_index].prevout.vout.to_bytes(4, "little")
+    outpoint = _get_bytes(transaction.vin[input_index].prev_out.txid)[::-1]
+    outpoint += transaction.vin[input_index].prev_out.vout.to_bytes(4, "little")
 
     preimage = transaction.version.to_bytes(4, "little")
-    preimage += hash_prevouts
+    preimage += hash_prev_outs
     preimage += hash_seq
     preimage += outpoint
     preimage += varbytes.serialize(script_code)
@@ -198,7 +198,7 @@ def sighash_from_prev_out(
         elif script_type == "p2wsh":
             # the real script is contained in the witness
             script_code = _get_witness_v0_script_codes(
-                transaction.vin[input_index].witness.items[-1]
+                transaction.vin[input_index].witness.stack[-1]
             )[0]
 
         value = previous_output.value

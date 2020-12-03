@@ -88,7 +88,7 @@ def test_native_p2wsh():
         == "82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391"
     )
 
-    script_code = _get_witness_v0_script_codes(transaction.vin[1].witness.items[-1])[1]
+    script_code = _get_witness_v0_script_codes(transaction.vin[1].witness.stack[-1])[1]
     sighash = segwit_v0(script_code, transaction, 1, SINGLE, previous_txout.value)
     assert (
         sighash.hex()
@@ -132,7 +132,7 @@ def test_native_p2wsh_2():
         ),
     )
 
-    script_code = _get_witness_v0_script_codes(transaction.vin[1].witness.items[-1])[1]
+    script_code = _get_witness_v0_script_codes(transaction.vin[1].witness.stack[-1])[1]
     sighash = segwit_v0(
         script_code,
         transaction,

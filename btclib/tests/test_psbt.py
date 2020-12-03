@@ -284,7 +284,7 @@ def test_valid_sign_2() -> None:
     assert psbt.b64encode() == psbt_str.encode("ascii")
 
     transaction_input = TxIn(
-        prevout=OutPoint(
+        prev_out=OutPoint(
             bytes.fromhex(
                 "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858"
             ),
@@ -295,7 +295,7 @@ def test_valid_sign_2() -> None:
     )
     assert psbt.inputs[0].witness_utxo is not None
     transaction = Tx(0, 2, [transaction_input], [psbt.inputs[0].witness_utxo])
-    psbt.tx.vin[0].prevout.txid = transaction.txid
+    psbt.tx.vin[0].prev_out.txid = transaction.txid
     psbt.inputs[0].non_witness_utxo = transaction
     psbt.assert_signable()
 
