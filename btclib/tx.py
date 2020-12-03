@@ -90,16 +90,6 @@ class Tx(DataClassJsonMixin):
     # TODO: add fee when a tx fetcher will be available
     check_validity: InitVar[bool] = True
 
-    @property
-    def nVersion(self) -> int:
-        "Return the nVersion int for compatibility with CTransaction."
-        return self.version
-
-    @property
-    def nLockTime(self) -> int:
-        "Return the nLockTime int for compatibility with CTransaction."
-        return self.lock_time
-
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
             self.assert_valid()
@@ -114,6 +104,16 @@ class Tx(DataClassJsonMixin):
     def to_dict(self, encode_json=False) -> Dict[str, Json]:
         self._set_properties()
         return super().to_dict(encode_json)
+
+    @property
+    def nVersion(self) -> int:
+        "Return the nVersion int for compatibility with CTransaction."
+        return self.version
+
+    @property
+    def nLockTime(self) -> int:
+        "Return the nLockTime int for compatibility with CTransaction."
+        return self.lock_time
 
     @property
     def txid(self) -> bytes:
