@@ -88,7 +88,7 @@ def _deserialize_partial_sigs(k: bytes, v: bytes) -> Dict[bytes, bytes]:
     return {k[1:]: v}
 
 
-def _assert_valid_partial_signatures(partial_sigs: Dict[bytes, bytes]) -> None:
+def _assert_valid_partial_sigs(partial_sigs: Dict[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     for pubkey, sig in partial_sigs.items():
@@ -115,6 +115,11 @@ def _deserialize_int(k: bytes, v: bytes, type_: str) -> int:
     return int.from_bytes(v, "little")
 
 
+def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
+    if not isinstance(final_script_sig, bytes):
+        raise BTClibTypeError("invalid final script_sig")
+
+
 def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
     "Return the dataclass element from its binary representation."
 
@@ -122,11 +127,6 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
         err_msg = f"invalid final script witness key length: {len(k)}"
         raise BTClibValueError(err_msg)
     return Witness.deserialize(v)
-
-
-def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
-    if not isinstance(final_script_sig, bytes):
-        raise BTClibTypeError("invalid final script_sig")
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -200,7 +200,7 @@ class PsbtIn(DataClassJsonMixin):
         _assert_valid_witness_script(self.witness_script)
         _assert_valid_final_script_sig(self.final_script_sig)
         self.final_script_witness.assert_valid()
-        _assert_valid_partial_signatures(self.partial_sigs)
+        _assert_valid_partial_sigs(self.partial_sigs)
         _assert_valid_hd_keypaths(self.hd_keypaths)
         _assert_valid_unknown(self.unknown)
 
@@ -214,26 +214,39 @@ class PsbtIn(DataClassJsonMixin):
         if self.non_witness_utxo:
             temp = self.non_witness_utxo.serialize(include_witness=True)
             out += _serialize_bytes(PSBT_IN_NON_WITNESS_UTXO, temp)
+
         if self.witness_utxo:
             out += _serialize_bytes(PSBT_IN_WITNESS_UTXO, self.witness_utxo.serialize())
-        if self.partial_sigs:
-            out += _serialize_dict_bytes_bytes(PSBT_IN_PARTIAL_SIG, self.partial_sigs)
-        if self.sighash_type:
-            temp = self.sighash_type.to_bytes(4, "little")
-            out += _serialize_bytes(PSBT_IN_SIGHASH_TYPE, temp)
-        if self.redeem_script:
-            out += _serialize_bytes(PSBT_IN_REDEEM_SCRIPT, self.redeem_script)
-        if self.witness_script:
-            out += _serialize_bytes(PSBT_IN_WITNESS_SCRIPT, self.witness_script)
+
+        if not self.final_script_sig and not self.final_script_witness:
+
+            if self.partial_sigs:
+                out += _serialize_dict_bytes_bytes(
+                    PSBT_IN_PARTIAL_SIG, self.partial_sigs
+                )
+
+            if self.sighash_type:
+                temp = self.sighash_type.to_bytes(4, "little")
+                out += _serialize_bytes(PSBT_IN_SIGHASH_TYPE, temp)
+
+            if self.redeem_script:
+                out += _serialize_bytes(PSBT_IN_REDEEM_SCRIPT, self.redeem_script)
+
+            if self.witness_script:
+                out += _serialize_bytes(PSBT_IN_WITNESS_SCRIPT, self.witness_script)
+
+            if self.hd_keypaths:
+                out += _serialize_dict_bytes_bytes(
+                    PSBT_IN_BIP32_DERIVATION, self.hd_keypaths
+                )
+
         if self.final_script_sig:
             out += _serialize_bytes(PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig)
+
         if self.final_script_witness:
             temp = self.final_script_witness.serialize()
             out += _serialize_bytes(PSBT_IN_FINAL_SCRIPTWITNESS, temp)
-        if self.hd_keypaths:
-            out += _serialize_dict_bytes_bytes(
-                PSBT_IN_BIP32_DERIVATION, self.hd_keypaths
-            )
+
         if self.unknown:
             out += _serialize_dict_bytes_bytes(b"", self.unknown)
 
@@ -256,10 +269,6 @@ class PsbtIn(DataClassJsonMixin):
                 out.partial_sigs.update(_deserialize_partial_sigs(k, v))
             elif k[0:1] == PSBT_IN_SIGHASH_TYPE:
                 out.sighash_type = _deserialize_int(k, v, "sighash type")
-            elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
-            elif k[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
-                out.final_script_witness = _deserialize_final_script_witness(k, v)
             elif k[0:1] == PSBT_IN_REDEEM_SCRIPT:
                 out.redeem_script = _deserialize_bytes(k, v, "redeem script")
             elif k[0:1] == PSBT_IN_WITNESS_SCRIPT:
@@ -268,6 +277,10 @@ class PsbtIn(DataClassJsonMixin):
                 out.hd_keypaths.update(
                     _deserialize_hd_keypaths(k, v, "PsbtIn BIP32 pubkey")
                 )
+            elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
+                out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
+            elif k[0:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
+                out.final_script_witness = _deserialize_final_script_witness(k, v)
             else:  # unknown
                 out.unknown[k] = v
 
