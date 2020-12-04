@@ -24,20 +24,18 @@ _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 @dataclass
 class OutPoint(DataClassJsonMixin):
-    # 32 bytes, little endian
     txid: bytes = field(
         default=b"\x00" * 32,
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    # 4 bytes, unsigned little endian
-    vout: int = -1
+    vout: int = 0xFFFFFFFF
     # add value and script_pubkey when tx fetcher will be available
     check_validity: InitVar[bool] = True
 
     @property
     def hash(self) -> int:
         "Return the hash int for compatibility with COutPoint."
-        return int.from_bytes(self.txid, "little", signed=False)
+        return int.from_bytes(self.txid, "big", signed=False)
 
     @property
     def n(self) -> int:
@@ -49,10 +47,9 @@ class OutPoint(DataClassJsonMixin):
             self.assert_valid()
 
     def is_coinbase(self) -> bool:
-        return (self.txid == b"\x00" * 32) and (self.vout == 0xFFFFFFFF)
+        return self.txid == b"\x00" * 32 and self.vout == 0xFFFFFFFF
 
     def assert_valid(self) -> None:
-        # must be a 32 bytes
         if len(self.txid) != 32:
             m = f"invalid OutPoint txid: {len(self.txid)}"
             m += " instead of 32 bytes"
@@ -72,10 +69,8 @@ class OutPoint(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        # 32 bytes, little endian
         out = self.txid[::-1]
-        # 4 bytes, little endian
-        out += self.vout.to_bytes(4, "little")
+        out += self.vout.to_bytes(4, "little", signed=False)
         return out
 
     @classmethod
@@ -87,10 +82,8 @@ class OutPoint(DataClassJsonMixin):
         data = bytesio_from_binarydata(data)
 
         outpoint = cls(check_validity=False)
-        # 32 bytes, little endian
         outpoint.txid = data.read(32)[::-1]
-        # 4 bytes, little endian, interpreted as int
-        outpoint.vout = int.from_bytes(data.read(4), "little")
+        outpoint.vout = int.from_bytes(data.read(4), "little", signed=False)
 
         if assert_valid:
             outpoint.assert_valid()
@@ -102,7 +95,7 @@ _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 @dataclass
 class TxIn(DataClassJsonMixin):
-    prev_out: OutPoint = OutPoint(check_validity=False)
+    prev_out: OutPoint = OutPoint()
     # TODO make it { "asm": "", "hex": "" }
     script_sig: bytes = field(
         default=b"",
@@ -110,10 +103,14 @@ class TxIn(DataClassJsonMixin):
             field_name="scriptSig", encoder=lambda v: v.hex(), decoder=bytes.fromhex
         ),
     )
-    # 4 bytes, unsigned little endian
-    sequence: int = -1
+    sequence: int = 0
     witness: Witness = Witness(check_validity=False)
     check_validity: InitVar[bool] = True
+
+    @property
+    def outpoint(self) -> OutPoint:
+        "Return the outpoint OutPoint for compatibility with CTxIn."
+        return self.prev_out
 
     @property
     def scriptSig(self) -> bytes:
