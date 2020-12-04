@@ -177,6 +177,15 @@ def test_invalid_tx_out() -> None:
         transaction_output.assert_valid()
 
 
+def test_tx_out_from_address() -> None:
+    address = b"bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej"
+    assert TxOut.from_address(0, address).address == address
+    assert TxOut.from_address(0, address).network == "mainnet"
+    address = b"tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
+    assert TxOut.from_address(0, address).address == address
+    assert TxOut.from_address(0, address).network == "testnet"
+
+
 def test_invalid_tx() -> None:
     transaction_input = TxIn(OutPoint(b"\xff" * 32, 0), b"", 1)
     tx1 = Tx(0, 0, [transaction_input], [], check_validity=False)
