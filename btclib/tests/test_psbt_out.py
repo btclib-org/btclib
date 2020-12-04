@@ -14,12 +14,12 @@ from typing import Dict, List
 
 from btclib.psbt_out import (
     PSBT_OUT_BIP32_DERIVATION,
-    _assert_valid_bip32_derivs,
+    _assert_valid_hd_keypaths,
     _assert_valid_unknown,
-    _decode_bip32_derivs,
     _decode_dict_bytes_bytes,
-    _encode_bip32_derivs,
+    _decode_hd_keypaths,
     _encode_dict_bytes_bytes,
+    _encode_hd_keypaths,
     _serialize_dict_bytes_bytes,
 )
 
@@ -38,10 +38,10 @@ def test_bip32_derivs() -> None:
             "path": "m/0'/0'/1'",
         },
     ]
-    decoded_data: Dict[bytes, bytes] = _decode_bip32_derivs(data)
-    assert data == _encode_bip32_derivs(decoded_data)
+    decoded_data: Dict[bytes, bytes] = _decode_hd_keypaths(data)
+    assert data == _encode_hd_keypaths(decoded_data)
 
-    _assert_valid_bip32_derivs(decoded_data)
+    _assert_valid_hd_keypaths(decoded_data)
 
     _serialize_dict_bytes_bytes(PSBT_OUT_BIP32_DERIVATION, decoded_data)
     # TODO: check deserialization

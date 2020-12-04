@@ -42,7 +42,10 @@ def _serialize_dict_bytes_bytes(type_: bytes, d: Dict[bytes, bytes]) -> bytes:
     "Return the binary representation of the dataclass element."
 
     return b"".join(
-        [varbytes.serialize(type_ + k) + varbytes.serialize(v) for k, v in d.items()]
+        [
+            varbytes.serialize(type_ + k) + varbytes.serialize(v)
+            for k, v in sorted(d.items())
+        ]
     )
 
 
@@ -72,7 +75,7 @@ def _assert_valid_witness_script(witness_script: bytes) -> None:
         raise BTClibTypeError("invalid witness script")
 
 
-def _encode_bip32_derivs(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
+def _encode_hd_keypaths(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     "Return the json representation of the dataclass element."
 
     result: List[Dict[str, str]] = []
@@ -86,7 +89,7 @@ def _encode_bip32_derivs(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     return result
 
 
-def _decode_bip32_deriv(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
+def _decode_hd_keypath(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
     v = bytes_from_octets(new_element["master_fingerprint"], 4)
     v += bytes_from_bip32_path(new_element["path"], "little")
     # TODO: check the SEC / XPUB key
@@ -94,13 +97,13 @@ def _decode_bip32_deriv(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
     return k, v
 
 
-def _decode_bip32_derivs(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
+def _decode_hd_keypaths(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
 
-    return dict([_decode_bip32_deriv(item) for item in list_of_dict])
+    return dict([_decode_hd_keypath(item) for item in list_of_dict])
 
 
-def _deserialize_bip32_derivs(k: bytes, v: bytes, type_: str) -> Dict[bytes, bytes]:
+def _deserialize_hd_keypaths(k: bytes, v: bytes, type_: str) -> Dict[bytes, bytes]:
     "Return the dataclass element from its binary representation."
 
     allowed_lengths = (78,) if type_ == "Psbt BIP32 xkey" else (33, 65)
@@ -111,10 +114,10 @@ def _deserialize_bip32_derivs(k: bytes, v: bytes, type_: str) -> Dict[bytes, byt
     return {k[1:]: v}
 
 
-def _assert_valid_bip32_derivs(bip32_derivs: Dict[bytes, bytes]) -> None:
+def _assert_valid_hd_keypaths(hd_keypaths: Dict[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
-    for _, v in bip32_derivs.items():
+    for _, v in hd_keypaths.items():
         # FIXME
         # point_from_pubkey(k)
         indexes_from_bip32_path(v, "little")
@@ -150,9 +153,13 @@ class PsbtOut(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    bip32_derivs: Dict[bytes, bytes] = field(
+    hd_keypaths: Dict[bytes, bytes] = field(
         default_factory=dict,
-        metadata=config(encoder=_encode_bip32_derivs, decoder=_decode_bip32_derivs),
+        metadata=config(
+            field_name="bip32_derivs",
+            encoder=_encode_hd_keypaths,
+            decoder=_decode_hd_keypaths,
+        ),
     )
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
@@ -170,7 +177,7 @@ class PsbtOut(DataClassJsonMixin):
         "Assert logical self-consistency."
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
-        _assert_valid_bip32_derivs(self.bip32_derivs)
+        _assert_valid_hd_keypaths(self.hd_keypaths)
         _assert_valid_unknown(self.unknown)
 
     def serialize(self, assert_valid: bool = True) -> bytes:
@@ -182,12 +189,15 @@ class PsbtOut(DataClassJsonMixin):
 
         if self.redeem_script:
             out += _serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
+
         if self.witness_script:
             out += _serialize_bytes(PSBT_OUT_WITNESS_SCRIPT, self.witness_script)
-        if self.bip32_derivs:
+
+        if self.hd_keypaths:
             out += _serialize_dict_bytes_bytes(
-                PSBT_OUT_BIP32_DERIVATION, self.bip32_derivs
+                PSBT_OUT_BIP32_DERIVATION, self.hd_keypaths
             )
+
         if self.unknown:
             out += _serialize_dict_bytes_bytes(b"", self.unknown)
 
@@ -207,8 +217,8 @@ class PsbtOut(DataClassJsonMixin):
             elif k[0:1] == PSBT_OUT_WITNESS_SCRIPT:
                 out.witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[0:1] == PSBT_OUT_BIP32_DERIVATION:
-                out.bip32_derivs.update(
-                    _deserialize_bip32_derivs(k, v, "PsbtOut BIP32 pubkey")
+                out.hd_keypaths.update(
+                    _deserialize_hd_keypaths(k, v, "PsbtOut BIP32 pubkey")
                 )
             else:  # unknown
                 out.unknown[k] = v

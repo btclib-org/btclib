@@ -25,20 +25,6 @@ from .alias import BinaryData, Octets, ScriptToken
 from .exceptions import BTClibTypeError, BTClibValueError
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
-SIGHASH_ALL = 1
-SIGHASH_NONE = 2
-SIGHASH_SINGLE = 3
-SIGHASH_ANYONECANPAY = 0b10000000
-
-SIGHASHES = [
-    SIGHASH_ALL,
-    SIGHASH_NONE,
-    SIGHASH_SINGLE,
-    SIGHASH_ANYONECANPAY + SIGHASH_ALL,
-    SIGHASH_ANYONECANPAY + SIGHASH_NONE,
-    SIGHASH_ANYONECANPAY + SIGHASH_SINGLE,
-]
-
 OP_CODES = {
     # Constants
     "OP_0": b"\x00",

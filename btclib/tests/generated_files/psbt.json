@@ -1,78 +1,88 @@
 {
     "tx": {
+        "txid": "82efd652d7ab1197f01a5f4d9a30cb4c68bb79ab6fec58dfa1bf112291d1617b",
+        "hash": "82efd652d7ab1197f01a5f4d9a30cb4c68bb79ab6fec58dfa1bf112291d1617b",
         "version": 2,
+        "size": 154,
+        "vsize": 154,
+        "weight": 616,
+        "locktime": 0,
         "vin": [
             {
-                "prevout": {
+                "prev_out": {
                     "txid": "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858",
                     "vout": 0
                 },
                 "scriptSig": "",
                 "sequence": 4294967295,
                 "witness": {
-                    "items": []
+                    "stack": []
                 }
             },
             {
-                "prevout": {
+                "prev_out": {
                     "txid": "1dea7cd05979072a3578cab271c02244ea8a090bbb46aa680a65ecd027048d83",
                     "vout": 1
                 },
                 "scriptSig": "",
                 "sequence": 4294967295,
                 "witness": {
-                    "items": []
+                    "stack": []
                 }
             }
         ],
         "vout": [
             {
                 "value": 149990000,
-                "scriptPubKey": "0014d85c2b71d0060b09c9886aeb815e50991dda124d"
+                "scriptPubKey": "0014d85c2b71d0060b09c9886aeb815e50991dda124d",
+                "network": "mainnet",
+                "address": "bc1qmpwzkuwsqc9snjvgdt4czhjsnywa5yjdgwyw6k"
             },
             {
                 "value": 100000000,
-                "scriptPubKey": "001400aea9a2e5f0f876a588df5546e8742d1d87008f"
+                "scriptPubKey": "001400aea9a2e5f0f876a588df5546e8742d1d87008f",
+                "network": "mainnet",
+                "address": "bc1qqzh2ngh97ru8dfvgma25d6r595wcwqy0skmt5z"
             }
-        ],
-        "locktime": 0,
-        "txid": "82efd652d7ab1197f01a5f4d9a30cb4c68bb79ab6fec58dfa1bf112291d1617b",
-        "size": 154,
-        "weight": 616,
-        "vsize": 154
+        ]
     },
     "inputs": [
         {
             "non_witness_utxo": {
+                "txid": "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858",
+                "hash": "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858",
                 "version": 2,
+                "size": 187,
+                "vsize": 187,
+                "weight": 748,
+                "locktime": 101,
                 "vin": [
                     {
-                        "prevout": {
+                        "prev_out": {
                             "txid": "8b6f65ab71eeab8b2918acc2ea06b79de08b84680b40ae845fd28b013139d7aa",
                             "vout": 0
                         },
                         "scriptSig": "473044022058f6fc7c6a33e1b31548d481c826c015bd30135aad42cd67790dab66d2ad243b02204a1ced2604c6735b6393e5b41691dd78b00f0c5942fb9f751856faa938157dba01",
                         "sequence": 4294967294,
                         "witness": {
-                            "items": []
+                            "stack": []
                         }
                     }
                 ],
                 "vout": [
                     {
                         "value": 50000000,
-                        "scriptPubKey": "a9140fb9463421696b82c833af241c78c17ddbde493487"
+                        "scriptPubKey": "a9140fb9463421696b82c833af241c78c17ddbde493487",
+                        "network": "mainnet",
+                        "address": "338A1VzFsJXQAiJHeZDzwCvmSv4t1CoYkY"
                     },
                     {
                         "value": 4949996240,
-                        "scriptPubKey": "a91429ca74f8a08f81999428185c97b5d852e4063f6187"
+                        "scriptPubKey": "a91429ca74f8a08f81999428185c97b5d852e4063f6187",
+                        "network": "mainnet",
+                        "address": "35VzAMxSnefPwn2bnCHs53cEWsMfyHUiZr"
                     }
-                ],
-                "locktime": 101,
-                "txid": "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858",
-                "size": 187,
-                "weight": 748,
-                "vsize": 187
+                ]
             },
             "witness_utxo": null,
             "partial_signatures": {
@@ -96,7 +106,7 @@
             ],
             "final_script_sig": "",
             "final_script_witness": {
-                "items": []
+                "stack": []
             },
             "unknown": {}
         },
@@ -104,11 +114,13 @@
             "non_witness_utxo": null,
             "witness_utxo": {
                 "value": 200000000,
-                "scriptPubKey": "a914b7f5faf40e3d40a5a459b1db3535f2b72fa921e887"
+                "scriptPubKey": "a914b7f5faf40e3d40a5a459b1db3535f2b72fa921e887",
+                "network": "mainnet",
+                "address": "3JTiFf9xWFqryQ7CXK3hMX8oh4GxYxUyAr"
             },
             "partial_signatures": {
-                "03089dc10c7ac6db54f91329af617333db388cead0c231f723379d1b99030b02dc": "3044022062eb7a556107a7c73f45ac4ab5a1dddf6f7075fb1275969a7f383efff784bcb202200c05dbb7470dbf2f08557dd356c7325c1ed30913e996cd3840945db12228da5f01",
-                "023add904f3d6dcf59ddb906b0dee23529b7ffb9ed50e5e86151926860221f0e73": "3044022065f45ba5998b59a27ffe1a7bed016af1f1f90d54b3aa8f7450aa5f56a25103bd02207f724703ad1edb96680b284b56d4ffcb88f7fb759eabbe08aa30f29b851383d201"
+                "023add904f3d6dcf59ddb906b0dee23529b7ffb9ed50e5e86151926860221f0e73": "3044022065f45ba5998b59a27ffe1a7bed016af1f1f90d54b3aa8f7450aa5f56a25103bd02207f724703ad1edb96680b284b56d4ffcb88f7fb759eabbe08aa30f29b851383d201",
+                "03089dc10c7ac6db54f91329af617333db388cead0c231f723379d1b99030b02dc": "3044022062eb7a556107a7c73f45ac4ab5a1dddf6f7075fb1275969a7f383efff784bcb202200c05dbb7470dbf2f08557dd356c7325c1ed30913e996cd3840945db12228da5f01"
             },
             "sighash": 1,
             "redeem_script": "00208c2353173743b595dfb4a07b72ba8e42e3797da74e87fe7d9d7497e3b2028903",
@@ -127,7 +139,7 @@
             ],
             "final_script_sig": "",
             "final_script_witness": {
-                "items": []
+                "stack": []
             },
             "unknown": {}
         }

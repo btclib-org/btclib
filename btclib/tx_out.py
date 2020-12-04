@@ -9,13 +9,27 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import InitVar, dataclass, field
-from typing import Type, TypeVar
+from typing import Dict, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
+from dataclasses_json.core import Json
 
 from . import varbytes
-from .alias import BinaryData
+from .alias import BinaryData, String
 from .exceptions import BTClibValueError
+from .scriptpubkey import (
+    is_nulldata,
+    is_p2ms,
+    is_p2pk,
+    is_p2pkh,
+    is_p2sh,
+    is_p2wpkh,
+    is_p2wsh,
+)
+from .scriptpubkey_address import (
+    address_from_script_pubkey,
+    script_pubkey_from_address,
+)
 from .utils import bytesio_from_binarydata
 
 MAX_SATOSHI = 2_099_999_997_690_000
@@ -34,7 +48,7 @@ class TxOut(DataClassJsonMixin):
     #    )
     # )
     # 8 bytes, unsigned little endian
-    value: int = -1  # satoshis
+    value: int = 0  # satoshis
     # FIXME: make it
     # "script_pubkey": {
     #    "asm": "0 d85c2b71d0060b09c9886aeb815e50991dda124d",
@@ -53,17 +67,81 @@ class TxOut(DataClassJsonMixin):
             decoder=bytes.fromhex,
         ),
     )
+    network: str = "mainnet"
+    _address: bytes = field(
+        default=b"",
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(
+            field_name="address",
+            encoder=lambda v: v.decode("ascii"),
+            decoder=lambda v: v.encode("ascii"),
+        ),
+    )
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
             self.assert_valid()
 
+    def _set_properties(self) -> None:
+        self._address = self.address
+
+    def to_dict(self, encode_json=False) -> Dict[str, Json]:
+        self._set_properties()
+        return super().to_dict(encode_json)
+
+    @property
+    def nValue(self) -> int:
+        "Return the nValue int for compatibility with CTxOut."
+        return self.value
+
+    @property
+    def scriptPubKey(self) -> bytes:
+        "Return the scriptPubKey bytes for compatibility with CTxOut."
+        return self.script_pubkey
+
+    @property
+    def address(self) -> bytes:
+        "Return the address, if any."
+        try:
+            address = address_from_script_pubkey(self.script_pubkey, self.network)
+        except BTClibValueError:
+            address = b""
+        return address
+
     def assert_valid(self) -> None:
         if self.value < 0:
             raise BTClibValueError(f"negative value: {self.value}")
         if self.value > MAX_SATOSHI:
             raise BTClibValueError(f"value too high: {hex(self.value)}")
+
+        self._set_properties()
+
+    def is_nulldata(self) -> bool:
+        return is_nulldata(self.script_pubkey)
+
+    def is_p2ms(self) -> bool:
+        return is_p2ms(self.script_pubkey)
+
+    def is_p2pk(self) -> bool:
+        return is_p2pk(self.script_pubkey)
+
+    def is_p2pkh(self) -> bool:
+        return is_p2pkh(self.script_pubkey)
+
+    def is_p2sh(self) -> bool:
+        return is_p2sh(self.script_pubkey)
+
+    # def is_witness(self) -> Tuple[bool, int, bytes]:
+    #     return is_witness(self.script_pubkey)
+
+    def is_p2wpkh(self) -> bool:
+        return is_p2wpkh(self.script_pubkey)
+
+    def is_p2wsh(self) -> bool:
+        return is_p2wsh(self.script_pubkey)
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
@@ -79,10 +157,15 @@ class TxOut(DataClassJsonMixin):
         cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
-        tx_out = cls(check_validity=False)
+        tx_out = cls()
         tx_out.value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         tx_out.script_pubkey = varbytes.deserialize(stream)
 
         if assert_valid:
             tx_out.assert_valid()
         return tx_out
+
+    @classmethod
+    def from_address(cls: Type[_TxOut], value: int, address: String) -> _TxOut:
+        script_pubkey, network = script_pubkey_from_address(address)
+        return cls(value, script_pubkey, network)

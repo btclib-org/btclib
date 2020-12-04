@@ -4,7 +4,7 @@
         "locktime": 0,
         "vin": [
             {
-                "prevout": {
+                "prev_out": {
                     "txid": "462fd6be5503772aab31b41a6eb10fc5a692546ec39251d15e2d49ef335a8630",
                     "vout": 1
                 },

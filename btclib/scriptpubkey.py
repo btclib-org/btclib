@@ -129,6 +129,8 @@ def payload_from_nulldata_script_pubkey(
         else bytes_from_octets(script_pubkey)
     )
     length = len(script_pubkey)
+    if length < 2:
+        raise BTClibValueError(f"invalid nulldata script length: {length}")
 
     # nulldata [OP_RETURN, data]
     zero_or_one = int(length > 78)
@@ -138,10 +140,12 @@ def payload_from_nulldata_script_pubkey(
             f"in {length}-bytes nulldata script; it should "
             f"have been {length-2-zero_or_one}: {deserialize(script_pubkey)}"
         )
+
     if length < 78:
         # OP_RETURN, data length, data up to 75 bytes max
         # 0x6A{1 byte data-length}{data (0-75 bytes)}
         return "nulldata", script_pubkey[2:], 0
+
     if length > 78:
         # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
         # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
@@ -151,6 +155,7 @@ def payload_from_nulldata_script_pubkey(
                 f"got {hex(script_pubkey[1])} instead: {deserialize(script_pubkey)}"
             )
         return "nulldata", script_pubkey[3:], 0
+
     raise BTClibValueError("invalid 78 bytes nulldata script length")
 
 
@@ -183,6 +188,64 @@ def payload_from_pms_script_pubkey(script_pubkey: Script) -> Tuple[str, Payloads
     return "p2ms", keys, m
 
 
+def is_p2pk(script_pubkey: bytes) -> bool:
+    # p2pk [pubkey, OP_CHECKSIG]
+    # 0x41{65-byte pubkey}AC or 0x21{33-byte pubkey}AC
+    length = len(script_pubkey)
+    return (
+        length > 0
+        and length == script_pubkey[0] + 2
+        and script_pubkey[0] in (0x41, 0x21)
+        and script_pubkey[-1] == 0xAC
+    )
+
+
+def is_p2pkh(script_pubkey: bytes) -> bool:
+    # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
+    # 0x76A914{20-byte pubkey_hash}88AC
+    length = len(script_pubkey)
+    return (
+        length == 25
+        and script_pubkey[:3] == b"\x76\xa9\x14"
+        and script_pubkey[-2:] == b"\x88\xac"
+    )
+
+
+def is_p2sh(script_pubkey: bytes) -> bool:
+    # p2sh [OP_HASH160, script_hash, OP_EQUAL]
+    # 0xA914{20-byte script_hash}87
+    length = len(script_pubkey)
+    return (
+        length == 23 and script_pubkey[:2] == b"\xa9\x14" and script_pubkey[-1] == 0x87
+    )
+
+
+def is_p2ms(script_pubkey: bytes) -> bool:
+    # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
+    length = len(script_pubkey)
+    return length > 0 and script_pubkey[-1] == 0xAE
+
+
+def is_nulldata(script_pubkey: bytes) -> bool:
+    # nulldata [OP_RETURN, data]
+    length = len(script_pubkey)
+    return 0 < length < 84 and script_pubkey[0] == 0x6A
+
+
+def is_p2wpkh(script_pubkey: bytes) -> bool:
+    # p2wpkh [0, pubkey_hash]
+    # 0x0014{20-byte pubkey_hash}
+    length = len(script_pubkey)
+    return length == 22 and script_pubkey[:2] == b"\x00\x14"
+
+
+def is_p2wsh(script_pubkey: bytes) -> bool:
+    # p2wsh [0, script_hash]
+    # 0x0020{32-byte script_hash}
+    length = len(script_pubkey)
+    return length == 34 and script_pubkey[:2] == b"\x00\x20"
+
+
 def payload_from_script_pubkey(script_pubkey: Script) -> Tuple[str, Payloads, int]:
     "Return (script_pubkey type, payload, m) from the input script_pubkey."
 
@@ -193,46 +256,32 @@ def payload_from_script_pubkey(script_pubkey: Script) -> Tuple[str, Payloads, in
     )
     length = len(script_pubkey)
 
-    # p2pk [pubkey, OP_CHECKSIG]
-    # 0x41{65-byte pubkey}AC or 0x21{33-byte pubkey}AC
-    if (
-        length == script_pubkey[0] + 2
-        and script_pubkey[0] in (0x41, 0x21)
-        and script_pubkey[-1] == 0xAC
-    ):
+    if is_p2pk(script_pubkey):
         return "p2pk", script_pubkey[1:-1], 0
-    # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
-    if script_pubkey[-1] == 0xAE:
+
+    if is_p2ms(script_pubkey):
         return payload_from_pms_script_pubkey(script_pubkey)
-    # nulldata [OP_RETURN, data]
-    if length <= 83 and script_pubkey[0] == 0x6A:
+
+    if is_nulldata(script_pubkey):
         return payload_from_nulldata_script_pubkey(script_pubkey)
-    # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
-    # 0x76A914{20-byte pubkey_hash}88AC
-    if (
-        length == 25
-        and script_pubkey[:3] == b"\x76\xa9\x14"
-        and script_pubkey[-2:] == b"\x88\xac"
-    ):
+
+    if is_p2pkh(script_pubkey):
         return "p2pkh", script_pubkey[3 : length - 2], 0
-    # p2sh [OP_HASH160, script_hash, OP_EQUAL]
-    # 0xA914{20-byte script_hash}87
-    if length == 23 and script_pubkey[:2] == b"\xa9\x14" and script_pubkey[-1] == 0x87:
+
+    if is_p2sh(script_pubkey):
         return "p2sh", script_pubkey[2 : length - 1], 0
-    # p2wpkh [0, pubkey_hash]
-    # 0x0014{20-byte pubkey_hash}
-    if length == 22 and script_pubkey[:2] == b"\x00\x14":
+
+    if is_p2wpkh(script_pubkey):
         return "p2wpkh", script_pubkey[2:], 0
-    # p2wsh [0, script_hash]
-    # 0x0020{32-byte script_hash}
-    if length == 34 and script_pubkey[:2] == b"\x00\x20":
+
+    if is_p2wsh(script_pubkey):
         return "p2wsh", script_pubkey[2:], 0
+
     # Unknow script_pubkey
-    raise BTClibValueError(
-        f"unknown script_pubkey: {len(script_pubkey)}-bytes length"
-        f"; starts with {script_pubkey[:3].hex()}"
-        f", ends with {script_pubkey[-2:].hex()}: {deserialize(script_pubkey)}"
-    )
+    err_msg = f"unknown script_pubkey: {len(script_pubkey)}-bytes length"
+    err_msg += f"; starts with {script_pubkey[:3].hex()}"
+    err_msg += f", ends with {script_pubkey[-2:].hex()}: {deserialize(script_pubkey)}"
+    raise BTClibValueError(err_msg)
 
 
 # 1.+2. = 3. script_pubkey from pubkey/script

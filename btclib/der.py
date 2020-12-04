@@ -25,16 +25,16 @@ BIP66 mandates a strict DER format:
 Format:
 [0x30] [data-size][0x02][r-size][r][0x02][s-size][s]
 
-* 0x30 header byte to indicate compound structure
+* 0x30: header byte to indicate compound structure
 * data-size: 1-byte size descriptor of the following data
-* 0x02 header byte indicating an integer
+* 0x02: header byte indicating an integer
 * r-size: 1-byte size descriptor of the r value that follows
 * r: arbitrary-size big-endian r value.
     It must use the shortest possible encoding for
     a positive integers (which means no null bytes at the start,
     except a single one when the next byte has its highest bit set
     to avoid being interpreted as a negative number)
-* 0x02 header byte indicating an integer
+* 0x02: header byte indicating an integer
 * s-size: 1-byte size descriptor of the s value that follows
 * s: arbitrary-size big-endian s value. Same rules as for r apply
 
@@ -84,7 +84,7 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
     marker = sig_data_stream.read(1)
     if marker != _DER_SCALAR_MARKER:
         err_msg = f"invalid value header: {marker.hex()}"
-        err_msg += f", instead of {_DER_SCALAR_MARKER.hex()}"
+        err_msg += f", instead of integer element {_DER_SCALAR_MARKER.hex()}"
         raise BTClibValueError(err_msg)
     r_bytes = varbytes.deserialize(sig_data_stream, forbid_zero_size=True)
     if r_bytes[0] == 0 and r_bytes[1] & 0x80 != 0x80:
@@ -152,8 +152,8 @@ class Sig(DataClassJsonMixin):
         # [0x30] [data-size][0x02][r-size][r][0x02][s-size][s]
         marker = stream.read(1)
         if marker != _DER_SIG_MARKER:
-            err_msg = f"invalid DER type: {marker.hex()}"
-            err_msg += f", instead of {_DER_SIG_MARKER.hex()} (compound header)"
+            err_msg = f"invalid compound header: {marker.hex()}"
+            err_msg += f", instead of DER sequence tag {_DER_SIG_MARKER.hex()}"
             raise BTClibValueError(err_msg)
 
         # [data-size][0x02][r-size][r][0x02][s-size][s]
@@ -167,7 +167,7 @@ class Sig(DataClassJsonMixin):
         # to prevent malleability
         # the sig_data_substream must have been consumed entirely
         if sig_data_substream.read(1) != b"":
-            err_msg = "invalid DER size"
+            err_msg = "invalid DER sequence length"
             raise BTClibValueError(err_msg)
 
         if assert_valid:

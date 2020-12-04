@@ -16,7 +16,6 @@ from .bech32address import b32address_from_witness, witness_from_b32address
 from .exceptions import BTClibValueError
 from .network import NETWORKS
 from .scriptpubkey import payload_from_script_pubkey, script_pubkey_from_payload
-from .tx_out import TxOut
 
 
 def has_segwit_prefix(addr: String) -> bool:
@@ -65,14 +64,3 @@ def address_from_script_pubkey(
 
     # 'p2wsh' or 'p2wpkh'
     return b32address_from_witness(0, payload, network)
-
-
-def tx_out_from_address(address: str, value: int) -> TxOut:
-    script_pubkey = script_pubkey_from_address(address)[0]
-    return TxOut(value, script_pubkey)
-
-
-def address_from_tx_out(tx_out: TxOut) -> str:
-    script_pubkey = tx_out.script_pubkey
-    address = address_from_script_pubkey(script_pubkey)
-    return address.decode("ascii")

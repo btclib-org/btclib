@@ -24,25 +24,32 @@ _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 @dataclass
 class OutPoint(DataClassJsonMixin):
-    # 32 bytes, little endian
     txid: bytes = field(
         default=b"\x00" * 32,
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    # 4 bytes, unsigned little endian
-    vout: int = -1
+    vout: int = 0xFFFFFFFF
     # add value and script_pubkey when tx fetcher will be available
     check_validity: InitVar[bool] = True
+
+    @property
+    def hash(self) -> int:
+        "Return the hash int for compatibility with COutPoint."
+        return int.from_bytes(self.txid, "big", signed=False)
+
+    @property
+    def n(self) -> int:
+        "Return the n int for compatibility with COutPoint."
+        return self.vout
 
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
             self.assert_valid()
 
     def is_coinbase(self) -> bool:
-        return (self.txid == b"\x00" * 32) and (self.vout == 0xFFFFFFFF)
+        return self.txid == b"\x00" * 32 and self.vout == 0xFFFFFFFF
 
     def assert_valid(self) -> None:
-        # must be a 32 bytes
         if len(self.txid) != 32:
             m = f"invalid OutPoint txid: {len(self.txid)}"
             m += " instead of 32 bytes"
@@ -62,10 +69,8 @@ class OutPoint(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        # 32 bytes, little endian
         out = self.txid[::-1]
-        # 4 bytes, little endian
-        out += self.vout.to_bytes(4, "little")
+        out += self.vout.to_bytes(4, "little", signed=False)
         return out
 
     @classmethod
@@ -77,10 +82,8 @@ class OutPoint(DataClassJsonMixin):
         data = bytesio_from_binarydata(data)
 
         outpoint = cls(check_validity=False)
-        # 32 bytes, little endian
         outpoint.txid = data.read(32)[::-1]
-        # 4 bytes, little endian, interpreted as int
-        outpoint.vout = int.from_bytes(data.read(4), "little")
+        outpoint.vout = int.from_bytes(data.read(4), "little", signed=False)
 
         if assert_valid:
             outpoint.assert_valid()
@@ -92,7 +95,7 @@ _TxIn = TypeVar("_TxIn", bound="TxIn")
 
 @dataclass
 class TxIn(DataClassJsonMixin):
-    prevout: OutPoint = OutPoint(check_validity=False)
+    prev_out: OutPoint = OutPoint()
     # TODO make it { "asm": "", "hex": "" }
     script_sig: bytes = field(
         default=b"",
@@ -100,20 +103,34 @@ class TxIn(DataClassJsonMixin):
             field_name="scriptSig", encoder=lambda v: v.hex(), decoder=bytes.fromhex
         ),
     )
-    # 4 bytes, unsigned little endian
-    sequence: int = -1
+    sequence: int = 0
     witness: Witness = Witness(check_validity=False)
     check_validity: InitVar[bool] = True
+
+    @property
+    def outpoint(self) -> OutPoint:
+        "Return the outpoint OutPoint for compatibility with CTxIn."
+        return self.prev_out
+
+    @property
+    def scriptSig(self) -> bytes:
+        "Return the scriptSig bytes for compatibility with CTxIn."
+        return self.script_sig
+
+    @property
+    def nSequence(self) -> int:
+        "Return the nSequence int for compatibility with CTxIn."
+        return self.sequence
 
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
             self.assert_valid()
 
     def is_coinbase(self) -> bool:
-        return self.prevout.is_coinbase()
+        return self.prev_out.is_coinbase()
 
     def assert_valid(self) -> None:
-        self.prevout.assert_valid()
+        self.prev_out.assert_valid()
         # TODO: empty script_sig is valid (add non-regression test)
         # TODO: test sequence
         self.witness.assert_valid()
@@ -123,7 +140,7 @@ class TxIn(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.prevout.serialize()
+        out = self.prev_out.serialize()
         out += varbytes.serialize(self.script_sig)
         out += self.sequence.to_bytes(4, byteorder="little", signed=False)
         return out
@@ -136,7 +153,7 @@ class TxIn(DataClassJsonMixin):
         s = bytesio_from_binarydata(data)
 
         tx_in = cls(check_validity=False)
-        tx_in.prevout = OutPoint.deserialize(s)
+        tx_in.prev_out = OutPoint.deserialize(s)
         tx_in.script_sig = varbytes.deserialize(s)
         tx_in.sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
 

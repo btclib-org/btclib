@@ -23,7 +23,7 @@ _Witness = TypeVar("_Witness", bound="Witness")
 
 @dataclass
 class Witness(DataClassJsonMixin):
-    items: List[Octets] = field(
+    stack: List[Octets] = field(
         default_factory=list,
         metadata=config(
             encoder=lambda val: [bytes_from_octets(v).hex() for v in val],
@@ -37,12 +37,12 @@ class Witness(DataClassJsonMixin):
             self.assert_valid()
 
     def __len__(self):
-        return len(self.items)
+        return len(self.stack)
 
     def assert_valid(self) -> None:
-        if not isinstance(self.items, list):
+        if not isinstance(self.stack, list):
             raise BTClibTypeError("invalid witness")
-        self.items = [bytes_from_octets(octets).hex() for octets in self.items]
+        self.stack = [bytes_from_octets(octets).hex() for octets in self.stack]
 
     def serialize(self, assert_valid: bool = True) -> bytes:
         "Return the serialization of the Witness."
@@ -50,8 +50,8 @@ class Witness(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = varint.serialize(len(self.items))
-        return out + b"".join([varbytes.serialize(w) for w in self.items])
+        out = varint.serialize(len(self.stack))
+        return out + b"".join([varbytes.serialize(w) for w in self.stack])
 
     @classmethod
     def deserialize(
@@ -63,7 +63,7 @@ class Witness(DataClassJsonMixin):
         witness = cls(check_validity=False)
 
         n = varint.deserialize(data)
-        witness.items = [varbytes.deserialize(data) for _ in range(n)]
+        witness.stack = [varbytes.deserialize(data) for _ in range(n)]
 
         if assert_valid:
             witness.assert_valid()
