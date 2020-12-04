@@ -10,11 +10,7 @@
 
 "Tests for the `btclib.scriptpubkey_address` module"
 
-from btclib.scriptpubkey_address import (
-    address_from_tx_out,
-    has_segwit_prefix,
-    tx_out_from_address,
-)
+from btclib.scriptpubkey_address import has_segwit_prefix
 
 
 def test_has_segwit_prefix() -> None:
@@ -24,8 +20,3 @@ def test_has_segwit_prefix() -> None:
     addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
     assert not has_segwit_prefix(addr)
     assert not has_segwit_prefix(addr.decode("ascii"))
-
-
-def test_address() -> None:
-    address = "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej"
-    assert address_from_tx_out(tx_out_from_address(address, 0)) == address
