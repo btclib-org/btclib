@@ -54,10 +54,14 @@ class TxOut(DataClassJsonMixin):
     script_pub_key: bytes = field(
         default=b"",
         metadata=config(
-            field_name="scriptPubKey",
-            encoder=lambda v: v.hex(),
-            decoder=bytes.fromhex,
+            field_name="scriptPubKey", encoder=lambda v: v.hex(), decoder=bytes.fromhex
         ),
+    )
+    _script_type: str = field(
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="script_type"),
     )
     network: str = "mainnet"
     _address: bytes = field(
@@ -70,13 +74,6 @@ class TxOut(DataClassJsonMixin):
             encoder=lambda v: v.decode("ascii"),
             decoder=lambda v: v.encode("ascii"),
         ),
-    )
-    _script_type: str = field(
-        default="empty",
-        init=False,
-        repr=False,
-        compare=False,
-        metadata=config(field_name="script_type"),
     )
     check_validity: InitVar[bool] = True
 

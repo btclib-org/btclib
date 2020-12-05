@@ -31,7 +31,7 @@ class OutPoint(DataClassJsonMixin):
         ),
     )
     vout: int = 0xFFFFFFFF
-    # add value and script_pub_key when tx fetcher will be available
+    # TODO add value and script_pub_key when tx fetcher will be available
     check_validity: InitVar[bool] = True
 
     @property
