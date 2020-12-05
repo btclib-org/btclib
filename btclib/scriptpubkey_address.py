@@ -60,5 +60,7 @@ def address_from_script_pubkey(
         if script_type in ("p2wsh", "p2wpkh"):
             return b32address_from_witness(0, payload, network)
 
-    # not script_pubkey or script_type in ("p2pk", "p2ms", "nulldata", "unknown")
+    # not script_pubkey
+    # or
+    # script_type in ("p2pk", "p2ms", "nulldata", "unknown")
     return b""

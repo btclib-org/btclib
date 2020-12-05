@@ -22,6 +22,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.scriptpubkey import (
     is_nulldata,
+    is_p2ms,
     nulldata,
     p2ms,
     p2pk,
@@ -391,6 +392,7 @@ def test_p2ms() -> None:
     payload = sorted(pubkeys)
     n = len(pubkeys)
     script_pubkey = script.serialize([m] + payload + [n, "OP_CHECKMULTISIG"])
+    assert is_p2ms(script_pubkey)
     assert script_pubkey == p2ms(pubkeys, m)
 
     # to the script_pubkey in two steps (through payload)
@@ -416,9 +418,11 @@ def test_p2ms() -> None:
     )  # fmt: on
     assert script_pubkey == p2ms(pubkeys, 1, lexicographic_sort=False).hex()
 
-    err_msg = "number-of-pubkeys < m in "
+    err_msg = "invalid n in 3-of-n multisignature: "
     with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(pubkeys, 3)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        p2ms([pubkey1] * 17, 3)
 
     err_msg = "invalid m for p2ms script_pubkey: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -428,10 +432,6 @@ def test_p2ms() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         p2ms([pubkey1 + "00", pubkey2], 1)
 
-    err_msg = "too many pubkeys in m-of-n multisignature: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        p2ms([pubkey1] * 17, 3)
-
     err_msg = "invalid size: "
     badpubkeys = sorted(pubkeys)
     badpubkeys[0] = badpubkeys[0] + b"\x00"
@@ -439,13 +439,11 @@ def test_p2ms() -> None:
         script_pubkey_from_payload(script_type, badpubkeys, m)
 
     script_pubkey = script.serialize([m] + sorted(badpubkeys) + [n, "OP_CHECKMULTISIG"])
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_p2ms(script_pubkey)
 
     err_msg = "invalid key in p2ms"
     script_pubkey = script.serialize([m] + [0, pubkeys[1]] + [n, "OP_CHECKMULTISIG"])
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_p2ms(script_pubkey)
 
     err_msg = "invalid m in m-of-n multisignature: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -468,33 +466,23 @@ def test_p2ms_2() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2sh", pubkeys, 0)
 
-    err_msg = "invalid number of pubkeys in "
     script_pubkey = [1, 3, "OP_CHECKMULTISIG"]
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_p2ms(script_pubkey)
 
-    err_msg = "wrong number of pubkeys in "
     script_pubkey = [1, pubkey1, pubkey2, 3, "OP_CHECKMULTISIG"]
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_p2ms(script_pubkey)
 
-    err_msg = "invalid number of pubkeys in "
     script_pubkey = [3, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_p2ms(script_pubkey)
 
-    err_msg = "invalid m in m-of-n multisignature: "
     script_pubkey = [0, pubkey1, pubkey2, 2, "OP_CHECKMULTISIG"]
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_p2ms(script_pubkey)
 
     script_pubkey = script.serialize(
         [1, pubkey1, pubkey2, pubkey3, 3, "OP_CHECKMULTISIG"]
     )
     script_pubkey = script_pubkey[:133] + b"\x40" + script_pubkey[134:]
-    err_msg = "wrong number of pubkeys in "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_p2ms(script_pubkey)
 
 
 def test_p2ms_3() -> None:
