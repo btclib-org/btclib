@@ -15,12 +15,13 @@ from os import path
 
 import pytest
 
-from btclib import base58address, bech32address, script
+from btclib import base58address, bech32address, script, varbytes
 from btclib.base58address import b58address_from_h160, b58address_from_witness
 from btclib.bech32address import b32address_from_witness
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.scriptpubkey import (
+    is_nulldata,
     nulldata,
     p2ms,
     p2pk,
@@ -40,6 +41,8 @@ from btclib.utils import hash160, sha256
 
 def test_nulldata() -> None:
 
+    OP_RETURN = b"\x6a"
+
     # self-consistency
     string = "time-stamped data"
     payload = string.encode()
@@ -56,15 +59,13 @@ def test_nulldata() -> None:
     # data -> payload in this case is invertible (no hash functions)
     assert payload.decode("ascii") == string
 
-    err_msg = "no address for null data script"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        address_from_script_pubkey(script_pubkey)
+    assert address_from_script_pubkey(script_pubkey) == b""
 
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
     string = "hello world"
     payload = string.encode()
     assert payload.hex() == "68656c6c6f20776f726c64"  # pylint: disable=no-member
-    script_pubkey = b"\x6a\x0b" + payload
+    script_pubkey = OP_RETURN + varbytes.serialize(payload)
     assert script_pubkey == nulldata(string)
     assert script_pubkey == script_pubkey_from_payload(script_type, payload)
     assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
@@ -76,7 +77,7 @@ def test_nulldata() -> None:
         payload.hex()  # pylint: disable=no-member
         == "636861726c6579206c6f766573206865696469"
     )
-    script_pubkey = b"\x6a\x13" + payload
+    script_pubkey = OP_RETURN + varbytes.serialize(payload)
     assert script_pubkey == nulldata(string)
     assert script_pubkey == script_pubkey_from_payload(script_type, payload)
     assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
@@ -88,7 +89,7 @@ def test_nulldata() -> None:
         payload.hex()  # pylint: disable=no-member
         == "e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184"
     )
-    script_pubkey = b"\x6a\x39" + payload
+    script_pubkey = OP_RETURN + varbytes.serialize(payload)
     assert script_pubkey == nulldata(string)
     assert script_pubkey == script_pubkey_from_payload(script_type, payload)
     assert (script_type, payload, 0) == payload_from_script_pubkey(script_pubkey)
@@ -123,31 +124,36 @@ def test_nulldata3() -> None:
     # it should have been 33
     script_pubkey = script.serialize(["OP_RETURN", b"\x00" * 33])
     script_pubkey = script_pubkey[:1] + b"\x20" + script_pubkey[2:]
-    err_msg = "wrong data length: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_nulldata(script_pubkey)
 
     # wrong data length: 32 in 83-bytes nulldata script;
     # it should have been 80
     script_pubkey = script.serialize(["OP_RETURN", b"\x00" * 80])
     script_pubkey = script_pubkey[:2] + b"\x20" + script_pubkey[3:]
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_nulldata(script_pubkey)
 
     # missing OP_PUSHDATA1 (0x4c) in 83-bytes nulldata script,
     # got 0x20 instead
     script_pubkey = script.serialize(["OP_RETURN", b"\x00" * 80])
     script_pubkey = script_pubkey[:1] + b"\x20" + script_pubkey[2:]
-    err_msg = "missing OP_PUSHDATA1 "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_nulldata(script_pubkey)
 
     assert len(script.serialize(["OP_RETURN", b"\x00" * 75])) == 77
     assert len(script.serialize(["OP_RETURN", b"\x00" * 76])) == 79
     script_pubkey = script.serialize(["OP_RETURN", b"\x00" * 76])[:-1]
-    err_msg = "invalid 78 bytes nulldata script length"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        payload_from_script_pubkey(script_pubkey)
+    assert not is_nulldata(script_pubkey)
+
+
+"""
+# FIXME
+def test_nulldata4() -> None:
+
+    script_ = ["OP_RETURN", "OP_RETURN", 3, 1, "OP_VERIF", 0, 3]
+    script_pubkey = script.serialize(script_)
+    assert len(script_pubkey) == 7
+    assert script.deserialize(script_pubkey) == script_
+    payload_from_script_pubkey(script_pubkey)
+"""
 
 
 def test_p2pk() -> None:
@@ -166,9 +172,7 @@ def test_p2pk() -> None:
         script_pubkey
     )
 
-    err_msg = "no address for p2pk script_pubkey"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        address_from_script_pubkey(script_pubkey)
+    assert address_from_script_pubkey(script_pubkey) == b""
 
     # documented test case: https://learnmeabitcoin.com/guide/p2pk
     pubkey = (
@@ -338,6 +342,13 @@ def test_p2wsh() -> None:
     assert address == b58address_from_witness(payload, network)
 
 
+def test_unknown() -> None:
+
+    script_pubkey = script.serialize([16, 20 * b"\x00"])
+    assert address_from_script_pubkey(script_pubkey) == b""
+    assert payload_from_script_pubkey(script_pubkey) == ("unknown", script_pubkey, 0)
+
+
 def test_exceptions() -> None:
 
     # invalid size: 11 bytes instead of 20
@@ -352,11 +363,6 @@ def test_exceptions() -> None:
     err_msg = "unknown script_pubkey type: "
     with pytest.raises(BTClibValueError, match=err_msg):
         script_pubkey_from_payload("p2unkn", "00" * 32)
-
-    err_msg = "unknown script_pubkey: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        script_pubkey = [16, 20 * b"\x00"]
-        address_from_script_pubkey(script_pubkey)
 
     # Unhandled witness version (16)
     err_msg = "unmanaged witness version: "
@@ -395,9 +401,7 @@ def test_p2ms() -> None:
     # back from the script_pubkey to the payload
     assert (script_type, payload, m) == payload_from_script_pubkey(script_pubkey)
 
-    err_msg = "no address for p2ms script_pubkey"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        address_from_script_pubkey(script_pubkey)
+    assert address_from_script_pubkey(script_pubkey) == b""
 
     # documented test case: https://learnmeabitcoin.com/guide/p2ms
     pubkeys = [bytes.fromhex(pubkey1), bytes.fromhex(pubkey2)]
@@ -546,7 +550,7 @@ def test_p2ms_p2sh() -> None:
         assert m_2 == m, errmsg
 
 
-def test_non_standard_script() -> None:
+def test_non_standard_script_in_p2wsh() -> None:
 
     network = "mainnet"
 

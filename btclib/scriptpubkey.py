@@ -80,47 +80,52 @@ def script_pubkey_from_payload(
                 script_pubkey.append(key)
             script_pubkey.append(n)
             script_pubkey.append("OP_CHECKMULTISIG")
-        else:
-            errmsg = f"invalid list of Octets for {script_type} script_pubkey"
-            raise BTClibValueError(errmsg)
-    else:
-        if script_type == "nulldata":
-            payload = bytes_from_octets(payloads)
-            if len(payload) > 80:
-                err_msg = f"invalid nulldata script length: {len(payload)} bytes "
-                raise BTClibValueError(err_msg)
-            script_pubkey = ["OP_RETURN", payload]
-        elif script_type == "p2pk":
-            payload = bytes_from_octets(payloads, (33, 65))
-            script_pubkey = [payload, "OP_CHECKSIG"]
-        elif script_type == "p2wsh":
-            payload = bytes_from_octets(payloads, 32)
-            script_pubkey = [0, payload]
-        elif script_type == "p2pkh":
-            payload = bytes_from_octets(payloads, 20)
-            script_pubkey = [
+            return serialize(script_pubkey)
+        errmsg = f"invalid list of Octets for {script_type} script_pubkey"
+        raise BTClibValueError(errmsg)
+
+    if script_type == "nulldata":
+        payload = bytes_from_octets(payloads)
+        if len(payload) > 80:
+            err_msg = f"invalid nulldata script length: {len(payload)} bytes "
+            raise BTClibValueError(err_msg)
+        return serialize(["OP_RETURN", payload])
+
+    if script_type == "p2pk":
+        payload = bytes_from_octets(payloads, (33, 65))
+        return serialize([payload, "OP_CHECKSIG"])
+
+    if script_type == "p2wsh":
+        payload = bytes_from_octets(payloads, 32)
+        return serialize([0, payload])
+
+    if script_type == "p2pkh":
+        payload = bytes_from_octets(payloads, 20)
+        return serialize(
+            [
                 "OP_DUP",
                 "OP_HASH160",
                 payload,
                 "OP_EQUALVERIFY",
                 "OP_CHECKSIG",
             ]
-        elif script_type == "p2sh":
-            payload = bytes_from_octets(payloads, 20)
-            script_pubkey = ["OP_HASH160", payload, "OP_EQUAL"]
-        elif script_type == "p2wpkh":
-            payload = bytes_from_octets(payloads, 20)
-            script_pubkey = [0, payload]
-        else:
-            raise BTClibValueError(f"unknown script_pubkey type: {script_type}")
+        )
 
-    return serialize(script_pubkey)
+    if script_type == "p2sh":
+        payload = bytes_from_octets(payloads, 20)
+        return serialize(["OP_HASH160", payload, "OP_EQUAL"])
+
+    if script_type == "p2wpkh":
+        payload = bytes_from_octets(payloads, 20)
+        return serialize([0, payload])
+
+    raise BTClibValueError(f"unknown script_pubkey type: {script_type}")
 
 
 Payloads = Union[bytes, List[bytes]]
 
 
-def payload_from_nulldata_script_pubkey(
+def _payload_from_nulldata_script_pubkey(
     script_pubkey: Script,
 ) -> Tuple[str, Payloads, int]:
     script_pubkey = (
@@ -128,38 +133,18 @@ def payload_from_nulldata_script_pubkey(
         if isinstance(script_pubkey, list)
         else bytes_from_octets(script_pubkey)
     )
-    length = len(script_pubkey)
-    if length < 2:
-        raise BTClibValueError(f"invalid nulldata script length: {length}")
 
-    # nulldata [OP_RETURN, data]
-    zero_or_one = int(length > 78)
-    if script_pubkey[1 + zero_or_one] != length - 2 - zero_or_one:
-        raise BTClibValueError(
-            f"wrong data length: {script_pubkey[1+zero_or_one]} "
-            f"in {length}-bytes nulldata script; it should "
-            f"have been {length-2-zero_or_one}: {deserialize(script_pubkey)}"
-        )
-
-    if length < 78:
+    if len(script_pubkey) < 78:
         # OP_RETURN, data length, data up to 75 bytes max
         # 0x6A{1 byte data-length}{data (0-75 bytes)}
         return "nulldata", script_pubkey[2:], 0
 
-    if length > 78:
-        # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
-        # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
-        if script_pubkey[1] != 0x4C:
-            raise BTClibValueError(
-                f"missing OP_PUSHDATA1 (0x4c) in {length}-bytes nulldata script, "
-                f"got {hex(script_pubkey[1])} instead: {deserialize(script_pubkey)}"
-            )
-        return "nulldata", script_pubkey[3:], 0
-
-    raise BTClibValueError("invalid 78 bytes nulldata script length")
+    # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
+    # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
+    return "nulldata", script_pubkey[3:], 0
 
 
-def payload_from_pms_script_pubkey(script_pubkey: Script) -> Tuple[str, Payloads, int]:
+def _payload_from_pms_script_pubkey(script_pubkey: Script) -> Tuple[str, Payloads, int]:
     script_pubkey = (
         serialize(script_pubkey)
         if isinstance(script_pubkey, list)
@@ -229,7 +214,20 @@ def is_p2ms(script_pubkey: bytes) -> bool:
 def is_nulldata(script_pubkey: bytes) -> bool:
     # nulldata [OP_RETURN, data]
     length = len(script_pubkey)
-    return 0 < length < 84 and script_pubkey[0] == 0x6A
+    if length < 78:
+        # OP_RETURN, data length, data up to 75 bytes max
+        # 0x6A{1 byte data-length}{data (0-75 bytes)}
+        return (
+            length > 1 and script_pubkey[0] == 0x6A and script_pubkey[1] == length - 2
+        )
+    return (
+        # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
+        # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
+        78 < length < 84
+        and script_pubkey[0] == 0x6A
+        and script_pubkey[1] == 0x4C
+        and script_pubkey[2] == length - 3
+    )
 
 
 def is_p2wpkh(script_pubkey: bytes) -> bool:
@@ -254,22 +252,6 @@ def payload_from_script_pubkey(script_pubkey: Script) -> Tuple[str, Payloads, in
         if isinstance(script_pubkey, list)
         else bytes_from_octets(script_pubkey)
     )
-    length = len(script_pubkey)
-
-    if is_p2pk(script_pubkey):
-        return "p2pk", script_pubkey[1:-1], 0
-
-    if is_p2ms(script_pubkey):
-        return payload_from_pms_script_pubkey(script_pubkey)
-
-    if is_nulldata(script_pubkey):
-        return payload_from_nulldata_script_pubkey(script_pubkey)
-
-    if is_p2pkh(script_pubkey):
-        return "p2pkh", script_pubkey[3 : length - 2], 0
-
-    if is_p2sh(script_pubkey):
-        return "p2sh", script_pubkey[2 : length - 1], 0
 
     if is_p2wpkh(script_pubkey):
         return "p2wpkh", script_pubkey[2:], 0
@@ -277,11 +259,24 @@ def payload_from_script_pubkey(script_pubkey: Script) -> Tuple[str, Payloads, in
     if is_p2wsh(script_pubkey):
         return "p2wsh", script_pubkey[2:], 0
 
-    # Unknow script_pubkey
-    err_msg = f"unknown script_pubkey: {len(script_pubkey)}-bytes length"
-    err_msg += f"; starts with {script_pubkey[:3].hex()}"
-    err_msg += f", ends with {script_pubkey[-2:].hex()}: {deserialize(script_pubkey)}"
-    raise BTClibValueError(err_msg)
+    if is_p2pk(script_pubkey):
+        return "p2pk", script_pubkey[1:-1], 0
+
+    if is_p2ms(script_pubkey):
+        return _payload_from_pms_script_pubkey(script_pubkey)
+
+    if is_nulldata(script_pubkey):
+        return _payload_from_nulldata_script_pubkey(script_pubkey)
+
+    if is_p2pkh(script_pubkey):
+        length = len(script_pubkey)
+        return "p2pkh", script_pubkey[3 : length - 2], 0
+
+    if is_p2sh(script_pubkey):
+        length = len(script_pubkey)
+        return "p2sh", script_pubkey[2 : length - 1], 0
+
+    return "unknown", script_pubkey, 0
 
 
 # 1.+2. = 3. script_pubkey from pubkey/script

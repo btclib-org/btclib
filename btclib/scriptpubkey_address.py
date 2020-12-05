@@ -47,20 +47,18 @@ def address_from_script_pubkey(
 ) -> bytes:
     "Return the bech32/base58 address from a script_pubkey."
 
-    script_type, payload, m = payload_from_script_pubkey(script_pubkey)
-    if script_type == "p2pk":
-        raise BTClibValueError("no address for p2pk script_pubkey")
-    if script_type == "p2ms" or isinstance(payload, list) or m != 0:
-        raise BTClibValueError("no address for p2ms script_pubkey")
-    if script_type == "nulldata":
-        raise BTClibValueError("no address for null data script")
+    if script_pubkey:
+        script_type, payload, _ = payload_from_script_pubkey(script_pubkey)
+        if isinstance(payload, list):  # p2ms
+            return b""
+        if script_type == "p2pkh":
+            prefix = NETWORKS[network].p2pkh
+            return b58address_from_h160(prefix, payload, network)
+        if script_type == "p2sh":
+            prefix = NETWORKS[network].p2sh
+            return b58address_from_h160(prefix, payload, network)
+        if script_type in ("p2wsh", "p2wpkh"):
+            return b32address_from_witness(0, payload, network)
 
-    if script_type == "p2pkh":
-        prefix = NETWORKS[network].p2pkh
-        return b58address_from_h160(prefix, payload, network)
-    if script_type == "p2sh":
-        prefix = NETWORKS[network].p2sh
-        return b58address_from_h160(prefix, payload, network)
-
-    # 'p2wsh' or 'p2wpkh'
-    return b32address_from_witness(0, payload, network)
+    # not script_pubkey or script_type in ("p2pk", "p2ms", "nulldata", "unknown")
+    return b""

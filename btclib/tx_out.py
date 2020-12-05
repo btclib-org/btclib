@@ -105,11 +105,7 @@ class TxOut(DataClassJsonMixin):
     @property
     def address(self) -> bytes:
         "Return the address, if any."
-        try:
-            address = address_from_script_pubkey(self.script_pubkey, self.network)
-        except BTClibValueError:
-            address = b""
-        return address
+        return address_from_script_pubkey(self.script_pubkey, self.network)
 
     def assert_valid(self) -> None:
         if self.value < 0:
@@ -119,6 +115,7 @@ class TxOut(DataClassJsonMixin):
 
         self._set_properties()
 
+    """
     def is_nulldata(self) -> bool:
         return is_nulldata(self.script_pubkey)
 
@@ -142,6 +139,7 @@ class TxOut(DataClassJsonMixin):
 
     def is_p2wsh(self) -> bool:
         return is_p2wsh(self.script_pubkey)
+    """
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
