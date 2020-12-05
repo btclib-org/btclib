@@ -78,18 +78,18 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibTypeError, match=err_msg):
         script.serialize([2, 3, "OP_ADD", 5, script.serialize])  # type: ignore
 
-    script_pubkey = ["1f" * 521, "OP_DROP"]
     err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
+        script_pubkey = ["1f" * 521, "OP_DROP"]
         script.serialize(script_pubkey)
 
     # A script_pubkey with OP_PUSHDATA4 can be decoded
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
-    script_pubkey = script.deserialize(script_bytes)
+    script_pubkey_ = script.deserialize(script_bytes)
     # but it cannot be encoded
     err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        script.serialize(script_pubkey)
+        script.serialize(script_pubkey_)
 
 
 def test_nulldata() -> None:

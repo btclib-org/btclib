@@ -157,7 +157,7 @@ def _get_legacy_script_codes(script_pubkey: Octets) -> List[bytes]:
 # FIXME: remove OP_CODESEPARATOR only if executed
 def _get_witness_v0_script_codes(script_pubkey: Octets) -> List[bytes]:
     try:
-        script_type = payload_from_script_pubkey(script.deserialize(script_pubkey))[0]
+        script_type = payload_from_script_pubkey(script_pubkey)[0]
     except BTClibValueError:
         script_type = "unknown"
     if script_type == "p2wpkh":  # simple p2wpkh
