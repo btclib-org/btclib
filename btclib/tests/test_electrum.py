@@ -33,7 +33,7 @@ def test_mnemonic() -> None:
     entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
     assert entr - entropy < 0xFFF
 
-    passphrase = ""
+    passphrase = ""  # nosec
     xprv = b"xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
     xprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
     assert xprv2 == xprv
