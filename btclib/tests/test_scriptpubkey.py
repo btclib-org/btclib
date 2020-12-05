@@ -144,16 +144,14 @@ def test_nulldata3() -> None:
     assert not is_nulldata(script_pubkey)
 
 
-"""
-# FIXME
 def test_nulldata4() -> None:
 
     script_ = ["OP_RETURN", "OP_RETURN", 3, 1, "OP_VERIF", 0, 3]
     script_pubkey = script.serialize(script_)
     assert len(script_pubkey) == 7
     assert script.deserialize(script_pubkey) == script_
-    payload_from_script_pubkey(script_pubkey)
-"""
+    # FIXME
+    # payload_from_script_pubkey(script_pubkey)
 
 
 def test_p2pk() -> None:

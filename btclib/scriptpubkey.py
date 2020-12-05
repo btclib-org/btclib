@@ -178,7 +178,7 @@ def is_p2pk(script_pubkey: bytes) -> bool:
     # 0x41{65-byte pubkey}AC or 0x21{33-byte pubkey}AC
     length = len(script_pubkey)
     return (
-        length > 0
+        length > 34
         and length == script_pubkey[0] + 2
         and script_pubkey[0] in (0x41, 0x21)
         and script_pubkey[-1] == 0xAC
@@ -188,9 +188,8 @@ def is_p2pk(script_pubkey: bytes) -> bool:
 def is_p2pkh(script_pubkey: bytes) -> bool:
     # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
     # 0x76A914{20-byte pubkey_hash}88AC
-    length = len(script_pubkey)
     return (
-        length == 25
+        len(script_pubkey) == 25
         and script_pubkey[:3] == b"\x76\xa9\x14"
         and script_pubkey[-2:] == b"\x88\xac"
     )
@@ -199,9 +198,10 @@ def is_p2pkh(script_pubkey: bytes) -> bool:
 def is_p2sh(script_pubkey: bytes) -> bool:
     # p2sh [OP_HASH160, script_hash, OP_EQUAL]
     # 0xA914{20-byte script_hash}87
-    length = len(script_pubkey)
     return (
-        length == 23 and script_pubkey[:2] == b"\xa9\x14" and script_pubkey[-1] == 0x87
+        len(script_pubkey) == 23
+        and script_pubkey[:2] == b"\xa9\x14"
+        and script_pubkey[-1] == 0x87
     )
 
 
