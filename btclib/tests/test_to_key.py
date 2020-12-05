@@ -10,7 +10,7 @@
 
 """Test vectors of valid and invalid keys.
 
-Used by `btclib.tests.to_pubkey` and `btclib.tests.to_pubkey` modules.
+Used by `btclib.tests.to_pub_key` and `btclib.tests.to_pub_key` modules.
 Test vectors do include str only: no int, point tuble, or BIP32KeyData.
 """
 
@@ -29,7 +29,7 @@ q_bytes = q.to_bytes(32, byteorder="big")
 q_hexstring = q_bytes.hex()
 q_hexstring2 = " " + q_hexstring + " "
 
-# prvkeys with no network / compression information
+# prv_keys with no network / compression information
 plain_prv_keys: List[Union[bytes, str]] = [
     q_hexstring,
     q_hexstring2,
@@ -79,7 +79,7 @@ net_unaware_prv_keys = (
 
 Q = mult(q)
 
-# pubkeys with no network / compression information
+# pub_keys with no network / compression information
 # but curve aware
 plain_pub_keys: List[Union[bytes, str]] = []
 
@@ -346,11 +346,11 @@ invalid_prv_keys: List[Union[bytes, str]] = (
         xprv_data.key[1:].hex() + "00",
         xprv_data.key,
         xprv_data.key.hex(),
-        "invalidprvkey",
+        "invalidprv_key",
     ]
 )
 
-invalid_pub_keys = bad_bip32_keys + inf_pub_keys + ["invalidpubkey"]
+invalid_pub_keys = bad_bip32_keys + inf_pub_keys + ["invalidpub_key"]
 
 not_a_prv_keys = invalid_prv_keys + invalid_pub_keys
 

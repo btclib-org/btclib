@@ -36,39 +36,39 @@ def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -
     return b"\x04" + bPx + Q[1].to_bytes(ec.psize, byteorder="big")
 
 
-def point_from_octets(pubkey: Octets, ec: Curve = secp256k1) -> Point:
+def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
     """Return a tuple (x_Q, y_Q) that belongs to the curve.
 
     Return a tuple (x_Q, y_Q) that belongs to the curve according to
     SEC 1 v.2, section 2.3.4.
     """
 
-    pubkey = bytes_from_octets(pubkey, (ec.psize + 1, 2 * ec.psize + 1))
+    pub_key = bytes_from_octets(pub_key, (ec.psize + 1, 2 * ec.psize + 1))
 
-    bsize = len(pubkey)  # bytes
-    if pubkey[0] in (0x02, 0x03):  # compressed point
+    bsize = len(pub_key)  # bytes
+    if pub_key[0] in (0x02, 0x03):  # compressed point
         if bsize != ec.psize + 1:
             msg = "invalid size for compressed point: "
             msg += f"{bsize} instead of {ec.psize + 1}"
             raise BTClibValueError(msg)
-        x_Q = int.from_bytes(pubkey[1:], byteorder="big")
+        x_Q = int.from_bytes(pub_key[1:], byteorder="big")
         try:
             y_Q = ec.y_even(x_Q)  # also check x_Q validity
-            return x_Q, y_Q if pubkey[0] == 0x02 else ec.p - y_Q
+            return x_Q, y_Q if pub_key[0] == 0x02 else ec.p - y_Q
         except BTClibValueError as e:
             msg = f"invalid x-coordinate: '{hex_string(x_Q)}'"
             raise BTClibValueError(msg) from e
-    elif pubkey[0] == 0x04:  # uncompressed point
+    elif pub_key[0] == 0x04:  # uncompressed point
         if bsize != 2 * ec.psize + 1:
             msg = "invalid size for uncompressed point: "
             msg += f"{bsize} instead of {2 * ec.psize + 1}"
             raise BTClibValueError(msg)
-        x_Q = int.from_bytes(pubkey[1 : ec.psize + 1], byteorder="big")
-        Q = x_Q, int.from_bytes(pubkey[ec.psize + 1 :], byteorder="big")
+        x_Q = int.from_bytes(pub_key[1 : ec.psize + 1], byteorder="big")
+        Q = x_Q, int.from_bytes(pub_key[ec.psize + 1 :], byteorder="big")
         if Q[1] == 0:  # infinity point in affine coordinates
             raise BTClibValueError("no bytes representation for infinity point")
         if ec.is_on_curve(Q):
             return Q
         raise BTClibValueError(f"point not on curve: {Q}")
     else:
-        raise BTClibValueError(f"not a point: {pubkey!r}")
+        raise BTClibValueError(f"not a point: {pub_key!r}")

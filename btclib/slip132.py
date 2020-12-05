@@ -13,7 +13,7 @@
 https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
 
-from . import base58address, bech32address, bip32
+from . import base58_address, bech32_address, bip32
 from .bip32 import BIP32Key, BIP32KeyData
 from .exceptions import BTClibValueError
 from .network import (
@@ -53,11 +53,11 @@ def address_from_xpub(xpub: BIP32Key) -> bytes:
         raise BTClibValueError(m)
 
     if xpub.version in _XPUB_PREFIXES:
-        return base58address.p2pkh(xpub)
+        return base58_address.p2pkh(xpub)
     if xpub.version in _P2WPKH_PUB_PREFIXES:
-        return bech32address.p2wpkh(xpub)
+        return bech32_address.p2wpkh(xpub)
     if xpub.version in _P2WPKH_P2SH_PUB_PREFIXES:
-        return base58address.p2wpkh_p2sh(xpub)
+        return base58_address.p2wpkh_p2sh(xpub)
 
     err_msg = f"unknown xpub version: {xpub.version.hex()}"  # pragma: no cover
     raise BTClibValueError(err_msg)  # pragma: no cover

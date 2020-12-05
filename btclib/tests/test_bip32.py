@@ -17,14 +17,14 @@ from os import path
 import pytest
 
 from btclib import base58
-from btclib.base58address import p2pkh  # FIXME why it is needed here
+from btclib.base58_address import p2pkh  # FIXME why it is needed here
 from btclib.bip32 import (
     BIP32KeyData,
     _index_int_from_str,
     _indexes_from_bip32_path_str,
     _str_from_index_int,
     bytes_from_bip32_path,
-    crack_prvkey,
+    crack_prv_key,
     derive,
     derive_from_account,
     indexes_from_bip32_path,
@@ -379,35 +379,35 @@ def test_derive_from_account() -> None:
 def test_crack() -> None:
     parent_xpub = "xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV"
     child_xprv = "xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm"
-    parent_xprv = crack_prvkey(parent_xpub, child_xprv)
+    parent_xprv = crack_prv_key(parent_xpub, child_xprv)
     assert xpub_from_xprv(parent_xprv).decode("ascii") == parent_xpub
     # same check with XKeyDict
-    parent_xprv = crack_prvkey(
+    parent_xprv = crack_prv_key(
         BIP32KeyData.b58decode(parent_xpub), BIP32KeyData.b58decode(child_xprv)
     )
     assert xpub_from_xprv(parent_xprv).decode("ascii") == parent_xpub
 
     err_msg = "extended parent key is not a public key: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        crack_prvkey(parent_xprv, child_xprv)
+        crack_prv_key(parent_xprv, child_xprv)
 
     err_msg = "extended child key is not a private key: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        crack_prvkey(parent_xpub, parent_xpub)
+        crack_prv_key(parent_xpub, parent_xpub)
 
     child_xpub = xpub_from_xprv(child_xprv)
     with pytest.raises(BTClibValueError, match="not a parent's child: wrong depths"):
-        crack_prvkey(child_xpub, child_xprv)
+        crack_prv_key(child_xpub, child_xprv)
 
     child0_xprv = derive(parent_xprv, 0)
     grandchild_xprv = derive(child0_xprv, 0)
     err_msg = "not a parent's child: wrong parent fingerprint"
     with pytest.raises(BTClibValueError, match=err_msg):
-        crack_prvkey(child_xpub, grandchild_xprv)
+        crack_prv_key(child_xpub, grandchild_xprv)
 
     hardened_child_xprv = derive(parent_xprv, 0x80000000)
     with pytest.raises(BTClibValueError, match="hardened child derivation"):
-        crack_prvkey(parent_xpub, hardened_child_xprv)
+        crack_prv_key(parent_xpub, hardened_child_xprv)
 
 
 def test_index_int_to_from_str() -> None:

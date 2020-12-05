@@ -49,7 +49,7 @@ from .bech32 import b32decode, b32encode
 from .exceptions import BTClibValueError
 from .hashes import hash160_from_key, hash256_from_script
 from .network import NETWORKS, network_from_key_value
-from .to_pubkey import Key
+from .to_pub_key import Key
 from .utils import bytes_from_octets
 
 # 0. bech32 facilities
@@ -102,7 +102,7 @@ def _check_witness(witvers: int, witprog: bytes):
             raise BTClibValueError(err_msg)
 
 
-# 1. Hash/WitnessProgram from pubkey/script_pubkey
+# 1. Hash/WitnessProgram from pub_key/script_pub_key
 # imported from the hashes module
 
 # 2. bech32 address from WitnessProgram and vice versa
@@ -148,17 +148,17 @@ def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     return witvers, bytes(witprog), network, is_script_hash
 
 
-# 1.+2. = 3. bech32 address from pubkey/script_pubkey
+# 1.+2. = 3. bech32 address from pub_key/script_pub_key
 
 
 def p2wpkh(key: Key, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh bech32 address corresponding to a public key."
-    compressed = True  # needed to force check on pubkey
+    compressed = True  # needed to force check on pub_key
     h160, network = hash160_from_key(key, network, compressed)
     return b32address_from_witness(0, h160, network)
 
 
-def p2wsh(script_pubkey: Script, network: str = "mainnet") -> bytes:
-    "Return the p2wsh bech32 address corresponding to a script_pubkey."
-    h256 = hash256_from_script(script_pubkey)
+def p2wsh(script_pub_key: Script, network: str = "mainnet") -> bytes:
+    "Return the p2wsh bech32 address corresponding to a script_pub_key."
+    h256 = hash256_from_script(script_pub_key)
     return b32address_from_witness(0, h256, network)

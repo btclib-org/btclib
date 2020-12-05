@@ -13,7 +13,7 @@ from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varbytes
+from . import var_bytes
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata
@@ -29,7 +29,7 @@ class OutPoint(DataClassJsonMixin):
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
     vout: int = 0xFFFFFFFF
-    # add value and script_pubkey when tx fetcher will be available
+    # add value and script_pub_key when tx fetcher will be available
     check_validity: InitVar[bool] = True
 
     @property
@@ -141,7 +141,7 @@ class TxIn(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.prev_out.serialize()
-        out += varbytes.serialize(self.script_sig)
+        out += var_bytes.serialize(self.script_sig)
         out += self.sequence.to_bytes(4, byteorder="little", signed=False)
         return out
 
@@ -154,7 +154,7 @@ class TxIn(DataClassJsonMixin):
 
         tx_in = cls(check_validity=False)
         tx_in.prev_out = OutPoint.deserialize(s)
-        tx_in.script_sig = varbytes.deserialize(s)
+        tx_in.script_sig = var_bytes.deserialize(s)
         tx_in.sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
 
         if assert_valid:

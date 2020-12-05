@@ -36,18 +36,18 @@ btclib.base58 module
    :undoc-members:
    :show-inheritance:
 
-btclib.base58address module
+btclib.base58_address module
 ---------------------------
 
-.. automodule:: btclib.base58address
+.. automodule:: btclib.base58_address
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.base58wif module
+btclib.base58_wif module
 -----------------------
 
-.. automodule:: btclib.base58wif
+.. automodule:: btclib.base58_wif
    :members:
    :undoc-members:
    :show-inheritance:
@@ -60,10 +60,10 @@ btclib.bech32 module
    :undoc-members:
    :show-inheritance:
 
-btclib.bech32address module
+btclib.bech32_address module
 ---------------------------
 
-.. automodule:: btclib.bech32address
+.. automodule:: btclib.bech32_address
    :members:
    :undoc-members:
    :show-inheritance:
@@ -116,26 +116,26 @@ btclib.curve module
    :undoc-members:
    :show-inheritance:
 
-btclib.curvegroup module
+btclib.curve_group module
 ------------------------
 
-.. automodule:: btclib.curvegroup
+.. automodule:: btclib.curve_group
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.curvegroup2 module
+btclib.curve_group_2 module
 -------------------------
 
-.. automodule:: btclib.curvegroup2
+.. automodule:: btclib.curve_group_2
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.curvegroupf module
+btclib.curve_group_f module
 -------------------------
 
-.. automodule:: btclib.curvegroupf
+.. automodule:: btclib.curve_group_f
    :members:
    :undoc-members:
    :show-inheritance:
@@ -212,10 +212,10 @@ btclib.network module
    :undoc-members:
    :show-inheritance:
 
-btclib.numbertheory module
+btclib.number_theory module
 --------------------------
 
-.. automodule:: btclib.numbertheory
+.. automodule:: btclib.number_theory
    :members:
    :undoc-members:
    :show-inheritance:
@@ -268,42 +268,42 @@ btclib.script module
    :undoc-members:
    :show-inheritance:
 
-btclib.scriptpubkey module
+btclib.script_pub_key module
 --------------------------
 
-.. automodule:: btclib.scriptpubkey
+.. automodule:: btclib.script_pub_key
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.scriptpubkey\_address module
+btclib.script_pub_key\_address module
 -----------------------------------
 
-.. automodule:: btclib.scriptpubkey_address
+.. automodule:: btclib.script_pub_key_address
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.secpoint module
+btclib.sec_point module
 ----------------------
 
-.. automodule:: btclib.secpoint
+.. automodule:: btclib.sec_point
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.sighash module
+btclib.sign_hash module
 ---------------------
 
-.. automodule:: btclib.sighash
+.. automodule:: btclib.sign_hash
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.signtocontract module
+btclib.sign_to_contract module
 ----------------------------
 
-.. automodule:: btclib.signtocontract
+.. automodule:: btclib.sign_to_contract
    :members:
    :undoc-members:
    :show-inheritance:
@@ -324,18 +324,18 @@ btclib.ssa module
    :undoc-members:
    :show-inheritance:
 
-btclib.to\_prvkey module
+btclib.to\_prv_key module
 ------------------------
 
-.. automodule:: btclib.to_prvkey
+.. automodule:: btclib.to_prv_key
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.to\_pubkey module
+btclib.to\_pub_key module
 ------------------------
 
-.. automodule:: btclib.to_pubkey
+.. automodule:: btclib.to_pub_key
    :members:
    :undoc-members:
    :show-inheritance:
@@ -372,18 +372,18 @@ btclib.utils module
    :undoc-members:
    :show-inheritance:
 
-btclib.varbytes module
+btclib.var_bytes module
 ----------------------
 
-.. automodule:: btclib.varbytes
+.. automodule:: btclib.var_bytes
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.varint module
+btclib.var_int module
 --------------------
 
-.. automodule:: btclib.varint
+.. automodule:: btclib.var_int
    :members:
    :undoc-members:
    :show-inheritance:

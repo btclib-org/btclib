@@ -12,15 +12,15 @@ from typing import Optional
 
 from .base58 import b58encode
 from .network import NETWORKS
-from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
+from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 
 
-def wif_from_prvkey(
-    prvkey: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+def wif_from_prv_key(
+    prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> bytes:
     "Return the WIF encoding of a private key."
 
-    q, net, compr = prvkeyinfo_from_prvkey(prvkey, network, compressed)
+    q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
     ec = NETWORKS[net].curve
 
     payload = NETWORKS[net].wif

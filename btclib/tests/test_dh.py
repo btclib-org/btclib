@@ -18,7 +18,7 @@ from btclib import dsa
 from btclib.curve import CURVES, mult
 from btclib.dh import ansi_x9_63_kdf, diffie_hellman
 from btclib.exceptions import BTClibValueError
-from btclib.secpoint import bytes_from_point
+from btclib.sec_point import bytes_from_point
 
 
 def test_ecdh() -> None:

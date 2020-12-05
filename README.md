@@ -37,7 +37,7 @@ some of its algorithms could be broken using side-channel attacks.
 Included features are:
 
 - modulo algebra functions (gcd, inverse, legendre symbol, square root)
-- octets / integer / varint / point conversion functions
+- octets / integer / point / var_int / var_bytes helper functions
 - elliptic curve class
   - fast algebra implemented using Jacobian coordinates
   - double scalar multiplication (Straus's algorithm, also known as
@@ -79,7 +79,7 @@ Included features are:
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 - BlockHeader and Block data classes
 - OutPoint, TxIn, TxOut, and TX data classes
-- legacy and segwit_v0 sighash
+- legacy and segwit_v0 transaction hash signatures
 - [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
   partially signed bitcoin transactions (PSBT):
   PsbtIn, PbstOut, and Psbt data classes

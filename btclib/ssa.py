@@ -59,12 +59,12 @@ from dataclasses_json import DataClassJsonMixin, config
 from .alias import BinaryData, HashF, Integer, JacPoint, Octets, Point, String
 from .bip32 import BIP32Key
 from .curve import Curve, secp256k1
-from .curvegroup import _double_mult, _mult, _multi_mult
+from .curve_group import _double_mult, _mult, _multi_mult
 from .exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from .hashes import reduce_to_hlen, tagged_hash
-from .numbertheory import mod_inv
-from .to_prvkey import PrvKey, int_from_prvkey
-from .to_pubkey import point_from_pubkey
+from .number_theory import mod_inv
+from .to_prv_key import PrvKey, int_from_prv_key
+from .to_pub_key import point_from_pub_key
 from .utils import (
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -144,7 +144,7 @@ class Sig(DataClassJsonMixin):
 BIP340PubKey = Union[Integer, Octets, BIP32Key, Point]
 
 
-def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
+def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     """Return a verified-as-valid BIP340 public key as Point tuple.
 
     It supports:
@@ -161,7 +161,7 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
     # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
     try:
-        x_Q = point_from_pubkey(x_Q, ec)[0]
+        x_Q = point_from_pub_key(x_Q, ec)[0]
         return x_Q, ec.y_even(x_Q)
     except BTClibValueError:
         pass
@@ -176,14 +176,14 @@ def point_from_bip340pubkey(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
 
 def gen_keys_(
-    prvkey: PrvKey = None, ec: Curve = secp256k1
+    prv_key: PrvKey = None, ec: Curve = secp256k1
 ) -> Tuple[int, int, JacPoint]:
     "Return a BIP340 private/public (int, JacPoint) key-pair."
 
-    if prvkey is None:
+    if prv_key is None:
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
-        q = int_from_prvkey(prvkey, ec)
+        q = int_from_prv_key(prv_key, ec)
 
     QJ = _mult(q, ec.GJ, ec)
     x_Q, y_Q = ec._aff_from_jac(QJ)
@@ -194,13 +194,13 @@ def gen_keys_(
     return q, x_Q, QJ
 
 
-def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
+def gen_keys(prv_key: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     "Return a BIP340 private/public (int, int) key-pair."
 
-    if prvkey is None:
+    if prv_key is None:
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
-        q = int_from_prvkey(prvkey, ec)
+        q = int_from_prv_key(prv_key, ec)
 
     QJ = _mult(q, ec.GJ, ec)
     x_Q, y_Q = ec._aff_from_jac(QJ)
@@ -243,7 +243,7 @@ def __det_nonce(m: bytes, q: int, Q: int, a: bytes, ec: Curve, hf: HashF) -> int
 
 def _det_nonce(
     m: Octets,
-    prvkey: PrvKey,
+    prv_key: PrvKey,
     aux: Optional[Octets] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -254,7 +254,7 @@ def _det_nonce(
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
-    q, Q = gen_keys(prvkey, ec)
+    q, Q = gen_keys(prv_key, ec)
 
     # the auxiliary random component
     a = secrets.token_bytes(hlen) if aux is None else bytes_from_octets(aux)
@@ -263,12 +263,12 @@ def _det_nonce(
 
 
 def det_nonce(
-    msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> int:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _det_nonce(m, prvkey, None, ec, hf)
+    return _det_nonce(m, prv_key, None, ec, hf)
 
 
 def __challenge(m: bytes, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
@@ -295,8 +295,8 @@ def _challenge(
     hlen = hf().digest_size
     m = bytes_from_octets(m, hlen)
 
-    x_Q, _ = point_from_bip340pubkey(Q, ec)
-    x_K, _ = point_from_bip340pubkey(K, ec)
+    x_Q, _ = point_from_bip340pub_key(Q, ec)
+    x_K, _ = point_from_bip340pub_key(K, ec)
 
     return __challenge(m, x_Q, x_K, ec, hf)
 
@@ -329,7 +329,7 @@ def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> Sig:
 
 def _sign(
     m: Octets,
-    prvkey: PrvKey,
+    prv_key: PrvKey,
     k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -345,7 +345,7 @@ def _sign(
     m = bytes_from_octets(m, hlen)
 
     # private and public keys
-    q, x_Q = gen_keys(prvkey, ec)
+    q, x_Q = gen_keys(prv_key, ec)
 
     # the nonce k: an integer in the range 1..n-1.
     if k is None:
@@ -359,7 +359,9 @@ def _sign(
     return __sign(c, q, k, x_K, ec)
 
 
-def sign(msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256) -> Sig:
+def sign(
+    msg: String, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+) -> Sig:
     """Sign message according to BIP340 signature algorithm.
 
     The message msg is first processed by hf, yielding the value
@@ -378,7 +380,7 @@ def sign(msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256)
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _sign(m, prvkey, None, ec, hf)
+    return _sign(m, prv_key, None, ec, hf)
 
 
 def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
@@ -410,7 +412,7 @@ def _assert_as_valid(
     else:
         sig.assert_valid()  # 1
 
-    x_Q, y_Q = point_from_bip340pubkey(Q, sig.ec)
+    x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
     c = _challenge(m, x_Q, sig.r, sig.ec, hf)
@@ -450,7 +452,7 @@ def verify(
     return _verify(m, Q, sig, hf)
 
 
-def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
+def __recover_pub_key(c: int, r: int, s: int, ec: Curve) -> int:
     # Private function provided for testing purposes only.
 
     if c == 0:
@@ -467,7 +469,7 @@ def __recover_pubkey(c: int, r: int, s: int, ec: Curve) -> int:
     return ec._x_aff_from_jac(QJ)
 
 
-def _crack_prvkey(
+def _crack_prv_key(
     m_1: Octets,
     sig1: Union[Sig, Octets],
     m_2: Octets,
@@ -498,7 +500,7 @@ def _crack_prvkey(
     m_1 = bytes_from_octets(m_1, hlen)
     m_2 = bytes_from_octets(m_2, hlen)
 
-    x_Q = point_from_bip340pubkey(Q, ec)[0]
+    x_Q = point_from_bip340pub_key(Q, ec)[0]
 
     c_1 = _challenge(m_1, x_Q, sig1.r, ec, hf)
     c_2 = _challenge(m_2, x_Q, sig2.r, ec, hf)
@@ -509,7 +511,7 @@ def _crack_prvkey(
     return q, k
 
 
-def crack_prvkey(
+def crack_prv_key(
     msg1: String,
     sig1: Union[Sig, Octets],
     msg2: String,
@@ -521,7 +523,7 @@ def crack_prvkey(
     m_1 = reduce_to_hlen(msg1, hf)
     m_2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prvkey(m_1, sig1, m_2, sig2, Q, hf)
+    return _crack_prv_key(m_1, sig1, m_2, sig2, Q, hf)
 
 
 def _assert_batch_as_valid(
@@ -536,11 +538,11 @@ def _assert_batch_as_valid(
         raise BTClibValueError("no signatures provided")
 
     if len(ms) != batch_size:
-        err_msg = f"mismatch between number of pubkeys ({batch_size}) "
+        err_msg = f"mismatch between number of pub_keys ({batch_size}) "
         err_msg += f"and number of messages ({len(ms)})"
         raise BTClibValueError(err_msg)
     if len(sigs) != batch_size:
-        err_msg = f"mismatch between number of pubkeys ({batch_size}) "
+        err_msg = f"mismatch between number of pub_keys ({batch_size}) "
         err_msg += f"and number of signatures ({len(sigs)})"
         raise BTClibValueError(err_msg)
 
@@ -559,7 +561,7 @@ def _assert_batch_as_valid(
 
         KJ = sig.r, ec.y_even(sig.r), 1
 
-        x_Q, y_Q = point_from_bip340pubkey(Q, ec)
+        x_Q, y_Q = point_from_bip340pub_key(Q, ec)
         QJ = x_Q, y_Q, 1
 
         c = _challenge(m, x_Q, sig.r, ec, hf)

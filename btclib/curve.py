@@ -16,7 +16,7 @@ from os import path
 from typing import Dict, List, Optional, Sequence
 
 from .alias import Integer, JacPoint, Point
-from .curvegroup import (
+from .curve_group import (
     _HEXTHRESHOLD,
     CurveGroup,
     _double_mult,

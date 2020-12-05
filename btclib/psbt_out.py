@@ -18,7 +18,7 @@ from typing import Dict, List, Tuple, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varbytes
+from . import var_bytes
 from .bip32 import (
     bytes_from_bip32_path,
     indexes_from_bip32_path,
@@ -43,7 +43,7 @@ def _serialize_dict_bytes_bytes(type_: bytes, d: Dict[bytes, bytes]) -> bytes:
 
     return b"".join(
         [
-            varbytes.serialize(type_ + k) + varbytes.serialize(v)
+            var_bytes.serialize(type_ + k) + var_bytes.serialize(v)
             for k, v in sorted(d.items())
         ]
     )
@@ -51,7 +51,7 @@ def _serialize_dict_bytes_bytes(type_: bytes, d: Dict[bytes, bytes]) -> bytes:
 
 def _serialize_bytes(type_: bytes, value: bytes) -> bytes:
     "Return the binary representation of the dataclass element."
-    return varbytes.serialize(type_) + varbytes.serialize(value)
+    return var_bytes.serialize(type_) + var_bytes.serialize(value)
 
 
 def _deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
@@ -81,7 +81,7 @@ def _encode_hd_keypaths(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     result: List[Dict[str, str]] = []
     for k, v in d.items():
         d_str_str: Dict[str, str] = {
-            "pubkey": k.hex(),
+            "pub_key": k.hex(),
             "master_fingerprint": v[:4].hex(),
             "path": str_from_bip32_path(v[4:], "little"),
         }
@@ -93,7 +93,7 @@ def _decode_hd_keypath(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
     v = bytes_from_octets(new_element["master_fingerprint"], 4)
     v += bytes_from_bip32_path(new_element["path"], "little")
     # TODO: check the SEC / XPUB key
-    k = bytes_from_octets(new_element["pubkey"])
+    k = bytes_from_octets(new_element["pub_key"])
     return k, v
 
 
@@ -119,7 +119,7 @@ def _assert_valid_hd_keypaths(hd_keypaths: Dict[bytes, bytes]) -> None:
 
     for _, v in hd_keypaths.items():
         # FIXME
-        # point_from_pubkey(k)
+        # point_from_pub_key(k)
         indexes_from_bip32_path(v, "little")
 
 
@@ -218,7 +218,7 @@ class PsbtOut(DataClassJsonMixin):
                 out.witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[0:1] == PSBT_OUT_BIP32_DERIVATION:
                 out.hd_keypaths.update(
-                    _deserialize_hd_keypaths(k, v, "PsbtOut BIP32 pubkey")
+                    _deserialize_hd_keypaths(k, v, "PsbtOut BIP32 pub_key")
                 )
             else:  # unknown
                 out.unknown[k] = v

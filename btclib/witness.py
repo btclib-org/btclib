@@ -13,7 +13,7 @@ from typing import List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varbytes, varint
+from . import var_bytes, var_int
 from .alias import BinaryData, Octets
 from .exceptions import BTClibTypeError
 from .utils import bytes_from_octets, bytesio_from_binarydata
@@ -50,8 +50,8 @@ class Witness(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = varint.serialize(len(self.stack))
-        return out + b"".join([varbytes.serialize(w) for w in self.stack])
+        out = var_int.serialize(len(self.stack))
+        return out + b"".join([var_bytes.serialize(w) for w in self.stack])
 
     @classmethod
     def deserialize(
@@ -62,8 +62,8 @@ class Witness(DataClassJsonMixin):
         data = bytesio_from_binarydata(data)
         witness = cls(check_validity=False)
 
-        n = varint.deserialize(data)
-        witness.stack = [varbytes.deserialize(data) for _ in range(n)]
+        n = var_int.deserialize(data)
+        witness.stack = [var_bytes.deserialize(data) for _ in range(n)]
 
         if assert_valid:
             witness.assert_valid()

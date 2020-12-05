@@ -32,7 +32,7 @@
 - Edwards curve (Curve25519)
 - BLS
 - wherever a Curve is required, accept also a network str ?
-- remove signtocontract, adding commit to dsa and ssa
+- remove sign_to_contract, adding commit to dsa and ssa
 - compare with test_framework
 
 - report test vectors from P. Todd's library
@@ -40,7 +40,7 @@
 - report BIP39 whitespaces
 - SSA: ask about checking e=0
 - SSA: ask about why e=e(k), making impossible to select e, k indipendently
-- SSA: ask about benefit of removing 02/03 from pubkey
+- SSA: ask about benefit of removing 02/03 from pub_key
 - SSA: suggest better k
 
 - compare of dsa._rfc6979 and ssa._det_nonce

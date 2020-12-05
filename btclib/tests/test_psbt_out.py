@@ -28,12 +28,12 @@ def test_bip32_derivs() -> None:
     # the basic type dict representation
     data: List[Dict[str, str]] = [
         {
-            "pubkey": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
+            "pub_key": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
             "master_fingerprint": "d90c6a4f",
             "path": "m/0'/0'/0'",
         },
         {
-            "pubkey": "02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7",
+            "pub_key": "02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7",
             "master_fingerprint": "d90c6a4f",
             "path": "m/0'/0'/1'",
         },

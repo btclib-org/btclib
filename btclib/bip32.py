@@ -29,7 +29,7 @@ A BIP32 extended key is 78 bytes:
 - [ 5: 9] parent fingerprint
 - [ 9:13] index
 - [13:45] chain code
-- [45:78] compressed pubkey or [0x00][prvkey]
+- [45:78] compressed pub_key or [0x00][prv_key]
 """
 
 import copy
@@ -52,7 +52,7 @@ from .network import (
     _XPUB_VERSIONS_ALL,
     NETWORKS,
 )
-from .secpoint import bytes_from_point, point_from_octets
+from .sec_point import bytes_from_point, point_from_octets
 from .utils import (
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -544,7 +544,7 @@ def derive_from_account(
     return key_data.b58encode()
 
 
-def crack_prvkey(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
+def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
 
     if isinstance(parent_xpub, BIP32KeyData):
         p = copy.copy(parent_xpub)

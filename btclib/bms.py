@@ -141,14 +141,14 @@ from dataclasses_json import DataClassJsonMixin
 
 from . import dsa
 from .alias import BinaryData, String
-from .base58address import h160_from_b58address, p2pkh, p2wpkh_p2sh
-from .base58wif import wif_from_prvkey
-from .bech32address import p2wpkh, witness_from_b32address
+from .base58_address import h160_from_b58address, p2pkh, p2wpkh_p2sh
+from .base58_wif import wif_from_prv_key
+from .bech32_address import p2wpkh, witness_from_b32address
 from .curve import mult, secp256k1
 from .exceptions import BTClibValueError
 from .network import NETWORKS
-from .secpoint import bytes_from_point
-from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
+from .sec_point import bytes_from_point
+from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from .utils import bytesio_from_binarydata, hash160
 
 _BMS_SIG = TypeVar("_BMS_SIG", bound="Sig")
@@ -234,7 +234,7 @@ class Sig(DataClassJsonMixin):
 
 
 def gen_keys(
-    prvkey: PrvKey = None,
+    prv_key: PrvKey = None,
     network: Optional[str] = None,
     compressed: Optional[bool] = None,
 ) -> Tuple[bytes, bytes]:
@@ -243,15 +243,15 @@ def gen_keys(
     The private key is a WIF, the public key is a base58 P2PKH address.
     """
 
-    if prvkey is None:
+    if prv_key is None:
         if network is None:
             network = "mainnet"
         ec = NETWORKS[network].curve
         # q in the range [1, ec.n-1]
         q = 1 + secrets.randbelow(ec.n - 1)
-        wif = wif_from_prvkey(q, network, compressed)
+        wif = wif_from_prv_key(q, network, compressed)
     else:
-        wif = wif_from_prvkey(prvkey, network, compressed)
+        wif = wif_from_prv_key(prv_key, network, compressed)
 
     address = p2pkh(wif)
 
@@ -269,7 +269,7 @@ def _magic_message(msg: String) -> bytes:
     return sha256(t).digest()
 
 
-def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> Sig:
+def sign(msg: String, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
     """Generate address-based compact signature for the provided message."""
 
     if isinstance(addr, str):
@@ -278,27 +278,27 @@ def sign(msg: String, prvkey: PrvKey, addr: Optional[String] = None) -> Sig:
 
     # first sign the message
     magic_msg = _magic_message(msg)
-    q, network, compressed = prvkeyinfo_from_prvkey(prvkey)
+    q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
     dsa_sig = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
     # TODO do the match in Jacobian coordinates avoiding mod_inv
-    pubkeys = dsa.recover_pubkeys(magic_msg, dsa_sig)
+    pub_keys = dsa.recover_pub_keys(magic_msg, dsa_sig)
     Q = mult(q)
     # key_id is in [0, 3]
     # first two bits in rf are reserved for it
-    key_id = pubkeys.index(Q)
-    pubkey = bytes_from_point(Q, compressed=compressed)
+    key_id = pub_keys.index(Q)
+    pub_key = bytes_from_point(Q, compressed=compressed)
 
     # finally, calculate the recovery flag
-    if addr is None or addr == p2pkh(pubkey, network, compressed):
+    if addr is None or addr == p2pkh(pub_key, network, compressed):
         rf = key_id + 27
         # third bit in rf is reserved for the 'compressed' boolean
         rf += 4 if compressed else 0
     # BIP137
-    elif addr == p2wpkh_p2sh(pubkey, network):
+    elif addr == p2wpkh_p2sh(pub_key, network):
         rf = key_id + 35
-    elif addr == p2wpkh(pubkey, network):
+    elif addr == p2wpkh(pub_key, network):
         rf = key_id + 39
     else:
         raise BTClibValueError("mismatch between private key and address")
@@ -325,10 +325,10 @@ def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
     key_id = sig.rf - 27 & 0b11
 
-    recovered_pubkey = dsa.__recover_pubkey(
+    recovered_pub_key = dsa.__recover_pub_key(
         key_id, c, sig.dsa_sig.r, sig.dsa_sig.s, sig.dsa_sig.ec
     )
-    Q = secp256k1._aff_from_jac(recovered_pubkey)
+    Q = secp256k1._aff_from_jac(recovered_pub_key)
 
     try:
         _, h160, _, is_script_hash = h160_from_b58address(addr)
@@ -339,21 +339,21 @@ def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
 
     compressed = sig.rf >= 31
     # signature is valid only if the provided address is matched
-    pubkey = bytes_from_point(Q, compressed=compressed)
+    pub_key = bytes_from_point(Q, compressed=compressed)
     if is_b58:
         if is_script_hash and 30 < sig.rf < 39:  # P2WPKH-P2SH
-            script_pk = b"\x00\x14" + hash160(pubkey)
+            script_pk = b"\x00\x14" + hash160(pub_key)
             if hash160(script_pk) != h160:
                 raise BTClibValueError(f"wrong p2wpkh-p2sh address: {addr!r}")
         elif sig.rf < 35:  # P2PKH
-            if hash160(pubkey) != h160:
+            if hash160(pub_key) != h160:
                 raise BTClibValueError(f"wrong p2pkh address: {addr!r}")
         else:
             err_msg = f"invalid recovery flag: {sig.rf} (base58 address {addr!r})"
             raise BTClibValueError(err_msg)
     else:
         if sig.rf > 38 or 30 < sig.rf < 35:  # P2WPKH
-            if hash160(pubkey) != h160:
+            if hash160(pub_key) != h160:
                 raise BTClibValueError(f"wrong p2wpkh address: {addr!r}")
         else:
             err_msg = f"invalid recovery flag: {sig.rf} (bech32 address {addr!r})"

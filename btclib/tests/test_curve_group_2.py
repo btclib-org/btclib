@@ -7,14 +7,14 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.curvegroup2` module."
+"Tests for the `btclib.curve_group_2` module."
 
 import pytest
 
 from btclib.alias import INFJ
 from btclib.curve import secp256k1
-from btclib.curvegroup import _mult
-from btclib.curvegroup2 import (
+from btclib.curve_group import _mult
+from btclib.curve_group_2 import (
     _mult_endomorphism_secp256k1,
     _mult_sliding_window,
     _mult_w_NAF,

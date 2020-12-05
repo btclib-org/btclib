@@ -18,7 +18,7 @@ from typing import Dict, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import dsa, secpoint
+from . import dsa, sec_point
 from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_out import (
     _assert_valid_hd_keypaths,
@@ -34,7 +34,7 @@ from .psbt_out import (
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
 )
-from .sighash import assert_valid_sighash_type
+from .sign_hash import assert_valid_sig_hash_type
 from .tx import Tx
 from .tx_out import TxOut
 from .witness import Witness
@@ -42,7 +42,7 @@ from .witness import Witness
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
 PSBT_IN_PARTIAL_SIG = b"\x02"
-PSBT_IN_SIGHASH_TYPE = b"\x03"
+PSBT_IN_SIG_HASH_TYPE = b"\x03"
 PSBT_IN_REDEEM_SCRIPT = b"\x04"
 PSBT_IN_WITNESS_SCRIPT = b"\x05"
 PSBT_IN_BIP32_DERIVATION = b"\x06"
@@ -82,7 +82,7 @@ def _deserialize_partial_sigs(k: bytes, v: bytes) -> Dict[bytes, bytes]:
     "Return the dataclass element from its binary representation."
 
     if len(k) - 1 not in (33, 65):
-        err_msg = "invalid partial signature pubkey length"
+        err_msg = "invalid partial signature pub_key length"
         err_msg += f": {len(k)-1} instead of (33, 65)"
         raise BTClibValueError(err_msg)
     return {k[1:]: v}
@@ -91,19 +91,19 @@ def _deserialize_partial_sigs(k: bytes, v: bytes) -> Dict[bytes, bytes]:
 def _assert_valid_partial_sigs(partial_sigs: Dict[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
-    for pubkey, sig in partial_sigs.items():
+    for pub_key, sig in partial_sigs.items():
         try:
-            # pubkey must be a valid secp256k1 Point in SEC representation
-            secpoint.point_from_octets(pubkey)
+            # pub_key must be a valid secp256k1 Point in SEC representation
+            sec_point.point_from_octets(pub_key)
         except BTClibValueError as e:
-            err_msg = "invalid partial signature pubkey: {pubkey!r}"
+            err_msg = "invalid partial signature pub_key: {pub_key!r}"
             raise BTClibValueError(err_msg) from e
         try:
             dsa.Sig.deserialize(sig)
         except BTClibValueError as e:
             err_msg = f"invalid partial signature: {sig!r}"
             raise BTClibValueError(err_msg) from e
-        # TODO should we check that pubkey is recoverable from sig?
+        # TODO should we check that pub_key is recoverable from sig?
 
 
 def _deserialize_int(k: bytes, v: bytes, type_: str) -> int:
@@ -144,8 +144,8 @@ class PsbtIn(DataClassJsonMixin):
             decoder=_decode_dict_bytes_bytes,
         ),
     )
-    sighash_type: Optional[int] = field(
-        default=None, metadata=config(field_name="sighash")
+    sig_hash_type: Optional[int] = field(
+        default=None, metadata=config(field_name="sign_hash")
     )
     redeem_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
@@ -174,9 +174,9 @@ class PsbtIn(DataClassJsonMixin):
     check_validity: InitVar[bool] = True
 
     @property
-    def sighash(self) -> int:
-        "Return the sighash int for compatibility with PartiallySignedInput."
-        return self.sighash_type or 0
+    def sign_hash(self) -> int:
+        "Return the sign_hash int for compatibility with PartiallySignedInput."
+        return self.sig_hash_type or 0
 
     def __post_init__(self, check_validity: bool) -> None:
         if check_validity:
@@ -191,8 +191,8 @@ class PsbtIn(DataClassJsonMixin):
         if self.witness_utxo:
             self.witness_utxo.assert_valid()
 
-        if self.sighash_type:
-            assert_valid_sighash_type(self.sighash_type)
+        if self.sig_hash_type:
+            assert_valid_sig_hash_type(self.sig_hash_type)
 
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
@@ -223,9 +223,9 @@ class PsbtIn(DataClassJsonMixin):
                     PSBT_IN_PARTIAL_SIG, self.partial_sigs
                 )
 
-            if self.sighash_type:
-                temp = self.sighash_type.to_bytes(4, "little")
-                out += _serialize_bytes(PSBT_IN_SIGHASH_TYPE, temp)
+            if self.sig_hash_type:
+                temp = self.sig_hash_type.to_bytes(4, "little")
+                out += _serialize_bytes(PSBT_IN_SIG_HASH_TYPE, temp)
 
             if self.redeem_script:
                 out += _serialize_bytes(PSBT_IN_REDEEM_SCRIPT, self.redeem_script)
@@ -265,15 +265,15 @@ class PsbtIn(DataClassJsonMixin):
                 out.witness_utxo = _deserialize_witness_utxo(k, v)
             elif k[0:1] == PSBT_IN_PARTIAL_SIG:
                 out.partial_sigs.update(_deserialize_partial_sigs(k, v))
-            elif k[0:1] == PSBT_IN_SIGHASH_TYPE:
-                out.sighash_type = _deserialize_int(k, v, "sighash type")
+            elif k[0:1] == PSBT_IN_SIG_HASH_TYPE:
+                out.sig_hash_type = _deserialize_int(k, v, "sign_hash type")
             elif k[0:1] == PSBT_IN_REDEEM_SCRIPT:
                 out.redeem_script = _deserialize_bytes(k, v, "redeem script")
             elif k[0:1] == PSBT_IN_WITNESS_SCRIPT:
                 out.witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[0:1] == PSBT_IN_BIP32_DERIVATION:
                 out.hd_keypaths.update(
-                    _deserialize_hd_keypaths(k, v, "PsbtIn BIP32 pubkey")
+                    _deserialize_hd_keypaths(k, v, "PsbtIn BIP32 pub_key")
                 )
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
                 out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")

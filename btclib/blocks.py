@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 from dataclasses_json.core import Json
 
-from . import varbytes, varint
+from . import var_bytes, var_int
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .tx import Tx
@@ -291,7 +291,7 @@ class Block(DataClassJsonMixin):
         # followed by the signed little-endian representation of the height
         # (genesis block is height zero).
         coinbase_script = self.transactions[0].vin[0].script_sig
-        height_ = varbytes.deserialize(coinbase_script)
+        height_ = var_bytes.deserialize(coinbase_script)
         return int.from_bytes(height_, byteorder="little", signed=True)
 
     def segwit(self) -> bool:
@@ -325,7 +325,7 @@ class Block(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.header.serialize()
-        out += varint.serialize(len(self.transactions))
+        out += var_int.serialize(len(self.transactions))
         return out + b"".join([t.serialize(include_witness) for t in self.transactions])
 
     @classmethod
@@ -338,7 +338,7 @@ class Block(DataClassJsonMixin):
         block = cls(check_validity=False)
 
         block.header = BlockHeader.deserialize(stream)
-        n = varint.deserialize(stream)
+        n = var_int.deserialize(stream)
         block.transactions = [Tx.deserialize(stream) for _ in range(n)]
 
         if assert_valid:

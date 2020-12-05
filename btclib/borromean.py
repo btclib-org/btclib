@@ -16,7 +16,7 @@ from typing import Dict, List, Sequence, Tuple
 from .alias import Point, String
 from .curve import double_mult, mult, secp256k1
 from .exceptions import BTClibRuntimeError
-from .secpoint import bytes_from_point
+from .sec_point import bytes_from_point
 from .utils import int_from_bits
 
 ec = secp256k1  # FIXME: any curve
@@ -59,7 +59,7 @@ def sign(
     - msg: message to be signed (bytes)
     - sign_key_idx: list of indexes representing each signing key per ring
     - sign_keys: list containing the whole set of signing keys (one per ring)
-    - pubk_rings: dictionary of sequences representing single rings of pubkeys
+    - pubk_rings: dictionary of sequences representing single rings of pub_keys
     """
 
     if isinstance(msg, str):
@@ -118,7 +118,7 @@ def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     - msg: message to be signed (bytes)
     - e0: pinned e-value needed to start the verification algorithm
     - s: s-values, both real (one per ring) and forged
-    - pubk_rings: dictionary of sequences representing single rings of pubkeys
+    - pubk_rings: dictionary of sequences representing single rings of pub_keys
     """
 
     if isinstance(msg, str):

@@ -15,7 +15,7 @@ from os import path
 
 import pytest
 
-from btclib import der, dsa, secpoint
+from btclib import der, dsa, sec_point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.psbt import (
     PSBT_DELIMITER,
@@ -459,8 +459,8 @@ def test_exceptions() -> None:
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.inputs[0].sighash_type = 101
-    with pytest.raises(BTClibValueError, match="invalid sighash type: "):
+    psbt.inputs[0].sig_hash_type = 101
+    with pytest.raises(BTClibValueError, match="invalid sign_hash type: "):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
@@ -470,18 +470,18 @@ def test_exceptions() -> None:
 
     psbt = Psbt.b64decode(psbt_str)
     _, Q = dsa.gen_keys()
-    pubkey = secpoint.bytes_from_point(Q)
+    pub_key = sec_point.bytes_from_point(Q)
     r = s = int.from_bytes(bytes.fromhex("FF" * 32), "big")
     sig_bytes = der._serialize_scalar(r)
     sig_bytes += der._serialize_scalar(s)
     sig_bytes = b"\x30" + len(sig_bytes).to_bytes(1, byteorder="big") + sig_bytes
-    psbt.inputs[0].partial_sigs = {pubkey: sig_bytes}
+    psbt.inputs[0].partial_sigs = {pub_key: sig_bytes}
     with pytest.raises(BTClibValueError, match="invalid partial signature: "):
         psbt.serialize()
 
-    pubkey = bytes.fromhex("02" + 31 * "00" + "07")
-    psbt.inputs[0].partial_sigs = {pubkey: sig_bytes}
-    with pytest.raises(BTClibValueError, match="invalid partial signature pubkey: "):
+    pub_key = bytes.fromhex("02" + 31 * "00" + "07")
+    psbt.inputs[0].partial_sigs = {pub_key: sig_bytes}
+    with pytest.raises(BTClibValueError, match="invalid partial signature pub_key: "):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)

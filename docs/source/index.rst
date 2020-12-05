@@ -36,7 +36,7 @@ python -m pip install -r requirements-dev.txt
 The library features are:
 
 * modulo algebra functions (gcd, inverse, legendre symbol, square root)
-* octets / integer / varint / point conversion functions
+* octets / integer / var_int / point conversion functions
 * elliptic curve class
 
   * fast algebra implemented using Jacobian coordinates
@@ -74,7 +74,7 @@ The library features are:
 * nulldata, p2pk, p2pkh, multi-sig, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 * BlockHeader and Block data classes
 * OutPoint, TxIn, TxOut, and TX data classes
-* segwit_v0_sighash
+* segwit_v0_sign_hash
 * BIP174 partially signed bitcoin transactions (PSBT):
   PsbtIn, PbstOut, and Psbt data classes
 

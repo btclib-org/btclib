@@ -28,9 +28,9 @@ from btclib.exceptions import (
     BTClibValueError,
 )
 from btclib.hashes import reduce_to_hlen
-from btclib.numbertheory import mod_inv
+from btclib.number_theory import mod_inv
 from btclib.pedersen import second_generator
-from btclib.secpoint import bytes_from_point
+from btclib.sec_point import bytes_from_point
 from btclib.tests.test_curve import low_card_curves
 from btclib.utils import int_from_bits
 
@@ -65,7 +65,7 @@ def test_signature() -> None:
     with pytest.raises(BTClibTypeError, match=err_msg):
         ssa.assert_as_valid(msg, INF, sig)  # type: ignore
     with pytest.raises(BTClibTypeError, match=err_msg):
-        ssa.point_from_bip340pubkey(INF)  # type: ignore
+        ssa.point_from_bip340pub_key(INF)  # type: ignore
 
     sig_invalid = ssa.Sig(sig.ec.p, sig.s, check_validity=False)
     assert not ssa.verify(msg, x_Q, sig_invalid)
@@ -100,7 +100,7 @@ def test_signature() -> None:
 
     err_msg = "invalid zero challenge"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        ssa.__recover_pubkey(0, sig.r, sig.s, sig.ec)
+        ssa.__recover_pub_key(0, sig.r, sig.s, sig.ec)
 
 
 def test_bip340_vectors() -> None:
@@ -115,64 +115,66 @@ def test_bip340_vectors() -> None:
         # skip column headers while checking that there are 7 columns
         _, _, _, _, _, _, _, _ = reader.__next__()
         for row in reader:
-            (index, seckey, pubkey, aux_rand, m, sig, result, comment) = row
+            (index, seckey, pub_key, aux_rand, m, sig, result, comment) = row
             err_msg = f"Test vector #{int(index)}"
             try:
                 if seckey != "":
-                    _, pubkey_actual = ssa.gen_keys(seckey)
-                    assert pubkey == hex(pubkey_actual).upper()[2:], err_msg
+                    _, pub_key_actual = ssa.gen_keys(seckey)
+                    assert pub_key == hex(pub_key_actual).upper()[2:], err_msg
 
                     k = ssa._det_nonce(m, seckey, aux_rand)
                     sig_actual = ssa._sign(m, seckey, k)
-                    ssa._assert_as_valid(m, pubkey, sig_actual)
+                    ssa._assert_as_valid(m, pub_key, sig_actual)
                     assert ssa.Sig.deserialize(sig) == sig_actual, err_msg
 
                 if comment:
                     err_msg += ": " + comment
                 # TODO what's wrong with xor-ing ?
-                # assert (result == "TRUE") ^ ssa._verify(m, pubkey, sig), err_msg
+                # assert (result == "TRUE") ^ ssa._verify(m, pub_key, sig), err_msg
                 if result == "TRUE":
-                    ssa._assert_as_valid(m, pubkey, sig)
-                    assert ssa._verify(m, pubkey, sig), err_msg
+                    ssa._assert_as_valid(m, pub_key, sig)
+                    assert ssa._verify(m, pub_key, sig), err_msg
                 else:
-                    assert not ssa._verify(m, pubkey, sig), err_msg
+                    assert not ssa._verify(m, pub_key, sig), err_msg
             except Exception as e:  # pragma: no cover # pylint: disable=broad-except
                 print(err_msg)  # pragma: no cover
                 raise e  # pragma: no cover
 
 
-def test_point_from_bip340pubkey() -> None:
+def test_point_from_bip340pub_key() -> None:
 
     q, x_Q = ssa.gen_keys()
     Q = mult(q)
     # Integer (int)
-    assert ssa.point_from_bip340pubkey(x_Q) == Q
+    assert ssa.point_from_bip340pub_key(x_Q) == Q
     # Integer (bytes)
-    assert ssa.point_from_bip340pubkey(x_Q.to_bytes(32, byteorder="big")) == Q
+    assert ssa.point_from_bip340pub_key(x_Q.to_bytes(32, byteorder="big")) == Q
     # Integer (hex-str)
-    assert ssa.point_from_bip340pubkey(x_Q.to_bytes(32, byteorder="big").hex()) == Q
+    assert ssa.point_from_bip340pub_key(x_Q.to_bytes(32, byteorder="big").hex()) == Q
     # tuple Point
-    assert ssa.point_from_bip340pubkey(Q) == Q
+    assert ssa.point_from_bip340pub_key(Q) == Q
     # 33 bytes
-    assert ssa.point_from_bip340pubkey(bytes_from_point(Q)) == Q
+    assert ssa.point_from_bip340pub_key(bytes_from_point(Q)) == Q
     # 33 bytes hex-string
-    assert ssa.point_from_bip340pubkey(bytes_from_point(Q).hex()) == Q
+    assert ssa.point_from_bip340pub_key(bytes_from_point(Q).hex()) == Q
     # 65 bytes
-    assert ssa.point_from_bip340pubkey(bytes_from_point(Q, compressed=False)) == Q
+    assert ssa.point_from_bip340pub_key(bytes_from_point(Q, compressed=False)) == Q
     # 65 bytes hex-string
-    assert ssa.point_from_bip340pubkey(bytes_from_point(Q, compressed=False).hex()) == Q
+    assert (
+        ssa.point_from_bip340pub_key(bytes_from_point(Q, compressed=False).hex()) == Q
+    )
 
     xpub_data = BIP32KeyData.b58decode(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     )
     xpub_data.key = bytes_from_point(Q)
     # BIP32KeyData
-    assert ssa.point_from_bip340pubkey(xpub_data) == Q
+    assert ssa.point_from_bip340pub_key(xpub_data) == Q
     # BIP32Key encoded str
     xpub = xpub_data.b58encode()
-    assert ssa.point_from_bip340pubkey(xpub) == Q
+    assert ssa.point_from_bip340pub_key(xpub) == Q
     # BIP32Key str
-    assert ssa.point_from_bip340pubkey(xpub.decode("ascii")) == Q
+    assert ssa.point_from_bip340pub_key(xpub.decode("ascii")) == Q
 
 
 def test_low_cardinality() -> None:
@@ -205,7 +207,7 @@ def test_low_cardinality() -> None:
                             ssa.__sign(e, q, k, r, ec)
                         # no public key can be recovered
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
-                            ssa.__recover_pubkey(e, r, s, ec)
+                            ssa.__recover_pub_key(e, r, s, ec)
 
                         # if e == 0 then the sig is always valid
                         ssa.__assert_as_valid(e, QJ, r, s, ec)
@@ -214,15 +216,15 @@ def test_low_cardinality() -> None:
                         ssa.__assert_as_valid(e, new_QJ, r, s, ec)
                     else:
                         sig = ssa.__sign(e, q, k, r, ec)
-                        # recover pubkey
-                        assert x_Q == ssa.__recover_pubkey(e, r, s, ec)
+                        # recover pub_key
+                        assert x_Q == ssa.__recover_pub_key(e, r, s, ec)
 
                         assert ssa.Sig(r, s, ec) == sig
                         # valid signature must validate
                         ssa.__assert_as_valid(e, QJ, r, s, ec)
 
 
-def test_crack_prvkey() -> None:
+def test_crack_prv_key() -> None:
 
     q, x_Q = ssa.gen_keys()
 
@@ -236,16 +238,16 @@ def test_crack_prvkey() -> None:
     # reuse same k
     sig2 = ssa._sign(m_2, q, k)
 
-    qc, kc = ssa.crack_prvkey(msg1, sig1, msg2, sig2, x_Q)
+    qc, kc = ssa.crack_prv_key(msg1, sig1, msg2, sig2, x_Q)
     assert q == qc
     assert k in (kc, sig1.ec.n - kc)
 
     sig2.r = 16
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        ssa._crack_prvkey(m_1, sig1, m_2, sig2, x_Q)
+        ssa._crack_prv_key(m_1, sig1, m_2, sig2, x_Q)
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
-        ssa._crack_prvkey(m_1, sig1, m_1, sig1, x_Q)
+        ssa._crack_prv_key(m_1, sig1, m_1, sig1, x_Q)
 
 
 def test_batch_validation() -> None:
@@ -286,14 +288,14 @@ def test_batch_validation() -> None:
     sigs[-1] = sigs[0]  # valid again
 
     ms.append(ms[0])  # add extra message
-    err_msg = "mismatch between number of pubkeys "
+    err_msg = "mismatch between number of pub_keys "
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_batch_as_valid(ms, Qs, sigs)
     assert not ssa.batch_verify(ms, Qs, sigs)
     ms.pop()  # valid again
 
     sigs.append(sigs[0])  # add extra sig
-    err_msg = "mismatch between number of pubkeys "
+    err_msg = "mismatch between number of pub_keys "
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_batch_as_valid(ms, Qs, sigs)
     assert not ssa.batch_verify(ms, Qs, sigs)

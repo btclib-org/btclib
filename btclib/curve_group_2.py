@@ -45,7 +45,7 @@ from math import ceil
 from typing import List, Tuple
 
 from .alias import INFJ, JacPoint
-from .curvegroup import CurveGroup, _double_mult, convert_number_to_base
+from .curve_group import CurveGroup, _double_mult, convert_number_to_base
 from .exceptions import BTClibValueError
 
 

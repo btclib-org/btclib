@@ -35,7 +35,7 @@ https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
 - splitted the original tests.py file in test_bech32.py
-  and test_bech32address.py
+  and test_bech32_address.py
 - checked for raised exceptions instead of assertIsNone
 """
 

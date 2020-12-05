@@ -25,11 +25,11 @@ from .network import (
     NETWORKS,
     network_from_key_value,
 )
-from .scriptpubkey import script_pubkey_from_payload
-from .to_pubkey import Key
+from .script_pub_key import script_pub_key_from_payload
+from .to_pub_key import Key
 from .utils import bytes_from_octets
 
-# 1. Hash/WitnessProgram from pubkey/script_pubkey
+# 1. Hash/WitnessProgram from pub_key/script_pub_key
 # imported from the hashes module
 
 # 2. base58 address from HASH and vice versa
@@ -66,7 +66,7 @@ def h160_from_b58address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
     return prefix, payload[1:], network, is_script_hash
 
 
-# 1.+2. = 3. base58 address from pubkey/script_pubkey
+# 1.+2. = 3. base58 address from pub_key/script_pub_key
 
 
 def p2pkh(
@@ -78,9 +78,9 @@ def p2pkh(
     return b58address_from_h160(prefix, h160, network)
 
 
-def p2sh(script_pubkey: Script, network: str = "mainnet") -> bytes:
-    "Return the p2sh base58 address corresponding to a script_pubkey."
-    h160 = hash160_from_script(script_pubkey)
+def p2sh(script_pub_key: Script, network: str = "mainnet") -> bytes:
+    "Return the p2sh base58 address corresponding to a script_pub_key."
+    h160 = hash160_from_script(script_pub_key)
     prefix = NETWORKS[network].p2sh
     return b58address_from_h160(prefix, h160, network)
 
@@ -94,9 +94,9 @@ def b58address_from_witness(witness_program: Octets, network: str = "mainnet") -
 
     length = len(witness_program)
     if length == 20:
-        redeem_script = script_pubkey_from_payload("p2wpkh", witness_program)
+        redeem_script = script_pub_key_from_payload("p2wpkh", witness_program)
     elif length == 32:
-        redeem_script = script_pubkey_from_payload("p2wsh", witness_program)
+        redeem_script = script_pub_key_from_payload("p2wsh", witness_program)
     else:
         err_msg = "invalid witness program length for witness v0: "
         err_msg += f"{length} instead of 20 or 32"
@@ -105,12 +105,12 @@ def b58address_from_witness(witness_program: Octets, network: str = "mainnet") -
     return p2sh(redeem_script, network)
 
 
-# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pubkey/script_pubkey
+# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pub_key/script_pub_key
 
 
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> bytes:
-    "Return the p2wpkh-p2sh base58 address corresponding to a pubkey."
-    compressed = True  # needed to force check on pubkey
+    "Return the p2wpkh-p2sh base58 address corresponding to a pub_key."
+    compressed = True  # needed to force check on pub_key
     witprog, network = hash160_from_key(key, network, compressed)
     return b58address_from_witness(witprog, network)
 

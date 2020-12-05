@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.secpoint` module."
+"Tests for the `btclib.sec_point` module."
 
 import secrets
 from typing import Dict
@@ -17,7 +17,7 @@ import pytest
 
 from btclib.curve import CURVES, Curve, mult
 from btclib.exceptions import BTClibValueError
-from btclib.secpoint import bytes_from_point, point_from_octets
+from btclib.sec_point import bytes_from_point, point_from_octets
 
 # test curves: very low cardinality
 low_card_curves: Dict[str, Curve] = {}

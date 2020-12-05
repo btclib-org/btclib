@@ -60,7 +60,7 @@ from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import varbytes
+from . import var_bytes
 from .alias import BinaryData
 from .curve import Curve, secp256k1
 from .exceptions import BTClibValueError
@@ -86,7 +86,7 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
         err_msg = f"invalid value header: {marker.hex()}"
         err_msg += f", instead of integer element {_DER_SCALAR_MARKER.hex()}"
         raise BTClibValueError(err_msg)
-    r_bytes = varbytes.deserialize(sig_data_stream, forbid_zero_size=True)
+    r_bytes = var_bytes.deserialize(sig_data_stream, forbid_zero_size=True)
     if r_bytes[0] == 0 and r_bytes[1] & 0x80 != 0x80:
         err_msg = "invalid null byte at the start of scalar"
         raise BTClibValueError(err_msg)
@@ -135,7 +135,7 @@ class Sig(DataClassJsonMixin):
 
         out = _serialize_scalar(self.r)
         out += _serialize_scalar(self.s)
-        return _DER_SIG_MARKER + varbytes.serialize(out)
+        return _DER_SIG_MARKER + var_bytes.serialize(out)
 
     @classmethod
     def deserialize(
@@ -157,7 +157,7 @@ class Sig(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
         # [data-size][0x02][r-size][r][0x02][s-size][s]
-        sig_data = varbytes.deserialize(stream, forbid_zero_size=True)
+        sig_data = var_bytes.deserialize(stream, forbid_zero_size=True)
 
         # [0x02][r-size][r][0x02][s-size][s]
         sig_data_substream = bytesio_from_binarydata(sig_data)

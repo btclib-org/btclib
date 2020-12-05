@@ -22,7 +22,7 @@ from typing import Dict, List, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 from dataclasses_json.core import Json
 
-from . import varint
+from . import var_int
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .tx_in import TxIn
@@ -173,9 +173,9 @@ class Tx(DataClassJsonMixin):
 
         out = self.version.to_bytes(4, byteorder="little", signed=False)
         out += _SEGWIT_MARKER if segwit else b""
-        out += varint.serialize(len(self.vin))
+        out += var_int.serialize(len(self.vin))
         out += b"".join(tx_in.serialize(assert_valid) for tx_in in self.vin)
-        out += varint.serialize(len(self.vout))
+        out += var_int.serialize(len(self.vout))
         out += b"".join(tx_out.serialize(assert_valid) for tx_out in self.vout)
         if segwit:
             out += b"".join(tx_in.witness.serialize(assert_valid) for tx_in in self.vin)
@@ -199,10 +199,10 @@ class Tx(DataClassJsonMixin):
             whence = 1  # current position
             stream.seek(-2, whence)
 
-        n = varint.deserialize(stream)
+        n = var_int.deserialize(stream)
         tx.vin = [TxIn.deserialize(stream) for _ in range(n)]
 
-        n = varint.deserialize(stream)
+        n = var_int.deserialize(stream)
         tx.vout = [TxOut.deserialize(stream) for _ in range(n)]
 
         if segwit:

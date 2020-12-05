@@ -8,12 +8,12 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.numbertheory` module."
+"Tests for the `btclib.number_theory` module."
 
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.numbertheory import mod_inv, mod_sqrt, tonelli
+from btclib.number_theory import mod_inv, mod_sqrt, tonelli
 
 primes = [
     2,

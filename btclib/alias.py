@@ -29,7 +29,7 @@ from typing import Any, Callable, List, Tuple, Union
 # use btclib.utils.bytes_from_octets to convert Octets to bytes
 #
 # Octets are used for serialized script, h160 (20 bytes), h256 (32 bytes),
-# BIP32 version (4 bytes), sighash_type (1 byte),
+# BIP32 version (4 bytes), sig_hash_type (1 byte),
 # dsa.Sig (DER serialization of ECDSA signature),
 # ssa.Sig (BIP340 serialization of Schnorr signature)
 # etc.

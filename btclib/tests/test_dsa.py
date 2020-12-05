@@ -18,11 +18,11 @@ import pytest
 from btclib import dsa
 from btclib.alias import INF
 from btclib.curve import CURVES, double_mult, mult
-from btclib.curvegroup import _mult
+from btclib.curve_group import _mult
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
-from btclib.numbertheory import mod_inv
-from btclib.secpoint import bytes_from_point, point_from_octets
+from btclib.number_theory import mod_inv
+from btclib.sec_point import bytes_from_point, point_from_octets
 from btclib.tests.test_curve import low_card_curves
 
 
@@ -49,7 +49,7 @@ def test_signature() -> None:
     malleated_sig = dsa.Sig(sig.r, sig.ec.n - sig.s)
     assert dsa.verify(msg, Q, malleated_sig)
 
-    keys = dsa.recover_pubkeys(msg, sig)
+    keys = dsa.recover_pub_keys(msg, sig)
     assert len(keys) == 2
     assert Q in keys
 
@@ -174,14 +174,14 @@ def test_low_cardinality() -> None:
                         # valid signature must pass verification
                         dsa.__assert_as_valid(e, QJ, r, s, ec)
 
-                        jacobian_keys = dsa.__recover_pubkeys(e, r, s, ec)
+                        jacobian_keys = dsa.__recover_pub_keys(e, r, s, ec)
                         # FIXME speed this up
                         Qs = [ec._aff_from_jac(key) for key in jacobian_keys]
                         assert ec._aff_from_jac(QJ) in Qs
                         assert len(jacobian_keys) in (2, 4)
 
 
-def test_pubkey_recovery() -> None:
+def test_pub_key_recovery() -> None:
 
     ec = CURVES["secp112r2"]
 
@@ -194,14 +194,14 @@ def test_pubkey_recovery() -> None:
     dsa.assert_as_valid(msg, Q, sig)
     assert dsa.verify(msg, Q, sig)
 
-    keys = dsa.recover_pubkeys(msg, sig)
+    keys = dsa.recover_pub_keys(msg, sig)
     assert len(keys) == 4
     assert Q in keys
     for Q in keys:
         assert dsa.verify(msg, Q, sig)
 
 
-def test_crack_prvkey() -> None:
+def test_crack_prv_key() -> None:
 
     ec = CURVES["secp256k1"]
 
@@ -216,19 +216,19 @@ def test_crack_prvkey() -> None:
     m_2 = reduce_to_hlen(msg2)
     sig2 = dsa._sign(m_2, q, k)
 
-    qc, kc = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
+    qc, kc = dsa.crack_prv_key(msg1, sig1, msg2, sig2)
 
     #  if the low_s convention has changed only one of s1 and s2
     sig2 = dsa.Sig(sig2.r, ec.n - sig2.s)
-    qc2, kc2 = dsa.crack_prvkey(msg1, sig1, msg2, sig2)
+    qc2, kc2 = dsa.crack_prv_key(msg1, sig1, msg2, sig2)
 
     assert (q == qc and k in (kc, ec.n - kc)) or (q == qc2 and k in (kc2, ec.n - kc2))
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        dsa.crack_prvkey(msg1, sig1, msg2, dsa.Sig(16, sig1.s))
+        dsa.crack_prv_key(msg1, sig1, msg2, dsa.Sig(16, sig1.s))
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
-        dsa.crack_prvkey(msg1, sig1, msg1, sig1)
+        dsa.crack_prv_key(msg1, sig1, msg1, sig1)
 
 
 def test_forge_hash_sig() -> None:

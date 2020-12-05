@@ -8,12 +8,12 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.curvegroupf` module."
+"Tests for the `btclib.curve_group_f` module."
 
 import pytest
 
-from btclib.curvegroup import CurveGroup, _mult_aff
-from btclib.curvegroupf import find_all_points, find_subgroup_points
+from btclib.curve_group import CurveGroup, _mult_aff
+from btclib.curve_group_f import find_all_points, find_subgroup_points
 from btclib.exceptions import BTClibValueError
 
 

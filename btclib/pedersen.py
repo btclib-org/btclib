@@ -35,7 +35,7 @@ from hashlib import sha256
 from .alias import HashF, Point
 from .curve import Curve, double_mult, secp256k1
 from .exceptions import BTClibRuntimeError, BTClibValueError
-from .secpoint import bytes_from_point
+from .sec_point import bytes_from_point
 from .utils import int_from_bits
 
 

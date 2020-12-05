@@ -14,12 +14,12 @@ from typing import Dict, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 from dataclasses_json.core import Json
 
-from . import varbytes
+from . import var_bytes
 from .alias import BinaryData, String
 from .exceptions import BTClibValueError
-from .scriptpubkey_address import (
-    address_from_script_pubkey,
-    script_pubkey_from_address,
+from .script_pub_key_address import (
+    address_from_script_pub_key,
+    script_pub_key_from_address,
 )
 from .utils import bytesio_from_binarydata
 
@@ -41,7 +41,7 @@ class TxOut(DataClassJsonMixin):
     # 8 bytes, unsigned little endian
     value: int = 0  # satoshis
     # FIXME: make it
-    # "script_pubkey": {
+    # "script_pub_key": {
     #    "asm": "0 d85c2b71d0060b09c9886aeb815e50991dda124d",
     #    "hex": "0014d85c2b71d0060b09c9886aeb815e50991dda124d",
     #    "reqSigs": 1,
@@ -50,7 +50,7 @@ class TxOut(DataClassJsonMixin):
     #        "bc1qmpwzkuwsqc9snjvgdt4czhjsnywa5yjdgwyw6k"
     #    ]
     # }
-    script_pubkey: bytes = field(
+    script_pub_key: bytes = field(
         default=b"",
         metadata=config(
             field_name="scriptPubKey",
@@ -91,12 +91,12 @@ class TxOut(DataClassJsonMixin):
     @property
     def scriptPubKey(self) -> bytes:
         "Return the scriptPubKey bytes for compatibility with CTxOut."
-        return self.script_pubkey
+        return self.script_pub_key
 
     @property
     def address(self) -> bytes:
         "Return the address, if any."
-        return address_from_script_pubkey(self.script_pubkey, self.network)
+        return address_from_script_pub_key(self.script_pub_key, self.network)
 
     def assert_valid(self) -> None:
         if self.value < 0:
@@ -107,7 +107,7 @@ class TxOut(DataClassJsonMixin):
         self._set_properties()
 
     # def is_witness(self) -> Tuple[bool, int, bytes]:
-    #     return is_witness(self.script_pubkey)
+    #     return is_witness(self.script_pub_key)
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 
@@ -115,7 +115,7 @@ class TxOut(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.value.to_bytes(8, byteorder="little", signed=False)
-        out += varbytes.serialize(self.script_pubkey)
+        out += var_bytes.serialize(self.script_pub_key)
         return out
 
     @classmethod
@@ -125,7 +125,7 @@ class TxOut(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
         tx_out = cls()
         tx_out.value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
-        tx_out.script_pubkey = varbytes.deserialize(stream)
+        tx_out.script_pub_key = var_bytes.deserialize(stream)
 
         if assert_valid:
             tx_out.assert_valid()
@@ -133,5 +133,5 @@ class TxOut(DataClassJsonMixin):
 
     @classmethod
     def from_address(cls: Type[_TxOut], value: int, address: String) -> _TxOut:
-        script_pubkey, network = script_pubkey_from_address(address)
-        return cls(value, script_pubkey, network)
+        script_pub_key, network = script_pub_key_from_address(address)
+        return cls(value, script_pub_key, network)

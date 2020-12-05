@@ -23,25 +23,25 @@ from typing import List, Optional, Tuple, Union
 
 from .alias import HashF, JacPoint, Octets, Point, String
 from .curve import Curve, secp256k1
-from .curvegroup import _double_mult, _mult
+from .curve_group import _double_mult, _mult
 from .der import Sig
 from .exceptions import BTClibRuntimeError, BTClibValueError
 from .hashes import reduce_to_hlen
-from .numbertheory import mod_inv
+from .number_theory import mod_inv
 from .rfc6979 import __rfc6979
-from .to_prvkey import PrvKey, int_from_prvkey
-from .to_pubkey import Key, point_from_key
+from .to_prv_key import PrvKey, int_from_prv_key
+from .to_pub_key import Key, point_from_key
 from .utils import bytes_from_octets, int_from_bits
 
 
-def gen_keys(prvkey: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:
+def gen_keys(prv_key: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:
     "Return a private/public (int, Point) key-pair."
 
-    if prvkey is None:
+    if prv_key is None:
         # q in the range [1, ec.n-1]
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
-        q = int_from_prvkey(prvkey, ec)
+        q = int_from_prv_key(prv_key, ec)
 
     QJ = _mult(q, ec.GJ, ec)
     Q = ec._aff_from_jac(QJ)
@@ -98,7 +98,7 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> Sig:
 
 def _sign(
     m: Octets,
-    prvkey: PrvKey,
+    prv_key: PrvKey,
     k: Optional[PrvKey] = None,
     low_s: bool = True,
     ec: Curve = secp256k1,
@@ -116,7 +116,7 @@ def _sign(
 
     # the secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
-    q = int_from_prvkey(prvkey, ec)
+    q = int_from_prv_key(prv_key, ec)
 
     # the challenge
     c = _challenge(m, ec, hf)  # 4, 5
@@ -125,7 +125,7 @@ def _sign(
     if k is None:
         k = __rfc6979(c, q, ec, hf)  # 1
     else:
-        k = int_from_prvkey(k, ec)
+        k = int_from_prv_key(k, ec)
 
     # second part delegated to helper function
     return __sign(c, q, k, low_s, ec)
@@ -133,7 +133,7 @@ def _sign(
 
 def sign(
     msg: String,
-    prvkey: PrvKey,
+    prv_key: PrvKey,
     low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -159,7 +159,7 @@ def sign(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _sign(m, prvkey, None, low_s, ec, hf)
+    return _sign(m, prv_key, None, low_s, ec, hf)
 
 
 def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
@@ -236,7 +236,7 @@ def verify(msg: String, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256) -
     return _verify(m, key, sig, hf)
 
 
-def recover_pubkeys(
+def recover_pub_keys(
     msg: String, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
@@ -246,10 +246,10 @@ def recover_pubkeys(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _recover_pubkeys(m, sig, hf)
+    return _recover_pub_keys(m, sig, hf)
 
 
-def _recover_pubkeys(
+def _recover_pub_keys(
     m: Octets, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
@@ -269,12 +269,12 @@ def _recover_pubkeys(
 
     c = _challenge(m, sig.ec, hf)  # 1.5
 
-    QJs = __recover_pubkeys(c, sig.r, sig.s, sig.ec)
+    QJs = __recover_pub_keys(c, sig.r, sig.s, sig.ec)
     return [sig.ec._aff_from_jac(QJ) for QJ in QJs]
 
 
-# TODO: use __recover_pubkey to avoid code duplication
-def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
+# TODO: use __recover_pub_key to avoid code duplication
+def __recover_pub_keys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     # Private function provided for testing purposes only.
 
     # precomputations
@@ -293,7 +293,7 @@ def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             # even root first for bitcoin message signing compatibility
             yodd = ec.y_even(x_K)
             KJ = x_K, yodd, 1  # 1.2, 1.3, and 1.4
-            # 1.5 has been performed in the recover_pubkeys calling function
+            # 1.5 has been performed in the recover_pub_keys calling function
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
             try:
                 __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
@@ -314,7 +314,7 @@ def __recover_pubkeys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     return keys
 
 
-def __recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
+def __recover_pub_key(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
     # Private function provided for testing purposes only.
 
     # precomputations
@@ -332,13 +332,13 @@ def __recover_pubkey(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint
     y_even = ec.y_even(x_K)
     y_K = ec.p - y_even if i else y_even
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
-    # 1.5 has been performed in the recover_pubkeys calling function
+    # 1.5 has been performed in the recover_pub_keys calling function
     QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
     __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
     return QJ
 
 
-def _crack_prvkey(
+def _crack_prv_key(
     m_1: Octets,
     sig1: Union[Sig, Octets],
     m_2: Octets,
@@ -376,7 +376,7 @@ def _crack_prvkey(
     return q, k
 
 
-def crack_prvkey(
+def crack_prv_key(
     msg1: String,
     sig1: Union[Sig, Octets],
     msg2: String,
@@ -387,4 +387,4 @@ def crack_prvkey(
     m_1 = reduce_to_hlen(msg1, hf)
     m_2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prvkey(m_1, sig1, m_2, sig2, hf)
+    return _crack_prv_key(m_1, sig1, m_2, sig2, hf)

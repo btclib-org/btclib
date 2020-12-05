@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.curvegroup` module."
+"Tests for the `btclib.curve_group` module."
 
 import secrets
 
@@ -16,7 +16,7 @@ import pytest
 
 from btclib.alias import INF, INFJ
 from btclib.curve import secp256k1
-from btclib.curvegroup import (
+from btclib.curve_group import (
     _MAX_W,
     _double_mult,
     _jac_from_aff,

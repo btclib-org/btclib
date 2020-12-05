@@ -33,19 +33,19 @@ class Network(DataClassJsonMixin):
     genesis_block: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    # base58wif starts with 'K' or 'L' if compressed else '5'
+    # base58_wif starts with 'K' or 'L' if compressed else '5'
     wif: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    # base58address starts with '1'
+    # base58_address starts with '1'
     p2pkh: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    # base58address starts with '3'
+    # base58_address starts with '3'
     p2sh: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    # bech32address starts with 'bc1'
+    # bech32_address starts with 'bc1'
     p2w: str
     # slip132 "m / 44h / 0h" p2pkh or p2sh
     bip32_prv: bytes = field(

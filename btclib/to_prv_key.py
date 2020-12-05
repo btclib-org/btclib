@@ -29,11 +29,11 @@ from .utils import bytes_from_octets
 # WIF as String
 #
 # BIP32key and WIF also provide extra info about
-# network and (un)compressed-pubkey-derivation
+# network and (un)compressed-pub_key-derivation
 PrvKey = Union[int, bytes, str, BIP32KeyData]
 
 
-def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
+def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer.
 
     It supports:
@@ -47,10 +47,10 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
     are not used.
     """
 
-    if isinstance(prvkey, int):
-        q = prvkey
-    elif isinstance(prvkey, BIP32KeyData):
-        q, network, _ = _prvkeyinfo_from_xprv(prvkey)
+    if isinstance(prv_key, int):
+        q = prv_key
+    elif isinstance(prv_key, BIP32KeyData):
+        q, network, _ = _prv_keyinfo_from_xprv(prv_key)
         # q has been validated on the xprv/wif network
         ec2 = NETWORKS[network].curve
         if ec != ec2:
@@ -58,7 +58,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
         return q
     else:
         try:
-            q, network, _ = _prvkeyinfo_from_xprvwif(prvkey)
+            q, network, _ = _prv_keyinfo_from_xprvwif(prv_key)
         except ValueError:
             pass
         else:
@@ -70,10 +70,10 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
 
         # it must be octets
         try:
-            prvkey = bytes_from_octets(prvkey, ec.nsize)
-            q = int.from_bytes(prvkey, "big")
+            prv_key = bytes_from_octets(prv_key, ec.nsize)
+            q = int.from_bytes(prv_key, "big")
         except ValueError as e:
-            raise BTClibValueError(f"not a private key: {prvkey!r}") from e
+            raise BTClibValueError(f"not a private key: {prv_key!r}") from e
 
     if not 0 < q < ec.n:
         raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")
@@ -84,7 +84,7 @@ def int_from_prvkey(prvkey: PrvKey, ec: Curve = secp256k1) -> int:
 PrvkeyInfo = Tuple[int, str, bool]
 
 
-def _prvkeyinfo_from_wif(
+def _prv_keyinfo_from_wif(
     wif: String, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PrvkeyInfo:
     """Return private key tuple(int, compressed, network) from a WIF.
@@ -109,27 +109,27 @@ def _prvkeyinfo_from_wif(
         compr = True
         if payload[-1] != 0x01:  # must have a trailing 0x01
             raise BTClibValueError("not a compressed WIF: missing trailing 0x01")
-        prvkey = payload[1:-1]
+        prv_key = payload[1:-1]
     elif len(payload) == ec.nsize + 1:  # uncompressed WIF
         compr = False
-        prvkey = payload[1:]
+        prv_key = payload[1:]
     else:
         raise BTClibValueError(f"wrong WIF size: {len(payload)}")
 
     if compressed is not None and compr != compressed:
         raise BTClibValueError("compression requirement mismatch")
 
-    q = int.from_bytes(prvkey, byteorder="big")
+    q = int.from_bytes(prv_key, byteorder="big")
     if not 0 < q < ec.n:
         raise BTClibValueError(f"private key {hex(q)} not in [1, n-1]")
 
     return q, net, compr
 
 
-def _prvkeyinfo_from_xprv(
+def _prv_keyinfo_from_xprv(
     xprv: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PrvkeyInfo:
-    """Return prvkey tuple (int, compressed, network) from BIP32 xprv.
+    """Return prv_key tuple (int, compressed, network) from BIP32 xprv.
 
     BIP32Key is always compressed and includes network information:
     here the 'network, compressed' input parameters are passed
@@ -162,49 +162,49 @@ def _prvkeyinfo_from_xprv(
     return q, network, True
 
 
-def _prvkeyinfo_from_xprvwif(
+def _prv_keyinfo_from_xprvwif(
     xprvwif: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PrvkeyInfo:
-    """Return prvkey tuple (int, compressed, network) from WIF/BIP32.
+    """Return prv_key tuple (int, compressed, network) from WIF/BIP32.
 
     Support WIF or BIP32 xprv.
     """
 
     if not isinstance(xprvwif, BIP32KeyData):
         try:
-            return _prvkeyinfo_from_wif(xprvwif, network, compressed)
+            return _prv_keyinfo_from_wif(xprvwif, network, compressed)
         # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
         except BTClibValueError:
             pass
 
-    return _prvkeyinfo_from_xprv(xprvwif, network, compressed)
+    return _prv_keyinfo_from_xprv(xprvwif, network, compressed)
 
 
-def prvkeyinfo_from_prvkey(
-    prvkey: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+def prv_keyinfo_from_prv_key(
+    prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PrvkeyInfo:
 
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
     ec = NETWORKS[net].curve
 
-    if isinstance(prvkey, int):
-        q = prvkey
-    elif isinstance(prvkey, BIP32KeyData):
-        return _prvkeyinfo_from_xprv(prvkey, network, compressed)
+    if isinstance(prv_key, int):
+        q = prv_key
+    elif isinstance(prv_key, BIP32KeyData):
+        return _prv_keyinfo_from_xprv(prv_key, network, compressed)
     else:
         try:
-            return _prvkeyinfo_from_xprvwif(prvkey, network, compressed)
+            return _prv_keyinfo_from_xprvwif(prv_key, network, compressed)
         # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
         except ValueError:
             pass
 
         # it must be octets
         try:
-            prvkey = bytes_from_octets(prvkey, ec.nsize)
-            q = int.from_bytes(prvkey, "big")
+            prv_key = bytes_from_octets(prv_key, ec.nsize)
+            q = int.from_bytes(prv_key, "big")
         except ValueError as e:
-            raise BTClibValueError(f"not a private key: {prvkey!r}") from e
+            raise BTClibValueError(f"not a private key: {prv_key!r}") from e
 
     if not 0 < q < ec.n:
         raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")

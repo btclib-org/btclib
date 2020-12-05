@@ -20,8 +20,8 @@ from .network import (
     network_from_xkeyversion,
     xpubversions_from_network,
 )
-from .secpoint import bytes_from_point, point_from_octets
-from .to_prvkey import PrvKey, prvkeyinfo_from_prvkey
+from .sec_point import bytes_from_point, point_from_octets
+from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from .utils import bytes_from_octets
 
 # public key inputs:
@@ -60,12 +60,12 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     """
 
     if isinstance(key, tuple):
-        return point_from_pubkey(key, ec)
+        return point_from_pub_key(key, ec)
     if isinstance(key, int):
-        q, _, _ = prvkeyinfo_from_prvkey(key)
+        q, _, _ = prv_keyinfo_from_prv_key(key)
         return mult(q, ec.G, ec)
     try:
-        q, net, _ = prvkeyinfo_from_prvkey(key)
+        q, net, _ = prv_keyinfo_from_prv_key(key)
     except BTClibValueError:
         pass
     else:
@@ -73,35 +73,35 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
             raise BTClibValueError("Curve mismatch")
         return mult(q, ec.G, ec)
 
-    return point_from_pubkey(key, ec)
+    return point_from_pub_key(key, ec)
 
 
-def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
+def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
     "Return an elliptic curve point tuple from a public key."
 
-    if isinstance(pubkey, tuple):
-        if ec.is_on_curve(pubkey) and pubkey[1] != 0:
-            return pubkey
-        raise BTClibValueError(f"not a valid public key: {pubkey}")
-    if isinstance(pubkey, BIP32KeyData):
-        return _point_from_xpub(pubkey, ec)
+    if isinstance(pub_key, tuple):
+        if ec.is_on_curve(pub_key) and pub_key[1] != 0:
+            return pub_key
+        raise BTClibValueError(f"not a valid public key: {pub_key}")
+    if isinstance(pub_key, BIP32KeyData):
+        return _point_from_xpub(pub_key, ec)
     try:
-        return _point_from_xpub(pubkey, ec)
+        return _point_from_xpub(pub_key, ec)
     except (TypeError, BTClibValueError):
         pass
 
     # it must be octets
     try:
-        return point_from_octets(pubkey, ec)
+        return point_from_octets(pub_key, ec)
     except (TypeError, ValueError) as e:
-        raise BTClibValueError(f"not a public key: {pubkey!r}") from e
+        raise BTClibValueError(f"not a public key: {pub_key!r}") from e
 
 
 # not used so far, probably useless
-# def point_from_prvkey(prvkey: PrvKey, network: Optional[str] = None)->Point:
+# def point_from_prv_key(prv_key: PrvKey, network: Optional[str] = None)->Point:
 #    "Return an elliptic curve point tuple from a private key."
 #
-#    q, net, compr = prvkeyinfo_from_prvkey(prvkey, network)
+#    q, net, compr = prv_keyinfo_from_prv_key(prv_key, network)
 #    ec = NETWORKS[net]['curve']
 #    return mult(q, ec.G, ec)
 
@@ -109,10 +109,10 @@ def point_from_pubkey(pubkey: PubKey, ec: Curve = secp256k1) -> Point:
 PubkeyInfo = Tuple[bytes, str]
 
 
-def _pubkeyinfo_from_xpub(
+def _pub_keyinfo_from_xpub(
     xpub: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PubkeyInfo:
-    """Return the pubkey tuple (SEC-bytes, network) from a BIP32 xpub.
+    """Return the pub_key tuple (SEC-bytes, network) from a BIP32 xpub.
 
     BIP32Key is always compressed and includes network information:
     here the 'network, compressed' input parameters are passed
@@ -144,23 +144,23 @@ def _pubkeyinfo_from_xpub(
     return xpub.key, network
 
 
-def pubkeyinfo_from_key(
+def pub_keyinfo_from_key(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PubkeyInfo:
     "Return the pub key tuple (SEC-bytes, network) from a pub/prv key."
 
     if isinstance(key, tuple):
-        return pubkeyinfo_from_pubkey(key, network, compressed)
+        return pub_keyinfo_from_pub_key(key, network, compressed)
     if isinstance(key, int):
-        return pubkeyinfo_from_prvkey(key, network, compressed)
+        return pub_keyinfo_from_prv_key(key, network, compressed)
     try:
-        return pubkeyinfo_from_pubkey(key, network, compressed)
+        return pub_keyinfo_from_pub_key(key, network, compressed)
     except BTClibValueError:
         pass
 
-    # it must be a prvkey
+    # it must be a prv_key
     try:
-        return pubkeyinfo_from_prvkey(key, network, compressed)
+        return pub_keyinfo_from_prv_key(key, network, compressed)
     except BTClibValueError as e:
         err_msg = "not a private or"
         if compressed is not None:
@@ -172,8 +172,8 @@ def pubkeyinfo_from_key(
         raise BTClibValueError(err_msg) from e
 
 
-def pubkeyinfo_from_pubkey(
-    pubkey: PubKey, network: Optional[str] = None, compressed: Optional[bool] = None
+def pub_keyinfo_from_pub_key(
+    pub_key: PubKey, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PubkeyInfo:
     "Return the pub key tuple (SEC-bytes, network) from a public key."
 
@@ -181,42 +181,42 @@ def pubkeyinfo_from_pubkey(
     net = "mainnet" if network is None else network
     ec = NETWORKS[net].curve
 
-    if isinstance(pubkey, tuple):
-        return bytes_from_point(pubkey, ec, compr), net
-    if isinstance(pubkey, BIP32KeyData):
-        return _pubkeyinfo_from_xpub(pubkey, network, compressed)
+    if isinstance(pub_key, tuple):
+        return bytes_from_point(pub_key, ec, compr), net
+    if isinstance(pub_key, BIP32KeyData):
+        return _pub_keyinfo_from_xpub(pub_key, network, compressed)
     try:
-        return _pubkeyinfo_from_xpub(pubkey, network, compressed)
+        return _pub_keyinfo_from_xpub(pub_key, network, compressed)
     except (TypeError, BTClibValueError):
         pass
 
     # it must be octets
     try:
         if compressed is None:
-            pubkey = bytes_from_octets(pubkey, (ec.psize + 1, 2 * ec.psize + 1))
+            pub_key = bytes_from_octets(pub_key, (ec.psize + 1, 2 * ec.psize + 1))
             compr = False
-            if len(pubkey) == ec.psize + 1:
+            if len(pub_key) == ec.psize + 1:
                 compr = True
         else:
             size = ec.psize + 1 if compressed else 2 * ec.psize + 1
-            pubkey = bytes_from_octets(pubkey, size)
+            pub_key = bytes_from_octets(pub_key, size)
             compr = compressed
     except (TypeError, ValueError) as e:
-        err_msg = f"not a public key: {pubkey!r}"
+        err_msg = f"not a public key: {pub_key!r}"
         raise BTClibValueError(err_msg) from e
 
     # verify that it is a valid point
-    Q = point_from_octets(pubkey, ec)
+    Q = point_from_octets(pub_key, ec)
 
     return bytes_from_point(Q, ec, compr), net
 
 
-def pubkeyinfo_from_prvkey(
-    prvkey: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+def pub_keyinfo_from_prv_key(
+    prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PubkeyInfo:
     "Return the pub key tuple (SEC-bytes, network) from a private key."
 
-    q, net, compr = prvkeyinfo_from_prvkey(prvkey, network, compressed)
+    q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
     ec = NETWORKS[net].curve
-    pubkey = mult(q, ec.G, ec)
-    return bytes_from_point(pubkey, ec, compr), net
+    pub_key = mult(q, ec.G, ec)
+    return bytes_from_point(pub_key, ec, compr), net

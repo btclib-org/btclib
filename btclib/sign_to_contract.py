@@ -40,8 +40,8 @@ from . import dsa, ssa
 from .alias import HashF, Octets, Point
 from .curve import Curve, mult, secp256k1
 from .rfc6979 import _rfc6979
-from .secpoint import bytes_from_point
-from .to_prvkey import PrvKey, int_from_prvkey
+from .sec_point import bytes_from_point
+from .to_prv_key import PrvKey, int_from_prv_key
 from .utils import bytes_from_octets, int_from_bits
 
 # commitment receipt
@@ -68,18 +68,18 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
 def ecdsa_commit_sign(
     c: Octets,
     m: Octets,
-    prvkey: PrvKey,
+    prv_key: PrvKey,
     k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[dsa.Sig, Receipt]:
     """Include a commitment c inside an ECDSA signature."""
 
-    k = _rfc6979(m, prvkey, ec, hf) if k is None else int_from_prvkey(k, ec)
+    k = _rfc6979(m, prv_key, ec, hf) if k is None else int_from_prv_key(k, ec)
     # commit
     R, new_k = _tweak(c, k, ec, hf)
     # sign
-    sig = dsa._sign(m, prvkey, new_k, True, ec, hf)
+    sig = dsa._sign(m, prv_key, new_k, True, ec, hf)
     # commit receipt
     receipt = sig.r, R
     return sig, receipt
@@ -88,19 +88,23 @@ def ecdsa_commit_sign(
 def ecssa_commit_sign(
     c: Octets,
     m: Octets,
-    prvkey: PrvKey,
+    prv_key: PrvKey,
     k: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[ssa.Sig, Receipt]:
     """Include a commitment c inside an ECSSA signature."""
 
-    k = ssa._det_nonce(m, prvkey, None, ec, hf) if k is None else int_from_prvkey(k, ec)
+    k = (
+        ssa._det_nonce(m, prv_key, None, ec, hf)
+        if k is None
+        else int_from_prv_key(k, ec)
+    )
 
     # commit
     R, new_k = _tweak(c, k, ec, hf)
     # sign
-    sig = ssa._sign(m, prvkey, new_k, ec, hf)
+    sig = ssa._sign(m, prv_key, new_k, ec, hf)
     # commit receipt
     receipt = sig.r, R
     return sig, receipt

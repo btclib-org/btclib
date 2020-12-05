@@ -41,12 +41,12 @@ from hashlib import sha256
 from .alias import HashF, Octets, String
 from .curve import Curve, secp256k1
 from .hashes import reduce_to_hlen
-from .to_prvkey import PrvKey, int_from_prvkey
+from .to_prv_key import PrvKey, int_from_prv_key
 from .utils import bytes_from_octets, int_from_bits
 
 
 def rfc6979(
-    msg: String, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+    msg: String, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> int:
     """Return a deterministic ephemeral key following RFC 6979.
 
@@ -54,11 +54,11 @@ def rfc6979(
     """
 
     m = reduce_to_hlen(msg, hf)  # 3.2.a
-    return _rfc6979(m, prvkey, ec, hf)
+    return _rfc6979(m, prv_key, ec, hf)
 
 
 def _rfc6979(
-    m: Octets, prvkey: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+    m: Octets, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
@@ -69,7 +69,7 @@ def _rfc6979(
     # leftmost ec.nlen bits %= ec.n
     c = int_from_bits(m, ec.nlen) % ec.n  # 5
 
-    q = int_from_prvkey(prvkey, ec)
+    q = int_from_prv_key(prv_key, ec)
 
     return __rfc6979(c, q, ec, hf)
 

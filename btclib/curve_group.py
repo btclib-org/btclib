@@ -23,7 +23,7 @@ from typing import List, Sequence, Tuple
 
 from .alias import INF, INFJ, Integer, JacPoint, Point
 from .exceptions import BTClibTypeError, BTClibValueError
-from .numbertheory import legendre_symbol, mod_inv, mod_sqrt
+from .number_theory import legendre_symbol, mod_inv, mod_sqrt
 from .utils import hex_string, int_from_integer
 
 _HEXTHRESHOLD = 0xFFFFFFFF

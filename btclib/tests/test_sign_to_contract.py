@@ -8,14 +8,14 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.signtocontract` module."
+"Tests for the `btclib.sign_to_contract` module."
 
 import secrets
 from hashlib import sha256
 
 from btclib import dsa, ssa
 from btclib.curve import secp256k1
-from btclib.signtocontract import (
+from btclib.sign_to_contract import (
     ecdsa_commit_sign,
     ecssa_commit_sign,
     verify_commit,
@@ -28,14 +28,14 @@ def test_sign_to_contract_dsa() -> None:
     m = sha256(b"to be signed").digest()
     c = sha256(b"to be committed").digest()
 
-    prvkey, pubkey = dsa.gen_keys()
-    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prvkey)
-    dsa._assert_as_valid(m, pubkey, dsa_sig, sha256)
+    prv_key, pub_key = dsa.gen_keys()
+    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv_key)
+    dsa._assert_as_valid(m, pub_key, dsa_sig, sha256)
     assert verify_commit(c, dsa_receipt)
 
     k = 1 + secrets.randbelow(ec.n - 1)
-    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prvkey, k)
-    dsa._assert_as_valid(m, pubkey, dsa_sig, sha256)
+    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv_key, k)
+    dsa._assert_as_valid(m, pub_key, dsa_sig, sha256)
     assert verify_commit(c, dsa_receipt)
 
 
@@ -43,12 +43,12 @@ def test_sign_to_contract_ssa() -> None:
     m = sha256(b"to be signed").digest()
     c = sha256(b"to be committed").digest()
 
-    prvkey, pub = ssa.gen_keys()
-    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prvkey)
+    prv_key, pub = ssa.gen_keys()
+    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv_key)
     ssa._assert_as_valid(m, pub, ssa_sig, sha256)
     assert verify_commit(c, ssa_receipt)
 
     k = 1 + secrets.randbelow(ec.n - 1)
-    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prvkey, k)
+    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv_key, k)
     ssa._assert_as_valid(m, pub, ssa_sig, sha256)
     assert verify_commit(c, ssa_receipt)

@@ -17,9 +17,9 @@ import pytest
 
 from btclib.alias import INF, INFJ
 from btclib.curve import CURVES, Curve, double_mult, mult, multi_mult, secp256k1
-from btclib.curvegroup import _jac_from_aff
+from btclib.curve_group import _jac_from_aff
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.numbertheory import mod_sqrt
+from btclib.number_theory import mod_sqrt
 from btclib.pedersen import second_generator
 
 # FIXME Curve repr should use "dedbeef 00000000", not "0xdedbeef00000000"

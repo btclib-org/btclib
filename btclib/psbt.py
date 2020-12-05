@@ -20,7 +20,7 @@ from typing import Dict, List, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import script, varint
+from . import script, var_int
 from .alias import Octets, ScriptToken, String
 from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
@@ -36,7 +36,7 @@ from .psbt_out import (
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
 )
-from .scriptpubkey import payload_from_script_pubkey
+from .script_pub_key import payload_from_script_pub_key
 from .tx import Tx
 from .tx_out import TxOut
 from .utils import bytes_from_octets, hash160, sha256
@@ -151,37 +151,37 @@ class Psbt(DataClassJsonMixin):
             if witness_utxo:
                 if not isinstance(witness_utxo, TxOut):
                     raise BTClibTypeError("witness_utxo is not a TxOut")
-                script_pubkey = witness_utxo.script_pubkey
-                script_type = payload_from_script_pubkey(script_pubkey)[0]
+                script_pub_key = witness_utxo.script_pub_key
+                script_type = payload_from_script_pub_key(script_pub_key)[0]
                 if script_type == "p2sh":
-                    script_pubkey = self.inputs[i].redeem_script
-                script_type = payload_from_script_pubkey(script_pubkey)[0]
+                    script_pub_key = self.inputs[i].redeem_script
+                script_type = payload_from_script_pub_key(script_pub_key)[0]
                 if script_type not in ("p2wpkh", "p2wsh"):
                     raise BTClibValueError("script type not it ('p2wpkh', 'p2wsh')")
 
             if self.inputs[i].redeem_script:
                 if non_witness_utxo:
-                    script_pubkey = non_witness_utxo.vout[
+                    script_pub_key = non_witness_utxo.vout[
                         tx_in.prev_out.vout
-                    ].script_pubkey
+                    ].script_pub_key
                 elif witness_utxo:
-                    script_pubkey = witness_utxo.script_pubkey
+                    script_pub_key = witness_utxo.script_pub_key
                 hash_ = hash160(self.inputs[i].redeem_script)
-                if hash_ != payload_from_script_pubkey(script_pubkey)[1]:
+                if hash_ != payload_from_script_pub_key(script_pub_key)[1]:
                     raise BTClibValueError("invalid redeem script hash")
 
             if self.inputs[i].witness_script:
                 if non_witness_utxo:
-                    script_pubkey = non_witness_utxo.vout[
+                    script_pub_key = non_witness_utxo.vout[
                         tx_in.prev_out.vout
-                    ].script_pubkey
+                    ].script_pub_key
                 elif witness_utxo:
-                    script_pubkey = witness_utxo.script_pubkey
+                    script_pub_key = witness_utxo.script_pub_key
                 if self.inputs[i].redeem_script:
-                    script_pubkey = self.inputs[i].redeem_script
+                    script_pub_key = self.inputs[i].redeem_script
 
                 hash_ = sha256(self.inputs[i].witness_script)
-                if hash_ != payload_from_script_pubkey(script_pubkey)[1]:
+                if hash_ != payload_from_script_pub_key(script_pub_key)[1]:
                     raise BTClibValueError("invalid witness script hash")
 
     def serialize(self, assert_valid: bool = True) -> bytes:
@@ -289,12 +289,12 @@ def deserialize_map(psbt_bin: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         if psbt_bin[0] == 0:
             psbt_bin = psbt_bin[1:]
             return partial_map, psbt_bin
-        key_len = varint.deserialize(psbt_bin)
-        psbt_bin = psbt_bin[len(varint.serialize(key_len)) :]
+        key_len = var_int.deserialize(psbt_bin)
+        psbt_bin = psbt_bin[len(var_int.serialize(key_len)) :]
         key = psbt_bin[:key_len]
         psbt_bin = psbt_bin[key_len:]
-        value_len = varint.deserialize(psbt_bin)
-        psbt_bin = psbt_bin[len(varint.serialize(value_len)) :]
+        value_len = var_int.deserialize(psbt_bin)
+        psbt_bin = psbt_bin[len(var_int.serialize(value_len)) :]
         value = psbt_bin[:value_len]
         psbt_bin = psbt_bin[value_len:]
         if key in partial_map:
@@ -334,7 +334,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
             _combine_field(psbt.inputs[i], inp, "non_witness_utxo")
             _combine_field(psbt.inputs[i], inp, "witness_utxo")
             _combine_field(psbt.inputs[i], inp, "partial_sigs")
-            _combine_field(psbt.inputs[i], inp, "sighash_type")
+            _combine_field(psbt.inputs[i], inp, "sig_hash_type")
             _combine_field(psbt.inputs[i], inp, "redeem_script")
             _combine_field(psbt.inputs[i], inp, "witness_script")
             _combine_field(psbt.inputs[i], inp, "hd_keypaths")
@@ -376,7 +376,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     psbt = deepcopy(psbt)
     psbt.assert_valid()
     # TODO: finalizers must fail to finalize inputs
-    # which have signatures that do not match the specified sighash type
+    # which have signatures that do not match the specified sign_hash type
     for psbt_in in psbt.inputs:
         if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")
@@ -394,7 +394,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             final_script_sig += [psbt_in.redeem_script.hex()]
             psbt_in.final_script_sig = script.serialize(final_script_sig)
         psbt_in.partial_sigs = {}
-        psbt_in.sighash_type = None
+        psbt_in.sig_hash_type = None
         psbt_in.redeem_script = b""
         psbt_in.witness_script = b""
         psbt_in.hd_keypaths = {}

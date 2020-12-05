@@ -28,32 +28,32 @@
                 "scriptPubKey": "00202d5d8e0cefe5be795a042e319a77a9707791624d3dc9f6a7b69af5cb6a36efb6"
             },
             "partial_signatures": {},
-            "sighash": null,
+            "sign_hash": null,
             "redeem_script": "",
             "witness_script": "63532102ccb438a1d9fae7aaff5c058949f0768d4fa24671f1c43643f194098316a854752102f3448accdbf6e648ff8c9c591797b57ebfbd7bab0e2a4fcaeba686f9a9df58e121033a1229e67ad80e37234edafda3fc9dc02a2e5d70e7d861c11c94515d178edaf52103519b8d8f86813e07852728d31338f1d1d772865bf4792aa87d6f1ceb1e348fcd2103cd36dabe3dfd4e473a5a62a97a40b2e6bb47bb502bcf13163c91262f0604a06855ae67029000b27552210219d79d15338a4596b2a5dc88d191e0ae85fbfdd30802a18b3c3ff0d1c1c7c6f121025dedb64d7e5046f62b506ae9ec391ab15e70acb8d3d98c5527a481526a25d4f62103cee6fe19333a1b2e11e424bb106dfe4bc61daa273badb1de86c19dbc9037cdcd53ae68",
             "bip32_derivs": [
                 {
-                    "pubkey": "02ccb438a1d9fae7aaff5c058949f0768d4fa24671f1c43643f194098316a85475",
+                    "pub_key": "02ccb438a1d9fae7aaff5c058949f0768d4fa24671f1c43643f194098316a85475",
                     "master_fingerprint": "26a8bbf0",
                     "path": "m/44'/1'/0'/0/0"
                 },
                 {
-                    "pubkey": "02f3448accdbf6e648ff8c9c591797b57ebfbd7bab0e2a4fcaeba686f9a9df58e1",
+                    "pub_key": "02f3448accdbf6e648ff8c9c591797b57ebfbd7bab0e2a4fcaeba686f9a9df58e1",
                     "master_fingerprint": "66fc0520",
                     "path": "m/44'/1'/0'/0/0"
                 },
                 {
-                    "pubkey": "033a1229e67ad80e37234edafda3fc9dc02a2e5d70e7d861c11c94515d178edaf5",
+                    "pub_key": "033a1229e67ad80e37234edafda3fc9dc02a2e5d70e7d861c11c94515d178edaf5",
                     "master_fingerprint": "195e17fa",
                     "path": "m/44'/1'/0'/0/0"
                 },
                 {
-                    "pubkey": "03519b8d8f86813e07852728d31338f1d1d772865bf4792aa87d6f1ceb1e348fcd",
+                    "pub_key": "03519b8d8f86813e07852728d31338f1d1d772865bf4792aa87d6f1ceb1e348fcd",
                     "master_fingerprint": "10a954a7",
                     "path": "m/44'/1'/0'/0/0"
                 },
                 {
-                    "pubkey": "03cd36dabe3dfd4e473a5a62a97a40b2e6bb47bb502bcf13163c91262f0604a068",
+                    "pub_key": "03cd36dabe3dfd4e473a5a62a97a40b2e6bb47bb502bcf13163c91262f0604a068",
                     "master_fingerprint": "3f8755f6",
                     "path": "m/44'/1'/0'/0/0"
                 }

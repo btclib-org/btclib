@@ -16,13 +16,13 @@ from os import path
 
 import pytest
 
-from btclib import base58address, bech32address, bip32, bms, dsa
-from btclib.base58address import p2pkh, p2wpkh_p2sh
-from btclib.base58wif import wif_from_prvkey
-from btclib.bech32address import p2wpkh
+from btclib import base58_address, bech32_address, bip32, bms, dsa
+from btclib.base58_address import p2pkh, p2wpkh_p2sh
+from btclib.base58_wif import wif_from_prv_key
+from btclib.bech32_address import p2wpkh
 from btclib.curve import secp256k1
 from btclib.exceptions import BTClibValueError
-from btclib.to_prvkey import prvkeyinfo_from_prvkey
+from btclib.to_prv_key import prv_keyinfo_from_prv_key
 
 ec = secp256k1
 
@@ -55,7 +55,7 @@ def test_exceptions() -> None:
 
     msg = "test"
     wif = "KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu"
-    address = base58address.p2pkh(wif)
+    address = base58_address.p2pkh(wif)
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
     assert bms.verify(msg, address, exp_sig)
 
@@ -98,9 +98,9 @@ def test_exceptions() -> None:
 
     msg = "test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
-    b58_p2pkh = base58address.p2pkh(wif)
-    b58_p2wpkh = bech32address.p2wpkh(wif)
-    b58_p2wpkh_p2sh = base58address.p2wpkh_p2sh(wif)
+    b58_p2pkh = base58_address.p2pkh(wif)
+    b58_p2wpkh = bech32_address.p2wpkh(wif)
+    b58_p2wpkh_p2sh = base58_address.p2wpkh_p2sh(wif)
 
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     err_msg = "mismatch between private key and address"
@@ -130,7 +130,7 @@ def test_exceptions() -> None:
 
 
 @pytest.mark.sixth
-def test_one_prvkey_multiple_addresses() -> None:
+def test_one_prv_key_multiple_addresses() -> None:
 
     msg = "Paolo is afraid of ephemeral random numbers"
 
@@ -195,8 +195,8 @@ def test_one_prvkey_multiple_addresses() -> None:
     assert bms.verify(msg, addr_p2wpkh, sig3)
 
     # uncompressed WIF / p2pkh address
-    q, network, _ = prvkeyinfo_from_prvkey(wif)
-    wif2 = wif_from_prvkey(q, network, False)
+    q, network, _ = prv_keyinfo_from_prv_key(wif)
+    wif2 = wif_from_prv_key(q, network, False)
     addr_p2pkh_uncompressed = p2pkh(wif2)
 
     # sign with uncompressed p2pkh
@@ -255,9 +255,9 @@ def test_msgsign_p2pkh() -> None:
     q = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
 
     # uncompressed
-    wif1u = wif_from_prvkey(q, "mainnet", False)
+    wif1u = wif_from_prv_key(q, "mainnet", False)
     assert wif1u == b"5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw"
-    add1u = base58address.p2pkh(wif1u)
+    add1u = base58_address.p2pkh(wif1u)
     assert add1u == b"1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD"
     sig1u = bms.sign(msg, wif1u)
     assert bms.verify(msg, add1u, sig1u)
@@ -266,9 +266,9 @@ def test_msgsign_p2pkh() -> None:
     assert sig1u.b64encode() == exp_sig1u
 
     # compressed
-    wif1c = wif_from_prvkey(q, "mainnet", True)
+    wif1c = wif_from_prv_key(q, "mainnet", True)
     assert wif1c == b"L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk"
-    add1c = base58address.p2pkh(wif1c)
+    add1c = base58_address.p2pkh(wif1c)
     assert add1c == b"14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
     sig1c = bms.sign(msg, wif1c)
     assert bms.verify(msg, add1c, sig1c)
@@ -390,9 +390,9 @@ def test_segwit() -> None:
 
     msg = "test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
-    b58_p2pkh = base58address.p2pkh(wif)
-    b58_p2wpkh = bech32address.p2wpkh(wif)
-    b58_p2wpkh_p2sh = base58address.p2wpkh_p2sh(wif)
+    b58_p2pkh = base58_address.p2pkh(wif)
+    b58_p2wpkh = bech32_address.p2wpkh(wif)
+    b58_p2wpkh_p2sh = base58_address.p2wpkh_p2sh(wif)
 
     # p2pkh base58 address (Core, Electrum, BIP137)
     exp_sig = b"IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
@@ -541,7 +541,7 @@ def test_ledger() -> None:
     msg = b"\xfb\xa3\x1f\x8cd\x85\xe29#K\xb3{\xfd\xa7<?\x95oL\xee\x19\xb2'oh\xa7]\xd9A\xfeU\xd8"
     dersig_hex_str = "3144022012ec0c174936c2a46dc657252340b2e6e6dd8c31dd059b6f9f33a90c21af2fba022030e6305b3ccf88009d419bf7651afcfcc0a30898b93ae9de9aa6ac03cf8ec56b"
 
-    # pubkey derivation
+    # pub_key derivation
     rprv = bip32.mxprv_from_bip39_mnemonic(mnemonic)
     xprv = bip32.derive(rprv, derivation_path)
 
@@ -558,7 +558,7 @@ def test_ledger() -> None:
     assert dsa.verify(magic_msg, xprv, dsa_sig)
 
     # compressed address
-    addr = base58address.p2pkh(xprv)
+    addr = base58_address.p2pkh(xprv)
 
     # equivalent Bitcoin Message Signature
     rec_flag = 27 + 4 + (key_id & 0x01)
@@ -576,7 +576,7 @@ def test_ledger() -> None:
     msg_str = "hello world"
     dersig_hex_str = "3045022100967dac3262b4686e89638c8219c5761017f05cd87a855edf034f4a3ec6b59d3d0220108a4ef9682b71a45979d8c75c393382d9ccb8eb561d73b8c5fc0b87a47e7d27"
 
-    # pubkey derivation
+    # pub_key derivation
     rprv = bip32.mxprv_from_bip39_mnemonic(mnemonic)
     xprv = bip32.derive(rprv, derivation_path)
 
@@ -593,7 +593,7 @@ def test_ledger() -> None:
     assert dsa.verify(magic_msg, xprv, dsa_sig)
 
     # compressed address
-    addr = base58address.p2pkh(xprv)
+    addr = base58_address.p2pkh(xprv)
 
     # equivalent Bitcoin Message Signature
     rec_flag = 27 + 4 + (key_id & 0x01)

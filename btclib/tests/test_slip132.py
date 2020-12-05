@@ -14,7 +14,7 @@ from typing import List, Tuple
 
 import pytest
 
-from btclib import base58address, bech32address, bip32, bip39, slip132
+from btclib import base58_address, bech32_address, bip32, bip39, slip132
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 
@@ -77,19 +77,19 @@ def test_slip132_test_vector() -> None:
         address = slip132.address_from_xkey(xprv)
         assert addr == address
         if version == NETWORKS["mainnet"].bip32_prv:
-            address = base58address.p2pkh(xpub)
+            address = base58_address.p2pkh(xpub)
             assert addr == address
-            address = base58address.p2pkh(xprv)
+            address = base58_address.p2pkh(xprv)
             assert addr == address
         elif version == NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv:
-            address = base58address.p2wpkh_p2sh(xpub)
+            address = base58_address.p2wpkh_p2sh(xpub)
             assert addr == address
-            address = base58address.p2wpkh_p2sh(xprv)
+            address = base58_address.p2wpkh_p2sh(xprv)
             assert addr == address
         elif version == NETWORKS["mainnet"].slip132_p2wpkh_prv:
-            address = bech32address.p2wpkh(xpub)
+            address = bech32_address.p2wpkh(xpub)
             assert addr == address
-            address = bech32address.p2wpkh(xprv)
+            address = bech32_address.p2wpkh(xprv)
             assert addr == address
 
 

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.base58address` module."
+"Tests for the `btclib.base58_address` module."
 
 from typing import List, Tuple
 
@@ -17,7 +17,7 @@ import pytest
 from btclib import bip32, script, slip132
 from btclib.alias import ScriptToken
 from btclib.base58 import b58encode
-from btclib.base58address import (
+from btclib.base58_address import (
     b58address_from_h160,
     b58address_from_witness,
     h160_from_b58address,
@@ -26,13 +26,13 @@ from btclib.base58address import (
     p2wpkh_p2sh,
     p2wsh_p2sh,
 )
-from btclib.base58wif import wif_from_prvkey
-from btclib.bech32address import p2wpkh, witness_from_b32address
+from btclib.base58_wif import wif_from_prv_key
+from btclib.bech32_address import p2wpkh, witness_from_b32address
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key, hash256_from_script
-from btclib.secpoint import bytes_from_point, point_from_octets
-from btclib.to_prvkey import prvkeyinfo_from_prvkey
-from btclib.to_pubkey import pubkeyinfo_from_prvkey
+from btclib.sec_point import bytes_from_point, point_from_octets
+from btclib.to_prv_key import prv_keyinfo_from_prv_key
+from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.utils import hash160
 
 
@@ -60,20 +60,20 @@ def test_p2pkh_from_wif() -> None:
     rxprv = bip32.rootxprv_from_seed(seed)
     path = "m/0h/0h/12"
     xprv = bip32.derive(rxprv, path)
-    wif = wif_from_prvkey(xprv)
+    wif = wif_from_prv_key(xprv)
     assert wif == b"L2L1dqRmkmVtwStNf5wg8nnGaRn3buoQr721XShM4VwDbTcn9bpm"
-    pubkey, _ = pubkeyinfo_from_prvkey(wif)
-    address = p2pkh(pubkey)
+    pub_key, _ = pub_keyinfo_from_prv_key(wif)
+    address = p2pkh(pub_key)
     xpub = bip32.xpub_from_xprv(xprv)
     address2 = slip132.address_from_xpub(xpub)
     assert address == address2
 
     err_msg = "not a private key: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        wif_from_prvkey(xpub)
+        wif_from_prv_key(xpub)
 
 
-def test_p2pkh_from_pubkey() -> None:
+def test_p2pkh_from_pub_key() -> None:
     # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
     pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     addr = p2pkh(pub)
@@ -101,7 +101,7 @@ def test_p2pkh_from_pubkey() -> None:
 
 def test_p2sh() -> None:
     # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
-    script_pubkey: List[ScriptToken] = [
+    script_pub_key: List[ScriptToken] = [
         "OP_2DUP",
         "OP_EQUAL",
         "OP_NOT",
@@ -111,16 +111,16 @@ def test_p2sh() -> None:
         "OP_SHA1",
         "OP_EQUAL",
     ]
-    assert script.serialize(script_pubkey).hex() == "6e879169a77ca787"
+    assert script.serialize(script_pub_key).hex() == "6e879169a77ca787"
 
     network = "mainnet"
-    addr = p2sh(script_pubkey, network)
+    addr = p2sh(script_pub_key, network)
     assert addr == b"37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
 
     _, redeem_script_hash, network2, is_script_hash = h160_from_b58address(addr)
     assert network == network2
     assert is_script_hash
-    assert redeem_script_hash == hash160(script.serialize(script_pubkey))
+    assert redeem_script_hash == hash160(script.serialize(script_pub_key))
 
     assert redeem_script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     output_script: List[ScriptToken] = [
@@ -141,21 +141,21 @@ def test_p2sh() -> None:
 
 def test_p2w_p2sh() -> None:
 
-    pubkey = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-    h160pubkey, network = hash160_from_key(pubkey)
-    b58addr = p2wpkh_p2sh(pubkey, network)
-    b58addr2 = b58address_from_witness(h160pubkey, network)
+    pub_key = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+    h160pub_key, network = hash160_from_key(pub_key)
+    b58addr = p2wpkh_p2sh(pub_key, network)
+    b58addr2 = b58address_from_witness(h160pub_key, network)
     assert b58addr2 == b58addr
 
-    script_pubkey: List[ScriptToken] = [
+    script_pub_key: List[ScriptToken] = [
         "OP_DUP",
         "OP_HASH160",
-        h160pubkey,
+        h160pub_key,
         "OP_EQUALVERIFY",
         "OP_CHECKSIG",
     ]
-    h256script = hash256_from_script(script_pubkey)
-    b58addr = p2wsh_p2sh(script_pubkey, network)
+    h256script = hash256_from_script(script_pub_key)
+    b58addr = p2wsh_p2sh(script_pub_key, network)
     b58addr2 = b58address_from_witness(h256script, network)
     assert b58addr2 == b58addr
 
@@ -195,8 +195,8 @@ def test_address_from_wif() -> None:
         ),
     ]
     for compressed, network, wif, address in test_cases:
-        assert wif.encode("ascii") == wif_from_prvkey(q, network, compressed)
-        assert prvkeyinfo_from_prvkey(wif) == (q, network, compressed)
+        assert wif.encode("ascii") == wif_from_prv_key(q, network, compressed)
+        assert prv_keyinfo_from_prv_key(wif) == (q, network, compressed)
         b58 = p2pkh(wif)
         assert b58 == address.encode("ascii")
         _, payload, net, is_script = h160_from_b58address(b58)
@@ -219,11 +219,11 @@ def test_address_from_wif() -> None:
 
 def test_exceptions() -> None:
 
-    pubkey = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
-    payload = b"\xf5" + hash160(pubkey)
+    pub_key = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
+    payload = b"\xf5" + hash160(pub_key)
     invalid_address = b58encode(payload)
     with pytest.raises(BTClibValueError, match="invalid base58 address prefix: "):
         h160_from_b58address(invalid_address)
 
     with pytest.raises(BTClibValueError, match="not a private or public key: "):
-        p2pkh(pubkey + "00")
+        p2pkh(pub_key + "00")

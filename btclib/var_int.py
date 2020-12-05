@@ -10,7 +10,7 @@
 
 """Varint encoding and decoding functions.
 
-A varint (variable integer) is variable-length quantity that uses an
+A var_int (variable integer) is variable-length quantity that uses an
 arbitrary number of binary octets (eight-bit bytes) to represent an
 arbitrarily large integer.
 It is usually a base-128 (7 bits) representation of an unsigned integer
@@ -21,7 +21,7 @@ This is the slightly different Bitcoin implementation, used in transaction
 data to indicate the number of upcoming fields or the length of the
 upcoming field.
 
-Up to 0xfc, a varint is just 1 byte; however, if the integer is greater than
+Up to 0xfc, a var_int is just 1 byte; however, if the integer is greater than
 0xfc, then it is expanded as [1 byte prefix][number]:
 
 * prefix 0xfd markes the next two bytes as the number;
@@ -54,7 +54,7 @@ def deserialize(stream: BinaryData) -> int:
 
 
 def serialize(i: int) -> bytes:
-    "Return the varint bytes encoding of an integer."
+    "Return the var_int bytes encoding of an integer."
 
     if i < 0x00:
         raise BTClibValueError(f"negative integer: {i}")
@@ -66,4 +66,4 @@ def serialize(i: int) -> bytes:
         return b"\xFE" + i.to_bytes(4, byteorder="little")
     if i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
         return b"\xFF" + i.to_bytes(8, byteorder="little")
-    raise BTClibValueError(f"integer too big for varint encoding: '{hex_string(i)}'")
+    raise BTClibValueError(f"integer too big for var_int encoding: '{hex_string(i)}'")

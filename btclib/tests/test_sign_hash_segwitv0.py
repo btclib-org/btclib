@@ -8,17 +8,17 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.sighash` module."
+"Tests for the `btclib.sign_hash` module."
 
 # test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-from btclib.sighash import (
+from btclib.sign_hash import (
     ALL,
     ANYONECANPAY,
     NONE,
     SINGLE,
     _get_witness_v0_script_codes,
     segwit_v0,
-    sighash_from_prev_out,
+    sign_hash_from_prev_out,
 )
 from btclib.tx import Tx
 from btclib.tx_out import TxOut
@@ -32,13 +32,13 @@ def test_native_p2wpkh():
 
     previous_txout = TxOut(
         value=600000000,
-        script_pubkey=bytes.fromhex("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
+        script_pub_key=bytes.fromhex("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
     )
 
-    sighash = sighash_from_prev_out(previous_txout, transaction, 1, ALL)
+    sign_hash = sign_hash_from_prev_out(previous_txout, transaction, 1, ALL)
 
     assert (
-        sighash.hex()
+        sign_hash.hex()
         == "c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670"
     )
 
@@ -53,13 +53,13 @@ def test_wrapped_p2wpkh():
 
     previous_txout = TxOut(
         value=1000000000,
-        script_pubkey=bytes.fromhex("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"),
+        script_pub_key=bytes.fromhex("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"),
     )
 
-    sighash = sighash_from_prev_out(previous_txout, transaction, 0, ALL)
+    sign_hash = sign_hash_from_prev_out(previous_txout, transaction, 0, ALL)
 
     assert (
-        sighash.hex()
+        sign_hash.hex()
         == "64f3b0f4dd2bb3aa1ce8566d220cc74dda9df97d8490cc81d89d735c92e59fb6"
     )
 
@@ -76,22 +76,22 @@ def test_native_p2wsh():
 
     previous_txout = TxOut(
         value=4900000000,
-        script_pubkey=bytes.fromhex(
+        script_pub_key=bytes.fromhex(
             "00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0"
         ),
     )
 
-    sighash = sighash_from_prev_out(previous_txout, transaction, 1, SINGLE)
+    sign_hash = sign_hash_from_prev_out(previous_txout, transaction, 1, SINGLE)
 
     assert (
-        sighash.hex()
+        sign_hash.hex()
         == "82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391"
     )
 
     script_code = _get_witness_v0_script_codes(transaction.vin[1].witness.stack[-1])[1]
-    sighash = segwit_v0(script_code, transaction, 1, SINGLE, previous_txout.value)
+    sign_hash = segwit_v0(script_code, transaction, 1, SINGLE, previous_txout.value)
     assert (
-        sighash.hex()
+        sign_hash.hex()
         == "fef7bd749cce710c5c052bd796df1af0d935e59cea63736268bcbe2d2134fc47"
     )
 
@@ -113,27 +113,27 @@ def test_native_p2wsh_2():
 
     previous_txout_1 = TxOut(
         value=16777215,
-        script_pubkey=bytes.fromhex(
+        script_pub_key=bytes.fromhex(
             "0020ba468eea561b26301e4cf69fa34bde4ad60c81e70f059f045ca9a79931004a4d"
         ),
     )
-    sighash = sighash_from_prev_out(
+    sign_hash = sign_hash_from_prev_out(
         previous_txout_1, transaction, 0, ANYONECANPAY | SINGLE
     )
     assert (
-        sighash.hex()
+        sign_hash.hex()
         == "e9071e75e25b8a1e298a72f0d2e9f4f95a0f5cdf86a533cda597eb402ed13b3a"
     )
 
     previous_txout_2 = TxOut(
         value=16777215,
-        script_pubkey=bytes.fromhex(
+        script_pub_key=bytes.fromhex(
             "0020d9bbfbe56af7c4b7f960a70d7ea107156913d9e5a26b0a71429df5e097ca6537"
         ),
     )
 
     script_code = _get_witness_v0_script_codes(transaction.vin[1].witness.stack[-1])[1]
-    sighash = segwit_v0(
+    sign_hash = segwit_v0(
         script_code,
         transaction,
         1,
@@ -141,7 +141,7 @@ def test_native_p2wsh_2():
         previous_txout_2.value,
     )
     assert (
-        sighash.hex()
+        sign_hash.hex()
         == "cd72f1f1a433ee9df816857fad88d8ebd97e09a75cd481583eb841c330275e54"
     )
 
@@ -159,38 +159,42 @@ def test_wrapped_p2wsh():
 
     previous_txout = TxOut(
         value=987654321,
-        script_pubkey=bytes.fromhex(
+        script_pub_key=bytes.fromhex(
             "0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54"
         ),
     )
 
     assert (
-        sighash_from_prev_out(previous_txout, transaction, 0, ALL).hex()
+        sign_hash_from_prev_out(previous_txout, transaction, 0, ALL).hex()
         == "185c0be5263dce5b4bb50a047973c1b6272bfbd0103a89444597dc40b248ee7c"
     )
 
     assert (
-        sighash_from_prev_out(previous_txout, transaction, 0, NONE).hex()
+        sign_hash_from_prev_out(previous_txout, transaction, 0, NONE).hex()
         == "e9733bc60ea13c95c6527066bb975a2ff29a925e80aa14c213f686cbae5d2f36"
     )
 
     assert (
-        sighash_from_prev_out(previous_txout, transaction, 0, SINGLE).hex()
+        sign_hash_from_prev_out(previous_txout, transaction, 0, SINGLE).hex()
         == "1e1f1c303dc025bd664acb72e583e933fae4cff9148bf78c157d1e8f78530aea"
     )
 
     assert (
-        sighash_from_prev_out(previous_txout, transaction, 0, ANYONECANPAY | ALL).hex()
+        sign_hash_from_prev_out(
+            previous_txout, transaction, 0, ANYONECANPAY | ALL
+        ).hex()
         == "2a67f03e63a6a422125878b40b82da593be8d4efaafe88ee528af6e5a9955c6e"
     )
 
     assert (
-        sighash_from_prev_out(previous_txout, transaction, 0, ANYONECANPAY | NONE).hex()
+        sign_hash_from_prev_out(
+            previous_txout, transaction, 0, ANYONECANPAY | NONE
+        ).hex()
         == "781ba15f3779d5542ce8ecb5c18716733a5ee42a6f51488ec96154934e2c890a"
     )
 
     assert (
-        sighash_from_prev_out(
+        sign_hash_from_prev_out(
             previous_txout, transaction, 0, ANYONECANPAY | SINGLE
         ).hex()
         == "511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b"
