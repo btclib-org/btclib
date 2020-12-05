@@ -40,10 +40,10 @@ def test_genesis_block() -> None:
     assert transaction.vin[0].script_sig == transaction_in.script_sig
     assert transaction.vout[0].script_pub_key == transaction_out.script_pub_key
 
-    assert transaction.txid == bytes.fromhex(
+    assert transaction.tx_id == bytes.fromhex(
         "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
     )
-    assert transaction.txid == transaction.hash
+    assert transaction.tx_id == transaction.hash
 
     assert transaction.size == 134
     assert transaction.weight == 536
@@ -62,7 +62,7 @@ def test_wiki_transaction() -> None:
     assert transaction.vout[0].value == 5000000
     assert transaction.vout[1].value == 3354000000
 
-    assert transaction.txid == transaction.hash
+    assert transaction.tx_id == transaction.hash
 
     assert transaction.vsize == transaction.size
 
@@ -79,7 +79,7 @@ def test_single_witness() -> None:
     assert len(transaction.vout) == 2
     assert transaction.lock_time == 0
 
-    assert transaction.txid == bytes.fromhex(
+    assert transaction.tx_id == bytes.fromhex(
         "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
     )
     assert transaction.hash == bytes.fromhex(
@@ -124,7 +124,7 @@ def test_double_witness() -> None:
     assert len(transaction.vout) == 2
     assert transaction.lock_time == 0
 
-    assert transaction.txid == bytes.fromhex(
+    assert transaction.tx_id == bytes.fromhex(
         "a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c"
     )
     assert transaction.hash == bytes.fromhex(
@@ -139,7 +139,7 @@ def test_double_witness() -> None:
 def test_invalid_outpoint() -> None:
 
     op = OutPoint(b"\x01" * 31, 18, check_validity=False)
-    with pytest.raises(BTClibValueError, match="invalid OutPoint txid: "):
+    with pytest.raises(BTClibValueError, match="invalid OutPoint tx_id: "):
         op.assert_valid()
 
     op = OutPoint(b"\x01" * 32, -1, check_validity=False)

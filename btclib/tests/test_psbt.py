@@ -126,9 +126,9 @@ def test_psbt_combination() -> None:
     combined_psbt = combine_psbts([psbt1, psbt2])
     assert combined_psbt == psbt
 
-    # get the wrong txid
+    # get the wrong tx_id
     psbt1.tx.lock_time = psbt1.tx.lock_time ^ 12345678
-    err_msg = "mismatched psbt.tx.txid: "
+    err_msg = "mismatched psbt.tx.tx_id: "
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         combine_psbts([psbt1, psbt2])
@@ -305,7 +305,7 @@ def test_valid_sign_2() -> None:
     )
     assert psbt.inputs[0].witness_utxo is not None
     transaction = Tx(0, 2, [transaction_input], [psbt.inputs[0].witness_utxo])
-    psbt.tx.vin[0].prev_out.txid = transaction.txid
+    psbt.tx.vin[0].prev_out.tx_id = transaction.tx_id
     psbt.inputs[0].non_witness_utxo = transaction
     psbt.assert_signable()
 

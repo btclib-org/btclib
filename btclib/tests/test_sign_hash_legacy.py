@@ -106,7 +106,7 @@ def test_p2pk():
     receiving_tx = Tx(
         1,
         0,
-        [TxIn(OutPoint(funding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
+        [TxIn(OutPoint(funding_tx.tx_id, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
     sign_hash = sign_hash_from_prev_out(funding_tx.vout[0], receiving_tx, 0, ALL)
@@ -137,7 +137,7 @@ def test_p2pkh():
     receiving_tx = Tx(
         1,
         0,
-        [TxIn(OutPoint(funding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
+        [TxIn(OutPoint(funding_tx.tx_id, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
     sign_hash = sign_hash_from_prev_out(funding_tx.vout[0], receiving_tx, 0, ALL)
@@ -160,7 +160,7 @@ def test_p2pk_anyonecanpay():
     receiving_tx = Tx(
         1,
         0,
-        [TxIn(OutPoint(funding_tx.txid, 0), script_sig, 0xFFFFFFFF)],
+        [TxIn(OutPoint(funding_tx.tx_id, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
     sign_hash = sign_hash_from_prev_out(

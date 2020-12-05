@@ -24,9 +24,11 @@ _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 @dataclass
 class OutPoint(DataClassJsonMixin):
-    txid: bytes = field(
+    tx_id: bytes = field(
         default=b"\x00" * 32,
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
+        metadata=config(
+            field_name="txid", encoder=lambda v: v.hex(), decoder=bytes.fromhex
+        ),
     )
     vout: int = 0xFFFFFFFF
     # add value and script_pub_key when tx fetcher will be available
@@ -35,7 +37,7 @@ class OutPoint(DataClassJsonMixin):
     @property
     def hash(self) -> int:
         "Return the hash int for compatibility with COutPoint."
-        return int.from_bytes(self.txid, "big", signed=False)
+        return int.from_bytes(self.tx_id, "big", signed=False)
 
     @property
     def n(self) -> int:
@@ -47,11 +49,11 @@ class OutPoint(DataClassJsonMixin):
             self.assert_valid()
 
     def is_coinbase(self) -> bool:
-        return self.txid == b"\x00" * 32 and self.vout == 0xFFFFFFFF
+        return self.tx_id == b"\x00" * 32 and self.vout == 0xFFFFFFFF
 
     def assert_valid(self) -> None:
-        if len(self.txid) != 32:
-            m = f"invalid OutPoint txid: {len(self.txid)}"
+        if len(self.tx_id) != 32:
+            m = f"invalid OutPoint tx_id: {len(self.tx_id)}"
             m += " instead of 32 bytes"
             raise BTClibValueError(m)
         # must be a 4-bytes int
@@ -60,7 +62,7 @@ class OutPoint(DataClassJsonMixin):
         if self.vout > 0xFFFFFFFF:
             raise BTClibValueError(f"OutPoint vout too high: {hex(self.vout)}")
         # not a coinbase, not a regular OutPoint
-        if (self.txid == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
+        if (self.tx_id == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
             raise BTClibValueError("invalid OutPoint")
 
     def serialize(self, assert_valid: bool = True) -> bytes:
@@ -69,7 +71,7 @@ class OutPoint(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.txid[::-1]
+        out = self.tx_id[::-1]
         out += self.vout.to_bytes(4, "little", signed=False)
         return out
 
@@ -82,7 +84,7 @@ class OutPoint(DataClassJsonMixin):
         data = bytesio_from_binarydata(data)
 
         outpoint = cls(check_validity=False)
-        outpoint.txid = data.read(32)[::-1]
+        outpoint.tx_id = data.read(32)[::-1]
         outpoint.vout = int.from_bytes(data.read(4), "little", signed=False)
 
         if assert_valid:

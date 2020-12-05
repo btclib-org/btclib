@@ -142,10 +142,10 @@ class Psbt(DataClassJsonMixin):
             witness_utxo = self.inputs[i].witness_utxo
 
             if non_witness_utxo:
-                txid = tx_in.prev_out.txid
-                if non_witness_utxo.txid != txid:
-                    err_msg = "invalid non_witness_utxo txid"
-                    err_msg += f": {non_witness_utxo.txid.hex()}"
+                tx_id = tx_in.prev_out.tx_id
+                if non_witness_utxo.tx_id != tx_id:
+                    err_msg = "invalid non_witness_utxo tx_id"
+                    err_msg += f": {non_witness_utxo.tx_id.hex()}"
                     raise BTClibValueError(err_msg)
 
             if witness_utxo:
@@ -253,7 +253,7 @@ class Psbt(DataClassJsonMixin):
             psbt_in = PsbtIn.deserialize(input_map)
             if (
                 psbt_in.non_witness_utxo
-                and psbt_in.non_witness_utxo.txid != txin.prev_out.txid
+                and psbt_in.non_witness_utxo.tx_id != txin.prev_out.tx_id
             ):
                 raise BTClibValueError("non-witness utxo does not match outpoint hash")
             psbt.inputs.append(psbt_in)
@@ -323,10 +323,10 @@ def _combine_field(
 
 def combine_psbts(psbts: List[Psbt]) -> Psbt:
     final_psbt = psbts[0]
-    txid = psbts[0].tx.txid
+    tx_id = psbts[0].tx.tx_id
     for psbt in psbts[1:]:
-        if psbt.tx.txid != txid:
-            raise BTClibValueError(f"mismatched psbt.tx.txid: {psbt.tx.txid.hex()}")
+        if psbt.tx.tx_id != tx_id:
+            raise BTClibValueError(f"mismatched psbt.tx.tx_id: {psbt.tx.tx_id.hex()}")
 
     for psbt in psbts[1:]:
 

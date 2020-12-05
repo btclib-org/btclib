@@ -17,6 +17,7 @@ from dataclasses_json.core import Json
 from . import var_bytes
 from .alias import BinaryData, String
 from .exceptions import BTClibValueError
+from .script_pub_key import payload_from_script_pub_key
 from .script_pub_key_address import (
     address_from_script_pub_key,
     script_pub_key_from_address,
@@ -70,6 +71,13 @@ class TxOut(DataClassJsonMixin):
             decoder=lambda v: v.encode("ascii"),
         ),
     )
+    _script_type: str = field(
+        default="empty",
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="script_type"),
+    )
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:
@@ -78,6 +86,7 @@ class TxOut(DataClassJsonMixin):
 
     def _set_properties(self) -> None:
         self._address = self.address
+        self._script_type = self.script_type
 
     def to_dict(self, encode_json=False) -> Dict[str, Json]:
         self._set_properties()
@@ -97,6 +106,11 @@ class TxOut(DataClassJsonMixin):
     def address(self) -> bytes:
         "Return the address, if any."
         return address_from_script_pub_key(self.script_pub_key, self.network)
+
+    @property
+    def script_type(self) -> str:
+        "Return the script_type, if any."
+        return payload_from_script_pub_key(self.script_pub_key)[0]
 
     def assert_valid(self) -> None:
         if self.value < 0:

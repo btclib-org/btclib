@@ -101,7 +101,7 @@ def segwit_v0(
     if hashtype_hex[0] != "8":
         hash_prev_outs = b""
         for vin in transaction.vin:
-            hash_prev_outs += _get_bytes(vin.prev_out.txid)[::-1]
+            hash_prev_outs += _get_bytes(vin.prev_out.tx_id)[::-1]
             hash_prev_outs += vin.prev_out.vout.to_bytes(4, "little")
         hash_prev_outs = hash256(hash_prev_outs)
     else:
@@ -125,7 +125,7 @@ def segwit_v0(
     else:
         hash_outputs = b"\x00" * 32
 
-    outpoint = _get_bytes(transaction.vin[input_index].prev_out.txid)[::-1]
+    outpoint = _get_bytes(transaction.vin[input_index].prev_out.tx_id)[::-1]
     outpoint += transaction.vin[input_index].prev_out.vout.to_bytes(4, "little")
 
     preimage = transaction.version.to_bytes(4, "little")

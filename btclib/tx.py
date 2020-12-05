@@ -39,7 +39,7 @@ _Tx = TypeVar("_Tx", bound="Tx")
 class Tx(DataClassJsonMixin):
     # private data members are used only for to_dict
     # use the corresponding public properties instead
-    _txid: bytes = field(
+    _tx_id: bytes = field(
         default=b"",
         init=False,
         repr=False,
@@ -95,7 +95,7 @@ class Tx(DataClassJsonMixin):
             self.assert_valid()
 
     def _set_properties(self) -> None:
-        self._txid = self.txid
+        self._tx_id = self.tx_id
         self._hash = self.hash
         self._size = self.size
         self._weight = self.weight
@@ -116,7 +116,7 @@ class Tx(DataClassJsonMixin):
         return self.lock_time
 
     @property
-    def txid(self) -> bytes:
+    def tx_id(self) -> bytes:
         serialized_ = self.serialize(include_witness=False, assert_valid=False)
         hash256_ = hash256(serialized_)
         return hash256_[::-1]
