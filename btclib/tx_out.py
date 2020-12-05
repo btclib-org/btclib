@@ -17,15 +17,6 @@ from dataclasses_json.core import Json
 from . import varbytes
 from .alias import BinaryData, String
 from .exceptions import BTClibValueError
-from .scriptpubkey import (
-    is_nulldata,
-    is_p2ms,
-    is_p2pk,
-    is_p2pkh,
-    is_p2sh,
-    is_p2wpkh,
-    is_p2wsh,
-)
 from .scriptpubkey_address import (
     address_from_script_pubkey,
     script_pubkey_from_address,
@@ -115,31 +106,8 @@ class TxOut(DataClassJsonMixin):
 
         self._set_properties()
 
-    """
-    def is_nulldata(self) -> bool:
-        return is_nulldata(self.script_pubkey)
-
-    def is_p2ms(self) -> bool:
-        return is_p2ms(self.script_pubkey)
-
-    def is_p2pk(self) -> bool:
-        return is_p2pk(self.script_pubkey)
-
-    def is_p2pkh(self) -> bool:
-        return is_p2pkh(self.script_pubkey)
-
-    def is_p2sh(self) -> bool:
-        return is_p2sh(self.script_pubkey)
-
     # def is_witness(self) -> Tuple[bool, int, bytes]:
     #     return is_witness(self.script_pubkey)
-
-    def is_p2wpkh(self) -> bool:
-        return is_p2wpkh(self.script_pubkey)
-
-    def is_p2wsh(self) -> bool:
-        return is_p2wsh(self.script_pubkey)
-    """
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 

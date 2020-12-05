@@ -19,7 +19,7 @@ Scripts are represented by List[ScriptToken], where ScriptToken = Union[int, str
 * bytes are for data (but integers are often casted to int)
 """
 
-from typing import List
+from typing import List, Union
 
 from .alias import BinaryData, Octets, ScriptToken
 from .exceptions import BTClibTypeError, BTClibValueError
@@ -315,11 +315,11 @@ def serialize(script: List[ScriptToken]) -> bytes:
     return r
 
 
-def deserialize(stream: BinaryData) -> List[ScriptToken]:
+def deserialize(stream: BinaryData) -> List[Union[int, str]]:
 
     s = bytesio_from_binarydata(stream)
     # initialize the result list
-    r: List[ScriptToken] = []
+    r: List[Union[int, str]] = []
     while True:
         # get one byte
         t = s.read(1)
