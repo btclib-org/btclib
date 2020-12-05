@@ -5,7 +5,7 @@
     },
     "scriptSig": "",
     "sequence": 0,
-    "witness": {
+    "txinwitness": {
         "stack": [
             "",
             "3044022077ecafa04bc23f87057bd54b572a473cf5cc6a945c167fcefe561618b86d097002200eb7c62a855295c8c288ff972c58905861a98260dafb6f8b7587cfda3091e00d01",

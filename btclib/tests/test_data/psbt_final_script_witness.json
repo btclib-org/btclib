@@ -10,7 +10,9 @@
                 },
                 "scriptSig": "",
                 "sequence": 0,
-                "txinwitness": []
+                "txinwitness": {
+                    "stack": []
+                }
             }
         ],
         "vout": [

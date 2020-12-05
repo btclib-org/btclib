@@ -29,7 +29,6 @@ def test_tx_out() -> None:
     assert tx_out.address == b""
     assert tx_out.nValue == tx_out.value
     assert tx_out.scriptPubKey == tx_out.script_pub_key
-    tx_out.assert_valid()
     assert tx_out == TxOut.deserialize(tx_out.serialize())
 
     value = 3259343370
@@ -45,7 +44,6 @@ def test_tx_out() -> None:
     assert tx_out.address == addr
     assert tx_out.nValue == tx_out.value
     assert tx_out.scriptPubKey == tx_out.script_pub_key
-    tx_out.assert_valid()
     assert tx_out == TxOut.deserialize(tx_out.serialize())
     assert tx_out == TxOut.from_address(tx_out.value, tx_out.address)
 

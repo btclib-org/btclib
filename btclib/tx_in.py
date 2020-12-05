@@ -57,10 +57,8 @@ class OutPoint(DataClassJsonMixin):
             m += " instead of 32 bytes"
             raise BTClibValueError(m)
         # must be a 4-bytes int
-        if self.vout < 0:
-            raise BTClibValueError(f"negative OutPoint vout: {self.vout}")
-        if self.vout > 0xFFFFFFFF:
-            raise BTClibValueError(f"OutPoint vout too high: {hex(self.vout)}")
+        if not 0 <= self.vout <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid vout: {self.vout}")
         # not a coinbase, not a regular OutPoint
         if (self.tx_id == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
             raise BTClibValueError("invalid OutPoint")
@@ -106,7 +104,9 @@ class TxIn(DataClassJsonMixin):
         ),
     )
     sequence: int = 0
-    witness: Witness = Witness()
+    witness: Witness = field(
+        default=Witness(), metadata=config(field_name="txinwitness")
+    )
     check_validity: InitVar[bool] = True
 
     @property
@@ -133,8 +133,9 @@ class TxIn(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         self.prev_out.assert_valid()
-        # TODO: empty script_sig is valid (add non-regression test)
-        # TODO: test sequence
+        # must be a 4-bytes int
+        if not 0 <= self.sequence <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid sequence: {self.sequence}")
         self.witness.assert_valid()
 
     def serialize(self, assert_valid: bool = True) -> bytes:

@@ -58,7 +58,7 @@ class Tx(DataClassJsonMixin):
         ),
     )
     # 4 bytes, unsigned little endian
-    version: int = 0
+    version: int = 1
     _size: int = field(
         default=-1,
         init=False,
@@ -149,18 +149,19 @@ class Tx(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
 
-        # TODO check version
+        # must be a 4-bytes int
+        if not 0 < self.version <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid version: {self.version}")
 
-        if not self.vin:
-            raise BTClibValueError("transaction must have at least one input")
         for tx_in in self.vin:
             tx_in.assert_valid()
-        if not self.vout:
-            raise BTClibValueError("transaction must have at least one output")
+
         for tx_out in self.vout:
             tx_out.assert_valid()
 
-        # TODO check lock_time
+        # must be a 4-bytes int
+        if not 0 <= self.lock_time <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid lock time: {self.lock_time}")
 
         self._set_properties()
 

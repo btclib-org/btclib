@@ -61,7 +61,7 @@ class TxOut(DataClassJsonMixin):
         init=False,
         repr=False,
         compare=False,
-        metadata=config(field_name="script_type"),
+        metadata=config(field_name="type"),
     )
     network: str = "mainnet"
     _address: bytes = field(
@@ -134,7 +134,7 @@ class TxOut(DataClassJsonMixin):
         cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
-        tx_out = cls()
+        tx_out = cls(check_validity=False)
         tx_out.value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         tx_out.script_pub_key = var_bytes.deserialize(stream)
 

@@ -28,7 +28,6 @@ def test_out_point() -> None:
     assert out_point.hash == int.from_bytes(out_point.tx_id, "big")
     assert out_point.n == out_point.vout
     assert out_point.is_coinbase()
-    out_point.assert_valid()
     assert out_point == OutPoint.deserialize(out_point.serialize())
 
     tx_id = bytes.fromhex(
@@ -41,7 +40,6 @@ def test_out_point() -> None:
     assert out_point.hash == int.from_bytes(out_point.tx_id, "big")
     assert out_point.n == out_point.vout
     assert not out_point.is_coinbase()
-    out_point.assert_valid()
     assert out_point == OutPoint.deserialize(out_point.serialize())
 
 
@@ -80,11 +78,11 @@ def test_invalid_outpoint() -> None:
         op.assert_valid()
 
     op = OutPoint(b"\x01" * 32, -1, check_validity=False)
-    with pytest.raises(BTClibValueError, match="negative OutPoint vout: "):
+    with pytest.raises(BTClibValueError, match="invalid vout: "):
         op.assert_valid()
 
     op = OutPoint(b"\x01" * 32, 0xFFFFFFFF + 1, check_validity=False)
-    with pytest.raises(BTClibValueError, match="OutPoint vout too high: "):
+    with pytest.raises(BTClibValueError, match="invalid vout: "):
         op.assert_valid()
 
     op = OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF, check_validity=False)
@@ -106,7 +104,6 @@ def test_tx_in() -> None:
     assert tx_in.scriptSig == tx_in.script_sig
     assert tx_in.nSequence == tx_in.nSequence
     assert tx_in.is_coinbase()
-    tx_in.assert_valid()
     assert tx_in == TxIn.deserialize(tx_in.serialize())
 
     tx_id = bytes.fromhex(
@@ -134,10 +131,13 @@ def test_tx_in() -> None:
     assert tx_in.scriptSig == tx_in.script_sig
     assert tx_in.nSequence == tx_in.nSequence
     assert not tx_in.is_coinbase()
-    tx_in.assert_valid()
     TxIn.deserialize(tx_in.serialize())
     # FIXME: witness is lost
     assert tx_in != TxIn.deserialize(tx_in.serialize())
+
+    tx_in.sequence = 0xFFFFFFFF + 1
+    with pytest.raises(BTClibValueError, match="invalid sequence: "):
+        tx_in.assert_valid()
 
 
 def test_dataclasses_json_dict() -> None:

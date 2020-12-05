@@ -1,7 +1,7 @@
 {
     "value": 3259343370,
     "scriptPubKey": "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86",
-    "script_type": "p2wsh",
+    "type": "p2wsh",
     "network": "mainnet",
     "address": "bc1qak8fvqzkzqq0wg4aym59p0nasrey696040hlnzawl9nnyh3tt2rqzgmhmv"
 }

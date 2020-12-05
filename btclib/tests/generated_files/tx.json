@@ -14,7 +14,7 @@
             },
             "scriptSig": "",
             "sequence": 0,
-            "witness": {
+            "txinwitness": {
                 "stack": [
                     "",
                     "3044022077ecafa04bc23f87057bd54b572a473cf5cc6a945c167fcefe561618b86d097002200eb7c62a855295c8c288ff972c58905861a98260dafb6f8b7587cfda3091e00d01",
@@ -32,7 +32,7 @@
             },
             "scriptSig": "",
             "sequence": 0,
-            "witness": {
+            "txinwitness": {
                 "stack": [
                     "",
                     "304402207bcdd21ed6d5d0173379ab5f52b9360d6aad6ac1ba0e7fd03cb4b4d68728eab102206cf9080890578a396029a0459c1582de0e2ded800dca661e7ef444f4f5e4231101",
@@ -50,7 +50,7 @@
             },
             "scriptSig": "",
             "sequence": 0,
-            "witness": {
+            "txinwitness": {
                 "stack": [
                     "",
                     "30450221009b41190c06f5dde50e164ed46145213f4aaab578dfd7650c210fe65b77e061e50220516ea11ddcd3e39ae4de741505b2d1f11d68dc7989fae5d36ebe348855c1ab9601",
@@ -68,7 +68,7 @@
             },
             "scriptSig": "",
             "sequence": 0,
-            "witness": {
+            "txinwitness": {
                 "stack": [
                     "",
                     "3045022100f71e6e4a35da50a460a8ff9334e8b42b7c25d523efa0a25cf34301be9680c7770220193bc4e7d45da8591af56be42dc2cf62fb1b9051c6135a4f0c2345eaa2d2cff001",
@@ -86,7 +86,7 @@
             },
             "scriptSig": "",
             "sequence": 0,
-            "witness": {
+            "txinwitness": {
                 "stack": [
                     "",
                     "30440220600aa08b61f420ed0732273527c2e3a667f8f9837a61ea01e750fe39c7be3fc20220229b7e7c739191e6ea97da272ef2e907074637a643249ca00a7747024836cacf01",
@@ -104,7 +104,7 @@
             },
             "scriptSig": "",
             "sequence": 0,
-            "witness": {
+            "txinwitness": {
                 "stack": [
                     "",
                     "3044022022f4eaecdfbfe1a963deb0a24b770e289353119b9c5824f795712398bef817320220515d0a9442f9e95e7f4baeed336a802e00deb855fcb854032f33b31e2646a9b401",
@@ -122,7 +122,7 @@
             },
             "scriptSig": "",
             "sequence": 0,
-            "witness": {
+            "txinwitness": {
                 "stack": [
                     "",
                     "3045022100fdc109e169743812cfa29a827ae66c9dce017d99925f6e2660c6af63893580b2022006d29ac6d08c324c0ddfcc9d1bc54eb8f8a4754e12ed4cf3b096f1cc9c7a87f401",
@@ -140,7 +140,7 @@
             },
             "scriptSig": "",
             "sequence": 0,
-            "witness": {
+            "txinwitness": {
                 "stack": [
                     "",
                     "3045022100c7a55d5e0b3e0b5cc9badc1bd34b05b4023ddd01b8ce2eeeed13f9714398c7ad02204446c3ed6089f3bc420feb5dd15288bad2f399d982e48a58e3169d503dd1ab1501",
@@ -156,7 +156,7 @@
         {
             "value": 3259343370,
             "scriptPubKey": "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86",
-            "script_type": "p2wsh",
+            "type": "p2wsh",
             "network": "mainnet",
             "address": "bc1qak8fvqzkzqq0wg4aym59p0nasrey696040hlnzawl9nnyh3tt2rqzgmhmv"
         }

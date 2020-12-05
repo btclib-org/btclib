@@ -304,7 +304,7 @@ def test_valid_sign_2() -> None:
         sequence=0xFFFFFFFF,
     )
     assert psbt.inputs[0].witness_utxo is not None
-    transaction = Tx(0, 2, [transaction_input], [psbt.inputs[0].witness_utxo])
+    transaction = Tx(1, 2, [transaction_input], [psbt.inputs[0].witness_utxo])
     psbt.tx.vin[0].prev_out.tx_id = transaction.tx_id
     psbt.inputs[0].non_witness_utxo = transaction
     psbt.assert_signable()
@@ -506,21 +506,21 @@ def test_exceptions() -> None:
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.inputs.pop()
-    err_msg = "mismatched number of tx.vin and psbt_in"
+    err_msg = "mismatched number of psb.tx.vin and psb.inputs: "
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.tx.vin[0].witness = Witness([b""])
-    err_msg = "non empty witness"
+    err_msg = "non empty script_sig or witness"
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.outputs.pop()
-    err_msg = "mismatched number of tx.vout and psbt_out"
+    err_msg = "mismatched number of psb.tx.vout and psbt.outputs: "
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()

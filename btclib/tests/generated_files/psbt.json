@@ -15,7 +15,7 @@
                 },
                 "scriptSig": "",
                 "sequence": 4294967295,
-                "witness": {
+                "txinwitness": {
                     "stack": []
                 }
             },
@@ -26,7 +26,7 @@
                 },
                 "scriptSig": "",
                 "sequence": 4294967295,
-                "witness": {
+                "txinwitness": {
                     "stack": []
                 }
             }
@@ -35,14 +35,14 @@
             {
                 "value": 149990000,
                 "scriptPubKey": "0014d85c2b71d0060b09c9886aeb815e50991dda124d",
-                "script_type": "p2wpkh",
+                "type": "p2wpkh",
                 "network": "mainnet",
                 "address": "bc1qmpwzkuwsqc9snjvgdt4czhjsnywa5yjdgwyw6k"
             },
             {
                 "value": 100000000,
                 "scriptPubKey": "001400aea9a2e5f0f876a588df5546e8742d1d87008f",
-                "script_type": "p2wpkh",
+                "type": "p2wpkh",
                 "network": "mainnet",
                 "address": "bc1qqzh2ngh97ru8dfvgma25d6r595wcwqy0skmt5z"
             }
@@ -66,7 +66,7 @@
                         },
                         "scriptSig": "473044022058f6fc7c6a33e1b31548d481c826c015bd30135aad42cd67790dab66d2ad243b02204a1ced2604c6735b6393e5b41691dd78b00f0c5942fb9f751856faa938157dba01",
                         "sequence": 4294967294,
-                        "witness": {
+                        "txinwitness": {
                             "stack": []
                         }
                     }
@@ -75,14 +75,14 @@
                     {
                         "value": 50000000,
                         "scriptPubKey": "a9140fb9463421696b82c833af241c78c17ddbde493487",
-                        "script_type": "p2sh",
+                        "type": "p2sh",
                         "network": "mainnet",
                         "address": "338A1VzFsJXQAiJHeZDzwCvmSv4t1CoYkY"
                     },
                     {
                         "value": 4949996240,
                         "scriptPubKey": "a91429ca74f8a08f81999428185c97b5d852e4063f6187",
-                        "script_type": "p2sh",
+                        "type": "p2sh",
                         "network": "mainnet",
                         "address": "35VzAMxSnefPwn2bnCHs53cEWsMfyHUiZr"
                     }
@@ -119,7 +119,7 @@
             "witness_utxo": {
                 "value": 200000000,
                 "scriptPubKey": "a914b7f5faf40e3d40a5a459b1db3535f2b72fa921e887",
-                "script_type": "p2sh",
+                "type": "p2sh",
                 "network": "mainnet",
                 "address": "3JTiFf9xWFqryQ7CXK3hMX8oh4GxYxUyAr"
             },
