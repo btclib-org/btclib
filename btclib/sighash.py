@@ -146,7 +146,7 @@ def _get_legacy_script_codes(script_pubkey: Octets) -> List[bytes]:
     script_codes: List[bytes] = []
     current_script: List[ScriptToken] = []
     for token in script.deserialize(script_pubkey)[::-1]:
-        if token == "OP_CODESEPARATOR":
+        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_codes.append(script.serialize(current_script[::-1]))
         else:
             current_script.append(token)
@@ -168,7 +168,7 @@ def _get_witness_v0_script_codes(script_pubkey: Octets) -> List[bytes]:
     script_codes: List[bytes] = []
     current_script: List[ScriptToken] = []
     for token in script.deserialize(script_pubkey)[::-1]:
-        if token == "OP_CODESEPARATOR":
+        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_codes.append(script.serialize(current_script[::-1]))
         current_script.append(token)
     script_codes.append(script.serialize(current_script[::-1]))
