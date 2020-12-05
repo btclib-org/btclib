@@ -108,22 +108,35 @@ class Psbt(DataClassJsonMixin):
     def assert_valid(self) -> None:
         "Assert logical self-consistency."
 
-        # tx must have at least one input and one output
         self.tx.assert_valid()
 
-        if len(self.tx.vin) != len(self.inputs):
-            raise BTClibValueError("mismatched number of tx.vin and psbt_in")
-        for vin in self.tx.vin:
-            if vin.script_sig != b"":
-                raise BTClibValueError("non empty script_sig")
-            if vin.witness != Witness():
-                raise BTClibValueError("non empty witness")
+        # ensure a non-null tx has been included
+        if not (self.tx.vin and self.tx.vout):
+            raise BTClibValueError("null transaction")
 
-        if len(self.tx.vout) != len(self.outputs):
-            raise BTClibValueError("mismatched number of tx.vout and psbt_out")
+        # ensure the tx is unsigned
+        if any(tx_in.script_sig or tx_in.witness for tx_in in self.tx.vin):
+            raise BTClibValueError("non empty script_sig or witness")
+
+        if len(self.tx.vin) != len(self.inputs):
+            err_msg = "mismatched number of psb.tx.vin and psb.inputs: "
+            err_msg += f"{len(self.tx.vin)} vs {len(self.inputs)}"
+            raise BTClibValueError(err_msg)
 
         for psbt_in in self.inputs:
             psbt_in.assert_valid()
+
+        if any(
+            psbt_in.non_witness_utxo
+            and psbt_in.non_witness_utxo.tx_id != tx_in.prev_out.tx_id
+            for psbt_in, tx_in in zip(self.inputs, self.tx.vin)
+        ):
+            raise BTClibValueError("non-witness utxo does not match outpoint tx_id")
+
+        if len(self.tx.vout) != len(self.outputs):
+            err_msg = "mismatched number of psb.tx.vout and psbt.outputs: "
+            err_msg += f"{len(self.tx.vout)} vs {len(self.outputs)}"
+            raise BTClibValueError(err_msg)
 
         for psbt_out in self.outputs:
             psbt_out.assert_valid()
@@ -231,10 +244,6 @@ class Psbt(DataClassJsonMixin):
             if k[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 # legacy transaction
                 psbt.tx = _deserialize_tx(k, v, "global unsigned tx")
-                # ensure the tx is unsigned
-                if any(txin.script_sig or txin.witness for txin in psbt.tx.vin):
-                    raise BTClibValueError("non empty script_sig or witness ")
-
             elif k[0:1] == PSBT_GLOBAL_VERSION:
                 psbt.version = _deserialize_int(k, v, "global version")
             elif k[0:1] == PSBT_GLOBAL_XPUB:
@@ -244,19 +253,9 @@ class Psbt(DataClassJsonMixin):
             else:  # unknown
                 psbt.unknown[k] = v
 
-        # ensure a tx has been included
-        if not psbt.tx.version:
-            raise BTClibValueError("missing transaction")
-
-        for txin in psbt.tx.vin:
+        for _ in psbt.tx.vin:
             input_map, psbt_bin = deserialize_map(psbt_bin)
-            psbt_in = PsbtIn.deserialize(input_map)
-            if (
-                psbt_in.non_witness_utxo
-                and psbt_in.non_witness_utxo.tx_id != txin.prev_out.tx_id
-            ):
-                raise BTClibValueError("non-witness utxo does not match outpoint hash")
-            psbt.inputs.append(psbt_in)
+            psbt.inputs.append(PsbtIn.deserialize(input_map))
 
         for _ in psbt.tx.vout:
             output_map, psbt_bin = deserialize_map(psbt_bin)
