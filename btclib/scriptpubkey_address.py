@@ -48,9 +48,7 @@ def address_from_script_pubkey(
     "Return the bech32/base58 address from a script_pubkey."
 
     if script_pubkey:
-        script_type, payload, _ = payload_from_script_pubkey(script_pubkey)
-        if isinstance(payload, list):  # p2ms
-            return b""
+        script_type, payload = payload_from_script_pubkey(script_pubkey)
         if script_type == "p2pkh":
             prefix = NETWORKS[network].p2pkh
             return b58address_from_h160(prefix, payload, network)

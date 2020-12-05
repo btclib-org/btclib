@@ -12,14 +12,15 @@
 
 """
 
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
-from .alias import Octets, Script, ScriptToken, String
+from . import varbytes
+from .alias import Octets, Script, String
 from .exceptions import BTClibValueError
 from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
 from .script import serialize
 from .to_pubkey import Key, pubkeyinfo_from_key
-from .utils import bytes_from_octets
+from .utils import bytes_from_octets, bytesio_from_binarydata
 
 # 1. Hash/WitnessProgram from pubkey/script_pubkey
 
@@ -30,69 +31,35 @@ from .utils import bytes_from_octets
 # 2. script_pubkey from Hash/WitnessProgram and vice versa
 
 
-def script_pubkey_from_payload(
-    s_type: str,
-    payloads: Union[Octets, List[Octets]],
-    m: int = 0,
-    lexicographic_sort: bool = True,
-) -> bytes:
-    """Return the requested script_pubkey for the provided payload.
+def script_pubkey_from_payload(script_type: str, payload: Octets) -> bytes:
+    "Return the script_pubkey for the provided script_type and payload."
 
-    Multi-signature payloads can be lexicographically sorted.
-    BIP67 endorses key sorting according to compressed key
-    representation: this implementation is BIP67 compliant.
+    script_type = script_type.lower()
 
-    Note that sorting uncompressed keys (leading 0x04 byte) results
-    in a different order than sorting the same keys in compressed
-    (leading 0x02 or 0x03 bytes) representation.
-    This implementation sorts uncompressed key according to their
-    uncompressed representation, i.e. 04 leading byte being equal
-    according to the point x-coordinate
-
-    https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
-    """
-
-    script_type = s_type.lower()
-
-    if (script_type == "p2ms") ^ (m != 0):
-        errmsg = f"invalid m for {script_type} script_pubkey: {m}"
-        raise BTClibValueError(errmsg)
-
-    if isinstance(payloads, list):
-        if script_type == "p2ms":
-            if not 0 < m < 17:
-                raise BTClibValueError(f"invalid m in m-of-n multisignature: {m}")
-            n = len(payloads)
-            if not m <= n < 17:
-                raise BTClibValueError(f"invalid n in {m}-of-n multisignature: {n}")
-            script_pubkey: List[ScriptToken] = [m]
-            if lexicographic_sort:
-                # BIP67 compliant
-                payloads = sorted(payloads)
-            script_pubkey += [bytes_from_octets(key, (33, 65)) for key in payloads]
-            script_pubkey += [n]
-            script_pubkey += ["OP_CHECKMULTISIG"]
-            return serialize(script_pubkey)
-        errmsg = f"invalid list of Octets for {script_type} script_pubkey"
-        raise BTClibValueError(errmsg)
+    if script_type == "p2ms":
+        script_pubkey = bytes_from_octets(payload) + b"\xae"
+        if not is_p2ms(script_pubkey):
+            raise BTClibValueError("invalid p2ms payload")
+        return script_pubkey
 
     if script_type == "nulldata":
-        payload = bytes_from_octets(payloads)
+        payload = bytes_from_octets(payload)
         if len(payload) > 80:
             err_msg = f"invalid nulldata script length: {len(payload)} bytes "
             raise BTClibValueError(err_msg)
         return serialize(["OP_RETURN", payload])
 
     if script_type == "p2pk":
-        payload = bytes_from_octets(payloads, (33, 65))
+        payload = bytes_from_octets(payload, (33, 65))
+        # TODO: check it is a valid pub_key
         return serialize([payload, "OP_CHECKSIG"])
 
     if script_type == "p2wsh":
-        payload = bytes_from_octets(payloads, 32)
+        payload = bytes_from_octets(payload, 32)
         return serialize([0, payload])
 
     if script_type == "p2pkh":
-        payload = bytes_from_octets(payloads, 20)
+        payload = bytes_from_octets(payload, 20)
         return serialize(
             [
                 "OP_DUP",
@@ -104,17 +71,18 @@ def script_pubkey_from_payload(
         )
 
     if script_type == "p2sh":
-        payload = bytes_from_octets(payloads, 20)
+        payload = bytes_from_octets(payload, 20)
         return serialize(["OP_HASH160", payload, "OP_EQUAL"])
 
     if script_type == "p2wpkh":
-        payload = bytes_from_octets(payloads, 20)
+        payload = bytes_from_octets(payload, 20)
         return serialize([0, payload])
 
     raise BTClibValueError(f"unknown script_pubkey type: {script_type}")
 
 
-def is_p2pk(script_pubkey: bytes) -> bool:
+def is_p2pk(script_pubkey: Octets) -> bool:
+    script_pubkey = bytes_from_octets(script_pubkey)
     # p2pk [pubkey, OP_CHECKSIG]
     # 0x41{65-byte pubkey}AC or 0x21{33-byte pubkey}AC
     length = len(script_pubkey)
@@ -126,7 +94,8 @@ def is_p2pk(script_pubkey: bytes) -> bool:
     )
 
 
-def is_p2pkh(script_pubkey: bytes) -> bool:
+def is_p2pkh(script_pubkey: Octets) -> bool:
+    script_pubkey = bytes_from_octets(script_pubkey)
     # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
     # 0x76A914{20-byte pubkey_hash}88AC
     return (
@@ -136,7 +105,8 @@ def is_p2pkh(script_pubkey: bytes) -> bool:
     )
 
 
-def is_p2sh(script_pubkey: bytes) -> bool:
+def is_p2sh(script_pubkey: Octets) -> bool:
+    script_pubkey = bytes_from_octets(script_pubkey)
     # p2sh [OP_HASH160, script_hash, OP_EQUAL]
     # 0xA914{20-byte script_hash}87
     return (
@@ -146,7 +116,8 @@ def is_p2sh(script_pubkey: bytes) -> bool:
     )
 
 
-def is_p2ms(script_pubkey: bytes) -> bool:
+def is_p2ms(script_pubkey: Octets) -> bool:
+    script_pubkey = bytes_from_octets(script_pubkey)
     # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
     length = len(script_pubkey)
     if length < 37 or script_pubkey[-1] != 0xAE:
@@ -155,20 +126,16 @@ def is_p2ms(script_pubkey: bytes) -> bool:
     n = script_pubkey[-2] - 80
     if not 0 < m < 17 or not m <= n < 17:
         return False
-    i = 1
-    while i < length - 2:
-        key_length = script_pubkey[i]
-        key_prefix = script_pubkey[i + 1]
-        key_33_bytes = key_length == 33 and key_prefix in (2, 3)
-        key_65_bytes = key_length == 65 and key_prefix == 4
-        if not (key_33_bytes or key_65_bytes):
-            return False
-        n -= 1
-        i += 1 + key_length
-    return i == length - 2 and n == 0
+    stream = bytesio_from_binarydata(script_pubkey[1:-2])
+    pub_keys = [varbytes.deserialize(stream) for _ in range(n)]
+    if any(len(pub_key) not in (33, 65) for pub_key in pub_keys):
+        return False
+    # TODO: check all pub_keys are valid
+    return not stream.read(1)
 
 
-def is_nulldata(script_pubkey: bytes) -> bool:
+def is_nulldata(script_pubkey: Octets) -> bool:
+    script_pubkey = bytes_from_octets(script_pubkey)
     # nulldata [OP_RETURN, data]
     length = len(script_pubkey)
     if length < 78:
@@ -187,36 +154,22 @@ def is_nulldata(script_pubkey: bytes) -> bool:
     )
 
 
-def is_p2wpkh(script_pubkey: bytes) -> bool:
+def is_p2wpkh(script_pubkey: Octets) -> bool:
+    script_pubkey = bytes_from_octets(script_pubkey)
     # p2wpkh [0, pubkey_hash]
     # 0x0014{20-byte pubkey_hash}
     length = len(script_pubkey)
     return length == 22 and script_pubkey[:2] == b"\x00\x14"
 
 
-def is_p2wsh(script_pubkey: bytes) -> bool:
+def is_p2wsh(script_pubkey: Octets) -> bool:
+    script_pubkey = bytes_from_octets(script_pubkey)
     length = len(script_pubkey)
     return length == 34 and script_pubkey[:2] == b"\x00\x20"
 
 
-def _payload_from_pms_script_pubkey(
-    script_pubkey: bytes,
-) -> Tuple[str, List[bytes], int]:
-
-    # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
-    keys: List[bytes] = []
-    i = 1
-    while i < len(script_pubkey) - 2:
-        key_length = script_pubkey[i]
-        keys.append(script_pubkey[i + 1 : i + 1 + key_length])
-        i += 1 + key_length
-    return "p2ms", keys, script_pubkey[0] - 80
-
-
-def payload_from_script_pubkey(
-    script_pubkey: Script,
-) -> Tuple[str, Union[bytes, List[bytes]], int]:
-    "Return (script_pubkey type, payload, m) from the input script_pubkey."
+def payload_from_script_pubkey(script_pubkey: Script) -> Tuple[str, bytes]:
+    "Return (script_pubkey type, payload) from the input script_pubkey."
 
     script_pubkey = (
         serialize(script_pubkey)
@@ -227,67 +180,81 @@ def payload_from_script_pubkey(
     if is_p2wpkh(script_pubkey):
         # p2wpkh [0, pubkey_hash]
         # 0x0014{20-byte pubkey_hash}
-        return "p2wpkh", script_pubkey[2:], 0
+        return "p2wpkh", script_pubkey[2:]
 
     if is_p2wsh(script_pubkey):
         # p2wsh [0, script_hash]
         # 0x0020{32-byte script_hash}
-        return "p2wsh", script_pubkey[2:], 0
+        return "p2wsh", script_pubkey[2:]
 
     if is_p2pk(script_pubkey):
         # p2pk [pubkey, OP_CHECKSIG]
         # 0x41{65-byte pubkey}AC or 0x21{33-byte pubkey}AC
-        return "p2pk", script_pubkey[1:-1], 0
+        return "p2pk", script_pubkey[1:-1]
 
     if is_p2ms(script_pubkey):
-        return _payload_from_pms_script_pubkey(script_pubkey)
+        # p2ms [m, pubkeys, n, OP_CHECKMULTISIG]
+        return "p2ms", script_pubkey[:-1]
 
     if is_nulldata(script_pubkey):
         # nulldata [OP_RETURN, data]
         if len(script_pubkey) < 78:
             # OP_RETURN, data length, data up to 75 bytes max
             # 0x6A{1 byte data-length}{data (0-75 bytes)}
-            return "nulldata", script_pubkey[2:], 0
+            return "nulldata", script_pubkey[2:]
 
         # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
         # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
-        return "nulldata", script_pubkey[3:], 0
+        return "nulldata", script_pubkey[3:]
 
     if is_p2pkh(script_pubkey):
         # p2pkh [OP_DUP, OP_HASH160, pubkey_hash, OP_EQUALVERIFY, OP_CHECKSIG]
         # 0x76A914{20-byte pubkey_hash}88AC
         length = len(script_pubkey)
-        return "p2pkh", script_pubkey[3 : length - 2], 0
+        return "p2pkh", script_pubkey[3 : length - 2]
 
     if is_p2sh(script_pubkey):
         # p2sh [OP_HASH160, script_hash, OP_EQUAL]
         # 0xA914{20-byte script_hash}87
         length = len(script_pubkey)
-        return "p2sh", script_pubkey[2 : length - 1], 0
+        return "p2sh", script_pubkey[2 : length - 1]
 
-    return "unknown", script_pubkey, 0
+    return "unknown", script_pubkey
 
 
-# 1.+2. = 3. script_pubkey from pubkey/script
+# 1.+2. = 3. script_pubkey from key(s)/script
 
 
 def p2pk(key: Key) -> bytes:
-    "Return the p2pk script_pubkey of the provided pubkey."
+    "Return the p2pk script_pubkey of the provided key."
 
     payload, _ = pubkeyinfo_from_key(key)
     return script_pubkey_from_payload("p2pk", payload)
 
 
 def p2ms(
-    keys: List[Key],
-    m: int,
-    lexicographic_sort: bool = True,
-    compressed: Optional[bool] = None,
+    m: int, keys: List[Key], lexi_sort: bool = True, compressed: Optional[bool] = None
 ) -> bytes:
-    "Return the m-of-n multi-sig script_pubkey of the provided keys."
+    """Return the m-of-n multi-sig script_pubkey of the provided keys.
 
-    pk: List[Octets] = [pubkeyinfo_from_key(p, compressed=compressed)[0] for p in keys]
-    return script_pubkey_from_payload("p2ms", pk, m, lexicographic_sort)
+    BIP67 endorses lexicographica key sorting
+    according to compressed key representation.
+
+    Note that sorting uncompressed keys (leading 0x04 byte) results
+    in a different order than sorting the same keys in compressed
+    (leading 0x02 or 0x03 bytes) representation.
+
+    https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
+    """
+    m += 80
+    payload = m.to_bytes(1, byteorder="big")
+    pub_keys = [pubkeyinfo_from_key(k, compressed=compressed)[0] for k in keys]
+    if lexi_sort:
+        pub_keys = sorted(pub_keys)
+    payload += b"".join([varbytes.serialize(k) for k in pub_keys])
+    n = len(keys) + 80
+    payload += n.to_bytes(1, byteorder="big")
+    return script_pubkey_from_payload("p2ms", payload)
 
 
 def nulldata(data: String) -> bytes:
