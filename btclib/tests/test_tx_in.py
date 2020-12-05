@@ -95,6 +95,40 @@ def test_invalid_outpoint() -> None:
         op.assert_valid()
 
 
+def test_tx_in() -> None:
+    tx_in = TxIn()
+    assert tx_in.prev_out == OutPoint()
+    assert tx_in.script_sig == b""
+    assert tx_in.sequence == 0
+    # assert tx_in.witness == Witness()
+    assert tx_in.outpoint == tx_in.prev_out
+    assert tx_in.scriptSig == tx_in.script_sig
+    assert tx_in.nSequence == tx_in.nSequence
+    assert tx_in.is_coinbase()
+    tx_in.assert_valid()
+    assert tx_in == TxIn.deserialize(tx_in.serialize())
+
+    tx_id = bytes.fromhex(
+        "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e"
+    )
+    vout = 0
+    prev_out = OutPoint(tx_id, vout)
+    script_sig = b"notascript"
+    sequence = 0
+    # witness 0 Witness()
+    tx_in = TxIn(prev_out, script_sig, sequence)
+    assert tx_in.prev_out == prev_out
+    assert tx_in.script_sig == script_sig
+    assert tx_in.sequence == sequence
+    # assert tx_in.witness == Witness()
+    assert tx_in.outpoint == tx_in.prev_out
+    assert tx_in.scriptSig == tx_in.script_sig
+    assert tx_in.nSequence == tx_in.nSequence
+    assert not tx_in.is_coinbase()
+    tx_in.assert_valid()
+    assert tx_in == TxIn.deserialize(tx_in.serialize())
+
+
 def test_dataclasses_json_dict() -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "test_data", fname)
