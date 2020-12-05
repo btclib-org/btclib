@@ -14,20 +14,20 @@ from typing import List, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import var_bytes, var_int
-from .alias import BinaryData, Octets
+from .alias import BinaryData
 from .exceptions import BTClibTypeError
-from .utils import bytes_from_octets, bytesio_from_binarydata
+from .utils import bytesio_from_binarydata
 
 _Witness = TypeVar("_Witness", bound="Witness")
 
 
 @dataclass
 class Witness(DataClassJsonMixin):
-    stack: List[Octets] = field(
+    stack: List[bytes] = field(
         default_factory=list,
         metadata=config(
-            encoder=lambda val: [bytes_from_octets(v).hex() for v in val],
-            decoder=lambda val: [bytes.fromhex(v).hex() for v in val],
+            encoder=lambda val: [v.hex() for v in val],
+            decoder=lambda val: [bytes.fromhex(v) for v in val],
         ),
     )
     check_validity: InitVar[bool] = True
@@ -42,7 +42,8 @@ class Witness(DataClassJsonMixin):
     def assert_valid(self) -> None:
         if not isinstance(self.stack, list):
             raise BTClibTypeError("invalid witness")
-        self.stack = [bytes_from_octets(octets).hex() for octets in self.stack]
+        if not all(isinstance(v, bytes) for v in self.stack):
+            raise BTClibTypeError("invalid witness")
 
     def serialize(self, assert_valid: bool = True) -> bytes:
         "Return the serialization of the Witness."

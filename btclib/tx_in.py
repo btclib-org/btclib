@@ -106,7 +106,7 @@ class TxIn(DataClassJsonMixin):
         ),
     )
     sequence: int = 0
-    witness: Witness = Witness(check_validity=False)
+    witness: Witness = Witness()
     check_validity: InitVar[bool] = True
 
     @property

@@ -19,6 +19,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
+from btclib.utils import bytes_from_octets
 from btclib.witness import Witness
 
 
@@ -100,20 +101,16 @@ def test_double_witness() -> None:
     assert transaction.serialize(include_witness=True).hex() == tx_bytes
 
     # Test witnesses as bytes
-
-    witness1 = Witness(
-        [
-            "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01",
-            "0334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e16",
-        ]
-    )
-
-    witness2 = Witness(
-        [
-            "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901",
-            "030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d7314",
-        ]
-    )
+    stack1 = [
+        "30450221009b364c1074c602b2c5a411f4034573a486847da9c9c2467596efba8db338d33402204ccf4ac0eb7793f93a1b96b599e011fe83b3e91afdc4c7ab82d765ce1da25ace01",
+        "0334d50996c36638265ad8e3cd127506994100dd7f24a5828155d531ebaf736e16",
+    ]
+    witness1 = Witness([bytes_from_octets(v) for v in stack1])
+    stack2 = [
+        "304402200c6dd55e636a2e4d7e684bf429b7800a091986479d834a8d462fbda28cf6f8010220669d1f6d963079516172f5061f923ef90099136647b38cc4b3be2a80b820bdf901",
+        "030aa2a1c2344bc8f38b7a726134501a2a45db28df8b4bee2df4428544c62d7314",
+    ]
+    witness2 = Witness([bytes_from_octets(v) for v in stack2])
 
     transaction.vin[0].witness = witness1
     transaction.vin[1].witness = witness2
