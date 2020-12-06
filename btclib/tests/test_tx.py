@@ -28,6 +28,7 @@ def test_tx() -> None:
     tx = Tx()
     assert not tx.is_segwit()
     assert not any(bool(w) for w in tx.vwitness)
+    assert not any(bool(tx_in.witness) for tx_in in tx.vin)
     assert not tx.is_coinbase()
     assert tx.version == 1
     assert tx.lock_time == 0
@@ -70,6 +71,7 @@ def test_tx() -> None:
     tx = Tx(version, lock_time, [tx_in], [tx_out1, tx_out2])
     assert not tx.is_segwit()
     assert not any(bool(w) for w in tx.vwitness)
+    assert not any(bool(tx_in.witness) for tx_in in tx.vin)
     assert not tx.is_coinbase()
     assert tx.version == 1
     assert tx.lock_time == 0
@@ -100,6 +102,7 @@ def test_tx() -> None:
     tx.vin[0].witness = Witness([bytes_from_octets(v) for v in stack])
     assert tx.is_segwit()
     assert any(bool(w) for w in tx.vwitness)
+    assert any(bool(tx_in.witness) for tx_in in tx.vin)
     assert not tx.is_coinbase()
     assert tx.version == 1
     assert tx.lock_time == 0
@@ -120,8 +123,7 @@ def test_tx() -> None:
     assert tx.serialize(include_witness=True) != tx.serialize(include_witness=False)
     assert Tx.deserialize(tx.serialize(include_witness=True)).is_segwit()
     assert not Tx.deserialize(tx.serialize(include_witness=False)).is_segwit()
-    # FIXME
-    assert tx == Tx.deserialize(tx.serialize(include_witness=False))
+    assert tx != Tx.deserialize(tx.serialize(include_witness=False))
 
 
 def test_exceptions() -> None:
@@ -171,6 +173,7 @@ def test_genesis_block() -> None:
     assert tx.weight == tx.size * 4
     assert not tx.is_segwit()
     assert not any(bool(w) for w in tx.vwitness)
+    assert not any(bool(tx_in.witness) for tx_in in tx.vin)
     assert tx.is_coinbase()
 
 
@@ -196,6 +199,7 @@ def test_wiki_transaction() -> None:
     assert tx.weight == tx.size * 4
     assert not tx.is_segwit()
     assert not any(bool(w) for w in tx.vwitness)
+    assert not any(bool(tx_in.witness) for tx_in in tx.vin)
     assert not tx.is_coinbase()
 
 
@@ -268,6 +272,7 @@ def test_double_witness() -> None:
     assert tx.weight == 1033
     assert tx.is_segwit()
     assert any(bool(w) for w in tx.vwitness)
+    assert any(bool(tx_in.witness) for tx_in in tx.vin)
     assert not tx.is_coinbase()
 
 
@@ -279,29 +284,32 @@ def test_dataclasses_json_dict() -> None:
 
     # Tx dataclass
     assert isinstance(tx, Tx)
-    assert tx.is_segwit
+    assert tx.is_segwit()
     assert any(bool(w) for w in tx.vwitness)
+    assert any(bool(tx_in.witness) for tx_in in tx.vin)
     assert tx.vin[0].witness
+    assert tx.vin[0].witness.stack
 
     # Tx dataclass to dict
     tx_dict = tx.to_dict()
     assert isinstance(tx_dict, dict)
     assert tx_dict["vin"][0]["txinwitness"]["stack"]  # type: ignore
 
-    # Tx dataclass dict to/from file
+    # Tx dataclass dict to file
     datadir = path.join(path.dirname(__file__), "generated_files")
     filename = path.join(datadir, "tx.json")
     with open(filename, "w") as file_:
         json.dump(tx_dict, file_, indent=4)
+
+    # Tx dataclass dict from file
     with open(filename, "r") as file_:
         tx_dict2 = json.load(file_)
     assert isinstance(tx_dict2, dict)
+    assert isinstance(tx_dict2, dict)
+    assert tx_dict2["vin"][0]["txinwitness"]["stack"]  # type: ignore
+
     assert tx_dict == tx_dict2
 
     # Tx dataclass from dict
     tx2 = Tx.from_dict(tx_dict)
     assert isinstance(tx2, Tx)
-    assert tx2.is_segwit
-    assert any(bool(w) for w in tx.vwitness)
-    # assert tx2.vin[0].witness
-    assert tx == tx2

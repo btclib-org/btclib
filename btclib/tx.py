@@ -94,6 +94,17 @@ class Tx(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Tx):
+            return NotImplemented
+        return (self.version, self.lock_time, self.vin, self.vout, self.vwitness) == (
+            other.version,
+            other.lock_time,
+            other.vin,
+            other.vout,
+            other.vwitness,
+        )
+
     def _set_properties(self) -> None:
         self._tx_id = self.tx_id
         self._hash = self.hash
@@ -146,7 +157,7 @@ class Tx(DataClassJsonMixin):
         return [tx_in.witness for tx_in in self.vin]
 
     def is_segwit(self) -> bool:
-        return any(tx_in.witness for tx_in in self.vin)
+        return any(tx_in.is_segwit() for tx_in in self.vin)
 
     def is_coinbase(self) -> bool:
         return len(self.vin) == 1 and self.vin[0].is_coinbase()
