@@ -305,7 +305,6 @@ def test_dataclasses_json_dict() -> None:
     with open(filename, "r") as file_:
         tx_dict2 = json.load(file_)
     assert isinstance(tx_dict2, dict)
-    assert isinstance(tx_dict2, dict)
     assert tx_dict2["vin"][0]["txinwitness"]["stack"]  # type: ignore
 
     assert tx_dict == tx_dict2
@@ -313,3 +312,12 @@ def test_dataclasses_json_dict() -> None:
     # Tx dataclass from dict
     tx2 = Tx.from_dict(tx_dict)
     assert isinstance(tx2, Tx)
+    # FIXME
+    # assert tx.vin[0] == tx2.vin[0]
+    # assert tx2.vin[0].witness
+    # assert tx2.vin[0].witness.stack
+    # assert tx2.is_segwit()
+    # assert any(bool(w) for w in tx2.vwitness)
+    # assert any(bool(tx_in.witness) for tx_in in tx2.vin)
+
+    # assert tx == tx2

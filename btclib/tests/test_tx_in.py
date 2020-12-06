@@ -164,23 +164,39 @@ def test_dataclasses_json_dict() -> None:
     with open(filename, "rb") as binary_file_:
         temp = Tx.deserialize(binary_file_.read())
 
-    tx_in_data = temp.vin[0]
+    tx_in = temp.vin[0]
 
-    # dataclass
-    assert isinstance(tx_in_data, TxIn)
+    # TxIn dataclass
+    assert isinstance(tx_in, TxIn)
+    assert tx_in.is_segwit()
+    assert tx_in.witness
+    assert tx_in.witness.stack
 
-    # Tx to/from dict
-    tx_in_dict = tx_in_data.to_dict()
+    # TxIn dataclass to dict
+    tx_in_dict = tx_in.to_dict()
     assert isinstance(tx_in_dict, dict)
-    assert tx_in_data == TxIn.from_dict(tx_in_dict)
+    assert tx_in_dict["txinwitness"]["stack"]  # type: ignore
 
+    # TxIn dataclass dict to file
     datadir = path.join(path.dirname(__file__), "generated_files")
-
-    # Tx dict to/from dict file
     filename = path.join(datadir, "tx_in.json")
     with open(filename, "w") as file_:
         json.dump(tx_in_dict, file_, indent=4)
+
+    # TxIn dataclass dict from file
     with open(filename, "r") as file_:
         tx_dict2 = json.load(file_)
     assert isinstance(tx_dict2, dict)
+    assert tx_in_dict["txinwitness"]["stack"]  # type: ignore
+
     assert tx_in_dict == tx_dict2
+
+    # TxIn dataclass from dict
+    tx_in2 = TxIn.from_dict(tx_in_dict)
+    assert isinstance(tx_in2, TxIn)
+    # FIXME
+    # assert tx_in2.is_segwit()
+    # assert tx_in2.witness
+    # assert tx_in2.witness.stack
+
+    assert tx_in == tx_in2
