@@ -209,7 +209,7 @@ def test_crack_prv_key() -> None:
 
     ec = CURVES["secp256k1"]
 
-    q, _ = dsa.gen_keys()
+    q, _ = dsa.gen_keys(1)
     k = 1 + secrets.randbelow(ec.n - 1)
 
     msg1 = "Paolo is afraid of ephemeral random numbers"

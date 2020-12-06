@@ -226,11 +226,11 @@ def test_low_cardinality() -> None:
 
 def test_crack_prv_key() -> None:
 
-    q, x_Q = ssa.gen_keys()
+    q, x_Q = ssa.gen_keys(19)  # remove any randomness
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
     m_1 = reduce_to_hlen(msg1)
-    k = ssa._det_nonce(m_1, q)
+    k = ssa._det_nonce(m_1, q, aux=32 * b"\x01")  # remove any randomness
     sig1 = ssa._sign(m_1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
