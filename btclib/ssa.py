@@ -552,7 +552,7 @@ def _assert_batch_as_valid(
 
     ec = sigs[0].ec
     if any(sig.ec != ec for sig in sigs):
-        raise BTClibValueError("not the same curve for all sigs")
+        raise BTClibValueError("not the same curve for all signatures")
     t = 0
     scalars: List[int] = []
     points: List[JacPoint] = []

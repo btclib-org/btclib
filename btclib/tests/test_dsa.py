@@ -53,6 +53,10 @@ def test_signature() -> None:
     assert len(keys) == 2
     assert Q in keys
 
+    keys = dsa.recover_pub_keys(msg, sig.serialize())
+    assert len(keys) == 2
+    assert Q in keys
+
     msg_fake = "Craig Wright"
     assert not dsa.verify(msg_fake, Q, sig)
     err_msg = "signature verification failed"
@@ -216,11 +220,11 @@ def test_crack_prv_key() -> None:
     m_2 = reduce_to_hlen(msg2)
     sig2 = dsa._sign(m_2, q, k)
 
-    qc, kc = dsa.crack_prv_key(msg1, sig1, msg2, sig2)
+    qc, kc = dsa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2)
 
     #  if the low_s convention has changed only one of s1 and s2
     sig2 = dsa.Sig(sig2.r, ec.n - sig2.s)
-    qc2, kc2 = dsa.crack_prv_key(msg1, sig1, msg2, sig2)
+    qc2, kc2 = dsa.crack_prv_key(msg1, sig1, msg2, sig2.serialize())
 
     assert (q == qc and k in (kc, ec.n - kc)) or (q == qc2 and k in (kc2, ec.n - kc2))
 
@@ -229,6 +233,10 @@ def test_crack_prv_key() -> None:
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
         dsa.crack_prv_key(msg1, sig1, msg1, sig1)
+
+    sig1.ec = CURVES["secp256r1"]
+    with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
+        dsa.crack_prv_key(msg1, sig1, msg2, sig2)
 
 
 def test_forge_hash_sig() -> None:

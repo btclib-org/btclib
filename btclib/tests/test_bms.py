@@ -20,7 +20,7 @@ from btclib import base58_address, bech32_address, bip32, bms, dsa
 from btclib.base58_address import p2pkh, p2wpkh_p2sh
 from btclib.base58_wif import wif_from_prv_key
 from btclib.bech32_address import p2wpkh
-from btclib.curve import secp256k1
+from btclib.curve import CURVES, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 
@@ -50,6 +50,11 @@ def test_signature() -> None:
     bms.assert_as_valid(msg, addr, exp_sig)
     bms.assert_as_valid(msg, addr, exp_sig.decode())
 
+    sig.dsa_sig.ec = CURVES["secp256r1"]
+    err_msg = "invalid curve: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, addr, sig)
+
 
 def test_exceptions() -> None:
 
@@ -57,7 +62,7 @@ def test_exceptions() -> None:
     wif = "KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu"
     address = base58_address.p2pkh(wif)
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
-    assert bms.verify(msg, address, exp_sig)
+    bms.assert_as_valid(msg, address, exp_sig)
 
     bms_sig = bms.Sig.b64decode(exp_sig)
     bms_sig.rf = 26

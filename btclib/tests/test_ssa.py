@@ -242,12 +242,20 @@ def test_crack_prv_key() -> None:
     assert q == qc
     assert k in (kc, sig1.ec.n - kc)
 
+    qc, kc = ssa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2.serialize(), x_Q)
+    assert q == qc
+    assert k in (kc, sig1.ec.n - kc)
+
     sig2.r = 16
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
         ssa._crack_prv_key(m_1, sig1, m_2, sig2, x_Q)
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
         ssa._crack_prv_key(m_1, sig1, m_1, sig1, x_Q)
+
+    sig1.ec = CURVES["secp256r1"]
+    with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
+        ssa._crack_prv_key(m_1, sig1, m_2, sig2, x_Q)
 
 
 def test_batch_validation() -> None:
@@ -300,6 +308,13 @@ def test_batch_validation() -> None:
         ssa.assert_batch_as_valid(ms, Qs, sigs)
     assert not ssa.batch_verify(ms, Qs, sigs)
     sigs.pop()  # valid again
+
+    sigs[0].ec = CURVES["secp256r1"]
+    err_msg = "not the same curve for all signatures"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ssa.assert_batch_as_valid(ms, Qs, sigs)
+    assert not ssa.batch_verify(ms, Qs, sigs)
+    sigs[0].ec = CURVES["secp256k1"]  # valid again
 
     ms = [reduce_to_hlen(m, hf) for m in ms]
     ms[0] = ms[0][:-1]
