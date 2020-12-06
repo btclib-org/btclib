@@ -43,8 +43,14 @@ def test_tx() -> None:
     assert tx.size == 10
     assert tx.vsize == tx.size
     assert tx.weight == tx.size * 4
-    assert tx == Tx.deserialize(tx.serialize(include_witness=True))
-    assert tx == Tx.deserialize(tx.serialize(include_witness=False))
+
+    tx_2 = Tx.deserialize(tx.serialize(include_witness=True))
+    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2 == tx
+
+    tx_2 = Tx.deserialize(tx.serialize(include_witness=False))
+    assert not tx_2.is_segwit()
+    assert tx_2 == tx
 
     # non-default constructor, no segwit
     prev_out = OutPoint(
@@ -86,8 +92,14 @@ def test_tx() -> None:
     assert tx.size == 126
     assert tx.vsize == tx.size
     assert tx.weight == tx.size * 4
-    assert tx == Tx.deserialize(tx.serialize(include_witness=True))
-    assert tx == Tx.deserialize(tx.serialize(include_witness=False))
+
+    tx_2 = Tx.deserialize(tx.serialize(include_witness=True))
+    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2 == tx
+
+    tx_2 = Tx.deserialize(tx.serialize(include_witness=False))
+    assert not tx_2.is_segwit()
+    assert tx_2 == tx
 
     # non-default constructor, with segwit
     version = 1
@@ -119,11 +131,14 @@ def test_tx() -> None:
     assert tx.size == 380
     assert tx.vsize == 190
     assert tx.weight == 758
-    assert tx == Tx.deserialize(tx.serialize(include_witness=True))
-    assert tx.serialize(include_witness=True) != tx.serialize(include_witness=False)
-    assert Tx.deserialize(tx.serialize(include_witness=True)).is_segwit()
-    assert not Tx.deserialize(tx.serialize(include_witness=False)).is_segwit()
-    assert tx != Tx.deserialize(tx.serialize(include_witness=False))
+
+    tx_2 = Tx.deserialize(tx.serialize(include_witness=True))
+    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2 == tx
+
+    tx_2 = Tx.deserialize(tx.serialize(include_witness=False))
+    assert not tx_2.is_segwit()
+    assert tx_2 != tx
 
 
 def test_exceptions() -> None:
@@ -312,12 +327,11 @@ def test_dataclasses_json_dict() -> None:
     # Tx dataclass from dict
     tx2 = Tx.from_dict(tx_dict)
     assert isinstance(tx2, Tx)
-    # FIXME
-    # assert tx.vin[0] == tx2.vin[0]
-    # assert tx2.vin[0].witness
-    # assert tx2.vin[0].witness.stack
-    # assert tx2.is_segwit()
-    # assert any(bool(w) for w in tx2.vwitness)
-    # assert any(bool(tx_in.witness) for tx_in in tx2.vin)
+    assert tx.vin[0] == tx2.vin[0]
+    assert tx2.vin[0].witness
+    assert tx2.vin[0].witness.stack
+    assert tx2.is_segwit()
+    assert any(bool(w) for w in tx2.vwitness)
+    assert any(bool(tx_in.witness) for tx_in in tx2.vin)
 
-    # assert tx == tx2
+    assert tx == tx2

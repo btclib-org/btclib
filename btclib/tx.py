@@ -13,6 +13,13 @@
 https://en.bitcoin.it/wiki/Transaction
 https://learnmeabitcoin.com/guide/coinbase-transaction
 https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
+
+For TxIn.sequence and TX.lock_time see:
+https://developer.bitcoin.org/devguide/transactions.html
+https://medium.com/summa-technology/bitcoins-time-locks-27e0c362d7a1
+https://bitcoin.stackexchange.com/questions/40764/is-my-understanding-of-locktime-correct
+https://en.bitcoin.it/wiki/Timelock
+
 """
 
 from dataclasses import InitVar, dataclass, field
@@ -25,7 +32,7 @@ from dataclasses_json.core import Json
 from . import var_int
 from .alias import BinaryData
 from .exceptions import BTClibValueError
-from .tx_in import TxIn
+from .tx_in import _TX_IN_COMPARES_WITNESS, TxIn
 from .tx_out import TxOut
 from .utils import bytesio_from_binarydata, hash256
 from .witness import Witness
@@ -80,7 +87,12 @@ class Tx(DataClassJsonMixin):
         compare=False,
         metadata=config(field_name="weight"),
     )
-    # 4 bytes, unsigned little endian
+    # 0	Not locked
+    #  < 500000000	Block number at which this transaction is unlocked
+    # >= 500000000	UNIX timestamp at which this transaction is unlocked
+    # If all TxIns have final (0xffffffff) sequence numbers then lock_time is irrelevant.
+    # Otherwise, the transaction may not be added to a block until after lock_time.
+    # Set to the current block to prevent fee sniping.
     lock_time: int = field(
         default=0,
         metadata=config(field_name="locktime"),
@@ -96,13 +108,16 @@ class Tx(DataClassJsonMixin):
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Tx):
-            return NotImplemented
-        return (self.version, self.lock_time, self.vin, self.vout, self.vwitness) == (
+            return NotImplemented  # pragma: no cover
+
+        if not _TX_IN_COMPARES_WITNESS and self.vwitness != other.vwitness:
+            return False  # pragma: no cover
+
+        return (self.version, self.lock_time, self.vin, self.vout) == (
             other.version,
             other.lock_time,
             other.vin,
             other.vout,
-            other.vwitness,
         )
 
     def _set_properties(self) -> None:

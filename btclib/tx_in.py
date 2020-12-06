@@ -92,6 +92,8 @@ class OutPoint(DataClassJsonMixin):
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
 
+_TX_IN_COMPARES_WITNESS = True
+
 
 @dataclass
 class TxIn(DataClassJsonMixin):
@@ -103,14 +105,25 @@ class TxIn(DataClassJsonMixin):
             field_name="scriptSig", encoder=lambda v: v.hex(), decoder=bytes.fromhex
         ),
     )
+    # If all TxIns have final (0xffffffff) sequence numbers
+    # then Tx lock_time is irrelevant.
+    #
+    # Set to 0xFFFFFFFE to enables nLocktime (e.g. to discourage fee sniping)
+    # and disables Replace-By-Fee (RBF).
+    #
+    # RBF txs typically have the sequence of each input set to 0xFFFFFFFD.
+    #
+    # Because sequence locks require that the sequence field be set
+    # lower than 0xFFFFFFFD to be meaningful,
+    # all sequence locked transactions are opting into RBF.
+    sequence: int = 0
     witness: Witness = field(
         default=Witness(),
-        init=False,
-        repr=False,
-        compare=False,
+        init=True,  # must be True, probably a bug of dataclasses_json
+        repr=True,
+        compare=_TX_IN_COMPARES_WITNESS,
         metadata=config(field_name="txinwitness"),
     )
-    sequence: int = 0
     check_validity: InitVar[bool] = True
 
     @property

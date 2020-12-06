@@ -17,7 +17,7 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.tx import Tx
-from btclib.tx_in import OutPoint, TxIn
+from btclib.tx_in import _TX_IN_COMPARES_WITNESS, OutPoint, TxIn
 from btclib.utils import bytes_from_octets
 from btclib.witness import Witness
 
@@ -105,7 +105,9 @@ def test_tx_in() -> None:
     assert tx_in.nSequence == tx_in.nSequence
     assert tx_in.is_coinbase()
     assert not tx_in.is_segwit()
-    assert tx_in == TxIn.deserialize(tx_in.serialize())
+    tx_in2 = TxIn.deserialize(tx_in.serialize())
+    assert not tx_in2.is_segwit()
+    assert tx_in == tx_in2
 
     tx_id = bytes.fromhex(
         "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e"
@@ -123,7 +125,9 @@ def test_tx_in() -> None:
     assert tx_in.nSequence == tx_in.nSequence
     assert not tx_in.is_coinbase()
     assert not tx_in.is_segwit()
-    assert tx_in == TxIn.deserialize(tx_in.serialize())
+    tx_in2 = TxIn.deserialize(tx_in.serialize())
+    assert not tx_in2.is_segwit()
+    assert tx_in == tx_in2
 
     prev_out = OutPoint(
         bytes.fromhex(
@@ -150,8 +154,10 @@ def test_tx_in() -> None:
     assert not tx_in.is_coinbase()
     assert tx_in.is_segwit()
     tx_in2 = TxIn.deserialize(tx_in.serialize())
-    assert tx_in == tx_in2
     assert not tx_in2.is_segwit()
+    assert tx_in == tx_in2 or _TX_IN_COMPARES_WITNESS
+
+    assert tx_in != OutPoint()
 
     tx_in.sequence = 0xFFFFFFFF + 1
     with pytest.raises(BTClibValueError, match="invalid sequence: "):
@@ -194,9 +200,8 @@ def test_dataclasses_json_dict() -> None:
     # TxIn dataclass from dict
     tx_in2 = TxIn.from_dict(tx_in_dict)
     assert isinstance(tx_in2, TxIn)
-    # FIXME
-    # assert tx_in2.is_segwit()
-    # assert tx_in2.witness
-    # assert tx_in2.witness.stack
+    assert tx_in2.is_segwit()
+    assert tx_in2.witness
+    assert tx_in2.witness.stack
 
     assert tx_in == tx_in2

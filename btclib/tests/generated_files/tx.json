@@ -13,6 +13,7 @@
                 "vout": 0
             },
             "scriptSig": "",
+            "sequence": 0,
             "txinwitness": {
                 "stack": [
                     "",
@@ -22,8 +23,7 @@
                     "01",
                     "635321024713c6e66da107644c64ab84189840e78310b247cc7fa563d6f98f2a46900a0d21026cb4cc5bbde0e59806657b1780a9a3b333a8acb6fcac48ade7d52e2b34aa30042102b6615b55426b7362cd82897db26b1423e3732f98eaea5cd2c150c49a46003c6521033557edc1a6aec5a28648f6e22deb542e9ee8c9219d5bb5e81d0fe23c8f955ad221039d7f91444b2d4c4e89a1f550fa7d32c5d9b75a49b14c54f10109d95f637bb7de2103d9cdf5c6da8b2fd66fa918916cc93d831f16781c01ca759c9cf60acf94268bbd56ae67029000b275522102d02570ed9db9ee6abd13a6c269758debcfaa1aa6d0857553e5b6a5cf764ffe0a21030968209ccaaae1c0f8ee7a4a3594b3504fd3f89db1c259aedbdce3aba29f219321036069299a8a990474eb34786bf446e724088896a54bf848650c9543f18af602dc53ae68"
                 ]
-            },
-            "sequence": 0
+            }
         },
         {
             "prev_out": {
@@ -31,6 +31,7 @@
                 "vout": 2
             },
             "scriptSig": "",
+            "sequence": 0,
             "txinwitness": {
                 "stack": [
                     "",
@@ -40,8 +41,7 @@
                     "01",
                     "6353210201e160d62736abeaeba05579cc0cd1f1e576f22a857a3018eb70c470200751a1210219ffa5133cc9a5489a02d3e9662271fdb868311dba2279fbab939684a3122a762102e0f4f308284422e3afcb44ba5bfb3e76b4974298deadd5ee6a9378e2e370c106210315d72af12f6ba144f4ac231ec9acc6f5d4bf4ede4eb6a26f26c08c27eb3192ff2103523acefd7a2b5e66a75b19319dc8f6de8286b0c39d5034926f176ba7ffa6ae2d21038856b967a291bddf2d7cd687d182a1ceed7ecee0490b4bb326780ca9fcd7398856ae67029000b2755221027d963a02578fee175dacb6a78193029ef9d74e7412fb6621faf4c49cf36378ac210311f55b234347e41b2c742f80f4d7c19cad47b50f145bc83b47f9b7fcadea0d1f21034ce67fe12931b3e1c1ba9e6d7d4ea9b037387504b9da71625e2fa8e556ef64c653ae68"
                 ]
-            },
-            "sequence": 0
+            }
         },
         {
             "prev_out": {
@@ -49,6 +49,7 @@
                 "vout": 0
             },
             "scriptSig": "",
+            "sequence": 0,
             "txinwitness": {
                 "stack": [
                     "",
@@ -58,8 +59,7 @@
                     "01",
                     "635321028de26d898b3b0873ef0456176d8b9da8e3d89ea6033436d50937d024eb53e1712102ed3b982fdb6ab18fbad6669bc5c203546c07426d4a2f093094719b81709638cd2103562b900ca6e7b396c2351b3fd85d822d4caf6200b967d479b6cd7899117f0b6b2103a62e39cc46205d47f7d27fffef5e3266f140571dabab0931391ecd82a44ca3be2103c20d5d1377f49ef54aa9300c9827b483d4b487dd1ac1244650465d723370d2b92103d43db145e1314d0aaf75dc660a4320c62af59c31bdd5bf4668229737dfb2ada756ae67029000b2755221026be3646c86552fa53fda4f1cb2c76277448f1253eae7b0aea2d5601a87ab3bd52102cb38d221eca5aa143169e564c58671c952701e04476aaeb5faa596f1a3238ae32103b4339ba9e7b5952901e989a9452c76e7e2a078fe4581e33ac2684bdd2eb6935f53ae68"
                 ]
-            },
-            "sequence": 0
+            }
         },
         {
             "prev_out": {
@@ -67,6 +67,7 @@
                 "vout": 1
             },
             "scriptSig": "",
+            "sequence": 0,
             "txinwitness": {
                 "stack": [
                     "",
@@ -76,8 +77,7 @@
                     "01",
                     "6353210201e160d62736abeaeba05579cc0cd1f1e576f22a857a3018eb70c470200751a1210219ffa5133cc9a5489a02d3e9662271fdb868311dba2279fbab939684a3122a762102e0f4f308284422e3afcb44ba5bfb3e76b4974298deadd5ee6a9378e2e370c106210315d72af12f6ba144f4ac231ec9acc6f5d4bf4ede4eb6a26f26c08c27eb3192ff2103523acefd7a2b5e66a75b19319dc8f6de8286b0c39d5034926f176ba7ffa6ae2d21038856b967a291bddf2d7cd687d182a1ceed7ecee0490b4bb326780ca9fcd7398856ae67029000b2755221027d963a02578fee175dacb6a78193029ef9d74e7412fb6621faf4c49cf36378ac210311f55b234347e41b2c742f80f4d7c19cad47b50f145bc83b47f9b7fcadea0d1f21034ce67fe12931b3e1c1ba9e6d7d4ea9b037387504b9da71625e2fa8e556ef64c653ae68"
                 ]
-            },
-            "sequence": 0
+            }
         },
         {
             "prev_out": {
@@ -85,6 +85,7 @@
                 "vout": 2
             },
             "scriptSig": "",
+            "sequence": 0,
             "txinwitness": {
                 "stack": [
                     "",
@@ -94,8 +95,7 @@
                     "01",
                     "6353210259246cd17c8d53905433addab21cd487b23d54d62cfb9761b3ba363d1b5a5e162102a8abda57bbe06a032c1291919b3cd00ef0cb6eb17c0fc597302d8f1351ee1e982102aa33562fb2f68339cdde82ae72b5c03d0d94bd6d7aa450f277a0d8e5a34057b621037f58302022b0a45aaac0f6c36b7aa31c360591d3c0bc9cf5f1be89e754fd06b12103c1a08423d97789df2041d5495e24989a2efe9bce11fba44fdca88401dd82a3e72103ecbe5b5e1fe061bae0a68beb6b1b47f0917573dece6f27ce43c48c6b2418f7fa56ae67029000b275522102691608fe5279ab4b255671a7c4c41f7fa9c9147bc5b617c9f55b8c6e7a1bfc4e2102ad4ecdb695da7c33b4df539e2f6d7689ddfc1cbc49cbaf2974a83558f2533f6421031ce6d8a48477f7425164b6838b37dad4c8889e3c17b51d9eb5c5802fed014f6b53ae68"
                 ]
-            },
-            "sequence": 0
+            }
         },
         {
             "prev_out": {
@@ -103,6 +103,7 @@
                 "vout": 1
             },
             "scriptSig": "",
+            "sequence": 0,
             "txinwitness": {
                 "stack": [
                     "",
@@ -112,8 +113,7 @@
                     "01",
                     "635321024a67f62cafddfcac0fd49301ba03c5fdab8458b55b352f2db1867ff3f9119b9f21031c4c3c3a3fe3f4b5bdc77b891ceaf9dff0ee59ea665181866c2f31dca0e0e70b21031daaff38af812b50b2f6349237e21b5dee9b3f236fd7c8ab332fbbbe40072ee221036138cc6fe2a04b4f1af9d30c680fd764bbc03365a9de4416fe8e5007d51d8bd42103a2dbd6646c85eda43f84937df0147147a8ead1412a0f16504d82bb4d2886cb632103f128c04b445fee333f7de0d0276994378d22e22b3062280aad4ef05587d61e9356ae67029000b27552210249dbdef8ca8ccf02d0d06f16001a203ac91809a385c13cfefaeac802f220310321037bf93514a279393ea336442716b913e279a68e631fde493aae0d53afbb120f3e210398daaf661e8c4a4805f39793d36f9e474eddc2b5fb71f6560a88ffd7850a2dcb53ae68"
                 ]
-            },
-            "sequence": 0
+            }
         },
         {
             "prev_out": {
@@ -121,6 +121,7 @@
                 "vout": 37
             },
             "scriptSig": "",
+            "sequence": 0,
             "txinwitness": {
                 "stack": [
                     "",
@@ -130,8 +131,7 @@
                     "01",
                     "635321025c127daf44c5bf41afa5451efe2dc260e39c22c83087acf8004e3afa5a2169d021028f35d5ab9a2c59fbc07a1b0fd1eb92c88fbc6f2d375886c5138c7a6ae1ab8e8c2102e2427970e0e3819f3da45f01dac33f5c8003f122cc93141255ef54ea54d9ec552102efbe3467ac9c7344c2b9f75af795d2318d1387fc8c20483b1d46cb0b0855fb70210375f362950584418de17a6ac3177a54326f6851da90f451b92bd86de3d695b7bc2103e51858afce650f869a98a7443de7e183f9051c62ed256cac06a52be7a8481e5256ae67029000b27552210225a66a5fffc812ed5d7bca463ce5c5d97083c76cd07aa552d67b3f619cf3da3921031c3922e7a47247049ec921c5783c7457aa2dbdf69ea8db7d26b58f04105f70e82103c92838e44e51361b0f73d11ac0ad3b063a79939a6ebe38a7248c8327a40f6ce953ae68"
                 ]
-            },
-            "sequence": 0
+            }
         },
         {
             "prev_out": {
@@ -139,6 +139,7 @@
                 "vout": 0
             },
             "scriptSig": "",
+            "sequence": 0,
             "txinwitness": {
                 "stack": [
                     "",
@@ -148,8 +149,7 @@
                     "01",
                     "63532102695ef7c0346b3bd8f993bda70b1a30d2c465bdfd75c7adf7fb987487499c77b521029bed4961cd9ef7f94c43091eef52032170b5e617c8b039ec67de9454a682c2052102c348ea6d3fe1e4e370f1c589bb527d84195b52d08757f3df99cd95d2f51b88c72102cc3399cc60df6fe0acc55174149d57e6bfb7877a326f04006809d62c1bc6f90d2103d9b42a2936e7ca9ac43971f46961721ab0c0df39dfb922d53b5342d37bb5376b2103e6cb78b35f97f514df47ee045955e8e18ddf924f6def9c6e21ec3a5c023f783a56ae67029000b275522102c2f153ed8c96e15b585391eb06cae36586909453a43250ac0b9eaaa674a465e121036ff2bccf748c9086f377eec223e263e66ef0bdd11427997b33bd3c5bb3c51ed52103930ffc2e69b9c48315658f71f134993f7ffdd93e08d2413cbc040dbfa2ce033953ae68"
                 ]
-            },
-            "sequence": 0
+            }
         }
     ],
     "vout": [
