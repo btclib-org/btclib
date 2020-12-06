@@ -16,15 +16,7 @@ test vector from https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 import json
 from os import path
 
-from btclib import dsa, script
-from btclib.sign_hash import (
-    ALL,
-    ANYONECANPAY,
-    SINGLE,
-    _get_legacy_script_codes,
-    legacy,
-    sign_hash_from_prev_out,
-)
+from btclib import dsa, script, sign_hash
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
@@ -36,23 +28,21 @@ from btclib.tx_out import TxOut
 
 # block 170
 def test_first_transaction():
-    tx = Tx.deserialize(
-        "0100000001c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd3704000000004847304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901ffffffff0200ca9a3b00000000434104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac00286bee0000000043410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac00000000"
-    )
-    previous_txout = TxOut(
+    tx_bytes = "0100000001c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd3704000000004847304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901ffffffff0200ca9a3b00000000434104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac00286bee0000000043410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac00000000"
+    tx = Tx.deserialize(tx_bytes)
+    prev_out = TxOut(
         value=5000000000,
         script_pub_key=bytes.fromhex(
             "410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac"
         ),
     )
-    sign_hash = sign_hash_from_prev_out(previous_txout, tx, 0, ALL)
-    assert (
-        sign_hash.hex()
-        == "7a05c6145f10101e9d6325494245adf1297d80f8f38d4d576d57cdba220bcb19"
+    hash_ = sign_hash.from_prev_out(prev_out, tx, 0, sign_hash.ALL)
+    assert hash_ == bytes.fromhex(
+        "7a05c6145f10101e9d6325494245adf1297d80f8f38d4d576d57cdba220bcb19"
     )
     pub_key = "0411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3"
     signature = "304402204E45E16932B8AF514961A1D3A1A25FDF3F4F7732E9D624C6C61548AB5FB8CD410220181522EC8ECA07DE4860A4ACDD12909D831CC56CBBAC4622082221A8768D1D0901"
-    assert dsa._verify(sign_hash, bytes.fromhex(pub_key), bytes.fromhex(signature)[:-1])
+    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 # 8fea2a92db2940ebce62610b162bfe0ca13229e08cb384a886a6f677e2812e52
@@ -84,9 +74,9 @@ def test_legacy_p2pkh():
             "OP_CHECKSIG",
         ]
     )
-    previous_txout = TxOut(1051173696, script_pub_key)
-    sign_hash = sign_hash_from_prev_out(previous_txout, tx, 0, ALL)
-    assert dsa._verify(sign_hash, bytes.fromhex(pub_key), bytes.fromhex(signature)[:-1])
+    prev_out = TxOut(1051173696, script_pub_key)
+    hash_ = sign_hash.from_prev_out(prev_out, tx, 0, sign_hash.ALL)
+    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 # the following tests are taken from python-bitcoinlib tests
@@ -109,8 +99,8 @@ def test_p2pk():
         [TxIn(OutPoint(funding_tx.tx_id, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
-    sign_hash = sign_hash_from_prev_out(funding_tx.vout[0], receiving_tx, 0, ALL)
-    assert dsa._verify(sign_hash, bytes.fromhex(pub_key), bytes.fromhex(signature)[:-1])
+    hash_ = sign_hash.from_prev_out(funding_tx.vout[0], receiving_tx, 0, sign_hash.ALL)
+    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_p2pkh():
@@ -140,8 +130,8 @@ def test_p2pkh():
         [TxIn(OutPoint(funding_tx.tx_id, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
-    sign_hash = sign_hash_from_prev_out(funding_tx.vout[0], receiving_tx, 0, ALL)
-    assert dsa._verify(sign_hash, bytes.fromhex(pub_key), bytes.fromhex(signature)[:-1])
+    hash_ = sign_hash.from_prev_out(funding_tx.vout[0], receiving_tx, 0, sign_hash.ALL)
+    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_p2pk_anyonecanpay():
@@ -163,10 +153,10 @@ def test_p2pk_anyonecanpay():
         [TxIn(OutPoint(funding_tx.tx_id, 0), script_sig, 0xFFFFFFFF)],
         [TxOut(0, b"")],
     )
-    sign_hash = sign_hash_from_prev_out(
-        funding_tx.vout[0], receiving_tx, 0, ANYONECANPAY | ALL
+    hash_ = sign_hash.from_prev_out(
+        funding_tx.vout[0], receiving_tx, 0, sign_hash.ANYONECANPAY | sign_hash.ALL
     )
-    assert dsa._verify(sign_hash, bytes.fromhex(pub_key), bytes.fromhex(signature)[:-1])
+    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_sign_hashsingle_bug():
@@ -183,12 +173,11 @@ def test_sign_hashsingle_bug():
         ]
     )
 
-    previous_txout = TxOut(0, script_pub_key)
-    tx = Tx.deserialize(
-        "01000000020002000000000000000000000000000000000000000000000000000000000000000000000151ffffffff0001000000000000000000000000000000000000000000000000000000000000000000006b483045022100c9cdd08798a28af9d1baf44a6c77bcc7e279f47dc487c8c899911bc48feaffcc0220503c5c50ae3998a733263c5c0f7061b483e2b56c4c41b456e7d2f5a78a74c077032102d5c25adb51b61339d2b05315791e21bbe80ea470a49db0135720983c905aace0ffffffff010000000000000000015100000000"
-    )
-    sign_hash = sign_hash_from_prev_out(previous_txout, tx, 1, SINGLE)
-    assert dsa._verify(sign_hash, bytes.fromhex(pub_key), bytes.fromhex(signature)[:-1])
+    prev_out = TxOut(0, script_pub_key)
+    tx_bytes = "01000000020002000000000000000000000000000000000000000000000000000000000000000000000151ffffffff0001000000000000000000000000000000000000000000000000000000000000000000006b483045022100c9cdd08798a28af9d1baf44a6c77bcc7e279f47dc487c8c899911bc48feaffcc0220503c5c50ae3998a733263c5c0f7061b483e2b56c4c41b456e7d2f5a78a74c077032102d5c25adb51b61339d2b05315791e21bbe80ea470a49db0135720983c905aace0ffffffff010000000000000000015100000000"
+    tx = Tx.deserialize(tx_bytes)
+    hash_ = sign_hash.from_prev_out(prev_out, tx, 1, sign_hash.SINGLE)
+    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_test_vectors():
@@ -197,11 +186,10 @@ def test_test_vectors():
     with open(filename, "r") as file_:
         data = json.load(file_)
     data = data[1:]  # skip column headers
-    for raw_transaction, raw_script, input_index, hashType, sign_hash in data:
-        script_code = _get_legacy_script_codes(raw_script)[0]
-        tx = Tx.deserialize(raw_transaction)
-        if hashType < 0:
-            hashType = 0xFFFFFFFF + 1 + hashType
-        actual_sign_hash = legacy(script_code, tx, input_index, hashType)
-        expected_sign_hash = bytes.fromhex(sign_hash)[::-1]
-        assert expected_sign_hash == actual_sign_hash
+    for raw_tx, raw_script, input_index, hash_type, exp_hash in data:
+        script_ = sign_hash._legacy_script(raw_script)[0]
+        tx = Tx.deserialize(raw_tx)
+        if hash_type < 0:
+            hash_type += 0xFFFFFFFF + 1
+        actual_hash = sign_hash.legacy(script_, tx, input_index, hash_type)
+        assert actual_hash == bytes.fromhex(exp_hash)[::-1]

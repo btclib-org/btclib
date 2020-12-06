@@ -34,7 +34,7 @@ from .psbt_out import (
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
 )
-from .sign_hash import assert_valid_sig_hash_type
+from .sign_hash import assert_valid_hash_type
 from .tx import Tx
 from .tx_out import TxOut
 from .witness import Witness
@@ -192,7 +192,7 @@ class PsbtIn(DataClassJsonMixin):
             self.witness_utxo.assert_valid()
 
         if self.sig_hash_type:
-            assert_valid_sig_hash_type(self.sig_hash_type)
+            assert_valid_hash_type(self.sig_hash_type)
 
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
