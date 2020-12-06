@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2020 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -17,7 +17,7 @@ from . import var_bytes
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata
-from .witness import TxInWitness
+from .witness import Witness
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
@@ -103,8 +103,8 @@ class TxIn(DataClassJsonMixin):
             field_name="scriptSig", encoder=lambda v: v.hex(), decoder=bytes.fromhex
         ),
     )
-    _tx_in_witness: TxInWitness = field(
-        default=TxInWitness(),
+    witness: Witness = field(
+        default=Witness(),
         init=False,
         repr=False,
         compare=False,

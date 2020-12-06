@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2020 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -36,7 +36,7 @@ def test_block_1() -> None:
     assert block.size == 215
     assert block.weight == 536
     assert block.height is None
-    assert not block.segwit()
+    assert not block.has_segwit_tx()
     assert block.serialize() == block_bytes
 
     header = block.header
@@ -132,7 +132,7 @@ def test_block_170() -> None:
     assert block.size == 490
     assert block.weight == 1636
     assert block.height is None
-    assert not block.segwit()
+    assert not block.has_segwit_tx()
     assert block.serialize() == block_bytes
 
     header = block.header
@@ -163,7 +163,7 @@ def test_block_200000() -> None:
     assert block.size == 247_533
     assert block.weight == 989_800
     assert block.height == 200_000
-    assert not block.segwit()
+    assert not block.has_segwit_tx()
     assert block.serialize() == block_bytes
 
     header = block.header
@@ -223,12 +223,12 @@ def test_block_481824() -> None:
         assert 0 <= header.difficulty - 888_171_856_257 < 1
 
         if i:  # segwit nodes see the witness data
-            assert block.segwit()
+            assert block.has_segwit_tx()
             assert block.size == 989_323
             assert block.weight == 3_954_548
             assert block.vsize == 988_637
         else:  # legacy nodes see NO witness data
-            assert not block.segwit()
+            assert not block.has_segwit_tx()
             assert block.size == 988_519
             assert block.weight == 3_953_744
             assert block.vsize == 988_436

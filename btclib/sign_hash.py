@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2020 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -197,7 +197,7 @@ def sign_hash_from_prev_out(
         elif script_type == "p2wsh":
             # the real script is contained in the witness
             script_code = _get_witness_v0_script_codes(
-                tx.vin[input_index]._tx_in_witness.stack[-1]
+                tx.vin[input_index].witness.stack[-1]
             )[0]
 
         value = previous_output.value

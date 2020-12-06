@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2020 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -37,7 +37,7 @@ from .psbt_out import (
 from .sign_hash import assert_valid_sig_hash_type
 from .tx import Tx
 from .tx_out import TxOut
-from .witness import TxInWitness
+from .witness import Witness
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
@@ -120,13 +120,13 @@ def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
         raise BTClibTypeError("invalid final script_sig")
 
 
-def _deserialize_final_script_witness(k: bytes, v: bytes) -> TxInWitness:
+def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
     "Return the dataclass element from its binary representation."
 
     if len(k) != 1:
         err_msg = f"invalid final script witness key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return TxInWitness.deserialize(v)
+    return Witness.deserialize(v)
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -164,7 +164,7 @@ class PsbtIn(DataClassJsonMixin):
     final_script_sig: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    final_script_witness: TxInWitness = TxInWitness()
+    final_script_witness: Witness = Witness()
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
@@ -174,8 +174,8 @@ class PsbtIn(DataClassJsonMixin):
     check_validity: InitVar[bool] = True
 
     @property
-    def sign_hash(self) -> int:
-        "Return the sign_hash int for compatibility with PartiallySignedInput."
+    def sig_hash(self) -> int:
+        "Return the sig_hash int for compatibility with PartiallySignedInput."
         return self.sig_hash_type or 0
 
     def __post_init__(self, check_validity: bool) -> None:

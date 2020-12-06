@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2020 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -18,11 +18,11 @@ from .alias import BinaryData
 from .exceptions import BTClibTypeError
 from .utils import bytesio_from_binarydata
 
-_TxInWitness = TypeVar("_TxInWitness", bound="TxInWitness")
+_TxInWitness = TypeVar("_TxInWitness", bound="Witness")
 
 
 @dataclass
-class TxInWitness(DataClassJsonMixin):
+class Witness(DataClassJsonMixin):
     stack: List[bytes] = field(
         default_factory=list,
         metadata=config(
@@ -46,7 +46,7 @@ class TxInWitness(DataClassJsonMixin):
             raise BTClibTypeError("invalid witness")
 
     def serialize(self, assert_valid: bool = True) -> bytes:
-        "Return the serialization of the TxInWitness."
+        "Return the serialization of the Witness."
 
         if assert_valid:
             self.assert_valid()
@@ -58,7 +58,7 @@ class TxInWitness(DataClassJsonMixin):
     def deserialize(
         cls: Type[_TxInWitness], data: BinaryData, assert_valid: bool = True
     ) -> _TxInWitness:
-        "Return a TxInWitness by parsing binary data."
+        "Return a Witness by parsing binary data."
 
         data = bytesio_from_binarydata(data)
         witness = cls(check_validity=False)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2020 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -28,7 +28,7 @@ from .exceptions import BTClibValueError
 from .tx_in import TxIn
 from .tx_out import TxOut
 from .utils import bytesio_from_binarydata, hash256
-from .witness import TxInWitness
+from .witness import Witness
 
 _SEGWIT_MARKER = b"\x00\x01"
 
@@ -141,8 +141,8 @@ class Tx(DataClassJsonMixin):
     def vsize(self) -> int:
         return ceil(self.weight / 4)
 
-    def segwit(self) -> bool:
-        return any(tx_in._tx_in_witness for tx_in in self.vin)
+    def is_segwit(self) -> bool:
+        return any(tx_in.witness for tx_in in self.vin)
 
     def is_coinbase(self) -> bool:
         return len(self.vin) == 1 and self.vin[0].is_coinbase()
@@ -153,15 +153,15 @@ class Tx(DataClassJsonMixin):
         if not 0 < self.version <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")
 
+        # must be a 4-bytes int
+        if not 0 <= self.lock_time <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid lock time: {self.lock_time}")
+
         for tx_in in self.vin:
             tx_in.assert_valid()
 
         for tx_out in self.vout:
             tx_out.assert_valid()
-
-        # must be a 4-bytes int
-        if not 0 <= self.lock_time <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid lock time: {self.lock_time}")
 
         self._set_properties()
 
@@ -170,7 +170,7 @@ class Tx(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        segwit = include_witness and self.segwit()
+        segwit = include_witness and self.is_segwit()
 
         out = self.version.to_bytes(4, byteorder="little", signed=False)
         out += _SEGWIT_MARKER if segwit else b""
@@ -179,9 +179,7 @@ class Tx(DataClassJsonMixin):
         out += var_int.serialize(len(self.vout))
         out += b"".join(tx_out.serialize(assert_valid) for tx_out in self.vout)
         if segwit:
-            out += b"".join(
-                tx_in._tx_in_witness.serialize(assert_valid) for tx_in in self.vin
-            )
+            out += b"".join(tx_in.witness.serialize(assert_valid) for tx_in in self.vin)
         out += self.lock_time.to_bytes(4, byteorder="little", signed=False)
 
         return out
@@ -210,7 +208,7 @@ class Tx(DataClassJsonMixin):
 
         if segwit:
             for tx_in in tx.vin:
-                tx_in._tx_in_witness = TxInWitness.deserialize(stream)
+                tx_in.witness = Witness.deserialize(stream, assert_valid)
 
         tx.lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
