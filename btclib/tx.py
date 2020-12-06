@@ -98,8 +98,8 @@ class Tx(DataClassJsonMixin):
         self._tx_id = self.tx_id
         self._hash = self.hash
         self._size = self.size
-        self._weight = self.weight
         self._vsize = self.vsize
+        self._weight = self.weight
 
     def to_dict(self, encode_json=False) -> Dict[str, Json]:
         self._set_properties()
@@ -132,14 +132,18 @@ class Tx(DataClassJsonMixin):
         return len(self.serialize(include_witness=True, assert_valid=False))
 
     @property
+    def vsize(self) -> int:
+        return ceil(self.weight / 4)
+
+    @property
     def weight(self) -> int:
         a = len(self.serialize(include_witness=False, assert_valid=False)) * 3
         b = len(self.serialize(include_witness=True, assert_valid=False))
         return a + b
 
     @property
-    def vsize(self) -> int:
-        return ceil(self.weight / 4)
+    def vwitness(self) -> List[Witness]:
+        return [tx_in.witness for tx_in in self.vin]
 
     def is_segwit(self) -> bool:
         return any(tx_in.witness for tx_in in self.vin)
