@@ -30,7 +30,7 @@ from btclib.psbt_out import PsbtOut
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
-from btclib.witness import Witness
+from btclib.witness import TxInWitness
 
 # first tests are part of the official BIP174 test vectors
 
@@ -512,7 +512,7 @@ def test_exceptions() -> None:
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.tx.vin[0].witness = Witness([b""])
+    psbt.tx.vin[0]._tx_in_witness = TxInWitness([b""])
     err_msg = "non empty script_sig or witness"
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):

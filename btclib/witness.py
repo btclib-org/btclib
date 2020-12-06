@@ -18,11 +18,11 @@ from .alias import BinaryData
 from .exceptions import BTClibTypeError
 from .utils import bytesio_from_binarydata
 
-_Witness = TypeVar("_Witness", bound="Witness")
+_TxInWitness = TypeVar("_TxInWitness", bound="TxInWitness")
 
 
 @dataclass
-class Witness(DataClassJsonMixin):
+class TxInWitness(DataClassJsonMixin):
     stack: List[bytes] = field(
         default_factory=list,
         metadata=config(
@@ -46,7 +46,7 @@ class Witness(DataClassJsonMixin):
             raise BTClibTypeError("invalid witness")
 
     def serialize(self, assert_valid: bool = True) -> bytes:
-        "Return the serialization of the Witness."
+        "Return the serialization of the TxInWitness."
 
         if assert_valid:
             self.assert_valid()
@@ -56,9 +56,9 @@ class Witness(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_Witness], data: BinaryData, assert_valid: bool = True
-    ) -> _Witness:
-        "Return a Witness by parsing binary data."
+        cls: Type[_TxInWitness], data: BinaryData, assert_valid: bool = True
+    ) -> _TxInWitness:
+        "Return a TxInWitness by parsing binary data."
 
         data = bytesio_from_binarydata(data)
         witness = cls(check_validity=False)

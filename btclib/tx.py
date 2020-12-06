@@ -28,7 +28,7 @@ from .exceptions import BTClibValueError
 from .tx_in import TxIn
 from .tx_out import TxOut
 from .utils import bytesio_from_binarydata, hash256
-from .witness import Witness
+from .witness import TxInWitness
 
 _SEGWIT_MARKER = b"\x00\x01"
 
@@ -142,7 +142,7 @@ class Tx(DataClassJsonMixin):
         return ceil(self.weight / 4)
 
     def segwit(self) -> bool:
-        return any(tx_in.witness for tx_in in self.vin)
+        return any(tx_in._tx_in_witness for tx_in in self.vin)
 
     def is_coinbase(self) -> bool:
         return len(self.vin) == 1 and self.vin[0].is_coinbase()
@@ -179,7 +179,9 @@ class Tx(DataClassJsonMixin):
         out += var_int.serialize(len(self.vout))
         out += b"".join(tx_out.serialize(assert_valid) for tx_out in self.vout)
         if segwit:
-            out += b"".join(tx_in.witness.serialize(assert_valid) for tx_in in self.vin)
+            out += b"".join(
+                tx_in._tx_in_witness.serialize(assert_valid) for tx_in in self.vin
+            )
         out += self.lock_time.to_bytes(4, byteorder="little", signed=False)
 
         return out
@@ -208,7 +210,7 @@ class Tx(DataClassJsonMixin):
 
         if segwit:
             for tx_in in tx.vin:
-                tx_in.witness = Witness.deserialize(stream)
+                tx_in._tx_in_witness = TxInWitness.deserialize(stream)
 
         tx.lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 

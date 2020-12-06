@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Signatures of transaction hashes (sign_hash) and sign_hash types.
+"""Signatures of transaction hashes and signature hash types.
 
 https://medium.com/@bitaps.com/exploring-bitcoin-signature-hash-types-15427766f0a9
 https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sign_hash
@@ -18,10 +18,11 @@ https://wiki.bitcoinsv.io/index.php/SIG_HASH_flags
 from copy import deepcopy
 from typing import List, Union
 
-from . import script, tx, tx_out, var_bytes
+from . import script, tx_out, var_bytes
 from .alias import Octets, ScriptToken
 from .exceptions import BTClibTypeError, BTClibValueError
 from .script_pub_key import payload_from_script_pub_key
+from .tx import Tx
 from .utils import bytes_from_octets, hash256
 
 _FIRST_FIVE_BITS = 0b11111
@@ -53,10 +54,8 @@ def _get_bytes(a: Union[int, Octets]) -> bytes:
     return bytes_from_octets(a, 32)
 
 
-def legacy(
-    script_code: bytes, transaction: tx.Tx, input_index: int, sig_hash_type: int
-) -> bytes:
-    new_tx = deepcopy(transaction)
+def legacy(script_code: bytes, tx: Tx, input_index: int, sig_hash_type: int) -> bytes:
+    new_tx = deepcopy(tx)
     for txin in new_tx.vin:
         txin.script_sig = b""
     # TODO: delete sig from script_code (even if non standard)
@@ -91,7 +90,7 @@ def legacy(
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
 def segwit_v0(
     script_code: bytes,
-    transaction: tx.Tx,
+    tx: Tx,
     input_index: int,
     sig_hash_type: int,
     amount: int,
@@ -100,7 +99,7 @@ def segwit_v0(
     hashtype_hex: str = sig_hash_type.to_bytes(4, "little").hex()
     if hashtype_hex[0] != "8":
         hash_prev_outs = b""
-        for vin in transaction.vin:
+        for vin in tx.vin:
             hash_prev_outs += _get_bytes(vin.prev_out.tx_id)[::-1]
             hash_prev_outs += vin.prev_out.vout.to_bytes(4, "little")
         hash_prev_outs = hash256(hash_prev_outs)
@@ -109,7 +108,7 @@ def segwit_v0(
 
     if hashtype_hex[1] == "1" and hashtype_hex[0] != "8":
         hash_seq = b""
-        for vin in transaction.vin:
+        for vin in tx.vin:
             hash_seq += vin.sequence.to_bytes(4, "little")
         hash_seq = hash256(hash_seq)
     else:
@@ -117,26 +116,26 @@ def segwit_v0(
 
     if hashtype_hex[1] not in ("2", "3"):
         hash_outputs = b""
-        for vout in transaction.vout:
+        for vout in tx.vout:
             hash_outputs += vout.serialize()
         hash_outputs = hash256(hash_outputs)
-    elif hashtype_hex[1] == "3" and input_index < len(transaction.vout):
-        hash_outputs = hash256(transaction.vout[input_index].serialize())
+    elif hashtype_hex[1] == "3" and input_index < len(tx.vout):
+        hash_outputs = hash256(tx.vout[input_index].serialize())
     else:
         hash_outputs = b"\x00" * 32
 
-    outpoint = _get_bytes(transaction.vin[input_index].prev_out.tx_id)[::-1]
-    outpoint += transaction.vin[input_index].prev_out.vout.to_bytes(4, "little")
+    outpoint = _get_bytes(tx.vin[input_index].prev_out.tx_id)[::-1]
+    outpoint += tx.vin[input_index].prev_out.vout.to_bytes(4, "little")
 
-    preimage = transaction.version.to_bytes(4, "little")
+    preimage = tx.version.to_bytes(4, "little")
     preimage += hash_prev_outs
     preimage += hash_seq
     preimage += outpoint
     preimage += var_bytes.serialize(script_code)
     preimage += amount.to_bytes(8, "little")  # value
-    preimage += transaction.vin[input_index].sequence.to_bytes(4, "little")
+    preimage += tx.vin[input_index].sequence.to_bytes(4, "little")
     preimage += hash_outputs
-    preimage += transaction.lock_time.to_bytes(4, "little")
+    preimage += tx.lock_time.to_bytes(4, "little")
     preimage += bytes.fromhex(hashtype_hex)
 
     return hash256(preimage)
@@ -177,7 +176,7 @@ def _get_witness_v0_script_codes(script_pub_key: Octets) -> List[bytes]:
 
 def sign_hash_from_prev_out(
     previous_output: tx_out.TxOut,
-    transaction: tx.Tx,
+    tx: Tx,
     input_index: int,
     sig_hash_type: int,
 ) -> bytes:
@@ -186,7 +185,7 @@ def sign_hash_from_prev_out(
     try:
         script_type = payload_from_script_pub_key(script_pub_key)[0]
         if script_type == "p2sh":
-            script_pub_key = transaction.vin[input_index].script_sig
+            script_pub_key = tx.vin[input_index].script_sig
             script_type = payload_from_script_pub_key(script_pub_key)[0]
     except BTClibValueError:
         script_type = "unknown"
@@ -198,11 +197,11 @@ def sign_hash_from_prev_out(
         elif script_type == "p2wsh":
             # the real script is contained in the witness
             script_code = _get_witness_v0_script_codes(
-                transaction.vin[input_index].witness.stack[-1]
+                tx.vin[input_index]._tx_in_witness.stack[-1]
             )[0]
 
         value = previous_output.value
-        return segwit_v0(script_code, transaction, input_index, sig_hash_type, value)
+        return segwit_v0(script_code, tx, input_index, sig_hash_type, value)
 
     script_code = _get_legacy_script_codes(script_pub_key)[0]
-    return legacy(script_code, transaction, input_index, sig_hash_type)
+    return legacy(script_code, tx, input_index, sig_hash_type)

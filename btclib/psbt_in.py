@@ -37,7 +37,7 @@ from .psbt_out import (
 from .sign_hash import assert_valid_sig_hash_type
 from .tx import Tx
 from .tx_out import TxOut
-from .witness import Witness
+from .witness import TxInWitness
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
@@ -120,13 +120,13 @@ def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
         raise BTClibTypeError("invalid final script_sig")
 
 
-def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
+def _deserialize_final_script_witness(k: bytes, v: bytes) -> TxInWitness:
     "Return the dataclass element from its binary representation."
 
     if len(k) != 1:
         err_msg = f"invalid final script witness key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return Witness.deserialize(v)
+    return TxInWitness.deserialize(v)
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -164,7 +164,7 @@ class PsbtIn(DataClassJsonMixin):
     final_script_sig: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    final_script_witness: Witness = Witness()
+    final_script_witness: TxInWitness = TxInWitness()
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(

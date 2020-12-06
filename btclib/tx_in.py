@@ -17,7 +17,7 @@ from . import var_bytes
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata
-from .witness import Witness
+from .witness import TxInWitness
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
@@ -103,10 +103,14 @@ class TxIn(DataClassJsonMixin):
             field_name="scriptSig", encoder=lambda v: v.hex(), decoder=bytes.fromhex
         ),
     )
-    sequence: int = 0
-    witness: Witness = field(
-        default=Witness(), metadata=config(field_name="txinwitness")
+    _tx_in_witness: TxInWitness = field(
+        default=TxInWitness(),
+        init=False,
+        repr=False,
+        compare=False,
+        metadata=config(field_name="txinwitness"),
     )
+    sequence: int = 0
     check_validity: InitVar[bool] = True
 
     @property
@@ -133,10 +137,10 @@ class TxIn(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         self.prev_out.assert_valid()
+        # TODO check script_sig
         # must be a 4-bytes int
         if not 0 <= self.sequence <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid sequence: {self.sequence}")
-        self.witness.assert_valid()
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 

@@ -40,7 +40,7 @@ from .script_pub_key import payload_from_script_pub_key
 from .tx import Tx
 from .tx_out import TxOut
 from .utils import bytes_from_octets, hash160, sha256
-from .witness import Witness
+from .witness import TxInWitness
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
 
@@ -96,7 +96,7 @@ class Psbt(DataClassJsonMixin):
             if self.tx.vin:
                 for inp in self.tx.vin:
                     inp.script_sig = b""
-                    inp.witness = Witness()
+                    inp._tx_in_witness = TxInWitness()
                 if not self.inputs:
                     self.inputs = [PsbtIn() for _ in self.tx.vin]
             if self.tx.vout and not self.outputs:
@@ -115,7 +115,7 @@ class Psbt(DataClassJsonMixin):
             raise BTClibValueError("null transaction")
 
         # ensure the tx is unsigned
-        if any(tx_in.script_sig or tx_in.witness for tx_in in self.tx.vin):
+        if any(tx_in.script_sig or tx_in._tx_in_witness for tx_in in self.tx.vin):
             raise BTClibValueError("non empty script_sig or witness")
 
         if len(self.tx.vin) != len(self.inputs):
@@ -383,7 +383,9 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         multi_sig = len(sigs) > 1
         if psbt_in.witness_script:
             psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
-            psbt_in.final_script_witness = Witness([b""]) if multi_sig else Witness()
+            psbt_in.final_script_witness = (
+                TxInWitness([b""]) if multi_sig else TxInWitness()
+            )
             psbt_in.final_script_witness.stack += sigs
             psbt_in.final_script_witness.stack += [psbt_in.witness_script]
         else:
@@ -428,5 +430,5 @@ def extract_tx(psbt: Psbt) -> Tx:
     for tx_vin, psbt_input in zip(tx.vin, psbt.inputs):
         tx_vin.script_sig = psbt_input.final_script_sig
         if psbt_input.final_script_witness:
-            tx_vin.witness = psbt_input.final_script_witness
+            tx_vin._tx_in_witness = psbt_input.final_script_witness
     return tx
