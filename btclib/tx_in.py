@@ -132,6 +132,9 @@ class TxIn(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
+    def is_segwit(self) -> bool:
+        return self.witness.stack != []
+
     def is_coinbase(self) -> bool:
         return self.prev_out.is_coinbase()
 
