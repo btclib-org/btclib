@@ -164,6 +164,8 @@ def is_p2wpkh(script_pub_key: Octets) -> bool:
 
 def is_p2wsh(script_pub_key: Octets) -> bool:
     script_pub_key = bytes_from_octets(script_pub_key)
+    # p2wsh [0, script_hash]
+    # 0x0020{32-byte script_hash}
     length = len(script_pub_key)
     return length == 34 and script_pub_key[:2] == b"\x00\x20"
 
