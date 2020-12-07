@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Signatures of transaction hashes and signature hash types.
+"""Transaction hashes to be signed and their hash types.
 
 https://medium.com/@bitaps.com/exploring-bitcoin-signature-hash-types-15427766f0a9
 https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sign_hash
@@ -158,9 +158,9 @@ def segwit_v0(script_: bytes, tx: Tx, vin_i: int, hash_type: int, amount: int) -
     return hash256(preimage)
 
 
-def from_prev_out(prev_out: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
+def from_utxo(utxo: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
-    script_pub_key = prev_out.script_pub_key
+    script_pub_key = utxo.script_pub_key
 
     # first off, handle all p2sh-wrapped scripts
     if is_p2sh(script_pub_key):
@@ -168,12 +168,12 @@ def from_prev_out(prev_out: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
     if is_p2wpkh(script_pub_key):
         script_ = _witness_v0_script(script_pub_key)[0]
-        return segwit_v0(script_, tx, vin_i, hash_type, prev_out.value)
+        return segwit_v0(script_, tx, vin_i, hash_type, utxo.value)
 
     if is_p2wsh(script_pub_key):
         # the real script is contained in the witness
         script_ = _witness_v0_script(tx.vin[vin_i].witness.stack[-1])[0]
-        return segwit_v0(script_, tx, vin_i, hash_type, prev_out.value)
+        return segwit_v0(script_, tx, vin_i, hash_type, utxo.value)
 
     script_ = _legacy_script(script_pub_key)[0]
     return legacy(script_, tx, vin_i, hash_type)
