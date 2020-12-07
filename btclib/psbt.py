@@ -22,7 +22,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, var_int
 from .alias import Octets, ScriptToken, String
-from .exceptions import BTClibTypeError, BTClibValueError
+from .exceptions import BTClibValueError
 from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
     PsbtOut,
@@ -38,7 +38,6 @@ from .psbt_out import (
 )
 from .script_pub_key import payload_from_script_pub_key
 from .tx import Tx
-from .tx_out import TxOut
 from .utils import bytes_from_octets, hash160, sha256
 from .witness import Witness
 
@@ -131,7 +130,8 @@ class Psbt(DataClassJsonMixin):
             and psbt_in.non_witness_utxo.tx_id != tx_in.prev_out.tx_id
             for psbt_in, tx_in in zip(self.inputs, self.tx.vin)
         ):
-            raise BTClibValueError("non-witness utxo does not match outpoint tx_id")
+            err_msg = "mismatched non-witness utxo / outpoint tx_id"
+            raise BTClibValueError(err_msg)
 
         if len(self.tx.vout) != len(self.outputs):
             err_msg = "mismatched number of psb.tx.vout and psbt.outputs: "
@@ -154,16 +154,7 @@ class Psbt(DataClassJsonMixin):
             non_witness_utxo = self.inputs[i].non_witness_utxo
             witness_utxo = self.inputs[i].witness_utxo
 
-            if non_witness_utxo:
-                tx_id = tx_in.prev_out.tx_id
-                if non_witness_utxo.tx_id != tx_id:
-                    err_msg = "invalid non_witness_utxo tx_id"
-                    err_msg += f": {non_witness_utxo.tx_id.hex()}"
-                    raise BTClibValueError(err_msg)
-
             if witness_utxo:
-                if not isinstance(witness_utxo, TxOut):
-                    raise BTClibTypeError("witness_utxo is not a TxOut")
                 script_pub_key = witness_utxo.script_pub_key
                 script_type = payload_from_script_pub_key(script_pub_key)[0]
                 if script_type == "p2sh":
