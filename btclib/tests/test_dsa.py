@@ -220,13 +220,15 @@ def test_crack_prv_key() -> None:
     m_2 = reduce_to_hlen(msg2)
     sig2 = dsa._sign(m_2, q, k)
 
-    qc, kc = dsa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2)
+    q_cracked, k_cracked = dsa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2)
 
     #  if the low_s convention has changed only one of s1 and s2
     sig2 = dsa.Sig(sig2.r, ec.n - sig2.s)
     qc2, kc2 = dsa.crack_prv_key(msg1, sig1, msg2, sig2.serialize())
 
-    assert (q == qc and k in (kc, ec.n - kc)) or (q == qc2 and k in (kc2, ec.n - kc2))
+    assert (q == q_cracked and k in (k_cracked, ec.n - k_cracked)) or (
+        q == qc2 and k in (kc2, ec.n - kc2)
+    )
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
         dsa.crack_prv_key(msg1, sig1, msg2, dsa.Sig(16, sig1.s))

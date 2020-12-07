@@ -42,7 +42,7 @@ from btclib.utils import hash160, sha256
 
 def test_nulldata() -> None:
 
-    OP_RETURN = b"\x6a"
+    OP_RETURN = b"\x6a"  # pylint: disable=invalid-name
 
     # self-consistency
     string = "time-stamped data"

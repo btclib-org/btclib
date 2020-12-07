@@ -28,23 +28,23 @@ from .exceptions import BTClibTypeError, BTClibValueError
 from .utils import bytes_from_octets
 
 
-def _encode_dict_bytes_bytes(d: Dict[bytes, bytes]) -> Dict[str, str]:
+def _encode_dict_bytes_bytes(dictionary: Dict[bytes, bytes]) -> Dict[str, str]:
     "Return the json representation of the dataclass element."
-    return {k.hex(): v.hex() for k, v in d.items()}
+    return {k.hex(): v.hex() for k, v in dictionary.items()}
 
 
-def _decode_dict_bytes_bytes(d: Dict[str, str]) -> Dict[bytes, bytes]:
+def _decode_dict_bytes_bytes(dictionary: Dict[str, str]) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
-    return {bytes.fromhex(k): bytes.fromhex(v) for k, v in d.items()}
+    return {bytes.fromhex(k): bytes.fromhex(v) for k, v in dictionary.items()}
 
 
-def _serialize_dict_bytes_bytes(type_: bytes, d: Dict[bytes, bytes]) -> bytes:
+def _serialize_dict_bytes_bytes(type_: bytes, dictionary: Dict[bytes, bytes]) -> bytes:
     "Return the binary representation of the dataclass element."
 
     return b"".join(
         [
             var_bytes.serialize(type_ + k) + var_bytes.serialize(v)
-            for k, v in sorted(d.items())
+            for k, v in sorted(dictionary.items())
         ]
     )
 
@@ -75,11 +75,11 @@ def _assert_valid_witness_script(witness_script: bytes) -> None:
         raise BTClibTypeError("invalid witness script")
 
 
-def _encode_hd_keypaths(d: Dict[bytes, bytes]) -> List[Dict[str, str]]:
+def _encode_hd_keypaths(dictionary: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     "Return the json representation of the dataclass element."
 
     result: List[Dict[str, str]] = []
-    for k, v in d.items():
+    for k, v in dictionary.items():
         d_str_str: Dict[str, str] = {
             "pub_key": k.hex(),
             "master_fingerprint": v[:4].hex(),

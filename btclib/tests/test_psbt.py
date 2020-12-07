@@ -266,15 +266,15 @@ def test_additional_combination() -> None:
     psbt_2 = Psbt.b64decode(psbt_str)
 
     # split the hd_keypaths dict in half
-    d = psbt_1.inputs[1].hd_keypaths
-    assert len(d) > 1
-    i = len(d) // 2
-    ll = list(d.items())
+    hd_keypaths = psbt_1.inputs[1].hd_keypaths
+    assert len(hd_keypaths) > 1
+    i = len(hd_keypaths) // 2
+    half_index = list(hd_keypaths.items())
 
     # first half
-    psbt_1.inputs[1].hd_keypaths = dict(ll[:i])
+    psbt_1.inputs[1].hd_keypaths = dict(half_index[:i])
     # second half
-    psbt_2.inputs[1].hd_keypaths = dict(ll[i:])
+    psbt_2.inputs[1].hd_keypaths = dict(half_index[i:])
 
     combined_psbt = combine_psbts([psbt_1, psbt_2])
     assert combined_psbt == psbt

@@ -68,16 +68,14 @@ from .utils import bytesio_from_binarydata, hex_string
 
 _DER_SCALAR_MARKER = b"\x02"
 _DER_SIG_MARKER = b"\x30"
-_DER_SIG = TypeVar("_DER_SIG", bound="Sig")
 
 
 def _serialize_scalar(scalar: int) -> bytes:
     # scalar is assumed to be in [1, n-1]
     elen = scalar.bit_length()
     esize = elen // 8 + 1  # not a bug: 'highest bit set' padding included here
-    x = scalar.to_bytes(esize, byteorder="big", signed=True)
-    xsize = len(x).to_bytes(1, byteorder="big")
-    return _DER_SCALAR_MARKER + xsize + x
+    scalar_bytes = scalar.to_bytes(esize, byteorder="big", signed=True)
+    return _DER_SCALAR_MARKER + var_bytes.serialize(scalar_bytes)
 
 
 def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
@@ -92,6 +90,9 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
         raise BTClibValueError(err_msg)
 
     return int.from_bytes(r_bytes, byteorder="big", signed=True)
+
+
+_Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass
@@ -139,8 +140,8 @@ class Sig(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_DER_SIG], data: BinaryData, assert_valid: bool = True
-    ) -> _DER_SIG:
+        cls: Type[_Sig], data: BinaryData, assert_valid: bool = True
+    ) -> _Sig:
         """Return a Sig by parsing binary data.
 
         Deserialize a strict ASN.1 DER representation of an ECDSA signature.

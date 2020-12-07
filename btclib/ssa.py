@@ -72,7 +72,7 @@ from .utils import (
     int_from_bits,
 )
 
-_SSA_SIG = TypeVar("_SSA_SIG", bound="Sig")
+_Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass
@@ -123,8 +123,8 @@ class Sig(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_SSA_SIG], data: BinaryData, assert_valid: bool = True
-    ) -> _SSA_SIG:
+        cls: Type[_Sig], data: BinaryData, assert_valid: bool = True
+    ) -> _Sig:
 
         stream = bytesio_from_binarydata(data)
         sig = cls(check_validity=False)
@@ -210,7 +210,7 @@ def gen_keys(prv_key: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
     return q, x_Q
 
 
-def __det_nonce(m: bytes, q: int, Q: int, a: bytes, ec: Curve, hf: HashF) -> int:
+def __det_nonce(m: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> int:
 
     # assume the random oracle model for the hash function,
     # i.e. hash values can be considered uniformly random
@@ -224,7 +224,7 @@ def __det_nonce(m: bytes, q: int, Q: int, a: bytes, ec: Curve, hf: HashF) -> int
     # the unbiased implementation is provided here,
     # which works also for very-low-cardinality test curves
 
-    randomizer = tagged_hash("BIP0340/aux", a, hf)
+    randomizer = tagged_hash("BIP0340/aux", aux, hf)
     xor = q ^ int.from_bytes(randomizer, "big")
     max_len = max(ec.nsize, hf().digest_size)
     t = xor.to_bytes(max_len, "big")
@@ -257,9 +257,9 @@ def _det_nonce(
     q, Q = gen_keys(prv_key, ec)
 
     # the auxiliary random component
-    a = secrets.token_bytes(hlen) if aux is None else bytes_from_octets(aux)
+    aux = secrets.token_bytes(hlen) if aux is None else bytes_from_octets(aux)
 
-    return __det_nonce(m, q, Q, a, ec, hf)
+    return __det_nonce(m, q, Q, aux, ec, hf)
 
 
 def det_nonce(
@@ -566,17 +566,17 @@ def _assert_batch_as_valid(
 
         c = _challenge(m, x_Q, sig.r, ec, hf)
 
-        # a in [1, n-1]
+        # rand in [1, n-1]
         # deterministically generated using a CSPRNG seeded by a
         # cryptographic hash (e.g., SHA256) of all inputs of the
         # algorithm, or randomly generated independently for each
         # run of the batch verification algorithm
-        a = 1 if i == 0 else 1 + secrets.randbelow(ec.n - 1)
-        scalars.append(a)
+        rand = 1 if i == 0 else 1 + secrets.randbelow(ec.n - 1)
+        scalars.append(rand)
         points.append(KJ)
-        scalars.append(a * c % ec.n)
+        scalars.append(rand * c % ec.n)
         points.append(QJ)
-        t += a * sig.s
+        t += rand * sig.s
 
     TJ = _mult(t, ec.GJ, ec)
     RHSJ = _multi_mult(scalars, points, ec)

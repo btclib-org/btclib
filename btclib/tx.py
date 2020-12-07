@@ -132,12 +132,12 @@ class Tx(DataClassJsonMixin):
         return super().to_dict(encode_json)
 
     @property
-    def nVersion(self) -> int:
+    def nVersion(self) -> int:  # pylint: disable=invalid-name
         "Return the nVersion int for compatibility with CTransaction."
         return self.version
 
     @property
-    def nLockTime(self) -> int:
+    def nLockTime(self) -> int:  # pylint: disable=invalid-name
         "Return the nLockTime int for compatibility with CTransaction."
         return self.lock_time
 
@@ -163,9 +163,9 @@ class Tx(DataClassJsonMixin):
 
     @property
     def weight(self) -> int:
-        a = len(self.serialize(include_witness=False, assert_valid=False)) * 3
-        b = len(self.serialize(include_witness=True, assert_valid=False))
-        return a + b
+        no_wit = len(self.serialize(include_witness=False, assert_valid=False)) * 3
+        wit = len(self.serialize(include_witness=True, assert_valid=False))
+        return no_wit + wit
 
     @property
     def vwitness(self) -> List[Witness]:

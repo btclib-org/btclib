@@ -81,17 +81,17 @@ def test_wif() -> None:
     key = b58decode(uncompressed_wif)
     assert key == uncompressed_key
 
-    compressedKey = b"\x80" + prv.to_bytes(32, byteorder="big") + b"\x01"
+    compressed_key = b"\x80" + prv.to_bytes(32, byteorder="big") + b"\x01"
     compressed_wif = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-    wif = b58encode(compressedKey)
+    wif = b58encode(compressed_key)
     assert wif == compressed_wif
     key = b58decode(compressed_wif)
-    assert key == compressedKey
+    assert key == compressed_key
 
     # string
     compressed_wif = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
     key = b58decode(compressed_wif)
-    assert key == compressedKey
+    assert key == compressed_key
 
 
 def test_integers() -> None:

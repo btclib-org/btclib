@@ -89,8 +89,10 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     return Q
 
 
-def verify(r: int, v: int, C: Point, ec: Curve = secp256k1, hf: HashF = sha256) -> bool:
-    """Open the commitment C and return True if valid."""
+def verify(
+    r: int, v: int, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
+) -> bool:
+    """Open the commitment and return True if valid."""
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
@@ -98,4 +100,4 @@ def verify(r: int, v: int, C: Point, ec: Curve = secp256k1, hf: HashF = sha256) 
         Q = commit(r, v, ec, hf)
     except Exception:  # pylint: disable=broad-except
         return False
-    return C == Q
+    return commitment == Q

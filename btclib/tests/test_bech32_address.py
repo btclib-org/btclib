@@ -170,15 +170,17 @@ def test_b32address_from_witness() -> None:
 
     # self-consistency
     addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-    wv, wp, network, _ = witness_from_b32address(addr)
-    assert b32address_from_witness(wv, wp, network) == addr
+    wit_ver, wit_prg, network, _ = witness_from_b32address(addr)
+    assert b32address_from_witness(wit_ver, wit_prg, network) == addr
 
     # string input
     addr_str = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-    wv, wp, network, _ = witness_from_b32address(addr_str)
-    assert b32address_from_witness(wv, wp, network) == addr_str.encode("ascii")
+    wit_ver, wit_prg, network, _ = witness_from_b32address(addr_str)
+    assert b32address_from_witness(wit_ver, wit_prg, network) == addr_str.encode(
+        "ascii"
+    )
 
-    wp_ints = list(wp)
+    wp_ints = list(wit_prg)
     wp_ints[0] = -1
     with pytest.raises(BTClibValueError, match="invalid value in _convertbits: "):
         _convertbits(wp_ints, 8, 5)
@@ -213,8 +215,8 @@ def test_p2wpkh() -> None:
     addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
     assert addr == p2wpkh(pub)
 
-    _, wp, _, _ = witness_from_b32address(addr)
-    assert bytes(wp) == hash160(pub)
+    _, wit_prg, _, _ = witness_from_b32address(addr)
+    assert bytes(wit_prg) == hash160(pub)
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
     err_msg = "not a private or compressed public key: "
@@ -230,12 +232,12 @@ def test_p2wpkh() -> None:
 
 def test_hash_from_bech32() -> None:
     network = "testnet"
-    wv = 0
-    wp = 20 * b"\x05"
-    addr = b32address_from_witness(wv, wp, network)
+    wit_ver = 0
+    wit_prg = 20 * b"\x05"
+    addr = b32address_from_witness(wit_ver, wit_prg, network)
     _, wp2, n_2, _ = witness_from_b32address(addr)
     assert n_2 == network
-    assert wp2 == wp
+    assert wp2 == wit_prg
 
     # witness program length (21) is not 20 or 32
     addr = b"tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
@@ -263,13 +265,13 @@ def test_p2wsh() -> None:
 
     addr = b"tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
     assert addr == p2wsh(witness_script_bytes, "testnet")
-    _, wp, _, _ = witness_from_b32address(addr)
-    assert bytes(wp) == sha256(witness_script_bytes)
+    _, wit_prg, _, _ = witness_from_b32address(addr)
+    assert bytes(wit_prg) == sha256(witness_script_bytes)
 
     addr = b"bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3"
     assert addr == p2wsh(witness_script_bytes)
-    _, wp, _, _ = witness_from_b32address(addr)
-    assert bytes(wp) == sha256(witness_script_bytes)
+    _, wit_prg, _, _ = witness_from_b32address(addr)
+    assert bytes(wit_prg) == sha256(witness_script_bytes)
 
     assert witness_from_b32address(addr)[1] == sha256(witness_script_bytes)
 

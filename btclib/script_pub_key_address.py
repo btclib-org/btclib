@@ -32,12 +32,12 @@ def script_pub_key_from_address(addr: String) -> Tuple[bytes, str]:
 
     if has_segwit_prefix(addr):
         # also check witness validity
-        wv, wp, network, is_script_hash = witness_from_b32address(addr)
-        if wv != 0:
-            raise BTClibValueError(f"unmanaged witness version: {wv}")
+        wit_ver, wit_prg, network, is_script_hash = witness_from_b32address(addr)
+        if wit_ver != 0:
+            raise BTClibValueError(f"unmanaged witness version: {wit_ver}")
         if is_script_hash:
-            return script_pub_key_from_payload("p2wsh", wp), network
-        return script_pub_key_from_payload("p2wpkh", wp), network
+            return script_pub_key_from_payload("p2wsh", wit_prg), network
+        return script_pub_key_from_payload("p2wpkh", wit_prg), network
 
     _, h160, network, is_p2sh = h160_from_b58address(addr)
     if is_p2sh:

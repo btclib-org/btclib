@@ -151,8 +151,9 @@ from .sec_point import bytes_from_point
 from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from .utils import bytesio_from_binarydata, hash160
 
-_BMS_SIG = TypeVar("_BMS_SIG", bound="Sig")
 _EXPECTED_DECODED_LENGHT = 65
+
+_Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass
@@ -187,8 +188,8 @@ class Sig(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_BMS_SIG], data: BinaryData, assert_valid: bool = True
-    ) -> _BMS_SIG:
+        cls: Type[_Sig], data: BinaryData, assert_valid: bool = True
+    ) -> _Sig:
 
         stream = bytesio_from_binarydata(data)
         sig = cls(check_validity=False)
@@ -215,8 +216,8 @@ class Sig(DataClassJsonMixin):
 
     @classmethod
     def b64decode(
-        cls: Type[_BMS_SIG], data_str: String, assert_valid: bool = True
-    ) -> _BMS_SIG:
+        cls: Type[_Sig], data_str: String, assert_valid: bool = True
+    ) -> _Sig:
         """Return the verified components of the provided BMS signature.
 
         The address-based BMS signature can be represented

@@ -132,12 +132,12 @@ class TxIn(DataClassJsonMixin):
         return self.prev_out
 
     @property
-    def scriptSig(self) -> bytes:
+    def scriptSig(self) -> bytes:  # pylint: disable=invalid-name
         "Return the scriptSig bytes for compatibility with CTxIn."
         return self.script_sig
 
     @property
-    def nSequence(self) -> int:
+    def nSequence(self) -> int:  # pylint: disable=invalid-name
         "Return the nSequence int for compatibility with CTxIn."
         return self.sequence
 

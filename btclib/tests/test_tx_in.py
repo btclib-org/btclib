@@ -74,25 +74,25 @@ def test_dataclasses_json_dict_outpoint() -> None:
 
 def test_invalid_outpoint() -> None:
 
-    op = OutPoint(b"\x01" * 31, 18, check_validity=False)
+    out_point = OutPoint(b"\x01" * 31, 18, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint tx_id: "):
-        op.assert_valid()
+        out_point.assert_valid()
 
-    op = OutPoint(b"\x01" * 32, -1, check_validity=False)
+    out_point = OutPoint(b"\x01" * 32, -1, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid vout: "):
-        op.assert_valid()
+        out_point.assert_valid()
 
-    op = OutPoint(b"\x01" * 32, 0xFFFFFFFF + 1, check_validity=False)
+    out_point = OutPoint(b"\x01" * 32, 0xFFFFFFFF + 1, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid vout: "):
-        op.assert_valid()
+        out_point.assert_valid()
 
-    op = OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF, check_validity=False)
+    out_point = OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint"):
-        op.assert_valid()
+        out_point.assert_valid()
 
-    op = OutPoint(b"\x00" * 32, 0, check_validity=False)
+    out_point = OutPoint(b"\x00" * 32, 0, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint"):
-        op.assert_valid()
+        out_point.assert_valid()
 
 
 def test_tx_in() -> None:

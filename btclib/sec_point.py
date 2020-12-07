@@ -29,11 +29,11 @@ def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -
     if Q[1] == 0:  # infinity point in affine coordinates
         raise BTClibValueError("no bytes representation for infinity point")
 
-    bPx = Q[0].to_bytes(ec.psize, byteorder="big")
+    bytes_ = Q[0].to_bytes(ec.psize, byteorder="big")
     if compressed:
-        return (b"\x03" if (Q[1] & 1) else b"\x02") + bPx
+        return (b"\x03" if (Q[1] & 1) else b"\x02") + bytes_
 
-    return b"\x04" + bPx + Q[1].to_bytes(ec.psize, byteorder="big")
+    return b"\x04" + bytes_ + Q[1].to_bytes(ec.psize, byteorder="big")
 
 
 def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
