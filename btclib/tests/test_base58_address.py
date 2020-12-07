@@ -18,16 +18,16 @@ from btclib import bip32, script, slip132
 from btclib.alias import ScriptToken
 from btclib.base58 import b58encode
 from btclib.base58_address import (
-    b58address_from_h160,
-    b58address_from_witness,
-    h160_from_b58address,
+    base58_address_from_h160,
+    base58_address_from_witness,
+    h160_from_base58_address,
     p2pkh,
     p2sh,
     p2wpkh_p2sh,
     p2wsh_p2sh,
 )
 from btclib.base58_wif import wif_from_prv_key
-from btclib.bech32_address import p2wpkh, witness_from_b32address
+from btclib.bech32_address import p2wpkh, witness_from_bech32_address
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key, hash256_from_script
 from btclib.sec_point import bytes_from_point, point_from_octets
@@ -36,23 +36,23 @@ from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.utils import hash160
 
 
-def test_b58address_from_h160() -> None:
+def test_base58_address_from_h160() -> None:
     addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    prefix, payload, network, _ = h160_from_b58address(addr)
-    assert addr == b58address_from_h160(prefix, payload, network)
+    prefix, payload, network, _ = h160_from_base58_address(addr)
+    assert addr == base58_address_from_h160(prefix, payload, network)
 
     addr = b"16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
-    prefix, payload, network, _ = h160_from_b58address(addr)
-    assert addr == b58address_from_h160(prefix, payload, network)
+    prefix, payload, network, _ = h160_from_base58_address(addr)
+    assert addr == base58_address_from_h160(prefix, payload, network)
 
     addr = b"37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
-    prefix, payload, network, _ = h160_from_b58address(addr)
-    assert addr == b58address_from_h160(prefix, payload, network)
+    prefix, payload, network, _ = h160_from_base58_address(addr)
+    assert addr == base58_address_from_h160(prefix, payload, network)
 
     err_msg = "invalid mainnet base58 address prefix: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bad_prefix = b"\xbb"
-        b58address_from_h160(bad_prefix, payload, network)
+        base58_address_from_h160(bad_prefix, payload, network)
 
 
 def test_p2pkh_from_wif() -> None:
@@ -78,20 +78,20 @@ def test_p2pkh_from_pub_key() -> None:
     pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     addr = p2pkh(pub)
     assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    _, h160, _, _ = h160_from_b58address(addr)
+    _, h160, _, _ = h160_from_base58_address(addr)
     assert h160 == hash160(pub)
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
     addr = p2pkh(uncompr_pub, compressed=False)
     assert addr == b"16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
-    _, h160, _, _ = h160_from_b58address(addr)
+    _, h160, _, _ = h160_from_base58_address(addr)
     assert h160 == hash160(uncompr_pub)
 
     # trailing/leading spaces in string
     pub = "  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     addr = p2pkh(pub)
     assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    _, h160, _, _ = h160_from_b58address(addr)
+    _, h160, _, _ = h160_from_base58_address(addr)
     assert h160 == hash160(pub)
 
     pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  "
@@ -117,7 +117,7 @@ def test_p2sh() -> None:
     addr = p2sh(script_pub_key, network)
     assert addr == b"37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
 
-    _, redeem_script_hash, network2, is_script_hash = h160_from_b58address(addr)
+    _, redeem_script_hash, network2, is_script_hash = h160_from_base58_address(addr)
     assert network == network2
     assert is_script_hash
     assert redeem_script_hash == hash160(script.serialize(script_pub_key))
@@ -131,7 +131,7 @@ def test_p2sh() -> None:
     script.serialize(output_script)
 
     # address with trailing/leading spaces
-    _, h160, network2, is_script_hash = h160_from_b58address(
+    _, h160, network2, is_script_hash = h160_from_base58_address(
         " 37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP "
     )
     assert network == network2
@@ -144,7 +144,7 @@ def test_p2w_p2sh() -> None:
     pub_key = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     h160pub_key, network = hash160_from_key(pub_key)
     b58addr = p2wpkh_p2sh(pub_key, network)
-    b58addr2 = b58address_from_witness(h160pub_key, network)
+    b58addr2 = base58_address_from_witness(h160pub_key, network)
     assert b58addr2 == b58addr
 
     script_pub_key: List[ScriptToken] = [
@@ -156,12 +156,12 @@ def test_p2w_p2sh() -> None:
     ]
     h256script = hash256_from_script(script_pub_key)
     b58addr = p2wsh_p2sh(script_pub_key, network)
-    b58addr2 = b58address_from_witness(h256script, network)
+    b58addr2 = base58_address_from_witness(h256script, network)
     assert b58addr2 == b58addr
 
     err_msg = "invalid witness program length for witness v0: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        b58address_from_witness(h256script[:-1], network)
+        base58_address_from_witness(h256script[:-1], network)
 
 
 def test_address_from_wif() -> None:
@@ -199,14 +199,14 @@ def test_address_from_wif() -> None:
         assert prv_keyinfo_from_prv_key(wif) == (q, network, compressed)
         b58 = p2pkh(wif)
         assert b58 == address.encode("ascii")
-        _, payload, net, is_script = h160_from_b58address(b58)
+        _, payload, net, is_script = h160_from_base58_address(b58)
         assert net == network
         assert not is_script
         if compressed:
             b32 = p2wpkh(wif)
-            assert (payload, network, is_script) == witness_from_b32address(b32)[1:]
+            assert (payload, network, is_script) == witness_from_bech32_address(b32)[1:]
             b = p2wpkh_p2sh(wif)
-            _, payload2, net, is_script = h160_from_b58address(b)
+            _, payload2, net, is_script = h160_from_base58_address(b)
             assert is_script
             assert (hash160(b"\x00\x14" + payload), network) == (payload2, net)
         else:
@@ -223,7 +223,7 @@ def test_exceptions() -> None:
     payload = b"\xf5" + hash160(pub_key)
     invalid_address = b58encode(payload)
     with pytest.raises(BTClibValueError, match="invalid base58 address prefix: "):
-        h160_from_b58address(invalid_address)
+        h160_from_base58_address(invalid_address)
 
     with pytest.raises(BTClibValueError, match="not a private or public key: "):
         p2pkh(pub_key + "00")

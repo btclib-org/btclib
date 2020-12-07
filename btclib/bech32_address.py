@@ -108,22 +108,22 @@ def _check_witness(witvers: int, witprog: bytes):
 # 2. bech32 address from WitnessProgram and vice versa
 
 
-def _b32address_from_witness(hrp: str, wit_ver: int, wit_prg: Octets) -> bytes:
+def _bech32_address_from_witness(hrp: str, wit_ver: int, wit_prg: Octets) -> bytes:
     wit_prg = bytes_from_octets(wit_prg)
     _check_witness(wit_ver, wit_prg)
     return b32encode(hrp, [wit_ver] + _convertbits(wit_prg, 8, 5))
 
 
-def b32address_from_witness(
+def bech32_address_from_witness(
     wit_ver: int, wit_prg: Octets, network: str = "mainnet"
 ) -> bytes:
     "Encode a bech32 native SegWit address from the witness."
 
     hrp = NETWORKS[network].p2w
-    return _b32address_from_witness(hrp, wit_ver, wit_prg)
+    return _bech32_address_from_witness(hrp, wit_ver, wit_prg)
 
 
-def witness_from_b32address(b32addr: String) -> Tuple[int, bytes, str, bool]:
+def witness_from_bech32_address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     "Return the witness from a bech32 native SegWit address."
 
     if isinstance(b32addr, str):
@@ -157,10 +157,10 @@ def p2wpkh(key: Key, network: Optional[str] = None) -> bytes:
     "Return the p2wpkh bech32 address corresponding to a public key."
     compressed = True  # needed to force check on pub_key
     h160, network = hash160_from_key(key, network, compressed)
-    return b32address_from_witness(0, h160, network)
+    return bech32_address_from_witness(0, h160, network)
 
 
 def p2wsh(script_pub_key: Script, network: str = "mainnet") -> bytes:
     "Return the p2wsh bech32 address corresponding to a script_pub_key."
     h256 = hash256_from_script(script_pub_key)
-    return b32address_from_witness(0, h256, network)
+    return bech32_address_from_witness(0, h256, network)
