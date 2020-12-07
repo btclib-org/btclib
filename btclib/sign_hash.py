@@ -32,8 +32,6 @@ from .tx import Tx
 from .tx_out import TxOut
 from .utils import hash256
 
-_FIRST_FIVE_BITS = 0b11111
-
 ALL = 1
 NONE = 2
 SINGLE = 3
@@ -72,13 +70,13 @@ def legacy(script_: bytes, tx: Tx, vin_i: int, hash_type: int) -> bytes:
         txin.script_sig = b""
     # TODO: delete sig from script_ (even if non standard)
     new_tx.vin[vin_i].script_sig = script_
-    if hash_type & _FIRST_FIVE_BITS == NONE:
+    if hash_type & 0x1F == NONE:
         new_tx.vout = []
         for i, txin in enumerate(new_tx.vin):
             if i != vin_i:
                 txin.sequence = 0
 
-    if hash_type & _FIRST_FIVE_BITS == SINGLE:
+    if hash_type & 0x1F == SINGLE:
         # sign_hash single bug
         if vin_i >= len(new_tx.vout):
             return (256 ** 31).to_bytes(32, "big")
@@ -119,41 +117,37 @@ def _witness_v0_script(script_pub_key: Octets) -> List[bytes]:
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
 def segwit_v0(script_: bytes, tx: Tx, vin_i: int, hash_type: int, amount: int) -> bytes:
 
-    hashtype_hex: str = hash_type.to_bytes(4, "little").hex()
-    if hashtype_hex[0] != "8":
+    hash_prev_outs = b"\x00" * 32
+    if not hash_type & ANYONECANPAY:
         hash_prev_outs = b"".join([vin.prev_out.serialize() for vin in tx.vin])
         hash_prev_outs = hash256(hash_prev_outs)
-    else:
-        hash_prev_outs = b"\x00" * 32
 
-    if hashtype_hex[1] == "1" and hashtype_hex[0] != "8":
-        hash_seq = b""
-        for vin in tx.vin:
-            hash_seq += vin.sequence.to_bytes(4, "little")
-        hash_seq = hash256(hash_seq)
-    else:
-        hash_seq = b"\x00" * 32
+    hash_seqs = b"\x00" * 32
+    if (
+        not (hash_type & ANYONECANPAY)
+        and (hash_type & 0x1F) != SINGLE
+        and (hash_type & 0x1F) != NONE
+    ):
+        hash_seqs = b"".join([vin.sequence.to_bytes(4, "little") for vin in tx.vin])
+        hash_seqs = hash256(hash_seqs)
 
-    if hashtype_hex[1] not in ("2", "3"):
-        hash_outputs = b""
-        for vout in tx.vout:
-            hash_outputs += vout.serialize()
+    hash_outputs = b"\x00" * 32
+    if hash_type & 0x1F not in (SINGLE, NONE):
+        hash_outputs = b"".join([vout.serialize() for vout in tx.vout])
         hash_outputs = hash256(hash_outputs)
-    elif hashtype_hex[1] == "3" and vin_i < len(tx.vout):
+    elif (hash_type & 0x1F) == SINGLE and vin_i < len(tx.vout):
         hash_outputs = hash256(tx.vout[vin_i].serialize())
-    else:
-        hash_outputs = b"\x00" * 32
 
     preimage = tx.version.to_bytes(4, "little")
     preimage += hash_prev_outs
-    preimage += hash_seq
+    preimage += hash_seqs
     preimage += tx.vin[vin_i].prev_out.serialize()
     preimage += var_bytes.serialize(script_)
     preimage += amount.to_bytes(8, "little")  # value
     preimage += tx.vin[vin_i].sequence.to_bytes(4, "little")
     preimage += hash_outputs
     preimage += tx.lock_time.to_bytes(4, "little")
-    preimage += bytes.fromhex(hashtype_hex)
+    preimage += hash_type.to_bytes(4, "little")
 
     return hash256(preimage)
 
