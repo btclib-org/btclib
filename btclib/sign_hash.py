@@ -11,8 +11,8 @@
 """Transaction hashes to be signed and their hash types.
 
 https://medium.com/@bitaps.com/exploring-bitcoin-signature-hash-types-15427766f0a9
-https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sign_hash
-https://wiki.bitcoinsv.io/index.php/SIG_HASH_flags
+https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sighash
+https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
 """
 
 from copy import deepcopy
