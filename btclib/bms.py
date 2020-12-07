@@ -215,9 +215,7 @@ class Sig(DataClassJsonMixin):
         return base64.b64encode(data_binary)
 
     @classmethod
-    def b64decode(
-        cls: Type[_Sig], data_str: String, assert_valid: bool = True
-    ) -> _Sig:
+    def b64decode(cls: Type[_Sig], data_str: String, assert_valid: bool = True) -> _Sig:
         """Return the verified components of the provided BMS signature.
 
         The address-based BMS signature can be represented
