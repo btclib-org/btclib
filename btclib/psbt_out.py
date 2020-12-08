@@ -172,6 +172,8 @@ class PsbtOut(DataClassJsonMixin):
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:
+        self.unknown = dict(sorted(self.unknown.items()))
+        self.hd_key_paths = dict(sorted(self.hd_key_paths.items()))
         if check_validity:
             self.assert_valid()
 
@@ -187,23 +189,25 @@ class PsbtOut(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = b""
+        psbt_out_bin = b""
 
         if self.redeem_script:
-            out += _serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
+            psbt_out_bin += _serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
 
         if self.witness_script:
-            out += _serialize_bytes(PSBT_OUT_WITNESS_SCRIPT, self.witness_script)
+            psbt_out_bin += _serialize_bytes(
+                PSBT_OUT_WITNESS_SCRIPT, self.witness_script
+            )
 
         if self.hd_key_paths:
-            out += _serialize_dict_bytes_bytes(
+            psbt_out_bin += _serialize_dict_bytes_bytes(
                 PSBT_OUT_BIP32_DERIVATION, self.hd_key_paths
             )
 
         if self.unknown:
-            out += _serialize_dict_bytes_bytes(b"", self.unknown)
+            psbt_out_bin += _serialize_dict_bytes_bytes(b"", self.unknown)
 
-        return out
+        return psbt_out_bin
 
     @classmethod
     def deserialize(
@@ -212,24 +216,37 @@ class PsbtOut(DataClassJsonMixin):
         "Return a PsbtOut by parsing binary data."
 
         # FIX deserialize must use BinaryData
-        out = cls(check_validity=False)
+
+        redeem_script = b""
+        witness_script = b""
+        hd_key_paths: Dict[bytes, bytes] = {}
+        unknown: Dict[bytes, bytes] = {}
+
         for k, v in output_map.items():
             if k[:1] == PSBT_OUT_REDEEM_SCRIPT:
-                if out.redeem_script:
-                    raise BTClibValueError("Duplicate PsbtOut redeem_script")
-                out.redeem_script = _deserialize_bytes(k, v, "redeem script")
+                if redeem_script:
+                    raise BTClibValueError("duplicate PsbtOut redeem_script")
+                redeem_script = _deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_OUT_WITNESS_SCRIPT:
-                if out.witness_script:
-                    raise BTClibValueError("Duplicate PsbtOut witness_script")
-                out.witness_script = _deserialize_bytes(k, v, "witness script")
+                if witness_script:
+                    raise BTClibValueError("duplicate PsbtOut witness_script")
+                witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
                 #  deserialize just one hd key path at time :-(
-                out.hd_key_paths.update(
+                if k[1:] in hd_key_paths:
+                    raise BTClibValueError("duplicate PsbtOut unknown")
+                hd_key_paths.update(
                     _deserialize_hd_key_path(k, v, "PsbtOut BIP32 pub_key")
                 )
             else:  # unknown
-                out.unknown[k] = v
+                if k in unknown:
+                    raise BTClibValueError("duplicate PsbtOut unknown")
+                unknown[k] = v
 
-        if assert_valid:
-            out.assert_valid()
-        return out
+        return cls(
+            redeem_script,
+            witness_script,
+            hd_key_paths,
+            unknown,
+            check_validity=assert_valid,
+        )

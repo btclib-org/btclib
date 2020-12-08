@@ -89,6 +89,8 @@ class Psbt(DataClassJsonMixin):
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:
+        self.unknown = dict(sorted(self.unknown.items()))
+        self.hd_key_paths = dict(sorted(self.hd_key_paths.items()))
         if check_validity:
             self.assert_valid()
 

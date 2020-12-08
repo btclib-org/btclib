@@ -179,6 +179,8 @@ class PsbtIn(DataClassJsonMixin):
         return self.sig_hash_type or 0
 
     def __post_init__(self, check_validity: bool) -> None:
+        self.unknown = dict(sorted(self.unknown.items()))
+        self.hd_key_paths = dict(sorted(self.hd_key_paths.items()))
         if check_validity:
             self.assert_valid()
 
@@ -207,48 +209,56 @@ class PsbtIn(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = b""
+        psbt_in_bin = b""
 
         if self.non_witness_utxo:
             temp = self.non_witness_utxo.serialize(include_witness=True)
-            out += _serialize_bytes(PSBT_IN_NON_WITNESS_UTXO, temp)
+            psbt_in_bin += _serialize_bytes(PSBT_IN_NON_WITNESS_UTXO, temp)
 
         if self.witness_utxo:
-            out += _serialize_bytes(PSBT_IN_WITNESS_UTXO, self.witness_utxo.serialize())
+            psbt_in_bin += _serialize_bytes(
+                PSBT_IN_WITNESS_UTXO, self.witness_utxo.serialize()
+            )
 
         if not self.final_script_sig and not self.final_script_witness:
 
             if self.partial_sigs:
-                out += _serialize_dict_bytes_bytes(
+                psbt_in_bin += _serialize_dict_bytes_bytes(
                     PSBT_IN_PARTIAL_SIG, self.partial_sigs
                 )
 
             if self.sig_hash_type:
                 temp = self.sig_hash_type.to_bytes(4, byteorder="little", signed=False)
-                out += _serialize_bytes(PSBT_IN_SIG_HASH_TYPE, temp)
+                psbt_in_bin += _serialize_bytes(PSBT_IN_SIG_HASH_TYPE, temp)
 
             if self.redeem_script:
-                out += _serialize_bytes(PSBT_IN_REDEEM_SCRIPT, self.redeem_script)
+                psbt_in_bin += _serialize_bytes(
+                    PSBT_IN_REDEEM_SCRIPT, self.redeem_script
+                )
 
             if self.witness_script:
-                out += _serialize_bytes(PSBT_IN_WITNESS_SCRIPT, self.witness_script)
+                psbt_in_bin += _serialize_bytes(
+                    PSBT_IN_WITNESS_SCRIPT, self.witness_script
+                )
 
             if self.hd_key_paths:
-                out += _serialize_dict_bytes_bytes(
+                psbt_in_bin += _serialize_dict_bytes_bytes(
                     PSBT_IN_BIP32_DERIVATION, self.hd_key_paths
                 )
 
         if self.final_script_sig:
-            out += _serialize_bytes(PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig)
+            psbt_in_bin += _serialize_bytes(
+                PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig
+            )
 
         if self.final_script_witness:
             temp = self.final_script_witness.serialize()
-            out += _serialize_bytes(PSBT_IN_FINAL_SCRIPTWITNESS, temp)
+            psbt_in_bin += _serialize_bytes(PSBT_IN_FINAL_SCRIPTWITNESS, temp)
 
         if self.unknown:
-            out += _serialize_dict_bytes_bytes(b"", self.unknown)
+            psbt_in_bin += _serialize_dict_bytes_bytes(b"", self.unknown)
 
-        return out
+        return psbt_in_bin
 
     @classmethod
     def deserialize(
@@ -257,45 +267,72 @@ class PsbtIn(DataClassJsonMixin):
         "Return a PsbtIn by parsing binary data."
 
         # FIX deserialize must use BinaryData
-        out = cls(check_validity=False)
+
+        non_witness_utxo = None
+        witness_utxo = None
+        partial_sigs: Dict[bytes, bytes] = {}
+        sig_hash_type = None
+        redeem_script = b""
+        witness_script = b""
+        hd_key_paths: Dict[bytes, bytes] = {}
+        final_script_sig = b""
+        final_script_witness = Witness()
+        unknown: Dict[bytes, bytes] = {}
+
         for k, v in input_map.items():
             if k[:1] == PSBT_IN_NON_WITNESS_UTXO:
-                if out.non_witness_utxo:
-                    raise BTClibValueError("Duplicate PsbtIn non_witness_utxo")
-                out.non_witness_utxo = _deserialize_tx(k, v, "non-witness utxo")
+                if non_witness_utxo:
+                    raise BTClibValueError("duplicate PsbtIn non_witness_utxo")
+                non_witness_utxo = _deserialize_tx(k, v, "non-witness utxo")
             elif k[:1] == PSBT_IN_WITNESS_UTXO:
-                if out.witness_utxo:
-                    raise BTClibValueError("Duplicate PsbtIn witness_utxo")
-                out.witness_utxo = _deserialize_witness_utxo(k, v)
+                if witness_utxo:
+                    raise BTClibValueError("duplicate PsbtIn witness_utxo")
+                witness_utxo = _deserialize_witness_utxo(k, v)
             elif k[:1] == PSBT_IN_PARTIAL_SIG:
-                out.partial_sigs.update(_deserialize_partial_sigs(k, v))
+                if k[1:] in partial_sigs:
+                    raise BTClibValueError("duplicate PsbtIn unknown")
+                partial_sigs.update(_deserialize_partial_sigs(k, v))
             elif k[:1] == PSBT_IN_SIG_HASH_TYPE:
-                if out.sig_hash_type:
-                    raise BTClibValueError("Duplicate PsbtIn sig_hash_type")
-                out.sig_hash_type = _deserialize_int(k, v, "sign_hash type")
+                if sig_hash_type:
+                    raise BTClibValueError("duplicate PsbtIn sig_hash_type")
+                sig_hash_type = _deserialize_int(k, v, "sign_hash type")
             elif k[:1] == PSBT_IN_REDEEM_SCRIPT:
-                if out.redeem_script:
-                    raise BTClibValueError("Duplicate PsbtIn redeem_script")
-                out.redeem_script = _deserialize_bytes(k, v, "redeem script")
+                if redeem_script:
+                    raise BTClibValueError("duplicate PsbtIn redeem_script")
+                redeem_script = _deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_IN_WITNESS_SCRIPT:
-                if out.witness_script:
-                    raise BTClibValueError("Duplicate PsbtIn witness_script")
-                out.witness_script = _deserialize_bytes(k, v, "witness script")
+                if witness_script:
+                    raise BTClibValueError("duplicate PsbtIn witness_script")
+                witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_IN_BIP32_DERIVATION:
-                out.hd_key_paths.update(
+                if k[1:] in hd_key_paths:
+                    raise BTClibValueError("duplicate PsbtIn unknown")
+                hd_key_paths.update(
                     _deserialize_hd_key_path(k, v, "PsbtIn BIP32 pub_key")
                 )
             elif k[:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                if out.final_script_sig:
-                    raise BTClibValueError("Duplicate PsbtIn final_script_sig")
-                out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")
+                if final_script_sig:
+                    raise BTClibValueError("duplicate PsbtIn final_script_sig")
+                final_script_sig = _deserialize_bytes(k, v, "final script_sig")
             elif k[:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
-                if out.final_script_witness:
-                    raise BTClibValueError("Duplicate PsbtIn final_script_witness")
-                out.final_script_witness = _deserialize_final_script_witness(k, v)
+                if final_script_witness:
+                    raise BTClibValueError("duplicate PsbtIn final_script_witness")
+                final_script_witness = _deserialize_final_script_witness(k, v)
             else:  # unknown
-                out.unknown[k] = v
+                if k in unknown:
+                    raise BTClibValueError("duplicate PsbtIn unknown")
+                unknown[k] = v
 
-        if assert_valid:
-            out.assert_valid()
-        return out
+        return cls(
+            non_witness_utxo,
+            witness_utxo,
+            partial_sigs,
+            sig_hash_type,
+            redeem_script,
+            witness_script,
+            hd_key_paths,
+            final_script_sig,
+            final_script_witness,
+            unknown,
+            check_validity=assert_valid,
+        )
