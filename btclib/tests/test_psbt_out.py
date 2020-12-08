@@ -12,6 +12,7 @@
 
 from typing import Dict, List
 
+from btclib.bip32_path import _HARDENING
 from btclib.psbt_out import (
     PSBT_OUT_BIP32_DERIVATION,
     _assert_valid_hd_keypaths,
@@ -30,12 +31,12 @@ def test_bip32_derivs() -> None:
         {
             "pub_key": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
             "master_fingerprint": "d90c6a4f",
-            "path": "m/0'/0'/0'",
+            "path": "m/0" + _HARDENING + "/0/0",
         },
         {
             "pub_key": "02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7",
             "master_fingerprint": "d90c6a4f",
-            "path": "m/0'/0'/1'",
+            "path": "m/0" + _HARDENING + "/0/1",
         },
     ]
     data = _decode_hd_keypaths(encoded_data)

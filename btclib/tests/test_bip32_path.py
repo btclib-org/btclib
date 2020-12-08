@@ -16,7 +16,9 @@ from os import path
 import pytest
 
 from btclib.bip32_path import (
+    _HARDENING,
     BIP32KeyOrigin,
+    BIP32KeyPath,
     _indexes_from_bip32_path_str,
     _int_from_index_str,
     _str_from_index_int,
@@ -29,7 +31,32 @@ from btclib.exceptions import BTClibValueError
 
 def test_indexes_from_bip32_path_str() -> None:
 
-    test_vectors = [
+    test_reg_str_vectors = [
+        # account 0, external branch, address_index 463
+        ("m/0" + _HARDENING + "/0/463", [0x80000000, 0, 463]),
+        # account 0, internal branch, address_index 267
+        ("m/0" + _HARDENING + "/1/267", [0x80000000, 1, 267]),
+    ]
+
+    for bip32_path_str, bip32_path_ints in test_reg_str_vectors:
+        # recover ints from str
+        assert bip32_path_ints == _indexes_from_bip32_path_str(bip32_path_str)
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_str)
+        # recover ints from ints
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_ints)
+        # recover str from str
+        assert bip32_path_str == str_from_bip32_path(bip32_path_str)
+        # recover str from ints
+        assert bip32_path_str == str_from_bip32_path(bip32_path_ints)
+        # ensure bytes from ints == bytes from str
+        bip32_path_bytes = bytes_from_bip32_path(bip32_path_ints)
+        assert bip32_path_bytes == bytes_from_bip32_path(bip32_path_str)
+        # recover ints from bytes
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_bytes)
+        # recover str from bytes
+        assert bip32_path_str == str_from_bip32_path(bip32_path_bytes)
+
+    test_irregular_str_vectors = [
         # account 0, external branch, address_index 463
         ("m / 0 h / 0 / 463", [0x80000000, 0, 463]),
         ("m / 0 H / 0 / 463", [0x80000000, 0, 463]),
@@ -40,24 +67,23 @@ def test_indexes_from_bip32_path_str() -> None:
         ("m // 0' / 1 / 267", [0x80000000, 1, 267]),
     ]
 
-    for bip32_path_str, bip32_path_ints in test_vectors:
+    for bip32_path_str, bip32_path_ints in test_irregular_str_vectors:
+        # recover ints from str
         assert bip32_path_ints == _indexes_from_bip32_path_str(bip32_path_str)
-
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_str, "big")
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_str, "little")
-
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_ints, "big")
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_ints, "little")
-
-        bip32_path_bytes = bytes_from_bip32_path(bip32_path_ints, "big")
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_bytes, "big")
-        bip32_path_bytes = bytes_from_bip32_path(bip32_path_ints, "little")
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_bytes, "little")
-        assert bip32_path_ints != indexes_from_bip32_path(bip32_path_bytes, "big")
-
-        bip32_path_str = str_from_bip32_path(bip32_path_str, "little")
-        assert bip32_path_str == str_from_bip32_path(bip32_path_ints, "little")
-        assert bip32_path_str == str_from_bip32_path(bip32_path_bytes, "little")
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_str)
+        # recover ints from ints
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_ints)
+        # irregular str != normalized str
+        assert bip32_path_str != str_from_bip32_path(bip32_path_str)
+        # irregular str != normalized str from ints
+        assert bip32_path_str != str_from_bip32_path(bip32_path_ints)
+        # ensure bytes from ints == bytes from str
+        bip32_path_bytes = bytes_from_bip32_path(bip32_path_ints)
+        assert bip32_path_bytes == bytes_from_bip32_path(bip32_path_str)
+        # recover ints from bytes
+        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_bytes)
+        # irregular str != normalized str from bytes
+        assert bip32_path_str != str_from_bip32_path(bip32_path_bytes)
 
     with pytest.raises(BTClibValueError, match="invalid index: "):
         _indexes_from_bip32_path_str("m/1/2/-3h/4")
@@ -93,14 +119,23 @@ def test_index_int_to_from_str() -> None:
 
 def test_bip32_key_origin() -> None:
 
+    invalid_key_origin = BIP32KeyOrigin(
+        bytes.fromhex("badbad"), [0], check_validity=False
+    )
     with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
-        BIP32KeyOrigin()
+        invalid_key_origin.assert_valid()
 
+    invalid_key_origin = BIP32KeyOrigin(
+        bytes.fromhex("deadbeef"), [0] * 256, check_validity=False
+    )
     with pytest.raises(BTClibValueError, match="invalid der_path size: "):
-        BIP32KeyOrigin(bytes.fromhex("deadbeef"), [0] * 256)
+        invalid_key_origin.assert_valid()
 
+    invalid_key_origin = BIP32KeyOrigin(
+        bytes.fromhex("deadbeef"), [0xFFFFFFFF + 1], check_validity=False
+    )
     with pytest.raises(BTClibValueError, match="invalid der_path element"):
-        BIP32KeyOrigin(bytes.fromhex("deadbeef"), [0xFFFFFFFF + 1])
+        invalid_key_origin.assert_valid()
 
     fingerprint = "deadbeef"
     description = fingerprint
@@ -112,7 +147,16 @@ def test_bip32_key_origin() -> None:
     assert key_origin.der_path == []
     assert BIP32KeyOrigin.deserialize(key_origin.serialize()) == key_origin
 
-    description = fingerprint + "/44'/0'/1'/0/10"
+    description = (  # use the hardening convention of the normalized der_path
+        fingerprint
+        + "/44"
+        + _HARDENING
+        + "/0"
+        + _HARDENING
+        + "/1"
+        + _HARDENING
+        + "/0/10"
+    )
     key_origin = BIP32KeyOrigin.from_description(description)
     key_origin2 = BIP32KeyOrigin.from_description("deadbeef//44h/0'/1H/0/10/")
     assert key_origin == key_origin2
@@ -128,7 +172,7 @@ def test_bip32_key_origin() -> None:
     assert BIP32KeyOrigin.deserialize(key_origin.serialize()) == key_origin
 
 
-def test_dataclasses_json_dict() -> None:
+def test_dataclasses_json_dict_key_origin() -> None:
 
     key_origin = BIP32KeyOrigin.from_description("deadbeef//44h/0'/1H/0/10/")
 
@@ -165,3 +209,70 @@ def test_dataclasses_json_dict() -> None:
     assert key_origin.description
 
     assert key_origin == key_origin2
+
+
+def test_bip32_key_path() -> None:
+
+    pub_key = bytes.fromhex(
+        "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
+    )
+    invalid_key_origin = BIP32KeyOrigin(
+        bytes.fromhex("badbad"), [0], check_validity=False
+    )
+    invalid_key_path = BIP32KeyPath(pub_key, invalid_key_origin, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
+        invalid_key_path.assert_valid()
+
+    fingerprint = "deadbeef"
+    der_path = "/44'/0'/1'/0/10"
+    description = fingerprint + der_path
+    key_origin = BIP32KeyOrigin.from_description(description)
+
+    key_path = BIP32KeyPath(pub_key, key_origin)
+    assert key_path == BIP32KeyPath.deserialize(key_path.serialize())
+
+
+def test_dataclasses_json_dict_key_path() -> None:
+
+    fingerprint = "deadbeef"
+    der_path = "/44'/0'/1'/0/10"
+    description = fingerprint + der_path
+    key_origin = BIP32KeyOrigin.from_description(description)
+    pub_key = bytes.fromhex(
+        "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
+    )
+    key_path = BIP32KeyPath(pub_key, key_origin)
+
+    # BIP32KeyPath dataclass
+    assert isinstance(key_path, BIP32KeyPath)
+    assert key_path.pub_key
+    assert key_path.key_origin
+
+    # BIP32KeyPath dataclass to dict
+    key_path_dict = key_path.to_dict()
+    assert isinstance(key_path_dict, dict)
+    assert key_path_dict["pub_key"]
+    assert key_path_dict["key_origin"]
+
+    # BIP32KeyPath dataclass dict to file
+    datadir = path.join(path.dirname(__file__), "generated_files")
+    filename = path.join(datadir, "key_path.json")
+    with open(filename, "w") as file_:
+        json.dump(key_path_dict, file_, indent=4)
+
+    # BIP32KeyPath dataclass dict from file
+    with open(filename, "r") as file_:
+        key_path_dict2 = json.load(file_)
+    assert isinstance(key_path_dict2, dict)
+    assert key_path_dict["pub_key"]
+    assert key_path_dict["key_origin"]
+
+    assert key_path_dict == key_path_dict2
+
+    # BIP32KeyPath dataclass from dict
+    key_path2 = BIP32KeyPath.from_dict(key_path_dict)
+    assert isinstance(key_path2, BIP32KeyPath)
+    assert key_path.pub_key
+    assert key_path.key_origin
+
+    assert key_path == key_path2

@@ -85,7 +85,7 @@ def _encode_hd_keypaths(dictionary: Dict[bytes, bytes]) -> List[Dict[str, str]]:
         d_str_str: Dict[str, str] = {
             "pub_key": k.hex(),
             "master_fingerprint": v[:4].hex(),
-            "path": str_from_bip32_path(v[4:], "little"),
+            "path": str_from_bip32_path(v[4:]),
         }
         result.append(d_str_str)
     return result
@@ -93,7 +93,7 @@ def _encode_hd_keypaths(dictionary: Dict[bytes, bytes]) -> List[Dict[str, str]]:
 
 def _decode_hd_keypath(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
     v = bytes_from_octets(new_element["master_fingerprint"], 4)
-    v += bytes_from_bip32_path(new_element["path"], "little")
+    v += bytes_from_bip32_path(new_element["path"])
     k = bytes_from_octets(new_element["pub_key"], [33, 65, 78])
     return k, v
 
@@ -122,7 +122,7 @@ def _assert_valid_hd_keypaths(hd_keypaths: Dict[bytes, bytes]) -> None:
     for _, v in hd_keypaths.items():
         # FIXME
         # point_from_pub_key(k)
-        indexes_from_bip32_path(v, "little")
+        indexes_from_bip32_path(v)
 
 
 def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:

@@ -25,10 +25,9 @@ from dataclasses_json import DataClassJsonMixin, config
 from . import var_bytes
 from .alias import BinaryData
 from .exceptions import BTClibValueError
+from .utils import bytesio_from_binarydata
 
-_HARDENING = "'"
-
-BIP32Path = Union[str, Sequence[int], int, bytes]
+_HARDENING = "h"
 
 
 def _int_from_index_str(s: str) -> int:
@@ -70,7 +69,10 @@ def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> List[int
     return indexes
 
 
-def indexes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> List[int]:
+BIP32DerPath = Union[str, Sequence[int], int, bytes]
+
+
+def indexes_from_bip32_path(der_path: BIP32DerPath) -> List[int]:
 
     if isinstance(der_path, str):
         return _indexes_from_bip32_path_str(der_path)
@@ -83,7 +85,7 @@ def indexes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> List
             err_msg = f"index are not a multiple of 4-bytes: {len(der_path)}"
             raise BTClibValueError(err_msg)
         return [
-            int.from_bytes(der_path[n : n + 4], byteorder)
+            int.from_bytes(der_path[n : n + 4], byteorder="little", signed=False)
             for n in range(0, len(der_path), 4)
         ]
 
@@ -91,23 +93,19 @@ def indexes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> List
     return [int(i) for i in der_path]
 
 
-def _str_from_bip32_path(
-    der_path: BIP32Path, byteorder: str = "big", hardening: str = _HARDENING
-) -> str:
-    indexes = indexes_from_bip32_path(der_path, byteorder)
+def _str_from_bip32_path(der_path: BIP32DerPath, hardening: str = _HARDENING) -> str:
+    indexes = indexes_from_bip32_path(der_path)
     return "/".join(_str_from_index_int(i, hardening) for i in indexes)
 
 
-def str_from_bip32_path(
-    der_path: BIP32Path, byteorder: str = "big", hardening: str = _HARDENING
-) -> str:
-    result = _str_from_bip32_path(der_path, byteorder, hardening)
+def str_from_bip32_path(der_path: BIP32DerPath, hardening: str = _HARDENING) -> str:
+    result = _str_from_bip32_path(der_path, hardening)
     return "m/" + result if result else "m"
 
 
-def bytes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> bytes:
-    indexes = indexes_from_bip32_path(der_path, byteorder)
-    result = [i.to_bytes(4, byteorder) for i in indexes]
+def bytes_from_bip32_path(der_path: BIP32DerPath) -> bytes:
+    indexes = indexes_from_bip32_path(der_path)
+    result = [i.to_bytes(4, byteorder="little", signed=False) for i in indexes]
     return b"".join(result)
 
 
@@ -117,7 +115,6 @@ _BIP32KeyOrigin = TypeVar("_BIP32KeyOrigin", bound="BIP32KeyOrigin")
 @dataclass(frozen=True)
 class BIP32KeyOrigin(DataClassJsonMixin):
     fingerprint: bytes = field(
-        default=b"",
         metadata=config(
             field_name="master_fingerprint",
             encoder=lambda v: v.hex(),
@@ -125,7 +122,6 @@ class BIP32KeyOrigin(DataClassJsonMixin):
         ),
     )
     der_path: Sequence[int] = field(
-        default_factory=list,
         metadata=config(
             field_name="path",
             encoder=str_from_bip32_path,
@@ -160,7 +156,7 @@ class BIP32KeyOrigin(DataClassJsonMixin):
             self.assert_valid()
 
         bytes_ = self.fingerprint
-        bytes_ += bytes_from_bip32_path(self.der_path, "little")
+        bytes_ += bytes_from_bip32_path(self.der_path)
         return var_bytes.serialize(bytes_)
 
     @classmethod
@@ -171,7 +167,7 @@ class BIP32KeyOrigin(DataClassJsonMixin):
 
         bytes_ = var_bytes.deserialize(data)
         fingerprint = bytes_[:4]
-        der_path = indexes_from_bip32_path(bytes_[4:], byteorder="little")
+        der_path = indexes_from_bip32_path(bytes_[4:])
 
         return cls(fingerprint, der_path, check_validity=assert_valid)
 
@@ -184,3 +180,48 @@ class BIP32KeyOrigin(DataClassJsonMixin):
         der_path = _indexes_from_bip32_path_str(data[9:], skip_m=False)
 
         return cls(fingerprint, der_path, assert_valid)
+
+
+_BIP32KeyPath = TypeVar("_BIP32KeyPath", bound="BIP32KeyPath")
+
+
+@dataclass(frozen=True)
+class BIP32KeyPath(DataClassJsonMixin):
+    pub_key: bytes = field(
+        metadata=config(
+            encoder=lambda v: v.hex(),
+            decoder=bytes.fromhex,
+        ),
+    )
+    key_origin: BIP32KeyOrigin
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+        # TODO check that self.pub_key is a valid SEC key
+        self.key_origin.assert_valid()
+
+    def serialize(self, assert_valid: bool = True) -> bytes:
+
+        if assert_valid:
+            self.assert_valid()
+
+        bytes_ = var_bytes.serialize(self.pub_key)
+        bytes_ += self.key_origin.serialize()
+        return var_bytes.serialize(bytes_)
+
+    @classmethod
+    def deserialize(
+        cls: Type[_BIP32KeyPath], data: BinaryData, assert_valid: bool = True
+    ) -> _BIP32KeyPath:
+        "Return a BIP32KeyPath by parsing binary data."
+
+        bytes_ = var_bytes.deserialize(data)
+        stream = bytesio_from_binarydata(bytes_)
+        pub_key = var_bytes.deserialize(stream)
+        key_origin = BIP32KeyOrigin.deserialize(stream, assert_valid=assert_valid)
+
+        return cls(pub_key, key_origin, check_validity=assert_valid)
