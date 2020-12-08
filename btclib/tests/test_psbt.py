@@ -25,8 +25,6 @@ from btclib.psbt import (
     extract_tx,
     finalize_psbt,
 )
-from btclib.psbt_in import PsbtIn
-from btclib.psbt_out import PsbtOut
 from btclib.tx import Tx
 from btclib.tx_in import OutPoint, TxIn
 from btclib.tx_out import TxOut
@@ -342,73 +340,33 @@ def test_dataclasses_json_dict() -> None:
     psbt = Psbt.b64decode(psbt_str)
     assert psbt.b64encode() == psbt_str.encode("ascii")
 
-    # dataclass
+    # Psbt dataclass
     assert isinstance(psbt, Psbt)
 
-    psbt_out_data = psbt.outputs[0]
-    assert isinstance(psbt_out_data, PsbtOut)
-
-    psbt_in_data = psbt.inputs[0]
-    assert isinstance(psbt_in_data, PsbtIn)
-
-    datadir = path.join(path.dirname(__file__), "generated_files")
-
-    # PsbtOut to dict and file
-    psbt_out_dict = psbt_out_data.to_dict()
-    assert isinstance(psbt_out_dict, dict)
-    filename = path.join(datadir, "psbt_out.json")
-    with open(filename, "w") as file_:
-        json.dump(psbt_out_dict, file_, indent=4)
-
-    # PsbtOut from dict and file
-    assert psbt_out_data == PsbtOut.from_dict(psbt_out_dict)
-    with open(filename, "r") as file_:
-        psbt_out_dict2 = json.load(file_)
-    assert isinstance(psbt_out_dict2, dict)
-    assert psbt_out_dict == psbt_out_dict2
-
-    # PsbtIn to dict and file
-    psbt_in_dict = psbt_in_data.to_dict()
-    assert isinstance(psbt_in_dict, dict)
-    filename = path.join(datadir, "psbt_in.json")
-    with open(filename, "w") as file_:
-        json.dump(psbt_in_dict, file_, indent=4)
-
-    # PsbtIn from dict and file
-    assert psbt_in_data == PsbtIn.from_dict(psbt_in_dict)
-    with open(filename, "r") as file_:
-        psbt_in_dict2 = json.load(file_)
-    assert isinstance(psbt_in_dict2, dict)
-    assert psbt_in_dict == psbt_in_dict2
-
-    # Psbt to dict and file
+    # Psbt dataclass to dict
     psbt_dict = psbt.to_dict()
     assert isinstance(psbt_dict, dict)
+    assert psbt_dict["tx"]
+
+    # Psbt dataclass dict to file
+    datadir = path.join(path.dirname(__file__), "generated_files")
     filename = path.join(datadir, "psbt.json")
     with open(filename, "w") as file_:
         json.dump(psbt_dict, file_, indent=4)
 
-    # Psbt from dict and file
-    assert psbt == Psbt.from_dict(psbt_dict)
+    # Psbt dataclass dict from file
     with open(filename, "r") as file_:
         psbt_dict2 = json.load(file_)
     assert isinstance(psbt_dict2, dict)
+    assert psbt_dict2["tx"]
+
     assert psbt_dict == psbt_dict2
 
-    # PsbtOut to/from json str
-    psbt_out_json_str = psbt_out_data.to_json()
-    assert isinstance(psbt_out_json_str, str)
-    assert psbt_out_data == PsbtOut.from_json(psbt_out_json_str)
+    # Psbt dataclass from dict
+    psbt2 = Psbt.from_dict(psbt_dict)
+    assert isinstance(psbt2, Psbt)
 
-    # PsbtIn to/from json str
-    psbt_in_json_str = psbt_in_data.to_json()
-    assert isinstance(psbt_in_json_str, str)
-    assert psbt_in_data == PsbtIn.from_json(psbt_in_json_str)
-
-    # Psbt to/from json str
-    psbt_json_str = psbt.to_json()
-    assert isinstance(psbt_json_str, str)
-    assert psbt == Psbt.from_json(psbt_json_str)
+    assert psbt == psbt2
 
 
 def test_final_script_witness() -> None:
