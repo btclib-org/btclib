@@ -53,16 +53,15 @@ def test_bip32_derivs() -> None:
 
 def test_unknown() -> None:
     # the json representation
-    data: Dict[str, str] = {
+    encoded_data: Dict[str, str] = {
         "baad": "deadbeef",
         "abadbabe": "cafebabe",
     }
-    decoded_data: Dict[bytes, bytes] = _decode_dict_bytes_bytes(data)
-    assert data == _encode_dict_bytes_bytes(decoded_data)
+    data: Dict[bytes, bytes] = _decode_dict_bytes_bytes(encoded_data)
+    _assert_valid_unknown(data)
+    assert encoded_data == _encode_dict_bytes_bytes(data)
 
-    _assert_valid_unknown(decoded_data)
-
-    _serialize_dict_bytes_bytes(b"", decoded_data)
+    _ = _serialize_dict_bytes_bytes(b"", data)
     # TODO: check deserialization
 
 
