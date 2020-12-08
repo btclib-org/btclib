@@ -28,7 +28,6 @@ from .psbt_out import (
     _decode_dict_bytes_bytes,
     _decode_hd_key_paths,
     _deserialize_bytes,
-    _deserialize_hd_key_path,
     _encode_dict_bytes_bytes,
     _encode_hd_key_paths,
     _serialize_bytes,
@@ -76,16 +75,6 @@ def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
         err_msg = f"invalid witness-utxo key length: {len(k)}"
         raise BTClibValueError(err_msg)
     return TxOut.deserialize(v)
-
-
-def _deserialize_partial_sigs(k: bytes, v: bytes) -> Dict[bytes, bytes]:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) - 1 not in (33, 65):
-        err_msg = "invalid partial signature pub_key length"
-        err_msg += f": {len(k)-1} instead of (33, 65)"
-        raise BTClibValueError(err_msg)
-    return {k[1:]: v}
 
 
 def _assert_valid_partial_sigs(partial_sigs: Dict[bytes, bytes]) -> None:
@@ -290,8 +279,8 @@ class PsbtIn(DataClassJsonMixin):
                 witness_utxo = _deserialize_witness_utxo(k, v)
             elif k[:1] == PSBT_IN_PARTIAL_SIG:
                 if k[1:] in partial_sigs:
-                    raise BTClibValueError("duplicate PsbtIn unknown")
-                partial_sigs.update(_deserialize_partial_sigs(k, v))
+                    raise BTClibValueError("duplicate PsbtIn partial_sigs")
+                partial_sigs[k[1:]] = v
             elif k[:1] == PSBT_IN_SIG_HASH_TYPE:
                 if sig_hash_type:
                     raise BTClibValueError("duplicate PsbtIn sig_hash_type")
@@ -306,10 +295,8 @@ class PsbtIn(DataClassJsonMixin):
                 witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_IN_BIP32_DERIVATION:
                 if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate PsbtIn unknown")
-                hd_key_paths.update(
-                    _deserialize_hd_key_path(k, v, "PsbtIn BIP32 pub_key")
-                )
+                    raise BTClibValueError("duplicate PsbtIn hd_key_paths")
+                hd_key_paths[k[1:]] = v
             elif k[:1] == PSBT_IN_FINAL_SCRIPTSIG:
                 if final_script_sig:
                     raise BTClibValueError("duplicate PsbtIn final_script_sig")

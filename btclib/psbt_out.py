@@ -104,25 +104,16 @@ def _decode_hd_key_paths(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, byte
     return dict([_decode_hd_key_path(item) for item in list_of_dict])
 
 
-def _deserialize_hd_key_path(k: bytes, v: bytes, type_: str) -> Dict[bytes, bytes]:
-    "Return the dataclass element from its binary representation."
-
-    # TODO: remove type_ and use PSBT_OUT_BIP32_DERIVATION, etc.
-    allowed_lengths = (78,) if type_ == "Psbt BIP32 xkey" else (33, 65)
-    if len(k) - 1 not in allowed_lengths:
-        err_msg = f"invalid {type_} length"
-        err_msg += f": {len(k)-1} instead of {allowed_lengths}"
-        raise BTClibValueError(err_msg)
-    return {k[1:]: v}
-
-
 def _assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
-    for _, v in hd_key_paths.items():
-        # FIXME
-        # point_from_pub_key(k)
-        indexes_from_bip32_path(v)
+    allowed_lengths = (78, 33, 65)
+    for pub_key, key_origin in hd_key_paths.items():
+        # point_from_pub_key(pub_key)
+        if len(pub_key) not in allowed_lengths:
+            err_msg = "invalid public key"
+            raise BTClibValueError(err_msg)
+        indexes_from_bip32_path(key_origin)
 
 
 def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
@@ -234,10 +225,8 @@ class PsbtOut(DataClassJsonMixin):
             elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
                 #  deserialize just one hd key path at time :-(
                 if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate PsbtOut unknown")
-                hd_key_paths.update(
-                    _deserialize_hd_key_path(k, v, "PsbtOut BIP32 pub_key")
-                )
+                    raise BTClibValueError("duplicate PsbtOut hd_key_paths")
+                hd_key_paths[k[1:]] = v
             else:  # unknown
                 if k in unknown:
                     raise BTClibValueError("duplicate PsbtOut unknown")

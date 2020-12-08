@@ -30,7 +30,6 @@ from .psbt_out import (
     _assert_valid_unknown,
     _decode_dict_bytes_bytes,
     _decode_hd_key_paths,
-    _deserialize_hd_key_path,
     _encode_dict_bytes_bytes,
     _encode_hd_key_paths,
     _serialize_bytes,
@@ -236,7 +235,9 @@ class Psbt(DataClassJsonMixin):
                     raise BTClibValueError("duplicate Psbt version")
                 version = _deserialize_int(k, v, "global version")
             elif k[:1] == PSBT_GLOBAL_XPUB:
-                hd_key_paths.update(_deserialize_hd_key_path(k, v, "Psbt BIP32 xkey"))
+                if k[1:] in hd_key_paths:
+                    raise BTClibValueError("duplicate Psbt hd_key_paths")
+                hd_key_paths[k[1:]] = v
             else:  # unknown
                 if k in unknown:
                     raise BTClibValueError("duplicate Psbt unknown")
