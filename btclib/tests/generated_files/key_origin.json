@@ -1,4 +1,4 @@
 {
-    "fingerprint": "deadbeef",
-    "der_path": "m/44'/0'/1'/0/10"
+    "master_fingerprint": "deadbeef",
+    "path": "m/44'/0'/1'/0/10"
 }

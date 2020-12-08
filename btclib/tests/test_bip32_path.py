@@ -140,8 +140,8 @@ def test_dataclasses_json_dict() -> None:
     # BIP32KeyOrigin dataclass to dict
     key_origin_dict = key_origin.to_dict()
     assert isinstance(key_origin_dict, dict)
-    assert key_origin_dict["fingerprint"]
-    assert key_origin_dict["der_path"]
+    assert key_origin_dict["master_fingerprint"]
+    assert key_origin_dict["path"]
 
     # BIP32KeyOrigin dataclass dict to file
     datadir = path.join(path.dirname(__file__), "generated_files")
@@ -153,8 +153,8 @@ def test_dataclasses_json_dict() -> None:
     with open(filename, "r") as file_:
         key_origin_dict2 = json.load(file_)
     assert isinstance(key_origin_dict2, dict)
-    assert key_origin_dict["fingerprint"]
-    assert key_origin_dict["der_path"]
+    assert key_origin_dict["master_fingerprint"]
+    assert key_origin_dict["path"]
 
     assert key_origin_dict == key_origin_dict2
 

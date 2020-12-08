@@ -118,11 +118,19 @@ _BIP32KeyOrigin = TypeVar("_BIP32KeyOrigin", bound="BIP32KeyOrigin")
 class BIP32KeyOrigin(DataClassJsonMixin):
     fingerprint: bytes = field(
         default=b"",
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
+        metadata=config(
+            field_name="master_fingerprint",
+            encoder=lambda v: v.hex(),
+            decoder=bytes.fromhex,
+        ),
     )
     der_path: Sequence[int] = field(
         default_factory=list,
-        metadata=config(encoder=str_from_bip32_path, decoder=indexes_from_bip32_path),
+        metadata=config(
+            field_name="path",
+            encoder=str_from_bip32_path,
+            decoder=indexes_from_bip32_path,
+        ),
     )
     check_validity: InitVar[bool] = True
 
