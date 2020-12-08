@@ -170,6 +170,7 @@ def test_bip32_key_origin() -> None:
         10,
     ]
     assert BIP32KeyOrigin.deserialize(key_origin.serialize()) == key_origin
+    assert len(key_origin) == 5
 
 
 def test_dataclasses_json_dict_key_origin() -> None:
@@ -227,9 +228,11 @@ def test_bip32_key_path() -> None:
     der_path = "/44'/0'/1'/0/10"
     description = fingerprint + der_path
     key_origin = BIP32KeyOrigin.from_description(description)
+    assert len(key_origin) == 5
 
     key_path = BIP32KeyPath(pub_key, key_origin)
     assert key_path == BIP32KeyPath.deserialize(key_path.serialize())
+    assert len(key_path) == len(key_origin)
 
 
 def test_dataclasses_json_dict_key_path() -> None:

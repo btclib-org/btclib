@@ -25,6 +25,7 @@ from dataclasses_json import DataClassJsonMixin, config
 from . import var_bytes
 from .alias import BinaryData
 from .exceptions import BTClibValueError
+from .sec_point import point_from_octets
 from .utils import bytesio_from_binarydata
 
 _HARDENING = "h"
@@ -134,6 +135,9 @@ class BIP32KeyOrigin(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
+    def __len__(self):
+        return len(self.der_path)
+
     @property
     def description(self) -> str:
 
@@ -145,7 +149,7 @@ class BIP32KeyOrigin(DataClassJsonMixin):
         if len(self.fingerprint) != 4:
             err_msg = f"invalid master fingerprint length: {len(self.fingerprint)}"
             raise BTClibValueError(err_msg)
-        if len(self.der_path) > 255:
+        if len(self) > 255:
             raise BTClibValueError(f"invalid der_path size: {len(self.der_path)}")
         if any(not 0 <= i <= 0xFFFFFFFF for i in self.der_path):
             raise BTClibValueError("invalid der_path element")
@@ -200,8 +204,12 @@ class BIP32KeyPath(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
+    def __len__(self):
+        return len(self.key_origin)
+
     def assert_valid(self) -> None:
-        # TODO check that self.pub_key is a valid SEC key
+        # check that self.pub_key is a valid SEC key
+        point_from_octets(self.pub_key)
         self.key_origin.assert_valid()
 
     def serialize(self, assert_valid: bool = True) -> bytes:
