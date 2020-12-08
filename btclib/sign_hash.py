@@ -128,7 +128,12 @@ def segwit_v0(script_: bytes, tx: Tx, vin_i: int, hash_type: int, amount: int) -
         and (hash_type & 0x1F) != SINGLE
         and (hash_type & 0x1F) != NONE
     ):
-        hash_seqs = b"".join([vin.sequence.to_bytes(4, byteorder="little", signed=False) for vin in tx.vin])
+        hash_seqs = b"".join(
+            [
+                vin.sequence.to_bytes(4, byteorder="little", signed=False)
+                for vin in tx.vin
+            ]
+        )
         hash_seqs = hash256(hash_seqs)
 
     hash_outputs = b"\x00" * 32

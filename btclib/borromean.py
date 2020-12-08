@@ -26,7 +26,7 @@ ec = secp256k1  # FIXME: any curve
 
 def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
     temp = m + R
-    temp += i.to_bytes(4, byteorder="big", signed=False) + j.to_bytes(4, byteorder="big", signed=False)
+    temp += i.to_bytes(4, "big", signed=False) + j.to_bytes(4, "big", signed=False)
     return hf(temp).digest()
 
 
