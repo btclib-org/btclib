@@ -25,6 +25,8 @@ from .bip32_path import (
     str_from_bip32_path,
 )
 from .exceptions import BTClibTypeError, BTClibValueError
+
+# from .to_pub_key import point_from_pub_key
 from .utils import bytes_from_octets
 
 
@@ -92,8 +94,7 @@ def _encode_hd_keypaths(dictionary: Dict[bytes, bytes]) -> List[Dict[str, str]]:
 def _decode_hd_keypath(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
     v = bytes_from_octets(new_element["master_fingerprint"], 4)
     v += bytes_from_bip32_path(new_element["path"], "little")
-    # TODO: check the SEC / XPUB key
-    k = bytes_from_octets(new_element["pub_key"])
+    k = bytes_from_octets(new_element["pub_key"], [33, 65, 78])
     return k, v
 
 
@@ -106,6 +107,7 @@ def _decode_hd_keypaths(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes
 def _deserialize_hd_keypaths(k: bytes, v: bytes, type_: str) -> Dict[bytes, bytes]:
     "Return the dataclass element from its binary representation."
 
+    # TODO: remove type_ and use PSBT_OUT_BIP32_DERIVATION, etc.
     allowed_lengths = (78,) if type_ == "Psbt BIP32 xkey" else (33, 65)
     if len(k) - 1 not in allowed_lengths:
         err_msg = f"invalid {type_} length"

@@ -26,7 +26,7 @@ from btclib.psbt_out import (
 
 def test_bip32_derivs() -> None:
     # the basic type dict representation
-    data: List[Dict[str, str]] = [
+    encoded_data: List[Dict[str, str]] = [
         {
             "pub_key": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
             "master_fingerprint": "d90c6a4f",
@@ -38,12 +38,11 @@ def test_bip32_derivs() -> None:
             "path": "m/0'/0'/1'",
         },
     ]
-    decoded_data: Dict[bytes, bytes] = _decode_hd_keypaths(data)
-    assert data == _encode_hd_keypaths(decoded_data)
+    data = _decode_hd_keypaths(encoded_data)
+    _assert_valid_hd_keypaths(data)
+    assert encoded_data == _encode_hd_keypaths(data)
 
-    _assert_valid_hd_keypaths(decoded_data)
-
-    _serialize_dict_bytes_bytes(PSBT_OUT_BIP32_DERIVATION, decoded_data)
+    _serialize_dict_bytes_bytes(PSBT_OUT_BIP32_DERIVATION, data)
     # TODO: check deserialization
 
 
