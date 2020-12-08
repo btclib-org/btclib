@@ -64,7 +64,7 @@ def _b58encode(v: bytes) -> bytes:
     v = v.lstrip(b"\0")
     vlen = len(v)
     n_pad -= vlen
-    result = __ALPHABET[0:1] * n_pad
+    result = __ALPHABET[:1] * n_pad
 
     if vlen:
         i = int.from_bytes(v, byteorder="big", signed=False)
@@ -99,7 +99,7 @@ def _b58decode(v: bytes) -> bytes:
     # preserve leading-0s
     # base58 leading-1s become leading-0s
     n_pad = len(v)
-    v = v.lstrip(__ALPHABET[0:1])
+    v = v.lstrip(__ALPHABET[:1])
     vlen = len(v)
     n_pad -= vlen
     result = b"\0" * n_pad

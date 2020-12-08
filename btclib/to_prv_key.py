@@ -99,7 +99,7 @@ def _prv_keyinfo_from_wif(
 
     payload = b58decode(wif)
 
-    net = network_from_key_value("wif", payload[0:1])
+    net = network_from_key_value("wif", payload[:1])
     if network is not None and net != network:
         raise BTClibValueError(f"not a {network} wif: {wif!r}")
 

@@ -53,7 +53,7 @@ def h160_from_base58_address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
         b58addr = b58addr.strip()
 
     payload = b58decode(b58addr, 21)
-    prefix = payload[0:1]
+    prefix = payload[:1]
     if prefix in _P2PKH_PREFIXES:
         network = network_from_key_value("p2pkh", prefix)
         is_script_hash = False

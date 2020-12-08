@@ -266,14 +266,14 @@ def test_derive_exceptions() -> None:
     rootxprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
 
     temp = base58.b58decode(rootxprv)
-    bad_xprv = base58.b58encode(temp[0:45] + b"\x02" + temp[46:], 78)
+    bad_xprv = base58.b58encode(temp[:45] + b"\x02" + temp[46:], 78)
     err_msg = "invalid private key prefix: "
     with pytest.raises(BTClibValueError, match=err_msg):
         derive(bad_xprv, 0x80000000)
 
     xpub = xpub_from_xprv(rootxprv)
     temp = base58.b58decode(xpub)
-    bad_xpub = base58.b58encode(temp[0:45] + b"\x00" + temp[46:], 78)
+    bad_xpub = base58.b58encode(temp[:45] + b"\x00" + temp[46:], 78)
     err_msg = r"invalid public key prefix not in \(0x02, 0x03\): "
     with pytest.raises(BTClibValueError, match=err_msg):
         derive(bad_xpub, 0x80000000)

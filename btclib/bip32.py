@@ -149,14 +149,14 @@ class BIP32KeyData(DataClassJsonMixin):
         if self.version in _XPRV_VERSIONS_ALL:
             if self.key[0] != 0:
                 raise BTClibValueError(
-                    f"invalid private key prefix: 0x{self.key[0:1].hex()}"
+                    f"invalid private key prefix: 0x{self.key[:1].hex()}"
                 )
             q = int.from_bytes(self.key[1:], byteorder="big", signed=False)
             if not 0 < q < ec.n:
                 raise BTClibValueError(f"invalid private key not in 1..n-1: {hex(q)}")
         elif self.version in _XPUB_VERSIONS_ALL:
             if self.key[0] not in (2, 3):
-                err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[0:1].hex()}"
+                err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[:1].hex()}"
                 raise BTClibValueError(err_msg)
             try:
                 ec.y(int.from_bytes(self.key[1:], byteorder="big", signed=False))
