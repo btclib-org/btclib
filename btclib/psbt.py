@@ -12,16 +12,15 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
-
 import base64
 from copy import deepcopy
 from dataclasses import InitVar, dataclass, field
-from typing import Dict, List, Tuple, Type, TypeVar, Union
+from typing import Dict, List, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import script, var_int
-from .alias import Octets, ScriptToken, String
+from . import script
+from .alias import BinaryData, ScriptToken, String
 from .exceptions import BTClibValueError
 from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
@@ -36,9 +35,10 @@ from .psbt_out import (
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
 )
+from .psbt_utils import deserialize_map
 from .script_pub_key import payload_from_script_pub_key
 from .tx import Tx
-from .utils import bytes_from_octets, hash160, sha256
+from .utils import bytesio_from_binarydata, hash160, sha256
 from .witness import Witness
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
@@ -207,14 +207,14 @@ class Psbt(DataClassJsonMixin):
 
         psbt_bin += PSBT_DELIMITER
         for input_map in self.inputs:
-            psbt_bin += input_map.serialize() + b"\x00"
+            psbt_bin += input_map.serialize() + PSBT_DELIMITER
         for output_map in self.outputs:
-            psbt_bin += output_map.serialize() + b"\x00"
+            psbt_bin += output_map.serialize() + PSBT_DELIMITER
         return psbt_bin
 
     @classmethod
     def deserialize(
-        cls: Type[_Psbt], psbt_bin: Octets, assert_valid: bool = True
+        cls: Type[_Psbt], data: BinaryData, assert_valid: bool = True
     ) -> _Psbt:
         "Return a Psbt by parsing binary data."
 
@@ -222,15 +222,15 @@ class Psbt(DataClassJsonMixin):
         # stream = bytesio_from_binarydata(psbt_bin)
         # and the deserialization should happen reading the stream
         # not slicing bytes
-        psbt_bin = bytes_from_octets(psbt_bin)
+        stream = bytesio_from_binarydata(data)
         psbt = cls(check_validity=False)
 
-        if psbt_bin[:4] != PSBT_MAGIC_BYTES:
+        if stream.read(4) != PSBT_MAGIC_BYTES:
             raise BTClibValueError("malformed psbt: missing magic bytes")
-        if psbt_bin[4:5] != PSBT_SEPARATOR:
+        if stream.read(1) != PSBT_SEPARATOR:
             raise BTClibValueError("malformed psbt: missing separator")
 
-        global_map, psbt_bin = deserialize_map(psbt_bin[5:])
+        global_map, stream = deserialize_map(stream)
         for k, v in global_map.items():
             if k[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 # legacy transaction
@@ -245,11 +245,11 @@ class Psbt(DataClassJsonMixin):
                 psbt.unknown[k] = v
 
         for _ in psbt.tx.vin:
-            input_map, psbt_bin = deserialize_map(psbt_bin)
+            input_map, stream = deserialize_map(stream)
             psbt.inputs.append(PsbtIn.deserialize(input_map))
 
         for _ in psbt.tx.vout:
-            output_map, psbt_bin = deserialize_map(psbt_bin)
+            output_map, stream = deserialize_map(stream)
             psbt.outputs.append(PsbtOut.deserialize(output_map))
 
         if assert_valid:
@@ -268,28 +268,6 @@ class Psbt(DataClassJsonMixin):
             psbt_str = psbt_str.strip()
         psbt_decoded = base64.b64decode(psbt_str)
         return cls.deserialize(psbt_decoded, assert_valid)
-
-
-# FIXME: use stream, not repeated bytes slicing
-def deserialize_map(psbt_bin: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
-    if len(psbt_bin) == 0:
-        raise BTClibValueError("malformed psbt: at least a map is missing")
-    partial_map: Dict[bytes, bytes] = {}
-    while True:
-        if psbt_bin[0] == 0:
-            psbt_bin = psbt_bin[1:]
-            return partial_map, psbt_bin
-        key_len = var_int.deserialize(psbt_bin)
-        psbt_bin = psbt_bin[len(var_int.serialize(key_len)) :]
-        key = psbt_bin[:key_len]
-        psbt_bin = psbt_bin[key_len:]
-        value_len = var_int.deserialize(psbt_bin)
-        psbt_bin = psbt_bin[len(var_int.serialize(value_len)) :]
-        value = psbt_bin[:value_len]
-        psbt_bin = psbt_bin[value_len:]
-        if key in partial_map:
-            raise BTClibValueError(f"duplicated key in psbt map: 0x{key.hex()}")
-        partial_map[key] = value
 
 
 def _combine_field(
