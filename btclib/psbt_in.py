@@ -21,16 +21,16 @@ from dataclasses_json import DataClassJsonMixin, config
 from . import dsa, sec_point
 from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_out import (
-    _assert_valid_hd_keypaths,
+    _assert_valid_hd_key_paths,
     _assert_valid_redeem_script,
     _assert_valid_unknown,
     _assert_valid_witness_script,
     _decode_dict_bytes_bytes,
-    _decode_hd_keypaths,
+    _decode_hd_key_paths,
     _deserialize_bytes,
-    _deserialize_hd_keypaths,
+    _deserialize_hd_key_path,
     _encode_dict_bytes_bytes,
-    _encode_hd_keypaths,
+    _encode_hd_key_paths,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
 )
@@ -153,12 +153,12 @@ class PsbtIn(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    hd_keypaths: Dict[bytes, bytes] = field(
+    hd_key_paths: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
-            encoder=_encode_hd_keypaths,
-            decoder=_decode_hd_keypaths,
+            encoder=_encode_hd_key_paths,
+            decoder=_decode_hd_key_paths,
         ),
     )
     final_script_sig: bytes = field(
@@ -199,7 +199,7 @@ class PsbtIn(DataClassJsonMixin):
         _assert_valid_final_script_sig(self.final_script_sig)
         self.final_script_witness.assert_valid()
         _assert_valid_partial_sigs(self.partial_sigs)
-        _assert_valid_hd_keypaths(self.hd_keypaths)
+        _assert_valid_hd_key_paths(self.hd_key_paths)
         _assert_valid_unknown(self.unknown)
 
     def serialize(self, assert_valid: bool = True) -> bytes:
@@ -233,9 +233,9 @@ class PsbtIn(DataClassJsonMixin):
             if self.witness_script:
                 out += _serialize_bytes(PSBT_IN_WITNESS_SCRIPT, self.witness_script)
 
-            if self.hd_keypaths:
+            if self.hd_key_paths:
                 out += _serialize_dict_bytes_bytes(
-                    PSBT_IN_BIP32_DERIVATION, self.hd_keypaths
+                    PSBT_IN_BIP32_DERIVATION, self.hd_key_paths
                 )
 
         if self.final_script_sig:
@@ -272,8 +272,8 @@ class PsbtIn(DataClassJsonMixin):
             elif k[0:1] == PSBT_IN_WITNESS_SCRIPT:
                 out.witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[0:1] == PSBT_IN_BIP32_DERIVATION:
-                out.hd_keypaths.update(
-                    _deserialize_hd_keypaths(k, v, "PsbtIn BIP32 pub_key")
+                out.hd_key_paths.update(
+                    _deserialize_hd_key_path(k, v, "PsbtIn BIP32 pub_key")
                 )
             elif k[0:1] == PSBT_IN_FINAL_SCRIPTSIG:
                 out.final_script_sig = _deserialize_bytes(k, v, "final script_sig")

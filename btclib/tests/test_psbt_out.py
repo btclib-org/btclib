@@ -15,12 +15,12 @@ from typing import Dict, List
 from btclib.bip32_path import _HARDENING
 from btclib.psbt_out import (
     PSBT_OUT_BIP32_DERIVATION,
-    _assert_valid_hd_keypaths,
+    _assert_valid_hd_key_paths,
     _assert_valid_unknown,
     _decode_dict_bytes_bytes,
-    _decode_hd_keypaths,
+    _decode_hd_key_paths,
     _encode_dict_bytes_bytes,
-    _encode_hd_keypaths,
+    _encode_hd_key_paths,
     _serialize_dict_bytes_bytes,
 )
 
@@ -39,9 +39,9 @@ def test_bip32_derivs() -> None:
             "path": "m/0" + _HARDENING + "/0/1",
         },
     ]
-    data = _decode_hd_keypaths(encoded_data)
-    _assert_valid_hd_keypaths(data)
-    assert encoded_data == _encode_hd_keypaths(data)
+    data = _decode_hd_key_paths(encoded_data)
+    _assert_valid_hd_key_paths(data)
+    assert encoded_data == _encode_hd_key_paths(data)
 
     _serialize_dict_bytes_bytes(PSBT_OUT_BIP32_DERIVATION, data)
     # TODO: check deserialization

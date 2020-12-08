@@ -26,13 +26,13 @@ from .exceptions import BTClibValueError
 from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
     PsbtOut,
-    _assert_valid_hd_keypaths,
+    _assert_valid_hd_key_paths,
     _assert_valid_unknown,
     _decode_dict_bytes_bytes,
-    _decode_hd_keypaths,
-    _deserialize_hd_keypaths,
+    _decode_hd_key_paths,
+    _deserialize_hd_key_path,
     _encode_dict_bytes_bytes,
-    _encode_hd_keypaths,
+    _encode_hd_key_paths,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
 )
@@ -72,12 +72,12 @@ class Psbt(DataClassJsonMixin):
     inputs: List[PsbtIn] = field(default_factory=list)
     outputs: List[PsbtOut] = field(default_factory=list)
     version: int = 0
-    hd_keypaths: Dict[bytes, bytes] = field(
+    hd_key_paths: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
-            encoder=_encode_hd_keypaths,
-            decoder=_decode_hd_keypaths,
+            encoder=_encode_hd_key_paths,
+            decoder=_decode_hd_key_paths,
         ),
     )
     unknown: Dict[bytes, bytes] = field(
@@ -142,7 +142,7 @@ class Psbt(DataClassJsonMixin):
             psbt_out.assert_valid()
 
         _assert_valid_version(self.version)
-        _assert_valid_hd_keypaths(self.hd_keypaths)
+        _assert_valid_hd_key_paths(self.hd_key_paths)
         _assert_valid_unknown(self.unknown)
 
     def assert_signable(self) -> None:
@@ -200,8 +200,8 @@ class Psbt(DataClassJsonMixin):
         if self.version:
             temp = self.version.to_bytes(4, byteorder="little", signed=False)
             psbt_bin += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
-        if self.hd_keypaths:
-            psbt_bin += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.hd_keypaths)
+        if self.hd_key_paths:
+            psbt_bin += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.hd_key_paths)
         if self.unknown:
             psbt_bin += _serialize_dict_bytes_bytes(b"", self.unknown)
 
@@ -238,8 +238,8 @@ class Psbt(DataClassJsonMixin):
             elif k[0:1] == PSBT_GLOBAL_VERSION:
                 psbt.version = _deserialize_int(k, v, "global version")
             elif k[0:1] == PSBT_GLOBAL_XPUB:
-                psbt.hd_keypaths.update(
-                    _deserialize_hd_keypaths(k, v, "Psbt BIP32 xkey")
+                psbt.hd_key_paths.update(
+                    _deserialize_hd_key_path(k, v, "Psbt BIP32 xkey")
                 )
             else:  # unknown
                 psbt.unknown[k] = v
@@ -327,7 +327,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
             _combine_field(psbt.inputs[i], inp, "sig_hash_type")
             _combine_field(psbt.inputs[i], inp, "redeem_script")
             _combine_field(psbt.inputs[i], inp, "witness_script")
-            _combine_field(psbt.inputs[i], inp, "hd_keypaths")
+            _combine_field(psbt.inputs[i], inp, "hd_key_paths")
             _combine_field(psbt.inputs[i], inp, "final_script_sig")
             _combine_field(psbt.inputs[i], inp, "final_script_witness")
             _combine_field(psbt.inputs[i], inp, "unknown")
@@ -335,12 +335,12 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
         for i, out in enumerate(final_psbt.outputs):
             _combine_field(psbt.outputs[i], out, "redeem_script")
             _combine_field(psbt.outputs[i], out, "witness_script")
-            _combine_field(psbt.outputs[i], out, "hd_keypaths")
+            _combine_field(psbt.outputs[i], out, "hd_key_paths")
             _combine_field(psbt.outputs[i], out, "unknown")
 
         _combine_field(psbt, final_psbt, "tx")
         _combine_field(psbt, final_psbt, "version")
-        _combine_field(psbt, final_psbt, "hd_keypaths")
+        _combine_field(psbt, final_psbt, "hd_key_paths")
         _combine_field(psbt, final_psbt, "unknown")
 
     return final_psbt
@@ -387,7 +387,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         psbt_in.sig_hash_type = None
         psbt_in.redeem_script = b""
         psbt_in.witness_script = b""
-        psbt_in.hd_keypaths = {}
+        psbt_in.hd_key_paths = {}
     return psbt
 
 

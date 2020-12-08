@@ -77,7 +77,7 @@ def _assert_valid_witness_script(witness_script: bytes) -> None:
         raise BTClibTypeError("invalid witness script")
 
 
-def _encode_hd_keypaths(dictionary: Dict[bytes, bytes]) -> List[Dict[str, str]]:
+def _encode_hd_key_paths(dictionary: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     "Return the json representation of the dataclass element."
 
     result: List[Dict[str, str]] = []
@@ -91,20 +91,20 @@ def _encode_hd_keypaths(dictionary: Dict[bytes, bytes]) -> List[Dict[str, str]]:
     return result
 
 
-def _decode_hd_keypath(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
+def _decode_hd_key_path(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
     v = bytes_from_octets(new_element["master_fingerprint"], 4)
     v += bytes_from_bip32_path(new_element["path"])
     k = bytes_from_octets(new_element["pub_key"], [33, 65, 78])
     return k, v
 
 
-def _decode_hd_keypaths(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
+def _decode_hd_key_paths(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
 
-    return dict([_decode_hd_keypath(item) for item in list_of_dict])
+    return dict([_decode_hd_key_path(item) for item in list_of_dict])
 
 
-def _deserialize_hd_keypaths(k: bytes, v: bytes, type_: str) -> Dict[bytes, bytes]:
+def _deserialize_hd_key_path(k: bytes, v: bytes, type_: str) -> Dict[bytes, bytes]:
     "Return the dataclass element from its binary representation."
 
     # TODO: remove type_ and use PSBT_OUT_BIP32_DERIVATION, etc.
@@ -116,10 +116,10 @@ def _deserialize_hd_keypaths(k: bytes, v: bytes, type_: str) -> Dict[bytes, byte
     return {k[1:]: v}
 
 
-def _assert_valid_hd_keypaths(hd_keypaths: Dict[bytes, bytes]) -> None:
+def _assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
-    for _, v in hd_keypaths.items():
+    for _, v in hd_key_paths.items():
         # FIXME
         # point_from_pub_key(k)
         indexes_from_bip32_path(v)
@@ -155,12 +155,12 @@ class PsbtOut(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    hd_keypaths: Dict[bytes, bytes] = field(
+    hd_key_paths: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
-            encoder=_encode_hd_keypaths,
-            decoder=_decode_hd_keypaths,
+            encoder=_encode_hd_key_paths,
+            decoder=_decode_hd_key_paths,
         ),
     )
     unknown: Dict[bytes, bytes] = field(
@@ -179,7 +179,7 @@ class PsbtOut(DataClassJsonMixin):
         "Assert logical self-consistency."
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
-        _assert_valid_hd_keypaths(self.hd_keypaths)
+        _assert_valid_hd_key_paths(self.hd_key_paths)
         _assert_valid_unknown(self.unknown)
 
     def serialize(self, assert_valid: bool = True) -> bytes:
@@ -195,9 +195,9 @@ class PsbtOut(DataClassJsonMixin):
         if self.witness_script:
             out += _serialize_bytes(PSBT_OUT_WITNESS_SCRIPT, self.witness_script)
 
-        if self.hd_keypaths:
+        if self.hd_key_paths:
             out += _serialize_dict_bytes_bytes(
-                PSBT_OUT_BIP32_DERIVATION, self.hd_keypaths
+                PSBT_OUT_BIP32_DERIVATION, self.hd_key_paths
             )
 
         if self.unknown:
@@ -219,8 +219,8 @@ class PsbtOut(DataClassJsonMixin):
             elif k[0:1] == PSBT_OUT_WITNESS_SCRIPT:
                 out.witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[0:1] == PSBT_OUT_BIP32_DERIVATION:
-                out.hd_keypaths.update(
-                    _deserialize_hd_keypaths(k, v, "PsbtOut BIP32 pub_key")
+                out.hd_key_paths.update(
+                    _deserialize_hd_key_path(k, v, "PsbtOut BIP32 pub_key")
                 )
             else:  # unknown
                 out.unknown[k] = v
