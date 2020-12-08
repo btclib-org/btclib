@@ -246,8 +246,6 @@ def test_dataclasses_json_dict_key_path() -> None:
 
     # BIP32KeyPath dataclass
     assert isinstance(key_path, BIP32KeyPath)
-    assert key_path.pub_key
-    assert key_path.key_origin
 
     # BIP32KeyPath dataclass to dict
     key_path_dict = key_path.to_dict()
@@ -265,15 +263,13 @@ def test_dataclasses_json_dict_key_path() -> None:
     with open(filename, "r") as file_:
         key_path_dict2 = json.load(file_)
     assert isinstance(key_path_dict2, dict)
-    assert key_path_dict["pub_key"]
-    assert key_path_dict["key_origin"]
+    assert key_path_dict2["pub_key"]
+    assert key_path_dict2["key_origin"]
 
     assert key_path_dict == key_path_dict2
 
     # BIP32KeyPath dataclass from dict
     key_path2 = BIP32KeyPath.from_dict(key_path_dict)
     assert isinstance(key_path2, BIP32KeyPath)
-    assert key_path.pub_key
-    assert key_path.key_origin
 
     assert key_path == key_path2
