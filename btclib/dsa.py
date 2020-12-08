@@ -45,7 +45,7 @@ def gen_keys(prv_key: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]
 
     QJ = _mult(q, ec.GJ, ec)
     Q = ec._aff_from_jac(QJ)
-    # q.to_bytes(ec.nsize, 'big')
+    # q.to_bytes(ec.nsize, byteorder="big", signed=False)
     # bytes_from_point(Q, ec, compressed)
     return q, Q
 

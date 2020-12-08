@@ -57,7 +57,7 @@ def test_ecf() -> None:
     # QA = (815, 3190)
     # nB = 1829
     # S = _mult_aff(nB, QA, ec)
-    # b = S[0].to_bytes(ec.psize, 'big')
+    # b = S[0].to_bytes(ec.psize, byteorder="big", signed=False)
     # s = sha1(b).hexdigest()
     # print(f"{challenge}: {s}")
 

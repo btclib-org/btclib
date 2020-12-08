@@ -25,7 +25,7 @@ from btclib.curve import mult, secp256k1
 ec = secp256k1
 
 q = 12
-q_bytes = q.to_bytes(32, byteorder="big")
+q_bytes = q.to_bytes(32, byteorder="big", signed=False)
 q_hexstring = q_bytes.hex()
 q_hexstring2 = " " + q_hexstring + " "
 
@@ -83,16 +83,19 @@ Q = mult(q)
 # but curve aware
 plain_pub_keys: List[Union[bytes, str]] = []
 
-x_Q_bytes = Q[0].to_bytes(32, "big")
+x_Q_bytes = Q[0].to_bytes(32, byteorder="big", signed=False)
 Q_compressed = (b"\x03" if (Q[1] & 1) else b"\x02") + x_Q_bytes
 Q_compressed_hexstring = Q_compressed.hex()
 Q_compressed_hexstring2 = " " + Q_compressed_hexstring + " "
 Q_compressed_hexstring3 = ("03" if (Q[1] & 1) else "02") + " " + x_Q_bytes.hex()
-Q_uncompressed = b"\x04" + x_Q_bytes + Q[1].to_bytes(32, "big")
+Q_uncompressed = b"\x04" + x_Q_bytes + Q[1].to_bytes(32, byteorder="big", signed=False)
 Q_uncompressed_hexstring = Q_uncompressed.hex()
 Q_uncompressed_hexstring2 = " " + Q_uncompressed_hexstring + " "
 Q_uncompressed_hexstring3 = (
-    "04 " + x_Q_bytes.hex() + " " + Q[1].to_bytes(32, "big").hex()
+    "04 "
+    + x_Q_bytes.hex()
+    + " "
+    + Q[1].to_bytes(32, byteorder="big", signed=False).hex()
 )
 
 xpub_data = BIP32KeyData(
@@ -187,12 +190,12 @@ bad_bip32_keys += [
 
 
 q0 = 0
-q0_bytes = q0.to_bytes(32, byteorder="big")
+q0_bytes = q0.to_bytes(32, byteorder="big", signed=False)
 q0_hexstring = q0_bytes.hex()
 q0_hexstring2 = " " + q0_hexstring + " "
 
 qn = ec.n
-qn_bytes = qn.to_bytes(32, byteorder="big")
+qn_bytes = qn.to_bytes(32, byteorder="big", signed=False)
 qn_hexstring = qn_bytes.hex()
 qn_hexstring2 = " " + qn_hexstring + " "
 
@@ -289,23 +292,33 @@ Q_compressed = (b"\x03" if (Q[1] & 1) else b"\x02") + x_Q_bytes
 Q_compressed_hexstring = Q_compressed.hex()
 Q_compressed_hexstring2 = " " + Q_compressed_hexstring + " "
 Q_compressed_hexstring3 = ("03" if (Q[1] & 1) else "02") + " " + x_Q_bytes.hex()
-Q_uncompressed = b"\x04" + x_Q_bytes + Q[1].to_bytes(32, "big")
+Q_uncompressed = b"\x04" + x_Q_bytes + Q[1].to_bytes(32, byteorder="big", signed=False)
 Q_uncompressed_hexstring = Q_uncompressed.hex()
 Q_uncompressed_hexstring2 = " " + Q_uncompressed_hexstring + " "
 Q_uncompressed_hexstring3 = (
-    "04 " + x_Q_bytes.hex() + " " + Q[1].to_bytes(32, "big").hex()
+    "04 "
+    + x_Q_bytes.hex()
+    + " "
+    + Q[1].to_bytes(32, byteorder="big", signed=False).hex()
 )
 
-INF_x_bytes = INF[0].to_bytes(32, "big")
+INF_x_bytes = INF[0].to_bytes(32, byteorder="big", signed=False)
 INF_compressed = (b"\x03" if (INF[1] & 1) else b"\x02") + INF_x_bytes
 INF_compressed_hexstring = INF_compressed.hex()
 INF_compressed_hexstring2 = " " + INF_compressed_hexstring + " "
 INF_compressed_hexstring3 = ("03" if (INF[1] & 1) else "02") + " " + INF_x_bytes.hex()
-INF_uncompressed = b"\x04" + INF[0].to_bytes(32, "big") + INF[1].to_bytes(32, "big")
+INF_uncompressed = (
+    b"\x04"
+    + INF[0].to_bytes(32, byteorder="big", signed=False)
+    + INF[1].to_bytes(32, byteorder="big", signed=False)
+)
 INF_uncompressed_hexstring = INF_uncompressed.hex()
 INF_uncompressed_hexstring2 = " " + INF_uncompressed_hexstring + " "
 INF_uncompressed_hexstring3 = (
-    "04 " + INF_x_bytes.hex() + " " + INF[1].to_bytes(32, "big").hex()
+    "04 "
+    + INF_x_bytes.hex()
+    + " "
+    + INF[1].to_bytes(32, byteorder="big", signed=False).hex()
 )
 
 INF_xpub_data = BIP32KeyData(

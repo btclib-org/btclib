@@ -42,7 +42,7 @@ from dataclasses_json import DataClassJsonMixin, config
 from . import base58, bip39, electrum
 from .alias import INF, BinaryData, Octets, Point, String
 from .bip32_path import (
-    BIP32Path,
+    BIP32DerPath,
     _int_from_index_str,
     _str_from_index_int,
     indexes_from_bip32_path,
@@ -151,7 +151,7 @@ class BIP32KeyData(DataClassJsonMixin):
                 raise BTClibValueError(
                     f"invalid private key prefix: 0x{self.key[0:1].hex()}"
                 )
-            q = int.from_bytes(self.key[1:], byteorder="big")
+            q = int.from_bytes(self.key[1:], byteorder="big", signed=False)
             if not 0 < q < ec.n:
                 raise BTClibValueError(f"invalid private key not in 1..n-1: {hex(q)}")
         elif self.version in _XPUB_VERSIONS_ALL:
@@ -159,7 +159,7 @@ class BIP32KeyData(DataClassJsonMixin):
                 err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[0:1].hex()}"
                 raise BTClibValueError(err_msg)
             try:
-                ec.y(int.from_bytes(self.key[1:], byteorder="big"))
+                ec.y(int.from_bytes(self.key[1:], byteorder="big", signed=False))
             except BTClibValueError as e:
                 err_msg = f"invalid public key: 0x{self.key.hex()}"
                 raise BTClibValueError(err_msg) from e
@@ -181,9 +181,9 @@ class BIP32KeyData(DataClassJsonMixin):
             self.assert_valid()
 
         xkey_bin = self.version
-        xkey_bin += self.depth.to_bytes(1, "big")
+        xkey_bin += self.depth.to_bytes(1, byteorder="big", signed=False)
         xkey_bin += self.parent_fingerprint
-        xkey_bin += self.index.to_bytes(4, "big")
+        xkey_bin += self.index.to_bytes(4, byteorder="big", signed=False)
         xkey_bin += self.chain_code
         xkey_bin += self.key
         return xkey_bin
@@ -198,9 +198,9 @@ class BIP32KeyData(DataClassJsonMixin):
         xkey = cls(check_validity=False)
 
         xkey.version = stream.read(4)
-        xkey.depth = int.from_bytes(stream.read(1), byteorder="big")
+        xkey.depth = int.from_bytes(stream.read(1), byteorder="big", signed=False)
         xkey.parent_fingerprint = stream.read(4)
-        xkey.index = int.from_bytes(stream.read(4), byteorder="big")
+        xkey.index = int.from_bytes(stream.read(4), byteorder="big", signed=False)
         xkey.chain_code = stream.read(32)
         xkey.key = stream.read(33)
 
@@ -313,7 +313,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     i = _XPRV_VERSIONS_ALL.index(xkey_data.version)
     xkey_data.version = _XPUB_VERSIONS_ALL[i]
 
-    q = int.from_bytes(xkey_data.key[1:], byteorder="big")
+    q = int.from_bytes(xkey_data.key[1:], byteorder="big", signed=False)
     Q = mult(q)
     xkey_data.key = bytes_from_point(Q)
 
@@ -337,26 +337,32 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
         key_data.parent_fingerprint = hash160(Q_bytes)[:4]
         if key_data.is_hardened():  # hardened derivation
             hmac_ = hmac.new(
-                key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
+                key_data.chain_code,
+                key_data.key + index.to_bytes(4, byteorder="big", signed=False),
+                "sha512",
             ).digest()
         else:  # normal derivation
             hmac_ = hmac.new(
-                key_data.chain_code, Q_bytes + index.to_bytes(4, "big"), "sha512"
+                key_data.chain_code,
+                Q_bytes + index.to_bytes(4, byteorder="big", signed=False),
+                "sha512",
             ).digest()
         key_data.chain_code = hmac_[32:]
-        offset = int.from_bytes(hmac_[:32], byteorder="big")
+        offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
         key_data.q = (key_data.q + offset) % ec.n
-        key_data.key = b"\x00" + key_data.q.to_bytes(32, "big")
+        key_data.key = b"\x00" + key_data.q.to_bytes(32, byteorder="big", signed=False)
         key_data.Q = INF
     else:  # public key
         key_data.parent_fingerprint = hash160(key_data.key)[:4]
         if key_data.is_hardened():
             raise BTClibValueError("invalid hardened derivation from public key")
         hmac_ = hmac.new(
-            key_data.chain_code, key_data.key + index.to_bytes(4, "big"), "sha512"
+            key_data.chain_code,
+            key_data.key + index.to_bytes(4, byteorder="big", signed=False),
+            "sha512",
         ).digest()
         key_data.chain_code = hmac_[32:]
-        offset = int.from_bytes(hmac_[:32], byteorder="big")
+        offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
         key_data.Q = ec.add(key_data.Q, mult(offset))
         key_data.key = bytes_from_point(key_data.Q)
         key_data.q = 0
@@ -364,7 +370,7 @@ def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
 
 def _derive(
     xkey_data: BIP32KeyData,
-    der_path: BIP32Path,
+    der_path: BIP32DerPath,
     forced_version: Optional[Octets] = None,
 ) -> BIP32KeyData:
 
@@ -388,7 +394,11 @@ def _derive(
             raise BTClibValueError(err_msg)
 
     is_prv = xkey_data.key[0] == 0
-    q = int.from_bytes(xkey_data.key[1:], byteorder="big") if is_prv else 0
+    q = (
+        int.from_bytes(xkey_data.key[1:], byteorder="big", signed=False)
+        if is_prv
+        else 0
+    )
     Q = INF if is_prv else point_from_octets(xkey_data.key, ec)
     key_data = _ExtendedBIP32KeyData(
         version=xkey_data.version,
@@ -409,18 +419,18 @@ def _derive(
 
 
 def derive(
-    xkey: BIP32Key, der_path: BIP32Path, forced_version: Optional[Octets] = None
+    xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Optional[Octets] = None
 ) -> bytes:
     """Derive a BIP32 key across a path spanning multiple depth levels.
 
-    Valid BIP32Path examples:
+    Valid BIP32DerPath examples:
 
     - string like "m/44h/0'/1H/0/10"
     - iterable integer indexes
     - one single integer index
     - bytes in multiples of the 4-bytes index
 
-    BIP32Path is case/blank/extra-slash insensitive
+    BIP32DerPath is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
     key_data = (
@@ -506,11 +516,13 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
     p.version = c.version
 
     hmac_ = hmac.new(
-        p.chain_code, p.key + c.index.to_bytes(4, "big"), "sha512"
+        p.chain_code,
+        p.key + c.index.to_bytes(4, byteorder="big", signed=False),
+        "sha512",
     ).digest()
-    child_q = int.from_bytes(c.key[1:], byteorder="big")
-    offset = int.from_bytes(hmac_[:32], byteorder="big")
+    child_q = int.from_bytes(c.key[1:], byteorder="big", signed=False)
+    offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
     parent_q = (child_q - offset) % ec.n
-    p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big")
+    p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big", signed=False)
 
     return p.b58encode()

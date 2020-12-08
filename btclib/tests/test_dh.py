@@ -39,7 +39,7 @@ def test_ecdh() -> None:
 
     # hash the shared secret to remove weak bits
     shared_secret_field_element = shared_secret_a[0]
-    z = shared_secret_field_element.to_bytes(ec.psize, "big")
+    z = shared_secret_field_element.to_bytes(ec.psize, byteorder="big", signed=False)
 
     shared_info = b"deadbeef"
 
@@ -102,13 +102,13 @@ def test_gec_2() -> None:
     # 4.1.4
     z, _ = mult(dU, QV, ec)  # x coordinate only
     assert z == z_exp
-    keyingdata = ansi_x9_63_kdf(z.to_bytes(ec.psize, "big"), size, hf, None)
+    keyingdata = ansi_x9_63_kdf(z.to_bytes(ec.psize, byteorder="big", signed=False), size, hf, None)
     assert keyingdata.hex() == "744ab703f5bc082e59185f6d049d2d367db245c2"
 
     # 4.1.5
     z, _ = mult(dV, QU, ec)  # x coordinate only
     assert z == z_exp
-    keyingdata = ansi_x9_63_kdf(z.to_bytes(ec.psize, "big"), size, hf, None)
+    keyingdata = ansi_x9_63_kdf(z.to_bytes(ec.psize, byteorder="big", signed=False), size, hf, None)
     assert keyingdata.hex() == "744ab703f5bc082e59185f6d049d2d367db245c2"
 
 

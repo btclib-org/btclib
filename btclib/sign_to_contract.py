@@ -61,7 +61,7 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     c = bytes_from_octets(c, hf().digest_size)
     h = hf()
     h.update(r + c)
-    tweak = int.from_bytes(h.digest(), byteorder="big")
+    tweak = int.from_bytes(h.digest(), byteorder="big", signed=False)
     return R, (k + tweak) % ec.n
 
 

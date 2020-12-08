@@ -70,7 +70,7 @@ class OutPoint(DataClassJsonMixin):
             self.assert_valid()
 
         out = self.tx_id[::-1]
-        out += self.vout.to_bytes(4, "little", signed=False)
+        out += self.vout.to_bytes(4, byteorder="little", signed=False)
         return out
 
     @classmethod

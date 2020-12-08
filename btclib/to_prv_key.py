@@ -202,7 +202,7 @@ def prv_keyinfo_from_prv_key(
         # it must be octets
         try:
             prv_key = bytes_from_octets(prv_key, ec.nsize)
-            q = int.from_bytes(prv_key, "big")
+            q = int.from_bytes(prv_key, byteorder="big", signed=False)
         except ValueError as e:
             raise BTClibValueError(f"not a private key: {prv_key!r}") from e
 

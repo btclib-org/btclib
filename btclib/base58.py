@@ -67,7 +67,7 @@ def _b58encode(v: bytes) -> bytes:
     result = __ALPHABET[0:1] * n_pad
 
     if vlen:
-        i = int.from_bytes(v, byteorder="big")
+        i = int.from_bytes(v, byteorder="big", signed=False)
         result += _b58encode_from_int(i)
 
     return result
@@ -107,7 +107,7 @@ def _b58decode(v: bytes) -> bytes:
     if vlen:
         i = _b58decode_to_int(v)
         nbytes = (i.bit_length() + 7) // 8
-        result = result + i.to_bytes(nbytes, byteorder="big")
+        result = result + i.to_bytes(nbytes, byteorder="big", signed=False)
 
     return result
 

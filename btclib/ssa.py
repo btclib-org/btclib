@@ -117,8 +117,8 @@ class Sig(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
-        out = self.r.to_bytes(self.ec.psize, "big")
-        out += self.s.to_bytes(self.ec.nsize, "big")
+        out = self.r.to_bytes(self.ec.psize, byteorder="big", signed=False)
+        out += self.s.to_bytes(self.ec.nsize, byteorder="big", signed=False)
         return out
 
     @classmethod
@@ -129,8 +129,8 @@ class Sig(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
         sig = cls(check_validity=False)
 
-        sig.r = int.from_bytes(stream.read(sig.ec.psize), "big")
-        sig.s = int.from_bytes(stream.read(sig.ec.nsize), "big")
+        sig.r = int.from_bytes(stream.read(sig.ec.psize), byteorder="big", signed=False)
+        sig.s = int.from_bytes(stream.read(sig.ec.nsize), byteorder="big", signed=False)
 
         if assert_valid:
             sig.assert_valid()
@@ -169,7 +169,7 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     # BIP 340 key as bytes or hex-string
     if isinstance(x_Q, (str, bytes)):
         Q = bytes_from_octets(x_Q, ec.psize)
-        x_Q = int.from_bytes(Q, "big")
+        x_Q = int.from_bytes(Q, "big", signed=False)
         return x_Q, ec.y_even(x_Q)
 
     raise BTClibTypeError("not a BIP340 public key")
@@ -225,11 +225,11 @@ def __det_nonce(m: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> i
     # which works also for very-low-cardinality test curves
 
     randomizer = tagged_hash("BIP0340/aux", aux, hf)
-    xor = q ^ int.from_bytes(randomizer, "big")
+    xor = q ^ int.from_bytes(randomizer, "big", signed=False)
     max_len = max(ec.nsize, hf().digest_size)
-    t = xor.to_bytes(max_len, "big")
+    t = xor.to_bytes(max_len, byteorder="big", signed=False)
 
-    t += Q.to_bytes(ec.psize, "big") + m
+    t += Q.to_bytes(ec.psize, byteorder="big", signed=False) + m
 
     while True:
         t = tagged_hash("BIP0340/nonce", t, hf)
@@ -273,8 +273,8 @@ def det_nonce(
 
 def __challenge(m: bytes, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
 
-    t = x_K.to_bytes(ec.psize, "big")
-    t += x_Q.to_bytes(ec.psize, "big")
+    t = x_K.to_bytes(ec.psize, byteorder="big", signed=False)
+    t += x_Q.to_bytes(ec.psize, byteorder="big", signed=False)
     t += m
     t = tagged_hash("BIP0340/challenge", t, hf)
     c = int_from_bits(t, ec.nlen) % ec.n

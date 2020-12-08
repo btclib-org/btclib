@@ -89,7 +89,7 @@ def test_der_deserialize() -> None:
             Sig.deserialize(bad_sig_bin)
 
     data_size = sig_bin[1]
-    malleated_size = (data_size + 1).to_bytes(1, byteorder="big")
+    malleated_size = (data_size + 1).to_bytes(1, byteorder="big", signed=False)
     bad_sig_bin = sig_bin[:1] + malleated_size + sig_bin[2:] + b"\x01"
     err_msg = "invalid DER sequence length"
     with pytest.raises(BTClibValueError, match=err_msg):

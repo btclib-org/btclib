@@ -70,12 +70,12 @@ def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
         m = f"invalid number of bits for BIP39 entropy: {nbits}; must be in {_bits}"
         raise BTClibValueError(m)
     nbytes = (nbits + 7) // 8
-    bytes_entropy = int_entropy.to_bytes(nbytes, "big")
+    bytes_entropy = int_entropy.to_bytes(nbytes, byteorder="big", signed=False)
 
     # 256-bit checksum
     byteschecksum = sha256(bytes_entropy).digest()
     # integer checksum (leading zeros are lost)
-    intchecksum = int.from_bytes(byteschecksum, "big")
+    intchecksum = int.from_bytes(byteschecksum, byteorder="big", signed=False)
     # convert checksum to binary '01' string
     checksum = bin(intchecksum)[2:]  # remove '0b'
     checksum = checksum.zfill(256)  # pad with leading lost zeros

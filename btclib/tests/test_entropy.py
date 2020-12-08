@@ -65,7 +65,7 @@ def test_conversions() -> None:
         assert binstr_from_int(i) == raw
         assert binstr_from_int(bin(i).upper()) == raw
         assert binstr_from_int(hex(i).upper()) == raw
-        b = i.to_bytes(32, "big")
+        b = i.to_bytes(32, byteorder="big", signed=False)
         assert binstr_from_bytes(b) == raw
         assert binstr_from_bytes(b.hex()) == raw
 
@@ -100,7 +100,7 @@ def test_conversions() -> None:
     assert binstr_from_binstr(raw) == raw
     assert binstr_from_int(hex(i).upper()) == raw
 
-    b = i.to_bytes(32, "big")
+    b = i.to_bytes(32, byteorder="big", signed=False)
     assert binstr_from_bytes(b) == raw
 
     raw2 = binstr_from_int(i, 255)
@@ -147,7 +147,7 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         binstr_from_entropy(-1 * int_entropy211)
 
-    bytes_entropy216 = int_entropy211.to_bytes(27, byteorder="big")
+    bytes_entropy216 = int_entropy211.to_bytes(27, byteorder="big", signed=False)
     entropy = binstr_from_entropy(bytes_entropy216, 214)
     assert entropy == binstr_entropy214
 

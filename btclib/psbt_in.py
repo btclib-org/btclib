@@ -112,7 +112,7 @@ def _deserialize_int(k: bytes, v: bytes, type_: str) -> int:
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return int.from_bytes(v, "little")
+    return int.from_bytes(v, byteorder="little", signed=False)
 
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
@@ -224,7 +224,7 @@ class PsbtIn(DataClassJsonMixin):
                 )
 
             if self.sig_hash_type:
-                temp = self.sig_hash_type.to_bytes(4, "little")
+                temp = self.sig_hash_type.to_bytes(4, byteorder="little", signed=False)
                 out += _serialize_bytes(PSBT_IN_SIG_HASH_TYPE, temp)
 
             if self.redeem_script:

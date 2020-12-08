@@ -249,13 +249,13 @@ def p2ms(
     https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
     """
     m += 80
-    payload = m.to_bytes(1, byteorder="big")
+    payload = m.to_bytes(1, byteorder="big", signed=False)
     pub_keys = [pub_keyinfo_from_key(k, compressed=compressed)[0] for k in keys]
     if lexi_sort:
         pub_keys = sorted(pub_keys)
     payload += b"".join([var_bytes.serialize(k) for k in pub_keys])
     n = len(keys) + 80
-    payload += n.to_bytes(1, byteorder="big")
+    payload += n.to_bytes(1, byteorder="big", signed=False)
     return script_pub_key_from_payload("p2ms", payload)
 
 

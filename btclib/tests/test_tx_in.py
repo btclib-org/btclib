@@ -26,7 +26,7 @@ def test_out_point() -> None:
     out_point = OutPoint()
     assert out_point.tx_id == b"\x00" * 32
     assert out_point.vout == 0xFFFFFFFF
-    assert out_point.hash == int.from_bytes(out_point.tx_id, "big")
+    assert out_point.hash == int.from_bytes(out_point.tx_id, "big", signed=False)
     assert out_point.n == out_point.vout
     assert out_point.is_coinbase()
     assert out_point == OutPoint.deserialize(out_point.serialize())
@@ -38,7 +38,7 @@ def test_out_point() -> None:
     out_point = OutPoint(tx_id, vout)
     assert out_point.tx_id == tx_id
     assert out_point.vout == vout
-    assert out_point.hash == int.from_bytes(out_point.tx_id, "big")
+    assert out_point.hash == int.from_bytes(out_point.tx_id, "big", signed=False)
     assert out_point.n == out_point.vout
     assert not out_point.is_coinbase()
     assert out_point == OutPoint.deserialize(out_point.serialize())

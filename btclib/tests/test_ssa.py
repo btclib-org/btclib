@@ -148,9 +148,10 @@ def test_point_from_bip340pub_key() -> None:
     # Integer (int)
     assert ssa.point_from_bip340pub_key(x_Q) == Q
     # Integer (bytes)
-    assert ssa.point_from_bip340pub_key(x_Q.to_bytes(32, byteorder="big")) == Q
+    x_Q_bytes = x_Q.to_bytes(32, "big", signed=False)
+    assert ssa.point_from_bip340pub_key(x_Q_bytes) == Q
     # Integer (hex-str)
-    assert ssa.point_from_bip340pub_key(x_Q.to_bytes(32, byteorder="big").hex()) == Q
+    assert ssa.point_from_bip340pub_key(x_Q_bytes.hex()) == Q
     # tuple Point
     assert ssa.point_from_bip340pub_key(Q) == Q
     # 33 bytes
@@ -341,13 +342,13 @@ def test_musig() -> None:
     # the signers private and public keys,
     # including both the curve Point and the BIP340-Schnorr public key
     q1, x_Q1_int = ssa.gen_keys()
-    x_Q1 = x_Q1_int.to_bytes(ec.psize, "big")
+    x_Q1 = x_Q1_int.to_bytes(ec.psize, byteorder="big", signed=False)
 
     q2, x_Q2_int = ssa.gen_keys()
-    x_Q2 = x_Q2_int.to_bytes(ec.psize, "big")
+    x_Q2 = x_Q2_int.to_bytes(ec.psize, byteorder="big", signed=False)
 
     q3, x_Q3_int = ssa.gen_keys()
-    x_Q3 = x_Q3_int.to_bytes(ec.psize, "big")
+    x_Q3 = x_Q3_int.to_bytes(ec.psize, byteorder="big", signed=False)
 
     # (non interactive) key setup
     # this is MuSig core: the rest is just Schnorr signature additivity

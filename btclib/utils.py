@@ -131,7 +131,7 @@ def int_from_bits(octets: Octets, nlen: int) -> int:
     """
 
     octets = bytes_from_octets(octets)
-    i = int.from_bytes(octets, byteorder="big")
+    i = int.from_bytes(octets, byteorder="big", signed=False)
 
     blen = len(octets) * 8  # bits
     n = (blen - nlen) if blen >= nlen else 0
@@ -164,7 +164,7 @@ def int_from_integer(i: Integer) -> int:
         i = bytes.fromhex(i)
     if not isinstance(i, bytes):
         raise BTClibTypeError("not an Integer=Union[int, str, bytes]")
-    return int.from_bytes(i, "big")
+    return int.from_bytes(i, "big", signed=False)
 
 
 def hex_string(i: Integer) -> str:

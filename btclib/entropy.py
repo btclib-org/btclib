@@ -144,7 +144,7 @@ def binstr_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinS
         m = f"Wrong number of bits: {n_bits} instead of {bits}"
         raise BTClibValueError(m)
 
-    int_entropy = int.from_bytes(bytes_entropy, "big")
+    int_entropy = int.from_bytes(bytes_entropy, byteorder="big", signed=False)
     # only the leftmost bits will be retained
     return binstr_from_int(int_entropy, n_bits)
 
@@ -359,7 +359,7 @@ def randbinstr(
             m = f"Too many bits required: {bits}, max is {max_bits}"
             raise BTClibValueError(m)
         n_bytes = math.ceil(i.bit_length() / 8)
-        h512 = sha512(i.to_bytes(n_bytes, byteorder="big")).digest()
-        i = int.from_bytes(h512, byteorder="big")
+        h512 = sha512(i.to_bytes(n_bytes, byteorder="big", signed=False)).digest()
+        i = int.from_bytes(h512, byteorder="big", signed=False)
 
     return binstr_from_int(i, bits)

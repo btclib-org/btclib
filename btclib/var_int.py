@@ -45,12 +45,12 @@ def deserialize(stream: BinaryData) -> int:
         return i
     if i == 0xFD:
         # 0xfd marks the next two bytes as the number
-        return int.from_bytes(stream.read(2), byteorder="little")
+        return int.from_bytes(stream.read(2), byteorder="little", signed=False)
     if i == 0xFE:
         # 0xfe marks the next four bytes as the number
-        return int.from_bytes(stream.read(4), byteorder="little")
+        return int.from_bytes(stream.read(4), byteorder="little", signed=False)
     # 0xff marks the next eight bytes as the number
-    return int.from_bytes(stream.read(8), byteorder="little")
+    return int.from_bytes(stream.read(8), byteorder="little", signed=False)
 
 
 def serialize(i: int) -> bytes:
@@ -61,9 +61,9 @@ def serialize(i: int) -> bytes:
     if i < 0xFD:  # 1 byte
         return bytes([i])
     if i <= 0xFFFF:  # 2 bytes
-        return b"\xFD" + i.to_bytes(2, byteorder="little")
+        return b"\xFD" + i.to_bytes(2, byteorder="little", signed=False)
     if i <= 0xFFFFFFFF:  # 4 bytes
-        return b"\xFE" + i.to_bytes(4, byteorder="little")
+        return b"\xFE" + i.to_bytes(4, byteorder="little", signed=False)
     if i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
-        return b"\xFF" + i.to_bytes(8, byteorder="little")
+        return b"\xFF" + i.to_bytes(8, byteorder="little", signed=False)
     raise BTClibValueError(f"integer too big for var_int encoding: '{hex_string(i)}'")

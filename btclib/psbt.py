@@ -198,7 +198,7 @@ class Psbt(DataClassJsonMixin):
         temp = self.tx.serialize(include_witness=True)
         psbt_bin += _serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
         if self.version:
-            temp = self.version.to_bytes(4, "little")
+            temp = self.version.to_bytes(4, byteorder="little", signed=False)
             psbt_bin += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
         if self.hd_keypaths:
             psbt_bin += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.hd_keypaths)

@@ -471,10 +471,10 @@ def test_exceptions() -> None:
     psbt = Psbt.b64decode(psbt_str)
     _, Q = dsa.gen_keys()
     pub_key = sec_point.bytes_from_point(Q)
-    r = s = int.from_bytes(bytes.fromhex("FF" * 32), "big")
+    r = s = int.from_bytes(bytes.fromhex("FF" * 32), byteorder="big", signed=False)
     sig_bytes = der._serialize_scalar(r)
     sig_bytes += der._serialize_scalar(s)
-    sig_bytes = b"\x30" + len(sig_bytes).to_bytes(1, byteorder="big") + sig_bytes
+    sig_bytes = b"\x30" + len(sig_bytes).to_bytes(1, "big", signed=False) + sig_bytes
     psbt.inputs[0].partial_sigs = {pub_key: sig_bytes}
     with pytest.raises(BTClibValueError, match="invalid partial signature: "):
         psbt.serialize()

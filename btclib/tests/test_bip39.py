@@ -31,7 +31,7 @@ def test_bip39() -> None:
 
     r = bip39.entropy_from_mnemonic(mnemonic, lang)
     size = ceil(len(r) / 8)
-    assert raw_entr == int(r, 2).to_bytes(size, byteorder="big")
+    assert raw_entr == int(r, 2).to_bytes(size, byteorder="big", signed=False)
 
     wrong_mnemonic = mnemonic + " abandon"
     err_msg = "Wrong number of words: "
@@ -71,7 +71,7 @@ def test_vectors() -> None:
 
         raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
         size = (len(raw_entr) + 7) // 8
-        assert entropy == int(raw_entr, 2).to_bytes(size, byteorder="big")
+        assert entropy == int(raw_entr, 2).to_bytes(size, byteorder="big", signed=False)
 
 
 def test_zeroleadingbit() -> None:

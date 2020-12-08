@@ -55,7 +55,7 @@ def test_int_from_integer() -> None:
         assert i == int_from_integer(" " + hex(i).upper())
         assert -i == int_from_integer(hex(-i).upper() + " ")
         assert i == int_from_integer(hex_string(i))
-        assert i == int_from_integer(i.to_bytes(32, "big"))
+        assert i == int_from_integer(i.to_bytes(32, byteorder="big", signed=False))
 
 
 def test_hex_string() -> None:

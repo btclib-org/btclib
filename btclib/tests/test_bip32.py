@@ -150,7 +150,7 @@ def test_serialization() -> None:
     assert xkey_data.version == decoded_key[:4]
     assert xkey_data.depth == decoded_key[4]
     assert xkey_data.parent_fingerprint == decoded_key[5:9]
-    assert xkey_data.index == int.from_bytes(decoded_key[9:13], "big")
+    assert xkey_data.index == int.from_bytes(decoded_key[9:13], "big", signed=False)
     assert xkey_data.chain_code == decoded_key[13:45]
     assert xkey_data.key == decoded_key[45:]
 

@@ -74,14 +74,14 @@ def test_wif() -> None:
     # https://en.bitcoin.it/wiki/Wallet_import_format
     prv = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 
-    uncompressed_key = b"\x80" + prv.to_bytes(32, byteorder="big")
+    uncompressed_key = b"\x80" + prv.to_bytes(32, byteorder="big", signed=False)
     uncompressed_wif = b"5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
     wif = b58encode(uncompressed_key)
     assert wif == uncompressed_wif
     key = b58decode(uncompressed_wif)
     assert key == uncompressed_key
 
-    compressed_key = b"\x80" + prv.to_bytes(32, byteorder="big") + b"\x01"
+    compressed_key = b"\x80" + prv.to_bytes(32, byteorder="big", signed=False) + b"\x01"
     compressed_wif = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
     wif = b58encode(compressed_key)
     assert wif == compressed_wif

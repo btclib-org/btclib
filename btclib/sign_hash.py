@@ -79,7 +79,7 @@ def legacy(script_: bytes, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     if hash_type & 0x1F == SINGLE:
         # sign_hash single bug
         if vin_i >= len(new_tx.vout):
-            return (256 ** 31).to_bytes(32, "big")
+            return (256 ** 31).to_bytes(32, byteorder="big", signed=False)
         new_tx.vout = new_tx.vout[: vin_i + 1]
         for txout in new_tx.vout[:-1]:
             txout.script_pub_key = b""
@@ -92,7 +92,7 @@ def legacy(script_: bytes, tx: Tx, vin_i: int, hash_type: int) -> bytes:
         new_tx.vin = [new_tx.vin[vin_i]]
 
     preimage = new_tx.serialize(include_witness=False, assert_valid=False)
-    preimage += hash_type.to_bytes(4, "little")
+    preimage += hash_type.to_bytes(4, byteorder="little", signed=False)
 
     return hash256(preimage)
 
@@ -128,7 +128,7 @@ def segwit_v0(script_: bytes, tx: Tx, vin_i: int, hash_type: int, amount: int) -
         and (hash_type & 0x1F) != SINGLE
         and (hash_type & 0x1F) != NONE
     ):
-        hash_seqs = b"".join([vin.sequence.to_bytes(4, "little") for vin in tx.vin])
+        hash_seqs = b"".join([vin.sequence.to_bytes(4, byteorder="little", signed=False) for vin in tx.vin])
         hash_seqs = hash256(hash_seqs)
 
     hash_outputs = b"\x00" * 32
@@ -138,16 +138,16 @@ def segwit_v0(script_: bytes, tx: Tx, vin_i: int, hash_type: int, amount: int) -
     elif (hash_type & 0x1F) == SINGLE and vin_i < len(tx.vout):
         hash_outputs = hash256(tx.vout[vin_i].serialize())
 
-    preimage = tx.version.to_bytes(4, "little")
+    preimage = tx.version.to_bytes(4, byteorder="little", signed=False)
     preimage += hash_prev_outs
     preimage += hash_seqs
     preimage += tx.vin[vin_i].prev_out.serialize()
     preimage += var_bytes.serialize(script_)
-    preimage += amount.to_bytes(8, "little")  # value
-    preimage += tx.vin[vin_i].sequence.to_bytes(4, "little")
+    preimage += amount.to_bytes(8, byteorder="little", signed=False)  # value
+    preimage += tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False)
     preimage += hash_outputs
-    preimage += tx.lock_time.to_bytes(4, "little")
-    preimage += hash_type.to_bytes(4, "little")
+    preimage += tx.lock_time.to_bytes(4, byteorder="little", signed=False)
+    preimage += hash_type.to_bytes(4, byteorder="little", signed=False)
 
     return hash256(preimage)
 

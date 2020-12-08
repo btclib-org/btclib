@@ -249,18 +249,18 @@ def _op_pushdata(data: Octets) -> bytes:
     r = b""
     length = len(data)
     if length < 76:  # 1-byte-length
-        r += length.to_bytes(1, byteorder="little")
+        r += length.to_bytes(1, byteorder="little", signed=False)
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
         r += OP_CODES["OP_PUSHDATA1"]
-        r += length.to_bytes(1, byteorder="little")
+        r += length.to_bytes(1, byteorder="little", signed=False)
     elif length < 521:  # OP_PUSHDATA2 | 2-byte-length
         r += OP_CODES["OP_PUSHDATA2"]
-        r += length.to_bytes(2, byteorder="little")
+        r += length.to_bytes(2, byteorder="little", signed=False)
     else:
         # because of the 520 bytes limit
         # there is no need to use OP_PUSHDATA4
         # r += OP_CODES['OP_PUSHDATA4']
-        # r += length.to_bytes(4, byteorder='little')
+        # r += length.to_bytes(4, byteorder="little", signed=False)
         raise BTClibValueError(f"Too many bytes for OP_PUSHDATA: {length}")
     r += data
     return r
@@ -286,7 +286,7 @@ def _op_int(token: int) -> bytes:
     # Convert number to absolute value + sign in top bit.
     encoded_v = 0 if v == 0 else abs(v) | ((v < 0) << (n_bytes * 8 - 1))
     # Serialize to bytes
-    data = encoded_v.to_bytes(n_bytes, "little")
+    data = encoded_v.to_bytes(n_bytes, byteorder="little", signed=False)
     return _op_pushdata(data)
 
 
@@ -344,17 +344,17 @@ def deserialize(stream: BinaryData) -> List[Union[int, str]]:
             r.append(data.hex().upper())
         elif i == 76:
             # OP_PUSHDATA1 | 1-byte-data-length | data
-            data_length = int.from_bytes(s.read(1), byteorder="little")
+            data_length = int.from_bytes(s.read(1), byteorder="little", signed=False)
             data = s.read(data_length)
             r.append(data.hex().upper())
         elif i == 77:
             # OP_PUSHDATA2 | 2-byte-data-length | data
-            data_length = int.from_bytes(s.read(2), byteorder="little")
+            data_length = int.from_bytes(s.read(2), byteorder="little", signed=False)
             data = s.read(data_length)
             r.append(data.hex().upper())
         elif i == 78:
             # OP_PUSHDATA4 | 4-byte-data-length | data
-            data_length = int.from_bytes(s.read(4), byteorder="little")
+            data_length = int.from_bytes(s.read(4), byteorder="little", signed=False)
             data = s.read(data_length)
             r.append(data.hex().upper())
         else:

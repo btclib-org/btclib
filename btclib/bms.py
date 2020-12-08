@@ -180,10 +180,10 @@ class Sig(DataClassJsonMixin):
             self.assert_valid()
 
         # [1-byte recovery flag][32-bytes r][32-bytes s]
-        out = self.rf.to_bytes(1, "big")
+        out = self.rf.to_bytes(1, byteorder="big", signed=False)
         nsize = self.dsa_sig.ec.nsize
-        out += self.dsa_sig.r.to_bytes(nsize, "big")
-        out += self.dsa_sig.s.to_bytes(nsize, "big")
+        out += self.dsa_sig.r.to_bytes(nsize, byteorder="big", signed=False)
+        out += self.dsa_sig.s.to_bytes(nsize, byteorder="big", signed=False)
         return out
 
     @classmethod
@@ -194,11 +194,15 @@ class Sig(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
         sig = cls(check_validity=False)
 
-        sig.rf = int.from_bytes(stream.read(1), "big")
+        sig.rf = int.from_bytes(stream.read(1), byteorder="big", signed=False)
 
         nsize = sig.dsa_sig.ec.nsize
-        sig.dsa_sig.r = int.from_bytes(stream.read(nsize), "big")
-        sig.dsa_sig.s = int.from_bytes(stream.read(nsize), "big")
+        sig.dsa_sig.r = int.from_bytes(
+            stream.read(nsize), byteorder="big", signed=False
+        )
+        sig.dsa_sig.s = int.from_bytes(
+            stream.read(nsize), byteorder="big", signed=False
+        )
 
         if assert_valid:
             sig.assert_valid()
@@ -264,7 +268,11 @@ def _magic_message(msg: String) -> bytes:
     if isinstance(msg, str):
         msg = msg.encode()
 
-    t = b"\x18Bitcoin Signed Message:\n" + len(msg).to_bytes(1, "big") + msg
+    t = (
+        b"\x18Bitcoin Signed Message:\n"
+        + len(msg).to_bytes(1, byteorder="big", signed=False)
+        + msg
+    )
     return sha256(t).digest()
 
 

@@ -100,10 +100,10 @@ class BlockHeader(DataClassJsonMixin):
         in scientific notation by the 4 bytes bits 0xaabbccdd
         """
         # significand (also known as mantissa or coefficient)
-        significand = int.from_bytes(self.bits[1:], "big")
+        significand = int.from_bytes(self.bits[1:], byteorder="big", signed=False)
         # power term, also called characteristics
         power_term = pow(256, (self.bits[0] - 3))
-        return (significand * power_term).to_bytes(32, "big")
+        return (significand * power_term).to_bytes(32, byteorder="big", signed=False)
 
     @property
     def difficulty(self) -> float:
@@ -123,7 +123,9 @@ class BlockHeader(DataClassJsonMixin):
         genesis_significand = 0x00FFFF
         genesis_exponent = 0x1D
         # significand ratio
-        significand = genesis_significand / int.from_bytes(self.bits[1:], "big")
+        significand = genesis_significand / int.from_bytes(
+            self.bits[1:], byteorder="big", signed=False
+        )
         # power term ratio
         power_term = pow(256, genesis_exponent - self.bits[0])
         return significand * power_term
@@ -176,6 +178,7 @@ class BlockHeader(DataClassJsonMixin):
         if assert_valid:
             self.assert_valid()
 
+        # version is signed int
         out = self.version.to_bytes(4, byteorder="little", signed=True)
         out += self.previous_block_hash[::-1]
         out += self.merkle_root[::-1]
@@ -194,6 +197,7 @@ class BlockHeader(DataClassJsonMixin):
         stream = bytesio_from_binarydata(data)
         header = cls(check_validity=False)
 
+        # version is a signed int
         header.version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
         header.previous_block_hash = stream.read(32)[::-1]
         header.merkle_root = stream.read(32)[::-1]
@@ -288,7 +292,7 @@ class Block(DataClassJsonMixin):
             return None
 
         # Height is "serialized CScript": first byte is number of bytes,
-        # followed by the signed little-endian representation of the height
+        # followed by the _signed_ little-endian representation of the height
         # (genesis block is height zero).
         coinbase_script = self.transactions[0].vin[0].script_sig
         height_ = var_bytes.deserialize(coinbase_script)

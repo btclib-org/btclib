@@ -55,7 +55,7 @@ def test_octets2point() -> None:
         Q = mult(q, ec.G, ec)
 
         Q_bytes = b"\x03" if Q[1] & 1 else b"\x02"
-        Q_bytes += Q[0].to_bytes(ec.psize, byteorder="big")
+        Q_bytes += Q[0].to_bytes(ec.psize, byteorder="big", signed=False)
         R = point_from_octets(Q_bytes, ec)
         assert R == Q
         assert bytes_from_point(R, ec) == Q_bytes
@@ -64,8 +64,8 @@ def test_octets2point() -> None:
         R = point_from_octets(Q_hex_str, ec)
         assert R == Q
 
-        Q_bytes = b"\x04" + Q[0].to_bytes(ec.psize, byteorder="big")
-        Q_bytes += Q[1].to_bytes(ec.psize, byteorder="big")
+        Q_bytes = b"\x04" + Q[0].to_bytes(ec.psize, byteorder="big", signed=False)
+        Q_bytes += Q[1].to_bytes(ec.psize, byteorder="big", signed=False)
         R = point_from_octets(Q_bytes, ec)
         assert R == Q
         assert bytes_from_point(R, ec, False) == Q_bytes
