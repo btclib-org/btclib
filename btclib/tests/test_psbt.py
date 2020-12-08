@@ -42,13 +42,6 @@ def test_vectors_bip174() -> None:
         # json.dump(test_vectors, f, indent=4)
         test_vectors = json.load(file_)
 
-    for i, test_vector in enumerate(test_vectors["invalid psbts"]):
-        with pytest.raises(BTClibValueError) as excinfo:
-            Psbt.b64decode(test_vector["encoded psbt"])
-        assert test_vector["error message"] in str(
-            excinfo.value
-        ), f"invalid case {i+1}: {test_vector['description']}\n{excinfo.value}"
-
     for i, test_vector in enumerate(test_vectors["valid psbts"]):
         try:
             psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
@@ -58,6 +51,13 @@ def test_vectors_bip174() -> None:
         assert test_vector["encoded psbt"].encode("ascii") == Psbt.b64encode(
             psbt_decoded
         )
+
+    for i, test_vector in enumerate(test_vectors["invalid psbts"]):
+        with pytest.raises(BTClibValueError) as excinfo:
+            Psbt.b64decode(test_vector["encoded psbt"])
+        assert test_vector["error message"] in str(
+            excinfo.value
+        ), f"invalid case {i+1}: {test_vector['description']}\n{excinfo.value}"
 
     for i, test_vector in enumerate(test_vectors["signer check failures"]):
         psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
@@ -103,7 +103,7 @@ def test_creation() -> None:
         0xFFFFFFFF,
     )
     transaction = Tx(2, 0, [input_1, input_2], [output_1, output_2])
-    psbt_from_tx_ = Psbt(transaction)
+    psbt_from_tx_ = Psbt.from_tx(transaction)
     assert psbt_from_tx_ == psbt
 
 
@@ -141,8 +141,7 @@ def test_finalize() -> None:
     to_be_finalized_psbt = Psbt.b64decode(to_be_finalized_psbt_string)
     finalized_psbt = finalize_psbt(to_be_finalized_psbt)
     assert finalized_psbt.b64encode() == psbt_str.encode("ascii")
-    # FIXME: why does the following fail?
-    # assert finalized_psbt == psbt
+    assert finalized_psbt == psbt
 
     to_be_finalized_psbt.inputs[0].partial_sigs = {}
     err_msg = "missing signatures"
@@ -151,7 +150,7 @@ def test_finalize() -> None:
         finalize_psbt(to_be_finalized_psbt)
 
 
-def test_tx_psbt_conversions() -> None:
+def test_extract_tx() -> None:
 
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAABB9oARzBEAiB0AYrUGACXuHMyPAAVcgs2hMyBI4kQSOfbzZtVrWecmQIgc9Npt0Dj61Pc76M4I8gHBRTKVafdlUTxV8FnkTJhEYwBSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAUdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSrgABASAAwusLAAAAABepFLf1+vQOPUClpFmx2zU18rcvqSHohwEHIyIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQjaBABHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwFHMEQCIGX0W6WZi1mif/4ae+0BavHx+Q1Us6qPdFCqX1aiUQO9AiB/ckcDrR7blmgLKEtW1P/LiPf7dZ6rvgiqMPKbhROD0gFHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4AIgIDqaTDf1mW06ol26xrVwrwZQOUSSlCRgs1R1Ptnuylh3EQ2QxqTwAAAIAAAACABAAAgAAiAgJ/Y5l1fS7/VaE2rQLGhLGDi2VW5fG2s0KCqUtrUAUQlhDZDGpPAAAAgAAAAIAFAACAAA=="
     psbt = Psbt.b64decode(psbt_str)
@@ -160,9 +159,6 @@ def test_tx_psbt_conversions() -> None:
     tx = extract_tx(psbt)
     tx_string = "0200000000010258e87a21b56daf0c23be8e7070456c336f7cbaa5c8757924f545887bb2abdd7500000000da00473044022074018ad4180097b873323c0015720b3684cc8123891048e7dbcd9b55ad679c99022073d369b740e3eb53dcefa33823c8070514ca55a7dd9544f157c167913261118c01483045022100f61038b308dc1da865a34852746f015772934208c6d24454393cd99bdf2217770220056e675a675a6d0a02b85b14e5e29074d8a25a9b5760bea2816f661910a006ea01475221029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f2102dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d752aeffffffff838d0427d0ec650a68aa46bb0b098aea4422c071b2ca78352a077959d07cea1d01000000232200208c2353173743b595dfb4a07b72ba8e42e3797da74e87fe7d9d7497e3b2028903ffffffff0270aaf00800000000160014d85c2b71d0060b09c9886aeb815e50991dda124d00e1f5050000000016001400aea9a2e5f0f876a588df5546e8742d1d87008f000400473044022062eb7a556107a7c73f45ac4ab5a1dddf6f7075fb1275969a7f383efff784bcb202200c05dbb7470dbf2f08557dd356c7325c1ed30913e996cd3840945db12228da5f01473044022065f45ba5998b59a27ffe1a7bed016af1f1f90d54b3aa8f7450aa5f56a25103bd02207f724703ad1edb96680b284b56d4ffcb88f7fb759eabbe08aa30f29b851383d20147522103089dc10c7ac6db54f91329af617333db388cead0c231f723379d1b99030b02dc21023add904f3d6dcf59ddb906b0dee23529b7ffb9ed50e5e86151926860221f0e7352ae00000000"
     assert tx.serialize(include_witness=True).hex() == tx_string
-
-    psbt2 = Psbt(tx, psbt.inputs, psbt.outputs)
-    assert psbt2 == psbt
 
 
 def test_lexicographic_ordering() -> None:
@@ -238,9 +234,9 @@ def test_output_scripts_serialization() -> None:
     output_2 = TxOut(
         100000000, bytes.fromhex("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
     )
-    transaction = Tx(2, 0, [input_1], [output_1, output_2])
+    tx = Tx(2, 0, [input_1], [output_1, output_2])
 
-    psbt = Psbt(transaction)
+    psbt = Psbt.from_tx(tx)
 
     # p2sh-p2wsh
     psbt.outputs[0].redeem_script = bytes.fromhex(
