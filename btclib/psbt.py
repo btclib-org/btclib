@@ -16,7 +16,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 import base64
 from copy import deepcopy
 from dataclasses import InitVar, dataclass, field
-from typing import Dict, List, Tuple, Type, TypeVar, Union
+from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
@@ -71,7 +71,7 @@ class Psbt(DataClassJsonMixin):
     tx: Tx = Tx(check_validity=False)
     inputs: List[PsbtIn] = field(default_factory=list)
     outputs: List[PsbtOut] = field(default_factory=list)
-    version: int = 0
+    version: int = 0  # current BIP174 PSBT version
     hd_key_paths: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
@@ -89,18 +89,6 @@ class Psbt(DataClassJsonMixin):
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:
-        # PSBT Creator must create an unsigned transaction and
-        # place it in the PSBT.
-        if self.tx:
-            if self.tx.vin:
-                for inp in self.tx.vin:
-                    inp.script_sig = b""
-                    inp.witness = Witness()
-                if not self.inputs:
-                    self.inputs = [PsbtIn() for _ in self.tx.vin]
-            if self.tx.vout and not self.outputs:
-                self.outputs = [PsbtOut() for _ in self.tx.vout]
-
         if check_validity:
             self.assert_valid()
 
@@ -222,8 +210,13 @@ class Psbt(DataClassJsonMixin):
         # stream = bytesio_from_binarydata(psbt_bin)
         # and the deserialization should happen reading the stream
         # not slicing bytes
+
+        tx = Tx(check_validity=False)
+        version = 0
+        hd_key_paths: Dict[bytes, bytes] = {}
+        unknown: Dict[bytes, bytes] = {}
+
         psbt_bin = bytes_from_octets(psbt_bin)
-        psbt = cls(check_validity=False)
 
         if psbt_bin[:4] != PSBT_MAGIC_BYTES:
             raise BTClibValueError("malformed psbt: missing magic bytes")
@@ -233,28 +226,39 @@ class Psbt(DataClassJsonMixin):
         global_map, psbt_bin = deserialize_map(psbt_bin[5:])
         for k, v in global_map.items():
             if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                # legacy transaction
-                psbt.tx = _deserialize_tx(k, v, "global unsigned tx")
+                if tx.vin:
+                    raise BTClibValueError("duplicate Psbt unsigned tx")
+                tx = _deserialize_tx(k, v, "global unsigned tx")
             elif k[:1] == PSBT_GLOBAL_VERSION:
-                psbt.version = _deserialize_int(k, v, "global version")
+                if version:
+                    raise BTClibValueError("duplicate Psbt version")
+                version = _deserialize_int(k, v, "global version")
             elif k[:1] == PSBT_GLOBAL_XPUB:
-                psbt.hd_key_paths.update(
-                    _deserialize_hd_key_path(k, v, "Psbt BIP32 xkey")
-                )
+                hd_key_paths.update(_deserialize_hd_key_path(k, v, "Psbt BIP32 xkey"))
             else:  # unknown
-                psbt.unknown[k] = v
+                if k in unknown:
+                    raise BTClibValueError("duplicate Psbt unknown")
+                unknown[k] = v
 
-        for _ in psbt.tx.vin:
+        inputs: List[PsbtIn] = []
+        for _ in tx.vin:
             input_map, psbt_bin = deserialize_map(psbt_bin)
-            psbt.inputs.append(PsbtIn.deserialize(input_map))
+            inputs.append(PsbtIn.deserialize(input_map))
 
-        for _ in psbt.tx.vout:
+        outputs: List[PsbtOut] = []
+        for _ in tx.vout:
             output_map, psbt_bin = deserialize_map(psbt_bin)
-            psbt.outputs.append(PsbtOut.deserialize(output_map))
+            outputs.append(PsbtOut.deserialize(output_map))
 
-        if assert_valid:
-            psbt.assert_valid()
-        return psbt
+        return cls(
+            tx,
+            inputs,
+            outputs,
+            version,
+            hd_key_paths,
+            unknown,
+            check_validity=assert_valid,
+        )
 
     def b64encode(self, assert_valid: bool = True) -> bytes:
         psbt_bin = self.serialize(assert_valid)
@@ -268,6 +272,38 @@ class Psbt(DataClassJsonMixin):
             psbt_str = psbt_str.strip()
         psbt_decoded = base64.b64decode(psbt_str)
         return cls.deserialize(psbt_decoded, assert_valid)
+
+    @classmethod
+    def from_tx(
+        cls: Type[_Psbt], tx: Optional[Tx] = None, assert_valid: bool = True
+    ) -> _Psbt:
+
+        if tx:
+            if tx.vin:
+                for inp in tx.vin:
+                    inp.script_sig = b""
+                    inp.witness = Witness()
+                inputs = [PsbtIn() for _ in tx.vin]
+            if tx.vout:
+                outputs = [PsbtOut() for _ in tx.vout]
+        else:  # Creator places an unsigned transaction in the Psbt
+            tx = Tx()  # unsigned, unlocked, version 1
+            inputs = []
+            outputs = []
+
+        psbt_version = 0
+        hd_key_paths: Dict[bytes, bytes] = {}
+        unknown: Dict[bytes, bytes] = {}
+
+        return cls(
+            tx,
+            inputs,
+            outputs,
+            psbt_version,
+            hd_key_paths,
+            unknown,
+            check_validity=assert_valid,
+        )
 
 
 # FIXME: use stream, not repeated bytes slicing
@@ -318,6 +354,7 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
         if psbt.tx.tx_id != tx_id:
             raise BTClibValueError(f"mismatched psbt.tx.tx_id: {psbt.tx.tx_id.hex()}")
 
+    final_psbt.version = max(psbt.version for psbt in psbts)
     for psbt in psbts[1:]:
 
         for i, inp in enumerate(final_psbt.inputs):
@@ -339,7 +376,6 @@ def combine_psbts(psbts: List[Psbt]) -> Psbt:
             _combine_field(psbt.outputs[i], out, "unknown")
 
         _combine_field(psbt, final_psbt, "tx")
-        _combine_field(psbt, final_psbt, "version")
         _combine_field(psbt, final_psbt, "hd_key_paths")
         _combine_field(psbt, final_psbt, "unknown")
 
