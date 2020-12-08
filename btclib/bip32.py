@@ -35,12 +35,18 @@ A BIP32 extended key is 78 bytes:
 import copy
 import hmac
 from dataclasses import InitVar, dataclass, field
-from typing import Iterable, List, Optional, Type, TypeVar, Union
+from typing import Optional, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import base58, bip39, electrum
 from .alias import INF, BinaryData, Octets, Point, String
+from .bip32_path import (
+    BIP32Path,
+    _int_from_index_str,
+    _str_from_index_int,
+    indexes_from_bip32_path,
+)
 from .curve import mult, secp256k1
 from .exceptions import BTClibTypeError, BTClibValueError
 from .mnemonic import Mnemonic
@@ -63,31 +69,6 @@ from .utils import (
 ec = secp256k1
 
 
-def _index_int_from_str(s: str) -> int:
-
-    s.strip().lower()
-    hardened = False
-    if s[-1] in ("'", "h"):
-        s = s[:-1]
-        hardened = True
-
-    index = int(s)
-    if not 0 <= index < 0x80000000:
-        raise BTClibValueError(f"invalid index: {index}")
-    return index + (0x80000000 if hardened else 0)
-
-
-def _str_from_index_int(i: int, hardening: str = "'") -> str:
-
-    if hardening not in ("'", "h", "H"):
-        raise BTClibValueError(f"invalid hardening symbol: {hardening}")
-    if not 0 <= i <= 0xFFFFFFFF:
-        raise BTClibValueError(f"invalid index: {i}")
-    if i < 0x80000000:
-        return str(i)
-    return str(i - 0x80000000) + hardening
-
-
 _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
 _EXPECTED_DECODED_LENGHT = 78
 
@@ -104,7 +85,7 @@ class BIP32KeyData(DataClassJsonMixin):
     # index is an int, not bytes, to avoid any byteorder ambiguity
     index: int = field(
         default=-1,
-        metadata=config(encoder=_str_from_index_int, decoder=_index_int_from_str),
+        metadata=config(encoder=_str_from_index_int, decoder=_int_from_index_str),
     )
     chain_code: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
@@ -337,62 +318,6 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     xkey_data.key = bytes_from_point(Q)
 
     return xkey_data.b58encode()
-
-
-def _indexes_from_bip32_path_str(der_path: str) -> List[int]:
-
-    steps = [x.strip().lower() for x in der_path.split("/")]
-    if steps[0] == "m":
-        steps = steps[1:]
-
-    indexes = [_index_int_from_str(s) for s in steps if s != ""]
-
-    if len(indexes) > 255:
-        err_msg = f"depth greater than 255: {len(indexes)}"
-        raise BTClibValueError(err_msg)
-    return indexes
-
-
-# BIP 32 derivation path
-# "m/44h/0'/1H/0/10" string
-# sequence of integer indexes (even a single int)
-# bytes (multiples of 4-bytes index)
-BIP32Path = Union[str, Iterable[int], int, bytes]
-
-
-def str_from_bip32_path(
-    der_path: BIP32Path, byteorder: str = "big", hardening_symbol: str = "'"
-) -> str:
-    indexes = indexes_from_bip32_path(der_path, byteorder)
-    result = "/".join([_str_from_index_int(i, hardening_symbol) for i in indexes])
-    return "m/" + result if indexes else "m"
-
-
-def bytes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> bytes:
-    indexes = indexes_from_bip32_path(der_path, byteorder)
-    result = [i.to_bytes(4, byteorder) for i in indexes]
-    return b"".join(result)
-
-
-def indexes_from_bip32_path(der_path: BIP32Path, byteorder: str = "big") -> List[int]:
-
-    if isinstance(der_path, str):
-        return _indexes_from_bip32_path_str(der_path)
-
-    if isinstance(der_path, int):
-        return [der_path]
-
-    if isinstance(der_path, bytes):
-        if len(der_path) % 4 != 0:
-            err_msg = f"index is not a multiple of 4-bytes: {len(der_path)}"
-            raise BTClibValueError(err_msg)
-        return [
-            int.from_bytes(der_path[4 * n : 4 * (n + 1)], byteorder)
-            for n in range(len(der_path) // 4)
-        ]
-
-    # Iterable[int]
-    return [int(i) for i in der_path]
 
 
 @dataclass

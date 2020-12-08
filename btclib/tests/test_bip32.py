@@ -20,67 +20,15 @@ from btclib import base58
 from btclib.base58_address import p2pkh  # FIXME why it is needed here
 from btclib.bip32 import (
     BIP32KeyData,
-    _index_int_from_str,
-    _indexes_from_bip32_path_str,
-    _str_from_index_int,
-    bytes_from_bip32_path,
     crack_prv_key,
     derive,
     derive_from_account,
-    indexes_from_bip32_path,
     mxprv_from_bip39_mnemonic,
     rootxprv_from_seed,
-    str_from_bip32_path,
     xpub_from_xprv,
 )
+from btclib.bip32_path import _indexes_from_bip32_path_str
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-
-
-def test_indexes_from_bip32_path_str() -> None:
-
-    test_vectors = [
-        # account 0, external branch, address_index 463
-        ("m / 0 h / 0 / 463", [0x80000000, 0, 463]),
-        ("m / 0 H / 0 / 463", [0x80000000, 0, 463]),
-        ("m // 0' / 0 / 463", [0x80000000, 0, 463]),
-        # account 0, internal branch, address_index 267
-        ("m / 0 h / 1 / 267", [0x80000000, 1, 267]),
-        ("m / 0 H / 1 / 267", [0x80000000, 1, 267]),
-        ("m // 0' / 1 / 267", [0x80000000, 1, 267]),
-    ]
-
-    for bip32_path_str, bip32_path_ints in test_vectors:
-        assert bip32_path_ints == _indexes_from_bip32_path_str(bip32_path_str)
-
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_str, "big")
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_str, "little")
-
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_ints, "big")
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_ints, "little")
-
-        bip32_path_bytes = bytes_from_bip32_path(bip32_path_ints, "big")
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_bytes, "big")
-        bip32_path_bytes = bytes_from_bip32_path(bip32_path_ints, "little")
-        assert bip32_path_ints == indexes_from_bip32_path(bip32_path_bytes, "little")
-        assert bip32_path_ints != indexes_from_bip32_path(bip32_path_bytes, "big")
-
-        bip32_path_str = str_from_bip32_path(bip32_path_str, "little")
-        assert bip32_path_str == str_from_bip32_path(bip32_path_ints, "little")
-        assert bip32_path_str == str_from_bip32_path(bip32_path_bytes, "little")
-
-    with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_bip32_path_str("m/1/2/-3h/4")
-
-    with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_bip32_path_str("m/1/2/-3/4")
-
-    i = 0x80000000
-
-    with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_bip32_path_str("m/1/2/" + str(i) + "/4")
-
-    with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_bip32_path_str("m/1/2/" + str(i) + "h/4")
 
 
 def test_exceptions() -> None:
@@ -304,7 +252,7 @@ def test_derive_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="depth greater than 255: "):
         derive(xprv, "m" + 256 * "/0")
 
-    with pytest.raises(BTClibValueError, match="index is not a multiple of 4-bytes: "):
+    with pytest.raises(BTClibValueError, match="index are not a multiple of 4-bytes: "):
         derive(xprv, b"\x00" * 5)
 
     for index in (2 ** 32, 0x8000000000):
@@ -408,23 +356,6 @@ def test_crack() -> None:
     hardened_child_xprv = derive(parent_xprv, 0x80000000)
     with pytest.raises(BTClibValueError, match="hardened child derivation"):
         crack_prv_key(parent_xpub, hardened_child_xprv)
-
-
-def test_index_int_to_from_str() -> None:
-
-    for i in (0, 1, 0x80000000 - 1, 0x80000000, 0xFFFFFFFF):
-        assert i == _index_int_from_str(_str_from_index_int(i))
-
-    for i in (-1, 0xFFFFFFFF + 1):
-        with pytest.raises(BTClibValueError):
-            _str_from_index_int(i)
-
-    for s in ("-1", "-1h", str(0x80000000) + "h", str(0xFFFFFFFF + 1)):
-        with pytest.raises(BTClibValueError):
-            _index_int_from_str(s)
-
-    with pytest.raises(BTClibValueError, match="invalid hardening symbol: "):
-        _str_from_index_int(0x80000000, "hardened")
 
 
 def test_dataclasses_json_dict() -> None:

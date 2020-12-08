@@ -19,7 +19,7 @@ from typing import Dict, List, Tuple, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import var_bytes
-from .bip32 import (
+from .bip32_path import (
     bytes_from_bip32_path,
     indexes_from_bip32_path,
     str_from_bip32_path,
