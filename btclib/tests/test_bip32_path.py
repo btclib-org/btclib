@@ -179,8 +179,7 @@ def test_dataclasses_json_dict_key_origin() -> None:
 
     # BIP32KeyOrigin dataclass
     assert isinstance(key_origin, BIP32KeyOrigin)
-    assert key_origin.fingerprint
-    assert key_origin.description
+    key_origin.assert_valid()
 
     # BIP32KeyOrigin dataclass to dict
     key_origin_dict = key_origin.to_dict()
@@ -206,8 +205,7 @@ def test_dataclasses_json_dict_key_origin() -> None:
     # BIP32KeyOrigin dataclass from dict
     key_origin2 = BIP32KeyOrigin.from_dict(key_origin_dict)
     assert isinstance(key_origin2, BIP32KeyOrigin)
-    assert key_origin.fingerprint
-    assert key_origin.description
+    key_origin2.assert_valid()
 
     assert key_origin == key_origin2
 
