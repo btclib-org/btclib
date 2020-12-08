@@ -214,11 +214,16 @@ class PsbtOut(DataClassJsonMixin):
         # FIX deserialize must use BinaryData
         out = cls(check_validity=False)
         for k, v in output_map.items():
-            if k[0:1] == PSBT_OUT_REDEEM_SCRIPT:
+            if k[:1] == PSBT_OUT_REDEEM_SCRIPT:
+                if out.redeem_script:
+                    raise BTClibValueError("Duplicate PsbtOut redeem_script")
                 out.redeem_script = _deserialize_bytes(k, v, "redeem script")
-            elif k[0:1] == PSBT_OUT_WITNESS_SCRIPT:
+            elif k[:1] == PSBT_OUT_WITNESS_SCRIPT:
+                if out.witness_script:
+                    raise BTClibValueError("Duplicate PsbtOut witness_script")
                 out.witness_script = _deserialize_bytes(k, v, "witness script")
-            elif k[0:1] == PSBT_OUT_BIP32_DERIVATION:
+            elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
+                #  deserialize just one hd key path at time :-(
                 out.hd_key_paths.update(
                     _deserialize_hd_key_path(k, v, "PsbtOut BIP32 pub_key")
                 )

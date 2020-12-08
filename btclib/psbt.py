@@ -232,12 +232,12 @@ class Psbt(DataClassJsonMixin):
 
         global_map, psbt_bin = deserialize_map(psbt_bin[5:])
         for k, v in global_map.items():
-            if k[0:1] == PSBT_GLOBAL_UNSIGNED_TX:
+            if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 # legacy transaction
                 psbt.tx = _deserialize_tx(k, v, "global unsigned tx")
-            elif k[0:1] == PSBT_GLOBAL_VERSION:
+            elif k[:1] == PSBT_GLOBAL_VERSION:
                 psbt.version = _deserialize_int(k, v, "global version")
-            elif k[0:1] == PSBT_GLOBAL_XPUB:
+            elif k[:1] == PSBT_GLOBAL_XPUB:
                 psbt.hd_key_paths.update(
                     _deserialize_hd_key_path(k, v, "Psbt BIP32 xkey")
                 )
