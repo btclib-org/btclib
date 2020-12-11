@@ -52,7 +52,7 @@ Major changes includes:
 - bip32: indexes_from_bip32_path now returns List[int] instead of
   Tuple[List[bytes], bool] losing the "absolute derivation" bool
 - bms: serialize/deserialize have been renamed encode/decode as they
-  include the base64 (de)encoding, not jut the plain (de)serialization 
+  include the base64 (de)encoding, not jut the plain (de)serialization
 - Block: fixed bug in difficulty calculation
 - introduced first beta version of HdKeyPaths, PartialSigs, PsbtIn,
   PsbtOut, and Psbt data classes and their associated helper functions
@@ -92,8 +92,8 @@ Major changes includes:
 - adopted the function signature of dsa.sign for rfc6979.rfc6979 too
 - added CURVES dictionary of all elliptic curves, e.g.:
   from btclib.curve import CURVES; ec = CURVES['secp256k1']
-- renamed prvkey_info_* as prvkeyinfo_*
-- renamed pubkey_info_* as pubkeyinfo_*
+- renamed prvkey_info_xyz as prvkey_info_xyz
+- renamed pubkey_info_xyz as pubkey_info_xyz
 - renamed bytes_from_key as pubkeyinfo_from_key
 - renamed network_from_xpub as network_from_xkeyversion
   extending its functionality to xprv too
