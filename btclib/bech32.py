@@ -81,7 +81,7 @@ def _create_checksum(hrp: str, data: List[int]) -> List[int]:
 def b32encode(hrp: str, data: List[int]) -> bytes:
     """Compute a bech32 string given HRP and data values."""
     combined = data + _create_checksum(hrp, data)
-    s = hrp + "1" + "".join([__ALPHABET[d] for d in combined])
+    s = hrp + "1" + "".join(__ALPHABET[d] for d in combined)
     return s.encode("ascii")
 
 
