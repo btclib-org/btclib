@@ -421,16 +421,25 @@ def test_p2ms_1() -> None:
     script_pub_key = script.serialize([m] + [pub_key0, 0] + [n, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = [1, 3, "OP_CHECKMULTISIG"]
+    script_pub_key = script.serialize([1, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
+    assert is_p2ms(script_pub_key)
+
+    script_pub_key = script.serialize([2, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
+    assert is_p2ms(script_pub_key)
+
+    script_pub_key = script.serialize([0, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = [1, pub_key0, pub_key1, 3, "OP_CHECKMULTISIG"]
+    script_pub_key = script.serialize([3, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = [3, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"]
+    script_pub_key = script.serialize([1, 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = [0, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"]
+    script_pub_key = script.serialize([1, pub_key0, 2, "OP_CHECKMULTISIG"])
+    assert not is_p2ms(script_pub_key)
+
+    script_pub_key = script.serialize([1, pub_key0, pub_key1, 3, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
     pub_key2 = "04 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
@@ -439,10 +448,6 @@ def test_p2ms_1() -> None:
     )
     script_pub_key = script_pub_key[:133] + b"\x40" + script_pub_key[134:]
     assert not is_p2ms(script_pub_key)
-
-    err_msg = "invalid size: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        script_pub_key_from_payload("p2sh", pub_keys)
 
 
 def test_p2ms_2() -> None:
