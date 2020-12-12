@@ -23,10 +23,11 @@ from .exceptions import BTClibValueError
 from .tx import Tx
 from .utils import bytesio_from_binarydata, hash256, hex_string, merkle_root
 
-if sys.version_info.minor == 6:  # python 3.6
-    import backports.datetime_fromisoformat  # pylint: disable=import-error  # pragma: no cover
+# python 3.6
+if sys.version_info.minor == 6:  # pragma: no cover
+    import backports.datetime_fromisoformat  # type: ignore # pylint: disable=import-error
 
-    backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()  # pragma: no cover
+    backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()
 
 
 _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
