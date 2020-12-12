@@ -26,6 +26,12 @@ from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script import Script
 from btclib.script_pub_key import (
+    assert_p2ms,
+    assert_p2pk,
+    assert_p2pkh,
+    assert_p2sh,
+    assert_p2wpkh,
+    assert_p2wsh,
     is_nulldata,
     is_p2ms,
     nulldata,
@@ -166,9 +172,9 @@ def test_p2pk() -> None:
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     script_pub_key = script.serialize([pub_key, "OP_CHECKSIG"])
+    assert_p2pk(script_pub_key)
     assert script_pub_key == p2pk(pub_key)
 
-    # to the script_pub_key in two steps (through payload)
     script_type = "p2pk"
     assert script_pub_key == script_pub_key_from_payload(script_type, pub_key)
 
@@ -179,6 +185,10 @@ def test_p2pk() -> None:
 
     assert address_from_script_pub_key(script_pub_key) == b""
 
+    err_msg = "invalid pub_key length marker: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2pk(b"\x31" + script_pub_key[1:])
+
     # documented test case: https://learnmeabitcoin.com/guide/p2pk
     pub_key = (
         "04"
@@ -186,7 +196,16 @@ def test_p2pk() -> None:
         "e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
     )
     script_pub_key = bytes.fromhex("41" + pub_key + "ac")
+    assert_p2pk(script_pub_key)
     assert script_pub_key == p2pk(pub_key)
+
+    err_msg = "missing final OP_CHECKSIG"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2pk(script_pub_key[:-1] + b"\x00")
+
+    err_msg = "invalid pub_key length marker: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2pk(b"\x31" + script_pub_key[1:])
 
     # invalid size: 34 bytes instead of (33, 65)
     pub_key = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 14"
@@ -207,6 +226,7 @@ def test_p2pkh() -> None:
     script_pub_key = script.serialize(
         ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
     )
+    assert_p2pkh(script_pub_key)
     assert script_pub_key == p2pkh(pub_key)
 
     # to the script_pub_key in two steps (through payload)
@@ -229,10 +249,23 @@ def test_p2pkh() -> None:
     # documented test case: https://learnmeabitcoin.com/guide/p2pkh
     payload = bytes.fromhex("12ab8dc588ca9d5787dde7eb29569da63c3a238c")
     script_pub_key = bytes.fromhex("76a914") + payload + bytes.fromhex("88ac")
+    assert_p2pkh(script_pub_key)
     assert script_pub_key == script_pub_key_from_payload(script_type, payload)
     address = b"12higDjoCCNXSA95xZMWUdPvXNmkAduhWv"
     assert address == address_from_script_pub_key(script_pub_key, network)
     assert (script_pub_key, network) == script_pub_key_from_address(address)
+
+    err_msg = "missing final OP_EQUALVERIFY, OP_CHECKSIG"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2pkh(script_pub_key[:-2] + b"\x40\x40")
+
+    err_msg = "missing leading OP_DUP, OP_HASH160"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2pkh(b"\x40\x40" + script_pub_key[2:])
+
+    err_msg = "invalid pub_key hash length marker: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2pkh(script_pub_key[:2] + b"\x40" + script_pub_key[3:])
 
     # invalid size: 11 bytes instead of 20
     err_msg = "invalid size: "
@@ -246,6 +279,7 @@ def test_p2wpkh() -> None:
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     payload = hash160(pub_key)
     script_pub_key = script.serialize([0, payload])
+    assert_p2wpkh(script_pub_key)
     assert script_pub_key == p2wpkh(pub_key)
 
     # to the script_pub_key in two steps (through payload)
@@ -269,6 +303,14 @@ def test_p2wpkh() -> None:
     address = base58_address.p2wpkh_p2sh(pub_key, network)
     assert address == base58_address_from_witness(payload, network)
 
+    err_msg = "invalid witness version: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2wpkh(b"\x33" + script_pub_key[1:])
+
+    err_msg = "invalid pub_key hash length marker: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2wpkh(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
+
 
 def test_p2sh() -> None:
 
@@ -278,6 +320,7 @@ def test_p2sh() -> None:
     redeem_script = script_pub_key_from_payload("p2pkh", pub_key_hash)
     payload = hash160(redeem_script)
     script_pub_key = script.serialize(["OP_HASH160", payload, "OP_EQUAL"])
+    assert_p2sh(script_pub_key)
     assert script_pub_key == p2sh(redeem_script)
 
     # to the script_pub_key in two steps (through payload)
@@ -300,10 +343,23 @@ def test_p2sh() -> None:
     # documented test case: https://learnmeabitcoin.com/guide/p2sh
     payload = bytes.fromhex("748284390f9e263a4b766a75d0633c50426eb875")
     script_pub_key = bytes.fromhex("a914") + payload + bytes.fromhex("87")
+    assert_p2sh(script_pub_key)
     assert script_pub_key == script_pub_key_from_payload(script_type, payload)
     address = b"3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V"
     assert address == address_from_script_pub_key(script_pub_key, network)
     assert (script_pub_key, network) == script_pub_key_from_address(address)
+
+    err_msg = "missing final OP_EQUAL"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2sh(script_pub_key[:-1] + b"\x40")
+
+    err_msg = "missing leading OP_HASH160"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2sh(b"\x40" + script_pub_key[1:])
+
+    err_msg = "invalid redeem script hash length marker: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2sh(script_pub_key[:1] + b"\x40" + script_pub_key[2:])
 
     # invalid size: 21 bytes instead of 20
     err_msg = "invalid size: "
@@ -319,9 +375,9 @@ def test_p2wsh() -> None:
     redeem_script = script_pub_key_from_payload("p2pkh", pub_key_hash)
     payload = sha256(redeem_script)
     script_pub_key = script.serialize([0, payload])
+    assert_p2wsh(script_pub_key)
     assert script_pub_key == p2wsh(redeem_script)
 
-    # to the script_pub_key in two steps (through payload)
     script_type = "p2wsh"
     assert script_pub_key == script_pub_key_from_payload(script_type, payload)
 
@@ -341,6 +397,14 @@ def test_p2wsh() -> None:
     # p2sh-wrapped base58 address
     address = base58_address.p2wsh_p2sh(redeem_script, network)
     assert address == base58_address_from_witness(payload, network)
+
+    err_msg = "invalid witness version: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2wsh(b"\x33" + script_pub_key[1:])
+
+    err_msg = "invalid redeem script hash length marker: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2wsh(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
 
 
 def test_unknown() -> None:
@@ -443,8 +507,15 @@ def test_p2ms_1() -> None:
     script_pub_key = script.serialize(
         [1, pub_key0, pub_key1, pub_key2, 3, "OP_CHECKMULTISIG"]
     )
-    script_pub_key = script_pub_key[:133] + b"\x40" + script_pub_key[134:]
-    assert not is_p2ms(script_pub_key)
+    assert_p2ms(script_pub_key)
+
+    err_msg = "invalid size: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(script_pub_key[:133] + b"\x40" + script_pub_key[134:])
+
+    err_msg = "invalid extra data"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(script_pub_key[:-2] + b"\x00" + script_pub_key[-2:])
 
 
 def test_p2ms_2() -> None:

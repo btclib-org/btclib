@@ -8,9 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""ScriptPubKey functions.
-
-"""
+"ScriptPubKey functions."
 
 from typing import Callable, List, Optional, Tuple
 
@@ -27,7 +25,7 @@ from .utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
 
 # hash160_from_key, hash160, and sha256
-# are imported from hashes.py
+# are imported from hashes.py and utils.py
 
 
 # 2. script_pub_key from Hash/WitnessProgram and vice versa
@@ -45,7 +43,7 @@ def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) ->
 
 
 def assert_p2pk(script_pub_key: Octets) -> None:
-    script_pub_key = bytes_from_octets(script_pub_key, (35, 65))
+    script_pub_key = bytes_from_octets(script_pub_key, (35, 67))
     # p2pk [pub_key, OP_CHECKSIG]
     # 0x41{65-byte pub_key}AC
     # or
@@ -55,8 +53,16 @@ def assert_p2pk(script_pub_key: Octets) -> None:
 
     len_marker = script_pub_key[0]
     length = len(script_pub_key)
-    if (length == 35 and len_marker != 0x21) or (length == 65 and len_marker != 0x41):
-        raise BTClibValueError(f"invalid pub_key length marker: {len_marker}")
+    if length == 35:
+        if len_marker != 0x21:
+            err_msg = f"invalid pub_key length marker: {len_marker}"
+            err_msg += f" instead of {0x21}"
+            raise BTClibValueError(err_msg)
+    elif length == 67:
+        if len_marker != 0x41:
+            err_msg = f"invalid pub_key length marker: {len_marker}"
+            err_msg += f" instead of {0x41}"
+            raise BTClibValueError(err_msg)
 
     pub_key = script_pub_key[1:-1]
     point_from_octets(pub_key)
@@ -68,7 +74,7 @@ def is_p2pk(script_pub_key: Octets) -> bool:
 
 def assert_p2pkh(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key, 25)
-    # p2pkh [OP_DUP, OP_HASH160, pub_key_hash, OP_EQUALVERIFY, OP_CHECKSIG]
+    # p2pkh [OP_DUP, OP_HASH160, pub_key hash, OP_EQUALVERIFY, OP_CHECKSIG]
     # 0x76A914{20-byte pub_key_hash}88AC
     if script_pub_key[-2:] != b"\x88\xac":
         raise BTClibValueError("missing final OP_EQUALVERIFY, OP_CHECKSIG")
@@ -86,14 +92,14 @@ def is_p2pkh(script_pub_key: Octets) -> bool:
 
 def assert_p2sh(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key, 23)
-    # p2sh [OP_HASH160, script_hash, OP_EQUAL]
-    # 0xA914{20-byte script_hash}87
+    # p2sh [OP_HASH160, redeem_script hash, OP_EQUAL]
+    # 0xA914{20-byte redeem_script hash}87
     if script_pub_key[-1] != 0x87:
         raise BTClibValueError("missing final OP_EQUAL")
     if script_pub_key[0] != 0xA9:
         raise BTClibValueError("missing leading OP_HASH160")
     if script_pub_key[1] != 0x14:
-        err_msg = f"invalid script hash length marker: {script_pub_key[1]}"
+        err_msg = f"invalid redeem script hash length marker: {script_pub_key[1]}"
         err_msg += f" instead of {0x14}"
         raise BTClibValueError(err_msg)
 
@@ -111,8 +117,10 @@ def assert_p2ms(script_pub_key: Octets) -> None:
     if script_pub_key[-1] != 0xAE:
         raise BTClibValueError("missing final OP_CHECKMULTISIG")
     m = script_pub_key[0] - 80
+    if not 0 < m < 17:
+        raise BTClibValueError(f"invalid m in m-of-n: {m}")
     n = script_pub_key[-2] - 80
-    if not 0 < m < 17 or not m <= n < 17:
+    if not m <= n < 17:
         raise BTClibValueError(f"invalid m-of-n: {m}-of-{n}")
 
     stream = bytesio_from_binarydata(script_pub_key[1:-2])
@@ -158,8 +166,8 @@ def is_nulldata(script_pub_key: Octets) -> bool:
 
 def assert_p2wpkh(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key, 22)
-    # p2wpkh [0, pub_key_hash]
-    # 0x0014{20-byte pub_key_hash}
+    # p2wpkh [0, pub_key hash]
+    # 0x0014{20-byte pub_key hash}
     if script_pub_key[0] != 0:
         err_msg = f"invalid witness version: {script_pub_key[0]}"
         err_msg += f" instead of {0}"
@@ -176,14 +184,14 @@ def is_p2wpkh(script_pub_key: Octets) -> bool:
 
 def assert_p2wsh(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key, 34)
-    # p2wsh [0, script_hash]
-    # 0x0020{32-byte script_hash}
+    # p2wsh [0, redeem_script hash]
+    # 0x0020{32-byte redeem_script hash}
     if script_pub_key[0] != 0:
         err_msg = f"invalid witness version: {script_pub_key[0]}"
         err_msg += f" instead of {0}"
         raise BTClibValueError(err_msg)
     if script_pub_key[1] != 0x20:
-        err_msg = f"invalid script hash length marker: {script_pub_key[1]}"
+        err_msg = f"invalid redeem script hash length marker: {script_pub_key[1]}"
         err_msg += f" instead of {0x20}"
         raise BTClibValueError(err_msg)
 
