@@ -12,7 +12,7 @@
 
 """
 
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from btclib.sec_point import point_from_octets
 
@@ -66,30 +66,40 @@ def is_p2pk(script_pub_key: Octets) -> bool:
     return _is_funct(assert_p2pk, script_pub_key)
 
 
-def is_p2pkh(script_pub_key: Octets) -> bool:
-    script_pub_key = bytes_from_octets(script_pub_key)
+def assert_p2pkh(script_pub_key: Octets) -> None:
+    script_pub_key = bytes_from_octets(script_pub_key, 25)
     # p2pkh [OP_DUP, OP_HASH160, pub_key_hash, OP_EQUALVERIFY, OP_CHECKSIG]
     # 0x76A914{20-byte pub_key_hash}88AC
-    return (
-        len(script_pub_key) == 25
-        and script_pub_key[:3] == b"\x76\xa9\x14"
-        and script_pub_key[-2:] == b"\x88\xac"
-    )
+    if script_pub_key[-2:] != b"\x88\xac":
+        raise BTClibValueError("missing final OP_EQUALVERIFY, OP_CHECKSIG")
+    if script_pub_key[:2] != b"\x76\xa9":
+        raise BTClibValueError("missing leading OP_DUP, OP_HASH160")
+    if script_pub_key[2] != 0x14:
+        err_msg = f"invalid pub_key hash length marker: {script_pub_key[2]}"
+        err_msg += f" instead of {0x14}"
+        raise BTClibValueError(err_msg)
+
+
+def is_p2pkh(script_pub_key: Octets) -> bool:
+    return _is_funct(assert_p2pkh, script_pub_key)
+
+
+def assert_p2sh(script_pub_key: Octets) -> None:
+    script_pub_key = bytes_from_octets(script_pub_key, 23)
+    # p2sh [OP_HASH160, script_hash, OP_EQUAL]
+    # 0xA914{20-byte script_hash}87
+    if script_pub_key[-1] != 0x87:
+        raise BTClibValueError("missing final OP_EQUAL")
+    if script_pub_key[0] != 0xA9:
+        raise BTClibValueError("missing leading OP_HASH160")
+    if script_pub_key[1] != 0x14:
+        err_msg = f"invalid script hash length marker: {script_pub_key[1]}"
+        err_msg += f" instead of {0x14}"
+        raise BTClibValueError(err_msg)
 
 
 def is_p2sh(script_pub_key: Octets) -> bool:
-    script_pub_key = bytes_from_octets(script_pub_key)
-    # p2sh [OP_HASH160, script_hash, OP_EQUAL]
-    # 0xA914{20-byte script_hash}87
-    return (
-        len(script_pub_key) == 23
-        and script_pub_key[:2] == b"\xa9\x14"
-        and script_pub_key[-1] == 0x87
-    )
-
-
-def is_p2ms(script_pub_key: Octets) -> bool:
-    return _is_funct(assert_p2ms, script_pub_key)
+    return _is_funct(assert_p2sh, script_pub_key)
 
 
 def assert_p2ms(script_pub_key: Octets) -> None:
@@ -114,40 +124,72 @@ def assert_p2ms(script_pub_key: Octets) -> None:
         raise BTClibValueError("invalid extra data")
 
 
-def is_nulldata(script_pub_key: Octets) -> bool:
+def is_p2ms(script_pub_key: Octets) -> bool:
+    return _is_funct(assert_p2ms, script_pub_key)
+
+
+def assert_nulldata(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key)
     # nulldata [OP_RETURN, data]
     length = len(script_pub_key)
+    if length == 0:
+        raise BTClibValueError("null length")
+    if script_pub_key[0] != 0x6A:
+        raise BTClibValueError("missing leading OP_RETURN")
+
+    if length == 78 or length >= 84:
+        raise BTClibValueError(f"invalid length {length}")
+
+    # OP_RETURN, data length, data up to 75 bytes max
+    # 0x6A{1 byte data-length}{data (0-75 bytes)}
     if length < 78:
-        # OP_RETURN, data length, data up to 75 bytes max
-        # 0x6A{1 byte data-length}{data (0-75 bytes)}
-        return (
-            length > 1 and script_pub_key[0] == 0x6A and script_pub_key[1] == length - 2
-        )
-    return (
-        # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
-        # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
-        78 < length < 84
-        and script_pub_key[0] == 0x6A
-        and script_pub_key[1] == 0x4C
-        and script_pub_key[2] == length - 3
-    )
+        if script_pub_key[1] != length - 2:
+            raise BTClibValueError(f"invalid data length marker {script_pub_key[1]}")
+    # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
+    # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
+    elif script_pub_key[1] != 0x4C or script_pub_key[2] != length - 3:
+        err_msg = f"invalid data length marker {script_pub_key[1:2].hex()}"
+        raise BTClibValueError(err_msg)
+
+
+def is_nulldata(script_pub_key: Octets) -> bool:
+    return _is_funct(assert_nulldata, script_pub_key)
+
+
+def assert_p2wpkh(script_pub_key: Octets) -> None:
+    script_pub_key = bytes_from_octets(script_pub_key, 22)
+    # p2wpkh [0, pub_key_hash]
+    # 0x0014{20-byte pub_key_hash}
+    if script_pub_key[0] != 0:
+        err_msg = f"invalid witness version: {script_pub_key[0]}"
+        err_msg += f" instead of {0}"
+        raise BTClibValueError(err_msg)
+    if script_pub_key[1] != 0x14:
+        err_msg = f"invalid pub_key hash length marker: {script_pub_key[1]}"
+        err_msg += f" instead of {0x14}"
+        raise BTClibValueError(err_msg)
 
 
 def is_p2wpkh(script_pub_key: Octets) -> bool:
-    script_pub_key = bytes_from_octets(script_pub_key)
-    # p2wpkh [0, pub_key_hash]
-    # 0x0014{20-byte pub_key_hash}
-    length = len(script_pub_key)
-    return length == 22 and script_pub_key[:2] == b"\x00\x14"
+    return _is_funct(assert_p2wpkh, script_pub_key)
+
+
+def assert_p2wsh(script_pub_key: Octets) -> None:
+    script_pub_key = bytes_from_octets(script_pub_key, 34)
+    # p2wsh [0, script_hash]
+    # 0x0020{32-byte script_hash}
+    if script_pub_key[0] != 0:
+        err_msg = f"invalid witness version: {script_pub_key[0]}"
+        err_msg += f" instead of {0}"
+        raise BTClibValueError(err_msg)
+    if script_pub_key[1] != 0x20:
+        err_msg = f"invalid script hash length marker: {script_pub_key[1]}"
+        err_msg += f" instead of {0x20}"
+        raise BTClibValueError(err_msg)
 
 
 def is_p2wsh(script_pub_key: Octets) -> bool:
-    script_pub_key = bytes_from_octets(script_pub_key)
-    # p2wsh [0, script_hash]
-    # 0x0020{32-byte script_hash}
-    length = len(script_pub_key)
-    return length == 34 and script_pub_key[:2] == b"\x00\x20"
+    return _is_funct(assert_p2wsh, script_pub_key)
 
 
 def script_pub_key_from_payload(script_type: str, payload: Octets) -> bytes:

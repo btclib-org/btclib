@@ -151,6 +151,7 @@ def test_nulldata3() -> None:
 def test_nulldata4() -> None:
 
     script_: Script = ["OP_RETURN", "OP_RETURN", 3, 1, "OP_VERIF", 0, 3]
+    # FIXME: serialization is not 0x6A{1 byte data-length}{data 6 bytes)}
     script_pub_key = script.serialize(script_)
     assert len(script_pub_key) == 7
     assert script.deserialize(script_pub_key) == script_
