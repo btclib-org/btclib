@@ -169,9 +169,10 @@ class Tx(DataClassJsonMixin):
 
     @property
     def vwitness(self) -> List[Witness]:
-        return [tx_in.witness for tx_in in self.vin]
+        return [tx_in.script_witness for tx_in in self.vin]
 
     def is_segwit(self) -> bool:
+        # refer to tx_in, not tx_out
         return any(tx_in.is_segwit() for tx_in in self.vin)
 
     def is_coinbase(self) -> bool:
@@ -209,7 +210,9 @@ class Tx(DataClassJsonMixin):
         out += var_int.serialize(len(self.vout))
         out += b"".join(tx_out.serialize(assert_valid) for tx_out in self.vout)
         if segwit:
-            out += b"".join(tx_in.witness.serialize(assert_valid) for tx_in in self.vin)
+            out += b"".join(
+                tx_in.script_witness.serialize(assert_valid) for tx_in in self.vin
+            )
         out += self.lock_time.to_bytes(4, byteorder="little", signed=False)
 
         return out
@@ -238,7 +241,7 @@ class Tx(DataClassJsonMixin):
 
         if segwit:
             for tx_in in tx.vin:
-                tx_in.witness = Witness.deserialize(stream, assert_valid)
+                tx_in.script_witness = Witness.deserialize(stream, assert_valid)
 
         tx.lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 

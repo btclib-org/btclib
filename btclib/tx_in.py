@@ -117,7 +117,7 @@ class TxIn(DataClassJsonMixin):
     # lower than 0xFFFFFFFD to be meaningful,
     # all sequence locked transactions are opting into RBF.
     sequence: int = 0
-    witness: Witness = field(
+    script_witness: Witness = field(
         default=Witness(),
         init=True,  # must be True, probably a bug of dataclasses_json
         repr=True,
@@ -146,17 +146,23 @@ class TxIn(DataClassJsonMixin):
             self.assert_valid()
 
     def is_segwit(self) -> bool:
-        return self.witness.stack != []
+        # self.prev_out has no segwit information
+        return self.script_witness.stack != []
 
     def is_coinbase(self) -> bool:
         return self.prev_out.is_coinbase()
 
     def assert_valid(self) -> None:
         self.prev_out.assert_valid()
+
         # TODO check script_sig
+
         # must be a 4-bytes int
         if not 0 <= self.sequence <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid sequence: {self.sequence}")
+
+        if self.script_witness:
+            self.script_witness.assert_valid()
 
     def serialize(self, assert_valid: bool = True) -> bytes:
 

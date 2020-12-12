@@ -466,7 +466,7 @@ def test_exceptions() -> None:
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.tx.vin[0].witness = Witness([b""])
+    psbt.tx.vin[0].script_witness = Witness([b""])
     err_msg = "non empty script_sig or witness"
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):

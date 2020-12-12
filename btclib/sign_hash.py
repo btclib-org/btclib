@@ -176,7 +176,7 @@ def from_utxo(utxo: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
     if is_p2wsh(script_pub_key):
         # the real script is contained in the witness
-        script_ = _witness_v0_script(tx.vin[vin_i].witness.stack[-1])[0]
+        script_ = _witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
         return segwit_v0(script_, tx, vin_i, hash_type, utxo.value)
 
     script_ = _legacy_script(script_pub_key)[0]

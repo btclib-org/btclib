@@ -182,15 +182,17 @@ class PsbtIn(DataClassJsonMixin):
         if self.witness_utxo:
             self.witness_utxo.assert_valid()
 
+        _assert_valid_partial_sigs(self.partial_sigs)
+
         if self.sig_hash_type:
             assert_valid_hash_type(self.sig_hash_type)
 
         _assert_valid_redeem_script(self.redeem_script)
         _assert_valid_witness_script(self.witness_script)
+        _assert_valid_hd_key_paths(self.hd_key_paths)
         _assert_valid_final_script_sig(self.final_script_sig)
         self.final_script_witness.assert_valid()
-        _assert_valid_partial_sigs(self.partial_sigs)
-        _assert_valid_hd_key_paths(self.hd_key_paths)
+
         _assert_valid_unknown(self.unknown)
 
     def serialize(self, assert_valid: bool = True) -> bytes:

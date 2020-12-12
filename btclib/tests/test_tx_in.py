@@ -144,7 +144,7 @@ def test_tx_in() -> None:
         "30440220398f141917e4525d3e9e0d1c6482cb19ca3188dc5516a3a5ac29a0f4017212d902204ea405fae3a58b1fc30c5ad8ac70a76ab4f4d876e8af706a6a7b4cd6fa100f4401",
         "52210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae",
     ]
-    tx_in.witness = Witness([bytes_from_octets(v) for v in stack])
+    tx_in.script_witness = Witness([bytes_from_octets(v) for v in stack])
     assert tx_in.prev_out == prev_out
     assert tx_in.script_sig == script_sig
     assert tx_in.sequence == sequence
@@ -175,8 +175,8 @@ def test_dataclasses_json_dict() -> None:
     # TxIn dataclass
     assert isinstance(tx_in, TxIn)
     assert tx_in.is_segwit()
-    assert tx_in.witness
-    assert tx_in.witness.stack
+    assert tx_in.script_witness
+    assert tx_in.script_witness.stack
 
     # TxIn dataclass to dict
     tx_in_dict = tx_in.to_dict()
@@ -201,7 +201,7 @@ def test_dataclasses_json_dict() -> None:
     tx_in2 = TxIn.from_dict(tx_in_dict)
     assert isinstance(tx_in2, TxIn)
     assert tx_in2.is_segwit()
-    assert tx_in2.witness
-    assert tx_in2.witness.stack
+    assert tx_in2.script_witness
+    assert tx_in2.script_witness.stack
 
     assert tx_in == tx_in2

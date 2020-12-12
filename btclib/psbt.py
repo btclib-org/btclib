@@ -103,7 +103,7 @@ class Psbt(DataClassJsonMixin):
             raise BTClibValueError("null transaction")
 
         # ensure the tx is unsigned
-        if any(tx_in.script_sig or tx_in.witness for tx_in in self.tx.vin):
+        if any(tx_in.script_sig or tx_in.script_witness for tx_in in self.tx.vin):
             raise BTClibValueError("non empty script_sig or witness")
 
         if len(self.tx.vin) != len(self.inputs):
@@ -278,9 +278,9 @@ class Psbt(DataClassJsonMixin):
         outputs = []
         if tx:
             if tx.vin:
-                for inp in tx.vin:
-                    inp.script_sig = b""
-                    inp.witness = Witness()
+                for tx_in in tx.vin:
+                    tx_in.script_sig = b""
+                    tx_in.script_witness = Witness()
                 inputs = [PsbtIn() for _ in tx.vin]
             if tx.vout:
                 outputs = [PsbtOut() for _ in tx.vout]
@@ -450,10 +450,10 @@ def extract_tx(psbt: Psbt, assert_valid: bool = True) -> Tx:
         psbt.assert_valid()
 
     tx = psbt.tx
-    for tx_vin, psbt_input in zip(tx.vin, psbt.inputs):
-        tx_vin.script_sig = psbt_input.final_script_sig
+    for tx_in, psbt_input in zip(tx.vin, psbt.inputs):
+        tx_in.script_sig = psbt_input.final_script_sig
         if psbt_input.final_script_witness:
-            tx_vin.witness = psbt_input.final_script_witness
+            tx_in.script_witness = psbt_input.final_script_witness
 
     if assert_valid:
         tx.assert_valid()
