@@ -117,9 +117,9 @@ def test_from_prv_key() -> None:
 
     for invalid_prv_key in [q0, qn, xprv0_data, xprvn_data, *invalid_prv_keys]:
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(invalid_prv_key)
+            int_from_prv_key(invalid_prv_key)  # type: ignore
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(invalid_prv_key)
+            prv_keyinfo_from_prv_key(invalid_prv_key)  # type: ignore
 
     for not_a_prv_key in [
         q0,
@@ -136,6 +136,6 @@ def test_from_prv_key() -> None:
         *uncompressed_pub_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(not_a_prv_key)
+            int_from_prv_key(not_a_prv_key)  # type: ignore
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(not_a_prv_key)
+            prv_keyinfo_from_prv_key(not_a_prv_key)  # type: ignore
