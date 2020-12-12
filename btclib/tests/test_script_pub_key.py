@@ -395,10 +395,7 @@ def test_p2ms_1() -> None:
     assert payload == script_pub_key[:-1]
     assert script_pub_key == script_pub_key_from_payload("p2ms", payload)
 
-    m = 1
     pub_keys: List[Key] = [pub_key0, pub_key1]
-    n = len(pub_keys)
-
     err_msg = "invalid p2ms payload"
     with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(4, pub_keys)
@@ -410,16 +407,15 @@ def test_p2ms_1() -> None:
         p2ms(17, pub_keys)
 
     err_msg = "not a private or public key: "
-    badpub_keys: List[Key] = [pub_key0 + "00", pub_key1]
     with pytest.raises(BTClibValueError, match=err_msg):
-        p2ms(m, badpub_keys)
+        p2ms(1, [pub_key0 + "00", pub_key1])
 
-    script_: Script = [m] + badpub_keys + [n, "OP_CHECKMULTISIG"]
+    script_: Script = [1, pub_key0 + "00", pub_key1, 2, "OP_CHECKMULTISIG"]
     script_pub_key = script.serialize(script_)
     assert not is_p2ms(script_pub_key)
 
     err_msg = "invalid key in p2ms"
-    script_pub_key = script.serialize([m] + [pub_key0, 0] + [n, "OP_CHECKMULTISIG"])
+    script_pub_key = script.serialize([1, pub_key0, "00", 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
     script_pub_key = script.serialize([1, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
