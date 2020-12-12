@@ -86,8 +86,7 @@ def mnemonic_from_entropy(
     binstr_entropy = binstr_from_entropy(entropy)
     int_entropy = int(binstr_entropy, 2)
     base = _wordlists.language_length(lang)
-    invalid = True
-    while invalid:
+    while True:
         # electrum considers entropy as integer, losing any leading zero
         # so the value of binstr_entropy before the while must be updated
         nbits = int_entropy.bit_length()
@@ -97,11 +96,9 @@ def mnemonic_from_entropy(
         # version validity check
         s = hmac.new(b"Seed version", mnemonic.encode(), sha512).hexdigest()
         if s.startswith(version):
-            invalid = False
+            return mnemonic
         # next trial
         int_entropy += 1
-
-    return mnemonic
 
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:

@@ -56,21 +56,18 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.hash_
     """
 
-    compressed = False
-    G_bytes = bytes_from_point(ec.G, ec, compressed)
+    G_bytes = bytes_from_point(ec.G, ec, compressed=False)
     hash_ = hf()
     hash_.update(G_bytes)
     hash_digest = hash_.digest()
     x_H = int_from_bits(hash_digest, ec.nlen) % ec.n
-    is_curve_point = False
-    while not is_curve_point:
+    while True:
         try:
             y_H = ec.y_even(x_H)
-            is_curve_point = True
+            return x_H, y_H
         except BTClibValueError:
             x_H += 1
             x_H %= ec.p
-    return x_H, y_H
 
 
 def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
