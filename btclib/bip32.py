@@ -381,18 +381,6 @@ def _derive(
         err_msg = f"final depth greater than 255: {final_depth}"
         raise BTClibValueError(err_msg)
 
-    if forced_version is not None:
-        version = xkey_data.version
-        fversion = bytes_from_octets(forced_version, 4)
-        if version in _XPRV_VERSIONS_ALL and fversion not in _XPRV_VERSIONS_ALL:
-            err_msg = "invalid non-private version forced on a private key: "
-            err_msg += f"{hex_string(fversion)}"
-            raise BTClibValueError(err_msg)
-        if version in _XPUB_VERSIONS_ALL and fversion not in _XPUB_VERSIONS_ALL:
-            err_msg = "invalid non-public version forced on a public key: "
-            err_msg += f"{hex_string(fversion)}"
-            raise BTClibValueError(err_msg)
-
     is_prv = xkey_data.key[0] == 0
     q = (
         int.from_bytes(xkey_data.key[1:], byteorder="big", signed=False)
@@ -412,7 +400,17 @@ def _derive(
     )
     for index in indexes:
         __ckd(key_data, index)
-    if forced_version is not None:
+
+    if forced_version:
+        if xkey_data.version in _XPRV_VERSIONS_ALL:
+            allowed_versions = _XPRV_VERSIONS_ALL
+        else:
+            allowed_versions = _XPUB_VERSIONS_ALL
+        fversion = bytes_from_octets(forced_version, 4)
+        if fversion not in allowed_versions:
+            err_msg = "invalid version forced on the extended key"
+            err_msg += f"{hex_string(fversion)}"
+            raise BTClibValueError(err_msg)
         key_data.version = fversion
 
     return key_data

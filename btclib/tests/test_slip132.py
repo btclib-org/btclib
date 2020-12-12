@@ -169,14 +169,13 @@ def test_addresses() -> None:
         xprv = bip32.derive(rootprv, der_path, version)
         assert mxpub.encode("ascii") == bip32.xpub_from_xprv(xprv)
 
+        err_msg = "invalid version forced on the extended key"
         # a non-private version cannot be forced on a private key
         pub_version = NETWORKS[network].bip32_pub
-        err_msg = "invalid non-private version forced on a private key: "
         with pytest.raises(BTClibValueError, match=err_msg):
             bip32.derive(rootprv, der_path, pub_version)
 
         # just changing the public version with no derivation does work
         bip32.derive(mxpub, "m", pub_version)
-        err_msg = "invalid non-public version forced on a public key: "
         with pytest.raises(BTClibValueError, match=err_msg):
             bip32.derive(mxpub, "m", version)
