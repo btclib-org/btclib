@@ -147,20 +147,19 @@ def tonelli(a: int, p: int) -> int:
     c = pow(z, q, p)
     r = pow(a, (q + 1) // 2, p)
     t = pow(a, q, p)
-    m = s
     while t != 1:
         # Find the lowest i such that t^(2^i) = 1
         t2i = t
-        for i in range(1, m):
+        for i in range(1, s):
             t2i = t2i * t2i % p
             if t2i == 1:
                 break
 
         # Update next value to iterate
-        b = pow(c, 1 << (m - i - 1), p)
+        b = pow(c, 1 << (s - i - 1), p)
         r = (r * b) % p
         c = (b * b) % p
         t = (t * c) % p
-        m = i
+        s = i
 
     return r
