@@ -14,7 +14,7 @@ mypy aliases, documenting also coding imput conventions.
 """
 
 from io import BytesIO
-from typing import Any, Callable, List, Tuple, Union
+from typing import Any, Callable, Tuple, Union
 
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
@@ -100,18 +100,3 @@ INFJ = 7, 0, 0
 BinStr = str
 # but int or bytes are fine too
 Entropy = Union[BinStr, int, bytes]
-
-# the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
-# the integer -1 is a shorcut for 'OP_1NEGATE'
-# other integers are bytes encoded (require push operation)
-# ascii str are for opcodes (e.g. 'OP_HASH160')
-# Octets are for data to be pushed
-ScriptToken = Union[int, str, bytes]
-
-# Bitcoin script expressed as List[ScriptToken]
-# e.g. [OP_HASH160, script_h160, OP_EQUAL]
-# or Octets of its byte-encoded representation
-Script = Union[Octets, List[ScriptToken]]
-
-# Object that can be textually saved without any conversion
-Printable = Union[int, str]

@@ -15,10 +15,9 @@
 import hashlib
 from typing import Optional, Tuple
 
-from .alias import HashF, Script, String
-from .script import serialize
+from .alias import HashF, String
 from .to_pub_key import Key, pub_keyinfo_from_key
-from .utils import hash160, sha256
+from .utils import hash160
 
 H160_Net = Tuple[bytes, str]
 
@@ -31,23 +30,7 @@ def hash160_from_key(
     HASH160 is RIPEMD160(SHA256).
     """
     pub_key, network = pub_keyinfo_from_key(key, network, compressed)
-    h160 = hash160(pub_key)
-    return h160, network
-
-
-def hash160_from_script(script_pub_key: Script) -> bytes:
-    "Return the RIPEMD160(SHA256) of the script_pub_key."
-
-    if isinstance(script_pub_key, list):
-        script_pub_key = serialize(script_pub_key)
-    return hash160(script_pub_key)
-
-
-def hash256_from_script(script_pub_key: Script) -> bytes:
-    "Return the SHA256(SHA256) of the script_pub_key."
-    if isinstance(script_pub_key, list):
-        script_pub_key = serialize(script_pub_key)
-    return sha256(script_pub_key)
+    return hash160(pub_key), network
 
 
 def fingerprint(key: Key, network: Optional[str] = None) -> bytes:

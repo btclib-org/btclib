@@ -20,7 +20,7 @@ from collections.abc import Iterable as IterableCollection
 from io import BytesIO
 from typing import Callable, Iterable, List, Optional, Union
 
-from .alias import BinaryData, Integer, Octets, Printable, ScriptToken, String
+from .alias import BinaryData, Integer, Octets
 from .exceptions import BTClibTypeError, BTClibValueError
 
 # hexstr_from_bytes is not needed!!
@@ -193,23 +193,3 @@ def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
     # http://www.graphics.stanford.edu/~seander/bithacks.html
     if n & (n - 1) != 0:
         raise BTClibValueError(f"{var_name}: {n} (must be a power of two)")
-
-
-def token_or_string_to_hex_string(val: Union[ScriptToken, String]) -> str:
-    """Return a readable string from a ScriptToken or a String object.
-
-    If val are bytes a hex string is returned.
-    If val is an int his string representation is returned.
-    """
-    if isinstance(val, bytes):
-        return val.hex()
-    if isinstance(val, int):
-        return str(val)
-    return val
-
-
-def token_or_string_to_printable(
-    val: Union[List[ScriptToken], List[String]]
-) -> List[Printable]:
-
-    return [v.hex() if isinstance(v, bytes) else v for v in val]

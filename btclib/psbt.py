@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, var_int
-from .alias import Octets, ScriptToken, String
+from .alias import Octets, String
 from .exceptions import BTClibValueError
 from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
@@ -411,7 +411,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             psbt_in.final_script_witness.stack += [psbt_in.witness_script]
         else:
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-            final_script_sig: List[ScriptToken] = [0] if multi_sig else []
+            final_script_sig: List[script.ScriptToken] = [0] if multi_sig else []
             final_script_sig += [sig.hex() for sig in sigs]
             final_script_sig += [psbt_in.redeem_script.hex()]
             psbt_in.final_script_sig = script.serialize(final_script_sig)

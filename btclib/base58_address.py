@@ -15,10 +15,10 @@ Base58 encoding of public keys and scripts as addresses.
 
 from typing import Optional, Tuple
 
-from .alias import Octets, Script, String
+from .alias import Octets, String
 from .base58 import b58decode, b58encode
 from .exceptions import BTClibValueError
-from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
+from .hashes import hash160_from_key
 from .network import (
     _P2PKH_PREFIXES,
     _P2SH_PREFIXES,
@@ -27,7 +27,7 @@ from .network import (
 )
 from .script_pub_key import script_pub_key_from_payload
 from .to_pub_key import Key
-from .utils import bytes_from_octets
+from .utils import bytes_from_octets, hash160, sha256
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
 # imported from the hashes module
@@ -78,9 +78,9 @@ def p2pkh(
     return base58_address_from_h160(prefix, h160, network)
 
 
-def p2sh(script_pub_key: Script, network: str = "mainnet") -> bytes:
+def p2sh(script_pub_key: Octets, network: str = "mainnet") -> bytes:
     "Return the p2sh base58 address corresponding to a script_pub_key."
-    h160 = hash160_from_script(script_pub_key)
+    h160 = hash160(script_pub_key)
     prefix = NETWORKS[network].p2sh
     return base58_address_from_h160(prefix, h160, network)
 
@@ -117,7 +117,7 @@ def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> bytes:
     return base58_address_from_witness(witprog, network)
 
 
-def p2wsh_p2sh(reedem_script: Script, network: str = "mainnet") -> bytes:
+def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> bytes:
     "Return the p2wsh-p2sh base58 address corresponding to a reedem script."
-    witprog = hash256_from_script(reedem_script)
+    witprog = sha256(redeem_script)
     return base58_address_from_witness(witprog, network)

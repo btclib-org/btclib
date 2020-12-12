@@ -19,7 +19,7 @@ from copy import deepcopy
 from typing import List
 
 from . import script, var_bytes
-from .alias import Octets, ScriptToken
+from .alias import Octets
 from .exceptions import BTClibValueError
 from .script_pub_key import (
     is_p2sh,
@@ -30,7 +30,7 @@ from .script_pub_key import (
 )
 from .tx import Tx
 from .tx_out import TxOut
-from .utils import hash256
+from .utils import bytes_from_octets, hash256
 
 ALL = 1
 NONE = 2
@@ -54,7 +54,7 @@ def assert_valid_hash_type(hash_type: int) -> None:
 
 def _legacy_script(script_pub_key: Octets) -> List[bytes]:
     script_s: List[bytes] = []
-    current_script: List[ScriptToken] = []
+    current_script: List[script.ScriptToken] = []
     for token in script.deserialize(script_pub_key)[::-1]:
         if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(script.serialize(current_script[::-1]))
@@ -64,7 +64,26 @@ def _legacy_script(script_pub_key: Octets) -> List[bytes]:
     return script_s[::-1]
 
 
-def legacy(script_: bytes, tx: Tx, vin_i: int, hash_type: int) -> bytes:
+# FIXME: remove OP_CODESEPARATOR only if executed
+def _witness_v0_script(script_pub_key: Octets) -> List[bytes]:
+    script_type, payload = payload_from_script_pub_key(script_pub_key)
+
+    if script_type == "p2wpkh":
+        return [script_pub_key_from_payload("p2pkh", payload)]
+
+    script_s: List[bytes] = []
+    current_script: List[script.ScriptToken] = []
+    for token in script.deserialize(script_pub_key)[::-1]:
+        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
+            script_s.append(script.serialize(current_script[::-1]))
+        current_script.append(token)
+    script_s.append(script.serialize(current_script[::-1]))
+    return script_s[::-1]
+
+
+def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
+    script_ = bytes_from_octets(script_)
+
     new_tx = deepcopy(tx)
     for txin in new_tx.vin:
         txin.script_sig = b""
@@ -97,25 +116,11 @@ def legacy(script_: bytes, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     return hash256(preimage)
 
 
-# FIXME: remove OP_CODESEPARATOR only if executed
-def _witness_v0_script(script_pub_key: Octets) -> List[bytes]:
-    script_type, payload = payload_from_script_pub_key(script_pub_key)
-
-    if script_type == "p2wpkh":
-        return [script_pub_key_from_payload("p2pkh", payload)]
-
-    script_s: List[bytes] = []
-    current_script: List[ScriptToken] = []
-    for token in script.deserialize(script_pub_key)[::-1]:
-        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
-            script_s.append(script.serialize(current_script[::-1]))
-        current_script.append(token)
-    script_s.append(script.serialize(current_script[::-1]))
-    return script_s[::-1]
-
-
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
-def segwit_v0(script_: bytes, tx: Tx, vin_i: int, hash_type: int, amount: int) -> bytes:
+def segwit_v0(
+    script_: Octets, tx: Tx, vin_i: int, hash_type: int, amount: int
+) -> bytes:
+    script_ = bytes_from_octets(script_)
 
     hash_prev_outs = b"\x00" * 32
     if not hash_type & ANYONECANPAY:

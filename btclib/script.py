@@ -21,7 +21,7 @@ Scripts are represented by List[ScriptToken], where ScriptToken = Union[int, str
 
 from typing import List, Sequence, Union
 
-from .alias import BinaryData, Octets, ScriptToken
+from .alias import BinaryData, Octets
 from .exceptions import BTClibTypeError, BTClibValueError
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -301,6 +301,14 @@ def _op_str(token: str) -> bytes:
     return _op_pushdata(data)
 
 
+# the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
+# the integer -1 is a shorcut for 'OP_1NEGATE'
+# other integers are bytes encoded (require push operation)
+# ascii str are for opcodes (e.g. 'OP_HASH160')
+# Octets are for data to be pushed
+ScriptToken = Union[int, str, bytes]
+
+
 def serialize(script: Sequence[ScriptToken]) -> bytes:
     r = b""
     for token in script:
@@ -315,11 +323,17 @@ def serialize(script: Sequence[ScriptToken]) -> bytes:
     return r
 
 
-def deserialize(stream: BinaryData) -> List[Union[int, str]]:
+# Bitcoin script expressed as List[ScriptToken]
+# e.g. [OP_HASH160, script_h160, OP_EQUAL]
+# or Octets of its byte-encoded representation
+Script = List[ScriptToken]
+
+
+def deserialize(stream: BinaryData) -> Script:
 
     s = bytesio_from_binarydata(stream)
     # initialize the result list
-    r: List[Union[int, str]] = []
+    r: Script = []
     while True:
         # get one byte
         t = s.read(1)

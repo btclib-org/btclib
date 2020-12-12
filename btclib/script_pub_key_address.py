@@ -10,7 +10,7 @@
 
 from typing import Tuple
 
-from .alias import Script, String
+from .alias import Octets, String
 from .base58_address import base58_address_from_h160, h160_from_base58_address
 from .bech32_address import (
     bech32_address_from_witness,
@@ -49,7 +49,7 @@ def script_pub_key_from_address(addr: String) -> Tuple[bytes, str]:
 
 
 def address_from_script_pub_key(
-    script_pub_key: Script, network: str = "mainnet"
+    script_pub_key: Octets, network: str = "mainnet"
 ) -> bytes:
     "Return the bech32/base58 address from a script_pub_key."
 

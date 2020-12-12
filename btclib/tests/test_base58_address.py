@@ -15,7 +15,6 @@ from typing import List, Tuple
 import pytest
 
 from btclib import bip32, script, slip132
-from btclib.alias import ScriptToken
 from btclib.base58 import b58encode
 from btclib.base58_address import (
     base58_address_from_h160,
@@ -29,11 +28,11 @@ from btclib.base58_address import (
 from btclib.base58_wif import wif_from_prv_key
 from btclib.bech32_address import p2wpkh, witness_from_bech32_address
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160_from_key, hash256_from_script
+from btclib.hashes import hash160_from_key
 from btclib.sec_point import bytes_from_point, point_from_octets
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-from btclib.utils import hash160
+from btclib.utils import hash160, sha256
 
 
 def test_base58_address_from_h160() -> None:
@@ -101,17 +100,19 @@ def test_p2pkh_from_pub_key() -> None:
 
 def test_p2sh() -> None:
     # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
-    script_pub_key: List[ScriptToken] = [
-        "OP_2DUP",
-        "OP_EQUAL",
-        "OP_NOT",
-        "OP_VERIFY",
-        "OP_SHA1",
-        "OP_SWAP",
-        "OP_SHA1",
-        "OP_EQUAL",
-    ]
-    assert script.serialize(script_pub_key).hex() == "6e879169a77ca787"
+    script_pub_key = script.serialize(
+        [
+            "OP_2DUP",
+            "OP_EQUAL",
+            "OP_NOT",
+            "OP_VERIFY",
+            "OP_SHA1",
+            "OP_SWAP",
+            "OP_SHA1",
+            "OP_EQUAL",
+        ]
+    )
+    assert script_pub_key.hex() == "6e879169a77ca787"
 
     network = "mainnet"
     addr = p2sh(script_pub_key, network)
@@ -120,10 +121,10 @@ def test_p2sh() -> None:
     _, redeem_script_hash, network2, is_script_hash = h160_from_base58_address(addr)
     assert network == network2
     assert is_script_hash
-    assert redeem_script_hash == hash160(script.serialize(script_pub_key))
+    assert redeem_script_hash == hash160(script_pub_key)
 
     assert redeem_script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
-    output_script: List[ScriptToken] = [
+    output_script: List[script.ScriptToken] = [
         "OP_HASH160",
         redeem_script_hash.hex(),
         "OP_EQUAL",
@@ -147,14 +148,16 @@ def test_p2w_p2sh() -> None:
     b58addr2 = base58_address_from_witness(h160pub_key, network)
     assert b58addr2 == b58addr
 
-    script_pub_key: List[ScriptToken] = [
-        "OP_DUP",
-        "OP_HASH160",
-        h160pub_key,
-        "OP_EQUALVERIFY",
-        "OP_CHECKSIG",
-    ]
-    h256script = hash256_from_script(script_pub_key)
+    script_pub_key = script.serialize(
+        [
+            "OP_DUP",
+            "OP_HASH160",
+            h160pub_key,
+            "OP_EQUALVERIFY",
+            "OP_CHECKSIG",
+        ]
+    )
+    h256script = sha256(script_pub_key)
     b58addr = p2wsh_p2sh(script_pub_key, network)
     b58addr2 = base58_address_from_witness(h256script, network)
     assert b58addr2 == b58addr

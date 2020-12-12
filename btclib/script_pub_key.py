@@ -15,16 +15,16 @@
 from typing import List, Optional, Tuple
 
 from . import var_bytes
-from .alias import Octets, Script, String
+from .alias import Octets, String
 from .exceptions import BTClibValueError
-from .hashes import hash160_from_key, hash160_from_script, hash256_from_script
+from .hashes import hash160_from_key
 from .script import serialize
 from .to_pub_key import Key, pub_keyinfo_from_key
-from .utils import bytes_from_octets, bytesio_from_binarydata
+from .utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
 
-# hash160_from_key, hash160_from_script, and hash256_from_script
+# hash160_from_key, hash160, and sha256
 # are imported from hashes.py
 
 
@@ -170,14 +170,10 @@ def is_p2wsh(script_pub_key: Octets) -> bool:
     return length == 34 and script_pub_key[:2] == b"\x00\x20"
 
 
-def payload_from_script_pub_key(script_pub_key: Script) -> Tuple[str, bytes]:
+def payload_from_script_pub_key(script_pub_key: Octets) -> Tuple[str, bytes]:
     "Return (script_pub_key type, payload) from the input script_pub_key."
 
-    script_pub_key = (
-        serialize(script_pub_key)
-        if isinstance(script_pub_key, list)
-        else bytes_from_octets(script_pub_key)
-    )
+    script_pub_key = bytes_from_octets(script_pub_key)
 
     if is_p2wpkh(script_pub_key):
         # p2wpkh [0, pub_key_hash]
@@ -274,10 +270,10 @@ def p2pkh(key: Key, compressed: Optional[bool] = None) -> bytes:
     return script_pub_key_from_payload("p2pkh", pub_key_h160)
 
 
-def p2sh(redeem_script: Script) -> bytes:
+def p2sh(redeem_script: Octets) -> bytes:
     "Return the p2sh script_pub_key of the provided redeem script."
 
-    script_h160 = hash160_from_script(redeem_script)
+    script_h160 = hash160(redeem_script)
     return script_pub_key_from_payload("p2sh", script_h160)
 
 
@@ -291,8 +287,8 @@ def p2wpkh(key: Key) -> bytes:
     return script_pub_key_from_payload("p2wpkh", pub_key_h160)
 
 
-def p2wsh(redeem_script: Script) -> bytes:
+def p2wsh(redeem_script: Octets) -> bytes:
     "Return the p2wsh script_pub_key of the provided redeem script."
 
-    script_h256 = hash256_from_script(redeem_script)
+    script_h256 = sha256(redeem_script)
     return script_pub_key_from_payload("p2wsh", script_h256)

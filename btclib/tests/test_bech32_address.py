@@ -45,7 +45,6 @@ from typing import List, Tuple
 import pytest
 
 from btclib import script
-from btclib.alias import ScriptToken
 from btclib.base58_address import p2wpkh_p2sh, p2wsh_p2sh
 from btclib.bech32_address import (
     _convertbits,
@@ -94,7 +93,7 @@ def test_valid_address() -> None:
 
     for address, hexscript in valid_bc_addresses + valid_tb_addresses:
         witvers, witprog, network, _ = witness_from_bech32_address(address)
-        script_pub_key: List[ScriptToken] = [witvers, witprog]
+        script_pub_key: List[script.ScriptToken] = [witvers, witprog]
         assert script.serialize(script_pub_key).hex() == hexscript
         addr = bech32_address_from_witness(witvers, witprog, network)
         assert address.lower().strip() == addr.decode("ascii")
@@ -250,7 +249,7 @@ def test_p2wsh_p2sh() -> None:
 
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    script_pub_key: List[ScriptToken] = [pub, "OP_CHECKSIG"]
+    script_pub_key: List[script.ScriptToken] = [pub, "OP_CHECKSIG"]
     witness_script_bytes = script.serialize(script_pub_key)
     p2wsh_p2sh(witness_script_bytes)
     p2wsh_p2sh(witness_script_bytes, "testnet")
@@ -260,7 +259,7 @@ def test_p2wsh() -> None:
 
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    script_pub_key: List[ScriptToken] = [pub, "OP_CHECKSIG"]
+    script_pub_key: List[script.ScriptToken] = [pub, "OP_CHECKSIG"]
     witness_script_bytes = script.serialize(script_pub_key)
 
     addr = b"tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"

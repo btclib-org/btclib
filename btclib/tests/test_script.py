@@ -15,7 +15,6 @@ from typing import List
 import pytest
 
 from btclib import script
-from btclib.alias import ScriptToken
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
@@ -46,7 +45,7 @@ def test_operators() -> None:
 
 
 def test_simple() -> None:
-    script_list: List[List[ScriptToken]] = [
+    script_list: List[List[script.ScriptToken]] = [
         [2, 3, "OP_ADD", 5, "OP_EQUAL"],
         ["1ADD", "OP_1ADD", "1ADE", "OP_EQUAL"],
         [hex(26)[2:].upper(), -1, "OP_ADD", hex(26)[2:].upper(), "OP_EQUAL"],
@@ -69,7 +68,7 @@ def test_simple() -> None:
 
 def test_exceptions() -> None:
 
-    script_pub_key: List[ScriptToken] = [2, 3, "OP_ADD", 5, "OP_RETURN_244"]
+    script_pub_key: List[script.ScriptToken] = [2, 3, "OP_ADD", 5, "OP_RETURN_244"]
     err_msg = "invalid string token: OP_RETURN_244"
     with pytest.raises(BTClibValueError, match=err_msg):
         script.serialize(script_pub_key)
@@ -94,7 +93,7 @@ def test_exceptions() -> None:
 
 def test_nulldata() -> None:
 
-    scripts: List[List[ScriptToken]] = [
+    scripts: List[List[script.ScriptToken]] = [
         ["OP_RETURN", "11" * 79],
         ["OP_RETURN", "00" * 79],
     ]
