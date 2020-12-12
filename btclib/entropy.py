@@ -30,7 +30,6 @@ from .exceptions import BTClibTypeError, BTClibValueError
 from .utils import bytes_from_octets
 
 _bits = 128, 160, 192, 224, 256, 512
-_dice_sides = (4, 6, 8, 12, 20, 24, 30, 48, 60, 120)
 
 
 def _indexes_from_entropy(entropy: BinStr, base: int) -> List[int]:
@@ -234,9 +233,10 @@ def binstr_from_binstr(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
 
 def collect_rolls(bits: int) -> Tuple[int, List[int]]:
 
+    automate = False
     dice_sides = 0
+    _dice_sides = (4, 6, 8, 12, 20, 24, 30, 48, 60, 120)
     while dice_sides not in _dice_sides:
-        automate = False
         msg = f"{_dice_sides}"
         msg = "dice sides " + msg[:-1]
         msg += "; prefix with 'a' to automate rolls, hit enter for 'a6'): "
@@ -246,6 +246,7 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
             automate = True
             dice_sides = 6
         else:
+            automate = False
             if dice_sides_str.startswith("a"):
                 automate = True
                 dice_sides_str = dice_sides_str[1:]
