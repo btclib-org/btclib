@@ -48,7 +48,7 @@ def test_from_prv_key() -> None:
     m_unc = (q, "mainnet", False)
     t_c = (q, "testnet", True)
     t_unc = (q, "testnet", False)
-    for prv_key in [q] + plain_prv_keys:
+    for prv_key in [q, *plain_prv_keys]:
         assert q == int_from_prv_key(prv_key)
         assert q == int_from_prv_key(prv_key, secp256r1)
         assert m_c == prv_keyinfo_from_prv_key(prv_key)
@@ -61,76 +61,80 @@ def test_from_prv_key() -> None:
         assert t_c == prv_keyinfo_from_prv_key(prv_key, "testnet", compressed=True)
         assert t_unc == prv_keyinfo_from_prv_key(prv_key, "testnet", compressed=False)
 
-    for prv_key in [xprv_data] + compressed_prv_keys:
-        assert q == int_from_prv_key(prv_key)
+    for prv_key2 in [xprv_data, *compressed_prv_keys]:
+        assert q == int_from_prv_key(prv_key2)
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(prv_key, secp256r1)
-        assert m_c == prv_keyinfo_from_prv_key(prv_key)
-        assert m_c == prv_keyinfo_from_prv_key(prv_key, "mainnet")
-        assert m_c == prv_keyinfo_from_prv_key(prv_key, "mainnet", compressed=True)
-        assert m_c == prv_keyinfo_from_prv_key(prv_key, compressed=True)
+            int_from_prv_key(prv_key2, secp256r1)
+        assert m_c == prv_keyinfo_from_prv_key(prv_key2)
+        assert m_c == prv_keyinfo_from_prv_key(prv_key2, "mainnet")
+        assert m_c == prv_keyinfo_from_prv_key(prv_key2, "mainnet", compressed=True)
+        assert m_c == prv_keyinfo_from_prv_key(prv_key2, compressed=True)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "mainnet", compressed=False)
+            prv_keyinfo_from_prv_key(prv_key2, "mainnet", compressed=False)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, compressed=False)
+            prv_keyinfo_from_prv_key(prv_key2, compressed=False)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "testnet")
+            prv_keyinfo_from_prv_key(prv_key2, "testnet")
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "testnet", compressed=True)
+            prv_keyinfo_from_prv_key(prv_key2, "testnet", compressed=True)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "testnet", compressed=False)
+            prv_keyinfo_from_prv_key(prv_key2, "testnet", compressed=False)
 
-    for prv_key in uncompressed_prv_keys:
-        assert q == int_from_prv_key(prv_key)
+    for prv_key3 in uncompressed_prv_keys:
+        assert q == int_from_prv_key(prv_key3)
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(prv_key, secp256r1)
-        assert m_unc == prv_keyinfo_from_prv_key(prv_key)
-        assert m_unc == prv_keyinfo_from_prv_key(prv_key, "mainnet")
+            int_from_prv_key(prv_key3, secp256r1)
+        assert m_unc == prv_keyinfo_from_prv_key(prv_key3)
+        assert m_unc == prv_keyinfo_from_prv_key(prv_key3, "mainnet")
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "mainnet", compressed=True)
+            prv_keyinfo_from_prv_key(prv_key3, "mainnet", compressed=True)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, compressed=True)
-        assert m_unc == prv_keyinfo_from_prv_key(prv_key, "mainnet", compressed=False)
-        assert m_unc == prv_keyinfo_from_prv_key(prv_key, compressed=False)
+            prv_keyinfo_from_prv_key(prv_key3, compressed=True)
+        assert m_unc == prv_keyinfo_from_prv_key(prv_key3, "mainnet", compressed=False)
+        assert m_unc == prv_keyinfo_from_prv_key(prv_key3, compressed=False)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "testnet")
+            prv_keyinfo_from_prv_key(prv_key3, "testnet")
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "testnet", compressed=True)
+            prv_keyinfo_from_prv_key(prv_key3, "testnet", compressed=True)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "testnet", compressed=False)
+            prv_keyinfo_from_prv_key(prv_key3, "testnet", compressed=False)
 
-    for prv_key in [xprv_data] + net_aware_prv_keys:
-        assert q == int_from_prv_key(prv_key)
+    for prv_key4 in [xprv_data, *net_aware_prv_keys]:
+        assert q == int_from_prv_key(prv_key4)
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(prv_key, secp256r1)
-        assert prv_keyinfo_from_prv_key(prv_key) in (m_c, m_unc)
-        assert prv_keyinfo_from_prv_key(prv_key, "mainnet") in (m_c, m_unc)
+            int_from_prv_key(prv_key4, secp256r1)
+        assert prv_keyinfo_from_prv_key(prv_key4) in (m_c, m_unc)
+        assert prv_keyinfo_from_prv_key(prv_key4, "mainnet") in (m_c, m_unc)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key, "testnet")
+            prv_keyinfo_from_prv_key(prv_key4, "testnet")
 
-    for prv_key in [q] + net_unaware_prv_keys:
-        assert q == int_from_prv_key(prv_key)
-        assert q == int_from_prv_key(prv_key, secp256r1)
-        assert prv_keyinfo_from_prv_key(prv_key) in (m_c, m_unc)
-        assert prv_keyinfo_from_prv_key(prv_key, "mainnet") in (m_c, m_unc)
-        assert prv_keyinfo_from_prv_key(prv_key, "testnet") in (t_c, t_unc)
+    for prv_key5 in [q, *net_unaware_prv_keys]:
+        assert q == int_from_prv_key(prv_key5)
+        assert q == int_from_prv_key(prv_key5, secp256r1)
+        assert prv_keyinfo_from_prv_key(prv_key5) in (m_c, m_unc)
+        assert prv_keyinfo_from_prv_key(prv_key5, "mainnet") in (m_c, m_unc)
+        assert prv_keyinfo_from_prv_key(prv_key5, "testnet") in (t_c, t_unc)
 
-    for invalid_prv_key in [q0, qn, xprv0_data, xprvn_data] + invalid_prv_keys:
+    for invalid_prv_key in [q0, qn, xprv0_data, xprvn_data, *invalid_prv_keys]:
         with pytest.raises(BTClibValueError):
             int_from_prv_key(invalid_prv_key)
         with pytest.raises(BTClibValueError):
             prv_keyinfo_from_prv_key(invalid_prv_key)
 
-    for not_a_prv_key in (
-        [q0, qn, xprv0_data, xprvn_data]
-        + [INF, INF_xpub_data]
-        + not_a_prv_keys
-        + [Q]
-        + plain_pub_keys
-        + [xpub_data]
-        + compressed_pub_keys
-        + uncompressed_pub_keys
-    ):
+    for not_a_prv_key in [
+        q0,
+        qn,
+        xprv0_data,
+        xprvn_data,
+        INF,
+        INF_xpub_data,
+        *not_a_prv_keys,
+        Q,
+        *plain_pub_keys,
+        xpub_data,
+        *compressed_pub_keys,
+        *uncompressed_pub_keys,
+    ]:
         with pytest.raises(BTClibValueError):
             int_from_prv_key(not_a_prv_key)
         with pytest.raises(BTClibValueError):
