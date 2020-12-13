@@ -116,9 +116,9 @@ class TxOut(DataClassJsonMixin):
     # def is_witness(self) -> Tuple[bool, int, bytes]:
     #     return is_witness(self.script_pub_key)
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         out = self.value.to_bytes(8, byteorder="little", signed=False)
@@ -127,12 +127,12 @@ class TxOut(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
+        cls: Type[_TxOut], data: BinaryData, check_validity: bool = True
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
         value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         script_pub_key = var_bytes.deserialize(stream)
-        return cls(value, script_pub_key, check_validity=assert_valid)
+        return cls(value, script_pub_key, "mainnet", check_validity)
 
     @classmethod
     def from_address(cls: Type[_TxOut], value: int, address: String) -> _TxOut:

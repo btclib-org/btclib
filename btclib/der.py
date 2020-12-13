@@ -128,10 +128,10 @@ class Sig(DataClassJsonMixin):
             err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
             raise BTClibValueError(err_msg)
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
         "Serialize an ECDSA signature to strict ASN.1 DER representation"
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         out = _serialize_scalar(self.r)
@@ -140,7 +140,7 @@ class Sig(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_Sig], data: BinaryData, assert_valid: bool = True
+        cls: Type[_Sig], data: BinaryData, check_validity: bool = True
     ) -> _Sig:
         """Return a Sig by parsing binary data.
 
@@ -171,4 +171,4 @@ class Sig(DataClassJsonMixin):
             err_msg = "invalid DER sequence length"
             raise BTClibValueError(err_msg)
 
-        return cls(r, s, ec, check_validity=assert_valid)
+        return cls(r, s, ec, check_validity)

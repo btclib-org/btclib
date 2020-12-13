@@ -110,7 +110,7 @@ def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     if hash_type & 0x80:
         new_tx.vin = [new_tx.vin[vin_i]]
 
-    preimage = new_tx.serialize(include_witness=False, assert_valid=False)
+    preimage = new_tx.serialize(include_witness=False, check_validity=False)
     preimage += hash_type.to_bytes(4, byteorder="little", signed=False)
 
     return hash256(preimage)

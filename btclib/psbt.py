@@ -173,9 +173,9 @@ class Psbt(DataClassJsonMixin):
                 if payload != sha256(self.inputs[i].witness_script):
                     raise BTClibValueError("invalid witness script sha256")
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         psbt_bin = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
@@ -199,7 +199,7 @@ class Psbt(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_Psbt], psbt_bin: Octets, assert_valid: bool = True
+        cls: Type[_Psbt], psbt_bin: Octets, check_validity: bool = True
     ) -> _Psbt:
         "Return a Psbt by parsing binary data."
 
@@ -256,27 +256,27 @@ class Psbt(DataClassJsonMixin):
             version,
             hd_key_paths,
             unknown,
-            check_validity=assert_valid,
+            check_validity,
         )
 
-    def b64encode(self, assert_valid: bool = True) -> str:
-        psbt_bin = self.serialize(assert_valid)
+    def b64encode(self, check_validity: bool = True) -> str:
+        psbt_bin = self.serialize(check_validity)
         return base64.b64encode(psbt_bin).decode("ascii")
 
     @classmethod
     def b64decode(
-        cls: Type[_Psbt], psbt_str: String, assert_valid: bool = True
+        cls: Type[_Psbt], psbt_str: String, check_validity: bool = True
     ) -> _Psbt:
 
         if isinstance(psbt_str, str):
             psbt_str = psbt_str.strip()
 
         psbt_decoded = base64.b64decode(psbt_str)
-        return cls.deserialize(psbt_decoded, assert_valid)
+        return cls.deserialize(psbt_decoded, check_validity)
 
     @classmethod
     def from_tx(
-        cls: Type[_Psbt], tx: Optional[Tx] = None, assert_valid: bool = True
+        cls: Type[_Psbt], tx: Optional[Tx] = None, check_validity: bool = True
     ) -> _Psbt:
 
         inputs = []
@@ -303,7 +303,7 @@ class Psbt(DataClassJsonMixin):
             psbt_version,
             hd_key_paths,
             unknown,
-            check_validity=assert_valid,
+            check_validity,
         )
 
 
@@ -428,7 +428,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     return psbt
 
 
-def extract_tx(psbt: Psbt, assert_valid: bool = True) -> Tx:
+def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     """Extract the Tx fro the Psbt
 
     The Transaction Extractor must only accept a PSBT.
@@ -451,7 +451,7 @@ def extract_tx(psbt: Psbt, assert_valid: bool = True) -> Tx:
     the network serialized transaction at the same time.
     """
 
-    if assert_valid:
+    if check_validity:
         psbt.assert_valid()
 
     tx = psbt.tx
@@ -460,6 +460,6 @@ def extract_tx(psbt: Psbt, assert_valid: bool = True) -> Tx:
         if psbt_input.final_script_witness:
             tx_in.script_witness = psbt_input.final_script_witness
 
-    if assert_valid:
+    if check_validity:
         tx.assert_valid()
     return tx

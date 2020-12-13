@@ -143,19 +143,19 @@ class Tx(DataClassJsonMixin):
 
     @property
     def tx_id(self) -> bytes:
-        serialized_ = self.serialize(include_witness=False, assert_valid=False)
+        serialized_ = self.serialize(include_witness=False, check_validity=False)
         hash256_ = hash256(serialized_)
         return hash256_[::-1]
 
     @property
     def hash(self) -> bytes:
-        serialized_ = self.serialize(include_witness=True, assert_valid=False)
+        serialized_ = self.serialize(include_witness=True, check_validity=False)
         hash256_ = hash256(serialized_)
         return hash256_[::-1]
 
     @property
     def size(self) -> int:
-        return len(self.serialize(include_witness=True, assert_valid=False))
+        return len(self.serialize(include_witness=True, check_validity=False))
 
     @property
     def vsize(self) -> int:
@@ -163,8 +163,8 @@ class Tx(DataClassJsonMixin):
 
     @property
     def weight(self) -> int:
-        no_wit = len(self.serialize(include_witness=False, assert_valid=False)) * 3
-        wit = len(self.serialize(include_witness=True, assert_valid=False))
+        no_wit = len(self.serialize(include_witness=False, check_validity=False)) * 3
+        wit = len(self.serialize(include_witness=True, check_validity=False))
         return no_wit + wit
 
     @property
@@ -196,9 +196,9 @@ class Tx(DataClassJsonMixin):
 
         self._set_properties()
 
-    def serialize(self, include_witness: bool, assert_valid: bool = True) -> bytes:
+    def serialize(self, include_witness: bool, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         segwit = include_witness and self.is_segwit()
@@ -206,19 +206,21 @@ class Tx(DataClassJsonMixin):
         out = self.version.to_bytes(4, byteorder="little", signed=False)
         out += _SEGWIT_MARKER if segwit else b""
         out += var_int.serialize(len(self.vin))
-        out += b"".join(tx_in.serialize(assert_valid) for tx_in in self.vin)
+        out += b"".join(tx_in.serialize(check_validity) for tx_in in self.vin)
         out += var_int.serialize(len(self.vout))
-        out += b"".join(tx_out.serialize(assert_valid) for tx_out in self.vout)
+        out += b"".join(tx_out.serialize(check_validity) for tx_out in self.vout)
         if segwit:
             out += b"".join(
-                tx_in.script_witness.serialize(assert_valid) for tx_in in self.vin
+                tx_in.script_witness.serialize(check_validity) for tx_in in self.vin
             )
         out += self.lock_time.to_bytes(4, byteorder="little", signed=False)
 
         return out
 
     @classmethod
-    def deserialize(cls: Type[_Tx], data: BinaryData, assert_valid: bool = True) -> _Tx:
+    def deserialize(
+        cls: Type[_Tx], data: BinaryData, check_validity: bool = True
+    ) -> _Tx:
         "Return a Tx by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
@@ -240,8 +242,8 @@ class Tx(DataClassJsonMixin):
 
         if segwit:
             for tx_in in vin:
-                tx_in.script_witness = Witness.deserialize(stream, assert_valid)
+                tx_in.script_witness = Witness.deserialize(stream, check_validity)
 
         lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
-        return cls(version, lock_time, vin, vout, check_validity=assert_valid)
+        return cls(version, lock_time, vin, vout, check_validity)

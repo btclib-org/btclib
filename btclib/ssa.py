@@ -112,9 +112,9 @@ class Sig(DataClassJsonMixin):
             err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
             raise BTClibValueError(err_msg)
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         out = self.r.to_bytes(self.ec.psize, byteorder="big", signed=False)
@@ -123,14 +123,14 @@ class Sig(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_Sig], data: BinaryData, assert_valid: bool = True
+        cls: Type[_Sig], data: BinaryData, check_validity: bool = True
     ) -> _Sig:
 
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
         r = int.from_bytes(stream.read(ec.psize), byteorder="big", signed=False)
         s = int.from_bytes(stream.read(ec.nsize), byteorder="big", signed=False)
-        return cls(r, s, ec, check_validity=assert_valid)
+        return cls(r, s, ec, check_validity)
 
 
 # hex-string or bytes representation of an int

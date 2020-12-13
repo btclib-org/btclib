@@ -189,9 +189,9 @@ class PsbtOut(DataClassJsonMixin):
         _assert_valid_hd_key_paths(self.hd_key_paths)
         _assert_valid_unknown(self.unknown)
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         psbt_out_bin = b""
@@ -216,7 +216,7 @@ class PsbtOut(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], assert_valid: bool = True
+        cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], check_validity: bool = True
     ) -> _PsbtOut:
         "Return a PsbtOut by parsing binary data."
 
@@ -251,5 +251,5 @@ class PsbtOut(DataClassJsonMixin):
             witness_script,
             hd_key_paths,
             unknown,
-            check_validity=assert_valid,
+            check_validity,
         )

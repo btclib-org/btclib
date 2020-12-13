@@ -55,7 +55,7 @@ def test_exceptions() -> None:
         rootxprv_from_seed(seed[:-2])
 
 
-def test_assert_valid() -> None:
+def test_assert_valid2() -> None:
 
     xkey = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
 

@@ -133,7 +133,7 @@ class BlockHeader(DataClassJsonMixin):
 
     def hash(self) -> bytes:
         "Return the reversed 32 bytes hash256 of the BlockHeader."
-        s = self.serialize(assert_valid=False)
+        s = self.serialize(check_validity=False)
         hash256_ = hash256(s)
         return hash256_[::-1]
 
@@ -173,10 +173,10 @@ class BlockHeader(DataClassJsonMixin):
         self._set_properties()
         self.assert_valid_pow()
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
         "Return a BlockHeader binary serialization."
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         # version is signed int
@@ -191,7 +191,7 @@ class BlockHeader(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_BlockHeader], data: BinaryData, assert_valid: bool = True
+        cls: Type[_BlockHeader], data: BinaryData, check_validity: bool = True
     ) -> _BlockHeader:
         "Return a BlockHeader by parsing 80 bytes from binary data."
 
@@ -213,7 +213,7 @@ class BlockHeader(DataClassJsonMixin):
             time,
             bits,
             nonce,
-            check_validity=assert_valid,
+            check_validity,
         )
 
 
@@ -272,7 +272,7 @@ class Block(DataClassJsonMixin):
 
     @property
     def size(self) -> int:
-        return len(self.serialize(assert_valid=False))
+        return len(self.serialize(check_validity=False))
 
     @property
     def weight(self) -> int:
@@ -315,7 +315,7 @@ class Block(DataClassJsonMixin):
             transaction.assert_valid()
 
         data = [
-            tx.serialize(include_witness=False, assert_valid=False)
+            tx.serialize(include_witness=False, check_validity=False)
             for tx in self.transactions
         ]
         merkle_root_ = merkle_root(data, hash256)[::-1]
@@ -329,9 +329,9 @@ class Block(DataClassJsonMixin):
         self._set_properties()
 
     def serialize(
-        self, include_witness: bool = True, assert_valid: bool = True
+        self, include_witness: bool = True, check_validity: bool = True
     ) -> bytes:
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         out = self.header.serialize()
@@ -340,7 +340,7 @@ class Block(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_Block], data: BinaryData, assert_valid: bool = True
+        cls: Type[_Block], data: BinaryData, check_validity: bool = True
     ) -> _Block:
         "Return a Block by parsing binary data."
 
@@ -349,4 +349,4 @@ class Block(DataClassJsonMixin):
         n = var_int.deserialize(stream)
         transactions = [Tx.deserialize(stream) for _ in range(n)]
 
-        return cls(header, transactions, check_validity=assert_valid)
+        return cls(header, transactions, check_validity)

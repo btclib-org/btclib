@@ -175,9 +175,9 @@ class BIP32KeyData(DataClassJsonMixin):
             if self.index != 0:
                 raise BTClibValueError(f"zero depth with non-zero index: {self.index}")
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         xkey_bin = self.version
@@ -190,7 +190,7 @@ class BIP32KeyData(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_BIP32KeyData], xkey_bin: BinaryData, assert_valid: bool = True
+        cls: Type[_BIP32KeyData], xkey_bin: BinaryData, check_validity: bool = True
     ) -> _BIP32KeyData:
         "Return a BIP32KeyData by parsing 73 bytes from binary data."
 
@@ -210,16 +210,16 @@ class BIP32KeyData(DataClassJsonMixin):
             index,
             chain_code,
             key,
-            check_validity=assert_valid,
+            check_validity,
         )
 
-    def b58encode(self, assert_valid: bool = True) -> bytes:
-        data_binary = self.serialize(assert_valid)
+    def b58encode(self, check_validity: bool = True) -> bytes:
+        data_binary = self.serialize(check_validity)
         return base58.b58encode(data_binary)
 
     @classmethod
     def b58decode(
-        cls: Type[_BIP32KeyData], address: String, assert_valid: bool = True
+        cls: Type[_BIP32KeyData], address: String, check_validity: bool = True
     ) -> _BIP32KeyData:
 
         if isinstance(address, str):
@@ -227,12 +227,12 @@ class BIP32KeyData(DataClassJsonMixin):
 
         xkey_bin = base58.b58decode(address)
 
-        if assert_valid and len(xkey_bin) != _EXPECTED_DECODED_LENGHT:
+        if check_validity and len(xkey_bin) != _EXPECTED_DECODED_LENGHT:
             err_msg = f"invalid decoded length: {len(xkey_bin)}"
             err_msg += f" instead of {_EXPECTED_DECODED_LENGHT}"
             raise BTClibValueError(err_msg)
 
-        return cls.deserialize(xkey_bin, assert_valid)
+        return cls.deserialize(xkey_bin, check_validity)
 
 
 def _rootxprv_from_seed(

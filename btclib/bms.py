@@ -174,9 +174,9 @@ class Sig(DataClassJsonMixin):
         if self.dsa_sig.ec != secp256k1:
             raise BTClibValueError(f"invalid curve: {self.dsa_sig.ec.name}")
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         # [1-byte recovery flag][32-bytes r][32-bytes s]
@@ -188,7 +188,7 @@ class Sig(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_Sig], data: BinaryData, assert_valid: bool = True
+        cls: Type[_Sig], data: BinaryData, check_validity: bool = True
     ) -> _Sig:
 
         stream = bytesio_from_binarydata(data)
@@ -199,20 +199,20 @@ class Sig(DataClassJsonMixin):
         s = int.from_bytes(stream.read(nsize), byteorder="big", signed=False)
         dsa_sig = dsa.Sig(r, s, ec, check_validity=False)
 
-        return cls(rf, dsa_sig, check_validity=assert_valid)
+        return cls(rf, dsa_sig, check_validity)
 
-    def b64encode(self, assert_valid: bool = True) -> bytes:
+    def b64encode(self, check_validity: bool = True) -> bytes:
         """Return the BMS address-based signature as base64-encoding.
 
         First off, the signature is serialized in the
         [1-byte rf][32-bytes r][32-bytes s] compact format,
         then it is base64-encoded.
         """
-        data_binary = self.serialize(assert_valid)
+        data_binary = self.serialize(check_validity)
         return base64.b64encode(data_binary)
 
     @classmethod
-    def b64decode(cls: Type[_Sig], data: String, assert_valid: bool = True) -> _Sig:
+    def b64decode(cls: Type[_Sig], data: String, check_validity: bool = True) -> _Sig:
         """Return the verified components of the provided BMS signature.
 
         The address-based BMS signature can be represented
@@ -225,12 +225,12 @@ class Sig(DataClassJsonMixin):
 
         data_decoded = base64.b64decode(data)
 
-        if assert_valid and len(data_decoded) != _EXPECTED_DECODED_LENGHT:
+        if check_validity and len(data_decoded) != _EXPECTED_DECODED_LENGHT:
             err_msg = f"invalid decoded length: {len(data_decoded)}"
             err_msg += f" instead of {_EXPECTED_DECODED_LENGHT}"
             raise BTClibValueError(err_msg)
 
-        return cls.deserialize(data_decoded, assert_valid)
+        return cls.deserialize(data_decoded, check_validity)
 
 
 def gen_keys(

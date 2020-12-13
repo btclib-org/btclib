@@ -154,33 +154,33 @@ class BIP32KeyOrigin(DataClassJsonMixin):
         if any(not 0 <= i <= 0xFFFFFFFF for i in self.der_path):
             raise BTClibValueError("invalid der_path element")
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         return self.fingerprint + bytes_from_bip32_path(self.der_path)
 
     @classmethod
     def deserialize(
-        cls: Type[_BIP32KeyOrigin], data: bytes, assert_valid: bool = True
+        cls: Type[_BIP32KeyOrigin], data: bytes, check_validity: bool = True
     ) -> _BIP32KeyOrigin:
         "Return a BIP32KeyOrigin by parsing binary data."
 
         fingerprint = data[:4]
         der_path = indexes_from_bip32_path(data[4:])
 
-        return cls(fingerprint, der_path, check_validity=assert_valid)
+        return cls(fingerprint, der_path, check_validity)
 
     @classmethod
     def from_description(
-        cls: Type[_BIP32KeyOrigin], data: str, assert_valid: bool = True
+        cls: Type[_BIP32KeyOrigin], data: str, check_validity: bool = True
     ) -> _BIP32KeyOrigin:
         data = data.strip()
         fingerprint = bytes.fromhex(data[:8])
         der_path = _indexes_from_bip32_path_str(data[9:], skip_m=False)
 
-        return cls(fingerprint, der_path, assert_valid)
+        return cls(fingerprint, der_path, check_validity)
 
 
 _BIP32KeyPath = TypeVar("_BIP32KeyPath", bound="BIP32KeyPath")
@@ -209,9 +209,9 @@ class BIP32KeyPath(DataClassJsonMixin):
         point_from_octets(self.pub_key)
         self.key_origin.assert_valid()
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         bytes_ = var_bytes.serialize(self.pub_key)
@@ -221,7 +221,7 @@ class BIP32KeyPath(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_BIP32KeyPath], data: BinaryData, assert_valid: bool = True
+        cls: Type[_BIP32KeyPath], data: BinaryData, check_validity: bool = True
     ) -> _BIP32KeyPath:
         "Return a BIP32KeyPath by parsing binary data."
 
@@ -229,8 +229,6 @@ class BIP32KeyPath(DataClassJsonMixin):
         stream = bytesio_from_binarydata(bytes_)
         pub_key = var_bytes.deserialize(stream)
         der_path_bytes = var_bytes.deserialize(stream)
-        key_origin = BIP32KeyOrigin.deserialize(
-            der_path_bytes, assert_valid=assert_valid
-        )
+        key_origin = BIP32KeyOrigin.deserialize(der_path_bytes, check_validity)
 
-        return cls(pub_key, key_origin, check_validity=assert_valid)
+        return cls(pub_key, key_origin, check_validity)

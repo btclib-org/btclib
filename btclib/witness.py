@@ -45,10 +45,10 @@ class Witness(DataClassJsonMixin):
         if not all(isinstance(v, bytes) for v in self.stack):
             raise BTClibTypeError("invalid witness")
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
         "Return the serialization of the Witness."
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         out = var_int.serialize(len(self.stack))
@@ -56,11 +56,11 @@ class Witness(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_TxInWitness], data: BinaryData, assert_valid: bool = True
+        cls: Type[_TxInWitness], data: BinaryData, check_validity: bool = True
     ) -> _TxInWitness:
         "Return a Witness by parsing binary data."
 
         data = bytesio_from_binarydata(data)
         n = var_int.deserialize(data)
         stack = [var_bytes.deserialize(data) for _ in range(n)]
-        return cls(stack, check_validity=assert_valid)
+        return cls(stack, check_validity)

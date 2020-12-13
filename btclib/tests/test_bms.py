@@ -121,7 +121,7 @@ def test_exceptions() -> None:
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
     bms_sig = bms.Sig.b64decode(exp_sig)
     bms_sig = bms.Sig(39, bms_sig.dsa_sig, check_validity=False)
-    sig_encoded = bms_sig.b64encode(assert_valid=False)
+    sig_encoded = bms_sig.b64encode(check_validity=False)
     err_msg = "invalid recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, b58_p2pkh, sig_encoded)

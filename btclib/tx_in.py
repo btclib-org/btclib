@@ -63,10 +63,10 @@ class OutPoint(DataClassJsonMixin):
         if (self.tx_id == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
             raise BTClibValueError("invalid OutPoint")
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
         "Return the 36 bytes serialization of the OutPoint."
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         out = self.tx_id[::-1]
@@ -75,7 +75,7 @@ class OutPoint(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_OutPoint], data: BinaryData, assert_valid: bool = True
+        cls: Type[_OutPoint], data: BinaryData, check_validity: bool = True
     ) -> _OutPoint:
         "Return an OutPoint from the first 36 bytes of the provided data."
 
@@ -83,7 +83,7 @@ class OutPoint(DataClassJsonMixin):
         tx_id = data.read(32)[::-1]
         vout = int.from_bytes(data.read(4), "little", signed=False)
 
-        return cls(tx_id, vout, check_validity=assert_valid)
+        return cls(tx_id, vout, check_validity)
 
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
@@ -160,9 +160,9 @@ class TxIn(DataClassJsonMixin):
         if self.script_witness:
             self.script_witness.assert_valid()
 
-    def serialize(self, assert_valid: bool = True) -> bytes:
+    def serialize(self, check_validity: bool = True) -> bytes:
 
-        if assert_valid:
+        if check_validity:
             self.assert_valid()
 
         out = self.prev_out.serialize()
@@ -172,7 +172,7 @@ class TxIn(DataClassJsonMixin):
 
     @classmethod
     def deserialize(
-        cls: Type[_TxIn], data: BinaryData, assert_valid: bool = True
+        cls: Type[_TxIn], data: BinaryData, check_validity: bool = True
     ) -> _TxIn:
 
         s = bytesio_from_binarydata(data)
@@ -180,4 +180,4 @@ class TxIn(DataClassJsonMixin):
         script_sig = var_bytes.deserialize(s)
         sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
 
-        return cls(prev_out, script_sig, sequence, check_validity=assert_valid)
+        return cls(prev_out, script_sig, sequence, Witness(), check_validity)
