@@ -188,9 +188,9 @@ class BIP32KeyData(DataClassJsonMixin):
         xkey_bin += self.key
         return xkey_bin
 
-    def b58encode(self, check_validity: bool = True) -> bytes:
+    def b58encode(self, check_validity: bool = True) -> str:
         data_binary = self.serialize(check_validity)
-        return base58.b58encode(data_binary)
+        return base58.b58encode(data_binary).decode("ascii")
 
     @classmethod
     def deserialize(
@@ -264,7 +264,7 @@ def rootxprv_from_seed(
 ) -> str:
     """Return BIP32 root master extended private key from seed."""
     xkey = _rootxprv_from_seed(seed, version)
-    return xkey.b58encode().decode("ascii")
+    return xkey.b58encode()
 
 
 def _mxprv_from_bip39_mnemonic(
@@ -282,7 +282,7 @@ def mxprv_from_bip39_mnemonic(
 ) -> str:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
     xkey = _mxprv_from_bip39_mnemonic(mnemonic, passphrase, network)
-    return xkey.b58encode().decode("ascii")
+    return xkey.b58encode()
 
 
 def _mxprv_from_electrum_mnemonic(
@@ -316,7 +316,7 @@ def mxprv_from_electrum_mnemonic(
     for a "segwit" mnemonic it is "m/0h" instead.
     """
     xkey = _mxprv_from_electrum_mnemonic(mnemonic, passphrase, network)
-    return xkey.b58encode().decode("ascii")
+    return xkey.b58encode()
 
 
 BIP32Key = Union[BIP32KeyData, String]
@@ -335,7 +335,7 @@ def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:
         xkey = BIP32KeyData.b58decode(xprv)
 
     if xkey.key[0] != 0:
-        err_msg = f"not a private key: {xkey.b58encode().decode('ascii')}"
+        err_msg = f"not a private key: {xkey.b58encode()}"
         raise BTClibValueError(err_msg)
 
     i = _XPRV_VERSIONS_ALL.index(xkey.version)
@@ -355,7 +355,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
     private key (“neutered” as it removes the ability to sign transactions).
     """
     xkey = _xpub_from_xprv(xprv)
-    return xkey.b58encode().decode("ascii")
+    return xkey.b58encode()
 
 
 @dataclass
@@ -481,7 +481,7 @@ def derive(
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
     xkey = _derive(xkey, der_path, forced_version)
-    return xkey.b58encode().decode("ascii")
+    return xkey.b58encode()
 
 
 def _derive_from_account(
@@ -508,7 +508,7 @@ def derive_from_account(
 ) -> str:
 
     xkey = _derive_from_account(xkey, branch, address_index, branches_0_1_only)
-    return xkey.b58encode().decode("ascii")
+    return xkey.b58encode()
 
 
 def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
@@ -520,7 +520,7 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
 
     if p.key[0] not in (2, 3):
         err_msg = "extended parent key is not a public key: "
-        err_msg += f"{p.b58encode().decode('ascii')}"
+        err_msg += f"{p.b58encode()}"
         raise BTClibValueError(err_msg)
 
     if isinstance(child_xprv, BIP32KeyData):
@@ -530,7 +530,7 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
 
     if c.key[0] != 0:
         err_msg = "extended child key is not a private key: "
-        err_msg += f"{c.b58encode().decode('ascii')}"
+        err_msg += f"{c.b58encode()}"
         raise BTClibValueError(err_msg)
 
     # check depth
@@ -556,4 +556,4 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     parent_q = (child_q - offset) % ec.n
     p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big", signed=False)
 
-    return p.b58encode().decode("ascii")
+    return p.b58encode()

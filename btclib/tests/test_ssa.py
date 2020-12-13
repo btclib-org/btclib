@@ -175,7 +175,7 @@ def test_point_from_bip340pub_key() -> None:
     xpub = xpub_data.b58encode()
     assert ssa.point_from_bip340pub_key(xpub) == Q
     # BIP32Key str
-    assert ssa.point_from_bip340pub_key(xpub.decode("ascii")) == Q
+    assert ssa.point_from_bip340pub_key(xpub.encode("ascii")) == Q
 
 
 def test_low_cardinality() -> None:

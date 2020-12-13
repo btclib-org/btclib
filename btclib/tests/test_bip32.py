@@ -155,7 +155,7 @@ def test_serialization() -> None:
     assert xkey_data.chain_code == decoded_key[13:45]
     assert xkey_data.key == decoded_key[45:]
 
-    assert xkey_data.b58encode().decode("ascii") == xkey
+    assert xkey_data.b58encode() == xkey
 
     xpub = xpub_from_xprv(xkey)
     xpub2 = xpub_from_xprv(xkey_data)

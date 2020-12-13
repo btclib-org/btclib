@@ -49,7 +49,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         xpub = BIP32KeyData.b58decode(xpub)
 
     if xpub.key[0] not in (2, 3):
-        m = f"not a public key: {xpub.b58encode().decode('ascii')}"
+        m = f"not a public key: {xpub.b58encode()}"
         raise BTClibValueError(m)
 
     if xpub.version in _XPUB_PREFIXES:

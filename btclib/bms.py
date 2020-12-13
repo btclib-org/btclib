@@ -186,7 +186,7 @@ class Sig(DataClassJsonMixin):
         out += self.dsa_sig.s.to_bytes(nsize, byteorder="big", signed=False)
         return out
 
-    def b64encode(self, check_validity: bool = True) -> bytes:
+    def b64encode(self, check_validity: bool = True) -> str:
         """Return the BMS address-based signature as base64-encoding.
 
         First off, the signature is serialized in the
@@ -194,7 +194,7 @@ class Sig(DataClassJsonMixin):
         then it is base64-encoded.
         """
         data_binary = self.serialize(check_validity)
-        return base64.b64encode(data_binary)
+        return base64.b64encode(data_binary).decode("ascii")
 
     @classmethod
     def deserialize(
