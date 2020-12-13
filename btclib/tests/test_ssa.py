@@ -310,7 +310,9 @@ def test_batch_validation() -> None:
     assert not ssa.batch_verify(ms, Qs, sigs)
     sigs.pop()  # valid again
 
-    sigs[0] = ssa.Sig(sigs[0].r, sigs[0].s, CURVES["secp256r1"])  # different curve
+    sigs[0] = ssa.Sig(
+        sigs[0].r, sigs[0].s, CURVES["secp256r1"], check_validity=False
+    )  # different curve
     err_msg = "not the same curve for all signatures"
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_batch_as_valid(ms, Qs, sigs)
