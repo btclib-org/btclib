@@ -300,7 +300,7 @@ class PsbtIn(DataClassJsonMixin):
                 witness_script = _deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_IN_BIP32_DERIVATION:
                 if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate PsbtIn hd_key_paths")
+                    raise BTClibValueError("duplicate pub_key in PsbtIn hd_key_path")
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
             elif k[:1] == PSBT_IN_FINAL_SCRIPTSIG:
                 if final_script_sig:

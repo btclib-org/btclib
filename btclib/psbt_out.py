@@ -239,7 +239,7 @@ class PsbtOut(DataClassJsonMixin):
             elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
                 #  deserialize just one hd key path at time :-(
                 if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate PsbtOut hd_key_paths")
+                    raise BTClibValueError("duplicate pub_key in PsbtOut hd_key_path")
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
             else:  # unknown
                 if k in unknown:

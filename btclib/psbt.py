@@ -232,7 +232,7 @@ class Psbt(DataClassJsonMixin):
                 version = _deserialize_int(k, v, "global version")
             elif k[:1] == PSBT_GLOBAL_XPUB:
                 if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate Psbt hd_key_paths")
+                    raise BTClibValueError("duplicate xpub in Psbt hd_key_path")
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
             else:  # unknown
                 if k in unknown:
