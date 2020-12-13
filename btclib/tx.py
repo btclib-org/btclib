@@ -222,9 +222,8 @@ class Tx(DataClassJsonMixin):
         "Return a Tx by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
-        tx = cls(check_validity=False)
 
-        tx.version = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        version = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         segwit = stream.read(2) == _SEGWIT_MARKER
         if not segwit:
@@ -234,17 +233,15 @@ class Tx(DataClassJsonMixin):
             stream.seek(-2, whence)
 
         n = var_int.deserialize(stream)
-        tx.vin = [TxIn.deserialize(stream) for _ in range(n)]
+        vin = [TxIn.deserialize(stream) for _ in range(n)]
 
         n = var_int.deserialize(stream)
-        tx.vout = [TxOut.deserialize(stream) for _ in range(n)]
+        vout = [TxOut.deserialize(stream) for _ in range(n)]
 
         if segwit:
-            for tx_in in tx.vin:
+            for tx_in in vin:
                 tx_in.script_witness = Witness.deserialize(stream, assert_valid)
 
-        tx.lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
-        if assert_valid:
-            tx.assert_valid()
-        return tx
+        return cls(version, lock_time, vin, vout, check_validity=assert_valid)

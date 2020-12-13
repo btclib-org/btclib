@@ -75,7 +75,7 @@ from .utils import (
 _Sig = TypeVar("_Sig", bound="Sig")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Sig(DataClassJsonMixin):
     """BIP340-Schnorr signature.
 
@@ -127,14 +127,10 @@ class Sig(DataClassJsonMixin):
     ) -> _Sig:
 
         stream = bytesio_from_binarydata(data)
-        sig = cls(check_validity=False)
-
-        sig.r = int.from_bytes(stream.read(sig.ec.psize), byteorder="big", signed=False)
-        sig.s = int.from_bytes(stream.read(sig.ec.nsize), byteorder="big", signed=False)
-
-        if assert_valid:
-            sig.assert_valid()
-        return sig
+        ec = secp256k1
+        r = int.from_bytes(stream.read(ec.psize), byteorder="big", signed=False)
+        s = int.from_bytes(stream.read(ec.nsize), byteorder="big", signed=False)
+        return cls(r, s, ec, check_validity=assert_valid)
 
 
 # hex-string or bytes representation of an int

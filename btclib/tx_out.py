@@ -130,13 +130,9 @@ class TxOut(DataClassJsonMixin):
         cls: Type[_TxOut], data: BinaryData, assert_valid: bool = True
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
-        tx_out = cls(check_validity=False)
-        tx_out.value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
-        tx_out.script_pub_key = var_bytes.deserialize(stream)
-
-        if assert_valid:
-            tx_out.assert_valid()
-        return tx_out
+        value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
+        script_pub_key = var_bytes.deserialize(stream)
+        return cls(value, script_pub_key, check_validity=assert_valid)
 
     @classmethod
     def from_address(cls: Type[_TxOut], value: int, address: String) -> _TxOut:

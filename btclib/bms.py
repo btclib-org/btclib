@@ -156,7 +156,7 @@ _EXPECTED_DECODED_LENGHT = 65
 _Sig = TypeVar("_Sig", bound="Sig")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Sig(DataClassJsonMixin):
     # 1 byte
     rf: int = 0
@@ -192,21 +192,14 @@ class Sig(DataClassJsonMixin):
     ) -> _Sig:
 
         stream = bytesio_from_binarydata(data)
-        sig = cls(check_validity=False)
+        rf = int.from_bytes(stream.read(1), byteorder="big", signed=False)
+        ec = secp256k1
+        nsize = ec.nsize
+        r = int.from_bytes(stream.read(nsize), byteorder="big", signed=False)
+        s = int.from_bytes(stream.read(nsize), byteorder="big", signed=False)
+        dsa_sig = dsa.Sig(r, s, ec, check_validity=False)
 
-        sig.rf = int.from_bytes(stream.read(1), byteorder="big", signed=False)
-
-        nsize = sig.dsa_sig.ec.nsize
-        sig.dsa_sig.r = int.from_bytes(
-            stream.read(nsize), byteorder="big", signed=False
-        )
-        sig.dsa_sig.s = int.from_bytes(
-            stream.read(nsize), byteorder="big", signed=False
-        )
-
-        if assert_valid:
-            sig.assert_valid()
-        return sig
+        return cls(rf, dsa_sig, check_validity=assert_valid)
 
     def b64encode(self, assert_valid: bool = True) -> bytes:
         """Return the BMS address-based signature as base64-encoding.

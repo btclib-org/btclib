@@ -236,9 +236,9 @@ def test_crack_prv_key() -> None:
     with pytest.raises(BTClibValueError, match="identical signatures"):
         dsa.crack_prv_key(msg1, sig1, msg1, sig1)
 
-    sig1.ec = CURVES["secp256r1"]
+    sig = dsa.Sig(sig1.r, sig1.s, CURVES["secp256r1"])
     with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
-        dsa.crack_prv_key(msg1, sig1, msg2, sig2)
+        dsa.crack_prv_key(msg1, sig, msg2, sig2)
 
 
 def test_forge_hash_sig() -> None:

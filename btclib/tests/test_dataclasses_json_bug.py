@@ -16,7 +16,7 @@ import pytest
 from dataclasses_json import DataClassJsonMixin
 
 
-def test_dataclasses_json_bu() -> None:
+def test_dataclasses_json_bug() -> None:
     @dataclass
     class Person(DataClassJsonMixin):
         name: str

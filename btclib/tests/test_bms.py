@@ -52,10 +52,10 @@ def test_signature() -> None:
     bms.assert_as_valid(msg, addr, exp_sig)
     bms.assert_as_valid(msg, addr, exp_sig.decode())
 
-    sig.dsa_sig.ec = CURVES["secp256r1"]
+    dsa_sig = dsa.Sig(sig.dsa_sig.r, sig.dsa_sig.s, CURVES["secp256r1"])
     err_msg = "invalid curve: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr, sig)
+        sig = bms.Sig(sig.rf, dsa_sig)
 
 
 def test_exceptions() -> None:
@@ -67,10 +67,9 @@ def test_exceptions() -> None:
     bms.assert_as_valid(msg, address, exp_sig)
 
     bms_sig = bms.Sig.b64decode(exp_sig)
-    bms_sig.rf = 26
     err_msg = "invalid recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms_sig.serialize()
+        bms.Sig(26, bms_sig.dsa_sig)
 
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc="
     err_msg = "invalid decoded length: "
@@ -121,7 +120,7 @@ def test_exceptions() -> None:
     # Invalid recovery flag (39) for base58 address
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
     bms_sig = bms.Sig.b64decode(exp_sig)
-    bms_sig.rf = 39
+    bms_sig = bms.Sig(39, bms_sig.dsa_sig, check_validity=False)
     sig_encoded = bms_sig.b64encode(assert_valid=False)
     err_msg = "invalid recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -130,7 +129,7 @@ def test_exceptions() -> None:
     # Invalid recovery flag (35) for bech32 address
     exp_sig = "IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
     bms_sig = bms.Sig.b64decode(exp_sig)
-    bms_sig.rf = 35
+    bms_sig = bms.Sig(35, bms_sig.dsa_sig, check_validity=False)
     err_msg = "invalid recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, b58_p2wpkh, bms_sig)
@@ -290,15 +289,17 @@ def test_msgsign_p2pkh() -> None:
     assert not bms.verify(msg, add1c, sig1u)
     assert not bms.verify(msg, add1u, sig1c)
 
-    sig1c.rf += 1  # change rf
-    assert not bms.verify(msg, add1c, sig1c)
-    sig1c.rf -= 1  # restore rf
+    bms_sig = bms.Sig(sig1c.rf + 1, sig1c.dsa_sig)
+    assert not bms.verify(msg, add1c, bms_sig)
 
-    sig1c.dsa_sig.s = ec.n - sig1c.dsa_sig.s  # malleate s
-    assert not bms.verify(msg, add1c, sig1c)
+    # malleate s
+    dsa_sig = dsa.Sig(sig1c.dsa_sig.r, ec.n - sig1c.dsa_sig.s, sig1c.dsa_sig.ec)
+    bms_sig = bms.Sig(sig1c.rf, dsa_sig)
+    assert not bms.verify(msg, add1c, bms_sig)
 
-    sig1c.rf += 1  # update rf to satisfy above malleation
-    assert bms.verify(msg, add1c, sig1c)
+    # update rf to satisfy above malleation
+    bms_sig = bms.Sig(sig1c.rf + 1, dsa_sig)
+    assert bms.verify(msg, add1c, bms_sig)
 
 
 def test_msgsign_p2pkh_2() -> None:
@@ -530,10 +531,14 @@ def test_vector_python_bitcoinlib() -> None:
         # self.assertGreater(test_vector_sig.dsa_sig.s, ec.n - test_vector_sig.dsa_sig.s)
 
         # just in case you wonder, here's the malleated signature
-        bsm_sig.rf += 1 if bsm_sig.rf == 31 else -1
-        bsm_sig.dsa_sig.s = ec.n - bsm_sig.dsa_sig.s
-        assert bms.verify(msg, vector["address"], bsm_sig)
-        bsm_sig_encoded = bsm_sig.b64encode()
+        dsa_sig = dsa.Sig(
+            bsm_sig.dsa_sig.r, ec.n - bsm_sig.dsa_sig.s, bsm_sig.dsa_sig.ec
+        )
+        bms_sig_malleated = bms.Sig(
+            bsm_sig.rf + (1 if bsm_sig.rf == 31 else -1), dsa_sig
+        )
+        assert bms.verify(msg, vector["address"], bms_sig_malleated)
+        bsm_sig_encoded = bms_sig_malleated.b64encode()
         assert bms.verify(msg, vector["address"], bsm_sig_encoded)
         # of course,
         # it is not equal to the python-bitcoinlib one (different r)

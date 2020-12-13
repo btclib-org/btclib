@@ -80,14 +80,10 @@ class OutPoint(DataClassJsonMixin):
         "Return an OutPoint from the first 36 bytes of the provided data."
 
         data = bytesio_from_binarydata(data)
+        tx_id = data.read(32)[::-1]
+        vout = int.from_bytes(data.read(4), "little", signed=False)
 
-        outpoint = cls(check_validity=False)
-        outpoint.tx_id = data.read(32)[::-1]
-        outpoint.vout = int.from_bytes(data.read(4), "little", signed=False)
-
-        if assert_valid:
-            outpoint.assert_valid()
-        return outpoint
+        return cls(tx_id, vout, check_validity=assert_valid)
 
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
@@ -180,12 +176,8 @@ class TxIn(DataClassJsonMixin):
     ) -> _TxIn:
 
         s = bytesio_from_binarydata(data)
+        prev_out = OutPoint.deserialize(s)
+        script_sig = var_bytes.deserialize(s)
+        sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
 
-        tx_in = cls(check_validity=False)
-        tx_in.prev_out = OutPoint.deserialize(s)
-        tx_in.script_sig = var_bytes.deserialize(s)
-        tx_in.sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
-
-        if assert_valid:
-            tx_in.assert_valid()
-        return tx_in
+        return cls(prev_out, script_sig, sequence, check_validity=assert_valid)

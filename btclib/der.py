@@ -95,7 +95,7 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
 _Sig = TypeVar("_Sig", bound="Sig")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Sig(DataClassJsonMixin):
     # 32 bytes
     r: int = field(
@@ -148,7 +148,7 @@ class Sig(DataClassJsonMixin):
         """
 
         stream = bytesio_from_binarydata(data)
-        sig = cls(check_validity=False)
+        ec = secp256k1
 
         # [0x30] [data-size][0x02][r-size][r][0x02][s-size][s]
         marker = stream.read(1)
@@ -162,8 +162,8 @@ class Sig(DataClassJsonMixin):
 
         # [0x02][r-size][r][0x02][s-size][s]
         sig_data_substream = bytesio_from_binarydata(sig_data)
-        sig.r = _deserialize_scalar(sig_data_substream)
-        sig.s = _deserialize_scalar(sig_data_substream)
+        r = _deserialize_scalar(sig_data_substream)
+        s = _deserialize_scalar(sig_data_substream)
 
         # to prevent malleability
         # the sig_data_substream must have been consumed entirely
@@ -171,6 +171,4 @@ class Sig(DataClassJsonMixin):
             err_msg = "invalid DER sequence length"
             raise BTClibValueError(err_msg)
 
-        if assert_valid:
-            sig.assert_valid()
-        return sig
+        return cls(r, s, ec, check_validity=assert_valid)

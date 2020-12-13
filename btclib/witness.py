@@ -61,11 +61,6 @@ class Witness(DataClassJsonMixin):
         "Return a Witness by parsing binary data."
 
         data = bytesio_from_binarydata(data)
-        witness = cls(check_validity=False)
-
         n = var_int.deserialize(data)
-        witness.stack = [var_bytes.deserialize(data) for _ in range(n)]
-
-        if assert_valid:
-            witness.assert_valid()
-        return witness
+        stack = [var_bytes.deserialize(data) for _ in range(n)]
+        return cls(stack, check_validity=assert_valid)
