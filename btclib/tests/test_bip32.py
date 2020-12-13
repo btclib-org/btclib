@@ -16,10 +16,11 @@ from os import path
 
 import pytest
 
-from btclib import base58
+from btclib import base58, hashes
 from btclib.base58_address import p2pkh  # FIXME why it is needed here
 from btclib.bip32 import (
     BIP32KeyData,
+    _derive,
     crack_prv_key,
     derive,
     derive_from_account,
@@ -237,12 +238,18 @@ def test_derive() -> None:
 
 def test_derive_exceptions() -> None:
     # root key, zero depth
-    rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
-    xprv = derive(rootmxprv, bytes.fromhex("80000000"))
-    xprv = derive(xprv, "m")
+    rootmxprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    xprv = BIP32KeyData.b58decode(rootmxprv)
+    # FIXME
+    # assert xprv == _derive(xprv, "m")
+    assert rootmxprv == derive(xprv, "m")
+    assert rootmxprv == derive(xprv, "")
 
-    for der_path in ("", "/1", "800000"):
-        derive(xprv, der_path)
+    fingerprint = hashes.fingerprint(xprv)
+    assert fingerprint == _derive(xprv, bytes.fromhex("80000000")).parent_fingerprint
+    for der_path in ("/1", "800000", "80000000"):
+        xkey = _derive(xprv, der_path)
+        assert fingerprint == xkey.parent_fingerprint
 
     err_msg = "invalid literal for int"
     for der_path in (";/0", "invalid index"):
@@ -259,6 +266,7 @@ def test_derive_exceptions() -> None:
         with pytest.raises(OverflowError, match="int too big to convert"):
             derive(xprv, index)
 
+    xprv = _derive(xprv, "1")
     err_msg = "final depth greater than 255: "
     with pytest.raises(BTClibValueError, match=err_msg):
         derive(xprv, "m" + 255 * "/0")

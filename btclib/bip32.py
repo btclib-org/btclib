@@ -226,9 +226,9 @@ class BIP32KeyData(DataClassJsonMixin):
         return cls.deserialize(data_decoded, assert_valid)
 
 
-def rootxprv_from_seed(
+def _rootxprv_from_seed(
     seed: Octets, version: Octets = NETWORKS["mainnet"].bip32_prv
-) -> bytes:
+) -> BIP32KeyData:
     """Return BIP32 root master extended private key from seed."""
 
     seed = bytes_from_octets(seed)
@@ -247,7 +247,7 @@ def rootxprv_from_seed(
     if v not in _XPRV_VERSIONS_ALL:
         raise BTClibValueError(f"unknown private key version: {v.hex()}")
 
-    key_data = BIP32KeyData(
+    return BIP32KeyData(
         version=v,
         depth=0,
         parent_fingerprint=bytes.fromhex("00000000"),
@@ -255,42 +255,95 @@ def rootxprv_from_seed(
         chain_code=hmac_[32:],
         key=k,
     )
-    return key_data.b58encode()
 
 
-def mxprv_from_bip39_mnemonic(  # nosec
-    mnemonic: Mnemonic, passphrase: str = "", network: str = "mainnet"
+def rootxprv_from_seed(
+    seed: Octets, version: Octets = NETWORKS["mainnet"].bip32_prv
 ) -> bytes:
+    """Return BIP32 root master extended private key from seed."""
+    xkey = _rootxprv_from_seed(seed, version)
+    return xkey.b58encode()
+
+
+def _mxprv_from_bip39_mnemonic(
+    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
+) -> BIP32KeyData:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
-    seed = bip39.seed_from_mnemonic(mnemonic, passphrase)
+    seed = bip39.seed_from_mnemonic(mnemonic, passphrase or "")
     version = NETWORKS[network].bip32_prv
-    return rootxprv_from_seed(seed, version)
+    return _rootxprv_from_seed(seed, version)
 
 
-def mxprv_from_electrum_mnemonic(  # nosec
-    mnemonic: Mnemonic, passphrase: str = "", network: str = "mainnet"
+def mxprv_from_bip39_mnemonic(
+    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
 ) -> bytes:
+    """Return BIP32 root master extended private key from BIP39 mnemonic."""
+    xkey = _mxprv_from_bip39_mnemonic(mnemonic, passphrase, network)
+    return xkey.b58encode()
+
+
+def _mxprv_from_electrum_mnemonic(
+    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
+) -> BIP32KeyData:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
     Note that for a "standard" mnemonic the derivation path is "m",
     for a "segwit" mnemonic it is "m/0h" instead.
     """
 
-    version, seed = electrum._seed_from_mnemonic(mnemonic, passphrase)
+    version, seed = electrum._seed_from_mnemonic(mnemonic, passphrase or "")
     network_index = _NETWORKS.index(network)
 
     if version == "standard":
         xversion = _XPRV_PREFIXES[network_index]
-        return rootxprv_from_seed(seed, xversion)
+        return _rootxprv_from_seed(seed, xversion)
     if version == "segwit":
         xversion = _P2WPKH_PRV_PREFIXES[network_index]
         rootxprv = rootxprv_from_seed(seed, xversion)
-        return derive(rootxprv, 0x80000000)  # "m/0h"
+        return _derive(rootxprv, 0x80000000)  # "m/0h"
     raise BTClibValueError(f"unmanaged electrum mnemonic version: {version}")
 
 
+def mxprv_from_electrum_mnemonic(
+    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
+) -> bytes:
+    """Return BIP32 master extended private key from Electrum mnemonic.
+
+    Note that for a "standard" mnemonic the derivation path is "m",
+    for a "segwit" mnemonic it is "m/0h" instead.
+    """
+    xkey = _mxprv_from_electrum_mnemonic(mnemonic, passphrase, network)
+    return xkey.b58encode()
+
+
 BIP32Key = Union[BIP32KeyData, String]
+
+
+def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:
+    """Neutered Derivation (ND).
+
+    Derivation of the extended public key corresponding to an extended
+    private key (“neutered” as it removes the ability to sign transactions).
+    """
+
+    if isinstance(xprv, BIP32KeyData):
+        xkey = copy.copy(xprv)
+    else:
+        xkey = BIP32KeyData.b58decode(xprv)
+
+    if xkey.key[0] != 0:
+        err_msg = f"not a private key: {xkey.b58encode().decode('ascii')}"
+        raise BTClibValueError(err_msg)
+
+    i = _XPRV_VERSIONS_ALL.index(xkey.version)
+    xkey.version = _XPUB_VERSIONS_ALL[i]
+
+    q = int.from_bytes(xkey.key[1:], byteorder="big", signed=False)
+    Q = mult(q)
+    xkey.key = bytes_from_point(Q)
+
+    return xkey
 
 
 def xpub_from_xprv(xprv: BIP32Key) -> bytes:
@@ -299,25 +352,8 @@ def xpub_from_xprv(xprv: BIP32Key) -> bytes:
     Derivation of the extended public key corresponding to an extended
     private key (“neutered” as it removes the ability to sign transactions).
     """
-
-    xkey_data = (
-        copy.copy(xprv)
-        if isinstance(xprv, BIP32KeyData)
-        else BIP32KeyData.b58decode(xprv)
-    )
-    if xkey_data.key[0] != 0:
-        raise BTClibValueError(
-            f"not a private key: {xkey_data.b58encode().decode('ascii')}"
-        )
-
-    i = _XPRV_VERSIONS_ALL.index(xkey_data.version)
-    xkey_data.version = _XPUB_VERSIONS_ALL[i]
-
-    q = int.from_bytes(xkey_data.key[1:], byteorder="big", signed=False)
-    Q = mult(q)
-    xkey_data.key = bytes_from_point(Q)
-
-    return xkey_data.b58encode()
+    xkey = _xpub_from_xprv(xprv)
+    return xkey.b58encode()
 
 
 @dataclass
@@ -328,81 +364,78 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
     Q: Point = INF  # non-Infinity for public key only
 
 
-def __ckd(key_data: _ExtendedBIP32KeyData, index: int) -> None:
+def __ckd(xkey: _ExtendedBIP32KeyData, index: int) -> None:
 
-    key_data.depth += 1
-    key_data.index = index
-    if key_data.key[0] == 0:  # private key
-        Q_bytes = bytes_from_point(mult(key_data.q))
-        key_data.parent_fingerprint = hash160(Q_bytes)[:4]
-        if key_data.is_hardened():  # hardened derivation
+    xkey.depth += 1
+    xkey.index = index
+    if xkey.key[0] == 0:  # private key
+        Q_bytes = bytes_from_point(mult(xkey.q))
+        xkey.parent_fingerprint = hash160(Q_bytes)[:4]
+        if xkey.is_hardened():  # hardened derivation
             hmac_ = hmac.new(
-                key_data.chain_code,
-                key_data.key + index.to_bytes(4, byteorder="big", signed=False),
+                xkey.chain_code,
+                xkey.key + index.to_bytes(4, byteorder="big", signed=False),
                 "sha512",
             ).digest()
         else:  # normal derivation
             hmac_ = hmac.new(
-                key_data.chain_code,
+                xkey.chain_code,
                 Q_bytes + index.to_bytes(4, byteorder="big", signed=False),
                 "sha512",
             ).digest()
-        key_data.chain_code = hmac_[32:]
+        xkey.chain_code = hmac_[32:]
         offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-        key_data.q = (key_data.q + offset) % ec.n
-        key_data.key = b"\x00" + key_data.q.to_bytes(32, byteorder="big", signed=False)
-        key_data.Q = INF
+        xkey.q = (xkey.q + offset) % ec.n
+        xkey.key = b"\x00" + xkey.q.to_bytes(32, byteorder="big", signed=False)
+        xkey.Q = INF
     else:  # public key
-        key_data.parent_fingerprint = hash160(key_data.key)[:4]
-        if key_data.is_hardened():
+        xkey.parent_fingerprint = hash160(xkey.key)[:4]
+        if xkey.is_hardened():
             raise BTClibValueError("invalid hardened derivation from public key")
         hmac_ = hmac.new(
-            key_data.chain_code,
-            key_data.key + index.to_bytes(4, byteorder="big", signed=False),
+            xkey.chain_code,
+            xkey.key + index.to_bytes(4, byteorder="big", signed=False),
             "sha512",
         ).digest()
-        key_data.chain_code = hmac_[32:]
+        xkey.chain_code = hmac_[32:]
         offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-        key_data.Q = ec.add(key_data.Q, mult(offset))
-        key_data.key = bytes_from_point(key_data.Q)
-        key_data.q = 0
+        xkey.Q = ec.add(xkey.Q, mult(offset))
+        xkey.key = bytes_from_point(xkey.Q)
+        xkey.q = 0
 
 
 def _derive(
-    xkey_data: BIP32KeyData,
-    der_path: BIP32DerPath,
-    forced_version: Optional[Octets] = None,
+    xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Optional[Octets] = None
 ) -> BIP32KeyData:
+
+    if not isinstance(xkey, BIP32KeyData):
+        xkey = BIP32KeyData.b58decode(xkey)
 
     indexes = indexes_from_bip32_path(der_path)
 
-    final_depth = xkey_data.depth + len(indexes)
+    final_depth = xkey.depth + len(indexes)
     if final_depth > 255:
         err_msg = f"final depth greater than 255: {final_depth}"
         raise BTClibValueError(err_msg)
 
-    is_prv = xkey_data.key[0] == 0
-    q = (
-        int.from_bytes(xkey_data.key[1:], byteorder="big", signed=False)
-        if is_prv
-        else 0
-    )
-    Q = INF if is_prv else point_from_octets(xkey_data.key, ec)
-    key_data = _ExtendedBIP32KeyData(
-        version=xkey_data.version,
-        depth=xkey_data.depth,
-        parent_fingerprint=xkey_data.parent_fingerprint,
-        index=xkey_data.index,
-        chain_code=xkey_data.chain_code,
-        key=xkey_data.key,
+    is_prv = xkey.key[0] == 0
+    q = int.from_bytes(xkey.key[1:], byteorder="big", signed=False) if is_prv else 0
+    Q = INF if is_prv else point_from_octets(xkey.key, ec)
+    xkey = _ExtendedBIP32KeyData(
+        version=xkey.version,
+        depth=xkey.depth,
+        parent_fingerprint=xkey.parent_fingerprint,
+        index=xkey.index,
+        chain_code=xkey.chain_code,
+        key=xkey.key,
         q=q,
         Q=Q,
     )
     for index in indexes:
-        __ckd(key_data, index)
+        __ckd(xkey, index)
 
     if forced_version:
-        if xkey_data.version in _XPRV_VERSIONS_ALL:
+        if xkey.version in _XPRV_VERSIONS_ALL:
             allowed_versions = _XPRV_VERSIONS_ALL
         else:
             allowed_versions = _XPUB_VERSIONS_ALL
@@ -411,9 +444,9 @@ def _derive(
             err_msg = "invalid version forced on the extended key"
             err_msg += f"{hex_string(fversion)}"
             raise BTClibValueError(err_msg)
-        key_data.version = fversion
+        xkey.version = fversion
 
-    return key_data
+    return xkey
 
 
 def derive(
@@ -431,50 +464,35 @@ def derive(
     BIP32DerPath is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
-    key_data = (
-        copy.copy(xkey)
-        if isinstance(xkey, BIP32KeyData)
-        else BIP32KeyData.b58decode(xkey)
-    )
-    key_data = _derive(key_data, der_path, forced_version)
-    return key_data.b58encode()
+    xkey = _derive(xkey, der_path, forced_version)
+    return xkey.b58encode()
 
 
 def _derive_from_account(
-    key_data: BIP32KeyData,
-    branch: int,
-    address_index: int,
-    more_than_two_branches: bool = False,
+    xkey: BIP32Key, branch: int, address_index: int, branches_0_1_only: bool = True
 ) -> BIP32KeyData:
 
-    if not key_data.is_hardened():
+    if not isinstance(xkey, BIP32KeyData):
+        xkey = BIP32KeyData.b58decode(xkey)
+
+    if not xkey.is_hardened():
         raise UserWarning("invalid public derivation at account level")
     if branch >= 0x80000000:
         raise BTClibValueError("invalid private derivation at branch level")
-    if branch not in (0, 1) or more_than_two_branches:
+    if branches_0_1_only and branch not in (0, 1):
         raise BTClibValueError(f"invalid branch: {branch} not in (0, 1)")
     if address_index >= 0x80000000:
         raise BTClibValueError("invalid private derivation at address index level")
 
-    return _derive(key_data, f"m/{branch}/{address_index}")
+    return _derive(xkey, f"m/{branch}/{address_index}")
 
 
 def derive_from_account(
-    account_xkey: BIP32Key,
-    branch: int,
-    address_index: int,
-    more_than_two_branches: bool = False,
+    xkey: BIP32Key, branch: int, address_index: int, branches_0_1_only: bool = True
 ) -> bytes:
 
-    key_data = (
-        copy.copy(account_xkey)
-        if isinstance(account_xkey, BIP32KeyData)
-        else BIP32KeyData.b58decode(account_xkey)
-    )
-    key_data = _derive_from_account(
-        key_data, branch, address_index, more_than_two_branches
-    )
-    return key_data.b58encode()
+    xkey = _derive_from_account(xkey, branch, address_index, branches_0_1_only)
+    return xkey.b58encode()
 
 
 def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
@@ -489,15 +507,14 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
         err_msg += f"{p.b58encode().decode('ascii')}"
         raise BTClibValueError(err_msg)
 
-    c = (
-        child_xprv
-        if isinstance(child_xprv, BIP32KeyData)
-        else BIP32KeyData.b58decode(child_xprv)
-    )
+    if isinstance(child_xprv, BIP32KeyData):
+        c = child_xprv
+    else:
+        c = BIP32KeyData.b58decode(child_xprv)
+
     if c.key[0] != 0:
-        err_msg = (
-            f"extended child key is not a private key: {c.b58encode().decode('ascii')}"
-        )
+        err_msg = "extended child key is not a private key: "
+        err_msg += f"{c.b58encode().decode('ascii')}"
         raise BTClibValueError(err_msg)
 
     # check depth
