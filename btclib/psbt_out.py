@@ -125,7 +125,7 @@ def _assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, BIP32KeyOrigin]) -> Non
         # test vector 6 contains an invalid pubkey
         # point_from_pub_key(pub_key)
         if len(pub_key) not in allowed_lengths:
-            err_msg = "invalid public key"
+            err_msg = f"invalid public key length: {len(pub_key)}"
             raise BTClibValueError(err_msg)
         key_origin.assert_valid()
 
