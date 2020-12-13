@@ -492,7 +492,7 @@ def _derive_from_account(
         xkey = BIP32KeyData.b58decode(xkey)
 
     if not xkey.is_hardened():
-        raise UserWarning("invalid public derivation at account level")
+        raise BTClibValueError("unhardened account/master key")
     if branch >= 0x80000000:
         raise BTClibValueError("invalid private derivation at branch level")
     if branches_0_1_only and branch not in (0, 1):

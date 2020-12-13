@@ -327,8 +327,8 @@ def test_derive_from_account() -> None:
 
     der_path = "m / 44 h / 0"
     mxpub = xpub_from_xprv(derive(rmxprv, der_path))
-    err_msg = "public derivation at account level"
-    with pytest.raises(UserWarning, match=err_msg):
+    err_msg = "unhardened account/master key"
+    with pytest.raises(BTClibValueError, match=err_msg):
         derive_from_account(mxpub, 0, 0)
 
 
