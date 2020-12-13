@@ -196,20 +196,25 @@ class BlockHeader(DataClassJsonMixin):
         "Return a BlockHeader by parsing 80 bytes from binary data."
 
         stream = bytesio_from_binarydata(data)
-        header = cls(check_validity=False)
 
         # version is a signed int
-        header.version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
-        header.previous_block_hash = stream.read(32)[::-1]
-        header.merkle_root = stream.read(32)[::-1]
+        version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
+        previous_block_hash = stream.read(32)[::-1]
+        merkle_root_ = stream.read(32)[::-1]
         t = int.from_bytes(stream.read(4), byteorder="little", signed=False)
-        header.time = datetime.fromtimestamp(t, timezone.utc)
-        header.bits = stream.read(4)[::-1]
-        header.nonce = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        time = datetime.fromtimestamp(t, timezone.utc)
+        bits = stream.read(4)[::-1]
+        nonce = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
-        if assert_valid:
-            header.assert_valid()
-        return header
+        return cls(
+            version,
+            previous_block_hash,
+            merkle_root_,
+            time,
+            bits,
+            nonce,
+            check_validity=assert_valid,
+        )
 
 
 _Block = TypeVar("_Block", bound="Block")
@@ -340,12 +345,8 @@ class Block(DataClassJsonMixin):
         "Return a Block by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
-        block = cls(check_validity=False)
-
-        block.header = BlockHeader.deserialize(stream)
+        header = BlockHeader.deserialize(stream)
         n = var_int.deserialize(stream)
-        block.transactions = [Tx.deserialize(stream) for _ in range(n)]
+        transactions = [Tx.deserialize(stream) for _ in range(n)]
 
-        if assert_valid:
-            block.assert_valid()
-        return block
+        return cls(header, transactions, check_validity=assert_valid)

@@ -195,18 +195,23 @@ class BIP32KeyData(DataClassJsonMixin):
         "Return a BIP32KeyData by parsing 73 bytes from binary data."
 
         stream = bytesio_from_binarydata(xkey_bin)
-        xkey = cls(check_validity=False)
 
-        xkey.version = stream.read(4)
-        xkey.depth = int.from_bytes(stream.read(1), byteorder="big", signed=False)
-        xkey.parent_fingerprint = stream.read(4)
-        xkey.index = int.from_bytes(stream.read(4), byteorder="big", signed=False)
-        xkey.chain_code = stream.read(32)
-        xkey.key = stream.read(33)
+        version = stream.read(4)
+        depth = int.from_bytes(stream.read(1), byteorder="big", signed=False)
+        parent_fingerprint = stream.read(4)
+        index = int.from_bytes(stream.read(4), byteorder="big", signed=False)
+        chain_code = stream.read(32)
+        key = stream.read(33)
 
-        if assert_valid:
-            xkey.assert_valid()
-        return xkey
+        return cls(
+            version,
+            depth,
+            parent_fingerprint,
+            index,
+            chain_code,
+            key,
+            check_validity=assert_valid,
+        )
 
     def b58encode(self, assert_valid: bool = True) -> bytes:
         data_binary = self.serialize(assert_valid)
@@ -364,8 +369,27 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
 class _ExtendedBIP32KeyData(BIP32KeyData):
     # extensions used to cache intermediate results
     # in multi-level derivation: do not rely on them elsewhere
-    q: int = 0  # non-zero for private key only
-    Q: Point = INF  # non-Infinity for public key only
+    q: int = field(
+        default=0,  # non-zero for private key only
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    Q: Point = field(
+        default=INF,  # non-Infinity for public key only
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def __post_init__(self, check_validity: bool) -> None:
+
+        is_prv = self.key[0] == 0
+        self.q = int.from_bytes(self.key[1:], "big", signed=False) if is_prv else 0
+        self.Q = INF if is_prv else point_from_octets(self.key, ec)
+
+        if check_validity:
+            self.assert_valid()
 
 
 def __ckd(xkey: _ExtendedBIP32KeyData, index: int) -> None:
@@ -422,9 +446,6 @@ def _derive(
         err_msg = f"final depth greater than 255: {final_depth}"
         raise BTClibValueError(err_msg)
 
-    is_prv = xkey.key[0] == 0
-    q = int.from_bytes(xkey.key[1:], byteorder="big", signed=False) if is_prv else 0
-    Q = INF if is_prv else point_from_octets(xkey.key, ec)
     xkey = _ExtendedBIP32KeyData(
         version=xkey.version,
         depth=xkey.depth,
@@ -432,8 +453,6 @@ def _derive(
         index=xkey.index,
         chain_code=xkey.chain_code,
         key=xkey.key,
-        q=q,
-        Q=Q,
     )
     for index in indexes:
         __ckd(xkey, index)
