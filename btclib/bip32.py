@@ -259,10 +259,10 @@ def _rootxprv_from_seed(
 
 def rootxprv_from_seed(
     seed: Octets, version: Octets = NETWORKS["mainnet"].bip32_prv
-) -> bytes:
+) -> str:
     """Return BIP32 root master extended private key from seed."""
     xkey = _rootxprv_from_seed(seed, version)
-    return xkey.b58encode()
+    return xkey.b58encode().decode("ascii")
 
 
 def _mxprv_from_bip39_mnemonic(
@@ -277,10 +277,10 @@ def _mxprv_from_bip39_mnemonic(
 
 def mxprv_from_bip39_mnemonic(
     mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
-) -> bytes:
+) -> str:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
     xkey = _mxprv_from_bip39_mnemonic(mnemonic, passphrase, network)
-    return xkey.b58encode()
+    return xkey.b58encode().decode("ascii")
 
 
 def _mxprv_from_electrum_mnemonic(
@@ -307,14 +307,14 @@ def _mxprv_from_electrum_mnemonic(
 
 def mxprv_from_electrum_mnemonic(
     mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
-) -> bytes:
+) -> str:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
     Note that for a "standard" mnemonic the derivation path is "m",
     for a "segwit" mnemonic it is "m/0h" instead.
     """
     xkey = _mxprv_from_electrum_mnemonic(mnemonic, passphrase, network)
-    return xkey.b58encode()
+    return xkey.b58encode().decode("ascii")
 
 
 BIP32Key = Union[BIP32KeyData, String]
@@ -346,14 +346,14 @@ def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:
     return xkey
 
 
-def xpub_from_xprv(xprv: BIP32Key) -> bytes:
+def xpub_from_xprv(xprv: BIP32Key) -> str:
     """Neutered Derivation (ND).
 
     Derivation of the extended public key corresponding to an extended
     private key (“neutered” as it removes the ability to sign transactions).
     """
     xkey = _xpub_from_xprv(xprv)
-    return xkey.b58encode()
+    return xkey.b58encode().decode("ascii")
 
 
 @dataclass
@@ -451,7 +451,7 @@ def _derive(
 
 def derive(
     xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Optional[Octets] = None
-) -> bytes:
+) -> str:
     """Derive a BIP32 key across a path spanning multiple depth levels.
 
     Valid BIP32DerPath examples:
@@ -465,7 +465,7 @@ def derive(
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
     xkey = _derive(xkey, der_path, forced_version)
-    return xkey.b58encode()
+    return xkey.b58encode().decode("ascii")
 
 
 def _derive_from_account(
@@ -489,13 +489,13 @@ def _derive_from_account(
 
 def derive_from_account(
     xkey: BIP32Key, branch: int, address_index: int, branches_0_1_only: bool = True
-) -> bytes:
+) -> str:
 
     xkey = _derive_from_account(xkey, branch, address_index, branches_0_1_only)
-    return xkey.b58encode()
+    return xkey.b58encode().decode("ascii")
 
 
-def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
+def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
 
     if isinstance(parent_xpub, BIP32KeyData):
         p = copy.copy(parent_xpub)
@@ -540,4 +540,4 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> bytes:
     parent_q = (child_q - offset) % ec.n
     p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big", signed=False)
 
-    return p.b58encode()
+    return p.b58encode().decode("ascii")

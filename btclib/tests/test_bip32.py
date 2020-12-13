@@ -176,7 +176,7 @@ def test_bip39_vectors() -> None:
 
     # test_vector[0] and [1], i.e. entropy and mnemonic, are tested in bip39
     for _, _, seed, key in test_vectors:
-        assert rootxprv_from_seed(seed) == key.encode("ascii")
+        assert rootxprv_from_seed(seed) == key
 
 
 def test_bip32_vectors() -> None:
@@ -191,8 +191,8 @@ def test_bip32_vectors() -> None:
     for seed in test_vectors:
         mxprv = rootxprv_from_seed(seed)
         for der_path, xpub, xprv in test_vectors[seed]:
-            assert xprv == derive(mxprv, der_path).decode("ascii")
-            assert xpub == xpub_from_xprv(xprv).decode("ascii")
+            assert xprv == derive(mxprv, der_path)
+            assert xpub == xpub_from_xprv(xprv)
 
 
 def test_invalid_bip32_xkeys() -> None:
@@ -209,7 +209,7 @@ def test_invalid_bip32_xkeys() -> None:
 def test_rootxprv_from_mnemonic() -> None:
     mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
     rootxprv = mxprv_from_bip39_mnemonic(mnemonic, "")
-    exp = b"xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"
+    exp = "xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"
     assert rootxprv == exp
 
 
@@ -233,12 +233,12 @@ def test_derive() -> None:
             indexes = _indexes_from_bip32_path_str(der_path)
             assert address == p2pkh(derive(rootxprv, indexes)).decode("ascii")
 
-        assert derive(rootxprv, "m").decode("ascii") == rootxprv
+        assert derive(rootxprv, "m") == rootxprv
 
 
 def test_derive_exceptions() -> None:
     # root key, zero depth
-    rootmxprv = b"xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = BIP32KeyData.b58decode(rootmxprv)
     # FIXME
     # assert xprv == _derive(xprv, "m")
@@ -336,12 +336,12 @@ def test_crack() -> None:
     parent_xpub = "xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV"
     child_xprv = "xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm"
     parent_xprv = crack_prv_key(parent_xpub, child_xprv)
-    assert xpub_from_xprv(parent_xprv).decode("ascii") == parent_xpub
+    assert xpub_from_xprv(parent_xprv) == parent_xpub
     # same check with XKeyDict
     parent_xprv = crack_prv_key(
         BIP32KeyData.b58decode(parent_xpub), BIP32KeyData.b58decode(child_xprv)
     )
-    assert xpub_from_xprv(parent_xprv).decode("ascii") == parent_xpub
+    assert xpub_from_xprv(parent_xprv) == parent_xpub
 
     err_msg = "extended parent key is not a public key: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -398,7 +398,7 @@ def test_bips_pr905() -> None:
     seed = "57fb1e450b8afb95c62afbcd49e4100d6790e0822b8905608679180ac34ca0bd45bf7ccc6c5f5218236d0eb93afc78bd117b9f02a6b7df258ea182dfaef5aad7"
     xroot = rootxprv_from_seed(seed)
     der_path = "m/44H/60H/0H"
-    xprv = b"xprv9yqXG1Cns3YEQi6fsCJ7NGV5sHPiyZcbgLVst61dbLYyn7qy1G9aFtRmaYp481ounqnVf9Go2ymQ4gmxZLEwYSRhU868aDk4ZxzGvqHJVhe"
+    xprv = "xprv9yqXG1Cns3YEQi6fsCJ7NGV5sHPiyZcbgLVst61dbLYyn7qy1G9aFtRmaYp481ounqnVf9Go2ymQ4gmxZLEwYSRhU868aDk4ZxzGvqHJVhe"
     assert derive(xroot, der_path) == xprv
-    xpub = b"xpub6CpsfWjghR6XdCB8yDq7jQRpRKEDP2LT3ZRUgURF9g5xevB7YoTpogkFRqq5nQtVSN8YCMZo2CD8u4zCaxRv85ctCWmzEi9gQ5DBhBFaTNo"
+    xpub = "xpub6CpsfWjghR6XdCB8yDq7jQRpRKEDP2LT3ZRUgURF9g5xevB7YoTpogkFRqq5nQtVSN8YCMZo2CD8u4zCaxRv85ctCWmzEi9gQ5DBhBFaTNo"
     assert xpub_from_xprv(xprv) == xpub

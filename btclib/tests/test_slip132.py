@@ -65,9 +65,9 @@ def test_slip132_test_vector() -> None:
         addr = addr_str.encode("ascii")
         rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "")
         mxprv = bip32.derive(rxprv, der_path, version)
-        assert prv.encode("ascii") == mxprv
+        assert prv == mxprv
         mxpub = bip32.xpub_from_xprv(mxprv)
-        assert pub.encode("ascii") == mxpub
+        assert pub == mxpub
         xpub = bip32.derive(mxpub, kpath)
         address = slip132.address_from_xpub(xpub)
         assert addr == address
@@ -167,7 +167,7 @@ def test_addresses() -> None:
 
         version = getattr(NETWORKS[network], addr_type)
         xprv = bip32.derive(rootprv, der_path, version)
-        assert mxpub.encode("ascii") == bip32.xpub_from_xprv(xprv)
+        assert mxpub == bip32.xpub_from_xprv(xprv)
 
         err_msg = "invalid version forced on the extended key"
         # a non-private version cannot be forced on a private key

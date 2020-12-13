@@ -33,7 +33,7 @@ def test_mnemonic() -> None:
     entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
     assert entr - entropy < 0xFFF
 
-    xprv = b"xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
+    xprv = "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
     xprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic)
     assert xprv2 == xprv
 
@@ -73,15 +73,14 @@ def test_vectors() -> None:
     lang = "en"
     for mnemonic, passphrase, rmxprv, rmxpub, address in electrum_test_vectors:
         if mnemonic != "":
-            mxprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
-            assert mxprv2 == rmxprv.encode("ascii")
+            assert rmxprv == bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
 
             eversion, mnemonic = electrum.version_from_mnemonic(mnemonic)
             entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
             mnem = electrum.mnemonic_from_entropy(entr, eversion, lang)
             assert mnem == mnemonic
 
-        assert rmxpub.encode("ascii") == bip32.xpub_from_xprv(rmxprv)
+        assert rmxpub == bip32.xpub_from_xprv(rmxprv)
 
         xprv = bip32.derive(rmxprv, "m/0h/0")
         address2 = slip132.address_from_xkey(xprv).decode("ascii")
