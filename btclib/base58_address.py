@@ -35,7 +35,9 @@ from .utils import bytes_from_octets, hash160, sha256
 # 2. base58 address from HASH and vice versa
 
 
-def base58_address_from_h160(prefix: Octets, h160: Octets, network: str) -> bytes:
+def base58_address_from_h160(
+    prefix: Octets, h160: Octets, network: str = "mainnet"
+) -> bytes:
     "Encode a base58 address from the payload."
 
     prefix = bytes_from_octets(prefix)
