@@ -267,8 +267,10 @@ class Psbt(DataClassJsonMixin):
     def b64decode(
         cls: Type[_Psbt], psbt_str: String, assert_valid: bool = True
     ) -> _Psbt:
+
         if isinstance(psbt_str, str):
             psbt_str = psbt_str.strip()
+
         psbt_decoded = base64.b64decode(psbt_str)
         return cls.deserialize(psbt_decoded, assert_valid)
 

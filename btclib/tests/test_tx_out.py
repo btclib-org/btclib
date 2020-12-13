@@ -26,7 +26,7 @@ def test_tx_out() -> None:
     assert tx_out.script_pub_key == b""
     assert tx_out.script_type == "unknown"
     assert tx_out.network == "mainnet"
-    assert tx_out.address == b""
+    assert tx_out.address == ""
     assert tx_out.nValue == tx_out.value
     assert tx_out.scriptPubKey == tx_out.script_pub_key
     assert tx_out == TxOut.deserialize(tx_out.serialize())
@@ -40,7 +40,7 @@ def test_tx_out() -> None:
     assert tx_out.script_pub_key == script_
     assert tx_out.script_type == "p2wsh"
     assert tx_out.network == "mainnet"
-    addr = b"bc1qak8fvqzkzqq0wg4aym59p0nasrey696040hlnzawl9nnyh3tt2rqzgmhmv"
+    addr = "bc1qak8fvqzkzqq0wg4aym59p0nasrey696040hlnzawl9nnyh3tt2rqzgmhmv"
     assert tx_out.address == addr
     assert tx_out.nValue == tx_out.value
     assert tx_out.scriptPubKey == tx_out.script_pub_key
@@ -60,10 +60,10 @@ def test_invalid_tx_out() -> None:
 
 
 def test_tx_out_from_address() -> None:
-    address = b"bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej"
+    address = "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej"
     assert TxOut.from_address(0, address).address == address
     assert TxOut.from_address(0, address).network == "mainnet"
-    address = b"tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
+    address = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
     assert TxOut.from_address(0, address).address == address
     assert TxOut.from_address(0, address).network == "testnet"
 

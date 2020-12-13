@@ -50,7 +50,7 @@ def script_pub_key_from_address(addr: String) -> Tuple[bytes, str]:
 
 def address_from_script_pub_key(
     script_pub_key: Octets, network: str = "mainnet"
-) -> bytes:
+) -> str:
     "Return the bech32/base58 address from a script_pub_key."
 
     if script_pub_key:
@@ -67,4 +67,4 @@ def address_from_script_pub_key(
     # not script_pub_key
     # or
     # script_type in ("p2pk", "p2ms", "nulldata", "unknown")
-    return b""
+    return ""

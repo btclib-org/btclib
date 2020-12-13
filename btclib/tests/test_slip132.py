@@ -61,8 +61,7 @@ def test_slip132_test_vector() -> None:
             "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
         ),
     ]
-    for version, der_path, prv, pub, addr_str in test_vectors:
-        addr = addr_str.encode("ascii")
+    for version, der_path, prv, pub, addr in test_vectors:
         rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "")
         mxprv = bip32.derive(rxprv, der_path, version)
         assert prv == mxprv

@@ -72,7 +72,7 @@ def test_nulldata() -> None:
     # data -> payload in this case is invertible (no hash functions)
     assert payload.decode("ascii") == string
 
-    assert address_from_script_pub_key(script_pub_key) == b""
+    assert address_from_script_pub_key(script_pub_key) == ""
 
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
     string = "hello world"
@@ -183,7 +183,7 @@ def test_p2pk() -> None:
         script_pub_key
     )
 
-    assert address_from_script_pub_key(script_pub_key) == b""
+    assert address_from_script_pub_key(script_pub_key) == ""
 
     err_msg = "invalid pub_key length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -251,7 +251,7 @@ def test_p2pkh() -> None:
     script_pub_key = bytes.fromhex("76a914") + payload + bytes.fromhex("88ac")
     assert_p2pkh(script_pub_key)
     assert script_pub_key == script_pub_key_from_payload(script_type, payload)
-    address = b"12higDjoCCNXSA95xZMWUdPvXNmkAduhWv"
+    address = "12higDjoCCNXSA95xZMWUdPvXNmkAduhWv"
     assert address == address_from_script_pub_key(script_pub_key, network)
     assert (script_pub_key, network) == script_pub_key_from_address(address)
 
@@ -345,7 +345,7 @@ def test_p2sh() -> None:
     script_pub_key = bytes.fromhex("a914") + payload + bytes.fromhex("87")
     assert_p2sh(script_pub_key)
     assert script_pub_key == script_pub_key_from_payload(script_type, payload)
-    address = b"3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V"
+    address = "3CK4fEwbMP7heJarmU4eqA3sMbVJyEnU3V"
     assert address == address_from_script_pub_key(script_pub_key, network)
     assert (script_pub_key, network) == script_pub_key_from_address(address)
 
@@ -410,7 +410,7 @@ def test_p2wsh() -> None:
 def test_unknown() -> None:
 
     script_pub_key = script.serialize([16, 20 * b"\x00"])
-    assert address_from_script_pub_key(script_pub_key) == b""
+    assert address_from_script_pub_key(script_pub_key) == ""
     assert payload_from_script_pub_key(script_pub_key) == ("unknown", script_pub_key)
 
 
@@ -453,7 +453,7 @@ def test_p2ms_1() -> None:
         "ae"  # OP_CHECKMULTISIG
     )  # fmt: on
     assert is_p2ms(script_pub_key)
-    assert address_from_script_pub_key(script_pub_key) == b""
+    assert address_from_script_pub_key(script_pub_key) == ""
     script_type, payload = payload_from_script_pub_key(script_pub_key)
     assert script_type == "p2ms"
     assert payload == script_pub_key[:-1]
@@ -537,7 +537,7 @@ def test_p2ms_2() -> None:
         for lexi_sort in (True, False):
             script_pub_key = p2ms(m, pub_keys, lexi_sort=lexi_sort)
             assert is_p2ms(script_pub_key)
-            assert address_from_script_pub_key(script_pub_key) == b""
+            assert address_from_script_pub_key(script_pub_key) == ""
             script_type, payload = payload_from_script_pub_key(script_pub_key)
             assert script_type == "p2ms"
             assert payload == script_pub_key[:-1]
@@ -559,15 +559,14 @@ def test_bip67() -> None:
 
         script_pub_key = p2ms(m, keys, lexi_sort=True)
         assert is_p2ms(script_pub_key)
-        assert address_from_script_pub_key(script_pub_key) == b""
+        assert address_from_script_pub_key(script_pub_key) == ""
         script_type, payload = payload_from_script_pub_key(script_pub_key)
         assert script_type == "p2ms"
         assert payload == script_pub_key[:-1]
         assert script_pub_key == script_pub_key_from_payload("p2ms", payload)
 
         errmsg = f"Test vector #{i}"
-        addr = base58_address.p2sh(script_pub_key)
-        assert addr.decode("ascii") == address, errmsg
+        assert address == base58_address.p2sh(script_pub_key), errmsg
 
 
 def test_non_standard_script_in_p2wsh() -> None:
@@ -595,6 +594,6 @@ def test_non_standard_script_in_p2wsh() -> None:
     assert script_pub_key == p2wsh(redeem_script).hex()
     assert script_pub_key == script_pub_key_from_payload("p2wsh", payload).hex()
 
-    address = b"bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
+    address = "bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
     assert address == address_from_script_pub_key(script_pub_key, network)
     assert address == bech32_address_from_witness(0, payload, network)

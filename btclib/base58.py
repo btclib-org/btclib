@@ -119,6 +119,7 @@ def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
     """
 
     if isinstance(v, str):
+        # do not trim spaces
         v = v.encode("ascii")
 
     result = _b58decode(v)

@@ -219,20 +219,24 @@ class Sig(DataClassJsonMixin):
         return base64.b64encode(data_binary)
 
     @classmethod
-    def b64decode(cls: Type[_Sig], data_str: String, assert_valid: bool = True) -> _Sig:
+    def b64decode(cls: Type[_Sig], data: String, assert_valid: bool = True) -> _Sig:
         """Return the verified components of the provided BMS signature.
 
         The address-based BMS signature can be represented
         as (rf, r, s) tuple or as base64-encoding of the compact format
         [1-byte rf][32-bytes r][32-bytes s].
         """
-        if isinstance(data_str, str):
-            data_str = data_str.strip()
-        data_decoded = base64.b64decode(data_str)
+
+        if isinstance(data, str):
+            data = data.strip()
+
+        data_decoded = base64.b64decode(data)
+
         if assert_valid and len(data_decoded) != _EXPECTED_DECODED_LENGHT:
             err_msg = f"invalid decoded length: {len(data_decoded)}"
             err_msg += f" instead of {_EXPECTED_DECODED_LENGHT}"
             raise BTClibValueError(err_msg)
+
         return cls.deserialize(data_decoded, assert_valid)
 
 
@@ -240,7 +244,7 @@ def gen_keys(
     prv_key: PrvKey = None,
     network: Optional[str] = None,
     compressed: Optional[bool] = None,
-) -> Tuple[bytes, bytes]:
+) -> Tuple[str, str]:
     """Return a private/public key pair.
 
     The private key is a WIF, the public key is a base58 P2PKH address.
@@ -281,7 +285,9 @@ def sign(msg: String, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
 
     if isinstance(addr, str):
         addr = addr.strip()
-        addr = addr.encode("ascii")
+
+    if isinstance(addr, bytes):
+        addr = addr.decode("ascii")
 
     # first sign the message
     magic_msg = _magic_message(msg)

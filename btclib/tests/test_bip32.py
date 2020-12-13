@@ -228,10 +228,10 @@ def test_derive() -> None:
 
     for rootxprv, value in test_vectors.items():
         for der_path, address in value:
-            assert address == p2pkh(derive(rootxprv, der_path)).decode("ascii")
+            assert address == p2pkh(derive(rootxprv, der_path))
 
             indexes = _indexes_from_bip32_path_str(der_path)
-            assert address == p2pkh(derive(rootxprv, indexes)).decode("ascii")
+            assert address == p2pkh(derive(rootxprv, indexes))
 
         assert derive(rootxprv, "m") == rootxprv
 
@@ -310,8 +310,8 @@ def test_derive_from_account() -> None:
 
     for branch, index in test_vectors:
         full_path = der_path + f"/{branch}/{index}"
-        addr = p2pkh(derive(rmxprv, full_path)).decode("ascii")
-        assert addr == p2pkh(derive_from_account(mxpub, branch, index)).decode("ascii")
+        addr = p2pkh(derive(rmxprv, full_path))
+        assert addr == p2pkh(derive_from_account(mxpub, branch, index))
 
     err_msg = "invalid private derivation at branch level"
     with pytest.raises(BTClibValueError, match=err_msg):

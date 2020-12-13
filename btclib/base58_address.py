@@ -37,7 +37,7 @@ from .utils import bytes_from_octets, hash160, sha256
 
 def base58_address_from_h160(
     prefix: Octets, h160: Octets, network: str = "mainnet"
-) -> bytes:
+) -> str:
     "Encode a base58 address from the payload."
 
     prefix = bytes_from_octets(prefix)
@@ -45,7 +45,7 @@ def base58_address_from_h160(
     if prefix not in prefixes:
         raise BTClibValueError(f"invalid {network} base58 address prefix: {prefix!r}")
     payload = prefix + bytes_from_octets(h160, 20)
-    return b58encode(payload)
+    return b58encode(payload).decode("ascii")
 
 
 def h160_from_base58_address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
@@ -73,14 +73,14 @@ def h160_from_base58_address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
 
 def p2pkh(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> bytes:
+) -> str:
     "Return the p2pkh base58 address corresponding to a public key."
     h160, network = hash160_from_key(key, network, compressed)
     prefix = NETWORKS[network].p2pkh
     return base58_address_from_h160(prefix, h160, network)
 
 
-def p2sh(script_pub_key: Octets, network: str = "mainnet") -> bytes:
+def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
     "Return the p2sh base58 address corresponding to a script_pub_key."
     h160 = hash160(script_pub_key)
     prefix = NETWORKS[network].p2sh
@@ -93,7 +93,7 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> bytes:
 
 def base58_address_from_witness(
     witness_program: Octets, network: str = "mainnet"
-) -> bytes:
+) -> str:
     "Encode a legacy base58 p2sh-wrapped SegWit address."
 
     length = len(witness_program)
@@ -112,14 +112,14 @@ def base58_address_from_witness(
 # 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pub_key/script_pub_key
 
 
-def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> bytes:
+def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> str:
     "Return the p2wpkh-p2sh base58 address corresponding to a pub_key."
     compressed = True  # needed to force check on pub_key
     witprog, network = hash160_from_key(key, network, compressed)
     return base58_address_from_witness(witprog, network)
 
 
-def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> bytes:
+def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
     "Return the p2wsh-p2sh base58 address corresponding to a reedem script."
     witprog = sha256(redeem_script)
     return base58_address_from_witness(witprog, network)

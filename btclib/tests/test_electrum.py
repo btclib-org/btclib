@@ -83,5 +83,4 @@ def test_vectors() -> None:
         assert rmxpub == bip32.xpub_from_xprv(rmxprv)
 
         xprv = bip32.derive(rmxprv, "m/0h/0")
-        address2 = slip132.address_from_xkey(xprv).decode("ascii")
-        assert address2 == address
+        assert address == slip132.address_from_xkey(xprv)

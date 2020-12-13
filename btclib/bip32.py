@@ -214,16 +214,20 @@ class BIP32KeyData(DataClassJsonMixin):
 
     @classmethod
     def b58decode(
-        cls: Type[_BIP32KeyData], data_str: String, assert_valid: bool = True
+        cls: Type[_BIP32KeyData], address: String, assert_valid: bool = True
     ) -> _BIP32KeyData:
-        if isinstance(data_str, str):
-            data_str = data_str.strip()
-        data_decoded = base58.b58decode(data_str)
-        if assert_valid and len(data_decoded) != _EXPECTED_DECODED_LENGHT:
-            err_msg = f"invalid decoded length: {len(data_decoded)}"
+
+        if isinstance(address, str):
+            address = address.strip()
+
+        xkey_bin = base58.b58decode(address)
+
+        if assert_valid and len(xkey_bin) != _EXPECTED_DECODED_LENGHT:
+            err_msg = f"invalid decoded length: {len(xkey_bin)}"
             err_msg += f" instead of {_EXPECTED_DECODED_LENGHT}"
             raise BTClibValueError(err_msg)
-        return cls.deserialize(data_decoded, assert_valid)
+
+        return cls.deserialize(xkey_bin, assert_valid)
 
 
 def _rootxprv_from_seed(

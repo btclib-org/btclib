@@ -63,7 +63,9 @@ def sign(
     """
 
     if isinstance(msg, str):
+        # do not strip spaces
         msg = msg.encode()
+
     m = _get_msg_format(msg, pubk_rings)
 
     e0bytes = m
@@ -122,6 +124,7 @@ def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     """
 
     if isinstance(msg, str):
+        # do not strip spaces
         msg = msg.encode()
 
     # all kind of Exceptions are catched because

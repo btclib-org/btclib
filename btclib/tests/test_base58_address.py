@@ -36,15 +36,15 @@ from btclib.utils import hash160, sha256
 
 
 def test_base58_address_from_h160() -> None:
-    addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
+    addr = "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
     prefix, payload, network, _ = h160_from_base58_address(addr)
     assert addr == base58_address_from_h160(prefix, payload, network)
 
-    addr = b"16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
+    addr = "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
     prefix, payload, network, _ = h160_from_base58_address(addr)
     assert addr == base58_address_from_h160(prefix, payload, network)
 
-    addr = b"37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
+    addr = "37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
     prefix, payload, network, _ = h160_from_base58_address(addr)
     assert addr == base58_address_from_h160(prefix, payload, network)
 
@@ -60,7 +60,7 @@ def test_p2pkh_from_wif() -> None:
     path = "m/0h/0h/12"
     xprv = bip32.derive(rxprv, path)
     wif = wif_from_prv_key(xprv)
-    assert wif == b"L2L1dqRmkmVtwStNf5wg8nnGaRn3buoQr721XShM4VwDbTcn9bpm"
+    assert wif == "L2L1dqRmkmVtwStNf5wg8nnGaRn3buoQr721XShM4VwDbTcn9bpm"
     pub_key, _ = pub_keyinfo_from_prv_key(wif)
     address = p2pkh(pub_key)
     xpub = bip32.xpub_from_xprv(xprv)
@@ -76,26 +76,26 @@ def test_p2pkh_from_pub_key() -> None:
     # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
     pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     addr = p2pkh(pub)
-    assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
+    assert addr == "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
     _, h160, _, _ = h160_from_base58_address(addr)
     assert h160 == hash160(pub)
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
     addr = p2pkh(uncompr_pub, compressed=False)
-    assert addr == b"16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
+    assert addr == "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
     _, h160, _, _ = h160_from_base58_address(addr)
     assert h160 == hash160(uncompr_pub)
 
     # trailing/leading spaces in string
     pub = "  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     addr = p2pkh(pub)
-    assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
+    assert addr == "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
     _, h160, _, _ = h160_from_base58_address(addr)
     assert h160 == hash160(pub)
 
     pub = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352  "
     addr = p2pkh(pub)
-    assert addr == b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
+    assert addr == "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
 
 
 def test_p2sh() -> None:
@@ -116,7 +116,7 @@ def test_p2sh() -> None:
 
     network = "mainnet"
     addr = p2sh(script_pub_key, network)
-    assert addr == b"37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
+    assert addr == "37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
 
     _, redeem_script_hash, network2, is_script_hash = h160_from_base58_address(addr)
     assert network == network2
@@ -198,10 +198,10 @@ def test_address_from_wif() -> None:
         ),
     ]
     for compressed, network, wif, address in test_cases:
-        assert wif.encode("ascii") == wif_from_prv_key(q, network, compressed)
+        assert wif == wif_from_prv_key(q, network, compressed)
         assert prv_keyinfo_from_prv_key(wif) == (q, network, compressed)
         b58 = p2pkh(wif)
-        assert b58 == address.encode("ascii")
+        assert b58 == address
         _, payload, net, is_script = h160_from_base58_address(b58)
         assert net == network
         assert not is_script

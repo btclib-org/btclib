@@ -78,6 +78,7 @@ def test_bechs32_checksum() -> None:
 
     for test in VALID_CHECKSUM:
         b32decode(test)
+        b32decode(test.encode("ascii"))
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
         with pytest.raises(BTClibValueError):

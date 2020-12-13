@@ -92,11 +92,18 @@ def test_valid_address() -> None:
     ]
 
     for address, hexscript in valid_bc_addresses + valid_tb_addresses:
-        witvers, witprog, network, _ = witness_from_bech32_address(address)
-        script_pub_key: List[script.ScriptToken] = [witvers, witprog]
+        w_ver, w_prg, network, _ = witness_from_bech32_address(address)
+        addr = bech32_address_from_witness(w_ver, w_prg, network)
+        assert address.lower().strip() == addr
+
+        w_ver, w_prg, network, _ = witness_from_bech32_address(
+            address.strip().encode("ascii")
+        )
+        addr = bech32_address_from_witness(w_ver, w_prg, network)
+        assert address.lower().strip() == addr
+
+        script_pub_key: List[script.ScriptToken] = [w_ver, w_prg]
         assert script.serialize(script_pub_key).hex() == hexscript
-        addr = bech32_address_from_witness(witvers, witprog, network)
-        assert address.lower().strip() == addr.decode("ascii")
 
 
 def test_invalid_address() -> None:
@@ -168,18 +175,11 @@ def test_invalid_address_enc() -> None:
 def test_bech32_address_from_witness() -> None:
 
     # self-consistency
-    addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-    wit_ver, wit_prg, network, _ = witness_from_bech32_address(addr)
-    assert bech32_address_from_witness(wit_ver, wit_prg, network) == addr
+    addr = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
+    w_ver, w_prg, network, _ = witness_from_bech32_address(addr)
+    assert bech32_address_from_witness(w_ver, w_prg, network) == addr
 
-    # string input
-    addr_str = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-    wit_ver, wit_prg, network, _ = witness_from_bech32_address(addr_str)
-    assert bech32_address_from_witness(wit_ver, wit_prg, network) == addr_str.encode(
-        "ascii"
-    )
-
-    wp_ints = list(wit_prg)
+    wp_ints = list(w_prg)
     wp_ints[0] = -1
     with pytest.raises(BTClibValueError, match="invalid value in _convertbits: "):
         _convertbits(wp_ints, 8, 5)
@@ -189,14 +189,14 @@ def test_p2wpkh_p2sh() -> None:
     # https://matthewdowney.github.io/create-segwit-address.html
     pub = " 03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     address = p2wpkh_p2sh(pub)
-    assert address == b"36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g"
+    assert address == "36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g"
     address = p2wpkh_p2sh(pub, "testnet")
-    assert address == b"2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2"
+    assert address == "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2"
 
     # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh
     pub = "02 f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
     address = p2wpkh_p2sh(pub)
-    assert address == b"3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd"
+    assert address == "3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd"
 
 
 def test_p2wpkh() -> None:
@@ -204,18 +204,18 @@ def test_p2wpkh() -> None:
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    addr = b"bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+    addr = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
     assert addr == p2wpkh(pub)
-    addr = b"tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
+    addr = "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
     assert addr == p2wpkh(pub, "testnet")
 
     # http://bitcoinscri.pt/pages/segwit_native_p2wpkh
     pub = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
-    addr = b"bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
+    addr = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
     assert addr == p2wpkh(pub)
 
-    _, wit_prg, _, _ = witness_from_bech32_address(addr)
-    assert bytes(wit_prg) == hash160(pub)
+    _, w_prg, _, _ = witness_from_bech32_address(addr)
+    assert bytes(w_prg) == hash160(pub)
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
     err_msg = "not a private or compressed public key: "
@@ -231,15 +231,15 @@ def test_p2wpkh() -> None:
 
 def test_hash_from_bech32() -> None:
     network = "testnet"
-    wit_ver = 0
-    wit_prg = 20 * b"\x05"
-    addr = bech32_address_from_witness(wit_ver, wit_prg, network)
+    w_ver = 0
+    w_prg = 20 * b"\x05"
+    addr = bech32_address_from_witness(w_ver, w_prg, network)
     _, wp2, n_2, _ = witness_from_bech32_address(addr)
     assert n_2 == network
-    assert wp2 == wit_prg
+    assert wp2 == w_prg
 
     # witness program length (21) is not 20 or 32
-    addr = b"tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
+    addr = "tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
     err_msg = "invalid witness program length for witness v0: "
     with pytest.raises(BTClibValueError, match=err_msg):
         witness_from_bech32_address(addr)
@@ -262,15 +262,15 @@ def test_p2wsh() -> None:
     script_pub_key: List[script.ScriptToken] = [pub, "OP_CHECKSIG"]
     witness_script_bytes = script.serialize(script_pub_key)
 
-    addr = b"tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
+    addr = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
     assert addr == p2wsh(witness_script_bytes, "testnet")
-    _, wit_prg, _, _ = witness_from_bech32_address(addr)
-    assert bytes(wit_prg) == sha256(witness_script_bytes)
+    _, w_prg, _, _ = witness_from_bech32_address(addr)
+    assert bytes(w_prg) == sha256(witness_script_bytes)
 
-    addr = b"bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3"
+    addr = "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3"
     assert addr == p2wsh(witness_script_bytes)
-    _, wit_prg, _, _ = witness_from_bech32_address(addr)
-    assert bytes(wit_prg) == sha256(witness_script_bytes)
+    _, w_prg, _, _ = witness_from_bech32_address(addr)
+    assert bytes(w_prg) == sha256(witness_script_bytes)
 
     assert witness_from_bech32_address(addr)[1] == sha256(witness_script_bytes)
 

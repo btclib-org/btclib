@@ -39,6 +39,8 @@ def test_signature() -> None:
     assert sig == bms.Sig.b64decode(sig.b64encode())
     assert sig == bms.Sig.b64decode(sig.b64encode().decode("ascii"))
 
+    assert sig == bms.sign(msg, wif.encode("ascii"))
+
     # sig taken from (Electrum and) Bitcoin Core
     wif, addr = bms.gen_keys("5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw")
     sig = bms.sign(msg, wif)
@@ -88,14 +90,14 @@ def test_exceptions() -> None:
 
     # compressed wif, uncompressed address
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
-    address = b"19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T"
+    address = "19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T"
     err_msg = "mismatch between private key and address"
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
     # uncompressed wif, compressed address
     wif = "5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn"
-    address = b"1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
+    address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
     err_msg = "not a private or compressed public key for mainnet: "
     # FIXME puzzling error message
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -140,7 +142,7 @@ def test_one_prv_key_multiple_addresses() -> None:
     msg = "Paolo is afraid of ephemeral random numbers"
 
     # Compressed WIF
-    wif = b"Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
+    wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
     addr_p2pkh_compressed = p2pkh(wif)
     addr_p2wpkh_p2sh = p2wpkh_p2sh(wif)
     addr_p2wpkh = p2wpkh(wif)
@@ -157,7 +159,7 @@ def test_one_prv_key_multiple_addresses() -> None:
     bms.assert_as_valid(msg, addr_p2wpkh, sig1)
     assert bms.verify(msg, addr_p2wpkh, sig1)
 
-    # sign with no p2pkh address
+    # sign with p2pkh address
     sig1 = bms.sign(msg, wif, addr_p2pkh_compressed)
     # True for Bitcoin Core
     bms.assert_as_valid(msg, addr_p2pkh_compressed, sig1)
@@ -168,6 +170,7 @@ def test_one_prv_key_multiple_addresses() -> None:
     # True for Electrum p2wpkh
     bms.assert_as_valid(msg, addr_p2wpkh, sig1)
     assert bms.verify(msg, addr_p2wpkh, sig1)
+    assert sig1 == bms.sign(msg, wif, addr_p2pkh_compressed.encode("ascii"))
 
     err_msg = "invalid recovery flag: "
 
@@ -184,6 +187,7 @@ def test_one_prv_key_multiple_addresses() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, addr_p2wpkh, sig2)
     assert not bms.verify(msg, addr_p2wpkh, sig2)
+    assert sig2 == bms.sign(msg, wif, addr_p2wpkh_p2sh.encode("ascii"))
 
     # sign with p2wpkh address (BIP137)
     sig3 = bms.sign(msg, wif, addr_p2wpkh)
@@ -198,6 +202,7 @@ def test_one_prv_key_multiple_addresses() -> None:
     # True for BIP137 p2wpkh
     bms.assert_as_valid(msg, addr_p2wpkh, sig3)
     assert bms.verify(msg, addr_p2wpkh, sig3)
+    assert sig3 == bms.sign(msg, wif, addr_p2wpkh.encode("ascii"))
 
     # uncompressed WIF / p2pkh address
     q, network, _ = prv_keyinfo_from_prv_key(wif)
@@ -223,9 +228,10 @@ def test_one_prv_key_multiple_addresses() -> None:
     # True for Bitcoin Core uncompressed p2pkh
     bms.assert_as_valid(msg, addr_p2pkh_uncompressed, sig4)
     assert bms.verify(msg, addr_p2pkh_uncompressed, sig4)
+    assert sig4 == bms.sign(msg, wif2, addr_p2pkh_uncompressed.encode("ascii"))
 
     # unrelated different wif
-    wif3 = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+    wif3 = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
     addr_p2pkh_compressed = p2pkh(wif3)
     addr_p2wpkh_p2sh = p2wpkh_p2sh(wif3)
     addr_p2wpkh = p2wpkh(wif3)
@@ -261,9 +267,9 @@ def test_msgsign_p2pkh() -> None:
 
     # uncompressed
     wif1u = wif_from_prv_key(q, "mainnet", False)
-    assert wif1u == b"5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw"
+    assert wif1u == "5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw"
     add1u = base58_address.p2pkh(wif1u)
-    assert add1u == b"1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD"
+    assert add1u == "1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD"
     sig1u = bms.sign(msg, wif1u)
     assert bms.verify(msg, add1u, sig1u)
     assert sig1u.rf == 27
@@ -272,9 +278,9 @@ def test_msgsign_p2pkh() -> None:
 
     # compressed
     wif1c = wif_from_prv_key(q, "mainnet", True)
-    assert wif1c == b"L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk"
+    assert wif1c == "L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk"
     add1c = base58_address.p2pkh(wif1c)
-    assert add1c == b"14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
+    assert add1c == "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
     sig1c = bms.sign(msg, wif1c)
     assert bms.verify(msg, add1c, sig1c)
     assert sig1c.rf == 31

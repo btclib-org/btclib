@@ -23,7 +23,7 @@ from .network import (
 )
 
 
-def address_from_xkey(xkey: BIP32Key) -> bytes:
+def address_from_xkey(xkey: BIP32Key) -> str:
     """Return the SLIP132 base58/bech32 address.
 
     The address is always derived from the compressed public key,
@@ -38,7 +38,7 @@ def address_from_xkey(xkey: BIP32Key) -> bytes:
     return address_from_xpub(xkey)
 
 
-def address_from_xpub(xpub: BIP32Key) -> bytes:
+def address_from_xpub(xpub: BIP32Key) -> str:
     """Return the SLIP132 base58/bech32 address.
 
     The address is always derived from the compressed public key,

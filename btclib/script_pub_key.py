@@ -339,7 +339,9 @@ def nulldata(data: String) -> bytes:
     "Return the nulldata script_pub_key of the provided data."
 
     if isinstance(data, str):
+        # do not strip spaces
         data = data.encode()
+
     return script_pub_key_from_payload("nulldata", data)
 
 

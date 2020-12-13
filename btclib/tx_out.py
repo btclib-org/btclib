@@ -64,16 +64,12 @@ class TxOut(DataClassJsonMixin):
         metadata=config(field_name="type"),
     )
     network: str = "mainnet"
-    _address: bytes = field(
-        default=b"",
+    _address: str = field(
+        default="",
         init=False,
         repr=False,
         compare=False,
-        metadata=config(
-            field_name="address",
-            encoder=lambda v: v.decode("ascii"),
-            decoder=lambda v: v.encode("ascii"),
-        ),
+        metadata=config(field_name="address"),
     )
     check_validity: InitVar[bool] = True
 
@@ -100,7 +96,7 @@ class TxOut(DataClassJsonMixin):
         return self.script_pub_key
 
     @property
-    def address(self) -> bytes:
+    def address(self) -> str:
         "Return the address, if any."
         return address_from_script_pub_key(self.script_pub_key, self.network)
 
