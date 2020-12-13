@@ -23,6 +23,7 @@ https://en.bitcoin.it/wiki/Timelock
 """
 
 from dataclasses import InitVar, dataclass, field
+from io import SEEK_CUR
 from math import ceil
 from typing import Dict, List, Type, TypeVar
 
@@ -229,10 +230,8 @@ class Tx(DataClassJsonMixin):
 
         segwit = stream.read(2) == _SEGWIT_MARKER
         if not segwit:
-            # Change stream position
-            # Seek to byte offset relative to position indicated by whence
-            whence = 1  # current position
-            stream.seek(-2, whence)
+            # Change stream position: seek to byte offset relative to position
+            stream.seek(-2, SEEK_CUR)  # current position
 
         n = var_int.deserialize(stream)
         vin = [TxIn.deserialize(stream) for _ in range(n)]
