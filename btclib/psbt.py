@@ -259,9 +259,9 @@ class Psbt(DataClassJsonMixin):
             check_validity=assert_valid,
         )
 
-    def b64encode(self, assert_valid: bool = True) -> bytes:
+    def b64encode(self, assert_valid: bool = True) -> str:
         psbt_bin = self.serialize(assert_valid)
-        return base64.b64encode(psbt_bin)
+        return base64.b64encode(psbt_bin).decode("ascii")
 
     @classmethod
     def b64decode(
