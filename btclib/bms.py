@@ -151,7 +151,7 @@ from .sec_point import bytes_from_point
 from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from .utils import bytesio_from_binarydata, hash160
 
-_EXPECTED_DECODED_LENGHT = 65
+_REQUIRED_LENGHT = 65
 
 _Sig = TypeVar("_Sig", bound="Sig")
 
@@ -186,21 +186,6 @@ class Sig(DataClassJsonMixin):
         out += self.dsa_sig.s.to_bytes(nsize, byteorder="big", signed=False)
         return out
 
-    @classmethod
-    def deserialize(
-        cls: Type[_Sig], data: BinaryData, check_validity: bool = True
-    ) -> _Sig:
-
-        stream = bytesio_from_binarydata(data)
-        rf = int.from_bytes(stream.read(1), byteorder="big", signed=False)
-        ec = secp256k1
-        nsize = ec.nsize
-        r = int.from_bytes(stream.read(nsize), byteorder="big", signed=False)
-        s = int.from_bytes(stream.read(nsize), byteorder="big", signed=False)
-        dsa_sig = dsa.Sig(r, s, ec, check_validity=False)
-
-        return cls(rf, dsa_sig, check_validity)
-
     def b64encode(self, check_validity: bool = True) -> bytes:
         """Return the BMS address-based signature as base64-encoding.
 
@@ -210,6 +195,28 @@ class Sig(DataClassJsonMixin):
         """
         data_binary = self.serialize(check_validity)
         return base64.b64encode(data_binary)
+
+    @classmethod
+    def deserialize(
+        cls: Type[_Sig], data: BinaryData, check_validity: bool = True
+    ) -> _Sig:
+
+        stream = bytesio_from_binarydata(data)
+        sig_bin = stream.read(_REQUIRED_LENGHT)
+
+        if check_validity and len(sig_bin) != _REQUIRED_LENGHT:
+            err_msg = f"invalid decoded length: {len(sig_bin)}"
+            err_msg += f" instead of {_REQUIRED_LENGHT}"
+            raise BTClibValueError(err_msg)
+
+        rf = sig_bin[0]
+        ec = secp256k1
+        nsize = ec.nsize
+        r = int.from_bytes(sig_bin[1 : 1 + nsize], "big", signed=False)
+        s = int.from_bytes(sig_bin[1 + nsize : 1 + 2 * nsize], "big", signed=False)
+        dsa_sig = dsa.Sig(r, s, ec, check_validity=False)
+
+        return cls(rf, dsa_sig, check_validity)
 
     @classmethod
     def b64decode(cls: Type[_Sig], data: String, check_validity: bool = True) -> _Sig:
@@ -224,12 +231,6 @@ class Sig(DataClassJsonMixin):
             data = data.strip()
 
         data_decoded = base64.b64decode(data)
-
-        if check_validity and len(data_decoded) != _EXPECTED_DECODED_LENGHT:
-            err_msg = f"invalid decoded length: {len(data_decoded)}"
-            err_msg += f" instead of {_EXPECTED_DECODED_LENGHT}"
-            raise BTClibValueError(err_msg)
-
         return cls.deserialize(data_decoded, check_validity)
 
 

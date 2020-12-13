@@ -70,7 +70,7 @@ ec = secp256k1
 
 
 _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
-_EXPECTED_DECODED_LENGHT = 78
+_REQUIRED_LENGHT = 78
 
 
 @dataclass
@@ -188,6 +188,10 @@ class BIP32KeyData(DataClassJsonMixin):
         xkey_bin += self.key
         return xkey_bin
 
+    def b58encode(self, check_validity: bool = True) -> bytes:
+        data_binary = self.serialize(check_validity)
+        return base58.b58encode(data_binary)
+
     @classmethod
     def deserialize(
         cls: Type[_BIP32KeyData], xkey_bin: BinaryData, check_validity: bool = True
@@ -195,27 +199,22 @@ class BIP32KeyData(DataClassJsonMixin):
         "Return a BIP32KeyData by parsing 73 bytes from binary data."
 
         stream = bytesio_from_binarydata(xkey_bin)
+        xkey_bin = stream.read(_REQUIRED_LENGHT)
 
-        version = stream.read(4)
-        depth = int.from_bytes(stream.read(1), byteorder="big", signed=False)
-        parent_fingerprint = stream.read(4)
-        index = int.from_bytes(stream.read(4), byteorder="big", signed=False)
-        chain_code = stream.read(32)
-        key = stream.read(33)
+        if check_validity and len(xkey_bin) != _REQUIRED_LENGHT:
+            err_msg = f"invalid decoded length: {len(xkey_bin)}"
+            err_msg += f" instead of {_REQUIRED_LENGHT}"
+            raise BTClibValueError(err_msg)
 
         return cls(
-            version,
-            depth,
-            parent_fingerprint,
-            index,
-            chain_code,
-            key,
-            check_validity,
+            version=xkey_bin[0:4],
+            depth=xkey_bin[4],
+            parent_fingerprint=xkey_bin[5:9],
+            index=int.from_bytes(xkey_bin[9:13], byteorder="big", signed=False),
+            chain_code=xkey_bin[13:45],
+            key=xkey_bin[45:78],
+            check_validity=check_validity,
         )
-
-    def b58encode(self, check_validity: bool = True) -> bytes:
-        data_binary = self.serialize(check_validity)
-        return base58.b58encode(data_binary)
 
     @classmethod
     def b58decode(
@@ -226,12 +225,6 @@ class BIP32KeyData(DataClassJsonMixin):
             address = address.strip()
 
         xkey_bin = base58.b58decode(address)
-
-        if check_validity and len(xkey_bin) != _EXPECTED_DECODED_LENGHT:
-            err_msg = f"invalid decoded length: {len(xkey_bin)}"
-            err_msg += f" instead of {_EXPECTED_DECODED_LENGHT}"
-            raise BTClibValueError(err_msg)
-
         return cls.deserialize(xkey_bin, check_validity)
 
 
