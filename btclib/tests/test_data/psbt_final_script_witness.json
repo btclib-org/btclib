@@ -36,28 +36,38 @@
             "bip32_derivs": [
                 {
                     "pub_key": "02ccb438a1d9fae7aaff5c058949f0768d4fa24671f1c43643f194098316a85475",
-                    "master_fingerprint": "26a8bbf0",
-                    "path": "m/44'/1'/0'/0/0"
+                    "key_origin": {
+                        "master_fingerprint": "26a8bbf0",
+                        "path": "m/44'/1'/0'/0/0"
+                    }
                 },
                 {
                     "pub_key": "02f3448accdbf6e648ff8c9c591797b57ebfbd7bab0e2a4fcaeba686f9a9df58e1",
-                    "master_fingerprint": "66fc0520",
-                    "path": "m/44'/1'/0'/0/0"
+                    "key_origin": {
+                        "master_fingerprint": "66fc0520",
+                        "path": "m/44'/1'/0'/0/0"
+                    }
                 },
                 {
                     "pub_key": "033a1229e67ad80e37234edafda3fc9dc02a2e5d70e7d861c11c94515d178edaf5",
-                    "master_fingerprint": "195e17fa",
-                    "path": "m/44'/1'/0'/0/0"
+                    "key_origin": {
+                        "master_fingerprint": "195e17fa",
+                        "path": "m/44'/1'/0'/0/0"
+                    }
                 },
                 {
                     "pub_key": "03519b8d8f86813e07852728d31338f1d1d772865bf4792aa87d6f1ceb1e348fcd",
-                    "master_fingerprint": "10a954a7",
-                    "path": "m/44'/1'/0'/0/0"
+                    "key_origin": {
+                        "master_fingerprint": "10a954a7",
+                        "path": "m/44'/1'/0'/0/0"
+                    }
                 },
                 {
                     "pub_key": "03cd36dabe3dfd4e473a5a62a97a40b2e6bb47bb502bcf13163c91262f0604a068",
-                    "master_fingerprint": "3f8755f6",
-                    "path": "m/44'/1'/0'/0/0"
+                    "key_origin": {
+                        "master_fingerprint": "3f8755f6",
+                        "path": "m/44'/1'/0'/0/0"
+                    }
                 }
             ],
             "final_script_sig": "",

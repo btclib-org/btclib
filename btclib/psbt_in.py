@@ -18,6 +18,8 @@ from typing import Dict, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
+from btclib.bip32_path import BIP32KeyOrigin
+
 from . import dsa, sec_point
 from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_out import (
@@ -32,6 +34,7 @@ from .psbt_out import (
     _encode_hd_key_paths,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
+    _serialize_hd_key_paths,
 )
 from .sign_hash import assert_valid_hash_type
 from .tx import Tx
@@ -142,7 +145,7 @@ class PsbtIn(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    hd_key_paths: Dict[bytes, bytes] = field(
+    hd_key_paths: Dict[bytes, BIP32KeyOrigin] = field(
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
@@ -233,7 +236,7 @@ class PsbtIn(DataClassJsonMixin):
                 )
 
             if self.hd_key_paths:
-                psbt_in_bin += _serialize_dict_bytes_bytes(
+                psbt_in_bin += _serialize_hd_key_paths(
                     PSBT_IN_BIP32_DERIVATION, self.hd_key_paths
                 )
 
@@ -265,7 +268,7 @@ class PsbtIn(DataClassJsonMixin):
         sig_hash_type = None
         redeem_script = b""
         witness_script = b""
-        hd_key_paths: Dict[bytes, bytes] = {}
+        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
         final_script_sig = b""
         final_script_witness = Witness()
         unknown: Dict[bytes, bytes] = {}
@@ -298,7 +301,7 @@ class PsbtIn(DataClassJsonMixin):
             elif k[:1] == PSBT_IN_BIP32_DERIVATION:
                 if k[1:] in hd_key_paths:
                     raise BTClibValueError("duplicate PsbtIn hd_key_paths")
-                hd_key_paths[k[1:]] = v
+                hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
             elif k[:1] == PSBT_IN_FINAL_SCRIPTSIG:
                 if final_script_sig:
                     raise BTClibValueError("duplicate PsbtIn final_script_sig")

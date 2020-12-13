@@ -119,7 +119,7 @@ class BIP32KeyOrigin(DataClassJsonMixin):
         metadata=config(
             field_name="master_fingerprint",
             encoder=lambda v: v.hex(),
-            decoder=bytes.fromhex,
+            decoder=bytes.fromhex,  # use bytes_from_octets(v, 4)
         ),
     )
     der_path: Sequence[int] = field(

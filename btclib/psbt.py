@@ -20,6 +20,8 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
+from btclib.bip32_path import BIP32KeyOrigin
+
 from . import script, var_int
 from .alias import Octets, String
 from .exceptions import BTClibValueError
@@ -34,6 +36,7 @@ from .psbt_out import (
     _encode_hd_key_paths,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
+    _serialize_hd_key_paths,
 )
 from .script_pub_key import payload_from_script_pub_key
 from .tx import Tx
@@ -71,7 +74,7 @@ class Psbt(DataClassJsonMixin):
     inputs: List[PsbtIn] = field(default_factory=list)
     outputs: List[PsbtOut] = field(default_factory=list)
     version: int = 0  # current BIP174 PSBT version
-    hd_key_paths: Dict[bytes, bytes] = field(
+    hd_key_paths: Dict[bytes, BIP32KeyOrigin] = field(
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
@@ -183,7 +186,7 @@ class Psbt(DataClassJsonMixin):
             temp = self.version.to_bytes(4, byteorder="little", signed=False)
             psbt_bin += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
         if self.hd_key_paths:
-            psbt_bin += _serialize_dict_bytes_bytes(PSBT_GLOBAL_XPUB, self.hd_key_paths)
+            psbt_bin += _serialize_hd_key_paths(PSBT_GLOBAL_XPUB, self.hd_key_paths)
         if self.unknown:
             psbt_bin += _serialize_dict_bytes_bytes(b"", self.unknown)
 
@@ -207,7 +210,7 @@ class Psbt(DataClassJsonMixin):
 
         tx = Tx(check_validity=False)
         version = 0
-        hd_key_paths: Dict[bytes, bytes] = {}
+        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
         unknown: Dict[bytes, bytes] = {}
 
         psbt_bin = bytes_from_octets(psbt_bin)
@@ -230,7 +233,7 @@ class Psbt(DataClassJsonMixin):
             elif k[:1] == PSBT_GLOBAL_XPUB:
                 if k[1:] in hd_key_paths:
                     raise BTClibValueError("duplicate Psbt hd_key_paths")
-                hd_key_paths[k[1:]] = v
+                hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
             else:  # unknown
                 if k in unknown:
                     raise BTClibValueError("duplicate Psbt unknown")
@@ -288,7 +291,7 @@ class Psbt(DataClassJsonMixin):
             tx = Tx()  # unsigned, unlocked, version 1
 
         psbt_version = 0
-        hd_key_paths: Dict[bytes, bytes] = {}
+        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
         unknown: Dict[bytes, bytes] = {}
 
         return cls(

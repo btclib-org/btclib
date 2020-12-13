@@ -14,20 +14,18 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import InitVar, dataclass, field
-from typing import Dict, List, Tuple, Type, TypeVar
+from typing import Any, Collection, Dict, List, Tuple, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import var_bytes
-from .bip32_path import (
-    bytes_from_bip32_path,
-    indexes_from_bip32_path,
-    str_from_bip32_path,
-)
+from .bip32_path import BIP32KeyOrigin, indexes_from_bip32_path
 from .exceptions import BTClibTypeError, BTClibValueError
 
 # from .to_pub_key import point_from_pub_key
 from .utils import bytes_from_octets
+
+# from btclib.to_pub_key import point_from_pub_key
 
 
 def _encode_dict_bytes_bytes(dictionary: Dict[bytes, bytes]) -> Dict[str, str]:
@@ -77,43 +75,59 @@ def _assert_valid_witness_script(witness_script: bytes) -> None:
         raise BTClibTypeError("invalid witness script")
 
 
-def _encode_hd_key_paths(dictionary: Dict[bytes, bytes]) -> List[Dict[str, str]]:
+def _encode_hd_key_paths(
+    dictionary: Dict[bytes, BIP32KeyOrigin]
+) -> List[Dict[str, Any]]:
     "Return the json representation of the dataclass element."
 
-    result: List[Dict[str, str]] = []
-    for k, v in dictionary.items():
-        d_str_str: Dict[str, str] = {
-            "pub_key": k.hex(),
-            "master_fingerprint": v[:4].hex(),
-            "path": str_from_bip32_path(v[4:]),
+    return [
+        {
+            "pub_key": pub_key.hex(),
+            "key_origin": key_origin,
         }
-        result.append(d_str_str)
-    return result
+        for pub_key, key_origin in dictionary.items()
+    ]
 
 
-def _decode_hd_key_path(new_element: Dict[str, str]) -> Tuple[bytes, bytes]:
-    v = bytes_from_octets(new_element["master_fingerprint"], 4)
-    v += bytes_from_bip32_path(new_element["path"])
+def _decode_hd_key_path(new_element: Dict[str, Any]) -> Tuple[bytes, BIP32KeyOrigin]:
+    fingerprint = bytes_from_octets(new_element["key_origin"]["master_fingerprint"], 4)
+    der_path = indexes_from_bip32_path(new_element["key_origin"]["path"])
     k = bytes_from_octets(new_element["pub_key"], [33, 65, 78])
-    return k, v
+    return k, BIP32KeyOrigin(fingerprint, der_path)
 
 
-def _decode_hd_key_paths(list_of_dict: List[Dict[str, str]]) -> Dict[bytes, bytes]:
+def _decode_hd_key_paths(
+    list_of_dict: List[Dict[str, Collection[str]]]
+) -> Dict[bytes, BIP32KeyOrigin]:
     "Return the dataclass element from its json representation."
 
     return dict([_decode_hd_key_path(item) for item in list_of_dict])
 
 
-def _assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, bytes]) -> None:
+def _serialize_hd_key_paths(
+    type_: bytes, dictionary: Dict[bytes, BIP32KeyOrigin]
+) -> bytes:
+    "Return the binary representation of the dataclass element."
+
+    return b"".join(
+        [
+            var_bytes.serialize(type_ + k) + var_bytes.serialize(v.serialize())
+            for k, v in sorted(dictionary.items())
+        ]
+    )
+
+
+def _assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, BIP32KeyOrigin]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     allowed_lengths = (78, 33, 65)
     for pub_key, key_origin in hd_key_paths.items():
+        # test vector 6 contains an invalid pubkey
         # point_from_pub_key(pub_key)
         if len(pub_key) not in allowed_lengths:
             err_msg = "invalid public key"
             raise BTClibValueError(err_msg)
-        indexes_from_bip32_path(key_origin)
+        key_origin.assert_valid()
 
 
 def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
@@ -146,7 +160,7 @@ class PsbtOut(DataClassJsonMixin):
     witness_script: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
-    hd_key_paths: Dict[bytes, bytes] = field(
+    hd_key_paths: Dict[bytes, BIP32KeyOrigin] = field(
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
@@ -191,7 +205,7 @@ class PsbtOut(DataClassJsonMixin):
             )
 
         if self.hd_key_paths:
-            psbt_out_bin += _serialize_dict_bytes_bytes(
+            psbt_out_bin += _serialize_hd_key_paths(
                 PSBT_OUT_BIP32_DERIVATION, self.hd_key_paths
             )
 
@@ -210,7 +224,7 @@ class PsbtOut(DataClassJsonMixin):
 
         redeem_script = b""
         witness_script = b""
-        hd_key_paths: Dict[bytes, bytes] = {}
+        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
         unknown: Dict[bytes, bytes] = {}
 
         for k, v in output_map.items():
@@ -226,7 +240,7 @@ class PsbtOut(DataClassJsonMixin):
                 #  deserialize just one hd key path at time :-(
                 if k[1:] in hd_key_paths:
                     raise BTClibValueError("duplicate PsbtOut hd_key_paths")
-                hd_key_paths[k[1:]] = v
+                hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
             else:  # unknown
                 if k in unknown:
                     raise BTClibValueError("duplicate PsbtOut unknown")
