@@ -15,10 +15,12 @@ from os import path
 
 import pytest
 
+from btclib import bip32, hashes
 from btclib.bip32_path import (
     _HARDENING,
     BIP32KeyOrigin,
     BIP32KeyPath,
+    BIP32KeyPaths,
     _indexes_from_bip32_path_str,
     _int_from_index_str,
     _str_from_index_int,
@@ -223,7 +225,7 @@ def test_bip32_key_path() -> None:
         invalid_key_path.assert_valid()
 
     fingerprint = "deadbeef"
-    der_path = "/44'/0'/1'/0/10"
+    der_path = "/44h/0h/1h/0/10"
     description = fingerprint + der_path
     key_origin = BIP32KeyOrigin.from_description(description)
     assert len(key_origin) == 5
@@ -273,3 +275,86 @@ def test_dataclasses_json_dict_key_path() -> None:
     assert isinstance(key_path2, BIP32KeyPath)
 
     assert key_path == key_path2
+
+
+def test_bip32_key_paths() -> None:
+
+    master_xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    fingerprint = hashes.fingerprint(master_xprv)
+
+    der_path0 = "m/44h/0h/1h/0/0"
+    der_path1 = "m/44h/0h/1h/0/1"
+    der_path2 = "m/44h/0h/1h/0/2"
+
+    pub_key0 = bip32._xpub_from_xprv(bip32._derive(master_xprv, der_path0))
+    pub_key1 = bip32._xpub_from_xprv(bip32._derive(master_xprv, der_path1))
+    pub_key2 = bip32._xpub_from_xprv(bip32._derive(master_xprv, der_path2))
+
+    hd_key_paths = {
+        # FIXME: allow BIP32KeyOrigin with der_path string
+        pub_key0.key: BIP32KeyOrigin(fingerprint, indexes_from_bip32_path(der_path0)),
+        pub_key1.key: BIP32KeyOrigin(fingerprint, indexes_from_bip32_path(der_path1)),
+        pub_key2.key: BIP32KeyOrigin(fingerprint, indexes_from_bip32_path(der_path2)),
+    }
+
+    key_paths = BIP32KeyPaths(hd_key_paths)
+    assert len(key_paths) == len(hd_key_paths)
+
+    key_paths_bin = key_paths.serialize(b"\x00")
+    key_paths_deser = BIP32KeyPaths.deserialize(key_paths_bin, b"\x00")
+    assert len(key_paths_deser) == len(hd_key_paths)
+    assert key_paths == key_paths_deser
+
+    with pytest.raises(BTClibValueError, match="invalid type marker"):
+        key_paths.serialize(b"\x00\x00")
+    with pytest.raises(BTClibValueError, match="invalid type marker"):
+        BIP32KeyPaths.deserialize(key_paths_bin, b"\x00\x00")
+
+
+def test_dataclasses_json_dict_key_paths() -> None:
+
+    master_xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    fingerprint = hashes.fingerprint(master_xprv)
+
+    der_path0 = "m/44h/0h/1h/0/0"
+    der_path1 = "m/44h/0h/1h/0/1"
+    der_path2 = "m/44h/0h/1h/0/2"
+
+    pub_key0 = bip32._xpub_from_xprv(bip32._derive(master_xprv, der_path0))
+    pub_key1 = bip32._xpub_from_xprv(bip32._derive(master_xprv, der_path1))
+    pub_key2 = bip32._xpub_from_xprv(bip32._derive(master_xprv, der_path2))
+
+    hd_key_paths = {
+        # FIXME: allow BIP32KeyOrigin with der_path string
+        pub_key0.key: BIP32KeyOrigin(fingerprint, indexes_from_bip32_path(der_path0)),
+        pub_key1.key: BIP32KeyOrigin(fingerprint, indexes_from_bip32_path(der_path1)),
+        pub_key2.key: BIP32KeyOrigin(fingerprint, indexes_from_bip32_path(der_path2)),
+    }
+
+    key_paths = BIP32KeyPaths(hd_key_paths)
+
+    # BIP32KeyPaths dataclass
+    assert isinstance(key_paths, BIP32KeyPaths)
+
+    # BIP32KeyPaths dataclass to dict
+    key_path_dicts = key_paths.to_dict()
+    assert isinstance(key_path_dicts, dict)
+
+    # BIP32KeyPaths dataclass dict to file
+    datadir = path.join(path.dirname(__file__), "generated_files")
+    filename = path.join(datadir, "key_paths.json")
+    with open(filename, "w") as file_:
+        json.dump(key_path_dicts, file_, indent=4)
+
+    # BIP32KeyPaths dataclass dict from file
+    with open(filename, "r") as file_:
+        key_path_dict2 = json.load(file_)
+    assert isinstance(key_path_dict2, dict)
+
+    assert key_path_dicts == key_path_dict2
+
+    # BIP32KeyPaths dataclass from dict
+    key_path2 = BIP32KeyPaths.from_dict(key_path_dicts)
+    assert isinstance(key_path2, BIP32KeyPaths)
+
+    assert key_paths == key_path2

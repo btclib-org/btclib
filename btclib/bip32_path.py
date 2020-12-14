@@ -18,16 +18,29 @@ A BIP 32 derivation path can be represented as:
 """
 
 from dataclasses import InitVar, dataclass, field
-from typing import List, Sequence, Type, TypeVar, Union
+from io import SEEK_CUR
+from typing import (
+    Any,
+    Collection,
+    Dict,
+    List,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from dataclasses_json import DataClassJsonMixin, config
+
+from btclib.sec_point import point_from_octets
 
 from . import var_bytes
 from .alias import BinaryData
 from .exceptions import BTClibValueError
-from .sec_point import point_from_octets
-from .utils import bytesio_from_binarydata
+from .utils import bytes_from_octets, bytesio_from_binarydata
 
+# default hardening symbol among the possible ones: "h", "H", "'"
 _HARDENING = "h"
 
 
@@ -232,3 +245,108 @@ class BIP32KeyPath(DataClassJsonMixin):
         key_origin = BIP32KeyOrigin.deserialize(der_path_bytes, check_validity)
 
         return cls(pub_key, key_origin, check_validity)
+
+
+def _encode_hd_key_paths(
+    dictionary: Dict[bytes, BIP32KeyOrigin]
+) -> List[Dict[str, Any]]:
+    "Return the json representation of the dataclass element."
+
+    return [
+        {
+            "pub_key": pub_key.hex(),
+            "key_origin": key_origin,
+        }
+        for pub_key, key_origin in dictionary.items()
+    ]
+
+
+def _decode_hd_key_path(new_element: Dict[str, Any]) -> Tuple[bytes, BIP32KeyOrigin]:
+    fingerprint = bytes_from_octets(new_element["key_origin"]["master_fingerprint"], 4)
+    der_path = indexes_from_bip32_path(new_element["key_origin"]["path"])
+    k = bytes_from_octets(new_element["pub_key"], [33, 65, 78])
+    return k, BIP32KeyOrigin(fingerprint, der_path)
+
+
+def _decode_hd_key_paths(
+    list_of_dict: List[Dict[str, Collection[str]]]
+) -> Dict[bytes, BIP32KeyOrigin]:
+    "Return the dataclass element from its json representation."
+
+    return dict([_decode_hd_key_path(item) for item in list_of_dict])
+
+
+_BIP32KeyPaths = TypeVar("_BIP32KeyPaths", bound="BIP32KeyPaths")
+
+
+@dataclass
+class BIP32KeyPaths(DataClassJsonMixin):
+    hd_key_paths: Dict[bytes, BIP32KeyOrigin] = field(
+        default_factory=dict,
+        metadata=config(
+            field_name="bip32_derivs",
+            encoder=_encode_hd_key_paths,
+            decoder=_decode_hd_key_paths,
+        ),
+    )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        self.hd_key_paths = dict(sorted(self.hd_key_paths.items()))
+        if check_validity:
+            self.assert_valid()
+
+    def __len__(self):
+        return len(self.hd_key_paths)
+
+    def assert_valid(self) -> None:
+        allowed_lengths = (78, 33, 65)
+        for pub_key, key_origin in self.hd_key_paths.items():
+            # test vector 6 contains an invalid pubkey
+            # point_from_pub_key(pub_key)
+            if len(pub_key) not in allowed_lengths:
+                err_msg = f"invalid public key length: {len(pub_key)}"
+                raise BTClibValueError(err_msg)
+            key_origin.assert_valid()
+
+    def serialize(self, type_: bytes, check_validity: bool = True) -> bytes:
+
+        if check_validity:
+            self.assert_valid()
+
+        if len(type_) != 1:
+            raise BTClibValueError("invalid type marker")
+
+        return b"".join(
+            [
+                var_bytes.serialize(type_ + k) + var_bytes.serialize(v.serialize())
+                for k, v in sorted(self.hd_key_paths.items())
+            ]
+        )
+
+    @classmethod
+    def deserialize(
+        cls: Type[_BIP32KeyPaths],
+        data: BinaryData,
+        type_: bytes,
+        check_validity: bool = True,
+    ) -> _BIP32KeyPaths:
+        "Return a BIP32KeyPaths by parsing binary data."
+
+        if len(type_) != 1:
+            raise BTClibValueError("invalid type marker")
+
+        stream = bytesio_from_binarydata(data)
+        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
+        while stream.read(1):
+            stream.seek(-1, SEEK_CUR)
+            prefixed_pubkey = var_bytes.deserialize(stream)
+            if prefixed_pubkey and prefixed_pubkey[:1] == type_:
+                pubkey = prefixed_pubkey[1:]
+                if pubkey in hd_key_paths:
+                    raise BTClibValueError("duplicate pubkey")
+                key_origin_bytes = var_bytes.deserialize(stream)
+                key_origin = BIP32KeyOrigin.deserialize(key_origin_bytes)
+                hd_key_paths[pubkey] = key_origin
+
+        return cls(hd_key_paths, check_validity)

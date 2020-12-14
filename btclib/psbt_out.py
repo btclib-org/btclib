@@ -14,16 +14,19 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import InitVar, dataclass, field
-from typing import Any, Collection, Dict, List, Tuple, Type, TypeVar
+from typing import Dict, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import var_bytes
-from .bip32_path import BIP32KeyOrigin, indexes_from_bip32_path
+from .bip32_path import (
+    BIP32KeyOrigin,
+    _decode_hd_key_paths,
+    _encode_hd_key_paths,
+)
 from .exceptions import BTClibTypeError, BTClibValueError
 
 # from .to_pub_key import point_from_pub_key
-from .utils import bytes_from_octets
 
 # from btclib.to_pub_key import point_from_pub_key
 
@@ -73,35 +76,6 @@ def _assert_valid_witness_script(witness_script: bytes) -> None:
     "Raise an exception if the dataclass element is not valid."
     if not isinstance(witness_script, bytes):
         raise BTClibTypeError("invalid witness script")
-
-
-def _encode_hd_key_paths(
-    dictionary: Dict[bytes, BIP32KeyOrigin]
-) -> List[Dict[str, Any]]:
-    "Return the json representation of the dataclass element."
-
-    return [
-        {
-            "pub_key": pub_key.hex(),
-            "key_origin": key_origin,
-        }
-        for pub_key, key_origin in dictionary.items()
-    ]
-
-
-def _decode_hd_key_path(new_element: Dict[str, Any]) -> Tuple[bytes, BIP32KeyOrigin]:
-    fingerprint = bytes_from_octets(new_element["key_origin"]["master_fingerprint"], 4)
-    der_path = indexes_from_bip32_path(new_element["key_origin"]["path"])
-    k = bytes_from_octets(new_element["pub_key"], [33, 65, 78])
-    return k, BIP32KeyOrigin(fingerprint, der_path)
-
-
-def _decode_hd_key_paths(
-    list_of_dict: List[Dict[str, Collection[str]]]
-) -> Dict[bytes, BIP32KeyOrigin]:
-    "Return the dataclass element from its json representation."
-
-    return dict([_decode_hd_key_path(item) for item in list_of_dict])
 
 
 def _serialize_hd_key_paths(
