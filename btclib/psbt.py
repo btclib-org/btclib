@@ -22,11 +22,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import script, var_int
 from .alias import Octets, String
-from .bip32_path import (
-    BIP32KeyOrigin,
-    _decode_hd_key_paths,
-    _encode_hd_key_paths,
-)
+from .bip32_path import BIP32KeyOrigin
 from .exceptions import BTClibValueError
 from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
 from .psbt_out import (
@@ -34,7 +30,9 @@ from .psbt_out import (
     _assert_valid_hd_key_paths,
     _assert_valid_unknown,
     _decode_dict_bytes_bytes,
+    _decode_hd_key_paths,
     _encode_dict_bytes_bytes,
+    _encode_hd_key_paths,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
     _serialize_hd_key_paths,

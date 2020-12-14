@@ -276,6 +276,35 @@ def _decode_hd_key_paths(
     return dict([_decode_hd_key_path(item) for item in list_of_dict])
 
 
+def _serialize_hd_key_paths(
+    type_: bytes, dictionary: Dict[bytes, BIP32KeyOrigin]
+) -> bytes:
+    "Return the binary representation of the dataclass element."
+
+    if len(type_) != 1:
+        raise BTClibValueError("invalid type marker")
+
+    return b"".join(
+        [
+            var_bytes.serialize(type_ + k) + var_bytes.serialize(v.serialize())
+            for k, v in sorted(dictionary.items())
+        ]
+    )
+
+
+def _assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, BIP32KeyOrigin]) -> None:
+    "Raise an exception if the dataclass element is not valid."
+
+    allowed_lengths = (78, 33, 65)
+    for pub_key, key_origin in hd_key_paths.items():
+        # test vector 6 contains an invalid pubkey
+        # point_from_pub_key(pub_key)
+        if len(pub_key) not in allowed_lengths:
+            err_msg = f"invalid public key length: {len(pub_key)}"
+            raise BTClibValueError(err_msg)
+        key_origin.assert_valid()
+
+
 _BIP32KeyPaths = TypeVar("_BIP32KeyPaths", bound="BIP32KeyPaths")
 
 
@@ -300,14 +329,7 @@ class BIP32KeyPaths(DataClassJsonMixin):
         return len(self.hd_key_paths)
 
     def assert_valid(self) -> None:
-        allowed_lengths = (78, 33, 65)
-        for pub_key, key_origin in self.hd_key_paths.items():
-            # test vector 6 contains an invalid pubkey
-            # point_from_pub_key(pub_key)
-            if len(pub_key) not in allowed_lengths:
-                err_msg = f"invalid public key length: {len(pub_key)}"
-                raise BTClibValueError(err_msg)
-            key_origin.assert_valid()
+        _assert_valid_hd_key_paths(self.hd_key_paths)
 
     def serialize(self, type_: bytes, check_validity: bool = True) -> bytes:
 
@@ -317,12 +339,7 @@ class BIP32KeyPaths(DataClassJsonMixin):
         if len(type_) != 1:
             raise BTClibValueError("invalid type marker")
 
-        return b"".join(
-            [
-                var_bytes.serialize(type_ + k) + var_bytes.serialize(v.serialize())
-                for k, v in sorted(self.hd_key_paths.items())
-            ]
-        )
+        return _serialize_hd_key_paths(type_, self.hd_key_paths)
 
     @classmethod
     def deserialize(

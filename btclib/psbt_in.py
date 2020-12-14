@@ -19,11 +19,7 @@ from typing import Dict, Optional, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 
 from . import dsa, sec_point
-from .bip32_path import (
-    BIP32KeyOrigin,
-    _decode_hd_key_paths,
-    _encode_hd_key_paths,
-)
+from .bip32_path import BIP32KeyOrigin
 from .exceptions import BTClibTypeError, BTClibValueError
 from .psbt_out import (
     _assert_valid_hd_key_paths,
@@ -31,8 +27,10 @@ from .psbt_out import (
     _assert_valid_unknown,
     _assert_valid_witness_script,
     _decode_dict_bytes_bytes,
+    _decode_hd_key_paths,
     _deserialize_bytes,
     _encode_dict_bytes_bytes,
+    _encode_hd_key_paths,
     _serialize_bytes,
     _serialize_dict_bytes_bytes,
     _serialize_hd_key_paths,

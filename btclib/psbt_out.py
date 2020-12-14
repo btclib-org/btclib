@@ -21,14 +21,14 @@ from dataclasses_json import DataClassJsonMixin, config
 from . import var_bytes
 from .bip32_path import (
     BIP32KeyOrigin,
+    _assert_valid_hd_key_paths,
     _decode_hd_key_paths,
     _encode_hd_key_paths,
+    _serialize_hd_key_paths,
 )
 from .exceptions import BTClibTypeError, BTClibValueError
 
 # from .to_pub_key import point_from_pub_key
-
-# from btclib.to_pub_key import point_from_pub_key
 
 
 def _encode_dict_bytes_bytes(dictionary: Dict[bytes, bytes]) -> Dict[str, str]:
@@ -76,32 +76,6 @@ def _assert_valid_witness_script(witness_script: bytes) -> None:
     "Raise an exception if the dataclass element is not valid."
     if not isinstance(witness_script, bytes):
         raise BTClibTypeError("invalid witness script")
-
-
-def _serialize_hd_key_paths(
-    type_: bytes, dictionary: Dict[bytes, BIP32KeyOrigin]
-) -> bytes:
-    "Return the binary representation of the dataclass element."
-
-    return b"".join(
-        [
-            var_bytes.serialize(type_ + k) + var_bytes.serialize(v.serialize())
-            for k, v in sorted(dictionary.items())
-        ]
-    )
-
-
-def _assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, BIP32KeyOrigin]) -> None:
-    "Raise an exception if the dataclass element is not valid."
-
-    allowed_lengths = (78, 33, 65)
-    for pub_key, key_origin in hd_key_paths.items():
-        # test vector 6 contains an invalid pubkey
-        # point_from_pub_key(pub_key)
-        if len(pub_key) not in allowed_lengths:
-            err_msg = f"invalid public key length: {len(pub_key)}"
-            raise BTClibValueError(err_msg)
-        key_origin.assert_valid()
 
 
 def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
