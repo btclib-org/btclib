@@ -11,8 +11,19 @@ Major changes includes:
 
 - added secp256k1 point multiplication based on efficient endomorphism
 - fixed ssa batch verification functions' logic
-- enforced snake_case convention for 'script_pubkey' and 'script_sig'
-  variable names
+- enforced snake_case variable naming convention,
+  e.g. 'script_pub_key', etc.
+- added BIP32KeyOrigin, BIP32KeyPath, and BIP32KeyPaths
+- adopted str instead of bytes as default type
+  for BIP32 keys, bms sigs, PSBTs, addresses, and WIFs;
+  base58 and bech32 encodings keep returning bytes, like base64
+- cleaned up and refactored all dataclasses,
+  now using serialize/deserialized and
+  possibly b58encode/b58decode, b64encode/b64decode, etc.
+- renamed TxIn.witness as TxIn.script_witness
+- fixed Witness management in TxIn and TX, including equality operator
+- consolidated sig_hash code into sig_hash module
+- added more script_pub_key functions: assert_p2pkh, is_p2pkh, etc.
 
 ## v2020.11.23
 
