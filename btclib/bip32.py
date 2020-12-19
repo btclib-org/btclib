@@ -51,9 +51,6 @@ from .curve import mult, secp256k1
 from .exceptions import BTClibTypeError, BTClibValueError
 from .mnemonic import Mnemonic
 from .network import (
-    _NETWORKS,
-    _P2WPKH_PRV_PREFIXES,
-    _XPRV_PREFIXES,
     _XPRV_VERSIONS_ALL,
     _XPUB_VERSIONS_ALL,
     NETWORKS,
@@ -295,13 +292,12 @@ def _mxprv_from_electrum_mnemonic(
     """
 
     version, seed = electrum._seed_from_mnemonic(mnemonic, passphrase or "")
-    network_index = _NETWORKS.index(network)
 
     if version == "standard":
-        xversion = _XPRV_PREFIXES[network_index]
+        xversion = NETWORKS[network].bip32_prv
         return _rootxprv_from_seed(seed, xversion)
     if version == "segwit":
-        xversion = _P2WPKH_PRV_PREFIXES[network_index]
+        xversion = NETWORKS[network].slip132_p2wpkh_prv
         rootxprv = rootxprv_from_seed(seed, xversion)
         return _derive(rootxprv, 0x80000000)  # "m/0h"
     raise BTClibValueError(f"unmanaged electrum mnemonic version: {version}")
