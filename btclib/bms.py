@@ -235,7 +235,7 @@ class Sig(DataClassJsonMixin):
 
 
 def gen_keys(
-    prv_key: PrvKey = None,
+    prv_key: Optional[PrvKey] = None,
     network: Optional[str] = None,
     compressed: Optional[bool] = None,
 ) -> Tuple[str, str]:

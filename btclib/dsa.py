@@ -34,7 +34,9 @@ from .to_pub_key import Key, point_from_key
 from .utils import bytes_from_octets, int_from_bits
 
 
-def gen_keys(prv_key: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, Point]:
+def gen_keys(
+    prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
+) -> Tuple[int, Point]:
     "Return a private/public (int, Point) key-pair."
 
     if prv_key is None:

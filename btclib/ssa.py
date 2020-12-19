@@ -172,7 +172,7 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
 
 def gen_keys_(
-    prv_key: PrvKey = None, ec: Curve = secp256k1
+    prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
 ) -> Tuple[int, int, JacPoint]:
     "Return a BIP340 private/public (int, JacPoint) key-pair."
 
@@ -190,19 +190,12 @@ def gen_keys_(
     return q, x_Q, QJ
 
 
-def gen_keys(prv_key: PrvKey = None, ec: Curve = secp256k1) -> Tuple[int, int]:
+def gen_keys(
+    prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
+) -> Tuple[int, int]:
     "Return a BIP340 private/public (int, int) key-pair."
 
-    if prv_key is None:
-        q = 1 + secrets.randbelow(ec.n - 1)
-    else:
-        q = int_from_prv_key(prv_key, ec)
-
-    QJ = _mult(q, ec.GJ, ec)
-    x_Q, y_Q = ec._aff_from_jac(QJ)
-    if y_Q % 2:
-        q = ec.n - q
-
+    q, x_Q, _ = gen_keys_(prv_key, ec)
     return q, x_Q
 
 
