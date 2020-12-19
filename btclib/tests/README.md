@@ -5,9 +5,7 @@
 btclib has no required packages, but btclib tests do:
 consider installing the required packages in a dedicated virtual environment.
 
-```shell
-python -m pip install -r requirements-dev.txt
-```
+    python -m pip install -r requirements-dev.txt
 
 ## Test
 
