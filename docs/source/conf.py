@@ -23,7 +23,7 @@ copyright = "2017-2020 The btclib developers"
 author = "The btclib developers"
 
 # The full version, including alpha/beta/rc tags
-release = "2020.12"
+release = "2020.12.19"
 
 
 # -- General configuration ---------------------------------------------------
