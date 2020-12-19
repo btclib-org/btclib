@@ -79,13 +79,13 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
-    m_fake = b"\x00" * 31
+    m_bytes = reduce_to_hlen(msg, hf)
     err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._assert_as_valid(m_fake, x_Q, sig)
+        ssa._assert_as_valid(m_bytes[:31], x_Q, sig)
 
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._sign(m_fake, q)
+        ssa._sign(m_bytes[:31], q)
 
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -94,9 +94,9 @@ def test_signature() -> None:
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._sign(reduce_to_hlen(msg, hf), q, 0)
+        ssa._sign(m_bytes, q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._sign(reduce_to_hlen(msg, hf), q, sig.ec.n)
+        ssa._sign(m_bytes, q, sig.ec.n)
 
     err_msg = "invalid zero challenge"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
