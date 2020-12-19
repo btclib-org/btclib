@@ -27,7 +27,7 @@ Major changes includes:
   now using serialize/deserialized and
   possibly b58encode/b58decode, b64encode/b64decode, etc.
 - renamed TxIn.witness as TxIn.script_witness
-- fixed Witness management in TxIn and TX, including equality operator
+- fixed Witness management in TxIn and Tx, including equality operator
 - consolidated sig_hash code into sig_hash module
 - added more script_pub_key functions: assert_p2pkh, is_p2pkh, etc.
 
