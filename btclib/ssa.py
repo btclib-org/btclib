@@ -39,7 +39,7 @@ from signature: c = TaggedHash('BIPSchnorr', x_k||x_Q||msg).
 
 A custom deterministic algorithm for the ephemeral key (nonce)
 is used for signing, instead of the RFC6979 standard:
-k = TaggedHash('BIPSchnorrDerive', q||msg)
+nonce = TaggedHash('BIPSchnorrDerive', q||msg)
 
 Finally, BIP340-Schnorr adopts a robust [r][s] custom serialization
 format, instead of the loosely specified ASN.1 DER standard.
@@ -223,11 +223,17 @@ def __det_nonce(m: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> i
     while True:
         t = tagged_hash("BIP0340/nonce", t, hf)
         # The following lines would introduce a bias
-        # k = int.from_bytes(t, 'big') % ec.n
-        # k = int_from_bits(t, ec.nlen) % ec.n
-        k = int_from_bits(t, ec.nlen)  # candidate k
-        if 0 < k < ec.n:  # acceptable value for k
-            return k  # successful candidate
+        # nonce = int.from_bytes(t, 'big') % ec.n
+        # nonce = int_from_bits(t, ec.nlen) % ec.n
+        # In general, taking a uniformly random integer (like those
+        # obtained from a hash function in the random oracle model)
+        # modulo the curve order n would produce a biased result.
+        # However, if the order n is sufficiently close to 2^hf_len,
+        # then the bias is not observable: e.g.
+        # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
+        nonce = int_from_bits(t, ec.nlen)  # candidate nonce
+        if 0 < nonce < ec.n:  # acceptable value for nonce
+            return nonce  # successful candidate
 
 
 def _det_nonce(
@@ -302,16 +308,16 @@ def challenge(
     return _challenge(m, Q, K, ec, hf)
 
 
-def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> Sig:
+def __sign(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
-    # It assume that c is in [1, n-1], while q and k are in [1, n-1]
+    # It assume that c is in [1, n-1], while q and nonce are in [1, n-1]
 
     if c == 0:  # c≠0 required as it multiplies the private key
         raise BTClibRuntimeError("invalid zero challenge")
 
     # s=0 is ok: in verification there is no inverse of s
-    s = (k + c * q) % ec.n
+    s = (nonce + c * q) % ec.n
 
     return Sig(r, s, ec)
 
@@ -319,7 +325,7 @@ def __sign(c: int, q: int, k: int, r: int, ec: Curve) -> Sig:
 def _sign(
     m: Octets,
     prv_key: PrvKey,
-    k: Optional[PrvKey] = None,
+    nonce: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
@@ -336,16 +342,16 @@ def _sign(
     # private and public keys
     q, x_Q = gen_keys(prv_key, ec)
 
-    # the nonce k: an integer in the range 1..n-1.
-    if k is None:
-        k = __det_nonce(m, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
+    # nonce: an integer in the range 1..n-1.
+    if nonce is None:
+        nonce = __det_nonce(m, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
 
-    k, x_K = gen_keys(k, ec)
+    nonce, x_K = gen_keys(nonce, ec)
 
     # the challenge
     c = __challenge(m, x_Q, x_K, ec, hf)
 
-    return __sign(c, q, k, x_K, ec)
+    return __sign(c, q, nonce, x_K, ec)
 
 
 def sign(
@@ -494,10 +500,10 @@ def _crack_prv_key(
     c_1 = _challenge(m_1, x_Q, sig1.r, ec, hf)
     c_2 = _challenge(m_2, x_Q, sig2.r, ec, hf)
     q = (sig1.s - sig2.s) * mod_inv(c_2 - c_1, ec.n) % ec.n
-    k = (sig1.s + c_1 * q) % ec.n
+    nonce = (sig1.s + c_1 * q) % ec.n
     q, _ = gen_keys(q)
-    k, _ = gen_keys(k)
-    return q, k
+    nonce, _ = gen_keys(nonce)
+    return q, nonce
 
 
 def crack_prv_key(

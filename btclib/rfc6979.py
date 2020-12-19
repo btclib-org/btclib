@@ -99,6 +99,7 @@ def __rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
             t += v
         # The following line would introduce a bias
         # det_nonce = int.from_bytes(t, 'big') % ec.n
+        # det_nonce = int_from_bits(t, ec.nlen) % ec.n
         # In general, taking a uniformly random integer (like those
         # obtained from a hash function in the random oracle model)
         # modulo the curve order n would produce a biased result.

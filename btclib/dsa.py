@@ -69,14 +69,14 @@ def challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     return _challenge(m, ec, hf)
 
 
-def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> Sig:
+def __sign(c: int, q: int, nonce: int, low_s: bool, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
-    # It assume that c is in [0, n-1], while q and k are in [1, n-1]
+    # It assume that c is in [0, n-1], while q and nonce are in [1, n-1]
 
     # Steps numbering follows SEC 1 v.2 section 4.1.3
 
-    KJ = _mult(k, ec.GJ, ec)  # 1
+    KJ = _mult(nonce, ec.GJ, ec)  # 1
 
     # affine x_K-coordinate of K (field element)
     x_K = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
@@ -85,7 +85,7 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> Sig:
     if r == 0:  # r≠0 required as it multiplies the public key
         raise BTClibRuntimeError("failed to sign: r = 0")
 
-    s = mod_inv(k, ec.n) * (c + r * q) % ec.n  # 6
+    s = mod_inv(nonce, ec.n) * (c + r * q) % ec.n  # 6
     if s == 0:  # s≠0 required as verify will need the inverse of s
         raise BTClibRuntimeError("failed to sign: s = 0")
 
@@ -101,7 +101,7 @@ def __sign(c: int, q: int, k: int, low_s: bool, ec: Curve) -> Sig:
 def _sign(
     m: Octets,
     prv_key: PrvKey,
-    k: Optional[PrvKey] = None,
+    nonce: Optional[PrvKey] = None,
     low_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -123,14 +123,14 @@ def _sign(
     # the challenge
     c = _challenge(m, ec, hf)  # 4, 5
 
-    # the nonce k: an integer in the range 1..n-1.
-    if k is None:
-        k = __rfc6979(c, q, ec, hf)  # 1
+    # nonce: an integer in the range 1..n-1.
+    if nonce is None:
+        nonce = __rfc6979(c, q, ec, hf)  # 1
     else:
-        k = int_from_prv_key(k, ec)
+        nonce = int_from_prv_key(nonce, ec)
 
     # second part delegated to helper function
-    return __sign(c, q, k, low_s, ec)
+    return __sign(c, q, nonce, low_s, ec)
 
 
 def sign(
@@ -373,9 +373,9 @@ def _crack_prv_key(
     c_1 = _challenge(m_1, ec, hf)
     c_2 = _challenge(m_2, ec, hf)
 
-    k = (c_1 - c_2) * mod_inv(sig1.s - sig2.s, ec.n) % ec.n
-    q = (sig2.s * k - c_2) * mod_inv(sig1.r, ec.n) % ec.n
-    return q, k
+    nonce = (c_1 - c_2) * mod_inv(sig1.s - sig2.s, ec.n) % ec.n
+    q = (sig2.s * nonce - c_2) * mod_inv(sig1.r, ec.n) % ec.n
+    return q, nonce
 
 
 def crack_prv_key(
