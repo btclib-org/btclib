@@ -70,8 +70,8 @@ def test_mult_recursive_aff() -> None:
             QJ = _mult(q, ec.GJ, ec)
             assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
             assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
-        assert INF == _mult_recursive_aff(q, INF, ec), f"{q}, {ec}"
-        assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
+            assert INF == _mult_recursive_aff(q, INF, ec), f"{q}, {ec}"
+            assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
 
 def test_mult_recursive_jac() -> None:
@@ -132,8 +132,8 @@ def test_mult_aff() -> None:
             QJ = _mult(q, ec.GJ, ec)
             assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
             assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
-        assert INF == _mult_aff(q, INF, ec), f"{q}, {ec}"
-        assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
+            assert INF == _mult_aff(q, INF, ec), f"{q}, {ec}"
+            assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
 
 def test_mult_jac() -> None:
@@ -394,13 +394,13 @@ def test_assorted_jac_mult() -> None:
             assert ec._jac_equality(K1J, _multi_mult([k1, 0, 0, 0], points, ec))
             assert ec._jac_equality(INFJ, _multi_mult([0, 0, 0, 0], points, ec))
 
-    err_msg = "mismatch between number of scalars and points: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ], ec)
+            err_msg = "mismatch between number of scalars and points: "
+            with pytest.raises(BTClibValueError, match=err_msg):
+                _multi_mult([k1, k2, k3, k4], [ec.GJ, HJ, ec.GJ], ec)
 
-    err_msg = "negative coefficient: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        _multi_mult([k1, k2, -k3], [ec.GJ, HJ, ec.GJ], ec)
+            err_msg = "negative coefficient: "
+            with pytest.raises(BTClibValueError, match=err_msg):
+                _multi_mult([k1, k2, -k3], [ec.GJ, HJ, ec.GJ], ec)
 
     with pytest.raises(BTClibValueError, match="negative first coefficient: "):
         _double_mult(-5, HJ, 1, ec.GJ, ec)

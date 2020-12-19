@@ -356,9 +356,9 @@ def test_assorted_mult() -> None:
             assert K1 == multi_mult([k1, 0, 0, 0], points, ec)
             assert INF == multi_mult([0, 0, 0, 0], points, ec)
 
-    err_msg = "mismatch between number of scalars and points: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
+            err_msg = "mismatch between number of scalars and points: "
+            with pytest.raises(BTClibValueError, match=err_msg):
+                multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
 
 
 def test_double_mult() -> None:
