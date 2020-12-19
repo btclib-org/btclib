@@ -202,6 +202,7 @@ def is_p2wsh(script_pub_key: Octets) -> bool:
 
 def script_pub_key_from_payload(script_type: str, payload: Octets) -> bytes:
     "Return the script_pub_key for the provided script_type and payload."
+    # sourcery skip: switch
 
     script_type = script_type.lower()
 
