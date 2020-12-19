@@ -54,9 +54,9 @@ def gen_keys(
 
 def _challenge(m: Octets, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
 
-    # The message m: a hlen array
-    hlen = hf().digest_size
-    m = bytes_from_octets(m, hlen)
+    # The message m: a hf_len array
+    hf_len = hf().digest_size
+    m = bytes_from_octets(m, hf_len)
 
     # leftmost ec.nlen bits %= ec.n
     c = int_from_bits(m, ec.nlen) % ec.n  # 5
@@ -106,15 +106,15 @@ def _sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
-    """Sign a hlen bytes message according to ECDSA signature algorithm.
+    """Sign a hf_len bytes message according to ECDSA signature algorithm.
 
     If the deterministic nonce is not provided,
     the RFC6979 specification is used.
     """
 
-    # the message m: a hlen array
-    hlen = hf().digest_size
-    m = bytes_from_octets(m, hlen)
+    # the message m: a hf_len array
+    hf_len = hf().digest_size
+    m = bytes_from_octets(m, hf_len)
 
     # the secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
@@ -147,13 +147,13 @@ def sign(
 
         m = hf(msg),
 
-    a sequence of bits of length *hlen*.
+    a sequence of bits of length *hf_len*.
 
-    Normally, hf is chosen such that its output length *hlen* is
+    Normally, hf is chosen such that its output length *hf_len* is
     roughly equal to *nlen*, the bit-length of the group order *n*,
     since the overall security of the signature scheme will depend on
-    the smallest of *hlen* and *nlen*; however, the ECDSA standard
-    supports all combinations of *hlen* and *nlen*.
+    the smallest of *hf_len* and *nlen*; however, the ECDSA standard
+    supports all combinations of *hf_len* and *nlen*.
 
     RFC6979 is used for deterministic nonce.
 
@@ -197,7 +197,7 @@ def _assert_as_valid(
     else:
         sig.assert_valid()  # 1
 
-    # The message m: a hlen array
+    # The message m: a hf_len array
     m = bytes_from_octets(m, hf().digest_size)
     c = _challenge(m, sig.ec, hf)  # 2, 3
 
@@ -265,9 +265,9 @@ def _recover_pub_keys(
     else:
         sig.assert_valid()  # 1
 
-    # The message m: a hlen array
-    hlen = hf().digest_size
-    m = bytes_from_octets(m, hlen)
+    # The message m: a hf_len array
+    hf_len = hf().digest_size
+    m = bytes_from_octets(m, hf_len)
 
     c = _challenge(m, sig.ec, hf)  # 1.5
 
@@ -366,9 +366,9 @@ def _crack_prv_key(
     if sig1.s == sig2.s:
         raise BTClibValueError("identical signatures")
 
-    hlen = hf().digest_size
-    m_1 = bytes_from_octets(m_1, hlen)
-    m_2 = bytes_from_octets(m_2, hlen)
+    hf_len = hf().digest_size
+    m_1 = bytes_from_octets(m_1, hf_len)
+    m_2 = bytes_from_octets(m_2, hf_len)
 
     c_1 = _challenge(m_1, ec, hf)
     c_2 = _challenge(m_2, ec, hf)

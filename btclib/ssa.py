@@ -206,7 +206,7 @@ def __det_nonce(m: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> i
 
     # Note that in general, taking a uniformly random integer
     # modulo the curve order n would produce a biased result.
-    # However, if the order n is sufficiently close to 2^hlen,
+    # However, if the order n is sufficiently close to 2^hf_len,
     # then the bias is not observable:
     # e.g. for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
     #
@@ -239,14 +239,14 @@ def _det_nonce(
 ) -> int:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
-    # the message m: a hlen array
-    hlen = hf().digest_size
-    m = bytes_from_octets(m, hlen)
+    # the message m: a hf_len array
+    hf_len = hf().digest_size
+    m = bytes_from_octets(m, hf_len)
 
     q, Q = gen_keys(prv_key, ec)
 
     # the auxiliary random component
-    aux = secrets.token_bytes(hlen) if aux is None else bytes_from_octets(aux)
+    aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux)
 
     return __det_nonce(m, q, Q, aux, ec, hf)
 
@@ -280,9 +280,9 @@ def _challenge(
     hf: HashF = sha256,
 ) -> int:
 
-    # the message m: a hlen array
-    hlen = hf().digest_size
-    m = bytes_from_octets(m, hlen)
+    # the message m: a hf_len array
+    hf_len = hf().digest_size
+    m = bytes_from_octets(m, hf_len)
 
     x_Q, _ = point_from_bip340pub_key(Q, ec)
     x_K, _ = point_from_bip340pub_key(K, ec)
@@ -323,22 +323,22 @@ def _sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
-    """Sign a hlen bytes message according to BIP340 signature algorithm.
+    """Sign a hf_len bytes message according to BIP340 signature algorithm.
 
     If the deterministic nonce is not provided,
     the BIP340 specification (not RFC6979) is used.
     """
 
-    # the message m: a hlen array
-    hlen = hf().digest_size
-    m = bytes_from_octets(m, hlen)
+    # the message m: a hf_len array
+    hf_len = hf().digest_size
+    m = bytes_from_octets(m, hf_len)
 
     # private and public keys
     q, x_Q = gen_keys(prv_key, ec)
 
     # the nonce k: an integer in the range 1..n-1.
     if k is None:
-        k = __det_nonce(m, q, x_Q, secrets.token_bytes(hlen), ec, hf)
+        k = __det_nonce(m, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
 
     k, x_K = gen_keys(k, ec)
 
@@ -357,13 +357,13 @@ def sign(
 
         m = hf(msg),
 
-    a sequence of bits of length *hlen*.
+    a sequence of bits of length *hf_len*.
 
-    Normally, hf is chosen such that its output length *hlen* is
+    Normally, hf is chosen such that its output length *hf_len* is
     roughly equal to *nlen*, the bit-length of the group order *n*,
     since the overall security of the signature scheme will depend on
-    the smallest of *hlen* and *nlen*; however, ECSSA
-    supports all combinations of *hlen* and *nlen*.
+    the smallest of *hf_len* and *nlen*; however, ECSSA
+    supports all combinations of *hf_len* and *nlen*.
 
     The BIP340 deterministic nonce (not RFC6979) is used.
     """
@@ -485,9 +485,9 @@ def _crack_prv_key(
     if sig1.s == sig2.s:
         raise BTClibValueError("identical signatures")
 
-    hlen = hf().digest_size
-    m_1 = bytes_from_octets(m_1, hlen)
-    m_2 = bytes_from_octets(m_2, hlen)
+    hf_len = hf().digest_size
+    m_1 = bytes_from_octets(m_1, hf_len)
+    m_2 = bytes_from_octets(m_2, hf_len)
 
     x_Q = point_from_bip340pub_key(Q, ec)[0]
 

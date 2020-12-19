@@ -62,9 +62,9 @@ def _rfc6979(
 ) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
 
-    # The message m: a hlen array
-    hlen = hf().digest_size
-    m = bytes_from_octets(m, hlen)
+    # The message m: a hf_len array
+    hf_len = hf().digest_size
+    m = bytes_from_octets(m, hf_len)
 
     # leftmost ec.nlen bits %= ec.n
     c = int_from_bits(m, ec.nlen) % ec.n  # 5
@@ -102,7 +102,7 @@ def __rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
         # In general, taking a uniformly random integer (like those
         # obtained from a hash function in the random oracle model)
         # modulo the curve order n would produce a biased result.
-        # However, if the order n is sufficiently close to 2^hlen,
+        # However, if the order n is sufficiently close to 2^hf_len,
         # then the bias is not observable: e.g.
         # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
         det_nonce = int_from_bits(t, ec.nlen)  # candidate det_nonce           # 3.2.h.3
