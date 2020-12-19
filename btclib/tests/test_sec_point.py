@@ -43,12 +43,12 @@ def test_octets2point() -> None:
     for ec in all_curves.values():
 
         G_bytes = bytes_from_point(ec.G, ec)
-        G2 = point_from_octets(G_bytes, ec)
-        assert ec.G == G2
+        G_point = point_from_octets(G_bytes, ec)
+        assert ec.G == G_point
 
         G_bytes = bytes_from_point(ec.G, ec, False)
-        G2 = point_from_octets(G_bytes, ec)
-        assert ec.G == G2
+        G_point = point_from_octets(G_bytes, ec)
+        assert ec.G == G_point
 
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
@@ -56,23 +56,23 @@ def test_octets2point() -> None:
 
         Q_bytes = b"\x03" if Q[1] & 1 else b"\x02"
         Q_bytes += Q[0].to_bytes(ec.psize, byteorder="big", signed=False)
-        R = point_from_octets(Q_bytes, ec)
-        assert R == Q
-        assert bytes_from_point(R, ec) == Q_bytes
+        Q_point = point_from_octets(Q_bytes, ec)
+        assert Q_point == Q
+        assert bytes_from_point(Q_point, ec) == Q_bytes
 
         Q_hex_str = Q_bytes.hex()
-        R = point_from_octets(Q_hex_str, ec)
-        assert R == Q
+        Q_point = point_from_octets(Q_hex_str, ec)
+        assert Q_point == Q
 
         Q_bytes = b"\x04" + Q[0].to_bytes(ec.psize, byteorder="big", signed=False)
         Q_bytes += Q[1].to_bytes(ec.psize, byteorder="big", signed=False)
-        R = point_from_octets(Q_bytes, ec)
-        assert R == Q
-        assert bytes_from_point(R, ec, False) == Q_bytes
+        Q_point = point_from_octets(Q_bytes, ec)
+        assert Q_point == Q
+        assert bytes_from_point(Q_point, ec, False) == Q_bytes
 
         Q_hex_str = Q_bytes.hex()
-        R = point_from_octets(Q_hex_str, ec)
-        assert R == Q
+        Q_point = point_from_octets(Q_hex_str, ec)
+        assert Q_point == Q
 
         Q_bytes = b"\x01" + b"\x01" * ec.psize
         with pytest.raises(BTClibValueError, match="not a point: "):
