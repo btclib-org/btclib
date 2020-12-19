@@ -25,30 +25,30 @@ ec = secp256k1
 
 
 def test_sign_to_contract_dsa() -> None:
-    m = sha256(b"to be signed").digest()
-    c = sha256(b"to be committed").digest()
+    c = "to be committed"
+    m = "to be signed"
 
     prv_key, pub_key = dsa.gen_keys()
     dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv_key)
-    dsa._assert_as_valid(m, pub_key, dsa_sig, sha256)
+    dsa.assert_as_valid(m, pub_key, dsa_sig, sha256)
     assert verify_commit(c, dsa_receipt)
 
     k = 1 + secrets.randbelow(ec.n - 1)
     dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv_key, k)
-    dsa._assert_as_valid(m, pub_key, dsa_sig, sha256)
+    dsa.assert_as_valid(m, pub_key, dsa_sig, sha256)
     assert verify_commit(c, dsa_receipt)
 
 
 def test_sign_to_contract_ssa() -> None:
-    m = sha256(b"to be signed").digest()
-    c = sha256(b"to be committed").digest()
+    c = "to be committed"
+    m = "to be signed"
 
     prv_key, pub = ssa.gen_keys()
     ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv_key)
-    ssa._assert_as_valid(m, pub, ssa_sig, sha256)
+    ssa.assert_as_valid(m, pub, ssa_sig, sha256)
     assert verify_commit(c, ssa_receipt)
 
     k = 1 + secrets.randbelow(ec.n - 1)
     ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv_key, k)
-    ssa._assert_as_valid(m, pub, ssa_sig, sha256)
+    ssa.assert_as_valid(m, pub, ssa_sig, sha256)
     assert verify_commit(c, ssa_receipt)

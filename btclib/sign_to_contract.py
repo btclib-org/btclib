@@ -37,8 +37,9 @@ from hashlib import sha256
 from typing import Optional, Tuple
 
 from . import dsa, ssa
-from .alias import HashF, Octets, Point
+from .alias import HashF, Octets, Point, String
 from .curve import Curve, mult, secp256k1
+from .hashes import reduce_to_hlen
 from .rfc6979 import _rfc6979
 from .sec_point import bytes_from_point
 from .to_prv_key import PrvKey, int_from_prv_key
@@ -65,7 +66,7 @@ def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
     return R, (k + tweak) % ec.n
 
 
-def ecdsa_commit_sign(
+def _ecdsa_commit_sign(
     c: Octets,
     m: Octets,
     prv_key: PrvKey,
@@ -79,13 +80,28 @@ def ecdsa_commit_sign(
     # commit
     R, new_k = _tweak(c, k, ec, hf)
     # sign
-    sig = dsa._sign(m, prv_key, new_k, True, ec, hf)
+    sig = dsa._sign(m, prv_key, new_k, low_s=True, ec=ec, hf=hf)
     # commit receipt
     receipt = sig.r, R
     return sig, receipt
 
 
-def ecssa_commit_sign(
+def ecdsa_commit_sign(
+    commit_msg: String,
+    msg: String,
+    prv_key: PrvKey,
+    k: Optional[PrvKey] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[dsa.Sig, Receipt]:
+    """Include a commitment c inside an ECDSA signature."""
+
+    c = reduce_to_hlen(commit_msg, hf)
+    m = reduce_to_hlen(msg, hf)
+    return _ecdsa_commit_sign(c, m, prv_key, k, ec, hf)
+
+
+def _ecssa_commit_sign(
     c: Octets,
     m: Octets,
     prv_key: PrvKey,
@@ -96,11 +112,10 @@ def ecssa_commit_sign(
     """Include a commitment c inside an ECSSA signature."""
 
     k = (
-        ssa._det_nonce(m, prv_key, None, ec, hf)
+        ssa._det_nonce(m, prv_key, aux=None, ec=ec, hf=hf)
         if k is None
         else int_from_prv_key(k, ec)
     )
-
     # commit
     R, new_k = _tweak(c, k, ec, hf)
     # sign
@@ -110,10 +125,25 @@ def ecssa_commit_sign(
     return sig, receipt
 
 
+def ecssa_commit_sign(
+    commit_msg: String,
+    msg: String,
+    prv_key: PrvKey,
+    k: Optional[PrvKey] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[ssa.Sig, Receipt]:
+    """Include a commitment c inside an ECSSA signature."""
+
+    c = reduce_to_hlen(commit_msg, hf)
+    m = reduce_to_hlen(msg, hf)
+    return _ecssa_commit_sign(c, m, prv_key, k, ec, hf)
+
+
 # FIXME: have create_commit instead of commit_sign
 
 
-def verify_commit(
+def _verify_commit(
     c: Octets, receipt: Receipt, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> bool:
     """Open the commitment c inside an EC DSA/SSA signature."""
@@ -137,3 +167,10 @@ def verify_commit(
     # different verify functions?
     # return w == W[0] # ECSS
     return w == W[0] % ec.n  # ECDS, FIXME: ECSSA
+
+
+def verify_commit(
+    commit_msg: String, receipt: Receipt, ec: Curve = secp256k1, hf: HashF = sha256
+) -> bool:
+    c = reduce_to_hlen(commit_msg, hf)
+    return _verify_commit(c, receipt, ec, hf)
