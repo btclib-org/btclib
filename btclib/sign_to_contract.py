@@ -22,7 +22,7 @@ using (k, R), compute the commitment to c
 
     e = hash(R||c),
 
-tweak k with e and consequently substistute R with W = (k+e)G = R+eG,
+tweak k with e and consequently substitute R with W = (k+e)G = R+eG,
 the proceed signing in the standard way, using (k+e, W).
 
 When the committer/signer will reveal R and c,
@@ -45,132 +45,158 @@ from .sec_point import bytes_from_point
 from .to_prv_key import PrvKey, int_from_prv_key
 from .utils import bytes_from_octets, int_from_bits
 
-# commitment receipt
-Receipt = Tuple[int, Point]
+
+def _tweak(c: Octets, R: Point, ec: Curve, hf: HashF) -> int:
+    "Return the hash(R||c) tweak for the provided R."
+
+    t = bytes_from_point(R, ec) + bytes_from_octets(c)
+    while True:
+        h = hf()
+        h.update(t)
+        t = h.digest()
+        # The following lines would introduce a bias
+        # nonce = int.from_bytes(t, 'big') % ec.n
+        # nonce = int_from_bits(t, ec.nlen) % ec.n
+        # In general, taking a uniformly random integer (like those
+        # obtained from a hash function in the random oracle model)
+        # modulo the curve order n would produce a biased result.
+        # However, if the order n is sufficiently close to 2^hf_len,
+        # then the bias is not observable: e.g.
+        # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
+        tweak = int_from_bits(t, ec.nlen)  # candidate tweak
+        if 0 < tweak < ec.n:  # acceptable value for tweak
+            return tweak  # successful candidate
 
 
-def _tweak(c: Octets, k: int, ec: Curve, hf: HashF) -> Tuple[Point, int]:
-    """Tweak kG with hash(kG||c).
-
-    Return:
-    - the point kG to tweak
-    - tweaked private key k + hash(kG||c)
-    """
-
-    R = mult(k, ec.G, ec)
-    r = bytes_from_point(R, ec)
-    c = bytes_from_octets(c, hf().digest_size)
-    h = hf()
-    h.update(r + c)
-    tweak = int.from_bytes(h.digest(), byteorder="big", signed=False)
-    return R, (k + tweak) % ec.n
-
-
-def _ecdsa_commit_sign(
+def _dsa_commit_sign(
     c: Octets,
     m: Octets,
     prv_key: PrvKey,
-    k: Optional[PrvKey] = None,
+    nonce: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[dsa.Sig, Receipt]:
+) -> Tuple[dsa.Sig, Point]:
     """Include a commitment c inside an ECDSA signature."""
 
-    k = _rfc6979(m, prv_key, ec, hf) if k is None else int_from_prv_key(k, ec)
-    # commit
-    R, new_k = _tweak(c, k, ec, hf)
-    # sign
-    sig = dsa._sign(m, prv_key, new_k, low_s=True, ec=ec, hf=hf)
-    # commit receipt
-    receipt = sig.r, R
-    return sig, receipt
-
-
-def ecdsa_commit_sign(
-    commit_msg: String,
-    msg: String,
-    prv_key: PrvKey,
-    k: Optional[PrvKey] = None,
-    ec: Curve = secp256k1,
-    hf: HashF = sha256,
-) -> Tuple[dsa.Sig, Receipt]:
-    """Include a commitment c inside an ECDSA signature."""
-
-    c = reduce_to_hlen(commit_msg, hf)
-    m = reduce_to_hlen(msg, hf)
-    return _ecdsa_commit_sign(c, m, prv_key, k, ec, hf)
-
-
-def _ecssa_commit_sign(
-    c: Octets,
-    m: Octets,
-    prv_key: PrvKey,
-    k: Optional[PrvKey] = None,
-    ec: Curve = secp256k1,
-    hf: HashF = sha256,
-) -> Tuple[ssa.Sig, Receipt]:
-    """Include a commitment c inside an ECSSA signature."""
-
-    k = (
-        ssa._det_nonce(m, prv_key, aux=None, ec=ec, hf=hf)
-        if k is None
-        else int_from_prv_key(k, ec)
+    nonce = (
+        _rfc6979(m, prv_key, ec, hf) if nonce is None else int_from_prv_key(nonce, ec)
     )
-    # commit
-    R, new_k = _tweak(c, k, ec, hf)
-    # sign
-    sig = ssa._sign(m, prv_key, new_k, ec, hf)
-    # commit receipt
-    receipt = sig.r, R
-    return sig, receipt
+    R = mult(nonce, ec.G, ec)
+
+    tweaked_nonce = (nonce + _tweak(c, R, ec, hf)) % ec.n
+    tweaked_sig = dsa._sign(m, prv_key, tweaked_nonce, low_s=True, ec=ec, hf=hf)
+
+    return tweaked_sig, R
 
 
-def ecssa_commit_sign(
+def dsa_commit_sign(
     commit_msg: String,
     msg: String,
     prv_key: PrvKey,
-    k: Optional[PrvKey] = None,
+    nonce: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[ssa.Sig, Receipt]:
+) -> Tuple[dsa.Sig, Point]:
+    """Include a commitment c inside an ECDSA signature."""
+
+    c = reduce_to_hlen(commit_msg, hf)
+    m = reduce_to_hlen(msg, hf)
+    return _dsa_commit_sign(c, m, prv_key, nonce, ec, hf)
+
+
+def _dsa_verify_commit(
+    c: Octets,
+    R: Point,
+    m: Octets,
+    key: dsa.Key,
+    sig: dsa.Sig,
+    hf: HashF = sha256,
+) -> bool:
+    "Open the commitment c inside an EC DSA signature."
+
+    tweak = _tweak(c, R, sig.ec, hf)
+    W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
+
+    # sig.r is in [1..n-1]
+    return (sig.r == W[0] % sig.ec.n) and dsa._verify(m, key, sig, hf)
+
+
+def dsa_verify_commit(
+    commit_msg: String,
+    receipt: Point,
+    msg: String,
+    key: dsa.Key,
+    sig: dsa.Sig,
+    hf: HashF = sha256,
+) -> bool:
+    c = reduce_to_hlen(commit_msg, hf)
+    m = reduce_to_hlen(msg, hf)
+    return _dsa_verify_commit(c, receipt, m, key, sig, hf)
+
+
+def _ssa_commit_sign(
+    c: Octets,
+    m: Octets,
+    prv_key: PrvKey,
+    nonce: Optional[PrvKey] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[ssa.Sig, Point]:
+    """Include a commitment c inside an ECSSA signature."""
+
+    nonce = (
+        ssa._det_nonce(m, prv_key, aux=None, ec=ec, hf=hf)
+        if nonce is None
+        else int_from_prv_key(nonce, ec)
+    )
+    R = mult(nonce, ec.G, ec)
+
+    tweaked_nonce = (nonce + _tweak(c, R, ec, hf)) % ec.n
+    tweaked_sig = ssa._sign(m, prv_key, tweaked_nonce, ec, hf)
+
+    return tweaked_sig, R
+
+
+def ssa_commit_sign(
+    commit_msg: String,
+    msg: String,
+    prv_key: PrvKey,
+    nonce: Optional[PrvKey] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[ssa.Sig, Point]:
     """Include a commitment c inside an ECSSA signature."""
 
     c = reduce_to_hlen(commit_msg, hf)
     m = reduce_to_hlen(msg, hf)
-    return _ecssa_commit_sign(c, m, prv_key, k, ec, hf)
+    return _ssa_commit_sign(c, m, prv_key, nonce, ec, hf)
 
 
-# FIXME: have create_commit instead of commit_sign
-
-
-def _verify_commit(
-    c: Octets, receipt: Receipt, ec: Curve = secp256k1, hf: HashF = sha256
+def _ssa_verify_commit(
+    c: Octets,
+    R: Point,
+    m: Octets,
+    pub_key: ssa.BIP340PubKey,
+    sig: ssa.Sig,
+    hf: HashF = sha256,
 ) -> bool:
-    """Open the commitment c inside an EC DSA/SSA signature."""
+    "Open the commitment c inside an EC SSA signature."
 
-    c = bytes_from_octets(c, hf().digest_size)
+    tweak = _tweak(c, R, sig.ec, hf)
+    W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
 
-    # FIXME: verify the signature
-
-    w, R = receipt
-    # w in [1..n-1] dsa
-    # w in [1..p-1] ssa
-    # different verify functions?
-
-    # verify R is a good point?
-
-    h = hf()
-    h.update(bytes_from_point(R, ec) + c)
-    e = h.digest()
-    e = int_from_bits(e, ec.nlen) % ec.n
-    W = ec.add(R, mult(e, ec.G, ec))
-    # different verify functions?
-    # return w == W[0] # ECSS
-    return w == W[0] % ec.n  # ECDS, FIXME: ECSSA
+    # sig.r is in [1..p-1]
+    return (sig.r == W[0]) and ssa._verify(m, pub_key, sig, hf)
 
 
-def verify_commit(
-    commit_msg: String, receipt: Receipt, ec: Curve = secp256k1, hf: HashF = sha256
+def ssa_verify_commit(
+    commit_msg: String,
+    receipt: Point,
+    msg: String,
+    pub_key: ssa.BIP340PubKey,
+    sig: ssa.Sig,
+    hf: HashF = sha256,
 ) -> bool:
     c = reduce_to_hlen(commit_msg, hf)
-    return _verify_commit(c, receipt, ec, hf)
+    m = reduce_to_hlen(msg, hf)
+    return _ssa_verify_commit(c, receipt, m, pub_key, sig, hf)

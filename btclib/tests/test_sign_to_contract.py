@@ -11,44 +11,47 @@
 "Tests for the `btclib.sign_to_contract` module."
 
 import secrets
-from hashlib import sha256
+from hashlib import sha1, sha256
 
 from btclib import dsa, ssa
-from btclib.curve import secp256k1
+from btclib.curve import CURVES, secp256k1
 from btclib.sign_to_contract import (
-    ecdsa_commit_sign,
-    ecssa_commit_sign,
-    verify_commit,
+    dsa_commit_sign,
+    dsa_verify_commit,
+    ssa_commit_sign,
+    ssa_verify_commit,
 )
-
-ec = secp256k1
 
 
 def test_sign_to_contract_dsa() -> None:
-    c = "to be committed"
-    m = "to be signed"
+    commit_msg = "to be committed"
+    msg = "to be signed"
 
-    prv_key, pub_key = dsa.gen_keys()
-    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv_key)
-    dsa.assert_as_valid(m, pub_key, dsa_sig, sha256)
-    assert verify_commit(c, dsa_receipt)
+    for hf in (sha256, sha1):
+        for ec in (secp256k1, CURVES["secp160r1"]):
+            prv_key, pub_key = dsa.gen_keys(ec=ec)
+            dsa_sig, receipt = dsa_commit_sign(commit_msg, msg, prv_key, None, ec, hf)
+            dsa.assert_as_valid(msg, pub_key, dsa_sig, hf)
+            assert dsa_verify_commit(commit_msg, receipt, msg, pub_key, dsa_sig, hf)
 
-    k = 1 + secrets.randbelow(ec.n - 1)
-    dsa_sig, dsa_receipt = ecdsa_commit_sign(c, m, prv_key, k)
-    dsa.assert_as_valid(m, pub_key, dsa_sig, sha256)
-    assert verify_commit(c, dsa_receipt)
+            random_nonce = 1 + secrets.randbelow(ec.n - 1)
+            dsa_sig, R = dsa_commit_sign(commit_msg, msg, prv_key, random_nonce, ec, hf)
+            dsa.assert_as_valid(msg, pub_key, dsa_sig, hf)
+            assert dsa_verify_commit(commit_msg, R, msg, pub_key, dsa_sig, hf)
 
 
 def test_sign_to_contract_ssa() -> None:
-    c = "to be committed"
-    m = "to be signed"
+    commit_msg = "to be committed"
+    msg = "to be signed"
 
-    prv_key, pub = ssa.gen_keys()
-    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv_key)
-    ssa.assert_as_valid(m, pub, ssa_sig, sha256)
-    assert verify_commit(c, ssa_receipt)
+    for hf in (sha256, sha1):
+        for ec in (secp256k1, CURVES["secp160r1"]):
+            prv_key, pub_key = ssa.gen_keys(ec=ec)
+            ssa_sig, receipt = ssa_commit_sign(commit_msg, msg, prv_key, None, ec, hf)
+            ssa.assert_as_valid(msg, pub_key, ssa_sig, hf)
+            assert ssa_verify_commit(commit_msg, receipt, msg, pub_key, ssa_sig, hf)
 
-    k = 1 + secrets.randbelow(ec.n - 1)
-    ssa_sig, ssa_receipt = ecssa_commit_sign(c, m, prv_key, k)
-    ssa.assert_as_valid(m, pub, ssa_sig, sha256)
-    assert verify_commit(c, ssa_receipt)
+            random_nonce = 1 + secrets.randbelow(ec.n - 1)
+            ssa_sig, R = ssa_commit_sign(commit_msg, msg, prv_key, random_nonce, ec, hf)
+            ssa.assert_as_valid(msg, pub_key, ssa_sig, hf)
+            assert ssa_verify_commit(commit_msg, R, msg, pub_key, ssa_sig, hf)
