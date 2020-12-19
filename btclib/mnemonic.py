@@ -20,7 +20,6 @@ from os import path
 from typing import List
 
 from .exceptions import BTClibValueError
-from .utils import ensure_is_power_of_two
 
 WordList = List[str]
 
@@ -79,7 +78,10 @@ class WordLists:
                 lines = file_.readlines()
 
             nwords = len(lines)
-            ensure_is_power_of_two(nwords, "invalid wordlist length")
+            # http://www.graphics.stanford.edu/~seander/bithacks.html
+            if nwords & (nwords - 1) != 0:
+                err_msg = f"invalid wordlist length: {nwords}, not a power of two"
+                raise BTClibValueError(err_msg)
 
             self._language_length[lang] = nwords
             # clean up and normalization are missing, but removal of \n

@@ -157,6 +157,7 @@ def int_from_integer(i: Integer) -> int:
 
     if isinstance(i, int):
         return i
+
     if isinstance(i, str):
         i = i.strip().lower()
         if i.startswith("0x") or i.startswith("-0x"):
@@ -187,9 +188,3 @@ def hex_string(i: Integer) -> str:
     lresult = [(a_str[max(0, i - 8) : i]) for i in indx]
     result = " ".join(lresult)
     return result.upper()
-
-
-def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
-    # http://www.graphics.stanford.edu/~seander/bithacks.html
-    if n & (n - 1) != 0:
-        raise BTClibValueError(f"{var_name}: {n} (must be a power of two)")
