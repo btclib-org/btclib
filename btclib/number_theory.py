@@ -153,13 +153,12 @@ def tonelli(a: int, p: int) -> int:
         for i in range(1, s):
             t2i = t2i * t2i % p
             if t2i == 1:
+                # Update next value to iterate
+                b = pow(c, 1 << (s - i - 1), p)
+                r = (r * b) % p
+                c = (b * b) % p
+                t = (t * c) % p
+                s = i
                 break
-
-        # Update next value to iterate
-        b = pow(c, 1 << (s - i - 1), p)
-        r = (r * b) % p
-        c = (b * b) % p
-        t = (t * c) % p
-        s = i
 
     return r
