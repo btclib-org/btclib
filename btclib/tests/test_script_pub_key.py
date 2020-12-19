@@ -464,7 +464,7 @@ def test_p2ms_1() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(4, pub_keys)
     with pytest.raises(BTClibValueError, match=err_msg):
-        # pylance cannot grok this
+        # pylance cannot grok the following line
         p2ms(4, [pub_key0] * 17)  # type: ignore
     with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(0, pub_keys)

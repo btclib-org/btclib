@@ -271,7 +271,8 @@ class Psbt(DataClassJsonMixin):
             psbt_str = psbt_str.strip()
 
         psbt_decoded = base64.b64decode(psbt_str)
-        return cls.deserialize(psbt_decoded, check_validity)
+        # pylance cannot grok the following line
+        return cls.deserialize(psbt_decoded, check_validity)  # type: ignore
 
     @classmethod
     def from_tx(

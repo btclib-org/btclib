@@ -218,7 +218,8 @@ class BIP32KeyData(DataClassJsonMixin):
             address = address.strip()
 
         xkey_bin = base58.b58decode(address)
-        return cls.deserialize(xkey_bin, check_validity)
+        # pylance cannot grok the following line
+        return cls.deserialize(xkey_bin, check_validity)  # type: ignore
 
 
 def _rootxprv_from_seed(

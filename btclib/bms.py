@@ -231,7 +231,8 @@ class Sig(DataClassJsonMixin):
             data = data.strip()
 
         data_decoded = base64.b64decode(data)
-        return cls.deserialize(data_decoded, check_validity)
+        # pylance cannot grok the following line
+        return cls.deserialize(data_decoded, check_validity)  # type: ignore
 
 
 def gen_keys(
