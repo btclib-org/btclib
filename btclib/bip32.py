@@ -50,11 +50,7 @@ from .bip32_path import (
 from .curve import mult, secp256k1
 from .exceptions import BTClibTypeError, BTClibValueError
 from .mnemonic import Mnemonic
-from .network import (
-    _XPRV_VERSIONS_ALL,
-    _XPUB_VERSIONS_ALL,
-    NETWORKS,
-)
+from .network import _XPRV_VERSIONS_ALL, _XPUB_VERSIONS_ALL, NETWORKS
 from .sec_point import bytes_from_point, point_from_octets
 from .utils import (
     bytes_from_octets,
