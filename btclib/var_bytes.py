@@ -16,7 +16,7 @@ from .exceptions import BTClibRuntimeError
 from .utils import bytes_from_octets, bytesio_from_binarydata
 
 
-def deserialize(stream: BinaryData, forbid_zero_size=False) -> bytes:
+def deserialize(stream: BinaryData, forbid_zero_size: bool = False) -> bytes:
     """Return the variable-length octets read from a stream."""
 
     stream = bytesio_from_binarydata(stream)
