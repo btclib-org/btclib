@@ -249,7 +249,7 @@ class BIP32KeyPath(DataClassJsonMixin):
 
 def _encode_hd_key_paths(
     dictionary: Dict[bytes, BIP32KeyOrigin]
-) -> List[Dict[str, Any]]:
+) -> List[Dict[str, Union[str, BIP32KeyOrigin]]]:
     "Return the json representation of the dataclass element."
 
     return [

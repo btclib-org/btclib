@@ -21,8 +21,11 @@ from btclib.bip32_path import (
     BIP32KeyOrigin,
     BIP32KeyPath,
     BIP32KeyPaths,
+    _assert_valid_hd_key_paths,
+    _decode_hd_key_paths,
     _indexes_from_bip32_path_str,
     _int_from_index_str,
+    _serialize_hd_key_paths,
     _str_from_index_int,
     bytes_from_bip32_path,
     indexes_from_bip32_path,
@@ -275,6 +278,35 @@ def test_dataclasses_json_dict_key_path() -> None:
     assert isinstance(key_path2, BIP32KeyPath)
 
     assert key_path == key_path2
+
+
+_MARKER = b"\x11"
+
+
+def test_bip32_derivs() -> None:
+    # the basic type dict representation
+    encoded_data = [
+        {
+            "pub_key": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
+            "key_origin": {
+                "master_fingerprint": "d90c6a4f",
+                "path": "m/0" + _HARDENING + "/0/0",
+            },
+        },
+        {
+            "pub_key": "02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7",
+            "key_origin": {
+                "master_fingerprint": "d90c6a4f",
+                "path": "m/0" + _HARDENING + "/0/1",
+            },
+        },
+    ]
+    data = _decode_hd_key_paths(encoded_data)
+    _assert_valid_hd_key_paths(data)
+    # assert encoded_data == _encode_hd_key_paths(data)
+
+    _serialize_hd_key_paths(_MARKER, data)
+    # TODO: check deserialization
 
 
 def test_bip32_key_paths() -> None:
