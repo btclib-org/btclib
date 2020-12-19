@@ -356,10 +356,11 @@ invalid_prv_keys: List[Union[bytes, str]] = (
         xprv_data.key,
         xprv_data.key.hex(),
         "invalidprv_key",
+        b"invalidprv_key",
     ]
 )
 
-invalid_pub_keys = bad_bip32_keys + inf_pub_keys + ["invalidpub_key"]
+invalid_pub_keys = bad_bip32_keys + inf_pub_keys + ["invalidpub_key", b"invalidpub_key"]
 
 not_a_prv_keys = invalid_prv_keys + invalid_pub_keys
 
