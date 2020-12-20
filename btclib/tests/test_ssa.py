@@ -22,7 +22,7 @@ import pytest
 from btclib import ssa
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
-from btclib.curve import CURVES, double_mult, mult, secp256k1
+from btclib.curve import CURVES, double_mult, mult
 from btclib.exceptions import (
     BTClibRuntimeError,
     BTClibTypeError,
@@ -722,8 +722,9 @@ def test_threshold() -> None:
 
 def test_dataclasses_json_dict() -> None:
 
-    msg = "Satoshi Nakamoto"
-    sig = ssa.sign(msg, 0x01)
+    r = 0xC2B43E4E8F0FFFEA729BF654EC7FA50755A6FF5745E8A11D75EAE41266F564AC
+    s = 0x2C34181BB068CE38D889A435112C4A5D108D951EF8413CBFDFA9CAE05F50E229
+    sig = ssa.Sig(r, s)
 
     # Sig dataclass
     assert isinstance(sig, ssa.Sig)
