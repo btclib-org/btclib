@@ -19,7 +19,6 @@ import pytest
 
 from btclib.entropy import (
     _bits,
-    collect_rolls,
     bin_str_entropy_from_bytes,
     bin_str_entropy_from_entropy,
     bin_str_entropy_from_int,
@@ -27,6 +26,7 @@ from btclib.entropy import (
     bin_str_entropy_from_rolls,
     bin_str_entropy_from_str,
     bin_str_entropy_from_wordlist_indexes,
+    collect_rolls,
     wordlist_indexes_from_bin_str_entropy,
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError

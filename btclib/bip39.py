@@ -42,9 +42,9 @@ from .bip32 import rootxprv_from_seed
 from .entropy import (
     BinStr,
     Entropy,
-    bytes_entropy_from_str,
     bin_str_entropy_from_entropy,
     bin_str_entropy_from_wordlist_indexes,
+    bytes_entropy_from_str,
     wordlist_indexes_from_bin_str_entropy,
 )
 from .exceptions import BTClibValueError
