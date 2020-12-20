@@ -21,9 +21,9 @@ from .bip32 import derive, rootxprv_from_seed
 from .entropy import (
     BinStr,
     Entropy,
-    bin_str_from_entropy,
-    entropy_from_indexes,
-    indexes_from_entropy,
+    bin_str_entropy_from_entropy,
+    bin_str_entropy_from_wordlist_indexes,
+    wordlist_indexes_from_bin_str_entropy,
 )
 from .exceptions import BTClibValueError
 from .mnemonic import (
@@ -85,15 +85,15 @@ def mnemonic_from_entropy(
         raise BTClibValueError(m)
     version = _MNEMONIC_VERSIONS[version_str]
 
-    bin_str_entropy = bin_str_from_entropy(entropy)
+    bin_str_entropy = bin_str_entropy_from_entropy(entropy)
     int_entropy = int(bin_str_entropy, 2)
     base = WORDLISTS.language_length(lang)
     while True:
         # electrum considers entropy as integer, losing any leading zero
         # so the value of bin_str_entropy before the while must be updated
         nbits = int_entropy.bit_length()
-        bin_str_entropy = bin_str_from_entropy(int_entropy, nbits)
-        indexes = indexes_from_entropy(bin_str_entropy, base)
+        bin_str_entropy = bin_str_entropy_from_entropy(int_entropy, nbits)
+        indexes = wordlist_indexes_from_bin_str_entropy(bin_str_entropy, base)
         mnemonic = mnemonic_from_indexes(indexes, lang)
         # version validity check
         s = hmac.new(b"Seed version", mnemonic.encode(), sha512).hexdigest()
@@ -111,7 +111,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
 
     indexes = indexes_from_mnemonic(mnemonic, lang)
     base = WORDLISTS.language_length(lang)
-    return entropy_from_indexes(indexes, base)
+    return bin_str_entropy_from_wordlist_indexes(indexes, base)
 
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:

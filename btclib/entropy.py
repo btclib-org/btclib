@@ -37,7 +37,7 @@ BinStr = str
 Entropy = Union[BinStr, int, bytes]
 
 
-def indexes_from_entropy(entropy: BinStr, base: int) -> List[int]:
+def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> List[int]:
     """Return the digit indexes for the provided raw entropy.
 
     Return the list of integer indexes into a digit set,
@@ -46,6 +46,7 @@ def indexes_from_entropy(entropy: BinStr, base: int) -> List[int]:
     leading zeros are not considered redundant padding.
     """
 
+    # entropy = bin_str_entropy_from_entropy(entropy)
     bits = len(entropy)
     int_entropy = int(entropy, 2)
     indexes = []
@@ -62,7 +63,7 @@ def indexes_from_entropy(entropy: BinStr, base: int) -> List[int]:
     return list(reversed(indexes))
 
 
-def entropy_from_indexes(indexes: List[int], base: int) -> BinStr:
+def bin_str_entropy_from_wordlist_indexes(indexes: List[int], base: int) -> BinStr:
     """Return the raw entropy from a list of word-list indexes.
 
     Return the raw (i.e. binary 0/1 string) entropy
@@ -87,7 +88,7 @@ def entropy_from_indexes(indexes: List[int], base: int) -> BinStr:
 OneOrMoreInt = Union[int, Iterable[int]]
 
 
-def bin_str_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
+def bin_str_entropy_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
     """Return raw entropy from the input entropy.
 
     Input entropy can be expressed as:
@@ -110,14 +111,16 @@ def bin_str_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:
     """
 
     if isinstance(entr, str):
-        return bin_str_from_bin_str(entr, bits)
+        return bin_str_entropy_from_str(entr, bits)
     if isinstance(entr, int):
-        return bin_str_from_int(entr, bits)
+        return bin_str_entropy_from_int(entr, bits)
     # must be bytes-like
-    return bin_str_from_bytes(entr, bits)
+    return bin_str_entropy_from_bytes(entr, bits)
 
 
-def bin_str_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> BinStr:
+def bin_str_entropy_from_bytes(
+    bytes_entropy: Octets, bits: OneOrMoreInt = _bits
+) -> BinStr:
     """Return raw entropy from the input Octets entropy.
 
     Input entropy can be expressed as hex-string or bytes;
@@ -146,10 +149,20 @@ def bin_str_from_bytes(bytes_entropy: Octets, bits: OneOrMoreInt = _bits) -> Bin
 
     int_entropy = int.from_bytes(bytes_entropy, byteorder="big", signed=False)
     # only the leftmost bits will be retained
-    return bin_str_from_int(int_entropy, n_bits)
+    return bin_str_entropy_from_int(int_entropy, n_bits)
 
 
-def bin_str_from_int(
+def bytes_entropy_from_str(bin_str_entropy: BinStr) -> bytes:
+    nbits = len(bin_str_entropy)
+    if nbits not in _bits:
+        m = f"invalid number of bits for BIP39 entropy: {nbits}; must be in {_bits}"
+        raise BTClibValueError(m)
+    nbytes = (nbits + 7) // 8
+    int_entropy = int(bin_str_entropy, 2)
+    return int_entropy.to_bytes(nbytes, byteorder="big", signed=False)
+
+
+def bin_str_entropy_from_int(
     int_entropy: Union[int, str], bits: OneOrMoreInt = _bits
 ) -> BinStr:
     """Return raw entropy from the input integer entropy.
@@ -198,7 +211,7 @@ def bin_str_from_int(
     return bin_str.zfill(n_bits)
 
 
-def bin_str_from_bin_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
+def bin_str_entropy_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
     """Return raw entropy from the input raw entropy.
 
     Input entropy must be expressed as raw entropy;
@@ -275,7 +288,7 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
     return dice_sides, rolls
 
 
-def bin_str_from_rolls(
+def bin_str_entropy_from_rolls(
     bits: int, dice_sides: int, rolls: List[int], shuffle: bool = True
 ) -> BinStr:
     """Return raw entropy from the input dice rolls.
@@ -319,10 +332,10 @@ def bin_str_from_rolls(
         msg += f", missing {min_roll_number} rolls"
         raise BTClibValueError(msg)
 
-    return bin_str_from_int(i, bits)
+    return bin_str_entropy_from_int(i, bits)
 
 
-def rand_bin_str(
+def bin_str_entropy_from_random(
     bits: int, entropy: Optional[BinStr] = None, to_be_hashed: bool = True
 ) -> BinStr:
     """Return CSPRNG raw entropy XOR-ed with input raw entropy.
@@ -359,4 +372,4 @@ def rand_bin_str(
         h512 = sha512(i.to_bytes(n_bytes, byteorder="big", signed=False)).digest()
         i = int.from_bytes(h512, byteorder="big", signed=False)
 
-    return bin_str_from_int(i, bits)
+    return bin_str_entropy_from_int(i, bits)
