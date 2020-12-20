@@ -22,14 +22,14 @@ from btclib.bip32_path import (
     BIP32KeyPath,
     BIP32KeyPaths,
     _indexes_from_bip32_path_str,
-    _int_from_index_str,
-    _str_from_index_int,
     assert_valid_hd_key_paths,
     bytes_from_bip32_path,
     decode_hd_key_paths,
     indexes_from_bip32_path,
+    int_from_index_str,
     serialize_hd_key_paths,
     str_from_bip32_path,
+    str_from_index_int,
 )
 from btclib.exceptions import BTClibValueError
 
@@ -108,18 +108,18 @@ def test_indexes_from_bip32_path_str() -> None:
 def test_index_int_to_from_str() -> None:
 
     for i in (0, 1, 0x80000000 - 1, 0x80000000, 0xFFFFFFFF):
-        assert i == _int_from_index_str(_str_from_index_int(i))
+        assert i == int_from_index_str(str_from_index_int(i))
 
     for i in (-1, 0xFFFFFFFF + 1):
         with pytest.raises(BTClibValueError):
-            _str_from_index_int(i)
+            str_from_index_int(i)
 
     for s in ("-1", "-1h", str(0x80000000) + "h", str(0xFFFFFFFF + 1)):
         with pytest.raises(BTClibValueError):
-            _int_from_index_str(s)
+            int_from_index_str(s)
 
     with pytest.raises(BTClibValueError, match="invalid hardening symbol: "):
-        _str_from_index_int(0x80000000, "hardened")
+        str_from_index_int(0x80000000, "hardened")
 
 
 def test_bip32_key_origin() -> None:

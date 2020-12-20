@@ -44,7 +44,7 @@ from .utils import bytes_from_octets, bytesio_from_binarydata
 _HARDENING = "h"
 
 
-def _int_from_index_str(s: str) -> int:
+def int_from_index_str(s: str) -> int:
 
     s.strip().lower()
     hardened = False
@@ -58,7 +58,7 @@ def _int_from_index_str(s: str) -> int:
     return index + (0x80000000 if hardened else 0)
 
 
-def _str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
+def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
 
     if hardening not in ("'", "h", "H"):
         raise BTClibValueError(f"invalid hardening symbol: {hardening}")
@@ -75,7 +75,7 @@ def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> List[int
     if skip_m and steps[0] == "m":
         steps = steps[1:]
 
-    indexes = [_int_from_index_str(s) for s in steps if s != ""]
+    indexes = [int_from_index_str(s) for s in steps if s != ""]
 
     if len(indexes) > 255:
         err_msg = f"depth greater than 255: {len(indexes)}"
@@ -109,7 +109,7 @@ def indexes_from_bip32_path(der_path: BIP32DerPath) -> List[int]:
 
 def _str_from_bip32_path(der_path: BIP32DerPath, hardening: str = _HARDENING) -> str:
     indexes = indexes_from_bip32_path(der_path)
-    return "/".join(_str_from_index_int(i, hardening) for i in indexes)
+    return "/".join(str_from_index_int(i, hardening) for i in indexes)
 
 
 def str_from_bip32_path(der_path: BIP32DerPath, hardening: str = _HARDENING) -> str:

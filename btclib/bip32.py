@@ -43,9 +43,9 @@ from . import base58
 from .alias import INF, BinaryData, Octets, Point, String
 from .bip32_path import (
     BIP32DerPath,
-    _int_from_index_str,
-    _str_from_index_int,
     indexes_from_bip32_path,
+    int_from_index_str,
+    str_from_index_int,
 )
 from .curve import mult, secp256k1
 from .exceptions import BTClibValueError
@@ -77,7 +77,7 @@ class BIP32KeyData(DataClassJsonMixin):
     # index is an int, not bytes, to avoid any byteorder ambiguity
     index: int = field(
         default=-1,
-        metadata=config(encoder=_str_from_index_int, decoder=_int_from_index_str),
+        metadata=config(encoder=str_from_index_int, decoder=int_from_index_str),
     )
     chain_code: bytes = field(
         default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
