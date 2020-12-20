@@ -60,7 +60,7 @@ def mod_inv(a: int, m: int) -> int:
     raise BTClibValueError(err_msg)
 
 
-def legendre_symbol(a, p) -> int:
+def legendre_symbol(a: int, p: int) -> int:
     """Compute the Legendre symbol a|p using Euler's criterion.
 
     p is a prime, a is relatively prime to p (if p divides a,
