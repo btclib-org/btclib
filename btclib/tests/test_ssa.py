@@ -11,6 +11,7 @@
 "Tests for the `btclib.ssa` module."
 
 import csv
+import json
 import secrets
 from hashlib import sha256 as hf
 from os import path
@@ -21,7 +22,7 @@ import pytest
 from btclib import ssa
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
-from btclib.curve import CURVES, double_mult, mult
+from btclib.curve import CURVES, double_mult, mult, secp256k1
 from btclib.exceptions import (
     BTClibRuntimeError,
     BTClibTypeError,
@@ -717,3 +718,35 @@ def test_threshold() -> None:
     # ADDITIONAL PHASE: reconstruction of the private key ###
     secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
     assert (q1 + q2 + q3) % ec.n in (secret, ec.n - secret)
+
+
+def test_dataclasses_json_dict() -> None:
+
+    msg = "Satoshi Nakamoto"
+    sig = ssa.sign(msg, 0x01)
+
+    # Sig dataclass
+    assert isinstance(sig, ssa.Sig)
+
+    # Sig dataclass to dict
+    sig_dict = sig.to_dict()
+    assert isinstance(sig_dict, dict)
+
+    # Sig dataclass dict to file
+    datadir = path.join(path.dirname(__file__), "generated_files")
+    filename = path.join(datadir, "ssa_sig.json")
+    with open(filename, "w") as file_:
+        json.dump(sig_dict, file_, indent=4)
+
+    # Sig dataclass dict from file
+    with open(filename, "r") as file_:
+        sig_dict2 = json.load(file_)
+    assert isinstance(sig_dict2, dict)
+
+    assert sig_dict == sig_dict2
+
+    # Sig dataclass from dict
+    sig2 = ssa.Sig.from_dict(sig_dict)
+    assert isinstance(sig2, ssa.Sig)
+
+    assert sig == sig2

@@ -15,7 +15,7 @@ This implementation is according to BIP340-Schnorr:
 https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
 Differently from ECDSA, the BIP340-Schnorr scheme supports
-messages of size hsize only.
+messages of size hf_size only.
 
 It also uses as public key the x-coordinate (field element)
 of the curve point associated to the private key 0 < q < n.
@@ -58,7 +58,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from .alias import BinaryData, HashF, Integer, JacPoint, Octets, Point, String
 from .bip32 import BIP32Key
-from .curve import Curve, secp256k1
+from .curve import CURVES, Curve, secp256k1
 from .curve_group import _double_mult, _mult, _multi_mult
 from .exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from .hashes import reduce_to_hlen, tagged_hash
@@ -79,22 +79,31 @@ _Sig = TypeVar("_Sig", bound="Sig")
 class Sig(DataClassJsonMixin):
     """BIP340-Schnorr signature.
 
-    r is a _field_element_, 0 <= r < ec.p
-    s is a scalar, 0 <= s < ec.n (yes, for BIP340-Schnorr it can be zero)
-    (p is the field prime, n is the curve order)
+    - r is an x-coordinate _field_element_, 0 <= r < ec.p
+    - s is a scalar, 0 <= s < ec.n (yes, for BIP340-Schnorr it can be zero)
+
+    (ec.p is the field prime, ec.n is the curve order)
     """
 
-    # 32 bytes
+    # 32 bytes x-coordinate field element
     r: int = field(
-        default=-1, metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=-1,
+        metadata=config(
+            encoder=lambda v: v.to_bytes(32, byteorder="big", signed=False).hex(),
+            decoder=lambda v: int(v, 16),
+        ),
     )
-    # 32 bytes
+    # 32 bytes scalar
     s: int = field(
-        default=-1, metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=-1,
+        metadata=config(
+            encoder=lambda v: v.to_bytes(32, byteorder="big", signed=False).hex(),
+            decoder=lambda v: int(v, 16),
+        ),
     )
     ec: Curve = field(
         default=secp256k1,
-        metadata=config(encoder=lambda v: v.name(), decoder=bytes.fromhex),
+        metadata=config(encoder=lambda v: v.name, decoder=lambda v: CURVES[v]),
     )
     check_validity: InitVar[bool] = True
 
@@ -103,10 +112,10 @@ class Sig(DataClassJsonMixin):
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        # Fail if r is not a field element, i.e. not a valid x-coordinate
+        # r is an x-coordinate field element, fail if r is not valid
         self.ec.y(self.r)
 
-        # Fail if s is not [0, n-1].
+        # s is a scalar, fail if s is not [0, n-1].
         if not 0 <= self.s < self.ec.n:
             err_msg = "scalar s not in 0..n-1: "
             err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"

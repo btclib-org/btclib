@@ -62,7 +62,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from . import var_bytes
 from .alias import BinaryData
-from .curve import Curve, secp256k1
+from .curve import CURVES, Curve, secp256k1
 from .exceptions import BTClibValueError
 from .utils import bytesio_from_binarydata, hex_string
 
@@ -71,23 +71,23 @@ _DER_SIG_MARKER = b"\x30"
 
 
 def _serialize_scalar(scalar: int) -> bytes:
-    # scalar is assumed to be in [1, n-1]
-    elen = scalar.bit_length()
-    esize = elen // 8 + 1  # not a bug: 'highest bit set' padding included here
-    scalar_bytes = scalar.to_bytes(esize, byteorder="big", signed=True)
+    # 'highest bit set' padding included here
+    scalar_size = scalar.bit_length() // 8 + 1
+    scalar_bytes = scalar.to_bytes(scalar_size, byteorder="big", signed=False)
     return _DER_SCALAR_MARKER + var_bytes.serialize(scalar_bytes)
 
 
 def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
+
     marker = sig_data_stream.read(1)
     if marker != _DER_SCALAR_MARKER:
         err_msg = f"invalid value header: {marker.hex()}"
         err_msg += f", instead of integer element {_DER_SCALAR_MARKER.hex()}"
         raise BTClibValueError(err_msg)
+
     r_bytes = var_bytes.deserialize(sig_data_stream, forbid_zero_size=True)
-    if r_bytes[0] == 0 and r_bytes[1] & 0x80 != 0x80:
-        err_msg = "invalid null byte at the start of scalar"
-        raise BTClibValueError(err_msg)
+    if r_bytes[0] == 0 and r_bytes[1] < 0x80:
+        raise BTClibValueError("invalid 'highest bit set' padding")
 
     return int.from_bytes(r_bytes, byteorder="big", signed=True)
 
@@ -97,17 +97,33 @@ _Sig = TypeVar("_Sig", bound="Sig")
 
 @dataclass(frozen=True)
 class Sig(DataClassJsonMixin):
-    # 32 bytes
+    """ECDSA signature with DER serialization.
+
+    - r is a scalar, 0 < r < ec.n
+    - s is a scalar, 0 < s < ec.n
+
+    (ec.n is the curve order)
+    """
+
+    # 32 bytes scalar
     r: int = field(
-        default=-1, metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=-1,
+        metadata=config(
+            encoder=lambda v: v.to_bytes(32, byteorder="big", signed=False).hex(),
+            decoder=lambda v: int(v, 16),
+        ),
     )
-    # 32 bytes
+    # 32 bytes scalar
     s: int = field(
-        default=-1, metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
+        default=-1,
+        metadata=config(
+            encoder=lambda v: v.to_bytes(32, byteorder="big", signed=False).hex(),
+            decoder=lambda v: int(v, 16),
+        ),
     )
     ec: Curve = field(
         default=secp256k1,
-        metadata=config(encoder=lambda v: v.name(), decoder=bytes.fromhex),
+        metadata=config(encoder=lambda v: v.name, decoder=lambda v: CURVES[v]),
     )
     check_validity: InitVar[bool] = True
 
