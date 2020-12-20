@@ -308,6 +308,9 @@ def test_bip32_derivs() -> None:
     serialize_hd_key_paths(_MARKER, data)
     # TODO: check deserialization
 
+    with pytest.raises(BTClibValueError, match="invalid type marker lenght: "):
+        serialize_hd_key_paths(b"\x11\x11", data)
+
 
 def test_bip32_key_paths() -> None:
 

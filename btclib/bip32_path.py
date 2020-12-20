@@ -282,7 +282,8 @@ def serialize_hd_key_paths(
     "Return the binary representation of the dataclass element."
 
     if len(type_) != 1:
-        raise BTClibValueError("invalid type marker")
+        err_msg = f"invalid type marker lenght: {len(type_)}, instead of 1"
+        raise BTClibValueError(err_msg)
 
     return b"".join(
         [
