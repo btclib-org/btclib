@@ -79,18 +79,18 @@ def sign(
         s[i] = [0] * keys_size
         e[i] = [0] * keys_size
         start_idx = (j_star + 1) % keys_size
-        R = bytes_from_point(mult(k), ec)
+        r = bytes_from_point(mult(k), ec)
         if start_idx != 0:
             for j in range(start_idx, keys_size):
                 s[i][j] = secrets.randbits(256)
-                e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
+                e[i][j] = int_from_bits(_hash(m, r, i, j), ec.nlen) % ec.n
                 # edge case that cannot be reproduced in the test suite
                 if not 0 < e[i][j] < ec.n:
                     err_msg = "implausibile signature failure"  # pragma: no cover
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover
-                T = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
-                R = bytes_from_point(T, ec)
-        e0bytes += R
+                t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
+                r = bytes_from_point(t, ec)
+        e0bytes += r
     e0 = hf(e0bytes).digest()
     # step 2
     for i, (j_star, k) in enumerate(zip(sign_key_idx, ks)):
@@ -101,9 +101,9 @@ def sign(
             raise BTClibRuntimeError(err_msg)  # pragma: no cover
         for j in range(1, j_star + 1):
             s[i][j - 1] = secrets.randbits(256)
-            T = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G)
-            R = bytes_from_point(T, ec)
-            e[i][j] = int_from_bits(_hash(m, R, i, j), ec.nlen) % ec.n
+            t = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G)
+            r = bytes_from_point(t, ec)
+            e[i][j] = int_from_bits(_hash(m, r, i, j), ec.nlen) % ec.n
             # edge case that cannot be reproduced in the test suite
             if not 0 < e[i][j] < ec.n:
                 err_msg = "implausibile signature failure"  # pragma: no cover
@@ -149,18 +149,18 @@ def assert_as_valid(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -
         if e[i][0] == 0:
             err_msg = "implausibile signature failure"  # pragma: no cover
             raise BTClibRuntimeError(err_msg)  # pragma: no cover
-        R = b"\0x00"
+        r = b"\0x00"
         for j in range(keys_size):
-            T = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
-            R = bytes_from_point(T, ec)
+            t = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
+            r = bytes_from_point(t, ec)
             if j != len(pubk_rings[i]) - 1:
-                h = _hash(m, R, i, j + 1)
+                h = _hash(m, r, i, j + 1)
                 e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n
                 # edge case that cannot be reproduced in the test suite
                 if e[i][j + 1] == 0:
                     err_msg = "implausibile signature failure"  # pragma: no cover
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover
             else:
-                e0bytes += R
+                e0bytes += r
     e0_prime = hf(e0bytes).digest()
     return e0_prime == e0
