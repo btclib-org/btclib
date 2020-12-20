@@ -35,7 +35,7 @@ A BIP32 extended key is 78 bytes:
 import copy
 import hmac
 from dataclasses import InitVar, dataclass, field
-from typing import Optional, Type, TypeVar, Union
+from typing import List, Optional, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
@@ -62,6 +62,12 @@ ec = secp256k1
 
 
 _BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
+_KEY_SIZE: List[Tuple[str, int]] = [
+    ("version", 4),
+    ("parent_fingerprint", 4),
+    ("chain_code", 32),
+    ("key", 33),
+]
 _REQUIRED_LENGHT = 78
 
 
@@ -96,41 +102,29 @@ class BIP32KeyData(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
 
-        self.version = bytes(self.version)
-        if len(self.version) != 4:
-            err_msg = "invalid version length: "
-            err_msg += f"{len(self.version)} bytes"
-            err_msg += " instead of 4"
-            raise BTClibValueError(err_msg)
-
-        self.depth = int(self.depth)
-        if not 0 <= self.depth <= 255:
-            raise BTClibValueError(f"invalid depth: {self.depth}")
-
-        self.parent_fingerprint = bytes(self.parent_fingerprint)
-        if len(self.parent_fingerprint) != 4:
-            err_msg = "invalid parent fingerprint length: "
-            err_msg += f"{len(self.parent_fingerprint)} bytes"
-            err_msg += " instead of 4"
-            raise BTClibValueError(err_msg)
+        for key, size in _KEY_SIZE:
+            value = bytes(getattr(self, key))
+            setattr(self, key, value)
+            if len(value) != size:
+                err_msg = f"invalid {key} length: "
+                err_msg += f"{len(value)} bytes"
+                err_msg += f" instead of {size}"
+                raise BTClibValueError(err_msg)
 
         self.index = int(self.index)
         if not 0 <= self.index <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid index: {self.index}")
 
-        self.chain_code = bytes(self.chain_code)
-        if len(self.chain_code) != 32:
-            err_msg = "invalid chain code length: "
-            err_msg += f"{len(self.chain_code)} bytes"
-            err_msg += " instead of 32"
-            raise BTClibValueError(err_msg)
+        self.depth = int(self.depth)
+        if not 0 <= self.depth <= 255:
+            raise BTClibValueError(f"invalid depth: {self.depth}")
 
-        self.key = bytes(self.key)
-        if len(self.key) != 33:
-            err_msg = "invalid key length: "
-            err_msg += f"{len(self.key)} bytes"
-            err_msg += " instead of 33"
-            raise BTClibValueError(err_msg)
+        if self.depth == 0:
+            if self.parent_fingerprint != bytes.fromhex("00000000"):
+                err_msg = f"zero depth with non-zero parent fingerprint: 0x{self.parent_fingerprint.hex()}"
+                raise BTClibValueError(err_msg)
+            if self.index != 0:
+                raise BTClibValueError(f"zero depth with non-zero index: {self.index}")
 
         if self.version in XPRV_VERSIONS_ALL:
             if self.key[0] != 0:
@@ -153,13 +147,6 @@ class BIP32KeyData(DataClassJsonMixin):
             raise BTClibValueError(
                 f"unknown extended key version: 0x{self.version.hex()}"
             )
-
-        if self.depth == 0:
-            if self.parent_fingerprint != bytes.fromhex("00000000"):
-                err_msg = f"zero depth with non-zero parent fingerprint: 0x{self.parent_fingerprint.hex()}"
-                raise BTClibValueError(err_msg)
-            if self.index != 0:
-                raise BTClibValueError(f"zero depth with non-zero index: {self.index}")
 
     def serialize(self, check_validity: bool = True) -> bytes:
 
