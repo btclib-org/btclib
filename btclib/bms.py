@@ -336,7 +336,6 @@ def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
     recovered_pub_key = dsa.__recover_pub_key(
         key_id, c, sig.dsa_sig.r, sig.dsa_sig.s, sig.dsa_sig.ec
     )
-    Q = secp256k1._aff_from_jac(recovered_pub_key)
 
     try:
         _, h160, _, is_script_hash = h160_from_base58_address(addr)
@@ -347,6 +346,7 @@ def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
 
     compressed = sig.rf >= 31
     # signature is valid only if the provided address is matched
+    Q = secp256k1._aff_from_jac(recovered_pub_key)
     pub_key = bytes_from_point(Q, compressed=compressed)
     if is_b58:
         if is_script_hash and 30 < sig.rf < 39:  # P2WPKH-P2SH
