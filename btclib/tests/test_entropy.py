@@ -29,7 +29,7 @@ from btclib.entropy import (
     collect_rolls,
     wordlist_indexes_from_bin_str_entropy,
 )
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 
 
 def test_indexes() -> None:
@@ -161,7 +161,7 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_entropy(tuple())  # type: ignore
 
-    with pytest.raises(BTClibTypeError, match="Entropy must be an int"):
+    with pytest.raises(ValueError):
         bin_str_entropy_from_int("not an int")  # type: ignore
 
     with pytest.raises(TypeError):

@@ -26,7 +26,7 @@ from hashlib import sha512
 from typing import Iterable, List, Optional, Tuple, Union
 
 from .alias import Octets
-from .exceptions import BTClibTypeError, BTClibValueError
+from .exceptions import BTClibValueError
 from .utils import bytes_from_octets
 
 _bits = 128, 160, 192, 224, 256, 512
@@ -184,11 +184,8 @@ def bin_str_entropy_from_int(
             int_entropy = int(int_entropy, 2)
         elif int_entropy[:2] == "0x":
             int_entropy = int(int_entropy, 16)
-
-    if not isinstance(int_entropy, int):
-        m = "Entropy must be an int, not "
-        m += f"{type(int_entropy).__name__}"
-        raise BTClibTypeError(m)
+        else:
+            int_entropy = int(int_entropy)
 
     if int_entropy < 0:
         raise BTClibValueError(f"Negative entropy: {int_entropy}")
