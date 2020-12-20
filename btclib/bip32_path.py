@@ -247,7 +247,7 @@ class BIP32KeyPath(DataClassJsonMixin):
         return cls(pub_key, key_origin, check_validity)
 
 
-def _encode_hd_key_paths(
+def encode_hd_key_paths(
     dictionary: Dict[bytes, BIP32KeyOrigin]
 ) -> List[Dict[str, Union[str, BIP32KeyOrigin]]]:
     "Return the json representation of the dataclass element."
@@ -268,7 +268,7 @@ def _decode_hd_key_path(new_element: Dict[str, Any]) -> Tuple[bytes, BIP32KeyOri
     return k, BIP32KeyOrigin(fingerprint, der_path)
 
 
-def _decode_hd_key_paths(
+def decode_hd_key_paths(
     list_of_dict: List[Dict[str, Collection[str]]]
 ) -> Dict[bytes, BIP32KeyOrigin]:
     "Return the dataclass element from its json representation."
@@ -276,7 +276,7 @@ def _decode_hd_key_paths(
     return dict([_decode_hd_key_path(item) for item in list_of_dict])
 
 
-def _serialize_hd_key_paths(
+def serialize_hd_key_paths(
     type_: bytes, dictionary: Dict[bytes, BIP32KeyOrigin]
 ) -> bytes:
     "Return the binary representation of the dataclass element."
@@ -292,7 +292,7 @@ def _serialize_hd_key_paths(
     )
 
 
-def _assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, BIP32KeyOrigin]) -> None:
+def assert_valid_hd_key_paths(hd_key_paths: Dict[bytes, BIP32KeyOrigin]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     allowed_lengths = (78, 33, 65)
@@ -314,8 +314,8 @@ class BIP32KeyPaths(DataClassJsonMixin):
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
-            encoder=_encode_hd_key_paths,
-            decoder=_decode_hd_key_paths,
+            encoder=encode_hd_key_paths,
+            decoder=decode_hd_key_paths,
         ),
     )
     check_validity: InitVar[bool] = True
@@ -329,7 +329,7 @@ class BIP32KeyPaths(DataClassJsonMixin):
         return len(self.hd_key_paths)
 
     def assert_valid(self) -> None:
-        _assert_valid_hd_key_paths(self.hd_key_paths)
+        assert_valid_hd_key_paths(self.hd_key_paths)
 
     def serialize(self, type_: bytes, check_validity: bool = True) -> bytes:
 
@@ -339,7 +339,7 @@ class BIP32KeyPaths(DataClassJsonMixin):
         if len(type_) != 1:
             raise BTClibValueError("invalid type marker")
 
-        return _serialize_hd_key_paths(type_, self.hd_key_paths)
+        return serialize_hd_key_paths(type_, self.hd_key_paths)
 
     @classmethod
     def deserialize(

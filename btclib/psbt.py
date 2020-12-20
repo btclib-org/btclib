@@ -24,18 +24,18 @@ from . import script, var_int
 from .alias import Octets, String
 from .bip32_path import BIP32KeyOrigin
 from .exceptions import BTClibValueError
-from .psbt_in import PsbtIn, _deserialize_int, _deserialize_tx
+from .psbt_in import PsbtIn, deserialize_int, deserialize_tx
 from .psbt_out import (
     PsbtOut,
-    _assert_valid_hd_key_paths,
-    _assert_valid_unknown,
-    _decode_dict_bytes_bytes,
-    _decode_hd_key_paths,
-    _encode_dict_bytes_bytes,
-    _encode_hd_key_paths,
-    _serialize_bytes,
-    _serialize_dict_bytes_bytes,
-    _serialize_hd_key_paths,
+    assert_valid_hd_key_paths,
+    assert_valid_unknown,
+    decode_dict_bytes_bytes,
+    decode_hd_key_paths,
+    encode_dict_bytes_bytes,
+    encode_hd_key_paths,
+    serialize_bytes,
+    serialize_dict_bytes_bytes,
+    serialize_hd_key_paths,
 )
 from .script_pub_key import payload_from_script_pub_key
 from .tx import Tx
@@ -77,14 +77,14 @@ class Psbt(DataClassJsonMixin):
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
-            encoder=_encode_hd_key_paths,
-            decoder=_decode_hd_key_paths,
+            encoder=encode_hd_key_paths,
+            decoder=decode_hd_key_paths,
         ),
     )
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
-            encoder=_encode_dict_bytes_bytes, decoder=_decode_dict_bytes_bytes
+            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
         ),
     )
     check_validity: InitVar[bool] = True
@@ -133,8 +133,8 @@ class Psbt(DataClassJsonMixin):
             psbt_out.assert_valid()
 
         _assert_valid_version(self.version)
-        _assert_valid_hd_key_paths(self.hd_key_paths)
-        _assert_valid_unknown(self.unknown)
+        assert_valid_hd_key_paths(self.hd_key_paths)
+        assert_valid_unknown(self.unknown)
 
     def assert_signable(self) -> None:
 
@@ -180,14 +180,14 @@ class Psbt(DataClassJsonMixin):
         psbt_bin = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
 
         temp = self.tx.serialize(include_witness=True)
-        psbt_bin += _serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
+        psbt_bin += serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
         if self.version:
             temp = self.version.to_bytes(4, byteorder="little", signed=False)
-            psbt_bin += _serialize_bytes(PSBT_GLOBAL_VERSION, temp)
+            psbt_bin += serialize_bytes(PSBT_GLOBAL_VERSION, temp)
         if self.hd_key_paths:
-            psbt_bin += _serialize_hd_key_paths(PSBT_GLOBAL_XPUB, self.hd_key_paths)
+            psbt_bin += serialize_hd_key_paths(PSBT_GLOBAL_XPUB, self.hd_key_paths)
         if self.unknown:
-            psbt_bin += _serialize_dict_bytes_bytes(b"", self.unknown)
+            psbt_bin += serialize_dict_bytes_bytes(b"", self.unknown)
 
         psbt_bin += PSBT_DELIMITER
         for input_map in self.inputs:
@@ -224,11 +224,11 @@ class Psbt(DataClassJsonMixin):
             if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 if tx.vin:
                     raise BTClibValueError("duplicate Psbt unsigned tx")
-                tx = _deserialize_tx(k, v, "global unsigned tx")
+                tx = deserialize_tx(k, v, "global unsigned tx")
             elif k[:1] == PSBT_GLOBAL_VERSION:
                 if version:
                     raise BTClibValueError("duplicate Psbt version")
-                version = _deserialize_int(k, v, "global version")
+                version = deserialize_int(k, v, "global version")
             elif k[:1] == PSBT_GLOBAL_XPUB:
                 if k[1:] in hd_key_paths:
                     raise BTClibValueError("duplicate xpub in Psbt hd_key_path")

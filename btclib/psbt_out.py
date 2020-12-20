@@ -21,27 +21,27 @@ from dataclasses_json import DataClassJsonMixin, config
 from . import var_bytes
 from .bip32_path import (
     BIP32KeyOrigin,
-    _assert_valid_hd_key_paths,
-    _decode_hd_key_paths,
-    _encode_hd_key_paths,
-    _serialize_hd_key_paths,
+    assert_valid_hd_key_paths,
+    decode_hd_key_paths,
+    encode_hd_key_paths,
+    serialize_hd_key_paths,
 )
-from .exceptions import BTClibTypeError, BTClibValueError
+from .exceptions import BTClibValueError
 
 # from .to_pub_key import point_from_pub_key
 
 
-def _encode_dict_bytes_bytes(dictionary: Dict[bytes, bytes]) -> Dict[str, str]:
+def encode_dict_bytes_bytes(dictionary: Dict[bytes, bytes]) -> Dict[str, str]:
     "Return the json representation of the dataclass element."
     return {k.hex(): v.hex() for k, v in dictionary.items()}
 
 
-def _decode_dict_bytes_bytes(dictionary: Dict[str, str]) -> Dict[bytes, bytes]:
+def decode_dict_bytes_bytes(dictionary: Dict[str, str]) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
     return {bytes.fromhex(k): bytes.fromhex(v) for k, v in dictionary.items()}
 
 
-def _serialize_dict_bytes_bytes(type_: bytes, dictionary: Dict[bytes, bytes]) -> bytes:
+def serialize_dict_bytes_bytes(type_: bytes, dictionary: Dict[bytes, bytes]) -> bytes:
     "Return the binary representation of the dataclass element."
 
     return b"".join(
@@ -52,12 +52,12 @@ def _serialize_dict_bytes_bytes(type_: bytes, dictionary: Dict[bytes, bytes]) ->
     )
 
 
-def _serialize_bytes(type_: bytes, value: bytes) -> bytes:
+def serialize_bytes(type_: bytes, value: bytes) -> bytes:
     "Return the binary representation of the dataclass element."
     return var_bytes.serialize(type_) + var_bytes.serialize(value)
 
 
-def _deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
+def deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
     "Return the dataclass element from its binary representation."
 
     if len(k) != 1:
@@ -66,26 +66,24 @@ def _deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
     return v
 
 
-def _assert_valid_redeem_script(redeem_script: bytes) -> None:
+def assert_valid_redeem_script(redeem_script: bytes) -> None:
     "Raise an exception if the dataclass element is not valid."
-    if not isinstance(redeem_script, bytes):
-        raise BTClibTypeError("invalid redeem script")
+    # should check for a valid script
+    bytes(redeem_script)
 
 
-def _assert_valid_witness_script(witness_script: bytes) -> None:
+def assert_valid_witness_script(witness_script: bytes) -> None:
     "Raise an exception if the dataclass element is not valid."
-    if not isinstance(witness_script, bytes):
-        raise BTClibTypeError("invalid witness script")
+    # should check for a valid script
+    bytes(witness_script)
 
 
-def _assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
+def assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     for key, value in data.items():
-        if not isinstance(key, bytes):
-            raise BTClibTypeError("invalid key in unknown")
-        if not isinstance(value, bytes):
-            raise BTClibTypeError("invalid value in unknown")
+        bytes(key)
+        bytes(value)
 
 
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
@@ -112,14 +110,14 @@ class PsbtOut(DataClassJsonMixin):
         default_factory=dict,
         metadata=config(
             field_name="bip32_derivs",
-            encoder=_encode_hd_key_paths,
-            decoder=_decode_hd_key_paths,
+            encoder=encode_hd_key_paths,
+            decoder=decode_hd_key_paths,
         ),
     )
     unknown: Dict[bytes, bytes] = field(
         default_factory=dict,
         metadata=config(
-            encoder=_encode_dict_bytes_bytes, decoder=_decode_dict_bytes_bytes
+            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
         ),
     )
     check_validity: InitVar[bool] = True
@@ -132,10 +130,10 @@ class PsbtOut(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         "Assert logical self-consistency."
-        _assert_valid_redeem_script(self.redeem_script)
-        _assert_valid_witness_script(self.witness_script)
-        _assert_valid_hd_key_paths(self.hd_key_paths)
-        _assert_valid_unknown(self.unknown)
+        assert_valid_redeem_script(self.redeem_script)
+        assert_valid_witness_script(self.witness_script)
+        assert_valid_hd_key_paths(self.hd_key_paths)
+        assert_valid_unknown(self.unknown)
 
     def serialize(self, check_validity: bool = True) -> bytes:
 
@@ -145,20 +143,20 @@ class PsbtOut(DataClassJsonMixin):
         psbt_out_bin = b""
 
         if self.redeem_script:
-            psbt_out_bin += _serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
+            psbt_out_bin += serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
 
         if self.witness_script:
-            psbt_out_bin += _serialize_bytes(
+            psbt_out_bin += serialize_bytes(
                 PSBT_OUT_WITNESS_SCRIPT, self.witness_script
             )
 
         if self.hd_key_paths:
-            psbt_out_bin += _serialize_hd_key_paths(
+            psbt_out_bin += serialize_hd_key_paths(
                 PSBT_OUT_BIP32_DERIVATION, self.hd_key_paths
             )
 
         if self.unknown:
-            psbt_out_bin += _serialize_dict_bytes_bytes(b"", self.unknown)
+            psbt_out_bin += serialize_dict_bytes_bytes(b"", self.unknown)
 
         return psbt_out_bin
 
@@ -179,11 +177,11 @@ class PsbtOut(DataClassJsonMixin):
             if k[:1] == PSBT_OUT_REDEEM_SCRIPT:
                 if redeem_script:
                     raise BTClibValueError("duplicate PsbtOut redeem_script")
-                redeem_script = _deserialize_bytes(k, v, "redeem script")
+                redeem_script = deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_OUT_WITNESS_SCRIPT:
                 if witness_script:
                     raise BTClibValueError("duplicate PsbtOut witness_script")
-                witness_script = _deserialize_bytes(k, v, "witness script")
+                witness_script = deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
                 #  deserialize just one hd key path at time :-(
                 if k[1:] in hd_key_paths:

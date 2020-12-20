@@ -21,14 +21,14 @@ from btclib.bip32_path import (
     BIP32KeyOrigin,
     BIP32KeyPath,
     BIP32KeyPaths,
-    _assert_valid_hd_key_paths,
-    _decode_hd_key_paths,
     _indexes_from_bip32_path_str,
     _int_from_index_str,
-    _serialize_hd_key_paths,
     _str_from_index_int,
+    assert_valid_hd_key_paths,
     bytes_from_bip32_path,
+    decode_hd_key_paths,
     indexes_from_bip32_path,
+    serialize_hd_key_paths,
     str_from_bip32_path,
 )
 from btclib.exceptions import BTClibValueError
@@ -301,11 +301,11 @@ def test_bip32_derivs() -> None:
             },
         },
     ]
-    data = _decode_hd_key_paths(encoded_data)
-    _assert_valid_hd_key_paths(data)
-    # assert encoded_data == _encode_hd_key_paths(data)
+    data = decode_hd_key_paths(encoded_data)
+    assert_valid_hd_key_paths(data)
+    # assert encoded_data == encode_hd_key_paths(data)
 
-    _serialize_hd_key_paths(_MARKER, data)
+    serialize_hd_key_paths(_MARKER, data)
     # TODO: check deserialization
 
 

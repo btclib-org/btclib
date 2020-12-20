@@ -17,10 +17,10 @@ from typing import Dict
 from btclib.psbt import Psbt
 from btclib.psbt_out import (
     PsbtOut,
-    _assert_valid_unknown,
-    _decode_dict_bytes_bytes,
-    _encode_dict_bytes_bytes,
-    _serialize_dict_bytes_bytes,
+    assert_valid_unknown,
+    decode_dict_bytes_bytes,
+    encode_dict_bytes_bytes,
+    serialize_dict_bytes_bytes,
 )
 
 
@@ -30,11 +30,11 @@ def test_unknown() -> None:
         "baad": "deadbeef",
         "abadbabe": "cafebabe",
     }
-    data: Dict[bytes, bytes] = _decode_dict_bytes_bytes(encoded_data)
-    _assert_valid_unknown(data)
-    assert encoded_data == _encode_dict_bytes_bytes(data)
+    data: Dict[bytes, bytes] = decode_dict_bytes_bytes(encoded_data)
+    assert_valid_unknown(data)
+    assert encoded_data == encode_dict_bytes_bytes(data)
 
-    _ = _serialize_dict_bytes_bytes(b"", data)
+    _ = serialize_dict_bytes_bytes(b"", data)
     # TODO: check deserialization
 
 

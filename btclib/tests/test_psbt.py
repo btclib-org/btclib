@@ -16,7 +16,7 @@ from os import path
 import pytest
 
 from btclib import der, dsa, sec_point
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 from btclib.psbt import (
     PSBT_DELIMITER,
     PSBT_SEPARATOR,
@@ -391,22 +391,22 @@ def test_exceptions() -> None:
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.outputs[0].redeem_script = "bad script"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid redeem script"):
+    with pytest.raises(TypeError):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.inputs[0].witness_script = "bad script"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid witness script"):
+    with pytest.raises(TypeError):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.outputs[0].unknown = {"bad key": b""}  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid key in unknown"):
+    with pytest.raises(TypeError):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.outputs[0].unknown = {b"deadbeef": "bad value"}  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid value in unknown"):
+    with pytest.raises(TypeError):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
@@ -416,7 +416,7 @@ def test_exceptions() -> None:
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.inputs[0].final_script_sig = "bad script"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid final script_sig"):
+    with pytest.raises(TypeError):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
