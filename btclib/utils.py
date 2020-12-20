@@ -21,7 +21,7 @@ from io import BytesIO
 from typing import Callable, Iterable, List, Optional, Union
 
 from .alias import BinaryData, Integer, Octets
-from .exceptions import BTClibTypeError, BTClibValueError
+from .exceptions import BTClibValueError
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
@@ -163,8 +163,8 @@ def int_from_integer(i: Integer) -> int:
         if i.startswith("0x") or i.startswith("-0x"):
             return int(i, 16)
         i = bytes.fromhex(i)
-    if not isinstance(i, bytes):
-        raise BTClibTypeError("not an Integer=Union[int, str, bytes]")
+
+    # must be bytes
     return int.from_bytes(i, "big", signed=False)
 
 

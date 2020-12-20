@@ -16,7 +16,6 @@ import pytest
 
 from btclib import pedersen
 from btclib.curve import CURVES, secp256k1
-from btclib.exceptions import BTClibTypeError
 
 secp256r1 = CURVES["secp256r1"]
 secp384r1 = CURVES["secp384r1"]
@@ -35,8 +34,8 @@ def test_second_generator() -> None:
     )
     assert H == pedersen.second_generator(secp256k1, sha256)
 
-    H = pedersen.second_generator(secp256r1, sha256)
-    H = pedersen.second_generator(secp384r1, sha384)
+    _ = pedersen.second_generator(secp256r1, sha256)
+    _ = pedersen.second_generator(secp384r1, sha384)
 
 
 def test_commitment() -> None:
@@ -44,14 +43,14 @@ def test_commitment() -> None:
     ec = secp256k1
     hf = sha256
 
-    r_1 = 0x1
-    v1 = 0x2
+    r_1 = 0xDEADBEEF
+    v1 = 0xBAADCAFE
     # r_1*G + v1*H
     C1 = pedersen.commit(r_1, v1, ec, hf)
     assert pedersen.verify(r_1, v1, C1, ec, hf)
 
-    r_2 = 0x3
-    v2 = 0x4
+    r_2 = 0xBAADBAAD
+    v2 = 0xBAADBEEF
     # r_2*G + v2*H
     C2 = pedersen.commit(r_2, v2, ec, hf)
     assert pedersen.verify(r_2, v2, C2, ec, hf)
@@ -62,6 +61,6 @@ def test_commitment() -> None:
     assert ec.add(C1, C2) == R
 
     # commit does not verify (with catched exception)
-    assert not pedersen.verify((r_1, r_1), v1, C2, ec, hf)  # type: ignore
-    with pytest.raises(BTClibTypeError, match="not an Integer"):
-        pedersen.commit((r_1, r_1), v1, ec, hf)  # type: ignore
+    assert not pedersen.verify(sha256, v1, C2, ec, hf)  # type: ignore
+    with pytest.raises(TypeError):
+        pedersen.commit(sha256, v1, ec, hf)  # type: ignore
