@@ -207,7 +207,7 @@ CURVES.update(Brainpool)
 secp256k1 = CURVES["secp256k1"]
 
 
-def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
+def mult(m: Integer, Q: Optional[Point] = None, ec: Curve = secp256k1) -> Point:
     "Elliptic curve scalar multiplication."
     if Q is None:
         QJ = ec.GJ
