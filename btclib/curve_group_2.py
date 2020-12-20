@@ -93,7 +93,7 @@ def wNAF_of_m(m: int, w: int) -> List[int]:
     return M
 
 
-def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
+def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """Scalar multiplication using "sliding window".
 
     It has the benefit that the pre-computation stage
@@ -119,10 +119,10 @@ def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> Jac
     # at each step one of the points in T will be added
     P = Q
     for _ in range(k):
-        P = ec._double_jac(P)
+        P = ec.double_jac(P)
     T = [P]
     for i in range(1, p):
-        T.append(ec._add_jac(T[i - 1], Q))
+        T.append(ec.add_jac(T[i - 1], Q))
 
     digits = convert_number_to_base(m, 2)
 
@@ -130,7 +130,7 @@ def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> Jac
     i = 0
     while i < len(digits):
         if digits[i] == 0:
-            R = ec._double_jac(R)
+            R = ec.double_jac(R)
             i += 1
         else:
             j = len(digits) - i if (len(digits) - i) < w else w
@@ -140,19 +140,19 @@ def _mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> Jac
 
             if j < w:
                 for b in range(i, (i + j)):
-                    R = ec._double_jac(R)
+                    R = ec.double_jac(R)
                     if digits[b] == 1:
-                        R = ec._add_jac(R, Q)
+                        R = ec.add_jac(R, Q)
                 return R
             for _ in range(w):
-                R = ec._double_jac(R)
-            R = ec._add_jac(R, T[t - p])
+                R = ec.double_jac(R)
+            R = ec.add_jac(R, T[t - p])
             i += j
 
     return R
 
 
-def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
+def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """Scalar multiplication in Jacobian coordinates using wNAF.
 
     This implementation uses the same method called "w-ary non-adjacent form" (wNAF)
@@ -182,27 +182,27 @@ def _mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
 
     b = pow(2, w)
 
-    Q2 = ec._double_jac(Q)
+    Q2 = ec.double_jac(Q)
     T = [Q]
     for i in range(1, (b // 4)):
-        T.append(ec._add_jac(T[i - 1], Q2))
+        T.append(ec.add_jac(T[i - 1], Q2))
     for i in range((b // 4), (b // 2)):
         T.append(ec.negate_jac(T[i - (b // 4)]))
 
     R = INFJ
     for j in range(p - 1, -1, -1):
-        R = ec._double_jac(R)
+        R = ec.double_jac(R)
         if M[j] != 0:
             if M[j] > 0:
                 # It adds the element jQ
-                R = ec._add_jac(R, T[(M[j] - 1) // 2])
+                R = ec.add_jac(R, T[(M[j] - 1) // 2])
             else:
                 # In this case it adds the opposite, ie -jQ
                 if w != 1:
-                    R = ec._add_jac(R, T[(b // 4) - ((M[j] + 1) // 2)])
+                    R = ec.add_jac(R, T[(b // 4) - ((M[j] + 1) // 2)])
                 else:
                     # Case w=1 must be studied on its own for now
-                    R = R = ec._add_jac(R, T[1])
+                    R = R = ec.add_jac(R, T[1])
     return R
 
 
@@ -238,7 +238,7 @@ def multiplier_decomposer(m: int, ec: CurveGroup) -> Tuple[int, int]:
     return m1 % ec.p, m2 % ec.p
 
 
-def _mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     "Scalar multiplication in Jacobian coordinates using efficient endomorphism."
 
     m1, m2 = multiplier_decomposer(m, ec)

@@ -88,7 +88,7 @@ class OutPoint(DataClassJsonMixin):
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
 
-_TX_IN_COMPARES_WITNESS = True
+TX_IN_COMPARES_WITNESS = True
 
 
 @dataclass
@@ -117,7 +117,7 @@ class TxIn(DataClassJsonMixin):
         default=Witness(),
         init=True,  # must be True, probably a bug of dataclasses_json
         repr=True,
-        compare=_TX_IN_COMPARES_WITNESS,
+        compare=TX_IN_COMPARES_WITNESS,
         metadata=config(field_name="txinwitness"),
     )
     check_validity: InitVar[bool] = True

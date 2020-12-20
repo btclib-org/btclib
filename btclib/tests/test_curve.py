@@ -17,7 +17,7 @@ import pytest
 
 from btclib.alias import INF, INFJ
 from btclib.curve import CURVES, Curve, double_mult, mult, multi_mult, secp256k1
-from btclib.curve_group import _jac_from_aff
+from btclib.curve_group import jac_from_aff
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 from btclib.pedersen import second_generator
@@ -105,14 +105,14 @@ def test_aff_jac_conversions() -> None:
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
         Q = mult(q, ec.G, ec)
-        QJ = _jac_from_aff(Q)
+        QJ = jac_from_aff(Q)
         assert Q == ec.aff_from_jac(QJ)
         x_Q = ec._x_aff_from_jac(QJ)
         assert Q[0] == x_Q
         y_Q = ec._y_aff_from_jac(QJ)
         assert Q[1] == y_Q
 
-        assert INF == ec.aff_from_jac(_jac_from_aff(INF))
+        assert INF == ec.aff_from_jac(jac_from_aff(INF))
 
         with pytest.raises(BTClibValueError, match="INF has no x-coordinate"):
             ec._x_aff_from_jac(INFJ)
@@ -126,22 +126,22 @@ def test_add_double_aff() -> None:
     for ec in all_curves.values():
 
         # add G and the infinity point
-        assert ec._add_aff(ec.G, INF) == ec.G
-        assert ec._add_aff(INF, ec.G) == ec.G
+        assert ec.add_aff(ec.G, INF) == ec.G
+        assert ec.add_aff(INF, ec.G) == ec.G
 
         # double G
-        G2 = ec._add_aff(ec.G, ec.G)
-        assert G2 == ec._double_aff(ec.G)
+        G2 = ec.add_aff(ec.G, ec.G)
+        assert G2 == ec.double_aff(ec.G)
 
         # double INF
-        assert ec._add_aff(INF, INF) == INF
-        assert ec._double_aff(INF) == INF
+        assert ec.add_aff(INF, INF) == INF
+        assert ec.double_aff(INF) == INF
 
         # add G and minus G
-        assert ec._add_aff(ec.G, ec.negate(ec.G)) == INF
+        assert ec.add_aff(ec.G, ec.negate(ec.G)) == INF
 
         # add INF and "minus" INF
-        assert ec._add_aff(INF, ec.negate(INF)) == INF
+        assert ec.add_aff(INF, ec.negate(INF)) == INF
 
 
 def test_add_double_jac() -> None:
@@ -149,22 +149,22 @@ def test_add_double_jac() -> None:
     for ec in all_curves.values():
 
         # add G and the infinity point
-        assert ec._jac_equality(ec._add_jac(ec.GJ, INFJ), ec.GJ)
-        assert ec._jac_equality(ec._add_jac(INFJ, ec.GJ), ec.GJ)
+        assert ec.jac_equality(ec.add_jac(ec.GJ, INFJ), ec.GJ)
+        assert ec.jac_equality(ec.add_jac(INFJ, ec.GJ), ec.GJ)
 
         # double G
-        GJ2 = ec._add_jac(ec.GJ, ec.GJ)
-        assert ec._jac_equality(GJ2, ec._double_jac(ec.GJ))
+        GJ2 = ec.add_jac(ec.GJ, ec.GJ)
+        assert ec.jac_equality(GJ2, ec.double_jac(ec.GJ))
 
         # double INF
-        assert ec._jac_equality(ec._add_jac(INFJ, INFJ), INFJ)
-        assert ec._jac_equality(ec._double_jac(INFJ), INFJ)
+        assert ec.jac_equality(ec.add_jac(INFJ, INFJ), INFJ)
+        assert ec.jac_equality(ec.double_jac(INFJ), INFJ)
 
         # add G and minus G
-        assert ec._jac_equality(ec._add_jac(ec.GJ, ec.negate_jac(ec.GJ)), INFJ)
+        assert ec.jac_equality(ec.add_jac(ec.GJ, ec.negate_jac(ec.GJ)), INFJ)
 
         # add INF and "minus" INF
-        assert ec._jac_equality(ec._add_jac(INFJ, ec.negate_jac(INFJ)), INFJ)
+        assert ec.jac_equality(ec.add_jac(INFJ, ec.negate_jac(INFJ)), INFJ)
 
 
 def test_add_double_aff_jac() -> None:
@@ -174,19 +174,19 @@ def test_add_double_aff_jac() -> None:
         # just a random point, not INF
         q = 1 + secrets.randbelow(ec.n - 1)
         Q = mult(q, ec.G, ec)
-        QJ = _jac_from_aff(Q)
+        QJ = jac_from_aff(Q)
 
         # add Q and G
-        R = ec._add_aff(Q, ec.G)
-        RJ = ec._add_jac(QJ, ec.GJ)
+        R = ec.add_aff(Q, ec.G)
+        RJ = ec.add_jac(QJ, ec.GJ)
         assert R == ec.aff_from_jac(RJ)
 
         # double Q
-        R = ec._double_aff(Q)
-        RJ = ec._double_jac(QJ)
+        R = ec.double_aff(Q)
+        RJ = ec.double_jac(QJ)
         assert R == ec.aff_from_jac(RJ)
-        assert R == ec._add_aff(Q, Q)
-        assert ec._jac_equality(RJ, ec._add_jac(QJ, QJ))
+        assert R == ec.add_aff(Q, Q)
+        assert ec.jac_equality(RJ, ec.add_jac(QJ, QJ))
 
 
 def test_ec_repr() -> None:
@@ -224,9 +224,9 @@ def test_negate() -> None:
         assert ec.add(Q, minus_Q) == INF
 
         # Jacobian coordinates
-        QJ = _jac_from_aff(Q)
+        QJ = jac_from_aff(Q)
         minus_QJ = ec.negate_jac(QJ)
-        assert ec._jac_equality(ec._add_jac(QJ, minus_QJ), INFJ)
+        assert ec.jac_equality(ec.add_jac(QJ, minus_QJ), INFJ)
 
         # negate of INF is INF
         minus_INF = ec.negate(INF)
@@ -234,7 +234,7 @@ def test_negate() -> None:
 
         # negate of INFJ is INFJ
         minus_INFJ = ec.negate_jac(INFJ)
-        assert ec._jac_equality(minus_INFJ, INFJ)
+        assert ec.jac_equality(minus_INFJ, INFJ)
 
         with pytest.raises(BTClibTypeError, match="not a point"):
             ec.negate(ec.GJ)  # type: ignore

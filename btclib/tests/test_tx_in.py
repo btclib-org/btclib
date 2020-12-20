@@ -17,7 +17,7 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.tx import Tx
-from btclib.tx_in import _TX_IN_COMPARES_WITNESS, OutPoint, TxIn
+from btclib.tx_in import TX_IN_COMPARES_WITNESS, OutPoint, TxIn
 from btclib.utils import bytes_from_octets
 from btclib.witness import Witness
 
@@ -155,7 +155,7 @@ def test_tx_in() -> None:
     assert tx_in.is_segwit()
     tx_in2 = TxIn.deserialize(tx_in.serialize())
     assert not tx_in2.is_segwit()
-    assert tx_in == tx_in2 or _TX_IN_COMPARES_WITNESS
+    assert tx_in == tx_in2 or TX_IN_COMPARES_WITNESS
 
     assert tx_in != OutPoint()
 

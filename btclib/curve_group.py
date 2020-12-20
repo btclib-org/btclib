@@ -26,10 +26,10 @@ from .exceptions import BTClibTypeError, BTClibValueError
 from .number_theory import legendre_symbol, mod_inv, mod_sqrt
 from .utils import hex_string, int_from_integer
 
-_HEXTHRESHOLD = 0xFFFFFFFF
+HEXTHRESHOLD = 0xFFFFFFFF
 
 
-def _jac_from_aff(Q: Point) -> JacPoint:
+def jac_from_aff(Q: Point) -> JacPoint:
     """Return the Jacobian representation of the affine point.
 
     The input point is assumed to be on curve.
@@ -61,7 +61,7 @@ class CurveGroup:
         # Fermat test will do as _probabilistic_ primality test...
         if p < 2 or p % 2 == 0 or pow(2, p - 1, p) != 1:
             err_msg = "p is not prime: "
-            err_msg += f"'{hex_string(p)}'" if p > _HEXTHRESHOLD else f"{p}"
+            err_msg += f"'{hex_string(p)}'" if p > HEXTHRESHOLD else f"{p}"
             raise BTClibValueError(err_msg)
 
         plen = p.bit_length()
@@ -77,7 +77,7 @@ class CurveGroup:
         if p <= a:
             err_msg = "p <= a: " + (
                 f"'{hex_string(p)}' <= '{hex_string(a)}'"
-                if p > _HEXTHRESHOLD
+                if p > HEXTHRESHOLD
                 else f"{p} <= {a}"
             )
             raise BTClibValueError(err_msg)
@@ -86,7 +86,7 @@ class CurveGroup:
         if p <= b:
             err_msg = "p <= b: " + (
                 f"'{hex_string(p)}' <= '{hex_string(b)}'"
-                if p > _HEXTHRESHOLD
+                if p > HEXTHRESHOLD
                 else f"{p} <= {b}"
             )
             raise BTClibValueError(err_msg)
@@ -100,12 +100,12 @@ class CurveGroup:
 
     def __str__(self) -> str:
         result = "Curve"
-        if self.p > _HEXTHRESHOLD:
+        if self.p > HEXTHRESHOLD:
             result += f"\n p   = {hex_string(self.p)}"
         else:
             result += f"\n p   = {self.p}"
 
-        if self._a > _HEXTHRESHOLD or self._b > _HEXTHRESHOLD:
+        if self._a > HEXTHRESHOLD or self._b > HEXTHRESHOLD:
             result += f"\n a   = {hex_string(self._a)}"
             result += f"\n b   = {hex_string(self._b)}"
         else:
@@ -116,8 +116,8 @@ class CurveGroup:
 
     def __repr__(self) -> str:
         result = "Curve("
-        result += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
-        if self._a > _HEXTHRESHOLD or self._b > _HEXTHRESHOLD:
+        result += f"'{hex_string(self.p)}'" if self.p > HEXTHRESHOLD else f"{self.p}"
+        if self._a > HEXTHRESHOLD or self._b > HEXTHRESHOLD:
             result += f", '{hex_string(self._a)}', '{hex_string(self._b)}'"
         else:
             result += f", {self._a}, {self._b}"
@@ -175,7 +175,7 @@ class CurveGroup:
         Z2 = Q[2] * Q[2]
         return (Q[1] * mod_inv(Z2 * Q[2], self.p)) % self.p
 
-    def _jac_equality(self, QJ: JacPoint, PJ: JacPoint) -> bool:
+    def jac_equality(self, QJ: JacPoint, PJ: JacPoint) -> bool:
         """Return True if Jacobian points are equal in affine coordinates.
 
         The input points are assumed to be on curve.
@@ -200,10 +200,10 @@ class CurveGroup:
         self.require_on_curve(Q1)
         self.require_on_curve(Q2)
         # no Jacobian coordinates here as aff_from_jac would cost 2 mod_inv
-        # while _add_aff costs only one mod_inv
-        return self._add_aff(Q1, Q2)
+        # while add_aff costs only one mod_inv
+        return self.add_aff(Q1, Q2)
 
-    def _add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
+    def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
 
         # to have this funtion constant time,
@@ -258,7 +258,7 @@ class CurveGroup:
         i = (Q[2] == 0) + (R[2] == 0) * 2
         return ret_values[i]
 
-    def _double_jac(self, Q: JacPoint) -> JacPoint:
+    def double_jac(self, Q: JacPoint) -> JacPoint:
         # point is assumed to be on curve
 
         QZ2 = Q[2] * Q[2]
@@ -270,7 +270,7 @@ class CurveGroup:
         Z = 2 * Q[1] * Q[2]
         return X % self.p, Y % self.p, Z % self.p
 
-    def _add_aff(self, Q: Point, R: Point) -> Point:
+    def add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
 
         # FIXME: it would be better if INF handling was not a special case
@@ -282,7 +282,7 @@ class CurveGroup:
         # FIXME: it would be better if doubling was checked before INF handling
         if R[0] == Q[0]:
             if R[1] == Q[1]:  # point doubling
-                return self._double_aff(R)
+                return self.double_aff(R)
             # opposite points
             return INF
 
@@ -291,7 +291,7 @@ class CurveGroup:
         y = lam * (Q[0] - x) - Q[1]
         return x % self.p, y % self.p
 
-    def _double_aff(self, Q: Point) -> Point:
+    def double_aff(self, Q: Point) -> Point:
         # point is assumed to be on curve
 
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -312,14 +312,14 @@ class CurveGroup:
         """Return the y coordinate from x, as in (x, y)."""
         if not 0 <= x < self.p:
             err_msg = "x-coordinate not in 0..p-1: "
-            err_msg += f"{hex_string(x)}" if x > _HEXTHRESHOLD else f"{x}"
+            err_msg += f"{hex_string(x)}" if x > HEXTHRESHOLD else f"{x}"
             raise BTClibValueError(err_msg)
         try:
             y2 = self._y2(x)
             return mod_sqrt(y2, self.p)
         except BTClibValueError as e:
             err_msg = "invalid x-coordinate: "
-            err_msg += f"{hex_string(x)}" if x > _HEXTHRESHOLD else f"{x}"
+            err_msg += f"{hex_string(x)}" if x > HEXTHRESHOLD else f"{x}"
             raise BTClibValueError("invalid x-coordinate") from e
 
     def require_on_curve(self, Q: Point) -> None:
@@ -358,14 +358,14 @@ class CurveGroup:
 
         if not self.p_is_3_mod_4:
             m = "field prime is not equal to 3 mod 4: "
-            m += f"'{hex_string(self.p)}'" if self.p > _HEXTHRESHOLD else f"{self.p}"
+            m += f"'{hex_string(self.p)}'" if self.p > HEXTHRESHOLD else f"{self.p}"
             raise BTClibValueError(m)
         root = self.y(x)
         legendre = legendre_symbol(root, self.p)
         return root if legendre else self.p - root
 
 
-def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
+def mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses
@@ -384,12 +384,12 @@ def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         return INF
 
     if m % 2 == 1:
-        return ec._add_aff(Q, _mult_recursive_aff((m - 1), Q, ec))
+        return ec.add_aff(Q, mult_recursive_aff((m - 1), Q, ec))
 
-    return _mult_recursive_aff((m // 2), ec._double_aff(Q), ec)
+    return mult_recursive_aff((m // 2), ec.double_aff(Q), ec)
 
 
-def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses
@@ -408,12 +408,12 @@ def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         return INFJ
 
     if m % 2 == 1:
-        return ec._add_jac(Q, _mult_recursive_jac((m - 1), Q, ec))
+        return ec.add_jac(Q, mult_recursive_jac((m - 1), Q, ec))
 
-    return _mult_recursive_jac((m // 2), ec._double_jac(Q), ec)
+    return mult_recursive_jac((m // 2), ec.double_jac(Q), ec)
 
 
-def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
+def mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses
@@ -437,16 +437,16 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     m >>= 1
     while m > 0:
         # the doubling part of 'double & add'
-        Q = ec._double_aff(Q)
+        Q = ec.double_aff(Q)
         # always perform the 'add', even if useless, to be constant-time
-        R[1] = ec._add_aff(R[0], Q)
+        R[1] = ec.add_aff(R[0], Q)
         # if least significant bit of m is 1, then add Q to R[0]
         R[0] = R[m & 1]
         m >>= 1
     return R[0]
 
 
-def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
 
     This implementation uses
@@ -470,10 +470,10 @@ def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     m >>= 1
     while m > 0:
         # the doubling part of 'double & add'
-        Q = ec._double_jac(Q)
+        Q = ec.double_jac(Q)
         # always perform the addition, even if useless, to be constant-time
         # but use it as R[0] only if least significant bit of m is 1
-        R[not m & 1] = ec._add_jac(R[0], Q)
+        R[not m & 1] = ec.add_jac(R[0], Q)
         m >>= 1
     return R[0]
 
@@ -487,25 +487,25 @@ def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
     k, odd = divmod(size, 2)
     T = [INFJ, Q]
     for i in range(3, k * 2, 2):
-        T.append(ec._double_jac(T[(i - 1) // 2]))
-        T.append(ec._add_jac(T[-1], Q))
+        T.append(ec.double_jac(T[(i - 1) // 2]))
+        T.append(ec.add_jac(T[-1], Q))
 
     if odd:
-        T.append(ec._double_jac(T[(size - 1) // 2]))
+        T.append(ec.double_jac(T[(size - 1) // 2]))
 
     return T
 
 
-_MAX_W = 5
+MAX_W = 5
 
 
 @functools.lru_cache()  # least recently used cache
 def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 
     T = [INFJ, Q]
-    for i in range(3, 2 ** _MAX_W, 2):
-        T.append(ec._double_jac(T[(i - 1) // 2]))
-        T.append(ec._add_jac(T[-1], Q))
+    for i in range(3, 2 ** MAX_W, 2):
+        T.append(ec.double_jac(T[(i - 1) // 2]))
+        T.append(ec.add_jac(T[-1], Q))
     return T
 
 
@@ -513,7 +513,7 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 def cached_multiples_fixwind(
     Q: JacPoint, ec: CurveGroup, w: int = 4
 ) -> List[List[JacPoint]]:
-    """Made to precompute values for _mult_fixed_window_cached.
+    """Made to precompute values for mult_fixed_window_cached.
     Do not use it for other functions.
     Made to be used for w=4, do not use w.
     """
@@ -523,9 +523,9 @@ def cached_multiples_fixwind(
     for _ in range((ec.psize * 8) // w + 1):
         sublist = [INFJ, K]
         for j in range(3, 2 ** w, 2):
-            sublist.append(ec._double_jac(sublist[(j - 1) // 2]))
-            sublist.append(ec._add_jac(sublist[-1], K))
-        K = ec._double_jac(sublist[2 ** (w - 1)])
+            sublist.append(ec.double_jac(sublist[(j - 1) // 2]))
+            sublist.append(ec.add_jac(sublist[-1], K))
+        K = ec.double_jac(sublist[2 ** (w - 1)])
         T.append(sublist)
 
     return T
@@ -541,7 +541,7 @@ def convert_number_to_base(i: int, base: int) -> List[int]:
     return digits[::-1]
 
 
-def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using 'Montgomery ladder' algorithm.
 
     This implementation uses
@@ -564,12 +564,12 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     # R[0] is the running resultR[1] = R[0] + Q is an ancillary variable
     R = [INFJ, Q]
     for i in [int(i) for i in bin(m)[2:]]:
-        R[not i] = ec._add_jac(R[i], R[not i])
-        R[i] = ec._double_jac(R[i])
+        R[not i] = ec.add_jac(R[i], R[not i])
+        R[i] = ec.double_jac(R[i])
     return R[0]
 
 
-def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using ternary decomposition of the scalar.
 
     This implementation uses
@@ -586,7 +586,7 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
     # at each step one of the points in T will be added
-    T = [INFJ, Q, ec._double_jac(Q)]
+    T = [INFJ, Q, ec.double_jac(Q)]
     # T = multiples(Q, 3, ec)
     # T = cached_multiples(Q, ec)
 
@@ -595,14 +595,14 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     R = T[digits[0]]
     for i in digits[1:]:
         # 'triple'
-        R2 = ec._double_jac(R)
-        R3 = ec._add_jac(R2, R)
+        R2 = ec.double_jac(R)
+        R3 = ec.add_jac(R2, R)
         # and 'add'
-        R = ec._add_jac(R3, T[i])
+        R = ec.add_jac(R3, T[i])
     return R
 
 
-def _mult_fixed_window(
+def mult_fixed_window(
     m: int, Q: JacPoint, ec: CurveGroup, w: int = 4, cached: bool = False
 ) -> JacPoint:
     """Scalar multiplication using "fixed window".
@@ -638,13 +638,13 @@ def _mult_fixed_window(
     for i in digits[1:]:
         # multiple 'double'
         for _ in range(w):
-            R = ec._double_jac(R)
+            R = ec.double_jac(R)
         # and 'add'
-        R = ec._add_jac(R, T[i])
+        R = ec.add_jac(R, T[i])
     return R
 
 
-def _mult_fixed_window_cached(
+def mult_fixed_window_cached(
     m: int, Q: JacPoint, ec: CurveGroup, w: int = 4
 ) -> JacPoint:
     """Scalar multiplication using "fixed window" & cached values.
@@ -680,11 +680,11 @@ def _mult_fixed_window_cached(
     for i in range(1, len(digits)):
         k -= 1
         # only 'add'
-        R = ec._add_jac(R, T[k][digits[i]])
+        R = ec.add_jac(R, T[k][digits[i]])
     return R
 
 
-_mult = _mult_fixed_window
+_mult = mult_fixed_window
 
 
 def _double_mult(
@@ -716,7 +716,7 @@ def _double_mult(
         raise BTClibValueError(f"negative second coefficient: {hex(v)}")
 
     # at each step one of the following points will be added
-    T = [INFJ, HJ, QJ, ec._add_jac(HJ, QJ)]
+    T = [INFJ, HJ, QJ, ec.add_jac(HJ, QJ)]
     # which one depends on binary digit for that step
     ui = bin(u)[2:]
     vi = bin(v)[2:].zfill(len(ui))
@@ -726,10 +726,10 @@ def _double_mult(
     R = T[digits[0]]
     for i in digits[1:]:
         # the doubling part of 'double & add'
-        R = ec._double_jac(R)
+        R = ec.double_jac(R)
         # always perform the 'add', even if useless, to be constant-time
         # 'add' it to R[0] only if appropriate
-        R = ec._add_jac(R, T[i])
+        R = ec.add_jac(R, T[i])
     return R
 
 
@@ -769,7 +769,7 @@ def _multi_mult(
         np2 = heapq.heappop(x)
         n_1, p_1 = -np1[0], np1[1]
         n_2, p_2 = -np2[0], np2[1]
-        p_2 = ec._add_jac(p_1, p_2)
+        p_2 = ec.add_jac(p_1, p_2)
         n_1 -= n_2
         if n_1 > 0:
             heapq.heappush(x, (-n_1, p_1))

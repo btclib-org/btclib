@@ -33,7 +33,7 @@ from dataclasses_json.core import Json
 from . import var_int
 from .alias import BinaryData
 from .exceptions import BTClibValueError
-from .tx_in import _TX_IN_COMPARES_WITNESS, TxIn
+from .tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from .tx_out import TxOut
 from .utils import bytesio_from_binarydata, hash256
 from .witness import Witness
@@ -111,7 +111,7 @@ class Tx(DataClassJsonMixin):
         if not isinstance(other, Tx):
             return NotImplemented  # pragma: no cover
 
-        if not _TX_IN_COMPARES_WITNESS and self.vwitness != other.vwitness:
+        if not TX_IN_COMPARES_WITNESS and self.vwitness != other.vwitness:
             return False  # pragma: no cover
 
         return (self.version, self.lock_time, self.vin, self.vout) == (

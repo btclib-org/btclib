@@ -12,7 +12,7 @@
 
 import pytest
 
-from btclib.curve_group import CurveGroup, _mult_aff
+from btclib.curve_group import CurveGroup, mult_aff
 from btclib.curve_group_f import find_all_points, find_subgroup_points
 from btclib.exceptions import BTClibValueError
 
@@ -41,9 +41,9 @@ def test_ecf() -> None:
 
     # challenge = 'Scalar Multiplication'
     X = (5323, 5438)
-    assert _mult_aff(1337, X, ec) == (1089, 6931)
+    assert mult_aff(1337, X, ec) == (1089, 6931)
     P = (2339, 2213)
-    S = _mult_aff(7863, P, ec)
+    S = mult_aff(7863, P, ec)
     ec.require_on_curve(S)
     S_exp = (9467, 2742)
     assert S == S_exp
@@ -56,7 +56,7 @@ def test_ecf() -> None:
     assert len(points) == 9735
     # QA = (815, 3190)
     # nB = 1829
-    # S = _mult_aff(nB, QA, ec)
+    # S = mult_aff(nB, QA, ec)
     # b = S[0].to_bytes(ec.psize, byteorder="big", signed=False)
     # s = sha1(b).hexdigest()
     # print(f"{challenge}: {s}")
