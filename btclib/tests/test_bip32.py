@@ -43,7 +43,7 @@ def test_exceptions() -> None:
         xpub_from_xprv(xpub)
 
     seed = "5b56c417303faa3fcba7e57400e120a0"
-    with pytest.raises(BTClibValueError, match="unknown private key version: "):
+    with pytest.raises(BTClibValueError, match="unknown extended key version: "):
         version = b"\x04\x88\xAD\xE5"
         rootxprv_from_seed(seed, version)
 

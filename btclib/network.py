@@ -127,10 +127,10 @@ def xprvversions_from_network(network: str = "mainnet") -> List[bytes]:
     ]
 
 
-_XPRV_VERSIONS_ALL = (
+XPRV_VERSIONS_ALL = (
     xprvversions_from_network("mainnet") + xprvversions_from_network("testnet") * 2
 )
-_XPUB_VERSIONS_ALL = (
+XPUB_VERSIONS_ALL = (
     xpubversions_from_network("mainnet") + xpubversions_from_network("testnet") * 2
 )
 n_versions = len(xprvversions_from_network("mainnet"))
@@ -150,9 +150,9 @@ def network_from_xkeyversion(xkeyversion: bytes) -> str:
     because the two networks share the same prefixes.
     """
     try:
-        index = _XPRV_VERSIONS_ALL.index(xkeyversion)
+        index = XPRV_VERSIONS_ALL.index(xkeyversion)
     except ValueError:
-        index = _XPUB_VERSIONS_ALL.index(xkeyversion)
+        index = XPUB_VERSIONS_ALL.index(xkeyversion)
 
     return _REPEATED_NETWORKS[index]
 

@@ -49,7 +49,7 @@ from .bip32_path import (
 )
 from .curve import mult, secp256k1
 from .exceptions import BTClibValueError
-from .network import _XPRV_VERSIONS_ALL, _XPUB_VERSIONS_ALL, NETWORKS
+from .network import XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL, NETWORKS
 from .sec_point import bytes_from_point, point_from_octets
 from .utils import (
     bytes_from_octets,
@@ -132,7 +132,7 @@ class BIP32KeyData(DataClassJsonMixin):
             err_msg += " instead of 33"
             raise BTClibValueError(err_msg)
 
-        if self.version in _XPRV_VERSIONS_ALL:
+        if self.version in XPRV_VERSIONS_ALL:
             if self.key[0] != 0:
                 raise BTClibValueError(
                     f"invalid private key prefix: 0x{self.key[:1].hex()}"
@@ -140,7 +140,7 @@ class BIP32KeyData(DataClassJsonMixin):
             q = int.from_bytes(self.key[1:], byteorder="big", signed=False)
             if not 0 < q < ec.n:
                 raise BTClibValueError(f"invalid private key not in 1..n-1: {hex(q)}")
-        elif self.version in _XPUB_VERSIONS_ALL:
+        elif self.version in XPUB_VERSIONS_ALL:
             if self.key[0] not in (2, 3):
                 err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[:1].hex()}"
                 raise BTClibValueError(err_msg)
@@ -233,8 +233,6 @@ def _rootxprv_from_seed(
     hmac_ = hmac.new(b"Bitcoin seed", seed, "sha512").digest()
     k = b"\x00" + hmac_[:32]
     v = bytes_from_octets(version, 4)
-    if v not in _XPRV_VERSIONS_ALL:
-        raise BTClibValueError(f"unknown private key version: {v.hex()}")
 
     return BIP32KeyData(
         version=v,
@@ -273,8 +271,8 @@ def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:
         err_msg = f"not a private key: {xkey.b58encode()}"
         raise BTClibValueError(err_msg)
 
-    i = _XPRV_VERSIONS_ALL.index(xkey.version)
-    xkey.version = _XPUB_VERSIONS_ALL[i]
+    i = XPRV_VERSIONS_ALL.index(xkey.version)
+    xkey.version = XPUB_VERSIONS_ALL[i]
 
     q = int.from_bytes(xkey.key[1:], byteorder="big", signed=False)
     Q = mult(q)
@@ -390,10 +388,10 @@ def _derive(
         __ckd(xkey, index)
 
     if forced_version:
-        if xkey.version in _XPRV_VERSIONS_ALL:
-            allowed_versions = _XPRV_VERSIONS_ALL
+        if xkey.version in XPRV_VERSIONS_ALL:
+            allowed_versions = XPRV_VERSIONS_ALL
         else:
-            allowed_versions = _XPUB_VERSIONS_ALL
+            allowed_versions = XPUB_VERSIONS_ALL
         fversion = bytes_from_octets(forced_version, 4)
         if fversion not in allowed_versions:
             err_msg = "invalid version forced on the extended key"
