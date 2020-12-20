@@ -15,7 +15,6 @@ from os import path
 
 import pytest
 
-from btclib.exceptions import BTClibTypeError
 from btclib.utils import bytes_from_octets
 from btclib.witness import Witness
 
@@ -44,11 +43,11 @@ def test_witness() -> None:
 
 def test_exceptions() -> None:
     witness = Witness("bad script", check_validity=False)  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid witness"):
+    with pytest.raises(TypeError):
         witness.assert_valid()
 
     witness = Witness([b"", "", (32, 33)], check_validity=False)  # type: ignore
-    with pytest.raises(BTClibTypeError, match="invalid witness"):
+    with pytest.raises(TypeError):
         witness.assert_valid()
 
 
