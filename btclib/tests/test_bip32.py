@@ -85,7 +85,7 @@ def test_assert_valid2() -> None:
 
     xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.parent_fingerprint = (xkey_data.parent_fingerprint)[:-1]
-    with pytest.raises(BTClibValueError, match="invalid parent fingerprint length: "):
+    with pytest.raises(BTClibValueError, match="invalid parent_fingerprint length: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -110,7 +110,7 @@ def test_assert_valid2() -> None:
 
     xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.chain_code = (xkey_data.chain_code)[:-1]
-    with pytest.raises(BTClibValueError, match="invalid chain code length: "):
+    with pytest.raises(BTClibValueError, match="invalid chain_code length: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
