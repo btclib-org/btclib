@@ -83,9 +83,9 @@ def __rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
     bc = c.to_bytes(ec.nsize, byteorder="big", signed=False)
     bprvbm = bprv + bc
 
-    hsize = hf().digest_size
-    v = b"\x01" * hsize  # 3.2.b
-    k = b"\x00" * hsize  # 3.2.c
+    hf_size = hf().digest_size
+    v = b"\x01" * hf_size  # 3.2.b
+    k = b"\x00" * hf_size  # 3.2.c
 
     k = hmac.new(k, v + b"\x00" + bprvbm, hf).digest()  # 3.2.d
     v = hmac.new(k, v, hf).digest()  # 3.2.e

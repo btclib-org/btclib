@@ -43,8 +43,8 @@ def test_ecdh() -> None:
 
     shared_info = b"deadbeef"
 
-    hsize = hf().digest_size
-    for size in (hsize - 1, hsize, hsize + 1):
+    hf_size = hf().digest_size
+    for size in (hf_size - 1, hf_size, hf_size + 1):
         shared_key = ansi_x9_63_kdf(z, size, hf, None)
         assert len(shared_key) == size
         assert shared_key == diffie_hellman(a, B, size, None, ec, hf)
@@ -54,7 +54,7 @@ def test_ecdh() -> None:
         assert shared_key == diffie_hellman(a, B, size, shared_info, ec, hf)
         assert shared_key == diffie_hellman(b, A, size, shared_info, ec, hf)
 
-    max_size = hsize * (2 ** 32 - 1)
+    max_size = hf_size * (2 ** 32 - 1)
     size = max_size + 1
     with pytest.raises(BTClibValueError, match="cannot derive a key larger than "):
         ansi_x9_63_kdf(z, size, hf, None)
