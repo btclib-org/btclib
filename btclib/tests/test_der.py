@@ -120,7 +120,7 @@ def test_dataclasses_json_dict() -> None:
 
     r = 0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8
     s = 0x2442CE9D2B916064108014783E923EC36B49743E2FFA1C4496F01A512AAFD9E5
-    sig = Sig(r, s, secp256k1)
+    sig = Sig(r, s)
 
     # Sig dataclass
     assert isinstance(sig, Sig)
