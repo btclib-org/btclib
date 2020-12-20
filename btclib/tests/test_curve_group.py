@@ -68,8 +68,8 @@ def test_mult_recursive_aff() -> None:
             Q = _mult_recursive_aff(q, ec.G, ec)
             assert ec.is_on_curve(Q), f"{q}, {ec}"
             QJ = _mult(q, ec.GJ, ec)
-            assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
-            assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
+            assert ec.is_on_curve(ec.aff_from_jac(QJ)), f"{q}, {ec}"
+            assert Q == ec.aff_from_jac(QJ), f"{q}, {ec}"
             assert INF == _mult_recursive_aff(q, INF, ec), f"{q}, {ec}"
             assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
@@ -130,8 +130,8 @@ def test_mult_aff() -> None:
             Q = _mult_aff(q, ec.G, ec)
             assert ec.is_on_curve(Q), f"{q}, {ec}"
             QJ = _mult(q, ec.GJ, ec)
-            assert ec.is_on_curve(ec._aff_from_jac(QJ)), f"{q}, {ec}"
-            assert Q == ec._aff_from_jac(QJ), f"{q}, {ec}"
+            assert ec.is_on_curve(ec.aff_from_jac(QJ)), f"{q}, {ec}"
+            assert Q == ec.aff_from_jac(QJ), f"{q}, {ec}"
             assert INF == _mult_aff(q, INF, ec), f"{q}, {ec}"
             assert ec._jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
@@ -355,39 +355,39 @@ def test_assorted_jac_mult() -> None:
             K2J = _mult(k2, HJ, ec)
 
             shamir = _double_mult(k1, ec.GJ, k2, ec.GJ, ec)
-            assert ec.is_on_curve(ec._aff_from_jac(shamir))
+            assert ec.is_on_curve(ec.aff_from_jac(shamir))
             assert ec._jac_equality(shamir, _mult(k1 + k2, ec.GJ, ec))
 
             shamir = _double_mult(k1, INFJ, k2, HJ, ec)
-            assert ec.is_on_curve(ec._aff_from_jac(shamir))
+            assert ec.is_on_curve(ec.aff_from_jac(shamir))
             assert ec._jac_equality(shamir, K2J)
 
             shamir = _double_mult(k1, ec.GJ, k2, INFJ, ec)
-            assert ec.is_on_curve(ec._aff_from_jac(shamir))
+            assert ec.is_on_curve(ec.aff_from_jac(shamir))
             assert ec._jac_equality(shamir, K1J)
 
             shamir = _double_mult(k1, ec.GJ, k2, HJ, ec)
-            assert ec.is_on_curve(ec._aff_from_jac(shamir))
+            assert ec.is_on_curve(ec.aff_from_jac(shamir))
             K1JK2J = ec._add_jac(K1J, K2J)
             assert ec._jac_equality(K1JK2J, shamir)
 
             k3 = 1 + secrets.randbelow(ec.n - 1)
             K3J = _mult(k3, ec.GJ, ec)
             K1JK2JK3J = ec._add_jac(K1JK2J, K3J)
-            assert ec.is_on_curve(ec._aff_from_jac(K1JK2JK3J))
+            assert ec.is_on_curve(ec.aff_from_jac(K1JK2JK3J))
             boscoster = _multi_mult([k1, k2, k3], [ec.GJ, HJ, ec.GJ], ec)
-            assert ec.is_on_curve(ec._aff_from_jac(boscoster))
-            assert ec._aff_from_jac(K1JK2JK3J) == ec._aff_from_jac(boscoster), k3
+            assert ec.is_on_curve(ec.aff_from_jac(boscoster))
+            assert ec.aff_from_jac(K1JK2JK3J) == ec.aff_from_jac(boscoster), k3
             assert ec._jac_equality(K1JK2JK3J, boscoster)
 
             k4 = 1 + secrets.randbelow(ec.n - 1)
             K4J = _mult(k4, HJ, ec)
             K1JK2JK3JK4J = ec._add_jac(K1JK2JK3J, K4J)
-            assert ec.is_on_curve(ec._aff_from_jac(K1JK2JK3JK4J))
+            assert ec.is_on_curve(ec.aff_from_jac(K1JK2JK3JK4J))
             points = [ec.GJ, HJ, ec.GJ, HJ]
             boscoster = _multi_mult([k1, k2, k3, k4], points, ec)
-            assert ec.is_on_curve(ec._aff_from_jac(boscoster))
-            assert ec._aff_from_jac(K1JK2JK3JK4J) == ec._aff_from_jac(boscoster), k4
+            assert ec.is_on_curve(ec.aff_from_jac(boscoster))
+            assert ec.aff_from_jac(K1JK2JK3JK4J) == ec.aff_from_jac(boscoster), k4
             assert ec._jac_equality(K1JK2JK3JK4J, boscoster)
             assert ec._jac_equality(K1JK2JK3J, _multi_mult([k1, k2, k3, 0], points, ec))
             assert ec._jac_equality(K1JK2J, _multi_mult([k1, k2, 0, 0], points, ec))

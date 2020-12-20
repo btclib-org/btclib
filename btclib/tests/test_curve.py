@@ -106,13 +106,13 @@ def test_aff_jac_conversions() -> None:
         q = 1 + secrets.randbelow(ec.n - 1)
         Q = mult(q, ec.G, ec)
         QJ = _jac_from_aff(Q)
-        assert Q == ec._aff_from_jac(QJ)
+        assert Q == ec.aff_from_jac(QJ)
         x_Q = ec._x_aff_from_jac(QJ)
         assert Q[0] == x_Q
         y_Q = ec._y_aff_from_jac(QJ)
         assert Q[1] == y_Q
 
-        assert INF == ec._aff_from_jac(_jac_from_aff(INF))
+        assert INF == ec.aff_from_jac(_jac_from_aff(INF))
 
         with pytest.raises(BTClibValueError, match="INF has no x-coordinate"):
             ec._x_aff_from_jac(INFJ)
@@ -179,12 +179,12 @@ def test_add_double_aff_jac() -> None:
         # add Q and G
         R = ec._add_aff(Q, ec.G)
         RJ = ec._add_jac(QJ, ec.GJ)
-        assert R == ec._aff_from_jac(RJ)
+        assert R == ec.aff_from_jac(RJ)
 
         # double Q
         R = ec._double_aff(Q)
         RJ = ec._double_jac(QJ)
-        assert R == ec._aff_from_jac(RJ)
+        assert R == ec.aff_from_jac(RJ)
         assert R == ec._add_aff(Q, Q)
         assert ec._jac_equality(RJ, ec._add_jac(QJ, QJ))
 

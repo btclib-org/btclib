@@ -149,7 +149,7 @@ class CurveGroup:
             return Q[0], (self.p - Q[1]) % self.p, Q[2]
         raise BTClibTypeError("not a Jacobian point")
 
-    def _aff_from_jac(self, Q: JacPoint) -> Point:
+    def aff_from_jac(self, Q: JacPoint) -> Point:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return INF
@@ -199,7 +199,7 @@ class CurveGroup:
 
         self.require_on_curve(Q1)
         self.require_on_curve(Q2)
-        # no Jacobian coordinates here as _aff_from_jac would cost 2 mod_inv
+        # no Jacobian coordinates here as aff_from_jac would cost 2 mod_inv
         # while _add_aff costs only one mod_inv
         return self._add_aff(Q1, Q2)
 

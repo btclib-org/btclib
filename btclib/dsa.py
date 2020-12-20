@@ -46,7 +46,7 @@ def gen_keys(
         q = int_from_prv_key(prv_key, ec)
 
     QJ = _mult(q, ec.GJ, ec)
-    Q = ec._aff_from_jac(QJ)
+    Q = ec.aff_from_jac(QJ)
     # q.to_bytes(ec.nsize, byteorder="big", signed=False)
     # bytes_from_point(Q, ec, compressed)
     return q, Q
@@ -272,7 +272,7 @@ def _recover_pub_keys(
     c = _challenge(m, sig.ec, hf)  # 1.5
 
     QJs = __recover_pub_keys(c, sig.r, sig.s, sig.ec)
-    return [sig.ec._aff_from_jac(QJ) for QJ in QJs]
+    return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
 
 
 # TODO: use __recover_pub_key to avoid code duplication

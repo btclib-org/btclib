@@ -182,7 +182,7 @@ def gen_keys_(
         q = int_from_prv_key(prv_key, ec)
 
     QJ = _mult(q, ec.GJ, ec)
-    x_Q, y_Q = ec._aff_from_jac(QJ)
+    x_Q, y_Q = ec.aff_from_jac(QJ)
     if y_Q % 2:
         q = ec.n - q
         QJ = ec.negate_jac(QJ)

@@ -180,8 +180,8 @@ def test_low_cardinality() -> None:
 
                         jacobian_keys = dsa.__recover_pub_keys(e, r, s, ec)
                         # FIXME speed this up
-                        Qs = [ec._aff_from_jac(key) for key in jacobian_keys]
-                        assert ec._aff_from_jac(QJ) in Qs
+                        Qs = [ec.aff_from_jac(key) for key in jacobian_keys]
+                        assert ec.aff_from_jac(QJ) in Qs
                         assert len(jacobian_keys) in (2, 4)
 
 

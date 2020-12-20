@@ -217,7 +217,7 @@ def mult(m: Integer, Q: Point = None, ec: Curve = secp256k1) -> Point:
 
     m = int_from_integer(m) % ec.n
     R = _mult(m, QJ, ec)
-    return ec._aff_from_jac(R)
+    return ec.aff_from_jac(R)
 
 
 def double_mult(
@@ -234,7 +234,7 @@ def double_mult(
     u = int_from_integer(u) % ec.n
     v = int_from_integer(v) % ec.n
     R = _double_mult(u, HJ, v, QJ, ec)
-    return ec._aff_from_jac(R)
+    return ec.aff_from_jac(R)
 
 
 def multi_mult(
@@ -261,4 +261,4 @@ def multi_mult(
         jac_points.append(_jac_from_aff(Q))
 
     R = _multi_mult(ints, jac_points, ec)
-    return ec._aff_from_jac(R)
+    return ec.aff_from_jac(R)
