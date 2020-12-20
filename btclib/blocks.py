@@ -21,7 +21,7 @@ from . import var_bytes, var_int
 from .alias import BinaryData
 from .exceptions import BTClibValueError
 from .tx import Tx
-from .utils import bytesio_from_binarydata, hash256, hex_string, merkle_root
+from .utils import bytesio_from_binarydata, hash256, merkle_root
 
 # python 3.6
 if sys.version_info.minor == 6:  # pragma: no cover
