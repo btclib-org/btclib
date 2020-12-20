@@ -15,6 +15,8 @@ from os import path
 
 import pytest
 
+from btclib.curve import CURVES
+from btclib.exceptions import BTClibValueError
 from btclib.network import (
     NETWORKS,
     Network,
@@ -23,6 +25,30 @@ from btclib.network import (
     xprvversions_from_network,
     xpubversions_from_network,
 )
+
+
+def test_bad_network() -> None:
+
+    with pytest.raises(BTClibValueError, match="invalid genesis_block length: "):
+        Network(
+            curve=CURVES["secp256k1"],
+            magic_bytes=bytes.fromhex("d9b4bef9"),
+            genesis_block=bytes.fromhex("000000000019d6689c08"),  # too short
+            wif=b"\x80",
+            p2pkh=b"\x00",
+            p2sh=b"\x05",
+            hrp="bc",
+            bip32_prv=bytes.fromhex("0488ade4"),
+            bip32_pub=bytes.fromhex("0488b21e"),
+            slip132_p2wpkh_prv=bytes.fromhex("04b2430c"),
+            slip132_p2wpkh_pub=bytes.fromhex("04b24746"),
+            slip132_p2wpkh_p2sh_prv=bytes.fromhex("049d7878"),
+            slip132_p2wpkh_p2sh_pub=bytes.fromhex("049d7cb2"),
+            slip132_p2wsh_prv=bytes.fromhex("02aa7a99"),
+            slip132_p2wsh_pub=bytes.fromhex("02aa7ed3"),
+            slip132_p2wsh_p2sh_prv=bytes.fromhex("0295b005"),
+            slip132_p2wsh_p2sh_pub=bytes.fromhex("0295b43f"),
+        )
 
 
 def test_curve_from_xkeyversion() -> None:
