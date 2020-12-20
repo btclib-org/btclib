@@ -12,7 +12,7 @@ import sys
 from dataclasses import InitVar, dataclass, field
 from datetime import datetime, timezone
 from math import ceil
-from typing import Dict, List, Optional, Type, TypeVar
+from typing import Dict, List, Optional, Tuple, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 from dataclasses_json.core import Json
@@ -29,20 +29,27 @@ if sys.version_info.minor == 6:  # pragma: no cover
 
     backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()
 
+HF = hash256
+HF_LEN = 32  # should be HF().digest_size
 
 _BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
+_KEY_SIZE: List[Tuple[str, int]] = [
+    ("previous_block_hash", HF_LEN),
+    ("merkle_root", 32),
+    ("bits", 4),
+]
 
 
 @dataclass
 class BlockHeader(DataClassJsonMixin):
     # 4 bytes, _signed_ little endian
     version: int = 0
-    # 32 bytes, little endian
+    # HF_LEN bytes, little endian
     previous_block_hash: bytes = field(
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
     )
-    # 32 bytes, little endian
+    # HF_LEN bytes, little endian
     merkle_root: bytes = field(
         default=b"",
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex),
@@ -104,7 +111,7 @@ class BlockHeader(DataClassJsonMixin):
         significand = int.from_bytes(self.bits[1:], byteorder="big", signed=False)
         # power term, also called characteristics
         power_term = pow(256, (self.bits[0] - 3))
-        return (significand * power_term).to_bytes(32, byteorder="big", signed=False)
+        return (significand * power_term).to_bytes(HF_LEN, "big", signed=False)
 
     @property
     def difficulty(self) -> float:
@@ -132,10 +139,10 @@ class BlockHeader(DataClassJsonMixin):
         return significand * power_term
 
     def hash(self) -> bytes:
-        "Return the reversed 32 bytes hash256 of the BlockHeader."
+        "Return the reversed hash of the BlockHeader."
         s = self.serialize(check_validity=False)
-        hash256_ = hash256(s)
-        return hash256_[::-1]
+        hash_ = HF(s)
+        return hash_[::-1]
 
     def assert_valid_pow(self) -> None:
         "Assert whether the BlockHeader provides a valid proof-of-work."
@@ -146,27 +153,27 @@ class BlockHeader(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:
+
+        self.version = int(self.version)
         if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {hex(self.version)}")
-
-        if len(self.previous_block_hash) != 32:
-            err_msg = "invalid previous block hash"
-            err_msg += f": {self.previous_block_hash.hex()}"
-            raise BTClibValueError(err_msg)
-
-        if len(self.merkle_root) != 32:
-            err_msg = f"invalid merkle root: {hex_string(self.merkle_root)}"
-            raise BTClibValueError(err_msg)
 
         if self.time.timestamp() < 1231006505:
             err_msg = "invalid timestamp (before genesis)"
             date = datetime.fromtimestamp(self.time.timestamp(), timezone.utc)
             err_msg += f": {date}"
             raise BTClibValueError(err_msg)
+        # TODO: check for max 4-bytes timestamp
 
-        if len(self.bits) != 4:
-            raise BTClibValueError(f"invalid bits: {self.bits.hex()}")
+        for key, size in _KEY_SIZE:
+            value = bytes(getattr(self, key))
+            if len(value) != size:
+                err_msg = f"invalid {key} length: "
+                err_msg += f"{len(value)} bytes"
+                err_msg += f" instead of {size}"
+                raise BTClibValueError(err_msg)
 
+        self.nonce = int(self.nonce)
         if not 0 < self.nonce <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid nonce: {hex(self.nonce)}")
 
@@ -199,8 +206,8 @@ class BlockHeader(DataClassJsonMixin):
 
         # version is a signed int
         version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
-        previous_block_hash = stream.read(32)[::-1]
-        merkle_root_ = stream.read(32)[::-1]
+        previous_block_hash = stream.read(HF_LEN)[::-1]
+        merkle_root_ = stream.read(HF_LEN)[::-1]
         t = int.from_bytes(stream.read(4), byteorder="little", signed=False)
         time = datetime.fromtimestamp(t, timezone.utc)
         bits = stream.read(4)[::-1]
@@ -307,24 +314,27 @@ class Block(DataClassJsonMixin):
     def has_segwit_tx(self) -> bool:
         return any(tx.is_segwit() for tx in self.transactions)
 
+    def assert_valid_merkle_root(self) -> None:
+        data = [
+            tx.serialize(include_witness=False, check_validity=False)
+            for tx in self.transactions
+        ]
+        merkle_root_ = merkle_root(data, HF)[::-1]
+        if merkle_root_ != self.header.merkle_root:
+            err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
+            err_msg += f" instead of: {merkle_root_.hex()}"
+            raise BTClibValueError(err_msg)
+
     def assert_valid(self) -> None:
+
+        self.header.assert_valid()
 
         if not self.transactions[0].is_coinbase():
             raise BTClibValueError("first transaction is not a coinbase")
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
 
-        data = [
-            tx.serialize(include_witness=False, check_validity=False)
-            for tx in self.transactions
-        ]
-        merkle_root_ = merkle_root(data, hash256)[::-1]
-        if merkle_root_ != self.header.merkle_root:
-            err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
-            err_msg += f" instead of: {merkle_root_.hex()}"
-            raise BTClibValueError(err_msg)
-
-        self.header.assert_valid()
+        self.assert_valid_merkle_root()
 
         self._set_properties()
 

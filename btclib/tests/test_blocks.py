@@ -66,7 +66,7 @@ def test_exceptions() -> None:
         BlockHeader.deserialize(header_bytes)
 
     header_bytes = block_bytes[:74]  # bits is missing two bytes
-    with pytest.raises(BTClibValueError, match="invalid bits: "):
+    with pytest.raises(BTClibValueError, match="invalid bits length: "):
         BlockHeader.deserialize(header_bytes)
 
     header_bytes = block_bytes[:76]  # nonce is missing
@@ -88,17 +88,17 @@ def test_exceptions() -> None:
 
     header = BlockHeader.deserialize(header_bytes)
     header.previous_block_hash = b"\xff" * 33
-    with pytest.raises(BTClibValueError, match="invalid previous block hash: "):
+    with pytest.raises(BTClibValueError, match="invalid previous_block_hash length: "):
         header.assert_valid()
 
     header = BlockHeader.deserialize(header_bytes)
     header.merkle_root = b"\xff" * 33
-    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
+    with pytest.raises(BTClibValueError, match="invalid merkle_root length: "):
         header.assert_valid()
 
     header = BlockHeader.deserialize(header_bytes)
     header.bits = b"\xff" * 5
-    with pytest.raises(BTClibValueError, match="invalid bits: "):
+    with pytest.raises(BTClibValueError, match="invalid bits length: "):
         header.assert_valid()
 
     header = BlockHeader.deserialize(header_bytes)
