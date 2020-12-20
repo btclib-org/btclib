@@ -120,7 +120,7 @@ def bech32_address_from_witness(
 ) -> str:
     "Encode a bech32 native SegWit address from the witness."
 
-    hrp = NETWORKS[network].p2w
+    hrp = NETWORKS[network].hrp
     return _bech32_address_from_witness(hrp, wit_ver, wit_prg)
 
 
@@ -138,7 +138,9 @@ def witness_from_bech32_address(b32addr: String) -> Tuple[int, bytes, str, bool]
     hrp, data = b32decode(b32addr)
 
     # check that it is a known SegWit address type
-    network = network_from_key_value("p2w", hrp)
+    network = network_from_key_value("hrp", hrp)
+    if network is None:
+        raise BTClibValueError(f"invalid hrp: {hrp}")
 
     if len(data) == 0:
         raise BTClibValueError(f"empty data in bech32 address: {b32addr!r}")

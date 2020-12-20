@@ -19,12 +19,7 @@ from .alias import Octets, String
 from .base58 import b58decode, b58encode
 from .exceptions import BTClibValueError
 from .hashes import hash160_from_key
-from .network import (
-    _P2PKH_PREFIXES,
-    _P2SH_PREFIXES,
-    NETWORKS,
-    network_from_key_value,
-)
+from .network import NETWORKS, network_from_key_value
 from .script_pub_key import script_pub_key_from_payload
 from .to_pub_key import Key
 from .utils import bytes_from_octets, hash160, sha256
@@ -53,19 +48,18 @@ def h160_from_base58_address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
 
     if isinstance(b58addr, str):
         b58addr = b58addr.strip()
-
     payload = b58decode(b58addr, 21)
     prefix = payload[:1]
-    if prefix in _P2PKH_PREFIXES:
-        network = network_from_key_value("p2pkh", prefix)
-        is_script_hash = False
-    elif prefix in _P2SH_PREFIXES:
-        network = network_from_key_value("p2sh", prefix)
-        is_script_hash = True
-    else:
-        raise BTClibValueError(f"invalid base58 address prefix: 0x{prefix.hex()}")
 
-    return prefix, payload[1:], network, is_script_hash
+    for script_type, is_script_hash in zip(("p2pkh", "p2sh"), (False, True)):
+        # with pytohn>=3.8 use walrus operator
+        # if network := network_from_key_value(script_type, prefix):
+        network = network_from_key_value(script_type, prefix)
+        if network:
+            return prefix, payload[1:], network, is_script_hash
+
+    err_msg = f"invalid base58 address prefix: 0x{prefix.hex()}"
+    raise BTClibValueError(err_msg)
 
 
 # 1.+2. = 3. base58 address from pub_key/script_pub_key

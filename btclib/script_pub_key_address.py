@@ -27,7 +27,7 @@ from .script_pub_key import (
 def has_segwit_prefix(addr: String) -> bool:
 
     str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
-    return any(str_addr.startswith(NETWORKS[net].p2w + "1") for net in NETWORKS)
+    return any(str_addr.startswith(NETWORKS[net].hrp + "1") for net in NETWORKS)
 
 
 def script_pub_key_from_address(addr: String) -> Tuple[bytes, str]:

@@ -5,7 +5,7 @@
     "wif": "80",
     "p2pkh": "00",
     "p2sh": "05",
-    "p2w": "bc",
+    "hrp": "bc",
     "bip32_prv": "0488ade4",
     "bip32_pub": "0488b21e",
     "slip132_p2wpkh_prv": "04b2430c",

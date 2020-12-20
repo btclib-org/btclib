@@ -107,12 +107,12 @@ def test_valid_address() -> None:
 
 
 def test_invalid_address() -> None:
-    """Test whether invalid addresses fail to decode"""
+    "Test whether invalid addresses fail to decode"
 
     invalid_addresses: List[Tuple[str, str]] = [
         (
             "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
-            "invalid value for network keyword 'p2w': ",
+            "invalid hrp: ",
         ),
         (
             "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",

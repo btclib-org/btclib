@@ -5,7 +5,7 @@
     "wif": "ef",
     "p2pkh": "6f",
     "p2sh": "c4",
-    "p2w": "tb",
+    "hrp": "tb",
     "bip32_prv": "04358394",
     "bip32_pub": "043587cf",
     "slip132_p2wpkh_prv": "045f18bc",

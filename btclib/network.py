@@ -14,12 +14,11 @@
 import json
 from dataclasses import dataclass, field
 from os import path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
 from .curve import CURVES, Curve
-from .exceptions import BTClibValueError
 
 
 @dataclass(frozen=True)
@@ -46,7 +45,7 @@ class Network(DataClassJsonMixin):
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
     # bech32_address starts with 'bc1'
-    p2w: str
+    hrp: str
     # slip132 "m / 44h / 0h" p2pkh or p2sh
     bip32_prv: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
@@ -92,7 +91,7 @@ for net in ("mainnet", "testnet", "regtest"):
         NETWORKS[net] = Network.from_dict(json.load(f))
 
 
-def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> str:
+def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> Optional[str]:
     """Return network string from (key, value) pair.
 
     Warning: when used on 'regtest' it mostly returns 'testnet',
@@ -103,19 +102,7 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> str:
     for network in NETWORKS:
         if getattr(NETWORKS[network], key) == prefix:
             return network
-    raise BTClibValueError(f"invalid value for network keyword '{key}': {prefix!r}")
-
-
-_P2PKH_PREFIXES = [NETWORKS[net].p2pkh for net in NETWORKS]
-_P2SH_PREFIXES = [NETWORKS[net].p2sh for net in NETWORKS]
-
-_XPRV_PREFIXES = [NETWORKS[net].bip32_prv for net in NETWORKS]
-_XPUB_PREFIXES = [NETWORKS[net].bip32_pub for net in NETWORKS]
-
-_P2WPKH_P2SH_PUB_PREFIXES = [NETWORKS[net].slip132_p2wpkh_p2sh_pub for net in NETWORKS]
-
-_P2WPKH_PRV_PREFIXES = [NETWORKS[net].slip132_p2wpkh_prv for net in NETWORKS]
-_P2WPKH_PUB_PREFIXES = [NETWORKS[net].slip132_p2wpkh_pub for net in NETWORKS]
+    return None
 
 
 def xpubversions_from_network(network: str = "mainnet") -> List[bytes]:

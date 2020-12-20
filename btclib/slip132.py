@@ -12,15 +12,12 @@
 
 https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
+from typing import Any, Callable, List
 
 from . import base58_address, bech32_address, bip32
 from .bip32 import BIP32Key, BIP32KeyData
 from .exceptions import BTClibValueError
-from .network import (
-    _P2WPKH_P2SH_PUB_PREFIXES,
-    _P2WPKH_PUB_PREFIXES,
-    _XPUB_PREFIXES,
-)
+from .network import network_from_key_value
 
 
 def address_from_xkey(xkey: BIP32Key) -> str:
@@ -52,12 +49,21 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         m = f"not a public key: {xpub.b58encode()}"
         raise BTClibValueError(m)
 
-    if xpub.version in _XPUB_PREFIXES:
-        return base58_address.p2pkh(xpub)
-    if xpub.version in _P2WPKH_PUB_PREFIXES:
-        return bech32_address.p2wpkh(xpub)
-    if xpub.version in _P2WPKH_P2SH_PUB_PREFIXES:
-        return base58_address.p2wpkh_p2sh(xpub)
-
+    function_list: List[Callable[[Any, str], str]] = [
+        base58_address.p2pkh,
+        bech32_address.p2wpkh,
+        base58_address.p2wpkh_p2sh,
+    ]
+    version_list: List[str] = [
+        "bip32_pub",
+        "slip132_p2wpkh_pub",
+        "slip132_p2wpkh_p2sh_pub",
+    ]
+    for version, function in zip(version_list, function_list):
+        # with pytohn>=3.8 use walrus operator
+        # if network := network_from_key_value(version, xpub.version):
+        network = network_from_key_value(version, xpub.version)
+        if network:
+            return function(xpub, network)
     err_msg = f"unknown xpub version: {xpub.version.hex()}"  # pragma: no cover
     raise BTClibValueError(err_msg)  # pragma: no cover
