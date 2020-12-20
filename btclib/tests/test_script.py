@@ -15,7 +15,7 @@ from typing import List
 import pytest
 
 from btclib import script
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 
 
 def test_operators() -> None:
@@ -73,8 +73,7 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         script.serialize(script_pub_key)
 
-    err_msg = "Unmanaged <class 'function'> token type"
-    with pytest.raises(BTClibTypeError, match=err_msg):
+    with pytest.raises(TypeError):
         script.serialize([2, 3, "OP_ADD", 5, script.serialize])  # type: ignore
 
     err_msg = "Too many bytes for OP_PUSHDATA: "
