@@ -62,7 +62,7 @@ def test_slip132_test_vector() -> None:
         ),
     ]
     for version, der_path, prv, pub, addr in test_vectors:
-        rxprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "")
+        rxprv = bip39.mxprv_from_mnemonic(mnemonic, "")
         mxprv = bip32.derive(rxprv, der_path, version)
         assert prv == mxprv
         mxpub = bip32.xpub_from_xprv(mxprv)
@@ -162,7 +162,7 @@ def test_addresses() -> None:
         der_path_elements = der_path.split("/")
 
         network = "testnet" if der_path_elements[2] == "1h" else "mainnet"
-        rootprv = bip32.mxprv_from_bip39_mnemonic(mnemonic, "", network)
+        rootprv = bip39.mxprv_from_mnemonic(mnemonic, "", network)
 
         version = getattr(NETWORKS[network], addr_type)
         xprv = bip32.derive(rootprv, der_path, version)

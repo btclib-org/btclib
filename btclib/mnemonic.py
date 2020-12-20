@@ -8,16 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Entropy conversion from/to mnemonic word-list sentence.
-
-Entropy must be represented as binary 0/1 string.
-
-Warning: these functions are not meant for end-users which are
-better served by the bip39 and electrum module functions.
-"""
+"Mnemonic word-list sentence conversion from/to sequence of integer indexes."
 
 from os import path
-from typing import List
+from typing import List, Optional, Sequence
 
 from .exceptions import BTClibValueError
 
@@ -54,7 +48,7 @@ class WordLists:
         self._bits_per_word = dict(zip(self.languages, zeros))
         self._language_length = dict(zip(self.languages, zeros))
 
-    def load_lang(self, lang: str, filename: str = None) -> None:
+    def load_lang(self, lang: str, filename: Optional[str] = None) -> None:
         """Load/add a language word-list if not loaded/added yet.
 
         The language file has to be provided for adding new languages
@@ -101,33 +95,33 @@ class WordLists:
 
 
 # singleton
-_wordlists = WordLists()
+WORDLISTS = WordLists()
 
 Mnemonic = str
 
 
-def _mnemonic_from_indexes(indexes: List[int], lang: str) -> Mnemonic:
-    """Return the mnemonic from a list of word-list indexes.
+def mnemonic_from_indexes(indexes: Sequence[int], lang: str) -> Mnemonic:
+    """Return the mnemonic from a list of word-list integer indexes.
 
     Return the mnemonic from a list of integer indexes into
     a given language word-list.
     """
 
     words = []
-    wordlist = _wordlists.wordlist(lang)
+    wordlist = WORDLISTS.wordlist(lang)
     for index in indexes:
         word = wordlist[index]
         words.append(word)
     return " ".join(words)
 
 
-def _indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
-    """Return the word-list indexes for a given mnemonic.
+def indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
+    """Return the word-list integer indexes for a given mnemonic.
 
     Return the list of integer indexes into a language word-list
     for a given mnemonic.
     """
 
     words = mnemonic.split()
-    wordlist = _wordlists.wordlist(lang)
+    wordlist = WORDLISTS.wordlist(lang)
     return [wordlist.index(w) for w in words]

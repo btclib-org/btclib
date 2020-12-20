@@ -19,25 +19,25 @@ import pytest
 
 from btclib.entropy import (
     _bits,
-    _entropy_from_indexes,
-    _indexes_from_entropy,
-    binstr_from_binstr,
-    binstr_from_bytes,
-    binstr_from_entropy,
-    binstr_from_int,
-    binstr_from_rolls,
+    bin_str_from_bin_str,
+    bin_str_from_bytes,
+    bin_str_from_entropy,
+    bin_str_from_int,
+    bin_str_from_rolls,
     collect_rolls,
-    randbinstr,
+    entropy_from_indexes,
+    indexes_from_entropy,
+    rand_bin_str,
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_indexes() -> None:
     for entropy in ("0", "00000000000"):
-        indexes = _indexes_from_entropy(entropy, 2048)
+        indexes = indexes_from_entropy(entropy, 2048)
         assert indexes == [0]
     entropy = "000000000000"
-    indexes = _indexes_from_entropy(entropy, 2048)
+    indexes = indexes_from_entropy(entropy, 2048)
     assert indexes == [0, 0]
 
     test_vector = [
@@ -46,8 +46,8 @@ def test_indexes() -> None:
         [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0],
     ]
     for indx in test_vector:
-        entropy = _entropy_from_indexes(indx, 2048)
-        indexes = _indexes_from_entropy(entropy, 2048)
+        entropy = entropy_from_indexes(indx, 2048)
+        indexes = indexes_from_entropy(entropy, 2048)
         assert indexes == indx
 
 
@@ -60,115 +60,112 @@ def test_conversions() -> None:
     ]
 
     for raw in test_vectors:
-        assert binstr_from_binstr(raw) == raw
+        assert bin_str_from_bin_str(raw) == raw
         i = int(raw, 2)
-        assert binstr_from_int(i) == raw
-        assert binstr_from_int(bin(i).upper()) == raw
-        assert binstr_from_int(hex(i).upper()) == raw
+        assert bin_str_from_int(i) == raw
+        assert bin_str_from_int(bin(i).upper()) == raw
+        assert bin_str_from_int(hex(i).upper()) == raw
         b = i.to_bytes(32, byteorder="big", signed=False)
-        assert binstr_from_bytes(b) == raw
-        assert binstr_from_bytes(b.hex()) == raw
+        assert bin_str_from_bytes(b) == raw
+        assert bin_str_from_bytes(b.hex()) == raw
 
-        assert binstr_from_entropy(raw) == raw
-        assert binstr_from_entropy(i) == raw
-        assert binstr_from_entropy(b) == raw
+        assert bin_str_from_entropy(raw) == raw
+        assert bin_str_from_entropy(i) == raw
+        assert bin_str_from_entropy(b) == raw
 
     max_bits = max(_bits)
 
     raw = "10" + "11111111" * (max_bits // 8)
-    assert binstr_from_entropy(raw) == binstr_from_entropy(raw[:-2])
+    assert bin_str_from_entropy(raw) == bin_str_from_entropy(raw[:-2])
 
     # entr integer has its leftmost bit set to 0
     i = 1 << max_bits - 1
-    binstr_entropy = binstr_from_entropy(i)
-    assert len(binstr_entropy) == max_bits
+    bin_str_entropy = bin_str_from_entropy(i)
+    assert len(bin_str_entropy) == max_bits
 
     # entr integer has its leftmost bit set to 1
     i = 1 << max_bits
-    binstr_entropy = binstr_from_entropy(i)
-    assert len(binstr_entropy) == max_bits
+    bin_str_entropy = bin_str_from_entropy(i)
+    assert len(bin_str_entropy) == max_bits
 
     exp_i = i >> 1
-    i = int(binstr_entropy, 2)
+    i = int(bin_str_entropy, 2)
     assert i == exp_i
 
     i = secrets.randbits(255)
-    raw = binstr_from_int(i)
+    raw = bin_str_from_int(i)
     assert int(raw, 2) == i
     assert len(raw) == 256
 
-    assert binstr_from_binstr(raw) == raw
-    assert binstr_from_int(hex(i).upper()) == raw
+    assert bin_str_from_bin_str(raw) == raw
+    assert bin_str_from_int(hex(i).upper()) == raw
 
     b = i.to_bytes(32, byteorder="big", signed=False)
-    assert binstr_from_bytes(b) == raw
+    assert bin_str_from_bytes(b) == raw
 
-    raw2 = binstr_from_int(i, 255)
+    raw2 = bin_str_from_int(i, 255)
     assert int(raw2, 2) == i
     assert len(raw2) == 255
-    assert binstr_from_binstr("0" + raw2) == raw
-    raw2 = binstr_from_binstr(raw, 128)
+    assert bin_str_from_bin_str("0" + raw2) == raw
+    raw2 = bin_str_from_bin_str(raw, 128)
     assert len(raw2) == 128
     assert raw2 == raw[:128]
 
 
 def test_exceptions() -> None:
-    binstr_entropy216 = "00011010" * 27  # 216 bits
-    binstr_entropy214 = binstr_entropy216[:-2]  # 214 bits
+    bin_str_entropy216 = "00011010" * 27  # 216 bits
+    bin_str_entropy214 = bin_str_entropy216[:-2]  # 214 bits
 
-    entropy = binstr_from_entropy(binstr_entropy214, 214)
-    assert entropy == binstr_entropy214
+    entropy = bin_str_from_entropy(bin_str_entropy214, 214)
+    assert entropy == bin_str_entropy214
 
     # 214 is not in [128, 160, 192, 224, 256, 512]
     err_msg = "Wrong number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        binstr_from_entropy(binstr_entropy214)
+        bin_str_from_entropy(bin_str_entropy214)
 
     # 214 is not in [216]
     err_msg = "Wrong number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        binstr_from_entropy(binstr_entropy214, 216)
+        bin_str_from_entropy(bin_str_entropy214, 216)
 
-    int_entropy211 = int(binstr_entropy214, 2)  # 211 bits
+    int_entropy211 = int(bin_str_entropy214, 2)  # 211 bits
     assert int_entropy211.bit_length() == 211
 
-    entropy = binstr_from_entropy(int_entropy211, 214)
-    assert entropy == binstr_entropy214
+    entropy = bin_str_from_entropy(int_entropy211, 214)
+    assert entropy == bin_str_entropy214
 
-    entropy = binstr_from_entropy(int_entropy211, 256)
+    entropy = bin_str_from_entropy(int_entropy211, 256)
     assert len(entropy) == 256
     assert int(entropy, 2) == int_entropy211
 
-    entropy = binstr_from_entropy(int_entropy211)
+    entropy = bin_str_from_entropy(int_entropy211)
     assert len(entropy) == 224
     assert int(entropy, 2) == int_entropy211
 
     err_msg = "Negative entropy: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        binstr_from_entropy(-1 * int_entropy211)
+        bin_str_from_entropy(-1 * int_entropy211)
 
     bytes_entropy216 = int_entropy211.to_bytes(27, byteorder="big", signed=False)
-    entropy = binstr_from_entropy(bytes_entropy216, 214)
-    assert entropy == binstr_entropy214
+    entropy = bin_str_from_entropy(bytes_entropy216, 214)
+    assert entropy == bin_str_entropy214
 
-    entropy = binstr_from_entropy(bytes_entropy216, 216)
-    assert entropy != binstr_entropy216
+    entropy = bin_str_from_entropy(bytes_entropy216, 216)
+    assert entropy != bin_str_entropy216
 
     err_msg = "Wrong number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        binstr_from_entropy(bytes_entropy216, 224)
+        bin_str_from_entropy(bytes_entropy216, 224)
 
-    err_msg = "Entropy must be raw binary 0/1 string, bytes, or int; not "
-    with pytest.raises(BTClibTypeError, match=err_msg):
-        binstr_from_entropy(tuple())  # type: ignore
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bin_str_from_entropy(tuple())  # type: ignore
 
-    err_msg = "Entropy must be an int, not "
-    with pytest.raises(BTClibTypeError, match=err_msg):
-        binstr_from_int("not an int")  # type: ignore
+    with pytest.raises(BTClibTypeError, match="Entropy must be an int"):
+        bin_str_from_int("not an int")  # type: ignore
 
-    err_msg = "Entropy must be a str, not "
-    with pytest.raises(BTClibTypeError, match=err_msg):
-        binstr_from_binstr(3)  # type: ignore
+    with pytest.raises(TypeError):
+        bin_str_from_bin_str(3)  # type: ignore
 
 
 inputs: List[StringIO] = []
@@ -195,7 +192,7 @@ def test_collect_rolls(monkeypatch):
         assert len(dice_rolls) == min_roll_number
 
 
-def test_binstr_from_rolls() -> None:
+def test_bin_str_from_rolls() -> None:
     bits = 256
     dice_base = 20
     bits_per_roll = math.floor(math.log2(dice_base))
@@ -203,91 +200,91 @@ def test_binstr_from_rolls() -> None:
     roll_number = math.ceil(bits / bits_per_roll)
 
     rolls = [base for _ in range(roll_number)]
-    binstr = binstr_from_rolls(bits, dice_base, rolls)
-    assert binstr == "1" * 256
+    bin_str = bin_str_from_rolls(bits, dice_base, rolls)
+    assert bin_str == "1" * 256
 
     rolls = [base for _ in range(2 * roll_number)]
-    binstr = binstr_from_rolls(bits, dice_base, rolls)
-    assert binstr == "1" * 256
+    bin_str = bin_str_from_rolls(bits, dice_base, rolls)
+    assert bin_str == "1" * 256
 
     rolls = [1 for _ in range(roll_number)]
-    binstr = binstr_from_rolls(bits, dice_base, rolls)
-    assert binstr == "0" * 256
+    bin_str = bin_str_from_rolls(bits, dice_base, rolls)
+    assert bin_str == "0" * 256
 
     rolls = [1 for _ in range(2 * roll_number)]
-    binstr = binstr_from_rolls(bits, dice_base, rolls)
-    assert binstr == "0" * 256
+    bin_str = bin_str_from_rolls(bits, dice_base, rolls)
+    assert bin_str == "0" * 256
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
-    binstr = binstr_from_rolls(bits, dice_base, rolls)
-    assert len(binstr) == 256
+    bin_str = bin_str_from_rolls(bits, dice_base, rolls)
+    assert len(bin_str) == 256
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
-    binstr2 = binstr_from_rolls(bits, dice_base, rolls)
-    assert len(binstr2) == 256
-    assert binstr != binstr2
+    bin_str2 = bin_str_from_rolls(bits, dice_base, rolls)
+    assert len(bin_str2) == 256
+    assert bin_str != bin_str2
 
-    binstr = binstr_from_rolls(bits - 1, dice_base, rolls)
-    assert len(binstr) == bits - 1
-
-    rolls = [base for _ in range(roll_number + 1)]
-    binstr = binstr_from_rolls(bits + 1, dice_base, rolls)
-    assert len(binstr) == bits + 1
+    bin_str = bin_str_from_rolls(bits - 1, dice_base, rolls)
+    assert len(bin_str) == bits - 1
 
     rolls = [base for _ in range(roll_number + 1)]
-    binstr_rolls = binstr_from_rolls(bits, dice_base, rolls)
-    binstr = randbinstr(bits, binstr_rolls)
+    bin_str = bin_str_from_rolls(bits + 1, dice_base, rolls)
+    assert len(bin_str) == bits + 1
+
+    rolls = [base for _ in range(roll_number + 1)]
+    bin_str_rolls = bin_str_from_rolls(bits, dice_base, rolls)
+    bin_str = rand_bin_str(bits, bin_str_rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number - 2)]
     err_msg = "Too few rolls in the usable "  # [1-16] range, missing 2 rolls
     with pytest.raises(BTClibValueError, match=err_msg):
-        binstr_from_rolls(bits, dice_base, rolls)
+        bin_str_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     rolls[1] = base + 1
     err_msg = "Too few rolls in the usable "  # [1-16] range, missing 1 rolls
     with pytest.raises(BTClibValueError, match=err_msg):
-        binstr_from_rolls(bits, dice_base, rolls)
+        bin_str_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     rolls[1] = dice_base + 1
     err_msg = "invalid roll: "  # 21 is not in [1-20]
     with pytest.raises(BTClibValueError, match=err_msg):
-        binstr_from_rolls(bits, dice_base, rolls)
+        bin_str_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     err_msg = "invalid dice base: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        binstr_from_rolls(bits, 1, rolls)
+        bin_str_from_rolls(bits, 1, rolls)
 
 
-def test_randbinstr() -> None:
+def test_rand_bin_str() -> None:
     for to_be_hashed in (True, False):
         bits = 256
-        binstr = randbinstr(bits, to_be_hashed=to_be_hashed)
-        assert len(binstr) == bits
-        binstr2 = randbinstr(bits, "", to_be_hashed=to_be_hashed)
-        assert len(binstr2) == bits
-        assert binstr != binstr2
-        binstr2 = randbinstr(bits, to_be_hashed=to_be_hashed)
-        assert len(binstr2) == bits
-        assert binstr != binstr2
-        binstr2 = randbinstr(bits, "", to_be_hashed=to_be_hashed)
-        assert len(binstr2) == bits
-        assert binstr != binstr2
+        bin_str = rand_bin_str(bits, to_be_hashed=to_be_hashed)
+        assert len(bin_str) == bits
+        bin_str2 = rand_bin_str(bits, "", to_be_hashed=to_be_hashed)
+        assert len(bin_str2) == bits
+        assert bin_str != bin_str2
+        bin_str2 = rand_bin_str(bits, to_be_hashed=to_be_hashed)
+        assert len(bin_str2) == bits
+        assert bin_str != bin_str2
+        bin_str2 = rand_bin_str(bits, "", to_be_hashed=to_be_hashed)
+        assert len(bin_str2) == bits
+        assert bin_str != bin_str2
 
         bits = 512
-        binstr = randbinstr(bits, to_be_hashed=to_be_hashed)
-        assert len(binstr) == bits
-        binstr2 = randbinstr(bits, binstr, to_be_hashed=to_be_hashed)
-        assert len(binstr2) == bits
-        assert binstr != binstr2
+        bin_str = rand_bin_str(bits, to_be_hashed=to_be_hashed)
+        assert len(bin_str) == bits
+        bin_str2 = rand_bin_str(bits, bin_str, to_be_hashed=to_be_hashed)
+        assert len(bin_str2) == bits
+        assert bin_str != bin_str2
 
-        binstr2 = randbinstr(256, binstr, to_be_hashed=to_be_hashed)
-        assert len(binstr2) == 256
+        bin_str2 = rand_bin_str(256, bin_str, to_be_hashed=to_be_hashed)
+        assert len(bin_str2) == 256
 
-    binstr = randbinstr(1024, to_be_hashed=False)
-    assert len(binstr) == 1024
+    bin_str = rand_bin_str(1024, to_be_hashed=False)
+    assert len(bin_str) == 1024
     err_msg = "Too many bits required: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        randbinstr(1024)
+        rand_bin_str(1024)

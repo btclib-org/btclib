@@ -15,22 +15,24 @@ Electrum mnemonic is versioned, conveying BIP32 derivation rule too.
 
 import hmac
 from hashlib import pbkdf2_hmac, sha512
-from typing import Tuple
+from typing import Optional, Tuple
 
+from .bip32 import derive, rootxprv_from_seed
 from .entropy import (
     BinStr,
     Entropy,
-    _entropy_from_indexes,
-    _indexes_from_entropy,
-    binstr_from_entropy,
+    bin_str_from_entropy,
+    entropy_from_indexes,
+    indexes_from_entropy,
 )
 from .exceptions import BTClibValueError
 from .mnemonic import (
+    WORDLISTS,
     Mnemonic,
-    _indexes_from_mnemonic,
-    _mnemonic_from_indexes,
-    _wordlists,
+    indexes_from_mnemonic,
+    mnemonic_from_indexes,
 )
+from .network import NETWORKS
 
 _MNEMONIC_VERSIONS = {
     "standard": "01",  # P2PKH and P2MS-P2SH wallets
@@ -83,16 +85,16 @@ def mnemonic_from_entropy(
         raise BTClibValueError(m)
     version = _MNEMONIC_VERSIONS[version_str]
 
-    binstr_entropy = binstr_from_entropy(entropy)
-    int_entropy = int(binstr_entropy, 2)
-    base = _wordlists.language_length(lang)
+    bin_str_entropy = bin_str_from_entropy(entropy)
+    int_entropy = int(bin_str_entropy, 2)
+    base = WORDLISTS.language_length(lang)
     while True:
         # electrum considers entropy as integer, losing any leading zero
-        # so the value of binstr_entropy before the while must be updated
+        # so the value of bin_str_entropy before the while must be updated
         nbits = int_entropy.bit_length()
-        binstr_entropy = binstr_from_entropy(int_entropy, nbits)
-        indexes = _indexes_from_entropy(binstr_entropy, base)
-        mnemonic = _mnemonic_from_indexes(indexes, lang)
+        bin_str_entropy = bin_str_from_entropy(int_entropy, nbits)
+        indexes = indexes_from_entropy(bin_str_entropy, base)
+        mnemonic = mnemonic_from_indexes(indexes, lang)
         # version validity check
         s = hmac.new(b"Seed version", mnemonic.encode(), sha512).hexdigest()
         if s.startswith(version):
@@ -107,9 +109,9 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     # verify that it is a valid Electrum mnemonic sentence
     version_from_mnemonic(mnemonic)
 
-    indexes = _indexes_from_mnemonic(mnemonic, lang)
-    base = _wordlists.language_length(lang)
-    return _entropy_from_indexes(indexes, base)
+    indexes = indexes_from_mnemonic(mnemonic, lang)
+    base = WORDLISTS.language_length(lang)
+    return entropy_from_indexes(indexes, base)
 
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:
@@ -124,3 +126,23 @@ def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes
     iterations = 2048
     dksize = 64
     return version, pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
+
+
+def mxprv_from_mnemonic(
+    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
+) -> str:
+    """Return BIP32 master extended private key from Electrum mnemonic.
+
+    Note that for a "standard" mnemonic the derivation path is "m",
+    for a "segwit" mnemonic it is "m/0h" instead.
+    """
+    version, seed = _seed_from_mnemonic(mnemonic, passphrase or "")
+
+    if version == "standard":
+        xversion = NETWORKS[network].bip32_prv
+        return rootxprv_from_seed(seed, xversion)
+    if version == "segwit":
+        xversion = NETWORKS[network].slip132_p2wpkh_prv
+        rootxprv = rootxprv_from_seed(seed, xversion)
+        return derive(rootxprv, 0x80000000)  # "m/0h"
+    raise BTClibValueError(f"unmanaged electrum mnemonic version: {version}")

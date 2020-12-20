@@ -16,7 +16,7 @@ from os import path
 
 import pytest
 
-from btclib import base58_address, bech32_address, bip32, bms, dsa
+from btclib import base58_address, bech32_address, bip32, bip39, bms, dsa
 from btclib.base58_address import p2pkh, p2wpkh_p2sh
 from btclib.base58_wif import wif_from_prv_key
 from btclib.bech32_address import p2wpkh
@@ -558,7 +558,7 @@ def test_ledger() -> None:
     dersig_hex_str = "3144022012ec0c174936c2a46dc657252340b2e6e6dd8c31dd059b6f9f33a90c21af2fba022030e6305b3ccf88009d419bf7651afcfcc0a30898b93ae9de9aa6ac03cf8ec56b"
 
     # pub_key derivation
-    rprv = bip32.mxprv_from_bip39_mnemonic(mnemonic)
+    rprv = bip39.mxprv_from_mnemonic(mnemonic)
     xprv = bip32.derive(rprv, derivation_path)
 
     # the actual message being signed
@@ -593,7 +593,7 @@ def test_ledger() -> None:
     dersig_hex_str = "3045022100967dac3262b4686e89638c8219c5761017f05cd87a855edf034f4a3ec6b59d3d0220108a4ef9682b71a45979d8c75c393382d9ccb8eb561d73b8c5fc0b87a47e7d27"
 
     # pub_key derivation
-    rprv = bip32.mxprv_from_bip39_mnemonic(mnemonic)
+    rprv = bip39.mxprv_from_mnemonic(mnemonic)
     xprv = bip32.derive(rprv, derivation_path)
 
     # the actual message being signed

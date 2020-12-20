@@ -24,12 +24,11 @@ from btclib.bip32 import (
     crack_prv_key,
     derive,
     derive_from_account,
-    mxprv_from_bip39_mnemonic,
     rootxprv_from_seed,
     xpub_from_xprv,
 )
 from btclib.bip32_path import _indexes_from_bip32_path_str
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 
 
 def test_exceptions() -> None:
@@ -66,7 +65,7 @@ def test_assert_valid2() -> None:
 
     xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.version = "1234"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="version is not an instance of bytes"):
+    with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -80,8 +79,8 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.depth = "1"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="depth is not an instance of int"):
+    xkey_data.depth = tuple()  # type: ignore
+    with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -91,9 +90,7 @@ def test_assert_valid2() -> None:
 
     xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.parent_fingerprint = "1234"  # type: ignore
-    with pytest.raises(
-        BTClibTypeError, match="parent fingerprint is not an instance of bytes"
-    ):
+    with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -107,8 +104,8 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.index = "1234"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="index is not an instance of bytes"):
+    xkey_data.index = tuple()  # type: ignore
+    with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -118,7 +115,8 @@ def test_assert_valid2() -> None:
 
     xkey_data = BIP32KeyData.b58decode(xkey)
     xkey_data.chain_code = "length is 32 but not a chaincode"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="chain code is not an instance of bytes"):
+    assert len(xkey_data.chain_code) == 32
+    with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -127,8 +125,9 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.key = "length is 33, but not a key"  # type: ignore
-    with pytest.raises(BTClibTypeError, match="key is not an instance of bytes"):
+    xkey_data.key = "length is 33, but not a key      "  # type: ignore
+    assert len(xkey_data.key) == 33
+    with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -204,13 +203,6 @@ def test_invalid_bip32_xkeys() -> None:
     for xkey, err_msg in test_vectors:
         with pytest.raises(BTClibValueError, match=re.escape(err_msg)):
             BIP32KeyData.b58decode(xkey)
-
-
-def test_rootxprv_from_mnemonic() -> None:
-    mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
-    rootxprv = mxprv_from_bip39_mnemonic(mnemonic, "")
-    exp = "xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"
-    assert rootxprv == exp
 
 
 def test_derive() -> None:

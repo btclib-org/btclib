@@ -39,7 +39,7 @@ from typing import Optional, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import base58, bip39, electrum
+from . import base58
 from .alias import INF, BinaryData, Octets, Point, String
 from .bip32_path import (
     BIP32DerPath,
@@ -48,8 +48,7 @@ from .bip32_path import (
     indexes_from_bip32_path,
 )
 from .curve import mult, secp256k1
-from .exceptions import BTClibTypeError, BTClibValueError
-from .mnemonic import Mnemonic
+from .exceptions import BTClibValueError
 from .network import _XPRV_VERSIONS_ALL, _XPUB_VERSIONS_ALL, NETWORKS
 from .sec_point import bytes_from_point, point_from_octets
 from .utils import (
@@ -97,42 +96,36 @@ class BIP32KeyData(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
 
-        if not isinstance(self.version, bytes):
-            raise BTClibTypeError("version is not an instance of bytes")
+        self.version = bytes(self.version)
         if len(self.version) != 4:
             err_msg = "invalid version length: "
             err_msg += f"{len(self.version)} bytes"
             err_msg += " instead of 4"
             raise BTClibValueError(err_msg)
 
-        if not isinstance(self.depth, int):
-            raise BTClibTypeError("depth is not an instance of int")
-        if self.depth < 0 or self.depth > 255:
+        self.depth = int(self.depth)
+        if not 0 <= self.depth <= 255:
             raise BTClibValueError(f"invalid depth: {self.depth}")
 
-        if not isinstance(self.parent_fingerprint, bytes):
-            raise BTClibTypeError("parent fingerprint is not an instance of bytes")
+        self.parent_fingerprint = bytes(self.parent_fingerprint)
         if len(self.parent_fingerprint) != 4:
             err_msg = "invalid parent fingerprint length: "
             err_msg += f"{len(self.parent_fingerprint)} bytes"
             err_msg += " instead of 4"
             raise BTClibValueError(err_msg)
 
-        if not isinstance(self.index, int):
-            raise BTClibTypeError("index is not an instance of bytes")
+        self.index = int(self.index)
         if not 0 <= self.index <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid index: {self.index}")
 
-        if not isinstance(self.chain_code, bytes):
-            raise BTClibTypeError("chain code is not an instance of bytes")
+        self.chain_code = bytes(self.chain_code)
         if len(self.chain_code) != 32:
             err_msg = "invalid chain code length: "
             err_msg += f"{len(self.chain_code)} bytes"
             err_msg += " instead of 32"
             raise BTClibValueError(err_msg)
 
-        if not isinstance(self.key, bytes):
-            raise BTClibTypeError("key is not an instance of bytes")
+        self.key = bytes(self.key)
         if len(self.key) != 33:
             err_msg = "invalid key length: "
             err_msg += f"{len(self.key)} bytes"
@@ -261,57 +254,6 @@ def rootxprv_from_seed(
     return xkey.b58encode()
 
 
-def _mxprv_from_bip39_mnemonic(
-    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
-) -> BIP32KeyData:
-    """Return BIP32 root master extended private key from BIP39 mnemonic."""
-
-    seed = bip39.seed_from_mnemonic(mnemonic, passphrase or "")
-    version = NETWORKS[network].bip32_prv
-    return _rootxprv_from_seed(seed, version)
-
-
-def mxprv_from_bip39_mnemonic(
-    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
-) -> str:
-    """Return BIP32 root master extended private key from BIP39 mnemonic."""
-    xkey = _mxprv_from_bip39_mnemonic(mnemonic, passphrase, network)
-    return xkey.b58encode()
-
-
-def _mxprv_from_electrum_mnemonic(
-    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
-) -> BIP32KeyData:
-    """Return BIP32 master extended private key from Electrum mnemonic.
-
-    Note that for a "standard" mnemonic the derivation path is "m",
-    for a "segwit" mnemonic it is "m/0h" instead.
-    """
-
-    version, seed = electrum._seed_from_mnemonic(mnemonic, passphrase or "")
-
-    if version == "standard":
-        xversion = NETWORKS[network].bip32_prv
-        return _rootxprv_from_seed(seed, xversion)
-    if version == "segwit":
-        xversion = NETWORKS[network].slip132_p2wpkh_prv
-        rootxprv = rootxprv_from_seed(seed, xversion)
-        return _derive(rootxprv, 0x80000000)  # "m/0h"
-    raise BTClibValueError(f"unmanaged electrum mnemonic version: {version}")
-
-
-def mxprv_from_electrum_mnemonic(
-    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
-) -> str:
-    """Return BIP32 master extended private key from Electrum mnemonic.
-
-    Note that for a "standard" mnemonic the derivation path is "m",
-    for a "segwit" mnemonic it is "m/0h" instead.
-    """
-    xkey = _mxprv_from_electrum_mnemonic(mnemonic, passphrase, network)
-    return xkey.b58encode()
-
-
 BIP32Key = Union[BIP32KeyData, String]
 
 
@@ -355,13 +297,13 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
 class _ExtendedBIP32KeyData(BIP32KeyData):
     # extensions used to cache intermediate results
     # in multi-level derivation: do not rely on them elsewhere
-    q: int = field(
+    prv_key_int: int = field(
         default=0,  # non-zero for private key only
         init=False,
         repr=False,
         compare=False,
     )
-    Q: Point = field(
+    pub_key_point: Point = field(
         default=INF,  # non-Infinity for public key only
         init=False,
         repr=False,
@@ -371,8 +313,10 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
     def __post_init__(self, check_validity: bool) -> None:
 
         is_prv = self.key[0] == 0
-        self.q = int.from_bytes(self.key[1:], "big", signed=False) if is_prv else 0
-        self.Q = INF if is_prv else point_from_octets(self.key, ec)
+        self.prv_key_int = (
+            int.from_bytes(self.key[1:], "big", signed=False) if is_prv else 0
+        )
+        self.pub_key_point = INF if is_prv else point_from_octets(self.key, ec)
 
         if check_validity:
             self.assert_valid()
@@ -383,7 +327,7 @@ def __ckd(xkey: _ExtendedBIP32KeyData, index: int) -> None:
     xkey.depth += 1
     xkey.index = index
     if xkey.key[0] == 0:  # private key
-        Q_bytes = bytes_from_point(mult(xkey.q))
+        Q_bytes = bytes_from_point(mult(xkey.prv_key_int))
         xkey.parent_fingerprint = hash160(Q_bytes)[:4]
         if xkey.is_hardened():  # hardened derivation
             hmac_ = hmac.new(
@@ -399,9 +343,11 @@ def __ckd(xkey: _ExtendedBIP32KeyData, index: int) -> None:
             ).digest()
         xkey.chain_code = hmac_[32:]
         offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-        xkey.q = (xkey.q + offset) % ec.n
-        xkey.key = b"\x00" + xkey.q.to_bytes(32, byteorder="big", signed=False)
-        xkey.Q = INF
+        xkey.prv_key_int = (xkey.prv_key_int + offset) % ec.n
+        xkey.key = b"\x00" + xkey.prv_key_int.to_bytes(
+            32, byteorder="big", signed=False
+        )
+        xkey.pub_key_point = INF
     else:  # public key
         xkey.parent_fingerprint = hash160(xkey.key)[:4]
         if xkey.is_hardened():
@@ -413,9 +359,9 @@ def __ckd(xkey: _ExtendedBIP32KeyData, index: int) -> None:
         ).digest()
         xkey.chain_code = hmac_[32:]
         offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-        xkey.Q = ec.add(xkey.Q, mult(offset))
-        xkey.key = bytes_from_point(xkey.Q)
-        xkey.q = 0
+        xkey.pub_key_point = ec.add(xkey.pub_key_point, mult(offset))
+        xkey.key = bytes_from_point(xkey.pub_key_point)
+        xkey.prv_key_int = 0
 
 
 def _derive(

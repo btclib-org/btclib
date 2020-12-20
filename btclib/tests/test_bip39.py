@@ -46,8 +46,8 @@ def test_bip39() -> None:
     err_msg = "invalid number of bits for BIP39 entropy: "
     with pytest.raises(BTClibValueError, match=err_msg):
         # Invalid number of bits (130) for BIP39 entropy; must be in ...
-        binstr_entropy = "01" * 65  # 130 bits
-        bip39._entropy_checksum(binstr_entropy)
+        bin_str_entropy = "01" * 65  # 130 bits
+        bip39._entropy_checksum(bin_str_entropy)
 
 
 def test_vectors() -> None:
@@ -77,3 +77,10 @@ def test_vectors() -> None:
 def test_zeroleadingbit() -> None:
     # it should not throw an error
     bip39.mnemonic_from_entropy(secrets.randbits(127), "en")
+
+
+def test_mxprv_from_mnemonic() -> None:
+    mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
+    rootxprv = bip39.mxprv_from_mnemonic(mnemonic, "")
+    exp = "xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"
+    assert rootxprv == exp

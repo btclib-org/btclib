@@ -36,27 +36,30 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 
 
 from hashlib import pbkdf2_hmac, sha256
+from typing import Optional
 
+from .bip32 import rootxprv_from_seed
 from .entropy import (
     BinStr,
     Entropy,
     _bits,
-    _entropy_from_indexes,
-    _indexes_from_entropy,
-    binstr_from_entropy,
+    bin_str_from_entropy,
+    entropy_from_indexes,
+    indexes_from_entropy,
 )
 from .exceptions import BTClibValueError
 from .mnemonic import (
+    WORDLISTS,
     Mnemonic,
-    _indexes_from_mnemonic,
-    _mnemonic_from_indexes,
-    _wordlists,
+    indexes_from_mnemonic,
+    mnemonic_from_indexes,
 )
+from .network import NETWORKS
 
 _words = tuple(b // 32 * 3 for b in _bits)
 
 
-def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
+def _entropy_checksum(bin_str_entropy: BinStr) -> BinStr:
     """Return the checksum of the binary string input entropy.
 
     Entropy must be expressed as binary 0/1 string and
@@ -64,12 +67,12 @@ def _entropy_checksum(binstr_entropy: BinStr) -> BinStr:
     Leading zeros are considered genuine entropy, not redundant padding.
     """
 
-    nbits = len(binstr_entropy)
-    int_entropy = int(binstr_entropy, 2)
+    nbits = len(bin_str_entropy)
     if nbits not in _bits:
         m = f"invalid number of bits for BIP39 entropy: {nbits}; must be in {_bits}"
         raise BTClibValueError(m)
     nbytes = (nbits + 7) // 8
+    int_entropy = int(bin_str_entropy, 2)
     bytes_entropy = int_entropy.to_bytes(nbytes, byteorder="big", signed=False)
 
     # 256-bit checksum
@@ -101,11 +104,11 @@ def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
     length, then only the leftmost bits are retained.
     """
 
-    binstr_entropy = binstr_from_entropy(entropy, _bits)
-    checksum = _entropy_checksum(binstr_entropy)
-    base = _wordlists.language_length(lang)
-    indexes = _indexes_from_entropy(binstr_entropy + checksum, base)
-    return _mnemonic_from_indexes(indexes, lang)
+    bin_str_entropy = bin_str_from_entropy(entropy)
+    checksum = _entropy_checksum(bin_str_entropy)
+    base = WORDLISTS.language_length(lang)
+    indexes = indexes_from_entropy(bin_str_entropy + checksum, base)
+    return mnemonic_from_indexes(indexes, lang)
 
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
@@ -116,25 +119,25 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
         msg = f"Wrong number of words: ({words}); expected: {_words}"
         raise BTClibValueError(msg)
 
-    indexes = _indexes_from_mnemonic(mnemonic, lang)
-    base = _wordlists.language_length(lang)
-    cs_entropy = _entropy_from_indexes(indexes, base)
+    indexes = indexes_from_mnemonic(mnemonic, lang)
+    base = WORDLISTS.language_length(lang)
+    cs_entropy = entropy_from_indexes(indexes, base)
 
     # entropy is only the first part of cs_entropy
     bits = int(len(cs_entropy) * 32 / 33)
-    binstr_entropy = cs_entropy[:bits]
+    bin_str_entropy = cs_entropy[:bits]
 
     # the second part being the checksum, to be verified
-    checksum = _entropy_checksum(binstr_entropy)
+    checksum = _entropy_checksum(bin_str_entropy)
     if cs_entropy[bits:] != checksum:
         m = f"invalid checksum: {cs_entropy[bits:]}; expected: {checksum}"
         raise BTClibValueError(m)
 
-    return binstr_entropy
+    return bin_str_entropy
 
 
 def seed_from_mnemonic(
-    mnemonic: Mnemonic, passphrase: str, verify_checksum=True
+    mnemonic: Mnemonic, passphrase: str, verify_checksum: bool = True
 ) -> bytes:
     """Return the seed from the provided BIP39 mnemonic sentence.
 
@@ -151,3 +154,13 @@ def seed_from_mnemonic(
     iterations = 2048
     dksize = 64
     return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
+
+
+def mxprv_from_mnemonic(
+    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
+) -> str:
+    "Return BIP32 root master extended private key from BIP39 mnemonic."
+
+    seed = seed_from_mnemonic(mnemonic, passphrase or "")
+    version = NETWORKS[network].bip32_prv
+    return rootxprv_from_seed(seed, version)

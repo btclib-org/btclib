@@ -95,8 +95,3 @@ JacPoint = Tuple[int, int, int]
 # of the INF Point
 # QJ = Q[0], Q[1], 1 if Q[1] else 0
 INFJ = 7, 0, 0
-
-# the main internal representation of entropy is binary 0/1 string
-BinStr = str
-# but int or bytes are fine too
-Entropy = Union[BinStr, int, bytes]

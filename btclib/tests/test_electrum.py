@@ -34,7 +34,7 @@ def test_mnemonic() -> None:
     assert entr - entropy < 0xFFF
 
     xprv = "xprv9s21ZrQH143K2tn5j4pmrLXkS6dkbuX6mFhJfCxAwN6ofRo5ddCrLRWogKEs1AptPmLgrthKxU2csfBgkoKECWtj1XMRicRsoWawukaRQft"
-    xprv2 = bip32.mxprv_from_electrum_mnemonic(mnemonic)
+    xprv2 = electrum.mxprv_from_mnemonic(mnemonic)
     assert xprv2 == xprv
 
     eversion = "std"
@@ -46,14 +46,14 @@ def test_mnemonic() -> None:
         electrum.entropy_from_mnemonic(unkn_ver, lang)
 
     with pytest.raises(BTClibValueError, match="unknown electrum mnemonic version: "):
-        bip32.mxprv_from_electrum_mnemonic(unkn_ver)
+        electrum.mxprv_from_mnemonic(unkn_ver)
 
     for eversion in ("2fa", "2fa_segwit"):
         mnemonic = electrum.mnemonic_from_entropy(entropy, eversion, lang)
         with pytest.raises(
             BTClibValueError, match="unmanaged electrum mnemonic version: "
         ):
-            bip32.mxprv_from_electrum_mnemonic(mnemonic)
+            electrum.mxprv_from_mnemonic(mnemonic)
 
     mnemonic = "slender flight session office noodle hand couple option office wait uniform morning"
     assert electrum.version_from_mnemonic(mnemonic)[0] == "2fa_segwit"
@@ -73,7 +73,7 @@ def test_vectors() -> None:
     lang = "en"
     for mnemonic, passphrase, rmxprv, rmxpub, address in electrum_test_vectors:
         if mnemonic != "":
-            assert rmxprv == bip32.mxprv_from_electrum_mnemonic(mnemonic, passphrase)
+            assert rmxprv == electrum.mxprv_from_mnemonic(mnemonic, passphrase)
 
             eversion, mnemonic = electrum.version_from_mnemonic(mnemonic)
             entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
