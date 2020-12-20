@@ -49,7 +49,7 @@ from .bip32_path import (
 )
 from .curve import mult, secp256k1
 from .exceptions import BTClibValueError
-from .network import XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL, NETWORKS
+from .network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
 from .sec_point import bytes_from_point, point_from_octets
 from .utils import (
     bytes_from_octets,
