@@ -12,13 +12,32 @@
 
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from os import path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
 from .curve import CURVES, Curve
+from .exceptions import BTClibValueError
+
+_KEY_SIZE: List[Tuple[str, int]] = [
+    ("magic_bytes", 4),
+    ("genesis_block", 32),
+    ("wif", 1),
+    ("p2pkh", 1),
+    ("p2sh", 1),
+    ("bip32_prv", 4),
+    ("bip32_pub", 4),
+    ("slip132_p2wpkh_prv", 4),
+    ("slip132_p2wpkh_pub", 4),
+    ("slip132_p2wpkh_p2sh_prv", 4),
+    ("slip132_p2wpkh_p2sh_pub", 4),
+    ("slip132_p2wsh_prv", 4),
+    ("slip132_p2wsh_pub", 4),
+    ("slip132_p2wsh_p2sh_prv", 4),
+    ("slip132_p2wsh_p2sh_pub", 4),
+]
 
 
 @dataclass(frozen=True)
@@ -81,6 +100,25 @@ class Network(DataClassJsonMixin):
     slip132_p2wsh_p2sh_pub: bytes = field(
         metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
     )
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+
+        # no check on self.curve
+
+        str(self.hrp)
+
+        for key, size in _KEY_SIZE:
+            value = bytes(getattr(self, key))
+            if len(value) != size:
+                err_msg = f"invalid {key} length: "
+                err_msg += f"{len(value)} bytes"
+                err_msg += f" instead of {size}"
+                raise BTClibValueError(err_msg)
 
 
 NETWORKS: Dict[str, Network] = {}
