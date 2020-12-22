@@ -10,9 +10,9 @@
 
 from typing import Optional
 
-from .base58 import b58encode
-from .network import NETWORKS
-from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
+from btclib.base58 import b58encode
+from btclib.network import NETWORKS
+from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 
 
 def wif_from_prv_key(

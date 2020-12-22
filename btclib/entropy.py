@@ -25,9 +25,9 @@ import secrets
 from hashlib import sha512
 from typing import Iterable, List, Optional, Tuple, Union
 
-from .alias import Octets
-from .exceptions import BTClibValueError
-from .utils import bytes_from_octets
+from btclib.alias import Octets
+from btclib.exceptions import BTClibValueError
+from btclib.utils import bytes_from_octets
 
 _bits = 128, 160, 192, 224, 256, 512
 

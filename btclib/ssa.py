@@ -56,16 +56,28 @@ from typing import List, Optional, Sequence, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from .alias import BinaryData, HashF, Integer, JacPoint, Octets, Point, String
-from .bip32 import BIP32Key
-from .curve import CURVES, Curve, secp256k1
-from .curve_group import _double_mult, _mult, _multi_mult
-from .exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from .hashes import reduce_to_hlen, tagged_hash
-from .number_theory import mod_inv
-from .to_prv_key import PrvKey, int_from_prv_key
-from .to_pub_key import point_from_pub_key
-from .utils import (
+from btclib.alias import (
+    BinaryData,
+    HashF,
+    Integer,
+    JacPoint,
+    Octets,
+    Point,
+    String,
+)
+from btclib.bip32 import BIP32Key
+from btclib.curve import CURVES, Curve, secp256k1
+from btclib.curve_group import _double_mult, _mult, _multi_mult
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+)
+from btclib.hashes import reduce_to_hlen, tagged_hash
+from btclib.number_theory import mod_inv
+from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.to_pub_key import point_from_pub_key
+from btclib.utils import (
     bytes_from_octets,
     bytesio_from_binarydata,
     hex_string,

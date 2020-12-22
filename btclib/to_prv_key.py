@@ -10,18 +10,18 @@
 
 from typing import Optional, Tuple
 
-from .alias import String, Union
-from .base58 import b58decode
-from .bip32 import BIP32Key, BIP32KeyData
-from .curve import Curve, secp256k1
-from .exceptions import BTClibValueError
-from .network import (
+from btclib.alias import String, Union
+from btclib.base58 import b58decode
+from btclib.bip32 import BIP32Key, BIP32KeyData
+from btclib.curve import Curve, secp256k1
+from btclib.exceptions import BTClibValueError
+from btclib.network import (
     NETWORKS,
     network_from_key_value,
     network_from_xkeyversion,
     xprvversions_from_network,
 )
-from .utils import bytes_from_octets
+from btclib.utils import bytes_from_octets
 
 # private key inputs:
 # integer as Union[int, Octets]

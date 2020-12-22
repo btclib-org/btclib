@@ -23,9 +23,9 @@ from hashlib import sha256
 from math import ceil
 from typing import Optional
 
-from .alias import HashF, Point
-from .curve import Curve, mult, secp256k1
-from .exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.alias import HashF, Point
+from btclib.curve import Curve, mult, secp256k1
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 
 def ansi_x9_63_kdf(

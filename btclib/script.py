@@ -21,9 +21,9 @@ Scripts are represented by List[ScriptToken], where ScriptToken = Union[int, str
 
 from typing import List, Sequence, Union
 
-from .alias import BinaryData, Octets
-from .exceptions import BTClibValueError
-from .utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.alias import BinaryData, Octets
+from btclib.exceptions import BTClibValueError
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 OP_CODES = {
     # Constants

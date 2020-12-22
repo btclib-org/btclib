@@ -17,22 +17,22 @@ import hmac
 from hashlib import pbkdf2_hmac, sha512
 from typing import Optional, Tuple
 
-from .bip32 import derive, rootxprv_from_seed
-from .entropy import (
+from btclib.bip32 import derive, rootxprv_from_seed
+from btclib.entropy import (
     BinStr,
     Entropy,
     bin_str_entropy_from_entropy,
     bin_str_entropy_from_wordlist_indexes,
     wordlist_indexes_from_bin_str_entropy,
 )
-from .exceptions import BTClibValueError
-from .mnemonic import (
+from btclib.exceptions import BTClibValueError
+from btclib.mnemonic import (
     WORDLISTS,
     Mnemonic,
     indexes_from_mnemonic,
     mnemonic_from_indexes,
 )
-from .network import NETWORKS
+from btclib.network import NETWORKS
 
 _MNEMONIC_VERSIONS = {
     "standard": "01",  # P2PKH and P2MS-P2SH wallets

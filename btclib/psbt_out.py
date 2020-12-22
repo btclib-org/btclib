@@ -18,17 +18,17 @@ from typing import Dict, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import var_bytes
-from .bip32_path import (
+from btclib import var_bytes
+from btclib.bip32_path import (
     BIP32KeyOrigin,
     assert_valid_hd_key_paths,
     decode_hd_key_paths,
     encode_hd_key_paths,
     serialize_hd_key_paths,
 )
-from .exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError
 
-# from .to_pub_key import point_from_pub_key
+# from btclib.to_pub_key import point_from_pub_key
 
 
 def encode_dict_bytes_bytes(dictionary: Dict[bytes, bytes]) -> Dict[str, str]:

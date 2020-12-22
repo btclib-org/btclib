@@ -17,11 +17,11 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 from dataclasses_json.core import Json
 
-from . import var_bytes, var_int
-from .alias import BinaryData
-from .exceptions import BTClibValueError
-from .tx import Tx
-from .utils import bytesio_from_binarydata, hash256, merkle_root
+from btclib import var_bytes, var_int
+from btclib.alias import BinaryData
+from btclib.exceptions import BTClibValueError
+from btclib.tx import Tx
+from btclib.utils import bytesio_from_binarydata, hash256, merkle_root
 
 # python 3.6
 if sys.version_info.minor == 6:  # pragma: no cover

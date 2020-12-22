@@ -10,10 +10,10 @@
 
 """SEC compressed/uncompressed point representation."""
 
-from .alias import Octets, Point
-from .curve import Curve, secp256k1
-from .exceptions import BTClibValueError
-from .utils import bytes_from_octets, hex_string
+from btclib.alias import Octets, Point
+from btclib.curve import Curve, secp256k1
+from btclib.exceptions import BTClibValueError
+from btclib.utils import bytes_from_octets, hex_string
 
 
 def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -> bytes:

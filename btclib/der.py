@@ -60,11 +60,11 @@ from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import var_bytes
-from .alias import BinaryData
-from .curve import CURVES, Curve, secp256k1
-from .exceptions import BTClibValueError
-from .utils import bytesio_from_binarydata, hex_string
+from btclib import var_bytes
+from btclib.alias import BinaryData
+from btclib.curve import CURVES, Curve, secp256k1
+from btclib.exceptions import BTClibValueError
+from btclib.utils import bytesio_from_binarydata, hex_string
 
 _DER_SCALAR_MARKER = b"\x02"
 _DER_SIG_MARKER = b"\x30"

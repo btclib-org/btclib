@@ -48,8 +48,8 @@ with the following modifications:
 
 from typing import Iterable, List, Tuple
 
-from .alias import String
-from .exceptions import BTClibValueError
+from btclib.alias import String
+from btclib.exceptions import BTClibValueError
 
 __ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 

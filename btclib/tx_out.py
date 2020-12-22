@@ -14,15 +14,15 @@ from typing import Dict, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 from dataclasses_json.core import Json
 
-from . import var_bytes
-from .alias import BinaryData, String
-from .exceptions import BTClibValueError
-from .script_pub_key import payload_from_script_pub_key
-from .script_pub_key_address import (
+from btclib import var_bytes
+from btclib.alias import BinaryData, String
+from btclib.exceptions import BTClibValueError
+from btclib.script_pub_key import payload_from_script_pub_key
+from btclib.script_pub_key_address import (
     address_from_script_pub_key,
     script_pub_key_from_address,
 )
-from .utils import bytesio_from_binarydata
+from btclib.utils import bytesio_from_binarydata
 
 MAX_SATOSHI = 2_099_999_997_690_000
 SAT_PER_COIN = 100_000_000

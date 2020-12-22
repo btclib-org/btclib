@@ -23,8 +23,8 @@ with the following modifications:
 
 from typing import Tuple
 
-from .exceptions import BTClibValueError
-from .utils import hex_string
+from btclib.exceptions import BTClibValueError
+from btclib.utils import hex_string
 
 
 def xgcd(a: int, b: int) -> Tuple[int, int, int]:

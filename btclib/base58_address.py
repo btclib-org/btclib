@@ -15,14 +15,14 @@ Base58 encoding of public keys and scripts as addresses.
 
 from typing import Optional, Tuple
 
-from .alias import Octets, String
-from .base58 import b58decode, b58encode
-from .exceptions import BTClibValueError
-from .hashes import hash160_from_key
-from .network import NETWORKS, network_from_key_value
-from .script_pub_key import script_pub_key_from_payload
-from .to_pub_key import Key
-from .utils import bytes_from_octets, hash160, sha256
+from btclib.alias import Octets, String
+from btclib.base58 import b58decode, b58encode
+from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160_from_key
+from btclib.network import NETWORKS, network_from_key_value
+from btclib.script_pub_key import script_pub_key_from_payload
+from btclib.to_pub_key import Key
+from btclib.utils import bytes_from_octets, hash160, sha256
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
 # imported from the hashes module

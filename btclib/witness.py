@@ -13,9 +13,9 @@ from typing import List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import var_bytes, var_int
-from .alias import BinaryData
-from .utils import bytesio_from_binarydata
+from btclib import var_bytes, var_int
+from btclib.alias import BinaryData
+from btclib.utils import bytesio_from_binarydata
 
 _TxInWitness = TypeVar("_TxInWitness", bound="Witness")
 

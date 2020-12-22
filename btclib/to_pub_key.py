@@ -10,19 +10,19 @@
 
 from typing import Optional, Tuple, Union
 
-from .alias import Point
-from .bip32 import BIP32Key, BIP32KeyData
-from .curve import Curve, mult, secp256k1
-from .exceptions import BTClibValueError
-from .network import (
+from btclib.alias import Point
+from btclib.bip32 import BIP32Key, BIP32KeyData
+from btclib.curve import Curve, mult, secp256k1
+from btclib.exceptions import BTClibValueError
+from btclib.network import (
     NETWORKS,
     curve_from_xkeyversion,
     network_from_xkeyversion,
     xpubversions_from_network,
 )
-from .sec_point import bytes_from_point, point_from_octets
-from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from .utils import bytes_from_octets
+from btclib.sec_point import bytes_from_point, point_from_octets
+from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
+from btclib.utils import bytes_from_octets
 
 # public key inputs:
 # elliptic curve point as Union[Octets, BIP32Key, Point]

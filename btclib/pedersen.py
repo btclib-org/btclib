@@ -32,11 +32,11 @@ the discrete logarithm of H with respect to G must be unknown.
 
 from hashlib import sha256
 
-from .alias import HashF, Point
-from .curve import Curve, double_mult, secp256k1
-from .exceptions import BTClibRuntimeError, BTClibValueError
-from .sec_point import bytes_from_point
-from .utils import int_from_bits
+from btclib.alias import HashF, Point
+from btclib.curve import Curve, double_mult, secp256k1
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.sec_point import bytes_from_point
+from btclib.utils import int_from_bits
 
 
 def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:

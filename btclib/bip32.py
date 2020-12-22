@@ -39,19 +39,19 @@ from typing import List, Optional, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import base58
-from .alias import INF, BinaryData, Octets, Point, String
-from .bip32_path import (
+from btclib import base58
+from btclib.alias import INF, BinaryData, Octets, Point, String
+from btclib.bip32_path import (
     BIP32DerPath,
     indexes_from_bip32_path,
     int_from_index_str,
     str_from_index_int,
 )
-from .curve import mult, secp256k1
-from .exceptions import BTClibValueError
-from .network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
-from .sec_point import bytes_from_point, point_from_octets
-from .utils import (
+from btclib.curve import mult, secp256k1
+from btclib.exceptions import BTClibValueError
+from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
+from btclib.sec_point import bytes_from_point, point_from_octets
+from btclib.utils import (
     bytes_from_octets,
     bytesio_from_binarydata,
     hash160,

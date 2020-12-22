@@ -18,19 +18,19 @@ https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
 from copy import deepcopy
 from typing import List
 
-from . import script, var_bytes
-from .alias import Octets
-from .exceptions import BTClibValueError
-from .script_pub_key import (
+from btclib import script, var_bytes
+from btclib.alias import Octets
+from btclib.exceptions import BTClibValueError
+from btclib.script_pub_key import (
     is_p2sh,
     is_p2wpkh,
     is_p2wsh,
     payload_from_script_pub_key,
     script_pub_key_from_payload,
 )
-from .tx import Tx
-from .tx_out import TxOut
-from .utils import bytes_from_octets, hash256
+from btclib.tx import Tx
+from btclib.tx_out import TxOut
+from btclib.utils import bytes_from_octets, hash256
 
 ALL = 1
 NONE = 2

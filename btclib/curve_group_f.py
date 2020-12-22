@@ -16,9 +16,9 @@ for didactical (and fun) reason only.
 
 from typing import List
 
-from .alias import INF, Point
-from .curve import CurveGroup
-from .exceptions import BTClibValueError
+from btclib.alias import INF, Point
+from btclib.curve import CurveGroup
+from btclib.exceptions import BTClibValueError
 
 
 def find_all_points(ec: CurveGroup) -> List[Point]:

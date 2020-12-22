@@ -13,7 +13,7 @@
 from os import path
 from typing import List, Optional, Sequence
 
-from .exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError
 
 WordList = List[str]
 

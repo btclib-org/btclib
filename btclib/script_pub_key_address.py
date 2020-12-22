@@ -10,15 +10,18 @@
 
 from typing import Tuple
 
-from .alias import Octets, String
-from .base58_address import base58_address_from_h160, h160_from_base58_address
-from .bech32_address import (
+from btclib.alias import Octets, String
+from btclib.base58_address import (
+    base58_address_from_h160,
+    h160_from_base58_address,
+)
+from btclib.bech32_address import (
     bech32_address_from_witness,
     witness_from_bech32_address,
 )
-from .exceptions import BTClibValueError
-from .network import NETWORKS
-from .script_pub_key import (
+from btclib.exceptions import BTClibValueError
+from btclib.network import NETWORKS
+from btclib.script_pub_key import (
     payload_from_script_pub_key,
     script_pub_key_from_payload,
 )

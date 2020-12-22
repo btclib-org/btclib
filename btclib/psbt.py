@@ -20,12 +20,12 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import script, var_int
-from .alias import Octets, String
-from .bip32_path import BIP32KeyOrigin
-from .exceptions import BTClibValueError
-from .psbt_in import PsbtIn, deserialize_int, deserialize_tx
-from .psbt_out import (
+from btclib import script, var_int
+from btclib.alias import Octets, String
+from btclib.bip32_path import BIP32KeyOrigin
+from btclib.exceptions import BTClibValueError
+from btclib.psbt_in import PsbtIn, deserialize_int, deserialize_tx
+from btclib.psbt_out import (
     PsbtOut,
     assert_valid_hd_key_paths,
     assert_valid_unknown,
@@ -37,10 +37,10 @@ from .psbt_out import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
-from .script_pub_key import payload_from_script_pub_key
-from .tx import Tx
-from .utils import bytes_from_octets, hash160, sha256
-from .witness import Witness
+from btclib.script_pub_key import payload_from_script_pub_key
+from btclib.tx import Tx
+from btclib.utils import bytes_from_octets, hash160, sha256
+from btclib.witness import Witness
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
 

@@ -44,9 +44,9 @@ TODO:
 from math import ceil
 from typing import List, Tuple
 
-from .alias import INFJ, JacPoint
-from .curve_group import CurveGroup, _double_mult, convert_number_to_base
-from .exceptions import BTClibValueError
+from btclib.alias import INFJ, JacPoint
+from btclib.curve_group import CurveGroup, _double_mult, convert_number_to_base
+from btclib.exceptions import BTClibValueError
 
 
 def mods(m: int, w: int) -> int:

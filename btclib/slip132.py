@@ -14,10 +14,10 @@ https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
 from typing import Any, Callable, List
 
-from . import base58_address, bech32_address, bip32
-from .bip32 import BIP32Key, BIP32KeyData
-from .exceptions import BTClibValueError
-from .network import network_from_key_value
+from btclib import base58_address, bech32_address, bip32
+from btclib.bip32 import BIP32Key, BIP32KeyData
+from btclib.exceptions import BTClibValueError
+from btclib.network import network_from_key_value
 
 
 def address_from_xkey(xkey: BIP32Key) -> str:

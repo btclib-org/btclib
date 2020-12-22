@@ -30,13 +30,13 @@ from typing import Dict, List, Type, TypeVar
 from dataclasses_json import DataClassJsonMixin, config
 from dataclasses_json.core import Json
 
-from . import var_int
-from .alias import BinaryData
-from .exceptions import BTClibValueError
-from .tx_in import TX_IN_COMPARES_WITNESS, TxIn
-from .tx_out import TxOut
-from .utils import bytesio_from_binarydata, hash256
-from .witness import Witness
+from btclib import var_int
+from btclib.alias import BinaryData
+from btclib.exceptions import BTClibValueError
+from btclib.tx_in import TX_IN_COMPARES_WITNESS, TxIn
+from btclib.tx_out import TxOut
+from btclib.utils import bytesio_from_binarydata, hash256
+from btclib.witness import Witness
 
 _SEGWIT_MARKER = b"\x00\x01"
 

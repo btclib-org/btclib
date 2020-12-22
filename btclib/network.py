@@ -18,8 +18,8 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from .curve import CURVES, Curve
-from .exceptions import BTClibValueError
+from btclib.curve import CURVES, Curve
+from btclib.exceptions import BTClibValueError
 
 _KEY_SIZE: List[Tuple[str, int]] = [
     ("magic_bytes", 4),

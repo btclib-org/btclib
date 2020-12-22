@@ -38,8 +38,8 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 from hashlib import pbkdf2_hmac, sha256
 from typing import Optional
 
-from .bip32 import rootxprv_from_seed
-from .entropy import (
+from btclib.bip32 import rootxprv_from_seed
+from btclib.entropy import (
     BinStr,
     Entropy,
     bin_str_entropy_from_entropy,
@@ -47,14 +47,14 @@ from .entropy import (
     bytes_entropy_from_str,
     wordlist_indexes_from_bin_str_entropy,
 )
-from .exceptions import BTClibValueError
-from .mnemonic import (
+from btclib.exceptions import BTClibValueError
+from btclib.mnemonic import (
     WORDLISTS,
     Mnemonic,
     indexes_from_mnemonic,
     mnemonic_from_indexes,
 )
-from .network import NETWORKS
+from btclib.network import NETWORKS
 
 
 def _entropy_checksum(bin_str_entropy: BinStr) -> BinStr:

@@ -33,12 +33,11 @@ from typing import (
 
 from dataclasses_json import DataClassJsonMixin, config
 
+from btclib import var_bytes
+from btclib.alias import BinaryData
+from btclib.exceptions import BTClibValueError
 from btclib.sec_point import point_from_octets
-
-from . import var_bytes
-from .alias import BinaryData
-from .exceptions import BTClibValueError
-from .utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 # default hardening symbol among the possible ones: "h", "H", "'"
 _HARDENING = "h"

@@ -12,15 +12,19 @@
 
 from typing import Callable, List, Optional, Tuple
 
+from btclib import var_bytes
+from btclib.alias import Octets, String
+from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160_from_key
+from btclib.script import serialize
 from btclib.sec_point import point_from_octets
-
-from . import var_bytes
-from .alias import Octets, String
-from .exceptions import BTClibValueError
-from .hashes import hash160_from_key
-from .script import serialize
-from .to_pub_key import Key, pub_keyinfo_from_key
-from .utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
+from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.utils import (
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    hash160,
+    sha256,
+)
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
 

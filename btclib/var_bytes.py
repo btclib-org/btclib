@@ -10,10 +10,10 @@
 
 "Varbytes encoding and decoding functions."
 
-from . import var_int
-from .alias import BinaryData, Octets
-from .exceptions import BTClibRuntimeError
-from .utils import bytes_from_octets, bytesio_from_binarydata
+from btclib import var_int
+from btclib.alias import BinaryData, Octets
+from btclib.exceptions import BTClibRuntimeError
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
 def deserialize(stream: BinaryData, forbid_zero_size: bool = False) -> bytes:

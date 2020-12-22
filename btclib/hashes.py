@@ -15,9 +15,9 @@
 import hashlib
 from typing import Optional, Tuple
 
-from .alias import HashF, String
-from .to_pub_key import Key, pub_keyinfo_from_key
-from .utils import hash160
+from btclib.alias import HashF, String
+from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.utils import hash160
 
 H160_Net = Tuple[bytes, str]
 

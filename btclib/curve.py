@@ -15,8 +15,8 @@ from math import sqrt
 from os import path
 from typing import Dict, List, Optional, Sequence
 
-from .alias import Integer, JacPoint, Point
-from .curve_group import (
+from btclib.alias import Integer, JacPoint, Point
+from btclib.curve_group import (
     HEXTHRESHOLD,
     CurveGroup,
     _double_mult,
@@ -24,8 +24,8 @@ from .curve_group import (
     _multi_mult,
     jac_from_aff,
 )
-from .exceptions import BTClibValueError
-from .utils import hex_string, int_from_integer
+from btclib.exceptions import BTClibValueError
+from btclib.utils import hex_string, int_from_integer
 
 
 class CurveSubGroup(CurveGroup):

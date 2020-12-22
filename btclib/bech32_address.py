@@ -44,13 +44,13 @@ with the following modifications:
 
 from typing import Iterable, List, Optional, Tuple
 
-from .alias import Octets, String
-from .bech32 import b32decode, b32encode
-from .exceptions import BTClibValueError
-from .hashes import hash160_from_key
-from .network import NETWORKS, network_from_key_value
-from .to_pub_key import Key
-from .utils import bytes_from_octets, sha256
+from btclib.alias import Octets, String
+from btclib.bech32 import b32decode, b32encode
+from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160_from_key
+from btclib.network import NETWORKS, network_from_key_value
+from btclib.to_pub_key import Key
+from btclib.utils import bytes_from_octets, sha256
 
 # 0. bech32 facilities
 

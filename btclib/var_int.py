@@ -29,9 +29,9 @@ Up to 0xfc, a var_int is just 1 byte; however, if the integer is greater than
 * prefix 0xff markes the next eight bytes as the number.
 """
 
-from .alias import BinaryData
-from .exceptions import BTClibValueError
-from .utils import bytesio_from_binarydata, hex_string
+from btclib.alias import BinaryData
+from btclib.exceptions import BTClibValueError
+from btclib.utils import bytesio_from_binarydata, hex_string
 
 
 def deserialize(stream: BinaryData) -> int:

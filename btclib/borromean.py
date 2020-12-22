@@ -13,11 +13,11 @@ from collections import defaultdict
 from hashlib import sha256 as hf  # FIXME: any hf
 from typing import Dict, List, Sequence, Tuple
 
-from .alias import Point, String
-from .curve import double_mult, mult, secp256k1
-from .exceptions import BTClibRuntimeError
-from .sec_point import bytes_from_point
-from .utils import int_from_bits
+from btclib.alias import Point, String
+from btclib.curve import double_mult, mult, secp256k1
+from btclib.exceptions import BTClibRuntimeError
+from btclib.sec_point import bytes_from_point
+from btclib.utils import int_from_bits
 
 ec = secp256k1  # FIXME: any curve
 

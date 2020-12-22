@@ -139,17 +139,17 @@ from typing import Optional, Tuple, Type, TypeVar, Union
 
 from dataclasses_json import DataClassJsonMixin
 
-from . import dsa
-from .alias import BinaryData, String
-from .base58_address import h160_from_base58_address, p2pkh, p2wpkh_p2sh
-from .base58_wif import wif_from_prv_key
-from .bech32_address import p2wpkh, witness_from_bech32_address
-from .curve import mult, secp256k1
-from .exceptions import BTClibValueError
-from .network import NETWORKS
-from .sec_point import bytes_from_point
-from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from .utils import bytesio_from_binarydata, hash160
+from btclib import dsa
+from btclib.alias import BinaryData, String
+from btclib.base58_address import h160_from_base58_address, p2pkh, p2wpkh_p2sh
+from btclib.base58_wif import wif_from_prv_key
+from btclib.bech32_address import p2wpkh, witness_from_bech32_address
+from btclib.curve import mult, secp256k1
+from btclib.exceptions import BTClibValueError
+from btclib.network import NETWORKS
+from btclib.sec_point import bytes_from_point
+from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
+from btclib.utils import bytesio_from_binarydata, hash160
 
 _REQUIRED_LENGHT = 65
 

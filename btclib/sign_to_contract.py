@@ -36,14 +36,14 @@ with e = hash(R||c)) and W.x being known from the signature.
 from hashlib import sha256
 from typing import Optional, Tuple
 
-from . import dsa, ssa
-from .alias import HashF, Octets, Point, String
-from .curve import Curve, mult, secp256k1
-from .hashes import reduce_to_hlen
-from .rfc6979 import _rfc6979
-from .sec_point import bytes_from_point
-from .to_prv_key import PrvKey, int_from_prv_key
-from .utils import bytes_from_octets, int_from_bits
+from btclib import dsa, ssa
+from btclib.alias import HashF, Octets, Point, String
+from btclib.curve import Curve, mult, secp256k1
+from btclib.hashes import reduce_to_hlen
+from btclib.rfc6979 import _rfc6979
+from btclib.sec_point import bytes_from_point
+from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.utils import bytes_from_octets, int_from_bits
 
 
 def _tweak(c: Octets, R: Point, ec: Curve, hf: HashF) -> int:

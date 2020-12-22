@@ -38,11 +38,11 @@ messages to the set of possible nonce values) would return.
 import hmac
 from hashlib import sha256
 
-from .alias import HashF, Octets, String
-from .curve import Curve, secp256k1
-from .hashes import reduce_to_hlen
-from .to_prv_key import PrvKey, int_from_prv_key
-from .utils import bytes_from_octets, int_from_bits
+from btclib.alias import HashF, Octets, String
+from btclib.curve import Curve, secp256k1
+from btclib.hashes import reduce_to_hlen
+from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.utils import bytes_from_octets, int_from_bits
 
 
 def rfc6979(

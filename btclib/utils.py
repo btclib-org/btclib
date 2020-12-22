@@ -20,8 +20,8 @@ from collections.abc import Iterable as IterableCollection
 from io import BytesIO
 from typing import Callable, Iterable, List, Optional, Union
 
-from .alias import BinaryData, Integer, Octets
-from .exceptions import BTClibValueError
+from btclib.alias import BinaryData, Integer, Octets
+from btclib.exceptions import BTClibValueError
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:

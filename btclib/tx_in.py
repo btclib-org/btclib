@@ -13,11 +13,11 @@ from typing import Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from . import var_bytes
-from .alias import BinaryData
-from .exceptions import BTClibValueError
-from .utils import bytesio_from_binarydata
-from .witness import Witness
+from btclib import var_bytes
+from btclib.alias import BinaryData
+from btclib.exceptions import BTClibValueError
+from btclib.utils import bytesio_from_binarydata
+from btclib.witness import Witness
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 

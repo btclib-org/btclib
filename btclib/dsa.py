@@ -21,17 +21,17 @@ import secrets
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
-from .alias import HashF, JacPoint, Octets, Point, String
-from .curve import Curve, secp256k1
-from .curve_group import _double_mult, _mult
-from .der import Sig
-from .exceptions import BTClibRuntimeError, BTClibValueError
-from .hashes import reduce_to_hlen
-from .number_theory import mod_inv
-from .rfc6979 import __rfc6979
-from .to_prv_key import PrvKey, int_from_prv_key
-from .to_pub_key import Key, point_from_key
-from .utils import bytes_from_octets, int_from_bits
+from btclib.alias import HashF, JacPoint, Octets, Point, String
+from btclib.curve import Curve, secp256k1
+from btclib.curve_group import _double_mult, _mult
+from btclib.der import Sig
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.hashes import reduce_to_hlen
+from btclib.number_theory import mod_inv
+from btclib.rfc6979 import __rfc6979
+from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.to_pub_key import Key, point_from_key
+from btclib.utils import bytes_from_octets, int_from_bits
 
 
 def gen_keys(

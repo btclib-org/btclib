@@ -38,9 +38,9 @@ https://github.com/keis/base58, with the following modifications:
 
 from typing import Optional
 
-from .alias import Octets, String
-from .exceptions import BTClibValueError
-from .utils import bytes_from_octets, hash256
+from btclib.alias import Octets, String
+from btclib.exceptions import BTClibValueError
+from btclib.utils import bytes_from_octets, hash256
 
 __ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 __BASE = len(__ALPHABET)
