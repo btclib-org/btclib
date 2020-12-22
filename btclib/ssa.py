@@ -220,7 +220,7 @@ def gen_keys(
     return q, x_Q
 
 
-def __det_nonce(m: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> int:
+def _det_nonce_(m: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> int:
 
     # assume the random oracle model for the hash function,
     # i.e. hash values can be considered uniformly random
@@ -257,7 +257,7 @@ def __det_nonce(m: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> i
             return nonce  # successful candidate
 
 
-def _det_nonce(
+def det_nonce_(
     m: Octets,
     prv_key: PrvKey,
     aux: Optional[Octets] = None,
@@ -275,7 +275,7 @@ def _det_nonce(
     # the auxiliary random component
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux)
 
-    return __det_nonce(m, q, Q, aux, ec, hf)
+    return _det_nonce_(m, q, Q, aux, ec, hf)
 
 
 def det_nonce(
@@ -284,10 +284,10 @@ def det_nonce(
     """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _det_nonce(m, prv_key, None, ec, hf)
+    return det_nonce_(m, prv_key, None, ec, hf)
 
 
-def __challenge(m: bytes, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
+def _challenge_(m: bytes, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
 
     t = x_K.to_bytes(ec.p_size, byteorder="big", signed=False)
     t += x_Q.to_bytes(ec.p_size, byteorder="big", signed=False)
@@ -299,7 +299,7 @@ def __challenge(m: bytes, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
     return c
 
 
-def _challenge(
+def challenge_(
     m: Octets,
     Q: BIP340PubKey,
     K: BIP340PubKey,
@@ -314,7 +314,7 @@ def _challenge(
     x_Q, _ = point_from_bip340pub_key(Q, ec)
     x_K, _ = point_from_bip340pub_key(K, ec)
 
-    return __challenge(m, x_Q, x_K, ec, hf)
+    return _challenge_(m, x_Q, x_K, ec, hf)
 
 
 def challenge(
@@ -326,10 +326,10 @@ def challenge(
 ) -> int:
 
     m = reduce_to_hlen(msg, hf)
-    return _challenge(m, Q, K, ec, hf)
+    return challenge_(m, Q, K, ec, hf)
 
 
-def __sign(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
+def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [1, n-1], while q and nonce are in [1, n-1]
@@ -343,7 +343,7 @@ def __sign(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
     return Sig(r, s, ec)
 
 
-def _sign(
+def sign_(
     m: Octets,
     prv_key: PrvKey,
     nonce: Optional[PrvKey] = None,
@@ -365,14 +365,14 @@ def _sign(
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
-        nonce = __det_nonce(m, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
+        nonce = _det_nonce_(m, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
 
     nonce, x_K = gen_keys(nonce, ec)
 
     # the challenge
-    c = __challenge(m, x_Q, x_K, ec, hf)
+    c = _challenge_(m, x_Q, x_K, ec, hf)
 
-    return __sign(c, q, nonce, x_K, ec)
+    return _sign_(c, q, nonce, x_K, ec)
 
 
 def sign(
@@ -396,10 +396,10 @@ def sign(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _sign(m, prv_key, None, ec, hf)
+    return sign_(m, prv_key, None, ec, hf)
 
 
-def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
+def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -417,7 +417,7 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
         raise BTClibRuntimeError("signature verification failed")
 
 
-def _assert_as_valid(
+def assert_as_valid_(
     m: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
@@ -431,9 +431,9 @@ def _assert_as_valid(
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
 
     # Let c = int(hf(bytes(r) || bytes(Q) || m)) mod n.
-    c = _challenge(m, x_Q, sig.r, sig.ec, hf)
+    c = challenge_(m, x_Q, sig.r, sig.ec, hf)
 
-    __assert_as_valid(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec)
+    _assert_as_valid_(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec)
 
 
 def assert_as_valid(
@@ -441,10 +441,10 @@ def assert_as_valid(
 ) -> None:
 
     m = reduce_to_hlen(msg, hf)
-    _assert_as_valid(m, Q, sig, hf)
+    assert_as_valid_(m, Q, sig, hf)
 
 
-def _verify(
+def verify_(
     m: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
@@ -452,7 +452,7 @@ def _verify(
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        _assert_as_valid(m, Q, sig, hf)
+        assert_as_valid_(m, Q, sig, hf)
     except Exception:  # pylint: disable=broad-except
         return False
     else:
@@ -465,10 +465,10 @@ def verify(
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _verify(m, Q, sig, hf)
+    return verify_(m, Q, sig, hf)
 
 
-def __recover_pub_key(c: int, r: int, s: int, ec: Curve) -> int:
+def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     # Private function provided for testing purposes only.
 
     if c == 0:
@@ -485,7 +485,7 @@ def __recover_pub_key(c: int, r: int, s: int, ec: Curve) -> int:
     return ec._x_aff_from_jac(QJ)
 
 
-def _crack_prv_key(
+def crack_prv_key_(
     m_1: Octets,
     sig1: Union[Sig, Octets],
     m_2: Octets,
@@ -518,8 +518,8 @@ def _crack_prv_key(
 
     x_Q = point_from_bip340pub_key(Q, ec)[0]
 
-    c_1 = _challenge(m_1, x_Q, sig1.r, ec, hf)
-    c_2 = _challenge(m_2, x_Q, sig2.r, ec, hf)
+    c_1 = challenge_(m_1, x_Q, sig1.r, ec, hf)
+    c_2 = challenge_(m_2, x_Q, sig2.r, ec, hf)
     q = (sig1.s - sig2.s) * mod_inv(c_2 - c_1, ec.n) % ec.n
     nonce = (sig1.s + c_1 * q) % ec.n
     q, _ = gen_keys(q)
@@ -539,10 +539,10 @@ def crack_prv_key(
     m_1 = reduce_to_hlen(msg1, hf)
     m_2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prv_key(m_1, sig1, m_2, sig2, Q, hf)
+    return crack_prv_key_(m_1, sig1, m_2, sig2, Q, hf)
 
 
-def _assert_batch_as_valid(
+def assert_batch_as_valid_(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[Sig],
@@ -563,7 +563,7 @@ def _assert_batch_as_valid(
         raise BTClibValueError(err_msg)
 
     if batch_size == 1:
-        _assert_as_valid(ms[0], Qs[0], sigs[0], hf)
+        assert_as_valid_(ms[0], Qs[0], sigs[0], hf)
         return None
 
     ec = sigs[0].ec
@@ -580,7 +580,7 @@ def _assert_batch_as_valid(
         x_Q, y_Q = point_from_bip340pub_key(Q, ec)
         QJ = x_Q, y_Q, 1
 
-        c = _challenge(m, x_Q, sig.r, ec, hf)
+        c = challenge_(m, x_Q, sig.r, ec, hf)
 
         # rand in [1, n-1]
         # deterministically generated using a CSPRNG seeded by a
@@ -615,10 +615,10 @@ def assert_batch_as_valid(
 ) -> None:
 
     ms = [reduce_to_hlen(m, hf) for m in ms]
-    return _assert_batch_as_valid(ms, Qs, sigs, hf)
+    return assert_batch_as_valid_(ms, Qs, sigs, hf)
 
 
-def _batch_verify(
+def batch_verify_(
     ms: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[Sig],
@@ -628,7 +628,7 @@ def _batch_verify(
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        _assert_batch_as_valid(ms, Qs, sigs, hf)
+        assert_batch_as_valid_(ms, Qs, sigs, hf)
     except Exception:  # pylint: disable=broad-except
         return False
 
@@ -644,4 +644,4 @@ def batch_verify(
     """Batch verification of BIP340 signatures."""
 
     ms = [reduce_to_hlen(m, hf) for m in ms]
-    return _batch_verify(ms, Qs, sigs, hf)
+    return batch_verify_(ms, Qs, sigs, hf)

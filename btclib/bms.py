@@ -235,6 +235,21 @@ class Sig(DataClassJsonMixin):
         return cls.deserialize(data_decoded, check_validity)  # type: ignore
 
 
+def _magic_message(msg: String) -> bytes:
+
+    # Electrum does strip leading and trailing spaces;
+    # Bitcoin Core does not
+    if isinstance(msg, str):
+        msg = msg.encode()
+
+    t = (
+        b"\x18Bitcoin Signed Message:\n"
+        + len(msg).to_bytes(1, byteorder="big", signed=False)
+        + msg
+    )
+    return sha256(t).digest()
+
+
 def gen_keys(
     prv_key: Optional[PrvKey] = None,
     network: Optional[str] = None,
@@ -258,21 +273,6 @@ def gen_keys(
     address = p2pkh(wif)
 
     return wif, address
-
-
-def _magic_message(msg: String) -> bytes:
-
-    # Electrum does strip leading and trailing spaces;
-    # Bitcoin Core does not
-    if isinstance(msg, str):
-        msg = msg.encode()
-
-    t = (
-        b"\x18Bitcoin Signed Message:\n"
-        + len(msg).to_bytes(1, byteorder="big", signed=False)
-        + msg
-    )
-    return sha256(t).digest()
 
 
 def sign(msg: String, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
@@ -335,7 +335,7 @@ def assert_as_valid(
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
     key_id = sig.rf - 27 & 0b11
 
-    recovered_pub_key = dsa.__recover_pub_key(
+    recovered_pub_key = dsa._recover_pub_key_(
         key_id, c, sig.dsa_sig.r, sig.dsa_sig.s, lower_s, sig.dsa_sig.ec
     )
 

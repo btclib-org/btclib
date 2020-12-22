@@ -54,10 +54,10 @@ def rfc6979(
     """
 
     m = reduce_to_hlen(msg, hf)  # 3.2.a
-    return _rfc6979(m, prv_key, ec, hf)
+    return rfc6979_(m, prv_key, ec, hf)
 
 
-def _rfc6979(
+def rfc6979_(
     m: Octets, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> int:
     """Return a deterministic ephemeral key following RFC 6979."""
@@ -71,10 +71,10 @@ def _rfc6979(
 
     q = int_from_prv_key(prv_key, ec)
 
-    return __rfc6979(c, q, ec, hf)
+    return _rfc6979_(c, q, ec, hf)
 
 
-def __rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
+def _rfc6979_(c: int, q: int, ec: Curve, hf: HashF) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
 
     # convert the private key q to an octet sequence of size n_size

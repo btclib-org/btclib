@@ -65,7 +65,6 @@ def sign(
     if isinstance(msg, str):
         # do not strip spaces
         msg = msg.encode()
-
     m = _get_msg_format(msg, pubk_rings)
 
     e0bytes = m
@@ -117,15 +116,11 @@ def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
 
     inputs:
 
-    - msg: message to be signed (bytes)
+    - msg: message to be signed
     - e0: pinned e-value needed to start the verification algorithm
     - s: s-values, both real (one per ring) and forged
     - pubk_rings: dictionary of sequences representing single rings of pub_keys
     """
-
-    if isinstance(msg, str):
-        # do not strip spaces
-        msg = msg.encode()
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
@@ -135,10 +130,14 @@ def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
         return False
 
 
-def assert_as_valid(msg: bytes, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def assert_as_valid(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+
+    if isinstance(msg, str):
+        # do not strip spaces
+        msg = msg.encode()
+    m = _get_msg_format(msg, pubk_rings)
 
     ring_size = len(pubk_rings)
-    m = _get_msg_format(msg, pubk_rings)
     e: SValues = defaultdict(list)
     e0bytes = m
     for i in range(ring_size):

@@ -19,7 +19,7 @@ import pytest
 from btclib import dsa
 from btclib.curve import CURVES, mult
 from btclib.hashes import reduce_to_hlen
-from btclib.rfc6979 import _rfc6979, rfc6979
+from btclib.rfc6979 import rfc6979, rfc6979_
 
 
 def test_rfc6979() -> None:
@@ -62,14 +62,14 @@ def test_rfc6979_tv() -> None:
             x = int(x, 16)
             m = reduce_to_hlen(msg, hf=getattr(hashlib, hf))
             # test RFC6979 implementation
-            k2 = _rfc6979(m, x, ec, getattr(hashlib, hf))
+            k2 = rfc6979_(m, x, ec, getattr(hashlib, hf))
             assert int(k, 16) == k2
             # test RFC6979 usage in DSA
-            sig = dsa._sign(m, x, k2, lower_s, ec=ec, hf=getattr(hashlib, hf))
+            sig = dsa.sign_(m, x, k2, lower_s, ec=ec, hf=getattr(hashlib, hf))
             assert int(r, 16) == sig.r
             assert int(s, 16) == sig.s
             # test that RFC6979 is the default nonce for DSA
-            sig = dsa._sign(m, x, None, lower_s, ec=ec, hf=getattr(hashlib, hf))
+            sig = dsa.sign_(m, x, None, lower_s, ec=ec, hf=getattr(hashlib, hf))
             assert int(r, 16) == sig.r
             assert int(s, 16) == sig.s
             # test key-pair coherence

@@ -29,7 +29,7 @@ from btclib.der import Sig
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
-from btclib.rfc6979 import __rfc6979
+from btclib.rfc6979 import _rfc6979_
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, point_from_key
 from btclib.utils import bytes_from_octets, int_from_bits
@@ -51,7 +51,7 @@ def gen_keys(
     return q, Q
 
 
-def _challenge(m: Octets, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
+def challenge_(m: Octets, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
 
     # The message m: a hf_len array
     hf_len = hf().digest_size
@@ -65,10 +65,10 @@ def _challenge(m: Octets, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
 def challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
 
     m = reduce_to_hlen(msg, hf)
-    return _challenge(m, ec, hf)
+    return challenge_(m, ec, hf)
 
 
-def __sign(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
+def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and nonce are in [1, n-1]
@@ -97,7 +97,7 @@ def __sign(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     return Sig(r, s, ec)
 
 
-def _sign(
+def sign_(
     m: Octets,
     prv_key: PrvKey,
     nonce: Optional[PrvKey] = None,
@@ -120,16 +120,16 @@ def _sign(
     q = int_from_prv_key(prv_key, ec)
 
     # the challenge
-    c = _challenge(m, ec, hf)  # 4, 5
+    c = challenge_(m, ec, hf)  # 4, 5
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
-        nonce = __rfc6979(c, q, ec, hf)  # 1
+        nonce = _rfc6979_(c, q, ec, hf)  # 1
     else:
         nonce = int_from_prv_key(nonce, ec)
 
     # second part delegated to helper function
-    return __sign(c, q, nonce, lower_s, ec)
+    return _sign_(c, q, nonce, lower_s, ec)
 
 
 def sign(
@@ -160,10 +160,10 @@ def sign(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _sign(m, prv_key, None, lower_s, ec, hf)
+    return sign_(m, prv_key, None, lower_s, ec, hf)
 
 
-def __assert_as_valid(
+def _assert_as_valid_(
     c: int, QJ: JacPoint, r: int, s: int, lower_s: bool, ec: Curve
 ) -> None:
     # Private function for test/dev purposes
@@ -190,7 +190,7 @@ def __assert_as_valid(
         raise BTClibRuntimeError("signature verification failed")
 
 
-def _assert_as_valid(
+def assert_as_valid_(
     m: Octets,
     key: Key,
     sig: Union[Sig, Octets],
@@ -207,13 +207,13 @@ def _assert_as_valid(
 
     # The message m: a hf_len array
     m = bytes_from_octets(m, hf().digest_size)
-    c = _challenge(m, sig.ec, hf)  # 2, 3
+    c = challenge_(m, sig.ec, hf)  # 2, 3
 
     Q = point_from_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
 
     # second part delegated to helper function
-    __assert_as_valid(c, QJ, sig.r, sig.s, lower_s, sig.ec)
+    _assert_as_valid_(c, QJ, sig.r, sig.s, lower_s, sig.ec)
 
 
 def assert_as_valid(
@@ -227,10 +227,10 @@ def assert_as_valid(
     # It raises Errors, while verify should always return True or False
 
     m = reduce_to_hlen(msg, hf)
-    _assert_as_valid(m, key, sig, lower_s, hf)
+    assert_as_valid_(m, key, sig, lower_s, hf)
 
 
-def _verify(
+def verify_(
     m: Octets,
     key: Key,
     sig: Union[Sig, Octets],
@@ -242,7 +242,7 @@ def _verify(
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        _assert_as_valid(m, key, sig, lower_s, hf)
+        assert_as_valid_(m, key, sig, lower_s, hf)
     except Exception:  # pylint: disable=broad-except
         return False
     else:
@@ -259,7 +259,7 @@ def verify(
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _verify(m, key, sig, lower_s, hf)
+    return verify_(m, key, sig, lower_s, hf)
 
 
 def recover_pub_keys(
@@ -272,10 +272,10 @@ def recover_pub_keys(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _recover_pub_keys(m, sig, lower_s, hf)
+    return recover_pub_keys_(m, sig, lower_s, hf)
 
 
-def _recover_pub_keys(
+def recover_pub_keys_(
     m: Octets, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
@@ -293,14 +293,14 @@ def _recover_pub_keys(
     hf_len = hf().digest_size
     m = bytes_from_octets(m, hf_len)
 
-    c = _challenge(m, sig.ec, hf)  # 1.5
+    c = challenge_(m, sig.ec, hf)  # 1.5
 
-    QJs = __recover_pub_keys(c, sig.r, sig.s, lower_s, sig.ec)
+    QJs = _recover_pub_keys_(c, sig.r, sig.s, lower_s, sig.ec)
     return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
 
 
-# TODO: use __recover_pub_key to avoid code duplication
-def __recover_pub_keys(
+# TODO: use _recover_pub_key_ to avoid code duplication
+def _recover_pub_keys_(
     c: int, r: int, s: int, lower_s: bool, ec: Curve
 ) -> List[JacPoint]:
     # Private function provided for testing purposes only.
@@ -324,7 +324,7 @@ def __recover_pub_keys(
             # 1.5 has been performed in the recover_pub_keys calling function
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
             try:
-                __assert_as_valid(c, QJ, r, s, lower_s, ec)  # 1.6.2
+                _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
             except (BTClibValueError, BTClibRuntimeError):
                 pass
             else:
@@ -332,7 +332,7 @@ def __recover_pub_keys(
             KJ = x_K, ec.p - yodd, 1  # 1.6.3
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
             try:
-                __assert_as_valid(c, QJ, r, s, lower_s, ec)  # 1.6.2
+                _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
             except (BTClibValueError, BTClibRuntimeError):
                 pass
             else:
@@ -342,7 +342,7 @@ def __recover_pub_keys(
     return keys
 
 
-def __recover_pub_key(
+def _recover_pub_key_(
     key_id: int, c: int, r: int, s: int, lower_s: bool, ec: Curve
 ) -> JacPoint:
     # Private function provided for testing purposes only.
@@ -364,11 +364,11 @@ def __recover_pub_key(
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pub_keys calling function
     QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-    __assert_as_valid(c, QJ, r, s, lower_s, ec)  # 1.6.2
+    _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
     return QJ
 
 
-def _crack_prv_key(
+def crack_prv_key_(
     m_1: Octets,
     sig1: Union[Sig, Octets],
     m_2: Octets,
@@ -398,8 +398,8 @@ def _crack_prv_key(
     m_1 = bytes_from_octets(m_1, hf_len)
     m_2 = bytes_from_octets(m_2, hf_len)
 
-    c_1 = _challenge(m_1, ec, hf)
-    c_2 = _challenge(m_2, ec, hf)
+    c_1 = challenge_(m_1, ec, hf)
+    c_2 = challenge_(m_2, ec, hf)
 
     nonce = (c_1 - c_2) * mod_inv(sig1.s - sig2.s, ec.n) % ec.n
     q = (sig2.s * nonce - c_2) * mod_inv(sig1.r, ec.n) % ec.n
@@ -417,4 +417,4 @@ def crack_prv_key(
     m_1 = reduce_to_hlen(msg1, hf)
     m_2 = reduce_to_hlen(msg2, hf)
 
-    return _crack_prv_key(m_1, sig1, m_2, sig2, hf)
+    return crack_prv_key_(m_1, sig1, m_2, sig2, hf)

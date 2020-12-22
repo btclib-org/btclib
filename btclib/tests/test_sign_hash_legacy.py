@@ -42,7 +42,7 @@ def test_first_transaction():
     )
     pub_key = "0411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3"
     signature = "304402204E45E16932B8AF514961A1D3A1A25FDF3F4F7732E9D624C6C61548AB5FB8CD410220181522EC8ECA07DE4860A4ACDD12909D831CC56CBBAC4622082221A8768D1D0901"
-    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
+    assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 # 8fea2a92db2940ebce62610b162bfe0ca13229e08cb384a886a6f677e2812e52
@@ -76,7 +76,7 @@ def test_legacy_p2pkh():
     )
     utxo = TxOut(1051173696, script_pub_key)
     hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ALL)
-    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
+    assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 # the following tests are taken from python-bitcoinlib tests
@@ -100,7 +100,7 @@ def test_p2pk():
         [TxOut(0, b"")],
     )
     hash_ = sign_hash.from_utxo(funding_tx.vout[0], receiving_tx, 0, sign_hash.ALL)
-    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
+    assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_p2pkh():
@@ -131,7 +131,7 @@ def test_p2pkh():
         [TxOut(0, b"")],
     )
     hash_ = sign_hash.from_utxo(funding_tx.vout[0], receiving_tx, 0, sign_hash.ALL)
-    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
+    assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_p2pk_anyonecanpay():
@@ -156,7 +156,7 @@ def test_p2pk_anyonecanpay():
     hash_ = sign_hash.from_utxo(
         funding_tx.vout[0], receiving_tx, 0, sign_hash.ANYONECANPAY | sign_hash.ALL
     )
-    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
+    assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_sign_hashsingle_bug():
@@ -177,7 +177,7 @@ def test_sign_hashsingle_bug():
     tx_bytes = "01000000020002000000000000000000000000000000000000000000000000000000000000000000000151ffffffff0001000000000000000000000000000000000000000000000000000000000000000000006b483045022100c9cdd08798a28af9d1baf44a6c77bcc7e279f47dc487c8c899911bc48feaffcc0220503c5c50ae3998a733263c5c0f7061b483e2b56c4c41b456e7d2f5a78a74c077032102d5c25adb51b61339d2b05315791e21bbe80ea470a49db0135720983c905aace0ffffffff010000000000000000015100000000"
     tx = Tx.deserialize(tx_bytes)
     hash_ = sign_hash.from_utxo(utxo, tx, 1, sign_hash.SINGLE)
-    assert dsa._verify(hash_, pub_key, bytes.fromhex(signature)[:-1])
+    assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_test_vectors():

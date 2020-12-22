@@ -42,4 +42,4 @@
 - SSA: ask about benefit of removing 02/03 from pub_key
 - SSA: suggest better k
 
-- compare of dsa._rfc6979 and ssa._det_nonce
+- compare of dsa.rfc6979_ and ssa.det_nonce_

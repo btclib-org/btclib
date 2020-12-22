@@ -403,7 +403,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     psbt = deepcopy(psbt)
     psbt.assert_valid()
     # TODO: finalizers must fail to finalize inputs
-    # which have signatures that do not match the specified sign_hash type
+    # which have signatures that do not match the specified sign_ type
     for psbt_in in psbt.inputs:
         if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")

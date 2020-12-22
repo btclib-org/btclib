@@ -90,9 +90,9 @@ def test_signature() -> None:
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._sign(reduce_to_hlen(msg), q, 0)
+        dsa.sign_(reduce_to_hlen(msg), q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._sign(reduce_to_hlen(msg), q, sig.ec.n)
+        dsa.sign_(reduce_to_hlen(msg), q, sig.ec.n)
 
 
 def test_gec() -> None:
@@ -122,7 +122,7 @@ def test_gec() -> None:
     msg = b"abc"
     k = 702232148019446860144825009548118511996283736794
     lower_s = False
-    sig = dsa._sign(reduce_to_hlen(msg, hf), dU, k, lower_s, ec, hf)
+    sig = dsa.sign_(reduce_to_hlen(msg, hf), dU, k, lower_s, ec, hf)
     assert sig.r == 0xCE2873E5BE449563391FEB47DDCBA2DC16379191
     assert sig.s == 0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54
     assert sig.ec == ec
@@ -165,16 +165,16 @@ def test_low_cardinality() -> None:
                     if r == 0 or s == 0:
                         err_msg = "failed to sign: "
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
-                            dsa.__sign(e, q, k, lower_s, ec)
+                            dsa._sign_(e, q, k, lower_s, ec)
                     else:
-                        sig = dsa.__sign(e, q, k, lower_s, ec)
+                        sig = dsa._sign_(e, q, k, lower_s, ec)
                         assert r == sig.r
                         assert s == sig.s
                         assert ec == sig.ec
                         # valid signature must pass verification
-                        dsa.__assert_as_valid(e, QJ, r, s, lower_s, ec)
+                        dsa._assert_as_valid_(e, QJ, r, s, lower_s, ec)
 
-                        jacobian_keys = dsa.__recover_pub_keys(e, r, s, lower_s, ec)
+                        jacobian_keys = dsa._recover_pub_keys_(e, r, s, lower_s, ec)
                         # FIXME speed this up
                         Qs = [ec.aff_from_jac(key) for key in jacobian_keys]
                         assert ec.aff_from_jac(QJ) in Qs
@@ -210,11 +210,11 @@ def test_crack_prv_key() -> None:
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
     m_1 = reduce_to_hlen(msg1)
-    sig1 = dsa._sign(m_1, q, k)
+    sig1 = dsa.sign_(m_1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
     m_2 = reduce_to_hlen(msg2)
-    sig2 = dsa._sign(m_2, q, k)
+    sig2 = dsa.sign_(m_2, q, k)
 
     q_cracked, k_cracked = dsa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2)
 
@@ -256,7 +256,7 @@ def test_forge_hash_sig() -> None:
     s = r * u2inv % ec.n
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
-    dsa.__assert_as_valid(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
+    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
 
     # pick u1 and u2 at will
     u1 = 1234567890
@@ -267,4 +267,4 @@ def test_forge_hash_sig() -> None:
     s = r * u2inv % ec.n
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
-    dsa.__assert_as_valid(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
+    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)

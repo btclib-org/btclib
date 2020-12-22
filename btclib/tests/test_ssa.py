@@ -83,10 +83,10 @@ def test_signature() -> None:
     m_bytes = reduce_to_hlen(msg, hf)
     err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._assert_as_valid(m_bytes[:31], x_Q, sig)
+        ssa.assert_as_valid_(m_bytes[:31], x_Q, sig)
 
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._sign(m_bytes[:31], q)
+        ssa.sign_(m_bytes[:31], q)
 
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -95,13 +95,13 @@ def test_signature() -> None:
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._sign(m_bytes, q, 0)
+        ssa.sign_(m_bytes, q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._sign(m_bytes, q, sig.ec.n)
+        ssa.sign_(m_bytes, q, sig.ec.n)
 
     err_msg = "invalid zero challenge"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        ssa.__recover_pub_key(0, sig.r, sig.s, sig.ec)
+        ssa._recover_pub_key_(0, sig.r, sig.s, sig.ec)
 
 
 def test_bip340_vectors() -> None:
@@ -123,20 +123,20 @@ def test_bip340_vectors() -> None:
                     _, pub_key_actual = ssa.gen_keys(seckey)
                     assert pub_key == hex(pub_key_actual).upper()[2:], err_msg
 
-                    k = ssa._det_nonce(m, seckey, aux_rand)
-                    sig_actual = ssa._sign(m, seckey, k)
-                    ssa._assert_as_valid(m, pub_key, sig_actual)
+                    k = ssa.det_nonce_(m, seckey, aux_rand)
+                    sig_actual = ssa.sign_(m, seckey, k)
+                    ssa.assert_as_valid_(m, pub_key, sig_actual)
                     assert ssa.Sig.deserialize(sig) == sig_actual, err_msg
 
                 if comment:
                     err_msg += ": " + comment
                 # TODO what's wrong with xor-ing ?
-                # assert (result == "TRUE") ^ ssa._verify(m, pub_key, sig), err_msg
+                # assert (result == "TRUE") ^ ssa.verify_(m, pub_key, sig), err_msg
                 if result == "TRUE":
-                    ssa._assert_as_valid(m, pub_key, sig)
-                    assert ssa._verify(m, pub_key, sig), err_msg
+                    ssa.assert_as_valid_(m, pub_key, sig)
+                    assert ssa.verify_(m, pub_key, sig), err_msg
                 else:
-                    assert not ssa._verify(m, pub_key, sig), err_msg
+                    assert not ssa.verify_(m, pub_key, sig), err_msg
             except Exception as e:  # pragma: no cover # pylint: disable=broad-except
                 print(err_msg)  # pragma: no cover
                 raise e  # pragma: no cover
@@ -206,24 +206,24 @@ def test_low_cardinality() -> None:
                     if e == 0:
                         err_msg = "invalid zero challenge"
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
-                            ssa.__sign(e, q, k, r, ec)
+                            ssa._sign_(e, q, k, r, ec)
                         # no public key can be recovered
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
-                            ssa.__recover_pub_key(e, r, s, ec)
+                            ssa._recover_pub_key_(e, r, s, ec)
 
                         # if e == 0 then the sig is always valid
-                        ssa.__assert_as_valid(e, QJ, r, s, ec)
+                        ssa._assert_as_valid_(e, QJ, r, s, ec)
                         #  for all {q, Q}
                         _, _, new_QJ = ssa.gen_keys_(None, ec)
-                        ssa.__assert_as_valid(e, new_QJ, r, s, ec)
+                        ssa._assert_as_valid_(e, new_QJ, r, s, ec)
                     else:
-                        sig = ssa.__sign(e, q, k, r, ec)
+                        sig = ssa._sign_(e, q, k, r, ec)
                         # recover pub_key
-                        assert x_Q == ssa.__recover_pub_key(e, r, s, ec)
+                        assert x_Q == ssa._recover_pub_key_(e, r, s, ec)
 
                         assert ssa.Sig(r, s, ec) == sig
                         # valid signature must validate
-                        ssa.__assert_as_valid(e, QJ, r, s, ec)
+                        ssa._assert_as_valid_(e, QJ, r, s, ec)
 
 
 def test_crack_prv_key() -> None:
@@ -232,13 +232,13 @@ def test_crack_prv_key() -> None:
 
     msg1 = "Paolo is afraid of ephemeral random numbers"
     m_1 = reduce_to_hlen(msg1)
-    k = ssa._det_nonce(m_1, q, aux=32 * b"\x01")  # remove any randomness
-    sig1 = ssa._sign(m_1, q, k)
+    k = ssa.det_nonce_(m_1, q, aux=32 * b"\x01")  # remove any randomness
+    sig1 = ssa.sign_(m_1, q, k)
 
     msg2 = "and Paolo is right to be afraid"
     m_2 = reduce_to_hlen(msg2)
     # reuse same k
-    sig2 = ssa._sign(m_2, q, k)
+    sig2 = ssa.sign_(m_2, q, k)
 
     qc, kc = ssa.crack_prv_key(msg1, sig1, msg2, sig2, x_Q)
     assert q == qc
@@ -250,14 +250,14 @@ def test_crack_prv_key() -> None:
 
     sig = ssa.Sig(16, sig2.s, sig2.ec)
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        ssa._crack_prv_key(m_1, sig1, m_2, sig, x_Q)
+        ssa.crack_prv_key_(m_1, sig1, m_2, sig, x_Q)
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
-        ssa._crack_prv_key(m_1, sig1, m_1, sig1, x_Q)
+        ssa.crack_prv_key_(m_1, sig1, m_1, sig1, x_Q)
 
     sig = ssa.Sig(sig1.r, sig1.s, CURVES["secp256r1"])
     with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
-        ssa._crack_prv_key(m_1, sig, m_2, sig2, x_Q)
+        ssa.crack_prv_key_(m_1, sig, m_2, sig2, x_Q)
 
 
 def test_batch_validation() -> None:
@@ -270,7 +270,7 @@ def test_batch_validation() -> None:
         ssa.assert_batch_as_valid(ms, Qs, sigs)
     assert not ssa.batch_verify(ms, Qs, sigs)
 
-    # valid size for String input to sign, not for Octets input to _sign
+    # valid size for String input to sign, not for Octets input to sign_
     msg_size = 16
     ms.append(secrets.token_bytes(msg_size))
     q, Q = ssa.gen_keys()
@@ -324,8 +324,8 @@ def test_batch_validation() -> None:
     ms[0] = ms[0][:-1]
     err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa._assert_batch_as_valid(ms, Qs, sigs)
-    assert not ssa._batch_verify(ms, Qs, sigs)
+        ssa.assert_batch_as_valid_(ms, Qs, sigs)
+    assert not ssa.batch_verify_(ms, Qs, sigs)
 
 
 def test_musig() -> None:
@@ -400,7 +400,7 @@ def test_musig() -> None:
         k2 = ec.n - k2  # pragma: no cover
         k3 = ec.n - k3  # pragma: no cover
     r = K[0]
-    e = ssa._challenge(m, Q[0], r, ec, hf)
+    e = ssa.challenge_(m, Q[0], r, ec, hf)
     s_1 = (k1 + e * a1 * q1) % ec.n
     s_2 = (k2 + e * a2 * q2) % ec.n
     s3 = (k3 + e * a3 * q3) % ec.n
@@ -411,7 +411,7 @@ def test_musig() -> None:
     s = (s_1 + s_2 + s3) % ec.n
     sig = ssa.Sig(r, s, ec)
     # check signature is valid
-    ssa._assert_as_valid(m, Q[0], sig, hf)
+    ssa.assert_as_valid_(m, Q[0], sig, hf)
 
 
 def test_threshold() -> None:

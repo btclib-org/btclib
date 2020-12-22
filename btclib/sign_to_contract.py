@@ -40,7 +40,7 @@ from btclib import dsa, ssa
 from btclib.alias import HashF, Octets, Point, String
 from btclib.curve import Curve, mult, secp256k1
 from btclib.hashes import reduce_to_hlen
-from btclib.rfc6979 import _rfc6979
+from btclib.rfc6979 import rfc6979_
 from btclib.sec_point import bytes_from_point
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
@@ -68,7 +68,7 @@ def _tweak(c: Octets, R: Point, ec: Curve, hf: HashF) -> int:
             return tweak  # successful candidate
 
 
-def _dsa_commit_sign(
+def dsa_commit_sign_(
     c: Octets,
     m: Octets,
     prv_key: PrvKey,
@@ -80,12 +80,12 @@ def _dsa_commit_sign(
     """Include a commitment c inside an ECDSA signature."""
 
     nonce = (
-        _rfc6979(m, prv_key, ec, hf) if nonce is None else int_from_prv_key(nonce, ec)
+        rfc6979_(m, prv_key, ec, hf) if nonce is None else int_from_prv_key(nonce, ec)
     )
     R = mult(nonce, ec.G, ec)
 
     tweaked_nonce = (nonce + _tweak(c, R, ec, hf)) % ec.n
-    tweaked_sig = dsa._sign(m, prv_key, tweaked_nonce, lower_s, ec=ec, hf=hf)
+    tweaked_sig = dsa.sign_(m, prv_key, tweaked_nonce, lower_s, ec=ec, hf=hf)
 
     return tweaked_sig, R
 
@@ -102,10 +102,10 @@ def dsa_commit_sign(
 
     c = reduce_to_hlen(commit_msg, hf)
     m = reduce_to_hlen(msg, hf)
-    return _dsa_commit_sign(c, m, prv_key, nonce, lower_s=True, ec=ec, hf=hf)
+    return dsa_commit_sign_(c, m, prv_key, nonce, lower_s=True, ec=ec, hf=hf)
 
 
-def _dsa_verify_commit(
+def dsa_verify_commit_(
     c: Octets,
     R: Point,
     m: Octets,
@@ -120,7 +120,7 @@ def _dsa_verify_commit(
     W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
 
     # sig.r is in [1..n-1]
-    return (sig.r == W[0] % sig.ec.n) and dsa._verify(m, key, sig, lower_s, hf)
+    return (sig.r == W[0] % sig.ec.n) and dsa.verify_(m, key, sig, lower_s, hf)
 
 
 def dsa_verify_commit(
@@ -134,10 +134,10 @@ def dsa_verify_commit(
 ) -> bool:
     c = reduce_to_hlen(commit_msg, hf)
     m = reduce_to_hlen(msg, hf)
-    return _dsa_verify_commit(c, receipt, m, key, sig, lower_s, hf)
+    return dsa_verify_commit_(c, receipt, m, key, sig, lower_s, hf)
 
 
-def _ssa_commit_sign(
+def ssa_commit_sign_(
     c: Octets,
     m: Octets,
     prv_key: PrvKey,
@@ -148,14 +148,14 @@ def _ssa_commit_sign(
     """Include a commitment c inside an ECSSA signature."""
 
     nonce = (
-        ssa._det_nonce(m, prv_key, aux=None, ec=ec, hf=hf)
+        ssa.det_nonce_(m, prv_key, aux=None, ec=ec, hf=hf)
         if nonce is None
         else int_from_prv_key(nonce, ec)
     )
     R = mult(nonce, ec.G, ec)
 
     tweaked_nonce = (nonce + _tweak(c, R, ec, hf)) % ec.n
-    tweaked_sig = ssa._sign(m, prv_key, tweaked_nonce, ec, hf)
+    tweaked_sig = ssa.sign_(m, prv_key, tweaked_nonce, ec, hf)
 
     return tweaked_sig, R
 
@@ -172,10 +172,10 @@ def ssa_commit_sign(
 
     c = reduce_to_hlen(commit_msg, hf)
     m = reduce_to_hlen(msg, hf)
-    return _ssa_commit_sign(c, m, prv_key, nonce, ec, hf)
+    return ssa_commit_sign_(c, m, prv_key, nonce, ec, hf)
 
 
-def _ssa_verify_commit(
+def ssa_verify_commit_(
     c: Octets,
     R: Point,
     m: Octets,
@@ -189,7 +189,7 @@ def _ssa_verify_commit(
     W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
 
     # sig.r is in [1..p-1]
-    return (sig.r == W[0]) and ssa._verify(m, pub_key, sig, hf)
+    return (sig.r == W[0]) and ssa.verify_(m, pub_key, sig, hf)
 
 
 def ssa_verify_commit(
@@ -202,4 +202,4 @@ def ssa_verify_commit(
 ) -> bool:
     c = reduce_to_hlen(commit_msg, hf)
     m = reduce_to_hlen(msg, hf)
-    return _ssa_verify_commit(c, receipt, m, pub_key, sig, hf)
+    return ssa_verify_commit_(c, receipt, m, pub_key, sig, hf)
