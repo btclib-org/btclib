@@ -301,6 +301,7 @@ class Block(DataClassJsonMixin):
         """
         if not self.transactions[0].is_coinbase():
             raise BTClibValueError("first transaction is not a coinbase")
+
         if self.header.version == 1:
             return None
 
@@ -331,6 +332,7 @@ class Block(DataClassJsonMixin):
 
         if not self.transactions[0].is_coinbase():
             raise BTClibValueError("first transaction is not a coinbase")
+
         for transaction in self.transactions[1:]:
             transaction.assert_valid()
 

@@ -318,10 +318,10 @@ def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    if not isinstance(sig, Sig):
-        sig = Sig.b64decode(sig)
+    if isinstance(sig, Sig):
+        sig.assert_valid()
     else:
-        sig.assert_valid()  # 1
+        sig = Sig.b64decode(sig)
 
     magic_msg = _magic_message(msg)
     c = dsa.challenge(magic_msg, secp256k1, sha256)

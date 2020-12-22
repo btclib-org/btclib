@@ -315,15 +315,17 @@ def bin_str_entropy_from_rolls(
     min_roll_number = math.ceil(bits / bits_per_roll)
     i = 0
     for roll in rolls:
-        # collect only usable rolls in [1-base)]
+
+        # reject invalid rolls not in [1-dice_sides]
+        if not 0 < roll <= dice_sides:
+            msg = f"invalid roll: {roll} is not in [1-{dice_sides}]"
+            raise BTClibValueError(msg)
+
+        # collect only usable rolls in [1-base]
         if 0 < roll <= base:
             i *= base
             i += roll - 1
             min_roll_number -= 1
-        # reject invalid rolls not in [1-dice_sides)]
-        elif not 0 < roll <= dice_sides:
-            msg = f"invalid roll: {roll} is not in [1-{dice_sides}]"
-            raise BTClibValueError(msg)
     if min_roll_number > 0:
         msg = f"Too few rolls in the usable [1-{base}] range"
         msg += f", missing {min_roll_number} rolls"

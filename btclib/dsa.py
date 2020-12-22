@@ -192,10 +192,10 @@ def _assert_as_valid(
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    if not isinstance(sig, Sig):
-        sig = Sig.deserialize(sig)
+    if isinstance(sig, Sig):
+        sig.assert_valid()
     else:
-        sig.assert_valid()  # 1
+        sig = Sig.deserialize(sig)
 
     # The message m: a hf_len array
     m = bytes_from_octets(m, hf().digest_size)
@@ -260,10 +260,10 @@ def _recover_pub_keys(
     https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
 
-    if not isinstance(sig, Sig):
-        sig = Sig.deserialize(sig)
+    if isinstance(sig, Sig):
+        sig.assert_valid()
     else:
-        sig.assert_valid()  # 1
+        sig = Sig.deserialize(sig)
 
     # The message m: a hf_len array
     hf_len = hf().digest_size
@@ -348,15 +348,15 @@ def _crack_prv_key(
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    if not isinstance(sig1, Sig):
+    if isinstance(sig1, Sig):
+        sig1.assert_valid()
+    else:
         sig1 = Sig.deserialize(sig1)
-    else:
-        sig1.assert_valid()  # 1
 
-    if not isinstance(sig2, Sig):
-        sig2 = Sig.deserialize(sig2)
+    if isinstance(sig2, Sig):
+        sig2.assert_valid()
     else:
-        sig2.assert_valid()  # 1
+        sig2 = Sig.deserialize(sig2)
 
     ec = sig2.ec
     if sig1.ec != ec:

@@ -423,10 +423,10 @@ def _assert_as_valid(
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    if not isinstance(sig, Sig):
-        sig = Sig.deserialize(sig)
+    if isinstance(sig, Sig):
+        sig.assert_valid()
     else:
-        sig.assert_valid()  # 1
+        sig = Sig.deserialize(sig)
 
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
 
@@ -494,15 +494,15 @@ def _crack_prv_key(
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    if not isinstance(sig1, Sig):
+    if isinstance(sig1, Sig):
+        sig1.assert_valid()
+    else:
         sig1 = Sig.deserialize(sig1)
-    else:
-        sig1.assert_valid()  # 1
 
-    if not isinstance(sig2, Sig):
-        sig2 = Sig.deserialize(sig2)
+    if isinstance(sig2, Sig):
+        sig2.assert_valid()
     else:
-        sig2.assert_valid()  # 1
+        sig2 = Sig.deserialize(sig2)
 
     ec = sig2.ec
     if sig1.ec != ec:
