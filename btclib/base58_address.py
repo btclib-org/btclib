@@ -30,9 +30,7 @@ from btclib.utils import bytes_from_octets, hash160, sha256
 # 2. base58 address from HASH and vice versa
 
 
-def base58_address_from_h160(
-    prefix: Octets, h160: Octets, network: str = "mainnet"
-) -> str:
+def address_from_h160(prefix: Octets, h160: Octets, network: str = "mainnet") -> str:
     "Encode a base58 address from the payload."
 
     prefix = bytes_from_octets(prefix)
@@ -43,7 +41,7 @@ def base58_address_from_h160(
     return b58encode(payload).decode("ascii")
 
 
-def h160_from_base58_address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
+def h160_from_address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
     "Return the payload from a base58 address."
 
     if isinstance(b58addr, str):
@@ -71,30 +69,28 @@ def p2pkh(
     "Return the p2pkh base58 address corresponding to a public key."
     h160, network = hash160_from_key(key, network, compressed)
     prefix = NETWORKS[network].p2pkh
-    return base58_address_from_h160(prefix, h160, network)
+    return address_from_h160(prefix, h160, network)
 
 
 def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
     "Return the p2sh base58 address corresponding to a script_pub_key."
     h160 = hash160(script_pub_key)
     prefix = NETWORKS[network].p2sh
-    return base58_address_from_h160(prefix, h160, network)
+    return address_from_h160(prefix, h160, network)
 
 
 # 2b. base58 address from WitnessProgram
 # it cannot be inverted because of the hash performed by p2sh
 
 
-def base58_address_from_witness(
-    witness_program: Octets, network: str = "mainnet"
-) -> str:
+def address_from_witness(witness: Octets, network: str = "mainnet") -> str:
     "Encode a legacy base58 p2sh-wrapped SegWit address."
 
-    length = len(witness_program)
+    length = len(witness)
     if length == 20:
-        redeem_script = script_pub_key_from_payload("p2wpkh", witness_program)
+        redeem_script = script_pub_key_from_payload("p2wpkh", witness)
     elif length == 32:
-        redeem_script = script_pub_key_from_payload("p2wsh", witness_program)
+        redeem_script = script_pub_key_from_payload("p2wsh", witness)
     else:
         err_msg = "invalid witness program length for witness v0: "
         err_msg += f"{length} instead of 20 or 32"
@@ -109,11 +105,11 @@ def base58_address_from_witness(
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> str:
     "Return the p2wpkh-p2sh base58 address corresponding to a pub_key."
     compressed = True  # needed to force check on pub_key
-    witprog, network = hash160_from_key(key, network, compressed)
-    return base58_address_from_witness(witprog, network)
+    witness, network = hash160_from_key(key, network, compressed)
+    return address_from_witness(witness, network)
 
 
 def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
     "Return the p2wsh-p2sh base58 address corresponding to a reedem script."
-    witprog = sha256(redeem_script)
-    return base58_address_from_witness(witprog, network)
+    witness = sha256(redeem_script)
+    return address_from_witness(witness, network)

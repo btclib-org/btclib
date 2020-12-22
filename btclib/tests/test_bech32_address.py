@@ -48,10 +48,10 @@ from btclib import script
 from btclib.base58_address import p2wpkh_p2sh, p2wsh_p2sh
 from btclib.bech32_address import (
     _convertbits,
-    bech32_address_from_witness,
+    address_from_witness,
     p2wpkh,
     p2wsh,
-    witness_from_bech32_address,
+    witness_from_address,
 )
 from btclib.exceptions import BTClibValueError
 from btclib.sec_point import bytes_from_point, point_from_octets
@@ -92,14 +92,12 @@ def test_valid_address() -> None:
     ]
 
     for address, hexscript in valid_bc_addresses + valid_tb_addresses:
-        w_ver, w_prg, network, _ = witness_from_bech32_address(address)
-        addr = bech32_address_from_witness(w_ver, w_prg, network)
+        w_ver, w_prg, network, _ = witness_from_address(address)
+        addr = address_from_witness(w_ver, w_prg, network)
         assert address.lower().strip() == addr
 
-        w_ver, w_prg, network, _ = witness_from_bech32_address(
-            address.strip().encode("ascii")
-        )
-        addr = bech32_address_from_witness(w_ver, w_prg, network)
+        w_ver, w_prg, network, _ = witness_from_address(address.strip().encode("ascii"))
+        addr = address_from_witness(w_ver, w_prg, network)
         assert address.lower().strip() == addr
 
         script_pub_key: List[script.ScriptToken] = [w_ver, w_prg]
@@ -119,10 +117,10 @@ def test_invalid_address() -> None:
             "invalid checksum in bech32 string: ",
         ),
         ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", "invalid witness version: "),
-        ("bc1rw5uspcuh", "invalid witness program length for witness v0: "),
+        ("bc1rw5uspcuh", "invalid witness program length for witness v3: "),
         (
             "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
-            "invalid witness program length for witness v0: ",
+            "invalid witness program length for witness v15: ",
         ),
         (
             "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
@@ -149,7 +147,7 @@ def test_invalid_address() -> None:
 
     for address, err_msg in invalid_addresses:
         with pytest.raises(BTClibValueError, match=err_msg):
-            witness_from_bech32_address(address)
+            witness_from_address(address)
 
 
 def test_invalid_address_enc() -> None:
@@ -159,25 +157,25 @@ def test_invalid_address_enc() -> None:
         ("MAINNET", 0, 20, "'MAINNET'"),
         ("mainnet", 0, 21, "invalid witness program length for witness v0: "),
         ("mainnet", 17, 32, "invalid witness version: "),
-        ("mainnet", 1, 1, "invalid witness program length for witness v0: "),
-        ("mainnet", 16, 41, "invalid witness program length for witness v0: "),
+        ("mainnet", 1, 1, "invalid witness program length for witness v1: "),
+        ("mainnet", 16, 41, "invalid witness program length for witness v16: "),
     ]
 
     network, version, length, err_msg = invalid_address_enc[0]
     with pytest.raises(KeyError, match=err_msg):
-        bech32_address_from_witness(version, "00" * length, network)
+        address_from_witness(version, "00" * length, network)
 
     for network, version, length, err_msg in invalid_address_enc[1:]:
         with pytest.raises(BTClibValueError, match=err_msg):
-            bech32_address_from_witness(version, "00" * length, network)
+            address_from_witness(version, "00" * length, network)
 
 
-def test_bech32_address_from_witness() -> None:
+def testaddress_from_witness() -> None:
 
     # self-consistency
     addr = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-    w_ver, w_prg, network, _ = witness_from_bech32_address(addr)
-    assert bech32_address_from_witness(w_ver, w_prg, network) == addr
+    w_ver, w_prg, network, _ = witness_from_address(addr)
+    assert address_from_witness(w_ver, w_prg, network) == addr
 
     wp_ints = list(w_prg)
     wp_ints[0] = -1
@@ -214,7 +212,7 @@ def test_p2wpkh() -> None:
     addr = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
     assert addr == p2wpkh(pub)
 
-    _, w_prg, _, _ = witness_from_bech32_address(addr)
+    _, w_prg, _, _ = witness_from_address(addr)
     assert bytes(w_prg) == hash160(pub)
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
@@ -226,15 +224,15 @@ def test_p2wpkh() -> None:
 
     err_msg = "invalid witness program length for witness v0: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bech32_address_from_witness(0, hash160(pub) + b"\x00")
+        address_from_witness(0, hash160(pub) + b"\x00")
 
 
 def test_hash_from_bech32() -> None:
     network = "testnet"
     w_ver = 0
     w_prg = 20 * b"\x05"
-    addr = bech32_address_from_witness(w_ver, w_prg, network)
-    _, wp2, n_2, _ = witness_from_bech32_address(addr)
+    addr = address_from_witness(w_ver, w_prg, network)
+    _, wp2, n_2, _ = witness_from_address(addr)
     assert n_2 == network
     assert wp2 == w_prg
 
@@ -242,7 +240,7 @@ def test_hash_from_bech32() -> None:
     addr = "tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
     err_msg = "invalid witness program length for witness v0: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        witness_from_bech32_address(addr)
+        witness_from_address(addr)
 
 
 def test_p2wsh_p2sh() -> None:
@@ -264,16 +262,16 @@ def test_p2wsh() -> None:
 
     addr = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
     assert addr == p2wsh(witness_script_bytes, "testnet")
-    _, w_prg, _, _ = witness_from_bech32_address(addr)
+    _, w_prg, _, _ = witness_from_address(addr)
     assert bytes(w_prg) == sha256(witness_script_bytes)
 
     addr = "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3"
     assert addr == p2wsh(witness_script_bytes)
-    _, w_prg, _, _ = witness_from_bech32_address(addr)
+    _, w_prg, _, _ = witness_from_address(addr)
     assert bytes(w_prg) == sha256(witness_script_bytes)
 
-    assert witness_from_bech32_address(addr)[1] == sha256(witness_script_bytes)
+    assert witness_from_address(addr)[1] == sha256(witness_script_bytes)
 
     err_msg = "invalid witness program length for witness v0: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bech32_address_from_witness(0, witness_script_bytes)
+        address_from_witness(0, witness_script_bytes)

@@ -17,11 +17,6 @@ from typing import List
 import pytest
 
 from btclib import base58_address, bech32_address, script, var_bytes
-from btclib.base58_address import (
-    base58_address_from_h160,
-    base58_address_from_witness,
-)
-from btclib.bech32_address import bech32_address_from_witness
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script import Script
@@ -241,7 +236,7 @@ def test_p2pkh() -> None:
     address = base58_address.p2pkh(pub_key, network)
     assert address == address_from_script_pub_key(script_pub_key, network)
     prefix = NETWORKS[network].p2pkh
-    assert address == base58_address_from_h160(prefix, payload, network)
+    assert address == base58_address.address_from_h160(prefix, payload, network)
 
     # back from the address to the script_pub_key
     assert (script_pub_key, network) == script_pub_key_from_address(address)
@@ -294,14 +289,14 @@ def test_p2wpkh() -> None:
     address = bech32_address.p2wpkh(pub_key, network)
     assert address == address_from_script_pub_key(script_pub_key, network)
     wit_ver = 0
-    assert address == bech32_address_from_witness(wit_ver, payload, network)
+    assert address == bech32_address.address_from_witness(wit_ver, payload, network)
 
     # back from the address to the script_pub_key
     assert (script_pub_key, network) == script_pub_key_from_address(address)
 
     # p2sh-wrapped base58 address
     address = base58_address.p2wpkh_p2sh(pub_key, network)
-    assert address == base58_address_from_witness(payload, network)
+    assert address == base58_address.address_from_witness(payload, network)
 
     err_msg = "invalid witness version: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -335,7 +330,7 @@ def test_p2sh() -> None:
     address = base58_address.p2sh(redeem_script, network)
     assert address == address_from_script_pub_key(script_pub_key, network)
     prefix = NETWORKS[network].p2sh
-    assert address == base58_address_from_h160(prefix, payload, network)
+    assert address == base58_address.address_from_h160(prefix, payload, network)
 
     # back from the address to the script_pub_key
     assert (script_pub_key, network) == script_pub_key_from_address(address)
@@ -389,14 +384,14 @@ def test_p2wsh() -> None:
     address = bech32_address.p2wsh(redeem_script, network)
     assert address == address_from_script_pub_key(script_pub_key, network)
     wit_ver = 0
-    assert address == bech32_address_from_witness(wit_ver, payload, network)
+    assert address == bech32_address.address_from_witness(wit_ver, payload, network)
 
     # back from the address to the script_pub_key
     assert (script_pub_key, network) == script_pub_key_from_address(address)
 
     # p2sh-wrapped base58 address
     address = base58_address.p2wsh_p2sh(redeem_script, network)
-    assert address == base58_address_from_witness(payload, network)
+    assert address == base58_address.address_from_witness(payload, network)
 
     err_msg = "invalid witness version: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -431,7 +426,7 @@ def test_exceptions() -> None:
 
     # Unhandled witness version (16)
     err_msg = "unmanaged witness version: "
-    address = bech32_address_from_witness(16, 20 * b"\x00")
+    address = bech32_address.address_from_witness(16, 20 * b"\x00")
     with pytest.raises(BTClibValueError, match=err_msg):
         script_pub_key_from_address(address)
 
@@ -597,4 +592,4 @@ def test_non_standard_script_in_p2wsh() -> None:
 
     address = "bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
     assert address == address_from_script_pub_key(script_pub_key, network)
-    assert address == bech32_address_from_witness(0, payload, network)
+    assert address == bech32_address.address_from_witness(0, payload, network)

@@ -141,9 +141,9 @@ from dataclasses_json import DataClassJsonMixin
 
 from btclib import dsa
 from btclib.alias import BinaryData, String
-from btclib.base58_address import h160_from_base58_address, p2pkh, p2wpkh_p2sh
+from btclib.base58_address import h160_from_address, p2pkh, p2wpkh_p2sh
 from btclib.base58_wif import wif_from_prv_key
-from btclib.bech32_address import p2wpkh, witness_from_bech32_address
+from btclib.bech32_address import p2wpkh, witness_from_address
 from btclib.curve import mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
@@ -338,10 +338,10 @@ def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
     )
 
     try:
-        _, h160, _, is_script_hash = h160_from_base58_address(addr)
+        _, h160, _, is_script_hash = h160_from_address(addr)
         is_b58 = True
     except BTClibValueError:
-        _, h160, _, is_script_hash = witness_from_bech32_address(addr)
+        _, h160, _, is_script_hash = witness_from_address(addr)
         is_b58 = False
 
     compressed = sig.rf >= 31
