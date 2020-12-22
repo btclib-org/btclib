@@ -314,7 +314,9 @@ def sign(msg: String, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
     return Sig(rf, dsa_sig)
 
 
-def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
+def assert_as_valid(
+    msg: String, addr: String, sig: Union[Sig, String], lower_s: bool = True
+) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
@@ -334,7 +336,7 @@ def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
     key_id = sig.rf - 27 & 0b11
 
     recovered_pub_key = dsa.__recover_pub_key(
-        key_id, c, sig.dsa_sig.r, sig.dsa_sig.s, sig.dsa_sig.ec
+        key_id, c, sig.dsa_sig.r, sig.dsa_sig.s, lower_s, sig.dsa_sig.ec
     )
 
     try:
@@ -368,13 +370,15 @@ def assert_as_valid(msg: String, addr: String, sig: Union[Sig, String]) -> None:
             raise BTClibValueError(err_msg)
 
 
-def verify(msg: String, addr: String, sig: Union[Sig, String]) -> bool:
+def verify(
+    msg: String, addr: String, sig: Union[Sig, String], lower_s: bool = True
+) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        assert_as_valid(msg, addr, sig)
+        assert_as_valid(msg, addr, sig, lower_s)
     except Exception:  # pylint: disable=broad-except
         return False
     else:

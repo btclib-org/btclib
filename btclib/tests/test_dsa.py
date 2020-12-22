@@ -38,16 +38,14 @@ def test_signature() -> None:
 
     # https://bitcointalk.org/index.php?topic=285142.40
     # Deterministic Usage of DSA and ECDSA (RFC 6979)
-    exp_sig = (
-        0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8,
-        0x2442CE9D2B916064108014783E923EC36B49743E2FFA1C4496F01A512AAFD9E5,
-    )
-    assert sig.r == exp_sig[0]
-    assert sig.s in (exp_sig[1], sig.ec.n - exp_sig[1])
+    r = 0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8
+    s = 0x2442CE9D2B916064108014783E923EC36B49743E2FFA1C4496F01A512AAFD9E5
+    assert sig.r == r
+    assert sig.s in (s, sig.ec.n - s)
 
     # malleability
     malleated_sig = dsa.Sig(sig.r, sig.ec.n - sig.s)
-    assert dsa.verify(msg, Q, malleated_sig)
+    assert dsa.verify(msg, Q, malleated_sig, lower_s=False)
 
     keys = dsa.recover_pub_keys(msg, sig)
     assert len(keys) == 2
@@ -123,19 +121,15 @@ def test_gec() -> None:
     # 2.1.3 Signing Operation for U
     msg = b"abc"
     k = 702232148019446860144825009548118511996283736794
-    exp_sig = (
-        0xCE2873E5BE449563391FEB47DDCBA2DC16379191,
-        0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54,
-    )
-    low_s = False
-    sig = dsa._sign(reduce_to_hlen(msg, hf), dU, k, low_s, ec, hf)
-    assert sig.r == exp_sig[0]
-    assert sig.s == exp_sig[1]
+    lower_s = False
+    sig = dsa._sign(reduce_to_hlen(msg, hf), dU, k, lower_s, ec, hf)
+    assert sig.r == 0xCE2873E5BE449563391FEB47DDCBA2DC16379191
+    assert sig.s == 0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54
     assert sig.ec == ec
 
     # 2.1.4 Verifying Operation for V
-    dsa.assert_as_valid(msg, QU, sig, hf)
-    assert dsa.verify(msg, QU, sig, hf)
+    dsa.assert_as_valid(msg, QU, sig, lower_s, hf)
+    assert dsa.verify(msg, QU, sig, lower_s, hf)
 
 
 @pytest.mark.first
@@ -154,7 +148,7 @@ def test_low_cardinality() -> None:
         low_card_curves["ec23_31"],
     ]
 
-    low_s = True
+    lower_s = True
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n):  # all possible private keys
@@ -166,21 +160,21 @@ def test_low_cardinality() -> None:
                 for e in range(ec.n):  # all possible challenges
                     s = k_inv * (e + q * r) % ec.n
                     # bitcoin canonical 'low-s' encoding for ECDSA
-                    if low_s and s > ec.n / 2:
+                    if lower_s and s > ec.n / 2:
                         s = ec.n - s
                     if r == 0 or s == 0:
                         err_msg = "failed to sign: "
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
-                            dsa.__sign(e, q, k, low_s, ec)
+                            dsa.__sign(e, q, k, lower_s, ec)
                     else:
-                        sig = dsa.__sign(e, q, k, low_s, ec)
+                        sig = dsa.__sign(e, q, k, lower_s, ec)
                         assert r == sig.r
                         assert s == sig.s
                         assert ec == sig.ec
                         # valid signature must pass verification
-                        dsa.__assert_as_valid(e, QJ, r, s, ec)
+                        dsa.__assert_as_valid(e, QJ, r, s, lower_s, ec)
 
-                        jacobian_keys = dsa.__recover_pub_keys(e, r, s, ec)
+                        jacobian_keys = dsa.__recover_pub_keys(e, r, s, lower_s, ec)
                         # FIXME speed this up
                         Qs = [ec.aff_from_jac(key) for key in jacobian_keys]
                         assert ec.aff_from_jac(QJ) in Qs
@@ -195,8 +189,8 @@ def test_pub_key_recovery() -> None:
     Q = mult(q, ec.G, ec)
 
     msg = "Satoshi Nakamoto"
-    low_s = True
-    sig = dsa.sign(msg, q, low_s, ec)
+    lower_s = True
+    sig = dsa.sign(msg, q, lower_s, ec)
     dsa.assert_as_valid(msg, Q, sig)
     assert dsa.verify(msg, Q, sig)
 
@@ -224,7 +218,7 @@ def test_crack_prv_key() -> None:
 
     q_cracked, k_cracked = dsa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2)
 
-    #  if the low_s convention has changed only one of s1 and s2
+    #  if the lower_s convention has changed only one of s1 and s2
     sig2 = dsa.Sig(sig2.r, ec.n - sig2.s)
     qc2, kc2 = dsa.crack_prv_key(msg1, sig1, msg2, sig2.serialize())
 
@@ -260,8 +254,9 @@ def test_forge_hash_sig() -> None:
     r = R[0] % ec.n
     u2inv = mod_inv(u2, ec.n)
     s = r * u2inv % ec.n
+    s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
-    dsa.__assert_as_valid(e, (Q[0], Q[1], 1), r, s, ec)
+    dsa.__assert_as_valid(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
 
     # pick u1 and u2 at will
     u1 = 1234567890
@@ -270,5 +265,6 @@ def test_forge_hash_sig() -> None:
     r = R[0] % ec.n
     u2inv = mod_inv(u2, ec.n)
     s = r * u2inv % ec.n
+    s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
-    dsa.__assert_as_valid(e, (Q[0], Q[1], 1), r, s, ec)
+    dsa.__assert_as_valid(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)

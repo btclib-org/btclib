@@ -23,7 +23,6 @@
   - <https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf>
   - <https://eprint.iacr.org/2005/419.pdf>
   - <https://www.esat.kuleuven.be/cosic/publications/article-2293.pdf>
-- of a signature: verify or verification ?
 - better mimic of electrum entropy search, they probably have the words inverted
 - BIP44 in address_from...
 - primitives for interactive threshold and musig

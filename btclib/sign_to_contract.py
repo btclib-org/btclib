@@ -73,6 +73,7 @@ def _dsa_commit_sign(
     m: Octets,
     prv_key: PrvKey,
     nonce: Optional[PrvKey] = None,
+    lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[dsa.Sig, Point]:
@@ -84,7 +85,7 @@ def _dsa_commit_sign(
     R = mult(nonce, ec.G, ec)
 
     tweaked_nonce = (nonce + _tweak(c, R, ec, hf)) % ec.n
-    tweaked_sig = dsa._sign(m, prv_key, tweaked_nonce, low_s=True, ec=ec, hf=hf)
+    tweaked_sig = dsa._sign(m, prv_key, tweaked_nonce, lower_s, ec=ec, hf=hf)
 
     return tweaked_sig, R
 
@@ -101,7 +102,7 @@ def dsa_commit_sign(
 
     c = reduce_to_hlen(commit_msg, hf)
     m = reduce_to_hlen(msg, hf)
-    return _dsa_commit_sign(c, m, prv_key, nonce, ec, hf)
+    return _dsa_commit_sign(c, m, prv_key, nonce, lower_s=True, ec=ec, hf=hf)
 
 
 def _dsa_verify_commit(
@@ -110,6 +111,7 @@ def _dsa_verify_commit(
     m: Octets,
     key: dsa.Key,
     sig: dsa.Sig,
+    lower_s: bool = True,
     hf: HashF = sha256,
 ) -> bool:
     "Open the commitment c inside an EC DSA signature."
@@ -118,7 +120,7 @@ def _dsa_verify_commit(
     W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
 
     # sig.r is in [1..n-1]
-    return (sig.r == W[0] % sig.ec.n) and dsa._verify(m, key, sig, hf)
+    return (sig.r == W[0] % sig.ec.n) and dsa._verify(m, key, sig, lower_s, hf)
 
 
 def dsa_verify_commit(
@@ -127,11 +129,12 @@ def dsa_verify_commit(
     msg: String,
     key: dsa.Key,
     sig: dsa.Sig,
+    lower_s: bool = True,
     hf: HashF = sha256,
 ) -> bool:
     c = reduce_to_hlen(commit_msg, hf)
     m = reduce_to_hlen(msg, hf)
-    return _dsa_verify_commit(c, receipt, m, key, sig, hf)
+    return _dsa_verify_commit(c, receipt, m, key, sig, lower_s, hf)
 
 
 def _ssa_commit_sign(

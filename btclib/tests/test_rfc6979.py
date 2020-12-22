@@ -54,6 +54,7 @@ def test_rfc6979_tv() -> None:
     with open(filename, "r") as file_:
         test_dict = json.load(file_)
 
+    lower_s = False
     for ec_name in test_dict:
         ec = CURVES[ec_name]
         test_vectors = test_dict[ec_name]
@@ -64,15 +65,15 @@ def test_rfc6979_tv() -> None:
             k2 = _rfc6979(m, x, ec, getattr(hashlib, hf))
             assert int(k, 16) == k2
             # test RFC6979 usage in DSA
-            sig = dsa._sign(m, x, k2, low_s=False, ec=ec, hf=getattr(hashlib, hf))
+            sig = dsa._sign(m, x, k2, lower_s, ec=ec, hf=getattr(hashlib, hf))
             assert int(r, 16) == sig.r
             assert int(s, 16) == sig.s
             # test that RFC6979 is the default nonce for DSA
-            sig = dsa._sign(m, x, None, low_s=False, ec=ec, hf=getattr(hashlib, hf))
+            sig = dsa._sign(m, x, None, lower_s, ec=ec, hf=getattr(hashlib, hf))
             assert int(r, 16) == sig.r
             assert int(s, 16) == sig.s
             # test key-pair coherence
             U = mult(x, ec.G, ec)
             assert int(x_U, 16), int(y_U, 16) == U
             # test signature validity
-            dsa.assert_as_valid(msg, U, sig, getattr(hashlib, hf))
+            dsa.assert_as_valid(msg, U, sig, lower_s, getattr(hashlib, hf))

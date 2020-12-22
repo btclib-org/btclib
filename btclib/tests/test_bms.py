@@ -11,7 +11,6 @@
 "Tests for the `btclib.bms` module."
 
 import json
-from hashlib import sha256 as hf
 from os import path
 
 import pytest
@@ -31,31 +30,48 @@ def test_signature() -> None:
     msg = "test message"
 
     wif, addr = bms.gen_keys()
-    sig = bms.sign(msg, wif)
-    bms.assert_as_valid(msg, addr, sig)
-    assert bms.verify(msg, addr, sig)
-    assert sig == bms.Sig.deserialize(sig.serialize())
-    assert sig == bms.Sig.deserialize(sig.serialize().hex())
-    assert sig == bms.Sig.b64decode(sig.b64encode())
-    assert sig == bms.Sig.b64decode(sig.b64encode().encode("ascii"))
+    bms_sig = bms.sign(msg, wif)
+    bms.assert_as_valid(msg, addr, bms_sig)
+    assert bms.verify(msg, addr, bms_sig)
+    assert bms_sig == bms.Sig.deserialize(bms_sig.serialize())
+    assert bms_sig == bms.Sig.deserialize(bms_sig.serialize().hex())
+    assert bms_sig == bms.Sig.b64decode(bms_sig.b64encode())
+    assert bms_sig == bms.Sig.b64decode(bms_sig.b64encode().encode("ascii"))
 
-    assert sig == bms.sign(msg, wif.encode("ascii"))
+    assert bms_sig == bms.sign(msg, wif.encode("ascii"))
 
-    # sig taken from (Electrum and) Bitcoin Core
+    # malleated signature
+    dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, bms_sig.dsa_sig.ec.n - bms_sig.dsa_sig.s)
+    # without updating rf verification will fail, even with lower_s=False
+    bms_sig = bms.Sig(bms_sig.rf, dsa_sig)
+    err_msg = "wrong p2pkh address: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, addr, bms_sig, lower_s=False)
+    # update rf to satisfy above malleation
+    i = 1 if bms_sig.rf % 2 else -1
+    bms_sig = bms.Sig(bms_sig.rf + i, dsa_sig)
+    bms.assert_as_valid(msg, addr, bms_sig, lower_s=False)
+    assert bms.verify(msg, addr, bms_sig, lower_s=False)
+    # anyway, with lower_s=True malleation does fail verification
+    err_msg = "not a low s"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, addr, bms_sig, lower_s=True)
+
+    # bms_sig taken from (Electrum and) Bitcoin Core
     wif, addr = bms.gen_keys("5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw")
-    sig = bms.sign(msg, wif)
-    bms.assert_as_valid(msg, addr, sig)
-    assert bms.verify(msg, addr, sig)
+    bms_sig = bms.sign(msg, wif)
+    bms.assert_as_valid(msg, addr, bms_sig)
+    assert bms.verify(msg, addr, bms_sig)
     exp_sig = "G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
-    assert sig.b64encode() == exp_sig
+    assert bms_sig.b64encode() == exp_sig
 
     bms.assert_as_valid(msg, addr, exp_sig)
     bms.assert_as_valid(msg, addr, exp_sig.encode("ascii"))
 
-    dsa_sig = dsa.Sig(sig.dsa_sig.r, sig.dsa_sig.s, CURVES["secp256r1"])
+    dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, bms_sig.dsa_sig.s, CURVES["secp256r1"])
     err_msg = "invalid curve: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        sig = bms.Sig(sig.rf, dsa_sig)
+        bms_sig = bms.Sig(bms_sig.rf, dsa_sig)
 
 
 def test_exceptions() -> None:
@@ -269,37 +285,45 @@ def test_msgsign_p2pkh() -> None:
     assert wif1u == "5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw"
     add1u = base58_address.p2pkh(wif1u)
     assert add1u == "1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD"
-    sig1u = bms.sign(msg, wif1u)
-    assert bms.verify(msg, add1u, sig1u)
-    assert sig1u.rf == 27
+    bms_sig1u = bms.sign(msg, wif1u)
+    assert bms.verify(msg, add1u, bms_sig1u)
+    assert bms_sig1u.rf == 27
     exp_sig1u = "G/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
-    assert sig1u.b64encode() == exp_sig1u
+    assert bms_sig1u.b64encode() == exp_sig1u
 
     # compressed
     wif1c = wif_from_prv_key(q, "mainnet", True)
     assert wif1c == "L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk"
     add1c = base58_address.p2pkh(wif1c)
     assert add1c == "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
-    sig1c = bms.sign(msg, wif1c)
-    assert bms.verify(msg, add1c, sig1c)
-    assert sig1c.rf == 31
+    bms_sig1c = bms.sign(msg, wif1c)
+    assert bms.verify(msg, add1c, bms_sig1c)
+    assert bms_sig1c.rf == 31
     exp_sig1c = "H/iew/NhHV9V9MdUEn/LFOftaTy1ivGPKPKyMlr8OSokNC755fAxpSThNRivwTNsyY9vPUDTRYBPc2cmGd5d4y4="
-    assert sig1c.b64encode() == exp_sig1c
+    assert bms_sig1c.b64encode() == exp_sig1c
 
-    assert not bms.verify(msg, add1c, sig1u)
-    assert not bms.verify(msg, add1u, sig1c)
+    assert not bms.verify(msg, add1c, bms_sig1u)
+    assert not bms.verify(msg, add1u, bms_sig1c)
 
-    bms_sig = bms.Sig(sig1c.rf + 1, sig1c.dsa_sig)
+    bms_sig = bms.Sig(bms_sig1c.rf + 1, bms_sig1c.dsa_sig)
     assert not bms.verify(msg, add1c, bms_sig)
 
     # malleate s
-    dsa_sig = dsa.Sig(sig1c.dsa_sig.r, ec.n - sig1c.dsa_sig.s, sig1c.dsa_sig.ec)
-    bms_sig = bms.Sig(sig1c.rf, dsa_sig)
-    assert not bms.verify(msg, add1c, bms_sig)
+    s = ec.n - bms_sig1c.dsa_sig.s
+    dsa_sig = dsa.Sig(bms_sig1c.dsa_sig.r, s, bms_sig1c.dsa_sig.ec)
+    # without updating rf verification will fail, even with lower_s=False
+    bms_sig = bms.Sig(bms_sig1c.rf, dsa_sig)
+    assert not bms.verify(msg, add1c, bms_sig, lower_s=False)
 
     # update rf to satisfy above malleation
-    bms_sig = bms.Sig(sig1c.rf + 1, dsa_sig)
-    assert bms.verify(msg, add1c, bms_sig)
+    i = 1 if bms_sig1c.rf % 2 else -1
+    bms_sig = bms.Sig(bms_sig1c.rf + i, dsa_sig)
+    assert bms.verify(msg, add1c, bms_sig, lower_s=False)
+
+    # anyway, with lower_s=True malleation does fail verification
+    err_msg = "not a low s"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, add1c, bms_sig, lower_s=True)
 
 
 def test_msgsign_p2pkh_2() -> None:
@@ -311,24 +335,24 @@ def test_msgsign_p2pkh_2() -> None:
     address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
     exp_sig = "IFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif, address)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
-    sig = bms.sign(msg.encode(), wif)
-    assert bms.verify(msg.encode(), address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif, address)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg.encode(), wif)
+    assert bms.verify(msg.encode(), address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     wif = "5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn"
     # uncompressed
     address = "19f7adDYqhHSJm2v7igFWZAqxXHj1vUa3T"
     exp_sig = "HFqUo4/sxBEFkfK8mZeeN56V13BqOc0D90oPBChF3gTqMXtNSCTN79UxC33kZ8Mi0cHy4zYCnQfCxTyLpMVXKeA="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif, address)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
-    sig = bms.sign(msg.encode(), wif)
-    assert bms.verify(msg.encode(), address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif, address)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg.encode(), wif)
+    assert bms.verify(msg.encode(), address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
 
 def test_verify_p2pkh() -> None:
@@ -358,7 +382,7 @@ def test_verify_p2pkh() -> None:
     msg = "test message"
     address = "16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce"
     exp_sig = "HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50="
-    assert bms.verify(msg, address, exp_sig)
+    assert bms.verify(msg, address, exp_sig, lower_s=False)
 
     msg = "test message 2"
     assert not bms.verify(msg, address, exp_sig)
@@ -378,7 +402,7 @@ def test_verify_p2pkh() -> None:
     msg = "testtest"
     address = "18uitB5ARAhyxmkN2Sa9TbEuoGN1he83BX"
     exp_sig = "IMAtT1SjRyP6bz6vm5tKDTTTNYS6D8w2RQQyKD3VGPq2i2txGd2ar18L8/nvF1+kAMo5tNc4x0xAOGP0HRjKLjc="
-    assert bms.verify(msg, address, exp_sig)
+    assert bms.verify(msg, address, exp_sig, lower_s=False)
 
     msg = "testtest"
     address = "1LsPb3D1o1Z7CzEt1kv5QVxErfqzXxaZXv"
@@ -409,31 +433,31 @@ def test_segwit() -> None:
     # p2pkh base58 address (Core, Electrum, BIP137)
     exp_sig = "IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
     assert bms.verify(msg, b58_p2pkh, exp_sig)
-    sig = bms.sign(msg, wif)  # no address: p2pkh assumed
-    assert bms.verify(msg, b58_p2pkh, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif)  # no address: p2pkh assumed
+    assert bms.verify(msg, b58_p2pkh, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     # p2wpkh-p2sh base58 address (Electrum)
-    assert bms.verify(msg, b58_p2wpkh_p2sh, sig)
+    assert bms.verify(msg, b58_p2wpkh_p2sh, bms_sig)
 
     # p2wpkh bech32 address (Electrum)
-    assert bms.verify(msg, b58_p2wpkh, sig)
+    assert bms.verify(msg, b58_p2wpkh, bms_sig)
 
     # p2wpkh-p2sh base58 address (BIP137)
-    # different first letter in sig because of different rf
+    # different first letter in bms_sig because of different rf
     exp_sig = "JBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
     assert bms.verify(msg, b58_p2wpkh_p2sh, exp_sig)
-    sig = bms.sign(msg, wif, b58_p2wpkh_p2sh)
-    assert bms.verify(msg, b58_p2wpkh_p2sh, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif, b58_p2wpkh_p2sh)
+    assert bms.verify(msg, b58_p2wpkh_p2sh, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     # p2wpkh bech32 address (BIP137)
-    # different first letter in sig because of different rf
+    # different first letter in bms_sig because of different rf
     exp_sig = "KBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
     assert bms.verify(msg, b58_p2wpkh, exp_sig)
-    sig = bms.sign(msg, wif, b58_p2wpkh)
-    assert bms.verify(msg, b58_p2wpkh, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif, b58_p2wpkh)
+    assert bms.verify(msg, b58_p2wpkh, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
 
 def test_sign_strippable_message() -> None:
@@ -444,56 +468,56 @@ def test_sign_strippable_message() -> None:
     msg = ""
     exp_sig = "IFh0InGTy8lLCs03yoUIpJU6MUbi0La/4abhVxyKcCsoUiF3RM7lg51rCqyoOZ8Yt43h8LZrmj7nwwO3HIfesiw="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
     msg = " "
     exp_sig = "IEveV6CMmOk5lFP+oDbw8cir/OkhJn4S767wt+YwhzHnEYcFOb/uC6rrVmTtG3M43mzfObA0Nn1n9CRcv5IGyak="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
     msg = "  "
     exp_sig = "H/QjF1V4fVI8IHX8ko0SIypmb0yxfaZLF0o56Cif9z8CX24n4petTxolH59pYVMvbTKQkGKpznSiPiQVn83eJF0="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     msg = "test"
     exp_sig = "IJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
     msg = " test "
     exp_sig = "IA59z13/HBhvMMJtNwT6K7vJByE40lQUdqEMYhX2tnZSD+IGQIoBGE+1IYGCHCyqHvTvyGeqJTUx5ywb4StuX0s="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
     msg = "test "
     exp_sig = "IPp9l2w0LVYB4FYKBahs+k1/Oa08j+NTuzriDpPWnWQmfU0+UsJNLIPI8Q/gekrWPv6sDeYsFSG9VybUKDPGMuo="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
     msg = " test"
     exp_sig = "H1nGwD/kcMSmsYU6qihV2l2+Pa+7SPP9zyViZ59VER+QL9cJsIAtu1CuxfYDAVt3kgr4t3a/Es3PV82M6z0eQAo="
     assert bms.verify(msg, address, exp_sig)
-    sig = bms.sign(msg, wif)
-    assert bms.verify(msg, address, sig)
-    assert sig.b64encode() == exp_sig
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
+    assert bms_sig.b64encode() == exp_sig
 
 
 def test_vector_python_bitcoinlib() -> None:
@@ -507,42 +531,45 @@ def test_vector_python_bitcoinlib() -> None:
     with open(filename, "r") as file_:
         test_vectors = json.load(file_)
 
-    for vector in test_vectors[:5]:
+    for vector in test_vectors[:10]:
         msg = vector["address"]
-        bsm_sig = bms.sign(msg, vector["wif"])
-        assert bms.verify(msg, vector["address"], bsm_sig)
-        bsm_sig_encoded = bsm_sig.b64encode()
-        assert bms.verify(msg, vector["address"], bsm_sig_encoded)
-        assert bms.verify(msg, vector["address"], vector["signature"])
 
-        # python-bitcoinlib has a signature different from the
-        # one generated by Core/Electrum/btclib (which are identical)
-        assert bsm_sig_encoded != vector["signature"]
+        # btclib self-consistency check
+        bms_sig = bms.sign(msg, vector["wif"])
+        assert bms.verify(msg, vector["address"], bms_sig)
+        bms_sig_encoded = bms_sig.b64encode()
+        assert bms.verify(msg, vector["address"], bms_sig_encoded)
+
+        # Core/Electrum/btclib provide identical signature
+        # they use "low-s" canonical signature
+        assert bms_sig.dsa_sig.s < ec.n - bms_sig.dsa_sig.s
+        assert bms.verify(msg, vector["address"], bms_sig_encoded, lower_s=True)
+
+        # python-bitcoinlib provides a valid signature
+        # but does not respect low-s
+        assert bms.verify(msg, vector["address"], vector["signature"], lower_s=False)
+
+        # python-bitcoinlib has a signature different from Core/Electrum/btclib
+        assert bms_sig_encoded != vector["signature"]
+
+        # but the reason is not the low-s
+        # here's the malleated Core/Electrum/btclib signature
+        s = ec.n - bms_sig.dsa_sig.s
+        dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, s, bms_sig.dsa_sig.ec)
+        # properly malleated fixing also rf
+        i = 1 if bms_sig.rf % 2 else -1
+        bms_sig_malleated = bms.Sig(bms_sig.rf + i, dsa_sig)
+        assert bms.verify(msg, vector["address"], bms_sig_malleated, lower_s=False)
+        bms_sig_encoded = bms_sig_malleated.b64encode()
+        assert bms.verify(msg, vector["address"], bms_sig_encoded, lower_s=False)
+
+        # the malleated signature is still not equal to the python-bitcoinlib one
+        assert bms_sig_encoded != vector["signature"]
 
         # python-bitcoinlib does not use RFC6979 deterministic nonce
         # as proved by different r compared to Core/Electrum/btclib
         test_vector_sig = bms.Sig.b64decode(vector["signature"])
-        assert bsm_sig.dsa_sig.r != test_vector_sig.dsa_sig.r
-
-        # while Core/Electrum/btclib use "low-s" canonical signature
-        assert bsm_sig.dsa_sig.s < ec.n - bsm_sig.dsa_sig.s
-        # this is not true for python-bitcoinlib
-        # assert test_vector_sig.dsa_sig.s < ec.n - test_vector_sig.dsa_sig.s
-        # self.assertGreater(test_vector_sig.dsa_sig.s, ec.n - test_vector_sig.dsa_sig.s)
-
-        # just in case you wonder, here's the malleated signature
-        dsa_sig = dsa.Sig(
-            bsm_sig.dsa_sig.r, ec.n - bsm_sig.dsa_sig.s, bsm_sig.dsa_sig.ec
-        )
-        bms_sig_malleated = bms.Sig(
-            bsm_sig.rf + (1 if bsm_sig.rf == 31 else -1), dsa_sig
-        )
-        assert bms.verify(msg, vector["address"], bms_sig_malleated)
-        bsm_sig_encoded = bms_sig_malleated.b64encode()
-        assert bms.verify(msg, vector["address"], bsm_sig_encoded)
-        # of course,
-        # it is not equal to the python-bitcoinlib one (different r)
-        assert bsm_sig_encoded != vector["signature"]
+        assert bms_sig.dsa_sig.r != test_vector_sig.dsa_sig.r
 
 
 def test_ledger() -> None:
@@ -570,7 +597,7 @@ def test_ledger() -> None:
     dsa_sig = dsa.Sig.deserialize(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
-    dsa.assert_as_valid(magic_msg, xprv, dsa_sig, hf)
+    dsa.assert_as_valid(magic_msg, xprv, dsa_sig)
     assert dsa.verify(magic_msg, xprv, dsa_sig)
 
     # compressed address
@@ -605,7 +632,7 @@ def test_ledger() -> None:
     dsa_sig = dsa.Sig.deserialize(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
-    dsa.assert_as_valid(magic_msg, xprv, dsa_sig, hf)
+    dsa.assert_as_valid(magic_msg, xprv, dsa_sig, lower_s=True)
     assert dsa.verify(magic_msg, xprv, dsa_sig)
 
     # compressed address

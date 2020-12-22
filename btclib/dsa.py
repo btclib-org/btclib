@@ -14,7 +14,8 @@
 
    http://www.secg.org/sec1-v2.pdf
 
-   specialized with bitcoin canonical 'low-s' encoding.
+   specialized with bitcoin canonical 'lower-s' form
+   to avoid accepting malleable signatures.
 """
 
 import secrets
@@ -67,7 +68,7 @@ def challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
     return _challenge(m, ec, hf)
 
 
-def __sign(c: int, q: int, nonce: int, low_s: bool, ec: Curve) -> Sig:
+def __sign(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and nonce are in [1, n-1]
@@ -90,7 +91,7 @@ def __sign(c: int, q: int, nonce: int, low_s: bool, ec: Curve) -> Sig:
     # bitcoin canonical 'low-s' encoding for ECDSA signatures
     # it removes signature malleability as cause of transaction malleability
     # see https://github.com/bitcoin/bitcoin/pull/6769
-    if low_s and s > ec.n / 2:
+    if lower_s and s > ec.n / 2:
         s = ec.n - s  # s = - s % ec.n
 
     return Sig(r, s, ec)
@@ -100,7 +101,7 @@ def _sign(
     m: Octets,
     prv_key: PrvKey,
     nonce: Optional[PrvKey] = None,
-    low_s: bool = True,
+    lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
@@ -128,13 +129,13 @@ def _sign(
         nonce = int_from_prv_key(nonce, ec)
 
     # second part delegated to helper function
-    return __sign(c, q, nonce, low_s, ec)
+    return __sign(c, q, nonce, lower_s, ec)
 
 
 def sign(
     msg: String,
     prv_key: PrvKey,
-    low_s: bool = True,
+    lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
@@ -159,11 +160,16 @@ def sign(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _sign(m, prv_key, None, low_s, ec, hf)
+    return _sign(m, prv_key, None, lower_s, ec, hf)
 
 
-def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
+def __assert_as_valid(
+    c: int, QJ: JacPoint, r: int, s: int, lower_s: bool, ec: Curve
+) -> None:
     # Private function for test/dev purposes
+
+    if lower_s and s > ec.n / 2:
+        raise BTClibValueError("not a low s")
 
     w = mod_inv(s, ec.n)
     u = c * w % ec.n
@@ -185,7 +191,11 @@ def __assert_as_valid(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
 
 def _assert_as_valid(
-    m: Octets, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256
+    m: Octets,
+    key: Key,
+    sig: Union[Sig, Octets],
+    lower_s: bool = True,
+    hf: HashF = sha256,
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -203,41 +213,57 @@ def _assert_as_valid(
     QJ = Q[0], Q[1], 1
 
     # second part delegated to helper function
-    __assert_as_valid(c, QJ, sig.r, sig.s, sig.ec)
+    __assert_as_valid(c, QJ, sig.r, sig.s, lower_s, sig.ec)
 
 
 def assert_as_valid(
-    msg: String, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256
+    msg: String,
+    key: Key,
+    sig: Union[Sig, Octets],
+    lower_s: bool = True,
+    hf: HashF = sha256,
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
     m = reduce_to_hlen(msg, hf)
-    _assert_as_valid(m, key, sig, hf)
+    _assert_as_valid(m, key, sig, lower_s, hf)
 
 
-def _verify(m: Octets, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256) -> bool:
+def _verify(
+    m: Octets,
+    key: Key,
+    sig: Union[Sig, Octets],
+    lower_s: bool = True,
+    hf: HashF = sha256,
+) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        _assert_as_valid(m, key, sig, hf)
+        _assert_as_valid(m, key, sig, lower_s, hf)
     except Exception:  # pylint: disable=broad-except
         return False
     else:
         return True
 
 
-def verify(msg: String, key: Key, sig: Union[Sig, Octets], hf: HashF = sha256) -> bool:
+def verify(
+    msg: String,
+    key: Key,
+    sig: Union[Sig, Octets],
+    lower_s: bool = True,
+    hf: HashF = sha256,
+) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
     m = reduce_to_hlen(msg, hf)
-    return _verify(m, key, sig, hf)
+    return _verify(m, key, sig, lower_s, hf)
 
 
 def recover_pub_keys(
-    msg: String, sig: Union[Sig, Octets], hf: HashF = sha256
+    msg: String, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
@@ -246,11 +272,11 @@ def recover_pub_keys(
     """
 
     m = reduce_to_hlen(msg, hf)
-    return _recover_pub_keys(m, sig, hf)
+    return _recover_pub_keys(m, sig, lower_s, hf)
 
 
 def _recover_pub_keys(
-    m: Octets, sig: Union[Sig, Octets], hf: HashF = sha256
+    m: Octets, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
 ) -> List[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
@@ -269,12 +295,14 @@ def _recover_pub_keys(
 
     c = _challenge(m, sig.ec, hf)  # 1.5
 
-    QJs = __recover_pub_keys(c, sig.r, sig.s, sig.ec)
+    QJs = __recover_pub_keys(c, sig.r, sig.s, lower_s, sig.ec)
     return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
 
 
 # TODO: use __recover_pub_key to avoid code duplication
-def __recover_pub_keys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
+def __recover_pub_keys(
+    c: int, r: int, s: int, lower_s: bool, ec: Curve
+) -> List[JacPoint]:
     # Private function provided for testing purposes only.
 
     # precomputations
@@ -296,7 +324,7 @@ def __recover_pub_keys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             # 1.5 has been performed in the recover_pub_keys calling function
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
             try:
-                __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
+                __assert_as_valid(c, QJ, r, s, lower_s, ec)  # 1.6.2
             except (BTClibValueError, BTClibRuntimeError):
                 pass
             else:
@@ -304,7 +332,7 @@ def __recover_pub_keys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
             KJ = x_K, ec.p - yodd, 1  # 1.6.3
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
             try:
-                __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
+                __assert_as_valid(c, QJ, r, s, lower_s, ec)  # 1.6.2
             except (BTClibValueError, BTClibRuntimeError):
                 pass
             else:
@@ -314,7 +342,9 @@ def __recover_pub_keys(c: int, r: int, s: int, ec: Curve) -> List[JacPoint]:
     return keys
 
 
-def __recover_pub_key(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoint:
+def __recover_pub_key(
+    key_id: int, c: int, r: int, s: int, lower_s: bool, ec: Curve
+) -> JacPoint:
     # Private function provided for testing purposes only.
 
     # precomputations
@@ -334,7 +364,7 @@ def __recover_pub_key(key_id: int, c: int, r: int, s: int, ec: Curve) -> JacPoin
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pub_keys calling function
     QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-    __assert_as_valid(c, QJ, r, s, ec)  # 1.6.2
+    __assert_as_valid(c, QJ, r, s, lower_s, ec)  # 1.6.2
     return QJ
 
 

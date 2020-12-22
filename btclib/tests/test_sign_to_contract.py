@@ -27,17 +27,21 @@ def test_sign_to_contract_dsa() -> None:
     commit_msg = "to be committed"
     msg = "to be signed"
 
+    lower_s = True
     for hf in (sha256, sha1):
         for ec in (secp256k1, CURVES["secp160r1"]):
             prv_key, pub_key = dsa.gen_keys(ec=ec)
-            dsa_sig, receipt = dsa_commit_sign(commit_msg, msg, prv_key, None, ec, hf)
-            dsa.assert_as_valid(msg, pub_key, dsa_sig, hf)
-            assert dsa_verify_commit(commit_msg, receipt, msg, pub_key, dsa_sig, hf)
+            nonce = None
+            dsa_sig, receipt = dsa_commit_sign(commit_msg, msg, prv_key, nonce, ec, hf)
+            dsa.assert_as_valid(msg, pub_key, dsa_sig, lower_s, hf)
+            assert dsa_verify_commit(
+                commit_msg, receipt, msg, pub_key, dsa_sig, lower_s, hf
+            )
 
-            random_nonce = 1 + secrets.randbelow(ec.n - 1)
-            dsa_sig, R = dsa_commit_sign(commit_msg, msg, prv_key, random_nonce, ec, hf)
-            dsa.assert_as_valid(msg, pub_key, dsa_sig, hf)
-            assert dsa_verify_commit(commit_msg, R, msg, pub_key, dsa_sig, hf)
+            nonce = 1 + secrets.randbelow(ec.n - 1)
+            dsa_sig, R = dsa_commit_sign(commit_msg, msg, prv_key, nonce, ec, hf)
+            dsa.assert_as_valid(msg, pub_key, dsa_sig, lower_s, hf)
+            assert dsa_verify_commit(commit_msg, R, msg, pub_key, dsa_sig, lower_s, hf)
 
 
 def test_sign_to_contract_ssa() -> None:
