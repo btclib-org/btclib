@@ -70,7 +70,7 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
 
         # it must be octets
         try:
-            prv_key = bytes_from_octets(prv_key, ec.nsize)
+            prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, "big")
         except ValueError as e:
             raise BTClibValueError(f"not a private key: {prv_key!r}") from e
@@ -107,12 +107,12 @@ def _prv_keyinfo_from_wif(
 
     ec = NETWORKS[net].curve
 
-    if len(payload) == ec.nsize + 2:  # compressed WIF
+    if len(payload) == ec.n_size + 2:  # compressed WIF
         compr = True
         if payload[-1] != 0x01:  # must have a trailing 0x01
             raise BTClibValueError("not a compressed WIF: missing trailing 0x01")
         prv_key = payload[1:-1]
-    elif len(payload) == ec.nsize + 1:  # uncompressed WIF
+    elif len(payload) == ec.n_size + 1:  # uncompressed WIF
         compr = False
         prv_key = payload[1:]
     else:
@@ -203,7 +203,7 @@ def prv_keyinfo_from_prv_key(
 
         # it must be octets
         try:
-            prv_key = bytes_from_octets(prv_key, ec.nsize)
+            prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, byteorder="big", signed=False)
         except ValueError as e:
             raise BTClibValueError(f"not a private key: {prv_key!r}") from e

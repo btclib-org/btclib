@@ -55,7 +55,7 @@ def test_octets2point() -> None:
         Q = mult(q, ec.G, ec)
 
         Q_bytes = b"\x03" if Q[1] & 1 else b"\x02"
-        Q_bytes += Q[0].to_bytes(ec.psize, byteorder="big", signed=False)
+        Q_bytes += Q[0].to_bytes(ec.p_size, byteorder="big", signed=False)
         Q_point = point_from_octets(Q_bytes, ec)
         assert Q_point == Q
         assert bytes_from_point(Q_point, ec) == Q_bytes
@@ -64,8 +64,8 @@ def test_octets2point() -> None:
         Q_point = point_from_octets(Q_hex_str, ec)
         assert Q_point == Q
 
-        Q_bytes = b"\x04" + Q[0].to_bytes(ec.psize, byteorder="big", signed=False)
-        Q_bytes += Q[1].to_bytes(ec.psize, byteorder="big", signed=False)
+        Q_bytes = b"\x04" + Q[0].to_bytes(ec.p_size, byteorder="big", signed=False)
+        Q_bytes += Q[1].to_bytes(ec.p_size, byteorder="big", signed=False)
         Q_point = point_from_octets(Q_bytes, ec)
         assert Q_point == Q
         assert bytes_from_point(Q_point, ec, False) == Q_bytes
@@ -74,27 +74,27 @@ def test_octets2point() -> None:
         Q_point = point_from_octets(Q_hex_str, ec)
         assert Q_point == Q
 
-        Q_bytes = b"\x01" + b"\x01" * ec.psize
+        Q_bytes = b"\x01" + b"\x01" * ec.p_size
         with pytest.raises(BTClibValueError, match="not a point: "):
             point_from_octets(Q_bytes, ec)
 
-        Q_bytes = b"\x01" + b"\x01" * 2 * ec.psize
+        Q_bytes = b"\x01" + b"\x01" * 2 * ec.p_size
         with pytest.raises(BTClibValueError, match="not a point: "):
             point_from_octets(Q_bytes, ec)
 
-        Q_bytes = b"\x04" + b"\x01" * ec.psize
+        Q_bytes = b"\x04" + b"\x01" * ec.p_size
         with pytest.raises(
             BTClibValueError, match="invalid size for uncompressed point: "
         ):
             point_from_octets(Q_bytes, ec)
 
-        Q_bytes = b"\x02" + b"\x01" * 2 * ec.psize
+        Q_bytes = b"\x02" + b"\x01" * 2 * ec.p_size
         with pytest.raises(
             BTClibValueError, match="invalid size for compressed point: "
         ):
             point_from_octets(Q_bytes, ec)
 
-        Q_bytes = b"\x03" + b"\x01" * 2 * ec.psize
+        Q_bytes = b"\x03" + b"\x01" * 2 * ec.p_size
         with pytest.raises(
             BTClibValueError, match="invalid size for compressed point: "
         ):

@@ -138,8 +138,8 @@ class Sig(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
-        out = self.r.to_bytes(self.ec.psize, byteorder="big", signed=False)
-        out += self.s.to_bytes(self.ec.nsize, byteorder="big", signed=False)
+        out = self.r.to_bytes(self.ec.p_size, byteorder="big", signed=False)
+        out += self.s.to_bytes(self.ec.n_size, byteorder="big", signed=False)
         return out
 
     @classmethod
@@ -149,8 +149,8 @@ class Sig(DataClassJsonMixin):
 
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
-        r = int.from_bytes(stream.read(ec.psize), byteorder="big", signed=False)
-        s = int.from_bytes(stream.read(ec.nsize), byteorder="big", signed=False)
+        r = int.from_bytes(stream.read(ec.p_size), byteorder="big", signed=False)
+        s = int.from_bytes(stream.read(ec.n_size), byteorder="big", signed=False)
         return cls(r, s, ec, check_validity)
 
 
@@ -185,7 +185,7 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
     # BIP 340 key as bytes or hex-string
     if isinstance(x_Q, (str, bytes)):
-        Q = bytes_from_octets(x_Q, ec.psize)
+        Q = bytes_from_octets(x_Q, ec.p_size)
         x_Q = int.from_bytes(Q, "big", signed=False)
         return x_Q, ec.y_even(x_Q)
 
@@ -236,10 +236,10 @@ def __det_nonce(m: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> i
 
     randomizer = tagged_hash("BIP0340/aux", aux, hf)
     xor = q ^ int.from_bytes(randomizer, "big", signed=False)
-    max_len = max(ec.nsize, hf().digest_size)
+    max_len = max(ec.n_size, hf().digest_size)
     t = xor.to_bytes(max_len, byteorder="big", signed=False)
 
-    t += Q.to_bytes(ec.psize, byteorder="big", signed=False) + m
+    t += Q.to_bytes(ec.p_size, byteorder="big", signed=False) + m
 
     while True:
         t = tagged_hash("BIP0340/nonce", t, hf)
@@ -289,8 +289,8 @@ def det_nonce(
 
 def __challenge(m: bytes, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
 
-    t = x_K.to_bytes(ec.psize, byteorder="big", signed=False)
-    t += x_Q.to_bytes(ec.psize, byteorder="big", signed=False)
+    t = x_K.to_bytes(ec.p_size, byteorder="big", signed=False)
+    t += x_Q.to_bytes(ec.p_size, byteorder="big", signed=False)
     t += m
     t = tagged_hash("BIP0340/challenge", t, hf)
     c = int_from_bits(t, ec.nlen) % ec.n

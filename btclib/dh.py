@@ -74,5 +74,5 @@ def diffie_hellman(
         err_msg = "invalid (INF) key"  # pragma: no cover
         raise BTClibRuntimeError(err_msg)  # pragma: no cover
     shared_secret_field_element = shared_secret_point[0]
-    z = shared_secret_field_element.to_bytes(ec.psize, byteorder="big", signed=False)
+    z = shared_secret_field_element.to_bytes(ec.p_size, byteorder="big", signed=False)
     return ansi_x9_63_kdf(z, size, hf, shared_info)

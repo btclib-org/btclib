@@ -47,8 +47,6 @@ def gen_keys(
 
     QJ = _mult(q, ec.GJ, ec)
     Q = ec.aff_from_jac(QJ)
-    # q.to_bytes(ec.nsize, byteorder="big", signed=False)
-    # bytes_from_point(Q, ec, compressed)
     return q, Q
 
 

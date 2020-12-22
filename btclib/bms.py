@@ -181,9 +181,9 @@ class Sig(DataClassJsonMixin):
 
         # [1-byte recovery flag][32-bytes r][32-bytes s]
         out = self.rf.to_bytes(1, byteorder="big", signed=False)
-        nsize = self.dsa_sig.ec.nsize
-        out += self.dsa_sig.r.to_bytes(nsize, byteorder="big", signed=False)
-        out += self.dsa_sig.s.to_bytes(nsize, byteorder="big", signed=False)
+        n_size = self.dsa_sig.ec.n_size
+        out += self.dsa_sig.r.to_bytes(n_size, byteorder="big", signed=False)
+        out += self.dsa_sig.s.to_bytes(n_size, byteorder="big", signed=False)
         return out
 
     def b64encode(self, check_validity: bool = True) -> str:
@@ -211,9 +211,9 @@ class Sig(DataClassJsonMixin):
 
         rf = sig_bin[0]
         ec = secp256k1
-        nsize = ec.nsize
-        r = int.from_bytes(sig_bin[1 : 1 + nsize], "big", signed=False)
-        s = int.from_bytes(sig_bin[1 + nsize : 1 + 2 * nsize], "big", signed=False)
+        n_size = ec.n_size
+        r = int.from_bytes(sig_bin[1 : 1 + n_size], "big", signed=False)
+        s = int.from_bytes(sig_bin[1 + n_size : 1 + 2 * n_size], "big", signed=False)
         dsa_sig = dsa.Sig(r, s, ec, check_validity=False)
 
         return cls(rf, dsa_sig, check_validity)

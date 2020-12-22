@@ -29,11 +29,11 @@ def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -
     if Q[1] == 0:  # infinity point in affine coordinates
         raise BTClibValueError("no bytes representation for infinity point")
 
-    bytes_ = Q[0].to_bytes(ec.psize, byteorder="big", signed=False)
+    bytes_ = Q[0].to_bytes(ec.p_size, byteorder="big", signed=False)
     if compressed:
         return (b"\x03" if (Q[1] & 1) else b"\x02") + bytes_
 
-    return b"\x04" + bytes_ + Q[1].to_bytes(ec.psize, byteorder="big", signed=False)
+    return b"\x04" + bytes_ + Q[1].to_bytes(ec.p_size, byteorder="big", signed=False)
 
 
 def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
@@ -43,13 +43,13 @@ def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
     SEC 1 v.2, section 2.3.4.
     """
 
-    pub_key = bytes_from_octets(pub_key, (ec.psize + 1, 2 * ec.psize + 1))
+    pub_key = bytes_from_octets(pub_key, (ec.p_size + 1, 2 * ec.p_size + 1))
 
     bsize = len(pub_key)  # bytes
     if pub_key[0] in (0x02, 0x03):  # compressed point
-        if bsize != ec.psize + 1:
+        if bsize != ec.p_size + 1:
             msg = "invalid size for compressed point: "
-            msg += f"{bsize} instead of {ec.psize + 1}"
+            msg += f"{bsize} instead of {ec.p_size + 1}"
             raise BTClibValueError(msg)
         x_Q = int.from_bytes(pub_key[1:], byteorder="big")
         try:
@@ -59,12 +59,12 @@ def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
             msg = f"invalid x-coordinate: '{hex_string(x_Q)}'"
             raise BTClibValueError(msg) from e
     elif pub_key[0] == 0x04:  # uncompressed point
-        if bsize != 2 * ec.psize + 1:
+        if bsize != 2 * ec.p_size + 1:
             msg = "invalid size for uncompressed point: "
-            msg += f"{bsize} instead of {2 * ec.psize + 1}"
+            msg += f"{bsize} instead of {2 * ec.p_size + 1}"
             raise BTClibValueError(msg)
-        x_Q = int.from_bytes(pub_key[1 : ec.psize + 1], byteorder="big", signed=False)
-        Q = x_Q, int.from_bytes(pub_key[ec.psize + 1 :], byteorder="big", signed=False)
+        x_Q = int.from_bytes(pub_key[1 : ec.p_size + 1], byteorder="big", signed=False)
+        Q = x_Q, int.from_bytes(pub_key[ec.p_size + 1 :], byteorder="big", signed=False)
         if Q[1] == 0:  # infinity point in affine coordinates
             raise BTClibValueError("no bytes representation for infinity point")
         if ec.is_on_curve(Q):

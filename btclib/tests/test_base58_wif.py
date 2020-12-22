@@ -40,7 +40,7 @@ def test_wif_from_prv_key() -> None:
         assert network == v[1]
         assert compressed == v[2]
 
-    bad_q = ec.n.to_bytes(ec.nsize, byteorder="big", signed=False)
+    bad_q = ec.n.to_bytes(ec.n_size, byteorder="big", signed=False)
     with pytest.raises(BTClibValueError, match="private key not in 1..n-1: "):
         wif_from_prv_key(bad_q, "mainnet", True)
 

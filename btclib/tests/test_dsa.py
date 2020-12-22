@@ -109,7 +109,9 @@ def test_gec() -> None:
     # 2.1.2 Key Deployment for U
     dU = 971761939728640320549601132085879836204587084162
     dU, QU = dsa.gen_keys(dU, ec)
-    assert format(dU, str(ec.nsize) + "x") == "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
+    assert (
+        format(dU, str(ec.n_size) + "x") == "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
+    )
     assert QU == (
         466448783855397898016055842232266600516272889280,
         1110706324081757720403272427311003102474457754220,

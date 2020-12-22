@@ -24,6 +24,6 @@ def wif_from_prv_key(
     ec = NETWORKS[net].curve
 
     payload = NETWORKS[net].wif
-    payload += q.to_bytes(ec.nsize, byteorder="big", signed=False)
+    payload += q.to_bytes(ec.n_size, byteorder="big", signed=False)
     payload += b"\x01" if compr else b""
     return b58encode(payload).decode("ascii")

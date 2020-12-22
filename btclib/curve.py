@@ -91,7 +91,7 @@ class Curve(CurveSubGroup):
 
         self.n = n
         self.nlen = n.bit_length()
-        self.nsize = (self.nlen + 7) // 8
+        self.n_size = (self.nlen + 7) // 8
 
         # 5. Check that n is prime.
         if n < 2 or n % 2 == 0 or pow(2, n - 1, n) != 1:

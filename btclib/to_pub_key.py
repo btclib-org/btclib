@@ -193,12 +193,12 @@ def pub_keyinfo_from_pub_key(
     # it must be octets
     try:
         if compressed is None:
-            pub_key = bytes_from_octets(pub_key, (ec.psize + 1, 2 * ec.psize + 1))
+            pub_key = bytes_from_octets(pub_key, (ec.p_size + 1, 2 * ec.p_size + 1))
             compr = False
-            if len(pub_key) == ec.psize + 1:
+            if len(pub_key) == ec.p_size + 1:
                 compr = True
         else:
-            size = ec.psize + 1 if compressed else 2 * ec.psize + 1
+            size = ec.p_size + 1 if compressed else 2 * ec.p_size + 1
             pub_key = bytes_from_octets(pub_key, size)
             compr = compressed
     except (TypeError, ValueError) as e:

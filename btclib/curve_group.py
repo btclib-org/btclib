@@ -66,7 +66,7 @@ class CurveGroup:
 
         plen = p.bit_length()
         # byte-length
-        self.psize = ceil(plen / 8)
+        self.p_size = ceil(plen / 8)
         # must be true to break simmetry using quadratic residue
         self.p_is_3_mod_4 = p % 4 == 3
         self.p = p
@@ -520,7 +520,7 @@ def cached_multiples_fixwind(
 
     T = []
     K = Q
-    for _ in range((ec.psize * 8) // w + 1):
+    for _ in range((ec.p_size * 8) // w + 1):
         sublist = [INFJ, K]
         for j in range(3, 2 ** w, 2):
             sublist.append(ec.double_jac(sublist[(j - 1) // 2]))

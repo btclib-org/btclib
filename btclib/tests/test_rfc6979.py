@@ -36,7 +36,7 @@ def test_rfc6979_example() -> None:
         def __init__(self, n: int) -> None:
             self.n = n
             self.nlen = n.bit_length()
-            self.nsize = (self.nlen + 7) // 8
+            self.n_size = (self.nlen + 7) // 8
 
     # source: https://tools.ietf.org/html/rfc6979 section A.1
     fake_ec = _helper(0x4000000000000000000020108A2E0CC0D99F8A5EF)

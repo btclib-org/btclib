@@ -77,11 +77,11 @@ def _rfc6979(
 def __rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
 
-    # convert the private key q to an octet sequence of size nsize
-    bprv = q.to_bytes(ec.nsize, byteorder="big", signed=False)
-    # truncate and/or expand c: encoding size is driven by nsize
-    bc = c.to_bytes(ec.nsize, byteorder="big", signed=False)
-    bprvbm = bprv + bc
+    # convert the private key q to an octet sequence of size n_size
+    q_bytes = q.to_bytes(ec.n_size, byteorder="big", signed=False)
+    # truncate and/or expand c: encoding size is driven by n_size
+    c_bytes = c.to_bytes(ec.n_size, byteorder="big", signed=False)
+    bprvbm = q_bytes + c_bytes
 
     hf_size = hf().digest_size
     v = b"\x01" * hf_size  # 3.2.b
@@ -94,7 +94,7 @@ def __rfc6979(c: int, q: int, ec: Curve, hf: HashF) -> int:
 
     while True:  # 3.2.h
         t = b""  # 3.2.h.1
-        while len(t) < ec.nsize:  # 3.2.h.2
+        while len(t) < ec.n_size:  # 3.2.h.2
             v = hmac.new(k, v, hf).digest()
             t += v
         # The following line would introduce a bias
