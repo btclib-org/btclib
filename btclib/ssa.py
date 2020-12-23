@@ -231,9 +231,13 @@ def _det_nonce_(
     randomizer = tagged_hash("BIP0340/aux".encode(), aux, hf)
     xor = q ^ int.from_bytes(randomizer, "big", signed=False)
     max_len = max(ec.n_size, hf().digest_size)
-    t = xor.to_bytes(max_len, byteorder="big", signed=False)
-
-    t += Q.to_bytes(ec.p_size, byteorder="big", signed=False) + msg_hash
+    t = b"".join(
+        [
+            xor.to_bytes(max_len, byteorder="big", signed=False),
+            Q.to_bytes(ec.p_size, byteorder="big", signed=False),
+            msg_hash,
+        ]
+    )
 
     nonce_tag = "BIP0340/nonce".encode()
     while True:

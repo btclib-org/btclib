@@ -25,8 +25,9 @@ ec = secp256k1  # FIXME: any curve
 
 
 def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
-    temp = m + R
-    temp += i.to_bytes(4, "big", signed=False) + j.to_bytes(4, "big", signed=False)
+    temp = b"".join(
+        [m, R, i.to_bytes(4, "big", signed=False), j.to_bytes(4, "big", signed=False)]
+    )
     return hf(temp).digest()
 
 
@@ -34,10 +35,12 @@ PubkeyRing = Dict[int, List[Point]]
 
 
 def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
-    for pubk_ring in pubk_rings.values():
-        for Q in pubk_ring:
-            msg += bytes_from_point(Q, ec)
-    return hf(msg).digest()
+
+    t = b"".join(
+        b"".join(bytes_from_point(Q, ec) for Q in pubk_ring)
+        for pubk_ring in pubk_rings.values()
+    )
+    return hf(msg + t).digest()
 
 
 SValues = Dict[int, List[int]]

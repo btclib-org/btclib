@@ -177,24 +177,24 @@ class Psbt(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
-        psbt_bin = PSBT_MAGIC_BYTES + PSBT_SEPARATOR
+        psbt_bin: List[bytes] = [PSBT_MAGIC_BYTES, PSBT_SEPARATOR]
 
         temp = self.tx.serialize(include_witness=True)
-        psbt_bin += serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp)
+        psbt_bin.append(serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp))
         if self.version:
             temp = self.version.to_bytes(4, byteorder="little", signed=False)
-            psbt_bin += serialize_bytes(PSBT_GLOBAL_VERSION, temp)
+            psbt_bin.append(serialize_bytes(PSBT_GLOBAL_VERSION, temp))
         if self.hd_key_paths:
-            psbt_bin += serialize_hd_key_paths(PSBT_GLOBAL_XPUB, self.hd_key_paths)
+            psbt_bin.append(serialize_hd_key_paths(PSBT_GLOBAL_XPUB, self.hd_key_paths))
         if self.unknown:
-            psbt_bin += serialize_dict_bytes_bytes(b"", self.unknown)
+            psbt_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
-        psbt_bin += PSBT_DELIMITER
+        psbt_bin.append(PSBT_DELIMITER)
         for input_map in self.inputs:
-            psbt_bin += input_map.serialize() + b"\x00"
+            psbt_bin.append(input_map.serialize() + b"\x00")
         for output_map in self.outputs:
-            psbt_bin += output_map.serialize() + b"\x00"
-        return psbt_bin
+            psbt_bin.append(output_map.serialize() + b"\x00")
+        return b"".join(psbt_bin)
 
     @classmethod
     def deserialize(

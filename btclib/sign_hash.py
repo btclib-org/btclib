@@ -148,17 +148,20 @@ def segwit_v0(
     elif (hash_type & 0x1F) == SINGLE and vin_i < len(tx.vout):
         hash_outputs = hash256(tx.vout[vin_i].serialize())
 
-    preimage = tx.version.to_bytes(4, byteorder="little", signed=False)
-    preimage += hash_prev_outs
-    preimage += hash_seqs
-    preimage += tx.vin[vin_i].prev_out.serialize()
-    preimage += var_bytes.serialize(script_)
-    preimage += amount.to_bytes(8, byteorder="little", signed=False)  # value
-    preimage += tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False)
-    preimage += hash_outputs
-    preimage += tx.lock_time.to_bytes(4, byteorder="little", signed=False)
-    preimage += hash_type.to_bytes(4, byteorder="little", signed=False)
-
+    preimage = b"".join(
+        [
+            tx.version.to_bytes(4, byteorder="little", signed=False),
+            hash_prev_outs,
+            hash_seqs,
+            tx.vin[vin_i].prev_out.serialize(),
+            var_bytes.serialize(script_),
+            amount.to_bytes(8, byteorder="little", signed=False),  # value
+            tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False),
+            hash_outputs,
+            tx.lock_time.to_bytes(4, byteorder="little", signed=False),
+            hash_type.to_bytes(4, byteorder="little", signed=False),
+        ]
+    )
     return hash256(preimage)
 
 

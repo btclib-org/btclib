@@ -153,13 +153,16 @@ class BIP32KeyData(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
-        xkey_bin = self.version
-        xkey_bin += self.depth.to_bytes(1, byteorder="big", signed=False)
-        xkey_bin += self.parent_fingerprint
-        xkey_bin += self.index.to_bytes(4, byteorder="big", signed=False)
-        xkey_bin += self.chain_code
-        xkey_bin += self.key
-        return xkey_bin
+        return b"".join(
+            [
+                self.version,
+                self.depth.to_bytes(1, byteorder="big", signed=False),
+                self.parent_fingerprint,
+                self.index.to_bytes(4, byteorder="big", signed=False),
+                self.chain_code,
+                self.key,
+            ]
+        )
 
     def b58encode(self, check_validity: bool = True) -> str:
         data_binary = self.serialize(check_validity)

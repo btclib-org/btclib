@@ -186,15 +186,16 @@ class BlockHeader(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
-        # version is signed int
-        out = self.version.to_bytes(4, byteorder="little", signed=True)
-        out += self.previous_block_hash[::-1]
-        out += self.merkle_root[::-1]
-        out += int(self.time.timestamp()).to_bytes(4, byteorder="little", signed=False)
-        out += self.bits[::-1]
-        out += self.nonce.to_bytes(4, byteorder="little", signed=False)
-
-        return out
+        return b"".join(
+            [
+                self.version.to_bytes(4, byteorder="little", signed=True),
+                self.previous_block_hash[::-1],
+                self.merkle_root[::-1],
+                int(self.time.timestamp()).to_bytes(4, "little", signed=False),
+                self.bits[::-1],
+                self.nonce.to_bytes(4, byteorder="little", signed=False),
+            ]
+        )
 
     @classmethod
     def deserialize(

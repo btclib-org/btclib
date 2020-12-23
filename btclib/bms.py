@@ -181,11 +181,14 @@ class Sig(DataClassJsonMixin):
             self.assert_valid()
 
         # [1-byte recovery flag][32-bytes r][32-bytes s]
-        out = self.rf.to_bytes(1, byteorder="big", signed=False)
         n_size = self.dsa_sig.ec.n_size
-        out += self.dsa_sig.r.to_bytes(n_size, byteorder="big", signed=False)
-        out += self.dsa_sig.s.to_bytes(n_size, byteorder="big", signed=False)
-        return out
+        return b"".join(
+            [
+                self.rf.to_bytes(1, byteorder="big", signed=False),
+                self.dsa_sig.r.to_bytes(n_size, byteorder="big", signed=False),
+                self.dsa_sig.s.to_bytes(n_size, byteorder="big", signed=False),
+            ]
+        )
 
     def b64encode(self, check_validity: bool = True) -> str:
         """Return the BMS address-based signature as base64-encoding.

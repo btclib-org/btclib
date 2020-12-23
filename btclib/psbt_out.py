@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import InitVar, dataclass, field
-from typing import Dict, Type, TypeVar
+from typing import Dict, List, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
@@ -140,25 +140,27 @@ class PsbtOut(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
-        psbt_out_bin = b""
+        psbt_out_bin: List[bytes] = []
 
         if self.redeem_script:
-            psbt_out_bin += serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
+            psbt_out_bin.append(
+                serialize_bytes(PSBT_OUT_REDEEM_SCRIPT, self.redeem_script)
+            )
 
         if self.witness_script:
-            psbt_out_bin += serialize_bytes(
-                PSBT_OUT_WITNESS_SCRIPT, self.witness_script
+            psbt_out_bin.append(
+                serialize_bytes(PSBT_OUT_WITNESS_SCRIPT, self.witness_script)
             )
 
         if self.hd_key_paths:
-            psbt_out_bin += serialize_hd_key_paths(
-                PSBT_OUT_BIP32_DERIVATION, self.hd_key_paths
+            psbt_out_bin.append(
+                serialize_hd_key_paths(PSBT_OUT_BIP32_DERIVATION, self.hd_key_paths)
             )
 
         if self.unknown:
-            psbt_out_bin += serialize_dict_bytes_bytes(b"", self.unknown)
+            psbt_out_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
-        return psbt_out_bin
+        return b"".join(psbt_out_bin)
 
     @classmethod
     def deserialize(

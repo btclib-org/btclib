@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import InitVar, dataclass, field
-from typing import Dict, Optional, Type, TypeVar
+from typing import Dict, List, Optional, Type, TypeVar
 
 from dataclasses_json import DataClassJsonMixin, config
 
@@ -202,56 +202,56 @@ class PsbtIn(DataClassJsonMixin):
         if check_validity:
             self.assert_valid()
 
-        psbt_in_bin = b""
+        psbt_in_bin: List[bytes] = []
 
         if self.non_witness_utxo:
             temp = self.non_witness_utxo.serialize(include_witness=True)
-            psbt_in_bin += serialize_bytes(PSBT_IN_NON_WITNESS_UTXO, temp)
+            psbt_in_bin.append(serialize_bytes(PSBT_IN_NON_WITNESS_UTXO, temp))
 
         if self.witness_utxo:
-            psbt_in_bin += serialize_bytes(
-                PSBT_IN_WITNESS_UTXO, self.witness_utxo.serialize()
+            psbt_in_bin.append(
+                serialize_bytes(PSBT_IN_WITNESS_UTXO, self.witness_utxo.serialize())
             )
 
         if not self.final_script_sig and not self.final_script_witness:
 
             if self.partial_sigs:
-                psbt_in_bin += serialize_dict_bytes_bytes(
-                    PSBT_IN_PARTIAL_SIG, self.partial_sigs
+                psbt_in_bin.append(
+                    serialize_dict_bytes_bytes(PSBT_IN_PARTIAL_SIG, self.partial_sigs)
                 )
 
             if self.sig_hash_type:
                 temp = self.sig_hash_type.to_bytes(4, byteorder="little", signed=False)
-                psbt_in_bin += serialize_bytes(PSBT_IN_SIG_HASH_TYPE, temp)
+                psbt_in_bin.append(serialize_bytes(PSBT_IN_SIG_HASH_TYPE, temp))
 
             if self.redeem_script:
-                psbt_in_bin += serialize_bytes(
-                    PSBT_IN_REDEEM_SCRIPT, self.redeem_script
+                psbt_in_bin.append(
+                    serialize_bytes(PSBT_IN_REDEEM_SCRIPT, self.redeem_script)
                 )
 
             if self.witness_script:
-                psbt_in_bin += serialize_bytes(
-                    PSBT_IN_WITNESS_SCRIPT, self.witness_script
+                psbt_in_bin.append(
+                    serialize_bytes(PSBT_IN_WITNESS_SCRIPT, self.witness_script)
                 )
 
             if self.hd_key_paths:
-                psbt_in_bin += serialize_hd_key_paths(
-                    PSBT_IN_BIP32_DERIVATION, self.hd_key_paths
+                psbt_in_bin.append(
+                    serialize_hd_key_paths(PSBT_IN_BIP32_DERIVATION, self.hd_key_paths)
                 )
 
         if self.final_script_sig:
-            psbt_in_bin += serialize_bytes(
-                PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig
+            psbt_in_bin.append(
+                serialize_bytes(PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig)
             )
 
         if self.final_script_witness:
             temp = self.final_script_witness.serialize()
-            psbt_in_bin += serialize_bytes(PSBT_IN_FINAL_SCRIPTWITNESS, temp)
+            psbt_in_bin.append(serialize_bytes(PSBT_IN_FINAL_SCRIPTWITNESS, temp))
 
         if self.unknown:
-            psbt_in_bin += serialize_dict_bytes_bytes(b"", self.unknown)
+            psbt_in_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
-        return psbt_in_bin
+        return b"".join(psbt_in_bin)
 
     @classmethod
     def deserialize(

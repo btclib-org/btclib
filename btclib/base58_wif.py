@@ -23,7 +23,11 @@ def wif_from_prv_key(
     q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
     ec = NETWORKS[net].curve
 
-    payload = NETWORKS[net].wif
-    payload += q.to_bytes(ec.n_size, byteorder="big", signed=False)
-    payload += b"\x01" if compr else b""
+    payload = b"".join(
+        [
+            NETWORKS[net].wif,
+            q.to_bytes(ec.n_size, byteorder="big", signed=False),
+            b"\x01" if compr else b"",
+        ]
+    )
     return b58encode(payload).decode("ascii")

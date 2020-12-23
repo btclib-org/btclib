@@ -204,19 +204,22 @@ class Tx(DataClassJsonMixin):
 
         segwit = include_witness and self.is_segwit()
 
-        out = self.version.to_bytes(4, byteorder="little", signed=False)
-        out += _SEGWIT_MARKER if segwit else b""
-        out += var_int.serialize(len(self.vin))
-        out += b"".join(tx_in.serialize(check_validity) for tx_in in self.vin)
-        out += var_int.serialize(len(self.vout))
-        out += b"".join(tx_out.serialize(check_validity) for tx_out in self.vout)
-        if segwit:
-            out += b"".join(
-                tx_in.script_witness.serialize(check_validity) for tx_in in self.vin
-            )
-        out += self.lock_time.to_bytes(4, byteorder="little", signed=False)
-
-        return out
+        return b"".join(
+            [
+                self.version.to_bytes(4, byteorder="little", signed=False),
+                _SEGWIT_MARKER if segwit else b"",
+                var_int.serialize(len(self.vin)),
+                b"".join(tx_in.serialize(check_validity) for tx_in in self.vin),
+                var_int.serialize(len(self.vout)),
+                b"".join(tx_out.serialize(check_validity) for tx_out in self.vout),
+                b"".join(
+                    tx_in.script_witness.serialize(check_validity) for tx_in in self.vin
+                )
+                if segwit
+                else b"",
+                self.lock_time.to_bytes(4, byteorder="little", signed=False),
+            ]
+        )
 
     @classmethod
     def deserialize(

@@ -246,24 +246,24 @@ def _op_pushdata(data: Octets) -> bytes:
     """
 
     data = bytes_from_octets(data)
-    r = b""
+    r: List[bytes] = []
     length = len(data)
     if length < 76:  # 1-byte-length
-        r += length.to_bytes(1, byteorder="little", signed=False)
+        r.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
-        r += OP_CODES["OP_PUSHDATA1"]
-        r += length.to_bytes(1, byteorder="little", signed=False)
+        r.append(OP_CODES["OP_PUSHDATA1"])
+        r.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 521:  # OP_PUSHDATA2 | 2-byte-length
-        r += OP_CODES["OP_PUSHDATA2"]
-        r += length.to_bytes(2, byteorder="little", signed=False)
+        r.append(OP_CODES["OP_PUSHDATA2"])
+        r.append(length.to_bytes(2, byteorder="little", signed=False))
     else:
         # because of the 520 bytes limit
         # there is no need to use OP_PUSHDATA4
-        # r += OP_CODES['OP_PUSHDATA4']
-        # r += length.to_bytes(4, byteorder="little", signed=False)
+        # r.append(OP_CODES['OP_PUSHDATA4'])
+        # r.append(length.to_bytes(4, byteorder="little", signed=False))
         raise BTClibValueError(f"Too many bytes for OP_PUSHDATA: {length}")
-    r += data
-    return r
+    r.append(data)
+    return b"".join(r)
 
 
 def _op_int(token: int) -> bytes:
@@ -310,15 +310,15 @@ ScriptToken = Union[int, str, bytes]
 
 
 def serialize(script: Sequence[ScriptToken]) -> bytes:
-    r = b""
+    r: List[bytes] = []
     for token in script:
         if isinstance(token, int):
-            r += _op_int(token)
+            r.append(_op_int(token))
         elif isinstance(token, str):
-            r += _op_str(token)
+            r.append(_op_str(token))
         else:  # must be bytes
-            r += _op_pushdata(token)
-    return r
+            r.append(_op_pushdata(token))
+    return b"".join(r)
 
 
 # Bitcoin script expressed as List[ScriptToken]
