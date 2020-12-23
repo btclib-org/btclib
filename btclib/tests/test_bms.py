@@ -21,13 +21,14 @@ from btclib.base58_wif import wif_from_prv_key
 from btclib.bech32_address import p2wpkh
 from btclib.curve import CURVES, secp256k1
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import magic_message
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 
 ec = secp256k1
 
 
 def test_signature() -> None:
-    msg = "test message"
+    msg = "test message".encode()
 
     wif, addr = bms.gen_keys()
     bms_sig = bms.sign(msg, wif)
@@ -76,7 +77,7 @@ def test_signature() -> None:
 
 def test_exceptions() -> None:
 
-    msg = "test"
+    msg = "test".encode()
     wif = "KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu"
     address = base58_address.p2pkh(wif)
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
@@ -118,7 +119,7 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
-    msg = "test"
+    msg = "test".encode()
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
     b58_p2pkh = base58_address.p2pkh(wif)
     b58_p2wpkh = bech32_address.p2wpkh(wif)
@@ -154,7 +155,7 @@ def test_exceptions() -> None:
 @pytest.mark.sixth
 def test_one_prv_key_multiple_addresses() -> None:
 
-    msg = "Paolo is afraid of ephemeral random numbers"
+    msg = "Paolo is afraid of ephemeral random numbers".encode()
 
     # Compressed WIF
     wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
@@ -275,7 +276,7 @@ def test_one_prv_key_multiple_addresses() -> None:
 
 
 def test_msgsign_p2pkh() -> None:
-    msg = "test message"
+    msg = "test message".encode()
     # sigs are taken from (Electrum and) Bitcoin Core
 
     q = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
@@ -327,7 +328,7 @@ def test_msgsign_p2pkh() -> None:
 
 
 def test_msgsign_p2pkh_2() -> None:
-    msg = "test message"
+    msg = "test message".encode()
     # sigs are taken from (Electrum and) Bitcoin Core
 
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
@@ -338,8 +339,8 @@ def test_msgsign_p2pkh_2() -> None:
     bms_sig = bms.sign(msg, wif, address)
     assert bms.verify(msg, address, bms_sig)
     assert bms_sig.b64encode() == exp_sig
-    bms_sig = bms.sign(msg.encode(), wif)
-    assert bms.verify(msg.encode(), address, bms_sig)
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
     assert bms_sig.b64encode() == exp_sig
 
     wif = "5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn"
@@ -350,61 +351,62 @@ def test_msgsign_p2pkh_2() -> None:
     bms_sig = bms.sign(msg, wif, address)
     assert bms.verify(msg, address, bms_sig)
     assert bms_sig.b64encode() == exp_sig
-    bms_sig = bms.sign(msg.encode(), wif)
-    assert bms.verify(msg.encode(), address, bms_sig)
+    bms_sig = bms.sign(msg, wif)
+    assert bms.verify(msg, address, bms_sig)
     assert bms_sig.b64encode() == exp_sig
 
 
 def test_verify_p2pkh() -> None:
-    msg = "Hello, world!"
+    msg = "Hello, world!".encode()
     address = "1FEz167JCVgBvhJBahpzmrsTNewhiwgWVG"
     exp_sig = "G+WptuOvPCSswt/Ncm1upO4lPSCWbS2cpKariPmHvxX5eOJwgqmdEExMTKvaR0S3f1TXwggLn/m4CbI2jv0SCuM="
     assert bms.verify(msg, address, exp_sig)
 
     # https://github.com/stequald/bitcoin-bms.sign-message
-    msg = "test message"
+    msg = "test message".encode()
     address = "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
     exp_sig = "IPn9bbEdNUp6+bneZqE2YJbq9Hv5aNILq9E5eZoMSF3/fBX4zjeIN6fpXfGSGPrZyKfHQ/c/kTSP+NIwmyTzMfk="
     assert bms.verify(msg, address, exp_sig)
 
     # https://github.com/stequald/bitcoin-bms.sign-message
-    msg = "test message"
+    msg = "test message".encode()
     address = "1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD"
     exp_sig = "G0k+Nt1u5boTTUfLyj6x1T5flg1v9rUKGlhs/jPApaTWLHf3GVdAIOIHip6sVwXEuzQGPWIlS0VT+yryXiDaavw="
     assert bms.verify(msg, address, exp_sig)
 
     # https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/test_signmessage.py
-    msg = address = "1F26pNMrywyZJdr22jErtKcjF8R3Ttt55G"
+    address = "1F26pNMrywyZJdr22jErtKcjF8R3Ttt55G"
+    msg = address.encode()
     exp_sig = "H85WKpqtNZDrajOnYDgUY+abh0KCAcOsAIOQwx2PftAbLEPRA7mzXA/CjXRxzz0MC225pR/hx02Vf2Ag2x33kU4="
     assert bms.verify(msg, address, exp_sig)
 
     # https://github.com/nanotube/supybot-bitcoin-marketmonitor/blob/master/GPG/local/bitcoinsig.py
-    msg = "test message"
+    msg = "test message".encode()
     address = "16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce"
     exp_sig = "HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50="
     assert bms.verify(msg, address, exp_sig, lower_s=False)
 
-    msg = "test message 2"
+    msg = "test message 2".encode()
     assert not bms.verify(msg, address, exp_sig)
 
     msg = (
         "freenode:#bitcoin-otc:b42f7e7ea336db4109df6badc05c6b3ea8bfaa13575b51631c5178a7"
-    )
+    ).encode()
     address = "1GdKjTSg2eMyeVvPV5Nivo6kR8yP2GT7wF"
     exp_sig = "GyMn9AdYeZIPWLVCiAblOOG18Qqy4fFaqjg5rjH6QT5tNiUXLS6T2o7iuWkV1gc4DbEWvyi8yJ8FvSkmEs3voWE="
     assert bms.verify(msg, address, exp_sig)
 
-    msg = "testtest"
+    msg = "testtest".encode()
     address = "1Hpj6xv9AzaaXjPPisQrdAD2tu84cnPv3f"
     exp_sig = "INEJxQnSu6mwGnLs0E8eirl5g+0cAC9D5M7hALHD9sK0XQ66CH9mas06gNoIX7K1NKTLaj3MzVe8z3pt6apGJ34="
     assert bms.verify(msg, address, exp_sig)
 
-    msg = "testtest"
+    msg = "testtest".encode()
     address = "18uitB5ARAhyxmkN2Sa9TbEuoGN1he83BX"
     exp_sig = "IMAtT1SjRyP6bz6vm5tKDTTTNYS6D8w2RQQyKD3VGPq2i2txGd2ar18L8/nvF1+kAMo5tNc4x0xAOGP0HRjKLjc="
     assert bms.verify(msg, address, exp_sig, lower_s=False)
 
-    msg = "testtest"
+    msg = "testtest".encode()
     address = "1LsPb3D1o1Z7CzEt1kv5QVxErfqzXxaZXv"
     exp_sig = "H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As="
     assert bms.verify(msg, address, exp_sig)
@@ -424,7 +426,7 @@ def test_verify_p2pkh() -> None:
 
 def test_segwit() -> None:
 
-    msg = "test"
+    msg = "test".encode()
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
     b58_p2pkh = base58_address.p2pkh(wif)
     b58_p2wpkh = bech32_address.p2wpkh(wif)
@@ -465,7 +467,7 @@ def test_sign_strippable_message() -> None:
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
 
-    msg = ""
+    msg = "".encode()
     exp_sig = "IFh0InGTy8lLCs03yoUIpJU6MUbi0La/4abhVxyKcCsoUiF3RM7lg51rCqyoOZ8Yt43h8LZrmj7nwwO3HIfesiw="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -473,7 +475,7 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = " "
+    msg = " ".encode()
     exp_sig = "IEveV6CMmOk5lFP+oDbw8cir/OkhJn4S767wt+YwhzHnEYcFOb/uC6rrVmTtG3M43mzfObA0Nn1n9CRcv5IGyak="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -481,14 +483,14 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = "  "
+    msg = "  ".encode()
     exp_sig = "H/QjF1V4fVI8IHX8ko0SIypmb0yxfaZLF0o56Cif9z8CX24n4petTxolH59pYVMvbTKQkGKpznSiPiQVn83eJF0="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
     assert bms.verify(msg, address, bms_sig)
     assert bms_sig.b64encode() == exp_sig
 
-    msg = "test"
+    msg = "test".encode()
     exp_sig = "IJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -496,7 +498,7 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = " test "
+    msg = " test ".encode()
     exp_sig = "IA59z13/HBhvMMJtNwT6K7vJByE40lQUdqEMYhX2tnZSD+IGQIoBGE+1IYGCHCyqHvTvyGeqJTUx5ywb4StuX0s="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -504,7 +506,7 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = "test "
+    msg = "test ".encode()
     exp_sig = "IPp9l2w0LVYB4FYKBahs+k1/Oa08j+NTuzriDpPWnWQmfU0+UsJNLIPI8Q/gekrWPv6sDeYsFSG9VybUKDPGMuo="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -512,7 +514,7 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = " test"
+    msg = " test".encode()
     exp_sig = "H1nGwD/kcMSmsYU6qihV2l2+Pa+7SPP9zyViZ59VER+QL9cJsIAtu1CuxfYDAVt3kgr4t3a/Es3PV82M6z0eQAo="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -532,7 +534,7 @@ def test_vector_python_bitcoinlib() -> None:
         test_vectors = json.load(file_)
 
     for vector in test_vectors[:10]:
-        msg = vector["address"]
+        msg = vector["address"].encode()
 
         # btclib self-consistency check
         bms_sig = bms.sign(msg, vector["wif"])
@@ -589,7 +591,7 @@ def test_ledger() -> None:
     xprv = bip32.derive(rprv, derivation_path)
 
     # the actual message being signed
-    magic_msg = bms._magic_message(msg)
+    magic_msg_hash = magic_message(msg)
 
     # save key_id and patch dersig
     dersig = bytes.fromhex(dersig_hex_str)
@@ -597,8 +599,8 @@ def test_ledger() -> None:
     dsa_sig = dsa.Sig.deserialize(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
-    dsa.assert_as_valid(magic_msg, xprv, dsa_sig)
-    assert dsa.verify(magic_msg, xprv, dsa_sig)
+    dsa.assert_as_valid_(magic_msg_hash, xprv, dsa_sig)
+    assert dsa.verify_(magic_msg_hash, xprv, dsa_sig)
 
     # compressed address
     addr = base58_address.p2pkh(xprv)
@@ -610,13 +612,13 @@ def test_ledger() -> None:
     # Bitcoin Message Signature verification
     bms.assert_as_valid(msg, addr, bms_sig)
     assert bms.verify(msg, addr, bms_sig)
-    assert not bms.verify(magic_msg, addr, bms_sig)
+    assert not bms.verify(magic_msg_hash, addr, bms_sig)
 
     bms.sign(msg, xprv)
 
     # standard leading 30 in DER serialization
     derivation_path = "m/0/0"
-    msg_str = "hello world"
+    msg_str = "hello world".encode()
     dersig_hex_str = "3045022100967dac3262b4686e89638c8219c5761017f05cd87a855edf034f4a3ec6b59d3d0220108a4ef9682b71a45979d8c75c393382d9ccb8eb561d73b8c5fc0b87a47e7d27"
 
     # pub_key derivation
@@ -624,7 +626,7 @@ def test_ledger() -> None:
     xprv = bip32.derive(rprv, derivation_path)
 
     # the actual message being signed
-    magic_msg = bms._magic_message(msg_str)
+    magic_msg_hash = magic_message(msg_str)
 
     # save key_id and patch dersig
     dersig = bytes.fromhex(dersig_hex_str)
@@ -632,8 +634,8 @@ def test_ledger() -> None:
     dsa_sig = dsa.Sig.deserialize(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
-    dsa.assert_as_valid(magic_msg, xprv, dsa_sig, lower_s=True)
-    assert dsa.verify(magic_msg, xprv, dsa_sig)
+    dsa.assert_as_valid_(magic_msg_hash, xprv, dsa_sig, lower_s=True)
+    assert dsa.verify_(magic_msg_hash, xprv, dsa_sig)
 
     # compressed address
     addr = base58_address.p2pkh(xprv)
@@ -645,4 +647,4 @@ def test_ledger() -> None:
     # Bitcoin Message Signature verification
     bms.assert_as_valid(msg_str, addr, bms_sig)
     assert bms.verify(msg_str, addr, bms_sig)
-    assert not bms.verify(magic_msg, addr, bms_sig)
+    assert not bms.verify(magic_msg_hash, addr, bms_sig)

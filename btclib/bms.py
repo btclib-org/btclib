@@ -140,12 +140,13 @@ from typing import Optional, Tuple, Type, TypeVar, Union
 from dataclasses_json import DataClassJsonMixin
 
 from btclib import dsa
-from btclib.alias import BinaryData, String
+from btclib.alias import BinaryData, Octets, String
 from btclib.base58_address import h160_from_address, p2pkh, p2wpkh_p2sh
 from btclib.base58_wif import wif_from_prv_key
 from btclib.bech32_address import p2wpkh, witness_from_address
 from btclib.curve import mult, secp256k1
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import challenge_, magic_message
 from btclib.network import NETWORKS
 from btclib.sec_point import bytes_from_point
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
@@ -235,21 +236,6 @@ class Sig(DataClassJsonMixin):
         return cls.deserialize(data_decoded, check_validity)  # type: ignore
 
 
-def _magic_message(msg: String) -> bytes:
-
-    # Electrum does strip leading and trailing spaces;
-    # Bitcoin Core does not
-    if isinstance(msg, str):
-        msg = msg.encode()
-
-    t = (
-        b"\x18Bitcoin Signed Message:\n"
-        + len(msg).to_bytes(1, byteorder="big", signed=False)
-        + msg
-    )
-    return sha256(t).digest()
-
-
 def gen_keys(
     prv_key: Optional[PrvKey] = None,
     network: Optional[str] = None,
@@ -275,28 +261,27 @@ def gen_keys(
     return wif, address
 
 
-def sign(msg: String, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
+def sign(msg: Octets, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
     """Generate address-based compact signature for the provided message."""
 
-    if isinstance(addr, str):
-        addr = addr.strip()
-
-    if isinstance(addr, bytes):
-        addr = addr.decode("ascii")
-
     # first sign the message
-    magic_msg = _magic_message(msg)
+    magic_msg_hash = magic_message(msg)
     q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
-    dsa_sig = dsa.sign(magic_msg, q)
+    dsa_sig = dsa.sign_(magic_msg_hash, q)
 
     # now calculate the key_id
     # TODO do the match in Jacobian coordinates avoiding mod_inv
-    pub_keys = dsa.recover_pub_keys(magic_msg, dsa_sig)
+    pub_keys = dsa.recover_pub_keys_(magic_msg_hash, dsa_sig)
     Q = mult(q)
     # key_id is in [0, 3]
     # first two bits in rf are reserved for it
     key_id = pub_keys.index(Q)
     pub_key = bytes_from_point(Q, compressed=compressed)
+
+    if isinstance(addr, str):
+        addr = addr.strip()
+    elif isinstance(addr, bytes):
+        addr = addr.decode("ascii")
 
     # finally, calculate the recovery flag
     if addr is None or addr == p2pkh(pub_key, network, compressed):
@@ -315,7 +300,7 @@ def sign(msg: String, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
 
 
 def assert_as_valid(
-    msg: String, addr: String, sig: Union[Sig, String], lower_s: bool = True
+    msg: Octets, addr: String, sig: Union[Sig, String], lower_s: bool = True
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -325,8 +310,8 @@ def assert_as_valid(
     else:
         sig = Sig.b64decode(sig)
 
-    magic_msg = _magic_message(msg)
-    c = dsa.challenge(magic_msg, secp256k1, sha256)
+    magic_msg_hash = magic_message(msg)
+    c = challenge_(magic_msg_hash, secp256k1, sha256)
     # first two bits in rf are reserved for key_id
     #    key_id = 00;     key_id = 01;     key_id = 10;     key_id = 11
     # 27-27 = 000000;  28-27 = 000001;  29-27 = 000010;  30-27 = 000011
@@ -371,7 +356,7 @@ def assert_as_valid(
 
 
 def verify(
-    msg: String, addr: String, sig: Union[Sig, String], lower_s: bool = True
+    msg: Octets, addr: String, sig: Union[Sig, String], lower_s: bool = True
 ) -> bool:
     """Verify address-based compact signature for the provided message."""
 

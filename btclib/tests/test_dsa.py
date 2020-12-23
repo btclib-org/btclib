@@ -27,7 +27,7 @@ from btclib.tests.test_curve import low_card_curves
 
 
 def test_signature() -> None:
-    msg = "Satoshi Nakamoto"
+    msg = "Satoshi Nakamoto".encode()
 
     q, Q = dsa.gen_keys(0x1)
     sig = dsa.sign(msg, q)
@@ -55,7 +55,7 @@ def test_signature() -> None:
     assert len(keys) == 2
     assert Q in keys
 
-    msg_fake = "Craig Wright"
+    msg_fake = "Craig Wright".encode()
     assert not dsa.verify(msg_fake, Q, sig)
     err_msg = "signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
@@ -188,9 +188,8 @@ def test_pub_key_recovery() -> None:
     q = 0x10
     Q = mult(q, ec.G, ec)
 
-    msg = "Satoshi Nakamoto"
-    lower_s = True
-    sig = dsa.sign(msg, q, lower_s, ec)
+    msg = "Satoshi Nakamoto".encode()
+    sig = dsa.sign(msg, q, ec=ec)
     dsa.assert_as_valid(msg, Q, sig)
     assert dsa.verify(msg, Q, sig)
 
@@ -208,11 +207,11 @@ def test_crack_prv_key() -> None:
     q, _ = dsa.gen_keys(1)
     k = 1 + secrets.randbelow(ec.n - 1)
 
-    msg1 = "Paolo is afraid of ephemeral random numbers"
+    msg1 = "Paolo is afraid of ephemeral random numbers".encode()
     m_1 = reduce_to_hlen(msg1)
     sig1 = dsa.sign_(m_1, q, k)
 
-    msg2 = "and Paolo is right to be afraid"
+    msg2 = "and Paolo is right to be afraid".encode()
     m_2 = reduce_to_hlen(msg2)
     sig2 = dsa.sign_(m_2, q, k)
 

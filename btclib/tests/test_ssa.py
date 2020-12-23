@@ -37,7 +37,7 @@ from btclib.utils import int_from_bits
 
 
 def test_signature() -> None:
-    msg = "Satoshi Nakamoto"
+    msg = "Satoshi Nakamoto".encode()
 
     q, x_Q = ssa.gen_keys(0x01)
     sig = ssa.sign(msg, q)
@@ -46,7 +46,7 @@ def test_signature() -> None:
     assert sig == ssa.Sig.deserialize(sig.serialize())
     assert sig == ssa.Sig.deserialize(sig.serialize().hex())
 
-    msg_fake = "Craig Wright"
+    msg_fake = "Craig Wright".encode()
     assert not ssa.verify(msg_fake, x_Q, sig)
     err_msg = r"y_K is odd|signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
@@ -230,12 +230,12 @@ def test_crack_prv_key() -> None:
 
     q, x_Q = ssa.gen_keys(19)  # remove any randomness
 
-    msg1 = "Paolo is afraid of ephemeral random numbers"
+    msg1 = "Paolo is afraid of ephemeral random numbers".encode()
     m_1 = reduce_to_hlen(msg1)
     k = ssa.det_nonce_(m_1, q, aux=32 * b"\x01")  # remove any randomness
     sig1 = ssa.sign_(m_1, q, k)
 
-    msg2 = "and Paolo is right to be afraid"
+    msg2 = "and Paolo is right to be afraid".encode()
     m_2 = reduce_to_hlen(msg2)
     # reuse same k
     sig2 = ssa.sign_(m_2, q, k)
@@ -340,7 +340,7 @@ def test_musig() -> None:
 
     ec = CURVES["secp256k1"]
 
-    m = hf(b"message to sign").digest()
+    msg_hash = hf(b"message to sign").digest()
 
     # the signers private and public keys,
     # including both the curve Point and the BIP340-Schnorr public key
@@ -400,7 +400,7 @@ def test_musig() -> None:
         k2 = ec.n - k2  # pragma: no cover
         k3 = ec.n - k3  # pragma: no cover
     r = K[0]
-    e = ssa.challenge_(m, Q[0], r, ec, hf)
+    e = ssa.challenge_(msg_hash, Q[0], r, ec, hf)
     s_1 = (k1 + e * a1 * q1) % ec.n
     s_2 = (k2 + e * a2 * q2) % ec.n
     s3 = (k3 + e * a3 * q3) % ec.n
@@ -411,7 +411,7 @@ def test_musig() -> None:
     s = (s_1 + s_2 + s3) % ec.n
     sig = ssa.Sig(r, s, ec)
     # check signature is valid
-    ssa.assert_as_valid_(m, Q[0], sig, hf)
+    ssa.assert_as_valid_(msg_hash, Q[0], sig, hf)
 
 
 def test_threshold() -> None:
@@ -590,12 +590,13 @@ def test_threshold() -> None:
     # SECOND PHASE: generation of the nonces' pair  ######################
     # Assume signer one and three want to sign
 
-    msg = "message to sign"
+    msg = "message to sign".encode()
+    msg_hash = reduce_to_hlen(msg, hf)
 
     # 2.1 signer one acting as the dealer
     commits1 = []
-    k1 = ssa.det_nonce(msg, q1, ec, hf)
-    k1_prime = ssa.det_nonce(msg, q1_prime, ec, hf)
+    k1 = ssa.det_nonce_(msg_hash, q1, None, ec, hf)
+    k1_prime = ssa.det_nonce_(msg_hash, q1_prime, None, ec, hf)
     commits1.append(double_mult(k1_prime, H, k1, ec.G))
     # sharing polynomials
     f1 = [k1]
@@ -619,8 +620,8 @@ def test_threshold() -> None:
 
     # 2.2 signer three acting as the dealer
     commits3 = []
-    k3 = ssa.det_nonce(msg, q3, ec, hf)
-    k3_prime = ssa.det_nonce(msg, q3_prime, ec, hf)
+    k3 = ssa.det_nonce_(msg_hash, q3, None, ec, hf)
+    k3_prime = ssa.det_nonce_(msg_hash, q3_prime, None, ec, hf)
     commits3.append(double_mult(k3_prime, H, k3, ec.G))
     # sharing polynomials
     f3 = [k3]
@@ -686,7 +687,7 @@ def test_threshold() -> None:
     # PHASE THREE: signature generation ###
 
     # partial signatures
-    e = ssa.challenge(msg, Q[0], K[0], ec, hf)
+    e = ssa.challenge_(msg_hash, Q[0], K[0], ec, hf)
     gamma1 = (beta1 + e * alpha1) % ec.n
     gamma3 = (beta3 + e * alpha3) % ec.n
 
@@ -713,7 +714,7 @@ def test_threshold() -> None:
 
     sig = ssa.Sig(K[0], sigma, ec)
 
-    assert ssa.verify(msg, Q[0], sig)
+    assert ssa.verify_(msg_hash, Q[0], sig)
 
     # ADDITIONAL PHASE: reconstruction of the private key ###
     secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n

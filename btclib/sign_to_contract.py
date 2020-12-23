@@ -10,34 +10,34 @@
 
 """Include a commitment inside an elliptic curve DSA/SSA signature.
 
-Let c be the commitment value and R a curve point, then
+Let commit_hash be the commitment value and R a curve point, then
 
-    e = hash(R||c)
+    e = hash(R||commit_hash)
 
 is a commitment operation.
 
 When signing, an ephemeral secret key k is generated and its
 corresponding curve point R = kG is used. Here, instead of
-using (k, R), compute the commitment to c
+using (k, R), compute the commitment to commit_hash
 
-    e = hash(R||c),
+    e = hash(R||commit_hash),
 
 tweak k with e and consequently substitute R with W = (k+e)G = R+eG,
 the proceed signing in the standard way, using (k+e, W).
 
-When the committer/signer will reveal R and c,
+When the committer/signer will reveal R and commit_hash,
 the verifier will check that
 
     W.x = (R+eG).x
 
-with e = hash(R||c)) and W.x being known from the signature.
+with e = hash(R||commit_hash)) and W.x being known from the signature.
 """
 
 from hashlib import sha256
 from typing import Optional, Tuple
 
 from btclib import dsa, ssa
-from btclib.alias import HashF, Octets, Point, String
+from btclib.alias import HashF, Octets, Point
 from btclib.curve import Curve, mult, secp256k1
 from btclib.hashes import reduce_to_hlen
 from btclib.rfc6979 import rfc6979_
@@ -46,10 +46,10 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
 
-def _tweak(c: Octets, R: Point, ec: Curve, hf: HashF) -> int:
-    "Return the hash(R||c) tweak for the provided R."
+def _tweak(commit_hash: Octets, R: Point, ec: Curve, hf: HashF) -> int:
+    "Return the hash(R||commit_hash) tweak for the provided R."
 
-    t = bytes_from_point(R, ec) + bytes_from_octets(c)
+    t = bytes_from_point(R, ec) + bytes_from_octets(commit_hash)
     while True:
         h = hf()
         h.update(t)
@@ -69,137 +69,143 @@ def _tweak(c: Octets, R: Point, ec: Curve, hf: HashF) -> int:
 
 
 def dsa_commit_sign_(
-    c: Octets,
-    m: Octets,
+    commit_hash: Octets,
+    msg_hash: Octets,
     prv_key: PrvKey,
     nonce: Optional[PrvKey] = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[dsa.Sig, Point]:
-    """Include a commitment c inside an ECDSA signature."""
+    "Include a commitment inside an EC DSA signature."
 
     nonce = (
-        rfc6979_(m, prv_key, ec, hf) if nonce is None else int_from_prv_key(nonce, ec)
-    )
-    R = mult(nonce, ec.G, ec)
-
-    tweaked_nonce = (nonce + _tweak(c, R, ec, hf)) % ec.n
-    tweaked_sig = dsa.sign_(m, prv_key, tweaked_nonce, lower_s, ec=ec, hf=hf)
-
-    return tweaked_sig, R
-
-
-def dsa_commit_sign(
-    commit_msg: String,
-    msg: String,
-    prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
-    ec: Curve = secp256k1,
-    hf: HashF = sha256,
-) -> Tuple[dsa.Sig, Point]:
-    """Include a commitment c inside an ECDSA signature."""
-
-    c = reduce_to_hlen(commit_msg, hf)
-    m = reduce_to_hlen(msg, hf)
-    return dsa_commit_sign_(c, m, prv_key, nonce, lower_s=True, ec=ec, hf=hf)
-
-
-def dsa_verify_commit_(
-    c: Octets,
-    R: Point,
-    m: Octets,
-    key: dsa.Key,
-    sig: dsa.Sig,
-    lower_s: bool = True,
-    hf: HashF = sha256,
-) -> bool:
-    "Open the commitment c inside an EC DSA signature."
-
-    tweak = _tweak(c, R, sig.ec, hf)
-    W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
-
-    # sig.r is in [1..n-1]
-    return (sig.r == W[0] % sig.ec.n) and dsa.verify_(m, key, sig, lower_s, hf)
-
-
-def dsa_verify_commit(
-    commit_msg: String,
-    receipt: Point,
-    msg: String,
-    key: dsa.Key,
-    sig: dsa.Sig,
-    lower_s: bool = True,
-    hf: HashF = sha256,
-) -> bool:
-    c = reduce_to_hlen(commit_msg, hf)
-    m = reduce_to_hlen(msg, hf)
-    return dsa_verify_commit_(c, receipt, m, key, sig, lower_s, hf)
-
-
-def ssa_commit_sign_(
-    c: Octets,
-    m: Octets,
-    prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
-    ec: Curve = secp256k1,
-    hf: HashF = sha256,
-) -> Tuple[ssa.Sig, Point]:
-    """Include a commitment c inside an ECSSA signature."""
-
-    nonce = (
-        ssa.det_nonce_(m, prv_key, aux=None, ec=ec, hf=hf)
+        rfc6979_(msg_hash, prv_key, ec, hf)
         if nonce is None
         else int_from_prv_key(nonce, ec)
     )
     R = mult(nonce, ec.G, ec)
 
-    tweaked_nonce = (nonce + _tweak(c, R, ec, hf)) % ec.n
-    tweaked_sig = ssa.sign_(m, prv_key, tweaked_nonce, ec, hf)
+    tweaked_nonce = (nonce + _tweak(commit_hash, R, ec, hf)) % ec.n
+    tweaked_sig = dsa.sign_(msg_hash, prv_key, tweaked_nonce, lower_s, ec=ec, hf=hf)
 
     return tweaked_sig, R
 
 
-def ssa_commit_sign(
-    commit_msg: String,
-    msg: String,
+def dsa_commit_sign(
+    commit: Octets,
+    msg: Octets,
+    prv_key: PrvKey,
+    nonce: Optional[PrvKey] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[dsa.Sig, Point]:
+    "Include a commitment inside an EC DSA signature."
+
+    commit_hash = reduce_to_hlen(commit, hf)
+    msg_hash = reduce_to_hlen(msg, hf)
+    return dsa_commit_sign_(
+        commit_hash, msg_hash, prv_key, nonce, lower_s=True, ec=ec, hf=hf
+    )
+
+
+def dsa_verify_commit_(
+    commit_hash: Octets,
+    R: Point,
+    msg_hash: Octets,
+    key: dsa.Key,
+    sig: dsa.Sig,
+    lower_s: bool = True,
+    hf: HashF = sha256,
+) -> bool:
+    "Open the commitment associated to an EC DSA signature."
+
+    tweak = _tweak(commit_hash, R, sig.ec, hf)
+    W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
+
+    # sig.r is in [1..n-1]
+    return (sig.r == W[0] % sig.ec.n) and dsa.verify_(msg_hash, key, sig, lower_s, hf)
+
+
+def dsa_verify_commit(
+    commit: Octets,
+    receipt: Point,
+    msg: Octets,
+    key: dsa.Key,
+    sig: dsa.Sig,
+    lower_s: bool = True,
+    hf: HashF = sha256,
+) -> bool:
+    "Open the commitment associated to an EC DSA signature."
+    commit_hash = reduce_to_hlen(commit, hf)
+    msg_hash = reduce_to_hlen(msg, hf)
+    return dsa_verify_commit_(commit_hash, receipt, msg_hash, key, sig, lower_s, hf)
+
+
+def ssa_commit_sign_(
+    commit_hash: Octets,
+    msg_hash: Octets,
     prv_key: PrvKey,
     nonce: Optional[PrvKey] = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[ssa.Sig, Point]:
-    """Include a commitment c inside an ECSSA signature."""
+    "Include a commitment inside an EC SSA signature."
 
-    c = reduce_to_hlen(commit_msg, hf)
-    m = reduce_to_hlen(msg, hf)
-    return ssa_commit_sign_(c, m, prv_key, nonce, ec, hf)
+    nonce = (
+        ssa.det_nonce_(msg_hash, prv_key, aux=None, ec=ec, hf=hf)
+        if nonce is None
+        else int_from_prv_key(nonce, ec)
+    )
+    R = mult(nonce, ec.G, ec)
+
+    tweaked_nonce = (nonce + _tweak(commit_hash, R, ec, hf)) % ec.n
+    tweaked_sig = ssa.sign_(msg_hash, prv_key, tweaked_nonce, ec, hf)
+
+    return tweaked_sig, R
+
+
+def ssa_commit_sign(
+    commit: Octets,
+    msg: Octets,
+    prv_key: PrvKey,
+    nonce: Optional[PrvKey] = None,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Tuple[ssa.Sig, Point]:
+    "Include a commitment inside an EC SSA signature."
+
+    commit_hash = reduce_to_hlen(commit, hf)
+    msg_hash = reduce_to_hlen(msg, hf)
+    return ssa_commit_sign_(commit_hash, msg_hash, prv_key, nonce, ec, hf)
 
 
 def ssa_verify_commit_(
-    c: Octets,
+    commit_hash: Octets,
     R: Point,
-    m: Octets,
+    msg_hash: Octets,
     pub_key: ssa.BIP340PubKey,
     sig: ssa.Sig,
     hf: HashF = sha256,
 ) -> bool:
-    "Open the commitment c inside an EC SSA signature."
+    "Open the commitment associated to an EC SSA signature."
 
-    tweak = _tweak(c, R, sig.ec, hf)
+    tweak = _tweak(commit_hash, R, sig.ec, hf)
     W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
 
     # sig.r is in [1..p-1]
-    return (sig.r == W[0]) and ssa.verify_(m, pub_key, sig, hf)
+    return (sig.r == W[0]) and ssa.verify_(msg_hash, pub_key, sig, hf)
 
 
 def ssa_verify_commit(
-    commit_msg: String,
+    commit: Octets,
     receipt: Point,
-    msg: String,
+    msg: Octets,
     pub_key: ssa.BIP340PubKey,
     sig: ssa.Sig,
     hf: HashF = sha256,
 ) -> bool:
-    c = reduce_to_hlen(commit_msg, hf)
-    m = reduce_to_hlen(msg, hf)
-    return ssa_verify_commit_(c, receipt, m, pub_key, sig, hf)
+    "Open the commitment associated to an EC SSA signature."
+    commit_hash = reduce_to_hlen(commit, hf)
+    msg_hash = reduce_to_hlen(msg, hf)
+    return ssa_verify_commit_(commit_hash, receipt, msg_hash, pub_key, sig, hf)

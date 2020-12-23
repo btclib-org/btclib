@@ -15,9 +15,10 @@
 import hashlib
 from typing import Optional, Tuple
 
-from btclib.alias import HashF, String
+from btclib.alias import HashF, Octets
+from btclib.curve import Curve, secp256k1
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import hash160
+from btclib.utils import bytes_from_octets, hash160, int_from_bits
 
 H160_Net = Tuple[bytes, str]
 
@@ -44,32 +45,49 @@ def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
     return hash160(pub_key)[:4]
 
 
-def reduce_to_hlen(msg: String, hf: HashF = hashlib.sha256) -> bytes:
+def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
 
-    if isinstance(msg, str):
-        # do not strip spaces
-        msg = msg.encode()
-
+    msg = bytes_from_octets(msg)
     # Step 4 of SEC 1 v.2 section 4.1.3
     h = hf()
     h.update(msg)
     return h.digest()
 
 
-def tagged_hash(tag: str, msg: String, hf: HashF = hashlib.sha256) -> bytes:
+def magic_message(msg: Octets) -> bytes:
 
-    if isinstance(msg, str):
-        # do not strip spaces
-        msg = msg.encode()
+    msg = bytes_from_octets(msg)
+    t = (
+        b"\x18Bitcoin Signed Message:\n"
+        + len(msg).to_bytes(1, byteorder="big", signed=False)
+        + msg
+    )
+    return hashlib.sha256(hashlib.sha256(t).digest()).digest()
 
-    t = tag.encode()
+
+def challenge_(
+    msg_hash: Octets, ec: Curve = secp256k1, hf: HashF = hashlib.sha256
+) -> int:
+
+    # the message msg_hash: a hf_len array
+    hf_len = hf().digest_size
+    msg_hash = bytes_from_octets(msg_hash, hf_len)
+
+    # leftmost ec.nlen bits %= ec.n
+    c = int_from_bits(msg_hash, ec.nlen) % ec.n
+    return c
+
+
+def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
+
     h1 = hf()
-    h1.update(t)
+    h1.update(tag)
     tag_hash = h1.digest()
 
     h2 = hf()
     h2.update(tag_hash + tag_hash)
 
     # it could be sped up by storing the above midstate
-    h2.update(msg)
+
+    h2.update(m)
     return h2.digest()

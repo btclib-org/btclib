@@ -38,40 +38,11 @@ messages to the set of possible nonce values) would return.
 import hmac
 from hashlib import sha256
 
-from btclib.alias import HashF, Octets, String
+from btclib.alias import HashF, Octets
 from btclib.curve import Curve, secp256k1
-from btclib.hashes import reduce_to_hlen
+from btclib.hashes import challenge_
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.utils import bytes_from_octets, int_from_bits
-
-
-def rfc6979(
-    msg: String, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
-) -> int:
-    """Return a deterministic ephemeral key following RFC 6979.
-
-    see https://tools.ietf.org/html/rfc6979 section 3.2
-    """
-
-    m = reduce_to_hlen(msg, hf)  # 3.2.a
-    return rfc6979_(m, prv_key, ec, hf)
-
-
-def rfc6979_(
-    m: Octets, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
-) -> int:
-    """Return a deterministic ephemeral key following RFC 6979."""
-
-    # The message m: a hf_len array
-    hf_len = hf().digest_size
-    m = bytes_from_octets(m, hf_len)
-
-    # leftmost ec.nlen bits %= ec.n
-    c = int_from_bits(m, ec.nlen) % ec.n  # 5
-
-    q = int_from_prv_key(prv_key, ec)
-
-    return _rfc6979_(c, q, ec, hf)
+from btclib.utils import int_from_bits
 
 
 def _rfc6979_(c: int, q: int, ec: Curve, hf: HashF) -> int:
@@ -111,3 +82,17 @@ def _rfc6979_(c: int, q: int, ec: Curve, hf: HashF) -> int:
             return det_nonce  # successful candidate
         k = hmac.new(k, v + b"\x00", hf).digest()
         v = hmac.new(k, v, hf).digest()
+
+
+def rfc6979_(
+    msg_hash: Octets, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+) -> int:
+    """Return a deterministic ephemeral key following RFC 6979.
+
+    see https://tools.ietf.org/html/rfc6979 section 3.2
+    """
+
+    c = challenge_(msg_hash, ec, hf)
+    q = int_from_prv_key(prv_key, ec)
+
+    return _rfc6979_(c, q, ec, hf)

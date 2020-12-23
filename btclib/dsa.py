@@ -22,17 +22,17 @@ import secrets
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
-from btclib.alias import HashF, JacPoint, Octets, Point, String
+from btclib.alias import HashF, JacPoint, Octets, Point
 from btclib.curve import Curve, secp256k1
 from btclib.curve_group import _double_mult, _mult
 from btclib.der import Sig
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import reduce_to_hlen
+from btclib.hashes import challenge_, reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.rfc6979 import _rfc6979_
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, point_from_key
-from btclib.utils import bytes_from_octets, int_from_bits
+from btclib.utils import bytes_from_octets
 
 
 def gen_keys(
@@ -49,23 +49,6 @@ def gen_keys(
     QJ = _mult(q, ec.GJ, ec)
     Q = ec.aff_from_jac(QJ)
     return q, Q
-
-
-def challenge_(m: Octets, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
-
-    # The message m: a hf_len array
-    hf_len = hf().digest_size
-    m = bytes_from_octets(m, hf_len)
-
-    # leftmost ec.nlen bits %= ec.n
-    c = int_from_bits(m, ec.nlen) % ec.n  # 5
-    return c
-
-
-def challenge(msg: String, ec: Curve = secp256k1, hf: HashF = sha256) -> int:
-
-    m = reduce_to_hlen(msg, hf)
-    return challenge_(m, ec, hf)
 
 
 def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
@@ -98,7 +81,7 @@ def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
 
 
 def sign_(
-    m: Octets,
+    msg_hash: Octets,
     prv_key: PrvKey,
     nonce: Optional[PrvKey] = None,
     lower_s: bool = True,
@@ -111,16 +94,16 @@ def sign_(
     the RFC6979 specification is used.
     """
 
-    # the message m: a hf_len array
+    # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
-    m = bytes_from_octets(m, hf_len)
+    msg_hash = bytes_from_octets(msg_hash, hf_len)
 
     # the secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
     q = int_from_prv_key(prv_key, ec)
 
     # the challenge
-    c = challenge_(m, ec, hf)  # 4, 5
+    c = challenge_(msg_hash, ec, hf)  # 4, 5
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
@@ -133,8 +116,9 @@ def sign_(
 
 
 def sign(
-    msg: String,
+    msg: Octets,
     prv_key: PrvKey,
+    nonce: Optional[PrvKey] = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -144,7 +128,7 @@ def sign(
     Implemented according to SEC 1 v.2
     The message msg is first processed by hf, yielding the value
 
-        m = hf(msg),
+        msg_hash = hf(msg),
 
     a sequence of bits of length *hf_len*.
 
@@ -159,8 +143,8 @@ def sign(
     See https://tools.ietf.org/html/rfc6979#section-3.2
     """
 
-    m = reduce_to_hlen(msg, hf)
-    return sign_(m, prv_key, None, lower_s, ec, hf)
+    msg_hash = reduce_to_hlen(msg, hf)
+    return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf)
 
 
 def _assert_as_valid_(
@@ -191,7 +175,7 @@ def _assert_as_valid_(
 
 
 def assert_as_valid_(
-    m: Octets,
+    msg_hash: Octets,
     key: Key,
     sig: Union[Sig, Octets],
     lower_s: bool = True,
@@ -205,9 +189,7 @@ def assert_as_valid_(
     else:
         sig = Sig.deserialize(sig)
 
-    # The message m: a hf_len array
-    m = bytes_from_octets(m, hf().digest_size)
-    c = challenge_(m, sig.ec, hf)  # 2, 3
+    c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
 
     Q = point_from_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
@@ -217,7 +199,7 @@ def assert_as_valid_(
 
 
 def assert_as_valid(
-    msg: String,
+    msg: Octets,
     key: Key,
     sig: Union[Sig, Octets],
     lower_s: bool = True,
@@ -226,12 +208,12 @@ def assert_as_valid(
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
 
-    m = reduce_to_hlen(msg, hf)
-    assert_as_valid_(m, key, sig, lower_s, hf)
+    msg_hash = reduce_to_hlen(msg, hf)
+    assert_as_valid_(msg_hash, key, sig, lower_s, hf)
 
 
 def verify_(
-    m: Octets,
+    msg_hash: Octets,
     key: Key,
     sig: Union[Sig, Octets],
     lower_s: bool = True,
@@ -242,7 +224,7 @@ def verify_(
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        assert_as_valid_(m, key, sig, lower_s, hf)
+        assert_as_valid_(msg_hash, key, sig, lower_s, hf)
     except Exception:  # pylint: disable=broad-except
         return False
     else:
@@ -250,7 +232,7 @@ def verify_(
 
 
 def verify(
-    msg: String,
+    msg: Octets,
     key: Key,
     sig: Union[Sig, Octets],
     lower_s: bool = True,
@@ -258,45 +240,8 @@ def verify(
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
 
-    m = reduce_to_hlen(msg, hf)
-    return verify_(m, key, sig, lower_s, hf)
-
-
-def recover_pub_keys(
-    msg: String, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
-) -> List[Point]:
-    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
-
-    See also:
-    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
-    """
-
-    m = reduce_to_hlen(msg, hf)
-    return recover_pub_keys_(m, sig, lower_s, hf)
-
-
-def recover_pub_keys_(
-    m: Octets, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
-) -> List[Point]:
-    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
-
-    See also:
-    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
-    """
-
-    if isinstance(sig, Sig):
-        sig.assert_valid()
-    else:
-        sig = Sig.deserialize(sig)
-
-    # The message m: a hf_len array
-    hf_len = hf().digest_size
-    m = bytes_from_octets(m, hf_len)
-
-    c = challenge_(m, sig.ec, hf)  # 1.5
-
-    QJs = _recover_pub_keys_(c, sig.r, sig.s, lower_s, sig.ec)
-    return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
+    msg_hash = reduce_to_hlen(msg, hf)
+    return verify_(msg_hash, key, sig, lower_s, hf)
 
 
 # TODO: use _recover_pub_key_ to avoid code duplication
@@ -342,6 +287,43 @@ def _recover_pub_keys_(
     return keys
 
 
+def recover_pub_keys_(
+    msg_hash: Octets, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
+) -> List[Point]:
+    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
+
+    See also:
+    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    """
+
+    if isinstance(sig, Sig):
+        sig.assert_valid()
+    else:
+        sig = Sig.deserialize(sig)
+
+    # The message msg_hash: a hf_len array
+    hf_len = hf().digest_size
+    msg_hash = bytes_from_octets(msg_hash, hf_len)
+
+    c = challenge_(msg_hash, sig.ec, hf)  # 1.5
+
+    QJs = _recover_pub_keys_(c, sig.r, sig.s, lower_s, sig.ec)
+    return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
+
+
+def recover_pub_keys(
+    msg: Octets, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
+) -> List[Point]:
+    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
+
+    See also:
+    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    """
+
+    msg_hash = reduce_to_hlen(msg, hf)
+    return recover_pub_keys_(msg_hash, sig, lower_s, hf)
+
+
 def _recover_pub_key_(
     key_id: int, c: int, r: int, s: int, lower_s: bool, ec: Curve
 ) -> JacPoint:
@@ -369,9 +351,9 @@ def _recover_pub_key_(
 
 
 def crack_prv_key_(
-    m_1: Octets,
+    msg_hash1: Octets,
     sig1: Union[Sig, Octets],
-    m_2: Octets,
+    msg_hash2: Octets,
     sig2: Union[Sig, Octets],
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
@@ -394,12 +376,8 @@ def crack_prv_key_(
     if sig1.s == sig2.s:
         raise BTClibValueError("identical signatures")
 
-    hf_len = hf().digest_size
-    m_1 = bytes_from_octets(m_1, hf_len)
-    m_2 = bytes_from_octets(m_2, hf_len)
-
-    c_1 = challenge_(m_1, ec, hf)
-    c_2 = challenge_(m_2, ec, hf)
+    c_1 = challenge_(msg_hash1, ec, hf)
+    c_2 = challenge_(msg_hash2, ec, hf)
 
     nonce = (c_1 - c_2) * mod_inv(sig1.s - sig2.s, ec.n) % ec.n
     q = (sig2.s * nonce - c_2) * mod_inv(sig1.r, ec.n) % ec.n
@@ -407,14 +385,14 @@ def crack_prv_key_(
 
 
 def crack_prv_key(
-    msg1: String,
+    msg1: Octets,
     sig1: Union[Sig, Octets],
-    msg2: String,
+    msg2: Octets,
     sig2: Union[Sig, Octets],
     hf: HashF = sha256,
 ) -> Tuple[int, int]:
 
-    m_1 = reduce_to_hlen(msg1, hf)
-    m_2 = reduce_to_hlen(msg2, hf)
+    msg_hash1 = reduce_to_hlen(msg1, hf)
+    msg_hash2 = reduce_to_hlen(msg2, hf)
 
-    return crack_prv_key_(m_1, sig1, m_2, sig2, hf)
+    return crack_prv_key_(msg_hash1, sig1, msg_hash2, sig2, hf)

@@ -24,8 +24,8 @@ from btclib.sign_to_contract import (
 
 
 def test_sign_to_contract_dsa() -> None:
-    commit_msg = "to be committed"
-    msg = "to be signed"
+    commit_msg = "to be committed".encode()
+    msg = "to be signed".encode()
 
     lower_s = True
     for hf in (sha256, sha1):
@@ -45,8 +45,8 @@ def test_sign_to_contract_dsa() -> None:
 
 
 def test_sign_to_contract_ssa() -> None:
-    commit_msg = "to be committed"
-    msg = "to be signed"
+    commit_msg = "to be committed".encode()
+    msg = "to be signed".encode()
 
     for hf in (sha256, sha1):
         for ec in (secp256k1, CURVES["secp160r1"]):

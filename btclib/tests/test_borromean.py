@@ -32,10 +32,10 @@ def test_borromean() -> None:
             if j == sign_key_idx[i]:
                 sign_keys.append(priv_key)
 
-    msg = "Borromean ring signature"
+    msg = "Borromean ring signature".encode()
     sig = borromean.sign(msg, list(range(1, 5)), sign_key_idx, sign_keys, pubk_rings)
 
-    borromean.assert_as_valid(msg.encode(), sig[0], sig[1], pubk_rings)
+    borromean.assert_as_valid(msg, sig[0], sig[1], pubk_rings)
     assert borromean.verify(msg, sig[0], sig[1], pubk_rings)
     assert not borromean.verify("another message", sig[0], sig[1], pubk_rings)
     assert not borromean.verify(0, sig[0], sig[1], pubk_rings)  # type: ignore

@@ -19,15 +19,16 @@ import pytest
 from btclib import dsa
 from btclib.curve import CURVES, mult
 from btclib.hashes import reduce_to_hlen
-from btclib.rfc6979 import rfc6979, rfc6979_
+from btclib.rfc6979 import rfc6979_
 
 
 def test_rfc6979() -> None:
     # source: https://bitcointalk.org/index.php?topic=285142.40
-    msg = "Satoshi Nakamoto"
+    msg = "Satoshi Nakamoto".encode()
+    msg_hash = hashlib.sha256(msg).digest()
     x = 0x1
     k = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
-    k2 = rfc6979(msg, x, hf=hashlib.sha256)
+    k2 = rfc6979_(msg_hash, x, hf=hashlib.sha256)
     assert k == k2
 
 
@@ -41,9 +42,10 @@ def test_rfc6979_example() -> None:
     # source: https://tools.ietf.org/html/rfc6979 section A.1
     fake_ec = _helper(0x4000000000000000000020108A2E0CC0D99F8A5EF)
     x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272F
-    msg = "sample"
+    msg = "sample".encode()
+    msg_hash = hashlib.sha256(msg).digest()
     k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
-    assert k == rfc6979(msg, x, fake_ec)  # type: ignore
+    assert k == rfc6979_(msg_hash, x, fake_ec)  # type: ignore
 
 
 @pytest.mark.second
@@ -60,6 +62,7 @@ def test_rfc6979_tv() -> None:
         test_vectors = test_dict[ec_name]
         for x, x_U, y_U, hf, msg, k, r, s in test_vectors:
             x = int(x, 16)
+            msg = msg.encode()
             m = reduce_to_hlen(msg, hf=getattr(hashlib, hf))
             # test RFC6979 implementation
             k2 = rfc6979_(m, x, ec, getattr(hashlib, hf))

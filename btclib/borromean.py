@@ -13,11 +13,11 @@ from collections import defaultdict
 from hashlib import sha256 as hf  # FIXME: any hf
 from typing import Dict, List, Sequence, Tuple
 
-from btclib.alias import Point, String
+from btclib.alias import Octets, Point
 from btclib.curve import double_mult, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError
 from btclib.sec_point import bytes_from_point
-from btclib.utils import int_from_bits
+from btclib.utils import bytes_from_octets, int_from_bits
 
 ec = secp256k1  # FIXME: any curve
 
@@ -44,7 +44,7 @@ SValues = Dict[int, List[int]]
 
 
 def sign(
-    msg: String,
+    msg: Octets,
     ks: Sequence[int],
     sign_key_idx: Sequence[int],
     sign_keys: Sequence[int],
@@ -62,9 +62,7 @@ def sign(
     - pubk_rings: dictionary of sequences representing single rings of pub_keys
     """
 
-    if isinstance(msg, str):
-        # do not strip spaces
-        msg = msg.encode()
+    msg = bytes_from_octets(msg)
     m = _get_msg_format(msg, pubk_rings)
 
     e0bytes = m
@@ -111,7 +109,7 @@ def sign(
     return e0, s
 
 
-def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def verify(msg: Octets, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     """Borromean ring signature - verification algorithm
 
     inputs:
@@ -130,11 +128,9 @@ def verify(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
         return False
 
 
-def assert_as_valid(msg: String, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def assert_as_valid(msg: Octets, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
 
-    if isinstance(msg, str):
-        # do not strip spaces
-        msg = msg.encode()
+    msg = bytes_from_octets(msg)
     m = _get_msg_format(msg, pubk_rings)
 
     ring_size = len(pubk_rings)
