@@ -197,9 +197,7 @@ class Psbt(DataClassJsonMixin):
         return b"".join(psbt_bin)
 
     @classmethod
-    def deserialize(
-        cls: Type[_Psbt], psbt_bin: Octets, check_validity: bool = True
-    ) -> _Psbt:
+    def parse(cls: Type[_Psbt], psbt_bin: Octets, check_validity: bool = True) -> _Psbt:
         "Return a Psbt by parsing binary data."
 
         # FIXME: psbt_bin should be BinaryData
@@ -232,7 +230,7 @@ class Psbt(DataClassJsonMixin):
             elif k[:1] == PSBT_GLOBAL_XPUB:
                 if k[1:] in hd_key_paths:
                     raise BTClibValueError("duplicate xpub in Psbt hd_key_path")
-                hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
+                hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             else:  # unknown
                 if k in unknown:
                     raise BTClibValueError("duplicate Psbt unknown")
@@ -241,12 +239,12 @@ class Psbt(DataClassJsonMixin):
         inputs: List[PsbtIn] = []
         for _ in tx.vin:
             input_map, psbt_bin = deserialize_map(psbt_bin)
-            inputs.append(PsbtIn.deserialize(input_map))
+            inputs.append(PsbtIn.parse(input_map))
 
         outputs: List[PsbtOut] = []
         for _ in tx.vout:
             output_map, psbt_bin = deserialize_map(psbt_bin)
-            outputs.append(PsbtOut.deserialize(output_map))
+            outputs.append(PsbtOut.parse(output_map))
 
         return cls(
             tx,
@@ -272,7 +270,7 @@ class Psbt(DataClassJsonMixin):
 
         psbt_decoded = base64.b64decode(psbt_str)
         # pylance cannot grok the following line
-        return cls.deserialize(psbt_decoded, check_validity)  # type: ignore
+        return cls.parse(psbt_decoded, check_validity)  # type: ignore
 
     @classmethod
     def from_tx(
@@ -316,11 +314,11 @@ def deserialize_map(psbt_bin: bytes) -> Tuple[Dict[bytes, bytes], bytes]:
         if psbt_bin[0] == 0:
             psbt_bin = psbt_bin[1:]
             return partial_map, psbt_bin
-        key_len = var_int.deserialize(psbt_bin)
+        key_len = var_int.parse(psbt_bin)
         psbt_bin = psbt_bin[len(var_int.serialize(key_len)) :]
         key = psbt_bin[:key_len]
         psbt_bin = psbt_bin[key_len:]
-        value_len = var_int.deserialize(psbt_bin)
+        value_len = var_int.parse(psbt_bin)
         psbt_bin = psbt_bin[len(var_int.serialize(value_len)) :]
         value = psbt_bin[:value_len]
         psbt_bin = psbt_bin[value_len:]

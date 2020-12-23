@@ -126,12 +126,12 @@ class TxOut(DataClassJsonMixin):
         return out
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_TxOut], data: BinaryData, check_validity: bool = True
     ) -> _TxOut:
         stream = bytesio_from_binarydata(data)
         value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
-        script_pub_key = var_bytes.deserialize(stream)
+        script_pub_key = var_bytes.parse(stream)
         return cls(value, script_pub_key, "mainnet", check_validity)
 
     @classmethod

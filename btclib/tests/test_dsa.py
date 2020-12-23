@@ -33,8 +33,8 @@ def test_signature() -> None:
     sig = dsa.sign(msg, q)
     dsa.assert_as_valid(msg, Q, sig)
     assert dsa.verify(msg, Q, sig)
-    assert sig == dsa.Sig.deserialize(sig.serialize())
-    assert sig == dsa.Sig.deserialize(sig.serialize().hex())
+    assert sig == dsa.Sig.parse(sig.serialize())
+    assert sig == dsa.Sig.parse(sig.serialize().hex())
 
     # https://bitcointalk.org/index.php?topic=285142.40
     # Deterministic Usage of DSA and ECDSA (RFC 6979)

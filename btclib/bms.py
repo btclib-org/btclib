@@ -201,9 +201,7 @@ class Sig(DataClassJsonMixin):
         return base64.b64encode(data_binary).decode("ascii")
 
     @classmethod
-    def deserialize(
-        cls: Type[_Sig], data: BinaryData, check_validity: bool = True
-    ) -> _Sig:
+    def parse(cls: Type[_Sig], data: BinaryData, check_validity: bool = True) -> _Sig:
 
         stream = bytesio_from_binarydata(data)
         sig_bin = stream.read(_REQUIRED_LENGHT)
@@ -236,7 +234,7 @@ class Sig(DataClassJsonMixin):
 
         data_decoded = base64.b64decode(data)
         # pylance cannot grok the following line
-        return cls.deserialize(data_decoded, check_validity)  # type: ignore
+        return cls.parse(data_decoded, check_validity)  # type: ignore
 
 
 def gen_keys(

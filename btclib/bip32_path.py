@@ -174,7 +174,7 @@ class BIP32KeyOrigin(DataClassJsonMixin):
         return self.fingerprint + bytes_from_bip32_path(self.der_path)
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_BIP32KeyOrigin], data: bytes, check_validity: bool = True
     ) -> _BIP32KeyOrigin:
         "Return a BIP32KeyOrigin by parsing binary data."
@@ -232,16 +232,16 @@ class BIP32KeyPath(DataClassJsonMixin):
         return var_bytes.serialize(bytes_)
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_BIP32KeyPath], data: BinaryData, check_validity: bool = True
     ) -> _BIP32KeyPath:
         "Return a BIP32KeyPath by parsing binary data."
 
-        bytes_ = var_bytes.deserialize(data)
+        bytes_ = var_bytes.parse(data)
         stream = bytesio_from_binarydata(bytes_)
-        pub_key = var_bytes.deserialize(stream)
-        der_path_bytes = var_bytes.deserialize(stream)
-        key_origin = BIP32KeyOrigin.deserialize(der_path_bytes, check_validity)
+        pub_key = var_bytes.parse(stream)
+        der_path_bytes = var_bytes.parse(stream)
+        key_origin = BIP32KeyOrigin.parse(der_path_bytes, check_validity)
 
         return cls(pub_key, key_origin, check_validity)
 
@@ -342,7 +342,7 @@ class BIP32KeyPaths(DataClassJsonMixin):
         return serialize_hd_key_paths(type_, self.hd_key_paths)
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_BIP32KeyPaths],
         data: BinaryData,
         type_: bytes,
@@ -357,13 +357,13 @@ class BIP32KeyPaths(DataClassJsonMixin):
         hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
         while stream.read(1):
             stream.seek(-1, SEEK_CUR)
-            prefixed_pubkey = var_bytes.deserialize(stream)
+            prefixed_pubkey = var_bytes.parse(stream)
             if prefixed_pubkey and prefixed_pubkey[:1] == type_:
                 pubkey = prefixed_pubkey[1:]
                 if pubkey in hd_key_paths:
                     raise BTClibValueError("duplicate pubkey")
-                key_origin_bytes = var_bytes.deserialize(stream)
-                key_origin = BIP32KeyOrigin.deserialize(key_origin_bytes)
+                key_origin_bytes = var_bytes.parse(stream)
+                key_origin = BIP32KeyOrigin.parse(key_origin_bytes)
                 hd_key_paths[pubkey] = key_origin
 
         return cls(hd_key_paths, check_validity)

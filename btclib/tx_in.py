@@ -74,7 +74,7 @@ class OutPoint(DataClassJsonMixin):
         return out
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_OutPoint], data: BinaryData, check_validity: bool = True
     ) -> _OutPoint:
         "Return an OutPoint from the first 36 bytes of the provided data."
@@ -171,13 +171,11 @@ class TxIn(DataClassJsonMixin):
         return out
 
     @classmethod
-    def deserialize(
-        cls: Type[_TxIn], data: BinaryData, check_validity: bool = True
-    ) -> _TxIn:
+    def parse(cls: Type[_TxIn], data: BinaryData, check_validity: bool = True) -> _TxIn:
 
         s = bytesio_from_binarydata(data)
-        prev_out = OutPoint.deserialize(s)
-        script_sig = var_bytes.deserialize(s)
+        prev_out = OutPoint.parse(s)
+        script_sig = var_bytes.parse(s)
         sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
 
         return cls(prev_out, script_sig, sequence, Witness(), check_validity)

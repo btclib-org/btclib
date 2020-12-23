@@ -60,10 +60,8 @@ def test_simple() -> None:
         ["1F" * 520, "OP_DROP"],
     ]
     for script_pub_key in script_list:
-        assert script_pub_key == script.deserialize(script.serialize(script_pub_key))
-        assert script_pub_key == script.deserialize(
-            script.serialize(script_pub_key).hex()
-        )
+        assert script_pub_key == script.parse(script.serialize(script_pub_key))
+        assert script_pub_key == script.parse(script.serialize(script_pub_key).hex())
 
 
 def test_exceptions() -> None:
@@ -83,7 +81,7 @@ def test_exceptions() -> None:
 
     # A script_pub_key with OP_PUSHDATA4 can be decoded
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
-    script_pub_key_ = script.deserialize(script_bytes)
+    script_pub_key_ = script.parse(script_bytes)
     # but it cannot be encoded
     err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -97,10 +95,8 @@ def test_nulldata() -> None:
         ["OP_RETURN", "00" * 79],
     ]
     for script_pub_key in scripts:
-        assert script_pub_key == script.deserialize(script.serialize(script_pub_key))
-        assert script_pub_key == script.deserialize(
-            script.serialize(script_pub_key).hex()
-        )
+        assert script_pub_key == script.parse(script.serialize(script_pub_key))
+        assert script_pub_key == script.parse(script.serialize(script_pub_key).hex())
 
 
 def test_op_int() -> None:
@@ -130,4 +126,4 @@ def test_op_pushdata() -> None:
 
 def test_encoding():
     script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
-    assert script.serialize(script.deserialize(script_bytes)) == script_bytes
+    assert script.serialize(script.parse(script_bytes)) == script_bytes

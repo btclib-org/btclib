@@ -163,12 +163,12 @@ class PsbtOut(DataClassJsonMixin):
         return b"".join(psbt_out_bin)
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], check_validity: bool = True
     ) -> _PsbtOut:
         "Return a PsbtOut by parsing binary data."
 
-        # FIX deserialize must use BinaryData
+        # FIX parse must use BinaryData
 
         redeem_script = b""
         witness_script = b""
@@ -185,10 +185,10 @@ class PsbtOut(DataClassJsonMixin):
                     raise BTClibValueError("duplicate PsbtOut witness_script")
                 witness_script = deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
-                #  deserialize just one hd key path at time :-(
+                #  parse just one hd key path at time :-(
                 if k[1:] in hd_key_paths:
                     raise BTClibValueError("duplicate pub_key in PsbtOut hd_key_path")
-                hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
+                hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             else:  # unknown
                 if k in unknown:
                     raise BTClibValueError("duplicate PsbtOut unknown")

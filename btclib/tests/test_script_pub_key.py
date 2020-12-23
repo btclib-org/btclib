@@ -155,7 +155,7 @@ def test_nulldata4() -> None:
     # FIXME: serialization is not 0x6A{1 byte data-length}{data 6 bytes)}
     script_pub_key = script.serialize(script_)
     assert len(script_pub_key) == 7
-    assert script.deserialize(script_pub_key) == script_
+    assert script.parse(script_pub_key) == script_
     script_type, _ = payload_from_script_pub_key(script_pub_key)
     # FIXME: it should be "nulldata"
     assert script_type == "unknown"

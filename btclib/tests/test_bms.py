@@ -34,8 +34,8 @@ def test_signature() -> None:
     bms_sig = bms.sign(msg, wif)
     bms.assert_as_valid(msg, addr, bms_sig)
     assert bms.verify(msg, addr, bms_sig)
-    assert bms_sig == bms.Sig.deserialize(bms_sig.serialize())
-    assert bms_sig == bms.Sig.deserialize(bms_sig.serialize().hex())
+    assert bms_sig == bms.Sig.parse(bms_sig.serialize())
+    assert bms_sig == bms.Sig.parse(bms_sig.serialize().hex())
     assert bms_sig == bms.Sig.b64decode(bms_sig.b64encode())
     assert bms_sig == bms.Sig.b64decode(bms_sig.b64encode().encode("ascii"))
 
@@ -596,7 +596,7 @@ def test_ledger() -> None:
     # save key_id and patch dersig
     dersig = bytes.fromhex(dersig_hex_str)
     key_id = dersig[0]
-    dsa_sig = dsa.Sig.deserialize(b"\x30" + dersig[1:])
+    dsa_sig = dsa.Sig.parse(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
     dsa.assert_as_valid_(magic_msg_hash, xprv, dsa_sig)
@@ -631,7 +631,7 @@ def test_ledger() -> None:
     # save key_id and patch dersig
     dersig = bytes.fromhex(dersig_hex_str)
     key_id = dersig[0]
-    dsa_sig = dsa.Sig.deserialize(b"\x30" + dersig[1:])
+    dsa_sig = dsa.Sig.parse(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
     dsa.assert_as_valid_(magic_msg_hash, xprv, dsa_sig, lower_s=True)

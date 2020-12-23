@@ -187,7 +187,7 @@ def assert_as_valid_(
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
-        sig = Sig.deserialize(sig)
+        sig = Sig.parse(sig)
 
     c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
 
@@ -299,7 +299,7 @@ def recover_pub_keys_(
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
-        sig = Sig.deserialize(sig)
+        sig = Sig.parse(sig)
 
     # The message msg_hash: a hf_len array
     hf_len = hf().digest_size
@@ -361,12 +361,12 @@ def crack_prv_key_(
     if isinstance(sig1, Sig):
         sig1.assert_valid()
     else:
-        sig1 = Sig.deserialize(sig1)
+        sig1 = Sig.parse(sig1)
 
     if isinstance(sig2, Sig):
         sig2.assert_valid()
     else:
-        sig2 = Sig.deserialize(sig2)
+        sig2 = Sig.parse(sig2)
 
     ec = sig2.ec
     if sig1.ec != ec:

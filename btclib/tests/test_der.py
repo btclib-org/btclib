@@ -41,14 +41,14 @@ def test_der_size() -> None:
         assert ec == sig.ec
         sig_bin = sig.serialize()
         assert len(sig_bin) == length
-        assert sig == Sig.deserialize(sig_bin)
+        assert sig == Sig.parse(sig_bin)
 
 
 def test_der_deserialize() -> None:
 
     err_msg = "non-hexadecimal number found "
     with pytest.raises(ValueError, match=err_msg):
-        Sig.deserialize("not a sig")
+        Sig.parse("not a sig")
 
     sig = Sig(2 ** 255 - 1, 2 ** 247 - 1)
     sig_bin = sig.serialize()
@@ -57,46 +57,46 @@ def test_der_deserialize() -> None:
     bad_sig_bin = b"\x31" + sig_bin[1:]
     err_msg = "invalid compound header: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        Sig.deserialize(bad_sig_bin)
+        Sig.parse(bad_sig_bin)
 
     bad_sig_bin = sig_bin[:1] + b"\x41" + sig_bin[2:]
     err_msg = "not enough binary data"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        Sig.deserialize(bad_sig_bin)
+        Sig.parse(bad_sig_bin)
 
     # r and s scalars
     for offset in (4, 6 + r_size):
         bad_sig_bin = sig_bin[: offset - 2] + b"\x00" + sig_bin[offset - 1 :]
         err_msg = "invalid value header: "
         with pytest.raises(BTClibValueError, match=err_msg):
-            Sig.deserialize(bad_sig_bin)
+            Sig.parse(bad_sig_bin)
 
         bad_sig_bin = sig_bin[: offset - 1] + b"\x00" + sig_bin[offset:]
         err_msg = "zero size"
         with pytest.raises(BTClibRuntimeError, match=err_msg):
-            Sig.deserialize(bad_sig_bin)
+            Sig.parse(bad_sig_bin)
 
         bad_sig_bin = sig_bin[: offset - 1] + b"\x80" + sig_bin[offset:]
         err_msg = "not enough binary data"
         with pytest.raises(BTClibRuntimeError, match=err_msg):
-            Sig.deserialize(bad_sig_bin)
+            Sig.parse(bad_sig_bin)
 
         bad_sig_bin = sig_bin[:offset] + b"\x80" + sig_bin[offset + 1 :]
         err_msg = " not in 1..n-1: "
         with pytest.raises(BTClibValueError, match=err_msg):
-            Sig.deserialize(bad_sig_bin)
+            Sig.parse(bad_sig_bin)
 
         bad_sig_bin = sig_bin[:offset] + b"\x00\x7f" + sig_bin[offset + 2 :]
         err_msg = "invalid 'highest bit set' padding"
         with pytest.raises(BTClibValueError, match=err_msg):
-            Sig.deserialize(bad_sig_bin)
+            Sig.parse(bad_sig_bin)
 
     data_size = sig_bin[1]
     malleated_size = (data_size + 1).to_bytes(1, byteorder="big", signed=False)
     bad_sig_bin = sig_bin[:1] + malleated_size + sig_bin[2:] + b"\x01"
     err_msg = "invalid DER sequence length"
     with pytest.raises(BTClibValueError, match=err_msg):
-        Sig.deserialize(bad_sig_bin)
+        Sig.parse(bad_sig_bin)
 
 
 def test_der_serialize() -> None:

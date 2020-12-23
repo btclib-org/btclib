@@ -135,9 +135,7 @@ class Sig(DataClassJsonMixin):
         return out
 
     @classmethod
-    def deserialize(
-        cls: Type[_Sig], data: BinaryData, check_validity: bool = True
-    ) -> _Sig:
+    def parse(cls: Type[_Sig], data: BinaryData, check_validity: bool = True) -> _Sig:
 
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
@@ -399,7 +397,7 @@ def assert_as_valid_(
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
-        sig = Sig.deserialize(sig)
+        sig = Sig.parse(sig)
 
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
 
@@ -470,12 +468,12 @@ def crack_prv_key_(
     if isinstance(sig1, Sig):
         sig1.assert_valid()
     else:
-        sig1 = Sig.deserialize(sig1)
+        sig1 = Sig.parse(sig1)
 
     if isinstance(sig2, Sig):
         sig2.assert_valid()
     else:
-        sig2 = Sig.deserialize(sig2)
+        sig2 = Sig.parse(sig2)
 
     ec = sig2.ec
     if sig1.ec != ec:

@@ -327,7 +327,7 @@ def serialize(script: Sequence[ScriptToken]) -> bytes:
 Script = List[ScriptToken]
 
 
-def deserialize(stream: BinaryData) -> Script:
+def parse(stream: BinaryData) -> Script:
 
     s = bytesio_from_binarydata(stream)
     # initialize the result list

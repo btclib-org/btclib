@@ -85,7 +85,7 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
         err_msg += f", instead of integer element {_DER_SCALAR_MARKER.hex()}"
         raise BTClibValueError(err_msg)
 
-    r_bytes = var_bytes.deserialize(sig_data_stream, forbid_zero_size=True)
+    r_bytes = var_bytes.parse(sig_data_stream, forbid_zero_size=True)
     if r_bytes[0] == 0 and r_bytes[1] < 0x80:
         raise BTClibValueError("invalid 'highest bit set' padding")
 
@@ -155,9 +155,7 @@ class Sig(DataClassJsonMixin):
         return _DER_SIG_MARKER + var_bytes.serialize(out)
 
     @classmethod
-    def deserialize(
-        cls: Type[_Sig], data: BinaryData, check_validity: bool = True
-    ) -> _Sig:
+    def parse(cls: Type[_Sig], data: BinaryData, check_validity: bool = True) -> _Sig:
         """Return a Sig by parsing binary data.
 
         Deserialize a strict ASN.1 DER representation of an ECDSA signature.
@@ -174,7 +172,7 @@ class Sig(DataClassJsonMixin):
             raise BTClibValueError(err_msg)
 
         # [data-size][0x02][r-size][r][0x02][s-size][s]
-        sig_data = var_bytes.deserialize(stream, forbid_zero_size=True)
+        sig_data = var_bytes.parse(stream, forbid_zero_size=True)
 
         # [0x02][r-size][r][0x02][s-size][s]
         sig_data_substream = bytesio_from_binarydata(sig_data)

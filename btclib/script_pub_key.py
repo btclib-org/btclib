@@ -129,7 +129,7 @@ def assert_p2ms(script_pub_key: Octets) -> None:
 
     stream = bytesio_from_binarydata(script_pub_key[1:-2])
     for _ in range(n):
-        pub_key = var_bytes.deserialize(stream)
+        pub_key = var_bytes.parse(stream)
         point_from_octets(pub_key)
 
     if stream.read(1):

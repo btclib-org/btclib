@@ -198,7 +198,7 @@ class BlockHeader(DataClassJsonMixin):
         )
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_BlockHeader], data: BinaryData, check_validity: bool = True
     ) -> _BlockHeader:
         "Return a BlockHeader by parsing 80 bytes from binary data."
@@ -310,7 +310,7 @@ class Block(DataClassJsonMixin):
         # followed by the _signed_ little-endian representation of the height
         # (genesis block is height zero).
         coinbase_script = self.transactions[0].vin[0].script_sig
-        height_ = var_bytes.deserialize(coinbase_script)
+        height_ = var_bytes.parse(coinbase_script)
         return int.from_bytes(height_, byteorder="little", signed=True)
 
     def has_segwit_tx(self) -> bool:
@@ -352,14 +352,14 @@ class Block(DataClassJsonMixin):
         return out + b"".join([t.serialize(include_witness) for t in self.transactions])
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_Block], data: BinaryData, check_validity: bool = True
     ) -> _Block:
         "Return a Block by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
-        header = BlockHeader.deserialize(stream)
-        n = var_int.deserialize(stream)
-        transactions = [Tx.deserialize(stream) for _ in range(n)]
+        header = BlockHeader.parse(stream)
+        n = var_int.parse(stream)
+        transactions = [Tx.parse(stream) for _ in range(n)]
 
         return cls(header, transactions, check_validity)

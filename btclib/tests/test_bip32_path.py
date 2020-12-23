@@ -150,7 +150,7 @@ def test_bip32_key_origin() -> None:
     assert key_origin.description == description
     assert key_origin.fingerprint == bytes.fromhex(fingerprint)
     assert key_origin.der_path == []
-    assert BIP32KeyOrigin.deserialize(key_origin.serialize()) == key_origin
+    assert BIP32KeyOrigin.parse(key_origin.serialize()) == key_origin
 
     description = (  # use the hardening convention of the normalized der_path
         fingerprint
@@ -174,7 +174,7 @@ def test_bip32_key_origin() -> None:
         0,
         10,
     ]
-    assert BIP32KeyOrigin.deserialize(key_origin.serialize()) == key_origin
+    assert BIP32KeyOrigin.parse(key_origin.serialize()) == key_origin
     assert len(key_origin) == 5
 
 
@@ -234,7 +234,7 @@ def test_bip32_key_path() -> None:
     assert len(key_origin) == 5
 
     key_path = BIP32KeyPath(pub_key, key_origin)
-    assert key_path == BIP32KeyPath.deserialize(key_path.serialize())
+    assert key_path == BIP32KeyPath.parse(key_path.serialize())
     assert len(key_path) == len(key_origin)
 
 
@@ -336,14 +336,14 @@ def test_bip32_key_paths() -> None:
     assert len(key_paths) == len(hd_key_paths)
 
     key_paths_bin = key_paths.serialize(b"\x00")
-    key_paths_deser = BIP32KeyPaths.deserialize(key_paths_bin, b"\x00")
+    key_paths_deser = BIP32KeyPaths.parse(key_paths_bin, b"\x00")
     assert len(key_paths_deser) == len(hd_key_paths)
     assert key_paths == key_paths_deser
 
     with pytest.raises(BTClibValueError, match="invalid type marker"):
         key_paths.serialize(b"\x00\x00")
     with pytest.raises(BTClibValueError, match="invalid type marker"):
-        BIP32KeyPaths.deserialize(key_paths_bin, b"\x00\x00")
+        BIP32KeyPaths.parse(key_paths_bin, b"\x00\x00")
 
 
 def test_dataclasses_json_dict_key_paths() -> None:

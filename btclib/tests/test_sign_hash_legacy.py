@@ -23,13 +23,13 @@ from btclib.tx_out import TxOut
 
 # from btclib.curve import mult
 # from btclib.sec_point import bytes_from_point
-# from btclib.script import deserialize
+# from btclib.script import parse
 
 
 # block 170
 def test_first_transaction():
     tx_bytes = "0100000001c997a5e56e104102fa209c6a852dd90660a20b2d9c352423edce25857fcd3704000000004847304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901ffffffff0200ca9a3b00000000434104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac00286bee0000000043410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac00000000"
-    tx = Tx.deserialize(tx_bytes)
+    tx = Tx.parse(tx_bytes)
     utxo = TxOut(
         value=5000000000,
         script_pub_key=bytes.fromhex(
@@ -175,7 +175,7 @@ def test_sign_hashsingle_bug():
 
     utxo = TxOut(0, script_pub_key)
     tx_bytes = "01000000020002000000000000000000000000000000000000000000000000000000000000000000000151ffffffff0001000000000000000000000000000000000000000000000000000000000000000000006b483045022100c9cdd08798a28af9d1baf44a6c77bcc7e279f47dc487c8c899911bc48feaffcc0220503c5c50ae3998a733263c5c0f7061b483e2b56c4c41b456e7d2f5a78a74c077032102d5c25adb51b61339d2b05315791e21bbe80ea470a49db0135720983c905aace0ffffffff010000000000000000015100000000"
-    tx = Tx.deserialize(tx_bytes)
+    tx = Tx.parse(tx_bytes)
     hash_ = sign_hash.from_utxo(utxo, tx, 1, sign_hash.SINGLE)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
@@ -188,7 +188,7 @@ def test_test_vectors():
     data = data[1:]  # skip column headers
     for raw_tx, raw_script, input_index, hash_type, exp_hash in data:
         script_ = sign_hash._legacy_script(raw_script)[0]
-        tx = Tx.deserialize(raw_tx)
+        tx = Tx.parse(raw_tx)
         if hash_type < 0:
             hash_type += 0xFFFFFFFF + 1
         actual_hash = sign_hash.legacy(script_, tx, input_index, hash_type)

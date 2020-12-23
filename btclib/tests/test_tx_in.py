@@ -29,7 +29,7 @@ def test_out_point() -> None:
     assert out_point.hash == int.from_bytes(out_point.tx_id, "big", signed=False)
     assert out_point.n == out_point.vout
     assert out_point.is_coinbase()
-    assert out_point == OutPoint.deserialize(out_point.serialize())
+    assert out_point == OutPoint.parse(out_point.serialize())
 
     tx_id = bytes.fromhex(
         "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e"
@@ -41,14 +41,14 @@ def test_out_point() -> None:
     assert out_point.hash == int.from_bytes(out_point.tx_id, "big", signed=False)
     assert out_point.n == out_point.vout
     assert not out_point.is_coinbase()
-    assert out_point == OutPoint.deserialize(out_point.serialize())
+    assert out_point == OutPoint.parse(out_point.serialize())
 
 
 def test_dataclasses_json_dict_outpoint() -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "test_data", fname)
     with open(filename, "rb") as binary_file_:
-        temp = Tx.deserialize(binary_file_.read())
+        temp = Tx.parse(binary_file_.read())
 
     prev_out_data = temp.vin[0].prev_out
 
@@ -105,7 +105,7 @@ def test_tx_in() -> None:
     assert tx_in.nSequence == tx_in.nSequence
     assert tx_in.is_coinbase()
     assert not tx_in.is_segwit()
-    tx_in2 = TxIn.deserialize(tx_in.serialize())
+    tx_in2 = TxIn.parse(tx_in.serialize())
     assert not tx_in2.is_segwit()
     assert tx_in == tx_in2
 
@@ -125,7 +125,7 @@ def test_tx_in() -> None:
     assert tx_in.nSequence == tx_in.nSequence
     assert not tx_in.is_coinbase()
     assert not tx_in.is_segwit()
-    tx_in2 = TxIn.deserialize(tx_in.serialize())
+    tx_in2 = TxIn.parse(tx_in.serialize())
     assert not tx_in2.is_segwit()
     assert tx_in == tx_in2
 
@@ -153,7 +153,7 @@ def test_tx_in() -> None:
     assert tx_in.nSequence == tx_in.nSequence
     assert not tx_in.is_coinbase()
     assert tx_in.is_segwit()
-    tx_in2 = TxIn.deserialize(tx_in.serialize())
+    tx_in2 = TxIn.parse(tx_in.serialize())
     assert not tx_in2.is_segwit()
     assert tx_in == tx_in2 or TX_IN_COMPARES_WITNESS
 
@@ -168,7 +168,7 @@ def test_dataclasses_json_dict() -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "test_data", fname)
     with open(filename, "rb") as binary_file_:
-        temp = Tx.deserialize(binary_file_.read())
+        temp = Tx.parse(binary_file_.read())
 
     tx_in = temp.vin[0]
 

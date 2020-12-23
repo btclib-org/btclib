@@ -67,7 +67,7 @@ def deserialize_tx(k: bytes, v: bytes, type_: str) -> Tx:
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return Tx.deserialize(v)
+    return Tx.parse(v)
 
 
 def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
@@ -76,7 +76,7 @@ def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
     if len(k) != 1:
         err_msg = f"invalid witness-utxo key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return TxOut.deserialize(v)
+    return TxOut.parse(v)
 
 
 def _assert_valid_partial_sigs(partial_sigs: Dict[bytes, bytes]) -> None:
@@ -90,7 +90,7 @@ def _assert_valid_partial_sigs(partial_sigs: Dict[bytes, bytes]) -> None:
             err_msg = "invalid partial signature pub_key: {pub_key!r}"
             raise BTClibValueError(err_msg) from e
         try:
-            dsa.Sig.deserialize(sig)
+            dsa.Sig.parse(sig)
         except BTClibValueError as e:
             err_msg = f"invalid partial signature: {sig!r}"
             raise BTClibValueError(err_msg) from e
@@ -117,7 +117,7 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
     if len(k) != 1:
         err_msg = f"invalid final script witness key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return Witness.deserialize(v)
+    return Witness.parse(v)
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -254,12 +254,12 @@ class PsbtIn(DataClassJsonMixin):
         return b"".join(psbt_in_bin)
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_PsbtIn], input_map: Dict[bytes, bytes], check_validity: bool = True
     ) -> _PsbtIn:
         "Return a PsbtIn by parsing binary data."
 
-        # FIX deserialize must use BinaryData
+        # FIX parse must use BinaryData
 
         non_witness_utxo = None
         witness_utxo = None
@@ -300,7 +300,7 @@ class PsbtIn(DataClassJsonMixin):
             elif k[:1] == PSBT_IN_BIP32_DERIVATION:
                 if k[1:] in hd_key_paths:
                     raise BTClibValueError("duplicate pub_key in PsbtIn hd_key_path")
-                hd_key_paths[k[1:]] = BIP32KeyOrigin.deserialize(v)
+                hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             elif k[:1] == PSBT_IN_FINAL_SCRIPTSIG:
                 if final_script_sig:
                     raise BTClibValueError("duplicate PsbtIn final_script_sig")

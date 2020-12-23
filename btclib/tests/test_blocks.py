@@ -31,7 +31,7 @@ def test_block_1() -> None:
     with open(filename, "rb") as file_:
         block_bytes = file_.read()
 
-    block = Block.deserialize(block_bytes)
+    block = Block.parse(block_bytes)
     assert len(block.transactions) == 1
     assert block.size == 215
     assert block.weight == 536
@@ -63,22 +63,22 @@ def test_exceptions() -> None:
 
     header_bytes = block_bytes[:68]  # no timestamp
     with pytest.raises(BTClibValueError, match="invalid timestamp "):
-        BlockHeader.deserialize(header_bytes)
+        BlockHeader.parse(header_bytes)
 
     header_bytes = block_bytes[:74]  # bits is missing two bytes
     with pytest.raises(BTClibValueError, match="invalid bits length: "):
-        BlockHeader.deserialize(header_bytes)
+        BlockHeader.parse(header_bytes)
 
     header_bytes = block_bytes[:76]  # nonce is missing
     with pytest.raises(BTClibValueError, match="invalid nonce: "):
-        BlockHeader.deserialize(header_bytes)
+        BlockHeader.parse(header_bytes)
 
     with pytest.raises(IndexError, match="list index out of range"):
-        Block.deserialize(block_bytes[:80] + b"\xff")
+        Block.parse(block_bytes[:80] + b"\xff")
 
     header_bytes = block_bytes[:80]
 
-    header = BlockHeader.deserialize(header_bytes)
+    header = BlockHeader.parse(header_bytes)
     header.version = 0
     with pytest.raises(BTClibValueError, match="invalid version: "):
         header.assert_valid()
@@ -86,34 +86,34 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid version: "):
         header.assert_valid()
 
-    header = BlockHeader.deserialize(header_bytes)
+    header = BlockHeader.parse(header_bytes)
     header.previous_block_hash = b"\xff" * 33
     with pytest.raises(BTClibValueError, match="invalid previous_block_hash length: "):
         header.assert_valid()
 
-    header = BlockHeader.deserialize(header_bytes)
+    header = BlockHeader.parse(header_bytes)
     header.merkle_root = b"\xff" * 33
     with pytest.raises(BTClibValueError, match="invalid merkle_root length: "):
         header.assert_valid()
 
-    header = BlockHeader.deserialize(header_bytes)
+    header = BlockHeader.parse(header_bytes)
     header.bits = b"\xff" * 5
     with pytest.raises(BTClibValueError, match="invalid bits length: "):
         header.assert_valid()
 
-    header = BlockHeader.deserialize(header_bytes)
+    header = BlockHeader.parse(header_bytes)
     # one second before genesis
     header.time = datetime(2009, 1, 3, 18, 15, 4, tzinfo=timezone.utc)
     err_msg = "invalid timestamp \\(before genesis\\): "
     with pytest.raises(BTClibValueError, match=err_msg):
         header.assert_valid()
 
-    header = BlockHeader.deserialize(header_bytes)
+    header = BlockHeader.parse(header_bytes)
     header.nonce = 0
     with pytest.raises(BTClibValueError, match="invalid nonce: "):
         header.assert_valid()
 
-    header = BlockHeader.deserialize(header_bytes)
+    header = BlockHeader.parse(header_bytes)
     header.nonce += 1
     with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
         header.assert_valid()
@@ -127,7 +127,7 @@ def test_block_170() -> None:
     with open(filename, "rb") as file_:
         block_bytes = file_.read()
 
-    block = Block.deserialize(block_bytes)
+    block = Block.parse(block_bytes)
     assert len(block.transactions) == 2
     assert block.size == 490
     assert block.weight == 1636
@@ -158,7 +158,7 @@ def test_block_200000() -> None:
     with open(filename, "rb") as file_:
         block_bytes = file_.read()
 
-    block = Block.deserialize(block_bytes)
+    block = Block.parse(block_bytes)
     assert len(block.transactions) == 388
     assert block.size == 247_533
     assert block.weight == 989_800
@@ -202,7 +202,7 @@ def test_block_481824() -> None:
         with open(filename, "rb") as file_:
             block_bytes = file_.read()
 
-        block = Block.deserialize(block_bytes)
+        block = Block.parse(block_bytes)
         assert len(block.transactions) == 1866
         assert block.height == 481_824
         assert block.serialize() == block_bytes
@@ -242,7 +242,7 @@ def test_dataclasses_json_dict() -> None:
         block = binfile_.read()
 
     # dataclass
-    block_data = Block.deserialize(block)
+    block_data = Block.parse(block)
     assert isinstance(block_data, Block)
 
     # dict
@@ -261,7 +261,7 @@ def test_dataclasses_json_dict() -> None:
     block_header = block_data.header.serialize()
 
     # dataclass
-    block_header_data = BlockHeader.deserialize(block_header)
+    block_header_data = BlockHeader.parse(block_header)
     assert isinstance(block_header_data, BlockHeader)
 
     # dict

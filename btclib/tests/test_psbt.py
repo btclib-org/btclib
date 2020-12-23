@@ -381,7 +381,7 @@ def test_encode_serialize() -> None:
     psbt_serialized = bytes.fromhex(
         "70736274ff01009a020000000258e87a21b56daf0c23be8e7070456c336f7cbaa5c8757924f545887bb2abdd750000000000ffffffff838d0427d0ec650a68aa46bb0b098aea4422c071b2ca78352a077959d07cea1d0100000000ffffffff0270aaf00800000000160014d85c2b71d0060b09c9886aeb815e50991dda124d00e1f5050000000016001400aea9a2e5f0f876a588df5546e8742d1d87008f000000000000000000"
     )
-    assert psbt == Psbt.deserialize(psbt_serialized)
+    assert psbt == Psbt.parse(psbt_serialized)
     assert psbt_serialized == psbt.serialize()
 
 
@@ -453,7 +453,7 @@ def test_exceptions() -> None:
     psbt_bin = psbt_bin.replace(PSBT_SEPARATOR, PSBT_DELIMITER)
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match="malformed psbt: missing separator"):
-        Psbt.deserialize(psbt_bin)
+        Psbt.parse(psbt_bin)
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.inputs.pop()

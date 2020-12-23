@@ -25,47 +25,47 @@ def test_var_int_conversion() -> None:
     int_ = 0x00
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 1
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ += 1
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 1
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ = 0xFC
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 1
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ += 1
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 3
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ = 0xFFFF
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 3
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ += 1
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 5
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ = 0xFFFFFFFF
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 5
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ += 1
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 9
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ = 0xFFFFFFFFFFFFFFFF
     bytes_ = var_int.serialize(int_)
     assert len(bytes_) == 9
-    assert var_int.deserialize(bytes_) == int_
+    assert var_int.parse(bytes_) == int_
 
     int_ += 1
     with pytest.raises(
@@ -73,6 +73,6 @@ def test_var_int_conversion() -> None:
     ):
         var_int.serialize(int_)
 
-    assert var_int.deserialize("6a") == 106
-    assert var_int.deserialize("fd2602") == 550
-    assert var_int.deserialize("fe703a0f00") == 998000
+    assert var_int.parse("6a") == 106
+    assert var_int.parse("fd2602") == 550
+    assert var_int.parse("fe703a0f00") == 998000

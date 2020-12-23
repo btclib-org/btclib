@@ -29,7 +29,7 @@ def test_tx_out() -> None:
     assert tx_out.address == ""
     assert tx_out.nValue == tx_out.value
     assert tx_out.scriptPubKey == tx_out.script_pub_key
-    assert tx_out == TxOut.deserialize(tx_out.serialize())
+    assert tx_out == TxOut.parse(tx_out.serialize())
 
     value = 3259343370
     script_ = bytes.fromhex(
@@ -44,7 +44,7 @@ def test_tx_out() -> None:
     assert tx_out.address == addr
     assert tx_out.nValue == tx_out.value
     assert tx_out.scriptPubKey == tx_out.script_pub_key
-    assert tx_out == TxOut.deserialize(tx_out.serialize())
+    assert tx_out == TxOut.parse(tx_out.serialize())
     assert tx_out == TxOut.from_address(tx_out.value, tx_out.address)
 
 
@@ -72,7 +72,7 @@ def test_dataclasses_json_dict() -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "test_data", fname)
     with open(filename, "rb") as binary_file_:
-        temp = Tx.deserialize(binary_file_.read())
+        temp = Tx.parse(binary_file_.read())
 
     tx_out_data = temp.vout[0]
 

@@ -43,8 +43,8 @@ def test_signature() -> None:
     sig = ssa.sign(msg, q)
     ssa.assert_as_valid(msg, x_Q, sig)
     assert ssa.verify(msg, x_Q, sig)
-    assert sig == ssa.Sig.deserialize(sig.serialize())
-    assert sig == ssa.Sig.deserialize(sig.serialize().hex())
+    assert sig == ssa.Sig.parse(sig.serialize())
+    assert sig == ssa.Sig.parse(sig.serialize().hex())
 
     msg_fake = "Craig Wright".encode()
     assert not ssa.verify(msg_fake, x_Q, sig)
@@ -126,7 +126,7 @@ def test_bip340_vectors() -> None:
                     k = ssa.det_nonce_(m, seckey, aux_rand)
                     sig_actual = ssa.sign_(m, seckey, k)
                     ssa.assert_as_valid_(m, pub_key, sig_actual)
-                    assert ssa.Sig.deserialize(sig) == sig_actual, err_msg
+                    assert ssa.Sig.parse(sig) == sig_actual, err_msg
 
                 if comment:
                     err_msg += ": " + comment

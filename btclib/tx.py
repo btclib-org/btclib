@@ -222,9 +222,7 @@ class Tx(DataClassJsonMixin):
         )
 
     @classmethod
-    def deserialize(
-        cls: Type[_Tx], data: BinaryData, check_validity: bool = True
-    ) -> _Tx:
+    def parse(cls: Type[_Tx], data: BinaryData, check_validity: bool = True) -> _Tx:
         "Return a Tx by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
@@ -236,15 +234,15 @@ class Tx(DataClassJsonMixin):
             # Change stream position: seek to byte offset relative to position
             stream.seek(-2, SEEK_CUR)  # current position
 
-        n = var_int.deserialize(stream)
-        vin = [TxIn.deserialize(stream) for _ in range(n)]
+        n = var_int.parse(stream)
+        vin = [TxIn.parse(stream) for _ in range(n)]
 
-        n = var_int.deserialize(stream)
-        vout = [TxOut.deserialize(stream) for _ in range(n)]
+        n = var_int.parse(stream)
+        vout = [TxOut.parse(stream) for _ in range(n)]
 
         if segwit:
             for tx_in in vin:
-                tx_in.script_witness = Witness.deserialize(stream, check_validity)
+                tx_in.script_witness = Witness.parse(stream, check_validity)
 
         lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 

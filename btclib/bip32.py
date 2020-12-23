@@ -169,7 +169,7 @@ class BIP32KeyData(DataClassJsonMixin):
         return base58.b58encode(data_binary).decode("ascii")
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_BIP32KeyData], xkey_bin: BinaryData, check_validity: bool = True
     ) -> _BIP32KeyData:
         "Return a BIP32KeyData by parsing 73 bytes from binary data."
@@ -202,7 +202,7 @@ class BIP32KeyData(DataClassJsonMixin):
 
         xkey_bin = base58.b58decode(address)
         # pylance cannot grok the following line
-        return cls.deserialize(xkey_bin, check_validity)  # type: ignore
+        return cls.parse(xkey_bin, check_validity)  # type: ignore
 
 
 def _rootxprv_from_seed(

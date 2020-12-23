@@ -55,7 +55,7 @@ def assert_valid_hash_type(hash_type: int) -> None:
 def _legacy_script(script_pub_key: Octets) -> List[bytes]:
     script_s: List[bytes] = []
     current_script: List[script.ScriptToken] = []
-    for token in script.deserialize(script_pub_key)[::-1]:
+    for token in script.parse(script_pub_key)[::-1]:
         if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(script.serialize(current_script[::-1]))
         else:
@@ -73,7 +73,7 @@ def _witness_v0_script(script_pub_key: Octets) -> List[bytes]:
 
     script_s: List[bytes] = []
     current_script: List[script.ScriptToken] = []
-    for token in script.deserialize(script_pub_key)[::-1]:
+    for token in script.parse(script_pub_key)[::-1]:
         if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(script.serialize(current_script[::-1]))
         current_script.append(token)

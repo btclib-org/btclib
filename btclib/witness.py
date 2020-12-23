@@ -52,12 +52,12 @@ class Witness(DataClassJsonMixin):
         return out + b"".join([var_bytes.serialize(w) for w in self.stack])
 
     @classmethod
-    def deserialize(
+    def parse(
         cls: Type[_TxInWitness], data: BinaryData, check_validity: bool = True
     ) -> _TxInWitness:
         "Return a Witness by parsing binary data."
 
         data = bytesio_from_binarydata(data)
-        n = var_int.deserialize(data)
-        stack = [var_bytes.deserialize(data) for _ in range(n)]
+        n = var_int.parse(data)
+        stack = [var_bytes.parse(data) for _ in range(n)]
         return cls(stack, check_validity)
