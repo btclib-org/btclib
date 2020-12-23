@@ -38,7 +38,7 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 from hashlib import pbkdf2_hmac, sha256
 from typing import Optional
 
-from btclib.bip32 import rootxprv_from_seed
+from btclib import bip32
 from btclib.entropy import (
     BinStr,
     Entropy,
@@ -150,4 +150,4 @@ def mxprv_from_mnemonic(
 
     seed = seed_from_mnemonic(mnemonic, passphrase or "")
     version = NETWORKS[network].bip32_prv
-    return rootxprv_from_seed(seed, version)
+    return bip32.rootxprv_from_seed(seed, version)
