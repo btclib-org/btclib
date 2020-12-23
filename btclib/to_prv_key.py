@@ -156,9 +156,9 @@ def _prv_keyinfo_from_xprv(
 
     allowed_versions = xprvversions_from_network(network)
     if xprv.version not in allowed_versions:
-        m = f"not a {network} key: "
-        m += f"{xprv.b58encode()}"
-        raise BTClibValueError(m)
+        err_msg = f"not a {network} key: "
+        err_msg += f"{xprv.b58encode()}"
+        raise BTClibValueError(err_msg)
 
     q = int.from_bytes(xprv.key[1:], byteorder="big")
     return q, network, True

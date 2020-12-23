@@ -124,19 +124,19 @@ def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
 
     result = _b58decode(v)
     if len(result) < 4:
-        m = "not enough bytes for checksum, "
-        m += f"invalid base58 decoded size: {len(result)}"
-        raise BTClibValueError(m)
+        err_msg = "not enough bytes for checksum, "
+        err_msg += f"invalid base58 decoded size: {len(result)}"
+        raise BTClibValueError(err_msg)
 
     result, checksum = result[:-4], result[-4:]
     h256 = hash256(result)
     if checksum != h256[:4]:
-        m = f"invalid checksum: 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
-        raise BTClibValueError(m)
+        err_msg = f"invalid checksum: 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
+        raise BTClibValueError(err_msg)
 
     if out_size is None or len(result) == out_size:
         return result
 
-    m = "valid checksum, invalid decoded size: "
-    m += f"{len(result)} bytes instead of {out_size}"
-    raise BTClibValueError(m)
+    err_msg = "valid checksum, invalid decoded size: "
+    err_msg += f"{len(result)} bytes instead of {out_size}"
+    raise BTClibValueError(err_msg)

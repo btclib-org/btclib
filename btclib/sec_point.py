@@ -48,9 +48,9 @@ def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
     bsize = len(pub_key)  # bytes
     if pub_key[0] in (0x02, 0x03):  # compressed point
         if bsize != ec.p_size + 1:
-            msg = "invalid size for compressed point: "
-            msg += f"{bsize} instead of {ec.p_size + 1}"
-            raise BTClibValueError(msg)
+            err_msg = "invalid size for compressed point: "
+            err_msg += f"{bsize} instead of {ec.p_size + 1}"
+            raise BTClibValueError(err_msg)
         x_Q = int.from_bytes(pub_key[1:], byteorder="big")
         try:
             y_Q = ec.y_even(x_Q)  # also check x_Q validity
@@ -60,9 +60,9 @@ def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
             raise BTClibValueError(msg) from e
     elif pub_key[0] == 0x04:  # uncompressed point
         if bsize != 2 * ec.p_size + 1:
-            msg = "invalid size for uncompressed point: "
-            msg += f"{bsize} instead of {2 * ec.p_size + 1}"
-            raise BTClibValueError(msg)
+            err_msg = "invalid size for uncompressed point: "
+            err_msg += f"{bsize} instead of {2 * ec.p_size + 1}"
+            raise BTClibValueError(err_msg)
         x_Q = int.from_bytes(pub_key[1 : ec.p_size + 1], byteorder="big", signed=False)
         Q = x_Q, int.from_bytes(pub_key[ec.p_size + 1 :], byteorder="big", signed=False)
         if Q[1] == 0:  # infinity point in affine coordinates

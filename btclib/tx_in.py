@@ -53,9 +53,9 @@ class OutPoint(DataClassJsonMixin):
 
     def assert_valid(self) -> None:
         if len(self.tx_id) != 32:
-            m = f"invalid OutPoint tx_id: {len(self.tx_id)}"
-            m += " instead of 32 bytes"
-            raise BTClibValueError(m)
+            err_msg = f"invalid OutPoint tx_id: {len(self.tx_id)}"
+            err_msg += " instead of 32 bytes"
+            raise BTClibValueError(err_msg)
         # must be a 4-bytes int
         if not 0 <= self.vout <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid vout: {self.vout}")

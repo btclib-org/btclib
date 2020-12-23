@@ -62,9 +62,9 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> Tuple[str, str]:
     if s.startswith(_MNEMONIC_VERSIONS["2fa_segwit"]):
         return "2fa_segwit", mnemonic
 
-    m = f"unknown electrum mnemonic version: '{s[:3]}'; "
-    m += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
-    raise BTClibValueError(m)
+    err_msg = f"unknown electrum mnemonic version: '{s[:3]}'; "
+    err_msg += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
+    raise BTClibValueError(err_msg)
 
 
 def mnemonic_from_entropy(

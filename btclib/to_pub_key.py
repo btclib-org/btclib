@@ -137,9 +137,9 @@ def _pub_keyinfo_from_xpub(
 
     allowed_versions = xpubversions_from_network(network)
     if xpub.version not in allowed_versions:
-        m = f"Not a {network} key: "
-        m += f"{xpub.b58encode()}"
-        raise BTClibValueError(m)
+        err_msg = f"Not a {network} key: "
+        err_msg += f"{xpub.b58encode()}"
+        raise BTClibValueError(err_msg)
 
     return xpub.key, network
 
