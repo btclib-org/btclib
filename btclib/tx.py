@@ -47,7 +47,7 @@ _Tx = TypeVar("_Tx", bound="Tx")
 class Tx(DataClassJsonMixin):
     # private data members are used only for to_dict
     # use the corresponding public properties instead
-    _tx_id: bytes = field(
+    _id: bytes = field(
         default=b"",
         init=False,
         repr=False,
@@ -122,7 +122,7 @@ class Tx(DataClassJsonMixin):
         )
 
     def _set_properties(self) -> None:
-        self._tx_id = self.tx_id
+        self._id = self.id
         self._hash = self.hash
         self._size = self.size
         self._vsize = self.vsize
@@ -143,23 +143,33 @@ class Tx(DataClassJsonMixin):
         return self.lock_time
 
     @property
-    def tx_id(self) -> bytes:
+    def id(self) -> bytes:
+        "Return the transaction id."
         serialized_ = self.serialize(include_witness=False, check_validity=False)
         hash256_ = hash256(serialized_)
         return hash256_[::-1]
 
     @property
     def hash(self) -> bytes:
+        """Return the transaction hash.
+
+        It differs from tx_id for witness transactions.
+        """
         serialized_ = self.serialize(include_witness=True, check_validity=False)
         hash256_ = hash256(serialized_)
         return hash256_[::-1]
 
     @property
     def size(self) -> int:
+        "Return the transaction size."
         return len(self.serialize(include_witness=True, check_validity=False))
 
     @property
     def vsize(self) -> int:
+        """Return the virtual transaction size.
+
+        It differs from size for witness transactions.
+        """
         return ceil(self.weight / 4)
 
     @property

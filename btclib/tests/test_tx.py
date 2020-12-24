@@ -36,10 +36,10 @@ def test_tx() -> None:
     assert not tx.vout
     assert tx.nVersion == tx.version
     assert tx.nLockTime == tx.lock_time
-    assert tx.tx_id == bytes.fromhex(
+    assert tx.id == bytes.fromhex(
         "d21633ba23f70118185227be58a63527675641ad37967e2aa461559f577aec43"
-    ), tx.tx_id.hex()
-    assert tx.hash == tx.tx_id
+    ), tx.id.hex()
+    assert tx.hash == tx.id
     assert tx.size == 10
     assert tx.vsize == tx.size
     assert tx.weight == tx.size * 4
@@ -85,10 +85,10 @@ def test_tx() -> None:
     assert len(tx.vout) == 2
     assert tx.nVersion == tx.version
     assert tx.nLockTime == tx.lock_time
-    assert tx.tx_id == bytes.fromhex(
+    assert tx.id == bytes.fromhex(
         "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
-    ), tx.tx_id.hex()
-    assert tx.hash == tx.tx_id
+    ), tx.id.hex()
+    assert tx.hash == tx.id
     assert tx.size == 126
     assert tx.vsize == tx.size
     assert tx.weight == tx.size * 4
@@ -122,9 +122,9 @@ def test_tx() -> None:
     assert len(tx.vout) == 2
     assert tx.nVersion == tx.version
     assert tx.nLockTime == tx.lock_time
-    assert tx.tx_id == bytes.fromhex(
+    assert tx.id == bytes.fromhex(
         "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
-    ), tx.tx_id.hex()
+    ), tx.id.hex()
     assert tx.hash == bytes.fromhex(
         "d39eb3e3954be4bdc0b3be2d980124b1e1e11fb414b886b52939b07d95a58a8f"
     ), tx.hash.hex()
@@ -178,10 +178,10 @@ def test_genesis_block() -> None:
     assert tx.vin[0].script_sig == transaction_in.script_sig
     assert tx.vout[0].script_pub_key == transaction_out.script_pub_key
 
-    assert tx.tx_id == bytes.fromhex(
+    assert tx.id == bytes.fromhex(
         "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
     )
-    assert tx.tx_id == tx.hash
+    assert tx.id == tx.hash
 
     assert tx.size == 134
     assert tx.vsize == tx.size
@@ -205,10 +205,10 @@ def test_wiki_transaction() -> None:
     assert tx.vout[0].value == 5000000
     assert tx.vout[1].value == 3354000000
 
-    assert tx.tx_id == bytes.fromhex(
+    assert tx.id == bytes.fromhex(
         "d4a73f51ab7ee7acb4cf0505d1fab34661666c461488e58ec30281e2becd93e2"
     )
-    assert tx.hash == tx.tx_id
+    assert tx.hash == tx.id
     assert tx.size == 258
     assert tx.vsize == tx.size
     assert tx.weight == tx.size * 4
@@ -238,7 +238,7 @@ def test_single_witness() -> None:
     witness = Witness([bytes_from_octets(v) for v in stack])
     assert tx.vin[0].script_witness == witness
 
-    assert tx.tx_id == bytes.fromhex(
+    assert tx.id == bytes.fromhex(
         "4e52f7848dab7dd89ef7ba477939574198a170bfcb2fb34355c69f5e0169f63c"
     )
     assert tx.hash == bytes.fromhex(
@@ -276,7 +276,7 @@ def test_double_witness() -> None:
     witness2 = Witness([bytes_from_octets(v) for v in stack2])
     assert tx.vin[1].script_witness == witness2
 
-    assert tx.tx_id == bytes.fromhex(
+    assert tx.id == bytes.fromhex(
         "a4b76807519aba5740f7865396bc4c5ca0eb8aa7c3744ca2db88fcc9e345424c"
     )
     assert tx.hash == bytes.fromhex(

@@ -118,7 +118,7 @@ class Psbt(DataClassJsonMixin):
 
         if any(
             psbt_in.non_witness_utxo
-            and psbt_in.non_witness_utxo.tx_id != tx_in.prev_out.tx_id
+            and psbt_in.non_witness_utxo.id != tx_in.prev_out.tx_id
             for psbt_in, tx_in in zip(self.inputs, self.tx.vin)
         ):
             err_msg = "mismatched non-witness utxo / outpoint tx_id"
@@ -348,10 +348,10 @@ def _combine_field(
 
 def combine_psbts(psbts: List[Psbt]) -> Psbt:
     final_psbt = psbts[0]
-    tx_id = psbts[0].tx.tx_id
+    tx_id = psbts[0].tx.id
     for psbt in psbts[1:]:
-        if psbt.tx.tx_id != tx_id:
-            raise BTClibValueError(f"mismatched psbt.tx.tx_id: {psbt.tx.tx_id.hex()}")
+        if psbt.tx.id != tx_id:
+            raise BTClibValueError(f"mismatched psbt.tx.id: {psbt.tx.id.hex()}")
 
     final_psbt.version = max(psbt.version for psbt in psbts)
     for psbt in psbts[1:]:

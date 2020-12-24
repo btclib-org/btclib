@@ -122,7 +122,7 @@ def test_psbt_combination() -> None:
 
     # get the wrong tx_id
     psbt1.tx.lock_time = psbt1.tx.lock_time ^ 12345678
-    err_msg = "mismatched psbt.tx.tx_id: "
+    err_msg = "mismatched psbt.tx.id: "
     # TODO: add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         combine_psbts([psbt1, psbt2])
@@ -296,7 +296,7 @@ def test_valid_sign_2() -> None:
     assert psbt.inputs[0].witness_utxo is not None
     # pylance cannot grok the following line, even considering the above line
     transaction = Tx(1, 2, [transaction_input], [psbt.inputs[0].witness_utxo])  # type: ignore
-    psbt.tx.vin[0].prev_out.tx_id = transaction.tx_id
+    psbt.tx.vin[0].prev_out.tx_id = transaction.id
     psbt.inputs[0].non_witness_utxo = transaction
     psbt.assert_signable()
 
