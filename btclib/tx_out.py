@@ -23,24 +23,18 @@ from btclib.script_pub_key_address import (
     script_pub_key_from_address,
 )
 from btclib.utils import bytesio_from_binarydata
-
-MAX_SATOSHI = 2_099_999_997_690_000
-SAT_PER_COIN = 100_000_000
+from btclib.amount import MAX_SATOSHI, btc_from_sats, sats_from_btc
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")
 
 
 @dataclass
 class TxOut(DataClassJsonMixin):
-    # FIXME make it BTC, not sat
-    # value: int = field(
-    #    metadata=config(
-    #        encoder=lambda v: str(v / SAT_PER_COIN),
-    #        decoder=lambda v: int(float(v) * SAT_PER_COIN),
-    #    )
-    # )
     # 8 bytes, unsigned little endian
-    value: int = 0  # satoshis
+    value: int = field(  # denominated in satoshi
+        default=0,
+        metadata=config(encoder=lambda v: str(btc_from_sats(v)), decoder=sats_from_btc),
+    )
     # FIXME: make it
     # "script_pub_key": {
     #    "asm": "0 d85c2b71d0060b09c9886aeb815e50991dda124d",
@@ -109,7 +103,7 @@ class TxOut(DataClassJsonMixin):
         if self.value < 0:
             raise BTClibValueError(f"negative value: {self.value}")
         if self.value > MAX_SATOSHI:
-            raise BTClibValueError(f"value too high: {hex(self.value)}")
+            raise BTClibValueError(f"too many satoshis: {hex(self.value)}")
 
         self._set_properties()
 

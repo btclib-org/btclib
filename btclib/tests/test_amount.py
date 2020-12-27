@@ -10,19 +10,45 @@
 
 "Tests for the `btclib.amount` module."
 
-from btclib import amount
+from decimal import Decimal
+
+import pytest
+
+from btclib.amount import MAX_BITCOIN, MAX_SATOSHI, btc_from_sats, sats_from_btc
+from btclib.exceptions import BTClibValueError
 
 
-def test_amount_conversion() -> None:
-    v1 = 1.1
-    v2 = 2.2
-    vtot = v1 + v2
+def test_conversions() -> None:
+    float_1 = 1.1
+    float_2 = 2.2
+    float_tot = float_1 + float_2
     # _NOT_ equal !!
-    assert vtot != 3.3
-    s_1 = amount.sat_from_float(v1)
-    s_2 = amount.sat_from_float(v2)
-    stot = s_1 + s_2
-    assert stot == 330000000
-    vtot = amount.float_from_sat(stot)
+    assert float_tot != 3.3
+
+    sats_1 = sats_from_btc(float_1)
+    sats_2 = sats_from_btc(float_2)
+    sats_tot = sats_1 + sats_2
     # equal !!
-    assert vtot == 3.3
+    assert btc_from_sats(sats_tot) == Decimal("3.3")
+
+    btc_1 = Decimal("1.1")
+    btc_2 = Decimal("2.2")
+    btc_tot = btc_1 + btc_2
+    # _NOT_ equal !!
+    assert btc_tot == Decimal("3.3")
+
+    with pytest.raises(BTClibValueError, match="too many satoshis: "):
+        btc_from_sats(MAX_SATOSHI + 1)
+
+    with pytest.raises(BTClibValueError, match="btc amount is too big: "):
+        sats_from_btc(MAX_BITCOIN + Decimal("0.00000001"))
+
+    # must not raise Exception, even if the float representation
+    # of the corresponding satoshi amount is 850492427.9999999
+    sats_from_btc(Decimal("8.50492428"))
+
+    err_msg = "too many decimals for a BTC amount: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sats_from_btc(Decimal("0.123456789"))
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sats_from_btc(0.123456789)

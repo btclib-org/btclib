@@ -55,7 +55,7 @@ def test_invalid_tx_out() -> None:
         tx_out.assert_valid()
 
     tx_out = TxOut(MAX_SATOSHI + 1, script_pub_key, check_validity=False)
-    with pytest.raises(BTClibValueError, match="value too high: "):
+    with pytest.raises(BTClibValueError, match="too many satoshis: "):
         tx_out.assert_valid()
 
 
