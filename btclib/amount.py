@@ -27,13 +27,15 @@ from typing import Any
 
 from btclib.exceptions import BTClibValueError
 
-BITCOIN_PER_SATOSHI = decimal.Decimal("0.00000001")
-SATOSHI_PER_BITCOIN = 100_000_000
-
-MAX_BITCOIN = decimal.Decimal("20_999_999.9769")
-MAX_SATOSHI = 2_099_999_997_690_000
-
 decimal.getcontext().traps[decimal.FloatOperation] = True
+
+# do not import _SATOSHI_PER_BITCOIN and _BITCOIN_PER_SATOSHI
+# instead, better use sats_from_btc and btc_from_sats
+_SATOSHI_PER_BITCOIN = 100_000_000
+_BITCOIN_PER_SATOSHI = decimal.Decimal("0.00000001")
+
+MAX_SATOSHI = 2_099_999_997_690_000
+MAX_BITCOIN = decimal.Decimal("20_999_999.9769")
 
 
 def sats_from_btc(amount: Any) -> int:
@@ -44,7 +46,7 @@ def sats_from_btc(amount: Any) -> int:
     btc = decimal.Decimal(amount)
     if abs(btc) > MAX_BITCOIN:
         raise BTClibValueError(f"invalid btc amount: {amount}")
-    sats = btc * SATOSHI_PER_BITCOIN
+    sats = btc * _SATOSHI_PER_BITCOIN
     if int(sats) == round(sats):
         return int(sats)
     raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
@@ -56,4 +58,4 @@ def btc_from_sats(sats: int) -> decimal.Decimal:
         raise BTClibValueError(f"invalid number of satoshis: {sats}")
     # normalize() strips the rightmost trailing zeros
     # and produces canonical values for attributes of an equivalence class
-    return (sats * BITCOIN_PER_SATOSHI).normalize()
+    return (sats * _BITCOIN_PER_SATOSHI).normalize()
