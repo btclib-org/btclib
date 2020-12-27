@@ -37,18 +37,49 @@ def test_conversions() -> None:
     # _NOT_ equal !!
     assert btc_tot == Decimal("3.3")
 
-    with pytest.raises(BTClibValueError, match="too many satoshis: "):
+
+def test_exceptions() -> None:
+
+    with pytest.raises(BTClibValueError, match="invalid number of satoshis: "):
         btc_from_sats(MAX_SATOSHI + 1)
+    with pytest.raises(BTClibValueError, match="invalid number of satoshis: "):
+        btc_from_sats(-MAX_SATOSHI - 1)
 
-    with pytest.raises(BTClibValueError, match="btc amount is too big: "):
+    with pytest.raises(BTClibValueError, match="invalid btc amount: "):
         sats_from_btc(MAX_BITCOIN + Decimal("0.00000001"))
-
-    # must not raise Exception, even if the float representation
-    # of the corresponding satoshi amount is 850492427.9999999
-    sats_from_btc(Decimal("8.50492428"))
+    with pytest.raises(BTClibValueError, match="invalid btc amount: "):
+        sats_from_btc(-MAX_BITCOIN - Decimal("0.00000001"))
 
     err_msg = "too many decimals for a BTC amount: "
     with pytest.raises(BTClibValueError, match=err_msg):
         sats_from_btc(Decimal("0.123456789"))
     with pytest.raises(BTClibValueError, match=err_msg):
         sats_from_btc(0.123456789)
+
+
+def test_self_consistency() -> None:
+
+    # "8.50492428" must not raise Exception, even if the float representation
+    # of the corresponding satoshi amount is 850492427.9999999
+    cases = ("0", "0e0", "32.100", "0.321000e+2", "0.12345678", "8.50492428", "-0.1234")
+    for string_amount in cases:
+        btc = Decimal(string_amount).normalize()
+        assert btc_from_sats(sats_from_btc(string_amount)) == btc
+        assert btc_from_sats(sats_from_btc(Decimal(string_amount))) == btc
+
+
+def test_normalization() -> None:
+
+    assert btc_from_sats(10000) == Decimal("0.00010000")
+    assert str(btc_from_sats(10000)) != str(Decimal("0.00010000"))
+    assert str(btc_from_sats(10000)) == str(Decimal("0.00010000").normalize())
+
+    assert btc_from_sats(10000) == Decimal("0.0001")
+    assert str(btc_from_sats(10000)) == str(Decimal("0.0001"))
+
+    assert btc_from_sats(-10000) == Decimal("-0.00010000")
+    assert str(btc_from_sats(-10000)) != str(Decimal("-0.00010000"))
+    assert str(btc_from_sats(-10000)) == str(Decimal("-0.00010000").normalize())
+
+    assert btc_from_sats(-10000) == Decimal("-0.0001")
+    assert str(btc_from_sats(-10000)) == str(Decimal("-0.0001"))

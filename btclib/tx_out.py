@@ -16,6 +16,7 @@ from dataclasses_json.core import Json
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, String
+from btclib.amount import MAX_SATOSHI, btc_from_sats, sats_from_btc
 from btclib.exceptions import BTClibValueError
 from btclib.script_pub_key import payload_from_script_pub_key
 from btclib.script_pub_key_address import (
@@ -23,7 +24,6 @@ from btclib.script_pub_key_address import (
     script_pub_key_from_address,
 )
 from btclib.utils import bytesio_from_binarydata
-from btclib.amount import MAX_SATOSHI, btc_from_sats, sats_from_btc
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")
 

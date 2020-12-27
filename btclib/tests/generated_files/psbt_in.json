@@ -22,14 +22,14 @@
         ],
         "vout": [
             {
-                "value": "0.50000000",
+                "value": "0.5",
                 "scriptPubKey": "a9140fb9463421696b82c833af241c78c17ddbde493487",
                 "type": "p2sh",
                 "network": "mainnet",
                 "address": "338A1VzFsJXQAiJHeZDzwCvmSv4t1CoYkY"
             },
             {
-                "value": "49.49996240",
+                "value": "49.4999624",
                 "scriptPubKey": "a91429ca74f8a08f81999428185c97b5d852e4063f6187",
                 "type": "p2sh",
                 "network": "mainnet",

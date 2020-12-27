@@ -22,33 +22,38 @@ The provided functions handle conversion between
 satoshi amounts (sats) and Decimal/float values.
 """
 
-from decimal import Decimal, FloatOperation, getcontext
-from typing import Union
+import decimal
+from typing import Any
 
 from btclib.exceptions import BTClibValueError
 
-BITCOIN_PER_SATOSHI = Decimal("0.00000001")
+BITCOIN_PER_SATOSHI = decimal.Decimal("0.00000001")
 SATOSHI_PER_BITCOIN = 100_000_000
 
-MAX_BITCOIN = Decimal("20_999_999.97690000")
+MAX_BITCOIN = decimal.Decimal("20_999_999.9769")
 MAX_SATOSHI = 2_099_999_997_690_000
 
-getcontext().traps[FloatOperation] = True
+decimal.getcontext().traps[decimal.FloatOperation] = True
 
 
-def sats_from_btc(amount: Union[float, Decimal]) -> int:
+def sats_from_btc(amount: Any) -> int:
     "Return the satoshi equivalent of the provided BTC amount."
-    btc = Decimal(str(amount))
-    if btc > MAX_BITCOIN:
-        raise BTClibValueError(f"btc amount is too big: {amount}")
+    # any input that can be converted to str is fine
+    amount = str(amount)
+    # using str avoids the decimal.FloatOperation exception
+    btc = decimal.Decimal(amount)
+    if abs(btc) > MAX_BITCOIN:
+        raise BTClibValueError(f"invalid btc amount: {amount}")
     sats = btc * SATOSHI_PER_BITCOIN
     if int(sats) == round(sats):
         return int(sats)
     raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
 
 
-def btc_from_sats(sats: int) -> Decimal:
+def btc_from_sats(sats: int) -> decimal.Decimal:
     "Return the BTC Decimal equivalent of the provided satoshi amount."
-    if sats > MAX_SATOSHI:
-        raise BTClibValueError(f"too many satoshis: {sats}")
-    return sats * BITCOIN_PER_SATOSHI
+    if abs(sats) > MAX_SATOSHI:
+        raise BTClibValueError(f"invalid number of satoshis: {sats}")
+    # normalize() strips the rightmost trailing zeros
+    # and produces canonical values for attributes of an equivalence class
+    return (sats * BITCOIN_PER_SATOSHI).normalize()
