@@ -43,6 +43,20 @@ def test_conversions() -> None:
             # _NOT_ equal !!
             assert btc_tot == Decimal("3.3")
 
+            assert btc_from_sats(10000) == Decimal("0.00010000")
+            assert str(btc_from_sats(10000)) != str(Decimal("0.00010000"))
+            assert str(btc_from_sats(10000)) == str(Decimal("0.00010000").normalize())
+
+            assert btc_from_sats(10000) == Decimal("0.0001")
+            assert str(btc_from_sats(10000)) == str(Decimal("0.0001"))
+
+            assert btc_from_sats(-10000) == Decimal("-0.00010000")
+            assert str(btc_from_sats(-10000)) != str(Decimal("-0.00010000"))
+            assert str(btc_from_sats(-10000)) == str(Decimal("-0.00010000").normalize())
+
+            assert btc_from_sats(-10000) == Decimal("-0.0001")
+            assert str(btc_from_sats(-10000)) == str(Decimal("-0.0001"))
+
 
 def test_exceptions() -> None:
 
@@ -98,20 +112,4 @@ def test_self_consistency() -> None:
             for btc_amount in cases:
                 btc = Decimal(str(btc_amount)).normalize()
                 assert btc_from_sats(sats_from_btc(btc_amount)) == btc
-
-
-def test_normalization() -> None:
-
-    assert btc_from_sats(10000) == Decimal("0.00010000")
-    assert str(btc_from_sats(10000)) != str(Decimal("0.00010000"))
-    assert str(btc_from_sats(10000)) == str(Decimal("0.00010000").normalize())
-
-    assert btc_from_sats(10000) == Decimal("0.0001")
-    assert str(btc_from_sats(10000)) == str(Decimal("0.0001"))
-
-    assert btc_from_sats(-10000) == Decimal("-0.00010000")
-    assert str(btc_from_sats(-10000)) != str(Decimal("-0.00010000"))
-    assert str(btc_from_sats(-10000)) == str(Decimal("-0.00010000").normalize())
-
-    assert btc_from_sats(-10000) == Decimal("-0.0001")
-    assert str(btc_from_sats(-10000)) == str(Decimal("-0.0001"))
+                assert str(btc_from_sats(sats_from_btc(btc_amount))) == str(btc)
