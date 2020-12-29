@@ -24,8 +24,8 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(),
     include_package_data=True,
-    package_data={"btclib": ["data/*", "tests/test_data/*", "py.typed"]},
-    test_suite="btclib.tests",
+    package_data={"btclib": ["_data/*", "ecc/_data/*", "mnemonic/_data/*", "py.typed"]},
+    # test_suite="btclib.tests",
     install_requires=[
         "backports-datetime-fromisoformat>=1.0.0; python_version<'3.7'",
         "dataclasses>=0.8; python_version<'3.7'",

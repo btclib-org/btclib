@@ -1,3 +1,8 @@
+# for python 3.6 only (backward compatibility)
 backports-datetime-fromisoformat>=1.0.0; python_version<'3.7'
 dataclasses>=0.8; python_version<'3.7'
+
 dataclasses-json>=0.5.2
+
+# for libsecp256k1
+coincurve

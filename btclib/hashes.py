@@ -16,7 +16,7 @@ import hashlib
 from typing import Optional, Tuple
 
 from btclib.alias import HashF, Octets
-from btclib.curve import Curve, secp256k1
+from btclib.ecc.curve import Curve, secp256k1
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, hash160, int_from_bits
 
@@ -65,6 +65,7 @@ def magic_message(msg: Octets) -> bytes:
     return hashlib.sha256(hashlib.sha256(t).digest()).digest()
 
 
+# FIXME move into ecc folder
 def challenge_(
     msg_hash: Octets, ec: Curve = secp256k1, hf: HashF = hashlib.sha256
 ) -> int:

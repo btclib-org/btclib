@@ -11,8 +11,9 @@
 from typing import Optional, Tuple, Union
 
 from btclib.alias import Point
-from btclib.bip32 import BIP32Key, BIP32KeyData
-from btclib.curve import Curve, mult, secp256k1
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
+from btclib.ecc.curve import Curve, mult, secp256k1
+from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.network import (
     NETWORKS,
@@ -20,7 +21,6 @@ from btclib.network import (
     network_from_xkeyversion,
     xpubversions_from_network,
 )
-from btclib.sec_point import bytes_from_point, point_from_octets
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.utils import bytes_from_octets
 

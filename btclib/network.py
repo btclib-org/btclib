@@ -18,7 +18,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from dataclasses_json import DataClassJsonMixin, config
 
-from btclib.curve import CURVES, Curve
+from btclib.ecc.curve import CURVES, Curve
 from btclib.exceptions import BTClibValueError
 
 _KEY_SIZE: List[Tuple[str, int]] = [
@@ -122,7 +122,7 @@ class Network(DataClassJsonMixin):
 
 
 NETWORKS: Dict[str, Network] = {}
-datadir = path.join(path.dirname(__file__), "data")
+datadir = path.join(path.dirname(__file__), "_data")
 for net in ("mainnet", "testnet", "regtest"):
     filename = path.join(datadir, net + ".json")
     with open(filename, "r") as f:

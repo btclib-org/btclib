@@ -10,7 +10,7 @@
 
 """Aliases
 
-mypy aliases, documenting also coding imput conventions.
+mypy aliases, documenting also coding input conventions.
 """
 
 from io import BytesIO
