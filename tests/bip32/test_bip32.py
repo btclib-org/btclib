@@ -164,18 +164,18 @@ def test_serialization() -> None:
 data_folder = path.join(path.dirname(__file__), "_data")
 
 
-def test_vectors() -> None:
+def test_bip32_vectors() -> None:
     """BIP32 test vectors
 
     https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
     """
     filename = path.join(data_folder, "bip32_test_vectors.json")
     with open(filename, "r") as file_:
-        bip32_test_vectors = json.load(file_)
+        test_vectors = json.load(file_)
 
-    for seed in bip32_test_vectors:
+    for seed in test_vectors:
         mxprv = rootxprv_from_seed(seed)
-        for der_path, xpub, xprv in bip32_test_vectors[seed]:
+        for der_path, xpub, xprv in test_vectors[seed]:
             assert xprv == derive(mxprv, der_path)
             assert xpub == xpub_from_xprv(xprv)
 
