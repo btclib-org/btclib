@@ -20,6 +20,11 @@ algebra with bitcoin amounts should never involve floats.
 
 The provided functions handle conversion between
 satoshi amounts (sats) and Decimal/float values.
+
+Amounts cannot be a negative value:
+the Bitcoin protocol and this library do not deal with negative amounts.
+The functions in this module could be easily amended
+(in a backward compatible way) in the future if such a need arises.
 """
 
 import decimal
@@ -34,8 +39,12 @@ decimal.getcontext().traps[decimal.FloatOperation] = True
 _SATOSHI_PER_BITCOIN = 100_000_000
 _BITCOIN_PER_SATOSHI = decimal.Decimal("0.00000001")
 
-MAX_SATOSHI = 2_099_999_997_690_000
-MAX_BITCOIN = decimal.Decimal("20_999_999.9769")
+# same suggestion for the following variables:
+# to check for max amount might be not enough;
+# instead, better use sats_from_btc and btc_from_sats
+# to ensure a valid amount
+_MAX_SATOSHI = 2_099_999_997_690_000
+_MAX_BITCOIN = decimal.Decimal("20_999_999.9769")
 
 
 def sats_from_btc(amount: Any) -> int:
@@ -45,7 +54,7 @@ def sats_from_btc(amount: Any) -> int:
     # using str avoids the decimal.FloatOperation exception
     # even if trapped by the context (which is the btclib default)
     btc = decimal.Decimal(amount)
-    if abs(btc) > MAX_BITCOIN:
+    if not 0 <= btc <= _MAX_BITCOIN:
         raise BTClibValueError(f"invalid BTC amount: {amount}")
     sats = btc * _SATOSHI_PER_BITCOIN
     if int(sats) == sats:
@@ -57,7 +66,7 @@ def btc_from_sats(sats: int) -> decimal.Decimal:
     "Return the BTC Decimal equivalent of the provided satoshi amount."
     if int(sats) != sats:
         raise BTClibTypeError(f"non-integer satoshi amount: {sats}")
-    if abs(sats) > MAX_SATOSHI:
+    if not 0 <= sats <= _MAX_SATOSHI:
         raise BTClibValueError(f"invalid satoshi amount: {sats}")
     # normalize() strips the rightmost trailing zeros
     # and produces canonical values for attributes of an equivalence class

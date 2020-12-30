@@ -15,7 +15,7 @@ from typing import List, Union
 
 import pytest
 
-from btclib.amount import MAX_BITCOIN, MAX_SATOSHI, btc_from_sats, sats_from_btc
+from btclib.amount import btc_from_sats, sats_from_btc
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
@@ -50,13 +50,6 @@ def test_conversions() -> None:
             assert btc_from_sats(10000) == Decimal("0.0001")
             assert str(btc_from_sats(10000)) == str(Decimal("0.0001"))
 
-            assert btc_from_sats(-10000) == Decimal("-0.00010000")
-            assert str(btc_from_sats(-10000)) != str(Decimal("-0.00010000"))
-            assert str(btc_from_sats(-10000)) == str(Decimal("-0.00010000").normalize())
-
-            assert btc_from_sats(-10000) == Decimal("-0.0001")
-            assert str(btc_from_sats(-10000)) == str(Decimal("-0.0001"))
-
 
 def test_exceptions() -> None:
 
@@ -64,17 +57,13 @@ def test_exceptions() -> None:
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
 
-            err_msg = "invalid satoshi amount"
+            err_msg = "invalid satoshi amount: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                btc_from_sats(MAX_SATOSHI + 1)
-            with pytest.raises(BTClibValueError, match=err_msg):
-                btc_from_sats(-MAX_SATOSHI - 1)
+                btc_from_sats(2_099_999_997_690_001)
 
             err_msg = "invalid BTC amount: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                sats_from_btc(MAX_BITCOIN + Decimal("0.00000001"))
-            with pytest.raises(BTClibValueError, match=err_msg):
-                sats_from_btc(-MAX_BITCOIN - Decimal("0.00000001"))
+                sats_from_btc(Decimal("20_999_999.97690001"))
 
             err_msg = "too many decimals for a BTC amount: "
             with pytest.raises(BTClibValueError, match=err_msg):
