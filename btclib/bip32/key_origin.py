@@ -13,7 +13,7 @@
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Sequence, Tuple, Type, TypeVar
+from typing import Dict, List, Sequence, Tuple, Type, TypeVar
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
@@ -66,7 +66,7 @@ class BIP32KeyOrigin:
         if any(not 0 <= i <= 0xFFFFFFFF for i in self.der_path):
             raise BTClibValueError("invalid der_path element")
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> Dict[str, str]:
 
         if check_validity:
             self.assert_valid()
@@ -78,7 +78,7 @@ class BIP32KeyOrigin:
 
     @classmethod
     def from_dict(
-        cls: Type[_BIP32KeyOrigin], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_BIP32KeyOrigin], dict_: Dict[str, str], check_validity: bool = True
     ) -> _BIP32KeyOrigin:
 
         return cls(

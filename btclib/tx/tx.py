@@ -25,7 +25,7 @@ https://en.bitcoin.it/wiki/Timelock
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
 from btclib import var_int
 from btclib.alias import BinaryData
@@ -146,7 +146,9 @@ class Tx:
             other.vout,
         )
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(
+        self, check_validity: bool = True
+    ) -> Dict[str, Union[str, int, List[Any]]]:
 
         if check_validity:
             self.assert_valid()

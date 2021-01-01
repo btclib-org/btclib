@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Sequence, Type, TypeVar
+from typing import Dict, List, Optional, Sequence, Type, TypeVar
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
@@ -39,7 +39,7 @@ class Witness:
         for stack_element in self.stack:
             bytes(stack_element)
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> Dict[str, List[str]]:
 
         if check_validity:
             self.assert_valid()
@@ -48,7 +48,9 @@ class Witness:
 
     @classmethod
     def from_dict(
-        cls: Type[_Witness], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_Witness],
+        dict_: Dict[str, Sequence[str]],
+        check_validity: bool = True,
     ) -> _Witness:
 
         return cls(dict_["stack"], check_validity)

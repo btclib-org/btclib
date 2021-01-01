@@ -20,7 +20,6 @@ from btclib.tx.tx import Tx
 from btclib.tx.tx_in import OutPoint, TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.tx.witness import Witness
-from btclib.utils import bytes_from_octets
 
 
 def test_tx() -> None:

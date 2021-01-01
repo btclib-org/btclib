@@ -11,7 +11,7 @@
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple, Type, TypeVar
+from typing import Any, Dict, List, Tuple, Type, TypeVar, Union
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
@@ -115,7 +115,7 @@ class BlockHeader:
         if check_validity:
             self.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Union[int, float, str]]:
 
         if check_validity:
             self.assert_valid()
