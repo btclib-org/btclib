@@ -8,17 +8,15 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import InitVar, dataclass, field
-from typing import Type, TypeVar
-
-from dataclasses_json import DataClassJsonMixin, config
+from dataclasses import dataclass, field
+from typing import Any, Dict, Type, TypeVar
 
 from btclib import var_bytes
-from btclib.alias import BinaryData
+from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.tx.out_point import OutPoint
 from btclib.tx.witness import Witness
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")
 
@@ -26,15 +24,9 @@ TX_IN_COMPARES_WITNESS = True
 
 
 @dataclass
-class TxIn(DataClassJsonMixin):
-    prev_out: OutPoint = OutPoint()
-    # TODO make it { "asm": "", "hex": "" }
-    script_sig: bytes = field(
-        default=b"",
-        metadata=config(
-            field_name="scriptSig", encoder=lambda v: v.hex(), decoder=bytes.fromhex
-        ),
-    )
+class TxIn:
+    prev_out: OutPoint
+    script_sig: bytes
     # If all TxIns have final (0xffffffff) sequence numbers
     # then Tx lock_time is irrelevant.
     #
@@ -46,15 +38,8 @@ class TxIn(DataClassJsonMixin):
     # Because sequence locks require that the sequence field be set
     # lower than 0xFFFFFFFD to be meaningful,
     # all sequence locked transactions are opting into RBF.
-    sequence: int = 0
-    script_witness: Witness = field(
-        default=Witness(),
-        init=True,  # must be True, probably a bug of dataclasses_json
-        repr=True,
-        compare=TX_IN_COMPARES_WITNESS,
-        metadata=config(field_name="txinwitness"),
-    )
-    check_validity: InitVar[bool] = True
+    sequence: int
+    script_witness: Witness = field(compare=TX_IN_COMPARES_WITNESS)
 
     @property
     def outpoint(self) -> OutPoint:
@@ -71,7 +56,20 @@ class TxIn(DataClassJsonMixin):
         "Return the nSequence int for compatibility with CTxIn."
         return self.sequence
 
-    def __post_init__(self, check_validity: bool) -> None:
+    def __init__(
+        self,
+        prev_out: OutPoint = OutPoint(),
+        script_sig: Octets = b"",
+        sequence: int = 0,
+        script_witness: Witness = Witness(),
+        check_validity: bool = True,
+    ) -> None:
+
+        self.prev_out = prev_out
+        self.script_sig = bytes_from_octets(script_sig)
+        self.sequence = sequence
+        self.script_witness = script_witness
+
         if check_validity:
             self.assert_valid()
 
@@ -93,6 +91,31 @@ class TxIn(DataClassJsonMixin):
 
         if self.script_witness:
             self.script_witness.assert_valid()
+
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+
+        if check_validity:
+            self.assert_valid()
+
+        return {
+            "prev_out": self.prev_out.to_dict(False),
+            "scriptSig": self.script_sig.hex(),  # TODO make it { "asm": "", "hex": "" }
+            "sequence": self.sequence,
+            "txinwitness": self.script_witness.to_dict(False),
+        }
+
+    @classmethod
+    def from_dict(
+        cls: Type[_TxIn], dict_: Dict[str, Any], check_validity: bool = True
+    ) -> _TxIn:
+
+        return cls(
+            OutPoint.from_dict(dict_["prev_out"], False),
+            dict_["scriptSig"],
+            dict_["sequence"],
+            Witness.from_dict(dict_["txinwitness"], False),
+            check_validity,
+        )
 
     def serialize(self, check_validity: bool = True) -> bytes:
 

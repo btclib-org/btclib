@@ -10,10 +10,13 @@
 
 "Tests for the `btclib.utils` module."
 
+# Standard library imports
 import secrets
 
+# Third party imports
 import pytest
 
+# Library imports
 from btclib.exceptions import BTClibValueError
 from btclib.utils import (
     bytes_from_octets,
@@ -36,10 +39,8 @@ def test_hash160_hash256() -> None:
         + net_unaware_uncompressed_pub_keys
     )
     for hexstring in test_vectors:
-        b = bytes_from_octets(hexstring)
-        s = b.hex()  # lower case, no spaces
-        assert hash160(hexstring) == hash160(s)
-        assert hash256(hexstring) == hash256(s)
+        hash160(hexstring)
+        hash256(hexstring)
 
 
 def test_int_from_integer() -> None:

@@ -14,6 +14,7 @@ import json
 from os import path
 from typing import Dict
 
+from btclib.alias import Octets
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_out import (
     PsbtOut,
@@ -26,7 +27,7 @@ from btclib.psbt.psbt_out import (
 
 def test_unknown() -> None:
     # the json representation
-    encoded_data: Dict[str, str] = {
+    encoded_data: Dict[Octets, Octets] = {
         "baad": "deadbeef",
         "abadbabe": "cafebabe",
     }
@@ -36,6 +37,13 @@ def test_unknown() -> None:
 
     _ = serialize_dict_bytes_bytes(b"", data)
     # TODO: check deserialization
+
+
+def test_psbt_out() -> None:
+    psbt_out = PsbtOut()
+    # FIXME
+    # assert psbt_out == PsbtOut.parse(psbt_out.serialize())
+    assert psbt_out == PsbtOut.from_dict(psbt_out.to_dict())
 
 
 def test_dataclasses_json_dict() -> None:

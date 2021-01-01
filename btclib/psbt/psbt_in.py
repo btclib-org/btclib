@@ -13,24 +13,28 @@
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
-from dataclasses import InitVar, dataclass, field
-from typing import Dict, List, Optional, Type, TypeVar
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Type, TypeVar
 
-from dataclasses_json import DataClassJsonMixin, config
+# Library imports
+from btclib.alias import Octets
 
-from btclib.bip32.bip32_path import BIP32KeyOrigin
+# Standard library imports
+from btclib.bip32.key_origin import decode_hd_key_paths
 from btclib.ecc import dsa, sec_point
 from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt_out import (
+    BIP32KeyOrigin,
+    HdKeyPaths,
     assert_valid_hd_key_paths,
     assert_valid_redeem_script,
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
-    decode_hd_key_paths,
+    decode_from_bip32_derivs,
     deserialize_bytes,
     encode_dict_bytes_bytes,
-    encode_hd_key_paths,
+    encode_to_bip32_derivs,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
@@ -39,6 +43,7 @@ from btclib.tx.sign_hash import assert_valid_hash_type
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.tx.witness import Witness
+from btclib.utils import bytes_from_octets
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
@@ -124,54 +129,54 @@ _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
 
 
 @dataclass
-class PsbtIn(DataClassJsonMixin):
-    non_witness_utxo: Optional[Tx] = None
-    witness_utxo: Optional[TxOut] = None
-    partial_sigs: Dict[bytes, bytes] = field(
-        default_factory=dict,
-        metadata=config(
-            field_name="partial_signatures",
-            encoder=encode_dict_bytes_bytes,
-            decoder=decode_dict_bytes_bytes,
-        ),
-    )
-    sig_hash_type: Optional[int] = field(
-        default=None, metadata=config(field_name="sign_hash")
-    )
-    redeem_script: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    witness_script: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    hd_key_paths: Dict[bytes, BIP32KeyOrigin] = field(
-        default_factory=dict,
-        metadata=config(
-            field_name="bip32_derivs",
-            encoder=encode_hd_key_paths,
-            decoder=decode_hd_key_paths,
-        ),
-    )
-    final_script_sig: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    final_script_witness: Witness = Witness()
-    unknown: Dict[bytes, bytes] = field(
-        default_factory=dict,
-        metadata=config(
-            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
-        ),
-    )
-    check_validity: InitVar[bool] = True
+class PsbtIn:
+    non_witness_utxo: Optional[Tx]
+    witness_utxo: Optional[TxOut]
+    partial_sigs: Dict[bytes, bytes]
+    sig_hash_type: Optional[int]
+    redeem_script: bytes
+    witness_script: bytes
+    hd_key_paths: HdKeyPaths
+    final_script_sig: bytes
+    final_script_witness: Witness
+    unknown: Dict[bytes, bytes]
 
     @property
     def sig_hash(self) -> int:
         "Return the sig_hash int for compatibility with PartiallySignedInput."
         return self.sig_hash_type or 0
 
-    def __post_init__(self, check_validity: bool) -> None:
-        self.unknown = dict(sorted(self.unknown.items()))
-        self.hd_key_paths = dict(sorted(self.hd_key_paths.items()))
+    def __init__(
+        self,
+        non_witness_utxo: Optional[Tx] = None,
+        witness_utxo: Optional[TxOut] = None,
+        partial_sigs: Optional[Dict[Octets, Octets]] = None,
+        sig_hash_type: Optional[int] = None,
+        redeem_script: Octets = b"",
+        witness_script: Octets = b"",
+        hd_key_paths: Optional[Dict[Octets, BIP32KeyOrigin]] = None,
+        final_script_sig: Octets = b"",
+        final_script_witness: Witness = Witness(),
+        unknown: Optional[Dict[Octets, Octets]] = None,
+        check_validity: bool = True,
+    ) -> None:
+
+        self.non_witness_utxo = non_witness_utxo
+        self.witness_utxo = witness_utxo
+        # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
+        self.partial_sigs = (
+            decode_dict_bytes_bytes(partial_sigs) if partial_sigs else {}
+        )
+        self.sig_hash_type = sig_hash_type
+        self.redeem_script = bytes_from_octets(redeem_script)
+        self.witness_script = bytes_from_octets(witness_script)
+        self.hd_key_paths = decode_hd_key_paths(hd_key_paths) if hd_key_paths else {}
+        self.final_script_sig = bytes_from_octets(final_script_sig)
+        self.final_script_witness = final_script_witness
+        self.unknown = (
+            dict(sorted(decode_dict_bytes_bytes(unknown).items())) if unknown else {}
+        )
+
         if check_validity:
             self.assert_valid()
 
@@ -196,6 +201,51 @@ class PsbtIn(DataClassJsonMixin):
         self.final_script_witness.assert_valid()
 
         assert_valid_unknown(self.unknown)
+
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+
+        if check_validity:
+            self.assert_valid()
+
+        return {
+            "non_witness_utxo": self.non_witness_utxo.to_dict(False)
+            if self.non_witness_utxo
+            else None,
+            "witness_utxo": self.witness_utxo.to_dict(False)
+            if self.witness_utxo
+            else None,
+            "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
+            "sign_hash": self.sig_hash_type,
+            "redeem_script": self.redeem_script.hex(),  # TODO make it { "asm": "", "hex": "" }
+            "witness_script": self.witness_script.hex(),  # TODO make it { "asm": "", "hex": "" }
+            "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
+            "final_script_sig": self.final_script_sig.hex(),  # TODO make it { "asm": "", "hex": "" }
+            "final_script_witness": self.final_script_witness.to_dict(False),
+            "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
+        }
+
+    @classmethod
+    def from_dict(
+        cls: Type[_PsbtIn], dict_: Dict[str, Any], check_validity: bool = True
+    ) -> _PsbtIn:
+
+        return cls(
+            Tx.from_dict(dict_["non_witness_utxo"], False)
+            if dict_["non_witness_utxo"]
+            else None,
+            TxOut.from_dict(dict_["witness_utxo"], False)
+            if dict_["witness_utxo"]
+            else None,
+            dict_["partial_signatures"],
+            dict_["sign_hash"],
+            dict_["redeem_script"],
+            dict_["witness_script"],
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            dict_["final_script_sig"],
+            Witness.from_dict(dict_["final_script_witness"], False),
+            dict_["unknown"],
+            check_validity,
+        )
 
     def serialize(self, check_validity: bool = True) -> bytes:
 
@@ -263,14 +313,14 @@ class PsbtIn(DataClassJsonMixin):
 
         non_witness_utxo = None
         witness_utxo = None
-        partial_sigs: Dict[bytes, bytes] = {}
+        partial_sigs: Dict[Octets, Octets] = {}
         sig_hash_type = None
         redeem_script = b""
         witness_script = b""
-        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
+        hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
         final_script_sig = b""
         final_script_witness = Witness()
-        unknown: Dict[bytes, bytes] = {}
+        unknown: Dict[Octets, Octets] = {}
 
         for k, v in input_map.items():
             if k[:1] == PSBT_IN_NON_WITNESS_UTXO:

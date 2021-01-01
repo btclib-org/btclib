@@ -41,7 +41,7 @@ from dataclasses_json import DataClassJsonMixin, config
 
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
-from btclib.bip32.bip32_path import (
+from btclib.bip32.der_path import (
     BIP32DerPath,
     indexes_from_bip32_path,
     int_from_index_str,

@@ -13,8 +13,6 @@
 import json
 from os import path
 
-import pytest
-
 from btclib.tx.witness import Witness
 from btclib.utils import bytes_from_octets
 
@@ -25,6 +23,7 @@ def test_witness() -> None:
     assert len(witness) == 0
     witness.assert_valid()
     assert witness == Witness.parse(witness.serialize())
+    assert witness == Witness.from_dict(witness.to_dict())
 
     stack = [
         "",
@@ -34,21 +33,11 @@ def test_witness() -> None:
         "01",
         "635321024713c6e66da107644c64ab84189840e78310b247cc7fa563d6f98f2a46900a0d21026cb4cc5bbde0e59806657b1780a9a3b333a8acb6fcac48ade7d52e2b34aa30042102b6615b55426b7362cd82897db26b1423e3732f98eaea5cd2c150c49a46003c6521033557edc1a6aec5a28648f6e22deb542e9ee8c9219d5bb5e81d0fe23c8f955ad221039d7f91444b2d4c4e89a1f550fa7d32c5d9b75a49b14c54f10109d95f637bb7de2103d9cdf5c6da8b2fd66fa918916cc93d831f16781c01ca759c9cf60acf94268bbd56ae67029000b275522102d02570ed9db9ee6abd13a6c269758debcfaa1aa6d0857553e5b6a5cf764ffe0a21030968209ccaaae1c0f8ee7a4a3594b3504fd3f89db1c259aedbdce3aba29f219321036069299a8a990474eb34786bf446e724088896a54bf848650c9543f18af602dc53ae68",
     ]
-    witness = Witness([bytes_from_octets(v) for v in stack])
-    assert witness.stack == [bytes_from_octets(v) for v in stack]
+    witness = Witness(stack)
     assert len(witness) == 6
     witness.assert_valid()
     assert witness == Witness.parse(witness.serialize())
-
-
-def test_exceptions() -> None:
-    witness = Witness("bad script", check_validity=False)  # type: ignore
-    with pytest.raises(TypeError):
-        witness.assert_valid()
-
-    witness = Witness([b"", "", (32, 33)], check_validity=False)  # type: ignore
-    with pytest.raises(TypeError):
-        witness.assert_valid()
+    assert witness == Witness.from_dict(witness.to_dict())
 
 
 def test_dataclasses_json_dict() -> None:

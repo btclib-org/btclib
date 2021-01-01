@@ -10,8 +10,10 @@
 
 "Tests for the `btclib.to_prv_key` module."
 
+# Third party imports
 import pytest
 
+# Library imports
 from btclib.ecc.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.to_prv_key import int_from_prv_key, prv_keyinfo_from_prv_key

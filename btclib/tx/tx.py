@@ -22,13 +22,10 @@ https://en.bitcoin.it/wiki/Timelock
 
 """
 
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-from typing import Dict, List, Type, TypeVar
-
-from dataclasses_json import DataClassJsonMixin, config
-from dataclasses_json.core import Json
+from typing import Any, Dict, List, Optional, Type, TypeVar
 
 from btclib import var_int
 from btclib.alias import BinaryData
@@ -44,93 +41,20 @@ _Tx = TypeVar("_Tx", bound="Tx")
 
 
 @dataclass
-class Tx(DataClassJsonMixin):
-    # private data members are used only for to_dict
-    # use the corresponding public properties instead
-    _id: bytes = field(
-        default=b"",
-        init=False,
-        repr=False,
-        compare=False,
-        metadata=config(
-            encoder=lambda v: v.hex(), decoder=bytes.fromhex, field_name="txid"
-        ),
-    )
-    _hash: bytes = field(
-        default=b"",
-        init=False,
-        repr=False,
-        compare=False,
-        metadata=config(
-            encoder=lambda v: v.hex(), decoder=bytes.fromhex, field_name="hash"
-        ),
-    )
+class Tx:
     # 4 bytes, unsigned little endian
-    version: int = 1
-    _size: int = field(
-        default=-1,
-        init=False,
-        repr=False,
-        compare=False,
-        metadata=config(field_name="size"),
-    )
-    _vsize: int = field(
-        default=-1,
-        init=False,
-        repr=False,
-        compare=False,
-        metadata=config(field_name="vsize"),
-    )
-    _weight: int = field(
-        default=-1,
-        init=False,
-        repr=False,
-        compare=False,
-        metadata=config(field_name="weight"),
-    )
+    version: int
     # 0	Not locked
     #  < 500000000	Block number at which this transaction is unlocked
     # >= 500000000	UNIX timestamp at which this transaction is unlocked
     # If all TxIns have final (0xffffffff) sequence numbers then lock_time is irrelevant.
     # Otherwise, the transaction may not be added to a block until after lock_time.
     # Set to the current block to prevent fee sniping.
-    lock_time: int = field(
-        default=0,
-        metadata=config(field_name="locktime"),
-    )
-    vin: List[TxIn] = field(default_factory=list)
-    vout: List[TxOut] = field(default_factory=list)
-    # TODO: add fee when a tx fetcher will be available
-    check_validity: InitVar[bool] = True
+    lock_time: int
+    vin: List[TxIn]
+    vout: List[TxOut]
 
-    def __post_init__(self, check_validity: bool) -> None:
-        if check_validity:
-            self.assert_valid()
-
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, Tx):
-            return NotImplemented  # pragma: no cover
-
-        if not TX_IN_COMPARES_WITNESS and self.vwitness != other.vwitness:
-            return False  # pragma: no cover
-
-        return (self.version, self.lock_time, self.vin, self.vout) == (
-            other.version,
-            other.lock_time,
-            other.vin,
-            other.vout,
-        )
-
-    def _set_properties(self) -> None:
-        self._id = self.id
-        self._hash = self.hash
-        self._size = self.size
-        self._vsize = self.vsize
-        self._weight = self.weight
-
-    def to_dict(self, encode_json=False) -> Dict[str, Json]:
-        self._set_properties()
-        return super().to_dict(encode_json)
+    # TODO: add fee property when a tx fetcher will be available
 
     @property
     def nVersion(self) -> int:  # pylint: disable=invalid-name
@@ -189,6 +113,69 @@ class Tx(DataClassJsonMixin):
     def is_coinbase(self) -> bool:
         return len(self.vin) == 1 and self.vin[0].is_coinbase()
 
+    def __init__(
+        self,
+        version: int = 1,
+        lock_time: int = 0,
+        vin: Optional[List[TxIn]] = None,
+        vout: Optional[List[TxOut]] = None,
+        check_validity: bool = True,
+    ) -> None:
+
+        self.version = version
+        self.lock_time = lock_time
+        # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
+        self.vin = vin or []
+        self.vout = vout or []
+
+        if check_validity:
+            self.assert_valid()
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Tx):
+            return NotImplemented  # pragma: no cover
+
+        if not TX_IN_COMPARES_WITNESS and self.vwitness != other.vwitness:
+            return False  # pragma: no cover
+
+        # FIXME use super().__eq__
+        return (self.version, self.lock_time, self.vin, self.vout) == (
+            other.version,
+            other.lock_time,
+            other.vin,
+            other.vout,
+        )
+
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+
+        if check_validity:
+            self.assert_valid()
+
+        return {
+            "txid": self.id.hex(),
+            "hash": self.hash.hex(),
+            "version": self.version,
+            "size": self.size,
+            "vsize": self.vsize,
+            "weight": self.weight,
+            "locktime": self.lock_time,
+            "vin": [tx_in.to_dict(False) for tx_in in self.vin],
+            "vout": [tx_out.to_dict(False) for tx_out in self.vout],
+        }
+
+    @classmethod
+    def from_dict(
+        cls: Type[_Tx], dict_: Dict[str, Any], check_validity: bool = True
+    ) -> _Tx:
+
+        return cls(
+            dict_["version"],
+            dict_["locktime"],
+            [TxIn.from_dict(tx_in, False) for tx_in in dict_["vin"]],
+            [TxOut.from_dict(tx_out, False) for tx_out in dict_["vout"]],
+            check_validity,
+        )
+
     def assert_valid(self) -> None:
 
         # must be a 4-bytes int
@@ -204,8 +191,6 @@ class Tx(DataClassJsonMixin):
 
         for tx_out in self.vout:
             tx_out.assert_valid()
-
-        self._set_properties()
 
     def serialize(self, include_witness: bool, check_validity: bool = True) -> bytes:
 

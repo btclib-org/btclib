@@ -27,7 +27,7 @@ from btclib.bip32.bip32 import (
     rootxprv_from_seed,
     xpub_from_xprv,
 )
-from btclib.bip32.bip32_path import _indexes_from_bip32_path_str
+from btclib.bip32.der_path import _indexes_from_bip32_path_str
 from btclib.exceptions import BTClibValueError
 
 

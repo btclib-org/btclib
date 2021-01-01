@@ -8,30 +8,27 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import InitVar, dataclass, field
-from typing import List, Type, TypeVar
-
-from dataclasses_json import DataClassJsonMixin, config
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Sequence, Type, TypeVar
 
 from btclib import var_bytes, var_int
-from btclib.alias import BinaryData
-from btclib.utils import bytesio_from_binarydata
+from btclib.alias import BinaryData, Octets
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
-_TxInWitness = TypeVar("_TxInWitness", bound="Witness")
+_Witness = TypeVar("_Witness", bound="Witness")
 
 
 @dataclass
-class Witness(DataClassJsonMixin):
-    stack: List[bytes] = field(
-        default_factory=list,
-        metadata=config(
-            encoder=lambda val: [v.hex() for v in val],
-            decoder=lambda val: [bytes.fromhex(v) for v in val],
-        ),
-    )
-    check_validity: InitVar[bool] = True
+class Witness:
+    stack: List[bytes]
 
-    def __post_init__(self, check_validity: bool) -> None:
+    def __init__(
+        self, stack: Optional[Sequence[Octets]] = None, check_validity: bool = True
+    ) -> None:
+
+        # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
+        self.stack = [bytes_from_octets(element) for element in stack] if stack else []
+
         if check_validity:
             self.assert_valid()
 
@@ -41,6 +38,20 @@ class Witness(DataClassJsonMixin):
     def assert_valid(self) -> None:
         for stack_element in self.stack:
             bytes(stack_element)
+
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+
+        if check_validity:
+            self.assert_valid()
+
+        return {"stack": [v.hex() for v in self.stack]}
+
+    @classmethod
+    def from_dict(
+        cls: Type[_Witness], dict_: Dict[str, Any], check_validity: bool = True
+    ) -> _Witness:
+
+        return cls(dict_["stack"], check_validity)
 
     def serialize(self, check_validity: bool = True) -> bytes:
         "Return the serialization of the Witness."
@@ -53,8 +64,8 @@ class Witness(DataClassJsonMixin):
 
     @classmethod
     def parse(
-        cls: Type[_TxInWitness], data: BinaryData, check_validity: bool = True
-    ) -> _TxInWitness:
+        cls: Type[_Witness], data: BinaryData, check_validity: bool = True
+    ) -> _Witness:
         "Return a Witness by parsing binary data."
 
         data = bytesio_from_binarydata(data)

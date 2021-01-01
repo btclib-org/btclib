@@ -17,6 +17,13 @@ from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 
 
+def test_psbt_out() -> None:
+    psbt_in = PsbtIn()
+    # FIXME
+    # assert psbt_in == PsbtIn.parse(psbt_in.serialize())
+    assert psbt_in == PsbtIn.from_dict(psbt_in.to_dict())
+
+
 def test_compatibility() -> None:
     psbt_in = PsbtIn()
     assert not psbt_in.sig_hash

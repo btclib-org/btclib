@@ -28,46 +28,46 @@ def test_out_point() -> None:
     assert out_point.n == out_point.vout
     assert out_point.is_coinbase()
     assert out_point == OutPoint.parse(out_point.serialize())
+    assert out_point == OutPoint.from_dict(out_point.to_dict())
 
-    tx_id = bytes.fromhex(
-        "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e"
-    )
+    tx_id = "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e"
     vout = 0
     out_point = OutPoint(tx_id, vout)
-    assert out_point.tx_id == tx_id
+    assert out_point.tx_id.hex() == tx_id
     assert out_point.vout == vout
     assert out_point.hash == int.from_bytes(out_point.tx_id, "big", signed=False)
     assert out_point.n == out_point.vout
     assert not out_point.is_coinbase()
     assert out_point == OutPoint.parse(out_point.serialize())
+    assert out_point == OutPoint.from_dict(out_point.to_dict())
 
 
-def test_dataclasses_json_dict_outpoint() -> None:
+def test_dataclasses_json_dict_out_point() -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binary_file_:
         temp = Tx.parse(binary_file_.read())
 
-    prev_out_data = temp.vin[0].prev_out
+    out_point_data = temp.vin[0].prev_out
 
     # dataclass
-    assert isinstance(prev_out_data, OutPoint)
+    assert isinstance(out_point_data, OutPoint)
 
     # Tx to/from dict
-    tx_in_dict = prev_out_data.to_dict()
-    assert isinstance(tx_in_dict, dict)
-    assert prev_out_data == OutPoint.from_dict(tx_in_dict)
+    out_point_dict = out_point_data.to_dict()
+    assert isinstance(out_point_dict, dict)
+    assert out_point_data == OutPoint.from_dict(out_point_dict)
 
     datadir = path.join(path.dirname(__file__), "_generated_files")
 
     # Tx dict to/from dict file
     filename = path.join(datadir, "out_point.json")
     with open(filename, "w") as file_:
-        json.dump(tx_in_dict, file_, indent=4)
+        json.dump(out_point_dict, file_, indent=4)
     with open(filename, "r") as file_:
-        tx_dict2 = json.load(file_)
-    assert isinstance(tx_dict2, dict)
-    assert tx_in_dict == tx_dict2
+        out_point_dict2 = json.load(file_)
+    assert isinstance(out_point_dict2, dict)
+    assert out_point_dict == out_point_dict2
 
 
 def test_invalid_outpoint() -> None:

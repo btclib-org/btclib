@@ -8,29 +8,23 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from dataclasses import InitVar, dataclass, field
-from typing import Type, TypeVar
+from dataclasses import dataclass
+from typing import Any, Dict, Type, TypeVar
 
-from dataclasses_json import DataClassJsonMixin, config
-
-from btclib.alias import BinaryData
+from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 _OutPoint = TypeVar("_OutPoint", bound="OutPoint")
 
 
+# FIXME make it frozen
 @dataclass
-class OutPoint(DataClassJsonMixin):
-    tx_id: bytes = field(
-        default=b"\x00" * 32,
-        metadata=config(
-            field_name="txid", encoder=lambda v: v.hex(), decoder=bytes.fromhex
-        ),
-    )
-    vout: int = 0xFFFFFFFF
-    # TODO add value and script_pub_key when tx fetcher will be available
-    check_validity: InitVar[bool] = True
+class OutPoint:
+    tx_id: bytes
+    vout: int
+
+    # TODO add value and script_pub_key proprties when tx fetcher will be available
 
     @property
     def hash(self) -> int:
@@ -42,7 +36,16 @@ class OutPoint(DataClassJsonMixin):
         "Return the n int for compatibility with COutPoint."
         return self.vout
 
-    def __post_init__(self, check_validity: bool) -> None:
+    def __init__(
+        self,
+        tx_id: Octets = b"\x00" * 32,
+        vout: int = 0xFFFFFFFF,
+        check_validity: bool = True,
+    ) -> None:
+
+        object.__setattr__(self, "tx_id", bytes_from_octets(tx_id))
+        object.__setattr__(self, "vout", vout)
+
         if check_validity:
             self.assert_valid()
 
@@ -60,6 +63,20 @@ class OutPoint(DataClassJsonMixin):
         # not a coinbase, not a regular OutPoint
         if (self.tx_id == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
             raise BTClibValueError("invalid OutPoint")
+
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+
+        if check_validity:
+            self.assert_valid()
+
+        return {"txid": self.tx_id.hex(), "vout": self.vout}
+
+    @classmethod
+    def from_dict(
+        cls: Type[_OutPoint], dict_: Dict[str, Any], check_validity: bool = True
+    ) -> _OutPoint:
+
+        return cls(dict_["txid"], dict_["vout"], check_validity)
 
     def serialize(self, check_validity: bool = True) -> bytes:
         "Return the 36 bytes serialization of the OutPoint."

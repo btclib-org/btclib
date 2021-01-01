@@ -15,31 +15,33 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 import base64
 from copy import deepcopy
-from dataclasses import InitVar, dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
-
-from dataclasses_json import DataClassJsonMixin, config
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from btclib import script, var_int
 from btclib.alias import Octets, String
-from btclib.bip32.bip32_path import BIP32KeyOrigin
+from btclib.bip32.key_origin import decode_hd_key_paths
 from btclib.exceptions import BTClibValueError
-from btclib.psbt.psbt_in import PsbtIn, deserialize_int, deserialize_tx
-from btclib.psbt.psbt_out import (
-    PsbtOut,
+from btclib.psbt.psbt_in import (
+    BIP32KeyOrigin,
+    HdKeyPaths,
+    PsbtIn,
+    Tx,
+    Witness,
     assert_valid_hd_key_paths,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
-    decode_hd_key_paths,
+    decode_from_bip32_derivs,
+    deserialize_int,
+    deserialize_tx,
     encode_dict_bytes_bytes,
-    encode_hd_key_paths,
+    encode_to_bip32_derivs,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
+from btclib.psbt.psbt_out import PsbtOut
 from btclib.script_pub_key import payload_from_script_pub_key
-from btclib.tx.tx import Tx
-from btclib.tx.witness import Witness
 from btclib.utils import bytes_from_octets, hash160, sha256
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
@@ -68,30 +70,34 @@ def _assert_valid_version(version: int) -> None:
 
 
 @dataclass
-class Psbt(DataClassJsonMixin):
-    tx: Tx = Tx(check_validity=False)
-    inputs: List[PsbtIn] = field(default_factory=list)
-    outputs: List[PsbtOut] = field(default_factory=list)
-    version: int = 0  # current BIP174 PSBT version
-    hd_key_paths: Dict[bytes, BIP32KeyOrigin] = field(
-        default_factory=dict,
-        metadata=config(
-            field_name="bip32_derivs",
-            encoder=encode_hd_key_paths,
-            decoder=decode_hd_key_paths,
-        ),
-    )
-    unknown: Dict[bytes, bytes] = field(
-        default_factory=dict,
-        metadata=config(
-            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
-        ),
-    )
-    check_validity: InitVar[bool] = True
+class Psbt:
+    tx: Tx
+    inputs: List[PsbtIn]
+    outputs: List[PsbtOut]
+    version: int
+    hd_key_paths: HdKeyPaths
+    unknown: Dict[bytes, bytes]
 
-    def __post_init__(self, check_validity: bool) -> None:
-        self.unknown = dict(sorted(self.unknown.items()))
-        self.hd_key_paths = dict(sorted(self.hd_key_paths.items()))
+    def __init__(
+        self,
+        tx: Tx = Tx(check_validity=False),
+        inputs: List[PsbtIn] = None,
+        outputs: List[PsbtOut] = None,
+        version: int = 0,  # current BIP174 PSBT version
+        hd_key_paths: Optional[Dict[Octets, BIP32KeyOrigin]] = None,
+        unknown: Optional[Dict[Octets, Octets]] = None,
+        check_validity: bool = True,
+    ) -> None:
+
+        self.tx = tx
+        self.inputs = inputs or []
+        self.outputs = outputs or []
+        self.version = version
+        self.hd_key_paths = decode_hd_key_paths(hd_key_paths) if hd_key_paths else {}
+        self.unknown = (
+            dict(sorted(decode_dict_bytes_bytes(unknown).items())) if unknown else {}
+        )
+
         if check_validity:
             self.assert_valid()
 
@@ -172,6 +178,35 @@ class Psbt(DataClassJsonMixin):
                 if payload != sha256(self.inputs[i].witness_script):
                     raise BTClibValueError("invalid witness script sha256")
 
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+
+        if check_validity:
+            self.assert_valid()
+
+        return {
+            "tx": self.tx.to_dict(),
+            "inputs": [psbt_in.to_dict(False) for psbt_in in self.inputs],
+            "outputs": [psbt_out.to_dict(False) for psbt_out in self.outputs],
+            "version": self.version,
+            "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
+            "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
+        }
+
+    @classmethod
+    def from_dict(
+        cls: Type[_Psbt], dict_: Dict[str, Any], check_validity: bool = True
+    ) -> _Psbt:
+
+        return cls(
+            Tx.from_dict(dict_["tx"]),
+            [PsbtIn.from_dict(psbt_in, False) for psbt_in in dict_["inputs"]],
+            [PsbtOut.from_dict(psbt_out, False) for psbt_out in dict_["outputs"]],
+            dict_["version"],
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            dict_["unknown"],
+            check_validity,
+        )
+
     def serialize(self, check_validity: bool = True) -> bytes:
 
         if check_validity:
@@ -207,8 +242,8 @@ class Psbt(DataClassJsonMixin):
 
         tx = Tx(check_validity=False)
         version = 0
-        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
-        unknown: Dict[bytes, bytes] = {}
+        hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
+        unknown: Dict[Octets, Octets] = {}
 
         psbt_bin = bytes_from_octets(psbt_bin)
 
@@ -291,8 +326,8 @@ class Psbt(DataClassJsonMixin):
             tx = Tx()  # unsigned, unlocked, version 1
 
         psbt_version = 0
-        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
-        unknown: Dict[bytes, bytes] = {}
+        hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
+        unknown: Dict[Octets, Octets] = {}
 
         return cls(
             tx,

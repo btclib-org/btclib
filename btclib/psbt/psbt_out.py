@@ -13,32 +13,35 @@
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
-from dataclasses import InitVar, dataclass, field
-from typing import Dict, List, Type, TypeVar
-
-from dataclasses_json import DataClassJsonMixin, config
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Type, TypeVar
 
 from btclib import var_bytes
-from btclib.bip32.bip32_path import (
+from btclib.alias import Octets
+from btclib.bip32.key_origin import (
     BIP32KeyOrigin,
+    HdKeyPaths,
     assert_valid_hd_key_paths,
+    decode_from_bip32_derivs,
     decode_hd_key_paths,
-    encode_hd_key_paths,
-    serialize_hd_key_paths,
+    encode_to_bip32_derivs,
 )
 from btclib.exceptions import BTClibValueError
+from btclib.utils import bytes_from_octets
 
 # from btclib.to_pub_key import point_from_pub_key
 
 
-def encode_dict_bytes_bytes(dictionary: Dict[bytes, bytes]) -> Dict[str, str]:
+def encode_dict_bytes_bytes(dict_: Dict[bytes, bytes]) -> Dict[str, str]:
     "Return the json representation of the dataclass element."
-    return {k.hex(): v.hex() for k, v in dictionary.items()}
+    # unknown could be sorted, partial_sigs cannot
+    return {k.hex(): v.hex() for k, v in dict_.items()}
 
 
-def decode_dict_bytes_bytes(dictionary: Dict[str, str]) -> Dict[bytes, bytes]:
+def decode_dict_bytes_bytes(dict_: Dict[Octets, Octets]) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
-    return {bytes.fromhex(k): bytes.fromhex(v) for k, v in dictionary.items()}
+    # unknown could be sorted, partial_sigs cannot
+    return {bytes_from_octets(k): bytes_from_octets(v) for k, v in dict_.items()}
 
 
 def serialize_dict_bytes_bytes(type_: bytes, dictionary: Dict[bytes, bytes]) -> bytes:
@@ -86,6 +89,21 @@ def assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
         bytes(value)
 
 
+def serialize_hd_key_paths(type_: bytes, hd_key_paths: HdKeyPaths) -> bytes:
+    "Return the binary representation of the dataclass element."
+
+    if len(type_) != 1:
+        err_msg = f"invalid type marker lenght: {len(type_)}, instead of 1"
+        raise BTClibValueError(err_msg)
+
+    return b"".join(
+        [
+            var_bytes.serialize(type_ + k) + var_bytes.serialize(v.serialize())
+            for k, v in sorted(hd_key_paths.items())
+        ]
+    )
+
+
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
 PSBT_OUT_WITNESS_SCRIPT = b"\x01"
 PSBT_OUT_BIP32_DERIVATION = b"\x02"
@@ -99,32 +117,28 @@ _PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
 
 @dataclass
-class PsbtOut(DataClassJsonMixin):
-    redeem_script: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    witness_script: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    hd_key_paths: Dict[bytes, BIP32KeyOrigin] = field(
-        default_factory=dict,
-        metadata=config(
-            field_name="bip32_derivs",
-            encoder=encode_hd_key_paths,
-            decoder=decode_hd_key_paths,
-        ),
-    )
-    unknown: Dict[bytes, bytes] = field(
-        default_factory=dict,
-        metadata=config(
-            encoder=encode_dict_bytes_bytes, decoder=decode_dict_bytes_bytes
-        ),
-    )
-    check_validity: InitVar[bool] = True
+class PsbtOut:
+    redeem_script: bytes
+    witness_script: bytes
+    hd_key_paths: HdKeyPaths
+    unknown: Dict[bytes, bytes]
 
-    def __post_init__(self, check_validity: bool) -> None:
-        self.unknown = dict(sorted(self.unknown.items()))
-        self.hd_key_paths = dict(sorted(self.hd_key_paths.items()))
+    def __init__(
+        self,
+        redeem_script: Octets = b"",
+        witness_script: Octets = b"",
+        hd_key_paths: Optional[Dict[Octets, BIP32KeyOrigin]] = None,
+        unknown: Optional[Dict[Octets, Octets]] = None,
+        check_validity: bool = True,
+    ) -> None:
+
+        self.redeem_script = bytes_from_octets(redeem_script)
+        self.witness_script = bytes_from_octets(witness_script)
+        self.hd_key_paths = decode_hd_key_paths(hd_key_paths) if hd_key_paths else {}
+        self.unknown = (
+            dict(sorted(decode_dict_bytes_bytes(unknown).items())) if unknown else {}
+        )
+
         if check_validity:
             self.assert_valid()
 
@@ -134,6 +148,31 @@ class PsbtOut(DataClassJsonMixin):
         assert_valid_witness_script(self.witness_script)
         assert_valid_hd_key_paths(self.hd_key_paths)
         assert_valid_unknown(self.unknown)
+
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+
+        if check_validity:
+            self.assert_valid()
+
+        return {
+            "redeem_script": self.redeem_script.hex(),  # TODO make it { "asm": "", "hex": "" }
+            "witness_script": self.witness_script.hex(),  # TODO make it { "asm": "", "hex": "" }
+            "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
+            "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
+        }
+
+    @classmethod
+    def from_dict(
+        cls: Type[_PsbtOut], dict_: Dict[str, Any], check_validity: bool = True
+    ) -> _PsbtOut:
+
+        return cls(
+            dict_["redeem_script"],
+            dict_["witness_script"],
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            dict_["unknown"],
+            check_validity,
+        )
 
     def serialize(self, check_validity: bool = True) -> bytes:
 
@@ -172,8 +211,8 @@ class PsbtOut(DataClassJsonMixin):
 
         redeem_script = b""
         witness_script = b""
-        hd_key_paths: Dict[bytes, BIP32KeyOrigin] = {}
-        unknown: Dict[bytes, bytes] = {}
+        hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
+        unknown: Dict[Octets, Octets] = {}
 
         for k, v in output_map.items():
             if k[:1] == PSBT_OUT_REDEEM_SCRIPT:

@@ -35,10 +35,11 @@ def test_tx_in() -> None:
     tx_in2 = TxIn.parse(tx_in.serialize())
     assert not tx_in2.is_segwit()
     assert tx_in == tx_in2
+    tx_in2 = TxIn.from_dict(tx_in.to_dict())
+    assert not tx_in2.is_segwit()
+    assert tx_in == tx_in2
 
-    tx_id = bytes.fromhex(
-        "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e"
-    )
+    tx_id = "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e"
     vout = 0
     prev_out = OutPoint(tx_id, vout)
     script_sig = b""
@@ -55,12 +56,12 @@ def test_tx_in() -> None:
     tx_in2 = TxIn.parse(tx_in.serialize())
     assert not tx_in2.is_segwit()
     assert tx_in == tx_in2
+    tx_in2 = TxIn.from_dict(tx_in.to_dict())
+    assert not tx_in2.is_segwit()
+    assert tx_in == tx_in2
 
     prev_out = OutPoint(
-        bytes.fromhex(
-            "9dcfdb5836ecfe146bdaa896605ba21222f83cd014dd47adde14fab2aba7de9b"
-        ),
-        1,
+        "9dcfdb5836ecfe146bdaa896605ba21222f83cd014dd47adde14fab2aba7de9b", 1
     )
     script_sig = b""
     sequence = 0xFFFFFFFF
@@ -71,7 +72,7 @@ def test_tx_in() -> None:
         "30440220398f141917e4525d3e9e0d1c6482cb19ca3188dc5516a3a5ac29a0f4017212d902204ea405fae3a58b1fc30c5ad8ac70a76ab4f4d876e8af706a6a7b4cd6fa100f4401",
         "52210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae",
     ]
-    tx_in.script_witness = Witness([bytes_from_octets(v) for v in stack])
+    tx_in.script_witness = Witness(stack)
     assert tx_in.prev_out == prev_out
     assert tx_in.script_sig == script_sig
     assert tx_in.sequence == sequence
@@ -83,6 +84,9 @@ def test_tx_in() -> None:
     tx_in2 = TxIn.parse(tx_in.serialize())
     assert not tx_in2.is_segwit()
     assert tx_in == tx_in2 or TX_IN_COMPARES_WITNESS
+    tx_in2 = TxIn.from_dict(tx_in.to_dict())
+    assert tx_in2.is_segwit()
+    assert tx_in == tx_in2
 
     assert tx_in != OutPoint()
 
@@ -101,14 +105,10 @@ def test_dataclasses_json_dict() -> None:
 
     # TxIn dataclass
     assert isinstance(tx_in, TxIn)
-    assert tx_in.is_segwit()
-    assert tx_in.script_witness
-    assert tx_in.script_witness.stack
 
     # TxIn dataclass to dict
     tx_in_dict = tx_in.to_dict()
     assert isinstance(tx_in_dict, dict)
-    assert tx_in_dict["txinwitness"]["stack"]  # type: ignore
 
     # TxIn dataclass dict to file
     datadir = path.join(path.dirname(__file__), "_generated_files")
@@ -120,15 +120,11 @@ def test_dataclasses_json_dict() -> None:
     with open(filename, "r") as file_:
         tx_dict2 = json.load(file_)
     assert isinstance(tx_dict2, dict)
-    assert tx_in_dict["txinwitness"]["stack"]  # type: ignore
 
     assert tx_in_dict == tx_dict2
 
     # TxIn dataclass from dict
     tx_in2 = TxIn.from_dict(tx_in_dict)
     assert isinstance(tx_in2, TxIn)
-    assert tx_in2.is_segwit()
-    assert tx_in2.script_witness
-    assert tx_in2.script_witness.stack
 
     assert tx_in == tx_in2

@@ -37,7 +37,8 @@ def test_block_1() -> None:
     assert block.weight == 536
     assert block.height is None
     assert not block.has_segwit_tx()
-    assert block.serialize() == block_bytes
+    assert block == Block.parse(block.serialize())
+    assert block == Block.from_dict(block.to_dict())
 
     header = block.header
     assert header.version == 1
@@ -50,8 +51,10 @@ def test_block_1() -> None:
     assert header.nonce == 0x9962E301
 
     hash_ = "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048"
-    assert header.hash().hex() == hash_
+    assert header.hash.hex() == hash_
     assert header.difficulty == 1
+    assert header == BlockHeader.parse(header.serialize())
+    assert header == BlockHeader.from_dict(header.to_dict())
 
 
 def test_exceptions() -> None:
@@ -133,7 +136,8 @@ def test_block_170() -> None:
     assert block.weight == 1636
     assert block.height is None
     assert not block.has_segwit_tx()
-    assert block.serialize() == block_bytes
+    assert block == Block.parse(block.serialize())
+    assert block == Block.from_dict(block.to_dict())
 
     header = block.header
     assert header.version == 1
@@ -147,8 +151,10 @@ def test_block_170() -> None:
     assert header.nonce == 0x709E3E28
 
     hash_ = "00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee"
-    assert header.hash().hex() == hash_
+    assert header.hash.hex() == hash_
     assert header.difficulty == 1
+    assert header == BlockHeader.parse(header.serialize())
+    assert header == BlockHeader.from_dict(header.to_dict())
 
 
 def test_block_200000() -> None:
@@ -164,7 +170,8 @@ def test_block_200000() -> None:
     assert block.weight == 989_800
     assert block.height == 200_000
     assert not block.has_segwit_tx()
-    assert block.serialize() == block_bytes
+    assert block == Block.parse(block.serialize())
+    assert block == Block.from_dict(block.to_dict())
 
     header = block.header
     assert header.version == 2
@@ -177,8 +184,10 @@ def test_block_200000() -> None:
     assert header.nonce == 0xF7D8D840
 
     hash_ = "000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf"
-    assert header.hash().hex() == hash_
+    assert header.hash.hex() == hash_
     assert 0 <= header.difficulty - 2_864_140 < 1
+    assert header == BlockHeader.parse(header.serialize())
+    assert header == BlockHeader.from_dict(header.to_dict())
 
     block.transactions.pop()
     err_msg = "invalid merkle root: "
@@ -205,7 +214,8 @@ def test_block_481824() -> None:
         block = Block.parse(block_bytes)
         assert len(block.transactions) == 1866
         assert block.height == 481_824
-        assert block.serialize() == block_bytes
+        assert block == Block.parse(block.serialize())
+        assert block == Block.from_dict(block.to_dict())
 
         header = block.header
         assert header.version == 0x20000002
@@ -219,8 +229,10 @@ def test_block_481824() -> None:
         assert header.nonce == 0x2254FF22
 
         hash_ = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
-        assert header.hash().hex() == hash_
+        assert header.hash.hex() == hash_
         assert 0 <= header.difficulty - 888_171_856_257 < 1
+        assert header == BlockHeader.parse(header.serialize())
+        assert header == BlockHeader.from_dict(header.to_dict())
 
         if i:  # segwit nodes see the witness data
             assert block.has_segwit_tx()
@@ -253,11 +265,6 @@ def test_dataclasses_json_dict() -> None:
         json.dump(block_dict, file_, indent=4)
     assert block_data == Block.from_dict(block_dict)
 
-    # str
-    block_json_str = block_data.to_json()
-    assert isinstance(block_json_str, str)
-    assert block_data == Block.from_json(block_json_str)
-
     block_header = block_data.header.serialize()
 
     # dataclass
@@ -271,8 +278,3 @@ def test_dataclasses_json_dict() -> None:
     with open(filename, "w") as file_:
         json.dump(block_header_d, file_, indent=4)
     assert block_header_data == BlockHeader.from_dict(block_header_d)
-
-    # str
-    block_header_s = block_header_data.to_json()
-    assert isinstance(block_header_s, str)
-    assert block_header_data == BlockHeader.from_json(block_header_s)
