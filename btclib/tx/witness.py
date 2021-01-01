@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Type, TypeVar
+from typing import Dict, List, Mapping, Optional, Sequence, Type, TypeVar
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
@@ -49,7 +49,7 @@ class Witness:
     @classmethod
     def from_dict(
         cls: Type[_Witness],
-        dict_: Dict[str, Sequence[str]],
+        dict_: Mapping[str, Sequence[Octets]],
         check_validity: bool = True,
     ) -> _Witness:
 

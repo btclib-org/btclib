@@ -18,13 +18,7 @@ import pytest
 
 # Library imports
 from btclib.exceptions import BTClibValueError
-from btclib.utils import (
-    bytes_from_octets,
-    hash160,
-    hash256,
-    hex_string,
-    int_from_integer,
-)
+from btclib.utils import hash160, hash256, hex_string, int_from_integer
 from tests.test_to_key import (
     net_unaware_compressed_pub_keys,
     net_unaware_uncompressed_pub_keys,

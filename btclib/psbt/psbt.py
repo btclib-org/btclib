@@ -16,7 +16,18 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 import base64
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from btclib import script, var_int
 from btclib.alias import Octets, String
@@ -81,22 +92,20 @@ class Psbt:
     def __init__(
         self,
         tx: Tx = Tx(check_validity=False),
-        inputs: List[PsbtIn] = None,
-        outputs: List[PsbtOut] = None,
+        inputs: Sequence[PsbtIn] = None,
+        outputs: Sequence[PsbtOut] = None,
         version: int = 0,  # current BIP174 PSBT version
-        hd_key_paths: Optional[Dict[Octets, BIP32KeyOrigin]] = None,
-        unknown: Optional[Dict[Octets, Octets]] = None,
+        hd_key_paths: Optional[Mapping[Octets, BIP32KeyOrigin]] = None,
+        unknown: Optional[Mapping[Octets, Octets]] = None,
         check_validity: bool = True,
     ) -> None:
 
         self.tx = tx
-        self.inputs = inputs or []
-        self.outputs = outputs or []
+        self.inputs = list(inputs) if inputs else []
+        self.outputs = list(outputs) if outputs else []
         self.version = version
-        self.hd_key_paths = decode_hd_key_paths(hd_key_paths) if hd_key_paths else {}
-        self.unknown = (
-            dict(sorted(decode_dict_bytes_bytes(unknown).items())) if unknown else {}
-        )
+        self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
+        self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
 
         if check_validity:
             self.assert_valid()
@@ -194,7 +203,7 @@ class Psbt:
 
     @classmethod
     def from_dict(
-        cls: Type[_Psbt], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_Psbt], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _Psbt:
 
         return cls(
@@ -202,7 +211,8 @@ class Psbt:
             [PsbtIn.from_dict(psbt_in, False) for psbt_in in dict_["inputs"]],
             [PsbtOut.from_dict(psbt_out, False) for psbt_out in dict_["outputs"]],
             dict_["version"],
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            # FIXME
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
             dict_["unknown"],
             check_validity,
         )
@@ -381,7 +391,7 @@ def _combine_field(
         #     attr += additional_elements
 
 
-def combine_psbts(psbts: List[Psbt]) -> Psbt:
+def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
     final_psbt = psbts[0]
     tx_id = psbts[0].tx.id
     for psbt in psbts[1:]:

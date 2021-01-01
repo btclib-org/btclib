@@ -17,7 +17,6 @@ import pytest
 
 from btclib.bip32.der_path import _HARDENING
 from btclib.bip32.key_origin import (
-    BIP32Derivs,
     BIP32KeyOrigin,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
@@ -115,7 +114,7 @@ def test_dataclasses_json_dict_key_origin() -> None:
 
 def test_bip32_derivs() -> None:
     # the basic type dict representation
-    bip32_derivs: BIP32Derivs = [
+    bip32_derivs = [
         {
             "pub_key": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
             "master_fingerprint": "d90c6a4f",

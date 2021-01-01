@@ -25,7 +25,17 @@ https://en.bitcoin.it/wiki/Timelock
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from btclib import var_int
 from btclib.alias import BinaryData
@@ -117,16 +127,16 @@ class Tx:
         self,
         version: int = 1,
         lock_time: int = 0,
-        vin: Optional[List[TxIn]] = None,
-        vout: Optional[List[TxOut]] = None,
+        vin: Optional[Sequence[TxIn]] = None,
+        vout: Optional[Sequence[TxOut]] = None,
         check_validity: bool = True,
     ) -> None:
 
         self.version = version
         self.lock_time = lock_time
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
-        self.vin = vin or []
-        self.vout = vout or []
+        self.vin = list(vin) if vin else []
+        self.vout = list(vout) if vout else []
 
         if check_validity:
             self.assert_valid()
@@ -167,7 +177,7 @@ class Tx:
 
     @classmethod
     def from_dict(
-        cls: Type[_Tx], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_Tx], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _Tx:
 
         return cls(

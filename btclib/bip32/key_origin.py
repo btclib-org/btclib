@@ -13,7 +13,7 @@
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple, Type, TypeVar
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Type, TypeVar
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
@@ -78,7 +78,9 @@ class BIP32KeyOrigin:
 
     @classmethod
     def from_dict(
-        cls: Type[_BIP32KeyOrigin], dict_: Dict[str, str], check_validity: bool = True
+        cls: Type[_BIP32KeyOrigin],
+        dict_: Mapping[str, str],
+        check_validity: bool = True,
     ) -> _BIP32KeyOrigin:
 
         return cls(
@@ -118,7 +120,7 @@ class BIP32KeyOrigin:
 HdKeyPaths = Dict[bytes, BIP32KeyOrigin]
 
 
-def assert_valid_hd_key_paths(hd_key_paths: HdKeyPaths) -> None:
+def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     for pub_key, key_origin in hd_key_paths.items():
@@ -130,18 +132,19 @@ def assert_valid_hd_key_paths(hd_key_paths: HdKeyPaths) -> None:
         key_origin.assert_valid()
 
 
-def decode_hd_key_paths(dict_: Dict[Octets, BIP32KeyOrigin]) -> HdKeyPaths:
+def decode_hd_key_paths(map_: Optional[Mapping[Octets, BIP32KeyOrigin]]) -> HdKeyPaths:
     "Return the dataclass element from its json representation."
 
-    hd_key_paths = {bytes_from_octets(k): v for k, v in dict_.items()}
+    hd_key_paths = {bytes_from_octets(k): v for k, v in map_.items()} if map_ else {}
     return dict(sorted(hd_key_paths.items()))
 
 
 _BIP32Deriv = Dict[str, str]
-BIP32Derivs = Sequence[_BIP32Deriv]
 
 
-def encode_to_bip32_derivs(hd_key_paths: HdKeyPaths) -> List[_BIP32Deriv]:
+def encode_to_bip32_derivs(
+    hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
+) -> List[_BIP32Deriv]:
     "Return the json representation of the dataclass element."
 
     return [
@@ -154,7 +157,9 @@ def encode_to_bip32_derivs(hd_key_paths: HdKeyPaths) -> List[_BIP32Deriv]:
     ]
 
 
-def _decode_from_bip32_deriv(bip32_deriv: _BIP32Deriv) -> Tuple[bytes, BIP32KeyOrigin]:
+def _decode_from_bip32_deriv(
+    bip32_deriv: Mapping[str, str]
+) -> Tuple[bytes, BIP32KeyOrigin]:
     # FIXME remove size checks to allow
     # the instantiation of invalid master_fingerprint and pub_key
     master_fingerprint = bytes_from_octets(bip32_deriv["master_fingerprint"], 4)
@@ -163,7 +168,9 @@ def _decode_from_bip32_deriv(bip32_deriv: _BIP32Deriv) -> Tuple[bytes, BIP32KeyO
     return bytes_from_octets(bip32_deriv["pub_key"]), key_origin
 
 
-def decode_from_bip32_derivs(bip32_derivs: BIP32Derivs) -> Dict[Octets, BIP32KeyOrigin]:
+def decode_from_bip32_derivs(
+    bip32_derivs: Sequence[Mapping[str, str]],
+) -> HdKeyPaths:
     "Return the dataclass element from its json representation."
 
     return dict(sorted([_decode_from_bip32_deriv(item) for item in bip32_derivs]))

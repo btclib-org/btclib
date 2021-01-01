@@ -14,7 +14,6 @@ import json
 from os import path
 
 from btclib.tx.witness import Witness
-from btclib.utils import bytes_from_octets
 
 
 def test_witness() -> None:

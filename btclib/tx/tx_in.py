@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Type, TypeVar
+from typing import Any, Dict, Mapping, Type, TypeVar
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
@@ -106,7 +106,7 @@ class TxIn:
 
     @classmethod
     def from_dict(
-        cls: Type[_TxIn], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_TxIn], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _TxIn:
 
         return cls(

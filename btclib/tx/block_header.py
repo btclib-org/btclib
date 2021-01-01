@@ -11,7 +11,7 @@
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, List, Mapping, Tuple, Type, TypeVar, Union
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
@@ -133,7 +133,7 @@ class BlockHeader:
 
     @classmethod
     def from_dict(
-        cls: Type[_BlockHeader], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_BlockHeader], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _BlockHeader:
 
         return cls(

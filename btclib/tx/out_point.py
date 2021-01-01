@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 from dataclasses import dataclass
-from typing import Any, Dict, Type, TypeVar, Union
+from typing import Any, Dict, Mapping, Type, TypeVar, Union
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
@@ -73,7 +73,7 @@ class OutPoint:
 
     @classmethod
     def from_dict(
-        cls: Type[_OutPoint], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_OutPoint], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _OutPoint:
 
         return cls(dict_["txid"], dict_["vout"], check_validity)

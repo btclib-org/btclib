@@ -11,7 +11,7 @@
 import sys
 from dataclasses import dataclass
 from math import ceil
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
@@ -74,14 +74,14 @@ class Block:
     def __init__(
         self,
         header: BlockHeader,
-        transactions: Optional[List[Tx]] = None,
+        transactions: Optional[Sequence[Tx]] = None,
         check_validity: bool = True,
     ) -> None:
 
         self.header = header
 
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
-        self.transactions = transactions or []
+        self.transactions = list(transactions) if transactions else []
 
         if check_validity:
             self.assert_valid()
@@ -98,7 +98,7 @@ class Block:
 
     @classmethod
     def from_dict(
-        cls: Type[_Block], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_Block], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _Block:
 
         return cls(

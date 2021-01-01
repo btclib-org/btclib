@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
 
 from btclib import var_bytes
 from btclib.alias import Octets
@@ -32,19 +32,25 @@ from btclib.utils import bytes_from_octets
 # from btclib.to_pub_key import point_from_pub_key
 
 
-def encode_dict_bytes_bytes(dict_: Dict[bytes, bytes]) -> Dict[str, str]:
+def encode_dict_bytes_bytes(dict_: Mapping[bytes, bytes]) -> Dict[str, str]:
     "Return the json representation of the dataclass element."
     # unknown could be sorted, partial_sigs cannot
     return {k.hex(): v.hex() for k, v in dict_.items()}
 
 
-def decode_dict_bytes_bytes(dict_: Dict[Octets, Octets]) -> Dict[bytes, bytes]:
+def decode_dict_bytes_bytes(
+    map_: Optional[Mapping[Octets, Octets]]
+) -> Dict[bytes, bytes]:
     "Return the dataclass element from its json representation."
     # unknown could be sorted, partial_sigs cannot
-    return {bytes_from_octets(k): bytes_from_octets(v) for k, v in dict_.items()}
+    if map_ is None:
+        return {}
+    return {bytes_from_octets(k): bytes_from_octets(v) for k, v in map_.items()}
 
 
-def serialize_dict_bytes_bytes(type_: bytes, dictionary: Dict[bytes, bytes]) -> bytes:
+def serialize_dict_bytes_bytes(
+    type_: bytes, dictionary: Mapping[bytes, bytes]
+) -> bytes:
     "Return the binary representation of the dataclass element."
 
     return b"".join(
@@ -81,7 +87,7 @@ def assert_valid_witness_script(witness_script: bytes) -> None:
     bytes(witness_script)
 
 
-def assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
+def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     for key, value in data.items():
@@ -89,7 +95,9 @@ def assert_valid_unknown(data: Dict[bytes, bytes]) -> None:
         bytes(value)
 
 
-def serialize_hd_key_paths(type_: bytes, hd_key_paths: HdKeyPaths) -> bytes:
+def serialize_hd_key_paths(
+    type_: bytes, hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
+) -> bytes:
     "Return the binary representation of the dataclass element."
 
     if len(type_) != 1:
@@ -127,17 +135,15 @@ class PsbtOut:
         self,
         redeem_script: Octets = b"",
         witness_script: Octets = b"",
-        hd_key_paths: Optional[Dict[Octets, BIP32KeyOrigin]] = None,
-        unknown: Optional[Dict[Octets, Octets]] = None,
+        hd_key_paths: Optional[Mapping[Octets, BIP32KeyOrigin]] = None,
+        unknown: Optional[Mapping[Octets, Octets]] = None,
         check_validity: bool = True,
     ) -> None:
 
         self.redeem_script = bytes_from_octets(redeem_script)
         self.witness_script = bytes_from_octets(witness_script)
-        self.hd_key_paths = decode_hd_key_paths(hd_key_paths) if hd_key_paths else {}
-        self.unknown = (
-            dict(sorted(decode_dict_bytes_bytes(unknown).items())) if unknown else {}
-        )
+        self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
+        self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
 
         if check_validity:
             self.assert_valid()
@@ -163,13 +169,14 @@ class PsbtOut:
 
     @classmethod
     def from_dict(
-        cls: Type[_PsbtOut], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_PsbtOut], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _PsbtOut:
 
         return cls(
             dict_["redeem_script"],
             dict_["witness_script"],
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            # FIXME
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
             dict_["unknown"],
             check_validity,
         )
@@ -203,7 +210,9 @@ class PsbtOut:
 
     @classmethod
     def parse(
-        cls: Type[_PsbtOut], output_map: Dict[bytes, bytes], check_validity: bool = True
+        cls: Type[_PsbtOut],
+        output_map: Mapping[bytes, bytes],
+        check_validity: bool = True,
     ) -> _PsbtOut:
         "Return a PsbtOut by parsing binary data."
 

@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
 
 # Library imports
 from btclib.alias import Octets
@@ -84,7 +84,7 @@ def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
     return TxOut.parse(v)
 
 
-def _assert_valid_partial_sigs(partial_sigs: Dict[bytes, bytes]) -> None:
+def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
     "Raise an exception if the dataclass element is not valid."
 
     for pub_key, sig in partial_sigs.items():
@@ -150,14 +150,14 @@ class PsbtIn:
         self,
         non_witness_utxo: Optional[Tx] = None,
         witness_utxo: Optional[TxOut] = None,
-        partial_sigs: Optional[Dict[Octets, Octets]] = None,
+        partial_sigs: Optional[Mapping[Octets, Octets]] = None,
         sig_hash_type: Optional[int] = None,
         redeem_script: Octets = b"",
         witness_script: Octets = b"",
-        hd_key_paths: Optional[Dict[Octets, BIP32KeyOrigin]] = None,
+        hd_key_paths: Optional[Mapping[Octets, BIP32KeyOrigin]] = None,
         final_script_sig: Octets = b"",
         final_script_witness: Witness = Witness(),
-        unknown: Optional[Dict[Octets, Octets]] = None,
+        unknown: Optional[Mapping[Octets, Octets]] = None,
         check_validity: bool = True,
     ) -> None:
 
@@ -170,12 +170,10 @@ class PsbtIn:
         self.sig_hash_type = sig_hash_type
         self.redeem_script = bytes_from_octets(redeem_script)
         self.witness_script = bytes_from_octets(witness_script)
-        self.hd_key_paths = decode_hd_key_paths(hd_key_paths) if hd_key_paths else {}
+        self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
         self.final_script_sig = bytes_from_octets(final_script_sig)
         self.final_script_witness = final_script_witness
-        self.unknown = (
-            dict(sorted(decode_dict_bytes_bytes(unknown).items())) if unknown else {}
-        )
+        self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
 
         if check_validity:
             self.assert_valid()
@@ -226,7 +224,7 @@ class PsbtIn:
 
     @classmethod
     def from_dict(
-        cls: Type[_PsbtIn], dict_: Dict[str, Any], check_validity: bool = True
+        cls: Type[_PsbtIn], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _PsbtIn:
 
         return cls(
@@ -240,7 +238,8 @@ class PsbtIn:
             dict_["sign_hash"],
             dict_["redeem_script"],
             dict_["witness_script"],
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            # FIXME
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
             dict_["final_script_sig"],
             Witness.from_dict(dict_["final_script_witness"], False),
             dict_["unknown"],
@@ -305,7 +304,9 @@ class PsbtIn:
 
     @classmethod
     def parse(
-        cls: Type[_PsbtIn], input_map: Dict[bytes, bytes], check_validity: bool = True
+        cls: Type[_PsbtIn],
+        input_map: Mapping[bytes, bytes],
+        check_validity: bool = True,
     ) -> _PsbtIn:
         "Return a PsbtIn by parsing binary data."
 
