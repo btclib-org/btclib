@@ -140,7 +140,8 @@ class BlockHeader:
             dict_["version"],
             dict_["previous_block_hash"],
             dict_["merkle_root"],
-            datetime.fromisoformat(dict_["time"]),
+            # mypy with python 3.6 complain about the following
+            datetime.fromisoformat(dict_["time"]),  # type: ignore
             dict_["bits"],
             dict_["nonce"],
             check_validity,
