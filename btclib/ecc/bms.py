@@ -144,7 +144,7 @@ from btclib.ecc import dsa
 from btclib.ecc.curve import mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import challenge_, magic_message
+from btclib.hashes import magic_message
 from btclib.network import NETWORKS
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.utils import bytesio_from_binarydata, hash160
@@ -263,13 +263,13 @@ def sign(msg: Octets, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
     """Generate address-based compact signature for the provided message."""
 
     # first sign the message
-    magic_msg_hash = magic_message(msg)
+    magic_msg = magic_message(msg)
     q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
-    dsa_sig = dsa.sign_(magic_msg_hash, q)
+    dsa_sig = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
     # TODO do the match in Jacobian coordinates avoiding mod_inv
-    pub_keys = dsa.recover_pub_keys_(magic_msg_hash, dsa_sig)
+    pub_keys = dsa.recover_pub_keys(magic_msg, dsa_sig)
     Q = mult(q)
     # key_id is in [0, 3]
     # first two bits in rf are reserved for it
@@ -308,8 +308,6 @@ def assert_as_valid(
     else:
         sig = Sig.b64decode(sig)
 
-    magic_msg_hash = magic_message(msg)
-    c = challenge_(magic_msg_hash, secp256k1, sha256)
     # first two bits in rf are reserved for key_id
     #    key_id = 00;     key_id = 01;     key_id = 10;     key_id = 11
     # 27-27 = 000000;  28-27 = 000001;  29-27 = 000010;  30-27 = 000011
@@ -317,10 +315,8 @@ def assert_as_valid(
     # 35-27 = 001000;  36-27 = 001001;  37-27 = 001010;  38-27 = 001011
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
     key_id = sig.rf - 27 & 0b11
-
-    recovered_pub_key = dsa._recover_pub_key_(
-        key_id, c, sig.dsa_sig.r, sig.dsa_sig.s, lower_s, sig.dsa_sig.ec
-    )
+    magic_msg = magic_message(msg)
+    Q = dsa.recover_pub_key(key_id, magic_msg, sig.dsa_sig, lower_s, sha256)
 
     try:
         _, h160, _, is_script_hash = h160_from_address(addr)
@@ -331,7 +327,6 @@ def assert_as_valid(
 
     compressed = sig.rf >= 31
     # signature is valid only if the provided address is matched
-    Q = secp256k1.aff_from_jac(recovered_pub_key)
     pub_key = bytes_from_point(Q, compressed=compressed)
     if is_b58:
         if is_script_hash and 30 < sig.rf < 39:  # P2WPKH-P2SH

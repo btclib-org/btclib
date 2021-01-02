@@ -363,7 +363,7 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
     # Fail if infinite(KJ).
     # Fail if y_K is odd.
-    if ec._y_aff_from_jac(KJ) % 2:
+    if ec.y_aff_from_jac(KJ) % 2:
         raise BTClibRuntimeError("y_K is odd")
 
     # Fail if x_K ≠ r
@@ -436,7 +436,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     if QJ[2] == 0:
         err_msg = "invalid (INF) key"  # pragma: no cover
         raise BTClibRuntimeError(err_msg)  # pragma: no cover
-    return ec._x_aff_from_jac(QJ)
+    return ec.x_aff_from_jac(QJ)
 
 
 def crack_prv_key_(

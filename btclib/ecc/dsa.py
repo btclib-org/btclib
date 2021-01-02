@@ -350,6 +350,51 @@ def _recover_pub_key_(
     return QJ
 
 
+def recover_pub_key_(
+    key_id: int,
+    msg_hash: Octets,
+    sig: Union[Sig, Octets],
+    lower_s: bool = True,
+    hf: HashF = sha256,
+) -> Point:
+    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
+
+    See also:
+    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    """
+
+    if isinstance(sig, Sig):
+        sig.assert_valid()
+    else:
+        sig = Sig.parse(sig)
+
+    # The message msg_hash: a hf_len array
+    hf_len = hf().digest_size
+    msg_hash = bytes_from_octets(msg_hash, hf_len)
+
+    c = challenge_(msg_hash, sig.ec, hf)  # 1.5
+
+    QJ = _recover_pub_key_(key_id, c, sig.r, sig.s, lower_s, sig.ec)
+    return sig.ec.aff_from_jac(QJ)
+
+
+def recover_pub_key(
+    key_id: int,
+    msg: Octets,
+    sig: Union[Sig, Octets],
+    lower_s: bool = True,
+    hf: HashF = sha256,
+) -> Point:
+    """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
+
+    See also:
+    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    """
+
+    msg_hash = reduce_to_hlen(msg, hf)
+    return recover_pub_key_(key_id, msg_hash, sig, lower_s, hf)
+
+
 def crack_prv_key_(
     msg_hash1: Octets,
     sig1: Union[Sig, Octets],

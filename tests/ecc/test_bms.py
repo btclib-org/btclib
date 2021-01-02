@@ -591,7 +591,7 @@ def test_ledger() -> None:
     xprv = bip32.derive(rprv, derivation_path)
 
     # the actual message being signed
-    magic_msg_hash = magic_message(msg)
+    magic_msg = magic_message(msg)
 
     # save key_id and patch dersig
     dersig = bytes.fromhex(dersig_hex_str)
@@ -599,8 +599,8 @@ def test_ledger() -> None:
     dsa_sig = dsa.Sig.parse(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
-    dsa.assert_as_valid_(magic_msg_hash, xprv, dsa_sig)
-    assert dsa.verify_(magic_msg_hash, xprv, dsa_sig)
+    dsa.assert_as_valid(magic_msg, xprv, dsa_sig)
+    assert dsa.verify(magic_msg, xprv, dsa_sig)
 
     # compressed address
     addr = b58.p2pkh(xprv)
@@ -612,7 +612,7 @@ def test_ledger() -> None:
     # Bitcoin Message Signature verification
     bms.assert_as_valid(msg, addr, bms_sig)
     assert bms.verify(msg, addr, bms_sig)
-    assert not bms.verify(magic_msg_hash, addr, bms_sig)
+    assert not bms.verify(magic_msg, addr, bms_sig)
 
     bms.sign(msg, xprv)
 
@@ -626,7 +626,7 @@ def test_ledger() -> None:
     xprv = bip32.derive(rprv, derivation_path)
 
     # the actual message being signed
-    magic_msg_hash = magic_message(msg_str)
+    magic_msg = magic_message(msg_str)
 
     # save key_id and patch dersig
     dersig = bytes.fromhex(dersig_hex_str)
@@ -634,8 +634,8 @@ def test_ledger() -> None:
     dsa_sig = dsa.Sig.parse(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig
-    dsa.assert_as_valid_(magic_msg_hash, xprv, dsa_sig, lower_s=True)
-    assert dsa.verify_(magic_msg_hash, xprv, dsa_sig)
+    dsa.assert_as_valid(magic_msg, xprv, dsa_sig, lower_s=True)
+    assert dsa.verify(magic_msg, xprv, dsa_sig)
 
     # compressed address
     addr = b58.p2pkh(xprv)
@@ -647,4 +647,4 @@ def test_ledger() -> None:
     # Bitcoin Message Signature verification
     bms.assert_as_valid(msg_str, addr, bms_sig)
     assert bms.verify(msg_str, addr, bms_sig)
-    assert not bms.verify(magic_msg_hash, addr, bms_sig)
+    assert not bms.verify(magic_msg, addr, bms_sig)

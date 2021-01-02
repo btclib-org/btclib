@@ -114,18 +114,18 @@ def test_aff_jac_conversions() -> None:
         Q = mult(q, ec.G, ec)
         QJ = jac_from_aff(Q)
         assert Q == ec.aff_from_jac(QJ)
-        x_Q = ec._x_aff_from_jac(QJ)
+        x_Q = ec.x_aff_from_jac(QJ)
         assert Q[0] == x_Q
-        y_Q = ec._y_aff_from_jac(QJ)
+        y_Q = ec.y_aff_from_jac(QJ)
         assert Q[1] == y_Q
 
         assert INF == ec.aff_from_jac(jac_from_aff(INF))
 
         with pytest.raises(BTClibValueError, match="INF has no x-coordinate"):
-            ec._x_aff_from_jac(INFJ)
+            ec.x_aff_from_jac(INFJ)
 
         with pytest.raises(BTClibValueError, match="INF has no y-coordinate"):
-            ec._y_aff_from_jac(INFJ)
+            ec.y_aff_from_jac(INFJ)
 
 
 def test_add_double_aff() -> None:

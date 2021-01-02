@@ -159,7 +159,7 @@ class CurveGroup:
         y = Q[1] * mod_inv(Z2 * Q[2], self.p)
         return x % self.p, y % self.p
 
-    def _x_aff_from_jac(self, Q: JacPoint) -> int:
+    def x_aff_from_jac(self, Q: JacPoint) -> int:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             raise BTClibValueError("INF has no x-coordinate")
@@ -167,7 +167,7 @@ class CurveGroup:
         Z2 = Q[2] * Q[2]
         return (Q[0] * mod_inv(Z2, self.p)) % self.p
 
-    def _y_aff_from_jac(self, Q: JacPoint) -> int:
+    def y_aff_from_jac(self, Q: JacPoint) -> int:
         # point is assumed to be on curve
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             raise BTClibValueError("INF has no y-coordinate")

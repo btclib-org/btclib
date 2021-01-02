@@ -196,7 +196,7 @@ def test_low_cardinality() -> None:
             QJ = _mult(q, ec.GJ, ec)  # public key
             for k in range(1, ec.n):  # all possible ephemeral keys
                 RJ = _mult(k, ec.GJ, ec)
-                r = ec._x_aff_from_jac(RJ) % ec.n
+                r = ec.x_aff_from_jac(RJ) % ec.n
                 k_inv = mod_inv(k, ec.n)
                 for e in range(ec.n):  # all possible challenges
                     s = k_inv * (e + q * r) % ec.n

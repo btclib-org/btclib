@@ -62,7 +62,7 @@ def magic_message(msg: Octets) -> bytes:
         + len(msg).to_bytes(1, byteorder="big", signed=False)
         + msg
     )
-    return hashlib.sha256(hashlib.sha256(t).digest()).digest()
+    return hashlib.sha256(t).digest()
 
 
 # FIXME move into ecc folder
