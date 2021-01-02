@@ -30,7 +30,6 @@
 - generalize ec, hf in borromean
 - Edwards curve (Curve25519)
 - BLS
-- wherever a Curve is required, accept also a network str ?
 - remove sign_to_contract, adding commit to dsa and ssa
 - compare with test_framework
 
