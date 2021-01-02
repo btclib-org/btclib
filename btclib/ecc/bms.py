@@ -137,8 +137,6 @@ from dataclasses import InitVar, dataclass
 from hashlib import sha256
 from typing import Optional, Tuple, Type, TypeVar, Union
 
-from dataclasses_json import DataClassJsonMixin
-
 from btclib.alias import BinaryData, Octets, String
 from btclib.base58_address import h160_from_address, p2pkh, p2wpkh_p2sh
 from btclib.base58_wif import wif_from_prv_key
@@ -158,10 +156,10 @@ _Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass(frozen=True)
-class Sig(DataClassJsonMixin):
+class Sig:
     # 1 byte
-    rf: int = 0
-    dsa_sig: dsa.Sig = dsa.Sig(ec=secp256k1, check_validity=False)
+    rf: int
+    dsa_sig: dsa.Sig
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:

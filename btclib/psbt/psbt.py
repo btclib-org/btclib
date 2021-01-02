@@ -91,18 +91,18 @@ class Psbt:
 
     def __init__(
         self,
-        tx: Tx = Tx(check_validity=False),
-        inputs: Sequence[PsbtIn] = None,
-        outputs: Sequence[PsbtOut] = None,
-        version: int = 0,  # current BIP174 PSBT version
-        hd_key_paths: Optional[Mapping[Octets, BIP32KeyOrigin]] = None,
+        tx: Tx,
+        inputs: Sequence[PsbtIn],
+        outputs: Sequence[PsbtOut],
+        version: int,
+        hd_key_paths: Mapping[Octets, BIP32KeyOrigin],
         unknown: Optional[Mapping[Octets, Octets]] = None,
         check_validity: bool = True,
     ) -> None:
 
         self.tx = tx
-        self.inputs = list(inputs) if inputs else []
-        self.outputs = list(outputs) if outputs else []
+        self.inputs = list(inputs)
+        self.outputs = list(outputs)
         self.version = version
         self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))

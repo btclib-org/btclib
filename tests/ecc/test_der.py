@@ -10,9 +10,6 @@
 
 "Tests for the `btclib.der` module."
 
-import json
-from os import path
-
 import pytest
 
 from btclib.ecc.curve import secp256k1
@@ -114,36 +111,3 @@ def test_der_serialize() -> None:
         _ = Sig(sig.r, bad_s, check_validity=False)
         with pytest.raises(BTClibValueError, match=err_msg):
             Sig(sig.r, bad_s)
-
-
-def test_dataclasses_json_dict() -> None:
-
-    r = 0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8
-    s = 0x2442CE9D2B916064108014783E923EC36B49743E2FFA1C4496F01A512AAFD9E5
-    sig = Sig(r, s)
-
-    # Sig dataclass
-    assert isinstance(sig, Sig)
-
-    # Sig dataclass to dict
-    sig_dict = sig.to_dict()
-    assert isinstance(sig_dict, dict)
-
-    # Sig dataclass dict to file
-    datadir = path.join(path.dirname(__file__), "_generated_files")
-    filename = path.join(datadir, "der_sig.json")
-    with open(filename, "w") as file_:
-        json.dump(sig_dict, file_, indent=4)
-
-    # Sig dataclass dict from file
-    with open(filename, "r") as file_:
-        sig_dict2 = json.load(file_)
-    assert isinstance(sig_dict2, dict)
-
-    assert sig_dict == sig_dict2
-
-    # Sig dataclass from dict
-    sig2 = Sig.from_dict(sig_dict)
-    assert isinstance(sig2, Sig)
-
-    assert sig == sig2

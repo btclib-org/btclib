@@ -11,7 +11,6 @@
 "Tests for the `btclib.ssa` module."
 
 import csv
-import json
 import secrets
 from hashlib import sha256 as hf
 from os import path
@@ -719,36 +718,3 @@ def test_threshold() -> None:
     # ADDITIONAL PHASE: reconstruction of the private key ###
     secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
     assert (q1 + q2 + q3) % ec.n in (secret, ec.n - secret)
-
-
-def test_dataclasses_json_dict() -> None:
-
-    r = 0xC2B43E4E8F0FFFEA729BF654EC7FA50755A6FF5745E8A11D75EAE41266F564AC
-    s = 0x2C34181BB068CE38D889A435112C4A5D108D951EF8413CBFDFA9CAE05F50E229
-    sig = ssa.Sig(r, s)
-
-    # Sig dataclass
-    assert isinstance(sig, ssa.Sig)
-
-    # Sig dataclass to dict
-    sig_dict = sig.to_dict()
-    assert isinstance(sig_dict, dict)
-
-    # Sig dataclass dict to file
-    datadir = path.join(path.dirname(__file__), "_generated_files")
-    filename = path.join(datadir, "ssa_sig.json")
-    with open(filename, "w") as file_:
-        json.dump(sig_dict, file_, indent=4)
-
-    # Sig dataclass dict from file
-    with open(filename, "r") as file_:
-        sig_dict2 = json.load(file_)
-    assert isinstance(sig_dict2, dict)
-
-    assert sig_dict == sig_dict2
-
-    # Sig dataclass from dict
-    sig2 = ssa.Sig.from_dict(sig_dict)
-    assert isinstance(sig2, ssa.Sig)
-
-    assert sig == sig2

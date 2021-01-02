@@ -34,19 +34,12 @@ A BIP32 extended key is 78 bytes:
 
 import copy
 import hmac
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional, Tuple, Type, TypeVar, Union
-
-from dataclasses_json import DataClassJsonMixin, config
 
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
-from btclib.bip32.der_path import (
-    BIP32DerPath,
-    indexes_from_bip32_path,
-    int_from_index_str,
-    str_from_index_int,
-)
+from btclib.bip32.der_path import BIP32DerPath, indexes_from_bip32_path
 from btclib.ecc.curve import mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
@@ -72,33 +65,38 @@ _REQUIRED_LENGHT = 78
 
 
 @dataclass
-class BIP32KeyData(DataClassJsonMixin):
-    version: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    depth: int = -1
-    parent_fingerprint: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
+class BIP32KeyData:
+    version: bytes
+    depth: int
+    parent_fingerprint: bytes
     # index is an int, not bytes, to avoid any byteorder ambiguity
-    index: int = field(
-        default=-1,
-        metadata=config(encoder=str_from_index_int, decoder=int_from_index_str),
-    )
-    chain_code: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    key: bytes = field(
-        default=b"", metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    check_validity: InitVar[bool] = True
-
-    def __post_init__(self, check_validity: bool) -> None:
-        if check_validity:
-            self.assert_valid()
+    index: int
+    chain_code: bytes
+    key: bytes
 
     def is_hardened(self) -> bool:
         return self.index >= 0x80000000
+
+    def __init__(
+        self,
+        version: Octets,
+        depth: int,
+        parent_fingerprint: Octets,
+        index: int,
+        chain_code: Octets,
+        key: Octets,
+        check_validity: bool = True,
+    ) -> None:
+
+        self.version = bytes_from_octets(version)
+        self.depth = depth
+        self.parent_fingerprint = bytes_from_octets(parent_fingerprint)
+        self.index = index
+        self.chain_code = bytes_from_octets(chain_code)
+        self.key = bytes_from_octets(key)
+
+        if check_validity:
+            self.assert_valid()
 
     def assert_valid(self) -> None:
 
@@ -285,20 +283,23 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
 class _ExtendedBIP32KeyData(BIP32KeyData):
     # extensions used to cache intermediate results
     # in multi-level derivation: do not rely on them elsewhere
-    prv_key_int: int = field(
-        default=0,  # non-zero for private key only
-        init=False,
-        repr=False,
-        compare=False,
-    )
-    pub_key_point: Point = field(
-        default=INF,  # non-Infinity for public key only
-        init=False,
-        repr=False,
-        compare=False,
-    )
+    prv_key_int: int  # non-zero for private key only
+    pub_key_point: Point  # non-Infinity for public key only
 
-    def __post_init__(self, check_validity: bool) -> None:
+    def __init__(
+        self,
+        version: Octets,
+        depth: int,
+        parent_fingerprint: Octets,
+        index: int,
+        chain_code: Octets,
+        key: Octets,
+        check_validity: bool = True,
+    ) -> None:
+
+        super().__init__(
+            version, depth, parent_fingerprint, index, chain_code, key, check_validity
+        )
 
         is_prv = self.key[0] == 0
         self.prv_key_int = (

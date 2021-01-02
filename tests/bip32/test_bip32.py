@@ -344,32 +344,6 @@ def test_crack() -> None:
         crack_prv_key(parent_xpub, hardened_child_xprv)
 
 
-def test_dataclasses_json_dict() -> None:
-    xkey = derive(
-        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
-        "m/0h",
-    )
-
-    # dataclass
-    xkey_data = BIP32KeyData.b58decode(xkey)
-    assert isinstance(xkey_data, BIP32KeyData)
-
-    # str
-    xkey_json_str = xkey_data.to_json()
-    assert isinstance(xkey_json_str, str)
-    assert xkey_data == BIP32KeyData.from_json(xkey_json_str)
-
-    # dict
-    xkey_dict = xkey_data.to_dict()
-    assert isinstance(xkey_dict, dict)
-    assert xkey_data == BIP32KeyData.from_dict(xkey_dict)
-
-    datadir = path.join(path.dirname(__file__), "_generated_files")
-    filename = path.join(datadir, "xkey.json")
-    with open(filename, "w") as file_:
-        json.dump(xkey_dict, file_, indent=4)
-
-
 def test_bips_pr905() -> None:
     "https://github.com/bitcoin/bips/pull/905"
 

@@ -50,15 +50,13 @@ For sepcp256k1 the resulting signature size is 64 bytes.
 """
 
 import secrets
-from dataclasses import InitVar, dataclass, field
+from dataclasses import InitVar, dataclass
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Type, TypeVar, Union
 
-from dataclasses_json import DataClassJsonMixin, config
-
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32.bip32 import BIP32Key
-from btclib.ecc.curve import CURVES, Curve, secp256k1
+from btclib.ecc.curve import Curve, secp256k1
 from btclib.ecc.curve_group import _double_mult, _mult, _multi_mult
 from btclib.ecc.number_theory import mod_inv
 from btclib.exceptions import (
@@ -80,7 +78,7 @@ _Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass(frozen=True)
-class Sig(DataClassJsonMixin):
+class Sig:
     """BIP340-Schnorr signature.
 
     - r is an x-coordinate _field_element_, 0 <= r < ec.p
@@ -90,25 +88,10 @@ class Sig(DataClassJsonMixin):
     """
 
     # 32 bytes x-coordinate field element
-    r: int = field(
-        default=-1,
-        metadata=config(
-            encoder=lambda v: v.to_bytes(32, byteorder="big", signed=False).hex(),
-            decoder=lambda v: int(v, 16),
-        ),
-    )
+    r: int
     # 32 bytes scalar
-    s: int = field(
-        default=-1,
-        metadata=config(
-            encoder=lambda v: v.to_bytes(32, byteorder="big", signed=False).hex(),
-            decoder=lambda v: int(v, 16),
-        ),
-    )
-    ec: Curve = field(
-        default=secp256k1,
-        metadata=config(encoder=lambda v: v.name, decoder=lambda v: CURVES[v]),
-    )
+    s: int
+    ec: Curve = secp256k1
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:

@@ -12,14 +12,24 @@
 
 
 import json
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass
 from os import path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
-from dataclasses_json import DataClassJsonMixin, config
-
+from btclib.alias import Octets
 from btclib.ecc.curve import CURVES, Curve
 from btclib.exceptions import BTClibValueError
+from btclib.utils import bytes_from_octets
 
 _KEY_SIZE: List[Tuple[str, int]] = [
     ("magic_bytes", 4),
@@ -39,72 +49,164 @@ _KEY_SIZE: List[Tuple[str, int]] = [
     ("slip132_p2wsh_p2sh_pub", 4),
 ]
 
+_Network = TypeVar("_Network", bound="Network")
+
 
 @dataclass(frozen=True)
-class Network(DataClassJsonMixin):
-    curve: Curve = field(
-        metadata=config(encoder=lambda v: v.name, decoder=lambda v: CURVES[v])
-    )
-    magic_bytes: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    genesis_block: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
+class Network:
+    curve: Curve
+
+    magic_bytes: bytes
+    genesis_block: bytes
+
     # base58_wif starts with 'K' or 'L' if compressed else '5'
-    wif: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
+    wif: bytes
+
     # base58_address starts with '1'
-    p2pkh: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
+    p2pkh: bytes
     # base58_address starts with '3'
-    p2sh: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
+    p2sh: bytes
+
     # bech32_address starts with 'bc1'
     hrp: str
-    # slip132 "m / 44h / 0h" p2pkh or p2sh
-    bip32_prv: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    bip32_pub: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    # slip132 "m / 49h / 0h" p2wpkh-p2sh (p2sh-wrapped legacy-segwit p2wpkh)
-    slip132_p2wpkh_prv: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    slip132_p2wpkh_pub: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    # slip132 p2wsh-p2sh (p2sh-wrapped legacy-segwit p2wsh)
-    slip132_p2wpkh_p2sh_prv: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    slip132_p2wpkh_p2sh_pub: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    # slip132 "m / 84h / 0h" p2wpkh (native-segwit p2wpkh)
-    slip132_p2wsh_prv: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    slip132_p2wsh_pub: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    # slip132 p2wsh (native-segwit p2wsh)
-    slip132_p2wsh_p2sh_prv: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    slip132_p2wsh_p2sh_pub: bytes = field(
-        metadata=config(encoder=lambda v: v.hex(), decoder=bytes.fromhex)
-    )
-    check_validity: InitVar[bool] = True
 
-    def __post_init__(self, check_validity: bool) -> None:
+    # slip132 "m / 44h / 0h" p2pkh or p2sh
+    bip32_prv: bytes
+    bip32_pub: bytes
+
+    # slip132 "m / 49h / 0h" p2wpkh-p2sh (p2sh-wrapped legacy-segwit p2wpkh)
+    slip132_p2wpkh_prv: bytes
+    slip132_p2wpkh_pub: bytes
+
+    # slip132 p2wsh-p2sh (p2sh-wrapped legacy-segwit p2wsh)
+    slip132_p2wpkh_p2sh_prv: bytes
+    slip132_p2wpkh_p2sh_pub: bytes
+
+    # slip132 "m / 84h / 0h" p2wpkh (native-segwit p2wpkh)
+    slip132_p2wsh_prv: bytes
+    slip132_p2wsh_pub: bytes
+
+    # slip132 p2wsh (native-segwit p2wsh)
+    slip132_p2wsh_p2sh_prv: bytes
+    slip132_p2wsh_p2sh_pub: bytes
+
+    def __init__(
+        self,
+        curve: Curve,
+        magic_bytes: Octets,
+        genesis_block: Octets,
+        wif: Octets,
+        p2pkh: Octets,
+        p2sh: Octets,
+        hrp: str,
+        bip32_prv: Octets,
+        bip32_pub: Octets,
+        slip132_p2wpkh_prv: Octets,
+        slip132_p2wpkh_pub: Octets,
+        slip132_p2wpkh_p2sh_prv: Octets,
+        slip132_p2wpkh_p2sh_pub: Octets,
+        slip132_p2wsh_prv: Octets,
+        slip132_p2wsh_pub: Octets,
+        slip132_p2wsh_p2sh_prv: Octets,
+        slip132_p2wsh_p2sh_pub: Octets,
+        check_validity: bool = True,
+    ) -> None:
+
+        object.__setattr__(self, "curve", curve)
+        object.__setattr__(self, "magic_bytes", bytes_from_octets(magic_bytes))
+        object.__setattr__(self, "genesis_block", bytes_from_octets(genesis_block))
+
+        object.__setattr__(self, "wif", bytes_from_octets(wif))
+
+        object.__setattr__(self, "p2pkh", bytes_from_octets(p2pkh))
+        object.__setattr__(self, "p2sh", bytes_from_octets(p2sh))
+
+        object.__setattr__(self, "hrp", hrp)
+
+        object.__setattr__(self, "bip32_prv", bytes_from_octets(bip32_prv))
+        object.__setattr__(self, "bip32_pub", bytes_from_octets(bip32_pub))
+
+        object.__setattr__(
+            self, "slip132_p2wpkh_prv", bytes_from_octets(slip132_p2wpkh_prv)
+        )
+        object.__setattr__(
+            self, "slip132_p2wpkh_pub", bytes_from_octets(slip132_p2wpkh_pub)
+        )
+
+        object.__setattr__(
+            self, "slip132_p2wpkh_p2sh_prv", bytes_from_octets(slip132_p2wpkh_p2sh_prv)
+        )
+        object.__setattr__(
+            self, "slip132_p2wpkh_p2sh_pub", bytes_from_octets(slip132_p2wpkh_p2sh_pub)
+        )
+
+        object.__setattr__(
+            self, "slip132_p2wsh_prv", bytes_from_octets(slip132_p2wsh_prv)
+        )
+        object.__setattr__(
+            self, "slip132_p2wsh_pub", bytes_from_octets(slip132_p2wsh_pub)
+        )
+
+        object.__setattr__(
+            self, "slip132_p2wsh_p2sh_prv", bytes_from_octets(slip132_p2wsh_p2sh_prv)
+        )
+        object.__setattr__(
+            self, "slip132_p2wsh_p2sh_pub", bytes_from_octets(slip132_p2wsh_p2sh_pub)
+        )
+
         if check_validity:
             self.assert_valid()
+
+    def to_dict(self, check_validity: bool = True) -> Dict[str, Optional[str]]:
+
+        if check_validity:
+            self.assert_valid()
+
+        return {
+            "curve": self.curve.name,
+            "magic_bytes": self.magic_bytes.hex(),
+            "genesis_block": self.genesis_block.hex(),
+            "wif": self.wif.hex(),
+            "p2pkh": self.p2pkh.hex(),
+            "p2sh": self.p2sh.hex(),
+            "hrp": self.hrp,
+            "bip32_prv": self.bip32_prv.hex(),
+            "bip32_pub": self.bip32_pub.hex(),
+            "slip132_p2wpkh_prv": self.slip132_p2wpkh_prv.hex(),
+            "slip132_p2wpkh_pub": self.slip132_p2wpkh_pub.hex(),
+            "slip132_p2wpkh_p2sh_prv": self.slip132_p2wpkh_p2sh_prv.hex(),
+            "slip132_p2wpkh_p2sh_pub": self.slip132_p2wpkh_p2sh_pub.hex(),
+            "slip132_p2wsh_prv": self.slip132_p2wsh_prv.hex(),
+            "slip132_p2wsh_pub": self.slip132_p2wsh_pub.hex(),
+            "slip132_p2wsh_p2sh_prv": self.slip132_p2wsh_p2sh_prv.hex(),
+            "slip132_p2wsh_p2sh_pub": self.slip132_p2wsh_p2sh_pub.hex(),
+        }
+
+    @classmethod
+    def from_dict(
+        cls: Type[_Network], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> _Network:
+
+        return cls(
+            CURVES[dict_["curve"]],
+            dict_["magic_bytes"],
+            dict_["genesis_block"],
+            dict_["wif"],
+            dict_["p2pkh"],
+            dict_["p2sh"],
+            dict_["hrp"],
+            dict_["bip32_prv"],
+            dict_["bip32_pub"],
+            dict_["slip132_p2wpkh_prv"],
+            dict_["slip132_p2wpkh_pub"],
+            dict_["slip132_p2wpkh_p2sh_prv"],
+            dict_["slip132_p2wpkh_p2sh_pub"],
+            dict_["slip132_p2wsh_prv"],
+            dict_["slip132_p2wsh_pub"],
+            dict_["slip132_p2wsh_p2sh_prv"],
+            dict_["slip132_p2wsh_p2sh_pub"],
+            check_validity,
+        )
 
     def assert_valid(self) -> None:
 

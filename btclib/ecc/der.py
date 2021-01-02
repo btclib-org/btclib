@@ -54,15 +54,13 @@ but it is only a standardness rule miners are allowed to ignore.
 Moreover, no such rule exists for r.
 """
 
-from dataclasses import InitVar, dataclass, field
+from dataclasses import InitVar, dataclass
 from io import BytesIO
 from typing import Type, TypeVar
 
-from dataclasses_json import DataClassJsonMixin, config
-
 from btclib import var_bytes
 from btclib.alias import BinaryData
-from btclib.ecc.curve import CURVES, Curve, secp256k1
+from btclib.ecc.curve import Curve, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytesio_from_binarydata, hex_string
 
@@ -96,7 +94,7 @@ _Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass(frozen=True)
-class Sig(DataClassJsonMixin):
+class Sig:
     """ECDSA signature with DER serialization.
 
     - r is a scalar, 0 < r < ec.n
@@ -106,25 +104,10 @@ class Sig(DataClassJsonMixin):
     """
 
     # 32 bytes scalar
-    r: int = field(
-        default=-1,
-        metadata=config(
-            encoder=lambda v: v.to_bytes(32, byteorder="big", signed=False).hex(),
-            decoder=lambda v: int(v, 16),
-        ),
-    )
+    r: int
     # 32 bytes scalar
-    s: int = field(
-        default=-1,
-        metadata=config(
-            encoder=lambda v: v.to_bytes(32, byteorder="big", signed=False).hex(),
-            decoder=lambda v: int(v, 16),
-        ),
-    )
-    ec: Curve = field(
-        default=secp256k1,
-        metadata=config(encoder=lambda v: v.name, decoder=lambda v: CURVES[v]),
-    )
+    s: int
+    ec: Curve = secp256k1
     check_validity: InitVar[bool] = True
 
     def __post_init__(self, check_validity: bool) -> None:
