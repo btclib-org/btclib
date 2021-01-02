@@ -98,10 +98,6 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign_(m_bytes, q, sig.ec.n)
 
-    err_msg = "invalid zero challenge"
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
-        ssa._recover_pub_key_(0, sig.r, sig.s, sig.ec)
-
 
 def test_bip340_vectors() -> None:
     """BIP340 (Schnorr) test vectors.
@@ -180,6 +176,7 @@ def test_point_from_bip340pub_key() -> None:
 
 def test_low_cardinality() -> None:
     "test low-cardinality curves for all msg/key pairs."
+    # pylint: disable=protected-access
 
     # ec.n has to be prime to sign
     test_curves = [

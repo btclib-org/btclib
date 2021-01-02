@@ -52,7 +52,7 @@ def assert_valid_hash_type(hash_type: int) -> None:
         raise BTClibValueError(f"invalid sign_hash type: {hex(hash_type)}")
 
 
-def _legacy_script(script_pub_key: Octets) -> List[bytes]:
+def legacy_script(script_pub_key: Octets) -> List[bytes]:
     script_s: List[bytes] = []
     current_script: List[script.ScriptToken] = []
     for token in script.parse(script_pub_key)[::-1]:
@@ -65,7 +65,7 @@ def _legacy_script(script_pub_key: Octets) -> List[bytes]:
 
 
 # FIXME: remove OP_CODESEPARATOR only if executed
-def _witness_v0_script(script_pub_key: Octets) -> List[bytes]:
+def witness_v0_script(script_pub_key: Octets) -> List[bytes]:
     script_type, payload = payload_from_script_pub_key(script_pub_key)
 
     if script_type == "p2wpkh":
@@ -174,13 +174,13 @@ def from_utxo(utxo: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
         script_pub_key = tx.vin[vin_i].script_sig
 
     if is_p2wpkh(script_pub_key):
-        script_ = _witness_v0_script(script_pub_key)[0]
+        script_ = witness_v0_script(script_pub_key)[0]
         return segwit_v0(script_, tx, vin_i, hash_type, utxo.value)
 
     if is_p2wsh(script_pub_key):
         # the real script is contained in the witness
-        script_ = _witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
+        script_ = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
         return segwit_v0(script_, tx, vin_i, hash_type, utxo.value)
 
-    script_ = _legacy_script(script_pub_key)[0]
+    script_ = legacy_script(script_pub_key)[0]
     return legacy(script_, tx, vin_i, hash_type)

@@ -189,7 +189,7 @@ def test_test_vectors():
         data = json.load(file_)
     data = data[1:]  # skip column headers
     for raw_tx, raw_script, input_index, hash_type, exp_hash in data:
-        script_ = sign_hash._legacy_script(raw_script)[0]
+        script_ = sign_hash.legacy_script(raw_script)[0]
         tx = Tx.parse(raw_tx)
         if hash_type < 0:
             hash_type += 0xFFFFFFFF + 1

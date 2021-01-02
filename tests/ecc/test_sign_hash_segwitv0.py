@@ -73,7 +73,7 @@ def test_native_p2wsh():
         "82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391"
     )
 
-    script_ = sign_hash._witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
+    script_ = sign_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
     hash_ = sign_hash.segwit_v0(script_, tx, 1, sign_hash.SINGLE, utxo.value)
     assert hash_ == bytes.fromhex(
         "fef7bd749cce710c5c052bd796df1af0d935e59cea63736268bcbe2d2134fc47"
@@ -118,7 +118,7 @@ def test_native_p2wsh_2():
         ),
     )
 
-    script_ = sign_hash._witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
+    script_ = sign_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
     hash_ = sign_hash.segwit_v0(
         script_,
         tx,

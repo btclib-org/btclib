@@ -176,6 +176,7 @@ def test_gec() -> None:
 @pytest.mark.first
 def test_low_cardinality() -> None:
     """test low-cardinality curves for all msg/key pairs."""
+    # pylint: disable=protected-access
 
     # ec.n has to be prime to sign
     test_curves = [
@@ -215,11 +216,11 @@ def test_low_cardinality() -> None:
                         # valid signature must pass verification
                         dsa._assert_as_valid_(e, QJ, r, s, lower_s, ec)
 
-                        jacobian_keys = dsa._recover_pub_keys_(e, r, s, lower_s, ec)
+                        jac_keys = dsa._recover_pub_keys_(e, r, s, lower_s, ec)
                         # FIXME speed this up
-                        Qs = [ec.aff_from_jac(key) for key in jacobian_keys]
+                        Qs = [ec.aff_from_jac(key) for key in jac_keys]
                         assert ec.aff_from_jac(QJ) in Qs
-                        assert len(jacobian_keys) in (2, 4)
+                        assert len(jac_keys) in (2, 4)
 
 
 def test_pub_key_recovery() -> None:
@@ -279,6 +280,7 @@ def test_crack_prv_key() -> None:
 
 def test_forge_hash_sig() -> None:
     """forging valid hash signatures"""
+    # pylint: disable=protected-access
 
     ec = CURVES["secp256k1"]
 
