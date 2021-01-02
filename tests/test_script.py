@@ -101,27 +101,31 @@ def test_nulldata() -> None:
 
 def test_op_int() -> None:
     i = 0b01111111
-    assert len(script._op_int(i)) == 2
+    assert len(script._op_int(i)) == 2  # pylint: disable=protected-access
     i = 0b11111111
-    assert len(script._op_int(i)) == 3
+    assert len(script._op_int(i)) == 3  # pylint: disable=protected-access
     i = 0b0111111111111111
-    assert len(script._op_int(i)) == 3
+    assert len(script._op_int(i)) == 3  # pylint: disable=protected-access
     i = 0b1111111111111111
-    assert len(script._op_int(i)) == 4
+    assert len(script._op_int(i)) == 4  # pylint: disable=protected-access
 
 
 def test_op_pushdata() -> None:
     length = 75
     b = "00" * length
-    assert len(script._op_pushdata(b)) == length + 1
+    assert len(script._op_pushdata(b)) == length + 1  # pylint: disable=protected-access
     b = "00" * (length + 1)
-    assert len(script._op_pushdata(b)) == (length + 1) + 2
+    assert (  # pylint: disable=protected-access
+        len(script._op_pushdata(b)) == (length + 1) + 2
+    )
 
     length = 255
     b = "00" * length
-    assert len(script._op_pushdata(b)) == length + 2
+    assert len(script._op_pushdata(b)) == length + 2  # pylint: disable=protected-access
     b = "00" * (length + 1)
-    assert len(script._op_pushdata(b)) == (length + 1) + 3
+    assert (  # pylint: disable=protected-access
+        len(script._op_pushdata(b)) == (length + 1) + 3
+    )
 
 
 def test_encoding():
