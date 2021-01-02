@@ -39,7 +39,7 @@ btclib.base58 module
 btclib.base58\_address module
 -----------------------------
 
-.. automodule:: btclib.base58_address
+.. automodule:: btclib.b58
    :members:
    :undoc-members:
    :show-inheritance:
@@ -63,7 +63,7 @@ btclib.bech32 module
 btclib.bech32\_address module
 -----------------------------
 
-.. automodule:: btclib.bech32_address
+.. automodule:: btclib.b32
    :members:
    :undoc-members:
    :show-inheritance:

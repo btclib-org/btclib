@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
+
+"""Transaction Output (TxOut) dataclass.
+
+Dataclass encapsulating value and script_pub_key
+(and network to convert script_pub_key to and from address).
+"""
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Type, TypeVar

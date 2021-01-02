@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -14,7 +14,7 @@ from typing import List, Tuple
 
 import pytest
 
-from btclib import base58_address, bech32_address
+from btclib import b32, b58
 from btclib.bip32 import bip32, slip132
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39
@@ -78,19 +78,19 @@ def test_slip132_test_vector() -> None:
         address = slip132.address_from_xkey(xprv)
         assert addr == address
         if version == NETWORKS["mainnet"].bip32_prv:
-            address = base58_address.p2pkh(xpub)
+            address = b58.p2pkh(xpub)
             assert addr == address
-            address = base58_address.p2pkh(xprv)
+            address = b58.p2pkh(xprv)
             assert addr == address
         elif version == NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv:
-            address = base58_address.p2wpkh_p2sh(xpub)
+            address = b58.p2wpkh_p2sh(xpub)
             assert addr == address
-            address = base58_address.p2wpkh_p2sh(xprv)
+            address = b58.p2wpkh_p2sh(xprv)
             assert addr == address
         elif version == NETWORKS["mainnet"].slip132_p2wpkh_prv:
-            address = bech32_address.p2wpkh(xpub)
+            address = b32.p2wpkh(xpub)
             assert addr == address
-            address = bech32_address.p2wpkh(xprv)
+            address = b32.p2wpkh(xprv)
             assert addr == address
 
 

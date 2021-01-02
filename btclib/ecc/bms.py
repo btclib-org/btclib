@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2019-2020 The btclib developers
+# Copyright (C) 2019-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -138,9 +138,8 @@ from hashlib import sha256
 from typing import Optional, Tuple, Type, TypeVar, Union
 
 from btclib.alias import BinaryData, Octets, String
-from btclib.base58_address import h160_from_address, p2pkh, p2wpkh_p2sh
-from btclib.base58_wif import wif_from_prv_key
-from btclib.bech32_address import p2wpkh, witness_from_address
+from btclib.b32 import p2wpkh, witness_from_address
+from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
 from btclib.ecc import dsa
 from btclib.ecc.curve import mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point

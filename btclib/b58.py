@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,9 +8,10 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-""" Base58 address functions.
+""" Base58 address and WIF functions.
 
-Base58 encoding of public keys and scripts as addresses.
+Base58 encoding of public keys and scripts as addresses,
+private keys as WIFs
 """
 
 from typing import Optional, Tuple
@@ -21,8 +22,28 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
 from btclib.network import NETWORKS, network_from_key_value
 from btclib.script_pub_key import script_pub_key_from_payload
+from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.to_pub_key import Key
 from btclib.utils import bytes_from_octets, hash160, sha256
+
+
+def wif_from_prv_key(
+    prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+) -> str:
+    "Return the WIF encoding of a private key."
+
+    q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
+    ec = NETWORKS[net].curve
+
+    payload = b"".join(
+        [
+            NETWORKS[net].wif,
+            q.to_bytes(ec.n_size, byteorder="big", signed=False),
+            b"\x01" if compr else b"",
+        ]
+    )
+    return b58encode(payload).decode("ascii")
+
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
 # imported from the hashes module

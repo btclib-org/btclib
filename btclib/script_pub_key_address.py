@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,11 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"Functions for conversion between script_pub_keys and addresses."
+
 from typing import Tuple
 
 from btclib.alias import Octets, String
-from btclib.base58_address import address_from_h160, h160_from_address
-from btclib.bech32_address import address_from_witness, witness_from_address
+from btclib.b32 import address_from_witness, witness_from_address
+from btclib.b58 import address_from_h160, h160_from_address
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script_pub_key import (

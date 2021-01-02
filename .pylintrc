@@ -61,7 +61,6 @@ confidence=
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable=invalid-name,  # C0103
-        missing-module-docstring,   #  C0114
         missing-class-docstring,  # C0115
         missing-function-docstring,  # C0116
         too-many-instance-attributes,  # R0902

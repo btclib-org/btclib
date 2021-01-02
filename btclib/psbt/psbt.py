@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2020 The btclib developers
+# Copyright (C) 2020-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Partially Signed Bitcoin Transaction.
+"""Partially Signed Bitcoin Transaction (Psbt) dataclass and functions.
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -17,7 +17,7 @@ from os import path
 import pytest
 
 from btclib import base58, hashes
-from btclib.base58_address import p2pkh  # FIXME why it is needed here
+from btclib.b58 import p2pkh  # FIXME why it is needed here
 from btclib.bip32.bip32 import (
     BIP32KeyData,
     _derive,

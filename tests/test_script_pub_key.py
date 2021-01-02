@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -16,7 +16,7 @@ from typing import List
 
 import pytest
 
-from btclib import base58_address, bech32_address, script, var_bytes
+from btclib import b32, b58, script, var_bytes
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script_pub_key import (
@@ -232,10 +232,10 @@ def test_p2pkh() -> None:
 
     # base58 address
     network = "mainnet"
-    address = base58_address.p2pkh(pub_key, network)
+    address = b58.p2pkh(pub_key, network)
     assert address == address_from_script_pub_key(script_pub_key, network)
     prefix = NETWORKS[network].p2pkh
-    assert address == base58_address.address_from_h160(prefix, payload, network)
+    assert address == b58.address_from_h160(prefix, payload, network)
 
     # back from the address to the script_pub_key
     assert (script_pub_key, network) == script_pub_key_from_address(address)
@@ -285,17 +285,17 @@ def test_p2wpkh() -> None:
 
     # bech32 address
     network = "mainnet"
-    address = bech32_address.p2wpkh(pub_key, network)
+    address = b32.p2wpkh(pub_key, network)
     assert address == address_from_script_pub_key(script_pub_key, network)
     wit_ver = 0
-    assert address == bech32_address.address_from_witness(wit_ver, payload, network)
+    assert address == b32.address_from_witness(wit_ver, payload, network)
 
     # back from the address to the script_pub_key
     assert (script_pub_key, network) == script_pub_key_from_address(address)
 
     # p2sh-wrapped base58 address
-    address = base58_address.p2wpkh_p2sh(pub_key, network)
-    assert address == base58_address.address_from_witness(payload, network)
+    address = b58.p2wpkh_p2sh(pub_key, network)
+    assert address == b58.address_from_witness(payload, network)
 
     err_msg = "invalid witness version: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -326,10 +326,10 @@ def test_p2sh() -> None:
 
     # base58 address
     network = "mainnet"
-    address = base58_address.p2sh(redeem_script, network)
+    address = b58.p2sh(redeem_script, network)
     assert address == address_from_script_pub_key(script_pub_key, network)
     prefix = NETWORKS[network].p2sh
-    assert address == base58_address.address_from_h160(prefix, payload, network)
+    assert address == b58.address_from_h160(prefix, payload, network)
 
     # back from the address to the script_pub_key
     assert (script_pub_key, network) == script_pub_key_from_address(address)
@@ -380,17 +380,17 @@ def test_p2wsh() -> None:
 
     # bech32 address
     network = "mainnet"
-    address = bech32_address.p2wsh(redeem_script, network)
+    address = b32.p2wsh(redeem_script, network)
     assert address == address_from_script_pub_key(script_pub_key, network)
     wit_ver = 0
-    assert address == bech32_address.address_from_witness(wit_ver, payload, network)
+    assert address == b32.address_from_witness(wit_ver, payload, network)
 
     # back from the address to the script_pub_key
     assert (script_pub_key, network) == script_pub_key_from_address(address)
 
     # p2sh-wrapped base58 address
-    address = base58_address.p2wsh_p2sh(redeem_script, network)
-    assert address == base58_address.address_from_witness(payload, network)
+    address = b58.p2wsh_p2sh(redeem_script, network)
+    assert address == b58.address_from_witness(payload, network)
 
     err_msg = "invalid witness version: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -425,7 +425,7 @@ def test_exceptions() -> None:
 
     # Unhandled witness version (16)
     err_msg = "unmanaged witness version: "
-    address = bech32_address.address_from_witness(16, 20 * b"\x00")
+    address = b32.address_from_witness(16, 20 * b"\x00")
     with pytest.raises(BTClibValueError, match=err_msg):
         script_pub_key_from_address(address)
 
@@ -561,7 +561,7 @@ def test_bip67() -> None:
         assert script_pub_key == script_pub_key_from_payload("p2ms", payload)
 
         errmsg = f"Test vector #{i}"
-        assert address == base58_address.p2sh(script_pub_key), errmsg
+        assert address == b58.p2sh(script_pub_key), errmsg
 
 
 def test_non_standard_script_in_p2wsh() -> None:
@@ -591,4 +591,4 @@ def test_non_standard_script_in_p2wsh() -> None:
 
     address = "bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
     assert address == address_from_script_pub_key(script_pub_key, network)
-    assert address == bech32_address.address_from_witness(0, payload, network)
+    assert address == b32.address_from_witness(0, payload, network)

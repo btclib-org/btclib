@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -59,12 +59,12 @@ class Network:
     magic_bytes: bytes
     genesis_block: bytes
 
-    # base58_wif starts with 'K' or 'L' if compressed else '5'
+    # base58 wif starts with 'K' or 'L' if compressed else '5'
     wif: bytes
 
-    # base58_address starts with '1'
+    # base58 address starts with '1'
     p2pkh: bytes
-    # base58_address starts with '3'
+    # base58 address starts with '3'
     p2sh: bytes
 
     # bech32_address starts with 'bc1'

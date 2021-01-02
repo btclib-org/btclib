@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -14,7 +14,7 @@ https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
 from typing import Any, Callable, List
 
-from btclib import base58_address, bech32_address
+from btclib import b32, b58
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, xpub_from_xprv
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_from_key_value
@@ -50,9 +50,9 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         raise BTClibValueError(m)
 
     function_list: List[Callable[[Any, str], str]] = [
-        base58_address.p2pkh,
-        bech32_address.p2wpkh,
-        base58_address.p2wpkh_p2sh,
+        b58.p2pkh,
+        b32.p2wpkh,
+        b58.p2wpkh_p2sh,
     ]
     version_list: List[str] = [
         "bip32_pub",

@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Copyright (C) 2019-2020 The btclib developers
+# Copyright (C) 2019-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -35,7 +35,7 @@ https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
 - splitted the original tests.py file in test_bech32.py
-  and test_bech32_address.py
+  and test_b32.py
 - checked for raised exceptions instead of assertIsNone
 """
 
