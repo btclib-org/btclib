@@ -178,8 +178,8 @@ def test_address_witness() -> None:
 
     wit_prg_ints = list(wit_prg)
     wit_prg_ints[0] = -1
-    with pytest.raises(BTClibValueError, match="invalid value in _convertbits: "):
-        b32._convertbits(wit_prg_ints, 8, 5)
+    with pytest.raises(BTClibValueError, match="invalid value: "):
+        b32.power_of_2_base_conversion(wit_prg_ints, 8, 5)
 
     addr = "tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
     err_msg = "invalid witness program length for witness v0: "

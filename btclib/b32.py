@@ -55,33 +55,33 @@ from btclib.utils import bytes_from_octets, sha256
 # 0. bech32 facilities
 
 
-def _convertbits(
-    data: Iterable[int], frombits: int, tobits: int, pad: bool = True
+def power_of_2_base_conversion(
+    data: Iterable[int], from_bits: int, to_bits: int, pad: bool = True
 ) -> List[int]:
-    "General power-of-2 base conversion."
+    "Convert a power-of-two digit sequence to another power-of-two base."
     acc = 0
     bits = 0
     ret = []
-    maxv = (1 << tobits) - 1
-    max_acc = (1 << (frombits + tobits - 1)) - 1
+    maxv = (1 << to_bits) - 1
+    max_acc = (1 << (from_bits + to_bits - 1)) - 1
     for value in data:
-        if value < 0 or (value >> frombits):
-            raise BTClibValueError(f"invalid value in _convertbits: {value}")
-        acc = ((acc << frombits) | value) & max_acc
-        bits += frombits
-        while bits >= tobits:
-            bits -= tobits
+        if value < 0 or (value >> from_bits):
+            raise BTClibValueError(f"invalid value: {value}")
+        acc = ((acc << from_bits) | value) & max_acc
+        bits += from_bits
+        while bits >= to_bits:
+            bits -= to_bits
             ret.append((acc >> bits) & maxv)
 
     if pad:
         if bits:
-            ret.append((acc << (tobits - bits)) & maxv)
-    elif bits >= frombits:
-        err_msg = f"zero padding of more than {frombits-1} bits"
-        err_msg += f" in {frombits}-to-{tobits} conversion"
+            ret.append((acc << (to_bits - bits)) & maxv)
+    elif bits >= from_bits:
+        err_msg = f"zero padding of more than {from_bits-1} bits"
+        err_msg += f" in {from_bits}-to-{to_bits} conversion"
         raise BTClibValueError(err_msg)
-    elif (acc << (tobits - bits)) & maxv:
-        err_msg = f"non-zero padding in {frombits}-to-{tobits} conversion"
+    elif (acc << (to_bits - bits)) & maxv:
+        err_msg = f"non-zero padding in {from_bits}-to-{to_bits} conversion"
         raise BTClibValueError(err_msg)
 
     return ret
@@ -116,7 +116,7 @@ def _check_witness(wit_ver: int, wit_prg: bytes):
 def _address_from_witness(hrp: str, wit_ver: int, wit_prg: Octets) -> str:
     wit_prg = bytes_from_octets(wit_prg)
     _check_witness(wit_ver, wit_prg)
-    bytes_ = b32encode(hrp, [wit_ver] + _convertbits(wit_prg, 8, 5))
+    bytes_ = b32encode(hrp, [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5))
     return bytes_.decode("ascii")
 
 
@@ -151,7 +151,7 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str, bool]:
         raise BTClibValueError(f"empty data in bech32 address: {b32addr!r}")
 
     wit_ver = data[0]
-    wit_prg = _convertbits(data[1:], 5, 8, False)
+    wit_prg = power_of_2_base_conversion(data[1:], 5, 8, False)
     _check_witness(wit_ver, bytes(wit_prg))
 
     is_script_hash = wit_ver != 0 or len(wit_prg) != 20
