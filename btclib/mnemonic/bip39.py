@@ -36,7 +36,7 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 
 
 from hashlib import pbkdf2_hmac, sha256
-from typing import Optional
+from typing import Optional, Tuple
 
 from btclib.bip32.bip32 import rootxprv_from_seed
 from btclib.exceptions import BTClibValueError
@@ -57,7 +57,7 @@ from btclib.mnemonic.mnemonic import (
 from btclib.network import NETWORKS
 
 
-def _entropy_checksum(bin_str_entropy: BinStr) -> BinStr:
+def _entropy_checksum(entropy: Entropy) -> Tuple[BinStr, BinStr]:
     """Return the checksum of the binary string input entropy.
 
     Entropy must be expressed as binary 0/1 string and
@@ -65,18 +65,19 @@ def _entropy_checksum(bin_str_entropy: BinStr) -> BinStr:
     Leading zeros are considered genuine entropy, not redundant padding.
     """
 
+    bin_str_entropy = bin_str_entropy_from_entropy(entropy)
     bytes_entropy = bytes_entropy_from_str(bin_str_entropy)
 
     # 256-bit checksum
-    byteschecksum = sha256(bytes_entropy).digest()
+    bytes_checksum = sha256(bytes_entropy).digest()
     # integer checksum (leading zeros are lost)
-    intchecksum = int.from_bytes(byteschecksum, byteorder="big", signed=False)
+    int_checksum = int.from_bytes(bytes_checksum, byteorder="big", signed=False)
     # convert checksum to binary '01' string
-    checksum = bin(intchecksum)[2:]  # remove '0b'
+    checksum = bin(int_checksum)[2:]  # remove '0b'
     checksum = checksum.zfill(256)  # pad with leading lost zeros
     # leftmost bits
     checksum_bits = len(bytes_entropy) // 4
-    return checksum[:checksum_bits]
+    return bin_str_entropy, checksum[:checksum_bits]
 
 
 def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
@@ -96,8 +97,7 @@ def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
     length, then only the leftmost bits are retained.
     """
 
-    bin_str_entropy = bin_str_entropy_from_entropy(entropy)
-    checksum = _entropy_checksum(bin_str_entropy)
+    bin_str_entropy, checksum = _entropy_checksum(entropy)
     base = WORDLISTS.language_length(lang)
     indexes = wordlist_indexes_from_bin_str_entropy(bin_str_entropy + checksum, base)
     return mnemonic_from_indexes(indexes, lang)
@@ -110,12 +110,10 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     base = WORDLISTS.language_length(lang)
     cs_entropy = bin_str_entropy_from_wordlist_indexes(indexes, base)
 
-    # entropy is only the first part of cs_entropy
     bits = int(len(cs_entropy) * 32 / 33)
-    bin_str_entropy = cs_entropy[:bits]
-
+    # entropy is only the first part of cs_entropy
     # the second part being the checksum, to be verified
-    checksum = _entropy_checksum(bin_str_entropy)
+    bin_str_entropy, checksum = _entropy_checksum(cs_entropy[:bits])
     if cs_entropy[bits:] != checksum:
         err_msg = f"invalid checksum: {cs_entropy[bits:]}; expected: {checksum}"
         raise BTClibValueError(err_msg)

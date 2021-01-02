@@ -27,6 +27,7 @@ from btclib.mnemonic.entropy import (
     bin_str_entropy_from_rolls,
     bin_str_entropy_from_str,
     bin_str_entropy_from_wordlist_indexes,
+    bytes_entropy_from_str,
     collect_rolls,
     wordlist_indexes_from_bin_str_entropy,
 )
@@ -166,6 +167,11 @@ def test_exceptions() -> None:
 
     with pytest.raises(TypeError):
         bin_str_entropy_from_str(3)  # type: ignore
+
+    err_msg = "invalid number of bits: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bin_str_entropy = "01" * 65  # 130 bits
+        bytes_entropy_from_str(bin_str_entropy)
 
 
 inputs: List[StringIO] = []

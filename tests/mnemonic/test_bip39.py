@@ -44,11 +44,6 @@ def test_bip39() -> None:
         wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce oil"
         bip39.entropy_from_mnemonic(wr_m, lang)
 
-    err_msg = "invalid number of bits: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        bin_str_entropy = "01" * 65  # 130 bits
-        bip39._entropy_checksum(bin_str_entropy)
-
 
 def test_vectors() -> None:
     """BIP39 test vectors
