@@ -57,8 +57,7 @@ def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> List[in
     # do not lose leading zeros entropy
     bits_per_digit = int(math.log(base, 2))
     nwords = math.ceil(bits / bits_per_digit)
-    while len(indexes) < nwords:
-        indexes.append(0)
+    indexes += [0] * (nwords - len(indexes))
 
     return list(reversed(indexes))
 
