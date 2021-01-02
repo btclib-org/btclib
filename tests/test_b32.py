@@ -126,11 +126,11 @@ def test_invalid_address() -> None:
         ),
         (
             "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
-            "zero padding of more than 4 bits in 8-to-5 conversion",
+            "zero padding of more than 4 bits in 5-to-8 conversion",
         ),
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
-            "non-zero padding in 8-to-5 conversion",
+            "non-zero padding in 5-to-8 conversion",
         ),
         ("bc1gmk9yu", "empty data in bech32 address: "),
         (

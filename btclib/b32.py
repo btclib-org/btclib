@@ -77,9 +77,12 @@ def _convertbits(
         if bits:
             ret.append((acc << (tobits - bits)) & maxv)
     elif bits >= frombits:
-        raise BTClibValueError("zero padding of more than 4 bits in 8-to-5 conversion")
+        err_msg = f"zero padding of more than {frombits-1} bits"
+        err_msg += f" in {frombits}-to-{tobits} conversion"
+        raise BTClibValueError(err_msg)
     elif (acc << (tobits - bits)) & maxv:
-        raise BTClibValueError("non-zero padding in 8-to-5 conversion")
+        err_msg = f"non-zero padding in {frombits}-to-{tobits} conversion"
+        raise BTClibValueError(err_msg)
 
     return ret
 
