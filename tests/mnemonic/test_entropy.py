@@ -120,12 +120,12 @@ def test_exceptions() -> None:
     assert entropy == bin_str_entropy214
 
     # 214 is not in [128, 160, 192, 224, 256, 512]
-    err_msg = "Wrong number of bits: "
+    err_msg = "invalid number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_entropy(bin_str_entropy214)
 
     # 214 is not in [216]
-    err_msg = "Wrong number of bits: "
+    err_msg = "invalid number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_entropy(bin_str_entropy214, 216)
 
@@ -154,7 +154,7 @@ def test_exceptions() -> None:
     entropy = bin_str_entropy_from_entropy(bytes_entropy216, 216)
     assert entropy != bin_str_entropy216
 
-    err_msg = "Wrong number of bits: "
+    err_msg = "invalid number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_entropy(bytes_entropy216, 224)
 

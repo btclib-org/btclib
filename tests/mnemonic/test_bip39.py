@@ -35,7 +35,7 @@ def test_bip39() -> None:
     assert raw_entr == int(r, 2).to_bytes(size, byteorder="big", signed=False)
 
     wrong_mnemonic = mnemonic + " abandon"
-    err_msg = "invalid number of bits for BIP39 entropy"
+    err_msg = "invalid number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bip39.entropy_from_mnemonic(wrong_mnemonic, lang)
 
@@ -44,9 +44,8 @@ def test_bip39() -> None:
         wr_m = "abandon abandon atom trust ankle walnut oil across awake bunker divorce oil"
         bip39.entropy_from_mnemonic(wr_m, lang)
 
-    err_msg = "invalid number of bits for BIP39 entropy: "
+    err_msg = "invalid number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        # Invalid number of bits (130) for BIP39 entropy; must be in ...
         bin_str_entropy = "01" * 65  # 130 bits
         bip39._entropy_checksum(bin_str_entropy)
 

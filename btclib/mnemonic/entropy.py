@@ -143,8 +143,8 @@ def bin_str_entropy_from_bytes(
     n_bits = min(n_bits, bits[-1])
 
     if n_bits not in bits:
-        m = f"Wrong number of bits: {n_bits} instead of {bits}"
-        raise BTClibValueError(m)
+        err_msg = f"invalid number of bits: {n_bits} instead of {bits}"
+        raise BTClibValueError(err_msg)
 
     int_entropy = int.from_bytes(bytes_entropy, byteorder="big", signed=False)
     # only the leftmost bits will be retained
@@ -152,11 +152,11 @@ def bin_str_entropy_from_bytes(
 
 
 def bytes_entropy_from_str(bin_str_entropy: BinStr) -> bytes:
-    nbits = len(bin_str_entropy)
-    if nbits not in _bits:
-        m = f"invalid number of bits for BIP39 entropy: {nbits}; must be in {_bits}"
-        raise BTClibValueError(m)
-    nbytes = (nbits + 7) // 8
+    n_bits = len(bin_str_entropy)
+    if n_bits not in _bits:
+        err_msg = f"invalid number of bits: {n_bits} instead of {_bits}"
+        raise BTClibValueError(err_msg)
+    nbytes = (n_bits + 7) // 8
     int_entropy = int(bin_str_entropy, 2)
     return int_entropy.to_bytes(nbytes, byteorder="big", signed=False)
 
@@ -232,8 +232,8 @@ def bin_str_entropy_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> Bi
         # only the leftmost bits are retained
         return str_entropy[: bits[-1]]
     if n_bits not in bits:
-        m = f"Wrong number of bits: {n_bits} instead of {bits}"
-        raise BTClibValueError(m)
+        err_msg = f"invalid number of bits: {n_bits} instead of {bits}"
+        raise BTClibValueError(err_msg)
     return str_entropy
 
 
@@ -364,8 +364,8 @@ def bin_str_entropy_from_random(
         hf = sha512()
         max_bits = hf.digest_size * 8
         if bits > max_bits:
-            m = f"Too many bits required: {bits}, max is {max_bits}"
-            raise BTClibValueError(m)
+            err_msg = f"Too many bits required: {bits}, max is {max_bits}"
+            raise BTClibValueError(err_msg)
         n_bytes = math.ceil(i.bit_length() / 8)
         h512 = sha512(i.to_bytes(n_bytes, byteorder="big", signed=False)).digest()
         i = int.from_bytes(h512, byteorder="big", signed=False)
