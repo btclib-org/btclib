@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Sequence
 
 from btclib.alias import Integer, JacPoint, Point
 from btclib.ecc.curve_group import (
-    HEXTHRESHOLD,
+    HEX_THRESHOLD,
     CurveGroup,
     _double_mult,
     _mult,
@@ -46,7 +46,7 @@ class CurveSubGroup(CurveGroup):
 
     def __str__(self) -> str:
         result = super().__str__()
-        if self.p > HEXTHRESHOLD:
+        if self.p > HEX_THRESHOLD:
             result += f"\n x_G = {hex_string(self.G[0])}"
             result += f"\n y_G = {hex_string(self.G[1])}"
         else:
@@ -56,7 +56,7 @@ class CurveSubGroup(CurveGroup):
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
-        if self.p > HEXTHRESHOLD:
+        if self.p > HEX_THRESHOLD:
             result += f", ('{hex_string(self.G[0])}', '{hex_string(self.G[1])}')"
         else:
             result += f", ({self.G[0]}, {self.G[1]})"
@@ -96,23 +96,23 @@ class Curve(CurveSubGroup):
         # 5. Check that n is prime.
         if n < 2 or n % 2 == 0 or pow(2, n - 1, n) != 1:
             err_msg = "n is not prime: "
-            err_msg += f"{hex_string(n)}" if n > HEXTHRESHOLD else f"{n}"
+            err_msg += f"{hex_string(n)}" if n > HEX_THRESHOLD else f"{n}"
             raise BTClibValueError(err_msg)
         delta = int(2 * sqrt(self.p))
         # also check n with Hasse Theorem
         if h < 2 and not self.p + 1 - delta <= n <= self.p + 1 + delta:
             err_msg = "n not in p+1-delta..p+1+delta: "
-            err_msg += f"{hex_string(n)}" if n > HEXTHRESHOLD else f"{n}"
+            err_msg += f"{hex_string(n)}" if n > HEX_THRESHOLD else f"{n}"
             raise BTClibValueError(err_msg)
 
         # 7. Check that G ≠ INF, nG = INF
         if self.G[1] == 0:
-            m = "INF point cannot be a generator"
-            raise BTClibValueError(m)
+            err_msg = "INF point cannot be a generator"
+            raise BTClibValueError(err_msg)
         jac_inf = _mult(n, self.GJ, self)
         if jac_inf[2] != 0:
             err_msg = "n is not the group order: "
-            err_msg += f"{hex_string(n)}" if n > HEXTHRESHOLD else f"{n}"
+            err_msg += f"{hex_string(n)}" if n > HEX_THRESHOLD else f"{n}"
             raise BTClibValueError(err_msg)
 
         # 6. Check cofactor
@@ -137,7 +137,7 @@ class Curve(CurveSubGroup):
 
     def __str__(self) -> str:
         result = super().__str__()
-        if self.n > HEXTHRESHOLD:
+        if self.n > HEX_THRESHOLD:
             result += f"\n n   = {hex_string(self.n)}"
         else:
             result += f"\n n   = {self.n}"
@@ -146,7 +146,7 @@ class Curve(CurveSubGroup):
 
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
-        if self.n > HEXTHRESHOLD:
+        if self.n > HEX_THRESHOLD:
             result += f", '{hex_string(self.n)}'"
         else:
             result += f", {self.n}"

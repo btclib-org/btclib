@@ -80,9 +80,9 @@ def mnemonic_from_entropy(
     """
 
     if version_str not in _MNEMONIC_VERSIONS:
-        m = f"unknown electrum mnemonic version: '{version_str}'; "
-        m += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
-        raise BTClibValueError(m)
+        err_msg = f"unknown electrum mnemonic version: '{version_str}'; "
+        err_msg += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
+        raise BTClibValueError(err_msg)
     version = _MNEMONIC_VERSIONS[version_str]
 
     bin_str_entropy = bin_str_entropy_from_entropy(entropy)

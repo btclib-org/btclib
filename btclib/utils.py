@@ -93,8 +93,8 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     ):
         return octets
 
-    m = f"invalid size: {len(octets)} bytes instead of {out_size}"
-    raise BTClibValueError(m)
+    err_msg = f"invalid size: {len(octets)} bytes instead of {out_size}"
+    raise BTClibValueError(err_msg)
 
 
 def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:

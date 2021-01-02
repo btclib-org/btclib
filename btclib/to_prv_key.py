@@ -150,8 +150,8 @@ def _prv_keyinfo_from_xprv(
         xprv = BIP32KeyData.b58decode(xprv)
 
     if xprv.key[0] != 0:
-        m = f"not a private key: {xprv.b58encode()}"
-        raise BTClibValueError(m)
+        err_msg = f"not a private key: {xprv.b58encode()}"
+        raise BTClibValueError(err_msg)
 
     if network is None:
         network = network_from_xkeyversion(xprv.version)

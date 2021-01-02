@@ -26,7 +26,7 @@ from btclib.ecc.number_theory import legendre_symbol, mod_inv, mod_sqrt
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import hex_string, int_from_integer
 
-HEXTHRESHOLD = 0xFFFFFFFF
+HEX_THRESHOLD = 0xFFFFFFFF
 
 
 def jac_from_aff(Q: Point) -> JacPoint:
@@ -61,7 +61,7 @@ class CurveGroup:
         # Fermat test will do as _probabilistic_ primality test...
         if p < 2 or p % 2 == 0 or pow(2, p - 1, p) != 1:
             err_msg = "p is not prime: "
-            err_msg += f"'{hex_string(p)}'" if p > HEXTHRESHOLD else f"{p}"
+            err_msg += f"'{hex_string(p)}'" if p > HEX_THRESHOLD else f"{p}"
             raise BTClibValueError(err_msg)
 
         plen = p.bit_length()
@@ -77,7 +77,7 @@ class CurveGroup:
         if p <= a:
             err_msg = "p <= a: " + (
                 f"'{hex_string(p)}' <= '{hex_string(a)}'"
-                if p > HEXTHRESHOLD
+                if p > HEX_THRESHOLD
                 else f"{p} <= {a}"
             )
             raise BTClibValueError(err_msg)
@@ -86,7 +86,7 @@ class CurveGroup:
         if p <= b:
             err_msg = "p <= b: " + (
                 f"'{hex_string(p)}' <= '{hex_string(b)}'"
-                if p > HEXTHRESHOLD
+                if p > HEX_THRESHOLD
                 else f"{p} <= {b}"
             )
             raise BTClibValueError(err_msg)
@@ -100,12 +100,12 @@ class CurveGroup:
 
     def __str__(self) -> str:
         result = "Curve"
-        if self.p > HEXTHRESHOLD:
+        if self.p > HEX_THRESHOLD:
             result += f"\n p   = {hex_string(self.p)}"
         else:
             result += f"\n p   = {self.p}"
 
-        if self._a > HEXTHRESHOLD or self._b > HEXTHRESHOLD:
+        if self._a > HEX_THRESHOLD or self._b > HEX_THRESHOLD:
             result += f"\n a   = {hex_string(self._a)}"
             result += f"\n b   = {hex_string(self._b)}"
         else:
@@ -116,8 +116,8 @@ class CurveGroup:
 
     def __repr__(self) -> str:
         result = "Curve("
-        result += f"'{hex_string(self.p)}'" if self.p > HEXTHRESHOLD else f"{self.p}"
-        if self._a > HEXTHRESHOLD or self._b > HEXTHRESHOLD:
+        result += f"'{hex_string(self.p)}'" if self.p > HEX_THRESHOLD else f"{self.p}"
+        if self._a > HEX_THRESHOLD or self._b > HEX_THRESHOLD:
             result += f", '{hex_string(self._a)}', '{hex_string(self._b)}'"
         else:
             result += f", {self._a}, {self._b}"
@@ -312,14 +312,14 @@ class CurveGroup:
         """Return the y coordinate from x, as in (x, y)."""
         if not 0 <= x < self.p:
             err_msg = "x-coordinate not in 0..p-1: "
-            err_msg += f"{hex_string(x)}" if x > HEXTHRESHOLD else f"{x}"
+            err_msg += f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}"
             raise BTClibValueError(err_msg)
         try:
             y2 = self._y2(x)
             return mod_sqrt(y2, self.p)
         except BTClibValueError as e:
             err_msg = "invalid x-coordinate: "
-            err_msg += f"{hex_string(x)}" if x > HEXTHRESHOLD else f"{x}"
+            err_msg += f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}"
             raise BTClibValueError("invalid x-coordinate") from e
 
     def require_on_curve(self, Q: Point) -> None:
@@ -357,9 +357,11 @@ class CurveGroup:
         """Return the quadratic residue affine y-coordinate."""
 
         if not self.p_is_3_mod_4:
-            m = "field prime is not equal to 3 mod 4: "
-            m += f"'{hex_string(self.p)}'" if self.p > HEXTHRESHOLD else f"{self.p}"
-            raise BTClibValueError(m)
+            err_msg = "field prime is not equal to 3 mod 4: "
+            err_msg += (
+                f"'{hex_string(self.p)}'" if self.p > HEX_THRESHOLD else f"{self.p}"
+            )
+            raise BTClibValueError(err_msg)
         root = self.y(x)
         legendre = legendre_symbol(root, self.p)
         return root if legendre else self.p - root

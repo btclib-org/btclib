@@ -28,8 +28,8 @@ def find_all_points(ec: CurveGroup) -> List[Point]:
     for didactical sake only.
     """
     if ec.p > 10000:
-        m = f"p is too big to count all group points: {ec.p}"
-        raise BTClibValueError(m)
+        err_msg = f"p is too big to count all group points: {ec.p}"
+        raise BTClibValueError(err_msg)
 
     points: List[Point] = [INF]
     for x in range(ec.p):
@@ -52,8 +52,8 @@ def find_subgroup_points(ec: CurveGroup, G: Point) -> List[Point]:
     for didactical sake only.
     """
     if ec.p > 10000:
-        m = f"p is too big to count all subgroup points: {ec.p}"
-        raise BTClibValueError(m)
+        err_msg = f"p is too big to count all subgroup points: {ec.p}"
+        raise BTClibValueError(err_msg)
 
     points: List[Point] = [G]
     while points[-1] != INF:

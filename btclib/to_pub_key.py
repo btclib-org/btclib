@@ -131,8 +131,8 @@ def _pub_keyinfo_from_xpub(
         xpub = BIP32KeyData.b58decode(xpub)
 
     if xpub.key[0] not in (2, 3):
-        m = f"not a public key: {xpub.b58encode()}"
-        raise BTClibValueError(m)
+        err_msg = f"not a public key: {xpub.b58encode()}"
+        raise BTClibValueError(err_msg)
 
     if network is None:
         return xpub.key, network_from_xkeyversion(xpub.version)
