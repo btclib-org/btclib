@@ -19,12 +19,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
 from btclib.script import serialize
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import (
-    bytes_from_octets,
-    bytesio_from_binarydata,
-    hash160,
-    sha256,
-)
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
 

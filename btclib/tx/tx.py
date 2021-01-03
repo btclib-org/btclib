@@ -29,17 +29,7 @@ https://en.bitcoin.it/wiki/Timelock
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-from typing import (
-    Any,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar, Union
 
 from btclib import var_int
 from btclib.alias import BinaryData

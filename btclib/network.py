@@ -14,17 +14,7 @@
 import json
 from dataclasses import dataclass
 from os import path
-from typing import (
-    Any,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, TypeVar, Union
 
 from btclib.alias import Octets
 from btclib.ecc.curve import CURVES, Curve
