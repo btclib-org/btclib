@@ -27,33 +27,35 @@ The functions in this module could be easily amended
 (in a backward compatible way) in the future if such a need arises.
 """
 
-import decimal
+from decimal import Decimal, FloatOperation, getcontext
 from typing import Any
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
-decimal.getcontext().traps[decimal.FloatOperation] = True
+getcontext().traps[FloatOperation] = True
 
 # do not import _SATOSHI_PER_BITCOIN and _BITCOIN_PER_SATOSHI
 # instead, better use sats_from_btc and btc_from_sats
 _SATOSHI_PER_BITCOIN = 100_000_000
-_BITCOIN_PER_SATOSHI = decimal.Decimal("0.00000001")
+_BITCOIN_PER_SATOSHI = Decimal("0.00000001")
 
 # same suggestion for the following variables:
 # to check for max amount might be not enough;
 # instead, better use sats_from_btc and btc_from_sats
 # to ensure a valid amount
 _MAX_SATOSHI = 2_099_999_997_690_000
-_MAX_BITCOIN = decimal.Decimal("20_999_999.9769")
+_MAX_BITCOIN = Decimal("20_999_999.9769")
 
 
-def valid_btc_amount(amount: Any) -> decimal.Decimal:
+def valid_btc_amount(amount: Any) -> Decimal:
     "Return the BTC amount as Decimal, if valid."
+    if amount is None:
+        return Decimal("0")
     # any input that can be converted to str is fine
     # using str in the Decimal constructor avoids the
-    # decimal.FloatOperation exception
+    # FloatOperation exception
     # even if trapped by the context (which is the btclib default)
-    btc = decimal.Decimal(str(amount))
+    btc = Decimal(str(amount))
     if not 0 <= btc <= _MAX_BITCOIN:
         raise BTClibValueError(f"invalid BTC amount: {amount}")
     if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
@@ -61,7 +63,7 @@ def valid_btc_amount(amount: Any) -> decimal.Decimal:
     raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
 
 
-def sats_from_btc(amount: decimal.Decimal) -> int:
+def sats_from_btc(amount: Decimal) -> int:
     "Return the satoshi equivalent of the provided BTC amount."
     btc = valid_btc_amount(amount)
     return int(btc * _SATOSHI_PER_BITCOIN)
@@ -69,6 +71,8 @@ def sats_from_btc(amount: decimal.Decimal) -> int:
 
 def valid_sats_amount(amount: Any) -> int:
     "Return the satoshi amount as int, if valid."
+    if amount is None:
+        return 0
     sats = int(amount)
     if sats != amount:
         raise BTClibTypeError(f"non-integer satoshi amount: {amount}")
@@ -77,7 +81,7 @@ def valid_sats_amount(amount: Any) -> int:
     return sats
 
 
-def btc_from_sats(amount: int) -> decimal.Decimal:
+def btc_from_sats(amount: int) -> Decimal:
     "Return the BTC Decimal equivalent of the provided satoshi amount."
     sats = valid_sats_amount(amount)
     # normalize() strips the rightmost trailing zeros

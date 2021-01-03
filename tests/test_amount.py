@@ -15,7 +15,12 @@ from typing import List, Union
 
 import pytest
 
-from btclib.amount import btc_from_sats, sats_from_btc, valid_btc_amount
+from btclib.amount import (
+    btc_from_sats,
+    sats_from_btc,
+    valid_btc_amount,
+    valid_sats_amount,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
@@ -43,6 +48,9 @@ def test_conversions() -> None:
 
             assert btc_from_sats(10000) == Decimal("0.0001")
             assert str(btc_from_sats(10000)) == str(Decimal("0.0001"))
+
+            assert valid_btc_amount(None) == 0
+            assert valid_sats_amount(None) == 0
 
 
 def test_exceptions() -> None:
