@@ -42,8 +42,8 @@ from btclib.alias import Octets, String
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, hash256
 
-__ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-__BASE = len(__ALPHABET)
+_ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+__BASE = len(_ALPHABET)
 
 
 def _b58encode_from_int(i: int) -> bytes:
@@ -51,7 +51,7 @@ def _b58encode_from_int(i: int) -> bytes:
     result = b""
     while i or len(result) == 0:
         i, idx = divmod(i, __BASE)
-        result = __ALPHABET[idx : idx + 1] + result
+        result = _ALPHABET[idx : idx + 1] + result
 
     return result
 
@@ -64,7 +64,7 @@ def _b58encode(v: bytes) -> bytes:
     v = v.lstrip(b"\0")
     vlen = len(v)
     n_pad -= vlen
-    result = __ALPHABET[:1] * n_pad
+    result = _ALPHABET[:1] * n_pad
 
     if vlen:
         i = int.from_bytes(v, byteorder="big", signed=False)
@@ -86,20 +86,20 @@ def _b58decode_to_int(v: bytes) -> int:
     i = 0
     for char in v:
         i *= __BASE
-        i += __ALPHABET.index(char)
+        i += _ALPHABET.index(char)
     return i
 
 
 def _b58decode(v: bytes) -> bytes:
 
-    if any(x not in __ALPHABET for x in v):
+    if any(x not in _ALPHABET for x in v):
         msg = "Base58 string contains invalid characters"
         raise BTClibValueError(msg)
 
     # preserve leading-0s
     # base58 leading-1s become leading-0s
     n_pad = len(v)
-    v = v.lstrip(__ALPHABET[:1])
+    v = v.lstrip(_ALPHABET[:1])
     vlen = len(v)
     n_pad -= vlen
     result = b"\0" * n_pad

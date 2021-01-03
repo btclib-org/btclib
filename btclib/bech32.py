@@ -51,7 +51,8 @@ from typing import Iterable, List, Tuple
 from btclib.alias import String
 from btclib.exceptions import BTClibValueError
 
-__ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+_M = 1  # 0x2bc830a3
 
 
 def _polymod(values: Iterable[int]) -> int:
@@ -74,20 +75,20 @@ def _hrp_expand(hrp: str) -> List[int]:
 def _create_checksum(hrp: str, data: List[int]) -> List[int]:
     "Compute the checksum values given HRP and data."
     values = _hrp_expand(hrp) + data
-    polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ 1
+    polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ _M
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
 def b32encode(hrp: str, data: List[int]) -> bytes:
     "Compute a bech32 string given HRP and data values."
     combined = data + _create_checksum(hrp, data)
-    s = hrp + "1" + "".join(__ALPHABET[d] for d in combined)
+    s = hrp + "1" + "".join(_ALPHABET[d] for d in combined)
     return s.encode("ascii")
 
 
 def _verify_checksum(hrp: str, data: List[int]) -> bool:
     "Verify a checksum given HRP and converted data characters."
-    return _polymod(_hrp_expand(hrp) + data) == 1
+    return _polymod(_hrp_expand(hrp) + data) == _M
 
 
 def b32decode(bech: String) -> Tuple[str, List[int]]:
@@ -124,9 +125,9 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
 
     hrp = bech[:pos]
 
-    if any(x not in __ALPHABET for x in bech[pos + 1 :]):
+    if any(x not in _ALPHABET for x in bech[pos + 1 :]):
         raise BTClibValueError(f"invalid data characters in bech32 string: {bech}")
-    data = [__ALPHABET.find(x) for x in bech[pos + 1 :]]
+    data = [_ALPHABET.find(x) for x in bech[pos + 1 :]]
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]
