@@ -47,16 +47,15 @@ _MAX_SATOSHI = 2_099_999_997_690_000
 _MAX_BITCOIN = Decimal("20_999_999.9769")
 
 
-def valid_btc_amount(amount: Any) -> Decimal:
-    "Return the BTC amount as Decimal, if valid."
-    if amount is None:
-        return Decimal("0")
+def valid_btc_amount(amount: Any, dust: Decimal = Decimal("0")) -> Decimal:
+    "Return the BTC amount as Decimal, if valid and not less than dust."
     # any input that can be converted to str is fine
+    amount = "0" if amount is None else str(amount)
     # using str in the Decimal constructor avoids the
     # FloatOperation exception
     # even if trapped by the context (which is the btclib default)
-    btc = Decimal(str(amount))
-    if not 0 <= btc <= _MAX_BITCOIN:
+    btc = Decimal(amount)
+    if not dust <= btc <= _MAX_BITCOIN:
         raise BTClibValueError(f"invalid BTC amount: {amount}")
     if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
         return btc
@@ -69,14 +68,13 @@ def sats_from_btc(amount: Decimal) -> int:
     return int(btc * _SATOSHI_PER_BITCOIN)
 
 
-def valid_sats_amount(amount: Any) -> int:
-    "Return the satoshi amount as int, if valid."
-    if amount is None:
-        return 0
-    sats = int(amount)
-    if sats != amount:
+def valid_sats_amount(amount: Any, dust: int = 0) -> int:
+    "Return the satoshi amount as int, if valid and not less than dust."
+    # any input that can be converted to int is fine
+    sats = 0 if amount is None else int(amount)
+    if amount is not None and sats != amount:
         raise BTClibTypeError(f"non-integer satoshi amount: {amount}")
-    if not 0 <= sats <= _MAX_SATOSHI:
+    if not dust <= sats <= _MAX_SATOSHI:
         raise BTClibValueError(f"invalid satoshi amount: {amount}")
     return sats
 
