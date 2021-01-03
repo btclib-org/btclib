@@ -15,7 +15,7 @@ from typing import List, Union
 
 import pytest
 
-from btclib.amount import btc_from_sats, sats_from_btc
+from btclib.amount import btc_from_sats, sats_from_btc, valid_btc_amount
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
@@ -31,16 +31,10 @@ def test_conversions() -> None:
             # _NOT_ equal !!
             assert float_tot != 3.3
 
-            sats_1 = sats_from_btc(float_1)
-            sats_2 = sats_from_btc(float_2)
-            sats_tot = sats_1 + sats_2
-            # equal !!
-            assert btc_from_sats(sats_tot) == Decimal("3.3")
-
             btc_1 = Decimal("1.1")
             btc_2 = Decimal("2.2")
             btc_tot = btc_1 + btc_2
-            # _NOT_ equal !!
+            # equal !!
             assert btc_tot == Decimal("3.3")
 
             assert btc_from_sats(10000) == Decimal("0.00010000")
@@ -69,7 +63,7 @@ def test_exceptions() -> None:
             with pytest.raises(BTClibValueError, match=err_msg):
                 sats_from_btc(Decimal("0.123456789"))
             with pytest.raises(BTClibValueError, match=err_msg):
-                sats_from_btc(0.123456789)
+                valid_btc_amount(0.123456789)
             with pytest.raises(BTClibValueError, match=err_msg):
                 sats_from_btc(1 / (1 + pow(2, 8)))
 
@@ -99,6 +93,7 @@ def test_self_consistency() -> None:
                 cases += [num, float(num), str(num), f"{num:.7E}", Decimal(str(num))]
 
             for btc_amount in cases:
-                btc = Decimal(str(btc_amount)).normalize()
-                assert btc_from_sats(sats_from_btc(btc_amount)) == btc
-                assert str(btc_from_sats(sats_from_btc(btc_amount))) == str(btc)
+                exp_btc = Decimal(str(btc_amount)).normalize()
+                btc = btc_from_sats(sats_from_btc(btc_amount))  # type: ignore
+                assert btc == exp_btc
+                assert str(btc) == str(exp_btc)

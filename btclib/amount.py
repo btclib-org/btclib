@@ -47,27 +47,39 @@ _MAX_SATOSHI = 2_099_999_997_690_000
 _MAX_BITCOIN = decimal.Decimal("20_999_999.9769")
 
 
-def sats_from_btc(amount: Any) -> int:
-    "Return the satoshi equivalent of the provided BTC amount."
+def valid_btc_amount(amount: Any) -> decimal.Decimal:
+    "Return the BTC amount as Decimal, if valid."
     # any input that can be converted to str is fine
-    amount = str(amount)
-    # using str avoids the decimal.FloatOperation exception
+    # using str in the Decimal constructor avoids the
+    # decimal.FloatOperation exception
     # even if trapped by the context (which is the btclib default)
-    btc = decimal.Decimal(amount)
+    btc = decimal.Decimal(str(amount))
     if not 0 <= btc <= _MAX_BITCOIN:
         raise BTClibValueError(f"invalid BTC amount: {amount}")
-    sats = btc * _SATOSHI_PER_BITCOIN
-    if int(sats) == sats:
-        return int(sats)
+    if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
+        return btc
     raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
 
 
-def btc_from_sats(sats: int) -> decimal.Decimal:
-    "Return the BTC Decimal equivalent of the provided satoshi amount."
-    if int(sats) != sats:
-        raise BTClibTypeError(f"non-integer satoshi amount: {sats}")
+def sats_from_btc(amount: decimal.Decimal) -> int:
+    "Return the satoshi equivalent of the provided BTC amount."
+    btc = valid_btc_amount(amount)
+    return int(btc * _SATOSHI_PER_BITCOIN)
+
+
+def valid_sats_amount(amount: Any) -> int:
+    "Return the satoshi amount as int, if valid."
+    sats = int(amount)
+    if sats != amount:
+        raise BTClibTypeError(f"non-integer satoshi amount: {amount}")
     if not 0 <= sats <= _MAX_SATOSHI:
-        raise BTClibValueError(f"invalid satoshi amount: {sats}")
+        raise BTClibValueError(f"invalid satoshi amount: {amount}")
+    return sats
+
+
+def btc_from_sats(amount: int) -> decimal.Decimal:
+    "Return the BTC Decimal equivalent of the provided satoshi amount."
+    sats = valid_sats_amount(amount)
     # normalize() strips the rightmost trailing zeros
     # and produces canonical values for attributes of an equivalence class
     return (sats * _BITCOIN_PER_SATOSHI).normalize()
