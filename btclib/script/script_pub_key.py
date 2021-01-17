@@ -8,18 +8,68 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"ScriptPubKey functions."
+"ScriptPubKey class and functions."
 
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple
 
 from btclib import var_bytes
 from btclib.alias import Octets, String
+from btclib.b32 import address_from_witness, witness_from_address
+from btclib.b58 import address_from_h160, h160_from_address
 from btclib.ecc.sec_point import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
-from btclib.script.script import serialize
+from btclib.network import NETWORKS
+from btclib.script.script import Command, Script, serialize
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
+
+
+def has_segwit_prefix(addr: String) -> bool:
+
+    str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
+    return any(str_addr.startswith(NETWORKS[net].hrp + "1") for net in NETWORKS)
+
+
+def script_pub_key_from_address(addr: String) -> Tuple[bytes, str]:
+    "Return (script_pub_key, network) from the input bech32/base58 address"
+
+    if has_segwit_prefix(addr):
+        # also check witness validity
+        wit_ver, wit_prg, network, is_script_hash = witness_from_address(addr)
+        if wit_ver != 0:
+            raise BTClibValueError(f"unmanaged witness version: {wit_ver}")
+        if is_script_hash:
+            return script_pub_key_from_payload("p2wsh", wit_prg), network
+        return script_pub_key_from_payload("p2wpkh", wit_prg), network
+
+    _, h160, network, is_script_hash = h160_from_address(addr)
+    if is_script_hash:
+        return script_pub_key_from_payload("p2sh", h160), network
+    return script_pub_key_from_payload("p2pkh", h160), network
+
+
+def address_from_script_pub_key(
+    script_pub_key: Octets, network: str = "mainnet"
+) -> str:
+    "Return the bech32/base58 address from a script_pub_key."
+
+    if script_pub_key:
+        script_type, payload = payload_from_script_pub_key(script_pub_key)
+        if script_type == "p2pkh":
+            prefix = NETWORKS[network].p2pkh
+            return address_from_h160(prefix, payload, network)
+        if script_type == "p2sh":
+            prefix = NETWORKS[network].p2sh
+            return address_from_h160(prefix, payload, network)
+        if script_type in ("p2wsh", "p2wpkh"):
+            return address_from_witness(0, payload, network)
+
+    # not script_pub_key
+    # or
+    # script_type in ("p2pk", "p2ms", "nulldata", "unknown")
+    return ""
+
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
 
@@ -374,3 +424,35 @@ def p2wsh(redeem_script: Octets) -> bytes:
 
     script_h256 = sha256(redeem_script)
     return script_pub_key_from_payload("p2wsh", script_h256)
+
+
+class ScriptPubKey(Script):
+    required_sigs: int
+    network: str
+
+    @property
+    def type(self) -> str:
+        "Return the script type, if any."
+        type_, _ = payload_from_script_pub_key(self.serialize())
+        return type_
+
+    @property
+    def addresses(self) -> List[str]:
+        "Return the addresses, if any."
+        return [address_from_script_pub_key(self.serialize(), self.network)]
+
+    def __init__(
+        self,
+        commands: Optional[Sequence[Command]] = None,
+        network: str = "mainnet",
+        check_validity: bool = True,
+    ) -> None:
+        super().__init__(commands, check_validity)
+        self.network = network
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+        super().assert_valid()
+        if self.network not in NETWORKS:
+            raise BTClibValueError(f"unknown network: {self.network}")

@@ -22,11 +22,11 @@ from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
-from btclib.script.address import (
+from btclib.script.script_pub_key import (
     address_from_script_pub_key,
+    payload_from_script_pub_key,
     script_pub_key_from_address,
 )
-from btclib.script.script_pub_key import payload_from_script_pub_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")

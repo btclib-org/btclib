@@ -109,17 +109,20 @@ class Script:
         self, commands: Optional[Sequence[Command]] = None, check_validity: bool = True
     ) -> None:
 
-        # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
-        self.commands = list(commands) if commands else []
-
-        if check_validity:
-            self.assert_valid()
+        if commands:
+            if check_validity:
+                self.commands = parse(serialize(commands))
+            else:
+                # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
+                self.commands = list(commands)
+        else:
+            self.commands = []
 
     def __len__(self):
         return len(self.commands)
 
     def assert_valid(self) -> None:
-        pass
+        self.commands = parse(serialize(self.commands))
 
     def serialize(self, check_validity: bool = True) -> bytes:
         "Return the Script serialization."

@@ -19,18 +19,16 @@ import pytest
 from btclib import b32, b58, var_bytes
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
-from btclib.script.address import (
-    address_from_script_pub_key,
-    script_pub_key_from_address,
-)
 from btclib.script.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
+    address_from_script_pub_key,
     assert_p2ms,
     assert_p2pk,
     assert_p2pkh,
     assert_p2sh,
     assert_p2wpkh,
     assert_p2wsh,
+    has_segwit_prefix,
     is_nulldata,
     is_p2ms,
     nulldata,
@@ -41,10 +39,20 @@ from btclib.script.script_pub_key import (
     p2wpkh,
     p2wsh,
     payload_from_script_pub_key,
+    script_pub_key_from_address,
     script_pub_key_from_payload,
 )
 from btclib.to_pub_key import Key
 from btclib.utils import hash160, sha256
+
+
+def test_has_segwit_prefix() -> None:
+    addr = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
+    assert has_segwit_prefix(addr)
+    assert has_segwit_prefix(addr.decode("ascii"))
+    addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
+    assert not has_segwit_prefix(addr)
+    assert not has_segwit_prefix(addr.decode("ascii"))
 
 
 def test_nulldata() -> None:
