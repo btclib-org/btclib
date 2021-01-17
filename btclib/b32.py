@@ -155,7 +155,7 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str, bool]:
     check_witness(wit_ver, bytes(wit_prg))
 
     # FIXME refactor to get ready for witness v1
-    is_script_hash = wit_ver != 0 or len(wit_prg) == 32
+    is_script_hash = wit_ver == 0 and len(wit_prg) == 32
     return wit_ver, bytes(wit_prg), network, is_script_hash
 
 

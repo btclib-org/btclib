@@ -105,13 +105,13 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 # it cannot be inverted because of the hash performed by p2sh
 
 
-def address_from_v0_witness_program(wit_prog: Octets, network: str = "mainnet") -> str:
+def address_from_v0_witness_program(wit_prg: Octets, network: str = "mainnet") -> str:
     "Encode a legacy base58 p2sh-wrapped SegWit address."
 
     wit_ver = 0
-    wit_prog = bytes_from_octets(wit_prog)
-    check_witness(wit_ver, wit_prog)
-    redeem_script = serialize([wit_ver, wit_prog])
+    wit_prg = bytes_from_octets(wit_prg)
+    check_witness(wit_ver, wit_prg)
+    redeem_script = serialize([wit_ver, wit_prg])
     return p2sh(redeem_script, network)
 
 
