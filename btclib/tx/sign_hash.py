@@ -18,9 +18,10 @@ https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
 from copy import deepcopy
 from typing import List
 
-from btclib import script, var_bytes
+from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
+from btclib.script import script
 from btclib.script_pub_key import (
     is_p2sh,
     is_p2wpkh,

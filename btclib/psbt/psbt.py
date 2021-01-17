@@ -29,7 +29,7 @@ from typing import (
     Union,
 )
 
-from btclib import script, var_int
+from btclib import var_int
 from btclib.alias import Octets, String
 from btclib.bip32.key_origin import decode_hd_key_paths
 from btclib.exceptions import BTClibValueError
@@ -52,6 +52,7 @@ from btclib.psbt.psbt_in import (
     serialize_hd_key_paths,
 )
 from btclib.psbt.psbt_out import PsbtOut
+from btclib.script import script
 from btclib.script_pub_key import payload_from_script_pub_key
 from btclib.utils import bytes_from_octets, hash160, sha256
 

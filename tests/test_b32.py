@@ -44,9 +44,10 @@ from typing import List, Tuple
 
 import pytest
 
-from btclib import b32, b58, script
+from btclib import b32, b58
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
+from btclib.script import script
 from btclib.utils import hash160, sha256
 
 

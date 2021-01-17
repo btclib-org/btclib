@@ -14,7 +14,7 @@ from typing import List, Tuple
 
 import pytest
 
-from btclib import b32, b58, script
+from btclib import b32, b58
 from btclib.base58 import b58encode
 from btclib.bip32 import bip32, slip132
 from btclib.ecc.curve import secp256k1
@@ -22,6 +22,7 @@ from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
 from btclib.network import NETWORKS
+from btclib.script import script
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.utils import hash160, sha256

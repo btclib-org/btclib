@@ -17,7 +17,7 @@ from btclib.alias import Octets, String
 from btclib.ecc.sec_point import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
-from btclib.script import serialize
+from btclib.script.script import serialize
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
 

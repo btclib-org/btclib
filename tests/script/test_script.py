@@ -14,8 +14,8 @@ from typing import List
 
 import pytest
 
-from btclib import script
 from btclib.exceptions import BTClibValueError
+from btclib.script import script
 
 
 def test_operators() -> None:

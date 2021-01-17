@@ -16,8 +16,8 @@ test vector from https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 import json
 from os import path
 
-from btclib import script
 from btclib.ecc import dsa
+from btclib.script import script
 from btclib.tx import sign_hash
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import OutPoint, TxIn
@@ -25,7 +25,7 @@ from btclib.tx.tx_out import TxOut
 
 # from btclib.ecc.curve import mult
 # from btclib.ecc.sec_point import bytes_from_point
-# from btclib.script import parse
+# from btclib.script.script import parse
 
 
 # block 170
