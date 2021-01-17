@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.script_pub_key` module."
+"Tests for the `btclib.script.script_pub_key` module."
 
 import json
 from os import path
@@ -19,11 +19,11 @@ import pytest
 from btclib import b32, b58, var_bytes
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
-from btclib.script import script
 from btclib.script.address import (
     address_from_script_pub_key,
     script_pub_key_from_address,
 )
+from btclib.script.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
     assert_p2ms,
     assert_p2pk,
@@ -54,7 +54,7 @@ def test_nulldata() -> None:
     # self-consistency
     string = "time-stamped data"
     payload = string.encode()
-    script_pub_key = script.serialize(["OP_RETURN", payload])
+    script_pub_key = serialize(["OP_RETURN", payload])
     assert script_pub_key == nulldata(string)
 
     # to the script_pub_key in two steps (through payload)
@@ -111,7 +111,7 @@ def test_nulldata2() -> None:
     byte = b"\x00"
     for length in (0, 1, 16, 17, 74, 75, 76, 77, 78, 79, 80):
         payload = byte * length
-        script_pub_key = script.serialize(["OP_RETURN", payload])
+        script_pub_key = serialize(["OP_RETURN", payload])
         assert script_pub_key == script_pub_key_from_payload(script_type, payload)
 
         # back from the script_pub_key to the payload
@@ -127,35 +127,35 @@ def test_nulldata3() -> None:
 
     # wrong data length: 32 in 35-bytes nulldata script;
     # it should have been 33
-    script_pub_key = script.serialize(["OP_RETURN", b"\x00" * 33])
+    script_pub_key = serialize(["OP_RETURN", b"\x00" * 33])
     script_pub_key = script_pub_key[:1] + b"\x20" + script_pub_key[2:]
     assert not is_nulldata(script_pub_key)
 
     # wrong data length: 32 in 83-bytes nulldata script;
     # it should have been 80
-    script_pub_key = script.serialize(["OP_RETURN", b"\x00" * 80])
+    script_pub_key = serialize(["OP_RETURN", b"\x00" * 80])
     script_pub_key = script_pub_key[:2] + b"\x20" + script_pub_key[3:]
     assert not is_nulldata(script_pub_key)
 
     # missing OP_PUSHDATA1 (0x4c) in 83-bytes nulldata script,
     # got 0x20 instead
-    script_pub_key = script.serialize(["OP_RETURN", b"\x00" * 80])
+    script_pub_key = serialize(["OP_RETURN", b"\x00" * 80])
     script_pub_key = script_pub_key[:1] + b"\x20" + script_pub_key[2:]
     assert not is_nulldata(script_pub_key)
 
-    assert len(script.serialize(["OP_RETURN", b"\x00" * 75])) == 77
-    assert len(script.serialize(["OP_RETURN", b"\x00" * 76])) == 79
-    script_pub_key = script.serialize(["OP_RETURN", b"\x00" * 76])[:-1]
+    assert len(serialize(["OP_RETURN", b"\x00" * 75])) == 77
+    assert len(serialize(["OP_RETURN", b"\x00" * 76])) == 79
+    script_pub_key = serialize(["OP_RETURN", b"\x00" * 76])[:-1]
     assert not is_nulldata(script_pub_key)
 
 
 def test_nulldata4() -> None:
 
-    script_: script.Script = ["OP_RETURN", "OP_RETURN", 3, 1, "OP_VERIF", 0, 3]
+    script_: List[Command] = ["OP_RETURN", "OP_RETURN", 3, 1, "OP_VERIF", 0, 3]
     # FIXME: serialization is not 0x6A{1 byte data-length}{data 6 bytes)}
-    script_pub_key = script.serialize(script_)
+    script_pub_key = serialize(script_)
     assert len(script_pub_key) == 7
-    assert script.parse(script_pub_key) == script_
+    assert parse(script_pub_key) == script_
     script_type, _ = payload_from_script_pub_key(script_pub_key)
     # FIXME: it should be "nulldata"
     assert script_type == "unknown"
@@ -166,7 +166,7 @@ def test_p2pk() -> None:
 
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
-    script_pub_key = script.serialize([pub_key, "OP_CHECKSIG"])
+    script_pub_key = serialize([pub_key, "OP_CHECKSIG"])
     assert_p2pk(script_pub_key)
     assert script_pub_key == p2pk(pub_key)
 
@@ -218,7 +218,7 @@ def test_p2pkh() -> None:
         "f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     )
     payload = hash160(pub_key)
-    script_pub_key = script.serialize(
+    script_pub_key = serialize(
         ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
     )
     assert_p2pkh(script_pub_key)
@@ -273,7 +273,7 @@ def test_p2wpkh() -> None:
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     payload = hash160(pub_key)
-    script_pub_key = script.serialize([0, payload])
+    script_pub_key = serialize([0, payload])
     assert_p2wpkh(script_pub_key)
     assert script_pub_key == p2wpkh(pub_key)
 
@@ -314,7 +314,7 @@ def test_p2sh() -> None:
     pub_key_hash = hash160(pub_key)
     redeem_script = script_pub_key_from_payload("p2pkh", pub_key_hash)
     payload = hash160(redeem_script)
-    script_pub_key = script.serialize(["OP_HASH160", payload, "OP_EQUAL"])
+    script_pub_key = serialize(["OP_HASH160", payload, "OP_EQUAL"])
     assert_p2sh(script_pub_key)
     assert script_pub_key == p2sh(redeem_script)
 
@@ -369,7 +369,7 @@ def test_p2wsh() -> None:
     pub_key_hash = hash160(pub_key)
     redeem_script = script_pub_key_from_payload("p2pkh", pub_key_hash)
     payload = sha256(redeem_script)
-    script_pub_key = script.serialize([0, payload])
+    script_pub_key = serialize([0, payload])
     assert_p2wsh(script_pub_key)
     assert script_pub_key == p2wsh(redeem_script)
 
@@ -404,7 +404,7 @@ def test_p2wsh() -> None:
 
 def test_unknown() -> None:
 
-    script_pub_key = script.serialize([16, 20 * b"\x00"])
+    script_pub_key = serialize([16, 20 * b"\x00"])
     assert address_from_script_pub_key(script_pub_key) == ""
     assert payload_from_script_pub_key(script_pub_key) == ("unknown", script_pub_key)
 
@@ -470,39 +470,37 @@ def test_p2ms_1() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         p2ms(1, [pub_key0 + "00", pub_key1])
 
-    script_: script.Script = [1, pub_key0 + "00", pub_key1, 2, "OP_CHECKMULTISIG"]
-    script_pub_key = script.serialize(script_)
+    script_: List[Command] = [1, pub_key0 + "00", pub_key1, 2, "OP_CHECKMULTISIG"]
+    script_pub_key = serialize(script_)
     assert not is_p2ms(script_pub_key)
 
     err_msg = "invalid key in p2ms"
-    script_pub_key = script.serialize([1, pub_key0, "00", 2, "OP_CHECKMULTISIG"])
+    script_pub_key = serialize([1, pub_key0, "00", 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = script.serialize([1, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
+    script_pub_key = serialize([1, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
     assert is_p2ms(script_pub_key)
 
-    script_pub_key = script.serialize([2, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
+    script_pub_key = serialize([2, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
     assert is_p2ms(script_pub_key)
 
-    script_pub_key = script.serialize([0, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
+    script_pub_key = serialize([0, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = script.serialize([3, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
+    script_pub_key = serialize([3, pub_key0, pub_key1, 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = script.serialize([1, 2, "OP_CHECKMULTISIG"])
+    script_pub_key = serialize([1, 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = script.serialize([1, pub_key0, 2, "OP_CHECKMULTISIG"])
+    script_pub_key = serialize([1, pub_key0, 2, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
-    script_pub_key = script.serialize([1, pub_key0, pub_key1, 3, "OP_CHECKMULTISIG"])
+    script_pub_key = serialize([1, pub_key0, pub_key1, 3, "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
     pub_key2 = "04 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
-    script_pub_key = script.serialize(
-        [1, pub_key0, pub_key1, pub_key2, 3, "OP_CHECKMULTISIG"]
-    )
+    script_pub_key = serialize([1, pub_key0, pub_key1, pub_key2, 3, "OP_CHECKMULTISIG"])
     assert_p2ms(script_pub_key)
 
     err_msg = "invalid size: "
@@ -572,7 +570,7 @@ def test_non_standard_script_in_p2wsh() -> None:
     fed_pub_keys = [b"\x00" * 33, b"\x11" * 33, b"\x22" * 33]
     rec_pub_keys = [b"\x77" * 33, b"\x88" * 33, b"\x99" * 33]
     # fmt: off
-    redeem_script = script.serialize(
+    redeem_script = serialize(
         [
             "OP_IF",
                 2, *fed_pub_keys, 3, "OP_CHECKMULTISIG",  # noqa E131

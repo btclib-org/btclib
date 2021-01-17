@@ -460,7 +460,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             psbt_in.final_script_witness.stack += [psbt_in.witness_script]
         else:
             # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-            final_script_sig: List[script.ScriptToken] = [0] if multi_sig else []
+            final_script_sig: List[script.Command] = [0] if multi_sig else []
             final_script_sig += [sig.hex() for sig in sigs]
             final_script_sig += [psbt_in.redeem_script.hex()]
             psbt_in.final_script_sig = script.serialize(final_script_sig)

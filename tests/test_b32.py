@@ -95,7 +95,7 @@ def test_valid_address() -> None:
         addr = b32.address_from_witness(wit_ver, wit_prg, network)
         assert address.lower().strip() == addr
 
-        script_pub_key: List[script.ScriptToken] = [wit_ver, wit_prg]
+        script_pub_key: List[script.Command] = [wit_ver, wit_prg]
         assert script.serialize(script_pub_key).hex() == hexscript
 
 
@@ -236,7 +236,7 @@ def test_p2wsh_p2sh() -> None:
 
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    script_pub_key: List[script.ScriptToken] = [pub, "OP_CHECKSIG"]
+    script_pub_key: List[script.Command] = [pub, "OP_CHECKSIG"]
     witness_script_bytes = script.serialize(script_pub_key)
     b58.p2wsh_p2sh(witness_script_bytes)
     b58.p2wsh_p2sh(witness_script_bytes, "testnet")
@@ -246,7 +246,7 @@ def test_p2wsh() -> None:
 
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    script_pub_key: List[script.ScriptToken] = [pub, "OP_CHECKSIG"]
+    script_pub_key: List[script.Command] = [pub, "OP_CHECKSIG"]
     witness_script_bytes = script.serialize(script_pub_key)
 
     addr = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"

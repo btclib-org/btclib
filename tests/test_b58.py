@@ -179,11 +179,7 @@ def test_p2sh() -> None:
     )
 
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
-    script_sig: List[script.ScriptToken] = [
-        "OP_HASH160",
-        script_hash.hex(),
-        "OP_EQUAL",
-    ]
+    script_sig: List[script.Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
     script.serialize(script_sig)
 
 
