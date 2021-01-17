@@ -8,9 +8,9 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.script_pub_key_address` module"
+"Tests for the `btclib.address` module"
 
-from btclib.script_pub_key_address import has_segwit_prefix
+from btclib.script.address import has_segwit_prefix
 
 
 def test_has_segwit_prefix() -> None:

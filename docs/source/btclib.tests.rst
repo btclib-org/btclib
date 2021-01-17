@@ -271,7 +271,7 @@ btclib.tests.test\_script\_pub\_key module
 btclib.tests.test\_script\_pub\_key\_address module
 ---------------------------------------------------
 
-.. automodule:: btclib.tests.test_script_pub_key_address
+.. automodule:: btclib.tests.test_address
    :members:
    :undoc-members:
    :show-inheritance:

@@ -20,6 +20,10 @@ from btclib import b32, b58, var_bytes
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script import script
+from btclib.script.address import (
+    address_from_script_pub_key,
+    script_pub_key_from_address,
+)
 from btclib.script.script_pub_key import (
     assert_p2ms,
     assert_p2pk,
@@ -38,10 +42,6 @@ from btclib.script.script_pub_key import (
     p2wsh,
     payload_from_script_pub_key,
     script_pub_key_from_payload,
-)
-from btclib.script_pub_key_address import (
-    address_from_script_pub_key,
-    script_pub_key_from_address,
 )
 from btclib.to_pub_key import Key
 from btclib.utils import hash160, sha256
