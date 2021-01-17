@@ -53,7 +53,7 @@ from btclib.psbt.psbt_in import (
 )
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.script import script
-from btclib.script.script_pub_key import payload_from_script_pub_key
+from btclib.script.script_pub_key import type_and_payload
 from btclib.utils import bytes_from_octets, hash160, sha256
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
@@ -164,16 +164,16 @@ class Psbt:
 
             if witness_utxo:
                 script_pub_key = witness_utxo.script_pub_key
-                script_type, payload = payload_from_script_pub_key(script_pub_key)
+                script_type, payload = type_and_payload(script_pub_key.script)
                 if script_type == "p2sh":
-                    script_type, _ = payload_from_script_pub_key(redeem_script)
+                    script_type, _ = type_and_payload(redeem_script)
                 if script_type not in ("p2wpkh", "p2wsh"):
                     raise BTClibValueError("script type not it ('p2wpkh', 'p2wsh')")
             elif non_witness_utxo:
                 script_pub_key = non_witness_utxo.vout[
                     tx_in.prev_out.vout
                 ].script_pub_key
-                _, payload = payload_from_script_pub_key(script_pub_key)
+                _, payload = type_and_payload(script_pub_key.script)
             else:
                 err_msg = "missing script_pub_key"
                 raise BTClibValueError(err_msg)
@@ -183,8 +183,7 @@ class Psbt:
 
             if self.inputs[i].witness_script:
                 if redeem_script:
-                    script_pub_key = redeem_script
-                    _, payload = payload_from_script_pub_key(script_pub_key)
+                    _, payload = type_and_payload(redeem_script)
                 if payload != sha256(self.inputs[i].witness_script):
                     raise BTClibValueError("invalid witness script sha256")
 

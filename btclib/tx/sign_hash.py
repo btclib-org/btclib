@@ -21,13 +21,13 @@ from typing import List
 from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
-from btclib.script import script
+from btclib.script.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
+    ScriptPubKey,
     is_p2sh,
     is_p2wpkh,
     is_p2wsh,
-    payload_from_script_pub_key,
-    script_pub_key_from_payload,
+    type_and_payload,
 )
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
@@ -55,30 +55,30 @@ def assert_valid_hash_type(hash_type: int) -> None:
 
 def legacy_script(script_pub_key: Octets) -> List[bytes]:
     script_s: List[bytes] = []
-    current_script: List[script.Command] = []
-    for token in script.parse(script_pub_key)[::-1]:
+    current_script: List[Command] = []
+    for token in parse(script_pub_key)[::-1]:
         if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
-            script_s.append(script.serialize(current_script[::-1]))
+            script_s.append(serialize(current_script[::-1]))
         else:
             current_script.append(token)
-    script_s.append(script.serialize(current_script[::-1]))
+    script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
 
 
 # FIXME: remove OP_CODESEPARATOR only if executed
 def witness_v0_script(script_pub_key: Octets) -> List[bytes]:
-    script_type, payload = payload_from_script_pub_key(script_pub_key)
+    script_type, payload = type_and_payload(script_pub_key)
 
     if script_type == "p2wpkh":
-        return [script_pub_key_from_payload("p2pkh", payload)]
+        return [ScriptPubKey.from_type_and_payload("p2pkh", payload).script]
 
     script_s: List[bytes] = []
-    current_script: List[script.Command] = []
-    for token in script.parse(script_pub_key)[::-1]:
+    current_script: List[Command] = []
+    for token in parse(script_pub_key)[::-1]:
         if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
-            script_s.append(script.serialize(current_script[::-1]))
+            script_s.append(serialize(current_script[::-1]))
         current_script.append(token)
-    script_s.append(script.serialize(current_script[::-1]))
+    script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
 
 
@@ -102,8 +102,8 @@ def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
             return (256 ** 31).to_bytes(32, byteorder="big", signed=False)
         new_tx.vout = new_tx.vout[: vin_i + 1]
         for txout in new_tx.vout[:-1]:
-            txout.script_pub_key = b""
-            txout.value = 256 ** 8 - 1
+            txout.script_pub_key = ScriptPubKey(b"")
+            txout.value = 0xFFFFFFFFFFFFFFFF
         for i, txin in enumerate(new_tx.vin):
             if i != vin_i:
                 txin.sequence = 0
@@ -168,20 +168,20 @@ def segwit_v0(
 
 def from_utxo(utxo: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
-    script_pub_key = utxo.script_pub_key
+    script = utxo.script_pub_key.script
 
     # first off, handle all p2sh-wrapped scripts
-    if is_p2sh(script_pub_key):
-        script_pub_key = tx.vin[vin_i].script_sig
+    if is_p2sh(script):
+        script = tx.vin[vin_i].script_sig
 
-    if is_p2wpkh(script_pub_key):
-        script_ = witness_v0_script(script_pub_key)[0]
+    if is_p2wpkh(script):
+        script_ = witness_v0_script(script)[0]
         return segwit_v0(script_, tx, vin_i, hash_type, utxo.value)
 
-    if is_p2wsh(script_pub_key):
+    if is_p2wsh(script):
         # the real script is contained in the witness
         script_ = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
         return segwit_v0(script_, tx, vin_i, hash_type, utxo.value)
 
-    script_ = legacy_script(script_pub_key)[0]
+    script_ = legacy_script(script)[0]
     return legacy(script_, tx, vin_i, hash_type)

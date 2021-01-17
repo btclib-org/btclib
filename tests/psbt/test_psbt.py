@@ -10,14 +10,11 @@
 
 "Tests for the `btclib.psbt` module"
 
-# Standard library imports
 import json
 from os import path
 
-# Third party imports
 import pytest
 
-# Library imports
 from btclib.ecc import der, dsa, sec_point
 from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt import (
@@ -28,6 +25,7 @@ from btclib.psbt.psbt import (
     extract_tx,
     finalize_psbt,
 )
+from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import OutPoint, TxIn
@@ -76,10 +74,10 @@ def test_creation() -> None:
     assert psbt.b64encode() == psbt_str
 
     output_1 = TxOut(
-        149990000, bytes.fromhex("0014d85c2b71d0060b09c9886aeb815e50991dda124d")
+        149990000, ScriptPubKey("0014d85c2b71d0060b09c9886aeb815e50991dda124d")
     )
     output_2 = TxOut(
-        100000000, bytes.fromhex("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
+        100000000, ScriptPubKey("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
     )
     input_1 = TxIn(
         OutPoint(

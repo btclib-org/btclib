@@ -20,11 +20,11 @@ Scripts are represented by List[Command], where Command = Union[int, str, bytes]
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Type, TypeVar, Union
+from typing import List, Sequence, Union
 
-from btclib.alias import BinaryData
+from btclib.alias import BinaryData, Octets
 from btclib.script.op_codes import OP_CODE_NAMES, op_int, op_pushdata, op_str
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 # the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
 # the integer -1 is a shorcut for 'OP_1NEGATE'
@@ -95,48 +95,22 @@ def parse(stream: BinaryData) -> List[Command]:
     return r
 
 
-_Script = TypeVar("_Script", bound="Script")
-
-
 @dataclass
 class Script:
     # Bitcoin script expressed as List[Command]
     # e.g. [OP_HASH160, script_h160, OP_EQUAL]
     # or Octets of its byte-encoded representation
-    commands: List[Command]
+    script: bytes
 
-    def __init__(
-        self, commands: Optional[Sequence[Command]] = None, check_validity: bool = True
-    ) -> None:
+    @property
+    def asm(self) -> List[Command]:
+        return parse(self.script)
 
-        if commands:
-            if check_validity:
-                self.commands = parse(serialize(commands))
-            else:
-                # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
-                self.commands = list(commands)
-        else:
-            self.commands = []
+    def __init__(self, script: Octets = b"", check_validity: bool = True) -> None:
 
-    def __len__(self):
-        return len(self.commands)
-
-    def assert_valid(self) -> None:
-        self.commands = parse(serialize(self.commands))
-
-    def serialize(self, check_validity: bool = True) -> bytes:
-        "Return the Script serialization."
-
+        self.script = bytes_from_octets(script)
         if check_validity:
             self.assert_valid()
 
-        return serialize(self.commands)
-
-    @classmethod
-    def parse(
-        cls: Type[_Script], stream: BinaryData, check_validity: bool = True
-    ) -> _Script:
-        "Return a Script from its serialization."
-
-        commands = parse(stream)
-        return cls(commands, check_validity)
+    def assert_valid(self) -> None:
+        serialize(self.asm)

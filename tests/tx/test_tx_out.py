@@ -16,54 +16,57 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
+from btclib.script.script_pub_key import ScriptPubKey
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 
 
 def test_tx_out() -> None:
-    tx_out = TxOut()
+    tx_out = TxOut(0, b"")
     assert tx_out.value == 0
-    assert tx_out.script_pub_key == b""
-    assert tx_out.script_type == "unknown"
-    assert tx_out.network == "mainnet"
-    assert tx_out.addresses == [""]
+    assert tx_out.script_pub_key.script == b""
+    assert tx_out.script_pub_key.type == "unknown"
+    assert tx_out.script_pub_key.network == "mainnet"
+    assert tx_out.script_pub_key.addresses == [""]
     assert tx_out.nValue == tx_out.value
-    assert tx_out.scriptPubKey == tx_out.script_pub_key
+    assert tx_out.scriptPubKey == tx_out.script_pub_key.script
     assert tx_out == TxOut.parse(tx_out.serialize())
     assert tx_out == TxOut.from_dict(tx_out.to_dict())
 
     value = 3259343370
-    script_ = "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
-    tx_out = TxOut(value, script_)
+    script = "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
+    tx_out = TxOut(value, script)
     assert tx_out.value == value
-    assert tx_out.script_pub_key.hex() == script_
-    assert tx_out.script_type == "p2wsh"
-    assert tx_out.network == "mainnet"
+    assert tx_out.script_pub_key.script.hex() == script
+    assert tx_out.script_pub_key.type == "p2wsh"
+    assert tx_out.script_pub_key.network == "mainnet"
     addr = "bc1qak8fvqzkzqq0wg4aym59p0nasrey696040hlnzawl9nnyh3tt2rqzgmhmv"
-    assert tx_out.addresses == [addr]
+    assert tx_out.script_pub_key.addresses == [addr]
     assert tx_out.nValue == tx_out.value
-    assert tx_out.scriptPubKey == tx_out.script_pub_key
+    assert tx_out.scriptPubKey == tx_out.script_pub_key.script
     assert tx_out == TxOut.parse(tx_out.serialize())
     assert tx_out == TxOut.from_dict(tx_out.to_dict())
-    assert tx_out == TxOut.from_address(tx_out.value, tx_out.addresses[0])
+    assert tx_out == TxOut.from_address(
+        tx_out.value, tx_out.script_pub_key.addresses[0]
+    )
 
 
 def test_invalid_tx_out() -> None:
 
-    script_ = "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
+    script = "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
     with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
-        TxOut(-1, script_)
+        TxOut(-1, script)
     with pytest.raises(BTClibValueError, match="unknown network: "):
-        TxOut(1, script_, "no_network")
+        TxOut(1, ScriptPubKey(script, "no_network"))
 
 
 def test_tx_out_from_address() -> None:
     address = "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej"
-    assert TxOut.from_address(0, address).addresses == [address]
-    assert TxOut.from_address(0, address).network == "mainnet"
+    assert TxOut.from_address(0, address).script_pub_key.addresses == [address]
+    assert TxOut.from_address(0, address).script_pub_key.network == "mainnet"
     address = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
-    assert TxOut.from_address(0, address).addresses == [address]
-    assert TxOut.from_address(0, address).network == "testnet"
+    assert TxOut.from_address(0, address).script_pub_key.addresses == [address]
+    assert TxOut.from_address(0, address).script_pub_key.network == "testnet"
 
 
 def test_dataclasses_json_dict() -> None:
