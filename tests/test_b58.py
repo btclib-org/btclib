@@ -186,26 +186,26 @@ def test_p2sh() -> None:
 def test_p2w_p2sh() -> None:
 
     pub_key = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-    h160pub_key, network = hash160_from_key(pub_key)
+    witness_program, network = hash160_from_key(pub_key)
     b58addr = b58.p2wpkh_p2sh(pub_key, network)
-    assert b58addr == b58.address_from_witness(h160pub_key, network)
+    assert b58addr == b58.address_from_v0_witness_program(witness_program, network)
 
     script_pub_key = script.serialize(
         [
             "OP_DUP",
             "OP_HASH160",
-            h160pub_key,
+            witness_program,
             "OP_EQUALVERIFY",
             "OP_CHECKSIG",
         ]
     )
-    h256script = sha256(script_pub_key)
+    witness_program = sha256(script_pub_key)
     b58addr = b58.p2wsh_p2sh(script_pub_key, network)
-    assert b58addr == b58.address_from_witness(h256script, network)
+    assert b58addr == b58.address_from_v0_witness_program(witness_program, network)
 
     err_msg = "invalid witness program length for witness v0: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        b58.address_from_witness(h256script[:-1], network)
+        b58.address_from_v0_witness_program(witness_program[:-1], network)
 
 
 def test_address_from_wif() -> None:

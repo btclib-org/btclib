@@ -17,11 +17,12 @@ private keys as WIFs
 from typing import Optional, Tuple
 
 from btclib.alias import Octets, String
+from btclib.b32 import check_witness
 from btclib.base58 import b58decode, b58encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
 from btclib.network import NETWORKS, network_from_key_value
-from btclib.script.script_pub_key import script_pub_key_from_payload
+from btclib.script.script import serialize
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.to_pub_key import Key
 from btclib.utils import bytes_from_octets, hash160, sha256
@@ -104,19 +105,13 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 # it cannot be inverted because of the hash performed by p2sh
 
 
-def address_from_witness(witness: Octets, network: str = "mainnet") -> str:
+def address_from_v0_witness_program(wit_prog: Octets, network: str = "mainnet") -> str:
     "Encode a legacy base58 p2sh-wrapped SegWit address."
 
-    length = len(witness)
-    if length == 20:
-        redeem_script = script_pub_key_from_payload("p2wpkh", witness)
-    elif length == 32:
-        redeem_script = script_pub_key_from_payload("p2wsh", witness)
-    else:
-        err_msg = "invalid witness program length for witness v0: "
-        err_msg += f"{length} instead of 20 or 32"
-        raise BTClibValueError(err_msg)
-
+    wit_ver = 0
+    wit_prog = bytes_from_octets(wit_prog)
+    check_witness(wit_ver, wit_prog)
+    redeem_script = serialize([wit_ver, wit_prog])
     return p2sh(redeem_script, network)
 
 
@@ -126,11 +121,11 @@ def address_from_witness(witness: Octets, network: str = "mainnet") -> str:
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> str:
     "Return the p2wpkh-p2sh base58 address corresponding to a pub_key."
     compressed = True  # needed to force check on pub_key
-    witness, network = hash160_from_key(key, network, compressed)
-    return address_from_witness(witness, network)
+    witness_program, network = hash160_from_key(key, network, compressed)
+    return address_from_v0_witness_program(witness_program, network)
 
 
 def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
     "Return the p2wsh-p2sh base58 address corresponding to a reedem script."
-    witness = sha256(redeem_script)
-    return address_from_witness(witness, network)
+    witness_program = sha256(redeem_script)
+    return address_from_v0_witness_program(witness_program, network)

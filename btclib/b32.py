@@ -87,7 +87,7 @@ def power_of_2_base_conversion(
     return ret
 
 
-def _check_witness(wit_ver: int, wit_prg: bytes):
+def check_witness(wit_ver: int, wit_prg: bytes):
 
     length = len(wit_prg)
 
@@ -115,7 +115,7 @@ def _check_witness(wit_ver: int, wit_prg: bytes):
 
 def _address_from_witness(hrp: str, wit_ver: int, wit_prg: Octets) -> str:
     wit_prg = bytes_from_octets(wit_prg)
-    _check_witness(wit_ver, wit_prg)
+    check_witness(wit_ver, wit_prg)
     bytes_ = b32encode(hrp, [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5))
     return bytes_.decode("ascii")
 
@@ -152,7 +152,7 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str, bool]:
 
     wit_ver = data[0]
     wit_prg = power_of_2_base_conversion(data[1:], 5, 8, False)
-    _check_witness(wit_ver, bytes(wit_prg))
+    check_witness(wit_ver, bytes(wit_prg))
 
     # FIXME refactor to get ready for witness v1
     is_script_hash = wit_ver != 0 or len(wit_prg) == 32
