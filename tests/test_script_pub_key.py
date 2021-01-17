@@ -20,7 +20,7 @@ from btclib import b32, b58, var_bytes
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script import script
-from btclib.script_pub_key import (
+from btclib.script.script_pub_key import (
     assert_p2ms,
     assert_p2pk,
     assert_p2pkh,

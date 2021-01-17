@@ -17,7 +17,7 @@ from btclib.b32 import address_from_witness, witness_from_address
 from btclib.b58 import address_from_h160, h160_from_address
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
-from btclib.script_pub_key import (
+from btclib.script.script_pub_key import (
     payload_from_script_pub_key,
     script_pub_key_from_payload,
 )

@@ -19,8 +19,8 @@ from typing import Any, Dict, Mapping, Type, TypeVar
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
+from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
-from btclib.tx.witness import Witness
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 _TxIn = TypeVar("_TxIn", bound="TxIn")

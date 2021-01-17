@@ -53,7 +53,7 @@ from btclib.psbt.psbt_in import (
 )
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.script import script
-from btclib.script_pub_key import payload_from_script_pub_key
+from btclib.script.script_pub_key import payload_from_script_pub_key
 from btclib.utils import bytes_from_octets, hash160, sha256
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")

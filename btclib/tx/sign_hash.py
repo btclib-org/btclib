@@ -22,7 +22,7 @@ from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
 from btclib.script import script
-from btclib.script_pub_key import (
+from btclib.script.script_pub_key import (
     is_p2sh,
     is_p2wpkh,
     is_p2wsh,

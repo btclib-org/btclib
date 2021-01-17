@@ -39,10 +39,10 @@ from btclib.psbt.psbt_out import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
+from btclib.script.witness import Witness
 from btclib.tx.sign_hash import assert_valid_hash_type
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.tx.witness import Witness
 from btclib.utils import bytes_from_octets
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"

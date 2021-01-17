@@ -13,10 +13,10 @@
 test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """
 
+from btclib.script.witness import Witness
 from btclib.tx import sign_hash
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.tx.witness import Witness
 
 
 def test_native_p2wpkh():

@@ -28,10 +28,10 @@ from btclib.psbt.psbt import (
     extract_tx,
     finalize_psbt,
 )
+from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import OutPoint, TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.tx.witness import Witness
 
 # first tests are part of the official BIP174 test vectors
 
