@@ -293,7 +293,7 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
     ) -> None:
 
         super().__init__(
-            version, depth, parent_fingerprint, index, chain_code, key, check_validity
+            version, depth, parent_fingerprint, index, chain_code, key, False
         )
 
         is_prv = self.key[0] == 0
