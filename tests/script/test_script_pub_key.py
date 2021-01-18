@@ -502,6 +502,10 @@ def test_p2ms_1() -> None:
     assert payload == script_pub_key[:-1]
     assert script_pub_key == ScriptPubKey.from_type_and_payload("p2ms", payload).script
 
+    err_msg = "invalid p2ms payload"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ScriptPubKey.from_type_and_payload("p2ms", script_pub_key)
+
     pub_keys: List[Key] = [pub_key0, pub_key1]
     err_msg = "invalid m in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
