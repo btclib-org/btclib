@@ -135,7 +135,7 @@ class Tx:
         if check_validity:
             self.assert_valid()
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Tx):
             return NotImplemented  # pragma: no cover
 
