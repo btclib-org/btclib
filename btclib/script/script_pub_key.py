@@ -289,12 +289,6 @@ class ScriptPubKey(Script):
         return type_and_payload(self.script)[0]
 
     @property
-    def type_and_payload(self) -> Tuple[str, bytes]:
-        "Return (script_pub_key type, payload)."
-
-        return type_and_payload(self.script)
-
-    @property
     def address(self) -> str:
         """Return the bech32/base58 address.
 
