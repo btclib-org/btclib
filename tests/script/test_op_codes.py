@@ -40,25 +40,32 @@ def test_operators() -> None:
 
 
 def test_op_int() -> None:
+
+    # test corect number of bytes
     i = 0b01111111
-    assert len(op_int(i)) == 2  # pylint: disable=protected-access
+    assert len(op_int(i)) == 2
     i = 0b11111111
-    assert len(op_int(i)) == 3  # pylint: disable=protected-access
+    assert len(op_int(i)) == 3
     i = 0b0111111111111111
-    assert len(op_int(i)) == 3  # pylint: disable=protected-access
+    assert len(op_int(i)) == 3
     i = 0b1111111111111111
-    assert len(op_int(i)) == 4  # pylint: disable=protected-access
+    assert len(op_int(i)) == 4
+
+    # test few selected cases
+    for i in range(17):
+        assert op_int(i) == OP_CODES["OP_" + str(i)]
+    assert op_int(-1) == OP_CODES["OP_1NEGATE"]
 
 
 def test_op_pushdata() -> None:
     length = 75
     b = "00" * length
-    assert len(op_pushdata(b)) == length + 1  # pylint: disable=protected-access
+    assert len(op_pushdata(b)) == length + 1
     b = "00" * (length + 1)
-    assert len(op_pushdata(b)) == (length + 1) + 2  # pylint: disable=protected-access
+    assert len(op_pushdata(b)) == (length + 1) + 2
 
     length = 255
     b = "00" * length
-    assert len(op_pushdata(b)) == length + 2  # pylint: disable=protected-access
+    assert len(op_pushdata(b)) == length + 2
     b = "00" * (length + 1)
-    assert len(op_pushdata(b)) == (length + 1) + 3  # pylint: disable=protected-access
+    assert len(op_pushdata(b)) == (length + 1) + 3
