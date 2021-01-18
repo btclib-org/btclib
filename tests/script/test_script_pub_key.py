@@ -19,7 +19,7 @@ import pytest
 from btclib import b32, b58, var_bytes
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
-from btclib.script.script import Command, parse, serialize
+from btclib.script.script import Command, Script, parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     address,
@@ -596,6 +596,40 @@ def test_p2ms_2() -> None:
                 script_pub_key
                 == ScriptPubKey.from_type_and_payload("p2ms", payload).script
             )
+
+
+def test_p2ms_3() -> None:
+    # tx_id 33ac2af1a6f894276713b59ed09ce1a20fed5b36d169f20a3fe831dc45564d57
+    # output n 0
+    keys = [
+        "036D568125A969DC78B963B494FA7ED5F20EE9C2F2FC2C57F86C5DF63089F2ED3A",
+        "03FE4E6231D614D159741DF8371FA3B31AB93B3D28A7495CDAA0CD63A2097015C7",
+    ]
+    cmds: List[Command] = ["OP_1", keys[0], keys[1], "OP_2", "OP_CHECKMULTISIG"]
+    script_pub_key = ScriptPubKey(serialize(cmds))
+    assert script_pub_key == ScriptPubKey.p2ms(1, keys)
+
+    pub_keys = script_pub_key.addresses
+    exp_pub_keys = [
+        "1Ng4YU2e2H3E86syX2qrsmD9opBHZ42vCF",
+        "14XufxyGiY6ZBJsFYHJm6awdzpJdtsP1i3",
+    ]
+    for pub_key, key, exp_pub_key in zip(pub_keys, keys, exp_pub_keys):
+        assert pub_key == b58.p2pkh(key)
+        assert pub_key == exp_pub_key
+
+    # tx 56214420a7c4dcc4832944298d169a75e93acf9721f00656b2ee0e4d194f9970
+    # input n 1
+    cmds_sig: List[Command] = [
+        "OP_0",
+        "3045022100dba1e9b1c8477fd364edcc1f81845928202daf465a1e2d92904c13c88761cbd002200add6af863dfdb7efb95f334baec041e90811ae9d81624f9f87f33a56761f29401",
+    ]
+    script_sig = Script(serialize(cmds_sig))
+    script = script_sig + script_pub_key
+    # parse(serialize(*)) is to enforce same string case convention
+    assert script.asm == parse(serialize(cmds_sig + cmds))
+
+    # TODO: evaluate
 
 
 def test_bip67() -> None:
