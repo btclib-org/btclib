@@ -605,11 +605,11 @@ def test_p2ms_2() -> None:
 def test_p2ms_3() -> None:
     # tx_id 33ac2af1a6f894276713b59ed09ce1a20fed5b36d169f20a3fe831dc45564d57
     # output n 0
-    keys = [
+    keys: List[Command] = [
         "036D568125A969DC78B963B494FA7ED5F20EE9C2F2FC2C57F86C5DF63089F2ED3A",
         "03FE4E6231D614D159741DF8371FA3B31AB93B3D28A7495CDAA0CD63A2097015C7",
     ]
-    cmds: List[Command] = ["OP_1", keys[0], keys[1], "OP_2", "OP_CHECKMULTISIG"]
+    cmds: List[Command] = ["OP_1", *keys, "OP_2", "OP_CHECKMULTISIG"]
     script_pub_key = ScriptPubKey(serialize(cmds))
     assert script_pub_key == ScriptPubKey.p2ms(1, keys)
 
@@ -667,20 +667,20 @@ def test_non_standard_script_in_p2wsh() -> None:
 
     network = "mainnet"
 
-    fed_pub_keys = [b"\x00" * 33, b"\x11" * 33, b"\x22" * 33]
-    rec_pub_keys = [b"\x77" * 33, b"\x88" * 33, b"\x99" * 33]
+    fed_pub_keys: List[Command] = ["00" * 33, "11" * 33, "22" * 33]
+    rec_pub_keys: List[Command] = ["77" * 33, "88" * 33, "99" * 33]
     # fmt: off
-    redeem_script = serialize(
-        [
-            "OP_IF",
-                "OP_2", *fed_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # noqa E131
-            "OP_ELSE",
-                500, "OP_CHECKLOCKTIMEVERIFY", "OP_DROP",  # noqa E131
-                "OP_2", *rec_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # noqa E131
-            "OP_ENDIF",
-        ]
-    )
+    redeem_script_cmds: List[Command] = [
+        "OP_IF",
+            "OP_2", *fed_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # noqa E131
+        "OP_ELSE",
+            500, "OP_CHECKLOCKTIMEVERIFY", "OP_DROP",  # noqa E131
+            "OP_2", *rec_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # noqa E131
+        "OP_ENDIF",
+    ]
     # fmt: on
+    redeem_script = serialize(redeem_script_cmds)
+    # assert redeem_script_cmds == parse(redeem_script)
     payload = sha256(redeem_script)
     script_pub_key = (
         "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708"
