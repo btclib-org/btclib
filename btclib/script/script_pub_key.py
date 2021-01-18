@@ -192,7 +192,7 @@ def is_nulldata(script_pub_key: Octets) -> bool:
 
 def assert_p2wpkh(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key, 22)
-    # p2wpkh [0, pub_key hash]
+    # p2wpkh [OP_0, pub_key hash]
     # 0x0014{20-byte pub_key hash}
     if script_pub_key[0] != 0:
         err_msg = f"invalid witness version: {script_pub_key[0]}"
@@ -210,7 +210,7 @@ def is_p2wpkh(script_pub_key: Octets) -> bool:
 
 def assert_p2wsh(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key, 34)
-    # p2wsh [0, redeem_script hash]
+    # p2wsh [OP_0, redeem_script hash]
     # 0x0020{32-byte redeem_script hash}
     if script_pub_key[0] != 0:
         err_msg = f"invalid witness version: {script_pub_key[0]}"
@@ -232,12 +232,12 @@ def type_and_payload(script_pub_key: Octets) -> Tuple[str, bytes]:
     script_pub_key = bytes_from_octets(script_pub_key)
 
     if is_p2wpkh(script_pub_key):
-        # p2wpkh [0, pub_key_hash]
+        # p2wpkh [OP_0, pub_key_hash]
         # 0x0014{20-byte pub_key_hash}
         return "p2wpkh", script_pub_key[2:]
 
     if is_p2wsh(script_pub_key):
-        # p2wsh [0, script_hash]
+        # p2wsh [OP_0, script_hash]
         # 0x0020{32-byte script_hash}
         return "p2wsh", script_pub_key[2:]
 
@@ -372,14 +372,13 @@ class ScriptPubKey(Script):
             payload = bytes_from_octets(payload, 20)
             cmds = ["OP_HASH160", payload, "OP_EQUAL"]
 
-        wit_ver = 0
         if script_type == "p2wsh":
             wit_prg = bytes_from_octets(payload, 32)
-            cmds = [wit_ver, wit_prg]
+            cmds = ["OP_0", wit_prg]
 
         if script_type == "p2wpkh":
             wit_prg = bytes_from_octets(payload, 20)
-            cmds = [wit_ver, wit_prg]
+            cmds = ["OP_0", wit_prg]
 
         if cmds:
             return cls(serialize(cmds), network, check_validity)
@@ -396,7 +395,7 @@ class ScriptPubKey(Script):
             wit_ver, wit_prg, network, is_script_hash = witness_from_address(addr)
             if wit_ver != 0:
                 raise BTClibValueError(f"unmanaged witness version: {wit_ver}")
-            return cls(serialize([wit_ver, wit_prg]), network, check_validity)
+            return cls(serialize(["OP_0", wit_prg]), network, check_validity)
 
         _, h160, network, is_script_hash = h160_from_address(addr)
         if is_script_hash:

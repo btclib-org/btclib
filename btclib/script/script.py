@@ -12,11 +12,12 @@
 
 https://en.bitcoin.it/wiki/Script
 
-Scripts are represented by List[Command], where Command = Union[int, str, bytes]:
+Scripts are represented by List[Command], where Command = Union[int, str, bytes]
 
-* int [-1, 16] are shorcuts for 'OP_1NEGATE', 'OP_0' - 'OP_16'
-* str are for opcodes (e.g. 'OP_HASH160') or hexstring data
-* bytes are for data (but integers are often casted to int)
+* int -1 and 0-16 are shorcuts for 'OP_1NEGATE' and 'OP_0'-'OP_16';
+  anyway, the use of the corresponding operator is to be preferred.
+* ascii str are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
+* hex-string or bytes (i.e., Octets) are for data
 """
 
 from dataclasses import dataclass
@@ -26,11 +27,6 @@ from btclib.alias import BinaryData, Octets
 from btclib.script.op_codes import OP_CODE_NAMES, op_int, op_pushdata, op_str
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
-# the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
-# the integer -1 is a shorcut for 'OP_1NEGATE'
-# other integers are bytes encoded (require push operation)
-# ascii str are for opcodes (e.g. 'OP_HASH160')
-# Octets are for data to be pushed
 Command = Union[int, str, bytes]
 
 
@@ -39,6 +35,8 @@ def serialize(script: Sequence[Command]) -> bytes:
     for command in script:
         if isinstance(command, int):
             r.append(op_int(command))
+            # err_msg = f"ints are not allowed, use OP_X instead: {command}"
+            # raise BTClibValueError(err_msg)
         elif isinstance(command, str):
             r.append(op_str(command))
         else:  # must be bytes
@@ -56,20 +54,9 @@ def parse(stream: BinaryData) -> List[Command]:
         t = s.read(1)
         if not t:
             break
-        # convert it to an integer
+        # convert the byte to an integer
         i = t[0]
-        if i == 0:
-            # numeric value 0 (OP_0)
-            # r.append(OP_CODE_NAMES[i])
-            r.append(i)
-        elif i == 79:
-            # numeric value -1 (OP_1NEGATE)
-            r.append(-1)
-        elif 80 < i < 97:
-            # numeric values 1-16 (OP_1-OP_16)
-            # r.append(OP_CODE_NAMES[i])
-            r.append(i - 80)
-        elif i < 76:
+        if 0 < i < 76:
             # 1-byte-data-length | data
             data = s.read(i)
             r.append(data.hex().upper())

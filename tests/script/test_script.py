@@ -20,12 +20,12 @@ from btclib.script import script
 
 def test_simple_scripts() -> None:
     script_list: List[List[script.Command]] = [
-        [2, 3, "OP_ADD", 5, "OP_EQUAL"],
+        ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_EQUAL"],
         ["1ADD", "OP_1ADD", "1ADE", "OP_EQUAL"],
-        [hex(26)[2:].upper(), -1, "OP_ADD", hex(26)[2:].upper(), "OP_EQUAL"],
+        [hex(26)[2:].upper(), "OP_1NEGATE", "OP_ADD", hex(26)[2:].upper(), "OP_EQUAL"],
         [
             hex(0xFFFFFFFF)[2:].upper(),
-            -1,
+            "OP_1NEGATE",
             "OP_ADD",
             hex(0xFFFFFFFF)[2:].upper(),
             "OP_EQUAL",
@@ -40,13 +40,19 @@ def test_simple_scripts() -> None:
 
 def test_exceptions() -> None:
 
-    script_pub_key: List[script.Command] = [2, 3, "OP_ADD", 5, "OP_RETURN_244"]
+    script_pub_key: List[script.Command] = [
+        "OP_2",
+        "OP_3",
+        "OP_ADD",
+        "OP_5",
+        "OP_RETURN_244",
+    ]
     err_msg = "invalid string command: OP_RETURN_244"
     with pytest.raises(BTClibValueError, match=err_msg):
         script.serialize(script_pub_key)
 
     with pytest.raises(TypeError):
-        script.serialize([2, 3, "OP_ADD", 5, script.serialize])  # type: ignore
+        script.serialize(["OP_2", "OP_3", "OP_ADD", "OP_5", script.serialize])  # type: ignore
 
     err_msg = "Too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):

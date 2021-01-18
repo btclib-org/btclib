@@ -88,7 +88,7 @@ def test_p2pk():
     script_pub_key = script.serialize([pub_key, "OP_CHECKSIG"])
     script_sig = script.serialize([signature])
 
-    founding_tx_script = script.serialize([0, 0])
+    founding_tx_script = script.serialize(["OP_0", "OP_0"])
     funding_tx = Tx(
         1,
         0,
@@ -119,7 +119,7 @@ def test_p2pkh():
     )
     script_sig = script.serialize([signature, pub_key])
 
-    founding_tx_script = script.serialize([0, 0])
+    founding_tx_script = script.serialize(["OP_0", "OP_0"])
     funding_tx = Tx(
         1,
         0,
@@ -142,7 +142,7 @@ def test_p2pk_anyonecanpay():
     script_pub_key = script.serialize([pub_key, "OP_CHECKSIG"])
     script_sig = script.serialize([signature])
 
-    founding_tx_script = script.serialize([0, 0])
+    founding_tx_script = script.serialize(["OP_0", "OP_0"])
     funding_tx = Tx(
         1,
         0,
@@ -171,7 +171,7 @@ def test_sign_hashsingle_bug():
             "5b6462475454710f3c22f5fdf0b40704c92f25c3",
             "OP_EQUALVERIFY",
             "OP_CHECKSIGVERIFY",
-            1,
+            "OP_1",
         ]
     )
 
