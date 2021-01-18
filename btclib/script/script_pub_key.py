@@ -15,7 +15,7 @@ from typing import Callable, List, Optional, Sequence, Tuple, Type, TypeVar
 from btclib import var_bytes
 from btclib.alias import Octets, String
 from btclib.b32 import address_from_witness, witness_from_address
-from btclib.b58 import address_from_h160, h160_from_address
+from btclib.b58 import address_from_h160, h160_from_address, p2pkh
 from btclib.ecc.sec_point import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
@@ -49,6 +49,32 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
     # or
     # script_type in ("p2pk", "p2ms", "nulldata", "unknown")
     return ""
+
+
+def addresses(script_pub_key: Octets, network: str = "mainnet") -> List[str]:
+    "Return the p2pkh addresses of the pub_keys used in a p2ms script_pub_key."
+
+    script_pub_key = bytes_from_octets(script_pub_key)
+    # p2ms [m, pub_keys, n, OP_CHECKMULTISIG]
+    length = len(script_pub_key)
+    if length < 37:
+        raise BTClibValueError(f"invalid p2ms length {length}")
+    if script_pub_key[-1] != 0xAE:
+        raise BTClibValueError("missing final OP_CHECKMULTISIG")
+    m = script_pub_key[0] - 80
+    if not 0 < m < 17:
+        raise BTClibValueError(f"invalid m in m-of-n: {m}")
+    n = script_pub_key[-2] - 80
+    if not m <= n < 17:
+        raise BTClibValueError(f"invalid m-of-n: {m}-of-{n}")
+
+    stream = bytesio_from_binarydata(script_pub_key[1:-2])
+    pub_keys = [var_bytes.parse(stream) for _ in range(n)]
+
+    if stream.read(1):
+        raise BTClibValueError("invalid p2ms script_pub_key size")
+
+    return [p2pkh(pub_key, network) for pub_key in pub_keys]
 
 
 def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) -> bool:
@@ -129,27 +155,7 @@ def is_p2sh(script_pub_key: Octets) -> bool:
 
 
 def assert_p2ms(script_pub_key: Octets) -> None:
-    script_pub_key = bytes_from_octets(script_pub_key)
-    # p2ms [m, pub_keys, n, OP_CHECKMULTISIG]
-    length = len(script_pub_key)
-    if length < 37:
-        raise BTClibValueError(f"invalid length {length}")
-    if script_pub_key[-1] != 0xAE:
-        raise BTClibValueError("missing final OP_CHECKMULTISIG")
-    m = script_pub_key[0] - 80
-    if not 0 < m < 17:
-        raise BTClibValueError(f"invalid m in m-of-n: {m}")
-    n = script_pub_key[-2] - 80
-    if not m <= n < 17:
-        raise BTClibValueError(f"invalid m-of-n: {m}-of-{n}")
-
-    stream = bytesio_from_binarydata(script_pub_key[1:-2])
-    for _ in range(n):
-        pub_key = var_bytes.parse(stream)
-        point_from_octets(pub_key)
-
-    if stream.read(1):
-        raise BTClibValueError("invalid extra data")
+    addresses(script_pub_key)
 
 
 def is_p2ms(script_pub_key: Octets) -> bool:
@@ -290,14 +296,30 @@ class ScriptPubKey(Script):
 
     @property
     def address(self) -> str:
-        "Return the bech32/base58 address."
+        """Return the bech32/base58 address.
+
+        An address is a shortened notation for a particular script.
+        As a transaction output contains exactly one script,
+        it has at most one address (it is possible that the script
+        does not correspond to a particular address, though).
+        """
 
         return address(self.script, self.network)
 
     @property
     def addresses(self) -> List[str]:
-        "Return the addresses, if any."
-        return [self.address]
+        """Return the address, if any, or the p2pkh addresses for p2ms.
+
+        Historically, a p2pkh address has been used to refer to a key.
+        For a p2ms multisig script, the keys it pays to are returned,
+        expressed in p2pkh-address notation.
+
+        https://bitcoin.stackexchange.com/questions/30442/multiple-addresses-in-one-utxo
+        """
+        try:
+            return addresses(self.script, self.network)
+        except BTClibValueError:
+            return [self.address]
 
     def __init__(
         self,

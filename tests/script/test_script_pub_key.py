@@ -546,11 +546,9 @@ def test_p2ms_1() -> None:
     script_pub_key = serialize([1, pub_key0, pub_key1, pub_key2, 3, "OP_CHECKMULTISIG"])
     assert_p2ms(script_pub_key)
 
-    err_msg = "invalid size: "
+    err_msg = "invalid p2ms script_pub_key size"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms(script_pub_key[:133] + b"\x40" + script_pub_key[134:])
-
-    err_msg = "invalid extra data"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms(script_pub_key[:-2] + b"\x00" + script_pub_key[-2:])
 
