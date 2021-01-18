@@ -68,11 +68,11 @@ class TxOut:
         if check_validity:
             self.assert_valid()
 
-        script_ = self.script_pub_key.script
+        script = self.script_pub_key.script
         return {
             "value": str(btc_from_sats(self.value)),
-            "scriptPubKey": script_.hex(),  # TODO make it { "asm": "", "hex": "" }
-            "type": type_and_payload(script_)[0],
+            "scriptPubKey": script.hex(),
+            "type": type_and_payload(script)[0],
             "reqSigs": None,  # FIXME
             "addresses": self.script_pub_key.addresses,
             "network": self.script_pub_key.network,
