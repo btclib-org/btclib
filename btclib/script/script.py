@@ -106,6 +106,13 @@ class Script:
     def asm(self) -> List[Command]:
         return parse(self.script)
 
+    def __add__(self, other: object):
+
+        if not isinstance(other, Script):
+            return NotImplemented  # pragma: no cover
+
+        return Script(self.script + other.script)
+
     def __init__(self, script: Octets = b"", check_validity: bool = True) -> None:
 
         self.script = bytes_from_octets(script)
