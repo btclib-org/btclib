@@ -46,7 +46,7 @@ _Tx = TypeVar("_Tx", bound="Tx")
 
 @dataclass
 class Tx:
-    # 4 bytes, unsigned little endian
+    # 4 bytes, _signed_ little endian
     version: int
     # 0	Not locked
     #  < 500000000	Block number at which this transaction is unlocked
@@ -184,8 +184,8 @@ class Tx:
 
     def assert_valid(self) -> None:
 
-        # must be a 4-bytes int
-        if not 0 < self.version <= 0xFFFFFFFF:
+        # must be a 4-bytes _signed_ integer
+        if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")
 
         # must be a 4-bytes int
@@ -207,7 +207,7 @@ class Tx:
 
         return b"".join(
             [
-                self.version.to_bytes(4, byteorder="little", signed=False),
+                self.version.to_bytes(4, byteorder="little", signed=True),  # int32_t
                 _SEGWIT_MARKER if segwit else b"",
                 var_int.serialize(len(self.vin)),
                 b"".join(tx_in.serialize(check_validity) for tx_in in self.vin),
@@ -228,7 +228,8 @@ class Tx:
 
         stream = bytesio_from_binarydata(data)
 
-        version = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        # version is a signed int (int32_t, not uint32_t)
+        version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
 
         segwit = stream.read(2) == _SEGWIT_MARKER
         if not segwit:
