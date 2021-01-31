@@ -95,10 +95,10 @@ class Sig:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        # r is an x-coordinate field element, fail if r is not valid
+        # r is a field element, fail if r is not a valid x-coordinate
         self.ec.y(self.r)
 
-        # s is a scalar, fail if s is not [0, n-1].
+        # s is a scalar, fail if s is not in [0, n-1]
         if not 0 <= self.s < self.ec.n:
             err_msg = "scalar s not in 0..n-1: "
             err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
