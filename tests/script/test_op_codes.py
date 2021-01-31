@@ -40,14 +40,18 @@ def test_operators() -> None:
 
 
 def test_op_int() -> None:
+    "test correct number of bytes in integer encoding"
 
-    # test corect number of bytes
+    # 7 bits + sign bit = 8 bits = 1 byte (plus 1 byte for length)
     i = 0b01111111
     assert len(op_int(i)) == 2
+    # 8 bits + sign bit = 9 bits = 2 byte (plus 1 byte for length)
     i = 0b11111111
     assert len(op_int(i)) == 3
+    # 15 bits + sign bit = 16 bits = 2 byte (plus 1 byte for length)
     i = 0b0111111111111111
     assert len(op_int(i)) == 3
+    # 16 bits + sign bit = 17 bits = 3 byte (plus 1 byte for length)
     i = 0b1111111111111111
     assert len(op_int(i)) == 4
 

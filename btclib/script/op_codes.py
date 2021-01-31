@@ -273,7 +273,7 @@ def op_int(command: int) -> bytes:
 
     v = command
     # Convert number to bitcoin-specific little endian format
-    # We need v.bit_length() bits, plus a sign bit for every nonzero number.
+    # v.bit_length() bits, plus a sign bit for every non-zero number
     n_bits = v.bit_length() + (v != 0)
     # The number of bytes for that is:
     n_bytes = (n_bits + 7) // 8
