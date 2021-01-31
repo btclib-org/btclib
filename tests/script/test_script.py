@@ -21,15 +21,12 @@ from btclib.script import script
 def test_simple_scripts() -> None:
     script_list: List[List[script.Command]] = [
         ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_EQUAL"],
-        ["1ADD", "OP_1ADD", "1ADE", "OP_EQUAL"],
-        [hex(26)[2:].upper(), "OP_1NEGATE", "OP_ADD", hex(26)[2:].upper(), "OP_EQUAL"],
-        [
-            hex(0xFFFFFFFF)[2:].upper(),
-            "OP_1NEGATE",
-            "OP_ADD",
-            hex(0xFFFFFFFF)[2:].upper(),
-            "OP_EQUAL",
-        ],
+        [0x1ADD, "OP_1ADD", 0x1ADE, "OP_EQUAL"],
+        [26, "OP_1NEGATE", "OP_ADD", 26, "OP_EQUAL"],
+        [0x7FFFFFFF, "OP_1NEGATE", "OP_ADD", 0x7FFFFFFF, "OP_EQUAL"],
+        [0x80000000, "OP_1NEGATE", "OP_ADD", 0x7FFFFFFF, "OP_EQUAL"],
+        [0xFFFFFFFF - 1, "OP_1NEGATE", "OP_ADD", 0x7FFFFFFF, "OP_EQUAL"],
+        [0xFFFFFFFF, "OP_1NEGATE", "OP_ADD", 0x7FFFFFFF, "OP_EQUAL"],
         ["1F" * 250, "OP_DROP"],
         ["1F" * 520, "OP_DROP"],
     ]

@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
+from btclib.script.script import decode_num
 from btclib.tx.block_header import BlockHeader
 from btclib.tx.tx import Tx
 from btclib.utils import bytesio_from_binarydata, hash256, merkle_root
@@ -55,7 +56,7 @@ class Block:
 
     @property
     def height(self) -> Optional[int]:
-        """Return the height committed into the coinbase script_sig.
+        """Return the height committed into a BIP34 coinbase script_sig.
 
         Version 2 blocks commit block height into the coinbase script_sig.
 
@@ -74,7 +75,7 @@ class Block:
         # (genesis block is height zero).
         coinbase_script = self.transactions[0].vin[0].script_sig
         height_ = var_bytes.parse(coinbase_script)
-        return int.from_bytes(height_, byteorder="little", signed=True)
+        return decode_num(height_)
 
     def __init__(
         self,

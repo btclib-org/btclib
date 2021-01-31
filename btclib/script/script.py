@@ -24,7 +24,13 @@ from dataclasses import dataclass
 from typing import List, Sequence, Union
 
 from btclib.alias import BinaryData, Octets
-from btclib.script.op_codes import OP_CODE_NAMES, op_int, op_pushdata, op_str
+from btclib.script.op_codes import (
+    OP_CODE_NAMES,
+    decode_num,
+    op_int,
+    op_pushdata,
+    op_str,
+)
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 Command = Union[int, str, bytes]
@@ -59,7 +65,9 @@ def parse(stream: BinaryData) -> List[Command]:
         if 0 < i < 76:
             # 1-byte-data-length | data
             data = s.read(i)
-            r.append(data.hex().upper())
+            # if <= 0xFFFFFFFF, parse it as integer
+            as_int = decode_num(data)
+            r.append(as_int if i < 6 and as_int <= 0xFFFFFFFF else data.hex().upper())
         elif i == 76:
             # OP_PUSHDATA1 | 1-byte-data-length | data
             data_length = int.from_bytes(s.read(1), byteorder="little", signed=False)

@@ -680,7 +680,7 @@ def test_non_standard_script_in_p2wsh() -> None:
     ]
     # fmt: on
     redeem_script = serialize(redeem_script_cmds)
-    # assert redeem_script_cmds == parse(redeem_script)
+    assert redeem_script_cmds == parse(redeem_script)
     payload = sha256(redeem_script)
     script_pub_key = (
         "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708"

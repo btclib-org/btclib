@@ -260,27 +260,45 @@ def op_pushdata(data: Octets) -> bytes:
     return b"".join(out)
 
 
-def op_int(command: int) -> bytes:
+def decode_num(data: bytes) -> int:
+    "Decode a number from the bitcoin-specific little endian format."
+
+    if data == b"":
+        return 0
+    i = int.from_bytes(data, byteorder="little", signed=False)
+    if data[-1] >= 0x80:  # negative number
+        # mask for all but the highest bit
+        mask = (2 ** (len(data) * 8) - 1) >> 1
+        i &= mask
+        i *= -1
+    return i
+
+
+def encode_num(i: int) -> bytes:
+    "Encode a number to the bitcoin-specific little endian format."
+    if i == 0:
+        return b""
+    # i.bit_length() bits, plus a sign bit
+    n_bits = i.bit_length() + 1
+    # The number of bytes necessary to accomodate n_bits
+    n_bytes = (n_bits + 7) // 8
+    # Convert the input number to absolute value + sign in top bit
+    encoded_i = abs(i) | ((i < 0) << (n_bytes * 8 - 1))
+    # Serialize to bytes
+    return encoded_i.to_bytes(n_bytes, byteorder="little", signed=False)
+
+
+def op_int(i: int) -> bytes:
     # Short 1-byte opcodes exist
     # to push numbers in [-1, 16]
-    if 0 <= command <= 16:
-        return OP_CODES["OP_" + str(command)]
-    if command == -1:
+    if 0 <= i <= 16:
+        return OP_CODES["OP_" + str(i)]
+    if i == -1:
         return OP_CODES["OP_1NEGATE"]
-    # Pushing any other number requires an
-    # explicit push operation of its bytes encoding
-    # FIXME: negative numbers?
 
-    v = command
-    # Convert number to bitcoin-specific little endian format
-    # v.bit_length() bits, plus a sign bit for every non-zero number
-    n_bits = v.bit_length() + (v != 0)
-    # The number of bytes for that is:
-    n_bytes = (n_bits + 7) // 8
-    # Convert number to absolute value + sign in top bit.
-    encoded_v = 0 if v == 0 else abs(v) | ((v < 0) << (n_bytes * 8 - 1))
-    # Serialize to bytes
-    data = encoded_v.to_bytes(n_bytes, byteorder="little", signed=False)
+    # Pushing any other number requires an explicit
+    # push operation of its bitcoin-specific little endian encoding
+    data = encode_num(i)
     return op_pushdata(data)
 
 

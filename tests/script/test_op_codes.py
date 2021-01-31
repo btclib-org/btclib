@@ -10,7 +10,14 @@
 
 "Tests for the `btclib.script.op_codes` module."
 
-from btclib.script.op_codes import OP_CODE_NAMES, OP_CODES, op_int, op_pushdata
+from btclib.script.op_codes import (
+    OP_CODE_NAMES,
+    OP_CODES,
+    decode_num,
+    encode_num,
+    op_int,
+    op_pushdata,
+)
 
 
 def test_operators() -> None:
@@ -55,10 +62,34 @@ def test_op_int() -> None:
     i = 0b1111111111111111
     assert len(op_int(i)) == 4
 
-    # test few selected cases
+    # test OP_int
+    assert op_int(-1) == OP_CODES["OP_1NEGATE"]
     for i in range(17):
         assert op_int(i) == OP_CODES["OP_" + str(i)]
-    assert op_int(-1) == OP_CODES["OP_1NEGATE"]
+
+
+def test_encode_num() -> None:
+
+    for i in range(-255, 256):
+        assert decode_num(encode_num(i)) == i
+
+    for i in [
+        0x80FF,
+        0xFFFF,
+        0x80FFFF,
+        0xFFFFFF,
+        0x80FFFFFF,
+        0xFFFFFFFF,
+        0x80FFFFFFFF,
+        0xFFFFFFFFFF,
+    ]:
+        assert decode_num(encode_num(i - 1)) == i - 1
+        assert decode_num(encode_num(i)) == i
+        assert decode_num(encode_num(i + 1)) == i + 1
+
+        assert decode_num(encode_num(-i - 1)) == -i - 1
+        assert decode_num(encode_num(-i)) == -i
+        assert decode_num(encode_num(-i + 1)) == -i + 1
 
 
 def test_op_pushdata() -> None:
