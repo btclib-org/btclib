@@ -21,7 +21,7 @@ from coincurve._libsecp256k1 import (  # type: ignore # pylint: disable=no-name-
 
 from btclib.alias import INF
 from btclib.ecc import dsa
-from btclib.ecc.curve import CURVES, double_mult, mult
+from btclib.ecc.curve import CURVES, Curve, double_mult, mult
 from btclib.ecc.curve_group import _mult
 from btclib.ecc.number_theory import mod_inv
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
@@ -273,7 +273,10 @@ def test_crack_prv_key() -> None:
     with pytest.raises(BTClibValueError, match="identical signatures"):
         dsa.crack_prv_key(msg1, sig1, msg1, sig1)
 
-    sig = dsa.Sig(sig1.r, sig1.s, CURVES["secp256r1"])
+    a = ec._a  # pylint: disable=protected-access
+    b = ec._b  # pylint: disable=protected-access
+    alt_ec = Curve(ec.p, a, b, ec.double_aff(ec.G), ec.n, ec.cofactor)
+    sig = dsa.Sig(sig1.r, sig1.s, alt_ec)
     with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
         dsa.crack_prv_key(msg1, sig, msg2, sig2)
 
