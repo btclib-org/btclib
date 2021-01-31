@@ -314,8 +314,8 @@ class CurveGroup:
             err_msg = "x-coordinate not in 0..p-1: "
             err_msg += f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}"
             raise BTClibValueError(err_msg)
+        y2 = self._y2(x)
         try:
-            y2 = self._y2(x)
             return mod_sqrt(y2, self.p)
         except BTClibValueError as e:
             err_msg = "invalid x-coordinate: "
