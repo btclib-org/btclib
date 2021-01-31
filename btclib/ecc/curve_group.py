@@ -320,7 +320,7 @@ class CurveGroup:
         except BTClibValueError as e:
             err_msg = "invalid x-coordinate: "
             err_msg += f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}"
-            raise BTClibValueError("invalid x-coordinate") from e
+            raise BTClibValueError(err_msg) from e
 
     def require_on_curve(self, Q: Point) -> None:
         """Require the input curve Point to be on the curve.

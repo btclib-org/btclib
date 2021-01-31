@@ -420,3 +420,13 @@ def test_jac_equality() -> None:
     assert ec.jac_equality(QJ, jac_from_aff(Q))
     assert not ec.jac_equality(QJ, ec.negate_jac(QJ))
     assert not ec.jac_equality(QJ, ec.GJ)
+
+
+def test_INF() -> None:
+
+    assert INF[1] == 0
+
+    with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
+        secp256k1.y(INF[0])
+    with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
+        secp256k1.y(INF[0] + secp256k1.n)
