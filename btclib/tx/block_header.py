@@ -163,7 +163,7 @@ class BlockHeader:
 
     def assert_valid(self) -> None:
 
-        self.version = int(self.version)
+        # must be a 4-bytes _signed_ integer
         if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {hex(self.version)}")
 
@@ -196,7 +196,7 @@ class BlockHeader:
 
         return b"".join(
             [
-                self.version.to_bytes(4, byteorder="little", signed=True),
+                self.version.to_bytes(4, byteorder="little", signed=True),  # int32_t
                 self.previous_block_hash[::-1],
                 self.merkle_root[::-1],
                 int(self.time.timestamp()).to_bytes(4, "little", signed=False),
@@ -213,7 +213,7 @@ class BlockHeader:
 
         stream = bytesio_from_binarydata(data)
 
-        # version is a signed int
+        # version is a signed int (int32_t, not uint32_t)
         version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
         previous_block_hash = stream.read(_HF_LEN)[::-1]
         merkle_root_ = stream.read(_HF_LEN)[::-1]
