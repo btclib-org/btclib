@@ -123,7 +123,19 @@ class Sig:
             err_msg += f"'{hex_string(self.r)}'" if self.r > 0xFFFFFFFF else f"{self.r}"
             raise BTClibValueError(err_msg)
 
-        # TODO: fail if r is not congruent mod ec.n to a valid x-coordinate
+        # ensure r is congruent to a valid x-coordinate
+        r = self.r
+        congruence_not_found = True
+        while congruence_not_found and r < self.ec.p:
+            try:
+                self.ec.y(r)
+                congruence_not_found = False
+            except BTClibValueError:
+                r += self.ec.n
+        if congruence_not_found:
+            err_msg = "r is not (congruent to) a valid x-coordinate: "
+            err_msg += f"'{hex_string(self.r)}'" if self.r > 0xFFFFFFFF else f"{self.r}"
+            raise BTClibValueError(err_msg)
 
         # s is a scalar, fail if s is not in [1, n-1]
         if not 0 < self.s < self.ec.n:

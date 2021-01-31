@@ -22,11 +22,11 @@ ec = secp256k1
 def test_der_size() -> None:
 
     sig8 = 1, 1
-    sig72 = ec.n - 1, ec.n - 1
-    sig71 = 2 ** 255 - 1, ec.n - 1
-    sig70 = 2 ** 255 - 1, 2 ** 255 - 1
-    sig70b = 2 ** 255 - 1, 2 ** 248 - 1
-    sig69 = 2 ** 255 - 1, 2 ** 247 - 1
+    sig72 = ec.n - 2, ec.n - 1
+    sig71 = 2 ** 255 - 4, ec.n - 1
+    sig70 = 2 ** 255 - 4, 2 ** 255 - 1
+    sig70b = 2 ** 255 - 4, 2 ** 248 - 1
+    sig69 = 2 ** 255 - 4, 2 ** 247 - 1
     sig68 = 2 ** 247 - 1, 2 ** 247 - 1
     sigs = [sig8, sig72, sig71, sig70, sig70b, sig69, sig68]
     lenghts = [8, 72, 71, 70, 70, 69, 68]
@@ -47,7 +47,7 @@ def test_der_deserialize() -> None:
     with pytest.raises(ValueError, match=err_msg):
         Sig.parse("not a sig")
 
-    sig = Sig(2 ** 255 - 1, 2 ** 247 - 1)
+    sig = Sig(2 ** 255 - 4, 2 ** 247 - 1)
     sig_bin = sig.serialize()
     r_size = sig_bin[3]
 
@@ -114,6 +114,6 @@ def test_der_serialize() -> None:
         with pytest.raises(BTClibValueError, match=err_msg):
             Sig(r, bad_s)
 
-    # err_msg = "r is not congruent mod ec.n to a valid x-coordinate: "
-    # with pytest.raises(BTClibValueError, match=err_msg):
-    #     Sig(5, s)
+    err_msg = r"r is not \(congruent to\) a valid x-coordinate: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Sig(5, s)
