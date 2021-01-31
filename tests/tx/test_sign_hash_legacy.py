@@ -190,7 +190,8 @@ def test_test_vectors():
     data = data[1:]  # skip column headers
     for raw_tx, raw_script, input_index, hash_type, exp_hash in data:
         script_ = sign_hash.legacy_script(raw_script)[0]
-        tx = Tx.parse(raw_tx)
+        # FIXME: separate invalid transaction from the valid ones
+        tx = Tx.parse(raw_tx, check_validity=False)
         if hash_type < 0:
             hash_type += 0xFFFFFFFF + 1
         actual_hash = sign_hash.legacy(script_, tx, input_index, hash_type)
