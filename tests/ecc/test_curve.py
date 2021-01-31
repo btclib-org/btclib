@@ -89,7 +89,7 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="n is not the group order: "):
         Curve(13, 0, 2, (1, 9), 17, 1, False)
 
-    with pytest.raises(BTClibValueError, match="invalid h: "):
+    with pytest.raises(BTClibValueError, match="invalid cofactor: "):
         Curve(13, 0, 2, (1, 9), 19, 2, False)
 
     # n=p -> weak curve

@@ -74,7 +74,7 @@ class Curve(CurveSubGroup):
         b: Integer,
         G: Point,
         n: Integer,
-        h: int,
+        cofactor: int,
         weakness_check: bool = True,
         name: Optional[str] = None,
     ) -> None:
@@ -100,7 +100,7 @@ class Curve(CurveSubGroup):
             raise BTClibValueError(err_msg)
         delta = int(2 * sqrt(self.p))
         # also check n with Hasse Theorem
-        if h < 2 and not self.p + 1 - delta <= n <= self.p + 1 + delta:
+        if cofactor < 2 and not self.p + 1 - delta <= n <= self.p + 1 + delta:
             err_msg = "n not in p+1-delta..p+1+delta: "
             err_msg += f"{hex_string(n)}" if n > HEX_THRESHOLD else f"{n}"
             raise BTClibValueError(err_msg)
@@ -117,9 +117,10 @@ class Curve(CurveSubGroup):
 
         # 6. Check cofactor
         exp_cofactor = int(1 / n + delta / n + self.p / n)
-        if h != exp_cofactor:
-            raise BTClibValueError(f"invalid h: {h}, expected {exp_cofactor}")
-        self.cofactor = h
+        if cofactor != exp_cofactor:
+            err_msg = f"invalid cofactor: {cofactor}, expected {exp_cofactor}"
+            raise BTClibValueError(err_msg)
+        self.cofactor = cofactor
 
         # 8. Check that n ≠ p
         if n == p:
@@ -141,7 +142,7 @@ class Curve(CurveSubGroup):
             result += f"\n n   = {hex_string(self.n)}"
         else:
             result += f"\n n   = {self.n}"
-        result += f"\n h = {self.cofactor}"
+        result += f"\n cofactor = {self.cofactor}"
         return result
 
     def __repr__(self) -> str:
