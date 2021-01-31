@@ -31,9 +31,9 @@ Format:
 * r-size: 1-byte size descriptor of the r value that follows
 * r: arbitrary-size big-endian r value.
     It must use the shortest possible encoding for
-    a positive integers (which means no null bytes at the start,
+    a positive integers: no null bytes at the start,
     except a single one when the next byte has its highest bit set
-    to avoid being interpreted as a negative number)
+    (to avoid being interpreted as a negative number)
 * 0x02: header byte indicating an integer
 * s-size: 1-byte size descriptor of the s value that follows
 * s: arbitrary-size big-endian s value. Same rules as for r apply
