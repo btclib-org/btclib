@@ -79,7 +79,7 @@ def test_der_deserialize() -> None:
             Sig.parse(bad_sig_bin)
 
         bad_sig_bin = sig_bin[:offset] + b"\x80" + sig_bin[offset + 1 :]
-        err_msg = " not in 1..n-1: "
+        err_msg = "invalid negative scalar"
         with pytest.raises(BTClibValueError, match=err_msg):
             Sig.parse(bad_sig_bin)
 
@@ -98,16 +98,22 @@ def test_der_deserialize() -> None:
 
 def test_der_serialize() -> None:
 
-    sig = Sig(2 ** 247 - 1, 2 ** 247 - 1)
+    r = 2 ** 247 - 1
+    s = 2 ** 247 - 1
+    Sig(r, s)
 
     err_msg = "scalar r not in 1..n-1: "
     for bad_r in (0, ec.n):
-        _ = Sig(bad_r, sig.s, check_validity=False)
+        _ = Sig(bad_r, s, check_validity=False)
         with pytest.raises(BTClibValueError, match=err_msg):
-            Sig(bad_r, sig.s)
+            Sig(bad_r, s)
 
     err_msg = "scalar s not in 1..n-1: "
     for bad_s in (0, ec.n):
-        _ = Sig(sig.r, bad_s, check_validity=False)
+        _ = Sig(r, bad_s, check_validity=False)
         with pytest.raises(BTClibValueError, match=err_msg):
-            Sig(sig.r, bad_s)
+            Sig(r, bad_s)
+
+    # err_msg = "r is not congruent mod ec.n to a valid x-coordinate: "
+    # with pytest.raises(BTClibValueError, match=err_msg):
+    #     Sig(5, s)

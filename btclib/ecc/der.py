@@ -86,8 +86,10 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
     r_bytes = var_bytes.parse(sig_data_stream, forbid_zero_size=True)
     if r_bytes[0] == 0 and r_bytes[1] < 0x80:
         raise BTClibValueError("invalid 'highest bit set' padding")
+    if r_bytes[0] >= 0x80:
+        raise BTClibValueError("invalid negative scalar")
 
-    return int.from_bytes(r_bytes, byteorder="big", signed=True)
+    return int.from_bytes(r_bytes, byteorder="big", signed=False)
 
 
 _Sig = TypeVar("_Sig", bound="Sig")
@@ -115,13 +117,15 @@ class Sig:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        # Fail if r is not [1, n-1]
+        # r is a scalar, fail if r is not in [1, n-1]
         if not 0 < self.r < self.ec.n:
             err_msg = "scalar r not in 1..n-1: "
             err_msg += f"'{hex_string(self.r)}'" if self.r > 0xFFFFFFFF else f"{self.r}"
             raise BTClibValueError(err_msg)
 
-        # Fail if s is not [1, n-1]
+        # TODO: fail if r is not congruent mod ec.n to a valid x-coordinate
+
+        # s is a scalar, fail if s is not in [1, n-1]
         if not 0 < self.s < self.ec.n:
             err_msg = "scalar s not in 1..n-1: "
             err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
