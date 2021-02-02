@@ -48,6 +48,7 @@ from btclib import b32, b58
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.script import script
+from btclib.script.op_codes import op_int
 from btclib.utils import hash160, sha256
 
 
@@ -95,7 +96,7 @@ def test_valid_address() -> None:
         addr = b32.address_from_witness(wit_ver, wit_prg, network)
         assert address.lower().strip() == addr
 
-        script_pub_key: List[script.Command] = [wit_ver, wit_prg]
+        script_pub_key: List[script.Command] = [op_int(wit_ver), wit_prg]
         assert script.serialize(script_pub_key).hex() == hexscript
 
 

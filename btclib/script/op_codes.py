@@ -255,7 +255,7 @@ def op_pushdata(data: Octets) -> bytes:
         # there is no need to use OP_PUSHDATA4
         # out.append(OP_CODES['OP_PUSHDATA4'])
         # out.append(length.to_bytes(4, byteorder="little", signed=False))
-        raise BTClibValueError(f"Too many bytes for OP_PUSHDATA: {length}")
+        raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
     out.append(data)
     return b"".join(out)
 
@@ -288,16 +288,18 @@ def encode_num(i: int) -> bytes:
     return encoded_i.to_bytes(n_bytes, byteorder="little", signed=False)
 
 
-def op_int(i: int) -> bytes:
-    # Short 1-byte opcodes exist
+def op_int(i: int) -> str:
+    # Short 1-byte op_codes exist
     # to push numbers in [-1, 16]
-    if 0 <= i <= 16:
-        return OP_CODES["OP_" + str(i)]
     if i == -1:
-        return OP_CODES["OP_1NEGATE"]
+        return "OP_1NEGATE"
+    if 0 <= i <= 16:
+        return "OP_" + str(i)
+    raise BTClibValueError(f"invalid OP_INT: {i}")
 
-    # Pushing any other number requires an explicit
-    # push operation of its bitcoin-specific little endian encoding
+
+def op_num(i: int) -> bytes:
+
     data = encode_num(i)
     return op_pushdata(data)
 

@@ -10,12 +10,16 @@
 
 "Tests for the `btclib.script.op_codes` module."
 
+import pytest
+
 from btclib.script.op_codes import (
     OP_CODE_NAMES,
     OP_CODES,
+    BTClibValueError,
     decode_num,
     encode_num,
     op_int,
+    op_num,
     op_pushdata,
 )
 
@@ -46,26 +50,31 @@ def test_operators() -> None:
         assert i in OP_CODE_NAMES.keys()
 
 
-def test_op_int() -> None:
+def test_op_num() -> None:
     "test correct number of bytes in integer encoding"
 
     # 7 bits + sign bit = 8 bits = 1 byte (plus 1 byte for length)
     i = 0b01111111
-    assert len(op_int(i)) == 2
+    assert len(op_num(i)) == 2
     # 8 bits + sign bit = 9 bits = 2 byte (plus 1 byte for length)
     i = 0b11111111
-    assert len(op_int(i)) == 3
+    assert len(op_num(i)) == 3
     # 15 bits + sign bit = 16 bits = 2 byte (plus 1 byte for length)
     i = 0b0111111111111111
-    assert len(op_int(i)) == 3
+    assert len(op_num(i)) == 3
     # 16 bits + sign bit = 17 bits = 3 byte (plus 1 byte for length)
     i = 0b1111111111111111
-    assert len(op_int(i)) == 4
+    assert len(op_num(i)) == 4
 
-    # test OP_int
-    assert op_int(-1) == OP_CODES["OP_1NEGATE"]
+
+def test_op_int() -> None:
+    assert op_int(-1) == "OP_1NEGATE"
     for i in range(17):
-        assert op_int(i) == OP_CODES["OP_" + str(i)]
+        assert op_int(i) == "OP_" + str(i)
+
+    err_msg = "invalid OP_INT: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        op_int(17)
 
 
 def test_encode_num() -> None:

@@ -27,7 +27,7 @@ from btclib.alias import BinaryData, Octets
 from btclib.script.op_codes import (
     OP_CODE_NAMES,
     decode_num,
-    op_int,
+    op_num,
     op_pushdata,
     op_str,
 )
@@ -40,7 +40,7 @@ def serialize(script: Sequence[Command]) -> bytes:
     r: List[bytes] = []
     for command in script:
         if isinstance(command, int):
-            r.append(op_int(command))
+            r.append(op_num(command))
             # err_msg = f"ints are not allowed, use OP_X instead: {command}"
             # raise BTClibValueError(err_msg)
         elif isinstance(command, str):
