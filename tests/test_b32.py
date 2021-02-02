@@ -104,10 +104,7 @@ def test_invalid_address() -> None:
 
     invalid_addresses: List[Tuple[str, str]] = [
         ("tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty", "invalid hrp: "),
-        (
-            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
-            "invalid checksum in bech32 string: ",
-        ),
+        ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5", "invalid checksum: "),
         ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", "invalid witness version: "),
         ("bc1rw5uspcuh", "invalid witness program length for witness v3: "),
         (
@@ -117,7 +114,7 @@ def test_invalid_address() -> None:
         ("BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P", "invalid size: "),
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
-            "mixed case in bech32 string: ",
+            "mixed case: ",
         ),
         (
             "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",

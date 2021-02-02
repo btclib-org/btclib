@@ -101,11 +101,9 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
         bech = bech.decode("ascii")
 
     if not all(47 < ord(x) < 123 for x in bech):
-        raise BTClibValueError(
-            f"ASCII character outside [48-122] in bech32 string: {bech}"
-        )
+        raise BTClibValueError(f"ASCII character outside [48-122]: {bech}")
     if bech.lower() != bech and bech.upper() != bech:
-        raise BTClibValueError(f"mixed case in bech32 string: {bech}")
+        raise BTClibValueError(f"mixed case: {bech}")
     bech = bech.lower()
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
@@ -117,18 +115,18 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
 
     pos = bech.rfind("1")  # find the separator between hrp and data
     if pos == -1:
-        raise BTClibValueError(f"Missing HRP in bech32 string: {bech}")
+        raise BTClibValueError(f"missing HRP: {bech}")
     if pos == 0:
-        raise BTClibValueError(f"Empty HRP in bech32 string: {bech}")
+        raise BTClibValueError(f"empty HRP: {bech}")
     if pos + 7 > len(bech):
-        raise BTClibValueError(f"Too short checksum in bech32 string: {bech}")
+        raise BTClibValueError(f"too short checksum: {bech}")
 
     hrp = bech[:pos]
 
     if any(x not in _ALPHABET for x in bech[pos + 1 :]):
-        raise BTClibValueError(f"invalid data characters in bech32 string: {bech}")
+        raise BTClibValueError(f"invalid data characters: {bech}")
     data = [_ALPHABET.find(x) for x in bech[pos + 1 :]]
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]
-    raise BTClibValueError(f"invalid checksum in bech32 string: {bech}")
+    raise BTClibValueError(f"invalid checksum: {bech}")

@@ -57,19 +57,19 @@ VALID_CHECKSUM = [
 ]
 
 INVALID_CHECKSUM = [
-    [" 1nwldj5", r"Empty HRP in bech32 string: *"],
+    [" 1nwldj5", r"empty HRP: *"],
     ["\x7F" + "1axkwrx", r"ASCII character outside *"],
     ["\x80" + "1eym55h", r"ASCII character outside *"],
-    ["pzry9x0s0muk", r"Missing HRP in bech32 string: *"],
-    ["1pzry9x0s0muk", r"Empty HRP in bech32 string: *"],
-    ["x1b4n0q5v", r"invalid data characters in bech32 string: *"],
-    ["li1dgmt3", r"Too short checksum in bech32 string: *"],
+    ["pzry9x0s0muk", r"missing HRP: *"],
+    ["1pzry9x0s0muk", r"empty HRP: *"],
+    ["x1b4n0q5v", r"invalid data characters: *"],
+    ["li1dgmt3", r"too short checksum: *"],
     # Invalid character in checksum
     ["de1lg7wt\xff", r"ASCII character outside *"],
     # checksum calculated with uppercase form of HRP
-    ["A1G7SGD8", r"invalid checksum in bech32 string: *"],
-    ["10a06t8", r"Empty HRP in bech32 string: *"],
-    ["1qzzfhee", r"Empty HRP in bech32 string: *"],
+    ["A1G7SGD8", r"invalid checksum: *"],
+    ["10a06t8", r"empty HRP: *"],
+    ["1qzzfhee", r"empty HRP: *"],
 ]
 
 
