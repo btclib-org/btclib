@@ -408,7 +408,11 @@ def derive(
 
 
 def _derive_from_account(
-    xkey: BIP32Key, branch: int, address_index: int, branches_0_1_only: bool = True
+    xkey: BIP32Key,
+    branch: int,
+    address_index: int,
+    branches_0_1_only: bool = True,
+    max_index: int = 0xFFFF,
 ) -> BIP32KeyData:
 
     if not isinstance(xkey, BIP32KeyData):
@@ -416,22 +420,33 @@ def _derive_from_account(
 
     if not xkey.is_hardened():
         raise BTClibValueError("unhardened account/master key")
+
     if branch >= 0x80000000:
         raise BTClibValueError("invalid private derivation at branch level")
+    if branch > max_index:
+        raise BTClibValueError(f"too high branch: {branch}")
     if branches_0_1_only and branch not in (0, 1):
         raise BTClibValueError(f"invalid branch: {branch} not in (0, 1)")
+
     if address_index >= 0x80000000:
         raise BTClibValueError("invalid private derivation at address index level")
+    if address_index > max_index:
+        raise BTClibValueError(f"too high address index: {branch}")
 
     return _derive(xkey, f"m/{branch}/{address_index}")
 
 
 def derive_from_account(
-    xkey: BIP32Key, branch: int, address_index: int, branches_0_1_only: bool = True
+    xkey: BIP32Key,
+    branch: int,
+    address_index: int,
+    branches_0_1_only: bool = True,
+    max_index: int = 0xFFFF,
 ) -> str:
 
-    xkey = _derive_from_account(xkey, branch, address_index, branches_0_1_only)
-    return xkey.b58encode()
+    return _derive_from_account(
+        xkey, branch, address_index, branches_0_1_only, max_index
+    ).b58encode()
 
 
 def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
