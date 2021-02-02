@@ -83,11 +83,10 @@ class TxOut:
         cls: Type[_TxOut], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> _TxOut:
 
-        return cls(
-            sats_from_btc(dict_["value"]),
-            ScriptPubKey(dict_["scriptPubKey"], dict_.get("network", "mainnet")),
-            check_validity,
-        )
+        value = sats_from_btc(dict_["value"])
+        script_bin = dict_["scriptPubKey"]
+        network = dict_.get("network", "mainnet")
+        return cls(value, ScriptPubKey(script_bin, network), check_validity)
 
     # def is_witness(self) -> Tuple[bool, int, bytes]:
     #     return is_witness(self.script_pub_key)

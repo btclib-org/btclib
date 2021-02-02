@@ -135,9 +135,9 @@ class TxIn:
     @classmethod
     def parse(cls: Type[_TxIn], data: BinaryData, check_validity: bool = True) -> _TxIn:
 
-        s = bytesio_from_binarydata(data)
-        prev_out = OutPoint.parse(s)
-        script_sig = var_bytes.parse(s)
-        sequence = int.from_bytes(s.read(4), byteorder="little", signed=False)
+        stream = bytesio_from_binarydata(data)
+        prev_out = OutPoint.parse(stream)
+        script_sig = var_bytes.parse(stream)
+        sequence = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         return cls(prev_out, script_sig, sequence, Witness(), check_validity)

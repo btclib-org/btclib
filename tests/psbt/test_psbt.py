@@ -80,22 +80,12 @@ def test_creation() -> None:
         100000000, ScriptPubKey("001400aea9a2e5f0f876a588df5546e8742d1d87008f")
     )
     input_1 = TxIn(
-        OutPoint(
-            bytes.fromhex(
-                "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858"
-            ),
-            0,
-        ),
+        OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
         b"",
         0xFFFFFFFF,
     )
     input_2 = TxIn(
-        OutPoint(
-            bytes.fromhex(
-                "1dea7cd05979072a3578cab271c02244ea8a090bbb46aa680a65ecd027048d83"
-            ),
-            1,
-        ),
+        OutPoint("1dea7cd05979072a3578cab271c02244ea8a090bbb46aa680a65ecd027048d83", 1),
         b"",
         0xFFFFFFFF,
     )
@@ -235,12 +225,7 @@ def test_output_unknown() -> None:
 
 def test_output_scripts_serialization() -> None:
     input_1 = TxIn(
-        OutPoint(
-            bytes.fromhex(
-                "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858"
-            ),
-            0,
-        ),
+        OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
         b"",
         0xFFFFFFFF,
     )
@@ -304,14 +289,9 @@ def test_valid_sign_2() -> None:
     assert psbt.b64encode() == psbt_str
 
     transaction_input = TxIn(
-        prev_out=OutPoint(
-            bytes.fromhex(
-                "75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858"
-            ),
-            0,
-        ),
-        script_sig=b"",
-        sequence=0xFFFFFFFF,
+        OutPoint("75ddabb27b8845f5247975c8a5ba7c6f336c4570708ebe230caf6db5217ae858", 0),
+        b"",
+        0xFFFFFFFF,
     )
     assert psbt.inputs[0].witness_utxo is not None
     # pylance cannot grok the following line, even considering the above line
