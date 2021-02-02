@@ -109,7 +109,6 @@ def address_from_v0_witness_program(wit_prg: Octets, network: str = "mainnet") -
     "Encode a legacy base58 p2sh-wrapped SegWit address."
 
     wit_ver = 0
-    wit_prg = bytes_from_octets(wit_prg)
     check_witness(wit_ver, wit_prg)
     redeem_script = serialize([wit_ver, wit_prg])
     return p2sh(redeem_script, network)
