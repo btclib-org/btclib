@@ -119,7 +119,7 @@ def test_invalid_address() -> None:
         ),
         (
             "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
-            "invalid witness program length for witness v0: ",
+            "nvalid size: ",
         ),
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
@@ -150,7 +150,7 @@ def test_invalid_address_enc() -> None:
 
     invalid_address_enc: List[Tuple[str, int, int, str]] = [
         ("MAINNET", 0, 20, "'MAINNET'"),
-        ("mainnet", 0, 21, "invalid witness program length for witness v0: "),
+        ("mainnet", 0, 21, "nvalid size: "),
         ("mainnet", 17, 32, "invalid witness version: "),
         ("mainnet", 1, 1, "invalid witness program length for witness v1: "),
         ("mainnet", 16, 41, "invalid witness program length for witness v16: "),
@@ -183,7 +183,7 @@ def test_address_witness() -> None:
         b32.power_of_2_base_conversion(wit_prg_ints, 8, 5)
 
     addr = "tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
-    err_msg = "invalid witness program length for witness v0: "
+    err_msg = "nvalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.witness_from_address(addr)
 
@@ -227,7 +227,7 @@ def test_p2wpkh() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.p2wpkh(pub + "00")
 
-    err_msg = "invalid witness program length for witness v0: "
+    err_msg = "nvalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.address_from_witness(0, hash160(pub) + b"\x00")
 
@@ -261,6 +261,6 @@ def test_p2wsh() -> None:
 
     assert b32.witness_from_address(addr)[1] == sha256(witness_script_bytes)
 
-    err_msg = "invalid witness program length for witness v0: "
+    err_msg = "nvalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.address_from_witness(0, witness_script_bytes)

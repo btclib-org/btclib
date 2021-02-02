@@ -203,7 +203,7 @@ def test_p2w_p2sh() -> None:
     b58addr = b58.p2wsh_p2sh(script_pub_key, network)
     assert b58addr == b58.address_from_v0_witness_program(witness_program, network)
 
-    err_msg = "invalid witness program length for witness v0: "
+    err_msg = "nvalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b58.address_from_v0_witness_program(witness_program[:-1], network)
 
