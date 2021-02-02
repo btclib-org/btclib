@@ -87,24 +87,23 @@ def power_of_2_base_conversion(
     return ret
 
 
-def check_witness(wit_ver: int, wit_prg: bytes):
-
-    length = len(wit_prg)
+def check_witness(wit_ver: int, wit_prg: Octets):
 
     if wit_ver == 0:
-        if length not in (20, 32):
-            err_msg = "invalid witness program length for witness v0: "
-            err_msg += f"{length} instead of 20 or 32"
-            raise BTClibValueError(err_msg)
-    elif wit_ver < 0 or wit_ver > 16:
+        bytes_from_octets(wit_prg, (20, 32))
+        return
+
+    if wit_ver < 0 or wit_ver > 16:
         err_msg = "invalid witness version: "
         err_msg += f"{wit_ver} not in 0..16"
         raise BTClibValueError(err_msg)
-    else:
-        if length < 2 or length > 40:
-            err_msg = f"invalid witness program length for witness v{wit_ver}: "
-            err_msg += f"{length}, not in 2..40"
-            raise BTClibValueError(err_msg)
+
+    wit_prg = bytes_from_octets(wit_prg)
+    length = len(wit_prg)
+    if length < 2 or length > 40:
+        err_msg = f"invalid witness program length for witness v{wit_ver}: "
+        err_msg += f"{length}, not in 2..40"
+        raise BTClibValueError(err_msg)
 
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
