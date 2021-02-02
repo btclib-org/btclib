@@ -451,18 +451,14 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")
         sigs = psbt_in.partial_sigs.values()
-        multi_sig = len(sigs) > 1
+        # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
+        cmds: List[bytes] = [b""] if len(sigs) > 1 else []
+        cmds += sigs
         if psbt_in.witness_script:
-            psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script.hex()])
-            psbt_in.final_script_witness = Witness([b""]) if multi_sig else Witness()
-            psbt_in.final_script_witness.stack += sigs
-            psbt_in.final_script_witness.stack += [psbt_in.witness_script]
+            psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script])
+            psbt_in.final_script_witness = Witness(cmds + [psbt_in.witness_script])
         else:
-            # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-            final_script_sig: List[script.Command] = ["OP_0"] if multi_sig else []
-            final_script_sig += [sig.hex() for sig in sigs]
-            final_script_sig += [psbt_in.redeem_script.hex()]
-            psbt_in.final_script_sig = script.serialize(final_script_sig)
+            psbt_in.final_script_sig = script.serialize(cmds + [psbt_in.redeem_script])
         psbt_in.partial_sigs = {}
         psbt_in.sig_hash_type = None
         psbt_in.redeem_script = b""
