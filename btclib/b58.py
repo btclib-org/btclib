@@ -16,8 +16,8 @@ private keys as WIFs
 
 from typing import Optional, Tuple
 
+from btclib import b32
 from btclib.alias import Octets, String
-from btclib.b32 import check_witness
 from btclib.base58 import b58decode, b58encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
@@ -52,18 +52,21 @@ def wif_from_prv_key(
 # 2. base58 address from HASH and vice versa
 
 
-def address_from_h160(prefix: Octets, h160: Octets, network: str = "mainnet") -> str:
+def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") -> str:
     "Encode a base58 address from the payload."
 
-    prefix = bytes_from_octets(prefix)
-    prefixes = NETWORKS[network].p2pkh, NETWORKS[network].p2sh
-    if prefix not in prefixes:
-        raise BTClibValueError(f"invalid {network} base58 address prefix: {prefix!r}")
+    if script_type == "p2sh":
+        prefix = NETWORKS[network].p2sh
+    elif script_type == "p2pkh":
+        prefix = NETWORKS[network].p2pkh
+    else:
+        raise BTClibValueError(f"invalid script type: {script_type}")
+
     payload = prefix + bytes_from_octets(h160, 20)
     return b58encode(payload).decode("ascii")
 
 
-def h160_from_address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
+def h160_from_address(b58addr: String) -> Tuple[str, bytes, str]:
     "Return the payload from a base58 address."
 
     if isinstance(b58addr, str):
@@ -71,12 +74,12 @@ def h160_from_address(b58addr: String) -> Tuple[bytes, bytes, str, bool]:
     payload = b58decode(b58addr, 21)
     prefix = payload[:1]
 
-    for script_type, is_script_hash in zip(("p2pkh", "p2sh"), (False, True)):
+    for script_type in ("p2pkh", "p2sh"):
         # with pytohn>=3.8 use walrus operator
         # if network := network_from_key_value(script_type, prefix):
         network = network_from_key_value(script_type, prefix)
         if network:
-            return prefix, payload[1:], network, is_script_hash
+            return script_type, payload[1:], network
 
     err_msg = f"invalid base58 address prefix: 0x{prefix.hex()}"
     raise BTClibValueError(err_msg)
@@ -90,27 +93,25 @@ def p2pkh(
 ) -> str:
     "Return the p2pkh base58 address corresponding to a public key."
     h160, network = hash160_from_key(key, network, compressed)
-    prefix = NETWORKS[network].p2pkh
-    return address_from_h160(prefix, h160, network)
+    return address_from_h160("p2pkh", h160, network)
 
 
 def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
     "Return the p2sh base58 address corresponding to a script_pub_key."
     h160 = hash160(script_pub_key)
-    prefix = NETWORKS[network].p2sh
-    return address_from_h160(prefix, h160, network)
+    return address_from_h160("p2sh", h160, network)
 
 
 # 2b. base58 address from WitnessProgram
 # it cannot be inverted because of the hash performed by p2sh
 
 
-def address_from_v0_witness_program(wit_prg: Octets, network: str = "mainnet") -> str:
+def address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
     "Encode a legacy base58 p2sh-wrapped SegWit address."
 
-    wit_ver = 0
-    check_witness(wit_ver, wit_prg)
-    redeem_script = serialize([wit_ver, wit_prg])
+    # check witness program
+    _ = b32.script_type_from_witness(0, wit_prg)
+    redeem_script = serialize(["OP_0", wit_prg])
     return p2sh(redeem_script, network)
 
 
@@ -121,10 +122,10 @@ def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> str:
     "Return the p2wpkh-p2sh base58 address corresponding to a pub_key."
     compressed = True  # needed to force check on pub_key
     witness_program, network = hash160_from_key(key, network, compressed)
-    return address_from_v0_witness_program(witness_program, network)
+    return address_from_v0_witness(witness_program, network)
 
 
 def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
     "Return the p2wsh-p2sh base58 address corresponding to a reedem script."
     witness_program = sha256(redeem_script)
-    return address_from_v0_witness_program(witness_program, network)
+    return address_from_v0_witness(witness_program, network)

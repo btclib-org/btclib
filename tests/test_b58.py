@@ -21,7 +21,6 @@ from btclib.ecc.curve import secp256k1
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
-from btclib.network import NETWORKS
 from btclib.script import script
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -87,20 +86,13 @@ def test_wif_from_prv_key() -> None:
 
 def test_address_from_h160() -> None:
     address = "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    prefix, payload, network, _ = b58.h160_from_address(address)
-    assert address == b58.address_from_h160(prefix, payload, network)
+    assert address == b58.address_from_h160(*b58.h160_from_address(address))
 
     address = "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
-    prefix, payload, network, _ = b58.h160_from_address(address)
-    assert address == b58.address_from_h160(prefix, payload, network)
+    assert address == b58.address_from_h160(*b58.h160_from_address(address))
 
     address = "37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
-    prefix, payload, network, _ = b58.h160_from_address(address)
-    assert address == b58.address_from_h160(prefix, payload, network)
-
-    err_msg = "invalid mainnet base58 address prefix: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        b58.address_from_h160(b"\xbb", payload, network)
+    assert address == b58.address_from_h160(*b58.h160_from_address(address))
 
 
 def test_p2pkh_from_wif() -> None:
@@ -126,7 +118,7 @@ def test_p2pkh_from_pub_key() -> None:
     address = "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
     assert address == b58.p2pkh(pub_key)
     assert address == b58.p2pkh(pub_key, compressed=True)
-    _, h160, _, _ = b58.h160_from_address(address)
+    _, h160, _ = b58.h160_from_address(address)
     assert h160 == hash160(pub_key)
 
     # trailing/leading spaces in address string
@@ -139,7 +131,7 @@ def test_p2pkh_from_pub_key() -> None:
     uncompr_address = "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
     assert uncompr_address == b58.p2pkh(uncompr_pub_key, compressed=False)
     assert uncompr_address == b58.p2pkh(uncompr_pub_key)
-    _, uncompr_h160, _, _ = b58.h160_from_address(uncompr_address)
+    _, uncompr_h160, _ = b58.h160_from_address(uncompr_address)
     assert uncompr_h160 == hash160(uncompr_pub_key)
 
     err_msg = "not a private or uncompressed public key: "
@@ -172,11 +164,8 @@ def test_p2sh() -> None:
     assert address == b58.p2sh(script_pub_key, network)
 
     script_hash = hash160(script_pub_key)
-    prefix = NETWORKS[network].p2sh
-    assert (prefix, script_hash, network, True) == b58.h160_from_address(address)
-    assert (prefix, script_hash, network, True) == b58.h160_from_address(
-        " " + address + " "  # address with trailing/leading spaces
-    )
+    assert ("p2sh", script_hash, network) == b58.h160_from_address(address)
+    assert ("p2sh", script_hash, network) == b58.h160_from_address(" " + address + " ")
 
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     script_sig: List[script.Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
@@ -188,7 +177,7 @@ def test_p2w_p2sh() -> None:
     pub_key = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     witness_program, network = hash160_from_key(pub_key)
     b58addr = b58.p2wpkh_p2sh(pub_key, network)
-    assert b58addr == b58.address_from_v0_witness_program(witness_program, network)
+    assert b58addr == b58.address_from_v0_witness(witness_program, network)
 
     script_pub_key = script.serialize(
         [
@@ -201,11 +190,11 @@ def test_p2w_p2sh() -> None:
     )
     witness_program = sha256(script_pub_key)
     b58addr = b58.p2wsh_p2sh(script_pub_key, network)
-    assert b58addr == b58.address_from_v0_witness_program(witness_program, network)
+    assert b58addr == b58.address_from_v0_witness(witness_program, network)
 
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        b58.address_from_v0_witness_program(witness_program[:-1], network)
+        b58.address_from_v0_witness(witness_program[:-1], network)
 
 
 def test_address_from_wif() -> None:
@@ -242,24 +231,19 @@ def test_address_from_wif() -> None:
         assert wif == b58.wif_from_prv_key(q, network, compressed)
         assert prv_keyinfo_from_prv_key(wif) == (q, network, compressed)
         assert address == b58.p2pkh(wif)
-        _, payload, net, is_script_hash = b58.h160_from_address(address)
+        script_type, payload, net = b58.h160_from_address(address)
         assert net == network
-        assert not is_script_hash
+        assert script_type == "p2pkh"
+
         if compressed:
             b32_address = b32.p2wpkh(wif)
-            assert (
-                0,
-                payload,
-                network,
-                False,  # is_script_hash
-            ) == b32.witness_from_address(b32_address)
+            assert ("p2wpkh", payload, net) == b32.witness_from_address(b32_address)
 
             b58_address = b58.p2wpkh_p2sh(wif)
             assert (
-                NETWORKS[network].p2sh,
+                "p2sh",
                 hash160(b"\x00\x14" + payload),
-                network,
-                True,  # is_script_hash
+                net,
             ) == b58.h160_from_address(b58_address)
 
         else:

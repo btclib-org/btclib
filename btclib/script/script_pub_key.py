@@ -36,14 +36,10 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
 
     if script_pub_key:
         script_type, payload = type_and_payload(script_pub_key)
-        if script_type == "p2pkh":
-            prefix = NETWORKS[network].p2pkh
-            return address_from_h160(prefix, payload, network)
-        if script_type == "p2sh":
-            prefix = NETWORKS[network].p2sh
-            return address_from_h160(prefix, payload, network)
+        if script_type in ("p2pkh", "p2sh"):
+            return address_from_h160(script_type, payload, network)
         if script_type in ("p2wsh", "p2wpkh"):
-            return address_from_witness(0, payload, network)
+            return address_from_witness(script_type, payload, network)
 
     # not script_pub_key
     # or
@@ -392,13 +388,13 @@ class ScriptPubKey(Script):
 
         if has_segwit_prefix(addr):
             # also check witness validity
-            wit_ver, wit_prg, network, is_script_hash = witness_from_address(addr)
-            if wit_ver != 0:
-                raise BTClibValueError(f"unmanaged witness version: {wit_ver}")
-            return cls(serialize(["OP_0", wit_prg]), network, check_validity)
+            script_type, wit_prg, network = witness_from_address(addr)
+            if script_type in ("p2wsh", "p2wpkh"):
+                return cls(serialize(["OP_0", wit_prg]), network, check_validity)
+            raise BTClibValueError(f"unmanaged script type: {script_type}")
 
-        _, h160, network, is_script_hash = h160_from_address(addr)
-        if is_script_hash:
+        script_type, h160, network = h160_from_address(addr)
+        if script_type == "p2sh":
             return cls(
                 serialize(["OP_HASH160", h160, "OP_EQUAL"]), network, check_validity
             )
@@ -409,6 +405,7 @@ class ScriptPubKey(Script):
             "OP_EQUALVERIFY",
             "OP_CHECKSIG",
         ]
+        # it must be "p2pkh"
         return cls(serialize(commands), network, check_validity)
 
     @classmethod

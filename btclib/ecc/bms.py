@@ -260,7 +260,7 @@ def gen_keys(
 
 
 def sign(msg: Octets, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
-    """Generate address-based compact signature for the provided message."""
+    "Generate address-based compact signature for the provided message."
 
     # first sign the message
     magic_msg = magic_message(msg)
@@ -317,32 +317,32 @@ def assert_as_valid(
     key_id = sig.rf - 27 & 0b11
     magic_msg = magic_message(msg)
     Q = dsa.recover_pub_key(key_id, magic_msg, sig.dsa_sig, lower_s, sha256)
-
-    try:
-        _, h160, _, is_script_hash = h160_from_address(addr)
-        is_b58 = True
-    except BTClibValueError:
-        _, h160, _, is_script_hash = witness_from_address(addr)
-        is_b58 = False
-
     compressed = sig.rf >= 31
     # signature is valid only if the provided address is matched
     pub_key = bytes_from_point(Q, compressed=compressed)
+
+    try:  # base58 address first
+        script_type, h160, _ = h160_from_address(addr)
+        is_b58 = True
+    except BTClibValueError:  # it must be a bech32 address
+        script_type, h160, _ = witness_from_address(addr)
+        is_b58 = False
+
     if is_b58:
-        if is_script_hash and 30 < sig.rf < 39:  # P2WPKH-P2SH
+        if script_type == "p2sh" and 30 < sig.rf < 39:  # P2WPKH-P2SH
             script_pk = b"\x00\x14" + hash160(pub_key)
             if hash160(script_pk) != h160:
-                raise BTClibValueError(f"wrong p2wpkh-p2sh address: {addr!r}")
-        elif sig.rf < 35:  # P2PKH
+                raise BTClibValueError(f"invalid p2wpkh-p2sh address: {addr!r}")
+        elif script_type == "p2pkh" and sig.rf < 35:
             if hash160(pub_key) != h160:
-                raise BTClibValueError(f"wrong p2pkh address: {addr!r}")
+                raise BTClibValueError(f"invalid p2pkh address: {addr!r}")
         else:
             err_msg = f"invalid recovery flag: {sig.rf} (base58 address {addr!r})"
             raise BTClibValueError(err_msg)
     else:
-        if sig.rf > 38 or 30 < sig.rf < 35:  # P2WPKH
+        if script_type == "p2wpkh" and (sig.rf > 38 or 30 < sig.rf < 35):
             if hash160(pub_key) != h160:
-                raise BTClibValueError(f"wrong p2wpkh address: {addr!r}")
+                raise BTClibValueError(f"invalid p2wpkh address: {addr!r}")
         else:
             err_msg = f"invalid recovery flag: {sig.rf} (bech32 address {addr!r})"
             raise BTClibValueError(err_msg)
@@ -351,7 +351,7 @@ def assert_as_valid(
 def verify(
     msg: Octets, addr: String, sig: Union[Sig, String], lower_s: bool = True
 ) -> bool:
-    """Verify address-based compact signature for the provided message."""
+    "Verify address-based compact signature for the provided message."
 
     # all kind of Exceptions are catched because
     # verify must always return a bool

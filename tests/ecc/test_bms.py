@@ -45,7 +45,7 @@ def test_signature() -> None:
     dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, bms_sig.dsa_sig.ec.n - bms_sig.dsa_sig.s)
     # without updating rf verification will fail, even with lower_s=False
     bms_sig = bms.Sig(bms_sig.rf, dsa_sig)
-    err_msg = "wrong p2pkh address: "
+    err_msg = "invalid p2pkh address: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, addr, bms_sig, lower_s=False)
     # update rf to satisfy above malleation
@@ -228,13 +228,11 @@ def test_one_prv_key_multiple_addresses() -> None:
     # sign with uncompressed p2pkh
     sig4 = bms.sign(msg, wif2, addr_p2pkh_uncompressed)
     # False for Bitcoin Core compressed p2pkh
-    with pytest.raises(BTClibValueError, match="wrong p2pkh address: "):
+    with pytest.raises(BTClibValueError, match="invalid p2pkh address: "):
         bms.assert_as_valid(msg, addr_p2pkh_compressed, sig4)
     assert not bms.verify(msg, addr_p2pkh_compressed, sig4)
     # False for BIP137 p2wpkh_p2sh
-    # FIXME: puzzling error message
-    # it should have been "wrong p2wpkh-p2sh address: "
-    with pytest.raises(BTClibValueError, match="wrong p2pkh address: "):
+    with pytest.raises(BTClibValueError, match="invalid recovery flag: "):
         bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig4)
     assert not bms.verify(msg, addr_p2wpkh_p2sh, sig4)
     # False for BIP137 p2wpkh
@@ -253,15 +251,15 @@ def test_one_prv_key_multiple_addresses() -> None:
     addr_p2wpkh = b32.p2wpkh(wif3)
 
     # False for Bitcoin Core compressed p2pkh
-    with pytest.raises(BTClibValueError, match="wrong p2pkh address: "):
+    with pytest.raises(BTClibValueError, match="invalid p2pkh address: "):
         bms.assert_as_valid(msg, addr_p2pkh_compressed, sig1)
     assert not bms.verify(msg, addr_p2pkh_compressed, sig1)
     # False for BIP137 p2wpkh_p2sh
-    with pytest.raises(BTClibValueError, match="wrong p2wpkh-p2sh address: "):
+    with pytest.raises(BTClibValueError, match="invalid p2wpkh-p2sh address: "):
         bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig1)
     assert not bms.verify(msg, addr_p2wpkh_p2sh, sig1)
     # False for BIP137 p2wpkh
-    with pytest.raises(BTClibValueError, match="wrong p2wpkh address: "):
+    with pytest.raises(BTClibValueError, match="invalid p2wpkh address: "):
         bms.assert_as_valid(msg, addr_p2wpkh, sig1)
     assert not bms.verify(msg, addr_p2wpkh, sig1)
 
