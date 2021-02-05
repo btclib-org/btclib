@@ -94,6 +94,9 @@ def test_address_from_h160() -> None:
     address = "37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
     assert address == b58.address_from_h160(*b58.h160_from_address(address))
 
+    with pytest.raises(BTClibValueError, match="invalid script type: "):
+        b58.address_from_h160("p2pk", b"\x00" * 20)
+
 
 def test_p2pkh_from_wif() -> None:
     seed = b"\x00" * 32  # better be a documented test case
