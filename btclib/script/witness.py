@@ -34,7 +34,7 @@ class Witness:
         if check_validity:
             self.assert_valid()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.stack)
 
     def assert_valid(self) -> None:

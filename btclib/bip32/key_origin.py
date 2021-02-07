@@ -53,7 +53,7 @@ class BIP32KeyOrigin:
         if check_validity:
             self.assert_valid()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.der_path)
 
     def assert_valid(self) -> None:
