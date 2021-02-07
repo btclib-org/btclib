@@ -12,10 +12,8 @@
 
 from typing import Callable, List, Optional, Sequence, Tuple, Type, TypeVar
 
-from btclib import var_bytes
+from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, String
-from btclib.b32 import address_from_witness, has_segwit_prefix, witness_from_address
-from btclib.b58 import address_from_h160, h160_from_address, p2pkh
 from btclib.ecc.sec_point import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
@@ -32,9 +30,9 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
     if script_pub_key:
         script_type, payload = type_and_payload(script_pub_key)
         if script_type in ("p2pkh", "p2sh"):
-            return address_from_h160(script_type, payload, network)
+            return b58.address_from_h160(script_type, payload, network)
         if script_type in ("p2wsh", "p2wpkh"):
-            return address_from_witness(0, payload, network)
+            return b32.address_from_witness(0, payload, network)
 
     # not script_pub_key
     # or
@@ -65,7 +63,7 @@ def addresses(script_pub_key: Octets, network: str = "mainnet") -> List[str]:
     if stream.read(1):
         raise BTClibValueError("invalid p2ms script_pub_key size")
 
-    return [p2pkh(pub_key, network) for pub_key in pub_keys]
+    return [b58.p2pkh(pub_key, network) for pub_key in pub_keys]
 
 
 def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) -> bool:
@@ -326,11 +324,11 @@ class ScriptPubKey(Script):
     ) -> _ScriptPubKey:
         "Return the ScriptPubKey of the input bech32/base58 address."
 
-        if has_segwit_prefix(addr):
-            wit_ver, wit_prg, network = witness_from_address(addr)
+        if b32.has_segwit_prefix(addr):
+            wit_ver, wit_prg, network = b32.witness_from_address(addr)
             return cls(serialize([op_int(wit_ver), wit_prg]), network, check_validity)
 
-        script_type, h160, network = h160_from_address(addr)
+        script_type, h160, network = b58.h160_from_address(addr)
         if script_type == "p2sh":
             return cls(
                 serialize(["OP_HASH160", h160, "OP_EQUAL"]), network, check_validity
