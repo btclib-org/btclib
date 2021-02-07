@@ -52,7 +52,7 @@ from btclib.psbt.psbt_in import (
     serialize_hd_key_paths,
 )
 from btclib.psbt.psbt_out import PsbtOut
-from btclib.script import script
+from btclib.script.script import serialize
 from btclib.script.script_pub_key import type_and_payload
 from btclib.utils import bytes_from_octets, hash160, sha256
 
@@ -455,10 +455,10 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         cmds: List[bytes] = [b""] if len(sigs) > 1 else []
         cmds += sigs
         if psbt_in.witness_script:
-            psbt_in.final_script_sig = script.serialize([psbt_in.redeem_script])
+            psbt_in.final_script_sig = serialize([psbt_in.redeem_script])
             psbt_in.final_script_witness = Witness(cmds + [psbt_in.witness_script])
         else:
-            psbt_in.final_script_sig = script.serialize(cmds + [psbt_in.redeem_script])
+            psbt_in.final_script_sig = serialize(cmds + [psbt_in.redeem_script])
         psbt_in.partial_sigs = {}
         psbt_in.sig_hash_type = None
         psbt_in.redeem_script = b""

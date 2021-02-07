@@ -82,8 +82,12 @@ def test_exceptions() -> None:
     address = b58.p2pkh(wif)
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
     bms.assert_as_valid(msg, address, exp_sig)
-
     bms_sig = bms.Sig.b64decode(exp_sig)
+
+    err_msg = "not a p2wpkh address: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, b32.p2wsh(32 * b"\x00"), exp_sig)
+
     err_msg = "invalid recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.Sig(26, bms_sig.dsa_sig)
@@ -122,7 +126,7 @@ def test_exceptions() -> None:
     msg = "test".encode()
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
     b58_p2pkh = b58.p2pkh(wif)
-    b58_p2wpkh = b32.p2wpkh(wif)
+    b32_p2wpkh = b32.p2wpkh(wif)
     b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
 
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
@@ -130,26 +134,26 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, b58_p2pkh)
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.sign(msg, wif, b58_p2wpkh)
+        bms.sign(msg, wif, b32_p2wpkh)
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, b58_p2wpkh_p2sh)
 
-    # Invalid recovery flag (39) for base58 address
+    # Invalid recovery flag (39) for base58 p2pkh address
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
     bms_sig = bms.Sig.b64decode(exp_sig)
     bms_sig = bms.Sig(39, bms_sig.dsa_sig, check_validity=False)
     sig_encoded = bms_sig.b64encode(check_validity=False)
-    err_msg = "invalid recovery flag: "
+    err_msg = "invalid p2pkh address recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, b58_p2pkh, sig_encoded)
 
-    # Invalid recovery flag (35) for bech32 address
+    # Invalid recovery flag (35) for bech32 p2wpkh address
     exp_sig = "IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
     bms_sig = bms.Sig.b64decode(exp_sig)
     bms_sig = bms.Sig(35, bms_sig.dsa_sig, check_validity=False)
-    err_msg = "invalid recovery flag: "
+    err_msg = "invalid p2wpkh address recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, b58_p2wpkh, bms_sig)
+        bms.assert_as_valid(msg, b32_p2wpkh, bms_sig)
 
 
 @pytest.mark.sixth
@@ -159,118 +163,122 @@ def test_one_prv_key_multiple_addresses() -> None:
 
     # Compressed WIF
     wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
-    addr_p2pkh_compressed = b58.p2pkh(wif)
-    addr_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
-    addr_p2wpkh = b32.p2wpkh(wif)
+    b58_p2pkh_compressed = b58.p2pkh(wif)
+    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
+    b32_p2wpkh = b32.p2wpkh(wif)
 
     # sign with no address
     sig1 = bms.sign(msg, wif)
     # True for Bitcoin Core
-    bms.assert_as_valid(msg, addr_p2pkh_compressed, sig1)
-    assert bms.verify(msg, addr_p2pkh_compressed, sig1)
+    bms.assert_as_valid(msg, b58_p2pkh_compressed, sig1)
+    assert bms.verify(msg, b58_p2pkh_compressed, sig1)
     # True for Electrum p2wpkh_p2sh
-    bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig1)
-    assert bms.verify(msg, addr_p2wpkh_p2sh, sig1)
+    bms.assert_as_valid(msg, b58_p2wpkh_p2sh, sig1)
+    assert bms.verify(msg, b58_p2wpkh_p2sh, sig1)
     # True for Electrum p2wpkh
-    bms.assert_as_valid(msg, addr_p2wpkh, sig1)
-    assert bms.verify(msg, addr_p2wpkh, sig1)
+    bms.assert_as_valid(msg, b32_p2wpkh, sig1)
+    assert bms.verify(msg, b32_p2wpkh, sig1)
 
     # sign with p2pkh address
-    sig1 = bms.sign(msg, wif, addr_p2pkh_compressed)
+    sig1 = bms.sign(msg, wif, b58_p2pkh_compressed)
     # True for Bitcoin Core
-    bms.assert_as_valid(msg, addr_p2pkh_compressed, sig1)
-    assert bms.verify(msg, addr_p2pkh_compressed, sig1)
+    bms.assert_as_valid(msg, b58_p2pkh_compressed, sig1)
+    assert bms.verify(msg, b58_p2pkh_compressed, sig1)
     # True for Electrum p2wpkh_p2sh
-    bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig1)
-    assert bms.verify(msg, addr_p2wpkh_p2sh, sig1)
+    bms.assert_as_valid(msg, b58_p2wpkh_p2sh, sig1)
+    assert bms.verify(msg, b58_p2wpkh_p2sh, sig1)
     # True for Electrum p2wpkh
-    bms.assert_as_valid(msg, addr_p2wpkh, sig1)
-    assert bms.verify(msg, addr_p2wpkh, sig1)
-    assert sig1 == bms.sign(msg, wif, addr_p2pkh_compressed.encode("ascii"))
-
-    err_msg = "invalid recovery flag: "
+    bms.assert_as_valid(msg, b32_p2wpkh, sig1)
+    assert bms.verify(msg, b32_p2wpkh, sig1)
+    assert sig1 == bms.sign(msg, wif, b58_p2pkh_compressed.encode("ascii"))
 
     # sign with p2wpkh_p2sh address (BIP137)
-    sig2 = bms.sign(msg, wif, addr_p2wpkh_p2sh)
+    sig2 = bms.sign(msg, wif, b58_p2wpkh_p2sh)
     # False for Bitcoin Core
+    err_msg = "invalid p2pkh address recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr_p2pkh_compressed, sig2)
-    assert not bms.verify(msg, addr_p2pkh_compressed, sig2)
+        bms.assert_as_valid(msg, b58_p2pkh_compressed, sig2)
+    assert not bms.verify(msg, b58_p2pkh_compressed, sig2)
     # True for BIP137 p2wpkh_p2sh
-    bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig2)
-    assert bms.verify(msg, addr_p2wpkh_p2sh, sig2)
+    bms.assert_as_valid(msg, b58_p2wpkh_p2sh, sig2)
+    assert bms.verify(msg, b58_p2wpkh_p2sh, sig2)
     # False for BIP137 p2wpkh
+    err_msg = "invalid p2wpkh address recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr_p2wpkh, sig2)
-    assert not bms.verify(msg, addr_p2wpkh, sig2)
-    assert sig2 == bms.sign(msg, wif, addr_p2wpkh_p2sh.encode("ascii"))
+        bms.assert_as_valid(msg, b32_p2wpkh, sig2)
+    assert not bms.verify(msg, b32_p2wpkh, sig2)
+    assert sig2 == bms.sign(msg, wif, b58_p2wpkh_p2sh.encode("ascii"))
 
     # sign with p2wpkh address (BIP137)
-    sig3 = bms.sign(msg, wif, addr_p2wpkh)
+    sig3 = bms.sign(msg, wif, b32_p2wpkh)
     # False for Bitcoin Core
+    err_msg = "invalid p2pkh address recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr_p2pkh_compressed, sig3)
-    assert not bms.verify(msg, addr_p2pkh_compressed, sig3)
+        bms.assert_as_valid(msg, b58_p2pkh_compressed, sig3)
+    assert not bms.verify(msg, b58_p2pkh_compressed, sig3)
     # False for BIP137 p2wpkh_p2sh
+    err_msg = "invalid p2wpkh-p2sh address recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig3)
-    assert not bms.verify(msg, addr_p2wpkh_p2sh, sig3)
+        bms.assert_as_valid(msg, b58_p2wpkh_p2sh, sig3)
+    assert not bms.verify(msg, b58_p2wpkh_p2sh, sig3)
     # True for BIP137 p2wpkh
-    bms.assert_as_valid(msg, addr_p2wpkh, sig3)
-    assert bms.verify(msg, addr_p2wpkh, sig3)
-    assert sig3 == bms.sign(msg, wif, addr_p2wpkh.encode("ascii"))
+    bms.assert_as_valid(msg, b32_p2wpkh, sig3)
+    assert bms.verify(msg, b32_p2wpkh, sig3)
+    assert sig3 == bms.sign(msg, wif, b32_p2wpkh.encode("ascii"))
 
     # uncompressed WIF / p2pkh address
     q, network, _ = prv_keyinfo_from_prv_key(wif)
     wif2 = b58.wif_from_prv_key(q, network, False)
-    addr_p2pkh_uncompressed = b58.p2pkh(wif2)
+    b58_p2pkh_uncompressed = b58.p2pkh(wif2)
 
     # sign with uncompressed p2pkh
-    sig4 = bms.sign(msg, wif2, addr_p2pkh_uncompressed)
+    sig4 = bms.sign(msg, wif2, b58_p2pkh_uncompressed)
     # False for Bitcoin Core compressed p2pkh
     with pytest.raises(BTClibValueError, match="invalid p2pkh address: "):
-        bms.assert_as_valid(msg, addr_p2pkh_compressed, sig4)
-    assert not bms.verify(msg, addr_p2pkh_compressed, sig4)
+        bms.assert_as_valid(msg, b58_p2pkh_compressed, sig4)
+    assert not bms.verify(msg, b58_p2pkh_compressed, sig4)
     # False for BIP137 p2wpkh_p2sh
-    with pytest.raises(BTClibValueError, match="invalid recovery flag: "):
-        bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig4)
-    assert not bms.verify(msg, addr_p2wpkh_p2sh, sig4)
-    # False for BIP137 p2wpkh
+    err_msg = "invalid p2wpkh-p2sh address recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr_p2wpkh, sig4)
-    assert not bms.verify(msg, addr_p2wpkh, sig4)
+        bms.assert_as_valid(msg, b58_p2wpkh_p2sh, sig4)
+    assert not bms.verify(msg, b58_p2wpkh_p2sh, sig4)
+    # False for BIP137 p2wpkh
+    err_msg = "invalid p2wpkh address recovery flag: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, b32_p2wpkh, sig4)
+    assert not bms.verify(msg, b32_p2wpkh, sig4)
     # True for Bitcoin Core uncompressed p2pkh
-    bms.assert_as_valid(msg, addr_p2pkh_uncompressed, sig4)
-    assert bms.verify(msg, addr_p2pkh_uncompressed, sig4)
-    assert sig4 == bms.sign(msg, wif2, addr_p2pkh_uncompressed.encode("ascii"))
+    bms.assert_as_valid(msg, b58_p2pkh_uncompressed, sig4)
+    assert bms.verify(msg, b58_p2pkh_uncompressed, sig4)
+    assert sig4 == bms.sign(msg, wif2, b58_p2pkh_uncompressed.encode("ascii"))
 
     # unrelated different wif
     wif3 = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-    addr_p2pkh_compressed = b58.p2pkh(wif3)
-    addr_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif3)
-    addr_p2wpkh = b32.p2wpkh(wif3)
+    b58_p2pkh_compressed = b58.p2pkh(wif3)
+    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif3)
+    b32_p2wpkh = b32.p2wpkh(wif3)
 
     # False for Bitcoin Core compressed p2pkh
     with pytest.raises(BTClibValueError, match="invalid p2pkh address: "):
-        bms.assert_as_valid(msg, addr_p2pkh_compressed, sig1)
-    assert not bms.verify(msg, addr_p2pkh_compressed, sig1)
+        bms.assert_as_valid(msg, b58_p2pkh_compressed, sig1)
+    assert not bms.verify(msg, b58_p2pkh_compressed, sig1)
     # False for BIP137 p2wpkh_p2sh
     with pytest.raises(BTClibValueError, match="invalid p2wpkh-p2sh address: "):
-        bms.assert_as_valid(msg, addr_p2wpkh_p2sh, sig1)
-    assert not bms.verify(msg, addr_p2wpkh_p2sh, sig1)
+        bms.assert_as_valid(msg, b58_p2wpkh_p2sh, sig1)
+    assert not bms.verify(msg, b58_p2wpkh_p2sh, sig1)
     # False for BIP137 p2wpkh
     with pytest.raises(BTClibValueError, match="invalid p2wpkh address: "):
-        bms.assert_as_valid(msg, addr_p2wpkh, sig1)
-    assert not bms.verify(msg, addr_p2wpkh, sig1)
+        bms.assert_as_valid(msg, b32_p2wpkh, sig1)
+    assert not bms.verify(msg, b32_p2wpkh, sig1)
 
     # FIXME: puzzling error message
     err_msg = "not a private or compressed public key for mainnet: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.sign(msg, wif2, addr_p2pkh_compressed)
+        bms.sign(msg, wif2, b58_p2pkh_compressed)
 
     err_msg = "mismatch between private key and address"
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.sign(msg, wif, addr_p2pkh_uncompressed)
+        bms.sign(msg, wif, b58_p2pkh_uncompressed)
 
 
 def test_msgsign_p2pkh() -> None:
@@ -427,7 +435,7 @@ def test_segwit() -> None:
     msg = "test".encode()
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
     b58_p2pkh = b58.p2pkh(wif)
-    b58_p2wpkh = b32.p2wpkh(wif)
+    b32_p2wpkh = b32.p2wpkh(wif)
     b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
 
     # p2pkh base58 address (Core, Electrum, BIP137)
@@ -441,7 +449,7 @@ def test_segwit() -> None:
     assert bms.verify(msg, b58_p2wpkh_p2sh, bms_sig)
 
     # p2wpkh bech32 address (Electrum)
-    assert bms.verify(msg, b58_p2wpkh, bms_sig)
+    assert bms.verify(msg, b32_p2wpkh, bms_sig)
 
     # p2wpkh-p2sh base58 address (BIP137)
     # different first letter in bms_sig because of different rf
@@ -454,9 +462,9 @@ def test_segwit() -> None:
     # p2wpkh bech32 address (BIP137)
     # different first letter in bms_sig because of different rf
     exp_sig = "KBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
-    assert bms.verify(msg, b58_p2wpkh, exp_sig)
-    bms_sig = bms.sign(msg, wif, b58_p2wpkh)
-    assert bms.verify(msg, b58_p2wpkh, bms_sig)
+    assert bms.verify(msg, b32_p2wpkh, exp_sig)
+    bms_sig = bms.sign(msg, wif, b32_p2wpkh)
+    assert bms.verify(msg, b32_p2wpkh, bms_sig)
     assert bms_sig.b64encode() == exp_sig
 
 

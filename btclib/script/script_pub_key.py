@@ -14,21 +14,16 @@ from typing import Callable, List, Optional, Sequence, Tuple, Type, TypeVar
 
 from btclib import var_bytes
 from btclib.alias import Octets, String
-from btclib.b32 import address_from_witness, witness_from_address
+from btclib.b32 import address_from_witness, has_segwit_prefix, witness_from_address
 from btclib.b58 import address_from_h160, h160_from_address, p2pkh
 from btclib.ecc.sec_point import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
 from btclib.network import NETWORKS
+from btclib.script.op_codes import op_int
 from btclib.script.script import Command, Script, serialize
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
-
-
-def has_segwit_prefix(addr: String) -> bool:
-
-    str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
-    return any(str_addr.startswith(NETWORKS[net].hrp + "1") for net in NETWORKS)
 
 
 def address(script_pub_key: Octets, network: str = "mainnet") -> str:
@@ -39,7 +34,7 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
         if script_type in ("p2pkh", "p2sh"):
             return address_from_h160(script_type, payload, network)
         if script_type in ("p2wsh", "p2wpkh"):
-            return address_from_witness(script_type, payload, network)
+            return address_from_witness(0, payload, network)
 
     # not script_pub_key
     # or
@@ -387,11 +382,8 @@ class ScriptPubKey(Script):
         "Return the ScriptPubKey of the input bech32/base58 address."
 
         if has_segwit_prefix(addr):
-            # also check witness validity
-            script_type, wit_prg, network = witness_from_address(addr)
-            if script_type in ("p2wsh", "p2wpkh"):
-                return cls(serialize(["OP_0", wit_prg]), network, check_validity)
-            raise BTClibValueError(f"unmanaged script type: {script_type}")
+            wit_ver, wit_prg, network = witness_from_address(addr)
+            return cls(serialize([op_int(wit_ver), wit_prg]), network, check_validity)
 
         script_type, h160, network = h160_from_address(addr)
         if script_type == "p2sh":

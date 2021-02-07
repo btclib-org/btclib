@@ -321,7 +321,7 @@ def test_p2wpkh() -> None:
     network = "mainnet"
     addr = b32.p2wpkh(pub_key, network)
     assert addr == address(script_pub_key, network)
-    assert addr == b32.address_from_witness("p2wpkh", payload, network)
+    assert addr == b32.address_from_witness(0, payload, network)
 
     # back from the address to the script_pub_key
     assert script_pub_key == ScriptPubKey.from_address(addr).script
@@ -426,7 +426,7 @@ def test_p2wsh() -> None:
     network = "mainnet"
     addr = b32.p2wsh(redeem_script, network)
     assert addr == address(script_pub_key, network)
-    assert addr == b32.address_from_witness("p2wsh", payload, network)
+    assert addr == b32.address_from_witness(0, payload, network)
 
     # back from the address to the script_pub_key
     assert script_pub_key == ScriptPubKey.from_address(addr).script
@@ -466,12 +466,6 @@ def test_exceptions() -> None:
     err_msg = "unknown ScriptPubKey type: "
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.from_type_and_payload("p2unkn", "00" * 32)
-
-    # Unhandled witness version (16)
-    err_msg = "unmanaged script type: "
-    addr = b32.address_from_witness("witness-v16", 20 * b"\x00")
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ScriptPubKey.from_address(addr)
 
 
 def test_p2ms_1() -> None:
@@ -688,4 +682,4 @@ def test_non_standard_script_in_p2wsh() -> None:
 
     addr = "bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
     assert addr == address(script_pub_key, network)
-    assert addr == b32.address_from_witness("p2wsh", payload, network)
+    assert addr == b32.address_from_witness(0, payload, network)

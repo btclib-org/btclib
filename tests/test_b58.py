@@ -21,7 +21,7 @@ from btclib.ecc.curve import secp256k1
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160_from_key
-from btclib.script import script
+from btclib.script.script import Command, serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.utils import hash160, sha256
@@ -150,7 +150,7 @@ def test_p2sh() -> None:
     # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
     network = "mainnet"
     address = "37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
-    script_pub_key = script.serialize(
+    script_pub_key = serialize(
         [
             "OP_2DUP",
             "OP_EQUAL",
@@ -171,8 +171,8 @@ def test_p2sh() -> None:
     assert ("p2sh", script_hash, network) == b58.h160_from_address(" " + address + " ")
 
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
-    script_sig: List[script.Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
-    script.serialize(script_sig)
+    script_sig: List[Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
+    serialize(script_sig)
 
 
 def test_p2w_p2sh() -> None:
@@ -182,14 +182,8 @@ def test_p2w_p2sh() -> None:
     b58addr = b58.p2wpkh_p2sh(pub_key, network)
     assert b58addr == b58.address_from_v0_witness(witness_program, network)
 
-    script_pub_key = script.serialize(
-        [
-            "OP_DUP",
-            "OP_HASH160",
-            witness_program,
-            "OP_EQUALVERIFY",
-            "OP_CHECKSIG",
-        ]
+    script_pub_key = serialize(
+        ["OP_DUP", "OP_HASH160", witness_program, "OP_EQUALVERIFY", "OP_CHECKSIG"]
     )
     witness_program = sha256(script_pub_key)
     b58addr = b58.p2wsh_p2sh(script_pub_key, network)
@@ -240,14 +234,11 @@ def test_address_from_wif() -> None:
 
         if compressed:
             b32_address = b32.p2wpkh(wif)
-            assert ("p2wpkh", payload, net) == b32.witness_from_address(b32_address)
+            assert (0, payload, net) == b32.witness_from_address(b32_address)
 
             b58_address = b58.p2wpkh_p2sh(wif)
-            assert (
-                "p2sh",
-                hash160(b"\x00\x14" + payload),
-                net,
-            ) == b58.h160_from_address(b58_address)
+            script_bin = hash160(b"\x00\x14" + payload)
+            assert ("p2sh", script_bin, net) == b58.h160_from_address(b58_address)
 
         else:
             err_msg = "not a private or compressed public key: "

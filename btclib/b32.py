@@ -55,6 +55,12 @@ from btclib.utils import bytes_from_octets, sha256
 # 0. bech32 facilities
 
 
+def has_segwit_prefix(addr: String) -> bool:
+
+    str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
+    return any(str_addr.startswith(NETWORKS[net].hrp + "1") for net in NETWORKS)
+
+
 def power_of_2_base_conversion(
     data: Iterable[int], from_bits: int, to_bits: int, pad: bool = True
 ) -> List[int]:
@@ -87,38 +93,7 @@ def power_of_2_base_conversion(
     return ret
 
 
-def witness_version(script_type: str, wit_prg: Octets) -> int:
-
-    wit_prg = bytes_from_octets(wit_prg)
-    length = len(wit_prg)
-
-    if script_type == "p2wpkh":
-        if length == 20:
-            return 0
-        err_msg = f"invalid witness program length for p2wpkh: {length}"
-        raise BTClibValueError(err_msg)
-    if script_type == "p2wsh":
-        if length == 32:
-            return 0
-        err_msg = f"invalid witness program length for p2wsh: {length}"
-        raise BTClibValueError(err_msg)
-
-    # assume witness-vXX (and XX=0 has been already taken care of)
-    wit_ver_str = script_type.split("-v")[1]
-    wit_ver = int(wit_ver_str)
-    if not 0 < wit_ver < 17:
-        err_msg = "invalid witness version: "
-        err_msg += f"{wit_ver} not in 1..16"
-        raise BTClibValueError(err_msg)
-    if length < 2 or length > 40:
-        err_msg = f"invalid witness program length for witness v{wit_ver}: "
-        err_msg += f"{length}, not in 2..40"
-        raise BTClibValueError(err_msg)
-
-    return wit_ver
-
-
-def script_type_from_witness(wit_ver: int, wit_prg: Octets) -> str:
+def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 
     if not 0 <= int(wit_ver) < 17:
         err_msg = "invalid witness version: "
@@ -126,16 +101,9 @@ def script_type_from_witness(wit_ver: int, wit_prg: Octets) -> str:
         raise BTClibValueError(err_msg)
 
     if wit_ver == 0:
-        wit_prg = bytes_from_octets(wit_prg, (20, 32))
-        return "p2wsh" if len(wit_prg) == 32 else "p2wpkh"
+        return bytes_from_octets(wit_prg, (20, 32))
 
-    wit_prg = bytes_from_octets(wit_prg)
-    length = len(wit_prg)
-    if length < 2 or length > 40:
-        err_msg = f"invalid witness program length for witness v{wit_ver}: "
-        err_msg += f"{length}, not in 2..40"
-        raise BTClibValueError(err_msg)
-    return f"witness-v{wit_ver}"
+    return bytes_from_octets(wit_prg, list(range(2, 41)))
 
 
 # 1. Hash/WitnessProgram from pub_key/script_pub_key
@@ -144,23 +112,22 @@ def script_type_from_witness(wit_ver: int, wit_prg: Octets) -> str:
 # 2. bech32 address from WitnessProgram and vice versa
 
 
-def _address_from_witness(script_type: str, wit_prg: Octets, hrp: str) -> str:
-    wit_ver = witness_version(script_type, wit_prg)
-    wit_prg = bytes_from_octets(wit_prg)
+def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
+    wit_prg = check_witness(wit_ver, wit_prg)
     bytes_ = b32encode(hrp, [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5))
     return bytes_.decode("ascii")
 
 
 def address_from_witness(
-    script_type: str, wit_prg: Octets, network: str = "mainnet"
+    wit_ver: int, wit_prg: Octets, network: str = "mainnet"
 ) -> str:
     "Encode a bech32 native SegWit address from the witness."
 
     hrp = NETWORKS[network].hrp
-    return _address_from_witness(script_type, wit_prg, hrp)
+    return _address_from_witness(wit_ver, wit_prg, hrp)
 
 
-def witness_from_address(b32addr: String) -> Tuple[str, bytes, str]:
+def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
     "Return the witness from a bech32 native SegWit address."
 
     if isinstance(b32addr, str):
@@ -183,7 +150,7 @@ def witness_from_address(b32addr: String) -> Tuple[str, bytes, str]:
 
     wit_ver = data[0]
     wit_prg = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
-    return script_type_from_witness(wit_ver, wit_prg), wit_prg, network
+    return wit_ver, check_witness(wit_ver, wit_prg), network
 
 
 # 1.+2. = 3. bech32 address from pub_key/script_pub_key
@@ -193,10 +160,10 @@ def p2wpkh(key: Key, network: Optional[str] = None) -> str:
     "Return the p2wpkh bech32 address corresponding to a public key."
     compressed = True  # needed to force check on pub_key
     h160, network = hash160_from_key(key, network, compressed)
-    return address_from_witness("p2wpkh", h160, network)
+    return address_from_witness(0, h160, network)
 
 
 def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:
     "Return the p2wsh bech32 address corresponding to a script_pub_key."
     h256 = sha256(script_pub_key)
-    return address_from_witness("p2wsh", h256, network)
+    return address_from_witness(0, h256, network)
