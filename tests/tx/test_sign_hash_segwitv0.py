@@ -23,10 +23,7 @@ def test_native_p2wpkh():
     tx_bytes = "0100000002fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f0000000000eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac11000000"
     tx = Tx.parse(tx_bytes)
 
-    utxo = TxOut(
-        value=600000000,
-        script_pub_key=bytes.fromhex("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
-    )
+    utxo = TxOut(600000000, "00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1")
 
     hash_ = sign_hash.from_utxo(utxo, tx, 1, sign_hash.ALL)
     assert hash_ == bytes.fromhex(
@@ -39,10 +36,7 @@ def test_wrapped_p2wpkh():
     tx = Tx.parse(tx_bytes)
     tx.vin[0].script_sig = bytes.fromhex("001479091972186c449eb1ded22b78e40d009bdf0089")
 
-    utxo = TxOut(
-        value=1000000000,
-        script_pub_key=bytes.fromhex("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"),
-    )
+    utxo = TxOut(1000000000, "a9144733f37cf4db86fbc2efed2500b4f4e49f31202387")
 
     hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ALL)
     assert hash_ == bytes.fromhex(
@@ -55,17 +49,13 @@ def test_native_p2wsh():
     tx = Tx.parse(tx_bytes)
     tx.vin[1].script_witness = Witness(
         [
-            bytes.fromhex(
-                "21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac"
-            )
+            "21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac"
         ]
     )
 
     utxo = TxOut(
-        value=4900000000,
-        script_pub_key=bytes.fromhex(
-            "00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0"
-        ),
+        4900000000,
+        "00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0",
     )
 
     hash_ = sign_hash.from_utxo(utxo, tx, 1, sign_hash.SINGLE)
@@ -85,24 +75,17 @@ def test_native_p2wsh_2():
     tx = Tx.parse(tx_bytes)
     tx.vin[0].script_witness = Witness(
         [
-            bytes.fromhex(
-                "0063ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
-            )
+            "0063ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
         ]
     )
     tx.vin[1].script_witness = Witness(
         [
-            bytes.fromhex(
-                "5163ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
-            )
+            "5163ab68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
         ]
     )
 
     previous_txout_1 = TxOut(
-        value=16777215,
-        script_pub_key=bytes.fromhex(
-            "0020ba468eea561b26301e4cf69fa34bde4ad60c81e70f059f045ca9a79931004a4d"
-        ),
+        16777215, "0020ba468eea561b26301e4cf69fa34bde4ad60c81e70f059f045ca9a79931004a4d"
     )
     hash_ = sign_hash.from_utxo(
         previous_txout_1, tx, 0, sign_hash.ANYONECANPAY | sign_hash.SINGLE
@@ -112,10 +95,7 @@ def test_native_p2wsh_2():
     )
 
     previous_txout_2 = TxOut(
-        value=16777215,
-        script_pub_key=bytes.fromhex(
-            "0020d9bbfbe56af7c4b7f960a70d7ea107156913d9e5a26b0a71429df5e097ca6537"
-        ),
+        16777215, "0020d9bbfbe56af7c4b7f960a70d7ea107156913d9e5a26b0a71429df5e097ca6537"
     )
 
     script_ = sign_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
@@ -135,17 +115,13 @@ def test_wrapped_p2wsh():
     tx_bytes = "010000000136641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e0100000000ffffffff0200e9a435000000001976a914389ffce9cd9ae88dcc0631e88a821ffdbe9bfe2688acc0832f05000000001976a9147480a33f950689af511e6e84c138dbbd3c3ee41588ac00000000"
     tx = Tx.parse(tx_bytes)
     stack = [
-        bytes.fromhex(
-            "56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae"
-        )
+        "56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae"
     ]
     tx.vin[0].script_witness = Witness(stack)
 
     utxo = TxOut(
-        value=987654321,
-        script_pub_key=bytes.fromhex(
-            "0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54"
-        ),
+        987654321,
+        "0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54",
     )
 
     hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ALL)

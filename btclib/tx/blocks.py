@@ -158,6 +158,7 @@ class Block:
         stream = bytesio_from_binarydata(data)
         header = BlockHeader.parse(stream)
         n = var_int.parse(stream)
+        # TODO: is a block required to have a coinbase tx?
         transactions = [Tx.parse(stream) for _ in range(n)]
 
         return cls(header, transactions, check_validity)
