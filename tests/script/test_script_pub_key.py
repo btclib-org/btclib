@@ -28,7 +28,6 @@ from btclib.script.script_pub_key import (
     assert_p2sh,
     assert_p2wpkh,
     assert_p2wsh,
-    has_segwit_prefix,
     is_nulldata,
     is_p2ms,
     type_and_payload,
@@ -37,13 +36,9 @@ from btclib.to_pub_key import Key
 from btclib.utils import hash160, sha256
 
 
-def test_has_segwit_prefix() -> None:
-    addr = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
-    assert has_segwit_prefix(addr)
-    assert has_segwit_prefix(addr.decode("ascii"))
-    addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    assert not has_segwit_prefix(addr)
-    assert not has_segwit_prefix(addr.decode("ascii"))
+def test_unknown_network() -> None:
+    with pytest.raises(BTClibValueError, match="unknown network: "):
+        ScriptPubKey(b"", "no_network")
 
 
 def test_nulldata() -> None:

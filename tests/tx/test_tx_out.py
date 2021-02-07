@@ -16,7 +16,6 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.script_pub_key import ScriptPubKey
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 
@@ -56,8 +55,6 @@ def test_invalid_tx_out() -> None:
     script = "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
     with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
         TxOut(-1, script)
-    with pytest.raises(BTClibValueError, match="unknown network: "):
-        TxOut(1, ScriptPubKey(script, "no_network"))
 
 
 def test_tx_out_from_address() -> None:

@@ -52,6 +52,15 @@ from btclib.script.script import Command, serialize
 from btclib.utils import hash160, sha256
 
 
+def test_has_segwit_prefix() -> None:
+    addr = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
+    assert b32.has_segwit_prefix(addr)
+    assert b32.has_segwit_prefix(addr.decode("ascii"))
+    addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
+    assert not b32.has_segwit_prefix(addr)
+    assert not b32.has_segwit_prefix(addr.decode("ascii"))
+
+
 def test_valid_address() -> None:
     "Test whether valid addresses decode to the correct output."
 
