@@ -104,7 +104,7 @@ class Script:
     def __add__(self, other: object):
 
         if not isinstance(other, Script):
-            return NotImplemented  # pragma: no cover
+            return NotImplemented
 
         return Script(self.script + other.script)
 

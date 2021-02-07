@@ -302,6 +302,15 @@ class ScriptPubKey(Script):
         except BTClibValueError:
             return [self.address]
 
+    def __eq__(self, other: object) -> bool:
+
+        if not isinstance(other, ScriptPubKey):
+            return NotImplemented
+
+        if self.network != other.network:
+            return False
+        return super().__eq__(other)
+
     def __init__(
         self,
         script: Octets,

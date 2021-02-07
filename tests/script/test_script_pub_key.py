@@ -36,6 +36,20 @@ from btclib.to_pub_key import Key
 from btclib.utils import hash160, sha256
 
 
+def test_eq() -> None:
+    pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+    script_pub_key = ScriptPubKey.p2pkh(pub_key)
+
+    addr = b58.p2pkh(pub_key)
+    assert ScriptPubKey.from_address(addr) == script_pub_key
+
+    addr = b58.p2pkh(pub_key, "testnet")
+    assert ScriptPubKey.from_address(addr) != script_pub_key
+
+    assert Script(script_pub_key.script) != script_pub_key
+    assert script_pub_key != Script(script_pub_key.script)
+
+
 def test_unknown_network() -> None:
     with pytest.raises(BTClibValueError, match="unknown network: "):
         ScriptPubKey(b"", "no_network")

@@ -15,7 +15,16 @@ from typing import List
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import Command, parse, serialize
+from btclib.script.script import Command, Script, parse, serialize
+
+
+def test_add_and_eq() -> None:
+    script_1 = serialize(["OP_2", "OP_3", "OP_ADD", "OP_5"])
+    script_2 = serialize(["OP_EQUAL"])
+    assert Script(script_1) + Script(script_2) == Script(script_1 + script_2)
+
+    with pytest.raises(TypeError):
+        _ = Script(script_1) + script_2
 
 
 def test_simple_scripts() -> None:
