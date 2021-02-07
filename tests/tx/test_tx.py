@@ -154,29 +154,33 @@ def test_exceptions() -> None:
         tx.assert_valid()
 
 
-def test_genesis_block() -> None:
+def test_coinbase_block_1() -> None:
 
-    coinbase = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000"
+    coinbase_out = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
+    tx_out = TxOut.parse(coinbase_out)
+    assert tx_out.serialize().hex() == coinbase_out
+
+    coinbase_inp = (  # prev_out
+        "0000000000000000000000000000000000000000000000000000000000000000ffffffff"
+        "0704ffff001d0104"  # script_sig
+        "ffffffff"  # sequence
+    )
+    tx_in = TxIn.parse(coinbase_inp)
+    assert tx_in.serialize().hex() == coinbase_inp
+    assert tx_in.prev_out.is_coinbase
+
+    coinbase = "01000000" "01" + coinbase_inp + "01" + coinbase_out + "00000000"
     tx = Tx.parse(coinbase)
     assert tx.serialize(include_witness=True).hex() == coinbase
     assert tx == Tx.from_dict(tx.to_dict())
-
-    coinbase_inp = "0000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff"
-    transaction_in = TxIn.parse(coinbase_inp)
-    assert transaction_in.serialize().hex() == coinbase_inp
-    assert transaction_in.prev_out.is_coinbase
-
-    coinbase_out = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
-    transaction_out = TxOut.parse(coinbase_out)
-    assert transaction_out.serialize().hex() == coinbase_out
 
     assert tx.version == 1
     assert tx.lock_time == 0
     assert len(tx.vin) == 1
     assert len(tx.vout) == 1
 
-    assert tx.vin[0].script_sig == transaction_in.script_sig
-    assert tx.vout[0].script_pub_key == transaction_out.script_pub_key
+    assert tx.vin[0].script_sig == tx_in.script_sig
+    assert tx.vout[0].script_pub_key == tx_out.script_pub_key
 
     tx_id = "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
     assert tx.id.hex() == tx_id
