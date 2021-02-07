@@ -241,9 +241,11 @@ def type_and_payload(script_pub_key: Octets) -> Tuple[str, bytes]:
         # p2ms [m, pub_keys, n, OP_CHECKMULTISIG]
         return "p2ms", script_pub_key[:-1]
 
+    length = len(script_pub_key)
+
     if is_nulldata(script_pub_key):
         # nulldata [OP_RETURN, data]
-        if len(script_pub_key) < 78:
+        if length < 78:
             # OP_RETURN, data length, data up to 75 bytes max
             # 0x6A{1 byte data-length}{data (0-75 bytes)}
             return "nulldata", script_pub_key[2:]
@@ -255,13 +257,11 @@ def type_and_payload(script_pub_key: Octets) -> Tuple[str, bytes]:
     if is_p2pkh(script_pub_key):
         # p2pkh [OP_DUP, OP_HASH160, pub_key_hash, OP_EQUALVERIFY, OP_CHECKSIG]
         # 0x76A914{20-byte pub_key_hash}88AC
-        length = len(script_pub_key)
         return "p2pkh", script_pub_key[3 : length - 2]
 
     if is_p2sh(script_pub_key):
         # p2sh [OP_HASH160, script_hash, OP_EQUAL]
         # 0xA914{20-byte script_hash}87
-        length = len(script_pub_key)
         return "p2sh", script_pub_key[2 : length - 1]
 
     return "unknown", script_pub_key
@@ -275,8 +275,6 @@ class ScriptPubKey(Script):
 
     @property
     def type(self) -> str:
-        "Return (script_pub_key type, payload)."
-
         return type_and_payload(self.script)[0]
 
     @property
@@ -323,59 +321,6 @@ class ScriptPubKey(Script):
             raise BTClibValueError(f"unknown network: {self.network}")
 
     @classmethod
-    def from_type_and_payload(
-        cls: Type[_ScriptPubKey],
-        script_type: str,
-        payload: Octets,
-        network: str = "mainnet",
-        check_validity: bool = True,
-    ) -> _ScriptPubKey:
-        "Return the ScriptPubKey of the provided script_type and payload."
-        # sourcery skip: switch
-
-        script_type = script_type.lower()
-
-        if script_type == "p2ms":
-            script = bytes_from_octets(payload) + b"\xae"
-            if not is_p2ms(script):
-                raise BTClibValueError("invalid p2ms payload")
-            return cls(script, network, check_validity)
-
-        cmds: List[Command] = []
-
-        if script_type == "nulldata":
-            payload = bytes_from_octets(payload)
-            if len(payload) > 80:
-                err_msg = f"invalid nulldata payload length: {len(payload)} bytes "
-                raise BTClibValueError(err_msg)
-            cmds = ["OP_RETURN", payload]
-
-        if script_type == "p2pk":
-            payload = bytes_from_octets(payload, (33, 65))
-            # TODO: check it is a valid pub_key
-            cmds = [payload, "OP_CHECKSIG"]
-
-        if script_type == "p2pkh":
-            payload = bytes_from_octets(payload, 20)
-            cmds = ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
-
-        if script_type == "p2sh":
-            payload = bytes_from_octets(payload, 20)
-            cmds = ["OP_HASH160", payload, "OP_EQUAL"]
-
-        if script_type == "p2wsh":
-            wit_prg = bytes_from_octets(payload, 32)
-            cmds = ["OP_0", wit_prg]
-
-        if script_type == "p2wpkh":
-            wit_prg = bytes_from_octets(payload, 20)
-            cmds = ["OP_0", wit_prg]
-
-        if cmds:
-            return cls(serialize(cmds), network, check_validity)
-        raise BTClibValueError(f"unknown ScriptPubKey type: {script_type}")
-
-    @classmethod
     def from_address(
         cls: Type[_ScriptPubKey], addr: String, check_validity: bool = True
     ) -> _ScriptPubKey:
@@ -409,7 +354,8 @@ class ScriptPubKey(Script):
     ) -> _ScriptPubKey:
         "Return the p2pk ScriptPubKey of the provided Key."
         payload, network = pub_keyinfo_from_key(key, network)
-        return cls.from_type_and_payload("p2pk", payload, network, check_validity)
+        script = serialize([payload, "OP_CHECKSIG"])
+        return cls(script, network, check_validity)
 
     @classmethod
     def p2ms(
@@ -438,24 +384,21 @@ class ScriptPubKey(Script):
         if not 0 < m <= n:
             raise BTClibValueError(f"invalid m in m-of-n: {m}-of-{n}")
 
-        m += 80
-        payload = m.to_bytes(1, byteorder="big", signed=False)
+        # if network is None, then first key sets the network
         pub_key, network = pub_keyinfo_from_key(keys[0], network, compressed)
         pub_keys = [pub_key] + [
             pub_keyinfo_from_key(k, network, compressed)[0] for k in keys[1:]
         ]
         if lexi_sort:
             pub_keys = sorted(pub_keys)
-        payload += b"".join([var_bytes.serialize(k) for k in pub_keys])
-        n += 80
-        payload += n.to_bytes(1, byteorder="big", signed=False)
-        return cls.from_type_and_payload("p2ms", payload, network, check_validity)
+
+        script = serialize([op_int(m), *pub_keys, op_int(n), "OP_CHECKMULTISIG"])
+        return cls(script, network, check_validity)
 
     @classmethod
     def nulldata(
         cls: Type[_ScriptPubKey],
         data: String,
-        network: str = "mainnet",
         check_validity: bool = True,
     ) -> _ScriptPubKey:
         "Return the nulldata ScriptPubKey of the provided data."
@@ -464,7 +407,12 @@ class ScriptPubKey(Script):
             # do not strip spaces
             data = data.encode()
 
-        return cls.from_type_and_payload("nulldata", data, network, check_validity)
+        if len(data) > 80:
+            err_msg = f"invalid nulldata payload length: {len(data)} bytes "
+            raise BTClibValueError(err_msg)
+
+        script = serialize(["OP_RETURN", data])
+        return cls(script, check_validity=check_validity)
 
     @classmethod
     def p2pkh(
@@ -477,7 +425,10 @@ class ScriptPubKey(Script):
         "Return the p2pkh ScriptPubKey of the provided key."
 
         pub_key_h160, network = hash160_from_key(key, network, compressed=compressed)
-        return cls.from_type_and_payload("p2pkh", pub_key_h160, network, check_validity)
+        script = serialize(
+            ["OP_DUP", "OP_HASH160", pub_key_h160, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+        )
+        return cls(script, network, check_validity)
 
     @classmethod
     def p2sh(
@@ -489,7 +440,8 @@ class ScriptPubKey(Script):
         "Return the p2sh ScriptPubKey of the provided redeem script."
 
         script_h160 = hash160(redeem_script)
-        return cls.from_type_and_payload("p2sh", script_h160, network, check_validity)
+        script = serialize(["OP_HASH160", script_h160, "OP_EQUAL"])
+        return cls(script, network, check_validity)
 
     @classmethod
     def p2wpkh(
@@ -503,9 +455,8 @@ class ScriptPubKey(Script):
         """
 
         pub_key_h160, network = hash160_from_key(key, compressed=True)
-        return cls.from_type_and_payload(
-            "p2wpkh", pub_key_h160, network, check_validity
-        )
+        script = serialize(["OP_0", pub_key_h160])
+        return cls(script, network, check_validity)
 
     @classmethod
     def p2wsh(
@@ -517,4 +468,5 @@ class ScriptPubKey(Script):
         "Return the p2wsh ScriptPubKey of the provided redeem script."
 
         script_h256 = sha256(redeem_script)
-        return cls.from_type_and_payload("p2wsh", script_h256, network, check_validity)
+        script = serialize(["OP_0", script_h256])
+        return cls(script, network, check_validity)

@@ -70,7 +70,10 @@ def witness_v0_script(script_pub_key: Octets) -> List[bytes]:
     script_type, payload = type_and_payload(script_pub_key)
 
     if script_type == "p2wpkh":
-        return [ScriptPubKey.from_type_and_payload("p2pkh", payload).script]
+        script = serialize(
+            ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+        )
+        return [script]
 
     script_s: List[bytes] = []
     current_script: List[Command] = []

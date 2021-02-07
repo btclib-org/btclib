@@ -20,7 +20,7 @@ from typing import Any, Dict, Mapping, Type, TypeVar, Union
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc
-from btclib.script.script_pub_key import ScriptPubKey, type_and_payload
+from btclib.script.script_pub_key import ScriptPubKey
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 _TxOut = TypeVar("_TxOut", bound="TxOut")
@@ -72,7 +72,7 @@ class TxOut:
         return {
             "value": str(btc_from_sats(self.value)),
             "scriptPubKey": script.hex(),
-            "type": type_and_payload(script)[0],
+            "type": self.script_pub_key.type,
             "reqSigs": None,  # FIXME
             "addresses": self.script_pub_key.addresses,
             "network": self.script_pub_key.network,
