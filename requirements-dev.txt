@@ -3,7 +3,7 @@
 # If your project uses README.rst, uncomment the following:
 # readme_renderer
 
-pip
+pip>=21
 wheel
 
 # only needed to package releases
