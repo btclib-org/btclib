@@ -52,8 +52,8 @@ def test_tx_out() -> None:
 
 def test_invalid_tx_out() -> None:
 
-    script = "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
     with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+        script = "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
         TxOut(-1, script)
 
 
