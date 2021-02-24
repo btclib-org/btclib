@@ -5,6 +5,8 @@ python:
     - "3.8.7"  # (Dec 2020)
     - "3.9.1"  # (Dec 2020)
     - "3.10-dev"
+before_install:
+  - pip install -U pip
 install:
     - pip install coveralls
     - pip install tox
