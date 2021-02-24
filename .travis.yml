@@ -1,9 +1,9 @@
 language: python
 python:
-    - "3.6.8"  # last bugfix release, end-of-life in 2021
-    - "3.7.8"  # last bugfix release, end-of-life in 2023
-    - "3.8"
-    - "3.9"
+    - "3.6.8"  # last bugfix release (Dec 2018), end-of-life in 2021
+    - "3.7.8"  # last bugfix release (Jun 2020), end-of-life in 2023
+    - "3.8.8"  # (Feb 2021)
+    - "3.9.2"  # (Feb 2021)
     - "3.10-dev"
 install:
     - pip install coveralls
