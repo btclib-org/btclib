@@ -63,6 +63,7 @@ confidence=
 disable=invalid-name,  # C0103
         missing-class-docstring,  # C0115
         missing-function-docstring,  # C0116
+        duplicate-code,  # R0801
         too-many-instance-attributes,  # R0902
         too-many-return-statements,  # R0911
         too-many-branches,  # R0912
