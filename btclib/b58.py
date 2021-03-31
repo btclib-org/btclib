@@ -33,14 +33,19 @@ def wif_from_prv_key(
 ) -> str:
     "Return the WIF encoding of a private key."
 
-    q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
-    ec = NETWORKS[net].curve
+    q, net, compr = prv_keyinfo_from_prv_key(prv_key)
 
+    # the private key might provide network and compressed informations
+    # e.g., wif or xprv
+    network = net if network is None else network
+    compressed = compr if compressed is None else compressed
+
+    ec = NETWORKS[network].curve
     payload = b"".join(
         [
-            NETWORKS[net].wif,
+            NETWORKS[network].wif,
             q.to_bytes(ec.n_size, byteorder="big", signed=False),
-            b"\x01" if compr else b"",
+            b"\x01" if compressed else b"",
         ]
     )
     return b58encode(payload).decode("ascii")

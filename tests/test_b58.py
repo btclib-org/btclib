@@ -30,7 +30,18 @@ ec = secp256k1
 
 
 def test_wif_from_prv_key() -> None:
-    prv_key = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
+    q_prv_key = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
+    wif_prv_keys = [
+        "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617",
+        "cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx",
+        "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
+        "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2",
+        " KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617",
+        "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ",
+    ]
+    for alt_prv_key in wif_prv_keys:
+        assert alt_prv_key.strip() == b58.wif_from_prv_key(alt_prv_key)
+
     test_vectors: List[Tuple[str, str, bool]] = [
         ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True),
         ("cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx", "testnet", True),
@@ -40,11 +51,12 @@ def test_wif_from_prv_key() -> None:
         ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ", "mainnet", True),
     ]
     for v in test_vectors:
-        assert v[0].strip() == b58.wif_from_prv_key(prv_key, v[1], v[2])
-        q, network, compressed = prv_keyinfo_from_prv_key(v[0])
-        assert q == int(prv_key, 16)
-        assert network == v[1]
-        assert compressed == v[2]
+        for prv_key in [q_prv_key] + wif_prv_keys:
+            assert v[0].strip() == b58.wif_from_prv_key(prv_key, v[1], v[2])
+            q, network, compressed = prv_keyinfo_from_prv_key(v[0])
+            assert q == int(q_prv_key, 16)
+            assert network == v[1]
+            assert compressed == v[2]
 
     bad_q = ec.n.to_bytes(ec.n_size, byteorder="big", signed=False)
     with pytest.raises(BTClibValueError, match="private key not in 1..n-1: "):
