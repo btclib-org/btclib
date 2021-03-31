@@ -249,14 +249,10 @@ def gen_keys(
             network = "mainnet"
         ec = NETWORKS[network].curve
         # q in the range [1, ec.n-1]
-        q = 1 + secrets.randbelow(ec.n - 1)
-        wif = wif_from_prv_key(q, network, compressed)
-    else:
-        wif = wif_from_prv_key(prv_key, network, compressed)
+        prv_key = 1 + secrets.randbelow(ec.n - 1)
 
-    address = p2pkh(wif)
-
-    return wif, address
+    wif = wif_from_prv_key(prv_key, network, compressed)
+    return wif, p2pkh(wif)
 
 
 def sign(msg: Octets, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
