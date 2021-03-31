@@ -26,7 +26,7 @@ H160_Net = Tuple[bytes, str]
 def hash160_from_key(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> H160_Net:
-    """Return (public key HASH160, nettwork) from a private/public key.
+    """Return (public key HASH160, network) from a private/public key.
 
     HASH160 is RIPEMD160(SHA256).
     """
