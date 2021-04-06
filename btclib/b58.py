@@ -58,7 +58,7 @@ def wif_from_prv_key(
 
 
 def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") -> str:
-    "Encode a base58 address from the payload."
+    "Return a base58 address from the payload."
 
     if script_type == "p2sh":
         prefix = NETWORKS[network].p2sh
@@ -111,8 +111,8 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 # it cannot be inverted because of the hash performed by p2sh
 
 
-def address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
-    "Encode a legacy base58 p2sh-wrapped SegWit address."
+def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
+    "Return the legacy base58 p2sh-wrapped SegWit v0 address."
 
     # check witness program
     wit_prg = b32.check_witness(0, wit_prg)
@@ -124,13 +124,13 @@ def address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
 
 
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> str:
-    "Return the p2wpkh-p2sh base58 address corresponding to a pub_key."
+    "Return the p2wpkh-p2sh base58 address corresponding to a public key."
     compressed = True  # needed to force check on pub_key
     witness_program, network = hash160_from_key(key, network, compressed)
-    return address_from_v0_witness(witness_program, network)
+    return _address_from_v0_witness(witness_program, network)
 
 
 def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
     "Return the p2wsh-p2sh base58 address corresponding to a reedem script."
     witness_program = sha256(redeem_script)
-    return address_from_v0_witness(witness_program, network)
+    return _address_from_v0_witness(witness_program, network)
