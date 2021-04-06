@@ -128,7 +128,10 @@ def address_from_witness(
 
 
 def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
-    "Return the witness from a bech32 native SegWit address."
+    """Return the witness from a bech32 native SegWit address.
+
+    The returned data structure is: version, program, network.
+    """
 
     if isinstance(b32addr, str):
         b32addr = b32addr.strip()
