@@ -274,7 +274,7 @@ def test_p2wpkh() -> None:
 
     # p2sh-wrapped base58 address
     addr = b58.p2wpkh_p2sh(pub_key, network)
-    assert addr == b58.address_from_v0_witness(payload, network)
+    assert addr == "3BJxz2r8zY7LxJfdGjUpjjHNh6YEiitvf2"
 
     err_msg = "invalid witness version: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -351,7 +351,7 @@ def test_p2wsh() -> None:
 
     # p2sh-wrapped base58 address
     addr = b58.p2wsh_p2sh(redeem_script, network)
-    assert addr == b58.address_from_v0_witness(payload, network)
+    assert addr == "39GUePMSQ4mADpihVLd8cFQ2tih9Fy4qkz"
 
     err_msg = "invalid witness version: "
     with pytest.raises(BTClibValueError, match=err_msg):

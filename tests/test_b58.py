@@ -24,7 +24,7 @@ from btclib.hashes import hash160_from_key
 from btclib.script.script import Command, serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-from btclib.utils import hash160, sha256
+from btclib.utils import hash160
 
 ec = secp256k1
 
@@ -192,18 +192,13 @@ def test_p2w_p2sh() -> None:
     pub_key = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     witness_program, network = hash160_from_key(pub_key)
     b58addr = b58.p2wpkh_p2sh(pub_key, network)
-    assert b58addr == b58.address_from_v0_witness(witness_program, network)
+    assert b58addr == "36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g"
 
     script_pub_key = serialize(
         ["OP_DUP", "OP_HASH160", witness_program, "OP_EQUALVERIFY", "OP_CHECKSIG"]
     )
-    witness_program = sha256(script_pub_key)
     b58addr = b58.p2wsh_p2sh(script_pub_key, network)
-    assert b58addr == b58.address_from_v0_witness(witness_program, network)
-
-    err_msg = "invalid size: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        b58.address_from_v0_witness(witness_program[:-1], network)
+    assert b58addr == "3QHRam4Hvp1GZVkgjoKWUC1GEd8ck8e4WX"
 
 
 def test_address_from_wif() -> None:
